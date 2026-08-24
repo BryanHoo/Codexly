@@ -2,40 +2,20 @@
   <title>Codexly</title>
   <style>
     .mark-background { fill: #171717; }
-    .mark-symbol { fill: #ffffff; }
+    .brand-symbol {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 5;
+    }
+    .brand-chevron { stroke: #ffffff; }
+    .brand-cursor { stroke: #339cff; stroke-width: 4.25; }
   </style>
 
   <rect class="mark-background" width="64" height="64" rx="14" />
-
-  <!-- 只缩小三条斜杠，在完整底板内部保留充足留白。 -->
-  <g transform="translate(9.6 9.6) scale(0.7)">
-    <!-- 三条递进斜杠表示并行任务持续向前推进。 -->
-    <rect
-      class="mark-symbol"
-      x="15"
-      y="12"
-      width="9"
-      height="40"
-      rx="4.5"
-      transform="rotate(18 19.5 32)"
-    />
-    <rect
-      class="mark-symbol"
-      x="29"
-      y="18"
-      width="9"
-      height="34"
-      rx="4.5"
-      transform="rotate(18 33.5 35)"
-    />
-    <rect
-      class="mark-symbol"
-      x="43"
-      y="25"
-      width="9"
-      height="27"
-      rx="4.5"
-      transform="rotate(18 47.5 38.5)"
-    />
+  <!-- 白色提示符表达 Coding Agent，蓝色光标提供 Codexly 品牌识别。 -->
+  <g id="codexly-symbol" class="brand-symbol" aria-hidden="true">
+    <path class="brand-chevron" d="m18 22 10 10-10 10" />
+    <path class="brand-cursor" d="M34 42h12" />
   </g>
 </svg>

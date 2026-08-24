@@ -2,9 +2,16 @@
   <title>Codexly</title>
   <style>
     .logo-background { fill: #171717; }
-    .logo-symbol { fill: #ffffff; }
-    .logo-text { fill: #111111; }
+    .brand-symbol {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 5;
+    }
+    .brand-chevron { stroke: #ffffff; }
+    .brand-cursor { stroke: #339cff; stroke-width: 4.25; }
     .logo-text {
+      fill: #111111;
       font-family: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
         "Helvetica Neue", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
       font-size: 30px;
@@ -17,38 +24,11 @@
     }
   </style>
 
-  <g aria-hidden="true">
-    <rect class="logo-background" width="64" height="64" rx="14" />
-    <!-- 只缩小三条斜杠，在完整底板内部保留充足留白。 -->
-    <g transform="translate(9.6 9.6) scale(0.7)">
-      <rect
-        class="logo-symbol"
-        x="15"
-        y="12"
-        width="9"
-        height="40"
-        rx="4.5"
-        transform="rotate(18 19.5 32)"
-      />
-      <rect
-        class="logo-symbol"
-        x="29"
-        y="18"
-        width="9"
-        height="34"
-        rx="4.5"
-        transform="rotate(18 33.5 35)"
-      />
-      <rect
-        class="logo-symbol"
-        x="43"
-        y="25"
-        width="9"
-        height="27"
-        rx="4.5"
-        transform="rotate(18 47.5 38.5)"
-      />
-    </g>
+  <rect class="logo-background" width="64" height="64" rx="14" />
+  <!-- 与独立 mark、favicon 共用完全一致的 `>_` 几何。 -->
+  <g id="codexly-symbol" class="brand-symbol" aria-hidden="true">
+    <path class="brand-chevron" d="m18 22 10 10-10 10" />
+    <path class="brand-cursor" d="M34 42h12" />
   </g>
   <text class="logo-text" x="78" y="32" dominant-baseline="central">Codexly</text>
 </svg>
