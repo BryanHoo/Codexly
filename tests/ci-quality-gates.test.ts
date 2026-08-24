@@ -32,7 +32,7 @@ describe("CI 质量门禁", () => {
     expect(publishingSetup).toContain("npm install --global npm@11.5.1");
   });
 
-  it("仅向 npm 发布步骤注入首次发布凭据", () => {
+  it("使用 Trusted Publisher OIDC 发布 npm 包", () => {
     const workflow = readFileSync(join(process.cwd(), ".github/workflows/release.yml"), "utf8");
     const publishStart = workflow.indexOf("      - name: Publish with provenance\n");
     const releaseStart = workflow.indexOf("      - name: Create GitHub release\n", publishStart);
@@ -40,12 +40,12 @@ describe("CI 质量门禁", () => {
     expect(publishStart).toBeGreaterThanOrEqual(0);
     expect(releaseStart).toBeGreaterThan(publishStart);
 
-    // Token 只在 npm publish 所属步骤可见，避免质量门禁和 GitHub Release 继承发布凭据。
-    expect(workflow.slice(0, publishStart)).not.toContain("secrets.NPM_TOKEN");
+    // Trusted Publisher 通过 id-token 权限换取短期凭据，流水线不再读取长期 Token。
+    expect(workflow).not.toContain("secrets.NPM_TOKEN");
+    expect(workflow).not.toContain("NODE_AUTH_TOKEN");
     expect(workflow.slice(publishStart, releaseStart)).toContain(
-      "NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}",
+      'npm publish "${package_tarball}" --access public --provenance',
     );
-    expect(workflow.slice(releaseStart)).not.toContain("secrets.NPM_TOKEN");
   });
 
   it("将 Release 单元测试拆分为独立单 worker 进程", () => {
