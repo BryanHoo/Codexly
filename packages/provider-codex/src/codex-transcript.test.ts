@@ -2,7 +2,7 @@ import { appendFile, mkdtemp, mkdir, rm, stat, utimes, writeFile } from "node:fs
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { extractCodexTextSkills, readCodexTranscriptTurnSkills } from "./codex-transcript.js";
 
@@ -74,6 +74,22 @@ describe("Codex transcript Skills", () => {
     const skillsByTurnId = await readCodexTranscriptTurnSkills(threadId, codexHome);
 
     expect(skillsByTurnId.get("turn-1")).toEqual(["superwork:superwork-start"]);
+  });
+
+  it("does not emit an experimental warning while discovering transcripts", async () => {
+    const { codexHome, threadId } = await createTranscriptFixture("turn-1");
+    const emitWarning = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+
+    try {
+      await readCodexTranscriptTurnSkills(threadId, codexHome);
+      expect(
+        emitWarning.mock.calls.some((arguments_) =>
+          (arguments_ as unknown[]).includes("ExperimentalWarning"),
+        ),
+      ).toBe(false);
+    } finally {
+      emitWarning.mockRestore();
+    }
   });
 
   it("reuses parsed Skills when transcript metadata is unchanged", async () => {

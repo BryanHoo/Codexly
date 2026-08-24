@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { glob, stat } from "node:fs/promises";
+import { opendir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -152,7 +152,8 @@ function getTranscriptThreadCache(cacheKey: string): TranscriptThreadCache {
 
 async function discoverTranscriptPaths(
   cache: TranscriptThreadCache,
-  transcriptPattern: string,
+  sessionsDirectory: string,
+  threadId: string,
 ): Promise<void> {
   const now = Date.now();
   if (
@@ -163,8 +164,18 @@ async function discoverTranscriptPaths(
   }
 
   const transcriptPaths: string[] = [];
-  for await (const transcriptPath of glob(transcriptPattern)) {
-    transcriptPaths.push(transcriptPath);
+  const transcriptSuffix = `-${threadId}.jsonl`;
+  // 使用稳定的目录迭代 API，避免 Node 22 的实验性 glob 在运行时输出警告。
+  const directory = await opendir(sessionsDirectory, { recursive: true });
+  for await (const entry of directory) {
+    if (
+      !entry.isFile() ||
+      !entry.name.startsWith("rollout-") ||
+      !entry.name.endsWith(transcriptSuffix)
+    ) {
+      continue;
+    }
+    transcriptPaths.push(join(entry.parentPath, entry.name));
     if (transcriptPaths.length >= MAX_TRANSCRIPT_FILES_PER_THREAD) {
       break;
     }
@@ -287,10 +298,11 @@ function mergeTranscriptSkills(
 
 async function readCachedCodexTranscriptTurnSkills(
   cache: TranscriptThreadCache,
-  transcriptPattern: string,
+  sessionsDirectory: string,
+  threadId: string,
 ): Promise<ReadonlyMap<string, readonly string[]>> {
   try {
-    await discoverTranscriptPaths(cache, transcriptPattern);
+    await discoverTranscriptPaths(cache, sessionsDirectory, threadId);
     let remainingBytes = MAX_TRANSCRIPT_BYTES_PER_READ;
     for (const transcriptPath of cache.transcriptPaths) {
       if (remainingBytes <= 0) {
@@ -326,14 +338,14 @@ export async function readCodexTranscriptTurnSkills(
     return new Map();
   }
 
-  const transcriptPattern = join(codexHome, "sessions", "**", `rollout-*-${threadId}.jsonl`);
+  const sessionsDirectory = join(codexHome, "sessions");
   const cacheKey = `${codexHome}\0${threadId}`;
   const cache = getTranscriptThreadCache(cacheKey);
   if (cache.pendingRead !== undefined) {
     return cache.pendingRead;
   }
 
-  const pendingRead = readCachedCodexTranscriptTurnSkills(cache, transcriptPattern);
+  const pendingRead = readCachedCodexTranscriptTurnSkills(cache, sessionsDirectory, threadId);
   cache.pendingRead = pendingRead;
   try {
     return await pendingRead;
