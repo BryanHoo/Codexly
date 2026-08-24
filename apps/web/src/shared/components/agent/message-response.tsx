@@ -25,6 +25,7 @@ type FileReferenceMetadata = Readonly<{
 
 interface MarkdownNode {
   children?: MarkdownNode[];
+  lang?: string;
   type?: string;
   url?: string;
   value?: string;
@@ -134,6 +135,27 @@ function promptFileReferenceRemarkPlugin() {
         return child;
       });
     };
+    transform(tree);
+  };
+}
+
+function rawMarkupRemarkPlugin() {
+  return (tree: MarkdownNode) => {
+    const transform = (node: MarkdownNode, parentType?: string) => {
+      if (node.type === "html") {
+        // Agent 输出不执行原始标记；将 XML/HTML 源码转成可复制且安全转义的代码节点。
+        node.type = parentType === "paragraph" ? "inlineCode" : "code";
+        if (node.type === "code") {
+          node.lang = "xml";
+        }
+        return;
+      }
+
+      for (const child of node.children ?? []) {
+        transform(child, node.type);
+      }
+    };
+
     transform(tree);
   };
 }
@@ -278,10 +300,11 @@ function MessageResponseContent({
     [components],
   );
   const resolvedRemarkPlugins = useMemo(
-    () =>
-      promptFileReferences
-        ? [promptFileReferenceRemarkPlugin, ...(remarkPlugins ?? [])]
-        : remarkPlugins,
+    () => [
+      rawMarkupRemarkPlugin,
+      ...(promptFileReferences ? [promptFileReferenceRemarkPlugin] : []),
+      ...(remarkPlugins ?? []),
+    ],
     [promptFileReferences, remarkPlugins],
   );
 
@@ -294,7 +317,7 @@ function MessageResponseContent({
         BlockComponent={InteractiveMessageBlock}
         components={markdownComponents}
         parseMarkdownIntoBlocksFn={parseMarkdownIntoBlocksFn ?? incrementalBlockParser}
-        {...(resolvedRemarkPlugins === undefined ? {} : { remarkPlugins: resolvedRemarkPlugins })}
+        remarkPlugins={resolvedRemarkPlugins}
       >
         {parsedResponse.markdown}
       </Streamdown>

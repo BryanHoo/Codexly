@@ -25,6 +25,22 @@ describe("agent Markdown components", () => {
     expect(markup).not.toContain("## 结果");
   });
 
+  it("renders unfenced SVG markup as visible XML source", () => {
+    const svgSource = `<svg viewBox="0 0 24 24">
+  <path d="M1 1h22v22H1z" />
+</svg>`;
+    const markup = renderToStaticMarkup(
+      <MessageResponse>{`前文\n\n${svgSource}\n\n后文`}</MessageResponse>,
+    );
+
+    expect(markup).toContain("前文");
+    expect(markup).toContain("后文");
+    expect(markup).toContain('data-language="xml"');
+    expect(markup).toContain("&lt;svg viewBox=&quot;0 0 24 24&quot;&gt;");
+    expect(markup).toContain("&lt;path d=&quot;M1 1h22v22H1z&quot; /&gt;");
+    expect(markup).not.toContain('<svg viewBox="0 0 24 24">');
+  });
+
   it("uses the patched Mermaid release for untrusted Agent Markdown", () => {
     expect(resolveStreamdownMermaidVersion()).toBe("11.16.1");
   });
