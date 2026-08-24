@@ -16,7 +16,7 @@ Codexly 是一个在浏览器中使用 Codex 的本地 AI 编程工作台。它�
 
 ## 环境要求
 
-- Node.js 22.13.0 或更高版本
+- Node.js >=22.14.0
 - Chrome/Chromium 116+、Firefox 124+ 或 Safari 17.4+
 
 Codexly 通过 `@openai/codex` 自带受支持的 Codex CLI，无需单独安装。仅在需要使用其他可执行文件时传入 `--codex-bin <path>` 或设置 `CODEXLY_CODEX_BIN`。

@@ -29,7 +29,7 @@
 - 升级内置 Codex 至 `0.149.0`，刷新真实 App Server Schema 基线，并对齐原生 Project 归属、异步消息投递和严格审核通知。
 - 动态映射自定义 Provider 的模型思考量元数据，支持 `max`、`ultra` 和 Provider 自定义档位，并校验当前 Provider 运行时能力。
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
-- 将最低 Node.js 版本调整为 `22.13.0`，同步 CI、发布环境和使用文档。
+- 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
 [Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.1.0

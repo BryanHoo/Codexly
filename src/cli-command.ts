@@ -172,8 +172,8 @@ export async function ensureTemporaryWorkspace(path: string): Promise<string> {
 
 function assertSupportedNodeVersion(version: string): void {
   const [major = Number.NaN, minor = Number.NaN] = version.split(".").map(Number);
-  if (!(major > 22 || (major === 22 && minor >= 13))) {
-    throw new Error(`需要 Node.js 22.13.0 或更高版本，当前版本为 ${version}`);
+  if (!(major > 22 || (major === 22 && minor >= 14))) {
+    throw new Error(`需要 Node.js 22.14.0 或更高版本，当前版本为 ${version}`);
   }
 }
 

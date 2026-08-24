@@ -43,7 +43,7 @@ describe("runCli startup", () => {
       explicitPath: "/custom/codex",
     });
     expect(harness.dependencies.checkCodexVersion).toHaveBeenCalledWith("/fake/codex");
-    expect(harness.stdout.join("")).toContain("[成功] Node.js 22.13.0");
+    expect(harness.stdout.join("")).toContain("[成功] Node.js 22.14.0");
     expect(harness.stdout.join("")).toContain("[成功] Codex 0.149.0 (/fake/codex)");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
       join("/custom/home", "codexly", "state.sqlite3"),
@@ -56,10 +56,10 @@ describe("runCli startup", () => {
   });
 
   it("returns a non-zero code when doctor finds an unsupported Node.js", async () => {
-    const harness = createHarness({ nodeVersion: "22.12.0" });
+    const harness = createHarness({ nodeVersion: "22.13.0" });
 
     await expect(runCli(["doctor"], harness.options)).resolves.toBe(1);
-    expect(harness.stderr.join("")).toContain("需要 Node.js 22.13.0 或更高版本");
+    expect(harness.stderr.join("")).toContain("需要 Node.js 22.14.0 或更高版本");
     expect(harness.dependencies.locateCodexBinary).not.toHaveBeenCalled();
   });
 

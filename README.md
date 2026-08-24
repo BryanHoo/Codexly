@@ -16,7 +16,7 @@ Codexly is a local AI coding workspace for using Codex in a browser. It organize
 
 ## Requirements
 
-- Node.js 22.14.0 or later
+- Node.js >=22.14.0
 - Chrome/Chromium 116+, Firefox 124+, or Safari 17.4+
 
 Codexly includes a supported Codex CLI through `@openai/codex`; a separate installation is not required. Use `--codex-bin <path>` or `CODEXLY_CODEX_BIN` only when you need another executable.
