@@ -1,8 +1,34 @@
-# Codexly
+<p align="center">
+  <img src="./apps/web/public/brand/codexly-mark.svg" alt="Codexly" width="88" />
+</p>
 
-English | [简体中文](README.zh-CN.md)
+<h1 align="center">Codexly</h1>
 
-Codexly is a local AI coding workspace for using Codex in a browser. It organizes work by project, streams Codex activity, and provides file, code review, and Git tools while the host computer remains the source of its project filesystem.
+<p align="center">
+  <img src="https://img.shields.io/badge/Node.js-22-339933" alt="Node.js" />
+  <img src="https://img.shields.io/badge/React-19-149eca" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vite-8-646cff" alt="Vite" />
+  <img src="https://img.shields.io/badge/Fastify-5-000000" alt="Fastify" />
+  <img src="https://img.shields.io/badge/OpenAI_Codex-0.149-412991" alt="OpenAI Codex" />
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-0f766e" alt="MIT" />
+  </a>
+</p>
+
+<p align="center">
+  A local AI coding workspace for using Codex in a browser.
+</p>
+
+<p align="center">
+  <a href="#features">Features</a>
+  ·
+  <a href="#quick-start">Quick Start</a>
+  ·
+  <a href="./README.zh-CN.md">简体中文</a>
+  ·
+  <a href="./LICENSE">License</a>
+</p>
 
 ## Preview
 
