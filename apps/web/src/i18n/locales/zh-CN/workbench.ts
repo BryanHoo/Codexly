@@ -35,6 +35,7 @@ export const workbench = {
   diff: {
     changedFiles: "变更文件",
     changedFilesNavigation: "变更文件导航",
+    close: "关闭文件 Diff",
     closeReview: "关闭文件审核",
     collapseChangedFilesNavigation: "收起变更文件导航",
     expandChangedFilesNavigation: "展开变更文件导航",
@@ -214,6 +215,7 @@ export const workbench = {
     unsupportedForm: "此表单无法安全显示，请拒绝或取消请求。",
   },
   projectDialog: {
+    closeImagePreview: "关闭图片预览",
     closeSource: "关闭源文件",
     delete: "删除",
     loadImageError: "无法加载图片",

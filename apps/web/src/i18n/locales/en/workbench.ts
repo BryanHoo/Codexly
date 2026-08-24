@@ -35,6 +35,7 @@ export const workbench = {
   diff: {
     changedFiles: "Changed files",
     changedFilesNavigation: "Changed files navigation",
+    close: "Close file Diff",
     closeReview: "Close file review",
     collapseChangedFilesNavigation: "Collapse changed files navigation",
     expandChangedFilesNavigation: "Expand changed files navigation",
@@ -214,6 +215,7 @@ export const workbench = {
     unsupportedForm: "This form cannot be displayed safely. Decline or cancel the request.",
   },
   projectDialog: {
+    closeImagePreview: "Close image preview",
     closeSource: "Close source file",
     delete: "Remove",
     loadImageError: "Unable to load image",

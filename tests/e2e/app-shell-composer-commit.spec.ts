@@ -313,11 +313,11 @@ test("generates a message and commits only selected files", async ({ page }) => 
 
   const packageFile = unstagedTree.getByRole("treeitem", { name: "package.json" });
   await packageFile.click();
-  const fileDiffPanel = inspector.getByRole("region", { name: "package.json" });
-  await expect(fileDiffPanel.locator(".file-diff-renderer")).toContainText("pnpm run dev");
-  await expect(page.getByRole("dialog", { name: "package.json" })).toHaveCount(0);
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
-  await changesTab.click();
+  const fileDiffDialog = page.getByRole("dialog", { name: "package.json" });
+  await expect(fileDiffDialog).toBeVisible();
+  await expect(fileDiffDialog.locator(".file-diff-renderer")).toContainText("pnpm run dev");
+  await fileDiffDialog.getByRole("button", { name: "关闭文件 Diff" }).click();
+  await expect(fileDiffDialog).not.toBeAttached();
   await expect(allFilesCheckbox).toBeChecked();
 
   await allFilesCheckbox.uncheck();

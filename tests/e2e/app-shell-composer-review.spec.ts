@@ -263,10 +263,10 @@ test("project file tree opens changed, source, image, and system files by shared
   const packageFile = fileTree.getByRole("treeitem", { name: /package\.json/u });
   await expect(packageFile).toHaveCSS("cursor", "default");
   await packageFile.click();
-  const diffPanel = inspector.getByRole("region", { name: "package.json" });
-  await expect(diffPanel.locator(".file-diff-renderer")).toContainText("pnpm run dev");
-  await expect(page.getByRole("dialog", { name: "package.json" })).toHaveCount(0);
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  const diffDialog = page.getByRole("dialog", { name: "package.json" });
+  await expect(diffDialog.locator(".file-diff-renderer")).toContainText("pnpm run dev");
+  await diffDialog.getByRole("button", { name: "关闭文件 Diff" }).click();
+  await expect(diffDialog).not.toBeAttached();
 
   const docsRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
@@ -279,10 +279,10 @@ test("project file tree opens changed, source, image, and system files by shared
   await docsDirectory.click();
   await docsRequest;
   await fileTree.getByRole("treeitem", { name: "architecture-design.md" }).click();
-  const sourcePanel = inspector.getByRole("region", { name: "docs/architecture-design.md" });
-  await expect(sourcePanel).toBeVisible();
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
-  await expect(sourcePanel).not.toBeAttached();
+  const sourceDialog = page.getByRole("dialog", { name: "architecture-design.md" });
+  await expect(sourceDialog).toBeVisible();
+  await sourceDialog.getByRole("button", { name: "关闭源文件" }).click();
+  await expect(sourceDialog).not.toBeAttached();
 
   const imageRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
@@ -294,10 +294,10 @@ test("project file tree opens changed, source, image, and system files by shared
   await fileTree.getByRole("button", { name: "展开文件夹 design" }).click();
   await fileTree.getByRole("treeitem", { name: "result.png" }).click();
   await imageRequest;
-  const imagePanel = inspector.getByRole("region", { name: "design/result.png" });
-  await expect(imagePanel.getByRole("img", { name: "result.png" })).toBeVisible();
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
-  await expect(imagePanel).not.toBeAttached();
+  const imageDialog = page.getByRole("dialog", { name: "result.png" });
+  await expect(imageDialog.getByRole("img", { name: "result.png" })).toBeVisible();
+  await imageDialog.getByRole("button", { name: "关闭图片预览" }).click();
+  await expect(imageDialog).not.toBeAttached();
 
   const systemOpenRequest = page.waitForRequest((request) => {
     if (new URL(request.url()).pathname !== "/v1/projects/codexly/open") {

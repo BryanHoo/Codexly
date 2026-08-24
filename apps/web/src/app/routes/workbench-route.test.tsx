@@ -59,5 +59,8 @@ describe("Workbench 加载边界", () => {
     expect(readWebSource("features/diff/file-diff-panel.tsx")).toContain(
       'lazy(() => import("./patch-diff-viewer.js"))',
     );
+    expect(readWebSource("features/diff/file-diff-dialog.tsx")).toContain(
+      'lazy(() => import("./patch-diff-viewer.js"))',
+    );
   });
 });

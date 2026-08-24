@@ -76,6 +76,7 @@ export function useWorkbenchShellController(
     setInspectorOpen,
     setInspectorTab,
     setPendingTaskSelection,
+    setProjectFileDialogSelection,
     setSidebarOpen,
     setTaskRenameOpen,
     taskLaunchState,
@@ -99,12 +100,22 @@ export function useWorkbenchShellController(
         gitStatusQuery.data,
         change,
       )
-        .then(openFileDiff)
+        .then((loadedChange) => {
+          // Inspector 文件树和变更面板保留弹窗，不改变用户当前查看的标签。
+          setProjectFileDialogSelection({ change: loadedChange, kind: "diff", projectId });
+        })
         .catch((error: unknown) => {
           notifyActionError(error instanceof Error ? error : new Error("Git diff is unavailable"));
         });
     },
-    [client, gitStatusQuery.data, openFileDiff, projectId, queryClient, selectedRootPath],
+    [
+      client,
+      gitStatusQuery.data,
+      projectId,
+      queryClient,
+      selectedRootPath,
+      setProjectFileDialogSelection,
+    ],
   );
   const openMessageFileReference = useCallback(
     (reference: MessageFileReference) => {
@@ -136,6 +147,26 @@ export function useWorkbenchShellController(
       setInspectorTab,
       setInspectorFileSelection,
     ],
+  );
+  const openProjectFile = useCallback(
+    (path: string) => {
+      const kind = classifyProjectFileReference(path);
+      if (kind === "system") {
+        const mutation = projectPathOpenMutationRef.current;
+        mutation.reset();
+        void projectPathOpenLockRef.current
+          .run(() => mutation.mutateAsync({ appId: "system-default", path }))
+          .catch(() => undefined);
+        return;
+      }
+
+      setProjectFileDialogSelection({
+        kind,
+        projectId,
+        reference: { lineNumber: null, path },
+      });
+    },
+    [projectId, projectPathOpenLockRef, projectPathOpenMutationRef, setProjectFileDialogSelection],
   );
   const openFileReview = useCallback(
     (changes: readonly AgentFileChange[]) => {
@@ -371,6 +402,7 @@ export function useWorkbenchShellController(
     openProjectFileDiff,
     openFileReview,
     openMessageFileReference,
+    openProjectFile,
     renameActiveTask,
     updateDraftSettings,
     updateProjectTaskDefaults,

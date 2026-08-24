@@ -1,7 +1,9 @@
 import { lazy, Suspense } from "react";
 
+import { FileDiffDialog } from "../../diff/file-diff-dialog.js";
 import { FileReviewDialog } from "../../diff/file-review-dialog.js";
 import { loadGlobalSettingsDialog } from "../../settings/components/global-settings-lazy.js";
+import { ProjectSourceDialog } from "./project-source-dialog.js";
 import { SubagentOutputDialog } from "./subagent-output-dialog.js";
 import { TaskRenameDialog } from "./task-rename-dialog.js";
 import type { useWorkbenchShellController } from "./workbench-shell-controller.js";
@@ -25,6 +27,7 @@ export function WorkbenchShellDialogs({
     access,
     appInfoQuery,
     appUpdateMutation,
+    client,
     closeTaskRenameDialog,
     globalSettingsMutation,
     globalSettingsSection,
@@ -37,15 +40,37 @@ export function WorkbenchShellDialogs({
     renameActiveTask,
     renameMutation,
     selectedFileReview,
+    selectedProjectFileDialog,
+    selectedRootPath,
     selectedSubagent,
     setFileReviewSelection,
     setGlobalSettingsSection,
+    setProjectFileDialogSelection,
     setSubagentDialogSelection,
     taskRenameOpen,
     title,
   } = context;
   return (
     <>
+      {selectedProjectFileDialog?.kind === "diff" ? (
+        <FileDiffDialog
+          change={selectedProjectFileDialog.change}
+          onClose={() => {
+            setProjectFileDialogSelection(null);
+          }}
+        />
+      ) : selectedProjectFileDialog === null ? null : (
+        <ProjectSourceDialog
+          client={client}
+          onClose={() => {
+            setProjectFileDialogSelection(null);
+          }}
+          previewKind={selectedProjectFileDialog.kind}
+          projectId={projectId}
+          reference={selectedProjectFileDialog.reference}
+          {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
+        />
+      )}
       {selectedFileReview === null ? null : (
         <FileReviewDialog
           changes={selectedFileReview}

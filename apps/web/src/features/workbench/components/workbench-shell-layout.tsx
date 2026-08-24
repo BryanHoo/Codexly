@@ -68,6 +68,7 @@ export function WorkbenchShellLayout({
     openProjectFileDiff,
     openFileReview,
     openMessageFileReference,
+    openProjectFile,
     openProjectFolder,
     pendingTaskSelection,
     projectDefaultsQuery,
@@ -430,9 +431,7 @@ export function WorkbenchShellLayout({
               .run(() => projectPathOpenMutation.mutateAsync({ appId, path }))
               .catch(() => undefined);
           }}
-          onOpenProjectFile={(path) => {
-            openMessageFileReference({ lineNumber: null, path });
-          }}
+          onOpenProjectFile={openProjectFile}
           onOpenTaskAttachment={(attachmentId) => {
             if (taskId !== undefined) {
               taskAttachmentOpenMutation.mutate({ attachmentId, taskId });

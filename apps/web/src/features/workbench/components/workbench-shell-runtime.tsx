@@ -302,6 +302,9 @@ export function useWorkbenchShellRuntime({
   const [globalSettingsSection, setGlobalSettingsSection] = useState<SidebarSettingsSection | null>(
     null,
   );
+  const [projectFileDialogSelection, setProjectFileDialogSelection] = useState<
+    (WorkbenchInspectorFileSelection & { projectId: string }) | null
+  >(null);
   const [fileReviewSelection, setFileReviewSelection] = useState<{
     changes: readonly AgentFileChange[];
     projectId: string;
@@ -315,6 +318,7 @@ export function useWorkbenchShellRuntime({
     (rootId: string) => {
       setSelectedProjectRoot(projectId, rootId);
       // 根切换后关闭旧根派生的详情，避免相同相对路径被误解为新根文件。
+      setProjectFileDialogSelection(null);
       setFileReviewSelection(null);
       setInspectorFileSelection(null);
     },
@@ -355,6 +359,10 @@ export function useWorkbenchShellRuntime({
     t("shell.newChat");
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
+  const selectedProjectFileDialog =
+    projectFileDialogSelection !== null && projectFileDialogSelection.projectId === projectId
+      ? projectFileDialogSelection
+      : null;
   const selectedInspectorFile =
     inspectorFileSelection !== null && inspectorFileSelection.projectId === projectId
       ? inspectorFileSelection
@@ -436,6 +444,7 @@ export function useWorkbenchShellRuntime({
     runtime,
     selectedFileReview,
     selectedInspectorFile,
+    selectedProjectFileDialog,
     selectedRootId: activeRootId,
     selectedRootPath,
     selectedSubagent,
@@ -449,6 +458,7 @@ export function useWorkbenchShellRuntime({
     setSidebarOpen,
     setSidebarWidth,
     setInspectorFileSelection,
+    setProjectFileDialogSelection,
     setSelectedRootId,
     setSubagentDialogSelection,
     setTaskRenameOpen,

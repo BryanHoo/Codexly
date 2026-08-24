@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { buildProjectImageFileUrl } from "@codexly/client";
 import type { ProjectSourceFile } from "@codexly/protocol";
-import { Code2, Eye, FileCode2, Image } from "lucide-react";
+import { Code2, Eye, FileCode2, Image, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react";
 
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
@@ -33,6 +33,7 @@ export { getCodeLanguage } from "../../../shared/components/agent/code-languages
 
 type ProjectSourcePanelProps = Readonly<{
   client: CodexlyWorkbenchClient;
+  onClose?: () => void;
   previewKind: "image" | "source";
   projectId: string;
   reference: MessageFileReference;
@@ -46,6 +47,7 @@ function getFileName(path: string): string {
 type SourceHeaderProps = Readonly<{
   actions?: ReactNode;
   lineNumber: number | null;
+  onClose?: () => void;
   previewKind: "image" | "source";
   sourcePath: string;
   sourceStatus: "error" | "loading" | "partial" | null;
@@ -54,6 +56,7 @@ type SourceHeaderProps = Readonly<{
 function SourceHeader({
   actions,
   lineNumber,
+  onClose,
   previewKind,
   sourcePath,
   sourceStatus,
@@ -96,7 +99,35 @@ function SourceHeader({
           )}
         </span>
       )}
-      <CodeBlockActions>{actions}</CodeBlockActions>
+      <CodeBlockActions>
+        {actions}
+        {onClose === undefined ? null : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                aria-label={t(
+                  previewKind === "image"
+                    ? "projectDialog.closeImagePreview"
+                    : "projectDialog.closeSource",
+                )}
+                onClick={onClose}
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              >
+                <X className="size-3.5" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t(
+                previewKind === "image"
+                  ? "projectDialog.closeImagePreview"
+                  : "projectDialog.closeSource",
+              )}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </CodeBlockActions>
     </CodeBlockHeader>
   );
 }
@@ -139,6 +170,7 @@ export function mergeProjectSourcePages(
 
 export function ProjectSourcePanel({
   client,
+  onClose,
   previewKind,
   projectId,
   reference,
@@ -222,6 +254,7 @@ export function ProjectSourcePanel({
             : null;
   const headerProps = {
     lineNumber: reference.lineNumber,
+    ...(onClose === undefined ? {} : { onClose }),
     previewKind,
     sourcePath,
     sourceStatus,
