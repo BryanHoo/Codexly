@@ -62,6 +62,52 @@
   transform: translateX(50%);
 }
 
+/* 用户消息目录位于中栏右侧，并在真实滚动条内侧继续保留 14px 间距。 */
+.task-timeline-navigation {
+  position: fixed;
+  z-index: 45;
+  top: 50%;
+  right: calc(
+    var(--inspector-width) + var(--conversation-scrollbar-width, 0px) + var(--ui-space-unit) * 3.5
+  );
+  width: calc(var(--ui-space-unit) * 11);
+  max-height: 50dvh;
+  overflow-y: auto;
+  transform: translateY(-50%);
+  transition: right var(--ui-motion-normal) var(--ui-ease-standard);
+  scrollbar-width: none;
+}
+
+.task-timeline-navigation::-webkit-scrollbar {
+  display: none;
+}
+
+/* 默认刻度保持轻巧克制，只在明确交互时放大并提高对比度。 */
+.task-timeline-navigation-marker {
+  width: calc(var(--ui-space-unit) * 2);
+  height: 2px;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-color-text-muted);
+  opacity: 0.34;
+  transform-origin: right center;
+  transition:
+    width var(--ui-motion-fast) var(--ui-ease-standard),
+    height var(--ui-motion-fast) var(--ui-ease-standard),
+    opacity var(--ui-motion-fast) var(--ui-ease-standard);
+}
+
+[data-timeline-navigation-item][aria-current="location"] .task-timeline-navigation-marker {
+  background: var(--ui-color-text);
+  opacity: 0.72;
+}
+
+[data-timeline-navigation-item]:hover .task-timeline-navigation-marker,
+[data-timeline-navigation-item]:focus-visible .task-timeline-navigation-marker {
+  width: calc(var(--ui-space-unit) * 3.5);
+  height: 3px;
+  opacity: 0.82;
+}
+
 .workbench-sidebar,
 .workbench-inspector {
   min-width: 0;
@@ -179,6 +225,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .task-timeline-navigation {
+    display: none;
+  }
+
   .workbench-sidebar {
     position: absolute;
     inset: 0 auto 0 0;
@@ -209,7 +259,8 @@
 @media (prefers-reduced-motion: reduce) {
   .workbench-shell,
   .workbench-sidebar,
-  .workbench-inspector {
+  .workbench-inspector,
+  .task-timeline-navigation {
     transition: none;
   }
 }

@@ -31,6 +31,7 @@ type ConversationContentProps = HTMLAttributes<HTMLDivElement>;
 type ConversationContextValue = Readonly<{
   atBottom: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
+  scrollbarWidth: number;
   scrollToBottom: () => void;
 }>;
 
@@ -60,6 +61,7 @@ export function Conversation({
   const containerRef = useRef<HTMLDivElement>(null);
   const previousScrollToBottomSignalRef = useRef(scrollToBottomSignal);
   const [atBottom, setAtBottom] = useState(true);
+  const [scrollbarWidth, setScrollbarWidth] = useState(0);
   const autoScrollControllerRef = useRef<
     ReturnType<typeof createConversationAutoScrollController> | undefined
   >(undefined);
@@ -74,8 +76,8 @@ export function Conversation({
     }
   }, [autoScrollController]);
   const contextValue = useMemo(
-    () => ({ atBottom, containerRef, scrollToBottom }),
-    [atBottom, scrollToBottom],
+    () => ({ atBottom, containerRef, scrollbarWidth, scrollToBottom }),
+    [atBottom, scrollbarWidth, scrollToBottom],
   );
 
   useLayoutEffect(() => {
@@ -133,11 +135,20 @@ export function Conversation({
       return;
     }
 
-    const content = container.firstElementChild;
+    const content =
+      container.querySelector<HTMLElement>("[data-conversation-content]") ??
+      container.firstElementChild;
 
+    const syncScrollbarWidth = () => {
+      const nextWidth = Math.max(0, container.offsetWidth - container.clientWidth);
+      // 只在平台实际滚动条占位变化时更新，避免消息测量触发无意义重渲染。
+      setScrollbarWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
+    };
     const contentResizeObserver = new ResizeObserver(() => {
+      syncScrollbarWidth();
       autoScrollController.handleContentResize(container);
     });
+    syncScrollbarWidth();
     // Task 切换后消息内容与 Composer 可能分阶段完成布局，两侧尺寸变化都要重新校准到底部。
     contentResizeObserver.observe(container);
     if (content !== null) {
@@ -185,6 +196,11 @@ export type ConversationVirtualListProps<TItem> = Omit<HTMLAttributes<HTMLDivEle
     footer?: ReactNode;
     getItemKey: (item: TItem, index: number) => Key;
     items: readonly TItem[];
+    renderNavigation?: (
+      navigateToItem: (index: number, anchorId: string) => void,
+      scrollbarWidth: number,
+      scrollContainerRef: RefObject<HTMLDivElement | null>,
+    ) => ReactNode;
     renderItem: (item: TItem, index: number) => ReactNode;
   }>;
 
@@ -194,10 +210,12 @@ export function ConversationVirtualList<TItem>({
   footer,
   getItemKey,
   items,
+  renderNavigation,
   renderItem,
   ...props
 }: ConversationVirtualListProps<TItem>) {
   const context = useConversationContext();
+  const navigationFrameRef = useRef(0);
   const getScrollElement = useCallback(() => context.containerRef.current, [context.containerRef]);
   const estimateTurnSize = useCallback(
     (index: number) =>
@@ -221,29 +239,77 @@ export function ConversationVirtualList<TItem>({
     overscan: TURN_OVERSCAN,
     scrollEndThreshold: 24,
   });
+  const navigateToItem = useCallback(
+    (index: number, anchorId: string) => {
+      const container = context.containerRef.current;
+      if (container === null) {
+        return;
+      }
+      cancelAnimationFrame(navigationFrameRef.current);
+
+      const findAnchor = () =>
+        Array.from(container.querySelectorAll<HTMLElement>("[data-conversation-anchor]")).find(
+          (element) => element.dataset["conversationAnchor"] === anchorId,
+        );
+      const mountedAnchor = findAnchor();
+      if (mountedAnchor !== undefined) {
+        mountedAnchor.scrollIntoView({ block: "start" });
+        return;
+      }
+
+      virtualizer.scrollToIndex(index, { align: "start" });
+      let remainingFrames = 12;
+      const finishNavigation = () => {
+        const anchor = findAnchor();
+        if (anchor !== undefined) {
+          anchor.scrollIntoView({ block: "start" });
+          return;
+        }
+        remainingFrames -= 1;
+        if (remainingFrames > 0) {
+          // 动态测高可能覆盖首次定位，目标锚点挂载前持续校准对应 Turn。
+          virtualizer.scrollToIndex(index, { align: "start" });
+          navigationFrameRef.current = requestAnimationFrame(finishNavigation);
+        }
+      };
+      navigationFrameRef.current = requestAnimationFrame(finishNavigation);
+    },
+    [context.containerRef, virtualizer],
+  );
+
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(navigationFrameRef.current);
+    },
+    [],
+  );
 
   return (
-    <div
-      className={`mx-auto w-full max-w-content px-4 py-6 sm:px-6 sm:py-7 ${className}`}
-      {...props}
-    >
-      <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-        {virtualizer.getVirtualItems().map((virtualTurn) => (
-          <div
-            className="absolute left-0 top-0 w-full"
-            data-index={virtualTurn.index}
-            key={virtualTurn.key}
-            ref={virtualizer.measureElement}
-            style={{ transform: `translateY(${String(virtualTurn.start)}px)` }}
-          >
-            {renderItem(items[virtualTurn.index] as TItem, virtualTurn.index)}
-          </div>
-        ))}
+    <>
+      {renderNavigation?.(navigateToItem, context.scrollbarWidth, context.containerRef)}
+      <div
+        className={`mx-auto w-full max-w-content px-4 py-6 sm:px-6 sm:py-7 ${className}`}
+        data-conversation-content=""
+        {...props}
+      >
+        <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+          {virtualizer.getVirtualItems().map((virtualTurn) => (
+            <div
+              className="absolute left-0 top-0 w-full"
+              data-index={virtualTurn.index}
+              key={virtualTurn.key}
+              ref={virtualizer.measureElement}
+              style={{ transform: `translateY(${String(virtualTurn.start)}px)` }}
+            >
+              {renderItem(items[virtualTurn.index] as TItem, virtualTurn.index)}
+            </div>
+          ))}
+        </div>
+        {footer === undefined ? null : (
+          <div className={items.length === 0 ? "space-y-6" : "mt-6 space-y-6"}>{footer}</div>
+        )}
       </div>
-      {footer === undefined ? null : (
-        <div className={items.length === 0 ? "space-y-6" : "mt-6 space-y-6"}>{footer}</div>
-      )}
-    </div>
+    </>
   );
 }
 

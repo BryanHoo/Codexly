@@ -1,6 +1,6 @@
 import type { PendingRequest } from "@codexly/protocol";
 import { AlertTriangle, Info } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "zustand";
 
 import { i18n } from "../../../i18n/i18n.js";
@@ -23,6 +23,10 @@ import type { BuildPlanAction, ForkTaskAction } from "./task-timeline-contracts.
 import { ChangedFilesCard } from "./task-timeline-file-changes.js";
 import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
 import { TaskTimelinePagination } from "./task-timeline-pagination.js";
+import {
+  TaskTimelineNavigation,
+  getTaskTimelineNavigationItems,
+} from "./task-timeline-navigation.js";
 import { RunningReplyStatus } from "./task-timeline-running.js";
 import { StoredAssistantTimelineItems } from "./task-timeline-store-operation-groups.js";
 import {
@@ -371,12 +375,18 @@ export function TaskStoreTimeline({
   const projectId = store.getState().projectId;
   const taskId = store.getState().taskId;
   const turnIds = useStore(store, (state) => state.turnIds);
+  const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);
   const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
   const pendingRequestsById = useStore(store, (state) => state.pendingRequestsById);
   const notices = useStore(store, (state) => state.notices);
   const hasVisiblePendingRequest = pendingRequestIds.some(
     (requestId) => pendingRequestsById[requestId]?.status !== "resolved",
   );
+  const navigationItems = useMemo(() => {
+    // Store 内部 Map 保持引用稳定，以 revision 作为 Item 结构变化的重算信号。
+    void itemStructureRevision;
+    return getTaskTimelineNavigationItems(store.getState());
+  }, [itemStructureRevision, store]);
   const submissionHandoffState = useStore(store, (state) => {
     if (submissionTurnId === undefined) {
       return "awaiting-turn";
@@ -451,6 +461,16 @@ export function TaskStoreTimeline({
           : {})}
         getItemKey={getTurnIdKey}
         items={turnIds}
+        renderNavigation={(navigateToItem, scrollbarWidth, scrollContainerRef) => (
+          <TaskTimelineNavigation
+            items={navigationItems}
+            scrollContainerRef={scrollContainerRef}
+            scrollbarWidth={scrollbarWidth}
+            onNavigate={(item) => {
+              navigateToItem(item.turnIndex, item.anchorId);
+            }}
+          />
+        )}
         renderItem={(turnId, turnIndex) => (
           <StoreTurnTimelineSection
             {...(connected && turnId === turnIds.at(-1) && onBuildPlan !== undefined

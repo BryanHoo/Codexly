@@ -141,6 +141,7 @@ export function StoredTimelineItemContent({
 }
 
 export function StoredUserMessageValue({
+  anchorId,
   itemStore,
   latestSnapshotTimestamp,
   onOpenFileDiff,
@@ -149,6 +150,7 @@ export function StoredUserMessageValue({
   taskId,
   turn,
 }: Readonly<{
+  anchorId: string;
   itemStore: TaskItemStore;
   latestSnapshotTimestamp: string;
   onOpenFileDiff: (change: AgentFileChange) => void;
@@ -165,7 +167,7 @@ export function StoredUserMessageValue({
     item.type === "review" ? getReviewMessageText(item) : getUserMessageCopyText(item);
 
   return (
-    <Message from="user">
+    <Message data-conversation-anchor={anchorId} from="user">
       <TimelineItemContent
         isLastTurnItem={false}
         item={item}
@@ -207,6 +209,7 @@ export function StoredUserMessage({
   const itemStore = useStore(store, (state) => state.itemStoresByKey.get(itemKey));
   return itemStore === undefined ? null : (
     <StoredUserMessageValue
+      anchorId={itemKey}
       itemStore={itemStore}
       latestSnapshotTimestamp={latestSnapshotTimestamp}
       onOpenFileDiff={onOpenFileDiff}
