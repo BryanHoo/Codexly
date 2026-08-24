@@ -93,12 +93,7 @@ describe("CodexAgentProvider history", () => {
     const rpc = new FakeRpcClient([
       { thread: nativeThread({ historyMode: "paginated", turns: undefined }) },
       { backwardsCursor: "newer", data: [nativeTurn("turn-new")], nextCursor: "older" },
-      {
-        backwardsCursor: "newer-items",
-        data: [itemEntry("turn-new", "最新回复"), itemEntry("turn-old", "更早回复")],
-        nextCursor: null,
-      },
-      itemPage("turn-new", "最新回复", "older-items"),
+      itemPage("turn-new", "最新回复"),
       { thread: nativeThread({ historyMode: "paginated", turns: undefined }) },
       { backwardsCursor: "anchor", data: [nativeTurn("turn-old")], nextCursor: null },
       itemPage("turn-old", "更早回复"),
@@ -127,29 +122,22 @@ describe("CodexAgentProvider history", () => {
           limit: 100,
           sortDirection: "desc",
           threadId: "task-1",
+          turnId: "turn-new",
         },
       },
       {
         method: "thread/items/list",
         params: {
-          limit: 1,
-          sortDirection: "desc",
-          threadId: "task-1",
-        },
-      },
-      {
-        method: "thread/items/list",
-        params: {
-          cursor: "older-items",
           limit: 100,
           sortDirection: "desc",
           threadId: "task-1",
+          turnId: "turn-old",
         },
       },
     ]);
   });
 
-  it("hydrates one bounded turn page with one thread-wide item RPC", async () => {
+  it("hydrates each turn in one bounded page with turn-scoped item RPCs", async () => {
     const nativeTurn = (index: number) => ({
       completedAt: 1_753_232_400 + index,
       error: null,
@@ -163,19 +151,21 @@ describe("CodexAgentProvider history", () => {
     const rpc = new FakeRpcClient([
       { thread: nativeThread({ historyMode: "paginated", turns: undefined }) },
       { backwardsCursor: "newer", data: turns, nextCursor: null },
-      {
-        backwardsCursor: "newer-items",
-        data: turns.map((turn) => ({
-          item: {
-            delivery: null,
-            id: `${turn.id}-message`,
-            text: turn.id,
-            type: "agentMessage",
+      ...turns.map((turn) => ({
+        backwardsCursor: `${turn.id}-newer-items`,
+        data: [
+          {
+            item: {
+              delivery: null,
+              id: `${turn.id}-message`,
+              text: turn.id,
+              type: "agentMessage",
+            },
+            turnId: turn.id,
           },
-          turnId: turn.id,
-        })),
+        ],
         nextCursor: null,
-      },
+      })),
     ]);
     const provider = createCodexAgentProvider({ client: rpc, project });
 
@@ -185,6 +175,76 @@ describe("CodexAgentProvider history", () => {
         items: [{ id: `turn-${String(index + 1)}-message` }],
       })),
     });
+    expect(rpc.calls.filter(({ method }) => method === "thread/items/list")).toEqual(
+      turns.map((turn) => ({
+        method: "thread/items/list",
+        params: {
+          limit: 100,
+          sortDirection: "desc",
+          threadId: "task-1",
+          turnId: turn.id,
+        },
+      })),
+    );
+  });
+
+  it("hydrates interrupted history when an older turn item completes after a newer turn starts", async () => {
+    const currentTurn = {
+      completedAt: null,
+      error: null,
+      id: "turn-current",
+      items: [],
+      itemsView: "notLoaded",
+      startedAt: 1_753_232_400,
+      status: "interrupted",
+    };
+    const itemEntry = (turnId: string, id: string, type: "agentMessage" | "userMessage") => ({
+      item: {
+        ...(type === "agentMessage" ? { delivery: null, text: id } : { content: [] }),
+        id,
+        type,
+      },
+      turnId,
+    });
+    const rpc = new FakeRpcClient([
+      { thread: nativeThread({ historyMode: "paginated", turns: undefined }) },
+      { backwardsCursor: "newer", data: [currentTurn], nextCursor: "older-turns" },
+      () => {
+        const params = rpc.calls.at(-1)?.params as Record<string, unknown>;
+        if (params["turnId"] === currentTurn.id) {
+          return {
+            backwardsCursor: "current-items",
+            data: [
+              itemEntry(currentTurn.id, "current-response", "agentMessage"),
+              itemEntry(currentTurn.id, "current-prompt", "userMessage"),
+            ],
+            nextCursor: null,
+          };
+        }
+        return {
+          backwardsCursor: "newer-items",
+          data: [
+            itemEntry(currentTurn.id, "current-response", "agentMessage"),
+            itemEntry("turn-older", "delayed-command", "agentMessage"),
+            itemEntry(currentTurn.id, "current-prompt", "userMessage"),
+            itemEntry("turn-older", "older-response", "agentMessage"),
+          ],
+          nextCursor: null,
+        };
+      },
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+
+    const snapshot = await provider.readTask("task-1");
+    expect(snapshot).toMatchObject({
+      turns: [
+        {
+          id: currentTurn.id,
+          items: [{ id: "current-prompt" }, { id: "current-response" }],
+        },
+      ],
+    });
+    expect(typeof snapshot?.turnsNextCursor).toBe("string");
     expect(rpc.calls.filter(({ method }) => method === "thread/items/list")).toEqual([
       {
         method: "thread/items/list",
@@ -192,6 +252,7 @@ describe("CodexAgentProvider history", () => {
           limit: 100,
           sortDirection: "desc",
           threadId: "task-1",
+          turnId: currentTurn.id,
         },
       },
     ]);
@@ -216,7 +277,7 @@ describe("CodexAgentProvider history", () => {
     );
   });
 
-  it("rejects a repeated item cursor while aligning a turn boundary", async () => {
+  it("rejects a repeated turn-scoped item cursor", async () => {
     const nativeTurn = (id: string) => ({
       completedAt: 1_753_232_400,
       error: null,
@@ -237,30 +298,13 @@ describe("CodexAgentProvider history", () => {
     });
     const rpc = new FakeRpcClient([
       { thread: nativeThread({ historyMode: "paginated", turns: undefined }) },
-      { backwardsCursor: "newer", data: [nativeTurn("turn-new")], nextCursor: "turn-old" },
-      {
-        backwardsCursor: "item-new",
-        data: [itemEntry("turn-new"), itemEntry("turn-old")],
-        nextCursor: null,
-      },
+      { backwardsCursor: "newer", data: [nativeTurn("turn-new")], nextCursor: null },
       { backwardsCursor: "item-new", data: [itemEntry("turn-new")], nextCursor: "item-old" },
-      { thread: nativeThread({ historyMode: "paginated", turns: undefined }) },
-      { backwardsCursor: "turn-old", data: [nativeTurn("turn-old")], nextCursor: "turn-oldest" },
-      {
-        backwardsCursor: "item-old",
-        data: [itemEntry("turn-old"), itemEntry("turn-oldest")],
-        nextCursor: null,
-      },
-      { backwardsCursor: "item-old", data: [itemEntry("turn-old")], nextCursor: "item-old" },
+      { backwardsCursor: "item-old", data: [itemEntry("turn-new")], nextCursor: "item-old" },
     ]);
     const provider = createCodexAgentProvider({ client: rpc, project });
-    const firstPage = await provider.readTask("task-1");
-    const cursor = firstPage?.turnsNextCursor;
-    if (cursor === null || cursor === undefined) {
-      throw new Error("Expected a task turn cursor");
-    }
 
-    await expect(provider.readTask("task-1", { cursor })).rejects.toThrow(
+    await expect(provider.readTask("task-1")).rejects.toThrow(
       "thread/items/list returned a repeated cursor",
     );
   });

@@ -91,7 +91,6 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
           taskId,
           readThreadHistoryMode(thread),
           cursor.turnCursor,
-          cursor.itemCursor,
         );
       } catch (error) {
         const unmaterializedTask = this.runtime.unmaterializedTasks.get(taskId);
@@ -144,7 +143,6 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         turns,
         turnsNextCursor: encodeTaskTurnCursor(
           nativePage.nextTurnCursor,
-          nativePage.nextItemCursor,
           reviewPage.nextReviewCursor,
         ),
       };

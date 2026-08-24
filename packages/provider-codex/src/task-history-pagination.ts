@@ -10,13 +10,11 @@ const MAX_TASK_TURN_CURSOR_BYTES = 8_192;
 export type CodexThreadHistoryMode = "legacy" | "paginated";
 
 export type TaskTurnCursorState = Readonly<{
-  itemCursor?: string | null;
   reviewCursor?: string | null;
   turnCursor?: string;
 }>;
 
 export type NativeTaskTurnPage = Readonly<{
-  nextItemCursor: string | null;
   nextTurnCursor: string | null;
   turns: unknown[];
 }>;
@@ -27,7 +25,6 @@ type NativeThreadItemEntry = Readonly<{
 }>;
 
 type NativeThreadItemPage = Readonly<{
-  backwardsCursor: string | null;
   entries: NativeThreadItemEntry[];
   nextCursor: string | null;
 }>;
@@ -52,12 +49,10 @@ export function decodeTaskTurnCursor(input: ReadAgentTaskInput = {}): TaskTurnCu
       JSON.parse(Buffer.from(input.cursor, "base64url").toString("utf8")),
       "Task turn cursor",
     );
-    const itemCursor = value["itemCursor"];
     const reviewCursor = value["reviewCursor"];
     const turnCursor = value["turnCursor"];
     if (
-      value["version"] !== 3 ||
-      !(itemCursor === null || (typeof itemCursor === "string" && itemCursor.length > 0)) ||
+      value["version"] !== 4 ||
       !(
         reviewCursor === undefined ||
         reviewCursor === null ||
@@ -69,7 +64,6 @@ export function decodeTaskTurnCursor(input: ReadAgentTaskInput = {}): TaskTurnCu
       throw new CodexProtocolMappingError("Task turn cursor is invalid");
     }
     return {
-      itemCursor,
       ...(reviewCursor === undefined ? {} : { reviewCursor }),
       turnCursor,
     };
@@ -83,21 +77,20 @@ export function decodeTaskTurnCursor(input: ReadAgentTaskInput = {}): TaskTurnCu
 
 export function encodeTaskTurnCursor(
   turnCursor: string | null,
-  itemCursor: string | null,
   reviewCursor: string | null | undefined,
 ): string | null {
   if (turnCursor === null) {
     return null;
   }
-  return Buffer.from(
-    JSON.stringify({ itemCursor, reviewCursor, turnCursor, version: 3 }),
-    "utf8",
-  ).toString("base64url");
+  return Buffer.from(JSON.stringify({ reviewCursor, turnCursor, version: 4 }), "utf8").toString(
+    "base64url",
+  );
 }
 
 async function readThreadItemPage(
   client: CodexRpcClient,
   threadId: string,
+  turnId: string,
   cursor: string | null | undefined,
   limit: number,
 ): Promise<NativeThreadItemPage> {
@@ -107,6 +100,7 @@ async function readThreadItemPage(
       limit,
       sortDirection: "desc",
       threadId,
+      turnId,
     }),
     "thread/items/list response",
   );
@@ -124,8 +118,8 @@ async function readThreadItemPage(
     }
     return result;
   };
+  readCursor("backwardsCursor");
   return {
-    backwardsCursor: readCursor("backwardsCursor"),
     entries: response["data"].map((value) => {
       const entry = expectRecord(value, "Codex thread item entry");
       return {
@@ -152,77 +146,41 @@ async function hydratePaginatedTurnItems(
   client: CodexRpcClient,
   threadId: string,
   turns: readonly Record<string, unknown>[],
-  itemCursor: string | null | undefined,
-  hasOlderTurns: boolean,
-): Promise<Readonly<{ nextItemCursor: string | null; turns: unknown[] }>> {
-  const itemsByTurnId = new Map<string, Record<string, unknown>[]>();
-  const turnIds = new Set(turns.map((turn) => expectString(turn["id"], "Codex turn id")));
-  const seenCursors = new Set<string>();
-  let cursor = itemCursor;
-
-  while (cursor !== null) {
-    const page = await readThreadItemPage(client, threadId, cursor, TASK_ITEM_PAGE_LIMIT);
-    const boundaryIndex = page.entries.findIndex((entry) => !turnIds.has(entry.turnId));
-    if (
-      boundaryIndex >= 0 &&
-      page.entries.slice(boundaryIndex + 1).some((entry) => turnIds.has(entry.turnId))
-    ) {
-      throw new CodexProtocolMappingError("thread/items/list returned non-contiguous turns");
-    }
-    if (boundaryIndex >= 0 && !hasOlderTurns) {
-      throw new CodexProtocolMappingError("thread/items/list returned an unknown turn");
-    }
-
-    let entries = page.entries;
-    let nextCursor = page.nextCursor;
-    if (boundaryIndex === 0) {
-      // 当前 Turn 页没有持久 Item，保留首项锚点供下一 Turn 页继续读取。
-      const boundaryCursor = typeof cursor === "string" ? cursor : page.backwardsCursor;
-      if (boundaryCursor === null) {
-        throw new CodexProtocolMappingError("thread/items/list omitted its boundary cursor");
+): Promise<unknown[]> {
+  // 每个 Turn 独立分页，避免延迟完成的旧 Item 打破线程级写入顺序。
+  return Promise.all(
+    turns.map(async (turn) => {
+      const turnId = expectString(turn["id"], "Codex turn id");
+      const items: Record<string, unknown>[] = [];
+      const seenCursors = new Set<string>();
+      let cursor: string | null | undefined;
+      while (cursor !== null) {
+        const page = await readThreadItemPage(
+          client,
+          threadId,
+          turnId,
+          cursor,
+          TASK_ITEM_PAGE_LIMIT,
+        );
+        for (const entry of page.entries) {
+          if (entry.turnId !== turnId) {
+            throw new CodexProtocolMappingError("thread/items/list returned an unexpected turn");
+          }
+          items.push(entry.item);
+        }
+        if (page.nextCursor === null) {
+          break;
+        }
+        assertAdvancingItemCursor(cursor, page.nextCursor, seenCursors);
+        cursor = page.nextCursor;
       }
-      return { nextItemCursor: boundaryCursor, turns: hydrateTurns(turns, itemsByTurnId) };
-    }
-    if (boundaryIndex > 0) {
-      // 缩限重放把原生 Item Cursor 精确停在下一 Turn 页边界，避免跨页跳项。
-      const alignedPage = await readThreadItemPage(client, threadId, cursor, boundaryIndex);
-      if (alignedPage.entries.length !== boundaryIndex || alignedPage.nextCursor === null) {
-        throw new CodexProtocolMappingError("thread/items/list could not align the turn boundary");
-      }
-      assertAdvancingItemCursor(cursor, alignedPage.nextCursor, seenCursors);
-      entries = alignedPage.entries;
-      nextCursor = alignedPage.nextCursor;
-    }
-
-    for (const entry of entries) {
-      const items = itemsByTurnId.get(entry.turnId) ?? [];
-      items.push(entry.item);
-      itemsByTurnId.set(entry.turnId, items);
-    }
-    if (boundaryIndex > 0) {
-      return { nextItemCursor: nextCursor, turns: hydrateTurns(turns, itemsByTurnId) };
-    }
-    if (nextCursor === null) {
-      return { nextItemCursor: null, turns: hydrateTurns(turns, itemsByTurnId) };
-    }
-    assertAdvancingItemCursor(cursor, nextCursor, seenCursors);
-    cursor = nextCursor;
-  }
-  return { nextItemCursor: null, turns: hydrateTurns(turns, itemsByTurnId) };
-}
-
-function hydrateTurns(
-  turns: readonly Record<string, unknown>[],
-  itemsByTurnId: ReadonlyMap<string, Record<string, unknown>[]>,
-): unknown[] {
-  return turns.map((turn) => {
-    const turnId = expectString(turn["id"], "Codex turn id");
-    return {
-      ...turn,
-      items: [...(itemsByTurnId.get(turnId) ?? [])].reverse(),
-      itemsView: "full",
-    };
-  });
+      return {
+        ...turn,
+        items: items.reverse(),
+        itemsView: "full",
+      };
+    }),
+  );
 }
 
 export async function readNativeTaskTurnPage(
@@ -230,7 +188,6 @@ export async function readNativeTaskTurnPage(
   threadId: string,
   historyMode: CodexThreadHistoryMode,
   turnCursor?: string,
-  itemCursor?: string | null,
 ): Promise<NativeTaskTurnPage> {
   const response = expectRecord(
     await client.request("thread/turns/list", {
@@ -260,18 +217,11 @@ export async function readNativeTaskTurnPage(
   }
   const hydrated =
     historyMode === "paginated"
-      ? await hydratePaginatedTurnItems(
-          client,
-          threadId,
-          nativeTurns,
-          itemCursor,
-          nextTurnCursor !== null,
-        )
-      : { nextItemCursor: null, turns: nativeTurns };
+      ? await hydratePaginatedTurnItems(client, threadId, nativeTurns)
+      : nativeTurns;
   return {
-    nextItemCursor: hydrated.nextItemCursor,
     nextTurnCursor,
     // Codex 默认返回 newest-first，Provider 边界统一恢复时间正序。
-    turns: hydrated.turns.reverse(),
+    turns: hydrated.reverse(),
   };
 }
