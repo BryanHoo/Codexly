@@ -259,10 +259,10 @@ test("project file tree opens changed, source, image, and system files by shared
   const packageFile = fileTree.getByRole("treeitem", { name: /package\.json/u });
   await expect(packageFile).toHaveCSS("cursor", "default");
   await packageFile.click();
-  const diffDialog = page.getByRole("dialog", { name: "package.json" });
-  await expect(diffDialog.locator(".file-diff-renderer")).toContainText("pnpm run dev");
-  await page.getByRole("button", { name: "关闭文件 Diff" }).click();
-  await expect(diffDialog).not.toBeAttached();
+  const diffPanel = inspector.getByRole("region", { name: "package.json" });
+  await expect(diffPanel.locator(".file-diff-renderer")).toContainText("pnpm run dev");
+  await expect(page.getByRole("dialog", { name: "package.json" })).toHaveCount(0);
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
 
   const docsRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());

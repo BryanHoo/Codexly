@@ -62,6 +62,35 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).not.toContain('role="dialog"');
   });
 
+  it("mounts the selected Diff inside the file tab instead of a dialog", () => {
+    const markup = renderInspectorMarkup(
+      <WorkbenchInspector
+        fileSelection={{
+          change: {
+            diff: "@@ -1 +1 @@\n-export const live = false;\n+export const live = true;",
+            kind: "update",
+            path: "src/live.ts",
+          },
+          kind: "diff",
+        }}
+        onCloseFile={() => undefined}
+        projectId="project-1"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
+        tab="file"
+        taskId="task-1"
+      />,
+    );
+
+    expect(readInspectorTabLabels(markup)).toEqual(["上下文", "项目", "文件"]);
+    expect(markup).toContain('aria-label="src/live.ts"');
+    expect(markup).toContain("live.ts");
+    expect(markup).toContain("+1");
+    expect(markup).toContain("-1");
+    expect(markup).toContain("正在加载 Diff");
+    expect(markup).not.toContain('role="dialog"');
+  });
+
   it("mounts the headless project file tree in the project tab", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector

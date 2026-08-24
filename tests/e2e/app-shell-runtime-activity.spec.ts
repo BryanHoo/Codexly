@@ -128,9 +128,14 @@ test("opens a completed file change diff while the turn is still running", async
   await expect(fileButton).toBeVisible();
   await fileButton.click();
 
-  const dialog = page.getByRole("dialog", { name: "live.ts" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.locator(".file-diff-renderer")).toContainText("export const live = true;");
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  const diffPanel = inspector.getByRole("region", { name: "src/live.ts" });
+  await expect(diffPanel.locator(".file-diff-renderer")).toContainText("export const live = true;");
+  await expect(page.getByRole("dialog", { name: "live.ts" })).toHaveCount(0);
 });
 
 test("updates a running background task title and preserves blocking status", async ({ page }) => {

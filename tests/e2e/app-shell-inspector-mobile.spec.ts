@@ -110,9 +110,7 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   });
 });
 
-test("keeps mobile diff dialogs inside the viewport without squeezing review content", async ({
-  page,
-}) => {
+test("keeps the mobile Diff preview and review dialog inside the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/p/codexly/t/task-1");
 
@@ -120,13 +118,20 @@ test("keeps mobile diff dialogs inside the viewport without squeezing review con
     .getByRole("button", { name: /打开 Diff/u })
     .first()
     .click();
-  const diffDialog = page.getByRole("dialog");
-  const diffSurface = diffDialog.locator(":scope > section");
-  await expect(diffDialog.locator(".file-diff-renderer")).toBeVisible();
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  const diffSurface = inspector
+    .getByRole("region")
+    .filter({ has: page.locator(".file-diff-renderer") });
+  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(diffSurface.locator(".file-diff-renderer")).toBeVisible();
   expect(await diffSurface.evaluate((surface) => surface.scrollWidth <= surface.clientWidth)).toBe(
     true,
   );
-  await page.getByRole("button", { name: "关闭文件 Diff" }).click();
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await inspector.getByRole("button", { name: "关闭上下文面板" }).click();
 
   await page
     .getByRole("region", { name: /本次修改了 \d+ 个文件/u })

@@ -13,6 +13,7 @@ import { lazy, Suspense, useMemo } from "react";
 
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
+import { FileDiffPanel } from "../../diff/file-diff-panel.js";
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { Button } from "../../../shared/components/core/button.js";
 import {
@@ -106,10 +107,15 @@ type WorkbenchInspectorProps = Readonly<{
   terminatingTerminalId?: string | null;
 }>;
 
-export type WorkbenchInspectorFileSelection = Readonly<{
-  kind: "image" | "source";
-  reference: MessageFileReference;
-}>;
+export type WorkbenchInspectorFileSelection =
+  | Readonly<{
+      kind: "image" | "source";
+      reference: MessageFileReference;
+    }>
+  | Readonly<{
+      change: AgentFileChange;
+      kind: "diff";
+    }>;
 
 export type { WorkbenchInspectorTab } from "./workbench-inspector-tabs.js";
 
@@ -252,13 +258,17 @@ export function WorkbenchInspector({
 
       <div className="min-h-0 overflow-hidden" role={contextOnly ? undefined : "tabpanel"}>
         {activeTab === "file" && fileSelection !== null ? (
-          <ProjectSourcePanel
-            client={gitClient ?? codexlyClient}
-            previewKind={fileSelection.kind}
-            projectId={projectId ?? projectName}
-            reference={fileSelection.reference}
-            {...(sourceRootPath === undefined ? {} : { rootPath: sourceRootPath })}
-          />
+          fileSelection.kind === "diff" ? (
+            <FileDiffPanel change={fileSelection.change} />
+          ) : (
+            <ProjectSourcePanel
+              client={gitClient ?? codexlyClient}
+              previewKind={fileSelection.kind}
+              projectId={projectId ?? projectName}
+              reference={fileSelection.reference}
+              {...(sourceRootPath === undefined ? {} : { rootPath: sourceRootPath })}
+            />
+          )
         ) : activeTab === "project" ? (
           <div className="flex h-full min-h-0 flex-col">
             <div className="flex min-h-0 flex-1 flex-col">

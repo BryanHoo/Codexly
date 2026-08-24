@@ -77,12 +77,18 @@ test("opens timeline review while showing Git stats in the Inspector project tre
     "16px",
   );
   await page.getByRole("button", { name: /已编辑 package\.json.*打开 Diff/ }).click();
-  const dialog = page.getByRole("dialog", { name: "package.json" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.locator(".file-diff-renderer")).toContainText("pnpm run dev");
-  await expect(dialog.locator(".file-diff-renderer")).toContainText("node ./dist/cli.js");
-  await page.getByRole("button", { name: "关闭文件 Diff" }).click();
-  await expect(dialog).not.toBeAttached();
+  const timelineDiffPanel = inspector.getByRole("region", { name: "package.json" });
+  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(timelineDiffPanel.locator(".file-diff-renderer")).toContainText("pnpm run dev");
+  await expect(timelineDiffPanel.locator(".file-diff-renderer")).toContainText(
+    "node ./dist/cli.js",
+  );
+  await expect(page.getByRole("dialog", { name: "package.json" })).toHaveCount(0);
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await contextTab.click();
 
   const changedFiles = page.getByRole("region", { name: "本次修改了 2 个文件" });
   const timelineReviewButton = changedFiles.getByRole("button", { name: "审核", exact: true });
@@ -307,11 +313,11 @@ test("generates a message and commits only selected files", async ({ page }) => 
 
   const packageFile = unstagedTree.getByRole("treeitem", { name: "package.json" });
   await packageFile.click();
-  const fileDiffDialog = page.getByRole("dialog", { name: "package.json" });
-  await expect(fileDiffDialog).toBeVisible();
-  await expect(fileDiffDialog.locator(".file-diff-renderer")).toContainText("pnpm run dev");
-  await fileDiffDialog.getByRole("button", { name: "关闭文件 Diff" }).click();
-  await expect(fileDiffDialog).not.toBeAttached();
+  const fileDiffPanel = inspector.getByRole("region", { name: "package.json" });
+  await expect(fileDiffPanel.locator(".file-diff-renderer")).toContainText("pnpm run dev");
+  await expect(page.getByRole("dialog", { name: "package.json" })).toHaveCount(0);
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await changesTab.click();
   await expect(allFilesCheckbox).toBeChecked();
 
   await allFilesCheckbox.uncheck();

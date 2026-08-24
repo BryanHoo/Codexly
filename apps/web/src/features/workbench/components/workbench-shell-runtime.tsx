@@ -129,7 +129,7 @@ export function useWorkbenchShellRuntime({
     scopeKey: string;
     tab: WorkbenchInspectorTab;
   }>({ scopeKey: inspectorScopeKey, tab: defaultInspectorTab });
-  const [sourceFileSelection, setSourceFileSelection] = useState<
+  const [inspectorFileSelection, setInspectorFileSelection] = useState<
     (WorkbenchInspectorFileSelection & { projectId: string }) | null
   >(null);
   // 标签选择绑定当前路由身份；Task 首屏进入上下文，草稿页仍以项目浏览为主。
@@ -145,7 +145,7 @@ export function useWorkbenchShellRuntime({
   );
   const inspectorActivation = deriveWorkbenchInspectorActivation({
     contextOnly: temporary,
-    fileOpen: sourceFileSelection?.projectId === projectId,
+    fileOpen: inspectorFileSelection?.projectId === projectId,
     gitStatus: gitStatusQuery.data,
     inspectorOpen,
     requestedTab: inspectorTab,
@@ -302,10 +302,6 @@ export function useWorkbenchShellRuntime({
   const [globalSettingsSection, setGlobalSettingsSection] = useState<SidebarSettingsSection | null>(
     null,
   );
-  const [fileDiffSelection, setFileDiffSelection] = useState<{
-    change: AgentFileChange;
-    projectId: string;
-  } | null>(null);
   const [fileReviewSelection, setFileReviewSelection] = useState<{
     changes: readonly AgentFileChange[];
     projectId: string;
@@ -319,9 +315,8 @@ export function useWorkbenchShellRuntime({
     (rootId: string) => {
       setSelectedProjectRoot(projectId, rootId);
       // 根切换后关闭旧根派生的详情，避免相同相对路径被误解为新根文件。
-      setFileDiffSelection(null);
       setFileReviewSelection(null);
-      setSourceFileSelection(null);
+      setInspectorFileSelection(null);
     },
     [projectId, setSelectedProjectRoot],
   );
@@ -360,13 +355,9 @@ export function useWorkbenchShellRuntime({
     t("shell.newChat");
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
-  const selectedFileChange =
-    fileDiffSelection !== null && fileDiffSelection.projectId === projectId
-      ? fileDiffSelection.change
-      : null;
-  const selectedSourceFile =
-    sourceFileSelection !== null && sourceFileSelection.projectId === projectId
-      ? sourceFileSelection
+  const selectedInspectorFile =
+    inspectorFileSelection !== null && inspectorFileSelection.projectId === projectId
+      ? inspectorFileSelection
       : null;
   const selectedFileReview =
     fileReviewSelection !== null && fileReviewSelection.projectId === projectId
@@ -399,7 +390,6 @@ export function useWorkbenchShellRuntime({
     client,
     error,
     expandedFileTreePaths,
-    fileDiffSelection,
     fileReviewSelection,
     getNewChatSubmissionStartedAt,
     gitStatusQuery,
@@ -444,13 +434,11 @@ export function useWorkbenchShellRuntime({
     requestNotificationPermission,
     retry,
     runtime,
-    selectedFileChange,
     selectedFileReview,
+    selectedInspectorFile,
     selectedRootId: activeRootId,
     selectedRootPath,
-    selectedSourceFile,
     selectedSubagent,
-    setFileDiffSelection,
     setFileReviewSelection,
     setFileTreeExpansion,
     setGlobalSettingsSection,
@@ -460,7 +448,7 @@ export function useWorkbenchShellRuntime({
     setPendingTaskSelection,
     setSidebarOpen,
     setSidebarWidth,
-    setSourceFileSelection,
+    setInspectorFileSelection,
     setSelectedRootId,
     setSubagentDialogSelection,
     setTaskRenameOpen,

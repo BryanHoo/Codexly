@@ -87,13 +87,13 @@ export function WorkbenchShellLayout({
     runtime,
     selectedRootPath,
     selectedRootId,
-    selectedSourceFile,
+    selectedInspectorFile,
     setFileTreeExpansion,
     setGlobalSettingsSection,
     setInspectorOpen,
     setInspectorTab,
     setInspectorWidth,
-    setSourceFileSelection,
+    setInspectorFileSelection,
     setSidebarOpen,
     setSidebarWidth,
     setSelectedRootId,
@@ -411,9 +411,9 @@ export function WorkbenchShellLayout({
           key={`${projectId}:${taskId ?? "draft"}`}
           onClose={closeInspector}
           onCloseFile={() => {
-            setSourceFileSelection(null);
+            setInspectorFileSelection(null);
           }}
-          fileSelection={selectedSourceFile}
+          fileSelection={selectedInspectorFile}
           onFileTreeExpandedChange={(nextExpandedPaths) => {
             setFileTreeExpansion({
               paths: new Set(nextExpandedPaths),

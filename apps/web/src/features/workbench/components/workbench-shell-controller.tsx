@@ -71,21 +71,22 @@ export function useWorkbenchShellController(
     renameMutation,
     runtime,
     selectedRootPath,
-    setFileDiffSelection,
     setFileReviewSelection,
+    setInspectorFileSelection,
     setInspectorOpen,
     setInspectorTab,
     setPendingTaskSelection,
     setSidebarOpen,
-    setSourceFileSelection,
     setTaskRenameOpen,
     taskLaunchState,
   } = shell;
   const openFileDiff = useCallback(
     (change: AgentFileChange) => {
-      setFileDiffSelection({ change, projectId });
+      setInspectorFileSelection({ change, kind: "diff", projectId });
+      setInspectorTab("file");
+      setInspectorOpen(true);
     },
-    [projectId, setFileDiffSelection],
+    [projectId, setInspectorFileSelection, setInspectorOpen, setInspectorTab],
   );
   const openProjectFileDiff = useCallback(
     (change: AgentFileChange) => {
@@ -122,7 +123,7 @@ export function useWorkbenchShellController(
         return;
       }
 
-      setSourceFileSelection({ kind, projectId, reference });
+      setInspectorFileSelection({ kind, projectId, reference });
       // 文件选择与右栏切换在同一用户事件中完成，避免先渲染空标签。
       setInspectorTab("file");
       setInspectorOpen(true);
@@ -133,7 +134,7 @@ export function useWorkbenchShellController(
       projectPathOpenMutationRef,
       setInspectorOpen,
       setInspectorTab,
-      setSourceFileSelection,
+      setInspectorFileSelection,
     ],
   );
   const openFileReview = useCallback(

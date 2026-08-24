@@ -56,7 +56,7 @@ describe("Workbench 加载边界", () => {
     expect(readWebSource("shared/components/agent/code-block.tsx")).toContain(
       'import("./code-highlighter.js")',
     );
-    expect(readWebSource("features/diff/file-diff-dialog.tsx")).toContain(
+    expect(readWebSource("features/diff/file-diff-panel.tsx")).toContain(
       'lazy(() => import("./patch-diff-viewer.js"))',
     );
   });

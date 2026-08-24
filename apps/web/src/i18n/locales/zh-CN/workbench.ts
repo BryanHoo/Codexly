@@ -35,7 +35,6 @@ export const workbench = {
   diff: {
     changedFiles: "变更文件",
     changedFilesNavigation: "变更文件导航",
-    close: "关闭文件 Diff",
     closeReview: "关闭文件审核",
     collapseChangedFilesNavigation: "收起变更文件导航",
     expandChangedFilesNavigation: "展开变更文件导航",

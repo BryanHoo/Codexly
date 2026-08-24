@@ -35,7 +35,6 @@ export const workbench = {
   diff: {
     changedFiles: "Changed files",
     changedFilesNavigation: "Changed files navigation",
-    close: "Close file Diff",
     closeReview: "Close file review",
     collapseChangedFilesNavigation: "Collapse changed files navigation",
     expandChangedFilesNavigation: "Expand changed files navigation",

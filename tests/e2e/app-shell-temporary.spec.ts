@@ -49,11 +49,12 @@ test("creates and restores a temporary task without exposing its internal projec
   await changedFiles
     .getByRole("button", { name: "已编辑 temporary-change.ts，新增 1 行，删除 1 行" })
     .click();
-  const diffDialog = page.getByRole("dialog", { name: "temporary-change.ts" });
-  await expect(diffDialog).toBeVisible();
-  await diffDialog.getByRole("button", { name: "关闭文件 Diff" }).click();
-  await page.getByRole("button", { name: "temporary-note.md" }).click();
   const inspector = page.getByRole("complementary", { name: "运行环境" });
+  const diffPanel = inspector.getByRole("region", { name: "/tmp/temporary-change.ts" });
+  await expect(diffPanel.locator(".file-diff-renderer")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "temporary-change.ts" })).toHaveCount(0);
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await page.getByRole("button", { name: "temporary-note.md" }).click();
   const sourcePanel = inspector.getByRole("region", { name: "/tmp/temporary-note.md" });
   await expect(sourcePanel).toContainText("允许从临时任务打开");
   await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(

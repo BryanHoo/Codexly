@@ -1,6 +1,5 @@
 import { lazy, Suspense } from "react";
 
-import { FileDiffDialog } from "../../diff/file-diff-dialog.js";
 import { FileReviewDialog } from "../../diff/file-review-dialog.js";
 import { loadGlobalSettingsDialog } from "../../settings/components/global-settings-lazy.js";
 import { SubagentOutputDialog } from "./subagent-output-dialog.js";
@@ -37,10 +36,8 @@ export function WorkbenchShellDialogs({
     projectRuntime,
     renameActiveTask,
     renameMutation,
-    selectedFileChange,
     selectedFileReview,
     selectedSubagent,
-    setFileDiffSelection,
     setFileReviewSelection,
     setGlobalSettingsSection,
     setSubagentDialogSelection,
@@ -49,14 +46,6 @@ export function WorkbenchShellDialogs({
   } = context;
   return (
     <>
-      {selectedFileChange === null ? null : (
-        <FileDiffDialog
-          change={selectedFileChange}
-          onClose={() => {
-            setFileDiffSelection(null);
-          }}
-        />
-      )}
       {selectedFileReview === null ? null : (
         <FileReviewDialog
           changes={selectedFileReview}
