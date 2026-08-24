@@ -8,8 +8,60 @@ import {
   readyMcpServer,
   readInspectorTabLabels,
 } from "./workbench-inspector.test-support.js";
+import { WorkbenchInspectorTabs } from "./workbench-inspector-tabs.js";
 
 describe("WorkbenchInspector tabs", () => {
+  it("renders the close action inside the active file tab surface", () => {
+    const markup = renderInspectorMarkup(
+      <WorkbenchInspectorTabs
+        activeTab="file"
+        availableTabs={["context", "file"]}
+        onCloseFile={() => undefined}
+        onTabChange={() => undefined}
+      />,
+    );
+
+    expect(readInspectorTabLabels(markup)).toEqual(["上下文", "文件"]);
+    expect(markup).toMatch(
+      /<div[^>]*role="group"[^>]*>.*?<button[^>]*role="tab"[^>]*>.*?文件<\/span><\/button>.*?aria-label="关闭文件".*?<\/div>/su,
+    );
+    const closeButton = /<button[^>]*aria-label="关闭文件"[^>]*>/u.exec(markup)?.[0];
+    expect(closeButton).toContain('data-size="embedded"');
+    expect(closeButton).toMatch(/\bsize-4\b/u);
+    expect(markup).toContain("lucide-x");
+  });
+
+  it("mounts the selected source inside the file tab instead of a dialog", () => {
+    const sourcePath =
+      "src/features/workbench/components/nested/very-long-directory/very-long-source-file-name.tsx";
+    const markup = renderInspectorMarkup(
+      <WorkbenchInspector
+        fileSelection={{
+          kind: "source",
+          reference: { lineNumber: 12, path: sourcePath },
+        }}
+        onCloseFile={() => undefined}
+        projectId="project-1"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
+        tab="file"
+        taskId="task-1"
+      />,
+    );
+
+    expect(readInspectorTabLabels(markup)).toEqual(["上下文", "项目", "文件"]);
+    expect(markup).toContain('aria-selected="true"');
+    const pathTrigger =
+      /<div(?=[^>]*data-slot="tooltip-trigger")(?=[^>]*class="([^"]*)")[^>]*>/u.exec(markup);
+    expect(pathTrigger?.[1]?.split(" ")).toEqual(
+      expect.arrayContaining(["w-0", "overflow-hidden"]),
+    );
+    expect(markup).toContain(sourcePath);
+    expect(markup).not.toContain(`title="${sourcePath}"`);
+    expect(markup).toContain("正在加载源文件");
+    expect(markup).not.toContain('role="dialog"');
+  });
+
   it("mounts the headless project file tree in the project tab", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector

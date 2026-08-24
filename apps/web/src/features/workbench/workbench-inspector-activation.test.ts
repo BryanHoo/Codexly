@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   deriveWorkbenchInspectorActivation,
+  getAvailableWorkbenchInspectorTabs,
   shouldEnableProjectGitDetails,
 } from "./workbench-inspector-activation.js";
 
@@ -24,6 +25,7 @@ describe("deriveWorkbenchInspectorActivation", () => {
       activeTab: "context",
       changes: false,
       context: false,
+      file: false,
       history: false,
       project: false,
     });
@@ -41,6 +43,7 @@ describe("deriveWorkbenchInspectorActivation", () => {
       activeTab: "changes",
       changes: true,
       context: false,
+      file: false,
       history: false,
       project: false,
     });
@@ -58,6 +61,7 @@ describe("deriveWorkbenchInspectorActivation", () => {
       activeTab: "project",
       changes: false,
       context: false,
+      file: false,
       history: false,
       project: true,
     });
@@ -76,9 +80,50 @@ describe("deriveWorkbenchInspectorActivation", () => {
       activeTab: "context",
       changes: false,
       context: true,
+      file: false,
       history: false,
       project: false,
     });
+  });
+
+  it("adds and activates the file panel only while a file is selected", () => {
+    expect(
+      getAvailableWorkbenchInspectorTabs("task-1", gitStatus, {
+        contextOnly: false,
+        fileOpen: false,
+      }),
+    ).toEqual(["context", "project", "changes", "history"]);
+    expect(
+      getAvailableWorkbenchInspectorTabs("task-1", gitStatus, {
+        contextOnly: false,
+        fileOpen: true,
+      }),
+    ).toEqual(["context", "project", "changes", "history", "file"]);
+    expect(
+      deriveWorkbenchInspectorActivation({
+        fileOpen: true,
+        gitStatus,
+        inspectorOpen: true,
+        requestedTab: "file",
+        taskId: "task-1",
+      }),
+    ).toEqual({
+      activeTab: "file",
+      changes: false,
+      context: false,
+      file: true,
+      history: false,
+      project: false,
+    });
+  });
+
+  it("offers context and file tabs for a temporary task with an open file", () => {
+    expect(
+      getAvailableWorkbenchInspectorTabs(undefined, undefined, {
+        contextOnly: true,
+        fileOpen: true,
+      }),
+    ).toEqual(["context", "file"]);
   });
 
   it("keeps detailed Git reads disabled for non-Git projects", () => {

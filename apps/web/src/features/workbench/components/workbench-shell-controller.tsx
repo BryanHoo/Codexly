@@ -12,6 +12,7 @@ import { classifyProjectFileReference } from "../project-file-reference.js";
 
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
+import { notifyActionError } from "../../notifications/action-notifications.js";
 import {
   PROJECT_TASK_SEARCH_SOURCE_KEY,
   replaceProjectTaskInQueryCaches,
@@ -19,6 +20,7 @@ import {
   upsertProjectTaskInInfiniteData,
   type ProjectTaskInfiniteData,
 } from "../../projects/project-queries.js";
+import { loadProjectGitFileDiff } from "../project-git-file-diff.js";
 import {
   taskLaunchQueryKey,
   type TaskLaunchState,
@@ -53,8 +55,10 @@ export function useWorkbenchShellController(
 ) {
   const {
     activeTaskRenameLockRef,
+    client,
     getNewChatSubmissionStartedAt,
     globalSettingsQuery,
+    gitStatusQuery,
     markTaskRunning,
     modelsQuery,
     navigate,
@@ -66,9 +70,11 @@ export function useWorkbenchShellController(
     queryClient,
     renameMutation,
     runtime,
+    selectedRootPath,
     setFileDiffSelection,
     setFileReviewSelection,
     setInspectorOpen,
+    setInspectorTab,
     setPendingTaskSelection,
     setSidebarOpen,
     setSourceFileSelection,
@@ -80,6 +86,24 @@ export function useWorkbenchShellController(
       setFileDiffSelection({ change, projectId });
     },
     [projectId, setFileDiffSelection],
+  );
+  const openProjectFileDiff = useCallback(
+    (change: AgentFileChange) => {
+      if (selectedRootPath === undefined) return;
+      void loadProjectGitFileDiff(
+        queryClient,
+        client,
+        projectId,
+        selectedRootPath,
+        gitStatusQuery.data,
+        change,
+      )
+        .then(openFileDiff)
+        .catch((error: unknown) => {
+          notifyActionError(error instanceof Error ? error : new Error("Git diff is unavailable"));
+        });
+    },
+    [client, gitStatusQuery.data, openFileDiff, projectId, queryClient, selectedRootPath],
   );
   const openMessageFileReference = useCallback(
     (reference: MessageFileReference) => {
@@ -99,8 +123,18 @@ export function useWorkbenchShellController(
       }
 
       setSourceFileSelection({ kind, projectId, reference });
+      // 文件选择与右栏切换在同一用户事件中完成，避免先渲染空标签。
+      setInspectorTab("file");
+      setInspectorOpen(true);
     },
-    [projectId, projectPathOpenLockRef, projectPathOpenMutationRef, setSourceFileSelection],
+    [
+      projectId,
+      projectPathOpenLockRef,
+      projectPathOpenMutationRef,
+      setInspectorOpen,
+      setInspectorTab,
+      setSourceFileSelection,
+    ],
   );
   const openFileReview = useCallback(
     (changes: readonly AgentFileChange[]) => {
@@ -333,6 +367,7 @@ export function useWorkbenchShellController(
     handleTaskStarted,
     models,
     openFileDiff,
+    openProjectFileDiff,
     openFileReview,
     openMessageFileReference,
     renameActiveTask,

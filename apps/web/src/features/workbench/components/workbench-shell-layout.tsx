@@ -1,8 +1,6 @@
 import { PanelLeft, PanelRight, Pencil } from "lucide-react";
 import { useRef, type CSSProperties } from "react";
 
-import type { AgentFileChange } from "../../diff/file-change.js";
-import { notifyActionError } from "../../notifications/action-notifications.js";
 import { Button } from "../../../shared/components/core/button.js";
 import { RuntimeUnavailable } from "../../../shared/components/core/runtime-unavailable.js";
 import {
@@ -20,7 +18,6 @@ import type { useWorkbenchShellController } from "./workbench-shell-controller.j
 import { WorkbenchShellDialogs } from "./workbench-shell-dialogs.js";
 import { ActiveTaskWorkbench } from "./workbench-shell-active-task.js";
 import { WorkbenchInspector } from "./workbench-inspector.js";
-import { loadProjectGitFileDiff } from "../project-git-file-diff.js";
 
 type WorkbenchShellStyle = CSSProperties &
   Readonly<{ "--inspector-open-width": string; "--sidebar-open-width": string }>;
@@ -68,6 +65,7 @@ export function WorkbenchShellLayout({
     modelsQuery,
     newChatSubmissionStartedAt,
     openFileDiff,
+    openProjectFileDiff,
     openFileReview,
     openMessageFileReference,
     openProjectFolder,
@@ -80,7 +78,6 @@ export function WorkbenchShellLayout({
     projectPath,
     projectPathOpenLockRef,
     projectPathOpenMutation,
-    queryClient,
     taskAttachmentOpenMutation,
     projectTaskState,
     projects,
@@ -90,11 +87,13 @@ export function WorkbenchShellLayout({
     runtime,
     selectedRootPath,
     selectedRootId,
+    selectedSourceFile,
     setFileTreeExpansion,
     setGlobalSettingsSection,
     setInspectorOpen,
     setInspectorTab,
     setInspectorWidth,
+    setSourceFileSelection,
     setSidebarOpen,
     setSidebarWidth,
     setSelectedRootId,
@@ -113,21 +112,6 @@ export function WorkbenchShellLayout({
     workbenchShellRef,
     t,
   } = context;
-  const openProjectFileDiff = (change: AgentFileChange) => {
-    if (selectedRootPath === undefined) return;
-    void loadProjectGitFileDiff(
-      queryClient,
-      client,
-      projectId,
-      selectedRootPath,
-      gitStatusQuery.data,
-      change,
-    )
-      .then(openFileDiff)
-      .catch((error: unknown) => {
-        notifyActionError(error instanceof Error ? error : new Error("Git diff is unavailable"));
-      });
-  };
   return (
     <div
       className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
@@ -426,6 +410,10 @@ export function WorkbenchShellLayout({
           mcpServersRetrying={mcpServersReloadMutation.isPending}
           key={`${projectId}:${taskId ?? "draft"}`}
           onClose={closeInspector}
+          onCloseFile={() => {
+            setSourceFileSelection(null);
+          }}
+          fileSelection={selectedSourceFile}
           onFileTreeExpandedChange={(nextExpandedPaths) => {
             setFileTreeExpansion({
               paths: new Set(nextExpandedPaths),
@@ -480,9 +468,10 @@ export function WorkbenchShellLayout({
           projectOpenPending={projectPathOpenMutation.isPending}
           projectPath={projectPath}
           projectRootId={selectedRootId ?? ""}
+          {...(selectedRootPath === undefined ? {} : { sourceRootPath: selectedRootPath })}
           skills={skillsQuery.data?.data ?? []}
           subagents={subagents}
-          tab={temporary ? "context" : inspectorTab}
+          tab={inspectorTab}
           terminatingTerminalId={backgroundTerminals.terminatingTerminalId}
           {...(inspectorTask === undefined ? {} : { task: inspectorTask })}
           {...(taskId === undefined ? {} : { taskId })}

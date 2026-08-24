@@ -139,28 +139,38 @@ test("loads long source files while scrolling", async ({ context, page }) => {
   });
   await sourceReference.click();
 
-  const dialog = page.getByRole("dialog", { name: "architecture-design.md (line 100)" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("部分内容")).toBeVisible();
-  await expect(dialog.locator('[data-language="markdown"]')).toBeVisible();
-  const highlightedLine = dialog.locator('[data-code-line="100"]');
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  const filePanel = inspector.getByRole("region", { name: "docs/architecture-design.md" });
+  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(filePanel).toBeVisible();
+  const sourcePathLabel = filePanel.getByText("docs/architecture-design.md", { exact: true });
+  await expect(sourcePathLabel).toHaveCSS("overflow", "hidden");
+  await expect(sourcePathLabel).toHaveCSS("text-overflow", "ellipsis");
+  await sourcePathLabel.hover();
+  await expect(page.getByRole("tooltip")).toHaveText("docs/architecture-design.md");
+  await expect(filePanel.getByText("部分内容")).toBeVisible();
+  await expect(filePanel.locator('[data-language="markdown"]')).toBeVisible();
+  const highlightedLine = filePanel.locator('[data-code-line="100"]');
   await expect(highlightedLine).toContainText("### 11.7 外部登录边界");
   await expect(highlightedLine).toHaveAttribute("data-highlighted", "true");
   await expect(highlightedLine).toBeInViewport();
 
-  await dialog.locator('[data-code-line="720"]').scrollIntoViewIfNeeded();
-  await expect(dialog.locator('[data-code-line="800"]')).toContainText("line 800");
-  await expect(dialog.getByText("部分内容")).toBeHidden();
+  await filePanel.locator('[data-code-line="720"]').scrollIntoViewIfNeeded();
+  await expect(filePanel.locator('[data-code-line="800"]')).toContainText("line 800");
+  await expect(filePanel.getByText("部分内容")).toBeHidden();
 
-  await dialog.getByRole("button", { name: "预览 Markdown" }).click();
-  await expect(dialog.getByRole("heading", { name: "11.7 外部登录边界" })).toBeVisible();
-  await expect(dialog.locator('[data-language="markdown"]')).not.toBeAttached();
+  await filePanel.getByRole("button", { name: "预览 Markdown" }).click();
+  await expect(filePanel.getByRole("heading", { name: "11.7 外部登录边界" })).toBeVisible();
+  await expect(filePanel.locator('[data-language="markdown"]')).not.toBeAttached();
 
-  await dialog.getByRole("button", { name: "显示原始内容" }).click();
-  await expect(dialog.locator('[data-language="markdown"]')).toBeVisible();
+  await filePanel.getByRole("button", { name: "显示原始内容" }).click();
+  await expect(filePanel.locator('[data-language="markdown"]')).toBeVisible();
 
-  await dialog.getByRole("button", { name: "复制代码" }).click();
-  await expect(dialog.getByRole("button", { name: "代码已复制" })).toBeVisible();
+  await filePanel.getByRole("button", { name: "复制代码" }).click();
+  await expect(filePanel.getByRole("button", { name: "代码已复制" })).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(async () => {
@@ -171,13 +181,9 @@ test("loads long source files while scrolling", async ({ context, page }) => {
     )
     .toBe(architectureSourcePreview);
 
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
-
-  await sourceReference.click();
-  await expect(dialog).toBeVisible();
-  await page.mouse.click(1, 1);
-  await expect(dialog).toBeHidden();
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await expect(filePanel).not.toBeAttached();
+  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveCount(0);
 });
 
 test("routes assistant links, images, and system files by Markdown file rules", async ({
@@ -200,18 +206,43 @@ test("routes assistant links, images, and system files by Markdown file rules", 
   await expect(externalLink).toHaveAttribute("rel", "noopener noreferrer");
 
   await page.getByRole("button", { name: "result.png" }).click();
-  const imageDialog = page.getByRole("dialog", { name: "result.png" });
-  await expect(imageDialog).toBeVisible();
-  await expect(imageDialog.getByRole("img", { name: "result.png" })).toHaveAttribute(
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  const imagePanel = inspector.getByRole("region", {
+    name: "/workspace/Codexly/design/result.png",
+  });
+  await expect(imagePanel).toBeVisible();
+  await expect(imagePanel.getByRole("img", { name: "result.png" })).toHaveAttribute(
     "src",
     "/v1/projects/codexly/files/image?path=%2Fworkspace%2FCodexly%2Fdesign%2Fresult.png&rootPath=%2Fworkspace%2FCodexly",
   );
-  await page.keyboard.press("Escape");
-  await expect(imageDialog).toBeHidden();
+
+  await page.getByRole("button", { name: /architecture-design\.md\s+\(line 100\)/u }).click();
+  await expect(imagePanel).not.toBeAttached();
+  await expect(
+    inspector.getByRole("region", { name: "docs/architecture-design.md" }),
+  ).toBeVisible();
+  const fileTab = inspector.getByRole("tab", { name: "文件" });
+  const closeFileButton = inspector.getByRole("button", { name: "关闭文件" });
+  await expect(fileTab).toHaveCount(1);
+  const fileTabBox = await fileTab.boundingBox();
+  const closeFileButtonBox = await closeFileButton.boundingBox();
+  // 关闭入口必须完整落在文件标签表面内，防止再次退回标签外的并列布局。
+  expect(fileTabBox).not.toBeNull();
+  expect(closeFileButtonBox).not.toBeNull();
+  if (fileTabBox === null || closeFileButtonBox === null) {
+    throw new Error("File tab geometry is unavailable");
+  }
+  expect(closeFileButtonBox.x).toBeGreaterThanOrEqual(fileTabBox.x);
+  expect(closeFileButtonBox.width).toBeLessThanOrEqual(16);
+  expect(closeFileButtonBox.x + closeFileButtonBox.width).toBeLessThanOrEqual(
+    fileTabBox.x + fileTabBox.width,
+  );
+  await closeFileButton.click();
 
   await page.getByRole("button", { exact: true, name: "后续工作交接.pptx" }).click();
   await systemOpenRequest;
   await expect(page.getByRole("dialog", { name: "后续工作交接.pptx" })).toHaveCount(0);
+  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveCount(0);
 });
 
 test("project file tree opens changed, source, image, and system files by shared rules", async ({
@@ -244,10 +275,10 @@ test("project file tree opens changed, source, image, and system files by shared
   await docsDirectory.click();
   await docsRequest;
   await fileTree.getByRole("treeitem", { name: "architecture-design.md" }).click();
-  const sourceDialog = page.getByRole("dialog", { name: "architecture-design.md" });
-  await expect(sourceDialog).toBeVisible();
-  await sourceDialog.getByRole("button", { name: "关闭源文件" }).click();
-  await expect(sourceDialog).not.toBeAttached();
+  const sourcePanel = inspector.getByRole("region", { name: "docs/architecture-design.md" });
+  await expect(sourcePanel).toBeVisible();
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await expect(sourcePanel).not.toBeAttached();
 
   const imageRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
@@ -259,10 +290,10 @@ test("project file tree opens changed, source, image, and system files by shared
   await fileTree.getByRole("button", { name: "展开文件夹 design" }).click();
   await fileTree.getByRole("treeitem", { name: "result.png" }).click();
   await imageRequest;
-  const imageDialog = page.getByRole("dialog", { name: "result.png" });
-  await expect(imageDialog.getByRole("img", { name: "result.png" })).toBeVisible();
-  await imageDialog.getByRole("button", { name: "关闭图片预览" }).click();
-  await expect(imageDialog).not.toBeAttached();
+  const imagePanel = inspector.getByRole("region", { name: "design/result.png" });
+  await expect(imagePanel.getByRole("img", { name: "result.png" })).toBeVisible();
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await expect(imagePanel).not.toBeAttached();
 
   const systemOpenRequest = page.waitForRequest((request) => {
     if (new URL(request.url()).pathname !== "/v1/projects/codexly/open") {

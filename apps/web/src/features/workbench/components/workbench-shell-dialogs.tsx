@@ -3,7 +3,6 @@ import { lazy, Suspense } from "react";
 import { FileDiffDialog } from "../../diff/file-diff-dialog.js";
 import { FileReviewDialog } from "../../diff/file-review-dialog.js";
 import { loadGlobalSettingsDialog } from "../../settings/components/global-settings-lazy.js";
-import { ProjectSourceDialog } from "./project-source-dialog.js";
 import { SubagentOutputDialog } from "./subagent-output-dialog.js";
 import { TaskRenameDialog } from "./task-rename-dialog.js";
 import type { useWorkbenchShellController } from "./workbench-shell-controller.js";
@@ -27,7 +26,6 @@ export function WorkbenchShellDialogs({
     access,
     appInfoQuery,
     appUpdateMutation,
-    client,
     closeTaskRenameDialog,
     globalSettingsMutation,
     globalSettingsSection,
@@ -41,13 +39,10 @@ export function WorkbenchShellDialogs({
     renameMutation,
     selectedFileChange,
     selectedFileReview,
-    selectedSourceFile,
-    selectedRootPath,
     selectedSubagent,
     setFileDiffSelection,
     setFileReviewSelection,
     setGlobalSettingsSection,
-    setSourceFileSelection,
     setSubagentDialogSelection,
     taskRenameOpen,
     title,
@@ -68,18 +63,6 @@ export function WorkbenchShellDialogs({
           onClose={() => {
             setFileReviewSelection(null);
           }}
-        />
-      )}
-      {selectedSourceFile === null ? null : (
-        <ProjectSourceDialog
-          client={client}
-          onClose={() => {
-            setSourceFileSelection(null);
-          }}
-          projectId={projectId}
-          previewKind={selectedSourceFile.kind}
-          reference={selectedSourceFile.reference}
-          {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
         />
       )}
       <SubagentOutputDialog

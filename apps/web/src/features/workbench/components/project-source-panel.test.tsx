@@ -7,7 +7,7 @@ import {
   getNextSourceCursor,
   mergeProjectSourcePages,
   shouldLoadNextSourcePage,
-} from "./project-source-dialog.js";
+} from "./project-source-panel.js";
 
 describe("getCodeLanguage", () => {
   it.each([
@@ -59,7 +59,7 @@ describe("project source pagination", () => {
 });
 
 describe("project image previews", () => {
-  it("scales timeline, file-tree, and dialog images inside their containers", () => {
+  it("scales timeline, file-tree, and inspector images inside their containers", () => {
     const messageResponseSource = readFileSync(
       new URL("../../../shared/components/agent/message-response.tsx", import.meta.url),
       "utf8",
@@ -69,7 +69,7 @@ describe("project image previews", () => {
       "utf8",
     );
     const projectSource = readFileSync(
-      new URL("./project-source-dialog.tsx", import.meta.url),
+      new URL("./project-source-panel.tsx", import.meta.url),
       "utf8",
     );
 

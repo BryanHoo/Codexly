@@ -53,23 +53,29 @@ test("creates and restores a temporary task without exposing its internal projec
   await expect(diffDialog).toBeVisible();
   await diffDialog.getByRole("button", { name: "关闭文件 Diff" }).click();
   await page.getByRole("button", { name: "temporary-note.md" }).click();
-  const sourceDialog = page.getByRole("dialog", { name: "temporary-note.md" });
-  await expect(sourceDialog).toContainText("允许从临时任务打开");
-  await sourceDialog.getByRole("button", { name: "关闭源文件" }).click();
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  const sourcePanel = inspector.getByRole("region", { name: "/tmp/temporary-note.md" });
+  await expect(sourcePanel).toContainText("允许从临时任务打开");
+  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await page.getByRole("button", { name: "temporary-preview.png" }).click();
-  const imageDialog = page.getByRole("dialog", { name: "temporary-preview.png" });
-  await expect(imageDialog.getByRole("img", { name: "temporary-preview.png" })).toHaveAttribute(
+  const imagePanel = inspector.getByRole("region", { name: "/tmp/temporary-preview.png" });
+  await expect(sourcePanel).not.toBeAttached();
+  await expect(imagePanel.getByRole("img", { name: "temporary-preview.png" })).toHaveAttribute(
     "src",
     "/v1/temporary/files/image?path=%2Ftmp%2Ftemporary-preview.png",
   );
-  await imageDialog.getByRole("button", { name: "关闭图片预览" }).click();
+  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveCount(1);
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await expect(imagePanel).not.toBeAttached();
   await page.getByRole("button", { name: "temporary-report.pdf" }).click();
   await expect
     .poll(() => requestedPaths.filter((path) => path === "/v1/temporary/open").length)
     .toBe(1);
   await expect(approvalSelect).toHaveValue("auto-review");
   expect(temporaryTurnOptions?.["sandboxMode"]).toBe("workspace-write");
-  const inspector = page.getByRole("complementary", { name: "运行环境" });
   await expect(inspector).toBeVisible();
   await expect(inspector.getByRole("tablist")).toHaveCount(0);
   await expect(inspector.getByRole("region", { name: "MCP" })).toContainText("context7");

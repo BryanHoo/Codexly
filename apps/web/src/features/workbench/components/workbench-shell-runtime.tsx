@@ -10,7 +10,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "../../../i18n/i18n.js";
-import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { useAccess } from "../../access/access-context.js";
 import {
@@ -47,7 +46,10 @@ import type { SidebarSettingsSection } from "./project-sidebar-actions.js";
 import { deriveProjectSidebarConnectionState } from "./project-sidebar.js";
 import { getProjectFileManagerApp } from "./project-open-menu.js";
 import { collectSubagents, type SubagentSelection } from "./subagent.js";
-import type { WorkbenchInspectorTab } from "./workbench-inspector.js";
+import type {
+  WorkbenchInspectorFileSelection,
+  WorkbenchInspectorTab,
+} from "./workbench-inspector.js";
 import {
   deriveWorkbenchInspectorActivation,
   shouldEnableProjectGitDetails,
@@ -127,6 +129,9 @@ export function useWorkbenchShellRuntime({
     scopeKey: string;
     tab: WorkbenchInspectorTab;
   }>({ scopeKey: inspectorScopeKey, tab: defaultInspectorTab });
+  const [sourceFileSelection, setSourceFileSelection] = useState<
+    (WorkbenchInspectorFileSelection & { projectId: string }) | null
+  >(null);
   // 标签选择绑定当前路由身份；Task 首屏进入上下文，草稿页仍以项目浏览为主。
   const inspectorTab =
     inspectorTabState.scopeKey === inspectorScopeKey ? inspectorTabState.tab : defaultInspectorTab;
@@ -140,6 +145,7 @@ export function useWorkbenchShellRuntime({
   );
   const inspectorActivation = deriveWorkbenchInspectorActivation({
     contextOnly: temporary,
+    fileOpen: sourceFileSelection?.projectId === projectId,
     gitStatus: gitStatusQuery.data,
     inspectorOpen,
     requestedTab: inspectorTab,
@@ -303,11 +309,6 @@ export function useWorkbenchShellRuntime({
   const [fileReviewSelection, setFileReviewSelection] = useState<{
     changes: readonly AgentFileChange[];
     projectId: string;
-  } | null>(null);
-  const [sourceFileSelection, setSourceFileSelection] = useState<{
-    kind: "image" | "source";
-    projectId: string;
-    reference: MessageFileReference;
   } | null>(null);
   const [subagentDialogSelection, setSubagentDialogSelection] = useState<{
     parentTaskId: string;

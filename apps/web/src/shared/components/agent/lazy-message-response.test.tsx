@@ -30,8 +30,8 @@ describe("LazyMessageResponse", () => {
       new URL("../../../features/workbench/components/task-timeline-items.tsx", import.meta.url),
       "utf8",
     );
-    const sourceDialogSource = readFileSync(
-      new URL("../../../features/workbench/components/project-source-dialog.tsx", import.meta.url),
+    const sourcePanelSource = readFileSync(
+      new URL("../../../features/workbench/components/project-source-panel.tsx", import.meta.url),
       "utf8",
     );
 
@@ -39,8 +39,9 @@ describe("LazyMessageResponse", () => {
     expect(timelineSource).toContain(
       'from "../../../shared/components/agent/lazy-message-response.js"',
     );
-    expect(sourceDialogSource).toContain(
+    expect(sourcePanelSource).toContain(
       'from "../../../shared/components/agent/lazy-message-response.js"',
     );
+    expect(sourcePanelSource).not.toContain("<Dialog");
   });
 });

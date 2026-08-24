@@ -215,7 +215,6 @@ export const workbench = {
     unsupportedForm: "This form cannot be displayed safely. Decline or cancel the request.",
   },
   projectDialog: {
-    closeImagePreview: "Close image preview",
     closeSource: "Close source file",
     delete: "Remove",
     loadImageError: "Unable to load image",

@@ -215,7 +215,6 @@ export const workbench = {
     unsupportedForm: "此表单无法安全显示，请拒绝或取消请求。",
   },
   projectDialog: {
-    closeImagePreview: "关闭图片预览",
     closeSource: "关闭源文件",
     delete: "删除",
     loadImageError: "无法加载图片",

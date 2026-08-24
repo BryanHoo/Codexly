@@ -13,6 +13,7 @@ import { lazy, Suspense, useMemo } from "react";
 
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
+import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { Button } from "../../../shared/components/core/button.js";
 import {
   Tooltip,
@@ -35,6 +36,7 @@ import {
 } from "./workbench-inspector-tabs.js";
 import { codexlyClient, type CodexlyWorkbenchClient } from "../../projects/project-queries.js";
 import { WorkbenchProjectFileTree } from "./workbench-project-file-tree.js";
+import { ProjectSourcePanel } from "./project-source-panel.js";
 import {
   deriveWorkbenchInspectorActivation,
   getAvailableWorkbenchInspectorTabs,
@@ -58,6 +60,7 @@ type WorkbenchInspectorProps = Readonly<{
   backgroundTerminalsPending?: boolean;
   contextOnly?: boolean;
   expandedFileTreePaths?: Set<string>;
+  fileSelection?: WorkbenchInspectorFileSelection | null;
   gitStatus?: ProjectGitStatus;
   gitStatusDetails?: ProjectGitStatus | undefined;
   gitStatusDetailsError?: Error | null;
@@ -84,6 +87,7 @@ type WorkbenchInspectorProps = Readonly<{
   onRefreshProject?: () => unknown;
   onCommitChanges?: () => void;
   onClose?: () => void;
+  onCloseFile?: () => void;
   onTerminateBackgroundTerminal?: (terminalId: string) => Promise<void>;
   onTabChange?: (tab: WorkbenchInspectorTab) => void;
   projectName: string;
@@ -92,6 +96,7 @@ type WorkbenchInspectorProps = Readonly<{
   projectOpenPending?: boolean;
   projectPath: string;
   projectRootId: string;
+  sourceRootPath?: string;
   projectRefreshing?: boolean;
   skills?: readonly AgentSkill[];
   subagents?: readonly SubagentContextEntry[];
@@ -99,6 +104,11 @@ type WorkbenchInspectorProps = Readonly<{
   task?: Pick<AgentTaskSnapshot, "turns"> & Partial<Pick<AgentTaskSnapshot, "plan">>;
   taskId?: string;
   terminatingTerminalId?: string | null;
+}>;
+
+export type WorkbenchInspectorFileSelection = Readonly<{
+  kind: "image" | "source";
+  reference: MessageFileReference;
 }>;
 
 export type { WorkbenchInspectorTab } from "./workbench-inspector-tabs.js";
@@ -109,6 +119,7 @@ export function WorkbenchInspector({
   backgroundTerminalsPending = false,
   contextOnly = false,
   expandedFileTreePaths = emptyExpandedFileTreePaths,
+  fileSelection = null,
   gitStatus,
   gitStatusDetails,
   gitStatusDetailsError = null,
@@ -135,6 +146,7 @@ export function WorkbenchInspector({
   onRefreshProject = () => undefined,
   onCommitChanges = () => undefined,
   onClose,
+  onCloseFile,
   onTerminateBackgroundTerminal = () => Promise.resolve(),
   onTabChange = () => undefined,
   projectId,
@@ -143,6 +155,7 @@ export function WorkbenchInspector({
   projectOpenPending = false,
   projectPath,
   projectRootId,
+  sourceRootPath,
   projectRefreshing = false,
   skills = [],
   subagents = [],
@@ -152,9 +165,13 @@ export function WorkbenchInspector({
   terminatingTerminalId = null,
 }: WorkbenchInspectorProps) {
   useTranslation("conversation");
-  const availableTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatus);
+  const availableTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatus, {
+    contextOnly,
+    fileOpen: fileSelection !== null,
+  });
   const { activeTab } = deriveWorkbenchInspectorActivation({
     contextOnly,
+    fileOpen: fileSelection !== null,
     gitStatus,
     inspectorOpen: true,
     requestedTab: tab,
@@ -229,11 +246,20 @@ export function WorkbenchInspector({
         availableTabs={availableTabs}
         contextOnly={contextOnly}
         onClose={onClose}
+        {...(onCloseFile === undefined ? {} : { onCloseFile })}
         onTabChange={onTabChange}
       />
 
       <div className="min-h-0 overflow-hidden" role={contextOnly ? undefined : "tabpanel"}>
-        {activeTab === "project" ? (
+        {activeTab === "file" && fileSelection !== null ? (
+          <ProjectSourcePanel
+            client={gitClient ?? codexlyClient}
+            previewKind={fileSelection.kind}
+            projectId={projectId ?? projectName}
+            reference={fileSelection.reference}
+            {...(sourceRootPath === undefined ? {} : { rootPath: sourceRootPath })}
+          />
+        ) : activeTab === "project" ? (
           <div className="flex h-full min-h-0 flex-col">
             <div className="flex min-h-0 flex-1 flex-col">
               {gitStatusError !== null ? (
