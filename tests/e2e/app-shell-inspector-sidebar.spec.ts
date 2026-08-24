@@ -323,7 +323,7 @@ test("uses the brand logo across the sidebar and favicon", async ({ page }) => {
   await expect(productBrand).toBeVisible();
   await expect(productBrand).toHaveAttribute("src", "/brand/codexly-logo.svg");
   await expect(sidebar.getByText("CA", { exact: true })).toHaveCount(0);
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg?v=3");
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg?v=4");
 
   expect(
     await productBrand.evaluate((element) => {
@@ -338,25 +338,26 @@ test("uses the brand logo across the sidebar and favicon", async ({ page }) => {
     width: "115.5px",
   });
 
-  const faviconResponse = await page.request.get("/favicon.svg?v=3");
+  const faviconResponse = await page.request.get("/favicon.svg?v=4");
   expect(faviconResponse.ok()).toBe(true);
   const favicon = await faviconResponse.text();
   const faviconDefinition = await page.evaluate((source) => {
     const document = new DOMParser().parseFromString(source, "image/svg+xml");
     const root = document.documentElement;
     const background = document.querySelector(".mark-background");
+    const symbol = document.querySelector("#codexly-symbol");
     return {
       height: background?.getAttribute("height"),
+      pathCount: symbol?.querySelectorAll("path").length,
       radius: background?.getAttribute("rx"),
-      symbolCount: document.querySelectorAll(".mark-symbol").length,
       viewBox: root.getAttribute("viewBox"),
       width: background?.getAttribute("width"),
     };
   }, favicon);
   expect(faviconDefinition).toEqual({
     height: "64",
+    pathCount: 2,
     radius: "14",
-    symbolCount: 3,
     viewBox: "0 0 64 64",
     width: "64",
   });
