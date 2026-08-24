@@ -2,8 +2,8 @@ import {
   PendingRequestResolutionError,
   type AgentProviderEvent,
   type ResolvePendingRequestInput,
-} from "@code-agent/core";
-import type { PendingRequest } from "@code-agent/protocol";
+} from "@codexly/core";
+import type { PendingRequest } from "@codexly/protocol";
 
 import {
   type PendingCodexRequest,

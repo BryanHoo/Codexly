@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import { GitBranchError } from "./git-branch.js";
 import { GitWorktreeError } from "./git-worktree.js";
 import {
@@ -30,14 +30,12 @@ describe("server Git read routes", () => {
         unstaged: [],
       }),
     );
-    const app = await createCodeAgentServer(
-      createServerOptions(provider, { readProjectGitStatus }),
-    );
+    const app = await createCodexlyServer(createServerOptions(provider, { readProjectGitStatus }));
     closeCallbacks.push(() => app.close());
 
     const response = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/git/status?repository=frontend&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/status?repository=frontend&rootPath=${encodedProjectRootPath}`,
     });
     const missingProjectResponse = await app.inject({
       method: "GET",
@@ -77,14 +75,12 @@ describe("server Git read routes", () => {
       repositoryMode: "children" as const,
     };
     const readProjectGitHistory = vi.fn(() => Promise.resolve(historyPage));
-    const app = await createCodeAgentServer(
-      createServerOptions(provider, { readProjectGitHistory }),
-    );
+    const app = await createCodexlyServer(createServerOptions(provider, { readProjectGitHistory }));
     closeCallbacks.push(() => app.close());
 
     const response = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/git/history?repository=packages%2Fserver&cursor=20&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/history?repository=packages%2Fserver&cursor=20&rootPath=${encodedProjectRootPath}`,
     });
     const missingProjectResponse = await app.inject({
       method: "GET",
@@ -92,7 +88,7 @@ describe("server Git read routes", () => {
     });
     const invalidQueryResponse = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/git/history?cursor=sha&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/history?cursor=sha&rootPath=${encodedProjectRootPath}`,
     });
 
     expect(response.statusCode).toBe(200);
@@ -117,7 +113,7 @@ describe("server Git read routes", () => {
     const readProjectGitCommitFileDiff = vi.fn(() =>
       Promise.resolve({ diff: "@@ -1 +1 @@\n-old\n+new\n", truncated: false }),
     );
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(provider, {
         readProjectGitCommitFileDiff,
         readProjectGitCommitFiles,
@@ -128,15 +124,15 @@ describe("server Git read routes", () => {
 
     const filesResponse = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/git/commit-files?sha=${sha}&repository=packages%2Fserver&cursor=100&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commit-files?sha=${sha}&repository=packages%2Fserver&cursor=100&rootPath=${encodedProjectRootPath}`,
     });
     const diffResponse = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/git/commit-diff?sha=${sha}&path=src%2Findex.ts&repository=packages%2Fserver&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commit-diff?sha=${sha}&path=src%2Findex.ts&repository=packages%2Fserver&rootPath=${encodedProjectRootPath}`,
     });
     const invalidResponse = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/git/commit-files?sha=HEAD&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commit-files?sha=HEAD&rootPath=${encodedProjectRootPath}`,
     });
     const missingProjectResponse = await app.inject({
       method: "GET",
@@ -177,7 +173,7 @@ describe("server Git read routes", () => {
       unstaged: [],
     };
     const switchProjectBranch = vi.fn(() => Promise.resolve(switchedStatus));
-    const app = await createCodeAgentServer(createServerOptions(provider, { switchProjectBranch }));
+    const app = await createCodexlyServer(createServerOptions(provider, { switchProjectBranch }));
     closeCallbacks.push(() => app.close());
     const request = { branch: "main", expectedSnapshot };
 
@@ -185,19 +181,19 @@ describe("server Git read routes", () => {
       headers: { "idempotency-key": "switch-main" },
       method: "POST",
       payload: request,
-      url: `/v1/projects/code-agent/git/branch?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/branch?rootPath=${encodedProjectRootPath}`,
     });
     const repeated = await app.inject({
       headers: { "idempotency-key": "switch-main" },
       method: "POST",
       payload: request,
-      url: `/v1/projects/code-agent/git/branch?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/branch?rootPath=${encodedProjectRootPath}`,
     });
     const invalid = await app.inject({
       headers: { "idempotency-key": "switch-invalid" },
       method: "POST",
       payload: { ...request, branch: "" },
-      url: `/v1/projects/code-agent/git/branch?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/branch?rootPath=${encodedProjectRootPath}`,
     });
 
     expect(first.statusCode).toBe(200);
@@ -216,20 +212,20 @@ describe("server Git read routes", () => {
         new GitBranchError("SNAPSHOT_MISMATCH", "Git working tree snapshot changed"),
       )
       .mockRejectedValueOnce(new GitBranchError("SWITCH_FAILED", "Git branch switch failed"));
-    const app = await createCodeAgentServer(createServerOptions(provider, { switchProjectBranch }));
+    const app = await createCodexlyServer(createServerOptions(provider, { switchProjectBranch }));
     closeCallbacks.push(() => app.close());
 
     const stale = await app.inject({
       headers: { "idempotency-key": "switch-stale" },
       method: "POST",
       payload: { branch: "main", expectedSnapshot: "a".repeat(64) },
-      url: `/v1/projects/code-agent/git/branch?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/branch?rootPath=${encodedProjectRootPath}`,
     });
     const failed = await app.inject({
       headers: { "idempotency-key": "switch-failed" },
       method: "POST",
       payload: { branch: "main", expectedSnapshot: "b".repeat(64) },
-      url: `/v1/projects/code-agent/git/branch?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/branch?rootPath=${encodedProjectRootPath}`,
     });
 
     expect(stale.statusCode).toBe(409);
@@ -255,7 +251,7 @@ describe("server Git read routes", () => {
       unstaged: [],
     };
     const createProjectBranch = vi.fn(() => Promise.resolve(createdStatus));
-    const app = await createCodeAgentServer(createServerOptions(provider, { createProjectBranch }));
+    const app = await createCodexlyServer(createServerOptions(provider, { createProjectBranch }));
     closeCallbacks.push(() => app.close());
     const request = { branch: "feat/new-branch", expectedSnapshot };
 
@@ -263,13 +259,13 @@ describe("server Git read routes", () => {
       headers: { "idempotency-key": "create-new-branch" },
       method: "POST",
       payload: request,
-      url: `/v1/projects/code-agent/git/branches?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/branches?rootPath=${encodedProjectRootPath}`,
     });
     const repeated = await app.inject({
       headers: { "idempotency-key": "create-new-branch" },
       method: "POST",
       payload: request,
-      url: `/v1/projects/code-agent/git/branches?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/branches?rootPath=${encodedProjectRootPath}`,
     });
 
     expect(first.statusCode).toBe(200);
@@ -284,12 +280,12 @@ describe("server Git read routes", () => {
     const worktree = {
       branch: "feat/worktree",
       current: false,
-      path: "/workspace/CodeAgent-feat-worktree",
+      path: "/workspace/Codexly-feat-worktree",
     };
     const targetProject = {
       createdAt: "2026-08-18T00:00:00.000Z",
-      id: "code-agent-feat-worktree",
-      name: "CodeAgent-feat-worktree",
+      id: "codexly-feat-worktree",
+      name: "Codexly-feat-worktree",
       roots: [{ id: "root-worktree", path: worktree.path }],
     };
     const readProjectWorktrees = vi.fn(() => Promise.resolve({ worktrees: [worktree] }));
@@ -301,7 +297,7 @@ describe("server Git read routes", () => {
       resolveProjectWorktree,
     });
     const register = vi.fn(() => Promise.resolve(targetProject));
-    const app = await createCodeAgentServer({
+    const app = await createCodexlyServer({
       ...options,
       projectRepository: { ...options.projectRepository, register },
     });
@@ -313,25 +309,25 @@ describe("server Git read routes", () => {
 
     const listed = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/git/worktrees?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/worktrees?rootPath=${encodedProjectRootPath}`,
     });
     const created = await app.inject({
       headers: { "idempotency-key": "create-worktree" },
       method: "POST",
       payload: createRequest,
-      url: `/v1/projects/code-agent/git/worktrees?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/worktrees?rootPath=${encodedProjectRootPath}`,
     });
     const repeated = await app.inject({
       headers: { "idempotency-key": "create-worktree" },
       method: "POST",
       payload: createRequest,
-      url: `/v1/projects/code-agent/git/worktrees?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/worktrees?rootPath=${encodedProjectRootPath}`,
     });
     const switched = await app.inject({
       headers: { "idempotency-key": "switch-worktree" },
       method: "POST",
       payload: { path: worktree.path },
-      url: `/v1/projects/code-agent/git/worktree?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/worktree?rootPath=${encodedProjectRootPath}`,
     });
 
     expect(listed.json()).toEqual({ worktrees: [worktree] });
@@ -352,7 +348,7 @@ describe("server Git read routes", () => {
     const resolveProjectWorktree = vi
       .fn()
       .mockRejectedValue(new GitWorktreeError("WORKTREE_NOT_FOUND", "Git worktree was not found"));
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(provider, { createProjectWorktree, resolveProjectWorktree }),
     );
     closeCallbacks.push(() => app.close());
@@ -361,13 +357,13 @@ describe("server Git read routes", () => {
       headers: { "idempotency-key": "create-worktree-failed" },
       method: "POST",
       payload: { branch: "feat/worktree", expectedSnapshot: "a".repeat(64) },
-      url: `/v1/projects/code-agent/git/worktrees?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/worktrees?rootPath=${encodedProjectRootPath}`,
     });
     const switched = await app.inject({
       headers: { "idempotency-key": "switch-worktree-missing" },
       method: "POST",
       payload: { path: "/workspace/missing" },
-      url: `/v1/projects/code-agent/git/worktree?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/worktree?rootPath=${encodedProjectRootPath}`,
     });
 
     expect(created.statusCode).toBe(502);

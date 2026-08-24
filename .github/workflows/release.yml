@@ -88,11 +88,11 @@ jobs:
             echo "${package_name}@${package_version} is already published; skipping pnpm publish."
           else
             # pnpm 负责转换 Workspace 协议，npm CLI 负责 Trusted Publisher OIDC 认证。
-            package_tarball="${RUNNER_TEMP}/code-agent-${package_version}.tgz"
+            package_tarball="${RUNNER_TEMP}/codexly-${package_version}.tgz"
             pnpm pack --out "${package_tarball}"
             npm publish "${package_tarball}" --access public --provenance
           fi
       - name: Create GitHub release
-        run: gh release create "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_PATH}" --title "CodeAgent ${RELEASE_TAG}" --verify-tag
+        run: gh release create "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_PATH}" --title "Codexly ${RELEASE_TAG}" --verify-tag
         env:
           GH_TOKEN: ${{ github.token }}

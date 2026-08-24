@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PendingRequestResolutionError } from "@code-agent/core";
+import type { PendingRequestResolutionError } from "@codexly/core";
 import {
   FakeRpcClient,
   project,
@@ -20,7 +20,7 @@ describe("CodexAgentProvider pending request answers", () => {
     await provider.listTasks();
 
     rpc.emitServerRequest("file-1", "item/fileChange/requestApproval", {
-      grantRoot: "/workspace/CodeAgent",
+      grantRoot: "/workspace/Codexly",
       itemId: "file-item",
       reason: null,
       startedAtMs: 1_753_228_801_000,

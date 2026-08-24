@@ -30,7 +30,7 @@ export function pendingRequestParams(
       ...identity,
       availableDecisions: ["accept", "acceptForSession", "decline"],
       command: "pnpm check",
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       reason: "需要执行检查",
       startedAtMs: 1_753_228_800_000,
     };
@@ -38,7 +38,7 @@ export function pendingRequestParams(
   if (kind === "file") {
     return {
       ...identity,
-      grantRoot: "/workspace/CodeAgent",
+      grantRoot: "/workspace/Codexly",
       reason: "需要修改文件",
       startedAtMs: 1_753_228_801_000,
     };
@@ -46,14 +46,14 @@ export function pendingRequestParams(
   if (kind === "permissions") {
     return {
       ...identity,
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       environmentId: "local",
       permissions: {
         fileSystem: {
           entries: [
             {
               access: "write",
-              path: { path: "/workspace/CodeAgent/.cache", type: "path" },
+              path: { path: "/workspace/Codexly/.cache", type: "path" },
             },
           ],
           globScanMaxDepth: 4,
@@ -127,12 +127,12 @@ export function realtimeTurn(status, items, error = null) {
 export function realtimeThread(turns = []) {
   return {
     createdAt: 1_753_228_800,
-    cwd: "/workspace/CodeAgent",
+    cwd: "/workspace/Codexly",
     historyMode: "paginated",
     id: "task-realtime",
     name: "Realtime Path",
     preview: "Realtime Path",
-    projectId: "code-agent",
+    projectId: "codexly",
     section: null,
     sectionEnteredAt: null,
     status: { type: turns.some((turn) => turn.status === "inProgress") ? "active" : "notLoaded" },
@@ -144,10 +144,10 @@ export function realtimeThread(turns = []) {
 // 跨模块调度通过稳定对象更新线程，避免写入只读的 ESM namespace binding。
 export const realtimeThreads = { parent: realtimeThread(), subagent: null };
 
-export function actionThread(id, turns = [], projectId = "code-agent") {
+export function actionThread(id, turns = [], projectId = "codexly") {
   return {
     createdAt: 1_753_228_800,
-    cwd: "/workspace/CodeAgent",
+    cwd: "/workspace/Codexly",
     historyMode: "paginated",
     id,
     name: "Agent Action",

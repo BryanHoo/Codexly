@@ -1,4 +1,4 @@
-import type { AgentCapabilities, AgentSkill } from "@code-agent/protocol";
+import type { AgentCapabilities, AgentSkill } from "@codexly/protocol";
 
 import { i18n } from "../../../i18n/i18n.js";
 

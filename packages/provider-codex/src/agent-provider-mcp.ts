@@ -1,4 +1,4 @@
-import type { AgentMcpAuthStatus, AgentMcpServerPage } from "@code-agent/protocol";
+import type { AgentMcpAuthStatus, AgentMcpServerPage } from "@codexly/protocol";
 
 import { CodexProtocolMappingError, expectRecord, expectString } from "./codex-protocol-mapping.js";
 import type { TaskRuntimeState } from "./task-runtime-state.js";

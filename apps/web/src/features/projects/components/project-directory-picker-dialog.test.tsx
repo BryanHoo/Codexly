@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ProjectDirectoryListing } from "@code-agent/protocol";
+import type { ProjectDirectoryListing } from "@codexly/protocol";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -46,38 +46,38 @@ describe("ProjectDirectoryPickerDialog", () => {
     const states: readonly ProjectDirectoryState[] = [
       {
         data: {
-          entries: [{ name: "src", path: "/workspace/CodeAgent/packages/src" }],
-          parentPath: "/workspace/CodeAgent",
-          path: "/workspace/CodeAgent/packages",
+          entries: [{ name: "src", path: "/workspace/Codexly/packages/src" }],
+          parentPath: "/workspace/Codexly",
+          path: "/workspace/Codexly/packages",
           roots: [],
         },
         error: null,
         isFetching: false,
-        path: "/workspace/CodeAgent/packages",
+        path: "/workspace/Codexly/packages",
       },
       {
         error: new Error("permission denied"),
         isFetching: false,
-        path: "/workspace/CodeAgent/examples",
+        path: "/workspace/Codexly/examples",
       },
     ];
     const markup = renderToStaticMarkup(
       <ProjectDirectoryTree
         directoryStates={states}
-        expandedPaths={new Set(["/workspace/CodeAgent/packages", "/workspace/CodeAgent/examples"])}
+        expandedPaths={new Set(["/workspace/Codexly/packages", "/workspace/Codexly/examples"])}
         listing={{
           entries: [
-            { name: "examples", path: "/workspace/CodeAgent/examples" },
-            { name: "packages", path: "/workspace/CodeAgent/packages" },
+            { name: "examples", path: "/workspace/Codexly/examples" },
+            { name: "packages", path: "/workspace/Codexly/packages" },
           ],
           parentPath: "/workspace",
-          path: "/workspace/CodeAgent",
+          path: "/workspace/Codexly",
           roots: [],
         }}
         onExpandedChange={vi.fn()}
         onRetry={vi.fn()}
         onRootCheckedChange={vi.fn()}
-        selectedPaths={new Set(["/workspace/CodeAgent/packages"])}
+        selectedPaths={new Set(["/workspace/Codexly/packages"])}
       />,
     );
 

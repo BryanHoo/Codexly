@@ -9,6 +9,6 @@ describe("filesystem roots", () => {
       { name: "D:", path: "D:\\" },
     ];
 
-    expect(findActiveFilesystemRoot(roots, "d:\\Projects\\CodeAgent")).toEqual(roots[1]);
+    expect(findActiveFilesystemRoot(roots, "d:\\Projects\\Codexly")).toEqual(roots[1]);
   });
 });

@@ -18,8 +18,8 @@ afterEach(async () => {
 
 describe("filterProjectFileSearchMatches", () => {
   it("keeps only bounded regular files inside the project tree", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-native-search-"));
-    const outsideRoot = await mkdtemp(join(tmpdir(), "code-agent-native-search-outside-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "codexly-native-search-"));
+    const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-native-search-outside-"));
     temporaryDirectories.push(projectRoot, outsideRoot);
     await Promise.all([
       mkdir(join(projectRoot, "dist")),

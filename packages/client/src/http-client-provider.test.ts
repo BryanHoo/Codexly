@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CodeAgentClient } from "./http-client.js";
+import { CodexlyClient } from "./http-client.js";
 import {
   modelPage,
   skillPage,
@@ -8,11 +8,11 @@ import {
   parseJsonRequestBody,
 } from "./http-client.test-support.js";
 
-describe("CodeAgentClient provider routes", () => {
+describe("CodexlyClient provider routes", () => {
   it("reads the provider model catalog", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(modelPage));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listModels()).resolves.toEqual(modelPage);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/models");
@@ -51,7 +51,7 @@ describe("CodeAgentClient provider routes", () => {
       .mockResolvedValueOnce(jsonResponse({ status: officialStatus }))
       .mockResolvedValueOnce(jsonResponse({ models: modelPage, status: customStatus }))
       .mockResolvedValueOnce(jsonResponse({ status: { ...customStatus, state: "disconnected" } }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.getProviderConnection()).resolves.toEqual(officialStatus);
     await client.startOfficialProviderLogin({ idempotencyKey: "official-login" });
@@ -86,7 +86,7 @@ describe("CodeAgentClient provider routes", () => {
   it("reads and validates the current project skill catalog", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(skillPage));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listSkills("project one")).resolves.toEqual(skillPage);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%20one/skills");
@@ -95,7 +95,7 @@ describe("CodeAgentClient provider routes", () => {
   it("reads and validates the MCP servers readable by the current task", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(mcpServerPage));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listMcpServers("project one", "task one")).resolves.toEqual(mcpServerPage);
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
@@ -115,7 +115,7 @@ describe("CodeAgentClient provider routes", () => {
         { status: 502, statusText: "Bad Gateway" },
       ),
     );
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listMcpServers("project one", "task one")).rejects.toMatchObject({
       code: "PROVIDER_ERROR",
@@ -128,7 +128,7 @@ describe("CodeAgentClient provider routes", () => {
   it("manually reloads task MCP servers through an idempotent mutation", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(mcpServerPage));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.retryMcpServers("project one", "task one", { idempotencyKey: "mcp-retry-1" }),

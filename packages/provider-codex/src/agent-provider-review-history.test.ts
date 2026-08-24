@@ -29,7 +29,7 @@ const workerTurn = (id: string) => ({
     {
       aggregatedOutput: id,
       command: "git diff",
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       exitCode: 0,
       id: `${id}-command`,
       status: "completed",

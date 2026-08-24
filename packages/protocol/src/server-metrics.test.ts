@@ -10,7 +10,7 @@ const response = {
       backpressureSignals: 2,
       coalescedEvents: 3,
       pendingDeltas: 0,
-      projectId: "code-agent",
+      projectId: "codexly",
       providerEventsReceived: 7,
       publishedEvents: 4,
       retainedEvents: 4,

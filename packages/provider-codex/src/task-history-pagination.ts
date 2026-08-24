@@ -1,4 +1,4 @@
-import type { ReadAgentTaskInput } from "@code-agent/core";
+import type { ReadAgentTaskInput } from "@codexly/core";
 
 import type { CodexRpcClient } from "./agent-provider-base.js";
 import { CodexProtocolMappingError, expectRecord, expectString } from "./codex-protocol-mapping.js";

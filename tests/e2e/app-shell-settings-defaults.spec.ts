@@ -28,7 +28,7 @@ test("uses global defaults throughout a new task composer", async ({ page }) => 
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/defaults", async (route) => {
+  await page.route("**/v1/projects/codexly/defaults", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -44,7 +44,7 @@ test("uses global defaults throughout a new task composer", async ({ page }) => 
     });
   });
 
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await expect(page.getByRole("combobox", { name: "批准模式" })).toHaveValue("never");
   await expect(page.getByRole("combobox", { name: "沙盒模式" })).toHaveValue("danger-full-access");
@@ -56,11 +56,11 @@ test("uses global defaults throughout a new task composer", async ({ page }) => 
 
 test("opens the project from the center toolbar quick action", async ({ page }) => {
   const openRequests: Record<string, unknown>[] = [];
-  await page.route("**/v1/projects/code-agent/open?*", async (route) => {
+  await page.route("**/v1/projects/codexly/open?*", async (route) => {
     openRequests.push(parseRequestRecord(route.request().postData()));
     await route.fallback();
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const mainHeader = page.getByRole("main", { name: "任务时间线" }).locator(":scope > header");
   const quickOpenButton = mainHeader.getByRole("button", { name: "在 Zed 中打开" });
@@ -95,16 +95,16 @@ test("opens the project from the center toolbar quick action", async ({ page }) 
 });
 
 test("restores the project folder expansion preference after reload", async ({ page }) => {
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
-  const firstProject = page.getByRole("button", { name: "切换项目 CodeAgent" });
+  const firstProject = page.getByRole("button", { name: "切换项目 Codexly" });
   const secondProject = page.getByRole("button", { name: "切换项目 superwork" });
   await expect(firstProject).toHaveAttribute("aria-expanded", "true");
   await expect(secondProject).toHaveAttribute("aria-expanded", "false");
 
   await firstProject.click();
   await secondProject.click();
-  await expect(page).toHaveURL(/\/p\/code-agent$/u);
+  await expect(page).toHaveURL(/\/p\/codexly$/u);
   await expect(firstProject).toHaveAttribute("aria-expanded", "false");
   await expect(secondProject).toHaveAttribute("aria-expanded", "true");
 
@@ -120,7 +120,7 @@ test("restores the project folder expansion preference after reload", async ({ p
 });
 
 test("provides reusable design tokens for light and dark themes", async ({ page }) => {
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
   const readTheme = async (theme: "dark" | "light") =>
     page.locator("html").evaluate((root, activeTheme) => {
       root.setAttribute("data-theme", activeTheme);
@@ -205,8 +205,8 @@ test("provides reusable design tokens for light and dark themes", async ({ page 
 
 test("exposes the documented navigation routes", async ({ page }) => {
   const routes = [
-    { path: "/p/code-agent", heading: "CodeAgent" },
-    { path: "/p/code-agent/t/task-1", heading: "构建 macOS 工作台" },
+    { path: "/p/codexly", heading: "Codexly" },
+    { path: "/p/codexly/t/task-1", heading: "构建 macOS 工作台" },
   ];
 
   for (const route of routes) {
@@ -218,40 +218,40 @@ test("exposes the documented navigation routes", async ({ page }) => {
 });
 
 test("keeps the current task open when the product logo is clicked", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
-  await sidebar.getByText("CodeAgent", { exact: true }).first().click();
+  await sidebar.getByText("Codexly", { exact: true }).first().click();
 
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-1$/);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/);
 });
 
 test("drags project folders to reorder and restores the persisted order @cross-browser", async ({
   page,
 }) => {
-  await page.goto("/p/code-agent");
-  const codeAgentProject = page.getByRole("button", { name: "切换项目 CodeAgent" });
+  await page.goto("/p/codexly");
+  const codexlyProject = page.getByRole("button", { name: "切换项目 Codexly" });
   const superworkProject = page.getByRole("button", { name: "切换项目 superwork" });
-  await codeAgentProject.click();
+  await codexlyProject.click();
 
-  const codeAgentBounds = await codeAgentProject.boundingBox();
+  const codexlyBounds = await codexlyProject.boundingBox();
   const superworkBounds = await superworkProject.boundingBox();
-  if (codeAgentBounds === null || superworkBounds === null) {
+  if (codexlyBounds === null || superworkBounds === null) {
     throw new Error("Project rows are not visible");
   }
   const reorderRequest = page.waitForRequest(
     (request) => request.url().endsWith("/v1/projects/order") && request.method() === "PUT",
   );
   await page.mouse.move(
-    codeAgentBounds.x + codeAgentBounds.width / 2,
-    codeAgentBounds.y + codeAgentBounds.height / 2,
+    codexlyBounds.x + codexlyBounds.width / 2,
+    codexlyBounds.y + codexlyBounds.height / 2,
   );
   await page.mouse.down();
   await page.mouse.move(
-    codeAgentBounds.x + codeAgentBounds.width / 2 + 12,
-    codeAgentBounds.y + codeAgentBounds.height / 2,
+    codexlyBounds.x + codexlyBounds.width / 2 + 12,
+    codexlyBounds.y + codexlyBounds.height / 2,
   );
-  await expect(codeAgentProject.locator("xpath=..").locator("xpath=..")).toHaveAttribute(
+  await expect(codexlyProject.locator("xpath=..").locator("xpath=..")).toHaveAttribute(
     "data-project-reordering",
     "true",
   );
@@ -264,7 +264,7 @@ test("drags project folders to reorder and restores the persisted order @cross-b
 
   expect(parseProjectOrderRequest((await reorderRequest).postData())).toEqual([
     "superwork",
-    "code-agent",
+    "codexly",
   ]);
   await expect
     .poll(() =>
@@ -274,7 +274,7 @@ test("drags project folders to reorder and restores the persisted order @cross-b
           elements.map((element) => element.getAttribute("data-project-reorder-id")),
         ),
     )
-    .toEqual(["superwork", "code-agent"]);
+    .toEqual(["superwork", "codexly"]);
 
   await page.reload();
   await expect
@@ -285,14 +285,14 @@ test("drags project folders to reorder and restores the persisted order @cross-b
           elements.map((element) => element.getAttribute("data-project-reorder-id")),
         ),
     )
-    .toEqual(["superwork", "code-agent"]);
+    .toEqual(["superwork", "codexly"]);
 
   const keyboardRequest = page.waitForRequest(
     (request) => request.url().endsWith("/v1/projects/order") && request.method() === "PUT",
   );
-  await page.getByRole("button", { name: "切换项目 CodeAgent" }).press("Alt+ArrowUp");
+  await page.getByRole("button", { name: "切换项目 Codexly" }).press("Alt+ArrowUp");
   expect(parseProjectOrderRequest((await keyboardRequest).postData())).toEqual([
-    "code-agent",
+    "codexly",
     "superwork",
   ]);
 });

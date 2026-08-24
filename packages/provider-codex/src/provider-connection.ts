@@ -7,7 +7,7 @@ import type {
   ConfigureCustomProviderRequest,
   ConfigureCustomProviderResponse,
   StartOfficialProviderLoginResponse,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import type { CodexRpcClient } from "./agent-provider-base.js";
 import {
@@ -21,7 +21,7 @@ import { CodexNativeStateSnapshot } from "./native-state-snapshot.js";
 
 export { CodexProviderConnectionError } from "./custom-model-catalog.js";
 
-const CUSTOM_PROVIDER_ID = "code_agent_custom";
+const CUSTOM_PROVIDER_ID = "codexly_custom";
 const DEFAULT_MODEL_REQUEST_TIMEOUT_MS = 10_000;
 const DEFAULT_MODEL_RESPONSE_MAX_BYTES = 1 * 1_024 * 1_024;
 const DEFAULT_MODEL_COUNT_LIMIT = 1_000;
@@ -140,7 +140,7 @@ function readActiveProvider(config: Record<string, unknown>): {
   const providers = isRecord(config["model_providers"]) ? config["model_providers"] : null;
   const provider = providers && isRecord(providers[providerId]) ? providers[providerId] : null;
   const baseUrl = optionalString(provider?.["base_url"], 2_048);
-  // 非内置 openai Provider 由 Codex CLI 配置驱动，即使它不是 CodeAgent 创建的固定 Provider。
+  // 非内置 openai Provider 由 Codex CLI 配置驱动，即使它不是 Codexly 创建的固定 Provider。
   return {
     customBaseUrl: baseUrl === null || baseUrl.length === 0 ? null : baseUrl,
     mode: "custom",
@@ -323,7 +323,7 @@ export class CodexProviderConnectionService {
           mergeStrategy: "upsert",
           value: {
             base_url: baseUrl,
-            name: "CodeAgent Custom API",
+            name: "Codexly Custom API",
             requires_openai_auth: apiKey !== undefined,
             wire_api: "responses",
           },

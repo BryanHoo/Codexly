@@ -3,7 +3,7 @@ import type {
   AgentProviderTurnInput,
   ListAgentTasksInput,
   StartAgentTaskOptions,
-} from "@code-agent/core";
+} from "@codexly/core";
 import type {
   AgentBackgroundTerminal,
   AgentBackgroundTerminalPage,
@@ -13,7 +13,7 @@ import type {
   AgentTurnOptions,
   AgentReviewTarget,
   UploadAgentFeedbackRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import {
   CodexProtocolMappingError,
   expectBoolean,

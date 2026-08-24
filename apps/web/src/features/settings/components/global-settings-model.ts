@@ -3,7 +3,7 @@ import {
   type AgentGlobalSettings,
   type AgentModel,
   type AgentProjectDefaults,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import { readThemePreference, type ThemePreference } from "../theme-preference.js";
 import {

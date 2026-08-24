@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function createTemporaryProject() {
-  const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-tree-"));
+  const projectRoot = await mkdtemp(join(tmpdir(), "codexly-tree-"));
   temporaryDirectories.push(projectRoot);
   return projectRoot;
 }
@@ -79,7 +79,7 @@ describe("readProjectFileTree", () => {
 
   it("returns a stable project-relative tree without generated directories or symbolic links", async () => {
     const projectRoot = await createTemporaryProject();
-    const outsideRoot = await mkdtemp(join(tmpdir(), "code-agent-tree-outside-"));
+    const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-tree-outside-"));
     temporaryDirectories.push(outsideRoot);
     await Promise.all([
       mkdir(join(projectRoot, ".git")),

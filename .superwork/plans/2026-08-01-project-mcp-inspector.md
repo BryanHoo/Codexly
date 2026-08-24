@@ -19,7 +19,7 @@
 
 ## Global Constraints
 
-- 保持 Web 仅依赖 `@code-agent/client` 与 `@code-agent/protocol`，不得读取本地 Codex 配置文件。
+- 保持 Web 仅依赖 `@codexly/client` 与 `@codexly/protocol`，不得读取本地 Codex 配置文件。
 - 公开 MCP 数据只包含服务名称，不暴露 command、args、env、URL 或 Secret。
 - 使用 Project 根目录解析有效配置，只展示未明确禁用的 `mcp_servers` 条目。
 - 删除旧环境展示逻辑，不保留兼容分支或冗余格式化函数。
@@ -45,7 +45,7 @@
 **Interfaces:**
 
 - Consumes: Codex `config/read { cwd }` 响应中的 `config.mcp_servers`。
-- Produces: `AgentProvider.listMcpServers()`、`AgentMcpServerPageSchema`、`GET /v1/projects/:projectId/mcp-servers`、`CodeAgentClient.listMcpServers()`。
+- Produces: `AgentProvider.listMcpServers()`、`AgentMcpServerPageSchema`、`GET /v1/projects/:projectId/mcp-servers`、`CodexlyClient.listMcpServers()`。
 
 **Behavior:**
 
@@ -74,7 +74,7 @@ Expected: Project MCP Schema、Provider 映射、Server 路由和 Client 边界�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.listMcpServers(projectId)` 与 `AgentMcpServerPage`。
+- Consumes: `CodexlyClient.listMcpServers(projectId)` 与 `AgentMcpServerPage`。
 - Produces: Project 级 MCP Query 和 Inspector 的 MCP 列表、加载态、失败态、空态。
 
 **Behavior:**

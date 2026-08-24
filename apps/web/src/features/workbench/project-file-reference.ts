@@ -1,4 +1,4 @@
-import type { AgentMessageAttachment } from "@code-agent/protocol";
+import type { AgentMessageAttachment } from "@codexly/protocol";
 
 export type ProjectFileReferenceKind = "image" | "source" | "system";
 

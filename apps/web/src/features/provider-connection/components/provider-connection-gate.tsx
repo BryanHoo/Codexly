@@ -24,7 +24,7 @@ export function ProviderConnectionGate({ children }: Readonly<{ children: ReactN
     <main className="h-full min-h-0 overflow-y-auto bg-window px-5 py-8 sm:px-8 sm:py-12">
       <div className="mx-auto w-full max-w-[42rem]">
         <header className="mb-8 border-b border-separator pb-5">
-          <h1 className="text-xl font-semibold text-foreground">CodeAgent</h1>
+          <h1 className="text-xl font-semibold text-foreground">Codexly</h1>
           <p className="mt-1 text-body-small text-muted-foreground">{t("provider.title")}</p>
         </header>
         {connection.error === null ? (

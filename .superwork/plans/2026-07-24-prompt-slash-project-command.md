@@ -2,7 +2,7 @@
 
 **Goal:** 在现有 AI Elements Composer 中实现官方风格的 `/` 命令菜单，并提供纯前端“选择项目”流程；选择结果只用于界面展示，不切换路由、不改变 Turn 提交目标，也不新增后端连接。
 
-**Affected Packages:** `@code-agent/web`
+**Affected Packages:** `@codexly/web`
 
 **Protocol Changes:** 无。
 

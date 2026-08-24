@@ -1,6 +1,6 @@
 export type ThemePreference = "dark" | "light" | "system";
 
-const THEME_STORAGE_KEY = "code-agent.theme-preference";
+const THEME_STORAGE_KEY = "codexly.theme-preference";
 const THEME_STORAGE_VERSION = 1;
 const SYSTEM_THEME_QUERY = "(prefers-color-scheme: dark)";
 

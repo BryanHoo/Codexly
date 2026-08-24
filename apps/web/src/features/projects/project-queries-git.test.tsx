@@ -1,11 +1,11 @@
 import { InfiniteQueryObserver, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import {
-  type CodeAgentGitHistoryClient,
-  type CodeAgentGitCommitReviewClient,
-  type CodeAgentGitStatusClient,
-  type CodeAgentFileTreeClient,
-  type CodeAgentMcpServersClient,
+  type CodexlyGitHistoryClient,
+  type CodexlyGitCommitReviewClient,
+  type CodexlyGitStatusClient,
+  type CodexlyFileTreeClient,
+  type CodexlyMcpServersClient,
   mcpServersQueryOptions,
   mcpServersReloadMutationOptions,
   projectGitHistoryInfiniteQueryOptions,
@@ -28,9 +28,9 @@ describe("project Git queries", () => {
   it("inserts or replaces a worktree project without changing sibling order", () => {
     const worktreeProject = {
       ...project,
-      id: "code-agent-worktree",
-      name: "CodeAgent-worktree",
-      rootPath: "/workspace/CodeAgent-worktree",
+      id: "codexly-worktree",
+      name: "Codexly-worktree",
+      rootPath: "/workspace/Codexly-worktree",
     };
     const page = { data: [project], nextCursor: null };
 
@@ -120,7 +120,7 @@ describe("project Git queries", () => {
   });
 
   it("loads shared Project Git status without owning a polling interval", async () => {
-    const getProjectGitStatus = vi.fn<CodeAgentGitStatusClient["getProjectGitStatus"]>(() =>
+    const getProjectGitStatus = vi.fn<CodexlyGitStatusClient["getProjectGitStatus"]>(() =>
       Promise.resolve({
         baseBranches: ["origin/main"],
         branch: "main",
@@ -132,7 +132,7 @@ describe("project Git queries", () => {
       }),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const options = projectGitStatusQueryOptions("code-agent", rootPath, {
+    const options = projectGitStatusQueryOptions("codexly", rootPath, {
       getProjectGitStatus,
     });
 
@@ -145,15 +145,15 @@ describe("project Git queries", () => {
       staged: [],
       unstaged: [],
     });
-    expect(options.queryKey).toEqual(["projects", "code-agent", rootPath, "git-status"]);
+    expect(options.queryKey).toEqual(["projects", "codexly", rootPath, "git-status"]);
     expect(options.refetchInterval).toBeUndefined();
-    expect(getProjectGitStatus.mock.calls[0]?.[0]).toBe("code-agent");
+    expect(getProjectGitStatus.mock.calls[0]?.[0]).toBe("codexly");
     expect(getProjectGitStatus.mock.calls[0]?.[1]).toEqual({ rootPath });
     expect(getProjectGitStatus.mock.calls[0]?.[2]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it("isolates an on-demand detailed Git status by repository and snapshot", async () => {
-    const getProjectGitStatus = vi.fn<CodeAgentGitStatusClient["getProjectGitStatus"]>(() =>
+    const getProjectGitStatus = vi.fn<CodexlyGitStatusClient["getProjectGitStatus"]>(() =>
       Promise.resolve({
         baseBranches: ["origin/main"],
         branch: "main",
@@ -166,7 +166,7 @@ describe("project Git queries", () => {
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const options = projectGitDetailedStatusQueryOptions(
-      "code-agent",
+      "codexly",
       rootPath,
       null,
       "a".repeat(64),
@@ -178,7 +178,7 @@ describe("project Git queries", () => {
 
     expect(options.queryKey).toEqual([
       "projects",
-      "code-agent",
+      "codexly",
       rootPath,
       "git-status-detail",
       null,
@@ -188,7 +188,7 @@ describe("project Git queries", () => {
   });
 
   it("loads a selected child repository status into an isolated query", async () => {
-    const getProjectGitStatus = vi.fn<CodeAgentGitStatusClient["getProjectGitStatus"]>(() =>
+    const getProjectGitStatus = vi.fn<CodexlyGitStatusClient["getProjectGitStatus"]>(() =>
       Promise.resolve({
         baseBranches: ["main"],
         branch: "feat/frontend",
@@ -200,24 +200,14 @@ describe("project Git queries", () => {
       }),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const options = projectGitRepositoryStatusQueryOptions(
-      "code-agent",
-      rootPath,
-      "frontend",
-      true,
-      { getProjectGitStatus },
-    );
+    const options = projectGitRepositoryStatusQueryOptions("codexly", rootPath, "frontend", true, {
+      getProjectGitStatus,
+    });
 
     await queryClient.fetchQuery(options);
 
-    expect(options.queryKey).toEqual([
-      "projects",
-      "code-agent",
-      rootPath,
-      "git-status",
-      "frontend",
-    ]);
-    expect(getProjectGitStatus.mock.calls[0]?.[0]).toBe("code-agent");
+    expect(options.queryKey).toEqual(["projects", "codexly", rootPath, "git-status", "frontend"]);
+    expect(getProjectGitStatus.mock.calls[0]?.[0]).toBe("codexly");
     expect(getProjectGitStatus.mock.calls[0]?.[1]).toEqual({
       includeDiff: true,
       repository: "frontend",
@@ -235,7 +225,7 @@ describe("project Git queries", () => {
       title: "feat(git): 添加历史记录",
     };
     const getProjectGitHistory = vi
-      .fn<CodeAgentGitHistoryClient["getProjectGitHistory"]>()
+      .fn<CodexlyGitHistoryClient["getProjectGitHistory"]>()
       .mockResolvedValueOnce({
         branch: "release/server",
         commits: [commit],
@@ -254,7 +244,7 @@ describe("project Git queries", () => {
       });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const options = projectGitHistoryInfiniteQueryOptions(
-      "code-agent",
+      "codexly",
       rootPath,
       "packages/server",
       true,
@@ -268,22 +258,22 @@ describe("project Git queries", () => {
 
     expect(options.queryKey).toEqual([
       "projects",
-      "code-agent",
+      "codexly",
       rootPath,
       "git-history",
       "packages/server",
     ]);
     expect(getProjectGitHistory.mock.calls[0]?.slice(0, 2)).toEqual([
-      "code-agent",
+      "codexly",
       { repository: "packages/server", rootPath },
     ]);
     expect(getProjectGitHistory.mock.calls[1]?.slice(0, 2)).toEqual([
-      "code-agent",
+      "codexly",
       { cursor: "20", repository: "packages/server", rootPath },
     ]);
     expect(getProjectGitHistory.mock.calls[0]?.[2]?.signal).toBeInstanceOf(AbortSignal);
     expect(
-      projectGitHistoryInfiniteQueryOptions("code-agent", rootPath, undefined, false, {
+      projectGitHistoryInfiniteQueryOptions("codexly", rootPath, undefined, false, {
         getProjectGitHistory,
       }).enabled,
     ).toBe(false);
@@ -293,7 +283,7 @@ describe("project Git queries", () => {
   it("isolates paginated commit files and selected file Diff queries", async () => {
     const sha = "a".repeat(40);
     const getProjectGitCommitFiles = vi
-      .fn<CodeAgentGitCommitReviewClient["getProjectGitCommitFiles"]>()
+      .fn<CodexlyGitCommitReviewClient["getProjectGitCommitFiles"]>()
       .mockResolvedValueOnce({
         files: [{ kind: "update", path: "src/index.ts" }],
         nextCursor: "100",
@@ -303,12 +293,12 @@ describe("project Git queries", () => {
         nextCursor: null,
       });
     const getProjectGitCommitFileDiff = vi
-      .fn<CodeAgentGitCommitReviewClient["getProjectGitCommitFileDiff"]>()
+      .fn<CodexlyGitCommitReviewClient["getProjectGitCommitFileDiff"]>()
       .mockResolvedValue({ diff: "@@ -1 +1 @@", truncated: false });
     const client = { getProjectGitCommitFileDiff, getProjectGitCommitFiles };
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const filesOptions = projectGitCommitFilesInfiniteQueryOptions(
-      "code-agent",
+      "codexly",
       rootPath,
       "packages/server",
       sha,
@@ -321,7 +311,7 @@ describe("project Git queries", () => {
     await observer.refetch();
     await observer.fetchNextPage();
     const diffOptions = projectGitCommitFileDiffQueryOptions(
-      "code-agent",
+      "codexly",
       rootPath,
       "packages/server",
       sha,
@@ -333,7 +323,7 @@ describe("project Git queries", () => {
 
     expect(filesOptions.queryKey).toEqual([
       "projects",
-      "code-agent",
+      "codexly",
       rootPath,
       "git-commit-files",
       "packages/server",
@@ -347,7 +337,7 @@ describe("project Git queries", () => {
     });
     expect(diffOptions.queryKey).toEqual([
       "projects",
-      "code-agent",
+      "codexly",
       rootPath,
       "git-commit-diff",
       "packages/server",
@@ -359,14 +349,14 @@ describe("project Git queries", () => {
   });
 
   it("loads a project-scoped file tree directory with query cancellation", async () => {
-    const listProjectFiles = vi.fn<CodeAgentFileTreeClient["listProjectFiles"]>(() =>
+    const listProjectFiles = vi.fn<CodexlyFileTreeClient["listProjectFiles"]>(() =>
       Promise.resolve({
         entries: [{ path: "src/components", type: "directory" }],
         path: "src",
       }),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const options = projectFileTreeQueryOptions("code-agent", rootPath, "src", {
+    const options = projectFileTreeQueryOptions("codexly", rootPath, "src", {
       listProjectFiles,
     });
 
@@ -374,8 +364,8 @@ describe("project Git queries", () => {
       entries: [{ path: "src/components", type: "directory" }],
       path: "src",
     });
-    expect(options.queryKey).toEqual(["projects", "code-agent", rootPath, "file-tree", "src"]);
-    expect(listProjectFiles.mock.calls[0]?.[0]).toBe("code-agent");
+    expect(options.queryKey).toEqual(["projects", "codexly", rootPath, "file-tree", "src"]);
+    expect(listProjectFiles.mock.calls[0]?.[0]).toBe("codexly");
     expect(listProjectFiles.mock.calls[0]?.[1]).toBe(rootPath);
     expect(listProjectFiles.mock.calls[0]?.[2]).toBe("src");
     expect(listProjectFiles.mock.calls[0]?.[3]?.signal).toBeInstanceOf(AbortSignal);
@@ -393,18 +383,18 @@ describe("project Git queries", () => {
       toolCount: 2,
       version: "1.0.0",
     };
-    const listMcpServers = vi.fn<CodeAgentMcpServersClient["listMcpServers"]>(() =>
+    const listMcpServers = vi.fn<CodexlyMcpServersClient["listMcpServers"]>(() =>
       Promise.resolve({ data: [server] }),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const options = mcpServersQueryOptions("code-agent", "task-1", { listMcpServers });
+    const options = mcpServersQueryOptions("codexly", "task-1", { listMcpServers });
 
     await expect(queryClient.fetchQuery(options)).resolves.toEqual({
       data: [server],
     });
-    expect(options.queryKey).toEqual(["projects", "code-agent", "tasks", "task-1", "mcp-servers"]);
+    expect(options.queryKey).toEqual(["projects", "codexly", "tasks", "task-1", "mcp-servers"]);
     expect(options.refetchInterval).toBeUndefined();
-    expect(listMcpServers.mock.calls[0]?.[0]).toBe("code-agent");
+    expect(listMcpServers.mock.calls[0]?.[0]).toBe("codexly");
     expect(listMcpServers.mock.calls[0]?.[1]).toBe("task-1");
     expect(listMcpServers.mock.calls[0]?.[2]?.signal).toBeInstanceOf(AbortSignal);
   });
@@ -427,23 +417,23 @@ describe("project Git queries", () => {
     };
     const retryMcpServers = vi.fn(() => Promise.resolve(response));
     const queryClient = new QueryClient();
-    const options = mcpServersReloadMutationOptions("code-agent", "task-1", {
+    const options = mcpServersReloadMutationOptions("codexly", "task-1", {
       retryMcpServers,
     });
 
     await expect(
       queryClient.getMutationCache().build(queryClient, options).execute(undefined),
     ).resolves.toEqual(response);
-    expect(retryMcpServers).toHaveBeenCalledWith("code-agent", "task-1");
-    expect(options.scope).toEqual({ id: "task-mcp:code-agent:task-1" });
+    expect(retryMcpServers).toHaveBeenCalledWith("codexly", "task-1");
+    expect(options.scope).toEqual({ id: "task-mcp:codexly:task-1" });
   });
 
   it("disables the MCP query when no task is selected", () => {
-    const listMcpServers = vi.fn<CodeAgentMcpServersClient["listMcpServers"]>();
-    const options = mcpServersQueryOptions("code-agent", undefined, { listMcpServers });
+    const listMcpServers = vi.fn<CodexlyMcpServersClient["listMcpServers"]>();
+    const options = mcpServersQueryOptions("codexly", undefined, { listMcpServers });
 
     expect(options.enabled).toBe(false);
-    expect(options.queryKey).toEqual(["projects", "code-agent", "tasks", null, "mcp-servers"]);
+    expect(options.queryKey).toEqual(["projects", "codexly", "tasks", null, "mcp-servers"]);
     expect(listMcpServers).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 为 CodeAgent 增加用户显式启用的可信局域网 HTTP 访问模式，通过启动期配对码和服务端进程内 Session 提供基础访问控制，同时保持默认 Loopback 模式不对局域网开放。
+**Goal:** 为 Codexly 增加用户显式启用的可信局域网 HTTP 访问模式，通过启动期配对码和服务端进程内 Session 提供基础访问控制，同时保持默认 Loopback 模式不对局域网开放。
 
 **Suggested Spec Reads:**
 
@@ -15,7 +15,7 @@
 - `.superwork/spec/shared/directory-structure.md` — 约束 Protocol、Client、Server 与 Web 的依赖方向。
 - `.superwork/spec/shared/quality-guidelines.md` — 约束新 HTTP 契约、错误边界和跨包消费者同步。
 
-**Architecture:** 默认 `code-agent start` 继续监听 `127.0.0.1:3210` 且不要求配对；显式 `code-agent start --lan [--session-ttl <duration>]` 生成仅驻留当前进程的启动期配对码，监听 `0.0.0.0:3210`，并把配对码和绝对 Session 有效期以内存参数传给 Fastify。Server 公开静态 SPA、健康检查和最小 Access API，通过根级 Hook 统一保护其余 `/v1/*` HTTP 与 WebSocket Upgrade；配对成功后签发 `HttpOnly; SameSite=Strict; Path=/` 的 opaque Session Cookie，并以签发时间加启动参数确定唯一绝对过期时间，后续请求不续期。Web 在 Project、Query 和 Event Runtime 挂载前读取 Access 状态，未配对时只展示配对门禁；注销或收到 `401` 时卸载业务 Runtime 并清空敏感 Query Cache。该模式明确面向可信局域网 HTTP，不实现 TLS、账号体系、持久密码或远程身份提供方。
+**Architecture:** 默认 `codexly start` 继续监听 `127.0.0.1:3210` 且不要求配对；显式 `codexly start --lan [--session-ttl <duration>]` 生成仅驻留当前进程的启动期配对码，监听 `0.0.0.0:3210`，并把配对码和绝对 Session 有效期以内存参数传给 Fastify。Server 公开静态 SPA、健康检查和最小 Access API，通过根级 Hook 统一保护其余 `/v1/*` HTTP 与 WebSocket Upgrade；配对成功后签发 `HttpOnly; SameSite=Strict; Path=/` 的 opaque Session Cookie，并以签发时间加启动参数确定唯一绝对过期时间，后续请求不续期。Web 在 Project、Query 和 Event Runtime 挂载前读取 Access 状态，未配对时只展示配对门禁；注销或收到 `401` 时卸载业务 Runtime 并清空敏感 Query Cache。该模式明确面向可信局域网 HTTP，不实现 TLS、账号体系、持久密码或远程身份提供方。
 
 **Tech Stack:** TypeScript、Node.js 24、Fastify 5、`@fastify/cookie`、TypeBox、React 19、TanStack Query、WebSocket、Vitest、Playwright、pnpm、Markdown。
 
@@ -51,23 +51,23 @@
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient` 的同 Origin Fetch、Schema 校验、超时和 `CodeAgentHttpError` 边界。
+- Consumes: `CodexlyClient` 的同 Origin Fetch、Schema 校验、超时和 `CodexlyHttpError` 边界。
 - Produces: `AccessMode = "local" | "lan"`。
 - Produces: `AccessStatusResponse = { authenticated: boolean; mode: AccessMode; version: 1 }`
 - Produces: `PairAccessRequest = { code: string }`、`PairAccessResponse = AccessStatusResponse` 和严格 TypeBox Schema。
 - Produces: `LogoutAccessResponse = AccessStatusResponse` 和严格 TypeBox Schema。
-- Produces: `CodeAgentClient.getAccessStatus()`、`CodeAgentClient.pairAccess(code)`、`CodeAgentClient.logoutAccess()`。
-- Produces: `CodeAgentClient.subscribeUnauthorized(listener)`
+- Produces: `CodexlyClient.getAccessStatus()`、`CodexlyClient.pairAccess(code)`、`CodexlyClient.logoutAccess()`。
+- Produces: `CodexlyClient.subscribeUnauthorized(listener)`
 - Produces: `AgentMutationErrorCode` 新增 `ACCESS_DENIED`、`PAIRING_FAILED`、`PAIRING_RATE_LIMITED`。
 
 **Behavior:**
 
-- 建立独立于 Codex 账号登录的 CodeAgent 网络 Access 契约；Client 对成功响应执行运行时 Schema 校验，所有 Fetch 显式使用 `credentials: "same-origin"`，配对码只进入 `POST /v1/access/pair` JSON Body。`401` 通知不吞掉现有错误，也不改变非认证错误语义。
+- 建立独立于 Codex 账号登录的 Codexly 网络 Access 契约；Client 对成功响应执行运行时 Schema 校验，所有 Fetch 显式使用 `credentials: "same-origin"`，配对码只进入 `POST /v1/access/pair` JSON Body。`401` 通知不吞掉现有错误，也不改变非认证错误语义。
 
 **Stop Conditions:**
 
 - 如果 Access 契约需要依赖 Core 或 Provider 类型，停止并重新收敛为只属于 Protocol 的网络契约。
-- 如果 `401` 通知要求组件直接依赖 Fetch 或 WebSocket 实现细节，停止并保持通知能力在 `@code-agent/client` 公共边界。
+- 如果 `401` 通知要求组件直接依赖 Fetch 或 WebSocket 实现细节，停止并保持通知能力在 `@codexly/client` 公共边界。
 
 - [x] **Task Status:** completed
 
@@ -94,8 +94,8 @@ Expected: Access Schema 严格拒绝额外字段和无效模式，Client 配对�
 
 - Consumes: `AccessStatusResponse = { authenticated: boolean; mode: AccessMode; version: 1 }`
 - Consumes: Fastify 根级 `onRequest`、`onSend`、`onClose` Hook 和 `@fastify/websocket` Upgrade 生命周期。
-- Produces: `CodeAgentAccessOptions = { pairingCode: string; sessionTtlMs: number }`
-- Produces: `CreateCodeAgentServerOptions.access`
+- Produces: `CodexlyAccessOptions = { pairingCode: string; sessionTtlMs: number }`
+- Produces: `CreateCodexlyServerOptions.access`
 - Produces: `AccessSessionService`，负责常量时间配对校验、有界失败窗口、Session 签发、验证、绝对过期、注销和关闭清理。
 - Produces: `GET /v1/access`、`POST /v1/access/pair`、`POST /v1/access/logout`。
 - Produces: 根级认证与同源 Hook，统一保护 HTTP 和 WebSocket，并返回符合 Protocol 的 `401`、`403`、`429` 响应。
@@ -128,10 +128,10 @@ Expected: Local 模式无回归；LAN 模式的匿名 HTTP/WS 拒绝、正确配
 
 **Interfaces:**
 
-- Consumes: `CodeAgentAccessOptions = { pairingCode: string; sessionTtlMs: number }`
-- Consumes: `CreateCodeAgentServerOptions.access`
+- Consumes: `CodexlyAccessOptions = { pairingCode: string; sessionTtlMs: number }`
+- Consumes: `CreateCodexlyServerOptions.access`
 - Consumes: Node.js `node:crypto.randomBytes()` 与 `node:os.networkInterfaces()`。
-- Produces: `code-agent start --lan [--session-ttl <duration>]` CLI 选项。
+- Produces: `codexly start --lan [--session-ttl <duration>]` CLI 选项。
 - Produces: `parseSessionTtl(value)`，将 `m`、`h`、`d` 时长转换为 `1m` 至 `30d` 范围内的安全整数毫秒值。
 - Produces: `generateLanPairingCode()`，返回至少 128 bit 熵的 URL-safe 启动期配对码。
 - Produces: `listLanAccessUrls(port)`，只列出有效、非内部的 IPv4 地址并稳定排序。
@@ -175,8 +175,8 @@ Expected: 默认与 LAN 监听分支、`--session-ttl` 默认值/单位/边界/�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.getAccessStatus()`、`CodeAgentClient.pairAccess(code)`、`CodeAgentClient.logoutAccess()`。
-- Consumes: `CodeAgentClient.subscribeUnauthorized(listener)`
+- Consumes: `CodexlyClient.getAccessStatus()`、`CodexlyClient.pairAccess(code)`、`CodexlyClient.logoutAccess()`。
+- Consumes: `CodexlyClient.subscribeUnauthorized(listener)`
 - Produces: `AccessProvider`
 - Produces: `useAccess()`
 - Produces: `PairingGate`
@@ -184,7 +184,7 @@ Expected: 默认与 LAN 监听分支、`--session-ttl` 默认值/单位/边界/�
 
 **Behavior:**
 
-- App 首先读取 Access 状态；Local 模式直接进入现有工作台，LAN 未认证模式只显示 CodeAgent 品牌、配对码输入、提交和错误/重试状态，不发起 Project、Model、Settings 或 WebSocket 请求。配对成功后在原深链 URL 挂载工作台，不把配对码保存到 React Query、`localStorage`、URL 或 Toast。任意 Client 请求收到 `401` 时立即卸载业务 Runtime、清空 Query Cache 并返回门禁；LAN 设置页提供明确的“退出局域网访问”，注销完成后执行相同清理。错误文案保持通用，不展示服务端内部消息或配对码匹配细节。
+- App 首先读取 Access 状态；Local 模式直接进入现有工作台，LAN 未认证模式只显示 Codexly 品牌、配对码输入、提交和错误/重试状态，不发起 Project、Model、Settings 或 WebSocket 请求。配对成功后在原深链 URL 挂载工作台，不把配对码保存到 React Query、`localStorage`、URL 或 Toast。任意 Client 请求收到 `401` 时立即卸载业务 Runtime、清空 Query Cache 并返回门禁；LAN 设置页提供明确的“退出局域网访问”，注销完成后执行相同清理。错误文案保持通用，不展示服务端内部消息或配对码匹配细节。
 
 **Stop Conditions:**
 
@@ -218,14 +218,14 @@ Expected: 未认证请求隔离、配对成功、错误重试、`401` 失效、�
 
 - Consumes: `AccessProvider`
 - Consumes: `PairingGate`
-- Consumes: `CreateCodeAgentServerOptions.access`
+- Consumes: `CreateCodexlyServerOptions.access`
 - Consumes: Fastify Cookie/WebSocket 的真实浏览器行为。
 - Produces: 独立 Playwright Worker LAN Server Fixture，使用固定测试配对码但不影响现有 Local E2E Server。
 - Produces: 可信 LAN 模式的浏览器验收证据和稳定安全边界文档。
 
 **Behavior:**
 
-- 真实浏览器首次打开 LAN Server 时只能看到配对门禁，错误配对不进入工作台，正确配对后 Cookie 驱动 HTTP Snapshot 与 WebSocket 正常工作；刷新保持 Session，注销清理工作台并回到门禁，另一个无 Cookie Browser Context 仍保持未认证。Fixture 使用独立动态端口和进程，不把固定测试配对码写入生产默认值。文档明确 `code-agent start --lan [--session-ttl <duration>]` 的可信网络前提、默认 `24h`、合法单位与范围、仅绝对过期且不续期、HTTP 明文限制、终端配对流程、默认 Loopback 行为、匿名路由和 Server 统一认证边界。
+- 真实浏览器首次打开 LAN Server 时只能看到配对门禁，错误配对不进入工作台，正确配对后 Cookie 驱动 HTTP Snapshot 与 WebSocket 正常工作；刷新保持 Session，注销清理工作台并回到门禁，另一个无 Cookie Browser Context 仍保持未认证。Fixture 使用独立动态端口和进程，不把固定测试配对码写入生产默认值。文档明确 `codexly start --lan [--session-ttl <duration>]` 的可信网络前提、默认 `24h`、合法单位与范围、仅绝对过期且不续期、HTTP 明文限制、终端配对流程、默认 Loopback 行为、匿名路由和 Server 统一认证边界。
 
 **Stop Conditions:**
 

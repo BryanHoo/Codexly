@@ -99,7 +99,7 @@ Expected: HTTP 请求体、Provider 调用和幂等 Mutation 测试通过。
 
 **Interfaces:**
 
-- Consumes: `ForkTaskAction`,归一化 `turnId`, `CodeAgentClient.forkTask`
+- Consumes: `ForkTaskAction`,归一化 `turnId`, `CodexlyClient.forkTask`
 - Produces: 每个已结束 Assistant 回复的消息级 Fork 动作
 
 **Behavior:**

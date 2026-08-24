@@ -1,4 +1,4 @@
-import type { ProjectRepository } from "@code-agent/core";
+import type { ProjectRepository } from "@codexly/core";
 import type { FastifyReply } from "fastify";
 
 import { ProjectRootScopeError, resolveProjectRoot } from "../project-root-scope.js";

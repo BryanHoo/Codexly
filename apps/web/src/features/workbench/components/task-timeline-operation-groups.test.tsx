@@ -1,4 +1,4 @@
-import type { AgentItem } from "@code-agent/protocol";
+import type { AgentItem } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
 
@@ -101,7 +101,7 @@ describe("task timeline operation groups", () => {
             },
             {
               command: "pnpm check",
-              cwd: "/workspace/CodeAgent",
+              cwd: "/workspace/Codexly",
               id: "command-check",
               output: "隐藏的命令输出",
               outputTruncated: false,
@@ -110,7 +110,7 @@ describe("task timeline operation groups", () => {
             },
             {
               command: "pnpm test",
-              cwd: "/workspace/CodeAgent",
+              cwd: "/workspace/Codexly",
               exitCode: 1,
               id: "command-test",
               output: "隐藏的失败输出",

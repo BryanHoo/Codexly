@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@code-agent/protocol";
+import type { AgentEvent } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { createTaskStore, createTaskItemKey, MAX_TASK_COMMAND_OUTPUT_BYTES } from "./task-store.js";
 import {

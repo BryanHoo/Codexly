@@ -3,9 +3,9 @@ import type {
   AgentTaskSnapshot,
   AgentTaskSnapshotResponse,
   AgentTurn,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { afterEach, vi, type Mock } from "vitest";
-import type { CodeAgentRuntimeClient } from "../../projects/project-queries.js";
+import type { CodexlyRuntimeClient } from "../../projects/project-queries.js";
 import type { TaskNotifier } from "../../notifications/browser-task-notifier.js";
 
 // 集中维护拆分测试共享的样本、mock 与生命周期钩子。
@@ -167,15 +167,15 @@ export function createMcpServerStatusUpdatedEvent(taskId: string, sequence: numb
 
 type ClientHarness = Readonly<{
   client: Readonly<{
-    readTask: Mock<CodeAgentRuntimeClient["readTask"]>;
-    subscribeEvents: Mock<CodeAgentRuntimeClient["subscribeEvents"]>;
-    unsubscribeTask: Mock<CodeAgentRuntimeClient["unsubscribeTask"]>;
+    readTask: Mock<CodexlyRuntimeClient["readTask"]>;
+    subscribeEvents: Mock<CodexlyRuntimeClient["subscribeEvents"]>;
+    unsubscribeTask: Mock<CodexlyRuntimeClient["unsubscribeTask"]>;
   }>;
   closeConnection: Mock<() => void>;
   connectionError: (error: Error) => void;
   connectionState: (
     state: Parameters<
-      NonNullable<Parameters<CodeAgentRuntimeClient["subscribeEvents"]>[0]["onConnectionState"]>
+      NonNullable<Parameters<CodexlyRuntimeClient["subscribeEvents"]>[0]["onConnectionState"]>
     >[0],
   ) => void;
   emit: (event: AgentEvent) => void;
@@ -183,28 +183,28 @@ type ClientHarness = Readonly<{
 }>;
 
 export function createClientHarness(): ClientHarness {
-  let subscription: Parameters<CodeAgentRuntimeClient["subscribeEvents"]>[0] | undefined;
+  let subscription: Parameters<CodexlyRuntimeClient["subscribeEvents"]>[0] | undefined;
   const closeConnection = vi.fn();
   const client = {
-    readTask: vi.fn<CodeAgentRuntimeClient["readTask"]>(),
-    subscribeEvents: vi.fn<CodeAgentRuntimeClient["subscribeEvents"]>((options) => {
+    readTask: vi.fn<CodexlyRuntimeClient["readTask"]>(),
+    subscribeEvents: vi.fn<CodexlyRuntimeClient["subscribeEvents"]>((options) => {
       subscription = options;
       return closeConnection;
     }),
-    unsubscribeTask: vi.fn<CodeAgentRuntimeClient["unsubscribeTask"]>((_, taskId) =>
+    unsubscribeTask: vi.fn<CodexlyRuntimeClient["unsubscribeTask"]>((_, taskId) =>
       Promise.resolve({
         status: "unsubscribed",
         taskId,
       }),
     ),
-  } satisfies CodeAgentRuntimeClient;
+  } satisfies CodexlyRuntimeClient;
 
   return {
     client,
     closeConnection,
     connectionState(
       state: Parameters<
-        NonNullable<Parameters<CodeAgentRuntimeClient["subscribeEvents"]>[0]["onConnectionState"]>
+        NonNullable<Parameters<CodexlyRuntimeClient["subscribeEvents"]>[0]["onConnectionState"]>
       >[0],
     ) {
       if (subscription === undefined) {

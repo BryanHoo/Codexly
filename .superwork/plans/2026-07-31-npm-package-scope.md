@@ -1,19 +1,19 @@
 # Feature Implementation Plan
 
-**Goal:** 将首次发布的 npm 包名更新为 `@bryanhu/code-agent`，修复标签检出时的发布校验，并完成 GitHub Release 与 npm `0.0.1` 发布。
+**Goal:** 将首次发布的 npm 包名更新为 `@bryanhu/codexly`，修复标签检出时的发布校验，并完成 GitHub Release 与 npm `0.0.1` 发布。
 
 **Suggested Spec Reads:**
 
 - `.superwork/spec/guides/index.md`
 
-**Architecture:** 根包使用 scoped npm 包名，继续暴露稳定的 `code-agent` CLI 命令；Release workflow 从 `package.json` 读取包名，标签触发后依次校验、发布 npm、创建 GitHub Release。
+**Architecture:** 根包使用 scoped npm 包名，继续暴露稳定的 `codexly` CLI 命令；Release workflow 从 `package.json` 读取包名，标签触发后依次校验、发布 npm、创建 GitHub Release。
 
 **Tech Stack:** pnpm、TypeScript、Vitest、GitHub Actions、npm、GitHub CLI
 
 ## Global Constraints
 
-- 保留内部 workspace 包名 `@code-agent/*`、CLI 命令 `code-agent` 和 `CODEX_HOME/code-agent` 数据目录。
-- npm 发布包名必须精确为 `@bryanhu/code-agent`，版本保持 `0.0.1`。
+- 保留内部 workspace 包名 `@codexly/*`、CLI 命令 `codexly` 和 `CODEX_HOME/codexly` 数据目录。
+- npm 发布包名必须精确为 `@bryanhu/codexly`，版本保持 `0.0.1`。
 - 发布前必须通过项目质量检查、E2E 和 package dry-run。
 
 ### Task 1: 更新 npm 包元数据和发布校验
@@ -32,7 +32,7 @@
 
 **Behavior:**
 
-- 根包以 `@bryanhu/code-agent` 发布，CLI 仍通过 `code-agent` 执行，workflow 不硬编码旧包名。
+- 根包以 `@bryanhu/codexly` 发布，CLI 仍通过 `codexly` 执行，workflow 不硬编码旧包名。
 
 **Stop Conditions:**
 
@@ -42,7 +42,7 @@
 
 Run: `pnpm run package:check`
 
-Expected: package verification 通过，manifest 名称为 `@bryanhu/code-agent` 且 bin 为 `code-agent`。
+Expected: package verification 通过，manifest 名称为 `@bryanhu/codexly` 且 bin 为 `codexly`。
 
 ### Task 2: 修复标签检出时的 Git 状态测试
 
@@ -86,15 +86,15 @@ Expected: 目标测试全部通过。
 
 **Behavior:**
 
-- 所有面向 npm 发布的引用使用 `@bryanhu/code-agent`，CLI 相关引用继续使用 `code-agent`。
+- 所有面向 npm 发布的引用使用 `@bryanhu/codexly`，CLI 相关引用继续使用 `codexly`。
 
 **Stop Conditions:**
 
-- 搜索仍发现把根 npm 包误写为旧的 `code-agent` 时停止。
+- 搜索仍发现把根 npm 包误写为旧的 `codexly` 时停止。
 
 - [x] **Task Status:** completed
 
-Run: `rg -n 'npm install.*code-agent|npx code-agent|npmjs.com/package/code-agent|npm 包.*code-agent' README.md CHANGELOG.md docs .superwork/spec/guides/index.md`
+Run: `rg -n 'npm install.*codexly|npx codexly|npmjs.com/package/codexly|npm 包.*codexly' README.md CHANGELOG.md docs .superwork/spec/guides/index.md`
 
 Expected: 不再出现旧 npm 包安装、执行、链接或命名约束。
 
@@ -121,4 +121,4 @@ Expected: 不再出现旧 npm 包安装、执行、链接或命名约束。
 
 Run: `pnpm check && pnpm test:e2e && pnpm pack --dry-run --json`
 
-Expected: 全部检查通过；`@bryanhu/code-agent@0.0.1` 和 GitHub Release `v0.0.1` 均可查询。
+Expected: 全部检查通过；`@bryanhu/codexly@0.0.1` 和 GitHub Release `v0.0.1` 均可查询。

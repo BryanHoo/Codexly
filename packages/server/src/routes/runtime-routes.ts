@@ -11,7 +11,7 @@ import {
   InstallAppUpdateResponseSchema,
   type AgentGlobalSettings,
   type InstallAppUpdateRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
 
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
@@ -85,7 +85,7 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
                 : "UPDATE_INSTALL_FAILED";
             throw new MutationHttpError(
               code,
-              error instanceof Error ? error.message : "Failed to install the CodeAgent update",
+              error instanceof Error ? error.message : "Failed to install the Codexly update",
               code === "UPDATE_NOT_AVAILABLE" ? 409 : 502,
               code !== "UPDATE_NOT_AVAILABLE",
             );

@@ -6,14 +6,14 @@ import type {
   AgentSettingsRepository,
   ProjectProjectionStore,
   ProjectSourceMigration,
-} from "@code-agent/core";
+} from "@codexly/core";
 import type {
   AgentProviderConnectionRecord,
   AgentGlobalSettings,
   AgentProjectDefaults,
   AgentTaskSettings,
   Project,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import {
   parseProviderConnectionRow,

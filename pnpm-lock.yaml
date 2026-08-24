@@ -246,10 +246,10 @@ importers:
 
   apps/web:
     dependencies:
-      '@code-agent/client':
+      '@codexly/client':
         specifier: workspace:*
         version: link:../../packages/client
-      '@code-agent/protocol':
+      '@codexly/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
       '@headless-tree/core':
@@ -340,7 +340,7 @@ importers:
 
   packages/client:
     dependencies:
-      '@code-agent/protocol':
+      '@codexly/protocol':
         specifier: workspace:*
         version: link:../protocol
       '@sinclair/typebox':
@@ -352,7 +352,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@code-agent/protocol':
+      '@codexly/protocol':
         specifier: workspace:*
         version: link:../protocol
 
@@ -364,10 +364,10 @@ importers:
 
   packages/provider-codex:
     dependencies:
-      '@code-agent/core':
+      '@codexly/core':
         specifier: workspace:*
         version: link:../core
-      '@code-agent/protocol':
+      '@codexly/protocol':
         specifier: workspace:*
         version: link:../protocol
       '@openai/codex':
@@ -379,13 +379,13 @@ importers:
 
   packages/server:
     dependencies:
-      '@code-agent/core':
+      '@codexly/core':
         specifier: workspace:*
         version: link:../core
-      '@code-agent/protocol':
+      '@codexly/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@code-agent/provider-codex':
+      '@codexly/provider-codex':
         specifier: workspace:*
         version: link:../provider-codex
       '@fastify/cookie':

@@ -5,7 +5,7 @@ import {
   type AgentEvent,
   type EventBatch,
   type EventStreamMessage,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 const EVENT_SOCKET_SOFT_BACKPRESSURE_BYTES = 256 * 1_024;
 const EVENT_SOCKET_HARD_BACKPRESSURE_BYTES = 1_024 * 1_024;

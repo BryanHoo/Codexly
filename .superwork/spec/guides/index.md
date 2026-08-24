@@ -1,4 +1,4 @@
-# CodeAgent 工程指南
+# Codexly 工程指南
 
 ## Scope
 
@@ -6,9 +6,9 @@
 
 ## Naming
 
-- 产品展示名称统一使用 `CodeAgent`。
-- 根 npm 包使用 `@bryanhu/code-agent`，唯一 CLI 命令使用 `code-agent`，不提供额外兼容别名。
-- 内部私有 Workspace 包统一使用 `@code-agent/*` 作用域。
+- 产品展示名称统一使用 `Codexly`。
+- 根 npm 包使用 `@bryanhu/codexly`，唯一 CLI 命令使用 `codexly`，不提供额外兼容别名。
+- 内部私有 Workspace 包统一使用 `@codexly/*` 作用域。
 
 ## Pre-Development Checklist
 

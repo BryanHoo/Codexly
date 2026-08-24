@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentProviderEvent } from "@code-agent/core";
+import type { AgentProviderEvent } from "@codexly/core";
 import {
   FakeRpcClient,
   projectRootPath,
@@ -215,7 +215,7 @@ describe("CodexAgentProvider streamed messages", () => {
     const rpc = new FakeRpcClient([
       () => {
         rpc.emitServerRequest("during-read", "item/fileChange/requestApproval", {
-          grantRoot: "/workspace/CodeAgent",
+          grantRoot: "/workspace/Codexly",
           itemId: "file-during-read",
           reason: null,
           startedAtMs: 1_753_228_801_000,
@@ -241,7 +241,7 @@ describe("CodexAgentProvider streamed messages", () => {
     const rpc = new FakeRpcClient([
       () => {
         rpc.emitServerRequest("during-invalid-read", "item/fileChange/requestApproval", {
-          grantRoot: "/workspace/CodeAgent",
+          grantRoot: "/workspace/Codexly",
           itemId: "file-during-invalid-read",
           reason: null,
           startedAtMs: 1_753_228_801_000,
@@ -284,7 +284,7 @@ describe("CodexAgentProvider streamed messages", () => {
     const rpc = new FakeRpcClient([
       () => {
         rpc.emitServerRequest("resolved-during-read", "item/fileChange/requestApproval", {
-          grantRoot: "/workspace/CodeAgent",
+          grantRoot: "/workspace/Codexly",
           itemId: "resolved-file-during-read",
           reason: null,
           startedAtMs: 1_753_228_801_000,
@@ -312,7 +312,7 @@ describe("CodexAgentProvider streamed messages", () => {
     const rpc = new FakeRpcClient([
       () => {
         rpc.emitServerRequest("completed-during-read", "item/fileChange/requestApproval", {
-          grantRoot: "/workspace/CodeAgent",
+          grantRoot: "/workspace/Codexly",
           itemId: "completed-file-during-read",
           reason: null,
           startedAtMs: 1_753_228_801_000,

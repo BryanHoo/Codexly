@@ -19,7 +19,7 @@
 - Codex `config/read` 必须携带 Project `cwd`；空值使用安全的 `workspace-write`，畸形值必须报 Provider 映射错误。
 - Web 只消费统一协议，选择器必须紧邻审批控件并复用现有完整对象更新链路。
 - 新 Task 继承 Project 沙盒默认值；已有 Task 使用 Snapshot 中的完整设置。
-- 不写 Codex 配置文件；Web 配置作为 CodeAgent Project/Task 设置，并在 Turn 启动时显式覆盖。
+- 不写 Codex 配置文件；Web 配置作为 Codexly Project/Task 设置，并在 Turn 启动时显式覆盖。
 - 关键逻辑添加简短、清晰的中文注释，删除被新逻辑取代的旧路径。
 
 ### Task 1: 定义沙盒协议与 Provider 端口

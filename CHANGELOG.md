@@ -1,6 +1,6 @@
 # 更新日志
 
-本文件记录 CodeAgent 的重要版本变化。版本号遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
+本文件记录 Codexly 的重要版本变化。版本号遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
 ## [Unreleased]
 
@@ -103,7 +103,7 @@
 
 ### 优化
 
-- 首次初始化全局设置时按字段读取 Codex 用户配置，并对无效或缺失值使用 CodeAgent 默认值。
+- 首次初始化全局设置时按字段读取 Codex 用户配置，并对无效或缺失值使用 Codexly 默认值。
 - 优化后台终端轮询、长历史终态更新、Project Runtime 懒加载和 WebSocket 帧复用，并调整首屏包预算。
 - 将项目文件引用统一为提示词中的可见内联路径，保持提交、实时消息和历史恢复结果一致。
 
@@ -149,7 +149,7 @@
 - 添加 ChatGPT 官方登录与自定义 OpenAI-compatible API 连接，支持验证服务并读取可用模型目录。
 - 添加创建本地 Git 分支、审核历史提交文件和子仓库提交入口，完善提交前的变更审查流程。
 - 展示 Codex 实时文件变更、计划更新、上下文队列和更完整的流式运行状态。
-- 支持 `code-agent` 默认启动、自定义端口，以及局域网自定义强密码和最长 `180d` 的固定会话有效期。
+- 支持 `codexly` 默认启动、自定义端口，以及局域网自定义强密码和最长 `180d` 的固定会话有效期。
 
 ### 优化
 
@@ -200,10 +200,10 @@
 
 ### 新增
 
-- 添加 CodeAgent 在线更新能力，在工作台侧栏和“设置 > 关于”中展示 CodeAgent、Codex 版本及更新状态。
+- 添加 Codexly 在线更新能力，在工作台侧栏和“设置 > 关于”中展示 Codexly、Codex 版本及更新状态。
 - 添加可取消的 Plan 模式和 Goal 模式，支持将计划构建为普通开发回合并展示自动审批审查生命周期。
 - 按任务展示可读取的 MCP 服务并提供文件操作入口，补充用户输入回答和任务信息展示。
-- 支持复用已打开的浏览器页面，并在 CodeAgent 服务重启后自动恢复连接。
+- 支持复用已打开的浏览器页面，并在 Codexly 服务重启后自动恢复连接。
 
 ### 优化
 
@@ -288,7 +288,7 @@
 
 ## [1.0.0] - 2026-08-02
 
-CodeAgent 首个稳定版本，集中发布本地 Coding Agent 工作台的完整交互、运行时治理与跨平台能力。
+Codexly 首个稳定版本，集中发布本地 Coding Agent 工作台的完整交互、运行时治理与跨平台能力。
 
 ### 新增
 
@@ -344,7 +344,7 @@ CodeAgent 首个稳定版本，集中发布本地 Coding Agent 工作台的完�
 
 ### 修复
 
-- 修复公开 npm 包名为 `@bryanhu/code-agent`，并同步安装文档与发布校验。
+- 修复公开 npm 包名为 `@bryanhu/codexly`，并同步安装文档与发布校验。
 
 ## [0.0.2] - 2026-07-31
 
@@ -370,26 +370,26 @@ CodeAgent 首个稳定版本，集中发布本地 Coding Agent 工作台的完�
 - 使用官方 Codex CLI 登录状态，不在 Web 中读取或管理认证凭证。
 - 添加 Sandbox 与命令审批，并通过受控附件端点读取历史图片。
 
-[Unreleased]: https://github.com/BryanHoo/CodeAgent/compare/v1.14.1...HEAD
-[1.14.1]: https://github.com/BryanHoo/CodeAgent/compare/v1.14.0...v1.14.1
-[1.14.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.12.0...v1.14.0
-[1.12.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.11.0...v1.12.0
-[1.11.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.10.0...v1.11.0
-[1.10.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.9.0...v1.10.0
-[1.9.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.8.0...v1.9.0
-[1.8.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.7.0...v1.8.0
-[1.7.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.6.0...v1.7.0
-[1.6.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.5.0...v1.6.0
-[1.5.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.4.0...v1.5.0
-[1.4.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.3.0...v1.4.0
-[1.3.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.2.1...v1.3.0
-[1.2.1]: https://github.com/BryanHoo/CodeAgent/compare/v1.2.0...v1.2.1
-[1.2.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/BryanHoo/CodeAgent/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/BryanHoo/CodeAgent/compare/v0.0.6...v1.0.0
-[0.0.6]: https://github.com/BryanHoo/CodeAgent/compare/v0.0.5...v0.0.6
-[0.0.5]: https://github.com/BryanHoo/CodeAgent/compare/v0.0.4...v0.0.5
-[0.0.4]: https://github.com/BryanHoo/CodeAgent/compare/v0.0.3...v0.0.4
-[0.0.3]: https://github.com/BryanHoo/CodeAgent/compare/v0.0.2...v0.0.3
-[0.0.2]: https://github.com/BryanHoo/CodeAgent/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/BryanHoo/CodeAgent/releases/tag/v0.0.1
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v1.14.1...HEAD
+[1.14.1]: https://github.com/BryanHoo/Codexly/compare/v1.14.0...v1.14.1
+[1.14.0]: https://github.com/BryanHoo/Codexly/compare/v1.12.0...v1.14.0
+[1.12.0]: https://github.com/BryanHoo/Codexly/compare/v1.11.0...v1.12.0
+[1.11.0]: https://github.com/BryanHoo/Codexly/compare/v1.10.0...v1.11.0
+[1.10.0]: https://github.com/BryanHoo/Codexly/compare/v1.9.0...v1.10.0
+[1.9.0]: https://github.com/BryanHoo/Codexly/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/BryanHoo/Codexly/compare/v1.7.0...v1.8.0
+[1.7.0]: https://github.com/BryanHoo/Codexly/compare/v1.6.0...v1.7.0
+[1.6.0]: https://github.com/BryanHoo/Codexly/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/BryanHoo/Codexly/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/BryanHoo/Codexly/compare/v1.3.0...v1.4.0
+[1.3.0]: https://github.com/BryanHoo/Codexly/compare/v1.2.1...v1.3.0
+[1.2.1]: https://github.com/BryanHoo/Codexly/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/BryanHoo/Codexly/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/BryanHoo/Codexly/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/BryanHoo/Codexly/compare/v0.0.6...v1.0.0
+[0.0.6]: https://github.com/BryanHoo/Codexly/compare/v0.0.5...v0.0.6
+[0.0.5]: https://github.com/BryanHoo/Codexly/compare/v0.0.4...v0.0.5
+[0.0.4]: https://github.com/BryanHoo/Codexly/compare/v0.0.3...v0.0.4
+[0.0.3]: https://github.com/BryanHoo/Codexly/compare/v0.0.2...v0.0.3
+[0.0.2]: https://github.com/BryanHoo/Codexly/compare/v0.0.1...v0.0.2
+[0.0.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.0.1

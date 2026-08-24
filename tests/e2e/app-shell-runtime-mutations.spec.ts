@@ -4,7 +4,7 @@ test.describe.configure({ mode: "serial" });
 
 test("allows a command approval and completes the turn", async ({ page }) => {
   await page.unroute("**/v1/**");
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("审批命令");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
@@ -22,7 +22,7 @@ test("allows a command approval and completes the turn", async ({ page }) => {
 
 test("denies a file change approval and completes the turn", async ({ page }) => {
   await page.unroute("**/v1/**");
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("审批文件");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
@@ -35,7 +35,7 @@ test("denies a file change approval and completes the turn", async ({ page }) =>
 
 test("answers a user input request and completes the turn", async ({ page }) => {
   await page.unroute("**/v1/**");
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("用户输入");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
@@ -50,12 +50,12 @@ test("answers a user input request and completes the turn", async ({ page }) => 
 
 test("interrupts a running turn from the composer", async ({ page }) => {
   await page.unroute("**/v1/**");
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("等待中断");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
 
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-action-\d+$/);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/);
   await page.getByRole("button", { exact: true, name: "停止" }).click();
   await expect(page.getByLabel("Turn 1")).toHaveAttribute("data-status", "interrupted");
   await expect(page.getByRole("button", { exact: true, name: "提交" })).toBeVisible();
@@ -69,11 +69,11 @@ test("ignores repeated interrupt clicks while the request is in flight", async (
       idempotencyKeys.push(request.headers()["idempotency-key"] ?? "");
     }
   });
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("等待中断");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-action-\d+$/);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/);
 
   const stopButton = page.getByRole("button", { exact: true, name: "停止" });
   await expect(stopButton).toBeEnabled();
@@ -87,7 +87,7 @@ test("ignores repeated interrupt clicks while the request is in flight", async (
 });
 
 test("preserves the prompt draft when submission fails", async ({ page }) => {
-  await page.route("**/v1/projects/code-agent/attachments/image/host", async (route) => {
+  await page.route("**/v1/projects/codexly/attachments/image/host", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -102,7 +102,7 @@ test("preserves the prompt draft when submission fails", async ({ page }) => {
       status: 201,
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks", async (route) => {
     if (route.request().method() !== "POST") {
       await route.fallback();
       return;
@@ -113,7 +113,7 @@ test("preserves the prompt draft when submission fails", async ({ page }) => {
       status: 502,
     });
   });
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await chooseHostAttachment(page, "image", "preserved.png");
 

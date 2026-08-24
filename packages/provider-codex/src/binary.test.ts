@@ -9,7 +9,7 @@ import { SUPPORTED_CODEX_VERSION, checkCodexVersion, locateCodexBinary } from ".
 const temporaryDirectories: string[] = [];
 
 async function createExecutable(output: string, exitCode = 0, name = "codex"): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), "code-agent-codex-binary-"));
+  const directory = await mkdtemp(join(tmpdir(), "codexly-codex-binary-"));
   temporaryDirectories.push(directory);
   const filePath = join(directory, name);
   await writeFile(
@@ -37,20 +37,20 @@ describe("locateCodexBinary", () => {
     await expect(
       locateCodexBinary({
         bundledBinaryPath: bundledPath,
-        env: { CODE_AGENT_CODEX_BIN: environmentPath, PATH: "" },
+        env: { CODEXLY_CODEX_BIN: environmentPath, PATH: "" },
         explicitPath,
         platform: "linux",
       }),
     ).resolves.toEqual({ path: explicitPath, source: "explicit" });
   });
 
-  it("uses CODE_AGENT_CODEX_BIN when no explicit path is provided", async () => {
+  it("uses CODEXLY_CODEX_BIN when no explicit path is provided", async () => {
     const environmentPath = await createExecutable("environment");
 
     await expect(
       locateCodexBinary({
         bundledBinaryPath: null,
-        env: { CODE_AGENT_CODEX_BIN: environmentPath, PATH: "" },
+        env: { CODEXLY_CODEX_BIN: environmentPath, PATH: "" },
         platform: "linux",
       }),
     ).resolves.toEqual({ path: environmentPath, source: "environment" });
@@ -62,7 +62,7 @@ describe("locateCodexBinary", () => {
     await expect(
       locateCodexBinary({
         bundledBinaryPath: null,
-        env: { code_agent_codex_bin: environmentPath, Path: "" },
+        env: { codexly_codex_bin: environmentPath, Path: "" },
         platform: "win32",
       }),
     ).resolves.toEqual({ path: environmentPath, source: "environment" });
@@ -90,7 +90,7 @@ describe("locateCodexBinary", () => {
   });
 
   it("falls back to a PATH binary", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "code-agent-codex-path-"));
+    const directory = await mkdtemp(join(tmpdir(), "codexly-codex-path-"));
     temporaryDirectories.push(directory);
     // 使用当前宿主的路径语义，避免 Windows 临时目录被错误地当作 POSIX 路径解析。
     const pathBinary = join(directory, process.platform === "win32" ? "codex.exe" : "codex");
@@ -109,7 +109,7 @@ describe("locateCodexBinary", () => {
   it.runIf(process.platform !== "win32")(
     "rejects a configured path that is not executable",
     async () => {
-      const directory = await mkdtemp(join(tmpdir(), "code-agent-codex-invalid-"));
+      const directory = await mkdtemp(join(tmpdir(), "codexly-codex-invalid-"));
       temporaryDirectories.push(directory);
       const filePath = join(directory, "codex");
       await writeFile(filePath, "not executable");

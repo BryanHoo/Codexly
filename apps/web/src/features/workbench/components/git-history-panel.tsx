@@ -1,4 +1,4 @@
-import type { ProjectGitCommit } from "@code-agent/protocol";
+import type { ProjectGitCommit } from "@codexly/protocol";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState, type KeyboardEvent } from "react";
 
@@ -6,15 +6,15 @@ import { i18n, useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
 import { cn } from "../../../shared/lib/utils.js";
 import {
-  codeAgentClient,
+  codexlyClient,
   projectGitHistoryInfiniteQueryOptions,
-  type CodeAgentGitCommitReviewClient,
-  type CodeAgentGitHistoryClient,
+  type CodexlyGitCommitReviewClient,
+  type CodexlyGitHistoryClient,
 } from "../../projects/project-queries.js";
 import { GitCommitReview } from "./git-commit-review.js";
 import { GitHistoryContent, GitHistoryList } from "./git-history-list.js";
 
-type GitHistoryClient = CodeAgentGitHistoryClient & CodeAgentGitCommitReviewClient;
+type GitHistoryClient = CodexlyGitHistoryClient & CodexlyGitCommitReviewClient;
 
 type QueriedGitHistoryPanelProps = Readonly<{
   active: boolean;
@@ -61,7 +61,7 @@ function getPanelId(index: number): string {
 }
 
 export function GitHistoryPanel({
-  client = codeAgentClient,
+  client = codexlyClient,
   projectId,
   rootPath,
 }: Readonly<{ client?: GitHistoryClient; projectId: string; rootPath: string }>) {

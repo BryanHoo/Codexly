@@ -134,13 +134,13 @@ describe("task timeline submission", () => {
     const markup = renderToStaticMarkup(
       <TaskTimeline
         onProjectChange={() => undefined}
-        projectId="code-agent"
+        projectId="codexly"
         projects={[
           {
             createdAt: "2026-07-22T06:00:00.000Z",
-            id: "code-agent",
-            name: "CodeAgent",
-            roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+            id: "codexly",
+            name: "Codexly",
+            roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
           },
           {
             createdAt: "2026-07-22T06:30:00.000Z",
@@ -153,7 +153,7 @@ describe("task timeline submission", () => {
     );
 
     expect(markup).toContain('<select aria-label="选择新聊天项目"');
-    expect(markup).toContain(">CodeAgent<");
+    expect(markup).toContain(">Codexly<");
     expect(markup).toContain("我们应该在");
     expect(markup).toContain("中做些什么？");
     expect(markup).toContain("lucide-message-square-code");
@@ -174,7 +174,7 @@ describe("task timeline submission", () => {
     expect(markup).not.toContain("text-3xl");
     expect(markup).not.toContain("text-4xl");
     expect(markup).not.toContain("lucide-chevron-down");
-    expect(markup).not.toContain('aria-label="切换新聊天项目，当前 CodeAgent"');
+    expect(markup).not.toContain('aria-label="切换新聊天项目，当前 Codexly"');
   });
 
   it("renders live item content from the normalized store instead of a stale root snapshot", () => {

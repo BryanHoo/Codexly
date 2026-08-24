@@ -1,7 +1,7 @@
-import type { AgentRuntimeProvider } from "@code-agent/core";
-import type { AgentModelPage } from "@code-agent/protocol";
+import type { AgentRuntimeProvider } from "@codexly/core";
+import type { AgentModelPage } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import {
   project,
   turnOptions,
@@ -20,7 +20,7 @@ describe("server task runtime", () => {
     const { app, listTasks } = await createHarness();
     const response = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks?archived=true&cursor=cursor&limit=25&searchTerm=%E5%BD%92%E6%A1%A3",
+      url: "/v1/projects/codexly/tasks?archived=true&cursor=cursor&limit=25&searchTerm=%E5%BD%92%E6%A1%A3",
     });
 
     expect(response.statusCode).toBe(200);
@@ -45,7 +45,7 @@ describe("server task runtime", () => {
       return projectId === project.id ? project : undefined;
     });
     const subscribeEvents = vi.spyOn(providerHarness.provider, "subscribeEvents");
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, {
         projectRepository: {
           list: () => Promise.resolve([]),
@@ -58,8 +58,8 @@ describe("server task runtime", () => {
     await app.ready();
 
     const requests = [
-      app.inject({ method: "GET", url: "/v1/projects/code-agent/tasks" }),
-      app.inject({ method: "GET", url: "/v1/projects/code-agent/tasks" }),
+      app.inject({ method: "GET", url: "/v1/projects/codexly/tasks" }),
+      app.inject({ method: "GET", url: "/v1/projects/codexly/tasks" }),
     ];
     await vi.waitFor(() => {
       expect(read).toHaveBeenCalled();
@@ -85,7 +85,7 @@ describe("server task runtime", () => {
       readDefaultSettings: () => Promise.resolve({}),
       releaseProject: () => Promise.resolve(),
     };
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, { provider: runtimeProvider }),
     );
     closeCallbacks.push(() => app.close());
@@ -97,7 +97,7 @@ describe("server task runtime", () => {
 
     const tasksResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     expect(tasksResponse.statusCode).toBe(200);
     expect(forProject).toHaveBeenCalledOnce();
@@ -117,7 +117,7 @@ describe("server task runtime", () => {
       readDefaultSettings: () => Promise.resolve({}),
       releaseProject,
     };
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, {
         projectRuntimeCleanupIntervalMs: 5,
         projectRuntimeIdleTtlMs: 10,
@@ -128,7 +128,7 @@ describe("server task runtime", () => {
 
     const firstAccess = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     expect(firstAccess.statusCode).toBe(200);
     expect(forProject).toHaveBeenCalledOnce();
@@ -139,7 +139,7 @@ describe("server task runtime", () => {
 
     const secondAccess = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     expect(secondAccess.statusCode).toBe(200);
     expect(forProject).toHaveBeenCalledTimes(2);
@@ -162,7 +162,7 @@ describe("server task runtime", () => {
       readDefaultSettings: () => Promise.resolve({}),
       releaseProject,
     };
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, {
         projectRuntimeCleanupIntervalMs: 5,
         projectRuntimeIdleTtlMs: 10,
@@ -173,7 +173,7 @@ describe("server task runtime", () => {
 
     const firstAccess = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     expect(firstAccess.statusCode).toBe(200);
     await vi.waitFor(() => {
@@ -182,7 +182,7 @@ describe("server task runtime", () => {
 
     let secondAccessSettled = false;
     const secondAccess = app
-      .inject({ method: "GET", url: "/v1/projects/code-agent/tasks" })
+      .inject({ method: "GET", url: "/v1/projects/codexly/tasks" })
       .finally(() => {
         secondAccessSettled = true;
       });
@@ -203,7 +203,7 @@ describe("server task runtime", () => {
     const { app, readTask } = await createHarness();
     const response = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1?cursor=older%2Fpage",
+      url: "/v1/projects/codexly/tasks/task-1?cursor=older%2Fpage",
     });
     const body = response.json<{
       checkpoint: { sequence: number; sessionId: unknown };
@@ -225,7 +225,7 @@ describe("server task runtime", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1?cursor=",
+      url: "/v1/projects/codexly/tasks/task-1?cursor=",
     });
 
     expect(response.statusCode).toBe(400);
@@ -245,7 +245,7 @@ describe("server task runtime", () => {
     const modelsResponse = app.inject({ method: "GET", url: "/v1/models" });
     const snapshotResponse = app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1",
+      url: "/v1/projects/codexly/tasks/task-1",
     });
     await vi.waitFor(() => {
       expect(listModels).toHaveBeenCalledOnce();
@@ -258,7 +258,7 @@ describe("server task runtime", () => {
       (
         await app.inject({
           method: "GET",
-          url: "/v1/projects/code-agent/defaults",
+          url: "/v1/projects/codexly/defaults",
         })
       ).statusCode,
     ).toBe(200);
@@ -282,12 +282,10 @@ describe("server task runtime", () => {
     expect(bounded.listModels).toHaveBeenCalledTimes(2);
 
     const restartedProvider = createProvider();
-    const firstRuntime = await createCodeAgentServer(
-      createServerOptions(restartedProvider.provider),
-    );
+    const firstRuntime = await createCodexlyServer(createServerOptions(restartedProvider.provider));
     await firstRuntime.inject({ method: "GET", url: "/v1/models" });
     await firstRuntime.close();
-    const secondRuntime = await createCodeAgentServer(
+    const secondRuntime = await createCodexlyServer(
       createServerOptions(restartedProvider.provider),
     );
     closeCallbacks.push(() => secondRuntime.close());

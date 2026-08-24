@@ -14,8 +14,8 @@ test("pairs real browsers, persists the cookie, and invalidates it on logout @cr
   });
   page.on("websocket", (socket) => sockets.push(socket.url()));
 
-  await page.goto("/p/code-agent/t/task-realtime");
-  await expect(page.getByRole("region", { name: "CodeAgent" })).toContainText("连接可信局域网会话");
+  await page.goto("/p/codexly/t/task-realtime");
+  await expect(page.getByRole("region", { name: "Codexly" })).toContainText("连接可信局域网会话");
   expect(businessRequests).toEqual([]);
   expect(sockets).toEqual([]);
 
@@ -28,11 +28,11 @@ test("pairs real browsers, persists the cookie, and invalidates it on logout @cr
   await expect(page.locator('[data-sonner-toast][data-type="error"]')).toHaveText(
     "Pairing request failed",
   );
-  await expect(page.getByRole("button", { name: "切换项目 CodeAgent" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "切换项目 Codexly" })).toHaveCount(0);
 
   await codeInput.fill(LAN_PAIRING_CODE);
   await page.getByRole("button", { name: "配对" }).click();
-  await expect(page.getByRole("button", { name: "切换项目 CodeAgent" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "切换项目 Codexly" })).toBeVisible();
   await expect.poll(() => sockets.length).toBeGreaterThan(0);
 
   // 配对后的远程 Web 必须直接通过 Server API 浏览宿主目录，不依赖浏览器所在机器的原生选择器。
@@ -57,19 +57,19 @@ test("pairs real browsers, persists the cookie, and invalidates it on logout @cr
   expect(cookies).toContainEqual(
     expect.objectContaining({
       httpOnly: true,
-      name: "codeagent_session",
+      name: "codexly_session",
       secure: false,
     }),
   );
 
   await page.reload();
-  await expect(page.getByRole("button", { name: "切换项目 CodeAgent" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "切换项目 Codexly" })).toBeVisible();
 
   const otherContext = await browser.newContext({ baseURL: lanServerUrl, locale: "zh-CN" });
   try {
     const otherPage = await otherContext.newPage();
     await otherPage.goto("/");
-    await expect(otherPage.getByRole("region", { name: "CodeAgent" })).toContainText(
+    await expect(otherPage.getByRole("region", { name: "Codexly" })).toContainText(
       "连接可信局域网会话",
     );
   } finally {
@@ -81,6 +81,6 @@ test("pairs real browsers, persists the cookie, and invalidates it on logout @cr
   await dialog.getByRole("button", { name: "局域网访问" }).click();
   await dialog.getByRole("button", { name: "退出局域网访问" }).click();
 
-  await expect(page.getByRole("region", { name: "CodeAgent" })).toContainText("连接可信局域网会话");
-  await expect(page.getByRole("button", { name: "切换项目 CodeAgent" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Codexly" })).toContainText("连接可信局域网会话");
+  await expect(page.getByRole("button", { name: "切换项目 Codexly" })).toHaveCount(0);
 });

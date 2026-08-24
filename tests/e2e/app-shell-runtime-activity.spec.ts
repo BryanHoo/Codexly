@@ -8,7 +8,7 @@ test("opens a completed file change diff while the turn is still running", async
     kind: "update" as const,
     path: "src/live.ts",
   };
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -87,7 +87,7 @@ test("opens a completed file change diff while the turn is still running", async
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await expect
     .poll(() =>
       page.evaluate(
@@ -139,11 +139,11 @@ test("updates a running background task title and preserves blocking status", as
     availableDecisions: ["allow", "deny"],
     command: "pnpm check",
     createdAt: "2026-07-29T00:00:01.000Z",
-    cwd: "/workspace/CodeAgent",
+    cwd: "/workspace/Codexly",
     expiresAt: null,
     itemId: "approval-input-design",
     networkAccess: null,
-    projectId: "code-agent",
+    projectId: "codexly",
     reason: null,
     requestId: "approval-input-design",
     status: "pending",
@@ -151,13 +151,13 @@ test("updates a running background task title and preserves blocking status", as
     turnId: "turn-input-design",
     type: "command_approval",
   } as const;
-  await page.route("**/v1/projects/code-agent/tasks?*", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks?*", async (route) => {
     if (route.request().method() !== "GET") {
       await route.fallback();
       return;
     }
     const projectTasks = tasks
-      .filter((task) => task.projectId === "code-agent")
+      .filter((task) => task.projectId === "codexly")
       .slice(0, 5)
       .map((task) => (task.id === "markdown" ? { ...task, title: "新聊天" } : task));
     await route.fulfill({
@@ -165,7 +165,7 @@ test("updates a running background task title and preserves blocking status", as
       json: { data: projectTasks, nextCursor: "5" },
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/markdown", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/markdown", async (route) => {
     backgroundSnapshotReadCount += 1;
     const hasFormalTitle = backgroundSnapshotReadCount > 1;
     await route.fulfill({
@@ -205,7 +205,7 @@ test("updates a running background task title and preserves blocking status", as
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/input-design", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/input-design", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -281,10 +281,10 @@ test("updates a running background task title and preserves blocking status", as
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const backgroundTask = sidebar.getByRole("link", { name: /优化输入框交互/ });
-  const completedTask = sidebar.locator('a[href="/p/code-agent/t/markdown"]');
+  const completedTask = sidebar.locator('a[href="/p/codexly/t/markdown"]');
   const failedTask = sidebar.getByRole("link", { name: /完善 Runtime 状态/ });
   await expect
     .poll(() =>
@@ -349,7 +349,7 @@ test("updates a running background task title and preserves blocking status", as
   const previousConnectionGeneration = await page.evaluate(() =>
     Number(sessionStorage.getItem("__sidebarEventConnectionGeneration") ?? "0"),
   );
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -421,7 +421,7 @@ test("updates a running background task title and preserves blocking status", as
   const completedConnectionGeneration = await page.evaluate(() =>
     Number(sessionStorage.getItem("__sidebarEventConnectionGeneration") ?? "0"),
   );
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await expect
     .poll(() =>
       page.evaluate(() =>

@@ -1,8 +1,8 @@
-import type { ProjectGitStatus } from "@code-agent/protocol";
+import type { ProjectGitStatus } from "@codexly/protocol";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { CodeAgentGitStatusClient } from "./project-queries.js";
+import type { CodexlyGitStatusClient } from "./project-queries.js";
 import {
   PROJECT_GIT_STATUS_FILE_CHANGE_DEBOUNCE_MS,
   PROJECT_GIT_STATUS_POLL_INTERVAL_MS,
@@ -31,7 +31,7 @@ const nonGitStatus: ProjectGitStatus = {
 const rootPath = "/workspace/project-1";
 
 function createHarness(isPageVisible: () => boolean = () => true) {
-  const getProjectGitStatus = vi.fn<CodeAgentGitStatusClient["getProjectGitStatus"]>(() =>
+  const getProjectGitStatus = vi.fn<CodexlyGitStatusClient["getProjectGitStatus"]>(() =>
     Promise.resolve(gitStatus),
   );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -103,7 +103,7 @@ describe("ProjectGitStatusCoordinator", () => {
       resolveFirstRequest = resolve;
     });
     const getProjectGitStatus = vi
-      .fn<CodeAgentGitStatusClient["getProjectGitStatus"]>()
+      .fn<CodexlyGitStatusClient["getProjectGitStatus"]>()
       .mockReturnValueOnce(firstRequest)
       .mockResolvedValue(gitStatus);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -139,7 +139,7 @@ describe("ProjectGitStatusCoordinator", () => {
   it("stops automatic polling for non-Git projects and resumes only after manual detection", async () => {
     vi.useFakeTimers();
     const getProjectGitStatus = vi
-      .fn<CodeAgentGitStatusClient["getProjectGitStatus"]>()
+      .fn<CodexlyGitStatusClient["getProjectGitStatus"]>()
       .mockResolvedValueOnce(nonGitStatus)
       .mockResolvedValueOnce(gitStatus)
       .mockResolvedValueOnce(nonGitStatus);
@@ -169,7 +169,7 @@ describe("ProjectGitStatusCoordinator", () => {
     vi.useFakeTimers();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const getProjectGitStatus = vi
-      .fn<CodeAgentGitStatusClient["getProjectGitStatus"]>()
+      .fn<CodexlyGitStatusClient["getProjectGitStatus"]>()
       .mockRejectedValueOnce(new Error("Git unavailable"))
       .mockResolvedValue(gitStatus);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -185,7 +185,7 @@ describe("ProjectGitStatusCoordinator", () => {
     expect(
       queryClient.getQueryState(["projects", "project-1", rootPath, "git-status"]),
     ).toBeUndefined();
-    expect(warn).toHaveBeenCalledWith("CodeAgent internal warning", {
+    expect(warn).toHaveBeenCalledWith("Codexly internal warning", {
       diagnosticCode: "git_status_poll_failed",
       errorMessage: "Git unavailable",
       projectId: "project-1",
@@ -202,7 +202,7 @@ describe("ProjectGitStatusCoordinator", () => {
   it("caps exponential retry jitter after consecutive failures", async () => {
     vi.useFakeTimers();
     const getProjectGitStatus = vi
-      .fn<CodeAgentGitStatusClient["getProjectGitStatus"]>()
+      .fn<CodexlyGitStatusClient["getProjectGitStatus"]>()
       .mockRejectedValueOnce(new Error("Git unavailable"))
       .mockRejectedValueOnce(new Error("Git unavailable"))
       .mockRejectedValueOnce(new Error("Git unavailable"))

@@ -1,4 +1,4 @@
-import type { ProjectGitStatus, ProjectGitWorktree } from "@code-agent/protocol";
+import type { ProjectGitStatus, ProjectGitWorktree } from "@codexly/protocol";
 import { ChevronsUpDown, GitBranch, GitFork, LoaderCircle, Plus } from "lucide-react";
 import { useState } from "react";
 

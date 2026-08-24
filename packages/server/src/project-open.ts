@@ -7,7 +7,7 @@ import type {
   ProjectOpenAppId,
   ProjectOpenCapabilitiesResponse,
   ProjectOpenPlatform,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 type SpawnDetachedOptions = Readonly<{
   cwd: string;

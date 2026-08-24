@@ -20,7 +20,7 @@
 ## Global Constraints
 
 - 保持 `src/main.tsx` 仅负责 React Root 与根级装配，`src/App.tsx` 仅负责 Router Outlet。
-- Web 只能依赖 `@code-agent/client` 与 `@code-agent/protocol`，且本阶段不添加未使用的跨包导入。
+- Web 只能依赖 `@codexly/client` 与 `@codexly/protocol`，且本阶段不添加未使用的跨包导入。
 - 所有共享依赖版本写入 `pnpm-workspace.yaml` Catalog，应用依赖使用 `catalog:`。
 - 不实现 HTTP、WebSocket、Snapshot、Runtime Store、认证、会话、审批、Diff 或 Composer 业务。
 - 不提前安装 Zustand、AI SDK Runtime、AI Elements、Streamdown、Diff 或虚拟列表依赖。
@@ -54,7 +54,7 @@
 
 **Verification:**
 
-- Run: `pnpm typecheck` and `pnpm --filter @code-agent/web build`.
+- Run: `pnpm typecheck` and `pnpm --filter @codexly/web build`.
 - Expected: both commands exit `0` and `dist/web` contains built CSS/JS assets.
 
 **Stop Conditions:**

@@ -4,7 +4,7 @@ import type {
   AgentProviderConnectionRepository,
   AgentSettingsRepository,
   ProjectRepository,
-} from "@code-agent/core";
+} from "@codexly/core";
 import type {
   AppInfoResponse,
   CommitProjectChangesRequest,
@@ -29,15 +29,15 @@ import type {
   ProjectSourceFile,
   SwitchProjectBranchRequest,
   SwitchProjectWorktreeRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
-import type { CodeAgentAccessOptions } from "./access-control.js";
+import type { CodexlyAccessOptions } from "./access-control.js";
 import type { HostAttachmentSource } from "./host-file-browser.js";
 import type { ProjectImageFile } from "./project-image-file.js";
 import type { ProjectOpenService } from "./project-open.js";
 
-export interface CreateCodeAgentServerOptions {
-  access?: CodeAgentAccessOptions;
+export interface CreateCodexlyServerOptions {
+  access?: CodexlyAccessOptions;
   allowedHosts?: readonly string[];
   eventBufferSize?: number;
   eventSessionId?: string;

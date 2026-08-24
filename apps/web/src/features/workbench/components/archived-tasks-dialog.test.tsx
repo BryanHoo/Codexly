@@ -1,4 +1,4 @@
-import type { AgentTaskPage } from "@code-agent/protocol";
+import type { AgentTaskPage } from "@codexly/protocol";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -10,14 +10,14 @@ const page: AgentTaskPage = {
     {
       id: "archived-1",
       pinned: false,
-      projectId: "code-agent",
+      projectId: "codexly",
       title: "归档任务一",
       updatedAt: "2026-08-23T00:00:00.000Z",
     },
     {
       id: "archived-2",
       pinned: false,
-      projectId: "code-agent",
+      projectId: "codexly",
       title: "归档任务二",
       updatedAt: "2026-08-22T00:00:00.000Z",
     },

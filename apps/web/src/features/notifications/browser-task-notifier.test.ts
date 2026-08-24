@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentTurn, PendingRequest } from "@code-agent/protocol";
+import type { AgentEvent, AgentTurn, PendingRequest } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -85,7 +85,7 @@ function createPendingRequestEvent(type: PendingRequest["type"]): AgentEvent {
         ...common,
         availableDecisions: ["allow", "deny"],
         command: "pnpm check",
-        cwd: "/workspace/CodeAgent",
+        cwd: "/workspace/Codexly",
         networkAccess: null,
         reason: null,
         type,
@@ -95,7 +95,7 @@ function createPendingRequestEvent(type: PendingRequest["type"]): AgentEvent {
       request = {
         ...common,
         availableDecisions: ["allow", "deny"],
-        grantRoot: "/workspace/CodeAgent",
+        grantRoot: "/workspace/Codexly",
         reason: null,
         type,
       };
@@ -103,7 +103,7 @@ function createPendingRequestEvent(type: PendingRequest["type"]): AgentEvent {
     case "permissions_approval":
       request = {
         ...common,
-        cwd: "/workspace/CodeAgent",
+        cwd: "/workspace/Codexly",
         environmentId: null,
         permissions: { fileSystem: null, network: { enabled: true } },
         reason: null,
@@ -202,7 +202,7 @@ describe("browser task notifier", () => {
     harness.notifier.notify("project-1", createTurnCompletedEvent(status), "完善通知功能");
 
     expect(harness.api.show).toHaveBeenCalledWith(
-      "CodeAgent · 完善通知功能",
+      "Codexly · 完善通知功能",
       expect.objectContaining({ body, tag: "project-1:task-1:turn-1:terminal" }),
     );
   });
@@ -219,7 +219,7 @@ describe("browser task notifier", () => {
     harness.notifier.notify("project / 1", createPendingRequestEvent(type), "实现审批流程");
 
     expect(harness.api.show).toHaveBeenCalledWith(
-      "CodeAgent · 实现审批流程",
+      "Codexly · 实现审批流程",
       expect.objectContaining({ body, tag: "project / 1:task / 1:request-1:request" }),
     );
     harness.click();
@@ -252,7 +252,7 @@ describe("browser task notifier", () => {
 
     expect(harness.api.show).toHaveBeenCalledOnce();
     expect(harness.api.show).toHaveBeenCalledWith(
-      "CodeAgent · 完善通知功能",
+      "Codexly · 完善通知功能",
       expect.objectContaining({ body: "Task 运行失败：模型服务不可用" }),
     );
   });

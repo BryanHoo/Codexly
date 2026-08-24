@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentProviderEvent } from "@code-agent/core";
+import type { AgentProviderEvent } from "@codexly/core";
 import { createCodexRuntimeProvider } from "./agent-provider.js";
 import { RpcResponseError } from "./jsonl-rpc-client.js";
 import {
@@ -134,7 +134,7 @@ describe("CodexAgentProvider goals and operations", () => {
 
     const action = {
       command: "/bin/zsh -lc pwd",
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       source: "shell",
       type: "command",
     };
@@ -208,7 +208,7 @@ describe("CodexAgentProvider goals and operations", () => {
           {
             command: "pnpm dev",
             cpuPercent: 1.5,
-            cwd: "/workspace/CodeAgent",
+            cwd: "/workspace/Codexly",
             itemId: "command-1",
             osPid: 2345,
             processId: "terminal-1",
@@ -226,7 +226,7 @@ describe("CodexAgentProvider goals and operations", () => {
       data: [
         {
           command: "pnpm dev",
-          cwd: "/workspace/CodeAgent",
+          cwd: "/workspace/Codexly",
           id: "terminal-1",
           itemId: "command-1",
         },

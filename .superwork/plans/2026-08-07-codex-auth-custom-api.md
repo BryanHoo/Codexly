@@ -1,6 +1,6 @@
 # Codex Auth And Custom API Implementation Plan
 
-**Goal:** 在 CodeAgent 内完成 ChatGPT 官方登录和单一 OpenAI-compatible 自定义 API 连接，并让连接模式驱动真实模型目录与现有 Task/Turn 设置。
+**Goal:** 在 Codexly 内完成 ChatGPT 官方登录和单一 OpenAI-compatible 自定义 API 连接，并让连接模式驱动真实模型目录与现有 Task/Turn 设置。
 
 **Suggested Spec Reads:**
 
@@ -16,7 +16,7 @@
 - `.superwork/spec/shared/directory-structure.md` — 约束 Protocol 与 Core 公开入口和依赖方向。
 - `.superwork/spec/shared/quality-guidelines.md` — 约束联合类型、契约测试与运行时校验。
 
-**Architecture:** 通过 Codex App Server `account/*` 和 `config/batchWrite` 管理认证与固定自定义 Provider；CodeAgent 仅持久化模式、Base URL 和已验证模型目录。Server 按模式提供 `/v1/models`，Web 在连接未就绪时显示实际连接 Gate，并在全局设置中复用连接面板。
+**Architecture:** 通过 Codex App Server `account/*` 和 `config/batchWrite` 管理认证与固定自定义 Provider；Codexly 仅持久化模式、Base URL 和已验证模型目录。Server 按模式提供 `/v1/models`，Web 在连接未就绪时显示实际连接 Gate，并在全局设置中复用连接面板。
 
 **Tech Stack:** TypeScript、TypeBox、Codex App Server JSON-RPC、Fastify、SQLite Worker、React 19、TanStack Query、shadcn/Radix、Tailwind CSS v4、Vitest、Playwright、pnpm。
 
@@ -24,7 +24,7 @@
 
 - 遵守 `AGENTS.md`：说明和注释使用简体中文，代码标识符保持原文，关键逻辑添加清晰短注释，Python 命令只用 `python3`，项目命令使用 pnpm。
 - API key 只能存在于当前 HTTPS/本机 HTTP 请求 Body、Adapter 内存和 Codex 官方凭证写入调用中；禁止进入数据库、Codex `config.toml`、URL、日志、响应、Query Cache、localStorage、错误正文和快照。
-- 自定义 Provider ID 固定为 `code_agent_custom`；只接受 `http:`/`https:` Base URL，拒绝 userinfo、query、fragment 和重定向，限制超时、响应大小和模型数量。
+- 自定义 Provider ID 固定为 `codexly_custom`；只接受 `http:`/`https:` Base URL，拒绝 userinfo、query、fragment 和重定向，限制超时、响应大小和模型数量。
 - 只支持 Responses API-compatible Provider；不增加旧实现兼容分支，不读取或编辑 `auth.json`，不提供原始 RPC/TOML 透传。
 - 前端沿用现有 semantic tokens、字体和紧凑工作台风格。移动端先实现单列 44px 触控目标，`sm` 以上增强为双区布局；不新增营销 Hero、装饰渐变、嵌套 Card 或视口缩放字号。
 - 独立异步读取并行启动；登录轮询必须可取消，组件卸载后不得继续更新状态。
@@ -143,7 +143,7 @@ Expected: migration、默认值、读写、重开持久化、损坏数据和无 
 
 **Stop Conditions:**
 
-- 如果模式切换无法同时保持 Codex 配置和 CodeAgent 记录一致，则停止并增加明确补偿策略测试后再继续。
+- 如果模式切换无法同时保持 Codex 配置和 Codexly 记录一致，则停止并增加明确补偿策略测试后再继续。
 
 - [x] **Task Status:** completed
 
@@ -165,7 +165,7 @@ Expected: 新路由契约、幂等、错误映射、模式模型目录、缓存�
 **Interfaces:**
 
 - Consumes: Task 1 的请求响应 Schema 和 Task 4 的固定 HTTP 路由。
-- Produces: `CodeAgentClient` 连接方法、稳定 Query Keys、可取消状态轮询和成功后的相关缓存失效策略。
+- Produces: `CodexlyClient` 连接方法、稳定 Query Keys、可取消状态轮询和成功后的相关缓存失效策略。
 
 **Behavior:**
 

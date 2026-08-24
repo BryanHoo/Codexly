@@ -36,7 +36,7 @@
 **Interfaces:**
 
 - Consumes: 现有 Project Git HTTP 路径与直属目录命名约束。
-- Produces: `GitChildRepositorySchema`、`ProjectGitStatusQuery`、带可选 `repository` 的 `GenerateCommitMessageRequest` 与 `CommitProjectChangesRequest`、支持仓库查询的 `CodeAgentClient.getProjectGitStatus`。
+- Produces: `GitChildRepositorySchema`、`ProjectGitStatusQuery`、带可选 `repository` 的 `GenerateCommitMessageRequest` 与 `CommitProjectChangesRequest`、支持仓库查询的 `CodexlyClient.getProjectGitStatus`。
 
 **Behavior:**
 

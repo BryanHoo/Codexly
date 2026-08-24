@@ -4,7 +4,7 @@ import type {
   AgentAttachmentKind,
   AgentAttachmentMediaType,
   AgentMessageAttachment,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import {
   normalizeAttachmentName,

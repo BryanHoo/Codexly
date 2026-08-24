@@ -6,7 +6,7 @@ import type {
   AgentTaskSettings,
   Project,
   ProjectRootInput,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 export type RegisterProjectInput = Readonly<{
   idempotencyKey: string;

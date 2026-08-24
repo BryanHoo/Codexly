@@ -3,7 +3,7 @@ import { Buffer } from "node:buffer";
 import {
   AgentProviderConnectionRecordSchema,
   type AgentProviderConnectionRecord,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { Value } from "@sinclair/typebox/value";
 
 const MAX_PROVIDER_MODELS = 1_000;

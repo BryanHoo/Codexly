@@ -1,5 +1,5 @@
-const expandedProjectsStorageKey = "code-agent:project-sidebar:expanded-projects:v1";
-const temporaryTasksExpandedStorageKey = "code-agent:project-sidebar:temporary-tasks-expanded:v1";
+const expandedProjectsStorageKey = "codexly:project-sidebar:expanded-projects:v1";
+const temporaryTasksExpandedStorageKey = "codexly:project-sidebar:temporary-tasks-expanded:v1";
 
 export type ProjectSidebarPreferenceStorage = Readonly<{
   getItem: (key: string) => string | null;

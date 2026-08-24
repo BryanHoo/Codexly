@@ -4,7 +4,7 @@ import type {
   AgentModel,
   AppInfoResponse,
   ProjectOpenApp,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { Settings, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 

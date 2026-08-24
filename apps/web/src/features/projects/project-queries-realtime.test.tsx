@@ -101,7 +101,7 @@ describe("project realtime queries", () => {
   });
 
   it("stops pagination when the provider repeats the current cursor", () => {
-    const queryOptions = projectTasksInfiniteQueryOptions("code-agent", {
+    const queryOptions = projectTasksInfiniteQueryOptions("codexly", {
       listProjects: vi.fn(),
       listTasks: vi.fn(),
       readTask: vi.fn(),

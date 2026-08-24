@@ -1,7 +1,7 @@
 import { lstat, open, readlink } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import type { AgentItem, ProjectGitStatus } from "@code-agent/protocol";
+import type { AgentItem, ProjectGitStatus } from "@codexly/protocol";
 
 import type { GitCommandExecutor } from "./git-command.js";
 

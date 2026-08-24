@@ -1,4 +1,4 @@
-import type { ProjectDirectoryListing } from "@code-agent/protocol";
+import type { ProjectDirectoryListing } from "@codexly/protocol";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { FolderPlus, LoaderCircle, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../shared/components/core/dialog.js";
-import type { CodeAgentProjectDirectoryClient } from "../project-queries.js";
+import type { CodexlyProjectDirectoryClient } from "../project-queries.js";
 import { setProjectRootPathChecked } from "../project-root-selection.js";
 import { FilesystemPickerToolbar } from "./filesystem-picker-toolbar.js";
 
@@ -161,7 +161,7 @@ export function ProjectDirectoryTree({
 }
 
 type ProjectDirectoryPickerDialogProps = Readonly<{
-  client: CodeAgentProjectDirectoryClient;
+  client: CodexlyProjectDirectoryClient;
   isAdding: boolean;
   onAdd: (paths: readonly string[]) => Promise<void> | void;
   onClose: () => void;

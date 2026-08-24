@@ -165,7 +165,7 @@ export async function locateCodexBinary(
   if (options.explicitPath) {
     return requireExecutable(options.explicitPath, "explicit", platform);
   }
-  const environmentPath = readEnvironmentValue(env, "CODE_AGENT_CODEX_BIN", platform);
+  const environmentPath = readEnvironmentValue(env, "CODEXLY_CODEX_BIN", platform);
   if (environmentPath) {
     return requireExecutable(environmentPath, "environment", platform);
   }

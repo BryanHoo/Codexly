@@ -1,7 +1,7 @@
 import { lstat, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import type { AgentFileSearchMatch } from "@code-agent/core";
+import type { AgentFileSearchMatch } from "@codexly/core";
 
 const MAX_PROJECT_FILE_SEARCH_DEPTH = 20;
 const MAX_PROJECT_FILE_SEARCH_RESULTS = 50;

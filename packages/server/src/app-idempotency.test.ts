@@ -1,7 +1,7 @@
-import { PendingRequestResolutionError, type AgentProvider } from "@code-agent/core";
-import { RpcResponseError } from "@code-agent/provider-codex";
+import { PendingRequestResolutionError, type AgentProvider } from "@codexly/core";
+import { RpcResponseError } from "@codexly/provider-codex";
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import {
   turnOptions,
   turnRequest,
@@ -28,7 +28,7 @@ describe("server pending requests and idempotency", () => {
         turnId: pendingRequest.turnId,
         type: pendingRequest.type,
       },
-      url: `/v1/projects/code-agent/tasks/task-1/pending-requests/${encodeURIComponent(pendingRequest.requestId)}/resolve`,
+      url: `/v1/projects/codexly/tasks/task-1/pending-requests/${encodeURIComponent(pendingRequest.requestId)}/resolve`,
     };
 
     const first = await app.inject(request);
@@ -59,7 +59,7 @@ describe("server pending requests and idempotency", () => {
         turnId: pendingRequest.turnId,
         type: pendingRequest.type,
       },
-      url: `/v1/projects/code-agent/tasks/task-1/pending-requests/${encodeURIComponent(pendingRequest.requestId)}/resolve`,
+      url: `/v1/projects/codexly/tasks/task-1/pending-requests/${encodeURIComponent(pendingRequest.requestId)}/resolve`,
     };
     const crossProject = await app.inject(request);
     expect(crossProject.statusCode).toBe(409);
@@ -100,14 +100,14 @@ describe("server pending requests and idempotency", () => {
       method: "POST",
       payload:
         '{"input":{"attachments":[],"skills":[],"text":"继续实现","type":"prompt"},"options":{"approvalPolicy":"on-request","approvalsReviewer":"user","model":"gpt-5.6-sol","reasoningEffort":"high","sandboxMode":"workspace-write"}}',
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
     const repeated = await app.inject({
       headers,
       method: "POST",
       payload:
         '{"options":{"sandboxMode":"workspace-write","reasoningEffort":"high","model":"gpt-5.6-sol","approvalsReviewer":"user","approvalPolicy":"on-request"},"input":{"type":"prompt","text":"继续实现","skills":[],"attachments":[]}}',
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
 
     expect(first.statusCode).toBe(201);
@@ -127,13 +127,13 @@ describe("server pending requests and idempotency", () => {
       headers: { "idempotency-key": "b:c" },
       method: "POST",
       payload,
-      url: "/v1/projects/code-agent/tasks/task%3Aa/turns",
+      url: "/v1/projects/codexly/tasks/task%3Aa/turns",
     });
     const second = await app.inject({
       headers: { "idempotency-key": "c" },
       method: "POST",
       payload,
-      url: "/v1/projects/code-agent/tasks/task%3Aa%3Ab/turns",
+      url: "/v1/projects/codexly/tasks/task%3Aa%3Ab/turns",
     });
 
     expect(first.statusCode).toBe(201);
@@ -159,7 +159,7 @@ describe("server pending requests and idempotency", () => {
         headers: { "idempotency-key": key },
         method: "POST",
         payload: {},
-        url: "/v1/projects/code-agent/tasks",
+        url: "/v1/projects/codexly/tasks",
       });
 
     await createTask("task-key-1");
@@ -183,7 +183,7 @@ describe("server pending requests and idempotency", () => {
         headers: { "idempotency-key": key },
         method: "POST",
         payload: {},
-        url: "/v1/projects/code-agent/tasks",
+        url: "/v1/projects/codexly/tasks",
       });
 
     const firstResponsePromise = createTask("in-flight-task-1");
@@ -230,14 +230,14 @@ describe("server pending requests and idempotency", () => {
       headers: { "idempotency-key": "terminal-turn" },
       method: "POST",
       payload: { taskId: "task-1" },
-      url: "/v1/projects/code-agent/tasks/task-1/turns/turn-completed/interrupt",
+      url: "/v1/projects/codexly/tasks/task-1/turns/turn-completed/interrupt",
     });
     readTask.mockResolvedValueOnce(snapshot);
     const missing = await app.inject({
       headers: { "idempotency-key": "missing-turn" },
       method: "POST",
       payload: { taskId: "task-1" },
-      url: "/v1/projects/code-agent/tasks/task-1/turns/turn-missing/interrupt",
+      url: "/v1/projects/codexly/tasks/task-1/turns/turn-missing/interrupt",
     });
 
     expect(terminal.statusCode).toBe(409);
@@ -252,19 +252,19 @@ describe("server pending requests and idempotency", () => {
     const missingKey = await app.inject({
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     const first = await app.inject({
       headers: { "idempotency-key": "turn-conflict" },
       method: "POST",
       payload: turnRequest("第一次"),
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
     const conflict = await app.inject({
       headers: { "idempotency-key": "turn-conflict" },
       method: "POST",
       payload: turnRequest("第二次"),
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
 
     expect(missingKey.statusCode).toBe(400);
@@ -287,7 +287,7 @@ describe("server pending requests and idempotency", () => {
       headers: { "idempotency-key": "retry-task" },
       method: "POST" as const,
       payload: {},
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     };
 
     const failed = await app.inject(request);
@@ -314,7 +314,7 @@ describe("server pending requests and idempotency", () => {
         input: { attachments: [], skills: [], text: "start", type: "prompt" },
         options: turnOptions,
       },
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
 
     expect(response.statusCode).toBe(502);
@@ -361,12 +361,12 @@ describe("server pending requests and idempotency", () => {
         return Promise.resolve(snapshotDuringRead);
       }),
     };
-    const app = await createCodeAgentServer(createServerOptions(provider));
+    const app = await createCodexlyServer(createServerOptions(provider));
     closeCallbacks.push(() => app.close());
 
     const response = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1",
+      url: "/v1/projects/codexly/tasks/task-1",
     });
 
     expect(response.json()).toMatchObject({

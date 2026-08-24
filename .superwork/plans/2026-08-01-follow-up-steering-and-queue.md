@@ -43,7 +43,7 @@
 **Interfaces:**
 
 - Consumes: `AgentPromptInput`、`AgentProviderTurnInput`、活动 `taskId/turnId`。
-- Produces: `steerTurn` Provider 端口、严格 HTTP Mutation Schema、`CodeAgentClient.steerTurn` 和 `turns.steer` 能力位。
+- Produces: `steerTurn` Provider 端口、严格 HTTP Mutation Schema、`CodexlyClient.steerTurn` 和 `turns.steer` 能力位。
 
 **Behavior:**
 
@@ -105,7 +105,7 @@ Expected: 新旧数据库、HTTP 设置和设置对话框均稳定读写默认�
 
 **Interfaces:**
 
-- Consumes: `followUpBehavior`、活动 Turn、`CodeAgentClient.steerTurn`、Composer Prompt/Skill/Attachment 草稿。
+- Consumes: `followUpBehavior`、活动 Turn、`CodexlyClient.steerTurn`、Composer Prompt/Skill/Attachment 草稿。
 - Produces: Task 级 `QueuedPrompt` FIFO、运行中提交分派、立即引导按钮、取消按钮和自动续发行为。
 
 **Behavior:**

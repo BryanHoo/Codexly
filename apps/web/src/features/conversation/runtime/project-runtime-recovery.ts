@@ -1,5 +1,5 @@
-import type { AgentEventConnectionState } from "@code-agent/client";
-import type { AgentEvent, AgentTaskSnapshotResponse } from "@code-agent/protocol";
+import type { AgentEventConnectionState } from "@codexly/client";
+import type { AgentEvent, AgentTaskSnapshotResponse } from "@codexly/protocol";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
 import { AgentEventBuffer } from "./task-runtime.js";
 import type { TaskStore } from "./task-store.js";

@@ -1,4 +1,4 @@
-import type { PendingRequest, Project } from "@code-agent/protocol";
+import type { PendingRequest, Project } from "@codexly/protocol";
 import { useMemo } from "react";
 
 import { i18n, useTranslation } from "../../../i18n/i18n.js";

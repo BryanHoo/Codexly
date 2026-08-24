@@ -14,8 +14,8 @@ describe("WorkbenchInspector tabs", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
         projectId="project-1"
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
       />,
     );
 
@@ -25,8 +25,8 @@ describe("WorkbenchInspector tabs", () => {
   it("renders the latest task plan as a plain status-aware queue at the bottom of context", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         tab="context"
         taskId="task-1"
         task={{
@@ -103,13 +103,13 @@ describe("WorkbenchInspector tabs", () => {
         backgroundTerminals={[
           {
             command: "pnpm dev",
-            cwd: "/workspace/CodeAgent",
+            cwd: "/workspace/Codexly",
             id: "terminal-1",
             itemId: "command-1",
           },
         ]}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
       />,
     );
 
@@ -123,8 +123,8 @@ describe("WorkbenchInspector tabs", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
         onOpenProjectFile={() => undefined}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         gitStatus={lightweightGitStatus}
         gitStatusDetails={gitStatus}
         tab="context"
@@ -135,8 +135,8 @@ describe("WorkbenchInspector tabs", () => {
       <WorkbenchInspector
         gitStatus={lightweightGitStatus}
         gitStatusDetails={gitStatus}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         tab="project"
         taskId="task-1"
       />,
@@ -176,7 +176,7 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).toContain(">历史</span></button>");
     expect(markup).toContain(">上下文</span></button>");
     expect(projectMarkup).toContain('aria-label="项目文件"');
-    expect(projectMarkup).toContain(">CodeAgent</span>");
+    expect(projectMarkup).toContain(">Codexly</span>");
     expect(projectMarkup).toContain('data-project-file-tree=""');
     expect(markup).not.toContain('aria-label="Git 变更文件"');
     expect(markup).not.toContain("未暂存");
@@ -189,8 +189,8 @@ describe("WorkbenchInspector tabs", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
         gitStatus={lightweightGitStatus}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         taskId="task-1"
       />,
     );
@@ -205,8 +205,8 @@ describe("WorkbenchInspector tabs", () => {
     const cleanMarkup = renderInspectorMarkup(
       <WorkbenchInspector
         gitStatus={cleanGitStatus}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         tab="changes"
         taskId="task-1"
       />,
@@ -214,8 +214,8 @@ describe("WorkbenchInspector tabs", () => {
     const nonGitMarkup = renderInspectorMarkup(
       <WorkbenchInspector
         gitStatus={{ ...cleanGitStatus, repositoryMode: "none" }}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         taskId="task-1"
       />,
     );
@@ -229,8 +229,8 @@ describe("WorkbenchInspector tabs", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
         gitStatus={{ ...gitStatus, repositoryMode: "children" }}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         tab="context"
         taskId="task-1"
       />,
@@ -247,8 +247,8 @@ describe("WorkbenchInspector tabs", () => {
         <WorkbenchInspector
           expandedFileTreePaths={expandedFileTreePaths}
           gitStatus={nestedGitStatus}
-          projectName="CodeAgent"
-          projectPath="/workspace/CodeAgent"
+          projectName="Codexly"
+          projectPath="/workspace/Codexly"
           tab="context"
           taskId="task-1"
         />,
@@ -268,25 +268,21 @@ describe("WorkbenchInspector tabs", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
         onOpenProjectFile={() => undefined}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         tab="context"
         taskId="task-1"
       />,
     );
     const projectMarkup = renderInspectorMarkup(
-      <WorkbenchInspector
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
-        tab="project"
-      />,
+      <WorkbenchInspector projectName="Codexly" projectPath="/workspace/Codexly" tab="project" />,
     );
 
     expect(markup).not.toContain('aria-label="未提交变更"');
     expect(markup).not.toContain(">审核</button>");
     expect(markup).not.toContain(">提交</button>");
     expect(markup).not.toContain(">项目文件</span>");
-    expect(projectMarkup).toContain(">CodeAgent</span>");
+    expect(projectMarkup).toContain(">Codexly</span>");
     expect(markup).not.toContain("workbench-shell.tsx");
     expect(markup).not.toContain('id="workbench-git-history"');
     expect(markup).not.toContain('aria-label="查看 Git 历史"');

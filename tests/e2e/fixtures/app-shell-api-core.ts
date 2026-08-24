@@ -28,7 +28,7 @@ export async function handleAppShellCoreRoute(
   const temporaryTaskMatch = /^\/v1\/temporary\/tasks\/([^/]+)$/u.exec(url.pathname);
   const temporaryTurnMatch = /^\/v1\/temporary\/tasks\/([^/]+)\/turns$/u.exec(url.pathname);
   if (
-    url.pathname === "/v1/projects/code-agent/files/image" ||
+    url.pathname === "/v1/projects/codexly/files/image" ||
     url.pathname === "/v1/temporary/files/image"
   ) {
     await route.fulfill({

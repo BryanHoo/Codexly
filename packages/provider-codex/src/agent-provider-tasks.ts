@@ -6,8 +6,8 @@ import type {
   AgentTaskUnsubscribeStatus,
   ReadAgentTaskInput,
   ResolvePendingRequestInput,
-} from "@code-agent/core";
-import type { PendingRequest } from "@code-agent/protocol";
+} from "@codexly/core";
+import type { PendingRequest } from "@codexly/protocol";
 import { readCodexTranscriptTurnSkills } from "./codex-transcript.js";
 import {
   CodexProtocolMappingError,

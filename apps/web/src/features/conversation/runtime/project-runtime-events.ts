@@ -1,7 +1,7 @@
-import type { AgentEventConnectionState } from "@code-agent/client";
-import type { AgentEvent, AgentTaskSnapshotResponse, EventCheckpoint } from "@code-agent/protocol";
+import type { AgentEventConnectionState } from "@codexly/client";
+import type { AgentEvent, AgentTaskSnapshotResponse, EventCheckpoint } from "@codexly/protocol";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
-import type { CodeAgentRuntimeClient } from "../../projects/project-queries.js";
+import type { CodexlyRuntimeClient } from "../../projects/project-queries.js";
 import {
   getActiveProjectTaskIds,
   hasActiveProjectTask,
@@ -30,7 +30,7 @@ type ProjectRuntimeCallbacks = Readonly<{
 
 export class ProjectEventRuntime {
   readonly #callbacks: ProjectRuntimeCallbacks;
-  readonly #client: CodeAgentRuntimeClient;
+  readonly #client: CodexlyRuntimeClient;
   readonly #eventHistory: ProjectEventHistory;
   readonly #idleTimeoutMs: number;
   readonly #projectId: string;
@@ -48,7 +48,7 @@ export class ProjectEventRuntime {
 
   public constructor(
     projectId: string,
-    client: CodeAgentRuntimeClient,
+    client: CodexlyRuntimeClient,
     callbacks: ProjectRuntimeCallbacks,
     options: ProjectEventRuntimeOptions,
   ) {

@@ -1,4 +1,4 @@
-import type { GenerateCommitMessageRequest, ProjectGitStatus } from "@code-agent/protocol";
+import type { GenerateCommitMessageRequest, ProjectGitStatus } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 
 import { buildCommitMessagePrompt } from "./git-commit-message.js";

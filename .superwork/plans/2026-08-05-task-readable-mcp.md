@@ -44,7 +44,7 @@
 
 - [x] **Task Status:** completed
 
-Run: `pnpm --filter @code-agent/provider-codex test -- agent-provider.test.ts`
+Run: `pnpm --filter @codexly/provider-codex test -- agent-provider.test.ts`
 
 Expected: Task 级 MCP Provider 测试通过。
 
@@ -73,7 +73,7 @@ Expected: Task 级 MCP Provider 测试通过。
 
 - [x] **Task Status:** completed
 
-Run: `pnpm --filter @code-agent/server test -- app.test.ts && pnpm --filter @code-agent/client test -- http-client.test.ts`
+Run: `pnpm --filter @codexly/server test -- app.test.ts && pnpm --filter @codexly/client test -- http-client.test.ts`
 
 Expected: Server 与 Client 的 Task 级资源测试通过，旧 Project 级路径不再被调用。
 
@@ -104,7 +104,7 @@ Expected: Server 与 Client 的 Task 级资源测试通过，旧 Project 级路�
 
 - [x] **Task Status:** completed
 
-Run: `pnpm --filter @code-agent/web test -- project-queries.test.tsx workbench-inspector.test.tsx`
+Run: `pnpm --filter @codexly/web test -- project-queries.test.tsx workbench-inspector.test.tsx`
 
 Expected: Task 切换使用独立 MCP 查询缓存，Inspector 状态测试通过。
 

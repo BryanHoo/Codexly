@@ -12,7 +12,7 @@ import type {
   ReadAgentTaskInput,
   ResolvePendingRequestInput,
   StartAgentTaskOptions,
-} from "@code-agent/core";
+} from "@codexly/core";
 import {
   isAgentFastModeAvailable,
   type AgentBackgroundTerminalPage,
@@ -29,7 +29,7 @@ import {
   type AgentTurnOptions,
   type PendingRequest,
   type UploadAgentFeedbackRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import { CodexProtocolMappingError } from "./codex-protocol-mapping.js";
 import type { CodexAgentProvider } from "./agent-provider-runtime.js";

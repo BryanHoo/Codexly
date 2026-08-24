@@ -1,4 +1,4 @@
-import type { AgentMessageAttachment } from "@code-agent/protocol";
+import type { AgentMessageAttachment } from "@codexly/protocol";
 
 import { readCodexFileTextInput } from "./codex-file-input.js";
 import { optionalString } from "./codex-protocol-mapping.js";

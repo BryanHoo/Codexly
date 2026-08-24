@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 每次本地启动 CodeAgent 后直接打开新的 Web 页面，并完整移除旧页面检测与重连刷新功能。
+**Goal:** 每次本地启动 Codexly 后直接打开新的 Web 页面，并完整移除旧页面检测与重连刷新功能。
 
 **Suggested Spec Reads:**
 
@@ -47,11 +47,11 @@
 **Interfaces:**
 
 - Consumes: `CliManagedServer.listen`、`CliDependencies.openBrowser`、解析后的 `port`。
-- Produces: 本地启动监听成功后无条件调用 `openBrowser(http://127.0.0.1:<port>)`；移除 `waitForBrowserConnection`、`onBrowserConnection`、`GET /v1/browser-session`、`BrowserSessionResponseSchema`、`CodeAgentClient.getBrowserSession` 与 Web Browser Session Monitor。
+- Produces: 本地启动监听成功后无条件调用 `openBrowser(http://127.0.0.1:<port>)`；移除 `waitForBrowserConnection`、`onBrowserConnection`、`GET /v1/browser-session`、`BrowserSessionResponseSchema`、`CodexlyClient.getBrowserSession` 与 Web Browser Session Monitor。
 
 **Behavior:**
 
-- 本地 `code-agent start` 每次监听成功后都立即打开一个新页面，不探测或刷新已打开页面；浏览器打开失败仍只输出警告并保持 Server 运行。`--lan` 仍不自动打开页面，`--port` 仍决定监听和浏览器 URL。
+- 本地 `codexly start` 每次监听成功后都立即打开一个新页面，不探测或刷新已打开页面；浏览器打开失败仍只输出警告并保持 Server 运行。`--lan` 仍不自动打开页面，`--port` 仍决定监听和浏览器 URL。
 
 **Stop Conditions:**
 

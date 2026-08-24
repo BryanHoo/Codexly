@@ -10,7 +10,7 @@
 - `.superwork/spec/frontend/type-safety.md` — 约束 Web 只消费统一 Protocol。
 - `.superwork/spec/shared/quality-guidelines.md` — 约束 Schema、Client、Server 和所有消费者同步更新。
 
-**Architecture:** 在 `${CODEX_HOME}/code-agent/temporary-workspace` 建立受控内部 Workspace，用 SQLite 内部 Project 记录复用现有 Provider 的精确 `cwd` 归属；Server 通过独立 temporary 路由暴露 Task 能力并隐藏 Project；Web 使用 `/temporary` 路由和独立侧边栏分组，不渲染 Project 文件与 Git 工具。
+**Architecture:** 在 `${CODEX_HOME}/codexly/temporary-workspace` 建立受控内部 Workspace，用 SQLite 内部 Project 记录复用现有 Provider 的精确 `cwd` 归属；Server 通过独立 temporary 路由暴露 Task 能力并隐藏 Project；Web 使用 `/temporary` 路由和独立侧边栏分组，不渲染 Project 文件与 Git 工具。
 
 **Tech Stack:** TypeScript、Node.js、Fastify、SQLite、React、TanStack Router/Query、Vitest、Playwright、pnpm。
 
@@ -40,7 +40,7 @@
 
 **Behavior:**
 
-- 在 CodeAgent 数据根目录安全创建固定隐藏 Workspace，并持久化 `kind = temporary` 的内部 Project；普通列表、重排、重命名和移除只能操作用户 Project。
+- 在 Codexly 数据根目录安全创建固定隐藏 Workspace，并持久化 `kind = temporary` 的内部 Project；普通列表、重排、重命名和移除只能操作用户 Project。
 
 **Stop Conditions:**
 

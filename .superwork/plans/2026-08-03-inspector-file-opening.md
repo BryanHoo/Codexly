@@ -35,7 +35,7 @@
 
 **Interfaces:**
 
-- Consumes: `classifyProjectFileReference`、`MessageFileReference`、`CodeAgentClient.openProject`
+- Consumes: `classifyProjectFileReference`、`MessageFileReference`、`CodexlyClient.openProject`
 - Produces: `WorkbenchInspector.onOpenProjectFile(path)` 与 Inspector 未变更文件的统一打开行为
 
 **Behavior:**

@@ -18,7 +18,7 @@
 
 ## Global Constraints
 
-- 保持 Web 仅依赖 `@code-agent/client` 与 `@code-agent/protocol`，所有 HTTP 继续经过 Client。
+- 保持 Web 仅依赖 `@codexly/client` 与 `@codexly/protocol`，所有 HTTP 继续经过 Client。
 - 使用项目现有 `light-dark()` 主题 token、AI Elements Select 和 lucide-react 图标。
 - 全局设置 PUT 始终提交完整对象；旧的冗余提交生成继承逻辑直接替换为新配置。
 - 关键状态同步、数据库迁移和安全提示词拼装保留简短中文注释。

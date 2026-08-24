@@ -1,12 +1,12 @@
 // 集中维护拆分测试共享的样本、mock 与生命周期钩子。
-export const rootPath = "/workspace/CodeAgent";
+export const rootPath = "/workspace/Codexly";
 
 export const task = {
   contextUsage: null,
   id: "task-1",
   pendingRequests: [],
   pinned: false,
-  projectId: "code-agent",
+  projectId: "codexly",
   settings: {
     approvalPolicy: "on-request" as const,
     approvalsReviewer: "user" as const,

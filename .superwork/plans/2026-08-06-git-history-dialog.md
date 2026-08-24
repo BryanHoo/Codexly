@@ -98,7 +98,7 @@ Expected: 根仓库、直属子仓库聚合、排序/上限、非法根路径、
 **Interfaces:**
 
 - Consumes: `ProjectGitHistorySchema` 与 `GET /v1/projects/:projectId/git/history`
-- Produces: `CodeAgentClient.getProjectGitHistory`、`CodeAgentGitHistoryClient`、`projectGitHistoryInfiniteQueryOptions`
+- Produces: `CodexlyClient.getProjectGitHistory`、`CodexlyGitHistoryClient`、`projectGitHistoryInfiniteQueryOptions`
 
 **Behavior:**
 

@@ -5,10 +5,10 @@ import { selectActiveTaskStore } from "./use-task-runtime.js";
 
 describe("selectActiveTaskStore", () => {
   it("isolates retained normalized stores by project and task identity", () => {
-    const store = createTaskStore({ projectId: "code-agent", taskId: "task-1" });
+    const store = createTaskStore({ projectId: "codexly", taskId: "task-1" });
 
     expect(selectActiveTaskStore(store, "other-project", "task-1")).toBeUndefined();
-    expect(selectActiveTaskStore(store, "code-agent", "task-other")).toBeUndefined();
-    expect(selectActiveTaskStore(store, "code-agent", "task-1")).toBe(store);
+    expect(selectActiveTaskStore(store, "codexly", "task-other")).toBeUndefined();
+    expect(selectActiveTaskStore(store, "codexly", "task-1")).toBe(store);
   });
 });

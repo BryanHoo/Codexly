@@ -1,6 +1,6 @@
-import type { AgentReviewTarget, AgentSkill } from "@code-agent/protocol";
+import type { AgentReviewTarget, AgentSkill } from "@codexly/protocol";
 
-import type { CodeAgentMutationClient } from "../../projects/project-queries.js";
+import type { CodexlyMutationClient } from "../../projects/project-queries.js";
 import { notifyActionSuccess } from "../../notifications/action-notifications.js";
 import { resolveIdempotencyAttempt, startTaskReview } from "../composer-state.js";
 import { getPromptCommandAvailability, type PromptCommandItem } from "./prompt-command.js";
@@ -11,7 +11,7 @@ import type { createComposerSubmission } from "./workbench-composer-submission.j
 
 type ComposerCommandOptions = Readonly<{
   capabilities: WorkbenchComposerProps["capabilities"];
-  client: CodeAgentMutationClient;
+  client: CodexlyMutationClient;
   onRequestNotificationPermission: () => void;
   onTaskCreated: WorkbenchComposerProps["onTaskCreated"];
   onTaskStarted: WorkbenchComposerProps["onTaskStarted"];

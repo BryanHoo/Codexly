@@ -1,5 +1,5 @@
-import { buildTaskAttachmentUrl } from "@code-agent/client";
-import type { AgentItem, AgentTurn } from "@code-agent/protocol";
+import { buildTaskAttachmentUrl } from "@codexly/client";
+import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { FileText, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 

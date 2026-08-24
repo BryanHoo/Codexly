@@ -93,7 +93,7 @@ Expected: 连续分页可无损还原文件，UTF-8、行数、路径和错误�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentSourceFileClient.readProjectSourceFile`、`ProjectSourceFile.nextCursor`、Dialog 滚动事件
+- Consumes: `CodexlySourceFileClient.readProjectSourceFile`、`ProjectSourceFile.nextCursor`、Dialog 滚动事件
 - Produces: Infinite Query 分页状态、稳定合并的源码内容、加载中和加载失败状态
 
 **Behavior:**

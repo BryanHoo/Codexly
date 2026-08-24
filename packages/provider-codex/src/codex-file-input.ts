@@ -1,8 +1,8 @@
 import { Buffer } from "node:buffer";
 
-import type { AgentProviderTurnInput } from "@code-agent/core";
+import type { AgentProviderTurnInput } from "@codexly/core";
 
-const FILE_PLACEHOLDER_PREFIX = "code-agent-file:";
+const FILE_PLACEHOLDER_PREFIX = "codexly-file:";
 type ProviderFileInput = AgentProviderTurnInput["files"][number];
 
 export function createCodexFileTextInput(file: ProviderFileInput) {

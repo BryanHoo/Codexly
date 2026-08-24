@@ -3,7 +3,7 @@ import type {
   ProjectOpenApp,
   ProjectOpenAppId,
   ProjectOpenAppKind,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import {
   AtSign,
   ChevronDown,

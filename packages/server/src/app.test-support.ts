@@ -1,31 +1,31 @@
-import type { AgentModelPage, PendingRequest } from "@code-agent/protocol";
+import type { AgentModelPage, PendingRequest } from "@codexly/protocol";
 import { Buffer } from "node:buffer";
 import { afterEach } from "vitest";
 
 // 集中维护 Server 测试的协议样本与资源回收钩子。
-export const projectRootPath = "/workspace/CodeAgent";
+export const projectRootPath = "/workspace/Codexly";
 
-export const encodedProjectRootPath = "%2Fworkspace%2FCodeAgent";
+export const encodedProjectRootPath = "%2Fworkspace%2FCodexly";
 
 export const project = {
   createdAt: "2026-07-23T00:00:00.000Z",
-  id: "code-agent",
-  name: "CodeAgent",
-  roots: [{ id: "root-code-agent", path: projectRootPath }],
+  id: "codexly",
+  name: "Codexly",
+  roots: [{ id: "root-codexly", path: projectRootPath }],
 } as const;
 
 export const temporaryProject = {
   createdAt: "2026-08-06T00:00:00.000Z",
   id: "temporary",
   name: "Temporary",
-  rootPath: "/code-agent/temporary-workspace",
-  roots: [{ id: "root-temporary", path: "/code-agent/temporary-workspace" }],
+  rootPath: "/codexly/temporary-workspace",
+  roots: [{ id: "root-temporary", path: "/codexly/temporary-workspace" }],
 } as const;
 
 export const pixelDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
-export const pastedTextDataUrl = "data:text/plain;base64,5L2g5aW9IENvZGVBZ2VudA==";
+export const pastedTextDataUrl = "data:text/plain;base64,5L2g5aW9IENvZGV4bHk=";
 
 export const historicalImageContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
@@ -50,7 +50,7 @@ export async function multipartAttachment(
 ) {
   const form = new FormData();
   form.set("attachment", new File([content], name, { type: mediaType }));
-  const request = new Request("http://code-agent.local", { body: form, method: "POST" });
+  const request = new Request("http://codexly.local", { body: form, method: "POST" });
   return {
     headers: {
       "content-type": request.headers.get("content-type") ?? "",
@@ -58,7 +58,7 @@ export async function multipartAttachment(
     },
     method: "POST" as const,
     payload: Buffer.from(await request.arrayBuffer()),
-    url: `/v1/projects/code-agent/attachments/${kind}`,
+    url: `/v1/projects/codexly/attachments/${kind}`,
   };
 }
 
@@ -94,7 +94,7 @@ export function turnRequest(text: string) {
 export const task = {
   id: "task-1",
   pinned: false,
-  projectId: "code-agent",
+  projectId: "codexly",
   title: "结构化历史",
   updatedAt: "2026-07-23T00:01:00.000Z",
 } as const;
@@ -113,11 +113,11 @@ export const pendingRequest = {
   availableDecisions: ["allow", "allow_for_session", "deny"],
   command: "pnpm check",
   createdAt: "2026-07-23T00:02:00.000Z",
-  cwd: "/workspace/CodeAgent",
+  cwd: "/workspace/Codexly",
   expiresAt: null,
   itemId: "command-1",
   networkAccess: null,
-  projectId: "code-agent",
+  projectId: "codexly",
   reason: "需要执行检查",
   requestId: "number:7",
   status: "pending",

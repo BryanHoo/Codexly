@@ -8,7 +8,7 @@ import type {
   AgentSettingsRepository,
   ProjectProjectionStore,
   ProjectRepository,
-} from "@code-agent/core";
+} from "@codexly/core";
 import {
   checkCodexVersion,
   CodexProjectRepository,
@@ -21,14 +21,14 @@ import {
   type CodexVersionInfo,
   type LocateCodexBinaryOptions,
   type StartCodexAppServerOptions,
-} from "@code-agent/provider-codex";
+} from "@codexly/provider-codex";
 import {
-  createCodeAgentServer,
+  createCodexlyServer,
   normalizeAllowedHost,
   SqliteStateRepository,
-  type CodeAgentAccessOptions,
+  type CodexlyAccessOptions,
   type SqliteDatabaseDiagnostics,
-} from "@code-agent/server";
+} from "@codexly/server";
 
 import packageManifest from "../package.json" with { type: "json" };
 import { createAppUpdateService } from "./app-update.js";
@@ -78,7 +78,7 @@ interface CreateRuntimeProviderInput {
 }
 
 interface CreateServerInput {
-  access?: CodeAgentAccessOptions;
+  access?: CodexlyAccessOptions;
   allowedHosts?: readonly string[];
   installAppUpdate: ReturnType<typeof createAppUpdateService>["install"];
   projectRepository: ProjectRepository;
@@ -136,7 +136,7 @@ const defaultDependencies: CliDependencies = {
   createStateRepository: (databasePath) => SqliteStateRepository.open(databasePath),
   createRuntimeProvider: createCodexRuntimeProvider,
   createServer: async (input) => {
-    const server = await createCodeAgentServer({
+    const server = await createCodexlyServer({
       ...input,
     });
     return {
@@ -251,12 +251,12 @@ async function runDoctor(
   output.success(`Codex ${version.version} (${binary.path})`);
   const codexHome = resolveCodexHome(options);
   const stateRepository = await dependencies.createStateRepository(
-    join(codexHome, "code-agent", "state.sqlite3"),
+    join(codexHome, "codexly", "state.sqlite3"),
   );
   try {
     const diagnostics = await stateRepository.diagnose();
     assertDatabaseDiagnostics(diagnostics);
-    output.success(`SQLite 可写 (${join(codexHome, "code-agent", "state.sqlite3")})`);
+    output.success(`SQLite 可写 (${join(codexHome, "codexly", "state.sqlite3")})`);
     output.success(`SQLite migration ${String(diagnostics.migrationVersion)}`);
     output.success(`SQLite integrity_check ${diagnostics.integrityCheck}`);
     output.success(`SQLite journal_mode ${diagnostics.journalMode}`);
@@ -310,16 +310,16 @@ async function runStart(
   if (process.env[STARTUP_UPDATE_APPLIED_ENV] !== "1") {
     const update = await dependencies.checkAppUpdate();
     if (update.status === "check-failed") {
-      output.warning("无法检查 CodeAgent 更新，将继续启动当前版本。");
+      output.warning("无法检查 Codexly 更新，将继续启动当前版本。");
     } else if (update.status === "available" && update.latestVersion !== null) {
       const shouldUpdate = await dependencies.confirmAppUpdate(
         dependencies.appVersion,
         update.latestVersion,
       );
       if (shouldUpdate) {
-        output.info(`正在更新 CodeAgent 到 ${update.latestVersion}...`);
+        output.info(`正在更新 Codexly 到 ${update.latestVersion}...`);
         await dependencies.installAppUpdate(update.latestVersion);
-        output.success(`CodeAgent 已更新到 ${update.latestVersion}，正在重新启动。`);
+        output.success(`Codexly 已更新到 ${update.latestVersion}，正在重新启动。`);
         return dependencies.restartAfterUpdate(["start", ...args]);
       }
       output.info("已跳过更新，继续启动当前版本。");
@@ -343,10 +343,10 @@ async function runStart(
       ...(options.codexHome ? { CODEX_HOME: options.codexHome } : {}),
     };
     stateRepository = await dependencies.createStateRepository(
-      join(codexHome, "code-agent", "state.sqlite3"),
+      join(codexHome, "codexly", "state.sqlite3"),
     );
     const temporaryWorkspace = await dependencies.ensureTemporaryWorkspace(
-      join(codexHome, "code-agent", "temporary-workspace"),
+      join(codexHome, "codexly", "temporary-workspace"),
     );
     runtime = await dependencies.startCodexAppServer({
       appVersion: dependencies.appVersion,
@@ -393,7 +393,7 @@ async function runStart(
     if (activePort !== port) {
       output.warning(`端口 ${String(port)} 已被占用，已自动切换到端口 ${String(activePort)}。`);
     }
-    output.success("CodeAgent 已启动");
+    output.success("Codexly 已启动");
 
     if (access !== undefined) {
       const urls = dependencies.listLanAccessUrls(activePort);
@@ -413,7 +413,7 @@ async function runStart(
           ? "会话有效期: 永不过期（仅当前进程）"
           : `会话有效期: ${options.sessionTtl}（固定期限，不自动续期）`,
       );
-      output.info("重启 CodeAgent 后，当前配对码和所有局域网会话将失效。");
+      output.info("重启 Codexly 后，当前配对码和所有局域网会话将失效。");
     } else {
       output.info(`访问地址: http://127.0.0.1:${String(activePort)}`);
     }
@@ -436,7 +436,7 @@ async function runStart(
       const reason = outcome.exit.signal
         ? `信号 ${outcome.exit.signal}`
         : `退出码 ${String(outcome.exit.code)}`;
-      throw new Error(`Codex App Server 在 CodeAgent 关闭前意外退出，${reason}`);
+      throw new Error(`Codex App Server 在 Codexly 关闭前意外退出，${reason}`);
     }
     return 0;
   } finally {
@@ -468,7 +468,7 @@ export async function runCli(
     options.color ?? (process.stdout.isTTY && process.env["NO_COLOR"] === undefined);
   const output = createTerminalOutput(stdout, stderr, colorEnabled);
   const [requestedCommand, ...rawArgs] = argv;
-  // 空参数使用主启动流程，使直接执行 `code-agent` 与显式 `code-agent start` 完全一致。
+  // 空参数使用主启动流程，使直接执行 `codexly` 与显式 `codexly start` 完全一致。
   const command = requestedCommand ?? "start";
   // `pnpm run <script> -- ...` 会把分隔符传给脚本；只剥离命令后的首个分隔符。
   const args = rawArgs[0] === "--" ? rawArgs.slice(1) : rawArgs;
@@ -482,7 +482,7 @@ export async function runCli(
       if (args.length > 0) {
         throw new Error(`未知选项: ${args[0] ?? "<empty>"}`);
       }
-      output.plain(`code-agent ${dependencies.appVersion}\n`);
+      output.plain(`codexly ${dependencies.appVersion}\n`);
       return 0;
     }
     if (command === "doctor") {

@@ -80,7 +80,7 @@ Expected: 归档列表参数、恢复映射、删除清理和严格响应 Schema
 **Interfaces:**
 
 - Consumes: `AgentProvider.listTasks/unarchiveTask/deleteTask`。
-- Produces: `GET /v1/projects/:projectId/tasks?archived=true&searchTerm=...`、`POST .../unarchive`、`DELETE .../:taskId` 与 `CodeAgentClient` 方法。
+- Produces: `GET /v1/projects/:projectId/tasks?archived=true&searchTerm=...`、`POST .../unarchive`、`DELETE .../:taskId` 与 `CodexlyClient` 方法。
 
 **Behavior:**
 
@@ -118,7 +118,7 @@ Expected: Fastify `inject` 与 Client fetch 契约覆盖成功、非法输入、
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.listTasks/unarchiveTask/deleteTask` 与 Project/Task React Query 缓存。
+- Consumes: `CodexlyClient.listTasks/unarchiveTask/deleteTask` 与 Project/Task React Query 缓存。
 - Produces: Project 三点菜单“已归档”入口、归档任务 Dialog、搜索框、20 条 cursor 分页、恢复动作和带确认的永久删除动作。
 
 **Behavior:**

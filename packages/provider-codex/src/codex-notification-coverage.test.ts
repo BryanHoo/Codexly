@@ -14,7 +14,7 @@ import {
   CODEX_SPECIAL_NOTIFICATION_METHODS,
 } from "./codex-mapping-common.js";
 
-const temporaryRoot = mkdtempSync(join(tmpdir(), "code-agent-notification-coverage-"));
+const temporaryRoot = mkdtempSync(join(tmpdir(), "codexly-notification-coverage-"));
 
 afterAll(() => {
   rmSync(temporaryRoot, { force: true, recursive: true });

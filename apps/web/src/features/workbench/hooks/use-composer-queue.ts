@@ -1,11 +1,11 @@
-import type { AgentPromptInput, AgentQueuedSubmission, AgentSkill } from "@code-agent/protocol";
+import type { AgentPromptInput, AgentQueuedSubmission, AgentSkill } from "@codexly/protocol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { v4 as createUuid } from "uuid";
 
 import type { PromptInputAttachment } from "../../../shared/components/agent/prompt-input.js";
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
-import { taskQueueQueryKey, type CodeAgentMutationClient } from "../../projects/project-queries.js";
+import { taskQueueQueryKey, type CodexlyMutationClient } from "../../projects/project-queries.js";
 import {
   getTaskStoreUserMessageIds,
   hasQueuedPromptReceivedUserMessage,
@@ -36,7 +36,7 @@ type SubmitPrompt = (
 
 type ComposerQueueOptions = Readonly<{
   activeTurnId: string | undefined;
-  client: CodeAgentMutationClient;
+  client: CodexlyMutationClient;
   handleAttachmentsChange: (files: readonly PromptInputAttachment[]) => void;
   projectId: string;
   replacePromptContent: (content: PromptSkillContent, cursorOffset?: number) => void;
@@ -48,7 +48,7 @@ type ComposerQueueOptions = Readonly<{
 }>;
 
 async function listAllQueuedSubmissions(
-  client: CodeAgentMutationClient,
+  client: CodexlyMutationClient,
   projectId: string,
   taskId: string,
   signal: AbortSignal,

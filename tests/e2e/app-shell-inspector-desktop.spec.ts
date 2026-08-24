@@ -4,19 +4,19 @@ test.describe.configure({ mode: "serial" });
 
 test("loads one project task page only after showing more", async ({ page }) => {
   // 隔离并行用例的实时广播，只验证用户触发的 Cursor 分页请求。
-  await page.routeWebSocket("**/v1/projects/code-agent/events?*", () => undefined);
+  await page.routeWebSocket("**/v1/projects/codexly/events?*", () => undefined);
   const taskListRequests: URL[] = [];
   page.on("request", (request) => {
     const requestUrl = new URL(request.url());
     if (
-      requestUrl.pathname === "/v1/projects/code-agent/tasks" &&
+      requestUrl.pathname === "/v1/projects/codexly/tasks" &&
       requestUrl.searchParams.get("pinned") !== "true"
     ) {
       taskListRequests.push(requestUrl);
     }
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   await expect.poll(() => taskListRequests.length).toBe(1);
@@ -37,13 +37,13 @@ test("keeps project add buttons visible after opening a task", async ({ page }) 
     ...tasks[1],
     title: "这是一个用于验证项目树横向布局不会挤走右侧操作按钮的超长任务名称",
   };
-  await page.route("**/v1/projects/code-agent/tasks?*", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks?*", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: { data: [longTask, ...tasks.slice(2, 7)], nextCursor: null },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   await sidebar.getByRole("link", { name: longTask.title }).click();
@@ -73,14 +73,14 @@ test("keeps project add buttons visible after opening a task", async ({ page }) 
     sidebarWidth: 288,
   });
   await expect(sidebar.getByRole("button", { name: "添加项目" })).toBeVisible();
-  await expect(sidebar.getByRole("button", { name: "在 CodeAgent 中新建任务" })).toBeVisible();
+  await expect(sidebar.getByRole("button", { name: "在 Codexly 中新建任务" })).toBeVisible();
   await expect(sidebar.getByRole("button", { name: "在 superwork 中新建任务" })).toBeVisible();
 });
 
 test("preserves provisional IME text across composer rerenders @cross-browser", async ({
   page,
 }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.focus();
@@ -106,7 +106,7 @@ test("preserves provisional IME text across composer rerenders @cross-browser", 
 });
 
 test("uses material hierarchy instead of strong workbench borders", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await expect(page.locator('[role="log"] > div')).toBeVisible();
 
   const presentation = await page.evaluate(() => {
@@ -189,7 +189,7 @@ test("uses material hierarchy instead of strong workbench borders", async ({ pag
 });
 
 test("supports structured activity without Escape changing panel state", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await expect(page.getByText("思考过程", { exact: true })).toHaveCount(0);
   await expect(page.getByText("分析工作台信息架构", { exact: true })).toHaveCount(0);
@@ -203,7 +203,7 @@ test("supports structured activity without Escape changing panel state", async (
 
 test("resizes desktop workbench panels within bounds", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await expect(page.getByRole("button", { name: "更多操作" })).toHaveCount(0);
 
@@ -260,7 +260,7 @@ test("resizes desktop workbench panels within bounds", async ({ page }) => {
 
 test("uses the 320px inspector default on laptop-sized screens", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   expect((await inspector.boundingBox())?.width).toBe(320);
@@ -271,7 +271,7 @@ test("uses the 320px inspector default on laptop-sized screens", async ({ page }
 
 test("keeps the narrow workbench layout stable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await expect(page.getByRole("complementary", { name: "项目侧栏" })).not.toBeVisible();
   await page.getByRole("button", { name: "展开项目侧栏" }).click();

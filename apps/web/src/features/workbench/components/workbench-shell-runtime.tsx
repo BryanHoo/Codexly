@@ -5,7 +5,7 @@ import type {
   AgentTaskSettings,
   AgentTurn,
   ProjectOpenAppId,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";

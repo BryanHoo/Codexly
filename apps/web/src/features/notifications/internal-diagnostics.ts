@@ -18,7 +18,7 @@ export function recordInternalWarning(
   context: InternalDiagnosticContext = {},
 ): void {
   // 后台循环只写安全结构化诊断，禁止接入用户动作 toast。
-  console.warn("CodeAgent internal warning", {
+  console.warn("Codexly internal warning", {
     diagnosticCode,
     errorMessage: internalErrorMessage(error),
     ...context,

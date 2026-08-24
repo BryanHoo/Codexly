@@ -69,7 +69,7 @@
 
 - Consumes: `ProjectRepository.reorder`
 - Produces: idempotent `PUT /v1/projects/order`
-- Produces: `CodeAgentClient.reorderProjects` and Query mutation options
+- Produces: `CodexlyClient.reorderProjects` and Query mutation options
 - Produces: Project Context optimistic reorder action and visible error state
 
 **Behavior Slice:** 用户提交新顺序后立即更新 `projects` Query；Server 成功响应校准缓存，失败恢复旧页面并提供错误提示。

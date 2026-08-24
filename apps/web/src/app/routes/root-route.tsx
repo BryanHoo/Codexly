@@ -50,10 +50,10 @@ export function BrandLink() {
   return (
     <Link className="inline-flex items-center" to="/">
       <img
-        alt="CodeAgent"
+        alt="Codexly"
         className="h-7 w-auto"
         height="28"
-        src="/brand/codeagent-logo.svg"
+        src="/brand/codexly-logo.svg"
         width="116"
       />
     </Link>

@@ -1,7 +1,7 @@
 import { open, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import type { ProjectSourceFile } from "@code-agent/protocol";
+import type { ProjectSourceFile } from "@codexly/protocol";
 
 export const MAX_SOURCE_FILE_PREVIEW_BYTES = 256 * 1_024;
 export const MAX_SOURCE_FILE_PREVIEW_LINES = 4_000;

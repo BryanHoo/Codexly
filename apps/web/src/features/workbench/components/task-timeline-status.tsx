@@ -1,4 +1,4 @@
-import type { AgentItem, AgentItemStatus, AgentTurn, Project } from "@code-agent/protocol";
+import type { AgentItem, AgentItemStatus, AgentTurn, Project } from "@codexly/protocol";
 import { ChevronRight, Copy, GitFork, MessageSquareCode } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { v4 as createUuid } from "uuid";

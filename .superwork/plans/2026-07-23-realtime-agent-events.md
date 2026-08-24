@@ -166,7 +166,7 @@ Expected: Event Stream 和 WebSocket 生命周期测试全部通过，测试结�
 **Interfaces:**
 
 - Consumes: `EventStreamMessageSchema` 与 `AgentTaskSnapshotResponseSchema`
-- Produces: `CodeAgentClient.subscribeEvents(options): () => void`
+- Produces: `CodexlyClient.subscribeEvents(options): () => void`
 - Produces: 已校验的 `onEvent`、`onReady`、`onResyncRequired`、`onConnectionState` 回调
 - Detects: 重复 Sequence、Sequence Gap、Session 变化、非法 JSON 与 Schema 不匹配
 
@@ -204,7 +204,7 @@ Expected: HTTP/WebSocket 边界、重连和顺序测试全部通过，无悬挂 
 
 **Interfaces:**
 
-- Consumes: `AgentTaskSnapshotResponse`、`AgentEvent` 与 `CodeAgentClient.subscribeEvents`
+- Consumes: `AgentTaskSnapshotResponse`、`AgentEvent` 与 `CodexlyClient.subscribeEvents`
 - Produces: `hydrateTaskRuntime`、纯 `reduceAgentEvent`、Delta Buffer 与可渲染 `AgentTaskSnapshot`
 - Produces: `useTaskRuntime(taskId, client)` 的加载、错误、连接状态和实时 Snapshot
 
@@ -243,7 +243,7 @@ Expected: Reducer、恢复和 Timeline 用户可见状态测试全部通过。
 
 **Interfaces:**
 
-- Consumes: Fake App Server JSONL Notification、Codex Provider、Fastify WebSocket、CodeAgent Client 与 Web Reducer
+- Consumes: Fake App Server JSONL Notification、Codex Provider、Fastify WebSocket、Codexly Client 与 Web Reducer
 - Produces: `Codex Notification -> Agent Event -> WebSocket -> Timeline` 的自动化证据
 - Documents: Agent Event v1 payload、Snapshot checkpoint、补发窗口和前端恢复状态机
 

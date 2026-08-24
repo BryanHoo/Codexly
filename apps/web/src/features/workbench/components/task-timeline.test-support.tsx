@@ -30,7 +30,7 @@ export const snapshot: RuntimeTaskSnapshot = {
   id: "task-1",
   pendingRequests: [],
   pinned: false,
-  projectId: "code-agent",
+  projectId: "codexly",
   settings: {
     approvalPolicy: "on-request",
     approvalsReviewer: "user",

@@ -37,7 +37,7 @@ describe("CodexAgentProvider snapshots", () => {
         {
           id: "task-1",
           pinned: true,
-          projectId: "code-agent",
+          projectId: "codexly",
           title: "实现真实 Task 历史",
           updatedAt: "2025-07-23T01:00:00.000Z",
         },
@@ -180,7 +180,7 @@ describe("CodexAgentProvider snapshots", () => {
                   aggregatedOutput: "Done",
                   command: "pnpm check",
                   commandActions: [],
-                  cwd: "/workspace/CodeAgent",
+                  cwd: "/workspace/Codexly",
                   exitCode: 0,
                   id: "i4",
                   status: "completed",
@@ -228,7 +228,7 @@ describe("CodexAgentProvider snapshots", () => {
     });
     expect(snapshot).toMatchObject({
       id: "task-1",
-      projectId: "code-agent",
+      projectId: "codexly",
       status: "running",
       title: "结构化历史",
       turns: [
@@ -248,7 +248,7 @@ describe("CodexAgentProvider snapshots", () => {
             { content: "核对边界", id: "i3", summary: "分析协议", type: "reasoning" },
             {
               command: "pnpm check",
-              cwd: "/workspace/CodeAgent",
+              cwd: "/workspace/Codexly",
               exitCode: 0,
               id: "i4",
               output: "Done",
@@ -288,7 +288,7 @@ describe("CodexAgentProvider snapshots", () => {
   });
 
   it("maps Codex local images to metadata and reads their bytes on demand", async () => {
-    const temporaryDirectory = mkdtempSync(join(tmpdir(), "code-agent-image-"));
+    const temporaryDirectory = mkdtempSync(join(tmpdir(), "codexly-image-"));
     const imagePath = join(temporaryDirectory, "diagram.png");
     const imageContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
     writeFileSync(imagePath, imageContent);

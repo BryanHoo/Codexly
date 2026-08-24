@@ -151,7 +151,7 @@
 }
 
 @theme inline {
-  /* 组件只暴露 CodeAgent 自有语义，不经过外部设计系统 Token 中转。 */
+  /* 组件只暴露 Codexly 自有语义，不经过外部设计系统 Token 中转。 */
   --color-background: var(--ui-color-window);
   --color-window: var(--ui-color-window);
   --color-content: var(--ui-color-content);

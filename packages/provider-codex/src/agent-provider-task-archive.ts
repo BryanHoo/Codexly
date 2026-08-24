@@ -1,4 +1,4 @@
-import type { AgentTask } from "@code-agent/protocol";
+import type { AgentTask } from "@codexly/protocol";
 
 import { CodexProtocolMappingError, expectRecord } from "./codex-protocol-mapping.js";
 

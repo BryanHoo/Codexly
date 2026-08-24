@@ -1,5 +1,5 @@
-import type { AgentProvider, AgentRuntimeProvider, ProjectRepository } from "@code-agent/core";
-import type { Project } from "@code-agent/protocol";
+import type { AgentProvider, AgentRuntimeProvider, ProjectRepository } from "@codexly/core";
+import type { Project } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 
 import { resolveTaskScope } from "./task-scope.js";

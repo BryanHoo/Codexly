@@ -206,7 +206,7 @@ info`,
         <MessageContent>
           <MessageResponse onOpenFileReference={() => undefined}>
             {
-              "[app.ts](C:/workspace/CodeAgent/src/app.ts:12)\n\n[server.ts](C:\\workspace\\CodeAgent\\src\\server.ts:24)\n\n[share.ts](\\\\server\\share\\share.ts:3)"
+              "[app.ts](C:/workspace/Codexly/src/app.ts:12)\n\n[server.ts](C:\\workspace\\Codexly\\src\\server.ts:24)\n\n[share.ts](\\\\server\\share\\share.ts:3)"
             }
           </MessageResponse>
         </MessageContent>
@@ -219,10 +219,10 @@ info`,
     expect(markup).toContain("(line 24)");
     expect(markup).toContain("(line 3)");
     expect(markup.match(/data-file-reference="true"/g)).toHaveLength(3);
-    expect(markup).toContain('title="C:/workspace/CodeAgent/src/app.ts"');
-    expect(markup).toContain('title="C:/workspace/CodeAgent/src/server.ts"');
+    expect(markup).toContain('title="C:/workspace/Codexly/src/app.ts"');
+    expect(markup).toContain('title="C:/workspace/Codexly/src/server.ts"');
     expect(markup).toContain('title="//server/share/share.ts"');
-    expect(markup).not.toContain('href="C:/workspace/CodeAgent/src/app.ts:12"');
+    expect(markup).not.toContain('href="C:/workspace/Codexly/src/app.ts:12"');
   });
 
   it("renders relative Markdown file references as preview buttons", () => {

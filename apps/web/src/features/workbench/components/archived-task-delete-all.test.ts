@@ -1,14 +1,14 @@
-import type { AgentTask, AgentTaskPage } from "@code-agent/protocol";
+import type { AgentTask, AgentTaskPage } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CodeAgentArchivedTaskClient } from "../../projects/project-queries.js";
+import type { CodexlyArchivedTaskClient } from "../../projects/project-queries.js";
 import { deleteAllArchivedTasks } from "./archived-task-delete-all.js";
 
 function task(id: string): AgentTask {
   return {
     id,
     pinned: false,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: id,
     updatedAt: "2026-08-23T00:00:00.000Z",
   };
@@ -18,7 +18,7 @@ function clientWithPages(pages: readonly AgentTaskPage[], deleteTask = vi.fn()) 
   const listTasks = vi.fn();
   for (const page of pages) listTasks.mockResolvedValueOnce(page);
   return {
-    client: { deleteTask, listTasks } as unknown as CodeAgentArchivedTaskClient,
+    client: { deleteTask, listTasks } as unknown as CodexlyArchivedTaskClient,
     deleteTask,
     listTasks,
   };
@@ -34,20 +34,20 @@ describe("deleteAllArchivedTasks", () => {
       Promise.resolve({ status: "deleted" as const, taskId }),
     );
 
-    await deleteAllArchivedTasks(client, "code-agent");
+    await deleteAllArchivedTasks(client, "codexly");
 
-    expect(listTasks).toHaveBeenNthCalledWith(1, "code-agent", {
+    expect(listTasks).toHaveBeenNthCalledWith(1, "codexly", {
       archived: true,
       limit: 100,
     });
-    expect(listTasks).toHaveBeenNthCalledWith(2, "code-agent", {
+    expect(listTasks).toHaveBeenNthCalledWith(2, "codexly", {
       archived: true,
       cursor: "next-page",
       limit: 100,
     });
-    expect(deleteTask).toHaveBeenNthCalledWith(1, "code-agent", "task-1");
-    expect(deleteTask).toHaveBeenNthCalledWith(2, "code-agent", "task-2");
-    expect(deleteTask).toHaveBeenNthCalledWith(3, "code-agent", "task-3");
+    expect(deleteTask).toHaveBeenNthCalledWith(1, "codexly", "task-1");
+    expect(deleteTask).toHaveBeenNthCalledWith(2, "codexly", "task-2");
+    expect(deleteTask).toHaveBeenNthCalledWith(3, "codexly", "task-3");
   });
 
   it("attempts every task before reporting a deletion failure", async () => {
@@ -61,7 +61,7 @@ describe("deleteAllArchivedTasks", () => {
       deleteTask,
     );
 
-    await expect(deleteAllArchivedTasks(client, "code-agent")).rejects.toBe(failure);
+    await expect(deleteAllArchivedTasks(client, "codexly")).rejects.toBe(failure);
     expect(deleteTask).toHaveBeenCalledTimes(3);
   });
 
@@ -83,7 +83,7 @@ describe("deleteAllArchivedTasks", () => {
     const tasks = Array.from({ length: 5 }, (_, index) => task(`task-${String(index + 1)}`));
     const { client } = clientWithPages([{ data: tasks, nextCursor: null }], deleteTask);
 
-    const deletion = deleteAllArchivedTasks(client, "code-agent");
+    const deletion = deleteAllArchivedTasks(client, "codexly");
     await vi.waitFor(() => {
       expect(deleteTask).toHaveBeenCalledTimes(4);
     });
@@ -104,7 +104,7 @@ describe("deleteAllArchivedTasks", () => {
       { data: [task("task-2")], nextCursor: "repeated" },
     ]);
 
-    await expect(deleteAllArchivedTasks(client, "code-agent")).rejects.toThrow(
+    await expect(deleteAllArchivedTasks(client, "codexly")).rejects.toThrow(
       "Archived task pagination returned a repeated cursor",
     );
     expect(deleteTask).not.toHaveBeenCalled();

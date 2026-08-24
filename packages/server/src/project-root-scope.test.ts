@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ProjectRepository } from "@code-agent/core";
-import type { Project } from "@code-agent/protocol";
+import type { ProjectRepository } from "@codexly/core";
+import type { Project } from "@codexly/protocol";
 
 import { resolveProjectRoot, resolveProjectRootEntry } from "./project-root-scope.js";
 

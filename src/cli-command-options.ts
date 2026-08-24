@@ -8,12 +8,12 @@ export interface ParsedCommandOptions {
   sessionTtl?: string;
 }
 
-export const CLI_HELP = `Usage: code-agent [command] [options]
+export const CLI_HELP = `Usage: codexly [command] [options]
 
 Commands:
-  start    Start the CodeAgent server and open the Web interface.
-  doctor   Check whether the local CodeAgent runtime is ready.
-  version  Print the installed CodeAgent version.
+  start    Start the Codexly server and open the Web interface.
+  doctor   Check whether the local Codexly runtime is ready.
+  version  Print the installed Codexly version.
 
 Start options:
   --port <port>              Start from the specified TCP port. Defaults to 3210.
@@ -37,15 +37,15 @@ Global options:
   -h, --help                 Display all commands, options, and usage details.
 
 Examples:
-  code-agent
-  code-agent start --port 4567
-  code-agent start --lan --lan-password 'Strong-Lan_Pass9!'
-  code-agent start --allowed-host code.example.com
-  code-agent start --lan --session-ttl 12h
-  code-agent doctor --codex-bin /path/to/codex
-  code-agent version
+  codexly
+  codexly start --port 4567
+  codexly start --lan --lan-password 'Strong-Lan_Pass9!'
+  codexly start --allowed-host code.example.com
+  codexly start --lan --session-ttl 12h
+  codexly doctor --codex-bin /path/to/codex
+  codexly version
 
-Running code-agent without a command is equivalent to code-agent start.
+Running codexly without a command is equivalent to codexly start.
 `;
 
 export function parseCommandOptions(

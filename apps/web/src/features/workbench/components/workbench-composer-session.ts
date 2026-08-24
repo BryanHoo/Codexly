@@ -6,7 +6,7 @@ import type {
   HostFileKind,
   ProjectGitStatus,
   ProjectFileSearchEntry,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { PromptInputAttachment } from "../../../shared/components/agent/prompt-input.js";

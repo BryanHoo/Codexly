@@ -22,7 +22,7 @@ describe("notification preference", () => {
     saveNotificationPreference(false, { setItem });
 
     expect(setItem).toHaveBeenCalledWith(
-      "code-agent.notification-preference",
+      "codexly.notification-preference",
       '{"enabled":false,"version":1}',
     );
   });

@@ -17,7 +17,7 @@
 
 ## Global Constraints
 
-- 所有外部设置数据必须通过 `@code-agent/protocol` 严格 Schema 校验。
+- 所有外部设置数据必须通过 `@codexly/protocol` 严格 Schema 校验。
 - 全局设置只作为回退，不得更新已有 `project_defaults` 或 `task_settings` 记录。
 - 设置 Mutation 必须提交完整对象、串行执行并使用 Idempotency Key。
 - 弹窗必须保持原工作台路由，支持 Escape、backdrop、焦点圈定和窄屏滚动。
@@ -90,7 +90,7 @@ Expected: 全局设置 Schema、Client、SQLite 和 Server 优先级测试全部
 - Consumes: `AgentModel[]`
 - Consumes: `ProjectOpenApp[]`
 - Consumes: `PromptInputSelect`
-- Consumes: `CodeAgentClient`
+- Consumes: `CodexlyClient`
 - Produces: `GlobalSettingsDialog`
 - Produces: `globalSettingsQueryOptions`
 - Produces: `globalSettingsMutationOptions`

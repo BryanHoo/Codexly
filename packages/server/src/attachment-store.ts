@@ -20,7 +20,7 @@ import {
   type AgentAttachmentKind,
   type AgentAttachmentMediaType,
   type AgentImageMediaType,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { AttachmentQueueIndex } from "./attachment-queue-index.js";
 import type {
   AttachmentStoreOptions,
@@ -227,7 +227,7 @@ export class AttachmentStore {
 
   public constructor(options: AttachmentStoreOptions = {}) {
     this.#attachmentDirectory =
-      options.attachmentDirectory ?? join(tmpdir(), `code-agent-attachments-${randomUUID()}`);
+      options.attachmentDirectory ?? join(tmpdir(), `codexly-attachments-${randomUUID()}`);
     this.#clock = options.clock ?? Date.now;
     this.#createId = options.createId ?? randomUUID;
     this.#maxBytes = options.maxBytes;

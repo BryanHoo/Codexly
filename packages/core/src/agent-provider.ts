@@ -29,7 +29,7 @@ import type {
   StartOfficialProviderLoginResponse,
   UploadAgentFeedbackRequest,
   Project,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 export type AgentRuntimeDefaultSettings = Readonly<{
   approvalPolicy?: AgentGlobalApprovalPolicy;

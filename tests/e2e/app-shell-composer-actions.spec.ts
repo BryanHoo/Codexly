@@ -9,12 +9,12 @@ test("runs official task actions from the slash command menu", async ({ page }) 
     const url = new URL(request.url());
     if (
       request.method() === "POST" &&
-      url.pathname.startsWith("/v1/projects/code-agent/tasks/task-1/")
+      url.pathname.startsWith("/v1/projects/codexly/tasks/task-1/")
     ) {
       commandRequests.push({ body: request.postData(), path: url.pathname });
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const historicalSkill = page.locator('[data-message-skill="review-security"]');
   const historicalInlineOffset = await historicalSkill.evaluate((token) => {
@@ -178,7 +178,7 @@ test("runs official task actions from the slash command menu", async ({ page }) 
   );
   await expect
     .poll(() => commandRequests.map((request) => request.path))
-    .toContain("/v1/projects/code-agent/tasks/task-1/compact");
+    .toContain("/v1/projects/codexly/tasks/task-1/compact");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await prompt.fill("/");
@@ -191,15 +191,15 @@ test("runs official task actions from the slash command menu", async ({ page }) 
 
   await prompt.fill("/复制");
   await prompt.press("Enter");
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-2$/u);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-2$/u);
   await expect
     .poll(() => commandRequests.map((request) => request.path))
-    .toContain("/v1/projects/code-agent/tasks/task-1/fork");
+    .toContain("/v1/projects/codexly/tasks/task-1/fork");
 });
 
 test("recognizes typed Codex skill references before submission", async ({ page }) => {
   let turnRequest: Record<string, unknown> | undefined;
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",
@@ -216,7 +216,7 @@ test("recognizes typed Codex skill references before submission", async ({ page 
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("/");
@@ -244,12 +244,12 @@ test("selects and submits a project file reference from an inline @ mention", as
   const fileSearchSessionIds: string[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (url.pathname === "/v1/projects/code-agent/files/search") {
+    if (url.pathname === "/v1/projects/codexly/files/search") {
       fileSearchQueries.push(url.searchParams.get("query") ?? "");
       fileSearchSessionIds.push(url.searchParams.get("sessionId") ?? "");
     }
   });
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",
@@ -267,7 +267,7 @@ test("selects and submits a project file reference from an inline @ mention", as
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("请检查 ");
@@ -280,7 +280,7 @@ test("selects and submits a project file reference from an inline @ mention", as
   expect(fileSearchSessionIds[0]).toMatch(/^[0-9a-f-]{36}$/u);
   await expect(fileMenu.getByRole("option").first()).toContainText("src");
   const stopRequestPromise = page.waitForRequest(
-    (request) => new URL(request.url()).pathname === "/v1/projects/code-agent/files/search/stop",
+    (request) => new URL(request.url()).pathname === "/v1/projects/codexly/files/search/stop",
   );
   await prompt.press("Enter");
 
@@ -291,7 +291,7 @@ test("selects and submits a project file reference from an inline @ mention", as
   await page.keyboard.type("读取文件");
   await expect(prompt).toHaveAttribute(
     "data-serialized-value",
-    "请检查 @/workspace/CodeAgent/src/main.tsx读取文件",
+    "请检查 @/workspace/Codexly/src/main.tsx读取文件",
   );
   await page.getByRole("button", { exact: true, name: "提交" }).click();
 
@@ -299,13 +299,13 @@ test("selects and submits a project file reference from an inline @ mention", as
   expect(turnRequest?.["input"]).toEqual({
     attachments: [],
     skills: [],
-    text: "请检查 @/workspace/CodeAgent/src/main.tsx 读取文件",
+    text: "请检查 @/workspace/Codexly/src/main.tsx 读取文件",
     type: "prompt",
   });
   const submittedMessage = page.locator('article[data-role="user"]').last();
   await expect(submittedMessage).toContainText("请检查");
   await expect(
-    submittedMessage.locator('[data-prompt-file-reference="/workspace/CodeAgent/src/main.tsx"]'),
+    submittedMessage.locator('[data-prompt-file-reference="/workspace/Codexly/src/main.tsx"]'),
   ).toHaveText("main.tsx");
   await expect(submittedMessage).toContainText("读取文件");
 });
@@ -321,7 +321,7 @@ test("从 AI 回复复制任务并保留到所属 Turn", async ({ page }) => {
       });
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const latestReply = page
     .locator('article[data-role="assistant"]')
@@ -338,7 +338,7 @@ test("从 AI 回复复制任务并保留到所属 Turn", async ({ page }) => {
     .poll(() => forkRequests)
     .toContainEqual({
       body: { lastTurnId: "turn-1" },
-      path: "/v1/projects/code-agent/tasks/task-1/fork",
+      path: "/v1/projects/codexly/tasks/task-1/fork",
     });
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-2$/u);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-2$/u);
 });

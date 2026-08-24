@@ -1,6 +1,6 @@
 # Task Snapshot HTTP Web Implementation Plan
 
-**Goal:** 让 `code-agent start --project <path>` 启动 Codex、HTTP API 与静态 Web，并在浏览器中展示真实 Task 列表和结构化历史。
+**Goal:** 让 `codexly start --project <path>` 启动 Codex、HTTP API 与静态 Web，并在浏览器中展示真实 Task 列表和结构化历史。
 
 **Suggested Spec Reads:**
 
@@ -126,8 +126,8 @@ Expected: Adapter 测试全部通过，断言结果对象中不出现 `thread`�
 **Interfaces:**
 
 - Consumes: `AgentProvider`、`Project` 与 Protocol HTTP 响应 Schema
-- Produces: `createCodeAgentServer(options)` 与可关闭 Fastify 实例
-- Produces: `CodeAgentClient` 的 `getHealth`、`getCapabilities`、`listProjects`、`listTasks`、`readTask`
+- Produces: `createCodexlyServer(options)` 与可关闭 Fastify 实例
+- Produces: `CodexlyClient` 的 `getHealth`、`getCapabilities`、`listProjects`、`listTasks`、`readTask`
 - Serves: `GET /v1/health`
 - Serves: `GET /v1/capabilities`
 - Serves: `GET /v1/projects`
@@ -170,7 +170,7 @@ Expected: Server 与 Client 边界测试全部通过，并在测试后关闭所�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.listProjects`、`listTasks`、`readTask`
+- Consumes: `CodexlyClient.listProjects`、`listTasks`、`readTask`
 - Consumes: `AgentTaskSnapshot.turns[].items[]`
 - Produces: React Query hooks/query options for Projects、Tasks、Task Snapshot
 - Produces: 可观察的加载、错误、空列表和结构化 Timeline UI
@@ -194,7 +194,7 @@ Expected: Web 数据加载和 Timeline 可观察行为测试通过，不再引�
 - 现有 Router 生命周期无法在不创建循环依赖的情况下进入首个 Project 时停止并把初始导航放入独立 Route 组件。
 - Agent Item 需要新增公共字段才能正确渲染时停止并返回 Task 1 修订协议与调用方。
 
-### Task 5: 将 Provider、Server 与静态 Web 接入 `code-agent start`
+### Task 5: 将 Provider、Server 与静态 Web 接入 `codexly start`
 
 - [x] **Task Status:** completed
 
@@ -213,8 +213,8 @@ Expected: Web 数据加载和 Timeline 可观察行为测试通过，不再引�
 
 **Interfaces:**
 
-- Consumes: `startCodexAppServer`、Codex AgentProvider、`createCodeAgentServer`
-- Produces: `code-agent start --project <path>` 在 `127.0.0.1:3210` 上提供 `/v1/*` 与 `dist/web`
+- Consumes: `startCodexAppServer`、Codex AgentProvider、`createCodexlyServer`
+- Produces: `codexly start --project <path>` 在 `127.0.0.1:3210` 上提供 `/v1/*` 与 `dist/web`
 - Produces: 同一 AbortSignal 下幂等关闭 HTTP Server 与 Codex App Server
 
 **Behavior Slice:**

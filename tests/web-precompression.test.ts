@@ -17,10 +17,10 @@ afterEach(() => {
 
 describe("Web 构建产物预压缩", () => {
   it("为可压缩文件生成 Brotli 和 Gzip 旁路文件", () => {
-    const root = mkdtempSync(join(tmpdir(), "code-agent-precompress-"));
+    const root = mkdtempSync(join(tmpdir(), "codexly-precompress-"));
     temporaryRoots.push(root);
-    const htmlBody = "<main>CodeAgent Web</main>";
-    const javascriptBody = "export const value = 'CodeAgent';\n".repeat(64);
+    const htmlBody = "<main>Codexly Web</main>";
+    const javascriptBody = "export const value = 'Codexly';\n".repeat(64);
     writeFileSync(join(root, "index.html"), htmlBody);
     writeFileSync(join(root, "index.js"), javascriptBody);
     writeFileSync(join(root, "logo.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));

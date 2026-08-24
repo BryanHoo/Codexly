@@ -17,7 +17,7 @@
 
 ## Global Constraints
 
-- 所有浏览器响应必须经过 `@code-agent/protocol` Schema 和 `@code-agent/client` 校验，Web 不直接访问 Server 实现。
+- 所有浏览器响应必须经过 `@codexly/protocol` Schema 和 `@codexly/client` 校验，Web 不直接访问 Server 实现。
 - 目录浏览只返回目录元数据，不返回文件内容；路径必须为服务端绝对目录，并在文件系统边界完成规范化和错误映射。
 - 仅已通过现有 Access 门禁的请求可以浏览或注册目录，不新增 LAN 兼容分支或浏览器持久凭证。
 - 使用已有 `apps/web/src/shared/ai-elements/file-tree.tsx`、shadcn `Dialog` 和 `Button`，不覆盖 Registry 组件或新增 UI 依赖。
@@ -36,8 +36,8 @@
 
 **Interfaces:**
 
-- Consumes: `ProjectSchema`、`CodeAgentClient.#read`、`CodeAgentClient.#mutation`
-- Produces: `ProjectDirectoryQuery`、`ProjectDirectoryListing`、`AddProjectRequest`、`CodeAgentClient.listProjectDirectories`、`CodeAgentClient.addProject(rootPath)`
+- Consumes: `ProjectSchema`、`CodexlyClient.#read`、`CodexlyClient.#mutation`
+- Produces: `ProjectDirectoryQuery`、`ProjectDirectoryListing`、`AddProjectRequest`、`CodexlyClient.listProjectDirectories`、`CodexlyClient.addProject(rootPath)`
 
 **Behavior:**
 
@@ -104,7 +104,7 @@ Expected: 服务端目录浏览、注册、Access 门禁与 CLI 装配测试通�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.listProjectDirectories`、`CodeAgentClient.addProject(rootPath)`、AI Elements `FileTree`、shadcn `Dialog`、`Button`
+- Consumes: `CodexlyClient.listProjectDirectories`、`CodexlyClient.addProject(rootPath)`、AI Elements `FileTree`、shadcn `Dialog`、`Button`
 - Produces: `ProjectDirectoryPickerDialog`、显式路径版 `ProjectActionsContext.addProject`
 
 **Behavior:**

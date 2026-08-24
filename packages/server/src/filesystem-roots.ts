@@ -1,6 +1,6 @@
 import { access } from "node:fs/promises";
 
-import type { FilesystemRoot } from "@code-agent/protocol";
+import type { FilesystemRoot } from "@codexly/protocol";
 
 type FilesystemRootOptions = Readonly<{
   accessPath?: (path: string) => Promise<void>;

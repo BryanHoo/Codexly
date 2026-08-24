@@ -1,10 +1,10 @@
-import type { AgentProviderTaskSnapshot } from "@code-agent/core";
+import type { AgentProviderTaskSnapshot } from "@codexly/core";
 import type {
   AgentContextUsage,
   AgentModelPage,
   AgentReviewTarget,
   AgentTurn,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import {
   CodexProtocolMappingError,

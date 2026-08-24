@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentTaskSnapshot, AgentTurn } from "@code-agent/protocol";
+import type { AgentEvent, AgentTaskSnapshot, AgentTurn } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -28,7 +28,7 @@ function createSnapshot(
     id: taskId,
     pendingRequests,
     pinned: false,
-    projectId: "code-agent",
+    projectId: "codexly",
     settings: taskSettings,
     status,
     title: taskId,
@@ -103,11 +103,11 @@ function createApprovalRequest(requestId: string): AgentTaskSnapshot["pendingReq
     availableDecisions: ["allow", "deny"],
     command: "pnpm check",
     createdAt: "2026-07-27T00:00:00.000Z",
-    cwd: "/workspace/CodeAgent",
+    cwd: "/workspace/Codexly",
     expiresAt: null,
     itemId: `item-${requestId}`,
     networkAccess: null,
-    projectId: "code-agent",
+    projectId: "codexly",
     reason: null,
     requestId,
     status: "pending",
@@ -120,12 +120,12 @@ function createApprovalRequest(requestId: string): AgentTaskSnapshot["pendingReq
 function createPermissionRequest(requestId: string): AgentTaskSnapshot["pendingRequests"][number] {
   return {
     createdAt: "2026-07-27T00:00:00.000Z",
-    cwd: "/workspace/CodeAgent",
+    cwd: "/workspace/Codexly",
     environmentId: null,
     expiresAt: null,
     itemId: `item-${requestId}`,
     permissions: { fileSystem: null, network: { enabled: true } },
-    projectId: "code-agent",
+    projectId: "codexly",
     reason: null,
     requestId,
     status: "pending",
@@ -141,17 +141,17 @@ describe("task activity registry", () => {
     activity = recordTaskActivitySnapshot(activity, createSnapshot("task-a", "running"));
     activity = recordTaskActivitySnapshot(activity, createSnapshot("task-b", "idle"));
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").isRunning).toBe(true);
-    expect(getTaskActivity(activity, "code-agent", "task-b").isRunning).toBe(false);
+    expect(getTaskActivity(activity, "codexly", "task-a").isRunning).toBe(true);
+    expect(getTaskActivity(activity, "codexly", "task-b").isRunning).toBe(false);
 
     activity = reduceTaskActivityEvent(
       activity,
-      "code-agent",
+      "codexly",
       createTurnEvent("task-b", "turn.started"),
     );
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").isRunning).toBe(true);
-    expect(getTaskActivity(activity, "code-agent", "task-b").isRunning).toBe(true);
+    expect(getTaskActivity(activity, "codexly", "task-a").isRunning).toBe(true);
+    expect(getTaskActivity(activity, "codexly", "task-b").isRunning).toBe(true);
   });
 
   it("clears only the task that receives a terminal event", () => {
@@ -161,13 +161,13 @@ describe("task activity registry", () => {
 
     activity = reduceTaskActivityEvent(
       activity,
-      "code-agent",
+      "codexly",
       createTurnEvent("task-a", "turn.completed"),
     );
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").isRunning).toBe(false);
-    expect(getTaskActivity(activity, "code-agent", "task-a").attention).toBe("completed");
-    expect(getTaskActivity(activity, "code-agent", "task-b").isRunning).toBe(true);
+    expect(getTaskActivity(activity, "codexly", "task-a").isRunning).toBe(false);
+    expect(getTaskActivity(activity, "codexly", "task-a").attention).toBe("completed");
+    expect(getTaskActivity(activity, "codexly", "task-b").isRunning).toBe(true);
   });
 
   it("clears a completed reply marker when the task is viewed", () => {
@@ -175,15 +175,15 @@ describe("task activity registry", () => {
     activity = recordTaskActivitySnapshot(activity, createSnapshot("task-a", "running"));
     activity = reduceTaskActivityEvent(
       activity,
-      "code-agent",
+      "codexly",
       createTurnEvent("task-a", "turn.completed"),
     );
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").attention).toBe("completed");
+    expect(getTaskActivity(activity, "codexly", "task-a").attention).toBe("completed");
 
-    activity = clearTaskAttention(activity, "code-agent", "task-a");
+    activity = clearTaskAttention(activity, "codexly", "task-a");
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").attention).toBeNull();
+    expect(getTaskActivity(activity, "codexly", "task-a").attention).toBeNull();
   });
 
   it.each(["failed", "interrupted"] as const)(
@@ -194,11 +194,11 @@ describe("task activity registry", () => {
 
       activity = reduceTaskActivityEvent(
         activity,
-        "code-agent",
+        "codexly",
         createTerminalTurnEvent("task-a", status),
       );
 
-      expect(getTaskActivity(activity, "code-agent", "task-a")).toEqual({
+      expect(getTaskActivity(activity, "codexly", "task-a")).toEqual({
         attention: "failed",
         isAwaitingApproval: false,
         isRunning: false,
@@ -212,30 +212,30 @@ describe("task activity registry", () => {
 
     activity = reduceTaskActivityEvent(
       activity,
-      "code-agent",
+      "codexly",
       createProviderErrorEvent("task-a", true),
     );
-    expect(getTaskActivity(activity, "code-agent", "task-a")).toMatchObject({
+    expect(getTaskActivity(activity, "codexly", "task-a")).toMatchObject({
       attention: null,
       isRunning: true,
     });
 
     activity = reduceTaskActivityEvent(
       activity,
-      "code-agent",
+      "codexly",
       createProviderErrorEvent("task-a", false),
     );
-    expect(getTaskActivity(activity, "code-agent", "task-a")).toMatchObject({
+    expect(getTaskActivity(activity, "codexly", "task-a")).toMatchObject({
       attention: "failed",
       isRunning: false,
     });
 
     activity = reduceTaskActivityEvent(
       activity,
-      "code-agent",
+      "codexly",
       createTurnEvent("task-a", "turn.started"),
     );
-    expect(getTaskActivity(activity, "code-agent", "task-a")).toMatchObject({
+    expect(getTaskActivity(activity, "codexly", "task-a")).toMatchObject({
       attention: null,
       isRunning: true,
     });
@@ -245,24 +245,24 @@ describe("task activity registry", () => {
     let activity: TaskActivityMap = new Map();
     activity = reduceTaskActivityEvent(
       activity,
-      "code-agent",
+      "codexly",
       createTerminalTurnEvent("task-a", "interrupted"),
     );
 
     activity = recordTaskActivitySnapshot(activity, createSnapshot("task-a", "idle"));
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").attention).toBe("failed");
+    expect(getTaskActivity(activity, "codexly", "task-a").attention).toBe("failed");
   });
 
   it("does not mark an unrecoverable error on the task already being viewed", () => {
     const activity = reduceTaskActivityEvent(
       new Map(),
-      "code-agent",
+      "codexly",
       createProviderErrorEvent("task-a", false),
       true,
     );
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").attention).toBeNull();
+    expect(getTaskActivity(activity, "codexly", "task-a").attention).toBeNull();
   });
 
   it("tracks multiple approval requests independently", () => {
@@ -287,10 +287,10 @@ describe("task activity registry", () => {
       version: 2,
     } as const satisfies AgentEvent;
 
-    activity = reduceTaskActivityEvent(activity, "code-agent", resolvedEvent);
+    activity = reduceTaskActivityEvent(activity, "codexly", resolvedEvent);
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").isAwaitingApproval).toBe(true);
-    expect(getTaskActivity(activity, "code-agent", "task-a").attention).toBe("approval");
+    expect(getTaskActivity(activity, "codexly", "task-a").isAwaitingApproval).toBe(true);
+    expect(getTaskActivity(activity, "codexly", "task-a").attention).toBe("approval");
   });
 
   it("treats granular permission requests as approvals", () => {
@@ -299,7 +299,7 @@ describe("task activity registry", () => {
       createSnapshot("task-a", "running", [createPermissionRequest("permissions-1")]),
     );
 
-    expect(getTaskActivity(activity, "code-agent", "task-a")).toMatchObject({
+    expect(getTaskActivity(activity, "codexly", "task-a")).toMatchObject({
       attention: "approval",
       isAwaitingApproval: true,
     });
@@ -314,8 +314,8 @@ describe("task activity registry", () => {
 
     activity = recordTaskActivitySnapshot(activity, createSnapshot("task-a", "idle"));
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").attention).toBeNull();
-    expect(getTaskActivity(activity, "code-agent", "task-a").isAwaitingApproval).toBe(false);
+    expect(getTaskActivity(activity, "codexly", "task-a").attention).toBeNull();
+    expect(getTaskActivity(activity, "codexly", "task-a").isAwaitingApproval).toBe(false);
   });
 
   it("does not create attention markers for a task that is already viewed", () => {
@@ -323,11 +323,11 @@ describe("task activity registry", () => {
     activity = recordTaskActivitySnapshot(activity, createSnapshot("task-a", "running"), true);
     activity = reduceTaskActivityEvent(
       activity,
-      "code-agent",
+      "codexly",
       createTurnEvent("task-a", "turn.completed"),
       true,
     );
 
-    expect(getTaskActivity(activity, "code-agent", "task-a").attention).toBeNull();
+    expect(getTaskActivity(activity, "codexly", "task-a").attention).toBeNull();
   });
 });

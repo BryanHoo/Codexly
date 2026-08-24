@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentTaskSnapshot, PendingRequest } from "@code-agent/protocol";
+import type { AgentEvent, AgentTaskSnapshot, PendingRequest } from "@codexly/protocol";
 
 export type TaskAttention = "approval" | "completed" | "failed" | null;
 

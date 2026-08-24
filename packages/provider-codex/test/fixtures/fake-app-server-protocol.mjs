@@ -101,7 +101,7 @@ export function handleProtocolMessage(message) {
   if (message.method === "skills/list") {
     const requestedCwds = Array.isArray(message.params?.cwds)
       ? message.params.cwds
-      : ["/workspace/CodeAgent"];
+      : ["/workspace/Codexly"];
     base.send({
       id: message.id,
       result: {
@@ -208,11 +208,11 @@ export function handleProtocolMessage(message) {
         data: [
           {
             createdAt: 1_753_228_800,
-            cwd: "/workspace/CodeAgent",
+            cwd: "/workspace/Codexly",
             id: "task-realtime",
             name: "Realtime Path",
             preview: "Realtime Path",
-            projectId: "code-agent",
+            projectId: "codexly",
             section: null,
             sectionEnteredAt: null,
             status: { type: "active" },

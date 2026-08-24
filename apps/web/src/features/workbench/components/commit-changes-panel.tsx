@@ -3,7 +3,7 @@ import type {
   CommitProjectChangesResponse,
   GenerateCommitMessageRequest,
   ProjectGitStatus,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { Check, ChevronDown, LoaderCircle, Sparkles, Upload } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 

@@ -101,7 +101,7 @@
 **Interfaces:**
 
 - Consumes: Protocol resolve body/response Schema, `AgentProvider.resolvePendingRequest`, existing Fastify idempotency cache and Client mutation boundary.
-- Produces: `POST /v1/pending-requests/:requestId/resolve`, normalized pending-request errors and `CodeAgentClient.resolvePendingRequest(request, resolution, options)`.
+- Produces: `POST /v1/pending-requests/:requestId/resolve`, normalized pending-request errors and `CodexlyClient.resolvePendingRequest(request, resolution, options)`.
 
 **Behavior Slice:** Matching identities resolve once and return the terminal request; same key/payload replays the result, while changed payloads, cross-Task identities and expired requests fail without a second Provider response.
 
@@ -135,7 +135,7 @@
 
 **Interfaces:**
 
-- Consumes: Snapshot `pendingRequests`, pending-request Agent Events and `CodeAgentClient.resolvePendingRequest`.
+- Consumes: Snapshot `pendingRequests`, pending-request Agent Events and `CodexlyClient.resolvePendingRequest`.
 - Produces: AI Elements `Confirmation`, semantic approval/User Input controls, request submission states and Task Runtime pending-request reconciliation.
 
 **Behavior Slice:** Snapshot hydration restores an unresolved request after refresh, realtime events create/resolve/expire it, and the user can complete approval or User Input without duplicate submission or cross-Task response.

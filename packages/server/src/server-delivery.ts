@@ -2,14 +2,14 @@ import { relative, sep } from "node:path";
 import { isIP } from "node:net";
 import { domainToASCII } from "node:url";
 
-import { MAX_AGENT_FILE_BYTES, TEMPORARY_TASK_SCOPE_ID } from "@code-agent/protocol";
+import { MAX_AGENT_FILE_BYTES, TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import fastifyCookie from "@fastify/cookie";
 import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import fastifyWebsocket from "@fastify/websocket";
 import type { FastifyInstance } from "fastify";
 
-import { AccessSessionService, type CodeAgentAccessOptions } from "./access-control.js";
+import { AccessSessionService, type CodexlyAccessOptions } from "./access-control.js";
 import { ACCESS_SESSION_COOKIE } from "./routes/access-routes.js";
 import { MutationHttpError } from "./routes/context.js";
 
@@ -86,7 +86,7 @@ function isAllowedRequestHost(
 }
 
 export interface ConfigureServerDeliveryOptions {
-  access?: CodeAgentAccessOptions;
+  access?: CodexlyAccessOptions;
   allowedHosts?: readonly string[];
   releaseResources: () => Promise<void>;
   staticRoot?: string;

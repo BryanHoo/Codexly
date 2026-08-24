@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@code-agent/protocol";
+import type { AgentEvent } from "@codexly/protocol";
 
 import { i18n } from "../../i18n/i18n.js";
 import { recordInternalWarning } from "./internal-diagnostics.js";
@@ -160,7 +160,7 @@ class BrowserTaskNotifier implements TaskNotifier {
 
     try {
       const normalizedTaskTitle = taskTitle.trim() || "Task";
-      const notification = this.#api.show(`CodeAgent · ${normalizedTaskTitle}`, {
+      const notification = this.#api.show(`Codexly · ${normalizedTaskTitle}`, {
         body: taskNotification.body,
         data: { projectId, taskId: event.taskId },
         tag: taskNotification.tag,

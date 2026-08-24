@@ -3,7 +3,7 @@ import { expect, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
 test.describe.configure({ mode: "serial" });
 
 test("shows a task error when the initial snapshot request fails", async ({ page }) => {
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: { code: "SNAPSHOT_FAILED", message: "Snapshot failed" },
@@ -11,14 +11,14 @@ test("shows a task error when the initial snapshot request fails", async ({ page
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await expect(page.getByRole("alert", { name: "会话内容" })).toHaveText("无法加载任务历史");
 });
 
 test("keeps retrying Snapshot recovery and applies later realtime events", async ({ page }) => {
   let snapshotRequestCount = 0;
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     snapshotRequestCount += 1;
     if (snapshotRequestCount === 1) {
       await route.fulfill({ contentType: "application/json", json: taskSnapshotResponse });
@@ -131,7 +131,7 @@ test("keeps retrying Snapshot recovery and applies later realtime events", async
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await expect.poll(() => snapshotRequestCount).toBeGreaterThanOrEqual(3);
   await expect(page.getByText("工作台界面已按统一的 项目 Agent 组件 结构重新组织。")).toBeVisible();
@@ -144,7 +144,7 @@ test("keeps retrying Snapshot recovery and applies later realtime events", async
 
 test("refreshes the snapshot when the realtime delta buffer overflows", async ({ page }) => {
   let snapshotRequestCount = 0;
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     snapshotRequestCount += 1;
     await route.fulfill({
       contentType: "application/json",
@@ -235,7 +235,7 @@ test("refreshes the snapshot when the realtime delta buffer overflows", async ({
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await expect.poll(() => snapshotRequestCount).toBeGreaterThanOrEqual(2);
 });
@@ -244,7 +244,7 @@ test("clears transient realtime errors after the WebSocket reconnects @cross-bro
   page,
 }) => {
   let snapshotRequestCount = 0;
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     snapshotRequestCount += 1;
     if (snapshotRequestCount === 1) {
       await route.fulfill({ contentType: "application/json", json: taskSnapshotResponse });
@@ -329,7 +329,7 @@ test("clears transient realtime errors after the WebSocket reconnects @cross-bro
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await expect(page.getByText("工作台界面已按统一的 项目 Agent 组件 结构重新组织。")).toBeVisible();
   await expect.poll(() => page.evaluate(() => WebSocket.name)).toBe("ReconnectingWebSocket");
   await expect

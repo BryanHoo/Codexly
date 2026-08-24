@@ -1,4 +1,4 @@
-import type { McpElicitationField, PendingRequest, Project } from "@code-agent/protocol";
+import type { McpElicitationField, PendingRequest, Project } from "@codexly/protocol";
 
 import {
   CodexProtocolMappingError,

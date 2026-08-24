@@ -2,7 +2,7 @@
 
 import { memoryUsage } from "node:process";
 
-import type { AgentEvent, AgentTaskSnapshotResponse } from "@code-agent/protocol";
+import type { AgentEvent, AgentTaskSnapshotResponse } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 
 import performanceBudgets from "../../../../../../tests/performance-budgets.json" with { type: "json" };

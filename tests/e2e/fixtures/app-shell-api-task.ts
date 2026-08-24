@@ -186,27 +186,27 @@ export async function handleAppShellTaskRoute(
       data: projectTasks.slice(pageOffset, nextOffset),
       nextCursor: nextOffset < projectTasks.length ? String(nextOffset) : null,
     };
-  } else if (url.pathname === "/v1/projects/code-agent/tasks/task-1") {
+  } else if (url.pathname === "/v1/projects/codexly/tasks/task-1") {
     body = {
       ...taskSnapshotResponse,
       snapshot: {
         ...taskSnapshotResponse.snapshot,
-        settings: state.taskSettings.get("code-agent:task-1") ?? taskSnapshot.settings,
+        settings: state.taskSettings.get("codexly:task-1") ?? taskSnapshot.settings,
       },
     };
-  } else if (url.pathname === "/v1/projects/code-agent/tasks/task-2") {
+  } else if (url.pathname === "/v1/projects/codexly/tasks/task-2") {
     body = {
       ...taskSnapshotResponse,
       snapshot: {
         ...taskSnapshotResponse.snapshot,
         id: "task-2",
-        settings: state.taskSettings.get("code-agent:task-2") ?? taskSnapshot.settings,
+        settings: state.taskSettings.get("codexly:task-2") ?? taskSnapshot.settings,
         title: "续接任务",
       },
     };
-  } else if (url.pathname === "/v1/projects/code-agent/tasks/task-1/compact") {
+  } else if (url.pathname === "/v1/projects/codexly/tasks/task-1/compact") {
     body = { status: "compacting", taskId: "task-1" };
-  } else if (url.pathname === "/v1/projects/code-agent/tasks/task-1/review") {
+  } else if (url.pathname === "/v1/projects/codexly/tasks/task-1/review") {
     body = {
       taskId: "task-1",
       turn: {
@@ -218,12 +218,12 @@ export async function handleAppShellTaskRoute(
         status: "running",
       },
     };
-  } else if (url.pathname === "/v1/projects/code-agent/tasks/task-1/fork") {
+  } else if (url.pathname === "/v1/projects/codexly/tasks/task-1/fork") {
     body = {
       task: {
         id: "task-2",
         pinned: false,
-        projectId: "code-agent",
+        projectId: "codexly",
         title: "续接任务",
         updatedAt: "2026-07-25T00:00:00.000Z",
       },

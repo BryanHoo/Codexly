@@ -4,7 +4,7 @@ import {
   type AgentTask,
   type AgentTaskPage,
   type Project,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo } from "react";
 import type { ProjectRuntimeManager } from "../conversation/runtime/project-runtime.js";
@@ -14,7 +14,7 @@ import {
   projectPinnedTasksQueryOptions,
   projectTaskSearchSourceQueryOptions,
   projectTasksInfiniteQueryOptions,
-  type CodeAgentWorkbenchClient,
+  type CodexlyWorkbenchClient,
   type ProjectTaskInfiniteData,
 } from "./project-queries.js";
 
@@ -53,7 +53,7 @@ export async function requestNextProjectTaskPage(
 
 export type ProjectDataContextValue = Readonly<{
   capabilities: AgentCapabilities | undefined;
-  client: CodeAgentWorkbenchClient;
+  client: CodexlyWorkbenchClient;
   error: Error | null;
   isPending: boolean;
   projectTaskStates: ReadonlyMap<string, ProjectTaskListState>;
@@ -101,7 +101,7 @@ export const ProjectRootSelectionContext = createContext<
 >(undefined);
 
 export type ProjectTaskQueryProps = Readonly<{
-  client: CodeAgentWorkbenchClient;
+  client: CodexlyWorkbenchClient;
   onRemove: (projectId: string) => void;
   onUpdate: (projectId: string, result: ProjectTaskQueryResult) => void;
   projectId: string;

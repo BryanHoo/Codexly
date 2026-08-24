@@ -116,7 +116,7 @@ function hashGeneratedFiles(root) {
 }
 
 function generateBaseline(codexCliPath, codexVersion) {
-  const temporaryRoot = mkdtempSync(join(tmpdir(), "code-agent-codex-schema-"));
+  const temporaryRoot = mkdtempSync(join(tmpdir(), "codexly-codex-schema-"));
   try {
     for (const generator of generators) {
       const outputDirectory = join(temporaryRoot, generator.directory);

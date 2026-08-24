@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 
-import type { AgentEvent } from "@code-agent/protocol";
+import type { AgentEvent } from "@codexly/protocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AgentEventStream } from "./agent-event-stream.js";

@@ -10,7 +10,7 @@ import {
   type CancelProviderLoginRequest,
   type ConfigureCustomProviderRequest,
   type StartOfficialProviderLoginRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
 
 import type { ServerRouteContext } from "./context.js";

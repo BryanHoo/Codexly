@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { CodeAgentClient, CodeAgentMutationError, CodeAgentResponseError } from "./http-client.js";
+import { CodexlyClient, CodexlyMutationError, CodexlyResponseError } from "./http-client.js";
 import { task, jsonResponse } from "./http-client.test-support.js";
 
-describe("CodeAgentClient transport errors", () => {
+describe("CodexlyClient transport errors", () => {
   it("validates and exposes structured mutation errors", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValueOnce(
@@ -11,11 +11,11 @@ describe("CodeAgentClient transport errors", () => {
         { status: 502, statusText: "Bad Gateway" },
       ),
     );
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
-    const error = await client.startTask("code-agent").catch((cause: unknown) => cause);
+    const error = await client.startTask("codexly").catch((cause: unknown) => cause);
 
-    expect(error).toBeInstanceOf(CodeAgentMutationError);
+    expect(error).toBeInstanceOf(CodexlyMutationError);
     expect(error).toMatchObject({
       code: "PROVIDER_ERROR",
       message: "Agent provider request failed",
@@ -38,12 +38,12 @@ describe("CodeAgentClient transport errors", () => {
       .mockResolvedValueOnce(jsonResponse({ data: [], nextCursor: null }))
       .mockResolvedValueOnce(jsonResponse({ data: [], nextCursor: null }))
       .mockResolvedValueOnce(jsonResponse({ task }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
     const queryController = new AbortController();
 
     await client.listProjects({ signal: queryController.signal });
     await client.listProjects();
-    await client.startTask("code-agent", { idempotencyKey: "start-task" });
+    await client.startTask("codexly", { idempotencyKey: "start-task" });
 
     expect(timeoutValues).toEqual([30_000, 15_000, 60_000]);
     const querySignal = fetchMock.mock.calls[0]?.[1]?.signal;
@@ -61,9 +61,9 @@ describe("CodeAgentClient transport errors", () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ code: "PROVIDER_ERROR", message: "missing retryable" }, { status: 502 }),
     );
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
-    await expect(client.startTask("code-agent")).rejects.toBeInstanceOf(CodeAgentResponseError);
+    await expect(client.startTask("codexly")).rejects.toBeInstanceOf(CodexlyResponseError);
   });
 
   it("rejects invalid JSON and schema mismatches at the boundary", async () => {
@@ -75,11 +75,11 @@ describe("CodeAgentClient transport errors", () => {
     );
 
     await expect(
-      new CodeAgentClient({ fetch: invalidJsonFetch }).listProjects(),
-    ).rejects.toBeInstanceOf(CodeAgentResponseError);
+      new CodexlyClient({ fetch: invalidJsonFetch }).listProjects(),
+    ).rejects.toBeInstanceOf(CodexlyResponseError);
     await expect(
-      new CodeAgentClient({ fetch: invalidSchemaFetch }).listTasks("code-agent"),
-    ).rejects.toBeInstanceOf(CodeAgentResponseError);
+      new CodexlyClient({ fetch: invalidSchemaFetch }).listTasks("codexly"),
+    ).rejects.toBeInstanceOf(CodexlyResponseError);
   });
 
   it("uses same-origin credentials for access status, pairing, and logout", async () => {
@@ -88,7 +88,7 @@ describe("CodeAgentClient transport errors", () => {
       .mockResolvedValueOnce(jsonResponse({ authenticated: false, mode: "lan", version: 1 }))
       .mockResolvedValueOnce(jsonResponse({ authenticated: true, mode: "lan", version: 1 }))
       .mockResolvedValueOnce(jsonResponse({ authenticated: false, mode: "lan", version: 1 }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await client.getAccessStatus();
     await client.pairAccess("secret-pairing-code");
@@ -115,7 +115,7 @@ describe("CodeAgentClient transport errors", () => {
     fetchMock.mockResolvedValueOnce(
       new Response(null, { status: 401, statusText: "Unauthorized" }),
     );
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
     const listener = vi.fn();
     const unsubscribe = client.subscribeUnauthorized(listener);
 

@@ -182,6 +182,6 @@ Expected: 测试证明设置读取只在 Task 归属确认后启动，Snapshot�
 
 - [x] **Task Status:** completed
 
-Run: `pnpm exec vitest run tests/web-bundle-budget.test.ts && pnpm --filter @code-agent/web build && pnpm run bundle:check`
+Run: `pnpm exec vitest run tests/web-bundle-budget.test.ts && pnpm --filter @codexly/web build && pnpm run bundle:check`
 
 Expected: 预算边界测试通过，真实首屏产物低于 `280 KiB`，异步组和 Workbench Ready 门禁继续通过。

@@ -2,7 +2,7 @@ import type {
   PendingRequest,
   PermissionApprovalResolution,
   ResolvePendingRequestRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { useEffect, useRef, useState } from "react";
 import { v4 as createUuid } from "uuid";
 

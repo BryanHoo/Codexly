@@ -21,7 +21,7 @@ import {
   type PinAgentTaskRequest,
   type RenameAgentTaskRequest,
   type UnarchiveAgentTaskRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
 import { MutationHttpError, toMcpProviderHttpError, type ServerRouteContext } from "./context.js";
 import {

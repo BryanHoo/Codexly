@@ -1,4 +1,4 @@
-import type { PendingRequest } from "@code-agent/protocol";
+import type { PendingRequest } from "@codexly/protocol";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -9,7 +9,7 @@ const identity = {
   createdAt: "2026-07-23T00:00:00.000Z",
   expiresAt: null,
   itemId: "item-1",
-  projectId: "code-agent",
+  projectId: "codexly",
   requestId: "number:7",
   status: "pending",
   taskId: "task-1",
@@ -20,14 +20,14 @@ describe("PendingRequestCard", () => {
   it("renders granular permissions and builds a selected session grant", () => {
     const request: Extract<PendingRequest, { type: "permissions_approval" }> = {
       ...identity,
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       environmentId: "local",
       permissions: {
         fileSystem: {
           entries: [
             {
               access: "write",
-              path: { type: "glob", value: "/workspace/CodeAgent/*.log" },
+              path: { type: "glob", value: "/workspace/Codexly/*.log" },
             },
             {
               access: "deny",
@@ -35,7 +35,7 @@ describe("PendingRequestCard", () => {
             },
           ],
           globScanMaxDepth: 4,
-          read: ["/workspace/CodeAgent/src"],
+          read: ["/workspace/Codexly/src"],
           write: null,
         },
         network: { enabled: true },
@@ -59,8 +59,8 @@ describe("PendingRequestCard", () => {
     expect(markup).toContain("权限审批");
     expect(markup).toContain("网络访问");
     expect(markup).toContain("文件系统");
-    expect(markup).toContain("/workspace/CodeAgent/src");
-    expect(markup).toContain("/workspace/CodeAgent/*.log");
+    expect(markup).toContain("/workspace/Codexly/src");
+    expect(markup).toContain("/workspace/Codexly/*.log");
     expect(markup).toContain("系统临时目录");
     expect(markup).toContain("本轮允许");
     expect(markup).toContain("本次会话允许");
@@ -90,18 +90,18 @@ describe("PendingRequestCard", () => {
           entries: [
             {
               access: "write",
-              path: { type: "path", value: "/workspace/CodeAgent/.cache" },
+              path: { type: "path", value: "/workspace/Codexly/.cache" },
             },
           ],
           globScanMaxDepth: null,
           read: null,
-          write: ["/workspace/CodeAgent/.cache"],
+          write: ["/workspace/Codexly/.cache"],
         },
         network: { enabled: true },
       },
       availableDecisions: ["allow", "allow_for_session", "deny"],
       command: "pnpm check",
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       networkAccess: null,
       reason: "需要执行检查",
       type: "command_approval",
@@ -116,7 +116,7 @@ describe("PendingRequestCard", () => {
     expect(active).toContain("命令审批");
     expect(active).toContain("额外权限");
     expect(active).toContain("网络访问");
-    expect(active).toContain("/workspace/CodeAgent/.cache");
+    expect(active).toContain("/workspace/Codexly/.cache");
     expect(active).toContain("本次会话允许");
     expect(active).toContain("允许");
     expect(active).toContain("拒绝");
@@ -268,7 +268,7 @@ describe("PendingRequestCard", () => {
     const request: PendingRequest = {
       ...identity,
       availableDecisions: ["allow", "deny"],
-      grantRoot: "/workspace/CodeAgent",
+      grantRoot: "/workspace/Codexly",
       reason: null,
       status: "expired",
       type: "file_change_approval",

@@ -31,11 +31,11 @@ const cliResult = spawnSync(process.execPath, ["dist/cli.js", "--help"], {
 const packageManifest = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
-if (packageManifest.bin?.["code-agent"] !== "dist/cli.js") {
-  throw new Error(`Unexpected code-agent bin path: ${packageManifest.bin?.["code-agent"]}`);
+if (packageManifest.bin?.["codexly"] !== "dist/cli.js") {
+  throw new Error(`Unexpected codexly bin path: ${packageManifest.bin?.["codexly"]}`);
 }
 
-if (cliResult.status !== 0 || !cliResult.stdout.includes("Usage: code-agent [command] [options]")) {
+if (cliResult.status !== 0 || !cliResult.stdout.includes("Usage: codexly [command] [options]")) {
   process.stderr.write(cliResult.stderr);
   throw new Error("Built CLI is not executable");
 }
@@ -47,8 +47,8 @@ if (!packageManagerCli) {
   throw new Error("package:check must run through pnpm so npm_execpath is available");
 }
 
-const packRoot = mkdtempSync(join(tmpdir(), "code-agent-pack-check-"));
-const stateRoot = mkdtempSync(join(tmpdir(), "code-agent-package-check-"));
+const packRoot = mkdtempSync(join(tmpdir(), "codexly-pack-check-"));
+const stateRoot = mkdtempSync(join(tmpdir(), "codexly-package-check-"));
 try {
   // 必须生成真实 tarball，dry-run 无法验证发布时转换后的依赖协议。
   const result = spawnSync(
@@ -73,7 +73,7 @@ try {
     throw new Error("Package manifest is missing from pack output");
   }
 
-  if (manifest.name !== "@bryanhu/code-agent") {
+  if (manifest.name !== "@bryanhu/codexly") {
     throw new Error(`Unexpected package name: ${manifest.name}`);
   }
 

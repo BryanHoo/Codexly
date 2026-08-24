@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AgentProviderEvent } from "@code-agent/core";
+import type { AgentProviderEvent } from "@codexly/core";
 import {
   FakeRpcClient,
   project,
@@ -355,7 +355,7 @@ describe("CodexAgentProvider realtime events", () => {
         aggregatedOutput: null,
         command: "sed -n '1,240p' SKILL.md",
         commandActions: [],
-        cwd: "/workspace/CodeAgent",
+        cwd: "/workspace/Codexly",
         durationMs: null,
         exitCode: null,
         id: "command-read-skill",
@@ -382,7 +382,7 @@ describe("CodexAgentProvider realtime events", () => {
       turnId: "turn-1",
     });
     rpc.emitNotification("item/started", {
-      item: { id: "image-view", path: "/workspace/CodeAgent/status.png", type: "imageView" },
+      item: { id: "image-view", path: "/workspace/Codexly/status.png", type: "imageView" },
       threadId: "task-1",
       turnId: "turn-1",
     });

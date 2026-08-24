@@ -1,4 +1,4 @@
-import type { AgentTaskSnapshot } from "@code-agent/protocol";
+import type { AgentTaskSnapshot } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { getTaskActivity } from "./task-activity.js";
 import { createProjectRuntimeManager } from "./project-runtime.js";
@@ -62,7 +62,7 @@ describe("project runtime lifecycle", () => {
       availableDecisions: ["allow", "deny"],
       command: "pnpm check",
       createdAt: "2026-07-28T00:00:00.000Z",
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       expiresAt: null,
       itemId: "item-approval",
       networkAccess: null,

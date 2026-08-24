@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import type { Project } from "@code-agent/protocol";
+import type { Project } from "@codexly/protocol";
 import { afterEach, beforeEach, vi, type Mock } from "vitest";
 import type { CliDependencies, RunCliOptions } from "./cli-command.js";
 import { STARTUP_UPDATE_APPLIED_ENV } from "./cli-startup-update.js";

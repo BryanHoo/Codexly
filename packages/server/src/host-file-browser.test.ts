@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 async function createTemporaryDirectory() {
-  const path = await mkdtemp(join(tmpdir(), "code-agent-host-file-browser-"));
+  const path = await mkdtemp(join(tmpdir(), "codexly-host-file-browser-"));
   temporaryDirectories.push(path);
   return realpath(path);
 }
@@ -34,7 +34,7 @@ describe("host file browser", () => {
       mkdir(join(homePath, "zeta")),
       mkdir(join(homePath, "Alpha")),
       writeFile(join(homePath, ".hidden.png"), "hidden image bytes"),
-      writeFile(join(homePath, "README.md"), "# CodeAgent\n"),
+      writeFile(join(homePath, "README.md"), "# Codexly\n"),
       writeFile(join(homePath, "screen.PNG"), "image bytes"),
       writeFile(join(homePath, "archive.zip"), "unsupported"),
       symlink(outsidePath, join(homePath, "linked-directory")),

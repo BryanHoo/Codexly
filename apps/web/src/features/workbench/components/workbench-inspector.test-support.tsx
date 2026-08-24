@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import type { AgentMcpServer } from "@code-agent/protocol";
+import type { AgentMcpServer } from "@codexly/protocol";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ComponentProps, ReactNode } from "react";
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
@@ -9,7 +9,7 @@ import { WorkbenchInspector as WorkbenchInspectorComponent } from "./workbench-i
 export function WorkbenchInspector(
   props: Omit<ComponentProps<typeof WorkbenchInspectorComponent>, "projectRootId">,
 ) {
-  return <WorkbenchInspectorComponent {...props} projectRootId="root-code-agent" />;
+  return <WorkbenchInspectorComponent {...props} projectRootId="root-codexly" />;
 }
 
 export function renderInspectorMarkup(children: ReactNode): string {

@@ -1,10 +1,10 @@
-import type { AgentProvider, AgentRuntimeProvider } from "@code-agent/core";
+import type { AgentProvider, AgentRuntimeProvider } from "@codexly/core";
 import type {
   AgentProviderConnectionStatus,
   ConfigureCustomProviderResponse,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import {
   temporaryProject,
   turnOptions,
@@ -26,7 +26,7 @@ describe("server diagnostics and provider connection", () => {
       listTasks: vi.fn(() => new Promise<never>(() => undefined)),
     };
     const logLines: string[] = [];
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(slowProvider, {
         handlerTimeoutMs: 10,
         loggerEnabled: true,
@@ -50,7 +50,7 @@ describe("server diagnostics and provider connection", () => {
     });
     const timedOutResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
 
     expect(response.statusCode).toBe(200);
@@ -129,7 +129,7 @@ describe("server diagnostics and provider connection", () => {
       releaseProject: () => Promise.resolve(),
       startOfficialProviderLogin,
     };
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, {
         provider: runtimeProvider,
         providerConnectionRepository: state.repository,
@@ -200,7 +200,7 @@ describe("server diagnostics and provider connection", () => {
       startTask: startTemporaryTask,
     };
     const settings = createSettingsRepository();
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(temporaryProvider, { settingsRepository: settings.repository }),
     );
     closeCallbacks.push(() => app.close());

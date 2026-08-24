@@ -19,7 +19,7 @@ test("opens timeline review while showing Git stats in the Inspector project tre
     kind: "create" as const,
     path: "apps/web/src/review-list.tsx",
   };
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -38,7 +38,7 @@ test("opens timeline review while showing Git stats in the Inspector project tre
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/git/status*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/status*", async (route) => {
     // 此用例使用两个不同目录的文件，覆盖紧凑树路径与四方向导航，避免改变全局 Fixture。
     const detailedStatus = {
       ...projectGitStatus,
@@ -65,7 +65,7 @@ test("opens timeline review while showing Git stats in the Inspector project tre
       failedResources.push(response.url());
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   const contextTab = inspector.getByRole("tab", { name: "上下文" });
@@ -184,7 +184,7 @@ test("generates a message and commits only selected files", async ({ page }) => 
   let commitRequest: Record<string, unknown> | undefined;
   let commitIdempotencyKey: string | undefined;
   let historyRequestCount = 0;
-  await page.route("**/v1/projects/code-agent/git/status*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/status*", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -194,14 +194,14 @@ test("generates a message and commits only selected files", async ({ page }) => 
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/git/commit-message?*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/commit-message?*", async (route) => {
     messageRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",
       json: { message: "feat(git): 生成选中文件提交", snapshot },
     });
   });
-  await page.route("**/v1/projects/code-agent/git/commits?*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/commits?*", async (route) => {
     commitRequest = parseRequestRecord(route.request().postData());
     commitIdempotencyKey = route.request().headers()["idempotency-key"];
     await route.fulfill({
@@ -216,7 +216,7 @@ test("generates a message and commits only selected files", async ({ page }) => 
       status: 201,
     });
   });
-  await page.route("**/v1/projects/code-agent/git/history*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/history*", async (route) => {
     historyRequestCount += 1;
     await route.fulfill({
       contentType: "application/json",
@@ -231,7 +231,7 @@ test("generates a message and commits only selected files", async ({ page }) => 
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { name: "提交 17 个未提交变更" }).click();
   const inspector = page.locator(".workbench-inspector");
   const changesTab = inspector.getByRole("tab", { name: "变更" });
@@ -372,7 +372,7 @@ test("defaults to the first child repository and keeps the changes panel mounted
   const backendSnapshot = "b".repeat(64);
   const frontendSnapshot = "c".repeat(64);
   const requestedRepositories: string[] = [];
-  await page.route("**/v1/projects/code-agent/git/status*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/status*", async (route) => {
     const repository = new URL(route.request().url()).searchParams.get("repository");
     if (repository !== null) requestedRepositories.push(repository);
     const status =
@@ -406,7 +406,7 @@ test("defaults to the first child repository and keeps the changes panel mounted
             };
     await route.fulfill({ contentType: "application/json", json: status });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { name: "提交 2 个未提交变更" }).click();
   const panel = page.locator('[data-slot="commit-changes-panel"]');
   const repositorySelect = panel.getByRole("combobox", { name: "Git 项目" });
@@ -432,10 +432,10 @@ for (const scenario of [
   { actionName: "提交并推送", pushStatus: "pushed", toastMessage: "提交并推送成功" },
 ] as const) {
   test(`${scenario.actionName}成功后保留变更标签并显示 toast`, async ({ page }) => {
-    await page.route("**/v1/projects/code-agent/git/status*", async (route) => {
+    await page.route("**/v1/projects/codexly/git/status*", async (route) => {
       await route.fulfill({ contentType: "application/json", json: projectGitStatus });
     });
-    await page.route("**/v1/projects/code-agent/git/commits?*", async (route) => {
+    await page.route("**/v1/projects/codexly/git/commits?*", async (route) => {
       const request = parseRequestRecord(route.request().postData());
       await route.fulfill({
         contentType: "application/json",
@@ -449,7 +449,7 @@ for (const scenario of [
         status: 201,
       });
     });
-    await page.goto("/p/code-agent/t/task-1");
+    await page.goto("/p/codexly/t/task-1");
     await page.getByRole("button", { name: /提交 \d+ 个未提交变更/u }).click();
     const inspector = page.locator(".workbench-inspector");
     const panel = inspector.locator('[data-slot="commit-changes-panel"]');

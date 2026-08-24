@@ -1,5 +1,5 @@
-import type { AgentProvider, AgentProviderEvent } from "@code-agent/core";
-import type { AgentMessageAttachment } from "@code-agent/protocol";
+import type { AgentProvider, AgentProviderEvent } from "@codexly/core";
+import type { AgentMessageAttachment } from "@codexly/protocol";
 import type { RpcErrorPayload, RpcServerRequest } from "./jsonl-rpc-client.js";
 import { SUPPORTED_CODEX_VERSION } from "./binary.js";
 import {

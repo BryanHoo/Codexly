@@ -42,7 +42,7 @@
 
 **Interfaces:**
 
-- Consumes: `ProjectSchema`、`AgentTaskSchema` 和现有 `@code-agent/protocol` 根导出。
+- Consumes: `ProjectSchema`、`AgentTaskSchema` 和现有 `@codexly/protocol` 根导出。
 - Produces: `max-lines` ESLint 门禁和职责拆分后的 Protocol re-export facade。
 
 **Behavior:**
@@ -71,8 +71,8 @@ Expected: Protocol 契约测试通过，ESLint 不报告生产文件超过 500 �
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient` 公开方法和 Protocol Schema 校验契约。
-- Produces: 保持兼容的 `CodeAgentClient` facade 与分领域 HTTP 操作模块。
+- Consumes: `CodexlyClient` 公开方法和 Protocol Schema 校验契约。
+- Produces: 保持兼容的 `CodexlyClient` facade 与分领域 HTTP 操作模块。
 
 **Behavior:**
 
@@ -80,7 +80,7 @@ Expected: Protocol 契约测试通过，ESLint 不报告生产文件超过 500 �
 
 **Stop Conditions:**
 
-- 如拆分要求改变 `CodeAgentClient` 公开方法签名或让未校验数据越过 Client 边界，则停止并调整内部 transport 接口。
+- 如拆分要求改变 `CodexlyClient` 公开方法签名或让未校验数据越过 Client 边界，则停止并调整内部 transport 接口。
 
 - [x] **Task Status:** completed
 
@@ -111,7 +111,7 @@ Expected: Client HTTP 测试通过，公开 API 与错误语义保持不变且�
 
 **Interfaces:**
 
-- Consumes: `ServerRouteContext`、`createCodeAgentServer`、`ProjectOpenService` 和 `readGitWorkingTreeStatus`。
+- Consumes: `ServerRouteContext`、`createCodexlyServer`、`ProjectOpenService` 和 `readGitWorkingTreeStatus`。
 - Produces: 领域路由插件、Server 辅助服务与保持稳定的原入口 facade。
 
 **Behavior:**

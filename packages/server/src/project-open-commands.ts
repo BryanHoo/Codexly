@@ -5,7 +5,7 @@ import type {
   ProjectOpenAppId,
   ProjectOpenAppKind,
   ProjectOpenPlatform,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 export type ProjectOpenCommand = Readonly<{
   app: ProjectOpenApp;

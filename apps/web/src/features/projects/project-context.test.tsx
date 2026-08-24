@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { TEMPORARY_TASK_SCOPE_ID } from "@code-agent/protocol";
-import type { AgentTask } from "@code-agent/protocol";
+import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
+import type { AgentTask } from "@codexly/protocol";
 
 import {
   buildTaskScopeCollections,

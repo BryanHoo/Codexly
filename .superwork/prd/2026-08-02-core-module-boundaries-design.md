@@ -2,7 +2,7 @@
 
 ## Goal
 
-在不改变 `createCodeAgentServer`、`CodexRuntimeProvider`、`CodexAgentProvider` 和 `WorkbenchComposer` 公共入口及现有网络契约的前提下，把四个热点文件按领域拆分，使路由注册、Provider 生命周期、Composer 控制逻辑和 E2E 场景分别拥有明确边界。
+在不改变 `createCodexlyServer`、`CodexRuntimeProvider`、`CodexAgentProvider` 和 `WorkbenchComposer` 公共入口及现有网络契约的前提下，把四个热点文件按领域拆分，使路由注册、Provider 生命周期、Composer 控制逻辑和 E2E 场景分别拥有明确边界。
 
 ## Suggested Spec Reads
 
@@ -57,7 +57,7 @@
 
 ### Server
 
-- `app.ts`：保留 `CreateCodeAgentServerOptions` 和 `createCodeAgentServer`，创建 Fastify、Repository、Project Runtime Context、Event Stream、Attachment Store，并注册 route plugin。
+- `app.ts`：保留 `CreateCodexlyServerOptions` 和 `createCodexlyServer`，创建 Fastify、Repository、Project Runtime Context、Event Stream、Attachment Store，并注册 route plugin。
 - `routes/schemas.ts`：保存多个路由共同使用的 Params、Header、Query 和错误 Schema。
 - `routes/runtime-routes.ts`：health、capabilities、metrics、models、settings。
 - `routes/project-routes.ts`：Project 列表、注册、排序、重命名、删除、defaults、skills、MCP、打开能力、文件树、源码和 Git 状态/提交。
@@ -90,7 +90,7 @@
 ## Data Flow
 
 ```text
-createCodeAgentServer
+createCodexlyServer
   -> build ServerRouteContext
   -> register domain route plugins
   -> resolve ProjectRuntimeContext
@@ -98,7 +98,7 @@ createCodeAgentServer
 
 WorkbenchComposer
   -> useWorkbenchComposerController
-  -> @code-agent/client mutation
+  -> @codexly/client mutation
   -> controller ViewModel
   -> WorkbenchComposerView
 

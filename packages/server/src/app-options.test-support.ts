@@ -1,4 +1,4 @@
-import type { AgentProvider, AgentRuntimeProvider, RegisterProjectInput } from "@code-agent/core";
+import type { AgentProvider, AgentRuntimeProvider, RegisterProjectInput } from "@codexly/core";
 import type {
   AgentGlobalSettings,
   AgentProviderConnectionRecord,
@@ -6,7 +6,7 @@ import type {
   AgentProjectDefaults,
   AgentTaskSettings,
   Project,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { expect, vi } from "vitest";
 import { project, temporaryProject } from "./app.test-support.js";
 

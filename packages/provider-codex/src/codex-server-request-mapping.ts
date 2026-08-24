@@ -1,4 +1,4 @@
-import type { PendingApprovalDecision, PendingRequest, Project } from "@code-agent/protocol";
+import type { PendingApprovalDecision, PendingRequest, Project } from "@codexly/protocol";
 
 import {
   CodexProtocolMappingError,

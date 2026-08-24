@@ -71,7 +71,7 @@
 
 - **Behavior Slice:** `@pierre/diffs` 继续按文件扩展名高亮受支持的 Diff；不支持语言回退为纯文本；生产构建不再解析完整 Shiki 语言、主题和 Oniguruma WASM 集合。
 - **Proof Intent:** 单元测试锁定兼容入口的语言和主题白名单；生产构建确认不再生成任意未支持语言、主题及 Shiki WASM Chunk。
-- **Verification:** 运行 `pnpm exec vitest run apps/web/src/shared/ai-elements/shiki-bundle.test.ts apps/web/src/shared/ai-elements/code-highlighter.test.ts` 与 `pnpm --filter @code-agent/web build`。Expected: 测试通过，构建仅包含显式语言与两个主题。
+- **Verification:** 运行 `pnpm exec vitest run apps/web/src/shared/ai-elements/shiki-bundle.test.ts apps/web/src/shared/ai-elements/code-highlighter.test.ts` 与 `pnpm --filter @codexly/web build`。Expected: 测试通过，构建仅包含显式语言与两个主题。
 
 **Stop Conditions:**
 
@@ -96,7 +96,7 @@
 
 - **Behavior Slice:** 首屏不静态引用源码弹窗；用户打开文件引用时通过固定动态导入加载弹窗，随后保留加载、失败、行定位、复制和关闭行为。
 - **Proof Intent:** 扩展语言映射测试覆盖支持语言和不支持回退；生产构建确认源码弹窗形成独立异步 Chunk，入口不直接依赖该 Chunk。
-- **Verification:** 运行 `pnpm exec vitest run apps/web/src/features/workbench/components/project-source-dialog.test.tsx` 与 `pnpm --filter @code-agent/web build`。Expected: 测试通过且构建输出含独立 `project-source-dialog` Chunk。
+- **Verification:** 运行 `pnpm exec vitest run apps/web/src/features/workbench/components/project-source-dialog.test.tsx` 与 `pnpm --filter @codexly/web build`。Expected: 测试通过且构建输出含独立 `project-source-dialog` Chunk。
 
 **Stop Conditions:**
 

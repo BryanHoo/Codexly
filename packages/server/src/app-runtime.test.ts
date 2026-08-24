@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import {
   encodedProjectRootPath,
   project,
@@ -16,7 +16,7 @@ describe("server runtime and core routes", () => {
     const response = await app.inject({
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks/task-1/unsubscribe",
+      url: "/v1/projects/codexly/tasks/task-1/unsubscribe",
     });
 
     expect(response.statusCode).toBe(200);
@@ -31,7 +31,7 @@ describe("server runtime and core routes", () => {
       data: [
         {
           command: "pnpm dev",
-          cwd: "/workspace/CodeAgent",
+          cwd: "/workspace/Codexly",
           id: "terminal-1",
           itemId: "command-1",
         },
@@ -40,18 +40,18 @@ describe("server runtime and core routes", () => {
 
     const listResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1/background-terminals",
+      url: "/v1/projects/codexly/tasks/task-1/background-terminals",
     });
     const repeatedListResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1/background-terminals",
+      url: "/v1/projects/codexly/tasks/task-1/background-terminals",
     });
     expect(readTask).not.toHaveBeenCalled();
     const terminateRequest = {
       headers: { "idempotency-key": "stop-terminal-1" },
       method: "POST" as const,
       payload: {},
-      url: "/v1/projects/code-agent/tasks/task-1/background-terminals/terminal-1/terminate",
+      url: "/v1/projects/codexly/tasks/task-1/background-terminals/terminal-1/terminate",
     };
     const firstTerminateResponse = await app.inject(terminateRequest);
     const repeatedTerminateResponse = await app.inject(terminateRequest);
@@ -62,7 +62,7 @@ describe("server runtime and core routes", () => {
       data: [
         {
           command: "pnpm dev",
-          cwd: "/workspace/CodeAgent",
+          cwd: "/workspace/Codexly",
           id: "terminal-1",
           itemId: "command-1",
         },
@@ -128,7 +128,7 @@ describe("server runtime and core routes", () => {
         updateAvailable: false,
       };
     });
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(provider, { handlerTimeoutMs: 10, installAppUpdate, readAppInfo }),
     );
     closeCallbacks.push(() => app.close());
@@ -161,7 +161,7 @@ describe("server runtime and core routes", () => {
   it("opens only a registered project through a supported host app idempotently", async () => {
     const provider = createProvider().provider;
     const open = vi.fn(() => Promise.resolve());
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(provider, {
         projectOpenService: {
           getCapabilities: () =>
@@ -180,13 +180,13 @@ describe("server runtime and core routes", () => {
 
     const capabilitiesResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/open-capabilities",
+      url: "/v1/projects/codexly/open-capabilities",
     });
     const request = {
       headers: { "idempotency-key": "open-project-key" },
       method: "POST" as const,
       payload: { appId: "zed", path: "src/components/app.tsx" },
-      url: `/v1/projects/code-agent/open?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/open?rootPath=${encodedProjectRootPath}`,
     };
     const firstResponse = await app.inject(request);
     const repeatedResponse = await app.inject(request);
@@ -202,7 +202,7 @@ describe("server runtime and core routes", () => {
     expect(firstResponse.json()).toEqual({ appId: "zed", path: "src/components/app.tsx" });
     expect(repeatedResponse.json()).toEqual({ appId: "zed", path: "src/components/app.tsx" });
     expect(open).toHaveBeenCalledOnce();
-    expect(open).toHaveBeenCalledWith("/workspace/CodeAgent", "zed", "src/components/app.tsx");
+    expect(open).toHaveBeenCalledWith("/workspace/Codexly", "zed", "src/components/app.tsx");
   });
 
   it("validates and persists a complete project order idempotently", async () => {
@@ -225,7 +225,7 @@ describe("server runtime and core routes", () => {
       });
       return Promise.resolve(orderedProjects);
     });
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(provider, {
         projectRepository: {
           list: () => Promise.resolve(orderedProjects),

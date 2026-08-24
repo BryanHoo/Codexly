@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { AgentSkill } from "@code-agent/protocol";
+import type { AgentSkill } from "@codexly/protocol";
 
 import {
   createPromptSkillContent,
@@ -36,13 +36,13 @@ describe("prompt skill editor model", () => {
       <PromptSkillEditor
         content={[]}
         onChange={() => undefined}
-        placeholder="告诉 CodeAgent 你想完成什么"
+        placeholder="告诉 Codexly 你想完成什么"
         skills={[securitySkill, documentationSkill]}
         scope="project-1:new"
       />,
     );
 
-    expect(markup).toContain('data-placeholder="告诉 CodeAgent 你想完成什么"');
+    expect(markup).toContain('data-placeholder="告诉 Codexly 你想完成什么"');
     expect(markup).toContain("before:text-muted-foreground/60");
   });
 

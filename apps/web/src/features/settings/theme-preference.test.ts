@@ -28,7 +28,7 @@ describe("theme preference", () => {
     applyThemePreference("dark", root);
 
     expect(setItem).toHaveBeenCalledWith(
-      "code-agent.theme-preference",
+      "codexly.theme-preference",
       '{"theme":"dark","version":1}',
     );
     expect(root.dataset["theme"]).toBe("dark");
@@ -67,7 +67,7 @@ describe("theme preference", () => {
 
     setThemePreference("light");
     expect(setItem).toHaveBeenCalledWith(
-      "code-agent.theme-preference",
+      "codexly.theme-preference",
       '{"theme":"light","version":1}',
     );
     expect(removeEventListener).toHaveBeenCalledOnce();

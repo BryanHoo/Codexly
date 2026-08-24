@@ -26,7 +26,7 @@ const model = {
 const task = {
   id: "task-created",
   pinned: false,
-  projectId: "code-agent",
+  projectId: "codexly",
   title: "新任务",
   updatedAt: "2026-08-11T00:00:00.000Z",
 } as const;
@@ -98,9 +98,9 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
     onTaskStarted,
     onTurnStarted,
     pendingTask: undefined,
-    projectId: "code-agent",
+    projectId: "codexly",
     promptContent,
-    routeScope: "code-agent:draft",
+    routeScope: "codexly:draft",
     selectedModel: model,
     selectedReasoningEffort: "high",
     saveQueuedSubmission,
@@ -201,11 +201,11 @@ describe("createComposerSubmission", () => {
 
     expect(submitted).toBe(true);
     const [startTaskProjectId, startTaskOptions] = harness.startTask.mock.calls[0] ?? [];
-    expect(startTaskProjectId).toBe("code-agent");
+    expect(startTaskProjectId).toBe("codexly");
     expect(startTaskOptions?.idempotencyKey).toMatch(/\S/u);
     const [startTurnProjectId, startedTaskId, input, turnSettings, startTurnOptions] =
       harness.startTurn.mock.calls[0] ?? [];
-    expect(startTurnProjectId).toBe("code-agent");
+    expect(startTurnProjectId).toBe("codexly");
     expect(startedTaskId).toBe(task.id);
     expect(input).toEqual({ attachments: [], skills: [], text: "提交内容", type: "prompt" });
     expect(turnSettings).toEqual(settings);
@@ -220,7 +220,7 @@ describe("createComposerSubmission", () => {
       [],
     );
     expect(harness.controller.setSubmittedTurnState).toHaveBeenCalledWith({
-      scope: "code-agent:draft",
+      scope: "codexly:draft",
       turnId: turn.id,
     });
   });
@@ -233,7 +233,7 @@ describe("createComposerSubmission", () => {
 
     expect(submitted).toBe(true);
     expect(harness.startTurn).toHaveBeenCalledWith(
-      "code-agent",
+      "codexly",
       task.id,
       { attachments: [], skills: [], text: "第一行\n第二行", type: "prompt" },
       settings,

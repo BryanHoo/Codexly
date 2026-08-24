@@ -14,7 +14,7 @@ describe("recordInternalWarning", () => {
       projectId: "project-1",
     });
 
-    expect(warn).toHaveBeenCalledWith("CodeAgent internal warning", {
+    expect(warn).toHaveBeenCalledWith("Codexly internal warning", {
       diagnosticCode: "git_status_poll_failed",
       errorMessage: "fatal: transport closed",
       projectId: "project-1",
@@ -26,7 +26,7 @@ describe("recordInternalWarning", () => {
 
     recordInternalWarning("snapshot_recovery_failed", { privateValue: "hidden" });
 
-    expect(warn).toHaveBeenCalledWith("CodeAgent internal warning", {
+    expect(warn).toHaveBeenCalledWith("Codexly internal warning", {
       diagnosticCode: "snapshot_recovery_failed",
       errorMessage: "Unknown internal error",
     });

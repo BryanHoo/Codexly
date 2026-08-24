@@ -18,7 +18,7 @@
 ## Global Constraints
 
 - 保留工作区内已有的新聊天 Review 改动，不重置或覆盖用户变更。
-- Web 只通过 `@code-agent/client` 和 `@code-agent/protocol` 获取 Git 数据，不直接访问文件系统。
+- Web 只通过 `@codexly/client` 和 `@codexly/protocol` 获取 Git 数据，不直接访问文件系统。
 - Review 目标只实现 Codex App 已公开的 `uncommitted_changes` 与 `base_branch` 两种选择。
 - 所有分支值来自当前 Project 的真实 Git 仓库，不硬编码 `main` 或 `origin/main`。
 

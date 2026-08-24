@@ -1,5 +1,5 @@
-import type { AgentProviderEvent } from "@code-agent/core";
-import type { AgentMcpServerFailureReason, AgentMcpServerStatus } from "@code-agent/protocol";
+import type { AgentProviderEvent } from "@codexly/core";
+import type { AgentMcpServerFailureReason, AgentMcpServerStatus } from "@codexly/protocol";
 
 import {
   CodexProtocolMappingError,

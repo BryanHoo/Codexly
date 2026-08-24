@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { AgentProviderEvent } from "@code-agent/core";
+import type { AgentProviderEvent } from "@codexly/core";
 import { createCodexRuntimeProvider } from "./agent-provider.js";
 import {
   FakeRpcClient,
@@ -182,7 +182,7 @@ describe("CodexAgentProvider ownership and resume", () => {
       await expect(provider.readTaskAttachment("task-1", attachmentId)).resolves.toBeUndefined();
       const replacement = runtime.forProject({
         ...project,
-        roots: [{ id: "root-recreated", path: "/workspace/RecreatedCodeAgent" }],
+        roots: [{ id: "root-recreated", path: "/workspace/RecreatedCodexly" }],
       });
       expect(replacement).not.toBe(provider);
     } finally {
@@ -193,12 +193,12 @@ describe("CodexAgentProvider ownership and resume", () => {
   it("matches Windows project paths without case sensitivity", async () => {
     const windowsProject = {
       ...project,
-      rootPath: "C:\\Users\\Test\\CodeAgent",
-      roots: [{ id: "root-windows", path: "C:\\Users\\Test\\CodeAgent" }],
+      rootPath: "C:\\Users\\Test\\Codexly",
+      roots: [{ id: "root-windows", path: "C:\\Users\\Test\\Codexly" }],
     };
     const rpc = new FakeRpcClient([
       {
-        data: [nativeThread({ cwd: "c:\\users\\test\\codeagent" })],
+        data: [nativeThread({ cwd: "c:\\users\\test\\codexly" })],
         nextCursor: null,
       },
     ]);
@@ -397,10 +397,10 @@ describe("CodexAgentProvider ownership and resume", () => {
   });
 
   it("maps the complete persistent thread queue API", async () => {
-    const attachmentRoot = mkdtempSync(join(tmpdir(), "code-agent-queue-file-"));
+    const attachmentRoot = mkdtempSync(join(tmpdir(), "codexly-queue-file-"));
     const attachmentPath = join(attachmentRoot, "requirements.md");
     writeFileSync(attachmentPath, "队列附件内容", "utf8");
-    const attachmentPlaceholder = `code-agent-file:${Buffer.from(
+    const attachmentPlaceholder = `codexly-file:${Buffer.from(
       JSON.stringify({ mediaType: "text/markdown", name: "requirements.md" }),
     ).toString("base64url")}`;
     const queuedSubmission = {

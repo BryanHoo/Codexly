@@ -1,5 +1,5 @@
 {
-  "name": "@code-agent/server",
+  "name": "@codexly/server",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,9 +11,9 @@
     }
   },
   "dependencies": {
-    "@code-agent/core": "workspace:*",
-    "@code-agent/protocol": "workspace:*",
-    "@code-agent/provider-codex": "workspace:*",
+    "@codexly/core": "workspace:*",
+    "@codexly/protocol": "workspace:*",
+    "@codexly/provider-codex": "workspace:*",
     "@fastify/cookie": "catalog:",
     "@fastify/multipart": "catalog:",
     "@fastify/static": "catalog:",

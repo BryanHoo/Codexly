@@ -1,4 +1,4 @@
-import type { AgentEvent, PendingRequest } from "@code-agent/protocol";
+import type { AgentEvent, PendingRequest } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 import { createTaskStore, MAX_RETAINED_TERMINAL_REQUESTS } from "./task-store.js";
 import { createResponse, eventEnvelope, createPendingRequest } from "./task-store.test-support.js";

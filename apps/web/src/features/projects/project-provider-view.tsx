@@ -1,4 +1,4 @@
-import { TEMPORARY_TASK_SCOPE_ID, type Project } from "@code-agent/protocol";
+import { TEMPORARY_TASK_SCOPE_ID, type Project } from "@codexly/protocol";
 import type { ReactNode } from "react";
 import {
   ProjectActionsContext,
@@ -12,13 +12,13 @@ import {
   type ProjectRootSelectionContextValue,
   type ProjectTaskQueryResult,
 } from "./project-context-state.js";
-import type { CodeAgentWorkbenchClient } from "./project-queries.js";
+import type { CodexlyWorkbenchClient } from "./project-queries.js";
 
 type ProjectProviderViewProps = Readonly<{
   actions: ProjectActionsContextValue;
   activity: ProjectActivityContextValue;
   children: ReactNode;
-  client: CodeAgentWorkbenchClient;
+  client: CodexlyWorkbenchClient;
   data: ProjectDataContextValue;
   onRemoveTaskQuery: (projectId: string) => void;
   onUpdateTaskQuery: (projectId: string, result: ProjectTaskQueryResult) => void;

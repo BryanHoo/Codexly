@@ -13,8 +13,8 @@ describe("projectFileSearchQueryOptions", () => {
         {
           name: "main.tsx",
           path: "src/main.tsx",
-          rootId: "root-code-agent",
-          rootPath: "/workspace/CodeAgent",
+          rootId: "root-codexly",
+          rootPath: "/workspace/Codexly",
         },
       ],
     };
@@ -24,8 +24,8 @@ describe("projectFileSearchQueryOptions", () => {
     };
     const options = projectFileSearchQueryOptions(
       client,
-      "code-agent",
-      "/workspace/CodeAgent",
+      "codexly",
+      "/workspace/Codexly",
       "search-1",
       "main",
       true,
@@ -33,8 +33,8 @@ describe("projectFileSearchQueryOptions", () => {
 
     expect(options.queryKey).toEqual([
       "projects",
-      "code-agent",
-      "/workspace/CodeAgent",
+      "codexly",
+      "/workspace/Codexly",
       "file-search",
       "search-1",
       "main",
@@ -42,8 +42,8 @@ describe("projectFileSearchQueryOptions", () => {
     expect(options.enabled).toBe(true);
     await expect(options.queryFn?.({ signal: controller.signal } as never)).resolves.toEqual(page);
     expect(client.searchProjectFiles).toHaveBeenCalledWith(
-      "code-agent",
-      "/workspace/CodeAgent",
+      "codexly",
+      "/workspace/Codexly",
       "main",
       "search-1",
       {
@@ -57,14 +57,14 @@ describe("projectFileSearchQueryOptions", () => {
 
     stopProjectFileSearchSession(
       { searchProjectFiles: vi.fn(), stopProjectFileSearch },
-      "code-agent",
-      "/workspace/CodeAgent",
+      "codexly",
+      "/workspace/Codexly",
       "search-1",
     );
     await vi.waitFor(() => {
       expect(stopProjectFileSearch).toHaveBeenCalledWith(
-        "code-agent",
-        "/workspace/CodeAgent",
+        "codexly",
+        "/workspace/Codexly",
         "search-1",
       );
     });

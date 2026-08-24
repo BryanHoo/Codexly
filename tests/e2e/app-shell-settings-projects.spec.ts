@@ -9,12 +9,12 @@ import {
 test.describe.configure({ mode: "serial" });
 
 test("项目文件夹操作支持重命名和删除且不修改磁盘目录", async ({ page }) => {
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const projectMenuTrigger = sidebar.getByRole("button", {
-    name: "打开 CodeAgent 的项目操作菜单",
+    name: "打开 Codexly 的项目操作菜单",
   });
-  const addTaskButton = sidebar.getByRole("button", { name: "在 CodeAgent 中新建任务" });
+  const addTaskButton = sidebar.getByRole("button", { name: "在 Codexly 中新建任务" });
   const [menuTriggerBounds, addTaskBounds] = await Promise.all([
     projectMenuTrigger.boundingBox(),
     addTaskButton.boundingBox(),
@@ -25,7 +25,7 @@ test("项目文件夹操作支持重命名和删除且不修改磁盘目录", as
   expect(menuTriggerBounds.x).toBeLessThan(addTaskBounds.x);
 
   await projectMenuTrigger.click();
-  const projectMenu = page.getByRole("menu", { name: "CodeAgent 的项目操作" });
+  const projectMenu = page.getByRole("menu", { name: "Codexly 的项目操作" });
   await expect(projectMenu.getByRole("menuitem")).toHaveCount(3);
   await expect(projectMenu.getByRole("menuitem").allTextContents()).resolves.toEqual([
     "重命名",
@@ -38,10 +38,10 @@ test("项目文件夹操作支持重命名和删除且不修改磁盘目录", as
   await renameDialog.getByRole("textbox", { name: "项目名称" }).fill("本地工作台");
   const renameRequestPromise = page.waitForRequest(
     (request) =>
-      request.url().endsWith("/v1/projects/code-agent/rename") && request.method() === "POST",
+      request.url().endsWith("/v1/projects/codexly/rename") && request.method() === "POST",
   );
   const renameResponsePromise = page.waitForResponse((response) =>
-    response.url().endsWith("/v1/projects/code-agent/rename"),
+    response.url().endsWith("/v1/projects/codexly/rename"),
   );
   await renameDialog.getByRole("button", { name: "保存" }).click();
   const [renameRequest, renameResponse] = await Promise.all([
@@ -51,10 +51,10 @@ test("项目文件夹操作支持重命名和删除且不修改磁盘目录", as
   expect(parseRequestRecord(renameRequest.postData())).toEqual({ name: "本地工作台" });
   expect(renameRequest.headers()["idempotency-key"]).toBeTruthy();
   await expect(renameResponse.json()).resolves.toMatchObject({
-    project: { name: "本地工作台", roots: [{ path: "/workspace/CodeAgent" }] },
+    project: { name: "本地工作台", roots: [{ path: "/workspace/Codexly" }] },
   });
   await expect(sidebar.getByRole("button", { name: "切换项目 本地工作台" })).toBeVisible();
-  await expect(page).toHaveURL(/\/p\/code-agent$/u);
+  await expect(page).toHaveURL(/\/p\/codexly$/u);
 
   await sidebar.getByRole("button", { name: "打开 本地工作台 的项目操作菜单" }).click();
   await page
@@ -64,7 +64,7 @@ test("项目文件夹操作支持重命名和删除且不修改磁盘目录", as
   const removeDialog = page.getByRole("dialog", { name: "移除项目" });
   await expect(removeDialog).toContainText("不会删除磁盘上的文件夹及文件");
   const removeRequestPromise = page.waitForRequest((request) =>
-    request.url().endsWith("/v1/projects/code-agent/remove"),
+    request.url().endsWith("/v1/projects/codexly/remove"),
   );
   await removeDialog.getByRole("button", { name: "删除" }).click();
   const removeRequest = await removeRequestPromise;
@@ -109,7 +109,7 @@ test("directs unavailable Runtime users to the official Codex CLI", async ({ pag
     });
   });
 
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await expect(page.getByRole("heading", { name: "Codex Runtime 不可用" })).toBeVisible();
   await expect(page.getByText("codex login", { exact: true })).toBeVisible();
@@ -130,7 +130,7 @@ test("keeps a healthy project usable when another project task query fails", asy
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   expect(failedProjectRequestCount).toBe(0);
@@ -142,7 +142,7 @@ test("keeps a healthy project usable when another project task query fails", asy
 });
 
 test("renders skills from a reopened task history", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const historicalSkill = page.locator('[data-message-skill="review-security"]');
   await expect(historicalSkill).toContainText("$review-security");
@@ -151,7 +151,7 @@ test("renders skills from a reopened task history", async ({ page }) => {
 });
 
 test("uses the available user message width before wrapping or truncating", async ({ page }) => {
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -189,7 +189,7 @@ test("uses the available user message width before wrapping or truncating", asyn
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const shortText = page.getByText("现在系统的 gh cli 是可以用的", { exact: true });
   const shortTextLineCount = await shortText.evaluate((element) => {
@@ -213,7 +213,7 @@ test("uses the available user message width before wrapping or truncating", asyn
 test("uses subtle hairline separation across registered routes", async ({ page }) => {
   const surfaces = [
     {
-      path: "/p/code-agent",
+      path: "/p/codexly",
       selector: "main header",
       border: "borderBottomWidth",
       offset: "0px 1px 0px 0px",
@@ -240,12 +240,12 @@ test("uses subtle hairline separation across registered routes", async ({ page }
 });
 
 test("aligns the center toolbar with sidebar controls and inspector tabs", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const mainHeader = page.getByRole("main", { name: "任务时间线" }).locator(":scope > header");
   const leftTitle = page
     .getByRole("complementary", { name: "项目侧栏" })
-    .getByRole("img", { name: "CodeAgent" });
+    .getByRole("img", { name: "Codexly" });
   const centerTitle = page.getByRole("heading", { name: "构建 macOS 工作台", level: 1 });
   const rightTab = page
     .getByRole("complementary", { name: "运行环境" })

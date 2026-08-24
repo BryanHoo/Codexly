@@ -1,10 +1,10 @@
-import type { AgentBackgroundTerminal } from "@code-agent/protocol";
+import type { AgentBackgroundTerminal } from "@codexly/protocol";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { v4 as createUuid } from "uuid";
 
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
-import type { CodeAgentBackgroundTerminalClient } from "../../projects/project-queries.js";
+import type { CodexlyBackgroundTerminalClient } from "../../projects/project-queries.js";
 
 const BACKGROUND_TERMINAL_POLL_INTERVAL_MS = 1_500;
 
@@ -33,7 +33,7 @@ export type BackgroundTerminalView = Readonly<{
 }>;
 
 export function useBackgroundTerminals(
-  client: CodeAgentBackgroundTerminalClient,
+  client: CodexlyBackgroundTerminalClient,
   projectId: string,
   taskId: string | undefined,
   isTaskRunning: boolean,

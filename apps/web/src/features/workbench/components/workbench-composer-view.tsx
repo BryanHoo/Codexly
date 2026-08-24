@@ -6,7 +6,7 @@ import {
   MAX_AGENT_IMAGES,
   MAX_AGENT_IMAGE_BYTES,
   MAX_AGENT_IMAGE_TOTAL_BYTES,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { ArrowDown, ArrowUp, Folder, LoaderCircle, Pencil, SendHorizontal, X } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";

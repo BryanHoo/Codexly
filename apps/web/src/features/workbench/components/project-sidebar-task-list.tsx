@@ -1,4 +1,4 @@
-import { TEMPORARY_TASK_SCOPE_ID, type AgentTask, type Project } from "@code-agent/protocol";
+import { TEMPORARY_TASK_SCOPE_ID, type AgentTask, type Project } from "@codexly/protocol";
 import { Folder, MessageSquareText, Pin, Plus } from "lucide-react";
 import { useState, type Dispatch, type SetStateAction } from "react";
 

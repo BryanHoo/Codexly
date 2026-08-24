@@ -1,6 +1,6 @@
 # SQLite Local Persistence Implementation Plan
 
-**Goal:** 将 Project、Project 新 Task 默认模型设置和 Task 完整设置统一持久化到 `CODEX_HOME/code-agent/state.sqlite3`，并在刷新和进程重启后恢复有效设置。
+**Goal:** 将 Project、Project 新 Task 默认模型设置和 Task 完整设置统一持久化到 `CODEX_HOME/codexly/state.sqlite3`，并在刷新和进程重启后恢复有效设置。
 
 **Suggested Spec Reads:**
 
@@ -18,7 +18,7 @@
 
 ## Global Constraints
 
-- 数据库路径固定为 `CODEX_HOME/code-agent/state.sqlite3`，启用 WAL、外键、NORMAL synchronous 和 5000ms busy timeout。
+- 数据库路径固定为 `CODEX_HOME/codexly/state.sqlite3`，启用 WAL、外键、NORMAL synchronous 和 5000ms busy timeout。
 - 所有同步 SQLite 调用只能位于数据库 Worker；使用显式 SQL、Prepared Statement、事务、`STRICT` 表和版本化 Migration，不引入 ORM。
 - Provider `/v1/models` 始终是模型目录真相源；数据库只保存模型 ID 与思考量 ID。
 - 新 Task 的 `approvalPolicy` 固定从 `on-request` 开始，Project 默认值只包含 `model` 与 `reasoningEffort`。
@@ -172,7 +172,7 @@ Expected: 固定数据库路径、启动失败、关闭顺序和 doctor 诊断�
 
 - Consumes: `ProjectDefaultsEndpoint`
 - Consumes: `TaskSettingsEndpoint`
-- Produces: `CodeAgentClient project/task settings methods`
+- Produces: `CodexlyClient project/task settings methods`
 - Produces: `projectDefaultsQueryOptions`
 - Produces: `taskSettingsMutationOptions`
 

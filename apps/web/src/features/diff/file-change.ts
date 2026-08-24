@@ -1,4 +1,4 @@
-import type { AgentItem } from "@code-agent/protocol";
+import type { AgentItem } from "@codexly/protocol";
 
 export type AgentFileChange = Extract<AgentItem, { type: "file_change" }>["changes"][number];
 

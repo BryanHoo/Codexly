@@ -1,5 +1,5 @@
-import { buildTaskAttachmentUrl } from "@code-agent/client";
-import type { AgentMessageAttachment, AgentSkill, AgentTurn } from "@code-agent/protocol";
+import { buildTaskAttachmentUrl } from "@codexly/client";
+import type { AgentMessageAttachment, AgentSkill, AgentTurn } from "@codexly/protocol";
 import { FolderRoot, Paperclip, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 

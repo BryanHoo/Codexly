@@ -34,7 +34,7 @@
 **Interfaces:**
 
 - Consumes: `AgentMessageAttachment`、`ProjectOpenService`、Task 附件读取能力。
-- Produces: `OpenTaskAttachmentRequest`、`OpenTaskAttachmentResponse` 和 `CodeAgentClient.openTaskAttachment`。
+- Produces: `OpenTaskAttachmentRequest`、`OpenTaskAttachmentResponse` 和 `CodexlyClient.openTaskAttachment`。
 
 **Behavior:**
 
@@ -69,7 +69,7 @@ Expected: 新增附件系统打开契约、Client 请求和 Server 授权测试�
 
 **Interfaces:**
 
-- Consumes: `classifyProjectFileReference`、Task 附件正文 URL、`CodeAgentClient.openTaskAttachment`。
+- Consumes: `classifyProjectFileReference`、Task 附件正文 URL、`CodexlyClient.openTaskAttachment`。
 - Produces: Inspector 图片 Dialog、源码/文本附件 Dialog、不可预览附件系统打开操作。
 
 **Behavior:**

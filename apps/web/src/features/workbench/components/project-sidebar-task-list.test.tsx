@@ -1,4 +1,4 @@
-import type { Project } from "@code-agent/protocol";
+import type { Project } from "@codexly/protocol";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,9 +8,9 @@ import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
 
 const project: Project = {
   createdAt: "2026-08-17T00:00:00.000Z",
-  id: "code-agent",
-  name: "CodeAgent",
-  roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+  id: "codexly",
+  name: "Codexly",
+  roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
 };
 
 const pendingTaskState: ProjectTaskListState = {

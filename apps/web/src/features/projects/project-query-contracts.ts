@@ -1,24 +1,24 @@
-import { CodeAgentClient } from "@code-agent/client";
-import type { AgentTaskPage, AgentTaskSnapshot } from "@code-agent/protocol";
+import { CodexlyClient } from "@codexly/client";
+import type { AgentTaskPage, AgentTaskSnapshot } from "@codexly/protocol";
 import type { InfiniteData } from "@tanstack/react-query";
 
-export type CodeAgentReadClient = Pick<CodeAgentClient, "listProjects" | "listTasks" | "readTask">;
-export type CodeAgentArchivedTaskClient = Pick<
-  CodeAgentClient,
+export type CodexlyReadClient = Pick<CodexlyClient, "listProjects" | "listTasks" | "readTask">;
+export type CodexlyArchivedTaskClient = Pick<
+  CodexlyClient,
   "deleteTask" | "listTasks" | "unarchiveTask"
 >;
-export type CodeAgentAccessClient = Pick<
-  CodeAgentClient,
+export type CodexlyAccessClient = Pick<
+  CodexlyClient,
   "getAccessStatus" | "logoutAccess" | "pairAccess" | "subscribeUnauthorized"
 >;
-export type CodeAgentGitStatusClient = Pick<CodeAgentClient, "getProjectGitStatus">;
-export type CodeAgentGitHistoryClient = Pick<CodeAgentClient, "getProjectGitHistory">;
-export type CodeAgentGitCommitReviewClient = Pick<
-  CodeAgentClient,
+export type CodexlyGitStatusClient = Pick<CodexlyClient, "getProjectGitStatus">;
+export type CodexlyGitHistoryClient = Pick<CodexlyClient, "getProjectGitHistory">;
+export type CodexlyGitCommitReviewClient = Pick<
+  CodexlyClient,
   "getProjectGitCommitFileDiff" | "getProjectGitCommitFiles"
 >;
-export type CodeAgentGitMutationClient = Pick<
-  CodeAgentClient,
+export type CodexlyGitMutationClient = Pick<
+  CodexlyClient,
   | "commitProjectChanges"
   | "createProjectBranch"
   | "createProjectWorktree"
@@ -27,45 +27,45 @@ export type CodeAgentGitMutationClient = Pick<
   | "switchProjectBranch"
   | "switchProjectWorktree"
 >;
-export type CodeAgentFileTreeClient = Pick<CodeAgentClient, "listProjectFiles">;
-export type CodeAgentProjectFileSearchClient = Pick<
-  CodeAgentClient,
+export type CodexlyFileTreeClient = Pick<CodexlyClient, "listProjectFiles">;
+export type CodexlyProjectFileSearchClient = Pick<
+  CodexlyClient,
   "searchProjectFiles" | "stopProjectFileSearch"
 >;
-export type CodeAgentProjectDirectoryClient = Pick<CodeAgentClient, "listProjectDirectories">;
-export type CodeAgentHostAttachmentClient = Pick<
-  CodeAgentClient,
+export type CodexlyProjectDirectoryClient = Pick<CodexlyClient, "listProjectDirectories">;
+export type CodexlyHostAttachmentClient = Pick<
+  CodexlyClient,
   "importHostAttachment" | "listHostFiles"
 >;
-export type CodeAgentSourceFileClient = Pick<CodeAgentClient, "readProjectSourceFile">;
-export type CodeAgentProjectOpenClient = Pick<
-  CodeAgentClient,
+export type CodexlySourceFileClient = Pick<CodexlyClient, "readProjectSourceFile">;
+export type CodexlyProjectOpenClient = Pick<
+  CodexlyClient,
   "getProjectOpenCapabilities" | "openProject"
 >;
-export type CodeAgentRuntimeClient = Pick<
-  CodeAgentClient,
+export type CodexlyRuntimeClient = Pick<
+  CodexlyClient,
   "readTask" | "subscribeEvents" | "unsubscribeTask"
 >;
-export type CodeAgentBackgroundTerminalClient = Pick<
-  CodeAgentClient,
+export type CodexlyBackgroundTerminalClient = Pick<
+  CodexlyClient,
   "listBackgroundTerminals" | "terminateBackgroundTerminal"
 >;
-export type CodeAgentCapabilitiesClient = Pick<CodeAgentClient, "getCapabilities">;
-export type CodeAgentModelsClient = Pick<CodeAgentClient, "listModels">;
-export type CodeAgentAppUpdateClient = Pick<CodeAgentClient, "getAppInfo" | "installAppUpdate">;
-export type CodeAgentMcpServersClient = Pick<CodeAgentClient, "listMcpServers">;
-export type CodeAgentMcpServersMutationClient = Pick<CodeAgentClient, "retryMcpServers">;
-export type CodeAgentSkillsClient = Pick<CodeAgentClient, "listSkills">;
-export type CodeAgentSettingsClient = Pick<
-  CodeAgentClient,
+export type CodexlyCapabilitiesClient = Pick<CodexlyClient, "getCapabilities">;
+export type CodexlyModelsClient = Pick<CodexlyClient, "listModels">;
+export type CodexlyAppUpdateClient = Pick<CodexlyClient, "getAppInfo" | "installAppUpdate">;
+export type CodexlyMcpServersClient = Pick<CodexlyClient, "listMcpServers">;
+export type CodexlyMcpServersMutationClient = Pick<CodexlyClient, "retryMcpServers">;
+export type CodexlySkillsClient = Pick<CodexlyClient, "listSkills">;
+export type CodexlySettingsClient = Pick<
+  CodexlyClient,
   | "getGlobalSettings"
   | "getProjectDefaults"
   | "updateGlobalSettings"
   | "updateProjectDefaults"
   | "updateTaskSettings"
 >;
-export type CodeAgentMutationClient = Pick<
-  CodeAgentClient,
+export type CodexlyMutationClient = Pick<
+  CodexlyClient,
   | "addQueuedSubmission"
   | "addProject"
   | "archiveTask"
@@ -95,29 +95,29 @@ export type CodeAgentMutationClient = Pick<
   | "unarchiveTask"
   | "updateQueuedSubmission"
 >;
-export type CodeAgentPendingRequestClient = Pick<CodeAgentClient, "resolvePendingRequest">;
-export type CodeAgentWorkbenchClient = CodeAgentReadClient &
-  CodeAgentBackgroundTerminalClient &
-  CodeAgentGitStatusClient &
-  CodeAgentGitHistoryClient &
-  CodeAgentGitCommitReviewClient &
-  CodeAgentGitMutationClient &
-  CodeAgentFileTreeClient &
-  CodeAgentProjectFileSearchClient &
-  CodeAgentProjectDirectoryClient &
-  CodeAgentProjectOpenClient &
-  CodeAgentRuntimeClient &
-  CodeAgentMutationClient &
-  CodeAgentPendingRequestClient &
-  CodeAgentCapabilitiesClient &
-  CodeAgentModelsClient &
-  CodeAgentAppUpdateClient &
-  CodeAgentMcpServersClient &
-  CodeAgentMcpServersMutationClient &
-  CodeAgentSkillsClient &
-  CodeAgentSettingsClient &
-  CodeAgentSourceFileClient;
-export type CodeAgentSnapshotClient = Pick<CodeAgentClient, "readTask">;
+export type CodexlyPendingRequestClient = Pick<CodexlyClient, "resolvePendingRequest">;
+export type CodexlyWorkbenchClient = CodexlyReadClient &
+  CodexlyBackgroundTerminalClient &
+  CodexlyGitStatusClient &
+  CodexlyGitHistoryClient &
+  CodexlyGitCommitReviewClient &
+  CodexlyGitMutationClient &
+  CodexlyFileTreeClient &
+  CodexlyProjectFileSearchClient &
+  CodexlyProjectDirectoryClient &
+  CodexlyProjectOpenClient &
+  CodexlyRuntimeClient &
+  CodexlyMutationClient &
+  CodexlyPendingRequestClient &
+  CodexlyCapabilitiesClient &
+  CodexlyModelsClient &
+  CodexlyAppUpdateClient &
+  CodexlyMcpServersClient &
+  CodexlyMcpServersMutationClient &
+  CodexlySkillsClient &
+  CodexlySettingsClient &
+  CodexlySourceFileClient;
+export type CodexlySnapshotClient = Pick<CodexlyClient, "readTask">;
 
 export const PROJECT_TASK_PAGE_SIZE = 5;
 export const ARCHIVED_TASK_PAGE_SIZE = 20;
@@ -130,7 +130,7 @@ export function taskQueueQueryKey(projectId: string, taskId: string) {
   return ["projects", projectId, "tasks", taskId, "queue"] as const;
 }
 
-export const codeAgentClient = new CodeAgentClient();
+export const codexlyClient = new CodexlyClient();
 
 export type ProjectTaskInfiniteData = InfiniteData<AgentTaskPage, string | undefined>;
 export type TaskTitleSnapshot = Pick<

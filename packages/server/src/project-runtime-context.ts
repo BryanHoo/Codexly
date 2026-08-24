@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { AgentProvider, AgentTaskScope } from "@code-agent/core";
+import type { AgentProvider, AgentTaskScope } from "@codexly/core";
 
 import { AgentEventStream, type AgentEventStreamOptions } from "./agent-event-stream.js";
 import type { AttachmentStore } from "./attachment-store.js";

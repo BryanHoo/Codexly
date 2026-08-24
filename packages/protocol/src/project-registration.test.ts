@@ -74,10 +74,10 @@ describe("project registration protocol", () => {
   it("requires ordered absolute roots when adding a project", () => {
     const project = {
       createdAt: "2026-07-25T00:00:00.000Z",
-      id: "code-agent",
-      name: "CodeAgent",
+      id: "codexly",
+      name: "Codexly",
       roots: [
-        { id: "root-code-agent", path: "/workspace/CodeAgent" },
+        { id: "root-codexly", path: "/workspace/Codexly" },
         { id: "root-superwork", path: "/workspace/superwork" },
       ],
     };
@@ -88,7 +88,7 @@ describe("project registration protocol", () => {
       }),
     ).toBe(true);
     expect(Value.Check(AddProjectRequestSchema, { roots: [] })).toBe(false);
-    expect(Value.Check(AddProjectRequestSchema, { roots: [{ path: "workspace/CodeAgent" }] })).toBe(
+    expect(Value.Check(AddProjectRequestSchema, { roots: [{ path: "workspace/Codexly" }] })).toBe(
       false,
     );
     expect(Value.Check(AddProjectResponseSchema, { project })).toBe(true);
@@ -117,7 +117,7 @@ describe("project registration protocol", () => {
     expect(
       Value.Check(ProjectDirectoryListingSchema, {
         entries: [
-          { name: "CodeAgent", path: "/Users/bryan/Develop/CodeAgent" },
+          { name: "Codexly", path: "/Users/bryan/Develop/Codexly" },
           { name: "superwork", path: "/Users/bryan/Develop/superwork" },
         ],
         parentPath: "/Users/bryan",

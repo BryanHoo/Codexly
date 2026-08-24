@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import type { AgentTaskScope } from "@code-agent/core";
+import type { AgentTaskScope } from "@codexly/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CodexGitMetadataWatchService } from "./git-metadata-watch.js";
@@ -10,7 +10,7 @@ import { CodexGitMetadataWatchService } from "./git-metadata-watch.js";
 const temporaryRoots: string[] = [];
 
 async function createTemporaryRoot(name: string): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), `code-agent-${name}-`));
+  const root = await mkdtemp(join(tmpdir(), `codexly-${name}-`));
   temporaryRoots.push(root);
   return root;
 }

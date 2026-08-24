@@ -208,7 +208,7 @@ describe("WorkbenchComposerView", () => {
         <ComposerProjectPathButton
           disabled={false}
           onOpen={() => undefined}
-          projectPath="/workspace/CodeAgent"
+          projectPath="/workspace/Codexly"
         />
       </TooltipProvider>,
     );
@@ -222,9 +222,9 @@ describe("WorkbenchComposerView", () => {
     expect(markup).toContain("text-caption");
     expect(markup).toContain("hover:bg-control-hover");
     expect(markup).toContain("size-3");
-    expect(markup).toContain("/workspace/CodeAgent");
+    expect(markup).toContain("/workspace/Codexly");
     expect(markup).not.toContain("flex-1");
-    expect(markup).not.toContain('title="/workspace/CodeAgent"');
+    expect(markup).not.toContain('title="/workspace/Codexly"');
   });
 
   it("将主目录切换器与项目路径放在同一底部控件中", () => {

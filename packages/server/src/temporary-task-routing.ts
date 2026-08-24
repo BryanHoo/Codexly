@@ -1,4 +1,4 @@
-import { TEMPORARY_TASK_API_PATH, TEMPORARY_TASK_SCOPE_ID } from "@code-agent/protocol";
+import { TEMPORARY_TASK_API_PATH, TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 
 export function rewriteTemporaryTaskUrl(url: string): string {
   const queryIndex = url.indexOf("?");

@@ -40,7 +40,7 @@
 
 **Interfaces:**
 
-- Consumes: `HostFileQuerySchema`、`CodeAgentClient.listHostFiles`、`readHostFileDirectory`
+- Consumes: `HostFileQuerySchema`、`CodexlyClient.listHostFiles`、`readHostFileDirectory`
 - Produces: 可选 `includeHidden` 查询契约和默认过滤隐藏项的宿主目录列表
 
 **Behavior:**
@@ -69,7 +69,7 @@ Expected: 宿主文件查询、隐藏项过滤、Client URL 和 Fastify 透传�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentHostAttachmentClient.listHostFiles`、`HostFileListing`、共享 `Input`/`Button`/`Tooltip`
+- Consumes: `CodexlyHostAttachmentClient.listHostFiles`、`HostFileListing`、共享 `Input`/`Button`/`Tooltip`
 - Produces: 可提交的 `HostFilePickerToolbar`、显示/隐藏点号项按钮及隔离的 TanStack Query 缓存键
 
 **Behavior:**

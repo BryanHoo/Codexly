@@ -39,11 +39,11 @@ describe("WorkbenchProjectFileTree", () => {
           onReferenceProjectPath={() => undefined}
           onRefreshProject={() => undefined}
           projectId="project-1"
-          projectName="CodeAgent"
+          projectName="Codexly"
           projectOpenApps={[]}
           projectOpenPending={false}
-          projectPath="/workspace/CodeAgent"
-          projectRootId="root-code-agent"
+          projectPath="/workspace/Codexly"
+          projectRootId="root-codexly"
         />
       </QueryClientProvider>,
     );
@@ -52,7 +52,7 @@ describe("WorkbenchProjectFileTree", () => {
     expect(markup).toContain('role="tree"');
     expect(markup).toContain('aria-label="项目文件"');
     expect(markup).toContain("cursor-default");
-    expect(markup).toContain("CodeAgent");
+    expect(markup).toContain("Codexly");
   });
 
   it("places Git line stats on the deepest visible file or directory", () => {

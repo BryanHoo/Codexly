@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 264 64" role="img">
-  <title>CodeAgent</title>
+  <title>Codexly</title>
   <style>
     .logo-background { fill: #171717; }
     .logo-symbol { fill: #ffffff; }
@@ -50,5 +50,5 @@
       />
     </g>
   </g>
-  <text class="logo-text" x="78" y="32" dominant-baseline="central">CodeAgent</text>
+  <text class="logo-text" x="78" y="32" dominant-baseline="central">Codexly</text>
 </svg>

@@ -35,10 +35,10 @@ export function PairingGate({
       <section aria-labelledby="access-gate-title" className="w-full max-w-sm">
         <h1 className="mb-8" id="access-gate-title">
           <img
-            alt="CodeAgent"
+            alt="Codexly"
             className="h-10 w-auto"
             height="40"
-            src="/brand/codeagent-logo.svg"
+            src="/brand/codexly-logo.svg"
             width="165"
           />
         </h1>

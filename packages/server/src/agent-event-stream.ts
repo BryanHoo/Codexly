@@ -1,5 +1,5 @@
-import type { AgentProviderEvent } from "@code-agent/core";
-import type { AgentEvent, EventCheckpoint } from "@code-agent/protocol";
+import type { AgentProviderEvent } from "@codexly/core";
+import type { AgentEvent, EventCheckpoint } from "@codexly/protocol";
 import { getSerializedAgentEventByteLength } from "./event-socket-sender.js";
 
 type AgentEventListener = (event: AgentEvent) => void;

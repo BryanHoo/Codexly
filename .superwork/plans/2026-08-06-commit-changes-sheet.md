@@ -9,7 +9,7 @@
 - `.superwork/spec/frontend/state-management.md` — 约束 TanStack Query 服务端状态与局部交互状态边界。
 - `.superwork/spec/frontend/quality-guidelines.md` — 约束可访问性、窄屏和用户流程验证。
 - `.superwork/spec/shared/quality-guidelines.md` — 约束 Git 状态、历史和提交契约的既有语义。
-- `docs/web-design.md` — 约束 CodeAgent 工作台视觉密度和功能目录边界。
+- `docs/web-design.md` — 约束 Codexly 工作台视觉密度和功能目录边界。
 
 **Architecture:** 保持既有 Protocol、Client 和 Server Git 契约不变；在 Web 侧新增项目化 shadcn `Sheet` 与 `Checkbox`，将 AI Elements `FileTree` 组合成暂存/未暂存目录树，并把 Git 历史列表抽成可复用内容组件供独立历史弹窗和提交抽屉共同使用。提交抽屉由现有 Controller 继续持有 Mutation 与仓库切换状态。
 
@@ -60,7 +60,7 @@ Expected: 基础组件测试验证 sheet 方向、标题关联和 checkbox 状�
 
 **Interfaces:**
 
-- Consumes: `projectGitHistoryInfiniteQueryOptions`、`CodeAgentGitHistoryClient`、`ProjectGitHistoryPage`。
+- Consumes: `projectGitHistoryInfiniteQueryOptions`、`CodexlyGitHistoryClient`、`ProjectGitHistoryPage`。
 - Produces: 可按 `projectId + repository` 读取分支、分页提交、加载/失败/空状态的 `GitHistoryList`。
 
 **Behavior:**
@@ -116,7 +116,7 @@ Expected: 测试验证右侧 sheet、仓库选择、分组目录树、共享选�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentWorkbenchClient`、`projectId`、仓库局部 Git 状态与历史查询缓存。
+- Consumes: `CodexlyWorkbenchClient`、`projectId`、仓库局部 Git 状态与历史查询缓存。
 - Produces: 根仓库和子仓库均可用的完整提交抽屉工作流，关闭后恢复 `#workbench-commit-changes` 焦点。
 
 **Behavior:**

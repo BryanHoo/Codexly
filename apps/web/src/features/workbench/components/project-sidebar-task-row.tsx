@@ -1,4 +1,4 @@
-import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@code-agent/protocol";
+import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@codexly/protocol";
 import { Archive, Ellipsis, Pencil, Pin, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";

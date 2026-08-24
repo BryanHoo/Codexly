@@ -4,7 +4,7 @@ import type {
   AgentSandboxMode,
   AgentSkillPage,
   PendingRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { RpcRequestId } from "./jsonl-rpc-client.js";
 
 export class CodexProtocolMappingError extends Error {

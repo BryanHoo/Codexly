@@ -1,7 +1,7 @@
 import { InfiniteQueryObserver, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import {
-  type CodeAgentReadClient,
+  type CodexlyReadClient,
   listProjectTasksForSearch,
   listPinnedProjectTasks,
   projectTasksInfiniteQueryOptions,
@@ -14,7 +14,7 @@ describe("project pagination queries", () => {
   it("loads only the first task page until the next page is explicitly requested", async () => {
     const nextTask = { ...task, id: "task-2", title: "后续分页任务" };
     const listTasks = vi
-      .fn<CodeAgentReadClient["listTasks"]>()
+      .fn<CodexlyReadClient["listTasks"]>()
       .mockResolvedValueOnce({ data: [task], nextCursor: "next-page" })
       .mockResolvedValueOnce({ data: [nextTask], nextCursor: null });
     const client = {
@@ -24,7 +24,7 @@ describe("project pagination queries", () => {
     };
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-    const queryOptions = projectTasksInfiniteQueryOptions("code-agent", client);
+    const queryOptions = projectTasksInfiniteQueryOptions("codexly", client);
     const queryObserver = new InfiniteQueryObserver(queryClient, queryOptions);
     const unsubscribe = queryObserver.subscribe(() => undefined);
 
@@ -39,7 +39,7 @@ describe("project pagination queries", () => {
       pages: [{ data: [task], nextCursor: "next-page" }],
     });
     expect(listTasks).toHaveBeenCalledTimes(1);
-    expect(listTasks.mock.calls[0]?.slice(0, 2)).toEqual(["code-agent", { limit: 5 }]);
+    expect(listTasks.mock.calls[0]?.slice(0, 2)).toEqual(["codexly", { limit: 5 }]);
     expect(listTasks.mock.calls[0]?.[2]?.signal).toBeInstanceOf(AbortSignal);
 
     await expect(queryObserver.fetchNextPage()).resolves.toMatchObject({
@@ -52,7 +52,7 @@ describe("project pagination queries", () => {
       },
     });
     expect(listTasks.mock.calls[1]?.slice(0, 2)).toEqual([
-      "code-agent",
+      "codexly",
       {
         cursor: "next-page",
         limit: 5,
@@ -69,12 +69,12 @@ describe("project pagination queries", () => {
       .mockResolvedValueOnce({ data: [task], nextCursor: "next-page" })
       .mockResolvedValueOnce({ data: [task, secondTask], nextCursor: null });
 
-    await expect(listProjectTasksForSearch("code-agent", { listTasks })).resolves.toEqual([
+    await expect(listProjectTasksForSearch("codexly", { listTasks })).resolves.toEqual([
       task,
       secondTask,
     ]);
-    expect(listTasks).toHaveBeenNthCalledWith(1, "code-agent", { limit: 100 });
-    expect(listTasks).toHaveBeenNthCalledWith(2, "code-agent", {
+    expect(listTasks).toHaveBeenNthCalledWith(1, "codexly", { limit: 100 });
+    expect(listTasks).toHaveBeenNthCalledWith(2, "codexly", {
       cursor: "next-page",
       limit: 100,
     });
@@ -87,12 +87,12 @@ describe("project pagination queries", () => {
       .mockResolvedValueOnce({ data: [{ ...task, pinned: true }], nextCursor: "next-page" })
       .mockResolvedValueOnce({ data: [secondTask], nextCursor: null });
 
-    await expect(listPinnedProjectTasks("code-agent", { listTasks })).resolves.toEqual([
+    await expect(listPinnedProjectTasks("codexly", { listTasks })).resolves.toEqual([
       { ...task, pinned: true },
       secondTask,
     ]);
-    expect(listTasks).toHaveBeenNthCalledWith(1, "code-agent", { limit: 100, pinned: true });
-    expect(listTasks).toHaveBeenNthCalledWith(2, "code-agent", {
+    expect(listTasks).toHaveBeenNthCalledWith(1, "codexly", { limit: 100, pinned: true });
+    expect(listTasks).toHaveBeenNthCalledWith(2, "codexly", {
       cursor: "next-page",
       limit: 100,
       pinned: true,
@@ -111,7 +111,7 @@ describe("project pagination queries", () => {
       .mockResolvedValueOnce({ data: initialTasks, nextCursor: "next-page" })
       .mockResolvedValueOnce({ data: replenishedTasks, nextCursor: null });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const queryOptions = projectTasksInfiniteQueryOptions("code-agent", {
+    const queryOptions = projectTasksInfiniteQueryOptions("codexly", {
       listProjects: vi.fn(),
       listTasks,
       readTask: vi.fn(),
@@ -119,14 +119,14 @@ describe("project pagination queries", () => {
     const queryObserver = new InfiniteQueryObserver(queryClient, queryOptions);
     const unsubscribe = queryObserver.subscribe(() => undefined);
     await queryObserver.refetch();
-    queryClient.setQueryData(["projects", "code-agent", "tasks", "search-source"], initialTasks);
+    queryClient.setQueryData(["projects", "codexly", "tasks", "search-source"], initialTasks);
 
-    await removeArchivedProjectTaskAndRefill(queryClient, "code-agent", "task-1");
+    await removeArchivedProjectTaskAndRefill(queryClient, "codexly", "task-1");
 
     expect(flattenProjectTaskPages(queryClient.getQueryData(queryOptions.queryKey))).toEqual(
       replenishedTasks,
     );
-    expect(queryClient.getQueryData(["projects", "code-agent", "tasks", "search-source"])).toEqual(
+    expect(queryClient.getQueryData(["projects", "codexly", "tasks", "search-source"])).toEqual(
       initialTasks.slice(1),
     );
     expect(listTasks).toHaveBeenCalledTimes(2);

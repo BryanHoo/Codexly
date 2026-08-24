@@ -1,4 +1,4 @@
-import type { AgentSkill, ProjectFileSearchEntry } from "@code-agent/protocol";
+import type { AgentSkill, ProjectFileSearchEntry } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -92,12 +92,12 @@ describe("prompt file reference content", () => {
             name: "main.tsx",
             path: "src/main.tsx",
             rootId: "root-windows",
-            rootPath: "C:\\workspace\\CodeAgent",
+            rootPath: "C:\\workspace\\Codexly",
           },
           type: "file",
         },
       ]),
-    ).toBe("@C:\\workspace\\CodeAgent\\src\\main.tsx");
+    ).toBe("@C:\\workspace\\Codexly\\src\\main.tsx");
   });
 
   it("deduplicates by root identity and removes only the requested file token", () => {

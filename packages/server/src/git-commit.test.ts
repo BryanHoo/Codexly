@@ -18,11 +18,11 @@ async function runGit(root: string, ...arguments_: string[]) {
 }
 
 async function createRepository() {
-  const root = await mkdtemp(join(tmpdir(), "code-agent-git-commit-test-"));
+  const root = await mkdtemp(join(tmpdir(), "codexly-git-commit-test-"));
   temporaryRoots.push(root);
   await runGit(root, "init", "--initial-branch=main");
-  await runGit(root, "config", "user.name", "CodeAgent Test");
-  await runGit(root, "config", "user.email", "code-agent@example.com");
+  await runGit(root, "config", "user.name", "Codexly Test");
+  await runGit(root, "config", "user.email", "codexly@example.com");
   await Promise.all([
     writeFile(join(root, "selected.txt"), "selected old\n"),
     writeFile(join(root, "unselected.txt"), "unselected old\n"),
@@ -90,7 +90,7 @@ describe("commitSelectedProjectChanges", () => {
     vi.unstubAllEnvs();
 
     await expect(runGit(root, "log", "-1", "--pretty=%an")).resolves.toMatchObject({
-      stdout: "CodeAgent Test\n",
+      stdout: "Codexly Test\n",
     });
   });
 
@@ -137,7 +137,7 @@ describe("commitSelectedProjectChanges", () => {
 
   it("commits only inside the selected immediate child repository", async () => {
     const repositoryRoot = await createRepository();
-    const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-git-project-test-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "codexly-git-project-test-"));
     temporaryRoots.push(projectRoot);
     const selectedRepositoryRoot = join(projectRoot, "frontend");
     await rename(repositoryRoot, selectedRepositoryRoot);

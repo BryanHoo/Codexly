@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildProjectAttachmentUrl,
   buildProjectImageFileUrl,
-  CodeAgentClient,
+  CodexlyClient,
 } from "./http-client.js";
 import {
   task,
@@ -12,27 +12,27 @@ import {
   jsonResponse,
 } from "./http-client.test-support.js";
 
-describe("CodeAgentClient project routes", () => {
+describe("CodexlyClient project routes", () => {
   it("builds encoded Project image preview URLs", () => {
     expect(
       buildProjectImageFileUrl(
         "http://127.0.0.1:3210/",
-        "code agent",
-        "/workspace/CodeAgent/design/result image.png",
+        "sample project",
+        "/workspace/Codexly/design/result image.png",
       ),
     ).toBe(
-      "http://127.0.0.1:3210/v1/projects/code%20agent/files/image?path=%2Fworkspace%2FCodeAgent%2Fdesign%2Fresult+image.png",
+      "http://127.0.0.1:3210/v1/projects/sample%20project/files/image?path=%2Fworkspace%2FCodexly%2Fdesign%2Fresult+image.png",
     );
   });
 
   it("builds opaque pending attachment preview URLs", () => {
-    expect(buildProjectAttachmentUrl("http://127.0.0.1:3210/", "code agent", "image/1")).toBe(
-      "http://127.0.0.1:3210/v1/projects/code%20agent/attachments/image%2F1",
+    expect(buildProjectAttachmentUrl("http://127.0.0.1:3210/", "sample project", "image/1")).toBe(
+      "http://127.0.0.1:3210/v1/projects/sample%20project/attachments/image%2F1",
     );
   });
 
   it("builds encoded historical attachment URLs from the configured base URL", () => {
-    const client = new CodeAgentClient({ baseUrl: "http://127.0.0.1:3210/" });
+    const client = new CodexlyClient({ baseUrl: "http://127.0.0.1:3210/" });
 
     expect(client.getTaskAttachmentUrl("项目 / one", "task/1", "image?1")).toBe(
       "http://127.0.0.1:3210/v1/projects/%E9%A1%B9%E7%9B%AE%20%2F%20one/tasks/task%2F1/attachments/image%3F1",
@@ -44,7 +44,7 @@ describe("CodeAgentClient project routes", () => {
       data: [
         {
           command: "pnpm dev",
-          cwd: "/workspace/CodeAgent",
+          cwd: "/workspace/Codexly",
           id: "terminal/1",
           itemId: "command-1",
         },
@@ -54,7 +54,7 @@ describe("CodeAgentClient project routes", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(terminalPage))
       .mockResolvedValueOnce(jsonResponse({ status: "terminated", terminalId: "terminal/1" }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listBackgroundTerminals("project one", "task one")).resolves.toEqual(
       terminalPage,
@@ -76,18 +76,18 @@ describe("CodeAgentClient project routes", () => {
   });
 
   it("browses host directories and registers the selected project path", async () => {
-    const primaryRootPath = "/Users/bryan/Develop/CodeAgent";
+    const primaryRootPath = "/Users/bryan/Develop/Codexly";
     const project = {
       createdAt: "2026-07-23T00:00:00.000Z",
-      id: "code-agent",
-      name: "CodeAgent",
+      id: "codexly",
+      name: "Codexly",
       roots: [
-        { id: "root-code-agent", path: primaryRootPath },
-        { id: "root-code-agent-docs", path: "/Users/bryan/Develop/CodeAgentDocs" },
+        { id: "root-codexly", path: primaryRootPath },
+        { id: "root-codexly-docs", path: "/Users/bryan/Develop/CodexlyDocs" },
       ],
     };
     const listing = {
-      entries: [{ name: "CodeAgent", path: primaryRootPath }],
+      entries: [{ name: "Codexly", path: primaryRootPath }],
       parentPath: "/Users/bryan",
       path: "/Users/bryan/Develop",
       roots: [],
@@ -97,7 +97,7 @@ describe("CodeAgentClient project routes", () => {
       .mockResolvedValueOnce(jsonResponse(listing))
       .mockResolvedValueOnce(jsonResponse(listing))
       .mockResolvedValueOnce(jsonResponse({ project }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listProjectDirectories(listing.path)).resolves.toEqual(listing);
     await expect(
@@ -136,13 +136,13 @@ describe("CodeAgentClient project routes", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(listing))
       .mockResolvedValueOnce(jsonResponse({ attachment }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.listHostFiles("image", listing.path, { includeHidden: true }),
     ).resolves.toEqual(listing);
     await expect(
-      client.importHostAttachment("code agent", "image", selectedPath, {
+      client.importHostAttachment("sample project", "image", selectedPath, {
         idempotencyKey: "host-image-key",
       }),
     ).resolves.toEqual({ attachment });
@@ -150,7 +150,9 @@ describe("CodeAgentClient project routes", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "/v1/host-files?kind=image&path=%2FUsers%2Fbryan%2FPictures&includeHidden=true",
     );
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("/v1/projects/code%20agent/attachments/image/host");
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "/v1/projects/sample%20project/attachments/image/host",
+    );
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
       body: JSON.stringify({ path: selectedPath }),
       method: "POST",
@@ -165,13 +167,13 @@ describe("CodeAgentClient project routes", () => {
       createdAt: "2026-07-23T00:00:00.000Z",
       id: "project / one",
       name: "工作区别名",
-      roots: [{ id: "root-code-agent", path: projectRootPath }],
+      roots: [{ id: "root-codexly", path: projectRootPath }],
     };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ project: renamedProject }))
       .mockResolvedValueOnce(jsonResponse({ projectId: renamedProject.id, status: "removed" }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.renameProject(renamedProject.id, "工作区别名", {
@@ -209,7 +211,7 @@ describe("CodeAgentClient project routes", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(capabilities))
       .mockResolvedValueOnce(jsonResponse({ appId: "zed", path: "src/components/app.tsx" }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.getProjectOpenCapabilities("project one")).resolves.toEqual(capabilities);
     await expect(
@@ -222,7 +224,7 @@ describe("CodeAgentClient project routes", () => {
     ).resolves.toEqual({ appId: "zed", path: "src/components/app.tsx" });
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%20one/open-capabilities");
     expect(fetchMock.mock.calls[1]?.[0]).toBe(
-      "/v1/projects/project%20one/open?rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/open?rootPath=%2Fworkspace%2FCodexly",
     );
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
       body: JSON.stringify({ appId: "zed", path: "src/components/app.tsx" }),
@@ -238,7 +240,7 @@ describe("CodeAgentClient project routes", () => {
     fetchMock.mockResolvedValue(
       jsonResponse({ attachmentId: "attachment/file-1", status: "opened" }),
     );
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.openTaskAttachment("project one", "task/1", "attachment/file-1", {
@@ -265,7 +267,7 @@ describe("CodeAgentClient project routes", () => {
     ];
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse({ data: orderedProjects, nextCursor: null }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.reorderProjects(["superwork"], { idempotencyKey: "project-order-key" }),
@@ -283,7 +285,7 @@ describe("CodeAgentClient project routes", () => {
   it("builds task pagination requests and validates successful responses", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse({ data: [task], nextCursor: null }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.listTasks("project one", {
@@ -314,7 +316,7 @@ describe("CodeAgentClient project routes", () => {
     };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(response));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.readTask("project one", "task-1", { cursor: "older/page" }),
@@ -330,7 +332,7 @@ describe("CodeAgentClient project routes", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: [temporaryTask], nextCursor: null }))
       .mockResolvedValueOnce(jsonResponse({ task: temporaryTask }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await client.listTasks("temporary");
     await client.startTask("temporary", { idempotencyKey: "temporary-task" });

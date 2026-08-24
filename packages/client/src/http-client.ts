@@ -1,13 +1,13 @@
 export {
-  CodeAgentHttpError,
-  CodeAgentMutationError,
-  CodeAgentResponseError,
+  CodexlyHttpError,
+  CodexlyMutationError,
+  CodexlyResponseError,
   buildProjectAttachmentUrl,
   buildProjectImageFileUrl,
   buildTaskAttachmentUrl,
   type AgentAttachmentUploadInput,
-  type CodeAgentClientOptions,
-  type CodeAgentRequestTimeouts,
+  type CodexlyClientOptions,
+  type CodexlyRequestTimeouts,
   type ListTasksOptions,
   type MutationOptions,
   type PendingRequestResolution,
@@ -20,4 +20,4 @@ export { TaskHttpClient } from "./http-client-tasks.js";
 
 import { TaskHttpClient } from "./http-client-tasks.js";
 
-export class CodeAgentClient extends TaskHttpClient {}
+export class CodexlyClient extends TaskHttpClient {}

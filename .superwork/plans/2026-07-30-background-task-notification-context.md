@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 系统通知展示 Task 名称，并且只在 CodeAgent 页面隐藏或浏览器窗口失焦时发送。
+**Goal:** 系统通知展示 Task 名称，并且只在 Codexly 页面隐藏或浏览器窗口失焦时发送。
 
 **Suggested Spec Reads:**
 
@@ -35,7 +35,7 @@
 
 **Behavior:**
 
-- 页面可见且聚焦时不调用 Browser Notification；页面隐藏或失焦时以 `CodeAgent · <Task title>` 为通知标题，并保留现有状态正文、权限、去重和点击导航行为。
+- 页面可见且聚焦时不调用 Browser Notification；页面隐藏或失焦时以 `Codexly · <Task title>` 为通知标题，并保留现有状态正文、权限、去重和点击导航行为。
 
 **Stop Conditions:**
 

@@ -24,7 +24,7 @@ describe("CodexAgentProvider mutations", () => {
 
     await expect(provider.startTask()).resolves.toMatchObject({
       id: "task-1",
-      projectId: "code-agent",
+      projectId: "codexly",
     });
     await expect(
       provider.startTurn(
@@ -68,7 +68,7 @@ describe("CodexAgentProvider mutations", () => {
       {
         method: "thread/start",
         params: {
-          cwd: "/workspace/CodeAgent",
+          cwd: "/workspace/Codexly",
           historyMode: "paginated",
           projectId: project.id,
           runtimeWorkspaceRoots: [projectRootPath],
@@ -105,7 +105,7 @@ describe("CodexAgentProvider mutations", () => {
                 {
                   byteRange: { end: 22, start: 0 },
                   placeholder:
-                    "code-agent-file:eyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi9wZGYiLCJuYW1lIjoic3BlY2lmaWNhdGlvbi5wZGYifQ",
+                    "codexly-file:eyJtZWRpYVR5cGUiOiJhcHBsaWNhdGlvbi9wZGYiLCJuYW1lIjoic3BlY2lmaWNhdGlvbi5wZGYifQ",
                 },
               ],
               type: "text",

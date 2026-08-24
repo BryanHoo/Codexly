@@ -1,4 +1,4 @@
-import type { AgentGlobalSettings } from "@code-agent/protocol";
+import type { AgentGlobalSettings } from "@codexly/protocol";
 
 import type { SupportedLanguage } from "../../../i18n/language-preference.js";
 import type { ThemePreference } from "../theme-preference.js";

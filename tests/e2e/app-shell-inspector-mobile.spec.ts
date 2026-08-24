@@ -6,7 +6,7 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
     "content",
@@ -114,7 +114,7 @@ test("keeps mobile diff dialogs inside the viewport without squeezing review con
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await page
     .getByRole("button", { name: /打开 Diff/u })
@@ -164,7 +164,7 @@ test("keeps mobile diff dialogs inside the viewport without squeezing review con
 
 test("closes open workbench panels when the window becomes narrow", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await expect(page.getByRole("complementary", { name: "项目侧栏" })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "运行环境" })).toBeVisible();

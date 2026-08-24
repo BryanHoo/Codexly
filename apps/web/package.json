@@ -1,5 +1,5 @@
 {
-  "name": "@code-agent/web",
+  "name": "@codexly/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@code-agent/client": "workspace:*",
-    "@code-agent/protocol": "workspace:*",
+    "@codexly/client": "workspace:*",
+    "@codexly/protocol": "workspace:*",
     "@headless-tree/core": "catalog:",
     "@headless-tree/react": "catalog:",
     "@pierre/diffs": "catalog:",

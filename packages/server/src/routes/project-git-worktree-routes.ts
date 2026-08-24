@@ -8,7 +8,7 @@ import {
   type CreateProjectWorktreeRequest,
   type ProjectRootQuery,
   type SwitchProjectWorktreeRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { FastifyInstance } from "fastify";
 import { basename } from "node:path";
 

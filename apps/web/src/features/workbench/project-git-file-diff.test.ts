@@ -1,8 +1,8 @@
-import type { ProjectGitStatus } from "@code-agent/protocol";
+import type { ProjectGitStatus } from "@codexly/protocol";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CodeAgentGitStatusClient } from "../projects/project-queries.js";
+import type { CodexlyGitStatusClient } from "../projects/project-queries.js";
 import { loadProjectGitFileDiff } from "./project-git-file-diff.js";
 
 const summaryChange = { diff: "", kind: "update" as const, path: "src/index.ts" };
@@ -22,7 +22,7 @@ describe("loadProjectGitFileDiff", () => {
       ...summaryChange,
       diff: "@@ -1 +1 @@\n-old\n+new\n",
     };
-    const getProjectGitStatus = vi.fn<CodeAgentGitStatusClient["getProjectGitStatus"]>(() =>
+    const getProjectGitStatus = vi.fn<CodexlyGitStatusClient["getProjectGitStatus"]>(() =>
       Promise.resolve({ ...summary, unstaged: [detailedChange] }),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -32,19 +32,19 @@ describe("loadProjectGitFileDiff", () => {
         queryClient,
         { getProjectGitStatus },
         "project-1",
-        "/workspace/CodeAgent",
+        "/workspace/Codexly",
         summary,
         summaryChange,
       ),
     ).resolves.toEqual(detailedChange);
     expect(getProjectGitStatus.mock.calls[0]?.[1]).toEqual({
       includeDiff: true,
-      rootPath: "/workspace/CodeAgent",
+      rootPath: "/workspace/Codexly",
     });
   });
 
   it("keeps an already detailed change without another request", async () => {
-    const getProjectGitStatus = vi.fn<CodeAgentGitStatusClient["getProjectGitStatus"]>();
+    const getProjectGitStatus = vi.fn<CodexlyGitStatusClient["getProjectGitStatus"]>();
     const queryClient = new QueryClient();
     const detailedChange = { ...summaryChange, diff: "@@ -0,0 +1 @@\n+new\n" };
 
@@ -53,7 +53,7 @@ describe("loadProjectGitFileDiff", () => {
         queryClient,
         { getProjectGitStatus },
         "project-1",
-        "/workspace/CodeAgent",
+        "/workspace/Codexly",
         summary,
         detailedChange,
       ),

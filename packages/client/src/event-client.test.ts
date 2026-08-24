@@ -1,8 +1,8 @@
-import type { AgentEvent, ResyncRequired } from "@code-agent/protocol";
+import type { AgentEvent, ResyncRequired } from "@codexly/protocol";
 import type * as TypeBoxValue from "@sinclair/typebox/value";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CodeAgentClient } from "./http-client.js";
+import { CodexlyClient } from "./http-client.js";
 
 const { checkSpy, decodeSpy } = vi.hoisted(() => ({
   checkSpy: vi.fn(),
@@ -68,7 +68,7 @@ class FakeWebSocket extends EventTarget {
 
 function createHarness() {
   const sockets: FakeWebSocket[] = [];
-  const client = new CodeAgentClient({
+  const client = new CodexlyClient({
     baseUrl: "http://127.0.0.1:3210/",
     webSocketFactory(url) {
       const socket = new FakeWebSocket(url);
@@ -111,7 +111,7 @@ afterEach(() => {
   decodeSpy.mockClear();
 });
 
-describe("CodeAgentClient realtime events", () => {
+describe("CodexlyClient realtime events", () => {
   it("connects temporary tasks through the public temporary event route", () => {
     const { client, sockets } = createHarness();
 
@@ -134,14 +134,14 @@ describe("CodeAgentClient realtime events", () => {
 
     const unsubscribe = client.subscribeEvents({
       afterSequence: 3,
-      projectId: "code-agent",
+      projectId: "codexly",
       onConnectionState: (state) => states.push(state),
       onEvent: (event) => events.push(event),
       onResyncRequired: vi.fn(),
       sessionId: "runtime-1",
     });
     const socket = sockets[0];
-    expect(socket?.url).toBe("ws://127.0.0.1:3210/v1/projects/code-agent/events?afterSequence=3");
+    expect(socket?.url).toBe("ws://127.0.0.1:3210/v1/projects/codexly/events?afterSequence=3");
     socket?.open();
     socket?.receive(ready);
     socket?.receive(eventBatch(messageEvent(3, "重复"), messageEvent(4)));
@@ -157,7 +157,7 @@ describe("CodeAgentClient realtime events", () => {
     const onEvent = vi.fn();
     client.subscribeEvents({
       afterSequence: 3,
-      projectId: "code-agent",
+      projectId: "codexly",
       onEvent,
       onResyncRequired: vi.fn(),
       sessionId: "runtime-1",
@@ -177,7 +177,7 @@ describe("CodeAgentClient realtime events", () => {
     const gapResync: ResyncRequired[] = [];
     gapHarness.client.subscribeEvents({
       afterSequence: 3,
-      projectId: "code-agent",
+      projectId: "codexly",
       onEvent: vi.fn(),
       onResyncRequired: (message) => gapResync.push(message),
       sessionId: "runtime-1",
@@ -200,7 +200,7 @@ describe("CodeAgentClient realtime events", () => {
     const sessionResync: ResyncRequired[] = [];
     sessionHarness.client.subscribeEvents({
       afterSequence: 3,
-      projectId: "code-agent",
+      projectId: "codexly",
       onEvent: vi.fn(),
       onResyncRequired: (message) => sessionResync.push(message),
       sessionId: "runtime-1",
@@ -221,7 +221,7 @@ describe("CodeAgentClient realtime events", () => {
     const resyncs: ResyncRequired[] = [];
     client.subscribeEvents({
       afterSequence: 3,
-      projectId: "code-agent",
+      projectId: "codexly",
       onError: (error) => errors.push(error),
       onEvent: vi.fn(),
       onResyncRequired: (message) => resyncs.push(message),
@@ -242,7 +242,7 @@ describe("CodeAgentClient realtime events", () => {
     const invalidHarness = createHarness();
     invalidHarness.client.subscribeEvents({
       afterSequence: 0,
-      projectId: "code-agent",
+      projectId: "codexly",
       onError: (error) => errors.push(error),
       onEvent: vi.fn(),
       onResyncRequired: vi.fn(),
@@ -259,7 +259,7 @@ describe("CodeAgentClient realtime events", () => {
     const states: string[] = [];
     const unsubscribe = client.subscribeEvents({
       afterSequence: 3,
-      projectId: "code-agent",
+      projectId: "codexly",
       onConnectionState: (state) => states.push(state),
       onEvent: vi.fn(),
       onResyncRequired: vi.fn(),
@@ -273,9 +273,7 @@ describe("CodeAgentClient realtime events", () => {
 
     expect(states.at(-1)).toBe("reconnecting");
     await vi.advanceTimersByTimeAsync(100);
-    expect(sockets[1]?.url).toBe(
-      "ws://127.0.0.1:3210/v1/projects/code-agent/events?afterSequence=4",
-    );
+    expect(sockets[1]?.url).toBe("ws://127.0.0.1:3210/v1/projects/codexly/events?afterSequence=4");
     sockets[1]?.serverClose();
     unsubscribe();
     await vi.runAllTimersAsync();
@@ -289,7 +287,7 @@ describe("CodeAgentClient realtime events", () => {
     const onEvent = vi.fn();
     const unsubscribe = client.subscribeEvents({
       afterSequence: 3,
-      projectId: "code-agent",
+      projectId: "codexly",
       onError,
       onEvent,
       onResyncRequired: vi.fn(),
@@ -312,7 +310,7 @@ describe("CodeAgentClient realtime events", () => {
     let unsubscribe: () => void = () => undefined;
     unsubscribe = client.subscribeEvents({
       afterSequence: 3,
-      projectId: "code-agent",
+      projectId: "codexly",
       onEvent: (event) => {
         events.push(event);
         unsubscribe();

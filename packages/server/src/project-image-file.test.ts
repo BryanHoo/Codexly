@@ -19,7 +19,7 @@ afterEach(async () => {
 
 describe("readProjectImageFile", () => {
   it("reads a supported image from an absolute Project file reference", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-image-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "codexly-image-"));
     temporaryPaths.push(projectRoot);
     const imagePath = join(projectRoot, "result.png");
     await writeFile(imagePath, pngContent);
@@ -33,8 +33,8 @@ describe("readProjectImageFile", () => {
   });
 
   it("reads a supported image from an absolute path outside the project root", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-image-project-"));
-    const outsideRoot = await mkdtemp(join(tmpdir(), "code-agent-image-outside-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "codexly-image-project-"));
+    const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-image-outside-"));
     temporaryPaths.push(projectRoot, outsideRoot);
     const imagePath = join(outsideRoot, "result.png");
     await writeFile(imagePath, pngContent);
@@ -48,8 +48,8 @@ describe("readProjectImageFile", () => {
   });
 
   it("rejects invalid signatures and symbolic links", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-image-secure-"));
-    const outsideRoot = await mkdtemp(join(tmpdir(), "code-agent-image-outside-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "codexly-image-secure-"));
+    const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-image-outside-"));
     temporaryPaths.push(projectRoot, outsideRoot);
     const invalidImagePath = join(projectRoot, "invalid.png");
     const outsideImagePath = join(outsideRoot, "outside.png");

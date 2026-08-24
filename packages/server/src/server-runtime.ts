@@ -5,7 +5,7 @@ import type {
   AgentProviderConnectionRepository,
   AgentRuntimeProvider,
   PendingRequestResolutionError,
-} from "@code-agent/core";
+} from "@codexly/core";
 import {
   MAX_AGENT_FILE_BYTES,
   MAX_AGENT_IMAGE_BYTES,
@@ -19,7 +19,7 @@ import {
   type AgentTurn,
   type GenerateCommitMessageRequest,
   type ProjectGitStatus,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { LogController, type FastifyReply, type FastifyRequest } from "fastify";
 import type { GitCommitError } from "./git-commit.js";
 import { originalErrorMessage } from "./error-message.js";
@@ -205,7 +205,7 @@ const COMMIT_MESSAGE_OUTPUT_SCHEMA = {
   type: "object",
 } as const;
 
-export class CodeAgentLogController extends LogController {
+export class CodexlyLogController extends LogController {
   public override incomingRequest(): void {
     // 正常请求不写终端日志，只保留服务端错误的完成上下文。
   }

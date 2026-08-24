@@ -1,8 +1,4 @@
-import {
-  MAX_EVENT_BATCH_SIZE,
-  type AgentEvent,
-  type EventStreamMessage,
-} from "@code-agent/protocol";
+import { MAX_EVENT_BATCH_SIZE, type AgentEvent, type EventStreamMessage } from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
 import type { WebSocket } from "ws";
 import { sendEventStreamEvents, sendEventStreamMessage } from "../event-socket-sender.js";

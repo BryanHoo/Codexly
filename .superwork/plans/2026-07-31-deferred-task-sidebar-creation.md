@@ -56,7 +56,7 @@ Expected: 新建、切换和草稿恢复用例通过，且左栏始终没有临�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentMutationClient.startTask`、`AgentTask`、`onTaskStarted`
+- Consumes: `CodexlyMutationClient.startTask`、`AgentTask`、`onTaskStarted`
 - Produces: `startTask` 成功即写入 Query Cache 并在 Sidebar 选中、`startTurn` 成功后补齐首轮 `TaskLaunchState` 并导航
 
 **Behavior:**

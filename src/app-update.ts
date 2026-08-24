@@ -1,10 +1,10 @@
 import { execFile } from "node:child_process";
 import { win32 } from "node:path";
 
-import type { AppInfoResponse, InstallAppUpdateResponse } from "@code-agent/protocol";
+import type { AppInfoResponse, InstallAppUpdateResponse } from "@codexly/protocol";
 
-const PACKAGE_NAME = "@bryanhu/code-agent";
-const CHANGELOG_URL_PREFIX = "https://raw.githubusercontent.com/BryanHoo/CodeAgent/v";
+const PACKAGE_NAME = "@bryanhu/codexly";
+const CHANGELOG_URL_PREFIX = "https://raw.githubusercontent.com/BryanHoo/Codexly/v";
 const REGISTRY_TIMEOUT_MS = 10_000;
 const MAX_RELEASE_NOTES_BYTES = 32 * 1024;
 const INSTALL_TIMEOUT_MS = 2 * 60_000;
@@ -199,7 +199,7 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
       if (parseSemanticVersion(latestVersion) === undefined) throw new Error("Invalid version");
       return latestVersion;
     } catch {
-      throw new AppUpdateError("UPDATE_CHECK_FAILED", "Failed to check for CodeAgent updates");
+      throw new AppUpdateError("UPDATE_CHECK_FAILED", "Failed to check for Codexly updates");
     }
   };
 
@@ -212,7 +212,7 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
       try {
         await runNpmInstall(latestVersion);
       } catch {
-        throw new AppUpdateError("UPDATE_INSTALL_FAILED", "Failed to install the CodeAgent update");
+        throw new AppUpdateError("UPDATE_INSTALL_FAILED", "Failed to install the Codexly update");
       }
       installedVersion = latestVersion;
       return {

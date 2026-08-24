@@ -1,8 +1,4 @@
-import type {
-  ProjectFileSearchEntry,
-  ProjectOpenApp,
-  ProjectOpenAppId,
-} from "@code-agent/protocol";
+import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppId } from "@codexly/protocol";
 import { RefreshCw } from "lucide-react";
 import { useRef, useState } from "react";
 

@@ -1,6 +1,6 @@
 import { resolve, win32 } from "node:path";
 
-import type { AgentTaskScope } from "@code-agent/core";
+import type { AgentTaskScope } from "@codexly/core";
 
 import { CodexProtocolMappingError } from "./codex-protocol-mapping.js";
 

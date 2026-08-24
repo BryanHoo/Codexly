@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AgentProviderEvent, PendingRequestResolutionError } from "@code-agent/core";
+import type { AgentProviderEvent, PendingRequestResolutionError } from "@codexly/core";
 import {
   FakeRpcClient,
   project,
@@ -25,7 +25,7 @@ describe("CodexAgentProvider pending request lifecycle", () => {
     rpc.emitServerRequest(7, "item/commandExecution/requestApproval", {
       availableDecisions: ["accept", "decline"],
       command: "pnpm check",
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       itemId: "command-1",
       reason: null,
       startedAtMs: 1_753_228_800_000,
@@ -81,7 +81,7 @@ describe("CodexAgentProvider pending request lifecycle", () => {
     provider.subscribeEvents((event) => events.push(event));
     await provider.listTasks();
     rpc.emitServerRequest("approval-race", "item/fileChange/requestApproval", {
-      grantRoot: "/workspace/CodeAgent",
+      grantRoot: "/workspace/Codexly",
       itemId: "approval-race-item",
       reason: null,
       startedAtMs: 1_753_228_801_000,

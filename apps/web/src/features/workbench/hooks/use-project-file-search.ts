@@ -2,12 +2,12 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 import { useEffect, useMemo, useState } from "react";
 import { v4 as createUuid } from "uuid";
 
-import type { CodeAgentProjectFileSearchClient } from "../../projects/project-queries.js";
+import type { CodexlyProjectFileSearchClient } from "../../projects/project-queries.js";
 
 export const PROJECT_FILE_SEARCH_DEBOUNCE_MS = 150;
 
 export function projectFileSearchQueryOptions(
-  client: CodeAgentProjectFileSearchClient,
+  client: CodexlyProjectFileSearchClient,
   projectId: string,
   rootPath: string,
   sessionId: string,
@@ -25,7 +25,7 @@ export function projectFileSearchQueryOptions(
 }
 
 export function stopProjectFileSearchSession(
-  client: CodeAgentProjectFileSearchClient,
+  client: CodexlyProjectFileSearchClient,
   projectId: string,
   rootPath: string,
   sessionId: string,
@@ -35,7 +35,7 @@ export function stopProjectFileSearchSession(
 }
 
 export function useProjectFileSearch(
-  client: CodeAgentProjectFileSearchClient,
+  client: CodexlyProjectFileSearchClient,
   projectId: string,
   rootPath: string,
   query: string,

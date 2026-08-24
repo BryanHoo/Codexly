@@ -69,8 +69,8 @@ Expected: all selected tests pass with cancellation and timeout assertions.
 **Interfaces:**
 
 - Consumes: Fastify 5 `handlerTimeout`, Logger/Pino options and request lifecycle
-- Produces: `CreateCodeAgentServerOptions` 中可测试覆盖的 Logger 与 handler timeout 配置
-- Produces: `createCodeAgentServer` retains its `FastifyInstance` return contract
+- Produces: `CreateCodexlyServerOptions` 中可测试覆盖的 Logger 与 handler timeout 配置
+- Produces: `createCodexlyServer` retains its `FastifyInstance` return contract
 
 - **Behavior Slice:** 在 Fastify 实例创建时默认启用 JSON Pino，脱敏认证、Cookie 和 API Key 字段，设置非零 `handlerTimeout`，并让完成日志携带 `durationMs`、`requestId`、method、route 与 statusCode；测试可显式关闭或注入 Logger，生产默认不能在运行时保持 Null Logger。
 - **Proof Intent:** `inject` 测试验证默认 `handlerTimeout` 非零；内存日志流验证完成日志存在耗时与请求身份且敏感 Header 被替换，错误仍走现有协议映射。

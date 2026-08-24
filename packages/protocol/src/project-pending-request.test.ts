@@ -28,7 +28,7 @@ describe("project pending request protocol", () => {
       createdAt: "2026-07-23T00:00:00.000Z",
       expiresAt: null,
       itemId: "item-1",
-      projectId: "code-agent",
+      projectId: "codexly",
       requestId: "number:7",
       status: "pending",
       taskId: "task-1",
@@ -40,14 +40,14 @@ describe("project pending request protocol", () => {
         fileSystem: {
           entries: [],
           globScanMaxDepth: null,
-          read: ["/workspace/CodeAgent/src"],
+          read: ["/workspace/Codexly/src"],
           write: null,
         },
         network: { enabled: true },
       },
       availableDecisions: ["allow", "allow_for_session", "deny"],
       command: "pnpm check",
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       networkAccess: { host: "api.example.com", protocol: "https" },
       reason: "需要执行检查",
       type: "command_approval",
@@ -55,7 +55,7 @@ describe("project pending request protocol", () => {
     const fileRequest = {
       ...identity,
       availableDecisions: ["allow", "deny"],
-      grantRoot: "/workspace/CodeAgent",
+      grantRoot: "/workspace/Codexly",
       reason: null,
       requestId: "number:8",
       type: "file_change_approval",
@@ -81,19 +81,19 @@ describe("project pending request protocol", () => {
     } as const;
     const permissionRequest = {
       ...identity,
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       environmentId: "local",
       permissions: {
         fileSystem: {
           entries: [
             {
               access: "write",
-              path: { type: "glob", value: "/workspace/CodeAgent/*.log" },
+              path: { type: "glob", value: "/workspace/Codexly/*.log" },
             },
           ],
           globScanMaxDepth: 4,
-          read: ["/workspace/CodeAgent/src"],
-          write: ["/workspace/CodeAgent/.cache"],
+          read: ["/workspace/Codexly/src"],
+          write: ["/workspace/Codexly/.cache"],
         },
         network: { enabled: true },
       },
@@ -272,7 +272,7 @@ describe("project pending request protocol", () => {
     const task = {
       id: "task-2",
       pinned: false,
-      projectId: "code-agent",
+      projectId: "codexly",
       title: "续接任务",
       updatedAt: "2026-07-25T00:00:00.000Z",
     };

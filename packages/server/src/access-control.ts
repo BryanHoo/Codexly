@@ -1,6 +1,6 @@
 import { createHash, randomBytes as cryptoRandomBytes, timingSafeEqual } from "node:crypto";
 
-export interface CodeAgentAccessOptions {
+export interface CodexlyAccessOptions {
   pairingCode: string;
   sessionTtlMs?: number;
 }
@@ -45,7 +45,7 @@ export class AccessSessionService {
   readonly #cleanupTimer: ReturnType<typeof setInterval>;
 
   public constructor(
-    options: CodeAgentAccessOptions,
+    options: CodexlyAccessOptions,
     dependencies: AccessSessionServiceDependencies = {},
   ) {
     if (

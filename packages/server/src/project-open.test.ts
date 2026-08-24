@@ -8,8 +8,8 @@ import { createProjectOpenService } from "./project-open.js";
 
 describe("createProjectOpenService", () => {
   it("opens an absolute file reference outside the Project with the system application", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-open-project-"));
-    const outsideRoot = await mkdtemp(join(tmpdir(), "code-agent-open-absolute-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "codexly-open-project-"));
+    const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-open-absolute-"));
     const documentPath = join(outsideRoot, "report.docx");
     await writeFile(documentPath, "document");
     const spawnDetached = vi.fn(() => Promise.resolve());
@@ -70,12 +70,12 @@ describe("createProjectOpenService", () => {
       ],
       platform: "darwin",
     });
-    await service.open("/workspace/CodeAgent", "zed");
+    await service.open("/workspace/Codexly", "zed");
 
     expect(spawnDetached).toHaveBeenCalledWith(
       "/usr/bin/open",
-      ["-a", "Zed", "/workspace/CodeAgent"],
-      expect.objectContaining({ cwd: "/workspace/CodeAgent", shell: false }),
+      ["-a", "Zed", "/workspace/Codexly"],
+      expect.objectContaining({ cwd: "/workspace/Codexly", shell: false }),
     );
   });
 
@@ -114,12 +114,12 @@ describe("createProjectOpenService", () => {
       ],
       platform: "linux",
     });
-    await service.open("/workspace/CodeAgent", "konsole");
+    await service.open("/workspace/Codexly", "konsole");
 
     expect(spawnDetached).toHaveBeenCalledWith(
       "/usr/bin/konsole",
-      ["--workdir", "/workspace/CodeAgent"],
-      expect.objectContaining({ cwd: "/workspace/CodeAgent", shell: false }),
+      ["--workdir", "/workspace/Codexly"],
+      expect.objectContaining({ cwd: "/workspace/Codexly", shell: false }),
     );
   });
 
@@ -159,12 +159,12 @@ describe("createProjectOpenService", () => {
       ],
       platform: "win32",
     });
-    await service.open("C:\\workspace\\CodeAgent", "windsurf");
+    await service.open("C:\\workspace\\Codexly", "windsurf");
 
     expect(spawnDetached).toHaveBeenCalledWith(
       "C:\\Users\\test\\AppData\\Local\\Programs\\Windsurf\\Windsurf.exe",
-      ["C:\\workspace\\CodeAgent"],
-      expect.objectContaining({ cwd: "C:\\workspace\\CodeAgent", shell: false }),
+      ["C:\\workspace\\Codexly"],
+      expect.objectContaining({ cwd: "C:\\workspace\\Codexly", shell: false }),
     );
   });
 
@@ -183,7 +183,7 @@ describe("createProjectOpenService", () => {
       platform: "win32",
       spawnDetached,
     });
-    const projectRoot = "C:\\workspace\\CodeAgent";
+    const projectRoot = "C:\\workspace\\Codexly";
 
     await service.open(projectRoot, "explorer");
     await service.open(projectRoot, "windows-terminal");
@@ -203,7 +203,7 @@ describe("createProjectOpenService", () => {
   });
 
   it("opens file targets with platform-appropriate editor, file manager, and terminal semantics", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-open-target-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "codexly-open-target-"));
     const sourceDirectory = join(projectRoot, "src");
     const sourceFile = join(sourceDirectory, "app.ts");
     await mkdir(sourceDirectory);
@@ -336,8 +336,8 @@ describe("createProjectOpenService", () => {
   });
 
   it("rejects missing, escaping, and symbolic-link targets before spawning", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-open-secure-"));
-    const outsideRoot = await mkdtemp(join(tmpdir(), "code-agent-open-outside-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "codexly-open-secure-"));
+    const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-open-outside-"));
     const outsideFile = join(outsideRoot, "outside.ts");
     await writeFile(outsideFile, "export {};\n");
     await symlink(outsideFile, join(projectRoot, "linked.ts"));
@@ -374,7 +374,7 @@ describe("createProjectOpenService", () => {
     });
 
     await expect(service.getCapabilities()).resolves.toEqual({ apps: [], platform: "linux" });
-    await expect(service.open("/workspace/CodeAgent", "zed")).rejects.toMatchObject({
+    await expect(service.open("/workspace/Codexly", "zed")).rejects.toMatchObject({
       name: "ProjectOpenAppUnavailableError",
     });
   });
@@ -382,8 +382,8 @@ describe("createProjectOpenService", () => {
   it.runIf(process.platform !== "win32")(
     "rejects a host app that exits unsuccessfully during launch",
     async () => {
-      const commandRoot = await mkdtemp(join(tmpdir(), "code-agent-project-open-"));
-      const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-project-root-"));
+      const commandRoot = await mkdtemp(join(tmpdir(), "codexly-project-open-"));
+      const projectRoot = await mkdtemp(join(tmpdir(), "codexly-project-root-"));
       const launcher = join(commandRoot, "xdg-open");
       try {
         await writeFile(launcher, "#!/bin/sh\nexit 23\n");

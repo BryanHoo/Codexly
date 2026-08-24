@@ -35,7 +35,7 @@ describe("task timeline messages", () => {
           expiresAt: null,
           grantRoot: "/workspace/resolved-change",
           itemId: "file-change-resolved",
-          projectId: "code-agent",
+          projectId: "codexly",
           reason: null,
           requestId: "number:resolved",
           status: "resolved",
@@ -49,7 +49,7 @@ describe("task timeline messages", () => {
           expiresAt: null,
           grantRoot: "/workspace/pending-change",
           itemId: "file-change-pending",
-          projectId: "code-agent",
+          projectId: "codexly",
           reason: null,
           requestId: "number:pending",
           status: "pending",
@@ -240,7 +240,7 @@ describe("task timeline messages", () => {
             {
               id: "review-command",
               command: "git diff",
-              cwd: "/workspace/CodeAgent",
+              cwd: "/workspace/Codexly",
               outputTruncated: false,
               status: "running",
               type: "command",
@@ -291,7 +291,7 @@ describe("task timeline messages", () => {
     expect(markup).toContain('aria-label="消息附件"');
     expect(markup).toContain('aria-label="查看图片 diagram.png"');
     expect(markup).toContain(
-      'src="/v1/projects/code-agent/tasks/task-1/attachments/history%2Fimage-1"',
+      'src="/v1/projects/codexly/tasks/task-1/attachments/history%2Fimage-1"',
     );
     expect(markup).toContain('loading="lazy"');
     expect(markup).toContain('decoding="async"');
@@ -340,7 +340,7 @@ describe("task timeline messages", () => {
     expect(markup).toContain('aria-label="消息附件"');
     expect(markup).toContain('aria-label="查看图片 生成图片-1.png"');
     expect(markup).toContain(
-      'src="/v1/projects/code-agent/tasks/task-1/attachments/history%2Fgenerated-image-1"',
+      'src="/v1/projects/codexly/tasks/task-1/attachments/history%2Fgenerated-image-1"',
     );
     expect(markup).toContain('data-message-attachment="image"');
     expect(markup).not.toContain('data-message-text="true"');

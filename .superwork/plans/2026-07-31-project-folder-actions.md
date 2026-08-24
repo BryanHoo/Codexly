@@ -20,7 +20,7 @@
 ## Global Constraints
 
 - 重命名只更新 `projects.name`，必须保留 `Project.id`、`Project.rootPath`、`Project.createdAt` 和磁盘目录名。
-- 删除只移除 CodeAgent 中的 Project 注册、本地关联设置/元数据、缓存和运行时，不得调用任何文件系统删除 API，也不得归档或删除 Codex Task。
+- 删除只移除 Codexly 中的 Project 注册、本地关联设置/元数据、缓存和运行时，不得调用任何文件系统删除 API，也不得归档或删除 Codex Task。
 - Project Mutation 必须使用严格 Protocol Schema、非空 `Idempotency-Key` 和统一错误响应。
 - 删除当前 Project 后导航到剩余 Project 的首项；无剩余 Project 时导航到 `/` 空状态。
 - 每个文件夹行的操作顺序固定为名称、`Ellipsis`、现有 `Plus`；菜单只显示“重命名”和“删除”。
@@ -94,7 +94,7 @@ Expected: 重命名持久化、删除级联、未知 Project 和磁盘目录保�
 **Interfaces:**
 
 - Consumes: Task 1 的 Protocol Schema、Task 2 的 Repository 操作、现有 `runIdempotent` 与 `projectContexts`
-- Produces: `POST /v1/projects/:projectId/rename`、`POST /v1/projects/:projectId/remove`、`CodeAgentClient.renameProject`、`CodeAgentClient.removeProject`
+- Produces: `POST /v1/projects/:projectId/rename`、`POST /v1/projects/:projectId/remove`、`CodexlyClient.renameProject`、`CodexlyClient.removeProject`
 
 **Behavior:**
 
@@ -125,7 +125,7 @@ Expected: Server `inject` 与 Client 请求测试覆盖成功、幂等、未知 
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.renameProject`、`CodeAgentClient.removeProject`、React Query `projects` 缓存、Project Runtime Manager、TanStack Router
+- Consumes: `CodexlyClient.renameProject`、`CodexlyClient.removeProject`、React Query `projects` 缓存、Project Runtime Manager、TanStack Router
 - Produces: `renameProject`/`removeProject` Context 操作、Project 运行时释放、文件夹行 `Ellipsis` 菜单、重命名 Dialog、删除确认 Dialog
 
 **Behavior:**

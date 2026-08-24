@@ -1,4 +1,4 @@
-import type { HostFileListing } from "@code-agent/protocol";
+import type { HostFileListing } from "@codexly/protocol";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -12,7 +12,7 @@ import {
 } from "./host-attachment-picker-dialog.js";
 
 describe("HostAttachmentPickerDialog", () => {
-  it("renders an accessible loading dialog for the CodeAgent host", async () => {
+  it("renders an accessible loading dialog for the Codexly host", async () => {
     await changeAppLanguage("zh-CN");
     const queryClient = new QueryClient();
     const markup = renderToStaticMarkup(
@@ -26,7 +26,7 @@ describe("HostAttachmentPickerDialog", () => {
             kind="image"
             onAdd={vi.fn()}
             onClose={vi.fn()}
-            projectId="code-agent"
+            projectId="codexly"
           />
         </TooltipProvider>
       </QueryClientProvider>,
@@ -110,7 +110,7 @@ describe("HostAttachmentPickerDialog", () => {
             kind="image"
             onAdd={vi.fn()}
             onClose={vi.fn()}
-            projectId="code-agent"
+            projectId="codexly"
           />
         </TooltipProvider>
       </QueryClientProvider>,

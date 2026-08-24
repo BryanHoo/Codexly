@@ -10,7 +10,7 @@ import { readGitWorkingTreeStatus } from "./git-working-tree.js";
 const temporaryRoots: string[] = [];
 
 async function createRepositoryRoot(): Promise<string> {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "code-agent-git-branch-test-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-branch-test-")));
   temporaryRoots.push(root);
   await mkdir(join(root, ".git"));
   return root;

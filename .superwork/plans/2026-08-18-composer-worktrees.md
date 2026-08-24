@@ -114,7 +114,7 @@ Expected: worktree 命令参数、路径约束、错误映射、幂等路由和 
 
 **Interfaces:**
 
-- Consumes: `CodeAgentGitMutationClient`, `ProjectGitWorktreePage`, `ProjectWorktreeMutationResponse`, TanStack Project/Worktree Query keys, Router Project route
+- Consumes: `CodexlyGitMutationClient`, `ProjectGitWorktreePage`, `ProjectWorktreeMutationResponse`, TanStack Project/Worktree Query keys, Router Project route
 - Produces: worktree Query 与单飞 Mutation 状态、Composer worktree 菜单、创建 Dialog、Project 缓存 upsert 和目标路由导航
 
 **Behavior:**

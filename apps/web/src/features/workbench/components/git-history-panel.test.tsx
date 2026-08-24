@@ -7,30 +7,27 @@ import { GitHistoryPanel } from "./git-history-panel.js";
 describe("GitHistoryPanel", () => {
   it("在右栏内容区展示仓库历史且不渲染 Sheet 外壳", () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    queryClient.setQueryData(
-      ["projects", "code-agent", "/workspace/CodeAgent", "git-history", null],
-      {
-        pageParams: [undefined],
-        pages: [
-          {
-            branch: "feat/inspector-history",
-            commits: [
-              {
-                authoredAt: "2026-08-18T08:30:00+08:00",
-                authorEmail: "developer@example.com",
-                authorName: "Developer",
-                sha: "a".repeat(40),
-                title: "feat(git): 渲染右栏历史",
-              },
-            ],
-            nextCursor: "20",
-            repositories: ["apps/web", "packages/server"],
-            repository: "apps/web",
-            repositoryMode: "children",
-          },
-        ],
-      },
-    );
+    queryClient.setQueryData(["projects", "codexly", "/workspace/Codexly", "git-history", null], {
+      pageParams: [undefined],
+      pages: [
+        {
+          branch: "feat/inspector-history",
+          commits: [
+            {
+              authoredAt: "2026-08-18T08:30:00+08:00",
+              authorEmail: "developer@example.com",
+              authorName: "Developer",
+              sha: "a".repeat(40),
+              title: "feat(git): 渲染右栏历史",
+            },
+          ],
+          nextCursor: "20",
+          repositories: ["apps/web", "packages/server"],
+          repository: "apps/web",
+          repositoryMode: "children",
+        },
+      ],
+    });
 
     const markup = renderToStaticMarkup(
       <QueryClientProvider client={queryClient}>
@@ -40,8 +37,8 @@ describe("GitHistoryPanel", () => {
             getProjectGitCommitFiles: vi.fn(),
             getProjectGitHistory: vi.fn(),
           }}
-          projectId="code-agent"
-          rootPath="/workspace/CodeAgent"
+          projectId="codexly"
+          rootPath="/workspace/Codexly"
         />
       </QueryClientProvider>,
     );

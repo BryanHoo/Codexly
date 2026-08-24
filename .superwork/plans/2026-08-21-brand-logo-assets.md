@@ -15,8 +15,8 @@
 
 ## Global Constraints
 
-- 保持产品展示名称为 `CodeAgent`，不修改品牌资源内部图形与样式。
-- 使用 `/brand/codeagent-logo.svg` 展示完整品牌标识，使用 `/favicon.svg` 提供浏览器图标。
+- 保持产品展示名称为 `Codexly`，不修改品牌资源内部图形与样式。
+- 使用 `/brand/codexly-logo.svg` 展示完整品牌标识，使用 `/favicon.svg` 提供浏览器图标。
 - 保留品牌入口现有布局、交互语义与明暗主题适配。
 - 项目命令使用 pnpm，Python 命令只使用 `python3`。
 
@@ -24,8 +24,8 @@
 
 **Files:**
 
-- Create: `apps/web/public/brand/codeagent-mark.svg`
-- Create: `apps/web/public/brand/codeagent-logo.svg`
+- Create: `apps/web/public/brand/codexly-mark.svg`
+- Create: `apps/web/public/brand/codexly-logo.svg`
 - Modify: `apps/web/public/favicon.svg`
 - Modify: `apps/web/index.html`
 - Test: `tests/e2e/app-shell-inspector-layout.spec.ts`
@@ -33,7 +33,7 @@
 **Interfaces:**
 
 - Consumes: `/Users/bryanhu/Downloads/public` 中的品牌 SVG 源文件。
-- Produces: `/brand/codeagent-mark.svg`、`/brand/codeagent-logo.svg` 和 `/favicon.svg` 公共静态资源契约。
+- Produces: `/brand/codexly-mark.svg`、`/brand/codexly-logo.svg` 和 `/favicon.svg` 公共静态资源契约。
 
 **Behavior:**
 
@@ -45,7 +45,7 @@
 
 - [x] **Task Status:** completed
 
-Run: `cmp apps/web/public/brand/codeagent-mark.svg /Users/bryanhu/Downloads/public/brand/codeagent-mark.svg && cmp apps/web/public/brand/codeagent-logo.svg /Users/bryanhu/Downloads/public/brand/codeagent-logo.svg && cmp apps/web/public/favicon.svg /Users/bryanhu/Downloads/public/favicon.svg`
+Run: `cmp apps/web/public/brand/codexly-mark.svg /Users/bryanhu/Downloads/public/brand/codexly-mark.svg && cmp apps/web/public/brand/codexly-logo.svg /Users/bryanhu/Downloads/public/brand/codexly-logo.svg && cmp apps/web/public/favicon.svg /Users/bryanhu/Downloads/public/favicon.svg`
 
 Expected: 三个 Web 公共品牌资源与指定源文件逐字节一致。
 
@@ -63,7 +63,7 @@ Expected: 三个 Web 公共品牌资源与指定源文件逐字节一致。
 
 **Interfaces:**
 
-- Consumes: `/brand/codeagent-logo.svg` 公共静态资源及现有品牌容器布局。
+- Consumes: `/brand/codexly-logo.svg` 公共静态资源及现有品牌容器布局。
 - Produces: 侧栏、路由品牌链接和配对页统一的可访问品牌 Logo 展示。
 
 **Behavior:**

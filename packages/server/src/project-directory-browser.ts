@@ -3,7 +3,7 @@ import { lstat, readdir, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 
-import type { ProjectDirectoryListing } from "@code-agent/protocol";
+import type { ProjectDirectoryListing } from "@codexly/protocol";
 
 import { classifyFilesystemEntries } from "./filesystem-entry-type.js";
 import { listFilesystemRoots } from "./filesystem-roots.js";

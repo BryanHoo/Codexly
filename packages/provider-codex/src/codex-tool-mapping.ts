@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import type { AgentItem, AgentItemStatus, AgentReviewTarget } from "@code-agent/protocol";
+import type { AgentItem, AgentItemStatus, AgentReviewTarget } from "@codexly/protocol";
 
 import {
   MAX_COMMAND_OUTPUT_BYTES,

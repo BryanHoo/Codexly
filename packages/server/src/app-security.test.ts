@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import { normalizeAllowedHost } from "./server-delivery.js";
 import { closeCallbacks, createProvider, createServerOptions } from "./app-all.test-support.js";
 
 describe("server access security", () => {
   it("keeps local access open and protects LAN business routes", async () => {
-    const local = await createCodeAgentServer(createServerOptions(createProvider().provider));
+    const local = await createCodexlyServer(createServerOptions(createProvider().provider));
     closeCallbacks.push(() => local.close());
-    const lan = await createCodeAgentServer(
+    const lan = await createCodexlyServer(
       createServerOptions(createProvider().provider, {
         access: { pairingCode: "test-pairing-code", sessionTtlMs: 86_400_000 },
       }),
@@ -41,9 +41,9 @@ describe("server access security", () => {
   });
 
   it("rejects DNS rebinding hosts and cross-origin local browser mutations", async () => {
-    const local = await createCodeAgentServer(createServerOptions(createProvider().provider));
+    const local = await createCodexlyServer(createServerOptions(createProvider().provider));
     closeCallbacks.push(() => local.close());
-    const lan = await createCodeAgentServer(
+    const lan = await createCodexlyServer(
       createServerOptions(createProvider().provider, {
         access: { pairingCode: "test-pairing-code", sessionTtlMs: 86_400_000 },
       }),
@@ -59,7 +59,7 @@ describe("server access security", () => {
       headers: { host: "127.0.0.1:3210", origin: "http://attacker.example:3210" },
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks/task-1/unsubscribe",
+      url: "/v1/projects/codexly/tasks/task-1/unsubscribe",
     });
     const reboundPair = await lan.inject({
       headers: { host: "attacker.example:3210", origin: "http://attacker.example:3210" },
@@ -72,14 +72,14 @@ describe("server access security", () => {
     expect(crossOriginWrite.statusCode).toBe(403);
     expect(reboundPair.statusCode).toBe(403);
     await expect(
-      local.injectWS("/v1/projects/code-agent/events?afterSequence=0", {
+      local.injectWS("/v1/projects/codexly/events?afterSequence=0", {
         headers: { host: "attacker.example:3210", origin: "http://attacker.example:3210" },
       }),
     ).rejects.toThrow(/Unexpected server response: 403/u);
   });
 
   it("allows only explicitly configured reverse proxy domains", async () => {
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(createProvider().provider, {
         allowedHosts: [normalizeAllowedHost("Code.Example.com")],
       }),
@@ -126,7 +126,7 @@ describe("server access security", () => {
   });
 
   it("does not expose unknown server error details", async () => {
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(createProvider().provider, {
         readProjectDirectory: vi.fn(() =>
           Promise.reject(new Error("sensitive path /Users/example/private.txt")),
@@ -147,7 +147,7 @@ describe("server access security", () => {
   });
 
   it("pairs browsers, enforces origin, and logs out the exact session", async () => {
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(createProvider().provider, {
         access: { pairingCode: "test-pairing-code", sessionTtlMs: 86_400_000 },
       }),
@@ -176,38 +176,38 @@ describe("server access security", () => {
     expect(failed.statusCode).toBe(403);
     expect(failed.json()).toMatchObject({ code: "PAIRING_FAILED", retryable: false });
     expect(paired.json()).toEqual({ authenticated: true, mode: "lan", version: 1 });
-    expect(cookie).toMatchObject({ httpOnly: true, name: "codeagent_session", sameSite: "Strict" });
+    expect(cookie).toMatchObject({ httpOnly: true, name: "codexly_session", sameSite: "Strict" });
     expect(cookie?.secure).toBeUndefined();
     expect(cookie?.["path"]).toBe("/");
     expect(cookie?.maxAge).toBe(86_400);
 
     const authenticated = await app.inject({
-      cookies: { codeagent_session: cookie?.value ?? "" },
+      cookies: { codexly_session: cookie?.value ?? "" },
       method: "GET",
       url: "/v1/projects",
     });
     const missingOrigin = await app.inject({
-      cookies: { codeagent_session: cookie?.value ?? "" },
+      cookies: { codexly_session: cookie?.value ?? "" },
       method: "POST",
       payload: {},
       url: "/v1/access/logout",
     });
     const wrongOrigin = await app.inject({
-      cookies: { codeagent_session: cookie?.value ?? "" },
+      cookies: { codexly_session: cookie?.value ?? "" },
       headers: { host: "192.168.1.20", origin: "http://attacker.local" },
       method: "POST",
       payload: {},
       url: "/v1/access/logout",
     });
     const loggedOut = await app.inject({
-      cookies: { codeagent_session: cookie?.value ?? "" },
+      cookies: { codexly_session: cookie?.value ?? "" },
       headers: { host: "192.168.1.20", origin: "http://192.168.1.20" },
       method: "POST",
       payload: {},
       url: "/v1/access/logout",
     });
     const afterLogout = await app.inject({
-      cookies: { codeagent_session: cookie?.value ?? "" },
+      cookies: { codexly_session: cookie?.value ?? "" },
       method: "GET",
       url: "/v1/projects",
     });
@@ -216,12 +216,12 @@ describe("server access security", () => {
     expect(missingOrigin.statusCode).toBe(403);
     expect(wrongOrigin.statusCode).toBe(403);
     expect(loggedOut.json()).toEqual({ authenticated: false, mode: "lan", version: 1 });
-    expect(loggedOut.cookies[0]).toMatchObject({ name: "codeagent_session", value: "" });
+    expect(loggedOut.cookies[0]).toMatchObject({ name: "codexly_session", value: "" });
     expect(afterLogout.statusCode).toBe(401);
   });
 
   it("uses a session Cookie without an expiry when no TTL is configured", async () => {
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(createProvider().provider, {
         access: { pairingCode: "test-pairing-code" },
       }),
@@ -241,7 +241,7 @@ describe("server access security", () => {
   });
 
   it("rejects unauthenticated and cross-origin LAN WebSockets", async () => {
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(createProvider().provider, {
         access: { pairingCode: "test-pairing-code", sessionTtlMs: 86_400_000 },
       }),
@@ -249,14 +249,14 @@ describe("server access security", () => {
     closeCallbacks.push(() => app.close());
 
     await expect(
-      app.injectWS("/v1/projects/code-agent/events?afterSequence=0", {
+      app.injectWS("/v1/projects/codexly/events?afterSequence=0", {
         headers: { host: "192.168.1.20", origin: "http://192.168.1.20" },
       }),
     ).rejects.toThrow(/Unexpected server response: 401/u);
   });
 
   it("closes an authenticated LAN WebSocket at the absolute session expiry", async () => {
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(createProvider().provider, {
         access: { pairingCode: "test-pairing-code", sessionTtlMs: 50 },
       }),
@@ -268,7 +268,7 @@ describe("server access security", () => {
       url: "/v1/access/pair",
     });
     const cookie = paired.cookies[0];
-    const socket = await app.injectWS("/v1/projects/code-agent/events?afterSequence=0", {
+    const socket = await app.injectWS("/v1/projects/codexly/events?afterSequence=0", {
       headers: {
         cookie: `${cookie?.name ?? ""}=${cookie?.value ?? ""}`,
         host: "192.168.1.20",

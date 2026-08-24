@@ -72,7 +72,7 @@ Expected: Protocol 拒绝非法分支请求，状态仅公开本地切换候选�
 **Interfaces:**
 
 - Consumes: `SwitchProjectBranchRequestSchema`、`switchProjectBranch`、`activeGitMutations`、`ProjectGitStatusSchema`。
-- Produces: `POST /v1/projects/:projectId/git/branch`、`CodeAgentClient.switchProjectBranch()`、Web Git Mutation Client 契约。
+- Produces: `POST /v1/projects/:projectId/git/branch`、`CodexlyClient.switchProjectBranch()`、Web Git Mutation Client 契约。
 
 **Behavior:**
 
@@ -104,7 +104,7 @@ Expected: Fastify inject 测试覆盖成功、校验、冲突和失败响应，C
 
 **Interfaces:**
 
-- Consumes: `ProjectGitStatus.branches`、`CodeAgentClient.switchProjectBranch()`、`["projects", projectId, "git-status"]` Query key、shadcn `DropdownMenu`。
+- Consumes: `ProjectGitStatus.branches`、`CodexlyClient.switchProjectBranch()`、`["projects", projectId, "git-status"]` Query key、shadcn `DropdownMenu`。
 - Produces: 底栏分支触发器、可切换分支菜单、切换 pending/error 状态与最新 Git 状态缓存。
 
 **Behavior:**

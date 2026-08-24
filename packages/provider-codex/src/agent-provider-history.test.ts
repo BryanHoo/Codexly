@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AgentProviderEvent } from "@code-agent/core";
-import type { Project } from "@code-agent/protocol";
+import type { AgentProviderEvent } from "@codexly/core";
+import type { Project } from "@codexly/protocol";
 import { createCodexRuntimeProvider, type CodexProviderLogger } from "./agent-provider.js";
 import {
   FakeRpcClient,
@@ -380,7 +380,7 @@ describe("CodexAgentProvider history", () => {
           codexVersion: "0.149.0",
           diagnosticCode: "unknown_notification",
           method: "future/notification",
-          projectId: "code-agent",
+          projectId: "codexly",
           taskId: "task-1",
         },
         "Codex notification dropped",
@@ -390,7 +390,7 @@ describe("CodexAgentProvider history", () => {
           codexVersion: "0.149.0",
           diagnosticCode: "invalid_notification",
           method: "item/agentMessage/delta",
-          projectId: "code-agent",
+          projectId: "codexly",
           taskId: "task-1",
         },
         "Codex notification dropped",
@@ -400,7 +400,7 @@ describe("CodexAgentProvider history", () => {
           codexVersion: "0.149.0",
           diagnosticCode: "event_listener_failed",
           eventType: "message.delta",
-          projectId: "code-agent",
+          projectId: "codexly",
           taskId: "task-1",
         },
         "Codex event listener failed",

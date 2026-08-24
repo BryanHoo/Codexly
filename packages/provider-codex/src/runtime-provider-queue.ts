@@ -1,4 +1,4 @@
-import type { AgentProviderQueue } from "@code-agent/core";
+import type { AgentProviderQueue } from "@codexly/core";
 
 export function createOwnedAgentProviderQueue(
   delegate: AgentProviderQueue,

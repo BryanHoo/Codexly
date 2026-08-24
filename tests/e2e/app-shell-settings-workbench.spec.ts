@@ -8,7 +8,7 @@ import {
 test.describe.configure({ mode: "serial" });
 
 test("renders the AI workbench landmarks with an enabled composer", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const main = page.getByRole("main", { name: "任务时间线" });
   const inspector = page.getByRole("complementary", { name: "运行环境" });
@@ -47,10 +47,10 @@ test("renders the AI workbench landmarks with an enabled composer", async ({ pag
   await expect(page.getByRole("button", { exact: true, name: "提交" })).toBeDisabled();
   await prompt.fill("继续当前任务");
   await expect(page.getByRole("button", { exact: true, name: "提交" })).toBeEnabled();
-  await expect(main.locator("header").getByText("CodeAgent", { exact: true })).toHaveCount(0);
+  await expect(main.locator("header").getByText("Codexly", { exact: true })).toHaveCount(0);
   await expect(page.getByText("本地离线", { exact: true })).toHaveCount(0);
   const projectPathButton = page.getByRole("button", { name: "在系统文件夹中打开" });
-  await expect(projectPathButton).toHaveText("/workspace/CodeAgent");
+  await expect(projectPathButton).toHaveText("/workspace/Codexly");
   const projectPathSizing = await projectPathButton.evaluate((element) => ({
     buttonWidth: element.getBoundingClientRect().width,
     footerWidth: element.parentElement?.getBoundingClientRect().width ?? 0,
@@ -71,7 +71,7 @@ test("renders the AI workbench landmarks with an enabled composer", async ({ pag
   await expect(page.getByRole("tooltip")).toHaveText("在系统文件夹中打开");
   const openProjectRequest = page.waitForRequest(
     (request) =>
-      new URL(request.url()).pathname === "/v1/projects/code-agent/open" &&
+      new URL(request.url()).pathname === "/v1/projects/codexly/open" &&
       request.method() === "POST",
   );
   await projectPathButton.click();
@@ -89,7 +89,7 @@ test("renders the AI workbench landmarks with an enabled composer", async ({ pag
 });
 
 test("renders task-readable MCP servers and sources in inspector", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "上下文" }).click();
@@ -110,7 +110,7 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
 });
 
 test("opens message images in a preview dialog @cross-browser", async ({ context, page }) => {
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -152,7 +152,7 @@ test("opens message images in a preview dialog @cross-browser", async ({ context
     });
   });
   await page.setViewportSize({ height: 844, width: 390 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const userMessage = page.locator('article[data-role="user"]').first();
   const attachment = userMessage.locator('[data-message-attachment="image"]');
@@ -179,14 +179,14 @@ test("opens message images in a preview dialog @cross-browser", async ({ context
 });
 
 test("keeps Projects fixed and manages task actions from the compact tree", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const projectsHeading = sidebar.getByRole("heading", { name: "项目" });
   const pinnedHeading = sidebar.getByRole("heading", { name: "已固定" });
   const projectTree = page.getByTestId("project-tree-scroll");
   const projectGroup = sidebar
-    .getByRole("button", { name: "切换项目 CodeAgent" })
+    .getByRole("button", { name: "切换项目 Codexly" })
     .locator("xpath=../..");
 
   await expect(projectsHeading).toBeVisible();
@@ -261,7 +261,7 @@ test("keeps Projects fixed and manages task actions from the compact tree", asyn
   await activeTask.hover();
   await projectGroup.getByRole("button", { name: "打开 构建 macOS 工作台 的操作菜单" }).click();
   await page.getByRole("menuitem", { name: "归档" }).click();
-  await expect(page).toHaveURL(/\/p\/code-agent$/u);
+  await expect(page).toHaveURL(/\/p\/codexly$/u);
   await expect(projectGroup.getByText("构建 macOS 工作台", { exact: true })).toHaveCount(0);
 });
 
@@ -270,16 +270,16 @@ test("permanently deletes the active task only after confirmation", async ({ pag
   page.on("request", (request) => {
     if (
       request.method() === "DELETE" &&
-      new URL(request.url()).pathname === "/v1/projects/code-agent/tasks/task-1"
+      new URL(request.url()).pathname === "/v1/projects/codexly/tasks/task-1"
     ) {
       deleteRequests += 1;
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const projectGroup = sidebar
-    .getByRole("button", { name: "切换项目 CodeAgent" })
+    .getByRole("button", { name: "切换项目 Codexly" })
     .locator("xpath=../..");
   const activeTask = projectGroup.getByRole("link", { name: /构建 macOS 工作台/u });
   await activeTask.hover();
@@ -291,13 +291,13 @@ test("permanently deletes the active task only after confirmation", async ({ pag
   expect(deleteRequests).toBe(0);
   await confirmation.getByRole("button", { name: "永久删除" }).click();
 
-  await expect(page).toHaveURL(/\/p\/code-agent$/u);
+  await expect(page).toHaveURL(/\/p\/codexly$/u);
   await expect(projectGroup.getByText("构建 macOS 工作台", { exact: true })).toHaveCount(0);
   expect(deleteRequests).toBe(1);
 });
 
 test("renames the active task from the center title", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const main = page.getByRole("main", { name: "任务时间线" });
   await main.getByRole("button", { name: "重命名任务 构建 macOS 工作台" }).click();
@@ -315,7 +315,7 @@ test("renames the active task from the center title", async ({ page }) => {
 });
 
 test("restores task settings after a page refresh", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
   await Promise.all([
@@ -346,7 +346,7 @@ test("restores task settings after a page refresh", async ({ page }) => {
 });
 
 test("restores the project's complete last task configuration", async ({ page }) => {
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
   await Promise.all([

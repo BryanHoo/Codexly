@@ -1,4 +1,4 @@
-import { stripLeadingAgentSkillReferences, type AgentItem } from "@code-agent/protocol";
+import { stripLeadingAgentSkillReferences, type AgentItem } from "@codexly/protocol";
 
 export function mergeRealtimeExpandedSkill(
   previousItem: AgentItem | undefined,

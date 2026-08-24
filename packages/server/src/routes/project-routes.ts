@@ -30,7 +30,7 @@ import {
   type RenameProjectRequest,
   type ReorderProjectsRequest,
   type RemoveProjectRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
 import { HostFileBrowserError } from "../host-file-browser.js";
 import { ProjectOpenAppUnavailableError, ProjectOpenTargetInvalidError } from "../project-open.js";

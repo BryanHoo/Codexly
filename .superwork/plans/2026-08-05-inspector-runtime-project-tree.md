@@ -44,7 +44,7 @@
 
 - [x] **Task Status:** completed
 
-Run: `pnpm --filter @code-agent/web test --run apps/web/src/features/workbench/components/workbench-inspector.test.tsx`
+Run: `pnpm --filter @codexly/web test --run apps/web/src/features/workbench/components/workbench-inspector.test.tsx`
 
 Expected: Inspector 组件测试覆盖新文案、根节点结构、展开状态和根节点右键菜单后通过。
 

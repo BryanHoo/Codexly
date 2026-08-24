@@ -1,4 +1,4 @@
-import type { ProjectGitStatus } from "@code-agent/protocol";
+import type { ProjectGitStatus } from "@codexly/protocol";
 
 import type { WorkbenchInspectorTab } from "./components/workbench-inspector-tabs.js";
 

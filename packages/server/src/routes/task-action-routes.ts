@@ -18,7 +18,7 @@ import {
   type ReviewAgentTaskRequest,
   type ReloadAgentMcpServersRequest,
   type UploadAgentFeedbackRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { MutationHttpError, toMcpProviderHttpError, type ServerRouteContext } from "./context.js";
 import {
   ErrorResponseSchema,

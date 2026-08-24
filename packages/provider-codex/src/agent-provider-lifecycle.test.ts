@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AgentProviderEvent } from "@code-agent/core";
+import type { AgentProviderEvent } from "@codexly/core";
 import { createCodexRuntimeProvider } from "./agent-provider.js";
 import {
   FakeRpcClient,

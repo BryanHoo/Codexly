@@ -8,11 +8,11 @@ test("restores network approvals from the task snapshot after refresh", async ({
     availableDecisions: ["allow", "deny"],
     command: "pnpm check",
     createdAt: "2026-07-23T00:00:00.000Z",
-    cwd: "/workspace/CodeAgent",
+    cwd: "/workspace/Codexly",
     expiresAt: null,
     itemId: "command-approval-1",
     networkAccess: { host: "api.example.com", protocol: "https" },
-    projectId: "code-agent",
+    projectId: "codexly",
     reason: "需要执行检查",
     requestId: "string:snapshot-request",
     status: "pending",
@@ -21,7 +21,7 @@ test("restores network approvals from the task snapshot after refresh", async ({
     type: "command_approval",
   };
   await page.route(
-    "**/v1/projects/code-agent/tasks/task-1/pending-requests/*/resolve",
+    "**/v1/projects/codexly/tasks/task-1/pending-requests/*/resolve",
     async (route) => {
       resolutionCount += 1;
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -31,7 +31,7 @@ test("restores network approvals from the task snapshot after refresh", async ({
       });
     },
   );
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -41,7 +41,7 @@ test("restores network approvals from the task snapshot after refresh", async ({
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   const approval = page.getByRole("region", { name: "网络访问审批请求" });
   await expect(approval).toBeVisible();
   await expect(approval).toContainText("api.example.com");
@@ -62,7 +62,7 @@ test("disables user input controls while an answer is being submitted", async ({
     createdAt: "2026-07-23T00:00:00.000Z",
     expiresAt: null,
     itemId: "user-input-1",
-    projectId: "code-agent",
+    projectId: "codexly",
     questions: [
       {
         header: "执行模式",
@@ -84,7 +84,7 @@ test("disables user input controls while an answer is being submitted", async ({
     type: "user_input",
   };
   await page.route(
-    "**/v1/projects/code-agent/tasks/task-1/pending-requests/*/resolve",
+    "**/v1/projects/codexly/tasks/task-1/pending-requests/*/resolve",
     async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 1_000));
       await route.fulfill({
@@ -93,7 +93,7 @@ test("disables user input controls while an answer is being submitted", async ({
       });
     },
   );
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -103,7 +103,7 @@ test("disables user input controls while an answer is being submitted", async ({
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   const continueAnswer = page.getByRole("radio", { name: /继续/ });
   const stopAnswer = page.getByRole("radio", { name: /停止/ });
   await continueAnswer.check();
@@ -115,7 +115,7 @@ test("disables user input controls while an answer is being submitted", async ({
 
 test("streams Fake App Server notifications into the Timeline @smoke", async ({ page }) => {
   await page.unroute("**/v1/**");
-  await page.goto("/p/code-agent/t/task-realtime");
+  await page.goto("/p/codexly/t/task-realtime");
 
   await expect(page.getByText("Realtime connected", { exact: true })).toBeVisible({
     timeout: 15_000,
@@ -148,7 +148,7 @@ test("streams Fake App Server notifications into the Timeline @smoke", async ({ 
 
 test("shows MCP startup diagnostics and manually retries the current task", async ({ page }) => {
   let retries = 0;
-  await page.route("**/v1/projects/code-agent/tasks/task-1/mcp-servers", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/mcp-servers", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -179,7 +179,7 @@ test("shows MCP startup diagnostics and manually retries the current task", asyn
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/task-1/mcp-servers/retry", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/mcp-servers/retry", async (route) => {
     retries += 1;
     await route.fulfill({
       contentType: "application/json",
@@ -201,7 +201,7 @@ test("shows MCP startup diagnostics and manually retries the current task", asyn
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await page.getByRole("tab", { name: "上下文" }).click();
   const mcp = page.getByRole("region", { name: "MCP" });
   const reloadIcon = mcp.getByRole("button", { name: "重新加载 MCP" }).locator("svg");
@@ -225,7 +225,7 @@ test("shows MCP startup diagnostics and manually retries the current task", asyn
 });
 
 test("shows original Codex MCP request errors once", async ({ page }) => {
-  await page.route("**/v1/projects/code-agent/tasks/task-1/mcp-servers", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/mcp-servers", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -236,7 +236,7 @@ test("shows original Codex MCP request errors once", async ({ page }) => {
       status: 502,
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/task-1/mcp-servers/retry", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/mcp-servers/retry", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -248,7 +248,7 @@ test("shows original Codex MCP request errors once", async ({ page }) => {
     });
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await page.getByRole("tab", { name: "上下文" }).click();
   const mcp = page.getByRole("region", { name: "MCP" });
   await expect(

@@ -60,9 +60,9 @@ Expected: LAN helper 的有效期边界和自定义密码强度测试全部通�
 **Interfaces:**
 
 - Consumes: `validateLanPassword(value: string): void`
-- Consumes: `generateLanPairingCode()` 与现有 `CodeAgentAccessOptions`。
-- Produces: `code-agent start --lan [--lan-password <password>] [--session-ttl <duration>]`。
-- Produces: `CodeAgentAccessOptions = { pairingCode: string; sessionTtlMs: number }`，其中 `pairingCode` 为自定义密码或自动生成凭据。
+- Consumes: `generateLanPairingCode()` 与现有 `CodexlyAccessOptions`。
+- Produces: `codexly start --lan [--lan-password <password>] [--session-ttl <duration>]`。
+- Produces: `CodexlyAccessOptions = { pairingCode: string; sessionTtlMs: number }`，其中 `pairingCode` 为自定义密码或自动生成凭据。
 
 **Behavior:**
 

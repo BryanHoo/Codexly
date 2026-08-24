@@ -6,7 +6,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   page,
 }) => {
   let turnRequest: Record<string, unknown> | undefined;
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",
@@ -24,7 +24,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "项目" }).click();
@@ -38,21 +38,21 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await expect(fileTree.getByRole("button", { name: "在 Zed 中打开" })).toHaveCount(0);
 
   const rootRequest = page.waitForRequest((request) => {
-    if (!/^\/v1\/projects\/code-agent\/open$/u.test(new URL(request.url()).pathname)) {
+    if (!/^\/v1\/projects\/codexly\/open$/u.test(new URL(request.url()).pathname)) {
       return false;
     }
     const body = parseRequestRecord(request.postData());
     return body["appId"] === "finder" && !("path" in body);
   });
-  const rootTreeItem = fileTree.getByRole("treeitem", { name: "CodeAgent" }).first();
+  const rootTreeItem = fileTree.getByRole("treeitem", { name: "Codexly" }).first();
   await expect(rootTreeItem).toHaveAttribute("aria-expanded", "true");
-  const rootRefresh = rootTreeItem.getByRole("button", { name: "刷新项目 CodeAgent" });
+  const rootRefresh = rootTreeItem.getByRole("button", { name: "刷新项目 Codexly" });
   const rootTreeRefreshRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
-    return url.pathname === "/v1/projects/code-agent/files/tree" && !url.searchParams.has("path");
+    return url.pathname === "/v1/projects/codexly/files/tree" && !url.searchParams.has("path");
   });
   const gitRefreshRequest = page.waitForRequest(
-    (request) => new URL(request.url()).pathname === "/v1/projects/code-agent/git/status",
+    (request) => new URL(request.url()).pathname === "/v1/projects/codexly/git/status",
   );
   await expect(rootRefresh).toHaveClass(/opacity-0/u);
   await expect(rootRefresh.locator("svg")).toHaveCSS("width", "14px");
@@ -62,13 +62,13 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await rootRefresh.click();
   await Promise.all([rootTreeRefreshRequest, gitRefreshRequest]);
   await rootTreeItem.click({ button: "right" });
-  const rootMenu = page.getByRole("menu", { name: "/workspace/CodeAgent 的操作" });
+  const rootMenu = page.getByRole("menu", { name: "/workspace/Codexly 的操作" });
   await expect(rootMenu.getByRole("menuitem", { name: "复制名称" })).toBeVisible();
   await expect(rootMenu.getByRole("menuitem", { name: "复制相对路径" })).toBeVisible();
   await expect(rootMenu.getByRole("menuitem", { name: "复制绝对路径" })).toBeVisible();
   await expect(rootMenu.getByRole("menuitem", { name: "引用" })).toHaveCount(0);
   await rootMenu.getByRole("menuitem", { name: "复制名称" }).click();
-  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("CodeAgent");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("Codexly");
   await rootTreeItem.click({ button: "right" });
   await rootMenu.getByRole("menuitem", { name: "复制相对路径" }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(".");
@@ -76,7 +76,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await rootMenu.getByRole("menuitem", { name: "复制绝对路径" }).click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toBe("/workspace/CodeAgent");
+    .toBe("/workspace/Codexly");
   await rootTreeItem.click({ button: "right" });
   await rootMenu.getByRole("menuitem", { name: "打开" }).click();
   await selectOpenApp("Finder");
@@ -84,7 +84,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await expect(rootMenu).not.toBeAttached();
 
   const folderRequest = page.waitForRequest((request) => {
-    if (!/^\/v1\/projects\/code-agent\/open$/u.test(new URL(request.url()).pathname)) {
+    if (!/^\/v1\/projects\/codexly\/open$/u.test(new URL(request.url()).pathname)) {
       return false;
     }
     const body = parseRequestRecord(request.postData());
@@ -108,7 +108,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await folderMenu.getByRole("menuitem", { name: "复制绝对路径" }).click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toBe("/workspace/CodeAgent/docs");
+    .toBe("/workspace/Codexly/docs");
   await docsTreeItem.click({ button: "right" });
   await folderMenu.getByRole("menuitem", { name: "打开" }).click();
   await expect(page.getByRole("menuitem", { name: "系统默认应用" })).toHaveCount(0);
@@ -117,7 +117,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await expect(folderMenu).not.toBeAttached();
 
   const folderActionRequest = page.waitForRequest((request) => {
-    if (!/^\/v1\/projects\/code-agent\/open$/u.test(new URL(request.url()).pathname)) {
+    if (!/^\/v1\/projects\/codexly\/open$/u.test(new URL(request.url()).pathname)) {
       return false;
     }
     const body = parseRequestRecord(request.postData());
@@ -140,7 +140,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await expect(folderActionMenu).not.toBeAttached();
 
   const fileRequest = page.waitForRequest((request) => {
-    if (!/^\/v1\/projects\/code-agent\/open$/u.test(new URL(request.url()).pathname)) {
+    if (!/^\/v1\/projects\/codexly\/open$/u.test(new URL(request.url()).pathname)) {
       return false;
     }
     const body = parseRequestRecord(request.postData());
@@ -157,7 +157,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await expect(fileMenu).not.toBeAttached();
 
   const fileActionRequest = page.waitForRequest((request) => {
-    if (!/^\/v1\/projects\/code-agent\/open$/u.test(new URL(request.url()).pathname)) {
+    if (!/^\/v1\/projects\/codexly\/open$/u.test(new URL(request.url()).pathname)) {
       return false;
     }
     const body = parseRequestRecord(request.postData());
@@ -180,14 +180,14 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await packageTreeItem.click({ button: "right" });
   await fileMenu.getByRole("menuitem", { name: "引用" }).click();
   await expect(
-    prompt.getByRole("button", { name: "@/workspace/CodeAgent/package.json" }),
+    prompt.getByRole("button", { name: "@/workspace/Codexly/package.json" }),
   ).toBeVisible();
   await page.getByRole("button", { exact: true, name: "提交" }).click();
   await expect.poll(() => turnRequest).toBeDefined();
   expect(turnRequest?.["input"]).toEqual({
     attachments: [],
     skills: [],
-    text: "@/workspace/CodeAgent/package.json",
+    text: "@/workspace/Codexly/package.json",
     type: "prompt",
   });
 });

@@ -50,7 +50,7 @@ describe("runCli updates", () => {
     expect(harness.dependencies.installAppUpdate).toHaveBeenCalledWith("1.3.0");
     expect(harness.dependencies.createStateRepository).not.toHaveBeenCalled();
     expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
-    expect(harness.stdout.join("")).toContain("CodeAgent 已更新到 1.3.0");
+    expect(harness.stdout.join("")).toContain("Codexly 已更新到 1.3.0");
   });
 
   it("skips the startup update check in the restarted process", async () => {
@@ -80,7 +80,7 @@ describe("runCli updates", () => {
     await vi.waitFor(() => {
       expect(harness.serverListen).toHaveBeenCalledOnce();
     });
-    expect(harness.stderr.join("")).toContain("无法检查 CodeAgent 更新");
+    expect(harness.stderr.join("")).toContain("无法检查 Codexly 更新");
     expect(harness.dependencies.confirmAppUpdate).not.toHaveBeenCalled();
 
     controller.abort();

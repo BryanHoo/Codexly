@@ -82,10 +82,10 @@ describe("runCli shutdown and help", () => {
     await expect(runCli(["doctor", "--codex-bin"], invalidHarness.options)).resolves.toBe(1);
 
     const help = helpHarness.stdout.join("");
-    expect(help).toContain("Usage: code-agent [command] [options]");
-    expect(help).toContain("start    Start the CodeAgent server and open the Web interface.");
-    expect(help).toContain("doctor   Check whether the local CodeAgent runtime is ready.");
-    expect(help).toContain("version  Print the installed CodeAgent version.");
+    expect(help).toContain("Usage: codexly [command] [options]");
+    expect(help).toContain("start    Start the Codexly server and open the Web interface.");
+    expect(help).toContain("doctor   Check whether the local Codexly runtime is ready.");
+    expect(help).toContain("version  Print the installed Codexly version.");
     expect(help).toContain("--port <port>");
     expect(help).toContain("--lan");
     expect(help).toContain("--lan-password <password>");
@@ -97,9 +97,7 @@ describe("runCli shutdown and help", () => {
     expect(help).toContain("Defaults to 3210.");
     expect(help).toContain("Automatically increases the port when it is occupied.");
     expect(help).toContain("Requires --lan.");
-    expect(help).toContain(
-      "Running code-agent without a command is equivalent to code-agent start.",
-    );
+    expect(help).toContain("Running codexly without a command is equivalent to codexly start.");
     expect(unknownHarness.stderr.join("")).toContain("未知命令: unknown");
     expect(invalidHarness.stderr.join("")).toContain("选项缺少值: --codex-bin");
   });

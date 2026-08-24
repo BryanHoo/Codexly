@@ -20,7 +20,7 @@ import { task, model, turn } from "./workbench-composer.test-support.js";
 
 describe("WorkbenchComposer options", () => {
   it("uses concise placeholders for new and existing tasks", () => {
-    expect(resolveComposerPlaceholder(undefined)).toBe("告诉 CodeAgent 你想完成什么");
+    expect(resolveComposerPlaceholder(undefined)).toBe("告诉 Codexly 你想完成什么");
     expect(resolveComposerPlaceholder("task-1")).toBe("输入后续要求");
   });
 
@@ -60,7 +60,7 @@ describe("WorkbenchComposer options", () => {
     await changeAppLanguage("en");
     try {
       expect(resolveComposerPlaceholder(undefined)).toBe(
-        "Tell CodeAgent what you want to accomplish",
+        "Tell Codexly what you want to accomplish",
       );
       expect(resolveComposerPlaceholder("task-1")).toBe("Enter follow-up instructions");
     } finally {
@@ -91,7 +91,7 @@ describe("WorkbenchComposer options", () => {
           kind: attachment.kind,
           mediaType: attachment.mediaType,
           name: attachment.name,
-          previewUrl: "/v1/projects/code-agent/files/image?path=screen.png",
+          previewUrl: "/v1/projects/codexly/files/image?path=screen.png",
           size: attachment.size,
           source: "host",
         },

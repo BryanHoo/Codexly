@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import {
   projectRootPath,
   encodedProjectRootPath,
@@ -62,7 +62,7 @@ describe("server Git mutations", () => {
         ],
       }),
     );
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, {
         readProjectGitStatus,
         settingsRepository: settings.repository,
@@ -78,7 +78,7 @@ describe("server Git mutations", () => {
         paths: ["src/app.ts"],
         repository: "frontend",
       },
-      url: `/v1/projects/code-agent/git/commit-message?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commit-message?rootPath=${encodedProjectRootPath}`,
     });
     await vi.waitFor(() => {
       expect(providerHarness.startTurn).toHaveBeenCalledOnce();
@@ -164,7 +164,7 @@ describe("server Git mutations", () => {
         unstaged: [{ diff: "+new", kind: "update" as const, path: "src/app.ts" }],
       }),
     );
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, { readProjectGitStatus }),
     );
     closeCallbacks.push(() => app.close());
@@ -173,7 +173,7 @@ describe("server Git mutations", () => {
       headers: { "idempotency-key": "stale-message" },
       method: "POST",
       payload: { expectedSnapshot: "e".repeat(64), paths: ["src/app.ts"] },
-      url: `/v1/projects/code-agent/git/commit-message?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commit-message?rootPath=${encodedProjectRootPath}`,
     });
 
     expect(response.statusCode).toBe(409);
@@ -212,7 +212,7 @@ describe("server Git mutations", () => {
         unstaged: oversizedChanges,
       }),
     );
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, { readProjectGitStatus }),
     );
     closeCallbacks.push(() => app.close());
@@ -221,7 +221,7 @@ describe("server Git mutations", () => {
       headers: { "idempotency-key": "failed-message" },
       method: "POST",
       payload: { expectedSnapshot: snapshot, paths: oversizedChanges.map((change) => change.path) },
-      url: `/v1/projects/code-agent/git/commit-message?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commit-message?rootPath=${encodedProjectRootPath}`,
     });
     await vi.waitFor(() => {
       expect(providerHarness.startTurn).toHaveBeenCalledOnce();
@@ -267,9 +267,7 @@ describe("server Git mutations", () => {
         pushStatus: "failed" as const,
       }),
     );
-    const app = await createCodeAgentServer(
-      createServerOptions(provider, { commitProjectChanges }),
-    );
+    const app = await createCodexlyServer(createServerOptions(provider, { commitProjectChanges }));
     closeCallbacks.push(() => app.close());
     const request = {
       action: "commit_and_push",
@@ -282,13 +280,13 @@ describe("server Git mutations", () => {
       headers: { "idempotency-key": "commit-selected" },
       method: "POST",
       payload: request,
-      url: `/v1/projects/code-agent/git/commits?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commits?rootPath=${encodedProjectRootPath}`,
     });
     const repeated = await app.inject({
       headers: { "idempotency-key": "commit-selected" },
       method: "POST",
       payload: request,
-      url: `/v1/projects/code-agent/git/commits?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commits?rootPath=${encodedProjectRootPath}`,
     });
 
     expect(first.statusCode).toBe(201);
@@ -319,9 +317,7 @@ describe("server Git mutations", () => {
           resolveCommit = resolve;
         }),
     );
-    const app = await createCodeAgentServer(
-      createServerOptions(provider, { commitProjectChanges }),
-    );
+    const app = await createCodexlyServer(createServerOptions(provider, { commitProjectChanges }));
     closeCallbacks.push(() => app.close());
     const payload = {
       action: "commit",
@@ -334,7 +330,7 @@ describe("server Git mutations", () => {
       headers: { "idempotency-key": "first-commit" },
       method: "POST",
       payload,
-      url: `/v1/projects/code-agent/git/commits?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commits?rootPath=${encodedProjectRootPath}`,
     });
     await vi.waitFor(() => {
       expect(commitProjectChanges).toHaveBeenCalledOnce();
@@ -343,7 +339,7 @@ describe("server Git mutations", () => {
       headers: { "idempotency-key": "concurrent-commit" },
       method: "POST",
       payload,
-      url: `/v1/projects/code-agent/git/commits?rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/git/commits?rootPath=${encodedProjectRootPath}`,
     });
     resolveCommit({
       branch: "feat/commit",

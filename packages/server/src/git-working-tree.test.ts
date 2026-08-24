@@ -37,9 +37,7 @@ describe("readGitWorkingTreeStatus", () => {
   });
 
   it("prioritizes the remote default branch in the selectable base branches", async () => {
-    const projectRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-status-test-")),
-    );
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
     try {
       await mkdir(join(projectRoot, ".git"));
       let refReads = 0;
@@ -83,9 +81,7 @@ describe("readGitWorkingTreeStatus", () => {
   });
 
   it("returns tracked metadata without reading diffs unless details are requested", async () => {
-    const projectRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-status-test-")),
-    );
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
     try {
       await mkdir(join(projectRoot, ".git"));
       await writeFile(join(projectRoot, "tracked.txt"), "changed\n");
@@ -114,9 +110,7 @@ describe("readGitWorkingTreeStatus", () => {
   });
 
   it("separates staged, unstaged, untracked, and partially staged changes", async () => {
-    const projectRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-status-test-")),
-    );
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
     try {
       await mkdir(join(projectRoot, ".git"));
       await writeFile(join(projectRoot, "untracked.txt"), "new file\n");
@@ -158,9 +152,7 @@ describe("readGitWorkingTreeStatus", () => {
   });
 
   it("reads all tracked changes with one staged and one unstaged diff command", async () => {
-    const projectRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-status-test-")),
-    );
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
     try {
       await mkdir(join(projectRoot, ".git"));
       const diffCommands: string[][] = [];
@@ -210,9 +202,7 @@ describe("readGitWorkingTreeStatus", () => {
   });
 
   it("reads and combines immediate child repositories when the project root is not Git", async () => {
-    const projectRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-status-test-")),
-    );
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
     const frontendRoot = join(projectRoot, "frontend");
     const backendRoot = join(projectRoot, "backend");
     const nestedRepositoryRoot = join(projectRoot, "workspace", "nested");
@@ -258,9 +248,7 @@ describe("readGitWorkingTreeStatus", () => {
   });
 
   it("returns an empty non-Git status when the project has no repositories", async () => {
-    const projectRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-status-test-")),
-    );
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
     try {
       await mkdir(join(projectRoot, "notes"));
 
@@ -283,9 +271,7 @@ describe("readGitWorkingTreeStatus", () => {
   });
 
   it("reads one selected immediate child repository with repository-relative paths", async () => {
-    const projectRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-status-test-")),
-    );
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
     const frontendRoot = join(projectRoot, "frontend");
     try {
       await mkdir(join(frontendRoot, ".git"), { recursive: true });
@@ -332,9 +318,7 @@ describe("readGitWorkingTreeStatus", () => {
   });
 
   it("changes the snapshot when selected file content changes", async () => {
-    const projectRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-status-test-")),
-    );
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
     try {
       await mkdir(join(projectRoot, ".git"));
       await writeFile(join(projectRoot, "tracked.txt"), "first\n");

@@ -15,7 +15,7 @@
 
 ## Global Constraints
 
-- 保持 Web 只依赖 `@code-agent/client` 与 `@code-agent/protocol`。
+- 保持 Web 只依赖 `@codexly/client` 与 `@codexly/protocol`。
 - 只对 `turn.completed` 终态、不可重试 `provider.error` 和待处理 `pending_request.created` 发送通知。
 - 避免不可重试错误与随后失败 Turn 终态产生重复通知。
 - 浏览器不支持通知、权限拒绝或通知构造失败时静默降级，不影响实时事件链路。

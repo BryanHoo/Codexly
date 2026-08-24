@@ -30,7 +30,7 @@ import {
   type PendingRequest,
   type ResolvePendingRequestRequest,
   type StartOfficialProviderLoginResponse,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { v4 as createUuid } from "uuid";
@@ -43,14 +43,14 @@ import {
 
 const APP_UPDATE_REQUEST_TIMEOUT_MS = 150_000;
 
-export interface CodeAgentClientOptions {
+export interface CodexlyClientOptions {
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
-  requestTimeouts?: Partial<CodeAgentRequestTimeouts>;
+  requestTimeouts?: Partial<CodexlyRequestTimeouts>;
   webSocketFactory?: WebSocketFactory;
 }
 
-export type CodeAgentRequestTimeouts = Readonly<{
+export type CodexlyRequestTimeouts = Readonly<{
   mutationMs: number;
   queryMs: number;
   readMs: number;
@@ -88,32 +88,32 @@ export type PendingRequestResolution<T extends PendingRequest> = Extract<
   { type: T["type"] }
 >["resolution"];
 
-export class CodeAgentHttpError extends Error {
+export class CodexlyHttpError extends Error {
   public readonly status: number;
 
   public constructor(status: number, statusText: string, message?: string) {
-    super(message ?? `CodeAgent request failed with ${String(status)} ${statusText}`.trim());
-    this.name = "CodeAgentHttpError";
+    super(message ?? `Codexly request failed with ${String(status)} ${statusText}`.trim());
+    this.name = "CodexlyHttpError";
     this.status = status;
   }
 }
 
-export class CodeAgentMutationError extends CodeAgentHttpError {
+export class CodexlyMutationError extends CodexlyHttpError {
   public readonly code: AgentMutationError["code"];
   public readonly retryable: boolean;
 
   public constructor(status: number, statusText: string, error: AgentMutationError) {
     super(status, statusText, error.message);
-    this.name = "CodeAgentMutationError";
+    this.name = "CodexlyMutationError";
     this.code = error.code;
     this.retryable = error.retryable;
   }
 }
 
-export class CodeAgentResponseError extends Error {
+export class CodexlyResponseError extends Error {
   public constructor(message: string, options?: ErrorOptions) {
     super(message, options);
-    this.name = "CodeAgentResponseError";
+    this.name = "CodexlyResponseError";
   }
 }
 
@@ -169,14 +169,14 @@ export function buildProjectAttachmentUrl(
   return `${baseUrl.replace(/\/$/u, "")}${projectPath(projectId)}/attachments/${encodeURIComponent(attachmentId)}`;
 }
 
-export class CodeAgentTransport {
+export class CodexlyTransport {
   protected readonly baseUrl: string;
   protected readonly fetchImplementation: typeof globalThis.fetch;
-  protected readonly requestTimeouts: CodeAgentRequestTimeouts;
+  protected readonly requestTimeouts: CodexlyRequestTimeouts;
   protected readonly webSocketFactory: WebSocketFactory;
   protected readonly unauthorizedListeners = new Set<UnauthorizedListener>();
 
-  public constructor(options: CodeAgentClientOptions = {}) {
+  public constructor(options: CodexlyClientOptions = {}) {
     this.baseUrl = options.baseUrl?.replace(/\/$/u, "") ?? "";
     this.fetchImplementation = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.requestTimeouts = {
@@ -405,17 +405,17 @@ export class CodeAgentTransport {
         try {
           errorBody = await response.json();
         } catch (error) {
-          throw new CodeAgentResponseError("CodeAgent error response is not valid JSON", {
+          throw new CodexlyResponseError("Codexly error response is not valid JSON", {
             cause: error,
           });
         }
         // Mutation 错误也必须通过 Protocol Schema 后才能进入页面状态。
         if (!Value.Check(errorSchema, errorBody)) {
-          throw new CodeAgentResponseError(
-            "CodeAgent error response does not match the protocol schema",
+          throw new CodexlyResponseError(
+            "Codexly error response does not match the protocol schema",
           );
         }
-        throw new CodeAgentMutationError(
+        throw new CodexlyMutationError(
           response.status,
           response.statusText,
           errorBody as AgentMutationError,
@@ -430,24 +430,24 @@ export class CodeAgentTransport {
           typeof errorBody.message === "string" &&
           errorBody.message.length > 0
         ) {
-          throw new CodeAgentHttpError(response.status, response.statusText, errorBody.message);
+          throw new CodexlyHttpError(response.status, response.statusText, errorBody.message);
         }
       } catch (error) {
-        if (error instanceof CodeAgentHttpError) throw error;
+        if (error instanceof CodexlyHttpError) throw error;
         // 无结构错误响应继续使用 HTTP 状态 fallback。
       }
-      throw new CodeAgentHttpError(response.status, response.statusText);
+      throw new CodexlyHttpError(response.status, response.statusText);
     }
 
     let body: unknown;
     try {
       body = await response.json();
     } catch (error) {
-      throw new CodeAgentResponseError("CodeAgent response is not valid JSON", { cause: error });
+      throw new CodexlyResponseError("Codexly response is not valid JSON", { cause: error });
     }
     // 只有通过 Protocol Schema 的 unknown 响应才能进入 React Query 与页面状态。
     if (!Value.Check(schema, body)) {
-      throw new CodeAgentResponseError("CodeAgent response does not match the protocol schema");
+      throw new CodexlyResponseError("Codexly response does not match the protocol schema");
     }
     return body;
   }

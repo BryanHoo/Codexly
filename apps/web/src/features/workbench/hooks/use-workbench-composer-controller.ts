@@ -1,4 +1,4 @@
-import type { AgentAttachment, AgentTask } from "@code-agent/protocol";
+import type { AgentAttachment, AgentTask } from "@codexly/protocol";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";

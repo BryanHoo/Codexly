@@ -102,7 +102,7 @@ Expected: lazy 契约与现有 Markdown、Timeline、源码预览行为全部通
 
 - [x] **Task Status:** completed
 
-Run: `pnpm exec vitest run apps/web/vite.config.test.ts apps/web/src/shared/ai-elements/code-highlighter.test.ts apps/web/src/shared/ai-elements/shiki-bundle.test.ts && pnpm --filter @code-agent/web build`
+Run: `pnpm exec vitest run apps/web/vite.config.test.ts apps/web/src/shared/ai-elements/code-highlighter.test.ts apps/web/src/shared/ai-elements/shiki-bundle.test.ts && pnpm --filter @codexly/web build`
 
 Expected: 配置和高亮测试通过，构建无 `Some chunks are larger than 500 kB` 警告。
 

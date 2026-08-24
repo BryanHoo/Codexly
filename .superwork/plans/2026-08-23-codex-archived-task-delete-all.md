@@ -9,7 +9,7 @@
 - `.superwork/spec/frontend/state-management.md` — 约束 Project Query Key、Mutation 通知和归档 Cursor 缓存校准。
 - `.superwork/spec/frontend/quality-guidelines.md` — 约束 Vitest 与 Playwright 用户流程验证。
 
-**Architecture:** 复用现有 `CodeAgentClient.listTasks/deleteTask`，在 Web 功能模块先遍历当前 Project 的全部已归档 Cursor 页并去重 Task ID，再以固定小批次执行永久删除；Dialog 提供带二次确认的“全部删除”动作，完成或部分失败后统一回到第一页并刷新归档缓存。
+**Architecture:** 复用现有 `CodexlyClient.listTasks/deleteTask`，在 Web 功能模块先遍历当前 Project 的全部已归档 Cursor 页并去重 Task ID，再以固定小批次执行永久删除；Dialog 提供带二次确认的“全部删除”动作，完成或部分失败后统一回到第一页并刷新归档缓存。
 
 **Tech Stack:** TypeScript、React、TanStack Query、Tailwind CSS、i18n、Vitest、Playwright、pnpm。
 
@@ -37,7 +37,7 @@
 
 **Interfaces:**
 
-- Consumes: `CodeAgentArchivedTaskClient.listTasks/deleteTask` 与现有归档 Query Key。
+- Consumes: `CodexlyArchivedTaskClient.listTasks/deleteTask` 与现有归档 Query Key。
 - Produces: `deleteAllArchivedTasks(client, projectId)`、Dialog “全部删除”入口和批量删除确认流程。
 
 **Behavior:**

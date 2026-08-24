@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 
 async function createTemporaryProject(): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), "code-agent-git-history-"));
+  const directory = await mkdtemp(join(tmpdir(), "codexly-git-history-"));
   temporaryDirectories.push(directory);
   return directory;
 }

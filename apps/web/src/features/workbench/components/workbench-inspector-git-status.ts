@@ -1,4 +1,4 @@
-import type { ProjectGitStatus } from "@code-agent/protocol";
+import type { ProjectGitStatus } from "@codexly/protocol";
 
 import { countFileChangeLines, type AgentFileChange } from "../../diff/file-change.js";
 

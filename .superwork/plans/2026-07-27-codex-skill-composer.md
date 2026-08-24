@@ -2,7 +2,7 @@
 
 **Goal:** Composer 输入 `/` 时展示当前 Project 由 Codex App Server 返回的可用 Skills；选择 Skill 后在输入框内使用独立主题色展示，并在提交 Turn 时转换为 Codex 原生 `SkillUserInput { type, name, path }`。
 
-**Affected Packages:** `@code-agent/protocol`, `@code-agent/core`, `@code-agent/provider-codex`, `@code-agent/server`, `@code-agent/client`, `@code-agent/web`
+**Affected Packages:** `@codexly/protocol`, `@codexly/core`, `@codexly/provider-codex`, `@codexly/server`, `@codexly/client`, `@codexly/web`
 
 **Protocol Changes:** 新增统一 Skill 目录与引用 Schema；`AgentPromptInput` 固定携带 `skills`；运行能力新增 `skills.list/use`。
 

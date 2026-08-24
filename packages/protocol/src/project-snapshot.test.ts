@@ -27,7 +27,7 @@ describe("project task snapshot protocol", () => {
       },
       pinned: false,
       pendingRequests: [],
-      projectId: "code-agent",
+      projectId: "codexly",
       settings: {
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
@@ -52,7 +52,7 @@ describe("project task snapshot protocol", () => {
             },
             {
               command: "pnpm check",
-              cwd: "/workspace/CodeAgent",
+              cwd: "/workspace/Codexly",
               id: "item-3",
               output: "Done",
               outputTruncated: false,
@@ -64,7 +64,7 @@ describe("project task snapshot protocol", () => {
                 {
                   diff: "+export {}",
                   kind: "update",
-                  path: "/workspace/CodeAgent/src/index.ts",
+                  path: "/workspace/Codexly/src/index.ts",
                 },
               ],
               id: "item-4",

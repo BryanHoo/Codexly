@@ -2,7 +2,7 @@ import { expect, parseRequestRecord, test } from "./fixtures/app-shell.js";
 
 test("submits and renders the live multiline editor text", async ({ page }) => {
   let turnRequest: Record<string, unknown> | undefined;
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",
@@ -20,7 +20,7 @@ test("submits and renders the live multiline editor text", async ({ page }) => {
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("第一行");

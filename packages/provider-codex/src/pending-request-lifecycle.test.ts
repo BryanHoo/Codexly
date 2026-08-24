@@ -1,4 +1,4 @@
-import type { AgentProviderEvent } from "@code-agent/core";
+import type { AgentProviderEvent } from "@codexly/core";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PendingCodexRequest } from "./codex-protocol-mapping.js";

@@ -9,7 +9,7 @@ import { AttachmentNotFoundError, AttachmentStore } from "./attachment-store.js"
 
 const pixelDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-const pastedTextDataUrl = "data:text/plain;base64,5L2g5aW9IENvZGVBZ2VudA==";
+const pastedTextDataUrl = "data:text/plain;base64,5L2g5aW9IENvZGV4bHk=";
 const pdfDataUrl = "data:application/pdf;base64,JVBERi0xLjQ=";
 
 function uploadInput(dataUrl: string, kind: "file" | "image" | "text", name: string) {
@@ -27,7 +27,7 @@ describe("AttachmentStore", () => {
     const store = new AttachmentStore({ createId: () => "attachment-1" });
 
     const { attachment } = await store.add(
-      "code-agent",
+      "codexly",
       uploadInput(pixelDataUrl, "image", "screen.png"),
     );
 
@@ -38,11 +38,11 @@ describe("AttachmentStore", () => {
       name: "screen.png",
       size: 68,
     });
-    await expect(store.read("code-agent", attachment.id)).resolves.toEqual({
+    await expect(store.read("codexly", attachment.id)).resolves.toEqual({
       attachment,
       content: Buffer.from(pixelDataUrl.split(",")[1] ?? "", "base64"),
     });
-    await expect(store.resolve("code-agent", [attachment.id])).resolves.toEqual([
+    await expect(store.resolve("codexly", [attachment.id])).resolves.toEqual([
       { kind: "image", mediaType: "image/png", size: 68, url: pixelDataUrl },
     ]);
     await expect(store.read("other", attachment.id)).rejects.toThrow(AttachmentNotFoundError);
@@ -53,7 +53,7 @@ describe("AttachmentStore", () => {
     const store = new AttachmentStore({ createId: () => "attachment-text" });
 
     const { attachment } = await store.add(
-      "code-agent",
+      "codexly",
       uploadInput(pastedTextDataUrl, "text", "Pasted text.txt"),
     );
 
@@ -62,30 +62,30 @@ describe("AttachmentStore", () => {
       kind: "text",
       mediaType: "text/plain",
       name: "Pasted text.txt",
-      size: 16,
+      size: 14,
     });
-    await expect(store.resolve("code-agent", [attachment.id])).resolves.toEqual([
+    await expect(store.resolve("codexly", [attachment.id])).resolves.toEqual([
       {
         mediaType: "text/plain",
         kind: "text",
         name: "Pasted text.txt",
-        size: 16,
-        text: "你好 CodeAgent",
+        size: 14,
+        text: "你好 Codexly",
       },
     ]);
   });
 
   it("materializes supported files for Codex mention inputs", async () => {
     const store = new AttachmentStore({
-      attachmentDirectory: join(tmpdir(), `code-agent-attachment-test-${crypto.randomUUID()}`),
+      attachmentDirectory: join(tmpdir(), `codexly-attachment-test-${crypto.randomUUID()}`),
       createId: () => "attachment-file",
     });
 
     const { attachment } = await store.add(
-      "code-agent",
+      "codexly",
       uploadInput(pdfDataUrl, "file", "specification.pdf"),
     );
-    const [resolved] = await store.resolve("code-agent", [attachment.id]);
+    const [resolved] = await store.resolve("codexly", [attachment.id]);
 
     expect(attachment).toMatchObject({
       kind: "file",
@@ -104,13 +104,13 @@ describe("AttachmentStore", () => {
     expect(existsSync(resolved.path)).toBe(true);
     expect(readFileSync(resolved.path, "utf8")).toBe("%PDF-1.4");
 
-    await store.consume("code-agent", [attachment.id], "turn-file");
-    await expect(store.resolve("code-agent", [attachment.id])).rejects.toThrow(
+    await store.consume("codexly", [attachment.id], "turn-file");
+    await expect(store.resolve("codexly", [attachment.id])).rejects.toThrow(
       AttachmentNotFoundError,
     );
     await store.releaseTurn("other-project", "turn-file");
     expect(existsSync(resolved.path)).toBe(true);
-    await store.releaseTurn("code-agent", "turn-file");
+    await store.releaseTurn("codexly", "turn-file");
     expect(existsSync(resolved.path)).toBe(false);
 
     await store.dispose();
@@ -126,57 +126,45 @@ describe("AttachmentStore", () => {
       ttlMs: 100,
     });
     const { attachment: expired } = await store.add(
-      "code-agent",
+      "codexly",
       uploadInput(pixelDataUrl, "image", "expired.png"),
     );
     now = 1_101;
 
-    await expect(store.resolve("code-agent", [expired.id])).rejects.toThrow(
-      AttachmentNotFoundError,
-    );
+    await expect(store.resolve("codexly", [expired.id])).rejects.toThrow(AttachmentNotFoundError);
 
     const { attachment: consumed } = await store.add(
-      "code-agent",
+      "codexly",
       uploadInput(pixelDataUrl, "image", "consumed.png"),
     );
-    await expect(store.resolve("code-agent", [consumed.id])).resolves.toHaveLength(1);
-    await store.consume("code-agent", [consumed.id]);
-    await expect(store.resolve("code-agent", [consumed.id])).rejects.toThrow(
-      AttachmentNotFoundError,
-    );
+    await expect(store.resolve("codexly", [consumed.id])).resolves.toHaveLength(1);
+    await store.consume("codexly", [consumed.id]);
+    await expect(store.resolve("codexly", [consumed.id])).rejects.toThrow(AttachmentNotFoundError);
 
     const { attachment: cleared } = await store.add(
-      "code-agent",
+      "codexly",
       uploadInput(pixelDataUrl, "image", "cleared.png"),
     );
     await store.clear();
-    await expect(store.resolve("code-agent", [cleared.id])).rejects.toThrow(
-      AttachmentNotFoundError,
-    );
+    await expect(store.resolve("codexly", [cleared.id])).rejects.toThrow(AttachmentNotFoundError);
   });
 
   it("retains queued attachments until delete or transfers them to a started turn", async () => {
     let nextId = 1;
     const store = new AttachmentStore({ createId: () => `attachment-${String(nextId++)}` });
-    const first = await store.add(
-      "code-agent",
-      uploadInput(pastedTextDataUrl, "text", "queued.txt"),
-    );
-    await store.retainQueue("code-agent", [first.attachment.id], "queue-1");
-    await expect(store.resolve("code-agent", [first.attachment.id])).resolves.toHaveLength(1);
-    await store.startQueue("code-agent", "queue-1", "turn-queued");
-    await expect(store.resolve("code-agent", [first.attachment.id])).rejects.toThrow(
+    const first = await store.add("codexly", uploadInput(pastedTextDataUrl, "text", "queued.txt"));
+    await store.retainQueue("codexly", [first.attachment.id], "queue-1");
+    await expect(store.resolve("codexly", [first.attachment.id])).resolves.toHaveLength(1);
+    await store.startQueue("codexly", "queue-1", "turn-queued");
+    await expect(store.resolve("codexly", [first.attachment.id])).rejects.toThrow(
       AttachmentNotFoundError,
     );
-    await store.releaseTurn("code-agent", "turn-queued");
+    await store.releaseTurn("codexly", "turn-queued");
 
-    const second = await store.add(
-      "code-agent",
-      uploadInput(pastedTextDataUrl, "text", "delete.txt"),
-    );
-    await store.retainQueue("code-agent", [second.attachment.id], "queue-2");
-    await store.releaseQueue("code-agent", "queue-2");
-    await expect(store.resolve("code-agent", [second.attachment.id])).rejects.toThrow(
+    const second = await store.add("codexly", uploadInput(pastedTextDataUrl, "text", "delete.txt"));
+    await store.retainQueue("codexly", [second.attachment.id], "queue-2");
+    await store.releaseQueue("codexly", "queue-2");
+    await expect(store.resolve("codexly", [second.attachment.id])).rejects.toThrow(
       AttachmentNotFoundError,
     );
   });
@@ -189,21 +177,18 @@ describe("AttachmentStore", () => {
       createId: () => `attachment-${String(nextId++)}`,
       ttlMs: 10,
     });
-    const queued = await store.add(
-      "code-agent",
-      uploadInput(pastedTextDataUrl, "text", "queued.txt"),
-    );
-    await store.retainQueue("code-agent", [queued.attachment.id], "queue-1");
+    const queued = await store.add("codexly", uploadInput(pastedTextDataUrl, "text", "queued.txt"));
+    await store.retainQueue("codexly", [queued.attachment.id], "queue-1");
 
     now = 20;
-    await store.add("code-agent", uploadInput(pastedTextDataUrl, "text", "trigger.txt"));
-    await store.releaseProjectRuntime("code-agent");
-    await expect(store.resolve("code-agent", [queued.attachment.id])).resolves.toHaveLength(1);
+    await store.add("codexly", uploadInput(pastedTextDataUrl, "text", "trigger.txt"));
+    await store.releaseProjectRuntime("codexly");
+    await expect(store.resolve("codexly", [queued.attachment.id])).resolves.toHaveLength(1);
 
-    store.reconcileQueue("code-agent", []);
+    store.reconcileQueue("codexly", []);
     now = 40;
-    await store.add("code-agent", uploadInput(pastedTextDataUrl, "text", "prune.txt"));
-    await expect(store.resolve("code-agent", [queued.attachment.id])).rejects.toThrow(
+    await store.add("codexly", uploadInput(pastedTextDataUrl, "text", "prune.txt"));
+    await expect(store.resolve("codexly", [queued.attachment.id])).rejects.toThrow(
       AttachmentNotFoundError,
     );
   });
@@ -230,14 +215,14 @@ describe("AttachmentStore", () => {
       maxEntries: 1,
       maxTotalBytes: 68,
     });
-    await store.add("code-agent", uploadInput(pixelDataUrl, "image", "first.png"));
+    await store.add("codexly", uploadInput(pixelDataUrl, "image", "first.png"));
 
     await expect(
-      store.add("code-agent", uploadInput(pixelDataUrl, "image", "second.png")),
+      store.add("codexly", uploadInput(pixelDataUrl, "image", "second.png")),
     ).rejects.toThrow("Attachment store capacity exceeded");
     await expect(
       new AttachmentStore({ maxBytes: 67 }).add(
-        "code-agent",
+        "codexly",
         uploadInput(pixelDataUrl, "image", "large.png"),
       ),
     ).rejects.toThrow("Attachment exceeds the maximum size");
@@ -253,8 +238,8 @@ describe("AttachmentStore", () => {
     };
     const uploadConcurrently = async (store: AttachmentStore) =>
       Promise.allSettled([
-        store.add("code-agent", uploadInput(pixelDataUrl, "image", "first.png")),
-        store.add("code-agent", uploadInput(pixelDataUrl, "image", "second.png")),
+        store.add("codexly", uploadInput(pixelDataUrl, "image", "first.png")),
+        store.add("codexly", uploadInput(pixelDataUrl, "image", "second.png")),
       ]);
     const expectOneCapacityRejection = (
       results: readonly PromiseSettledResult<unknown>[],
@@ -271,7 +256,7 @@ describe("AttachmentStore", () => {
     expectOneCapacityRejection(entryResults);
     await entryLimitedStore.clear();
     await expect(
-      entryLimitedStore.add("code-agent", uploadInput(pixelDataUrl, "image", "after-clear.png")),
+      entryLimitedStore.add("codexly", uploadInput(pixelDataUrl, "image", "after-clear.png")),
     ).resolves.toBeDefined();
     await entryLimitedStore.dispose();
 
@@ -285,7 +270,7 @@ describe("AttachmentStore", () => {
     const store = new AttachmentStore({ maxBytes: 2 });
 
     await expect(
-      store.add("code-agent", {
+      store.add("codexly", {
         content: Readable.from([Buffer.from([0x89, 0x50, 0x4e])]),
         kind: "image",
         mediaType: "image/png",

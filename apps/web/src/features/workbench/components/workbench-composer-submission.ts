@@ -6,12 +6,12 @@ import type {
   AgentSkill,
   AgentTask,
   AgentTaskSettings,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { RefObject } from "react";
 import { v4 as createUuid } from "uuid";
 
 import type { PromptInputMessage } from "../../../shared/components/agent/prompt-input.js";
-import type { CodeAgentMutationClient } from "../../projects/project-queries.js";
+import type { CodexlyMutationClient } from "../../projects/project-queries.js";
 import type { AcceptedSteerPrompt } from "../composer-queue-state.js";
 import {
   resolveComposerSubmitAction,
@@ -41,7 +41,7 @@ type ComposerSubmissionOptions = Readonly<{
   canSteer: boolean;
   canSubmit: boolean;
   clearComposerInput: () => void;
-  client: CodeAgentMutationClient;
+  client: CodexlyMutationClient;
   controller: ReturnType<typeof useWorkbenchComposerController>;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];
   fastMode: boolean;

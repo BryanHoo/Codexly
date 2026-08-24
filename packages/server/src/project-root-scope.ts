@@ -1,5 +1,5 @@
-import type { ProjectRepository } from "@code-agent/core";
-import type { ProjectRoot } from "@code-agent/protocol";
+import type { ProjectRepository } from "@codexly/core";
+import type { ProjectRoot } from "@codexly/protocol";
 
 export type ProjectRootScopeErrorCode = "PROJECT_NOT_FOUND" | "PROJECT_ROOT_INVALID";
 

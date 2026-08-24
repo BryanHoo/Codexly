@@ -2,7 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach } from "vitest";
-import type { Project } from "@code-agent/protocol";
+import type { Project } from "@codexly/protocol";
 import { SqliteStateRepository, type SqliteMigration } from "./sqlite-state-repository.js";
 
 // 集中维护拆分测试共享的样本、mock 与生命周期钩子。
@@ -24,7 +24,7 @@ export function createProject(id: string, name: string, rootPath: string): Proje
 }
 
 export async function createWorkspace(): Promise<string> {
-  return mkdtemp(join(tmpdir(), "code-agent-sqlite-"));
+  return mkdtemp(join(tmpdir(), "codexly-sqlite-"));
 }
 
 export async function openRepository(

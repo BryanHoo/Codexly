@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildProjectImageFileUrl, CodeAgentClient } from "./http-client.js";
+import { buildProjectImageFileUrl, CodexlyClient } from "./http-client.js";
 import { projectRootPath, jsonResponse } from "./http-client.test-support.js";
 
-describe("CodeAgentClient Git routes", () => {
+describe("CodexlyClient Git routes", () => {
   it("reads and validates a project's staged and unstaged Git changes", async () => {
     const gitStatus = {
       baseBranches: ["origin/main", "main"],
@@ -21,7 +21,7 @@ describe("CodeAgentClient Git routes", () => {
     };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(gitStatus));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.getProjectGitStatus("project one", {
@@ -31,13 +31,13 @@ describe("CodeAgentClient Git routes", () => {
       }),
     ).resolves.toEqual(gitStatus);
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/v1/projects/project%20one/git/status?includeDiff=true&repository=frontend&rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/git/status?includeDiff=true&repository=frontend&rootPath=%2Fworkspace%2FCodexly",
     );
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ staged: [], unstaged: [] }));
     await expect(
       client.getProjectGitStatus("project one", { rootPath: projectRootPath }),
-    ).rejects.toThrow("CodeAgent response does not match the protocol schema");
+    ).rejects.toThrow("Codexly response does not match the protocol schema");
   });
 
   it("reads and validates a paginated project Git history tab", async () => {
@@ -59,7 +59,7 @@ describe("CodeAgentClient Git routes", () => {
     };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(historyPage));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.getProjectGitHistory("project one", {
@@ -69,13 +69,13 @@ describe("CodeAgentClient Git routes", () => {
       }),
     ).resolves.toEqual(historyPage);
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/v1/projects/project%20one/git/history?cursor=20&repository=packages%2Fserver&rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/git/history?cursor=20&repository=packages%2Fserver&rootPath=%2Fworkspace%2FCodexly",
     );
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ ...historyPage, commits: [{}] }));
     await expect(
       client.getProjectGitHistory("project one", { rootPath: projectRootPath }),
-    ).rejects.toThrow("CodeAgent response does not match the protocol schema");
+    ).rejects.toThrow("Codexly response does not match the protocol schema");
   });
 
   it("reads and validates paginated commit files and one bounded diff", async () => {
@@ -87,7 +87,7 @@ describe("CodeAgentClient Git routes", () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValueOnce(jsonResponse(filesPage));
     fetchMock.mockResolvedValueOnce(jsonResponse(diff));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
     const sha = "a".repeat(40);
 
     await expect(
@@ -108,16 +108,16 @@ describe("CodeAgentClient Git routes", () => {
     ).resolves.toEqual(diff);
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      `/v1/projects/project%20one/git/commit-files?cursor=100&repository=packages%2Fserver&rootPath=%2Fworkspace%2FCodeAgent&sha=${sha}`,
+      `/v1/projects/project%20one/git/commit-files?cursor=100&repository=packages%2Fserver&rootPath=%2Fworkspace%2FCodexly&sha=${sha}`,
     );
     expect(fetchMock.mock.calls[1]?.[0]).toBe(
-      `/v1/projects/project%20one/git/commit-diff?path=src%2Findex.ts&repository=packages%2Fserver&rootPath=%2Fworkspace%2FCodeAgent&sha=${sha}`,
+      `/v1/projects/project%20one/git/commit-diff?path=src%2Findex.ts&repository=packages%2Fserver&rootPath=%2Fworkspace%2FCodexly&sha=${sha}`,
     );
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ files: [{ path: "src/index.ts" }] }));
     await expect(
       client.getProjectGitCommitFiles("project one", { rootPath: projectRootPath, sha }),
-    ).rejects.toThrow("CodeAgent response does not match the protocol schema");
+    ).rejects.toThrow("Codexly response does not match the protocol schema");
   });
 
   it("switches a project branch with a validated idempotent mutation", async () => {
@@ -133,7 +133,7 @@ describe("CodeAgentClient Git routes", () => {
     const request = { branch: "main", expectedSnapshot: "a".repeat(64) };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(gitStatus));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.switchProjectBranch("project one", projectRootPath, request, {
@@ -142,7 +142,7 @@ describe("CodeAgentClient Git routes", () => {
     ).resolves.toEqual(gitStatus);
     const switchCall = fetchMock.mock.calls[0];
     expect(switchCall?.[0]).toBe(
-      "/v1/projects/project%20one/git/branch?rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/git/branch?rootPath=%2Fworkspace%2FCodexly",
     );
     expect(switchCall?.[1]).toMatchObject({ body: JSON.stringify(request), method: "POST" });
     expect(new Headers(switchCall?.[1]?.headers).get("idempotency-key")).toBe("switch-key");
@@ -150,7 +150,7 @@ describe("CodeAgentClient Git routes", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ branch: "main" }));
     await expect(
       client.switchProjectBranch("project one", projectRootPath, request),
-    ).rejects.toThrow("CodeAgent response does not match the protocol schema");
+    ).rejects.toThrow("Codexly response does not match the protocol schema");
   });
 
   it("creates a project branch with a validated idempotent mutation", async () => {
@@ -166,7 +166,7 @@ describe("CodeAgentClient Git routes", () => {
     const request = { branch: "feat/new-branch", expectedSnapshot: "a".repeat(64) };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(gitStatus));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.createProjectBranch("project one", projectRootPath, request, {
@@ -175,7 +175,7 @@ describe("CodeAgentClient Git routes", () => {
     ).resolves.toEqual(gitStatus);
     const createCall = fetchMock.mock.calls[0];
     expect(createCall?.[0]).toBe(
-      "/v1/projects/project%20one/git/branches?rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/git/branches?rootPath=%2Fworkspace%2FCodexly",
     );
     expect(createCall?.[1]).toMatchObject({ body: JSON.stringify(request), method: "POST" });
     expect(new Headers(createCall?.[1]?.headers).get("idempotency-key")).toBe("create-key");
@@ -183,22 +183,22 @@ describe("CodeAgentClient Git routes", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ branch: "feat/new-branch" }));
     await expect(
       client.createProjectBranch("project one", projectRootPath, request),
-    ).rejects.toThrow("CodeAgent response does not match the protocol schema");
+    ).rejects.toThrow("Codexly response does not match the protocol schema");
   });
 
   it("lists, creates, and switches project worktrees through validated routes", async () => {
     const worktree = {
       branch: "feat/worktree",
       current: false,
-      path: "/workspace/CodeAgent-feat-worktree",
+      path: "/workspace/Codexly-feat-worktree",
     };
     const page = { worktrees: [worktree] };
     const response = {
       project: {
         createdAt: "2026-08-18T00:00:00.000Z",
-        id: "code-agent-feat-worktree",
-        name: "CodeAgent-feat-worktree",
-        roots: [{ id: "root-code-agent-feat-worktree", path: worktree.path }],
+        id: "codexly-feat-worktree",
+        name: "Codexly-feat-worktree",
+        roots: [{ id: "root-codexly-feat-worktree", path: worktree.path }],
       },
       worktree,
     };
@@ -212,7 +212,7 @@ describe("CodeAgentClient Git routes", () => {
       .mockResolvedValueOnce(jsonResponse(page))
       .mockResolvedValueOnce(jsonResponse(response))
       .mockResolvedValueOnce(jsonResponse(response));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listProjectWorktrees("project one", projectRootPath)).resolves.toEqual(
       page,
@@ -229,18 +229,18 @@ describe("CodeAgentClient Git routes", () => {
     ).resolves.toEqual(response);
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/v1/projects/project%20one/git/worktrees?rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/git/worktrees?rootPath=%2Fworkspace%2FCodexly",
     );
     expect(fetchMock.mock.calls[0]?.[1]?.method).toBeUndefined();
     expect(fetchMock.mock.calls[1]?.[0]).toBe(
-      "/v1/projects/project%20one/git/worktrees?rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/git/worktrees?rootPath=%2Fworkspace%2FCodexly",
     );
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
       body: JSON.stringify(createRequest),
       method: "POST",
     });
     expect(fetchMock.mock.calls[2]?.[0]).toBe(
-      "/v1/projects/project%20one/git/worktree?rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/git/worktree?rootPath=%2Fworkspace%2FCodexly",
     );
     expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({
       body: JSON.stringify(switchRequest),
@@ -249,7 +249,7 @@ describe("CodeAgentClient Git routes", () => {
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ worktrees: [{ path: "relative/path" }] }));
     await expect(client.listProjectWorktrees("project one", projectRootPath)).rejects.toThrow(
-      "CodeAgent response does not match the protocol schema",
+      "Codexly response does not match the protocol schema",
     );
   });
 
@@ -279,7 +279,7 @@ describe("CodeAgentClient Git routes", () => {
           pushStatus: "pushed",
         }),
       );
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await client.generateCommitMessage("project one", projectRootPath, generationRequest, {
       idempotencyKey: "generate-key",
@@ -290,7 +290,7 @@ describe("CodeAgentClient Git routes", () => {
 
     const [generateCall, commitCall] = fetchMock.mock.calls;
     expect(generateCall?.[0]).toBe(
-      "/v1/projects/project%20one/git/commit-message?rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/git/commit-message?rootPath=%2Fworkspace%2FCodexly",
     );
     expect(generateCall?.[1]).toMatchObject({
       body: JSON.stringify(generationRequest),
@@ -298,7 +298,7 @@ describe("CodeAgentClient Git routes", () => {
     });
     expect(new Headers(generateCall?.[1]?.headers).get("idempotency-key")).toBe("generate-key");
     expect(commitCall?.[0]).toBe(
-      "/v1/projects/project%20one/git/commits?rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/git/commits?rootPath=%2Fworkspace%2FCodexly",
     );
     expect(commitCall?.[1]).toMatchObject({ body: JSON.stringify(commitRequest), method: "POST" });
     expect(new Headers(commitCall?.[1]?.headers).get("idempotency-key")).toBe("commit-key");
@@ -312,18 +312,18 @@ describe("CodeAgentClient Git routes", () => {
     };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(sourceFile));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.readProjectSourceFile(
         "project one",
         projectRootPath,
-        "/workspace/CodeAgent/docs/architecture-design.md",
+        "/workspace/Codexly/docs/architecture-design.md",
         131_072,
       ),
     ).resolves.toEqual(sourceFile);
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/v1/projects/project%20one/files/source?cursor=131072&path=%2Fworkspace%2FCodeAgent%2Fdocs%2Farchitecture-design.md&rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/files/source?cursor=131072&path=%2Fworkspace%2FCodexly%2Fdocs%2Farchitecture-design.md&rootPath=%2Fworkspace%2FCodexly",
     );
   });
 
@@ -338,7 +338,7 @@ describe("CodeAgentClient Git routes", () => {
       .mockResolvedValueOnce(jsonResponse(capabilities))
       .mockResolvedValueOnce(jsonResponse(sourceFile))
       .mockResolvedValueOnce(jsonResponse({ appId: "system-default", path: "/tmp/report.pdf" }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await client.getProjectOpenCapabilities("temporary");
     await client.readProjectSourceFile("temporary", undefined, "/tmp/notes.md");
@@ -366,20 +366,20 @@ describe("CodeAgentClient Git routes", () => {
     };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(fileTree));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.listProjectFiles("project one", projectRootPath, "src/components"),
     ).resolves.toEqual(fileTree);
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/v1/projects/project%20one/files/tree?path=src%2Fcomponents&rootPath=%2Fworkspace%2FCodeAgent",
+      "/v1/projects/project%20one/files/tree?path=src%2Fcomponents&rootPath=%2Fworkspace%2FCodexly",
     );
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ entries: [{ path: "/absolute.ts", type: "file" }], path: null }),
     );
     await expect(client.listProjectFiles("project one", projectRootPath, null)).rejects.toThrow(
-      "CodeAgent response does not match the protocol schema",
+      "Codexly response does not match the protocol schema",
     );
   });
 
@@ -389,19 +389,19 @@ describe("CodeAgentClient Git routes", () => {
         {
           name: "index.ts",
           path: "src/index.ts",
-          rootId: "root-code-agent",
+          rootId: "root-codexly",
           rootPath: projectRootPath,
         },
       ],
     };
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(page));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.searchProjectFiles("project one", projectRootPath, "index", "search-1"),
     ).resolves.toEqual(page);
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/v1/projects/project%20one/files/search?query=index&rootPath=%2Fworkspace%2FCodeAgent&sessionId=search-1",
+      "/v1/projects/project%20one/files/search?query=index&rootPath=%2Fworkspace%2FCodexly&sessionId=search-1",
     );
 
     fetchMock.mockResolvedValueOnce(jsonResponse({}));
@@ -424,6 +424,6 @@ describe("CodeAgentClient Git routes", () => {
     );
     await expect(
       client.searchProjectFiles("project one", projectRootPath, "outside", "search-1"),
-    ).rejects.toThrow("CodeAgent response does not match the protocol schema");
+    ).rejects.toThrow("Codexly response does not match the protocol schema");
   });
 });

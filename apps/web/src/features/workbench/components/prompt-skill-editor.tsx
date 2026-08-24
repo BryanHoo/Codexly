@@ -1,4 +1,4 @@
-import type { AgentSkill, ProjectFileSearchEntry } from "@code-agent/protocol";
+import type { AgentSkill, ProjectFileSearchEntry } from "@codexly/protocol";
 import { Box, File } from "lucide-react";
 import {
   forwardRef,

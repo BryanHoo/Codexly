@@ -103,7 +103,7 @@ Expected: 分页、状态合并、错误映射、重载和清理测试全部通�
 **Interfaces:**
 
 - Consumes: `AgentProvider.reloadMcpServers(taskId)` 与现有 `runIdempotent`。
-- Produces: `POST /v1/projects/:projectId/tasks/:taskId/mcp-servers/retry`、`CodeAgentClient.retryMcpServers` 和 Query Mutation options。
+- Produces: `POST /v1/projects/:projectId/tasks/:taskId/mcp-servers/retry`、`CodexlyClient.retryMcpServers` 和 Query Mutation options。
 
 **Behavior:**
 
@@ -136,7 +136,7 @@ Expected: 普通与临时 Task 的读取和手动重试契约通过，错误保�
 
 **Interfaces:**
 
-- Consumes: `AgentMcpServerPage` Query、重试 Mutation、`CodeAgentMutationError`。
+- Consumes: `AgentMcpServerPage` Query、重试 Mutation、`CodexlyMutationError`。
 - Produces: 稳定 Loading、逐服务 Success/Starting/Failed/Cancelled、可展开错误日志和手动 Retry UI。
 
 **Behavior:**

@@ -1,4 +1,4 @@
-import type { AgentModel } from "@code-agent/protocol";
+import type { AgentModel } from "@codexly/protocol";
 import {
   Bot,
   ChevronDown,

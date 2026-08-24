@@ -25,7 +25,7 @@ import {
   type ProjectGitStatusQuery,
   type ProjectRootQuery,
   type SwitchProjectBranchRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { GitBranchError } from "../git-branch.js";
 import { GitCommitError } from "../git-commit.js";
 import { GitHistoryError } from "../git-history.js";

@@ -28,7 +28,7 @@ describe("language preference", () => {
     applyLanguagePreference("en", root);
 
     expect(setItem).toHaveBeenCalledWith(
-      "code-agent.language-preference",
+      "codexly.language-preference",
       '{"language":"en","version":1}',
     );
     expect(root.lang).toBe("en");

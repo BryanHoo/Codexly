@@ -1,18 +1,18 @@
 // 集中维护拆分测试共享的样本、mock 与生命周期钩子。
 export const project = {
   createdAt: "2026-07-23T00:00:00.000Z",
-  id: "code-agent",
-  name: "CodeAgent",
-  rootPath: "/workspace/CodeAgent",
-  roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+  id: "codexly",
+  name: "Codexly",
+  rootPath: "/workspace/Codexly",
+  roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
 } as const;
 
-export const rootPath = "/workspace/CodeAgent";
+export const rootPath = "/workspace/Codexly";
 
 export const task = {
   id: "task-1",
   pinned: false,
-  projectId: "code-agent",
+  projectId: "codexly",
   title: "结构化历史",
   updatedAt: "2026-07-23T00:01:00.000Z",
 } as const;
@@ -45,7 +45,7 @@ export const snapshot = {
         },
         {
           command: "pnpm check",
-          cwd: "/workspace/CodeAgent",
+          cwd: "/workspace/Codexly",
           id: "i3",
           output: "Done",
           outputTruncated: true,

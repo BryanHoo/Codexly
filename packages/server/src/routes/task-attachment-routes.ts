@@ -5,7 +5,7 @@ import {
   AgentMutationErrorSchema,
   OpenAgentTaskAttachmentRequestSchema,
   OpenAgentTaskAttachmentResponseSchema,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { FastifyInstance } from "fastify";
 
 import { AttachmentNotFoundError } from "../attachment-store.js";

@@ -45,7 +45,7 @@
 
 **Verification:**
 
-Run `pnpm --filter @code-agent/web build` and then `pnpm exec playwright test tests/e2e/app-shell.spec.ts --grep "theme|material"`.
+Run `pnpm --filter @codexly/web build` and then `pnpm exec playwright test tests/e2e/app-shell.spec.ts --grep "theme|material"`.
 Expected: all selected tests pass with no console errors.
 
 **Stop Conditions:**
@@ -85,7 +85,7 @@ Expected: all selected tests pass with no console errors.
 
 **Verification:**
 
-Run `pnpm --filter @code-agent/web build` and then `pnpm exec playwright test tests/e2e/app-shell.spec.ts`.
+Run `pnpm --filter @codexly/web build` and then `pnpm exec playwright test tests/e2e/app-shell.spec.ts`.
 Expected: all tests pass at configured desktop and mobile viewports.
 
 **Stop Conditions:**

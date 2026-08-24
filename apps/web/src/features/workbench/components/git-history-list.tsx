@@ -1,4 +1,4 @@
-import type { ProjectGitCommit, ProjectGitHistoryPage } from "@code-agent/protocol";
+import type { ProjectGitCommit, ProjectGitHistoryPage } from "@codexly/protocol";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { GitCommitHorizontal, LoaderCircle } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -6,7 +6,7 @@ import { useEffect, useMemo } from "react";
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
 import { cn } from "../../../shared/lib/utils.js";
 import { Button } from "../../../shared/components/core/button.js";
-import type { CodeAgentGitHistoryClient } from "../../projects/project-queries.js";
+import type { CodexlyGitHistoryClient } from "../../projects/project-queries.js";
 import { projectGitHistoryInfiniteQueryOptions } from "../../projects/project-queries.js";
 
 export type GitHistoryQueryState = Readonly<{
@@ -199,7 +199,7 @@ export function GitHistoryContent({
 
 type GitHistoryListProps = Readonly<{
   active?: boolean;
-  client: CodeAgentGitHistoryClient;
+  client: CodexlyGitHistoryClient;
   compact?: boolean;
   dateFormatter: Intl.DateTimeFormat;
   enabled?: boolean;

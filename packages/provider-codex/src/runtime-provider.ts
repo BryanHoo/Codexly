@@ -4,7 +4,7 @@ import type {
   AgentRuntimeDefaultSettings,
   AgentRuntimeProvider,
   AgentTaskScope,
-} from "@code-agent/core";
+} from "@codexly/core";
 import type {
   AgentCapabilities,
   AgentProviderConnectionMutationResponse,
@@ -14,8 +14,8 @@ import type {
   ConfigureCustomProviderResponse,
   Project,
   StartOfficialProviderLoginResponse,
-} from "@code-agent/protocol";
-import { TEMPORARY_TASK_SCOPE_ID } from "@code-agent/protocol";
+} from "@codexly/protocol";
+import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { RuntimeOwnerRegistry, isSameResolvedPath } from "./runtime-owner-registry.js";
 import { CodexProtocolMappingError } from "./codex-protocol-mapping.js";
 

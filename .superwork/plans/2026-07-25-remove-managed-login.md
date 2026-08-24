@@ -1,6 +1,6 @@
 # Managed Login Removal Implementation Plan
 
-**Goal:** 将 CodeAgent 收敛为复用官方 Codex CLI 登录状态的本地 GUI，删除内置登录入口，并为 Runtime 不可用提供明确恢复操作。
+**Goal:** 将 Codexly 收敛为复用官方 Codex CLI 登录状态的本地 GUI，删除内置登录入口，并为 Runtime 不可用提供明确恢复操作。
 
 **Suggested Spec Reads:**
 
@@ -11,7 +11,7 @@
 - `.superwork/spec/frontend/state-management.md` — 约束 Query 错误优先级和重试行为。
 - `.superwork/spec/frontend/quality-guidelines.md` — 页面行为变更需要 Vitest、Playwright 与完整门禁。
 
-**Architecture:** CodeAgent 继续使用当前 `CODEX_HOME` 启动 Codex App Server，但不调用 `account/read`、`account/login/*` 或 `account/logout`，也不读取认证文件。Web 删除 `/login`，Provider 资源加载失败时在现有 Query 边界展示统一 Runtime 恢复视图，通过刷新 Query 重试；账号登录始终由用户在官方 Codex CLI 中执行。
+**Architecture:** Codexly 继续使用当前 `CODEX_HOME` 启动 Codex App Server，但不调用 `account/read`、`account/login/*` 或 `account/logout`，也不读取认证文件。Web 删除 `/login`，Provider 资源加载失败时在现有 Query 边界展示统一 Runtime 恢复视图，通过刷新 Query 重试；账号登录始终由用户在官方 Codex CLI 中执行。
 
 **Tech Stack:** TypeScript、React 19、TanStack Router、TanStack Query、Vitest、Playwright、Markdown。
 
@@ -50,11 +50,11 @@
 
 **Proof:**
 
-用户无法再进入 CodeAgent 登录页面；当 Codex 资源不可用时，GUI 不发起登录，仅告知在官方 CLI 运行 `codex login` 并允许重试。
+用户无法再进入 Codexly 登录页面；当 Codex 资源不可用时，GUI 不发起登录，仅告知在官方 CLI 运行 `codex login` 并允许重试。
 
 **Verification:**
 
-Run: `pnpm --filter @code-agent/web build && pnpm exec playwright test tests/e2e/app-shell.spec.ts --grep "removes the legacy|directs unavailable"`
+Run: `pnpm --filter @codexly/web build && pnpm exec playwright test tests/e2e/app-shell.spec.ts --grep "removes the legacy|directs unavailable"`
 
 Expected: `/login` 删除、Runtime 恢复提示和重试行为测试全部通过。
 
@@ -78,9 +78,9 @@ Expected: `/login` 删除、Runtime 恢复提示和重试行为测试全部通�
 **Interfaces:**
 
 - Consumes: Task 1 的 `/login` 删除与 `RuntimeUnavailable` 行为。
-- Produces: 稳定约束“官方 Codex CLI 负责登录，CodeAgent 仅复用相同 `CODEX_HOME`”。
+- Produces: 稳定约束“官方 Codex CLI 负责登录，Codexly 仅复用相同 `CODEX_HOME`”。
 - Removes: `/v1/auth/*`、App Server Account API、GUI 登录/退出、登录状态 E2E 等规划。
-- Preserves: 非 Loopback 部署认证与 TLS、Session/CSRF、Origin、路径和审批校验等 CodeAgent 自身安全边界。
+- Preserves: 非 Loopback 部署认证与 TLS、Session/CSRF、Origin、路径和审批校验等 Codexly 自身安全边界。
 
 **Behavior Slice:**
 
@@ -88,7 +88,7 @@ Expected: `/login` 删除、Runtime 恢复提示和重试行为测试全部通�
 
 **Proof:**
 
-全仓库不再把 CodeAgent 描述为登录管理方，且远程访问和本地操作安全控制仍有明确约束。
+全仓库不再把 Codexly 描述为登录管理方，且远程访问和本地操作安全控制仍有明确约束。
 
 **Verification:**
 
@@ -98,7 +98,7 @@ Expected: 只保留明确说明“不支持这些能力”的必要文本，不�
 
 **Stop Conditions:**
 
-- 如果删除账号认证描述会影响非 Loopback 的 CodeAgent 自身访问认证，必须保留并重新表述该安全要求。
+- 如果删除账号认证描述会影响非 Loopback 的 Codexly 自身访问认证，必须保留并重新表述该安全要求。
 - 不得把 Runtime Session、审批 Session 决策或 WebSocket Session 当作账号登录逻辑删除。
 
 ### Task 3: 完整验证与收尾

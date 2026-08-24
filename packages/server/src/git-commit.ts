@@ -4,7 +4,7 @@ import type {
   AgentMutationError,
   CommitProjectChangesRequest,
   CommitProjectChangesResponse,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import { createGitEnvironment } from "./git-command.js";
 import { originalErrorMessage } from "./error-message.js";

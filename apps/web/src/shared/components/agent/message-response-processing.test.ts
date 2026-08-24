@@ -11,7 +11,7 @@ describe("streaming message response processing", () => {
   it("matches full preprocessing while directives and paths cross chunk boundaries", () => {
     const source = `  检查结果：
 
-[server.ts](C:\\workspace\\Code Agent\\server.ts:24)
+[server.ts](C:\\workspace\\Codexly\\server.ts:24)
 
 ::code-comment{title="[P1] 修复竞态" body="更新状态。" file="/workspace/server.ts" start=24 end=25 priority=1}
 
@@ -26,8 +26,8 @@ describe("streaming message response processing", () => {
 
     const result = processor.process(source);
     expect(result.comments).toHaveLength(1);
-    expect(result.markdown).toContain("/__code_agent_relative__/docs/guide.md:8");
-    expect(result.markdown).toContain("/C:/workspace/Code%20Agent/server.ts:24");
+    expect(result.markdown).toContain("/__codexly_relative__/docs/guide.md:8");
+    expect(result.markdown).toContain("/C:/workspace/Codexly/server.ts:24");
   });
 
   it("reprocesses only the affected Markdown tail block", () => {

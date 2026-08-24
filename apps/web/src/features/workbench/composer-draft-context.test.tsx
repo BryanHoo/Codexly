@@ -5,8 +5,8 @@ import { createComposerDraftScope, createComposerDraftStore } from "./composer-d
 describe("ComposerDraftStore", () => {
   it("keeps editor drafts isolated by task scope", () => {
     const store = createComposerDraftStore();
-    const firstScope = createComposerDraftScope("code-agent", "task-1");
-    const secondScope = createComposerDraftScope("code-agent", "task-2");
+    const firstScope = createComposerDraftScope("codexly", "task-1");
+    const secondScope = createComposerDraftScope("codexly", "task-2");
 
     store.update(firstScope, (draft) => ({
       ...draft,
@@ -18,7 +18,7 @@ describe("ComposerDraftStore", () => {
   });
 
   it("does not persist drafts or queues in sessionStorage", () => {
-    const scope = createComposerDraftScope("code-agent", "task-1");
+    const scope = createComposerDraftScope("codexly", "task-1");
     const firstStore = createComposerDraftStore();
     firstStore.update(scope, (draft) => ({
       ...draft,

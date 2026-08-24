@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import type { ProjectOpenService } from "./project-open.js";
 import { closeCallbacks } from "./app.test-support.js";
 import { createProvider } from "./app-provider.test-support.js";
@@ -46,7 +46,7 @@ export async function createHarness(
   } = createProvider();
   const settings = createSettingsRepository();
   const readDefaultSettings = vi.fn(() => Promise.resolve({}));
-  const app = await createCodeAgentServer(
+  const app = await createCodexlyServer(
     createServerOptions(
       provider,
       {

@@ -16,7 +16,7 @@ test("navigates absolute paths and toggles hidden folders in the project directo
     const url = new URL(request.url());
     if (url.pathname === "/v1/project-directories") directoryRequests.push(url);
   });
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
   await page.getByRole("button", { name: "添加项目" }).click();
   const picker = page.getByRole("dialog", { name: "选择项目文件夹" });
   const pathInput = picker.getByRole("textbox", { name: "绝对目录路径" });
@@ -60,7 +60,7 @@ test("keeps the Web directory picker open after add failure", async ({ page }) =
       status: 502,
     });
   });
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await page.getByRole("button", { name: "添加项目" }).click();
   const picker = page.getByRole("dialog", { name: "选择项目文件夹" });
@@ -78,7 +78,7 @@ test("keeps the Web directory picker open after add failure", async ({ page }) =
 test("keeps icon button tooltips visible within clipping and viewport boundaries", async ({
   page,
 }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const assertTooltipVisible = async (label: string) => {
     await page.getByRole("button", { exact: true, name: label }).hover();
@@ -136,7 +136,7 @@ test("keeps icon button tooltips visible within clipping and viewport boundaries
 });
 
 test("searches tasks across projects", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   await sidebar.getByRole("textbox", { name: "搜索任务" }).fill("Markdown");
@@ -155,13 +155,13 @@ test("opens and reuses project new chats without creating empty Codex tasks", as
   await page.goto("/p/superwork/t/plan-check");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
-  await sidebar.getByRole("button", { name: "在 CodeAgent 中新建任务" }).click();
-  await expect(page).toHaveURL(/\/p\/code-agent$/);
+  await sidebar.getByRole("button", { name: "在 Codexly 中新建任务" }).click();
+  await expect(page).toHaveURL(/\/p\/codexly$/);
   await expect(sidebar.getByRole("link", { name: "新聊天" })).toHaveCount(0);
 
   // 已经位于首个项目的新聊天时继续复用当前草稿，不创建空 Codex Task。
-  await sidebar.getByRole("button", { name: "在 CodeAgent 中新建任务" }).click();
-  await expect(page).toHaveURL(/\/p\/code-agent$/);
+  await sidebar.getByRole("button", { name: "在 Codexly 中新建任务" }).click();
+  await expect(page).toHaveURL(/\/p\/codexly$/);
   await sidebar.getByRole("button", { name: "在 superwork 中新建任务" }).click();
   await expect(page).toHaveURL(/\/p\/superwork$/);
   await expect(sidebar.getByRole("link", { name: "新聊天" })).toHaveCount(0);
@@ -175,7 +175,7 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
   const createdTask = {
     id: "019f9d81-13ab-7863-9676-beae70726117",
     pinned: false,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: "新聊天",
     updatedAt: "2026-07-26T08:00:00.000Z",
   };
@@ -200,13 +200,13 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
 
   await page.route("**/v1/**", async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === "/v1/projects/code-agent/tasks" && route.request().method() === "POST") {
+    if (url.pathname === "/v1/projects/codexly/tasks" && route.request().method() === "POST") {
       taskStartRequestCount += 1;
       await route.fulfill({ contentType: "application/json", json: { task: createdTask } });
       return;
     }
     if (
-      url.pathname === `/v1/projects/code-agent/tasks/${createdTask.id}/turns` &&
+      url.pathname === `/v1/projects/codexly/tasks/${createdTask.id}/turns` &&
       route.request().method() === "POST"
     ) {
       await turnStartGate;
@@ -217,7 +217,7 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
       return;
     }
     if (
-      url.pathname === `/v1/projects/code-agent/tasks/${createdTask.id}` &&
+      url.pathname === `/v1/projects/codexly/tasks/${createdTask.id}` &&
       route.request().method() === "GET"
     ) {
       await snapshotGate;
@@ -242,7 +242,7 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
     await route.fallback();
   });
 
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
   await page.getByRole("textbox", { name: "任务输入" }).fill("你好");
   await page.getByRole("button", { exact: true, name: "提交" }).evaluate((button) => {
     button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -251,7 +251,7 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
   await expect.poll(() => taskStartRequestCount).toBe(1);
 
   // Codex 返回真实 taskId 后立即写入并选中 Sidebar，中栏仍保留可重试的 Project 草稿。
-  await expect(page).toHaveURL(/\/p\/code-agent$/u);
+  await expect(page).toHaveURL(/\/p\/codexly$/u);
   const main = page.getByRole("main", { name: "任务时间线" });
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const runningTaskLink = sidebar.getByRole("link", { name: "新聊天" });
@@ -259,7 +259,7 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
 
   releaseTurnStartRequest();
 
-  await expect(page).toHaveURL(new RegExp(`/p/code-agent/t/${createdTask.id}$`, "u"));
+  await expect(page).toHaveURL(new RegExp(`/p/codexly/t/${createdTask.id}$`, "u"));
   await expect(main.getByRole("heading", { name: "新聊天" })).toBeVisible();
   const timelineMessages = main.locator('[role="log"] article');
   await expect(timelineMessages.nth(0)).toContainText("你好");
@@ -278,7 +278,7 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
 });
 
 test("stores new-chat text and attachments independently between projects", async ({ page }) => {
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("保留这段新聊天草稿");
   await chooseHostAttachment(page, "image", "draft.png");
@@ -306,9 +306,9 @@ test("stores new-chat text and attachments independently between projects", asyn
   );
   await expect(sidebar.getByRole("link", { name: "新聊天" })).toHaveCount(0);
 
-  await projectSelect.selectOption("code-agent");
+  await projectSelect.selectOption("codexly");
 
-  await expect(page).toHaveURL(/\/p\/code-agent$/);
+  await expect(page).toHaveURL(/\/p\/codexly$/);
   await expect(prompt).toHaveAttribute("data-serialized-value", "保留这段新聊天草稿");
   await expect(page.getByText("draft.png", { exact: true })).toBeVisible();
 });
@@ -324,14 +324,14 @@ test("sizes and vertically aligns the empty-chat project selector", async ({ pag
       json: {
         data: projects.map((project) =>
           project.id === "superwork"
-            ? { ...project, name: "a-project-name-that-is-much-longer-than-CodeAgent" }
+            ? { ...project, name: "a-project-name-that-is-much-longer-than-Codexly" }
             : project,
         ),
         nextCursor: null,
       },
     });
   });
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   const projectSelect = page.getByRole("combobox", { name: "选择新聊天项目" });
   await expect(projectSelect).toBeVisible();
@@ -370,20 +370,20 @@ test("sizes and vertically aligns the empty-chat project selector", async ({ pag
 });
 
 test("toggles project tasks from the project name without navigation", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const task = sidebar.getByRole("link", { name: /优化输入框交互/ });
   await expect(task).toBeVisible();
 
-  await sidebar.getByRole("button", { name: "切换项目 CodeAgent" }).click();
+  await sidebar.getByRole("button", { name: "切换项目 Codexly" }).click();
   await expect(task).not.toBeVisible();
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-1$/);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/);
 
-  await expect(sidebar.getByRole("button", { name: "在 CodeAgent 中新建任务" })).toBeVisible();
-  await sidebar.getByRole("button", { name: "切换项目 CodeAgent" }).click();
+  await expect(sidebar.getByRole("button", { name: "在 Codexly 中新建任务" })).toBeVisible();
+  await sidebar.getByRole("button", { name: "切换项目 Codexly" }).click();
   await expect(task).toBeVisible();
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-1$/);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/);
 });
 
 test("loads tasks only for the current or expanded projects", async ({ page }) => {
@@ -399,7 +399,7 @@ test("loads tasks only for the current or expanded projects", async ({ page }) =
     await route.fallback();
   });
 
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   await expect(sidebar.getByRole("link", { name: "优化输入框交互" })).toBeVisible();

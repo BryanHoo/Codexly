@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 让 CodeAgent 使用一个全局 Codex App Server 和一个多项目 Runtime，项目由宿主目录选择器添加、持久化，并通过显式 Project 作用域 API 操作 Task。
+**Goal:** 让 Codexly 使用一个全局 Codex App Server 和一个多项目 Runtime，项目由宿主目录选择器添加、持久化，并通过显式 Project 作用域 API 操作 Task。
 
 **Suggested Spec Reads:**
 
@@ -11,7 +11,7 @@
 - `.superwork/spec/frontend/component-guidelines.md` — Projects 侧栏和目录添加交互约束。
 - `.superwork/spec/frontend/state-management.md` — Project Query、Task Snapshot 与实时事件状态边界。
 - `.superwork/spec/shared/directory-structure.md` — Protocol、Core、Client 的公开依赖方向。
-- `docs/architecture-design.md` — CodeAgent 总体运行时和 Codex 分发设计。
+- `docs/architecture-design.md` — Codexly 总体运行时和 Codex 分发设计。
 - `docs/web-design.md` — 工作台路由、Project 导航和 Client/Web 职责。
 
 **Architecture:** CLI 只启动一个无 Project `cwd` 的 `codex app-server --listen stdio://`，并装配单例 `CodexRuntimeProvider`、本地 JSON `ProjectRepository` 与 Fastify Server。Provider 的公开能力显式接收 `Project`，内部维护 `taskId -> { projectId, cwd }` 映射并仅注册一次 RPC 通知/请求监听。Server 从 Repository 解析 Project，所有 Task、Turn、审批、事件和文件接口按 Project 校验后再进入 Provider。Web 通过宿主 POST API 打开系统目录选择器并刷新项目树。
@@ -152,7 +152,7 @@ Expected: 协议、路由和实时链路测试全部通过。
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.addProject()`、Project 作用域 Task Client 方法、TanStack Query cache。
+- Consumes: `CodexlyClient.addProject()`、Project 作用域 Task Client 方法、TanStack Query cache。
 - Produces: Projects 标题右侧可访问的 `Plus` 图标按钮、添加后刷新项目/Task 列表、空项目启动工作台状态。
 
 **Behavior Slice:** 用户点击 Projects 的 `+` 后由 Server 打开宿主系统目录选择器；成功添加后刷新项目树并进入新 Project，取消选择保持现状；所有 Task Query 和 Mutation 带当前 `projectId`。应用允许 Project 列表为空且不伪造默认项目。

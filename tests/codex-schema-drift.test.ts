@@ -9,7 +9,7 @@ const checkerPath = join(process.cwd(), "tools/verify-codex-schema.mjs");
 const temporaryRoots: string[] = [];
 
 function createFakeCodexCli() {
-  const root = mkdtempSync(join(tmpdir(), "code-agent-codex-schema-test-"));
+  const root = mkdtempSync(join(tmpdir(), "codexly-codex-schema-test-"));
   temporaryRoots.push(root);
   const cliPath = join(root, "fake-codex.mjs");
   writeFileSync(

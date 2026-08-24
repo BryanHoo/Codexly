@@ -1,7 +1,7 @@
-import type { AgentRuntimeProvider } from "@code-agent/core";
-import type { AgentTurn } from "@code-agent/protocol";
+import type { AgentRuntimeProvider } from "@codexly/core";
+import type { AgentTurn } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import {
   project,
   temporaryProject,
@@ -58,18 +58,18 @@ describe("server task mutations", () => {
       headers: { "idempotency-key": "new-task-defaults" },
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     const turn = await app.inject({
       headers: { "idempotency-key": "persist-turn-settings" },
       method: "POST",
       payload: turnRequest("继续实现"),
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
 
     expect(created.statusCode).toBe(201);
     expect(startTask).toHaveBeenCalledOnce();
-    expect(writeTaskSettings).toHaveBeenCalledWith("code-agent", "task-1", {
+    expect(writeTaskSettings).toHaveBeenCalledWith("codexly", "task-1", {
       approvalPolicy: "never",
       approvalsReviewer: "user",
       model: "gpt-5.6-sol",
@@ -90,19 +90,19 @@ describe("server task mutations", () => {
       headers,
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     const repeated = await app.inject({
       headers,
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     const turn = await app.inject({
       headers: { "idempotency-key": "turn-1" },
       method: "POST",
       payload: turnRequest("继续实现"),
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
     const turnBody = turn.json<{ taskId: string; turn: AgentTurn }>();
     readTask.mockResolvedValueOnce({
@@ -117,7 +117,7 @@ describe("server task mutations", () => {
         input: { attachments: [], skills: [], text: "优先修复测试", type: "prompt" },
         taskId: "task-1",
       },
-      url: "/v1/projects/code-agent/tasks/task-1/turns/turn-1/steer",
+      url: "/v1/projects/codexly/tasks/task-1/turns/turn-1/steer",
     });
     readTask.mockResolvedValueOnce({
       ...snapshot,
@@ -128,7 +128,7 @@ describe("server task mutations", () => {
       headers: { "idempotency-key": "interrupt-1" },
       method: "POST",
       payload: { taskId: "task-1" },
-      url: "/v1/projects/code-agent/tasks/task-1/turns/turn-1/interrupt",
+      url: "/v1/projects/codexly/tasks/task-1/turns/turn-1/interrupt",
     });
 
     expect(created.statusCode).toBe(201);
@@ -166,7 +166,7 @@ describe("server task mutations", () => {
       headers: { "idempotency-key": "interrupt-1" },
       method: "POST",
       payload: { taskId: "task-1" },
-      url: "/v1/projects/code-agent/tasks/task-1/turns/turn-1/interrupt",
+      url: "/v1/projects/codexly/tasks/task-1/turns/turn-1/interrupt",
     });
 
     expect(replayedInterrupt.statusCode).toBe(202);
@@ -176,7 +176,7 @@ describe("server task mutations", () => {
 
   it("serves the complete persistent task queue API", async () => {
     const { app, queue } = await createHarness();
-    const baseUrl = "/v1/projects/code-agent/tasks/task-1/queue";
+    const baseUrl = "/v1/projects/codexly/tasks/task-1/queue";
     const add = await app.inject({
       headers: { "idempotency-key": "queue-add-1" },
       method: "POST",
@@ -229,7 +229,7 @@ describe("server task mutations", () => {
 
   it("reconciles queued attachments after native queue changes", async () => {
     const { app, emitEvent, queue } = await createHarness();
-    await app.inject({ method: "GET", url: "/v1/projects/code-agent/tasks/task-1/queue" });
+    await app.inject({ method: "GET", url: "/v1/projects/codexly/tasks/task-1/queue" });
     queue.list.mockClear();
 
     emitEvent({ payload: {}, taskId: "task-1", type: "queue.changed" });
@@ -246,7 +246,7 @@ describe("server task mutations", () => {
       headers: { "idempotency-key": "retry-task-settings" },
       method: "POST" as const,
       payload: {},
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     };
 
     const failed = await app.inject(request);
@@ -264,7 +264,7 @@ describe("server task mutations", () => {
       headers: { "idempotency-key": "review-key" },
       method: "POST" as const,
       payload: { target: { type: "base_branch", branch: "main" } },
-      url: "/v1/projects/code-agent/tasks/task-1/review",
+      url: "/v1/projects/codexly/tasks/task-1/review",
     };
 
     const review = await app.inject(reviewRequest);
@@ -273,19 +273,19 @@ describe("server task mutations", () => {
       headers: { "idempotency-key": "compact-key" },
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks/task-1/compact",
+      url: "/v1/projects/codexly/tasks/task-1/compact",
     });
     const fork = await app.inject({
       headers: { "idempotency-key": "fork-key" },
       method: "POST",
       payload: { lastTurnId: "turn-1" },
-      url: "/v1/projects/code-agent/tasks/task-1/fork",
+      url: "/v1/projects/codexly/tasks/task-1/fork",
     });
     const feedback = await app.inject({
       headers: { "idempotency-key": "feedback-key" },
       method: "POST",
       payload: { classification: "other", includeLogs: true, reason: "体验反馈" },
-      url: "/v1/projects/code-agent/tasks/task-1/feedback",
+      url: "/v1/projects/codexly/tasks/task-1/feedback",
     });
 
     expect(review.statusCode, review.body).toBe(201);
@@ -319,31 +319,31 @@ describe("server task mutations", () => {
       headers: { "idempotency-key": "pin-key" },
       method: "PUT",
       payload: { pinned: true },
-      url: "/v1/projects/code-agent/tasks/task-1/pin",
+      url: "/v1/projects/codexly/tasks/task-1/pin",
     });
     const renamed = await app.inject({
       headers: { "idempotency-key": "rename-key" },
       method: "POST",
       payload: { title: "新的任务名称" },
-      url: "/v1/projects/code-agent/tasks/task-1/rename",
+      url: "/v1/projects/codexly/tasks/task-1/rename",
     });
     const archived = await app.inject({
       headers: { "idempotency-key": "archive-key" },
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks/task-1/archive",
+      url: "/v1/projects/codexly/tasks/task-1/archive",
     });
     const unarchived = await app.inject({
       headers: { "idempotency-key": "unarchive-key" },
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks/task-1/unarchive",
+      url: "/v1/projects/codexly/tasks/task-1/unarchive",
     });
     const deleted = await app.inject({
       headers: { "idempotency-key": "delete-key" },
       method: "DELETE",
       payload: {},
-      url: "/v1/projects/code-agent/tasks/task-1",
+      url: "/v1/projects/codexly/tasks/task-1",
     });
 
     expect(pinned.statusCode, pinned.body).toBe(200);
@@ -392,7 +392,7 @@ describe("server task mutations", () => {
       releaseProject: () => Promise.resolve(),
     };
     const stateRepository = createSettingsRepository().repository;
-    const app = await createCodeAgentServer({
+    const app = await createCodexlyServer({
       installAppUpdate: vi.fn(() => Promise.reject(new Error("No update available"))),
       projectRepository: {
         list: () => Promise.resolve([project, otherProject]),
@@ -427,7 +427,7 @@ describe("server task mutations", () => {
 
     const first = await app.inject({
       ...request,
-      url: "/v1/projects/code-agent/tasks/task-1/review",
+      url: "/v1/projects/codexly/tasks/task-1/review",
     });
     const second = await app.inject({
       ...request,

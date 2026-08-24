@@ -14,16 +14,16 @@ test("queues follow-up messages and can steer or cancel them during an active tu
       json: { settings: { ...body.settings, followUpBehavior: "queue" } },
     });
   });
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
   const input = page.getByRole("textbox", { name: "任务输入" });
   await input.fill("等待中断");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-action-\d+$/u);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/u);
   await expect(page.getByRole("button", { name: "停止" })).toBeVisible();
   await expect(input).toHaveAttribute("data-placeholder", "输入后续要求");
 
   const taskId = page.url().split("/").at(-1) ?? "";
-  const attachmentResponse = await page.request.post("/v1/projects/code-agent/attachments/text", {
+  const attachmentResponse = await page.request.post("/v1/projects/codexly/attachments/text", {
     headers: { "idempotency-key": "external-queue-attachment" },
     multipart: {
       attachment: {
@@ -36,7 +36,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   expect(attachmentResponse.status()).toBe(201);
   const attachment = (await attachmentResponse.json()) as { attachment: { id: string } };
   const externalQueueResponse = await page.request.post(
-    `/v1/projects/code-agent/tasks/${taskId}/queue`,
+    `/v1/projects/codexly/tasks/${taskId}/queue`,
     {
       data: {
         clientUserMessageId: "external-client-message",
@@ -62,7 +62,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await page.getByRole("button", { exact: true, name: "排队消息" }).click();
   await expect(input).toHaveAttribute("data-serialized-value", "");
   const externalDeleteResponse = await page.request.delete(
-    `/v1/projects/code-agent/tasks/${taskId}/queue/${externalQueue.queuedSubmission.id}`,
+    `/v1/projects/codexly/tasks/${taskId}/queue/${externalQueue.queuedSubmission.id}`,
     { headers: { "idempotency-key": "external-queue-delete" } },
   );
   expect(externalDeleteResponse.status()).toBe(200);
@@ -71,7 +71,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   ).toHaveCount(0);
 
   let steerPayload: unknown;
-  await page.route("**/v1/projects/code-agent/tasks/*/turns/*/steer", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/*/turns/*/steer", async (route) => {
     const request = route.request();
     const payload = request.postDataJSON() as { taskId: string };
     steerPayload = payload;
@@ -153,11 +153,11 @@ test("keeps a direct steer above the composer until its streamed message appears
       json: { settings: { ...body.settings, followUpBehavior: "steer" } },
     });
   });
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
   const input = page.getByRole("textbox", { name: "任务输入" });
   await input.fill("等待中断");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-action-\d+$/u);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/u);
 
   await input.fill("直接补充失败测试");
   await page.getByRole("button", { name: "发送引导" }).click();
@@ -171,12 +171,12 @@ test("keeps a direct steer above the composer until its streamed message appears
 
 test("submits a prompt and streams the completed reply @cross-browser", async ({ page }) => {
   await page.unroute("**/v1/**");
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("完成流式回复");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
 
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-action-\d+$/);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/);
   await expect(page.getByText("完成流式回复", { exact: true })).toHaveCount(1);
   await expect(page.getByText("流式回复完成", { exact: true })).toHaveCount(1);
   await expect(page.getByLabel("Turn 1")).toHaveAttribute("data-status", "completed", {
@@ -187,7 +187,7 @@ test("submits a prompt and streams the completed reply @cross-browser", async ({
 
 test("shows the latest raw Codex operation throughout a running turn", async ({ page }) => {
   await page.unroute("**/v1/**");
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("检查运行状态");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
@@ -233,7 +233,7 @@ test("shows the latest raw Codex operation throughout a running turn", async ({ 
 test("does not show a tooltip for a truncated command title", async ({ page }) => {
   const command =
     "pnpm exec vitest run apps/web/src/features/workbench/components/task-timeline.test.tsx --testNamePattern tool-command-title-tooltip";
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -246,7 +246,7 @@ test("does not show a tooltip for a truncated command title", async ({ page }) =
               ...turn.items,
               {
                 command,
-                cwd: "/workspace/CodeAgent",
+                cwd: "/workspace/Codexly",
                 id: "command-with-truncated-title",
                 outputTruncated: false,
                 status: "completed",
@@ -259,7 +259,7 @@ test("does not show a tooltip for a truncated command title", async ({ page }) =
     });
   });
   await page.setViewportSize({ height: 720, width: 640 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   // 等待异步 Markdown 升级完成，确保 hover 与 focus 检查发生在稳定布局中。
   await expect(page.getByRole("link", { name: "OpenAI" })).toBeVisible();
@@ -286,7 +286,7 @@ test("keeps long runtime activity details within the conversation", async ({ pag
       "effort-estimate.md": "有效输出路径与需求分析".repeat(300),
     }),
   );
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -315,7 +315,7 @@ test("keeps long runtime activity details within the conversation", async ({ pag
     });
   });
   await page.setViewportSize({ height: 720, width: 1_280 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await page.getByText("长执行详情", { exact: true }).click();
   const conversation = page.getByRole("log", { name: "会话内容" });

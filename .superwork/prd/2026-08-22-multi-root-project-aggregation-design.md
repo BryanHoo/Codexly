@@ -2,7 +2,7 @@
 
 ## Goal
 
-让 CodeAgent 完整投影 Codex `0.149.0` 的多根 Project：添加项目时可选择多个有序目录，启动时同步 Codex 已有聚合 Project，并允许用户在工作台切换当前根以查看对应路径、Git 分支、文件、变更和历史；Project 身份、Task 归属和排序继续以 Codex `projectId` 为唯一真相。
+让 Codexly 完整投影 Codex `0.149.0` 的多根 Project：添加项目时可选择多个有序目录，启动时同步 Codex 已有聚合 Project，并允许用户在工作台切换当前根以查看对应路径、Git 分支、文件、变更和历史；Project 身份、Task 归属和排序继续以 Codex `projectId` 为唯一真相。
 
 ## Suggested Spec Reads
 
@@ -22,7 +22,7 @@
 
 ## Existing Context
 
-- CodeAgent 已使用 Codex `projectId` 作为公开 Project ID，并在启动时分页调用 `project/list` 覆盖 SQLite 投影。
+- Codexly 已使用 Codex `projectId` 作为公开 Project ID，并在启动时分页调用 `project/list` 覆盖 SQLite 投影。
 - 当前 Provider 严格读取 Codex `roots[]`，但公共 `Project` 只保留 `rootPath = roots[0].path`；SQLite、HTTP、Client 和 Web 因而丢失其他根。
 - 当前添加接口只接受 `rootPath`，固定调用 `project/create { roots: [{ path }] }`。
 - Git、文件树、文件搜索、预览与宿主打开均从 Project 的单个 `rootPath` 解析，前端 Query Key 也没有根作用域。
@@ -118,7 +118,7 @@
 
 ## Success Criteria
 
-- CodeAgent 启动后能显示 Codex 已有 Project 的全部有序 roots，Project ID 与顺序不变。
+- Codexly 启动后能显示 Codex 已有 Project 的全部有序 roots，Project ID 与顺序不变。
 - 添加 Project 时可选择两个及以上目录，Codex 收到同序 `roots[]`，首项成为 primary。
 - 多根 Project 默认显示首根，切换后中栏路径/分支和右栏 Project/Changes/History 均来自同一当前根。
 - 单根 Project 不增加多余选择器，现有工作流保持紧凑。

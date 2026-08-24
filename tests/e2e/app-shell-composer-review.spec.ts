@@ -12,7 +12,7 @@ test("starts code review from a new chat with one fixed review message", async (
   const reviewTask = {
     id: "review-task",
     pinned: false,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: "新聊天",
     updatedAt: "2026-07-29T00:00:00.000Z",
   };
@@ -32,18 +32,18 @@ test("starts code review from a new chat with one fixed review message", async (
   };
   const mutationPaths: string[] = [];
   const reviewBodies: unknown[] = [];
-  await page.route("**/v1/projects/code-agent/**", async (route) => {
+  await page.route("**/v1/projects/codexly/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     if (request.method() === "POST") {
       mutationPaths.push(url.pathname);
     }
-    if (url.pathname === "/v1/projects/code-agent/tasks" && request.method() === "POST") {
+    if (url.pathname === "/v1/projects/codexly/tasks" && request.method() === "POST") {
       await route.fulfill({ contentType: "application/json", json: { task: reviewTask } });
       return;
     }
     if (
-      url.pathname === "/v1/projects/code-agent/tasks/review-task/review" &&
+      url.pathname === "/v1/projects/codexly/tasks/review-task/review" &&
       request.method() === "POST"
     ) {
       reviewBodies.push(request.postDataJSON());
@@ -53,7 +53,7 @@ test("starts code review from a new chat with one fixed review message", async (
       });
       return;
     }
-    if (url.pathname === "/v1/projects/code-agent/tasks/review-task") {
+    if (url.pathname === "/v1/projects/codexly/tasks/review-task") {
       await route.fulfill({
         contentType: "application/json",
         json: {
@@ -74,7 +74,7 @@ test("starts code review from a new chat with one fixed review message", async (
     }
     await route.fallback();
   });
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("/");
@@ -92,13 +92,13 @@ test("starts code review from a new chat with one fixed review message", async (
   await page.getByRole("option", { name: /代码审查/u }).click();
   await page.getByRole("option", { name: /审查未提交的更改/u }).click();
 
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/review-task$/u);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/review-task$/u);
   await expect(page.getByText("请检查我未提交的更改", { exact: true })).toHaveCount(1);
   await expect(page.getByText("审查模式", { exact: true })).toBeVisible();
   await expect(page.getByText(/Review the current code changes/u)).toHaveCount(0);
   await expect
     .poll(() => mutationPaths)
-    .toEqual(["/v1/projects/code-agent/tasks", "/v1/projects/code-agent/tasks/review-task/review"]);
+    .toEqual(["/v1/projects/codexly/tasks", "/v1/projects/codexly/tasks/review-task/review"]);
   expect(reviewBodies).toEqual([{ target: { type: "uncommitted_changes" } }]);
 });
 
@@ -107,12 +107,12 @@ test("selects a real base branch before starting code review", async ({ page }) 
   page.on("request", (request) => {
     if (
       request.method() === "POST" &&
-      new URL(request.url()).pathname === "/v1/projects/code-agent/tasks/task-1/review"
+      new URL(request.url()).pathname === "/v1/projects/codexly/tasks/task-1/review"
     ) {
       reviewBodies.push(request.postDataJSON());
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("/代码审查");
@@ -132,7 +132,7 @@ test("selects a real base branch before starting code review", async ({ page }) 
 
 test("loads long source files while scrolling", async ({ context, page }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sourceReference = page.getByRole("button", {
     name: /architecture-design\.md\s+\(line 100\)/u,
@@ -184,7 +184,7 @@ test("routes assistant links, images, and system files by Markdown file rules", 
   page,
 }) => {
   const systemOpenRequest = page.waitForRequest((request) => {
-    if (new URL(request.url()).pathname !== "/v1/projects/code-agent/open") {
+    if (new URL(request.url()).pathname !== "/v1/projects/codexly/open") {
       return false;
     }
     const body = parseRequestRecord(request.postData());
@@ -193,7 +193,7 @@ test("routes assistant links, images, and system files by Markdown file rules", 
       body["path"] === "/home/taoye/100%完成/AI 领航/后续工作交接.pptx"
     );
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const externalLink = page.getByRole("link", { name: "OpenAI" });
   await expect(externalLink).toHaveAttribute("target", "_blank");
@@ -204,7 +204,7 @@ test("routes assistant links, images, and system files by Markdown file rules", 
   await expect(imageDialog).toBeVisible();
   await expect(imageDialog.getByRole("img", { name: "result.png" })).toHaveAttribute(
     "src",
-    "/v1/projects/code-agent/files/image?path=%2Fworkspace%2FCodeAgent%2Fdesign%2Fresult.png&rootPath=%2Fworkspace%2FCodeAgent",
+    "/v1/projects/codexly/files/image?path=%2Fworkspace%2FCodexly%2Fdesign%2Fresult.png&rootPath=%2Fworkspace%2FCodexly",
   );
   await page.keyboard.press("Escape");
   await expect(imageDialog).toBeHidden();
@@ -217,7 +217,7 @@ test("routes assistant links, images, and system files by Markdown file rules", 
 test("project file tree opens changed, source, image, and system files by shared rules", async ({
   page,
 }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "项目" }).click();
@@ -236,8 +236,7 @@ test("project file tree opens changed, source, image, and system files by shared
   const docsRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
     return (
-      url.pathname === "/v1/projects/code-agent/files/tree" &&
-      url.searchParams.get("path") === "docs"
+      url.pathname === "/v1/projects/codexly/files/tree" && url.searchParams.get("path") === "docs"
     );
   });
   const docsDirectory = fileTree.getByRole("treeitem", { name: "docs" });
@@ -253,7 +252,7 @@ test("project file tree opens changed, source, image, and system files by shared
   const imageRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
     return (
-      url.pathname === "/v1/projects/code-agent/files/image" &&
+      url.pathname === "/v1/projects/codexly/files/image" &&
       url.searchParams.get("path") === "design/result.png"
     );
   });
@@ -266,7 +265,7 @@ test("project file tree opens changed, source, image, and system files by shared
   await expect(imageDialog).not.toBeAttached();
 
   const systemOpenRequest = page.waitForRequest((request) => {
-    if (new URL(request.url()).pathname !== "/v1/projects/code-agent/open") {
+    if (new URL(request.url()).pathname !== "/v1/projects/codexly/open") {
       return false;
     }
     const body = parseRequestRecord(request.postData());
@@ -280,7 +279,7 @@ test("project file tree opens changed, source, image, and system files by shared
 test("project file tree virtualizes 10,000 files and keeps keyboard navigation usable", async ({
   page,
 }) => {
-  await page.route("**/v1/projects/code-agent/files/tree*", async (route) => {
+  await page.route("**/v1/projects/codexly/files/tree*", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -292,12 +291,12 @@ test("project file tree virtualizes 10,000 files and keeps keyboard navigation u
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   await inspector.getByRole("tab", { name: "项目" }).click();
   const fileTree = inspector.getByRole("tree", { name: "项目文件" });
-  const root = fileTree.getByRole("treeitem", { name: "CodeAgent" });
+  const root = fileTree.getByRole("treeitem", { name: "Codexly" });
   await expect(root).toHaveAttribute("aria-expanded", "true");
   await expect(fileTree.getByRole("treeitem", { name: "file-00000.ts" })).toBeVisible();
   expect(await fileTree.getByRole("treeitem").count()).toBeLessThanOrEqual(40);

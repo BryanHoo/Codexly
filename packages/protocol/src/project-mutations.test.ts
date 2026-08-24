@@ -42,18 +42,18 @@ describe("project mutation protocol", () => {
   it("requires a complete non-duplicated project order", () => {
     expect(
       Value.Check(ReorderProjectsRequestSchema, {
-        projectIds: ["superwork", "code-agent"],
+        projectIds: ["superwork", "codexly"],
       }),
     ).toBe(true);
     expect(Value.Check(ReorderProjectsRequestSchema, { projectIds: [] })).toBe(false);
     expect(
       Value.Check(ReorderProjectsRequestSchema, {
-        projectIds: ["code-agent", "code-agent"],
+        projectIds: ["codexly", "codexly"],
       }),
     ).toBe(false);
     expect(
       Value.Check(ReorderProjectsRequestSchema, {
-        projectIds: ["code-agent"],
+        projectIds: ["codexly"],
         staleOrder: true,
       }),
     ).toBe(false);
@@ -62,9 +62,9 @@ describe("project mutation protocol", () => {
         data: [
           {
             createdAt: "2026-07-23T00:00:00.000Z",
-            id: "code-agent",
-            name: "CodeAgent",
-            roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+            id: "codexly",
+            name: "Codexly",
+            roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
           },
         ],
         nextCursor: null,
@@ -80,9 +80,9 @@ describe("project mutation protocol", () => {
       Value.Check(RenameProjectResponseSchema, {
         project: {
           createdAt: "2026-07-25T00:00:00.000Z",
-          id: "code-agent",
+          id: "codexly",
           name: "工作区别名",
-          roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+          roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
         },
       }),
     ).toBe(true);
@@ -90,7 +90,7 @@ describe("project mutation protocol", () => {
     expect(Value.Check(RemoveProjectRequestSchema, { removeFromDisk: true })).toBe(false);
     expect(
       Value.Check(RemoveProjectResponseSchema, {
-        projectId: "code-agent",
+        projectId: "codexly",
         status: "removed",
       }),
     ).toBe(true);
@@ -116,13 +116,13 @@ describe("project mutation protocol", () => {
     expect(
       Value.Check(OpenProjectRequestSchema, {
         appId: "system-default",
-        path: "/workspace/CodeAgent/report.docx",
+        path: "/workspace/Codexly/report.docx",
       }),
     ).toBe(true);
     expect(
       Value.Check(OpenProjectRequestSchema, {
         appId: "system-default",
-        path: "C:\\workspace\\CodeAgent\\slides.pptx",
+        path: "C:\\workspace\\Codexly\\slides.pptx",
       }),
     ).toBe(true);
     expect(
@@ -286,13 +286,13 @@ describe("project mutation protocol", () => {
     const worktree = {
       branch: "feat/worktree",
       current: false,
-      path: "/workspace/CodeAgent-feat-worktree",
+      path: "/workspace/Codexly-feat-worktree",
     };
     const project = {
       createdAt: "2026-08-18T00:00:00.000Z",
-      id: "code-agent-feat-worktree",
-      name: "CodeAgent-feat-worktree",
-      roots: [{ id: "root-code-agent-feat-worktree", path: worktree.path }],
+      id: "codexly-feat-worktree",
+      name: "Codexly-feat-worktree",
+      roots: [{ id: "root-codexly-feat-worktree", path: worktree.path }],
     };
 
     expect(Value.Check(ProjectGitWorktreePageSchema, { worktrees: [worktree] })).toBe(true);

@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import type { AppInfoResponse, AgentModel } from "@code-agent/protocol";
+import type { AppInfoResponse, AgentModel } from "@codexly/protocol";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
@@ -163,7 +163,7 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).not.toContain('aria-label="快速模式"');
   });
 
-  it("shows CodeAgent and Codex versions with an available update", () => {
+  it("shows Codexly and Codex versions with an available update", () => {
     const appInfo: AppInfoResponse = {
       appVersion: "1.3.0",
       codexVersion: "0.149.0",
@@ -203,7 +203,7 @@ describe("GlobalSettingsDialog", () => {
     );
 
     expect(markup).toContain("关于");
-    expect(markup).toContain("CodeAgent 版本");
+    expect(markup).toContain("Codexly 版本");
     expect(markup).toContain("1.3.0");
     expect(markup).toContain("Codex 版本");
     expect(markup).toContain("0.149.0");
@@ -213,7 +213,7 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).toContain("更新到 1.4.0");
     expect(markup).toContain('class="flex min-w-0 flex-wrap items-center gap-2 py-2"');
     expect(markup).not.toContain('class="flex min-w-0 flex-col items-start gap-2 py-2"');
-    expect(markup).toContain("https://github.com/BryanHoo/CodeAgent");
+    expect(markup).toContain("https://github.com/BryanHoo/Codexly");
     expect(markup).toContain('target="_blank"');
     expect(markup).toContain("justify-self-start");
     expect(markup).toContain('<section id="settings-panel-about">');
@@ -241,7 +241,7 @@ describe("GlobalSettingsDialog", () => {
       />,
     );
 
-    expect(markup).toContain("CodeAgent 版本");
+    expect(markup).toContain("Codexly 版本");
     expect(markup).toContain("Codex 版本");
     expect(markup).not.toContain("加载全局设置失败");
   });
@@ -297,7 +297,7 @@ describe("GlobalSettingsDialog", () => {
     );
 
     expect(updating).toContain("正在更新");
-    expect(restartRequired).toContain("更新完成，重启 CodeAgent 后生效");
+    expect(restartRequired).toContain("更新完成，重启 Codexly 后生效");
     expect(checkFailed).toContain("无法检查更新");
     expect(checkFailed).toContain("检查更新");
   });

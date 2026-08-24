@@ -3,12 +3,9 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join, relative } from "node:path";
 import { Worker } from "node:worker_threads";
 
-import {
-  MAX_AGENT_HISTORY_IMAGE_TOTAL_BYTES,
-  type AgentImageMediaType,
-} from "@code-agent/protocol";
+import { MAX_AGENT_HISTORY_IMAGE_TOTAL_BYTES, type AgentImageMediaType } from "@codexly/protocol";
 
-const STAGED_IMAGE_MARKER = "__codeAgentStagedImageV1";
+const STAGED_IMAGE_MARKER = "__codexlyStagedImageV1";
 const IMAGE_MEDIA_TYPES = new Set<AgentImageMediaType>([
   "image/gif",
   "image/jpeg",
@@ -57,7 +54,7 @@ export class JsonlFrameProcessor {
   #nextRequestId = 1;
 
   public constructor(options: JsonlFrameProcessorOptions = {}) {
-    this.#stagingDirectory = mkdtempSync(join(tmpdir(), "code-agent-jsonl-images-"));
+    this.#stagingDirectory = mkdtempSync(join(tmpdir(), "codexly-jsonl-images-"));
     this.#worker = new Worker(
       options.workerUrl ?? new URL("./codex-jsonl-frame-worker.js", import.meta.url),
       {

@@ -1,4 +1,4 @@
-import type { AgentProviderEvent } from "@code-agent/core";
+import type { AgentProviderEvent } from "@codexly/core";
 
 import type { CodexProviderLogger } from "./agent-provider-logger.js";
 import { SUPPORTED_CODEX_VERSION } from "./binary.js";

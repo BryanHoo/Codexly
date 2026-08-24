@@ -1,10 +1,10 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { buildProjectImageFileUrl } from "@code-agent/client";
-import type { ProjectSourceFile } from "@code-agent/protocol";
+import { buildProjectImageFileUrl } from "@codexly/client";
+import type { ProjectSourceFile } from "@codexly/protocol";
 import { Code2, Eye, FileCode2, Image, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react";
 
-import type { CodeAgentWorkbenchClient } from "../../projects/project-queries.js";
+import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
 import {
   CodeBlock,
   CodeBlockActions,
@@ -28,7 +28,7 @@ import { useTranslation } from "../../../i18n/i18n.js";
 export { getCodeLanguage } from "../../../shared/components/agent/code-languages.js";
 
 type ProjectSourceDialogProps = Readonly<{
-  client: CodeAgentWorkbenchClient;
+  client: CodexlyWorkbenchClient;
   onClose: () => void;
   previewKind: "image" | "source";
   projectId: string;

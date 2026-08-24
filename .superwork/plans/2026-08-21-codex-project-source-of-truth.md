@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 以 Codex `projectId` 作为唯一项目身份和上游真相源，并让 CodeAgent SQLite 仅保存单 `rootPath` 本地投影。
+**Goal:** 以 Codex `projectId` 作为唯一项目身份和上游真相源，并让 Codexly SQLite 仅保存单 `rootPath` 本地投影。
 
 **Suggested Spec Reads:**
 
@@ -17,8 +17,8 @@
 
 ## Global Constraints
 
-- Codex 返回的 `project.id` 是唯一项目身份；禁止继续生成 CodeAgent Project ID。
-- CodeAgent 只投影 Codex Project 的第一个 root 为 `rootPath`，无 root 的上游 Project 视为协议错误。
+- Codex 返回的 `project.id` 是唯一项目身份；禁止继续生成 Codexly Project ID。
+- Codexly 只投影 Codex Project 的第一个 root 为 `rootPath`，无 root 的上游 Project 视为协议错误。
 - 启动同步必须遍历全部 `project/list` Cursor，并在一个 SQLite 事务中替换用户 Project 投影。
 - Project Mutation 必须先成功写入 Codex，再同步本地 SQLite；失败不得伪造成功响应。
 - 普通持久 Task 必须按原生 `projectId` 归属；临时 Project 不写入 Codex Project Store。

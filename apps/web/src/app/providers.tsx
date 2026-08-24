@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { TEMPORARY_TASK_SCOPE_ID } from "@code-agent/protocol";
+import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
 
@@ -10,7 +10,7 @@ import {
   type AccessContextValue,
 } from "../features/access/access-context.js";
 import { PairingGate } from "../features/access/pairing-gate.js";
-import { codeAgentClient } from "../features/projects/project-queries.js";
+import { codexlyClient } from "../features/projects/project-queries.js";
 import { createBrowserTaskNotifier } from "../features/notifications/browser-task-notifier.js";
 import { createActionMutationCache } from "../features/notifications/action-notifications.js";
 import { ProviderConnectionGate } from "../features/provider-connection/components/provider-connection-gate.js";
@@ -105,7 +105,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     <I18nextProvider i18n={i18n}>
       <TooltipProvider>
         <QueryClientProvider client={queryClient}>
-          <AccessProvider client={codeAgentClient} queryClient={queryClient}>
+          <AccessProvider client={codexlyClient} queryClient={queryClient}>
             <AppProviderContent>{children}</AppProviderContent>
           </AccessProvider>
         </QueryClientProvider>

@@ -17,7 +17,7 @@ function createBundle(
     workbenchDependencyCount?: number;
   }> = {},
 ) {
-  const root = mkdtempSync(join(tmpdir(), "code-agent-bundle-"));
+  const root = mkdtempSync(join(tmpdir(), "codexly-bundle-"));
   temporaryRoots.push(root);
   mkdirSync(join(root, ".vite"), { recursive: true });
   mkdirSync(join(root, "assets"), { recursive: true });

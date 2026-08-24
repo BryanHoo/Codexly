@@ -1,7 +1,7 @@
-import type { AgentProviderTaskSnapshot } from "@code-agent/core";
-import type { AgentTaskSettings } from "@code-agent/protocol";
+import type { AgentProviderTaskSnapshot } from "@codexly/core";
+import type { AgentTaskSettings } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import {
   modelPage,
   snapshot,
@@ -32,7 +32,7 @@ describe("server task settings", () => {
 
     const response = app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1",
+      url: "/v1/projects/codexly/tasks/task-1",
     });
     await vi.waitFor(() => {
       expect(readTask).toHaveBeenCalledOnce();
@@ -91,11 +91,11 @@ describe("server task settings", () => {
 
     const defaults = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/defaults",
+      url: "/v1/projects/codexly/defaults",
     });
     const taskSnapshot = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1",
+      url: "/v1/projects/codexly/tasks/task-1",
     });
     const invalid = await app.inject({
       headers: { "idempotency-key": "invalid-defaults" },
@@ -105,7 +105,7 @@ describe("server task settings", () => {
         reasoningEffort: "ultra",
         sandboxMode: "workspace-write",
       },
-      url: "/v1/projects/code-agent/defaults",
+      url: "/v1/projects/codexly/defaults",
     });
     const updated = await app.inject({
       headers: { "idempotency-key": "task-settings" },
@@ -117,7 +117,7 @@ describe("server task settings", () => {
         reasoningEffort: "low",
         sandboxMode: "workspace-write",
       },
-      url: "/v1/projects/code-agent/tasks/task-1/settings",
+      url: "/v1/projects/codexly/tasks/task-1/settings",
     });
 
     expect(defaults.json()).toEqual({
@@ -152,12 +152,12 @@ describe("server task settings", () => {
         sandboxMode: "workspace-write",
       },
     });
-    expect(writeProjectDefaults).not.toHaveBeenCalledWith("code-agent", {
+    expect(writeProjectDefaults).not.toHaveBeenCalledWith("codexly", {
       model: "gpt-5.6-sol",
       reasoningEffort: "high",
       sandboxMode: "read-only",
     });
-    expect(writeTaskSettings).not.toHaveBeenCalledWith("code-agent", "task-1", {
+    expect(writeTaskSettings).not.toHaveBeenCalledWith("codexly", "task-1", {
       approvalPolicy: "never",
       approvalsReviewer: "user",
       model: "gpt-5.6-sol",
@@ -205,11 +205,11 @@ describe("server task settings", () => {
     const globalResponse = await app.inject({ method: "GET", url: "/v1/settings" });
     const projectResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/defaults",
+      url: "/v1/projects/codexly/defaults",
     });
     const taskResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1",
+      url: "/v1/projects/codexly/tasks/task-1",
     });
     const updatedResponse = await app.inject({
       headers: { "idempotency-key": "global-settings" },
@@ -279,7 +279,7 @@ describe("server task settings", () => {
         sandboxMode: "danger-full-access" as const,
       }),
     );
-    const app = await createCodeAgentServer({
+    const app = await createCodexlyServer({
       ...serverOptions,
       provider: { ...serverOptions.provider, readDefaultSettings },
     });
@@ -312,7 +312,7 @@ describe("server task settings", () => {
       settingsRepository: settings.repository,
     });
     const readDefaultSettings = vi.fn(() => Promise.resolve({ approvalPolicy: "never" as const }));
-    const app = await createCodeAgentServer({
+    const app = await createCodexlyServer({
       ...serverOptions,
       provider: { ...serverOptions.provider, readDefaultSettings },
     });

@@ -69,7 +69,7 @@ Expected: Inspector 单元测试证明“项目”和“变更”为不同标签
 
 **Interfaces:**
 
-- Consumes: `CodeAgentWorkbenchClient`、`ProjectGitStatus`、`CommitProjectChangesRequest`、`GenerateCommitMessageRequest`、`onOpenFileDiff`。
+- Consumes: `CodexlyWorkbenchClient`、`ProjectGitStatus`、`CommitProjectChangesRequest`、`GenerateCommitMessageRequest`、`onOpenFileDiff`。
 - Produces: `CommitChangesPanel` 与可直接挂载在 Inspector 中的 `CommitChangesController`，不再产生 Sheet 或 Git 历史审核状态。
 
 **Behavior:**
@@ -78,7 +78,7 @@ Expected: Inspector 单元测试证明“项目”和“变更”为不同标签
 
 **Stop Conditions:**
 
-- 若 Inspector 无法获得现有 `CodeAgentWorkbenchClient` 或 Project Git 详情状态，停止并重新确认组件所有权。
+- 若 Inspector 无法获得现有 `CodexlyWorkbenchClient` 或 Project Git 详情状态，停止并重新确认组件所有权。
 - 若移除 Sheet 后提交表单无法在右栏剩余高度内形成独立滚动区域，停止并先修正面板的 `min-h-0` 与 overflow 边界。
 
 - [x] **Task Status:** completed

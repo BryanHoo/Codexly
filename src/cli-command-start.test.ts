@@ -7,7 +7,7 @@ import { temporaryDirectories, createHarness } from "./cli-command.test-support.
 
 describe("runCli startup", () => {
   it("creates a private temporary workspace and rejects a symbolic-link target", async () => {
-    const root = await mkdtemp(join(tmpdir(), "code-agent-cli-"));
+    const root = await mkdtemp(join(tmpdir(), "codexly-cli-"));
     temporaryDirectories.push(root);
     const workspace = join(root, "temporary-workspace");
 
@@ -22,11 +22,11 @@ describe("runCli startup", () => {
     await expect(ensureTemporaryWorkspace(alias)).rejects.toThrow(/symbolic link/u);
   });
 
-  it("prints the CodeAgent version", async () => {
+  it("prints the Codexly version", async () => {
     const harness = createHarness();
 
     await expect(runCli(["version"], harness.options)).resolves.toBe(0);
-    expect(harness.stdout.join("")).toBe("code-agent 1.2.3\n");
+    expect(harness.stdout.join("")).toBe("codexly 1.2.3\n");
     expect(harness.stderr).toEqual([]);
   });
 
@@ -46,7 +46,7 @@ describe("runCli startup", () => {
     expect(harness.stdout.join("")).toContain("[成功] Node.js 22.13.0");
     expect(harness.stdout.join("")).toContain("[成功] Codex 0.149.0 (/fake/codex)");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
-      join("/custom/home", "code-agent", "state.sqlite3"),
+      join("/custom/home", "codexly", "state.sqlite3"),
     );
     expect(harness.stdout.join("")).toContain("[成功] SQLite 可写");
     expect(harness.stdout.join("")).toContain("[成功] SQLite migration 4");
@@ -106,19 +106,19 @@ describe("runCli startup", () => {
       provider: harness.runtimeProvider,
       settingsRepository: harness.stateRepository,
       staticRoot: "/package/dist/web",
-      temporaryWorkspace: join("/custom/home", "code-agent", "temporary-workspace"),
+      temporaryWorkspace: join("/custom/home", "codexly", "temporary-workspace"),
     });
     expect(typeof serverOptions?.installAppUpdate).toBe("function");
     expect(typeof serverOptions?.readAppInfo).toBe("function");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
-      join("/custom/home", "code-agent", "state.sqlite3"),
+      join("/custom/home", "codexly", "state.sqlite3"),
     );
     expect(harness.dependencies.ensureTemporaryWorkspace).toHaveBeenCalledWith(
-      join("/custom/home", "code-agent", "temporary-workspace"),
+      join("/custom/home", "codexly", "temporary-workspace"),
     );
     expect(harness.serverListen).toHaveBeenCalledWith({ host: "127.0.0.1", port: 3210 });
     expect(harness.dependencies.openBrowser).toHaveBeenCalledWith("http://127.0.0.1:3210");
-    expect(harness.stdout.join("")).toContain("[成功] CodeAgent 已启动");
+    expect(harness.stdout.join("")).toContain("[成功] Codexly 已启动");
     expect(harness.stdout.join("")).toContain("访问地址: http://127.0.0.1:3210");
 
     controller.abort();

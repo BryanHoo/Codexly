@@ -1,4 +1,4 @@
-import type { AgentMcpServer } from "@code-agent/protocol";
+import type { AgentMcpServer } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 import {
   WorkbenchInspector,
@@ -15,15 +15,15 @@ describe("WorkbenchInspector sources", () => {
         gitStatusError={new Error("not a git repository")}
         onOpenProjectFile={() => undefined}
         onRefreshGitStatus={() => undefined}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
       />,
     );
     const contextMarkup = renderInspectorMarkup(
       <WorkbenchInspector
         gitStatus={gitStatus}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         tab="context"
         taskId="task-1"
       />,
@@ -39,12 +39,12 @@ describe("WorkbenchInspector sources", () => {
     const loadingMarkup = renderInspectorMarkup(
       <WorkbenchInspector
         onOpenProjectFile={() => undefined}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
       />,
     );
     expect(loadingMarkup).toContain('aria-label="正在读取项目文件..."');
-    expect(loadingMarkup).toContain("CodeAgent");
+    expect(loadingMarkup).toContain("Codexly");
     expect(loadingMarkup).toContain("animate-spin");
   });
 
@@ -52,8 +52,8 @@ describe("WorkbenchInspector sources", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
         onOpenSubagent={() => undefined}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         subagents={[
           {
             model: "gpt-5.6-sol",
@@ -93,7 +93,7 @@ describe("WorkbenchInspector sources", () => {
         backgroundTerminals={[
           {
             command: "pnpm check",
-            cwd: "/workspace/CodeAgent",
+            cwd: "/workspace/Codexly",
             id: "terminal-1",
             itemId: "command-1",
           },
@@ -104,8 +104,8 @@ describe("WorkbenchInspector sources", () => {
           { ...readyMcpServer, authStatus: "unsupported", name: "chrome-devtools" },
           { ...readyMcpServer, authStatus: "unknown", name: "remote-context" },
         ]}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         skills={[
           {
             description: "Review security-sensitive changes",
@@ -165,7 +165,7 @@ describe("WorkbenchInspector sources", () => {
     expect(markup).not.toContain("思考量");
     expect(markup).not.toContain("沙盒");
     expect(markup).not.toContain("分支");
-    expect(markup).toContain("/workspace/CodeAgent");
+    expect(markup).toContain("/workspace/Codexly");
     expect(markup).toContain("项目目录");
     expect(markup).toContain("安全审查");
     expect(markup.match(/lucide-sparkles/gu)).toHaveLength(1);
@@ -180,8 +180,8 @@ describe("WorkbenchInspector sources", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
         projectId="project one"
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         tab="context"
         task={{
           turns: [
@@ -252,13 +252,13 @@ describe("WorkbenchInspector sources", () => {
           backgroundTerminals={[
             {
               command: "pnpm check",
-              cwd: "/workspace/CodeAgent",
+              cwd: "/workspace/Codexly",
               id: "terminal-1",
               itemId: "command-1",
             },
           ]}
-          projectName="CodeAgent"
-          projectPath="/workspace/CodeAgent"
+          projectName="Codexly"
+          projectPath="/workspace/Codexly"
           tab="context"
           taskId="task-1"
           {...props}
@@ -273,8 +273,8 @@ describe("WorkbenchInspector sources", () => {
     const retryErrorMarkup = renderInspectorMarkup(
       <WorkbenchInspector
         mcpServersError={new Error("mcpServerStatus/list failed")}
-        projectName="CodeAgent"
-        projectPath="/workspace/CodeAgent"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
         tab="context"
         taskId="task-1"
       />,

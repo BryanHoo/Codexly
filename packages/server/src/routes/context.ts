@@ -8,7 +8,7 @@ import type {
   AgentTaskScope,
   PendingRequestResolutionError,
   ProjectRepository,
-} from "@code-agent/core";
+} from "@codexly/core";
 import type {
   AppInfoResponse,
   AgentAttachmentKind,
@@ -44,7 +44,7 @@ import type {
   ProjectSourceFile,
   SwitchProjectBranchRequest,
   SwitchProjectWorktreeRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import type { AgentEventStream } from "../agent-event-stream.js";
 import type { AccessSessionService } from "../access-control.js";

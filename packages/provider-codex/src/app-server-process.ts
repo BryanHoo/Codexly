@@ -227,8 +227,8 @@ export async function startCodexAppServer(
         optOutNotificationMethods: CODEX_OPT_OUT_NOTIFICATION_METHODS,
       },
       clientInfo: {
-        name: "code_agent",
-        title: "CodeAgent",
+        name: "codexly",
+        title: "Codexly",
         version: options.appVersion ?? "0.0.0",
       },
     });

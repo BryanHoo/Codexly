@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 
-import { MAX_AGENT_TEXT_BYTES, type AgentMessageAttachment } from "@code-agent/protocol";
+import { MAX_AGENT_TEXT_BYTES, type AgentMessageAttachment } from "@codexly/protocol";
 
 import { normalizeAttachmentName } from "./historical-attachment-files.js";
 import type { StoredHistoricalAttachment } from "./historical-local-file-attachment.js";

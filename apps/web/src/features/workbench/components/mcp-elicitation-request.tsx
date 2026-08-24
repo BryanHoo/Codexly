@@ -2,7 +2,7 @@ import type {
   McpElicitationField,
   McpElicitationResolution,
   PendingRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { ExternalLink } from "lucide-react";
 import { useRef, useState } from "react";
 

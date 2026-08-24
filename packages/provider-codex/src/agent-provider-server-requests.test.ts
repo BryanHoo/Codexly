@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { AgentProviderEvent, PendingRequestResolutionError } from "@code-agent/core";
-import type { PendingRequest } from "@code-agent/protocol";
+import type { AgentProviderEvent, PendingRequestResolutionError } from "@codexly/core";
+import type { PendingRequest } from "@codexly/protocol";
 import {
   FakeRpcClient,
   project,
@@ -123,7 +123,7 @@ describe("CodexAgentProvider server requests", () => {
     rpc.emitServerRequest(7, "item/commandExecution/requestApproval", {
       availableDecisions: ["accept", "acceptForSession", "decline"],
       command: "pnpm check",
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       itemId: "command-1",
       networkApprovalContext: { host: "api.example.com", protocol: "https" },
       reason: "需要执行检查",
@@ -139,7 +139,7 @@ describe("CodexAgentProvider server requests", () => {
       command: "pnpm check",
       itemId: "command-1",
       networkAccess: { host: "api.example.com", protocol: "https" },
-      projectId: "code-agent",
+      projectId: "codexly",
       requestId: "number:7",
       status: "pending",
       taskId: "task-1",
@@ -364,7 +364,7 @@ describe("CodexAgentProvider server requests", () => {
     await provider.listTasks();
 
     rpc.emitServerRequest("permissions-1", "item/permissions/requestApproval", {
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       environmentId: "local",
       itemId: "permission-item-1",
       permissions: {
@@ -372,7 +372,7 @@ describe("CodexAgentProvider server requests", () => {
           entries: [
             {
               access: "write",
-              path: { path: "/workspace/CodeAgent/.cache", type: "path" },
+              path: { path: "/workspace/Codexly/.cache", type: "path" },
             },
           ],
           globScanMaxDepth: 4,
@@ -394,7 +394,7 @@ describe("CodexAgentProvider server requests", () => {
           entries: [
             {
               access: "write",
-              path: { type: "path", value: "/workspace/CodeAgent/.cache" },
+              path: { type: "path", value: "/workspace/Codexly/.cache" },
             },
           ],
           globScanMaxDepth: 4,

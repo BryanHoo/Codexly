@@ -74,7 +74,7 @@ Expected: 目标契约、Client 编码、Server 路由和目录过滤测试全�
 
 **Interfaces:**
 
-- Consumes: `ProjectDirectoryListing`、`HostFileListing` 的共同路径/根目录结构，以及 `CodeAgentClient.listProjectDirectories`
+- Consumes: `ProjectDirectoryListing`、`HostFileListing` 的共同路径/根目录结构，以及 `CodexlyClient.listProjectDirectories`
 - Produces: `FilesystemPickerToolbar` 和带绝对路径输入、Enter/按钮导航、`aria-pressed` 隐藏项开关的项目文件夹选择器
 
 **Behavior:**

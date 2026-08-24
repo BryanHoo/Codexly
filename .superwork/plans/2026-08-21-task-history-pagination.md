@@ -11,7 +11,7 @@
 - `.superwork/spec/frontend/hook-guidelines.md` — 约束异步加载、过期响应和卸载清理。
 - `.superwork/spec/shared/quality-guidelines.md` — 约束 Protocol Schema、类型和所有消费者同步更新。
 
-**Architecture:** Task 读取先用 `thread/read { includeTurns: false }` 获取元数据，再用 `thread/turns/list` 获取最近一页。Paginated history 的 Turn 通过 `thread/items/list` 分页水合；Legacy history 由 `thread/turns/list itemsView: "full"` 提供当前页。CodeAgent 对 Codex Turn 游标和 Reviewer 偏移做不透明封装，HTTP 读取端点复用可选游标，Web Store 将更早页前置合并并保留实时快照。
+**Architecture:** Task 读取先用 `thread/read { includeTurns: false }` 获取元数据，再用 `thread/turns/list` 获取最近一页。Paginated history 的 Turn 通过 `thread/items/list` 分页水合；Legacy history 由 `thread/turns/list itemsView: "full"` 提供当前页。Codexly 对 Codex Turn 游标和 Reviewer 偏移做不透明封装，HTTP 读取端点复用可选游标，Web Store 将更早页前置合并并保留实时快照。
 
 **Tech Stack:** TypeScript、Fastify、React、Zustand、TanStack Query、Vitest、Codex App Server 0.149。
 
@@ -111,7 +111,7 @@ Expected: Protocol、Server 与 Client 契约测试通过，非法游标被拒�
 
 **Interfaces:**
 
-- Consumes: `turnsNextCursor`, `CodeAgentRuntimeClient.readTask`
+- Consumes: `turnsNextCursor`, `CodexlyRuntimeClient.readTask`
 - Produces: `TaskStore.prependHistory` and `TaskRuntimeView.loadOlderHistory`
 
 **Behavior:**

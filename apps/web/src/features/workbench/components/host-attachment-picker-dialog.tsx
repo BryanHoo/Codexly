@@ -1,5 +1,5 @@
-import { buildProjectAttachmentUrl } from "@code-agent/client";
-import type { HostFileKind, HostFileListing } from "@code-agent/protocol";
+import { buildProjectAttachmentUrl } from "@codexly/client";
+import type { HostFileKind, HostFileListing } from "@codexly/protocol";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { FilePlus2, ImagePlus, LoaderCircle, RotateCcw } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../shared/components/core/dialog.js";
-import type { CodeAgentHostAttachmentClient } from "../../projects/project-queries.js";
+import type { CodexlyHostAttachmentClient } from "../../projects/project-queries.js";
 import { FilesystemPickerToolbar } from "../../projects/components/filesystem-picker-toolbar.js";
 import { resolveIdempotencyAttempt, type IdempotencyAttempt } from "../composer-state.js";
 
@@ -143,7 +143,7 @@ export function HostFileTree({
 }
 
 type HostAttachmentPickerDialogProps = Readonly<{
-  client: CodeAgentHostAttachmentClient;
+  client: CodexlyHostAttachmentClient;
   kind: HostFileKind;
   onAdd: (attachment: PromptInputAttachment) => void;
   onClose: () => void;

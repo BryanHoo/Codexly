@@ -1,4 +1,4 @@
-import type { AgentSkill, AgentTurn } from "@code-agent/protocol";
+import type { AgentSkill, AgentTurn } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 
 import { serializePromptSkillContent } from "./prompt-skill-content.js";

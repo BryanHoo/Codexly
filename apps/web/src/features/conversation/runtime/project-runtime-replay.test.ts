@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentTaskSnapshotResponse } from "@code-agent/protocol";
+import type { AgentEvent, AgentTaskSnapshotResponse } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { estimateRetainedBytes } from "../../../shared/memory/byte-lru.js";
 import { getTaskActivity } from "./task-activity.js";
@@ -53,7 +53,7 @@ describe("project runtime replay", () => {
                 id: "tool-read-file",
                 input: { path: "package.json" },
                 name: "read_file",
-                output: { content: "CodeAgent" },
+                output: { content: "Codexly" },
                 status: "completed",
                 type: "tool",
               },
@@ -227,7 +227,7 @@ describe("project runtime replay", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(harness.client.readTask).toHaveBeenCalledTimes(1);
     expect(harness.client.subscribeEvents).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith("CodeAgent internal warning", {
+    expect(warn).toHaveBeenCalledWith("Codexly internal warning", {
       diagnosticCode: "snapshot_recovery_failed",
       errorMessage: "Snapshot recovery failed",
     });

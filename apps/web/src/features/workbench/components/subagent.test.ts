@@ -9,7 +9,7 @@ const snapshot: RuntimeTaskSnapshot = {
   id: "parent-task",
   pendingRequests: [],
   pinned: false,
-  projectId: "code-agent",
+  projectId: "codexly",
   settings: {
     approvalPolicy: "on-request",
     approvalsReviewer: "user",

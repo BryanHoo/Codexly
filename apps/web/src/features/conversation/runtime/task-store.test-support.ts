@@ -1,4 +1,4 @@
-import type { AgentTaskSnapshotResponse, PendingRequest } from "@code-agent/protocol";
+import type { AgentTaskSnapshotResponse, PendingRequest } from "@codexly/protocol";
 import { type createTaskStore, createTaskItemKey } from "./task-store.js";
 
 // 集中维护 task store 的快照、事件和 pending request 样本。

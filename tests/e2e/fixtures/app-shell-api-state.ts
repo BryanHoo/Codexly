@@ -43,8 +43,8 @@ export function createAppShellApiState(options: Readonly<{ providerConnected?: b
     ]),
   );
   const taskSettings = new Map([
-    ["code-agent:task-1", taskSnapshot.settings],
-    ["code-agent:task-2", taskSnapshot.settings],
+    ["codexly:task-1", taskSnapshot.settings],
+    ["codexly:task-2", taskSnapshot.settings],
   ]);
   const globalSettings = {
     approvalPolicy: "on-request",

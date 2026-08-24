@@ -1,4 +1,4 @@
-import type { Project, ProjectRoot } from "@code-agent/protocol";
+import type { Project, ProjectRoot } from "@codexly/protocol";
 
 export type ProjectRootSelection = Readonly<{
   projectId: string;

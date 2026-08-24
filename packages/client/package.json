@@ -1,5 +1,5 @@
 {
-  "name": "@code-agent/client",
+  "name": "@codexly/client",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     }
   },
   "dependencies": {
-    "@code-agent/protocol": "workspace:*",
+    "@codexly/protocol": "workspace:*",
     "@sinclair/typebox": "catalog:",
     "uuid": "catalog:"
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CodeAgentClient, CodeAgentResponseError } from "./http-client.js";
+import { CodexlyClient, CodexlyResponseError } from "./http-client.js";
 import {
   task,
   taskSettings,
@@ -8,7 +8,7 @@ import {
   jsonResponse,
 } from "./http-client.test-support.js";
 
-describe("CodeAgentClient settings and app routes", () => {
+describe("CodexlyClient settings and app routes", () => {
   it("uses the configured base URL for all read methods", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock
@@ -44,29 +44,29 @@ describe("CodeAgentClient settings and app routes", () => {
           },
         }),
       );
-    const client = new CodeAgentClient({ baseUrl: "http://127.0.0.1:3210/", fetch: fetchMock });
+    const client = new CodexlyClient({ baseUrl: "http://127.0.0.1:3210/", fetch: fetchMock });
 
     await client.getHealth();
     await client.getCapabilities();
     await client.listProjects();
-    await client.readTask("code-agent", "task-1");
+    await client.readTask("codexly", "task-1");
 
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
       "http://127.0.0.1:3210/v1/health",
       "http://127.0.0.1:3210/v1/capabilities",
       "http://127.0.0.1:3210/v1/projects",
-      "http://127.0.0.1:3210/v1/projects/code-agent/tasks/task-1",
+      "http://127.0.0.1:3210/v1/projects/codexly/tasks/task-1",
     ]);
   });
 
   it("rejects non-success HTTP responses", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse({ message: "failed" }, { status: 500 }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.getHealth()).rejects.toMatchObject({
       message: "failed",
-      name: "CodeAgentHttpError",
+      name: "CodexlyHttpError",
     });
   });
 
@@ -77,7 +77,7 @@ describe("CodeAgentClient settings and app routes", () => {
       .mockResolvedValueOnce(jsonResponse({ settings: projectDefaults }))
       .mockResolvedValueOnce(jsonResponse({ settings: taskSettings }))
       .mockResolvedValueOnce(jsonResponse({ settings: taskSettings }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.getProjectDefaults("project one")).resolves.toEqual({
       settings: projectDefaults,
@@ -120,7 +120,7 @@ describe("CodeAgentClient settings and app routes", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ settings: globalSettings }))
       .mockResolvedValueOnce(jsonResponse({ settings: globalSettings }));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.getGlobalSettings()).resolves.toEqual({ settings: globalSettings });
     await expect(
@@ -158,7 +158,7 @@ describe("CodeAgentClient settings and app routes", () => {
       .fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse(available))
       .mockResolvedValueOnce(jsonResponse(installed));
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.getAppInfo()).resolves.toEqual(available);
     await expect(
@@ -186,9 +186,9 @@ describe("CodeAgentClient settings and app routes", () => {
         updateAvailable: true,
       }),
     );
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
-    await expect(client.getAppInfo()).rejects.toBeInstanceOf(CodeAgentResponseError);
+    await expect(client.getAppInfo()).rejects.toBeInstanceOf(CodexlyResponseError);
   });
 
   it("rejects malformed settings responses", async () => {
@@ -196,10 +196,10 @@ describe("CodeAgentClient settings and app routes", () => {
     fetchMock.mockResolvedValue(
       jsonResponse({ settings: { ...taskSettings, approvalPolicy: "allow_for_session" } }),
     );
-    const client = new CodeAgentClient({ fetch: fetchMock });
+    const client = new CodexlyClient({ fetch: fetchMock });
 
-    await expect(client.getTaskSettings("code-agent", "task-1")).rejects.toBeInstanceOf(
-      CodeAgentResponseError,
+    await expect(client.getTaskSettings("codexly", "task-1")).rejects.toBeInstanceOf(
+      CodexlyResponseError,
     );
   });
 });

@@ -1,8 +1,8 @@
-import type { ProjectGitStatus } from "@code-agent/protocol";
+import type { ProjectGitStatus } from "@codexly/protocol";
 
 import { i18n } from "../../../i18n/i18n.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
-import type { CodeAgentWorkbenchClient } from "../../projects/project-queries.js";
+import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
 import { CommitChangesController } from "./commit-changes-controller.js";
 
 export function WorkbenchInspectorChanges({
@@ -16,7 +16,7 @@ export function WorkbenchInspectorChanges({
   projectId,
   rootPath,
 }: Readonly<{
-  client: CodeAgentWorkbenchClient | undefined;
+  client: CodexlyWorkbenchClient | undefined;
   detailsError: Error | null;
   detailsPending: boolean;
   detailsStatus: ProjectGitStatus | undefined;

@@ -5,7 +5,7 @@ export const common = {
     loadError: "Unable to check access",
     pair: "Pair",
     pairing: "Pairing",
-    pairingDescription: "Enter the access password configured or shown when CodeAgent started.",
+    pairingDescription: "Enter the access password configured or shown when Codexly started.",
     pairingError: "Unable to pair. Check the access password and try again",
     pairingTitle: "Connect to a trusted LAN session",
   },

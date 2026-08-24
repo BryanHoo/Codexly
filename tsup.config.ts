@@ -21,10 +21,10 @@ export default defineConfig({
     };
     options.alias = {
       ...options.alias,
-      "@code-agent/core": "./packages/core/src/index.ts",
-      "@code-agent/protocol": "./packages/protocol/src/index.ts",
-      "@code-agent/provider-codex": "./packages/provider-codex/src/index.ts",
-      "@code-agent/server": "./packages/server/src/index.ts",
+      "@codexly/core": "./packages/core/src/index.ts",
+      "@codexly/protocol": "./packages/protocol/src/index.ts",
+      "@codexly/provider-codex": "./packages/provider-codex/src/index.ts",
+      "@codexly/server": "./packages/server/src/index.ts",
     };
   },
   format: ["esm"],

@@ -1,15 +1,15 @@
-import type { ProjectGitStatus } from "@code-agent/protocol";
+import type { ProjectGitStatus } from "@codexly/protocol";
 import type { QueryClient } from "@tanstack/react-query";
 
 import type { AgentFileChange } from "../diff/file-change.js";
 import {
   projectGitDetailedStatusQueryOptions,
-  type CodeAgentGitStatusClient,
+  type CodexlyGitStatusClient,
 } from "../projects/project-queries.js";
 
 export async function loadProjectGitFileDiff(
   queryClient: QueryClient,
-  client: CodeAgentGitStatusClient,
+  client: CodexlyGitStatusClient,
   projectId: string,
   rootPath: string,
   summary: ProjectGitStatus | undefined,

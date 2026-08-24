@@ -1,6 +1,6 @@
 # Codex Plan Queue Implementation Plan
 
-**Goal:** 在 CodeAgent 中完整交付 Codex `turn/plan/updated`，并将最新计划作为可恢复的 Queue 持续展示在右栏上下文中。
+**Goal:** 在 Codexly 中完整交付 Codex `turn/plan/updated`，并将最新计划作为可恢复的 Queue 持续展示在右栏上下文中。
 
 **Suggested Spec Reads:**
 
@@ -17,8 +17,8 @@
 
 ## Global Constraints
 
-- 所有跨包数据必须通过 `@code-agent/protocol` Schema 与类型公开，Codex 原生字段不得进入 Web。
-- Queue 组件只使用 CodeAgent 现有 `foreground`、`muted-foreground`、`panel`、`control`、`separator`、`brand` 等设计 tokens。
+- 所有跨包数据必须通过 `@codexly/protocol` Schema 与类型公开，Codex 原生字段不得进入 Web。
+- Queue 组件只使用 Codexly 现有 `foreground`、`muted-foreground`、`panel`、`control`、`separator`、`brand` 等设计 tokens。
 - 计划更新必须保留 Codex 顺序并整表替换，状态只允许 `pending`、`in_progress`、`completed`。
 - 自动切换只在当前 Task 首次拥有计划时发生，后续步骤状态更新不得反复覆盖用户手动选择。
 - 不启动开发服务器。

@@ -6,11 +6,11 @@ test("switches branches from the composer footer", async ({ page }) => {
   let switchRequest: Record<string, unknown> | undefined;
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (request.method() === "POST" && url.pathname === "/v1/projects/code-agent/git/branch") {
+    if (request.method() === "POST" && url.pathname === "/v1/projects/codexly/git/branch") {
       switchRequest = parseRequestRecord(request.postData());
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const trigger = page.getByRole("button", {
     name: "切换分支，当前分支 feat/review-targets",
@@ -41,11 +41,11 @@ test("creates and switches to a branch from the composer footer", async ({ page 
   let createRequest: Record<string, unknown> | undefined;
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (request.method() === "POST" && url.pathname === "/v1/projects/code-agent/git/branches") {
+    if (request.method() === "POST" && url.pathname === "/v1/projects/codexly/git/branches") {
       createRequest = parseRequestRecord(request.postData());
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("button", { name: "切换分支，当前分支 feat/review-targets" }).click();
   const createBranchItem = page.getByRole("menuitem", { name: "新建分支" });
@@ -71,37 +71,37 @@ test("switches to an existing worktree from the composer footer", async ({ page 
   let switchRequest: Record<string, unknown> | undefined;
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (request.method() === "POST" && url.pathname === "/v1/projects/code-agent/git/worktree") {
+    if (request.method() === "POST" && url.pathname === "/v1/projects/codexly/git/worktree") {
       switchRequest = parseRequestRecord(request.postData());
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("button", { name: "切换分支，当前分支 feat/review-targets" }).click();
   const worktreeItem = page.getByRole("menuitem", { name: /feat\/worktree-review/u });
-  await expect(worktreeItem).toContainText("/workspace/CodeAgent-worktree-review");
+  await expect(worktreeItem).toContainText("/workspace/Codexly-worktree-review");
   const responsePromise = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === "/v1/projects/code-agent/git/worktree",
+    (response) => new URL(response.url()).pathname === "/v1/projects/codexly/git/worktree",
   );
   await worktreeItem.click();
 
   await expect(responsePromise.then((response) => response.json())).resolves.toMatchObject({
-    project: { id: "code-agent-worktree-review" },
+    project: { id: "codexly-worktree-review" },
   });
 
-  await expect(page).toHaveURL(/\/p\/code-agent-worktree-review$/u);
-  expect(switchRequest).toEqual({ path: "/workspace/CodeAgent-worktree-review" });
+  await expect(page).toHaveURL(/\/p\/codexly-worktree-review$/u);
+  expect(switchRequest).toEqual({ path: "/workspace/Codexly-worktree-review" });
 });
 
 test("creates and switches to a worktree from the composer footer", async ({ page }) => {
   let createRequest: Record<string, unknown> | undefined;
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (request.method() === "POST" && url.pathname === "/v1/projects/code-agent/git/worktrees") {
+    if (request.method() === "POST" && url.pathname === "/v1/projects/codexly/git/worktrees") {
       createRequest = parseRequestRecord(request.postData());
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("button", { name: "切换分支，当前分支 feat/review-targets" }).click();
   await page.getByRole("menuitem", { name: "新建 worktree" }).click();
@@ -110,7 +110,7 @@ test("creates and switches to a worktree from the composer footer", async ({ pag
   await dialog.getByRole("textbox", { name: "分支名称" }).fill("feat/composer-worktree");
   await dialog.getByRole("button", { name: "创建并切换" }).click();
 
-  await expect(page).toHaveURL(/\/p\/code-agent-composer-worktree$/u);
+  await expect(page).toHaveURL(/\/p\/codexly-composer-worktree$/u);
   expect(createRequest).toEqual({
     branch: "feat/composer-worktree",
     expectedSnapshot: projectGitStatus.snapshot,
@@ -118,12 +118,12 @@ test("creates and switches to a worktree from the composer footer", async ({ pag
 });
 
 test("opens current-branch Git history from the inspector tab", async ({ page }) => {
-  const encodedRootPath = "%2Fworkspace%2FCodeAgent";
+  const encodedRootPath = "%2Fworkspace%2FCodexly";
   const historyRequests: string[] = [];
   const commitFileRequests: string[] = [];
   const commitDiffRequests: string[] = [];
   let releaseServerHistory: (() => void) | undefined;
-  await page.route("**/v1/projects/code-agent/git/history*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/history*", async (route) => {
     const url = new URL(route.request().url());
     const cursor = url.searchParams.get("cursor");
     const repository = url.searchParams.get("repository");
@@ -153,7 +153,7 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/git/commit-files*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/commit-files*", async (route) => {
     const url = new URL(route.request().url());
     const cursor = url.searchParams.get("cursor");
     commitFileRequests.push(url.search);
@@ -170,7 +170,7 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/git/commit-diff*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/commit-diff*", async (route) => {
     const url = new URL(route.request().url());
     commitDiffRequests.push(url.search);
     const path = url.searchParams.get("path") ?? "src/review-0.ts";
@@ -182,7 +182,7 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const branchTrigger = page.getByRole("button", { name: /切换分支，当前分支/u });
   const inspector = page.locator(".workbench-inspector");
@@ -292,7 +292,7 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
 });
 
 test("paginates a single repository inside the history content", async ({ page }) => {
-  await page.route("**/v1/projects/code-agent/git/history*", async (route) => {
+  await page.route("**/v1/projects/codexly/git/history*", async (route) => {
     const cursor = new URL(route.request().url()).searchParams.get("cursor");
     const start = cursor === "20" ? 20 : 0;
     const count = cursor === "20" ? 1 : 20;
@@ -314,7 +314,7 @@ test("paginates a single repository inside the history content", async ({ page }
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   const inspector = page.locator(".workbench-inspector");
   await inspector.getByRole("tab", { name: "历史" }).click();
   const content = inspector.locator('[data-slot="git-history-content"]');

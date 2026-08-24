@@ -5,11 +5,11 @@
     "lib": ["ES2024", "DOM"],
     "noEmit": true,
     "paths": {
-      "@code-agent/client": ["../packages/client/src/index.ts"],
-      "@code-agent/core": ["../packages/core/src/index.ts"],
-      "@code-agent/protocol": ["../packages/protocol/src/index.ts"],
-      "@code-agent/provider-codex": ["../packages/provider-codex/src/index.ts"],
-      "@code-agent/server": ["../packages/server/src/index.ts"]
+      "@codexly/client": ["../packages/client/src/index.ts"],
+      "@codexly/core": ["../packages/core/src/index.ts"],
+      "@codexly/protocol": ["../packages/protocol/src/index.ts"],
+      "@codexly/provider-codex": ["../packages/provider-codex/src/index.ts"],
+      "@codexly/server": ["../packages/server/src/index.ts"]
     },
     "tsBuildInfoFile": "../.cache/types/tests.tsbuildinfo",
     "types": ["node", "@playwright/test", "vitest"]

@@ -1,4 +1,4 @@
-import type { ProjectRoot } from "@code-agent/protocol";
+import type { ProjectRoot } from "@codexly/protocol";
 import { FolderKanban } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";

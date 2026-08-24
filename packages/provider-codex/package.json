@@ -1,5 +1,5 @@
 {
-  "name": "@code-agent/provider-codex",
+  "name": "@codexly/provider-codex",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,8 @@
     }
   },
   "dependencies": {
-    "@code-agent/core": "workspace:*",
-    "@code-agent/protocol": "workspace:*",
+    "@codexly/core": "workspace:*",
+    "@codexly/protocol": "workspace:*",
     "@openai/codex": "catalog:",
     "pino": "catalog:"
   }

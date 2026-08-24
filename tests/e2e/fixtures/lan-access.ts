@@ -82,8 +82,8 @@ export const test = base.extend<Record<never, never>, LanWorkerFixtures>({
       const serverProcess = spawn(process.execPath, [fakeServerPath], {
         env: {
           ...process.env,
-          CODE_AGENT_E2E_PAIRING_CODE: LAN_PAIRING_CODE,
-          CODE_AGENT_E2E_PORT: "0",
+          CODEXLY_E2E_PAIRING_CODE: LAN_PAIRING_CODE,
+          CODEXLY_E2E_PORT: "0",
         },
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],

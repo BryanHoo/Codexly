@@ -5,7 +5,7 @@ import {
   RpcProtocolError,
   RpcResponseError,
   RpcTimeoutError,
-} from "@code-agent/provider-codex";
+} from "@codexly/provider-codex";
 
 import { MutationHttpError, type RunIdempotent } from "./routes/context.js";
 import { fingerprintPayload } from "./server-runtime.js";

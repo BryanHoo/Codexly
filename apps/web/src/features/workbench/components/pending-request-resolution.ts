@@ -1,4 +1,4 @@
-import type { PendingRequest, ResolvePendingRequestRequest } from "@code-agent/protocol";
+import type { PendingRequest, ResolvePendingRequestRequest } from "@codexly/protocol";
 import { v4 as createUuid } from "uuid";
 
 export type PendingRequestResolution = ResolvePendingRequestRequest["resolution"];

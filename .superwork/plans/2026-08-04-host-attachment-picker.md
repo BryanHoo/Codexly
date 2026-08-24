@@ -1,6 +1,6 @@
 # Host Attachment Picker Implementation Plan
 
-**Goal:** 让 Composer 的“添加图片”和“添加文件”通过 CodeAgent 宿主文件选择器导入附件，使已配对 LAN 浏览器可以选择运行设备上的文件。
+**Goal:** 让 Composer 的“添加图片”和“添加文件”通过 Codexly 宿主文件选择器导入附件，使已配对 LAN 浏览器可以选择运行设备上的文件。
 
 **Suggested Spec Reads:**
 
@@ -94,7 +94,7 @@ Expected: 浏览过滤、路径拒绝、图片签名、Project 归属、幂等�
 **Interfaces:**
 
 - Consumes: `HostFileListingSchema`、`AgentAttachmentUploadResponseSchema`
-- Produces: `CodeAgentClient.listHostFiles`、`CodeAgentClient.importHostAttachment`、`buildProjectAttachmentUrl`
+- Produces: `CodexlyClient.listHostFiles`、`CodexlyClient.importHostAttachment`、`buildProjectAttachmentUrl`
 
 **Behavior:**
 
@@ -127,7 +127,7 @@ Expected: 请求 URL、Body、幂等头和响应 Schema 测试通过。
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.listHostFiles`、`CodeAgentClient.importHostAttachment`、`FileTree`、`PromptInputAttachment`
+- Consumes: `CodexlyClient.listHostFiles`、`CodexlyClient.importHostAttachment`、`FileTree`、`PromptInputAttachment`
 - Produces: `HostAttachmentPickerDialog`、受控宿主附件草稿、`PromptInputActionAddAttachments.onSelectKind`
 
 **Behavior:**

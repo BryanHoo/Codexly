@@ -13,7 +13,7 @@ test("keeps a streaming code block within the conversation and copies its code",
   }
 
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -40,7 +40,7 @@ test("keeps a streaming code block within the conversation and copies its code",
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const copyButton = page.locator('[data-streamdown="code-block-copy-button"]');
   await expect(copyButton).toBeVisible();

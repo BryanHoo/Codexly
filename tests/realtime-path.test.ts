@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { Buffer } from "node:buffer";
 import { fileURLToPath } from "node:url";
 
-import { CodeAgentClient } from "@code-agent/client";
+import { CodexlyClient } from "@codexly/client";
 import type {
   AgentEvent,
   AgentGlobalSettings,
@@ -10,13 +10,13 @@ import type {
   AgentProjectDefaults,
   AgentTaskSettings,
   PendingRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import {
   CodexAppServerProcess,
   SUPPORTED_CODEX_VERSION,
   createCodexRuntimeProvider,
-} from "@code-agent/provider-codex";
-import { createCodeAgentServer } from "@code-agent/server";
+} from "@codexly/provider-codex";
+import { createCodexlyServer } from "@codexly/server";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket as NodeWebSocket } from "ws";
 
@@ -26,9 +26,9 @@ const fakeAppServerPath = fileURLToPath(
 
 const project = {
   createdAt: "2026-07-23T00:00:00.000Z",
-  id: "code-agent",
-  name: "CodeAgent",
-  roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+  id: "codexly",
+  name: "Codexly",
+  roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
 } as const;
 
 const pixelDataUrl =
@@ -42,11 +42,11 @@ const turnOptions = {
 } as const;
 
 const runtimes: CodexAppServerProcess[] = [];
-const servers: Awaited<ReturnType<typeof createCodeAgentServer>>[] = [];
+const servers: Awaited<ReturnType<typeof createCodexlyServer>>[] = [];
 
-function createRealtimeClient(baseUrl: string): CodeAgentClient {
+function createRealtimeClient(baseUrl: string): CodexlyClient {
   const origin = new URL(baseUrl).origin;
-  return new CodeAgentClient({
+  return new CodexlyClient({
     baseUrl,
     // Node 集成测试显式模拟浏览器自动附带的同源 Origin。
     webSocketFactory: (url) => new NodeWebSocket(url, { origin }) as unknown as WebSocket,
@@ -71,7 +71,7 @@ async function startFakeAppServer(scenario: string): Promise<CodexAppServerProce
     await runtime.waitForSpawn();
     await runtime.client.request("initialize", {
       capabilities: { experimentalApi: true },
-      clientInfo: { name: "code_agent", title: "CodeAgent", version: "0.0.0" },
+      clientInfo: { name: "codexly", title: "Codexly", version: "0.0.0" },
     });
     runtime.client.notify("initialized", {});
     runtimes.push(runtime);
@@ -147,7 +147,7 @@ describe("Realtime Path", () => {
   it("delivers Fake App Server notifications through Provider and WebSocket", async () => {
     const runtime = await startFakeAppServer("realtime");
     const provider = createCodexRuntimeProvider({ client: runtime.client });
-    const server = await createCodeAgentServer({
+    const server = await createCodexlyServer({
       ...createServerOptions(provider),
       eventSessionId: "integration-session",
     });
@@ -221,7 +221,7 @@ describe("Realtime Path", () => {
   it("submits a prompt and streams the completed turn through the full mutation path", async () => {
     const runtime = await startFakeAppServer("agent-actions");
     const provider = createCodexRuntimeProvider({ client: runtime.client });
-    const server = await createCodeAgentServer({
+    const server = await createCodexlyServer({
       ...createServerOptions(provider),
       eventSessionId: "action-complete-session",
     });
@@ -315,7 +315,7 @@ describe("Realtime Path", () => {
   it("resolves a session-scoped filesystem permission through the full mutation path", async () => {
     const runtime = await startFakeAppServer("agent-actions");
     const provider = createCodexRuntimeProvider({ client: runtime.client });
-    const server = await createCodeAgentServer({
+    const server = await createCodexlyServer({
       ...createServerOptions(provider),
       eventSessionId: "permission-approval-session",
     });
@@ -389,7 +389,7 @@ describe("Realtime Path", () => {
                 entries: [
                   {
                     access: "write",
-                    path: { path: "/workspace/CodeAgent/.cache", type: "path" },
+                    path: { path: "/workspace/Codexly/.cache", type: "path" },
                   },
                 ],
                 globScanMaxDepth: 4,
@@ -417,7 +417,7 @@ describe("Realtime Path", () => {
   it("submits and interrupts a running turn through the full mutation path", async () => {
     const runtime = await startFakeAppServer("agent-actions");
     const provider = createCodexRuntimeProvider({ client: runtime.client });
-    const server = await createCodeAgentServer({
+    const server = await createCodexlyServer({
       ...createServerOptions(provider),
       eventSessionId: "action-interrupt-session",
     });

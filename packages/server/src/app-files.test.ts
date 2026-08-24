@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import {
   projectRootPath,
   encodedProjectRootPath,
@@ -27,14 +27,12 @@ describe("server project files", () => {
             },
       ),
     );
-    const app = await createCodeAgentServer(
-      createServerOptions(provider, { readProjectSourceFile }),
-    );
+    const app = await createCodexlyServer(createServerOptions(provider, { readProjectSourceFile }));
     closeCallbacks.push(() => app.close());
 
     const response = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/files/source?path=%2Fhome%2Ftest%2Freports%2Farchitecture-design.md&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/files/source?path=%2Fhome%2Ftest%2Freports%2Farchitecture-design.md&rootPath=${encodedProjectRootPath}`,
     });
     const missingProjectResponse = await app.inject({
       method: "GET",
@@ -42,7 +40,7 @@ describe("server project files", () => {
     });
     const nextPageResponse = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/files/source?cursor=24&path=%2Fhome%2Ftest%2Freports%2Farchitecture-design.md&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/files/source?cursor=24&path=%2Fhome%2Ftest%2Freports%2Farchitecture-design.md&rootPath=${encodedProjectRootPath}`,
     });
 
     expect(response.statusCode).toBe(200);
@@ -81,14 +79,12 @@ describe("server project files", () => {
         path: "design/result.png",
       }),
     );
-    const app = await createCodeAgentServer(
-      createServerOptions(provider, { readProjectImageFile }),
-    );
+    const app = await createCodexlyServer(createServerOptions(provider, { readProjectImageFile }));
     closeCallbacks.push(() => app.close());
 
     const response = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/files/image?path=%2Fworkspace%2FCodeAgent%2Fdesign%2Fresult.png&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/files/image?path=%2Fworkspace%2FCodexly%2Fdesign%2Fresult.png&rootPath=${encodedProjectRootPath}`,
     });
 
     expect(response.statusCode).toBe(200);
@@ -97,7 +93,7 @@ describe("server project files", () => {
     expect(response.rawPayload).toEqual(imageContent);
     expect(readProjectImageFile).toHaveBeenCalledWith(
       projectRootPath,
-      "/workspace/CodeAgent/design/result.png",
+      "/workspace/Codexly/design/result.png",
     );
   });
 
@@ -109,12 +105,12 @@ describe("server project files", () => {
         path: "src",
       }),
     );
-    const app = await createCodeAgentServer(createServerOptions(provider, { readProjectFileTree }));
+    const app = await createCodexlyServer(createServerOptions(provider, { readProjectFileTree }));
     closeCallbacks.push(() => app.close());
 
     const response = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/files/tree?path=src&rootPath=${encodedProjectRootPath}`,
+      url: `/v1/projects/codexly/files/tree?path=src&rootPath=${encodedProjectRootPath}`,
     });
     const missingProjectResponse = await app.inject({
       method: "GET",
@@ -135,20 +131,20 @@ describe("server project files", () => {
     const { provider } = createProvider();
     const searchProjectFiles = vi.fn(() => Promise.resolve({ data: [] }));
     const stopProjectFileSearch = vi.fn(() => Promise.resolve());
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(provider, { searchProjectFiles, stopProjectFileSearch }),
     );
     closeCallbacks.push(() => app.close());
 
     const search = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/files/search?query=main&rootPath=${encodedProjectRootPath}&sessionId=search-1`,
+      url: `/v1/projects/codexly/files/search?query=main&rootPath=${encodedProjectRootPath}&sessionId=search-1`,
     });
     expect(search.statusCode).toBe(200);
     expect(search.json()).toEqual({ data: [] });
     expect(searchProjectFiles).toHaveBeenCalledWith(
       expect.objectContaining({
-        projectId: "code-agent",
+        projectId: "codexly",
         query: "main",
         roots: [projectRootPath],
         sessionId: "search-1",
@@ -159,10 +155,10 @@ describe("server project files", () => {
       headers: { "idempotency-key": "stop-search-1" },
       method: "POST",
       payload: { rootPath: projectRootPath, sessionId: "search-1" },
-      url: "/v1/projects/code-agent/files/search/stop",
+      url: "/v1/projects/codexly/files/search/stop",
     });
     expect(stopped.statusCode).toBe(200);
     expect(stopped.json()).toEqual({});
-    expect(stopProjectFileSearch).toHaveBeenCalledWith("code-agent", "search-1");
+    expect(stopProjectFileSearch).toHaveBeenCalledWith("codexly", "search-1");
   });
 });

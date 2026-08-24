@@ -40,7 +40,7 @@
 - Consumes: `ProjectOpenAppIdSchema`
 - Produces: `OpenProjectRequest { appId: ProjectOpenAppId; path?: ProjectRelativePath }`
 - Produces: `OpenProjectResponse { appId: ProjectOpenAppId; path?: ProjectRelativePath }`
-- Produces: `CodeAgentClient.openProject(projectId: string, request: OpenProjectRequest, options?: MutationOptions)`
+- Produces: `CodexlyClient.openProject(projectId: string, request: OpenProjectRequest, options?: MutationOptions)`
 
 **Behavior:**
 
@@ -104,7 +104,7 @@ Expected: 三个平台的文件与目录参数测试通过，越界、符号链�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.openProject(projectId: string, request: OpenProjectRequest, options?: MutationOptions)`
+- Consumes: `CodexlyClient.openProject(projectId: string, request: OpenProjectRequest, options?: MutationOptions)`
 - Consumes: `ProjectOpenMenuItems`
 - Produces: `ProjectOpenContextMenu`
 - Produces: `WorkbenchInspector.onOpenProjectPath(appId: ProjectOpenAppId, path: string)`

@@ -205,7 +205,7 @@ describe("CodexAgentProvider attachments and validation", () => {
                 {
                   aggregatedOutput: lineLimitedOutput,
                   command: "print-lines",
-                  cwd: "/workspace/CodeAgent",
+                  cwd: "/workspace/Codexly",
                   id: "line-command",
                   status: "failed",
                   type: "commandExecution",
@@ -213,7 +213,7 @@ describe("CodexAgentProvider attachments and validation", () => {
                 {
                   aggregatedOutput: byteLimitedOutput,
                   command: "print-bytes",
-                  cwd: "/workspace/CodeAgent",
+                  cwd: "/workspace/Codexly",
                   id: "byte-command",
                   status: "completed",
                   type: "commandExecution",

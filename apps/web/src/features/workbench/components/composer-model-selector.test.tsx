@@ -1,4 +1,4 @@
-import type { AgentModel, AgentTaskSettings } from "@code-agent/protocol";
+import type { AgentModel, AgentTaskSettings } from "@codexly/protocol";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 

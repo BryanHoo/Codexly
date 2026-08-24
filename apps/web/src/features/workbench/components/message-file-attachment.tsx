@@ -1,4 +1,4 @@
-import type { AgentMessageAttachment } from "@code-agent/protocol";
+import type { AgentMessageAttachment } from "@codexly/protocol";
 import type { ReactNode } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";

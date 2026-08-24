@@ -20,7 +20,7 @@
 
 - 保持 Web -> Client -> Protocol 与 Server -> Core -> Provider 的依赖方向，不向 Web 暴露 Codex RPC 字段。
 - 所有 Task Mutation 显式携带 `projectId`、`taskId` 和 `Idempotency-Key`，Server 再次验证 Project 归属。
-- 重命名固定调用 `thread/name/set`，归档固定调用 `thread/archive`；固定状态不伪造 Codex 能力，写入 CodeAgent SQLite。
+- 重命名固定调用 `thread/name/set`，归档固定调用 `thread/archive`；固定状态不伪造 Codex 能力，写入 Codexly SQLite。
 - 使用现有语义颜色、间距、圆角和图标 Token，不引入新的视觉体系。
 - 在关键协议映射、持久化和缓存更新位置添加简短清晰的中文注释。
 
@@ -115,7 +115,7 @@ Expected: All selected tests pass.
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.pinTask`, `renameTask`, `archiveTask`
+- Consumes: `CodexlyClient.pinTask`, `renameTask`, `archiveTask`
 - Produces: Task action query mutation options
 - Produces: Sidebar five-Task preview, action menu and rename dialog
 

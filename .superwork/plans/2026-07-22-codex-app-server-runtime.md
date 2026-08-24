@@ -43,7 +43,7 @@
 
 **Behavior Slice:**
 
-按 `explicit option -> CODE_AGENT_CODEX_BIN -> bundled @openai/codex -> PATH` 定位可执行文件；包内版本直接解析平台可选依赖中的原生 `codex`/`codex.exe`，避免额外 launcher 进程；执行 `--version`，解析 `codex-cli <semver>`，并拒绝非固定支持版本 `0.145.0`、不可执行路径、非零退出或非法输出。
+按 `explicit option -> CODEXLY_CODEX_BIN -> bundled @openai/codex -> PATH` 定位可执行文件；包内版本直接解析平台可选依赖中的原生 `codex`/`codex.exe`，避免额外 launcher 进程；执行 `--version`，解析 `codex-cli <semver>`，并拒绝非固定支持版本 `0.145.0`、不可执行路径、非零退出或非法输出。
 
 **Proof:**
 
@@ -138,7 +138,7 @@ Expected: 所有 Fake App Server 契约场景通过，测试结束后没有残�
 - `initialize` 的稳定字段或 `initialized` 通知顺序与固定 Codex 版本实际协议不一致时停止并以生成 Schema 修订握手。
 - Fake App Server 无法可靠检测残留进程时停止并增加显式 PID/退出确认协议。
 
-### Task 4: `code-agent` 基础命令装配
+### Task 4: `codexly` 基础命令装配
 
 - [x] **Task Status:** completed
 

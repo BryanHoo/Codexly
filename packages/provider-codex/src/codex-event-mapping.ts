@@ -1,11 +1,11 @@
-import type { AgentProviderEvent } from "@code-agent/core";
+import type { AgentProviderEvent } from "@codexly/core";
 import type {
   AgentItem,
   AgentMessageAttachment,
   AgentPlan,
   AgentPlanStepStatus,
   AgentReviewTarget,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import {
   CODEX_MAPPED_NOTIFICATION_METHODS,

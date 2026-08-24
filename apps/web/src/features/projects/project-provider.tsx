@@ -1,4 +1,4 @@
-import { TEMPORARY_TASK_SCOPE_ID, type Project, type ProjectPage } from "@code-agent/protocol";
+import { TEMPORARY_TASK_SCOPE_ID, type Project, type ProjectPage } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { i18n } from "../../i18n/i18n.js";
@@ -18,7 +18,7 @@ import { ProjectGitStatusCoordinator } from "./project-git-status-coordinator.js
 import { createProjectGitRuntimeHandlers } from "./project-git-runtime-handlers.js";
 import {
   capabilitiesQueryOptions,
-  codeAgentClient,
+  codexlyClient,
   invalidateTaskQueue,
   PROJECT_PINNED_TASKS_KEY,
   PROJECT_TASK_SEARCH_SOURCE_KEY,
@@ -38,7 +38,7 @@ const emptyProjects: readonly Project[] = [];
 
 export function ProjectProvider({
   children,
-  client = codeAgentClient,
+  client = codexlyClient,
   taskNotifier,
 }: ProjectProviderProps) {
   const queryClient = useQueryClient();

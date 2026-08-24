@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 
-import { MAX_REALTIME_DIFF_BYTES, MAX_REALTIME_FILE_CHANGES } from "@code-agent/protocol";
+import { MAX_REALTIME_DIFF_BYTES, MAX_REALTIME_FILE_CHANGES } from "@codexly/protocol";
 
 import { CodexProtocolMappingError, expectRecord, expectString } from "./codex-mapping-common.js";
 import { mapFileChangeKind } from "./codex-tool-mapping.js";

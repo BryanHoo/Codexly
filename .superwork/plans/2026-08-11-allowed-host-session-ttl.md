@@ -35,7 +35,7 @@
 
 **Interfaces:**
 
-- Consumes: `CodeAgentAccessOptions`, `ConfigureServerDeliveryOptions`, `AccessSessionService.expiresAt`
+- Consumes: `CodexlyAccessOptions`, `ConfigureServerDeliveryOptions`, `AccessSessionService.expiresAt`
 - Produces: `normalizeAllowedHost`, 精确 `allowedHosts` 请求校验、`number | null | undefined` Session 期限语义
 
 **Behavior:**
@@ -65,7 +65,7 @@ Expected: Host、Origin、配对 Cookie、HTTP Session 与 WebSocket 生命周�
 **Interfaces:**
 
 - Consumes: `parseCommandOptions`, `parseSessionTtl`, `normalizeAllowedHost`
-- Produces: `ParsedCommandOptions.allowedHosts`, 可选 `CodeAgentAccessOptions.sessionTtlMs`, `CreateServerInput.allowedHosts`
+- Produces: `ParsedCommandOptions.allowedHosts`, 可选 `CodexlyAccessOptions.sessionTtlMs`, `CreateServerInput.allowedHosts`
 
 **Behavior:**
 

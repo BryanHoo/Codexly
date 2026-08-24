@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { closeSync, openSync, readSync, statSync } from "node:fs";
 import { stat } from "node:fs/promises";
 
-import type { AgentImageMediaType } from "@code-agent/protocol";
+import type { AgentImageMediaType } from "@codexly/protocol";
 
 export type HistoricalFileStats = Readonly<{ isFile: boolean; mtimeMs: number; size: number }>;
 

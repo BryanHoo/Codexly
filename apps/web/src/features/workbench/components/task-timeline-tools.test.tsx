@@ -16,7 +16,7 @@ describe("task timeline tools", () => {
           items: [
             {
               command: "pnpm check",
-              cwd: "/workspace/CodeAgent",
+              cwd: "/workspace/Codexly",
               id: "command-completed",
               output: ansiOutput,
               outputTruncated: true,
@@ -44,7 +44,7 @@ describe("task timeline tools", () => {
       isLastTurnItem: true,
       item: {
         command: "pnpm check",
-        cwd: "/workspace/CodeAgent",
+        cwd: "/workspace/Codexly",
         id: "command-expanded",
         output: "268 passed",
         outputTruncated: false,
@@ -53,7 +53,7 @@ describe("task timeline tools", () => {
       },
       onOpenFileDiff: vi.fn(),
       onOpenSourceFile: vi.fn(),
-      projectId: "code-agent",
+      projectId: "codexly",
       taskId: "task-1",
       turnStatus: "completed",
     }) as ReactElement<{ children: ReactNode }>;
@@ -63,7 +63,7 @@ describe("task timeline tools", () => {
 
     expect(markup).toContain("参数");
     expect(markup).toContain("&quot;command&quot;: &quot;pnpm check&quot;");
-    expect(markup).toContain("&quot;cwd&quot;: &quot;/workspace/CodeAgent&quot;");
+    expect(markup).toContain("&quot;cwd&quot;: &quot;/workspace/Codexly&quot;");
     expect(markup).toContain("268 passed");
     expect(markup.indexOf("参数")).toBeLessThan(markup.indexOf("268 passed"));
   });
@@ -79,7 +79,7 @@ describe("task timeline tools", () => {
           items: [
             {
               command: "pnpm test",
-              cwd: "/workspace/CodeAgent",
+              cwd: "/workspace/Codexly",
               id: "command-running",
               outputTruncated: false,
               status: "running",
@@ -95,7 +95,7 @@ describe("task timeline tools", () => {
 
     expect(markup).not.toMatch(/<details[^>]* open/u);
     expect(markup).not.toContain('data-terminal=""');
-    expect(markup).not.toContain("/workspace/CodeAgent");
+    expect(markup).not.toContain("/workspace/Codexly");
     expect(markup).toContain('aria-label="AI 回复正在运行：pnpm test"');
     expect(markup).toContain("正在运行 pnpm test");
   });
@@ -111,7 +111,7 @@ describe("task timeline tools", () => {
           items: [
             {
               command: "sed -n '1,240p' SKILL.md",
-              cwd: "/workspace/CodeAgent",
+              cwd: "/workspace/Codexly",
               id: "command-read-skill",
               outputTruncated: false,
               status: "completed",

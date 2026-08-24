@@ -41,7 +41,7 @@
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.#read`、`CodeAgentClient.#mutation`
+- Consumes: `CodexlyClient.#read`、`CodexlyClient.#mutation`
 - Produces: `ProjectOpenAppId`、`ProjectOpenApp`、`ProjectOpenAppKind`、`ProjectOpenCapabilitiesResponse`、按 `appId` 请求的 `openProject()`
 
 **Behavior:**
@@ -99,7 +99,7 @@ Expected: 三平台应用过滤、顺序、显示名称、启动参数和路由�
 
 **Interfaces:**
 
-- Consumes: `ProjectOpenApp[]`、`CodeAgentProjectOpenClient`、Project ID、localStorage
+- Consumes: `ProjectOpenApp[]`、`CodexlyProjectOpenClient`、Project ID、localStorage
 - Produces: `readProjectOpenAppId()`、`writeProjectOpenAppId()`、左侧打开按钮、右侧选择按钮和应用菜单
 
 **Behavior:**

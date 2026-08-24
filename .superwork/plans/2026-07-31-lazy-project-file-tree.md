@@ -37,7 +37,7 @@
 
 **Interfaces:**
 
-- Consumes: `ProjectFileTreeEntrySchema`、现有 `CodeAgentClient.#read` 与 `appendQuery`
+- Consumes: `ProjectFileTreeEntrySchema`、现有 `CodexlyClient.#read` 与 `appendQuery`
 - Produces: 可选相对目录查询 Schema、无 `truncated`/无 `maxItems` 的 `ProjectFileTree`、按 `directoryPath` 隔离的 Query key
 
 **Behavior:**

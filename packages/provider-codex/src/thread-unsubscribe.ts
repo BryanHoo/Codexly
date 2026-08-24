@@ -1,4 +1,4 @@
-import type { AgentTaskUnsubscribeStatus } from "@code-agent/core";
+import type { AgentTaskUnsubscribeStatus } from "@codexly/core";
 import type { CodexProviderLogger } from "./agent-provider-logger.js";
 import { CodexProtocolMappingError, expectRecord, expectString } from "./codex-protocol-mapping.js";
 

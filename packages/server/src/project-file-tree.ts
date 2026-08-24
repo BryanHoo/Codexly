@@ -1,7 +1,7 @@
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import type { ProjectFileTree, ProjectFileTreeEntry } from "@code-agent/protocol";
+import type { ProjectFileTree, ProjectFileTreeEntry } from "@codexly/protocol";
 
 import {
   classifyFilesystemEntries,

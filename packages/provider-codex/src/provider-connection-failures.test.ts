@@ -9,7 +9,7 @@ describe("Codex provider connection failures", () => {
       config: {
         model_provider: "existing_provider",
         model_providers: {
-          code_agent_custom: {
+          codexly_custom: {
             base_url: "https://previous.example.com/v1",
             name: "Previous Custom API",
             requires_openai_auth: false,
@@ -44,7 +44,7 @@ describe("Codex provider connection failures", () => {
       params: {
         edits: [
           {
-            keyPath: "model_providers.code_agent_custom",
+            keyPath: "model_providers.codexly_custom",
             mergeStrategy: "replace",
             value: {
               base_url: "https://previous.example.com/v1",
@@ -89,7 +89,7 @@ describe("Codex provider connection failures", () => {
       params: {
         edits: [
           {
-            keyPath: "model_providers.code_agent_custom",
+            keyPath: "model_providers.codexly_custom",
             mergeStrategy: "replace",
             value: null,
           },

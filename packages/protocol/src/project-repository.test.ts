@@ -20,7 +20,7 @@ import {
   ProjectSourceFileSchema,
 } from "./project.js";
 
-const rootPath = "/workspace/CodeAgent";
+const rootPath = "/workspace/Codexly";
 
 describe("project repository protocol", () => {
   it("describes Git branches with staged and unstaged file changes", () => {
@@ -76,7 +76,7 @@ describe("project repository protocol", () => {
         branches: ["feat/review", "main"],
         repositoryMode: "root",
         snapshot: "a".repeat(64),
-        staged: [{ ...fileChange, path: "/workspace/CodeAgent/src/index.ts" }],
+        staged: [{ ...fileChange, path: "/workspace/Codexly/src/index.ts" }],
         unstaged: [],
       }),
     ).toBe(false);
@@ -270,7 +270,7 @@ describe("project repository protocol", () => {
       Value.Check(ProjectSourceFileSchema, {
         content: "# Architecture\n",
         nextCursor: null,
-        path: "/workspace/CodeAgent/docs/architecture-design.md",
+        path: "/workspace/Codexly/docs/architecture-design.md",
       }),
     ).toBe(true);
     expect(
@@ -294,7 +294,7 @@ describe("project repository protocol", () => {
     ).toBe(true);
     expect(
       Value.Check(ProjectFileTreeSchema, {
-        entries: [{ path: "/workspace/CodeAgent/src", type: "directory" }],
+        entries: [{ path: "/workspace/Codexly/src", type: "directory" }],
         path: null,
       }),
     ).toBe(false);
@@ -344,8 +344,8 @@ describe("project repository protocol", () => {
           {
             name: "index.ts",
             path: "src/index.ts",
-            rootId: "root-code-agent",
-            rootPath: "/workspace/CodeAgent",
+            rootId: "root-codexly",
+            rootPath: "/workspace/Codexly",
           },
         ],
       }),
@@ -356,8 +356,8 @@ describe("project repository protocol", () => {
           {
             name: "outside.ts",
             path: "/tmp/outside.ts",
-            rootId: "root-code-agent",
-            rootPath: "/workspace/CodeAgent",
+            rootId: "root-codexly",
+            rootPath: "/workspace/Codexly",
           },
         ],
       }),

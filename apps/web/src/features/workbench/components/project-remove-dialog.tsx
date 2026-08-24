@@ -1,4 +1,4 @@
-import type { Project } from "@code-agent/protocol";
+import type { Project } from "@codexly/protocol";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";

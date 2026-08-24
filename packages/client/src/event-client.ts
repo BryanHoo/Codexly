@@ -5,7 +5,7 @@ import {
   type AgentEvent,
   type EventStreamMessage,
   type ResyncRequired,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { Value } from "@sinclair/typebox/value";
 
 export type AgentEventConnectionState = "closed" | "connected" | "connecting" | "reconnecting";
@@ -28,10 +28,10 @@ interface StartAgentEventSubscriptionOptions extends SubscribeAgentEventsOptions
   webSocketFactory: WebSocketFactory;
 }
 
-export class CodeAgentEventError extends Error {
+export class CodexlyEventError extends Error {
   public constructor(message: string, options?: ErrorOptions) {
     super(message, options);
-    this.name = "CodeAgentEventError";
+    this.name = "CodexlyEventError";
   }
 }
 
@@ -96,9 +96,7 @@ export function startAgentEventSubscription(
 
   const failProtocol = (message: string, cause?: unknown) => {
     allowReconnect = false;
-    options.onError?.(
-      new CodeAgentEventError(message, cause === undefined ? undefined : { cause }),
-    );
+    options.onError?.(new CodexlyEventError(message, cause === undefined ? undefined : { cause }));
     closeSocket(1002, "Invalid Agent Event frame");
     setState("closed");
   };
@@ -123,11 +121,11 @@ export function startAgentEventSubscription(
       try {
         frame = JSON.parse(String(event.data)) as unknown;
       } catch (error) {
-        failProtocol("CodeAgent event frame is not valid JSON", error);
+        failProtocol("Codexly event frame is not valid JSON", error);
         return;
       }
       if (!Value.Check(EventStreamMessageSchema, frame)) {
-        failProtocol("CodeAgent event frame does not match the protocol schema");
+        failProtocol("Codexly event frame does not match the protocol schema");
         return;
       }
       // Agent Event Schema 不含 Transform，Check 成功后直接使用已验证数据，避免二次深遍历。
@@ -150,7 +148,7 @@ export function startAgentEventSubscription(
         return;
       }
       if (!connectionReady) {
-        failProtocol("CodeAgent event arrived before connection.ready");
+        failProtocol("Codexly event arrived before connection.ready");
         return;
       }
       for (const agentEvent of message.events) {
@@ -182,7 +180,7 @@ export function startAgentEventSubscription(
       if (!active || socket !== currentSocket) {
         return;
       }
-      options.onError?.(new CodeAgentEventError("CodeAgent event connection failed"));
+      options.onError?.(new CodexlyEventError("Codexly event connection failed"));
     };
 
     const onClose = () => {

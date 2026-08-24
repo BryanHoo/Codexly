@@ -7,7 +7,7 @@ test("connects a custom API from the provider gate and reuses it in settings", a
   await mockAppShellApi(page, { providerConnected: false });
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { exact: true, name: "CodeAgent" })).toBeVisible();
+  await expect(page.getByRole("heading", { exact: true, name: "Codexly" })).toBeVisible();
   const officialModeButton = page.getByRole("button", { name: "官方登录" });
   const customModeButton = page.getByRole("button", { name: "自定义 API" });
   await expect(officialModeButton).toHaveCSS("align-items", "center");
@@ -19,7 +19,7 @@ test("connects a custom API from the provider gate and reuses it in settings", a
   await page.getByLabel("API Key（可选）").fill("e2e-secret");
   await page.getByRole("button", { exact: true, name: "连接" }).click();
 
-  await expect(page).toHaveURL(/\/p\/code-agent$/u);
+  await expect(page).toHaveURL(/\/p\/codexly$/u);
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const dialog = page.getByRole("dialog", { name: "全局设置" });
   await dialog.getByRole("button", { name: "模型服务" }).click();
@@ -41,14 +41,14 @@ test("redirects the root route to the default project workbench @smoke", async (
   await page.goto("/");
 
   await expect(page.getByTestId("app-root")).toBeAttached();
-  await expect(page).toHaveURL(/\/p\/code-agent$/);
+  await expect(page).toHaveURL(/\/p\/codexly$/);
   await expect(page.getByRole("main", { name: "任务时间线" })).toBeVisible();
 });
 
 test("opens the requested settings section and aligns the sidebar footer with the branch row", async ({
   page,
 }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const settingsTrigger = sidebar.getByRole("button", { exact: true, name: "设置" });
@@ -76,7 +76,7 @@ test("opens the requested settings section and aligns the sidebar footer with th
   );
   await dialog.getByRole("button", { name: "关闭全局设置" }).click();
 
-  await sidebar.getByRole("button", { name: /关于，CodeAgent .*终端连接状态/u }).click();
+  await sidebar.getByRole("button", { name: /关于，Codexly .*终端连接状态/u }).click();
   await expect(dialog.getByRole("button", { name: "关于" })).toHaveAttribute(
     "aria-current",
     "page",
@@ -85,7 +85,7 @@ test("opens the requested settings section and aligns the sidebar footer with th
 
 test("defaults appearance to automatic and follows the system color scheme", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
@@ -129,7 +129,7 @@ test("defaults appearance to automatic and follows the system color scheme", asy
 
 test("edits global defaults in a dialog without overriding task settings", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   const workbenchUrl = page.url();
   const taskModel = getComposerModelSelector(page);
   const taskApproval = page.getByRole("combobox", { name: "批准模式" });
@@ -208,7 +208,7 @@ test("edits global defaults in a dialog without overriding task settings", async
 });
 
 test("saves browser preferences only with global settings", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const chineseDialog = page.getByRole("dialog", { name: "全局设置" });
@@ -218,7 +218,7 @@ test("saves browser preferences only with global settings", async ({ page }) => 
 
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
   expect(
-    await page.evaluate(() => localStorage.getItem("code-agent.notification-preference")),
+    await page.evaluate(() => localStorage.getItem("codexly.notification-preference")),
   ).toBeNull();
   await chineseDialog.getByRole("button", { name: "取消" }).click();
   await page.reload();
@@ -235,9 +235,9 @@ test("saves browser preferences only with global settings", async ({ page }) => 
   await reopenedChineseDialog.getByRole("button", { name: "保存全局默认" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  expect(
-    await page.evaluate(() => localStorage.getItem("code-agent.notification-preference")),
-  ).toBe('{"enabled":false,"version":1}');
+  expect(await page.evaluate(() => localStorage.getItem("codexly.notification-preference"))).toBe(
+    '{"enabled":false,"version":1}',
+  );
   await page.getByRole("button", { exact: true, name: "Settings" }).click();
   const englishDialog = page.getByRole("dialog", { name: "Global settings" });
   await englishDialog.getByRole("button", { name: "Agent defaults" }).click();
@@ -288,10 +288,10 @@ test("opens About from the sidebar and installs an available update", async ({ p
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const settingsButton = page.getByRole("button", {
-    name: /关于，CodeAgent 1\.3\.0，有可用更新，终端连接状态：在线/u,
+    name: /关于，Codexly 1\.3\.0，有可用更新，终端连接状态：在线/u,
   });
   await expect(settingsButton.locator(".text-warning")).toContainText("v1.3.0");
   await expect(settingsButton.locator(".lucide-circle-arrow-up")).toBeVisible();
@@ -304,8 +304,8 @@ test("opens About from the sidebar and installs an available update", async ({ p
   );
   await expect(dialog.getByText("1.3.0", { exact: true })).toBeVisible();
   await expect(dialog.getByText("0.149.0", { exact: true })).toBeVisible();
-  const githubLink = dialog.getByRole("link", { name: "BryanHoo/CodeAgent" });
-  await expect(githubLink).toHaveAttribute("href", "https://github.com/BryanHoo/CodeAgent");
+  const githubLink = dialog.getByRole("link", { name: "BryanHoo/Codexly" });
+  await expect(githubLink).toHaveAttribute("href", "https://github.com/BryanHoo/Codexly");
   await expect(githubLink).toHaveAttribute("target", "_blank");
 
   // GitHub 链接按内容宽度贴齐值列起点，不能在拉伸后的整列中居中。
@@ -352,5 +352,5 @@ test("opens About from the sidebar and installs an available update", async ({ p
   await dialog.getByRole("button", { name: "更新到 1.4.0" }).click();
 
   await expect.poll(() => updateRequest).toEqual({ version: "1.4.0" });
-  await expect(dialog.getByText("更新完成，重启 CodeAgent 后生效")).toBeVisible();
+  await expect(dialog.getByText("更新完成，重启 Codexly 后生效")).toBeVisible();
 });

@@ -109,9 +109,9 @@ Expected: targeted Codex Provider tests exit 0.
 - Consumes: `AgentProvider.listModels`
 - Consumes: `AgentProvider.startTurnOptions`
 - Produces: `GET /v1/models`, `POST /v1/attachments`, expanded `POST /v1/tasks/:taskId/turns`
-- Produces: `CodeAgentClient.listModels`
-- Produces: `CodeAgentClient.uploadAttachment`
-- Produces: `CodeAgentClient.startTurnOptions`
+- Produces: `CodexlyClient.listModels`
+- Produces: `CodexlyClient.uploadAttachment`
+- Produces: `CodexlyClient.startTurnOptions`
 
 **Behavior Slice:** Server 以有界 TTL Store 保存已验证图片 Data URL，只把随机附件 ID 返回浏览器；启动 Turn 前解析当前 Store 中的全部 ID，并在成功后消费；未知或过期 ID 返回结构化错误；Client 发送并校验真实 API 数据。
 
@@ -142,9 +142,9 @@ Expected: targeted Server and Client tests exit 0.
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.listModels`
-- Consumes: `CodeAgentClient.uploadAttachment`
-- Consumes: `CodeAgentClient.startTurnOptions`
+- Consumes: `CodexlyClient.listModels`
+- Consumes: `CodexlyClient.uploadAttachment`
+- Consumes: `CodexlyClient.startTurnOptions`
 - Produces: attachment picker/preview/remove, approval selector, model selector, loading/error states and structured submit
 
 **Behavior Slice:** Composer 支持点击、拖放和粘贴图片，显示预览并可移除；模型选择来自 Query 的真实 API，默认选中 Server 标记模型；审批策略可选；提交时先上传附件再启动 Turn，失败保留全部输入，成功释放 Blob URL 并清空；IME、Enter/Shift+Enter、运行/重连状态保持正确。

@@ -16,7 +16,7 @@
 
 ## Global Constraints
 
-- Web 只通过 `@code-agent/client` 和 `@code-agent/protocol` 消费服务端能力，不新增 Provider 专有字段。
+- Web 只通过 `@codexly/client` 和 `@codexly/protocol` 消费服务端能力，不新增 Provider 专有字段。
 - 项目名称按钮继续只控制 Task 树展开状态；项目右侧 `+` 单独负责打开该项目的新聊天。
 - 顶部“新建任务”始终指向项目列表第一个 Project 的空聊天；当前已经是该路由时直接复用，不创建重复 Task。
 - 新聊天首次提交继续复用现有幂等 `startTask -> startTurn -> navigate` 流程。

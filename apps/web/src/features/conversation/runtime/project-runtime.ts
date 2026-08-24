@@ -1,10 +1,10 @@
-import type { AgentTask, AgentTaskSnapshot, AgentTaskSnapshotResponse } from "@code-agent/protocol";
+import type { AgentTask, AgentTaskSnapshot, AgentTaskSnapshotResponse } from "@codexly/protocol";
 import {
   createBrowserTaskNotifier,
   type TaskNotifier,
 } from "../../notifications/browser-task-notifier.js";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
-import type { CodeAgentRuntimeClient } from "../../projects/project-queries.js";
+import type { CodexlyRuntimeClient } from "../../projects/project-queries.js";
 import {
   clearTaskAttention,
   getTaskActivity,
@@ -55,9 +55,9 @@ export class ProjectRuntimeManager {
   readonly #titleRefreshedRunningTurns = new Set<string>();
   #viewedTask: Readonly<{ projectId: string; taskId: string }> | undefined;
 
-  public readonly client: CodeAgentRuntimeClient;
+  public readonly client: CodexlyRuntimeClient;
 
-  public constructor(client: CodeAgentRuntimeClient, options: ProjectRuntimeManagerOptions = {}) {
+  public constructor(client: CodexlyRuntimeClient, options: ProjectRuntimeManagerOptions = {}) {
     this.client = client;
     this.#idleTimeoutMs = options.idleTimeoutMs ?? PROJECT_RUNTIME_IDLE_TIMEOUT_MS;
     this.#maxEventHistoryBytes = options.maxEventHistoryBytes ?? MAX_PROJECT_EVENT_HISTORY_BYTES;
@@ -332,7 +332,7 @@ export class ProjectRuntimeManager {
 }
 
 export function createProjectRuntimeManager(
-  client: CodeAgentRuntimeClient,
+  client: CodexlyRuntimeClient,
   options: ProjectRuntimeManagerOptions = {},
 ): ProjectRuntimeManager {
   return new ProjectRuntimeManager(client, options);

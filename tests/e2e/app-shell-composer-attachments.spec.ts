@@ -5,7 +5,7 @@ test.describe.configure({ mode: "serial" });
 test("keeps pasted images in attachments instead of the text editor @cross-browser", async ({
   page,
 }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   const pasteWasCanceled = await prompt.evaluate((element) => {
@@ -35,7 +35,7 @@ test("converts large pasted text into a submitted file attachment", async ({ pag
   let uploadRequest:
     { contentType: string | undefined; postData: string | null; url: string } | undefined;
   let turnBody: unknown;
-  await page.route("**/v1/projects/code-agent/attachments/*", async (route) => {
+  await page.route("**/v1/projects/codexly/attachments/*", async (route) => {
     const request = route.request();
     uploadRequest = {
       contentType: request.headers()["content-type"],
@@ -56,7 +56,7 @@ test("converts large pasted text into a submitted file attachment", async ({ pag
       status: 201,
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -74,7 +74,7 @@ test("converts large pasted text into a submitted file attachment", async ({ pag
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   const pasteResult = await prompt.evaluate((element) => {
@@ -125,12 +125,12 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
   page.on("request", (request) => {
     if (
       request.method() === "GET" &&
-      request.url().endsWith("/v1/projects/code-agent/attachments/attachment-1")
+      request.url().endsWith("/v1/projects/codexly/attachments/attachment-1")
     ) {
       previewRequests.push(request.url());
     }
   });
-  await page.route("**/v1/projects/code-agent/attachments/image/host", async (route) => {
+  await page.route("**/v1/projects/codexly/attachments/image/host", async (route) => {
     const request = route.request();
     importRequest = {
       body: request.postDataJSON(),
@@ -150,7 +150,7 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
       status: 201,
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -168,7 +168,7 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const modelSelector = page.getByRole("button", { name: /^模型和思考量：/u });
   await expect(modelSelector).toHaveAccessibleName("模型和思考量：GPT-5.6 Sol，高");

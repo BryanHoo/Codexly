@@ -63,10 +63,10 @@ import {
   type RenameProjectResponse,
   type ReloadAgentMcpServersResponse,
   type ReorderProjectsResponse,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import {
-  CodeAgentTransport,
+  CodexlyTransport,
   appendQuery,
   projectPath,
   taskPath,
@@ -79,7 +79,7 @@ export type ListFilesystemEntriesOptions = ReadOptions &
     includeHidden?: boolean;
   }>;
 
-export class ProjectHttpClient extends CodeAgentTransport {
+export class ProjectHttpClient extends CodexlyTransport {
   public async listSkills(projectId: string, options: ReadOptions = {}): Promise<AgentSkillPage> {
     return this.read(`${projectPath(projectId)}/skills`, AgentSkillPageSchema, options);
   }

@@ -14,9 +14,9 @@ describe("Codex custom provider connection", () => {
     });
     client.enqueue("config/read", {
       config: {
-        model_provider: "code_agent_custom",
+        model_provider: "codexly_custom",
         model_providers: {
-          code_agent_custom: { base_url: "https://api.example.com/v1" },
+          codexly_custom: { base_url: "https://api.example.com/v1" },
         },
       },
     });
@@ -101,11 +101,11 @@ describe("Codex custom provider connection", () => {
       params: {
         edits: [
           {
-            keyPath: "model_providers.code_agent_custom",
+            keyPath: "model_providers.codexly_custom",
             mergeStrategy: "upsert",
             value: {
               base_url: "https://api.example.com/v1",
-              name: "CodeAgent Custom API",
+              name: "Codexly Custom API",
               requires_openai_auth: true,
               wire_api: "responses",
             },
@@ -113,7 +113,7 @@ describe("Codex custom provider connection", () => {
           {
             keyPath: "model_provider",
             mergeStrategy: "upsert",
-            value: "code_agent_custom",
+            value: "codexly_custom",
           },
         ],
       },
@@ -134,9 +134,9 @@ describe("Codex custom provider connection", () => {
     });
     client.enqueue("config/read", {
       config: {
-        model_provider: "code_agent_custom",
+        model_provider: "codexly_custom",
         model_providers: {
-          code_agent_custom: { base_url: "http://localhost:11434/v1" },
+          codexly_custom: { base_url: "http://localhost:11434/v1" },
         },
       },
     });
@@ -186,9 +186,9 @@ describe("Codex custom provider connection", () => {
     });
     client.enqueue("config/read", {
       config: {
-        model_provider: "code_agent_custom",
+        model_provider: "codexly_custom",
         model_providers: {
-          code_agent_custom: { base_url: "https://api.example.com/v1" },
+          codexly_custom: { base_url: "https://api.example.com/v1" },
         },
       },
     });

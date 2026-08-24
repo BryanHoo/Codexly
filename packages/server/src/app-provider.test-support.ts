@@ -3,8 +3,8 @@ import type {
   AgentProviderEvent,
   AgentProviderTaskSnapshot,
   AgentProviderTurnInput,
-} from "@code-agent/core";
-import type { AgentBackgroundTerminalPage } from "@code-agent/protocol";
+} from "@codexly/core";
+import type { AgentBackgroundTerminalPage } from "@codexly/protocol";
 import { vi } from "vitest";
 import {
   historicalImageContent,

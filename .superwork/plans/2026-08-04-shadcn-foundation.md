@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 引入与 CodeAgent 现有视觉体系一致的 shadcn 基础层，并统一 Button、Input、Tooltip、Dialog 的实现。
+**Goal:** 引入与 Codexly 现有视觉体系一致的 shadcn 基础层，并统一 Button、Input、Tooltip、Dialog 的实现。
 
 **Suggested Spec Reads:**
 
@@ -15,7 +15,7 @@
 
 ## Global Constraints
 
-- 保持 CodeAgent 白/近黑工作台、透明 ink 控件层、低对比分隔与蓝色主操作的既有设计，不套用 shadcn 默认视觉主题。
+- 保持 Codexly 白/近黑工作台、透明 ink 控件层、低对比分隔与蓝色主操作的既有设计，不套用 shadcn 默认视觉主题。
 - 保持现有用户交互、i18n 文案、移动端视口边界、焦点恢复和 Escape/backdrop 关闭行为。
 - 使用项目 `pnpm` catalog 管理新增依赖，不启动开发服务器。
 - Button、Input、Tooltip、Dialog 的业务调用统一进入 `src/shared/ui`，不保留冗余旧实现。
@@ -38,7 +38,7 @@
 
 **Behavior:**
 
-- 建立可由 shadcn CLI 继续维护的配置，并将 shadcn Token 双向适配到现有 CodeAgent 设计体系，保证明暗主题和现有品牌色语义不变。
+- 建立可由 shadcn CLI 继续维护的配置，并将 shadcn Token 双向适配到现有 Codexly 设计体系，保证明暗主题和现有品牌色语义不变。
 
 **Stop Conditions:**
 
@@ -46,7 +46,7 @@
 
 - [x] **Task Status:** completed
 
-Run: `pnpm --filter @code-agent/web build`
+Run: `pnpm --filter @codexly/web build`
 
 Expected: Web 构建通过，CSS Token 和 alias 均可解析。
 

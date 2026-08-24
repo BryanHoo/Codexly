@@ -1,4 +1,4 @@
-import type { PendingRequest } from "@code-agent/protocol";
+import type { PendingRequest } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 import {
   createTaskStore,

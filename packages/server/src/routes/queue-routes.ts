@@ -14,8 +14,8 @@ import {
   type ReorderAgentQueuedSubmissionsRequest,
   type StartAgentQueuedSubmissionRequest,
   type UpdateAgentQueuedSubmissionRequest,
-} from "@code-agent/protocol";
-import type { AgentProvider } from "@code-agent/core";
+} from "@codexly/protocol";
+import type { AgentProvider } from "@codexly/core";
 import type { FastifyPluginCallback } from "fastify";
 
 import { MutationHttpError, type ServerRouteContext } from "./context.js";

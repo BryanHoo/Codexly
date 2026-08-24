@@ -3,12 +3,12 @@ import type {
   AgentProviderQueue,
   AgentProviderTurnInput,
   ListAgentQueuedSubmissionsInput,
-} from "@code-agent/core";
+} from "@codexly/core";
 import type {
   AgentQueuedSubmission,
   AgentQueuedSubmissionPage,
   AgentTurn,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import { CodexAgentProviderBase } from "./agent-provider-base.js";
 import { createCodexFileTextInput } from "./codex-file-input.js";

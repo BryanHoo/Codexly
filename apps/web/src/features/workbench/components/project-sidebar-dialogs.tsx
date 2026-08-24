@@ -1,4 +1,4 @@
-import type { AgentTask, Project } from "@code-agent/protocol";
+import type { AgentTask, Project } from "@codexly/protocol";
 import type { ComponentProps } from "react";
 
 import { ProjectDirectoryPickerDialog } from "../../projects/components/project-directory-picker-dialog.js";

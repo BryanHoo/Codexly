@@ -25,7 +25,7 @@ describe("TaskActionMenu", () => {
           task={{
             id: "task-1",
             pinned: false,
-            projectId: "code-agent",
+            projectId: "codexly",
             title: "结构化历史",
             updatedAt: "2026-07-23T00:01:00.000Z",
           }}
@@ -54,7 +54,7 @@ describe("TaskActionMenu", () => {
         task={{
           id: "task-1",
           pinned: false,
-          projectId: "code-agent",
+          projectId: "codexly",
           title: "结构化历史",
           updatedAt: "2026-07-23T00:01:00.000Z",
         }}
@@ -71,9 +71,9 @@ describe("TaskActionMenu", () => {
 describe("Project folder actions", () => {
   const project = {
     createdAt: "2026-07-23T00:00:00.000Z",
-    id: "code-agent",
-    name: "CodeAgent",
-    roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+    id: "codexly",
+    name: "Codexly",
+    roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
   };
 
   it("hides the action icon until the folder row is hovered or focused", () => {
@@ -107,7 +107,7 @@ describe("Project folder actions", () => {
     );
 
     expect(markup).toContain('role="menu"');
-    expect(markup).toContain('aria-label="CodeAgent 的项目操作"');
+    expect(markup).toContain('aria-label="Codexly 的项目操作"');
     expect(markup).not.toContain("aria-labelledby");
     expect(markup).toContain('data-slot="dropdown-menu-content"');
     expect(markup.match(/data-slot="dropdown-menu-item"/gu)).toHaveLength(3);

@@ -2,7 +2,7 @@ import {
   stripLeadingAgentSkillReferences,
   type AgentItem,
   type AgentMessageAttachment,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import { extractCodexTextSkills } from "./codex-transcript.js";
 

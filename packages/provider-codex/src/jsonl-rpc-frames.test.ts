@@ -101,7 +101,7 @@ describe("JsonlRpcClient frames", () => {
   });
 
   it("prefers a valid savedPath without returning redundant Base64 to the main thread", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "code-agent-jsonl-saved-path-"));
+    const directory = mkdtempSync(join(tmpdir(), "codexly-jsonl-saved-path-"));
     const savedPath = join(directory, "generated.png");
     writeFileSync(savedPath, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
     const { client, serverOutput } = createHarness(1_000, { largeFrameThresholdBytes: 1 });

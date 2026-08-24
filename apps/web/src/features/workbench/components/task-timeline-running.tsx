@@ -1,4 +1,4 @@
-import type { AgentItem, AgentTurn } from "@code-agent/protocol";
+import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { SquareTerminal } from "lucide-react";
 
 import { i18n } from "../../../i18n/i18n.js";

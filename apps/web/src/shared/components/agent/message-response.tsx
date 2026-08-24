@@ -37,7 +37,7 @@ const MessageFileReferenceContext = createContext<
 // Agent 输出使用“绝对路径:行号”表达文件定位；渲染时拆出行号，避免把路径暴露给用户。
 const LOCAL_FILE_REFERENCE_PATTERN =
   /^(?<path>(?:\/|[a-z]:[\\/]|\\\\).+?\.[a-z0-9]+?)(?::(?<line>\d+)(?::\d+)?)?$/i;
-const PROMPT_FILE_REFERENCE_PREFIX = "/__code_agent_prompt_reference__/";
+const PROMPT_FILE_REFERENCE_PREFIX = "/__codexly_prompt_reference__/";
 const PROMPT_FILE_REFERENCE_PATTERN =
   /(^|\s)@(?<path>[^\s,!?;:，。！？；：、()[\]{}"'`]+)(?=$|\s|[,!?;:，。！？；：、()[\]{}"'`])/gu;
 const MESSAGE_RESPONSE_CONTROLS = {

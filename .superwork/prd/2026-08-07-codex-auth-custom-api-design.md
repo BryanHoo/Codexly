@@ -2,7 +2,7 @@
 
 ## Goal
 
-在 CodeAgent 中提供可直接使用的 Codex 认证入口，支持 ChatGPT 官方登录与 OpenAI-compatible 自定义 API 两种模式；切换模式后，认证状态、模型目录、全局默认模型和新建 Task 使用同一份有效 Provider 配置。API key 不写入 CodeAgent 数据库、日志或 Codex `config.toml`。
+在 Codexly 中提供可直接使用的 Codex 认证入口，支持 ChatGPT 官方登录与 OpenAI-compatible 自定义 API 两种模式；切换模式后，认证状态、模型目录、全局默认模型和新建 Task 使用同一份有效 Provider 配置。API key 不写入 Codexly 数据库、日志或 Codex `config.toml`。
 
 ## Suggested Spec Reads
 
@@ -25,22 +25,22 @@
 - 当前项目要求用户预先在 Codex CLI 登录，尚未调用官方 `account/*` API。
 - Provider 模型通过 `model/list` 读取，Server 使用有界 TTL 缓存向 `/v1/models` 提供目录。
 - 全局设置、Project 默认值和 Task 设置依赖模型目录校验，Web 已有统一模型选择器。
-- CodeAgent 状态位于 `$CODEX_HOME/code-agent/state.sqlite3`；Codex 认证由 `CODEX_HOME` 下的官方凭证存储管理。
+- Codexly 状态位于 `$CODEX_HOME/codexly/state.sqlite3`；Codex 认证由 `CODEX_HOME` 下的官方凭证存储管理。
 - 官方文档规定 ChatGPT 登录使用 `account/login/start`，状态使用 `account/read`，退出使用 `account/logout`；自定义 Provider 使用用户级 `model_provider` 和 `model_providers.<id>` 配置。
 - 官方文档建议自定义 Provider 的密钥使用认证或环境变量，不建议将 bearer token 直接写入配置。`requires_openai_auth = true` 可复用 Codex 管理的 ChatGPT/API key 认证。
 
 ## Considered Approaches
 
-### 方案 A：复用 App Server 认证与配置，CodeAgent 保存非敏感目录（推荐）
+### 方案 A：复用 App Server 认证与配置，Codexly 保存非敏感目录（推荐）
 
 - 官方登录完全委托 `account/*` RPC。
 - 自定义 API key 通过 `account/login/start { type: "apiKey" }` 交给 Codex 管理。
 - 自定义 Provider 通过 `config/batchWrite` 写入用户级配置，并固定使用 `requires_openai_auth = true`；无密钥的本地服务则关闭该字段。
-- CodeAgent 仅保存模式、Base URL 和已验证的模型目录。
+- Codexly 仅保存模式、Base URL 和已验证的模型目录。
 
 优点：符合官方接口和凭证边界，跨平台，不读取 `auth.json`，无需自建加密存储。缺点：官方登录与自定义 API key 共用当前 Codex 认证槽，切换密钥模式时需要重新登录。
 
-### 方案 B：CodeAgent 自建密钥库并通过环境变量注入 App Server
+### 方案 B：Codexly 自建密钥库并通过环境变量注入 App Server
 
 优点：可同时保存多组连接。缺点：需要跨平台 Keychain/Credential Manager 实现和 App Server 重启机制，扩大安全与生命周期范围。
 
@@ -50,7 +50,7 @@
 
 ## Recommended Approach
 
-采用方案 A。固定自定义 Provider ID 为 `code_agent_custom`，避免接受任意 TOML key。官方模式将 `model_provider` 设置为 `openai`；自定义模式写入固定 Provider 的 `name`、`base_url`、`wire_api = "responses"` 和认证字段。保留未激活的自定义 Provider 定义，切换模式只改变 `model_provider`，不删除用户其他 Codex 配置。
+采用方案 A。固定自定义 Provider ID 为 `codexly_custom`，避免接受任意 TOML key。官方模式将 `model_provider` 设置为 `openai`；自定义模式写入固定 Provider 的 `name`、`base_url`、`wire_api = "responses"` 和认证字段。保留未激活的自定义 Provider 定义，切换模式只改变 `model_provider`，不删除用户其他 Codex 配置。
 
 ## Component Responsibilities And Interfaces
 
@@ -128,7 +128,7 @@ Mutation 使用 `Idempotency-Key`。自定义连接成功后再保存非敏感�
 - 登录取消、弹窗关闭和 OAuth 失败保留当前可重试状态，不伪造已连接。
 - 自定义 API 的 DNS、TLS、超时、重定向、HTTP 非 2xx、超限和无有效模型均映射为结构化 `PROVIDER_ERROR`；不包含 API key 或响应正文。
 - Codex RPC 错误保留安全的官方 message；日志只记录操作、状态码、Provider 模式和 Base URL origin，不记录 Secret。
-- 如果 Provider 配置写入失败，不保存新的 CodeAgent 连接记录。
+- 如果 Provider 配置写入失败，不保存新的 Codexly 连接记录。
 - 已存自定义模型目录损坏时拒绝读取并要求重新连接，不回退到官方目录造成错配。
 
 ## Verification Strategy
@@ -150,8 +150,8 @@ Mutation 使用 `Idempotency-Key`。自定义连接成功后再保存非敏感�
 
 ## Success Criteria
 
-- 未登录用户可在 CodeAgent 内完成 ChatGPT 官方登录并进入工作台。
+- 未登录用户可在 Codexly 内完成 ChatGPT 官方登录并进入工作台。
 - 用户可填写 OpenAI-compatible Base URL 和可选 API key，连接时读取真实 `/models` 列表。
 - 自定义模型出现在所有既有模型选择器中，并可通过现有设置校验启动 Task/Turn。
 - 切换官方与自定义模式后，模型目录和 Codex `model_provider` 同步生效。
-- API key 不出现在 CodeAgent 数据库、Codex `config.toml`、响应、Query Cache、日志或测试快照中。
+- API key 不出现在 Codexly 数据库、Codex `config.toml`、响应、Query Cache、日志或测试快照中。

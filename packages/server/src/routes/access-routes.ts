@@ -3,15 +3,15 @@ import {
   PairAccessRequestSchema,
   type AccessStatusResponse,
   type PairAccessRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
 
-import type { AccessSessionService, CodeAgentAccessOptions } from "../access-control.js";
+import type { AccessSessionService, CodexlyAccessOptions } from "../access-control.js";
 
-export const ACCESS_SESSION_COOKIE = "codeagent_session";
+export const ACCESS_SESSION_COOKIE = "codexly_session";
 
 type AccessRouteOptions = Readonly<{
-  access?: CodeAgentAccessOptions;
+  access?: CodexlyAccessOptions;
   service?: AccessSessionService;
 }>;
 

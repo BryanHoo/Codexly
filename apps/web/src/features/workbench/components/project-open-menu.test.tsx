@@ -26,11 +26,11 @@ describe("getProjectFileManagerApp", () => {
 
 describe("getProjectTargetAbsolutePath", () => {
   it("joins project-relative targets into native absolute paths", () => {
-    expect(getProjectTargetAbsolutePath("/workspace/CodeAgent", "docs/guide.md")).toBe(
-      "/workspace/CodeAgent/docs/guide.md",
+    expect(getProjectTargetAbsolutePath("/workspace/Codexly", "docs/guide.md")).toBe(
+      "/workspace/Codexly/docs/guide.md",
     );
-    expect(getProjectTargetAbsolutePath("C:\\workspace\\CodeAgent", "docs/guide.md")).toBe(
-      "C:\\workspace\\CodeAgent\\docs\\guide.md",
+    expect(getProjectTargetAbsolutePath("C:\\workspace\\Codexly", "docs/guide.md")).toBe(
+      "C:\\workspace\\Codexly\\docs\\guide.md",
     );
   });
 });
@@ -48,14 +48,14 @@ describe("ProjectOpenContextMenuItems", () => {
           onReference={vi.fn()}
           onSelect={vi.fn()}
           target={{
-            absolutePath: "/workspace/CodeAgent/README.md",
+            absolutePath: "/workspace/Codexly/README.md",
             path: "README.md",
             relativePath: "README.md",
             reference: {
               name: "README.md",
               path: "README.md",
-              rootId: "root-code-agent",
-              rootPath: "/workspace/CodeAgent",
+              rootId: "root-codexly",
+              rootPath: "/workspace/Codexly",
             },
             type: "file",
           }}
@@ -85,7 +85,7 @@ describe("ProjectOpenContextMenuItems", () => {
           onReference={vi.fn()}
           onSelect={vi.fn()}
           target={{
-            absolutePath: "/workspace/CodeAgent/src",
+            absolutePath: "/workspace/Codexly/src",
             path: "src",
             relativePath: "src",
             type: "directory",

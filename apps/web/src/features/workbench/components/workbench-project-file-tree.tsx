@@ -1,8 +1,4 @@
-import type {
-  ProjectFileSearchEntry,
-  ProjectOpenApp,
-  ProjectOpenAppId,
-} from "@code-agent/protocol";
+import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppId } from "@codexly/protocol";
 import {
   asyncDataLoaderFeature,
   buildProxiedInstance,
@@ -35,7 +31,7 @@ import {
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
-import type { CodeAgentFileTreeClient } from "../../projects/project-query-contracts.js";
+import type { CodexlyFileTreeClient } from "../../projects/project-query-contracts.js";
 import {
   createProjectFileTreeDataLoader,
   PROJECT_FILE_TREE_PROJECT_ROOT_ID,
@@ -56,7 +52,7 @@ const PROJECT_FILE_TREE_INDENT_PX = 16;
 const PROJECT_FILE_TREE_OVERSCAN = 8;
 const PROJECT_FILE_TREE_INITIAL_RECT = { height: 600, width: 320 };
 type WorkbenchProjectFileTreeProps = Readonly<{
-  client: CodeAgentFileTreeClient;
+  client: CodexlyFileTreeClient;
   expandedPaths: ReadonlySet<string>;
   fileChangesByPath: ReadonlyMap<string, AgentFileChange>;
   onExpandedPathsChange: (paths: Set<string>) => void;

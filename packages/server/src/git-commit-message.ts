@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 
-import type { GenerateCommitMessageRequest, ProjectGitStatus } from "@code-agent/protocol";
+import type { GenerateCommitMessageRequest, ProjectGitStatus } from "@codexly/protocol";
 
 const MAX_INLINE_COMMIT_DIFF_BYTES = 64 * 1_024;
 const MAX_COMMIT_CHANGE_SUMMARY_BYTES = 20 * 1_024;

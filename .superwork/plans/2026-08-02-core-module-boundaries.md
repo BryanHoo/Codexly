@@ -37,7 +37,7 @@
 
 **Interfaces:**
 
-- Consumes: `CreateCodeAgentServerOptions`、现有 Fastify Schema 和 Project Runtime helper
+- Consumes: `CreateCodexlyServerOptions`、现有 Fastify Schema 和 Project Runtime helper
 - Produces: `ServerRouteContext`、共享 Params/Headers/Query/Error Schema
 
 **Behavior:**
@@ -185,7 +185,7 @@ Expected: Owner 冲突、认领和释放测试全部通过。
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient`、Task Runtime、Composer Draft Context、Query Client 和 Workbench 路由 Props
+- Consumes: `CodexlyClient`、Task Runtime、Composer Draft Context、Query Client 和 Workbench 路由 Props
 - Produces: `ComposerController` ViewModel 与稳定命令 callback
 
 **Behavior:**

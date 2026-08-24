@@ -108,7 +108,7 @@ Expected: Protocol、Client、路径边界、图片签名和宿主打开测试�
 
 **Interfaces:**
 
-- Consumes: `classifyProjectFileReference`、`buildProjectImageFileUrl`、`CodeAgentClient.openProject`
+- Consumes: `classifyProjectFileReference`、`buildProjectImageFileUrl`、`CodexlyClient.openProject`
 - Produces: 中栏 AI 文件引用的文本预览、图片预览与系统默认应用打开完整交互
 
 **Behavior:**

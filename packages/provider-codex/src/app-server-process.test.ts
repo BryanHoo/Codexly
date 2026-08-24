@@ -43,7 +43,7 @@ async function startFake(scenario = "normal"): Promise<CodexAppServerProcess> {
       experimentalApi: true,
       optOutNotificationMethods: CODEX_OPT_OUT_NOTIFICATION_METHODS,
     },
-    clientInfo: { name: "code_agent", title: "CodeAgent", version: "1.2.3" },
+    clientInfo: { name: "codexly", title: "Codexly", version: "1.2.3" },
   });
   runtime.client.notify("initialized", {});
   runtimes.push(runtime);
@@ -83,7 +83,7 @@ describe("CodexAppServerProcess", () => {
           experimentalApi: true,
           optOutNotificationMethods: CODEX_OPT_OUT_NOTIFICATION_METHODS,
         },
-        clientInfo: { name: "code_agent", title: "CodeAgent", version: "1.2.3" },
+        clientInfo: { name: "codexly", title: "Codexly", version: "1.2.3" },
       },
       initialized: true,
     });

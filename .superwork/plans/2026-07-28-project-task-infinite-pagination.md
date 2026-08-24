@@ -41,7 +41,7 @@
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClient.listTasks(projectId, { cursor?, limit? }): Promise<AgentTaskPage>`
+- Consumes: `CodexlyClient.listTasks(projectId, { cursor?, limit? }): Promise<AgentTaskPage>`
 - Produces: `projectTasksInfiniteQueryOptions(projectId, client)`
 - Produces: `ProjectTaskInfiniteData` helpers for flatten, upsert, replace and remove
 

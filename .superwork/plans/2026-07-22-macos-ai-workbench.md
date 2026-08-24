@@ -15,7 +15,7 @@
 
 ## Global Constraints
 
-- Keep Web dependencies within `@code-agent/client`, `@code-agent/protocol`, and existing frontend libraries.
+- Keep Web dependencies within `@codexly/client`, `@codexly/protocol`, and existing frontend libraries.
 - Adapt AI Elements component composition without importing `ai` or `@ai-sdk/react`.
 - Use macOS-native density, restrained neutral surfaces, project green status accents, semantic HTML, keyboard focus, and accessible names.
 - Keep runtime-dependent mutations disabled until a real client contract exists.
@@ -76,7 +76,7 @@ Stop for plan repair if an AI Elements primitive requires a new runtime or proto
 
 **Proof Intent:** Desktop renders all three stable regions without overlap; narrow view keeps the timeline usable and exposes navigation/context toggles; Composer and server-dependent actions remain disabled.
 
-**Verification:** Run `pnpm --filter @code-agent/web build`.
+**Verification:** Run `pnpm --filter @codexly/web build`.
 
 Expected: Vite production build exits with code 0.
 

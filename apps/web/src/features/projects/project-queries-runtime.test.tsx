@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import {
   capabilitiesQueryOptions,
-  type CodeAgentReadClient,
+  type CodexlyReadClient,
   modelsQueryOptions,
   projectDefaultsMutationOptions,
   projectDefaultsQueryOptions,
@@ -18,9 +18,7 @@ import { project, rootPath, task, snapshotResponse } from "./project-queries.tes
 
 describe("project runtime queries", () => {
   it("loads projects, project tasks, and task snapshots through the client", async () => {
-    const readTask = vi.fn<CodeAgentReadClient["readTask"]>(() =>
-      Promise.resolve(snapshotResponse),
-    );
+    const readTask = vi.fn<CodexlyReadClient["readTask"]>(() => Promise.resolve(snapshotResponse));
     const client = {
       getCapabilities: vi.fn(() =>
         Promise.resolve({
@@ -89,7 +87,7 @@ describe("project runtime queries", () => {
       data: [{ id: "gpt-5.6-sol", isDefault: true }],
     });
     await expect(
-      queryClient.fetchQuery(projectDefaultsQueryOptions("code-agent", client)),
+      queryClient.fetchQuery(projectDefaultsQueryOptions("codexly", client)),
     ).resolves.toEqual({
       settings: {
         approvalPolicy: "on-request",
@@ -101,12 +99,12 @@ describe("project runtime queries", () => {
       },
     });
     await expect(
-      queryClient.fetchInfiniteQuery(projectTasksInfiniteQueryOptions("code-agent", client)),
+      queryClient.fetchInfiniteQuery(projectTasksInfiniteQueryOptions("codexly", client)),
     ).resolves.toEqual({ pageParams: [undefined], pages: [{ data: [task], nextCursor: null }] });
     await expect(
-      queryClient.fetchQuery(taskSnapshotQueryOptions("code-agent", "task-1", client)),
+      queryClient.fetchQuery(taskSnapshotQueryOptions("codexly", "task-1", client)),
     ).resolves.toEqual(snapshotResponse);
-    expect(readTask.mock.calls[0]?.slice(0, 2)).toEqual(["code-agent", "task-1"]);
+    expect(readTask.mock.calls[0]?.slice(0, 2)).toEqual(["codexly", "task-1"]);
     expect(readTask.mock.calls[0]?.[2]?.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -132,8 +130,8 @@ describe("project runtime queries", () => {
     };
     const queryClient = new QueryClient();
 
-    const defaultsMutationOptions = projectDefaultsMutationOptions("code-agent", client);
-    const taskMutationOptions = taskSettingsMutationOptions("code-agent", "task-1", client);
+    const defaultsMutationOptions = projectDefaultsMutationOptions("codexly", client);
+    const taskMutationOptions = taskSettingsMutationOptions("codexly", "task-1", client);
 
     await queryClient
       .getMutationCache()
@@ -141,8 +139,8 @@ describe("project runtime queries", () => {
       .execute(defaults);
     await queryClient.getMutationCache().build(queryClient, taskMutationOptions).execute(settings);
 
-    expect(client.updateProjectDefaults).toHaveBeenCalledWith("code-agent", defaults);
-    expect(client.updateTaskSettings).toHaveBeenCalledWith("code-agent", "task-1", settings);
+    expect(client.updateProjectDefaults).toHaveBeenCalledWith("codexly", defaults);
+    expect(client.updateTaskSettings).toHaveBeenCalledWith("codexly", "task-1", settings);
     expect(defaultsMutationOptions.meta).toEqual({
       actionNotification: { successMessage: false },
     });
@@ -188,19 +186,15 @@ describe("project runtime queries", () => {
       ),
     };
     const queryClient = new QueryClient();
-    const messageOptions = projectCommitMessageMutationOptions("code-agent", rootPath, client);
-    const commitOptions = projectCommitChangesMutationOptions("code-agent", rootPath, client);
+    const messageOptions = projectCommitMessageMutationOptions("codexly", rootPath, client);
+    const commitOptions = projectCommitChangesMutationOptions("codexly", rootPath, client);
 
     await queryClient.getMutationCache().build(queryClient, messageOptions).execute(messageRequest);
     await queryClient.getMutationCache().build(queryClient, commitOptions).execute(commitRequest);
 
-    expect(client.generateCommitMessage).toHaveBeenCalledWith(
-      "code-agent",
-      rootPath,
-      messageRequest,
-    );
-    expect(client.commitProjectChanges).toHaveBeenCalledWith("code-agent", rootPath, commitRequest);
-    expect(messageOptions.scope).toEqual({ id: `project-git-message:code-agent:${rootPath}` });
-    expect(commitOptions.scope).toEqual({ id: `project-git-mutation:code-agent:${rootPath}` });
+    expect(client.generateCommitMessage).toHaveBeenCalledWith("codexly", rootPath, messageRequest);
+    expect(client.commitProjectChanges).toHaveBeenCalledWith("codexly", rootPath, commitRequest);
+    expect(messageOptions.scope).toEqual({ id: `project-git-message:codexly:${rootPath}` });
+    expect(commitOptions.scope).toEqual({ id: `project-git-mutation:codexly:${rootPath}` });
   });
 });

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 
-import type { AgentEvent, EventStreamMessage } from "@code-agent/protocol";
+import type { AgentEvent, EventStreamMessage } from "@codexly/protocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import performanceBudgets from "../../../tests/performance-budgets.json" with { type: "json" };
@@ -158,7 +158,7 @@ describe("server performance acceptance", () => {
   });
 
   it("streams a 50 MiB attachment without retaining its payload on Heap", async () => {
-    const root = await mkdtemp(join(tmpdir(), "code-agent-attachment-performance-"));
+    const root = await mkdtemp(join(tmpdir(), "codexly-attachment-performance-"));
     temporaryRoots.push(root);
     const attachmentDirectory = join(root, "attachments");
     const store = new AttachmentStore({
@@ -198,9 +198,7 @@ describe("server performance acceptance", () => {
   });
 
   it("reads 500 Git changes with two batched diff commands within budget", async () => {
-    const projectRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-performance-")),
-    );
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-performance-")));
     temporaryRoots.push(projectRoot);
     await mkdir(join(projectRoot, ".git"));
     const paths = Array.from(
@@ -243,7 +241,7 @@ describe("server performance acceptance", () => {
 
   it("bounds real untracked files, Diff bytes, and child repository Git concurrency", async () => {
     const untrackedRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-untracked-performance-")),
+      await mkdtemp(join(tmpdir(), "codexly-git-untracked-performance-")),
     );
     temporaryRoots.push(untrackedRoot);
     await mkdir(join(untrackedRoot, ".git"));
@@ -278,7 +276,7 @@ describe("server performance acceptance", () => {
     expect(untrackedDurationMs).toBeLessThan(performanceBudgets.git.maxStressDurationMs);
 
     const childrenRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-children-performance-")),
+      await mkdtemp(join(tmpdir(), "codexly-git-children-performance-")),
     );
     temporaryRoots.push(childrenRoot);
     for (let index = 0; index < performanceBudgets.git.childRepositories; index += 1) {

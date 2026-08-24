@@ -8,12 +8,12 @@ import type {
   AgentTaskSnapshot,
   AgentTurn,
   AgentTurnOptions,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { v4 as createUuid } from "uuid";
 
 import { i18n } from "../../i18n/i18n.js";
 import type { TaskRuntimeView } from "../conversation/runtime/use-task-runtime.js";
-import type { CodeAgentMutationClient } from "../projects/project-queries.js";
+import type { CodexlyMutationClient } from "../projects/project-queries.js";
 import {
   applyApprovalMode as applySharedApprovalMode,
   deriveApprovalMode as deriveSharedApprovalMode,
@@ -168,7 +168,7 @@ type StartPromptTurnOptions = Readonly<{
 }>;
 
 export async function startPromptTurn(
-  client: Pick<CodeAgentMutationClient, "startTask" | "startTurn">,
+  client: Pick<CodexlyMutationClient, "startTask" | "startTurn">,
   options: StartPromptTurnOptions,
 ): Promise<Readonly<{ createdTask?: AgentTask; taskId: string; turn: AgentTurn }>> {
   let taskId = options.taskId;
@@ -210,7 +210,7 @@ type StartTaskReviewOptions = Readonly<{
 }>;
 
 export async function startTaskReview(
-  client: Pick<CodeAgentMutationClient, "startReview" | "startTask">,
+  client: Pick<CodexlyMutationClient, "startReview" | "startTask">,
   options: StartTaskReviewOptions,
 ): Promise<Readonly<{ createdTask?: AgentTask; taskId: string; turn: AgentTurn }>> {
   let taskId = options.taskId;
@@ -237,7 +237,7 @@ export async function startTaskReview(
 }
 
 export function interruptPromptTurn(
-  client: Pick<CodeAgentMutationClient, "interruptTurn">,
+  client: Pick<CodexlyMutationClient, "interruptTurn">,
   projectId: string,
   taskId: string,
   turnId: string,
@@ -247,7 +247,7 @@ export function interruptPromptTurn(
 }
 
 export function steerPromptTurn(
-  client: Pick<CodeAgentMutationClient, "steerTurn">,
+  client: Pick<CodexlyMutationClient, "steerTurn">,
   projectId: string,
   taskId: string,
   turnId: string,

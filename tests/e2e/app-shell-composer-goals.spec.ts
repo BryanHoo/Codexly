@@ -4,7 +4,7 @@ test.describe.configure({ mode: "serial" });
 
 test("selects, clears, and submits goal mode", async ({ page }) => {
   let turnBody: unknown;
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -22,7 +22,7 @@ test("selects, clears, and submits goal mode", async ({ page }) => {
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   const commandMenu = page.getByRole("listbox", { name: "输入命令" });
@@ -87,7 +87,7 @@ test("builds a completed plan as a normal development turn", async ({ page }) =>
       },
     ],
   };
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -96,7 +96,7 @@ test("builds a completed plan as a normal development turn", async ({ page }) =>
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -114,7 +114,7 @@ test("builds a completed plan as a normal development turn", async ({ page }) =>
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("/plan");
@@ -141,7 +141,7 @@ test("builds a completed plan as a normal development turn", async ({ page }) =>
 test("selects and submits a host file as an attachment", async ({ page }) => {
   let importRequest: { body: unknown; url: string } | undefined;
   let turnBody: unknown;
-  await page.route("**/v1/projects/code-agent/attachments/file/host", async (route) => {
+  await page.route("**/v1/projects/codexly/attachments/file/host", async (route) => {
     const request = route.request();
     importRequest = {
       body: request.postDataJSON(),
@@ -161,7 +161,7 @@ test("selects and submits a host file as an attachment", async ({ page }) => {
       status: 201,
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -179,7 +179,7 @@ test("selects and submits a host file as an attachment", async ({ page }) => {
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await chooseHostAttachment(page, "file", "specification.pdf");
   await expect(page.getByText("specification.pdf", { exact: true })).toBeVisible();

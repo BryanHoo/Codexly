@@ -19,8 +19,8 @@ const EXCESSIVE_NEWLINES_PATTERN = /\n{3,}/g;
 const FOOTNOTE_REFERENCE_PATTERN = /\[\^[\w-]{1,200}\](?!:)/;
 const FOOTNOTE_DEFINITION_PATTERN = /\[\^[\w-]{1,200}\]:/;
 
-export const UNC_FILE_REFERENCE_PREFIX = "/__code_agent_unc__/";
-export const RELATIVE_FILE_REFERENCE_PREFIX = "/__code_agent_relative__/";
+export const UNC_FILE_REFERENCE_PREFIX = "/__codexly_unc__/";
+export const RELATIVE_FILE_REFERENCE_PREFIX = "/__codexly_relative__/";
 
 export function normalizeMarkdownFileReferences(markdown: string): string {
   // 路径目标不会跨行；该约束允许流式处理只保留尚未结束的当前行。

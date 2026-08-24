@@ -16,7 +16,7 @@
 
 ## Global Constraints
 
-- Web 只能通过 `@code-agent/client` 调用 fork，不得直接依赖 Server 或 Provider。
+- Web 只能通过 `@codexly/client` 调用 fork，不得直接依赖 Server 或 Provider。
 - 复用现有 `forkTask(projectId, taskId, { idempotencyKey })`，不得新增兼容协议或重复后端实现。
 - 消息复制任务按钮只出现在最新一条已完成且包含 AI 文本的回复旁，并与复制消息按钮并列。
 - 所有图标按钮必须具备明确的中文可访问名称和 tooltip。
@@ -58,7 +58,7 @@ Expected: 命令列表测试通过且 fork 命令标签为“复制”。
 
 **Interfaces:**
 
-- Consumes: `CodeAgentWorkbenchClient.forkTask`、`TaskTimeline` 最新 Turn 状态、`onTaskStarted`
+- Consumes: `CodexlyWorkbenchClient.forkTask`、`TaskTimeline` 最新 Turn 状态、`onTaskStarted`
 - Produces: 最新已完成 AI 回复的 `onForkTask(idempotencyKey)` 操作与新任务导航
 
 **Behavior:**

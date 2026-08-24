@@ -1,4 +1,4 @@
-import type { AgentTask, AgentTaskPage, Project } from "@code-agent/protocol";
+import type { AgentTask, AgentTaskPage, Project } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArchiveRestore,
@@ -30,7 +30,7 @@ import {
   taskDeleteMutationOptions,
   taskUnarchiveMutationOptions,
   upsertProjectTaskInInfiniteData,
-  type CodeAgentArchivedTaskClient,
+  type CodexlyArchivedTaskClient,
   type ProjectTaskInfiniteData,
 } from "../../projects/project-queries.js";
 import { archivedProjectTasksQueryOptions } from "../../projects/project-task-query-options.js";
@@ -202,7 +202,7 @@ export function ArchivedTasksDialog({
   onClose,
   project,
 }: Readonly<{
-  client: CodeAgentArchivedTaskClient;
+  client: CodexlyArchivedTaskClient;
   onClose: () => void;
   project: Project;
 }>) {

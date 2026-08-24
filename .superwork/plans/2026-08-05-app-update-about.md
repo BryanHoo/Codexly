@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 让用户在设置“关于”中查看 CodeAgent 与 Codex 版本、发现并安装新版 CodeAgent，并在工作台左栏感知更新状态。
+**Goal:** 让用户在设置“关于”中查看 Codexly 与 Codex 版本、发现并安装新版 Codexly，并在工作台左栏感知更新状态。
 
 **Suggested Spec Reads:**
 
@@ -14,15 +14,15 @@
 - `.superwork/spec/shared/directory-structure.md` — 约束 Protocol、Client、Server 与 Web 依赖方向。
 - `.superwork/spec/shared/quality-guidelines.md` — 约束严格 Schema、Client 校验与消费者同步。
 
-**Architecture:** 在 Protocol 定义应用信息和更新契约；CLI 注入当前 CodeAgent/Codex 版本及 npm 更新服务；Server 暴露只读信息与幂等更新端点；Client 和 React Query 统一读取；设置新增“关于”模块，左栏版本状态复用同一 Query，并直接打开“关于”。更新仅安装已由 registry `latest` 标签返回且通过严格 SemVer 校验的版本，使用参数数组和 `shell: false`，完成后明确要求重启当前进程。
+**Architecture:** 在 Protocol 定义应用信息和更新契约；CLI 注入当前 Codexly/Codex 版本及 npm 更新服务；Server 暴露只读信息与幂等更新端点；Client 和 React Query 统一读取；设置新增“关于”模块，左栏版本状态复用同一 Query，并直接打开“关于”。更新仅安装已由 registry `latest` 标签返回且通过严格 SemVer 校验的版本，使用参数数组和 `shell: false`，完成后明确要求重启当前进程。
 
 **Tech Stack:** TypeScript、Fastify、TypeBox、React、TanStack Query、Vitest、Playwright、pnpm。
 
 ## Global Constraints
 
-- 所有网络响应使用 `@code-agent/protocol` 严格 Schema，Web 不重复声明协议类型。
+- 所有网络响应使用 `@codexly/protocol` 严格 Schema，Web 不重复声明协议类型。
 - npm registry 请求和更新子进程必须有超时，不记录响应正文或用户环境 Secret。
-- 更新命令固定使用参数数组执行 `npm install --global @bryanhu/code-agent@<validated-version>`，不得经过 shell。
+- 更新命令固定使用参数数组执行 `npm install --global @bryanhu/codexly@<validated-version>`，不得经过 shell。
 - 设置和左栏文案同时提供 `zh-CN` 与 `en` 资源，动态版本号保持原样。
 - 不启动开发服务器；最终运行 `pnpm check` 和相关 `pnpm test:e2e`。
 
@@ -52,7 +52,7 @@
 
 **Behavior:**
 
-- 返回当前 CodeAgent/Codex 版本、最新版本、检查状态与是否可更新；只安装经过验证且确实高于当前版本的 `latest` 版本，安装成功返回需要重启状态，检查或安装失败映射为稳定错误。
+- 返回当前 Codexly/Codex 版本、最新版本、检查状态与是否可更新；只安装经过验证且确实高于当前版本的 `latest` 版本，安装成功返回需要重启状态，检查或安装失败映射为稳定错误。
 
 **Stop Conditions:**
 
@@ -85,12 +85,12 @@ Expected: 应用信息 Schema、版本比较、registry 检查、受控安装和
 
 **Interfaces:**
 
-- Consumes: `AppInfoResponse`、`InstallAppUpdateResponse`、`CodeAgentClient.getAppInfo()`、`CodeAgentClient.installAppUpdate()`
+- Consumes: `AppInfoResponse`、`InstallAppUpdateResponse`、`CodexlyClient.getAppInfo()`、`CodexlyClient.installAppUpdate()`
 - Produces: `appInfoQueryOptions`、`appUpdateMutationOptions`、`SettingsSectionId = "about"`、可观察的版本与更新交互
 
 **Behavior:**
 
-- 设置新增“关于”模块，独立展示 CodeAgent 与 Codex 版本；发现新版时显示目标版本和更新按钮，执行中单飞，成功提示重启，失败可重试且不阻断其他设置内容。
+- 设置新增“关于”模块，独立展示 Codexly 与 Codex 版本；发现新版时显示目标版本和更新按钮，执行中单飞，成功提示重启，失败可重试且不阻断其他设置内容。
 
 **Stop Conditions:**
 
@@ -129,7 +129,7 @@ Expected: Client 严格校验响应，“关于”模块在最新、可更新、
 
 **Behavior:**
 
-- 左栏连接状态旁显示当前 CodeAgent 版本；有更新时使用区别明确的状态，点击设置行直接打开“关于”；E2E 覆盖版本展示、更新发现、更新请求和成功后重启提示。
+- 左栏连接状态旁显示当前 Codexly 版本；有更新时使用区别明确的状态，点击设置行直接打开“关于”；E2E 覆盖版本展示、更新发现、更新请求和成功后重启提示。
 
 **Stop Conditions:**
 

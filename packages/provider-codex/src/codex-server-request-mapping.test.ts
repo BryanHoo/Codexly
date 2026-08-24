@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { Project } from "@code-agent/protocol";
+import type { Project } from "@codexly/protocol";
 
 import { mapCodexServerRequest } from "./codex-protocol-mapping.js";
 
 const project: Project = {
   createdAt: "2026-08-18T00:00:00.000Z",
-  id: "code-agent",
-  name: "CodeAgent",
-  roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+  id: "codexly",
+  name: "Codexly",
+  roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
 };
 
 describe("Codex permission server request mapping", () => {
@@ -23,17 +23,17 @@ describe("Codex permission server request mapping", () => {
               entries: [
                 {
                   access: "write",
-                  path: { path: "/workspace/CodeAgent/.cache", type: "path" },
+                  path: { path: "/workspace/Codexly/.cache", type: "path" },
                 },
               ],
               read: null,
-              write: ["/workspace/CodeAgent/.cache"],
+              write: ["/workspace/Codexly/.cache"],
             },
             network: { enabled: true },
           },
           availableDecisions: ["accept", "acceptForSession", "decline"],
           command: "pnpm install",
-          cwd: "/workspace/CodeAgent",
+          cwd: "/workspace/Codexly",
           environmentId: null,
           itemId: "command-item-1",
           reason: "需要安装依赖",
@@ -52,11 +52,11 @@ describe("Codex permission server request mapping", () => {
             entries: [
               {
                 access: "write",
-                path: { type: "path", value: "/workspace/CodeAgent/.cache" },
+                path: { type: "path", value: "/workspace/Codexly/.cache" },
               },
             ],
             read: null,
-            write: ["/workspace/CodeAgent/.cache"],
+            write: ["/workspace/Codexly/.cache"],
           },
           network: { enabled: true },
         },
@@ -103,22 +103,22 @@ describe("Codex permission server request mapping", () => {
         id: "permissions-1",
         method: "item/permissions/requestApproval",
         params: {
-          cwd: "/workspace/CodeAgent",
+          cwd: "/workspace/Codexly",
           environmentId: "local",
           itemId: "permission-item-1",
           permissions: {
             fileSystem: {
               entries: [
-                { access: "read", path: { path: "/workspace/CodeAgent/src", type: "path" } },
+                { access: "read", path: { path: "/workspace/Codexly/src", type: "path" } },
                 {
                   access: "write",
-                  path: { pattern: "/workspace/CodeAgent/*.log", type: "glob_pattern" },
+                  path: { pattern: "/workspace/Codexly/*.log", type: "glob_pattern" },
                 },
                 { access: "deny", path: { type: "special", value: { kind: "tmpdir" } } },
               ],
               globScanMaxDepth: 4,
-              read: ["/workspace/CodeAgent/README.md"],
-              write: ["/workspace/CodeAgent/.cache"],
+              read: ["/workspace/Codexly/README.md"],
+              write: ["/workspace/Codexly/.cache"],
             },
             network: { enabled: true },
           },
@@ -135,29 +135,29 @@ describe("Codex permission server request mapping", () => {
       nativePermissionProfile: {
         fileSystem: {
           entries: [
-            { access: "read", path: { path: "/workspace/CodeAgent/src", type: "path" } },
+            { access: "read", path: { path: "/workspace/Codexly/src", type: "path" } },
             {
               access: "write",
-              path: { pattern: "/workspace/CodeAgent/*.log", type: "glob_pattern" },
+              path: { pattern: "/workspace/Codexly/*.log", type: "glob_pattern" },
             },
             { access: "deny", path: { type: "special", value: { kind: "tmpdir" } } },
           ],
           globScanMaxDepth: 4,
-          read: ["/workspace/CodeAgent/README.md"],
-          write: ["/workspace/CodeAgent/.cache"],
+          read: ["/workspace/Codexly/README.md"],
+          write: ["/workspace/Codexly/.cache"],
         },
         network: { enabled: true },
       },
       request: {
-        cwd: "/workspace/CodeAgent",
+        cwd: "/workspace/Codexly",
         environmentId: "local",
         permissions: {
           fileSystem: {
             entries: [
-              { access: "read", path: { type: "path", value: "/workspace/CodeAgent/src" } },
+              { access: "read", path: { type: "path", value: "/workspace/Codexly/src" } },
               {
                 access: "write",
-                path: { type: "glob", value: "/workspace/CodeAgent/*.log" },
+                path: { type: "glob", value: "/workspace/Codexly/*.log" },
               },
               {
                 access: "deny",
@@ -165,8 +165,8 @@ describe("Codex permission server request mapping", () => {
               },
             ],
             globScanMaxDepth: 4,
-            read: ["/workspace/CodeAgent/README.md"],
-            write: ["/workspace/CodeAgent/.cache"],
+            read: ["/workspace/Codexly/README.md"],
+            write: ["/workspace/Codexly/.cache"],
           },
           network: { enabled: true },
         },
@@ -183,7 +183,7 @@ describe("Codex permission server request mapping", () => {
           id: "permissions-invalid",
           method: "item/permissions/requestApproval",
           params: {
-            cwd: "/workspace/CodeAgent",
+            cwd: "/workspace/Codexly",
             environmentId: null,
             itemId: "permission-item-invalid",
             permissions: {

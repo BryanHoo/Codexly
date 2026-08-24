@@ -1,4 +1,4 @@
-# `@code-agent/protocol`
+# `@codexly/protocol`
 
 维护 Provider 无关的公开协议、JSON Schema、Agent Event v1、WebSocket 控制帧和 Snapshot checkpoint。
 

@@ -68,7 +68,7 @@ Expected: 文本附件 Schema、存储、Server 解析和 Codex RPC 映射测试
 
 **Interfaces:**
 
-- Consumes: `PromptInputAttachment`, `PromptInput` paste event、`CodeAgentMutationClient.uploadAttachment`
+- Consumes: `PromptInputAttachment`, `PromptInput` paste event、`CodexlyMutationClient.uploadAttachment`
 - Produces: `LARGE_PASTE_CHARACTER_THRESHOLD`、`Pasted text.txt` 本地附件和按媒体类型上传的 Data URL
 
 **Behavior:**

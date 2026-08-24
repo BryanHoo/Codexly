@@ -19,7 +19,7 @@
 
 ## Global Constraints
 
-- 浏览器只能消费 `@code-agent/client` 验证后的 Project 相对路径，不得直接访问本地文件系统。
+- 浏览器只能消费 `@codexly/client` 验证后的 Project 相对路径，不得直接访问本地文件系统。
 - 文件树端点固定读取已注册 Project 根目录；跳过符号链接、`.git`、`node_modules`、构建与覆盖率目录，并使用条目数与深度预算避免无界遍历。
 - 文件树目录优先、同类型按名称排序；响应明确携带 `truncated`，错误不得回退到 Git 变更或演示文件。
 - 顶部“未提交变更”模块保留现有标题、数量和增删统计，只新增按钮语义、焦点样式与审核弹窗行为。
@@ -78,7 +78,7 @@ Expected: 文件树 Schema、排序、忽略规则、符号链接、预算截断
 - Consumes: `ProjectFileTreeSchema`。
 - Consumes: `GET /v1/projects/:projectId/files/tree`
 - Consumes: 官方 AI Elements `FileTree` 组合 API。
-- Produces: `CodeAgentClient.listProjectFiles(projectId, options)`
+- Produces: `CodexlyClient.listProjectFiles(projectId, options)`
 - Produces: `projectFileTreeQueryOptions(projectId, client)`
 - Produces: `FileTree`
 - Produces: `FileTreeFolder`

@@ -4,7 +4,7 @@ import type {
   AgentProviderEvent,
   AgentProviderEventListener,
   AgentProviderTaskSnapshot,
-} from "@code-agent/core";
+} from "@codexly/core";
 import type {
   AgentCapabilities,
   AgentMessageAttachment,
@@ -13,7 +13,7 @@ import type {
   AgentSandboxMode,
   AgentSkillPage,
   AgentTask,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import {
   RpcResponseError,
   type RpcErrorPayload,

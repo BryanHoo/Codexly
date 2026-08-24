@@ -7,7 +7,7 @@ import {
   type AgentTaskSnapshot,
   type AgentTurn,
   type PendingRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 const MAX_BUFFERED_DELTA_BYTES = 1_048_576;
 const MAX_BUFFERED_DELTA_EVENTS = 1_000;

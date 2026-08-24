@@ -16,7 +16,7 @@ const stores: CodexHistoricalAttachmentStore[] = [];
 function createStore(
   options: ConstructorParameters<typeof CodexHistoricalAttachmentStore>[0] = {},
 ): Readonly<{ directory: string; store: CodexHistoricalAttachmentStore }> {
-  const directory = mkdtempSync(join(tmpdir(), "code-agent-history-test-"));
+  const directory = mkdtempSync(join(tmpdir(), "codexly-history-test-"));
   const store = new CodexHistoricalAttachmentStore({ attachmentDirectory: directory, ...options });
   stores.push(store);
   return { directory, store };
@@ -99,7 +99,7 @@ describe("CodexHistoricalAttachmentStore", () => {
   });
 
   it("adopts worker-staged images without decoding or rewriting their body", async () => {
-    const stagingDirectory = mkdtempSync(join(tmpdir(), "code-agent-history-staged-"));
+    const stagingDirectory = mkdtempSync(join(tmpdir(), "codexly-history-staged-"));
     const stagedPath = join(stagingDirectory, "generated.png");
     writeFileSync(stagedPath, pngContent);
     const { directory, store } = createStore({ createId: () => "history-staged-1" });
@@ -213,7 +213,7 @@ describe("CodexHistoricalAttachmentStore", () => {
   it("disposes its timer and managed directory without deleting local source files", () => {
     const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
     const { directory, store } = createStore();
-    const localDirectory = mkdtempSync(join(tmpdir(), "code-agent-history-local-"));
+    const localDirectory = mkdtempSync(join(tmpdir(), "codexly-history-local-"));
     const localPath = join(localDirectory, "source.png");
     writeFileSync(localPath, pngContent);
 

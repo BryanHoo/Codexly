@@ -1,15 +1,15 @@
-# 发布 CodeAgent
+# 发布 Codexly
 
-仓库只发布根包 `@bryanhu/code-agent`；内部 Workspace 包保持私有。推送版本标签后，GitHub Actions 自动发布 npm 包并创建 GitHub Release。
+仓库只发布根包 `@bryanhu/codexly`；内部 Workspace 包保持私有。推送版本标签后，GitHub Actions 自动发布 npm 包并创建 GitHub Release。
 
 ## 首次配置
 
-在 npm 的 `@bryanhu/code-agent > Settings > Trusted Publisher` 中配置：
+在 npm 的 `@bryanhu/codexly > Settings > Trusted Publisher` 中配置：
 
 | 配置项               | 值            |
 | -------------------- | ------------- |
 | Organization or user | `BryanHoo`    |
-| Repository           | `CodeAgent`   |
+| Repository           | `Codexly`     |
 | Workflow filename    | `release.yml` |
 | Environment name     | `npm`         |
 | Allowed actions      | `npm publish` |
@@ -46,4 +46,4 @@ git push origin "v${RELEASE_VERSION}"
 - `EUNSUPPORTEDPROTOCOL`：确认发布对象来自 `pnpm pack`，并检查 `pnpm run package:check`。
 - 版本或标签错误：未发布时修正；版本已发布后必须提升版本号并创建新标签。
 
-发布结果以 [npm](https://www.npmjs.com/package/@bryanhu/code-agent) 和 [GitHub Releases](https://github.com/BryanHoo/CodeAgent/releases) 为准。
+发布结果以 [npm](https://www.npmjs.com/package/@bryanhu/codexly) 和 [GitHub Releases](https://github.com/BryanHoo/Codexly/releases) 为准。

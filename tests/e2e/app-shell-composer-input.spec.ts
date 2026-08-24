@@ -3,7 +3,7 @@ import { expect, taskSnapshot, taskSnapshotResponse, test } from "./fixtures/app
 test.describe.configure({ mode: "serial" });
 
 test("keeps composer attachment icons aligned with the compact toolbar", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const attachmentButton = page.getByRole("button", { name: "添加图片或文件" });
   await expect(attachmentButton).toHaveCSS("height", "28px");
@@ -18,7 +18,7 @@ test("keeps composer attachment icons aligned with the compact toolbar", async (
 
 test("shows every mobile composer action in full on one row", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
   const sandboxSelect = page.getByRole("combobox", { name: "沙盒模式" });
@@ -47,7 +47,7 @@ test("shows every mobile composer action in full on one row", async ({ page }) =
 });
 
 test("switches composer task settings without success toasts", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   const successToast = page.locator('[data-sonner-toast][data-type="success"]');
   const waitForSettingsUpdate = () =>
     page.waitForResponse(
@@ -89,7 +89,7 @@ test("navigates absolute paths and toggles hidden files in the host file picker"
     if (url.pathname === "/v1/host-files") hostFileQueries.push(url);
   });
   await page.setViewportSize({ width: 320, height: 720 });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("button", { name: "添加图片或文件" }).click();
   await page.getByRole("menuitem", { name: "添加文件" }).click();
@@ -131,7 +131,7 @@ test("navigates absolute paths and toggles hidden files in the host file picker"
 });
 
 test("undoes text pasted into the composer", async ({ page }) => {
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.click();
@@ -164,7 +164,7 @@ test("recalls submitted prompt history with arrow keys and restores the draft", 
     startedAt: "2026-08-10T08:00:00.000Z",
     status: "completed" as const,
   };
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -173,7 +173,7 @@ test("recalls submitted prompt history with arrow keys and restores the draft", 
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("尚未提交的草稿");
@@ -197,14 +197,11 @@ test("does not submit or select a command when Safari confirms an IME candidate 
   const turnRequests: string[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (
-      request.method() === "POST" &&
-      url.pathname === "/v1/projects/code-agent/tasks/task-1/turns"
-    ) {
+    if (request.method() === "POST" && url.pathname === "/v1/projects/codexly/tasks/task-1/turns") {
       turnRequests.push(url.pathname);
     }
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   const dispatchSafariImeEnter = () =>
@@ -246,7 +243,7 @@ test("shows processing state while an existing task turn is still starting", asy
   const turnStartRequested = new Promise<void>((resolve) => {
     markTurnStartRequested = resolve;
   });
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     markTurnStartRequested();
     await turnStartGate;
     await route.fulfill({
@@ -265,7 +262,7 @@ test("shows processing state while an existing task turn is still starting", asy
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("继续处理当前任务");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
@@ -279,7 +276,7 @@ test("shows processing state while an existing task turn is still starting", asy
 });
 
 test("toggles the completed execution process from the processing time", async ({ page }) => {
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -309,7 +306,7 @@ test("toggles the completed execution process from the processing time", async (
                 },
                 {
                   command: "pnpm check",
-                  cwd: "/workspace/CodeAgent",
+                  cwd: "/workspace/Codexly",
                   exitCode: 0,
                   id: "command-process-check",
                   output: "Checks passed",
@@ -334,7 +331,7 @@ test("toggles the completed execution process from the processing time", async (
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   await expect(page.getByText("实现与检查已完成。", { exact: true })).toBeVisible();
   await expect(page.getByText("正在读取项目配置。", { exact: true })).toHaveCount(0);
@@ -360,7 +357,7 @@ test("toggles the completed execution process from the processing time", async (
 });
 
 test("summarizes terminal operations after assistant text resumes", async ({ page }) => {
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -384,7 +381,7 @@ test("summarizes terminal operations after assistant text resumes", async ({ pag
                 },
                 {
                   command: "pnpm check",
-                  cwd: "/workspace/CodeAgent",
+                  cwd: "/workspace/Codexly",
                   exitCode: 0,
                   id: "command-operation-check",
                   output: "Checks passed",
@@ -409,7 +406,7 @@ test("summarizes terminal operations after assistant text resumes", async ({ pag
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const operationSummary = page.locator("[data-operation-group] > summary");
   await expect(operationSummary).toContainText("操作完成：调用 1 个工具，执行 1 条命令");

@@ -1,4 +1,4 @@
-import { AgentAttachmentKindSchema, HostFileKindSchema } from "@code-agent/protocol";
+import { AgentAttachmentKindSchema, HostFileKindSchema } from "@codexly/protocol";
 
 export const ProjectParamsSchema = {
   additionalProperties: false,

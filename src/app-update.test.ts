@@ -31,7 +31,7 @@ describe("app update service", () => {
         String.raw`C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js`,
         "install",
         "--global",
-        "@bryanhu/code-agent@1.4.0",
+        "@bryanhu/codexly@1.4.0",
       ],
       command: String.raw`C:\Program Files\nodejs\node.exe`,
     });

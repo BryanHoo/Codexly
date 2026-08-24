@@ -2,7 +2,7 @@ import type {
   AgentModel,
   ConfigureCustomProviderRequest,
   ConfigureCustomProviderResponse,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 const DEFAULT_REASONING_EFFORTS: AgentModel["supportedReasoningEfforts"] = [
   { description: "", id: "medium" },

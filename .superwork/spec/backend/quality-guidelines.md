@@ -30,7 +30,7 @@
 - Binary 定位测试必须确认包内路径落到当前平台的原生可执行文件；Windows 只接受 `.exe`，不得把 `.cmd`、`.bat` 或 JS launcher 当作受管 App Server 进程。
 - Server 目录浏览测试必须覆盖 POSIX 路径规范化、Windows UTF-8 绝对路径契约、全部可访问 Windows 盘符枚举、非目录与相对路径拒绝、真实符号链接省略、云盘 reparse directory 保留和稳定排序；根 CLI 系统集成测试继续覆盖浏览器启动器的缺失回退。CI 质量门禁至少在 Ubuntu 与 Windows 上运行。
 - 根 CLI 参数测试必须覆盖 `pnpm run start -- ...` 转发的单个 `--` 分隔符；只忽略命令后的首个分隔符，后续未知或重复选项仍必须拒绝。
-- 根 CLI 启动更新测试必须显式隔离 `CODE_AGENT_STARTUP_UPDATE_APPLIED`：普通启动场景不得继承测试进程的重启标记，并单独覆盖标记为 `1` 时跳过重复更新检查。
+- 根 CLI 启动更新测试必须显式隔离 `CODEXLY_STARTUP_UPDATE_APPLIED`：普通启动场景不得继承测试进程的重启标记，并单独覆盖标记为 `1` 时跳过重复更新检查。
 - 根 CLI 端口测试必须覆盖连续占用后的递增、实际端口传播、非 `EADDRINUSE` 错误和 `65535` 上限。
 - Project 宿主打开测试必须覆盖 Windows Explorer 成功转交后不误报失败，以及 Windows Terminal 强制在目标目录打开独立新窗口。
 - 子进程关闭测试覆盖发送 `SIGKILL` 后仍未退出的路径，并验证关闭 Promise 在截止时间内失败。

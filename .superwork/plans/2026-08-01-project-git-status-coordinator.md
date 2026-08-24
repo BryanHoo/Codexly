@@ -60,7 +60,7 @@ Expected: Project Runtime 的文件变更和 Turn 生命周期信号测试通过
 
 **Interfaces:**
 
-- Consumes: `QueryClient`, `CodeAgentGitStatusClient`, Project Git 生命周期信号
+- Consumes: `QueryClient`, `CodexlyGitStatusClient`, Project Git 生命周期信号
 - Produces: `ProjectGitStatusCoordinator`、`PROJECT_GIT_STATUS_POLL_INTERVAL_MS = 10_000`
 
 **Behavior:**

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AgentProviderConnectionRepository, AgentRuntimeProvider } from "@code-agent/core";
-import type { AgentModelPage } from "@code-agent/protocol";
+import type { AgentProviderConnectionRepository, AgentRuntimeProvider } from "@codexly/core";
+import type { AgentModelPage } from "@codexly/protocol";
 
 import { createModelCatalogLoader } from "./server-runtime.js";
 

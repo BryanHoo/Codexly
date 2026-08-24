@@ -1,4 +1,4 @@
-import { TEMPORARY_TASK_SCOPE_ID } from "@code-agent/protocol";
+import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { createRoute } from "@tanstack/react-router";
 
 import { rootRoute } from "./root-route.js";

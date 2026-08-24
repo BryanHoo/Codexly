@@ -25,7 +25,7 @@ describe("WorkbenchComposer submission", () => {
         idempotencyKeys: { startTask: "task-key", startTurn: "turn-key" },
         input: { attachments: [], skills: [], text: "首次提交", type: "prompt" },
         onTaskCreated,
-        projectId: "code-agent",
+        projectId: "codexly",
         turnOptions: {
           approvalPolicy: "on-request",
           approvalsReviewer: "user",
@@ -39,7 +39,7 @@ describe("WorkbenchComposer submission", () => {
       startPromptTurn(client, {
         idempotencyKeys: { startTurn: "existing-turn-key" },
         input: { attachments: [], skills: [], text: "继续任务", type: "prompt" },
-        projectId: "code-agent",
+        projectId: "codexly",
         taskId: task.id,
         turnOptions: {
           approvalPolicy: "never",
@@ -53,10 +53,10 @@ describe("WorkbenchComposer submission", () => {
 
     expect(client.startTask).toHaveBeenCalledTimes(1);
     expect(onTaskCreated).toHaveBeenCalledOnce();
-    expect(client.startTask).toHaveBeenCalledWith("code-agent", { idempotencyKey: "task-key" });
+    expect(client.startTask).toHaveBeenCalledWith("codexly", { idempotencyKey: "task-key" });
     expect(client.startTurn).toHaveBeenNthCalledWith(
       1,
-      "code-agent",
+      "codexly",
       task.id,
       {
         attachments: [],
@@ -75,7 +75,7 @@ describe("WorkbenchComposer submission", () => {
     );
     expect(client.startTurn).toHaveBeenNthCalledWith(
       2,
-      "code-agent",
+      "codexly",
       task.id,
       {
         attachments: [],
@@ -111,17 +111,17 @@ describe("WorkbenchComposer submission", () => {
     await expect(
       startTaskReview(client, {
         idempotencyKey: "review-key",
-        projectId: "code-agent",
+        projectId: "codexly",
         target: { type: "uncommitted_changes" },
       }),
     ).resolves.toEqual({ createdTask: task, taskId: task.id, turn: reviewTurn });
 
     expect(calls).toEqual(["task", "review"]);
-    expect(client.startTask).toHaveBeenCalledWith("code-agent", {
+    expect(client.startTask).toHaveBeenCalledWith("codexly", {
       idempotencyKey: "review-key",
     });
     expect(client.startReview).toHaveBeenCalledWith(
-      "code-agent",
+      "codexly",
       task.id,
       { target: { type: "uncommitted_changes" } },
       { idempotencyKey: "review-key" },
@@ -129,12 +129,12 @@ describe("WorkbenchComposer submission", () => {
 
     await startTaskReview(client, {
       idempotencyKey: "base-review-key",
-      projectId: "code-agent",
+      projectId: "codexly",
       target: { branch: "origin/main", type: "base_branch" },
       taskId: task.id,
     });
     expect(client.startReview).toHaveBeenLastCalledWith(
-      "code-agent",
+      "codexly",
       task.id,
       { target: { branch: "origin/main", type: "base_branch" } },
       { idempotencyKey: "base-review-key" },
@@ -152,11 +152,11 @@ describe("WorkbenchComposer submission", () => {
     };
 
     await expect(
-      interruptPromptTurn(client, "code-agent", task.id, turn.id, "interrupt-key"),
+      interruptPromptTurn(client, "codexly", task.id, turn.id, "interrupt-key"),
     ).resolves.toMatchObject({
       status: "interrupting",
     });
-    expect(client.interruptTurn).toHaveBeenCalledWith("code-agent", task.id, turn.id, {
+    expect(client.interruptTurn).toHaveBeenCalledWith("codexly", task.id, turn.id, {
       idempotencyKey: "interrupt-key",
     });
   });
@@ -170,9 +170,9 @@ describe("WorkbenchComposer submission", () => {
     const input = { attachments: [], skills: [], text: "补充约束", type: "prompt" as const };
 
     await expect(
-      steerPromptTurn(client, "code-agent", task.id, turn.id, input, "steer-key"),
+      steerPromptTurn(client, "codexly", task.id, turn.id, input, "steer-key"),
     ).resolves.toMatchObject({ status: "accepted" });
-    expect(client.steerTurn).toHaveBeenCalledWith("code-agent", task.id, turn.id, input, {
+    expect(client.steerTurn).toHaveBeenCalledWith("codexly", task.id, turn.id, input, {
       idempotencyKey: "steer-key",
     });
   });

@@ -1,10 +1,10 @@
-import type { PendingRequest } from "@code-agent/protocol";
+import type { PendingRequest } from "@codexly/protocol";
 
 // 集中维护 HTTP client 的协议响应样本与 JSON 工具。
 export const task = {
   id: "task-1",
   pinned: false,
-  projectId: "code-agent",
+  projectId: "codexly",
   title: "结构化历史",
   updatedAt: "2026-07-23T00:01:00.000Z",
 };
@@ -91,17 +91,17 @@ export const attachment = {
   size: 68,
 };
 
-export const projectRootPath = "/workspace/CodeAgent";
+export const projectRootPath = "/workspace/Codexly";
 
 export const pendingRequest: PendingRequest = {
   availableDecisions: ["allow", "deny"],
   command: "pnpm check",
   createdAt: "2026-07-23T00:02:00.000Z",
-  cwd: "/workspace/CodeAgent",
+  cwd: "/workspace/Codexly",
   expiresAt: null,
   itemId: "command-1",
   networkAccess: null,
-  projectId: "code-agent",
+  projectId: "codexly",
   reason: null,
   requestId: "number:7",
   status: "pending",

@@ -101,7 +101,7 @@ Expected: targeted Codex Provider tests exit 0.
 - Consumes: `AgentMutationSchemas` — structured input, request/response/error schemas and expanded capabilities
 - Consumes: `AgentProviderMutations` — `startTask`, `startTurn`, and `interruptTurn`
 - Produces: `AgentMutationHttpApi` — three idempotent POST endpoints
-- Produces: `CodeAgentClientMutations` — typed create/start/interrupt methods
+- Produces: `CodexlyClientMutations` — typed create/start/interrupt methods
 
 **Behavior Slice:** Fastify 在调用 Provider 前校验 Params、Body 和 `Idempotency-Key`；同操作同 Key 复用完成中的 Promise 或成功响应，不同 payload 复用同 Key 返回冲突；Provider/归属错误翻译为结构化错误；Client 发送 JSON 并校验响应。
 
@@ -131,7 +131,7 @@ Expected: targeted Server and Client tests exit 0.
 
 **Interfaces:**
 
-- Consumes: `CodeAgentClientMutations` — typed create/start/interrupt methods
+- Consumes: `CodexlyClientMutations` — typed create/start/interrupt methods
 - Consumes: `TaskRuntimeState` — Snapshot status, active Turn, connection state and refetch lifecycle
 - Produces: `ComposerMutationState` — `idle | submitting | running | reconnecting | failed`
 - Produces: `WorkbenchComposerActions` — submit, create-and-submit, and interrupt user actions

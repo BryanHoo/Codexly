@@ -1,4 +1,4 @@
-import type { AgentItem, AgentItemStatus } from "@code-agent/protocol";
+import type { AgentItem, AgentItemStatus } from "@codexly/protocol";
 
 import { CodexProtocolMappingError } from "./codex-mapping-common.js";
 

@@ -75,7 +75,7 @@ Expected: AI Elements 测试全部通过，新增代码块断言通过且无 Rea
 **Interfaces:**
 
 - Consumes: `CodeBlock*` 组合组件和 `highlightedLine`。
-- Consumes: 现有 `CodeAgentWorkbenchClient.readProjectSourceFile(projectId, path)` Query 调用。
+- Consumes: 现有 `CodexlyWorkbenchClient.readProjectSourceFile(projectId, path)` Query 调用。
 - Produces: `getCodeLanguage(path)` 扩展名到 `BundledLanguage` 的确定性映射，默认返回 `text`。
 - Produces: 保持不变的 `ProjectSourceDialog` Props、原生 dialog `onCancel`、backdrop `onClick` 和 `onClose`。
 

@@ -1,4 +1,4 @@
-import type { AgentEventConnectionState } from "@code-agent/client";
+import type { AgentEventConnectionState } from "@codexly/client";
 import type {
   AgentEvent,
   AgentItem,
@@ -6,7 +6,7 @@ import type {
   AgentTurn,
   EventCheckpoint,
   PendingRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { CommandOutputBuffer, type CommandOutputView } from "./command-output-buffer.js";
@@ -15,8 +15,8 @@ export const MAX_TASK_COMMAND_OUTPUT_BYTES = 8 * 1_048_576;
 export const MAX_RETAINED_TASK_RUNTIME_BYTES = 64 * 1_048_576;
 export const MAX_RETAINED_TERMINAL_REQUESTS = 20;
 export const MAX_RETAINED_TASK_NOTICES = 20;
-export const PENDING_COMMAND_LABEL = "__CODE_AGENT_PENDING_COMMAND__";
-export const RETAINED_COMMAND_OUTPUT_MARKER = "__CODE_AGENT_RETAINED_COMMAND_OUTPUT__";
+export const PENDING_COMMAND_LABEL = "__CODEXLY_PENDING_COMMAND__";
+export const RETAINED_COMMAND_OUTPUT_MARKER = "__CODEXLY_RETAINED_COMMAND_OUTPUT__";
 const textEncoder = new TextEncoder();
 const retainedCommandOutputMarkerBytes = textEncoder.encode(
   RETAINED_COMMAND_OUTPUT_MARKER,

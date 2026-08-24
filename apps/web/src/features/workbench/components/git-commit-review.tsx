@@ -1,4 +1,4 @@
-import type { ProjectGitCommit } from "@code-agent/protocol";
+import type { ProjectGitCommit } from "@codexly/protocol";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { LoaderCircle, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
@@ -8,7 +8,7 @@ import { Button } from "../../../shared/components/core/button.js";
 import { Dialog, DialogContent, DialogTitle } from "../../../shared/components/core/dialog.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import { FileReviewWorkspace } from "../../diff/file-review-dialog.js";
-import type { CodeAgentGitCommitReviewClient } from "../../projects/project-queries.js";
+import type { CodexlyGitCommitReviewClient } from "../../projects/project-queries.js";
 import {
   projectGitCommitFileDiffQueryOptions,
   projectGitCommitFilesInfiniteQueryOptions,
@@ -18,7 +18,7 @@ const PatchDiffViewer = lazy(() => import("../../diff/patch-diff-viewer.js"));
 
 type CommitDiffContentProps = Readonly<{
   change: AgentFileChange;
-  client: CodeAgentGitCommitReviewClient;
+  client: CodexlyGitCommitReviewClient;
   projectId: string;
   repository?: string;
   rootPath: string;
@@ -96,7 +96,7 @@ function CommitDiffContent({
 }
 
 type GitCommitReviewProps = Readonly<{
-  client: CodeAgentGitCommitReviewClient;
+  client: CodexlyGitCommitReviewClient;
   commit: ProjectGitCommit;
   onClose: () => void;
   projectId: string;

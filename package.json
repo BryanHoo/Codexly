@@ -1,16 +1,16 @@
 {
-  "name": "@bryanhu/code-agent",
+  "name": "@bryanhu/codexly",
   "version": "1.14.1",
   "description": "通过 Web 操作本地 Coding Agent 的应用",
   "type": "module",
   "author": "BryanHu",
-  "homepage": "https://github.com/BryanHoo/CodeAgent#readme",
+  "homepage": "https://github.com/BryanHoo/Codexly#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BryanHoo/CodeAgent.git"
+    "url": "git+https://github.com/BryanHoo/Codexly.git"
   },
   "bugs": {
-    "url": "https://github.com/BryanHoo/CodeAgent/issues"
+    "url": "https://github.com/BryanHoo/Codexly/issues"
   },
   "keywords": [
     "ai",
@@ -24,7 +24,7 @@
     "node": ">=22.14.0"
   },
   "bin": {
-    "code-agent": "dist/cli.js"
+    "codexly": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -38,7 +38,7 @@
   },
   "scripts": {
     "audit:prod": "pnpm audit --prod --audit-level moderate",
-    "build": "pnpm run clean && pnpm run typecheck && pnpm --filter @code-agent/web build && pnpm run build:node",
+    "build": "pnpm run clean && pnpm run typecheck && pnpm --filter @codexly/web build && pnpm run build:node",
     "build:node": "tsup",
     "bundle:check": "node ./tools/verify-web-bundle.mjs --report .artifacts/web-bundle-report.json",
     "bundle:report": "node ./tools/verify-web-bundle.mjs --read-report .artifacts/web-bundle-report.json",
@@ -46,7 +46,7 @@
     "clean": "node ./tools/clean.mjs",
     "codex:schema:check": "node ./tools/verify-codex-schema.mjs",
     "codex:schema:update": "node ./tools/verify-codex-schema.mjs --update",
-    "dev": "pnpm --filter @code-agent/web dev",
+    "dev": "pnpm --filter @codexly/web dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",

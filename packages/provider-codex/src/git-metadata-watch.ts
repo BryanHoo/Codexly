@@ -1,7 +1,7 @@
 import { lstat, readdir, readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
-import type { AgentTaskScope } from "@code-agent/core";
+import type { AgentTaskScope } from "@codexly/core";
 
 import type { CodexRpcClient } from "./agent-provider-base.js";
 import type { CodexProviderLogger } from "./agent-provider-logger.js";
@@ -275,7 +275,7 @@ export class CodexGitMetadataWatchService {
     for (const descriptor of desired) {
       if (state.released || registrations.has(descriptor.path)) continue;
       if (this.#watchSlotsInUse >= this.#maxWatchCount) break;
-      const watchId = `code-agent-git-${String(this.#nextWatchId++)}`;
+      const watchId = `codexly-git-${String(this.#nextWatchId++)}`;
       // 先预留全局槽位，避免多个 Project 并发注册时突破连接级预算。
       this.#watchSlotsInUse += 1;
       try {

@@ -55,7 +55,7 @@ export function scheduleOperationStatusTurn(threadId, turnId) {
     aggregatedOutput: null,
     command: "rg --files",
     commandActions: [],
-    cwd: "/workspace/CodeAgent",
+    cwd: "/workspace/Codexly",
     durationMs: null,
     exitCode: null,
     id: `${turnId}-status-command`,

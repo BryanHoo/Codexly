@@ -1,14 +1,14 @@
-import type { AgentTaskPage } from "@code-agent/protocol";
+import type { AgentTaskPage } from "@codexly/protocol";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import {
   PROJECT_TASK_PAGE_SIZE,
   ARCHIVED_TASK_PAGE_SIZE,
   TASK_SNAPSHOT_GC_TIME_MS,
-  codeAgentClient,
-  type CodeAgentReadClient,
-  type CodeAgentArchivedTaskClient,
-  type CodeAgentSnapshotClient,
+  codexlyClient,
+  type CodexlyReadClient,
+  type CodexlyArchivedTaskClient,
+  type CodexlySnapshotClient,
   type ProjectTaskInfiniteData,
 } from "./project-query-contracts.js";
 
@@ -16,7 +16,7 @@ export function archivedProjectTasksQueryOptions(
   projectId: string,
   cursor: string | undefined,
   searchTerm: string,
-  client: CodeAgentArchivedTaskClient = codeAgentClient,
+  client: CodexlyArchivedTaskClient = codexlyClient,
 ) {
   return queryOptions({
     queryFn: ({ signal }) =>
@@ -36,7 +36,7 @@ export function archivedProjectTasksQueryOptions(
 
 export function projectTasksInfiniteQueryOptions(
   projectId: string,
-  client: CodeAgentReadClient = codeAgentClient,
+  client: CodexlyReadClient = codexlyClient,
 ) {
   return infiniteQueryOptions<
     AgentTaskPage,
@@ -66,7 +66,7 @@ export function projectTasksInfiniteQueryOptions(
 export function taskSnapshotQueryOptions(
   projectId: string,
   taskId: string,
-  client: CodeAgentSnapshotClient = codeAgentClient,
+  client: CodexlySnapshotClient = codexlyClient,
 ) {
   return queryOptions({
     gcTime: TASK_SNAPSHOT_GC_TIME_MS,

@@ -36,7 +36,7 @@
 
 **Interfaces:**
 
-- Consumes: `CodeAgentGitHistoryClient & CodeAgentGitCommitReviewClient`、`projectId`、`WorkbenchInspectorTab`。
+- Consumes: `CodexlyGitHistoryClient & CodexlyGitCommitReviewClient`、`projectId`、`WorkbenchInspectorTab`。
 - Produces: `GitHistoryPanel`、`WorkbenchInspectorTabs`、扩展后的 `WorkbenchInspectorTab = "changes" | "context" | "history"`、可访问的“历史”标签页。
 
 **Behavior:**

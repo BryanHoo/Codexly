@@ -227,13 +227,13 @@ describe("task timeline basics", () => {
     const markup = renderToStaticMarkup(
       <TaskTimeline
         onProjectChange={() => undefined}
-        projectId="code-agent"
+        projectId="codexly"
         projects={[
           {
             createdAt: "2026-07-22T06:00:00.000Z",
-            id: "code-agent",
-            name: "CodeAgent",
-            roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+            id: "codexly",
+            name: "Codexly",
+            roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
           },
         ]}
         submissionStartedAt="2026-07-24T00:00:00.000Z"

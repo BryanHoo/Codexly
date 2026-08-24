@@ -33,7 +33,7 @@ describe("project agent input protocol", () => {
     const task = {
       id: "task-1",
       pinned: false,
-      projectId: "code-agent",
+      projectId: "codexly",
       title: "实现写入闭环",
       updatedAt: "2026-07-23T00:00:00.000Z",
     };

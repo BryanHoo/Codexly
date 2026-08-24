@@ -2,7 +2,7 @@ export const supportedLanguages = ["zh-CN", "en"] as const;
 
 export type SupportedLanguage = (typeof supportedLanguages)[number];
 
-const LANGUAGE_STORAGE_KEY = "code-agent.language-preference";
+const LANGUAGE_STORAGE_KEY = "codexly.language-preference";
 const LANGUAGE_STORAGE_VERSION = 1;
 const DEFAULT_LANGUAGE: SupportedLanguage = "zh-CN";
 

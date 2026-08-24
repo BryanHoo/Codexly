@@ -17,8 +17,8 @@ import {
   type ProjectSourceFileQuery,
   type StopProjectFileSearchRequest,
   TEMPORARY_TASK_SCOPE_ID,
-} from "@code-agent/protocol";
-import type { ProjectRepository } from "@code-agent/core";
+} from "@codexly/protocol";
+import type { ProjectRepository } from "@codexly/core";
 import { AttachmentNotFoundError, type StoredAttachmentUpload } from "../attachment-store.js";
 import { HostFileBrowserError } from "../host-file-browser.js";
 import { ProjectRootScopeError, resolveProjectRootEntry } from "../project-root-scope.js";

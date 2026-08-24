@@ -3,8 +3,8 @@ import type {
   AgentRuntimeProvider,
   AgentTaskScope,
   ProjectRepository,
-} from "@code-agent/core";
-import { TEMPORARY_TASK_SCOPE_ID } from "@code-agent/protocol";
+} from "@codexly/core";
+import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 
 export type ResolvedTaskScope = Readonly<{
   provider: AgentProvider;

@@ -7,27 +7,27 @@
       "layers": ["distribution", "cli"]
     },
     {
-      "name": "@code-agent/web",
+      "name": "@codexly/web",
       "layers": ["frontend"]
     },
     {
-      "name": "@code-agent/protocol",
+      "name": "@codexly/protocol",
       "layers": ["shared", "protocol"]
     },
     {
-      "name": "@code-agent/core",
+      "name": "@codexly/core",
       "layers": ["shared", "domain"]
     },
     {
-      "name": "@code-agent/provider-codex",
+      "name": "@codexly/provider-codex",
       "layers": ["backend", "provider"]
     },
     {
-      "name": "@code-agent/server",
+      "name": "@codexly/server",
       "layers": ["backend", "delivery", "persistence"]
     },
     {
-      "name": "@code-agent/client",
+      "name": "@codexly/client",
       "layers": ["frontend", "transport"]
     }
   ],

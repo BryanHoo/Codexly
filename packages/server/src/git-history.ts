@@ -5,7 +5,7 @@ import type {
   ProjectGitCommit,
   ProjectGitHistoryPage,
   ProjectGitHistoryQuery,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import { executeGit, type GitCommandExecutor } from "./git-command.js";
 

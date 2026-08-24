@@ -5,7 +5,7 @@ import type {
   ProjectGitWorktreePage,
   ProjectPage,
   ProjectWorktreeMutationResponse,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";

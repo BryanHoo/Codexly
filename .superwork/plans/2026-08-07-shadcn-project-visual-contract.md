@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 让 CodeAgent 当前设计系统成为共享 UI 的唯一视觉标准，shadcn/Radix 只提供组件结构、行为和可访问性能力。
+**Goal:** 让 Codexly 当前设计系统成为共享 UI 的唯一视觉标准，shadcn/Radix 只提供组件结构、行为和可访问性能力。
 
 **Suggested Spec Reads:**
 

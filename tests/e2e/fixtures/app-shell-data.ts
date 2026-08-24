@@ -2,9 +2,9 @@
 export const projects = [
   {
     createdAt: "2026-07-22T06:00:00.000Z",
-    id: "code-agent",
-    name: "CodeAgent",
-    roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+    id: "codexly",
+    name: "Codexly",
+    roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
   },
   {
     createdAt: "2026-07-22T06:30:00.000Z",
@@ -92,49 +92,49 @@ export const tasks = [
   {
     id: "task-1",
     pinned: true,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: "构建 macOS 工作台",
     updatedAt: "2026-07-22T07:58:00.000Z",
   },
   {
     id: "input-design",
     pinned: false,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: "优化输入框交互",
     updatedAt: "2026-07-22T06:00:00.000Z",
   },
   {
     id: "markdown",
     pinned: false,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: "完善 Markdown 渲染",
     updatedAt: "2026-07-20T08:00:00.000Z",
   },
   {
     id: "runtime",
     pinned: false,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: "完善 Runtime 状态",
     updatedAt: "2026-07-19T08:00:00.000Z",
   },
   {
     id: "provider",
     pinned: false,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: "整理 Provider 边界",
     updatedAt: "2026-07-18T08:00:00.000Z",
   },
   {
     id: "protocol",
     pinned: true,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: "补充 Protocol 契约",
     updatedAt: "2026-07-17T08:00:00.000Z",
   },
   {
     id: "client",
     pinned: false,
-    projectId: "code-agent",
+    projectId: "codexly",
     title: "优化 Client 请求",
     updatedAt: "2026-07-16T08:00:00.000Z",
   },
@@ -171,12 +171,12 @@ export const projectGitWorktrees = [
   {
     branch: "feat/review-targets",
     current: true,
-    path: "/workspace/CodeAgent",
+    path: "/workspace/Codexly",
   },
   {
     branch: "feat/worktree-review",
     current: false,
-    path: "/workspace/CodeAgent-worktree-review",
+    path: "/workspace/Codexly-worktree-review",
   },
 ];
 
@@ -213,20 +213,20 @@ export const projectFileSearchEntries = [
   {
     name: "main.tsx",
     path: "src/main.tsx",
-    rootId: "root-code-agent",
-    rootPath: "/workspace/CodeAgent",
+    rootId: "root-codexly",
+    rootPath: "/workspace/Codexly",
   },
   {
     name: "main.test.tsx",
     path: "src/main.test.tsx",
-    rootId: "root-code-agent",
-    rootPath: "/workspace/CodeAgent",
+    rootId: "root-codexly",
+    rootPath: "/workspace/Codexly",
   },
   {
     name: "package.json",
     path: "package.json",
-    rootId: "root-code-agent",
-    rootPath: "/workspace/CodeAgent",
+    rootId: "root-codexly",
+    rootPath: "/workspace/Codexly",
   },
 ] as const;
 
@@ -236,7 +236,7 @@ export const projectDirectoryListings = new Map<string | null, object>([
     {
       entries: [
         { name: "AddedProject", path: "/workspace/AddedProject" },
-        { name: "CodeAgent", path: "/workspace/CodeAgent" },
+        { name: "Codexly", path: "/workspace/Codexly" },
         { name: "superwork", path: "/workspace/superwork" },
       ],
       parentPath: "/",
@@ -303,7 +303,7 @@ export const taskSnapshot = {
             {
               diff: packageJsonDiff,
               kind: "update",
-              path: "/workspace/CodeAgent/package.json",
+              path: "/workspace/Codexly/package.json",
             },
           ],
           id: "file-change-1",
@@ -313,7 +313,7 @@ export const taskSnapshot = {
         {
           id: "message-2",
           role: "assistant",
-          text: "工作台界面已按统一的 项目 Agent 组件 结构重新组织。\n\n[architecture-design.md](/workspace/CodeAgent/docs/architecture-design.md:100)\n\n[result.png](/workspace/CodeAgent/design/result.png)\n\n[后续工作交接.pptx](/home/taoye/100%完成/AI 领航/%E5%90%8E%E7%BB%AD%E5%B7%A5%E4%BD%9C%E4%BA%A4%E6%8E%A5.pptx)\n\n[OpenAI](https://openai.com)",
+          text: "工作台界面已按统一的 项目 Agent 组件 结构重新组织。\n\n[architecture-design.md](/workspace/Codexly/docs/architecture-design.md:100)\n\n[result.png](/workspace/Codexly/design/result.png)\n\n[后续工作交接.pptx](/home/taoye/100%完成/AI 领航/%E5%90%8E%E7%BB%AD%E5%B7%A5%E4%BD%9C%E4%BA%A4%E6%8E%A5.pptx)\n\n[OpenAI](https://openai.com)",
           type: "message",
         },
       ],

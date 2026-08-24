@@ -15,7 +15,7 @@
 ## Global Constraints
 
 - Diff Viewer 仅在用户打开文件后动态加载，不进入初始工作台主包。
-- 文件变更数据只来自 `@code-agent/protocol` 的 Task Snapshot，不保留 Inspector 演示数据。
+- 文件变更数据只来自 `@codexly/protocol` 的 Task Snapshot，不保留 Inspector 演示数据。
 - 弹窗支持 Escape、背景点击关闭、明确标题与可访问名称，并在窄屏中保持可滚动。
 - 关键聚合、补丁规范化和浏览器交互位置添加简短中文注释。
 

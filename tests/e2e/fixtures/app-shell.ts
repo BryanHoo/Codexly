@@ -96,7 +96,7 @@ const testFixture = base.extend<Record<never, never>, WorkerFixtures>({
     async ({ browserName }, use, workerInfo) => {
       // 每个 worker 独占 Fake Server 及其子 App Server，隔离全部内存数据和实时事件。
       const serverProcess = spawn(process.execPath, [fakeServerPath], {
-        env: { ...process.env, CODE_AGENT_E2E_PORT: "0" },
+        env: { ...process.env, CODEXLY_E2E_PORT: "0" },
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true,

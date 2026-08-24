@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 
 import { describe, expect, it, vi } from "vitest";
 
-import type { ProjectProjectionStore } from "@code-agent/core";
-import type { Project } from "@code-agent/protocol";
+import type { ProjectProjectionStore } from "@codexly/core";
+import type { Project } from "@codexly/protocol";
 
 import { CodexProtocolMappingError } from "./codex-protocol-mapping.js";
 import { CodexProjectRepository } from "./codex-project-repository.js";
@@ -197,8 +197,8 @@ describe("CodexProjectRepository", () => {
       sourceKinds: ["vscode"],
     });
     expect(rpc.request).toHaveBeenNthCalledWith(4, "project/import", {
-      idempotencyKey: "code-agent:legacy-project:legacy-local-id",
-      metadata: { codeAgentMigration: "legacy-project-v1" },
+      idempotencyKey: "codexly:legacy-project:legacy-local-id",
+      metadata: { codexlyMigration: "legacy-project-v1" },
       name: legacyProject.name,
       roots: [{ path: primaryRootPath(legacyProject) }],
       threads: ["legacy-task-1", "legacy-task-2", "archived-task"],
@@ -232,7 +232,7 @@ describe("CodexProjectRepository", () => {
     expect(projection.migrateProject).not.toHaveBeenCalled();
   });
 
-  it("recovers projects already erased by version 14 from unassigned CodeAgent threads", async () => {
+  it("recovers projects already erased by version 14 from unassigned Codexly threads", async () => {
     const recoveredProject = {
       ...firstProject,
       id: "recovered-project-id",
@@ -266,8 +266,8 @@ describe("CodexProjectRepository", () => {
     });
     expect(rpc.request).toHaveBeenNthCalledWith(4, "project/import", {
       idempotencyKey:
-        "code-agent:unassigned-vscode:137219d36395cedc4eacd4d74308c51184e54616b2a5c957a411ce5aa43c9e30",
-      metadata: { codeAgentMigration: "unassigned-vscode-v2" },
+        "codexly:unassigned-vscode:137219d36395cedc4eacd4d74308c51184e54616b2a5c957a411ce5aa43c9e30",
+      metadata: { codexlyMigration: "unassigned-vscode-v2" },
       name: "first",
       roots: [{ path: primaryRootPath(firstProject) }],
       threads: ["legacy-task"],

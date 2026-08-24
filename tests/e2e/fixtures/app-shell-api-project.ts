@@ -65,7 +65,7 @@ export async function handleAppShellProjectRoute(
       nextCursor: null,
       path: "/tmp/temporary-note.md",
     };
-  } else if (url.pathname === "/v1/projects/code-agent/files/source") {
+  } else if (url.pathname === "/v1/projects/codexly/files/source") {
     body =
       url.searchParams.get("cursor") === String(architectureSourceNextCursor)
         ? {
@@ -79,12 +79,12 @@ export async function handleAppShellProjectRoute(
             path: "docs/architecture-design.md",
           };
   } else if (
-    url.pathname === "/v1/projects/code-agent/git/worktrees" &&
+    url.pathname === "/v1/projects/codexly/git/worktrees" &&
     route.request().method() === "GET"
   ) {
     body = { worktrees: state.routedProjectGitWorktrees };
   } else if (
-    url.pathname === "/v1/projects/code-agent/git/worktrees" &&
+    url.pathname === "/v1/projects/codexly/git/worktrees" &&
     route.request().method() === "POST"
   ) {
     const request = parseRequestRecord(route.request().postData());
@@ -98,19 +98,19 @@ export async function handleAppShellProjectRoute(
     const worktree = {
       branch,
       current: false,
-      path: "/workspace/CodeAgent-composer-worktree",
+      path: "/workspace/Codexly-composer-worktree",
     };
     const project = {
       createdAt: "2026-08-18T00:00:00.000Z",
-      id: "code-agent-composer-worktree",
-      name: "CodeAgent-composer-worktree",
-      roots: [{ id: "root-code-agent-composer-worktree", path: worktree.path }],
+      id: "codexly-composer-worktree",
+      name: "Codexly-composer-worktree",
+      roots: [{ id: "root-codexly-composer-worktree", path: worktree.path }],
     };
     state.routedProjectGitWorktrees.push(worktree);
     state.routedProjects = [...state.routedProjects, project];
     body = { project, worktree };
   } else if (
-    url.pathname === "/v1/projects/code-agent/git/worktree" &&
+    url.pathname === "/v1/projects/codexly/git/worktree" &&
     route.request().method() === "POST"
   ) {
     const request = parseRequestRecord(route.request().postData());
@@ -120,16 +120,16 @@ export async function handleAppShellProjectRoute(
     if (worktree === undefined) throw new Error("Invalid worktree switch request");
     const project = {
       createdAt: "2026-08-18T00:00:00.000Z",
-      id: "code-agent-worktree-review",
-      name: "CodeAgent-worktree-review",
-      roots: [{ id: "root-code-agent-worktree-review", path: worktree.path }],
+      id: "codexly-worktree-review",
+      name: "Codexly-worktree-review",
+      roots: [{ id: "root-codexly-worktree-review", path: worktree.path }],
     };
     if (!state.routedProjects.some((candidate) => candidate.id === project.id)) {
       state.routedProjects = [...state.routedProjects, project];
     }
     body = { project, worktree };
   } else if (
-    url.pathname === "/v1/projects/code-agent/git/branch" &&
+    url.pathname === "/v1/projects/codexly/git/branch" &&
     route.request().method() === "POST"
   ) {
     const request = parseRequestRecord(route.request().postData());
@@ -157,7 +157,7 @@ export async function handleAppShellProjectRoute(
     };
     body = state.routedProjectGitStatus;
   } else if (
-    url.pathname === "/v1/projects/code-agent/git/branches" &&
+    url.pathname === "/v1/projects/codexly/git/branches" &&
     route.request().method() === "POST"
   ) {
     const request = parseRequestRecord(route.request().postData());

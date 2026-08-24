@@ -94,11 +94,11 @@ describe("project runtime events", () => {
     await manager.requestNotificationPermission();
     harness.emit(createTurnCompletedEvent("task-1", 1));
 
-    expect(warn).toHaveBeenCalledWith("CodeAgent internal warning", {
+    expect(warn).toHaveBeenCalledWith("Codexly internal warning", {
       diagnosticCode: "notification_permission_failed",
       errorMessage: "permission API failed",
     });
-    expect(warn).toHaveBeenCalledWith("CodeAgent internal warning", {
+    expect(warn).toHaveBeenCalledWith("Codexly internal warning", {
       diagnosticCode: "task_notification_failed",
       errorMessage: "notification constructor failed",
       projectId: "project-1",
@@ -121,7 +121,7 @@ describe("project runtime events", () => {
     harness.connectionError(new Error("socket failed"));
 
     expect(store.getState().error).toBeNull();
-    expect(warn).toHaveBeenCalledWith("CodeAgent internal warning", {
+    expect(warn).toHaveBeenCalledWith("Codexly internal warning", {
       diagnosticCode: "event_connection_failed",
       errorMessage: "socket failed",
       projectId: "project-1",

@@ -8,7 +8,7 @@ import type {
   ProjectGitStatus,
   ProjectGitWorktree,
   ProjectRoot,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 
 import type {

@@ -73,13 +73,13 @@ describe("project sidebar preferences", () => {
     const storage = new MemoryStorage();
 
     expect(readTemporaryTasksExpanded(storage)).toBe(true);
-    storage.values.set("code-agent:project-sidebar:temporary-tasks-expanded:v1", "invalid");
+    storage.values.set("codexly:project-sidebar:temporary-tasks-expanded:v1", "invalid");
     expect(readTemporaryTasksExpanded(storage)).toBe(true);
   });
 
   it("falls back to defaults when saved data is malformed", () => {
     const storage = new MemoryStorage();
-    storage.values.set("code-agent:project-sidebar:expanded-projects:v1", "not-json");
+    storage.values.set("codexly:project-sidebar:expanded-projects:v1", "not-json");
 
     expect(readExpandedProjectIds(storage)).toBeNull();
   });

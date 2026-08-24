@@ -1,4 +1,4 @@
-const NOTIFICATION_STORAGE_KEY = "code-agent.notification-preference";
+const NOTIFICATION_STORAGE_KEY = "codexly.notification-preference";
 const NOTIFICATION_STORAGE_VERSION = 1;
 
 type NotificationStorageReader = Readonly<{ getItem: (key: string) => string | null }>;

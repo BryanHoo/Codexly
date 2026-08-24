@@ -6,7 +6,7 @@ import {
   type AgentTask,
   type AgentTaskSettings,
   type AgentTurn,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { classifyProjectFileReference } from "../project-file-reference.js";
 

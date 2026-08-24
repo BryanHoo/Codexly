@@ -6,7 +6,7 @@ import type {
   AgentAttachmentKind,
   AgentAttachmentMediaType,
   AgentImageMediaType,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 export interface AttachmentStoreOptions {
   attachmentDirectory?: string;

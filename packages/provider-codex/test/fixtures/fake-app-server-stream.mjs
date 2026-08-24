@@ -20,7 +20,7 @@ export function scheduleRealtimeEvents() {
       aggregatedOutput: "Done\n",
       command: "pnpm check",
       commandActions: [],
-      cwd: "/workspace/CodeAgent",
+      cwd: "/workspace/Codexly",
       durationMs: 20,
       exitCode: 0,
       id: "command-realtime",

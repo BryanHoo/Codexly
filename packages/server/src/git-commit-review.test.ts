@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 
 async function createRepository(): Promise<string> {
-  const directory = await mkdtemp(join(tmpdir(), "code-agent-git-commit-review-"));
+  const directory = await mkdtemp(join(tmpdir(), "codexly-git-commit-review-"));
   temporaryDirectories.push(directory);
   await mkdir(join(directory, ".git"));
   return directory;
@@ -26,7 +26,7 @@ async function createRepository(): Promise<string> {
 
 describe("Git commit review", () => {
   it("rejects an aggregate project root until a direct repository is selected", async () => {
-    const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-git-commit-review-"));
+    const projectRoot = await mkdtemp(join(tmpdir(), "codexly-git-commit-review-"));
     temporaryDirectories.push(projectRoot);
     await mkdir(join(projectRoot, "apps", ".git"), { recursive: true });
     const executeGit = vi.fn<GitCommandExecutor>(() => Promise.resolve(""));

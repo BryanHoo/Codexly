@@ -31,18 +31,18 @@ describe("WorkbenchComposer Git", () => {
     const cancelQueries = vi.spyOn(queryClient, "cancelQueries");
 
     await expect(
-      switchComposerBranch(client, queryClient, "code-agent", rootPath, currentStatus, "main"),
+      switchComposerBranch(client, queryClient, "codexly", rootPath, currentStatus, "main"),
     ).resolves.toBe(true);
 
-    expect(client.switchProjectBranch).toHaveBeenCalledWith("code-agent", rootPath, {
+    expect(client.switchProjectBranch).toHaveBeenCalledWith("codexly", rootPath, {
       branch: "main",
       expectedSnapshot: currentStatus.snapshot,
     });
     expect(cancelQueries).toHaveBeenCalledWith({
       exact: true,
-      queryKey: ["projects", "code-agent", rootPath, "git-status"],
+      queryKey: ["projects", "codexly", rootPath, "git-status"],
     });
-    expect(queryClient.getQueryData(["projects", "code-agent", rootPath, "git-status"])).toEqual(
+    expect(queryClient.getQueryData(["projects", "codexly", rootPath, "git-status"])).toEqual(
       nextStatus,
     );
   });
@@ -61,10 +61,10 @@ describe("WorkbenchComposer Git", () => {
     };
 
     await expect(
-      switchComposerBranch(client, queryClient, "code-agent", rootPath, status, "main"),
+      switchComposerBranch(client, queryClient, "codexly", rootPath, status, "main"),
     ).resolves.toBe(false);
     await expect(
-      switchComposerBranch(client, queryClient, "code-agent", rootPath, status, "missing"),
+      switchComposerBranch(client, queryClient, "codexly", rootPath, status, "missing"),
     ).resolves.toBe(false);
     expect(client.switchProjectBranch).not.toHaveBeenCalled();
   });
@@ -93,22 +93,22 @@ describe("WorkbenchComposer Git", () => {
       createComposerBranch(
         client,
         queryClient,
-        "code-agent",
+        "codexly",
         rootPath,
         currentStatus,
         "feat/new-branch",
       ),
     ).resolves.toBe(true);
 
-    expect(client.createProjectBranch).toHaveBeenCalledWith("code-agent", rootPath, {
+    expect(client.createProjectBranch).toHaveBeenCalledWith("codexly", rootPath, {
       branch: "feat/new-branch",
       expectedSnapshot: currentStatus.snapshot,
     });
     expect(cancelQueries).toHaveBeenCalledWith({
       exact: true,
-      queryKey: ["projects", "code-agent", rootPath, "git-status"],
+      queryKey: ["projects", "codexly", rootPath, "git-status"],
     });
-    expect(queryClient.getQueryData(["projects", "code-agent", rootPath, "git-status"])).toEqual(
+    expect(queryClient.getQueryData(["projects", "codexly", rootPath, "git-status"])).toEqual(
       nextStatus,
     );
   });
@@ -127,16 +127,16 @@ describe("WorkbenchComposer Git", () => {
     };
 
     await expect(
-      createComposerBranch(client, queryClient, "code-agent", rootPath, status, ""),
+      createComposerBranch(client, queryClient, "codexly", rootPath, status, ""),
     ).resolves.toBe(false);
     await expect(
-      createComposerBranch(client, queryClient, "code-agent", rootPath, status, "main"),
+      createComposerBranch(client, queryClient, "codexly", rootPath, status, "main"),
     ).resolves.toBe(false);
     await expect(
       createComposerBranch(
         client,
         queryClient,
-        "code-agent",
+        "codexly",
         rootPath,
         { ...status, repositoryMode: "children" },
         "feat/new",
@@ -159,23 +159,23 @@ describe("WorkbenchComposer Git", () => {
     const response = {
       project: {
         createdAt: "2026-08-18T00:00:00.000Z",
-        id: "code-agent-worktree",
-        name: "CodeAgent-feat-review",
-        roots: [{ id: "root-review", path: "/workspace/CodeAgent-feat-review" }],
+        id: "codexly-worktree",
+        name: "Codexly-feat-review",
+        roots: [{ id: "root-review", path: "/workspace/Codexly-feat-review" }],
       },
       worktree: {
         branch: "feat/review",
         current: false,
-        path: "/workspace/CodeAgent-feat-review",
+        path: "/workspace/Codexly-feat-review",
       },
     };
     const client = { createProjectWorktree: vi.fn(() => Promise.resolve(response)) };
 
     await expect(
-      createComposerWorktree(client, queryClient, "code-agent", rootPath, status, " feat/review "),
+      createComposerWorktree(client, queryClient, "codexly", rootPath, status, " feat/review "),
     ).resolves.toEqual(response.project);
 
-    expect(client.createProjectWorktree).toHaveBeenCalledWith("code-agent", rootPath, {
+    expect(client.createProjectWorktree).toHaveBeenCalledWith("codexly", rootPath, {
       branch: "feat/review",
       expectedSnapshot: status.snapshot,
     });
@@ -183,11 +183,9 @@ describe("WorkbenchComposer Git", () => {
       data: [response.project],
       nextCursor: null,
     });
-    expect(queryClient.getQueryData(["projects", "code-agent", rootPath, "git-worktrees"])).toEqual(
-      {
-        worktrees: [response.worktree],
-      },
-    );
+    expect(queryClient.getQueryData(["projects", "codexly", rootPath, "git-worktrees"])).toEqual({
+      worktrees: [response.worktree],
+    });
   });
 
   it("switches only to a listed non-current worktree", async () => {
@@ -195,13 +193,13 @@ describe("WorkbenchComposer Git", () => {
     const worktree = {
       branch: "feat/review",
       current: false,
-      path: "/workspace/CodeAgent-feat-review",
+      path: "/workspace/Codexly-feat-review",
     };
     const response = {
       project: {
         createdAt: "2026-08-18T00:00:00.000Z",
-        id: "code-agent-worktree",
-        name: "CodeAgent-feat-review",
+        id: "codexly-worktree",
+        name: "Codexly-feat-review",
         roots: [{ id: "root-worktree", path: worktree.path }],
       },
       worktree,
@@ -209,20 +207,13 @@ describe("WorkbenchComposer Git", () => {
     const client = { switchProjectWorktree: vi.fn(() => Promise.resolve(response)) };
 
     await expect(
-      switchComposerWorktree(
-        client,
-        queryClient,
-        "code-agent",
-        rootPath,
-        [worktree],
-        worktree.path,
-      ),
+      switchComposerWorktree(client, queryClient, "codexly", rootPath, [worktree], worktree.path),
     ).resolves.toEqual(response.project);
     await expect(
       switchComposerWorktree(
         client,
         queryClient,
-        "code-agent",
+        "codexly",
         rootPath,
         [worktree],
         "/workspace/missing",
@@ -230,7 +221,7 @@ describe("WorkbenchComposer Git", () => {
     ).resolves.toBeUndefined();
 
     expect(client.switchProjectWorktree).toHaveBeenCalledOnce();
-    expect(client.switchProjectWorktree).toHaveBeenCalledWith("code-agent", rootPath, {
+    expect(client.switchProjectWorktree).toHaveBeenCalledWith("codexly", rootPath, {
       path: worktree.path,
     });
   });

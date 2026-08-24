@@ -5,9 +5,9 @@ import {
   CodexAppServerProcess,
   createCodexRuntimeProvider,
 } from "../../dist/providers/codex/index.js";
-import { createCodeAgentServer } from "../../dist/server/index.js";
+import { createCodexlyServer } from "../../dist/server/index.js";
 
-const projectRoot = "/workspace/CodeAgent";
+const projectRoot = "/workspace/Codexly";
 const fakeAppServerPath = fileURLToPath(
   new URL("../../packages/provider-codex/test/fixtures/fake-app-server.mjs", import.meta.url),
 );
@@ -33,21 +33,21 @@ const runtime = new CodexAppServerProcess(
 await runtime.waitForSpawn();
 await runtime.client.request("initialize", {
   capabilities: { experimentalApi: true },
-  clientInfo: { name: "code_agent", title: "CodeAgent", version: "0.0.0" },
+  clientInfo: { name: "codexly", title: "Codexly", version: "0.0.0" },
 });
 runtime.client.notify("initialized", {});
 const project = {
   createdAt: "2026-07-23T00:00:00.000Z",
-  id: "code-agent",
-  name: "CodeAgent",
-  roots: [{ id: "root-code-agent", path: projectRoot }],
+  id: "codexly",
+  name: "Codexly",
+  roots: [{ id: "root-codexly", path: projectRoot }],
 };
 const provider = createCodexRuntimeProvider({ client: runtime.client });
 let globalSettings;
 let providerConnection;
 const projectDefaults = new Map();
 const taskSettings = new Map();
-const pairingCode = process.env["CODE_AGENT_E2E_PAIRING_CODE"];
+const pairingCode = process.env["CODEXLY_E2E_PAIRING_CODE"];
 const stateRepository = {
   // E2E 只持久化进程内非敏感状态，凭证仍由 Fake App Server Account API 持有。
   readGlobalSettings: () => Promise.resolve(globalSettings),
@@ -72,7 +72,7 @@ const stateRepository = {
     return Promise.resolve(settings);
   },
 };
-const server = await createCodeAgentServer({
+const server = await createCodexlyServer({
   ...(pairingCode === undefined
     ? {}
     : { access: { pairingCode, sessionTtlMs: 24 * 60 * 60 * 1_000 } }),
@@ -98,7 +98,7 @@ const close = async () => {
 process.once("SIGINT", () => void close().finally(() => process.exit(0)));
 process.once("SIGTERM", () => void close().finally(() => process.exit(0)));
 
-const e2ePort = Number.parseInt(process.env["CODE_AGENT_E2E_PORT"] ?? "0", 10);
+const e2ePort = Number.parseInt(process.env["CODEXLY_E2E_PORT"] ?? "0", 10);
 const serverUrl = await server.listen({ host: "127.0.0.1", port: e2ePort });
 // port: 0 由操作系统原子分配空闲端口，避免并行 worker 之间的端口竞争。
 process.stdout.write(`Fake realtime server listening on ${serverUrl}\n`);

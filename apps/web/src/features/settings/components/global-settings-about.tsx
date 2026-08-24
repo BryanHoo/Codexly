@@ -1,4 +1,4 @@
-import type { AppInfoResponse } from "@code-agent/protocol";
+import type { AppInfoResponse } from "@codexly/protocol";
 import { BookOpen, Download, GitFork, LoaderCircle, RefreshCw } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -59,7 +59,7 @@ export function GlobalSettingsAbout({
         </div>
       ) : (
         <>
-          <SettingsField label={t("about.codeAgentVersion")}>
+          <SettingsField label={t("about.codexlyVersion")}>
             <span className="font-mono text-body-small text-foreground">{appInfo.appVersion}</span>
           </SettingsField>
           <SettingsField label={t("about.codexVersion")}>
@@ -70,12 +70,12 @@ export function GlobalSettingsAbout({
           <SettingsField label={t("about.github")}>
             <Button asChild className="justify-self-start" size="sm" variant="link">
               <a
-                href="https://github.com/BryanHoo/CodeAgent"
+                href="https://github.com/BryanHoo/Codexly"
                 rel="noopener noreferrer"
                 target="_blank"
               >
                 <GitFork aria-hidden="true" data-icon="inline-start" />
-                BryanHoo/CodeAgent
+                BryanHoo/Codexly
               </a>
             </Button>
           </SettingsField>

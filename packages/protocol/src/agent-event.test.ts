@@ -40,11 +40,11 @@ const pendingRequest = {
   availableDecisions: ["allow", "deny"],
   command: "pnpm check",
   createdAt: "2026-07-23T00:00:00.000Z",
-  cwd: "/workspace/CodeAgent",
+  cwd: "/workspace/Codexly",
   expiresAt: null,
   itemId: "item-approval",
   networkAccess: null,
-  projectId: "code-agent",
+  projectId: "codexly",
   reason: null,
   requestId: "number:7",
   status: "pending",
@@ -71,8 +71,8 @@ describe("Agent Event v2 protocol", () => {
       },
       {
         ...baseEvent,
-        payload: { rootPath: "/workspace/CodeAgent" },
-        taskId: "code-agent",
+        payload: { rootPath: "/workspace/Codexly" },
+        taskId: "codexly",
         type: "project.git_metadata_changed",
       },
       {
@@ -237,8 +237,8 @@ describe("Agent Event v2 protocol", () => {
   it("validates strict Project Git metadata invalidation payloads", () => {
     const event = {
       ...baseEvent,
-      payload: { rootPath: "/workspace/CodeAgent" },
-      taskId: "code-agent",
+      payload: { rootPath: "/workspace/Codexly" },
+      taskId: "codexly",
       type: "project.git_metadata_changed",
     };
 
@@ -246,7 +246,7 @@ describe("Agent Event v2 protocol", () => {
     expect(
       Value.Check(AgentEventSchema, {
         ...event,
-        payload: { ...event.payload, changedPaths: ["/workspace/CodeAgent/.git/HEAD"] },
+        payload: { ...event.payload, changedPaths: ["/workspace/Codexly/.git/HEAD"] },
       }),
     ).toBe(false);
   });
@@ -372,7 +372,7 @@ describe("Agent Event v2 protocol", () => {
         },
         pinned: false,
         pendingRequests: [pendingRequest],
-        projectId: "code-agent",
+        projectId: "codexly",
         settings: {
           approvalPolicy: "on-request",
           approvalsReviewer: "user",

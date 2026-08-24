@@ -221,7 +221,7 @@ describe("AgentProvider", () => {
           availableDecisions: ["allow", "deny"],
           command: "pnpm check",
           createdAt: "2026-07-23T00:00:00.000Z",
-          cwd: "/workspace/CodeAgent",
+          cwd: "/workspace/Codexly",
           expiresAt: null,
           itemId: input.itemId,
           networkAccess: null,

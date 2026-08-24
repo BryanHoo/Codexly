@@ -1,4 +1,4 @@
-import type { ProjectFileTree } from "@code-agent/protocol";
+import type { ProjectFileTree } from "@codexly/protocol";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
@@ -42,18 +42,18 @@ describe("project file tree model", () => {
     const loader = createProjectFileTreeDataLoader({
       client: { listProjectFiles },
       projectId: "project-1",
-      projectName: "CodeAgent",
+      projectName: "Codexly",
       queryClient: createQueryClient(),
-      rootPath: "/workspace/CodeAgent",
+      rootPath: "/workspace/Codexly",
     });
 
     await expect(loader.getItem(PROJECT_FILE_TREE_PROJECT_ROOT_ID)).resolves.toMatchObject({
       kind: "root",
-      name: "CodeAgent",
+      name: "Codexly",
     });
     await expect(loader.getChildrenWithData(PROJECT_FILE_TREE_ROOT_ID)).resolves.toEqual([
       {
-        data: { kind: "root", name: "CodeAgent", type: "directory" },
+        data: { kind: "root", name: "Codexly", type: "directory" },
         id: PROJECT_FILE_TREE_PROJECT_ROOT_ID,
       },
     ]);
@@ -70,14 +70,14 @@ describe("project file tree model", () => {
     expect(listProjectFiles).toHaveBeenNthCalledWith(
       1,
       "project-1",
-      "/workspace/CodeAgent",
+      "/workspace/Codexly",
       null,
       expect.any(Object),
     );
     expect(listProjectFiles).toHaveBeenNthCalledWith(
       2,
       "project-1",
-      "/workspace/CodeAgent",
+      "/workspace/Codexly",
       "src",
       expect.any(Object),
     );
@@ -91,9 +91,9 @@ describe("project file tree model", () => {
     const loader = createProjectFileTreeDataLoader({
       client: { listProjectFiles },
       projectId: "project-1",
-      projectName: "CodeAgent",
+      projectName: "Codexly",
       queryClient: createQueryClient(),
-      rootPath: "/workspace/CodeAgent",
+      rootPath: "/workspace/Codexly",
     });
 
     await expect(

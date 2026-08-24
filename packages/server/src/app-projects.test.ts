@@ -1,9 +1,9 @@
-import type { AgentRuntimeProvider } from "@code-agent/core";
-import type { Project } from "@code-agent/protocol";
+import type { AgentRuntimeProvider } from "@codexly/core";
+import type { Project } from "@codexly/protocol";
 import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import {
   project,
   pixelDataUrl,
@@ -19,7 +19,7 @@ import {
 describe("server project management", () => {
   it("browses host directories and adds the explicitly selected project", async () => {
     const { provider } = createProvider();
-    const selectedPath = "/Users/bryan/Develop/CodeAgent";
+    const selectedPath = "/Users/bryan/Develop/Codexly";
     const selectedProject = {
       ...project,
       roots: [{ id: "root-selected", path: selectedPath }],
@@ -27,14 +27,14 @@ describe("server project management", () => {
     const register = vi.fn(() => Promise.resolve(selectedProject));
     const readProjectDirectory = vi.fn(() =>
       Promise.resolve({
-        entries: [{ name: "CodeAgent", path: selectedPath }],
+        entries: [{ name: "Codexly", path: selectedPath }],
         parentPath: "/Users/bryan",
         path: "/Users/bryan/Develop",
         roots: [],
       }),
     );
     const resolveProjectDirectory = vi.fn(() => Promise.resolve(selectedPath));
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(provider, {
         projectRepository: {
           list: () => Promise.resolve([]),
@@ -68,7 +68,7 @@ describe("server project management", () => {
     expect(resolveProjectDirectory).toHaveBeenCalledWith(selectedPath);
     expect(register).toHaveBeenCalledWith({
       idempotencyKey: "add-project",
-      name: "CodeAgent",
+      name: "Codexly",
       roots: [{ path: selectedPath }],
     });
   });
@@ -94,7 +94,7 @@ describe("server project management", () => {
         name: "screen.png",
       }),
     );
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(provider, { readHostFileDirectory, resolveHostAttachment }),
     );
     closeCallbacks.push(() => app.close());
@@ -107,7 +107,7 @@ describe("server project management", () => {
       headers: { "idempotency-key": "import-host-image" },
       method: "POST" as const,
       payload: { path: selectedPath },
-      url: "/v1/projects/code-agent/attachments/image/host",
+      url: "/v1/projects/codexly/attachments/image/host",
     };
     const imported = await app.inject(importRequest);
     const repeated = await app.inject(importRequest);
@@ -122,11 +122,11 @@ describe("server project management", () => {
     }
     const preview = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/attachments/${encodeURIComponent(importedAttachmentId)}`,
+      url: `/v1/projects/codexly/attachments/${encodeURIComponent(importedAttachmentId)}`,
     });
     const missingPreview = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/attachments/missing",
+      url: "/v1/projects/codexly/attachments/missing",
     });
     const resolveCallsBeforeMissingProject = resolveHostAttachment.mock.calls.length;
     const missingProject = await app.inject({
@@ -172,7 +172,7 @@ describe("server project management", () => {
       storedProject = undefined;
       return Promise.resolve(true);
     });
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, {
         projectRepository: {
           list: () => Promise.resolve(storedProject === undefined ? [] : [storedProject]),
@@ -185,11 +185,11 @@ describe("server project management", () => {
       }),
     );
     closeCallbacks.push(() => app.close());
-    await app.inject({ method: "GET", url: "/v1/projects/code-agent/skills" });
+    await app.inject({ method: "GET", url: "/v1/projects/codexly/skills" });
     const readsAfterContextCreation = read.mock.calls.length;
     const cachedContextResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     expect(providerHarness.eventListeners.size).toBe(1);
     expect(cachedContextResponse.statusCode).toBe(200);
@@ -199,13 +199,13 @@ describe("server project management", () => {
       headers: { "idempotency-key": "rename-project-key" },
       method: "POST" as const,
       payload: { name: "  工作区别名  " },
-      url: "/v1/projects/code-agent/rename",
+      url: "/v1/projects/codexly/rename",
     };
     const firstRenameResponse = await app.inject(renameRequest);
     const repeatedRenameResponse = await app.inject(renameRequest);
     const renamedContextResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     expect(renamedContextResponse.statusCode).toBe(200);
     expect(read).toHaveBeenCalledTimes(readsAfterContextCreation);
@@ -218,7 +218,7 @@ describe("server project management", () => {
       headers: { "idempotency-key": "remove-project-key" },
       method: "POST" as const,
       payload: {},
-      url: "/v1/projects/code-agent/remove",
+      url: "/v1/projects/codexly/remove",
     };
     const firstRemoveResponse = await app.inject(removeRequest);
     const repeatedRemoveResponse = await app.inject(removeRequest);
@@ -228,7 +228,7 @@ describe("server project management", () => {
     });
     const removedContextResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
 
     expect(firstRenameResponse.json()).toEqual({
@@ -261,7 +261,7 @@ describe("server project management", () => {
       readDefaultSettings: () => Promise.resolve({}),
       releaseProject,
     };
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(providerHarness.provider, {
         projectRepository: {
           list: () => Promise.resolve(storedProject === undefined ? [] : [storedProject]),
@@ -297,7 +297,7 @@ describe("server project management", () => {
       headers: { "idempotency-key": "release-project" },
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/remove",
+      url: "/v1/projects/codexly/remove",
     });
     storedProject = project;
     const reuse = await app.inject({
@@ -307,7 +307,7 @@ describe("server project management", () => {
         input: { attachments: [{ id: attachmentId }], skills: [], text: "", type: "prompt" },
         options: turnOptions,
       },
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
 
     expect(removed.statusCode).toBe(200);

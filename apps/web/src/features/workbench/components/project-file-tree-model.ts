@@ -1,7 +1,7 @@
-import type { ProjectFileTreeEntry } from "@code-agent/protocol";
+import type { ProjectFileTreeEntry } from "@codexly/protocol";
 import type { QueryClient } from "@tanstack/react-query";
 
-import type { CodeAgentFileTreeClient } from "../../projects/project-query-contracts.js";
+import type { CodexlyFileTreeClient } from "../../projects/project-query-contracts.js";
 import { projectFileTreeQueryOptions } from "../../projects/project-query-options.js";
 
 export const PROJECT_FILE_TREE_ROOT_ID = "\0project-file-tree-root";
@@ -30,7 +30,7 @@ export type ProjectFileTreeItem =
     }>;
 
 type ProjectFileTreeDataLoaderOptions = Readonly<{
-  client: CodeAgentFileTreeClient;
+  client: CodexlyFileTreeClient;
   projectId: string;
   projectName: string;
   queryClient: QueryClient;

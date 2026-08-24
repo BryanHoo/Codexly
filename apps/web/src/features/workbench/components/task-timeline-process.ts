@@ -1,4 +1,4 @@
-import type { AgentItem, AgentTurn } from "@code-agent/protocol";
+import type { AgentItem, AgentTurn } from "@codexly/protocol";
 
 export function resolveCompletedTurnProcessItemIds(
   items: readonly AgentItem[],

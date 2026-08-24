@@ -135,9 +135,9 @@ describe("project task basics protocol", () => {
         data: [
           {
             createdAt: "2026-07-23T00:00:00.000Z",
-            id: "code-agent",
-            name: "CodeAgent",
-            roots: [{ id: "root-code-agent", path: "/workspace/CodeAgent" }],
+            id: "codexly",
+            name: "Codexly",
+            roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
           },
         ],
         nextCursor: null,
@@ -149,7 +149,7 @@ describe("project task basics protocol", () => {
           {
             id: "task-1",
             pinned: false,
-            projectId: "code-agent",
+            projectId: "codexly",
             title: "实现真实任务历史",
             updatedAt: "2026-07-23T00:00:00.000Z",
           },
@@ -163,7 +163,7 @@ describe("project task basics protocol", () => {
     const task = {
       id: "task-1",
       pinned: false,
-      projectId: "code-agent",
+      projectId: "codexly",
       title: "恢复归档任务",
       updatedAt: "2026-08-23T00:00:00.000Z",
     };

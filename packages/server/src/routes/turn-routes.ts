@@ -1,4 +1,4 @@
-import { PendingRequestResolutionError } from "@code-agent/core";
+import { PendingRequestResolutionError } from "@codexly/core";
 import {
   AgentMutationErrorSchema,
   InterruptAgentTurnRequestSchema,
@@ -14,7 +14,7 @@ import {
   type ResolvePendingRequestRequest,
   type StartAgentTurnRequest,
   type SteerAgentTurnRequest,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import {

@@ -1,4 +1,4 @@
-import type { Project } from "@code-agent/protocol";
+import type { Project } from "@codexly/protocol";
 import {
   CodexAgentProvider,
   type CodexProviderLogger,
@@ -132,14 +132,14 @@ export class FakeRpcClient {
   }
 }
 
-export const projectRootPath = "/workspace/CodeAgent";
+export const projectRootPath = "/workspace/Codexly";
 
 export const project = {
   createdAt: "2026-07-23T00:00:00.000Z",
-  id: "code-agent",
+  id: "codexly",
   kind: "project",
-  name: "CodeAgent",
-  roots: [{ id: "root-code-agent", path: projectRootPath }],
+  name: "Codexly",
+  roots: [{ id: "root-codexly", path: projectRootPath }],
 } as const;
 
 export const projectTaskScope = {
@@ -178,7 +178,7 @@ export function nativeThread(overrides: Record<string, unknown> = {}) {
   return {
     cliVersion: "0.149.0",
     createdAt: 1_753_228_800,
-    cwd: "/workspace/CodeAgent",
+    cwd: "/workspace/Codexly",
     ephemeral: false,
     historyMode: "legacy",
     id: "task-1",

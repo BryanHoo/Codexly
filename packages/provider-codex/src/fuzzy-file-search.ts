@@ -3,7 +3,7 @@ import type {
   AgentFileSearchInput,
   AgentFileSearchMatch,
   AgentFileSearchProvider,
-} from "@code-agent/core";
+} from "@codexly/core";
 
 import type { CodexRpcClient } from "./agent-provider-base.js";
 import { CodexProtocolMappingError, expectRecord, expectString } from "./codex-protocol-mapping.js";

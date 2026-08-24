@@ -1,4 +1,4 @@
-import type { AgentProvider, AgentProviderTurnInput } from "@code-agent/core";
+import type { AgentProvider, AgentProviderTurnInput } from "@codexly/core";
 import {
   DEFAULT_COMMIT_MESSAGE_MODEL,
   MAX_AGENT_FILE_TOTAL_BYTES,
@@ -9,7 +9,7 @@ import {
   type AgentPromptInput,
   type AgentProjectDefaults,
   type AgentTaskSettings,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import Fastify, { type FastifyInstance } from "fastify";
 import { Readable } from "node:stream";
 import { AttachmentNotFoundError, AttachmentStore } from "./attachment-store.js";
@@ -50,7 +50,7 @@ import { registerTaskRoutes } from "./routes/task-routes.js";
 import { registerTurnRoutes } from "./routes/turn-routes.js";
 import { registerQueueRoutes } from "./routes/queue-routes.js";
 import { configureServerDelivery } from "./server-delivery.js";
-import type { CreateCodeAgentServerOptions } from "./server-options.js";
+import type { CreateCodexlyServerOptions } from "./server-options.js";
 import { runSingleFlight } from "./single-flight.js";
 import { resolveTaskScope } from "./task-scope.js";
 import { rewriteTemporaryTaskUrl } from "./temporary-task-routing.js";
@@ -61,7 +61,7 @@ import {
   DEFAULT_MODEL_CATALOG_CACHE_MAX_BYTES,
   DEFAULT_MODEL_CATALOG_CACHE_TTL_MS,
   MULTIPART_ENVELOPE_BYTES,
-  CodeAgentLogController,
+  CodexlyLogController,
   ModelCatalogCache,
   assertCommitSelection,
   assertValidProjectDefaults,
@@ -74,9 +74,9 @@ import {
   toGitCommitHttpError,
   toPendingRequestHttpError,
 } from "./server-runtime.js";
-export type { CreateCodeAgentServerOptions } from "./server-options.js";
-export async function createCodeAgentServer(
-  options: CreateCodeAgentServerOptions,
+export type { CreateCodexlyServerOptions } from "./server-options.js";
+export async function createCodexlyServer(
+  options: CreateCodexlyServerOptions,
 ): Promise<FastifyInstance> {
   const handlerTimeoutMs = options.handlerTimeoutMs ?? DEFAULT_HANDLER_TIMEOUT_MS;
   const logger =
@@ -99,7 +99,7 @@ export async function createCodeAgentServer(
         };
   const app = Fastify({
     handlerTimeout: 0,
-    logController: new CodeAgentLogController(),
+    logController: new CodexlyLogController(),
     logger,
     rewriteUrl: (request) => rewriteTemporaryTaskUrl(request.url ?? "/"),
   });
@@ -323,7 +323,7 @@ export async function createCodeAgentServer(
   ): Promise<AgentGlobalSettings> => {
     const catalog = models ?? (await listModels());
     const stored = await options.settingsRepository.readGlobalSettings();
-    // 仅在 CodeAgent 尚无全局记录时读取 Codex 用户配置，持久化后不再被外部变化覆盖。
+    // 仅在 Codexly 尚无全局记录时读取 Codex 用户配置，持久化后不再被外部变化覆盖。
     const runtimeDefaults =
       stored === undefined ? await options.provider.readDefaultSettings() : {};
     const requestedDefaults = stored ?? runtimeDefaults;

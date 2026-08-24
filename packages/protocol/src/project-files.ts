@@ -316,7 +316,7 @@ export const RenameProjectResponseSchema = Type.Object(
 
 export type RenameProjectResponse = Readonly<Static<typeof RenameProjectResponseSchema>>;
 
-// 移除仅删除 CodeAgent 注册信息，请求体不接受任何磁盘删除选项。
+// 移除仅删除 Codexly 注册信息，请求体不接受任何磁盘删除选项。
 export const RemoveProjectRequestSchema = Type.Object({}, { additionalProperties: false });
 
 export type RemoveProjectRequest = Readonly<Static<typeof RemoveProjectRequestSchema>>;

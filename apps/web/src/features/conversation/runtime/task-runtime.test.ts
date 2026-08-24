@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentTaskSnapshotResponse } from "@code-agent/protocol";
+import type { AgentEvent, AgentTaskSnapshotResponse } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 
 import { AgentEventBuffer, mergeSubmittedPromptIntoSnapshot } from "./task-runtime.js";
@@ -9,7 +9,7 @@ const snapshot: AgentTaskSnapshotResponse["snapshot"] = {
   id: "task-1",
   pendingRequests: [],
   pinned: false,
-  projectId: "code-agent",
+  projectId: "codexly",
   settings: {
     approvalPolicy: "on-request",
     approvalsReviewer: "user",

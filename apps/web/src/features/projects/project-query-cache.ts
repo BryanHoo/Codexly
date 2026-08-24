@@ -1,5 +1,5 @@
-import type { CodeAgentClient } from "@code-agent/client";
-import type { AgentTask, Project, ProjectPage } from "@code-agent/protocol";
+import type { CodexlyClient } from "@codexly/client";
+import type { AgentTask, Project, ProjectPage } from "@codexly/protocol";
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { i18n } from "../../i18n/i18n.js";
@@ -7,7 +7,7 @@ import {
   PROJECT_PINNED_TASKS_KEY,
   PROJECT_TASK_SEARCH_PAGE_SIZE,
   PROJECT_TASK_SEARCH_SOURCE_KEY,
-  codeAgentClient,
+  codexlyClient,
   taskQueueQueryKey,
   type ProjectTaskInfiniteData,
   type TaskTitleSnapshot,
@@ -246,7 +246,7 @@ export function removeProjectTaskFromInfiniteData(
 
 async function listAllProjectTasks(
   projectId: string,
-  client: Pick<CodeAgentClient, "listTasks">,
+  client: Pick<CodexlyClient, "listTasks">,
   options: Readonly<{ pinned?: true }>,
   signal?: AbortSignal,
 ): Promise<readonly AgentTask[]> {
@@ -281,7 +281,7 @@ async function listAllProjectTasks(
 
 export function listProjectTasksForSearch(
   projectId: string,
-  client: Pick<CodeAgentClient, "listTasks">,
+  client: Pick<CodexlyClient, "listTasks">,
   signal?: AbortSignal,
 ) {
   return listAllProjectTasks(projectId, client, {}, signal);
@@ -289,7 +289,7 @@ export function listProjectTasksForSearch(
 
 export function listPinnedProjectTasks(
   projectId: string,
-  client: Pick<CodeAgentClient, "listTasks">,
+  client: Pick<CodexlyClient, "listTasks">,
   signal?: AbortSignal,
 ) {
   return listAllProjectTasks(projectId, client, { pinned: true }, signal);
@@ -297,7 +297,7 @@ export function listPinnedProjectTasks(
 
 export function projectPinnedTasksQueryOptions(
   projectId: string,
-  client: Pick<CodeAgentClient, "listTasks"> = codeAgentClient,
+  client: Pick<CodexlyClient, "listTasks"> = codexlyClient,
 ) {
   return queryOptions({
     queryFn: ({ signal }) => listPinnedProjectTasks(projectId, client, signal),
@@ -308,7 +308,7 @@ export function projectPinnedTasksQueryOptions(
 export function projectTaskSearchSourceQueryOptions(
   projectId: string,
   enabled: boolean,
-  client: Pick<CodeAgentClient, "listTasks"> = codeAgentClient,
+  client: Pick<CodexlyClient, "listTasks"> = codexlyClient,
 ) {
   return queryOptions({
     enabled,

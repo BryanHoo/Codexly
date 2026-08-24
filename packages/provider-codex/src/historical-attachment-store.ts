@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, extname, isAbsolute, join } from "node:path";
 
-import type { AgentProviderAttachment } from "@code-agent/core";
+import type { AgentProviderAttachment } from "@codexly/core";
 import {
   MAX_AGENT_HISTORY_IMAGES,
   MAX_AGENT_HISTORY_IMAGE_TOTAL_BYTES,
@@ -13,7 +13,7 @@ import {
   type AgentAttachmentMediaType,
   type AgentImageMediaType,
   type AgentMessageAttachment,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import {
   detectImageMediaType,
@@ -94,7 +94,7 @@ export class CodexHistoricalAttachmentStore {
       }
     }
     this.#attachmentDirectory =
-      options.attachmentDirectory ?? mkdtempSync(join(tmpdir(), "code-agent-history-"));
+      options.attachmentDirectory ?? mkdtempSync(join(tmpdir(), "codexly-history-"));
     mkdirSync(this.#attachmentDirectory, { recursive: true });
     this.#cleanupTimer = setInterval(() => {
       this.#pruneExpired();

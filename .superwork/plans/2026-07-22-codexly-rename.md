@@ -1,6 +1,6 @@
-# CodeAgent 全量重命名实施计划
+# Codexly 全量重命名实施计划
 
-**Goal:** 将仓库内所有产品、包、CLI、运行时标识和文档统一为 `CodeAgent` 命名体系，并确保旧名称不再出现在受版本控制文件中。
+**Goal:** 将仓库内所有产品、包、CLI、运行时标识和文档统一为 `Codexly` 命名体系，并确保旧名称不再出现在受版本控制文件中。
 
 **Suggested Spec Reads:**
 
@@ -110,7 +110,7 @@ Expected: no output.
 **Interfaces:**
 
 - Consumes: `documentation-brand-contract-v2`
-- Produces: `verified-code-agent-repository-v1`
+- Produces: `verified-codexly-repository-v1`
 
 **Behavior Slice:** 重新生成锁文件，格式化受影响文件，确认所有受版本控制文件无旧命名，并运行仓库完整检查。
 

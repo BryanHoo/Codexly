@@ -41,8 +41,8 @@
 
 **Interfaces:**
 
-- Consumes: `ProjectSchema`、`CodeAgentClient.#read`、`CodeAgentClient.#mutation`
-- Produces: `ProjectOpenTarget`、`ProjectOpenCapabilitiesResponse`、`OpenProjectRequest`、`OpenProjectResponse`、`CodeAgentClient.getProjectOpenCapabilities()`、`CodeAgentClient.openProject()`、`CodeAgentProjectOpenClient`
+- Consumes: `ProjectSchema`、`CodexlyClient.#read`、`CodexlyClient.#mutation`
+- Produces: `ProjectOpenTarget`、`ProjectOpenCapabilitiesResponse`、`OpenProjectRequest`、`OpenProjectResponse`、`CodexlyClient.getProjectOpenCapabilities()`、`CodexlyClient.openProject()`、`CodexlyProjectOpenClient`
 
 **Behavior:**
 
@@ -97,7 +97,7 @@ Expected: 三个平台的探测/启动参数、Project 归属、错误映射和�
 
 **Interfaces:**
 
-- Consumes: `CodeAgentProjectOpenClient`、`ProjectOpenCapabilitiesResponse`、`projectId`
+- Consumes: `CodexlyProjectOpenClient`、`ProjectOpenCapabilitiesResponse`、`projectId`
 - Produces: `ProjectOpenMenu` 图标触发器、悬停/焦点菜单与打开 Mutation 反馈
 
 **Behavior:**

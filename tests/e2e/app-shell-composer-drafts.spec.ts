@@ -27,7 +27,7 @@ test("disables composer mutations that the provider does not support", async ({ 
       },
     });
   });
-  await page.goto("/p/code-agent");
+  await page.goto("/p/codexly");
 
   await page.getByRole("textbox", { name: "任务输入" }).fill("不应允许提交");
 
@@ -35,7 +35,7 @@ test("disables composer mutations that the provider does not support", async ({ 
 });
 
 test("stores composer drafts independently between task routes", async ({ page }) => {
-  await page.route("**/v1/projects/code-agent/tasks/input-design", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/input-design", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -52,14 +52,14 @@ test("stores composer drafts independently between task routes", async ({ page }
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   await page.getByRole("textbox", { name: "任务输入" }).fill("只属于 Task A 的草稿");
   await chooseHostAttachment(page, "image", "task-draft.png");
   await expect(page.getByText("task-draft.png", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: /优化输入框交互/ }).click();
 
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/input-design$/);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/input-design$/);
   await expect(page.getByRole("textbox", { name: "任务输入" })).toHaveAttribute(
     "data-serialized-value",
     "",
@@ -67,9 +67,9 @@ test("stores composer drafts independently between task routes", async ({ page }
   await expect(page.getByText("task-draft.png", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { exact: true, name: "提交" })).toBeDisabled();
 
-  await page.locator('a[href="/p/code-agent/t/task-1"]').first().click();
+  await page.locator('a[href="/p/codexly/t/task-1"]').first().click();
 
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-1$/);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/);
   await expect(page.getByRole("textbox", { name: "任务输入" })).toHaveAttribute(
     "data-serialized-value",
     "只属于 Task A 的草稿",
@@ -86,7 +86,7 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
   const snapshotGate = new Promise<void>((resolve) => {
     releaseSnapshot = resolve;
   });
-  await page.route("**/v1/projects/code-agent/tasks/input-design", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/input-design", async (route) => {
     markSnapshotRequested();
     await snapshotGate;
     await route.fulfill({
@@ -105,7 +105,7 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   const currentPrompt = page.getByRole("textbox", { name: "任务输入" });
   await currentPrompt.fill("只属于 Task A 的草稿");
   await currentPrompt.evaluate((editor) => {
@@ -113,7 +113,7 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
   });
 
   await page.getByRole("link", { name: /优化输入框交互/ }).click();
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/input-design$/);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/input-design$/);
   await snapshotRequested;
 
   const nextPrompt = page.getByRole("textbox", { name: "任务输入" });
@@ -163,7 +163,7 @@ test("scrolls the conversation area to the bottom whenever the active task chang
     startedAt: `2026-07-22T08:${String(turnIndex).padStart(2, "0")}:00.000Z`,
     status: "completed",
   }));
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -172,7 +172,7 @@ test("scrolls the conversation area to the bottom whenever the active task chang
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/input-design", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/input-design", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -185,7 +185,7 @@ test("scrolls the conversation area to the bottom whenever the active task chang
       },
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
   const conversation = page.getByRole("log", { name: "会话内容" });
   await expect
     .poll(() => conversation.evaluate((element) => element.scrollHeight))
@@ -199,7 +199,7 @@ test("scrolls the conversation area to the bottom whenever the active task chang
     element.dispatchEvent(new Event("scroll", { bubbles: true }));
   });
   await page.getByRole("link", { name: /优化输入框交互/u }).click();
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/input-design$/u);
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/input-design$/u);
   await expect(conversation).toContainText("工作台界面已按统一的 项目 Agent 组件 结构重新组织。");
 
   await page.evaluate(() => {
@@ -221,8 +221,8 @@ test("scrolls the conversation area to the bottom whenever the active task chang
     observer.observe(document.body, { childList: true, subtree: true });
   });
 
-  await page.locator('a[href="/p/code-agent/t/task-1"]').first().click();
-  await expect(page).toHaveURL(/\/p\/code-agent\/t\/task-1$/u);
+  await page.locator('a[href="/p/codexly/t/task-1"]').first().click();
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/u);
 
   // 新 Task 内容完成布局后，聊天区域必须位于最底部，不能继承短会话的 scrollTop。
   await expect
@@ -258,7 +258,7 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
     startedAt: `2026-07-22T08:${String(turnIndex).padStart(2, "0")}:00.000Z`,
     status: "completed",
   }));
-  await page.route("**/v1/projects/code-agent/tasks/task-1", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -267,7 +267,7 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
       },
     });
   });
-  await page.route("**/v1/projects/code-agent/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -284,7 +284,7 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
       status: 201,
     });
   });
-  await page.goto("/p/code-agent/t/task-1");
+  await page.goto("/p/codexly/t/task-1");
 
   const conversation = page.getByRole("log", { name: "会话内容" });
   await expect

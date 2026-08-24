@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 async function createTemporaryProject() {
-  const projectRoot = await mkdtemp(join(tmpdir(), "code-agent-source-"));
+  const projectRoot = await mkdtemp(join(tmpdir(), "codexly-source-"));
   temporaryDirectories.push(projectRoot);
   await mkdir(join(projectRoot, "docs"));
   return projectRoot;
@@ -44,7 +44,7 @@ describe("readProjectSourceFile", () => {
 
   it("reads text files from an absolute path outside the project root", async () => {
     const projectRoot = await createTemporaryProject();
-    const outsideRoot = await mkdtemp(join(tmpdir(), "code-agent-source-outside-"));
+    const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-source-outside-"));
     temporaryDirectories.push(outsideRoot);
     const sourcePath = join(outsideRoot, "report.md");
     await writeFile(sourcePath, "# Report\n\nDetails\n");

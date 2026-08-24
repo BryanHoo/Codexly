@@ -5,8 +5,8 @@ import type {
   ProjectProjectionStore,
   ProjectRepository,
   RegisterProjectInput,
-} from "@code-agent/core";
-import type { Project, ProjectRoot } from "@code-agent/protocol";
+} from "@codexly/core";
+import type { Project, ProjectRoot } from "@codexly/protocol";
 
 import type { CodexRpcClient } from "./agent-provider-base.js";
 import { CodexProtocolMappingError, expectRecord, expectString } from "./codex-protocol-mapping.js";
@@ -143,7 +143,7 @@ function mapLegacyThread(value: unknown): LegacyThread | undefined {
 }
 
 function unassignedMigrationKey(rootPath: string): string {
-  return `code-agent:unassigned-vscode:${createHash("sha256").update(rootPath).digest("hex")}`;
+  return `codexly:unassigned-vscode:${createHash("sha256").update(rootPath).digest("hex")}`;
 }
 
 function primaryRootPath(project: Project): string {
@@ -202,8 +202,8 @@ export class CodexProjectRepository implements ProjectRepository {
       }
       const imported = responseProject(
         await this.#client.request("project/import", {
-          idempotencyKey: `code-agent:legacy-project:${localProject.id}`,
-          metadata: { codeAgentMigration: "legacy-project-v1" },
+          idempotencyKey: `codexly:legacy-project:${localProject.id}`,
+          metadata: { codexlyMigration: "legacy-project-v1" },
           name: localProject.name,
           roots: [{ path: localRootPath }],
           threads: threads.map((thread) => thread.id),
@@ -231,7 +231,7 @@ export class CodexProjectRepository implements ProjectRepository {
       const imported = responseProject(
         await this.#client.request("project/import", {
           idempotencyKey: unassignedMigrationKey(rootPath),
-          metadata: { codeAgentMigration: "unassigned-vscode-v2" },
+          metadata: { codexlyMigration: "unassigned-vscode-v2" },
           name: basename(rootPath) || rootPath,
           roots: [{ path: rootPath }],
           threads: threads.map((thread) => thread.id),

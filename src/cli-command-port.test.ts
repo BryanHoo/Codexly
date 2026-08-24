@@ -109,7 +109,7 @@ describe("runCli ports", () => {
       runCli(["start"], { ...harness.options, signal: controller.signal }),
     ).resolves.toBe(1);
     expect(harness.stderr.join("")).toContain(
-      "Codex App Server 在 CodeAgent 关闭前意外退出，退出码 23",
+      "Codex App Server 在 Codexly 关闭前意外退出，退出码 23",
     );
   });
 

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 
-import type { ProjectGitStatus, ProjectGitStatusQuery } from "@code-agent/protocol";
+import type { ProjectGitStatus, ProjectGitStatusQuery } from "@codexly/protocol";
 
 import { executeGit, type GitCommandExecutor } from "./git-command.js";
 import {

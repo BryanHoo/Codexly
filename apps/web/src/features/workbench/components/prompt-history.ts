@@ -1,4 +1,4 @@
-import type { AgentSkill, AgentTurn } from "@code-agent/protocol";
+import type { AgentSkill, AgentTurn } from "@codexly/protocol";
 
 import {
   normalizePromptSkillContent,

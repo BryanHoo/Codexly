@@ -9,7 +9,7 @@ import {
   gunzipSync,
 } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
-import { createCodeAgentServer } from "./app.js";
+import { createCodexlyServer } from "./app.js";
 import { AgentEventStream } from "./agent-event-stream.js";
 import {
   closeCallbacks,
@@ -23,7 +23,7 @@ describe("server event delivery", () => {
     const { app, emitEvent } = await createHarness();
     const messages: unknown[] = [];
     const socket = await app.injectWS(
-      "/v1/projects/code-agent/events?afterSequence=0",
+      "/v1/projects/codexly/events?afterSequence=0",
       { headers: { host: "127.0.0.1:3210", origin: "http://127.0.0.1:3210" } },
       {
         onInit(webSocket) {
@@ -94,7 +94,7 @@ describe("server event delivery", () => {
           backpressureSignals: 0,
           coalescedEvents: 0,
           pendingDeltas: 0,
-          projectId: "code-agent",
+          projectId: "codexly",
           providerEventsReceived: 3,
           publishedEvents: 3,
           retainedEvents: 3,
@@ -129,7 +129,7 @@ describe("server event delivery", () => {
     let socket: Awaited<ReturnType<typeof app.injectWS>> | undefined;
     try {
       socket = await app.injectWS(
-        "/v1/projects/code-agent/events?afterSequence=0",
+        "/v1/projects/codexly/events?afterSequence=0",
         { headers: { host: "127.0.0.1:3210", origin: "http://127.0.0.1:3210" } },
         {
           onInit(webSocket) {
@@ -159,9 +159,9 @@ describe("server event delivery", () => {
 
   it("splits replay into ordered batches of at most 64 events", async () => {
     const harness = createProvider();
-    const app = await createCodeAgentServer(createServerOptions(harness.provider));
+    const app = await createCodexlyServer(createServerOptions(harness.provider));
     closeCallbacks.push(() => app.close());
-    await app.inject({ method: "GET", url: "/v1/projects/code-agent/tasks" });
+    await app.inject({ method: "GET", url: "/v1/projects/codexly/tasks" });
 
     for (let index = 1; index <= 65; index += 1) {
       harness.emitEvent({
@@ -178,7 +178,7 @@ describe("server event delivery", () => {
       type: string;
     }[] = [];
     const socket = await app.injectWS(
-      "/v1/projects/code-agent/events?afterSequence=0",
+      "/v1/projects/codexly/events?afterSequence=0",
       { headers: { host: "localhost", origin: "http://localhost" } },
       {
         onInit(webSocket) {
@@ -206,14 +206,14 @@ describe("server event delivery", () => {
 
   it("replays retained events and requests resync after retention expires", async () => {
     const harness = createProvider();
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(harness.provider, { eventBufferSize: 1 }),
     );
     closeCallbacks.push(() => app.close());
     // 首次 Project 访问激活事件流；激活前状态由后续权威 Snapshot 恢复。
     const activationResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks",
+      url: "/v1/projects/codexly/tasks",
     });
     expect(activationResponse.statusCode).toBe(200);
     const event = {
@@ -228,7 +228,7 @@ describe("server event delivery", () => {
 
     const replayed: unknown[] = [];
     const replaySocket = await app.injectWS(
-      "/v1/projects/code-agent/events?afterSequence=1",
+      "/v1/projects/codexly/events?afterSequence=1",
       { headers: { host: "localhost", origin: "http://localhost" } },
       {
         onInit(webSocket) {
@@ -250,7 +250,7 @@ describe("server event delivery", () => {
 
     const expired: unknown[] = [];
     const expiredSocket = await app.injectWS(
-      "/v1/projects/code-agent/events?afterSequence=0",
+      "/v1/projects/codexly/events?afterSequence=0",
       { headers: { host: "localhost", origin: "http://localhost" } },
       {
         onInit(webSocket) {
@@ -277,12 +277,12 @@ describe("server event delivery", () => {
     const { app } = await createHarness();
 
     await expect(
-      app.injectWS("/v1/projects/code-agent/events?afterSequence=-1", {
+      app.injectWS("/v1/projects/codexly/events?afterSequence=-1", {
         headers: { host: "localhost", origin: "http://localhost" },
       }),
     ).rejects.toThrow(/Unexpected server response: 400/u);
     await expect(
-      app.injectWS("/v1/projects/code-agent/events?afterSequence=0", {
+      app.injectWS("/v1/projects/codexly/events?afterSequence=0", {
         headers: { host: "localhost", origin: "http://attacker.example" },
       }),
     ).rejects.toThrow(/Unexpected server response: 403/u);
@@ -290,7 +290,7 @@ describe("server event delivery", () => {
 
   it("unsubscribes from Provider events when Fastify closes", async () => {
     const { app, eventListeners } = await createHarness();
-    await app.inject({ method: "GET", url: "/v1/projects/code-agent/tasks" });
+    await app.inject({ method: "GET", url: "/v1/projects/codexly/tasks" });
     expect(eventListeners.size).toBe(1);
 
     await app.close();
@@ -306,7 +306,7 @@ describe("server event delivery", () => {
     });
     const taskResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/missing",
+      url: "/v1/projects/codexly/tasks/missing",
     });
 
     expect(projectResponse.statusCode).toBe(404);
@@ -319,7 +319,7 @@ describe("server event delivery", () => {
     const { app, listTasks } = await createHarness();
     const response = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks?limit=0",
+      url: "/v1/projects/codexly/tasks?limit=0",
     });
 
     expect(response.statusCode).toBe(400);
@@ -327,10 +327,10 @@ describe("server event delivery", () => {
   });
 
   it("serves precompressed static assets and applies content-aware cache policies", async () => {
-    const staticRoot = await mkdtemp(join(tmpdir(), "code-agent-web-"));
+    const staticRoot = await mkdtemp(join(tmpdir(), "codexly-web-"));
     const assetsRoot = join(staticRoot, "assets");
-    const htmlBody = "<main>CodeAgent Web</main>";
-    const assetBody = "export const value = 'CodeAgent';\n".repeat(128);
+    const htmlBody = "<main>Codexly Web</main>";
+    const assetBody = "export const value = 'Codexly';\n".repeat(128);
     const brotliAsset = brotliCompressSync(assetBody, {
       params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 },
     });
@@ -341,7 +341,7 @@ describe("server event delivery", () => {
     await writeFile(join(assetsRoot, "index-CqRfgh3W.js"), assetBody, "utf8");
     await writeFile(join(assetsRoot, "index-CqRfgh3W.js.br"), brotliAsset);
     await writeFile(join(assetsRoot, "index-CqRfgh3W.js.gz"), gzipAsset);
-    const app = await createCodeAgentServer(
+    const app = await createCodexlyServer(
       createServerOptions(createProvider().provider, { staticRoot }),
     );
     closeCallbacks.push(() => app.close());
@@ -349,7 +349,7 @@ describe("server event delivery", () => {
     const routeResponse = await app.inject({
       headers: { "accept-encoding": "br" },
       method: "GET",
-      url: "/p/code-agent/t/task-1",
+      url: "/p/codexly/t/task-1",
     });
     const brotliAssetResponse = await app.inject({
       headers: { "accept-encoding": "br" },

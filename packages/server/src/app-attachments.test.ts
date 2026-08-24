@@ -1,4 +1,4 @@
-import { MAX_AGENT_IMAGE_BYTES } from "@code-agent/protocol";
+import { MAX_AGENT_IMAGE_BYTES } from "@codexly/protocol";
 import { Buffer } from "node:buffer";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
@@ -28,15 +28,15 @@ describe("server attachments and catalogs", () => {
     const models = await app.inject({ method: "GET", url: "/v1/models" });
     const mcpServers = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1/mcp-servers",
+      url: "/v1/projects/codexly/tasks/task-1/mcp-servers",
     });
     const reloadedMcpServers = await app.inject({
       headers: { "idempotency-key": "reload-task-mcp" },
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks/task-1/mcp-servers/retry",
+      url: "/v1/projects/codexly/tasks/task-1/mcp-servers/retry",
     });
-    const skills = await app.inject({ method: "GET", url: "/v1/projects/code-agent/skills" });
+    const skills = await app.inject({ method: "GET", url: "/v1/projects/codexly/skills" });
     const uploadRequest = await multipartAttachment(
       "image",
       "screen.png",
@@ -54,7 +54,7 @@ describe("server attachments and catalogs", () => {
         input: { attachments: [{ id: attachment.id }], skills: [], text: "", type: "prompt" },
         options: turnOptions,
       },
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
     const invalidTurn = await app.inject({
       headers: { "idempotency-key": "invalid-turn-settings" },
@@ -63,7 +63,7 @@ describe("server attachments and catalogs", () => {
         ...turnRequest("无效设置"),
         options: { ...turnOptions, reasoningEffort: "low" },
       },
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
     const consumed = await app.inject({
       headers: { "idempotency-key": "attachment-consumed" },
@@ -72,7 +72,7 @@ describe("server attachments and catalogs", () => {
         input: { attachments: [{ id: attachment.id }], skills: [], text: "", type: "prompt" },
         options: turnOptions,
       },
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
 
     expect(models.statusCode).toBe(200);
@@ -135,13 +135,13 @@ describe("server attachments and catalogs", () => {
 
     const readResponse = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1/mcp-servers",
+      url: "/v1/projects/codexly/tasks/task-1/mcp-servers",
     });
     const reloadResponse = await app.inject({
       headers: { "idempotency-key": "reload-task-mcp-error" },
       method: "POST",
       payload: {},
-      url: "/v1/projects/code-agent/tasks/task-1/mcp-servers/retry",
+      url: "/v1/projects/codexly/tasks/task-1/mcp-servers/retry",
     });
 
     expect(readResponse.statusCode).toBe(502);
@@ -168,13 +168,13 @@ describe("server attachments and catalogs", () => {
       },
       method: "POST",
       payload: "body must not be parsed",
-      url: "/v1/projects/code-agent/attachments/image",
+      url: "/v1/projects/codexly/attachments/image",
     });
     const json = await app.inject({
       headers: { "idempotency-key": "legacy-json" },
       method: "POST",
       payload: { dataUrl: pixelDataUrl, kind: "image", name: "screen.png" },
-      url: "/v1/projects/code-agent/attachments/image",
+      url: "/v1/projects/codexly/attachments/image",
     });
 
     expect(oversized.statusCode).toBe(413);
@@ -203,7 +203,7 @@ describe("server attachments and catalogs", () => {
         input: { attachments: [{ id: attachment.id }], skills: [], text: "", type: "prompt" },
         options: turnOptions,
       },
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
 
     expect(uploaded.statusCode).toBe(201);
@@ -212,7 +212,7 @@ describe("server attachments and catalogs", () => {
         kind: "text",
         mediaType: "text/plain",
         name: "Pasted text.txt",
-        size: 16,
+        size: 14,
       },
     });
     expect(turn.statusCode).toBe(201);
@@ -223,7 +223,7 @@ describe("server attachments and catalogs", () => {
         images: [],
         skills: [],
         text: "",
-        textAttachments: [{ name: "Pasted text.txt", text: "你好 CodeAgent" }],
+        textAttachments: [{ name: "Pasted text.txt", text: "你好 Codexly" }],
       },
       turnOptions,
     );
@@ -234,11 +234,11 @@ describe("server attachments and catalogs", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1/attachments/history%2Fimage-1",
+      url: "/v1/projects/codexly/tasks/task-1/attachments/history%2Fimage-1",
     });
     const missingAttachment = await app.inject({
       method: "GET",
-      url: "/v1/projects/code-agent/tasks/task-1/attachments/missing",
+      url: "/v1/projects/codexly/tasks/task-1/attachments/missing",
     });
     const missingProject = await app.inject({
       method: "GET",
@@ -277,11 +277,11 @@ describe("server attachments and catalogs", () => {
         input: { attachments: [{ id: attachment.id }], skills: [], text: "", type: "prompt" },
         options: turnOptions,
       },
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
     const preview = await app.inject({
       method: "GET",
-      url: `/v1/projects/code-agent/tasks/task-1/attachments/${attachment.id}`,
+      url: `/v1/projects/codexly/tasks/task-1/attachments/${attachment.id}`,
     });
 
     expect(turn.statusCode).toBe(201);
@@ -322,14 +322,14 @@ describe("server attachments and catalogs", () => {
         input: { attachments: [{ id: attachment.id }], skills: [], text: "", type: "prompt" },
         options: turnOptions,
       },
-      url: "/v1/projects/code-agent/tasks/task-1/turns",
+      url: "/v1/projects/codexly/tasks/task-1/turns",
     });
 
     const response = await app.inject({
       headers: { "idempotency-key": "open-task-attachment" },
       method: "POST",
       payload: {},
-      url: `/v1/projects/code-agent/tasks/task-1/attachments/${attachment.id}/open`,
+      url: `/v1/projects/codexly/tasks/task-1/attachments/${attachment.id}/open`,
     });
 
     expect(response.statusCode).toBe(200);

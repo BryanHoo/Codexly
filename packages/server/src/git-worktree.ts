@@ -6,7 +6,7 @@ import type {
   ProjectGitStatus,
   ProjectGitWorktree,
   ProjectGitWorktreePage,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import { executeGit, type GitCommandExecutor } from "./git-command.js";
 import { originalErrorMessage } from "./error-message.js";

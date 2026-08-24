@@ -1,4 +1,4 @@
-import type { AccessStatusResponse } from "@code-agent/protocol";
+import type { AccessStatusResponse } from "@codexly/protocol";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   createContext,
@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import type { CodeAgentAccessClient } from "../projects/project-queries.js";
+import type { CodexlyAccessClient } from "../projects/project-queries.js";
 import { notifyActionError, notifyActionSuccess } from "../notifications/action-notifications.js";
 
 export type AccessError = "load" | null;
@@ -36,14 +36,14 @@ const INITIAL_ACCESS_STATE: AccessState = {
 };
 
 export class AccessSessionController {
-  readonly #client: CodeAgentAccessClient;
+  readonly #client: CodexlyAccessClient;
   readonly #listeners = new Set<() => void>();
   readonly #queryClient: QueryClient;
   #generation = 0;
   #state: AccessState = INITIAL_ACCESS_STATE;
   #unsubscribeUnauthorized: (() => void) | undefined;
 
-  public constructor(client: CodeAgentAccessClient, queryClient: QueryClient) {
+  public constructor(client: CodexlyAccessClient, queryClient: QueryClient) {
     this.#client = client;
     this.#queryClient = queryClient;
   }
@@ -138,7 +138,7 @@ export function AccessProvider({
   queryClient,
 }: Readonly<{
   children: ReactNode;
-  client: CodeAgentAccessClient;
+  client: CodexlyAccessClient;
   queryClient: QueryClient;
 }>) {
   const [controller] = useState(() => new AccessSessionController(client, queryClient));

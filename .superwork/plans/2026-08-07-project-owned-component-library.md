@@ -50,7 +50,7 @@
 
 - [x] **Task Status:** completed
 
-Run: `pnpm --filter @code-agent/web exec vitest run src/shared/components/component-library-boundary.test.ts`
+Run: `pnpm --filter @codexly/web exec vitest run src/shared/components/component-library-boundary.test.ts`
 
 Expected: 边界测试通过，且旧目录、`components.json` 和 `shadcn` 依赖均不存在。
 
@@ -74,7 +74,7 @@ Expected: 边界测试通过，且旧目录、`components.json` 和 `shadcn` 依
 
 **Behavior:**
 
-- 核心与 Agent 组件使用 CodeAgent 的紧凑工作台视觉、焦点、触控和明暗主题语义，不再依赖 shadcn Token 或 AI Elements 命名。
+- 核心与 Agent 组件使用 Codexly 的紧凑工作台视觉、焦点、触控和明暗主题语义，不再依赖 shadcn Token 或 AI Elements 命名。
 
 **Stop Conditions:**
 
@@ -82,7 +82,7 @@ Expected: 边界测试通过，且旧目录、`components.json` 和 `shadcn` 依
 
 - [x] **Task Status:** completed
 
-Run: `pnpm --filter @code-agent/web exec vitest run src/shared/components/core/ui-primitives.test.tsx src/shared/components/agent/agent-components.test.tsx`
+Run: `pnpm --filter @codexly/web exec vitest run src/shared/components/core/ui-primitives.test.tsx src/shared/components/agent/agent-components.test.tsx`
 
 Expected: 项目组件视觉与交互测试通过，断言只使用项目自有语义。
 

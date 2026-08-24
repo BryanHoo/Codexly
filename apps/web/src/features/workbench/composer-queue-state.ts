@@ -1,4 +1,4 @@
-import type { AgentItem, AgentQueuedSubmission, AgentSkill } from "@code-agent/protocol";
+import type { AgentItem, AgentQueuedSubmission, AgentSkill } from "@codexly/protocol";
 
 import type { PromptInputAttachment } from "../../shared/components/agent/prompt-input.js";
 import type { TaskStoreState } from "../conversation/runtime/task-store.js";

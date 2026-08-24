@@ -1,11 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import type { AgentEventConnectionState } from "@code-agent/client";
+import type { AgentEventConnectionState } from "@codexly/client";
 import {
   TEMPORARY_TASK_SCOPE_ID,
   type AgentTask,
   type AppInfoResponse,
   type Project,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PanelLeftClose, Search, Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -477,10 +477,10 @@ export function ProductBrand() {
   return (
     <div className="flex min-w-0 flex-1 items-center">
       <img
-        alt="CodeAgent"
+        alt="Codexly"
         className="h-7 w-auto max-w-full"
         height="28"
-        src="/brand/codeagent-logo.svg"
+        src="/brand/codexly-logo.svg"
         width="116"
       />
     </div>

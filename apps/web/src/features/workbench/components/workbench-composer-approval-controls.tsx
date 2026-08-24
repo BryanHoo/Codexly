@@ -1,4 +1,4 @@
-import type { AgentSandboxMode, AgentTaskSettings } from "@code-agent/protocol";
+import type { AgentSandboxMode, AgentTaskSettings } from "@codexly/protocol";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { PromptInputSelect } from "../../../shared/components/agent/prompt-input.js";

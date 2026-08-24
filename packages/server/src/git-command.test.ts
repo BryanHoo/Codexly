@@ -9,7 +9,7 @@ import { createGitCommandExecutor, createGitEnvironment } from "./git-command.js
 const temporaryRoots: string[] = [];
 
 async function createFakeGitRoot(): Promise<{ root: string; scriptPath: string }> {
-  const root = await mkdtemp(join(tmpdir(), "code-agent-git-command-test-"));
+  const root = await mkdtemp(join(tmpdir(), "codexly-git-command-test-"));
   temporaryRoots.push(root);
   const scriptPath = join(root, "fake-git.mjs");
   await writeFile(

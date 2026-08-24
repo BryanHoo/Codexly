@@ -19,8 +19,8 @@ describe("ProductBrand", () => {
   it("renders the complete brand logo asset", () => {
     const markup = renderToStaticMarkup(<ProductBrand />);
 
-    expect(markup).toContain('src="/brand/codeagent-logo.svg"');
-    expect(markup).toContain('alt="CodeAgent"');
+    expect(markup).toContain('src="/brand/codexly-logo.svg"');
+    expect(markup).toContain('alt="Codexly"');
     expect(markup).not.toContain(">CA<");
   });
 });
@@ -241,7 +241,7 @@ describe("SidebarSettingsButton", () => {
           onOpen={vi.fn()}
         />,
       );
-      expect(markup).toContain(`CodeAgent 1.3.0，终端连接状态：${label}`);
+      expect(markup).toContain(`Codexly 1.3.0，终端连接状态：${label}`);
       expect(markup).toContain("v1.3.0");
       expect(markup).toContain(`>${label}</span>`);
       expect(markup).not.toContain("href=");
@@ -266,7 +266,7 @@ describe("SidebarSettingsButton", () => {
             onOpen={vi.fn()}
           />,
         );
-        expect(markup).toContain(`CodeAgent 1.3.0, terminal connection status: ${label}`);
+        expect(markup).toContain(`Codexly 1.3.0, terminal connection status: ${label}`);
         expect(markup).toContain(`>${label}</span>`);
       }
     } finally {
@@ -290,7 +290,7 @@ describe("SidebarSettingsButton", () => {
       />,
     );
 
-    expect(markup).toContain("CodeAgent 1.3.0，有可用更新，终端连接状态：在线");
+    expect(markup).toContain("Codexly 1.3.0，有可用更新，终端连接状态：在线");
     expect(markup).toContain("lucide-circle-arrow-up");
     expect(markup).toContain('class="text-warning"');
   });

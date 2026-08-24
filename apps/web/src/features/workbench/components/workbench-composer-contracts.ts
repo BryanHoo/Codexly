@@ -13,7 +13,7 @@ import type {
   ProjectGitStatus,
   ProjectFileSearchEntry,
   ProjectRoot,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 import type { Ref } from "react";
 
 import type {
@@ -21,10 +21,10 @@ import type {
   PromptInputAttachment,
 } from "../../../shared/components/agent/prompt-input.js";
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
-import type { CodeAgentMutationClient } from "../../projects/project-queries.js";
+import type { CodexlyMutationClient } from "../../projects/project-queries.js";
 import type {
-  CodeAgentGitMutationClient,
-  CodeAgentProjectFileSearchClient,
+  CodexlyGitMutationClient,
+  CodexlyProjectFileSearchClient,
 } from "../../projects/project-query-contracts.js";
 
 export type ComposerMode = "goal" | "plan";
@@ -54,16 +54,16 @@ export type WorkbenchComposerHandle = Readonly<{
 export type WorkbenchComposerProps = Readonly<{
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
-  client: CodeAgentMutationClient &
+  client: CodexlyMutationClient &
     Pick<
-      CodeAgentGitMutationClient,
+      CodexlyGitMutationClient,
       | "createProjectBranch"
       | "createProjectWorktree"
       | "listProjectWorktrees"
       | "switchProjectBranch"
       | "switchProjectWorktree"
     > &
-    CodeAgentProjectFileSearchClient;
+    CodexlyProjectFileSearchClient;
   fastModeAvailable: boolean;
   fastModeDefault: boolean;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];

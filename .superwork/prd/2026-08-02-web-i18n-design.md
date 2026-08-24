@@ -65,7 +65,7 @@
 - 中文资源保留现有产品语气；英文资源使用自然的产品文案，并以 Codex 官方英文术语为准。
 - 翻译应用拥有的文本：导航、按钮、菜单、Dialog、状态、错误、Toast、系统通知、ARIA 文案与空状态。
 - 不翻译动态内容：用户消息、Assistant 输出、Command、Tool/Activity 原始名称、Plan 原文、路径、分支、文件名、Skill 名称、MCP 名称、模型 ID、模型展示名及服务端描述。
-- 保留专有名词：`CodeAgent`、`Codex`、`Agent`、`AI`、`MCP`、`Git`、`Turn`、`Skill`、`Token`、`Diff`、`CLI`、`Runtime`。
+- 保留专有名词：`Codexly`、`Codex`、`Agent`、`AI`、`MCP`、`Git`、`Turn`、`Skill`、`Token`、`Diff`、`CLI`、`Runtime`。
 
 ### Formatting
 

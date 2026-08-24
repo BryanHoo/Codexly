@@ -16,7 +16,7 @@
 
 ## Global Constraints
 
-- 保持 Web 仅从 `@code-agent/protocol` 获取 `Project` 类型。
+- 保持 Web 仅从 `@codexly/protocol` 获取 `Project` 类型。
 - 项目名和右侧箭头只切换展开状态，不触发路由导航或选中状态。
 - 搜索框始终显示并位于“新建任务”上方，不保留旧搜索按钮状态。
 - 所有新增关键逻辑使用简短、清晰的中文注释。

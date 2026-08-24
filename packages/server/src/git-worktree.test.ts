@@ -14,7 +14,7 @@ import {
 const temporaryRoots: string[] = [];
 
 async function createRepositoryRoot(): Promise<string> {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "code-agent-git-worktree-test-")));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-worktree-test-")));
   temporaryRoots.push(root);
   await mkdir(join(root, ".git"));
   return root;
@@ -28,13 +28,13 @@ afterEach(async () => {
 
 describe("parseGitWorktreeList", () => {
   it("parses NUL-delimited branch and detached worktrees", () => {
-    const currentPath = "/workspace/CodeAgent";
+    const currentPath = "/workspace/Codexly";
     const output = [
       `worktree ${currentPath}`,
       `HEAD ${"a".repeat(40)}`,
       "branch refs/heads/main",
       "",
-      "worktree /workspace/CodeAgent-review",
+      "worktree /workspace/Codexly-review",
       `HEAD ${"b".repeat(40)}`,
       "detached",
       "",
@@ -42,7 +42,7 @@ describe("parseGitWorktreeList", () => {
 
     expect(parseGitWorktreeList(output, currentPath)).toEqual([
       { branch: "main", current: true, path: currentPath },
-      { branch: null, current: false, path: "/workspace/CodeAgent-review" },
+      { branch: null, current: false, path: "/workspace/Codexly-review" },
     ]);
   });
 });
@@ -180,7 +180,7 @@ describe("resolveProjectWorktree", () => {
   it("accepts only another worktree returned by the current repository", async () => {
     const projectRoot = await createRepositoryRoot();
     const targetRoot = await realpath(
-      await mkdtemp(join(tmpdir(), "code-agent-git-worktree-target-test-")),
+      await mkdtemp(join(tmpdir(), "codexly-git-worktree-target-test-")),
     );
     temporaryRoots.push(targetRoot);
     const worktrees = [

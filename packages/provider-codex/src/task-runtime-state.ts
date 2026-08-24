@@ -1,4 +1,4 @@
-import type { AgentProviderEvent } from "@code-agent/core";
+import type { AgentProviderEvent } from "@codexly/core";
 import type {
   AgentContextUsage,
   AgentMcpServerFailureReason,
@@ -6,7 +6,7 @@ import type {
   AgentPlan,
   AgentReviewTarget,
   AgentTask,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import type { PendingCodexRequest } from "./codex-protocol-mapping.js";
 

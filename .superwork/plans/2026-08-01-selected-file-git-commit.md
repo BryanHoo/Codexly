@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 支持用户选择部分 Git 变更文件、由 Codex 单独生成提交信息，并由 CodeAgent 完成 commit 或 commit + push。
+**Goal:** 支持用户选择部分 Git 变更文件、由 Codex 单独生成提交信息，并由 Codexly 完成 commit 或 commit + push。
 
 **Suggested Spec Reads:**
 
@@ -36,7 +36,7 @@
 
 **Interfaces:**
 
-- Consumes: `ProjectGitStatusSchema`、`CodeAgentClient` Mutation 约定。
+- Consumes: `ProjectGitStatusSchema`、`CodexlyClient` Mutation 约定。
 - Produces: `GenerateCommitMessageRequest/Response`、`CommitProjectChangesRequest/Response`、带 `snapshot` 与 `repositoryMode` 的 `ProjectGitStatus`。
 
 **Behavior:**

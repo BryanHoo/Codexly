@@ -1,9 +1,9 @@
-import type { CommitProjectChangesResponse, ProjectGitStatus } from "@code-agent/protocol";
+import type { CommitProjectChangesResponse, ProjectGitStatus } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import type { AgentFileChange } from "../../diff/file-change.js";
-import type { CodeAgentWorkbenchClient } from "../../projects/project-queries.js";
+import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
 import {
   notifyActionError,
   notifyActionSuccess,
@@ -17,7 +17,7 @@ import { CommitChangesPanel, collectCommitRepositories } from "./commit-changes-
 import { useTranslation } from "../../../i18n/i18n.js";
 
 type CommitChangesControllerProps = Readonly<{
-  client: CodeAgentWorkbenchClient;
+  client: CodexlyWorkbenchClient;
   detailsError?: Error | null;
   detailsPending?: boolean;
   gitStatus: ProjectGitStatus;

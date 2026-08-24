@@ -1,13 +1,13 @@
 # Codex User Global Settings Implementation Plan
 
-**Goal:** CodeAgent 首次启动且尚未保存全局设置时，优先采用 Codex 当前用户配置的模型、思考量、审批权限和工作区权限，仅对未配置或不可用字段使用项目默认值。
+**Goal:** Codexly 首次启动且尚未保存全局设置时，优先采用 Codex 当前用户配置的模型、思考量、审批权限和工作区权限，仅对未配置或不可用字段使用项目默认值。
 
 **Suggested Spec Reads:**
 
 - `.superwork/spec/backend/runtime-lifecycle.md` — 约束 Codex `config/read`、模型目录和设置默认值来源。
 - `.superwork/spec/shared/quality-guidelines.md` — 约束 `AgentGlobalSettings`、Provider 端口和完整设置解析。
 
-**Architecture:** Core 增加 Provider 无关的可选用户默认设置契约，Codex Runtime 使用不带 `cwd` 的 `config/read` 读取用户有效配置并映射已支持字段。Server 仅在 SQLite 不存在全局设置记录时读取该契约，交给现有模型目录校验逐字段回退；已保存的 CodeAgent 全局设置保持唯一真相源。
+**Architecture:** Core 增加 Provider 无关的可选用户默认设置契约，Codex Runtime 使用不带 `cwd` 的 `config/read` 读取用户有效配置并映射已支持字段。Server 仅在 SQLite 不存在全局设置记录时读取该契约，交给现有模型目录校验逐字段回退；已保存的 Codexly 全局设置保持唯一真相源。
 
 **Tech Stack:** TypeScript 6、Fastify 5、Codex App Server RPC、Vitest、pnpm。
 
@@ -15,8 +15,8 @@
 
 - 不读取或修改 Codex `auth.json`、`config.toml`，只使用 App Server `config/read`。
 - 用户配置读取不携带 Project `cwd`，避免 Project 层覆盖全局首次启动默认值。
-- 只接受 CodeAgent 已支持的审批策略、审批审核方和沙盒模式；缺失或不支持字段按项目默认值回退。
-- 已持久化的 CodeAgent 全局设置不得被 Codex 后续配置变化覆盖。
+- 只接受 Codexly 已支持的审批策略、审批审核方和沙盒模式；缺失或不支持字段按项目默认值回退。
+- 已持久化的 Codexly 全局设置不得被 Codex 后续配置变化覆盖。
 - 关键映射和回退逻辑添加简短、清晰的中文注释。
 
 ### Task 1: 读取 Codex 用户默认设置
@@ -36,7 +36,7 @@
 
 **Behavior:**
 
-- 使用不带 `cwd` 的 `config/read` 返回 CodeAgent 支持的用户默认字段，省略空值和不支持值，并保持自动审核组合合法。
+- 使用不带 `cwd` 的 `config/read` 返回 Codexly 支持的用户默认字段，省略空值和不支持值，并保持自动审核组合合法。
 
 **Stop Conditions:**
 
@@ -85,7 +85,7 @@ Expected: 首次初始化、逐字段回退和已持久化设置优先级测试�
 **Interfaces:**
 
 - Consumes: verified first-launch global settings behavior
-- Produces: stable repository rules for Codex user defaults and CodeAgent persistence precedence
+- Produces: stable repository rules for Codex user defaults and Codexly persistence precedence
 
 **Behavior:**
 

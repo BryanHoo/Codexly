@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 async function createTemporaryDirectory() {
-  const path = await mkdtemp(join(tmpdir(), "code-agent-directory-browser-"));
+  const path = await mkdtemp(join(tmpdir(), "codexly-directory-browser-"));
   temporaryDirectories.push(path);
   return realpath(path);
 }

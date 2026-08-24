@@ -43,7 +43,7 @@ describe("Codex transcript Skills", () => {
   });
 
   it("restores Skills filtered from thread/read using the Codex rollout transcript", async () => {
-    const codexHome = await mkdtemp(join(tmpdir(), "code-agent-codex-home-"));
+    const codexHome = await mkdtemp(join(tmpdir(), "codexly-codex-home-"));
     temporaryDirectories.push(codexHome);
     const sessionDirectory = join(codexHome, "sessions", "2026", "07", "27");
     await mkdir(sessionDirectory, { recursive: true });
@@ -196,7 +196,7 @@ async function createTranscriptFixture(
   threadId: string;
   transcriptPath: string;
 }> {
-  const codexHome = await mkdtemp(join(tmpdir(), "code-agent-codex-home-"));
+  const codexHome = await mkdtemp(join(tmpdir(), "codexly-codex-home-"));
   temporaryDirectories.push(codexHome);
   const sessionDirectory = join(codexHome, "sessions", "2026", "07", "27");
   await mkdir(sessionDirectory, { recursive: true });

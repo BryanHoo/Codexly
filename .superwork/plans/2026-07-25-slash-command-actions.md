@@ -81,7 +81,7 @@ Expected: 全部测试通过。
 
 - Consumes: `AgentCommandContracts`
 - Consumes: `AgentProviderCommandActions`
-- Produces: `CodeAgentCommandClient`
+- Produces: `CodexlyCommandClient`
 
 **Behavior Slice:** 每个端点校验 `Idempotency-Key`、Task/Project 输入与 Body，使用独立操作作用域复用结果，并将 Provider 失败统一转换为 Mutation Error。
 
@@ -115,7 +115,7 @@ Expected: 新增端点和 Client 测试通过。
 **Interfaces:**
 
 - Consumes: `AgentCommandContracts`
-- Consumes: `CodeAgentCommandClient`
+- Consumes: `CodexlyCommandClient`
 - Produces: `SlashCommandMenu`
 
 **Behavior Slice:** `/` 打开六项命令菜单，支持中文/英文过滤、方向键循环、Enter 执行、Escape 关闭；无当前 Task 或缺失能力的动作禁用并给出原因；初始化与副任务生成明确 Turn，原生动作显示提交中、成功或失败状态。

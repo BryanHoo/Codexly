@@ -9,7 +9,7 @@ import {
   type AgentAttachmentMediaType,
   type HostFileKind,
   type HostFileListing,
-} from "@code-agent/protocol";
+} from "@codexly/protocol";
 
 import { classifyFilesystemEntries } from "./filesystem-entry-type.js";
 import { listFilesystemRoots } from "./filesystem-roots.js";
