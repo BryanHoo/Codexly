@@ -81,13 +81,15 @@ jobs:
         run: npm install --global npm@11.5.1
       - name: Publish with provenance
         shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           package_name="$(node --print "require('./package.json').name")"
           package_version="$(node --print "require('./package.json').version")"
           if npm view "${package_name}@${package_version}" version --json >/dev/null 2>&1; then
             echo "${package_name}@${package_version} is already published; skipping pnpm publish."
           else
-            # pnpm 负责转换 Workspace 协议，npm CLI 负责 Trusted Publisher OIDC 认证。
+            # pnpm 负责转换 Workspace 协议；npm CLI 使用首发 Token 或 Trusted Publisher OIDC 认证。
             package_tarball="${RUNNER_TEMP}/codexly-${package_version}.tgz"
             pnpm pack --out "${package_tarball}"
             npm publish "${package_tarball}" --access public --provenance
