@@ -44,6 +44,43 @@ test("navigates absolute paths and toggles hidden folders in the project directo
     .toBe(true);
 });
 
+test("adds a validated absolute path directly as one project root", async ({ page }) => {
+  let addProjectRequest: unknown;
+  await page.route("**/v1/projects", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.fallback();
+      return;
+    }
+    addProjectRequest = route.request().postDataJSON();
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        project: {
+          createdAt: "2026-08-24T00:00:00.000Z",
+          id: "project-vault",
+          name: "ProjectVault",
+          roots: [{ id: "root-project-vault", path: "/workspace/ProjectVault" }],
+        },
+      },
+    });
+  });
+  await page.goto("/p/codexly");
+  await page.getByRole("button", { name: "添加项目" }).click();
+  const picker = page.getByRole("dialog", { name: "选择项目文件夹" });
+  const pathInput = picker.getByRole("textbox", { name: "绝对目录路径" });
+
+  await pathInput.fill("/workspace/ProjectVault");
+  await pathInput.press("Enter");
+
+  await expect(picker.getByText("已验证目录，可直接添加")).toBeVisible();
+  const addButton = picker.getByRole("button", { name: "添加此文件夹" });
+  await expect(addButton).toBeEnabled();
+  await addButton.click();
+
+  await expect(picker).toBeHidden();
+  expect(addProjectRequest).toEqual({ roots: [{ path: "/workspace/ProjectVault" }] });
+});
+
 test("keeps the Web directory picker open after add failure", async ({ page }) => {
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => {

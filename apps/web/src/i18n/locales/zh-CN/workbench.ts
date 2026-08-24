@@ -243,6 +243,7 @@ export const workbench = {
     addError: "无法添加所选文件夹",
     adding: "正在添加",
     description: "浏览 Codexly 运行设备上的文件夹",
+    directPathReady: "已验证目录，可直接添加",
     empty: "此文件夹中没有子文件夹",
     filesystemRoot: "选择磁盘",
     goToPath: "前往此路径",

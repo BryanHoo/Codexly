@@ -243,6 +243,7 @@ export const workbench = {
     addError: "Unable to add the selected folder",
     adding: "Adding",
     description: "Browse folders on the device running Codexly",
+    directPathReady: "Directory verified and ready to add",
     empty: "This folder has no subfolders",
     filesystemRoot: "Select drive",
     goToPath: "Go to path",
