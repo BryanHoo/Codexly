@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    .mark-background { fill: #171717; }
+    .mark-symbol { fill: #ffffff; }
+  </style>
+
+  <rect class="mark-background" width="64" height="64" rx="14" />
+
+  <!-- 只缩小三条斜杠，在完整底板内部保留充足留白。 -->
+  <g transform="translate(9.6 9.6) scale(0.7)">
+    <rect
+      class="mark-symbol"
+      x="15"
+      y="12"
+      width="9"
+      height="40"
+      rx="4.5"
+      transform="rotate(18 19.5 32)"
+    />
+    <rect
+      class="mark-symbol"
+      x="29"
+      y="18"
+      width="9"
+      height="34"
+      rx="4.5"
+      transform="rotate(18 33.5 35)"
+    />
+    <rect
+      class="mark-symbol"
+      x="43"
+      y="25"
+      width="9"
+      height="27"
+      rx="4.5"
+      transform="rotate(18 47.5 38.5)"
+    />
+  </g>
+</svg>

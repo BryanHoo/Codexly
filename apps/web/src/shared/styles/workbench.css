@@ -1,0 +1,215 @@
+.workbench-shell {
+  --sidebar-width: 0px;
+  --inspector-width: 0px;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--inspector-width);
+  transition: grid-template-columns var(--ui-motion-normal) var(--ui-ease-standard);
+}
+
+.workbench-shell[data-sidebar-open="true"] {
+  --sidebar-width: var(--sidebar-open-width, var(--ui-layout-sidebar-width));
+}
+
+.workbench-shell[data-inspector-open="true"] {
+  --inspector-width: min(
+    var(--inspector-open-width, var(--ui-layout-inspector-width)),
+    calc((100% - var(--sidebar-width)) / 2)
+  );
+}
+
+.workbench-shell[data-resizing-panel] {
+  cursor: col-resize;
+  user-select: none;
+  transition: none;
+}
+
+.workbench-panel-resizer {
+  position: absolute;
+  z-index: 40;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: col-resize;
+  touch-action: none;
+  transform: translateX(-50%);
+}
+
+.workbench-panel-resizer::after {
+  position: absolute;
+  inset: 0 auto 0 4px;
+  width: 1px;
+  background: transparent;
+  content: "";
+  transition: background-color var(--ui-motion-fast) var(--ui-ease-standard);
+}
+
+.workbench-panel-resizer:hover::after,
+.workbench-panel-resizer:focus-visible::after,
+.workbench-panel-resizer:active::after {
+  background: var(--ui-color-accent);
+}
+
+.workbench-panel-resizer--sidebar {
+  left: var(--sidebar-width);
+}
+
+.workbench-panel-resizer--inspector {
+  right: var(--inspector-width);
+  transform: translateX(50%);
+}
+
+.workbench-sidebar,
+.workbench-inspector {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Task 行始终保留操作位，hover/focus 只切换内容，避免标题和列表宽度抖动。 */
+.task-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.group:hover > .task-actions,
+.group:focus-within > .task-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.group:hover .task-status,
+.group:focus-within .task-status {
+  visibility: hidden;
+}
+
+/* 高饱和度纯色提升小尺寸辨识度，快速呼吸只改变透明度以避免布局抖动。 */
+.task-status-dot {
+  opacity: 1;
+}
+
+.task-status-dot--breathing {
+  animation: task-status-breathe 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: opacity;
+}
+
+@keyframes task-status-breathe {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-status-dot--breathing {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .task-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .task-status {
+    visibility: hidden;
+  }
+}
+
+.workbench-shell[data-sidebar-open="false"] .workbench-sidebar,
+.workbench-shell[data-inspector-open="false"] .workbench-inspector {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.workbench-shell[data-sidebar-open="true"] .workbench-sidebar,
+.workbench-shell[data-inspector-open="true"] .workbench-inspector {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.workbench-sidebar-scrim,
+.workbench-inspector-scrim {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .workbench-shell {
+    --inspector-width: 0px !important;
+  }
+
+  .workbench-inspector {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(var(--ui-layout-inspector-width), calc(100vw - calc(var(--ui-space-unit) * 8)));
+    transform: translateX(100%);
+    box-shadow: var(--ui-shadow-panel);
+    transition: transform var(--ui-motion-normal) var(--ui-ease-standard);
+  }
+
+  .workbench-shell[data-inspector-open="true"] .workbench-inspector {
+    transform: translateX(0);
+  }
+
+  .workbench-shell[data-inspector-open="true"] .workbench-inspector-scrim {
+    position: absolute;
+    z-index: 20;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: var(--ui-color-scrim);
+  }
+
+  .workbench-panel-resizer--inspector {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .workbench-shell {
+    --sidebar-width: 0px !important;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workbench-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(var(--ui-layout-sidebar-width), calc(100vw - calc(var(--ui-space-unit) * 8)));
+    transform: translateX(-100%);
+    box-shadow: var(--ui-shadow-panel);
+    transition: transform var(--ui-motion-normal) var(--ui-ease-standard);
+  }
+
+  .workbench-shell[data-sidebar-open="true"] .workbench-sidebar {
+    transform: translateX(0);
+  }
+
+  .workbench-shell[data-sidebar-open="true"] .workbench-sidebar-scrim {
+    position: absolute;
+    z-index: 20;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: var(--ui-color-scrim);
+  }
+
+  .workbench-panel-resizer--sidebar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workbench-shell,
+  .workbench-sidebar,
+  .workbench-inspector {
+    transition: none;
+  }
+}

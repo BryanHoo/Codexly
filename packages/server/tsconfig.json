@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "outDir": "../../.cache/types/server",
+    "rootDir": "src",
+    "tsBuildInfoFile": "../../.cache/types/server.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../protocol" }, { "path": "../core" }, { "path": "../provider-codex" }]
+}

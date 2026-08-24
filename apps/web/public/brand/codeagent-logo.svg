@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 264 64" role="img">
+  <title>CodeAgent</title>
+  <style>
+    .logo-background { fill: #171717; }
+    .logo-symbol { fill: #ffffff; }
+    .logo-text { fill: #111111; }
+    .logo-text {
+      font-family: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Helvetica Neue", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      font-size: 30px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .logo-text { fill: #ffffff; }
+    }
+  </style>
+
+  <g aria-hidden="true">
+    <rect class="logo-background" width="64" height="64" rx="14" />
+    <!-- 只缩小三条斜杠，在完整底板内部保留充足留白。 -->
+    <g transform="translate(9.6 9.6) scale(0.7)">
+      <rect
+        class="logo-symbol"
+        x="15"
+        y="12"
+        width="9"
+        height="40"
+        rx="4.5"
+        transform="rotate(18 19.5 32)"
+      />
+      <rect
+        class="logo-symbol"
+        x="29"
+        y="18"
+        width="9"
+        height="34"
+        rx="4.5"
+        transform="rotate(18 33.5 35)"
+      />
+      <rect
+        class="logo-symbol"
+        x="43"
+        y="25"
+        width="9"
+        height="27"
+        rx="4.5"
+        transform="rotate(18 47.5 38.5)"
+      />
+    </g>
+  </g>
+  <text class="logo-text" x="78" y="32" dominant-baseline="central">CodeAgent</text>
+</svg>

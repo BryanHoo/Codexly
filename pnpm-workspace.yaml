@@ -1,0 +1,99 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+allowBuilds:
+  # SQLite Adapter 通过独立 Worker 加载原生驱动。
+  better-sqlite3: true
+  # esbuild 是 Vite、Vitest 与 tsup 的构建器，只允许其安装本机二进制。
+  esbuild: true
+
+catalog:
+  "@eslint/js": 10.0.1
+  "@fastify/cookie": 11.1.2
+  "@fastify/multipart": 10.1.0
+  "@fastify/static": 10.1.2
+  "@fastify/websocket": 11.3.0
+  "@headless-tree/core": 1.7.0
+  "@headless-tree/react": 1.7.0
+  "@openai/codex": 0.149.0
+  "@playwright/test": 1.61.1
+  "@sinclair/typebox": 0.34.52
+  "@tailwindcss/vite": 4.3.3
+  "@tanstack/react-query": 5.101.4
+  "@tanstack/react-router": 1.170.18
+  "@types/node": 22.13.17
+  "@types/react": 19.2.17
+  "@types/react-dom": 19.2.3
+  "@types/better-sqlite3": 7.6.13
+  "@types/ws": 8.18.1
+  "@vitejs/plugin-react": 6.0.3
+  "@vitest/coverage-v8": 4.1.10
+  anser: 2.3.5
+  better-sqlite3: 12.11.1
+  class-variance-authority: 0.7.1
+  clsx: 2.1.1
+  dependency-cruiser: 18.1.0
+  eslint: 10.7.0
+  eslint-config-prettier: 10.1.8
+  fastify: 5.10.0
+  globals: 17.7.0
+  lucide-react: 1.25.0
+  pino: 10.3.1
+  prettier: 3.9.6
+  react: 19.2.8
+  react-dom: 19.2.8
+  radix-ui: 1.6.7
+  tsup: 8.5.1
+  tailwindcss: 4.3.3
+  typescript: 6.0.2
+  typescript-eslint: 8.65.0
+  uuid: 14.0.1
+  vite: 8.1.5
+  vitest: 4.1.10
+  ws: 8.21.1
+  streamdown: 2.5.0
+  tailwind-merge: 3.6.0
+  tw-animate-css: 1.4.0
+  shiki: 4.3.1
+  simple-git: 3.36.0
+  "@pierre/diffs": 1.2.12
+  zustand: 5.0.14
+  sonner: 2.0.7
+  "@tanstack/react-virtual": 3.14.9
+  i18next: 26.3.6
+  eslint-plugin-jsx-a11y: 6.10.2
+  eslint-plugin-react-hooks: 7.1.1
+  react-i18next: 17.0.11
+
+catalogMode: strict
+cleanupUnusedCatalogs: true
+autoInstallPeers: false
+linkWorkspacePackages: false
+# 显式设置最小发布时间，启用严格年龄校验，避免回退到新发布版本。
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@openai/codex@0.149.0-darwin-arm64 || 0.149.0-darwin-x64 || 0.149.0-linux-arm64 || 0.149.0-linux-x64 || 0.149.0-win32-arm64 || 0.149.0-win32-x64 || 0.149.0"
+  - prettier@3.9.6
+  - react-dom@19.2.8
+  - react@19.2.8
+  - "@tanstack/query-core@5.101.4"
+  - "@tanstack/react-query@5.101.4"
+overrides:
+  # 所有 Node 类型依赖统一到最低支持线，避免宽泛依赖重新引入 Node 24 API。
+  "@types/node": "catalog:"
+  # 上游兼容范围尚未刷新锁文件时，强制选择公告已修复的补丁版本。
+  "brace-expansion@>=4.0.0 <5.0.9": 5.0.9
+  "dompurify@<=3.4.12": 3.4.13
+  "fast-uri@>=3.0.0 <3.1.5": 3.1.5
+  "fast-uri@>=4.0.0 <4.1.2": 4.1.2
+  "find-my-way@>=9.0.0 <9.6.1": 9.7.0
+  "mermaid@>=11.0.0-alpha.1 <11.16.1": 11.16.1
+preferWorkspacePackages: true
+saveExact: true
+sharedWorkspaceLockfile: true
+strictPeerDependencies: true
+peerDependencyRules:
+  allowedVersions:
+    # jsx-a11y 已支持 flat config，但当前 peer 范围尚未声明 ESLint 10。
+    "eslint-plugin-jsx-a11y>eslint": "10"

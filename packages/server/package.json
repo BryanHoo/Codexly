@@ -1,0 +1,31 @@
+{
+  "name": "@code-agent/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@code-agent/core": "workspace:*",
+    "@code-agent/protocol": "workspace:*",
+    "@code-agent/provider-codex": "workspace:*",
+    "@fastify/cookie": "catalog:",
+    "@fastify/multipart": "catalog:",
+    "@fastify/static": "catalog:",
+    "@fastify/websocket": "catalog:",
+    "@sinclair/typebox": "catalog:",
+    "better-sqlite3": "catalog:",
+    "fastify": "catalog:",
+    "simple-git": "catalog:",
+    "ws": "catalog:"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "catalog:",
+    "@types/ws": "catalog:"
+  }
+}

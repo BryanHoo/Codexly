@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish GitHub release and npm package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: npm
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22.14.0
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify release version
+        shell: bash
+        run: |
+          package_version="$(node --print "require('./package.json').version")"
+          if [[ "v${package_version}" != "${RELEASE_TAG}" ]]; then
+            echo "Release tag ${RELEASE_TAG} does not match package version ${package_version}." >&2
+            exit 1
+          fi
+          git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}" >/dev/null
+      - name: Run quality gates
+        shell: bash
+        run: |
+          pnpm run audit:prod
+          pnpm run codex:schema:check
+          pnpm run format:check
+          pnpm run lint
+          pnpm run lint:architecture
+          # 分组结束后释放 Vitest 与原生模块进程，避免长套件在托管 runner 尾段崩溃。
+          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests apps/web
+          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/client packages/core packages/protocol
+          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/provider-codex
+          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/server
+          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests "$PWD"/src/*.test.ts "$PWD"/tests/*.test.ts --exclude packages/protocol/src/app-update.test.ts
+          pnpm run test:performance
+          pnpm run build
+          pnpm run bundle:check
+          pnpm run package:check
+      - name: Extract release notes
+        shell: bash
+        run: |
+          package_version="$(node --print "require('./package.json').version")"
+          release_notes="${RUNNER_TEMP}/release-notes.md"
+          node ./tools/extract-release-notes.mjs "${package_version}" "${release_notes}"
+          echo "RELEASE_NOTES_PATH=${release_notes}" >> "${GITHUB_ENV}"
+      # Node.js 22.14.0 自带 npm 10，发布前固定升级到 Trusted Publisher 支持的版本。
+      - name: Setup publishing npm
+        run: npm install --global npm@11.5.1
+      - name: Publish with provenance
+        shell: bash
+        run: |
+          package_name="$(node --print "require('./package.json').name")"
+          package_version="$(node --print "require('./package.json').version")"
+          if npm view "${package_name}@${package_version}" version --json >/dev/null 2>&1; then
+            echo "${package_name}@${package_version} is already published; skipping pnpm publish."
+          else
+            # pnpm 负责转换 Workspace 协议，npm CLI 负责 Trusted Publisher OIDC 认证。
+            package_tarball="${RUNNER_TEMP}/code-agent-${package_version}.tgz"
+            pnpm pack --out "${package_tarball}"
+            npm publish "${package_tarball}" --access public --provenance
+          fi
+      - name: Create GitHub release
+        run: gh release create "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_PATH}" --title "CodeAgent ${RELEASE_TAG}" --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

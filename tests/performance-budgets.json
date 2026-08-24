@@ -1,0 +1,55 @@
+{
+  "attachment": {
+    "bytes": 52428800,
+    "maxDurationMs": 8000,
+    "maxHeapGrowthBytes": 16777216
+  },
+  "delta": {
+    "clientEvents": 50000,
+    "maxClientReplayMs": 1500,
+    "maxServerPublishMs": 1500,
+    "serverEvents": 100000
+  },
+  "git": {
+    "childRepositories": 16,
+    "changes": 500,
+    "maxConcurrentGitCommands": 4,
+    "maxDiffCommands": 2,
+    "maxDiffBytes": 10485760,
+    "maxDurationMs": 1000,
+    "maxFiles": 1000,
+    "maxStressDurationMs": 2000,
+    "untrackedFileBytes": 12288,
+    "untrackedFiles": 1200
+  },
+  "fileTree": {
+    "items": 10000,
+    "maxBuildMs": 1000,
+    "maxHeapGrowthBytes": 33554432,
+    "maxMountedRows": 40,
+    "viewportHeight": 600
+  },
+  "heap": {
+    "deltasPerIteration": 1000,
+    "iterations": 100,
+    "maxGrowthBytes": 33554432
+  },
+  "jsonlFragmentation": {
+    "chunkBytes": 65536,
+    "frameBytes": 66060288,
+    "maxAssemblyMs": 2000
+  },
+  "longHistory": {
+    "items": 10000,
+    "itemsPerTurn": 10,
+    "maxHydrationMs": 1500,
+    "maxMarkupBytes": 131072,
+    "maxMountedTurns": 8,
+    "maxRenderMs": 1000,
+    "maxTurnCompletionMs": 250
+  },
+  "slowWebSocket": {
+    "maxDispatchMs": 500,
+    "messages": 10000
+  }
+}

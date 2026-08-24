@@ -1,0 +1,309 @@
+import {
+  architectureSourcePreview,
+  expect,
+  parseRequestRecord,
+  taskSnapshot,
+  test,
+} from "./fixtures/app-shell.js";
+
+test.describe.configure({ mode: "serial" });
+
+test("starts code review from a new chat with one fixed review message", async ({ page }) => {
+  const reviewTask = {
+    id: "review-task",
+    pinned: false,
+    projectId: "code-agent",
+    title: "新聊天",
+    updatedAt: "2026-07-29T00:00:00.000Z",
+  };
+  const reviewTurn = {
+    completedAt: null,
+    error: null,
+    id: "review-turn",
+    items: [
+      {
+        id: "review-mode-review-turn",
+        target: { type: "uncommitted_changes" },
+        type: "review",
+      },
+    ],
+    startedAt: "2026-07-29T00:00:00.000Z",
+    status: "running",
+  };
+  const mutationPaths: string[] = [];
+  const reviewBodies: unknown[] = [];
+  await page.route("**/v1/projects/code-agent/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() === "POST") {
+      mutationPaths.push(url.pathname);
+    }
+    if (url.pathname === "/v1/projects/code-agent/tasks" && request.method() === "POST") {
+      await route.fulfill({ contentType: "application/json", json: { task: reviewTask } });
+      return;
+    }
+    if (
+      url.pathname === "/v1/projects/code-agent/tasks/review-task/review" &&
+      request.method() === "POST"
+    ) {
+      reviewBodies.push(request.postDataJSON());
+      await route.fulfill({
+        contentType: "application/json",
+        json: { taskId: reviewTask.id, turn: reviewTurn },
+      });
+      return;
+    }
+    if (url.pathname === "/v1/projects/code-agent/tasks/review-task") {
+      await route.fulfill({
+        contentType: "application/json",
+        json: {
+          checkpoint: { sequence: 0, sessionId: "review-session" },
+          snapshot: {
+            ...reviewTask,
+            contextUsage: null,
+            pendingRequests: [],
+            plan: null,
+            settings: taskSnapshot.settings,
+            status: "running",
+            turns: [reviewTurn],
+            turnsNextCursor: null,
+          },
+        },
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/p/code-agent");
+
+  const prompt = page.getByRole("textbox", { name: "任务输入" });
+  await prompt.fill("/");
+  await page.getByRole("option", { name: /代码审查/u }).click();
+  await expect(page.getByRole("group", { name: "选择审查范围" })).toBeVisible();
+  await expect(page.getByRole("option", { name: /审查未提交的更改/u })).toBeVisible();
+  await expect(page.getByRole("option", { name: /基于基础分支进行审查/u })).toContainText(
+    "origin/main",
+  );
+  expect(mutationPaths).toEqual([]);
+  await prompt.fill("重新选择 /初始化");
+  await expect(page.getByRole("group", { name: "选择审查范围" })).toBeHidden();
+  await expect(page.getByRole("option", { name: /初始化/u })).toBeVisible();
+  await prompt.fill("/");
+  await page.getByRole("option", { name: /代码审查/u }).click();
+  await page.getByRole("option", { name: /审查未提交的更改/u }).click();
+
+  await expect(page).toHaveURL(/\/p\/code-agent\/t\/review-task$/u);
+  await expect(page.getByText("请检查我未提交的更改", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("审查模式", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Review the current code changes/u)).toHaveCount(0);
+  await expect
+    .poll(() => mutationPaths)
+    .toEqual(["/v1/projects/code-agent/tasks", "/v1/projects/code-agent/tasks/review-task/review"]);
+  expect(reviewBodies).toEqual([{ target: { type: "uncommitted_changes" } }]);
+});
+
+test("selects a real base branch before starting code review", async ({ page }) => {
+  const reviewBodies: unknown[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/v1/projects/code-agent/tasks/task-1/review"
+    ) {
+      reviewBodies.push(request.postDataJSON());
+    }
+  });
+  await page.goto("/p/code-agent/t/task-1");
+
+  const prompt = page.getByRole("textbox", { name: "任务输入" });
+  await prompt.fill("/代码审查");
+  await prompt.press("Enter");
+  await prompt.press("ArrowDown");
+  await prompt.press("Enter");
+
+  const branchGroup = page.getByRole("group", { name: "选择基础分支" });
+  await expect(branchGroup).toBeVisible();
+  await expect(branchGroup.getByRole("option")).toHaveCount(3);
+  await branchGroup.getByRole("option", { name: "release" }).click();
+
+  await expect
+    .poll(() => reviewBodies)
+    .toEqual([{ target: { branch: "release", type: "base_branch" } }]);
+});
+
+test("loads long source files while scrolling", async ({ context, page }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/p/code-agent/t/task-1");
+
+  const sourceReference = page.getByRole("button", {
+    name: /architecture-design\.md\s+\(line 100\)/u,
+  });
+  await sourceReference.click();
+
+  const dialog = page.getByRole("dialog", { name: "architecture-design.md (line 100)" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("部分内容")).toBeVisible();
+  await expect(dialog.locator('[data-language="markdown"]')).toBeVisible();
+  const highlightedLine = dialog.locator('[data-code-line="100"]');
+  await expect(highlightedLine).toContainText("### 11.7 外部登录边界");
+  await expect(highlightedLine).toHaveAttribute("data-highlighted", "true");
+  await expect(highlightedLine).toBeInViewport();
+
+  await dialog.locator('[data-code-line="720"]').scrollIntoViewIfNeeded();
+  await expect(dialog.locator('[data-code-line="800"]')).toContainText("line 800");
+  await expect(dialog.getByText("部分内容")).toBeHidden();
+
+  await dialog.getByRole("button", { name: "预览 Markdown" }).click();
+  await expect(dialog.getByRole("heading", { name: "11.7 外部登录边界" })).toBeVisible();
+  await expect(dialog.locator('[data-language="markdown"]')).not.toBeAttached();
+
+  await dialog.getByRole("button", { name: "显示原始内容" }).click();
+  await expect(dialog.locator('[data-language="markdown"]')).toBeVisible();
+
+  await dialog.getByRole("button", { name: "复制代码" }).click();
+  await expect(dialog.getByRole("button", { name: "代码已复制" })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const clipboardText = await navigator.clipboard.readText();
+        // Windows 剪贴板会把多行文本规范化为 CRLF，比较前统一为 LF。
+        return clipboardText.replace(/\r\n?/gu, "\n");
+      }),
+    )
+    .toBe(architectureSourcePreview);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  await sourceReference.click();
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(1, 1);
+  await expect(dialog).toBeHidden();
+});
+
+test("routes assistant links, images, and system files by Markdown file rules", async ({
+  page,
+}) => {
+  const systemOpenRequest = page.waitForRequest((request) => {
+    if (new URL(request.url()).pathname !== "/v1/projects/code-agent/open") {
+      return false;
+    }
+    const body = parseRequestRecord(request.postData());
+    return (
+      body["appId"] === "system-default" &&
+      body["path"] === "/home/taoye/100%完成/AI 领航/后续工作交接.pptx"
+    );
+  });
+  await page.goto("/p/code-agent/t/task-1");
+
+  const externalLink = page.getByRole("link", { name: "OpenAI" });
+  await expect(externalLink).toHaveAttribute("target", "_blank");
+  await expect(externalLink).toHaveAttribute("rel", "noopener noreferrer");
+
+  await page.getByRole("button", { name: "result.png" }).click();
+  const imageDialog = page.getByRole("dialog", { name: "result.png" });
+  await expect(imageDialog).toBeVisible();
+  await expect(imageDialog.getByRole("img", { name: "result.png" })).toHaveAttribute(
+    "src",
+    "/v1/projects/code-agent/files/image?path=%2Fworkspace%2FCodeAgent%2Fdesign%2Fresult.png&rootPath=%2Fworkspace%2FCodeAgent",
+  );
+  await page.keyboard.press("Escape");
+  await expect(imageDialog).toBeHidden();
+
+  await page.getByRole("button", { exact: true, name: "后续工作交接.pptx" }).click();
+  await systemOpenRequest;
+  await expect(page.getByRole("dialog", { name: "后续工作交接.pptx" })).toHaveCount(0);
+});
+
+test("project file tree opens changed, source, image, and system files by shared rules", async ({
+  page,
+}) => {
+  await page.goto("/p/code-agent/t/task-1");
+
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  await inspector.getByRole("tab", { name: "项目" }).click();
+  const fileTree = inspector.getByRole("tree", { name: "项目文件" });
+  await expect(fileTree).toBeVisible();
+  await expect(fileTree.getByRole("treeitem", { name: "architecture-design.md" })).toHaveCount(0);
+
+  const packageFile = fileTree.getByRole("treeitem", { name: /package\.json/u });
+  await expect(packageFile).toHaveCSS("cursor", "default");
+  await packageFile.click();
+  const diffDialog = page.getByRole("dialog", { name: "package.json" });
+  await expect(diffDialog.locator(".file-diff-renderer")).toContainText("pnpm run dev");
+  await page.getByRole("button", { name: "关闭文件 Diff" }).click();
+  await expect(diffDialog).not.toBeAttached();
+
+  const docsRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return (
+      url.pathname === "/v1/projects/code-agent/files/tree" &&
+      url.searchParams.get("path") === "docs"
+    );
+  });
+  const docsDirectory = fileTree.getByRole("treeitem", { name: "docs" });
+  await expect(docsDirectory).toHaveCSS("cursor", "default");
+  await docsDirectory.click();
+  await docsRequest;
+  await fileTree.getByRole("treeitem", { name: "architecture-design.md" }).click();
+  const sourceDialog = page.getByRole("dialog", { name: "architecture-design.md" });
+  await expect(sourceDialog).toBeVisible();
+  await sourceDialog.getByRole("button", { name: "关闭源文件" }).click();
+  await expect(sourceDialog).not.toBeAttached();
+
+  const imageRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return (
+      url.pathname === "/v1/projects/code-agent/files/image" &&
+      url.searchParams.get("path") === "design/result.png"
+    );
+  });
+  await fileTree.getByRole("button", { name: "展开文件夹 design" }).click();
+  await fileTree.getByRole("treeitem", { name: "result.png" }).click();
+  await imageRequest;
+  const imageDialog = page.getByRole("dialog", { name: "result.png" });
+  await expect(imageDialog.getByRole("img", { name: "result.png" })).toBeVisible();
+  await imageDialog.getByRole("button", { name: "关闭图片预览" }).click();
+  await expect(imageDialog).not.toBeAttached();
+
+  const systemOpenRequest = page.waitForRequest((request) => {
+    if (new URL(request.url()).pathname !== "/v1/projects/code-agent/open") {
+      return false;
+    }
+    const body = parseRequestRecord(request.postData());
+    return body["appId"] === "system-default" && body["path"] === "100%完成 后续工作交接.pptx";
+  });
+  await fileTree.getByRole("treeitem", { name: "100%完成 后续工作交接.pptx" }).click();
+  await systemOpenRequest;
+  await expect(page.getByRole("dialog", { name: "100%完成 后续工作交接.pptx" })).toHaveCount(0);
+});
+
+test("project file tree virtualizes 10,000 files and keeps keyboard navigation usable", async ({
+  page,
+}) => {
+  await page.route("**/v1/projects/code-agent/files/tree*", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        entries: Array.from({ length: 10_000 }, (_, index) => ({
+          path: `file-${String(index).padStart(5, "0")}.ts`,
+          type: "file",
+        })),
+        path: null,
+      },
+    });
+  });
+  await page.goto("/p/code-agent/t/task-1");
+
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  await inspector.getByRole("tab", { name: "项目" }).click();
+  const fileTree = inspector.getByRole("tree", { name: "项目文件" });
+  const root = fileTree.getByRole("treeitem", { name: "CodeAgent" });
+  await expect(root).toHaveAttribute("aria-expanded", "true");
+  await expect(fileTree.getByRole("treeitem", { name: "file-00000.ts" })).toBeVisible();
+  expect(await fileTree.getByRole("treeitem").count()).toBeLessThanOrEqual(40);
+
+  await root.focus();
+  await root.press("End");
+  await expect(fileTree.getByRole("treeitem", { name: "file-09999.ts" })).toBeFocused();
+  expect(await fileTree.getByRole("treeitem").count()).toBeLessThanOrEqual(40);
+});

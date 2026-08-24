@@ -1,0 +1,434 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+:root {
+  color-scheme: light dark;
+
+  /* 大面积区域保持指定纯色，交互层级只叠加透明 ink，避免浅灰底和明显分割。 */
+  --ui-color-window: light-dark(#ffffff, #181818);
+  --ui-color-content: light-dark(#ffffff, #181818);
+  --ui-color-sidebar: light-dark(#ffffff, #181818);
+  --ui-color-panel: light-dark(#ffffff, #181818);
+  --ui-color-raised: light-dark(#ffffff, #202020);
+  --ui-color-control: light-dark(rgb(17 17 17 / 0.04), rgb(255 255 255 / 0.07));
+  --ui-color-code-inline: light-dark(rgb(17 17 17 / 0.08), rgb(255 255 255 / 0.12));
+  --ui-color-control-hover: light-dark(rgb(23 23 23 / 0.075), rgb(255 255 255 / 0.1));
+  --ui-color-control-active: light-dark(rgb(0 106 255 / 0.09), rgb(51 156 255 / 0.14));
+  --ui-color-separator: light-dark(rgb(23 23 23 / 0.06), rgb(255 255 255 / 0.07));
+  --ui-color-separator-strong: light-dark(rgb(23 23 23 / 0.11), rgb(255 255 255 / 0.13));
+  --ui-color-text: light-dark(#111111, #ffffff);
+  --ui-color-text-muted: light-dark(rgb(17 17 17 / 0.72), rgb(255 255 255 / 0.68));
+  --ui-color-text-subtle: light-dark(rgb(17 17 17 / 0.52), rgb(255 255 255 / 0.5));
+  --ui-color-accent: light-dark(#006aff, #339cff);
+  --ui-color-accent-strong: light-dark(#0057d6, #69b7ff);
+  --ui-color-accent-soft: light-dark(rgb(0 106 255 / 0.09), rgb(51 156 255 / 0.14));
+  --ui-color-diff-added: light-dark(#28a948, #40c977);
+  --ui-color-diff-removed: light-dark(#eb001d, #fa423e);
+  --ui-color-warning: light-dark(#b25900, #ffb347);
+  --ui-color-task-running: light-dark(#087cf0, #2196ff);
+  --ui-color-task-waiting: light-dark(#e59a00, #ffb300);
+  /* 暖绿完成态与冷蓝运行态拉开色相和明度，保证小圆点也能快速辨认。 */
+  --ui-color-task-completed: light-dark(#4d7c0f, #a3e635);
+  --ui-color-task-failed: light-dark(#ed1b2e, #ff3b4f);
+  --ui-color-danger: var(--ui-color-diff-removed);
+  --ui-color-focus: var(--ui-color-accent);
+  --ui-color-scrim: light-dark(rgb(23 23 23 / 0.16), rgb(0 0 0 / 0.52));
+
+  /* 固定栏使用单像素低对比分隔，保留原生应用的结构感而不形成重边框。 */
+  --ui-shadow-divider: 1px 0 0 var(--ui-color-separator);
+  --ui-shadow-divider-reverse: -1px 0 0 var(--ui-color-separator);
+  --ui-shadow-toolbar: 0 1px 0 var(--ui-color-separator);
+  --ui-shadow-control: 0 1px 2px light-dark(rgb(23 23 23 / 0.07), rgb(0 0 0 / 0.28));
+  --ui-shadow-panel:
+    0 12px 32px light-dark(rgb(23 23 23 / 0.1), rgb(0 0 0 / 0.42)),
+    0 2px 7px light-dark(rgb(23 23 23 / 0.06), rgb(0 0 0 / 0.3));
+  --ui-shadow-floating:
+    0 8px 24px light-dark(rgb(23 23 23 / 0.1), rgb(0 0 0 / 0.4)),
+    0 1px 4px light-dark(rgb(23 23 23 / 0.07), rgb(0 0 0 / 0.3));
+  --ui-shadow-focus: 0 0 0 3px light-dark(rgb(0 106 255 / 0.2), rgb(51 156 255 / 0.25));
+  --ui-shadow-timeline-node: 0 0 0 3px var(--ui-color-content);
+
+  --ui-font-family-text:
+    "Geist", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --ui-font-family-mono:
+    "Geist Mono", ui-monospace, "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
+  /* 提升各层级字重但保留明确级差，增强紧凑工作台中的快速扫描能力。 */
+  --ui-font-weight-regular: 450;
+  --ui-font-weight-medium: 550;
+  --ui-font-weight-semibold: 650;
+  --ui-font-weight-bold: 700;
+  --ui-font-size-caption: 0.625rem;
+  --ui-font-size-meta: 0.6875rem;
+  --ui-font-size-label: 0.75rem;
+  --ui-font-size-body-small: 0.8125rem;
+  --ui-font-size-body: 0.875rem;
+  --ui-font-size-heading: 1rem;
+  --ui-font-size-title: 1.25rem;
+  --ui-font-size-display: 1.5rem;
+  --ui-line-height-tight: 1.25;
+  --ui-line-height-normal: 1.5;
+  --ui-line-height-relaxed: 1.65;
+  --ui-icon-size-default: 1rem;
+
+  --ui-space-unit: 0.25rem;
+  --ui-radius-control: 6px;
+  --ui-radius-surface: 8px;
+  --ui-radius-pill: 9999px;
+  --ui-motion-fast: 120ms;
+  --ui-motion-normal: 180ms;
+  --ui-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ui-layout-toolbar-height: 2.75rem;
+  --ui-layout-workbench-header-height: calc(
+    var(--ui-layout-toolbar-height) + var(--ui-space-unit) * 2
+  );
+  /* Task 树含缩进、状态和操作位，桌面左栏需保留足够的可扫描宽度。 */
+  --ui-layout-sidebar-width: 18rem;
+  --ui-layout-inspector-width: 18rem;
+  --ui-layout-content-width: 48.75rem;
+  --ui-layout-message-width: 90%;
+  --ui-layout-settings-sidebar-width: 13.75rem;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@layer base {
+  /* Lucide 图标统一从 16px 起步，具体控件可通过 size-* 使用更紧凑或语义化尺寸。 */
+  .lucide {
+    width: var(--ui-icon-size-default);
+    height: var(--ui-icon-size-default);
+    flex-shrink: 0;
+  }
+}
+
+.access-code-input {
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shimmer 只用于持续生成状态，并尊重系统的减弱动态效果设置。 */
+.agent-shimmer {
+  color: transparent;
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent calc(50% - var(--ui-shimmer-spread)),
+      var(--ui-color-text),
+      transparent calc(50% + var(--ui-shimmer-spread))
+    ),
+    linear-gradient(var(--ui-color-text-muted), var(--ui-color-text-muted));
+  background-position:
+    100% center,
+    center;
+  background-repeat: no-repeat;
+  background-size:
+    250% 100%,
+    auto;
+  background-clip: text;
+  animation: agent-shimmer var(--ui-shimmer-duration) linear infinite;
+}
+
+@keyframes agent-shimmer {
+  to {
+    background-position:
+      0% center,
+      center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-shimmer {
+    animation: none;
+  }
+}
+
+@theme inline {
+  /* 组件只暴露 CodeAgent 自有语义，不经过外部设计系统 Token 中转。 */
+  --color-background: var(--ui-color-window);
+  --color-window: var(--ui-color-window);
+  --color-content: var(--ui-color-content);
+  --color-sidebar: var(--ui-color-sidebar);
+  --color-panel: var(--ui-color-panel);
+  --color-raised: var(--ui-color-raised);
+  --color-control: var(--ui-color-control);
+  --color-control-hover: var(--ui-color-control-hover);
+  --color-control-active: var(--ui-color-control-active);
+  --color-separator: var(--ui-color-separator);
+  --color-separator-strong: var(--ui-color-separator-strong);
+  --color-foreground: var(--ui-color-text);
+  --color-muted-foreground: var(--ui-color-text-muted);
+  --color-subtle-foreground: var(--ui-color-text-subtle);
+  --color-brand: var(--ui-color-accent);
+  --color-brand-strong: var(--ui-color-accent-strong);
+  --color-brand-soft: var(--ui-color-accent-soft);
+  --color-brand-contrast: light-dark(#ffffff, #071a2b);
+  --color-diff-added: var(--ui-color-diff-added);
+  --color-diff-removed: var(--ui-color-diff-removed);
+  --color-warning: var(--ui-color-warning);
+  --color-task-running: var(--ui-color-task-running);
+  --color-task-waiting: var(--ui-color-task-waiting);
+  --color-task-completed: var(--ui-color-task-completed);
+  --color-task-failed: var(--ui-color-task-failed);
+  --color-danger: var(--ui-color-danger);
+  --color-focus: var(--ui-color-focus);
+  --color-scrim: var(--ui-color-scrim);
+
+  --font-sans: var(--ui-font-family-text);
+  --font-mono: var(--ui-font-family-mono);
+  --font-weight-normal: var(--ui-font-weight-regular);
+  --font-weight-medium: var(--ui-font-weight-medium);
+  --font-weight-semibold: var(--ui-font-weight-semibold);
+  --font-weight-bold: var(--ui-font-weight-bold);
+  --text-xs: var(--ui-font-size-label);
+  --text-xs--line-height: var(--ui-line-height-normal);
+  --text-sm: var(--ui-font-size-body);
+  --text-sm--line-height: var(--ui-line-height-normal);
+  --text-base: var(--ui-font-size-heading);
+  --text-base--line-height: var(--ui-line-height-normal);
+  --text-xl: var(--ui-font-size-title);
+  --text-xl--line-height: var(--ui-line-height-tight);
+  --text-2xl: var(--ui-font-size-display);
+  --text-2xl--line-height: var(--ui-line-height-tight);
+  --text-caption: var(--ui-font-size-caption);
+  --text-caption--line-height: var(--ui-line-height-normal);
+  --text-meta: var(--ui-font-size-meta);
+  --text-meta--line-height: var(--ui-line-height-normal);
+  --text-label: var(--ui-font-size-label);
+  --text-label--line-height: var(--ui-line-height-normal);
+  --text-body-small: var(--ui-font-size-body-small);
+  --text-body-small--line-height: var(--ui-line-height-normal);
+  --text-body: var(--ui-font-size-body);
+  --text-body--line-height: var(--ui-line-height-normal);
+
+  --spacing: var(--ui-space-unit);
+  --spacing-toolbar: var(--ui-layout-toolbar-height);
+  --spacing-workbench-header: var(--ui-layout-workbench-header-height);
+  --spacing-sidebar: var(--ui-layout-sidebar-width);
+  --spacing-inspector: var(--ui-layout-inspector-width);
+  --spacing-content: var(--ui-layout-content-width);
+  --spacing-settings-sidebar: var(--ui-layout-settings-sidebar-width);
+
+  --radius-sm: var(--ui-radius-control);
+  --radius-md: var(--ui-radius-surface);
+  --radius-lg: var(--ui-radius-surface);
+  --radius-control: var(--ui-radius-control);
+  --radius-surface: var(--ui-radius-surface);
+  --radius-pill: var(--ui-radius-pill);
+
+  --shadow-sm: var(--ui-shadow-control);
+  --shadow-md: var(--ui-shadow-panel);
+  --shadow-divider: var(--ui-shadow-divider);
+  --shadow-divider-reverse: var(--ui-shadow-divider-reverse);
+  --shadow-toolbar: var(--ui-shadow-toolbar);
+  --shadow-panel: var(--ui-shadow-panel);
+  --shadow-floating: var(--ui-shadow-floating);
+  --shadow-focus: var(--ui-shadow-focus);
+  --shadow-timeline-node: var(--ui-shadow-timeline-node);
+  --default-transition-duration: var(--ui-motion-fast);
+  --default-transition-timing-function: var(--ui-ease-standard);
+  --breakpoint-workbench: 47.5625rem;
+  --breakpoint-settings: 45.0625rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+html {
+  overflow: hidden;
+  background: var(--ui-color-window);
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--ui-color-window);
+  color: var(--ui-color-text);
+  font-family: var(--font-sans);
+  font-weight: var(--ui-font-weight-regular);
+  letter-spacing: 0;
+  text-rendering: optimizeLegibility;
+}
+
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    /* 移动端地址栏变化时只使用动态视口高度，避免 100vh 与 100dvh 互相撑高页面。 */
+    height: 100dvh;
+  }
+}
+
+#root {
+  /* 根节点统一承接刘海和 Home Indicator 安全区，内部工作台继续按可用内容区计算。 */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  overflow: hidden;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ui-color-focus);
+  outline-offset: 2px;
+}
+
+/* 配对表单由外层 focus-within 绘制焦点，输入框自身不叠加全局轮廓。 */
+.access-code-input:focus-visible {
+  outline: none;
+}
+
+/* Composer 以整体外框表达焦点，内部输入与工具控件不再重复绘制主色轮廓。 */
+[data-prompt-input] :focus-visible {
+  outline: none;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--ui-color-accent) 30%, transparent);
+}
+
+/* Streamdown 保留官方结构，视觉层统一映射到项目 Token，避免默认主题形成嵌套卡片。 */
+[data-streamdown="inline-code"] {
+  border-radius: var(--ui-radius-control) !important;
+  background: var(--ui-color-code-inline) !important;
+  padding: 0.1rem 0.35rem !important;
+  color: var(--ui-color-text) !important;
+  font-family: var(--ui-font-family-mono) !important;
+  font-size: var(--ui-font-size-body-small) !important;
+}
+
+/* 文件引用直接使用消息主色，并把目标行作为弱化的同组信息展示。 */
+.markdown-file-reference {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: calc(var(--ui-space-unit) * 1.25);
+  color: var(--ui-color-accent);
+  font-weight: 600;
+  line-height: inherit;
+  vertical-align: -0.08em;
+  white-space: nowrap;
+}
+
+.markdown-file-reference__line {
+  color: var(--ui-color-accent-strong);
+  font-weight: 500;
+}
+
+/* 列表使用悬挂项目符号，换行后与正文起点对齐，接近官方消息的阅读节奏。 */
+[data-streamdown="unordered-list"],
+[data-streamdown="ordered-list"] {
+  list-style-position: outside !important;
+  padding-inline-start: calc(var(--ui-space-unit) * 5) !important;
+}
+
+/* Tailwind 基础重置会清除列表标记，因此在 Streamdown 语义节点上显式恢复类型。 */
+[data-streamdown="unordered-list"] {
+  list-style-type: disc !important;
+}
+
+[data-streamdown="ordered-list"] {
+  list-style-type: decimal !important;
+}
+
+[data-streamdown="code-block"] {
+  position: relative;
+  gap: 0 !important;
+  overflow: hidden;
+  margin-block: calc(var(--ui-space-unit) * 3) !important;
+  border: 1px solid var(--ui-color-separator-strong) !important;
+  border-radius: var(--ui-radius-surface) !important;
+  background: var(--ui-color-raised) !important;
+  padding: 0 !important;
+  box-shadow: var(--ui-shadow-control);
+}
+
+/* Streamdown 原本依靠其包内的 -mt-10 抵消操作层高度；显式脱离文档流可避免代码正文上方留白。 */
+[data-streamdown="code-block"] > :has([data-streamdown="code-block-actions"]) {
+  position: absolute !important;
+  z-index: 1;
+  top: 0 !important;
+  right: 0;
+  width: auto;
+  margin-top: 0 !important;
+}
+
+[data-streamdown="code-block-header"] {
+  height: 2rem !important;
+  border-bottom: 1px solid var(--ui-color-separator) !important;
+  background: var(--ui-color-control) !important;
+  padding-inline: calc(var(--ui-space-unit) * 3) !important;
+  color: var(--ui-color-text-muted) !important;
+  font-size: var(--ui-font-size-label) !important;
+}
+
+[data-streamdown="code-block-header"] > span {
+  margin-left: 0 !important;
+}
+
+[data-streamdown="code-block-actions"] {
+  /* Tailwind 不扫描依赖源码，显式恢复 Streamdown 操作区的点击能力。 */
+  pointer-events: auto;
+  gap: calc(var(--ui-space-unit) * 1.5) !important;
+  border: 0 !important;
+  border-radius: var(--ui-radius-control) !important;
+  background: transparent !important;
+  padding: calc(var(--ui-space-unit) * 1.5) !important;
+  backdrop-filter: none !important;
+}
+
+[data-streamdown="code-block-actions"] button {
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-color-text-muted) !important;
+}
+
+[data-streamdown="code-block-actions"] button:hover {
+  background: var(--ui-color-control-hover);
+  color: var(--ui-color-text) !important;
+}
+
+[data-streamdown="code-block-body"] {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: calc(var(--ui-space-unit) * 3) !important;
+  color: var(--ui-color-text) !important;
+  font-size: var(--ui-font-size-body-small) !important;
+}
+
+[data-streamdown="code-block-body"] pre {
+  margin: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  font-family: var(--ui-font-family-mono) !important;
+  line-height: var(--ui-line-height-relaxed) !important;
+}
+
+.file-diff-renderer {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}

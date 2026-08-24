@@ -1,0 +1,157 @@
+import type { AgentProvider, AgentRuntimeProvider, RegisterProjectInput } from "@code-agent/core";
+import type {
+  AgentGlobalSettings,
+  AgentProviderConnectionRecord,
+  AgentProviderConnectionStatus,
+  AgentProjectDefaults,
+  AgentTaskSettings,
+  Project,
+} from "@code-agent/protocol";
+import { expect, vi } from "vitest";
+import { project, temporaryProject } from "./app.test-support.js";
+
+// 组合设置仓库与 Runtime 选项，保持各路由测试的启动方式一致。
+export function createSettingsRepository() {
+  let providerConnection: AgentProviderConnectionRecord | undefined;
+  const readGlobalSettings = vi.fn(() =>
+    Promise.resolve<AgentGlobalSettings | undefined>(undefined),
+  );
+  const readProjectDefaults = vi.fn(() =>
+    Promise.resolve<AgentProjectDefaults | undefined>(undefined),
+  );
+  const readTaskSettings = vi.fn(() => Promise.resolve<AgentTaskSettings | undefined>(undefined));
+  const writeProjectDefaults = vi.fn((_projectId: string, settings: AgentProjectDefaults) =>
+    Promise.resolve(settings),
+  );
+  const writeGlobalSettings = vi.fn((_settings: AgentGlobalSettings) => Promise.resolve(_settings));
+  const writeTaskSettings = vi.fn(
+    (_projectId: string, _taskId: string, settings: AgentTaskSettings) => Promise.resolve(settings),
+  );
+  const readProviderConnection = vi.fn(() => Promise.resolve(providerConnection));
+  const writeProviderConnection = vi.fn((record: AgentProviderConnectionRecord) => {
+    providerConnection = record;
+    return Promise.resolve(record);
+  });
+  return {
+    readProviderConnection,
+    readGlobalSettings,
+    readProjectDefaults,
+    readTaskSettings,
+    repository: {
+      readProviderConnection,
+      readGlobalSettings,
+      readProjectDefaults,
+      readTaskSettings,
+      writeGlobalSettings,
+      writeProviderConnection,
+      writeProjectDefaults,
+      writeTaskSettings,
+    },
+    writeGlobalSettings,
+    writeProviderConnection,
+    writeProjectDefaults,
+    writeTaskSettings,
+  };
+}
+
+export function createRuntimeConnectionMethods(): Pick<
+  AgentRuntimeProvider,
+  | "cancelProviderLogin"
+  | "configureCustomProvider"
+  | "logoutProvider"
+  | "readProviderConnection"
+  | "startOfficialProviderLogin"
+> {
+  const status: AgentProviderConnectionStatus = {
+    account: null,
+    customBaseUrl: null,
+    mode: "official",
+    pendingLogin: null,
+    state: "disconnected",
+  };
+  return {
+    cancelProviderLogin: vi.fn(() => Promise.resolve({ status })),
+    configureCustomProvider: vi.fn(() => Promise.reject(new Error("Not configured"))),
+    logoutProvider: vi.fn(() => Promise.resolve({ status })),
+    readProviderConnection: vi.fn(() => Promise.resolve(status)),
+    startOfficialProviderLogin: vi.fn(() => Promise.reject(new Error("Not configured"))),
+  };
+}
+
+export function createServerOptions(
+  provider: AgentProvider,
+  overrides: Record<string, unknown> = {},
+  readDefaultSettings = vi.fn(() => Promise.resolve({})),
+) {
+  const orderedProjects: Project[] = [project];
+  const runtimeProvider: AgentRuntimeProvider = {
+    ...createRuntimeConnectionMethods(),
+    forProject: () => provider,
+    forTemporary: () => provider,
+    getCapabilities: () => provider.getCapabilities(),
+    listModels: () => provider.listModels(),
+    readDefaultSettings,
+    releaseProject: () => Promise.resolve(),
+  };
+  const stateRepository = createSettingsRepository().repository;
+  return {
+    handlerTimeoutMs: 0,
+    installAppUpdate: vi.fn(() => Promise.reject(new Error("No update available"))),
+    loggerEnabled: false,
+    projectRepository: {
+      list: vi.fn(() => Promise.resolve(orderedProjects)),
+      read: vi.fn((projectId: string) =>
+        Promise.resolve(
+          projectId === project.id
+            ? project
+            : projectId === temporaryProject.id
+              ? temporaryProject
+              : undefined,
+        ),
+      ),
+      register: vi.fn((input: RegisterProjectInput) => {
+        expect(input.idempotencyKey).toBe("add-project");
+        return Promise.resolve(project);
+      }),
+      remove: vi.fn((projectId: string) => {
+        const projectIndex = orderedProjects.findIndex((item) => item.id === projectId);
+        if (projectIndex < 0) {
+          return Promise.resolve(false);
+        }
+        orderedProjects.splice(projectIndex, 1);
+        return Promise.resolve(true);
+      }),
+      rename: vi.fn((projectId: string, name: string) => {
+        const projectIndex = orderedProjects.findIndex((item) => item.id === projectId);
+        const currentProject = orderedProjects[projectIndex];
+        if (currentProject === undefined) {
+          return Promise.resolve(undefined);
+        }
+        const renamedProject = { ...currentProject, name };
+        orderedProjects[projectIndex] = renamedProject;
+        return Promise.resolve(renamedProject);
+      }),
+      reorder: vi.fn((projectIds: readonly string[]) => {
+        const reordered = projectIds.map((projectId) =>
+          orderedProjects.find((currentProject) => currentProject.id === projectId),
+        );
+        return Promise.resolve(reordered.filter((item) => item !== undefined));
+      }),
+    },
+    providerConnectionRepository: stateRepository,
+    provider: runtimeProvider,
+    readAppInfo: vi.fn(() =>
+      Promise.resolve({
+        appVersion: "1.3.0",
+        codexVersion: "0.149.0",
+        latestVersion: "1.3.0",
+        releaseNotes: null,
+        status: "current" as const,
+        updateAvailable: false,
+      }),
+    ),
+    settingsRepository: stateRepository,
+    temporaryWorkspace: temporaryProject.rootPath,
+    ...overrides,
+  };
+}

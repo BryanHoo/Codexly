@@ -1,0 +1,101 @@
+# 依赖与包管理器
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+
+# 构建与 TypeScript 产物
+dist/
+.cache/
+.artifacts/
+.vite/
+.vite-inspect/
+.rollup.cache/
+*.tsbuildinfo
+*.tgz
+
+# 测试与覆盖率
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+*.lcov
+
+# 日志与进程状态
+logs/
+*.log
+*.log.*
+*.pid
+*.pid.lock
+
+# 环境变量与本地配置
+.env
+.env.*
+!.env.example
+!.env.*.example
+.direnv/
+.local/
+
+# 本地应用数据
+.data/
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
+
+# 临时文件
+.tmp/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Visual Studio Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# JetBrains IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# 其他编辑器
+.fleet/
+.zed/
+.history/
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux 桌面环境
+.directory
+.Trash-*

@@ -1,0 +1,45 @@
+{
+  "name": "@code-agent/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build && node ../../tools/precompress-web-assets.mjs ../../dist/web",
+    "dev": "vite --host 127.0.0.1",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@code-agent/client": "workspace:*",
+    "@code-agent/protocol": "workspace:*",
+    "@headless-tree/core": "catalog:",
+    "@headless-tree/react": "catalog:",
+    "@pierre/diffs": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "@tanstack/react-virtual": "catalog:",
+    "anser": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "i18next": "catalog:",
+    "lucide-react": "catalog:",
+    "radix-ui": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-i18next": "catalog:",
+    "shiki": "catalog:",
+    "sonner": "catalog:",
+    "streamdown": "catalog:",
+    "tailwind-merge": "catalog:",
+    "tw-animate-css": "catalog:",
+    "uuid": "catalog:",
+    "zustand": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "tailwindcss": "catalog:",
+    "vite": "catalog:"
+  }
+}

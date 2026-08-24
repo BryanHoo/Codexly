@@ -1,0 +1,24 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "lib": ["ES2024", "DOM"],
+    "noEmit": true,
+    "paths": {
+      "@code-agent/client": ["../packages/client/src/index.ts"],
+      "@code-agent/core": ["../packages/core/src/index.ts"],
+      "@code-agent/protocol": ["../packages/protocol/src/index.ts"],
+      "@code-agent/provider-codex": ["../packages/provider-codex/src/index.ts"],
+      "@code-agent/server": ["../packages/server/src/index.ts"]
+    },
+    "tsBuildInfoFile": "../.cache/types/tests.tsbuildinfo",
+    "types": ["node", "@playwright/test", "vitest"]
+  },
+  "include": ["e2e/**/*.ts", "*.test.ts"],
+  "references": [
+    { "path": "../packages/protocol" },
+    { "path": "../packages/provider-codex" },
+    { "path": "../packages/server" },
+    { "path": "../packages/client" }
+  ]
+}

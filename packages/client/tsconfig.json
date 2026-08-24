@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "outDir": "../../.cache/types/client",
+    "rootDir": "src",
+    "tsBuildInfoFile": "../../.cache/types/client.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../protocol" }]
+}

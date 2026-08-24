@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "outDir": "../../.cache/types/protocol",
+    "rootDir": "src",
+    "tsBuildInfoFile": "../../.cache/types/protocol.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"]
+}

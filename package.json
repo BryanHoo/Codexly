@@ -1,0 +1,87 @@
+{
+  "name": "@bryanhu/code-agent",
+  "version": "1.14.1",
+  "description": "通过 Web 操作本地 Coding Agent 的应用",
+  "type": "module",
+  "author": "BryanHu",
+  "homepage": "https://github.com/BryanHoo/CodeAgent#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BryanHoo/CodeAgent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/BryanHoo/CodeAgent/issues"
+  },
+  "keywords": [
+    "ai",
+    "codex",
+    "coding-agent",
+    "developer-tools",
+    "web"
+  ],
+  "packageManager": "pnpm@11.15.1",
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "bin": {
+    "code-agent": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "audit:prod": "pnpm audit --prod --audit-level moderate",
+    "build": "pnpm run clean && pnpm run typecheck && pnpm --filter @code-agent/web build && pnpm run build:node",
+    "build:node": "tsup",
+    "bundle:check": "node ./tools/verify-web-bundle.mjs --report .artifacts/web-bundle-report.json",
+    "bundle:report": "node ./tools/verify-web-bundle.mjs --read-report .artifacts/web-bundle-report.json",
+    "check": "pnpm run audit:prod && pnpm run codex:schema:check && pnpm run format:check && pnpm run lint && pnpm run lint:architecture && pnpm run test && pnpm run test:performance && pnpm run build && pnpm run bundle:check && pnpm run package:check",
+    "clean": "node ./tools/clean.mjs",
+    "codex:schema:check": "node ./tools/verify-codex-schema.mjs",
+    "codex:schema:update": "node ./tools/verify-codex-schema.mjs --update",
+    "dev": "pnpm --filter @code-agent/web dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings 0",
+    "lint:architecture": "depcruise --config dependency-cruiser.config.cjs src apps/web/src packages/client/src packages/core/src packages/protocol/src packages/provider-codex/src packages/server/src",
+    "package:check": "node ./tools/verify-package.mjs",
+    "start": "pnpm run build && node ./dist/cli.js start",
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "test:e2e": "pnpm build && playwright test",
+    "test:performance": "node --expose-gc ./node_modules/vitest/vitest.mjs run --config vitest.performance.config.ts",
+    "typecheck": "tsc -b --pretty false",
+    "prepublishOnly": "pnpm run check"
+  },
+  "dependencies": {
+    "@openai/codex": "catalog:",
+    "better-sqlite3": "catalog:"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@playwright/test": "catalog:",
+    "@types/node": "catalog:",
+    "@types/ws": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "dependency-cruiser": "catalog:",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "eslint-plugin-jsx-a11y": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "globals": "catalog:",
+    "prettier": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:",
+    "ws": "catalog:"
+  },
+  "license": "MIT"
+}
