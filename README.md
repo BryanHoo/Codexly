@@ -4,6 +4,10 @@ English | [简体中文](README.zh-CN.md)
 
 Codexly is a local AI coding workspace for using Codex in a browser. It organizes work by project, streams Codex activity, and provides file, code review, and Git tools while the host computer remains the source of its project filesystem.
 
+## Preview
+
+![Codexly preview](docs/images/codexly-preview.png)
+
 ## Features
 
 - Run project or temporary Codex tasks and follow responses, commands, and file changes in real time
@@ -81,6 +85,10 @@ npm install --global @bryanhu/codexly@latest
 - [Contributing guide](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
+
+## Community
+
+Thanks to the [LinuxDO](https://linux.do/) community for their support
 
 ## License
 
