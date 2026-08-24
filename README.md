@@ -41,7 +41,7 @@ For regular use, install Codexly globally:
 
 ```bash
 npm install --global @bryanhu/codexly
-codexly start
+codexly
 ```
 
 ## Usage

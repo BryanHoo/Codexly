@@ -37,7 +37,7 @@ Codexly 会自动打开浏览器。若未打开，请访问终端输出的地址
 
 ```bash
 npm install --global @bryanhu/codexly
-codexly start
+codexly
 ```
 
 ## 使用方式
