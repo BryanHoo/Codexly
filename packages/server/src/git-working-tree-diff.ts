@@ -3,7 +3,7 @@ import { isAbsolute, relative, resolve } from "node:path";
 
 import type { AgentItem, ProjectGitStatus } from "@codexly/protocol";
 
-import type { GitCommandExecutor } from "./git-command.js";
+import { GitCommandOutputLimitError, type GitCommandExecutor } from "./git-command.js";
 
 export type GitFileChange = Extract<AgentItem, { type: "file_change" }>["changes"][number];
 export type GitWorkingTreeChanges = Pick<ProjectGitStatus, "staged" | "unstaged">;
@@ -288,19 +288,48 @@ export async function readTrackedFileChanges(
   if (entries.length === 0) {
     return [];
   }
-  const output = await gitCommandExecutor(projectRoot, [
-    "diff",
-    ...(location === "staged" ? ["--cached"] : []),
-    "--no-color",
-    "--no-ext-diff",
-    "--patch-with-raw",
-    "-z",
-  ]);
-  const diffs = parseTrackedDiffs(output);
 
-  return entries.map((entry) => ({
-    diff: diffs.get(entry.path) ?? "",
-    kind: resolveChangeKind(location === "staged" ? entry.indexStatus : entry.workingTreeStatus),
-    path: entry.path,
-  }));
+  const createChanges = (
+    selectedEntries: readonly WorkingTreeEntry[],
+    diffs: ReadonlyMap<string, string> = new Map(),
+  ): GitFileChange[] =>
+    selectedEntries.map((entry) => ({
+      diff: diffs.get(entry.path) ?? "",
+      kind: resolveChangeKind(location === "staged" ? entry.indexStatus : entry.workingTreeStatus),
+      path: entry.path,
+    }));
+
+  const readBatch = async (
+    selectedEntries: readonly WorkingTreeEntry[],
+  ): Promise<GitFileChange[]> => {
+    try {
+      const output = await gitCommandExecutor(projectRoot, [
+        "diff",
+        ...(location === "staged" ? ["--cached"] : []),
+        "--no-color",
+        "--no-ext-diff",
+        "--patch-with-raw",
+        "-z",
+        "--",
+        ...selectedEntries.map((entry) => `:(literal)${entry.path}`),
+      ]);
+      return createChanges(selectedEntries, parseTrackedDiffs(output));
+    } catch (error) {
+      if (!(error instanceof GitCommandOutputLimitError)) {
+        throw error;
+      }
+      if (selectedEntries.length === 1) {
+        // 单文件仍超过命令上限时只省略正文，保留路径和变更类型供摘要生成。
+        return createChanges(selectedEntries);
+      }
+
+      const middle = Math.ceil(selectedEntries.length / 2);
+      // 顺序拆分控制峰值内存；任一子批次成功后仍可提供代表性 diff。
+      const left = await readBatch(selectedEntries.slice(0, middle));
+      const right = await readBatch(selectedEntries.slice(middle));
+      return [...left, ...right];
+    }
+  };
+
+  return readBatch(entries);
 }

@@ -34,6 +34,13 @@ type GitCommandExecutorOptions = Readonly<{
   timeoutMs?: number;
 }>;
 
+export class GitCommandOutputLimitError extends Error {
+  public constructor() {
+    super("Git command output exceeded the limit");
+    this.name = "GitCommandOutputLimitError";
+  }
+}
+
 function chunkByteLength(chunk: unknown): number {
   if (Buffer.isBuffer(chunk)) {
     return chunk.byteLength;
@@ -87,7 +94,7 @@ export function createGitCommandExecutor(
       const countOutput = (chunk: unknown) => {
         outputBytes += chunkByteLength(chunk);
         if (outputBytes > maxOutputBytes) {
-          fail(new Error("Git command output exceeded the limit"));
+          fail(new GitCommandOutputLimitError());
         }
       };
       stdout.on("data", countOutput);

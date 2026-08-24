@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { GitCommandOutputLimitError } from "./git-command.js";
 import {
   invalidateProjectGitBranchCache,
   readGitWorkingTreeStatus,
@@ -166,12 +167,11 @@ describe("readGitWorkingTreeStatus", () => {
 
         diffCommands.push([...arguments_]);
         const location = arguments_.includes("--cached") ? "staged" : "unstaged";
-        const requestedPath = arguments_.find((argument) => argument.startsWith(":(literal)"));
-        if (requestedPath !== undefined) {
-          const path = requestedPath.replace(":(literal)", "");
-          return Promise.resolve(
-            `diff --git a/${path} b/${path}\n--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-old\n+${location}\n`,
-          );
+        const requestedPaths = arguments_
+          .filter((argument) => argument.startsWith(":(literal)"))
+          .map((argument) => argument.replace(":(literal)", ""));
+        if (requestedPaths.length > 0) {
+          return Promise.resolve(createGitDiffOutput(requestedPaths, location));
         }
 
         const paths =
@@ -195,6 +195,51 @@ describe("readGitWorkingTreeStatus", () => {
         expect.stringContaining("+unstaged"),
         expect.stringContaining("+unstaged"),
         expect.stringContaining("+unstaged"),
+      ]);
+    } finally {
+      await rm(projectRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("splits oversized tracked diffs and omits only a still-oversized file", async () => {
+    const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
+    try {
+      await mkdir(join(projectRoot, ".git"));
+      const diffCommands: string[][] = [];
+      const executeGit = (_root: string, arguments_: readonly string[]) => {
+        if (arguments_[0] === "status") {
+          return Promise.resolve(" M readable.txt\0 M oversized.txt\0");
+        }
+        if (arguments_[0] !== "diff") {
+          return Promise.resolve("");
+        }
+
+        diffCommands.push([...arguments_]);
+        const requestedPaths = arguments_
+          .filter((argument) => argument.startsWith(":(literal)"))
+          .map((argument) => argument.replace(":(literal)", ""));
+        if (requestedPaths.length !== 1 || requestedPaths[0] === "oversized.txt") {
+          return Promise.reject(new GitCommandOutputLimitError());
+        }
+        return Promise.resolve(createGitDiffOutput(requestedPaths, "readable"));
+      };
+
+      const status = await readGitWorkingTreeStatus(projectRoot, executeGit, {
+        includeDiff: true,
+      });
+
+      expect(status.unstaged.find((change) => change.path === "readable.txt")?.diff).toContain(
+        "+readable",
+      );
+      expect(status.unstaged.find((change) => change.path === "oversized.txt")?.diff).toBe("");
+      expect(
+        diffCommands.map((arguments_) =>
+          arguments_.filter((argument) => argument.startsWith(":(literal)")),
+        ),
+      ).toEqual([
+        [":(literal)readable.txt", ":(literal)oversized.txt"],
+        [":(literal)readable.txt"],
+        [":(literal)oversized.txt"],
       ]);
     } finally {
       await rm(projectRoot, { force: true, recursive: true });
