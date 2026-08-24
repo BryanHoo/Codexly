@@ -81,6 +81,27 @@ describe("app update service", () => {
     });
   });
 
+  it.each([401, 404])(
+    "treats registry status %i for an unpublished initial package as current",
+    async (status) => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("Not published", { status }));
+      const service = createAppUpdateService({
+        appVersion: "0.1.0",
+        codexVersion: "0.149.0",
+        runNpmInstall: vi.fn(),
+      });
+
+      await expect(service.read()).resolves.toEqual({
+        appVersion: "0.1.0",
+        codexVersion: "0.149.0",
+        latestVersion: "0.1.0",
+        releaseNotes: null,
+        status: "current",
+        updateAvailable: false,
+      });
+    },
+  );
+
   it("keeps the available update when release notes cannot be loaded", async () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",

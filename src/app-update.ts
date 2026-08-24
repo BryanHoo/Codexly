@@ -4,6 +4,7 @@ import { win32 } from "node:path";
 import type { AppInfoResponse, InstallAppUpdateResponse } from "@codexly/protocol";
 
 const PACKAGE_NAME = "@bryanhu/codexly";
+const INITIAL_APP_VERSION = "0.1.0";
 const CHANGELOG_URL_PREFIX = "https://raw.githubusercontent.com/BryanHoo/Codexly/v";
 const REGISTRY_TIMEOUT_MS = 10_000;
 const MAX_RELEASE_NOTES_BYTES = 32 * 1024;
@@ -45,6 +46,8 @@ type NpmInstallInvocation = Readonly<{
   args: readonly string[];
   command: string;
 }>;
+
+class UnpublishedPackageError extends Error {}
 
 function parseSemanticVersion(version: string): ParsedVersion | undefined {
   const match = SEMANTIC_VERSION_PATTERN.exec(version);
@@ -148,6 +151,10 @@ async function fetchLatestPackageVersion(): Promise<string> {
       signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS),
     },
   );
+  // npm 对尚未发布的 scoped package 可能返回 401 或 404。
+  if (response.status === 401 || response.status === 404) {
+    throw new UnpublishedPackageError("Package has not been published");
+  }
   if (!response.ok) throw new Error(`Registry returned ${String(response.status)}`);
   const payload: unknown = await response.json();
   if (
@@ -198,7 +205,11 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
       const latestVersion = await fetchLatestVersion();
       if (parseSemanticVersion(latestVersion) === undefined) throw new Error("Invalid version");
       return latestVersion;
-    } catch {
+    } catch (error) {
+      // 首版本发布前没有 registry 基准，将本地首版本视为当前版本。
+      if (error instanceof UnpublishedPackageError && options.appVersion === INITIAL_APP_VERSION) {
+        return options.appVersion;
+      }
       throw new AppUpdateError("UPDATE_CHECK_FAILED", "Failed to check for Codexly updates");
     }
   };
