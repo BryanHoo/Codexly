@@ -6,6 +6,11 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } fr
 
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
 import {
+  getMarkdownPreviewPreferenceStorage,
+  readMarkdownPreviewPreference,
+  writeMarkdownPreviewPreference,
+} from "../markdown-preview-preference.js";
+import {
   CodeBlock,
   CodeBlockActions,
   CodeBlockCopyButton,
@@ -141,8 +146,9 @@ export function ProjectSourcePanel({
 }: ProjectSourcePanelProps) {
   const { t } = useTranslation("workbench");
   const contentRef = useRef<HTMLElement>(null);
-  // 渲染状态绑定源文件路径，切换文件或关闭标签后必须回到原始内容。
-  const [renderedMarkdownPath, setRenderedMarkdownPath] = useState<string | null>(null);
+  const [preferMarkdownPreview, setPreferMarkdownPreview] = useState(() =>
+    readMarkdownPreviewPreference(getMarkdownPreviewPreferenceStorage()),
+  );
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const sourceQuery = useInfiniteQuery({
     enabled: previewKind === "source",
@@ -165,6 +171,14 @@ export function ProjectSourcePanel({
     () => (sourcePages === undefined ? undefined : mergeProjectSourcePages(sourcePages)),
     [sourcePages],
   );
+  const sourcePath = sourceData?.path ?? reference.path;
+  const sourceContent = sourceData?.content ?? "";
+  const fileName = getFileName(sourcePath);
+  const imageUrl = buildProjectImageFileUrl("", projectId, reference.path, rootPath);
+  const sourceLanguage = getCodeLanguage(sourcePath);
+  const isMarkdown = sourceLanguage === "markdown" || sourceLanguage === "mdx";
+  const canRenderMarkdown = isMarkdown && sourceData?.nextCursor === null;
+  const showRenderedMarkdown = canRenderMarkdown && preferMarkdownPreview;
 
   useEffect(() => {
     setImageLoadFailed(false);
@@ -172,11 +186,7 @@ export function ProjectSourcePanel({
 
   useEffect(() => {
     const lineNumber = reference.lineNumber;
-    if (
-      sourceData === undefined ||
-      lineNumber === null ||
-      renderedMarkdownPath === sourceData.path
-    ) {
+    if (sourceData === undefined || lineNumber === null || showRenderedMarkdown) {
       return;
     }
 
@@ -197,18 +207,9 @@ export function ProjectSourcePanel({
     hasNextSourcePage,
     isFetchingNextSourcePage,
     reference.lineNumber,
-    renderedMarkdownPath,
     sourceData,
+    showRenderedMarkdown,
   ]);
-
-  const sourcePath = sourceData?.path ?? reference.path;
-  const sourceContent = sourceData?.content ?? "";
-  const fileName = getFileName(sourcePath);
-  const imageUrl = buildProjectImageFileUrl("", projectId, reference.path, rootPath);
-  const sourceLanguage = getCodeLanguage(sourcePath);
-  const isMarkdown = sourceLanguage === "markdown" || sourceLanguage === "mdx";
-  const canRenderMarkdown = isMarkdown && sourceData?.nextCursor === null;
-  const showRenderedMarkdown = canRenderMarkdown && renderedMarkdownPath === sourcePath;
   const sourceStatus: SourceHeaderProps["sourceStatus"] =
     sourceData === undefined
       ? null
@@ -232,6 +233,10 @@ export function ProjectSourcePanel({
     const scrollTarget = event.target;
     if (!(scrollTarget instanceof HTMLElement) || !shouldLoadNextSourcePage(scrollTarget)) return;
     void fetchNextSourcePage();
+  };
+  const updateMarkdownPreviewPreference = (preview: boolean) => {
+    setPreferMarkdownPreview(preview);
+    writeMarkdownPreviewPreference(preview, getMarkdownPreviewPreferenceStorage());
   };
 
   return (
@@ -292,7 +297,7 @@ export function ProjectSourcePanel({
                   <Button
                     aria-label={t("projectDialog.showRawContent")}
                     onClick={() => {
-                      setRenderedMarkdownPath(null);
+                      updateMarkdownPreviewPreference(false);
                     }}
                     size="icon-sm"
                     type="button"
@@ -327,7 +332,7 @@ export function ProjectSourcePanel({
                       <Button
                         aria-label={t("projectDialog.previewMarkdown")}
                         onClick={() => {
-                          setRenderedMarkdownPath(sourcePath);
+                          updateMarkdownPreviewPreference(true);
                         }}
                         size="icon-sm"
                         type="button"

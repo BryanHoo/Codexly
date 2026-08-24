@@ -166,6 +166,10 @@ test("loads long source files while scrolling", async ({ context, page }) => {
   await expect(filePanel.getByRole("heading", { name: "11.7 外部登录边界" })).toBeVisible();
   await expect(filePanel.locator('[data-language="markdown"]')).not.toBeAttached();
 
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await sourceReference.click();
+  await expect(filePanel.getByRole("heading", { name: "11.7 外部登录边界" })).toBeVisible();
+
   await filePanel.getByRole("button", { name: "显示原始内容" }).click();
   await expect(filePanel.locator('[data-language="markdown"]')).toBeVisible();
 
