@@ -9,13 +9,13 @@
       stroke-width: 5;
     }
     .brand-chevron { stroke: #ffffff; }
-    .brand-cursor { stroke: #339cff; stroke-width: 4.25; }
+    .brand-cursor { stroke: #339cff; }
   </style>
 
   <rect class="mark-background" width="64" height="64" rx="14" />
   <!-- 白色提示符表达 Coding Agent，蓝色光标提供 Codexly 品牌识别。 -->
   <g id="codexly-symbol" class="brand-symbol" aria-hidden="true">
-    <path class="brand-chevron" d="m18 22 10 10-10 10" />
-    <path class="brand-cursor" d="M34 42h12" />
+    <path class="brand-chevron" d="m19 24 8 8-8 8" />
+    <path class="brand-cursor" d="M34 40h12" />
   </g>
 </svg>

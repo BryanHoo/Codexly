@@ -9,7 +9,7 @@
       stroke-width: 5;
     }
     .brand-chevron { stroke: #ffffff; }
-    .brand-cursor { stroke: #339cff; stroke-width: 4.25; }
+    .brand-cursor { stroke: #339cff; }
     .logo-text {
       fill: #111111;
       font-family: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
@@ -27,8 +27,8 @@
   <rect class="logo-background" width="64" height="64" rx="14" />
   <!-- 与独立 mark、favicon 共用完全一致的 `>_` 几何。 -->
   <g id="codexly-symbol" class="brand-symbol" aria-hidden="true">
-    <path class="brand-chevron" d="m18 22 10 10-10 10" />
-    <path class="brand-cursor" d="M34 42h12" />
+    <path class="brand-chevron" d="m19 24 8 8-8 8" />
+    <path class="brand-cursor" d="M34 40h12" />
   </g>
   <text class="logo-text" x="78" y="32" dominant-baseline="central">Codexly</text>
 </svg>
