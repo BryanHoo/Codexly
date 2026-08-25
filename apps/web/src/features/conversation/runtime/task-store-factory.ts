@@ -161,13 +161,24 @@ export function createTaskStore(
       ) {
         throw new Error("Task store identity does not match the snapshot");
       }
-      set((state) => ({
-        ...normalizeSnapshot(reconcileSnapshot(state, response)),
-        // 即使 Task 元数据未变，缺失或新增 Turn 也必须通知快照消费者重新读取 Store。
-        itemStructureRevision: state.itemStructureRevision + 1,
-        connectionState: "connecting",
-        error: null,
-      }));
+      set((state) => {
+        const checkpoint = state.checkpoint;
+        if (
+          checkpoint !== null &&
+          checkpoint.sessionId === response.checkpoint.sessionId &&
+          checkpoint.sequence > response.checkpoint.sequence
+        ) {
+          // 同一事件会话内禁止旧 Snapshot 回滚 Store，否则历史回放会重复追加 Delta。
+          return state;
+        }
+        return {
+          ...normalizeSnapshot(reconcileSnapshot(state, response)),
+          // 即使 Task 元数据未变，缺失或新增 Turn 也必须通知快照消费者重新读取 Store。
+          itemStructureRevision: state.itemStructureRevision + 1,
+          connectionState: "connecting",
+          error: null,
+        };
+      });
     },
     getItem: (itemId, turnId) =>
       get().itemStoresByKey.get(createTaskItemKey(turnId, itemId))?.read(),

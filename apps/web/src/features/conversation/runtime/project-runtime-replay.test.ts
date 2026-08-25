@@ -76,6 +76,29 @@ describe("project runtime replay", () => {
     manager.dispose();
   });
 
+  it("keeps a streamed message stable when a stale snapshot is reconciled", () => {
+    const harness = createClientHarness();
+    const manager = createProjectRuntimeManager(harness.client);
+    const response = createSnapshotResponse("task-1");
+    const store = createTaskStore({ projectId: "project-1", taskId: "task-1" });
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn(() => 1),
+    );
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+
+    const detach = manager.attachTaskStore(response, store, vi.fn());
+    harness.emit(createMessageDeltaEvent("task-1", 1, "只追加一次"));
+    manager.reconcileTaskSnapshot(response);
+
+    expect(store.getState().getItem("message-task-1", "turn-task-1")).toMatchObject({
+      text: "只追加一次",
+    });
+    expect(store.getState().checkpoint?.sequence).toBe(1);
+    detach();
+    manager.dispose();
+  });
+
   it("replays wrapped Project history without shifting the backing array", () => {
     const harness = createClientHarness();
     const manager = createProjectRuntimeManager(harness.client, {
