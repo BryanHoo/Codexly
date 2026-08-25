@@ -71,7 +71,7 @@ test("用户消息快捷导航保持显示并跳转到对应消息", async ({ pa
     };
   };
   await expect.poll(readMarkerRightClearance).toEqual({
-    gapBeyondScrollbar: 14,
+    gapBeyondScrollbar: 10,
     scrollable: true,
   });
   const readMarkerStyle = () =>
@@ -148,7 +148,7 @@ test("用户消息快捷导航保持显示并跳转到对应消息", async ({ pa
   await expect(navigation).toBeVisible();
   await expect(navigation).toBeInViewport();
   await expect.poll(readMarkerRightClearance).toEqual({
-    gapBeyondScrollbar: 14,
+    gapBeyondScrollbar: 10,
     scrollable: true,
   });
   await page.setViewportSize({ height: 720, width: 320 });

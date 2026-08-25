@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Goal:** 在桌面中栏内部右侧、避开滚动条并距右栏分割线至少 `14px` 提供基于用户消息的快捷导航，支持当前项反馈、悬浮预览和精确跳转，并在移动端或仅有一条用户消息时隐藏。
+**Goal:** 在桌面中栏内部右侧、避开滚动条并距右栏分割线至少 `10px` 提供基于用户消息的快捷导航，支持当前项反馈、悬浮预览和精确跳转，并在移动端或仅有一条用户消息时隐藏。
 
 **Suggested Spec Reads:**
 
@@ -9,7 +9,7 @@
 - `.superwork/spec/frontend/quality-guidelines.md` — 约束 Vitest、Playwright、桌面/移动布局和用户可观察行为验证。
 - `.superwork/spec/guides/index.md` — 约束项目命令、文件长度与最终门禁。
 
-**Architecture:** 从归一化 Task Store 的 Turn/Item 顺序派生用户消息锚点；导航组件只消费稳定锚点视图模型。点击时由现有 `ConversationVirtualList` 先滚动到目标 Turn，待虚拟节点挂载后再按复合 Item Key 精确滚动到目标消息。会话滚动容器暴露平台实际 scrollbar 占位宽度和滚动位置，导航据此固定在中栏右侧、在滚动条内侧继续保留 `14px` 间距并标记当前阅读位置。
+**Architecture:** 从归一化 Task Store 的 Turn/Item 顺序派生用户消息锚点；导航组件只消费稳定锚点视图模型。点击时由现有 `ConversationVirtualList` 先滚动到目标 Turn，待虚拟节点挂载后再按复合 Item Key 精确滚动到目标消息。会话滚动容器暴露平台实际 scrollbar 占位宽度和滚动位置，导航据此固定在中栏右侧、在滚动条内侧继续保留 `10px` 间距并标记当前阅读位置。
 
 **Tech Stack:** React 19、TypeScript、Zustand、TanStack Virtual、Tailwind CSS v4、Radix Tooltip、Vitest、Playwright。
 
@@ -67,7 +67,7 @@ Expected: 导航提取、单条隐藏、顺序和预览文案测试全部通过�
 
 **Behavior:**
 
-- 在桌面中栏内部右侧垂直居中显示导航；按实际 scrollbar 占位宽度避让，并在其内侧与中栏/右栏分割线保留至少 `14px` 间距，左右栏关闭时继续显示，进入移动覆盖布局或仅一条用户消息时隐藏。
+- 在桌面中栏内部右侧垂直居中显示导航；按实际 scrollbar 占位宽度避让，并在其内侧与中栏/右栏分割线保留至少 `10px` 间距，左右栏关闭时继续显示，进入移动覆盖布局或仅一条用户消息时隐藏。
 - 刻度默认保持短、粗、圆润、紧密和淡色，当前阅读位置对应的刻度颜色更深；只有 Hover 或键盘聚焦时才放大并进一步提高对比度。
 - Hover 或键盘聚焦显示对应用户消息预览；点击后滚动到准确用户消息，且不破坏现有自动跟随和“回到底部”行为。
 - 浏览器测试覆盖多条显示、单条隐藏、Tooltip 原文、点击跳转，以及左栏隐藏和移动端隐藏。

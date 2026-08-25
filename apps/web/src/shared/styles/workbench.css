@@ -62,13 +62,13 @@
   transform: translateX(50%);
 }
 
-/* 用户消息目录位于中栏右侧，并在真实滚动条内侧继续保留 14px 间距。 */
+/* 用户消息目录位于中栏右侧，并在真实滚动条内侧继续保留 10px 间距。 */
 .task-timeline-navigation {
   position: fixed;
   z-index: 45;
   top: 50%;
   right: calc(
-    var(--inspector-width) + var(--conversation-scrollbar-width, 0px) + var(--ui-space-unit) * 3.5
+    var(--inspector-width) + var(--conversation-scrollbar-width, 0px) + var(--ui-space-unit) * 2.5
   );
   width: calc(var(--ui-space-unit) * 11);
   max-height: 50dvh;
