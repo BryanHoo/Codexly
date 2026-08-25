@@ -21,6 +21,8 @@
     "@sinclair/typebox": "catalog:",
     "better-sqlite3": "catalog:",
     "fastify": "catalog:",
+    "p-limit": "catalog:",
+    "safe-stable-stringify": "catalog:",
     "simple-git": "catalog:",
     "ws": "catalog:"
   },

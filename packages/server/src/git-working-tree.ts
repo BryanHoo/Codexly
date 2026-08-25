@@ -3,6 +3,7 @@ import { lstat, readdir, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 
 import type { ProjectGitStatus, ProjectGitStatusQuery } from "@codexly/protocol";
+import pLimit from "p-limit";
 
 import { executeGit, type GitCommandExecutor } from "./git-command.js";
 import {
@@ -11,7 +12,6 @@ import {
   MAX_WORKING_TREE_FILES,
   WorkingTreeReadBudget,
   applyDiffBudget,
-  createConcurrencyLimiter,
   createUntrackedFileDiff,
   mapWithConcurrency,
   parsePorcelainStatus,
@@ -362,7 +362,7 @@ export async function readGitWorkingTreeStatus(
   // 每次读取都重新解析真实路径，避免 Project 根目录被符号链接替换后越过配置边界。
   const resolvedProjectRoot = await realpath(projectRoot);
   const budget = new WorkingTreeReadBudget();
-  const limitGitCommand = createConcurrencyLimiter(MAX_GIT_COMMAND_CONCURRENCY);
+  const limitGitCommand = pLimit(MAX_GIT_COMMAND_CONCURRENCY);
   const limitedGitCommandExecutor: GitCommandExecutor = (repositoryRoot, arguments_) =>
     limitGitCommand(() => gitCommandExecutor(repositoryRoot, arguments_));
   let status: GitWorkingTreeChanges;

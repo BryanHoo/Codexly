@@ -39,11 +39,13 @@ catalog:
   fastify: 5.10.0
   globals: 17.7.0
   lucide-react: 1.25.0
+  p-limit: 7.3.1
   pino: 10.3.1
   prettier: 3.9.6
   react: 19.2.8
   react-dom: 19.2.8
   radix-ui: 1.6.7
+  safe-stable-stringify: 2.5.0
   tsup: 8.5.1
   tailwindcss: 4.3.3
   typescript: 6.0.2

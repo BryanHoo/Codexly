@@ -20,38 +20,6 @@ const MAX_WORKING_TREE_DIFF_BYTES = 10 * 1024 * 1024;
 export const MAX_WORKING_TREE_FILES = 1_000;
 const MAX_UNTRACKED_DIFF_BYTES = 5 * 1024 * 1024;
 
-type AsyncLimiter = <Result>(operation: () => Promise<Result>) => Promise<Result>;
-
-export function createConcurrencyLimiter(maxConcurrency: number): AsyncLimiter {
-  let activeOperations = 0;
-  const pendingOperations: (() => void)[] = [];
-
-  const startNext = () => {
-    while (activeOperations < maxConcurrency) {
-      const startOperation = pendingOperations.shift();
-      if (startOperation === undefined) {
-        return;
-      }
-      startOperation();
-    }
-  };
-
-  return <Result>(operation: () => Promise<Result>) =>
-    new Promise<Result>((resolvePromise, rejectPromise) => {
-      pendingOperations.push(() => {
-        activeOperations += 1;
-        void Promise.resolve()
-          .then(operation)
-          .then(resolvePromise, rejectPromise)
-          .finally(() => {
-            activeOperations -= 1;
-            startNext();
-          });
-      });
-      startNext();
-    });
-}
-
 export async function mapWithConcurrency<Item, Result>(
   items: readonly Item[],
   maxConcurrency: number,

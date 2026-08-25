@@ -21,6 +21,7 @@ import {
   type ProjectGitStatus,
 } from "@codexly/protocol";
 import { LogController, type FastifyReply, type FastifyRequest } from "fastify";
+import stringify from "safe-stable-stringify";
 import type { GitCommitError } from "./git-commit.js";
 import { originalErrorMessage } from "./error-message.js";
 import { MutationHttpError } from "./routes/context.js";
@@ -229,23 +230,13 @@ export class CodexlyLogController extends LogController {
   }
 }
 
-function normalizeJsonForFingerprint(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(normalizeJsonForFingerprint);
-  }
-  if (typeof value !== "object" || value === null) {
-    return value;
-  }
-  // Mutation Body 已通过 JSON Schema；递归排序对象键以消除字段顺序差异。
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-      .map(([key, item]) => [key, normalizeJsonForFingerprint(item)]),
-  );
-}
-
 export function fingerprintPayload(payload: unknown): string {
-  return JSON.stringify(normalizeJsonForFingerprint(payload));
+  const fingerprint = stringify(payload);
+  if (fingerprint === undefined) {
+    // Mutation Payload 必须是可序列化 JSON，避免用无效指纹复用幂等结果。
+    throw new TypeError("Payload must be JSON-serializable");
+  }
+  return fingerprint;
 }
 
 export function toPendingRequestHttpError(error: PendingRequestResolutionError): MutationHttpError {
