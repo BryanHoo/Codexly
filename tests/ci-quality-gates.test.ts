@@ -48,6 +48,27 @@ describe("CI 质量门禁", () => {
     );
   });
 
+  it("分离增量构建与 Release clean build", () => {
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    const workflow = readFileSync(join(process.cwd(), ".github/workflows/release.yml"), "utf8");
+    const qualityStepStart = workflow.indexOf("      - name: Run quality gates\n");
+    const qualityStepEnd = workflow.indexOf("      - name: Extract release notes\n");
+    const qualityCommands = workflow
+      .slice(qualityStepStart, qualityStepEnd)
+      .split("\n")
+      .map((line) => line.trim());
+
+    expect(packageJson.scripts["build"]).toBe(
+      "pnpm run typecheck && pnpm --filter @codexly/web build && pnpm run build:node",
+    );
+    expect(packageJson.scripts["build"]).not.toContain("pnpm run clean");
+    expect(packageJson.scripts["build:clean"]).toBe("pnpm run clean && pnpm run build");
+    expect(qualityCommands).toContain("pnpm run build:clean");
+    expect(qualityCommands).not.toContain("pnpm run build");
+  });
+
   it("将 Release 单元测试拆分为独立单 worker 进程", () => {
     const workflow = readFileSync(join(process.cwd(), ".github/workflows/release.yml"), "utf8");
     const qualityStepStart = workflow.indexOf("      - name: Run quality gates\n");
@@ -79,7 +100,7 @@ describe("CI 质量门禁", () => {
       "pnpm run lint",
       "pnpm run lint:architecture",
       "pnpm run test:performance",
-      "pnpm run build",
+      "pnpm run build:clean",
       "pnpm run bundle:check",
       "pnpm run package:check",
     ]) {

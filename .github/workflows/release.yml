@@ -66,7 +66,7 @@ jobs:
           CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/server
           CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests "$PWD"/src/*.test.ts "$PWD"/tests/*.test.ts --exclude packages/protocol/src/app-update.test.ts
           pnpm run test:performance
-          pnpm run build
+          pnpm run build:clean
           pnpm run bundle:check
           pnpm run package:check
       - name: Extract release notes
