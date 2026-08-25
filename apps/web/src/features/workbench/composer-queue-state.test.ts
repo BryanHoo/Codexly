@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { QueuedComposerPrompt } from "./composer-queue-state.js";
 import {
-  hasQueuedPromptReceivedUserMessageInSnapshot,
+  hasQueuedPromptFinishedInSnapshot,
+  hasQueuedPromptFinishedInStore,
   mapAgentQueuedSubmission,
   retainAcceptedSteerPrompt,
   resolveQueuedPromptEdit,
@@ -29,7 +30,7 @@ const queuedPrompt: QueuedComposerPrompt = {
 describe("composer queue state", () => {
   it("keeps accepted steer loading when only an assistant message streams", () => {
     expect(
-      hasQueuedPromptReceivedUserMessageInSnapshot(waitingPrompt, {
+      hasQueuedPromptFinishedInSnapshot(waitingPrompt, {
         turns: [
           {
             id: "turn-1",
@@ -41,10 +42,43 @@ describe("composer queue state", () => {
                 type: "message",
               },
             ],
+            status: "running",
           },
         ],
       }),
     ).toBe(false);
+  });
+
+  it("dismisses accepted steer loading when its Turn is interrupted", () => {
+    expect(
+      hasQueuedPromptFinishedInSnapshot(waitingPrompt, {
+        turns: [
+          {
+            id: "turn-1",
+            items: [],
+            status: "interrupted",
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("dismisses accepted steer loading from the realtime Store interrupt state", () => {
+    expect(
+      hasQueuedPromptFinishedInStore(waitingPrompt, {
+        getItemByKey: () => undefined,
+        itemKeysByTurnId: {},
+        turnsById: {
+          "turn-1": {
+            completedAt: "2026-08-25T00:00:01.000Z",
+            error: null,
+            id: "turn-1",
+            startedAt: "2026-08-25T00:00:00.000Z",
+            status: "interrupted",
+          },
+        },
+      }),
+    ).toBe(true);
   });
 
   it("allows editing only before a queued prompt is accepted as a steer", () => {
@@ -75,7 +109,7 @@ describe("composer queue state", () => {
 
   it("dismisses steer loading when the streamed user message appears", () => {
     expect(
-      hasQueuedPromptReceivedUserMessageInSnapshot(waitingPrompt, {
+      hasQueuedPromptFinishedInSnapshot(waitingPrompt, {
         turns: [
           {
             id: "turn-1",
@@ -83,6 +117,7 @@ describe("composer queue state", () => {
               { id: "user-before", role: "user", text: "之前", type: "message" },
               { id: "user-after", role: "user", text: "补充失败测试", type: "message" },
             ],
+            status: "running",
           },
         ],
       }),

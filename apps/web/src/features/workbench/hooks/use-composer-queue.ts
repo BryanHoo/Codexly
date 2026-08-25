@@ -7,9 +7,8 @@ import type { PromptInputAttachment } from "../../../shared/components/agent/pro
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import { taskQueueQueryKey, type CodexlyMutationClient } from "../../projects/project-queries.js";
 import {
-  getTaskStoreUserMessageIds,
-  hasQueuedPromptReceivedUserMessage,
-  hasQueuedPromptReceivedUserMessageInSnapshot,
+  hasQueuedPromptFinishedInSnapshot,
+  hasQueuedPromptFinishedInStore,
   mapAgentQueuedSubmission,
   resolveQueuedPromptEdit,
   retainAcceptedSteerPrompt,
@@ -126,7 +125,7 @@ export function useComposerQueue({
       current.filter(
         (entry) =>
           entry.scope !== routeScope ||
-          !hasQueuedPromptReceivedUserMessageInSnapshot(entry.prompt, runtime?.snapshot),
+          !hasQueuedPromptFinishedInSnapshot(entry.prompt, runtime?.snapshot),
       ),
     );
   }, [routeScope, runtime?.snapshot, runtime?.store]);
@@ -142,10 +141,7 @@ export function useComposerQueue({
           if (entry.scope !== routeScope || entry.prompt.status !== "awaiting-response") {
             return true;
           }
-          return !hasQueuedPromptReceivedUserMessage(
-            entry.prompt,
-            getTaskStoreUserMessageIds(state, entry.prompt.turnId),
-          );
+          return !hasQueuedPromptFinishedInStore(entry.prompt, state);
         }),
       );
     });

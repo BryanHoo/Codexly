@@ -1,4 +1,4 @@
-import type { AgentItem, AgentQueuedSubmission, AgentSkill } from "@codexly/protocol";
+import type { AgentItem, AgentQueuedSubmission, AgentSkill, AgentTurn } from "@codexly/protocol";
 
 import type { PromptInputAttachment } from "../../shared/components/agent/prompt-input.js";
 import type { TaskStoreState } from "../conversation/runtime/task-store.js";
@@ -61,7 +61,11 @@ export function mapAgentQueuedSubmission(
 }
 
 type TaskMessageSnapshot = Readonly<{
-  turns: readonly Readonly<{ id: string; items: readonly AgentItem[] }>[];
+  turns: readonly Readonly<{
+    id: string;
+    items: readonly AgentItem[];
+    status: AgentTurn["status"];
+  }>[];
 }>;
 
 export function retainAcceptedSteerPrompt(
@@ -127,14 +131,38 @@ export function hasQueuedPromptReceivedUserMessage(
   return currentUserMessageIds.some((id) => !previousUserMessageIds.has(id));
 }
 
-export function hasQueuedPromptReceivedUserMessageInSnapshot(
+function isAwaitingSteerFinished(
+  prompt: Extract<QueuedComposerPrompt, { status: "awaiting-response" }>,
+  userMessageIds: readonly string[],
+  turnStatus: AgentTurn["status"] | undefined,
+): boolean {
+  // 中断后不会再产生引导对应的用户消息，必须以权威终态结束本地 loading。
+  return turnStatus === "interrupted" || hasQueuedPromptReceivedUserMessage(prompt, userMessageIds);
+}
+
+export function hasQueuedPromptFinishedInSnapshot(
   prompt: QueuedComposerPrompt,
   snapshot: TaskMessageSnapshot | undefined,
 ): boolean {
   if (prompt.status !== "awaiting-response") {
     return false;
   }
-  return hasQueuedPromptReceivedUserMessage(prompt, getTurnUserMessageIds(snapshot, prompt.turnId));
+  const turn = snapshot?.turns.find((candidate) => candidate.id === prompt.turnId);
+  return isAwaitingSteerFinished(prompt, getUserMessageIds(turn?.items ?? []), turn?.status);
+}
+
+export function hasQueuedPromptFinishedInStore(
+  prompt: QueuedComposerPrompt,
+  state: Pick<TaskStoreState, "getItemByKey" | "itemKeysByTurnId" | "turnsById">,
+): boolean {
+  if (prompt.status !== "awaiting-response") {
+    return false;
+  }
+  return isAwaitingSteerFinished(
+    prompt,
+    getTaskStoreUserMessageIds(state, prompt.turnId),
+    state.turnsById[prompt.turnId]?.status,
+  );
 }
 
 export function resolveQueuedPromptEdit(
