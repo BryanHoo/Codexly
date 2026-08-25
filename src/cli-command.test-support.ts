@@ -89,6 +89,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
   };
   const provider = {
     archiveTask: vi.fn(),
+    clearGoal: vi.fn(),
     compactTask: vi.fn(),
     deleteTask: vi.fn(),
     forkTask: vi.fn(),
@@ -100,6 +101,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     listSkills: vi.fn(),
     listTasks: vi.fn(),
     pinTask: vi.fn(),
+    readGoal: vi.fn(() => Promise.resolve(null)),
     readSandboxMode: vi.fn(() => Promise.resolve("workspace-write" as const)),
     readTask: vi.fn(),
     readTaskAttachment: vi.fn(() => Promise.resolve(undefined)),
@@ -114,6 +116,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     terminateBackgroundTerminal: vi.fn(),
     unarchiveTask: vi.fn(),
     unsubscribeTask: vi.fn(),
+    updateGoal: vi.fn(),
     uploadFeedback: vi.fn(),
   };
   const runtimeProvider = {

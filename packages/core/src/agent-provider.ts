@@ -1,5 +1,6 @@
 import type {
   AgentGlobalApprovalPolicy,
+  AgentGoal,
   AgentApprovalsReviewer,
   AgentCapabilities,
   AgentAttachmentMediaType,
@@ -28,6 +29,7 @@ import type {
   ConfigureCustomProviderResponse,
   StartOfficialProviderLoginResponse,
   UploadAgentFeedbackRequest,
+  UpdateAgentGoalRequest,
   Project,
 } from "@codexly/protocol";
 
@@ -181,6 +183,7 @@ export interface AgentProvider {
   deleteTask(taskId: string): Promise<void>;
   forkTask(taskId: string, lastTurnId?: string): Promise<AgentTask>;
   getCapabilities(): Promise<AgentCapabilities>;
+  clearGoal(taskId: string): Promise<void>;
   listModels(): Promise<AgentModelPage>;
   listMcpServers(taskId: string): Promise<AgentMcpServerPage>;
   listBackgroundTerminals(taskId: string): Promise<AgentBackgroundTerminalPage>;
@@ -188,6 +191,7 @@ export interface AgentProvider {
   listTasks(input?: ListAgentTasksInput): Promise<AgentTaskPage>;
   pinTask(taskId: string, pinned: boolean): Promise<AgentTask>;
   readSandboxMode(): Promise<AgentSandboxMode>;
+  readGoal(taskId: string): Promise<AgentGoal | null>;
   // Promise 完成前须让 Snapshot 包含此前状态并同步交付对应通知，使 checkpoint 保持一致。
   readTask(
     taskId: string,
@@ -218,6 +222,7 @@ export interface AgentProvider {
   terminateBackgroundTerminal(taskId: string, terminalId: string): Promise<boolean>;
   unsubscribeTask(taskId: string): Promise<AgentTaskUnsubscribeStatus>;
   uploadFeedback(taskId: string, input: UploadAgentFeedbackRequest): Promise<void>;
+  updateGoal(taskId: string, input: UpdateAgentGoalRequest): Promise<AgentGoal>;
 }
 
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。

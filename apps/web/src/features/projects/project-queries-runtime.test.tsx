@@ -23,6 +23,7 @@ describe("project runtime queries", () => {
       getCapabilities: vi.fn(() =>
         Promise.resolve({
           feedback: { upload: true },
+          goals: { clear: true, read: true, update: true },
           provider: "codex",
           skills: { list: true, use: true },
           tasks: { fork: true, list: true, read: true, start: true },

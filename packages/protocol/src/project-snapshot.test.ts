@@ -16,6 +16,7 @@ describe("project task snapshot protocol", () => {
   it("validates a structured task snapshot", () => {
     const snapshot = {
       contextUsage: null,
+      goal: null,
       id: "task-1",
       plan: {
         explanation: "按顺序执行并同步状态。",

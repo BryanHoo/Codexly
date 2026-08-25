@@ -354,11 +354,12 @@ describe("CodexAgentProvider attachments and validation", () => {
       turns: [],
       turnsNextCursor: null,
     });
-    expect(rpc.calls.slice(-2)).toEqual([
+    expect(rpc.calls.slice(-3)).toEqual([
       {
         method: "thread/read",
         params: { includeTurns: false, threadId: "task-1" },
       },
+      { method: "thread/goal/get", params: { threadId: "task-1" } },
       {
         method: "thread/turns/list",
         params: {

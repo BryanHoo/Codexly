@@ -38,6 +38,12 @@ export class FakeRpcClient {
     const requestParams =
       params !== null && typeof params === "object" ? (params as Record<string, unknown>) : {};
     const queuedResponse = this.#responses[0];
+    if (
+      method === "thread/goal/get" &&
+      !(queuedResponse !== null && typeof queuedResponse === "object" && "goal" in queuedResponse)
+    ) {
+      return Promise.resolve({ goal: null });
+    }
     if (method === "thread/turns/list") {
       const explicitPage =
         queuedResponse !== null &&

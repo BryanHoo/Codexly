@@ -88,8 +88,18 @@ export const workbench = {
     worktreeListLoading: "正在读取 worktree",
     worktreeSwitcherMenu: "切换 worktree",
     goalMode: "目标",
+    goalStatus: {
+      active: "目标进行中",
+      blocked: "目标受阻",
+      budget_limited: "目标预算已用尽",
+      complete: "目标已完成",
+      paused: "目标已暂停",
+      usage_limited: "目标用量受限",
+    },
+    goalStatusLabel: "{{status}}：{{objective}}",
     goalObjectiveRequired: "目标模式需要输入目标文本",
     goalObjectiveTooLong: "目标文本不能超过 4,000 个字符",
+    goalStructuredInputUnsupported: "目标模式暂不支持附件或 Skill，请改用文本和 @文件路径",
     initializingAgentsPrompt:
       "请检查当前项目，并在项目根目录创建或完善 AGENTS.md，写入适用于 Codex 的项目说明、常用命令和验证要求。",
     landmark: "消息编辑器",

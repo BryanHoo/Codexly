@@ -19,6 +19,7 @@ describe("CodexAgentProvider snapshots", () => {
 
     await expect(provider.getCapabilities()).resolves.toEqual({
       feedback: { upload: true },
+      goals: { clear: true, read: true, update: true },
       provider: "codex",
       skills: { list: true, use: true },
       tasks: { fork: true, list: true, read: true, start: true },

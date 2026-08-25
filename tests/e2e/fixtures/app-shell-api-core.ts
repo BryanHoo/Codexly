@@ -71,6 +71,7 @@ export async function handleAppShellCoreRoute(
   } else if (url.pathname === "/v1/capabilities") {
     body = {
       feedback: { upload: true },
+      goals: { clear: true, read: true, update: true },
       provider: "codex",
       skills: { list: true, use: true },
       tasks: { fork: true, list: true, read: true, start: true },
@@ -275,6 +276,7 @@ export async function handleAppShellCoreRoute(
       snapshot: {
         ...task,
         contextUsage: { contextWindow: 200_000, usedTokens: 1_000 },
+        goal: null,
         plan: null,
         pendingRequests: [],
         settings: state.taskSettings.get(`temporary:${taskId}`) ?? taskSnapshot.settings,

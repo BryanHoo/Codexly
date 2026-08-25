@@ -61,6 +61,7 @@ test("starts code review from a new chat with one fixed review message", async (
           snapshot: {
             ...reviewTask,
             contextUsage: null,
+            goal: null,
             pendingRequests: [],
             plan: null,
             settings: taskSnapshot.settings,

@@ -84,6 +84,12 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       // Project 归属确认后才提升读取期间暂存的 Server Request。
       this.promotePendingServerRequests(taskId);
       const task = await mapAgentTask(thread, this.project);
+      this.runtime.goals.delete(taskId);
+      const requestedGoal = await this.readGoalResponse(taskId);
+      // goal/get 期间到达的通知时序更新，必须优先于可能已经过期的 RPC 响应。
+      const goal = this.runtime.goals.has(taskId)
+        ? (this.runtime.goals.get(taskId) ?? null)
+        : requestedGoal;
       let nativePage: Awaited<ReturnType<typeof readNativeTaskTurnPage>>;
       try {
         nativePage = await readNativeTaskTurnPage(
@@ -137,6 +143,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       const snapshot: AgentProviderTaskSnapshot = {
         ...task,
         contextUsage: this.runtime.contextUsage.get(taskId) ?? null,
+        goal,
         plan: this.runtime.plans.get(taskId) ?? null,
         pendingRequests: this.pendingLifecycle.pendingForTask(taskId),
         status,

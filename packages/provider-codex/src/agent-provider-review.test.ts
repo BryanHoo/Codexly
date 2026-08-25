@@ -355,6 +355,7 @@ describe("CodexAgentProvider review", () => {
     await expect(provider.interruptTurn("task-1", "review-outer-turn")).resolves.toBeUndefined();
     expect(rpc.calls).toEqual([
       { method: "thread/read", params: { includeTurns: false, threadId: "task-1" } },
+      { method: "thread/goal/get", params: { threadId: "task-1" } },
       {
         method: "thread/turns/list",
         params: {

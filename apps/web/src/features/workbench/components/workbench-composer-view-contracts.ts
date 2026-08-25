@@ -1,5 +1,6 @@
 import type {
   AgentContextUsage,
+  AgentGoal,
   AgentModel,
   AgentReviewTarget,
   AgentSkill,
@@ -55,6 +56,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   fastModeEnabled: boolean;
   getCommandAvailability: (command: PromptCommandItem) => CommandAvailability;
   gitStatus: ProjectGitStatus | undefined;
+  goal: AgentGoal | null | undefined;
   hasComposerInput: boolean;
   isSubmitting: boolean;
   menuItemCount: number;

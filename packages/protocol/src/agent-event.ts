@@ -3,6 +3,7 @@ import { Type, type Static, type TProperties, type TSchema } from "@sinclair/typ
 import {
   ActivePendingRequestSchema,
   AgentContextUsageSchema,
+  AgentGoalSchema,
   AgentFileChangeSchema,
   AgentItemSchema,
   AgentMcpServerFailureReasonSchema,
@@ -238,6 +239,16 @@ export const PlanUpdatedEventSchema = createEventSchema({
   type: Type.Literal("plan.updated"),
 });
 
+export const GoalUpdatedEventSchema = createEventSchema({
+  payload: Type.Object({ goal: AgentGoalSchema }, { additionalProperties: false }),
+  type: Type.Literal("goal.updated"),
+});
+
+export const GoalClearedEventSchema = createEventSchema({
+  payload: Type.Object({}, { additionalProperties: false }),
+  type: Type.Literal("goal.cleared"),
+});
+
 function createPendingRequestEventSchema<TType extends string, TRequestSchema extends TSchema>(
   type: TType,
   requestSchema: TRequestSchema,
@@ -276,6 +287,8 @@ export const AgentEventSchema = Type.Union([
   TurnCompletedEventSchema,
   UsageUpdatedEventSchema,
   PlanUpdatedEventSchema,
+  GoalUpdatedEventSchema,
+  GoalClearedEventSchema,
   ProviderErrorEventSchema,
   TaskNoticeEventSchema,
   McpServerStatusUpdatedEventSchema,

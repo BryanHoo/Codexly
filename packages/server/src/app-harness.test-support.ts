@@ -16,6 +16,7 @@ export async function createHarness(
 ) {
   const {
     archiveTask,
+    clearGoal,
     compactTask,
     deleteTask,
     emitEvent,
@@ -30,6 +31,7 @@ export async function createHarness(
     pinTask,
     provider,
     queue,
+    readGoal,
     readTask,
     readTaskAttachment,
     reloadMcpServers,
@@ -42,6 +44,7 @@ export async function createHarness(
     terminateBackgroundTerminal,
     unarchiveTask,
     unsubscribeTask,
+    updateGoal,
     uploadFeedback,
   } = createProvider();
   const settings = createSettingsRepository();
@@ -60,6 +63,7 @@ export async function createHarness(
   return {
     app,
     archiveTask,
+    clearGoal,
     compactTask,
     deleteTask,
     emitEvent,
@@ -73,6 +77,7 @@ export async function createHarness(
     listSkills,
     pinTask,
     queue,
+    readGoal,
     readTask,
     readTaskAttachment,
     readDefaultSettings,
@@ -86,6 +91,7 @@ export async function createHarness(
     terminateBackgroundTerminal,
     unarchiveTask,
     unsubscribeTask,
+    updateGoal,
     ...settings,
     uploadFeedback,
   };

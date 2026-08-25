@@ -139,6 +139,39 @@ describe("WorkbenchInspector tabs", () => {
     );
   });
 
+  it("renders persisted Goal details and lifecycle controls at the top of context", () => {
+    const markup = renderInspectorMarkup(
+      <WorkbenchInspector
+        onClearGoal={() => Promise.resolve()}
+        onGoalStatusChange={() => Promise.resolve()}
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
+        tab="context"
+        taskId="task-1"
+        task={{
+          goal: {
+            createdAt: "2026-08-25T00:00:00.000Z",
+            objective: "完成官方 Goal 生命周期对接",
+            status: "active",
+            timeUsedSeconds: 90,
+            tokenBudget: 20_000,
+            tokensUsed: 4_096,
+            updatedAt: "2026-08-25T00:01:30.000Z",
+          },
+          turns: [],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('aria-label="目标"');
+    expect(markup).toContain("完成官方 Goal 生命周期对接");
+    expect(markup).toContain("进行中");
+    expect(markup).toContain("4,096 / 20,000 tokens");
+    expect(markup).toContain('aria-label="暂停目标"');
+    expect(markup).toContain('aria-label="清除目标"');
+    expect(markup.indexOf('aria-label="目标"')).toBeLessThan(markup.indexOf('aria-label="MCP"'));
+  });
+
   it("renders temporary task context directly without tabs or Project sources", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector

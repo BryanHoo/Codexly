@@ -15,6 +15,7 @@ function createResponse(taskId = "task-performance"): AgentTaskSnapshotResponse 
     checkpoint: { sequence: 0, sessionId: "session-performance" },
     snapshot: {
       contextUsage: null,
+      goal: null,
       plan: null,
       id: taskId,
       pendingRequests: [],

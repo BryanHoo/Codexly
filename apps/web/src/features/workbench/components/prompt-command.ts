@@ -96,9 +96,11 @@ export function getPromptCommandAvailability(
         ? capabilities.turns.review && (hasTask || capabilities.tasks.start)
         : item.action === "compact"
           ? capabilities.turns.compact
-          : item.action === "plan" || item.action === "goal"
-            ? capabilities.turns.start
-            : capabilities.tasks.fork;
+          : item.action === "goal"
+            ? capabilities.goals.update && capabilities.turns.start
+            : item.action === "plan"
+              ? capabilities.turns.start
+              : capabilities.tasks.fork;
   return available
     ? { available: true }
     : {

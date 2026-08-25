@@ -306,6 +306,7 @@ describe("CodexlyClient project routes", () => {
       snapshot: {
         ...task,
         contextUsage: null,
+        goal: null,
         pendingRequests: [],
         plan: null,
         settings: taskSettings,

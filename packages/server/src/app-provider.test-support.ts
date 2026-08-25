@@ -20,6 +20,7 @@ export function createProvider() {
   const getCapabilities = vi.fn(() =>
     Promise.resolve({
       feedback: { upload: true },
+      goals: { clear: true, read: true, update: true },
       provider: "codex",
       skills: { list: true, use: true },
       tasks: { fork: true, list: true, read: true, start: true },
@@ -33,6 +34,11 @@ export function createProvider() {
     }),
   );
   const compactTask = vi.fn(() => Promise.resolve());
+  const clearGoal = vi.fn<AgentProvider["clearGoal"]>(() => Promise.resolve());
+  const readGoal = vi.fn<AgentProvider["readGoal"]>(() => Promise.resolve(snapshot.goal));
+  const updateGoal = vi.fn<AgentProvider["updateGoal"]>(() =>
+    Promise.reject(new Error("Goal is not configured")),
+  );
   const archiveTask = vi.fn(() => Promise.resolve());
   const deleteTask = vi.fn(() => Promise.resolve());
   const forkTask = vi.fn(() => Promise.resolve({ ...task, id: "task-2", title: "续接任务" }));
@@ -196,6 +202,7 @@ export function createProvider() {
   const unarchiveTask = vi.fn(() => Promise.resolve(task));
   const provider: AgentProvider = {
     archiveTask,
+    clearGoal,
     compactTask,
     deleteTask,
     forkTask,
@@ -208,6 +215,7 @@ export function createProvider() {
     listTasks,
     pinTask,
     queue,
+    readGoal,
     readSandboxMode,
     readTask,
     readTaskAttachment,
@@ -227,10 +235,12 @@ export function createProvider() {
     terminateBackgroundTerminal,
     unarchiveTask,
     unsubscribeTask,
+    updateGoal,
     uploadFeedback,
   };
   return {
     archiveTask,
+    clearGoal,
     compactTask,
     deleteTask,
     emitEvent: (event: AgentProviderEvent) => {
@@ -249,6 +259,7 @@ export function createProvider() {
     pinTask,
     provider,
     queue,
+    readGoal,
     readSandboxMode,
     readTask,
     readTaskAttachment,
@@ -262,6 +273,7 @@ export function createProvider() {
     terminateBackgroundTerminal,
     unarchiveTask,
     unsubscribeTask,
+    updateGoal,
     uploadFeedback,
   };
 }

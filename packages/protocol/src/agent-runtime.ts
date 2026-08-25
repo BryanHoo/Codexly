@@ -4,6 +4,7 @@ import { AgentTaskSchema, type AgentTask } from "./agent-attachments.js";
 import { DateTimeSchema, ProjectSchema, type Project } from "./project-files.js";
 import { ActivePendingRequestSchema } from "./pending-request.js";
 import { AgentSkillSchema, AgentTurnSchema, type AgentSkill } from "./agent-task.js";
+import { AgentGoalSchema } from "./agent-goal.js";
 import {
   AgentContextUsageSchema,
   AgentModelSchema,
@@ -45,6 +46,7 @@ export type AgentPlan = Readonly<Static<typeof AgentPlanSchema>>;
 export const AgentTaskSnapshotSchema = Type.Object(
   {
     contextUsage: Type.Union([AgentContextUsageSchema, Type.Null()]),
+    goal: Type.Union([AgentGoalSchema, Type.Null()]),
     id: Type.String({ minLength: 1 }),
     plan: Type.Union([AgentPlanSchema, Type.Null()]),
     pendingRequests: Type.Array(ActivePendingRequestSchema),
@@ -105,6 +107,10 @@ export type HealthResponse = Readonly<Static<typeof HealthResponseSchema>>;
 export const AgentCapabilitiesSchema = Type.Object(
   {
     feedback: Type.Object({ upload: Type.Boolean() }, { additionalProperties: false }),
+    goals: Type.Object(
+      { clear: Type.Boolean(), read: Type.Boolean(), update: Type.Boolean() },
+      { additionalProperties: false },
+    ),
     provider: Type.String({ minLength: 1 }),
     skills: Type.Object(
       { list: Type.Boolean(), use: Type.Boolean() },

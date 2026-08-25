@@ -421,6 +421,16 @@ export function WorkbenchShellLayout({
               scope: `${projectId}:${selectedRootPath ?? "temporary"}`,
             });
           }}
+          onClearGoal={() =>
+            taskId === undefined
+              ? Promise.resolve()
+              : client.clearTaskGoal(projectId, taskId).then(() => undefined)
+          }
+          onGoalStatusChange={(status) =>
+            taskId === undefined
+              ? Promise.resolve()
+              : client.updateTaskGoal(projectId, taskId, { status }).then(() => undefined)
+          }
           onReloadMcpServers={() => {
             mcpServersReloadMutation.mutate();
           }}

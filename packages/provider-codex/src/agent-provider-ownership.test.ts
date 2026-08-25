@@ -224,11 +224,12 @@ describe("CodexAgentProvider ownership and resume", () => {
 
     await expect(provider.renameTask("task-1", "释放后重命名")).resolves.toBeUndefined();
 
-    expect(rpc.calls.slice(-3)).toEqual([
+    expect(rpc.calls.slice(-4)).toEqual([
       {
         method: "thread/read",
         params: { includeTurns: false, threadId: "task-1" },
       },
+      { method: "thread/goal/get", params: { threadId: "task-1" } },
       {
         method: "thread/turns/list",
         params: {
@@ -290,15 +291,16 @@ describe("CodexAgentProvider ownership and resume", () => {
 
     expect(rpc.calls.map(({ method }) => method)).toEqual([
       "thread/read",
+      "thread/goal/get",
       "thread/turns/list",
       "thread/resume",
       "turn/start",
     ]);
-    expect(rpc.calls[2]).toEqual({
+    expect(rpc.calls[3]).toEqual({
       method: "thread/resume",
       params: { runtimeWorkspaceRoots: [projectRootPath], threadId: "task-1" },
     });
-    expect(rpc.calls[3]).toMatchObject({
+    expect(rpc.calls[4]).toMatchObject({
       method: "turn/start",
       params: {
         approvalPolicy: {
@@ -565,6 +567,7 @@ describe("CodexAgentProvider ownership and resume", () => {
     // 两个续写请求必须等待同一个恢复操作，避免重复加载同一 Thread。
     expect(rpc.calls.map(({ method }) => method)).toEqual([
       "thread/read",
+      "thread/goal/get",
       "thread/turns/list",
       "thread/resume",
     ]);

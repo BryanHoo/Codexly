@@ -1,5 +1,6 @@
 export * from "./agent-actions.js";
 export * from "./agent-attachments.js";
+export * from "./agent-goal.js";
 export * from "./agent-runtime.js";
 export * from "./agent-task.js";
 export * from "./mcp-elicitation.js";

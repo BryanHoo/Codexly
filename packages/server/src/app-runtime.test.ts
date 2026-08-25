@@ -91,6 +91,7 @@ describe("server runtime and core routes", () => {
     });
     expect(capabilitiesResponse.json()).toEqual({
       feedback: { upload: true },
+      goals: { clear: true, read: true, update: true },
       provider: "codex",
       skills: { list: true, use: true },
       tasks: { fork: true, list: true, read: true, start: true },

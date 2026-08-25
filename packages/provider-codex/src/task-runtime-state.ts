@@ -1,6 +1,7 @@
 import type { AgentProviderEvent } from "@codexly/core";
 import type {
   AgentContextUsage,
+  AgentGoal,
   AgentMcpServerFailureReason,
   AgentMcpServerStatus,
   AgentPlan,
@@ -26,6 +27,7 @@ export class TaskRuntimeState {
   public readonly reviewWorkerTurnIds = new Map<string, string>();
   public readonly reviewWorkerParentTaskIds = new Map<string, string>();
   public readonly contextUsage = new Map<string, AgentContextUsage>();
+  public readonly goals = new Map<string, AgentGoal | null>();
   public readonly plans = new Map<string, AgentPlan>();
   public readonly mcpServerNames = new Map<string, Set<string>>();
   public readonly mcpServerStatuses = new Map<string, Map<string, CodexMcpServerStartupStatus>>();
@@ -48,6 +50,11 @@ export class TaskRuntimeState {
     } else if (event.type === "plan.updated") {
       // 两类最新值都在后续 Snapshot 读取时恢复，不进入 Timeline Item 容器。
       this.plans.set(event.taskId, event.payload.plan);
+    } else if (event.type === "goal.updated") {
+      this.goals.set(event.taskId, event.payload.goal);
+    } else if (event.type === "goal.cleared") {
+      // null 是清除墓碑，避免并发中的旧 goal/get 响应把已清除目标重新写回快照。
+      this.goals.set(event.taskId, null);
     }
   }
 
@@ -75,6 +82,7 @@ export class TaskRuntimeState {
       }
     }
     this.contextUsage.delete(taskId);
+    this.goals.delete(taskId);
     this.plans.delete(taskId);
     this.mcpServerNames.delete(taskId);
     this.mcpServerStatuses.delete(taskId);
@@ -98,6 +106,7 @@ export class TaskRuntimeState {
     this.reviewWorkerTurnIds.clear();
     this.reviewWorkerParentTaskIds.clear();
     this.contextUsage.clear();
+    this.goals.clear();
     this.plans.clear();
     this.mcpServerNames.clear();
     this.mcpServerStatuses.clear();

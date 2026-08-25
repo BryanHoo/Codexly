@@ -43,13 +43,18 @@ import { ComposerFileMenu } from "./workbench-composer-file-menu.js";
 import {
   ComposerAttachments,
   ComposerFastModeButton,
+  ComposerGoalStatusTag,
   ComposerModeTag,
 } from "./workbench-composer-toolbar.js";
 import {
   resolveQueuedPromptSummary,
   type WorkbenchComposerViewProps,
 } from "./workbench-composer-view-contracts.js";
-export { ComposerFastModeButton, ComposerModeTag } from "./workbench-composer-toolbar.js";
+export {
+  ComposerFastModeButton,
+  ComposerGoalStatusTag,
+  ComposerModeTag,
+} from "./workbench-composer-toolbar.js";
 export * from "./workbench-composer-view-contracts.js";
 
 export function ComposerProjectPathButton({
@@ -353,6 +358,9 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                   mode={props.composerMode}
                   onRemove={props.onComposerModeRemove}
                 />
+              )}
+              {props.goal === null || props.goal === undefined ? null : (
+                <ComposerGoalStatusTag goal={props.goal} />
               )}
               {props.fastModeAvailable ? (
                 <ComposerFastModeButton

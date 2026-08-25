@@ -262,6 +262,7 @@ export const projectDirectoryListings = new Map<string | null, object>([
 export const taskSnapshot = {
   ...tasks[0],
   contextUsage: { contextWindow: 200_000, usedTokens: 25_000 },
+  goal: null,
   plan: null,
   pendingRequests: [],
   settings: {

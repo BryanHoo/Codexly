@@ -142,6 +142,10 @@ export function createComposerSubmission({
       return false;
     }
     const skills = promptSkills ?? livePromptSubmission?.skills ?? [];
+    if (requestedComposerMode === "goal" && (message.files.length > 0 || skills.length > 0)) {
+      setMutationError(new Error(t("composer.goalStructuredInputUnsupported")));
+      return false;
+    }
     const hasInput = text !== "" || message.files.length > 0 || skills.length > 0;
     const action =
       options.forceAction ??

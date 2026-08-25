@@ -44,7 +44,6 @@ import {
 } from "./codex-protocol-mapping.js";
 
 export { CodexProtocolMappingError } from "./codex-protocol-mapping.js";
-
 export interface CodexRpcClient {
   notify(method: string, params?: unknown): void;
   onNotification(listener: (notification: { method: string; params: unknown }) => void): () => void;
@@ -61,7 +60,6 @@ export interface CreateCodexRuntimeProviderOptions {
 }
 
 export const CODEX_PINNED_THREAD_SECTION_ID = "01984de2-8f74-7c91-a3b2-5c5e937cf318";
-
 function isPinnedThreadSection(value: unknown): boolean {
   if (value === null) {
     return false;
@@ -158,6 +156,7 @@ export function createUnmaterializedTaskSnapshot(task: AgentTask): AgentProvider
   return {
     ...task,
     contextUsage: null,
+    goal: null,
     plan: null,
     pendingRequests: [],
     status: "idle",
@@ -279,6 +278,7 @@ export abstract class CodexAgentProviderBase {
   public getCapabilities(): Promise<AgentCapabilities> {
     return Promise.resolve({
       feedback: { upload: true },
+      goals: { clear: true, read: true, update: true },
       provider: "codex",
       skills: { list: true, use: true },
       tasks: { fork: true, list: true, read: true, start: true },

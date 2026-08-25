@@ -59,6 +59,7 @@ describe("CodexAgentProvider history", () => {
         method: "thread/read",
         params: { includeTurns: false, threadId: "task-1" },
       },
+      { method: "thread/goal/get", params: { threadId: "task-1" } },
       {
         method: "thread/turns/list",
         params: {
@@ -424,6 +425,16 @@ describe("CodexAgentProvider history", () => {
           codexVersion: "0.149.0",
           diagnosticCode: "unknown_notification",
           method: "future/notification",
+          projectId: "codexly",
+          taskId: "task-1",
+        },
+        "Codex notification dropped",
+      ],
+      [
+        {
+          codexVersion: "0.149.0",
+          diagnosticCode: "invalid_notification",
+          method: "thread/goal/updated",
           projectId: "codexly",
           taskId: "task-1",
         },

@@ -86,9 +86,27 @@ describe("AgentProvider", () => {
       archiveTask() {
         return Promise.resolve();
       },
+      clearGoal() {
+        return Promise.resolve();
+      },
+      readGoal() {
+        return Promise.resolve(null);
+      },
+      updateGoal(_taskId, input) {
+        return Promise.resolve({
+          createdAt: "2026-07-25T00:00:00.000Z",
+          objective: "验证统一 Goal 契约",
+          status: input.status,
+          timeUsedSeconds: 0,
+          tokenBudget: null,
+          tokensUsed: 0,
+          updatedAt: "2026-07-25T00:00:00.000Z",
+        });
+      },
       getCapabilities() {
         return Promise.resolve({
           feedback: { upload: true },
+          goals: { clear: true, read: true, update: true },
           provider: "fake",
           skills: { list: true, use: true },
           tasks: { fork: true, list: true, read: true, start: true },
@@ -311,6 +329,7 @@ describe("AgentProvider", () => {
 
     await expect(provider.getCapabilities()).resolves.toEqual({
       feedback: { upload: true },
+      goals: { clear: true, read: true, update: true },
       provider: "fake",
       skills: { list: true, use: true },
       tasks: { fork: true, list: true, read: true, start: true },

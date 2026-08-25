@@ -7,12 +7,14 @@ import type {
 import type {
   AgentBackgroundTerminal,
   AgentBackgroundTerminalPage,
+  AgentGoal,
   AgentTask,
   AgentTaskPage,
   AgentTurn,
   AgentTurnOptions,
   AgentReviewTarget,
   UploadAgentFeedbackRequest,
+  UpdateAgentGoalRequest,
 } from "@codexly/protocol";
 import {
   CodexProtocolMappingError,
@@ -28,6 +30,7 @@ import {
 import { CODEX_PINNED_THREAD_SECTION_ID } from "./agent-provider-base.js";
 import { isBackgroundTerminalThreadMissingError, mapAgentTask } from "./agent-provider-base.js";
 import { CodexAgentProviderQueue } from "./agent-provider-queue.js";
+import { mapCodexGoal } from "./codex-goal-mapping.js";
 
 function mapCodexTurnSettings(options: AgentTurnOptions) {
   // 普通 Turn 与 Goal 自动 Turn 必须使用完全相同的执行设置。
@@ -87,6 +90,17 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
     this.assertKnownProjectTask(taskId);
     await this.resumeTask(taskId);
     if (options.goalMode === true) {
+      if (
+        input.files.length > 0 ||
+        input.images.length > 0 ||
+        input.skills.length > 0 ||
+        input.textAttachments.length > 0
+      ) {
+        // thread/goal/set 只接受目标文本，禁止把结构化输入无提示地丢弃。
+        throw new CodexProtocolMappingError(
+          "Codex goals do not support structured attachments or skills",
+        );
+      }
       const objective = input.text.trim();
       if (objective.length === 0 || objective.length > 4_000) {
         throw new CodexProtocolMappingError(
@@ -120,12 +134,9 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
           }),
           "thread/goal/set response",
         );
-        const goal = expectRecord(goalResponse["goal"], "thread/goal/set goal");
+        const goal = mapCodexGoal(goalResponse["goal"], taskId);
         // Goal 会自动启动首个 Turn；校验持久目标后等待对应的启动通知。
-        if (
-          expectString(goal["threadId"], "thread/goal/set thread id") !== taskId ||
-          expectString(goal["objective"], "thread/goal/set objective") !== objective
-        ) {
+        if (goal.objective !== objective) {
           throw new CodexProtocolMappingError("thread/goal/set returned an unexpected goal");
         }
         const timeoutTurn = new Promise<never>((_, reject) => {
@@ -162,6 +173,38 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
       this.runtime.runningTaskIds.add(taskId);
     }
     return turn;
+  }
+
+  protected async readGoalResponse(taskId: string): Promise<AgentGoal | null> {
+    const response = expectRecord(
+      await this.client.request("thread/goal/get", { threadId: taskId }),
+      "thread/goal/get response",
+    );
+    const nativeGoal = response["goal"];
+    return nativeGoal === null ? null : mapCodexGoal(nativeGoal, taskId);
+  }
+
+  public async readGoal(taskId: string): Promise<AgentGoal | null> {
+    this.assertKnownProjectTask(taskId);
+    return this.readGoalResponse(taskId);
+  }
+
+  public async updateGoal(taskId: string, input: UpdateAgentGoalRequest): Promise<AgentGoal> {
+    this.assertKnownProjectTask(taskId);
+    const response = expectRecord(
+      await this.client.request("thread/goal/set", { ...input, threadId: taskId }),
+      "thread/goal/set response",
+    );
+    return mapCodexGoal(response["goal"], taskId);
+  }
+
+  public async clearGoal(taskId: string): Promise<void> {
+    this.assertKnownProjectTask(taskId);
+    const response = expectRecord(
+      await this.client.request("thread/goal/clear", { threadId: taskId }),
+      "thread/goal/clear response",
+    );
+    expectBoolean(response["cleared"], "thread/goal/clear cleared");
   }
 
   public async steerTurn(

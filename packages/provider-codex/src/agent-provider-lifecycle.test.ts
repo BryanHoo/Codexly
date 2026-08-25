@@ -316,6 +316,7 @@ describe("CodexAgentProvider task lifecycle", () => {
 
     expect(rpc.calls).toEqual([
       { method: "thread/read", params: { includeTurns: false, threadId: "task-1" } },
+      { method: "thread/goal/get", params: { threadId: "task-1" } },
       {
         method: "thread/turns/list",
         params: {

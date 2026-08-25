@@ -65,6 +65,61 @@ test("selects, clears, and submits goal mode", async ({ page }) => {
   });
 });
 
+test("shows persisted goal state and sends lifecycle controls", async ({ page }) => {
+  const goal = {
+    createdAt: "2026-08-25T00:00:00.000Z",
+    objective: "完成官方 Goal 生命周期对接",
+    status: "paused" as const,
+    timeUsedSeconds: 90,
+    tokenBudget: 20_000,
+    tokensUsed: 4_096,
+    updatedAt: "2026-08-25T00:01:30.000Z",
+  };
+  const requests: { body: unknown; idempotencyKey: string | null; method: string }[] = [];
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        checkpoint: { sequence: 0, sessionId: "goal-e2e-session" },
+        snapshot: { ...taskSnapshot, goal },
+      },
+    });
+  });
+  await page.route("**/v1/projects/codexly/tasks/task-1/goal", async (route) => {
+    const request = route.request();
+    requests.push({
+      body: request.postDataJSON(),
+      idempotencyKey: request.headers()["idempotency-key"] ?? null,
+      method: request.method(),
+    });
+    await route.fulfill({
+      contentType: "application/json",
+      json:
+        request.method() === "DELETE" ? { cleared: true } : { goal: { ...goal, status: "active" } },
+    });
+  });
+
+  await page.goto("/p/codexly/t/task-1");
+
+  const statusTag = page.locator('[data-goal-status="paused"]');
+  await expect(statusTag).toContainText("目标已暂停");
+  await expect(statusTag).toHaveAttribute("aria-label", /完成官方 Goal 生命周期对接/u);
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  await inspector.getByRole("tab", { name: "上下文" }).click();
+  const goalRegion = inspector.getByRole("region", { name: "目标" });
+  await expect(goalRegion).toContainText("完成官方 Goal 生命周期对接");
+  await expect(goalRegion).toContainText("4,096 / 20,000 tokens");
+  await goalRegion.getByRole("button", { name: "恢复目标" }).click();
+  await goalRegion.getByRole("button", { name: "清除目标" }).click();
+
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests).toMatchObject([
+    { body: { status: "active" }, method: "PUT" },
+    { body: {}, method: "DELETE" },
+  ]);
+  expect(requests.every(({ idempotencyKey }) => idempotencyKey !== null)).toBe(true);
+});
+
 test("builds a completed plan as a normal development turn", async ({ page }) => {
   let turnBody: unknown;
   const completedPlanSnapshot = {

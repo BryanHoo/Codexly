@@ -1,5 +1,5 @@
 import type { AgentRuntimeProvider } from "@codexly/core";
-import type { AgentTurn } from "@codexly/protocol";
+import type { AgentGoal, AgentTurn } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { createCodexlyServer } from "./app.js";
 import {
@@ -16,6 +16,45 @@ import {
 } from "./app-all.test-support.js";
 
 describe("server task mutations", () => {
+  it("updates and clears a persisted Goal with idempotent task-scoped routes", async () => {
+    const { app, clearGoal, updateGoal } = await createHarness();
+    const goal = {
+      createdAt: "2026-07-23T00:02:00.000Z",
+      objective: "完成 Goal 协议适配",
+      status: "paused",
+      timeUsedSeconds: 12,
+      tokenBudget: 20_000,
+      tokensUsed: 1_024,
+      updatedAt: "2026-07-23T00:02:12.000Z",
+    } satisfies AgentGoal;
+    updateGoal.mockResolvedValue(goal);
+    const request = {
+      headers: { "idempotency-key": "pause-goal" },
+      method: "PUT" as const,
+      payload: { status: "paused" },
+      url: "/v1/projects/codexly/tasks/task-1/goal",
+    };
+
+    const updated = await app.inject(request);
+    const repeated = await app.inject(request);
+    const cleared = await app.inject({
+      headers: { "idempotency-key": "clear-goal" },
+      method: "DELETE",
+      payload: {},
+      url: request.url,
+    });
+
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json()).toEqual({ goal });
+    expect(repeated.json()).toEqual(updated.json());
+    expect(updateGoal).toHaveBeenCalledOnce();
+    expect(updateGoal).toHaveBeenCalledWith("task-1", { status: "paused" });
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json()).toEqual({ cleared: true });
+    expect(clearGoal).toHaveBeenCalledOnce();
+    expect(clearGoal).toHaveBeenCalledWith("task-1");
+  });
+
   it("starts new tasks with project defaults and persists turn settings before Provider calls", async () => {
     const {
       app,

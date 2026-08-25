@@ -133,6 +133,11 @@ export function handleProtocolMessage(message) {
     return true;
   }
 
+  if (message.method === "thread/goal/get") {
+    base.send({ id: message.id, result: { goal: null } });
+    return true;
+  }
+
   if (message.method === "thread/resume") {
     const threadId = message.params?.threadId;
     // 共享桩按真实协议恢复已持久化 Thread，供后续任务级 RPC 继续使用。

@@ -102,6 +102,7 @@ export const task = {
 export const snapshot = {
   ...task,
   contextUsage: null,
+  goal: null,
   plan: null,
   pendingRequests: [],
   status: "idle" as const,

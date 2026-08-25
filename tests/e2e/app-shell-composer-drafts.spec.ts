@@ -15,6 +15,7 @@ test("disables composer mutations that the provider does not support", async ({ 
       contentType: "application/json",
       json: {
         feedback: { upload: false },
+        goals: { clear: true, read: true, update: true },
         provider: "readonly",
         skills: { list: false, use: false },
         tasks: { fork: false, list: true, read: true, start: false },
@@ -43,6 +44,7 @@ test("stores composer drafts independently between task routes", async ({ page }
         snapshot: {
           ...tasks[1],
           contextUsage: null,
+          goal: null,
           pendingRequests: [],
           settings: taskSnapshot.settings,
           status: "idle",
@@ -96,6 +98,7 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
         snapshot: {
           ...tasks[1],
           contextUsage: null,
+          goal: null,
           pendingRequests: [],
           settings: taskSnapshot.settings,
           status: "idle",

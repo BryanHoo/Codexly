@@ -104,6 +104,7 @@ describe("WorkbenchComposer options", () => {
   it("derives available actions from provider capabilities and task context", () => {
     const capabilities = {
       feedback: { upload: false },
+      goals: { clear: true, read: true, update: true },
       provider: "fake",
       skills: { list: false, use: false },
       tasks: { fork: false, list: true, read: true, start: false },

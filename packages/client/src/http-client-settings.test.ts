@@ -16,6 +16,7 @@ describe("CodexlyClient settings and app routes", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           feedback: { upload: true },
+          goals: { clear: true, read: true, update: true },
           provider: "codex",
           skills: { list: true, use: true },
           tasks: { fork: true, list: true, read: true, start: true },
@@ -35,6 +36,7 @@ describe("CodexlyClient settings and app routes", () => {
           snapshot: {
             ...task,
             contextUsage: null,
+            goal: null,
             pendingRequests: [],
             plan: null,
             settings: taskSettings,

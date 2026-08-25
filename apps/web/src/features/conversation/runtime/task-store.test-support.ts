@@ -21,6 +21,7 @@ export function createResponse(
     checkpoint: { sequence: 10, sessionId: "session-1" },
     snapshot: {
       contextUsage: null,
+      goal: null,
       id: "task-1",
       plan: null,
       pendingRequests: [],

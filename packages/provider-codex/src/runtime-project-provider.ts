@@ -18,6 +18,7 @@ import {
   type AgentBackgroundTerminalPage,
   type AgentCapabilities,
   type AgentProviderConnectionStatus,
+  type AgentGoal,
   type AgentMcpServerPage,
   type AgentModelPage,
   type AgentReviewTarget,
@@ -29,6 +30,7 @@ import {
   type AgentTurnOptions,
   type PendingRequest,
   type UploadAgentFeedbackRequest,
+  type UpdateAgentGoalRequest,
 } from "@codexly/protocol";
 
 import { CodexProtocolMappingError } from "./codex-protocol-mapping.js";
@@ -89,6 +91,21 @@ export class CodexRuntimeProjectProvider implements AgentProvider {
 
   public getCapabilities(): Promise<AgentCapabilities> {
     return this.#delegate.getCapabilities();
+  }
+
+  public async clearGoal(taskId: string): Promise<void> {
+    await this.#ensureTaskOwner(taskId);
+    return this.#delegate.clearGoal(taskId);
+  }
+
+  public async readGoal(taskId: string): Promise<AgentGoal | null> {
+    await this.#ensureTaskOwner(taskId);
+    return this.#delegate.readGoal(taskId);
+  }
+
+  public async updateGoal(taskId: string, input: UpdateAgentGoalRequest): Promise<AgentGoal> {
+    await this.#ensureTaskOwner(taskId);
+    return this.#delegate.updateGoal(taskId, input);
   }
 
   public interruptTurn(taskId: string, turnId: string): Promise<void> {

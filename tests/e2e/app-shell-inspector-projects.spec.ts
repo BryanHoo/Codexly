@@ -265,6 +265,7 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
           snapshot: {
             ...createdTask,
             contextUsage: null,
+            goal: null,
             pendingRequests: [],
             settings: taskSnapshot.settings,
             status: "running",

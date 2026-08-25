@@ -17,6 +17,7 @@ import {
   optionalString,
 } from "./codex-mapping-common.js";
 import { mapRealtimeFileChanges } from "./codex-diff-mapping.js";
+import { mapCodexGoal } from "./codex-goal-mapping.js";
 import { mapAgentItem, mapApprovalReviewItem } from "./codex-item-mapping.js";
 import { mapContextUsage, mapAgentTurn } from "./codex-task-mapping.js";
 import {
@@ -145,6 +146,18 @@ export function mapCodexNotification(
     return undefined;
   }
   const taskId = explicitTaskId ?? expectString(params["threadId"], `Codex ${method} threadId`);
+
+  if (method === "thread/goal/updated") {
+    return {
+      payload: { goal: mapCodexGoal(params["goal"], taskId) },
+      taskId,
+      type: "goal.updated",
+    };
+  }
+
+  if (method === "thread/goal/cleared") {
+    return { payload: {}, taskId, type: "goal.cleared" };
+  }
 
   if (method === "autoApprovalReview/strictReviewRequired") {
     expectNonNegativeInteger(params["startedAtMs"], "Codex strict review startedAtMs");

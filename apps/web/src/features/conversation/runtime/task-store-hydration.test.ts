@@ -83,6 +83,30 @@ describe("task store hydration", () => {
     });
   });
 
+  it("applies goal updates and clears them from snapshot metadata", () => {
+    const store = createTaskStore(
+      { projectId: "project-1", taskId: "task-1" },
+      createResponse({ goal: null }),
+    );
+    const goal = {
+      createdAt: timestamp,
+      objective: "修复 Goal 状态链路",
+      status: "active" as const,
+      timeUsedSeconds: 8,
+      tokenBudget: null,
+      tokensUsed: 512,
+      updatedAt: timestamp,
+    };
+
+    store
+      .getState()
+      .applyEvents([{ ...eventEnvelope(11), payload: { goal }, type: "goal.updated" }]);
+    expect(store.getState().reconstructSnapshot()?.goal).toEqual(goal);
+
+    store.getState().applyEvents([{ ...eventEnvelope(12), payload: {}, type: "goal.cleared" }]);
+    expect(store.getState().reconstructSnapshot()?.goal).toBeNull();
+  });
+
   it("applies streamed plan, reasoning sections, tool progress, file changes, and turn diff", () => {
     const store = createTaskStore(
       { projectId: "project-1", taskId: "task-1" },

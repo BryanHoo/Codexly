@@ -15,6 +15,7 @@ function createLongHistory(): RuntimeTaskSnapshot {
 
   return {
     contextUsage: null,
+    goal: null,
     plan: null,
     id: "task-performance-history",
     pendingRequests: [],

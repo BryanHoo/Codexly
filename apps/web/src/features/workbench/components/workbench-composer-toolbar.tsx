@@ -1,3 +1,4 @@
+import type { AgentGoal } from "@codexly/protocol";
 import { Bug, CircleGauge, FilePlus2, GitFork, Lightbulb, Target, X, Zap } from "lucide-react";
 import type { PromptCommandAction } from "./prompt-command.js";
 import type { ComposerMode } from "./workbench-composer-contracts.js";
@@ -68,6 +69,29 @@ export function ComposerModeTag({
         </PromptInputButton>
       </TooltipTrigger>
       <TooltipContent>{cancelLabel}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function ComposerGoalStatusTag({ goal }: Readonly<{ goal: AgentGoal }>) {
+  const { t } = useTranslation("workbench");
+  const label = t(`composer.goalStatus.${goal.status}`);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          aria-label={t("composer.goalStatusLabel", {
+            objective: goal.objective,
+            status: label,
+          })}
+          className="inline-flex h-8 min-w-0 items-center gap-1 px-1.5 text-body-small text-foreground max-workbench:gap-0.5"
+          data-goal-status={goal.status}
+        >
+          <Target aria-hidden="true" className="size-3.5 shrink-0 text-brand" />
+          <span className="max-workbench:hidden">{label}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-72 break-words">{goal.objective}</TooltipContent>
     </Tooltip>
   );
 }

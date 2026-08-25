@@ -88,8 +88,19 @@ export const workbench = {
     worktreeListLoading: "Loading worktrees",
     worktreeSwitcherMenu: "Switch worktree",
     goalMode: "Goal",
+    goalStatus: {
+      active: "Goal active",
+      blocked: "Goal blocked",
+      budget_limited: "Goal budget exhausted",
+      complete: "Goal complete",
+      paused: "Goal paused",
+      usage_limited: "Goal usage limited",
+    },
+    goalStatusLabel: "{{status}}: {{objective}}",
     goalObjectiveRequired: "Goal mode requires an objective",
     goalObjectiveTooLong: "The goal objective cannot exceed 4,000 characters",
+    goalStructuredInputUnsupported:
+      "Goal mode does not support attachments or Skills; use text and @file paths instead",
     initializingAgentsPrompt:
       "Inspect the current project and create or improve AGENTS.md in the project root with Codex project guidance, common commands, and verification requirements.",
     landmark: "Message composer",

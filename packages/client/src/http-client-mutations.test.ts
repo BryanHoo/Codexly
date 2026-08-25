@@ -20,6 +20,15 @@ describe("CodexlyClient task mutations", () => {
       startedAt: "2026-07-23T00:02:00.000Z",
       status: "running",
     };
+    const goal = {
+      createdAt: "2026-07-23T00:02:00.000Z",
+      objective: "完成 Goal 协议适配",
+      status: "paused",
+      timeUsedSeconds: 12,
+      tokenBudget: null,
+      tokensUsed: 1_024,
+      updatedAt: "2026-07-23T00:02:12.000Z",
+    };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ task }))
@@ -30,7 +39,9 @@ describe("CodexlyClient task mutations", () => {
       )
       .mockResolvedValueOnce(
         jsonResponse({ status: "interrupting", taskId: task.id, turnId: runningTurn.id }),
-      );
+      )
+      .mockResolvedValueOnce(jsonResponse({ goal }))
+      .mockResolvedValueOnce(jsonResponse({ cleared: true }));
     const client = new CodexlyClient({ fetch: fetchMock });
 
     await client.startTask("codexly", { idempotencyKey: "task-key" });
@@ -71,7 +82,10 @@ describe("CodexlyClient task mutations", () => {
     await client.interruptTurn("codexly", task.id, runningTurn.id, {
       idempotencyKey: "interrupt-key",
     });
-    const [taskCall, attachmentCall, turnCall, steerCall, interruptCall] = fetchMock.mock.calls;
+    await client.updateTaskGoal("codexly", task.id, { status: "paused" });
+    await client.clearTaskGoal("codexly", task.id);
+    const [taskCall, attachmentCall, turnCall, steerCall, interruptCall, goalCall, clearGoalCall] =
+      fetchMock.mock.calls;
     expect(taskCall?.[0]).toBe("/v1/projects/codexly/tasks");
     expect(taskCall?.[1]).toMatchObject({ body: "{}", method: "POST" });
     expect(new Headers(taskCall?.[1]?.headers).get("idempotency-key")).toBe("task-key");
@@ -120,6 +134,14 @@ describe("CodexlyClient task mutations", () => {
       body: JSON.stringify({ taskId: "task-1" }),
       method: "POST",
     });
+    expect(goalCall).toMatchObject([
+      "/v1/projects/codexly/tasks/task-1/goal",
+      { body: JSON.stringify({ status: "paused" }), method: "PUT" },
+    ]);
+    expect(clearGoalCall).toMatchObject([
+      "/v1/projects/codexly/tasks/task-1/goal",
+      { body: "{}", method: "DELETE" },
+    ]);
     expect(new Headers(interruptCall?.[1]?.headers).get("idempotency-key")).toBe("interrupt-key");
   });
 

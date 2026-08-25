@@ -70,6 +70,7 @@ export type CodexlyMutationClient = Pick<
   | "addProject"
   | "archiveTask"
   | "compactTask"
+  | "clearTaskGoal"
   | "deleteTask"
   | "deleteQueuedSubmission"
   | "forkTask"
@@ -94,6 +95,7 @@ export type CodexlyMutationClient = Pick<
   | "uploadFeedback"
   | "unarchiveTask"
   | "updateQueuedSubmission"
+  | "updateTaskGoal"
 >;
 export type CodexlyPendingRequestClient = Pick<CodexlyClient, "resolvePendingRequest">;
 export type CodexlyWorkbenchClient = CodexlyReadClient &

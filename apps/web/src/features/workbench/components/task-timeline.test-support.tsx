@@ -26,6 +26,7 @@ export const completedTurn: RuntimeTaskSnapshot["turns"][number] = {
 
 export const snapshot: RuntimeTaskSnapshot = {
   contextUsage: null,
+  goal: null,
   plan: null,
   id: "task-1",
   pendingRequests: [],

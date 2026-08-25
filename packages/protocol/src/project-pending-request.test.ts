@@ -254,6 +254,7 @@ describe("project pending request protocol", () => {
     expect(
       Value.Check(AgentCapabilitiesSchema, {
         feedback: { upload: true },
+        goals: { clear: true, read: true, update: true },
         provider: "codex",
         skills: { list: true, use: true },
         tasks: { fork: true, list: true, read: true, start: true },

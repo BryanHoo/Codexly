@@ -31,6 +31,7 @@ import { InspectorSources } from "./workbench-inspector-sources.js";
 import { PlanSection } from "./workbench-inspector-plan.js";
 import { deriveInspectorGitChangeState } from "./workbench-inspector-git-status.js";
 import { InspectorGitChangesSection } from "./workbench-inspector-git-changes.js";
+import { GoalSection } from "./workbench-inspector-goal.js";
 import {
   WorkbenchInspectorHeader,
   type WorkbenchInspectorTab,
@@ -77,6 +78,8 @@ type WorkbenchInspectorProps = Readonly<{
   mcpServersRefreshing?: boolean;
   mcpServersRetrying?: boolean;
   onFileTreeExpandedChange?: (expandedPaths: Set<string>) => void;
+  onClearGoal?: () => Promise<void>;
+  onGoalStatusChange?: (status: "active" | "paused") => Promise<void>;
   onOpenFileDiff?: (change: AgentFileChange) => void;
   onOpenTaskAttachment?: (attachmentId: string) => void;
   onOpenProjectPath?: (appId: ProjectOpenAppId, path?: string) => void;
@@ -102,7 +105,7 @@ type WorkbenchInspectorProps = Readonly<{
   skills?: readonly AgentSkill[];
   subagents?: readonly SubagentContextEntry[];
   tab?: WorkbenchInspectorTab;
-  task?: Pick<AgentTaskSnapshot, "turns"> & Partial<Pick<AgentTaskSnapshot, "plan">>;
+  task?: Pick<AgentTaskSnapshot, "turns"> & Partial<Pick<AgentTaskSnapshot, "goal" | "plan">>;
   taskId?: string;
   terminatingTerminalId?: string | null;
 }>;
@@ -141,6 +144,8 @@ export function WorkbenchInspector({
   mcpServersRefreshing = false,
   mcpServersRetrying = false,
   onFileTreeExpandedChange = () => undefined,
+  onClearGoal = () => Promise.resolve(),
+  onGoalStatusChange = () => Promise.resolve(),
   onOpenFileDiff = () => undefined,
   onOpenTaskAttachment = () => undefined,
   onOpenProjectPath = () => undefined,
@@ -198,6 +203,9 @@ export function WorkbenchInspector({
   const projectRootName = projectPath.split(/[\\/]/u).filter(Boolean).at(-1) ?? projectName;
   const contextContent = (
     <div className="h-full space-y-5 overflow-y-auto p-2.5">
+      {task?.goal === null || task?.goal === undefined ? null : (
+        <GoalSection goal={task.goal} onClear={onClearGoal} onStatusChange={onGoalStatusChange} />
+      )}
       {isGitProject && displayChanges.length > 0 ? (
         <InspectorGitChangesSection
           changeCount={displayChanges.length}

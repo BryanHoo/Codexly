@@ -251,6 +251,7 @@ export function useWorkbenchShellRuntime({
             {
               ...taskLaunchState.task,
               contextUsage: null,
+              goal: null,
               plan: null,
               pendingRequests: [],
               settings: taskLaunchState.settings,

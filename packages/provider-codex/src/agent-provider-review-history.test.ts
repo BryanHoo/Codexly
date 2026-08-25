@@ -113,6 +113,9 @@ describe("CodexAgentProvider review history", () => {
             : { data: [workerThread("worker-old")], nextCursor: "review-page-2" },
         );
       }
+      if (method === "thread/goal/get") {
+        return Promise.resolve({ goal: null });
+      }
       throw new Error(`Unexpected RPC: ${method}`);
     };
 

@@ -304,6 +304,20 @@ export function applyAcceptedEvent(
     case "mcp_server.status_updated":
       // MCP 清单由独立 Query 持有；Task Store 只推进统一事件 checkpoint。
       return { checkpoint };
+    case "goal.updated":
+      return {
+        checkpoint,
+        snapshotMetadata: {
+          ...snapshotMetadata,
+          goal: event.payload.goal,
+          updatedAt: event.timestamp,
+        },
+      };
+    case "goal.cleared":
+      return {
+        checkpoint,
+        snapshotMetadata: { ...snapshotMetadata, goal: null, updatedAt: event.timestamp },
+      };
     case "queue.changed":
       // 队列由独立 Query 持有；通知只负责推进 checkpoint 并触发精确失效。
       return { checkpoint };

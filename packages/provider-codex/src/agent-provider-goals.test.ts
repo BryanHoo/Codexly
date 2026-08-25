@@ -10,6 +10,92 @@ import {
 } from "./agent-provider.test-support.js";
 
 describe("CodexAgentProvider goals and operations", () => {
+  it("maps goal lifecycle notifications and controls the persisted goal", async () => {
+    const activeGoal = {
+      createdAt: 1_754_396_400,
+      objective: "完成 Goal 协议适配",
+      status: "active",
+      threadId: "task-1",
+      timeUsedSeconds: 12,
+      tokenBudget: 20_000,
+      tokensUsed: 1_024,
+      updatedAt: 1_754_396_412,
+    };
+    const rpc = new FakeRpcClient([
+      { data: [nativeThread()], nextCursor: null },
+      { goal: activeGoal },
+      { goal: { ...activeGoal, status: "paused" } },
+      { cleared: true },
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    const events: AgentProviderEvent[] = [];
+    provider.subscribeEvents((event) => events.push(event));
+    await provider.listTasks();
+
+    await expect(provider.readGoal("task-1")).resolves.toMatchObject({
+      objective: "完成 Goal 协议适配",
+      status: "active",
+      tokenBudget: 20_000,
+      tokensUsed: 1_024,
+    });
+    await expect(provider.updateGoal("task-1", { status: "paused" })).resolves.toMatchObject({
+      status: "paused",
+    });
+    await expect(provider.clearGoal("task-1")).resolves.toBeUndefined();
+
+    rpc.emitNotification("thread/goal/updated", {
+      goal: { ...activeGoal, status: "budgetLimited" },
+      threadId: "task-1",
+      turnId: null,
+    });
+    rpc.emitNotification("thread/goal/cleared", { threadId: "task-1" });
+
+    expect(rpc.calls.slice(1)).toEqual([
+      { method: "thread/goal/get", params: { threadId: "task-1" } },
+      {
+        method: "thread/goal/set",
+        params: { status: "paused", threadId: "task-1" },
+      },
+      { method: "thread/goal/clear", params: { threadId: "task-1" } },
+    ]);
+    expect(events).toMatchObject([
+      {
+        payload: { goal: { objective: "完成 Goal 协议适配", status: "budget_limited" } },
+        taskId: "task-1",
+        type: "goal.updated",
+      },
+      { payload: {}, taskId: "task-1", type: "goal.cleared" },
+    ]);
+  });
+
+  it("rejects structured Goal input instead of silently dropping it", async () => {
+    const rpc = new FakeRpcClient([{ thread: nativeThread() }]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    await provider.startTask();
+
+    await expect(
+      provider.startTurn(
+        "task-1",
+        {
+          files: [{ mediaType: "text/plain", name: "notes.txt", path: "/tmp/notes.txt" }],
+          images: [],
+          skills: [],
+          text: "完成 Goal 协议适配",
+          textAttachments: [],
+        },
+        {
+          approvalPolicy: "on-request",
+          approvalsReviewer: "user",
+          goalMode: true,
+          model: "gpt-5.6-sol",
+          reasoningEffort: "high",
+          sandboxMode: "workspace-write",
+        },
+      ),
+    ).rejects.toThrow("Codex goals do not support structured attachments or skills");
+    expect(rpc.calls).toHaveLength(1);
+  });
+
   it("sets a persistent goal before starting the first goal turn", async () => {
     const runningGoalTurn = {
       completedAt: null,
@@ -233,7 +319,7 @@ describe("CodexAgentProvider goals and operations", () => {
       ],
     });
     await expect(provider.terminateBackgroundTerminal("task-1", "terminal-1")).resolves.toBe(true);
-    expect(rpc.calls.slice(2)).toEqual([
+    expect(rpc.calls.slice(3)).toEqual([
       {
         method: "thread/backgroundTerminals/list",
         params: { limit: 100, threadId: "task-1" },
@@ -258,7 +344,7 @@ describe("CodexAgentProvider goals and operations", () => {
     await provider.readTask("task-1");
 
     await expect(provider.listBackgroundTerminals("task-1")).resolves.toEqual({ data: [] });
-    expect(rpc.calls.slice(2)).toEqual([
+    expect(rpc.calls.slice(3)).toEqual([
       {
         method: "thread/backgroundTerminals/list",
         params: { limit: 100, threadId: "task-1" },
@@ -278,7 +364,7 @@ describe("CodexAgentProvider goals and operations", () => {
     await expect(provider.unsubscribeTask("task-1")).resolves.toBe("unsubscribed");
     await expect(provider.unsubscribeTask("task-1")).resolves.toBe("notLoaded");
 
-    expect(rpc.calls.slice(2)).toEqual([
+    expect(rpc.calls.slice(3)).toEqual([
       {
         method: "thread/backgroundTerminals/list",
         params: { limit: 100, threadId: "task-1" },

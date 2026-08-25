@@ -357,6 +357,7 @@ export function WorkbenchComposer({
       fastModeEnabled={fastModeEnabled}
       getCommandAvailability={getCommandAvailability}
       gitStatus={gitStatus}
+      goal={runtime?.snapshot?.goal}
       hasComposerInput={hasComposerInput}
       isSubmitting={isSubmitting}
       menuItemCount={menuItemCount}

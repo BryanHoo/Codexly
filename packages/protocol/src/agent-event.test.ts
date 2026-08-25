@@ -365,6 +365,7 @@ describe("Agent Event v2 protocol", () => {
       checkpoint: { sequence: 7, sessionId: "runtime-1" },
       snapshot: {
         contextUsage: { contextWindow: 200_000, usedTokens: 25_000 },
+        goal: null,
         id: "task-1",
         plan: {
           explanation: null,

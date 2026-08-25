@@ -74,9 +74,9 @@ import {
   type ReadOptions,
   type ReadTaskOptions,
 } from "./http-client-transport.js";
-import { TaskArchiveHttpClient } from "./http-client-task-archive.js";
+import { TaskGoalHttpClient } from "./http-client-task-goals.js";
 
-export class TaskHttpClient extends TaskArchiveHttpClient {
+export class TaskHttpClient extends TaskGoalHttpClient {
   public async listQueuedSubmissions(
     projectId: string,
     taskId: string,

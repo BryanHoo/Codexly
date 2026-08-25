@@ -6,6 +6,7 @@ import { ComposerBranchSwitcher } from "./composer-branch-switcher.js";
 import { ComposerApprovalControls } from "./workbench-composer-approval-controls.js";
 import {
   ComposerModeTag,
+  ComposerGoalStatusTag,
   ComposerFastModeButton,
   ComposerProjectRootControls,
   ComposerProjectPathButton,
@@ -82,6 +83,29 @@ describe("WorkbenchComposerView", () => {
     expect(markup).toContain('aria-label="取消目标模式"');
     expect(markup).toContain("目标");
     expect(markup).toContain("group-hover/composer-mode:opacity-100");
+  });
+
+  it("Goal 创建后按持久状态更新输入框标签", () => {
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ComposerGoalStatusTag
+          goal={{
+            createdAt: "2026-08-25T00:00:00.000Z",
+            objective: "完成官方 Goal 对接",
+            status: "paused",
+            timeUsedSeconds: 60,
+            tokenBudget: 10_000,
+            tokensUsed: 2_000,
+            updatedAt: "2026-08-25T00:01:00.000Z",
+          }}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(markup).toContain('data-goal-status="paused"');
+    expect(markup).toContain("目标已暂停");
+    expect(markup).toContain("完成官方 Goal 对接");
+    expect(markup).not.toContain("lucide-x");
   });
 
   it("优先展示队列文本、Skill 和附件摘要", () => {
