@@ -59,16 +59,18 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await expect(page.getByText("来自其他客户端", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "编辑排队消息：来自其他客户端" }).click();
   await expect(page.getByText("queue-note.txt", { exact: true })).toBeVisible();
-  await page.getByRole("button", { exact: true, name: "排队消息" }).click();
-  await expect(input).toHaveAttribute("data-serialized-value", "");
+  await expect(
+    page.getByRole("list", { name: "已排队消息" }).getByText("来自其他客户端", { exact: true }),
+  ).toHaveCount(0);
   const externalDeleteResponse = await page.request.delete(
     `/v1/projects/codexly/tasks/${taskId}/queue/${externalQueue.queuedSubmission.id}`,
     { headers: { "idempotency-key": "external-queue-delete" } },
   );
   expect(externalDeleteResponse.status()).toBe(200);
-  await expect(
-    page.getByRole("list", { name: "已排队消息" }).getByText("来自其他客户端", { exact: true }),
-  ).toHaveCount(0);
+  await input.fill("外部删除后重新排队");
+  await page.getByRole("button", { exact: true, name: "排队消息" }).click();
+  await expect(page.getByText("外部删除后重新排队", { exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "取消排队：外部删除后重新排队" }).click();
 
   let steerPayload: unknown;
   await page.route("**/v1/projects/codexly/tasks/*/turns/*/steer", async (route) => {

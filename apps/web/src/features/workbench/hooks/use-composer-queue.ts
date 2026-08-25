@@ -111,10 +111,27 @@ export function useComposerQueue({
     .filter((entry) => entry.scope === routeScope)
     .map((entry) => entry.prompt);
   const awaitingIds = new Set(currentAwaiting.map((prompt) => prompt.id));
+  const editingId = editingQueue?.scope === routeScope ? editingQueue.id : undefined;
   const queuedPrompts = [
-    ...serverPrompts.filter((prompt) => !awaitingIds.has(prompt.id)),
+    // 编辑中的队列项由输入框接管，避免原项与草稿同时出现并被重复发送。
+    ...serverPrompts.filter((prompt) => !awaitingIds.has(prompt.id) && prompt.id !== editingId),
     ...currentAwaiting,
   ];
+
+  useEffect(() => {
+    if (
+      editingId === undefined ||
+      queueQuery.data === undefined ||
+      queueQuery.isFetching ||
+      queueQuery.data.some((submission) => submission.id === editingId)
+    ) {
+      return;
+    }
+    // 权威队列已移除编辑目标时清除悬空 ID，下一次提交应创建新队列项。
+    setEditingQueue((current) =>
+      current?.scope === routeScope && current.id === editingId ? undefined : current,
+    );
+  }, [editingId, queueQuery.data, queueQuery.isFetching, routeScope]);
 
   useEffect(() => {
     // 实时 store 存在时只比较 store 中的消息 ID，避免快照 ID 不同而提前结束 loading。
@@ -157,7 +174,6 @@ export function useComposerQueue({
     if (taskId === undefined) {
       return false;
     }
-    const editingId = editingQueue?.scope === routeScope ? editingQueue.id : undefined;
     if (editingId === undefined) {
       await client.addQueuedSubmission(projectId, taskId, input, clientUserMessageId, {
         idempotencyKey: createUuid(),
@@ -179,6 +195,9 @@ export function useComposerQueue({
     await client.deleteQueuedSubmission(projectId, taskId, queuedPromptId, {
       idempotencyKey: createUuid(),
     });
+    setEditingQueue((current) =>
+      current?.scope === routeScope && current.id === queuedPromptId ? undefined : current,
+    );
     await invalidateQueue();
   };
 
