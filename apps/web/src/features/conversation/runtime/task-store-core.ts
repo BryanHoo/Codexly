@@ -9,6 +9,7 @@ import type {
 } from "@codexly/protocol";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
+import { estimateRetainedBytes, getUtf8ByteLength } from "../../../shared/memory/byte-lru.js";
 import { CommandOutputBuffer, type CommandOutputView } from "./command-output-buffer.js";
 
 export const MAX_TASK_COMMAND_OUTPUT_BYTES = 8 * 1_048_576;
@@ -62,6 +63,7 @@ export interface TaskStoreState {
   projectId: string;
   reconcile: (response: TaskStoreHydrationResponse) => void;
   reconstructSnapshot: () => ReconstructedTaskSnapshot | undefined;
+  retainedBytes: number;
   setConnectionState: (connectionState: AgentEventConnectionState) => void;
   setError: (error: Error | null) => void;
   snapshotMetadata: TaskSnapshotMetadata | null;
@@ -84,6 +86,7 @@ type DeltaEvent = Extract<
 
 export interface TaskItemStore extends StoreApi<TaskItemStoreState> {
   appendDelta: (event: DeltaEvent) => boolean;
+  getRetainedBytes: () => number;
   peek: () => AgentItem;
   publish: () => void;
   read: () => AgentItem;
@@ -115,6 +118,8 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
     initialItem.type === "command"
       ? new CommandOutputBuffer(initialItem.output, initialItem.outputTruncated)
       : undefined;
+  let retainedBytes =
+    estimateRetainedBytes(baseItem) + (commandOutputBuffer?.getView().outputBytes ?? 0);
   const store = createStore<TaskItemStoreState>()(() => ({ revision: 0 }));
 
   function appendChunk(field: StreamedTextField, delta: string): void {
@@ -127,6 +132,7 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
     if (field === "summary") {
       summaryLength += delta.length;
     }
+    retainedBytes += getUtf8ByteLength(delta);
     contentGeneration += 1;
   }
 
@@ -167,10 +173,13 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
       if (baseItem.type !== "command") {
         return false;
       }
+      const previousOutputBytes = commandOutputBuffer?.getView().outputBytes ?? 0;
       commandOutputBuffer?.append(event.payload.delta);
+      retainedBytes += (commandOutputBuffer?.getView().outputBytes ?? 0) - previousOutputBytes;
       contentGeneration += 1;
       return true;
     },
+    getRetainedBytes: (): number => retainedBytes,
     peek: (): AgentItem => baseItem,
     publish(): void {
       store.setState((state) => ({ revision: state.revision + 1 }));
@@ -232,6 +241,8 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
         item.type === "command"
           ? new CommandOutputBuffer(item.output, item.outputTruncated)
           : undefined;
+      retainedBytes =
+        estimateRetainedBytes(baseItem) + (commandOutputBuffer?.getView().outputBytes ?? 0);
       contentGeneration += 1;
     },
   });
@@ -250,6 +261,7 @@ type NormalizedTaskData = Pick<
   | "notices"
   | "pendingRequestIds"
   | "pendingRequestsById"
+  | "retainedBytes"
   | "snapshotMetadata"
   | "turnIds"
   | "turnsNextCursor"
@@ -330,7 +342,7 @@ export function normalizeSnapshot(response: TaskStoreHydrationResponse): Normali
     pendingRequestState = retainPendingRequest(pendingRequestState, request);
   }
 
-  const boundedCommandOutputs = updateCommandOutputBudget({
+  const { budget: boundedCommandOutputs } = updateCommandOutputBudget({
     previousBudget: {
       commandOutputAccessByItemKey: new Map<string, number>(),
       commandOutputAccessSequence: 0,
@@ -340,6 +352,19 @@ export function normalizeSnapshot(response: TaskStoreHydrationResponse): Normali
     sourceItemStoresByKey: itemStoresByKey,
     touchedItemKeys: [...itemStoresByKey.keys()],
   });
+  let retainedBytes =
+    estimateRetainedBytes(response.checkpoint) +
+    estimateRetainedBytes(snapshotMetadata) +
+    estimateRetainedBytes(turnsNextCursor);
+  for (const turnId of turnIds) {
+    retainedBytes += estimateRetainedBytes(turnsById[turnId]);
+    for (const itemKey of itemKeysByTurnId[turnId] ?? []) {
+      retainedBytes += itemStoresByKey.get(itemKey)?.getRetainedBytes() ?? 0;
+    }
+  }
+  for (const requestId of pendingRequestState.pendingRequestIds) {
+    retainedBytes += estimateRetainedBytes(pendingRequestState.pendingRequestsById[requestId]);
+  }
 
   return {
     checkpoint: response.checkpoint,
@@ -349,6 +374,7 @@ export function normalizeSnapshot(response: TaskStoreHydrationResponse): Normali
     itemStructureRevision: 0,
     notices: [],
     ...pendingRequestState,
+    retainedBytes,
     snapshotMetadata,
     turnIds,
     turnsNextCursor,
@@ -363,6 +389,11 @@ type CommandOutputBudgetState = Pick<
   | "commandOutputBytes"
   | "commandOutputBytesByItemKey"
 >;
+
+export type CommandOutputBudgetUpdate = Readonly<{
+  budget: CommandOutputBudgetState;
+  retainedBytesDeltaByItemKey: ReadonlyMap<string, number>;
+}>;
 
 type CommandOutputBudgetInput = Readonly<{
   previousBudget: Pick<
@@ -379,11 +410,12 @@ type CommandOutputBudgetInput = Readonly<{
 
 export function updateCommandOutputBudget(
   input: CommandOutputBudgetInput,
-): CommandOutputBudgetState {
+): CommandOutputBudgetUpdate {
   const commandOutputAccessByItemKey = input.previousBudget.commandOutputAccessByItemKey;
   const commandOutputBytesByItemKey = input.previousBudget.commandOutputBytesByItemKey;
   let commandOutputAccessSequence = input.previousBudget.commandOutputAccessSequence;
   let commandOutputBytes = input.previousBudget.commandOutputBytes;
+  const retainedBytesDeltaByItemKey = new Map<string, number>();
 
   for (const itemKey of new Set(input.touchedItemKeys)) {
     const previousOutputBytes = commandOutputBytesByItemKey.get(itemKey) ?? 0;
@@ -404,10 +436,13 @@ export function updateCommandOutputBudget(
 
   if (commandOutputBytes <= MAX_TASK_COMMAND_OUTPUT_BYTES) {
     return {
-      commandOutputAccessByItemKey,
-      commandOutputAccessSequence,
-      commandOutputBytes,
-      commandOutputBytesByItemKey,
+      budget: {
+        commandOutputAccessByItemKey,
+        commandOutputAccessSequence,
+        commandOutputBytes,
+        commandOutputBytesByItemKey,
+      },
+      retainedBytesDeltaByItemKey,
     };
   }
 
@@ -427,6 +462,7 @@ export function updateCommandOutputBudget(
       continue;
     }
     const previousOutputBytes = commandOutputBytesByItemKey.get(itemKey) ?? 0;
+    const previousRetainedBytes = itemStore.getRetainedBytes();
     itemStore.replace({
       ...item,
       output: RETAINED_COMMAND_OUTPUT_MARKER,
@@ -435,12 +471,16 @@ export function updateCommandOutputBudget(
     input.changedItemStores?.add(itemStore);
     commandOutputBytesByItemKey.set(itemKey, retainedCommandOutputMarkerBytes);
     commandOutputBytes -= previousOutputBytes - retainedCommandOutputMarkerBytes;
+    retainedBytesDeltaByItemKey.set(itemKey, itemStore.getRetainedBytes() - previousRetainedBytes);
   }
 
   return {
-    commandOutputAccessByItemKey,
-    commandOutputAccessSequence,
-    commandOutputBytes,
-    commandOutputBytesByItemKey,
+    budget: {
+      commandOutputAccessByItemKey,
+      commandOutputAccessSequence,
+      commandOutputBytes,
+      commandOutputBytesByItemKey,
+    },
+    retainedBytesDeltaByItemKey,
   };
 }

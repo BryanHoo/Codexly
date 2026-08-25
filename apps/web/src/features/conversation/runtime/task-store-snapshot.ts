@@ -172,26 +172,3 @@ export function reconcileSnapshot(
     },
   };
 }
-
-export function mergeOlderHistoryPage(
-  state: TaskStoreState,
-  response: TaskStoreHydrationResponse,
-): TaskStoreHydrationResponse {
-  const currentSnapshot = reconstructSnapshot(state);
-  if (currentSnapshot === undefined) {
-    return response;
-  }
-  const currentTurnIds = new Set(currentSnapshot.turns.map((turn) => turn.id));
-  return {
-    checkpoint: state.checkpoint ?? response.checkpoint,
-    snapshot: {
-      ...currentSnapshot,
-      // Codex Turn Cursor 不重叠；仍按 ID 去重，防止重复响应污染时间线。
-      turns: [
-        ...response.snapshot.turns.filter((turn) => !currentTurnIds.has(turn.id)),
-        ...currentSnapshot.turns,
-      ],
-      turnsNextCursor: response.snapshot.turnsNextCursor,
-    },
-  };
-}

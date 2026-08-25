@@ -171,6 +171,7 @@ describe("task store output retention", () => {
     const readSpy = vi.spyOn(activeItemStore, "read");
     const previousCommandAccess = store.getState().commandOutputAccessByItemKey;
     const previousCommandBytes = store.getState().commandOutputBytesByItemKey;
+    const retainedBytesBefore = store.getState().retainedBytes;
 
     store.getState().applyEvents([
       {
@@ -187,6 +188,7 @@ describe("task store output retention", () => {
       expect(readSpy).not.toHaveBeenCalled();
       expect(store.getState().commandOutputAccessByItemKey).toBe(previousCommandAccess);
       expect(store.getState().commandOutputBytesByItemKey).toBe(previousCommandBytes);
+      expect(store.getState().retainedBytes).toBe(retainedBytesBefore + 6);
       expect(store.getState().getItem("command-active", "turn-running")).toMatchObject({
         output: "active-delta",
       });

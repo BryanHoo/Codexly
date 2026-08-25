@@ -1,5 +1,3 @@
-import { estimateRetainedBytes } from "../../../shared/memory/byte-lru.js";
-
 import {
   MAX_RETAINED_TASK_RUNTIME_BYTES,
   type TaskStore,
@@ -11,7 +9,7 @@ import { createTaskStore } from "./task-store-factory.js";
 interface TaskStoreRegistryEntry {
   consumers: number;
   identity: TaskStoreIdentity;
-  lastAccess: number;
+  retainedBytes: number;
   store: TaskStore;
 }
 
@@ -25,10 +23,11 @@ export interface TaskStoreRegistryOptions {
 export class TaskStoreRegistry {
   readonly #createStore: (identity: TaskStoreIdentity) => TaskStore;
   readonly #entries = new Map<string, TaskStoreRegistryEntry>();
+  readonly #idleEntries = new Map<string, TaskStoreRegistryEntry>();
   readonly #maxRetainedBytes: number;
   readonly #maxRetainedStores: number;
   readonly #onEvict: TaskStoreRegistryOptions["onEvict"];
-  #accessSequence = 0;
+  #retainedBytes = 0;
 
   public constructor(options: TaskStoreRegistryOptions = {}) {
     this.#maxRetainedBytes = options.maxRetainedBytes ?? MAX_RETAINED_TASK_RUNTIME_BYTES;
@@ -50,14 +49,14 @@ export class TaskStoreRegistry {
       entry = {
         consumers: 0,
         identity: { projectId, taskId },
-        lastAccess: 0,
+        retainedBytes: 0,
         store: this.#createStore({ projectId, taskId }),
       };
       this.#entries.set(registryKey, entry);
+    } else if (entry.consumers === 0) {
+      this.#removeIdleEntry(registryKey, entry);
     }
     entry.consumers += 1;
-    entry.lastAccess = ++this.#accessSequence;
-    this.#evictIfNeeded();
     return entry.store;
   }
 
@@ -67,9 +66,17 @@ export class TaskStoreRegistry {
       return false;
     }
     entry.consumers -= 1;
-    entry.lastAccess = ++this.#accessSequence;
-    this.#evictIfNeeded();
+    if (entry.consumers === 0) {
+      entry.retainedBytes = entry.store.getState().retainedBytes;
+      this.#idleEntries.set(createRegistryKey(projectId, taskId), entry);
+      this.#retainedBytes += entry.retainedBytes;
+      this.#evictIfNeeded();
+    }
     return entry.consumers === 0;
+  }
+
+  public get retainedBytes(): number {
+    return this.#retainedBytes;
   }
 
   public get size(): number {
@@ -86,58 +93,45 @@ export class TaskStoreRegistry {
     if (entry === undefined || entry.consumers > 0) {
       return false;
     }
+    this.#removeIdleEntry(registryKey, entry);
     this.#entries.delete(registryKey);
     this.#onEvict?.(entry.identity, entry.store);
     return true;
   }
 
   #evictIfNeeded(): void {
-    const evictionCandidates = [...this.#entries]
-      .filter((candidate) => canEvictEntry(candidate[1]))
-      .sort((left, right) => left[1].lastAccess - right[1].lastAccess);
-    let retainedBytes = evictionCandidates.reduce(
-      (totalBytes, candidate) => totalBytes + estimateTaskStoreRetainedBytes(candidate[1].store),
-      0,
-    );
-    let retainedStores = evictionCandidates.length;
-    for (const [registryKey, entry] of evictionCandidates) {
-      if (retainedStores <= this.#maxRetainedStores && retainedBytes <= this.#maxRetainedBytes) {
-        break;
+    while (
+      this.#idleEntries.size > this.#maxRetainedStores ||
+      this.#retainedBytes > this.#maxRetainedBytes
+    ) {
+      const oldestEntry = this.#idleEntries.entries().next().value as
+        readonly [string, TaskStoreRegistryEntry] | undefined;
+      if (oldestEntry === undefined) {
+        return;
       }
-      // 容量只约束安全静止的未选中 Store，活动 Store 不挤占 LRU 配额。
-      const entryBytes = estimateTaskStoreRetainedBytes(entry.store);
+      const [registryKey, entry] = oldestEntry;
+      // Map 的首项就是最久未使用 Store，淘汰无需扫描或排序其他候选。
+      this.#removeIdleEntry(registryKey, entry);
       this.#entries.delete(registryKey);
-      retainedBytes -= entryBytes;
-      retainedStores -= 1;
       this.#onEvict?.(entry.identity, entry.store);
     }
+  }
+
+  #removeIdleEntry(registryKey: string, entry: TaskStoreRegistryEntry): void {
+    if (!this.#idleEntries.delete(registryKey)) {
+      return;
+    }
+    this.#retainedBytes -= entry.retainedBytes;
+    entry.retainedBytes = 0;
   }
 }
 
 export function estimateTaskStoreRetainedBytes(store: TaskStore): number {
-  const state = store.getState();
-  return estimateRetainedBytes({
-    checkpoint: state.checkpoint,
-    commandOutputAccessByItemKey: [...state.commandOutputAccessByItemKey],
-    commandOutputBytesByItemKey: [...state.commandOutputBytesByItemKey],
-    itemKeysByTurnId: state.itemKeysByTurnId,
-    items: [...state.itemStoresByKey.values()].map((itemStore) => itemStore.read()),
-    notices: state.notices,
-    pendingRequestIds: state.pendingRequestIds,
-    pendingRequestsById: state.pendingRequestsById,
-    snapshotMetadata: state.snapshotMetadata,
-    turnIds: state.turnIds,
-    turnsById: state.turnsById,
-  });
+  return store.getState().retainedBytes;
 }
 
 function createRegistryKey(projectId: string, taskId: string): string {
   return JSON.stringify([projectId, taskId]);
-}
-
-function canEvictEntry(entry: TaskStoreRegistryEntry): boolean {
-  // 最后一个消费者释放时传输已关闭；后续重开会以权威 Snapshot 重新校准。
-  return entry.consumers === 0;
 }
 
 export function createTaskStoreRegistry(options: TaskStoreRegistryOptions = {}): TaskStoreRegistry {

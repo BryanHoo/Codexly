@@ -1,5 +1,5 @@
 import type { PendingRequest } from "@codexly/protocol";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createTaskStore,
   createTaskStoreRegistry,
@@ -89,5 +89,40 @@ describe("task store registry", () => {
 
     expect(registry.peek("project-1", "task-1")).toBeUndefined();
     expect(registry.peek("project-1", "task-2")).toBeDefined();
+  });
+
+  it("tracks inactive bytes without sorting or reading item stores", () => {
+    const store = createTaskStore(
+      { projectId: "project-1", taskId: "task-1" },
+      createResponse({ title: "retained task" }),
+    );
+    const itemReadSpies = [...store.getState().itemStoresByKey.values()].map((itemStore) =>
+      vi.spyOn(itemStore, "read"),
+    );
+    const sortSpy = vi.spyOn(Array.prototype, "sort");
+    const registry = createTaskStoreRegistry({
+      createStore: () => store,
+      maxRetainedStores: 2,
+    });
+
+    try {
+      registry.acquire("project-1", "task-1");
+      expect(registry.retainedBytes).toBe(0);
+
+      registry.release("project-1", "task-1");
+      expect(registry.retainedBytes).toBe(store.getState().retainedBytes);
+
+      registry.acquire("project-1", "task-1");
+      expect(registry.retainedBytes).toBe(0);
+      expect(sortSpy).not.toHaveBeenCalled();
+      for (const readSpy of itemReadSpies) {
+        expect(readSpy).not.toHaveBeenCalled();
+      }
+    } finally {
+      sortSpy.mockRestore();
+      for (const readSpy of itemReadSpies) {
+        readSpy.mockRestore();
+      }
+    }
   });
 });

@@ -43,9 +43,17 @@ describe("task store hydration", () => {
       { projectId: "project-1", taskId: "task-1" },
       createResponse({ turns: [newestTurn], turnsNextCursor: "older-page" }),
     );
+    const newestItemStore = store.getState().itemStoresByKey.values().next().value;
+    if (newestItemStore === undefined) {
+      throw new Error("Expected the newest item store");
+    }
+    const readSpy = vi.spyOn(newestItemStore, "read");
+    const retainedBytesBefore = store.getState().retainedBytes;
 
     store.getState().prependHistory(createResponse({ turns: [olderTurn], turnsNextCursor: null }));
 
+    expect(readSpy).not.toHaveBeenCalled();
+    expect(store.getState().retainedBytes).toBeGreaterThan(retainedBytesBefore);
     expect(store.getState().reconstructSnapshot()).toMatchObject({
       turns: [
         { id: "turn-older", items: [{ id: "shared-page-item", text: "更早" }] },
@@ -60,6 +68,56 @@ describe("task store hydration", () => {
     expect(store.getState().reconstructSnapshot()).toMatchObject({
       turns: [{ id: "turn-older" }, { id: "turn-newest" }],
       turnsNextCursor: null,
+    });
+    readSpy.mockRestore();
+  });
+
+  it("evicts prepended command output before newer retained output", () => {
+    const commandOutput = "x".repeat(1_000_000);
+    const currentTurn = {
+      completedAt: timestamp,
+      error: null,
+      id: "turn-current",
+      items: Array.from({ length: 8 }, (_, index) => ({
+        command: `current-${String(index)}`,
+        cwd: "/workspace",
+        id: `current-${String(index)}`,
+        output: commandOutput,
+        outputTruncated: false,
+        status: "completed" as const,
+        type: "command" as const,
+      })),
+      startedAt: timestamp,
+      status: "completed" as const,
+    };
+    const olderTurn = {
+      ...currentTurn,
+      id: "turn-older-command",
+      items: [
+        {
+          command: "older",
+          cwd: "/workspace",
+          id: "older-command",
+          output: commandOutput,
+          outputTruncated: false,
+          status: "completed" as const,
+          type: "command" as const,
+        },
+      ],
+    };
+    const store = createTaskStore(
+      { projectId: "project-1", taskId: "task-1" },
+      createResponse({ turns: [currentTurn], turnsNextCursor: "older-page" }),
+    );
+
+    store.getState().prependHistory(createResponse({ turns: [olderTurn], turnsNextCursor: null }));
+
+    expect(store.getState().getItem("older-command", "turn-older-command")).toMatchObject({
+      outputTruncated: true,
+    });
+    expect(store.getState().getItem("current-0", "turn-current")).toMatchObject({
+      output: commandOutput,
+      outputTruncated: false,
     });
   });
 

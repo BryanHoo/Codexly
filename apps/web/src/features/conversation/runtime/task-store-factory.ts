@@ -1,5 +1,7 @@
+import type { AgentEvent } from "@codexly/protocol";
 import { createStore } from "zustand/vanilla";
 
+import { estimateRetainedBytes } from "../../../shared/memory/byte-lru.js";
 import {
   normalizeSnapshot,
   createTaskItemKey,
@@ -12,11 +14,7 @@ import {
 } from "./task-store-core.js";
 
 import { applyAcceptedEvent, getTouchedCommandOutputItemKeys } from "./task-store-events.js";
-import {
-  mergeOlderHistoryPage,
-  reconcileSnapshot,
-  reconstructSnapshot,
-} from "./task-store-snapshot.js";
+import { reconcileSnapshot, reconstructSnapshot } from "./task-store-snapshot.js";
 
 export function createTaskStore(
   identity: TaskStoreIdentity,
@@ -36,6 +34,7 @@ export function createTaskStore(
           notices: [],
           pendingRequestIds: [],
           pendingRequestsById: {},
+          retainedBytes: 0,
           snapshotMetadata: null,
           turnIds: [],
           turnsNextCursor: null,
@@ -71,6 +70,8 @@ export function createTaskStore(
             continue;
           }
           const previousState = nextState;
+          const retainedEntityBytesBefore = measureEventEntityBytes(previousState, event);
+          const retainedItemBytesBefore = measureEventItemBytes(previousState, event);
           nextState = {
             ...nextState,
             ...applyAcceptedEvent(nextState, event, changedItemStores),
@@ -80,17 +81,40 @@ export function createTaskStore(
             nextState,
             event,
           );
+          let retainedBytesDeltaByItemKey: ReadonlyMap<string, number> = new Map();
           if (touchedCommandOutputItemIds !== undefined) {
+            const commandOutputUpdate = updateCommandOutputBudget({
+              previousBudget: previousState,
+              changedItemStores,
+              sourceItemStoresByKey: nextState.itemStoresByKey,
+              touchedItemKeys: touchedCommandOutputItemIds,
+            });
+            ({ retainedBytesDeltaByItemKey } = commandOutputUpdate);
             nextState = {
               ...nextState,
-              ...updateCommandOutputBudget({
-                previousBudget: previousState,
-                changedItemStores,
-                sourceItemStoresByKey: nextState.itemStoresByKey,
-                touchedItemKeys: touchedCommandOutputItemIds,
-              }),
+              ...commandOutputUpdate.budget,
             };
           }
+          const trackedItemKeys = new Set([
+            ...retainedItemBytesBefore.keys(),
+            ...getEventItemKeys(nextState, event),
+          ]);
+          const retainedItemBytesDelta =
+            measureItemBytesByKeys(nextState, trackedItemKeys) -
+            sumRetainedItemBytes(retainedItemBytesBefore);
+          const untrackedEvictionDelta = [...retainedBytesDeltaByItemKey].reduce(
+            (total, [itemKey, delta]) => total + (trackedItemKeys.has(itemKey) ? 0 : delta),
+            0,
+          );
+          nextState = {
+            ...nextState,
+            retainedBytes:
+              nextState.retainedBytes +
+              measureEventEntityBytes(nextState, event) -
+              retainedEntityBytesBefore +
+              retainedItemBytesDelta +
+              untrackedEvictionDelta,
+          };
         }
         return nextState;
       });
@@ -124,13 +148,11 @@ export function createTaskStore(
       ) {
         throw new Error("Task store identity does not match the history page");
       }
-      set((state) => ({
-        ...state,
-        ...normalizeSnapshot(mergeOlderHistoryPage(state, response)),
-        checkpoint: state.checkpoint ?? response.checkpoint,
-        itemStructureRevision: state.itemStructureRevision + 1,
-        notices: state.notices,
-      }));
+      const changedItemStores = new Set<TaskItemStore>();
+      set((state) => prependNormalizedHistory(state, response, changedItemStores));
+      for (const itemStore of changedItemStores) {
+        itemStore.publish();
+      }
     },
     reconcile(response) {
       if (
@@ -159,4 +181,155 @@ export function createTaskStore(
     },
     taskId: identity.taskId,
   }));
+}
+
+function prependNormalizedHistory(
+  state: TaskStoreState,
+  response: TaskStoreHydrationResponse,
+  changedItemStores: Set<TaskItemStore>,
+): TaskStoreState {
+  const history = normalizeSnapshot(response);
+  const addedTurnIds = history.turnIds.filter((turnId) => state.turnsById[turnId] === undefined);
+  const addedItemKeys = new Set(
+    addedTurnIds.flatMap((turnId) => history.itemKeysByTurnId[turnId] ?? []),
+  );
+  const itemStoresByKey = new Map(state.itemStoresByKey);
+  for (const itemKey of addedItemKeys) {
+    const itemStore = history.itemStoresByKey.get(itemKey);
+    if (itemStore !== undefined) {
+      itemStoresByKey.set(itemKey, itemStore);
+    }
+  }
+  const itemKeysByTurnId = { ...state.itemKeysByTurnId };
+  const turnsById = { ...state.turnsById };
+  for (const turnId of addedTurnIds) {
+    itemKeysByTurnId[turnId] = history.itemKeysByTurnId[turnId] ?? [];
+    const turn = history.turnsById[turnId];
+    if (turn !== undefined) {
+      turnsById[turnId] = turn;
+    }
+  }
+  const { budget: commandOutputBudget, retainedBytesDeltaByItemKey } = updateCommandOutputBudget({
+    previousBudget: {
+      commandOutputAccessByItemKey: new Map<string, number>(),
+      commandOutputAccessSequence: 0,
+      commandOutputBytes: 0,
+      commandOutputBytesByItemKey: new Map<string, number>(),
+    },
+    changedItemStores,
+    sourceItemStoresByKey: itemStoresByKey,
+    // 旧页先进入访问索引，当前时间线随后进入，确保超限时优先淘汰历史输出。
+    touchedItemKeys: [...addedItemKeys, ...state.itemStoresByKey.keys()],
+  });
+  let retainedBytes =
+    state.retainedBytes -
+    estimateRetainedBytes(state.turnsNextCursor) +
+    estimateRetainedBytes(response.snapshot.turnsNextCursor);
+  for (const turnId of addedTurnIds) {
+    retainedBytes += estimateRetainedBytes(turnsById[turnId]);
+    for (const itemKey of itemKeysByTurnId[turnId] ?? []) {
+      retainedBytes += itemStoresByKey.get(itemKey)?.getRetainedBytes() ?? 0;
+    }
+  }
+  for (const [itemKey, delta] of retainedBytesDeltaByItemKey) {
+    if (!addedItemKeys.has(itemKey)) {
+      retainedBytes += delta;
+    }
+  }
+  // 历史页只增加新实体，既有流式 Item 保持原 Store 和延迟物化状态。
+  return {
+    ...state,
+    ...commandOutputBudget,
+    checkpoint: state.checkpoint ?? response.checkpoint,
+    itemKeysByTurnId,
+    itemStoresByKey,
+    itemStructureRevision: state.itemStructureRevision + 1,
+    retainedBytes,
+    turnIds: [...addedTurnIds, ...state.turnIds],
+    turnsNextCursor: response.snapshot.turnsNextCursor,
+    turnsById,
+  };
+}
+
+function measureEventEntityBytes(state: TaskStoreState, event: AgentEvent): number {
+  let retainedBytes = 0;
+  if (
+    event.type === "turn.started" ||
+    event.type === "turn.completed" ||
+    event.type === "provider.error"
+  ) {
+    retainedBytes += estimateRetainedBytes(state.turnsById[event.turnId]);
+  }
+  if (event.type === "task.notice" || event.type === "turn.completed") {
+    retainedBytes += state.notices.reduce(
+      (total, notice) => total + estimateRetainedBytes(notice),
+      0,
+    );
+  }
+  if (
+    event.type === "goal.updated" ||
+    event.type === "goal.cleared" ||
+    event.type === "plan.updated" ||
+    event.type === "provider.error" ||
+    event.type === "task.status_updated" ||
+    event.type === "turn.started" ||
+    event.type === "turn.completed" ||
+    event.type === "usage.updated"
+  ) {
+    retainedBytes += estimateRetainedBytes(state.snapshotMetadata);
+  }
+  if (
+    event.type === "pending_request.created" ||
+    event.type === "pending_request.resolved" ||
+    event.type === "pending_request.expired"
+  ) {
+    for (const requestId of state.pendingRequestIds) {
+      retainedBytes += estimateRetainedBytes(state.pendingRequestsById[requestId]);
+    }
+  }
+  return retainedBytes;
+}
+
+function getEventItemKeys(state: TaskStoreState, event: AgentEvent): readonly string[] {
+  if (event.type === "turn.started" || event.type === "turn.completed") {
+    return state.itemKeysByTurnId[event.turnId] ?? [];
+  }
+  if (!("itemId" in event) || !("turnId" in event)) {
+    return [];
+  }
+  const itemKeys = [createTaskItemKey(event.turnId, event.itemId)];
+  if (event.type === "item.started" || event.type === "item.completed") {
+    const currentItemKeys = state.itemKeysByTurnId[event.turnId] ?? [];
+    const previousItemKey = currentItemKeys.at(-1);
+    if (previousItemKey !== undefined) {
+      itemKeys.push(previousItemKey);
+    }
+    itemKeys.push(createTaskItemKey(event.turnId, `submitted-user-${event.turnId}`));
+  }
+  return itemKeys;
+}
+
+function measureEventItemBytes(state: TaskStoreState, event: AgentEvent): Map<string, number> {
+  return new Map(
+    getEventItemKeys(state, event).map((itemKey) => [
+      itemKey,
+      state.itemStoresByKey.get(itemKey)?.getRetainedBytes() ?? 0,
+    ]),
+  );
+}
+
+function measureItemBytesByKeys(state: TaskStoreState, itemKeys: ReadonlySet<string>): number {
+  let retainedBytes = 0;
+  for (const itemKey of itemKeys) {
+    retainedBytes += state.itemStoresByKey.get(itemKey)?.getRetainedBytes() ?? 0;
+  }
+  return retainedBytes;
+}
+
+function sumRetainedItemBytes(retainedBytesByItemKey: ReadonlyMap<string, number>): number {
+  let retainedBytes = 0;
+  for (const itemBytes of retainedBytesByItemKey.values()) {
+    retainedBytes += itemBytes;
+  }
+  return retainedBytes;
 }
