@@ -106,6 +106,38 @@ describe("server runtime and core routes", () => {
     expect(projectsResponse.json()).toEqual({ data: [project], nextCursor: null });
   });
 
+  it("serves the Bing daily wallpaper through the same origin", async () => {
+    const originalFetch = globalThis.fetch;
+    const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]);
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ images: [{ url: "/th?id=OHR.Workbench.jpg&pid=hp" }] }), {
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(jpeg, {
+          headers: { "content-length": String(jpeg.byteLength), "content-type": "image/jpeg" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const { app } = await createHarness();
+      const response = await app.inject({
+        method: "GET",
+        url: "/v1/workbench-background/bing?day=2026-08-25",
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toBe("image/jpeg");
+      expect(response.rawPayload).toEqual(Buffer.from(jpeg));
+    } finally {
+      vi.stubGlobal("fetch", originalFetch);
+    }
+  });
+
   it("serves application versions and installs an update idempotently", async () => {
     const provider = createProvider().provider;
     const readAppInfo = vi.fn(() =>

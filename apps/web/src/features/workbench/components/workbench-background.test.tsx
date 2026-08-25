@@ -1,0 +1,38 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+import {
+  createBingWallpaperUrl,
+  getMillisecondsUntilNextLocalDay,
+  WorkbenchBackgroundFrame,
+} from "./workbench-background.js";
+
+describe("WorkbenchBackground", () => {
+  it("creates a stable same-origin URL and refresh delay for the local day", () => {
+    const now = new Date(2026, 7, 25, 23, 59, 59, 500);
+
+    expect(createBingWallpaperUrl(now)).toBe("/v1/workbench-background/bing?day=2026-08-25");
+    expect(getMillisecondsUntilNextLocalDay(now)).toBe(1_500);
+  });
+
+  it("renders the image and full-workbench overlay only after the image loads", () => {
+    const markup = renderToStaticMarkup(
+      <WorkbenchBackgroundFrame
+        imageLoaded
+        imageSource="/v1/workbench-background/bing?day=2026-08-25"
+        onImageError={vi.fn()}
+        onImageLoad={vi.fn()}
+        preference={{ customImageName: null, mode: "bing", overlayOpacity: 40 }}
+      >
+        <div>Workbench</div>
+      </WorkbenchBackgroundFrame>,
+    );
+
+    expect(markup).toContain('data-background-mode="bing"');
+    expect(markup).toContain('data-has-image="true"');
+    expect(markup).toContain('data-workbench-background-image="true"');
+    expect(markup).toContain('data-workbench-background-overlay="true"');
+    expect(markup).toContain("opacity:0.4");
+    expect(markup).toContain("Workbench");
+  });
+});

@@ -16,6 +16,7 @@ import { TooltipTrigger } from "../../../shared/components/core/tooltip.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { changeAppLanguage, getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import { setThemePreference, type ThemePreference } from "../theme-preference.js";
+import { applyWorkbenchBackgroundPreference } from "../workbench-background-preference.js";
 import {
   getNotificationPreference,
   setNotificationPreference,
@@ -43,6 +44,7 @@ import { saveGlobalSettingsDraft } from "./global-settings-save.js";
 import { GlobalSettingsAbout } from "./global-settings-about.js";
 import { GlobalSettingsAccess } from "./global-settings-access.js";
 import { ProviderConnectionPanel } from "../../provider-connection/components/provider-connection-panel.js";
+import { useWorkbenchBackgroundDraft } from "./use-workbench-background-draft.js";
 export { resolveGlobalSettingsModel } from "./global-settings-model.js";
 
 type GlobalSettingsDialogProps = Readonly<{
@@ -93,6 +95,13 @@ export function GlobalSettingsDialog({
     () => settings ?? createFallbackSettings(models),
   );
   const [theme, setTheme] = useState<ThemePreference>(readInitialTheme);
+  const {
+    background,
+    customBackgroundFile,
+    customBackgroundMissing,
+    setBackground,
+    setCustomBackgroundFile,
+  } = useWorkbenchBackgroundDraft();
   const [language, setLanguage] = useState(getCurrentLanguage);
   const [notificationsEnabled, setNotificationsEnabled] = useState(getNotificationPreference);
   const [isSaving, setIsSaving] = useState(false);
@@ -138,9 +147,19 @@ export function GlobalSettingsDialog({
               try {
                 await saveGlobalSettingsDraft(
                   draft,
-                  { language, notificationsEnabled, theme },
+                  {
+                    background,
+                    customBackgroundImage: customBackgroundFile,
+                    language,
+                    notificationsEnabled,
+                    theme,
+                  },
                   {
                     applyBrowserSettings: async (browserSettings) => {
+                      await applyWorkbenchBackgroundPreference(
+                        browserSettings.background,
+                        browserSettings.customBackgroundImage,
+                      );
                       if (typeof window !== "undefined") {
                         setThemePreference(browserSettings.theme);
                       }
@@ -257,10 +276,15 @@ export function GlobalSettingsDialog({
                 <>
                   <AppearanceSettingsPanel
                     activeSection={activeSection}
+                    background={background}
+                    customBackgroundFile={customBackgroundFile}
+                    isSaving={isSaving}
                     language={language}
                     notificationsEnabled={notificationsEnabled}
                     onLanguageChange={setLanguage}
                     onNotificationsChange={setNotificationsEnabled}
+                    onBackgroundChange={setBackground}
+                    onCustomBackgroundFileChange={setCustomBackgroundFile}
                     onThemeChange={setTheme}
                     theme={theme}
                   />
@@ -439,7 +463,9 @@ export function GlobalSettingsDialog({
             </Button>
             {activeSection === "provider" ? null : (
               <Button
-                disabled={isPending || isSaving || settings === undefined}
+                disabled={
+                  isPending || isSaving || settings === undefined || customBackgroundMissing
+                }
                 type="submit"
                 variant="default"
               >

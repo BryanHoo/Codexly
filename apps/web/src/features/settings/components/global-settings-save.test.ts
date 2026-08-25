@@ -4,6 +4,12 @@ import { createFallbackSettings } from "./global-settings-model.js";
 import { saveGlobalSettingsDraft } from "./global-settings-save.js";
 
 const browserSettings = {
+  background: {
+    customImageName: null,
+    mode: "bing" as const,
+    overlayOpacity: 55,
+  },
+  customBackgroundImage: null,
   language: "en" as const,
   notificationsEnabled: false,
   theme: "dark" as const,

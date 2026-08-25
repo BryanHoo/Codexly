@@ -12,6 +12,7 @@
   --ui-color-sidebar: light-dark(#ffffff, #181818);
   --ui-color-panel: light-dark(#ffffff, #181818);
   --ui-color-raised: light-dark(#ffffff, #202020);
+  --ui-color-dialog: var(--ui-color-raised);
   --ui-color-control: light-dark(rgb(17 17 17 / 0.04), rgb(255 255 255 / 0.07));
   --ui-color-code-inline: light-dark(rgb(17 17 17 / 0.08), rgb(255 255 255 / 0.12));
   --ui-color-control-hover: light-dark(rgb(23 23 23 / 0.075), rgb(255 255 255 / 0.1));
@@ -35,6 +36,7 @@
   --ui-color-danger: var(--ui-color-diff-removed);
   --ui-color-focus: var(--ui-color-accent);
   --ui-color-scrim: light-dark(rgb(23 23 23 / 0.16), rgb(0 0 0 / 0.52));
+  --ui-color-wallpaper-overlay: light-dark(#ffffff, #181818);
 
   /* 固定栏使用单像素低对比分隔，保留原生应用的结构感而不形成重边框。 */
   --ui-shadow-divider: 1px 0 0 var(--ui-color-separator);
@@ -158,6 +160,7 @@
   --color-sidebar: var(--ui-color-sidebar);
   --color-panel: var(--ui-color-panel);
   --color-raised: var(--ui-color-raised);
+  --color-dialog: var(--ui-color-dialog);
   --color-control: var(--ui-color-control);
   --color-control-hover: var(--ui-color-control-hover);
   --color-control-active: var(--ui-color-control-active);

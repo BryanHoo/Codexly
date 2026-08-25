@@ -16,14 +16,22 @@ import type { FastifyPluginCallback } from "fastify";
 
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { IdempotencyHeadersSchema } from "./schemas.js";
+import { createBingWallpaperService } from "../bing-wallpaper.js";
 
 const APP_UPDATE_HANDLER_TIMEOUT_MS = 150_000;
+const BingWallpaperQuerySchema = {
+  additionalProperties: false,
+  properties: { day: { pattern: "^\\d{4}-\\d{2}-\\d{2}$", type: "string" } },
+  required: ["day"],
+  type: "object",
+} as const;
 
 export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = (
   app,
   context,
   done,
 ) => {
+  const bingWallpaper = createBingWallpaperService();
   const {
     assertValidProjectDefaults,
     capabilities,
@@ -44,6 +52,15 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
 
   app.get("/v1/app-info", { schema: { response: { 200: AppInfoResponseSchema } } }, () =>
     readAppInfo(),
+  );
+
+  app.get<{ Querystring: { day: string } }>(
+    "/v1/workbench-background/bing",
+    { schema: { querystring: BingWallpaperQuerySchema } },
+    async (request, reply) => {
+      const wallpaper = await bingWallpaper.read(request.query.day);
+      return reply.type(wallpaper.contentType).send(wallpaper.body);
+    },
   );
 
   app.post<{

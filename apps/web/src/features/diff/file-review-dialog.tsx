@@ -311,7 +311,7 @@ export function FileReviewDialog({ changes, onClose }: FileReviewDialogProps) {
     >
       <DialogContent
         aria-labelledby={titleId}
-        className="h-[min(86dvh,58rem)] max-w-[78rem] overflow-hidden p-0"
+        className="h-[min(86dvh,58rem)] max-w-[78rem] overflow-hidden bg-transparent p-0"
       >
         <DialogTitle className="sr-only">{getFileName(changes[0]?.path ?? "")}</DialogTitle>
         <FileReviewWorkspace

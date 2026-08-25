@@ -3,6 +3,13 @@ import { getComposerModelSelector } from "./app-shell-settings-navigation.test-s
 
 test.describe.configure({ mode: "serial" });
 
+function parseCssAlpha(color: string): number {
+  const alpha =
+    /\/\s*([\d.]+)\s*\)$/u.exec(color)?.[1] ??
+    /rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)/u.exec(color)?.[1];
+  return alpha === undefined ? 1 : Number(alpha);
+}
+
 test("connects a custom API from the provider gate and reuses it in settings", async ({ page }) => {
   await mockAppShellApi(page, { providerConnected: false });
   await page.goto("/");
@@ -125,6 +132,94 @@ test("defaults appearance to automatic and follows the system color scheme", asy
   }
   await languageDialog.getByRole("button", { name: "保存全局默认" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
+});
+
+test("applies and restores a custom workbench background", async ({ page }) => {
+  await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { exact: true, name: "设置" }).click();
+  const dialog = page.getByRole("dialog", { name: "全局设置" });
+  await dialog.getByRole("button", { name: "自定义工作台背景" }).click();
+  await dialog.getByLabel("上传自定义背景图片").setInputFiles("docs/images/codexly-preview.png");
+  await dialog.getByRole("slider", { name: "壁纸遮罩不透明度" }).fill("35");
+  await dialog.getByRole("button", { name: "保存全局默认" }).click();
+
+  const background = page.locator("[data-workbench-background]");
+  await expect(background).toHaveAttribute("data-background-mode", "custom");
+  await expect(background).toHaveAttribute("data-has-image", "true");
+  await expect(page.locator('[data-workbench-background-image="true"]')).toHaveAttribute(
+    "src",
+    /^blob:/u,
+  );
+  await expect(page.locator('[data-workbench-background-overlay="true"]')).toHaveCSS(
+    "opacity",
+    "0.35",
+  );
+
+  const transparentSurface = "rgba(0, 0, 0, 0)";
+  await expect(page.locator(".workbench-sidebar")).toHaveCSS(
+    "background-color",
+    transparentSurface,
+  );
+  await expect(page.getByRole("main", { name: "任务时间线" })).toHaveCSS(
+    "background-color",
+    transparentSurface,
+  );
+  await expect(page.locator(".workbench-inspector")).toHaveCSS(
+    "background-color",
+    transparentSurface,
+  );
+  const composerBackgroundAlpha = parseCssAlpha(
+    await page
+      .locator("[data-prompt-input]")
+      .evaluate((element) => getComputedStyle(element).backgroundColor),
+  );
+  expect(composerBackgroundAlpha).toBeLessThanOrEqual(0.7);
+
+  await page
+    .getByRole("region", { name: /本次修改了 \d+ 个文件/u })
+    .getByRole("button", { exact: true, name: "审核" })
+    .click();
+  const reviewDialog = page.getByRole("dialog");
+  await expect(reviewDialog).toHaveCSS("background-color", transparentSurface);
+  await expect(reviewDialog.getByRole("region", { name: "审核文件内容" })).toHaveCSS(
+    "background-color",
+    transparentSurface,
+  );
+  await expect(reviewDialog.getByRole("complementary", { name: "变更文件导航" })).toHaveCSS(
+    "background-color",
+    transparentSurface,
+  );
+  await reviewDialog.getByRole("button", { name: "关闭文件审核" }).click();
+
+  await page.setViewportSize({ height: 844, width: 320 });
+  await page.reload();
+  await expect(background).toHaveAttribute("data-background-mode", "custom");
+  await expect(background).toHaveAttribute("data-has-image", "true");
+  const restoredImageSource = await page
+    .locator('[data-workbench-background-image="true"]')
+    .getAttribute("src");
+  expect(await page.locator("body").evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(
+    true,
+  );
+
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.getByRole("button", { name: "展开项目侧栏" }).click();
+  await page.getByRole("button", { exact: true, name: "设置" }).click();
+  const reopenedDialog = page.getByRole("dialog", { name: "全局设置" });
+  const settingsDialogBackgroundAlpha = parseCssAlpha(
+    await reopenedDialog.evaluate((element) => getComputedStyle(element).backgroundColor),
+  );
+  expect(settingsDialogBackgroundAlpha).toBeGreaterThanOrEqual(0.88);
+  expect(settingsDialogBackgroundAlpha).toBeLessThanOrEqual(0.92);
+  await reopenedDialog.getByRole("button", { name: "自定义工作台背景" }).click();
+  await reopenedDialog
+    .getByLabel("上传自定义背景图片")
+    .setInputFiles("docs/images/codexly-preview.png");
+  await reopenedDialog.getByRole("button", { name: "保存全局默认" }).click();
+  await expect(page.locator('[data-workbench-background-image="true"]')).not.toHaveAttribute(
+    "src",
+    restoredImageSource ?? "",
+  );
 });
 
 test("edits global defaults in a dialog without overriding task settings", async ({ page }) => {

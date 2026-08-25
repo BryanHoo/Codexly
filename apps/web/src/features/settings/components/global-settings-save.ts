@@ -2,8 +2,11 @@ import type { AgentGlobalSettings } from "@codexly/protocol";
 
 import type { SupportedLanguage } from "../../../i18n/language-preference.js";
 import type { ThemePreference } from "../theme-preference.js";
+import type { WorkbenchBackgroundPreference } from "../workbench-background-preference.js";
 
 export type BrowserSettingsDraft = Readonly<{
+  background: WorkbenchBackgroundPreference;
+  customBackgroundImage: File | null;
   language: SupportedLanguage;
   notificationsEnabled: boolean;
   theme: ThemePreference;

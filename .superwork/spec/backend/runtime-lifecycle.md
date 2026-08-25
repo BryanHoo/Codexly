@@ -67,6 +67,7 @@
 - Fastify 资源通过插件封装，并在 `onClose` 中释放。
 - 幂等 Mutation 的已完成结果缓存与进行中请求必须独立管理；`idempotencyCacheSize` 同时作为结果缓存容量和不同 Key 进行中请求的硬上限。同 Key 继续复用原请求，不同 Key 超限时返回可重试的 `503 IDEMPOTENCY_CAPACITY_EXCEEDED`，请求完成或失败后立即释放进行中名额。
 - 普通 HTTP 路由使用 Fastify 原生 60 秒 `handlerTimeout` 和 `request.signal` 执行协作取消；Event Stream WebSocket 是显式长连接，不继承 Handler 截止时间，其有界性由队列、背压和连接关闭生命周期保证。
+- Bing 当日壁纸只通过同源 `GET /v1/workbench-background/bing?day=YYYY-MM-DD` 交付；Server 只能访问固定的 Bing 官方元数据端点及其返回的同源 `/th` 图片路径，禁止跟随重定向，并对元数据、图片、超时、Content-Type 与 JPEG 文件签名执行有界校验。同一日期必须复用进行中请求和内存缓存，跨日并发只允许最新日期回填唯一缓存。
 - Codex `projectId` 是唯一 Project 身份和上游真相源。CLI 在 App Server 初始化后、HTTP Server 创建前遍历全部 `project/list` Cursor，并在一个 SQLite 事务中替换用户 Project 投影；同步失败必须停止启动并关闭 SQLite 与 App Server。
 - 首次切换 Codex Project 真相源时必须先迁移、后同步：Codex App Server 普通 Thread 的原生来源是 `vscode`，必须将 SQLite 旧 Project 连同同 `cwd` 的未归属、非 ephemeral、active/archived、`legacy | paginated` Thread 通过 `project/import` 原子写入上游，并在事务中把 Project defaults 与 Task settings 重键到 Codex `projectId`。已经运行过破坏性 v14 或错误 v15 同步的数据库必须执行一次未归属 Thread 恢复：同路径 Codex Project 已存在时使用 `thread/metadata/update` 重新归属，否则按 `cwd` 重建上游 Project。迁移与全量投影均成功后才能持久化完成标记；稳定命名空间幂等键必须保证失败重启可安全重试。
 - Project 读取与增删改排固定调用 Codex `project/read|create|update|delete|move`；只有上游成功后才能更新 SQLite。Codexly 完整保留 Codex Project 的有序 `roots[]` 和 `projectId`，不按真实路径合并身份；空 roots、重复 root、重复 ID 或异常分页 Cursor 必须作为协议错误拒绝。
