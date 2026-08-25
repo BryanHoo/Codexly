@@ -31,6 +31,7 @@ type ConversationContentProps = HTMLAttributes<HTMLDivElement>;
 type ConversationContextValue = Readonly<{
   atBottom: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
+  pauseFollowing: () => void;
   scrollbarWidth: number;
   scrollToBottom: () => void;
 }>;
@@ -75,9 +76,12 @@ export function Conversation({
       autoScrollController.scrollToBottom(container);
     }
   }, [autoScrollController]);
+  const pauseFollowing = useCallback(() => {
+    autoScrollController.pauseFollowing();
+  }, [autoScrollController]);
   const contextValue = useMemo(
-    () => ({ atBottom, containerRef, scrollbarWidth, scrollToBottom }),
-    [atBottom, scrollbarWidth, scrollToBottom],
+    () => ({ atBottom, containerRef, pauseFollowing, scrollbarWidth, scrollToBottom }),
+    [atBottom, pauseFollowing, scrollbarWidth, scrollToBottom],
   );
 
   useLayoutEffect(() => {
@@ -215,8 +219,9 @@ export function ConversationVirtualList<TItem>({
   ...props
 }: ConversationVirtualListProps<TItem>) {
   const context = useConversationContext();
+  const { containerRef, pauseFollowing, scrollbarWidth } = context;
   const navigationFrameRef = useRef(0);
-  const getScrollElement = useCallback(() => context.containerRef.current, [context.containerRef]);
+  const getScrollElement = useCallback(() => containerRef.current, [containerRef]);
   const estimateTurnSize = useCallback(
     (index: number) =>
       estimateSize?.(items[index] as TItem, index) ?? DEFAULT_TURN_ESTIMATED_HEIGHT_PX,
@@ -241,7 +246,7 @@ export function ConversationVirtualList<TItem>({
   });
   const navigateToItem = useCallback(
     (index: number, anchorId: string) => {
-      const container = context.containerRef.current;
+      const container = containerRef.current;
       if (container === null) {
         return;
       }
@@ -253,10 +258,12 @@ export function ConversationVirtualList<TItem>({
         );
       const mountedAnchor = findAnchor();
       if (mountedAnchor !== undefined) {
+        pauseFollowing();
         mountedAnchor.scrollIntoView({ block: "start" });
         return;
       }
 
+      pauseFollowing();
       virtualizer.scrollToIndex(index, { align: "start" });
       let remainingFrames = 12;
       const finishNavigation = () => {
@@ -274,7 +281,7 @@ export function ConversationVirtualList<TItem>({
       };
       navigationFrameRef.current = requestAnimationFrame(finishNavigation);
     },
-    [context.containerRef, virtualizer],
+    [containerRef, pauseFollowing, virtualizer],
   );
 
   useEffect(
@@ -286,7 +293,7 @@ export function ConversationVirtualList<TItem>({
 
   return (
     <>
-      {renderNavigation?.(navigateToItem, context.scrollbarWidth, context.containerRef)}
+      {renderNavigation?.(navigateToItem, scrollbarWidth, containerRef)}
       <div
         className={`mx-auto w-full max-w-content px-4 py-6 sm:px-6 sm:py-7 ${className}`}
         data-conversation-content=""

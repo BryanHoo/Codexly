@@ -124,6 +124,19 @@ describe("conversation auto scroll", () => {
     expect(onAtBottomChange).toHaveBeenLastCalledWith(true);
   });
 
+  it("pauses following before navigating to virtualized history", () => {
+    const onAtBottomChange = vi.fn();
+    const controller = createConversationAutoScrollController(onAtBottomChange);
+    const scrollTarget = createScrollTarget();
+
+    controller.pauseFollowing();
+    scrollTarget.scrollHeight = 1_800;
+    controller.handleContentResize(scrollTarget);
+
+    expect(scrollTarget.scrollTo).not.toHaveBeenCalled();
+    expect(onAtBottomChange).toHaveBeenLastCalledWith(false);
+  });
+
   it("resets to the bottom when the active conversation changes", () => {
     const onAtBottomChange = vi.fn();
     const controller = createConversationAutoScrollController(onAtBottomChange);

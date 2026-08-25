@@ -4,6 +4,25 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-25
+
+### 新增
+
+- 添加用户消息快捷导航，支持在桌面长会话中预览消息并精确跳转。
+- 将源码与实时文件差异统一接入 Inspector 文件标签，并为项目文件和 Git 变更保留独立预览弹窗。
+- 添加 Markdown 与 MDX 渲染/源码视图切换，并跨文件持久化用户偏好。
+
+### 优化
+
+- 更新中英文项目说明，补充产品预览、全局安装后的启动方式与社区致谢。
+- 将 npm 发布切换为 Trusted Publisher OIDC，并保留 provenance 与严格版本日志提取。
+
+### 修复
+
+- 安全转义并展示未使用代码围栏包裹的 XML 与 HTML 标记，避免内容被浏览器解析或静默丢弃。
+- 使用稳定目录遍历发现 Codex transcript，修复部分任务无法恢复 Skill 引用的问题。
+- 调整用户消息导航间距，并修复虚拟列表测量将历史消息跳转重新拉回底部的问题。
+
 ## [0.1.0] - 2026-08-24
 
 ### 新增
@@ -34,5 +53,6 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.2.0
 [0.1.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.1.0
