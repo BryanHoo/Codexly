@@ -4,6 +4,25 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-26
+
+### 新增
+
+- 添加工作台背景设置，支持无背景、自定义图片和 Bing 每日壁纸，并提供全工作台遮罩调节。
+- 添加独立 Chromium 浏览器性能诊断，覆盖长历史加载、连续对话与下一条消息渲染指标。
+
+### 优化
+
+- 统一命令输出的 UTF-8 首尾保留策略，精确展示省略的字节数与行数，并优化任务 Store 的增量内存统计和 LRU 淘汰。
+- 将任务快照所有权转移至归一化 Store，减少重复数据保留，并使用成熟依赖改进服务端并发与指纹序列化。
+- 拆分日常增量构建与发布清理构建，将代码检查迁移至 Oxlint，并升级 Shiki 至 `4.4.3`。
+
+### 修复
+
+- 修复旧任务快照回滚导致流式消息重复追加的问题。
+- 修复 Git 混合状态文件提交时丢失未暂存内容的问题。
+- 修复队列消息编辑期间的隐藏状态及外部删除后的状态同步问题。
+
 ## [0.3.0] - 2026-08-25
 
 ### 新增
@@ -65,7 +84,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.4.0
 [0.3.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.3.0
 [0.2.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.2.0
 [0.1.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.1.0
