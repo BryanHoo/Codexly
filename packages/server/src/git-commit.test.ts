@@ -73,6 +73,30 @@ describe("commitSelectedProjectChanges", () => {
     expect(result.commitSha).toMatch(/^[a-f0-9]{40}$/u);
   });
 
+  it("commits the staged version of a mixed file while preserving its unstaged changes", async () => {
+    const root = await createRepository();
+    await writeFile(join(root, "selected.txt"), "selected staged\n");
+    await runGit(root, "add", "--", "selected.txt");
+    await writeFile(join(root, "selected.txt"), "selected old\n");
+    const status = await readGitWorkingTreeStatus(root);
+
+    await commitSelectedProjectChanges(root, {
+      action: "commit",
+      expectedSnapshot: status.snapshot,
+      message: "fix(git): 提交暂存版本",
+      paths: ["selected.txt"],
+    });
+
+    await expect(runGit(root, "show", "HEAD:selected.txt")).resolves.toMatchObject({
+      stdout: "selected staged\n",
+    });
+    const unstagedDiff = await runGit(root, "diff", "--", "selected.txt");
+    expect(unstagedDiff.stdout).toContain("+selected old");
+    await expect(runGit(root, "diff", "--cached", "--name-only")).resolves.toMatchObject({
+      stdout: "",
+    });
+  });
+
   it("ignores inherited Git configuration that could alter commit execution", async () => {
     const root = await createRepository();
     await writeFile(join(root, "selected.txt"), "changed\n");

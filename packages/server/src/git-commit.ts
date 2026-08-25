@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import type {
   AgentMutationError,
@@ -48,11 +51,12 @@ async function executeGit(
   repositoryRoot: string,
   arguments_: readonly string[],
   input = "",
+  environment: Readonly<NodeJS.ProcessEnv> = {},
 ): Promise<GitCommandResult> {
   return new Promise((resolve, reject) => {
     const consumesInput = input !== "";
     const child = spawn("git", ["-C", repositoryRoot, ...arguments_], {
-      env: { ...createGitEnvironment(), GIT_TERMINAL_PROMPT: "0" },
+      env: { ...createGitEnvironment(), ...environment, GIT_TERMINAL_PROMPT: "0" },
       shell: false,
       // 无输入命令不创建 stdin pipe，避免短命令退出后写端异步触发 EPIPE。
       stdio: [consumesInput ? "pipe" : "ignore", "pipe", "pipe"],
@@ -156,37 +160,61 @@ export async function commitSelectedProjectChanges(
 
   const selectedPaths = request.paths.map(literalPath);
   const stagedPaths = new Set(status.staged.map((change) => change.path));
-  const untrackedPaths = status.unstaged
-    .filter(
-      (change) =>
-        change.kind === "create" &&
-        !stagedPaths.has(change.path) &&
-        request.paths.includes(change.path),
-    )
-    .map((change) => literalPath(change.path));
-
-  if (untrackedPaths.length > 0) {
-    await executeGit(repositoryRoot, ["add", "--intent-to-add", "--", ...untrackedPaths]).catch(
-      (error: unknown) => {
-        throw new GitCommitError(
-          "GIT_COMMIT_FAILED",
-          originalErrorMessage(error, "Selected files could not be prepared"),
-        );
-      },
-    );
-  }
+  const selectedStagedPaths = request.paths.filter((path) => stagedPaths.has(path));
+  const selectedUnstagedPaths = request.paths.filter((path) => !stagedPaths.has(path));
+  const temporaryIndexRoot = await mkdtemp(join(tmpdir(), "codexly-git-index-"));
+  const temporaryIndexEnvironment = {
+    GIT_INDEX_FILE: join(temporaryIndexRoot, "index"),
+  };
 
   try {
+    // 从 HEAD 组装隔离索引，避免把未选择的暂存文件带入本次提交。
+    await executeGit(repositoryRoot, ["read-tree", "HEAD"], "", temporaryIndexEnvironment);
+    if (selectedStagedPaths.length > 0) {
+      const stagedEntries = await executeGit(repositoryRoot, [
+        "ls-files",
+        "--stage",
+        "-z",
+        "--",
+        ...selectedStagedPaths.map(literalPath),
+      ]);
+      await executeGit(
+        repositoryRoot,
+        ["update-index", "--force-remove", "--", ...selectedStagedPaths],
+        "",
+        temporaryIndexEnvironment,
+      );
+      if (stagedEntries.stdout.length > 0) {
+        // 复制真实索引条目，使 MM 文件提交暂存版本并保留工作区版本。
+        await executeGit(
+          repositoryRoot,
+          ["update-index", "-z", "--index-info"],
+          stagedEntries.stdout,
+          temporaryIndexEnvironment,
+        );
+      }
+    }
+    if (selectedUnstagedPaths.length > 0) {
+      await executeGit(
+        repositoryRoot,
+        ["add", "--", ...selectedUnstagedPaths.map(literalPath)],
+        "",
+        temporaryIndexEnvironment,
+      );
+    }
     await executeGit(
       repositoryRoot,
-      ["commit", "--only", "--file=-", "--", ...selectedPaths],
+      ["commit", "--file=-"],
       request.message,
+      temporaryIndexEnvironment,
     );
+    // 新 HEAD 落定后只校准已提交路径，保留其他文件原有的暂存状态。
+    await executeGit(repositoryRoot, ["reset", "--quiet", "HEAD", "--", ...selectedPaths]);
   } catch (error) {
-    if (untrackedPaths.length > 0) {
-      await executeGit(repositoryRoot, ["reset", "--", ...untrackedPaths]).catch(() => undefined);
-    }
     throw new GitCommitError("GIT_COMMIT_FAILED", originalErrorMessage(error, "Git commit failed"));
+  } finally {
+    // 临时目录清理失败不能覆盖已经完成的 Git commit 结果。
+    await rm(temporaryIndexRoot, { force: true, recursive: true }).catch(() => undefined);
   }
 
   const commitSha = (await executeGit(repositoryRoot, ["rev-parse", "HEAD"])).stdout.trim();

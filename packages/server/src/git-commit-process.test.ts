@@ -52,6 +52,9 @@ describe("Git commit process input", () => {
     });
     spawnMock
       .mockImplementationOnce(() => createSuccessfulChild())
+      .mockImplementationOnce(() => createSuccessfulChild())
+      .mockImplementationOnce(() => createSuccessfulChild())
+      .mockImplementationOnce(() => createSuccessfulChild())
       .mockImplementationOnce(() => createSuccessfulChild(`${"a".repeat(40)}\n`));
   });
 
@@ -63,8 +66,12 @@ describe("Git commit process input", () => {
       paths: ["selected.txt"],
     });
 
-    expect(spawnMock).toHaveBeenCalledTimes(2);
-    expect(spawnMock.mock.calls[0]?.[2]).toMatchObject({ stdio: ["pipe", "pipe", "pipe"] });
-    expect(spawnMock.mock.calls[1]?.[2]).toMatchObject({ stdio: ["ignore", "pipe", "pipe"] });
+    expect(spawnMock).toHaveBeenCalledTimes(5);
+    expect(spawnMock.mock.calls[2]?.[2]).toMatchObject({ stdio: ["pipe", "pipe", "pipe"] });
+    for (const commandIndex of [0, 1, 3, 4]) {
+      expect(spawnMock.mock.calls[commandIndex]?.[2]).toMatchObject({
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    }
   });
 });
