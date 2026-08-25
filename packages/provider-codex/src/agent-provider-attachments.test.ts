@@ -188,7 +188,7 @@ describe("CodexAgentProvider attachments and validation", () => {
       { length: 10_001 },
       (_, index) => `line-${String(index)}`,
     ).join("\n");
-    const byteLimitedOutput = "界".repeat(400_000);
+    const byteLimitedOutput = `开${"界".repeat(400_000)}终`;
     const rpc = new FakeRpcClient([
       {
         thread: nativeThread({
@@ -245,15 +245,33 @@ describe("CodexAgentProvider attachments and validation", () => {
     const failedTool = turn?.items.find((item) => item.id === "failed-tool");
 
     expect(turn?.error).toBe("模型服务不可用");
+    const retainedLineOutput = [
+      ...lineLimitedOutput.split("\n").slice(0, 5_000),
+      ...lineLimitedOutput.split("\n").slice(-5_000),
+    ].join("\n");
     expect(lineCommand).toMatchObject({
-      output: lineLimitedOutput.split("\n").slice(-10_000).join("\n"),
-      outputTruncated: true,
+      output: retainedLineOutput,
+      outputOmitted: {
+        bytes:
+          Buffer.byteLength(lineLimitedOutput, "utf8") -
+          Buffer.byteLength(retainedLineOutput, "utf8"),
+        lines: 1,
+      },
     });
-    expect(byteCommand).toMatchObject({ outputTruncated: true });
     if (byteCommand?.type !== "command") {
       throw new Error("Expected a command item");
     }
-    expect(Buffer.byteLength(byteCommand.output ?? "", "utf8")).toBeLessThanOrEqual(1_048_576);
+    const retainedByteOutput = byteCommand.output ?? "";
+    expect(retainedByteOutput.startsWith("开")).toBe(true);
+    expect(retainedByteOutput.endsWith("终")).toBe(true);
+    expect(retainedByteOutput).not.toContain("�");
+    expect(Buffer.byteLength(retainedByteOutput, "utf8")).toBeLessThanOrEqual(1_048_576);
+    expect(byteCommand.outputOmitted).toEqual({
+      bytes:
+        Buffer.byteLength(byteLimitedOutput, "utf8") -
+        Buffer.byteLength(retainedByteOutput, "utf8"),
+      lines: 0,
+    });
     expect(failedTool).toMatchObject({ output: { error: "MCP 服务不可用" } });
   });
 

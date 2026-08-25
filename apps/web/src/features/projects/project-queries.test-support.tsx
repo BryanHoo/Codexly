@@ -49,7 +49,7 @@ export const snapshot = {
           cwd: "/workspace/Codexly",
           id: "i3",
           output: "Done",
-          outputTruncated: true,
+          outputOmitted: { bytes: 128, lines: 1 },
           status: "completed" as const,
           type: "command" as const,
         },

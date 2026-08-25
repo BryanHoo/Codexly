@@ -250,7 +250,7 @@ test("does not show a tooltip for a truncated command title", async ({ page }) =
                 command,
                 cwd: "/workspace/Codexly",
                 id: "command-with-truncated-title",
-                outputTruncated: false,
+                outputOmitted: { bytes: 0, lines: 0 },
                 status: "completed",
                 type: "command",
               },

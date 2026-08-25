@@ -56,7 +56,7 @@ describe("project task snapshot protocol", () => {
               cwd: "/workspace/Codexly",
               id: "item-3",
               output: "Done",
-              outputTruncated: false,
+              outputOmitted: { bytes: 0, lines: 0 },
               status: "completed",
               type: "command",
             },
@@ -110,7 +110,35 @@ describe("project task snapshot protocol", () => {
           {
             ...snapshot.turns[0],
             items: snapshot.turns[0]?.items.map((item) =>
-              item.type === "command" ? { ...item, outputTruncated: undefined } : item,
+              item.type === "command" ? { ...item, outputOmitted: undefined } : item,
+            ),
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      Value.Check(AgentTaskSnapshotSchema, {
+        ...snapshot,
+        turns: [
+          {
+            ...snapshot.turns[0],
+            items: snapshot.turns[0]?.items.map((item) =>
+              item.type === "command" ? { ...item, outputOmitted: { bytes: -1, lines: 0 } } : item,
+            ),
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      Value.Check(AgentTaskSnapshotSchema, {
+        ...snapshot,
+        turns: [
+          {
+            ...snapshot.turns[0],
+            items: snapshot.turns[0]?.items.map((item) =>
+              item.type === "command"
+                ? { ...item, outputOmitted: { bytes: 0, lines: 0, unknown: 1 } }
+                : item,
             ),
           },
         ],

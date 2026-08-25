@@ -32,7 +32,7 @@ describe("task store terminal state", () => {
             command: "git diff",
             cwd: "/workspace",
             id: "review-command",
-            outputTruncated: false,
+            outputOmitted: { bytes: 0, lines: 0 },
             status: "completed",
             type: "command",
           },

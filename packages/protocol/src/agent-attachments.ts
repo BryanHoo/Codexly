@@ -362,6 +362,16 @@ export const AgentReasoningItemSchema = Type.Object(
   { additionalProperties: false },
 );
 
+export const AgentCommandOutputOmissionSchema = Type.Object(
+  {
+    bytes: Type.Integer({ minimum: 0 }),
+    lines: Type.Integer({ minimum: 0 }),
+  },
+  { additionalProperties: false },
+);
+
+export type AgentCommandOutputOmission = Readonly<Static<typeof AgentCommandOutputOmissionSchema>>;
+
 export const AgentCommandItemSchema = Type.Object(
   {
     command: Type.String(),
@@ -369,7 +379,7 @@ export const AgentCommandItemSchema = Type.Object(
     exitCode: Type.Optional(Type.Integer()),
     id: Type.String({ minLength: 1 }),
     output: Type.Optional(Type.String()),
-    outputTruncated: Type.Boolean(),
+    outputOmitted: AgentCommandOutputOmissionSchema,
     status: AgentItemStatusSchema,
     type: Type.Literal("command"),
   },

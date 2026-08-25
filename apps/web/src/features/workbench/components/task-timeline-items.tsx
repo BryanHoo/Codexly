@@ -220,7 +220,8 @@ export function TimelineItemContent({
           : commandOutput?.hasOutput
             ? commandOutput
             : (item.output ?? item.cwd);
-      const outputTruncated = commandOutput?.outputTruncated ?? item.outputTruncated;
+      const outputOmitted = commandOutput?.outputOmitted ?? item.outputOmitted;
+      const hasOmittedOutput = outputOmitted.bytes > 0 || outputOmitted.lines > 0;
       const isStreamingCommand = turnStatus === "running" && item.status === "running";
       return (
         <Tool>
@@ -237,9 +238,13 @@ export function TimelineItemContent({
                   </TerminalActions>
                 </TerminalHeader>
                 <TerminalContent>
-                  {outputTruncated ? (
+                  {hasOmittedOutput ? (
                     <p className="mt-2 text-warning">
-                      {i18n.t("timeline.outputTruncated", { ns: "conversation" })}
+                      {i18n.t("timeline.outputOmitted", {
+                        bytes: outputOmitted.bytes,
+                        lines: outputOmitted.lines,
+                        ns: "conversation",
+                      })}
                     </p>
                   ) : null}
                 </TerminalContent>

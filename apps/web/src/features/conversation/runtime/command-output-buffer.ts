@@ -1,3 +1,5 @@
+import type { AgentCommandOutputOmission } from "@codexly/protocol";
+
 import type { ChunkedText, TextChunk } from "../../../shared/lib/chunked-text.js";
 
 const DEFAULT_MAX_BYTES = 1_048_576;
@@ -18,85 +20,132 @@ interface RetainedTextChunk extends TextChunk {
 export interface CommandOutputView extends ChunkedText {
   hasOutput: boolean;
   outputBytes: number;
-  outputTruncated: boolean;
+  outputLines: number;
+  outputOmitted: AgentCommandOutputOmission;
 }
 
 export class CommandOutputBuffer {
+  readonly #headByteLimit: number;
+  readonly #headNewlineLimit: number;
   readonly #materialize = () => this.materialize();
-  readonly #maxBytes: number;
-  readonly #maxLines: number;
-  #chunks: RetainedTextChunk[] = [];
+  readonly #tailByteLimit: number;
+  readonly #tailNewlineLimit: number;
+  #headBytes = 0;
+  #headChunks: RetainedTextChunk[] = [];
+  #headClosed = false;
+  #headNewlines = 0;
   #hasOutput = false;
-  #headIndex = 0;
   #materializedOutput = "";
   #materializedVersion = -1;
-  #newlineCount = 0;
   #nextChunkId = 1;
-  #outputBytes = 0;
-  #outputTruncated = false;
+  #outputOmitted: AgentCommandOutputOmission = { bytes: 0, lines: 0 };
+  #tailBytes = 0;
+  #tailChunks: RetainedTextChunk[] = [];
+  #tailHeadIndex = 0;
+  #tailNewlines = 0;
   #version = 0;
+  #viewChunks: readonly RetainedTextChunk[] = [];
+  #viewChunksVersion = -1;
 
   public constructor(
     output: string | undefined,
-    outputTruncated: boolean,
+    outputOmitted: AgentCommandOutputOmission,
     options: Readonly<{ maxBytes?: number; maxLines?: number }> = {},
   ) {
-    this.#maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
-    this.#maxLines = options.maxLines ?? DEFAULT_MAX_LINES;
-    this.replace(output, outputTruncated);
+    const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
+    const maxLines = Math.max(1, options.maxLines ?? DEFAULT_MAX_LINES);
+    const headLines = Math.ceil(maxLines / 2);
+    const tailLines = maxLines - headLines;
+    this.#headByteLimit = Math.ceil(maxBytes / 2);
+    this.#tailByteLimit = maxBytes - this.#headByteLimit;
+    this.#headNewlineLimit = headLines;
+    this.#tailNewlineLimit = Math.max(0, tailLines - 1);
+    this.replace(output, outputOmitted);
   }
 
   public append(delta: string): void {
     this.#hasOutput = true;
-    const encodedDelta = textEncoder.encode(delta);
-    this.#appendEncodedChunks(encodedDelta);
+    this.#appendEncoded(textEncoder.encode(delta));
     this.#version += 1;
-    this.#enforceLimits();
   }
 
   public getView(): CommandOutputView {
     return {
-      chunks: this.#chunks,
+      chunks: this.#readChunks(),
       hasOutput: this.#hasOutput,
       materialize: this.#materialize,
-      outputBytes: this.#outputBytes,
-      outputTruncated: this.#outputTruncated,
-      startIndex: this.#headIndex,
+      outputBytes: this.#headBytes + this.#tailBytes,
+      outputLines: this.#headNewlines + this.#tailNewlines,
+      outputOmitted: this.#outputOmitted,
+      startIndex: 0,
       version: this.#version,
     };
   }
 
   public materialize(): string {
-    if (this.#materializedVersion === this.#version) {
-      return this.#materializedOutput;
-    }
-    const retainedChunks = this.#chunks;
-    const outputChunks: string[] = [];
-    for (let index = this.#headIndex; index < retainedChunks.length; index += 1) {
-      outputChunks.push(retainedChunks[index]?.text ?? "");
-    }
-    const output = outputChunks.join("");
+    if (this.#materializedVersion === this.#version) return this.#materializedOutput;
+    const output = this.#readChunks()
+      .map((chunk) => chunk.text)
+      .join("");
     this.#materializedOutput = output;
     this.#materializedVersion = this.#version;
     return output;
   }
 
-  public replace(output: string | undefined, outputTruncated: boolean): void {
-    this.#chunks = [];
+  public replace(output: string | undefined, outputOmitted: AgentCommandOutputOmission): void {
+    this.#headBytes = 0;
+    this.#headChunks = [];
+    this.#headClosed = false;
+    this.#headNewlines = 0;
     this.#hasOutput = output !== undefined;
-    this.#headIndex = 0;
-    this.#newlineCount = 0;
-    this.#outputBytes = 0;
-    this.#outputTruncated = outputTruncated;
+    this.#outputOmitted = outputOmitted;
+    this.#tailBytes = 0;
+    this.#tailChunks = [];
+    this.#tailHeadIndex = 0;
+    this.#tailNewlines = 0;
+    if (output !== undefined && output.length > 0) this.#appendEncoded(textEncoder.encode(output));
     this.#version += 1;
-    if (output !== undefined && output.length > 0) {
-      this.#appendEncodedChunks(textEncoder.encode(output));
-      this.#enforceLimits();
+  }
+
+  #appendEncoded(encodedValue: Uint8Array): void {
+    let tailStart = 0;
+    if (!this.#headClosed) {
+      const headLength = findPrefixLength(
+        encodedValue,
+        this.#headByteLimit - this.#headBytes,
+        this.#headNewlineLimit - this.#headNewlines,
+      );
+      if (headLength > 0) {
+        const appended = this.#appendEncodedChunks(
+          this.#headChunks,
+          encodedValue.subarray(0, headLength),
+        );
+        this.#headBytes += appended.bytes;
+        this.#headNewlines += appended.newlines;
+      }
+      tailStart = headLength;
+      this.#headClosed = headLength < encodedValue.byteLength;
+    }
+
+    if (tailStart < encodedValue.byteLength) {
+      const appended = this.#appendEncodedChunks(
+        this.#tailChunks,
+        encodedValue.subarray(tailStart),
+        this.#tailHeadIndex,
+      );
+      this.#tailBytes += appended.bytes;
+      this.#tailNewlines += appended.newlines;
+      this.#enforceTailLimits();
     }
   }
 
-  #appendEncodedChunks(encodedValue: Uint8Array): void {
+  #appendEncodedChunks(
+    chunks: RetainedTextChunk[],
+    encodedValue: Uint8Array,
+    activeStartIndex = 0,
+  ): Readonly<{ bytes: number; newlines: number }> {
     let startIndex = 0;
+    let totalNewlines = 0;
     while (startIndex < encodedValue.byteLength) {
       let endIndex = startIndex;
       let newlineCount = 0;
@@ -109,33 +158,35 @@ export class CommandOutputBuffer {
         endIndex += codePointBytes;
         if (leadingByte === 10) {
           newlineCount += 1;
-          if (newlineCount >= MAX_CHUNK_LINES) {
-            break;
-          }
+          if (newlineCount >= MAX_CHUNK_LINES) break;
         }
       }
-      const encodedChunk = encodedValue.subarray(startIndex, endIndex);
-      const chunk: RetainedTextChunk = {
-        byteLength: encodedChunk.byteLength,
-        encodedValue: encodedChunk.slice(),
-        id: this.#nextChunkId,
-        mergeLevel: 0,
-        newlineCount,
-        text: textDecoder.decode(encodedChunk),
-      };
-      this.#nextChunkId += 1;
-      this.#chunks.push(chunk);
-      this.#newlineCount += newlineCount;
-      this.#outputBytes += chunk.byteLength;
-      this.#mergeTailChunks();
+      const encodedChunk = encodedValue.subarray(startIndex, endIndex).slice();
+      chunks.push(this.#createChunk(encodedChunk, newlineCount));
+      totalNewlines += newlineCount;
+      this.#mergeTailChunks(chunks, activeStartIndex);
       startIndex = endIndex;
     }
+    return { bytes: encodedValue.byteLength, newlines: totalNewlines };
   }
 
-  #mergeTailChunks(): void {
-    while (this.#chunks.length - this.#headIndex >= 2) {
-      const rightChunk = this.#chunks.at(-1);
-      const leftChunk = this.#chunks.at(-2);
+  #createChunk(encodedValue: Uint8Array, newlineCount: number, mergeLevel = 0): RetainedTextChunk {
+    const chunk = {
+      byteLength: encodedValue.byteLength,
+      encodedValue,
+      id: this.#nextChunkId,
+      mergeLevel,
+      newlineCount,
+      text: textDecoder.decode(encodedValue),
+    };
+    this.#nextChunkId += 1;
+    return chunk;
+  }
+
+  #mergeTailChunks(chunks: RetainedTextChunk[], activeStartIndex: number): void {
+    while (chunks.length - activeStartIndex >= 2) {
+      const rightChunk = chunks.at(-1);
+      const leftChunk = chunks.at(-2);
       if (
         rightChunk === undefined ||
         leftChunk?.mergeLevel !== rightChunk.mergeLevel ||
@@ -147,36 +198,88 @@ export class CommandOutputBuffer {
       const encodedValue = new Uint8Array(leftChunk.byteLength + rightChunk.byteLength);
       encodedValue.set(leftChunk.encodedValue);
       encodedValue.set(rightChunk.encodedValue, leftChunk.byteLength);
-      this.#chunks.splice(-2, 2, {
-        byteLength: encodedValue.byteLength,
-        encodedValue,
-        id: this.#nextChunkId,
-        mergeLevel: leftChunk.mergeLevel + 1,
-        newlineCount: leftChunk.newlineCount + rightChunk.newlineCount,
-        text: `${leftChunk.text}${rightChunk.text}`,
-      });
-      this.#nextChunkId += 1;
+      chunks.splice(
+        -2,
+        2,
+        this.#createChunk(
+          encodedValue,
+          leftChunk.newlineCount + rightChunk.newlineCount,
+          leftChunk.mergeLevel + 1,
+        ),
+      );
     }
   }
 
-  #enforceLimits(): void {
-    while (this.#outputBytes > this.#maxBytes || this.#newlineCount >= this.#maxLines) {
-      const evictedChunk = this.#chunks[this.#headIndex];
-      if (evictedChunk === undefined) {
-        break;
+  #enforceTailLimits(): void {
+    while (this.#tailBytes > this.#tailByteLimit || this.#tailNewlines > this.#tailNewlineLimit) {
+      const chunk = this.#tailChunks[this.#tailHeadIndex];
+      if (chunk === undefined) break;
+      const cut = findEvictionLength(
+        chunk.encodedValue,
+        this.#tailBytes - this.#tailByteLimit,
+        this.#tailNewlines - this.#tailNewlineLimit,
+      );
+      this.#tailBytes -= cut.bytes;
+      this.#tailNewlines -= cut.newlines;
+      this.#outputOmitted = {
+        bytes: this.#outputOmitted.bytes + cut.bytes,
+        lines: this.#outputOmitted.lines + cut.newlines,
+      };
+      if (cut.bytes === chunk.byteLength) {
+        this.#tailHeadIndex += 1;
+      } else {
+        const retained = chunk.encodedValue.subarray(cut.bytes).slice();
+        this.#tailChunks[this.#tailHeadIndex] = this.#createChunk(
+          retained,
+          chunk.newlineCount - cut.newlines,
+        );
       }
-      this.#headIndex += 1;
-      this.#outputBytes -= evictedChunk.byteLength;
-      this.#newlineCount -= evictedChunk.newlineCount;
-      this.#outputTruncated = true;
     }
 
-    // 头部达到一半后批量压实，避免 Array.shift() 在流式热路径反复搬移。
-    if (this.#headIndex >= 128 && this.#headIndex * 2 >= this.#chunks.length) {
-      this.#chunks = this.#chunks.slice(this.#headIndex);
-      this.#headIndex = 0;
+    // 批量压实已淘汰前缀，避免流式热路径反复 Array.shift()。
+    if (this.#tailHeadIndex >= 128 && this.#tailHeadIndex * 2 >= this.#tailChunks.length) {
+      this.#tailChunks = this.#tailChunks.slice(this.#tailHeadIndex);
+      this.#tailHeadIndex = 0;
     }
   }
+
+  #readChunks(): readonly RetainedTextChunk[] {
+    if (this.#viewChunksVersion !== this.#version) {
+      this.#viewChunks = [...this.#headChunks, ...this.#tailChunks.slice(this.#tailHeadIndex)];
+      this.#viewChunksVersion = this.#version;
+    }
+    return this.#viewChunks;
+  }
+}
+
+function findPrefixLength(encodedValue: Uint8Array, maxBytes: number, maxNewlines: number): number {
+  let index = 0;
+  let newlines = 0;
+  while (index < encodedValue.byteLength) {
+    if (newlines >= maxNewlines) break;
+    const leadingByte = encodedValue[index] ?? 0;
+    const codePointBytes = getUtf8CodePointLength(leadingByte);
+    if (index + codePointBytes > maxBytes) break;
+    if (leadingByte === 10 && newlines >= maxNewlines) break;
+    index += codePointBytes;
+    if (leadingByte === 10) newlines += 1;
+  }
+  return index;
+}
+
+function findEvictionLength(
+  encodedValue: Uint8Array,
+  minimumBytes: number,
+  minimumNewlines: number,
+): Readonly<{ bytes: number; newlines: number }> {
+  let bytes = 0;
+  let newlines = 0;
+  while (bytes < encodedValue.byteLength && (bytes < minimumBytes || newlines < minimumNewlines)) {
+    const leadingByte = encodedValue[bytes] ?? 0;
+    bytes += getUtf8CodePointLength(leadingByte);
+    if (leadingByte === 10) newlines += 1;
+  }
+  return { bytes, newlines };
 }
 
 function getUtf8CodePointLength(leadingByte: number): number {

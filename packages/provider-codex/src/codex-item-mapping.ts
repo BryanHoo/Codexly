@@ -210,7 +210,7 @@ export function mapAgentItem(
         ...(exitCode === undefined ? {} : { exitCode }),
         id,
         ...(output === undefined ? {} : { output: output.output }),
-        outputTruncated: output?.outputTruncated ?? false,
+        outputOmitted: output?.outputOmitted ?? { bytes: 0, lines: 0 },
         status: mapItemStatus(item["status"]),
         type: "command",
       };

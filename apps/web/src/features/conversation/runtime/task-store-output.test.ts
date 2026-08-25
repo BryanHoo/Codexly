@@ -1,5 +1,6 @@
 import type { AgentEvent } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
+import { CommandOutputBuffer } from "./command-output-buffer.js";
 import { createTaskStore, createTaskItemKey, MAX_TASK_COMMAND_OUTPUT_BYTES } from "./task-store.js";
 import {
   timestamp,
@@ -9,6 +10,28 @@ import {
 } from "./task-store.test-support.js";
 
 describe("task store output retention", () => {
+  it("keeps a stable command output head and tail with exact omission counts", () => {
+    const output = "head-1\nhead-2\nmiddle\ntail-1\ntail-2";
+    const retained = "head-1\nhead-2\ntail-1\ntail-2";
+    const buffer = new CommandOutputBuffer(
+      undefined,
+      { bytes: 0, lines: 0 },
+      {
+        maxBytes: 1_000,
+        maxLines: 4,
+      },
+    );
+
+    buffer.append(output);
+
+    expect(buffer.materialize()).toBe(retained);
+    expect(buffer.getView().outputOmitted).toEqual({
+      bytes:
+        new TextEncoder().encode(output).byteLength - new TextEncoder().encode(retained).byteLength,
+      lines: 1,
+    });
+  });
+
   it("stores item identifiers reused by another turn independently", () => {
     const duplicateItemResponse = createResponse({
       turns: [
@@ -77,7 +100,7 @@ describe("task store output retention", () => {
     const state = store.getState();
     const commandItem = state.getItem("command-new", "turn-running");
     expect(state.getItem("reasoning-new", "turn-running")).toMatchObject({ summary: "摘要" });
-    expect(commandItem).toMatchObject({ outputTruncated: true, type: "command" });
+    expect(commandItem).toMatchObject({ type: "command" });
     if (commandItem?.type !== "command") {
       throw new Error("Expected normalized command item");
     }
@@ -85,7 +108,17 @@ describe("task store output retention", () => {
       1_048_576,
     );
     expect(commandItem.output).not.toContain("�");
+    expect(commandItem.output?.startsWith("一")).toBe(true);
+    expect(commandItem.output?.endsWith("line\n")).toBe(true);
     expect((commandItem.output?.match(/\n/g) ?? []).length).toBeLessThanOrEqual(9_999);
+    expect(commandItem.outputOmitted).toEqual({
+      bytes:
+        new TextEncoder().encode(oversizedOutput).byteLength -
+        new TextEncoder().encode(commandItem.output ?? "").byteLength,
+      lines:
+        (oversizedOutput.match(/\n/g) ?? []).length -
+        (commandItem.output?.match(/\n/g) ?? []).length,
+    });
   });
 
   it("evicts least-recently-used command output when a task exceeds its byte budget", () => {
@@ -103,7 +136,7 @@ describe("task store output retention", () => {
               cwd: "/workspace",
               id: `command-${String(commandIndex)}`,
               output: commandOutput,
-              outputTruncated: false,
+              outputOmitted: { bytes: 0, lines: 0 },
               status: "completed" as const,
               type: "command" as const,
             })),
@@ -117,7 +150,7 @@ describe("task store output retention", () => {
     const state = store.getState();
     expect(state.commandOutputBytes).toBeLessThanOrEqual(MAX_TASK_COMMAND_OUTPUT_BYTES);
     expect(state.getItem("command-0", "turn-command-history")).toMatchObject({
-      outputTruncated: true,
+      outputOmitted: { bytes: commandOutput.length, lines: 0 },
     });
     expect(state.getItem("command-8", "turn-command-history")).toMatchObject({
       output: commandOutput,
@@ -143,7 +176,7 @@ describe("task store output retention", () => {
                 cwd: "/workspace",
                 id: "command-active",
                 output: "active",
-                outputTruncated: false,
+                outputOmitted: { bytes: 0, lines: 0 },
                 status: "running",
                 type: "command",
               },
@@ -152,7 +185,7 @@ describe("task store output retention", () => {
                 cwd: "/workspace",
                 id: "command-untouched",
                 output: untouchedOutput,
-                outputTruncated: false,
+                outputOmitted: { bytes: 0, lines: 0 },
                 status: "completed",
                 type: "command",
               },

@@ -19,7 +19,7 @@ describe("task timeline tools", () => {
               cwd: "/workspace/Codexly",
               id: "command-completed",
               output: ansiOutput,
-              outputTruncated: true,
+              outputOmitted: { bytes: 128, lines: 3 },
               status: "completed",
               type: "command",
             },
@@ -36,7 +36,7 @@ describe("task timeline tools", () => {
     expect(markup).not.toContain('aria-label="复制命令输出"');
     expect(markup).not.toContain("请检查日志");
     expect(markup).not.toContain("\u001B[31m");
-    expect(markup).not.toContain("输出已截断，仅显示最新内容。");
+    expect(markup).not.toContain("命令输出已省略 128 个 UTF-8 字节和 3 行");
   });
 
   it("renders command input before output when the tool is expanded", () => {
@@ -47,7 +47,7 @@ describe("task timeline tools", () => {
         cwd: "/workspace/Codexly",
         id: "command-expanded",
         output: "268 passed",
-        outputTruncated: false,
+        outputOmitted: { bytes: 128, lines: 3 },
         status: "completed",
         type: "command",
       },
@@ -65,6 +65,7 @@ describe("task timeline tools", () => {
     expect(markup).toContain("&quot;command&quot;: &quot;pnpm check&quot;");
     expect(markup).toContain("&quot;cwd&quot;: &quot;/workspace/Codexly&quot;");
     expect(markup).toContain("268 passed");
+    expect(markup).toContain("命令输出已省略 128 个 UTF-8 字节和 3 行");
     expect(markup.indexOf("参数")).toBeLessThan(markup.indexOf("268 passed"));
   });
 
@@ -81,7 +82,7 @@ describe("task timeline tools", () => {
               command: "pnpm test",
               cwd: "/workspace/Codexly",
               id: "command-running",
-              outputTruncated: false,
+              outputOmitted: { bytes: 0, lines: 0 },
               status: "running",
               type: "command",
             },
@@ -113,7 +114,7 @@ describe("task timeline tools", () => {
               command: "sed -n '1,240p' SKILL.md",
               cwd: "/workspace/Codexly",
               id: "command-read-skill",
-              outputTruncated: false,
+              outputOmitted: { bytes: 0, lines: 0 },
               status: "completed",
               type: "command",
             },

@@ -253,7 +253,7 @@ describe("CodexAgentProvider snapshots", () => {
               exitCode: 0,
               id: "i4",
               output: "Done",
-              outputTruncated: false,
+              outputOmitted: { bytes: 0, lines: 0 },
               status: "completed",
               type: "command",
             },

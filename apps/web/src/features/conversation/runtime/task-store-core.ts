@@ -118,7 +118,7 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
   let summaryLength = initialItem.type === "reasoning" ? initialItem.summary.length : 0;
   let commandOutputBuffer =
     initialItem.type === "command"
-      ? new CommandOutputBuffer(initialItem.output, initialItem.outputTruncated)
+      ? new CommandOutputBuffer(initialItem.output, initialItem.outputOmitted)
       : undefined;
   let retainedBytes =
     estimateRetainedBytes(baseItem) + (commandOutputBuffer?.getView().outputBytes ?? 0);
@@ -218,7 +218,7 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
           nextItem = {
             ...baseItem,
             ...(commandOutput.hasOutput ? { output: commandOutput.materialize() } : {}),
-            outputTruncated: commandOutput.outputTruncated,
+            outputOmitted: commandOutput.outputOmitted,
           };
         }
       } else if (baseItem.type === "plan") {
@@ -241,7 +241,7 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
       summaryLength = item.type === "reasoning" ? item.summary.length : 0;
       commandOutputBuffer =
         item.type === "command"
-          ? new CommandOutputBuffer(item.output, item.outputTruncated)
+          ? new CommandOutputBuffer(item.output, item.outputOmitted)
           : undefined;
       retainedBytes =
         estimateRetainedBytes(baseItem) + (commandOutputBuffer?.getView().outputBytes ?? 0);
@@ -465,10 +465,17 @@ export function updateCommandOutputBudget(
     }
     const previousOutputBytes = commandOutputBytesByItemKey.get(itemKey) ?? 0;
     const previousRetainedBytes = itemStore.getRetainedBytes();
+    const commandOutput = itemStore.readCommandOutput();
     itemStore.replace({
       ...item,
       output: RETAINED_COMMAND_OUTPUT_MARKER,
-      outputTruncated: true,
+      outputOmitted: {
+        bytes:
+          (commandOutput?.outputOmitted.bytes ?? item.outputOmitted.bytes) + previousOutputBytes,
+        lines:
+          (commandOutput?.outputOmitted.lines ?? item.outputOmitted.lines) +
+          (commandOutput?.outputLines ?? 0),
+      },
     });
     input.changedItemStores?.add(itemStore);
     commandOutputBytesByItemKey.set(itemKey, retainedCommandOutputMarkerBytes);

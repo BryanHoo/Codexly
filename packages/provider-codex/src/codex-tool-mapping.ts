@@ -1,5 +1,10 @@
 import { Buffer } from "node:buffer";
-import type { AgentItem, AgentItemStatus, AgentReviewTarget } from "@codexly/protocol";
+import type {
+  AgentCommandOutputOmission,
+  AgentItem,
+  AgentItemStatus,
+  AgentReviewTarget,
+} from "@codexly/protocol";
 
 import {
   MAX_COMMAND_OUTPUT_BYTES,
@@ -23,46 +28,85 @@ export function mapFileChangeKind(value: unknown): "create" | "delete" | "update
   throw new CodexProtocolMappingError("Codex file change kind is invalid");
 }
 
-function sliceUtf8Tail(value: string, maxBytes: number): string {
-  const encoded = Buffer.from(value, "utf8");
-  let start = Math.max(0, encoded.length - maxBytes);
-
-  // 跳过 UTF-8 续字节，确保截断后的首字符保持完整。
-  while (start < encoded.length) {
-    const byte = encoded[start];
-    if (byte === undefined || (byte & 0xc0) !== 0x80) {
-      break;
-    }
-    start += 1;
+function countNewlines(value: string): number {
+  let count = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    if (value.charCodeAt(index) === 10) count += 1;
   }
-
-  return encoded.subarray(start).toString("utf8");
+  return count;
 }
 
-export function boundCommandOutput(value: string): { output: string; outputTruncated: boolean } {
-  let output = value;
-  let outputTruncated = false;
-  let newlineCount = 0;
+function retainHeadTailLines(value: string, totalNewlines: number): string {
+  const totalLines = value.length === 0 ? 0 : totalNewlines + 1;
+  if (totalLines <= MAX_COMMAND_OUTPUT_LINES) return value;
 
-  // 从尾部保留最新日志；超过行数时无需创建完整行数组。
-  for (let index = output.length - 1; index >= 0; index -= 1) {
-    if (output.charCodeAt(index) !== 10) {
-      continue;
-    }
-    newlineCount += 1;
-    if (newlineCount === MAX_COMMAND_OUTPUT_LINES) {
-      output = output.slice(index + 1);
-      outputTruncated = true;
-      break;
-    }
+  const headLines = Math.ceil(MAX_COMMAND_OUTPUT_LINES / 2);
+  const tailLines = MAX_COMMAND_OUTPUT_LINES - headLines;
+  let prefixEnd = 0;
+  let seenHeadNewlines = 0;
+  for (; prefixEnd < value.length; prefixEnd += 1) {
+    if (value.charCodeAt(prefixEnd) !== 10) continue;
+    seenHeadNewlines += 1;
+    if (seenHeadNewlines === headLines) break;
   }
 
-  if (Buffer.byteLength(output, "utf8") > MAX_COMMAND_OUTPUT_BYTES) {
-    output = sliceUtf8Tail(output, MAX_COMMAND_OUTPUT_BYTES);
-    outputTruncated = true;
+  let suffixStart = value.length;
+  let seenTailNewlines = 0;
+  for (; suffixStart > 0; suffixStart -= 1) {
+    if (value.charCodeAt(suffixStart - 1) !== 10) continue;
+    seenTailNewlines += 1;
+    if (seenTailNewlines === tailLines) break;
   }
 
-  return { output, outputTruncated };
+  return `${value.slice(0, prefixEnd)}\n${value.slice(suffixStart)}`;
+}
+
+function trimTrailingPartialUtf8(value: Buffer): Buffer {
+  let index = value.length - 1;
+  while (index >= 0 && ((value[index] ?? 0) & 0xc0) === 0x80 && value.length - index <= 3) {
+    index -= 1;
+  }
+  if (index < 0) return value;
+  const lead = value[index] ?? 0;
+  const expected = lead < 0x80 ? 1 : lead < 0xe0 ? 2 : lead < 0xf0 ? 3 : lead < 0xf8 ? 4 : 0;
+  return expected > 0 && value.length - index < expected ? value.subarray(0, index) : value;
+}
+
+function trimLeadingContinuationUtf8(value: Buffer): Buffer {
+  let index = 0;
+  while (index < value.length && ((value[index] ?? 0) & 0xc0) === 0x80) index += 1;
+  return value.subarray(index);
+}
+
+function retainHeadTailBytes(value: string): string {
+  const encoded = Buffer.from(value, "utf8");
+  if (encoded.length <= MAX_COMMAND_OUTPUT_BYTES) return value;
+
+  const headBytes = Math.ceil(MAX_COMMAND_OUTPUT_BYTES / 2);
+  const tailBytes = MAX_COMMAND_OUTPUT_BYTES - headBytes;
+  // 两端分别解码，避免跨过被省略的中段重新拼成一个码点。
+  const head = trimTrailingPartialUtf8(encoded.subarray(0, headBytes)).toString("utf8");
+  const tail = trimLeadingContinuationUtf8(encoded.subarray(encoded.length - tailBytes)).toString(
+    "utf8",
+  );
+  return `${head}${tail}`;
+}
+
+export function boundCommandOutput(value: string): {
+  output: string;
+  outputOmitted: AgentCommandOutputOmission;
+} {
+  const originalBytes = Buffer.byteLength(value, "utf8");
+  const originalLines = countNewlines(value);
+  const lineBounded = retainHeadTailLines(value, originalLines);
+  const output = retainHeadTailBytes(lineBounded);
+  return {
+    output,
+    outputOmitted: {
+      bytes: originalBytes - Buffer.byteLength(output, "utf8"),
+      lines: originalLines - countNewlines(output),
+    },
+  };
 }
 
 export function mapToolError(value: unknown): { error: string } | undefined {

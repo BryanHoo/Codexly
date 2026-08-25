@@ -276,8 +276,9 @@ export const conversation = {
     moreFiles: "Show {{count}} more files",
     noHistory: "This task has no history",
     output: "Output",
+    outputOmitted:
+      "Command output omitted {{bytes}} UTF-8 bytes and {{lines}} lines. Showing the beginning and end.",
     outputRetained: "Older command output was removed to stay within the memory budget",
-    outputTruncated: "Output was truncated. Showing the latest content only.",
     operationGroup: {
       collapse: "Collapse operation details: {{summary}}",
       commandsOnly: "Commands complete: {{count}}",

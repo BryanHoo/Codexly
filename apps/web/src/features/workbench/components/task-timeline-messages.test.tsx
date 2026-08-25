@@ -240,7 +240,7 @@ describe("task timeline messages", () => {
               id: "review-command",
               command: "git diff",
               cwd: "/workspace/Codexly",
-              outputTruncated: false,
+              outputOmitted: { bytes: 0, lines: 0 },
               status: "running",
               type: "command",
             },

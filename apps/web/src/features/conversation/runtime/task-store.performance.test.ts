@@ -215,7 +215,7 @@ describe("TaskStore performance", () => {
                 cwd: "/workspace",
                 id: "command-performance",
                 output: "",
-                outputTruncated: false,
+                outputOmitted: { bytes: 0, lines: 0 },
                 status: "running",
                 type: "command",
               },
@@ -247,7 +247,7 @@ describe("TaskStore performance", () => {
     expect(readSpy).not.toHaveBeenCalled();
     expect(itemStore.readCommandOutput()).toMatchObject({
       outputBytes: performanceBudgets.delta.clientEvents,
-      outputTruncated: false,
+      outputOmitted: { bytes: 0, lines: 0 },
     });
     expect(durationMs).toBeLessThan(performanceBudgets.delta.maxClientReplayMs);
   });

@@ -275,8 +275,8 @@ export const conversation = {
     moreFiles: "再显示 {{count}} 个文件",
     noHistory: "此任务暂无历史",
     output: "输出",
+    outputOmitted: "命令输出已省略 {{bytes}} 个 UTF-8 字节和 {{lines}} 行，显示开头和结尾内容。",
     outputRetained: "较早的命令输出已按内存预算清理",
-    outputTruncated: "输出已截断，仅显示最新内容。",
     operationGroup: {
       collapse: "收起执行详情：{{summary}}",
       commandsOnly: "命令执行完成：{{count}} 条",

@@ -62,7 +62,7 @@ function createDeltaItem(event: Extract<AgentEvent, { itemId: string }>): AgentI
         cwd: "",
         id: event.itemId,
         output: "",
-        outputTruncated: false,
+        outputOmitted: { bytes: 0, lines: 0 },
         status: "running",
         type: "command",
       };

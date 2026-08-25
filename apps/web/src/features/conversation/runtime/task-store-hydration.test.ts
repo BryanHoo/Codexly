@@ -83,7 +83,7 @@ describe("task store hydration", () => {
         cwd: "/workspace",
         id: `current-${String(index)}`,
         output: commandOutput,
-        outputTruncated: false,
+        outputOmitted: { bytes: 0, lines: 0 },
         status: "completed" as const,
         type: "command" as const,
       })),
@@ -99,7 +99,7 @@ describe("task store hydration", () => {
           cwd: "/workspace",
           id: "older-command",
           output: commandOutput,
-          outputTruncated: false,
+          outputOmitted: { bytes: 0, lines: 0 },
           status: "completed" as const,
           type: "command" as const,
         },
@@ -113,11 +113,11 @@ describe("task store hydration", () => {
     store.getState().prependHistory(createResponse({ turns: [olderTurn], turnsNextCursor: null }));
 
     expect(store.getState().getItem("older-command", "turn-older-command")).toMatchObject({
-      outputTruncated: true,
+      outputOmitted: { bytes: commandOutput.length, lines: 0 },
     });
     expect(store.getState().getItem("current-0", "turn-current")).toMatchObject({
       output: commandOutput,
-      outputTruncated: false,
+      outputOmitted: { bytes: 0, lines: 0 },
     });
   });
 
