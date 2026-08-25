@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-25
+
+### 新增
+
+- 添加 Goal 目标管理能力，支持首次提交目标、实时恢复目标状态，并在 Inspector 中展示目标、耗时与 Token 用量。
+- 支持暂停、恢复和清除 Goal，并为 `active`、`paused`、`blocked`、`usage_limited`、`budget_limited` 与 `complete` 状态提供完整交互。
+
+### 修复
+
+- 保留 Streamdown 默认 GFM 插件，使流式 Markdown 表格在接收多个增量时持续正确渲染。
+- 修复 Turn 中断后引导消息仍显示队列加载状态的问题，并统一快照与实时 Store 的终态检测。
+
 ## [0.2.0] - 2026-08-25
 
 ### 新增
@@ -53,6 +65,7 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.3.0
 [0.2.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.2.0
 [0.1.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.1.0
