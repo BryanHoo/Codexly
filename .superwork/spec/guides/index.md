@@ -39,7 +39,7 @@
 - GitHub Release 正文必须提取 `CHANGELOG.md` 中与当前包版本匹配的完整章节；版本缺失或章节为空时必须阻止发布，不得回退为自动生成摘要。
 - 原生运行时依赖不得因包含 `binding.gyp` 且缺少显式安装钩子而触发 npm 隐式 `node-gyp rebuild`；`package:check` 必须拒绝此类依赖。
 - Web 与 Node 发布构建不得生成或打包 `.map` 源码映射，`package:check` 必须拒绝含 `.map` 的发布清单。
-- `.agents/**` 属于代理技能资产，不进入产品 Prettier 与 ESLint 门禁；相关改动使用技能自身校验。
+- `.agents/**` 属于代理技能资产，不进入产品 Prettier 与 Oxlint 门禁；相关改动使用技能自身校验。
 - 长时间命令使用非交互模式和明确超时。
 
 ## Update Triggers

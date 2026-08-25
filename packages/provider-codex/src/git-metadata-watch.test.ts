@@ -195,7 +195,11 @@ describe("CodexGitMetadataWatchService", () => {
     await vi.waitFor(() => {
       expect(client.request).toHaveBeenCalledTimes(1);
     });
-    const watchId = (client.request.mock.calls[0]?.[1] as { watchId: string }).watchId;
+    const firstRequest = client.request.mock.calls[0];
+    if (firstRequest === undefined) {
+      throw new Error("Expected fs/watch request");
+    }
+    const watchId = (firstRequest[1] as { watchId: string }).watchId;
     const releasing = service.releaseProject("project-1");
     resolveWatch?.({ path: join(root, ".git", "HEAD") });
     await Promise.all([watching, releasing]);

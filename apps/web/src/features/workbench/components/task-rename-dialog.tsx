@@ -1,4 +1,4 @@
-/* eslint-disable jsx-a11y/no-autofocus -- 重命名 Dialog 由用户显式打开，按交互规范聚焦唯一输入框。 */
+/* oxlint-disable jsx-a11y/no-autofocus -- 重命名 Dialog 由用户显式打开，按交互规范聚焦唯一输入框。 */
 import { useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";

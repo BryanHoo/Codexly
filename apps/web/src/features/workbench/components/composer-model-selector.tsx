@@ -44,9 +44,12 @@ type ComposerModelSelectorTriggerProps = Readonly<{
 const workbenchMobileQuery = "(max-width: 760px)";
 
 function useWorkbenchMobile(): boolean {
-  const [mobile, setMobile] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(workbenchMobileQuery).matches,
-  );
+  const [mobile, setMobile] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return window.matchMedia(workbenchMobileQuery).matches;
+  });
 
   useEffect(() => {
     const media = window.matchMedia(workbenchMobileQuery);

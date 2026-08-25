@@ -1,9 +1,58 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 describe("CI 质量门禁", () => {
+  it("使用 Oxlint 执行静态检查并移除 ESLint 工具链", () => {
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const workspaceConfig = readFileSync(join(process.cwd(), "pnpm-workspace.yaml"), "utf8");
+    const oxlintConfigPath = join(process.cwd(), ".oxlintrc.json");
+
+    expect(existsSync(oxlintConfigPath)).toBe(true);
+    expect(existsSync(join(process.cwd(), "eslint.config.mjs"))).toBe(false);
+
+    // 配置存在后继续验证 type-aware、React 与无障碍规则没有在迁移中降级。
+    const oxlintConfig = JSON.parse(readFileSync(oxlintConfigPath, "utf8")) as {
+      options: { typeAware: boolean };
+      overrides: {
+        files: string[];
+        plugins?: string[];
+        rules: Record<string, unknown>;
+      }[];
+    };
+    const webOverride = oxlintConfig.overrides.find((override) =>
+      override.files.includes("apps/web/**/*.{ts,tsx}"),
+    );
+    const sourceOverride = oxlintConfig.overrides.find((override) =>
+      override.files.includes("**/*.{js,mjs,cjs,ts,tsx}"),
+    );
+
+    expect(packageJson.scripts["lint"]).toBe(
+      "oxlint . --max-warnings 0 --report-unused-disable-directives",
+    );
+    expect(packageJson.devDependencies["oxlint"]).toBe("catalog:");
+    expect(packageJson.devDependencies["oxlint-tsgolint"]).toBe("catalog:");
+    expect(
+      Object.keys(packageJson.devDependencies).filter((name) => name.includes("eslint")),
+    ).toEqual([]);
+    expect(workspaceConfig).toContain("  oxlint: 1.79.0");
+    expect(workspaceConfig).toContain("  oxlint-tsgolint: 7.0.2001");
+    expect(workspaceConfig).not.toMatch(/^\s+eslint(?:-|:)/m);
+    expect(oxlintConfig.options.typeAware).toBe(true);
+    expect(sourceOverride?.rules["max-lines"]).toEqual([
+      "error",
+      { max: 500, skipBlankLines: false, skipComments: false },
+    ]);
+    expect(webOverride?.plugins).toEqual(["jsx-a11y", "react"]);
+    expect(webOverride?.rules["react/exhaustive-deps"]).toBe("error");
+    expect(webOverride?.rules["react/rules-of-hooks"]).toBe("error");
+    expect(webOverride?.rules["jsx-a11y/alt-text"]).toBe("error");
+  });
+
   it("使用最低支持的 Node.js 版本执行 Release 门禁", () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       engines: { node: string };

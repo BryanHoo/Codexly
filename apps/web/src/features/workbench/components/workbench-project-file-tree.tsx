@@ -168,7 +168,7 @@ const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
   }
 
   const row = (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Headless Tree 通过 itemProps 注入完整 treeitem 键盘与 ARIA 属性。
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- Headless Tree 通过 itemProps 注入完整 treeitem 键盘与 ARIA 属性。
     <div
       {...itemProps}
       className={`group/file-tree-node flex h-7 w-full items-center gap-1 rounded-control pr-1.5 text-left transition-colors hover:bg-control-hover focus-visible:shadow-focus focus-visible:outline-none ${item.isSelected() ? "bg-control" : ""}`}

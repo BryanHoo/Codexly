@@ -154,6 +154,7 @@ export async function configureServerDelivery(
       }
     }
   });
+  // oxlint-disable-next-line typescript/require-await -- Fastify 通过 async Hook 的返回值完成 payload 交付。
   app.addHook("onSend", async (request, reply, payload) => {
     reply.headers({
       "Content-Security-Policy":

@@ -63,7 +63,7 @@
 - 读取剪贴板的 Playwright 用例必须在 Browser Context 显式声明 `clipboard-read` 和 `clipboard-write` 权限，不得依赖开发机或 CI Runner 的默认授权。
 - 跨平台文件系统与浏览器测试必须隔离平台表示差异：非盘符行为测试显式注入 `filesystemRoots`，Windows 剪贴板文本比较前统一 `CRLF` 为 `LF`；Cookie 的 `SameSite` 响应契约由 Server 测试直接验证，E2E 只断言浏览器一致暴露的持久化属性。
 - `dependency-cruiser` 必须分析 TypeScript 编译前依赖，使纯类型模块不会被误判为 orphan，并确保类型导入同样接受跨包依赖边界校验。
-- ESLint 必须对生产 JavaScript/TypeScript 模块强制执行 500 行上限，超限模块按职责拆分；仅声明文件、测试/规格文件、测试 fixture 与 E2E 场景可在集中配置中豁免，生产文件不得使用单文件例外。
+- Oxlint 必须对生产 JavaScript/TypeScript 模块强制执行 500 行上限，超限模块按职责拆分；仅声明文件、测试/规格文件、测试 fixture 与 E2E 场景可在集中配置中豁免，生产文件不得使用单文件例外。
 - CI 必须在 Ubuntu quality 门禁中执行 `pnpm run test:coverage` 并应用 Vitest 覆盖率阈值；Windows quality 矩阵不得重复生成覆盖率报告。
 - 常规 CI 与 Release quality 使用最低支持的 Node.js 22.14.0；npm Trusted Publisher 步骤在同一运行时中固定安装 npm 11.5.1。Vitest 使用 `threads` 池，Vitest 与 Playwright 最多并发使用 `2` 个 worker。Release 将普通 Vitest 测试按 Web、共享包、Provider、Server 和根测试拆为独立 `forks` 进程，每组固定单 worker，避免长寿命进程累积原生模块资源后崩溃。本地运行不受这些上限约束。
 - 变更按新协议逻辑实现并删除冗余旧路径；破坏性变更明确升级 API 或事件版本。

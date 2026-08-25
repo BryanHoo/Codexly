@@ -10,7 +10,7 @@
 - 页面行为变化运行 `pnpm test:e2e`，基础门禁运行 `pnpm check`。
 - Web 支持 Chrome/Chromium 116+、Firefox 124+ 和 Safari 17.4+；`apps/web/vite.config.ts` 的 `build.target` 必须保持相同最低版本。Vite 不为运行时 API 注入 polyfill，使用新的浏览器 API 前必须验证该版本矩阵；Chromium 执行全量 E2E，Firefox 与 WebKit 必须执行带 `@smoke` 或 `@cross-browser` 标记的工作台加载、实时事件、IME、提交、移动布局、附件、项目排序与 LAN Access 核心流程。
 - 浏览器侧 UUID 统一使用 `uuid` 的 `v4()`，不得直接依赖仅在安全上下文提供的 `crypto.randomUUID()`；回归测试必须覆盖局域网 HTTP 环境中仅有 `crypto.getRandomValues()` 的情况。
-- Web ESLint 必须启用 `react-hooks/rules-of-hooks`、`react-hooks/exhaustive-deps` 和 `eslint-plugin-jsx-a11y` 推荐规则；原生 Dialog、ARIA 复合控件等已验证语义只能使用带原因的局部例外，禁止全局降级规则。
+- Web Oxlint 必须启用 `react/rules-of-hooks`、`react/exhaustive-deps` 和 `jsx-a11y` 推荐规则；原生 Dialog、ARIA 复合控件等已验证语义只能使用带原因的局部例外，禁止全局降级规则。
 - 检查键盘操作、焦点、可访问名称、空状态、错误状态与慢连接状态。
 - 移动工作台 E2E 至少覆盖 `320px` 最窄竖屏和手机横屏；页面 viewport 必须允许用户缩放，不得设置 `maximum-scale=1` 或 `user-scalable=no`，并使用 `viewport-fit=cover`；根容器必须使用 `dvh` 并承接 `safe-area-inset-*`；文档及 Composer 等内部控件不得横向或纵向溢出动态视口，Composer 常用控件在手机宽度下必须保持单行，主要移动操作必须保持清晰可用的触控目标。
 - 流式输出和长历史变更检查渲染次数、DOM 规模及布局稳定性。

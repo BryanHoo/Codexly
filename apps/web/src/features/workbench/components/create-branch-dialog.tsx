@@ -1,4 +1,4 @@
-/* eslint-disable jsx-a11y/no-autofocus -- Dialog 由用户显式打开，分支名输入框是唯一首要操作。 */
+/* oxlint-disable jsx-a11y/no-autofocus -- Dialog 由用户显式打开，分支名输入框是唯一首要操作。 */
 import { useRef, useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";

@@ -215,6 +215,7 @@ test("does not submit or select a command when Safari confirms an IME candidate 
           bubbles: true,
           cancelable: true,
           key: "Enter",
+          // oxlint-disable-next-line typescript/no-deprecated -- Safari 兼容回归必须构造 keyCode=229。
           keyCode: 229,
         }),
       );

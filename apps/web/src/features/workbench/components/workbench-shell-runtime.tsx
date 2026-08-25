@@ -358,17 +358,11 @@ export function useWorkbenchShellRuntime({
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
   const selectedProjectFileDialog =
-    projectFileDialogSelection !== null && projectFileDialogSelection.projectId === projectId
-      ? projectFileDialogSelection
-      : null;
+    projectFileDialogSelection?.projectId === projectId ? projectFileDialogSelection : null;
   const selectedInspectorFile =
-    inspectorFileSelection !== null && inspectorFileSelection.projectId === projectId
-      ? inspectorFileSelection
-      : null;
+    inspectorFileSelection?.projectId === projectId ? inspectorFileSelection : null;
   const selectedFileReview =
-    fileReviewSelection !== null && fileReviewSelection.projectId === projectId
-      ? fileReviewSelection.changes
-      : null;
+    fileReviewSelection?.projectId === projectId ? fileReviewSelection.changes : null;
   const inspectorTask = useMemo(() => {
     // Inspector 是低频完整视图；关闭时不保留兼容 Snapshot。
     void runtime.itemStructureRevision;
@@ -377,8 +371,7 @@ export function useWorkbenchShellRuntime({
   }, [inspectorOpen, runtime, startingSnapshot]);
   const subagents = useMemo(() => collectSubagents(inspectorTask), [inspectorTask]);
   const selectedSubagent =
-    subagentDialogSelection !== null &&
-    subagentDialogSelection.projectId === projectId &&
+    subagentDialogSelection?.projectId === projectId &&
     subagentDialogSelection.parentTaskId === taskId
       ? {
           ...subagentDialogSelection.selection,

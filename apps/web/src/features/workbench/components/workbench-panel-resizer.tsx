@@ -1,4 +1,3 @@
-/* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- ARIA separator 按规范支持焦点、方向键和指针拖拽。 */
 import { useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 type WorkbenchPanelResizerProps = Readonly<{

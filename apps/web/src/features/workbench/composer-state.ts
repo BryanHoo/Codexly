@@ -81,10 +81,7 @@ export function deriveComposerActions(
 ): Readonly<{ canInterrupt: boolean; canSubmit: boolean; canSteer: boolean }> {
   return {
     canInterrupt: capabilities?.turns.interrupt ?? false,
-    canSubmit:
-      capabilities !== undefined &&
-      capabilities.turns.start &&
-      (hasTask || capabilities.tasks.start),
+    canSubmit: capabilities?.turns.start === true && (hasTask || capabilities.tasks.start),
     canSteer: capabilities?.turns.steer === true && hasTask,
   };
 }
