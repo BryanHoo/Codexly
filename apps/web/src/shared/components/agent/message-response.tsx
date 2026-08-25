@@ -1,6 +1,13 @@
 import { File } from "lucide-react";
 import { createContext, memo, useContext, useMemo, type ComponentProps } from "react";
-import { Block, Streamdown, StreamdownContext, type BlockProps, type Components } from "streamdown";
+import {
+  Block,
+  defaultRemarkPlugins,
+  Streamdown,
+  StreamdownContext,
+  type BlockProps,
+  type Components,
+} from "streamdown";
 
 import { Button } from "../core/button.js";
 import { CodeComments } from "./code-comments.js";
@@ -301,6 +308,8 @@ function MessageResponseContent({
   );
   const resolvedRemarkPlugins = useMemo(
     () => [
+      // Streamdown 收到自定义插件后不再注入默认 GFM；必须显式保留表格等标准扩展。
+      ...Object.values(defaultRemarkPlugins),
       rawMarkupRemarkPlugin,
       ...(promptFileReferences ? [promptFileReferenceRemarkPlugin] : []),
       ...(remarkPlugins ?? []),
