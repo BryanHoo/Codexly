@@ -14,7 +14,7 @@
     "tsBuildInfoFile": "../.cache/types/tests.tsbuildinfo",
     "types": ["node", "@playwright/test", "vitest"]
   },
-  "include": ["e2e/**/*.ts", "*.test.ts"],
+  "include": ["e2e/**/*.ts", "performance/**/*.ts", "*.test.ts"],
   "references": [
     { "path": "../packages/protocol" },
     { "path": "../packages/provider-codex" },

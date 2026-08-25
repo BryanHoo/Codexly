@@ -4,6 +4,13 @@
     "maxDurationMs": 8000,
     "maxHeapGrowthBytes": 16777216
   },
+  "browserDiagnostics": {
+    "checkpointInterval": 20,
+    "historyItems": 10000,
+    "historyItemsPerTurn": 10,
+    "soakTurns": 100,
+    "streamChunksPerTurn": 4
+  },
   "delta": {
     "clientEvents": 50000,
     "maxClientReplayMs": 1500,

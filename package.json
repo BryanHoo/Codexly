@@ -57,6 +57,7 @@
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "test:e2e": "pnpm build && playwright test",
     "test:performance": "node --expose-gc ./node_modules/vitest/vitest.mjs run --config vitest.performance.config.ts",
+    "test:performance:browser": "pnpm run build && playwright test --config playwright.performance.config.ts",
     "typecheck": "tsc -b --pretty false",
     "prepublishOnly": "pnpm run check"
   },
