@@ -179,6 +179,15 @@ export function createTaskStore(
     setError(error) {
       set({ error });
     },
+    setTaskSettings(settings) {
+      set((state) =>
+        state.snapshotMetadata === null
+          ? state
+          : {
+              snapshotMetadata: { ...state.snapshotMetadata, settings },
+            },
+      );
+    },
     taskId: identity.taskId,
   }));
 }

@@ -1,9 +1,12 @@
 import type { AgentSkill, AgentTurn } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 
+import { createTaskStore } from "../../conversation/runtime/task-store.js";
+import { snapshotResponse } from "../../projects/project-queries.test-support.js";
 import { serializePromptSkillContent } from "./prompt-skill-content.js";
 import {
   collectPromptHistoryEntries,
+  collectPromptHistoryEntriesFromTaskStore,
   resolvePromptHistoryIndex,
   shouldNavigatePromptHistory,
 } from "./prompt-history.js";
@@ -67,6 +70,23 @@ describe("prompt history", () => {
       "$frontend-design $removed-skill 第二次输入",
     );
     expect(serializePromptSkillContent(entries[1] ?? [])).toBe("第一次输入");
+  });
+
+  it("collects user inputs directly from normalized item stores", () => {
+    const turns = [
+      createTurn("turn-1", [{ id: "user-1", role: "user", text: "Store 输入", type: "message" }]),
+    ];
+    const store = createTaskStore(
+      { projectId: snapshotResponse.snapshot.projectId, taskId: snapshotResponse.snapshot.id },
+      {
+        ...snapshotResponse,
+        snapshot: { ...snapshotResponse.snapshot, turns },
+      },
+    );
+
+    const entries = collectPromptHistoryEntriesFromTaskStore(store.getState(), [skill]);
+
+    expect(entries.map(serializePromptSkillContent)).toEqual(["Store 输入"]);
   });
 
   it("moves within history bounds and exits after the newest entry", () => {

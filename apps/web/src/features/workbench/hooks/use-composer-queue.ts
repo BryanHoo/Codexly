@@ -7,7 +7,6 @@ import type { PromptInputAttachment } from "../../../shared/components/agent/pro
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import { taskQueueQueryKey, type CodexlyMutationClient } from "../../projects/project-queries.js";
 import {
-  hasQueuedPromptFinishedInSnapshot,
   hasQueuedPromptFinishedInStore,
   mapAgentQueuedSubmission,
   resolveQueuedPromptEdit,
@@ -132,20 +131,6 @@ export function useComposerQueue({
       current?.scope === routeScope && current.id === editingId ? undefined : current,
     );
   }, [editingId, queueQuery.data, queueQuery.isFetching, routeScope]);
-
-  useEffect(() => {
-    // 实时 store 存在时只比较 store 中的消息 ID，避免快照 ID 不同而提前结束 loading。
-    if (runtime?.store !== undefined) {
-      return;
-    }
-    setAwaitingSteers((current) =>
-      current.filter(
-        (entry) =>
-          entry.scope !== routeScope ||
-          !hasQueuedPromptFinishedInSnapshot(entry.prompt, runtime?.snapshot),
-      ),
-    );
-  }, [routeScope, runtime?.snapshot, runtime?.store]);
 
   useEffect(() => {
     const store = runtime?.store;

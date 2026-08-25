@@ -7,13 +7,12 @@ import type {
   AgentSkill,
   AgentTask,
   AgentTaskSettings,
-  AgentTaskSnapshotResponse,
   AgentTurn,
   PendingRequest,
   ProjectGitStatus,
   ProjectRoot,
 } from "@codexly/protocol";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { memo, useEffect, useState, type RefObject } from "react";
 
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
@@ -99,7 +98,6 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   onOpenSourceFile: (reference: MessageFileReference) => void;
   onReviewFileChanges: (changes: readonly AgentFileChange[]) => void;
 }>) {
-  const queryClient = useQueryClient();
   const taskScope = `${projectId}:${taskId}`;
   const [timelineScrollToBottomSignal, setTimelineScrollToBottomSignal] = useState(0);
   const {
@@ -117,22 +115,13 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   const retainedSubmissionStartedAt = submissionStartedAt ?? submittedPrompt?.submissionStartedAt;
   const retainedSubmissionTurnId =
     submissionStartedAt === undefined ? submittedPrompt?.turn.id : undefined;
-  const visibleSnapshot =
-    runtime.snapshot === undefined || submittedPrompt === undefined
-      ? runtime.snapshot
-      : mergeSubmittedPromptIntoSnapshot(runtime.snapshot, submittedPrompt.turn, {
-          ...submittedPrompt.input,
-          messageAttachments: submittedPrompt.messageAttachments,
-        });
-  const visibleRuntime: TaskRuntimeView =
-    visibleSnapshot === runtime.snapshot ? runtime : { ...runtime, snapshot: visibleSnapshot };
   useEffect(() => {
     const store = runtime.store;
     if (store === undefined || submittedPrompt === undefined) {
       return;
     }
     const state = store.getState();
-    const currentSnapshot = state.reconstructSnapshot();
+    const currentSnapshot = runtime.readSnapshot();
     if (currentSnapshot === undefined || state.checkpoint === null) {
       return;
     }
@@ -149,20 +138,11 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
     state.hydrate({ checkpoint: state.checkpoint, snapshot: mergedSnapshot });
     store.getState().setConnectionState(previousConnectionState);
     store.getState().setError(previousError);
-  }, [runtime.snapshot, runtime.store, submittedPrompt]);
+  }, [runtime, submittedPrompt]);
   const settingsMutation = useMutation({
     ...taskSettingsMutationOptions(projectId, taskId, client),
     onSuccess(response) {
-      queryClient.setQueryData<AgentTaskSnapshotResponse>(
-        ["projects", projectId, "tasks", taskId],
-        (current) =>
-          current === undefined
-            ? current
-            : {
-                ...current,
-                snapshot: { ...current.snapshot, settings: response.settings },
-              },
-      );
+      runtime.store?.getState().setTaskSettings(response.settings);
     },
   });
   const resolvePendingRequest = (
@@ -188,7 +168,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         onResolvePendingRequest={resolvePendingRequest}
         projectId={projectId}
         key={taskScope}
-        runtime={visibleRuntime}
+        runtime={runtime}
         scrollToBottomSignal={timelineScrollToBottomSignal}
         {...(retainedSubmissionStartedAt === undefined
           ? {}
@@ -244,8 +224,8 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         projectToolsEnabled={projectToolsEnabled}
         selectedProjectRootId={selectedProjectRootId}
         {...(gitStatus === undefined ? {} : { gitStatus })}
-        runtime={visibleRuntime}
-        settings={visibleSnapshot?.settings ?? startingSnapshot?.settings ?? fallbackSettings}
+        runtime={runtime}
+        settings={runtime.metadata?.settings ?? startingSnapshot?.settings ?? fallbackSettings}
         skills={skills}
         taskId={taskId}
       />

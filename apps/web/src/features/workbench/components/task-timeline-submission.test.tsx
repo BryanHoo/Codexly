@@ -51,7 +51,6 @@ describe("task timeline submission", () => {
             connectionState: "connected",
             error: null,
             isPending: false,
-            snapshot: intermediateSnapshot,
             store,
           }}
           submissionStartedAt="2026-07-24T00:01:00.000Z"
@@ -113,7 +112,6 @@ describe("task timeline submission", () => {
             connectionState: "connected",
             error: null,
             isPending: false,
-            snapshot: runningSnapshot,
             store,
           }}
           submissionStartedAt="2026-07-24T00:01:00.000Z"
@@ -214,7 +212,6 @@ describe("task timeline submission", () => {
           connectionState: "connected",
           error: null,
           isPending: false,
-          snapshot: { ...runningSnapshot, turns: [] },
           store,
         }}
         taskId={snapshot.id}
@@ -251,7 +248,6 @@ describe("task timeline submission", () => {
           connectionState: "connecting",
           error: null,
           isPending: true,
-          snapshot: undefined,
           store: undefined,
         }}
         startingSnapshot={startingSnapshot}
@@ -287,7 +283,6 @@ describe("task timeline submission", () => {
           connectionState: "connected",
           error: null,
           isPending: false,
-          snapshot: longSnapshot,
           store,
         }}
         taskId={longSnapshot.id}
@@ -334,7 +329,6 @@ describe("task timeline submission", () => {
           connectionState: "connected",
           error: null,
           isPending: false,
-          snapshot: failedSnapshot,
           store,
         }}
         taskId={snapshot.id}

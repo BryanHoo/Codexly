@@ -231,10 +231,7 @@ export function useWorkbenchShellRuntime({
         queryKey: ["projects", projectId, "defaults"],
       });
       if (taskId !== undefined) {
-        await queryClient.invalidateQueries({
-          exact: true,
-          queryKey: ["projects", projectId, "tasks", taskId],
-        });
+        await projectRuntime.refreshTaskSnapshot(projectId, taskId);
       }
     },
   });
@@ -272,7 +269,7 @@ export function useWorkbenchShellRuntime({
     taskConnectionState: runtime.connectionState,
   });
   const isTaskRunning =
-    runtime.snapshot?.status === "running" || startingSnapshot?.status === "running";
+    runtime.metadata?.status === "running" || startingSnapshot?.status === "running";
   const backgroundTerminals = useBackgroundTerminals(
     client,
     projectId,
@@ -356,7 +353,7 @@ export function useWorkbenchShellRuntime({
   const projectPath = selectedRootPath ?? "";
   const title =
     tasks.find((task) => task.projectId === projectId && task.id === taskId)?.title ??
-    runtime.snapshot?.title ??
+    runtime.metadata?.title ??
     t("shell.newChat");
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
@@ -372,10 +369,13 @@ export function useWorkbenchShellRuntime({
     fileReviewSelection !== null && fileReviewSelection.projectId === projectId
       ? fileReviewSelection.changes
       : null;
-  const subagents = useMemo(
-    () => collectSubagents(runtime.snapshot ?? startingSnapshot),
-    [runtime.snapshot, startingSnapshot],
-  );
+  const inspectorTask = useMemo(() => {
+    // Inspector 是低频完整视图；关闭时不保留兼容 Snapshot。
+    void runtime.itemStructureRevision;
+    void runtime.metadata;
+    return inspectorOpen ? (runtime.readSnapshot() ?? startingSnapshot) : startingSnapshot;
+  }, [inspectorOpen, runtime, startingSnapshot]);
+  const subagents = useMemo(() => collectSubagents(inspectorTask), [inspectorTask]);
   const selectedSubagent =
     subagentDialogSelection !== null &&
     subagentDialogSelection.projectId === projectId &&
@@ -410,7 +410,7 @@ export function useWorkbenchShellRuntime({
     inspectorOpen,
     inspectorMaximumWidth,
     inspectorTab,
-    inspectorTask: runtime.snapshot ?? startingSnapshot,
+    inspectorTask,
     inspectorWidth,
     isPending,
     markTaskRunning,

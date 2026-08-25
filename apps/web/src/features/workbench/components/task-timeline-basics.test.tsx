@@ -59,7 +59,6 @@ describe("task timeline basics", () => {
           isPending: false,
           loadOlderHistory: vi.fn(),
           olderHistoryError: null,
-          snapshot: paginatedSnapshot,
           store,
         }}
         taskId={snapshot.id}
@@ -286,7 +285,6 @@ describe("task timeline basics", () => {
             connectionState: "connected",
             error: null,
             isPending: false,
-            snapshot: runningSnapshot,
             store,
           }}
           submissionStartedAt="2026-07-24T00:01:00.000Z"

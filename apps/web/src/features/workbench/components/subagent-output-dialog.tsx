@@ -63,7 +63,7 @@ function OpenSubagentOutputDialog({
   let content;
   if (runtime.error !== null) {
     content = <SubagentOutputState message={t("subagentOutput.error")} role="alert" />;
-  } else if (runtime.isPending || runtime.snapshot === undefined) {
+  } else if (runtime.isPending || runtime.metadata === undefined) {
     content = <SubagentOutputState message={t("subagentOutput.loading")} role="status" />;
   } else {
     content = (

@@ -166,6 +166,24 @@ export class ProjectEventRuntime {
     this.#reevaluateIdleRelease();
   }
 
+  public reconcileTaskSnapshot(response: AgentTaskSnapshotResponse): void {
+    this.#assertSnapshotProject(response);
+    const matchingTargets: TaskEventTarget[] = [];
+    for (const [store, target] of this.#targets) {
+      if (store.getState().taskId !== response.snapshot.id) {
+        continue;
+      }
+      store.getState().reconcile(response);
+      target.resetForSnapshot();
+      matchingTargets.push(target);
+    }
+    this.observeSnapshot(response);
+    for (const target of matchingTargets) {
+      target.setConnectionState(this.#connectionState);
+      this.#replayEvents(response.checkpoint, target);
+    }
+  }
+
   #appendEventHistory(event: AgentEvent): void {
     // 有界历史用于补齐 Snapshot 请求期间到达的事件，超出预算后由 Snapshot 恢复兜底。
     this.#eventHistory.append(event);

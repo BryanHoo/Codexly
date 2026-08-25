@@ -16,7 +16,6 @@ import {
   deriveComposerActions,
   deriveComposerInputAvailability,
   deriveComposerState,
-  resolveActiveTurnId,
   resolveReasoningEffort,
 } from "../composer-state.js";
 import { useWorkbenchComposerController } from "../hooks/use-workbench-composer-controller.js";
@@ -41,7 +40,7 @@ import {
   type PromptSkillEditorHandle,
 } from "./prompt-skill-editor.js";
 import {
-  collectPromptHistoryEntries,
+  collectPromptHistoryEntriesFromTaskStore,
   resolvePromptHistoryIndex,
   type PromptHistoryDirection,
 } from "./prompt-history.js";
@@ -127,7 +126,16 @@ export function useComposerSession({
   const submittedTurnId =
     submittedTurnState?.scope === routeScope ? submittedTurnState.turnId : undefined;
   const pendingTask = pendingTaskState?.scope === routeScope ? pendingTaskState.task : undefined;
-  const activeTurnId = resolveActiveTurnId(runtime?.snapshot, submittedTurnId);
+  const submittedTurnStatus =
+    submittedTurnId === undefined
+      ? undefined
+      : runtime?.store?.getState().turnsById[submittedTurnId]?.status;
+  const activeTurnId =
+    runtime?.activeTurnId ??
+    (submittedTurnId !== undefined &&
+    (submittedTurnStatus === undefined || submittedTurnStatus === "running")
+      ? submittedTurnId
+      : undefined);
   const activeTaskId = taskId ?? pendingTask?.id;
   const { canInterrupt, canSubmit, canSteer } = deriveComposerActions(
     capabilities,
@@ -152,10 +160,13 @@ export function useComposerSession({
     selectedModel,
     activeSettings.reasoningEffort,
   );
-  const contextUsage = runtime?.snapshot?.contextUsage;
+  const contextUsage = runtime?.metadata?.contextUsage;
   const promptHistoryEntries = useMemo(
-    () => collectPromptHistoryEntries(runtime?.snapshot?.turns ?? [], skills),
-    [runtime?.snapshot?.turns, skills],
+    () =>
+      runtime?.store === undefined
+        ? []
+        : collectPromptHistoryEntriesFromTaskStore(runtime.store.getState(), skills),
+    [runtime, skills],
   );
   const attachmentCount = attachments.length;
   const { attachmentsDisabled, draftInputDisabled, turnControlsDisabled } =

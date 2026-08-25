@@ -3,6 +3,7 @@ import type {
   AgentEvent,
   AgentItem,
   AgentTaskSnapshot,
+  AgentTaskSettings,
   AgentTurn,
   EventCheckpoint,
   PendingRequest,
@@ -66,6 +67,7 @@ export interface TaskStoreState {
   retainedBytes: number;
   setConnectionState: (connectionState: AgentEventConnectionState) => void;
   setError: (error: Error | null) => void;
+  setTaskSettings: (settings: AgentTaskSettings) => void;
   snapshotMetadata: TaskSnapshotMetadata | null;
   taskId: string;
   turnIds: readonly string[];

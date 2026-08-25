@@ -162,6 +162,21 @@ export class ProjectRuntimeManager {
     });
   }
 
+  public reconcileTaskSnapshot(response: AgentTaskSnapshotResponse): void {
+    this.#rememberTaskTitle(response.snapshot);
+    this.#recordSnapshotActivity(response.snapshot);
+    this.#getProject(response.snapshot.projectId).reconcileTaskSnapshot(response);
+  }
+
+  public async refreshTaskSnapshot(
+    projectId: string,
+    taskId: string,
+  ): Promise<AgentTaskSnapshotResponse> {
+    const response = await this.client.readTask(projectId, taskId);
+    this.reconcileTaskSnapshot(response);
+    return response;
+  }
+
   public rememberTaskTitles(tasks: readonly Pick<AgentTask, "id" | "projectId" | "title">[]): void {
     for (const task of tasks) {
       this.#rememberTaskTitle(task);

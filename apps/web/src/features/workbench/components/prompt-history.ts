@@ -1,5 +1,6 @@
-import type { AgentSkill, AgentTurn } from "@codexly/protocol";
+import type { AgentItem, AgentSkill, AgentTurn } from "@codexly/protocol";
 
+import type { TaskStoreState } from "../../conversation/runtime/task-store.js";
 import {
   normalizePromptSkillContent,
   type PromptSkillContent,
@@ -22,36 +23,68 @@ export function collectPromptHistoryEntries(
       continue;
     }
     for (let itemIndex = turn.items.length - 1; itemIndex >= 0; itemIndex -= 1) {
-      const item = turn.items[itemIndex];
-      if (item?.type !== "message" || item.role !== "user") {
-        continue;
-      }
-      const skillReferences = item.skills ?? [];
-      if (item.text === "" && skillReferences.length === 0) {
-        // 历史附件不能直接重新提交；附件专用输入不生成空白历史项。
-        continue;
-      }
-
-      const parts: PromptSkillContentPart[] = [];
-      for (const [index, skillReference] of skillReferences.entries()) {
-        const availableSkill = skillsByName.get(skillReference.name);
-        parts.push(
-          availableSkill === undefined
-            ? { text: `$${skillReference.name}`, type: "text" }
-            : { skill: availableSkill, type: "skill" },
-        );
-        if (index < skillReferences.length - 1 || item.text !== "") {
-          parts.push({ text: " ", type: "text" });
-        }
-      }
-      if (item.text !== "") {
-        parts.push({ text: item.text, type: "text" });
-      }
-      entries.push(normalizePromptSkillContent(parts));
+      appendPromptHistoryEntry(entries, turn.items[itemIndex], skillsByName);
     }
   }
 
   return entries;
+}
+
+export function collectPromptHistoryEntriesFromTaskStore(
+  state: Pick<TaskStoreState, "getItemByKey" | "itemKeysByTurnId" | "turnIds">,
+  availableSkills: readonly AgentSkill[],
+): readonly PromptSkillContent[] {
+  const skillsByName = new Map(availableSkills.map((skill) => [skill.name, skill]));
+  const entries: PromptSkillContent[] = [];
+  // 直接遍历归一化索引，避免为长历史临时复制完整 Turn 与 Item 数组。
+  for (let turnIndex = state.turnIds.length - 1; turnIndex >= 0; turnIndex -= 1) {
+    const turnId = state.turnIds[turnIndex];
+    if (turnId === undefined) {
+      continue;
+    }
+    const itemKeys = state.itemKeysByTurnId[turnId] ?? [];
+    for (let itemIndex = itemKeys.length - 1; itemIndex >= 0; itemIndex -= 1) {
+      const itemKey = itemKeys[itemIndex];
+      appendPromptHistoryEntry(
+        entries,
+        itemKey === undefined ? undefined : state.getItemByKey(itemKey),
+        skillsByName,
+      );
+    }
+  }
+  return entries;
+}
+
+function appendPromptHistoryEntry(
+  entries: PromptSkillContent[],
+  item: AgentItem | undefined,
+  skillsByName: ReadonlyMap<string, AgentSkill>,
+): void {
+  if (item?.type !== "message" || item.role !== "user") {
+    return;
+  }
+  const skillReferences = item.skills ?? [];
+  if (item.text === "" && skillReferences.length === 0) {
+    // 历史附件不能直接重新提交；附件专用输入不生成空白历史项。
+    return;
+  }
+
+  const parts: PromptSkillContentPart[] = [];
+  for (const [index, skillReference] of skillReferences.entries()) {
+    const availableSkill = skillsByName.get(skillReference.name);
+    parts.push(
+      availableSkill === undefined
+        ? { text: `$${skillReference.name}`, type: "text" }
+        : { skill: availableSkill, type: "skill" },
+    );
+    if (index < skillReferences.length - 1 || item.text !== "") {
+      parts.push({ text: " ", type: "text" });
+    }
+  }
+  if (item.text !== "") {
+    parts.push({ text: item.text, type: "text" });
+  }
+  entries.push(normalizePromptSkillContent(parts));
 }
 
 export function resolvePromptHistoryIndex(

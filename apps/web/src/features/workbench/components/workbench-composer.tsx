@@ -2,7 +2,7 @@ import type { AgentTaskSettings } from "@codexly/protocol";
 import { useEffect, useImperativeHandle, useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
-import { getTaskStoreUserMessageIds, getTurnUserMessageIds } from "../composer-queue-state.js";
+import { getTaskStoreUserMessageIds } from "../composer-queue-state.js";
 import {
   interruptPromptTurn,
   resolveComposerSubmitAction,
@@ -222,7 +222,7 @@ export function WorkbenchComposer({
   const submitPrompt = createComposerSubmission({
     activeUserMessageIds:
       runtime?.store === undefined
-        ? getTurnUserMessageIds(runtime?.snapshot, activeTurnId)
+        ? []
         : getTaskStoreUserMessageIds(runtime.store.getState(), activeTurnId),
     activeSettings,
     activeTaskId,
@@ -357,7 +357,7 @@ export function WorkbenchComposer({
       fastModeEnabled={fastModeEnabled}
       getCommandAvailability={getCommandAvailability}
       gitStatus={gitStatus}
-      goal={runtime?.snapshot?.goal}
+      goal={runtime?.metadata?.goal}
       hasComposerInput={hasComposerInput}
       isSubmitting={isSubmitting}
       menuItemCount={menuItemCount}

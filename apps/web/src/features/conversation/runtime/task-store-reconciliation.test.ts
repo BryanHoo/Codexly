@@ -10,6 +10,16 @@ import {
 } from "./task-store.test-support.js";
 
 describe("task store reconciliation", () => {
+  it("updates task settings without reconstructing the full snapshot", () => {
+    const response = createResponse();
+    const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, response);
+    const nextSettings = { ...response.snapshot.settings, model: "metadata-only-model" };
+
+    store.getState().setTaskSettings(nextSettings);
+
+    expect(store.getState().snapshotMetadata?.settings).toEqual(nextSettings);
+  });
+
   it("normalizes hydration and reconstructs a compatibility snapshot", () => {
     const pendingRequest = createPendingRequest();
     const response = createResponse({ pendingRequests: [pendingRequest] });

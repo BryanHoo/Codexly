@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import type { AgentTaskSnapshotResponse } from "@codexly/protocol";
+import { type QueryClient, type QueryKey, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 
@@ -9,20 +10,24 @@ import {
   createTaskStoreRegistry,
   type ReconstructedTaskSnapshot,
   type TaskStore,
+  type TaskSnapshotMetadata,
 } from "./task-store.js";
 
 const taskStoreRegistry = createTaskStoreRegistry({ maxRetainedStores: 20 });
 const emptyTaskStore = createTaskStore({ projectId: "", taskId: "" });
 
 export type TaskRuntimeView = Readonly<{
+  activeTurnId: string | undefined;
   connectionState: "closed" | "connected" | "connecting" | "reconnecting";
   error: Error | null;
   hasOlderHistory: boolean;
   isLoadingOlderHistory: boolean;
   isPending: boolean;
+  itemStructureRevision: number;
   loadOlderHistory: () => Promise<void>;
+  metadata: TaskSnapshotMetadata | undefined;
   olderHistoryError: Error | null;
-  snapshot: ReconstructedTaskSnapshot | undefined;
+  readSnapshot: () => ReconstructedTaskSnapshot | undefined;
   store: TaskStore | undefined;
 }>;
 
@@ -31,32 +36,23 @@ export function useTaskRuntime(
   taskId: string | undefined,
   projectRuntime: ProjectRuntimeManager,
 ): TaskRuntimeView {
+  const queryClient = useQueryClient();
   const client = projectRuntime.client;
-  const {
-    data: taskData,
-    error: taskQueryError,
-    isPending: taskQueryPending,
-    refetch: refetchTask,
-  } = useQuery({
-    ...taskSnapshotQueryOptions(projectId, taskId ?? "no-active-task", client),
-    enabled: taskId !== undefined,
-  });
+  const taskScope = `${projectId}\u0000${taskId ?? ""}`;
+  const [taskQueryState, setTaskQueryState] = useState<
+    Readonly<{ error: Error | null; isPending: boolean; scope: string }>
+  >({ error: null, isPending: taskId !== undefined, scope: taskScope });
   const [store, setStore] = useState<TaskStore>();
   const [isLoadingOlderHistory, setIsLoadingOlderHistory] = useState(false);
   const [olderHistoryError, setOlderHistoryError] = useState<Error | null>(null);
   const olderHistoryRequestRef = useRef<object | null>(null);
   const subscribedStore = store ?? emptyTaskStore;
+  const activeTurnId = useStore(subscribedStore, (state) =>
+    state.turnIds.findLast((turnId) => state.turnsById[turnId]?.status === "running"),
+  );
   const connectionState = useStore(subscribedStore, (state) => state.connectionState);
   const runtimeError = useStore(subscribedStore, (state) => state.error);
-  const taskStatus = useStore(subscribedStore, (state) => state.snapshotMetadata?.status);
-  const taskTitle = useStore(subscribedStore, (state) => state.snapshotMetadata?.title);
-  const taskSettings = useStore(subscribedStore, (state) => state.snapshotMetadata?.settings);
-  const taskContextUsage = useStore(
-    subscribedStore,
-    (state) => state.snapshotMetadata?.contextUsage,
-  );
-  const taskPlan = useStore(subscribedStore, (state) => state.snapshotMetadata?.plan);
-  const taskPinned = useStore(subscribedStore, (state) => state.snapshotMetadata?.pinned);
+  const metadata = useStore(subscribedStore, (state) => state.snapshotMetadata ?? undefined);
   const itemStructureRevision = useStore(subscribedStore, (state) => state.itemStructureRevision);
   const turnsNextCursor = useStore(subscribedStore, (state) => state.turnsNextCursor);
 
@@ -79,21 +75,50 @@ export function useTaskRuntime(
   }, [projectId, taskId]);
 
   useEffect(() => {
-    if (taskData === undefined) {
-      return;
-    }
-    if (store === undefined) {
+    if (store === undefined || taskId === undefined) {
       return;
     }
     const storeIdentity = store.getState();
     if (storeIdentity.projectId !== projectId || storeIdentity.taskId !== taskId) {
       return;
     }
-    return projectRuntime.attachTaskStore(taskData, store, async () => {
-      const result = await refetchTask();
-      return result.isSuccess ? result.data : undefined;
-    });
-  }, [projectId, projectRuntime, refetchTask, store, taskData, taskId]);
+    const controller = new AbortController();
+    const queryKey = taskSnapshotQueryOptions(projectId, taskId, client).queryKey;
+    let detachStore: (() => void) | undefined;
+    let disposed = false;
+    setTaskQueryState({ error: null, isPending: true, scope: taskScope });
+    const cachedResponse = consumeTaskSnapshotQuery(queryClient, queryKey);
+    const initialSnapshot =
+      cachedResponse === undefined
+        ? client.readTask(projectId, taskId, { signal: controller.signal })
+        : Promise.resolve(cachedResponse);
+    void initialSnapshot
+      .then((response) => {
+        if (disposed) {
+          return;
+        }
+        detachStore = projectRuntime.attachTaskStore(response, store, () =>
+          client.readTask(projectId, taskId),
+        );
+        // Store 接管完整历史后清除并发预热留下的 Query Payload。
+        queryClient.removeQueries({ exact: true, queryKey });
+        setTaskQueryState({ error: null, isPending: false, scope: taskScope });
+      })
+      .catch((error: unknown) => {
+        if (!disposed && !controller.signal.aborted) {
+          setTaskQueryState({
+            error: error instanceof Error ? error : new Error(String(error)),
+            isPending: false,
+            scope: taskScope,
+          });
+        }
+      });
+    return () => {
+      disposed = true;
+      controller.abort();
+      detachStore?.();
+    };
+  }, [client, projectId, projectRuntime, queryClient, store, taskId, taskScope]);
 
   const activeRuntime =
     store === undefined ? undefined : selectActiveTaskStore(store, projectId, taskId);
@@ -124,60 +149,63 @@ export function useTaskRuntime(
     }
   }, [activeRuntime, client, projectId, taskId, turnsNextCursor]);
   const hasHydratedSnapshot = activeRuntime?.getState().snapshotMetadata !== null;
+  const taskQueryError = taskQueryState.scope === taskScope ? taskQueryState.error : null;
+  const taskQueryPending =
+    taskId !== undefined && (taskQueryState.scope !== taskScope || taskQueryState.isPending);
   const error =
     activeRuntime === undefined || !hasHydratedSnapshot
       ? taskQueryError
       : connectionState === "closed"
         ? runtimeError
         : null;
-  // 轮询等无关父级更新不得重建完整历史；只在结构或可见 Task 元数据变化时读取兼容快照。
-  const snapshot = useMemo(() => {
-    // Store 选择器值是快照重建的失效信号；读取它们可避免无关父级更新触发重建。
-    void itemStructureRevision;
-    void taskContextUsage;
-    void taskPinned;
-    void taskPlan;
-    void taskSettings;
-    void taskStatus;
-    void taskTitle;
-    return activeRuntime?.getState().reconstructSnapshot();
-  }, [
-    activeRuntime,
-    itemStructureRevision,
-    taskContextUsage,
-    taskPinned,
-    taskPlan,
-    taskSettings,
-    taskStatus,
-    taskTitle,
-  ]);
+  const readSnapshot = useCallback(
+    () => activeRuntime?.getState().reconstructSnapshot(),
+    [activeRuntime],
+  );
   const isRuntimePending =
     error === null && (taskQueryPending || activeRuntime === undefined || !hasHydratedSnapshot);
 
   return useMemo(
     () => ({
+      activeTurnId,
       connectionState: activeRuntime === undefined ? "connecting" : connectionState,
       error,
       hasOlderHistory: turnsNextCursor !== null,
       isLoadingOlderHistory,
       isPending: isRuntimePending,
+      itemStructureRevision,
       loadOlderHistory,
+      metadata,
       olderHistoryError,
-      snapshot,
+      readSnapshot,
       store: activeRuntime,
     }),
     [
       activeRuntime,
+      activeTurnId,
       connectionState,
       error,
       isLoadingOlderHistory,
       isRuntimePending,
+      itemStructureRevision,
       loadOlderHistory,
+      metadata,
       olderHistoryError,
-      snapshot,
+      readSnapshot,
       turnsNextCursor,
     ],
   );
+}
+
+export function consumeTaskSnapshotQuery(
+  queryClient: Pick<QueryClient, "getQueryData" | "removeQueries">,
+  queryKey: QueryKey,
+): AgentTaskSnapshotResponse | undefined {
+  const response = queryClient.getQueryData<AgentTaskSnapshotResponse>(queryKey);
+  if (response !== undefined) {
+    queryClient.removeQueries({ exact: true, queryKey });
+  }
+  return response;
 }
 
 export function removeRetainedTaskRuntime(projectId: string, taskId: string): boolean {

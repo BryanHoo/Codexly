@@ -134,7 +134,6 @@ describe("task timeline live state", () => {
           connectionState: "connected",
           error: null,
           isPending: false,
-          snapshot: runningSnapshot,
           store,
         }}
         taskId={snapshot.id}

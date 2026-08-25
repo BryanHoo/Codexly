@@ -47,8 +47,12 @@ export const snapshot: RuntimeTaskSnapshot = {
 };
 
 export const unpaginatedRuntime = {
+  activeTurnId: undefined,
   hasOlderHistory: false,
   isLoadingOlderHistory: false,
+  itemStructureRevision: 0,
   loadOlderHistory: () => Promise.resolve(),
+  metadata: snapshot,
   olderHistoryError: null,
+  readSnapshot: () => snapshot,
 } as const;

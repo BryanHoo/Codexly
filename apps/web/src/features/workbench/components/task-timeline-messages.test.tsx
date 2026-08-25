@@ -167,7 +167,6 @@ describe("task timeline messages", () => {
             connectionState: "connected",
             error: null,
             isPending: false,
-            snapshot: runningSnapshot,
             store,
           }}
           taskId={runningSnapshot.id}

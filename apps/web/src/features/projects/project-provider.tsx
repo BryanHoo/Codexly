@@ -28,7 +28,6 @@ import {
   projectsQueryOptions,
   removeArchivedProjectTaskAndRefill,
   reorderProjectPage,
-  taskSnapshotQueryOptions,
   updateTaskTitleInProjectListCaches,
 } from "./project-queries.js";
 import type { ProjectProviderProps } from "./project-provider-types.js";
@@ -113,14 +112,12 @@ export function ProjectProvider({
               }),
             ]);
           }
-          await queryClient.invalidateQueries({
+          queryClient.removeQueries({
             exact: true,
             queryKey: ["projects", projectId, "tasks", taskId],
-            refetchType: "none",
           });
-          const response = await queryClient.fetchQuery(
-            taskSnapshotQueryOptions(projectId, taskId, client),
-          );
+          const response = await client.readTask(projectId, taskId);
+          projectRuntime.reconcileTaskSnapshot(response);
           updateTaskTitleInProjectListCaches(queryClient, response.snapshot, {
             assistantReplyStarted: reason === "assistant_reply_started",
           });

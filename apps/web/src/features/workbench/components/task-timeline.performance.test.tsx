@@ -66,14 +66,17 @@ describe("TaskTimeline performance", () => {
         <TaskTimeline
           projectId={snapshot.projectId}
           runtime={{
+            activeTurnId: undefined,
             connectionState: "connected",
             error: null,
             hasOlderHistory: false,
             isLoadingOlderHistory: false,
             isPending: false,
+            itemStructureRevision: store.getState().itemStructureRevision,
             loadOlderHistory: () => Promise.resolve(),
+            metadata: store.getState().snapshotMetadata ?? undefined,
             olderHistoryError: null,
-            snapshot,
+            readSnapshot: () => store.getState().reconstructSnapshot(),
             store,
           }}
           taskId={snapshot.id}

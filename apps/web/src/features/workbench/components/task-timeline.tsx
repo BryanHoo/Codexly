@@ -163,7 +163,7 @@ function ActiveTaskTimeline({
       <TimelineState message={i18n.t("timeline.loadError", { ns: "conversation" })} role="alert" />
     );
   }
-  if (runtime.isPending || runtime.snapshot === undefined) {
+  if (runtime.isPending || runtime.metadata === undefined) {
     if (startingSnapshot !== undefined) {
       return <TaskSnapshotTimeline connected={false} snapshot={startingSnapshot} />;
     }

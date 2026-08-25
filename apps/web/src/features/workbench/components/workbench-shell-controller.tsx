@@ -19,7 +19,10 @@ import {
   updateNewTaskTitleFromSnapshotInInfiniteData,
   upsertProjectTaskInInfiniteData,
   type ProjectTaskInfiniteData,
+  type TaskTitleSnapshot,
 } from "../../projects/project-queries.js";
+import type { TaskStoreState } from "../../conversation/runtime/task-store.js";
+import { getTaskStoreUserMessageIds } from "../composer-queue-state.js";
 import { loadProjectGitFileDiff } from "../project-git-file-diff.js";
 import {
   taskLaunchQueryKey,
@@ -338,9 +341,8 @@ export function useWorkbenchShellController(
   };
 
   const launchTurnHasAuthoritativeUserMessage = taskLaunchState?.turn.id
-    ? runtime.snapshot?.turns
-        .find((turn) => turn.id === taskLaunchState.turn.id)
-        ?.items.some((item) => item.type === "message" && item.role === "user") === true
+    ? runtime.store !== undefined &&
+      getTaskStoreUserMessageIds(runtime.store.getState(), taskLaunchState.turn.id).length > 0
     : false;
 
   useEffect(() => {
@@ -353,7 +355,7 @@ export function useWorkbenchShellController(
   }, [launchTurnHasAuthoritativeUserMessage, projectId, queryClient, taskId]);
 
   useEffect(() => {
-    const activeSnapshot = runtime.snapshot;
+    const activeSnapshot = selectTaskTitleSnapshot(runtime.store?.getState());
     if (taskId === undefined || activeSnapshot === undefined) {
       return;
     }
@@ -362,7 +364,14 @@ export function useWorkbenchShellController(
       ["projects", projectId, "tasks"],
       (currentData) => updateNewTaskTitleFromSnapshotInInfiniteData(currentData, activeSnapshot),
     );
-  }, [projectId, queryClient, runtime.snapshot, taskId]);
+  }, [
+    projectId,
+    queryClient,
+    runtime.itemStructureRevision,
+    runtime.metadata,
+    runtime.store,
+    taskId,
+  ]);
 
   useEffect(() => {
     // 窗口缩窄进入覆盖模式时关闭桌面面板，避免两个抽屉同时遮住主内容。
@@ -406,5 +415,29 @@ export function useWorkbenchShellController(
     renameActiveTask,
     updateDraftSettings,
     updateProjectTaskDefaults,
+  };
+}
+
+function selectTaskTitleSnapshot(state: TaskStoreState | undefined): TaskTitleSnapshot | undefined {
+  const metadata = state?.snapshotMetadata;
+  if (state === undefined || metadata === null || metadata === undefined) {
+    return undefined;
+  }
+  return {
+    id: metadata.id,
+    projectId: metadata.projectId,
+    title: metadata.title,
+    turns: state.turnIds.flatMap((turnId) => {
+      const turn = state.turnsById[turnId];
+      if (turn === undefined) {
+        return [];
+      }
+      const items = (state.itemKeysByTurnId[turnId] ?? []).flatMap((itemKey) => {
+        const item = state.getItemByKey(itemKey);
+        return item?.type === "message" ? [item] : [];
+      });
+      return [{ ...turn, items }];
+    }),
+    updatedAt: metadata.updatedAt,
   };
 }
