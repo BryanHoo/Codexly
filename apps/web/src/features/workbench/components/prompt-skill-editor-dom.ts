@@ -15,6 +15,21 @@ import { skillTokenClassName } from "./skill-token.js";
 const blockElementNames = new Set(["DIV", "P"]);
 export const caretAnchorText = "\u200b";
 
+function isTrailingLineBreakPlaceholder(node: Node): boolean {
+  if (node.nextSibling !== null || node.previousSibling === null) {
+    return false;
+  }
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent === "\n" && node.previousSibling.textContent?.endsWith("\n") === true;
+  }
+  return (
+    node instanceof HTMLElement &&
+    node.tagName === "BR" &&
+    (node.previousSibling.nodeName === "BR" ||
+      node.previousSibling.textContent?.endsWith("\n") === true)
+  );
+}
+
 export function createEditorSkillNode(
   skill: AgentSkill,
   iconTemplate: SVGSVGElement | null,
@@ -113,7 +128,9 @@ export function readEditorContent(
   };
   const visit = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      appendText(node.textContent ?? "");
+      if (!isTrailingLineBreakPlaceholder(node)) {
+        appendText(node.textContent ?? "");
+      }
       return;
     }
     if (!(node instanceof HTMLElement)) {
@@ -144,7 +161,10 @@ export function readEditorContent(
       return;
     }
     if (node.tagName === "BR") {
-      appendText("\n");
+      // 浏览器用末尾的第二个 BR 绘制空行光标，它不代表额外换行。
+      if (!isTrailingLineBreakPlaceholder(node)) {
+        appendText("\n");
+      }
       return;
     }
     const startsBlock = blockElementNames.has(node.tagName) && parts.length > 0;
@@ -159,7 +179,7 @@ export function readEditorContent(
 
 export function serializedNodeLength(node: Node): number {
   if (node.nodeType === Node.TEXT_NODE) {
-    return node.textContent?.length ?? 0;
+    return isTrailingLineBreakPlaceholder(node) ? 0 : (node.textContent?.length ?? 0);
   }
   if (!(node instanceof HTMLElement)) {
     return 0;
@@ -173,7 +193,7 @@ export function serializedNodeLength(node: Node): number {
     return text.startsWith(caretAnchorText) ? text.length - caretAnchorText.length : text.length;
   }
   if (node.tagName === "BR") {
-    return 1;
+    return isTrailingLineBreakPlaceholder(node) ? 0 : 1;
   }
   return [...node.childNodes].reduce((total, child) => total + serializedNodeLength(child), 0);
 }
@@ -274,28 +294,8 @@ export function insertPlainTextAtSelection(root: HTMLDivElement, text: string): 
 }
 
 export function insertLineBreakAtSelection(root: HTMLDivElement): void {
-  const selection = document.getSelection();
-  const range = selection?.rangeCount === 0 ? undefined : selection?.getRangeAt(0);
-  const lineBreak = document.createElement("br");
-  const caretAnchor = document.createElement("span");
-  const anchorText = document.createTextNode(caretAnchorText);
-  caretAnchor.dataset["promptCaretAnchor"] = "";
-  caretAnchor.append(anchorText);
-  if (range === undefined || !root.contains(range.commonAncestorContainer)) {
-    root.append(lineBreak, caretAnchor);
-    const fallbackRange = document.createRange();
-    fallbackRange.setStart(anchorText, caretAnchorText.length);
-    fallbackRange.collapse(true);
-    selection?.removeAllRanges();
-    selection?.addRange(fallbackRange);
-    return;
-  }
-  // 零宽锚点让各浏览器都能把后续文字插入 BR 之后，并且不会进入序列化内容。
-  range.deleteContents();
-  range.insertNode(lineBreak);
-  lineBreak.after(caretAnchor);
-  range.setStart(anchorText, caretAnchorText.length);
-  range.collapse(true);
-  selection?.removeAllRanges();
-  selection?.addRange(range);
+  root.focus();
+  // 使用浏览器原生编辑命令维护跨平台光标位置和撤销栈，不向正文写入辅助字符。
+  // oxlint-disable-next-line typescript/no-deprecated -- Selection API 无法生成等价的原生编辑行为。
+  document.execCommand("insertLineBreak");
 }

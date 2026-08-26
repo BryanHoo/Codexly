@@ -1,6 +1,6 @@
 import { expect, parseRequestRecord, test } from "./fixtures/app-shell.js";
 
-test("submits and renders the live multiline editor text", async ({ page }) => {
+test("submits and renders the live multiline editor text @cross-browser", async ({ page }) => {
   let turnRequest: Record<string, unknown> | undefined;
   await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
     turnRequest = parseRequestRecord(route.request().postData());
@@ -26,16 +26,15 @@ test("submits and renders the live multiline editor text", async ({ page }) => {
   await prompt.fill("第一行");
   await expect(prompt).toHaveAttribute("data-serialized-value", "第一行");
 
-  // 模拟 Windows 在 React 隐藏字段提交前同步派发换行输入与表单提交。
-  await prompt.evaluate((editor) => {
-    editor.replaceChildren(
-      document.createTextNode("第一行"),
-      document.createElement("br"),
-      document.createTextNode("第二行"),
-    );
-    editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertLineBreak" }));
-    editor.closest("form")?.requestSubmit();
-  });
+  // 使用真实按键覆盖各浏览器对 contentEditable 换行 DOM 的平台差异。
+  await prompt.press("Shift+Enter");
+  await expect(prompt).toHaveAttribute("data-serialized-value", "第一行\n");
+  await prompt.pressSequentially("第二行");
+  await expect(prompt).toHaveAttribute("data-serialized-value", "第一行\n第二行");
+  await expect
+    .poll(() => prompt.evaluate((editor) => editor.textContent.includes("\u200b")))
+    .toBe(false);
+  await prompt.press("Enter");
 
   await expect.poll(() => turnRequest).toBeDefined();
   expect(turnRequest?.["input"]).toEqual({
