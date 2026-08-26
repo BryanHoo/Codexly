@@ -1,21 +1,16 @@
-# Web 目录结构
+# 前端目录结构
 
-## Purpose
+## 目录职责
 
-当前 Web 根目录为 `apps/web`，构建产物进入根目录 `dist/web`。
+- `apps/web/src/app`：应用入口、Provider、路由和全局运行时装配。
+- `apps/web/src/features`：按业务能力组织页面逻辑、组件、查询和运行时状态。
+- `apps/web/src/shared`：跨功能复用的组件、工具、样式与内存基础设施。
+- `apps/web/src/i18n`：语言资源和语言偏好。
+- `packages/client/src`：HTTP/WebSocket 客户端、协议解码、重连与取消清理。
 
-## Rules
+## 规则
 
-- `src/main.tsx` 只创建 React Root 并装配应用级 Provider。
-- 产品入口统一引用 `public/brand/codexly-logo.svg`，独立图标使用 `public/brand/codexly-mark.svg`，浏览器图标使用 `public/favicon.svg`；不得重新内联或绘制临时品牌标识。
-- `src/App.tsx` 只承担应用外壳和顶层导航结构。
-- `src/app/routes` 只定义业务页面与路由级状态，不提供登录页面或认证回调路由。
-- Project、Task 与临时路由只保留路径匹配和参数映射，并复用单一 React Suspense 边界动态加载 `WorkbenchShell`；不得为各路径重复创建微型懒加载路由模块。工作台内常用 UI 进入同一静态闭包，Markdown、Patch Diff Viewer、Shiki Engine 和语言 Grammar 继续由内容级边界按需加载。
-- 功能代码按真实用户能力放入 `src/features/<feature>`，不要按技术类型堆放全局目录。
-- `features/access` 负责顶层访问状态、LAN 配对门禁和认证失效清理，不得依赖 Project 或工作台 Runtime。
-- `features/projects` 负责 Project 集合、目录选择和 Task 归属；Project 选择整合进工作台，不创建独立 Project 索引页。
-- 仅被单个功能使用的组件、Hook 和状态留在该功能目录。
-- 跨功能 UI 经过复用验证后放入 `src/shared`；API 类型仍来自 `@codexly/protocol`。
-- 项目自有组件库分为 `src/shared/components/core` 与 `src/shared/components/agent`：前者维护通用交互原语，后者维护 Agent 工作台复合组件；Feature 不得复制同类能力，也不得直接依赖外部组件 registry 或生成配置。
-- 跨路由复用的 Runtime 不可用提示放入 `src/shared/components/core`，由页面传入重试行为。
-- 禁止从 Web 导入 `core`、`provider-codex` 或 `server`。
+- 路由入口留在 `app/routes`，业务行为放入对应 `features/<feature>`。
+- 仅将跨功能稳定复用的代码放入 `shared`；单一功能代码留在其功能目录。
+- 测试与实现同目录放置为 `*.test.ts` 或 `*.test.tsx`；浏览器端到端测试放入 `tests/e2e`。
+- Web 不得导入 `@codexly/core`、`@codexly/provider-codex` 或 `@codexly/server`。

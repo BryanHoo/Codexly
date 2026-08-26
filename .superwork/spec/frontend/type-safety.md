@@ -1,13 +1,12 @@
-# Web 类型安全
+# 前端类型安全
 
 ## Purpose
 
-确保浏览器只消费统一 Protocol，不感知 Codex RPC 原始类型。
+Define frontend type and validation expectations for this project.
 
-## Rules
+## 规则
 
-- Project、Task、API 和事件类型从 `@codexly/protocol` 导入，不在 Web 重复声明。
-- `unknown` 数据在 `packages/client` 边界通过 Schema 校验后再进入状态层。
-- 使用判别联合表达事件和状态，避免 `any`、强制类型断言和字符串散落。
-- View Model 可以组合协议实体，但不得反向成为 Server 或 Provider 契约。
-- 保持 `noUncheckedIndexedAccess` 与 `exactOptionalPropertyTypes` 通过。
+- 共享请求、响应和 Agent Event 类型来自 `@codexly/protocol`，不得在 Web 内复制协议结构。
+- `packages/client` 在 HTTP/WebSocket 边界校验不可信数据，Web 消费已解码类型。
+- 组件状态使用明确的联合类型表达 loading、success、error 和 disconnected 状态。
+- 禁止用宽泛类型断言绕过边界校验；新增协议字段时同步更新 schema、导出和消费者测试。

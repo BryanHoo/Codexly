@@ -1,34 +1,34 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "packageManager": "pnpm",
   "packages": [
     {
-      "name": "root",
-      "layers": ["distribution", "cli"]
+      "name": "@bryanhu/codexly",
+      "layers": ["backend"]
     },
     {
       "name": "@codexly/web",
       "layers": ["frontend"]
     },
     {
-      "name": "@codexly/protocol",
-      "layers": ["shared", "protocol"]
+      "name": "@codexly/client",
+      "layers": ["frontend"]
     },
     {
       "name": "@codexly/core",
-      "layers": ["shared", "domain"]
+      "layers": ["backend"]
+    },
+    {
+      "name": "@codexly/protocol",
+      "layers": ["shared"]
     },
     {
       "name": "@codexly/provider-codex",
-      "layers": ["backend", "provider"]
+      "layers": ["backend"]
     },
     {
       "name": "@codexly/server",
-      "layers": ["backend", "delivery", "persistence"]
-    },
-    {
-      "name": "@codexly/client",
-      "layers": ["frontend", "transport"]
+      "layers": ["backend"]
     }
   ],
   "artifactPaths": {
@@ -36,5 +36,17 @@
     "plans": ".superwork/plans",
     "specs": ".superwork/spec"
   },
-  "verification": ["pnpm check", "pnpm test:e2e"]
+  "verification": [
+    "pnpm run format:check",
+    "pnpm run lint",
+    "pnpm run lint:architecture",
+    "pnpm run typecheck",
+    "pnpm run test",
+    "pnpm run test:performance",
+    "pnpm run build",
+    "pnpm run bundle:check",
+    "pnpm run package:check",
+    "pnpm run test:e2e",
+    "pnpm run check"
+  ]
 }

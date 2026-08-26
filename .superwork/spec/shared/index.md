@@ -1,18 +1,17 @@
-# 共享模块与依赖边界
+# 共享契约规范
 
-## Scope
+## 范围
 
-适用于 `packages/protocol`、`packages/core`、`packages/client` 及所有跨包公共入口。
+适用于依赖图底层的 `packages/protocol`，以及跨包公共契约和架构边界。
 
-## Guidelines Index
+## 规范索引
 
-| 指南                                   | 内容                         |
-| -------------------------------------- | ---------------------------- |
-| [目录与依赖](./directory-structure.md) | 包职责、允许依赖和公开入口   |
-| [质量规范](./quality-guidelines.md)    | Schema、类型、契约和验证要求 |
+| 文档                                 | 内容                   |
+| ------------------------------------ | ---------------------- |
+| [目录结构](./directory-structure.md) | 共享模块归属和依赖方向 |
+| [质量规范](./quality-guidelines.md)  | 契约、测试和架构检查   |
 
-## Pre-Development Checklist
+## 开发前检查
 
-- 读取 `.superwork/spec/guides/index.md` 和本层全部指南。
-- 对照本目录的 [目录与依赖](./directory-structure.md) 确认依赖方向。
-- 修改公开协议前列出所有调用方、持久化影响和事件恢复影响。
+- 搜索所有协议消费者，确认 `core`、`provider-codex`、`server`、`client` 和 Web 的影响。
+- 明确 schema、TypeScript 类型、序列化格式和错误语义是否需要同步变化。

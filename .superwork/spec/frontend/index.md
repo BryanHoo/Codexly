@@ -1,24 +1,22 @@
-# Web 前端开发规范
+# 前端开发规范
 
-## Scope
+## 范围
 
-适用于 `apps/web`，以及浏览器使用的 `packages/client` 和 `packages/protocol` 契约。
+适用于 `apps/web` 和浏览器侧客户端 `packages/client`。Web 只能通过 `@codexly/client` 与 `@codexly/protocol` 访问运行时契约。
 
-## Guidelines Index
+## 规范索引
 
-| 指南                                  | 内容                             |
+| 文档                                  | 内容                             |
 | ------------------------------------- | -------------------------------- |
-| [目录结构](./directory-structure.md)  | Web 入口、功能与共享 UI 的归属   |
-| [组件规范](./component-guidelines.md) | React 组件职责和复用边界         |
-| [Hook 规范](./hook-guidelines.md)     | 副作用、订阅和清理规则           |
-| [状态管理](./state-management.md)     | Snapshot、实时事件和本地状态边界 |
-| [质量规范](./quality-guidelines.md)   | 测试、可访问性和性能检查         |
-| [类型安全](./type-safety.md)          | Protocol 类型与边界校验          |
+| [目录结构](./directory-structure.md)  | 路由、功能、共享组件与客户端边界 |
+| [组件规范](./component-guidelines.md) | 组件归属、复用与交互约束         |
+| [Hook 规范](./hook-guidelines.md)     | 副作用、订阅与清理规则           |
+| [状态管理](./state-management.md)     | 本地状态、服务端状态与流式状态   |
+| [质量规范](./quality-guidelines.md)   | 测试、可访问性和构建检查         |
+| [类型安全](./type-safety.md)          | 协议类型和不可信输入校验         |
 
-## Pre-Development Checklist
+## 开发前检查
 
-- 读取 `.superwork/spec/guides/index.md` 和相关前端指南。
-- 读取本目录相关指南，确认页面、项目 Agent 组件、状态和性能策略。
-- 确认变更是否影响 `packages/client`、`packages/protocol` 或 Server API。
-- 保持 `src/main.tsx` 只负责根节点装配，业务视图进入明确的功能目录。
-- 完成后运行 `pnpm check`；涉及页面行为时再运行 `pnpm test:e2e`。
+- 读取 `.superwork/spec/guides/index.md` 和本次变更相关的前端规范。
+- 确认是否需要同步修改 `packages/client`、`packages/protocol` 或后端交付契约。
+- 使用现有 `features/*` 与 `shared/components/core` 模式，避免建立平行实现。

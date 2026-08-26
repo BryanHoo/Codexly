@@ -1,20 +1,19 @@
-# 后端与 Provider 开发规范
+# 后端开发规范
 
 ## 范围
 
-适用于根 CLI、`packages/server`、`packages/provider-codex`，以及它们与 Core、Protocol 的装配边界。
+适用于根目录 `src`、`packages/core`、`packages/provider-codex` 和 `packages/server`。
 
-## 指南索引
+## 规范索引
 
-| 指南                                     | 内容                                  |
-| ---------------------------------------- | ------------------------------------- |
-| [目录结构](./directory-structure.md)     | Server、Provider 和 CLI 职责          |
-| [运行时生命周期](./runtime-lifecycle.md) | 子进程、RPC、Worker、数据库和关闭流程 |
-| [质量规范](./quality-guidelines.md)      | Schema、日志、安全和测试要求          |
+| 文档                                     | 内容                             |
+| ---------------------------------------- | -------------------------------- |
+| [目录结构](./directory-structure.md)     | CLI、领域、Provider 和交付层职责 |
+| [运行时生命周期](./runtime-lifecycle.md) | 进程、Server、Worker 和连接清理  |
+| [质量规范](./quality-guidelines.md)      | 测试、架构和发布检查             |
 
 ## 开发前检查
 
-- 读取 `.superwork/spec/guides/index.md` 和本目录相关指南。
-- 确认逻辑属于 Core 端口、Codex Adapter、Server 交付层还是根 CLI 装配。
-- 确认所有外部输入、路径、审批和进程边界的校验位置。
-- 完成后运行 `pnpm check`；涉及完整浏览器链路时运行 `pnpm test:e2e`。
+- 确认变更所属层，并沿 `protocol -> core -> provider/server -> client` 检查影响。
+- 路由仅处理输入输出适配，领域规则留在 `packages/core`。
+- 数据库和 Codex 进程生命周期必须有明确启动、失败和清理路径。

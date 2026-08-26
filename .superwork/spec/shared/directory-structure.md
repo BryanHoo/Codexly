@@ -1,15 +1,12 @@
-# 共享包目录与依赖方向
+# 共享目录结构
 
 ## Purpose
 
-内部包位于 `packages/*`，只通过各包 `src/index.ts` 暴露稳定入口。
+Document how reusable code should be organized for this project.
 
-## Rules
+## 规则
 
-- `protocol` 不依赖其他内部包，维护统一类型、Schema 和 API 描述。
-- `core` 只依赖 `protocol`，维护领域模型、用例和 Provider 端口。
-- `provider-codex` 只依赖 `core` 与 `protocol`，维护 Codex 进程和协议适配。
-- `server` 可以依赖 `core`、`protocol`、`provider-codex`，负责交付与基础设施装配。
-- `client` 只依赖 `protocol`，封装浏览器 HTTP/WebSocket 访问。
-- `web` 只依赖 `client` 与 `protocol`。
-- 新依赖添加到实际使用它的包；跨包导入必须使用包名，不得引用 `../other-package/src/*`。
+- `packages/protocol/src` 保存 Provider 无关的公开协议、TypeBox schema、Agent Event 和控制帧。
+- `packages/core/src` 保存领域模型、用例和端口，不承载 HTTP、数据库或浏览器实现。
+- `packages/*/src/index.ts` 是包的公开出口；跨包导入使用 `@codexly/*`，不穿透其他包内部路径。
+- Web 内部的 `apps/web/src/shared` 只服务前端，不得作为 Node 包间共享层。
