@@ -31,6 +31,8 @@ export function archivedProjectTasksQueryOptions(
         { signal },
       ),
     queryKey: ["projects", projectId, "archived-tasks", searchTerm, cursor ?? null] as const,
+    // 归档内容可能刚由侧栏 Mutation 改变，弹窗每次打开都绕过全局新鲜期重新校准。
+    refetchOnMount: "always",
   });
 }
 

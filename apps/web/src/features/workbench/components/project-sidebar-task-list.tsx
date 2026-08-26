@@ -339,6 +339,7 @@ export function ProjectSidebarTaskList({
                       <TooltipTrigger asChild>
                         <Button
                           aria-label={t("sidebar.createInProject", { project: project.name })}
+                          className="opacity-0 transition-[color,background-color,opacity] focus-visible:opacity-100 group-hover/project:opacity-100"
                           onClick={() => {
                             void openProjectDraft(project.id);
                           }}
@@ -451,7 +452,7 @@ export function TemporaryTasksHeading({
 }: Readonly<{ expanded: boolean; onCreate: () => void; onToggle: () => void }>) {
   const { t } = useTranslation("workbench");
   return (
-    <div className="flex h-8 items-center gap-0.5 text-muted-foreground">
+    <div className="group/temporary flex h-8 items-center gap-0.5 text-muted-foreground">
       <Button
         aria-controls="temporary-tasks-content"
         aria-expanded={expanded}
@@ -469,6 +470,7 @@ export function TemporaryTasksHeading({
         <TooltipTrigger asChild>
           <Button
             aria-label={t("sidebar.newTask")}
+            className="opacity-0 transition-[color,background-color,opacity] focus-visible:opacity-100 group-hover/temporary:opacity-100"
             onClick={onCreate}
             size="icon-sm"
             type="button"

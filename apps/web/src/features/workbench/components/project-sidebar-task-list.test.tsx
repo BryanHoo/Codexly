@@ -70,5 +70,11 @@ describe("ProjectSidebarTaskList", () => {
     expect(projectTreePosition).toBeGreaterThanOrEqual(0);
     expect(loadingPosition).toBeGreaterThan(projectTreePosition);
     expect(markup).not.toContain("暂无任务");
+    expect(markup).toMatch(
+      /class="[^"]*opacity-0[^"]*focus-visible:opacity-100[^"]*group-hover\/temporary:opacity-100[^"]*"[^>]*aria-label="新建任务"/u,
+    );
+    expect(markup).toMatch(
+      /class="[^"]*opacity-0[^"]*focus-visible:opacity-100[^"]*group-hover\/project:opacity-100[^"]*"[^>]*aria-label="在 Codexly 中新建任务"/u,
+    );
   });
 });
