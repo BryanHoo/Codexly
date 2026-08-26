@@ -3,7 +3,6 @@ import {
   Bot,
   CheckCircle2,
   ChevronRight,
-  CircleAlert,
   CircleOff,
   CircleX,
   LoaderCircle,
@@ -33,6 +32,7 @@ import {
   type SubagentContextEntry,
   type SubagentSelection,
 } from "./subagent.js";
+import { WorkbenchInspectorIncrementalList } from "./workbench-inspector-incremental-list.js";
 export function BackgroundTerminalSection({
   error,
   isPending,
@@ -175,21 +175,19 @@ export function SubagentSection({
 
 export function McpServerSection({
   canRetry,
-  error,
-  isPending,
   isRefreshing,
   isRetrying,
   onRetry,
   servers,
 }: Readonly<{
   canRetry: boolean;
-  error: Error | null;
-  isPending: boolean;
   isRefreshing: boolean;
   isRetrying: boolean;
   onRetry: () => void;
   servers: readonly AgentMcpServer[];
 }>) {
+  if (servers.length === 0) return null;
+
   const reloadLabel = i18n.t(isRetrying ? "inspector.mcpReloading" : "inspector.mcpReload", {
     ns: "conversation",
   });
@@ -220,40 +218,14 @@ export function McpServerSection({
       icon={<Plug className="size-3.5" />}
       title="MCP"
     >
-      {isPending && servers.length === 0 ? (
-        <p className="flex min-h-9 items-center gap-2 px-2 py-2 text-caption text-muted-foreground">
-          <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
-          {i18n.t("inspector.mcpLoading", { ns: "conversation" })}
-        </p>
-      ) : error !== null && servers.length === 0 ? (
-        <McpRequestErrorState error={error} titleKey="inspector.mcpError" />
-      ) : servers.length === 0 ? (
-        <p className="px-2 py-2 text-caption text-muted-foreground">
-          {i18n.t("inspector.mcpEmpty", { ns: "conversation" })}
-        </p>
-      ) : (
-        <div
-          aria-label={i18n.t("inspector.mcpEnabled", { ns: "conversation" })}
-          className="space-y-0.5"
-        >
-          {servers.map((server) => (
-            <McpServerRow key={server.name} server={server} />
-          ))}
-        </div>
-      )}
+      <WorkbenchInspectorIncrementalList
+        ariaLabel={i18n.t("inspector.mcpEnabled", { ns: "conversation" })}
+        getKey={(server) => server.name}
+        items={servers}
+        renderItem={(server) => <McpServerRow server={server} />}
+      />
     </InspectorSection>
   );
-}
-
-function formatMcpErrorMetadata(error: Error): string | null {
-  const details: string[] = [];
-  if ("code" in error && typeof error.code === "string") {
-    details.push(error.code);
-  }
-  if ("status" in error && typeof error.status === "number") {
-    details.push(`HTTP ${String(error.status)}`);
-  }
-  return details.length === 0 ? null : details.join(" · ");
 }
 
 function McpErrorLog({ error }: Readonly<{ error: string }>) {
@@ -275,29 +247,6 @@ function McpErrorLog({ error }: Readonly<{ error: string }>) {
         </pre>
       </CollapsibleContent>
     </Collapsible>
-  );
-}
-
-function McpRequestErrorState({
-  error,
-  titleKey,
-}: Readonly<{ error: Error; titleKey: "inspector.mcpError" | "inspector.mcpRetryError" }>) {
-  const metadata = formatMcpErrorMetadata(error);
-  return (
-    <div className="flex items-start gap-2 px-2 py-1.5" role="alert">
-      <CircleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-danger" />
-      <div className="min-w-0 flex-1">
-        <p className="text-label font-medium text-danger">
-          {i18n.t(titleKey, { ns: "conversation" })}
-        </p>
-        <pre className="mt-1 max-h-44 overflow-auto whitespace-pre-wrap break-words font-mono text-meta leading-5 text-foreground">
-          {error.message}
-        </pre>
-        {metadata === null ? null : (
-          <p className="mt-1 text-meta text-muted-foreground">{metadata}</p>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -326,23 +275,32 @@ function McpServerRow({ server }: Readonly<{ server: AgentMcpServer }>) {
     );
 
   return (
-    <div className="flex min-h-10 items-start gap-2 rounded-control px-2 py-1.5">
-      <span className="mt-0.5 shrink-0">{statusIcon}</span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-label font-medium text-foreground" title={server.name}>
-          {server.name}
-        </p>
-        <p className="text-caption text-muted-foreground">{metadata.join(" · ")}</p>
-        {server.failureReason === null ? null : (
-          <p className="text-caption text-danger">
-            {i18n.t(`inspector.mcpFailureReason.${server.failureReason}`, {
-              ns: "conversation",
-            })}
-          </p>
-        )}
-        {server.error === null ? null : <McpErrorLog error={server.error} />}
-      </div>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          aria-label={server.name}
+          className="flex min-h-10 items-start gap-2 rounded-control px-2 py-1.5 transition-colors hover:bg-control-hover"
+          data-mcp-server-row=""
+        >
+          <span className="mt-0.5 shrink-0">{statusIcon}</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-label font-medium text-foreground">
+              {server.title ?? server.name}
+            </p>
+            <p className="text-caption text-muted-foreground">{metadata.join(" · ")}</p>
+            {server.failureReason === null ? null : (
+              <p className="text-caption text-danger">
+                {i18n.t(`inspector.mcpFailureReason.${server.failureReason}`, {
+                  ns: "conversation",
+                })}
+              </p>
+            )}
+            {server.error === null ? null : <McpErrorLog error={server.error} />}
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="left">{server.name}</TooltipContent>
+    </Tooltip>
   );
 }
 

@@ -404,8 +404,6 @@ export function WorkbenchShellLayout({
           gitStatusRefreshing={gitStatusQuery.isFetching}
           gitClient={client}
           mcpServers={mcpServersQuery.data?.data ?? []}
-          mcpServersError={mcpServersQuery.error}
-          mcpServersPending={taskId !== undefined && mcpServersQuery.isPending}
           mcpServersRetryAvailable={taskId !== undefined}
           mcpServersRefreshing={mcpServersQuery.isFetching && !mcpServersQuery.isPending}
           mcpServersRetrying={mcpServersReloadMutation.isPending}

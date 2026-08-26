@@ -54,7 +54,6 @@ export const conversation = {
   inspector: {
     attachmentDetail: "附件",
     changeIndicator: "{{path}}，新增 {{additions}} 行，删除 {{removals}} 行",
-    changeStats: "变更统计",
     changes: "变更",
     closeFile: "关闭文件",
     commit: "提交",
@@ -86,17 +85,13 @@ export const conversation = {
     goalTokens: "已使用 {{used}} tokens",
     history: "历史",
     loading: "正在读取...",
-    mcpEmpty: "当前任务没有可读取的 MCP",
     mcpEnabled: "当前任务可读取的 MCP",
-    mcpError: "无法读取 MCP",
     mcpErrorLog: "查看错误日志",
     mcpFailureReason: {
       reauthenticationRequired: "需要重新认证",
     },
-    mcpLoading: "正在读取 MCP...",
     mcpReload: "重新加载 MCP",
     mcpReloading: "正在重新加载 MCP",
-    mcpRetryError: "重新加载 MCP 失败",
     mcpStatus: {
       cancelled: "已取消",
       failed: "启动失败",
@@ -113,6 +108,7 @@ export const conversation = {
     },
     mcpToolCount: "{{count}} 个工具",
     mcpVersion: "版本 {{version}}",
+    openChanges: "查看 {{count}} 个未提交变更",
     openFailed: "无法使用所选应用打开目标",
     plan: "计划",
     planStatus: {
@@ -120,7 +116,6 @@ export const conversation = {
       in_progress: "进行中",
       pending: "待处理",
     },
-    projectDirectory: "项目目录",
     projectFilesEmpty: "当前项目没有可显示的文件",
     projectFilesError: "无法读取项目文件",
     projectFilesLoading: "正在读取项目文件...",
@@ -133,6 +128,7 @@ export const conversation = {
     refreshProjectFiles: "重新读取项目文件",
     commitChanges: "提交 {{count}} 个未提交变更",
     source: "来源",
+    showMore: "显示更多",
     sourceRole: {
       admin: "管理员",
       repo: "项目",

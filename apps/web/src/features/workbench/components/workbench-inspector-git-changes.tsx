@@ -8,10 +8,12 @@ export function InspectorGitChangesSection({
   changeCount,
   changeStats,
   onCommitChanges,
+  onOpenChanges,
 }: Readonly<{
   changeCount: number;
   changeStats: Readonly<{ additions: number; removals: number }> | undefined;
   onCommitChanges: () => void;
+  onOpenChanges: () => void;
 }>) {
   if (changeCount === 0) return null;
 
@@ -37,9 +39,18 @@ export function InspectorGitChangesSection({
       icon={<GitCompareArrows className="size-3.5" />}
       title={i18n.t("inspector.gitChanges", { ns: "conversation" })}
     >
-      <div
-        aria-label={i18n.t("inspector.changeStats", { ns: "conversation" })}
-        className="flex min-h-6 items-center gap-1.5 px-2 text-caption text-muted-foreground"
+      <Button
+        aria-label={i18n.t("inspector.openChanges", {
+          count: changeCount,
+          ns: "conversation",
+        })}
+        className="w-full gap-1.5"
+        contentAlign="start"
+        data-open-inspector-changes=""
+        onClick={onOpenChanges}
+        size="toolbar"
+        type="button"
+        variant="ghost"
       >
         <span>
           {i18n.t("inspector.gitChangesCount", {
@@ -53,7 +64,7 @@ export function InspectorGitChangesSection({
             <span className="font-medium text-diff-removed">-{changeStats.removals}</span>
           </>
         )}
-      </div>
+      </Button>
     </InspectorSection>
   );
 }

@@ -1,6 +1,6 @@
 import { buildTaskAttachmentUrl } from "@codexly/client";
 import type { AgentMessageAttachment, AgentSkill, AgentTurn } from "@codexly/protocol";
-import { FolderRoot, Paperclip, Sparkles } from "lucide-react";
+import { Files, Paperclip, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
@@ -8,16 +8,21 @@ import { InspectorSection } from "./workbench-inspector-sections.js";
 import { MessageImageAttachment } from "./message-image-attachment.js";
 import { MessageSourceAttachment } from "./message-source-attachment.js";
 import { Button } from "../../../shared/components/core/button.js";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../../../shared/components/core/tooltip.js";
 import { classifyMessageAttachment } from "../project-file-reference.js";
+import { WorkbenchInspectorIncrementalList } from "./workbench-inspector-incremental-list.js";
 
 type InspectorSource = Readonly<{
   detail: string;
   id: string;
   name: string;
+  tooltip?: string;
 }> &
-  Readonly<
-    { attachment: AgentMessageAttachment; kind: "attachment" } | { kind: "project" | "skill" }
-  >;
+  Readonly<{ attachment: AgentMessageAttachment; kind: "attachment" } | { kind: "skill" }>;
 
 function formatSkillScope(scope: AgentSkill["scope"]) {
   const labels: Readonly<Record<AgentSkill["scope"], string>> = {
@@ -30,16 +35,10 @@ function formatSkillScope(scope: AgentSkill["scope"]) {
 }
 
 function collectInspectorSources(
-  projectName: string,
-  projectPath: string,
   turns: readonly AgentTurn[],
   skills: readonly AgentSkill[],
 ): InspectorSource[] {
-  // 临时 Task 的真实工作区属于内部实现，空路径表示不向上下文来源暴露该 Project。
-  const sources: InspectorSource[] =
-    projectPath === ""
-      ? []
-      : [{ detail: projectPath, id: `project:${projectPath}`, kind: "project", name: projectName }];
+  const sources: InspectorSource[] = [];
   const skillsByName = new Map(skills.map((skill) => [skill.name, skill]));
   const seenSkills = new Set<string>();
   const seenAttachments = new Set<string>();
@@ -61,6 +60,7 @@ function collectInspectorSources(
           id: `skill:${skillReference.name}`,
           kind: "skill",
           name: skill?.displayName ?? skillReference.name,
+          ...(skill?.description === undefined ? {} : { tooltip: skill.description }),
         });
       }
       for (const attachment of item.attachments ?? []) {
@@ -82,13 +82,11 @@ function collectInspectorSources(
 }
 
 const interactiveSourceClassName =
-  "flex h-auto min-h-10 w-full items-center justify-start gap-2 rounded-control px-2 py-1.5 text-left hover:bg-control-hover";
+  "flex h-auto min-h-10 w-full items-center justify-start gap-2 rounded-control px-2 py-1.5 text-left transition-colors hover:bg-control-hover";
 
 function InspectorSourceContent({ source }: Readonly<{ source: InspectorSource }>) {
   const icon =
-    source.kind === "project" ? (
-      <FolderRoot aria-hidden="true" className="size-3.5" />
-    ) : source.kind === "skill" ? (
+    source.kind === "skill" ? (
       <Sparkles aria-hidden="true" className="size-3.5 text-brand" />
     ) : (
       <Paperclip aria-hidden="true" className="size-3.5" />
@@ -100,15 +98,7 @@ function InspectorSourceContent({ source }: Readonly<{ source: InspectorSource }
         <p className="truncate text-label font-medium text-foreground" title={source.name}>
           {source.name}
         </p>
-        {source.kind === "project" ? (
-          <p className="truncate text-caption text-muted-foreground" title={source.detail}>
-            <span>{i18n.t("inspector.projectDirectory", { ns: "conversation" })}</span>
-            <span aria-hidden="true"> · </span>
-            <span>{source.detail}</span>
-          </p>
-        ) : (
-          <p className="truncate text-caption text-muted-foreground">{source.detail}</p>
-        )}
+        <p className="truncate text-caption text-muted-foreground">{source.detail}</p>
       </div>
     </>
   );
@@ -165,8 +155,21 @@ function InspectorSourceRow({
     );
   }
 
+  if (source.kind === "skill" && source.tooltip !== undefined) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div aria-description={source.tooltip} className={interactiveSourceClassName}>
+            <InspectorSourceContent source={source} />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="left">{source.tooltip}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
-    <div className="flex min-h-10 items-center gap-2 rounded-control px-2 py-1.5">
+    <div className={interactiveSourceClassName}>
       <InspectorSourceContent source={source} />
     </div>
   );
@@ -175,51 +178,47 @@ function InspectorSourceRow({
 export function InspectorSources({
   onOpenAttachment,
   projectId,
-  projectName,
-  projectPath,
   skills,
   taskId,
   turns,
 }: Readonly<{
   onOpenAttachment: (attachmentId: string) => void;
   projectId?: string;
-  projectName: string;
-  projectPath: string;
   skills: readonly AgentSkill[];
   taskId?: string;
   turns: readonly AgentTurn[];
 }>) {
-  const sources = useMemo(
-    () => collectInspectorSources(projectName, projectPath, turns, skills),
-    [projectName, projectPath, skills, turns],
-  );
+  const sources = useMemo(() => collectInspectorSources(turns, skills), [skills, turns]);
+  if (sources.length === 0) return null;
+
   return (
     <InspectorSection
-      icon={<FolderRoot className="size-3.5" />}
+      icon={<Files className="size-3.5" />}
       title={i18n.t("inspector.source", { ns: "conversation" })}
     >
-      <div
-        aria-label={i18n.t("inspector.contextSources", { ns: "conversation" })}
-        className="space-y-0.5"
-      >
-        {sources.map((source) => (
-          <InspectorSourceRow
-            {...(source.kind === "attachment" && projectId !== undefined && taskId !== undefined
-              ? {
-                  attachmentUrl: buildTaskAttachmentUrl(
-                    "",
-                    projectId,
-                    taskId,
-                    source.attachment.id,
-                  ),
-                }
-              : {})}
-            key={source.id}
-            onOpenAttachment={onOpenAttachment}
-            source={source}
-          />
-        ))}
-      </div>
+      <WorkbenchInspectorIncrementalList
+        ariaLabel={i18n.t("inspector.contextSources", { ns: "conversation" })}
+        getKey={(source) => source.id}
+        items={sources}
+        renderItem={(source) => (
+          <div data-inspector-source-row="">
+            <InspectorSourceRow
+              {...(source.kind === "attachment" && projectId !== undefined && taskId !== undefined
+                ? {
+                    attachmentUrl: buildTaskAttachmentUrl(
+                      "",
+                      projectId,
+                      taskId,
+                      source.attachment.id,
+                    ),
+                  }
+                : {})}
+              onOpenAttachment={onOpenAttachment}
+              source={source}
+            />
+          </div>
+        )}
+      />
     </InspectorSection>
   );
 }

@@ -54,7 +54,6 @@ export const conversation = {
   inspector: {
     attachmentDetail: "Attachment",
     changeIndicator: "{{path}}, {{additions}} additions, {{removals}} deletions",
-    changeStats: "Change statistics",
     changes: "Changes",
     closeFile: "Close file",
     commit: "Commit",
@@ -86,17 +85,13 @@ export const conversation = {
     goalTokens: "{{used}} tokens used",
     history: "History",
     loading: "Loading...",
-    mcpEmpty: "No MCP servers are readable by this task",
     mcpEnabled: "MCP servers readable by this task",
-    mcpError: "Failed to load MCP servers",
     mcpErrorLog: "View error log",
     mcpFailureReason: {
       reauthenticationRequired: "Reauthentication required",
     },
-    mcpLoading: "Loading MCP servers...",
     mcpReload: "Reload MCP servers",
     mcpReloading: "Reloading MCP servers",
-    mcpRetryError: "Failed to reload MCP servers",
     mcpStatus: {
       cancelled: "Cancelled",
       failed: "Startup failed",
@@ -113,6 +108,7 @@ export const conversation = {
     },
     mcpToolCount: "{{count}} tools",
     mcpVersion: "Version {{version}}",
+    openChanges: "View {{count}} uncommitted changes",
     openFailed: "The selected application could not open the target",
     plan: "Plan",
     planStatus: {
@@ -120,7 +116,6 @@ export const conversation = {
       in_progress: "In progress",
       pending: "Pending",
     },
-    projectDirectory: "Project directory",
     projectFilesEmpty: "This project has no files to display",
     projectFilesError: "Failed to load project files",
     projectFilesLoading: "Loading project files...",
@@ -133,6 +128,7 @@ export const conversation = {
     refreshProjectFiles: "Reload project files",
     commitChanges: "Commit {{count}} uncommitted changes",
     source: "Sources",
+    showMore: "Show more",
     sourceRole: {
       admin: "Admin",
       repo: "Project",

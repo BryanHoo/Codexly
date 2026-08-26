@@ -72,8 +72,6 @@ type WorkbenchInspectorProps = Readonly<{
   gitStatusRefreshing?: boolean;
   gitClient?: CodexlyWorkbenchClient;
   mcpServers?: readonly AgentMcpServer[];
-  mcpServersError?: Error | null;
-  mcpServersPending?: boolean;
   mcpServersRetryAvailable?: boolean;
   mcpServersRefreshing?: boolean;
   mcpServersRetrying?: boolean;
@@ -138,8 +136,6 @@ export function WorkbenchInspector({
   gitStatusRefreshing = false,
   gitClient,
   mcpServers = [],
-  mcpServersError = null,
-  mcpServersPending = false,
   mcpServersRetryAvailable = true,
   mcpServersRefreshing = false,
   mcpServersRetrying = false,
@@ -211,6 +207,9 @@ export function WorkbenchInspector({
           changeCount={displayChanges.length}
           changeStats={changeStats}
           onCommitChanges={onCommitChanges}
+          onOpenChanges={() => {
+            onTabChange("changes");
+          }}
         />
       ) : null}
       {backgroundTerminals.length > 0 ||
@@ -229,8 +228,6 @@ export function WorkbenchInspector({
       ) : null}
       <McpServerSection
         canRetry={mcpServersRetryAvailable}
-        error={mcpServersError}
-        isPending={mcpServersPending}
         isRefreshing={mcpServersRefreshing}
         isRetrying={mcpServersRetrying}
         onRetry={onReloadMcpServers}
@@ -239,8 +236,6 @@ export function WorkbenchInspector({
       <InspectorSources
         onOpenAttachment={onOpenTaskAttachment}
         {...(projectId === undefined ? {} : { projectId })}
-        projectName={projectName}
-        projectPath={projectPath}
         skills={skills}
         {...(taskId === undefined ? {} : { taskId })}
         turns={task?.turns ?? []}

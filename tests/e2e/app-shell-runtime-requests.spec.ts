@@ -224,7 +224,7 @@ test("shows MCP startup diagnostics and manually retries the current task", asyn
   await expect(mcp.getByText("正在启动", { exact: true })).toBeVisible();
 });
 
-test("shows original Codex MCP request errors once", async ({ page }) => {
+test("hides the MCP module when the request fails before data is available", async ({ page }) => {
   await page.route("**/v1/projects/codexly/tasks/task-1/mcp-servers", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -236,34 +236,10 @@ test("shows original Codex MCP request errors once", async ({ page }) => {
       status: 502,
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1/mcp-servers/retry", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      json: {
-        code: "PROVIDER_ERROR",
-        message: "config/mcpServer/reload failed: transport channel closed",
-        retryable: true,
-      },
-      status: 502,
-    });
-  });
-
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("tab", { name: "上下文" }).click();
-  const mcp = page.getByRole("region", { name: "MCP" });
+  await expect(page.getByRole("region", { name: "MCP" })).toHaveCount(0);
   await expect(
-    mcp.getByText("mcpServerStatus/list failed: MCP server `docs` executable was not found"),
-  ).toBeVisible();
-  await expect(mcp.getByText("PROVIDER_ERROR · HTTP 502")).toBeVisible();
-  await expect(mcp.getByRole("button", { name: "查看错误日志" })).toHaveCount(0);
-
-  await mcp.getByRole("button", { name: "重新加载 MCP" }).click();
-  const retryError = "config/mcpServer/reload failed: transport channel closed";
-  await expect(page.locator('[data-sonner-toast][data-type="error"]')).toHaveText(retryError);
-  await expect(mcp.getByText(retryError)).toHaveCount(0);
-  await expect(
-    mcp.getByText("mcpServerStatus/list failed: MCP server `docs` executable was not found"),
-  ).toBeVisible();
-  await expect(page.getByText(retryError, { exact: true })).toHaveCount(1);
-  await expect(page.getByText("重新加载 MCP 失败", { exact: true })).toHaveCount(0);
+    page.getByText("mcpServerStatus/list failed: MCP server `docs` executable was not found"),
+  ).toHaveCount(0);
 });

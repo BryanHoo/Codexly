@@ -169,7 +169,7 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).toContain("4,096 / 20,000 tokens");
     expect(markup).toContain('aria-label="暂停目标"');
     expect(markup).toContain('aria-label="清除目标"');
-    expect(markup.indexOf('aria-label="目标"')).toBeLessThan(markup.indexOf('aria-label="MCP"'));
+    expect(markup).toMatch(/role="tabpanel"[^>]*>.*aria-label="目标"/su);
   });
 
   it("renders temporary task context directly without tabs or Project sources", () => {
@@ -188,7 +188,7 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).toContain('aria-label="MCP"');
     expect(markup).toContain("fast-context");
     expect(markup).not.toContain("Semantic repository search");
-    expect(markup).toContain('aria-label="上下文来源"');
+    expect(markup).not.toContain('aria-label="来源"');
   });
 
   it("renders per-server MCP loading and ready states without provider descriptions", () => {
@@ -258,20 +258,23 @@ describe("WorkbenchInspector tabs", () => {
 
     expect(markup).toContain("2 个变更");
     expect(markup).toContain('aria-label="未提交变更"');
-    expect(markup).toContain('aria-label="变更统计"');
     expect(markup).toContain('aria-label="提交 2 个未提交变更"');
     expect(markup).toContain(">提交</button>");
     expect(markup).toMatch(
-      /aria-label="变更统计"[^>]*><span>2 个变更<\/span><span[^>]*>\+3<\/span><span[^>]*>-1<\/span>/u,
+      /aria-label="查看 2 个未提交变更"[^>]*><span>2 个变更<\/span><span[^>]*>\+3<\/span><span[^>]*>-1<\/span>/u,
     );
-    expect(markup).toContain(
-      'aria-label="变更统计" class="flex min-h-6 items-center gap-1.5 px-2 text-caption text-muted-foreground"',
-    );
+    const changeSummaryButton = /<button[^>]*aria-label="查看 2 个未提交变更"[^>]*>/u.exec(
+      markup,
+    )?.[0];
+    expect(changeSummaryButton).toBeDefined();
+    expect(changeSummaryButton).toContain('data-open-inspector-changes=""');
+    expect(changeSummaryButton).toContain("transition-colors");
+    expect(changeSummaryButton).toContain("hover:bg-control-hover");
     expect(markup).not.toContain('aria-label="变更文件导航"');
     expect(markup).not.toContain('aria-label="package.json，新增 2 行，删除 1 行"');
     expect(markup).not.toContain('aria-label="new-file.ts，新增 1 行，删除 0 行"');
     expect(projectMarkup).not.toContain('aria-label="未提交变更"');
-    expect(projectMarkup).not.toContain('aria-label="变更统计"');
+    expect(projectMarkup).not.toContain('data-open-inspector-changes=""');
     expect(projectMarkup).not.toContain('aria-label="提交 2 个未提交变更"');
     expect(markup).not.toContain("bg-brand");
     expect(markup).toContain('aria-label="运行环境"');
@@ -371,7 +374,7 @@ describe("WorkbenchInspector tabs", () => {
     const fileVisibleMarkup = renderInspector(new Set(["src", "src/components"]));
 
     expect(fileVisibleMarkup).toMatch(
-      /aria-label="变更统计"[^>]*><span>1 个变更<\/span><span[^>]*>\+2<\/span><span[^>]*>-1<\/span>/u,
+      /aria-label="查看 1 个未提交变更"[^>]*><span>1 个变更<\/span><span[^>]*>\+2<\/span><span[^>]*>-1<\/span>/u,
     );
     expect(fileVisibleMarkup).not.toContain("后代新增");
     expect(fileVisibleMarkup).not.toContain('aria-label="变更文件导航"');

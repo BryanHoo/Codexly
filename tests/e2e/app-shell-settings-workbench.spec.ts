@@ -97,6 +97,59 @@ test("renders the AI workbench landmarks with an enabled composer", async ({ pag
 });
 
 test("renders task-readable MCP servers and sources in inspector", async ({ page }) => {
+  const contextSkills = Array.from({ length: 6 }, (_, index) => ({
+    description: `Skill description ${String(index + 1)}`,
+    displayName: `Skill ${String(index + 1)}`,
+    id: `skill-${String(index + 1)}`,
+    name: `skill-${String(index + 1)}`,
+    scope: "system",
+  }));
+  await page.route("**/v1/projects/codexly/skills", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: { data: contextSkills, nextCursor: null },
+    });
+  });
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        ...taskSnapshotResponse,
+        snapshot: {
+          ...taskSnapshotResponse.snapshot,
+          turns: taskSnapshot.turns.map((turn) => ({
+            ...turn,
+            items: turn.items.map((item) =>
+              item.id === "message-1"
+                ? {
+                    ...item,
+                    skills: contextSkills.map((skill) => ({ name: skill.name })),
+                  }
+                : item,
+            ),
+          })),
+        },
+      },
+    });
+  });
+  await page.route("**/v1/projects/codexly/tasks/task-1/mcp-servers", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        data: Array.from({ length: 6 }, (_, index) => ({
+          authStatus: "unsupported",
+          description: null,
+          error: null,
+          failureReason: null,
+          name: `mcp-tool-${String(index + 1)}`,
+          status: "ready",
+          title: `MCP Tool ${String(index + 1)}`,
+          toolCount: 2,
+          version: "1.0.0",
+        })),
+      },
+    });
+  });
   await page.goto("/p/codexly/t/task-1");
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
@@ -104,17 +157,38 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
   const mcp = inspector.getByRole("region", { name: "MCP" });
   const sources = inspector.getByRole("region", { name: "来源" });
 
-  await expect(mcp.getByText("context7", { exact: true })).toBeVisible();
-  await expect(mcp.getByText("chrome-devtools", { exact: true })).toBeVisible();
+  await expect(mcp.getByText("MCP Tool 5", { exact: true })).toBeVisible();
+  await expect(mcp.getByText("MCP Tool 6", { exact: true })).toHaveCount(0);
+  const firstMcpRow = mcp.getByLabel("mcp-tool-1");
+  const restingMcpBackground = await firstMcpRow.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+  await firstMcpRow.hover();
+  await expect(page.getByRole("tooltip")).toHaveText("mcp-tool-1");
+  await expect
+    .poll(() => firstMcpRow.evaluate((element) => getComputedStyle(element).backgroundColor))
+    .not.toBe(restingMcpBackground);
+  await mcp.getByRole("button", { name: "显示更多" }).click();
+  await expect(mcp.getByText("MCP Tool 6", { exact: true })).toBeVisible();
   await expect(inspector.getByRole("region", { name: "环境" })).toHaveCount(0);
   await expect(inspector.getByText("gpt-5.6-sol", { exact: true })).toHaveCount(0);
   await expect(inspector.getByText("工作区可写", { exact: true })).toHaveCount(0);
   await expect(inspector.getByText("feat/review-targets", { exact: true })).toHaveCount(0);
-  await expect(sources.getByText("Security review", { exact: true })).toBeVisible();
-  await expect(sources.getByText("项目目录", { exact: true })).toBeVisible();
+  await expect(sources.getByText("Skill 5", { exact: true })).toBeVisible();
+  await expect(sources.getByText("Skill 6", { exact: true })).toHaveCount(0);
+  await sources.getByText("Skill 1", { exact: true }).hover();
+  await expect(page.getByRole("tooltip")).toHaveText("Skill description 1");
+  await sources.getByRole("button", { name: "显示更多" }).click();
+  await expect(sources.getByText("Skill 6", { exact: true })).toBeVisible();
+  await expect(sources.getByText("项目目录", { exact: true })).toHaveCount(0);
   await expect(inspector.getByText("This Mac", { exact: true })).toHaveCount(0);
   await expect(inspector.getByText("项目 Agent 组件", { exact: true })).toHaveCount(0);
   await expect(inspector.getByRole("button", { name: "添加来源" })).toHaveCount(0);
+  await inspector.getByRole("button", { name: "查看 1 个未提交变更" }).click();
+  await expect(inspector.getByRole("tab", { name: "变更" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
 });
 
 test("opens message images in a preview dialog @cross-browser", async ({ context, page }) => {

@@ -25,11 +25,12 @@ describe("InspectorGitChangesSection", () => {
         changeCount={changes.length}
         changeStats={{ additions: 3, removals: 1 }}
         onCommitChanges={() => undefined}
+        onOpenChanges={() => undefined}
       />,
     );
 
     expect(markup).toContain('aria-label="未提交变更"');
-    expect(markup).toContain('aria-label="变更统计"');
+    expect(markup).toContain('aria-label="查看 2 个未提交变更"');
     expect(markup).toContain("2 个变更");
     expect(markup).toContain("+3");
     expect(markup).toContain("-1");
@@ -37,10 +38,9 @@ describe("InspectorGitChangesSection", () => {
     expect(markup).not.toContain('aria-label="变更文件导航"');
     expect(markup).not.toContain("apps/web/src/app.tsx");
     expect(markup).not.toContain("README.md");
-    expect(markup).toContain(
-      'aria-label="变更统计" class="flex min-h-6 items-center gap-1.5 px-2 text-caption text-muted-foreground"',
-    );
-    expect(markup).not.toMatch(/aria-label="变更统计"[^>]*(?:bg-|border)/u);
+    expect(markup).toContain('data-open-inspector-changes=""');
+    expect(markup).toContain("hover:bg-control-hover");
+    expect(markup).not.toMatch(/data-open-inspector-changes=""[^>]*(?:bg-panel|border|shadow-sm)/u);
   });
 
   it("keeps the file count while detailed statistics resolve", () => {
@@ -49,6 +49,7 @@ describe("InspectorGitChangesSection", () => {
         changeCount={changes.length}
         changeStats={undefined}
         onCommitChanges={() => undefined}
+        onOpenChanges={() => undefined}
       />,
     );
 
