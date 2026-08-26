@@ -97,7 +97,9 @@ describe("agent core components", () => {
     );
 
     expect(markup).toContain('aria-label="上下文已使用 13%"');
+    expect(markup).toContain(">13%</span>");
     expect(markup.match(/<circle/g)).toHaveLength(2);
+    expect(markup.indexOf(">13%</span>")).toBeLessThan(markup.indexOf("<svg"));
     expect(formatContextUsage({ maxTokens: 200_000, usedTokens: 25_000 })).toEqual({
       accessibleLabel: "上下文已使用 13%",
       percentage: 13,

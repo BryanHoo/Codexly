@@ -78,7 +78,15 @@ test("renders the AI workbench landmarks with an enabled composer", async ({ pag
   expect((await openProjectRequest).postDataJSON()).toEqual({ appId: "finder" });
   const contextUsageButton = page.getByRole("button", { name: "上下文已使用 13%" });
   await expect(contextUsageButton).toBeVisible();
-  await expect(contextUsageButton.locator("circle")).toHaveCount(2);
+  const contextUsagePercentage = contextUsageButton.getByText("13%", { exact: true });
+  const contextUsageRing = contextUsageButton.locator("svg");
+  await expect(contextUsagePercentage).toBeVisible();
+  await expect(contextUsageRing.locator("circle")).toHaveCount(2);
+  expect(
+    await contextUsagePercentage.evaluate((element) => element.getBoundingClientRect().right),
+  ).toBeLessThanOrEqual(
+    await contextUsageRing.evaluate((element) => element.getBoundingClientRect().left),
+  );
   await expect(contextUsageButton).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await contextUsageButton.hover();
   const contextUsageTooltip = page.getByRole("tooltip");

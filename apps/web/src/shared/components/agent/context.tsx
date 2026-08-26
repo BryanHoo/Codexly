@@ -168,12 +168,17 @@ export function ContextTrigger({ children, className = "", ...props }: ContextTr
         <Button
           {...props}
           aria-label={usage.accessibleLabel}
-          className={className}
-          size="icon-sm"
+          className={`tabular-nums ${className}`}
+          size="toolbar"
           type={props.type ?? "button"}
           variant="ghost"
         >
-          {children ?? <ContextIcon />}
+          {children ?? (
+            <>
+              {usage.percentage === null ? null : <span>{usage.percentage}%</span>}
+              <ContextIcon />
+            </>
+          )}
         </Button>
       </TooltipTrigger>
       <TooltipContent className="bg-raised text-foreground">
