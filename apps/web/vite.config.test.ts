@@ -7,6 +7,7 @@ describe("Web Vite browser targets", () => {
     expect(supportedBrowserTargets).toEqual(["chrome116", "firefox124", "safari17.4"]);
     expect(webConfig).toMatchObject({
       build: {
+        chunkSizeWarningLimit: 512,
         emptyOutDir: true,
         manifest: true,
         target: ["chrome116", "firefox124", "safari17.4"],

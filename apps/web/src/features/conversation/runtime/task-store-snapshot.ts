@@ -35,6 +35,36 @@ export function reconstructSnapshot(state: TaskStoreState): ReconstructedTaskSna
 
 type AgentMessage = Extract<AgentItem, { type: "message" }>;
 
+function haveEquivalentImageAttachments(
+  currentMessage: AgentMessage,
+  snapshotMessage: AgentMessage,
+): boolean {
+  if (
+    currentMessage.role !== "user" ||
+    snapshotMessage.role !== "user" ||
+    currentMessage.text.length > 0 ||
+    snapshotMessage.text.length > 0
+  ) {
+    return false;
+  }
+  const currentAttachments = currentMessage.attachments ?? [];
+  const snapshotAttachments = snapshotMessage.attachments ?? [];
+  if (currentAttachments.length === 0 || currentAttachments.length !== snapshotAttachments.length) {
+    return false;
+  }
+
+  // 上传附件与历史附件使用不同 ID 和名称，只比较跨存储稳定且足以消歧的图片元数据。
+  return currentAttachments.every((currentAttachment, index) => {
+    const snapshotAttachment = snapshotAttachments[index];
+    return (
+      currentAttachment.kind === "image" &&
+      snapshotAttachment?.kind === "image" &&
+      currentAttachment.mediaType === snapshotAttachment.mediaType &&
+      currentAttachment.size === snapshotAttachment.size
+    );
+  });
+}
+
 function retainSnapshotTurnItems(currentTurn: AgentTurn, snapshotTurn: AgentTurn): AgentItem[] {
   const snapshotItemsById = new Map(snapshotTurn.items.map((item) => [item.id, item]));
   const snapshotMessagesByCurrentId = new Map<string, AgentMessage>();
@@ -80,10 +110,11 @@ function retainSnapshotTurnItems(currentTurn: AgentTurn, snapshotTurn: AgentTurn
     const candidates = unmatchedCurrentMessages.filter(
       (currentMessage) =>
         currentMessage.role === snapshotMessage.role &&
-        currentMessage.text.length > 0 &&
-        snapshotMessage.text.length > 0 &&
-        (currentMessage.text.startsWith(snapshotMessage.text) ||
-          snapshotMessage.text.startsWith(currentMessage.text)),
+        ((currentMessage.text.length > 0 &&
+          snapshotMessage.text.length > 0 &&
+          (currentMessage.text.startsWith(snapshotMessage.text) ||
+            snapshotMessage.text.startsWith(currentMessage.text))) ||
+          haveEquivalentImageAttachments(currentMessage, snapshotMessage)),
     );
     currentCandidatesBySnapshotId.set(snapshotMessage.id, candidates);
     for (const candidate of candidates) {
@@ -94,7 +125,7 @@ function retainSnapshotTurnItems(currentTurn: AgentTurn, snapshotTurn: AgentTurn
     }
   }
 
-  // 文本只能在候选关系两侧都唯一时兜底，歧义消息保留各自 ID。
+  // 文本或图片只能在候选关系两侧都唯一时兜底，歧义消息保留各自 ID。
   for (const snapshotMessage of unmatchedSnapshotMessages) {
     const candidates = currentCandidatesBySnapshotId.get(snapshotMessage.id) ?? [];
     const currentMessage = candidates.length === 1 ? candidates[0] : undefined;

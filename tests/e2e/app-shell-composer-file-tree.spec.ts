@@ -80,7 +80,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toBe("/workspace/Codexly");
   await rootTreeItem.click({ button: "right" });
-  await rootMenu.getByRole("menuitem", { name: "打开" }).click();
+  await rootMenu.getByRole("menuitem", { exact: true, name: "打开" }).click();
   await selectOpenApp("Finder");
   await rootRequest;
   await expect(rootMenu).not.toBeAttached();
@@ -101,7 +101,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await expect(folderMenu.getByRole("menuitem", { name: "复制名称" })).toBeVisible();
   await expect(folderMenu.getByRole("menuitem", { name: "复制相对路径" })).toBeVisible();
   await expect(folderMenu.getByRole("menuitem", { name: "复制绝对路径" })).toBeVisible();
-  await expect(folderMenu.getByRole("menuitem", { name: "打开" })).toBeVisible();
+  await expect(folderMenu.getByRole("menuitem", { exact: true, name: "打开" })).toBeVisible();
   await expect(folderMenu.getByRole("menuitem", { name: "引用" })).toHaveCount(0);
   await expect(docsTreeItem).toHaveAttribute("aria-selected", "true");
   await folderMenu.getByRole("menuitem", { name: "复制相对路径" }).click();
@@ -112,7 +112,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toBe("/workspace/Codexly/docs");
   await docsTreeItem.click({ button: "right" });
-  await folderMenu.getByRole("menuitem", { name: "打开" }).click();
+  await folderMenu.getByRole("menuitem", { exact: true, name: "打开" }).click();
   await expect(page.getByRole("menuitem", { name: "系统默认应用" })).toHaveCount(0);
   await selectOpenApp("Finder");
   await folderRequest;
@@ -133,7 +133,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await expect(folderAction).toHaveCSS("opacity", "1");
   await folderAction.click();
   const folderActionMenu = page.getByRole("menu", { name: "docs 的操作" });
-  await folderActionMenu.getByRole("menuitem", { name: "打开" }).click();
+  await folderActionMenu.getByRole("menuitem", { exact: true, name: "打开" }).click();
   const folderActionMenuIcon = page.getByRole("menuitem", { name: "Zed" }).locator("svg");
   await expect(folderActionMenuIcon).toHaveCSS("width", "16px");
   await expect(folderActionMenuIcon).toHaveCSS("height", "16px");
@@ -153,7 +153,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   const fileMenu = page.getByRole("menu", { name: "package.json 的操作" });
   await expect(packageTreeItem).toHaveAttribute("aria-selected", "true");
   await expect(packageTreeItem).toHaveClass(/bg-control/u);
-  await fileMenu.getByRole("menuitem", { name: "打开" }).click();
+  await fileMenu.getByRole("menuitem", { exact: true, name: "打开" }).click();
   await selectOpenApp("系统默认应用");
   await fileRequest;
   await expect(fileMenu).not.toBeAttached();
@@ -170,7 +170,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await expect(fileAction).toBeVisible();
   await fileAction.click();
   const fileActionMenu = page.getByRole("menu", { name: "package.json 的操作" });
-  await fileActionMenu.getByRole("menuitem", { name: "打开" }).click();
+  await fileActionMenu.getByRole("menuitem", { exact: true, name: "打开" }).click();
   await selectOpenApp("Zed");
   await fileActionRequest;
   await expect(fileActionMenu).not.toBeAttached();

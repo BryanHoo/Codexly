@@ -33,6 +33,8 @@ export default defineConfig({
     ],
   },
   build: {
+    // C++ Grammar 是不可继续切分的单模块；原始体积允许至 512 kB，传输体积仍由 bundle:check 约束。
+    chunkSizeWarningLimit: 512,
     // dist/web 仅包含前端产物；构建前清理旧哈希文件，避免预压缩阶段重复处理历史资源。
     emptyOutDir: true,
     manifest: true,
