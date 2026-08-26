@@ -140,6 +140,37 @@ describe("file review navigation", () => {
     expect(markup).toContain("-1");
   });
 
+  it("renders a flat selectable file list with full relative paths", () => {
+    const nodes = buildReviewFileTree([
+      {
+        diff: "+export const app = true;",
+        kind: "create",
+        path: "apps/web/src/app.tsx",
+      },
+      {
+        diff: "-legacy",
+        kind: "delete",
+        path: "README.md",
+      },
+    ]);
+
+    const markup = renderToStaticMarkup(
+      <ReviewFileTreeNavigation
+        nodes={nodes}
+        onSelect={() => undefined}
+        selectedPath="apps/web/src/app.tsx"
+        viewMode="list"
+      />,
+    );
+
+    expect(markup).toContain('data-slot="review-file-list"');
+    expect(markup).toContain('role="listbox"');
+    expect(markup).toContain('aria-selected="true"');
+    expect(markup).toContain("apps/web/src/app.tsx");
+    expect(markup).toContain("README.md");
+    expect(markup).not.toContain('data-ai-file-tree=""');
+  });
+
   it("renders a reusable review workspace without a dialog shell", () => {
     const changes = [
       { diff: "", kind: "update" as const, path: "src/index.ts" },
@@ -162,6 +193,7 @@ describe("file review navigation", () => {
     expect(markup).toContain('id="embedded-review-title"');
     expect(markup).toContain("按需读取 src/index.ts");
     expect(markup).toContain("src/index.ts");
+    expect(markup).toContain('aria-label="切换为文件列表"');
     expect(markup).not.toContain('data-slot="dialog-content"');
     expect(markup).not.toContain("+0");
   });

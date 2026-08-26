@@ -3,6 +3,8 @@ import {
   ChevronUp,
   FileCode2,
   Files,
+  List,
+  ListTree,
   PanelRightClose,
   PanelRightOpen,
   X,
@@ -24,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../../shared/components
 import { useTranslation } from "../../i18n/i18n.js";
 import type { AgentFileChange } from "./file-change.js";
 import { getFileName } from "./file-change.js";
+import { useFileNavigationViewPreference } from "./file-navigation-view-preference.js";
 import { buildReviewFileTree, ReviewFileTreeNavigation } from "./file-review-tree.js";
 
 const PatchDiffViewer = lazy(() => import("./patch-diff-viewer.js"));
@@ -78,6 +81,7 @@ export function FileReviewWorkspace({
   titleId,
 }: FileReviewWorkspaceProps) {
   const { t } = useTranslation("workbench");
+  const [fileViewMode, setFileViewMode] = useFileNavigationViewPreference("review");
   const reviewContentRef = useRef<HTMLElement>(null);
   const [navigationOpen, setNavigationOpen] = useState(shouldOpenReviewNavigation);
   const fileTree = useMemo(() => buildReviewFileTree(changes), [changes]);
@@ -262,6 +266,30 @@ export function FileReviewWorkspace({
               {t("diff.changedFiles")}
             </h3>
             <span className="text-meta text-muted-foreground">{changes.length}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  aria-label={t(
+                    fileViewMode === "tree" ? "diff.showFileList" : "diff.showFileTree",
+                  )}
+                  onClick={() => {
+                    setFileViewMode(fileViewMode === "tree" ? "list" : "tree");
+                  }}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  {fileViewMode === "tree" ? (
+                    <List aria-hidden="true" className="size-3.5" />
+                  ) : (
+                    <ListTree aria-hidden="true" className="size-3.5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t(fileViewMode === "tree" ? "diff.showFileList" : "diff.showFileTree")}
+              </TooltipContent>
+            </Tooltip>
           </div>
           <div className="min-h-0 overflow-y-auto px-2 py-2">
             <ReviewFileTreeNavigation
@@ -274,6 +302,7 @@ export function FileReviewWorkspace({
               }}
               selectedPath={selectedPath}
               showStats={showStats}
+              viewMode={fileViewMode}
             />
             {navigationFooter}
           </div>

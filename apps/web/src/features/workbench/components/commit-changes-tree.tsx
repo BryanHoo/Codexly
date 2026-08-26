@@ -11,6 +11,7 @@ import {
 } from "../../../shared/components/agent/file-tree.js";
 import { cn } from "../../../shared/lib/utils.js";
 import { Checkbox } from "../../../shared/components/core/checkbox.js";
+import type { FileNavigationViewMode } from "../../diff/file-navigation-view-preference.js";
 
 type CommitChange = ProjectGitStatus["staged"][number];
 
@@ -226,6 +227,7 @@ type CommitChangesTreeSectionProps = Readonly<{
   onOpenFileDiff: (change: CommitChange) => void;
   onSelectedPathsChange: (paths: Set<string>) => void;
   selectedPaths: ReadonlySet<string>;
+  viewMode?: FileNavigationViewMode;
 }>;
 
 export function CommitChangesTreeSection({
@@ -235,6 +237,7 @@ export function CommitChangesTreeSection({
   onOpenFileDiff,
   onSelectedPathsChange,
   selectedPaths,
+  viewMode = "tree",
 }: CommitChangesTreeSectionProps) {
   const nodes = useMemo(() => buildCommitChangeTree(changes), [changes]);
   const changesByPath = useMemo(
@@ -279,7 +282,47 @@ export function CommitChangesTreeSection({
         <h3 className="text-label font-semibold text-foreground">{label}</h3>
         <span className="ml-auto text-caption text-muted-foreground">{paths.length}</span>
       </div>
-      {nodes.length === 0 ? null : (
+      {viewMode === "list" ? (
+        <div className="px-1 font-mono text-label" data-slot="commit-changes-list" role="list">
+          {changes
+            .toSorted((left, right) => left.path.localeCompare(right.path, "en"))
+            .map((change) => (
+              <div
+                className="flex min-h-7 items-center gap-1.5 rounded-control px-1.5 hover:bg-control-hover"
+                key={change.path}
+                role="listitem"
+              >
+                <Checkbox
+                  aria-label={`${label}: ${change.path}`}
+                  checked={selectedPaths.has(change.path)}
+                  disabled={disabled}
+                  onCheckedChange={() => {
+                    togglePath(change.path);
+                  }}
+                />
+                <button
+                  aria-label={change.path}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center gap-1.5 text-left outline-none focus-visible:shadow-focus",
+                    statusToneClassName(change.kind),
+                  )}
+                  onClick={() => {
+                    onOpenFileDiff(change);
+                  }}
+                  type="button"
+                >
+                  {statusIcon(change.kind)}
+                  <span className="min-w-0 flex-1 truncate" title={change.path}>
+                    {change.path}
+                  </span>
+                  <span className="w-3 text-center text-meta font-semibold text-muted-foreground">
+                    {statusLetter(change.kind)}
+                  </span>
+                </button>
+              </div>
+            ))}
+        </div>
+      ) : nodes.length === 0 ? null : (
         <FileTree aria-label={label} className="px-1" defaultExpanded={defaultExpanded}>
           <CommitTreeNodes
             changesByPath={changesByPath}

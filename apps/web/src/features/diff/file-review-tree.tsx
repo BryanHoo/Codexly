@@ -5,6 +5,7 @@ import { FileTree, FileTreeFile, FileTreeFolder } from "../../shared/components/
 import { useTranslation } from "../../i18n/i18n.js";
 import type { AgentFileChange } from "./file-change.js";
 import { countFileChangeLines } from "./file-change.js";
+import type { FileNavigationViewMode } from "./file-navigation-view-preference.js";
 
 export type ReviewFileTreeFile = Readonly<{
   additions: number;
@@ -120,6 +121,20 @@ function collectReviewFileTreeFolderPaths(
   return paths;
 }
 
+function collectReviewFiles(
+  nodes: readonly ReviewFileTreeNode[],
+  files: ReviewFileTreeFile[] = [],
+): readonly ReviewFileTreeFile[] {
+  for (const node of nodes) {
+    if (node.type === "folder") {
+      collectReviewFiles(node.children, files);
+    } else {
+      files.push(node);
+    }
+  }
+  return files;
+}
+
 function ReviewFileTreeNodes({
   fileLabel,
   nodes,
@@ -159,14 +174,61 @@ export function ReviewFileTreeNavigation({
   onSelect,
   selectedPath,
   showStats = true,
+  viewMode = "tree",
 }: Readonly<{
   nodes: readonly ReviewFileTreeNode[];
   onSelect: (path: string) => void;
   selectedPath: string;
   showStats?: boolean;
+  viewMode?: FileNavigationViewMode;
 }>) {
   const { t } = useTranslation("workbench");
   const defaultExpanded = useMemo(() => collectReviewFileTreeFolderPaths(nodes), [nodes]);
+  const files = useMemo(() => collectReviewFiles(nodes), [nodes]);
+  const fileLabel = (node: ReviewFileTreeFile) =>
+    showStats
+      ? t("diff.fileStats", {
+          additions: node.additions,
+          path: node.path,
+          removals: node.removals,
+        })
+      : node.path;
+
+  if (viewMode === "list") {
+    return (
+      <div
+        aria-label={t("diff.changedFilesNavigation")}
+        className="font-mono text-label"
+        data-slot="review-file-list"
+        role="listbox"
+      >
+        {files.map((file) => (
+          <button
+            aria-label={fileLabel(file)}
+            aria-selected={file.path === selectedPath}
+            className="flex min-h-7 w-full min-w-0 items-center gap-1.5 rounded-control px-1.5 text-left outline-none transition-colors hover:bg-control-hover focus-visible:shadow-focus aria-selected:bg-control"
+            key={`${file.path}:${String(file.changeIndex)}`}
+            onClick={() => {
+              onSelect(file.path);
+            }}
+            role="option"
+            type="button"
+          >
+            <FileCode2 aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate" title={file.path}>
+              {file.path}
+            </span>
+            {showStats ? (
+              <span aria-hidden="true" className="flex shrink-0 items-center gap-1 text-meta">
+                <span className="font-medium text-diff-added">+{file.additions}</span>
+                <span className="font-medium text-diff-removed">-{file.removals}</span>
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <FileTree
@@ -175,19 +237,7 @@ export function ReviewFileTreeNavigation({
       onSelect={onSelect}
       selectedPath={selectedPath}
     >
-      <ReviewFileTreeNodes
-        fileLabel={(node) =>
-          showStats
-            ? t("diff.fileStats", {
-                additions: node.additions,
-                path: node.path,
-                removals: node.removals,
-              })
-            : node.path
-        }
-        nodes={nodes}
-        showStats={showStats}
-      />
+      <ReviewFileTreeNodes fileLabel={fileLabel} nodes={nodes} showStats={showStats} />
     </FileTree>
   );
 }

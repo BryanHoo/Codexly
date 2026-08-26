@@ -4,7 +4,7 @@ import type {
   GenerateCommitMessageRequest,
   ProjectGitStatus,
 } from "@codexly/protocol";
-import { Check, ChevronDown, LoaderCircle, Sparkles, Upload } from "lucide-react";
+import { Check, ChevronDown, List, ListTree, LoaderCircle, Sparkles, Upload } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -37,6 +37,7 @@ import {
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
+import { useFileNavigationViewPreference } from "../../diff/file-navigation-view-preference.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { CommitChangesTreeSection } from "./commit-changes-tree.js";
 
@@ -114,6 +115,7 @@ export function CommitChangesPanel({
   selectedRepository = null,
 }: CommitChangesPanelProps) {
   const { t } = useTranslation("workbench");
+  const [fileViewMode, setFileViewMode] = useFileNavigationViewPreference("changes");
   const entries = useMemo(() => collectCommitFileEntries(gitStatus), [gitStatus]);
   const contentIdentity = `${selectedRepository ?? "root"}:${gitStatus.snapshot}`;
   const [contentState, setContentState] = useState(() =>
@@ -297,11 +299,35 @@ export function CommitChangesPanel({
           </section>
 
           <div className="flex min-h-0 flex-1 flex-col border-t border-separator">
-            <div className="flex h-8 shrink-0 items-center px-3 text-label font-semibold">
+            <div className="flex h-8 shrink-0 items-center gap-1 px-3 text-label font-semibold">
               <span>{t("commit.changes")}</span>
               <span className="ml-auto text-caption font-normal text-muted-foreground">
                 {t("commit.totalFiles", { count: entries.length })}
               </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label={t(
+                      fileViewMode === "tree" ? "diff.showFileList" : "diff.showFileTree",
+                    )}
+                    onClick={() => {
+                      setFileViewMode(fileViewMode === "tree" ? "list" : "tree");
+                    }}
+                    size="icon-sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    {fileViewMode === "tree" ? (
+                      <List aria-hidden="true" className="size-3.5" />
+                    ) : (
+                      <ListTree aria-hidden="true" className="size-3.5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t(fileViewMode === "tree" ? "diff.showFileList" : "diff.showFileTree")}
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-0.5"
@@ -316,6 +342,7 @@ export function CommitChangesPanel({
                   setContentState((current) => ({ ...current, selectedPaths: paths }));
                 }}
                 selectedPaths={selectedPaths}
+                viewMode={fileViewMode}
               />
               <CommitChangesTreeSection
                 changes={gitStatus.unstaged}
@@ -326,6 +353,7 @@ export function CommitChangesPanel({
                   setContentState((current) => ({ ...current, selectedPaths: paths }));
                 }}
                 selectedPaths={selectedPaths}
+                viewMode={fileViewMode}
               />
             </div>
           </div>

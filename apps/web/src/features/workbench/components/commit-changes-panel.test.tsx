@@ -8,6 +8,7 @@ import {
   collectCommitFileEntries,
   collectCommitRepositories,
 } from "./commit-changes-panel.js";
+import { CommitChangesTreeSection } from "./commit-changes-tree.js";
 
 const gitStatus = {
   baseBranches: ["origin/main"],
@@ -54,11 +55,31 @@ describe("CommitChangesPanel", () => {
     expect(markup).toContain(">提交</button>");
     expect(markup).toContain('aria-label="选择提交方式"');
     expect(markup).toContain('data-slot="commit-changes-scroll"');
+    expect(markup).toContain('aria-label="切换为文件列表"');
     expect(markup).not.toContain('data-slot="sheet-content"');
     expect(markup).not.toContain('data-slot="commit-history-scroll"');
     expect(markup).not.toContain('data-slot="git-history-content"');
     expect(markup).not.toContain("当前分支历史");
     expect(markup).not.toContain("feat/commit");
+  });
+
+  it("renders a flat file list with full relative paths", () => {
+    const markup = renderToStaticMarkup(
+      <CommitChangesTreeSection
+        changes={gitStatus.unstaged}
+        label="未暂存"
+        onOpenFileDiff={() => undefined}
+        onSelectedPathsChange={() => undefined}
+        selectedPaths={new Set(["src/app.ts"])}
+        viewMode="list"
+      />,
+    );
+
+    expect(markup).toContain('data-slot="commit-changes-list"');
+    expect(markup).toContain("src/app.ts");
+    expect(markup).toContain("src/new.ts");
+    expect(markup).toContain('aria-label="未暂存: src/app.ts"');
+    expect(markup).not.toContain('data-ai-file-tree=""');
   });
 
   it("requires a selected child repository before showing commit controls", () => {

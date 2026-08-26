@@ -69,6 +69,7 @@ test("opens timeline review while showing Git stats in the Inspector project tre
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   const contextTab = inspector.getByRole("tab", { name: "上下文" });
+  const changesTab = inspector.getByRole("tab", { name: "变更" });
   const projectTab = inspector.getByRole("tab", { name: "项目" });
   await expect(contextTab).toHaveAttribute("aria-selected", "true");
 
@@ -94,7 +95,7 @@ test("opens timeline review while showing Git stats in the Inspector project tre
   const timelineReviewButton = changedFiles.getByRole("button", { name: "审核", exact: true });
   const gitChanges = inspector.getByRole("region", { name: "未提交变更" });
   const commitButton = gitChanges.getByRole("button", { name: "提交 2 个未提交变更" });
-  const changeStats = gitChanges.getByLabel("变更统计");
+  const changeStats = gitChanges.getByRole("button", { name: "查看 2 个未提交变更" });
   await expect(page.getByRole("button", { name: "审核 2 个未提交变更" })).toHaveCount(0);
   await expect(commitButton).toHaveText("提交");
   await expect(changeStats).toHaveText("2 个变更+2-1");
@@ -174,8 +175,29 @@ test("opens timeline review while showing Git stats in the Inspector project tre
   await expect(reviewFileTreeItem).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowUp");
   await expect(reviewDialog).toHaveAccessibleName("package.json");
+  await reviewDialog.getByRole("button", { name: "切换为文件列表" }).click();
+  const changedFileList = reviewDialog.getByRole("listbox", { name: "变更文件导航" });
+  await expect(changedFileList).toBeVisible();
+  await expect(
+    changedFileList.getByRole("option", {
+      name: "apps/web/src/review-list.tsx，新增 1 行，删除 0 行",
+    }),
+  ).toBeVisible();
+  await expect(reviewDialog.getByRole("tree", { name: "变更文件导航" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(reviewDialog).not.toBeAttached();
+  await changesTab.click();
+  await expect(inspector.getByRole("button", { name: "切换为文件列表" })).toBeVisible();
+
+  // 刷新后右栏仍保持树，审核弹窗独立恢复列表偏好。
+  await page.reload();
+  await inspector.getByRole("tab", { name: "变更" }).click();
+  await expect(inspector.getByRole("button", { name: "切换为文件列表" })).toBeVisible();
+  await inspector.getByRole("tab", { name: "上下文" }).click();
+  await page.getByRole("button", { name: "审核", exact: true }).click();
+  await expect(reviewDialog.getByRole("listbox", { name: "变更文件导航" })).toBeVisible();
+  await expect(reviewDialog.getByRole("button", { name: "切换为文件树" })).toBeVisible();
+  await page.keyboard.press("Escape");
   expect({ consoleErrors, failedResources }).toEqual({ consoleErrors: [], failedResources: [] });
 });
 

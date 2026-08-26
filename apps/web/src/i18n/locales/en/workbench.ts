@@ -44,6 +44,8 @@ export const workbench = {
     nextFile: "Review next file",
     previousFile: "Review previous file",
     reviewContent: "File review content",
+    showFileList: "Switch to file list",
+    showFileTree: "Switch to file tree",
   },
   composer: {
     addedAttachments: "Added attachments",
