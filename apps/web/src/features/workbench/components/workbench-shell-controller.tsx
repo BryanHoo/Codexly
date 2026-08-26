@@ -1,11 +1,13 @@
 import {
   isAgentFastModeAvailable,
+  type AgentTaskSnapshotResponse,
   type AgentMessageAttachment,
   type AgentProjectDefaults,
   type AgentPromptInput,
   type AgentTask,
   type AgentTaskSettings,
   type AgentTurn,
+  type EventCheckpoint,
 } from "@codexly/protocol";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { classifyProjectFileReference } from "../project-file-reference.js";
@@ -21,11 +23,13 @@ import {
   upsertProjectTaskInInfiniteData,
   type ProjectTaskInfiniteData,
   type TaskTitleSnapshot,
+  taskSnapshotQueryOptions,
 } from "../../projects/project-queries.js";
 import type { TaskStoreState } from "../../conversation/runtime/task-store.js";
 import { getTaskStoreUserMessageIds } from "../composer-queue-state.js";
 import { loadProjectGitFileDiff } from "../project-git-file-diff.js";
 import {
+  createTaskLaunchSnapshot,
   taskLaunchQueryKey,
   type TaskLaunchState,
   type useWorkbenchShellRuntime,
@@ -237,19 +241,34 @@ export function useWorkbenchShellController(
       startedInput?: AgentPromptInput,
       settings?: AgentTaskSettings,
       messageAttachments: readonly AgentMessageAttachment[] = [],
+      checkpoint?: EventCheckpoint,
     ) => {
       cacheProjectTask(startedTask);
-      if (startedTurn !== undefined && startedInput !== undefined && settings !== undefined) {
+      if (
+        startedTurn !== undefined &&
+        startedInput !== undefined &&
+        settings !== undefined &&
+        checkpoint !== undefined
+      ) {
         const confirmedStartedAt = getNewChatSubmissionStartedAt() ?? startedTurn.startedAt;
-        // 跨路由保存首轮启动结果，让 Snapshot 返回前即可渲染用户消息和 AI 运行态。
-        queryClient.setQueryData<TaskLaunchState>(taskLaunchQueryKey(projectId, startedTask.id), {
+        const launchState: TaskLaunchState = {
+          checkpoint,
           input: startedInput,
           messageAttachments,
           settings,
           ...(confirmedStartedAt === null ? {} : { submissionStartedAt: confirmedStartedAt }),
           task: startedTask,
           turn: startedTurn,
-        });
+        };
+        // 导航前写入标准 Snapshot 缓存，首屏直接接管事件回放，不再并发读取未稳定的历史。
+        queryClient.setQueryData<TaskLaunchState>(
+          taskLaunchQueryKey(startedTask.projectId, startedTask.id),
+          launchState,
+        );
+        queryClient.setQueryData<AgentTaskSnapshotResponse>(
+          taskSnapshotQueryOptions(startedTask.projectId, startedTask.id, client).queryKey,
+          { checkpoint, snapshot: createTaskLaunchSnapshot(launchState) },
+        );
       }
       if (startedTurn !== undefined) {
         // 首轮 Turn 已确认运行，导航前写入 Sidebar 活动态，Review 不需要伪造用户消息。
@@ -267,6 +286,7 @@ export function useWorkbenchShellController(
     },
     [
       cacheProjectTask,
+      client,
       getNewChatSubmissionStartedAt,
       markTaskRunning,
       navigate,

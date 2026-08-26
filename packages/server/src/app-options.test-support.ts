@@ -199,6 +199,11 @@ export function createServerOptions(
       }),
     },
     providerConnectionRepository: stateRepository,
+    petProvider: {
+      ensurePetAsset: () => Promise.reject(new Error("Pet downloads are unavailable")),
+      listPets: () => Promise.resolve([]),
+      openPetAsset: () => Promise.resolve(undefined),
+    },
     queueRepository,
     provider: runtimeProvider,
     readAppInfo: vi.fn(() =>

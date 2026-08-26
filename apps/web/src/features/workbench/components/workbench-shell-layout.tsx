@@ -18,6 +18,7 @@ import type { useWorkbenchShellController } from "./workbench-shell-controller.j
 import { WorkbenchShellDialogs } from "./workbench-shell-dialogs.js";
 import { ActiveTaskWorkbench } from "./workbench-shell-active-task.js";
 import { WorkbenchInspector } from "./workbench-inspector.js";
+import { WorkbenchPetLayer } from "../../pets/components/workbench-pet-layer.js";
 
 type WorkbenchShellStyle = CSSProperties &
   Readonly<{ "--inspector-open-width": string; "--sidebar-open-width": string }>;
@@ -485,6 +486,7 @@ export function WorkbenchShellLayout({
           {...(gitStatusQuery.data === undefined ? {} : { gitStatus: gitStatusQuery.data })}
         />
       ) : null}
+      <WorkbenchPetLayer settings={globalSettings?.pet} />
       <WorkbenchShellDialogs
         context={context}
         projectId={projectId}

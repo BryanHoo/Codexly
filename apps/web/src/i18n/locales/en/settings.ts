@@ -134,6 +134,19 @@ export const settings = {
     title: "Connect a Codex model service",
     waiting: "Waiting for browser login",
   },
+  pets: {
+    availability: {
+      downloadable: "Download required",
+      ready: "Ready",
+    },
+    enabled: "Enable workbench pet",
+    errors: {
+      load: "Unable to load pet assets. Try again.",
+    },
+    loading: "Loading pet assets",
+    refresh: "Refresh list",
+    selectionLabel: "Choose a workbench pet",
+  },
   sandbox: {
     dangerFullAccess: "Full access",
     readOnly: "Read only",
@@ -146,6 +159,7 @@ export const settings = {
     appearance: "General",
     commit: "Commit messages",
     integration: "App integrations",
+    pets: "Workbench pet",
     provider: "Model service",
   },
   title: "Global settings",

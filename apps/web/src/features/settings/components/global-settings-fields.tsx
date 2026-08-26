@@ -7,6 +7,7 @@ import {
   MonitorCog,
   Moon,
   Network,
+  PawPrint,
   Palette,
   ServerCog,
   Sun,
@@ -24,13 +25,14 @@ import type { WorkbenchBackgroundPreference } from "../workbench-background-pref
 import { WorkbenchBackgroundSettings } from "./workbench-background-settings.js";
 
 export type SettingsSectionId =
-  "about" | "access" | "agent" | "appearance" | "commit" | "integration" | "provider";
+  "about" | "access" | "agent" | "appearance" | "commit" | "integration" | "pets" | "provider";
 
 export const settingsSections: readonly Readonly<{
   icon: LucideIcon;
   id: SettingsSectionId;
 }>[] = [
   { icon: Palette, id: "appearance" },
+  { icon: PawPrint, id: "pets" },
   { icon: ServerCog, id: "provider" },
   { icon: Bot, id: "agent" },
   { icon: GitCommitHorizontal, id: "commit" },

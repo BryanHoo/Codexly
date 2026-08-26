@@ -5,6 +5,7 @@ import type {
   AgentProviderConnectionRepository,
   AgentSettingsRepository,
   ProjectRepository,
+  WorkbenchPetProvider,
 } from "@codexly/core";
 import type {
   AppInfoResponse,
@@ -59,6 +60,7 @@ export interface CreateCodexlyServerOptions {
   projectRuntimeCleanupIntervalMs?: number;
   projectRuntimeIdleTtlMs?: number;
   provider: AgentRuntimeProvider;
+  petProvider: WorkbenchPetProvider;
   readAppInfo: () => Promise<AppInfoResponse>;
   settingsRepository: AgentSettingsRepository;
   temporaryWorkspace: string;

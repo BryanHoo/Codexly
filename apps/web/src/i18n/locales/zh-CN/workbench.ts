@@ -1,4 +1,15 @@
 export const workbench = {
+  pet: {
+    activeTasks: "活动任务",
+    activitySummary: "{{count}} 个活动任务，其中 {{waiting}} 个等待处理",
+    move: "移动工作台宠物 {{name}}",
+    openTask: "打开任务 {{name}}，{{status}}",
+    status: {
+      completed: "任务已完成",
+      running: "任务运行中",
+      waiting: "任务等待处理",
+    },
+  },
   actions: {
     cancel: "取消",
     close: "关闭",

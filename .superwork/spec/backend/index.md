@@ -17,3 +17,5 @@
 - 确认变更所属层，并沿 `protocol -> core -> provider/server -> client` 检查影响。
 - 路由仅处理输入输出适配，领域规则留在 `packages/core`。
 - 数据库和 Codex 进程生命周期必须有明确启动、失败和清理路径。
+- `turn/start` 在调用 Provider 前捕获事件 checkpoint，并将 checkpoint 与 Turn 作为同一幂等结果返回。
+- 宠物目录发现、清单校验和资产下载由 Provider 负责；Server 仅暴露 `/v1/pets`、资产交付和全局设置持久化。

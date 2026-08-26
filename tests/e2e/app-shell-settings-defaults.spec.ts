@@ -22,6 +22,7 @@ test("uses global defaults throughout a new task composer", async ({ page }) => 
           fastMode: false,
           followUpBehavior: "queue",
           model: "gpt-5.6-terra",
+          pet: { enabled: false, selectedPetId: null },
           reasoningEffort: "medium",
           sandboxMode: "danger-full-access",
         },

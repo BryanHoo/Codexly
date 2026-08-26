@@ -17,7 +17,8 @@ describe("Workbench 加载边界", () => {
 
     expect(workbenchRoute).toContain("export const workbenchLayoutRoute = createRoute");
     expect(workbenchRoute).toContain("<WorkbenchBackground>");
-    expect(workbenchRoute).toContain("<Outlet />");
+    expect(workbenchRoute).toContain("<WorkbenchRoute");
+    expect(workbenchRoute).not.toContain("<Outlet />");
     expect(workbenchShell).not.toContain("WorkbenchBackground");
     expect(router).toContain("workbenchLayoutRoute.addChildren([");
 
@@ -29,6 +30,7 @@ describe("Workbench 加载边界", () => {
     ]) {
       const source = readWebSource(`app/routes/${routeFile}`);
       expect(source).toContain("getParentRoute: () => workbenchLayoutRoute");
+      expect(source).not.toContain("<WorkbenchRoute");
     }
   });
 

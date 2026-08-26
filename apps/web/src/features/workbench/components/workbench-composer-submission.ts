@@ -346,7 +346,14 @@ export function createComposerSubmission({
       if (taskId === undefined) {
         const startedTask = result.createdTask ?? pendingTask;
         if (startedTask !== undefined) {
-          onTaskStarted(startedTask, result.turn, input, turnOptions, messageAttachments);
+          onTaskStarted(
+            startedTask,
+            result.turn,
+            input,
+            turnOptions,
+            messageAttachments,
+            result.checkpoint,
+          );
         }
       }
       return true;

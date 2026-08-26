@@ -44,6 +44,7 @@ import { saveGlobalSettingsDraft } from "./global-settings-save.js";
 import { GlobalSettingsAbout } from "./global-settings-about.js";
 import { GlobalSettingsAccess } from "./global-settings-access.js";
 import { ProviderConnectionPanel } from "../../provider-connection/components/provider-connection-panel.js";
+import { GlobalSettingsPets } from "../../pets/components/global-settings-pets.js";
 import { useWorkbenchBackgroundDraft } from "./use-workbench-background-draft.js";
 export { resolveGlobalSettingsModel } from "./global-settings-model.js";
 
@@ -288,6 +289,15 @@ export function GlobalSettingsDialog({
                     onThemeChange={setTheme}
                     theme={theme}
                   />
+
+                  {activeSection === "pets" ? (
+                    <GlobalSettingsPets
+                      onChange={(pet) => {
+                        setDraft((current) => ({ ...current, pet }));
+                      }}
+                      settings={draft.pet}
+                    />
+                  ) : null}
 
                   {accessMode === "lan" ? (
                     <GlobalSettingsAccess

@@ -1,4 +1,7 @@
-import { GLOBAL_SETTINGS_MIGRATIONS } from "./global-settings-persistence.js";
+import {
+  GLOBAL_SETTINGS_MIGRATIONS,
+  WORKBENCH_PET_SETTINGS_MIGRATION,
+} from "./global-settings-persistence.js";
 import { PROVIDER_CONNECTION_MIGRATION } from "./provider-connection-persistence.js";
 
 export type SqliteMigration = Readonly<{
@@ -394,4 +397,5 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
     `,
     version: 22,
   },
+  WORKBENCH_PET_SETTINGS_MIGRATION,
 ];

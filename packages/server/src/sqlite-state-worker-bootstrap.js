@@ -68,6 +68,7 @@ export function globalSettingsFromRow(row) {
     fastMode: row.fast_mode === 1,
     followUpBehavior: row.follow_up_behavior,
     model: row.model,
+    pet: { enabled: row.pet_enabled === 1, selectedPetId: row.pet_id },
     reasoningEffort: row.reasoning_effort,
     sandboxMode: row.sandbox_mode,
   };
@@ -187,6 +188,16 @@ export function ensureGlobalSettingsCompatibility(database) {
         UPDATE global_settings
         SET commit_message_reasoning_effort = reasoning_effort;
       `);
+    }
+    if (!columns.has("pet_enabled")) {
+      database.exec(`
+        ALTER TABLE global_settings
+          ADD COLUMN pet_enabled INTEGER NOT NULL DEFAULT 0
+          CHECK (pet_enabled IN (0, 1));
+      `);
+    }
+    if (!columns.has("pet_id")) {
+      database.exec("ALTER TABLE global_settings ADD COLUMN pet_id TEXT;");
     }
   })();
 }

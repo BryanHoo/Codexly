@@ -141,7 +141,7 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
       },
     },
     async (request, reply) => {
-      const turn = await runIdempotent(
+      const started = await runIdempotent(
         ["start-turn", request.params.projectId, request.params.taskId],
         request.headers["idempotency-key"],
         request.body,
@@ -168,6 +168,8 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
             request.params.taskId,
             turnOptions,
           );
+          // 先固定事件起点，首轮启动期间产生的事件由前端从该位置完整回放。
+          const checkpoint = context.eventStream.checkpoint;
           const turn = await context.provider.startTurn(
             request.params.taskId,
             providerInput,
@@ -179,10 +181,14 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
             attachmentIds,
             turn.status === "running" ? turn.id : undefined,
           );
-          return turn;
+          return { checkpoint, turn };
         },
       );
-      return reply.code(201).send({ taskId: request.params.taskId, turn });
+      return reply.code(201).send({
+        checkpoint: started.checkpoint,
+        taskId: request.params.taskId,
+        turn: started.turn,
+      });
     },
   );
 

@@ -10,6 +10,7 @@ export {
   buildProjectAttachmentUrl,
   buildProjectImageFileUrl,
   buildTaskAttachmentUrl,
+  buildWorkbenchPetAssetUrl,
   CodexlyClient,
   CodexlyHttpError,
   CodexlyMutationError,

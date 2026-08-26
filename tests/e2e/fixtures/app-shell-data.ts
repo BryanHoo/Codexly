@@ -42,6 +42,23 @@ export const models = [
   },
 ];
 
+export const workbenchPet = {
+  animations: {
+    idle: {
+      fallback: "idle",
+      frames: [{ durationMs: 1_000, spriteIndex: 0 }],
+      loopStart: 0,
+    },
+  },
+  assetId: "c".repeat(64),
+  availability: "downloadable" as "downloadable" | "ready",
+  description: "The original Codex companion",
+  displayName: "Codex",
+  frame: { columns: 1, height: 1, rows: 1, width: 1 },
+  id: "codex",
+  source: "builtin" as const,
+};
+
 export const customModels = [
   {
     defaultReasoningEffort: "medium",

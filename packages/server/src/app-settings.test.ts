@@ -154,6 +154,7 @@ describe("server task settings", () => {
     });
     expect(writeProjectDefaults).not.toHaveBeenCalledWith("codexly", {
       model: "gpt-5.6-sol",
+      pet: { enabled: true as const, selectedPetId: "codex" },
       reasoningEffort: "high",
       sandboxMode: "read-only",
     });
@@ -195,6 +196,7 @@ describe("server task settings", () => {
       fastMode: true,
       followUpBehavior: "steer" as const,
       model: "gpt-5.6-sol",
+      pet: { enabled: true as const, selectedPetId: "codex" },
       reasoningEffort: "high",
       sandboxMode: "danger-full-access" as const,
     };
@@ -297,6 +299,7 @@ describe("server task settings", () => {
         fastMode: false,
         followUpBehavior: "queue",
         model: "gpt-5.6-terra",
+        pet: { enabled: false, selectedPetId: null },
         reasoningEffort: "high",
         sandboxMode: "danger-full-access",
       },

@@ -61,6 +61,7 @@ test("converts large pasted text into a submitted file attachment", async ({ pag
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,
@@ -155,6 +156,7 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,

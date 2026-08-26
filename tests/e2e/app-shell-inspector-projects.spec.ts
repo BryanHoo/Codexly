@@ -1,10 +1,4 @@
-import {
-  chooseHostAttachment,
-  expect,
-  projects,
-  taskSnapshot,
-  test,
-} from "./fixtures/app-shell.js";
+import { chooseHostAttachment, expect, projects, test } from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -205,7 +199,7 @@ test("opens and reuses project new chats without creating empty Codex tasks", as
   expect(taskCreationRequests).toEqual([]);
 });
 
-test("shows a newly submitted task and AI reply state before the task snapshot loads", async ({
+test("shows a newly submitted task from the launch checkpoint without reading its snapshot", async ({
   page,
 }) => {
   let taskStartRequestCount = 0;
@@ -229,11 +223,7 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
   const turnStartGate = new Promise<void>((resolve) => {
     releaseTurnStartRequest = resolve;
   });
-  let releaseSnapshotRequest: () => void = () => undefined;
-  let snapshotResponseSent = false;
-  const snapshotGate = new Promise<void>((resolve) => {
-    releaseSnapshotRequest = resolve;
-  });
+  let snapshotRequestCount = 0;
 
   await page.route("**/v1/**", async (route) => {
     const url = new URL(route.request().url());
@@ -249,7 +239,11 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
       await turnStartGate;
       await route.fulfill({
         contentType: "application/json",
-        json: { taskId: createdTask.id, turn: startedTurn },
+        json: {
+          checkpoint: { sequence: 0, sessionId: "e2e-session" },
+          taskId: createdTask.id,
+          turn: startedTurn,
+        },
       });
       return;
     }
@@ -257,25 +251,12 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
       url.pathname === `/v1/projects/codexly/tasks/${createdTask.id}` &&
       route.request().method() === "GET"
     ) {
-      await snapshotGate;
+      snapshotRequestCount += 1;
       await route.fulfill({
         contentType: "application/json",
-        json: {
-          checkpoint: { sequence: 0, sessionId: "e2e-session" },
-          snapshot: {
-            ...createdTask,
-            contextUsage: null,
-            goal: null,
-            plan: null,
-            pendingRequests: [],
-            settings: taskSnapshot.settings,
-            status: "running",
-            turns: [startedTurn],
-            turnsNextCursor: null,
-          },
-        },
+        json: { error: "New task snapshot must use the launch checkpoint" },
+        status: 500,
       });
-      snapshotResponseSent = true;
       return;
     }
     await route.fallback();
@@ -304,12 +285,12 @@ test("shows a newly submitted task and AI reply state before the task snapshot l
   await expect(timelineMessages.nth(0)).toContainText("你好");
   await expect(timelineMessages.nth(1)).toContainText("正在运行");
   await expect(main.locator("[data-turn-processing-time]").last()).toBeVisible();
+  await expect(main.getByText("无法加载任务历史", { exact: true })).toHaveCount(0);
+  expect(snapshotRequestCount).toBe(0);
   await expect(runningTaskLink.getByRole("status", { name: "任务运行中" })).toBeVisible();
   await expect(runningTaskLink.locator(".task-age")).toHaveCount(0);
   await expect(main.getByText(createdTask.id, { exact: true })).toHaveCount(0);
 
-  releaseSnapshotRequest();
-  await expect.poll(() => snapshotResponseSent).toBe(true);
   // 运行中 Snapshot 尚未落入用户 Item 时，已提交消息也不能从 Timeline 消失。
   await expect(timelineMessages.nth(0)).toContainText("你好");
   await expect(timelineMessages.nth(1)).toContainText("正在运行");

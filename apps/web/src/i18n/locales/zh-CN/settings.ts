@@ -134,6 +134,19 @@ export const settings = {
     title: "连接 Codex 模型服务",
     waiting: "等待浏览器登录",
   },
+  pets: {
+    availability: {
+      downloadable: "需要下载",
+      ready: "已就绪",
+    },
+    enabled: "启用工作台宠物",
+    errors: {
+      load: "无法加载宠物资源，请重试",
+    },
+    loading: "正在加载宠物资源",
+    refresh: "刷新列表",
+    selectionLabel: "选择工作台宠物",
+  },
   sandbox: {
     dangerFullAccess: "完全访问",
     readOnly: "只读",
@@ -146,6 +159,7 @@ export const settings = {
     appearance: "基础设置",
     commit: "提交消息",
     integration: "应用集成",
+    pets: "工作台宠物",
     provider: "模型服务",
   },
   title: "全局设置",

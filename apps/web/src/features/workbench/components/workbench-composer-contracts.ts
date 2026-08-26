@@ -10,6 +10,7 @@ import type {
   AgentTaskSettings,
   AgentTurn,
   AgentTurnOptions,
+  EventCheckpoint,
   ProjectGitStatus,
   ProjectFileSearchEntry,
   ProjectRoot,
@@ -93,6 +94,7 @@ export type WorkbenchComposerProps = Readonly<{
     input?: AgentPromptInput,
     settings?: AgentTaskSettings,
     messageAttachments?: readonly AgentMessageAttachment[],
+    checkpoint?: EventCheckpoint,
   ) => void;
   projectId: string;
   projectPathOpenDisabled: boolean;

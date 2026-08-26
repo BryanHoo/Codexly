@@ -1,4 +1,5 @@
-import { Outlet, createRoute } from "@tanstack/react-router";
+import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
+import { createRoute, useRouterState } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 
 import { useTranslation } from "../../i18n/i18n.js";
@@ -13,10 +14,26 @@ export const workbenchLayoutRoute = createRoute({
 });
 
 function WorkbenchLayout() {
-  // 背景归属共同父路由，子路由切换时保留图片 DOM、加载状态与 Object URL。
+  const routeParams = useRouterState({
+    select: (state) => {
+      const params = state.matches.at(-1)?.params;
+      return {
+        projectId: params !== undefined && "projectId" in params ? params.projectId : undefined,
+        taskId: params !== undefined && "taskId" in params ? params.taskId : undefined,
+      };
+    },
+  });
+  const projectId = routeParams.projectId ?? TEMPORARY_TASK_SCOPE_ID;
+  const temporary = routeParams.projectId === undefined;
+
+  // Shell 与背景都归属共同父路由，切换 Task 或新建任务时保留侧栏和面板布局。
   return (
     <WorkbenchBackground>
-      <Outlet />
+      <WorkbenchRoute
+        projectId={projectId}
+        temporary={temporary}
+        {...(routeParams.taskId === undefined ? {} : { taskId: routeParams.taskId })}
+      />
     </WorkbenchBackground>
   );
 }

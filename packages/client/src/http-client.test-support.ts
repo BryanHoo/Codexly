@@ -33,6 +33,7 @@ export const globalSettings = {
   defaultOpenAppId: "visual-studio-code" as const,
   fastMode: false,
   followUpBehavior: "queue" as const,
+  pet: { enabled: false as const, selectedPetId: null },
 };
 
 export const modelPage = {

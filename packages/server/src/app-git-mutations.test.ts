@@ -41,6 +41,7 @@ describe("server Git mutations", () => {
       fastMode: false,
       followUpBehavior: "queue",
       model: "gpt-5.6-sol",
+      pet: { enabled: false, selectedPetId: null },
       reasoningEffort: "high",
       sandboxMode: "workspace-write",
     });

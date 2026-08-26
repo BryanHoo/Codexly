@@ -9,13 +9,16 @@ import type {
   AgentSettingsRepository,
   ProjectProjectionStore,
   ProjectRepository,
+  WorkbenchPetProvider,
 } from "@codexly/core";
 import {
   checkCodexVersion,
   CodexProjectRepository,
   createCodexRuntimeProvider,
+  createCodexWorkbenchPetProvider,
   locateCodexBinary,
   startCodexAppServer,
+  type CreateCodexWorkbenchPetProviderOptions,
   type CodexBinary,
   type CodexProcessExit,
   type CodexRpcClient,
@@ -91,6 +94,7 @@ export interface CliDependencies {
     client: CodexRpcClient;
     projection: ProjectProjectionStore;
   }) => CliManagedProjectRepository;
+  createPetProvider: (input: CreateCodexWorkbenchPetProviderOptions) => WorkbenchPetProvider;
   createStateRepository: (databasePath: string) => Promise<CliManagedStateRepository>;
   createRuntimeProvider: (
     input: CreateRuntimeProviderInput,
@@ -125,6 +129,7 @@ const defaultDependencies: CliDependencies = {
   confirmAppUpdate: confirmTerminalAppUpdate,
   createProjectRepository: ({ client, projection }) =>
     new CodexProjectRepository(client, projection),
+  createPetProvider: createCodexWorkbenchPetProvider,
   createStateRepository: (databasePath) => SqliteStateRepository.open(databasePath),
   createRuntimeProvider: createCodexRuntimeProvider,
   createServer: async (input) => {
@@ -364,6 +369,7 @@ async function runStart(
     const provider = await dependencies.createRuntimeProvider({
       client: runtime.client,
     });
+    const petProvider = dependencies.createPetProvider({ codexHome });
     const appUpdateService = createAppUpdateService({
       appVersion: dependencies.appVersion,
       codexVersion: runtime.version.version,
@@ -374,6 +380,7 @@ async function runStart(
       projectRepository,
       providerConnectionRepository: stateRepository,
       provider,
+      petProvider,
       installAppUpdate: appUpdateService.install,
       readAppInfo: appUpdateService.read,
       queueRepository: stateRepository,

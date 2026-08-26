@@ -11,6 +11,8 @@ import {
   InstallAppUpdateResponseSchema,
   ConfigureCustomProviderResponseSchema,
   StartOfficialProviderLoginResponseSchema,
+  WorkbenchPetCatalogResponseSchema,
+  WorkbenchPetDownloadResponseSchema,
   TEMPORARY_TASK_API_PATH,
   TEMPORARY_TASK_SCOPE_ID,
   type AccessStatusResponse,
@@ -30,6 +32,8 @@ import {
   type PendingRequest,
   type ResolvePendingRequestRequest,
   type StartOfficialProviderLoginResponse,
+  type WorkbenchPetCatalogResponse,
+  type WorkbenchPetDownloadResponse,
 } from "@codexly/protocol";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
@@ -169,6 +173,10 @@ export function buildProjectAttachmentUrl(
   return `${baseUrl.replace(/\/$/u, "")}${projectPath(projectId)}/attachments/${encodeURIComponent(attachmentId)}`;
 }
 
+export function buildWorkbenchPetAssetUrl(assetId: string, baseUrl = ""): string {
+  return `${baseUrl.replace(/\/$/u, "")}/v1/pets/assets/${encodeURIComponent(assetId)}`;
+}
+
 export class CodexlyTransport {
   protected readonly baseUrl: string;
   protected readonly fetchImplementation: typeof globalThis.fetch;
@@ -305,6 +313,22 @@ export class CodexlyTransport {
 
   public async getGlobalSettings(options: ReadOptions = {}): Promise<AgentGlobalSettingsResponse> {
     return this.read("/v1/settings", AgentGlobalSettingsResponseSchema, options);
+  }
+
+  public async listWorkbenchPets(options: ReadOptions = {}): Promise<WorkbenchPetCatalogResponse> {
+    return this.read("/v1/pets", WorkbenchPetCatalogResponseSchema, options);
+  }
+
+  public async downloadWorkbenchPet(
+    petId: string,
+    options: MutationOptions = {},
+  ): Promise<WorkbenchPetDownloadResponse> {
+    return this.mutation(
+      "/v1/pets/downloads",
+      { petId },
+      WorkbenchPetDownloadResponseSchema,
+      options,
+    );
   }
 
   public async updateGlobalSettings(

@@ -126,6 +126,7 @@ describe("SQLite settings state", () => {
       fastMode: true,
       followUpBehavior: "steer" as const,
       model: "gpt-5.6-sol",
+      pet: { enabled: true as const, selectedPetId: "codex" },
       reasoningEffort: "high",
       sandboxMode: "workspace-write" as const,
     };
@@ -160,6 +161,7 @@ describe("SQLite settings state", () => {
       fastMode: false,
       followUpBehavior: "queue" as const,
       model: "gpt-5.6-sol",
+      pet: { enabled: false as const, selectedPetId: null },
       reasoningEffort: "high",
       sandboxMode: "workspace-write" as const,
     };

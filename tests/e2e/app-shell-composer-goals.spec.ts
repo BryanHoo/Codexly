@@ -9,6 +9,7 @@ test("selects, clears, and submits goal mode", async ({ page }) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,
@@ -156,6 +157,7 @@ test("builds a completed plan as a normal development turn", async ({ page }) =>
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,
@@ -221,6 +223,7 @@ test("selects and submits a host file as an attachment", async ({ page }) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,

@@ -60,6 +60,108 @@ body:has(.workbench-background[data-has-image="true"]) {
   transition: none;
 }
 
+.workbench-pet-layer {
+  position: absolute;
+  z-index: 46;
+  contain: layout style paint;
+  inset: 0;
+  pointer-events: none;
+}
+
+.workbench-pet-boundary {
+  position: absolute;
+  inset: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  pointer-events: none;
+}
+
+.workbench-pet-positioner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(80px * 192 / 208);
+  height: 80px;
+  pointer-events: none;
+  transition: opacity var(--ui-motion-fast) var(--ui-ease-standard);
+  will-change: transform;
+}
+
+.workbench-pet-target {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: var(--ui-radius-control);
+  background: transparent;
+  cursor: grab;
+  outline: none;
+  padding: 0;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+
+.workbench-pet-target:focus-visible {
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.workbench-pet-target[data-dragging] {
+  cursor: grabbing;
+}
+
+.workbench-pet-bubbles {
+  --workbench-pet-bubble-height: 2rem;
+
+  position: absolute;
+  right: 0;
+  width: max-content;
+  max-width: min(12rem, calc(100vw - 32px));
+  cursor: default;
+  pointer-events: auto;
+}
+
+.workbench-pet-bubble-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.workbench-pet-bubble-item {
+  position: relative;
+  height: var(--workbench-pet-bubble-height);
+  transition: margin-top var(--ui-motion-fast) var(--ui-ease-standard);
+}
+
+/* 后续气泡压入前一层，只露出自身底部三分之一。 */
+.workbench-pet-bubble-item + .workbench-pet-bubble-item {
+  margin-top: calc(var(--workbench-pet-bubble-height) * -0.6667);
+}
+
+.workbench-pet-positioner:hover .workbench-pet-bubble-item + .workbench-pet-bubble-item,
+.workbench-pet-positioner:focus-within .workbench-pet-bubble-item + .workbench-pet-bubble-item {
+  margin-top: 0.375rem;
+}
+
+.workbench-pet-bubble-button:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.workbench-pet-canvas,
+.workbench-pet-static-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-position: left top;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+@media (max-width: 640px) {
+  .workbench-pet-positioner {
+    width: calc(64px * 192 / 208);
+    height: 64px;
+  }
+}
+
 .workbench-panel-resizer {
   position: absolute;
   z-index: 40;

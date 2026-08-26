@@ -33,7 +33,13 @@ describe("CodexlyClient task mutations", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ task }))
       .mockResolvedValueOnce(jsonResponse({ attachment }))
-      .mockResolvedValueOnce(jsonResponse({ taskId: task.id, turn: runningTurn }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          checkpoint: { sequence: 0, sessionId: "session-1" },
+          taskId: task.id,
+          turn: runningTurn,
+        }),
+      )
       .mockResolvedValueOnce(
         jsonResponse({ status: "accepted", taskId: task.id, turnId: runningTurn.id }),
       )

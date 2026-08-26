@@ -4,6 +4,7 @@ import type {
   AgentRuntimeProvider,
   AgentSettingsRepository,
   ProjectRepository,
+  WorkbenchPetProvider,
 } from "@codexly/core";
 import type { CodexlyAccessOptions } from "@codexly/server";
 
@@ -15,6 +16,7 @@ export interface CreateServerInput {
   installAppUpdate: ReturnType<typeof createAppUpdateService>["install"];
   projectRepository: ProjectRepository;
   provider: AgentRuntimeProvider;
+  petProvider: WorkbenchPetProvider;
   providerConnectionRepository: AgentProviderConnectionRepository;
   queueRepository: AgentQueueRepository;
   readAppInfo: ReturnType<typeof createAppUpdateService>["read"];

@@ -204,6 +204,7 @@ test("recognizes typed Codex skill references before submission", async ({ page 
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,
@@ -254,6 +255,7 @@ test("selects and submits a project file reference from an inline @ mention", as
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,

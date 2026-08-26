@@ -44,3 +44,8 @@ export {
 } from "./jsonl-rpc-client.js";
 export type { RpcOverloadRetryOptions } from "./rpc-overload-retry.js";
 export { CodexProjectRepository } from "./codex-project-repository.js";
+export {
+  CodexWorkbenchPetProvider,
+  createCodexWorkbenchPetProvider,
+  type CreateCodexWorkbenchPetProviderOptions,
+} from "./workbench-pets.js";

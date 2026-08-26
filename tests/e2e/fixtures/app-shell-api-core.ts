@@ -5,6 +5,7 @@ import {
   projectDirectoryListings,
   skills,
   taskSnapshot,
+  workbenchPet,
 } from "./app-shell-data.js";
 import {
   isRequestRecord,
@@ -31,6 +32,16 @@ export async function handleAppShellCoreRoute(
     url.pathname === "/v1/projects/codexly/files/image" ||
     url.pathname === "/v1/temporary/files/image"
   ) {
+    await route.fulfill({
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
+      contentType: "image/png",
+    });
+    return true;
+  }
+  if (/^\/v1\/pets\/assets\/[a-f0-9]{64}$/u.test(url.pathname)) {
     await route.fulfill({
       body: Buffer.from(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
@@ -130,6 +141,15 @@ export async function handleAppShellCoreRoute(
     body = { status: state.providerStatus };
   } else if (url.pathname === "/v1/models") {
     body = { data: state.routedModels, nextCursor: null };
+  } else if (url.pathname === "/v1/pets") {
+    body = {
+      data: [{ ...workbenchPet, availability: state.petReady ? "ready" : "downloadable" }],
+    };
+  } else if (url.pathname === "/v1/pets/downloads" && route.request().method() === "POST") {
+    const request = parseRequestRecord(route.request().postData());
+    if (request["petId"] !== workbenchPet.id) throw new Error("Invalid pet download request");
+    state.petReady = true;
+    body = { data: { ...workbenchPet, availability: "ready" } };
   } else if (url.pathname === "/v1/settings") {
     if (route.request().method() === "PUT") {
       state.globalSettings = parseGlobalSettingsRequest(route.request().postData());
@@ -259,7 +279,11 @@ export async function handleAppShellCoreRoute(
       status: "completed" as const,
     };
     state.temporaryTurns.set(taskId, [...(state.temporaryTurns.get(taskId) ?? []), turn]);
-    body = { taskId, turn };
+    body = {
+      checkpoint: { sequence: 0, sessionId: "e2e-session" },
+      taskId,
+      turn,
+    };
   } else if (temporaryTaskMatch !== null) {
     const taskId = temporaryTaskMatch[1] ?? "";
     const task = state.temporaryTasks.find((item) => item.id === taskId);

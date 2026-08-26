@@ -1,6 +1,7 @@
 import { Type, type Static } from "@sinclair/typebox";
 
 import { AgentReviewTargetSchema, AgentTaskSchema } from "./agent-attachments.js";
+import { EventCheckpointSchema } from "./event-checkpoint.js";
 import {
   AgentMcpServerPageSchema,
   AgentPromptInputSchema,
@@ -154,6 +155,7 @@ export type StartAgentTurnRequest = Readonly<Static<typeof StartAgentTurnRequest
 
 export const StartAgentTurnResponseSchema = Type.Object(
   {
+    checkpoint: EventCheckpointSchema,
     taskId: Type.String({ minLength: 1 }),
     turn: AgentTurnSchema,
   },
@@ -315,6 +317,9 @@ export const AgentMutationErrorCodeSchema = Type.Union([
   Type.Literal("UPDATE_NOT_AVAILABLE"),
   Type.Literal("UPDATE_CHECK_FAILED"),
   Type.Literal("UPDATE_INSTALL_FAILED"),
+  Type.Literal("PET_NOT_FOUND"),
+  Type.Literal("PET_ASSET_INVALID"),
+  Type.Literal("PET_DOWNLOAD_FAILED"),
   Type.Literal("PROVIDER_ERROR"),
 ]);
 

@@ -115,9 +115,8 @@ function createOperations(database) {
              FROM project_defaults WHERE project_id = ?`,
           ),
           readGlobalSettings: database.prepare(
-            `SELECT approval_policy, approvals_reviewer, commit_message_model,
-                  commit_message_prompt, model, reasoning_effort, sandbox_mode,
-                  default_open_app_id, fast_mode, follow_up_behavior
+            `SELECT approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt,
+                  model, reasoning_effort, sandbox_mode, default_open_app_id, fast_mode, follow_up_behavior, pet_enabled, pet_id
            FROM global_settings WHERE id = 1`,
           ),
           readProviderConnection: database.prepare(
@@ -143,10 +142,9 @@ function createOperations(database) {
     `),
           writeGlobalSettings: database.prepare(`
       INSERT INTO global_settings (
-        id, approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt,
-        model, reasoning_effort, sandbox_mode, default_open_app_id, fast_mode,
-        follow_up_behavior, updated_at
-      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt, model,
+        reasoning_effort, sandbox_mode, default_open_app_id, fast_mode, follow_up_behavior, pet_enabled, pet_id, updated_at
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         approval_policy = excluded.approval_policy,
         approvals_reviewer = excluded.approvals_reviewer,
@@ -158,6 +156,7 @@ function createOperations(database) {
         default_open_app_id = excluded.default_open_app_id,
         fast_mode = excluded.fast_mode,
         follow_up_behavior = excluded.follow_up_behavior,
+        pet_enabled = excluded.pet_enabled, pet_id = excluded.pet_id,
         updated_at = excluded.updated_at
     `),
           writeProviderConnection: database.prepare(`
@@ -184,7 +183,6 @@ function createOperations(database) {
         `),
         }
       : undefined;
-
   function requireStatements() {
     if (statements === undefined) {
       throw new Error("SQLite state tables are unavailable");
@@ -426,6 +424,8 @@ function createOperations(database) {
         settings.defaultOpenAppId,
         settings.fastMode ? 1 : 0,
         settings.followUpBehavior,
+        settings.pet.enabled ? 1 : 0,
+        settings.pet.selectedPetId,
         payload.updatedAt,
       );
       return settings;

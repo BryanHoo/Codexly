@@ -142,6 +142,30 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
     .toBe(true);
 });
 
+test("keeps the workbench shell mounted between a task and a new task route", async ({ page }) => {
+  await page.goto("/p/codexly/t/task-1");
+  const shell = page.locator(".workbench-shell");
+  await shell.evaluate((element) => {
+    element.setAttribute("data-e2e-mount-marker", "retained");
+  });
+
+  const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
+  await sidebar.getByRole("button", { name: "在 Codexly 中新建任务" }).click();
+
+  await expect(page).toHaveURL(/\/p\/codexly$/u);
+  await expect(page.locator(".workbench-shell")).toHaveAttribute(
+    "data-e2e-mount-marker",
+    "retained",
+  );
+
+  await page.locator('a[href="/p/codexly/t/task-1"]').first().click();
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/u);
+  await expect(page.locator(".workbench-shell")).toHaveAttribute(
+    "data-e2e-mount-marker",
+    "retained",
+  );
+});
+
 test("scrolls the conversation area to the bottom whenever the active task changes", async ({
   page,
 }) => {
@@ -274,6 +298,7 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,

@@ -123,6 +123,11 @@ function createServerOptions(provider: ReturnType<typeof createCodexRuntimeProvi
       reorder: () => Promise.resolve([project]),
     },
     providerConnectionRepository: stateRepository,
+    petProvider: {
+      ensurePetAsset: () => Promise.reject(new Error("Pet downloads are unavailable")),
+      listPets: () => Promise.resolve([]),
+      openPetAsset: () => Promise.resolve(undefined),
+    },
     provider,
     readAppInfo: () =>
       Promise.resolve({

@@ -40,6 +40,8 @@ const turn: Awaited<ReturnType<ComposerSubmissionOptions["client"]["startTurn"]>
   status: "running",
 };
 
+const checkpoint = { sequence: 12, sessionId: "session-created" } as const;
+
 function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
   const promptContent = overrides.promptContent ?? createPromptSkillContent("提交内容");
   const setIsSubmitting = vi.fn();
@@ -50,7 +52,7 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
     Promise.resolve({ task }),
   );
   const startTurn = vi.fn<ComposerSubmissionOptions["client"]["startTurn"]>(() =>
-    Promise.resolve({ taskId: task.id, turn }),
+    Promise.resolve({ checkpoint, taskId: task.id, turn }),
   );
   const steerTurn = vi.fn<ComposerSubmissionOptions["client"]["steerTurn"]>(() =>
     Promise.resolve({ status: "accepted", taskId: "task-1", turnId: "turn-1" }),
@@ -234,6 +236,7 @@ describe("createComposerSubmission", () => {
       expect.any(Object),
       settings,
       [],
+      checkpoint,
     );
     expect(harness.controller.setSubmittedTurnState).toHaveBeenCalledWith({
       scope: "codexly:draft",

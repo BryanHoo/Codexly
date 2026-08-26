@@ -300,7 +300,14 @@ describe("project agent input protocol", () => {
         },
       }),
     ).toBe(false);
-    expect(Value.Check(StartAgentTurnResponseSchema, { taskId: task.id, turn })).toBe(true);
+    expect(Value.Check(StartAgentTurnResponseSchema, { taskId: task.id, turn })).toBe(false);
+    expect(
+      Value.Check(StartAgentTurnResponseSchema, {
+        checkpoint: { sequence: 12, sessionId: "session-1" },
+        taskId: task.id,
+        turn,
+      }),
+    ).toBe(true);
     expect(Value.Check(SteerAgentTurnRequestSchema, { input: prompt, taskId: task.id })).toBe(true);
     expect(
       Value.Check(SteerAgentTurnResponseSchema, {

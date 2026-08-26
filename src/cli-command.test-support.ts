@@ -236,6 +236,11 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
       lifecycle.push("projects.create");
       return projectRepository;
     }),
+    createPetProvider: vi.fn(() => ({
+      ensurePetAsset: vi.fn(() => Promise.reject(new Error("Pet downloads are unavailable"))),
+      listPets: vi.fn(() => Promise.resolve([])),
+      openPetAsset: vi.fn(() => Promise.resolve(undefined)),
+    })),
     createStateRepository: vi.fn(() => Promise.resolve(stateRepository)),
     createRuntimeProvider: vi.fn(() => {
       lifecycle.push("provider.create");

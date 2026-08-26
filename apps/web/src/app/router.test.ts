@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { projectRoute } from "./routes/project-route.js";
 import { taskRoute } from "./routes/task-route.js";
+import { workbenchLayoutRoute } from "./routes/workbench-route.js";
 
 describe("workbench route code splitting", () => {
   it.each([
     ["project", projectRoute],
     ["task", taskRoute],
   ])("routes the %s page through the shared workbench boundary", (_, route) => {
-    // 路由参数映射保持静态，工作台实现统一交给共享 Suspense 边界加载。
-    expect(route.options.component).toBeTypeOf("function");
+    // 叶子路由只负责参数匹配，共同父路由持有唯一 Shell，避免切换时重挂载工作台。
+    expect(workbenchLayoutRoute.options.component).toBeTypeOf("function");
+    expect(route.options.component).toBeUndefined();
     expect(route.lazyFn).toBeUndefined();
   });
 });

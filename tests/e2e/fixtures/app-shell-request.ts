@@ -65,12 +65,17 @@ export function parseGlobalSettingsRequest(requestBody: string | null) {
   const defaultOpenAppId = value["defaultOpenAppId"];
   const fastMode = value["fastMode"];
   const followUpBehavior = value["followUpBehavior"];
+  const pet = value["pet"];
   if (
     typeof commitMessageModel !== "string" ||
     typeof commitMessagePrompt !== "string" ||
     typeof fastMode !== "boolean" ||
     (followUpBehavior !== "queue" && followUpBehavior !== "steer") ||
-    (defaultOpenAppId !== null && typeof defaultOpenAppId !== "string")
+    (defaultOpenAppId !== null && typeof defaultOpenAppId !== "string") ||
+    !isRequestRecord(pet) ||
+    typeof pet["enabled"] !== "boolean" ||
+    (pet["selectedPetId"] !== null && typeof pet["selectedPetId"] !== "string") ||
+    (pet["enabled"] && typeof pet["selectedPetId"] !== "string")
   ) {
     throw new Error("Invalid global settings request");
   }
@@ -83,6 +88,7 @@ export function parseGlobalSettingsRequest(requestBody: string | null) {
     defaultOpenAppId,
     fastMode,
     followUpBehavior: normalizedFollowUpBehavior,
+    pet: { enabled: pet["enabled"], selectedPetId: pet["selectedPetId"] },
   };
 }
 

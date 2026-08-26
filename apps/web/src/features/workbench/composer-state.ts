@@ -8,6 +8,7 @@ import type {
   AgentTaskSnapshot,
   AgentTurn,
   AgentTurnOptions,
+  EventCheckpoint,
 } from "@codexly/protocol";
 import { v4 as createUuid } from "uuid";
 
@@ -167,7 +168,14 @@ type StartPromptTurnOptions = Readonly<{
 export async function startPromptTurn(
   client: Pick<CodexlyMutationClient, "startTask" | "startTurn">,
   options: StartPromptTurnOptions,
-): Promise<Readonly<{ createdTask?: AgentTask; taskId: string; turn: AgentTurn }>> {
+): Promise<
+  Readonly<{
+    checkpoint: EventCheckpoint;
+    createdTask?: AgentTask;
+    taskId: string;
+    turn: AgentTurn;
+  }>
+> {
   let taskId = options.taskId;
   let createdTask: AgentTask | undefined;
   if (taskId === undefined) {
@@ -192,6 +200,7 @@ export async function startPromptTurn(
     },
   );
   return {
+    checkpoint: response.checkpoint,
     ...(createdTask === undefined ? {} : { createdTask }),
     taskId,
     turn: response.turn,

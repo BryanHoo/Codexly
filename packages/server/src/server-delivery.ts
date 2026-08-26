@@ -164,7 +164,9 @@ export async function configureServerDelivery(
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
     });
-    if (request.url.startsWith("/v1/")) {
+    if (request.url.startsWith("/v1/pets/assets/")) {
+      reply.header("Cache-Control", "private, no-cache");
+    } else if (request.url.startsWith("/v1/")) {
       reply.header("Cache-Control", "no-store");
     }
     return payload;

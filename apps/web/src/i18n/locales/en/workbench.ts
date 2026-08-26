@@ -1,4 +1,15 @@
 export const workbench = {
+  pet: {
+    activeTasks: "Active tasks",
+    activitySummary: "{{count}} active tasks, {{waiting}} waiting for attention",
+    move: "Move workbench pet {{name}}",
+    openTask: "Open task {{name}}, {{status}}",
+    status: {
+      completed: "Task completed",
+      running: "Task running",
+      waiting: "Task waiting for attention",
+    },
+  },
   actions: {
     cancel: "Cancel",
     close: "Close",

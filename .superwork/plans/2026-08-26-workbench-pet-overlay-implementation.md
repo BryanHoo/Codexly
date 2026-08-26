@@ -9,11 +9,14 @@
 **Files:**
 
 - Create: `packages/protocol/src/workbench-pets.ts`
+- Create: `packages/protocol/src/workbench-pets.test.ts`
 - Modify: `packages/protocol/src/project-settings.ts`
 - Modify: `packages/protocol/src/index.ts`
 - Modify: `packages/core/src/agent-provider.ts`
 - Modify: `packages/core/src/index.ts`
 - Create: `packages/provider-codex/src/workbench-pets.ts`
+- Create: `packages/provider-codex/src/workbench-pet-catalog.ts`
+- Create: `packages/provider-codex/src/workbench-pet-manifest.ts`
 - Create: `packages/provider-codex/src/workbench-pets.test.ts`
 - Modify: `packages/provider-codex/src/index.ts`
 - Modify: `packages/provider-codex/package.json`
@@ -25,13 +28,13 @@
 - 添加严格 TypeBox 宠物目录、动画、下载请求和全局设置契约。
 - 实现 Codex `0.149.0` 内置目录、默认动画、自定义/旧版资源发现、安全校验、按需下载、并发去重与资源反查。
 
-**Proof:** `pnpm exec vitest run packages/protocol/src/project-settings.test.ts packages/provider-codex/src/workbench-pets.test.ts`
+**Proof:** `pnpm exec vitest run packages/protocol/src/workbench-pets.test.ts packages/provider-codex/src/workbench-pets.test.ts`
 
 **Stop Conditions:**
 
 - 若无法使用成熟 WebP 尺寸解析库，或本机 Codex `rust-v0.149.0` 元数据与已确认设计冲突，则停止。
 
-- [ ] **Task Status:** pending
+- [x] **Task Status:** completed
 
 ### Task 2: 交付 Server、SQLite 与 Client 契约
 
@@ -64,7 +67,7 @@
 
 - 若现有 Fastify 认证或 SQLite Worker 边界无法承载该契约而需要独立基础设施，则停止并修订计划。
 
-- [ ] **Task Status:** pending
+- [x] **Task Status:** completed
 
 ### Task 3: 实现全局设置宠物区段
 
@@ -91,7 +94,7 @@
 
 - 若现有设置保存边界无法保证草稿原子应用，则停止并修订设置数据流。
 
-- [ ] **Task Status:** pending
+- [x] **Task Status:** completed
 
 ### Task 4: 实现 Overlay 动画、渲染与位置交互
 
@@ -120,7 +123,7 @@
 
 - 若工作台容器无法提供稳定定位边界，或现有层级 Token 与设计 `z-index` 冲突，则停止并修订挂载点。
 
-- [ ] **Task Status:** pending
+- [x] **Task Status:** completed
 
 ### Task 5: 派生宠物状态与目录气泡
 
@@ -143,7 +146,7 @@
 
 - 若现有任务活动缺失设计要求的等待或 attention 信号，则停止并记录真实状态契约差异。
 
-- [ ] **Task Status:** pending
+- [x] **Task Status:** completed
 
 ### Task 6: 完成端到端与性能验收
 
@@ -164,4 +167,4 @@
 
 - 若端到端测试需要真实 CDN 或修改用户 `CODEX_HOME`，则改用隔离 Fixture，不允许直接操作用户资源。
 
-- [ ] **Task Status:** pending
+- [x] **Task Status:** completed

@@ -1,5 +1,8 @@
 import { Type, type Static, type TProperties, type TSchema } from "@sinclair/typebox";
 
+import { EventCheckpointSchema } from "./event-checkpoint.js";
+export { EventCheckpointSchema, type EventCheckpoint } from "./event-checkpoint.js";
+
 import {
   ActivePendingRequestSchema,
   AgentContextUsageSchema,
@@ -357,13 +360,6 @@ export const EventStreamMessageSchema = Type.Union([
 ]);
 
 export type EventStreamMessage = Readonly<Static<typeof EventStreamMessageSchema>>;
-
-export const EventCheckpointSchema = Type.Object(
-  { sequence: SequenceSchema, sessionId: SessionIdSchema },
-  { additionalProperties: false },
-);
-
-export type EventCheckpoint = Readonly<Static<typeof EventCheckpointSchema>>;
 
 export const AgentTaskSnapshotResponseSchema = Type.Object(
   {

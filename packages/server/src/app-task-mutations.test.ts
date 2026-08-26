@@ -74,6 +74,7 @@ describe("server task mutations", () => {
       fastMode: true,
       followUpBehavior: "queue",
       model: "gpt-5.6-sol",
+      pet: { enabled: false, selectedPetId: null },
       reasoningEffort: "high",
       sandboxMode: "workspace-write",
     });
@@ -92,7 +93,6 @@ describe("server task mutations", () => {
       reasoningEffort: "high",
       sandboxMode: "danger-full-access",
     });
-
     const created = await app.inject({
       headers: { "idempotency-key": "new-task-defaults" },
       method: "POST",
@@ -143,7 +143,11 @@ describe("server task mutations", () => {
       payload: turnRequest("继续实现"),
       url: "/v1/projects/codexly/tasks/task-1/turns",
     });
-    const turnBody = turn.json<{ taskId: string; turn: AgentTurn }>();
+    const turnBody = turn.json<{
+      checkpoint: { sequence: number; sessionId: string };
+      taskId: string;
+      turn: AgentTurn;
+    }>();
     readTask.mockResolvedValueOnce({
       ...snapshot,
       status: "running",
@@ -174,6 +178,8 @@ describe("server task mutations", () => {
     expect(repeated.json()).toEqual(created.json());
     expect(startTask).toHaveBeenCalledTimes(1);
     expect(turn.statusCode).toBe(201);
+    expect(turnBody.checkpoint.sequence).toBe(0);
+    expect(turnBody.checkpoint.sessionId).not.toHaveLength(0);
     expect(turn.json()).toMatchObject({ taskId: "task-1", turn: { id: "turn-1" } });
     expect(startTurn).toHaveBeenCalledWith(
       "task-1",
@@ -456,6 +462,11 @@ describe("server task mutations", () => {
         reorder: () => Promise.resolve([project, otherProject]),
       },
       providerConnectionRepository: stateRepository,
+      petProvider: {
+        ensurePetAsset: () => Promise.reject(new Error("Pet downloads are unavailable")),
+        listPets: () => Promise.resolve([]),
+        openPetAsset: () => Promise.resolve(undefined),
+      },
       provider: runtimeProvider,
       temporaryWorkspace: temporaryProject.rootPath,
       readAppInfo: vi.fn(() =>

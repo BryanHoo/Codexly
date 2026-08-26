@@ -56,6 +56,7 @@ export function createAppShellApiState(options: Readonly<{ providerConnected?: b
     fastMode: false,
     followUpBehavior: "queue" as "queue" | "steer",
     model: "gpt-5.6-sol",
+    pet: { enabled: false as boolean, selectedPetId: null as string | null },
     reasoningEffort: "high",
     sandboxMode: "workspace-write",
   };
@@ -75,6 +76,7 @@ export function createAppShellApiState(options: Readonly<{ providerConnected?: b
   const nextQueuedSubmission = 1;
   const queuedSubmissionsByTask = new Map<string, FixtureQueuedSubmission[]>();
   return {
+    petReady: false,
     routedProjects,
     routedTasks,
     temporaryTasks,

@@ -55,6 +55,11 @@
     "maxRenderMs": 1000,
     "maxTurnCompletionMs": 250
   },
+  "petActivity": {
+    "directories": 32,
+    "maxDeriveMs": 100,
+    "tasks": 10000
+  },
   "slowWebSocket": {
     "maxDispatchMs": 500,
     "messages": 10000

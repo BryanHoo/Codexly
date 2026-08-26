@@ -23,6 +23,10 @@ export {
   type PendingRequestResolutionErrorCode,
   type ResolvePendingRequestInput,
   type StartAgentTaskOptions,
+  type WorkbenchPetAsset,
+  type WorkbenchPetProvider,
+  WorkbenchPetProviderError,
+  type WorkbenchPetProviderErrorCode,
 } from "./agent-provider.js";
 export {
   type AgentQueueRecord,

@@ -42,6 +42,7 @@ import { registerEventRoutes } from "./routes/event-routes.js";
 import { registerAccessRoutes } from "./routes/access-routes.js";
 import { registerProjectRoutes } from "./routes/project-routes.js";
 import { registerProviderConnectionRoutes } from "./routes/provider-connection-routes.js";
+import { registerPetRoutes } from "./routes/pet-routes.js";
 import { registerRuntimeRoutes } from "./routes/runtime-routes.js";
 import { registerTaskRoutes } from "./routes/task-routes.js";
 import { registerTurnRoutes } from "./routes/turn-routes.js";
@@ -254,6 +255,7 @@ export async function createCodexlyServer(
       defaultOpenAppId: stored?.defaultOpenAppId ?? null,
       fastMode: stored?.fastMode ?? false,
       followUpBehavior: stored?.followUpBehavior ?? "queue",
+      pet: stored?.pet ?? { enabled: false, selectedPetId: null },
       ...effectiveModel,
     };
   };
@@ -358,6 +360,7 @@ export async function createCodexlyServer(
     projectOpenService,
     projectRepository: options.projectRepository,
     provider: options.provider,
+    petProvider: options.petProvider,
     providerConnectionRepository: options.providerConnectionRepository,
     readAppInfo: options.readAppInfo,
     readEffectiveGlobalSettings,
@@ -399,6 +402,7 @@ export async function createCodexlyServer(
   });
   await app.register(registerRuntimeRoutes, routeContext);
   await app.register(registerProviderConnectionRoutes, routeContext);
+  await app.register(registerPetRoutes, routeContext);
   await app.register(registerProjectRoutes, routeContext);
   await app.register(registerTaskRoutes, routeContext);
   await app.register(registerTurnRoutes, routeContext);

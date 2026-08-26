@@ -53,6 +53,7 @@ export function createFallbackSettings(models: readonly AgentModel[]): AgentGlob
     fastMode: false,
     followUpBehavior: "queue",
     model: model?.id ?? "",
+    pet: { enabled: false, selectedPetId: null },
     reasoningEffort: model?.defaultReasoningEffort ?? "",
     sandboxMode: "workspace-write",
   };

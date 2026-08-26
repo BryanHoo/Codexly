@@ -5,6 +5,7 @@ export {
   buildProjectAttachmentUrl,
   buildProjectImageFileUrl,
   buildTaskAttachmentUrl,
+  buildWorkbenchPetAssetUrl,
   type AgentAttachmentUploadInput,
   type CodexlyClientOptions,
   type CodexlyRequestTimeouts,

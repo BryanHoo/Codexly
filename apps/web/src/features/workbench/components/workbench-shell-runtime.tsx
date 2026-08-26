@@ -2,8 +2,10 @@ import type {
   AgentMessageAttachment,
   AgentPromptInput,
   AgentTask,
+  AgentTaskSnapshot,
   AgentTaskSettings,
   AgentTurn,
+  EventCheckpoint,
   ProjectOpenAppId,
 } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -66,6 +68,7 @@ export function taskLaunchQueryKey(projectId: string, taskId: string) {
 }
 
 export type TaskLaunchState = Readonly<{
+  checkpoint: EventCheckpoint;
   input: AgentPromptInput;
   messageAttachments: readonly AgentMessageAttachment[];
   settings: AgentTaskSettings;
@@ -73,6 +76,25 @@ export type TaskLaunchState = Readonly<{
   task: AgentTask;
   turn: AgentTurn;
 }>;
+
+export function createTaskLaunchSnapshot(taskLaunchState: TaskLaunchState): AgentTaskSnapshot {
+  const snapshot = mergeSubmittedPromptIntoSnapshot(
+    {
+      ...taskLaunchState.task,
+      contextUsage: null,
+      goal: null,
+      plan: null,
+      pendingRequests: [],
+      settings: taskLaunchState.settings,
+      status: "running",
+      turns: [taskLaunchState.turn],
+      turnsNextCursor: null,
+    },
+    taskLaunchState.turn,
+    { ...taskLaunchState.input, messageAttachments: taskLaunchState.messageAttachments },
+  );
+  return { ...snapshot, pendingRequests: [] };
+}
 
 export type SubmittedPromptState = Readonly<{
   input: AgentPromptInput;
@@ -235,30 +257,13 @@ export function useWorkbenchShellRuntime({
       }
     },
   });
-  const runtime = useTaskRuntime(projectId, taskId, projectRuntime);
   const taskLaunchState =
     taskId === undefined
       ? undefined
       : queryClient.getQueryData<TaskLaunchState>(taskLaunchQueryKey(projectId, taskId));
+  const runtime = useTaskRuntime(projectId, taskId, projectRuntime);
   const startingSnapshot = useMemo<RuntimeTaskSnapshot | undefined>(
-    () =>
-      taskLaunchState === undefined
-        ? undefined
-        : mergeSubmittedPromptIntoSnapshot(
-            {
-              ...taskLaunchState.task,
-              contextUsage: null,
-              goal: null,
-              plan: null,
-              pendingRequests: [],
-              settings: taskLaunchState.settings,
-              status: "running",
-              turns: [taskLaunchState.turn],
-              turnsNextCursor: null,
-            },
-            taskLaunchState.turn,
-            { ...taskLaunchState.input, messageAttachments: taskLaunchState.messageAttachments },
-          ),
+    () => (taskLaunchState === undefined ? undefined : createTaskLaunchSnapshot(taskLaunchState)),
     [taskLaunchState],
   );
   const projectTaskState = projectTaskStates.get(projectId);

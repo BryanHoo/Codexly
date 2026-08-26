@@ -86,6 +86,7 @@ describe("GlobalSettingsDialog", () => {
           fastMode: true,
           followUpBehavior: "queue",
           model: "gpt-5.6-sol",
+          pet: { enabled: false, selectedPetId: null },
           reasoningEffort: "high",
           sandboxMode: "workspace-write",
         }}
@@ -100,6 +101,7 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).toContain("提交消息");
     expect(markup).toContain("应用集成");
     expect(markup).toContain("模型服务");
+    expect(markup).toContain("工作台宠物");
     expect(markup).toContain('aria-label="自动模式"');
     expect(markup).toContain('aria-label="浅色模式"');
     expect(markup).toContain('aria-label="深色模式"');
@@ -157,6 +159,7 @@ describe("GlobalSettingsDialog", () => {
           fastMode: false,
           followUpBehavior: "queue",
           model: "gpt-5.6-sol",
+          pet: { enabled: false, selectedPetId: null },
           reasoningEffort: "high",
           sandboxMode: "workspace-write",
         }}
@@ -201,6 +204,7 @@ describe("GlobalSettingsDialog", () => {
           fastMode: false,
           followUpBehavior: "queue",
           model: "gpt-5.6-sol",
+          pet: { enabled: false, selectedPetId: null },
           reasoningEffort: "high",
           sandboxMode: "workspace-write",
         }}
@@ -354,6 +358,7 @@ describe("GlobalSettingsDialog", () => {
             fastMode: false,
             followUpBehavior: "queue",
             model: "gpt-5.6-sol",
+            pet: { enabled: false, selectedPetId: null },
             reasoningEffort: "high",
             sandboxMode: "workspace-write",
           }}

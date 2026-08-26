@@ -250,6 +250,7 @@ test("shows processing state while an existing task turn is still starting", asy
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,

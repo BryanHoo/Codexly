@@ -8,6 +8,7 @@ import type {
   AgentTaskScope,
   PendingRequestResolutionError,
   ProjectRepository,
+  WorkbenchPetProvider,
 } from "@codexly/core";
 import type {
   AppInfoResponse,
@@ -148,6 +149,7 @@ export interface ServerRouteContext {
   readonly projectRepository: ProjectRepository;
   readonly taskQueue: PersistentTaskQueue;
   readonly provider: AgentRuntimeProvider;
+  readonly petProvider: WorkbenchPetProvider;
   readonly providerConnectionRepository: AgentProviderConnectionRepository;
   readonly readEffectiveGlobalSettings: (
     models?: readonly AgentModel[],

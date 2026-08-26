@@ -31,7 +31,33 @@ import type {
   UploadAgentFeedbackRequest,
   UpdateAgentGoalRequest,
   Project,
+  WorkbenchPetDescriptor,
 } from "@codexly/protocol";
+
+export type WorkbenchPetAsset = Readonly<{
+  content: Uint8Array;
+  contentType: "image/webp";
+  etag: string;
+  size: number;
+}>;
+
+export interface WorkbenchPetProvider {
+  ensurePetAsset(petId: string): Promise<WorkbenchPetDescriptor>;
+  listPets(): Promise<readonly WorkbenchPetDescriptor[]>;
+  openPetAsset(assetId: string): Promise<WorkbenchPetAsset | undefined>;
+}
+
+export type WorkbenchPetProviderErrorCode = "download_failed" | "invalid" | "not_found";
+
+export class WorkbenchPetProviderError extends Error {
+  public constructor(
+    public readonly code: WorkbenchPetProviderErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "WorkbenchPetProviderError";
+  }
+}
 
 export type AgentRuntimeDefaultSettings = Readonly<{
   approvalPolicy?: AgentGlobalApprovalPolicy;

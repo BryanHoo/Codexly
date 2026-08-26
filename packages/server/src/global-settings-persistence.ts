@@ -19,3 +19,14 @@ export const GLOBAL_SETTINGS_MIGRATIONS = [
   FAST_MODE_SETTING_MIGRATION,
   PRESERVE_LEGACY_GLOBAL_SETTINGS_COLUMNS_MIGRATION,
 ] as const;
+
+export const WORKBENCH_PET_SETTINGS_MIGRATION = {
+  name: "add_workbench_pet_settings",
+  sql: `
+    ALTER TABLE global_settings
+      ADD COLUMN pet_enabled INTEGER NOT NULL DEFAULT 0
+      CHECK (pet_enabled IN (0, 1));
+    ALTER TABLE global_settings ADD COLUMN pet_id TEXT;
+  `,
+  version: 23,
+} as const;

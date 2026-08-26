@@ -9,13 +9,14 @@ import { task, turn } from "./workbench-composer.test-support.js";
 
 describe("WorkbenchComposer submission", () => {
   it("creates a task before its first turn and continues existing tasks directly", async () => {
+    const checkpoint = { sequence: 0, sessionId: "session-1" } as const;
     const onTaskCreated = vi.fn();
     const client = {
       interruptTurn: vi.fn(),
       startTask: vi.fn(() => Promise.resolve({ task })),
       startTurn: vi.fn(() => {
         expect(onTaskCreated).toHaveBeenCalledWith(task);
-        return Promise.resolve({ taskId: task.id, turn });
+        return Promise.resolve({ checkpoint, taskId: task.id, turn });
       }),
       uploadAttachment: vi.fn(),
     };
@@ -34,7 +35,7 @@ describe("WorkbenchComposer submission", () => {
           sandboxMode: "workspace-write",
         },
       }),
-    ).resolves.toEqual({ createdTask: task, taskId: task.id, turn });
+    ).resolves.toEqual({ checkpoint, createdTask: task, taskId: task.id, turn });
     await expect(
       startPromptTurn(client, {
         idempotencyKeys: { startTurn: "existing-turn-key" },
@@ -49,7 +50,7 @@ describe("WorkbenchComposer submission", () => {
           sandboxMode: "danger-full-access",
         },
       }),
-    ).resolves.toEqual({ taskId: task.id, turn });
+    ).resolves.toEqual({ checkpoint, taskId: task.id, turn });
 
     expect(client.startTask).toHaveBeenCalledTimes(1);
     expect(onTaskCreated).toHaveBeenCalledOnce();

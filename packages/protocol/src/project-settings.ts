@@ -1,6 +1,7 @@
 import { Type, type Static } from "@sinclair/typebox";
 
 import { ProjectOpenAppIdSchema } from "./project-files.js";
+import { WorkbenchPetSettingsSchema } from "./workbench-pets.js";
 
 export const DEFAULT_COMMIT_MESSAGE_MODEL = "gpt-5.6-luna";
 
@@ -101,6 +102,7 @@ const AgentGlobalSettingProperties = {
   ]),
   fastMode: Type.Boolean(),
   followUpBehavior: Type.Union([Type.Literal("queue"), Type.Literal("steer")]),
+  pet: WorkbenchPetSettingsSchema,
   ...AgentTaskSettingProperties,
 };
 
