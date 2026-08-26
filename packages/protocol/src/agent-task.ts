@@ -296,7 +296,7 @@ export const AgentMcpServerSchema = Type.Object(
     name: Type.String({ minLength: 1 }),
     status: AgentMcpServerStatusSchema,
     title: Type.Union([Type.String(), Type.Null()]),
-    toolCount: Type.Integer({ minimum: 0 }),
+    tools: Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
     version: Type.Union([Type.String(), Type.Null()]),
   },
   { additionalProperties: false },

@@ -72,7 +72,7 @@ export const mcpServerPage = {
     name,
     status: "ready" as const,
     title: null,
-    toolCount: 2,
+    tools: ["search_code", "read_file"],
     version: "1.0.0",
   })),
 };

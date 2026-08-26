@@ -72,7 +72,7 @@ export const readyMcpServer = {
   name: "fast-context",
   status: "ready",
   title: "Fast Context",
-  toolCount: 2,
+  tools: ["search_code", "read_file"],
   version: "1.2.0",
 } as const satisfies AgentMcpServer;
 

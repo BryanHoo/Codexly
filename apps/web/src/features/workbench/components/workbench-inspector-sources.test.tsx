@@ -1,4 +1,5 @@
 import type { AgentMcpServer } from "@codexly/protocol";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   WorkbenchInspector,
@@ -250,10 +251,26 @@ describe("WorkbenchInspector sources", () => {
 
     expect(markup.match(/data-mcp-server-row=/gu)).toHaveLength(5);
     expect(markup).toContain('aria-label="mcp-tool-1"');
+    expect(markup).toContain('aria-description="search_code · read_file"');
+    expect(markup).not.toContain('aria-description="mcp-tool-1"');
     expect(markup).toContain("transition-colors");
     expect(markup).toContain("hover:bg-control-hover");
     expect(markup).not.toContain('aria-label="mcp-tool-6"');
     expect(markup).toContain(">显示更多</button>");
+  });
+
+  it("positions source and MCP tooltips above their rows", () => {
+    const sourceModule = readFileSync(
+      new URL("./workbench-inspector-sources.tsx", import.meta.url),
+      "utf8",
+    );
+    const mcpModule = readFileSync(
+      new URL("./workbench-inspector-sections.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(sourceModule).toContain('<TooltipContent side="top">{source.tooltip}</TooltipContent>');
+    expect(mcpModule).toContain('<TooltipContent side="top">{toolNames}</TooltipContent>');
   });
 
   it("reuses timeline image preview and file download actions for attachment sources", () => {
@@ -348,7 +365,7 @@ describe("WorkbenchInspector sources", () => {
         name: "docs",
         status: "failed",
         title: null,
-        toolCount: 0,
+        tools: [],
         version: null,
       },
     ]);

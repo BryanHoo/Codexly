@@ -51,7 +51,7 @@ export async function listCodexMcpServers(
     if (!Array.isArray(page)) {
       throw new CodexProtocolMappingError("mcpServerStatus/list data must be an array");
     }
-    // 只映射安全展示字段；工具定义、资源与 URL 不得越过 Provider 边界。
+    // 只映射安全展示字段和工具名；工具定义、资源与 URL 不得越过 Provider 边界。
     for (const entry of page) {
       const server = expectRecord(entry, "mcpServerStatus/list server");
       const name = expectString(server["name"], "mcpServerStatus/list server name");
@@ -91,7 +91,7 @@ export async function listCodexMcpServers(
           serverInfo === null
             ? null
             : optionalNullableString(serverInfo["title"], "mcpServerStatus/list serverInfo title"),
-        toolCount: Object.keys(tools).length,
+        tools: Object.keys(tools).toSorted(),
         version:
           serverInfo === null
             ? null
@@ -134,7 +134,7 @@ export async function listCodexMcpServers(
         name,
         status: startup.status,
         title: readyServer?.title ?? null,
-        toolCount: readyServer?.toolCount ?? 0,
+        tools: readyServer?.tools ?? [],
         version: readyServer?.version ?? null,
       });
     }

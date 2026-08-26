@@ -254,7 +254,7 @@ function McpServerRow({ server }: Readonly<{ server: AgentMcpServer }>) {
   const metadata = [
     i18n.t(`inspector.mcpStatus.${server.status}`, { ns: "conversation" }),
     ...(server.status === "ready"
-      ? [i18n.t("inspector.mcpToolCount", { count: server.toolCount, ns: "conversation" })]
+      ? [i18n.t("inspector.mcpToolCount", { count: server.tools.length, ns: "conversation" })]
       : []),
     ...(server.authStatus === null
       ? []
@@ -274,32 +274,37 @@ function McpServerRow({ server }: Readonly<{ server: AgentMcpServer }>) {
       <CircleOff aria-hidden="true" className="size-3.5 text-warning" />
     );
 
+  const toolNames = server.tools.join(" · ");
+  const content = (
+    <div
+      aria-label={server.name}
+      {...(toolNames.length === 0 ? {} : { "aria-description": toolNames })}
+      className="flex min-h-10 items-start gap-2 rounded-control px-2 py-1.5 transition-colors hover:bg-control-hover"
+      data-mcp-server-row=""
+    >
+      <span className="mt-0.5 shrink-0">{statusIcon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-label font-medium text-foreground">
+          {server.title ?? server.name}
+        </p>
+        <p className="text-caption text-muted-foreground">{metadata.join(" · ")}</p>
+        {server.failureReason === null ? null : (
+          <p className="text-caption text-danger">
+            {i18n.t(`inspector.mcpFailureReason.${server.failureReason}`, {
+              ns: "conversation",
+            })}
+          </p>
+        )}
+        {server.error === null ? null : <McpErrorLog error={server.error} />}
+      </div>
+    </div>
+  );
+
+  if (toolNames.length === 0) return content;
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <div
-          aria-label={server.name}
-          className="flex min-h-10 items-start gap-2 rounded-control px-2 py-1.5 transition-colors hover:bg-control-hover"
-          data-mcp-server-row=""
-        >
-          <span className="mt-0.5 shrink-0">{statusIcon}</span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-label font-medium text-foreground">
-              {server.title ?? server.name}
-            </p>
-            <p className="text-caption text-muted-foreground">{metadata.join(" · ")}</p>
-            {server.failureReason === null ? null : (
-              <p className="text-caption text-danger">
-                {i18n.t(`inspector.mcpFailureReason.${server.failureReason}`, {
-                  ns: "conversation",
-                })}
-              </p>
-            )}
-            {server.error === null ? null : <McpErrorLog error={server.error} />}
-          </div>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="left">{server.name}</TooltipContent>
+      <TooltipTrigger asChild>{content}</TooltipTrigger>
+      <TooltipContent side="top">{toolNames}</TooltipContent>
     </Tooltip>
   );
 }

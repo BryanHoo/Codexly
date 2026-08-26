@@ -85,8 +85,16 @@ describe("server attachments and catalogs", () => {
     expect(mcpServers.statusCode).toBe(200);
     expect(mcpServers.json()).toEqual({
       data: [
-        expect.objectContaining({ name: "fast-context", status: "ready", toolCount: 2 }),
-        expect.objectContaining({ name: "chrome-devtools", status: "ready", toolCount: 2 }),
+        expect.objectContaining({
+          name: "fast-context",
+          status: "ready",
+          tools: ["search_code", "read_file"],
+        }),
+        expect.objectContaining({
+          name: "chrome-devtools",
+          status: "ready",
+          tools: ["search_code", "read_file"],
+        }),
       ],
     });
     expect(listMcpServers).toHaveBeenCalledOnce();

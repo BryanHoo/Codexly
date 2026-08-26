@@ -320,7 +320,7 @@ export async function handleAppShellCoreRoute(
         ...server,
         authStatus: null,
         status: "starting",
-        toolCount: 0,
+        tools: [],
         version: null,
       })),
     };

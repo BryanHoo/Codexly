@@ -196,7 +196,7 @@ describe("WorkbenchInspector tabs", () => {
       <WorkbenchInspector
         contextOnly
         mcpServers={[
-          { ...readyMcpServer, name: "context7", status: "starting", toolCount: 0 },
+          { ...readyMcpServer, name: "context7", status: "starting", tools: [] },
           readyMcpServer,
         ]}
         projectName="临时任务"

@@ -163,7 +163,7 @@ function InspectorSourceRow({
             <InspectorSourceContent source={source} />
           </div>
         </TooltipTrigger>
-        <TooltipContent side="left">{source.tooltip}</TooltipContent>
+        <TooltipContent side="top">{source.tooltip}</TooltipContent>
       </Tooltip>
     );
   }

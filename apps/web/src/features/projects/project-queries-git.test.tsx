@@ -380,7 +380,7 @@ describe("project Git queries", () => {
       name: "fast-context",
       status: "ready" as const,
       title: null,
-      toolCount: 2,
+      tools: ["search_code", "read_file"],
       version: "1.0.0",
     };
     const listMcpServers = vi.fn<CodexlyMcpServersClient["listMcpServers"]>(() =>
@@ -410,7 +410,7 @@ describe("project Git queries", () => {
           name: "fast-context",
           status: "starting" as const,
           title: null,
-          toolCount: 0,
+          tools: [],
           version: null,
         },
       ],

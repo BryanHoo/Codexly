@@ -171,7 +171,7 @@ describe("AgentProvider", () => {
               name: "fast-context",
               status: "ready",
               title: null,
-              toolCount: 2,
+              tools: ["search_code", "read_file"],
               version: "1.0.0",
             },
           ],
@@ -355,7 +355,7 @@ describe("AgentProvider", () => {
         expect.objectContaining({
           name: "fast-context",
           status: "ready",
-          toolCount: 2,
+          tools: ["search_code", "read_file"],
         }),
       ],
     });

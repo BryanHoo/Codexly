@@ -144,7 +144,7 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
           name: `mcp-tool-${String(index + 1)}`,
           status: "ready",
           title: `MCP Tool ${String(index + 1)}`,
-          toolCount: 2,
+          tools: ["search_code", "read_file"],
           version: "1.0.0",
         })),
       },
@@ -164,7 +164,17 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
     (element) => getComputedStyle(element).backgroundColor,
   );
   await firstMcpRow.hover();
-  await expect(page.getByRole("tooltip")).toHaveText("mcp-tool-1");
+  const mcpTooltip = page.getByRole("tooltip");
+  await expect(mcpTooltip).toHaveText("search_code · read_file");
+  await expect
+    .poll(async () => {
+      const [rowBox, tooltipBox] = await Promise.all([
+        firstMcpRow.boundingBox(),
+        mcpTooltip.boundingBox(),
+      ]);
+      return rowBox !== null && tooltipBox !== null && tooltipBox.y < rowBox.y;
+    })
+    .toBe(true);
   await expect
     .poll(() => firstMcpRow.evaluate((element) => getComputedStyle(element).backgroundColor))
     .not.toBe(restingMcpBackground);
@@ -176,8 +186,19 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
   await expect(inspector.getByText("feat/review-targets", { exact: true })).toHaveCount(0);
   await expect(sources.getByText("Skill 5", { exact: true })).toBeVisible();
   await expect(sources.getByText("Skill 6", { exact: true })).toHaveCount(0);
-  await sources.getByText("Skill 1", { exact: true }).hover();
-  await expect(page.getByRole("tooltip")).toHaveText("Skill description 1");
+  const firstSourceRow = sources.getByText("Skill 1", { exact: true });
+  await firstSourceRow.hover();
+  const sourceTooltip = page.getByRole("tooltip");
+  await expect(sourceTooltip).toHaveText("Skill description 1");
+  await expect
+    .poll(async () => {
+      const [rowBox, tooltipBox] = await Promise.all([
+        firstSourceRow.boundingBox(),
+        sourceTooltip.boundingBox(),
+      ]);
+      return rowBox !== null && tooltipBox !== null && tooltipBox.y < rowBox.y;
+    })
+    .toBe(true);
   await sources.getByRole("button", { name: "显示更多" }).click();
   await expect(sources.getByText("Skill 6", { exact: true })).toBeVisible();
   await expect(sources.getByText("项目目录", { exact: true })).toHaveCount(0);
