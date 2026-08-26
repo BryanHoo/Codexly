@@ -8,6 +8,16 @@ import {
 } from "../../../shared/components/core/tooltip.js";
 import type { WorkbenchPetTaskActivity } from "../pet-activity.js";
 
+function compareBubblePriority(
+  left: WorkbenchPetTaskActivity,
+  right: WorkbenchPetTaskActivity,
+): number {
+  if (left.status === right.status) return 0;
+  if (left.status === "completed") return -1;
+  if (right.status === "completed") return 1;
+  return 0;
+}
+
 function TaskBubble({
   activity,
   localAccess,
@@ -67,6 +77,8 @@ export function WorkbenchPetBubbles({
   const { t } = useTranslation("workbench");
   if (tasks.length === 0) return null;
   const waitingCount = tasks.filter((activity) => activity.status === "waiting").length;
+  // 完成提醒在折叠态置于最高层，其余气泡保持原有顺序。
+  const orderedTasks = tasks.toSorted(compareBubblePriority);
   return (
     <div
       className={`workbench-pet-bubbles ${placement === "above" ? "bottom-full pb-2" : "top-full pt-2"}`}
@@ -82,11 +94,11 @@ export function WorkbenchPetBubbles({
         aria-label={t("pet.activeTasks")}
         className="workbench-pet-bubble-list max-h-[40dvh] overflow-y-auto"
       >
-        {tasks.map((activity, index) => (
+        {orderedTasks.map((activity, index) => (
           <li
             className="workbench-pet-bubble-item"
             key={`${activity.projectId}:${activity.taskId}`}
-            style={{ zIndex: tasks.length - index }}
+            style={{ zIndex: orderedTasks.length - index }}
           >
             <TaskBubble activity={activity} localAccess={localAccess} onTaskSelect={onTaskSelect} />
           </li>

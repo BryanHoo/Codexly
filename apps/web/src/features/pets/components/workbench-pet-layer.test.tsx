@@ -100,6 +100,9 @@ describe("WorkbenchPetLayer", () => {
     expect(markup).toContain('aria-label="打开任务 完成后台构建，任务已完成"');
     expect(markup).toContain("lucide-circle-check");
     expect(markup).toContain("text-task-completed");
+    expect(markup).toMatch(
+      /<li class="workbench-pet-bubble-item" style="z-index:3"><button aria-label="打开任务 完成后台构建，任务已完成"/u,
+    );
     expect(markup).toContain('data-placement="above"');
   });
 
