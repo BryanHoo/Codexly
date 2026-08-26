@@ -22,6 +22,13 @@
   --ui-color-text: light-dark(#111111, #ffffff);
   --ui-color-text-muted: light-dark(rgb(17 17 17 / 0.72), rgb(255 255 255 / 0.68));
   --ui-color-text-subtle: light-dark(rgb(17 17 17 / 0.52), rgb(255 255 255 / 0.5));
+  /* 终端保持稳定暗色介质，避免命令输出随应用主题切换而失去 ANSI 对比度。 */
+  --ui-color-terminal: light-dark(#181818, #111111);
+  --ui-color-terminal-header: light-dark(#202020, #181818);
+  --ui-color-terminal-control-hover: rgb(255 255 255 / 0.1);
+  --ui-color-terminal-foreground: #f5f5f5;
+  --ui-color-terminal-muted: rgb(245 245 245 / 0.62);
+  --ui-color-terminal-separator: rgb(255 255 255 / 0.1);
   --ui-color-accent: light-dark(#006aff, #339cff);
   --ui-color-accent-strong: light-dark(#0057d6, #69b7ff);
   --ui-color-accent-soft: light-dark(rgb(0 106 255 / 0.09), rgb(51 156 255 / 0.14));
@@ -169,6 +176,12 @@
   --color-foreground: var(--ui-color-text);
   --color-muted-foreground: var(--ui-color-text-muted);
   --color-subtle-foreground: var(--ui-color-text-subtle);
+  --color-terminal: var(--ui-color-terminal);
+  --color-terminal-header: var(--ui-color-terminal-header);
+  --color-terminal-control-hover: var(--ui-color-terminal-control-hover);
+  --color-terminal-foreground: var(--ui-color-terminal-foreground);
+  --color-terminal-muted: var(--ui-color-terminal-muted);
+  --color-terminal-separator: var(--ui-color-terminal-separator);
   --color-brand: var(--ui-color-accent);
   --color-brand-strong: var(--ui-color-accent-strong);
   --color-brand-soft: var(--ui-color-accent-soft);

@@ -1,5 +1,5 @@
 import Anser from "anser";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Terminal as TerminalIcon } from "lucide-react";
 import {
   createContext,
   useContext,
@@ -7,14 +7,13 @@ import {
   useMemo,
   useRef,
   useState,
-  type ButtonHTMLAttributes,
   type CSSProperties,
   type HTMLAttributes,
 } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { materializeChunkedText, type ChunkedText } from "../../lib/chunked-text.js";
-import { Button } from "../core/button.js";
+import { Button, type ButtonProps } from "../core/button.js";
 import { createIncrementalAnsiParser } from "./terminal-ansi.js";
 
 type TerminalOutput = string | ChunkedText;
@@ -60,7 +59,7 @@ function AnsiOutput({ output }: Readonly<{ output: TerminalOutput }>) {
   }, [output]);
 
   return (
-    <span className="block whitespace-pre-wrap break-words">
+    <span className="whitespace-pre-wrap break-words">
       {entries.map((entry, index) => {
         // 只把 ANSI SGR 转成 React 样式节点，绝不调用解析器的 linkify/HTML 接口。
         const style = toAnsiStyle(entry);
@@ -106,7 +105,8 @@ export function Terminal({
   return (
     <TerminalContext.Provider value={contextValue}>
       <div
-        className={`mb-2 overflow-hidden rounded-control bg-raised text-foreground shadow-sm ${className}`}
+        className={`mb-2 flex flex-col overflow-hidden rounded-surface border border-terminal-separator bg-terminal text-terminal-foreground shadow-sm ${className}`}
+        data-slot="terminal"
         data-streaming={isStreaming}
         data-terminal=""
         {...props}
@@ -122,7 +122,8 @@ export type TerminalHeaderProps = HTMLAttributes<HTMLDivElement>;
 export function TerminalHeader({ className = "", ...props }: TerminalHeaderProps) {
   return (
     <div
-      className={`flex min-h-8 items-center border-b border-separator px-2.5 ${className}`}
+      className={`flex min-h-9 items-center justify-between border-b border-terminal-separator bg-terminal-header px-3 ${className}`}
+      data-slot="terminal-header"
       {...props}
     />
   );
@@ -130,23 +131,39 @@ export function TerminalHeader({ className = "", ...props }: TerminalHeaderProps
 
 export type TerminalTitleProps = HTMLAttributes<HTMLDivElement>;
 
-export function TerminalTitle({ className = "", ...props }: TerminalTitleProps) {
-  return <div className={`text-meta font-medium text-muted-foreground ${className}`} {...props} />;
+export function TerminalTitle({ children, className = "", ...props }: TerminalTitleProps) {
+  return (
+    <div
+      className={`flex items-center gap-2 text-meta font-medium text-terminal-muted ${className}`}
+      data-slot="terminal-title"
+      {...props}
+    >
+      <TerminalIcon className="size-3.5" aria-hidden="true" />
+      {children}
+    </div>
+  );
 }
 
 export type TerminalActionsProps = HTMLAttributes<HTMLDivElement>;
 
 export function TerminalActions({ className = "", ...props }: TerminalActionsProps) {
-  return <div className={`ml-auto flex items-center ${className}`} {...props} />;
+  return (
+    <div
+      className={`ml-auto flex items-center gap-1 ${className}`}
+      data-slot="terminal-actions"
+      {...props}
+    />
+  );
 }
 
-export type TerminalCopyButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onError"> & {
+export type TerminalCopyButtonProps = Omit<ButtonProps, "onError"> & {
   onCopy?: () => void;
   onError?: (error: Error) => void;
   timeout?: number;
 };
 
 export function TerminalCopyButton({
+  children,
   className = "",
   onClick,
   onCopy,
@@ -187,9 +204,11 @@ export function TerminalCopyButton({
 
   return (
     <Button
+      size="icon-sm"
       variant="ghost"
       aria-label={copied ? t("agentComponents.copiedOutput") : t("agentComponents.copyOutput")}
-      className={`grid size-7 place-items-center rounded-control text-muted-foreground transition-colors hover:bg-control-hover hover:text-foreground ${className}`}
+      className={`text-terminal-muted hover:bg-terminal-control-hover hover:text-terminal-foreground ${className}`}
+      data-slot="terminal-copy-button"
       onClick={(event) => {
         onClick?.(event);
         if (!event.defaultPrevented) {
@@ -200,49 +219,72 @@ export function TerminalCopyButton({
       type="button"
       {...props}
     >
-      {copied ? (
-        <Check className="size-3.5" aria-hidden="true" />
-      ) : (
-        <Copy className="size-3.5" aria-hidden="true" />
-      )}
+      {children ??
+        (copied ? (
+          <Check className="size-3.5" aria-hidden="true" />
+        ) : (
+          <Copy className="size-3.5" aria-hidden="true" />
+        ))}
     </Button>
   );
 }
 
 export type TerminalContentProps = HTMLAttributes<HTMLDivElement>;
 
-export function TerminalContent({ children, className = "", ...props }: TerminalContentProps) {
+const terminalBottomThreshold = 8;
+
+function isTerminalAtBottom(element: HTMLDivElement): boolean {
+  return element.scrollHeight - element.clientHeight - element.scrollTop <= terminalBottomThreshold;
+}
+
+export function TerminalContent({
+  children,
+  className = "",
+  onScroll,
+  ...props
+}: TerminalContentProps) {
   const { autoScroll, isStreaming, output } = useTerminalContext();
   const { t } = useTranslation("conversation");
   const contentRef = useRef<HTMLDivElement>(null);
+  const followsOutputRef = useRef(true);
+  const outputRevision = typeof output === "string" ? output : output.version;
 
   useEffect(() => {
-    if (!autoScroll) {
+    if (!autoScroll || !followsOutputRef.current) {
       return;
     }
     const content = contentRef.current;
     if (content !== null) {
-      // 每次增量输出后跟随到底部，避免流式日志停留在旧位置。
+      // 仅在用户仍位于底部时跟随增量，避免打断历史输出阅读。
       content.scrollTop = content.scrollHeight;
     }
-  }, [autoScroll, output]);
+  }, [autoScroll, outputRevision]);
 
   return (
     <div
       aria-busy={isStreaming}
       aria-live={isStreaming ? "polite" : "off"}
-      className={`max-h-72 overflow-auto px-3 py-2 font-mono text-meta leading-5 ${className}`}
+      className={`max-h-96 overflow-auto overscroll-contain p-3 font-mono text-meta leading-5 ${className}`}
+      data-slot="terminal-content"
+      onScroll={(event) => {
+        onScroll?.(event);
+        if (!event.defaultPrevented) {
+          followsOutputRef.current = isTerminalAtBottom(event.currentTarget);
+        }
+      }}
       ref={contentRef}
       {...props}
     >
-      <AnsiOutput output={output} />
-      {isStreaming ? (
-        <span
-          aria-label={t("agentComponents.streamingOutput")}
-          className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-muted-foreground align-middle"
-          role="status"
-        />
-      ) : null}
+      <pre className="m-0 whitespace-pre-wrap break-words font-inherit">
+        <AnsiOutput output={output} />
+        {isStreaming ? (
+          <span
+            aria-label={t("agentComponents.streamingOutput")}
+            className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-terminal-foreground align-middle"
+            role="status"
+          />
+        ) : null}
+      </pre>
       {children}
     </div>
   );
