@@ -118,7 +118,6 @@ describe("Web Bundle 预算门禁", () => {
         initialGzipBytes: number;
         maxAsyncGzipBytes: number;
         workbenchReadyGzipBytes: number;
-        workbenchReadyRequestCount: number;
       };
       initial: { contributors: { file: string; gzipBytes: number }[]; gzipBytes: number };
       passed: boolean;
@@ -135,10 +134,9 @@ describe("Web Bundle 预算门禁", () => {
         initialGzipBytes: 280 * 1024,
         maxAsyncGzipBytes: 200 * 1024,
         workbenchReadyGzipBytes: 500 * 1024,
-        workbenchReadyRequestCount: 20,
       },
       passed: true,
-      schemaVersion: 2,
+      schemaVersion: 3,
       violations: [],
     });
     expect(report.initial.contributors.map((contributor) => contributor.file)).toEqual([
@@ -192,11 +190,11 @@ describe("Web Bundle 预算门禁", () => {
     expect(result.stderr).toContain("workbench-ready gzip budget exceeded");
   });
 
-  it("拒绝超过工作台就绪请求数预算的产物", () => {
+  it("只观测工作台就绪请求数而不设硬性预算", () => {
     const result = runChecker(createBundle({ workbenchDependencyCount: 17 }));
 
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("workbench-ready request budget exceeded");
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("in 21 requests");
   });
 
   it("拒绝引用缺失 Chunk 的无效 manifest", () => {

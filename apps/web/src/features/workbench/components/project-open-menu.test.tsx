@@ -2,11 +2,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { ContextMenu } from "../../../shared/components/core/context-menu.js";
+import { DropdownMenu } from "../../../shared/components/core/dropdown-menu.js";
 import {
   getProjectFileManagerApp,
   getProjectOpenAppsForTarget,
   getProjectTargetAbsolutePath,
   ProjectOpenContextMenuItems,
+  ProjectOpenDropdownMenuItems,
 } from "./project-open-menu.js";
 import {
   ProjectFileDeleteDialog,
@@ -50,6 +52,7 @@ describe("ProjectOpenContextMenuItems", () => {
           ]}
           isPending={false}
           onDelete={vi.fn()}
+          onOpenInNewWindow={vi.fn()}
           onReference={vi.fn()}
           onRename={vi.fn()}
           onSelect={vi.fn()}
@@ -75,11 +78,12 @@ describe("ProjectOpenContextMenuItems", () => {
     expect(markup).toContain("复制绝对路径");
     expect(markup).not.toContain(">复制路径<");
     expect(markup).toContain("打开");
+    expect(markup).toContain("在独立窗口打开");
     expect(markup).toContain("引用");
     expect(markup).toContain("重命名");
     expect(markup).toContain("删除");
     expect(markup.match(/data-slot="context-menu-sub-trigger"/gu)).toHaveLength(1);
-    expect(markup.match(/data-slot="context-menu-item"/gu)).toHaveLength(6);
+    expect(markup.match(/data-slot="context-menu-item"/gu)).toHaveLength(7);
     expect(markup).not.toContain("menuitemradio");
     expect(markup).not.toContain("aria-checked");
   });
@@ -91,6 +95,7 @@ describe("ProjectOpenContextMenuItems", () => {
           apps={[{ id: "zed", kind: "editor", name: "Zed" }]}
           isPending={false}
           onDelete={vi.fn()}
+          onOpenInNewWindow={vi.fn()}
           onReference={vi.fn()}
           onRename={vi.fn()}
           onSelect={vi.fn()}
@@ -105,6 +110,7 @@ describe("ProjectOpenContextMenuItems", () => {
     );
 
     expect(markup).not.toContain("引用");
+    expect(markup).not.toContain("在独立窗口打开");
     expect(markup).toContain("重命名");
     expect(markup).toContain("删除");
     expect(markup.match(/data-slot="context-menu-item"/gu)).toHaveLength(5);
@@ -150,5 +156,38 @@ describe("ProjectOpenContextMenuItems", () => {
       "system-default",
       "finder",
     ]);
+  });
+});
+
+describe("ProjectOpenDropdownMenuItems", () => {
+  it("keeps the standalone-window command in the file row actions menu", () => {
+    const markup = renderToStaticMarkup(
+      <DropdownMenu open>
+        <ProjectOpenDropdownMenuItems
+          apps={[{ id: "zed", kind: "editor", name: "Zed" }]}
+          isPending={false}
+          onDelete={vi.fn()}
+          onOpenInNewWindow={vi.fn()}
+          onReference={vi.fn()}
+          onRename={vi.fn()}
+          onSelect={vi.fn()}
+          target={{
+            absolutePath: "/workspace/Codexly/README.md",
+            path: "README.md",
+            relativePath: "README.md",
+            reference: {
+              name: "README.md",
+              path: "README.md",
+              rootId: "root-codexly",
+              rootPath: "/workspace/Codexly",
+            },
+            type: "file",
+          }}
+        />
+      </DropdownMenu>,
+    );
+
+    expect(markup).toContain('data-slot="dropdown-menu-content"');
+    expect(markup).toContain("在独立窗口打开");
   });
 });

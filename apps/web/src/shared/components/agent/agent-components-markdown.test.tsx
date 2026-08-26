@@ -158,7 +158,7 @@ info`,
       </Message>,
     );
 
-    expect(markup).toContain('data-slot="button"');
+    expect(markup).toContain('data-slot="context-menu-trigger"');
     expect(markup).toContain("cursor-pointer");
     expect(markup).toContain("hover:decoration-current");
     expect(markup).toContain('data-file-reference="true"');
@@ -229,7 +229,7 @@ info`,
       </Message>,
     );
 
-    expect(markup).toContain('data-slot="button"');
+    expect(markup).toContain('data-slot="context-menu-trigger"');
     expect(markup).toContain('data-file-reference="true"');
     expect(markup).toContain("(line 12)");
     expect(markup).toContain("(line 24)");
@@ -252,7 +252,7 @@ info`,
       </Message>,
     );
 
-    expect(markup).toContain('data-slot="button"');
+    expect(markup).toContain('data-slot="context-menu-trigger"');
     expect(markup).toContain("(line 8)");
     expect(markup).toContain('title="docs/guide.md"');
   });

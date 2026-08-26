@@ -1,5 +1,12 @@
-import { File } from "lucide-react";
-import { createContext, memo, useContext, useMemo, type ComponentProps } from "react";
+import { ExternalLink, File } from "lucide-react";
+import {
+  createContext,
+  memo,
+  useContext,
+  useMemo,
+  type ComponentProps,
+  type ReactElement,
+} from "react";
 import {
   Block,
   defaultRemarkPlugins,
@@ -10,6 +17,13 @@ import {
 } from "streamdown";
 
 import { Button } from "../core/button.js";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "../core/context-menu.js";
+import { useTranslation } from "../../../i18n/i18n.js";
 import { CodeComments } from "./code-comments.js";
 import type { MessageFileReference } from "./message.js";
 import {
@@ -39,8 +53,35 @@ interface MarkdownNode {
 }
 
 const MessageFileReferenceContext = createContext<
-  ((reference: MessageFileReference) => void) | null
+  ((reference: MessageFileReference, mode?: "popup") => void) | null
 >(null);
+
+function FileReferenceContextMenu({
+  children,
+  onOpen,
+  reference,
+}: Readonly<{
+  children: ReactElement;
+  onOpen: (reference: MessageFileReference, mode?: "popup") => void;
+  reference: MessageFileReference;
+}>) {
+  const { t } = useTranslation("workbench");
+  return (
+    <ContextMenu modal={false}>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent aria-label={t("openMenu.targetLabel", { path: reference.path })}>
+        <ContextMenuItem
+          onSelect={() => {
+            onOpen(reference, "popup");
+          }}
+        >
+          <ExternalLink aria-hidden="true" className="size-4 text-muted-foreground" />
+          <span>{t("openMenu.openInNewWindow")}</span>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
 
 // Agent 输出使用“绝对路径:行号”表达文件定位；渲染时拆出行号，避免把路径暴露给用户。
 const LOCAL_FILE_REFERENCE_PATTERN =
@@ -184,21 +225,24 @@ function MarkdownLink({ children, className = "", href, node, ...props }: Markdo
       );
 
       if (onOpenFileReference !== null) {
+        const reference = { lineNumber: null, path: fileReference.path };
         return (
-          <Button
-            variant="embedded"
-            aria-label={`@${fileReference.path}`}
-            className={`${classNames} cursor-pointer hover:bg-control-hover`}
-            data-prompt-file-reference={fileReference.path}
-            onClick={() => {
-              onOpenFileReference({ lineNumber: null, path: fileReference.path });
-            }}
-            size="embedded"
-            title={fileReference.path}
-            type="button"
-          >
-            {content}
-          </Button>
+          <FileReferenceContextMenu onOpen={onOpenFileReference} reference={reference}>
+            <Button
+              variant="embedded"
+              aria-label={`@${fileReference.path}`}
+              className={`${classNames} cursor-pointer hover:bg-control-hover`}
+              data-prompt-file-reference={fileReference.path}
+              onClick={() => {
+                onOpenFileReference(reference);
+              }}
+              size="embedded"
+              title={fileReference.path}
+              type="button"
+            >
+              {content}
+            </Button>
+          </FileReferenceContextMenu>
         );
       }
 
@@ -225,23 +269,25 @@ function MarkdownLink({ children, className = "", href, node, ...props }: Markdo
     );
 
     if (onOpenFileReference !== null) {
+      const reference = {
+        lineNumber: fileReference.lineNumber === null ? null : Number(fileReference.lineNumber),
+        path: fileReference.path,
+      };
       return (
-        <Button
-          variant="ghost"
-          className={`markdown-file-reference cursor-pointer text-brand underline decoration-transparent underline-offset-2 transition-colors hover:text-brand-strong hover:decoration-current ${className}`}
-          data-file-reference="true"
-          onClick={() => {
-            onOpenFileReference({
-              lineNumber:
-                fileReference.lineNumber === null ? null : Number(fileReference.lineNumber),
-              path: fileReference.path,
-            });
-          }}
-          title={fileReference.path}
-          type="button"
-        >
-          {content}
-        </Button>
+        <FileReferenceContextMenu onOpen={onOpenFileReference} reference={reference}>
+          <Button
+            variant="ghost"
+            className={`markdown-file-reference cursor-pointer text-brand underline decoration-transparent underline-offset-2 transition-colors hover:text-brand-strong hover:decoration-current ${className}`}
+            data-file-reference="true"
+            onClick={() => {
+              onOpenFileReference(reference);
+            }}
+            title={fileReference.path}
+            type="button"
+          >
+            {content}
+          </Button>
+        </FileReferenceContextMenu>
       );
     }
 
@@ -270,7 +316,7 @@ function MarkdownLink({ children, className = "", href, node, ...props }: Markdo
 }
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
-  onOpenFileReference?: (reference: MessageFileReference) => void;
+  onOpenFileReference?: (reference: MessageFileReference, mode?: "popup") => void;
   promptFileReferences?: boolean;
 };
 

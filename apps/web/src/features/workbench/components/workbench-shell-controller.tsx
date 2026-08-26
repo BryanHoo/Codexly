@@ -9,6 +9,7 @@ import {
 } from "@codexly/protocol";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { classifyProjectFileReference } from "../project-file-reference.js";
+import { openProjectFileInNewWindow } from "../project-file-popup.js";
 
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
@@ -121,19 +122,26 @@ export function useWorkbenchShellController(
     ],
   );
   const openMessageFileReference = useCallback(
-    (reference: MessageFileReference) => {
-      const kind = classifyProjectFileReference(reference.path);
-      if (kind === "system") {
+    (reference: MessageFileReference, mode?: "popup") => {
+      const openSystemDefault = (path: string) => {
         const mutation = projectPathOpenMutationRef.current;
         mutation.reset();
         void projectPathOpenLockRef.current
-          .run(() =>
-            mutation.mutateAsync({
-              appId: "system-default",
-              path: reference.path,
-            }),
-          )
+          .run(() => mutation.mutateAsync({ appId: "system-default", path }))
           .catch(() => undefined);
+      };
+      if (mode === "popup") {
+        openProjectFileInNewWindow({
+          onOpenSystemDefault: openSystemDefault,
+          projectId,
+          reference,
+          ...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath }),
+        });
+        return;
+      }
+      const kind = classifyProjectFileReference(reference.path);
+      if (kind === "system") {
+        openSystemDefault(reference.path);
         return;
       }
 
@@ -146,6 +154,7 @@ export function useWorkbenchShellController(
       projectId,
       projectPathOpenLockRef,
       projectPathOpenMutationRef,
+      selectedRootPath,
       setInspectorOpen,
       setInspectorTab,
       setInspectorFileSelection,

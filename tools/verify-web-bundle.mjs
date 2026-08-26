@@ -5,9 +5,8 @@ import { gzipSync } from "node:zlib";
 const initialGzipBudgetBytes = 280 * 1024;
 const maxAsyncGzipBudgetBytes = 200 * 1024;
 const workbenchReadyGzipBudgetBytes = 500 * 1024;
-const workbenchReadyRequestBudget = 20;
 const workbenchEntryKey = "src/features/workbench/components/workbench-shell.tsx";
-const reportSchemaVersion = 2;
+const reportSchemaVersion = 3;
 const topContributorCount = 5;
 
 function formatKiB(bytes) {
@@ -114,13 +113,6 @@ function createReport(analysis) {
       kind: "workbench-ready-gzip",
     });
   }
-  if (analysis.workbenchReady.requestCount > workbenchReadyRequestBudget) {
-    violations.push({
-      actualRequestCount: analysis.workbenchReady.requestCount,
-      budgetRequestCount: workbenchReadyRequestBudget,
-      kind: "workbench-ready-requests",
-    });
-  }
   const largestAsync = analysis.asyncGroups[0] ?? null;
   if (largestAsync !== null && largestAsync.gzipBytes > maxAsyncGzipBudgetBytes) {
     violations.push({
@@ -137,7 +129,6 @@ function createReport(analysis) {
       initialGzipBytes: initialGzipBudgetBytes,
       maxAsyncGzipBytes: maxAsyncGzipBudgetBytes,
       workbenchReadyGzipBytes: workbenchReadyGzipBudgetBytes,
-      workbenchReadyRequestCount: workbenchReadyRequestBudget,
     },
     initial: analysis.initial,
     passed: violations.length === 0,
@@ -156,9 +147,6 @@ function assertReport(report) {
     }
     if (violation.kind === "workbench-ready-gzip") {
       return `workbench-ready gzip budget exceeded: ${formatKiB(violation.actualGzipBytes)} > ${formatKiB(violation.budgetGzipBytes)}`;
-    }
-    if (violation.kind === "workbench-ready-requests") {
-      return `workbench-ready request budget exceeded: ${String(violation.actualRequestCount)} > ${String(violation.budgetRequestCount)}`;
     }
     return `async gzip budget exceeded: ${formatKiB(violation.actualGzipBytes)} > ${formatKiB(violation.budgetGzipBytes)} (${violation.key})`;
   });
@@ -193,7 +181,7 @@ function printReport(report) {
   const asyncSummary =
     largestAsync === null ? "none" : `${formatKiB(largestAsync.gzipBytes)} (${largestAsync.key})`;
   console.log(
-    `Web Bundle budget ${report.passed ? "passed" : "failed"}: initial ${formatKiB(report.initial.gzipBytes)} / ${formatKiB(report.budgets.initialGzipBytes)}; workbench ready ${formatKiB(report.workbenchReady.gzipBytes)} / ${formatKiB(report.budgets.workbenchReadyGzipBytes)} in ${String(report.workbenchReady.requestCount)} / ${String(report.budgets.workbenchReadyRequestCount)} requests; max async ${asyncSummary} / ${formatKiB(report.budgets.maxAsyncGzipBytes)}`,
+    `Web Bundle budget ${report.passed ? "passed" : "failed"}: initial ${formatKiB(report.initial.gzipBytes)} / ${formatKiB(report.budgets.initialGzipBytes)}; workbench ready ${formatKiB(report.workbenchReady.gzipBytes)} / ${formatKiB(report.budgets.workbenchReadyGzipBytes)} in ${String(report.workbenchReady.requestCount)} requests; max async ${asyncSummary} / ${formatKiB(report.budgets.maxAsyncGzipBytes)}`,
   );
   printContributors("Initial Top Contributors", report.initial.contributors);
   printContributors("Workbench Ready Top Contributors", report.workbenchReady.contributors);

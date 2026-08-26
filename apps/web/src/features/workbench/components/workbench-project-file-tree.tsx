@@ -30,7 +30,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
-import type { AgentFileChange } from "../../diff/file-change.js";
 import type { CodexlyFileTreeClient } from "../../projects/project-query-contracts.js";
 import {
   createProjectFileTreeDataLoader,
@@ -48,30 +47,14 @@ import {
 import { ProjectFileTreeRootActions } from "./workbench-inspector-file-tree.js";
 import { ProjectOpenContextMenu, ProjectOpenDropdownMenu } from "./project-open-menu.js";
 import { createProjectFileTreeOpenTarget } from "./project-file-tree-open-target.js";
+import { openProjectFileInNewWindow } from "../project-file-popup.js";
 import { useProjectFileMutations } from "./use-project-file-mutations.js";
+import type { WorkbenchProjectFileTreeProps } from "./workbench-project-file-tree-contracts.js";
 
 export const PROJECT_FILE_TREE_ROW_HEIGHT_PX = 28;
 const PROJECT_FILE_TREE_INDENT_PX = 16;
 const PROJECT_FILE_TREE_OVERSCAN = 8;
 const PROJECT_FILE_TREE_INITIAL_RECT = { height: 600, width: 320 };
-type WorkbenchProjectFileTreeProps = Readonly<{
-  client: CodexlyFileTreeClient;
-  expandedPaths: ReadonlySet<string>;
-  fileChangesByPath: ReadonlyMap<string, AgentFileChange>;
-  onExpandedPathsChange: (paths: Set<string>) => void;
-  onOpenFileDiff: (change: AgentFileChange) => void;
-  onOpenProjectFile: (path: string) => void;
-  onOpenProjectPath: (appId: ProjectOpenAppId, path?: string) => void;
-  onReferenceProjectPath: (entry: ProjectFileSearchEntry) => void;
-  onRefreshProject: () => unknown;
-  projectId: string;
-  projectName: string;
-  projectRootId: string;
-  projectOpenApps: readonly ProjectOpenApp[];
-  projectOpenPending: boolean;
-  projectPath: string;
-  projectRefreshing?: boolean;
-}>;
 type TreeItemProps = HTMLAttributes<HTMLDivElement> & Readonly<{ ref?: RefCallback<HTMLElement> }>;
 type ProjectFileTreeRowProps = Readonly<{
   changeStatsByPath: ReturnType<typeof collectVisibleProjectFileTreeChangeStats>;
@@ -109,6 +92,19 @@ const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
   const data = item.getItemData();
   const name = getProjectFileTreeItemName(data);
   const target = createProjectFileTreeOpenTarget(data, { id: projectRootId, path: projectPath });
+  const openInNewWindow =
+    target?.type === "file"
+      ? () => {
+          openProjectFileInNewWindow({
+            onOpenSystemDefault: (path) => {
+              onOpenProjectPath("system-default", path);
+            },
+            projectId,
+            reference: { lineNumber: null, path: target.path },
+            rootPath: projectPath,
+          });
+        }
+      : undefined;
   const openRoot = (appId: ProjectOpenAppId) => {
     onOpenProjectPath(appId);
   };
@@ -260,6 +256,7 @@ const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
             onOpen={() => {
               onSelect(item.getId());
             }}
+            {...(openInNewWindow === undefined ? {} : { onOpenInNewWindow: openInNewWindow })}
             onReference={onReferenceProjectPath}
             onRename={fileMutations.openRename}
             onSelect={onOpenProjectPath}
@@ -281,6 +278,7 @@ const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
           onSelect(item.getId());
         }}
         onReference={onReferenceProjectPath}
+        {...(openInNewWindow === undefined ? {} : { onOpenInNewWindow: openInNewWindow })}
         onSelect={openTarget}
         target={target}
         {...(data.kind === "entry"

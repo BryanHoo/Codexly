@@ -154,6 +154,7 @@ export const workbench = {
     moreActions: "More actions",
     none: "No apps available",
     open: "Open",
+    openInNewWindow: "Open in new window",
     openIn: "Open in {{app}}",
     reference: "Reference",
     rename: "Rename",

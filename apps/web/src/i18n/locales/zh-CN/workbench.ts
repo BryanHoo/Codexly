@@ -153,6 +153,7 @@ export const workbench = {
     moreActions: "更多操作",
     none: "没有可用的打开方式",
     open: "打开",
+    openInNewWindow: "在独立窗口打开",
     openIn: "在 {{app}} 中打开",
     reference: "引用",
     rename: "重命名",
