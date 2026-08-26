@@ -79,6 +79,9 @@ describe("CommitChangesPanel", () => {
     expect(markup).toContain("src/app.ts");
     expect(markup).toContain("src/new.ts");
     expect(markup).toContain('aria-label="未暂存: src/app.ts"');
+    expect(markup).toContain(
+      'class="flex min-h-7 items-center gap-1.5 rounded-control px-2 hover:bg-control-hover"',
+    );
     expect(markup).not.toContain('data-ai-file-tree=""');
   });
 

@@ -288,7 +288,7 @@ export function CommitChangesTreeSection({
             .toSorted((left, right) => left.path.localeCompare(right.path, "en"))
             .map((change) => (
               <div
-                className="flex min-h-7 items-center gap-1.5 rounded-control px-1.5 hover:bg-control-hover"
+                className="flex min-h-7 items-center gap-1.5 rounded-control px-2 hover:bg-control-hover"
                 key={change.path}
                 role="listitem"
               >
