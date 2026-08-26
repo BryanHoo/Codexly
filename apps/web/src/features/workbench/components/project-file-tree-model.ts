@@ -1,7 +1,8 @@
 import type { ProjectFileTreeEntry } from "@codexly/protocol";
 import type { QueryClient } from "@tanstack/react-query";
 
-import type { CodexlyFileTreeClient } from "../../projects/project-query-contracts.js";
+import { i18n } from "../../../i18n/i18n.js";
+import type { CodexlyFileTreeReadClient } from "../../projects/project-query-contracts.js";
 import { projectFileTreeQueryOptions } from "../../projects/project-query-options.js";
 
 export const PROJECT_FILE_TREE_ROOT_ID = "\0project-file-tree-root";
@@ -29,8 +30,18 @@ export type ProjectFileTreeItem =
       type: "status";
     }>;
 
+export function resolveProjectFileTreeState<T>(value: T | ((old: T) => T), current: T): T {
+  return typeof value === "function" ? (value as (old: T) => T)(current) : value;
+}
+
+export function getProjectFileTreeItemName(item: ProjectFileTreeItem): string {
+  if (item.kind !== "status") return item.name;
+  if (item.status === "empty") return i18n.t("inspector.emptyFolder", { ns: "conversation" });
+  return i18n.t("inspector.readFolderError", { name: item.name, ns: "conversation" });
+}
+
 type ProjectFileTreeDataLoaderOptions = Readonly<{
-  client: CodexlyFileTreeClient;
+  client: CodexlyFileTreeReadClient;
   projectId: string;
   projectName: string;
   queryClient: QueryClient;

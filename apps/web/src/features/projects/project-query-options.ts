@@ -23,7 +23,7 @@ import {
   type CodexlyGitStatusClient,
   type CodexlyGitHistoryClient,
   type CodexlyGitCommitReviewClient,
-  type CodexlyFileTreeClient,
+  type CodexlyFileTreeReadClient,
   type CodexlyProjectOpenClient,
   type CodexlyReadClient,
 } from "./project-query-contracts.js";
@@ -482,7 +482,7 @@ export function projectFileTreeQueryOptions(
   projectId: string,
   rootPath: string,
   directoryPath: string | null,
-  client: CodexlyFileTreeClient = codexlyClient,
+  client: CodexlyFileTreeReadClient = codexlyClient,
   enabled = true,
 ) {
   return queryOptions({

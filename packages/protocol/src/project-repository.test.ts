@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { Value } from "@sinclair/typebox/value";
 import {
   AgentPromptInputSchema,
+  AgentMutationErrorCodeSchema,
+  DeleteProjectFileRequestSchema,
+  DeleteProjectFileResponseSchema,
   ProjectFileTreeQuerySchema,
   ProjectFileSearchPageSchema,
   ProjectFileSearchQuerySchema,
@@ -18,6 +21,8 @@ import {
   ProjectFileTreeSchema,
   ProjectSourceFileQuerySchema,
   ProjectSourceFileSchema,
+  RenameProjectFileRequestSchema,
+  RenameProjectFileResponseSchema,
 } from "./project.js";
 
 const rootPath = "/workspace/Codexly";
@@ -316,6 +321,30 @@ describe("project repository protocol", () => {
     expect(Value.Check(ProjectFileTreeQuerySchema, { path: "../src" })).toBe(false);
     expect(Value.Check(ProjectFileTreeQuerySchema, { path: "." })).toBe(false);
     expect(Value.Check(ProjectFileTreeQuerySchema, { extra: true })).toBe(false);
+  });
+
+  it("validates project file rename and delete mutations", () => {
+    expect(
+      Value.Check(RenameProjectFileRequestSchema, { name: "renamed.ts", path: "src/main.ts" }),
+    ).toBe(true);
+    expect(
+      Value.Check(RenameProjectFileRequestSchema, { name: "../renamed.ts", path: "src/main.ts" }),
+    ).toBe(false);
+    expect(Value.Check(RenameProjectFileRequestSchema, { name: ".", path: "src/main.ts" })).toBe(
+      false,
+    );
+    expect(Value.Check(RenameProjectFileRequestSchema, { name: "renamed.ts", path: "." })).toBe(
+      false,
+    );
+    expect(Value.Check(RenameProjectFileResponseSchema, { path: "src/renamed.ts" })).toBe(true);
+    expect(Value.Check(DeleteProjectFileRequestSchema, { path: "src/renamed.ts" })).toBe(true);
+    expect(Value.Check(DeleteProjectFileRequestSchema, { path: "../src" })).toBe(false);
+    expect(
+      Value.Check(DeleteProjectFileResponseSchema, { path: "src/renamed.ts", status: "deleted" }),
+    ).toBe(true);
+    expect(Value.Check(AgentMutationErrorCodeSchema, "PROJECT_FILE_NOT_FOUND")).toBe(true);
+    expect(Value.Check(AgentMutationErrorCodeSchema, "PROJECT_FILE_CONFLICT")).toBe(true);
+    expect(Value.Check(AgentMutationErrorCodeSchema, "PROJECT_FILE_MUTATION_FAILED")).toBe(true);
   });
 
   it("validates bounded project file searches and path text prompts", () => {

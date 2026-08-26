@@ -146,13 +146,28 @@ export const workbench = {
     copyName: "复制名称",
     copyRelativePath: "复制相对路径",
     detect: "正在检测打开方式",
+    delete: "删除",
     moreActions: "更多操作",
     none: "没有可用的打开方式",
     open: "打开",
     openIn: "在 {{app}} 中打开",
     reference: "引用",
+    rename: "重命名",
     systemDefault: "系统默认应用",
     targetLabel: "{{path}} 的操作",
+  },
+  projectFile: {
+    deleteDescription: {
+      directory: "确认后将删除磁盘上的目录及其内容，此操作无法撤销。",
+      file: "确认后将删除磁盘上的文件，此操作无法撤销。",
+    },
+    deleteTitle: "删除 {{name}}？",
+    name: "名称",
+    renameDescription: {
+      directory: "确认后将更改磁盘上的目录名称。",
+      file: "确认后将更改磁盘上的文件名称。",
+    },
+    renameTitle: "重命名",
   },
   promptCommand: {
     availability: {

@@ -127,6 +127,44 @@ describe("server project files", () => {
     expect(readProjectFileTree).toHaveBeenCalledTimes(1);
   });
 
+  it("renames and deletes project files through authorized idempotent mutations", async () => {
+    const { provider } = createProvider();
+    const renameProjectFile = vi.fn(() => Promise.resolve({ path: "src/app.ts" }));
+    const deleteProjectFile = vi.fn(() =>
+      Promise.resolve({ path: "generated", status: "deleted" as const }),
+    );
+    const app = await createCodexlyServer(
+      createServerOptions(provider, { deleteProjectFile, renameProjectFile }),
+    );
+    closeCallbacks.push(() => app.close());
+
+    const renameResponse = await app.inject({
+      headers: { "idempotency-key": "rename-file-key" },
+      method: "POST",
+      payload: { name: "app.ts", path: "src/main.ts" },
+      url: `/v1/projects/codexly/files/rename?rootPath=${encodedProjectRootPath}`,
+    });
+    const deleteResponse = await app.inject({
+      headers: { "idempotency-key": "delete-file-key" },
+      method: "POST",
+      payload: { path: "generated" },
+      url: `/v1/projects/codexly/files/delete?rootPath=${encodedProjectRootPath}`,
+    });
+    const missingKeyResponse = await app.inject({
+      method: "POST",
+      payload: { path: "generated" },
+      url: `/v1/projects/codexly/files/delete?rootPath=${encodedProjectRootPath}`,
+    });
+
+    expect(renameResponse.statusCode).toBe(200);
+    expect(renameResponse.json()).toEqual({ path: "src/app.ts" });
+    expect(renameProjectFile).toHaveBeenCalledWith(projectRootPath, "src/main.ts", "app.ts");
+    expect(deleteResponse.statusCode).toBe(200);
+    expect(deleteResponse.json()).toEqual({ path: "generated", status: "deleted" });
+    expect(deleteProjectFile).toHaveBeenCalledWith(projectRootPath, "generated");
+    expect(missingKeyResponse.statusCode).toBe(400);
+  });
+
   it("searches project files for path text references", async () => {
     const { provider } = createProvider();
     const searchProjectFiles = vi.fn(() => Promise.resolve({ data: [] }));

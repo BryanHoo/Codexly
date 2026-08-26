@@ -8,6 +8,10 @@ import {
   getProjectTargetAbsolutePath,
   ProjectOpenContextMenuItems,
 } from "./project-open-menu.js";
+import {
+  ProjectFileDeleteDialog,
+  ProjectFileRenameDialog,
+} from "./project-file-mutation-dialog.js";
 
 describe("getProjectFileManagerApp", () => {
   it("selects only the system file manager for direct folder opening", () => {
@@ -45,7 +49,9 @@ describe("ProjectOpenContextMenuItems", () => {
             { id: "finder", kind: "file-manager", name: "Finder" },
           ]}
           isPending={false}
+          onDelete={vi.fn()}
           onReference={vi.fn()}
+          onRename={vi.fn()}
           onSelect={vi.fn()}
           target={{
             absolutePath: "/workspace/Codexly/README.md",
@@ -70,8 +76,10 @@ describe("ProjectOpenContextMenuItems", () => {
     expect(markup).not.toContain(">复制路径<");
     expect(markup).toContain("打开");
     expect(markup).toContain("引用");
+    expect(markup).toContain("重命名");
+    expect(markup).toContain("删除");
     expect(markup.match(/data-slot="context-menu-sub-trigger"/gu)).toHaveLength(1);
-    expect(markup.match(/data-slot="context-menu-item"/gu)).toHaveLength(4);
+    expect(markup.match(/data-slot="context-menu-item"/gu)).toHaveLength(6);
     expect(markup).not.toContain("menuitemradio");
     expect(markup).not.toContain("aria-checked");
   });
@@ -82,7 +90,9 @@ describe("ProjectOpenContextMenuItems", () => {
         <ProjectOpenContextMenuItems
           apps={[{ id: "zed", kind: "editor", name: "Zed" }]}
           isPending={false}
+          onDelete={vi.fn()}
           onReference={vi.fn()}
+          onRename={vi.fn()}
           onSelect={vi.fn()}
           target={{
             absolutePath: "/workspace/Codexly/src",
@@ -95,7 +105,33 @@ describe("ProjectOpenContextMenuItems", () => {
     );
 
     expect(markup).not.toContain("引用");
-    expect(markup.match(/data-slot="context-menu-item"/gu)).toHaveLength(3);
+    expect(markup).toContain("重命名");
+    expect(markup).toContain("删除");
+    expect(markup.match(/data-slot="context-menu-item"/gu)).toHaveLength(5);
+  });
+
+  it("warns that rename and delete confirmations change files on disk", () => {
+    const renameMarkup = renderToStaticMarkup(
+      <ProjectFileRenameDialog
+        initialName="package.json"
+        isPending={false}
+        onClose={vi.fn()}
+        onRename={vi.fn()}
+        targetType="file"
+      />,
+    );
+    const deleteMarkup = renderToStaticMarkup(
+      <ProjectFileDeleteDialog
+        isPending={false}
+        name="docs"
+        onClose={vi.fn()}
+        onDelete={vi.fn()}
+        targetType="directory"
+      />,
+    );
+
+    expect(renameMarkup).toContain("将更改磁盘上的文件名称");
+    expect(deleteMarkup).toContain("将删除磁盘上的目录及其内容");
   });
 
   it("offers the system default application only for file targets", () => {

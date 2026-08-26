@@ -147,13 +147,29 @@ export const workbench = {
     copyName: "Copy name",
     copyRelativePath: "Copy relative path",
     detect: "Detecting available apps",
+    delete: "Delete",
     moreActions: "More actions",
     none: "No apps available",
     open: "Open",
     openIn: "Open in {{app}}",
     reference: "Reference",
+    rename: "Rename",
     systemDefault: "System default app",
     targetLabel: "Actions for {{path}}",
+  },
+  projectFile: {
+    deleteDescription: {
+      directory:
+        "This will delete the directory and its contents from disk. This cannot be undone.",
+      file: "This will delete the file from disk. This cannot be undone.",
+    },
+    deleteTitle: "Delete {{name}}?",
+    name: "Name",
+    renameDescription: {
+      directory: "This will change the directory name on disk.",
+      file: "This will change the file name on disk.",
+    },
+    renameTitle: "Rename",
   },
   promptCommand: {
     availability: {

@@ -23,6 +23,7 @@ import type {
   AgentTaskSettings,
   CommitProjectChangesRequest,
   CommitProjectChangesResponse,
+  DeleteProjectFileResponse,
   CreateProjectBranchRequest,
   CreateProjectWorktreeRequest,
   GenerateCommitMessageRequest,
@@ -42,6 +43,7 @@ import type {
   ProjectGitWorktree,
   ProjectGitWorktreePage,
   ProjectSourceFile,
+  RenameProjectFileResponse,
   SwitchProjectBranchRequest,
   SwitchProjectWorktreeRequest,
 } from "@codexly/protocol";
@@ -164,6 +166,15 @@ export interface ServerRouteContext {
     models?: readonly AgentModel[],
   ) => Promise<AgentTaskSettings>;
   readonly readFileTree: (projectRoot: string, directoryPath?: string) => Promise<ProjectFileTree>;
+  readonly deleteProjectFile: (
+    projectRoot: string,
+    path: string,
+  ) => Promise<DeleteProjectFileResponse>;
+  readonly renameProjectFile: (
+    projectRoot: string,
+    path: string,
+    name: string,
+  ) => Promise<RenameProjectFileResponse>;
   readonly searchProjectFiles: AgentFileSearchProvider["search"];
   readonly stopProjectFileSearch: AgentFileSearchProvider["stop"];
   readonly readHostFileDirectory: (

@@ -312,6 +312,42 @@ export const ProjectFileTreeSchema = Type.Object(
 
 export type ProjectFileTree = Readonly<Static<typeof ProjectFileTreeSchema>>;
 
+export const ProjectFileNameSchema = Type.String({
+  maxLength: 255,
+  minLength: 1,
+  pattern: "^(?!\\.\\.?$)[^/\\\\\\u0000\\r\\n]+$",
+});
+
+export const RenameProjectFileRequestSchema = Type.Object(
+  {
+    name: ProjectFileNameSchema,
+    path: ProjectRelativePathSchema,
+  },
+  { additionalProperties: false },
+);
+export type RenameProjectFileRequest = Readonly<Static<typeof RenameProjectFileRequestSchema>>;
+
+export const RenameProjectFileResponseSchema = Type.Object(
+  { path: ProjectRelativePathSchema },
+  { additionalProperties: false },
+);
+export type RenameProjectFileResponse = Readonly<Static<typeof RenameProjectFileResponseSchema>>;
+
+export const DeleteProjectFileRequestSchema = Type.Object(
+  { path: ProjectRelativePathSchema },
+  { additionalProperties: false },
+);
+export type DeleteProjectFileRequest = Readonly<Static<typeof DeleteProjectFileRequestSchema>>;
+
+export const DeleteProjectFileResponseSchema = Type.Object(
+  {
+    path: ProjectRelativePathSchema,
+    status: Type.Literal("deleted"),
+  },
+  { additionalProperties: false },
+);
+export type DeleteProjectFileResponse = Readonly<Static<typeof DeleteProjectFileResponseSchema>>;
+
 export const ProjectSourceFileQuerySchema = Type.Object(
   {
     cursor: Type.Optional(Type.Integer({ minimum: 0 })),

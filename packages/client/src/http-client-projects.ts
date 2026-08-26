@@ -5,6 +5,7 @@ import {
   AgentProjectDefaultsResponseSchema,
   AgentSkillPageSchema,
   CommitProjectChangesResponseSchema,
+  DeleteProjectFileResponseSchema,
   type CreateProjectBranchRequest,
   type CreateProjectWorktreeRequest,
   GenerateCommitMessageResponseSchema,
@@ -26,6 +27,7 @@ import {
   RemoveProjectResponseSchema,
   ReloadAgentMcpServersResponseSchema,
   RenameProjectResponseSchema,
+  RenameProjectFileResponseSchema,
   ReorderProjectsResponseSchema,
   type AddProjectResponse,
   type AgentMcpServerPage,
@@ -34,6 +36,8 @@ import {
   type AgentSkillPage,
   type CommitProjectChangesRequest,
   type CommitProjectChangesResponse,
+  type DeleteProjectFileRequest,
+  type DeleteProjectFileResponse,
   type GenerateCommitMessageRequest,
   type GenerateCommitMessageResponse,
   type HostFileKind,
@@ -61,6 +65,8 @@ import {
   type ProjectWorktreeMutationResponse,
   type RemoveProjectResponse,
   type RenameProjectResponse,
+  type RenameProjectFileRequest,
+  type RenameProjectFileResponse,
   type ReloadAgentMcpServersResponse,
   type ReorderProjectsResponse,
 } from "@codexly/protocol";
@@ -417,6 +423,34 @@ export class ProjectHttpClient extends CodexlyTransport {
       rootPath,
     });
     return this.read(requestPath, ProjectFileTreeSchema, options);
+  }
+
+  public async renameProjectFile(
+    projectId: string,
+    rootPath: string,
+    request: RenameProjectFileRequest,
+    options: MutationOptions = {},
+  ): Promise<RenameProjectFileResponse> {
+    return this.mutation(
+      appendQuery(`/v1/projects/${encodeURIComponent(projectId)}/files/rename`, { rootPath }),
+      request,
+      RenameProjectFileResponseSchema,
+      options,
+    );
+  }
+
+  public async deleteProjectFile(
+    projectId: string,
+    rootPath: string,
+    request: DeleteProjectFileRequest,
+    options: MutationOptions = {},
+  ): Promise<DeleteProjectFileResponse> {
+    return this.mutation(
+      appendQuery(`/v1/projects/${encodeURIComponent(projectId)}/files/delete`, { rootPath }),
+      request,
+      DeleteProjectFileResponseSchema,
+      options,
+    );
   }
 
   public async searchProjectFiles(

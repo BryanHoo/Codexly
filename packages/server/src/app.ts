@@ -23,6 +23,7 @@ import { readProjectGitStatus as readGitProjectStatus } from "./git-working-tree
 import { readHostFileDirectory, resolveHostAttachment } from "./host-file-browser.js";
 import { createIdempotencyRunner } from "./idempotency-runner.js";
 import { readProjectFileTree } from "./project-file-tree.js";
+import { deleteProjectFile, renameProjectFile } from "./project-file-mutations.js";
 import { readProjectImageFile } from "./project-image-file.js";
 import { readProjectSourceFile } from "./project-source-file.js";
 import { createProjectOpenService } from "./project-open.js";
@@ -425,7 +426,6 @@ export async function createCodexlyServer(
     },
     ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot }),
   });
-
   const routeContext: ServerRouteContext = {
     ...(accessService === undefined ? {} : { accessService }),
     activeGitMutations,
@@ -456,6 +456,8 @@ export async function createCodexlyServer(
     readEffectiveProjectDefaults,
     readEffectiveTaskSettings,
     readFileTree,
+    deleteProjectFile: options.deleteProjectFile ?? deleteProjectFile,
+    renameProjectFile: options.renameProjectFile ?? renameProjectFile,
     searchProjectFiles,
     stopProjectFileSearch,
     readHostFileDirectory: options.readHostFileDirectory ?? readHostFileDirectory,

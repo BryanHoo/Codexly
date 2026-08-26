@@ -9,6 +9,7 @@ import type {
   AppInfoResponse,
   CommitProjectChangesRequest,
   CommitProjectChangesResponse,
+  DeleteProjectFileResponse,
   CreateProjectBranchRequest,
   CreateProjectWorktreeRequest,
   HostFileKind,
@@ -27,6 +28,7 @@ import type {
   ProjectGitWorktree,
   ProjectGitWorktreePage,
   ProjectSourceFile,
+  RenameProjectFileResponse,
   SwitchProjectBranchRequest,
   SwitchProjectWorktreeRequest,
 } from "@codexly/protocol";
@@ -97,6 +99,12 @@ export interface CreateCodexlyServerOptions {
   ) => Promise<ProjectGitStatus>;
   readHostFileDirectory?: (kind: HostFileKind, path?: string) => Promise<HostFileListing>;
   readProjectFileTree?: (projectRoot: string, directoryPath?: string) => Promise<ProjectFileTree>;
+  deleteProjectFile?: (projectRoot: string, path: string) => Promise<DeleteProjectFileResponse>;
+  renameProjectFile?: (
+    projectRoot: string,
+    path: string,
+    name: string,
+  ) => Promise<RenameProjectFileResponse>;
   searchProjectFiles?: AgentFileSearchProvider["search"];
   stopProjectFileSearch?: AgentFileSearchProvider["stop"];
   readProjectDirectory?: (

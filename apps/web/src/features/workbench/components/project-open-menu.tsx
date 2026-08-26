@@ -43,6 +43,10 @@ import {
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
 import { useTranslation } from "../../../i18n/i18n.js";
+import {
+  ProjectFileMutationContextMenuItems,
+  ProjectFileMutationDropdownMenuItems,
+} from "./project-file-mutation-menu-items.js";
 
 const appKindIcons = {
   editor: Code2,
@@ -163,7 +167,9 @@ type ProjectOpenContextMenuItemsProps = Readonly<{
   apps: readonly ProjectOpenApp[];
   ariaLabel?: string;
   isPending: boolean;
+  onDelete?: () => void;
   onReference: (reference: ProjectFileSearchEntry) => void;
+  onRename?: () => void;
   onSelect: (appId: ProjectOpenAppId, path: string) => void;
   target: ProjectOpenContextMenuTarget;
 }>;
@@ -194,7 +200,9 @@ export function ProjectOpenContextMenuItems({
   apps,
   ariaLabel,
   isPending,
+  onDelete,
   onReference,
+  onRename,
   onSelect,
   target,
 }: ProjectOpenContextMenuItemsProps) {
@@ -263,6 +271,13 @@ export function ProjectOpenContextMenuItems({
           <span>{t("openMenu.reference")}</span>
         </ContextMenuItem>
       )}
+      {onDelete === undefined || onRename === undefined ? null : (
+        <ProjectFileMutationContextMenuItems
+          disabled={isPending}
+          onDelete={onDelete}
+          onRename={onRename}
+        />
+      )}
     </ContextMenuContent>
   );
 }
@@ -271,7 +286,9 @@ type ProjectOpenDropdownMenuProps = Readonly<{
   apps: readonly ProjectOpenApp[];
   isPending: boolean;
   onOpen: () => void;
+  onDelete?: () => void;
   onReference: (reference: ProjectFileSearchEntry) => void;
+  onRename?: () => void;
   onSelect: (appId: ProjectOpenAppId, path: string) => void;
   target: ProjectOpenContextMenuTarget;
 }>;
@@ -280,7 +297,9 @@ export function ProjectOpenDropdownMenu({
   apps,
   isPending,
   onOpen,
+  onDelete,
   onReference,
+  onRename,
   onSelect,
   target,
 }: ProjectOpenDropdownMenuProps) {
@@ -377,6 +396,13 @@ export function ProjectOpenDropdownMenu({
             <span>{t("openMenu.reference")}</span>
           </DropdownMenuItem>
         )}
+        {onDelete === undefined || onRename === undefined ? null : (
+          <ProjectFileMutationDropdownMenuItems
+            disabled={isPending}
+            onDelete={onDelete}
+            onRename={onRename}
+          />
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -387,7 +413,9 @@ type ProjectOpenContextMenuProps = Readonly<{
   children: ReactElement;
   isPending: boolean;
   onOpen: () => void;
+  onDelete?: () => void;
   onReference: (reference: ProjectFileSearchEntry) => void;
+  onRename?: () => void;
   onSelect: (appId: ProjectOpenAppId, path: string) => void;
   target: ProjectOpenContextMenuTarget;
 }>;
@@ -397,7 +425,9 @@ export function ProjectOpenContextMenu({
   children,
   isPending,
   onOpen,
+  onDelete,
   onReference,
+  onRename,
   onSelect,
   target,
 }: ProjectOpenContextMenuProps) {
@@ -427,6 +457,7 @@ export function ProjectOpenContextMenu({
         onReference={onReference}
         onSelect={onSelect}
         target={target}
+        {...(onDelete === undefined || onRename === undefined ? {} : { onDelete, onRename })}
       />
     </ContextMenu>
   );

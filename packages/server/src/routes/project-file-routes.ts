@@ -24,6 +24,7 @@ import { HostFileBrowserError } from "../host-file-browser.js";
 import { ProjectRootScopeError, resolveProjectRootEntry } from "../project-root-scope.js";
 import { filterProjectFileSearchMatches } from "../project-file-search.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
+import { registerProjectFileMutationRoutes } from "./project-file-mutation-routes.js";
 import {
   ErrorResponseSchema,
   IdempotencyHeadersSchema,
@@ -88,6 +89,9 @@ export function registerProjectFileRoutes(app: FastifyInstance, context: ServerR
     resolveHostAttachment,
     stopProjectFileSearch,
   } = context;
+  registerProjectFileMutationRoutes(app, context, (projectId, rootPath) =>
+    resolveProjectFileRoot(projectRepository, getProjectContext, projectId, rootPath),
+  );
 
   app.get<{ Params: { projectId: string }; Querystring: ProjectFileTreeQuery }>(
     "/v1/projects/:projectId/files/tree",

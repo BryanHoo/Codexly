@@ -235,6 +235,51 @@ describe("CodexlyClient project routes", () => {
     );
   });
 
+  it("renames and deletes project files with encoded roots and idempotency keys", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ path: "src/app.ts" }))
+      .mockResolvedValueOnce(jsonResponse({ path: "generated", status: "deleted" }));
+    const client = new CodexlyClient({ fetch: fetchMock });
+
+    await expect(
+      client.renameProjectFile(
+        "project one",
+        projectRootPath,
+        { name: "app.ts", path: "src/main.ts" },
+        { idempotencyKey: "rename-file-key" },
+      ),
+    ).resolves.toEqual({ path: "src/app.ts" });
+    await expect(
+      client.deleteProjectFile(
+        "project one",
+        projectRootPath,
+        { path: "generated" },
+        {
+          idempotencyKey: "delete-file-key",
+        },
+      ),
+    ).resolves.toEqual({ path: "generated", status: "deleted" });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/v1/projects/project%20one/files/rename?rootPath=%2Fworkspace%2FCodexly",
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      body: JSON.stringify({ name: "app.ts", path: "src/main.ts" }),
+      method: "POST",
+    });
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("idempotency-key")).toBe(
+      "rename-file-key",
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "/v1/projects/project%20one/files/delete?rootPath=%2Fworkspace%2FCodexly",
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      body: JSON.stringify({ path: "generated" }),
+      method: "POST",
+    });
+  });
+
   it("opens a task attachment with the host system application", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(

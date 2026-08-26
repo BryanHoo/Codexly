@@ -67,6 +67,8 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await expect(rootMenu.getByRole("menuitem", { name: "复制相对路径" })).toBeVisible();
   await expect(rootMenu.getByRole("menuitem", { name: "复制绝对路径" })).toBeVisible();
   await expect(rootMenu.getByRole("menuitem", { name: "引用" })).toHaveCount(0);
+  await expect(rootMenu.getByRole("menuitem", { name: "重命名" })).toHaveCount(0);
+  await expect(rootMenu.getByRole("menuitem", { name: "删除" })).toHaveCount(0);
   await rootMenu.getByRole("menuitem", { name: "复制名称" }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("Codexly");
   await rootTreeItem.click({ button: "right" });
@@ -190,4 +192,58 @@ test("project file tree refresh, context menu, and ellipsis share target actions
     text: "@/workspace/Codexly/package.json",
     type: "prompt",
   });
+});
+
+test("project file tree context and ellipsis menus rename and delete disk entries", async ({
+  page,
+}) => {
+  let renameRequest: Record<string, unknown> | undefined;
+  let deleteRequest: Record<string, unknown> | undefined;
+  let renameIdempotencyKey: string | undefined;
+  let deleteIdempotencyKey: string | undefined;
+  await page.route("**/v1/projects/codexly/files/rename?*", async (route) => {
+    renameRequest = parseRequestRecord(route.request().postData());
+    renameIdempotencyKey = route.request().headers()["idempotency-key"];
+    await route.fulfill({ json: { path: "package-lock.json" }, status: 200 });
+  });
+  await page.route("**/v1/projects/codexly/files/delete?*", async (route) => {
+    deleteRequest = parseRequestRecord(route.request().postData());
+    deleteIdempotencyKey = route.request().headers()["idempotency-key"];
+    await route.fulfill({ json: { path: "docs", status: "deleted" }, status: 200 });
+  });
+  await page.goto("/p/codexly/t/task-1");
+
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  await inspector.getByRole("tab", { name: "项目" }).click();
+  const fileTree = inspector.getByRole("tree", { name: "项目文件" });
+  const rootTreeItem = fileTree.getByRole("treeitem", { name: "Codexly" }).first();
+  await rootTreeItem.click({ button: "right" });
+  const rootMenu = page.getByRole("menu", { name: "/workspace/Codexly 的操作" });
+  await expect(rootMenu.getByRole("menuitem", { name: "重命名" })).toHaveCount(0);
+  await expect(rootMenu.getByRole("menuitem", { name: "删除" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  const docsTreeItem = fileTree.getByRole("treeitem", { name: "docs" });
+  await docsTreeItem.click({ button: "right" });
+  const folderMenu = page.getByRole("menu", { name: "docs 的操作" });
+  await folderMenu.getByRole("menuitem", { name: "删除" }).click();
+  const deleteDialog = page.getByRole("dialog", { name: "删除 docs？" });
+  await expect(deleteDialog).toContainText("将删除磁盘上的目录及其内容");
+  await deleteDialog.getByRole("button", { name: "删除" }).click();
+  await expect(deleteDialog).not.toBeAttached();
+  expect(deleteRequest).toEqual({ path: "docs" });
+  expect(deleteIdempotencyKey).toBeTruthy();
+
+  const packageTreeItem = fileTree.getByRole("treeitem", { name: /package\.json/u });
+  await packageTreeItem.hover();
+  await packageTreeItem.getByRole("button", { name: "package.json 的操作" }).click();
+  const fileMenu = page.getByRole("menu", { name: "package.json 的操作" });
+  await fileMenu.getByRole("menuitem", { name: "重命名" }).click();
+  const renameDialog = page.getByRole("dialog", { name: "重命名" });
+  await expect(renameDialog).toContainText("将更改磁盘上的文件名称");
+  await renameDialog.getByRole("textbox", { name: "名称" }).fill("package-lock.json");
+  await renameDialog.getByRole("button", { name: "重命名" }).click();
+  await expect(renameDialog).not.toBeAttached();
+  expect(renameRequest).toEqual({ name: "package-lock.json", path: "package.json" });
+  expect(renameIdempotencyKey).toBeTruthy();
 });
