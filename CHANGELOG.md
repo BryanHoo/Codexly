@@ -4,6 +4,29 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-26
+
+### 新增
+
+- 添加持久化任务队列，支持编辑排队消息与附件，并在应用重启后继续后续任务。
+- 添加项目文件重命名、删除和独立窗口预览，并为变更文件提供树形与列表视图切换。
+- 添加工作台宠物浮层与任务活动气泡，并在上下文指示器旁展示使用百分比。
+
+### 优化
+
+- 复用跨路由工作台背景布局，精简 Inspector 来源列表与变更摘要交互。
+- 优化终端输出样式和滚动跟随行为，并支持多行提交信息与 Git 提交记录快捷复制。
+
+### 修复
+
+- 修复编辑器换行序列化、原生撤销栈和浏览器末尾空行处理。
+- 修复归档任务刷新、创建按钮显隐及仅含图片消息的快照对账。
+- 修复 Web 生产构建残留旧资源，并调整 Bundle 门禁和端到端选择器稳定性。
+
+### 工程
+
+- 替换存在拒绝服务漏洞的图片尺寸解析依赖，并将宠物资源校验限定为 WebP 格式。
+
 ## [0.4.0] - 2026-08-26
 
 ### 新增
@@ -84,7 +107,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.5.0
 [0.4.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.4.0
 [0.3.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.3.0
 [0.2.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.2.0

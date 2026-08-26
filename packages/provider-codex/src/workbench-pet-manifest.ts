@@ -6,9 +6,8 @@ import type {
   WorkbenchPetDescriptor,
   WorkbenchPetFrame,
 } from "@codexly/protocol";
-import { imageSizeFromFile } from "image-size/fromFile";
-
 import { createDefaultPetAnimations, PET_FRAME } from "./workbench-pet-catalog.js";
+import { readWebpDimensionsFromFile } from "./workbench-pet-image.js";
 
 const MAX_MANIFEST_BYTES = 64 * 1_024;
 const MAX_CUSTOM_ASSET_BYTES = 16 * 1_024 * 1_024;
@@ -47,7 +46,7 @@ export async function loadCustomPet(input: {
   if (!assetStats.isFile() || assetStats.size > MAX_CUSTOM_ASSET_BYTES) {
     throw new Error("Pet spritesheet is missing or too large");
   }
-  const dimensions = await imageSizeFromFile(path);
+  const dimensions = await readWebpDimensionsFromFile(path);
   const frame = parseFrame(manifest["frame"]);
   const frameCount = validateFrame(frame, dimensions.width, dimensions.height);
   const animations = parseAnimations(manifest["animations"], frameCount);
@@ -82,7 +81,7 @@ export async function validatePetAsset(record: PetAssetRecord): Promise<{
   if (!assetStats.isFile() || assetStats.size > MAX_CUSTOM_ASSET_BYTES) {
     throw new Error("Pet spritesheet is unavailable");
   }
-  const dimensions = await imageSizeFromFile(resolved);
+  const dimensions = await readWebpDimensionsFromFile(resolved);
   validateFrame(record.descriptor.frame, dimensions.width, dimensions.height);
   return { mtimeMs: assetStats.mtimeMs, size: assetStats.size };
 }

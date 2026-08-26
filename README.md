@@ -37,11 +37,13 @@
 ## Features
 
 - Run project or temporary Codex tasks and follow responses, commands, and file changes in real time
+- Keep follow-up work in a persistent task queue, and edit queued messages and attachments before they run
 - Attach files and images, reference project files with `@`, and answer input requests from configured MCP servers
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access level for each task
 - Organize ordered multi-root projects, archive completed tasks, and permanently delete tasks when needed
-- Inspect files and diffs, review code, manage branches and worktrees, and commit or push changes
+- Inspect, preview, rename, and delete project files; review diffs; manage branches and worktrees; and commit or push changes
 - Fork a task from an AI response and continue it in a new Git worktree
+- Add animated workspace pets that reflect active and completed task activity
 - Access the workspace from another device on a trusted local network
 
 ## Requirements

@@ -8,9 +8,6 @@ import {
   type WorkbenchPetProvider,
 } from "@codexly/core";
 import type { WorkbenchPetDescriptor } from "@codexly/protocol";
-import { imageSize } from "image-size";
-import { imageSizeFromFile } from "image-size/fromFile";
-
 import {
   BUILTIN_PETS,
   createBuiltinDescriptor,
@@ -19,6 +16,7 @@ import {
   PET_SPRITESHEET,
   type BuiltinPet,
 } from "./workbench-pet-catalog.js";
+import { readWebpDimensions, readWebpDimensionsFromFile } from "./workbench-pet-image.js";
 import { loadCustomPet, validatePetAsset, type PetAssetRecord } from "./workbench-pet-manifest.js";
 
 const MAX_DOWNLOAD_BYTES = 4 * 1_024 * 1_024;
@@ -178,7 +176,7 @@ export class CodexWorkbenchPetProvider implements WorkbenchPetProvider {
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    const dimensions = imageSize(bytes);
+    const dimensions = readWebpDimensions(bytes);
     if (
       dimensions.width !== PET_SPRITESHEET.width ||
       dimensions.height !== PET_SPRITESHEET.height
@@ -250,7 +248,7 @@ async function validateBuiltinFile(path: string): Promise<void> {
   if (!metadata.isFile() || metadata.size > MAX_DOWNLOAD_BYTES) {
     throw new Error("Pet cache file is invalid");
   }
-  const dimensions = await imageSizeFromFile(resolved);
+  const dimensions = await readWebpDimensionsFromFile(resolved);
   if (dimensions.width !== PET_SPRITESHEET.width || dimensions.height !== PET_SPRITESHEET.height) {
     throw new Error("Pet cache file has invalid dimensions");
   }

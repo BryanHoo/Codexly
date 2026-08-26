@@ -87,9 +87,9 @@ catalogs:
     i18next:
       specifier: 26.3.6
       version: 26.3.6
-    image-size:
-      specifier: 2.0.2
-      version: 2.0.2
+    image-dimensions:
+      specifier: 2.5.1
+      version: 2.5.1
     lucide-react:
       specifier: 1.25.0
       version: 1.25.0
@@ -352,9 +352,9 @@ importers:
       '@openai/codex':
         specifier: 'catalog:'
         version: 0.149.0
-      image-size:
+      image-dimensions:
         specifier: 'catalog:'
-        version: 2.0.2
+        version: 2.5.1
       pino:
         specifier: 'catalog:'
         version: 10.3.1
@@ -2890,9 +2890,9 @@ packages:
     resolution: {integrity: sha512-BAg6QkE8W+TuQLrrw0Ugr7HegXduRuuj8/ti2kSOc+jz1dmx8/WNcjr6XGnq5YpDWxFwwaavqD0+jIUOKelTsw==}
     engines: {node: '>= 4'}
 
-  image-size@2.0.2:
-    resolution: {integrity: sha512-IRqXKlaXwgSMAMtpNzZa1ZAe8m+Sa1770Dhk8VkSsP9LS+iHD62Zd8FQKs8fbPiagBE7BzoFX23cxFnwshpV6w==}
-    engines: {node: '>=16.x'}
+  image-dimensions@2.5.1:
+    resolution: {integrity: sha512-It7CkTNp7IYA8jhvGgz8K18OAbHF3/Juk8RNEyTyMFfolJOIU1Y2wGDnzDQPbGCjyxVF/++pwIZE0BKJUEOb1g==}
+    engines: {node: '>=18'}
     hasBin: true
 
   import-meta-resolve@4.2.0:
@@ -6564,7 +6564,7 @@ snapshots:
 
   ignore@7.0.6: {}
 
-  image-size@2.0.2: {}
+  image-dimensions@2.5.1: {}
 
   import-meta-resolve@4.2.0: {}
 

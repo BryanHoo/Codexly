@@ -14,7 +14,7 @@
     "@codexly/core": "workspace:*",
     "@codexly/protocol": "workspace:*",
     "@openai/codex": "catalog:",
-    "image-size": "catalog:",
+    "image-dimensions": "catalog:",
     "pino": "catalog:"
   }
 }
