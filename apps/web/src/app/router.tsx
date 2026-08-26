@@ -6,13 +6,11 @@ import { rootRoute } from "./routes/root-route.js";
 import { taskRoute } from "./routes/task-route.js";
 import { temporaryRoute } from "./routes/temporary-route.js";
 import { temporaryTaskRoute } from "./routes/temporary-task-route.js";
+import { workbenchLayoutRoute } from "./routes/workbench-route.js";
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  projectRoute,
-  taskRoute,
-  temporaryRoute,
-  temporaryTaskRoute,
+  workbenchLayoutRoute.addChildren([projectRoute, taskRoute, temporaryRoute, temporaryTaskRoute]),
 ]);
 
 export const router = createRouter({

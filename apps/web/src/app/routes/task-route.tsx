@@ -1,12 +1,11 @@
 import { createRoute } from "@tanstack/react-router";
 
-import { rootRoute } from "./root-route.js";
-import { WorkbenchRoute } from "./workbench-route.js";
+import { WorkbenchRoute, workbenchLayoutRoute } from "./workbench-route.js";
 
 export const taskRoute = createRoute({
   component: TaskPage,
-  getParentRoute: () => rootRoute,
-  path: "/p/$projectId/t/$taskId",
+  getParentRoute: () => workbenchLayoutRoute,
+  path: "p/$projectId/t/$taskId",
 });
 
 function TaskPage() {

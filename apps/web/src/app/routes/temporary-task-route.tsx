@@ -1,13 +1,12 @@
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { createRoute } from "@tanstack/react-router";
 
-import { rootRoute } from "./root-route.js";
-import { WorkbenchRoute } from "./workbench-route.js";
+import { WorkbenchRoute, workbenchLayoutRoute } from "./workbench-route.js";
 
 export const temporaryTaskRoute = createRoute({
   component: TemporaryTaskPage,
-  getParentRoute: () => rootRoute,
-  path: "/temporary/t/$taskId",
+  getParentRoute: () => workbenchLayoutRoute,
+  path: "temporary/t/$taskId",
 });
 
 function TemporaryTaskPage() {

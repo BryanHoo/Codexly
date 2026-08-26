@@ -10,6 +10,28 @@ function readWebSource(path: string): string {
 }
 
 describe("Workbench 加载边界", () => {
+  it("让工作台背景跨 Project 与 Task 子路由保持挂载", () => {
+    const workbenchRoute = readWebSource("app/routes/workbench-route.tsx");
+    const workbenchShell = readWebSource("features/workbench/components/workbench-shell.tsx");
+    const router = readWebSource("app/router.tsx");
+
+    expect(workbenchRoute).toContain("export const workbenchLayoutRoute = createRoute");
+    expect(workbenchRoute).toContain("<WorkbenchBackground>");
+    expect(workbenchRoute).toContain("<Outlet />");
+    expect(workbenchShell).not.toContain("WorkbenchBackground");
+    expect(router).toContain("workbenchLayoutRoute.addChildren([");
+
+    for (const routeFile of [
+      "project-route.tsx",
+      "task-route.tsx",
+      "temporary-route.tsx",
+      "temporary-task-route.tsx",
+    ]) {
+      const source = readWebSource(`app/routes/${routeFile}`);
+      expect(source).toContain("getParentRoute: () => workbenchLayoutRoute");
+    }
+  });
+
   it("让所有工作台路由复用唯一动态入口", () => {
     const workbenchRoutePath = join(webSourceRoot, "app/routes/workbench-route.tsx");
     expect(existsSync(workbenchRoutePath)).toBe(true);

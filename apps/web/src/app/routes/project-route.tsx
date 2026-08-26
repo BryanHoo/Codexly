@@ -1,12 +1,11 @@
 import { createRoute } from "@tanstack/react-router";
 
-import { rootRoute } from "./root-route.js";
-import { WorkbenchRoute } from "./workbench-route.js";
+import { WorkbenchRoute, workbenchLayoutRoute } from "./workbench-route.js";
 
 export const projectRoute = createRoute({
   component: ProjectPage,
-  getParentRoute: () => rootRoute,
-  path: "/p/$projectId",
+  getParentRoute: () => workbenchLayoutRoute,
+  path: "p/$projectId",
 });
 
 function ProjectPage() {
