@@ -1,11 +1,17 @@
 import type { ProjectGitCommit, ProjectGitHistoryPage } from "@codexly/protocol";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { GitCommitHorizontal, LoaderCircle } from "lucide-react";
+import { Copy, GitCommitHorizontal, LoaderCircle } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
 import { cn } from "../../../shared/lib/utils.js";
 import { Button } from "../../../shared/components/core/button.js";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "../../../shared/components/core/context-menu.js";
 import type { CodexlyGitHistoryClient } from "../../projects/project-queries.js";
 import { projectGitHistoryInfiniteQueryOptions } from "../../projects/project-queries.js";
 
@@ -74,6 +80,99 @@ function GitCommitSummary({
   );
 }
 
+type GitCommitCopyField = "author" | "hash" | "message";
+
+export function getGitCommitCopyText(commit: ProjectGitCommit, field: GitCommitCopyField): string {
+  const values: Record<GitCommitCopyField, string> = {
+    author: commit.authorName,
+    hash: commit.sha,
+    message: commit.title,
+  };
+  return values[field];
+}
+
+export function copyGitCommitText(commit: ProjectGitCommit, field: GitCommitCopyField): void {
+  // 菜单选中后立即关闭，剪贴板失败不影响历史列表的当前状态。
+  void navigator.clipboard.writeText(getGitCommitCopyText(commit, field)).catch(() => undefined);
+}
+
+export function GitCommitContextMenuItems({ commit }: Readonly<{ commit: ProjectGitCommit }>) {
+  useTranslation("conversation");
+  const items = [
+    ["message", i18n.t("gitHistory.copyMessage", { ns: "conversation" })],
+    ["author", i18n.t("gitHistory.copyAuthor", { ns: "conversation" })],
+    ["hash", i18n.t("gitHistory.copyHash", { ns: "conversation" })],
+  ] as const satisfies readonly (readonly [GitCommitCopyField, string])[];
+
+  return (
+    <ContextMenuContent aria-label={i18n.t("gitHistory.copyMenuLabel", { ns: "conversation" })}>
+      {items.map(([field, label]) => (
+        <ContextMenuItem
+          key={field}
+          onSelect={() => {
+            copyGitCommitText(commit, field);
+          }}
+        >
+          <Copy aria-hidden="true" className="size-3.5" />
+          {label}
+        </ContextMenuItem>
+      ))}
+    </ContextMenuContent>
+  );
+}
+
+function GitCommitListItem({
+  commit,
+  compact,
+  dateFormatter,
+  isLast,
+  onSelectCommit,
+}: Readonly<{
+  commit: ProjectGitCommit;
+  compact: boolean;
+  dateFormatter: Intl.DateTimeFormat;
+  isLast: boolean;
+  onSelectCommit?: (commit: ProjectGitCommit) => void;
+}>) {
+  return (
+    <ContextMenu modal={false}>
+      <ContextMenuTrigger asChild>
+        <li
+          className={cn(
+            "relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)]",
+            compact ? "gap-x-1.5 px-3 py-1.5" : "gap-x-2.5 px-4 py-2.5",
+          )}
+        >
+          <div className="relative flex w-4 justify-center" aria-hidden="true">
+            {!isLast ? (
+              <span className="absolute bottom-[-0.625rem] top-3 w-px bg-separator-strong" />
+            ) : null}
+            <GitCommitHorizontal className="relative mt-0.5 size-3.5 text-brand" />
+          </div>
+          {onSelectCommit === undefined ? (
+            <div className="min-w-0">
+              <GitCommitSummary commit={commit} compact={compact} dateFormatter={dateFormatter} />
+            </div>
+          ) : (
+            <Button
+              className="h-auto min-w-0 justify-start rounded-none p-0 text-left"
+              contentAlign="start"
+              onClick={() => {
+                onSelectCommit(commit);
+              }}
+              type="button"
+              variant="ghost"
+            >
+              <GitCommitSummary commit={commit} compact={compact} dateFormatter={dateFormatter} />
+            </Button>
+          )}
+        </li>
+      </ContextMenuTrigger>
+      <GitCommitContextMenuItems commit={commit} />
+    </ContextMenu>
+  );
+}
+
 export function GitHistoryContent({
   active,
   className,
@@ -118,45 +217,14 @@ export function GitHistoryContent({
         <>
           <ol aria-label={i18n.t("gitHistory.commits", { ns: "conversation" })}>
             {commits.map((commit, index) => (
-              <li
-                className={cn(
-                  "relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)]",
-                  compact ? "gap-x-1.5 px-3 py-1.5" : "gap-x-2.5 px-4 py-2.5",
-                )}
+              <GitCommitListItem
+                commit={commit}
+                compact={compact}
+                dateFormatter={dateFormatter}
+                isLast={index === commits.length - 1}
                 key={commit.sha}
-              >
-                <div className="relative flex w-4 justify-center" aria-hidden="true">
-                  {index < commits.length - 1 ? (
-                    <span className="absolute bottom-[-0.625rem] top-3 w-px bg-separator-strong" />
-                  ) : null}
-                  <GitCommitHorizontal className="relative mt-0.5 size-3.5 text-brand" />
-                </div>
-                {onSelectCommit === undefined ? (
-                  <div className="min-w-0">
-                    <GitCommitSummary
-                      commit={commit}
-                      compact={compact}
-                      dateFormatter={dateFormatter}
-                    />
-                  </div>
-                ) : (
-                  <Button
-                    className="h-auto min-w-0 justify-start rounded-none p-0 text-left"
-                    contentAlign="start"
-                    onClick={() => {
-                      onSelectCommit(commit);
-                    }}
-                    type="button"
-                    variant="ghost"
-                  >
-                    <GitCommitSummary
-                      commit={commit}
-                      compact={compact}
-                      dateFormatter={dateFormatter}
-                    />
-                  </Button>
-                )}
-              </li>
+                {...(onSelectCommit === undefined ? {} : { onSelectCommit })}
+              />
             ))}
           </ol>
           <div
