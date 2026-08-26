@@ -38,6 +38,7 @@ import {
 } from "../../../shared/components/core/tooltip.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import { useFileNavigationViewPreference } from "../../diff/file-navigation-view-preference.js";
+import { cn } from "../../../shared/lib/utils.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { CommitChangesTreeSection } from "./commit-changes-tree.js";
 
@@ -127,6 +128,8 @@ export function CommitChangesPanel({
     setContentState(createCommitContentState(contentIdentity, entries));
   }
   const { message, selectedPaths } = contentState;
+  // 多行提交信息固定展示三行，更多内容继续由输入框内部滚动。
+  const commitMessageRows = message.includes("\n") ? 3 : 1;
   const isPending = isGenerating || isCommitting;
   const requiresRepository = repositories.length > 0 || gitStatus.repositoryMode === "children";
   const repositoryReady =
@@ -203,7 +206,12 @@ export function CommitChangesPanel({
       {repositoryReady ? (
         <>
           <section className="shrink-0 px-3 py-2">
-            <InputGroup className="h-8 gap-1 rounded-surface border border-separator-strong bg-panel shadow-sm focus-within:border-brand focus-within:shadow-focus max-workbench:h-11">
+            <InputGroup
+              className={cn(
+                "gap-1 rounded-surface border border-separator-strong bg-panel shadow-sm focus-within:border-brand focus-within:shadow-focus",
+                commitMessageRows === 1 ? "h-8 max-workbench:h-11" : "h-18 max-workbench:h-21",
+              )}
+            >
               <InputGroupTextarea
                 aria-label={t("commit.commitMessage")}
                 className="h-full min-h-0 overflow-y-auto px-2 py-1.5 text-label leading-5 max-workbench:py-3"
@@ -214,7 +222,7 @@ export function CommitChangesPanel({
                   setContentState((current) => ({ ...current, message: nextMessage }));
                 }}
                 placeholder={t("commit.messagePlaceholder")}
-                rows={1}
+                rows={commitMessageRows}
                 value={message}
               />
               <InputGroupAddon align="inline-end" className="ml-auto">

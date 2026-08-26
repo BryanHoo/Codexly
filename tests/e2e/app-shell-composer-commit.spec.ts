@@ -203,6 +203,7 @@ test("opens timeline review while showing Git stats in the Inspector project tre
 
 test("generates a message and commits only selected files", async ({ page }) => {
   const snapshot = "c".repeat(64);
+  const generatedMessage = "feat(git): 生成选中文件提交\n\n- 添加提交正文";
   const additionalChanges = Array.from({ length: 16 }, (_, index) => ({
     diff: `+export const generated${String(index + 1)} = true;`,
     kind: "create",
@@ -226,7 +227,7 @@ test("generates a message and commits only selected files", async ({ page }) => 
     messageRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",
-      json: { message: "feat(git): 生成选中文件提交", snapshot },
+      json: { message: generatedMessage, snapshot },
     });
   });
   await page.route("**/v1/projects/codexly/git/commits?*", async (route) => {
@@ -301,6 +302,8 @@ test("generates a message and commits only selected files", async ({ page }) => 
   await expect(page.getByRole("tooltip")).toHaveText("生成 message 信息");
   const messageInput = panel.getByRole("textbox", { name: "提交信息" });
   await expect(messageInput).toHaveJSProperty("tagName", "TEXTAREA");
+  await expect(messageInput).toHaveAttribute("rows", "1");
+  const singleLineInputGroupHeight = (await inputGroup.boundingBox())?.height ?? 0;
   const changesScroll = panel.locator('[data-slot="commit-changes-scroll"]');
   const panelMetrics = await panel.evaluate((element) => ({
     clientHeight: element.clientHeight,
@@ -349,7 +352,9 @@ test("generates a message and commits only selected files", async ({ page }) => 
   await expect(packageCheckbox).not.toBeChecked();
   await packageCheckbox.check();
   await generateMessageButton.click();
-  await expect(messageInput).toHaveValue("feat(git): 生成选中文件提交");
+  await expect(messageInput).toHaveValue(generatedMessage);
+  await expect(messageInput).toHaveAttribute("rows", "3");
+  expect((await inputGroup.boundingBox())?.height ?? 0).toBeGreaterThan(singleLineInputGroupHeight);
   await expect(page.locator('[data-sonner-toast][data-type="success"]')).toHaveCount(0);
   await messageInput.fill("feat(git): 提交选中文件\n\n保留提交正文");
   const messageMetrics = await messageInput.evaluate((element) => ({
