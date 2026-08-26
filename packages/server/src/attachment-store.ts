@@ -393,10 +393,11 @@ export class AttachmentStore {
     }
   }
 
-  public retainQueue(
+  public async retainQueue(
     projectId: string,
     ids: readonly string[],
     queuedSubmissionId: string,
+    replaceExisting = false,
   ): Promise<void> {
     const uniqueIds = [...new Set(ids)];
     for (const id of uniqueIds) {
@@ -406,8 +407,12 @@ export class AttachmentStore {
       }
       entry.expiresAt = this.#clock() + this.#ttlMs;
     }
-    this.#queueIndex.retain(projectId, queuedSubmissionId, uniqueIds);
-    return Promise.resolve();
+    if (!replaceExisting) {
+      this.#queueIndex.retain(projectId, queuedSubmissionId, uniqueIds);
+      return;
+    }
+    const removed = this.#queueIndex.replace(projectId, queuedSubmissionId, uniqueIds);
+    await Promise.all(removed.map((attachmentId) => this.#delete(attachmentId)));
   }
 
   public startQueue(projectId: string, queuedSubmissionId: string, turnId: string): Promise<void> {
@@ -419,17 +424,6 @@ export class AttachmentStore {
       }
     }
     return Promise.resolve();
-  }
-
-  public reconcileQueue(projectId: string, queuedSubmissionIds: readonly string[]): void {
-    const retainedIds = new Set(queuedSubmissionIds);
-    for (const attachmentId of this.#queueIndex.releaseMissing(projectId, retainedIds)) {
-      const entry = this.#entries.get(attachmentId);
-      if (entry?.projectId === projectId) {
-        // 自动启动没有经过 HTTP start；保留短暂宽限期，供 Provider 消费本机文件路径。
-        entry.expiresAt = this.#clock() + this.#ttlMs;
-      }
-    }
   }
 
   public async releaseQueue(projectId: string, queuedSubmissionId: string): Promise<void> {

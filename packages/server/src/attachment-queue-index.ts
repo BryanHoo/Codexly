@@ -16,23 +16,20 @@ export class AttachmentQueueIndex {
     return ids;
   }
 
-  public hasAttachment(attachmentId: string): boolean {
-    return [...this.#attachmentIdsByQueue.values()].some((ids) => ids.has(attachmentId));
+  public replace(
+    projectId: string,
+    queuedSubmissionId: string,
+    attachmentIds: readonly string[],
+  ): readonly string[] {
+    const key = queueKey(projectId, queuedSubmissionId);
+    const previous = this.#attachmentIdsByQueue.get(key) ?? new Set();
+    const next = new Set(attachmentIds);
+    this.#attachmentIdsByQueue.set(key, next);
+    return [...previous].filter((id) => !next.has(id));
   }
 
-  public releaseMissing(
-    projectId: string,
-    retainedQueueIds: ReadonlySet<string>,
-  ): readonly string[] {
-    const prefix = `${projectId}\u0000`;
-    const releasedAttachmentIds: string[] = [];
-    for (const [key, ids] of this.#attachmentIdsByQueue) {
-      if (key.startsWith(prefix) && !retainedQueueIds.has(key.slice(prefix.length))) {
-        releasedAttachmentIds.push(...ids);
-        this.#attachmentIdsByQueue.delete(key);
-      }
-    }
-    return releasedAttachmentIds;
+  public hasAttachment(attachmentId: string): boolean {
+    return [...this.#attachmentIdsByQueue.values()].some((ids) => ids.has(attachmentId));
   }
 
   public deleteAttachment(attachmentId: string): void {

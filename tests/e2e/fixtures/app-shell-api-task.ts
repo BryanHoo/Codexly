@@ -64,6 +64,7 @@ export async function handleAppShellTaskRoute(
           }
           return { id: reference["id"], name: reference["name"] };
         }),
+        status: "queued",
         text: typeof input["text"] === "string" ? input["text"] : "",
       };
       state.nextQueuedSubmission += 1;
@@ -138,7 +139,15 @@ export async function handleAppShellTaskRoute(
       if (current === undefined || !isRequestRecord(input) || typeof input["text"] !== "string") {
         throw new Error("Invalid queue update request");
       }
-      const queuedSubmission = { ...current, text: input["text"] };
+      const status = request["status"];
+      if (status !== "editing" && status !== "queued") {
+        throw new Error("Invalid queue update status");
+      }
+      const queuedSubmission: FixtureQueuedSubmission = {
+        ...current,
+        status,
+        text: input["text"],
+      };
       queue[index] = queuedSubmission;
       body = { queuedSubmission };
     }

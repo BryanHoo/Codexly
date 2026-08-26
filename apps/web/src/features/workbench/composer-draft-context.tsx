@@ -19,6 +19,9 @@ type ComposerDraftStore = Readonly<{
   update: (scope: string, update: (draft: ComposerDraft) => ComposerDraft) => void;
 }>;
 
+type DraftStorage = Pick<Storage, "getItem" | "removeItem" | "setItem">;
+const DRAFT_STORAGE_PREFIX = "codexly:composer-draft:v1:";
+
 const ComposerDraftContext = createContext<ComposerDraftStore | undefined>(undefined);
 
 export function createComposerDraftScope(projectId: string, taskId?: string): string {
@@ -50,15 +53,69 @@ function revokeRemovedDraftPreviews(previousDraft: ComposerDraft, nextDraft: Com
   }
 }
 
-export function createComposerDraftStore(): ComposerDraftStore {
+function defaultDraftStorage(): DraftStorage | undefined {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+
+function readPersistedDraft(
+  storage: DraftStorage | undefined,
+  scope: string,
+): ComposerDraft | undefined {
+  try {
+    const value: unknown = JSON.parse(
+      storage?.getItem(`${DRAFT_STORAGE_PREFIX}${scope}`) ?? "null",
+    );
+    if (typeof value !== "object" || value === null) return undefined;
+    const candidate = value as Partial<ComposerDraft>;
+    if (!Array.isArray(candidate.content) || !Array.isArray(candidate.attachments))
+      return undefined;
+    return candidate as ComposerDraft;
+  } catch {
+    return undefined;
+  }
+}
+
+function writePersistedDraft(
+  storage: DraftStorage | undefined,
+  scope: string,
+  draft: ComposerDraft | undefined,
+): void {
+  if (storage === undefined) return;
+  const key = `${DRAFT_STORAGE_PREFIX}${scope}`;
+  if (draft === undefined) {
+    storage.removeItem(key);
+    return;
+  }
+  // 浏览器 File 不能安全序列化；已导入的 Host 附件使用稳定随机 ID，可随草稿恢复。
+  storage.setItem(
+    key,
+    JSON.stringify({
+      attachments: draft.attachments.filter((attachment) => attachment.source === "host"),
+      content: draft.content,
+    }),
+  );
+}
+
+export function createComposerDraftStore(storage = defaultDraftStorage()): ComposerDraftStore {
   const drafts = new Map<string, ComposerDraft>();
-  const read = (scope: string) => drafts.get(scope) ?? emptyComposerDraft;
+  const read = (scope: string) => {
+    const existing = drafts.get(scope);
+    if (existing !== undefined) return existing;
+    const persisted = readPersistedDraft(storage, scope);
+    if (persisted !== undefined) drafts.set(scope, persisted);
+    return persisted ?? emptyComposerDraft;
+  };
   const clear = (scope: string) => {
     const draft = drafts.get(scope);
     if (draft !== undefined) {
       revokeDraftPreviews(draft);
       drafts.delete(scope);
     }
+    writePersistedDraft(storage, scope, undefined);
   };
   const update = (scope: string, applyUpdate: (draft: ComposerDraft) => ComposerDraft) => {
     const previousDraft = read(scope);
@@ -66,8 +123,10 @@ export function createComposerDraftStore(): ComposerDraftStore {
     revokeRemovedDraftPreviews(previousDraft, nextDraft);
     if (isEmptyComposerDraft(nextDraft)) {
       drafts.delete(scope);
+      writePersistedDraft(storage, scope, undefined);
     } else {
       drafts.set(scope, nextDraft);
+      writePersistedDraft(storage, scope, nextDraft);
     }
   };
   const dispose = () => {

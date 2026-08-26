@@ -55,6 +55,7 @@ import type { GitCommitError } from "../git-commit.js";
 import type { HostAttachmentSource } from "../host-file-browser.js";
 import type { ProjectOpenService } from "../project-open.js";
 import type { ProjectImageFile } from "../project-image-file.js";
+import type { PersistentTaskQueue } from "../persistent-task-queue.js";
 
 export class MutationHttpError extends Error {
   public constructor(
@@ -145,6 +146,7 @@ export interface ServerRouteContext {
   readonly projectOpenService: ProjectOpenService;
   readonly projectContexts: Map<string, ProjectRuntimeContext>;
   readonly projectRepository: ProjectRepository;
+  readonly taskQueue: PersistentTaskQueue;
   readonly provider: AgentRuntimeProvider;
   readonly providerConnectionRepository: AgentProviderConnectionRepository;
   readonly readEffectiveGlobalSettings: (

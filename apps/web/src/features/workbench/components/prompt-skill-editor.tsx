@@ -142,6 +142,8 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
           skillIconTemplateRef.current,
           fileIconTemplateRef.current,
         );
+        root.dataset["empty"] = String(nextContent.length === 0);
+        root.dataset["serializedValue"] = serializePromptSkillContent(nextContent);
         if (cursorOffset !== undefined) {
           placeCaret(root, cursorOffset);
         }

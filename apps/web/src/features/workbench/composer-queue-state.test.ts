@@ -140,6 +140,7 @@ describe("composer queue state", () => {
         clientUserMessageId: "message-1",
         id: "queue-1",
         skills: [],
+        status: "queued",
         text: "检查附件",
       },
       "project-1",

@@ -60,6 +60,7 @@ export const workbench = {
     cancelQueuedTooltip: "Cancel queued message",
     editQueued: "Edit queued message: {{summary}}",
     editQueuedTooltip: "Edit queued message",
+    editingQueued: "Editing",
     disableFastMode: "Disable fast mode",
     enableFastMode: "Enable fast mode",
     commandGroup: "Commands",

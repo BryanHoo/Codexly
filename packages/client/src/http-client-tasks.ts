@@ -30,6 +30,7 @@ import {
   type AgentBackgroundTerminalPage,
   type AgentPromptInput,
   type AgentQueuedSubmissionPage,
+  type AgentQueuedSubmissionStatus,
   type AgentTaskPage,
   type AgentTaskSettings,
   type AgentTaskSettingsResponse,
@@ -110,11 +111,12 @@ export class TaskHttpClient extends TaskGoalHttpClient {
     taskId: string,
     queuedSubmissionId: string,
     input: AgentPromptInput,
+    status: AgentQueuedSubmissionStatus,
     options: MutationOptions = {},
   ): Promise<UpdateAgentQueuedSubmissionResponse> {
     return this.mutation(
       `${taskPath(projectId, taskId)}/queue/${encodeURIComponent(queuedSubmissionId)}`,
-      { input },
+      { input, status },
       UpdateAgentQueuedSubmissionResponseSchema,
       options,
       "PUT",

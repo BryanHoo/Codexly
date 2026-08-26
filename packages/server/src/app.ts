@@ -1,18 +1,12 @@
-import type { AgentProvider, AgentProviderTurnInput } from "@codexly/core";
 import {
   DEFAULT_COMMIT_MESSAGE_MODEL,
-  MAX_AGENT_FILE_TOTAL_BYTES,
-  MAX_AGENT_IMAGES,
-  MAX_AGENT_IMAGE_TOTAL_BYTES,
   type AgentGlobalSettings,
   type AgentModel,
-  type AgentPromptInput,
   type AgentProjectDefaults,
   type AgentTaskSettings,
 } from "@codexly/protocol";
 import Fastify, { type FastifyInstance } from "fastify";
-import { Readable } from "node:stream";
-import { AttachmentNotFoundError, AttachmentStore } from "./attachment-store.js";
+import { AttachmentStore } from "./attachment-store.js";
 import { commitSelectedProjectChanges } from "./git-commit.js";
 import { readProjectGitCommitFileDiff, readProjectGitCommitFiles } from "./git-commit-review.js";
 import { buildCommitMessagePrompt } from "./git-commit-message.js";
@@ -26,6 +20,7 @@ import { readProjectFileTree } from "./project-file-tree.js";
 import { deleteProjectFile, renameProjectFile } from "./project-file-mutations.js";
 import { readProjectImageFile } from "./project-image-file.js";
 import { readProjectSourceFile } from "./project-source-file.js";
+import { createProviderTurnInputResolver } from "./provider-turn-input-resolver.js";
 import { createProjectOpenService } from "./project-open.js";
 import { createProjectRuntimeContext } from "./project-runtime-context.js";
 import {
@@ -34,13 +29,14 @@ import {
   ProjectRuntimeIdleReaper,
 } from "./project-runtime-idle-reaper.js";
 import { ProjectRuntimeLifecycleLock } from "./project-runtime-lifecycle-lock.js";
+import { PersistentTaskQueue } from "./persistent-task-queue.js";
+import { createMemoryTaskQueueRepository } from "./memory-task-queue-repository.js";
 import { readProjectDirectory, resolveProjectDirectory } from "./project-directory-browser.js";
-import {
-  MutationHttpError,
-  type ProjectContextResolver,
-  type ProjectRuntimeContext,
-  type ServerRouteContext,
-  type TaskStartRecovery,
+import type {
+  ProjectContextResolver,
+  ProjectRuntimeContext,
+  ServerRouteContext,
+  TaskStartRecovery,
 } from "./routes/context.js";
 import { registerEventRoutes } from "./routes/event-routes.js";
 import { registerAccessRoutes } from "./routes/access-routes.js";
@@ -134,102 +130,7 @@ export async function createCodexlyServer(
   const readSourceFile = options.readProjectSourceFile ?? readProjectSourceFile;
   const projectOpenService = options.projectOpenService ?? createProjectOpenService();
   const attachmentStore = new AttachmentStore();
-  const resolveProviderTurnInput = async (
-    projectId: string,
-    input: AgentPromptInput,
-    provider?: AgentProvider,
-    taskId?: string,
-  ): Promise<
-    Readonly<{ attachmentIds: readonly string[]; providerInput: AgentProviderTurnInput }>
-  > => {
-    const requestedAttachmentIds = input.attachments.map((attachment) => attachment.id);
-    if (new Set(requestedAttachmentIds).size !== requestedAttachmentIds.length) {
-      throw new MutationHttpError("INVALID_REQUEST", "Duplicate attachments are not allowed", 400);
-    }
-    const attachmentIds: string[] = [];
-    const resolvedAttachments = [];
-    for (const requestedId of requestedAttachmentIds) {
-      try {
-        const [resolved] = await attachmentStore.resolve(projectId, [requestedId]);
-        if (resolved !== undefined) {
-          attachmentIds.push(requestedId);
-          resolvedAttachments.push(resolved);
-          continue;
-        }
-      } catch (error) {
-        if (!(error instanceof AttachmentNotFoundError)) {
-          throw error;
-        }
-      }
-      const historical =
-        provider === undefined || taskId === undefined
-          ? undefined
-          : await provider.readTaskAttachment(taskId, requestedId);
-      if (historical === undefined) {
-        throw new MutationHttpError(
-          "ATTACHMENT_NOT_FOUND",
-          "Attachment was not found or has expired",
-          404,
-        );
-      }
-      // 历史或队列附件重新进入待提交 Store，后续仍走统一大小与类型校验。
-      const cloned = await attachmentStore.add(projectId, {
-        content: Readable.from([historical.content]),
-        kind: historical.kind,
-        mediaType: historical.mediaType,
-        name: historical.name,
-      });
-      const [resolved] = await attachmentStore.resolve(projectId, [cloned.attachment.id]);
-      if (resolved !== undefined) {
-        attachmentIds.push(cloned.attachment.id);
-        resolvedAttachments.push(resolved);
-      }
-    }
-    // Start 与 steer 共用同一映射，保证附件校验和 Provider 输入语义一致。
-    const imageBytes = resolvedAttachments.reduce(
-      (total, attachment) => total + (attachment.kind === "image" ? attachment.size : 0),
-      0,
-    );
-    const fileBytes = resolvedAttachments.reduce(
-      (total, attachment) => total + (attachment.kind === "image" ? 0 : attachment.size),
-      0,
-    );
-    const imageCount = resolvedAttachments.filter(
-      (attachment) => attachment.kind === "image",
-    ).length;
-    if (imageCount > MAX_AGENT_IMAGES || imageBytes > MAX_AGENT_IMAGE_TOTAL_BYTES) {
-      throw new MutationHttpError("INVALID_REQUEST", "Image input limit exceeded", 400);
-    }
-    if (fileBytes > MAX_AGENT_FILE_TOTAL_BYTES) {
-      throw new MutationHttpError("INVALID_REQUEST", "File input limit exceeded", 400);
-    }
-    return {
-      attachmentIds,
-      providerInput: {
-        files: resolvedAttachments.flatMap((attachment) =>
-          attachment.kind === "file"
-            ? [
-                {
-                  mediaType: attachment.mediaType,
-                  name: attachment.name,
-                  path: attachment.path,
-                },
-              ]
-            : [],
-        ),
-        images: resolvedAttachments.flatMap((attachment) =>
-          attachment.kind === "image"
-            ? [{ mediaType: attachment.mediaType, url: attachment.url }]
-            : [],
-        ),
-        skills: input.skills,
-        text: input.text,
-        textAttachments: resolvedAttachments.flatMap((attachment) =>
-          attachment.kind === "text" ? [{ name: attachment.name, text: attachment.text }] : [],
-        ),
-      },
-    };
-  };
+  const resolveProviderTurnInput = createProviderTurnInputResolver(attachmentStore);
   const capabilities = await options.provider.getCapabilities();
   const modelCatalogCacheMaxBytes =
     options.modelCatalogCacheMaxBytes ?? DEFAULT_MODEL_CATALOG_CACHE_MAX_BYTES;
@@ -281,6 +182,7 @@ export async function createCodexlyServer(
           onAttachmentReleaseError: (error) => {
             app.log.warn({ error }, "Failed to release turn attachments");
           },
+          onTurnCompleted: (runtime) => taskQueue.startNext(runtime),
           provider: resolved.provider,
           scope: resolved.scope,
         });
@@ -405,6 +307,12 @@ export async function createCodexlyServer(
     };
     return effective;
   };
+  const taskQueue = new PersistentTaskQueue({
+    attachmentStore,
+    readTaskSettings: readEffectiveTaskSettings,
+    repository: options.queueRepository ?? createMemoryTaskQueueRepository(),
+    resolveProviderInput: resolveProviderTurnInput,
+  });
   const activeGitMutations = new Set<string>();
   const taskStartRecoveries = new Map<string, TaskStartRecovery>();
   const idempotencyCacheSize = options.idempotencyCacheSize ?? DEFAULT_IDEMPOTENCY_CACHE_SIZE;
@@ -478,6 +386,7 @@ export async function createCodexlyServer(
     resolveHostAttachment: options.resolveHostAttachment ?? resolveHostAttachment,
     settingsRepository: options.settingsRepository,
     taskFromSnapshot,
+    taskQueue,
     taskStartRecoveries,
     switchProjectBranch: options.switchProjectBranch ?? gitBranch.switchProjectBranch,
     resolveProjectWorktree: options.resolveProjectWorktree ?? gitWorktree.resolveProjectWorktree,

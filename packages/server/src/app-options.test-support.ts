@@ -1,4 +1,9 @@
-import type { AgentProvider, AgentRuntimeProvider, RegisterProjectInput } from "@codexly/core";
+import type {
+  AgentProvider,
+  AgentQueueRecord,
+  AgentRuntimeProvider,
+  RegisterProjectInput,
+} from "@codexly/core";
 import type {
   AgentGlobalSettings,
   AgentProviderConnectionRecord,
@@ -9,6 +14,60 @@ import type {
 } from "@codexly/protocol";
 import { expect, vi } from "vitest";
 import { project, temporaryProject } from "./app.test-support.js";
+
+export function createQueueRepository() {
+  const records = new Map<string, AgentQueueRecord[]>();
+  const key = (projectId: string, taskId: string) => `${projectId}\u0000${taskId}`;
+  return {
+    addQueue: vi.fn((record: AgentQueueRecord) => {
+      const queue = records.get(key(record.projectId, record.taskId)) ?? [];
+      queue.push(record);
+      records.set(key(record.projectId, record.taskId), queue);
+      return Promise.resolve(record);
+    }),
+    deleteQueue: vi.fn((projectId: string, taskId: string, queuedSubmissionId: string) => {
+      const queue = records.get(key(projectId, taskId)) ?? [];
+      const index = queue.findIndex((record) => record.id === queuedSubmissionId);
+      if (index < 0) return Promise.resolve(false);
+      queue.splice(index, 1);
+      return Promise.resolve(true);
+    }),
+    listQueue: vi.fn((projectId: string, taskId: string) =>
+      Promise.resolve([...(records.get(key(projectId, taskId)) ?? [])]),
+    ),
+    reorderQueue: vi.fn(
+      (projectId: string, taskId: string, queuedSubmissionIds: readonly string[]) => {
+        const queue = records.get(key(projectId, taskId)) ?? [];
+        const byId = new Map(queue.map((record) => [record.id, record]));
+        records.set(
+          key(projectId, taskId),
+          queuedSubmissionIds.flatMap((id) => {
+            const record = byId.get(id);
+            return record === undefined ? [] : [record];
+          }),
+        );
+        return Promise.resolve();
+      },
+    ),
+    updateQueue: vi.fn(
+      (
+        projectId: string,
+        taskId: string,
+        queuedSubmissionId: string,
+        input: AgentQueueRecord["input"],
+        status: AgentQueueRecord["status"],
+      ) => {
+        const queue = records.get(key(projectId, taskId)) ?? [];
+        const index = queue.findIndex((record) => record.id === queuedSubmissionId);
+        const current = queue[index];
+        if (current === undefined) return Promise.resolve(undefined);
+        const updated = { ...current, input, status };
+        queue[index] = updated;
+        return Promise.resolve(updated);
+      },
+    ),
+  };
+}
 
 // 组合设置仓库与 Runtime 选项，保持各路由测试的启动方式一致。
 export function createSettingsRepository() {
@@ -94,6 +153,7 @@ export function createServerOptions(
     releaseProject: () => Promise.resolve(),
   };
   const stateRepository = createSettingsRepository().repository;
+  const queueRepository = createQueueRepository();
   return {
     handlerTimeoutMs: 0,
     installAppUpdate: vi.fn(() => Promise.reject(new Error("No update available"))),
@@ -139,6 +199,7 @@ export function createServerOptions(
       }),
     },
     providerConnectionRepository: stateRepository,
+    queueRepository,
     provider: runtimeProvider,
     readAppInfo: vi.fn(() =>
       Promise.resolve({

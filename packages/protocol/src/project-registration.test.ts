@@ -25,6 +25,7 @@ describe("project registration protocol", () => {
       clientUserMessageId: "client-message-1",
       id: "queue-1",
       skills: [],
+      status: "queued",
       text: "继续实现",
     };
 
@@ -40,7 +41,9 @@ describe("project registration protocol", () => {
         nextCursor: null,
       }),
     ).toBe(true);
-    expect(Value.Check(UpdateAgentQueuedSubmissionRequestSchema, { input })).toBe(true);
+    expect(
+      Value.Check(UpdateAgentQueuedSubmissionRequestSchema, { input, status: "editing" }),
+    ).toBe(true);
     expect(
       Value.Check(ReorderAgentQueuedSubmissionsRequestSchema, {
         queuedSubmissionIds: ["queue-2", "queue-1"],

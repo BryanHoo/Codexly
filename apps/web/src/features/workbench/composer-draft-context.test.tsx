@@ -17,14 +17,25 @@ describe("ComposerDraftStore", () => {
     expect(store.read(secondScope).content).toEqual([]);
   });
 
-  it("does not persist drafts or queues in sessionStorage", () => {
+  it("persists editor drafts across store recreation", () => {
     const scope = createComposerDraftScope("codexly", "task-1");
-    const firstStore = createComposerDraftStore();
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => void values.delete(key),
+      setItem: (key: string, value: string) => void values.set(key, value),
+    };
+    const firstStore = createComposerDraftStore(storage);
     firstStore.update(scope, (draft) => ({
       ...draft,
       content: [{ text: "仅保留在当前 Store", type: "text" }],
     }));
 
-    expect(createComposerDraftStore().read(scope).content).toEqual([]);
+    expect(createComposerDraftStore(storage).read(scope).content).toEqual([
+      { text: "仅保留在当前 Store", type: "text" },
+    ]);
+
+    firstStore.clear(scope);
+    expect(createComposerDraftStore(storage).read(scope).content).toEqual([]);
   });
 });

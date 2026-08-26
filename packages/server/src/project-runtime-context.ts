@@ -7,25 +7,6 @@ import type { AttachmentStore } from "./attachment-store.js";
 import { invalidateProjectGitBranchCache } from "./git-working-tree.js";
 import type { ProjectRuntimeContext } from "./routes/context.js";
 
-async function reconcileQueuedAttachments(
-  attachmentStore: AttachmentStore,
-  projectId: string,
-  taskId: string,
-  queue: NonNullable<AgentProvider["queue"]>,
-): Promise<void> {
-  const queuedSubmissionIds: string[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await queue.list(taskId, {
-      ...(cursor === undefined ? {} : { cursor }),
-      limit: 100,
-    });
-    queuedSubmissionIds.push(...page.data.map((submission) => submission.id));
-    cursor = page.nextCursor ?? undefined;
-  } while (cursor !== undefined);
-  attachmentStore.reconcileQueue(projectId, queuedSubmissionIds);
-}
-
 export function createProjectRuntimeContext(
   options: Readonly<{
     attachmentStore: AttachmentStore;
@@ -34,6 +15,14 @@ export function createProjectRuntimeContext(
     eventSessionId?: string;
     onActivity: () => void;
     onAttachmentReleaseError: (error: unknown) => void;
+    onTurnCompleted?: (
+      runtime: Readonly<{
+        eventStream: AgentEventStream;
+        projectId: string;
+        provider: AgentProvider;
+        taskId: string;
+      }>,
+    ) => Promise<void>;
     scope: AgentTaskScope;
     provider: AgentProvider;
   }>,
@@ -56,15 +45,15 @@ export function createProjectRuntimeContext(
         void attachmentStore
           .releaseTurn(scope.id, event.payload.turn.id)
           .catch(onAttachmentReleaseError);
-      }
-      if (event.type === "queue.changed" && provider.queue !== undefined) {
-        // CLI、其他浏览器和原生自动续发都通过通知触发附件引用对账。
-        void reconcileQueuedAttachments(
-          attachmentStore,
-          scope.id,
-          event.taskId,
-          provider.queue,
-        ).catch(onAttachmentReleaseError);
+        // 权威持久队列在 Turn 终态后串行续发；编辑锁会让 startNext 保持等待。
+        void options
+          .onTurnCompleted?.({
+            eventStream,
+            projectId: scope.id,
+            provider,
+            taskId: event.taskId,
+          })
+          .catch(onAttachmentReleaseError);
       }
       if (event.type === "project.git_metadata_changed") {
         // 先失效分支候选，再让客户端读取一次完整 Git 状态。

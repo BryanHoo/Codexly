@@ -1,5 +1,6 @@
 import type {
   AgentFileSearchProvider,
+  AgentQueueRepository,
   AgentRuntimeProvider,
   AgentProviderConnectionRepository,
   AgentSettingsRepository,
@@ -52,6 +53,7 @@ export interface CreateCodexlyServerOptions {
   modelCatalogCacheMaxBytes?: number;
   modelCatalogCacheTtlMs?: number;
   projectRepository: ProjectRepository;
+  queueRepository?: AgentQueueRepository;
   providerConnectionRepository: AgentProviderConnectionRepository;
   projectOpenService?: ProjectOpenService;
   projectRuntimeCleanupIntervalMs?: number;

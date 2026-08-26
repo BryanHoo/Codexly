@@ -200,7 +200,10 @@ export type AddAgentQueuedSubmissionResponse = Readonly<
 >;
 
 export const UpdateAgentQueuedSubmissionRequestSchema = Type.Object(
-  { input: AgentPromptInputSchema },
+  {
+    input: AgentPromptInputSchema,
+    status: Type.Union([Type.Literal("editing"), Type.Literal("queued")]),
+  },
   { additionalProperties: false },
 );
 export type UpdateAgentQueuedSubmissionRequest = Readonly<

@@ -89,6 +89,7 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
     client: { startTask, startTurn, steerTurn },
     composerMode: undefined,
     controller,
+    editingQueuedSubmission: false,
     followUpBehavior: "queue",
     onDirectSubmission: vi.fn(),
     onGoalStarted: vi.fn(),
@@ -166,6 +167,21 @@ describe("createComposerSubmission", () => {
     expect(harness.clearComposerInput).toHaveBeenCalledOnce();
     expect(harness.startTurn).not.toHaveBeenCalled();
     expect(onDirectSubmission).not.toHaveBeenCalled();
+  });
+
+  it("updates an edited queue item after the active Turn has completed", async () => {
+    const harness = createHarness({
+      editingQueuedSubmission: true,
+      promptContent: createPromptSkillContent("编辑后的内容"),
+      state: "idle",
+      taskId: "task-1",
+    });
+
+    const submitted = await harness.submit({ files: [], text: "编辑后的内容" });
+
+    expect(submitted).toBe(true);
+    expect(harness.saveQueuedSubmission).toHaveBeenCalledOnce();
+    expect(harness.startTurn).not.toHaveBeenCalled();
   });
 
   it("keeps a directly accepted steer visible until the assistant responds", async () => {

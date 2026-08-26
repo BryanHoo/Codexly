@@ -5,6 +5,7 @@ test.describe.configure({ mode: "serial" });
 test("queues follow-up messages and can steer or cancel them during an active turn", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await page.unroute("**/v1/**");
   await page.route("**/v1/settings", async (route) => {
     const response = await route.fetch();
@@ -61,15 +62,22 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await expect(page.getByText("queue-note.txt", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("list", { name: "已排队消息" }).getByText("来自其他客户端", { exact: true }),
-  ).toHaveCount(0);
+  ).toHaveCount(1);
+  await expect(page.getByRole("status", { name: "编辑中" })).toBeVisible();
   const externalDeleteResponse = await page.request.delete(
     `/v1/projects/codexly/tasks/${taskId}/queue/${externalQueue.queuedSubmission.id}`,
     { headers: { "idempotency-key": "external-queue-delete" } },
   );
   expect(externalDeleteResponse.status()).toBe(200);
+  await expect(page.getByRole("status", { name: "编辑中" })).toHaveCount(0);
+  await page.getByRole("button", { name: "移除 queue-note.txt" }).click();
   await input.fill("外部删除后重新排队");
   await page.getByRole("button", { exact: true, name: "排队消息" }).click();
-  await expect(page.getByText("外部删除后重新排队", { exact: true })).toHaveCount(1);
+  await expect(
+    page.getByRole("list", { name: "已排队消息" }).getByText("外部删除后重新排队", {
+      exact: true,
+    }),
+  ).toHaveCount(1);
   await page.getByRole("button", { name: "取消排队：外部删除后重新排队" }).click();
 
   let steerPayload: unknown;
@@ -84,10 +92,11 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await expect(queueMessage).toBeVisible();
   await queueMessage.click();
 
-  await expect(page.getByText("先补充失败测试", { exact: true })).toBeVisible();
+  await expect(input).toHaveAttribute("data-serialized-value", "");
   await page.reload();
-  await expect(page.getByText("先补充失败测试", { exact: true })).toBeVisible();
+  await expect(input).toHaveAttribute("data-serialized-value", "");
   const queuedList = page.getByRole("list", { name: "已排队消息" });
+  await expect(queuedList.getByText("先补充失败测试", { exact: true })).toBeVisible();
   expect(await queuedList.evaluate((element) => element.closest("form") === null)).toBe(true);
   await page.getByRole("button", { name: "编辑排队消息：先补充失败测试" }).click();
   await expect(input).toHaveAttribute("data-serialized-value", "先补充失败测试");
@@ -135,12 +144,44 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await page.getByRole("button", { name: "取消排队：顺序二" }).click();
   await page.getByRole("button", { name: "取消排队：顺序一" }).click();
 
-  await input.fill("自动续发消息");
+  await input.fill("编辑前内容");
   await queueMessage.click();
-  await page.getByRole("button", { name: "停止" }).click();
-  const nextTurn = page.getByLabel("Turn 2");
-  await expect(nextTurn.getByText("自动续发消息", { exact: true })).toBeVisible();
-  await expect(nextTurn).toHaveAttribute("data-status", "completed");
+  await input.fill("后续排队内容");
+  await queueMessage.click();
+  await page.getByRole("button", { name: "编辑排队消息：编辑前内容" }).click();
+  await input.fill("刷新后继续编辑");
+  await expect(page.getByRole("status", { name: "编辑中" })).toBeVisible();
+  await page.reload();
+  await expect(input).toHaveAttribute("data-serialized-value", "刷新后继续编辑");
+  await expect(page.getByRole("status", { name: "编辑中" })).toBeVisible();
+
+  const runningTaskResponse = await page.request.get(`/v1/projects/codexly/tasks/${taskId}`);
+  const runningTask = (await runningTaskResponse.json()) as {
+    snapshot: { turns: readonly { id: string; status: string }[] };
+  };
+  const runningTurn = runningTask.snapshot.turns.find((turn) => turn.status === "running");
+  if (runningTurn === undefined) {
+    throw new Error("未找到运行中的 Turn");
+  }
+  const interruptResponse = await page.request.post(
+    `/v1/projects/codexly/tasks/${taskId}/turns/${runningTurn.id}/interrupt`,
+    {
+      data: { taskId },
+      headers: { "idempotency-key": "interrupt-during-queue-edit" },
+    },
+  );
+  expect(interruptResponse.status()).toBe(202);
+  await expect(page.getByLabel("Turn 1")).toHaveAttribute("data-status", "interrupted");
+  await expect(page.getByLabel("Turn 2")).toHaveCount(0);
+  await expect(page.getByText("后续排队内容", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { exact: true, name: "排队消息" }).click();
+  const editedTurn = page.getByLabel("Turn 2");
+  await expect(editedTurn.getByText("刷新后继续编辑", { exact: true })).toBeVisible();
+  await expect(editedTurn).toHaveAttribute("data-status", "completed");
+  const followingTurn = page.getByLabel("Turn 3");
+  await expect(followingTurn.getByText("后续排队内容", { exact: true })).toBeVisible();
+  await expect(followingTurn).toHaveAttribute("data-status", "completed");
 });
 
 test("keeps a direct steer above the composer until its streamed message appears", async ({

@@ -116,6 +116,7 @@ export function ComposerProjectRootControls({
 
 export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
   const { t } = useTranslation(["workbench", "settings"]);
+  const editingIndex = props.queuedPrompts.findIndex((prompt) => prompt.status === "editing");
   return (
     <section
       className="shrink-0 bg-content px-1 pb-2 max-[360px]:px-0 sm:px-5"
@@ -127,6 +128,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
         {props.queuedPrompts.length === 0 ? null : (
           <div aria-label={t("composer.queuedMessages")} className="mb-2 space-y-1.5" role="list">
             {props.queuedPrompts.map((queuedPrompt, index) => {
+              const blockedByEdit = editingIndex >= 0 && index >= editingIndex;
               const summary = resolveQueuedPromptSummary(
                 queuedPrompt,
                 t("composer.attachmentCount", { count: queuedPrompt.files.length }),
@@ -149,13 +151,22 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                       <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
                       {t("composer.waitingToSend")}
                     </span>
+                  ) : queuedPrompt.status === "editing" ? (
+                    <span
+                      aria-label={t("composer.editingQueued")}
+                      className="inline-flex shrink-0 items-center gap-1 text-caption text-brand"
+                      role="status"
+                    >
+                      <Pencil aria-hidden="true" className="size-3.5" />
+                      {t("composer.editingQueued")}
+                    </span>
                   ) : (
                     <>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             aria-label={t("composer.moveQueuedUp", { summary })}
-                            disabled={props.isSubmitting || index === 0}
+                            disabled={props.isSubmitting || blockedByEdit || index === 0}
                             onClick={() => {
                               props.moveQueuedPrompt(queuedPrompt.id, -1);
                             }}
@@ -173,7 +184,9 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                           <Button
                             aria-label={t("composer.moveQueuedDown", { summary })}
                             disabled={
-                              props.isSubmitting || index === props.queuedPrompts.length - 1
+                              props.isSubmitting ||
+                              index === props.queuedPrompts.length - 1 ||
+                              blockedByEdit
                             }
                             onClick={() => {
                               props.moveQueuedPrompt(queuedPrompt.id, 1);
@@ -191,7 +204,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                         <TooltipTrigger asChild>
                           <Button
                             aria-label={t("composer.editQueued", { summary })}
-                            disabled={props.isSubmitting}
+                            disabled={props.isSubmitting || editingIndex >= 0}
                             onClick={() => {
                               props.editQueuedPrompt(queuedPrompt);
                             }}
@@ -211,6 +224,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                             className="hover:text-brand"
                             disabled={
                               props.isSubmitting ||
+                              blockedByEdit ||
                               props.taskId === undefined ||
                               (props.activeTurnId === undefined
                                 ? !props.canSubmit

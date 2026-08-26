@@ -15,9 +15,9 @@ import {
   type StartAgentQueuedSubmissionRequest,
   type UpdateAgentQueuedSubmissionRequest,
 } from "@codexly/protocol";
-import type { AgentProvider } from "@codexly/core";
 import type { FastifyPluginCallback } from "fastify";
 
+import { TaskQueueBlockedError, TaskQueueItemNotFoundError } from "../persistent-task-queue.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import {
   IdempotencyHeadersSchema,
@@ -35,16 +35,24 @@ interface QueueParams extends TaskParams {
   queuedSubmissionId: string;
 }
 
+function toQueueHttpError(error: unknown): never {
+  if (error instanceof TaskQueueBlockedError) {
+    throw new MutationHttpError("TURN_NOT_RUNNING", error.message, 409);
+  }
+  if (error instanceof TaskQueueItemNotFoundError) {
+    throw new MutationHttpError("TASK_NOT_FOUND", error.message, 404);
+  }
+  throw error;
+}
+
 export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
   app,
   context,
   done,
 ) => {
-  const { attachmentStore, getProjectContext, resolveProviderTurnInput, runIdempotent } = context;
+  const { getProjectContext, runIdempotent, taskQueue } = context;
 
-  const readQueue = async (
-    params: TaskParams,
-  ): Promise<Readonly<{ provider: AgentProvider; queue: NonNullable<AgentProvider["queue"]> }>> => {
+  const readQueue = async (params: TaskParams) => {
     const projectContext = await getProjectContext(params.projectId);
     if (projectContext === undefined) {
       throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
@@ -53,10 +61,12 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
     if (task?.projectId !== projectContext.scope.id) {
       throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
     }
-    if (projectContext.provider.queue === undefined) {
-      throw new MutationHttpError("PROVIDER_ERROR", "Task queue is unavailable", 503);
-    }
-    return { provider: projectContext.provider, queue: projectContext.provider.queue };
+    return {
+      eventStream: projectContext.eventStream,
+      projectId: params.projectId,
+      provider: projectContext.provider,
+      taskId: params.taskId,
+    };
   };
 
   app.get<{
@@ -72,11 +82,15 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
       },
     },
     async (request) => {
-      const { queue } = await readQueue(request.params);
-      return queue.list(request.params.taskId, {
-        ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
-        ...(request.query.limit === undefined ? {} : { limit: request.query.limit }),
-      });
+      const runtime = await readQueue(request.params);
+      const data = await taskQueue.list(runtime);
+      const offset = Number(request.query.cursor ?? "0");
+      const limit = request.query.limit ?? 100;
+      const nextOffset = offset + limit;
+      return {
+        data: data.slice(offset, nextOffset),
+        nextCursor: nextOffset < data.length ? String(nextOffset) : null,
+      };
     },
   );
 
@@ -100,24 +114,8 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         request.headers["idempotency-key"],
         request.body,
         async () => {
-          const { provider, queue } = await readQueue(request.params);
-          const { attachmentIds, providerInput } = await resolveProviderTurnInput(
-            request.params.projectId,
-            request.body.input,
-            provider,
-            request.params.taskId,
-          );
-          const queuedSubmission = await queue.add(
-            request.params.taskId,
-            providerInput,
-            request.body.clientUserMessageId,
-          );
-          await attachmentStore.retainQueue(
-            request.params.projectId,
-            attachmentIds,
-            queuedSubmission.id,
-          );
-          return queuedSubmission;
+          const runtime = await readQueue(request.params);
+          return taskQueue.add(runtime, request.body.input, request.body.clientUserMessageId);
         },
       );
       return reply.code(201).send({ queuedSubmission });
@@ -144,28 +142,13 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         request.headers["idempotency-key"],
         { ...request.body, queuedSubmissionId: request.params.queuedSubmissionId },
         async () => {
-          const { provider, queue } = await readQueue(request.params);
-          const { attachmentIds, providerInput } = await resolveProviderTurnInput(
-            request.params.projectId,
+          const runtime = await readQueue(request.params);
+          return taskQueue.update(
+            runtime,
+            request.params.queuedSubmissionId,
             request.body.input,
-            provider,
-            request.params.taskId,
+            request.body.status,
           );
-          const queuedSubmission = await queue.update(
-            request.params.taskId,
-            request.params.queuedSubmissionId,
-            providerInput,
-          );
-          await attachmentStore.releaseQueue(
-            request.params.projectId,
-            request.params.queuedSubmissionId,
-          );
-          await attachmentStore.retainQueue(
-            request.params.projectId,
-            attachmentIds,
-            queuedSubmission.id,
-          );
-          return queuedSubmission;
         },
       );
       return { queuedSubmission };
@@ -190,18 +173,8 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         request.headers["idempotency-key"],
         { queuedSubmissionId: request.params.queuedSubmissionId },
         async () => {
-          const { queue } = await readQueue(request.params);
-          const deleted = await queue.delete(
-            request.params.taskId,
-            request.params.queuedSubmissionId,
-          );
-          if (deleted) {
-            await attachmentStore.releaseQueue(
-              request.params.projectId,
-              request.params.queuedSubmissionId,
-            );
-          }
-          return deleted;
+          const runtime = await readQueue(request.params);
+          return taskQueue.delete(runtime, request.params.queuedSubmissionId);
         },
       );
       return { deleted };
@@ -228,8 +201,8 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         request.headers["idempotency-key"],
         request.body,
         async () => {
-          const { queue } = await readQueue(request.params);
-          await queue.reorder(request.params.taskId, request.body.queuedSubmissionIds);
+          const runtime = await readQueue(request.params);
+          await taskQueue.reorder(runtime, request.body.queuedSubmissionIds);
           return { status: "reordered" as const };
         },
       );
@@ -257,15 +230,12 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         request.headers["idempotency-key"],
         request.body,
         async () => {
-          const { queue } = await readQueue(request.params);
-          const queuedSubmissionId =
-            request.body.queuedSubmissionId ??
-            (await queue.list(request.params.taskId)).data[0]?.id;
-          const turn = await queue.start(request.params.taskId, queuedSubmissionId);
-          if (queuedSubmissionId !== undefined) {
-            await attachmentStore.startQueue(request.params.projectId, queuedSubmissionId, turn.id);
+          const runtime = await readQueue(request.params);
+          try {
+            return await taskQueue.start(runtime, request.body.queuedSubmissionId);
+          } catch (error) {
+            toQueueHttpError(error);
           }
-          return turn;
         },
       );
       return reply.code(201).send({ taskId: request.params.taskId, turn });

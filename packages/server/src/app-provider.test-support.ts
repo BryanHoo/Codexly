@@ -141,6 +141,7 @@ export function createProvider() {
           clientUserMessageId,
           id: `queue-${String(queuedSubmissions.length + 1)}`,
           skills: [...input.skills],
+          status: "queued" as const,
           text: input.text,
         };
         queuedSubmissions = [...queuedSubmissions, queuedSubmission];

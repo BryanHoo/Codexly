@@ -233,6 +233,7 @@ export function WorkbenchComposer({
     client,
     controller: composerController,
     composerMode,
+    editingQueuedSubmission: composerQueue.editingId !== undefined,
     followUpBehavior,
     fastMode: fastModeEnabled,
     onDirectSubmission,
@@ -319,12 +320,10 @@ export function WorkbenchComposer({
   };
 
   const hasComposerInput = !isPromptSkillContentEmpty(promptContent) || attachmentCount > 0;
-  const submitAction = resolveComposerSubmitAction(
-    state,
-    hasComposerInput,
-    followUpBehavior,
-    canSteer,
-  );
+  const submitAction =
+    composerQueue.editingId === undefined
+      ? resolveComposerSubmitAction(state, hasComposerInput, followUpBehavior, canSteer)
+      : "queue";
 
   const composerView = (
     <WorkbenchComposerView
@@ -367,7 +366,9 @@ export function WorkbenchComposer({
       models={models}
       modelsError={modelsError}
       modelsPending={modelsPending}
-      editQueuedPrompt={composerQueue.editQueuedPrompt}
+      editQueuedPrompt={(queuedPrompt) => {
+        void composerQueue.editQueuedPrompt(queuedPrompt).catch(setMutationError);
+      }}
       onComposerModeRemove={() => {
         setComposerModeState(undefined);
       }}

@@ -201,6 +201,7 @@ describe("CodexlyClient task mutations", () => {
       clientUserMessageId: "client-message-1",
       id: "queue-1",
       skills: [],
+      status: "queued",
       text: "排队处理",
     };
     const queuedTurn = {
@@ -233,7 +234,7 @@ describe("CodexlyClient task mutations", () => {
     await client.addQueuedSubmission("codexly", task.id, input, "client-message-1", {
       idempotencyKey: "queue-add-key",
     });
-    await client.updateQueuedSubmission("codexly", task.id, "queue-1", input, {
+    await client.updateQueuedSubmission("codexly", task.id, "queue-1", input, "queued", {
       idempotencyKey: "queue-update-key",
     });
     await client.reorderQueuedSubmissions("codexly", task.id, ["queue-1"], {

@@ -51,6 +51,7 @@ describe("AgentProvider", () => {
             clientUserMessageId,
             id: "queue-1",
             skills: [...input.skills],
+            status: "queued",
             text: input.text,
           });
         },
@@ -79,6 +80,7 @@ describe("AgentProvider", () => {
             clientUserMessageId: "client-message-1",
             id: queuedSubmissionId,
             skills: [...input.skills],
+            status: "queued",
             text: input.text,
           });
         },

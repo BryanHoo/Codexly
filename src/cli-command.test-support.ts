@@ -183,6 +183,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     }),
   };
   const stateRepository = {
+    addQueue: vi.fn((record) => Promise.resolve(record)),
     close: databaseClose,
     completeProjectSourceMigration: vi.fn(() => {
       lifecycle.push("projects.migration.complete");
@@ -200,7 +201,9 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
       }),
     ),
     deleteProject: vi.fn(() => Promise.resolve(false)),
+    deleteQueue: vi.fn(() => Promise.resolve(false)),
     list: vi.fn(() => Promise.resolve([])),
+    listQueue: vi.fn(() => Promise.resolve([])),
     migrateProject: vi.fn((_legacyProjectId, project) => Promise.resolve(project)),
     readGlobalSettings: vi.fn(() => Promise.resolve(undefined)),
     readProviderConnection: vi.fn(() => Promise.resolve(undefined)),
@@ -211,8 +214,10 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     readTaskSettings: vi.fn(() => Promise.resolve(undefined)),
     read: vi.fn(() => Promise.resolve(undefined)),
     replaceProjects: vi.fn((projects) => Promise.resolve(projects)),
+    reorderQueue: vi.fn(() => Promise.resolve()),
     setProjectOrder: vi.fn(() => Promise.resolve([])),
     upsertProject: vi.fn((project) => Promise.resolve(project)),
+    updateQueue: vi.fn(() => Promise.resolve(undefined)),
     writeGlobalSettings: vi.fn((settings) => Promise.resolve(settings)),
     writeProviderConnection: vi.fn((record) => Promise.resolve(record)),
     writeProjectDefaults: vi.fn((_projectId, settings) => Promise.resolve(settings)),

@@ -60,6 +60,7 @@ export const workbench = {
     cancelQueuedTooltip: "取消排队",
     editQueued: "编辑排队消息：{{summary}}",
     editQueuedTooltip: "编辑排队消息",
+    editingQueued: "编辑中",
     disableFastMode: "关闭快速模式",
     enableFastMode: "开启快速模式",
     commandGroup: "命令",

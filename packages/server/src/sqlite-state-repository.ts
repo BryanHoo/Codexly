@@ -2,18 +2,24 @@ import { isAbsolute } from "node:path";
 import { Worker } from "node:worker_threads";
 
 import type {
+  AgentQueueRecord,
+  AgentQueueRepository,
   AgentProviderConnectionRepository,
   AgentSettingsRepository,
   ProjectProjectionStore,
   ProjectSourceMigration,
 } from "@codexly/core";
-import type {
-  AgentProviderConnectionRecord,
-  AgentGlobalSettings,
-  AgentProjectDefaults,
-  AgentTaskSettings,
-  Project,
+import {
+  AgentPromptInputSchema,
+  type AgentPromptInput,
+  type AgentQueuedSubmissionStatus,
+  type AgentProviderConnectionRecord,
+  type AgentGlobalSettings,
+  type AgentProjectDefaults,
+  type AgentTaskSettings,
+  type Project,
 } from "@codexly/protocol";
+import { Value } from "@sinclair/typebox/value";
 
 import {
   parseProviderConnectionRow,
@@ -34,6 +40,17 @@ export type SqliteDatabaseDiagnostics = Readonly<{
   synchronous: string;
   writable: boolean;
 }>;
+
+type QueueWorkerRecord = Omit<AgentQueueRecord, "input"> & Readonly<{ inputJson: string }>;
+
+function parseQueueWorkerRecord(record: QueueWorkerRecord): AgentQueueRecord {
+  const input: unknown = JSON.parse(record.inputJson);
+  if (!Value.Check(AgentPromptInputSchema, input)) {
+    throw new Error("Persisted task queue input is invalid");
+  }
+  const { inputJson: _inputJson, ...identity } = record;
+  return { ...identity, input };
+}
 
 export interface SqliteStateRepositoryOptions {
   migrations?: readonly SqliteMigration[];
@@ -57,7 +74,11 @@ type PendingRequest = Readonly<{
 }>;
 
 export class SqliteStateRepository
-  implements ProjectProjectionStore, AgentSettingsRepository, AgentProviderConnectionRepository
+  implements
+    ProjectProjectionStore,
+    AgentSettingsRepository,
+    AgentProviderConnectionRepository,
+    AgentQueueRepository
 {
   readonly #now: () => Date;
   readonly #pending = new Map<number, PendingRequest>();
@@ -227,6 +248,59 @@ export class SqliteStateRepository
 
   public setProjectOrder(projectIds: readonly string[]): Promise<readonly Project[]> {
     return this.#call("setProjectOrder", { projectIds });
+  }
+
+  public async addQueue(record: AgentQueueRecord): Promise<AgentQueueRecord> {
+    const { input, ...metadata } = record;
+    return parseQueueWorkerRecord(
+      await this.#call("addTaskQueueRecord", {
+        ...metadata,
+        inputJson: JSON.stringify(input),
+        updatedAt: this.#now().toISOString(),
+      }),
+    );
+  }
+
+  public deleteQueue(
+    projectId: string,
+    taskId: string,
+    queuedSubmissionId: string,
+  ): Promise<boolean> {
+    return this.#call("deleteTaskQueueRecord", { projectId, queuedSubmissionId, taskId });
+  }
+
+  public async listQueue(projectId: string, taskId: string): Promise<readonly AgentQueueRecord[]> {
+    const records = await this.#call<readonly QueueWorkerRecord[]>("listTaskQueueRecords", {
+      projectId,
+      taskId,
+    });
+    return records.map(parseQueueWorkerRecord);
+  }
+
+  public reorderQueue(
+    projectId: string,
+    taskId: string,
+    queuedSubmissionIds: readonly string[],
+  ): Promise<void> {
+    return this.#call("reorderTaskQueueRecords", { projectId, queuedSubmissionIds, taskId });
+  }
+
+  public async updateQueue(
+    projectId: string,
+    taskId: string,
+    queuedSubmissionId: string,
+    input: AgentPromptInput,
+    status: AgentQueuedSubmissionStatus,
+  ): Promise<AgentQueueRecord | undefined> {
+    const record = await this.#call<QueueWorkerRecord | undefined>("updateTaskQueueRecord", {
+      inputJson: JSON.stringify(input),
+      projectId,
+      queuedSubmissionId,
+      status,
+      taskId,
+      updatedAt: this.#now().toISOString(),
+    });
+    return record === undefined ? undefined : parseQueueWorkerRecord(record);
   }
 
   public readProjectDefaults(projectId: string): Promise<AgentProjectDefaults | undefined> {

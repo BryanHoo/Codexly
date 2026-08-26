@@ -359,6 +359,14 @@ export const AgentPromptInputSchema = Type.Union([
 
 export type AgentPromptInput = Readonly<Static<typeof AgentPromptInputSchema>>;
 
+export const AgentQueuedSubmissionStatusSchema = Type.Union([
+  Type.Literal("editing"),
+  Type.Literal("queued"),
+]);
+export type AgentQueuedSubmissionStatus = Readonly<
+  Static<typeof AgentQueuedSubmissionStatusSchema>
+>;
+
 export const AgentQueuedSubmissionSchema = Type.Object(
   {
     attachments: Type.Array(AgentMessageAttachmentSchema, {
@@ -367,6 +375,7 @@ export const AgentQueuedSubmissionSchema = Type.Object(
     clientUserMessageId: Type.String({ minLength: 1 }),
     id: Type.String({ minLength: 1 }),
     skills: Type.Array(AgentSkillReferenceSchema),
+    status: AgentQueuedSubmissionStatusSchema,
     text: Type.String({ maxLength: 100_000 }),
   },
   { additionalProperties: false },

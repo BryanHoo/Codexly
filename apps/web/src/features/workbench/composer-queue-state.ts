@@ -13,6 +13,7 @@ type ComposerPrompt = Readonly<{
 export type QueuedComposerPrompt = ComposerPrompt &
   (
     | Readonly<{ status: "queued" }>
+    | Readonly<{ status: "editing" }>
     | Readonly<{
         status: "awaiting-response";
         turnId: string;
@@ -55,7 +56,7 @@ export function mapAgentQueuedSubmission(
           scope: "repo" as const,
         },
     ),
-    status: "queued",
+    status: submission.status,
     text: submission.text,
   };
 }
@@ -168,7 +169,7 @@ export function hasQueuedPromptFinishedInStore(
 export function resolveQueuedPromptEdit(
   prompt: QueuedComposerPrompt,
 ): Pick<QueuedComposerPrompt, "files" | "skills" | "text"> | undefined {
-  return prompt.status === "queued"
+  return prompt.status === "queued" || prompt.status === "editing"
     ? { files: prompt.files, skills: prompt.skills, text: prompt.text }
     : undefined;
 }

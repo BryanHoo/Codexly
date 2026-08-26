@@ -89,8 +89,6 @@ export function useComposerQueue({
   const [awaitingSteers, setAwaitingSteers] = useState<
     readonly Readonly<{ prompt: QueuedComposerPrompt; scope: string }>[]
   >([]);
-  const [editingQueue, setEditingQueue] = useState<Readonly<{ id: string; scope: string }>>();
-
   const serverPrompts = useMemo(
     () =>
       taskId === undefined
@@ -110,27 +108,12 @@ export function useComposerQueue({
     .filter((entry) => entry.scope === routeScope)
     .map((entry) => entry.prompt);
   const awaitingIds = new Set(currentAwaiting.map((prompt) => prompt.id));
-  const editingId = editingQueue?.scope === routeScope ? editingQueue.id : undefined;
+  const editingPrompt = serverPrompts.find((prompt) => prompt.status === "editing");
+  const editingId = editingPrompt?.id;
   const queuedPrompts = [
-    // 编辑中的队列项由输入框接管，避免原项与草稿同时出现并被重复发送。
-    ...serverPrompts.filter((prompt) => !awaitingIds.has(prompt.id) && prompt.id !== editingId),
+    ...serverPrompts.filter((prompt) => !awaitingIds.has(prompt.id)),
     ...currentAwaiting,
   ];
-
-  useEffect(() => {
-    if (
-      editingId === undefined ||
-      queueQuery.data === undefined ||
-      queueQuery.isFetching ||
-      queueQuery.data.some((submission) => submission.id === editingId)
-    ) {
-      return;
-    }
-    // 权威队列已移除编辑目标时清除悬空 ID，下一次提交应创建新队列项。
-    setEditingQueue((current) =>
-      current?.scope === routeScope && current.id === editingId ? undefined : current,
-    );
-  }, [editingId, queueQuery.data, queueQuery.isFetching, routeScope]);
 
   useEffect(() => {
     const store = runtime?.store;
@@ -164,10 +147,14 @@ export function useComposerQueue({
         idempotencyKey: createUuid(),
       });
     } else {
-      await client.updateQueuedSubmission(projectId, taskId, editingId, input, {
+      await client.updateQueuedSubmission(projectId, taskId, editingId, input, "queued", {
         idempotencyKey: createUuid(),
       });
-      setEditingQueue(undefined);
+      if (activeTurnId === undefined) {
+        await client.startQueuedSubmission(projectId, taskId, editingId, {
+          idempotencyKey: createUuid(),
+        });
+      }
     }
     await invalidateQueue();
     return true;
@@ -180,13 +167,10 @@ export function useComposerQueue({
     await client.deleteQueuedSubmission(projectId, taskId, queuedPromptId, {
       idempotencyKey: createUuid(),
     });
-    setEditingQueue((current) =>
-      current?.scope === routeScope && current.id === queuedPromptId ? undefined : current,
-    );
     await invalidateQueue();
   };
 
-  const editQueuedPrompt = (queuedPrompt: QueuedComposerPrompt) => {
+  const editQueuedPrompt = async (queuedPrompt: QueuedComposerPrompt) => {
     const editablePrompt = resolveQueuedPromptEdit(queuedPrompt);
     if (editablePrompt === undefined) {
       return;
@@ -195,12 +179,32 @@ export function useComposerQueue({
       editablePrompt.text,
       editablePrompt.skills,
     );
-    setEditingQueue({ id: queuedPrompt.id, scope: routeScope });
+    if (taskId === undefined || queuedPrompt.status !== "queued") {
+      return;
+    }
+    const updateRequest = client.updateQueuedSubmission(
+      projectId,
+      taskId,
+      queuedPrompt.id,
+      {
+        attachments: editablePrompt.files.flatMap((file) =>
+          file.source === "host" ? [{ id: file.attachment.id }] : [],
+        ),
+        skills: editablePrompt.skills.map(({ id, name }) => ({ id, name })),
+        text: editablePrompt.text,
+        type: "prompt",
+      },
+      "editing",
+      { idempotencyKey: createUuid() },
+    );
+    // 首次 await 前同步回填，禁止慢请求在用户开始输入后用旧内容覆盖草稿。
     replacePromptContent(content, serializePromptSkillContent(content).length);
     handleAttachmentsChange(editablePrompt.files);
     requestAnimationFrame(() => {
       skillEditorRef.current?.focus(serializePromptSkillContent(content).length);
     });
+    await updateRequest;
+    await invalidateQueue();
   };
 
   const onSteerAccepted = (accepted: AcceptedSteerPrompt) => {
@@ -220,7 +224,13 @@ export function useComposerQueue({
     queuedPrompt: QueuedComposerPrompt,
     submitPrompt: SubmitPrompt,
   ) => {
-    if (queuedPrompt.status !== "queued" || taskId === undefined) {
+    const promptIndex = serverPrompts.findIndex((prompt) => prompt.id === queuedPrompt.id);
+    const editingIndex = serverPrompts.findIndex((prompt) => prompt.status === "editing");
+    if (
+      queuedPrompt.status !== "queued" ||
+      taskId === undefined ||
+      (editingIndex >= 0 && promptIndex >= editingIndex)
+    ) {
       return;
     }
     if (activeTurnId !== undefined) {
@@ -279,6 +289,7 @@ export function useComposerQueue({
 
   return {
     editQueuedPrompt,
+    editingId,
     moveQueuedPrompt,
     onSteerAccepted,
     queueError: queueQuery.error,

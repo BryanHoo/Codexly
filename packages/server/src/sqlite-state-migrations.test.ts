@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import Database from "better-sqlite3";
+import type { AgentQueueRecord } from "@codexly/core";
 import { SQLITE_MIGRATIONS } from "./sqlite-state-migrations.js";
 import {
   repositories,
@@ -20,7 +21,7 @@ describe("SQLite state migrations", () => {
       foreignKeys: true,
       integrityCheck: "ok",
       journalMode: "wal",
-      migrationVersion: 21,
+      migrationVersion: 22,
       synchronous: "normal",
       writable: true,
     });
@@ -64,6 +65,34 @@ describe("SQLite state migrations", () => {
       model: "gpt-5.6-terra",
       sandboxMode: "workspace-write",
     });
+  });
+
+  it("persists queue order, editing state, and draft text across repository restarts", async () => {
+    const root = await createWorkspace();
+    const projectRoot = join(root, "workspace");
+    await mkdir(projectRoot);
+    const repository = await openRepository(root);
+    await repository.upsertProject(createProject("codexly", "Codexly", projectRoot));
+    const createRecord = (id: string, text: string, status: AgentQueueRecord["status"]) =>
+      ({
+        clientUserMessageId: `client-${id}`,
+        id,
+        input: { attachments: [], skills: [], text, type: "prompt" },
+        projectId: "codexly",
+        status,
+        taskId: "task-1",
+      }) satisfies AgentQueueRecord;
+    await repository.addQueue(createRecord("queue-1", "编辑草稿", "editing"));
+    await repository.addQueue(createRecord("queue-2", "后续内容", "queued"));
+    await repository.close();
+    repositories.splice(repositories.indexOf(repository), 1);
+
+    const reopened = await openRepository(root);
+
+    await expect(reopened.listQueue("codexly", "task-1")).resolves.toEqual([
+      createRecord("queue-1", "编辑草稿", "editing"),
+      createRecord("queue-2", "后续内容", "queued"),
+    ]);
   });
 
   it("removes the legacy temporary Project without losing its task settings", async () => {

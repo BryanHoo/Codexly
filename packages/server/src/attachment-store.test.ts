@@ -169,8 +169,8 @@ describe("AttachmentStore", () => {
     );
   });
 
-  it("keeps native queue attachments past TTL and expires them after queue reconciliation", async () => {
-    let now = 0;
+  it("releases attachments removed while a persisted queue item is edited", async () => {
+    const now = 0;
     let nextId = 1;
     const store = new AttachmentStore({
       clock: () => now,
@@ -178,19 +178,18 @@ describe("AttachmentStore", () => {
       ttlMs: 10,
     });
     const queued = await store.add("codexly", uploadInput(pastedTextDataUrl, "text", "queued.txt"));
-    await store.retainQueue("codexly", [queued.attachment.id], "queue-1");
+    const retained = await store.add(
+      "codexly",
+      uploadInput(pastedTextDataUrl, "text", "retained.txt"),
+    );
+    await store.retainQueue("codexly", [queued.attachment.id, retained.attachment.id], "queue-1");
 
-    now = 20;
-    await store.add("codexly", uploadInput(pastedTextDataUrl, "text", "trigger.txt"));
-    await store.releaseProjectRuntime("codexly");
-    await expect(store.resolve("codexly", [queued.attachment.id])).resolves.toHaveLength(1);
+    await store.retainQueue("codexly", [retained.attachment.id], "queue-1", true);
 
-    store.reconcileQueue("codexly", []);
-    now = 40;
-    await store.add("codexly", uploadInput(pastedTextDataUrl, "text", "prune.txt"));
     await expect(store.resolve("codexly", [queued.attachment.id])).rejects.toThrow(
       AttachmentNotFoundError,
     );
+    await expect(store.resolve("codexly", [retained.attachment.id])).resolves.toHaveLength(1);
   });
 
   it("releases only attachments owned by the removed project", async () => {

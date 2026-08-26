@@ -282,7 +282,9 @@ export function handleProtocolMessage(message) {
           ? base.realtimeThreads.subagent
           : state.actionThreads.get(threadId);
     if (thread !== undefined) {
+      const requestedTurnId = message.params?.turnId;
       const entries = [...thread.turns]
+        .filter((turn) => requestedTurnId === undefined || turn.id === requestedTurnId)
         .reverse()
         .flatMap((turn) => [...turn.items].reverse().map((item) => ({ item, turnId: turn.id })));
       base.send({

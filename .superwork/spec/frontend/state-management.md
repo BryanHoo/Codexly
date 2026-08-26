@@ -13,7 +13,7 @@
 - 瞬时 UI 状态默认保留在最近组件或功能内。
 - HTTP Snapshot 由服务端状态层持有；实时事件按 Task、Turn 和 Item ID 归一化合并。
 - Task Snapshot 首载只保存最近一页 Turn，并以可空 `turnsNextCursor` 独立表示更早历史。用户触发加载时必须抑制同一 Task 的并发请求，成功页按 Turn ID 去重后前插，失败保留当前 Timeline 并允许重试；增量页不得覆盖实时 Store 的元数据、Pending Request 或 Notice。
-- Composer 后续队列以 `projectId + taskId` 作用域的服务端 `thread/queue` Query 为唯一真相源，必须分页读取完整队列，并通过 add/update/delete/reorder/start Mutation 修改；不得使用 `sessionStorage`、浏览器内存队列或 React Effect 自动启动。`queue.changed` 只精确失效对应 Query，使 CLI、其他浏览器与 App Server 的变化统一校准。
+- Composer 后续队列以 `projectId + taskId` 作用域的服务端持久队列 Query 为唯一真相源，必须分页读取完整队列，并通过 add/update/delete/reorder/start Mutation 修改；不得使用浏览器内存队列或 React Effect 自动启动。队列项状态只允许 `queued | editing`，首个 `editing` 项必须阻断自身及其后全部续发，完成编辑后才恢复 FIFO；`queue.changed` 只精确失效对应 Query，使 CLI 和其他浏览器的变化统一校准。
 - 活动 Turn 的立即引导仍使用 `turn/steer`，成功后只在 Composer 上方保留本地 loading，不得向 Timeline 插入乐观用户消息；只有同一 Turn 的后续流式 User Item 出现后才能移除 loading，Assistant Delta 不得提前结束该状态。loading 与队列编辑必须保留图片、文件、粘贴文本和 Skill 的受控引用，且按路由作用域隔离异步结果。
 - MCP 清单 Query Key 必须同时包含 `projectId + taskId`，没有当前 Task 时禁用；手动重载成功后以返回页更新同一缓存。Project Runtime 收到 `mcp_server.status_updated` 后只失效对应 `projectId + taskId` 的 MCP Query，通过权威清单补齐工具数、认证和版本元数据；不得再为 `starting` 状态建立轮询。
 - 高扇出 React Provider 必须按只读数据、稳定操作和高频活动状态拆分 Context，消费者只通过专用 Hook 订阅所需边界；每个 Provider value 及派生数组、Map 必须保持引用稳定，Mutation Pending 或单个活动状态变化不得使无关数据/操作消费者重新渲染。

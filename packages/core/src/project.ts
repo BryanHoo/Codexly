@@ -1,12 +1,41 @@
 import type {
   AgentGlobalSettings,
+  AgentPromptInput,
   AgentProviderConnectionRecord,
   AgentProjectDefaults,
+  AgentQueuedSubmissionStatus,
   AgentTask,
   AgentTaskSettings,
   Project,
   ProjectRootInput,
 } from "@codexly/protocol";
+
+export type AgentQueueRecord = Readonly<{
+  clientUserMessageId: string;
+  id: string;
+  input: AgentPromptInput;
+  projectId: string;
+  status: AgentQueuedSubmissionStatus;
+  taskId: string;
+}>;
+
+export interface AgentQueueRepository {
+  addQueue(record: AgentQueueRecord): Promise<AgentQueueRecord>;
+  deleteQueue(projectId: string, taskId: string, queuedSubmissionId: string): Promise<boolean>;
+  listQueue(projectId: string, taskId: string): Promise<readonly AgentQueueRecord[]>;
+  reorderQueue(
+    projectId: string,
+    taskId: string,
+    queuedSubmissionIds: readonly string[],
+  ): Promise<void>;
+  updateQueue(
+    projectId: string,
+    taskId: string,
+    queuedSubmissionId: string,
+    input: AgentPromptInput,
+    status: AgentQueuedSubmissionStatus,
+  ): Promise<AgentQueueRecord | undefined>;
+}
 
 export type RegisterProjectInput = Readonly<{
   idempotencyKey: string;

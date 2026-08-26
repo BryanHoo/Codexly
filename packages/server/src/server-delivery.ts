@@ -212,6 +212,7 @@ export async function configureServerDelivery(
         retryable: false,
       });
     }
+    request.log.error({ err: error }, "Unhandled request error");
     return reply.code(explicitStatusCode).send({
       code: "INTERNAL_ERROR",
       message: "Internal server error",

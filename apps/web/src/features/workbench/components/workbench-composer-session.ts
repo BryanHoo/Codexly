@@ -343,16 +343,13 @@ export function useComposerSession({
   );
 
   const clearComposerInput = useCallback(() => {
-    composerDraftStore.update(composerScope, (current) => ({
-      ...current,
-      attachments: [],
-      content: [],
-    }));
     setPromptContent([]);
     setPromptHistoryIndex(null);
     promptHistoryDraftRef.current = [];
     setAttachments([]);
     skillEditorRef.current?.replace([]);
+    // 编辑器同步完成后再删持久草稿，禁止其变更回调重新写入旧内容。
+    composerDraftStore.clear(composerScope);
   }, [composerDraftStore, composerScope]);
 
   useLayoutEffect(() => {

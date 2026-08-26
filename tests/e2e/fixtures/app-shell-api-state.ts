@@ -18,6 +18,7 @@ export interface FixtureQueuedSubmission {
   clientUserMessageId: string;
   id: string;
   skills: readonly Readonly<{ id: string; name: string }>[];
+  status: "editing" | "queued";
   text: string;
 }
 

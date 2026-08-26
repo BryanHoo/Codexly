@@ -376,4 +376,22 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
     `,
     version: 21,
   },
+  {
+    name: "persist_task_queue",
+    sql: `
+      CREATE TABLE task_queue (
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        task_id TEXT NOT NULL,
+        id TEXT NOT NULL,
+        client_user_message_id TEXT NOT NULL,
+        input_json TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('editing', 'queued')),
+        position INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (project_id, task_id, id),
+        UNIQUE (project_id, task_id, position)
+      ) STRICT;
+    `,
+    version: 22,
+  },
 ];

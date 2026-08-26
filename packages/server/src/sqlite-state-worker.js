@@ -19,7 +19,7 @@ import {
   taskSettingsFromRow,
 } from "./sqlite-state-worker-bootstrap.js";
 import { serializeApprovalPolicy } from "./approval-policy-persistence.js";
-
+import { createTaskQueueOperations } from "./sqlite-task-queue-worker.js";
 function serializeError(error) {
   return {
     message: error instanceof Error ? error.message : String(error),
@@ -310,6 +310,7 @@ function createOperations(database) {
     : undefined;
 
   return {
+    ...createTaskQueueOperations(database),
     diagnose() {
       database.exec("BEGIN IMMEDIATE");
       try {

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
   AgentRuntimeProvider,
+  AgentQueueRepository,
   AgentProviderConnectionRepository,
   AgentSettingsRepository,
   ProjectProjectionStore,
@@ -26,7 +27,6 @@ import {
   createCodexlyServer,
   normalizeAllowedHost,
   SqliteStateRepository,
-  type CodexlyAccessOptions,
   type SqliteDatabaseDiagnostics,
 } from "@codexly/server";
 
@@ -34,6 +34,7 @@ import packageManifest from "../package.json" with { type: "json" };
 import { createAppUpdateService } from "./app-update.js";
 import { CLI_HELP, parseCommandOptions, type ParsedCommandOptions } from "./cli-command-options.js";
 import { listenOnAvailablePort } from "./cli-server-listen.js";
+import type { CreateServerInput } from "./cli-server-input.js";
 import {
   confirmTerminalAppUpdate,
   createStartupAppUpdateOperations,
@@ -63,7 +64,11 @@ interface CliManagedServer {
 }
 
 interface CliManagedStateRepository
-  extends ProjectProjectionStore, AgentSettingsRepository, AgentProviderConnectionRepository {
+  extends
+    ProjectProjectionStore,
+    AgentSettingsRepository,
+    AgentProviderConnectionRepository,
+    AgentQueueRepository {
   close: () => Promise<void>;
   diagnose: () => Promise<SqliteDatabaseDiagnostics>;
 }
@@ -75,19 +80,6 @@ interface CliManagedProjectRepository extends ProjectRepository {
 
 interface CreateRuntimeProviderInput {
   client: CodexRpcClient;
-}
-
-interface CreateServerInput {
-  access?: CodexlyAccessOptions;
-  allowedHosts?: readonly string[];
-  installAppUpdate: ReturnType<typeof createAppUpdateService>["install"];
-  projectRepository: ProjectRepository;
-  providerConnectionRepository: AgentProviderConnectionRepository;
-  provider: AgentRuntimeProvider;
-  readAppInfo: ReturnType<typeof createAppUpdateService>["read"];
-  settingsRepository: AgentSettingsRepository;
-  staticRoot: string;
-  temporaryWorkspace: string;
 }
 
 export interface CliDependencies {
@@ -384,6 +376,7 @@ async function runStart(
       provider,
       installAppUpdate: appUpdateService.install,
       readAppInfo: appUpdateService.read,
+      queueRepository: stateRepository,
       settingsRepository: stateRepository,
       staticRoot: dependencies.webRoot,
       temporaryWorkspace,

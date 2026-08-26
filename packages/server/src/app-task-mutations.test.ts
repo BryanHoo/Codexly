@@ -214,7 +214,7 @@ describe("server task mutations", () => {
   });
 
   it("serves the complete persistent task queue API", async () => {
-    const { app, queue } = await createHarness();
+    const { app, queue, startTurn } = await createHarness();
     const baseUrl = "/v1/projects/codexly/tasks/task-1/queue";
     const add = await app.inject({
       headers: { "idempotency-key": "queue-add-1" },
@@ -225,57 +225,70 @@ describe("server task mutations", () => {
       },
       url: baseUrl,
     });
+    const queuedSubmissionId = add.json<{ queuedSubmission: { id: string } }>().queuedSubmission.id;
     const list = await app.inject({ method: "GET", url: baseUrl });
     const update = await app.inject({
       headers: { "idempotency-key": "queue-update-1" },
       method: "PUT",
       payload: {
         input: { attachments: [], skills: [], text: "更新内容", type: "prompt" },
+        status: "editing",
       },
-      url: `${baseUrl}/queue-1`,
+      url: `${baseUrl}/${queuedSubmissionId}`,
     });
     const reorder = await app.inject({
       headers: { "idempotency-key": "queue-reorder-1" },
       method: "PUT",
-      payload: { queuedSubmissionIds: ["queue-1"] },
+      payload: { queuedSubmissionIds: [queuedSubmissionId] },
       url: `${baseUrl}/reorder`,
     });
-    const start = await app.inject({
+    const blocked = await app.inject({
       headers: { "idempotency-key": "queue-start-1" },
       method: "POST",
-      payload: { queuedSubmissionId: "queue-1" },
+      payload: { queuedSubmissionId },
+      url: `${baseUrl}/start`,
+    });
+    await app.inject({
+      headers: { "idempotency-key": "queue-update-2" },
+      method: "PUT",
+      payload: {
+        input: { attachments: [], skills: [], text: "更新内容", type: "prompt" },
+        status: "queued",
+      },
+      url: `${baseUrl}/${queuedSubmissionId}`,
+    });
+    const start = await app.inject({
+      headers: { "idempotency-key": "queue-start-2" },
+      method: "POST",
+      payload: { queuedSubmissionId },
       url: `${baseUrl}/start`,
     });
     const remove = await app.inject({
       headers: { "idempotency-key": "queue-delete-1" },
       method: "DELETE",
-      url: `${baseUrl}/queue-1`,
+      url: `${baseUrl}/${queuedSubmissionId}`,
     });
 
     expect(add.statusCode).toBe(201);
-    expect(list.json()).toMatchObject({ data: [{ id: "queue-1", text: "排队处理" }] });
-    expect(update.json()).toMatchObject({ queuedSubmission: { text: "更新内容" } });
+    expect(list.json()).toMatchObject({ data: [{ status: "queued", text: "排队处理" }] });
+    expect(update.json()).toMatchObject({
+      queuedSubmission: { status: "editing", text: "更新内容" },
+    });
     expect(reorder.json()).toEqual({ status: "reordered" });
-    expect(start.json()).toMatchObject({ taskId: "task-1", turn: { id: "queued-turn" } });
-    expect(remove.json()).toEqual({ deleted: true });
-    expect(queue.add).toHaveBeenCalledOnce();
-    expect(queue.list).toHaveBeenCalledWith("task-1", {});
-    expect(queue.update).toHaveBeenCalledOnce();
-    expect(queue.reorder).toHaveBeenCalledWith("task-1", ["queue-1"]);
-    expect(queue.start).toHaveBeenCalledWith("task-1", "queue-1");
-    expect(queue.delete).toHaveBeenCalledWith("task-1", "queue-1");
+    expect(blocked.statusCode).toBe(409);
+    expect(start.json()).toMatchObject({ taskId: "task-1", turn: { id: "turn-1" } });
+    expect(remove.json()).toEqual({ deleted: false });
+    expect(startTurn).toHaveBeenCalledOnce();
+    expect(queue.add).not.toHaveBeenCalled();
   });
 
-  it("reconciles queued attachments after native queue changes", async () => {
+  it("keeps the persistent queue isolated from Provider-native queue events", async () => {
     const { app, emitEvent, queue } = await createHarness();
     await app.inject({ method: "GET", url: "/v1/projects/codexly/tasks/task-1/queue" });
-    queue.list.mockClear();
 
     emitEvent({ payload: {}, taskId: "task-1", type: "queue.changed" });
 
-    await vi.waitFor(() => {
-      expect(queue.list).toHaveBeenCalledWith("task-1", { limit: 100 });
-    });
+    expect(queue.list).not.toHaveBeenCalled();
   });
 
   it("reuses a created task when settings persistence is retried", async () => {

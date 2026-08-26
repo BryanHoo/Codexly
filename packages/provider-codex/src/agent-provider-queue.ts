@@ -115,6 +115,7 @@ export abstract class CodexAgentProviderQueue extends CodexAgentProviderBase {
       ),
       id: expectString(queued["id"], "thread queue submission id"),
       skills,
+      status: "queued",
       text: content.text,
     };
   }
