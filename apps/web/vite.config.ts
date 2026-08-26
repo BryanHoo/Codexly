@@ -33,7 +33,8 @@ export default defineConfig({
     ],
   },
   build: {
-    emptyOutDir: false,
+    // dist/web 仅包含前端产物；构建前清理旧哈希文件，避免预压缩阶段重复处理历史资源。
+    emptyOutDir: true,
     manifest: true,
     outDir: "../../dist/web",
     rolldownOptions: {
