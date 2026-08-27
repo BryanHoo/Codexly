@@ -100,7 +100,7 @@ describe("CodexAgentProvider task lifecycle", () => {
     const rpc = new FakeRpcClient([
       {
         thread: nativeThread({
-          cwd: temporaryProject.rootPath,
+          cwd: "/runtime/default",
           ephemeral: true,
           projectId: null,
         }),
@@ -119,15 +119,12 @@ describe("CodexAgentProvider task lifecycle", () => {
       {
         method: "thread/start",
         params: {
-          cwd: temporaryProject.rootPath,
           historyMode: "paginated",
-          runtimeWorkspaceRoots: [temporaryProject.rootPath],
         },
       },
       {
         method: "thread/list",
         params: {
-          cwd: temporaryProject.rootPath,
           projectId: null,
           sortDirection: "desc",
           sortKey: "updated_at",

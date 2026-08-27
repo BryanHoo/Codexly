@@ -1,27 +1,9 @@
-import { mkdir, mkdtemp, realpath, symlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { ensureTemporaryWorkspace, runCli } from "./cli-command.js";
-import { temporaryDirectories, createHarness } from "./cli-command.test-support.js";
+import { runCli } from "./cli-command.js";
+import { createHarness } from "./cli-command.test-support.js";
 
 describe("runCli startup", () => {
-  it("creates a private temporary workspace and rejects a symbolic-link target", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codexly-cli-"));
-    temporaryDirectories.push(root);
-    const workspace = join(root, "temporary-workspace");
-
-    const createdWorkspace = await ensureTemporaryWorkspace(workspace);
-    await expect(realpath(workspace)).resolves.toBe(createdWorkspace);
-    await expect(ensureTemporaryWorkspace(workspace)).resolves.toBe(createdWorkspace);
-
-    const target = join(root, "target");
-    const alias = join(root, "alias");
-    await mkdir(target);
-    await symlink(target, alias);
-    await expect(ensureTemporaryWorkspace(alias)).rejects.toThrow(/symbolic link/u);
-  });
-
   it("prints the Codexly version", async () => {
     const harness = createHarness();
 
@@ -106,15 +88,12 @@ describe("runCli startup", () => {
       provider: harness.runtimeProvider,
       settingsRepository: harness.stateRepository,
       staticRoot: "/package/dist/web",
-      temporaryWorkspace: join("/custom/home", "codexly", "temporary-workspace"),
+      standaloneCwd: process.cwd(),
     });
     expect(typeof serverOptions?.installAppUpdate).toBe("function");
     expect(typeof serverOptions?.readAppInfo).toBe("function");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
       join("/custom/home", "codexly", "state.sqlite3"),
-    );
-    expect(harness.dependencies.ensureTemporaryWorkspace).toHaveBeenCalledWith(
-      join("/custom/home", "codexly", "temporary-workspace"),
     );
     expect(harness.serverListen).toHaveBeenCalledWith({ host: "127.0.0.1", port: 3210 });
     expect(harness.dependencies.openBrowser).toHaveBeenCalledWith("http://127.0.0.1:3210");

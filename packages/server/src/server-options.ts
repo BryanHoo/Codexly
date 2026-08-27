@@ -63,7 +63,7 @@ export interface CreateCodexlyServerOptions {
   petProvider: WorkbenchPetProvider;
   readAppInfo: () => Promise<AppInfoResponse>;
   settingsRepository: AgentSettingsRepository;
-  temporaryWorkspace: string;
+  standaloneCwd: string;
   commitProjectChanges?: (
     projectRoot: string,
     request: CommitProjectChangesRequest,

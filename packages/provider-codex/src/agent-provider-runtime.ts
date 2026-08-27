@@ -430,8 +430,10 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
     const resumePromise = (async () => {
       const response = expectRecord(
         await this.client.request("thread/resume", {
-          // 恢复持久 Task 时覆盖旧运行时配置，使 Project 的全部根立即生效。
-          runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots],
+          // 恢复 Project Task 时覆盖旧运行时配置，使全部根立即生效。
+          ...(this.project.kind === "project"
+            ? { runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots] }
+            : {}),
           threadId: taskId,
         }),
         "thread/resume response",

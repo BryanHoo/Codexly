@@ -96,10 +96,7 @@ export async function isSameCanonicalPath(left: string, right: string): Promise<
   return leftIdentity === rightIdentity;
 }
 
-export async function isProjectThread(
-  thread: Record<string, unknown>,
-  project: AgentTaskScope,
-): Promise<boolean> {
+export function isProjectThread(thread: Record<string, unknown>, project: AgentTaskScope): boolean {
   const nativeProjectId = thread["projectId"];
   if (nativeProjectId !== null && typeof nativeProjectId !== "string") {
     throw new CodexProtocolMappingError("Codex thread projectId must be a string or null");
@@ -110,17 +107,19 @@ export async function isProjectThread(
   if (nativeProjectId !== null) {
     return false;
   }
-  const cwd = expectString(thread["cwd"], "Codex thread cwd");
-  return isSameCanonicalPath(cwd, project.rootPath);
+  // Codex 0.149 使用 null projectId 表示 standalone，cwd 不是其身份字段。
+  return true;
 }
-
-export async function assertProjectThread(
+export function assertProjectThread(
   thread: Record<string, unknown>,
   project: AgentTaskScope,
 ): Promise<void> {
-  if (!(await isProjectThread(thread, project))) {
-    throw new CodexProtocolMappingError("Codex thread does not belong to the active project");
+  if (!isProjectThread(thread, project)) {
+    return Promise.reject(
+      new CodexProtocolMappingError("Codex thread does not belong to the active project"),
+    );
   }
+  return Promise.resolve();
 }
 
 export function isThreadNotLoadedError(error: unknown): boolean {
@@ -349,7 +348,9 @@ export abstract class CodexAgentProviderBase {
       await this.client.request("thread/fork", {
         ...(lastTurnId === undefined ? {} : { lastTurnId }),
         // Fork 必须使用当前 Project 的完整运行时根，不能继承旧 Thread 的单根配置。
-        runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots],
+        ...(this.project.kind === "project"
+          ? { runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots] }
+          : {}),
         threadId: taskId,
       }),
       "thread/fork response",

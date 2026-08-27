@@ -57,11 +57,15 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   public async startTask(options: StartAgentTaskOptions = {}): Promise<AgentTask> {
     const response = expectRecord(
       await this.client.request("thread/start", {
-        cwd: this.project.rootPath,
         historyMode: "paginated",
-        ...(this.project.kind === "temporary" ? {} : { projectId: this.project.id }),
-        // Project 身份与运行时文件系统授权彼此独立，必须显式传递完整根列表。
-        runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots],
+        ...(this.project.kind === "temporary"
+          ? {}
+          : {
+              cwd: this.project.rootPath,
+              projectId: this.project.id,
+              // Project 身份与运行时文件系统授权彼此独立，必须显式传递完整根列表。
+              runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots],
+            }),
         ...(options.ephemeral === true ? { ephemeral: true } : {}),
       }),
       "thread/start response",
@@ -361,7 +365,7 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
         ...(input.archived === true ? { archived: true } : {}),
         ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
         ...(this.project.kind === "temporary"
-          ? { cwd: this.project.rootPath, projectId: null }
+          ? { projectId: null }
           : { projectId: this.project.id }),
         ...(input.limit === undefined ? {} : { limit: input.limit }),
         // 锁定版本用稳定 Pinned Section 过滤，保证固定任务先过滤再分页。

@@ -217,7 +217,7 @@ export function createServerOptions(
       }),
     ),
     settingsRepository: stateRepository,
-    temporaryWorkspace: temporaryProject.rootPath,
+    standaloneCwd: temporaryProject.rootPath,
     ...overrides,
   };
 }

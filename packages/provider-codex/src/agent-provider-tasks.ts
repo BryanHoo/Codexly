@@ -66,7 +66,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       }
       const response = expectRecord(nativeResponse, "thread/read response");
       const thread = expectRecord(response["thread"], "thread/read thread");
-      if (!(await isProjectThread(thread, this.project))) {
+      if (!isProjectThread(thread, this.project)) {
         const unmaterializedTask = this.runtime.unmaterializedTasks.get(taskId);
         if (
           unmaterializedTask !== undefined &&

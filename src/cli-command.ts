@@ -1,4 +1,3 @@
-import { chmod, lstat, mkdir, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -100,7 +99,6 @@ export interface CliDependencies {
     input: CreateRuntimeProviderInput,
   ) => AgentRuntimeProvider | Promise<AgentRuntimeProvider>;
   createServer: (input: CreateServerInput) => Promise<CliManagedServer>;
-  ensureTemporaryWorkspace: (path: string) => Promise<string>;
   generateLanPairingCode: () => string;
   listLanAccessUrls: (port: number) => readonly string[];
   locateCodexBinary: (options?: LocateCodexBinaryOptions) => Promise<CodexBinary>;
@@ -141,7 +139,6 @@ const defaultDependencies: CliDependencies = {
       listen: (options) => server.listen(options),
     };
   },
-  ensureTemporaryWorkspace,
   generateLanPairingCode,
   listLanAccessUrls,
   locateCodexBinary,
@@ -152,20 +149,6 @@ const defaultDependencies: CliDependencies = {
   startCodexAppServer,
   webRoot: fileURLToPath(new URL("../dist/web", import.meta.url)),
 };
-
-export async function ensureTemporaryWorkspace(path: string): Promise<string> {
-  await mkdir(path, { mode: 0o700, recursive: true });
-  const metadata = await lstat(path);
-  if (metadata.isSymbolicLink()) {
-    throw new Error("Temporary workspace must not be a symbolic link");
-  }
-  if (!metadata.isDirectory()) {
-    throw new Error("Temporary workspace path must be a directory");
-  }
-  // 共享隐藏目录只承载只读临时聊天，限制其他本机账号访问其运行时元数据。
-  await chmod(path, 0o700);
-  return realpath(path);
-}
 
 function assertSupportedNodeVersion(version: string): void {
   const [major = Number.NaN, minor = Number.NaN] = version.split(".").map(Number);
@@ -342,9 +325,6 @@ async function runStart(
     stateRepository = await dependencies.createStateRepository(
       join(codexHome, "codexly", "state.sqlite3"),
     );
-    const temporaryWorkspace = await dependencies.ensureTemporaryWorkspace(
-      join(codexHome, "codexly", "temporary-workspace"),
-    );
     runtime = await dependencies.startCodexAppServer({
       appVersion: dependencies.appVersion,
       env,
@@ -386,7 +366,8 @@ async function runStart(
       queueRepository: stateRepository,
       settingsRepository: stateRepository,
       staticRoot: dependencies.webRoot,
-      temporaryWorkspace,
+      // Standalone Thread 继承 app-server 的 cwd，不再创建伪项目目录。
+      standaloneCwd: process.cwd(),
     });
     const host = options.lan === true ? "0.0.0.0" : "127.0.0.1";
     const activePort = await listenOnAvailablePort(server, host, port);

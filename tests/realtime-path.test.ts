@@ -139,7 +139,7 @@ function createServerOptions(provider: ReturnType<typeof createCodexRuntimeProvi
         updateAvailable: false,
       }),
     settingsRepository: stateRepository,
-    temporaryWorkspace: "/workspace/temporary",
+    standaloneCwd: "/workspace/temporary",
   };
 }
 

@@ -16,17 +16,17 @@ export async function resolveTaskScope(
   options: Readonly<{
     projectRepository: ProjectRepository;
     provider: AgentRuntimeProvider;
-    temporaryWorkspace: string;
+    standaloneCwd: string;
   }>,
 ): Promise<ResolvedTaskScope | undefined> {
   if (projectId === TEMPORARY_TASK_SCOPE_ID) {
     return {
-      provider: options.provider.forTemporary(options.temporaryWorkspace),
+      provider: options.provider.forTemporary(options.standaloneCwd),
       scope: {
         id: TEMPORARY_TASK_SCOPE_ID,
         kind: "temporary",
-        rootPath: options.temporaryWorkspace,
-        runtimeWorkspaceRoots: [options.temporaryWorkspace],
+        rootPath: options.standaloneCwd,
+        runtimeWorkspaceRoots: [options.standaloneCwd],
       },
     };
   }

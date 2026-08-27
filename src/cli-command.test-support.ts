@@ -246,7 +246,6 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
       lifecycle.push("provider.create");
       return runtimeProvider;
     }),
-    ensureTemporaryWorkspace: vi.fn((path: string) => Promise.resolve(path)),
     generateLanPairingCode: vi.fn(() => "fixed-test-pairing-code"),
     listLanAccessUrls: vi.fn((port: number) => [`http://192.168.1.20:${String(port)}`]),
     createServer: vi.fn(() => {

@@ -22,5 +22,5 @@ export interface CreateServerInput {
   readAppInfo: ReturnType<typeof createAppUpdateService>["read"];
   settingsRepository: AgentSettingsRepository;
   staticRoot: string;
-  temporaryWorkspace: string;
+  standaloneCwd: string;
 }

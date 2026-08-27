@@ -468,7 +468,7 @@ describe("server task mutations", () => {
         openPetAsset: () => Promise.resolve(undefined),
       },
       provider: runtimeProvider,
-      temporaryWorkspace: temporaryProject.rootPath,
+      standaloneCwd: temporaryProject.rootPath,
       readAppInfo: vi.fn(() =>
         Promise.resolve({
           appVersion: "1.3.0",

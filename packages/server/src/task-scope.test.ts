@@ -5,6 +5,23 @@ import { describe, expect, it, vi } from "vitest";
 import { resolveTaskScope } from "./task-scope.js";
 
 describe("resolveTaskScope", () => {
+  it("resolves standalone tasks without a synthetic workspace", async () => {
+    const temporaryProvider = {} as AgentProvider;
+    const forTemporary = vi.fn(() => temporaryProvider);
+    const runtimeProvider = {
+      forTemporary,
+    } as unknown as AgentRuntimeProvider;
+
+    const result = await resolveTaskScope("temporary", {
+      projectRepository: {} as ProjectRepository,
+      provider: runtimeProvider,
+      standaloneCwd: "/runtime/cwd",
+    });
+
+    expect(forTemporary).toHaveBeenCalledWith("/runtime/cwd");
+    expect(result?.scope.rootPath).toBe("/runtime/cwd");
+  });
+
   it("preserves every project root in the runtime task scope", async () => {
     const project = {
       createdAt: "2026-08-22T00:00:00.000Z",
@@ -26,7 +43,7 @@ describe("resolveTaskScope", () => {
     const result = await resolveTaskScope(project.id, {
       projectRepository,
       provider: runtimeProvider,
-      temporaryWorkspace: "/workspace/temporary",
+      standaloneCwd: "/runtime/cwd",
     });
 
     expect(result).toEqual({

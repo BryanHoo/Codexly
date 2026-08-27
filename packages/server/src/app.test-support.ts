@@ -18,8 +18,8 @@ export const temporaryProject = {
   createdAt: "2026-08-06T00:00:00.000Z",
   id: "temporary",
   name: "Temporary",
-  rootPath: "/codexly/temporary-workspace",
-  roots: [{ id: "root-temporary", path: "/codexly/temporary-workspace" }],
+  rootPath: "/runtime/default",
+  roots: [{ id: "root-temporary", path: "/runtime/default" }],
 } as const;
 
 export const pixelDataUrl =
