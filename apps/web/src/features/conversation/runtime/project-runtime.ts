@@ -1,4 +1,4 @@
-import type { AgentTask, AgentTaskSnapshot, AgentTaskSnapshotResponse } from "@codexly/protocol";
+import type { AgentTask, AgentTaskSnapshotResponse, EventCheckpoint } from "@codexly/protocol";
 import {
   createBrowserTaskNotifier,
   type TaskNotifier,
@@ -51,6 +51,7 @@ export class ProjectRuntimeManager {
   readonly #projects = new Map<string, ProjectEventRuntime>();
   readonly #taskNotifier: TaskNotifier;
   #taskActivity: TaskActivityMap = new Map();
+  readonly #taskActivityCheckpoints = new Map<string, EventCheckpoint>();
   readonly #taskTitles = new Map<string, string>();
   readonly #titleRefreshedRunningTurns = new Set<string>();
   #viewedTask: Readonly<{ projectId: string; taskId: string }> | undefined;
@@ -87,7 +88,7 @@ export class ProjectRuntimeManager {
     recoverSnapshot: RecoverTaskSnapshot,
   ): () => void {
     this.#rememberTaskTitle(response.snapshot);
-    this.#recordSnapshotActivity(response.snapshot);
+    this.#recordSnapshotActivity(response);
     return this.#getProject(response.snapshot.projectId).attachTaskStore(
       response,
       store,
@@ -101,12 +102,14 @@ export class ProjectRuntimeManager {
     }
     this.#projects.clear();
     this.#activityListeners.clear();
+    this.#taskActivityCheckpoints.clear();
     this.#taskTitles.clear();
     this.#titleRefreshedRunningTurns.clear();
   }
 
   public forgetTask(projectId: string, taskId: string): void {
     this.#updateTaskActivity(removeTaskActivity(this.#taskActivity, projectId, taskId));
+    this.#taskActivityCheckpoints.delete(createProjectTaskKey(projectId, taskId));
     this.#taskTitles.delete(createProjectTaskKey(projectId, taskId));
     this.#projects.get(projectId)?.forgetTask(taskId);
   }
@@ -125,6 +128,11 @@ export class ProjectRuntimeManager {
     this.#updateTaskActivity(nextActivity);
 
     const projectKeyPrefix = `${projectId}\u0000`;
+    for (const key of this.#taskActivityCheckpoints.keys()) {
+      if (key.startsWith(projectKeyPrefix)) {
+        this.#taskActivityCheckpoints.delete(key);
+      }
+    }
     for (const key of this.#taskTitles.keys()) {
       if (key.startsWith(projectKeyPrefix)) {
         this.#taskTitles.delete(key);
@@ -152,7 +160,7 @@ export class ProjectRuntimeManager {
 
   public observeSnapshot(response: AgentTaskSnapshotResponse): void {
     this.#rememberTaskTitle(response.snapshot);
-    this.#recordSnapshotActivity(response.snapshot);
+    this.#recordSnapshotActivity(response);
     this.#getProject(response.snapshot.projectId).observeSnapshot(response);
   }
 
@@ -164,7 +172,7 @@ export class ProjectRuntimeManager {
 
   public reconcileTaskSnapshot(response: AgentTaskSnapshotResponse): void {
     this.#rememberTaskTitle(response.snapshot);
-    this.#recordSnapshotActivity(response.snapshot);
+    this.#recordSnapshotActivity(response);
     this.#getProject(response.snapshot.projectId).reconcileTaskSnapshot(response);
   }
 
@@ -268,6 +276,13 @@ export class ProjectRuntimeManager {
               taskId: event.taskId,
             });
           }
+          if (event.type !== "task.removed") {
+            // 所有 Task 实时事件都推进 Activity 水位，避免流式期间到达的旧 Snapshot 回滚侧栏状态。
+            this.#taskActivityCheckpoints.set(createProjectTaskKey(eventProjectId, event.taskId), {
+              sequence: event.sequence,
+              sessionId: event.sessionId,
+            });
+          }
           this.#updateTaskActivity(
             reduceTaskActivityEvent(
               this.#taskActivity,
@@ -310,7 +325,18 @@ export class ProjectRuntimeManager {
     return this.#viewedTask?.projectId === projectId && this.#viewedTask.taskId === taskId;
   }
 
-  #recordSnapshotActivity(snapshot: AgentTaskSnapshot): void {
+  #recordSnapshotActivity(response: AgentTaskSnapshotResponse): void {
+    const { checkpoint, snapshot } = response;
+    const taskKey = createProjectTaskKey(snapshot.projectId, snapshot.id);
+    const currentCheckpoint = this.#taskActivityCheckpoints.get(taskKey);
+    if (
+      currentCheckpoint?.sessionId === checkpoint.sessionId &&
+      currentCheckpoint.sequence > checkpoint.sequence
+    ) {
+      // 同一 Session 的旧 Snapshot 只能补详细 Store，不能覆盖已由较新事件确认的 Activity。
+      return;
+    }
+    this.#taskActivityCheckpoints.set(taskKey, checkpoint);
     const wasRunning = getTaskActivity(
       this.#taskActivity,
       snapshot.projectId,

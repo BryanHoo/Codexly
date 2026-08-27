@@ -3,6 +3,7 @@ import {
   Bot,
   ChevronDown,
   GitCommitHorizontal,
+  Images,
   Info,
   MonitorCog,
   Moon,
@@ -21,17 +22,24 @@ import { PromptInputSelect } from "../../../shared/components/agent/prompt-input
 import { Button } from "../../../shared/components/core/button.js";
 import { Checkbox } from "../../../shared/components/core/checkbox.js";
 import type { ThemePreference } from "../theme-preference.js";
-import type { WorkbenchBackgroundPreference } from "../workbench-background-preference.js";
-import { WorkbenchBackgroundSettings } from "./workbench-background-settings.js";
 
 export type SettingsSectionId =
-  "about" | "access" | "agent" | "appearance" | "commit" | "integration" | "pets" | "provider";
+  | "about"
+  | "access"
+  | "agent"
+  | "appearance"
+  | "background"
+  | "commit"
+  | "integration"
+  | "pets"
+  | "provider";
 
 export const settingsSections: readonly Readonly<{
   icon: LucideIcon;
   id: SettingsSectionId;
 }>[] = [
   { icon: Palette, id: "appearance" },
+  { icon: Images, id: "background" },
   { icon: PawPrint, id: "pets" },
   { icon: ServerCog, id: "provider" },
   { icon: Bot, id: "agent" },
@@ -143,28 +151,18 @@ export function ThemeButton({
 
 export function AppearanceSettingsPanel({
   activeSection,
-  background,
-  customBackgroundFile,
-  isSaving,
   language,
   notificationsEnabled,
   onLanguageChange,
   onNotificationsChange,
-  onBackgroundChange,
-  onCustomBackgroundFileChange,
   onThemeChange,
   theme,
 }: Readonly<{
   activeSection: SettingsSectionId;
-  background: WorkbenchBackgroundPreference;
-  customBackgroundFile: File | null;
-  isSaving: boolean;
   language: SupportedLanguage;
   notificationsEnabled: boolean;
   onLanguageChange: (language: SupportedLanguage) => void;
   onNotificationsChange: (enabled: boolean) => void;
-  onBackgroundChange: (background: WorkbenchBackgroundPreference) => void;
-  onCustomBackgroundFileChange: (file: File) => void;
   onThemeChange: (theme: ThemePreference) => void;
   theme: ThemePreference;
 }>) {
@@ -212,15 +210,6 @@ export function AppearanceSettingsPanel({
           <option value="enabled">{t("notifications.enabled")}</option>
           <option value="disabled">{t("notifications.disabled")}</option>
         </SettingsSelect>
-      </SettingsField>
-      <SettingsField alignStart label={t("background.label")}>
-        <WorkbenchBackgroundSettings
-          customFile={customBackgroundFile}
-          disabled={isSaving}
-          onCustomFileChange={onCustomBackgroundFileChange}
-          onPreferenceChange={onBackgroundChange}
-          preference={background}
-        />
       </SettingsField>
     </SettingsPanel>
   );

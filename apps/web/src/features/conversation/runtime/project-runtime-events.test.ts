@@ -158,6 +158,20 @@ describe("project runtime events", () => {
     manager.dispose();
   });
 
+  it("keeps newer realtime activity when an older Snapshot arrives", () => {
+    const harness = createClientHarness();
+    const manager = createProjectRuntimeManager(harness.client);
+    manager.observeSnapshot(createSnapshotResponse("task-1", { sequence: 0, status: "idle" }));
+
+    harness.emit(createTurnStartedEvent("task-1", 2));
+    manager.reconcileTaskSnapshot(
+      createSnapshotResponse("task-1", { sequence: 1, status: "idle" }),
+    );
+
+    expect(getTaskActivity(manager.getTaskActivity(), "project-1", "task-1").isRunning).toBe(true);
+    manager.dispose();
+  });
+
   it("clears attention when a task is viewed and only records later background events", () => {
     const harness = createClientHarness();
     const manager = createProjectRuntimeManager(harness.client);

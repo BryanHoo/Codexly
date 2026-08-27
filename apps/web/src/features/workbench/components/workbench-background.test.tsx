@@ -42,9 +42,9 @@ describe("WorkbenchBackground", () => {
         onImageLoad={vi.fn()}
         preference={{
           blurPercentage: 57,
-          customImageName: null,
           mode: "bing",
           overlayOpacity: 40,
+          selectedCustomImageId: null,
         }}
       >
         <div>Workbench</div>

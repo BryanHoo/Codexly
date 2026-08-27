@@ -46,6 +46,7 @@ import { GlobalSettingsAccess } from "./global-settings-access.js";
 import { ProviderConnectionPanel } from "../../provider-connection/components/provider-connection-panel.js";
 import { GlobalSettingsPets } from "../../pets/components/global-settings-pets.js";
 import { useWorkbenchBackgroundDraft } from "./use-workbench-background-draft.js";
+import { GlobalSettingsBackground } from "./global-settings-background.js";
 export { resolveGlobalSettingsModel } from "./global-settings-model.js";
 
 type GlobalSettingsDialogProps = Readonly<{
@@ -97,11 +98,14 @@ export function GlobalSettingsDialog({
   );
   const [theme, setTheme] = useState<ThemePreference>(readInitialTheme);
   const {
+    addCustomBackgroundFiles,
     background,
-    customBackgroundFile,
+    backgroundMutation,
     customBackgroundMissing,
+    customImages,
+    removeCustomBackgroundImage,
+    selectCustomBackgroundImage,
     setBackground,
-    setCustomBackgroundFile,
   } = useWorkbenchBackgroundDraft();
   const [language, setLanguage] = useState(getCurrentLanguage);
   const [notificationsEnabled, setNotificationsEnabled] = useState(getNotificationPreference);
@@ -150,7 +154,7 @@ export function GlobalSettingsDialog({
                   draft,
                   {
                     background,
-                    customBackgroundImage: customBackgroundFile,
+                    customBackgroundMutation: backgroundMutation,
                     language,
                     notificationsEnabled,
                     theme,
@@ -159,7 +163,7 @@ export function GlobalSettingsDialog({
                     applyBrowserSettings: async (browserSettings) => {
                       await applyWorkbenchBackgroundPreference(
                         browserSettings.background,
-                        browserSettings.customBackgroundImage,
+                        browserSettings.customBackgroundMutation,
                       );
                       if (typeof window !== "undefined") {
                         setThemePreference(browserSettings.theme);
@@ -277,17 +281,23 @@ export function GlobalSettingsDialog({
                 <>
                   <AppearanceSettingsPanel
                     activeSection={activeSection}
-                    background={background}
-                    customBackgroundFile={customBackgroundFile}
-                    isSaving={isSaving}
                     language={language}
                     notificationsEnabled={notificationsEnabled}
                     onLanguageChange={setLanguage}
                     onNotificationsChange={setNotificationsEnabled}
-                    onBackgroundChange={setBackground}
-                    onCustomBackgroundFileChange={setCustomBackgroundFile}
                     onThemeChange={setTheme}
                     theme={theme}
+                  />
+
+                  <GlobalSettingsBackground
+                    activeSection={activeSection}
+                    customImages={customImages}
+                    disabled={isSaving}
+                    onCustomFilesAdd={addCustomBackgroundFiles}
+                    onCustomImageRemove={removeCustomBackgroundImage}
+                    onCustomImageSelect={selectCustomBackgroundImage}
+                    onPreferenceChange={setBackground}
+                    preference={background}
                   />
 
                   {activeSection === "pets" ? (

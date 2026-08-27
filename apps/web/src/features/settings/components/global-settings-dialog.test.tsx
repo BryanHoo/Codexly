@@ -97,6 +97,7 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).toContain('aria-labelledby="global-settings-title"');
     expect(markup).toContain('aria-label="设置分类"');
     expect(markup).toContain("基础设置");
+    expect(markup).toContain("工作台背景");
     expect(markup).toContain("Agent 默认值");
     expect(markup).toContain("提交消息");
     expect(markup).toContain("应用集成");
@@ -126,6 +127,7 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).toContain('aria-label="Bing 每日壁纸"');
     expect(markup).toContain('aria-label="壁纸遮罩不透明度"');
     expect(markup).toContain('aria-label="壁纸背景模糊度"');
+    expect(markup).toContain('<section hidden="" id="settings-panel-background">');
     expect(markup).toMatch(/<label[^>]*for="background-opacity"[^>]*>遮罩不透明度<\/label>/u);
     expect(markup).toMatch(/<label[^>]*for="background-blur"[^>]*>背景模糊度<\/label>/u);
     expect(markup.match(/type="range"/gu)).toHaveLength(2);

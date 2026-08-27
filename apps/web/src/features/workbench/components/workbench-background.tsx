@@ -143,7 +143,6 @@ export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode
       : readWorkbenchBackgroundPreference(window.localStorage),
   );
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
-  const [customImageRevision, setCustomImageRevision] = useState(0);
   const [bingImageUrl, setBingImageUrl] = useState(() => createBingWallpaperUrl(new Date()));
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -152,9 +151,6 @@ export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode
       if (event instanceof CustomEvent) {
         const nextPreference = event.detail as WorkbenchBackgroundPreference;
         setPreference(nextPreference);
-        if (nextPreference.mode === "custom") {
-          setCustomImageRevision((revision) => revision + 1);
-        }
       }
     };
     window.addEventListener(WORKBENCH_BACKGROUND_CHANGED_EVENT, handlePreferenceChange);
@@ -171,7 +167,12 @@ export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode
     }
     let disposed = false;
     let objectUrl: string | null = null;
-    void readCustomBackgroundImage()
+    const selectedImageId = preference.selectedCustomImageId;
+    if (selectedImageId === null) {
+      setCustomImageUrl(null);
+      return;
+    }
+    void readCustomBackgroundImage(selectedImageId)
       .then((image) => {
         if (disposed || image === null) return;
         objectUrl = URL.createObjectURL(image);
@@ -184,7 +185,7 @@ export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode
       disposed = true;
       if (objectUrl !== null) URL.revokeObjectURL(objectUrl);
     };
-  }, [customImageRevision, preference.mode, preference.customImageName]);
+  }, [preference.mode, preference.selectedCustomImageId]);
 
   useEffect(() => {
     // 使用浏览器本地午夜作为换日边界，避免长时间打开工作台后继续显示昨日壁纸。

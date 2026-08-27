@@ -6,11 +6,11 @@ import { saveGlobalSettingsDraft } from "./global-settings-save.js";
 const browserSettings = {
   background: {
     blurPercentage: 0,
-    customImageName: null,
     mode: "bing" as const,
     overlayOpacity: 55,
+    selectedCustomImageId: null,
   },
-  customBackgroundImage: null,
+  customBackgroundMutation: { deletedImageIds: [], imagesToSave: [] },
   language: "en" as const,
   notificationsEnabled: false,
   theme: "dark" as const,

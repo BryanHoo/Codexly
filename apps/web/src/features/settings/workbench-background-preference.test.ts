@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_WORKBENCH_BACKGROUND,
   isSupportedCustomBackgroundImage,
+  removeCustomBackgroundFromDraft,
   readWorkbenchBackgroundPreference,
   saveWorkbenchBackgroundPreference,
 } from "./workbench-background-preference.js";
@@ -12,24 +13,29 @@ describe("workbench background preference", () => {
     expect(
       readWorkbenchBackgroundPreference({
         getItem: () =>
-          '{"blurPercentage":8,"customImageName":"desk.jpg","mode":"custom","overlayOpacity":72,"version":2}',
+          '{"blurPercentage":8,"mode":"custom","overlayOpacity":72,"selectedCustomImageId":"image-2","version":3}',
       }),
     ).toEqual({
       blurPercentage: 8,
-      customImageName: "desk.jpg",
       mode: "custom",
       overlayOpacity: 72,
+      selectedCustomImageId: "image-2",
     });
     expect(
       readWorkbenchBackgroundPreference({
         getItem: () =>
-          '{"blurPercentage":0,"customImageName":null,"mode":"bing","overlayOpacity":0,"version":2}',
+          '{"blurPercentage":0,"mode":"bing","overlayOpacity":0,"selectedCustomImageId":null,"version":3}',
       }),
-    ).toEqual({ blurPercentage: 0, customImageName: null, mode: "bing", overlayOpacity: 0 });
+    ).toEqual({
+      blurPercentage: 0,
+      mode: "bing",
+      overlayOpacity: 0,
+      selectedCustomImageId: null,
+    });
     expect(
       readWorkbenchBackgroundPreference({
         getItem: () =>
-          '{"blurPercentage":96,"customImageName":null,"mode":"bing","overlayOpacity":60,"version":2}',
+          '{"blurPercentage":96,"mode":"bing","overlayOpacity":60,"selectedCustomImageId":null,"version":3}',
       }),
     ).toEqual(DEFAULT_WORKBENCH_BACKGROUND);
     expect(readWorkbenchBackgroundPreference({ getItem: () => "broken" })).toEqual(
@@ -43,16 +49,16 @@ describe("workbench background preference", () => {
     saveWorkbenchBackgroundPreference(
       {
         blurPercentage: 57,
-        customImageName: "workspace.webp",
         mode: "custom",
         overlayOpacity: 45,
+        selectedCustomImageId: "workspace-image",
       },
       { setItem },
     );
 
     expect(setItem).toHaveBeenCalledWith(
       "codexly.workbench-background-preference",
-      '{"blurPercentage":57,"customImageName":"workspace.webp","mode":"custom","overlayOpacity":45,"version":2}',
+      '{"blurPercentage":57,"mode":"custom","overlayOpacity":45,"selectedCustomImageId":"workspace-image","version":3}',
     );
   });
 
@@ -62,5 +68,21 @@ describe("workbench background preference", () => {
     expect(isSupportedCustomBackgroundImage({ size: 21 * 1024 * 1024, type: "image/png" })).toBe(
       false,
     );
+  });
+
+  it("selects the next available image when the active image is removed", () => {
+    const images = [
+      { blob: new Blob(["first"]), createdAt: 1, id: "first", name: "first.png" },
+      { blob: new Blob(["second"]), createdAt: 2, id: "second", name: "second.png" },
+    ];
+
+    expect(removeCustomBackgroundFromDraft(images, "first", "first")).toEqual({
+      images: [images[1]],
+      selectedCustomImageId: "second",
+    });
+    expect(removeCustomBackgroundFromDraft(images, "first", "second")).toEqual({
+      images: [images[1]],
+      selectedCustomImageId: "second",
+    });
   });
 });
