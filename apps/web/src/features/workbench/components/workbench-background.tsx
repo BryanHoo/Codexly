@@ -8,6 +8,55 @@ import {
   type WorkbenchBackgroundPreference,
 } from "../../settings/workbench-background-preference.js";
 
+export type WorkbenchBackgroundTone = "dark" | "light";
+
+const BACKGROUND_SAMPLE_SIZE = 32;
+const EQUAL_BLACK_WHITE_CONTRAST_LUMINANCE = Math.sqrt(1.05 * 0.05) - 0.05;
+
+function getLinearColorChannel(value: number): number {
+  const channel = value / 255;
+  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+export function getBackgroundToneFromPixels(
+  pixels: Uint8ClampedArray,
+): WorkbenchBackgroundTone | null {
+  const luminances: number[] = [];
+  for (let offset = 0; offset + 3 < pixels.length; offset += 4) {
+    if (pixels[offset + 3] === 0) continue;
+    const red = getLinearColorChannel(pixels[offset] ?? 0);
+    const green = getLinearColorChannel(pixels[offset + 1] ?? 0);
+    const blue = getLinearColorChannel(pixels[offset + 2] ?? 0);
+    luminances.push(0.2126 * red + 0.7152 * green + 0.0722 * blue);
+  }
+  if (luminances.length === 0) return null;
+
+  // 中位数能抑制小面积高光与阴影，阈值取黑白前景对比度相等时的相对亮度。
+  luminances.sort((first, second) => first - second);
+  const medianLuminance = luminances[Math.floor(luminances.length / 2)] ?? 0;
+  return medianLuminance > EQUAL_BLACK_WHITE_CONTRAST_LUMINANCE ? "light" : "dark";
+}
+
+export function detectWorkbenchBackgroundTone(
+  image: HTMLImageElement,
+): WorkbenchBackgroundTone | null {
+  if (image.naturalWidth === 0 || image.naturalHeight === 0) return null;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = BACKGROUND_SAMPLE_SIZE;
+    canvas.height = BACKGROUND_SAMPLE_SIZE;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (context === null) return null;
+    context.drawImage(image, 0, 0, BACKGROUND_SAMPLE_SIZE, BACKGROUND_SAMPLE_SIZE);
+    return getBackgroundToneFromPixels(
+      context.getImageData(0, 0, BACKGROUND_SAMPLE_SIZE, BACKGROUND_SAMPLE_SIZE).data,
+    );
+  } catch {
+    // Canvas 被浏览器安全策略限制时保留当前主题配色，不能阻断壁纸显示。
+    return null;
+  }
+}
+
 function formatDatePart(value: number): string {
   return String(value).padStart(2, "0");
 }
@@ -28,6 +77,7 @@ export function getWorkbenchBackgroundBlurRadius(percentage: number): number {
 }
 
 export function WorkbenchBackgroundFrame({
+  backgroundTone,
   children,
   imageLoaded,
   imageSource,
@@ -35,17 +85,19 @@ export function WorkbenchBackgroundFrame({
   onImageLoad,
   preference,
 }: Readonly<{
+  backgroundTone: WorkbenchBackgroundTone | null;
   children: ReactNode;
   imageLoaded: boolean;
   imageSource: string | null;
   onImageError: () => void;
-  onImageLoad: () => void;
+  onImageLoad: (image: HTMLImageElement) => void;
   preference: WorkbenchBackgroundPreference;
 }>) {
   return (
     <div
       className="workbench-background h-full min-h-0 overflow-hidden"
       data-background-mode={preference.mode}
+      data-background-tone={backgroundTone ?? undefined}
       data-has-image={imageLoaded}
       data-workbench-background="true"
     >
@@ -57,7 +109,9 @@ export function WorkbenchBackgroundFrame({
           data-workbench-background-image="true"
           decoding="async"
           onError={onImageError}
-          onLoad={onImageLoad}
+          onLoad={(event) => {
+            onImageLoad(event.currentTarget);
+          }}
           src={imageSource}
           style={{
             filter:
@@ -82,6 +136,7 @@ export function WorkbenchBackgroundFrame({
 }
 
 export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode }>) {
+  const [backgroundTone, setBackgroundTone] = useState<WorkbenchBackgroundTone | null>(null);
   const [preference, setPreference] = useState<WorkbenchBackgroundPreference>(() =>
     typeof window === "undefined"
       ? DEFAULT_WORKBENCH_BACKGROUND
@@ -155,16 +210,20 @@ export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode
         : null;
   useEffect(() => {
     setImageLoaded(false);
+    setBackgroundTone(null);
   }, [imageSource]);
 
   return (
     <WorkbenchBackgroundFrame
+      backgroundTone={backgroundTone}
       imageLoaded={imageLoaded}
       imageSource={imageSource}
       onImageError={() => {
         setImageLoaded(false);
+        setBackgroundTone(null);
       }}
-      onImageLoad={() => {
+      onImageLoad={(image) => {
+        setBackgroundTone(detectWorkbenchBackgroundTone(image));
         setImageLoaded(true);
       }}
       preference={preference}

@@ -13,6 +13,15 @@ const promptControlsSource = readFileSync(
 );
 
 describe("工作台背景浮层", () => {
+  it("根据背景亮度同步切换完整前景色方案", () => {
+    expect(workbenchCss).toMatch(
+      /data-background-tone="light"[^}]*\{[^}]*color-scheme:\s*light;[^}]*--ui-color-text:\s*#111111;[^}]*--ui-color-text-muted:[^}]*--ui-color-text-subtle:[^}]*--ui-color-wallpaper-overlay:\s*#ffffff;/u,
+    );
+    expect(workbenchCss).toMatch(
+      /data-background-tone="dark"[^}]*\{[^}]*color-scheme:\s*dark;[^}]*--ui-color-text:\s*#ffffff;[^}]*--ui-color-text-muted:[^}]*--ui-color-text-subtle:[^}]*--ui-color-wallpaper-overlay:\s*#181818;/u,
+    );
+  });
+
   it("在背景图片加载后将浮层表面统一为 95% 不透明", () => {
     expect(workbenchCss).toMatch(
       /--ui-color-floating-surface:\s*color-mix\(\s*in oklab,\s*var\(--ui-color-wallpaper-overlay\) 95%,\s*transparent\s*\);/u,

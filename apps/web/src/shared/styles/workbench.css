@@ -24,6 +24,23 @@
   background: var(--ui-color-wallpaper-overlay);
 }
 
+/* 显式覆盖前景语义，避免运行环境仅将 color-scheme 应用于原生控件和局部属性。 */
+body:has(.workbench-background[data-has-image="true"][data-background-tone="light"]) {
+  color-scheme: light;
+  --ui-color-text: #111111;
+  --ui-color-text-muted: rgb(17 17 17 / 0.72);
+  --ui-color-text-subtle: rgb(17 17 17 / 0.52);
+  --ui-color-wallpaper-overlay: #ffffff;
+}
+
+body:has(.workbench-background[data-has-image="true"][data-background-tone="dark"]) {
+  color-scheme: dark;
+  --ui-color-text: #ffffff;
+  --ui-color-text-muted: rgb(255 255 255 / 0.68);
+  --ui-color-text-subtle: rgb(255 255 255 / 0.5);
+  --ui-color-wallpaper-overlay: #181818;
+}
+
 /* 壁纸加载后保持工作台通透，并以 95% 实色浮层兼顾图片可见性与内容可读性。 */
 body:has(.workbench-background[data-has-image="true"]) {
   --ui-color-window: transparent;
