@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-27
+
+### 新增
+
+- 添加自定义工作台背景图片集合，支持批量添加、缩略图选择和单独删除，并将背景配置移至独立设置分类。
+
+### 修复
+
+- 修复已水合任务在后台 Snapshot 重验证期间错误显示挂起状态的问题，使现有内容保持可用。
+
 ## [0.7.0] - 2026-08-27
 
 ### 新增
@@ -137,7 +147,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.8.0
 [0.7.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.7.0
 [0.6.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.6.0
 [0.5.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.5.0

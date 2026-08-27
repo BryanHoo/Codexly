@@ -44,7 +44,7 @@
 - Inspect, preview, rename, and delete project files; review diffs; manage branches and worktrees; and commit or push changes
 - Fork a task from an AI response and continue it in a new Git worktree
 - Add animated workspace pets with separate activity bubbles for project and temporary tasks
-- Customize the workspace with image or Bing daily backgrounds, automatic foreground colors, overlay opacity, and background blur
+- Manage a collection of custom workspace backgrounds, or use Bing daily images, with automatic foreground colors, overlay opacity, and blur
 - Access the workspace from another device on a trusted local network
 
 ## Requirements
