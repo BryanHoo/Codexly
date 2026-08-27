@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import { snapshotResponse } from "../../projects/project-queries.test-support.js";
 import { createTaskStore } from "./task-store.js";
-import { consumeTaskSnapshotQuery, selectActiveTaskStore } from "./use-task-runtime.js";
+import {
+  consumeTaskSnapshotQuery,
+  deriveTaskRuntimePending,
+  selectActiveTaskStore,
+} from "./use-task-runtime.js";
 
 describe("consumeTaskSnapshotQuery", () => {
   it("transfers a cached snapshot response out of React Query", () => {
@@ -23,5 +27,29 @@ describe("selectActiveTaskStore", () => {
     expect(selectActiveTaskStore(store, "other-project", "task-1")).toBeUndefined();
     expect(selectActiveTaskStore(store, "codexly", "task-other")).toBeUndefined();
     expect(selectActiveTaskStore(store, "codexly", "task-1")).toBe(store);
+  });
+});
+
+describe("deriveTaskRuntimePending", () => {
+  it("keeps a retained hydrated task usable while its snapshot revalidates", () => {
+    expect(
+      deriveTaskRuntimePending({
+        error: null,
+        hasActiveRuntime: true,
+        hasHydratedSnapshot: true,
+        snapshotPending: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks a cold task until its first snapshot is hydrated", () => {
+    expect(
+      deriveTaskRuntimePending({
+        error: null,
+        hasActiveRuntime: true,
+        hasHydratedSnapshot: false,
+        snapshotPending: true,
+      }),
+    ).toBe(true);
   });
 });

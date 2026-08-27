@@ -162,8 +162,12 @@ export function useTaskRuntime(
     () => activeRuntime?.getState().reconstructSnapshot(),
     [activeRuntime],
   );
-  const isRuntimePending =
-    error === null && (taskQueryPending || activeRuntime === undefined || !hasHydratedSnapshot);
+  const isRuntimePending = deriveTaskRuntimePending({
+    error,
+    hasActiveRuntime: activeRuntime !== undefined,
+    hasHydratedSnapshot,
+    snapshotPending: taskQueryPending,
+  });
 
   return useMemo(
     () => ({
@@ -221,4 +225,19 @@ export function selectActiveTaskStore(
   return taskId !== undefined && state?.projectId === projectId && state.taskId === taskId
     ? store
     : undefined;
+}
+
+export function deriveTaskRuntimePending(
+  input: Readonly<{
+    error: Error | null;
+    hasActiveRuntime: boolean;
+    hasHydratedSnapshot: boolean;
+    snapshotPending: boolean;
+  }>,
+): boolean {
+  if (input.error !== null || input.hasHydratedSnapshot) {
+    return false;
+  }
+  // 已水合 Store 立即承担展示，后台 Snapshot 仅负责静默校准最新状态。
+  return input.snapshotPending || !input.hasActiveRuntime;
 }
