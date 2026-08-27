@@ -44,6 +44,8 @@
   --ui-color-focus: var(--ui-color-accent);
   --ui-color-scrim: light-dark(rgb(23 23 23 / 0.16), rgb(0 0 0 / 0.52));
   --ui-color-wallpaper-overlay: light-dark(#ffffff, #181818);
+  --ui-color-scrollbar-thumb: light-dark(rgb(60 60 67 / 0.36), rgb(235 235 245 / 0.3));
+  --ui-color-scrollbar-thumb-hover: light-dark(rgb(60 60 67 / 0.5), rgb(235 235 245 / 0.42));
 
   /* 固定栏使用单像素低对比分隔，保留原生应用的结构感而不形成重边框。 */
   --ui-shadow-divider: 1px 0 0 var(--ui-color-separator);
@@ -83,6 +85,7 @@
   --ui-icon-size-default: 1rem;
 
   --ui-space-unit: 0.25rem;
+  --ui-scrollbar-size: 0.75rem;
   --ui-radius-control: 6px;
   --ui-radius-surface: 8px;
   --ui-radius-pill: 9999px;
@@ -258,6 +261,35 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* Firefox 使用标准属性；Chromium/WebKit 通过透明边框收窄滑块，模拟 macOS 浮层滚动条。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-color-scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: var(--ui-scrollbar-size);
+  height: var(--ui-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-width: calc(var(--ui-scrollbar-size) * 2);
+  min-height: calc(var(--ui-scrollbar-size) * 2);
+  border: 3px solid transparent;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-color-scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ui-color-scrollbar-thumb-hover);
 }
 
 html,
