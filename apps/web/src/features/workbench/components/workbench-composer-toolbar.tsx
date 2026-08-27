@@ -75,6 +75,10 @@ export function ComposerModeTag({
 
 export function ComposerGoalStatusTag({ goal }: Readonly<{ goal: AgentGoal }>) {
   const { t } = useTranslation("workbench");
+  // 已完成目标仅作为历史信息保留，不再占用后续普通 Turn 的输入框状态位。
+  if (goal.status === "complete") {
+    return null;
+  }
   const label = t(`composer.goalStatus.${goal.status}`);
   return (
     <Tooltip>

@@ -108,6 +108,26 @@ describe("WorkbenchComposerView", () => {
     expect(markup).not.toContain("lucide-x");
   });
 
+  it("Goal 完成后不再在新一轮输入框中显示状态", () => {
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ComposerGoalStatusTag
+          goal={{
+            createdAt: "2026-08-25T00:00:00.000Z",
+            objective: "完成官方 Goal 对接",
+            status: "complete",
+            timeUsedSeconds: 120,
+            tokenBudget: 10_000,
+            tokensUsed: 4_000,
+            updatedAt: "2026-08-25T00:02:00.000Z",
+          }}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(markup).toBe("");
+  });
+
   it("优先展示队列文本、Skill 和附件摘要", () => {
     const basePrompt = { files: [], id: "queue-1", skills: [], status: "queued" } as const;
 
