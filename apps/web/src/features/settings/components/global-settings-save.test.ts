@@ -5,6 +5,7 @@ import { saveGlobalSettingsDraft } from "./global-settings-save.js";
 
 const browserSettings = {
   background: {
+    blurPercentage: 0,
     customImageName: null,
     mode: "bing" as const,
     overlayOpacity: 55,

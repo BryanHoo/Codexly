@@ -1,12 +1,14 @@
 export type WorkbenchBackgroundMode = "bing" | "custom" | "none";
 
 export type WorkbenchBackgroundPreference = Readonly<{
+  blurPercentage: number;
   customImageName: string | null;
   mode: WorkbenchBackgroundMode;
   overlayOpacity: number;
 }>;
 
 export const DEFAULT_WORKBENCH_BACKGROUND: WorkbenchBackgroundPreference = {
+  blurPercentage: 0,
   customImageName: null,
   mode: "none",
   overlayOpacity: 60,
@@ -15,7 +17,7 @@ export const DEFAULT_WORKBENCH_BACKGROUND: WorkbenchBackgroundPreference = {
 export const WORKBENCH_BACKGROUND_CHANGED_EVENT = "codexly:workbench-background-changed";
 
 const BACKGROUND_STORAGE_KEY = "codexly.workbench-background-preference";
-const BACKGROUND_STORAGE_VERSION = 1;
+const BACKGROUND_STORAGE_VERSION = 2;
 const BACKGROUND_DATABASE_NAME = "codexly-workbench";
 const BACKGROUND_DATABASE_VERSION = 1;
 const BACKGROUND_OBJECT_STORE = "background-images";
@@ -40,6 +42,11 @@ export function readWorkbenchBackgroundPreference(
       value !== null &&
       "version" in value &&
       value.version === BACKGROUND_STORAGE_VERSION &&
+      "blurPercentage" in value &&
+      typeof value.blurPercentage === "number" &&
+      Number.isInteger(value.blurPercentage) &&
+      value.blurPercentage >= 0 &&
+      value.blurPercentage <= 95 &&
       "mode" in value &&
       isBackgroundMode(value.mode) &&
       "overlayOpacity" in value &&
@@ -51,6 +58,7 @@ export function readWorkbenchBackgroundPreference(
       (value.customImageName === null || typeof value.customImageName === "string")
     ) {
       return {
+        blurPercentage: value.blurPercentage,
         customImageName: value.customImageName,
         mode: value.mode,
         overlayOpacity: value.overlayOpacity,

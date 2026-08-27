@@ -16,6 +16,57 @@ const backgroundModes = [
   { ariaKey: "background.bingAria", icon: Sparkles, labelKey: "background.bing", value: "bing" },
 ] as const;
 
+function BackgroundRangeField({
+  ariaLabel,
+  disabled,
+  id,
+  label,
+  max,
+  onChange,
+  suffix,
+  value,
+}: Readonly<{
+  ariaLabel: string;
+  disabled: boolean;
+  id: string;
+  label: string;
+  max: number;
+  onChange: (value: number) => void;
+  suffix: string;
+  value: number;
+}>) {
+  return (
+    <div className="space-y-1">
+      <label className="text-label font-medium text-foreground" htmlFor={id}>
+        {label}
+      </label>
+      <div className="grid grid-cols-[minmax(0,1fr)_3rem] items-center gap-3">
+        <input
+          aria-label={ariaLabel}
+          className="h-11 w-full accent-brand sm:h-8"
+          disabled={disabled}
+          id={id}
+          max={max}
+          min="0"
+          onChange={(event) => {
+            onChange(Number(event.currentTarget.value));
+          }}
+          step="1"
+          type="range"
+          value={value}
+        />
+        <output
+          className="text-right text-body-small tabular-nums text-muted-foreground"
+          htmlFor={id}
+        >
+          {value}
+          {suffix}
+        </output>
+      </div>
+    </div>
+  );
+}
+
 export function WorkbenchBackgroundSettings({
   customFile,
   disabled,
@@ -136,26 +187,31 @@ export function WorkbenchBackgroundSettings({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-[minmax(0,1fr)_3rem] items-center gap-3">
-        <input
-          aria-label={t("background.overlayOpacity")}
-          className="h-11 w-full accent-brand sm:h-8"
+      <div className="space-y-3">
+        <BackgroundRangeField
+          ariaLabel={t("background.overlayOpacity")}
           disabled={disabled || preference.mode === "none"}
-          max="95"
-          min="0"
-          onChange={(event) => {
-            onPreferenceChange({
-              ...preference,
-              overlayOpacity: Number(event.currentTarget.value),
-            });
+          id="background-opacity"
+          label={t("background.overlayOpacityLabel")}
+          max={95}
+          onChange={(overlayOpacity) => {
+            onPreferenceChange({ ...preference, overlayOpacity });
           }}
-          step="1"
-          type="range"
+          suffix="%"
           value={preference.overlayOpacity}
         />
-        <output className="text-right text-body-small tabular-nums text-muted-foreground">
-          {preference.overlayOpacity}%
-        </output>
+        <BackgroundRangeField
+          ariaLabel={t("background.blur")}
+          disabled={disabled || preference.mode === "none"}
+          id="background-blur"
+          label={t("background.blurLabel")}
+          max={95}
+          onChange={(blurPercentage) => {
+            onPreferenceChange({ ...preference, blurPercentage });
+          }}
+          suffix="%"
+          value={preference.blurPercentage}
+        />
       </div>
     </div>
   );

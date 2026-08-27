@@ -50,6 +50,8 @@ export const settings = {
   background: {
     bing: "Bing 壁纸",
     bingAria: "Bing 每日壁纸",
+    blur: "壁纸背景模糊度",
+    blurLabel: "背景模糊度",
     custom: "自定义",
     customAria: "自定义工作台背景",
     invalidImage: "请选择 20 MiB 以内的 PNG、JPEG、WebP 或 GIF 图片。",
@@ -57,6 +59,7 @@ export const settings = {
     none: "无",
     noneAria: "无工作台背景",
     overlayOpacity: "壁纸遮罩不透明度",
+    overlayOpacityLabel: "遮罩不透明度",
     previewAlt: "自定义工作台背景预览",
     upload: "上传图片",
     uploadInput: "上传自定义背景图片",

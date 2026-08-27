@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createBingWallpaperUrl,
+  getWorkbenchBackgroundBlurRadius,
   getMillisecondsUntilNextLocalDay,
   WorkbenchBackgroundFrame,
 } from "./workbench-background.js";
@@ -13,6 +14,8 @@ describe("WorkbenchBackground", () => {
 
     expect(createBingWallpaperUrl(now)).toBe("/v1/workbench-background/bing?day=2026-08-25");
     expect(getMillisecondsUntilNextLocalDay(now)).toBe(1_500);
+    expect(getWorkbenchBackgroundBlurRadius(0)).toBe(0);
+    expect(getWorkbenchBackgroundBlurRadius(57)).toBe(12);
   });
 
   it("renders the image and full-workbench overlay only after the image loads", () => {
@@ -22,7 +25,12 @@ describe("WorkbenchBackground", () => {
         imageSource="/v1/workbench-background/bing?day=2026-08-25"
         onImageError={vi.fn()}
         onImageLoad={vi.fn()}
-        preference={{ customImageName: null, mode: "bing", overlayOpacity: 40 }}
+        preference={{
+          blurPercentage: 57,
+          customImageName: null,
+          mode: "bing",
+          overlayOpacity: 40,
+        }}
       >
         <div>Workbench</div>
       </WorkbenchBackgroundFrame>,
@@ -31,6 +39,7 @@ describe("WorkbenchBackground", () => {
     expect(markup).toContain('data-background-mode="bing"');
     expect(markup).toContain('data-has-image="true"');
     expect(markup).toContain('data-workbench-background-image="true"');
+    expect(markup).toContain("filter:blur(12px)");
     expect(markup).toContain('data-workbench-background-overlay="true"');
     expect(markup).toContain("opacity:0.4");
     expect(markup).toContain("Workbench");

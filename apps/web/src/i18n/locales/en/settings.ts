@@ -50,6 +50,8 @@ export const settings = {
   background: {
     bing: "Bing wallpaper",
     bingAria: "Bing daily wallpaper",
+    blur: "Wallpaper background blur",
+    blurLabel: "Background blur",
     custom: "Custom",
     customAria: "Custom workbench background",
     invalidImage: "Choose a PNG, JPEG, WebP, or GIF image up to 20 MiB.",
@@ -57,6 +59,7 @@ export const settings = {
     none: "None",
     noneAria: "No workbench background",
     overlayOpacity: "Wallpaper overlay opacity",
+    overlayOpacityLabel: "Overlay opacity",
     previewAlt: "Custom workbench background preview",
     upload: "Upload image",
     uploadInput: "Upload custom background image",

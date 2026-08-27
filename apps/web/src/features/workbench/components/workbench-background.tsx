@@ -22,6 +22,11 @@ export function getMillisecondsUntilNextLocalDay(date: Date): number {
   return Math.max(1_000, nextDay.getTime() - date.getTime() + 1_000);
 }
 
+export function getWorkbenchBackgroundBlurRadius(percentage: number): number {
+  // UI 使用统一的 0–95% 刻度，渲染半径限制在 20px，避免全屏图片产生过高滤镜开销。
+  return Math.round(((percentage / 95) * 20 + Number.EPSILON) * 100) / 100;
+}
+
 export function WorkbenchBackgroundFrame({
   children,
   imageLoaded,
@@ -54,7 +59,13 @@ export function WorkbenchBackgroundFrame({
           onError={onImageError}
           onLoad={onImageLoad}
           src={imageSource}
-          style={{ opacity: imageLoaded ? 1 : 0 }}
+          style={{
+            filter:
+              preference.blurPercentage === 0
+                ? undefined
+                : `blur(${String(getWorkbenchBackgroundBlurRadius(preference.blurPercentage))}px)`,
+            opacity: imageLoaded ? 1 : 0,
+          }}
         />
       )}
       {imageLoaded ? (
