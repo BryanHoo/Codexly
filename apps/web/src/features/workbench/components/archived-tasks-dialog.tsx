@@ -37,6 +37,8 @@ import { archivedProjectTasksQueryOptions } from "../../projects/project-task-qu
 import { deleteAllArchivedTasks } from "./archived-task-delete-all.js";
 import { TaskDeleteConfirmationDialog } from "./task-delete-dialog.js";
 
+export type ArchivedTaskScope = Readonly<Pick<Project, "id" | "name">>;
+
 type ArchivedTaskListViewProps = Readonly<{
   error: Error | null;
   isPending: boolean;
@@ -204,7 +206,7 @@ export function ArchivedTasksDialog({
 }: Readonly<{
   client: CodexlyArchivedTaskClient;
   onClose: () => void;
-  project: Project;
+  project: ArchivedTaskScope;
 }>) {
   const { t } = useTranslation("workbench");
   const queryClient = useQueryClient();

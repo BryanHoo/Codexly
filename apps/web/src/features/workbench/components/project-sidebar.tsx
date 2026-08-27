@@ -45,7 +45,7 @@ import {
 } from "../project-sidebar-preferences.js";
 
 import { ProjectSidebarDialogs } from "./project-sidebar-dialogs.js";
-import { ArchivedTasksDialog } from "./archived-tasks-dialog.js";
+import { ArchivedTasksDialog, type ArchivedTaskScope } from "./archived-tasks-dialog.js";
 import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
 import { TaskDeleteDialog } from "./task-delete-dialog.js";
 import { SidebarSettingsButton, type SidebarSettingsSection } from "./project-sidebar-actions.js";
@@ -109,7 +109,7 @@ export function ProjectSidebar({
   const [renamingTask, setRenamingTask] = useState<AgentTask | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [removingProject, setRemovingProject] = useState<Project | null>(null);
-  const [archivedProject, setArchivedProject] = useState<Project | null>(null);
+  const [archivedProject, setArchivedProject] = useState<ArchivedTaskScope | null>(null);
   const [isProjectPickerOpen, setIsProjectPickerOpen] = useState(false);
   const pinMutation = useMutation(taskPinMutationOptions(client));
   const renameMutation = useMutation(taskRenameMutationOptions(client));

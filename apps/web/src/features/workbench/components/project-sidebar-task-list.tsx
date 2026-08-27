@@ -1,5 +1,5 @@
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask, type Project } from "@codexly/protocol";
-import { Folder, MessageSquareText, Pin, Plus } from "lucide-react";
+import { Folder, Pin, Plus } from "lucide-react";
 import { useState, type Dispatch, type SetStateAction } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -21,6 +21,8 @@ import {
 import { ProjectActions, ProjectPickerButton } from "./project-sidebar-actions.js";
 import { getProjectTaskPaginationControl } from "./project-sidebar-state.js";
 import { TaskLink } from "./project-sidebar-task-row.js";
+import { TemporaryTasksHeading } from "./temporary-tasks-heading.js";
+import type { ArchivedTaskScope } from "./archived-tasks-dialog.js";
 
 const EMPTY_PROJECT_TASKS: readonly AgentTask[] = [];
 
@@ -39,7 +41,7 @@ type ProjectSidebarTaskListProps = Readonly<{
   normalizedQuery: string;
   onOpenTemporaryDraft: () => void;
   onOpenProjectDraft: (projectId: string) => Promise<void>;
-  onOpenArchived: (project: Project) => void;
+  onOpenArchived: (project: ArchivedTaskScope) => void;
   onOpenProjectPicker: () => void;
   onRemoveProject: (project: Project) => void;
   onRenameProject: (project: Project) => void;
@@ -194,6 +196,7 @@ export function ProjectSidebarTaskList({
               <TemporaryTasksHeading
                 expanded={temporaryTasksExpanded}
                 onCreate={onOpenTemporaryDraft}
+                onOpenArchived={onOpenArchived}
                 onToggle={() => {
                   setTemporaryTasksExpanded((current) => {
                     const expanded = !current;
@@ -442,45 +445,5 @@ export function ProjectSidebarTaskList({
         </section>
       </div>
     </>
-  );
-}
-
-export function TemporaryTasksHeading({
-  expanded,
-  onCreate,
-  onToggle,
-}: Readonly<{ expanded: boolean; onCreate: () => void; onToggle: () => void }>) {
-  const { t } = useTranslation("workbench");
-  return (
-    <div className="group/temporary flex h-8 items-center gap-0.5 text-muted-foreground">
-      <Button
-        aria-controls="temporary-tasks-content"
-        aria-expanded={expanded}
-        className="h-8 min-w-0 flex-1 gap-2 rounded-control px-2 text-body-small font-medium"
-        contentAlign="start"
-        id="temporary-tasks-title"
-        onClick={onToggle}
-        type="button"
-        variant="ghost"
-      >
-        <MessageSquareText className="size-4 shrink-0" aria-hidden="true" />
-        <span className="truncate">{t("sidebar.temporaryTasks")}</span>
-      </Button>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            aria-label={t("sidebar.newTask")}
-            className="opacity-0 transition-[color,background-color,opacity] focus-visible:opacity-100 group-hover/temporary:opacity-100"
-            onClick={onCreate}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <Plus className="size-3.5" aria-hidden="true" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{t("sidebar.newTask")}</TooltipContent>
-      </Tooltip>
-    </div>
   );
 }

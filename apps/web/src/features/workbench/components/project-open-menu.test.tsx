@@ -7,6 +7,7 @@ import {
   getProjectFileManagerApp,
   getProjectOpenAppsForTarget,
   getProjectTargetAbsolutePath,
+  ProjectQuickOpenMenu,
   ProjectOpenContextMenuItems,
   ProjectOpenDropdownMenuItems,
 } from "./project-open-menu.js";
@@ -38,6 +39,22 @@ describe("getProjectTargetAbsolutePath", () => {
     expect(getProjectTargetAbsolutePath("C:\\workspace\\Codexly", "docs/guide.md")).toBe(
       "C:\\workspace\\Codexly\\docs\\guide.md",
     );
+  });
+});
+
+describe("ProjectQuickOpenMenu", () => {
+  it("隐藏临时任务的顶部快捷打开", () => {
+    const markup = renderToStaticMarkup(
+      <ProjectQuickOpenMenu
+        apps={[{ id: "finder", kind: "file-manager", name: "Finder" }]}
+        hidden
+        isDetecting={false}
+        isPending={false}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(markup).toBe("");
   });
 });
 

@@ -13,7 +13,7 @@ import {
   SidebarSettingsButton,
   getTaskRoute,
 } from "./project-sidebar.js";
-import { TemporaryTasksHeading } from "./project-sidebar-task-list.js";
+import { TemporaryTasksHeading } from "./temporary-tasks-heading.js";
 
 describe("ProductBrand", () => {
   it("renders the complete brand logo asset", () => {
@@ -29,7 +29,12 @@ describe("Project task pagination", () => {
   it("offers a new task icon beside temporary tasks", () => {
     const markup = renderToStaticMarkup(
       <TooltipProvider>
-        <TemporaryTasksHeading expanded onCreate={vi.fn()} onToggle={vi.fn()} />
+        <TemporaryTasksHeading
+          expanded
+          onCreate={vi.fn()}
+          onOpenArchived={vi.fn()}
+          onToggle={vi.fn()}
+        />
       </TooltipProvider>,
     );
 

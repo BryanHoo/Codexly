@@ -44,6 +44,7 @@ type ProjectQuickOpenMenuProps = Readonly<{
   apps: readonly ProjectOpenApp[];
   className?: string;
   defaultOpenAppId?: ProjectOpenAppId | null;
+  hidden?: boolean;
   isDetecting: boolean;
   isPending: boolean;
   onSelect: (appId: ProjectOpenAppId) => void;
@@ -53,11 +54,16 @@ export function ProjectQuickOpenMenu({
   apps,
   className = "",
   defaultOpenAppId,
+  hidden = false,
   isDetecting,
   isPending,
   onSelect,
 }: ProjectQuickOpenMenuProps) {
   const { t } = useTranslation("workbench");
+  // 临时任务没有 Project 根目录，不渲染目录快捷打开入口。
+  if (hidden) {
+    return null;
+  }
   const directoryApps = getProjectOpenAppsForTarget(apps, "directory");
   // 全局默认值不可用时回退到首个宿主应用，确保快捷入口仍可直接执行。
   const selectedApp = directoryApps.find((app) => app.id === defaultOpenAppId) ?? directoryApps[0];

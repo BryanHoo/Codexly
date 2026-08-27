@@ -228,6 +228,7 @@ export function WorkbenchShellLayout({
               {...(globalSettings === undefined
                 ? {}
                 : { defaultOpenAppId: globalSettings.defaultOpenAppId })}
+              hidden={temporary}
               isDetecting={projectOpenCapabilitiesQuery.isPending}
               isPending={projectPathOpenMutation.isPending}
               onSelect={(appId) => {
