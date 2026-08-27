@@ -31,6 +31,8 @@ export function downloadWorkbenchPetMutationOptions(
   client: PetCatalogClient = codexlyClient,
 ) {
   return mutationOptions({
+    // 宠物资源会批量后台下载，完成时仅刷新目录，不打断用户操作。
+    meta: { actionNotification: { successMessage: false } },
     mutationFn: async (petId: string) => {
       const idempotencyKey = `workbench-pet-${petId}-${globalThis.crypto.randomUUID()}`;
       return client.downloadWorkbenchPet(petId, { idempotencyKey });
