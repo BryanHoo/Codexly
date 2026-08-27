@@ -134,7 +134,8 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).not.toContain("提交思考量");
     expect(markup.match(/<select/gu)).toHaveLength(9);
     expect(markup).toContain("突出用户可见影响。");
-    expect(markup).toContain("保存全局默认");
+    expect(markup).toMatch(/<button[^>]*type="submit"[^>]*>保存<\/button>/u);
+    expect(markup).not.toContain("保存全局默认");
     expect(markup).not.toContain("__SYSTEM_DEFAULT__");
   });
 

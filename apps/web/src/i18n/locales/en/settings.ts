@@ -28,7 +28,7 @@ export const settings = {
     close: "Close",
     closeDialog: "Close global settings",
     closeReleaseNotes: "Close release notes",
-    save: "Save global defaults",
+    save: "Save",
     saving: "Saving",
   },
   appearance: {

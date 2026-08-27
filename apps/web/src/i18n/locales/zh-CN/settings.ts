@@ -28,7 +28,7 @@ export const settings = {
     close: "关闭",
     closeDialog: "关闭全局设置",
     closeReleaseNotes: "关闭更新日志",
-    save: "保存全局默认",
+    save: "保存",
     saving: "正在保存",
   },
   appearance: {

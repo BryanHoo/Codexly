@@ -219,6 +219,7 @@ function CodeCommentItem({
         ? createPortal(
             <div
               className="pointer-events-none fixed z-50 w-[min(28rem,calc(100vw-1.5rem))] rounded-surface border border-separator-strong bg-raised p-3 text-left shadow-floating"
+              data-floating-surface
               id={tooltipId}
               ref={tooltipRef}
               role="tooltip"

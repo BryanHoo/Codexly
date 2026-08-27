@@ -215,6 +215,7 @@ export function PromptInputActionAddAttachments({
       </PromptInputButton>
       <div
         className="absolute bottom-9 left-0 z-50 min-w-36 rounded-control border border-separator-strong bg-raised p-1 shadow-floating"
+        data-floating-surface
         hidden={!open}
         role="menu"
       >

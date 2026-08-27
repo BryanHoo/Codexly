@@ -24,14 +24,46 @@
   background: var(--ui-color-wallpaper-overlay);
 }
 
-/* 壁纸加载后保持工作台通透，同时让通用弹窗以更实的材质保障内容可读性。 */
+/* 壁纸加载后保持工作台通透，并以 95% 实色浮层兼顾图片可见性与内容可读性。 */
 body:has(.workbench-background[data-has-image="true"]) {
   --ui-color-window: transparent;
   --ui-color-content: transparent;
   --ui-color-sidebar: transparent;
   --ui-color-panel: transparent;
   --ui-color-raised: color-mix(in oklab, var(--ui-color-wallpaper-overlay) 68%, transparent);
-  --ui-color-dialog: color-mix(in oklab, var(--ui-color-wallpaper-overlay) 90%, transparent);
+  --ui-color-floating-surface: color-mix(
+    in oklab,
+    var(--ui-color-wallpaper-overlay) 95%,
+    transparent
+  );
+  --ui-color-dialog: var(--ui-color-floating-surface);
+}
+
+/* 弹窗内的次级 raised 区域继承浮层材质，避免大块子区域重新降回 68%。 */
+body:has(.workbench-background[data-has-image="true"])
+  :is([data-slot="dialog-content"], [data-slot="sheet-content"]) {
+  --ui-color-raised: var(--ui-color-floating-surface);
+}
+
+body:has(.workbench-background[data-has-image="true"])
+  :is(
+    [data-slot="dialog-content"],
+    [data-slot="sheet-content"],
+    [data-slot="tooltip-content"],
+    [data-slot="dropdown-menu-content"],
+    [data-slot="dropdown-menu-sub-content"],
+    [data-slot="context-menu-content"],
+    [data-slot="context-menu-sub-content"],
+    [data-slot="select-content"],
+    [data-floating-surface],
+    [data-sonner-toast],
+    .workbench-pet-bubble-button
+  ) {
+  background: var(--ui-color-floating-surface) !important;
+}
+
+body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-content"] {
+  color: var(--ui-color-text);
 }
 
 .workbench-shell {
