@@ -246,9 +246,7 @@ export function WorkbenchInspector({
   return (
     <aside
       aria-label={i18n.t("inspector.title", { ns: "conversation" })}
-      className={`workbench-inspector relative z-30 grid min-h-0 bg-panel shadow-divider-reverse ${
-        contextOnly ? "grid-rows-[minmax(0,1fr)]" : "grid-rows-[auto_minmax(0,1fr)]"
-      }`}
+      className="workbench-inspector relative z-30 flex min-h-0 flex-col bg-panel shadow-divider-reverse"
     >
       <WorkbenchInspectorHeader
         activeTab={activeTab}
@@ -259,7 +257,7 @@ export function WorkbenchInspector({
         onTabChange={onTabChange}
       />
 
-      <div className="min-h-0 overflow-hidden" role={contextOnly ? undefined : "tabpanel"}>
+      <div className="min-h-0 flex-1 overflow-hidden" role={contextOnly ? undefined : "tabpanel"}>
         {activeTab === "file" && fileSelection !== null ? (
           fileSelection.kind === "diff" ? (
             <FileDiffPanel change={fileSelection.change} />

@@ -61,6 +61,32 @@ test("creates and restores a temporary task without exposing its internal projec
     "aria-selected",
     "true",
   );
+  const inspectorLayout = await inspector.evaluate((element) => {
+    const tabList = element.querySelector('[role="tablist"]');
+    const header = tabList?.parentElement;
+    const tabPanel = header?.nextElementSibling;
+    const workbenchHeader = document.querySelector("main > header");
+    if (
+      header === null ||
+      header === undefined ||
+      tabPanel === null ||
+      tabPanel === undefined ||
+      workbenchHeader === null
+    ) {
+      return null;
+    }
+    const headerRect = header.getBoundingClientRect();
+    const panelRect = tabPanel.getBoundingClientRect();
+    return {
+      expectedHeaderHeight: workbenchHeader.getBoundingClientRect().height,
+      headerBottom: headerRect.bottom,
+      headerHeight: headerRect.height,
+      panelTop: panelRect.top,
+    };
+  });
+  expect(inspectorLayout).not.toBeNull();
+  expect(inspectorLayout?.headerHeight).toBe(inspectorLayout?.expectedHeaderHeight);
+  expect(inspectorLayout?.panelTop).toBe(inspectorLayout?.headerBottom);
   await page.getByRole("button", { name: "temporary-preview.png" }).click();
   const imagePanel = inspector.getByRole("region", { name: "/tmp/temporary-preview.png" });
   await expect(sourcePanel).not.toBeAttached();

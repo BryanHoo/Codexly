@@ -133,7 +133,7 @@ export function WorkbenchInspectorHeader({
     );
   }
   return (
-    <div className="flex min-h-workbench-header w-full min-w-0 items-center gap-2 overflow-hidden px-1.5">
+    <div className="flex h-workbench-header w-full min-w-0 shrink-0 items-center gap-2 overflow-hidden px-1.5">
       <WorkbenchInspectorTabs
         activeTab={activeTab}
         availableTabs={availableTabs}

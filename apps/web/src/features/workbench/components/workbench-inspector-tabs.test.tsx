@@ -62,6 +62,32 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).not.toContain('role="dialog"');
   });
 
+  it("keeps the tab header fixed while the file preview fills the remaining height", () => {
+    const markup = renderInspectorMarkup(
+      <WorkbenchInspector
+        fileSelection={{
+          kind: "source",
+          reference: { lineNumber: null, path: "README.md" },
+        }}
+        projectId="project-1"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
+        tab="file"
+        taskId="task-1"
+      />,
+    );
+
+    const inspectorClassName = /<aside[^>]*class="([^"]*)"/u.exec(markup)?.[1];
+    const headerClassName = /<aside[^>]*>\s*<div class="([^"]*)"/u.exec(markup)?.[1];
+    const tabPanelClassName = /<div class="([^"]*)" role="tabpanel"/u.exec(markup)?.[1];
+
+    expect(inspectorClassName?.split(" ")).toEqual(expect.arrayContaining(["flex", "flex-col"]));
+    expect(headerClassName?.split(" ")).toEqual(
+      expect.arrayContaining(["h-workbench-header", "shrink-0"]),
+    );
+    expect(tabPanelClassName?.split(" ")).toEqual(expect.arrayContaining(["min-h-0", "flex-1"]));
+  });
+
   it("mounts the selected Diff inside the file tab instead of a dialog", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
