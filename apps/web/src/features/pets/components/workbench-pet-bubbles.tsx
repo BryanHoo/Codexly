@@ -53,7 +53,7 @@ function TaskBubble({
       <span className="min-w-0 truncate">{activity.taskName}</span>
     </button>
   );
-  return localAccess ? (
+  return localAccess && activity.rootPath !== undefined ? (
     <Tooltip>
       <TooltipTrigger asChild>{content}</TooltipTrigger>
       <TooltipContent>{activity.rootPath}</TooltipContent>

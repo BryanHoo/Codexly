@@ -94,7 +94,7 @@ Codexly 需要复用用户本机已有宠物资源，但保持独立产品状态
 - 气泡区域最高为 `40dvh`，数量较多时内部滚动，不折叠成单个汇总气泡。
 - 宠物靠近顶部导致空间不足时，气泡区域临时翻转到宠物下方；其余位置始终显示在顶部。
 
-临时任务没有用户目录，不创建目录气泡，但仍参与宠物动画状态计算。
+临时任务没有用户目录，但按其他活动 Task 创建独立气泡且不显示路径 Tooltip。
 
 ## 6. Codex 资源契约
 
@@ -436,7 +436,7 @@ type WorkbenchPetDirectoryActivity = Readonly<{
   activeTaskCount: number;
   directoryName: string;
   projectId: string;
-  rootPath: string;
+  rootPath?: string;
   status: "running" | "waiting";
 }>;
 ```
@@ -446,7 +446,7 @@ type WorkbenchPetDirectoryActivity = Readonly<{
 - 普通项目使用 `project.roots[0].path`，它与当前 Provider 的 Task `cwd` 一致。
 - 以规范化路径聚合；Windows 路径比较忽略大小写。
 - 同目录任一 Task 等待审批时，目录状态为 `waiting`，否则为 `running`。
-- 临时任务只影响动画，不产生目录气泡。
+- 临时任务按相同状态规则产生独立气泡，但不提供 `rootPath`。
 
 若未来协议给 `AgentTask` 增加实际 `cwd`，应直接使用该字段替换项目主目录推导，不能同时保留两套路径来源。
 

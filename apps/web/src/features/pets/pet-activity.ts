@@ -4,7 +4,7 @@ import type { TaskActivityMap } from "../conversation/runtime/task-activity.js";
 
 export type WorkbenchPetTaskActivity = Readonly<{
   projectId: string;
-  rootPath: string;
+  rootPath?: string;
   status: "completed" | "running" | "waiting";
   taskId: string;
   taskName: string;
@@ -46,17 +46,14 @@ export function deriveWorkbenchPetActivity(
     review ||= completed;
 
     // 后台完成提醒由 viewTask 清除，在用户进入对应 Task 前持续保留气泡。
-    if (
-      record.projectId === TEMPORARY_TASK_SCOPE_ID ||
-      (!record.isRunning && !awaitingInput && !completed)
-    ) {
+    if (!record.isRunning && !awaitingInput && !completed) {
       continue;
     }
     const rootPath = projectRootPaths.get(record.projectId);
-    if (rootPath === undefined) continue;
+    if (rootPath === undefined && record.projectId !== TEMPORARY_TASK_SCOPE_ID) continue;
     activeTasks.push({
       projectId: record.projectId,
-      rootPath,
+      ...(rootPath === undefined ? {} : { rootPath }),
       status: awaitingInput ? "waiting" : completed ? "completed" : "running",
       taskId: record.taskId,
       taskName: taskNames.get(taskKey(record.projectId, record.taskId)) ?? record.taskId,

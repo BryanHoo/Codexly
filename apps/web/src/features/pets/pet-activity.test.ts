@@ -113,16 +113,45 @@ describe("deriveWorkbenchPetActivity", () => {
     ]);
   });
 
-  it("临时任务影响动画但不创建任务气泡，失败 attention 也不保留气泡", () => {
+  it("临时任务按普通任务规则创建活动气泡", () => {
     const result = deriveWorkbenchPetActivity(
       [project("failed", "/work/failed")],
-      [],
+      [
+        task("temporary-running", TEMPORARY_TASK_SCOPE_ID, "执行临时任务"),
+        task("temporary-waiting", TEMPORARY_TASK_SCOPE_ID, "等待临时审批"),
+        task("temporary-completed", TEMPORARY_TASK_SCOPE_ID, "完成临时任务"),
+      ],
       createActivity([
         { attention: "failed", projectId: "failed", taskId: "failed-task" },
-        { isRunning: true, projectId: TEMPORARY_TASK_SCOPE_ID, taskId: "temporary-task" },
+        { isRunning: true, projectId: TEMPORARY_TASK_SCOPE_ID, taskId: "temporary-running" },
+        { pending: 1, projectId: TEMPORARY_TASK_SCOPE_ID, taskId: "temporary-waiting" },
+        {
+          attention: "completed",
+          projectId: TEMPORARY_TASK_SCOPE_ID,
+          taskId: "temporary-completed",
+        },
       ]),
     );
-    expect(result.animationName).toBe("failed");
-    expect(result.tasks).toEqual([]);
+    expect(result.animationName).toBe("waiting");
+    expect(result.tasks).toEqual([
+      {
+        projectId: TEMPORARY_TASK_SCOPE_ID,
+        status: "running",
+        taskId: "temporary-running",
+        taskName: "执行临时任务",
+      },
+      {
+        projectId: TEMPORARY_TASK_SCOPE_ID,
+        status: "waiting",
+        taskId: "temporary-waiting",
+        taskName: "等待临时审批",
+      },
+      {
+        projectId: TEMPORARY_TASK_SCOPE_ID,
+        status: "completed",
+        taskId: "temporary-completed",
+        taskName: "完成临时任务",
+      },
+    ]);
   });
 });

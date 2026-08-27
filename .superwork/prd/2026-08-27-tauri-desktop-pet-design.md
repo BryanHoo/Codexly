@@ -229,7 +229,7 @@ type DesktopPetSnapshot = Readonly<{
 - `settings.enabled = false` 时允许 `pet = null`，桌面端隐藏窗口。
 - `pet` 只返回已保存且当前可用的宠物描述，不静默切换资源。
 - `animationName` 由 Server 使用统一优先级派生：`waiting > failed > running > review > idle`。
-- `bubbles` 按规范化运行目录聚合；临时任务影响动画，但不产生目录气泡。
+- `bubbles` 为每个活动 Task 生成独立气泡；临时任务同样显示，但不携带本地绝对路径。
 - 不返回本地绝对路径；打开任务只依赖 `taskId` 和可选 `projectId`。
 
 ### 8.3 事件契约
