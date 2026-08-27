@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-27
+
+### 新增
+
+- 添加临时任务归档入口，支持查看、恢复和永久删除已归档的 standalone Task。
+- 为临时任务添加独立宠物活动气泡，使其与项目任务状态分别展示。
+- 根据壁纸亮度自动切换完整前景色方案，保持文字与控件清晰可读。
+
+### 修复
+
+- 修复 standalone Task 错误继承合成工作区上下文的问题，改用 Codex 原生运行时上下文。
+- 固定 Inspector 标签栏，并让文件预览填充剩余高度，避免长内容挤压标签。
+
 ## [0.6.0] - 2026-08-27
 
 ### 新增
@@ -124,7 +137,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.7.0
 [0.6.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.6.0
 [0.5.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.5.0
 [0.4.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.4.0
