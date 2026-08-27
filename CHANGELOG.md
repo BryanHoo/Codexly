@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-27
+
+### 新增
+
+- 添加工作台背景模糊度设置，支持持久化配置并实时渲染滤镜效果。
+- 添加 macOS 风格全局滚动条，并兼容 Firefox 与 Chromium。
+
+### 优化
+
+- 使用稳定排序且不重复的工具名数组展示 MCP 工具详情，并优化 Inspector Tooltip 位置。
+- 统一壁纸模式下菜单、通知和宠物气泡等浮层的半透明样式。
+
+### 修复
+
+- 隐藏已完成 Goal 的输入框状态，以及当前分支和当前 worktree 等无效切换目标。
+- 抑制宠物资源后台下载成功提示，同时保留目录自动刷新。
+
 ## [0.5.0] - 2026-08-26
 
 ### 新增
@@ -107,7 +124,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.6.0
 [0.5.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.5.0
 [0.4.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.4.0
 [0.3.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.3.0
