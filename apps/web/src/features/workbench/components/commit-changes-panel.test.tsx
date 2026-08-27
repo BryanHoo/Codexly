@@ -52,6 +52,10 @@ describe("CommitChangesPanel", () => {
     expect(markup.match(/data-ai-file-tree=""/gu)).toHaveLength(2);
     expect(markup).toContain('aria-label="生成 message 信息"');
     expect(markup).toContain('id="commit-message"');
+    const commitMessageClasses = /<textarea class="([^"]+)"[^>]*id="commit-message"/u.exec(
+      markup,
+    )?.[1];
+    expect(commitMessageClasses).toContain("focus-visible:!outline-none");
     expect(markup).toContain(">提交</button>");
     expect(markup).toContain('aria-label="选择提交方式"');
     expect(markup).toContain('data-slot="commit-changes-scroll"');

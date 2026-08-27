@@ -29,9 +29,19 @@ type ComposerBranchSwitcherProps = Readonly<{
   switchingBranch: string | undefined;
   switchingWorktree: string | undefined;
   worktrees: readonly ProjectGitWorktree[];
-  worktreesError: Error | null;
-  worktreesPending: boolean;
 }>;
+
+export function resolveComposerGitSwitchTargets(
+  branches: readonly string[],
+  currentBranch: string | null,
+  worktrees: readonly ProjectGitWorktree[],
+) {
+  // 当前项无法再次切换；过滤后为空时，对应切换模块没有展示价值。
+  return {
+    branches: branches.filter((branch) => branch !== currentBranch),
+    worktrees: worktrees.filter((worktree) => !worktree.current),
+  };
+}
 
 export function ComposerBranchSwitcher({
   creatingBranch,
@@ -44,8 +54,6 @@ export function ComposerBranchSwitcher({
   switchingBranch,
   switchingWorktree,
   worktrees,
-  worktreesError,
-  worktreesPending,
 }: ComposerBranchSwitcherProps) {
   const { t } = useTranslation("workbench");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -63,7 +71,11 @@ export function ComposerBranchSwitcher({
     creatingBranch !== undefined ||
     switchingWorktree !== undefined ||
     creatingWorktree !== undefined;
-  const selectableWorktrees = worktrees.filter((worktree) => !worktree.current);
+  const switchTargets = resolveComposerGitSwitchTargets(
+    gitStatus.branches,
+    currentBranch,
+    worktrees,
+  );
 
   if (!interactive) {
     return (
@@ -103,64 +115,54 @@ export function ComposerBranchSwitcher({
           className="max-h-72 w-72 max-w-[calc(100vw-1rem)] overflow-y-auto"
           side="top"
         >
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>{t("composer.branchSwitcherMenu")}</DropdownMenuLabel>
-          </DropdownMenuGroup>
-          <DropdownMenuRadioGroup
-            onValueChange={(branch) => {
-              if (branch !== currentBranch) {
-                onBranchChange(branch);
-              }
-            }}
-            value={currentBranch}
-          >
-            {gitStatus.branches.map((branch) => (
-              <DropdownMenuRadioItem
-                disabled={branch === currentBranch || mutationPending}
-                key={branch}
-                title={branch}
-                value={branch}
-              >
-                <span className="truncate">{branch}</span>
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>{t("composer.worktreeSwitcherMenu")}</DropdownMenuLabel>
-            {worktreesPending ? (
-              <DropdownMenuItem disabled>
-                <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
-                {t("composer.worktreeListLoading")}
-              </DropdownMenuItem>
-            ) : worktreesError !== null ? (
-              <DropdownMenuItem disabled>{t("composer.worktreeListFailed")}</DropdownMenuItem>
-            ) : selectableWorktrees.length === 0 ? (
-              <DropdownMenuItem disabled>{t("composer.worktreeListEmpty")}</DropdownMenuItem>
-            ) : (
-              selectableWorktrees.map((worktree) => (
-                <DropdownMenuItem
-                  disabled={mutationPending}
-                  key={worktree.path}
-                  onSelect={() => {
-                    onWorktreeChange(worktree.path);
-                  }}
-                  title={worktree.path}
-                >
-                  <GitFork aria-hidden="true" className="size-3.5" />
-                  <span className="grid min-w-0 flex-1">
-                    <span className="truncate">
-                      {worktree.branch ?? t("composer.detachedHead")}
+          {switchTargets.branches.length === 0 ? null : (
+            <>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>{t("composer.branchSwitcherMenu")}</DropdownMenuLabel>
+              </DropdownMenuGroup>
+              <DropdownMenuRadioGroup onValueChange={onBranchChange}>
+                {switchTargets.branches.map((branch) => (
+                  <DropdownMenuRadioItem
+                    disabled={mutationPending}
+                    key={branch}
+                    title={branch}
+                    value={branch}
+                  >
+                    <span className="truncate">{branch}</span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+            </>
+          )}
+          {switchTargets.worktrees.length === 0 ? null : (
+            <>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>{t("composer.worktreeSwitcherMenu")}</DropdownMenuLabel>
+                {switchTargets.worktrees.map((worktree) => (
+                  <DropdownMenuItem
+                    disabled={mutationPending}
+                    key={worktree.path}
+                    onSelect={() => {
+                      onWorktreeChange(worktree.path);
+                    }}
+                    title={worktree.path}
+                  >
+                    <GitFork aria-hidden="true" className="size-3.5" />
+                    <span className="grid min-w-0 flex-1">
+                      <span className="truncate">
+                        {worktree.branch ?? t("composer.detachedHead")}
+                      </span>
+                      <span className="truncate text-caption text-muted-foreground">
+                        {worktree.path}
+                      </span>
                     </span>
-                    <span className="truncate text-caption text-muted-foreground">
-                      {worktree.path}
-                    </span>
-                  </span>
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuItem
             disabled={mutationPending}
             onSelect={() => {

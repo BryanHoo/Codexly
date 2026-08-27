@@ -212,9 +212,10 @@ export function CommitChangesPanel({
                 commitMessageRows === 1 ? "h-8 max-workbench:h-11" : "h-18 max-workbench:h-21",
               )}
             >
+              {/* 组合控件由外层绘制焦点态，避免 textarea 再叠加全局方形轮廓。 */}
               <InputGroupTextarea
                 aria-label={t("commit.commitMessage")}
-                className="h-full min-h-0 overflow-y-auto px-2 py-1.5 text-label leading-5 max-workbench:py-3"
+                className="h-full min-h-0 overflow-y-auto px-2 py-1.5 text-label leading-5 focus-visible:!outline-none max-workbench:py-3"
                 disabled={isPending || result !== null}
                 id="commit-message"
                 onChange={(event) => {

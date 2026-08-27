@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
-import { ComposerBranchSwitcher } from "./composer-branch-switcher.js";
+import {
+  ComposerBranchSwitcher,
+  resolveComposerGitSwitchTargets,
+} from "./composer-branch-switcher.js";
 import { ComposerApprovalControls } from "./workbench-composer-approval-controls.js";
 import {
   ComposerModeTag,
@@ -14,6 +17,14 @@ import {
 } from "./workbench-composer-view.js";
 
 describe("WorkbenchComposerView", () => {
+  it("没有其他分支和 worktree 时隐藏两个切换模块", () => {
+    const targets = resolveComposerGitSwitchTargets(["main"], "main", [
+      { branch: "main", current: true, path: "/workspace/Codexly" },
+    ]);
+
+    expect(targets).toEqual({ branches: [], worktrees: [] });
+  });
+
   it("仅渲染 CLI 对外提供的审批选项", () => {
     const markup = renderToStaticMarkup(
       <TooltipProvider>
@@ -177,8 +188,6 @@ describe("WorkbenchComposerView", () => {
           switchingBranch={undefined}
           switchingWorktree={undefined}
           worktrees={[]}
-          worktreesError={null}
-          worktreesPending={false}
         />
       </TooltipProvider>,
     );
@@ -208,8 +217,6 @@ describe("WorkbenchComposerView", () => {
         switchingBranch={undefined}
         switchingWorktree={undefined}
         worktrees={[]}
-        worktreesError={null}
-        worktreesPending={false}
       />,
     );
 
@@ -238,8 +245,6 @@ describe("WorkbenchComposerView", () => {
         switchingBranch={undefined}
         switchingWorktree={undefined}
         worktrees={[]}
-        worktreesError={null}
-        worktreesPending={false}
       />,
     );
 

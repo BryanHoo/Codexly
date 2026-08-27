@@ -114,8 +114,6 @@ export type WorkbenchComposerViewProps = Readonly<{
   taskId: string | undefined;
   turnControlsDisabled: boolean;
   worktrees: readonly ProjectGitWorktree[];
-  worktreesError: Error | null;
-  worktreesPending: boolean;
 }>;
 
 export function resolveQueuedPromptSummary(

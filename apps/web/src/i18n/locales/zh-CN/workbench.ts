@@ -97,9 +97,6 @@ export const workbench = {
     createAndSwitchWorktree: "创建并切换",
     createWorktree: "新建 worktree",
     createWorktreeDescription: "在仓库同级目录创建 worktree 并切换",
-    worktreeListEmpty: "暂无其他 worktree",
-    worktreeListFailed: "无法读取 worktree",
-    worktreeListLoading: "正在读取 worktree",
     worktreeSwitcherMenu: "切换 worktree",
     goalMode: "目标",
     goalStatus: {

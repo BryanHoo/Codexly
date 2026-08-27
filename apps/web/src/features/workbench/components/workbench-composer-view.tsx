@@ -444,8 +444,6 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                 switchingBranch={props.switchingBranch}
                 switchingWorktree={props.switchingWorktree}
                 worktrees={props.worktrees}
-                worktreesError={props.worktreesError}
-                worktreesPending={props.worktreesPending}
               />
             </div>
             {/* 主目录选择与路径保持同一操作区，切换后所有项目视图共享该 rootId。 */}

@@ -97,9 +97,6 @@ export const workbench = {
     createAndSwitchWorktree: "Create and switch",
     createWorktree: "New worktree",
     createWorktreeDescription: "Create a sibling worktree and switch to it",
-    worktreeListEmpty: "No other worktrees",
-    worktreeListFailed: "Unable to load worktrees",
-    worktreeListLoading: "Loading worktrees",
     worktreeSwitcherMenu: "Switch worktree",
     goalMode: "Goal",
     goalStatus: {

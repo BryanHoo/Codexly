@@ -439,8 +439,6 @@ export function WorkbenchComposer({
       taskId={taskId}
       turnControlsDisabled={turnControlsDisabled}
       worktrees={branchMutation.worktrees}
-      worktreesError={branchMutation.worktreesError}
-      worktreesPending={branchMutation.worktreesPending}
     />
   );
   if (attachmentPickerKind === undefined) {

@@ -342,7 +342,5 @@ export function useWorkbenchBranchSwitch({
     switchWorktree,
     switchingWorktree,
     worktrees,
-    worktreesError: worktreesQuery.error,
-    worktreesPending: worktreesQuery.isPending,
   } as const;
 }
