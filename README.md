@@ -43,7 +43,7 @@
 - Organize ordered multi-root projects, archive project or temporary tasks, and permanently delete tasks when needed
 - Inspect, preview, rename, and delete project files; review diffs; manage branches and worktrees; and commit or push changes
 - Fork a task from an AI response and continue it in a new Git worktree
-- Add animated workspace pets with separate activity bubbles for project and temporary tasks
+- Add animated workspace pets with separate task activity bubbles and custom PNG or WebP sprite manifests
 - Manage a collection of custom workspace backgrounds, or use Bing daily images, with automatic foreground colors, overlay opacity, and blur
 - Access the workspace from another device on a trusted local network
 

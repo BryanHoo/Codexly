@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-28
+
+### 新增
+
+- 支持使用 PNG 或 WebP 自定义宠物精灵图，并兼容 `spriteVersionNumber: 2` 的 8×11 帧网格清单。
+
+### 修复
+
+- 修复 SQLite Worker 操作超时后 Repository 永久关闭的问题，终止状态未知的 Worker 并为后续请求自动重建连接。
+- 修复检查更新后 registry 版本继续推进时旧页面无法安装更新的问题，重新校验并安装当前最新版本。
+
 ## [0.8.0] - 2026-08-27
 
 ### 新增
@@ -147,7 +158,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.9.0
 [0.8.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.8.0
 [0.7.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.7.0
 [0.6.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.6.0
