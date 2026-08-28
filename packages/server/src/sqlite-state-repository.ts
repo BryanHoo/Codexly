@@ -80,20 +80,26 @@ export class SqliteStateRepository
     AgentProviderConnectionRepository,
     AgentQueueRepository
 {
+  readonly #databasePath: string;
   readonly #now: () => Date;
+  readonly #options: SqliteStateRepositoryOptions;
   readonly #pending = new Map<number, PendingRequest>();
   readonly #ready: Promise<void>;
   readonly #requestTimeoutMs: number;
   readonly #worker: Worker;
   readonly #workerExit: Promise<number>;
   #closed = false;
+  #closing = false;
   #nextRequestId = 1;
+  #replacement: Promise<SqliteStateRepository> | undefined;
   #workerExited = false;
 
   private constructor(databasePath: string, options: SqliteStateRepositoryOptions) {
     if (!isAbsolute(databasePath)) {
       throw new Error("SQLite database path must be absolute");
     }
+    this.#databasePath = databasePath;
+    this.#options = options;
     this.#requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_SQLITE_REQUEST_TIMEOUT_MS;
     if (!Number.isFinite(this.#requestTimeoutMs) || this.#requestTimeoutMs <= 0) {
       throw new RangeError("SQLite request timeout must be a positive number");
@@ -195,6 +201,15 @@ export class SqliteStateRepository
   }
 
   public async close(): Promise<void> {
+    if (this.#closing) {
+      return;
+    }
+    this.#closing = true;
+    if (this.#replacement !== undefined) {
+      const replacement = await this.#replacement;
+      await replacement.close();
+      return;
+    }
     if (this.#closed) {
       return;
     }
@@ -373,6 +388,13 @@ export class SqliteStateRepository
     payload?: unknown,
     allowClosed = false,
   ): Promise<TResult> {
+    if (this.#closing && !allowClosed) {
+      throw new Error("SQLite repository is closed");
+    }
+    if (this.#replacement !== undefined) {
+      const replacement = await this.#replacement;
+      return replacement.#call<TResult>(operation, payload, allowClosed);
+    }
     await this.#ready;
     if (this.#closed && !allowClosed) {
       throw new Error("SQLite repository is closed");
@@ -386,10 +408,18 @@ export class SqliteStateRepository
         const error = new Error(
           `SQLite worker operation ${operation} timed out after ${String(this.#requestTimeoutMs)}ms`,
         );
-        // 超时后无法确认 Worker 是否仍会写入，终止整个 Repository 避免继续使用未知状态。
+        // 超时后先终止状态未知的 Worker，再重建连接供后续请求继续使用。
         this.#closed = true;
+        if (!this.#closing) {
+          const replacement = this.#replaceWorker();
+          this.#replacement = replacement;
+          // 后续请求会接收重建错误；此处仅避免无人等待时产生未处理拒绝。
+          void replacement.catch(() => undefined);
+        }
         this.#rejectPending(error);
-        void this.#worker.terminate();
+        if (this.#replacement === undefined) {
+          void this.#worker.terminate();
+        }
       }, this.#requestTimeoutMs);
       this.#pending.set(id, {
         reject: rejectRequest,
@@ -414,6 +444,13 @@ export class SqliteStateRepository
       pending.reject(error);
     }
     this.#pending.clear();
+  }
+
+  async #replaceWorker(): Promise<SqliteStateRepository> {
+    if (!this.#workerExited) {
+      await this.#worker.terminate();
+    }
+    return SqliteStateRepository.open(this.#databasePath, this.#options);
   }
 
   async #waitForWorkerExit(): Promise<void> {
