@@ -7,16 +7,18 @@ import type {
   WorkbenchPetFrame,
 } from "@codexly/protocol";
 import { createDefaultPetAnimations, PET_FRAME } from "./workbench-pet-catalog.js";
-import { readWebpDimensionsFromFile } from "./workbench-pet-image.js";
+import { readPetImageMetadataFromFile } from "./workbench-pet-image.js";
 
 const MAX_MANIFEST_BYTES = 64 * 1_024;
 const MAX_CUSTOM_ASSET_BYTES = 16 * 1_024 * 1_024;
 const MAX_FRAMES = 256;
 const MAX_FPS = 60;
+const PET_V2_ROWS = 11;
 
 export type PetAssetRecord = Readonly<{
   assetId: string;
   baseDirectory: string;
+  contentType: "image/png" | "image/webp";
   descriptor: WorkbenchPetDescriptor;
   path: string;
 }>;
@@ -46,14 +48,16 @@ export async function loadCustomPet(input: {
   if (!assetStats.isFile() || assetStats.size > MAX_CUSTOM_ASSET_BYTES) {
     throw new Error("Pet spritesheet is missing or too large");
   }
-  const dimensions = await readWebpDimensionsFromFile(path);
-  const frame = parseFrame(manifest["frame"]);
-  const frameCount = validateFrame(frame, dimensions.width, dimensions.height);
+  const image = await readPetImageMetadataFromFile(path);
+  const spriteVersion = parseSpriteVersion(manifest["spriteVersionNumber"]);
+  const frame = parseFrame(manifest["frame"], spriteVersion);
+  const frameCount = validateFrame(frame, image.width, image.height);
   const animations = parseAnimations(manifest["animations"], frameCount);
   const manifestId = readOptionalString(manifest, "id");
   return {
     assetId: input.assetId,
     baseDirectory,
+    contentType: image.contentType,
     descriptor: {
       animations,
       assetId: input.assetId,
@@ -81,13 +85,18 @@ export async function validatePetAsset(record: PetAssetRecord): Promise<{
   if (!assetStats.isFile() || assetStats.size > MAX_CUSTOM_ASSET_BYTES) {
     throw new Error("Pet spritesheet is unavailable");
   }
-  const dimensions = await readWebpDimensionsFromFile(resolved);
-  validateFrame(record.descriptor.frame, dimensions.width, dimensions.height);
+  const image = await readPetImageMetadataFromFile(resolved);
+  if (image.contentType !== record.contentType) {
+    throw new Error("Pet spritesheet format changed after discovery");
+  }
+  validateFrame(record.descriptor.frame, image.width, image.height);
   return { mtimeMs: assetStats.mtimeMs, size: assetStats.size };
 }
 
-function parseFrame(value: unknown): WorkbenchPetFrame {
-  if (value === undefined || value === null) return PET_FRAME;
+function parseFrame(value: unknown, spriteVersion: 1 | 2): WorkbenchPetFrame {
+  if (value === undefined || value === null) {
+    return spriteVersion === 2 ? { ...PET_FRAME, rows: PET_V2_ROWS } : PET_FRAME;
+  }
   const frame = parseRecord(value, "Pet frame");
   return {
     columns: readPositiveInteger(frame, "columns"),
@@ -95,6 +104,12 @@ function parseFrame(value: unknown): WorkbenchPetFrame {
     rows: readPositiveInteger(frame, "rows"),
     width: readPositiveInteger(frame, "width"),
   };
+}
+
+function parseSpriteVersion(value: unknown): 1 | 2 {
+  if (value === undefined || value === null || value === 1) return 1;
+  if (value === 2) return 2;
+  throw new Error("Pet spriteVersionNumber must be 1 or 2");
 }
 
 function validateFrame(

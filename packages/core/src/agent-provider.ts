@@ -36,7 +36,7 @@ import type {
 
 export type WorkbenchPetAsset = Readonly<{
   content: Uint8Array;
-  contentType: "image/webp";
+  contentType: "image/png" | "image/webp";
   etag: string;
   size: number;
 }>;

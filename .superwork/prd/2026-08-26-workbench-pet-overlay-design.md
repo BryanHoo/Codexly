@@ -12,7 +12,7 @@ Codexly 需要复用用户本机已有宠物资源，但保持独立产品状态
 
 参考基线：
 
-- [OpenAI Docs: Choose a terminal pet with `/pets`](https://learn.chatgpt.com/docs/developer-commands#choose-a-terminal-pet-with-pets)
+- [OpenAI Docs: Pets](https://learn.chatgpt.com/docs/pets)
 - Codex `0.149.0`：`codex-rs/tui/src/pets/asset_pack.rs`
 - Codex `0.149.0`：`codex-rs/tui/src/pets/catalog.rs`
 - Codex `0.149.0`：`codex-rs/tui/src/pets/model.rs`
@@ -137,7 +137,7 @@ format:      WebP
 ```text
 $CODEX_HOME/pets/chefito/
 ├── pet.json
-└── spritesheet.webp
+└── spritesheet.webp | spritesheet.png
 ```
 
 旧版结构：
@@ -145,7 +145,7 @@ $CODEX_HOME/pets/chefito/
 ```text
 $CODEX_HOME/avatars/chefito/
 ├── avatar.json
-└── spritesheet.webp
+└── spritesheet.webp | spritesheet.png
 ```
 
 服务端解析以下字段并输出规范化结果：
@@ -155,22 +155,25 @@ $CODEX_HOME/avatars/chefito/
   "id": "chefito",
   "displayName": "Chefito",
   "description": "",
+  "spriteVersionNumber": 2,
   "spritesheetPath": "spritesheet.webp",
   "frame": {
     "width": 192,
     "height": 208,
     "columns": 8,
-    "rows": 9
+    "rows": 11
   },
   "animations": {}
 }
 ```
 
-规则与 Codex `model.rs` 对齐：
+v1 规则与 Codex `0.149.0` 的 `model.rs` 对齐；同时接受桌面端生成的 v2 清单：
 
 - 目录选择器使用 `custom:<folder-name>`，不使用 Manifest 内的 `id` 作为文件路径。
 - `spritesheetPath` 必须是宠物目录内的相对路径。
-- `frame` 缺省时使用 `192x208`、`8x9`。
+- `spriteVersionNumber` 缺省或为 `1` 时，`frame` 缺省使用 `192x208`、`8x9`，图集尺寸为 `1536x1872`。
+- `spriteVersionNumber` 为 `2` 时，`frame` 缺省使用 `192x208`、`8x11`，图集尺寸为 `1536x2288`；工作台使用前 9 行标准状态，保留后 2 行方向帧。
+- 自定义精灵图接受 PNG 或 WebP；内置 CDN 下载仍严格限定 WebP。
 - `animations` 为空时使用 Codex 默认动画；非空时覆盖同名默认动画。
 - 帧索引必须小于 `frame_count`，动画 FPS 必须大于 `0` 且不超过 `60`。
 - `pets` 与 `avatars` 同名时只返回 `pets`。
@@ -180,12 +183,12 @@ $CODEX_HOME/avatars/chefito/
 资源发现和发送必须在 Node 后端完成，浏览器不得使用 `file://` 或直接访问用户目录。
 
 - Manifest 最大 `64KiB`；自定义精灵图最大 `16MiB`，内置下载严格使用 Codex 的 `4MiB` 上限。
-- 使用成熟图片解析库读取 WebP 尺寸，不手写二进制格式解析器。
+- 使用成熟图片解析库读取 PNG/WebP 类型和尺寸，不手写二进制格式解析器。
 - 对目录和精灵图执行 `realpath`，确认真实路径仍位于对应宠物目录或内置缓存目录。
 - 拒绝绝对路径、`..`、符号链接逃逸、非普通文件和无效图片。
 - 资源请求根据服务端发现出的 `assetId` 反查文件，不把 URL 参数直接拼接为路径。
 - 每次发送资源前重新解析并校验，避免扫描与读取之间的文件替换。
-- 响应设置 `Content-Type: image/webp`、`X-Content-Type-Options: nosniff` 和 `Cross-Origin-Resource-Policy: same-origin`。
+- 响应按实际资源设置 `Content-Type: image/png | image/webp`，并设置 `X-Content-Type-Options: nosniff` 和 `Cross-Origin-Resource-Policy: same-origin`。
 - 使用文件大小和 `mtimeMs` 生成弱 `ETag`，允许浏览器条件请求；不得公开本地绝对路径。
 
 下载接口还必须满足：
@@ -298,7 +301,7 @@ POST /v1/pets/downloads
 ```
 
 - `GET /v1/pets` 返回全部已知内置宠物及当前有效自定义目录，不返回路径。
-- `GET /v1/pets/assets/:assetId` 返回经过重新校验的 WebP。
+- `GET /v1/pets/assets/:assetId` 返回经过重新校验的 PNG 或 WebP。
 - `POST /v1/pets/downloads` 接收 `{ "petId": "codex" }`，只允许下载内置目录白名单中的 ID，并返回 `ready` Descriptor。
 - 三个接口复用现有访问控制；LAN 模式不得绕过认证；下载 Mutation 使用 `idempotency-key`。
 - `assetId` 使用服务端生成的稳定 SHA-256 标识，不能由客户端解释为文件路径。
@@ -392,7 +395,7 @@ value: { "version": 1, "xRatio": 1, "yRatio": 1 }
 
 选中宠物只创建一个图片解码结果和一个 `<canvas>`：
 
-- 使用 `createImageBitmap` 解码同源 WebP。
+- 使用 `createImageBitmap` 解码同源 PNG 或 WebP。
 - Canvas 显示尺寸与宠物正文一致，内部按 `devicePixelRatio` 设置像素尺寸。
 - 每帧通过 `drawImage` 的源矩形直接裁切精灵图。
 - 切换宠物或卸载时调用 `ImageBitmap.close()`。

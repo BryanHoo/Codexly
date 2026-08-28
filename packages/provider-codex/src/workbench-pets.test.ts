@@ -35,6 +35,54 @@ describe("Codex workbench pets", () => {
     expect(JSON.stringify(pets)).not.toContain(codexHome);
   });
 
+  it("discovers PNG custom pets and serves their declared image type", async () => {
+    const codexHome = await createCodexHome();
+    const directory = join(codexHome, "pets", "ubuntu-pet");
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "pet.json"),
+      JSON.stringify({ displayName: "Ubuntu Pet", spritesheetPath: "spritesheet.png" }),
+    );
+    await writeFile(join(directory, "spritesheet.png"), createPngDimensions(1_536, 1_872));
+
+    const provider = createCodexWorkbenchPetProvider({ codexHome });
+    const pets = await provider.listPets();
+    const pet = pets.find((candidate) => candidate.id === "custom:ubuntu-pet");
+
+    expect(pet).toEqual(
+      expect.objectContaining({ availability: "ready", displayName: "Ubuntu Pet" }),
+    );
+    await expect(provider.openPetAsset(pet?.assetId ?? "")).resolves.toEqual(
+      expect.objectContaining({ contentType: "image/png" }),
+    );
+  });
+
+  it("discovers sprite version 2 pets with an 8 by 11 frame grid", async () => {
+    const codexHome = await createCodexHome();
+    const directory = join(codexHome, "pets", "mu");
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "pet.json"),
+      JSON.stringify({
+        displayName: "MU",
+        spriteVersionNumber: 2,
+        spritesheetPath: "spritesheet.webp",
+      }),
+    );
+    await writeFile(join(directory, "spritesheet.webp"), createWebpDimensions(1_536, 2_288));
+
+    const provider = createCodexWorkbenchPetProvider({ codexHome });
+    const pets = await provider.listPets();
+
+    expect(pets.find((candidate) => candidate.id === "custom:mu")).toEqual(
+      expect.objectContaining({
+        availability: "ready",
+        displayName: "MU",
+        frame: { columns: 8, height: 208, rows: 11, width: 192 },
+      }),
+    );
+  });
+
   it("skips path escapes and rejects asset identifiers outside the discovered catalog", async () => {
     const codexHome = await createCodexHome();
     const directory = join(codexHome, "pets", "unsafe");
@@ -127,6 +175,18 @@ function createWebpDimensions(width: number, height: number): Uint8Array {
   view.setUint32(16, 10, true);
   writeUint24(bytes, 24, width - 1);
   writeUint24(bytes, 27, height - 1);
+  return bytes;
+}
+
+// PNG 尺寸位于 IHDR 固定字段，足以覆盖目录扫描所需的格式与几何校验。
+function createPngDimensions(width: number, height: number): Uint8Array {
+  const bytes = new Uint8Array(24);
+  const view = new DataView(bytes.buffer);
+  bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+  view.setUint32(8, 13);
+  bytes.set(new TextEncoder().encode("IHDR"), 12);
+  view.setUint32(16, width);
+  view.setUint32(20, height);
   return bytes;
 }
 

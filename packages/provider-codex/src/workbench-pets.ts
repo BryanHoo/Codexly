@@ -87,7 +87,7 @@ export class CodexWorkbenchPetProvider implements WorkbenchPetProvider {
       const content = await readFile(record.path);
       return {
         content,
-        contentType: "image/webp",
+        contentType: record.contentType,
         etag: `W/"${String(metadata.size)}-${String(Math.trunc(metadata.mtimeMs))}"`,
         size: metadata.size,
       };
@@ -108,7 +108,13 @@ export class CodexWorkbenchPetProvider implements WorkbenchPetProvider {
       // 缓存缺失和缓存损坏都保持 downloadable，由显式下载流程修复。
     }
     const descriptor = createBuiltinDescriptor(pet, assetId, availability);
-    this.#assetRecords.set(assetId, { assetId, baseDirectory, descriptor, path });
+    this.#assetRecords.set(assetId, {
+      assetId,
+      baseDirectory,
+      contentType: "image/webp",
+      descriptor,
+      path,
+    });
     return descriptor;
   }
 
