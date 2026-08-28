@@ -1,6 +1,6 @@
 import type { AppInfoResponse } from "@codexly/protocol";
 import { BookOpen, Download, GitFork, LoaderCircle, RefreshCw } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -33,6 +33,13 @@ export function GlobalSettingsAbout({
   const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const updating = isUpdating || isUpdatePending === true;
+  const retryAppInfo = useEffectEvent(onRetry);
+  useEffect(() => {
+    if (activeSection === "about") {
+      // 每次进入“关于”页都绕过查询缓存，展示 registry 当前的最新版本。
+      void retryAppInfo();
+    }
+  }, [activeSection]);
   const checkForUpdates = () =>
     checkLockRef.current.run(async () => {
       setIsChecking(true);

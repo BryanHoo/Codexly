@@ -144,4 +144,29 @@ describe("app update service", () => {
       code: "UPDATE_NOT_AVAILABLE",
     });
   });
+
+  it("installs the newest release when the registry advances after a check", async () => {
+    const runNpmInstall = vi.fn(() => Promise.resolve());
+    const fetchLatestVersion = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValueOnce("1.4.0")
+      .mockResolvedValueOnce("1.5.0");
+    const service = createAppUpdateService({
+      appVersion: "1.3.0",
+      codexVersion: "0.149.0",
+      fetchChangelog: vi.fn(() => Promise.resolve("")),
+      fetchLatestVersion,
+      runNpmInstall,
+    });
+
+    await expect(service.read()).resolves.toMatchObject({
+      latestVersion: "1.4.0",
+      status: "available",
+    });
+    await expect(service.install("1.4.0")).resolves.toMatchObject({
+      latestVersion: "1.5.0",
+      status: "restart-required",
+    });
+    expect(runNpmInstall).toHaveBeenCalledWith("1.5.0");
+  });
 });

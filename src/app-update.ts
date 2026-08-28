@@ -217,10 +217,13 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
   return {
     async install(version) {
       const latestVersion = await readLatest();
-      if (version !== latestVersion || !isNewerVersion(latestVersion, options.appVersion)) {
+      const requestedVersionIsAvailable =
+        isNewerVersion(version, options.appVersion) && !isNewerVersion(version, latestVersion);
+      if (!requestedVersionIsAvailable || !isNewerVersion(latestVersion, options.appVersion)) {
         throw new AppUpdateError("UPDATE_NOT_AVAILABLE", "The requested update is not available");
       }
       try {
+        // 检查后出现新发布时直接安装最新版本，避免旧页面请求因版本推进而失败。
         await runNpmInstall(latestVersion);
       } catch {
         throw new AppUpdateError("UPDATE_INSTALL_FAILED", "Failed to install the Codexly update");
