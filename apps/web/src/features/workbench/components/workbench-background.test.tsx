@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   createBingWallpaperUrl,
@@ -32,14 +32,12 @@ describe("WorkbenchBackground", () => {
     expect(getBackgroundToneFromPixels(new Uint8ClampedArray([255, 255, 255, 0]))).toBeNull();
   });
 
-  it("renders the image and full-workbench overlay only after the image loads", () => {
+  it("renders the preprocessed canvas and full-workbench overlay only after drawing finishes", () => {
     const markup = renderToStaticMarkup(
       <WorkbenchBackgroundFrame
         backgroundTone="dark"
         imageLoaded
-        imageSource="/v1/workbench-background/bing?day=2026-08-25"
-        onImageError={vi.fn()}
-        onImageLoad={vi.fn()}
+        canvasRef={{ current: null }}
         preference={{
           blurPercentage: 57,
           mode: "bing",
@@ -54,8 +52,9 @@ describe("WorkbenchBackground", () => {
     expect(markup).toContain('data-background-mode="bing"');
     expect(markup).toContain('data-background-tone="dark"');
     expect(markup).toContain('data-has-image="true"');
-    expect(markup).toContain('data-workbench-background-image="true"');
-    expect(markup).toContain("filter:blur(12px)");
+    expect(markup).toContain('data-workbench-background-canvas="true"');
+    expect(markup).not.toContain("<img");
+    expect(markup).not.toContain("filter:");
     expect(markup).toContain('data-workbench-background-overlay="true"');
     expect(markup).toContain("opacity:0.4");
     expect(markup).toContain("Workbench");

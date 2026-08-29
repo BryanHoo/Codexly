@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import {
   DEFAULT_WORKBENCH_BACKGROUND,
@@ -7,11 +7,16 @@ import {
   WORKBENCH_BACKGROUND_CHANGED_EVENT,
   type WorkbenchBackgroundPreference,
 } from "../../settings/workbench-background-preference.js";
+import {
+  createWorkbenchBackgroundRenderKey,
+  drawWorkbenchBackground,
+  readWorkbenchBackgroundPixels,
+} from "./workbench-background-canvas.js";
 
 export type WorkbenchBackgroundTone = "dark" | "light";
 
-const BACKGROUND_SAMPLE_SIZE = 32;
 const EQUAL_BLACK_WHITE_CONTRAST_LUMINANCE = Math.sqrt(1.05 * 0.05) - 0.05;
+const RESIZE_DRAW_DELAY_MS = 120;
 
 function getLinearColorChannel(value: number): number {
   const channel = value / 255;
@@ -37,26 +42,6 @@ export function getBackgroundToneFromPixels(
   return medianLuminance > EQUAL_BLACK_WHITE_CONTRAST_LUMINANCE ? "light" : "dark";
 }
 
-export function detectWorkbenchBackgroundTone(
-  image: HTMLImageElement,
-): WorkbenchBackgroundTone | null {
-  if (image.naturalWidth === 0 || image.naturalHeight === 0) return null;
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = BACKGROUND_SAMPLE_SIZE;
-    canvas.height = BACKGROUND_SAMPLE_SIZE;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (context === null) return null;
-    context.drawImage(image, 0, 0, BACKGROUND_SAMPLE_SIZE, BACKGROUND_SAMPLE_SIZE);
-    return getBackgroundToneFromPixels(
-      context.getImageData(0, 0, BACKGROUND_SAMPLE_SIZE, BACKGROUND_SAMPLE_SIZE).data,
-    );
-  } catch {
-    // Canvas 被浏览器安全策略限制时保留当前主题配色，不能阻断壁纸显示。
-    return null;
-  }
-}
-
 function formatDatePart(value: number): string {
   return String(value).padStart(2, "0");
 }
@@ -72,25 +57,21 @@ export function getMillisecondsUntilNextLocalDay(date: Date): number {
 }
 
 export function getWorkbenchBackgroundBlurRadius(percentage: number): number {
-  // UI 使用统一的 0–95% 刻度，渲染半径限制在 20px，避免全屏图片产生过高滤镜开销。
+  // UI 使用统一的 0–95% 刻度，预处理半径限制在 20px，控制重新绘制成本。
   return Math.round(((percentage / 95) * 20 + Number.EPSILON) * 100) / 100;
 }
 
 export function WorkbenchBackgroundFrame({
   backgroundTone,
+  canvasRef,
   children,
   imageLoaded,
-  imageSource,
-  onImageError,
-  onImageLoad,
   preference,
 }: Readonly<{
   backgroundTone: WorkbenchBackgroundTone | null;
+  canvasRef: RefObject<HTMLCanvasElement | null>;
   children: ReactNode;
   imageLoaded: boolean;
-  imageSource: string | null;
-  onImageError: () => void;
-  onImageLoad: (image: HTMLImageElement) => void;
   preference: WorkbenchBackgroundPreference;
 }>) {
   return (
@@ -101,25 +82,13 @@ export function WorkbenchBackgroundFrame({
       data-has-image={imageLoaded}
       data-workbench-background="true"
     >
-      {imageSource === null ? null : (
-        <img
-          alt=""
+      {preference.mode === "none" ? null : (
+        <canvas
           aria-hidden="true"
-          className="workbench-background__image"
-          data-workbench-background-image="true"
-          decoding="async"
-          onError={onImageError}
-          onLoad={(event) => {
-            onImageLoad(event.currentTarget);
-          }}
-          src={imageSource}
-          style={{
-            filter:
-              preference.blurPercentage === 0
-                ? undefined
-                : `blur(${String(getWorkbenchBackgroundBlurRadius(preference.blurPercentage))}px)`,
-            opacity: imageLoaded ? 1 : 0,
-          }}
+          className="workbench-background__canvas"
+          data-workbench-background-canvas="true"
+          ref={canvasRef}
+          style={{ opacity: imageLoaded ? 1 : 0 }}
         />
       )}
       {imageLoaded ? (
@@ -145,6 +114,8 @@ export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
   const [bingImageUrl, setBingImageUrl] = useState(() => createBingWallpaperUrl(new Date()));
   const [imageLoaded, setImageLoaded] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const renderKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const handlePreferenceChange = (event: Event) => {
@@ -212,21 +183,76 @@ export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode
   useEffect(() => {
     setImageLoaded(false);
     setBackgroundTone(null);
+    renderKeyRef.current = null;
   }, [imageSource]);
+
+  useEffect(() => {
+    if (imageSource === null) return;
+    let disposed = false;
+    let resizeTimeoutId: ReturnType<typeof setTimeout> | undefined;
+    let renderGeneration = 0;
+    let resolutionQuery: MediaQueryList | undefined;
+
+    const draw = () => {
+      const canvas = canvasRef.current;
+      if (canvas === null || canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
+      const bounds = canvas.getBoundingClientRect();
+      const input = {
+        blurRadius: getWorkbenchBackgroundBlurRadius(preference.blurPercentage),
+        devicePixelRatio: Math.max(1, window.devicePixelRatio || 1),
+        height: bounds.height,
+        source: imageSource,
+        width: bounds.width,
+      };
+      const renderKey = createWorkbenchBackgroundRenderKey(input);
+      if (renderKeyRef.current === renderKey) return;
+      const generation = ++renderGeneration;
+      void drawWorkbenchBackground(canvas, input)
+        .then(() => {
+          if (disposed || generation !== renderGeneration) return;
+          renderKeyRef.current = renderKey;
+          const pixels = readWorkbenchBackgroundPixels(canvas);
+          setBackgroundTone(pixels === null ? null : getBackgroundToneFromPixels(pixels));
+          setImageLoaded(true);
+        })
+        .catch(() => {
+          if (disposed || generation !== renderGeneration) return;
+          renderKeyRef.current = null;
+          setBackgroundTone(null);
+          setImageLoaded(false);
+        });
+    };
+    const scheduleDraw = () => {
+      clearTimeout(resizeTimeoutId);
+      resizeTimeoutId = setTimeout(draw, RESIZE_DRAW_DELAY_MS);
+    };
+    const watchDevicePixelRatio = () => {
+      resolutionQuery?.removeEventListener("change", handleResolutionChange);
+      resolutionQuery = window.matchMedia(`(resolution: ${String(window.devicePixelRatio)}dppx)`);
+      resolutionQuery.addEventListener("change", handleResolutionChange);
+    };
+    function handleResolutionChange() {
+      watchDevicePixelRatio();
+      scheduleDraw();
+    }
+
+    draw();
+    watchDevicePixelRatio();
+    window.addEventListener("resize", scheduleDraw);
+    return () => {
+      disposed = true;
+      renderGeneration += 1;
+      clearTimeout(resizeTimeoutId);
+      window.removeEventListener("resize", scheduleDraw);
+      resolutionQuery?.removeEventListener("change", handleResolutionChange);
+    };
+  }, [imageSource, preference.blurPercentage]);
 
   return (
     <WorkbenchBackgroundFrame
       backgroundTone={backgroundTone}
+      canvasRef={canvasRef}
       imageLoaded={imageLoaded}
-      imageSource={imageSource}
-      onImageError={() => {
-        setImageLoaded(false);
-        setBackgroundTone(null);
-      }}
-      onImageLoad={(image) => {
-        setBackgroundTone(detectWorkbenchBackgroundTone(image));
-        setImageLoaded(true);
-      }}
       preference={preference}
     >
       {children}

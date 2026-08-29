@@ -4,7 +4,7 @@
   background: var(--ui-color-window);
 }
 
-.workbench-background__image,
+.workbench-background__canvas,
 .workbench-background__overlay {
   position: absolute;
   z-index: -2;
@@ -14,8 +14,7 @@
   pointer-events: none;
 }
 
-.workbench-background__image {
-  object-fit: cover;
+.workbench-background__canvas {
   transition: opacity var(--ui-motion-normal) var(--ui-ease-standard);
 }
 
