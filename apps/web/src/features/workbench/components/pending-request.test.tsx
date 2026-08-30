@@ -102,6 +102,7 @@ describe("PendingRequestCard", () => {
       availableDecisions: ["allow", "allow_for_session", "deny"],
       command: "pnpm check",
       cwd: "/workspace/Codexly",
+      kind: "command",
       networkAccess: null,
       reason: "需要执行检查",
       type: "command_approval",
@@ -132,6 +133,7 @@ describe("PendingRequestCard", () => {
       availableDecisions: ["allow", "deny"],
       command: null,
       cwd: null,
+      kind: "command",
       networkAccess: { host: "api.example.com", protocol: "https" },
       reason: "需要访问外部 API",
       type: "command_approval",
@@ -143,6 +145,26 @@ describe("PendingRequestCard", () => {
     expect(markup).toContain("网络访问审批");
     expect(markup).toContain("api.example.com");
     expect(markup).toContain("HTTPS");
+  });
+
+  it("renders terminal input approvals with their input", () => {
+    const request: PendingRequest = {
+      ...identity,
+      availableDecisions: ["allow", "deny"],
+      command: "y\n",
+      cwd: null,
+      kind: "write_stdin",
+      networkAccess: null,
+      reason: "进程正在等待确认",
+      type: "command_approval",
+    };
+    const markup = renderToStaticMarkup(
+      <PendingRequestCard interactive onResolve={vi.fn()} request={request} />,
+    );
+
+    expect(markup).toContain("终端输入审批");
+    expect(markup).toContain("y\n");
+    expect(markup).toContain("进程正在等待确认");
   });
 
   it("renders choice, confirmation, and short text with semantic controls", () => {

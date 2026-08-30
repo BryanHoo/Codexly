@@ -107,6 +107,7 @@ function createApprovalRequest(requestId: string): AgentTaskSnapshot["pendingReq
     cwd: "/workspace/Codexly",
     expiresAt: null,
     itemId: `item-${requestId}`,
+    kind: "command",
     networkAccess: null,
     projectId: "codexly",
     reason: null,

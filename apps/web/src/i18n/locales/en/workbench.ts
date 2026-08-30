@@ -250,6 +250,7 @@ export const workbench = {
     permissionUnknownPath: "Unknown path",
     fileSystemPermission: "Filesystem",
     requestFailed: "Unable to process the request. Please retry.",
+    terminalInputApproval: "Terminal input approval",
     submitAnswers: "Submit answers",
     unsupportedForm: "This form cannot be displayed safely. Decline or cancel the request.",
   },

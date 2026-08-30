@@ -169,6 +169,7 @@ export function handleProtocolMessage(message) {
             pluginId: null,
             resourceTemplates: [],
             resources: [],
+            runtimeStatus: "connected",
             serverInfo: null,
             tools: { "query-docs": {}, "resolve-library-id": {} },
           },

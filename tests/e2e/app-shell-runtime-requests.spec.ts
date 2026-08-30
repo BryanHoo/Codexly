@@ -11,6 +11,7 @@ test("restores network approvals from the task snapshot after refresh", async ({
     cwd: "/workspace/Codexly",
     expiresAt: null,
     itemId: "command-approval-1",
+    kind: "command",
     networkAccess: { host: "api.example.com", protocol: "https" },
     projectId: "codexly",
     reason: "需要执行检查",

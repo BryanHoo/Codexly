@@ -27,6 +27,7 @@ describe("CodexAgentProvider pending request lifecycle", () => {
       command: "pnpm check",
       cwd: "/workspace/Codexly",
       itemId: "command-1",
+      kind: "command",
       reason: null,
       startedAtMs: 1_753_228_800_000,
       threadId: "task-1",

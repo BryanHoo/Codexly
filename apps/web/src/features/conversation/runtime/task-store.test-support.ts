@@ -96,6 +96,7 @@ export function createPendingRequest<Status extends PendingRequest["status"] = "
     cwd: "/workspace",
     expiresAt: null,
     itemId: "command-1",
+    kind: "command",
     networkAccess: null,
     projectId: "project-1",
     reason: null,

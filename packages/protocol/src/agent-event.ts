@@ -210,6 +210,7 @@ export const ProviderErrorEventSchema = createEventSchema({
           Type.Literal("context_window_exceeded"),
           Type.Literal("session_budget_exceeded"),
           Type.Literal("usage_limit_exceeded"),
+          Type.Literal("rate_limit_exceeded"),
           Type.Literal("server_overloaded"),
           Type.Literal("policy_blocked"),
           Type.Literal("connection_failed"),

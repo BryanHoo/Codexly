@@ -1,4 +1,9 @@
-import type { AgentMcpAuthStatus, AgentMcpServerPage } from "@codexly/protocol";
+import type {
+  AgentMcpAuthStatus,
+  AgentMcpServerFailureReason,
+  AgentMcpServerPage,
+  AgentMcpServerStatus,
+} from "@codexly/protocol";
 
 import { CodexProtocolMappingError, expectRecord, expectString } from "./codex-protocol-mapping.js";
 import type { TaskRuntimeState } from "./task-runtime-state.js";
@@ -27,6 +32,29 @@ function optionalNullableString(value: unknown, context: string): string | null 
     return null;
   }
   return expectString(value, context).replace(MCP_DISPLAY_URL_PATTERN, "[URL redacted]");
+}
+
+function mapMcpRuntimeStatus(value: unknown): Readonly<{
+  failureReason: AgentMcpServerFailureReason | null;
+  status: AgentMcpServerStatus;
+}> {
+  switch (value) {
+    case "connected":
+      return { failureReason: null, status: "ready" };
+    case "notStarted":
+    case "starting":
+    case null:
+      return { failureReason: null, status: "starting" };
+    case "authenticationRequired":
+      return { failureReason: "reauthenticationRequired", status: "failed" };
+    case "failed":
+      return { failureReason: null, status: "failed" };
+    case "cancelled":
+    case "disabled":
+      return { failureReason: null, status: "cancelled" };
+    default:
+      throw new CodexProtocolMappingError("mcpServerStatus/list runtimeStatus is invalid");
+  }
 }
 
 export async function listCodexMcpServers(
@@ -74,6 +102,7 @@ export async function listCodexMcpServers(
       if (servers.has(name)) {
         continue;
       }
+      const runtimeStatus = mapMcpRuntimeStatus(server["runtimeStatus"]);
       servers.set(name, {
         authStatus: mapMcpAuthStatus(server["authStatus"]),
         description:
@@ -84,9 +113,9 @@ export async function listCodexMcpServers(
                 "mcpServerStatus/list serverInfo description",
               ),
         error: null,
-        failureReason: null,
+        failureReason: runtimeStatus.failureReason,
         name,
-        status: "ready",
+        status: runtimeStatus.status,
         title:
           serverInfo === null
             ? null

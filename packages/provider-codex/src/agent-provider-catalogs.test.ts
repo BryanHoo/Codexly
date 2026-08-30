@@ -92,7 +92,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     ]);
   });
 
-  it("rejects Codex models without the 0.149.0 multi-agent version field", async () => {
+  it("rejects Codex models without the 0.151.0 multi-agent version field", async () => {
     const rpc = new FakeRpcClient([
       {
         data: [
@@ -143,6 +143,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
                 },
                 name: "review-security",
                 path: "/Users/test/.codex/skills/review-security/SKILL.md",
+                pluginId: null,
                 scope: "system",
                 shortDescription: null,
               },
@@ -155,6 +156,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
                 },
                 name: "documentation-writer",
                 path: "/Users/test/.codex/skills/documentation-writer/SKILL.md",
+                pluginId: "plugin-docs",
                 scope: "user",
                 shortDescription: null,
               },
@@ -164,6 +166,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
                 interface: null,
                 name: "disabled-skill",
                 path: "/Users/test/.codex/skills/disabled-skill/SKILL.md",
+                pluginId: null,
                 scope: "user",
                 shortDescription: null,
               },
@@ -285,6 +288,33 @@ describe("CodexAgentProvider model and skill catalogs", () => {
         },
       },
     ]);
+  });
+
+  it("rejects skills without the 0.151.0 plugin ownership field", async () => {
+    const rpc = new FakeRpcClient([
+      {
+        data: [
+          {
+            cwd: projectRootPath,
+            errors: [],
+            skills: [
+              {
+                description: "Incomplete skill",
+                enabled: true,
+                interface: null,
+                name: "incomplete-skill",
+                path: "/Users/test/.codex/skills/incomplete-skill/SKILL.md",
+                scope: "user",
+                shortDescription: null,
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+
+    await expect(provider.listSkills()).rejects.toThrow("skills/list skill pluginId is invalid");
   });
 
   it("rejects repeated model cursors and mismatched image data URLs", async () => {

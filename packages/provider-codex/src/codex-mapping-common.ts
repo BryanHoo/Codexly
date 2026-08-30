@@ -74,6 +74,7 @@ export const CODEX_IGNORED_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
   "item/commandExecution/terminalInteraction",
   "item/fileChange/outputDelta",
   "mcpServer/oauthLogin/completed",
+  "mcpServer/event/stream/notification",
   "process/exited",
   "process/outputDelta",
   "rawResponse/completed",
@@ -88,6 +89,9 @@ export const CODEX_IGNORED_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
   "thread/realtime/closed",
   "thread/realtime/error",
   "thread/realtime/itemAdded",
+  "thread/realtime/item/completed",
+  "thread/realtime/item/started",
+  "thread/realtime/item/transcript/delta",
   "thread/realtime/outputAudio/delta",
   "thread/realtime/sdp",
   "thread/realtime/started",
@@ -230,6 +234,10 @@ export function mapCodexSkill(value: unknown): CodexSkill {
   const skill = expectRecord(value, "skills/list skill");
   const name = expectString(skill["name"], "skills/list skill name");
   const path = expectString(skill["path"], "skills/list skill path");
+  const pluginId = skill["pluginId"];
+  if (pluginId !== null && typeof pluginId !== "string") {
+    throw new CodexProtocolMappingError("skills/list skill pluginId is invalid");
+  }
   const scope = skill["scope"];
   if (scope !== "user" && scope !== "repo" && scope !== "system" && scope !== "admin") {
     throw new CodexProtocolMappingError("skills/list skill scope is invalid");

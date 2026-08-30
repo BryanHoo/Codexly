@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -20,7 +20,7 @@ import { join } from "node:path";
 
 const args = process.argv.slice(2);
 if (args[0] === "--version") {
-  process.stdout.write("codex-cli 0.149.0\\n");
+  process.stdout.write("codex-cli 0.151.0\\n");
   process.exit(0);
 }
 
@@ -52,17 +52,29 @@ if (generator === "generate-ts") {
   return { baselinePath: join(root, "baseline.json"), cliPath };
 }
 
+function createNativeFakeCodexCli() {
+  const fixture = createFakeCodexCli();
+  const launcherPath = join(fixture.cliPath, "..", "fake-codex");
+  writeFileSync(
+    launcherPath,
+    `#!/bin/sh
+exec "${process.execPath}" "${fixture.cliPath}" "$@"
+`,
+  );
+  chmodSync(launcherPath, 0o755);
+  return { ...fixture, cliPath: launcherPath };
+}
+
 function runChecker(
   cliPath: string,
   baselinePath: string,
-  options: Readonly<{ update?: boolean; variant?: string }> = {},
+  options: Readonly<{ fromEnvironment?: boolean; update?: boolean; variant?: string }> = {},
 ) {
   return spawnSync(
     process.execPath,
     [
       checkerPath,
-      "--codex-cli",
-      cliPath,
+      ...(options.fromEnvironment === true ? [] : ["--codex-cli", cliPath]),
       "--baseline",
       baselinePath,
       ...(options.update === true ? ["--update"] : []),
@@ -71,6 +83,7 @@ function runChecker(
       encoding: "utf8",
       env: {
         ...process.env,
+        ...(options.fromEnvironment === true ? { CODEXLY_CODEX_BIN: cliPath } : {}),
         ...(options.variant === undefined ? {} : { FAKE_CODEX_SCHEMA_VARIANT: options.variant }),
       },
     },
@@ -84,6 +97,24 @@ afterEach(() => {
 });
 
 describe("Codex Schema 漂移门禁", () => {
+  it.skipIf(process.platform === "win32")("支持直接执行原生 Codex CLI", () => {
+    const { baselinePath, cliPath } = createNativeFakeCodexCli();
+
+    const result = runChecker(cliPath, baselinePath, { update: true });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Codex Schema baseline updated: 0.151.0");
+  });
+
+  it("优先使用 CODEXLY_CODEX_BIN 指定的 Codex CLI", () => {
+    const { baselinePath, cliPath } = createFakeCodexCli();
+
+    const result = runChecker(cliPath, baselinePath, { fromEnvironment: true, update: true });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Codex Schema baseline updated: 0.151.0");
+  });
+
   it("显式更新并验证包含实验 API 的规范化基线", () => {
     const { baselinePath, cliPath } = createFakeCodexCli();
 
@@ -97,11 +128,11 @@ describe("Codex Schema 漂移门禁", () => {
     };
 
     expect(updateResult.status).toBe(0);
-    expect(updateResult.stdout).toContain("Codex Schema baseline updated: 0.149.0");
+    expect(updateResult.stdout).toContain("Codex Schema baseline updated: 0.151.0");
     expect(verifyResult.status).toBe(0);
-    expect(verifyResult.stdout).toContain("Codex Schema baseline verified: 0.149.0");
+    expect(verifyResult.stdout).toContain("Codex Schema baseline verified: 0.151.0");
     expect(baseline).toMatchObject({
-      codexVersion: "0.149.0",
+      codexVersion: "0.151.0",
       experimental: true,
       generators: {
         "generate-json-schema": "--experimental",
@@ -125,7 +156,7 @@ describe("Codex Schema 漂移门禁", () => {
     const result = runChecker(cliPath, baselinePath, { variant: "drift" });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Codex Schema drift detected for 0.149.0");
+    expect(result.stderr).toContain("Codex Schema drift detected for 0.151.0");
     expect(result.stderr).toContain("Added: typescript/added.ts");
     expect(result.stderr).toContain("Removed: typescript/removed.ts");
     expect(result.stderr).toContain("Changed: typescript/index.ts");
@@ -138,7 +169,7 @@ describe("Codex Schema 漂移门禁", () => {
     const result = runChecker(cliPath, baselinePath, { variant: "json-order" });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("Codex Schema baseline verified: 0.149.0");
+    expect(result.stdout).toContain("Codex Schema baseline verified: 0.151.0");
   });
 
   it("缺少当前 Codex 版本基线时拒绝校验", () => {
@@ -147,7 +178,7 @@ describe("Codex Schema 漂移门禁", () => {
     const result = runChecker(cliPath, baselinePath);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Codex Schema baseline is missing for 0.149.0");
+    expect(result.stderr).toContain("Codex Schema baseline is missing for 0.151.0");
     expect(result.stderr).toContain("pnpm run codex:schema:update");
   });
 });

@@ -26,7 +26,7 @@ describe("runCli startup", () => {
     });
     expect(harness.dependencies.checkCodexVersion).toHaveBeenCalledWith("/fake/codex");
     expect(harness.stdout.join("")).toContain("[成功] Node.js 22.14.0");
-    expect(harness.stdout.join("")).toContain("[成功] Codex 0.149.0 (/fake/codex)");
+    expect(harness.stdout.join("")).toContain("[成功] Codex 0.151.0 (/fake/codex)");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
       join("/custom/home", "codexly", "state.sqlite3"),
     );

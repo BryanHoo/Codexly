@@ -107,7 +107,7 @@ export function isProjectThread(thread: Record<string, unknown>, project: AgentT
   if (nativeProjectId !== null) {
     return false;
   }
-  // Codex 0.149 使用 null projectId 表示 standalone，cwd 不是其身份字段。
+  // Codex 0.151 使用 null projectId 表示 standalone，cwd 不是其身份字段。
   return true;
 }
 export function assertProjectThread(

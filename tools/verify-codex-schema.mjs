@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const generators = [
@@ -42,6 +42,10 @@ function parseArguments(argv) {
 }
 
 function resolveCodexCli() {
+  // 与运行时共用同一覆盖入口，允许 CI 和本地检查选择已安装的原生 CLI。
+  const configuredPath = process.env["CODEXLY_CODEX_BIN"];
+  if (configuredPath) return resolve(configuredPath);
+
   const require = createRequire(join(repositoryRoot, "package.json"));
   const manifestPath = require.resolve("@openai/codex/package.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -53,10 +57,17 @@ function resolveCodexCli() {
 }
 
 function runCodex(codexCliPath, args) {
-  const result = spawnSync(process.execPath, [codexCliPath, ...args], {
-    encoding: "utf8",
-    shell: false,
-  });
+  // npm launcher 是 JavaScript，Homebrew/Cask 与源码构建则直接提供原生可执行文件。
+  const extension = extname(codexCliPath).toLowerCase();
+  const isJavaScriptLauncher = extension === ".js" || extension === ".mjs" || extension === ".cjs";
+  const result = spawnSync(
+    isJavaScriptLauncher ? process.execPath : codexCliPath,
+    isJavaScriptLauncher ? [codexCliPath, ...args] : args,
+    {
+      encoding: "utf8",
+      shell: false,
+    },
+  );
   if (result.error) throw result.error;
   if (result.status !== 0) {
     const detail = result.stderr.trim() || result.stdout.trim() || `exit code ${result.status}`;

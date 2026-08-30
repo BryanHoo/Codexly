@@ -31,6 +31,7 @@ export function pendingRequestParams(
       availableDecisions: ["accept", "acceptForSession", "decline"],
       command: "pnpm check",
       cwd: "/workspace/Codexly",
+      kind: "command",
       reason: "需要执行检查",
       startedAtMs: 1_753_228_800_000,
     };

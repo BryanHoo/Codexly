@@ -63,6 +63,7 @@ function mapProviderErrorInfo(value: unknown): Readonly<{
     cyberPolicy: "policy_blocked",
     internalServerError: "internal_error",
     other: "other",
+    rateLimitExceeded: "rate_limit_exceeded",
     sandboxError: "sandbox_error",
     serverOverloaded: "server_overloaded",
     sessionBudgetExceeded: "session_budget_exceeded",

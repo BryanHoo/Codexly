@@ -92,7 +92,7 @@ describe("Codex model and message mapping", () => {
     ]);
   });
 
-  it("rejects missing or invalid 0.149.0 agent message delivery", () => {
+  it("rejects missing or invalid 0.151.0 agent message delivery", () => {
     const mapMessage = (delivery?: unknown) =>
       mapAgentTurn({
         completedAt: 1_753_228_830,

@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, extname, join, resolve } from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -21,17 +21,20 @@ afterAll(() => {
 });
 
 function generateOfficialNotificationMethods(): Set<string> {
-  const require = createRequire(import.meta.url);
-  const manifestPath = require.resolve("@openai/codex/package.json");
-  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
-    bin?: { codex?: string };
-  };
-  const binPath = manifest.bin?.codex;
-  if (binPath === undefined) throw new Error("@openai/codex does not expose the codex CLI");
-  const cliPath = resolve(dirname(manifestPath), binPath);
+  const configuredCliPath = process.env["CODEXLY_CODEX_BIN"];
+  const cliPath = configuredCliPath ?? resolveBundledCodexCli();
+  const extension = extname(cliPath).toLowerCase();
+  const isJavaScriptLauncher = extension === ".js" || extension === ".mjs" || extension === ".cjs";
   const result = spawnSync(
-    process.execPath,
-    [cliPath, "app-server", "generate-ts", "--experimental", "--out", temporaryRoot],
+    isJavaScriptLauncher ? process.execPath : cliPath,
+    [
+      ...(isJavaScriptLauncher ? [cliPath] : []),
+      "app-server",
+      "generate-ts",
+      "--experimental",
+      "--out",
+      temporaryRoot,
+    ],
     { encoding: "utf8", shell: false },
   );
   if (result.status !== 0) {
@@ -39,6 +42,17 @@ function generateOfficialNotificationMethods(): Set<string> {
   }
   const source = readFileSync(join(temporaryRoot, "ServerNotification.ts"), "utf8");
   return new Set([...source.matchAll(/"method": "([^"]+)"/gu)].map((match) => match[1] ?? ""));
+}
+
+function resolveBundledCodexCli(): string {
+  const require = createRequire(import.meta.url);
+  const manifestPath = require.resolve("@openai/codex/package.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+    bin?: { codex?: string };
+  };
+  const binPath = manifest.bin?.codex;
+  if (binPath === undefined) throw new Error("@openai/codex does not expose the codex CLI");
+  return resolve(dirname(manifestPath), binPath);
 }
 
 describe("Codex notification coverage", () => {

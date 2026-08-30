@@ -248,6 +248,7 @@ export const workbench = {
     permissionUnknownPath: "未知路径",
     fileSystemPermission: "文件系统",
     requestFailed: "请求处理失败，请重试",
+    terminalInputApproval: "终端输入审批",
     submitAnswers: "提交回答",
     unsupportedForm: "此表单无法安全显示，请拒绝或取消请求。",
   },

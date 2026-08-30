@@ -81,7 +81,9 @@ function ApprovalRequestCard({
     networkAccess !== null
       ? t("pending.networkApproval")
       : request.type === "command_approval"
-        ? t("pending.commandApproval")
+        ? request.kind === "write_stdin"
+          ? t("pending.terminalInputApproval")
+          : t("pending.commandApproval")
         : t("pending.fileChangeApproval");
   const detail =
     networkAccess !== null

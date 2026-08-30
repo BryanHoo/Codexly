@@ -182,7 +182,7 @@ export function createCodexAgentProvider(options: {
 
 export function nativeThread(overrides: Record<string, unknown> = {}) {
   return {
-    cliVersion: "0.149.0",
+    cliVersion: "0.151.0",
     createdAt: 1_753_228_800,
     cwd: "/workspace/Codexly",
     ephemeral: false,

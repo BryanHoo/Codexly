@@ -101,6 +101,7 @@ export const pendingRequest: PendingRequest = {
   cwd: "/workspace/Codexly",
   expiresAt: null,
   itemId: "command-1",
+  kind: "command",
   networkAccess: null,
   projectId: "codexly",
   reason: null,

@@ -65,6 +65,7 @@ describe("project runtime lifecycle", () => {
       cwd: "/workspace/Codexly",
       expiresAt: null,
       itemId: "item-approval",
+      kind: "command",
       networkAccess: null,
       projectId: "project-1",
       reason: null,

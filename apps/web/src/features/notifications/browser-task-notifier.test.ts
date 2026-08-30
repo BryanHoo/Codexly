@@ -86,6 +86,7 @@ function createPendingRequestEvent(type: PendingRequest["type"]): AgentEvent {
         availableDecisions: ["allow", "deny"],
         command: "pnpm check",
         cwd: "/workspace/Codexly",
+        kind: "command",
         networkAccess: null,
         reason: null,
         type,

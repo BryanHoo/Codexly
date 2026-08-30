@@ -185,6 +185,7 @@ export const CommandApprovalPendingRequestSchema = Type.Object(
     availableDecisions: Type.Array(PendingApprovalDecisionSchema, { minItems: 1 }),
     command: Type.Union([Type.String(), Type.Null()]),
     cwd: Type.Union([Type.String(), Type.Null()]),
+    kind: Type.Union([Type.Literal("command"), Type.Literal("write_stdin")]),
     networkAccess: Type.Union([PendingNetworkAccessSchema, Type.Null()]),
     reason: Type.Union([Type.String(), Type.Null()]),
     type: Type.Literal("command_approval"),

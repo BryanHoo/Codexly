@@ -43,6 +43,7 @@ const pendingRequest = {
   cwd: "/workspace/Codexly",
   expiresAt: null,
   itemId: "item-approval",
+  kind: "command",
   networkAccess: null,
   projectId: "codexly",
   reason: null,

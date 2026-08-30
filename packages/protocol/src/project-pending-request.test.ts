@@ -48,6 +48,7 @@ describe("project pending request protocol", () => {
       availableDecisions: ["allow", "allow_for_session", "deny"],
       command: "pnpm check",
       cwd: "/workspace/Codexly",
+      kind: "command",
       networkAccess: { host: "api.example.com", protocol: "https" },
       reason: "需要执行检查",
       type: "command_approval",

@@ -147,6 +147,7 @@ test("updates a running background task title and preserves blocking status", as
     cwd: "/workspace/Codexly",
     expiresAt: null,
     itemId: "approval-input-design",
+    kind: "command",
     networkAccess: null,
     projectId: "codexly",
     reason: null,

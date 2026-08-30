@@ -117,6 +117,7 @@ export const pendingRequest = {
   cwd: "/workspace/Codexly",
   expiresAt: null,
   itemId: "command-1",
+  kind: "command",
   networkAccess: null,
   projectId: "codexly",
   reason: "需要执行检查",

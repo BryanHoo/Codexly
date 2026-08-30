@@ -155,7 +155,11 @@ export function markStartedItemRunning(item: AgentItem): AgentItem {
 
 const collaborationToolNames = {
   closeAgent: "agent/close",
+  followupTask: "agent/followup_task",
+  interruptAgent: "agent/interrupt",
+  listAgents: "agent/list",
   resumeAgent: "agent/resume",
+  sendMessage: "agent/send_message",
   sendInput: "agent/send_input",
   spawnAgent: "agent/spawn",
   wait: "agent/wait",
@@ -228,6 +232,7 @@ export function mapSubagentActivityItem(item: Record<string, unknown>, id: strin
   const agentName = agentPath.split("/").filter(Boolean).at(-1) ?? agentPath;
   const kind = expectString(item["kind"], "Codex subagent activity kind");
   const activityLabels: Readonly<Record<string, string>> = {
+    completed: "已完成",
     interacted: "已交互",
     interrupted: "已中断",
     started: "已启动",

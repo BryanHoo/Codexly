@@ -1,8 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { mapAgentTurn, mapAgentTurns } from "./codex-protocol-mapping.js";
+import { mapAgentTurn, mapAgentTurns, mapApprovalReviewItem } from "./codex-protocol-mapping.js";
 import "./codex-protocol-mapping.test-support.js";
 
 describe("Codex review protocol mapping", () => {
+  it("maps reviewed terminal input as a command action", () => {
+    expect(
+      mapApprovalReviewItem({
+        action: {
+          approvalId: "approval-stdin-1",
+          cwd: "/workspace",
+          processId: "terminal-1",
+          stdin: "confirm\n",
+          type: "writeStdin",
+        },
+        review: {
+          rationale: "The terminal is waiting for confirmation.",
+          riskLevel: "low",
+          status: "approved",
+          userAuthorization: "high",
+        },
+        reviewId: "review-stdin-1",
+        targetItemId: "command-1",
+      }),
+    ).toMatchObject({
+      action: { detail: "confirm\n", type: "command" },
+      status: "approved",
+      type: "approval_review",
+    });
+  });
+
   it("projects a completed Codex review to one request and one authoritative result", () => {
     expect(
       mapAgentTurn({

@@ -244,6 +244,7 @@ describe("AgentProvider", () => {
           cwd: "/workspace/Codexly",
           expiresAt: null,
           itemId: input.itemId,
+          kind: "command",
           networkAccess: null,
           projectId: input.projectId,
           reason: null,

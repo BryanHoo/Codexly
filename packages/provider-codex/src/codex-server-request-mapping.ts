@@ -328,6 +328,10 @@ export function mapCodexServerRequest(
     turnId,
   };
   if (serverRequest.method === "item/commandExecution/requestApproval") {
+    const nativeKind = expectString(params["kind"], "Codex command approval kind");
+    if (nativeKind !== "command" && nativeKind !== "writeStdin") {
+      throw new CodexProtocolMappingError("Codex command approval kind is invalid");
+    }
     const additionalPermissions =
       params["additionalPermissions"] === null || params["additionalPermissions"] === undefined
         ? null
@@ -344,6 +348,7 @@ export function mapCodexServerRequest(
         availableDecisions: decisions.availableDecisions,
         command: optionalNullableString(params["command"]),
         cwd: optionalNullableString(params["cwd"]),
+        kind: nativeKind === "writeStdin" ? "write_stdin" : "command",
         networkAccess: mapNetworkApprovalContext(params["networkApprovalContext"]),
         reason: optionalNullableString(params["reason"]),
         type: "command_approval",

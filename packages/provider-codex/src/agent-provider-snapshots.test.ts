@@ -111,7 +111,7 @@ describe("CodexAgentProvider snapshots", () => {
     });
   });
 
-  it("rejects thread sections without the 0.149.0 appearance field", async () => {
+  it("rejects thread sections without the 0.151.0 appearance field", async () => {
     const rpc = new FakeRpcClient([
       {
         data: [
@@ -208,6 +208,13 @@ describe("CodexAgentProvider snapshots", () => {
                   tool: "read_file",
                   type: "mcpToolCall",
                 },
+                {
+                  id: "i6-output",
+                  name: "read_file",
+                  namespace: "filesystem",
+                  output: [{ text: "export {};", type: "input_text" }],
+                  type: "functionCallOutput",
+                },
                 { id: "i7", text: "1. 定义协议", type: "plan" },
                 { id: "i8", type: "contextCompaction" },
                 { id: "i9", type: "futureItem", value: "private" },
@@ -268,6 +275,13 @@ describe("CodexAgentProvider snapshots", () => {
               input: { path: "src/index.ts" },
               name: "filesystem/read_file",
               output: { content: [{ text: "export {};", type: "text" }] },
+              status: "completed",
+              type: "tool",
+            },
+            {
+              id: "i6-output",
+              name: "filesystem/read_file",
+              output: [{ text: "export {};", type: "input_text" }],
               status: "completed",
               type: "tool",
             },

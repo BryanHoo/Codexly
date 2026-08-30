@@ -21,6 +21,7 @@ describe("PendingRequestLifecycle", () => {
         cwd: null,
         expiresAt: null,
         itemId: "item-1",
+        kind: "command",
         networkAccess: null,
         projectId: "project-1",
         reason: null,

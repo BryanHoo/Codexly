@@ -404,6 +404,27 @@ describe("CodexAgentProvider goals and operations", () => {
                   kind: "started",
                   type: "subAgentActivity",
                 },
+                {
+                  agentsStates: {
+                    "child-frontend": { message: "继续检查测试", status: "completed" },
+                  },
+                  id: "collaboration-followup",
+                  model: null,
+                  prompt: "继续检查测试",
+                  reasoningEffort: null,
+                  receiverThreadIds: ["child-frontend"],
+                  senderThreadId: "task-1",
+                  status: "completed",
+                  tool: "followupTask",
+                  type: "collabAgentToolCall",
+                },
+                {
+                  agentPath: "/root/frontend_analysis",
+                  agentThreadId: "child-frontend",
+                  id: "subagent-completed",
+                  kind: "completed",
+                  type: "subAgentActivity",
+                },
               ],
               startedAt: 1_753_228_800,
               status: "completed",
@@ -413,7 +434,6 @@ describe("CodexAgentProvider goals and operations", () => {
       },
     ]);
     const provider = createCodexAgentProvider({ client: rpc, project });
-
     const snapshot = await provider.readTask("task-1");
 
     expect(snapshot?.turns[0]?.items).toEqual([
@@ -443,6 +463,34 @@ describe("CodexAgentProvider goals and operations", () => {
       {
         detail: "已启动",
         id: "subagent-started",
+        label: "子代理 frontend_analysis",
+        status: "completed",
+        type: "activity",
+      },
+      {
+        id: "collaboration-followup",
+        input: {
+          prompt: "继续检查测试",
+          receiverTaskIds: ["child-frontend"],
+          senderTaskId: "task-1",
+        },
+        name: "agent/followup_task",
+        output: {
+          agents: [
+            {
+              message: "继续检查测试",
+              nickname: "frontend_analysis",
+              status: "completed",
+              taskId: "child-frontend",
+            },
+          ],
+        },
+        status: "completed",
+        type: "tool",
+      },
+      {
+        detail: "已完成",
+        id: "subagent-completed",
         label: "子代理 frontend_analysis",
         status: "completed",
         type: "activity",

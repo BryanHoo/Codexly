@@ -36,6 +36,7 @@ describe("Codex permission server request mapping", () => {
           cwd: "/workspace/Codexly",
           environmentId: null,
           itemId: "command-item-1",
+          kind: "command",
           reason: "需要安装依赖",
           startedAtMs: 1_776_643_200_000,
           threadId: "task-1",
@@ -60,6 +61,38 @@ describe("Codex permission server request mapping", () => {
           },
           network: { enabled: true },
         },
+        kind: "command",
+        type: "command_approval",
+      },
+    });
+  });
+
+  it("distinguishes terminal input approvals", () => {
+    const entry = mapCodexServerRequest(
+      {
+        id: "stdin-1",
+        method: "item/commandExecution/requestApproval",
+        params: {
+          approvalId: "approval-stdin-1",
+          availableDecisions: ["accept", "decline"],
+          command: "confirm\n",
+          cwd: "/workspace/Codexly",
+          environmentId: null,
+          itemId: "command-item-1",
+          kind: "writeStdin",
+          reason: "需要向已运行终端发送输入",
+          startedAtMs: 1_776_643_200_000,
+          threadId: "task-1",
+          turnId: "turn-1",
+        },
+      },
+      project,
+    );
+
+    expect(entry).toMatchObject({
+      request: {
+        command: "confirm\n",
+        kind: "write_stdin",
         type: "command_approval",
       },
     });

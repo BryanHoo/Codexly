@@ -73,7 +73,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
           thread["id"] === unmaterializedTask.id &&
           thread["projectId"] === null
         ) {
-          // Codex 0.149 的内存快照会在首条消息落盘前暂时省略已分配的 projectId。
+          // Codex 0.151 的内存快照会在首条消息落盘前暂时省略已分配的 projectId。
           projectOwnershipVerified = true;
           this.promotePendingServerRequests(taskId);
           return createUnmaterializedTaskSnapshot(unmaterializedTask);

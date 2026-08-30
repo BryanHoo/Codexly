@@ -21,6 +21,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: null,
             resourceTemplates: [],
             resources: [],
+            runtimeStatus: "connected",
             serverInfo: null,
             tools: { browser_open: { description: "secret detail", inputSchema: {} } },
           },
@@ -35,6 +36,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: "plugin-fast-context",
             resourceTemplates: [],
             resources: [],
+            runtimeStatus: "connected",
             serverInfo: null,
             tools: {},
           },
@@ -44,6 +46,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: null,
             resourceTemplates: [],
             resources: [],
+            runtimeStatus: "connected",
             serverInfo: null,
             tools: {},
           },
@@ -154,6 +157,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: "plugin-fast-context",
             resourceTemplates: [],
             resources: [],
+            runtimeStatus: "connected",
             serverInfo: {
               description: "Semantic repository search at https://internal.example.com/docs",
               icons: null,
@@ -179,6 +183,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: "plugin-fast-context",
             resourceTemplates: [],
             resources: [],
+            runtimeStatus: "connected",
             serverInfo: {
               description: "Semantic repository search",
               icons: null,
@@ -270,6 +275,7 @@ describe("CodexAgentProvider MCP servers", () => {
           pluginId: null,
           resourceTemplates: [],
           resources: [],
+          runtimeStatus: "connected",
           serverInfo: null,
           tools: {},
         },
@@ -306,7 +312,40 @@ describe("CodexAgentProvider MCP servers", () => {
     );
   });
 
-  it("rejects MCP status entries without the 0.149.0 plugin ownership field", async () => {
+  it("maps the 0.151.0 MCP runtime connection status", async () => {
+    const rpc = new FakeRpcClient([
+      { thread: nativeThread() },
+      {
+        data: [
+          {
+            authStatus: "notLoggedIn",
+            name: "private-docs",
+            pluginId: null,
+            resourceTemplates: [],
+            resources: [],
+            runtimeStatus: "authenticationRequired",
+            serverInfo: null,
+            tools: {},
+          },
+        ],
+        nextCursor: null,
+      },
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+
+    await provider.startTask();
+    await expect(provider.listMcpServers("task-1")).resolves.toMatchObject({
+      data: [
+        {
+          failureReason: "reauthenticationRequired",
+          name: "private-docs",
+          status: "failed",
+        },
+      ],
+    });
+  });
+
+  it("rejects MCP status entries without the 0.151.0 plugin ownership field", async () => {
     const rpc = new FakeRpcClient([
       { thread: nativeThread() },
       {
@@ -316,6 +355,7 @@ describe("CodexAgentProvider MCP servers", () => {
             name: "incomplete-server",
             resourceTemplates: [],
             resources: [],
+            runtimeStatus: "connected",
             serverInfo: null,
             tools: {},
           },

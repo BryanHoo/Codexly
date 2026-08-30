@@ -311,6 +311,21 @@ describe("Codex realtime protocol mapping", () => {
       payload: { code: "connection_failed", httpStatusCode: 502, willRetry: true },
       type: "provider.error",
     });
+    expect(
+      mapNotification("error", {
+        error: {
+          additionalDetails: null,
+          codexErrorInfo: "rateLimitExceeded",
+          message: "请求过于频繁",
+        },
+        threadId: "task-1",
+        turnId: "turn-1",
+        willRetry: true,
+      }),
+    ).toMatchObject({
+      payload: { code: "rate_limit_exceeded", willRetry: true },
+      type: "provider.error",
+    });
   });
 
   it("rejects invalid strict review notification fields", () => {
