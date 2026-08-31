@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createAppUpdateService,
   extractVersionReleaseNotes,
+  installGlobalPackageSafely,
   isNewerVersion,
   resolveNpmInstallInvocation,
 } from "./app-update.js";
@@ -35,6 +36,43 @@ describe("app update service", () => {
       ],
       command: String.raw`C:\Program Files\nodejs\node.exe`,
     });
+  });
+
+  it("restores the installed package from a local backup when replacement fails", async () => {
+    const commands: string[][] = [];
+    const runNpm = vi.fn((args: readonly string[]) => {
+      commands.push([...args]);
+      if (args[0] === "pack") {
+        const source = args.at(-1) ?? "";
+        return Promise.resolve(
+          JSON.stringify([
+            {
+              filename: source.includes("@bryanhu/codexly@1.4.0")
+                ? "bryanhu-codexly-1.4.0.tgz"
+                : "bryanhu-codexly-1.3.0.tgz",
+            },
+          ]),
+        );
+      }
+      if (args[0] === "install" && args.at(-1)?.endsWith("1.4.0.tgz") === true) {
+        return Promise.reject(new Error("interrupted"));
+      }
+      return Promise.resolve("");
+    });
+
+    await expect(
+      installGlobalPackageSafely("1.4.0", {
+        currentPackageRoot: "/installed/codexly",
+        runNpm,
+      }),
+    ).rejects.toThrow("interrupted");
+
+    expect(commands.map((args) => [args[0], args.at(-1)])).toEqual([
+      ["pack", "/installed/codexly"],
+      ["pack", "@bryanhu/codexly@1.4.0"],
+      ["install", expect.stringMatching(/bryanhu-codexly-1\.4\.0\.tgz$/u)],
+      ["install", expect.stringMatching(/bryanhu-codexly-1\.3\.0\.tgz$/u)],
+    ]);
   });
 
   it("reports a newer validated registry version", async () => {

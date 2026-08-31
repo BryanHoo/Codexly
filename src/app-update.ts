@@ -1,5 +1,8 @@
 import { execFile } from "node:child_process";
-import { win32 } from "node:path";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, parse, resolve, win32 } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { AppInfoResponse, InstallAppUpdateResponse } from "@codexly/protocol";
 
@@ -46,6 +49,15 @@ type NpmInstallInvocation = Readonly<{
   args: readonly string[];
   command: string;
 }>;
+
+type RunNpmOptions = Readonly<{
+  signal?: AbortSignal;
+}>;
+
+export interface SafeGlobalInstallOptions {
+  currentPackageRoot?: string;
+  runNpm?: (args: readonly string[], options?: RunNpmOptions) => Promise<string>;
+}
 
 class UnpublishedPackageError extends Error {}
 
@@ -113,8 +125,16 @@ export function resolveNpmInstallInvocation(
   execPath = process.execPath,
 ): NpmInstallInvocation {
   const packageSpec = `${PACKAGE_NAME}@${version}`;
+  return resolveNpmCommandInvocation(["install", "--global", packageSpec], platform, execPath);
+}
+
+function resolveNpmCommandInvocation(
+  args: readonly string[],
+  platform: NodeJS.Platform = process.platform,
+  execPath = process.execPath,
+): NpmInstallInvocation {
   if (platform !== "win32") {
-    return { args: ["install", "--global", packageSpec], command: "npm" };
+    return { args, command: "npm" };
   }
   const npmCliPath = win32.join(
     win32.dirname(execPath),
@@ -124,7 +144,7 @@ export function resolveNpmInstallInvocation(
     "npm-cli.js",
   );
   return {
-    args: [npmCliPath, "install", "--global", packageSpec],
+    args: [npmCliPath, ...args],
     command: execPath,
   };
 }
@@ -178,20 +198,141 @@ async function fetchTaggedChangelog(version: string): Promise<string> {
   return response.text();
 }
 
-async function installGlobalPackage(version: string): Promise<void> {
-  const invocation = resolveNpmInstallInvocation(version);
-  await new Promise<void>((resolve, reject) => {
+async function runNpmCommand(
+  args: readonly string[],
+  options: RunNpmOptions = {},
+): Promise<string> {
+  const invocation = resolveNpmCommandInvocation(args);
+  return new Promise<string>((resolveCommand, reject) => {
     // Windows 直接交给 node.exe 执行 npm CLI，所有平台都不经过 shell。
     execFile(
       invocation.command,
       invocation.args,
-      { shell: false, timeout: INSTALL_TIMEOUT_MS, windowsHide: true },
-      (error) => {
-        if (error === null) resolve();
+      {
+        shell: false,
+        signal: options.signal,
+        timeout: INSTALL_TIMEOUT_MS,
+        windowsHide: true,
+      },
+      (error, stdout) => {
+        if (error === null) resolveCommand(stdout);
         else reject(new Error("npm install failed", { cause: error }));
       },
     );
   });
+}
+
+async function findCurrentPackageRoot(): Promise<string> {
+  let candidate = dirname(fileURLToPath(import.meta.url));
+  const root = parse(candidate).root;
+  while (candidate !== root) {
+    try {
+      const manifest: unknown = JSON.parse(await readFile(join(candidate, "package.json"), "utf8"));
+      if (
+        typeof manifest === "object" &&
+        manifest !== null &&
+        "name" in manifest &&
+        manifest.name === PACKAGE_NAME
+      ) {
+        return candidate;
+      }
+    } catch {
+      // 当前目录不是包根目录时继续向上查找。
+    }
+    candidate = dirname(candidate);
+  }
+  throw new Error("Unable to locate the installed Codexly package");
+}
+
+function readPackedArchivePath(output: string, temporaryDirectory: string): string {
+  const payload = JSON.parse(output) as unknown;
+  const entries = Array.isArray(payload) ? (payload as unknown[]) : [];
+  const first = entries[0];
+  if (
+    typeof first !== "object" ||
+    first === null ||
+    !("filename" in first) ||
+    typeof first.filename !== "string" ||
+    basename(first.filename) !== first.filename
+  ) {
+    throw new Error("npm pack returned an invalid archive name");
+  }
+  return resolve(temporaryDirectory, first.filename);
+}
+
+async function packPackage(
+  source: string,
+  temporaryDirectory: string,
+  runNpm: NonNullable<SafeGlobalInstallOptions["runNpm"]>,
+  signal: AbortSignal,
+): Promise<string> {
+  const output = await runNpm(
+    ["pack", "--ignore-scripts", "--json", "--pack-destination", temporaryDirectory, source],
+    { signal },
+  );
+  return readPackedArchivePath(output, temporaryDirectory);
+}
+
+export async function installGlobalPackageSafely(
+  version: string,
+  options: SafeGlobalInstallOptions = {},
+): Promise<void> {
+  const runNpm = options.runNpm ?? runNpmCommand;
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), "codexly-update-"));
+  const controller = new AbortController();
+  const abort = (): void => {
+    controller.abort(new Error("Codexly update interrupted"));
+  };
+  let backupArchive: string | undefined;
+  let replacementStarted = false;
+  process.once("SIGINT", abort);
+  process.once("SIGTERM", abort);
+
+  try {
+    const currentPackageRoot = options.currentPackageRoot ?? (await findCurrentPackageRoot());
+    // 先在临时目录保留旧版本并完整下载新版本，网络失败不会触碰现有安装。
+    backupArchive = await packPackage(
+      currentPackageRoot,
+      temporaryDirectory,
+      runNpm,
+      controller.signal,
+    );
+    const updateArchive = await packPackage(
+      `${PACKAGE_NAME}@${version}`,
+      temporaryDirectory,
+      runNpm,
+      controller.signal,
+    );
+    if (controller.signal.aborted) throw controller.signal.reason;
+    replacementStarted = true;
+    await runNpm(["install", "--global", updateArchive], { signal: controller.signal });
+  } catch (error) {
+    if (replacementStarted && backupArchive !== undefined) {
+      try {
+        // 回滚只读取本地归档，即使网络仍不可用也能恢复原命令。
+        await runNpm(["install", "--global", backupArchive]);
+      } catch (rollbackError) {
+        const updateMessage = error instanceof Error ? error.message : String(error);
+        const rollbackMessage =
+          rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
+        throw new Error(
+          `Codexly update failed: ${updateMessage}; rollback failed: ${rollbackMessage}`,
+          {
+            cause: rollbackError,
+          },
+        );
+      }
+    }
+    throw error;
+  } finally {
+    process.off("SIGINT", abort);
+    process.off("SIGTERM", abort);
+    await rm(temporaryDirectory, { force: true, recursive: true });
+  }
+}
+
+async function installGlobalPackage(version: string): Promise<void> {
+  await installGlobalPackageSafely(version);
 }
 
 export function createAppUpdateService(options: CreateAppUpdateServiceOptions): AppUpdateService {
