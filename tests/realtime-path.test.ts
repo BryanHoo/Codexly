@@ -138,6 +138,7 @@ function createServerOptions(provider: ReturnType<typeof createCodexRuntimeProvi
         status: "current" as const,
         updateAvailable: false,
       }),
+    readAppUpdateProgress: () => Promise.resolve({ progress: null }),
     settingsRepository: stateRepository,
     standaloneCwd: "/workspace/temporary",
   };

@@ -1,15 +1,6 @@
 // 统一协议、JSON Schema 与事件信封只能从此公开入口导出。
 export * from "./workbench-pets.js";
-export {
-  AppInfoResponseSchema,
-  AppUpdateStatusSchema,
-  InstallAppUpdateRequestSchema,
-  InstallAppUpdateResponseSchema,
-  type AppInfoResponse,
-  type AppUpdateStatus,
-  type InstallAppUpdateRequest,
-  type InstallAppUpdateResponse,
-} from "./app-update.js";
+export * from "./app-update.js";
 export {
   AccessModeSchema,
   AccessStatusResponseSchema,

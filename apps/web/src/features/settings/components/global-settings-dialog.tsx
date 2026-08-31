@@ -1,18 +1,14 @@
-import type {
-  AccessMode,
-  AgentGlobalSettings,
-  AgentModel,
-  AppInfoResponse,
-  ProjectOpenApp,
-} from "@codexly/protocol";
+import type { AgentGlobalSettings } from "@codexly/protocol";
 import { Settings, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../../shared/components/core/button.js";
 import { Dialog, DialogContent, DialogTitle } from "../../../shared/components/core/dialog.js";
-import { Tooltip } from "../../../shared/components/core/tooltip.js";
-import { TooltipContent } from "../../../shared/components/core/tooltip.js";
-import { TooltipTrigger } from "../../../shared/components/core/tooltip.js";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../../../shared/components/core/tooltip.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { changeAppLanguage, getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import { setThemePreference, type ThemePreference } from "../theme-preference.js";
@@ -47,33 +43,14 @@ import { ProviderConnectionPanel } from "../../provider-connection/components/pr
 import { GlobalSettingsPets } from "../../pets/components/global-settings-pets.js";
 import { useWorkbenchBackgroundDraft } from "./use-workbench-background-draft.js";
 import { GlobalSettingsBackground } from "./global-settings-background.js";
+import type { GlobalSettingsDialogProps } from "./global-settings-dialog-contracts.js";
 export { resolveGlobalSettingsModel } from "./global-settings-model.js";
-
-type GlobalSettingsDialogProps = Readonly<{
-  accessMode?: AccessMode;
-  appInfo?: AppInfoResponse;
-  appInfoError?: Error | null;
-  apps: readonly ProjectOpenApp[];
-  error: Error | null;
-  fastModeAvailable?: boolean;
-  initialSection?: SettingsSectionId;
-  isAppInfoPending?: boolean;
-  isAppUpdatePending?: boolean;
-  isPending: boolean;
-  models: readonly AgentModel[];
-  onClose: () => void;
-  onLogoutAccess?: () => Promise<void>;
-  onRetry: () => unknown;
-  onRetryAppInfo?: () => unknown;
-  onSave: (settings: AgentGlobalSettings) => Promise<void>;
-  onUpdate?: (version: string) => Promise<void>;
-  settings?: AgentGlobalSettings;
-}>;
 
 export function GlobalSettingsDialog({
   accessMode = "local",
   appInfo,
   appInfoError = null,
+  appUpdateProgress,
   apps,
   error,
   fastModeAvailable = false,
@@ -248,6 +225,7 @@ export function GlobalSettingsDialog({
                 isUpdatePending={isAppUpdatePending}
                 onRetry={onRetryAppInfo}
                 onUpdate={onUpdate}
+                {...(appUpdateProgress === undefined ? {} : { updateProgress: appUpdateProgress })}
               />
 
               {activeSection === "provider" ? (

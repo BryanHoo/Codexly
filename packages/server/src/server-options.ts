@@ -9,6 +9,7 @@ import type {
 } from "@codexly/core";
 import type {
   AppInfoResponse,
+  AppUpdateProgressResponse,
   CommitProjectChangesRequest,
   CommitProjectChangesResponse,
   DeleteProjectFileResponse,
@@ -62,6 +63,7 @@ export interface CreateCodexlyServerOptions {
   provider: AgentRuntimeProvider;
   petProvider: WorkbenchPetProvider;
   readAppInfo: () => Promise<AppInfoResponse>;
+  readAppUpdateProgress: () => Promise<AppUpdateProgressResponse>;
   settingsRepository: AgentSettingsRepository;
   standaloneCwd: string;
   commitProjectChanges?: (

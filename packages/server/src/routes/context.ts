@@ -12,6 +12,7 @@ import type {
 } from "@codexly/core";
 import type {
   AppInfoResponse,
+  AppUpdateProgressResponse,
   AgentAttachmentKind,
   AgentCapabilities,
   AgentGlobalSettings,
@@ -155,6 +156,7 @@ export interface ServerRouteContext {
     models?: readonly AgentModel[],
   ) => Promise<AgentGlobalSettings>;
   readonly readAppInfo: () => Promise<AppInfoResponse>;
+  readonly readAppUpdateProgress: () => Promise<AppUpdateProgressResponse>;
   readonly readEffectiveProjectDefaults: (
     projectId: string,
     models?: readonly AgentModel[],

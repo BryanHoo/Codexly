@@ -363,6 +363,7 @@ export async function createCodexlyServer(
     petProvider: options.petProvider,
     providerConnectionRepository: options.providerConnectionRepository,
     readAppInfo: options.readAppInfo,
+    readAppUpdateProgress: options.readAppUpdateProgress,
     readEffectiveGlobalSettings,
     readEffectiveProjectDefaults,
     readEffectiveTaskSettings,

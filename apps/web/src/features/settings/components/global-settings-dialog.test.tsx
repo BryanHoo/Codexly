@@ -226,7 +226,8 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).toContain("检查更新");
     expect(markup).toContain("更新日志");
     expect(markup).toContain("更新到 1.4.0");
-    expect(markup).toContain('class="flex min-w-0 flex-wrap items-center gap-2 py-2"');
+    expect(markup).toContain('class="min-w-0 py-2"');
+    expect(markup).toContain('class="flex min-w-0 flex-wrap items-center gap-2"');
     expect(markup).not.toContain('class="flex min-w-0 flex-col items-start gap-2 py-2"');
     expect(markup).toContain("https://github.com/BryanHoo/Codexly");
     expect(markup).toContain('target="_blank"');
@@ -279,6 +280,7 @@ describe("GlobalSettingsDialog", () => {
         isUpdatePending
         onRetry={vi.fn()}
         onUpdate={vi.fn()}
+        updateProgress={{ percent: 30, phase: "downloading" }}
       />,
     );
     const restartRequired = renderSettingsDialog(
@@ -312,6 +314,9 @@ describe("GlobalSettingsDialog", () => {
     );
 
     expect(updating).toContain("正在更新");
+    expect(updating).toContain("正在下载更新包");
+    expect(updating).toContain('role="progressbar"');
+    expect(updating).toContain('aria-valuenow="30"');
     expect(restartRequired).toContain("更新完成，重启 Codexly 后生效");
     expect(checkFailed).toContain("无法检查更新");
     expect(checkFailed).toContain("检查更新");

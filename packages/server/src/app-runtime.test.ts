@@ -161,12 +161,21 @@ describe("server runtime and core routes", () => {
         updateAvailable: false,
       };
     });
+    const readAppUpdateProgress = vi.fn(() =>
+      Promise.resolve({ progress: { percent: 30, phase: "downloading" as const } }),
+    );
     const app = await createCodexlyServer(
-      createServerOptions(provider, { handlerTimeoutMs: 10, installAppUpdate, readAppInfo }),
+      createServerOptions(provider, {
+        handlerTimeoutMs: 10,
+        installAppUpdate,
+        readAppInfo,
+        readAppUpdateProgress,
+      }),
     );
     closeCallbacks.push(() => app.close());
 
     const infoResponse = await app.inject({ method: "GET", url: "/v1/app-info" });
+    const progressResponse = await app.inject({ method: "GET", url: "/v1/app-update/progress" });
     const request = {
       headers: { "idempotency-key": "install-update-1" },
       method: "POST" as const,
@@ -177,6 +186,10 @@ describe("server runtime and core routes", () => {
     const repeatedResponse = await app.inject(request);
 
     expect(infoResponse.statusCode).toBe(200);
+    expect(progressResponse.statusCode).toBe(200);
+    expect(progressResponse.json()).toEqual({
+      progress: { percent: 30, phase: "downloading" },
+    });
     expect(infoResponse.json()).toEqual({
       appVersion: "1.3.0",
       codexVersion: "0.151.0",

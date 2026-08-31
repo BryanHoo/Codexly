@@ -5,6 +5,7 @@ import {
   AgentModelPageSchema,
   AgentMutationErrorSchema,
   AppInfoResponseSchema,
+  AppUpdateProgressResponseSchema,
   EventStreamMetricsResponseSchema,
   HealthResponseSchema,
   InstallAppUpdateRequestSchema,
@@ -40,6 +41,7 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
     modelCatalogCache,
     projectContexts,
     readAppInfo,
+    readAppUpdateProgress,
     readEffectiveGlobalSettings,
     runIdempotent,
     settingsRepository,
@@ -52,6 +54,12 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
 
   app.get("/v1/app-info", { schema: { response: { 200: AppInfoResponseSchema } } }, () =>
     readAppInfo(),
+  );
+
+  app.get(
+    "/v1/app-update/progress",
+    { schema: { response: { 200: AppUpdateProgressResponseSchema } } },
+    () => readAppUpdateProgress(),
   );
 
   app.get<{ Querystring: { day: string } }>(

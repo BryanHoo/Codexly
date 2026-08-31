@@ -159,20 +159,28 @@ describe("CodexlyClient settings and app routes", () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse(available))
+      .mockResolvedValueOnce(jsonResponse({ progress: { percent: 30, phase: "downloading" } }))
       .mockResolvedValueOnce(jsonResponse(installed));
     const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.getAppInfo()).resolves.toEqual(available);
+    await expect(client.getAppUpdateProgress()).resolves.toEqual({
+      progress: { percent: 30, phase: "downloading" },
+    });
     await expect(
       client.installAppUpdate("1.4.0", { idempotencyKey: "app-update-key" }),
     ).resolves.toEqual(installed);
 
-    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(["/v1/app-info", "/v1/app-update"]);
-    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      "/v1/app-info",
+      "/v1/app-update/progress",
+      "/v1/app-update",
+    ]);
+    expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({
       body: JSON.stringify({ version: "1.4.0" }),
       method: "POST",
     });
-    expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("idempotency-key")).toBe(
+    expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get("idempotency-key")).toBe(
       "app-update-key",
     );
   });

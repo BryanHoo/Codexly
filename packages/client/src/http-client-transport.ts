@@ -7,6 +7,7 @@ import {
   AgentProviderConnectionMutationResponseSchema,
   AgentProviderConnectionStatusSchema,
   AppInfoResponseSchema,
+  AppUpdateProgressResponseSchema,
   HealthResponseSchema,
   InstallAppUpdateResponseSchema,
   ConfigureCustomProviderResponseSchema,
@@ -25,6 +26,7 @@ import {
   type AgentProviderConnectionMutationResponse,
   type AgentProviderConnectionStatus,
   type AppInfoResponse,
+  type AppUpdateProgressResponse,
   type HealthResponse,
   type InstallAppUpdateResponse,
   type ConfigureCustomProviderRequest,
@@ -201,6 +203,10 @@ export class CodexlyTransport {
 
   public async getAppInfo(options: ReadOptions = {}): Promise<AppInfoResponse> {
     return this.read("/v1/app-info", AppInfoResponseSchema, options);
+  }
+
+  public async getAppUpdateProgress(options: ReadOptions = {}): Promise<AppUpdateProgressResponse> {
+    return this.read("/v1/app-update/progress", AppUpdateProgressResponseSchema, options);
   }
 
   public async installAppUpdate(

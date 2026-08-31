@@ -27,6 +27,7 @@ export function WorkbenchShellDialogs({
     access,
     appInfoQuery,
     appUpdateMutation,
+    appUpdateProgressQuery,
     client,
     closeTaskRenameDialog,
     globalSettingsMutation,
@@ -117,6 +118,10 @@ export function WorkbenchShellDialogs({
             initialSection={globalSettingsSection}
             isAppInfoPending={appInfoQuery.isPending}
             isAppUpdatePending={appUpdateMutation.isPending}
+            {...(appUpdateProgressQuery.data?.progress === null ||
+            appUpdateProgressQuery.data?.progress === undefined
+              ? {}
+              : { appUpdateProgress: appUpdateProgressQuery.data.progress })}
             models={models}
             onClose={() => {
               const triggerId =

@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 
 import { createAppUpdateService } from "./app-update.js";
+import type { AppUpdateProgress } from "@codexly/protocol";
 
 export const STARTUP_UPDATE_APPLIED_ENV = "CODEXLY_STARTUP_UPDATE_APPLIED";
 
@@ -12,7 +13,7 @@ export type StartupAppUpdateCheck = Readonly<{
 
 export function createStartupAppUpdateOperations(appVersion: string): {
   check: () => Promise<StartupAppUpdateCheck>;
-  install: (version: string) => Promise<void>;
+  install: (version: string, onProgress?: (progress: AppUpdateProgress) => void) => Promise<void>;
 } {
   const service = createAppUpdateService({
     appVersion,
@@ -32,10 +33,24 @@ export function createStartupAppUpdateOperations(appVersion: string): {
               : "current",
       };
     },
-    install: async (version) => {
-      await service.install(version);
+    install: async (version, onProgress) => {
+      await service.install(version, onProgress);
     },
   };
+}
+
+export function formatTerminalAppUpdateProgress(progress: AppUpdateProgress): string {
+  const labels: Record<AppUpdateProgress["phase"], string> = {
+    "backing-up": "正在备份当前版本",
+    checking: "正在确认最新版本",
+    completed: "更新安装完成",
+    downloading: "正在下载更新包",
+    installing: "正在安装新版本",
+    "rolling-back": "安装失败，正在恢复原版本",
+  };
+  const filled = Math.round(progress.percent / 5);
+  const bar = `${"█".repeat(filled)}${"░".repeat(20 - filled)}`;
+  return `[${bar}] ${String(progress.percent)}% ${labels[progress.phase]}`;
 }
 
 export async function confirmTerminalAppUpdate(

@@ -10,6 +10,7 @@ import type {
   ProjectRepository,
   WorkbenchPetProvider,
 } from "@codexly/core";
+import type { AppUpdateProgress } from "@codexly/protocol";
 import {
   checkCodexVersion,
   CodexProjectRepository,
@@ -40,6 +41,7 @@ import type { CreateServerInput } from "./cli-server-input.js";
 import {
   confirmTerminalAppUpdate,
   createStartupAppUpdateOperations,
+  formatTerminalAppUpdateProgress,
   restartCliAfterUpdate,
   STARTUP_UPDATE_APPLIED_ENV,
   type StartupAppUpdateCheck,
@@ -104,7 +106,10 @@ export interface CliDependencies {
   locateCodexBinary: (options?: LocateCodexBinaryOptions) => Promise<CodexBinary>;
   nodeVersion: string;
   openBrowser: (url: string) => Promise<void>;
-  installAppUpdate: (version: string) => Promise<void>;
+  installAppUpdate: (
+    version: string,
+    onProgress?: (progress: AppUpdateProgress) => void,
+  ) => Promise<void>;
   restartAfterUpdate: (args: readonly string[]) => Promise<number>;
   startCodexAppServer: (options?: StartCodexAppServerOptions) => Promise<CliManagedRuntime>;
   webRoot: string;
@@ -298,7 +303,9 @@ async function runStart(
       );
       if (shouldUpdate) {
         output.info(`正在更新 Codexly 到 ${update.latestVersion}...`);
-        await dependencies.installAppUpdate(update.latestVersion);
+        await dependencies.installAppUpdate(update.latestVersion, (progress) => {
+          output.info(formatTerminalAppUpdateProgress(progress));
+        });
         output.success(`Codexly 已更新到 ${update.latestVersion}，正在重新启动。`);
         return dependencies.restartAfterUpdate(["start", ...args]);
       }
@@ -363,6 +370,7 @@ async function runStart(
       petProvider,
       installAppUpdate: appUpdateService.install,
       readAppInfo: appUpdateService.read,
+      readAppUpdateProgress: appUpdateService.readProgress,
       queueRepository: stateRepository,
       settingsRepository: stateRepository,
       staticRoot: dependencies.webRoot,

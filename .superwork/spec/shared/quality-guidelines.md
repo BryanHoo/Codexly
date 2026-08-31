@@ -15,3 +15,4 @@ Capture contract and verification standards for this project.
 - `AgentMcpServer.tools` 传递稳定排序且不重复的可用工具名；消费者通过数组长度派生数量，不额外维护 `toolCount`。
 - `AgentGlobalSettings.pet` 使用严格联合契约：关闭时允许 `selectedPetId` 为空，开启时必须提供非空 `selectedPetId`。
 - 宠物资产以 SHA-256 内容标识寻址；下载和自定义资产加载必须校验路径边界、文件类型、尺寸和清单结构。
+- 应用更新进度使用 `AppUpdateProgress` 严格契约，终端与 Web 必须消费同一组阶段和 `0..100` 整数百分比；备份、下载、安装与回滚边界均需发布可观察状态。

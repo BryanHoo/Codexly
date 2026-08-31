@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, parse, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { AppInfoResponse, InstallAppUpdateResponse } from "@codexly/protocol";
+import type {
+  AppInfoResponse,
+  AppUpdateProgress,
+  AppUpdateProgressResponse,
+  InstallAppUpdateResponse,
+} from "@codexly/protocol";
 
 const PACKAGE_NAME = "@bryanhu/codexly";
 const INITIAL_APP_VERSION = "0.1.0";
@@ -28,8 +33,12 @@ export class AppUpdateError extends Error {
 }
 
 export interface AppUpdateService {
-  install: (version: string) => Promise<InstallAppUpdateResponse>;
+  install: (
+    version: string,
+    onProgress?: (progress: AppUpdateProgress) => void,
+  ) => Promise<InstallAppUpdateResponse>;
   read: () => Promise<AppInfoResponse>;
+  readProgress: () => Promise<AppUpdateProgressResponse>;
 }
 
 export interface CreateAppUpdateServiceOptions {
@@ -37,7 +46,10 @@ export interface CreateAppUpdateServiceOptions {
   codexVersion: string;
   fetchChangelog?: (version: string) => Promise<string>;
   fetchLatestVersion?: () => Promise<string>;
-  runNpmInstall?: (version: string) => Promise<void>;
+  runNpmInstall?: (
+    version: string,
+    onProgress?: (progress: AppUpdateProgress) => void,
+  ) => Promise<void>;
 }
 
 type ParsedVersion = Readonly<{
@@ -56,6 +68,7 @@ type RunNpmOptions = Readonly<{
 
 export interface SafeGlobalInstallOptions {
   currentPackageRoot?: string;
+  onProgress?: (progress: AppUpdateProgress) => void;
   runNpm?: (args: readonly string[], options?: RunNpmOptions) => Promise<string>;
 }
 
@@ -291,12 +304,14 @@ export async function installGlobalPackageSafely(
   try {
     const currentPackageRoot = options.currentPackageRoot ?? (await findCurrentPackageRoot());
     // 先在临时目录保留旧版本并完整下载新版本，网络失败不会触碰现有安装。
+    options.onProgress?.({ percent: 10, phase: "backing-up" });
     backupArchive = await packPackage(
       currentPackageRoot,
       temporaryDirectory,
       runNpm,
       controller.signal,
     );
+    options.onProgress?.({ percent: 30, phase: "downloading" });
     const updateArchive = await packPackage(
       `${PACKAGE_NAME}@${version}`,
       temporaryDirectory,
@@ -304,12 +319,14 @@ export async function installGlobalPackageSafely(
       controller.signal,
     );
     if (controller.signal.aborted) throw controller.signal.reason;
+    options.onProgress?.({ percent: 80, phase: "installing" });
     replacementStarted = true;
     await runNpm(["install", "--global", updateArchive], { signal: controller.signal });
   } catch (error) {
     if (replacementStarted && backupArchive !== undefined) {
       try {
         // 回滚只读取本地归档，即使网络仍不可用也能恢复原命令。
+        options.onProgress?.({ percent: 90, phase: "rolling-back" });
         await runNpm(["install", "--global", backupArchive]);
       } catch (rollbackError) {
         const updateMessage = error instanceof Error ? error.message : String(error);
@@ -331,8 +348,11 @@ export async function installGlobalPackageSafely(
   }
 }
 
-async function installGlobalPackage(version: string): Promise<void> {
-  await installGlobalPackageSafely(version);
+async function installGlobalPackage(
+  version: string,
+  onProgress?: (progress: AppUpdateProgress) => void,
+): Promise<void> {
+  await installGlobalPackageSafely(version, onProgress === undefined ? {} : { onProgress });
 }
 
 export function createAppUpdateService(options: CreateAppUpdateServiceOptions): AppUpdateService {
@@ -340,6 +360,7 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
   const fetchLatestVersion = options.fetchLatestVersion ?? fetchLatestPackageVersion;
   const runNpmInstall = options.runNpmInstall ?? installGlobalPackage;
   let installedVersion: string | undefined;
+  let updateProgress: AppUpdateProgress | null = null;
 
   const readLatest = async (): Promise<string> => {
     try {
@@ -356,20 +377,27 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
   };
 
   return {
-    async install(version) {
+    async install(version, onProgress) {
+      const publishProgress = (progress: AppUpdateProgress): void => {
+        updateProgress = progress;
+        onProgress?.(progress);
+      };
+      publishProgress({ percent: 5, phase: "checking" });
       const latestVersion = await readLatest();
       const requestedVersionIsAvailable =
         isNewerVersion(version, options.appVersion) && !isNewerVersion(version, latestVersion);
       if (!requestedVersionIsAvailable || !isNewerVersion(latestVersion, options.appVersion)) {
+        updateProgress = null;
         throw new AppUpdateError("UPDATE_NOT_AVAILABLE", "The requested update is not available");
       }
       try {
         // 检查后出现新发布时直接安装最新版本，避免旧页面请求因版本推进而失败。
-        await runNpmInstall(latestVersion);
+        await runNpmInstall(latestVersion, publishProgress);
       } catch {
         throw new AppUpdateError("UPDATE_INSTALL_FAILED", "Failed to install the Codexly update");
       }
       installedVersion = latestVersion;
+      publishProgress({ percent: 100, phase: "completed" });
       return {
         appVersion: options.appVersion,
         codexVersion: options.codexVersion,
@@ -378,6 +406,9 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
         status: "restart-required",
         updateAvailable: false,
       };
+    },
+    readProgress() {
+      return Promise.resolve({ progress: updateProgress });
     },
     async read() {
       let latestVersion: string;

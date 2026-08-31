@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AppUpdateProgress } from "@codexly/protocol";
 
 import {
   createAppUpdateService,
@@ -40,6 +41,7 @@ describe("app update service", () => {
 
   it("restores the installed package from a local backup when replacement fails", async () => {
     const commands: string[][] = [];
+    const progress: string[] = [];
     const runNpm = vi.fn((args: readonly string[]) => {
       commands.push([...args]);
       if (args[0] === "pack") {
@@ -63,6 +65,9 @@ describe("app update service", () => {
     await expect(
       installGlobalPackageSafely("1.4.0", {
         currentPackageRoot: "/installed/codexly",
+        onProgress: (update) => {
+          progress.push(`${update.phase}:${String(update.percent)}`);
+        },
         runNpm,
       }),
     ).rejects.toThrow("interrupted");
@@ -73,6 +78,45 @@ describe("app update service", () => {
       ["install", expect.stringMatching(/bryanhu-codexly-1\.4\.0\.tgz$/u)],
       ["install", expect.stringMatching(/bryanhu-codexly-1\.3\.0\.tgz$/u)],
     ]);
+    expect(progress).toEqual([
+      "backing-up:10",
+      "downloading:30",
+      "installing:80",
+      "rolling-back:90",
+    ]);
+  });
+
+  it("exposes current progress while an application update is running", async () => {
+    let finishInstall!: () => void;
+    const runNpmInstall = vi.fn(
+      (_version: string, onProgress?: (progress: AppUpdateProgress) => void) => {
+        onProgress?.({ percent: 30, phase: "downloading" });
+        return new Promise<void>((resolve) => {
+          finishInstall = resolve;
+        });
+      },
+    );
+    const service = createAppUpdateService({
+      appVersion: "1.3.0",
+      codexVersion: "0.151.0",
+      fetchLatestVersion: vi.fn(() => Promise.resolve("1.4.0")),
+      runNpmInstall,
+    });
+
+    await expect(service.readProgress()).resolves.toEqual({ progress: null });
+    const install = service.install("1.4.0");
+    await vi.waitFor(() => {
+      expect(runNpmInstall).toHaveBeenCalledOnce();
+    });
+    await expect(service.readProgress()).resolves.toEqual({
+      progress: { percent: 30, phase: "downloading" },
+    });
+
+    finishInstall();
+    await install;
+    await expect(service.readProgress()).resolves.toEqual({
+      progress: { percent: 100, phase: "completed" },
+    });
   });
 
   it("reports a newer validated registry version", async () => {
@@ -176,7 +220,7 @@ describe("app update service", () => {
       status: "restart-required",
       updateAvailable: false,
     });
-    expect(runNpmInstall).toHaveBeenCalledWith("1.4.0");
+    expect(runNpmInstall).toHaveBeenCalledWith("1.4.0", expect.any(Function));
 
     await expect(service.install("1.5.0")).rejects.toMatchObject({
       code: "UPDATE_NOT_AVAILABLE",
@@ -205,6 +249,6 @@ describe("app update service", () => {
       latestVersion: "1.5.0",
       status: "restart-required",
     });
-    expect(runNpmInstall).toHaveBeenCalledWith("1.5.0");
+    expect(runNpmInstall).toHaveBeenCalledWith("1.5.0", expect.any(Function));
   });
 });

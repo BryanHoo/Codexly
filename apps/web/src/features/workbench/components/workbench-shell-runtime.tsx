@@ -30,6 +30,7 @@ import { resolveProjectRootFromSelections } from "../../projects/project-root-se
 import {
   appInfoQueryOptions,
   appUpdateMutationOptions,
+  appUpdateProgressQueryOptions,
   globalSettingsMutationOptions,
   globalSettingsQueryOptions,
   mcpServersQueryOptions,
@@ -180,6 +181,9 @@ export function useWorkbenchShellRuntime({
       queryClient.setQueryData(["app-info"], response);
     },
   });
+  const appUpdateProgressQuery = useQuery(
+    appUpdateProgressQueryOptions(client, appUpdateMutation.isPending),
+  );
   const modelsQuery = useQuery(modelsQueryOptions(client));
   const providerConnectionQuery = useQuery(providerConnectionQueryOptions());
   const mcpServersQuery = useQuery(
@@ -391,6 +395,7 @@ export function useWorkbenchShellRuntime({
     activeTaskRenameLockRef,
     appInfoQuery,
     appUpdateMutation,
+    appUpdateProgressQuery,
     backgroundTerminals,
     beginNewChatSubmission,
     capabilities,

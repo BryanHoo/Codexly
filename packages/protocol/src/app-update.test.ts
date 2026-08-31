@@ -3,11 +3,31 @@ import { describe, expect, it } from "vitest";
 
 import {
   AppInfoResponseSchema,
+  AppUpdateProgressResponseSchema,
   InstallAppUpdateRequestSchema,
   InstallAppUpdateResponseSchema,
 } from "./app-update.js";
 
 describe("app update protocol", () => {
+  it("strictly validates application update progress", () => {
+    expect(
+      Value.Check(AppUpdateProgressResponseSchema, {
+        progress: { percent: 30, phase: "downloading" },
+      }),
+    ).toBe(true);
+    expect(Value.Check(AppUpdateProgressResponseSchema, { progress: null })).toBe(true);
+    expect(
+      Value.Check(AppUpdateProgressResponseSchema, {
+        progress: { percent: 101, phase: "downloading" },
+      }),
+    ).toBe(false);
+    expect(
+      Value.Check(AppUpdateProgressResponseSchema, {
+        progress: { percent: 30, phase: "unknown" },
+      }),
+    ).toBe(false);
+  });
+
   it("strictly validates application information", () => {
     expect(
       Value.Check(AppInfoResponseSchema, {

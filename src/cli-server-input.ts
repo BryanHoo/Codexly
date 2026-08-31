@@ -20,6 +20,7 @@ export interface CreateServerInput {
   providerConnectionRepository: AgentProviderConnectionRepository;
   queueRepository: AgentQueueRepository;
   readAppInfo: ReturnType<typeof createAppUpdateService>["read"];
+  readAppUpdateProgress: ReturnType<typeof createAppUpdateService>["readProgress"];
   settingsRepository: AgentSettingsRepository;
   staticRoot: string;
   standaloneCwd: string;

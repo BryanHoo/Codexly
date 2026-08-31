@@ -479,6 +479,7 @@ describe("server task mutations", () => {
           updateAvailable: false,
         }),
       ),
+      readAppUpdateProgress: vi.fn(() => Promise.resolve({ progress: null })),
       settingsRepository: stateRepository,
     });
     closeCallbacks.push(() => app.close());

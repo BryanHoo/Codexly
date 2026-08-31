@@ -216,6 +216,7 @@ export function createServerOptions(
         updateAvailable: false,
       }),
     ),
+    readAppUpdateProgress: vi.fn(() => Promise.resolve({ progress: null })),
     settingsRepository: stateRepository,
     standaloneCwd: temporaryProject.rootPath,
     ...overrides,

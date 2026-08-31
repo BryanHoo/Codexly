@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AppUpdateProgress } from "@codexly/protocol";
 import { runCli } from "./cli-command.js";
 import { STARTUP_UPDATE_APPLIED_ENV } from "./cli-startup-update.js";
 import { createHarness } from "./cli-command.test-support.js";
@@ -33,10 +34,14 @@ describe("runCli updates", () => {
         Promise.resolve({ latestVersion: "1.3.0", status: "available" as const }),
       ),
       confirmAppUpdate: vi.fn(() => Promise.resolve(true)),
-      installAppUpdate: vi.fn(() => {
-        lifecycle.push("update.install");
-        return Promise.resolve();
-      }),
+      installAppUpdate: vi.fn(
+        (_version: string, onProgress?: (progress: AppUpdateProgress) => void) => {
+          lifecycle.push("update.install");
+          onProgress?.({ percent: 30, phase: "downloading" });
+          onProgress?.({ percent: 80, phase: "installing" });
+          return Promise.resolve();
+        },
+      ),
       restartAfterUpdate: vi.fn((args) => {
         lifecycle.push("cli.restart");
         expect(args).toEqual(["start", "--port", "4567"]);
@@ -47,10 +52,15 @@ describe("runCli updates", () => {
     await expect(runCli(["start", "--port", "4567"], harness.options)).resolves.toBe(0);
 
     expect(lifecycle).toEqual(["update.install", "cli.restart"]);
-    expect(harness.dependencies.installAppUpdate).toHaveBeenCalledWith("1.3.0");
+    expect(harness.dependencies.installAppUpdate).toHaveBeenCalledWith(
+      "1.3.0",
+      expect.any(Function),
+    );
     expect(harness.dependencies.createStateRepository).not.toHaveBeenCalled();
     expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
     expect(harness.stdout.join("")).toContain("Codexly 已更新到 1.3.0");
+    expect(harness.stdout.join("")).toContain("[██████░░░░░░░░░░░░░░] 30% 正在下载更新包");
+    expect(harness.stdout.join("")).toContain("[████████████████░░░░] 80% 正在安装新版本");
   });
 
   it("skips the startup update check in the restarted process", async () => {

@@ -14,7 +14,6 @@ import { infiniteQueryOptions, mutationOptions, queryOptions } from "@tanstack/r
 import {
   codexlyClient,
   type CodexlyCapabilitiesClient,
-  type CodexlyAppUpdateClient,
   type CodexlyModelsClient,
   type CodexlySettingsClient,
   type CodexlySkillsClient,
@@ -124,22 +123,6 @@ export function modelsQueryOptions(client: CodexlyModelsClient = codexlyClient) 
     queryFn: ({ signal }) => client.listModels({ signal }),
     queryKey: ["models"] as const,
     staleTime: 5 * 60_000,
-  });
-}
-
-export function appInfoQueryOptions(client: CodexlyAppUpdateClient = codexlyClient) {
-  return queryOptions({
-    queryFn: ({ signal }) => client.getAppInfo({ signal }),
-    queryKey: ["app-info"] as const,
-    staleTime: 5 * 60_000,
-  });
-}
-
-export function appUpdateMutationOptions(client: CodexlyAppUpdateClient = codexlyClient) {
-  return mutationOptions({
-    mutationFn: (version: string) => client.installAppUpdate(version),
-    mutationKey: ["app-update", "install"] as const,
-    scope: { id: "app-update" },
   });
 }
 

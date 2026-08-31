@@ -56,7 +56,10 @@ export type CodexlyBackgroundTerminalClient = Pick<
 >;
 export type CodexlyCapabilitiesClient = Pick<CodexlyClient, "getCapabilities">;
 export type CodexlyModelsClient = Pick<CodexlyClient, "listModels">;
-export type CodexlyAppUpdateClient = Pick<CodexlyClient, "getAppInfo" | "installAppUpdate">;
+export type CodexlyAppUpdateClient = Pick<
+  CodexlyClient,
+  "getAppInfo" | "getAppUpdateProgress" | "installAppUpdate"
+>;
 export type CodexlyMcpServersClient = Pick<CodexlyClient, "listMcpServers">;
 export type CodexlyMcpServersMutationClient = Pick<CodexlyClient, "retryMcpServers">;
 export type CodexlySkillsClient = Pick<CodexlyClient, "listSkills">;
