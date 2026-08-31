@@ -298,7 +298,7 @@ describe("CodexAgentProvider ownership and resume", () => {
     ]);
     expect(rpc.calls[3]).toEqual({
       method: "thread/resume",
-      params: { runtimeWorkspaceRoots: [projectRootPath], threadId: "task-1" },
+      params: { excludeTurns: true, runtimeWorkspaceRoots: [projectRootPath], threadId: "task-1" },
     });
     expect(rpc.calls[4]).toMatchObject({
       method: "turn/start",

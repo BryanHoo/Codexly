@@ -277,6 +277,7 @@ describe("CodexAgentProvider mutations", () => {
       {
         method: "thread/fork",
         params: {
+          excludeTurns: true,
           lastTurnId: "turn-1",
           runtimeWorkspaceRoots: [projectRootPath],
           threadId: "task-1",

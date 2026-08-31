@@ -430,6 +430,8 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
     const resumePromise = (async () => {
       const response = expectRecord(
         await this.client.request("thread/resume", {
+          // 恢复只负责加载运行时，Snapshot 历史继续通过分页接口获取。
+          excludeTurns: true,
           // 恢复 Project Task 时覆盖旧运行时配置，使全部根立即生效。
           ...(this.project.kind === "project"
             ? { runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots] }

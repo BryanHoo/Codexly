@@ -341,13 +341,13 @@ export abstract class CodexAgentProviderBase {
       "thread/compact/start response",
     );
   }
-
   public async forkTask(taskId: string, lastTurnId?: string): Promise<AgentTask> {
     this.assertKnownProjectTask(taskId);
     const response = expectRecord(
       await this.client.request("thread/fork", {
+        // 仅返回元数据并覆盖完整运行时根；历史统一分页读取，避免单个 JSONL 帧过大。
+        excludeTurns: true,
         ...(lastTurnId === undefined ? {} : { lastTurnId }),
-        // Fork 必须使用当前 Project 的完整运行时根，不能继承旧 Thread 的单根配置。
         ...(this.project.kind === "project"
           ? { runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots] }
           : {}),
