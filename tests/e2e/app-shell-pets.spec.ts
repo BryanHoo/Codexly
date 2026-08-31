@@ -27,7 +27,7 @@ test("saves pet settings without waiting for the asset download", async ({ page 
   await dialog.getByRole("checkbox", { name: "启用工作台宠物" }).click();
   await expect.poll(() => petRequests).toContain("POST /v1/pets/downloads");
 
-  const save = dialog.getByRole("button", { name: "保存全局默认" });
+  const save = dialog.getByRole("button", { exact: true, name: "保存" });
   await expect(save).toBeEnabled();
   await save.click();
   await expect.poll(() => petRequests).toContain("PUT /v1/settings");
@@ -54,7 +54,7 @@ test("downloads, renders, moves, and restores the workbench pet", async ({ page 
   await expect(dialog.getByText("已就绪")).toBeVisible();
   await expect(dialog.getByRole("radio", { name: /Codex/u }).locator("canvas")).toHaveCount(1);
   await dialog.getByRole("checkbox", { name: "启用工作台宠物" }).click();
-  await dialog.getByRole("button", { name: "保存全局默认" }).click();
+  await dialog.getByRole("button", { exact: true, name: "保存" }).click();
 
   const pet = page.getByRole("button", { name: "移动工作台宠物 Codex" });
   await expect(pet).toBeVisible();

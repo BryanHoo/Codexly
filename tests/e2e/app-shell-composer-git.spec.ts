@@ -17,10 +17,14 @@ test("switches branches from the composer footer", async ({ page }) => {
   });
   await expect(trigger).toBeVisible();
   await trigger.click();
-  const currentBranch = page.getByRole("menuitemradio", { name: "feat/review-targets" });
-  const mainBranch = page.getByRole("menuitemradio", { name: "main", exact: true });
-  await expect(currentBranch).toBeDisabled();
-  await expect(currentBranch).toHaveAttribute("data-state", "checked");
+  const branchMenu = page.getByRole("menu", {
+    name: "切换分支，当前分支 feat/review-targets",
+  });
+  await expect(branchMenu.getByRole("menuitemradio", { name: "feat/review-targets" })).toHaveCount(
+    0,
+  );
+  const mainBranch = branchMenu.getByRole("menuitemradio", { name: "main", exact: true });
+  await expect(mainBranch).toBeEnabled();
   await mainBranch.click();
 
   await expect(page.getByRole("button", { name: "切换分支，当前分支 main" })).toBeVisible();

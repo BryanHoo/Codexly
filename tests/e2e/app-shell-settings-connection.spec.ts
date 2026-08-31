@@ -107,14 +107,14 @@ test("defaults appearance to automatic and follows the system color scheme", asy
   await page.emulateMedia({ colorScheme: "dark" });
   await page.emulateMedia({ colorScheme: "light" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await dialog.getByRole("button", { name: "保存全局默认" }).click();
+  await dialog.getByRole("button", { exact: true, name: "保存" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const reopenedDialog = page.getByRole("dialog", { name: "全局设置" });
   await reopenedDialog.getByRole("button", { name: "自动模式" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await reopenedDialog.getByRole("button", { name: "保存全局默认" }).click();
+  await reopenedDialog.getByRole("button", { exact: true, name: "保存" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
@@ -130,7 +130,7 @@ test("defaults appearance to automatic and follows the system color scheme", asy
       }),
     ).toBe(true);
   }
-  await languageDialog.getByRole("button", { name: "保存全局默认" }).click();
+  await languageDialog.getByRole("button", { exact: true, name: "保存" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 });
 
@@ -138,18 +138,23 @@ test("applies and restores a custom workbench background", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const dialog = page.getByRole("dialog", { name: "全局设置" });
+  await dialog.getByRole("button", { name: "工作台背景" }).click();
   await dialog.getByRole("button", { name: "自定义工作台背景" }).click();
-  await dialog.getByLabel("上传自定义背景图片").setInputFiles("docs/images/codexly-preview.png");
+  await dialog.locator('input[type="file"]').setInputFiles("docs/images/codexly-preview.png");
   await dialog.getByRole("slider", { name: "壁纸遮罩不透明度" }).fill("35");
-  await dialog.getByRole("button", { name: "保存全局默认" }).click();
+  await dialog.getByRole("button", { exact: true, name: "保存" }).click();
 
   const background = page.locator("[data-workbench-background]");
   await expect(background).toHaveAttribute("data-background-mode", "custom");
   await expect(background).toHaveAttribute("data-has-image", "true");
-  await expect(page.locator('[data-workbench-background-image="true"]')).toHaveAttribute(
-    "src",
-    /^blob:/u,
-  );
+  const backgroundCanvas = page.locator('[data-workbench-background-canvas="true"]');
+  await expect(backgroundCanvas).toHaveCSS("opacity", "1");
+  const canvasSize = await backgroundCanvas.evaluate((element) => ({
+    height: (element as HTMLCanvasElement).height,
+    width: (element as HTMLCanvasElement).width,
+  }));
+  expect(canvasSize.height).toBeGreaterThan(0);
+  expect(canvasSize.width).toBeGreaterThan(0);
   await expect(page.locator('[data-workbench-background-overlay="true"]')).toHaveCSS(
     "opacity",
     "0.35",
@@ -180,7 +185,11 @@ test("applies and restores a custom workbench background", async ({ page }) => {
     .getByRole("button", { exact: true, name: "审核" })
     .click();
   const reviewDialog = page.getByRole("dialog");
-  await expect(reviewDialog).toHaveCSS("background-color", transparentSurface);
+  const reviewDialogBackgroundAlpha = parseCssAlpha(
+    await reviewDialog.evaluate((element) => getComputedStyle(element).backgroundColor),
+  );
+  expect(reviewDialogBackgroundAlpha).toBeGreaterThanOrEqual(0.94);
+  expect(reviewDialogBackgroundAlpha).toBeLessThanOrEqual(0.96);
   await expect(reviewDialog.getByRole("region", { name: "审核文件内容" })).toHaveCSS(
     "background-color",
     transparentSurface,
@@ -195,9 +204,11 @@ test("applies and restores a custom workbench background", async ({ page }) => {
   await page.reload();
   await expect(background).toHaveAttribute("data-background-mode", "custom");
   await expect(background).toHaveAttribute("data-has-image", "true");
-  const restoredImageSource = await page
-    .locator('[data-workbench-background-image="true"]')
-    .getAttribute("src");
+  await expect(backgroundCanvas).toHaveCSS("opacity", "1");
+  const restoredPreference = await page.evaluate(() =>
+    localStorage.getItem("codexly.workbench-background-preference"),
+  );
+  expect(restoredPreference).not.toBeNull();
   expect(await page.locator("body").evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(
     true,
   );
@@ -209,17 +220,20 @@ test("applies and restores a custom workbench background", async ({ page }) => {
   const settingsDialogBackgroundAlpha = parseCssAlpha(
     await reopenedDialog.evaluate((element) => getComputedStyle(element).backgroundColor),
   );
-  expect(settingsDialogBackgroundAlpha).toBeGreaterThanOrEqual(0.88);
-  expect(settingsDialogBackgroundAlpha).toBeLessThanOrEqual(0.92);
+  expect(settingsDialogBackgroundAlpha).toBeGreaterThanOrEqual(0.94);
+  expect(settingsDialogBackgroundAlpha).toBeLessThanOrEqual(0.96);
+  await reopenedDialog.getByRole("button", { name: "工作台背景" }).click();
   await reopenedDialog.getByRole("button", { name: "自定义工作台背景" }).click();
   await reopenedDialog
-    .getByLabel("上传自定义背景图片")
+    .locator('input[type="file"]')
     .setInputFiles("docs/images/codexly-preview.png");
-  await reopenedDialog.getByRole("button", { name: "保存全局默认" }).click();
-  await expect(page.locator('[data-workbench-background-image="true"]')).not.toHaveAttribute(
-    "src",
-    restoredImageSource ?? "",
-  );
+  await reopenedDialog.getByRole("button", { exact: true, name: "保存" }).click();
+  await expect(background).toHaveAttribute("data-has-image", "true");
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem("codexly.workbench-background-preference")),
+    )
+    .not.toBe(restoredPreference);
 });
 
 test("edits global defaults in a dialog without overriding task settings", async ({ page }) => {
@@ -255,7 +269,7 @@ test("edits global defaults in a dialog without overriding task settings", async
   await dialog.getByRole("textbox", { name: "提交提示词" }).fill("突出用户可见影响。");
   await dialog.getByRole("button", { name: "应用集成" }).click();
   await dialog.getByRole("combobox", { name: "默认打开方式" }).selectOption("finder");
-  await dialog.getByRole("button", { name: "保存全局默认" }).click();
+  await dialog.getByRole("button", { exact: true, name: "保存" }).click();
 
   await expect(dialog).toHaveCount(0);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -327,7 +341,7 @@ test("saves browser preferences only with global settings", async ({ page }) => 
   );
   await reopenedChineseDialog.getByRole("combobox", { name: "语言" }).selectOption("en");
   await reopenedChineseDialog.getByRole("combobox", { name: "通知" }).selectOption("disabled");
-  await reopenedChineseDialog.getByRole("button", { name: "保存全局默认" }).click();
+  await reopenedChineseDialog.getByRole("button", { exact: true, name: "保存" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   expect(await page.evaluate(() => localStorage.getItem("codexly.notification-preference"))).toBe(
