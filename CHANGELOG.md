@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-31
+
+### 新增
+
+- 添加应用更新进度查询与展示，实时呈现备份、下载、安装、回滚和完成状态。
+
+### 修复
+
+- 安全执行全局更新，使用本地归档支持失败回滚，并在更新中断后清理临时文件。
+
+### 工程
+
+- 升级 `better-sqlite3` 至 `13.0.3`。
+
 ## [0.10.0] - 2026-08-31
 
 ### 新增
@@ -176,7 +190,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.0
 [0.10.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.10.0
 [0.9.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.9.0
 [0.8.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.8.0
