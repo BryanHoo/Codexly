@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Vite-8-646cff" alt="Vite" />
   <img src="https://img.shields.io/badge/Fastify-5-000000" alt="Fastify" />
-  <img src="https://img.shields.io/badge/OpenAI_Codex-0.149-412991" alt="OpenAI Codex" />
+  <img src="https://img.shields.io/badge/OpenAI_Codex-0.151-412991" alt="OpenAI Codex" />
   <a href="./LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-0f766e" alt="MIT" />
   </a>

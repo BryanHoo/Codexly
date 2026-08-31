@@ -4,9 +4,15 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-31
+
 ### 新增
 
 - 支持 Codex `0.151.0` 的函数调用输出、多 Agent 跟进与消息工具、子代理完成活动，以及 `writeStdin` 审批展示。
+
+### 优化
+
+- 使用 Canvas 按物理像素尺寸预处理工作台背景，优化图片解码、模糊处理和连续调整大小时的重绘性能。
 
 ### 修复
 
@@ -170,7 +176,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.10.0
 [0.9.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.9.0
 [0.8.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.8.0
 [0.7.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.7.0
