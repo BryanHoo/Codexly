@@ -87,13 +87,13 @@ describe("server attachments and catalogs", () => {
       data: [
         expect.objectContaining({
           name: "fast-context",
-          status: "ready",
-          tools: ["search_code", "read_file"],
+          status: "connected",
+          toolCount: 2,
         }),
         expect.objectContaining({
           name: "chrome-devtools",
-          status: "ready",
-          tools: ["search_code", "read_file"],
+          status: "connected",
+          toolCount: 2,
         }),
       ],
     });

@@ -78,26 +78,16 @@ describe("project agent input protocol", () => {
       Value.Check(AgentMcpServerPageSchema, {
         data: [
           {
-            authStatus: "unknown",
-            description: "Search the current repository",
-            error: null,
-            failureReason: null,
+            displayName: "Fast Context",
             name: "fast-context",
-            status: "ready",
-            title: "Fast Context",
-            tools: ["search_code", "read_file", "list_directory"],
-            version: "1.2.0",
+            status: "connected",
+            toolCount: 3,
           },
           {
-            authStatus: null,
-            description: null,
-            error: "MCP startup timed out after 10s",
-            failureReason: null,
+            displayName: "chrome-devtools",
             name: "chrome-devtools",
             status: "failed",
-            title: null,
-            tools: [],
-            version: null,
+            toolCount: 0,
           },
         ],
       }),
@@ -106,16 +96,11 @@ describe("project agent input protocol", () => {
       Value.Check(AgentMcpServerPageSchema, {
         data: [
           {
-            authStatus: "unsupported",
             command: "npx",
-            description: null,
-            error: null,
-            failureReason: null,
+            displayName: "fast-context",
             name: "fast-context",
-            status: "ready",
-            title: null,
-            tools: ["search_code"],
-            version: null,
+            status: "connected",
+            toolCount: 1,
           },
         ],
       }),
@@ -125,15 +110,10 @@ describe("project agent input protocol", () => {
       Value.Check(ReloadAgentMcpServersResponseSchema, {
         data: [
           {
-            authStatus: null,
-            description: null,
-            error: null,
-            failureReason: null,
+            displayName: "fast-context",
             name: "fast-context",
             status: "starting",
-            title: null,
-            tools: [],
-            version: null,
+            toolCount: 0,
           },
         ],
       }),
@@ -142,19 +122,14 @@ describe("project agent input protocol", () => {
       Value.Check(AgentMcpServerPageSchema, {
         data: [
           {
-            authStatus: null,
-            description: null,
-            error: null,
-            failureReason: null,
+            displayName: "fast-context",
             name: "fast-context",
             status: "unknown",
-            title: null,
-            tools: [],
-            version: null,
+            toolCount: 0,
           },
         ],
       }),
-    ).toBe(false);
+    ).toBe(true);
 
     expect(
       Value.Check(AgentModelPageSchema, {

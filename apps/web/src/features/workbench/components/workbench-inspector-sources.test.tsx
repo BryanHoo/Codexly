@@ -102,8 +102,8 @@ describe("WorkbenchInspector sources", () => {
         gitStatus={gitStatus}
         mcpServers={[
           readyMcpServer,
-          { ...readyMcpServer, authStatus: "unsupported", name: "chrome-devtools" },
-          { ...readyMcpServer, authStatus: "unknown", name: "remote-context" },
+          { ...readyMcpServer, displayName: "Chrome DevTools", name: "chrome-devtools" },
+          { ...readyMcpServer, displayName: "Remote Context", name: "remote-context" },
         ]}
         projectName="Codexly"
         projectPath="/workspace/Codexly"
@@ -151,14 +151,14 @@ describe("WorkbenchInspector sources", () => {
     );
 
     expect(markup).toContain('aria-label="MCP"');
-    expect(markup).toContain("fast-context");
-    expect(markup).toContain("chrome-devtools");
-    expect(markup).toContain("remote-context");
-    expect(markup).toContain("已就绪");
+    expect(markup).toContain("Fast Context");
+    expect(markup).toContain("Chrome DevTools");
+    expect(markup).toContain("Remote Context");
+    expect(markup).toContain("已连接");
     expect(markup).toContain("2 个工具");
-    expect(markup).toContain("OAuth");
-    expect(markup).toContain("认证状态未知");
-    expect(markup).toContain("版本 1.2.0");
+    expect(markup).not.toContain("OAuth");
+    expect(markup).not.toContain("认证状态未知");
+    expect(markup).not.toContain("版本 1.2.0");
     expect(markup).toContain('aria-label="重新加载 MCP"');
     expect(markup).not.toContain("gpt-5.6-sol");
     expect(markup).not.toContain("自动审批");
@@ -233,11 +233,11 @@ describe("WorkbenchInspector sources", () => {
     expect(emptyMarkup).not.toContain('aria-label="来源"');
   });
 
-  it("limits MCP servers to five rows and exposes the exact tool names", () => {
+  it("limits MCP servers to five compact summary rows", () => {
     const servers = Array.from({ length: 6 }, (_, index) => ({
       ...readyMcpServer,
       name: `mcp-tool-${String(index + 1)}`,
-      title: `MCP Tool ${String(index + 1)}`,
+      displayName: `MCP Tool ${String(index + 1)}`,
     }));
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
@@ -251,26 +251,20 @@ describe("WorkbenchInspector sources", () => {
 
     expect(markup.match(/data-mcp-server-row=/gu)).toHaveLength(5);
     expect(markup).toContain('aria-label="mcp-tool-1"');
-    expect(markup).toContain('aria-description="search_code · read_file"');
-    expect(markup).not.toContain('aria-description="mcp-tool-1"');
+    expect(markup).not.toContain("search_code");
+    expect(markup).not.toContain("read_file");
     expect(markup).toContain("transition-colors");
     expect(markup).toContain("hover:bg-control-hover");
     expect(markup).not.toContain('aria-label="mcp-tool-6"');
     expect(markup).toContain(">显示更多</button>");
   });
 
-  it("positions source and MCP tooltips above their rows", () => {
+  it("positions source tooltips above their rows", () => {
     const sourceModule = readFileSync(
       new URL("./workbench-inspector-sources.tsx", import.meta.url),
       "utf8",
     );
-    const mcpModule = readFileSync(
-      new URL("./workbench-inspector-sections.tsx", import.meta.url),
-      "utf8",
-    );
-
     expect(sourceModule).toContain('<TooltipContent side="top">{source.tooltip}</TooltipContent>');
-    expect(mcpModule).toContain('<TooltipContent side="top">{toolNames}</TooltipContent>');
   });
 
   it("reuses timeline image preview and file download actions for attachment sources", () => {
@@ -357,22 +351,38 @@ describe("WorkbenchInspector sources", () => {
       );
 
     const failedMarkup = renderState([
-      {
-        authStatus: null,
-        description: null,
-        error: "MCP startup timed out after 10s\nProcess exited with code 1",
-        failureReason: "reauthenticationRequired",
-        name: "docs",
-        status: "failed",
-        title: null,
-        tools: [],
-        version: null,
-      },
+      { displayName: "Docs", name: "docs", status: "failed", toolCount: 0 },
     ]);
     expect(failedMarkup).toContain("启动失败");
-    expect(failedMarkup).toContain("需要重新认证");
-    expect(failedMarkup).toContain("查看错误日志");
-    expect(failedMarkup).toContain("MCP startup timed out after 10s");
+    expect(failedMarkup).toContain("0 个工具");
+    expect(failedMarkup).not.toContain("查看错误日志");
     expect(renderState([])).not.toContain('aria-label="MCP"');
+  });
+
+  it("renders every Codex 0.151 MCP connection status", () => {
+    const statuses = [
+      ["notStarted", "未启动"],
+      ["starting", "正在启动"],
+      ["connected", "已连接"],
+      ["authenticationRequired", "需要认证"],
+      ["failed", "启动失败"],
+      ["cancelled", "已取消"],
+      ["disabled", "已禁用"],
+      ["unknown", "状态未知"],
+    ] as const;
+
+    for (const [status, label] of statuses) {
+      const markup = renderInspectorMarkup(
+        <WorkbenchInspector
+          mcpServers={[{ displayName: status, name: status, status, toolCount: 0 }]}
+          projectName="Codexly"
+          projectPath="/workspace/Codexly"
+          tab="context"
+          taskId="task-1"
+        />,
+      );
+      expect(markup).toContain(`data-mcp-status="${status}"`);
+      expect(markup).toContain(label);
+    }
   });
 });

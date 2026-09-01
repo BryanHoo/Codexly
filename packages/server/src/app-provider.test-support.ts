@@ -47,15 +47,10 @@ export function createProvider() {
   const listMcpServers = vi.fn(() =>
     Promise.resolve({
       data: ["fast-context", "chrome-devtools"].map((name) => ({
-        authStatus: "unsupported" as const,
-        description: null,
-        error: null,
-        failureReason: null,
+        displayName: name,
         name,
-        status: "ready" as const,
-        title: null,
-        tools: ["search_code", "read_file"],
-        version: "1.0.0",
+        status: "connected" as const,
+        toolCount: 2,
       })),
     }),
   );
@@ -63,15 +58,10 @@ export function createProvider() {
     Promise.resolve({
       data: [
         {
-          authStatus: null,
-          description: null,
-          error: null,
-          failureReason: null,
+          displayName: "fast-context",
           name: "fast-context",
           status: "starting" as const,
-          title: null,
-          tools: [],
-          version: null,
+          toolCount: 0,
         },
       ],
     }),

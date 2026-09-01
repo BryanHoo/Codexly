@@ -373,15 +373,10 @@ describe("project Git queries", () => {
 
   it("loads readable MCP servers with a task-scoped query key", async () => {
     const server = {
-      authStatus: "unsupported" as const,
-      description: null,
-      error: null,
-      failureReason: null,
+      displayName: "Fast Context",
       name: "fast-context",
-      status: "ready" as const,
-      title: null,
-      tools: ["search_code", "read_file"],
-      version: "1.0.0",
+      status: "connected" as const,
+      toolCount: 2,
     };
     const listMcpServers = vi.fn<CodexlyMcpServersClient["listMcpServers"]>(() =>
       Promise.resolve({ data: [server] }),
@@ -403,15 +398,10 @@ describe("project Git queries", () => {
     const response = {
       data: [
         {
-          authStatus: null,
-          description: null,
-          error: null,
-          failureReason: null,
+          displayName: "fast-context",
           name: "fast-context",
           status: "starting" as const,
-          title: null,
-          tools: [],
-          version: null,
+          toolCount: 0,
         },
       ],
     };

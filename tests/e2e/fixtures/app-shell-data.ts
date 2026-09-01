@@ -94,15 +94,10 @@ export const skills = [
 ];
 
 export const mcpServers = ["context7", "chrome-devtools"].map((name) => ({
-  authStatus: "unsupported" as const,
-  description: null,
-  error: null,
-  failureReason: null,
+  displayName: name,
   name,
-  status: "ready" as const,
-  title: null,
-  tools: ["search_code", "read_file"],
-  version: "1.0.0",
+  status: "connected" as const,
+  toolCount: 2,
 }));
 
 export const tasks = [

@@ -318,10 +318,8 @@ export async function handleAppShellCoreRoute(
     body = {
       data: mcpServers.map((server) => ({
         ...server,
-        authStatus: null,
         status: "starting",
-        tools: [],
-        version: null,
+        toolCount: 0,
       })),
     };
   } else if (/^\/v1\/temporary\/tasks\/[^/]+\/mcp-servers$/u.test(url.pathname)) {

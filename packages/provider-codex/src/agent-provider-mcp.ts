@@ -1,20 +1,12 @@
-import type {
-  AgentMcpAuthStatus,
-  AgentMcpServerFailureReason,
-  AgentMcpServerPage,
-  AgentMcpServerStatus,
-} from "@codexly/protocol";
+import type { AgentMcpServerConnectionStatus, AgentMcpServerPage } from "@codexly/protocol";
 
 import { CodexProtocolMappingError, expectRecord, expectString } from "./codex-protocol-mapping.js";
-import type { TaskRuntimeState } from "./task-runtime-state.js";
-
-const MCP_DISPLAY_URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s]+/giu;
 
 type CodexMcpRpcClient = Readonly<{
   request(method: string, params?: unknown): Promise<unknown>;
 }>;
 
-function mapMcpAuthStatus(value: unknown): AgentMcpAuthStatus {
+function mapMcpAuthStatus(value: unknown) {
   if (
     value === "unknown" ||
     value === "unsupported" ||
@@ -27,31 +19,22 @@ function mapMcpAuthStatus(value: unknown): AgentMcpAuthStatus {
   throw new CodexProtocolMappingError("mcpServerStatus/list authStatus is invalid");
 }
 
-function optionalNullableString(value: unknown, context: string): string | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  return expectString(value, context).replace(MCP_DISPLAY_URL_PATTERN, "[URL redacted]");
-}
-
-function mapMcpRuntimeStatus(value: unknown): Readonly<{
-  failureReason: AgentMcpServerFailureReason | null;
-  status: AgentMcpServerStatus;
-}> {
+function mapMcpRuntimeStatus(
+  value: unknown,
+  authStatus: ReturnType<typeof mapMcpAuthStatus>,
+): AgentMcpServerConnectionStatus {
   switch (value) {
-    case "connected":
-      return { failureReason: null, status: "ready" };
     case "notStarted":
     case "starting":
-    case null:
-      return { failureReason: null, status: "starting" };
+    case "connected":
     case "authenticationRequired":
-      return { failureReason: "reauthenticationRequired", status: "failed" };
     case "failed":
-      return { failureReason: null, status: "failed" };
     case "cancelled":
     case "disabled":
-      return { failureReason: null, status: "cancelled" };
+      return value;
+    case null:
+      // 对齐 Codex 0.151 TUI：无运行态但未登录时应明确提示认证。
+      return authStatus === "notLoggedIn" ? "authenticationRequired" : "unknown";
     default:
       throw new CodexProtocolMappingError("mcpServerStatus/list runtimeStatus is invalid");
   }
@@ -59,7 +42,6 @@ function mapMcpRuntimeStatus(value: unknown): Readonly<{
 
 export async function listCodexMcpServers(
   client: CodexMcpRpcClient,
-  runtime: TaskRuntimeState,
   taskId: string,
 ): Promise<AgentMcpServerPage> {
   const servers = new Map<string, AgentMcpServerPage["data"][number]>();
@@ -79,7 +61,7 @@ export async function listCodexMcpServers(
     if (!Array.isArray(page)) {
       throw new CodexProtocolMappingError("mcpServerStatus/list data must be an array");
     }
-    // 只映射安全展示字段和工具名；工具定义、资源与 URL 不得越过 Provider 边界。
+    // 只输出右栏需要的摘要，完整工具定义、认证信息和资源不得越过 Provider 边界。
     for (const entry of page) {
       const server = expectRecord(entry, "mcpServerStatus/list server");
       const name = expectString(server["name"], "mcpServerStatus/list server name");
@@ -96,38 +78,24 @@ export async function listCodexMcpServers(
           ? null
           : expectRecord(serverInfoValue, "mcpServerStatus/list serverInfo");
       const tools = expectRecord(server["tools"], "mcpServerStatus/list tools");
+      const authStatus = mapMcpAuthStatus(server["authStatus"]);
+      let displayName = name;
       if (serverInfo !== null) {
         expectString(serverInfo["name"], "mcpServerStatus/list serverInfo name");
+        const title = serverInfo["title"];
+        if (title !== null && title !== undefined) {
+          const mappedTitle = expectString(title, "mcpServerStatus/list serverInfo title");
+          if (mappedTitle.length > 0) displayName = mappedTitle;
+        }
       }
       if (servers.has(name)) {
         continue;
       }
-      const runtimeStatus = mapMcpRuntimeStatus(server["runtimeStatus"]);
       servers.set(name, {
-        authStatus: mapMcpAuthStatus(server["authStatus"]),
-        description:
-          serverInfo === null
-            ? null
-            : optionalNullableString(
-                serverInfo["description"],
-                "mcpServerStatus/list serverInfo description",
-              ),
-        error: null,
-        failureReason: runtimeStatus.failureReason,
+        displayName,
         name,
-        status: runtimeStatus.status,
-        title:
-          serverInfo === null
-            ? null
-            : optionalNullableString(serverInfo["title"], "mcpServerStatus/list serverInfo title"),
-        tools: Object.keys(tools).toSorted(),
-        version:
-          serverInfo === null
-            ? null
-            : optionalNullableString(
-                serverInfo["version"],
-                "mcpServerStatus/list serverInfo version",
-              ),
+        status: mapMcpRuntimeStatus(server["runtimeStatus"], authStatus),
+        toolCount: Object.keys(tools).length,
       });
     }
 
@@ -147,28 +115,6 @@ export async function listCodexMcpServers(
     cursor = nextCursor;
   }
 
-  const startupStatuses = runtime.mcpServerStatuses.get(taskId);
-  if (startupStatuses !== undefined) {
-    for (const [name, startup] of startupStatuses) {
-      const readyServer = servers.get(name);
-      if (startup.status === "ready" && readyServer !== undefined) {
-        startupStatuses.delete(name);
-        continue;
-      }
-      servers.set(name, {
-        authStatus: readyServer?.authStatus ?? null,
-        description: readyServer?.description ?? null,
-        error: startup.error,
-        failureReason: startup.failureReason,
-        name,
-        status: startup.status,
-        title: readyServer?.title ?? null,
-        tools: readyServer?.tools ?? [],
-        version: readyServer?.version ?? null,
-      });
-    }
-  }
-  runtime.mcpServerNames.set(taskId, new Set(servers.keys()));
   return {
     data: [...servers.values()].toSorted((left, right) => left.name.localeCompare(right.name)),
   };
@@ -176,37 +122,8 @@ export async function listCodexMcpServers(
 
 export async function reloadCodexMcpServers(
   client: CodexMcpRpcClient,
-  runtime: TaskRuntimeState,
   taskId: string,
 ): Promise<AgentMcpServerPage> {
-  const previousStatuses = runtime.mcpServerStatuses.get(taskId);
-  const names = new Set([
-    ...(runtime.mcpServerNames.get(taskId) ?? []),
-    ...(runtime.mcpServerStatuses.get(taskId)?.keys() ?? []),
-  ]);
-  // 官方重载是进程级触发；对外仍只返回已验证目标 Task 的重新加载状态。
-  runtime.mcpServerStatuses.set(
-    taskId,
-    new Map(
-      [...names].map((name) => [
-        name,
-        { error: null, failureReason: null, status: "starting" as const },
-      ]),
-    ),
-  );
-  try {
-    expectRecord(
-      await client.request("config/mcpServer/reload"),
-      "config/mcpServer/reload response",
-    );
-  } catch (error) {
-    // 重载未被 Codex 接受时恢复原状态，避免后续查询永久停留在 starting。
-    if (previousStatuses === undefined) {
-      runtime.mcpServerStatuses.delete(taskId);
-    } else {
-      runtime.mcpServerStatuses.set(taskId, previousStatuses);
-    }
-    throw error;
-  }
-  return listCodexMcpServers(client, runtime, taskId);
+  expectRecord(await client.request("config/mcpServer/reload"), "config/mcpServer/reload response");
+  return listCodexMcpServers(client, taskId);
 }

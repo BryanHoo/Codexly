@@ -1,5 +1,5 @@
 import type { AgentProviderEvent } from "@codexly/core";
-import type { AgentMcpServerFailureReason, AgentMcpServerStatus } from "@codexly/protocol";
+import type { AgentMcpServerFailureReason, AgentMcpServerStartupStatus } from "@codexly/protocol";
 
 import {
   CodexProtocolMappingError,
@@ -7,7 +7,6 @@ import {
   expectString,
   isRecord,
 } from "./codex-protocol-mapping.js";
-import type { CodexMcpServerStartupStatus } from "./task-runtime-state.js";
 
 const MAX_MCP_ERROR_LENGTH = 8_192;
 const MCP_URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s]+/giu;
@@ -28,7 +27,7 @@ function sanitizeMcpStartupError(value: string): string {
   return `${redacted.slice(0, MAX_MCP_ERROR_LENGTH - suffix.length)}${suffix}`;
 }
 
-function readMcpStartupState(value: unknown): AgentMcpServerStatus {
+function readMcpStartupState(value: unknown): AgentMcpServerStartupStatus {
   if (value === "starting" || value === "ready" || value === "failed" || value === "cancelled") {
     return value;
   }
@@ -47,7 +46,11 @@ function readMcpFailureReason(value: unknown): AgentMcpServerFailureReason | nul
 
 export function readMcpServerStartupStatus(value: unknown): Readonly<{
   name: string;
-  status: CodexMcpServerStartupStatus;
+  status: Readonly<{
+    error: string | null;
+    failureReason: AgentMcpServerFailureReason | null;
+    status: AgentMcpServerStartupStatus;
+  }>;
   taskId: string;
 }> {
   const params = expectRecord(value, "Codex MCP startup status params");

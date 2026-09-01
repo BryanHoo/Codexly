@@ -12,7 +12,8 @@ Capture contract and verification standards for this project.
 - 保持依赖方向：`protocol` 独立；`core` 仅依赖 `protocol`；`client` 不依赖服务端运行时。
 - 使用 `pnpm run lint:architecture` 检查循环依赖、越层导入和包边界。
 - 不保留废弃契约的兼容分支；按新契约更新全部仓库内消费者并删除旧逻辑。
-- `AgentMcpServer.tools` 传递稳定排序且不重复的可用工具名；消费者通过数组长度派生数量，不额外维护 `toolCount`。
+- `AgentMcpServer` 仅传递 `displayName`、`name`、`status` 和 `toolCount`；状态完整保留 Codex `0.151` 的线程连接态，不传输工具定义、工具名、认证或版本详情。
+- 任务 MCP 清单以 `mcpServerStatus/list(threadId)` 响应为唯一权威数据源；启动通知只触发刷新，不得用本地缓存覆盖查询快照。
 - `AgentGlobalSettings.pet` 使用严格联合契约：关闭时允许 `selectedPetId` 为空，开启时必须提供非空 `selectedPetId`。
 - 宠物资产以 SHA-256 内容标识寻址；下载和自定义资产加载必须校验路径边界、文件类型、尺寸和清单结构。
 - 应用更新进度使用 `AppUpdateProgress` 严格契约，终端与 Web 必须消费同一组阶段和 `0..100` 整数百分比；备份、下载、安装与回滚边界均需发布可观察状态。

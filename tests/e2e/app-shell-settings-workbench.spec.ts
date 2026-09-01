@@ -137,15 +137,10 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
       contentType: "application/json",
       json: {
         data: Array.from({ length: 6 }, (_, index) => ({
-          authStatus: "unsupported",
-          description: null,
-          error: null,
-          failureReason: null,
+          displayName: `MCP Tool ${String(index + 1)}`,
           name: `mcp-tool-${String(index + 1)}`,
-          status: "ready",
-          title: `MCP Tool ${String(index + 1)}`,
-          tools: ["search_code", "read_file"],
-          version: "1.0.0",
+          status: "connected",
+          toolCount: 2,
         })),
       },
     });
@@ -164,17 +159,8 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
     (element) => getComputedStyle(element).backgroundColor,
   );
   await firstMcpRow.hover();
-  const mcpTooltip = page.getByRole("tooltip");
-  await expect(mcpTooltip).toHaveText("search_code · read_file");
-  await expect
-    .poll(async () => {
-      const [rowBox, tooltipBox] = await Promise.all([
-        firstMcpRow.boundingBox(),
-        mcpTooltip.boundingBox(),
-      ]);
-      return rowBox !== null && tooltipBox !== null && tooltipBox.y < rowBox.y;
-    })
-    .toBe(true);
+  await expect(firstMcpRow).toContainText("已连接 · 2 个工具");
+  await expect(mcp.getByText("search_code", { exact: true })).toHaveCount(0);
   await expect
     .poll(() => firstMcpRow.evaluate((element) => getComputedStyle(element).backgroundColor))
     .not.toBe(restingMcpBackground);

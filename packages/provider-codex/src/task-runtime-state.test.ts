@@ -23,11 +23,6 @@ describe("TaskRuntimeState", () => {
       explanation: null,
       steps: [{ status: "pending", text: "执行验证" }],
     });
-    state.mcpServerStatuses.set(
-      "task-1",
-      new Map([["fast-context", { error: null, failureReason: null, status: "ready" }]]),
-    );
-    state.mcpServerNames.set("task-1", new Set(["fast-context"]));
     state.unmaterializedTasks.set("task-1", {
       id: "task-1",
       pinned: false,
@@ -49,8 +44,6 @@ describe("TaskRuntimeState", () => {
     expect(state.reviewWorkerParentTaskIds.has("reviewer-thread")).toBe(false);
     expect(state.contextUsage.has("task-1")).toBe(false);
     expect(state.plans.has("task-1")).toBe(false);
-    expect(state.mcpServerStatuses.has("task-1")).toBe(false);
-    expect(state.mcpServerNames.has("task-1")).toBe(false);
     expect(state.unmaterializedTasks.has("task-1")).toBe(false);
   });
 });

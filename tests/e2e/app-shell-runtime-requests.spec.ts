@@ -147,7 +147,7 @@ test("streams Fake App Server notifications into the Timeline @smoke", async ({ 
   await expect(page.getByText("agent/spawn", { exact: true })).toHaveCount(0);
 });
 
-test("shows MCP startup diagnostics and manually retries the current task", async ({ page }) => {
+test("shows MCP connection states and manually retries the current task", async ({ page }) => {
   let retries = 0;
   await page.route("**/v1/projects/codexly/tasks/task-1/mcp-servers", async (route) => {
     await route.fulfill({
@@ -155,26 +155,16 @@ test("shows MCP startup diagnostics and manually retries the current task", asyn
       json: {
         data: [
           {
-            authStatus: null,
-            description: null,
-            error: "MCP startup timed out after 10s\nProcess exited with code 1",
-            failureReason: "reauthenticationRequired",
+            displayName: "Docs",
             name: "docs",
             status: "failed",
-            title: null,
-            tools: [],
-            version: null,
+            toolCount: 0,
           },
           {
-            authStatus: "unsupported",
-            description: "Provider-only MCP description",
-            error: null,
-            failureReason: null,
+            displayName: "Context7",
             name: "context7",
-            status: "ready",
-            title: "Context7",
-            tools: ["resolve_library", "query_docs"],
-            version: "4.0.0",
+            status: "connected",
+            toolCount: 2,
           },
         ],
       },
@@ -187,15 +177,10 @@ test("shows MCP startup diagnostics and manually retries the current task", asyn
       json: {
         data: [
           {
-            authStatus: null,
-            description: null,
-            error: null,
-            failureReason: null,
+            displayName: "Docs",
             name: "docs",
             status: "starting",
-            title: null,
-            tools: [],
-            version: null,
+            toolCount: 0,
           },
         ],
       },
@@ -209,20 +194,13 @@ test("shows MCP startup diagnostics and manually retries the current task", asyn
   await expect
     .poll(() => reloadIcon.evaluate((icon) => icon.getBoundingClientRect().width))
     .toBeLessThanOrEqual(16);
-  await expect(mcp.getByText("启动失败", { exact: true })).toBeVisible();
-  await expect(mcp.getByText("已就绪", { exact: false })).toBeVisible();
+  await expect(mcp.getByText("启动失败", { exact: false })).toBeVisible();
+  await expect(mcp.getByText("已连接", { exact: false })).toBeVisible();
   await expect(mcp.getByText("Provider-only MCP description", { exact: true })).toHaveCount(0);
-  await expect(mcp.getByText("需要重新认证", { exact: true })).toBeVisible();
-  const logButton = mcp.getByRole("button", { name: "查看错误日志" });
-  await expect(logButton).toHaveCSS("display", "inline-flex");
-  await expect
-    .poll(() => logButton.locator("svg").evaluate((icon) => icon.getBoundingClientRect().width))
-    .toBeLessThanOrEqual(16);
-  await logButton.click();
-  await expect(mcp.getByText("MCP startup timed out after 10s", { exact: false })).toBeVisible();
+  await expect(mcp.getByRole("button", { name: "查看错误日志" })).toHaveCount(0);
   await mcp.getByRole("button", { name: "重新加载 MCP" }).click();
   await expect.poll(() => retries).toBe(1);
-  await expect(mcp.getByText("正在启动", { exact: true })).toBeVisible();
+  await expect(mcp.getByText("正在启动", { exact: false })).toBeVisible();
 });
 
 test("hides the MCP module when the request fails before data is available", async ({ page }) => {

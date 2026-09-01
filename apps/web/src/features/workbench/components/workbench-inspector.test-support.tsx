@@ -65,15 +65,10 @@ export const nestedGitStatus = {
 };
 
 export const readyMcpServer = {
-  authStatus: "oAuth",
-  description: "Semantic repository search",
-  error: null,
-  failureReason: null,
+  displayName: "Fast Context",
   name: "fast-context",
-  status: "ready",
-  title: "Fast Context",
-  tools: ["search_code", "read_file"],
-  version: "1.2.0",
+  status: "connected",
+  toolCount: 2,
 } as const satisfies AgentMcpServer;
 
 export function readInspectorTabLabels(markup: string): string[] {

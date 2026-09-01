@@ -222,7 +222,13 @@ describe("WorkbenchInspector tabs", () => {
       <WorkbenchInspector
         contextOnly
         mcpServers={[
-          { ...readyMcpServer, name: "context7", status: "starting", tools: [] },
+          {
+            ...readyMcpServer,
+            displayName: "context7",
+            name: "context7",
+            status: "starting",
+            toolCount: 0,
+          },
           readyMcpServer,
         ]}
         projectName="临时任务"
@@ -233,7 +239,7 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).toContain("context7");
     expect(markup).toContain("正在启动");
     expect(markup).toContain("fast-context");
-    expect(markup).toContain("已就绪");
+    expect(markup).toContain("已连接");
     expect(markup).not.toContain("Semantic repository search");
   });
 

@@ -164,15 +164,10 @@ describe("AgentProvider", () => {
         return Promise.resolve({
           data: [
             {
-              authStatus: "unsupported",
-              description: null,
-              error: null,
-              failureReason: null,
+              displayName: "fast-context",
               name: "fast-context",
-              status: "ready",
-              title: null,
-              tools: ["search_code", "read_file"],
-              version: "1.0.0",
+              status: "connected",
+              toolCount: 2,
             },
           ],
         });
@@ -355,13 +350,13 @@ describe("AgentProvider", () => {
       data: [
         expect.objectContaining({
           name: "fast-context",
-          status: "ready",
-          tools: ["search_code", "read_file"],
+          status: "connected",
+          toolCount: 2,
         }),
       ],
     });
     await expect(provider.reloadMcpServers("task-1")).resolves.toMatchObject({
-      data: [{ name: "fast-context", status: "ready" }],
+      data: [{ name: "fast-context", status: "connected" }],
     });
     await expect(provider.listSkills()).resolves.toMatchObject({
       data: [{ id: "skill-security", name: "review-security" }],

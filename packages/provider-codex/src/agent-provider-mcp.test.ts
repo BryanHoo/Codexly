@@ -60,26 +60,16 @@ describe("CodexAgentProvider MCP servers", () => {
     await expect(provider.listMcpServers("task-1")).resolves.toEqual({
       data: [
         {
-          authStatus: "unknown",
-          description: null,
-          error: null,
-          failureReason: null,
+          displayName: "fast-context",
           name: "fast-context",
-          status: "ready",
-          title: null,
-          tools: [],
-          version: null,
+          status: "connected",
+          toolCount: 0,
         },
         {
-          authStatus: "unsupported",
-          description: null,
-          error: null,
-          failureReason: null,
+          displayName: "playwright",
           name: "playwright",
-          status: "ready",
-          title: null,
-          tools: ["browser_open"],
-          version: null,
+          status: "connected",
+          toolCount: 1,
         },
       ],
     });
@@ -146,7 +136,7 @@ describe("CodexAgentProvider MCP servers", () => {
     ]);
   });
 
-  it("merges MCP startup failures, redacts diagnostics, and reloads known task servers", async () => {
+  it("keeps startup notifications diagnostic-only and reloads the authoritative task snapshot", async () => {
     const rpc = new FakeRpcClient([
       { thread: nativeThread() },
       {
@@ -228,33 +218,21 @@ describe("CodexAgentProvider MCP servers", () => {
     await expect(provider.listMcpServers("task-1")).resolves.toEqual({
       data: [
         {
-          authStatus: null,
-          description: null,
-          error: "OAuth request to [URL redacted] failed: API_TOKEN=[REDACTED]",
-          failureReason: "reauthenticationRequired",
-          name: "docs",
-          status: "failed",
-          title: null,
-          tools: [],
-          version: null,
-        },
-        {
-          authStatus: "oAuth",
-          description: "Semantic repository search at [URL redacted]",
-          error: null,
-          failureReason: null,
+          displayName: "Fast Context",
           name: "fast-context",
-          status: "ready",
-          title: "Fast Context",
-          tools: ["search", "trace"],
-          version: "1.2.0",
+          status: "connected",
+          toolCount: 2,
         },
       ],
     });
-    await expect(provider.reloadMcpServers("task-1")).resolves.toMatchObject({
+    await expect(provider.reloadMcpServers("task-1")).resolves.toEqual({
       data: [
-        { error: null, name: "docs", status: "starting" },
-        { error: null, name: "fast-context", status: "starting" },
+        {
+          displayName: "Fast Context",
+          name: "fast-context",
+          status: "connected",
+          toolCount: 2,
+        },
       ],
     });
     expect(rpc.calls.slice(-2)).toEqual([
@@ -266,7 +244,7 @@ describe("CodexAgentProvider MCP servers", () => {
     ]);
   });
 
-  it("restores MCP startup states when the reload RPC fails", async () => {
+  it("does not retain synthesized MCP states when the reload RPC fails", async () => {
     const readyServerPage = {
       data: [
         {
@@ -294,7 +272,7 @@ describe("CodexAgentProvider MCP servers", () => {
     await provider.listMcpServers("task-1");
     await expect(provider.reloadMcpServers("task-1")).rejects.toThrow("reload unavailable");
     await expect(provider.listMcpServers("task-1")).resolves.toMatchObject({
-      data: [{ name: "playwright", status: "ready" }],
+      data: [{ name: "playwright", status: "connected" }],
     });
   });
 
@@ -312,18 +290,47 @@ describe("CodexAgentProvider MCP servers", () => {
     );
   });
 
-  it("maps the 0.151.0 MCP runtime connection status", async () => {
+  it("preserves every 0.151.0 MCP runtime connection status", async () => {
+    const statuses = [
+      "notStarted",
+      "starting",
+      "connected",
+      "authenticationRequired",
+      "failed",
+      "cancelled",
+      "disabled",
+    ] as const;
     const rpc = new FakeRpcClient([
       { thread: nativeThread() },
       {
         data: [
-          {
-            authStatus: "notLoggedIn",
-            name: "private-docs",
+          ...statuses.map((runtimeStatus) => ({
+            authStatus: "unsupported",
+            name: runtimeStatus,
             pluginId: null,
             resourceTemplates: [],
             resources: [],
-            runtimeStatus: "authenticationRequired",
+            runtimeStatus,
+            serverInfo: null,
+            tools: {},
+          })),
+          {
+            authStatus: "notLoggedIn",
+            name: "login-required",
+            pluginId: null,
+            resourceTemplates: [],
+            resources: [],
+            runtimeStatus: null,
+            serverInfo: null,
+            tools: {},
+          },
+          {
+            authStatus: "unsupported",
+            name: "unknown",
+            pluginId: null,
+            resourceTemplates: [],
+            resources: [],
+            runtimeStatus: null,
             serverInfo: null,
             tools: {},
           },
@@ -334,14 +341,17 @@ describe("CodexAgentProvider MCP servers", () => {
     const provider = createCodexAgentProvider({ client: rpc, project });
 
     await provider.startTask();
-    await expect(provider.listMcpServers("task-1")).resolves.toMatchObject({
+    await expect(provider.listMcpServers("task-1")).resolves.toEqual({
       data: [
+        ...statuses.map((status) => ({ displayName: status, name: status, status, toolCount: 0 })),
         {
-          failureReason: "reauthenticationRequired",
-          name: "private-docs",
-          status: "failed",
+          displayName: "login-required",
+          name: "login-required",
+          status: "authenticationRequired",
+          toolCount: 0,
         },
-      ],
+        { displayName: "unknown", name: "unknown", status: "unknown", toolCount: 0 },
+      ].toSorted((left, right) => left.name.localeCompare(right.name)),
     });
   });
 

@@ -2,7 +2,6 @@ import type { AgentBackgroundTerminal, AgentMcpServer } from "@codexly/protocol"
 import {
   Bot,
   CheckCircle2,
-  ChevronRight,
   CircleOff,
   CircleX,
   LoaderCircle,
@@ -16,11 +15,6 @@ import type { ReactNode } from "react";
 import { i18n } from "../../../i18n/i18n.js";
 import { Task, TaskTrigger } from "../../../shared/components/agent/task.js";
 import { Button } from "../../../shared/components/core/button.js";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "../../../shared/components/core/collapsible.js";
 import {
   Tooltip,
   TooltipContent,
@@ -228,84 +222,37 @@ export function McpServerSection({
   );
 }
 
-function McpErrorLog({ error }: Readonly<{ error: string }>) {
-  return (
-    <Collapsible>
-      <CollapsibleTrigger asChild>
-        <Button className="group h-7 justify-start px-0 text-caption" type="button" variant="link">
-          <ChevronRight
-            aria-hidden="true"
-            className="transition-transform group-data-[state=open]:rotate-90"
-            data-icon="inline-start"
-          />
-          {i18n.t("inspector.mcpErrorLog", { ns: "conversation" })}
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="data-[state=closed]:hidden" forceMount>
-        <pre className="max-h-44 overflow-auto whitespace-pre-wrap break-words rounded-control bg-control px-2 py-1.5 font-mono text-meta leading-5 text-foreground">
-          {error}
-        </pre>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 function McpServerRow({ server }: Readonly<{ server: AgentMcpServer }>) {
   const metadata = [
     i18n.t(`inspector.mcpStatus.${server.status}`, { ns: "conversation" }),
-    ...(server.status === "ready"
-      ? [i18n.t("inspector.mcpToolCount", { count: server.tools.length, ns: "conversation" })]
-      : []),
-    ...(server.authStatus === null
-      ? []
-      : [i18n.t(`inspector.mcpAuth.${server.authStatus}`, { ns: "conversation" })]),
-    ...(server.version === null
-      ? []
-      : [i18n.t("inspector.mcpVersion", { ns: "conversation", version: server.version })]),
+    i18n.t("inspector.mcpToolCount", { count: server.toolCount, ns: "conversation" }),
   ];
   const statusIcon =
-    server.status === "ready" ? (
+    server.status === "connected" ? (
       <CheckCircle2 aria-hidden="true" className="size-3.5 text-brand" />
     ) : server.status === "starting" ? (
       <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin text-muted-foreground" />
     ) : server.status === "failed" ? (
       <CircleX aria-hidden="true" className="size-3.5 text-danger" />
-    ) : (
+    ) : server.status === "authenticationRequired" ? (
       <CircleOff aria-hidden="true" className="size-3.5 text-warning" />
+    ) : (
+      <CircleOff aria-hidden="true" className="size-3.5 text-muted-foreground" />
     );
 
-  const toolNames = server.tools.join(" · ");
-  const content = (
+  return (
     <div
       aria-label={server.name}
-      {...(toolNames.length === 0 ? {} : { "aria-description": toolNames })}
       className="flex min-h-10 items-start gap-2 rounded-control px-2 py-1.5 transition-colors hover:bg-control-hover"
       data-mcp-server-row=""
+      data-mcp-status={server.status}
     >
       <span className="mt-0.5 shrink-0">{statusIcon}</span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-label font-medium text-foreground">
-          {server.title ?? server.name}
-        </p>
+        <p className="truncate text-label font-medium text-foreground">{server.displayName}</p>
         <p className="text-caption text-muted-foreground">{metadata.join(" · ")}</p>
-        {server.failureReason === null ? null : (
-          <p className="text-caption text-danger">
-            {i18n.t(`inspector.mcpFailureReason.${server.failureReason}`, {
-              ns: "conversation",
-            })}
-          </p>
-        )}
-        {server.error === null ? null : <McpErrorLog error={server.error} />}
       </div>
     </div>
-  );
-
-  if (toolNames.length === 0) return content;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{content}</TooltipTrigger>
-      <TooltipContent side="top">{toolNames}</TooltipContent>
-    </Tooltip>
   );
 }
 

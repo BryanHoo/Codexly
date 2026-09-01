@@ -262,24 +262,31 @@ export const AgentSkillSchema = Type.Object(
 
 export type AgentSkill = Readonly<Static<typeof AgentSkillSchema>>;
 
-export const AgentMcpServerStatusSchema = Type.Union([
+export const AgentMcpServerConnectionStatusSchema = Type.Union([
+  Type.Literal("notStarted"),
+  Type.Literal("starting"),
+  Type.Literal("connected"),
+  Type.Literal("authenticationRequired"),
+  Type.Literal("failed"),
+  Type.Literal("cancelled"),
+  Type.Literal("disabled"),
+  Type.Literal("unknown"),
+]);
+
+export type AgentMcpServerConnectionStatus = Readonly<
+  Static<typeof AgentMcpServerConnectionStatusSchema>
+>;
+
+export const AgentMcpServerStartupStatusSchema = Type.Union([
   Type.Literal("starting"),
   Type.Literal("ready"),
   Type.Literal("failed"),
   Type.Literal("cancelled"),
 ]);
 
-export type AgentMcpServerStatus = Readonly<Static<typeof AgentMcpServerStatusSchema>>;
-
-export const AgentMcpAuthStatusSchema = Type.Union([
-  Type.Literal("unknown"),
-  Type.Literal("unsupported"),
-  Type.Literal("notLoggedIn"),
-  Type.Literal("bearerToken"),
-  Type.Literal("oAuth"),
-]);
-
-export type AgentMcpAuthStatus = Readonly<Static<typeof AgentMcpAuthStatusSchema>>;
+export type AgentMcpServerStartupStatus = Readonly<
+  Static<typeof AgentMcpServerStartupStatusSchema>
+>;
 
 export const AgentMcpServerFailureReasonSchema = Type.Literal("reauthenticationRequired");
 
@@ -289,15 +296,10 @@ export type AgentMcpServerFailureReason = Readonly<
 
 export const AgentMcpServerSchema = Type.Object(
   {
-    authStatus: Type.Union([AgentMcpAuthStatusSchema, Type.Null()]),
-    description: Type.Union([Type.String(), Type.Null()]),
-    error: Type.Union([Type.String({ maxLength: 8_192 }), Type.Null()]),
-    failureReason: Type.Union([AgentMcpServerFailureReasonSchema, Type.Null()]),
+    displayName: Type.String({ minLength: 1 }),
     name: Type.String({ minLength: 1 }),
-    status: AgentMcpServerStatusSchema,
-    title: Type.Union([Type.String(), Type.Null()]),
-    tools: Type.Array(Type.String({ minLength: 1 }), { uniqueItems: true }),
-    version: Type.Union([Type.String(), Type.Null()]),
+    status: AgentMcpServerConnectionStatusSchema,
+    toolCount: Type.Integer({ minimum: 0 }),
   },
   { additionalProperties: false },
 );
