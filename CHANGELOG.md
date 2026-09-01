@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-09-01
+
+### 优化
+
+- 精简 MCP 服务状态契约与检查器展示，仅保留连接状态、显示名称和工具数量，减少敏感运行信息跨层传递。
+
+### 修复
+
+- 分离 Codex 线程历史加载与运行时恢复，通过分页读取历史避免 Fork 和 Resume 返回过大的 JSONL 帧。
+
 ## [0.11.0] - 2026-08-31
 
 ### 新增
@@ -190,7 +200,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.1
 [0.11.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.0
 [0.10.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.10.0
 [0.9.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.9.0
