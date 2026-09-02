@@ -398,4 +398,37 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
     version: 22,
   },
   WORKBENCH_PET_SETTINGS_MIGRATION,
+  {
+    name: "allow_standalone_task_queue",
+    sql: `
+      CREATE TABLE task_scope_queue (
+        project_id TEXT NOT NULL,
+        task_id TEXT NOT NULL,
+        id TEXT NOT NULL,
+        client_user_message_id TEXT NOT NULL,
+        input_json TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('editing', 'queued')),
+        position INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (project_id, task_id, id),
+        UNIQUE (project_id, task_id, position)
+      ) STRICT;
+
+      INSERT INTO task_scope_queue
+        (project_id, task_id, id, client_user_message_id, input_json, status, position, updated_at)
+      SELECT project_id, task_id, id, client_user_message_id, input_json, status, position, updated_at
+      FROM task_queue;
+
+      DROP TABLE task_queue;
+      ALTER TABLE task_scope_queue RENAME TO task_queue;
+
+      -- standalone Task 没有 Project 记录；真实 Project 删除时仍清理其持久队列。
+      CREATE TRIGGER delete_project_task_queue
+      AFTER DELETE ON projects
+      BEGIN
+        DELETE FROM task_queue WHERE project_id = OLD.id;
+      END;
+    `,
+    version: 24,
+  },
 ];

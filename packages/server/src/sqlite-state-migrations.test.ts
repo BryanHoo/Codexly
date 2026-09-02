@@ -21,7 +21,7 @@ describe("SQLite state migrations", () => {
       foreignKeys: true,
       integrityCheck: "ok",
       journalMode: "wal",
-      migrationVersion: 23,
+      migrationVersion: 24,
       synchronous: "normal",
       writable: true,
     });
@@ -65,6 +65,27 @@ describe("SQLite state migrations", () => {
       model: "gpt-5.6-terra",
       sandboxMode: "workspace-write",
     });
+  });
+
+  it("persists a temporary task queue without creating a Project", async () => {
+    const root = await createWorkspace();
+    const repository = await openRepository(root);
+    const record = {
+      clientUserMessageId: "client-queue-1",
+      id: "queue-1",
+      input: { attachments: [], skills: [], text: "追加临时任务", type: "prompt" },
+      projectId: "temporary",
+      status: "queued",
+      taskId: "task-1",
+    } satisfies AgentQueueRecord;
+
+    await repository.addQueue(record);
+    await repository.close();
+    repositories.splice(repositories.indexOf(repository), 1);
+
+    const reopened = await openRepository(root);
+    await expect(reopened.read("temporary")).resolves.toBeUndefined();
+    await expect(reopened.listQueue("temporary", "task-1")).resolves.toEqual([record]);
   });
 
   it("persists queue order, editing state, and draft text across repository restarts", async () => {
