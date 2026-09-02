@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-09-02
+
+### 修复
+
+- 支持临时作用域任务队列持久化，允许无 Project 记录的临时任务写入队列，并在真实 Project 删除时清理所属数据。
+
 ## [0.11.1] - 2026-09-01
 
 ### 优化
@@ -200,7 +206,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.11.2...HEAD
+[0.11.2]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.2
 [0.11.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.1
 [0.11.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.0
 [0.10.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.10.0

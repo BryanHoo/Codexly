@@ -1,6 +1,6 @@
 {
   "name": "@bryanhu/codexly",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "通过 Web 操作本地 Coding Agent 的应用",
   "type": "module",
   "author": "BryanHu",
