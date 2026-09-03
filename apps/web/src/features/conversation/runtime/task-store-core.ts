@@ -12,6 +12,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { estimateRetainedBytes, getUtf8ByteLength } from "../../../shared/memory/byte-lru.js";
 import { CommandOutputBuffer, type CommandOutputView } from "./command-output-buffer.js";
+import { ReasoningSummaryBuffer } from "./reasoning-summary-buffer.js";
 
 export const MAX_TASK_COMMAND_OUTPUT_BYTES = 8 * 1_048_576;
 export const MAX_RETAINED_TASK_RUNTIME_BYTES = 64 * 1_048_576;
@@ -93,6 +94,7 @@ export interface TaskItemStore extends StoreApi<TaskItemStoreState> {
   publish: () => void;
   read: () => AgentItem;
   readCommandOutput: () => CommandOutputView | undefined;
+  readReasoningSummary: () => string | undefined;
   replace: (item: AgentItem) => void;
 }
 
@@ -114,6 +116,9 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
   let contentGeneration = 0;
   let materializedGeneration = initialItem.type === "command" ? -1 : 0;
   let materializedItem = baseItem;
+  const reasoningSummaryBuffer = new ReasoningSummaryBuffer(
+    initialItem.type === "reasoning" ? initialItem.summary : undefined,
+  );
   let summarySectionIndex: number | undefined;
   let summaryLength = initialItem.type === "reasoning" ? initialItem.summary.length : 0;
   let commandOutputBuffer =
@@ -125,19 +130,20 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
   const store = createStore<TaskItemStoreState>()(() => ({ revision: 0 }));
 
   function appendChunk(field: StreamedTextField, delta: string): void {
-    const chunks = chunksByField.get(field);
-    if (chunks === undefined) {
-      chunksByField.set(field, [delta]);
-    } else {
-      chunks.push(delta);
-    }
     if (field === "summary") {
+      reasoningSummaryBuffer.append(delta);
       summaryLength += delta.length;
+    } else {
+      const chunks = chunksByField.get(field);
+      if (chunks === undefined) {
+        chunksByField.set(field, [delta]);
+      } else {
+        chunks.push(delta);
+      }
     }
     retainedBytes += getUtf8ByteLength(delta);
     contentGeneration += 1;
   }
-
   return Object.assign(store, {
     appendDelta(event: DeltaEvent): boolean {
       if (event.type === "message.delta") {
@@ -198,18 +204,14 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
         }
       } else if (baseItem.type === "reasoning") {
         const contentChunks = chunksByField.get("content");
-        const summaryChunks = chunksByField.get("summary");
-        if (contentChunks !== undefined || summaryChunks !== undefined) {
+        if (contentChunks !== undefined || reasoningSummaryBuffer.hasChanges) {
           nextItem = {
             ...baseItem,
             content:
               contentChunks === undefined
                 ? baseItem.content
                 : [baseItem.content, ...contentChunks].join(""),
-            summary:
-              summaryChunks === undefined
-                ? baseItem.summary
-                : [baseItem.summary, ...summaryChunks].join(""),
+            summary: reasoningSummaryBuffer.read() ?? baseItem.summary,
           };
         }
       } else if (baseItem.type === "command") {
@@ -234,9 +236,12 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
     readCommandOutput(): CommandOutputView | undefined {
       return commandOutputBuffer?.getView();
     },
+    // 时间线可见性只读取摘要，避免为过滤空项而物化原始 reasoning content。
+    readReasoningSummary: () => reasoningSummaryBuffer.read(),
     replace(item: AgentItem): void {
       baseItem = createBaseItem(item);
       chunksByField.clear();
+      reasoningSummaryBuffer.replace(item.type === "reasoning" ? item.summary : undefined);
       summarySectionIndex = undefined;
       summaryLength = item.type === "reasoning" ? item.summary.length : 0;
       commandOutputBuffer =

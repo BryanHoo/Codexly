@@ -1,8 +1,10 @@
 import type { AgentItem } from "@codexly/protocol";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
+import { createTaskItemStore } from "../../conversation/runtime/task-store.js";
 
 import {
+  filterRenderableTimelineItemKeys,
   groupConsecutiveTimelineOperations,
   summarizeTimelineOperations,
 } from "./task-timeline-operation-groups.js";
@@ -66,6 +68,71 @@ describe("task timeline operation groups", () => {
     ]);
   });
 
+  it("ignores empty reasoning summaries between consecutive operations", () => {
+    const items: AgentItem[] = [
+      tool("tool-read", "completed"),
+      { content: "", id: "reasoning-empty", summary: " \n ", type: "reasoning" },
+      tool("mcp-search", "completed"),
+      command("command-check", "completed"),
+    ];
+    const itemStoresByKey = new Map(
+      items.map((item) => [item.id, createTaskItemStore(item)] as const),
+    );
+    const renderableItemKeys = filterRenderableTimelineItemKeys(
+      items.map((item) => item.id),
+      itemStoresByKey,
+    );
+
+    expect(
+      groupConsecutiveTimelineOperations(renderableItemKeys, (itemKey) =>
+        itemStoresByKey.get(itemKey)?.peek(),
+      ),
+    ).toEqual([
+      {
+        itemKeys: ["tool-read", "mcp-search", "command-check"],
+        key: "tool-read",
+        type: "operation_group",
+      },
+    ]);
+  });
+
+  it("filters empty reasoning before rendering and restores it after a summary delta", () => {
+    const reasoningStore = createTaskItemStore({
+      content: "raw reasoning",
+      id: "reasoning-streaming",
+      summary: "",
+      type: "reasoning",
+    });
+    const toolStore = createTaskItemStore(tool("tool-visible", "completed"));
+    const itemStoresByKey = new Map([
+      ["reasoning-streaming", reasoningStore],
+      ["tool-visible", toolStore],
+    ]);
+    const readSpy = vi.spyOn(reasoningStore, "read");
+
+    expect(
+      filterRenderableTimelineItemKeys(["reasoning-streaming", "tool-visible"], itemStoresByKey),
+    ).toEqual(["tool-visible"]);
+
+    reasoningStore.appendDelta({
+      itemId: "reasoning-streaming",
+      payload: { delta: "流式摘要", field: "summary" },
+      provider: "codex",
+      sequence: 1,
+      sessionId: "session-1",
+      taskId: "task-1",
+      timestamp: "2026-09-03T00:00:00.000Z",
+      turnId: "turn-1",
+      type: "reasoning.delta",
+      version: 2,
+    });
+
+    expect(
+      filterRenderableTimelineItemKeys(["reasoning-streaming", "tool-visible"], itemStoresByKey),
+    ).toEqual(["reasoning-streaming", "tool-visible"]);
+    expect(readSpy).not.toHaveBeenCalled();
+  });
+
   it("summarizes operation kinds, active state, and unsuccessful terminal states", () => {
     const summary = summarizeTimelineOperations([
       tool("tool-running", "running"),
@@ -98,6 +165,26 @@ describe("task timeline operation groups", () => {
               output: "隐藏的工具输出",
               status: "completed",
               type: "tool",
+            },
+            {
+              content: "",
+              id: "reasoning-empty-before-mcp",
+              summary: "",
+              type: "reasoning",
+            },
+            {
+              id: "tool-mcp-search",
+              input: { query: "timeline grouping" },
+              name: "fast-context/search",
+              output: "隐藏的 MCP 输出",
+              status: "completed",
+              type: "tool",
+            },
+            {
+              content: "",
+              id: "reasoning-empty-before-command",
+              summary: " \n ",
+              type: "reasoning",
             },
             {
               command: "pnpm check",
@@ -136,12 +223,15 @@ describe("task timeline operation groups", () => {
     );
 
     expect(markup).toContain('data-operation-group=""');
-    expect(markup).toContain("操作完成：调用 1 个工具，执行 2 条命令；其中 1 项失败");
+    expect(markup).toContain("操作完成：调用 2 个工具，执行 2 条命令；其中 1 项失败");
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain("继续处理。");
+    expect(markup).not.toContain('data-ai-reasoning=""');
     expect(markup).not.toContain("read_file");
+    expect(markup).not.toContain("fast-context/search");
     expect(markup).not.toContain("pnpm check");
     expect(markup).not.toContain("隐藏的工具输出");
+    expect(markup).not.toContain("隐藏的 MCP 输出");
     expect(markup).not.toContain("隐藏的命令输出");
   });
 

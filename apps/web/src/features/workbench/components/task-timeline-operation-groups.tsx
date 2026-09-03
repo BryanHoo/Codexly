@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
-import type { TaskStore } from "../../conversation/runtime/task-store.js";
+import type { TaskItemStore, TaskStore } from "../../conversation/runtime/task-store.js";
 
 type TimelineOperationItem = Extract<AgentItem, { type: "command" } | { type: "tool" }>;
 
@@ -20,6 +20,19 @@ export type TimelineOperationGroup =
 
 function isTimelineOperation(item: AgentItem | undefined): item is TimelineOperationItem {
   return item?.type === "command" || item?.type === "tool";
+}
+
+export function filterRenderableTimelineItemKeys(
+  itemKeys: readonly string[],
+  itemStoresByKey: ReadonlyMap<string, TaskItemStore>,
+): string[] {
+  return itemKeys.filter((itemKey) => {
+    const itemStore = itemStoresByKey.get(itemKey);
+    if (itemStore?.peek().type !== "reasoning") {
+      return true;
+    }
+    return (itemStore.readReasoningSummary()?.trim().length ?? 0) > 0;
+  });
 }
 
 export function groupConsecutiveTimelineOperations(
