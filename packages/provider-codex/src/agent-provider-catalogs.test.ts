@@ -92,7 +92,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     ]);
   });
 
-  it("rejects Codex models without the 0.151.0 multi-agent version field", async () => {
+  it("rejects Codex models without the 0.152.1 multi-agent version field", async () => {
     const rpc = new FakeRpcClient([
       {
         data: [
@@ -238,6 +238,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
       {
         method: "thread/start",
         params: {
+          config: { "tools.update_plan.enabled": true },
           cwd: projectRootPath,
           historyMode: "paginated",
           projectId: project.id,
@@ -290,7 +291,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     ]);
   });
 
-  it("rejects skills without the 0.151.0 plugin ownership field", async () => {
+  it("rejects skills without the 0.152.1 plugin ownership field", async () => {
     const rpc = new FakeRpcClient([
       {
         data: [

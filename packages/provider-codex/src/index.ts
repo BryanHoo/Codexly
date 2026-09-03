@@ -23,6 +23,7 @@ export {
 } from "./provider-connection.js";
 export {
   SUPPORTED_CODEX_VERSION,
+  SUPPORTED_CODEX_VERSION_RANGE,
   checkCodexVersion,
   locateCodexBinary,
   type CodexBinary,

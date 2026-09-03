@@ -290,7 +290,7 @@ export function mapMcpServerElicitationRequest(
       ? { ...identity, fields: mapFormFields(params["requestedSchema"]), mode }
       : mode === "url"
         ? { ...identity, mode, url: mapSafeUrl(params["url"]) }
-        : mode === "openai/form"
+        : mode === "openai/form" || mode === "openaiForm"
           ? { ...identity, mode: "unsupported" }
           : (() => {
               throw new CodexProtocolMappingError("MCP elicitation mode is unsupported");

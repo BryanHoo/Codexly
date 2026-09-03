@@ -4,7 +4,12 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SUPPORTED_CODEX_VERSION, checkCodexVersion, locateCodexBinary } from "./binary.js";
+import {
+  SUPPORTED_CODEX_VERSION,
+  SUPPORTED_CODEX_VERSION_RANGE,
+  checkCodexVersion,
+  locateCodexBinary,
+} from "./binary.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -137,25 +142,44 @@ describe("locateCodexBinary", () => {
 
 describe("checkCodexVersion", () => {
   it("pins the current Codex release", () => {
-    expect(SUPPORTED_CODEX_VERSION).toBe("0.151.0");
+    expect(SUPPORTED_CODEX_VERSION).toBe("0.152.1");
+    expect(SUPPORTED_CODEX_VERSION_RANGE).toBe(">=0.152.1,<0.153.0");
   });
 
-  it("accepts the pinned supported Codex version", async () => {
-    const execute = vi.fn(() => Promise.resolve(`codex-cli ${SUPPORTED_CODEX_VERSION}\n`));
+  it.each(["0.152.1", "0.152.2", "0.152.99"])(
+    "accepts Codex %s within the supported release line",
+    async (supportedVersion) => {
+      const execute = vi.fn(() => Promise.resolve(`codex-cli ${supportedVersion}\n`));
 
-    await expect(checkCodexVersion("codex", { execute })).resolves.toEqual({
-      raw: `codex-cli ${SUPPORTED_CODEX_VERSION}`,
-      version: SUPPORTED_CODEX_VERSION,
-    });
-    expect(execute).toHaveBeenCalledWith("codex");
-  });
+      await expect(checkCodexVersion("codex", { execute })).resolves.toEqual({
+        raw: `codex-cli ${supportedVersion}`,
+        version: supportedVersion,
+      });
+      expect(execute).toHaveBeenCalledWith("codex");
+    },
+  );
 
-  it("rejects an unsupported Codex version", async () => {
+  it.each(["0.152.0", "0.152.1-next.1", "0.152.99-next.1", "0.153.0", "0.153.0-next.1", "1.0.0"])(
+    "rejects Codex %s outside the supported release line",
+    async (unsupportedVersion) => {
+      await expect(
+        checkCodexVersion("codex", {
+          execute: () => Promise.resolve(`codex-cli ${unsupportedVersion}\n`),
+        }),
+      ).rejects.toThrow(
+        `Unsupported Codex version ${unsupportedVersion}; expected ${SUPPORTED_CODEX_VERSION_RANGE}`,
+      );
+    },
+  );
+
+  it("rejects a legacy Codex version", async () => {
     await expect(
       checkCodexVersion("codex", {
         execute: () => Promise.resolve("codex-cli 0.144.0\n"),
       }),
-    ).rejects.toThrow(`Unsupported Codex version 0.144.0; expected ${SUPPORTED_CODEX_VERSION}`);
+    ).rejects.toThrow(
+      `Unsupported Codex version 0.144.0; expected ${SUPPORTED_CODEX_VERSION_RANGE}`,
+    );
   });
 
   it("rejects malformed version output and non-zero exits", async () => {

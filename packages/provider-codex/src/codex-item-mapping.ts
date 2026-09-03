@@ -181,7 +181,7 @@ export function mapAgentItem(
     }
     case "agentMessage": {
       const text = expectString(item["text"], "Codex agent message text");
-      // 异步投递仍归一化为 Assistant Message，但必须严格接纳 0.151.0 的必填字段。
+      // 异步投递仍归一化为 Assistant Message，但必须严格接纳 0.152.1 的必填字段。
       if (item["delivery"] !== null && item["delivery"] !== "async") {
         throw new CodexProtocolMappingError("Codex agent message delivery must be async or null");
       }

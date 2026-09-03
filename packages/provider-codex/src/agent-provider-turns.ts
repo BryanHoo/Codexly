@@ -18,6 +18,7 @@ import type {
 } from "@codexly/protocol";
 import {
   CodexProtocolMappingError,
+  CODEX_THREAD_CONFIG,
   expectBoolean,
   expectRecord,
   expectString,
@@ -57,6 +58,7 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   public async startTask(options: StartAgentTaskOptions = {}): Promise<AgentTask> {
     const response = expectRecord(
       await this.client.request("thread/start", {
+        config: CODEX_THREAD_CONFIG,
         historyMode: "paginated",
         ...(this.project.kind === "temporary"
           ? {}

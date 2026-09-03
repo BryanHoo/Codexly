@@ -33,7 +33,7 @@ function mapMcpRuntimeStatus(
     case "disabled":
       return value;
     case null:
-      // 对齐 Codex 0.151 TUI：无运行态但未登录时应明确提示认证。
+      // 对齐 Codex 0.152 TUI：无运行态但未登录时应明确提示认证。
       return authStatus === "notLoggedIn" ? "authenticationRequired" : "unknown";
     default:
       throw new CodexProtocolMappingError("mcpServerStatus/list runtimeStatus is invalid");

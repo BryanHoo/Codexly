@@ -68,6 +68,7 @@ describe("CodexAgentProvider mutations", () => {
       {
         method: "thread/start",
         params: {
+          config: { "tools.update_plan.enabled": true },
           cwd: "/workspace/Codexly",
           historyMode: "paginated",
           projectId: project.id,
@@ -277,6 +278,7 @@ describe("CodexAgentProvider mutations", () => {
       {
         method: "thread/fork",
         params: {
+          config: { "tools.update_plan.enabled": true },
           excludeTurns: true,
           lastTurnId: "turn-1",
           runtimeWorkspaceRoots: [projectRootPath],

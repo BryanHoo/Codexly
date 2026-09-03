@@ -4,6 +4,7 @@ import type { RpcErrorPayload, RpcServerRequest } from "./jsonl-rpc-client.js";
 import { SUPPORTED_CODEX_VERSION } from "./binary.js";
 import {
   CodexProtocolMappingError,
+  CODEX_THREAD_CONFIG,
   CODEX_NOTIFICATION_METHODS,
   type PendingCodexRequest,
   expectRecord,
@@ -426,6 +427,7 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
     const resumePromise = (async () => {
       const response = expectRecord(
         await this.client.request("thread/resume", {
+          config: CODEX_THREAD_CONFIG,
           // 恢复只负责加载运行时，Snapshot 历史继续通过分页接口获取。
           excludeTurns: true,
           // 恢复 Project Task 时覆盖旧运行时配置，使全部根立即生效。
@@ -457,7 +459,10 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
   protected async resumeReviewWorker(workerTaskId: string): Promise<void> {
     try {
       const response = expectRecord(
-        await this.client.request("thread/resume", { threadId: workerTaskId }),
+        await this.client.request("thread/resume", {
+          config: CODEX_THREAD_CONFIG,
+          threadId: workerTaskId,
+        }),
         "review worker thread/resume response",
       );
       const thread = expectRecord(response["thread"], "review worker thread/resume thread");

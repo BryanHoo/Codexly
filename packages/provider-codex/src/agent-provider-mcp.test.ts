@@ -77,6 +77,7 @@ describe("CodexAgentProvider MCP servers", () => {
       {
         method: "thread/start",
         params: {
+          config: { "tools.update_plan.enabled": true },
           cwd: projectRootPath,
           historyMode: "paginated",
           projectId: project.id,
@@ -290,7 +291,7 @@ describe("CodexAgentProvider MCP servers", () => {
     );
   });
 
-  it("preserves every 0.151.0 MCP runtime connection status", async () => {
+  it("preserves every 0.152.1 MCP runtime connection status", async () => {
     const statuses = [
       "notStarted",
       "starting",
@@ -355,7 +356,7 @@ describe("CodexAgentProvider MCP servers", () => {
     });
   });
 
-  it("rejects MCP status entries without the 0.151.0 plugin ownership field", async () => {
+  it("rejects MCP status entries without the 0.152.1 plugin ownership field", async () => {
     const rpc = new FakeRpcClient([
       { thread: nativeThread() },
       {

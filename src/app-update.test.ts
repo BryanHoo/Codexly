@@ -98,7 +98,7 @@ describe("app update service", () => {
     );
     const service = createAppUpdateService({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       fetchLatestVersion: vi.fn(() => Promise.resolve("1.4.0")),
       runNpmInstall,
     });
@@ -127,7 +127,7 @@ describe("app update service", () => {
     );
     const service = createAppUpdateService({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       fetchLatestVersion,
       fetchChangelog,
       runNpmInstall,
@@ -135,7 +135,7 @@ describe("app update service", () => {
 
     await expect(service.read()).resolves.toEqual({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       latestVersion: "1.4.0",
       releaseNotes: "### 新增\n\n- 添加在线更新。",
       status: "available",
@@ -148,14 +148,14 @@ describe("app update service", () => {
   it("returns version information when the registry check fails", async () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       fetchLatestVersion: vi.fn(() => Promise.reject(new Error("offline"))),
       runNpmInstall: vi.fn(),
     });
 
     await expect(service.read()).resolves.toEqual({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       latestVersion: null,
       releaseNotes: null,
       status: "check-failed",
@@ -169,13 +169,13 @@ describe("app update service", () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("Not published", { status }));
       const service = createAppUpdateService({
         appVersion: "0.1.0",
-        codexVersion: "0.151.0",
+        codexVersion: "0.152.1",
         runNpmInstall: vi.fn(),
       });
 
       await expect(service.read()).resolves.toEqual({
         appVersion: "0.1.0",
-        codexVersion: "0.151.0",
+        codexVersion: "0.152.1",
         latestVersion: "0.1.0",
         releaseNotes: null,
         status: "current",
@@ -187,7 +187,7 @@ describe("app update service", () => {
   it("keeps the available update when release notes cannot be loaded", async () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       fetchChangelog: vi.fn(() => Promise.reject(new Error("offline"))),
       fetchLatestVersion: vi.fn(() => Promise.resolve("1.4.0")),
       runNpmInstall: vi.fn(),
@@ -195,7 +195,7 @@ describe("app update service", () => {
 
     await expect(service.read()).resolves.toEqual({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       latestVersion: "1.4.0",
       releaseNotes: null,
       status: "available",
@@ -207,14 +207,14 @@ describe("app update service", () => {
     const runNpmInstall = vi.fn(() => Promise.resolve());
     const service = createAppUpdateService({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       fetchLatestVersion: vi.fn(() => Promise.resolve("1.4.0")),
       runNpmInstall,
     });
 
     await expect(service.install("1.4.0")).resolves.toEqual({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       latestVersion: "1.4.0",
       releaseNotes: null,
       status: "restart-required",
@@ -235,7 +235,7 @@ describe("app update service", () => {
       .mockResolvedValueOnce("1.5.0");
     const service = createAppUpdateService({
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       fetchChangelog: vi.fn(() => Promise.resolve("")),
       fetchLatestVersion,
       runNpmInstall,

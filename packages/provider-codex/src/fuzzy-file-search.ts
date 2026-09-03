@@ -73,7 +73,7 @@ function mapFiles(value: unknown, roots: readonly string[]): readonly AgentFileS
   const data: AgentFileSearchMatch[] = [];
   for (const item of value) {
     const file = expectRecord(item, "Codex fuzzy file search result");
-    // Codex 0.151 的外层通知使用 camelCase，但 FuzzyFileSearchResult 字段保持 snake_case。
+    // Codex 0.152 的外层通知使用 camelCase，但 FuzzyFileSearchResult 字段保持 snake_case。
     if (file["match_type"] !== "file") continue;
     const rootPath = expectString(file["root"], "Codex fuzzy file search root");
     if (!rootSet.has(rootPath)) {
@@ -145,7 +145,7 @@ export class CodexFuzzyFileSearchService implements AgentFileSearchProvider {
         return;
       }
 
-      // 0.151.0 的完成通知无法标识 query；等待 active 完成后才能发送最新 pending。
+      // 0.152.1 的完成通知无法标识 query；等待 active 完成后才能发送最新 pending。
       this.#rejectRequest(session.activeRequest, abortError("File search query was replaced"));
       if (session.pendingRequest !== undefined) {
         this.#rejectRequest(session.pendingRequest, abortError("File search query was replaced"));

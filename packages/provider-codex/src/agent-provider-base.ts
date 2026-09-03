@@ -32,6 +32,7 @@ import * as taskArchive from "./agent-provider-task-archive.js";
 import { releaseCodexProjectThreads } from "./thread-unsubscribe.js";
 import {
   CodexProtocolMappingError,
+  CODEX_THREAD_CONFIG,
   type CodexSkill,
   expectRecord,
   expectString,
@@ -61,9 +62,7 @@ export interface CreateCodexRuntimeProviderOptions {
 
 export const CODEX_PINNED_THREAD_SECTION_ID = "01984de2-8f74-7c91-a3b2-5c5e937cf318";
 function isPinnedThreadSection(value: unknown): boolean {
-  if (value === null) {
-    return false;
-  }
+  if (value === null) return false;
   const section = expectRecord(value, "Codex thread section");
   const sectionId = expectString(section["id"], "Codex thread section id");
   expectString(section["name"], "Codex thread section name");
@@ -107,7 +106,7 @@ export function isProjectThread(thread: Record<string, unknown>, project: AgentT
   if (nativeProjectId !== null) {
     return false;
   }
-  // Codex 0.151 使用 null projectId 表示 standalone，cwd 不是其身份字段。
+  // Codex 0.152 使用 null projectId 表示 standalone，cwd 不是其身份字段。
   return true;
 }
 export function assertProjectThread(
@@ -345,6 +344,7 @@ export abstract class CodexAgentProviderBase {
     this.assertKnownProjectTask(taskId);
     const response = expectRecord(
       await this.client.request("thread/fork", {
+        config: CODEX_THREAD_CONFIG,
         // 仅返回元数据并覆盖完整运行时根；历史统一分页读取，避免单个 JSONL 帧过大。
         excludeTurns: true,
         ...(lastTurnId === undefined ? {} : { lastTurnId }),

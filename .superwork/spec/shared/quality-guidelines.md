@@ -8,6 +8,8 @@ Capture contract and verification standards for this project.
 
 - 协议变更同时更新 TypeBox schema、类型导出、序列化/解码逻辑和消费者测试。
 - 升级固定 Codex 版本时，同步更新版本常量、catalog/lockfile 和真实 App Server Schema 基线；对新增通知与联合类型逐项映射或显式 opt-out，不使用旧协议兼容回退。
+- 内置 Codex 固定为 `0.152.1`；外部可执行文件仅接受稳定版 `>=0.152.1,<0.153.0`，不得默认兼容未知次版本或主版本。
+- `thread/start`、`thread/resume` 和 `thread/fork` 必须通过每线程 `config` 启用 `tools.update_plan.enabled`，不得改写用户全局 `config.toml`。
 - `StartAgentTurnResponse` 必须包含启动前捕获的 `EventCheckpoint`，确保首轮乐观 Snapshot 与后续事件回放之间无缺口。
 - 保持依赖方向：`protocol` 独立；`core` 仅依赖 `protocol`；`client` 不依赖服务端运行时。
 - 使用 `pnpm run lint:architecture` 检查循环依赖、越层导入和包边界。

@@ -39,7 +39,7 @@ export const DEFAULT_AGENT_GRANULAR_APPROVAL_POLICY: AgentGranularApprovalPolicy
   },
 };
 
-// Codex 0.151 的全局配置不接受 untrusted；该值仅属于 App Server 的 per-turn 协议。
+// Codex 0.152 的全局配置不接受 untrusted；该值仅属于 App Server 的 per-turn 协议。
 export const AgentGlobalApprovalPolicySchema = Type.Union([
   Type.Literal("on-request"),
   AgentGranularApprovalPolicySchema,

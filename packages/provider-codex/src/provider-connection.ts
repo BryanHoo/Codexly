@@ -334,7 +334,7 @@ export class CodexProviderConnectionService {
     this.#nativeState.clear();
 
     try {
-      // 0.151.0 只能校验当前 Provider；失败时必须补偿恢复刚才的原子配置写入。
+      // 0.152.1 只能校验当前 Provider；失败时必须补偿恢复刚才的原子配置写入。
       readProviderCapabilities(await this.#client.request("modelProvider/capabilities/read", {}));
       if (apiKey !== undefined) {
         const loginResponse = await this.#client.request("account/login/start", {

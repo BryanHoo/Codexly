@@ -71,6 +71,7 @@ describe("CodexAgentProvider task lifecycle", () => {
       {
         method: "thread/start",
         params: {
+          config: { "tools.update_plan.enabled": true },
           cwd: projectRootPath,
           ephemeral: true,
           historyMode: "paginated",
@@ -119,6 +120,7 @@ describe("CodexAgentProvider task lifecycle", () => {
       {
         method: "thread/start",
         params: {
+          config: { "tools.update_plan.enabled": true },
           historyMode: "paginated",
         },
       },
@@ -225,6 +227,7 @@ describe("CodexAgentProvider task lifecycle", () => {
       {
         method: "thread/start",
         params: {
+          config: { "tools.update_plan.enabled": true },
           cwd: otherProject.rootPath,
           historyMode: "paginated",
           projectId: otherProject.id,
@@ -374,7 +377,10 @@ describe("CodexAgentProvider task lifecycle", () => {
     await vi.waitFor(() => {
       expect(rpc.calls.at(-1)).toEqual({
         method: "thread/resume",
-        params: { threadId: "reviewer-thread" },
+        params: {
+          config: { "tools.update_plan.enabled": true },
+          threadId: "reviewer-thread",
+        },
       });
     });
     rpc.emitNotification("turn/started", {

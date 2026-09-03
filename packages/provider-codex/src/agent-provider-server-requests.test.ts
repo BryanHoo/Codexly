@@ -322,7 +322,16 @@ describe("CodexAgentProvider server requests", () => {
       threadId: "task-1",
       turnId: "turn-1",
     });
+    rpc.emitServerRequest("openai-form-alias", "mcpServer/elicitation/request", {
+      message: "Select another template",
+      mode: "openaiForm",
+      requestedSchema: { component: "custom-template-picker" },
+      serverName: "templates",
+      threadId: "task-1",
+      turnId: "turn-1",
+    });
     expect(requests).toEqual([
+      expect.objectContaining({ mode: "unsupported", type: "mcp_elicitation" }),
       expect.objectContaining({ mode: "unsupported", type: "mcp_elicitation" }),
     ]);
     const request = requests[0];
@@ -350,10 +359,24 @@ describe("CodexAgentProvider server requests", () => {
       turnId: request.turnId,
       type: request.type,
     });
+    const aliasRequest = requests[1];
+    if (aliasRequest === undefined) {
+      throw new Error("Expected an aliased MCP elicitation request");
+    }
+    await provider.resolvePendingRequest({
+      itemId: aliasRequest.itemId,
+      projectId: aliasRequest.projectId,
+      requestId: aliasRequest.requestId,
+      resolution: { action: "decline", content: null },
+      taskId: aliasRequest.taskId,
+      turnId: aliasRequest.turnId,
+      type: aliasRequest.type,
+    });
 
     expect(rpc.serverErrors).toEqual([]);
     expect(rpc.serverResponses).toEqual([
       { id: "openai-form", result: { action: "decline", content: null } },
+      { id: "openai-form-alias", result: { action: "decline", content: null } },
     ]);
   });
 

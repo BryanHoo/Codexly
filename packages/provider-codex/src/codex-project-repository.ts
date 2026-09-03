@@ -56,6 +56,14 @@ function mapUnixSeconds(value: unknown, context: string): string {
   return date.toISOString();
 }
 
+function validateNullableUnixSeconds(value: unknown, context: string): void {
+  if (value === null) return;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new CodexProtocolMappingError(`${context} must be a Unix timestamp or null`);
+  }
+  mapUnixSeconds(value, context);
+}
+
 function mapProjectRoot(value: unknown, index: number): ProjectRoot {
   const root = expectRecord(value, `Codex project root ${String(index)}`);
   const path = expectNonEmptyString(root["path"], `Codex project root ${String(index)} path`);
@@ -89,6 +97,8 @@ function mapCodexProject(value: unknown): MappedCodexProject {
   validateMetadata(nativeProject["metadata"]);
   // updatedAt 当前不进入公共 Project，但仍需在外部边界拒绝漂移字段。
   mapUnixSeconds(nativeProject["updatedAt"], "Codex project updatedAt");
+  // recencyAt 仅用于上游可选排序；产品继续按 position 维护用户手动顺序。
+  validateNullableUnixSeconds(nativeProject["recencyAt"], "Codex project recencyAt");
   return {
     position: expectSafeInteger(nativeProject["position"], "Codex project position"),
     project: {

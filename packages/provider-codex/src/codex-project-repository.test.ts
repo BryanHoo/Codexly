@@ -39,6 +39,7 @@ function nativeProject(project: Project, position: number, roots = project.roots
     metadata: {},
     name: project.name,
     position,
+    recencyAt: null,
     roots: roots.map(({ path }) => ({ path })),
     updatedAt: Date.parse(project.createdAt) / 1_000,
   };
@@ -146,6 +147,26 @@ describe("CodexProjectRepository", () => {
       limit: 100,
     });
     expect(projection.replaceProjects).toHaveBeenCalledWith([firstProject, secondProject]);
+  });
+
+  it("validates 0.152.1 recencyAt without changing manual project order", async () => {
+    const projection = createProjection();
+    const recentSecond = { ...nativeProject(secondProject, 20), recencyAt: 1_800_000_000 };
+    const olderFirst = { ...nativeProject(firstProject, 10), recencyAt: 1_700_000_000 };
+    const repository = new CodexProjectRepository(
+      createRpc([{ data: [recentSecond, olderFirst], nextCursor: null }]),
+      projection,
+    );
+
+    await expect(repository.synchronize()).resolves.toEqual([firstProject, secondProject]);
+
+    const invalidRepository = new CodexProjectRepository(
+      createRpc([{ data: [{ ...olderFirst, recencyAt: undefined }], nextCursor: null }]),
+      createProjection(),
+    );
+    await expect(invalidRepository.synchronize()).rejects.toThrow(
+      "Codex project recencyAt must be a Unix timestamp or null",
+    );
   });
 
   it("reads Codex first and updates the local projection", async () => {

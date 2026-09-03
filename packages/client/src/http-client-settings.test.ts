@@ -142,7 +142,7 @@ describe("CodexlyClient settings and app routes", () => {
   it("reads application versions and installs a validated update", async () => {
     const available = {
       appVersion: "1.3.0",
-      codexVersion: "0.151.0",
+      codexVersion: "0.152.1",
       latestVersion: "1.4.0",
       releaseNotes: "### 新增\n\n- 添加在线更新。",
       status: "available" as const,
@@ -189,7 +189,7 @@ describe("CodexlyClient settings and app routes", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       jsonResponse({
         appVersion: "1.3.0",
-        codexVersion: "0.151.0",
+        codexVersion: "0.152.1",
         latestVersion: "latest",
         releaseNotes: null,
         status: "available",

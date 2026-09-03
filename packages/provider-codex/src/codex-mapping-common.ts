@@ -16,6 +16,8 @@ export class CodexProtocolMappingError extends Error {
 
 export const MAX_COMMAND_OUTPUT_BYTES = 1_048_576;
 export const MAX_COMMAND_OUTPUT_LINES = 10_000;
+// 计划工具必须按 Thread 覆盖，不能改写用户的全局 config.toml。
+export const CODEX_THREAD_CONFIG = Object.freeze({ "tools.update_plan.enabled": true });
 export const CODEX_MAPPED_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
   "error",
   "guardianWarning",
@@ -75,6 +77,8 @@ export const CODEX_IGNORED_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
   "item/fileChange/outputDelta",
   "mcpServer/oauthLogin/completed",
   "mcpServer/event/stream/notification",
+  "modelProvider/authRecoveryCompleted",
+  "modelProvider/authRecoveryStarted",
   "process/exited",
   "process/outputDelta",
   "rawResponse/completed",

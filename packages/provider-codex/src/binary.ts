@@ -7,7 +7,8 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-export const SUPPORTED_CODEX_VERSION = "0.151.0";
+export const SUPPORTED_CODEX_VERSION = "0.152.1";
+export const SUPPORTED_CODEX_VERSION_RANGE = ">=0.152.1,<0.153.0";
 
 interface BundledCodexTarget {
   executableName: string;
@@ -184,7 +185,9 @@ export async function locateCodexBinary(
     return { path: resolve(pathBinary), source: "path" };
   }
 
-  throw new Error("Codex binary was not found; install @openai/codex or configure --codex-bin");
+  throw new Error(
+    `Codex binary was not found; install @openai/codex@${SUPPORTED_CODEX_VERSION} or configure --codex-bin`,
+  );
 }
 
 async function executeCodexVersion(binaryPath: string): Promise<string> {
@@ -214,8 +217,13 @@ export async function checkCodexVersion(
   if (!version) {
     throw new Error(`Invalid Codex version output: ${raw || "<empty>"}`);
   }
-  if (version !== SUPPORTED_CODEX_VERSION) {
-    throw new Error(`Unsupported Codex version ${version}; expected ${SUPPORTED_CODEX_VERSION}`);
+  const [major, minor, patch] = version.split("-", 1)[0]?.split(".").map(Number) ?? [];
+  const isPrerelease = version.includes("-");
+  // experimentalApi 只允许经过契约验证的 0.152 补丁线，拒绝未知次版本与主版本。
+  if (major !== 0 || minor !== 152 || patch === undefined || patch < 1 || isPrerelease) {
+    throw new Error(
+      `Unsupported Codex version ${version}; expected ${SUPPORTED_CODEX_VERSION_RANGE}`,
+    );
   }
 
   return { raw, version };

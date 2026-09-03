@@ -359,7 +359,7 @@ describe("WorkbenchInspector sources", () => {
     expect(renderState([])).not.toContain('aria-label="MCP"');
   });
 
-  it("renders every Codex 0.151 MCP connection status", () => {
+  it("renders every Codex 0.152 MCP connection status", () => {
     const statuses = [
       ["notStarted", "未启动"],
       ["starting", "正在启动"],
