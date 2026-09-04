@@ -9,12 +9,6 @@ describe("Codex provider connection failures", () => {
       config: {
         model_provider: "existing_provider",
         model_providers: {
-          codexly_custom: {
-            base_url: "https://previous.example.com/v1",
-            name: "Previous Custom API",
-            requires_openai_auth: false,
-            wire_api: "responses",
-          },
           existing_provider: {
             base_url: "https://existing.example.com/v1",
           },
@@ -44,19 +38,11 @@ describe("Codex provider connection failures", () => {
       params: {
         edits: [
           {
-            keyPath: "model_providers.codexly_custom",
+            keyPath: "model_providers.existing_provider",
             mergeStrategy: "replace",
             value: {
-              base_url: "https://previous.example.com/v1",
-              name: "Previous Custom API",
-              requires_openai_auth: false,
-              wire_api: "responses",
+              base_url: "https://existing.example.com/v1",
             },
-          },
-          {
-            keyPath: "model_provider",
-            mergeStrategy: "replace",
-            value: "existing_provider",
           },
         ],
       },
@@ -89,7 +75,7 @@ describe("Codex provider connection failures", () => {
       params: {
         edits: [
           {
-            keyPath: "model_providers.codexly_custom",
+            keyPath: "model_providers.OpenAI",
             mergeStrategy: "replace",
             value: null,
           },

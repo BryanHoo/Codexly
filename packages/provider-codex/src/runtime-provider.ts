@@ -199,8 +199,9 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
 
   public configureCustomProvider(
     input: ConfigureCustomProviderRequest,
+    persistedModels?: ConfigureCustomProviderResponse["models"],
   ): Promise<ConfigureCustomProviderResponse> {
-    return this.#providerConnection.configureCustom(input);
+    return this.#providerConnection.configureCustom(input, persistedModels);
   }
 
   public forProject(project: Project): AgentProvider {

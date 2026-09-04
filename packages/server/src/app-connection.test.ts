@@ -98,6 +98,7 @@ describe("server diagnostics and provider connection", () => {
     const configureCustomProvider = vi.fn(() =>
       Promise.resolve({ models: customModels, status: customStatus }),
     );
+    const listModels = vi.fn(() => Promise.resolve(customModels));
     const cancelProviderLogin = vi.fn(() =>
       Promise.resolve({
         status: { ...customStatus, pendingLogin: null, state: "connected" as const },
@@ -123,7 +124,7 @@ describe("server diagnostics and provider connection", () => {
       forProject: () => providerHarness.provider,
       forTemporary: () => providerHarness.provider,
       getCapabilities: () => providerHarness.provider.getCapabilities(),
-      listModels: () => providerHarness.provider.listModels(),
+      listModels,
       readDefaultSettings: () => Promise.resolve({}),
       readProviderConnection: vi.fn(() => Promise.resolve(customStatus)),
       releaseProject: () => Promise.resolve(),
@@ -138,10 +139,22 @@ describe("server diagnostics and provider connection", () => {
     );
     closeCallbacks.push(() => app.close());
 
+    const unpersistedReconnectResponse = await app.inject({
+      headers: { "idempotency-key": "unpersisted-custom-provider-reconnect" },
+      method: "PUT",
+      payload: { baseUrl: "https://api.example.com/v1" },
+      url: "/v1/provider-connection/custom",
+    });
     const customResponse = await app.inject({
       headers: { "idempotency-key": "custom-provider" },
       method: "PUT",
       payload: { apiKey: "custom-secret", baseUrl: "https://api.example.com/v1" },
+      url: "/v1/provider-connection/custom",
+    });
+    const reconnectResponse = await app.inject({
+      headers: { "idempotency-key": "custom-provider-reconnect" },
+      method: "PUT",
+      payload: { baseUrl: "https://api.example.com/v1" },
       url: "/v1/provider-connection/custom",
     });
     const modelsResponse = await app.inject({ method: "GET", url: "/v1/models" });
@@ -171,15 +184,24 @@ describe("server diagnostics and provider connection", () => {
       url: "/v1/provider-connection/official-login/cancel",
     });
 
+    expect(unpersistedReconnectResponse.statusCode, unpersistedReconnectResponse.body).toBe(200);
     expect(customResponse.statusCode, customResponse.body).toBe(200);
+    expect(reconnectResponse.statusCode, reconnectResponse.body).toBe(200);
     expect(modelsResponse.json()).toEqual(customModels);
     expect(failedCustomResponse.statusCode).toBe(502);
-    // 自定义失败不覆盖旧目录；第二次写入来自随后成功切换的官方模式。
-    expect(state.writeProviderConnection).toHaveBeenCalledTimes(2);
-    expect(configureCustomProvider).toHaveBeenCalledWith({
-      apiKey: "custom-secret",
-      baseUrl: "https://api.example.com/v1",
-    });
+    // 自定义失败不覆盖旧目录；最后一次写入来自随后成功切换的官方模式。
+    expect(state.writeProviderConnection).toHaveBeenCalledTimes(4);
+    expect(configureCustomProvider).toHaveBeenNthCalledWith(
+      1,
+      { baseUrl: "https://api.example.com/v1" },
+      customModels,
+    );
+    expect(configureCustomProvider).toHaveBeenNthCalledWith(
+      2,
+      { apiKey: "custom-secret", baseUrl: "https://api.example.com/v1" },
+      customModels,
+    );
+    expect(listModels).toHaveBeenCalledOnce();
     expect(JSON.stringify(state.writeProviderConnection.mock.calls)).not.toContain("custom-secret");
     expect(officialResponse.statusCode, officialResponse.body).toBe(200);
     expect(repeatedOfficialResponse.json()).toEqual(officialResponse.json());

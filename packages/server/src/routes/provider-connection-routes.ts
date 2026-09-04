@@ -14,6 +14,7 @@ import {
 import type { FastifyPluginCallback } from "fastify";
 
 import type { ServerRouteContext } from "./context.js";
+import { resolveReconnectModels } from "../provider-reconnect-models.js";
 import { IdempotencyHeadersSchema } from "./schemas.js";
 
 const mutationResponses = {
@@ -106,7 +107,15 @@ export const registerProviderConnectionRoutes: FastifyPluginCallback<ServerRoute
         request.headers["idempotency-key"],
         request.body,
         async () => {
-          const result = await provider.configureCustomProvider(request.body);
+          const reconnectModels = await resolveReconnectModels(
+            request.body,
+            provider,
+            providerConnectionRepository,
+          );
+          const result =
+            reconnectModels === undefined
+              ? await provider.configureCustomProvider(request.body)
+              : await provider.configureCustomProvider(request.body, reconnectModels);
           await providerConnectionRepository.writeProviderConnection({
             customBaseUrl: result.status.customBaseUrl,
             customModels: result.models,

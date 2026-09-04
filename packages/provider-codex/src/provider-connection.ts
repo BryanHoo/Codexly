@@ -18,10 +18,13 @@ import {
   type CustomModelDefinition,
 } from "./custom-model-catalog.js";
 import { CodexNativeStateSnapshot } from "./native-state-snapshot.js";
+import {
+  createCustomProviderConfigUpdate,
+  readActiveProvider,
+} from "./provider-connection-config.js";
 
 export { CodexProviderConnectionError } from "./custom-model-catalog.js";
 
-const CUSTOM_PROVIDER_ID = "codexly_custom";
 const DEFAULT_MODEL_REQUEST_TIMEOUT_MS = 10_000;
 const DEFAULT_MODEL_RESPONSE_MAX_BYTES = 1 * 1_024 * 1_024;
 const DEFAULT_MODEL_COUNT_LIMIT = 1_000;
@@ -124,29 +127,6 @@ function readConfig(response: unknown): Record<string, unknown> {
   return response["config"];
 }
 
-function readActiveProvider(config: Record<string, unknown>): {
-  customBaseUrl: string | null;
-  mode: "custom" | "official";
-} {
-  const providerId =
-    typeof config["model_provider"] === "string" ? config["model_provider"] : "openai";
-  const openaiBaseUrl = optionalString(config["openai_base_url"], 2_048);
-  if (providerId === "openai") {
-    return openaiBaseUrl === null || openaiBaseUrl.length === 0
-      ? { customBaseUrl: null, mode: "official" }
-      : { customBaseUrl: openaiBaseUrl, mode: "custom" };
-  }
-
-  const providers = isRecord(config["model_providers"]) ? config["model_providers"] : null;
-  const provider = providers && isRecord(providers[providerId]) ? providers[providerId] : null;
-  const baseUrl = optionalString(provider?.["base_url"], 2_048);
-  // 非内置 openai Provider 由 Codex CLI 配置驱动，即使它不是 Codexly 创建的固定 Provider。
-  return {
-    customBaseUrl: baseUrl === null || baseUrl.length === 0 ? null : baseUrl,
-    mode: "custom",
-  };
-}
-
 function readAccountResponse(response: unknown): {
   account: AgentProviderAccount | null;
   requiresOpenaiAuth: boolean;
@@ -177,11 +157,6 @@ function createConnectionStatus(
     pendingLogin,
     state: pendingLogin?.state ?? (connected ? "connected" : "disconnected"),
   };
-}
-
-function readCustomProviderConfig(config: Record<string, unknown>): unknown {
-  const providers = isRecord(config["model_providers"]) ? config["model_providers"] : null;
-  return providers?.[CUSTOM_PROVIDER_ID] ?? null;
 }
 
 function readProviderCapabilities(response: unknown): void {
@@ -292,6 +267,7 @@ export class CodexProviderConnectionService {
 
   public async configureCustom(
     input: ConfigureCustomProviderRequest,
+    persistedModels?: ConfigureCustomProviderResponse["models"],
   ): Promise<ConfigureCustomProviderResponse> {
     const baseUrl = normalizeBaseUrl(input.baseUrl);
     const apiKey = input.apiKey;
@@ -299,16 +275,22 @@ export class CodexProviderConnectionService {
       throw new CodexProviderConnectionError("Custom API key cannot be blank");
     }
     const manualModels = normalizeManualModels(input.models ?? [], this.#modelCountLimit);
-    let discoveredModels: CustomModelDefinition[];
-    try {
-      discoveredModels = await this.#discoverModels(baseUrl, apiKey);
-    } catch (error) {
-      if (manualModels.length === 0) throw error;
-      // 部分兼容 API 不提供模型目录；显式模型仍可用于 Responses API Turn。
-      discoveredModels = [];
+    let models: ConfigureCustomProviderResponse["models"];
+    if (input.models === undefined && persistedModels !== undefined) {
+      // 重连时复用 Server 已校验的目录，避免在无明文 API Key 时重复请求远端。
+      models = persistedModels;
+    } else {
+      let discoveredModels: CustomModelDefinition[];
+      try {
+        discoveredModels = await this.#discoverModels(baseUrl, apiKey);
+      } catch (error) {
+        if (manualModels.length === 0) throw error;
+        // 部分兼容 API 不提供模型目录；显式模型仍可用于 Responses API Turn。
+        discoveredModels = [];
+      }
+      // 手动条目位于后侧，同 ID 时覆盖远端缺省名称。
+      models = mapCustomModels([...discoveredModels, ...manualModels], this.#modelCountLimit);
     }
-    // 手动条目位于后侧，同 ID 时覆盖远端缺省名称。
-    const models = mapCustomModels([...discoveredModels, ...manualModels], this.#modelCountLimit);
     this.#nativeState.clear();
     const [configResponse, accountResponse] = await Promise.all([
       this.#client.request("config/read", { includeLayers: false }),
@@ -316,20 +298,13 @@ export class CodexProviderConnectionService {
     ]);
     const previousConfig = readConfig(configResponse);
     const previousAccountState = readAccountResponse(accountResponse);
+    const configUpdate = createCustomProviderConfigUpdate(
+      previousConfig,
+      baseUrl,
+      apiKey !== undefined,
+    );
     await this.#client.request("config/batchWrite", {
-      edits: [
-        {
-          keyPath: `model_providers.${CUSTOM_PROVIDER_ID}`,
-          mergeStrategy: "upsert",
-          value: {
-            base_url: baseUrl,
-            name: "Codexly Custom API",
-            requires_openai_auth: apiKey !== undefined,
-            wire_api: "responses",
-          },
-        },
-        { keyPath: "model_provider", mergeStrategy: "upsert", value: CUSTOM_PROVIDER_ID },
-      ],
+      edits: configUpdate.edits,
     });
     this.#nativeState.clear();
 
@@ -350,18 +325,7 @@ export class CodexProviderConnectionService {
     } catch (error) {
       try {
         await this.#client.request("config/batchWrite", {
-          edits: [
-            {
-              keyPath: `model_providers.${CUSTOM_PROVIDER_ID}`,
-              mergeStrategy: "replace",
-              value: readCustomProviderConfig(previousConfig),
-            },
-            {
-              keyPath: "model_provider",
-              mergeStrategy: "replace",
-              value: previousConfig["model_provider"] ?? null,
-            },
-          ],
+          edits: configUpdate.rollbackEdits,
         });
         this.#nativeState.clear();
       } catch {
@@ -374,15 +338,21 @@ export class CodexProviderConnectionService {
 
     this.#pendingLogin = null;
     this.#nativeState.clear();
-    const activeConfig = {
-      model_provider: CUSTOM_PROVIDER_ID,
-      model_providers: {
-        [CUSTOM_PROVIDER_ID]: { base_url: baseUrl },
-      },
-    };
+    const activeConfig =
+      configUpdate.providerId === "openai"
+        ? { model_provider: "openai", openai_base_url: baseUrl }
+        : {
+            model_provider: configUpdate.providerId,
+            model_providers: {
+              [configUpdate.providerId]: { base_url: baseUrl },
+            },
+          };
     const activeAccountState: AccountState =
       apiKey === undefined
-        ? { account: previousAccountState.account, requiresOpenaiAuth: false }
+        ? {
+            account: previousAccountState.account,
+            requiresOpenaiAuth: configUpdate.requiresOpenaiAuth,
+          }
         : { account: { type: "apiKey" }, requiresOpenaiAuth: true };
     return {
       models,
