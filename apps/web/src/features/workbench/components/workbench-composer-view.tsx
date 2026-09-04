@@ -33,6 +33,7 @@ import {
 import { movePromptCommandSelection } from "./prompt-command.js";
 import { ComposerBranchSwitcher } from "./composer-branch-switcher.js";
 import { ComposerModelSelector } from "./composer-model-selector.js";
+import { ComposerTodoSaveButton, ProjectTodoList } from "./project-todo-controls.js";
 import { ComposerApprovalControls } from "./workbench-composer-approval-controls.js";
 import { shouldNavigatePromptHistory } from "./prompt-history.js";
 import { PromptSkillEditor } from "./prompt-skill-editor.js";
@@ -395,6 +396,13 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                 selectedModel={props.selectedModel}
                 selectedReasoningEffort={props.selectedReasoningEffort}
               />
+              {props.projectToolsEnabled ? (
+                <ComposerTodoSaveButton
+                  disabled={!props.hasComposerInput || props.isSubmitting}
+                  editing={props.editingTodoId !== undefined}
+                  onSave={props.onProjectTodoSave}
+                />
+              ) : null}
               <PromptInputSubmit
                 aria-label={
                   props.submitAction === "queue"
@@ -457,13 +465,23 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
             />
           </>
         ) : null}
-        <Context
-          className="ml-auto"
-          maxTokens={props.contextUsage?.contextWindow}
-          usedTokens={props.contextUsage?.usedTokens}
-        >
-          <ContextTrigger />
-        </Context>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {props.projectToolsEnabled ? (
+            <ProjectTodoList
+              composerHasInput={props.hasComposerInput}
+              onDelete={props.onProjectTodoDelete}
+              onRestore={props.onProjectTodoRestore}
+              projectName={props.projectName}
+              todos={props.projectTodos}
+            />
+          ) : null}
+          <Context
+            maxTokens={props.contextUsage?.contextWindow}
+            usedTokens={props.contextUsage?.usedTokens}
+          >
+            <ContextTrigger />
+          </Context>
+        </div>
       </div>
     </section>
   );

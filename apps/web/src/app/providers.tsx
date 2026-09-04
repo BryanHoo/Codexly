@@ -15,6 +15,7 @@ import { createBrowserTaskNotifier } from "../features/notifications/browser-tas
 import { createActionMutationCache } from "../features/notifications/action-notifications.js";
 import { ProviderConnectionGate } from "../features/provider-connection/components/provider-connection-gate.js";
 import { ComposerDraftProvider } from "../features/workbench/composer-draft-context.js";
+import { ProjectTodoProvider } from "../features/workbench/project-todo-context.js";
 import { getNotificationPreference } from "../features/settings/notification-preference.js";
 import { I18nextProvider, i18n } from "../i18n/i18n.js";
 import { TooltipProvider } from "../shared/components/core/tooltip.js";
@@ -84,7 +85,9 @@ function AppProviderContent({ children }: AppProvidersProps) {
       <AccessControlledContent access={access}>
         <ProviderConnectionGate>
           <ProjectProvider taskNotifier={taskNotifier}>
-            <ComposerDraftProvider>{children}</ComposerDraftProvider>
+            <ProjectTodoProvider>
+              <ComposerDraftProvider>{children}</ComposerDraftProvider>
+            </ProjectTodoProvider>
           </ProjectProvider>
         </ProviderConnectionGate>
       </AccessControlledContent>

@@ -12,34 +12,15 @@ import { HostAttachmentPickerDialog } from "./host-attachment-picker-dialog.js";
 import { isPromptSkillContentEmpty } from "./prompt-skill-editor.js";
 import { useWorkbenchBranchSwitch } from "../hooks/use-workbench-branch-switch.js";
 import { useComposerQueue } from "../hooks/use-composer-queue.js";
+import { useProjectTodoEditing } from "../hooks/use-project-todo-editing.js";
 import { createComposerCommands } from "./workbench-composer-commands.js";
+import { createProjectTodoComposerActions } from "./project-todo-composer-actions.js";
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 import { useComposerSession } from "./workbench-composer-session.js";
 import { createComposerSubmission } from "./workbench-composer-submission.js";
 import { WorkbenchComposerView } from "./workbench-composer-view.js";
 export * from "./workbench-composer-contracts.js";
-export {
-  applyApprovalMode,
-  deriveApprovalMode,
-  deriveComposerActions,
-  deriveComposerInputAvailability,
-  deriveComposerState,
-  interruptPromptTurn,
-  LARGE_PASTE_CHARACTER_THRESHOLD,
-  PASTED_TEXT_ATTACHMENT_NAME,
-  resolveActiveTurnId,
-  resolveComposerPlaceholder,
-  resolveComposerSubmitAction,
-  resolveIdempotencyAttempt,
-  resolveReasoningEffort,
-  startPromptTurn,
-  startTaskReview,
-  steerPromptTurn,
-  type ApprovalMode,
-  type ComposerState,
-  type ComposerSubmitAction,
-  type IdempotencyAttempt,
-} from "../composer-state.js";
+export * from "../composer-state.js";
 
 export function WorkbenchComposer({
   composerRef,
@@ -48,6 +29,7 @@ export function WorkbenchComposer({
   fastModeAvailable,
   fastModeDefault,
   followUpBehavior,
+  initialTodoId,
   models,
   modelsError,
   modelsPending,
@@ -62,6 +44,7 @@ export function WorkbenchComposer({
   onTaskStarted,
   onTurnStarted,
   projectId,
+  projectName,
   projectPath,
   projectPathOpenDisabled,
   projectRoots,
@@ -74,15 +57,19 @@ export function WorkbenchComposer({
   taskId,
 }: WorkbenchComposerProps) {
   const { t } = useTranslation(["workbench", "settings"]);
+  const todoEditing = useProjectTodoEditing(projectId, initialTodoId);
+  const { editingTodoId, projectTodos, todos } = todoEditing;
   const session = useComposerSession({
     capabilities,
     client,
+    editingTodoId,
     gitStatus,
     models,
     onSubmissionStateChange,
     projectId,
     projectPath,
     projectToolsEnabled,
+    projectTodos,
     runtime,
     settings,
     skills,
@@ -149,7 +136,13 @@ export function WorkbenchComposer({
   const fastModeSelected =
     fastModeSelection?.scope === composerScope ? fastModeSelection.enabled : fastModeDefault;
   const fastModeEnabled = fastModeAvailable && fastModeSelected;
-  const { actionLock: composerActionLock, interruptAttempt, isCurrentScope } = composerController;
+  const {
+    actionLock: composerActionLock,
+    interruptAttempt,
+    isCurrentScope,
+    uploadAttempts,
+    uploadedAttachments,
+  } = composerController;
   const updateSettings = (nextSettings: AgentTaskSettings, field: keyof AgentTaskSettings) => {
     const requestScope = routeScope;
     setSettingsOverride({ scope: requestScope, settings: nextSettings });
@@ -320,6 +313,28 @@ export function WorkbenchComposer({
   };
 
   const hasComposerInput = !isPromptSkillContentEmpty(promptContent) || attachmentCount > 0;
+  const todoActions = createProjectTodoComposerActions({
+    actionLock: composerActionLock,
+    attachments,
+    clearComposerInput,
+    client,
+    editingTodoId,
+    fallbackError: t("composer.saveTodoFailed"),
+    hasComposerInput,
+    isCurrentScope,
+    isSubmitting,
+    onEditingComplete: todoEditing.complete,
+    projectId,
+    projectTodos,
+    promptContent,
+    routeScope,
+    setIsSubmitting,
+    setMutationError,
+    skillEditorRef,
+    submitPrompt,
+    uploadAttempts,
+    uploadedAttachments,
+  });
   const submitAction =
     composerQueue.editingId === undefined
       ? resolveComposerSubmitAction(state, hasComposerInput, followUpBehavior, canSteer)
@@ -346,6 +361,7 @@ export function WorkbenchComposer({
       creatingBranch={branchMutation.creatingBranch}
       creatingWorktree={branchMutation.creatingWorktree}
       draftInputDisabled={draftInputDisabled}
+      editingTodoId={editingTodoId}
       filteredCommands={filteredCommands}
       filteredSkills={filteredSkills}
       fileMenuOpen={fileMenuOpen}
@@ -372,7 +388,19 @@ export function WorkbenchComposer({
       onComposerModeRemove={() => {
         setComposerModeState(undefined);
       }}
-      onAttachmentsChange={handleAttachmentsChange}
+      onProjectTodoDelete={(todoId) => {
+        todoEditing.remove(todoId);
+      }}
+      onProjectTodoRestore={(todoId) => {
+        todoEditing.restore(todoId, clearComposerInput);
+      }}
+      onProjectTodoSave={() => {
+        void todoActions.save();
+      }}
+      onAttachmentsChange={(files) => {
+        handleAttachmentsChange(files);
+        todoEditing.discardIfEmpty(files.length > 0 || !isPromptSkillContentEmpty(promptContent));
+      }}
       onBranchCreate={branchMutation.createBranch}
       onBranchChange={(branch) => {
         void branchMutation.switchBranch(branch);
@@ -400,14 +428,17 @@ export function WorkbenchComposer({
         setActiveCommandIndex(0);
         setReviewMenuMode("branches");
       }}
-      onPromptChange={handlePromptChange}
+      onPromptChange={(content, text, cursorOffset) => {
+        handlePromptChange(content, text, cursorOffset);
+        todoEditing.discardIfEmpty(attachments.length > 0 || !isPromptSkillContentEmpty(content));
+      }}
       onPromptHistoryNavigate={navigatePromptHistory}
       onSelectActiveCommand={selectActiveCommandItem}
       onSelectAttachmentKind={setAttachmentPickerKind}
       onSelectFileReference={selectFileReference}
       onSelectSkill={selectSkill}
       onSettingsChange={updateSettings}
-      onSubmit={(message) => void submitPrompt(message)}
+      onSubmit={(message) => void todoActions.submit(message)}
       onViewError={(error) => {
         setMutationError(error);
       }}
@@ -415,6 +446,8 @@ export function WorkbenchComposer({
       projectPathOpenDisabled={projectPathOpenDisabled}
       projectRoots={projectRoots}
       projectToolsEnabled={projectToolsEnabled}
+      projectName={projectName ?? projectId}
+      projectTodos={todos}
       promptContent={promptContent}
       promptSubmissionText={promptSubmission.text}
       queuedPrompts={composerQueue.queuedPrompts}

@@ -76,6 +76,7 @@ export type AgentAttachmentUploadInput = Readonly<{
 
 export type ListTasksOptions = Readonly<{
   archived?: true;
+  completed?: true;
   cursor?: string;
   limit?: number;
   pinned?: true;

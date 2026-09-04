@@ -18,8 +18,10 @@ function WorkbenchLayout() {
     select: (state) => {
       const params = state.matches.at(-1)?.params;
       return {
+        board: state.location.pathname.endsWith("/board"),
         projectId: params !== undefined && "projectId" in params ? params.projectId : undefined,
         taskId: params !== undefined && "taskId" in params ? params.taskId : undefined,
+        todoId: params !== undefined && "todoId" in params ? params.todoId : undefined,
       };
     },
   });
@@ -30,6 +32,8 @@ function WorkbenchLayout() {
   return (
     <WorkbenchBackground>
       <WorkbenchRoute
+        board={routeParams.board}
+        {...(routeParams.todoId === undefined ? {} : { todoId: routeParams.todoId })}
         projectId={projectId}
         temporary={temporary}
         {...(routeParams.taskId === undefined ? {} : { taskId: routeParams.taskId })}

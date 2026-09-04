@@ -1,5 +1,5 @@
 import { CodexlyClient } from "@codexly/client";
-import type { AgentTaskPage, AgentTaskSnapshot } from "@codexly/protocol";
+import type { AgentTask, AgentTaskPage, AgentTaskSnapshot } from "@codexly/protocol";
 import type { InfiniteData } from "@tanstack/react-query";
 
 export type CodexlyReadClient = Pick<CodexlyClient, "listProjects" | "listTasks" | "readTask">;
@@ -129,10 +129,12 @@ export type CodexlyWorkbenchClient = CodexlyReadClient &
 export type CodexlySnapshotClient = Pick<CodexlyClient, "readTask">;
 
 export const PROJECT_TASK_PAGE_SIZE = 5;
+export const COMPLETED_TASK_PAGE_SIZE = 10;
 export const ARCHIVED_TASK_PAGE_SIZE = 20;
 export const PROJECT_TASK_SEARCH_PAGE_SIZE = 100;
 export const PROJECT_PINNED_TASKS_KEY = "pinned";
 export const PROJECT_TASK_SEARCH_SOURCE_KEY = "search-source";
+export const TASK_BOARD_COMPLETED_TASKS_QUERY_KEY = ["task-board", "completed"] as const;
 export const TASK_SNAPSHOT_GC_TIME_MS = 30_000;
 
 export function taskQueueQueryKey(projectId: string, taskId: string) {
@@ -142,6 +144,15 @@ export function taskQueueQueryKey(projectId: string, taskId: string) {
 export const codexlyClient = new CodexlyClient();
 
 export type ProjectTaskInfiniteData = InfiniteData<AgentTaskPage, string | undefined>;
+export type CompletedTasksCursor = Readonly<Record<string, string | null>>;
+export type CompletedTasksPage = Readonly<{
+  cursors: CompletedTasksCursor;
+  data: readonly AgentTask[];
+}>;
+export type CompletedTasksInfiniteData = InfiniteData<
+  CompletedTasksPage,
+  CompletedTasksCursor | undefined
+>;
 export type TaskTitleSnapshot = Pick<
   AgentTaskSnapshot,
   "id" | "projectId" | "title" | "turns" | "updatedAt"

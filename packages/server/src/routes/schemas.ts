@@ -112,6 +112,7 @@ export const TaskPageQuerySchema = {
   additionalProperties: false,
   properties: {
     archived: { const: true, type: "boolean" },
+    completed: { const: true, type: "boolean" },
     cursor: { minLength: 1, type: "string" },
     limit: { maximum: 100, minimum: 1, type: "integer" },
     pinned: { const: true, type: "boolean" },

@@ -15,6 +15,7 @@ import type {
   ProjectFileSearchEntry,
   ProjectRoot,
 } from "@codexly/protocol";
+import { buildProjectAttachmentUrl } from "@codexly/client";
 import type { Ref } from "react";
 
 import type {
@@ -68,6 +69,7 @@ export type WorkbenchComposerProps = Readonly<{
   fastModeAvailable: boolean;
   fastModeDefault: boolean;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];
+  initialTodoId?: string;
   models: readonly AgentModel[];
   modelsError: Error | null;
   modelsPending: boolean;
@@ -97,6 +99,7 @@ export type WorkbenchComposerProps = Readonly<{
     checkpoint?: EventCheckpoint,
   ) => void;
   projectId: string;
+  projectName?: string;
   projectPathOpenDisabled: boolean;
   projectPath: string;
   projectToolsEnabled?: boolean;
@@ -117,4 +120,32 @@ export async function resolvePromptAttachment(
     return attachment.attachment;
   }
   return uploadBrowserAttachment(attachment);
+}
+
+export async function persistPromptAttachments(
+  projectId: string,
+  attachments: readonly PromptInputAttachment[],
+  uploadBrowserAttachment: (attachment: BrowserPromptInputAttachment) => Promise<AgentAttachment>,
+): Promise<readonly PromptInputAttachment[]> {
+  const persisted = new Array<PromptInputAttachment>(attachments.length);
+  let nextIndex = 0;
+  const persistNext = async (): Promise<void> => {
+    while (nextIndex < attachments.length) {
+      // 固定两路并发，避免多个大附件同时占用浏览器内存和网络带宽。
+      const index = nextIndex;
+      nextIndex += 1;
+      const attachment = attachments[index];
+      if (attachment === undefined) continue;
+      const resolved = await resolvePromptAttachment(attachment, uploadBrowserAttachment);
+      persisted[index] = {
+        attachment: resolved,
+        ...resolved,
+        previewUrl:
+          resolved.kind === "image" ? buildProjectAttachmentUrl("", projectId, resolved.id) : "",
+        source: "host",
+      };
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(2, attachments.length) }, persistNext));
+  return persisted;
 }

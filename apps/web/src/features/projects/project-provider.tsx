@@ -18,10 +18,12 @@ import { ProjectGitStatusCoordinator } from "./project-git-status-coordinator.js
 import { createProjectGitRuntimeHandlers } from "./project-git-runtime-handlers.js";
 import {
   capabilitiesQueryOptions,
+  cacheCompletedProjectTask,
   codexlyClient,
   invalidateTaskQueue,
   PROJECT_PINNED_TASKS_KEY,
   PROJECT_TASK_SEARCH_SOURCE_KEY,
+  TASK_BOARD_COMPLETED_TASKS_QUERY_KEY,
   projectRemoveMutationOptions,
   projectRenameMutationOptions,
   projectReorderMutationOptions,
@@ -88,6 +90,7 @@ export function ProjectProvider({
       },
       onTaskRemoved(projectId, taskId) {
         void removeArchivedProjectTaskAndRefill(queryClient, projectId, taskId);
+        void queryClient.invalidateQueries({ queryKey: TASK_BOARD_COMPLETED_TASKS_QUERY_KEY });
         queryClient.removeQueries({
           exact: true,
           queryKey: ["projects", projectId, "tasks", taskId],
@@ -110,6 +113,7 @@ export function ProjectProvider({
                 exact: true,
                 queryKey: ["projects", projectId, "tasks", PROJECT_PINNED_TASKS_KEY],
               }),
+              queryClient.invalidateQueries({ queryKey: TASK_BOARD_COMPLETED_TASKS_QUERY_KEY }),
             ]);
           }
           queryClient.removeQueries({
@@ -118,6 +122,9 @@ export function ProjectProvider({
           });
           const response = await client.readTask(projectId, taskId);
           projectRuntime.reconcileTaskSnapshot(response);
+          if (reason === "turn_completed" && response.snapshot.status === "idle") {
+            await cacheCompletedProjectTask(queryClient, response.snapshot);
+          }
           updateTaskTitleInProjectListCaches(queryClient, response.snapshot, {
             assistantReplyStarted: reason === "assistant_reply_started",
           });

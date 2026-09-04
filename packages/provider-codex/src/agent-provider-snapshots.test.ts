@@ -89,6 +89,46 @@ describe("CodexAgentProvider snapshots", () => {
     ]);
   });
 
+  it("fills a completed task page across active native threads", async () => {
+    const rpc = new FakeRpcClient([
+      {
+        data: [nativeThread({ id: "task-running", status: { activeFlags: [], type: "active" } })],
+        nextCursor: "completed-next",
+      },
+      {
+        data: [nativeThread({ id: "task-completed", status: { type: "notLoaded" } })],
+        nextCursor: null,
+      },
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+
+    await expect(provider.listTasks({ completed: true, limit: 1 })).resolves.toMatchObject({
+      data: [{ id: "task-completed" }],
+      nextCursor: null,
+    });
+    expect(rpc.calls).toEqual([
+      {
+        method: "thread/list",
+        params: {
+          limit: 1,
+          projectId: project.id,
+          sortDirection: "desc",
+          sortKey: "updated_at",
+        },
+      },
+      {
+        method: "thread/list",
+        params: {
+          cursor: "completed-next",
+          limit: 1,
+          projectId: project.id,
+          sortDirection: "desc",
+          sortKey: "updated_at",
+        },
+      },
+    ]);
+  });
+
   it("does not treat a custom Codex section as pinned", async () => {
     const rpc = new FakeRpcClient([
       {

@@ -10,6 +10,7 @@ import { createContext, useContext, useEffect, useMemo } from "react";
 import type { ProjectRuntimeManager } from "../conversation/runtime/project-runtime.js";
 import type { TaskActivityMap } from "../conversation/runtime/task-activity.js";
 import {
+  completedTasksInfiniteQueryOptions,
   flattenProjectTaskPages,
   projectPinnedTasksQueryOptions,
   projectTaskSearchSourceQueryOptions,
@@ -218,6 +219,36 @@ export function useProjectTaskSearch(normalizedQuery: string) {
           .filter((task) => task.title.toLocaleLowerCase().includes(normalizedQuery));
 
   return { error, isPending, tasks } as const;
+}
+
+export function useCompletedTasks(projectId: string | null) {
+  const { client, projects } = useProjectData();
+  const projectIds = useMemo(
+    () =>
+      projectId === null
+        ? [TEMPORARY_TASK_SCOPE_ID, ...projects.map((project) => project.id)]
+        : [projectId],
+    [projectId, projects],
+  );
+  const query = useInfiniteQuery(completedTasksInfiniteQueryOptions(projectIds, client));
+  const tasks = useMemo(() => {
+    const byId = new Map<string, AgentTask>();
+    for (const page of query.data?.pages ?? []) {
+      for (const task of page.data) byId.set(`${task.projectId}\u0000${task.id}`, task);
+    }
+    return [...byId.values()].sort(
+      (left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
+    );
+  }, [query.data]);
+  return {
+    error: query.error,
+    fetchNextPage: query.fetchNextPage,
+    hasNextPage: query.hasNextPage,
+    isFetchingNextPage: query.isFetchingNextPage,
+    isPending: query.isPending,
+    refetch: query.refetch,
+    tasks,
+  } as const;
 }
 
 export function usePinnedProjectTasks() {

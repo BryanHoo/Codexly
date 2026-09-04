@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   clearTaskAttention,
   getTaskActivity,
+  listActiveTaskActivities,
   recordTaskActivitySnapshot,
   reduceTaskActivityEvent,
   type TaskActivityMap,
@@ -138,6 +139,44 @@ function createPermissionRequest(requestId: string): AgentTaskSnapshot["pendingR
 }
 
 describe("task activity registry", () => {
+  it("projects active tasks with stable board metadata", () => {
+    let activity: TaskActivityMap = new Map();
+    activity = recordTaskActivitySnapshot(activity, {
+      ...createSnapshot("task-a", "running"),
+      title: "实现任务看板",
+      turns: [
+        {
+          completedAt: null,
+          error: null,
+          id: "turn-task-a",
+          items: [],
+          startedAt: "2026-07-27T00:00:00.000Z",
+          status: "running",
+        },
+      ],
+    });
+    activity = recordTaskActivitySnapshot(
+      activity,
+      createSnapshot("task-b", "running", [createApprovalRequest("approval-1")]),
+    );
+
+    expect(listActiveTaskActivities(activity)).toEqual([
+      {
+        id: "task-a",
+        projectId: "codexly",
+        startedAt: "2026-07-27T00:00:00.000Z",
+        status: "running",
+        title: "实现任务看板",
+      },
+      {
+        id: "task-b",
+        projectId: "codexly",
+        status: "approval",
+        title: "task-b",
+      },
+    ]);
+  });
+
   it("keeps a running task visible when another task becomes active", () => {
     let activity: TaskActivityMap = new Map();
     activity = recordTaskActivitySnapshot(activity, createSnapshot("task-a", "running"));

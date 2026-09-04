@@ -105,9 +105,11 @@ export type SubmittedPromptState = Readonly<{
 }>;
 
 export type WorkbenchShellProps = Readonly<{
+  board?: boolean;
   projectId: string;
   taskId?: string;
   temporary?: boolean;
+  todoId?: string;
 }>;
 
 export function useWorkbenchShellRuntime({

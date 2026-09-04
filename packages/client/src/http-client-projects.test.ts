@@ -345,6 +345,22 @@ describe("CodexlyClient project routes", () => {
     );
   });
 
+  it("builds completed task pagination requests", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    fetchMock.mockResolvedValue(jsonResponse({ data: [task], nextCursor: null }));
+    const client = new CodexlyClient({ fetch: fetchMock });
+
+    await client.listTasks("project one", {
+      completed: true,
+      cursor: "next/value",
+      limit: 10,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/v1/projects/project%20one/tasks?completed=true&cursor=next%2Fvalue&limit=10",
+    );
+  });
+
   it("builds a paginated task snapshot request", async () => {
     const response = {
       checkpoint: { sequence: 0, sessionId: "runtime-1" },

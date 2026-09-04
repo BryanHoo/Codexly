@@ -11,7 +11,9 @@ import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "
 
 import type { PromptInputAttachment } from "../../../shared/components/agent/prompt-input.js";
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
-import { createComposerDraftScope, useComposerDraftStore } from "../composer-draft-context.js";
+import { useComposerDraftStore } from "../composer-draft-context.js";
+import { createProjectTodoBinding, shouldRestoreComposerBinding } from "../project-todo-binding.js";
+import type { ProjectTodoStore } from "../project-todo-store.js";
 import {
   deriveComposerActions,
   deriveComposerInputAvailability,
@@ -50,12 +52,14 @@ import type { ComposerMode } from "./workbench-composer-contracts.js";
 type ComposerSessionOptions = Readonly<{
   capabilities: AgentCapabilities | undefined;
   client: WorkbenchComposerProps["client"];
+  editingTodoId: string | undefined;
   gitStatus: ProjectGitStatus | undefined;
   models: readonly AgentModel[];
   onSubmissionStateChange: WorkbenchComposerProps["onSubmissionStateChange"];
   projectId: string;
   projectPath: string;
   projectToolsEnabled: boolean;
+  projectTodos: ProjectTodoStore;
   runtime: TaskRuntimeView | undefined;
   settings: AgentTaskSettings;
   skills: readonly AgentSkill[];
@@ -67,12 +71,14 @@ const emptyProjectFileSearchResults: readonly ProjectFileSearchEntry[] = [];
 export function useComposerSession({
   capabilities,
   client,
+  editingTodoId,
   gitStatus,
   models,
   onSubmissionStateChange,
   projectId,
   projectPath,
   projectToolsEnabled,
+  projectTodos,
   runtime,
   settings,
   skills,
@@ -80,9 +86,20 @@ export function useComposerSession({
 }: ComposerSessionOptions) {
   // Git 与文件异步操作绑定当前根；切换根后旧请求不得更新新根的 Composer 状态。
   const routeScope = `${projectId}:${taskId ?? "draft"}:${projectPath}`;
-  const composerScope = createComposerDraftScope(projectId, taskId);
   const composerDraftStore = useComposerDraftStore();
-  const initialComposerDraft = composerDraftStore.read(composerScope);
+  const composerDraftBinding = useMemo(
+    () =>
+      createProjectTodoBinding({
+        composerDrafts: composerDraftStore,
+        editingTodoId,
+        projectId,
+        projectTodos,
+        taskId,
+      }),
+    [composerDraftStore, editingTodoId, projectId, projectTodos, taskId],
+  );
+  const composerScope = composerDraftBinding.scope;
+  const initialComposerDraft = composerDraftBinding.read();
   const [settingsOverride, setSettingsOverride] = useState<{
     scope: string;
     settings: AgentTaskSettings;
@@ -203,12 +220,12 @@ export function useComposerSession({
   const handleAttachmentsChange = useCallback(
     (files: readonly PromptInputAttachment[]) => {
       setAttachments(files);
-      composerDraftStore.update(composerScope, (current) => ({
+      composerDraftBinding.update((current) => ({
         ...current,
         attachments: files,
       }));
     },
-    [composerDraftStore, composerScope],
+    [composerDraftBinding],
   );
   const closeCommandMenu = useCallback(() => {
     setCommandMenuOpen(false);
@@ -224,14 +241,14 @@ export function useComposerSession({
   const replacePromptContent = useCallback(
     (nextContent: PromptSkillContent, cursorOffset?: number) => {
       setPromptContent(nextContent);
-      composerDraftStore.update(composerScope, (current) => ({
+      composerDraftBinding.update((current) => ({
         ...current,
         content: nextContent,
       }));
       // 程序化命令直接同步编辑 DOM，避免受控回写破坏 IME 组合缓冲。
       skillEditorRef.current?.replace(nextContent, cursorOffset);
     },
-    [composerDraftStore, composerScope],
+    [composerDraftBinding],
   );
   const navigatePromptHistory = useCallback(
     (direction: PromptHistoryDirection) => {
@@ -303,7 +320,7 @@ export function useComposerSession({
     (nextContent: PromptSkillContent, serializedText: string, cursorOffset: number) => {
       setPromptContent(nextContent);
       setPromptHistoryIndex(null);
-      composerDraftStore.update(composerScope, (current) => ({
+      composerDraftBinding.update((current) => ({
         ...current,
         content: nextContent,
       }));
@@ -339,7 +356,7 @@ export function useComposerSession({
       setCommandQuery(slashCommand.query);
       setCommandSlashCommand(slashCommand);
     },
-    [closeFileMenu, composerDraftStore, composerScope, projectToolsEnabled],
+    [closeFileMenu, composerDraftBinding, projectToolsEnabled],
   );
 
   const clearComposerInput = useCallback(() => {
@@ -349,18 +366,26 @@ export function useComposerSession({
     setAttachments([]);
     skillEditorRef.current?.replace([]);
     // 编辑器同步完成后再删持久草稿，禁止其变更回调重新写入旧内容。
-    composerDraftStore.clear(composerScope);
-  }, [composerDraftStore, composerScope]);
+    composerDraftBinding.clear();
+  }, [composerDraftBinding]);
 
   useLayoutEffect(() => {
-    if (previousRouteScopeRef.current === routeScope) {
+    if (
+      !shouldRestoreComposerBinding(
+        {
+          routeScope: previousRouteScopeRef.current,
+          storageScope: previousComposerScopeRef.current,
+        },
+        { routeScope, storageScope: composerScope },
+      )
+    ) {
       return;
     }
     previousRouteScopeRef.current = routeScope;
     const composerScopeChanged = previousComposerScopeRef.current !== composerScope;
     if (composerScopeChanged) {
       previousComposerScopeRef.current = composerScope;
-      const restoredDraft = composerDraftStore.read(composerScope);
+      const restoredDraft = composerDraftBinding.read();
       // 切换聊天时恢复对应草稿，同时保留编辑节点和焦点，避免重建原生 IME 会话。
       setPromptContent(restoredDraft.content);
       setPromptHistoryIndex(null);
@@ -381,7 +406,7 @@ export function useComposerSession({
     }
     // 路由相关请求结果不能写入刚激活的其他聊天。
     resetController(composerScopeChanged);
-  }, [composerDraftStore, composerScope, resetController, routeScope]);
+  }, [composerDraftBinding, composerScope, resetController, routeScope]);
 
   return {
     activeCommandIndex,
@@ -405,7 +430,6 @@ export function useComposerSession({
     commandSlashCommand,
     commandSurfaceRef,
     composerController,
-    composerDraftStore,
     composerScope,
     connectionState,
     contextUsage,

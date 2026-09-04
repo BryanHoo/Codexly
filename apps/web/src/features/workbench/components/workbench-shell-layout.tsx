@@ -1,38 +1,37 @@
-import { PanelLeft, PanelRight, Pencil } from "lucide-react";
 import { useRef, type CSSProperties } from "react";
 
 import { Button } from "../../../shared/components/core/button.js";
 import { RuntimeUnavailable } from "../../../shared/components/core/runtime-unavailable.js";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "../../../shared/components/core/tooltip.js";
 import { ProjectSidebar } from "./project-sidebar.js";
 import { TaskTimeline } from "./task-timeline.js";
 import { WorkbenchComposer, type WorkbenchComposerHandle } from "./workbench-composer.js";
 import { WorkbenchPanelResizer } from "./workbench-panel-resizer.js";
 import { inspectorWidthLimits, sidebarWidthLimits } from "./workbench-panel-layout.js";
-import { ProjectQuickOpenMenu } from "./project-open-menu.js";
 import type { useWorkbenchShellController } from "./workbench-shell-controller.js";
 import { WorkbenchShellDialogs } from "./workbench-shell-dialogs.js";
 import { ActiveTaskWorkbench } from "./workbench-shell-active-task.js";
 import { WorkbenchInspector } from "./workbench-inspector.js";
 import { WorkbenchPetLayer } from "../../pets/components/workbench-pet-layer.js";
+import { TaskBoardContainer } from "./task-board-container.js";
+import { WorkbenchShellHeader } from "./workbench-shell-header.js";
 
 type WorkbenchShellStyle = CSSProperties &
   Readonly<{ "--inspector-open-width": string; "--sidebar-open-width": string }>;
 
 export function WorkbenchShellLayout({
+  board,
   context,
   projectId,
   taskId,
   temporary,
+  todoId,
 }: Readonly<{
+  board: boolean;
   context: ReturnType<typeof useWorkbenchShellController>;
   projectId: string;
   taskId?: string;
   temporary: boolean;
+  todoId?: string;
 }>) {
   const composerRef = useRef<WorkbenchComposerHandle>(null);
   const {
@@ -96,11 +95,9 @@ export function WorkbenchShellLayout({
     setInspectorTab,
     setInspectorWidth,
     setInspectorFileSelection,
-    setSidebarOpen,
     setSidebarWidth,
     setSelectedRootId,
     setSubagentDialogSelection,
-    setTaskRenameOpen,
     sidebarConnectionState,
     sidebarOpen,
     sidebarWidth,
@@ -108,7 +105,6 @@ export function WorkbenchShellLayout({
     startingSnapshot,
     subagents,
     taskLaunchState,
-    title,
     updateDraftSettings,
     updateProjectTaskDefaults,
     workbenchShellRef,
@@ -117,7 +113,7 @@ export function WorkbenchShellLayout({
   return (
     <div
       className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
-      data-inspector-open={inspectorOpen}
+      data-inspector-open={!board && inspectorOpen}
       data-sidebar-open={sidebarOpen}
       ref={workbenchShellRef}
       style={
@@ -173,100 +169,24 @@ export function WorkbenchShellLayout({
           width={sidebarWidth}
         />
       ) : null}
-      <main aria-label={t("shell.timeline")} className="flex min-h-0 min-w-0 flex-col bg-content">
-        <header className="flex h-workbench-header shrink-0 items-center justify-between gap-3 bg-content px-2.5 shadow-toolbar sm:px-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Tooltip key={sidebarOpen ? "sidebar-open" : "sidebar-closed"}>
-              <TooltipTrigger asChild>
-                <Button
-                  aria-label={sidebarOpen ? t("shell.collapseSidebar") : t("shell.expandSidebar")}
-                  id="workbench-sidebar-toggle"
-                  onClick={() => {
-                    setSidebarOpen((open) => !open);
-                  }}
-                  size="icon-sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <PanelLeft className="size-3.5" aria-hidden="true" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {sidebarOpen ? t("shell.collapseSidebar") : t("shell.expandSidebar")}
-              </TooltipContent>
-            </Tooltip>
-            <h1
-              aria-label={title}
-              className="min-w-0 text-body-small font-semibold text-foreground"
-            >
-              {taskId === undefined ? (
-                <span className="block truncate">{title}</span>
-              ) : (
-                <Button
-                  variant="ghost"
-                  aria-label={t("shell.renameTask", { title })}
-                  className="group flex max-w-full items-center gap-1 rounded-control px-1 py-0.5 text-left hover:bg-control-hover focus-visible:shadow-focus"
-                  id="workbench-task-title-rename"
-                  onClick={() => {
-                    setTaskRenameOpen(true);
-                  }}
-                  type="button"
-                >
-                  <span className="truncate">{title}</span>
-                  <Pencil
-                    aria-hidden="true"
-                    className="size-3 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
-                  />
-                </Button>
-              )}
-            </h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <ProjectQuickOpenMenu
-              apps={projectOpenCapabilitiesQuery.data?.apps ?? []}
-              className="hidden min-workbench:flex"
-              {...(globalSettings === undefined
-                ? {}
-                : { defaultOpenAppId: globalSettings.defaultOpenAppId })}
-              hidden={temporary}
-              isDetecting={projectOpenCapabilitiesQuery.isPending}
-              isPending={projectPathOpenMutation.isPending}
-              onSelect={(appId) => {
-                projectPathOpenMutation.reset();
-                void projectPathOpenLockRef.current
-                  .run(() => projectPathOpenMutation.mutateAsync({ appId, path: undefined }))
-                  .catch(() => undefined);
-              }}
-            />
-            <Tooltip key={inspectorOpen ? "inspector-open" : "inspector-closed"}>
-              <TooltipTrigger asChild>
-                <Button
-                  aria-label={
-                    inspectorOpen ? t("shell.collapseInspector") : t("shell.expandInspector")
-                  }
-                  id="workbench-inspector-toggle"
-                  onClick={() => {
-                    setInspectorOpen((open) => !open);
-                  }}
-                  size="icon-sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <PanelRight className="size-3.5" aria-hidden="true" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {inspectorOpen ? t("shell.collapseInspector") : t("shell.expandInspector")}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </header>
-        {error !== null ||
-        (projectTaskState?.error ?? null) !== null ||
-        modelsQuery.error !== null ||
-        skillsQuery.error !== null ||
-        (!temporary && projectDefaultsQuery.error !== null) ||
-        (taskId === undefined && globalSettingsQuery.error !== null) ? (
+      <main
+        aria-label={t(board ? "taskBoard.label" : "shell.timeline")}
+        className="flex min-h-0 min-w-0 flex-col bg-content"
+      >
+        <WorkbenchShellHeader
+          board={board}
+          context={context}
+          temporary={temporary}
+          {...(taskId === undefined ? {} : { taskId })}
+        />
+        {board ? (
+          <TaskBoardContainer projectId={projectId} />
+        ) : error !== null ||
+          (projectTaskState?.error ?? null) !== null ||
+          modelsQuery.error !== null ||
+          skillsQuery.error !== null ||
+          (!temporary && projectDefaultsQuery.error !== null) ||
+          (taskId === undefined && globalSettingsQuery.error !== null) ? (
           <RuntimeUnavailable onRetry={() => void retry()} />
         ) : taskId === undefined ? (
           <>
@@ -296,6 +216,7 @@ export function WorkbenchShellLayout({
               followUpBehavior={globalSettings?.followUpBehavior ?? "queue"}
               fastModeAvailable={fastModeAvailable}
               fastModeDefault={fastModeDefault}
+              {...(todoId === undefined ? {} : { initialTodoId: todoId })}
               models={models}
               modelsError={null}
               modelsPending={
@@ -313,6 +234,7 @@ export function WorkbenchShellLayout({
               onTaskCreated={handleTaskCreated}
               onTaskStarted={handleTaskStarted}
               projectId={projectId}
+              projectName={projectName}
               projectPath={projectPath}
               projectPathOpenDisabled={projectFolderOpenDisabled}
               projectRoots={projectRoots}
@@ -358,7 +280,7 @@ export function WorkbenchShellLayout({
           />
         )}
       </main>
-      {inspectorOpen ? (
+      {!board && inspectorOpen ? (
         <Button
           variant="ghost"
           aria-label={t("shell.closeInspector")}
@@ -368,7 +290,7 @@ export function WorkbenchShellLayout({
         />
       ) : null}
 
-      {inspectorOpen ? (
+      {!board && inspectorOpen ? (
         <WorkbenchPanelResizer
           direction={-1}
           label={t("shell.resizeInspector")}
@@ -391,7 +313,7 @@ export function WorkbenchShellLayout({
           width={inspectorWidth}
         />
       ) : null}
-      {inspectorOpen ? (
+      {!board && inspectorOpen ? (
         <WorkbenchInspector
           backgroundTerminals={backgroundTerminals.terminals}
           backgroundTerminalsError={backgroundTerminals.error}

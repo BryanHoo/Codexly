@@ -33,6 +33,17 @@ describe("server task runtime", () => {
     });
   });
 
+  it("passes the completed task filter to the provider", async () => {
+    const { app, listTasks } = await createHarness();
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/projects/codexly/tasks?completed=true&cursor=cursor&limit=10",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(listTasks).toHaveBeenCalledWith({ completed: true, cursor: "cursor", limit: 10 });
+  });
+
   it("initializes one project runtime for concurrent first requests", async () => {
     const providerHarness = createProvider();
     let releaseProjectRead!: () => void;

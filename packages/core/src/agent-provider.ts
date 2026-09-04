@@ -77,6 +77,7 @@ export type AgentTaskScope = Readonly<{
 
 export type ListAgentTasksInput = Readonly<{
   archived?: true;
+  completed?: true;
   cursor?: string;
   limit?: number;
   pinnedOnly?: true;

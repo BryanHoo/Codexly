@@ -6,6 +6,7 @@ import { AppProviders } from "./app/providers.js";
 import { initializeThemePreference } from "./features/settings/theme-preference.js";
 import "./i18n/i18n.js";
 import "./shared/styles/globals.css";
+import "./shared/styles/task-board.css";
 import "./shared/styles/workbench.css";
 
 const rootElement = document.querySelector("#root");

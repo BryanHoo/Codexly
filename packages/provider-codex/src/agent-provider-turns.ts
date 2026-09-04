@@ -362,6 +362,9 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   }
 
   public async listTasks(input: ListAgentTasksInput = {}): Promise<AgentTaskPage> {
+    if (input.completed === true) {
+      return this.listCompletedTasks(input);
+    }
     const response = expectRecord(
       await this.client.request("thread/list", {
         ...(input.archived === true ? { archived: true } : {}),
@@ -403,5 +406,56 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
         : [];
     const data = [...pendingTasks, ...nativeTasks];
     return { data, nextCursor: nextCursor ?? null };
+  }
+
+  private async listCompletedTasks(input: ListAgentTasksInput): Promise<AgentTaskPage> {
+    const limit = Math.min(100, Math.max(1, input.limit ?? 10));
+    const requestedCursors = new Set<string>();
+    const data: AgentTask[] = [];
+    let cursor = input.cursor;
+
+    while (data.length < limit) {
+      const response = expectRecord(
+        await this.client.request("thread/list", {
+          ...(cursor === undefined ? {} : { cursor }),
+          limit: limit - data.length,
+          ...(this.project.kind === "temporary"
+            ? { projectId: null }
+            : { projectId: this.project.id }),
+          sortDirection: "desc",
+          sortKey: "updated_at",
+        }),
+        "thread/list response",
+      );
+      if (!Array.isArray(response["data"])) {
+        throw new CodexProtocolMappingError("thread/list data must be an array");
+      }
+
+      // 只有稳定空闲态属于已完成列；运行中和系统错误分别由活动投影处理。
+      for (const value of response["data"]) {
+        const thread = expectRecord(value, "Codex thread");
+        const status = expectString(
+          expectRecord(thread["status"], "Codex thread status")["type"],
+          "Codex thread status type",
+        );
+        if (status !== "idle" && status !== "notLoaded") continue;
+        data.push(await mapAgentTask(thread, this.project));
+        if (data.length === limit) break;
+      }
+
+      const nextCursor = response["nextCursor"];
+      if (nextCursor === null || nextCursor === undefined) {
+        return { data, nextCursor: null };
+      }
+      const next = expectString(nextCursor, "thread/list nextCursor");
+      if (requestedCursors.has(next)) {
+        throw new CodexProtocolMappingError("thread/list returned a repeated cursor");
+      }
+      requestedCursors.add(next);
+      cursor = next;
+      if (data.length === limit) return { data, nextCursor: next };
+    }
+
+    return { data, nextCursor: null };
   }
 }

@@ -1,0 +1,321 @@
+/* 看板以固定状态轨道组织任务，稳定尺寸避免异步数据引发跳动。 */
+.task-board {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ui-color-content);
+}
+
+.task-board-toolbar {
+  display: flex;
+  min-height: calc(var(--ui-space-unit) * 12);
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ui-space-unit) * 3);
+  border-bottom: 1px solid var(--ui-color-separator);
+  padding: calc(var(--ui-space-unit) * 2) calc(var(--ui-space-unit) * 4);
+}
+
+.task-board-project-filter {
+  width: calc(var(--ui-space-unit) * 56);
+  max-width: 55%;
+}
+
+.task-board-grid {
+  display: grid;
+  min-width: calc(var(--ui-space-unit) * 228);
+  min-height: 0;
+  flex: 1;
+  box-sizing: border-box;
+  gap: calc(var(--ui-space-unit) * 3);
+  grid-template-columns: repeat(4, minmax(calc(var(--ui-space-unit) * 54), 1fr));
+  overflow-x: auto;
+  padding: calc(var(--ui-space-unit) * 3);
+}
+
+.task-board-column {
+  --task-board-tone: var(--ui-color-text-muted);
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  gap: var(--ui-space-unit);
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.task-board-column[data-tone="running"] {
+  --task-board-tone: var(--ui-color-task-running);
+}
+
+.task-board-column[data-tone="approval"] {
+  --task-board-tone: var(--ui-color-task-waiting);
+}
+
+.task-board-column[data-tone="completed"] {
+  --task-board-tone: var(--ui-color-task-completed);
+}
+
+.task-board-column-header {
+  display: flex;
+  height: calc(var(--ui-space-unit) * 11);
+  align-items: center;
+  gap: calc(var(--ui-space-unit) * 2);
+  border-radius: var(--ui-radius-surface);
+  padding: 0 calc(var(--ui-space-unit) * 3);
+  color: color-mix(in srgb, var(--task-board-tone) 82%, var(--ui-color-text));
+  background: color-mix(in srgb, var(--task-board-tone) 9%, var(--ui-color-raised));
+}
+
+.task-board-column-icon {
+  display: inline-grid;
+  width: calc(var(--ui-space-unit) * 4);
+  height: calc(var(--ui-space-unit) * 4);
+  flex: none;
+  place-items: center;
+  color: var(--task-board-tone);
+}
+
+.task-board-column-list {
+  min-height: 0;
+  overflow-y: auto;
+  border-radius: var(--ui-radius-surface);
+  padding: calc(var(--ui-space-unit) * 2);
+  background: color-mix(in srgb, var(--ui-color-text) 2%, var(--ui-color-content));
+  scrollbar-gutter: stable;
+}
+
+.task-board-column-list > [role="listitem"] + [role="listitem"] {
+  margin-top: calc(var(--ui-space-unit) * 2);
+}
+
+.task-board-card {
+  --task-board-card-tone: var(--ui-color-text-muted);
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: calc(var(--ui-space-unit) * 27);
+  min-width: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: calc(var(--ui-space-unit) * 2);
+  overflow: hidden;
+  border: 1px solid var(--ui-color-separator-strong);
+  border-radius: var(--ui-radius-surface);
+  background: var(--ui-color-raised);
+  padding: calc(var(--ui-space-unit) * 3);
+  box-shadow: var(--ui-shadow-control);
+  transition:
+    border-color var(--ui-motion-fast) var(--ui-ease-standard),
+    box-shadow var(--ui-motion-fast) var(--ui-ease-standard),
+    transform var(--ui-motion-fast) var(--ui-ease-standard);
+}
+
+.task-board-card-open {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.task-board-card:has(.task-board-card-open:focus-visible) {
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.task-board-card[data-tone="running"] {
+  --task-board-card-tone: var(--ui-color-task-running);
+}
+
+.task-board-card[data-tone="approval"] {
+  --task-board-card-tone: var(--ui-color-task-waiting);
+}
+
+.task-board-card[data-tone="completed"] {
+  --task-board-card-tone: var(--ui-color-task-completed);
+}
+
+/* 未查看的新完成任务使用左侧状态线，进入任务后恢复普通完成卡片。 */
+.task-board-card[data-attention="new-completion"] {
+  border-inline-start: 3px solid var(--ui-color-task-completed);
+  background: color-mix(in srgb, var(--ui-color-task-completed) 7%, var(--ui-color-raised));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ui-color-task-completed) 12%, transparent),
+    var(--ui-shadow-control);
+}
+
+.task-board-card[data-attention="new-completion"] .task-board-card-status {
+  font-weight: var(--ui-font-weight-semibold);
+}
+
+.task-board-card:hover {
+  border-color: color-mix(in srgb, var(--ui-color-text) 18%, var(--ui-color-separator-strong));
+  box-shadow: 0 3px 10px light-dark(rgb(23 23 23 / 0.09), rgb(0 0 0 / 0.32));
+  transform: translateY(-1px);
+}
+
+.task-board-card-topline,
+.task-board-card-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--ui-space-unit) * 2);
+}
+
+.task-board-card-topline,
+.task-board-card-footer,
+.task-board-card-status {
+  pointer-events: none;
+}
+
+.task-board-card-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+  font-family: var(--ui-font-family-mono);
+  font-size: var(--ui-font-size-caption);
+  color: var(--ui-color-text-subtle);
+  background: transparent;
+  cursor: copy;
+  pointer-events: auto;
+}
+
+.task-board-card-id:hover,
+.task-board-card-id:focus-visible {
+  color: var(--ui-color-text);
+  outline: none;
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.task-board-card-status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: calc(var(--ui-space-unit) * 1.25);
+  font-size: var(--ui-font-size-caption);
+  color: var(--task-board-card-tone);
+}
+
+.task-board-card-status-dot {
+  width: calc(var(--ui-space-unit) * 1.5);
+  height: calc(var(--ui-space-unit) * 1.5);
+  border-radius: var(--ui-radius-pill);
+  background: currentColor;
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.task-board-card[data-tone="running"] .task-board-card-status-dot {
+  animation: task-board-status-pulse 1.8s ease-in-out infinite;
+}
+
+.task-board-card-title {
+  position: relative;
+  z-index: 1;
+  display: block;
+  min-width: 0;
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ui-font-size-body-small);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-text);
+  pointer-events: none;
+}
+
+.task-board-card-project,
+.task-board-card-facts,
+.task-board-card-fact {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.task-board-card-project {
+  gap: calc(var(--ui-space-unit) * 1.5);
+  overflow: hidden;
+  color: var(--ui-color-text-muted);
+}
+
+.task-board-card-project > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-board-card-facts,
+.task-board-card-fact {
+  flex: none;
+  gap: calc(var(--ui-space-unit) * 1.25);
+}
+
+.task-board-card-footer {
+  font-size: var(--ui-font-size-caption);
+  color: var(--ui-color-text-subtle);
+}
+
+.task-board-card-footer svg {
+  width: calc(var(--ui-space-unit) * 3);
+  height: calc(var(--ui-space-unit) * 3);
+  flex: none;
+}
+
+.task-board-column-error {
+  display: grid;
+  min-height: calc(var(--ui-space-unit) * 18);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(var(--ui-space-unit) * 2);
+  border: 1px solid color-mix(in srgb, var(--ui-color-danger) 18%, var(--ui-color-separator));
+  border-radius: var(--ui-radius-surface);
+  padding: calc(var(--ui-space-unit) * 3);
+  font-size: var(--ui-font-size-label);
+  color: var(--ui-color-text-muted);
+  background: color-mix(in srgb, var(--ui-color-danger) 5%, var(--ui-color-raised));
+}
+
+.task-board-column-error > svg {
+  width: calc(var(--ui-space-unit) * 4);
+  height: calc(var(--ui-space-unit) * 4);
+  color: var(--ui-color-danger);
+}
+
+.task-board-empty {
+  padding: calc(var(--ui-space-unit) * 8) calc(var(--ui-space-unit) * 3);
+  text-align: center;
+  font-size: var(--ui-font-size-label);
+  color: var(--ui-color-text-subtle);
+}
+
+.task-board-page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--ui-space-unit) * 2);
+  padding: calc(var(--ui-space-unit) * 3);
+  color: var(--ui-color-text-subtle);
+  font-size: var(--ui-font-size-caption);
+}
+
+@keyframes task-board-status-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-board-card,
+  .task-board-card[data-tone="running"] .task-board-card-status-dot {
+    animation: none;
+    transition: none;
+  }
+}

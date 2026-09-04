@@ -49,6 +49,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
     Params: { projectId: string };
     Querystring: {
       archived?: true;
+      completed?: true;
       cursor?: string;
       limit?: number;
       pinned?: true;
@@ -70,6 +71,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
       }
       const input = {
         ...(request.query.archived === true ? { archived: true as const } : {}),
+        ...(request.query.completed === true ? { completed: true as const } : {}),
         ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
         ...(request.query.limit === undefined ? {} : { limit: request.query.limit }),
         ...(request.query.pinned === true ? { pinnedOnly: true as const } : {}),

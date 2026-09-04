@@ -7,9 +7,11 @@ import {
   PROJECT_PINNED_TASKS_KEY,
   PROJECT_TASK_SEARCH_PAGE_SIZE,
   PROJECT_TASK_SEARCH_SOURCE_KEY,
+  TASK_BOARD_COMPLETED_TASKS_QUERY_KEY,
   codexlyClient,
   taskQueueQueryKey,
   type ProjectTaskInfiniteData,
+  type CompletedTasksInfiniteData,
   type TaskTitleSnapshot,
   type TaskTitleUpdateOptions,
 } from "./project-query-contracts.js";
@@ -34,6 +36,37 @@ export function flattenProjectTaskPages(currentData: ProjectTaskInfiniteData | u
   }
 
   return [...taskById.values()];
+}
+
+export async function cacheCompletedProjectTask(queryClient: QueryClient, task: AgentTask) {
+  const matchingQueryKeys = queryClient
+    .getQueriesData<CompletedTasksInfiniteData>({ queryKey: TASK_BOARD_COMPLETED_TASKS_QUERY_KEY })
+    .flatMap(([queryKey, currentData]) => {
+      const projectIds = queryKey[2];
+      return currentData !== undefined &&
+        Array.isArray(projectIds) &&
+        projectIds.includes(task.projectId)
+        ? [queryKey]
+        : [];
+    });
+  await Promise.all(
+    matchingQueryKeys.map((queryKey) => queryClient.cancelQueries({ exact: true, queryKey })),
+  );
+  for (const queryKey of matchingQueryKeys) {
+    queryClient.setQueryData<CompletedTasksInfiniteData>(queryKey, (currentData) => {
+      if (currentData === undefined || currentData.pages.length === 0) return currentData;
+      const pages = currentData.pages.map((page) => ({
+        ...page,
+        data: page.data.filter((currentTask) => currentTask.id !== task.id),
+      }));
+      const firstPage = pages[0];
+      if (firstPage === undefined) return currentData;
+      return {
+        ...currentData,
+        pages: [{ ...firstPage, data: [task, ...firstPage.data] }, ...pages.slice(1)],
+      };
+    });
+  }
 }
 
 export function upsertProjectInPage(

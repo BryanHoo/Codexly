@@ -22,6 +22,7 @@ import type { ComposerState, ComposerSubmitAction } from "../composer-state.js";
 import type { PromptCommandItem } from "./prompt-command.js";
 import type { PromptSkillContent, PromptSkillEditorHandle } from "./prompt-skill-editor.js";
 import type { ComposerMode } from "./workbench-composer-contracts.js";
+import type { ProjectTodoRecord } from "../project-todo-store.js";
 
 export type CommandAvailability = Readonly<{ available: boolean; reason?: string }>;
 
@@ -45,6 +46,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   creatingBranch: string | undefined;
   creatingWorktree: string | undefined;
   draftInputDisabled: boolean;
+  editingTodoId: string | undefined;
   editQueuedPrompt: (queuedPrompt: QueuedComposerPrompt) => void;
   filteredCommands: readonly PromptCommandItem[];
   filteredSkills: readonly AgentSkill[];
@@ -77,6 +79,9 @@ export type WorkbenchComposerViewProps = Readonly<{
   onProjectRootChange: (rootId: string) => void;
   onOpenReviewBranches: () => void;
   onComposerModeRemove: () => void;
+  onProjectTodoDelete: (todoId: string) => void;
+  onProjectTodoRestore: (todoId: string) => void;
+  onProjectTodoSave: () => void;
   onPromptChange: (
     content: PromptSkillContent,
     serializedText: string,
@@ -94,6 +99,8 @@ export type WorkbenchComposerViewProps = Readonly<{
   projectPathOpenDisabled: boolean;
   projectRoots: readonly ProjectRoot[];
   projectToolsEnabled: boolean;
+  projectName: string;
+  projectTodos: readonly ProjectTodoRecord[];
   promptContent: PromptSkillContent;
   promptSubmissionText: string;
   queuedPrompts: readonly QueuedComposerPrompt[];

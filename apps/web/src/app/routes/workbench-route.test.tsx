@@ -24,6 +24,7 @@ describe("Workbench 加载边界", () => {
 
     for (const routeFile of [
       "project-route.tsx",
+      "task-board-route.tsx",
       "task-route.tsx",
       "temporary-route.tsx",
       "temporary-task-route.tsx",
@@ -46,6 +47,7 @@ describe("Workbench 加载边界", () => {
 
     for (const routeFile of [
       "project-route.tsx",
+      "task-board-route.tsx",
       "task-route.tsx",
       "temporary-route.tsx",
       "temporary-task-route.tsx",
