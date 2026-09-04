@@ -21,10 +21,12 @@
     "@sinclair/typebox": "catalog:",
     "better-sqlite3": "catalog:",
     "fastify": "catalog:",
+    "fflate": "catalog:",
     "p-limit": "catalog:",
     "safe-stable-stringify": "catalog:",
     "simple-git": "catalog:",
-    "ws": "catalog:"
+    "ws": "catalog:",
+    "yaml": "catalog:"
   },
   "devDependencies": {
     "@types/better-sqlite3": "catalog:",

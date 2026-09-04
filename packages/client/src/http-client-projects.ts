@@ -72,20 +72,20 @@ import {
 } from "@codexly/protocol";
 
 import {
-  CodexlyTransport,
   appendQuery,
   projectPath,
   taskPath,
   type MutationOptions,
   type ReadOptions,
 } from "./http-client-transport.js";
+import { SkillMarketHttpClient } from "./http-client-skill-market.js";
 
 export type ListFilesystemEntriesOptions = ReadOptions &
   Readonly<{
     includeHidden?: boolean;
   }>;
 
-export class ProjectHttpClient extends CodexlyTransport {
+export class ProjectHttpClient extends SkillMarketHttpClient {
   public async listSkills(projectId: string, options: ReadOptions = {}): Promise<AgentSkillPage> {
     return this.read(`${projectPath(projectId)}/skills`, AgentSkillPageSchema, options);
   }

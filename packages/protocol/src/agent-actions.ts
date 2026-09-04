@@ -320,6 +320,15 @@ export const AgentMutationErrorCodeSchema = Type.Union([
   Type.Literal("PET_NOT_FOUND"),
   Type.Literal("PET_ASSET_INVALID"),
   Type.Literal("PET_DOWNLOAD_FAILED"),
+  Type.Literal("SKILL_MARKET_CONFLICT"),
+  Type.Literal("SKILL_MARKET_FILESYSTEM"),
+  Type.Literal("SKILL_MARKET_INCOMPATIBLE"),
+  Type.Literal("SKILL_MARKET_INVALID_ARCHIVE"),
+  Type.Literal("SKILL_MARKET_INVALID_RESPONSE"),
+  Type.Literal("SKILL_MARKET_NETWORK"),
+  Type.Literal("SKILL_MARKET_NOT_FOUND"),
+  Type.Literal("SKILL_MARKET_RATE_LIMITED"),
+  Type.Literal("SKILL_MARKET_UNSAFE"),
   Type.Literal("PROVIDER_ERROR"),
 ]);
 

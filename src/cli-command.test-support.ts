@@ -135,6 +135,8 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     forProject: vi.fn(() => provider),
     forTemporary: vi.fn(() => provider),
     getCapabilities: provider.getCapabilities,
+    listConfiguredMcpServers: vi.fn(() => Promise.resolve({ data: [] })),
+    listInstalledSkills: vi.fn(() => Promise.resolve({ data: [], nextCursor: null })),
     listModels: provider.listModels,
     logoutProvider: vi.fn(() =>
       Promise.resolve({
@@ -158,6 +160,10 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
       }),
     ),
     releaseProject: vi.fn(() => Promise.resolve()),
+    setMcpServerEnabled: vi.fn((_name: string, enabled: boolean) => Promise.resolve({ enabled })),
+    setSkillEnabled: vi.fn((_path: string, enabled: boolean) =>
+      Promise.resolve({ effectiveEnabled: enabled }),
+    ),
     startOfficialProviderLogin: vi.fn(() => Promise.reject(new Error("Not configured"))),
   };
   const project = {

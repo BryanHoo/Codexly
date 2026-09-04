@@ -1,4 +1,7 @@
+import { skillsMarket } from "./skills-market.js";
+
 export const workbench = {
+  skillsMarket,
   pet: {
     activeTasks: "活动任务",
     activitySummary: "{{count}} 个活动任务，其中 {{waiting}} 个等待处理",

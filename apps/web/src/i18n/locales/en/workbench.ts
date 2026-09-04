@@ -1,4 +1,7 @@
+import { skillsMarket } from "./skills-market.js";
+
 export const workbench = {
+  skillsMarket,
   pet: {
     activeTasks: "Active tasks",
     activitySummary: "{{count}} active tasks, {{waiting}} waiting for attention",

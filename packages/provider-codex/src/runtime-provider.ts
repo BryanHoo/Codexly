@@ -14,6 +14,10 @@ import type {
   ConfigureCustomProviderResponse,
   Project,
   StartOfficialProviderLoginResponse,
+  ConfiguredMcpServerPage,
+  InstalledSkillPage,
+  SetMcpServerEnabledResponse,
+  SetSkillEnabledResponse,
 } from "@codexly/protocol";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { RuntimeOwnerRegistry, isSameResolvedPath } from "./runtime-owner-registry.js";
@@ -27,6 +31,12 @@ import { CodexProviderConnectionService } from "./provider-connection.js";
 import { CodexRuntimeProjectProvider } from "./runtime-project-provider.js";
 import { CodexFuzzyFileSearchService } from "./fuzzy-file-search.js";
 import { CodexGitMetadataWatchService } from "./git-metadata-watch.js";
+import {
+  listCodexConfiguredMcpServers,
+  listCodexInstalledSkills,
+  setCodexMcpServerEnabled,
+  setCodexSkillEnabled,
+} from "./skill-market-provider.js";
 
 function optionalNonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
@@ -275,6 +285,17 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     }).listModels();
   }
 
+  public listConfiguredMcpServers(): Promise<ConfiguredMcpServerPage> {
+    return listCodexConfiguredMcpServers(this.#client);
+  }
+
+  public listInstalledSkills(
+    projects: readonly Project[],
+    forceReload: boolean,
+  ): Promise<InstalledSkillPage> {
+    return listCodexInstalledSkills(this.#client, projects, forceReload);
+  }
+
   public logoutProvider(): Promise<AgentProviderConnectionMutationResponse> {
     return this.#providerConnection.logout();
   }
@@ -334,6 +355,14 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
 
   public startOfficialProviderLogin(): Promise<StartOfficialProviderLoginResponse> {
     return this.#providerConnection.startOfficialLogin();
+  }
+
+  public setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResponse> {
+    return setCodexMcpServerEnabled(this.#client, name, enabled);
+  }
+
+  public setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResponse> {
+    return setCodexSkillEnabled(this.#client, path, enabled);
   }
 
   public beginTaskRead(project: AgentTaskScope, taskId: string): boolean {

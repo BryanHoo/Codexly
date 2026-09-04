@@ -32,6 +32,10 @@ import type {
   UpdateAgentGoalRequest,
   Project,
   WorkbenchPetDescriptor,
+  ConfiguredMcpServerPage,
+  InstalledSkillPage,
+  SetMcpServerEnabledResponse,
+  SetSkillEnabledResponse,
 } from "@codexly/protocol";
 
 export type WorkbenchPetAsset = Readonly<{
@@ -264,9 +268,16 @@ export interface AgentRuntimeProvider {
   forTemporary(rootPath: string): AgentProvider;
   getCapabilities(): Promise<AgentCapabilities>;
   listModels(): Promise<AgentModelPage>;
+  listConfiguredMcpServers(): Promise<ConfiguredMcpServerPage>;
+  listInstalledSkills(
+    projects: readonly Project[],
+    forceReload: boolean,
+  ): Promise<InstalledSkillPage>;
   logoutProvider(): Promise<AgentProviderConnectionMutationResponse>;
   readDefaultSettings(): Promise<AgentRuntimeDefaultSettings>;
   readProviderConnection(): Promise<AgentProviderConnectionStatus>;
   releaseProject(projectId: string, expectedProvider?: AgentProvider): Promise<void>;
+  setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResponse>;
+  setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResponse>;
   startOfficialProviderLogin(): Promise<StartOfficialProviderLoginResponse>;
 }

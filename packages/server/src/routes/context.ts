@@ -58,6 +58,7 @@ import type { HostAttachmentSource } from "../host-file-browser.js";
 import type { ProjectOpenService } from "../project-open.js";
 import type { ProjectImageFile } from "../project-image-file.js";
 import type { PersistentTaskQueue } from "../persistent-task-queue.js";
+import type { SkillMarketService } from "../skill-market-service.js";
 
 export class MutationHttpError extends Error {
   public constructor(
@@ -247,6 +248,7 @@ export interface ServerRouteContext {
     path: string,
   ) => Promise<HostAttachmentSource>;
   readonly settingsRepository: AgentSettingsRepository;
+  readonly skillMarketService: SkillMarketService;
   readonly taskFromSnapshot: (
     snapshot: Awaited<ReturnType<AgentProvider["readTask"]>> & object,
     overrides?: Partial<Pick<AgentTask, "title">>,

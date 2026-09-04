@@ -63,6 +63,17 @@ export type CodexlyAppUpdateClient = Pick<
 export type CodexlyMcpServersClient = Pick<CodexlyClient, "listMcpServers">;
 export type CodexlyMcpServersMutationClient = Pick<CodexlyClient, "retryMcpServers">;
 export type CodexlySkillsClient = Pick<CodexlyClient, "listSkills">;
+export type CodexlySkillMarketClient = Pick<
+  CodexlyClient,
+  | "getClawhubSkill"
+  | "installClawhubSkill"
+  | "listClawhubSkills"
+  | "listConfiguredMcpServers"
+  | "listInstalledSkills"
+  | "openSkillDirectory"
+  | "setMcpServerEnabled"
+  | "setSkillEnabled"
+>;
 export type CodexlySettingsClient = Pick<
   CodexlyClient,
   | "getGlobalSettings"
@@ -124,6 +135,7 @@ export type CodexlyWorkbenchClient = CodexlyReadClient &
   CodexlyMcpServersClient &
   CodexlyMcpServersMutationClient &
   CodexlySkillsClient &
+  CodexlySkillMarketClient &
   CodexlySettingsClient &
   CodexlySourceFileClient;
 export type CodexlySnapshotClient = Pick<CodexlyClient, "readTask">;

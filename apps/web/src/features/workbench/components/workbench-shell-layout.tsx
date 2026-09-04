@@ -14,6 +14,7 @@ import { WorkbenchInspector } from "./workbench-inspector.js";
 import { WorkbenchPetLayer } from "../../pets/components/workbench-pet-layer.js";
 import { TaskBoardContainer } from "./task-board-container.js";
 import { WorkbenchShellHeader } from "./workbench-shell-header.js";
+import { SkillsMarketView } from "./skills-market-view.js";
 
 type WorkbenchShellStyle = CSSProperties &
   Readonly<{ "--inspector-open-width": string; "--sidebar-open-width": string }>;
@@ -22,6 +23,7 @@ export function WorkbenchShellLayout({
   board,
   context,
   projectId,
+  skillsMarket,
   taskId,
   temporary,
   todoId,
@@ -29,6 +31,7 @@ export function WorkbenchShellLayout({
   board: boolean;
   context: ReturnType<typeof useWorkbenchShellController>;
   projectId: string;
+  skillsMarket: boolean;
   taskId?: string;
   temporary: boolean;
   todoId?: string;
@@ -110,10 +113,11 @@ export function WorkbenchShellLayout({
     workbenchShellRef,
     t,
   } = context;
+  const utilityView = board || skillsMarket;
   return (
     <div
       className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
-      data-inspector-open={!board && inspectorOpen}
+      data-inspector-open={!utilityView && inspectorOpen}
       data-sidebar-open={sidebarOpen}
       ref={workbenchShellRef}
       style={
@@ -170,16 +174,24 @@ export function WorkbenchShellLayout({
         />
       ) : null}
       <main
-        aria-label={t(board ? "taskBoard.label" : "shell.timeline")}
+        aria-label={t(
+          skillsMarket ? "skillsMarket.title" : board ? "taskBoard.label" : "shell.timeline",
+        )}
         className="flex min-h-0 min-w-0 flex-col bg-content"
       >
         <WorkbenchShellHeader
           board={board}
           context={context}
+          skillsMarket={skillsMarket}
           temporary={temporary}
           {...(taskId === undefined ? {} : { taskId })}
         />
-        {board ? (
+        {skillsMarket ? (
+          <SkillsMarketView
+            {...(temporary ? {} : { projectId })}
+            {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
+          />
+        ) : board ? (
           <TaskBoardContainer projectId={projectId} />
         ) : error !== null ||
           (projectTaskState?.error ?? null) !== null ||
@@ -280,7 +292,7 @@ export function WorkbenchShellLayout({
           />
         )}
       </main>
-      {!board && inspectorOpen ? (
+      {!utilityView && inspectorOpen ? (
         <Button
           variant="ghost"
           aria-label={t("shell.closeInspector")}
@@ -290,7 +302,7 @@ export function WorkbenchShellLayout({
         />
       ) : null}
 
-      {!board && inspectorOpen ? (
+      {!utilityView && inspectorOpen ? (
         <WorkbenchPanelResizer
           direction={-1}
           label={t("shell.resizeInspector")}
@@ -313,7 +325,7 @@ export function WorkbenchShellLayout({
           width={inspectorWidth}
         />
       ) : null}
-      {!board && inspectorOpen ? (
+      {!utilityView && inspectorOpen ? (
         <WorkbenchInspector
           backgroundTerminals={backgroundTerminals.terminals}
           backgroundTerminalsError={backgroundTerminals.error}

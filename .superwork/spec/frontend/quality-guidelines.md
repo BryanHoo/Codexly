@@ -13,3 +13,4 @@ Capture review and verification standards for this project.
 - Web 生产构建必须在写入前清理独立输出目录，避免旧哈希资源累积并被重复预压缩。
 - Vite 原始 Chunk 警告阈值保持为 512 kB，仅容纳不可继续切分的单模块 Grammar；传输体积仍由 `bundle:check` 的 gzip 预算约束。
 - Web Bundle 门禁限制首屏、工作台就绪和最大异步组的 gzip 体积；请求数仅保留报告观测，不作为失败条件。
+- Skills 市场等非首屏管理页按功能异步加载组件和样式，避免增加普通工作台就绪资源；变更后使用 `bundle:check` 和对应 Playwright 关键流程验证。

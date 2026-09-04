@@ -12,11 +12,13 @@ import type { useWorkbenchShellController } from "./workbench-shell-controller.j
 export function WorkbenchShellHeader({
   board,
   context,
+  skillsMarket,
   taskId,
   temporary,
 }: Readonly<{
   board: boolean;
   context: ReturnType<typeof useWorkbenchShellController>;
+  skillsMarket: boolean;
   taskId?: string;
   temporary: boolean;
 }>) {
@@ -33,7 +35,8 @@ export function WorkbenchShellHeader({
     t,
     title,
   } = context;
-  const heading = board ? t("taskBoard.title") : title;
+  const utilityView = board || skillsMarket;
+  const heading = skillsMarket ? t("skillsMarket.title") : board ? t("taskBoard.title") : title;
   return (
     <header className="flex h-workbench-header shrink-0 items-center justify-between gap-3 bg-content px-2.5 shadow-toolbar sm:px-3">
       <div className="flex min-w-0 items-center gap-2">
@@ -57,7 +60,7 @@ export function WorkbenchShellHeader({
           </TooltipContent>
         </Tooltip>
         <h1 aria-label={heading} className="min-w-0 text-body-small font-semibold text-foreground">
-          {taskId === undefined || board ? (
+          {taskId === undefined || utilityView ? (
             <span className="block truncate">{heading}</span>
           ) : (
             <Button
@@ -79,7 +82,7 @@ export function WorkbenchShellHeader({
           )}
         </h1>
       </div>
-      {board ? null : (
+      {utilityView ? null : (
         <div className="flex shrink-0 items-center gap-1">
           <ProjectQuickOpenMenu
             apps={projectOpenCapabilitiesQuery.data?.apps ?? []}

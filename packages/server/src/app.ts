@@ -22,6 +22,8 @@ import { readProjectImageFile } from "./project-image-file.js";
 import { readProjectSourceFile } from "./project-source-file.js";
 import { createProviderTurnInputResolver } from "./provider-turn-input-resolver.js";
 import { createProjectOpenService } from "./project-open.js";
+import { createClawhubClient } from "./skill-market-client.js";
+import { createSkillMarketService } from "./skill-market-service.js";
 import { createProjectRuntimeContext } from "./project-runtime-context.js";
 import {
   DEFAULT_PROJECT_RUNTIME_CLEANUP_INTERVAL_MS,
@@ -47,6 +49,7 @@ import { registerRuntimeRoutes } from "./routes/runtime-routes.js";
 import { registerTaskRoutes } from "./routes/task-routes.js";
 import { registerTurnRoutes } from "./routes/turn-routes.js";
 import { registerQueueRoutes } from "./routes/queue-routes.js";
+import { registerSkillMarketRoutes } from "./routes/skill-market-routes.js";
 import { configureServerDelivery } from "./server-delivery.js";
 import type { CreateCodexlyServerOptions } from "./server-options.js";
 import { runSingleFlight } from "./single-flight.js";
@@ -130,6 +133,14 @@ export async function createCodexlyServer(
   const readImageFile = options.readProjectImageFile ?? readProjectImageFile;
   const readSourceFile = options.readProjectSourceFile ?? readProjectSourceFile;
   const projectOpenService = options.projectOpenService ?? createProjectOpenService();
+  const skillMarketService =
+    options.skillMarketService ??
+    createSkillMarketService({
+      catalog: createClawhubClient(),
+      projectOpenService,
+      projectRepository: options.projectRepository,
+      provider: options.provider,
+    });
   const attachmentStore = new AttachmentStore();
   const resolveProviderTurnInput = createProviderTurnInputResolver(attachmentStore);
   const capabilities = await options.provider.getCapabilities();
@@ -389,6 +400,7 @@ export async function createCodexlyServer(
     resolveProjectDirectory: options.resolveProjectDirectory ?? resolveProjectDirectory,
     resolveHostAttachment: options.resolveHostAttachment ?? resolveHostAttachment,
     settingsRepository: options.settingsRepository,
+    skillMarketService,
     taskFromSnapshot,
     taskQueue,
     taskStartRecoveries,
@@ -405,6 +417,7 @@ export async function createCodexlyServer(
   await app.register(registerProviderConnectionRoutes, routeContext);
   await app.register(registerPetRoutes, routeContext);
   await app.register(registerProjectRoutes, routeContext);
+  await app.register(registerSkillMarketRoutes, routeContext);
   await app.register(registerTaskRoutes, routeContext);
   await app.register(registerTurnRoutes, routeContext);
   await app.register(registerQueueRoutes, routeContext);

@@ -40,6 +40,7 @@ import type { CodexlyAccessOptions } from "./access-control.js";
 import type { HostAttachmentSource } from "./host-file-browser.js";
 import type { ProjectImageFile } from "./project-image-file.js";
 import type { ProjectOpenService } from "./project-open.js";
+import type { SkillMarketService } from "./skill-market-service.js";
 
 export interface CreateCodexlyServerOptions {
   access?: CodexlyAccessOptions;
@@ -65,6 +66,7 @@ export interface CreateCodexlyServerOptions {
   readAppInfo: () => Promise<AppInfoResponse>;
   readAppUpdateProgress: () => Promise<AppUpdateProgressResponse>;
   settingsRepository: AgentSettingsRepository;
+  skillMarketService?: SkillMarketService;
   standaloneCwd: string;
   commitProjectChanges?: (
     projectRoot: string,

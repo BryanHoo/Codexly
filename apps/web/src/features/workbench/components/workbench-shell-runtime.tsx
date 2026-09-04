@@ -107,6 +107,7 @@ export type SubmittedPromptState = Readonly<{
 export type WorkbenchShellProps = Readonly<{
   board?: boolean;
   projectId: string;
+  skillsMarket?: boolean;
   taskId?: string;
   temporary?: boolean;
   todoId?: string;

@@ -1,0 +1,452 @@
+.skills-market {
+  --skills-market-hero-height: 108px;
+
+  min-height: 0;
+  overflow: auto;
+  background: var(--ui-color-content);
+  color: var(--ui-color-text);
+}
+
+.skills-market-hero {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  min-height: 108px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid var(--ui-color-separator);
+  background: var(--ui-color-content);
+  padding: 24px clamp(24px, 4vw, 56px) 18px;
+}
+
+.skills-market-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--ui-color-text-subtle);
+  font-family: var(--ui-font-family-mono);
+  font-size: var(--ui-font-size-caption);
+}
+
+.skills-market-hero h2 {
+  font-size: var(--ui-font-size-display);
+  font-weight: var(--ui-font-weight-semibold);
+  line-height: var(--ui-line-height-tight);
+}
+
+.skills-market-tabs {
+  display: flex;
+  width: 300px;
+  height: 32px;
+  border: 1px solid var(--ui-color-separator-strong);
+  border-radius: var(--ui-radius-control);
+  padding: 2px;
+}
+
+.skills-market-tabs button {
+  flex: 1;
+  border-radius: 4px;
+  color: var(--ui-color-text-muted);
+  cursor: pointer;
+  font-size: var(--ui-font-size-label);
+  outline: none;
+}
+
+.skills-market-tabs button[aria-selected="true"] {
+  background: var(--ui-color-text);
+  color: var(--ui-color-raised);
+}
+
+.skills-market-tabs button:focus-visible {
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.skills-market-pane {
+  display: flex;
+  width: min(1040px, calc(100% - 48px));
+  min-height: 320px;
+  margin: 0 auto;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 0 48px;
+}
+
+.skills-market-toolbar {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.skills-market-toolbar--sticky {
+  position: sticky;
+  z-index: 15;
+  top: var(--skills-market-hero-height);
+  border-bottom: 1px solid var(--ui-color-separator);
+  background: var(--ui-color-content);
+  padding: 10px 0;
+}
+
+.skills-market-search {
+  position: relative;
+  width: min(420px, 50%);
+}
+
+.skills-market-search > svg {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  left: 10px;
+  width: 14px;
+  height: 14px;
+  color: var(--ui-color-text-subtle);
+  pointer-events: none;
+}
+
+.skills-market-search input {
+  width: 100%;
+  padding-left: 32px;
+}
+
+.skills-installed-groups {
+  display: grid;
+  gap: 18px;
+}
+
+.skills-installed-group {
+  overflow: hidden;
+  border: 1px solid var(--ui-color-separator);
+  border-radius: var(--ui-radius-surface);
+}
+
+.skills-installed-group > header {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--ui-color-control);
+  padding: 0 12px;
+  font-size: var(--ui-font-size-label);
+}
+
+.skills-installed-group > header span {
+  color: var(--ui-color-text-subtle);
+  font-family: var(--ui-font-family-mono);
+}
+
+.skills-installed-row {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--ui-color-separator);
+  padding-right: 12px;
+  transition: background var(--ui-motion-fast);
+}
+
+.skills-installed-row:first-child {
+  border-top: 0;
+}
+
+.skills-installed-row:hover {
+  background: var(--ui-color-control);
+}
+
+.skills-installed-row__open,
+.skills-mcp-row__content {
+  display: flex;
+  min-width: 0;
+  min-height: 61px;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0 9px 12px;
+}
+
+.skills-installed-row__open {
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+  text-align: left;
+}
+
+.skills-installed-row__open:focus-visible {
+  box-shadow: inset var(--ui-shadow-focus);
+}
+
+.skills-installed-row__folder {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  color: var(--ui-color-text-subtle);
+}
+
+.skills-mcp-status {
+  display: block;
+  color: var(--ui-color-text-subtle);
+  font-size: var(--ui-font-size-label);
+}
+
+.skills-mcp-status[data-enabled="true"] {
+  color: var(--ui-color-task-completed);
+}
+
+.skills-market-glyph {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 1px solid var(--ui-color-separator-strong);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-color-raised);
+  color: var(--ui-color-accent);
+}
+
+.skills-market-glyph svg {
+  width: 16px;
+  height: 16px;
+}
+
+.skills-version {
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-color-control);
+  padding: 3px 8px;
+  color: var(--ui-color-text-muted);
+  font-family: var(--ui-font-family-mono);
+  font-size: var(--ui-font-size-caption);
+}
+
+.skills-switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex: 0 0 32px;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-color-separator-strong);
+  cursor: pointer;
+  outline: none;
+}
+
+.skills-switch[data-state="checked"] {
+  background: var(--ui-color-accent);
+}
+
+.skills-switch:focus-visible {
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.skills-switch__thumb {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: var(--ui-shadow-control);
+  transform: translateX(2px);
+  transition: transform var(--ui-motion-fast) var(--ui-ease-standard);
+}
+
+.skills-switch__thumb[data-state="checked"] {
+  transform: translateX(16px);
+}
+
+.skills-market-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.skills-market-card {
+  display: flex;
+  min-width: 0;
+  min-height: 158px;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--ui-color-separator);
+  border-radius: var(--ui-radius-surface);
+  background: var(--ui-color-panel);
+  padding: 14px;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color var(--ui-motion-fast),
+    background var(--ui-motion-fast);
+}
+
+.skills-market-card:hover {
+  border-color: var(--ui-color-separator-strong);
+  background: var(--ui-color-control);
+}
+
+.skills-market-card:focus-visible {
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.skills-market-card__topline,
+.skills-market-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.skills-market-card__summary {
+  display: -webkit-box;
+  min-height: 38px;
+  overflow: hidden;
+  color: var(--ui-color-text-muted);
+  font-size: var(--ui-font-size-label);
+  line-height: var(--ui-line-height-relaxed);
+  text-align: left;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.skills-market-card__footer {
+  margin-top: auto;
+  color: var(--ui-color-text-subtle);
+  font-family: var(--ui-font-family-mono);
+  font-size: var(--ui-font-size-caption);
+}
+
+.skills-market-card__footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.skills-market-card__footer svg {
+  width: 12px;
+  height: 12px;
+}
+
+.skills-market-state {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  color: var(--ui-color-text-muted);
+  font-size: var(--ui-font-size-body-small);
+}
+
+.skills-market-detail__header {
+  display: flex;
+  min-height: 88px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--ui-color-separator);
+  padding: 18px 20px;
+}
+
+.skills-market-detail__mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-color-accent-soft);
+  color: var(--ui-color-accent);
+}
+
+.skills-market-scan {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ui-color-task-completed);
+  font-size: var(--ui-font-size-label);
+}
+
+.skills-market-detail__facts {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid var(--ui-color-separator);
+  padding: 0 20px;
+  color: var(--ui-color-text-muted);
+  font-family: var(--ui-font-family-mono);
+  font-size: var(--ui-font-size-caption);
+}
+
+.skills-market-detail__body {
+  min-height: 320px;
+  max-height: min(58vh, 620px);
+  overflow: auto;
+  padding: 20px;
+}
+
+.skills-market-readme {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-family: var(--ui-font-family-mono);
+  font-size: var(--ui-font-size-label);
+  line-height: var(--ui-line-height-relaxed);
+}
+
+.skills-market-detail__footer {
+  align-items: center;
+  border-top: 1px solid var(--ui-color-separator);
+  padding: 14px 20px;
+}
+
+.skills-market-project-target {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skills-market-project-target [role="combobox"] {
+  width: 120px;
+  min-width: 0;
+  border-color: var(--ui-color-separator);
+  background: var(--ui-color-control);
+  cursor: pointer;
+}
+
+@media (max-width: 960px) {
+  .skills-market-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .skills-market {
+    --skills-market-hero-height: 132px;
+  }
+
+  .skills-market-hero {
+    min-height: 132px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 18px 16px 14px;
+  }
+
+  .skills-market-tabs,
+  .skills-market-search {
+    width: 100%;
+  }
+
+  .skills-market-pane {
+    width: calc(100% - 24px);
+  }
+
+  .skills-market-toolbar,
+  .skills-market-detail__footer,
+  .skills-market-project-target {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .skills-market-detail__facts {
+    overflow-x: auto;
+  }
+
+  .skills-market-project-target [role="combobox"] {
+    width: 100%;
+  }
+}
