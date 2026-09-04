@@ -32,8 +32,9 @@ describe("CodexAgentProvider mutations", () => {
         {
           images: [
             {
+              detail: "auto",
               mediaType: "image/png",
-              url: "data:image/png;base64,aW1hZ2U=",
+              path: "/tmp/image.png",
             },
           ],
           files: [
@@ -111,7 +112,7 @@ describe("CodexAgentProvider mutations", () => {
               ],
               type: "text",
             },
-            { type: "image", url: "data:image/png;base64,aW1hZ2U=" },
+            { detail: "auto", path: "/tmp/image.png", type: "localImage" },
           ],
           model: "gpt-5.6-sol",
           outputSchema: {

@@ -120,8 +120,9 @@ export type AgentProviderTurnInput = Readonly<{
     path: string;
   }>[];
   images: readonly Readonly<{
+    detail: "auto" | "high" | "low" | "original";
     mediaType: AgentImageMediaType;
-    url: string;
+    path: string;
   }>[];
   // 仅供 Server 内部的结构化任务使用，浏览器协议不接受任意 Schema。
   outputSchema?: Readonly<Record<string, unknown>>;

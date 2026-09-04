@@ -396,7 +396,13 @@ describe("AgentProvider", () => {
         "task-1",
         {
           files: [],
-          images: [{ mediaType: "image/png", url: "data:image/png;base64,aW1hZ2U=" }],
+          images: [
+            {
+              detail: "auto",
+              mediaType: "image/png",
+              path: "/tmp/image.png",
+            },
+          ],
           outputSchema: {
             additionalProperties: false,
             properties: { message: { type: "string" } },

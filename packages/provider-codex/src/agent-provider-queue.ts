@@ -46,10 +46,10 @@ export abstract class CodexAgentProviderQueue extends CodexAgentProviderBase {
       return { name: skill.name, path: skill.path, type: "skill" as const };
     });
     const images = input.images.map((image) => {
-      if (!image.url.startsWith(`data:${image.mediaType};base64,`)) {
-        throw new CodexProtocolMappingError("Provider image URL does not match its media type");
+      if (image.path.length === 0) {
+        throw new CodexProtocolMappingError("Provider image path must not be empty");
       }
-      return { type: "image" as const, url: image.url };
+      return { detail: image.detail, path: image.path, type: "localImage" as const };
     });
     const files = input.files.map(createCodexFileTextInput);
     const textAttachments = input.textAttachments.map((attachment) => ({

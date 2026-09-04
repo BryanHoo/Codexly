@@ -46,7 +46,7 @@ export type ResolvedAttachment =
   | Readonly<{
       kind: "image";
       mediaType: AgentImageMediaType;
+      path: string;
       size: number;
-      url: string;
     }>
   | Readonly<{ kind: "text"; mediaType: "text/plain"; name: string; size: number; text: string }>;

@@ -318,7 +318,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     await expect(provider.listSkills()).rejects.toThrow("skills/list skill pluginId is invalid");
   });
 
-  it("rejects repeated model cursors and mismatched image data URLs", async () => {
+  it("rejects repeated model cursors and empty local image paths", async () => {
     const cursorRpc = new FakeRpcClient([
       { data: [], nextCursor: "same-page" },
       { data: [], nextCursor: "same-page" },
@@ -336,7 +336,13 @@ describe("CodexAgentProvider model and skill catalogs", () => {
         "task-1",
         {
           files: [],
-          images: [{ mediaType: "image/png", url: "data:image/jpeg;base64,aW1hZ2U=" }],
+          images: [
+            {
+              detail: "auto",
+              mediaType: "image/png",
+              path: "",
+            },
+          ],
           skills: [],
           text: "",
           textAttachments: [],
@@ -349,7 +355,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
           sandboxMode: "workspace-write",
         },
       ),
-    ).rejects.toThrow("Provider image URL does not match its media type");
+    ).rejects.toThrow("Provider image path must not be empty");
     expect(inputRpc.calls).toHaveLength(1);
   });
 

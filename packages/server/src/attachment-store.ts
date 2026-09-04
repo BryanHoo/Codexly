@@ -336,12 +336,12 @@ export class AttachmentStore {
         });
       } else if (attachment.kind === "image") {
         const mediaType = attachment.mediaType as AgentImageMediaType;
-        const content = await readFile(path);
+        // Codex 原生读取本地图片，避免在 Node.js 中制造 Base64 副本和 JSON 膨胀。
         resolved.push({
           kind: "image",
           mediaType,
+          path,
           size: attachment.size,
-          url: `data:${mediaType};base64,${content.toString("base64")}`,
         });
       } else {
         const content = await readFile(path);

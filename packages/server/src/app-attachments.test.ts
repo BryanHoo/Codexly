@@ -117,11 +117,19 @@ describe("server attachments and catalogs", () => {
     expect(invalidTurn.statusCode).toBe(400);
     expect(startTurn).toHaveBeenCalledOnce();
     expect(writeTaskSettings).toHaveBeenCalledOnce();
+    const imagePath = startTurn.mock.calls[0]?.[1].images[0]?.path;
+    expect(imagePath).toMatch(/\.png$/u);
     expect(startTurn).toHaveBeenCalledWith(
       "task-1",
       {
         files: [],
-        images: [{ mediaType: "image/png", url: pixelDataUrl }],
+        images: [
+          {
+            detail: "auto",
+            mediaType: "image/png",
+            path: imagePath,
+          },
+        ],
         skills: [],
         text: "",
         textAttachments: [],

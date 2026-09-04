@@ -42,9 +42,19 @@ describe("AttachmentStore", () => {
       attachment,
       content: Buffer.from(pixelDataUrl.split(",")[1] ?? "", "base64"),
     });
-    await expect(store.resolve("codexly", [attachment.id])).resolves.toEqual([
-      { kind: "image", mediaType: "image/png", size: 68, url: pixelDataUrl },
-    ]);
+    const [resolved] = await store.resolve("codexly", [attachment.id]);
+    expect(resolved).toMatchObject({
+      kind: "image",
+      mediaType: "image/png",
+      size: 68,
+    });
+    if (resolved?.kind !== "image") {
+      throw new Error("Expected a materialized image attachment");
+    }
+    expect(resolved.path).toMatch(/\.png$/u);
+    expect(readFileSync(resolved.path)).toEqual(
+      Buffer.from(pixelDataUrl.split(",")[1] ?? "", "base64"),
+    );
     await expect(store.read("other", attachment.id)).rejects.toThrow(AttachmentNotFoundError);
     await expect(store.resolve("other", [attachment.id])).rejects.toThrow(AttachmentNotFoundError);
   });

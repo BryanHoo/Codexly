@@ -87,7 +87,7 @@ export function createProviderTurnInputResolver(attachmentStore: AttachmentStore
         ),
         images: attachments.flatMap((attachment) =>
           attachment.kind === "image"
-            ? [{ mediaType: attachment.mediaType, url: attachment.url }]
+            ? [{ detail: "auto" as const, mediaType: attachment.mediaType, path: attachment.path }]
             : [],
         ),
         skills: input.skills,
