@@ -198,6 +198,35 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).toMatch(/role="tabpanel"[^>]*>.*aria-label="目标"/su);
   });
 
+  it("allows a blocked Goal to be resumed or cleared", () => {
+    const markup = renderInspectorMarkup(
+      <WorkbenchInspector
+        onClearGoal={() => Promise.resolve()}
+        onGoalStatusChange={() => Promise.resolve()}
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
+        tab="context"
+        taskId="task-1"
+        task={{
+          goal: {
+            createdAt: "2026-09-04T00:00:00.000Z",
+            objective: "断线恢复后继续执行目标",
+            status: "blocked",
+            timeUsedSeconds: 120,
+            tokenBudget: null,
+            tokensUsed: 8_192,
+            updatedAt: "2026-09-04T00:02:00.000Z",
+          },
+          turns: [],
+        }}
+      />,
+    );
+
+    expect(markup).toContain("受阻");
+    expect(markup).toContain('aria-label="恢复目标"');
+    expect(markup).toContain('aria-label="清除目标"');
+  });
+
   it("renders temporary task context directly without tabs or Project sources", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector

@@ -37,6 +37,9 @@ export function GoalSection({
   const numberFormatter = new Intl.NumberFormat(i18n.language);
   const statusLabel = i18n.t(`inspector.goalStatus.${goal.status}`, { ns: "conversation" });
   const toggleStatus = goal.status === "active" ? "paused" : "active";
+  // Codex 将 blocked 视为可由用户恢复的暂停态，恢复后重新进入自动续行。
+  const canToggleStatus =
+    goal.status === "active" || goal.status === "paused" || goal.status === "blocked";
   const toggleLabel = i18n.t(
     goal.status === "active" ? "inspector.goalPause" : "inspector.goalResume",
     { ns: "conversation" },
@@ -57,7 +60,7 @@ export function GoalSection({
     <InspectorSection
       action={
         <div className="flex items-center gap-0.5">
-          {goal.status === "active" || goal.status === "paused" ? (
+          {canToggleStatus ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
