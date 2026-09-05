@@ -15,7 +15,7 @@ catalog:
   "@fastify/websocket": 11.3.0
   "@headless-tree/core": 1.7.0
   "@headless-tree/react": 1.7.0
-  "@openai/codex": 0.152.1
+  "@openai/codex": 0.153.4
   "@playwright/test": 1.61.1
   "@sinclair/typebox": 0.34.52
   "@tailwindcss/vite": 4.3.3
@@ -76,7 +76,7 @@ linkWorkspacePackages: false
 # 显式设置最小发布时间，启用严格年龄校验，避免回退到新发布版本。
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
-  - "@openai/codex@0.152.1-darwin-arm64 || 0.152.1-darwin-x64 || 0.152.1-linux-arm64 || 0.152.1-linux-x64 || 0.152.1-win32-arm64 || 0.152.1-win32-x64 || 0.152.1"
+  - "@openai/codex@0.153.4-darwin-arm64 || 0.153.4-darwin-x64 || 0.153.4-linux-arm64 || 0.153.4-linux-x64 || 0.153.4-win32-arm64 || 0.153.4-win32-x64 || 0.153.4"
   - prettier@3.9.6
   - react-dom@19.2.8
   - react@19.2.8

@@ -182,16 +182,18 @@ export function createCodexAgentProvider(options: {
 
 export function nativeThread(overrides: Record<string, unknown> = {}) {
   return {
-    cliVersion: "0.152.1",
+    cliVersion: "0.153.4",
     createdAt: 1_753_228_800,
     cwd: "/workspace/Codexly",
     ephemeral: false,
     historyMode: "legacy",
     id: "task-1",
+    model: null,
     modelProvider: "openai",
     name: null,
     preview: "实现真实 Task 历史\n更多内容",
     projectId: project.id,
+    reasoningEffort: null,
     section: null,
     sectionEnteredAt: null,
     sessionId: "native-session",

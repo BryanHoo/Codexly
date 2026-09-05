@@ -62,6 +62,7 @@ describe("Codex review protocol mapping", () => {
           },
           {
             delivery: null,
+            questions: null,
             id: "review-agent-result",
             phase: "final_answer",
             text: "- [P1] 修复消息顺序。",
@@ -94,6 +95,7 @@ describe("Codex review protocol mapping", () => {
           { id: "review-mode", review: "current changes", type: "enteredReviewMode" },
           {
             delivery: null,
+            questions: null,
             id: "review-commentary",
             phase: "commentary",
             text: "正在审查。",
@@ -102,6 +104,7 @@ describe("Codex review protocol mapping", () => {
           { id: "review-exit", review: null, type: "exitedReviewMode" },
           {
             delivery: null,
+            questions: null,
             id: "review-interrupted",
             phase: null,
             text: "Review was interrupted.",
@@ -224,6 +227,7 @@ describe("Codex review protocol mapping", () => {
             },
             {
               delivery: null,
+              questions: null,
               id: "review-interrupted",
               phase: null,
               text: "Review was interrupted. Please re-run /review and wait for it to complete.",

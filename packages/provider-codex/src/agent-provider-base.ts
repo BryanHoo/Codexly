@@ -33,18 +33,23 @@ import { releaseCodexProjectThreads } from "./thread-unsubscribe.js";
 import {
   CodexProtocolMappingError,
   CODEX_THREAD_CONFIG,
+  CODEX_PINNED_THREAD_SECTION_ID,
   type CodexSkill,
   expectRecord,
   expectString,
-  isRecord,
   mapAgentModel,
+  mapAgentTask,
   mapCodexSkill,
   mapSandboxMode,
-  normalizedTitle,
-  toDateTime,
 } from "./codex-protocol-mapping.js";
 
-export { CodexProtocolMappingError } from "./codex-protocol-mapping.js";
+export {
+  CodexProtocolMappingError,
+  CODEX_PINNED_THREAD_SECTION_ID,
+  assertProjectThread,
+  isProjectThread,
+  mapAgentTask,
+} from "./codex-protocol-mapping.js";
 export interface CodexRpcClient {
   notify(method: string, params?: unknown): void;
   onNotification(listener: (notification: { method: string; params: unknown }) => void): () => void;
@@ -58,24 +63,6 @@ export interface CreateCodexRuntimeProviderOptions {
   client: CodexRpcClient;
   fetch?: typeof globalThis.fetch;
   logger?: CodexProviderLogger;
-}
-
-export const CODEX_PINNED_THREAD_SECTION_ID = "01984de2-8f74-7c91-a3b2-5c5e937cf318";
-function isPinnedThreadSection(value: unknown): boolean {
-  if (value === null) return false;
-  const section = expectRecord(value, "Codex thread section");
-  const sectionId = expectString(section["id"], "Codex thread section id");
-  expectString(section["name"], "Codex thread section name");
-  const appearance = section["appearance"];
-  if (
-    appearance !== null &&
-    (!isRecord(appearance) ||
-      (appearance["icon"] !== null && typeof appearance["icon"] !== "string") ||
-      (appearance["color"] !== null && typeof appearance["color"] !== "string"))
-  ) {
-    throw new CodexProtocolMappingError("Codex thread section appearance is invalid");
-  }
-  return sectionId === CODEX_PINNED_THREAD_SECTION_ID;
 }
 
 export async function canonicalPathIdentity(path: string): Promise<string> {
@@ -93,32 +80,6 @@ export async function isSameCanonicalPath(left: string, right: string): Promise<
     canonicalPathIdentity(right),
   ]);
   return leftIdentity === rightIdentity;
-}
-
-export function isProjectThread(thread: Record<string, unknown>, project: AgentTaskScope): boolean {
-  const nativeProjectId = thread["projectId"];
-  if (nativeProjectId !== null && typeof nativeProjectId !== "string") {
-    throw new CodexProtocolMappingError("Codex thread projectId must be a string or null");
-  }
-  if (project.kind === "project") {
-    return nativeProjectId === project.id;
-  }
-  if (nativeProjectId !== null) {
-    return false;
-  }
-  // Codex 0.152 使用 null projectId 表示 standalone，cwd 不是其身份字段。
-  return true;
-}
-export function assertProjectThread(
-  thread: Record<string, unknown>,
-  project: AgentTaskScope,
-): Promise<void> {
-  if (!isProjectThread(thread, project)) {
-    return Promise.reject(
-      new CodexProtocolMappingError("Codex thread does not belong to the active project"),
-    );
-  }
-  return Promise.resolve();
 }
 
 export function isThreadNotLoadedError(error: unknown): boolean {
@@ -160,20 +121,6 @@ export function createUnmaterializedTaskSnapshot(task: AgentTask): AgentProvider
     status: "idle",
     turns: [],
     turnsNextCursor: null,
-  };
-}
-
-export async function mapAgentTask(
-  thread: Record<string, unknown>,
-  project: AgentTaskScope,
-): Promise<AgentTask> {
-  await assertProjectThread(thread, project);
-  return {
-    id: expectString(thread["id"], "Codex thread id"),
-    pinned: isPinnedThreadSection(thread["section"]),
-    projectId: project.id,
-    title: normalizedTitle(thread),
-    updatedAt: toDateTime(thread["updatedAt"], "Codex thread updatedAt"),
   };
 }
 

@@ -151,7 +151,7 @@ describe("CodexAgentProvider snapshots", () => {
     });
   });
 
-  it("rejects thread sections without the 0.152.1 appearance field", async () => {
+  it("rejects thread sections without the 0.153.4 appearance field", async () => {
     const rpc = new FakeRpcClient([
       {
         data: [
@@ -210,7 +210,7 @@ describe("CodexAgentProvider snapshots", () => {
                   id: "i1-skill",
                   type: "userMessage",
                 },
-                { delivery: null, id: "i2", text: "已读取", type: "agentMessage" },
+                { delivery: null, questions: null, id: "i2", text: "已读取", type: "agentMessage" },
                 {
                   content: ["核对边界"],
                   id: "i3",

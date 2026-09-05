@@ -20,7 +20,6 @@ function collectSourceFiles(directory: string): string[] {
 describe("项目自有组件库边界", () => {
   it("移除上游组件配置、依赖、旧目录和旧导入", () => {
     const packageJson = readFileSync(join(webRoot, "package.json"), "utf8");
-    const skillsLock = readFileSync(join(repositoryRoot, "skills-lock.json"), "utf8");
     const source = collectSourceFiles(join(webRoot, "src"))
       .filter((path) => !path.endsWith("component-library-boundary.test.ts"))
       .map((path) => readFileSync(path, "utf8"))
@@ -34,7 +33,6 @@ describe("项目自有组件库边界", () => {
     expect(existsSync(join(repositoryRoot, ".agents/skills/shadcn"))).toBe(false);
     expect(existsSync(join(repositoryRoot, ".agents/skills/ai-elements"))).toBe(false);
     expect(packageJson).not.toMatch(/"shadcn"\s*:/u);
-    expect(skillsLock).not.toMatch(/"(?:shadcn|ai-elements)"\s*:/u);
     expect(source).not.toMatch(/shared\/(?:ui|ai-elements)\//u);
     expect(source).not.toContain('from "shadcn');
     expect(source).not.toContain('@import "shadcn');

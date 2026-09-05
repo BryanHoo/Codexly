@@ -219,7 +219,7 @@ export function createServerOptions(
     readAppInfo: vi.fn(() =>
       Promise.resolve({
         appVersion: "1.3.0",
-        codexVersion: "0.152.1",
+        codexVersion: "0.153.4",
         latestVersion: "1.3.0",
         releaseNotes: null,
         status: "current" as const,

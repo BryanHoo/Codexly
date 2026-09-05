@@ -147,6 +147,7 @@ describe("CodexAgentProvider review", () => {
     rpc.emitNotification("item/completed", {
       item: {
         delivery: null,
+        questions: null,
         id: "review-commentary",
         phase: "commentary",
         text: "正在检查变更。",
@@ -191,6 +192,7 @@ describe("CodexAgentProvider review", () => {
     rpc.emitNotification("item/completed", {
       item: {
         delivery: null,
+        questions: null,
         id: "worker-review-result",
         phase: "final_answer",
         text: "- [P1] 修复消息顺序。",
@@ -215,6 +217,7 @@ describe("CodexAgentProvider review", () => {
     rpc.emitNotification("item/completed", {
       item: {
         delivery: null,
+        questions: null,
         id: "duplicate-review-result",
         phase: "final_answer",
         text: "- [P1] 修复消息顺序。",
@@ -237,6 +240,7 @@ describe("CodexAgentProvider review", () => {
           },
           {
             delivery: null,
+            questions: null,
             id: "duplicate-review-result",
             phase: "final_answer",
             text: "- [P1] 修复消息顺序。",
@@ -426,6 +430,7 @@ describe("CodexAgentProvider review", () => {
     rpc.emitNotification("item/completed", {
       item: {
         delivery: null,
+        questions: null,
         id: "review-commentary",
         phase: "commentary",
         text: "正在检查变更。",

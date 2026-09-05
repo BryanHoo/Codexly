@@ -41,7 +41,15 @@ describe("CodexAgentProvider history", () => {
       completedAt: 1_753_232_400,
       error: null,
       id: "turn-newest",
-      items: [{ delivery: null, id: "message-1", text: "最新回复", type: "agentMessage" }],
+      items: [
+        {
+          delivery: null,
+          questions: null,
+          id: "message-1",
+          text: "最新回复",
+          type: "agentMessage",
+        },
+      ],
       itemsView: "full",
       startedAt: 1_753_228_800,
       status: "completed",
@@ -84,7 +92,13 @@ describe("CodexAgentProvider history", () => {
       status: "completed",
     });
     const itemEntry = (turnId: string, text: string) => ({
-      item: { delivery: null, id: `${turnId}-message`, text, type: "agentMessage" },
+      item: {
+        delivery: null,
+        questions: null,
+        id: `${turnId}-message`,
+        text,
+        type: "agentMessage",
+      },
       turnId,
     });
     const itemPage = (turnId: string, text: string, nextCursor: string | null = null) => ({
@@ -159,6 +173,7 @@ describe("CodexAgentProvider history", () => {
           {
             item: {
               delivery: null,
+              questions: null,
               id: `${turn.id}-message`,
               text: turn.id,
               type: "agentMessage",
@@ -202,7 +217,9 @@ describe("CodexAgentProvider history", () => {
     };
     const itemEntry = (turnId: string, id: string, type: "agentMessage" | "userMessage") => ({
       item: {
-        ...(type === "agentMessage" ? { delivery: null, text: id } : { content: [] }),
+        ...(type === "agentMessage"
+          ? { delivery: null, questions: null, text: id }
+          : { content: [] }),
         id,
         type,
       },
@@ -292,6 +309,7 @@ describe("CodexAgentProvider history", () => {
     const itemEntry = (turnId: string) => ({
       item: {
         delivery: null,
+        questions: null,
         id: `${turnId}-message`,
         text: turnId,
         type: "agentMessage",
@@ -311,7 +329,7 @@ describe("CodexAgentProvider history", () => {
     );
   });
 
-  it("requires the 0.152.1 nullable native project assignment", async () => {
+  it("requires the 0.153.4 nullable native project assignment", async () => {
     const missingRpc = new FakeRpcClient([
       { data: [nativeThread({ projectId: undefined })], nextCursor: null },
     ]);
@@ -423,7 +441,7 @@ describe("CodexAgentProvider history", () => {
     expect(warn.mock.calls).toEqual([
       [
         {
-          codexVersion: "0.152.1",
+          codexVersion: "0.153.4",
           diagnosticCode: "unknown_notification",
           method: "future/notification",
           projectId: "codexly",
@@ -433,7 +451,7 @@ describe("CodexAgentProvider history", () => {
       ],
       [
         {
-          codexVersion: "0.152.1",
+          codexVersion: "0.153.4",
           diagnosticCode: "invalid_notification",
           method: "thread/goal/updated",
           projectId: "codexly",
@@ -443,7 +461,7 @@ describe("CodexAgentProvider history", () => {
       ],
       [
         {
-          codexVersion: "0.152.1",
+          codexVersion: "0.153.4",
           diagnosticCode: "invalid_notification",
           method: "item/agentMessage/delta",
           projectId: "codexly",
@@ -453,7 +471,7 @@ describe("CodexAgentProvider history", () => {
       ],
       [
         {
-          codexVersion: "0.152.1",
+          codexVersion: "0.153.4",
           diagnosticCode: "event_listener_failed",
           eventType: "message.delta",
           projectId: "codexly",

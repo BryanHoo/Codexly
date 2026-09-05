@@ -1,8 +1,9 @@
-import type { AgentProviderTaskSnapshot } from "@codexly/core";
+import type { AgentProviderTaskSnapshot, AgentTaskScope } from "@codexly/core";
 import type {
   AgentContextUsage,
   AgentModelPage,
   AgentReviewTarget,
+  AgentTask,
   AgentTurn,
 } from "@codexly/protocol";
 
@@ -13,6 +14,7 @@ import {
   isRecord,
   optionalInteger,
   optionalString,
+  toDateTime,
   toNullableDateTime,
 } from "./codex-mapping-common.js";
 import { mapAgentItem } from "./codex-item-mapping.js";
@@ -35,6 +37,72 @@ export function normalizedTitle(thread: Record<string, unknown>): string {
   const preview = optionalString(thread["preview"])?.trim().split(/\r?\n/u)[0]?.trim();
   // Codex 生成正式标题前统一显示新聊天，后续列表刷新会自然替换为 name 或 preview。
   return preview?.length ? preview : "新聊天";
+}
+
+export const CODEX_PINNED_THREAD_SECTION_ID = "01984de2-8f74-7c91-a3b2-5c5e937cf318";
+
+function isPinnedThreadSection(value: unknown): boolean {
+  if (value === null) return false;
+  const section = expectRecord(value, "Codex thread section");
+  const sectionId = expectString(section["id"], "Codex thread section id");
+  expectString(section["name"], "Codex thread section name");
+  const appearance = section["appearance"];
+  if (
+    appearance !== null &&
+    (!isRecord(appearance) ||
+      (appearance["icon"] !== null && typeof appearance["icon"] !== "string") ||
+      (appearance["color"] !== null && typeof appearance["color"] !== "string"))
+  ) {
+    throw new CodexProtocolMappingError("Codex thread section appearance is invalid");
+  }
+  return sectionId === CODEX_PINNED_THREAD_SECTION_ID;
+}
+
+export function isProjectThread(thread: Record<string, unknown>, project: AgentTaskScope): boolean {
+  const nativeProjectId = thread["projectId"];
+  if (nativeProjectId !== null && typeof nativeProjectId !== "string") {
+    throw new CodexProtocolMappingError("Codex thread projectId must be a string or null");
+  }
+  if (project.kind === "project") {
+    return nativeProjectId === project.id;
+  }
+  if (nativeProjectId !== null) {
+    return false;
+  }
+  // Codex 以 null projectId 表示 standalone，cwd 不是其身份字段。
+  return true;
+}
+
+export function assertProjectThread(
+  thread: Record<string, unknown>,
+  project: AgentTaskScope,
+): Promise<void> {
+  if (!isProjectThread(thread, project)) {
+    return Promise.reject(
+      new CodexProtocolMappingError("Codex thread does not belong to the active project"),
+    );
+  }
+  return Promise.resolve();
+}
+
+export async function mapAgentTask(
+  thread: Record<string, unknown>,
+  project: AgentTaskScope,
+): Promise<AgentTask> {
+  await assertProjectThread(thread, project);
+  if (thread["model"] !== null && typeof thread["model"] !== "string") {
+    throw new CodexProtocolMappingError("Codex thread model must be a string or null");
+  }
+  if (thread["reasoningEffort"] !== null && typeof thread["reasoningEffort"] !== "string") {
+    throw new CodexProtocolMappingError("Codex thread reasoningEffort must be a string or null");
+  }
+  return {
+    id: expectString(thread["id"], "Codex thread id"),
+    pinned: isPinnedThreadSection(thread["section"]),
+    projectId: project.id,
+    title: normalizedTitle(thread),
+    updatedAt: toDateTime(thread["updatedAt"], "Codex thread updatedAt"),
+  };
 }
 
 export function mapAgentModel(value: unknown): AgentModelPage["data"][number] | undefined {

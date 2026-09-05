@@ -15,6 +15,7 @@ export function scheduleSubagentRealtimeEvents() {
     id: messageId,
     memoryCitation: null,
     phase: null,
+    questions: null,
     text: "正在分析前端",
     type: "agentMessage",
   };

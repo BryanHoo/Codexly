@@ -145,7 +145,7 @@ export class CodexFuzzyFileSearchService implements AgentFileSearchProvider {
         return;
       }
 
-      // 0.152.1 的完成通知无法标识 query；等待 active 完成后才能发送最新 pending。
+      // 0.153.4 的完成通知无法标识 query；等待 active 完成后才能发送最新 pending。
       this.#rejectRequest(session.activeRequest, abortError("File search query was replaced"));
       if (session.pendingRequest !== undefined) {
         this.#rejectRequest(session.pendingRequest, abortError("File search query was replaced"));

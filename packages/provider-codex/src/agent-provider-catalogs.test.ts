@@ -92,7 +92,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     ]);
   });
 
-  it("rejects Codex models without the 0.152.1 multi-agent version field", async () => {
+  it("rejects Codex models without the 0.153.4 multi-agent version field", async () => {
     const rpc = new FakeRpcClient([
       {
         data: [
@@ -291,7 +291,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     ]);
   });
 
-  it("rejects skills without the 0.152.1 plugin ownership field", async () => {
+  it("rejects skills without the 0.153.4 plugin ownership field", async () => {
     const rpc = new FakeRpcClient([
       {
         data: [

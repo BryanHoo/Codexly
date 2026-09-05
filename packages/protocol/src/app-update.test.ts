@@ -32,7 +32,7 @@ describe("app update protocol", () => {
     expect(
       Value.Check(AppInfoResponseSchema, {
         appVersion: "1.3.0",
-        codexVersion: "0.152.1",
+        codexVersion: "0.153.4",
         latestVersion: "1.4.0",
         releaseNotes: "### 新增\n\n- 添加更新日志。",
         status: "available",
@@ -42,7 +42,7 @@ describe("app update protocol", () => {
     expect(
       Value.Check(AppInfoResponseSchema, {
         appVersion: "1.3.0",
-        codexVersion: "0.152.1",
+        codexVersion: "0.153.4",
         latestVersion: null,
         releaseNotes: null,
         status: "check-failed",
@@ -52,7 +52,7 @@ describe("app update protocol", () => {
     expect(
       Value.Check(AppInfoResponseSchema, {
         appVersion: "1.3.0",
-        codexVersion: "0.152.1",
+        codexVersion: "0.153.4",
         extra: true,
         latestVersion: "1.4.0",
         releaseNotes: "### 新增\n\n- 添加更新日志。",
@@ -63,7 +63,7 @@ describe("app update protocol", () => {
     expect(
       Value.Check(AppInfoResponseSchema, {
         appVersion: "1.3.0",
-        codexVersion: "0.152.1",
+        codexVersion: "0.153.4",
         latestVersion: "1.4.0",
         status: "available",
         updateAvailable: true,
@@ -78,7 +78,7 @@ describe("app update protocol", () => {
     expect(
       Value.Check(InstallAppUpdateResponseSchema, {
         appVersion: "1.3.0",
-        codexVersion: "0.152.1",
+        codexVersion: "0.153.4",
         latestVersion: "1.4.0",
         releaseNotes: null,
         status: "restart-required",
@@ -88,7 +88,7 @@ describe("app update protocol", () => {
     expect(
       Value.Check(InstallAppUpdateResponseSchema, {
         appVersion: "1.3.0",
-        codexVersion: "0.152.1",
+        codexVersion: "0.153.4",
         latestVersion: "1.4.0",
         status: "restart-required",
         updateAvailable: false,

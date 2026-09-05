@@ -249,6 +249,7 @@ export function handleActionMessage(message) {
         id: messageId,
         memoryCitation: null,
         phase: null,
+        questions: null,
         text: "已收到引导",
         type: "agentMessage",
       };

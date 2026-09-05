@@ -41,6 +41,7 @@ describe("CodexAgentProvider realtime events", () => {
     };
     const completedItem = {
       delivery: null,
+      questions: null,
       id: "item-1",
       text: "实时完成",
       type: "agentMessage",

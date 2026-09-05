@@ -241,7 +241,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
       Promise.resolve({ latestVersion: "1.2.3", status: "current" as const }),
     ),
     checkCodexVersion: vi.fn(() =>
-      Promise.resolve({ raw: "codex-cli 0.152.1", version: "0.152.1" }),
+      Promise.resolve({ raw: "codex-cli 0.153.4", version: "0.153.4" }),
     ),
     confirmAppUpdate: vi.fn(() => Promise.resolve(false)),
     createProjectRepository: vi.fn(() => {
@@ -279,7 +279,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
         client,
         close,
         pid: 4321,
-        version: { raw: "codex-cli 0.152.1", version: "0.152.1" },
+        version: { raw: "codex-cli 0.153.4", version: "0.153.4" },
         waitForExit: () => exit,
       }),
     ),

@@ -101,7 +101,7 @@ describe("Codex notification coverage", () => {
     expect(CODEX_OPT_OUT_NOTIFICATION_METHODS).toContain("turn/diff/updated");
   });
 
-  it("explicitly opts out of 0.152.1 model provider auth recovery notifications", () => {
+  it("explicitly opts out of 0.153.4 model provider auth recovery notifications", () => {
     expect(CODEX_IGNORED_NOTIFICATION_METHODS.has("modelProvider/authRecoveryStarted")).toBe(true);
     expect(CODEX_IGNORED_NOTIFICATION_METHODS.has("modelProvider/authRecoveryCompleted")).toBe(
       true,

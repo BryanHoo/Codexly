@@ -119,6 +119,34 @@ function mapApprovalReviewAction(value: unknown): AgentApprovalReviewItem["actio
   throw new CodexProtocolMappingError("Codex automatic approval review action type is invalid");
 }
 
+function validateAsyncUserInputQuestions(value: unknown): void {
+  if (value === null) {
+    return;
+  }
+  if (!Array.isArray(value)) {
+    throw new CodexProtocolMappingError("Codex agent message questions must be an array or null");
+  }
+  for (const questionValue of value) {
+    const question = expectRecord(questionValue, "Codex asynchronous user input question");
+    expectString(question["title"], "Codex asynchronous user input question title");
+    const options = question["options"];
+    if (options !== null && !Array.isArray(options)) {
+      throw new CodexProtocolMappingError(
+        "Codex asynchronous user input question options must be an array or null",
+      );
+    }
+    if (Array.isArray(options)) {
+      for (const option of options) {
+        if (typeof option !== "string") {
+          throw new CodexProtocolMappingError(
+            "Codex asynchronous user input question options must contain only strings",
+          );
+        }
+      }
+    }
+  }
+}
+
 export function mapApprovalReviewItem(params: Record<string, unknown>): AgentApprovalReviewItem {
   const review = expectRecord(params["review"], "Codex automatic approval review");
   const riskLevel = optionalString(review["riskLevel"]);
@@ -181,7 +209,8 @@ export function mapAgentItem(
     }
     case "agentMessage": {
       const text = expectString(item["text"], "Codex agent message text");
-      // 异步投递仍归一化为 Assistant Message，但必须严格接纳 0.152.1 的必填字段。
+      // 上游已把异步问题渲染进正文；只校验元数据，避免热路径重复分配展示结构。
+      validateAsyncUserInputQuestions(item["questions"]);
       if (item["delivery"] !== null && item["delivery"] !== "async") {
         throw new CodexProtocolMappingError("Codex agent message delivery must be async or null");
       }

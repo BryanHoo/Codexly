@@ -8,7 +8,7 @@ import { state } from "./fake-app-server-state.mjs";
 import { handleTerminalMessage } from "./fake-app-server-terminal.mjs";
 
 if (state.args.includes("--version")) {
-  process.stdout.write("codex-cli 0.152.1\n");
+  process.stdout.write("codex-cli 0.153.4\n");
   process.exit(0);
 }
 

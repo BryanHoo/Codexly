@@ -47,6 +47,7 @@ describe("Codex model and message mapping", () => {
             delivery: null,
             id: "commentary-message",
             phase: "commentary",
+            questions: null,
             text: "正在检查。",
             type: "agentMessage",
           },
@@ -54,6 +55,7 @@ describe("Codex model and message mapping", () => {
             delivery: "async",
             id: "final-message",
             phase: "final_answer",
+            questions: [{ options: ["继续"], title: "是否继续？" }],
             text: "检查完成。",
             type: "agentMessage",
           },
@@ -61,6 +63,7 @@ describe("Codex model and message mapping", () => {
             delivery: null,
             id: "legacy-message",
             phase: null,
+            questions: null,
             text: "旧版消息。",
             type: "agentMessage",
           },
@@ -92,7 +95,7 @@ describe("Codex model and message mapping", () => {
     ]);
   });
 
-  it("rejects missing or invalid 0.152.1 agent message delivery", () => {
+  it("rejects missing or invalid 0.153.4 agent message delivery", () => {
     const mapMessage = (delivery?: unknown) =>
       mapAgentTurn({
         completedAt: 1_753_228_830,
@@ -103,6 +106,7 @@ describe("Codex model and message mapping", () => {
             ...(delivery === undefined ? {} : { delivery }),
             id: "message-delivery",
             phase: "final_answer",
+            questions: null,
             text: "检查完成。",
             type: "agentMessage",
           },
@@ -114,6 +118,32 @@ describe("Codex model and message mapping", () => {
     expect(() => mapMessage()).toThrow("Codex agent message delivery must be async or null");
     expect(() => mapMessage("inline")).toThrow(
       "Codex agent message delivery must be async or null",
+    );
+  });
+
+  it("rejects missing or invalid 0.153.4 asynchronous user input questions", () => {
+    const mapMessage = (questions?: unknown) =>
+      mapAgentTurn({
+        completedAt: 1_753_228_830,
+        error: null,
+        id: "message-questions-turn",
+        items: [
+          {
+            delivery: null,
+            id: "message-questions",
+            phase: "final_answer",
+            ...(questions === undefined ? {} : { questions }),
+            text: "请选择后续操作。",
+            type: "agentMessage",
+          },
+        ],
+        startedAt: 1_753_228_800,
+        status: "completed",
+      });
+
+    expect(() => mapMessage()).toThrow("Codex agent message questions must be an array or null");
+    expect(() => mapMessage([{ options: [42], title: "是否继续？" }])).toThrow(
+      "Codex asynchronous user input question options must contain only strings",
     );
   });
 });

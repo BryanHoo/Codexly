@@ -13,6 +13,7 @@ export function scheduleRealtimeEvents() {
       id: "message-realtime",
       memoryCitation: null,
       phase: null,
+      questions: null,
       text: "Realtime connected",
       type: "agentMessage",
     };

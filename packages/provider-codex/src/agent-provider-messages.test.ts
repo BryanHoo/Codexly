@@ -20,6 +20,7 @@ describe("CodexAgentProvider streamed messages", () => {
 
     const commentaryItem = {
       delivery: null,
+      questions: null,
       id: "commentary-1",
       memoryCitation: null,
       phase: "commentary",
@@ -45,6 +46,7 @@ describe("CodexAgentProvider streamed messages", () => {
 
     const finalAnswerItem = {
       delivery: null,
+      questions: null,
       id: "answer-1",
       memoryCitation: null,
       phase: "final_answer",

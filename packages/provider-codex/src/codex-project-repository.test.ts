@@ -149,7 +149,7 @@ describe("CodexProjectRepository", () => {
     expect(projection.replaceProjects).toHaveBeenCalledWith([firstProject, secondProject]);
   });
 
-  it("validates 0.152.1 recencyAt without changing manual project order", async () => {
+  it("validates 0.153.4 recencyAt without changing manual project order", async () => {
     const projection = createProjection();
     const recentSecond = { ...nativeProject(secondProject, 20), recencyAt: 1_800_000_000 };
     const olderFirst = { ...nativeProject(firstProject, 10), recencyAt: 1_700_000_000 };
