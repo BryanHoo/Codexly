@@ -1,5 +1,7 @@
-import type { AgentTaskSettings } from "@codexly/protocol";
 import { useEffect, useImperativeHandle, useState } from "react";
+import { AsyncQuestionComposer } from "./async-question-composer.js";
+import { useComposerSettingsUpdate } from "./workbench-composer-settings.js";
+import { useComposerMenuDismissal } from "./workbench-composer-menus.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { getTaskStoreUserMessageIds } from "../composer-queue-state.js";
 import {
@@ -149,15 +151,14 @@ export function WorkbenchComposer({
     uploadAttempts,
     uploadedAttachments,
   } = composerController;
-  const updateSettings = (nextSettings: AgentTaskSettings, field: keyof AgentTaskSettings) => {
-    const requestScope = routeScope;
-    setSettingsOverride({ scope: requestScope, settings: nextSettings });
-    setMutationError(null);
-    // 设置写回由用户事件直接触发，避免 effect 重放或并发渲染造成重复请求。
-    void Promise.resolve(onSettingsChange(nextSettings, field, fastModeSelected)).catch(
-      () => undefined,
-    );
-  };
+  const updateSettings = useComposerSettingsUpdate({
+    routeScope,
+    fastModeSelected,
+    onSettingsChange,
+    isCurrentScope,
+    setSettingsOverride,
+    setMutationError,
+  });
   const branchMutation = useWorkbenchBranchSwitch({
     client,
     gitStatus,
@@ -166,38 +167,14 @@ export function WorkbenchComposer({
     rootPath: projectPath,
     routeScope,
   });
-  useEffect(() => {
-    if (turnControlsDisabled) {
-      closeCommandMenu();
-      closeFileMenu();
-    }
-  }, [closeCommandMenu, closeFileMenu, turnControlsDisabled]);
-  useEffect(() => {
-    if (!commandMenuOpen && !fileMenuOpen) {
-      return undefined;
-    }
-    const handleDocumentKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeCommandMenu();
-        closeFileMenu();
-      }
-    };
-    const handleDocumentPointerDown = (event: PointerEvent) => {
-      const eventTarget = event.target;
-      if (eventTarget instanceof Node && !commandSurfaceRef.current?.contains(eventTarget)) {
-        // 输入框和命令弹层共享一个交互区域，只有点击区域外部才关闭弹层。
-        closeCommandMenu();
-        closeFileMenu();
-      }
-    };
-    document.addEventListener("keydown", handleDocumentKeyDown, true);
-    document.addEventListener("pointerdown", handleDocumentPointerDown, true);
-    return () => {
-      document.removeEventListener("keydown", handleDocumentKeyDown, true);
-      document.removeEventListener("pointerdown", handleDocumentPointerDown, true);
-    };
-  }, [closeCommandMenu, closeFileMenu, commandMenuOpen, commandSurfaceRef, fileMenuOpen]);
+  useComposerMenuDismissal({
+    closeCommandMenu,
+    closeFileMenu,
+    commandMenuOpen,
+    commandSurfaceRef,
+    fileMenuOpen,
+    turnControlsDisabled,
+  });
   const composerQueue = useComposerQueue({
     activeTurnId,
     client,
@@ -481,6 +458,13 @@ export function WorkbenchComposer({
   );
   return (
     <>
+      <AsyncQuestionComposer
+        key={composerScope}
+        activeTurnId={activeTurnId}
+        enabled={!turnControlsDisabled}
+        submit={submitPrompt}
+        taskStore={runtime?.store}
+      />
       {composerView}
       <WorkbenchComposerAttachmentPicker
         active={isCurrentScope(routeScope)}

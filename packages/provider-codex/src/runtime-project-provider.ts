@@ -16,6 +16,7 @@ import type {
 import {
   isAgentFastModeAvailable,
   type AgentBackgroundTerminalPage,
+  type AgentApprovalsReviewer,
   type AgentCapabilities,
   type AgentProviderConnectionStatus,
   type AgentGoal,
@@ -111,6 +112,15 @@ export class CodexRuntimeProjectProvider implements AgentProvider {
   public interruptTurn(taskId: string, turnId: string): Promise<void> {
     this.#runtime.assertTaskOwner(this.#project, taskId);
     return this.#delegate.interruptTurn(taskId, turnId);
+  }
+
+  public updateTurnApprovalsReviewer(
+    taskId: string,
+    turnId: string,
+    reviewer: AgentApprovalsReviewer,
+  ) {
+    this.#runtime.assertTaskOwner(this.#project, taskId);
+    return this.#delegate.updateTurnApprovalsReviewer(taskId, turnId, reviewer);
   }
 
   public async listBackgroundTerminals(taskId: string): Promise<AgentBackgroundTerminalPage> {

@@ -44,6 +44,7 @@ describe("AgentProvider", () => {
   it("defines provider-independent read and mutation contracts", async () => {
     const listeners = new Set<(event: AgentProviderEvent) => void>();
     const provider: AgentProvider = {
+      updateTurnApprovalsReviewer: () => Promise.resolve("applied"),
       queue: {
         add(_taskId, input, clientUserMessageId) {
           return Promise.resolve({

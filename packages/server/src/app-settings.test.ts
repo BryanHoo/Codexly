@@ -39,13 +39,22 @@ describe("server task settings", () => {
     });
     expect(readTaskSettings).not.toHaveBeenCalled();
 
-    resolveTask({ ...snapshot, pinned: true });
+    resolveTask({
+      ...snapshot,
+      pinned: true,
+      threadConfiguration: { model: "cli-model", reasoningEffort: "high" },
+    });
     await vi.waitFor(() => {
       expect(readTaskSettings).toHaveBeenCalledOnce();
     });
     resolveSettings(undefined);
 
-    expect((await response).json()).toMatchObject({ snapshot: { pinned: true } });
+    expect((await response).json()).toMatchObject({
+      snapshot: {
+        pinned: true,
+        threadConfiguration: { model: "cli-model", reasoningEffort: "high" },
+      },
+    });
   });
 
   it("returns effective settings and atomically validates complete updates", async () => {

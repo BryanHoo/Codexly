@@ -39,6 +39,7 @@ describe("CodexAgentProvider snapshots", () => {
           id: "task-1",
           pinned: true,
           projectId: "codexly",
+          threadConfiguration: { model: null, reasoningEffort: null },
           title: "实现真实 Task 历史",
           updatedAt: "2025-07-23T01:00:00.000Z",
         },

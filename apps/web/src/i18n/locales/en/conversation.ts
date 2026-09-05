@@ -1,4 +1,17 @@
 export const conversation = {
+  asyncQuestions: {
+    pending: "Pending questions",
+    pendingCount: "Pending · {{count}} groups",
+    previous: "Previous questions",
+    next: "Next questions",
+    collapse: "Collapse questions",
+    expand: "Expand questions",
+    other: "Other answer",
+    answer: "Answer: {{question}}",
+    send: "Send answers",
+    sent: "Sent",
+    failed: "Answers were not sent. Please retry.",
+  },
   agentComponents: {
     addFile: "Add file",
     addImage: "Add image",

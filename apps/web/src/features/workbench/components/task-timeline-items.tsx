@@ -4,6 +4,7 @@ import { FileText, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
+import { AsyncQuestionHistory } from "./async-question-history.js";
 import { Attachments } from "../../../shared/components/agent/attachments.js";
 import { cn } from "../../../shared/lib/utils.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -94,6 +95,9 @@ export function TimelineItemContent({
 }>) {
   switch (item.type) {
     case "message": {
+      if (item.role === "assistant" && (item.questions?.length ?? 0) > 0) {
+        return <AsyncQuestionHistory item={item} />;
+      }
       const attachments = item.attachments ?? [];
       const skills = item.role === "user" ? (item.skills ?? []) : [];
       const responseRendering = resolveMessageResponseRendering({

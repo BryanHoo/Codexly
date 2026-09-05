@@ -100,6 +100,11 @@ export async function mapAgentTask(
     id: expectString(thread["id"], "Codex thread id"),
     pinned: isPinnedThreadSection(thread["section"]),
     projectId: project.id,
+    // 线程配置来自原生元数据，与应用内保存的下次提交设置分别保留。
+    threadConfiguration: {
+      model: thread["model"],
+      reasoningEffort: thread["reasoningEffort"],
+    },
     title: normalizedTitle(thread),
     updatedAt: toDateTime(thread["updatedAt"], "Codex thread updatedAt"),
   };

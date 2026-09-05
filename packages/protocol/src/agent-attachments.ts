@@ -2,11 +2,20 @@ import { Type, type Static } from "@sinclair/typebox";
 
 import { DateTimeSchema } from "./project-files.js";
 
+export const AgentThreadConfigurationSchema = Type.Object(
+  {
+    model: Type.Union([Type.String(), Type.Null()]),
+    reasoningEffort: Type.Union([Type.String(), Type.Null()]),
+  },
+  { additionalProperties: false },
+);
+
 export const AgentTaskSchema = Type.Object(
   {
     id: Type.String({ minLength: 1 }),
     pinned: Type.Boolean(),
     projectId: Type.String({ minLength: 1 }),
+    threadConfiguration: Type.Optional(AgentThreadConfigurationSchema),
     title: Type.String({ minLength: 1 }),
     updatedAt: DateTimeSchema,
   },
@@ -344,6 +353,17 @@ export const AgentMessageItemSchema = Type.Object(
     ),
     id: Type.String({ minLength: 1 }),
     phase: Type.Optional(AgentMessagePhaseSchema),
+    questions: Type.Optional(
+      Type.Array(
+        Type.Object(
+          {
+            title: Type.String(),
+            options: Type.Union([Type.Array(Type.String()), Type.Null()]),
+          },
+          { additionalProperties: false },
+        ),
+      ),
+    ),
     role: Type.Union([Type.Literal("user"), Type.Literal("assistant")]),
     skills: Type.Optional(Type.Array(AgentMessageSkillSchema)),
     text: Type.String(),

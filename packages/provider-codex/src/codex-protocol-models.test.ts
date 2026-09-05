@@ -82,6 +82,7 @@ describe("Codex model and message mapping", () => {
       {
         id: "final-message",
         phase: "final_answer",
+        questions: [{ options: ["继续"], title: "是否继续？" }],
         role: "assistant",
         text: "检查完成。",
         type: "message",

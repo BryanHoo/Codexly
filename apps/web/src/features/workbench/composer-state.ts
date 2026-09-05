@@ -24,6 +24,18 @@ import {
 export type ComposerState = "failed" | "idle" | "reconnecting" | "running" | "submitting";
 export type ApprovalMode = SharedApprovalMode;
 
+export function resolveThreadComposerSettings(
+  settings: AgentTaskSettings,
+  configuration: AgentTaskSnapshot["threadConfiguration"],
+): AgentTaskSettings {
+  // 续聊沿用原生线程模型；权限仍由应用设置决定，空字段独立回退。
+  const model = configuration?.model ?? settings.model;
+  const reasoningEffort = configuration?.reasoningEffort ?? settings.reasoningEffort;
+  return model === settings.model && reasoningEffort === settings.reasoningEffort
+    ? settings
+    : { ...settings, model, reasoningEffort };
+}
+
 export const LARGE_PASTE_CHARACTER_THRESHOLD = 1_000;
 export const PASTED_TEXT_ATTACHMENT_NAME = "Pasted text.txt";
 

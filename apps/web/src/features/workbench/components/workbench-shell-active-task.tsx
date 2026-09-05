@@ -141,6 +141,8 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   }, [runtime, submittedPrompt]);
   const settingsMutation = useMutation({
     ...taskSettingsMutationOptions(projectId, taskId, client),
+    // 同一会话按选择顺序发布，避免快速切换 reviewer 时逆序覆盖。
+    scope: { id: `task-settings:${taskScope}` },
     onSuccess(response) {
       runtime.store?.getState().setTaskSettings(response.settings);
     },

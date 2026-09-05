@@ -6,6 +6,7 @@ import type {
 } from "@codexly/core";
 import type {
   AgentBackgroundTerminal,
+  AgentApprovalsReviewer,
   AgentBackgroundTerminalPage,
   AgentGoal,
   AgentTask,
@@ -294,6 +295,28 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
       }),
       "turn/interrupt response",
     );
+  }
+
+  public async updateTurnApprovalsReviewer(
+    taskId: string,
+    turnId: string,
+    reviewer: AgentApprovalsReviewer,
+  ): Promise<"applied" | "targetUnavailable"> {
+    this.assertKnownProjectTask(taskId);
+    // 仅发布到指定回合后续步骤，不修改已有审批，不开启模型切换实验。
+    const response = expectRecord(
+      await this.client.request("turn/settings/update", {
+        threadId: taskId,
+        turnId,
+        approvalsReviewer: reviewer,
+      }),
+      "turn/settings/update response",
+    );
+    const status = response["status"];
+    if (status !== "applied" && status !== "targetUnavailable") {
+      throw new CodexProtocolMappingError("Codex turn settings update status is invalid");
+    }
+    return status;
   }
 
   public async listBackgroundTerminals(taskId: string): Promise<AgentBackgroundTerminalPage> {

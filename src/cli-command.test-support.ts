@@ -88,6 +88,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     respondToServerRequest: vi.fn(),
   };
   const provider = {
+    updateTurnApprovalsReviewer: vi.fn(() => Promise.resolve("applied" as const)),
     archiveTask: vi.fn(),
     clearGoal: vi.fn(),
     compactTask: vi.fn(),

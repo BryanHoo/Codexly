@@ -99,6 +99,9 @@ export function taskFromSnapshot(
     id: snapshot.id,
     pinned: snapshot.pinned,
     projectId: snapshot.projectId,
+    ...(snapshot.threadConfiguration === undefined
+      ? {}
+      : { threadConfiguration: snapshot.threadConfiguration }),
     title: overrides.title ?? snapshot.title,
     updatedAt: snapshot.updatedAt,
   };

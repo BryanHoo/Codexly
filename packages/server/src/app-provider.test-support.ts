@@ -192,6 +192,7 @@ export function createProvider() {
   const uploadFeedback = vi.fn(() => Promise.resolve());
   const unarchiveTask = vi.fn(() => Promise.resolve(task));
   const provider: AgentProvider = {
+    updateTurnApprovalsReviewer: vi.fn(() => Promise.resolve("applied" as const)),
     archiveTask,
     clearGoal,
     compactTask,

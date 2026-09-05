@@ -98,6 +98,21 @@ export function registerTaskActionRoutes(app: FastifyInstance, context: ServerRo
           }
           const settings = request.body;
           assertValidProjectDefaults(await listModels(), settings);
+          const activeTurn = task.turns.findLast((turn) => turn.status === "running");
+          if (activeTurn !== undefined) {
+            const previous = await readEffectiveTaskSettings(
+              request.params.projectId,
+              request.params.taskId,
+            );
+            if (previous.approvalsReviewer !== settings.approvalsReviewer) {
+              // 先发布实时设置再保存；回合已结束时只保存供后续使用，不重试新回合。
+              await context.provider.updateTurnApprovalsReviewer(
+                request.params.taskId,
+                activeTurn.id,
+                settings.approvalsReviewer,
+              );
+            }
+          }
           return {
             settings: await settingsRepository.writeTaskSettings(
               request.params.projectId,

@@ -1,6 +1,10 @@
 import { Type, type Static, type TSchema } from "@sinclair/typebox";
 
-import { AgentTaskSchema, type AgentTask } from "./agent-attachments.js";
+import {
+  AgentTaskSchema,
+  AgentThreadConfigurationSchema,
+  type AgentTask,
+} from "./agent-attachments.js";
 import { DateTimeSchema, ProjectSchema, type Project } from "./project-files.js";
 import { ActivePendingRequestSchema } from "./pending-request.js";
 import { AgentSkillSchema, AgentTurnSchema, type AgentSkill } from "./agent-task.js";
@@ -53,6 +57,7 @@ export const AgentTaskSnapshotSchema = Type.Object(
     pinned: Type.Boolean(),
     projectId: Type.String({ minLength: 1 }),
     settings: AgentTaskSettingsSchema,
+    threadConfiguration: Type.Optional(AgentThreadConfigurationSchema),
     status: Type.Union([Type.Literal("idle"), Type.Literal("running"), Type.Literal("failed")]),
     title: Type.String({ minLength: 1 }),
     turns: Type.Array(AgentTurnSchema),
