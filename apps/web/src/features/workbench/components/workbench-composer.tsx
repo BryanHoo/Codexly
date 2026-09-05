@@ -1,6 +1,5 @@
 import type { AgentTaskSettings } from "@codexly/protocol";
 import { useEffect, useImperativeHandle, useState } from "react";
-
 import { useTranslation } from "../../../i18n/i18n.js";
 import { getTaskStoreUserMessageIds } from "../composer-queue-state.js";
 import {
@@ -8,7 +7,6 @@ import {
   resolveComposerSubmitAction,
   resolveIdempotencyAttempt,
 } from "../composer-state.js";
-import { HostAttachmentPickerDialog } from "./host-attachment-picker-dialog.js";
 import { isPromptSkillContentEmpty } from "./prompt-skill-editor.js";
 import { useWorkbenchBranchSwitch } from "../hooks/use-workbench-branch-switch.js";
 import { useComposerQueue } from "../hooks/use-composer-queue.js";
@@ -18,23 +16,29 @@ import { createProjectTodoComposerActions } from "./project-todo-composer-action
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 import { useComposerSession } from "./workbench-composer-session.js";
 import { createComposerSubmission } from "./workbench-composer-submission.js";
+import { WorkbenchComposerAttachmentPicker } from "./workbench-composer-attachment-picker.js";
 import { WorkbenchComposerView } from "./workbench-composer-view.js";
 export * from "./workbench-composer-contracts.js";
 export * from "../composer-state.js";
-
 export function WorkbenchComposer({
   composerRef,
   capabilities,
+  captureSubmitVisible = true,
   client,
+  composerDraftId,
   fastModeAvailable,
   fastModeDefault,
   followUpBehavior,
+  footerVisible = true,
+  initialDraft,
   initialTodoId,
   models,
   modelsError,
   modelsPending,
   onDirectSubmission,
+  onCaptureSubmission,
   onFastModeChange,
+  onInputStateChange,
   onOpenProjectPath,
   onProjectRootChange,
   onRequestNotificationPermission,
@@ -61,10 +65,12 @@ export function WorkbenchComposer({
   const { editingTodoId, projectTodos, todos } = todoEditing;
   const session = useComposerSession({
     capabilities,
+    composerDraftId,
     client,
     editingTodoId,
     gitStatus,
     models,
+    initialDraft,
     onSubmissionStateChange,
     projectId,
     projectPath,
@@ -160,14 +166,12 @@ export function WorkbenchComposer({
     rootPath: projectPath,
     routeScope,
   });
-
   useEffect(() => {
     if (turnControlsDisabled) {
       closeCommandMenu();
       closeFileMenu();
     }
   }, [closeCommandMenu, closeFileMenu, turnControlsDisabled]);
-
   useEffect(() => {
     if (!commandMenuOpen && !fileMenuOpen) {
       return undefined;
@@ -194,7 +198,6 @@ export function WorkbenchComposer({
       document.removeEventListener("pointerdown", handleDocumentPointerDown, true);
     };
   }, [closeCommandMenu, closeFileMenu, commandMenuOpen, commandSurfaceRef, fileMenuOpen]);
-
   const composerQueue = useComposerQueue({
     activeTurnId,
     client,
@@ -230,6 +233,7 @@ export function WorkbenchComposer({
     followUpBehavior,
     fastMode: fastModeEnabled,
     onDirectSubmission,
+    onCaptureSubmission,
     onGoalStarted: () => {
       setComposerModeState(undefined);
     },
@@ -251,7 +255,6 @@ export function WorkbenchComposer({
     t,
     turnControlsDisabled,
   });
-
   useImperativeHandle(composerRef, () => ({
     buildPlan: () => {
       setComposerModeState(undefined); // 避免后续 Turn 再次请求生成计划。
@@ -261,8 +264,8 @@ export function WorkbenchComposer({
       });
     },
     referenceProjectPath,
+    submitCurrent: () => submitPrompt({ files: attachments, text: promptSubmission.text }),
   }));
-
   const {
     executePromptCommand,
     executeReviewTarget,
@@ -311,8 +314,8 @@ export function WorkbenchComposer({
       }
     });
   };
-
   const hasComposerInput = !isPromptSkillContentEmpty(promptContent) || attachmentCount > 0;
+  useEffect(() => onInputStateChange?.(hasComposerInput), [hasComposerInput, onInputStateChange]);
   const todoActions = createProjectTodoComposerActions({
     actionLock: composerActionLock,
     attachments,
@@ -339,7 +342,6 @@ export function WorkbenchComposer({
     composerQueue.editingId === undefined
       ? resolveComposerSubmitAction(state, hasComposerInput, followUpBehavior, canSteer)
       : "queue";
-
   const composerView = (
     <WorkbenchComposerView
       activeCommandIndex={activeCommandIndex}
@@ -352,6 +354,8 @@ export function WorkbenchComposer({
       canInterrupt={canInterrupt}
       canSteer={canSteer}
       canSubmit={canSubmit}
+      captureMode={onCaptureSubmission !== undefined}
+      captureSubmitVisible={captureSubmitVisible}
       commandMenuId={commandMenuId}
       commandMenuOpen={commandMenuOpen}
       commandSurfaceRef={commandSurfaceRef}
@@ -370,6 +374,7 @@ export function WorkbenchComposer({
       fileSearchResults={fileSearchResults}
       fastModeAvailable={fastModeAvailable}
       fastModeEnabled={fastModeEnabled}
+      footerVisible={footerVisible}
       getCommandAvailability={getCommandAvailability}
       gitStatus={gitStatus}
       goal={runtime?.metadata?.goal}
@@ -474,21 +479,15 @@ export function WorkbenchComposer({
       worktrees={branchMutation.worktrees}
     />
   );
-  if (attachmentPickerKind === undefined) {
-    return composerView;
-  }
   return (
     <>
       {composerView}
-      <HostAttachmentPickerDialog
+      <WorkbenchComposerAttachmentPicker
+        active={isCurrentScope(routeScope)}
         client={client}
         kind={attachmentPickerKind}
         onAdd={(attachment) => {
-          if (!isCurrentScope(routeScope)) {
-            return;
-          }
           handleAttachmentsChange([...attachments, attachment]);
-          setAttachmentPickerKind(undefined);
         }}
         onClose={() => {
           setAttachmentPickerKind(undefined);

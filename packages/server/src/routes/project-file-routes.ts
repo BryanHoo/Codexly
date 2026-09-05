@@ -22,6 +22,7 @@ import type { ProjectRepository } from "@codexly/core";
 import { AttachmentNotFoundError, type StoredAttachmentUpload } from "../attachment-store.js";
 import { HostFileBrowserError } from "../host-file-browser.js";
 import { ProjectRootScopeError, resolveProjectRootEntry } from "../project-root-scope.js";
+import { sendScheduledTaskAttachment } from "../scheduled-task-attachment-response.js";
 import { filterProjectFileSearchMatches } from "../project-file-search.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { registerProjectFileMutationRoutes } from "./project-file-mutation-routes.js";
@@ -479,6 +480,13 @@ export function registerProjectFileRoutes(app: FastifyInstance, context: ServerR
           .send(stored.content);
       } catch (error) {
         if (error instanceof AttachmentNotFoundError) {
+          const stored = await context.readScheduledTaskAttachment(
+            request.params.projectId,
+            request.params.attachmentId,
+          );
+          if (stored !== undefined) {
+            return sendScheduledTaskAttachment(reply, stored);
+          }
           return reply
             .code(404)
             .send({ code: "ATTACHMENT_NOT_FOUND", message: "Attachment not found" });

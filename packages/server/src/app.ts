@@ -50,6 +50,12 @@ import { registerTaskRoutes } from "./routes/task-routes.js";
 import { registerTurnRoutes } from "./routes/turn-routes.js";
 import { registerQueueRoutes } from "./routes/queue-routes.js";
 import { registerSkillMarketRoutes } from "./routes/skill-market-routes.js";
+import { registerScheduledTaskRoutes } from "./routes/scheduled-task-routes.js";
+import {
+  ScheduledTaskService,
+  createMemoryScheduledTaskRepository,
+} from "./scheduled-task-service.js";
+import { ScheduledTaskAttachmentManager } from "./scheduled-task-attachments.js";
 import { configureServerDelivery } from "./server-delivery.js";
 import type { CreateCodexlyServerOptions } from "./server-options.js";
 import { runSingleFlight } from "./single-flight.js";
@@ -326,6 +332,62 @@ export async function createCodexlyServer(
     repository: options.queueRepository ?? createMemoryTaskQueueRepository(),
     resolveProviderInput: resolveProviderTurnInput,
   });
+  const scheduledTaskAttachmentManager =
+    options.scheduledTaskAttachmentRepository === undefined
+      ? undefined
+      : new ScheduledTaskAttachmentManager(
+          attachmentStore,
+          options.scheduledTaskAttachmentRepository,
+        );
+  const scheduledTaskService = new ScheduledTaskService({
+    ...(scheduledTaskAttachmentManager === undefined
+      ? {}
+      : {
+          deleteTaskResources: (taskId) => scheduledTaskAttachmentManager.delete(taskId),
+          persistTaskResources: (task) => scheduledTaskAttachmentManager.persist(task),
+        }),
+    repository: options.scheduledTaskRepository ?? createMemoryScheduledTaskRepository(),
+    startTask: async (scheduled) => {
+      const context = await getProjectContext(scheduled.projectId);
+      if (context === undefined) throw new Error("Scheduled task project was not found");
+      assertValidProjectDefaults(await listModels(), scheduled.turnOptions);
+      const restored =
+        scheduledTaskAttachmentManager === undefined
+          ? { prompt: scheduled.prompt, restoredIds: [] }
+          : await scheduledTaskAttachmentManager.restorePrompt(scheduled);
+      try {
+        // 先完成附件恢复再创建 Task，避免持久内容损坏时留下无 Turn 的孤儿 Task。
+        const task = await context.provider.startTask();
+        await options.settingsRepository.writeTaskSettings(
+          scheduled.projectId,
+          task.id,
+          scheduled.turnOptions,
+        );
+        const { attachmentIds, providerInput } = await resolveProviderTurnInput(
+          scheduled.projectId,
+          restored.prompt,
+          context.provider,
+          task.id,
+        );
+        const turn = await context.provider.startTurn(
+          task.id,
+          providerInput,
+          scheduled.turnOptions,
+        );
+        // Provider 确认启动后才消费恢复副本，失败时统一清理并记录本次运行失败。
+        await attachmentStore.consume(
+          scheduled.projectId,
+          attachmentIds,
+          turn.status === "running" ? turn.id : undefined,
+        );
+        return task.id;
+      } catch (error) {
+        await scheduledTaskAttachmentManager?.discard(restored.restoredIds);
+        throw error;
+      }
+    },
+  });
+  await scheduledTaskService.start();
   const activeGitMutations = new Set<string>();
   const taskStartRecoveries = new Map<string, TaskStartRecovery>();
   const idempotencyCacheSize = options.idempotencyCacheSize ?? DEFAULT_IDEMPOTENCY_CACHE_SIZE;
@@ -335,6 +397,7 @@ export async function createCodexlyServer(
     ...(options.access === undefined ? {} : { access: options.access }),
     ...(options.allowedHosts === undefined ? {} : { allowedHosts: options.allowedHosts }),
     releaseResources: async () => {
+      await scheduledTaskService.close();
       await projectRuntimeIdleReaper.close();
       await Promise.all(
         [...projectContexts.keys()].map((projectId) => releaseProjectContext(projectId)),
@@ -399,7 +462,12 @@ export async function createCodexlyServer(
     runIdempotent: idempotencyRunner.run,
     resolveProjectDirectory: options.resolveProjectDirectory ?? resolveProjectDirectory,
     resolveHostAttachment: options.resolveHostAttachment ?? resolveHostAttachment,
+    readScheduledTaskAttachment: async (projectId, attachmentId) =>
+      scheduledTaskAttachmentManager === undefined
+        ? undefined
+        : scheduledTaskAttachmentManager.read(projectId, attachmentId),
     settingsRepository: options.settingsRepository,
+    scheduledTaskService,
     skillMarketService,
     taskFromSnapshot,
     taskQueue,
@@ -418,6 +486,7 @@ export async function createCodexlyServer(
   await app.register(registerPetRoutes, routeContext);
   await app.register(registerProjectRoutes, routeContext);
   await app.register(registerSkillMarketRoutes, routeContext);
+  await app.register(registerScheduledTaskRoutes, routeContext);
   await app.register(registerTaskRoutes, routeContext);
   await app.register(registerTurnRoutes, routeContext);
   await app.register(registerQueueRoutes, routeContext);

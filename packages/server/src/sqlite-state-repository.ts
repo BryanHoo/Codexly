@@ -28,6 +28,7 @@ import {
 } from "./provider-connection-persistence.js";
 import { deserializeWorkerError } from "./sqlite-state-helpers.js";
 import { SQLITE_MIGRATIONS, type SqliteMigration } from "./sqlite-state-migrations.js";
+import { SqliteScheduledTaskRepository } from "./scheduled-task-repository-helpers.js";
 
 export type { SqliteMigration } from "./sqlite-state-migrations.js";
 
@@ -74,6 +75,7 @@ type PendingRequest = Readonly<{
 }>;
 
 export class SqliteStateRepository
+  extends SqliteScheduledTaskRepository
   implements
     ProjectProjectionStore,
     AgentSettingsRepository,
@@ -95,6 +97,7 @@ export class SqliteStateRepository
   #workerExited = false;
 
   private constructor(databasePath: string, options: SqliteStateRepositoryOptions) {
+    super();
     if (!isAbsolute(databasePath)) {
       throw new Error("SQLite database path must be absolute");
     }
@@ -381,6 +384,13 @@ export class SqliteStateRepository
       taskId,
       updatedAt: this.#now().toISOString(),
     });
+  }
+
+  protected callScheduledTaskWorker<TResult>(
+    operation: string,
+    payload?: unknown,
+  ): Promise<TResult> {
+    return this.#call<TResult>(operation, payload);
   }
 
   async #call<TResult>(

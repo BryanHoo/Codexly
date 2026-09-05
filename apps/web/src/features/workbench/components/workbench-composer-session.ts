@@ -11,7 +11,7 @@ import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "
 
 import type { PromptInputAttachment } from "../../../shared/components/agent/prompt-input.js";
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
-import { useComposerDraftStore } from "../composer-draft-context.js";
+import { useComposerDraftStore, type ComposerDraft } from "../composer-draft-context.js";
 import { createProjectTodoBinding, shouldRestoreComposerBinding } from "../project-todo-binding.js";
 import type { ProjectTodoStore } from "../project-todo-store.js";
 import {
@@ -51,10 +51,12 @@ import type { ComposerMode } from "./workbench-composer-contracts.js";
 
 type ComposerSessionOptions = Readonly<{
   capabilities: AgentCapabilities | undefined;
+  composerDraftId: string | undefined;
   client: WorkbenchComposerProps["client"];
   editingTodoId: string | undefined;
   gitStatus: ProjectGitStatus | undefined;
   models: readonly AgentModel[];
+  initialDraft: ComposerDraft | undefined;
   onSubmissionStateChange: WorkbenchComposerProps["onSubmissionStateChange"];
   projectId: string;
   projectPath: string;
@@ -70,10 +72,12 @@ const emptyProjectFileSearchResults: readonly ProjectFileSearchEntry[] = [];
 
 export function useComposerSession({
   capabilities,
+  composerDraftId,
   client,
   editingTodoId,
   gitStatus,
   models,
+  initialDraft,
   onSubmissionStateChange,
   projectId,
   projectPath,
@@ -85,7 +89,7 @@ export function useComposerSession({
   taskId,
 }: ComposerSessionOptions) {
   // Git 与文件异步操作绑定当前根；切换根后旧请求不得更新新根的 Composer 状态。
-  const routeScope = `${projectId}:${taskId ?? "draft"}:${projectPath}`;
+  const routeScope = `${projectId}:${composerDraftId ?? taskId ?? "draft"}:${projectPath}`;
   const composerDraftStore = useComposerDraftStore();
   const composerDraftBinding = useMemo(
     () =>
@@ -94,12 +98,12 @@ export function useComposerSession({
         editingTodoId,
         projectId,
         projectTodos,
-        taskId,
+        taskId: composerDraftId ?? taskId,
       }),
-    [composerDraftStore, editingTodoId, projectId, projectTodos, taskId],
+    [composerDraftId, composerDraftStore, editingTodoId, projectId, projectTodos, taskId],
   );
   const composerScope = composerDraftBinding.scope;
-  const initialComposerDraft = composerDraftBinding.read();
+  const initialComposerDraft = initialDraft ?? composerDraftBinding.read();
   const [settingsOverride, setSettingsOverride] = useState<{
     scope: string;
     settings: AgentTaskSettings;

@@ -12,12 +12,14 @@ import type { useWorkbenchShellController } from "./workbench-shell-controller.j
 export function WorkbenchShellHeader({
   board,
   context,
+  scheduled,
   skillsMarket,
   taskId,
   temporary,
 }: Readonly<{
   board: boolean;
   context: ReturnType<typeof useWorkbenchShellController>;
+  scheduled: boolean;
   skillsMarket: boolean;
   taskId?: string;
   temporary: boolean;
@@ -35,8 +37,14 @@ export function WorkbenchShellHeader({
     t,
     title,
   } = context;
-  const utilityView = board || skillsMarket;
-  const heading = skillsMarket ? t("skillsMarket.title") : board ? t("taskBoard.title") : title;
+  const utilityView = board || skillsMarket || scheduled;
+  const heading = scheduled
+    ? t("scheduledTasks.title")
+    : skillsMarket
+      ? t("skillsMarket.title")
+      : board
+        ? t("taskBoard.title")
+        : title;
   return (
     <header className="flex h-workbench-header shrink-0 items-center justify-between gap-3 bg-content px-2.5 shadow-toolbar sm:px-3">
       <div className="flex min-w-0 items-center gap-2">

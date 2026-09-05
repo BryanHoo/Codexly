@@ -47,6 +47,7 @@ type ComposerSubmissionOptions = Readonly<{
   editingQueuedSubmission: boolean;
   fastMode: boolean;
   onDirectSubmission: WorkbenchComposerProps["onDirectSubmission"];
+  onCaptureSubmission?: WorkbenchComposerProps["onCaptureSubmission"];
   onRequestNotificationPermission: () => void;
   onTaskCreated: WorkbenchComposerProps["onTaskCreated"];
   onTaskStarted: WorkbenchComposerProps["onTaskStarted"];
@@ -82,6 +83,7 @@ export function createComposerSubmission({
   editingQueuedSubmission,
   fastMode,
   onDirectSubmission,
+  onCaptureSubmission,
   onRequestNotificationPermission,
   onTaskCreated,
   onTaskStarted,
@@ -162,7 +164,7 @@ export function createComposerSubmission({
       selectedModel === undefined ||
       selectedReasoningEffort === undefined ||
       turnControlsDisabled ||
-      (action !== "steer" && !canSubmit) ||
+      (onCaptureSubmission === undefined && action !== "steer" && !canSubmit) ||
       (action === "steer" &&
         (!canSteer || activeTaskId === undefined || activeTurnId === undefined))
     ) {
@@ -170,11 +172,15 @@ export function createComposerSubmission({
     }
 
     // 排队项由调用方关闭置底请求，只有用户当前发出的即时消息改变阅读位置。
-    if (action !== "queue" && options.requestTimelineScroll !== false) {
+    if (
+      onCaptureSubmission === undefined &&
+      action !== "queue" &&
+      options.requestTimelineScroll !== false
+    ) {
       onDirectSubmission?.();
     }
-    // Notification 权限必须在提交手势内申请，不能等网络 Mutation 完成后再触发。
-    onRequestNotificationPermission();
+    // 捕获模式只保存配置，不应为尚未运行的任务申请通知权限。
+    if (onCaptureSubmission === undefined) onRequestNotificationPermission();
     setIsSubmitting(true);
     setMutationError(null);
     let input: AgentPromptInput;
@@ -219,6 +225,27 @@ export function createComposerSubmission({
         setIsSubmitting(false);
       }
       return false;
+    }
+
+    const turnOptions = createComposerTurnOptions(
+      activeSettings,
+      selectedModel.id,
+      selectedReasoningEffort,
+      requestedComposerMode,
+      fastMode,
+    );
+    if (onCaptureSubmission !== undefined) {
+      try {
+        await onCaptureSubmission(input, turnOptions, messageAttachments);
+        return true;
+      } catch (error) {
+        if (isCurrentScope(requestScope)) {
+          setMutationError(error instanceof Error ? error : new Error("Prompt capture failed"));
+        }
+        return false;
+      } finally {
+        if (isCurrentScope(requestScope)) setIsSubmitting(false);
+      }
     }
 
     if (action === "queue") {
@@ -289,13 +316,6 @@ export function createComposerSubmission({
       }
     }
 
-    const turnOptions = createComposerTurnOptions(
-      activeSettings,
-      selectedModel.id,
-      selectedReasoningEffort,
-      requestedComposerMode,
-      fastMode,
-    );
     const turnAttempt = resolveIdempotencyAttempt(
       startTurnAttempt.current,
       JSON.stringify({ input, options: turnOptions }),

@@ -55,6 +55,20 @@ export default defineConfig({
               name: "react-runtime",
               test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/u,
             },
+            {
+              // 日期弹层独占 @floating-ui/react；固定为异步组，避免自动共享提升到首屏。
+              entriesAware: true,
+              includeDependenciesRecursively: true,
+              name: "scheduled-task-floating-ui",
+              test: /node_modules[\\/]@floating-ui[\\/]react[\\/]/u,
+            },
+            {
+              // 合并首屏静态依赖，抵消异步功能增加共享图后产生的细碎 Chunk 与重复压缩开销。
+              includeDependenciesRecursively: false,
+              maxSize: 480 * 1024,
+              name: "initial-deps",
+              tags: ["$initial"],
+            },
           ],
         },
       },

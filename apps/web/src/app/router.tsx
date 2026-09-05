@@ -10,6 +10,10 @@ import {
   temporarySkillsMarketRoute,
 } from "./routes/skills-market-route.js";
 import { taskRoute } from "./routes/task-route.js";
+import {
+  projectScheduledTasksRoute,
+  temporaryScheduledTasksRoute,
+} from "./routes/scheduled-tasks-route.js";
 import { projectTaskBoardRoute, temporaryTaskBoardRoute } from "./routes/task-board-route.js";
 import { temporaryRoute } from "./routes/temporary-route.js";
 import { temporaryTaskRoute } from "./routes/temporary-task-route.js";
@@ -20,11 +24,13 @@ const routeTree = rootRoute.addChildren([
   projectFileRoute,
   workbenchLayoutRoute.addChildren([
     projectRoute,
+    projectScheduledTasksRoute,
     projectSkillsMarketRoute,
     projectTodoRoute,
     projectTaskBoardRoute,
     taskRoute,
     temporaryRoute,
+    temporaryScheduledTasksRoute,
     temporarySkillsMarketRoute,
     temporaryTaskBoardRoute,
     temporaryTaskRoute,

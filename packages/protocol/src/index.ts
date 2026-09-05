@@ -2,6 +2,7 @@
 export * from "./workbench-pets.js";
 export * from "./app-update.js";
 export * from "./skill-market.js";
+export * from "./scheduled-task.js";
 export {
   AccessModeSchema,
   AccessStatusResponseSchema,

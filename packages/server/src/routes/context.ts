@@ -8,6 +8,7 @@ import type {
   AgentTaskScope,
   PendingRequestResolutionError,
   ProjectRepository,
+  ScheduledTaskAttachmentRecord,
   WorkbenchPetProvider,
 } from "@codexly/core";
 import type {
@@ -59,6 +60,7 @@ import type { ProjectOpenService } from "../project-open.js";
 import type { ProjectImageFile } from "../project-image-file.js";
 import type { PersistentTaskQueue } from "../persistent-task-queue.js";
 import type { SkillMarketService } from "../skill-market-service.js";
+import type { ScheduledTaskService } from "../scheduled-task-service.js";
 
 export class MutationHttpError extends Error {
   public constructor(
@@ -232,6 +234,10 @@ export interface ServerRouteContext {
     path: string,
     cursor?: number,
   ) => Promise<ProjectSourceFile>;
+  readonly readScheduledTaskAttachment: (
+    projectId: string,
+    attachmentId: string,
+  ) => Promise<ScheduledTaskAttachmentRecord | undefined>;
   readonly releaseProjectContext: (projectId: string) => Promise<void>;
   readonly resolveProviderTurnInput: (
     projectId: string,
@@ -248,6 +254,7 @@ export interface ServerRouteContext {
     path: string,
   ) => Promise<HostAttachmentSource>;
   readonly settingsRepository: AgentSettingsRepository;
+  readonly scheduledTaskService: ScheduledTaskService;
   readonly skillMarketService: SkillMarketService;
   readonly taskFromSnapshot: (
     snapshot: Awaited<ReturnType<AgentProvider["readTask"]>> & object,

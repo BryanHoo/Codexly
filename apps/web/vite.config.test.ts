@@ -15,7 +15,7 @@ describe("Web Vite browser targets", () => {
     });
   });
 
-  it("isolates the oversized C++ macro grammar from its parent language chunk", () => {
+  it("keeps oversized and initial dependencies within dedicated chunk policies", () => {
     expect(webConfig).toMatchObject({
       build: {
         rolldownOptions: {
@@ -29,6 +29,17 @@ describe("Web Vite browser targets", () => {
                 {
                   includeDependenciesRecursively: false,
                   name: "react-runtime",
+                },
+                {
+                  entriesAware: true,
+                  includeDependenciesRecursively: true,
+                  name: "scheduled-task-floating-ui",
+                },
+                {
+                  includeDependenciesRecursively: false,
+                  maxSize: 480 * 1024,
+                  name: "initial-deps",
+                  tags: ["$initial"],
                 },
               ],
             },
@@ -60,5 +71,16 @@ describe("Web Vite browser targets", () => {
     expect(reactRuntimePattern.test("C:\\node_modules\\react-dom\\client.js")).toBe(true);
     expect(reactRuntimePattern.test("/node_modules/scheduler/index.js")).toBe(true);
     expect(reactRuntimePattern.test("/node_modules/react-i18next/index.js")).toBe(false);
+
+    const floatingUiPattern =
+      typeof codeSplitting === "object" ? codeSplitting.groups?.[2]?.test : undefined;
+    expect(floatingUiPattern).toBeInstanceOf(RegExp);
+    if (!(floatingUiPattern instanceof RegExp)) {
+      throw new TypeError("missing scheduled task floating UI chunk pattern");
+    }
+    expect(floatingUiPattern.test("/node_modules/@floating-ui/react/dist/index.mjs")).toBe(true);
+    expect(floatingUiPattern.test("/node_modules/@floating-ui/react-dom/dist/index.mjs")).toBe(
+      false,
+    );
   });
 });

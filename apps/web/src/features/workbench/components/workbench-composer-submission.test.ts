@@ -131,6 +131,21 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
 }
 
 describe("createComposerSubmission", () => {
+  it("captures a scheduled prompt without starting a task", async () => {
+    const onCaptureSubmission = vi.fn(() => Promise.resolve());
+    const harness = createHarness({ onCaptureSubmission });
+
+    await expect(harness.submit({ files: [], text: "提交内容" })).resolves.toBe(true);
+
+    expect(onCaptureSubmission).toHaveBeenCalledWith(
+      { attachments: [], skills: [], text: "提交内容", type: "prompt" },
+      settings,
+      [],
+    );
+    expect(harness.startTask).not.toHaveBeenCalled();
+    expect(harness.startTurn).not.toHaveBeenCalled();
+  });
+
   it("rejects an empty Goal objective before starting a mutation", async () => {
     const harness = createHarness({
       composerMode: "goal",

@@ -116,6 +116,15 @@ export type CodexlyMutationClient = Pick<
   | "updateTaskGoal"
 >;
 export type CodexlyPendingRequestClient = Pick<CodexlyClient, "resolvePendingRequest">;
+export type CodexlyScheduledTaskClient = Pick<
+  CodexlyClient,
+  | "createScheduledTask"
+  | "deleteScheduledTask"
+  | "listScheduledTasks"
+  | "runScheduledTaskNow"
+  | "setScheduledTaskEnabled"
+  | "updateScheduledTask"
+>;
 export type CodexlyWorkbenchClient = CodexlyReadClient &
   CodexlyBackgroundTerminalClient &
   CodexlyGitStatusClient &
@@ -137,6 +146,7 @@ export type CodexlyWorkbenchClient = CodexlyReadClient &
   CodexlySkillsClient &
   CodexlySkillMarketClient &
   CodexlySettingsClient &
+  CodexlyScheduledTaskClient &
   CodexlySourceFileClient;
 export type CodexlySnapshotClient = Pick<CodexlyClient, "readTask">;
 

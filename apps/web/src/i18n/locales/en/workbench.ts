@@ -1,6 +1,8 @@
 import { skillsMarket } from "./skills-market.js";
+import { scheduledTasks } from "./scheduled-tasks.js";
 
 export const workbench = {
+  scheduledTasks,
   skillsMarket,
   pet: {
     activeTasks: "Active tasks",

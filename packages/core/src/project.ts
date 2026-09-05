@@ -1,5 +1,6 @@
 import type {
   AgentGlobalSettings,
+  AgentMessageAttachment,
   AgentPromptInput,
   AgentProviderConnectionRecord,
   AgentProjectDefaults,
@@ -8,6 +9,7 @@ import type {
   AgentTaskSettings,
   Project,
   ProjectRootInput,
+  ScheduledTask,
 } from "@codexly/protocol";
 
 export type AgentQueueRecord = Readonly<{
@@ -35,6 +37,33 @@ export interface AgentQueueRepository {
     input: AgentPromptInput,
     status: AgentQueuedSubmissionStatus,
   ): Promise<AgentQueueRecord | undefined>;
+}
+
+// 调度状态以完整快照原子替换，避免任务与运行记录跨事务失配。
+export interface ScheduledTaskRepository {
+  listScheduledTasks(): Promise<readonly ScheduledTask[]>;
+  replaceScheduledTasks(tasks: readonly ScheduledTask[]): Promise<readonly ScheduledTask[]>;
+}
+
+export type ScheduledTaskAttachmentRecord = Readonly<{
+  attachment: AgentMessageAttachment;
+  content: Uint8Array;
+  projectId: string;
+  taskId: string;
+}>;
+
+export interface ScheduledTaskAttachmentRepository {
+  deleteScheduledTaskAttachments(taskId: string): Promise<void>;
+  listScheduledTaskAttachments(taskId: string): Promise<readonly ScheduledTaskAttachmentRecord[]>;
+  readScheduledTaskAttachment(
+    projectId: string,
+    attachmentId: string,
+  ): Promise<ScheduledTaskAttachmentRecord | undefined>;
+  replaceScheduledTaskAttachments(
+    taskId: string,
+    projectId: string,
+    attachments: readonly Omit<ScheduledTaskAttachmentRecord, "projectId" | "taskId">[],
+  ): Promise<void>;
 }
 
 export type RegisterProjectInput = Readonly<{

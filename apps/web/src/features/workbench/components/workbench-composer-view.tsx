@@ -32,6 +32,7 @@ import {
 } from "../composer-state.js";
 import { movePromptCommandSelection } from "./prompt-command.js";
 import { ComposerBranchSwitcher } from "./composer-branch-switcher.js";
+import { ComposerCaptureSubmitIcon } from "./composer-capture-submit-icon.js";
 import { ComposerModelSelector } from "./composer-model-selector.js";
 import { ComposerTodoSaveButton, ProjectTodoList } from "./project-todo-controls.js";
 import { ComposerApprovalControls } from "./workbench-composer-approval-controls.js";
@@ -396,38 +397,46 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                 selectedModel={props.selectedModel}
                 selectedReasoningEffort={props.selectedReasoningEffort}
               />
-              {props.projectToolsEnabled ? (
+              {props.projectToolsEnabled && !props.captureMode ? (
                 <ComposerTodoSaveButton
                   disabled={!props.hasComposerInput || props.isSubmitting}
                   editing={props.editingTodoId !== undefined}
                   onSave={props.onProjectTodoSave}
                 />
               ) : null}
-              <PromptInputSubmit
-                aria-label={
-                  props.submitAction === "queue"
-                    ? t("composer.queueMessage")
-                    : props.submitAction === "steer"
-                      ? t("composer.sendSteer")
-                      : props.submitAction === "interrupt"
-                        ? t("composer.stop")
-                        : t("composer.submit")
-                }
-                disabled={
-                  props.turnControlsDisabled ||
-                  props.submitAction === "blocked" ||
-                  (props.submitAction === "start" &&
-                    (!props.canSubmit ||
-                      props.selectedModel === undefined ||
-                      props.selectedReasoningEffort === undefined)) ||
-                  (props.submitAction === "interrupt" &&
-                    (!props.canInterrupt || props.activeTurnId === undefined))
-                }
-                className="max-workbench:w-8 max-workbench:min-w-8 max-[360px]:!w-6 max-[360px]:!min-w-6"
-                onClick={props.submitAction === "interrupt" ? props.onInterrupt : undefined}
-                status={props.state === "running" && props.hasComposerInput ? "idle" : props.state}
-                type={props.submitAction === "interrupt" ? "button" : "submit"}
-              />
+              {props.captureSubmitVisible ? (
+                <PromptInputSubmit
+                  aria-label={
+                    props.captureMode
+                      ? t("actions.save")
+                      : props.submitAction === "queue"
+                        ? t("composer.queueMessage")
+                        : props.submitAction === "steer"
+                          ? t("composer.sendSteer")
+                          : props.submitAction === "interrupt"
+                            ? t("composer.stop")
+                            : t("composer.submit")
+                  }
+                  disabled={
+                    props.turnControlsDisabled ||
+                    props.submitAction === "blocked" ||
+                    (props.submitAction === "start" &&
+                      ((!props.captureMode && !props.canSubmit) ||
+                        props.selectedModel === undefined ||
+                        props.selectedReasoningEffort === undefined)) ||
+                    (props.submitAction === "interrupt" &&
+                      (!props.canInterrupt || props.activeTurnId === undefined))
+                  }
+                  className="max-workbench:w-8 max-workbench:min-w-8 max-[360px]:!w-6 max-[360px]:!min-w-6"
+                  onClick={props.submitAction === "interrupt" ? props.onInterrupt : undefined}
+                  status={
+                    props.state === "running" && props.hasComposerInput ? "idle" : props.state
+                  }
+                  type={props.submitAction === "interrupt" ? "button" : "submit"}
+                >
+                  {props.captureMode ? <ComposerCaptureSubmitIcon /> : undefined}
+                </PromptInputSubmit>
+              ) : null}
             </div>
           </PromptInputFooter>
         </PromptInput>
@@ -437,52 +446,54 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
           {t("composer.modelListFailed")}
         </p>
       )}
-      <div className="mx-auto mt-1.5 flex h-9 w-full max-w-content min-w-0 items-center gap-3 px-1 text-caption text-muted-foreground">
-        {props.projectToolsEnabled ? (
-          <>
-            <div className="flex min-w-0 shrink items-center gap-0.5">
-              <ComposerBranchSwitcher
-                creatingBranch={props.creatingBranch}
-                creatingWorktree={props.creatingWorktree}
-                gitStatus={props.gitStatus}
-                onBranchChange={props.onBranchChange}
-                onBranchCreate={props.onBranchCreate}
-                onWorktreeChange={props.onWorktreeChange}
-                onWorktreeCreate={props.onWorktreeCreate}
-                switchingBranch={props.switchingBranch}
-                switchingWorktree={props.switchingWorktree}
-                worktrees={props.worktrees}
-              />
-            </div>
-            {/* 主目录选择与路径保持同一操作区，切换后所有项目视图共享该 rootId。 */}
-            <ComposerProjectRootControls
-              onOpen={props.onOpenProjectPath}
-              onRootChange={props.onProjectRootChange}
-              projectPath={props.projectPath}
-              projectPathOpenDisabled={props.projectPathOpenDisabled}
-              roots={props.projectRoots}
-              selectedRootId={props.selectedProjectRootId}
-            />
-          </>
-        ) : null}
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+      {props.footerVisible ? (
+        <div className="mx-auto mt-1.5 flex h-9 w-full max-w-content min-w-0 items-center gap-3 px-1 text-caption text-muted-foreground">
           {props.projectToolsEnabled ? (
-            <ProjectTodoList
-              composerHasInput={props.hasComposerInput}
-              onDelete={props.onProjectTodoDelete}
-              onRestore={props.onProjectTodoRestore}
-              projectName={props.projectName}
-              todos={props.projectTodos}
-            />
+            <>
+              <div className="flex min-w-0 shrink items-center gap-0.5">
+                <ComposerBranchSwitcher
+                  creatingBranch={props.creatingBranch}
+                  creatingWorktree={props.creatingWorktree}
+                  gitStatus={props.gitStatus}
+                  onBranchChange={props.onBranchChange}
+                  onBranchCreate={props.onBranchCreate}
+                  onWorktreeChange={props.onWorktreeChange}
+                  onWorktreeCreate={props.onWorktreeCreate}
+                  switchingBranch={props.switchingBranch}
+                  switchingWorktree={props.switchingWorktree}
+                  worktrees={props.worktrees}
+                />
+              </div>
+              {/* 主目录选择与路径保持同一操作区，切换后所有项目视图共享该 rootId。 */}
+              <ComposerProjectRootControls
+                onOpen={props.onOpenProjectPath}
+                onRootChange={props.onProjectRootChange}
+                projectPath={props.projectPath}
+                projectPathOpenDisabled={props.projectPathOpenDisabled}
+                roots={props.projectRoots}
+                selectedRootId={props.selectedProjectRootId}
+              />
+            </>
           ) : null}
-          <Context
-            maxTokens={props.contextUsage?.contextWindow}
-            usedTokens={props.contextUsage?.usedTokens}
-          >
-            <ContextTrigger />
-          </Context>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            {props.projectToolsEnabled && !props.captureMode ? (
+              <ProjectTodoList
+                composerHasInput={props.hasComposerInput}
+                onDelete={props.onProjectTodoDelete}
+                onRestore={props.onProjectTodoRestore}
+                projectName={props.projectName}
+                todos={props.projectTodos}
+              />
+            ) : null}
+            <Context
+              maxTokens={props.contextUsage?.contextWindow}
+              usedTokens={props.contextUsage?.usedTokens}
+            >
+              <ContextTrigger />
+            </Context>
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }

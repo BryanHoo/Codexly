@@ -364,7 +364,7 @@ export class CodexlyTransport {
     body: unknown,
     schema: T,
     options: MutationOptions,
-    method: "DELETE" | "POST" | "PUT" = "POST",
+    method: "DELETE" | "PATCH" | "POST" | "PUT" = "POST",
     timeoutMs = this.requestTimeouts.mutationMs,
   ): Promise<Static<T>> {
     return this.request(

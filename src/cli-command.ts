@@ -8,6 +8,8 @@ import type {
   AgentSettingsRepository,
   ProjectProjectionStore,
   ProjectRepository,
+  ScheduledTaskAttachmentRepository,
+  ScheduledTaskRepository,
   WorkbenchPetProvider,
 } from "@codexly/core";
 import type { AppUpdateProgress } from "@codexly/protocol";
@@ -72,7 +74,9 @@ interface CliManagedStateRepository
     ProjectProjectionStore,
     AgentSettingsRepository,
     AgentProviderConnectionRepository,
-    AgentQueueRepository {
+    AgentQueueRepository,
+    ScheduledTaskAttachmentRepository,
+    ScheduledTaskRepository {
   close: () => Promise<void>;
   diagnose: () => Promise<SqliteDatabaseDiagnostics>;
 }
@@ -372,6 +376,8 @@ async function runStart(
       readAppInfo: appUpdateService.read,
       readAppUpdateProgress: appUpdateService.readProgress,
       queueRepository: stateRepository,
+      scheduledTaskAttachmentRepository: stateRepository,
+      scheduledTaskRepository: stateRepository,
       settingsRepository: stateRepository,
       staticRoot: dependencies.webRoot,
       // Standalone Thread 继承 app-server 的 cwd，不再创建伪项目目录。

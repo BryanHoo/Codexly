@@ -431,4 +431,29 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
     `,
     version: 24,
   },
+  {
+    name: "persist_scheduled_tasks",
+    sql: `
+      CREATE TABLE scheduled_task_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        tasks_json TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE scheduled_task_attachments (
+        task_id TEXT NOT NULL,
+        attachment_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        media_type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        content BLOB NOT NULL,
+        PRIMARY KEY (task_id, attachment_id)
+      ) STRICT;
+
+      CREATE INDEX scheduled_task_attachments_lookup
+      ON scheduled_task_attachments (project_id, attachment_id);
+    `,
+    version: 25,
+  },
 ];

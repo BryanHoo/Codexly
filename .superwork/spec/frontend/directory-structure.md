@@ -11,6 +11,7 @@
 ## 规则
 
 - 路由入口留在 `app/routes`，业务行为放入对应 `features/<feature>`。
+- 定时任务的 Project 与 Temporary 路由共用 `features/scheduled-tasks`，不得在工作台路由内复制编辑和查询逻辑。
 - 工作台公共父路由持有唯一的 `WorkbenchShell` 和背景；Project、Task 与 Temporary 叶路由只声明匹配关系，切换任务不得重挂载 Shell。
 - 仅将跨功能稳定复用的代码放入 `shared`；单一功能代码留在其功能目录。
 - 测试与实现同目录放置为 `*.test.ts` 或 `*.test.tsx`；浏览器端到端测试放入 `tests/e2e`。

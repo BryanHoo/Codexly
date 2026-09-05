@@ -5,6 +5,8 @@ import type {
   AgentProviderConnectionRepository,
   AgentSettingsRepository,
   ProjectRepository,
+  ScheduledTaskAttachmentRepository,
+  ScheduledTaskRepository,
   WorkbenchPetProvider,
 } from "@codexly/core";
 import type {
@@ -57,6 +59,8 @@ export interface CreateCodexlyServerOptions {
   modelCatalogCacheTtlMs?: number;
   projectRepository: ProjectRepository;
   queueRepository?: AgentQueueRepository;
+  scheduledTaskAttachmentRepository?: ScheduledTaskAttachmentRepository;
+  scheduledTaskRepository?: ScheduledTaskRepository;
   providerConnectionRepository: AgentProviderConnectionRepository;
   projectOpenService?: ProjectOpenService;
   projectRuntimeCleanupIntervalMs?: number;

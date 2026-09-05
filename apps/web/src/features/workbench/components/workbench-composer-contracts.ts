@@ -23,6 +23,7 @@ import type {
   PromptInputAttachment,
 } from "../../../shared/components/agent/prompt-input.js";
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
+import type { ComposerDraft } from "../composer-draft-context.js";
 import type { CodexlyMutationClient } from "../../projects/project-queries.js";
 import type {
   CodexlyGitMutationClient,
@@ -51,6 +52,7 @@ export function createComposerTurnOptions(
 export type WorkbenchComposerHandle = Readonly<{
   buildPlan: () => Promise<boolean>;
   referenceProjectPath: (file: ProjectFileSearchEntry) => void;
+  submitCurrent: () => Promise<boolean>;
 }>;
 
 export type WorkbenchComposerProps = Readonly<{
@@ -69,6 +71,10 @@ export type WorkbenchComposerProps = Readonly<{
   fastModeAvailable: boolean;
   fastModeDefault: boolean;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];
+  composerDraftId?: string;
+  initialDraft?: ComposerDraft;
+  captureSubmitVisible?: boolean;
+  footerVisible?: boolean;
   initialTodoId?: string;
   models: readonly AgentModel[];
   modelsError: Error | null;
@@ -83,6 +89,12 @@ export type WorkbenchComposerProps = Readonly<{
   onOpenProjectPath: () => void;
   onProjectRootChange: (rootId: string) => void;
   onDirectSubmission?: () => void;
+  onCaptureSubmission?: (
+    input: AgentPromptInput,
+    options: AgentTurnOptions,
+    messageAttachments: readonly AgentMessageAttachment[],
+  ) => Promise<void>;
+  onInputStateChange?: (hasInput: boolean) => void;
   onSubmissionStateChange?: (submitting: boolean) => void;
   onTaskCreated?: (task: AgentTask) => void;
   onTurnStarted?: (

@@ -37,6 +37,8 @@ export type WorkbenchComposerViewProps = Readonly<{
   canInterrupt: boolean;
   canSteer: boolean;
   canSubmit: boolean;
+  captureMode: boolean;
+  captureSubmitVisible: boolean;
   commandMenuId: string;
   commandMenuOpen: boolean;
   commandSurfaceRef: RefObject<HTMLDivElement | null>;
@@ -56,6 +58,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   fileSearchResults: readonly ProjectFileSearchEntry[];
   fastModeAvailable: boolean;
   fastModeEnabled: boolean;
+  footerVisible: boolean;
   getCommandAvailability: (command: PromptCommandItem) => CommandAvailability;
   gitStatus: ProjectGitStatus | undefined;
   goal: AgentGoal | null | undefined;

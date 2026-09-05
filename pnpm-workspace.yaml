@@ -65,6 +65,9 @@ catalog:
   i18next: 26.3.6
   image-dimensions: 2.5.1
   react-i18next: 17.0.11
+  rrule: 2.8.1
+  react-datepicker: 9.1.0
+  date-fns: 4.4.0
 
 catalogMode: strict
 cleanupUnusedCatalogs: true

@@ -4,6 +4,8 @@ import type {
   AgentRuntimeProvider,
   AgentSettingsRepository,
   ProjectRepository,
+  ScheduledTaskAttachmentRepository,
+  ScheduledTaskRepository,
   WorkbenchPetProvider,
 } from "@codexly/core";
 import type { CodexlyAccessOptions } from "@codexly/server";
@@ -19,6 +21,8 @@ export interface CreateServerInput {
   petProvider: WorkbenchPetProvider;
   providerConnectionRepository: AgentProviderConnectionRepository;
   queueRepository: AgentQueueRepository;
+  scheduledTaskAttachmentRepository: ScheduledTaskAttachmentRepository;
+  scheduledTaskRepository: ScheduledTaskRepository;
   readAppInfo: ReturnType<typeof createAppUpdateService>["read"];
   readAppUpdateProgress: ReturnType<typeof createAppUpdateService>["readProgress"];
   settingsRepository: AgentSettingsRepository;

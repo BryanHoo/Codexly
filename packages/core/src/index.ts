@@ -37,5 +37,8 @@ export {
   type ProjectRepository,
   type ProjectSourceMigration,
   type RegisterProjectInput,
+  type ScheduledTaskAttachmentRecord,
+  type ScheduledTaskAttachmentRepository,
+  type ScheduledTaskRepository,
   type TaskRepository,
 } from "./project.js";

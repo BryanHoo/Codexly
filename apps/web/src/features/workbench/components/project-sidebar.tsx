@@ -51,7 +51,7 @@ import { TaskDeleteDialog } from "./task-delete-dialog.js";
 import { SidebarSettingsButton, type SidebarSettingsSection } from "./project-sidebar-actions.js";
 import { groupTasksByProjectId } from "./project-sidebar-state.js";
 import { SidebarTaskBoardLink } from "./sidebar-task-board-link.js";
-import { SidebarSkillsMarketLink } from "./sidebar-skills-market-link.js";
+import { SidebarUtilityLinks } from "./sidebar-utility-links.js";
 export * from "./project-sidebar-actions.js";
 export * from "./project-sidebar-state.js";
 export * from "./project-sidebar-task-row.js";
@@ -372,7 +372,7 @@ export function ProjectSidebar({
           iconClassName={primaryActionIconClassName}
           {...(projectId === undefined ? {} : { projectId })}
         />
-        <SidebarSkillsMarketLink
+        <SidebarUtilityLinks
           className={primaryActionClassName}
           iconClassName={primaryActionIconClassName}
           {...(projectId === undefined ? {} : { projectId })}

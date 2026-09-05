@@ -7,6 +7,7 @@ Capture contract and verification standards for this project.
 ## 规则
 
 - 协议变更同时更新 TypeBox schema、类型导出、序列化/解码逻辑和消费者测试。
+- 定时任务跨层契约统一使用严格的 `once`/`rrule` 联合计划、`AgentPromptInput` 与 `AgentTurnOptions`，客户端和服务端不得维护平行结构。
 - 升级固定 Codex 版本时，同步更新版本常量、catalog/lockfile 和真实 App Server Schema 基线；对新增通知与联合类型逐项映射或显式 opt-out，不使用旧协议兼容回退。
 - 内置 Codex 固定为 `0.152.1`；外部可执行文件仅接受稳定版 `>=0.152.1,<0.153.0`，不得默认兼容未知次版本或主版本。
 - 上传图片必须保持本地文件路径并映射为 Codex `localImage`，默认使用 `detail: "auto"`；禁止在 Server 或 Provider 中转换为 Base64 data URL，以保留原生图像处理并避免内存与 JSON 膨胀。

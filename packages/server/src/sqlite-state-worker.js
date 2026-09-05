@@ -20,13 +20,14 @@ import {
 } from "./sqlite-state-worker-bootstrap.js";
 import { serializeApprovalPolicy } from "./approval-policy-persistence.js";
 import { createTaskQueueOperations } from "./sqlite-task-queue-worker.js";
+import { createScheduledTaskOperations } from "./sqlite-state-worker-scheduled-tasks.js";
+
 function serializeError(error) {
   return {
     message: error instanceof Error ? error.message : String(error),
     name: error instanceof Error ? error.name : "Error",
   };
 }
-
 function createOperations(database) {
   const statements =
     hasTable(database, "projects") && hasTable(database, "project_roots")
@@ -189,7 +190,6 @@ function createOperations(database) {
     }
     return statements;
   }
-
   function readStoredProject(projectId) {
     const stateStatements = requireStatements();
     return projectFromRows(
@@ -197,7 +197,6 @@ function createOperations(database) {
       stateStatements.readProjectRoots.all(projectId),
     );
   }
-
   function readStoredProjects() {
     const stateStatements = requireStatements();
     return projectsFromRows(
@@ -309,6 +308,7 @@ function createOperations(database) {
 
   return {
     ...createTaskQueueOperations(database),
+    ...createScheduledTaskOperations(database),
     diagnose() {
       database.exec("BEGIN IMMEDIATE");
       try {

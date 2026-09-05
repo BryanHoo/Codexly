@@ -3,6 +3,7 @@
 ## 规则
 
 - 功能组件放入对应 `features/<feature>/components`，跨功能基础组件复用 `shared/components/core`。
+- 定时任务编辑器通过 Composer 捕获模式复用提示词、附件、Skill 与 Turn 设置语义，捕获提交不得创建即时 Task。
 - 优先组合现有 Radix UI 基础组件，并使用 `lucide-react` 图标；保持键盘操作、焦点和可访问名称完整。
 - 通过明确的 props 或现有 Context 传递依赖，避免组件直接创建网络客户端或全局单例。
 - 新 Task 首轮启动成功后，使用 `turn/start` 返回的 checkpoint 和乐观 Snapshot 预热标准任务缓存，再导航并从该 checkpoint 接管实时事件；首屏不得额外请求尚未稳定的任务历史，也不得用重试掩盖交接竞态。

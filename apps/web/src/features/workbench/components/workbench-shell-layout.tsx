@@ -15,6 +15,7 @@ import { WorkbenchPetLayer } from "../../pets/components/workbench-pet-layer.js"
 import { TaskBoardContainer } from "./task-board-container.js";
 import { WorkbenchShellHeader } from "./workbench-shell-header.js";
 import { SkillsMarketView } from "./skills-market-view.js";
+import { ScheduledTasksView } from "./scheduled-tasks-view.js";
 
 type WorkbenchShellStyle = CSSProperties &
   Readonly<{ "--inspector-open-width": string; "--sidebar-open-width": string }>;
@@ -23,6 +24,7 @@ export function WorkbenchShellLayout({
   board,
   context,
   projectId,
+  scheduled,
   skillsMarket,
   taskId,
   temporary,
@@ -31,6 +33,7 @@ export function WorkbenchShellLayout({
   board: boolean;
   context: ReturnType<typeof useWorkbenchShellController>;
   projectId: string;
+  scheduled: boolean;
   skillsMarket: boolean;
   taskId?: string;
   temporary: boolean;
@@ -113,7 +116,7 @@ export function WorkbenchShellLayout({
     workbenchShellRef,
     t,
   } = context;
-  const utilityView = board || skillsMarket;
+  const utilityView = board || skillsMarket || scheduled;
   return (
     <div
       className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
@@ -175,18 +178,27 @@ export function WorkbenchShellLayout({
       ) : null}
       <main
         aria-label={t(
-          skillsMarket ? "skillsMarket.title" : board ? "taskBoard.label" : "shell.timeline",
+          scheduled
+            ? "scheduledTasks.title"
+            : skillsMarket
+              ? "skillsMarket.title"
+              : board
+                ? "taskBoard.label"
+                : "shell.timeline",
         )}
         className="flex min-h-0 min-w-0 flex-col bg-content"
       >
         <WorkbenchShellHeader
           board={board}
           context={context}
+          scheduled={scheduled}
           skillsMarket={skillsMarket}
           temporary={temporary}
           {...(taskId === undefined ? {} : { taskId })}
         />
-        {skillsMarket ? (
+        {scheduled ? (
+          <ScheduledTasksView context={context} projectId={projectId} temporary={temporary} />
+        ) : skillsMarket ? (
           <SkillsMarketView
             {...(temporary ? {} : { projectId })}
             {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
