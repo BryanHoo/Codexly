@@ -38,8 +38,10 @@
 
 - Run project or temporary Codex tasks and follow responses, commands, and file changes in real time
 - Keep follow-up work in a persistent task queue, and edit queued messages and attachments before they run
-- Attach files and images, reference project files with `@`, and answer input requests from configured MCP servers
+- Track active work on a task board, maintain project to-dos, and schedule persistent one-time or recurring tasks
+- Attach files and images, reference project files with `@`, answer MCP input requests, and ask asynchronous questions while a task runs
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access level for each task
+- Browse and safely install compatible Skills from the ClawHub marketplace
 - Organize ordered multi-root projects, archive project or temporary tasks, and permanently delete tasks when needed
 - Inspect, preview, rename, and delete project files; review diffs; manage branches and worktrees; and commit or push changes
 - Fork a task from an AI response and continue it in a new Git worktree
