@@ -41,9 +41,11 @@ Codexly 会自动打开浏览器。若未打开，请访问终端输出的地址
 经常使用时可以全局安装：
 
 ```bash
-npm install --global @bryanhu/codexly
+npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
 codexly
 ```
+
+安装命令优先使用国内镜像，失败后回退官方源，并复用 npm 缓存。`||` 适用于 Bash、Zsh、cmd 和 PowerShell 7+；Windows PowerShell 5.1 请在第一条命令失败后单独执行 `||` 右侧的命令。
 
 ## 使用方式
 
@@ -74,10 +76,10 @@ codexly start --lan
 
 启动、Codex 或本地数据检查失败时运行 `codexly doctor`。使用 `codexly --help` 查看当前命令和选项。
 
-交互式启动和“设置 > 关于”会检查新版本。全局安装也可以通过以下命令更新：
+交互式启动和“设置 > 关于”会检查新版本。内置更新的版本查询、包下载和依赖安装优先使用国内镜像，失败后回退官方源；下载和安装复用用户的 npm 缓存。镜像同步期间可能稍晚显示新版本。全局安装也可以通过以下命令更新：
 
 ```bash
-npm install --global @bryanhu/codexly@latest
+npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
 ```
 
 ## 获取帮助

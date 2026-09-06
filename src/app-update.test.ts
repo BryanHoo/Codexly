@@ -76,6 +76,7 @@ describe("app update service", () => {
       ["pack", "/installed/codexly"],
       ["pack", "@bryanhu/codexly@1.4.0"],
       ["install", expect.stringMatching(/bryanhu-codexly-1\.4\.0\.tgz$/u)],
+      ["install", expect.stringMatching(/bryanhu-codexly-1\.4\.0\.tgz$/u)],
       ["install", expect.stringMatching(/bryanhu-codexly-1\.3\.0\.tgz$/u)],
     ]);
     expect(progress).toEqual([

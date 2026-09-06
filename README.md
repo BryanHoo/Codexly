@@ -71,9 +71,11 @@ On first launch, sign in with ChatGPT or configure an OpenAI-compatible service 
 For regular use, install Codexly globally:
 
 ```bash
-npm install --global @bryanhu/codexly
+npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
 codexly
 ```
+
+The installation command tries the China mirror first, falls back to the official registry on failure, and reuses the npm cache. `||` works in Bash, Zsh, cmd, and PowerShell 7+. In Windows PowerShell 5.1, run the command to the right of `||` separately if the first command fails.
 
 ## Usage
 
@@ -104,10 +106,10 @@ Quote passwords containing shell-special characters. LAN mode uses unencrypted H
 
 Run `codexly doctor` when startup, Codex, or local data checks fail. Run `codexly --help` for the current command and option reference.
 
-Interactive startup and **Settings > About** check for new releases. A global installation can also be updated with:
+Interactive startup and **Settings > About** check for new releases. Built-in updates try the China mirror first for version checks, package downloads, and dependency installation, falling back to the official registry on failure and reusing your npm cache. New releases may appear later while the mirror synchronizes. A global installation can also be updated with:
 
 ```bash
-npm install --global @bryanhu/codexly@latest
+npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
 ```
 
 ## Help

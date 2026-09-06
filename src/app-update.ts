@@ -4,6 +4,12 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, parse, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  runNpmWithRegistryFallback,
+  withRegistryFallback,
+  type RunNpmOptions,
+} from "./npm-registry.js";
+
 import type {
   AppInfoResponse,
   AppUpdateProgress,
@@ -60,10 +66,6 @@ type ParsedVersion = Readonly<{
 type NpmInstallInvocation = Readonly<{
   args: readonly string[];
   command: string;
-}>;
-
-type RunNpmOptions = Readonly<{
-  signal?: AbortSignal;
 }>;
 
 export interface SafeGlobalInstallOptions {
@@ -177,8 +179,12 @@ export function isNewerVersion(candidate: string, current: string): boolean {
 }
 
 async function fetchLatestPackageVersion(): Promise<string> {
+  return withRegistryFallback(fetchPackageVersionFromRegistry);
+}
+
+async function fetchPackageVersionFromRegistry(registry: string): Promise<string> {
   const response = await fetch(
-    `https://registry.npmjs.org/-/package/${encodeURIComponent(PACKAGE_NAME)}/dist-tags`,
+    `${registry}/-/package/${encodeURIComponent(PACKAGE_NAME)}/dist-tags`,
     {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS),
@@ -291,6 +297,8 @@ export async function installGlobalPackageSafely(
   options: SafeGlobalInstallOptions = {},
 ): Promise<void> {
   const runNpm = options.runNpm ?? runNpmCommand;
+  const runRemoteNpm: NonNullable<SafeGlobalInstallOptions["runNpm"]> = (args, runOptions) =>
+    runNpmWithRegistryFallback(runNpm, args, runOptions);
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "codexly-update-"));
   const controller = new AbortController();
   const abort = (): void => {
@@ -303,7 +311,7 @@ export async function installGlobalPackageSafely(
 
   try {
     const currentPackageRoot = options.currentPackageRoot ?? (await findCurrentPackageRoot());
-    // 先在临时目录保留旧版本并完整下载新版本，网络失败不会触碰现有安装。
+    // 先备份旧包并下载新包；依赖仍在后续安装阶段由 npm 获取或复用缓存。
     options.onProgress?.({ percent: 10, phase: "backing-up" });
     backupArchive = await packPackage(
       currentPackageRoot,
@@ -315,19 +323,19 @@ export async function installGlobalPackageSafely(
     const updateArchive = await packPackage(
       `${PACKAGE_NAME}@${version}`,
       temporaryDirectory,
-      runNpm,
+      runRemoteNpm,
       controller.signal,
     );
     if (controller.signal.aborted) throw controller.signal.reason;
     options.onProgress?.({ percent: 80, phase: "installing" });
     replacementStarted = true;
-    await runNpm(["install", "--global", updateArchive], { signal: controller.signal });
+    await runRemoteNpm(["install", "--global", updateArchive], { signal: controller.signal });
   } catch (error) {
     if (replacementStarted && backupArchive !== undefined) {
       try {
-        // 回滚只读取本地归档，即使网络仍不可用也能恢复原命令。
+        // 回滚使用本地旧包并优先复用缓存；缺失的依赖仍需从可用源补齐。
         options.onProgress?.({ percent: 90, phase: "rolling-back" });
-        await runNpm(["install", "--global", backupArchive]);
+        await runRemoteNpm(["install", "--global", backupArchive]);
       } catch (rollbackError) {
         const updateMessage = error instanceof Error ? error.message : String(error);
         const rollbackMessage =
