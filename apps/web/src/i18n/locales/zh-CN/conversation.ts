@@ -6,6 +6,7 @@ export const conversation = {
     next: "下一组问题",
     collapse: "收起问题",
     expand: "展开问题",
+    close: "关闭问题",
     other: "其他回答",
     answer: "回答：{{question}}",
     send: "发送回答",

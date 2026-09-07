@@ -4,6 +4,7 @@ import {
   ChevronRight,
   ChevronUp,
   MessageCircleQuestion,
+  X,
 } from "lucide-react";
 import { useId, useMemo, useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
@@ -36,10 +37,13 @@ function QuestionDockContent({
   session: NonNullable<ReturnType<typeof useAsyncQuestionSession>>;
 }>) {
   const { t } = useTranslation("conversation");
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
   const pending = useStore(
     session.store,
     useShallow((state) =>
-      entries.filter((entry) => state.drafts.get(entry.item.id)?.status !== "sent"),
+      entries.filter(
+        (entry) => !dismissed.has(entry.key) && state.drafts.get(entry.item.id)?.status !== "sent",
+      ),
     ),
   );
   const [selectedKey, setSelectedKey] = useState<string>();
@@ -55,9 +59,11 @@ function QuestionDockContent({
   return (
     <section
       aria-label={t("asyncQuestions.pending")}
-      className="shrink-0 min-w-0 bg-content px-5 pb-2"
+      data-floating-surface
+      // 相对中栏定位在 Header 下方，覆盖聊天区而不占用时间线或输入框高度。
+      className="absolute inset-x-0 top-workbench-header z-20 min-w-0 border-b border-separator bg-content px-5 pb-2 shadow-md"
     >
-      <div className="flex min-w-0 items-center gap-2 border-t border-separator pt-2 pb-1">
+      <div className="flex min-w-0 items-center gap-2 pt-2 pb-1">
         <MessageCircleQuestion aria-hidden="true" className="size-3.5 shrink-0 text-brand" />
         <span className="min-w-0 flex-1 truncate text-label font-medium">
           {t("asyncQuestions.pendingCount", { count: pending.length })}
@@ -101,9 +107,9 @@ function QuestionDockContent({
               }}
             >
               {collapsed ? (
-                <ChevronUp className="size-3.5" />
-              ) : (
                 <ChevronDown className="size-3.5" />
+              ) : (
+                <ChevronUp className="size-3.5" />
               )}
             </Button>
           </TooltipTrigger>
@@ -111,6 +117,17 @@ function QuestionDockContent({
             {t(collapsed ? "asyncQuestions.expand" : "asyncQuestions.collapse")}
           </TooltipContent>
         </Tooltip>
+        <DockButton
+          label={t("asyncQuestions.close")}
+          disabled={false}
+          onClick={() => {
+            // 仅隐藏当前会话已出现的问题，不提交回答；后续新增问题仍可显示。
+            setDismissed(new Set(entries.map((entry) => entry.key)));
+            setCollapsed(false);
+          }}
+        >
+          <X className="size-3.5" />
+        </DockButton>
       </div>
       {/* 问答区独立滚动且限制高度，不改变时间线的虚拟滚动容器。 */}
       <div

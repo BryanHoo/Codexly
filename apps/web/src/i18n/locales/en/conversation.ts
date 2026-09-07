@@ -6,6 +6,7 @@ export const conversation = {
     next: "Next questions",
     collapse: "Collapse questions",
     expand: "Expand questions",
+    close: "Close questions",
     other: "Other answer",
     answer: "Answer: {{question}}",
     send: "Send answers",
