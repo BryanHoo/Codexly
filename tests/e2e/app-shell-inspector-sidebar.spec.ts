@@ -265,47 +265,58 @@ test("shows Git tabs only for repositories and pending changes", async ({ page }
   await expect.poll(() => detailedStatusRequestCount).toBeGreaterThan(0);
 });
 
-test("orders persistent search, task actions, pinned tasks and projects in the sidebar", async ({
-  page,
-}) => {
+test("keeps sidebar search and primary navigation compact", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const newAgent = sidebar.getByRole("link", { name: "新建任务" });
+  const extensionCenter = sidebar.getByRole("link", { name: "扩展中心" });
+  const searchButton = sidebar.getByRole("button", { name: "搜索任务" });
   const search = sidebar.getByRole("textbox", { name: "搜索任务" });
   const productBrand = sidebar.getByText("Codexly", { exact: true }).first();
   await expect(productBrand).toBeVisible();
-  await expect(search).toBeVisible();
-  await expect(sidebar.getByRole("button", { name: "搜索" })).toHaveCount(0);
+  await expect(searchButton).toBeVisible();
+  await expect(search).toHaveCount(0);
   await expect(sidebar.getByRole("button", { name: "添加项目" })).toBeVisible();
 
+  await searchButton.click();
+  await expect(search).toBeVisible();
+  await expect(search).toBeFocused();
+  await search.fill("Protocol");
+  await search.press("Escape");
+  await expect(search).toHaveCount(0);
+  await expect(searchButton).toBeFocused();
+
   const newAgentBox = await newAgent.boundingBox();
-  const searchBox = await search.boundingBox();
   const pinnedBox = await sidebar.getByRole("heading", { name: "已固定" }).boundingBox();
   const pinnedSection = sidebar.getByRole("heading", { name: "已固定" }).locator("xpath=..");
   const projectsBox = await sidebar.getByRole("heading", { name: "项目" }).boundingBox();
+  const extensionCenterBox = await extensionCenter.boundingBox();
   const temporaryGroupBox = await sidebar.getByRole("region", { name: "临时任务" }).boundingBox();
   const firstProjectBox = await sidebar
     .getByRole("button", { name: "切换项目 Codexly" })
     .boundingBox();
   expect(newAgentBox).not.toBeNull();
-  expect(searchBox).not.toBeNull();
   expect(pinnedBox).not.toBeNull();
   expect(projectsBox).not.toBeNull();
+  expect(extensionCenterBox).not.toBeNull();
   expect(temporaryGroupBox).not.toBeNull();
   expect(firstProjectBox).not.toBeNull();
   if (
     newAgentBox === null ||
-    searchBox === null ||
     pinnedBox === null ||
     projectsBox === null ||
+    extensionCenterBox === null ||
     temporaryGroupBox === null ||
     firstProjectBox === null
   ) {
     throw new Error("项目侧栏导航项缺失");
   }
-  expect(searchBox.y).toBeLessThan(newAgentBox.y);
-  expect(newAgentBox.y).toBeLessThan(pinnedBox.y);
+  expect(newAgentBox.height).toBe(32);
+  expect(extensionCenterBox.y + extensionCenterBox.height).toBeLessThanOrEqual(pinnedBox.y);
+  expect(pinnedBox.y - (extensionCenterBox.y + extensionCenterBox.height)).toBeLessThanOrEqual(12);
+  expect(newAgentBox.y).toBeLessThan(extensionCenterBox.y);
+  expect(extensionCenterBox.y).toBeLessThan(pinnedBox.y);
   expect(pinnedBox.y).toBeLessThan(projectsBox.y);
   expect(firstProjectBox.y - (temporaryGroupBox.y + temporaryGroupBox.height)).toBe(0);
   await expect(pinnedSection.getByRole("link", { name: /补充 Protocol 契约/u })).toBeVisible();

@@ -117,7 +117,7 @@ export function ProjectSidebarTaskList({
   return (
     <>
       {/* 限制项目区的固有宽度，长 Task 标题不能把右侧操作按钮推出 Sidebar。 */}
-      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden px-2 pt-5">
+      <div className="flex min-h-0 min-w-0 flex-col overflow-hidden px-2 pt-2">
         {pinnedTasks.length > 0 ? (
           <section
             className="mb-4 max-h-40 shrink-0 overflow-y-auto"

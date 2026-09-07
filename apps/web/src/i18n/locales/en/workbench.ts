@@ -395,6 +395,7 @@ export const workbench = {
     archive: "Archive",
     archived: "Archived",
     close: "Close project sidebar",
+    closeSearch: "Close task search",
     collapse: "Show less",
     connection: {
       connecting: "Connecting",

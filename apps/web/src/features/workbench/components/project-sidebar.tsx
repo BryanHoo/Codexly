@@ -7,17 +7,10 @@ import {
   type Project,
 } from "@codexly/protocol";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { PanelLeftClose, Search, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
-import { Button } from "../../../shared/components/core/button.js";
-import { Input } from "../../../shared/components/core/input.js";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "../../../shared/components/core/tooltip.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { getPinnedTasks } from "../../projects/project-data.js";
 import {
@@ -51,12 +44,14 @@ import { TaskDeleteDialog } from "./task-delete-dialog.js";
 import { SidebarSettingsButton, type SidebarSettingsSection } from "./project-sidebar-actions.js";
 import { groupTasksByProjectId } from "./project-sidebar-state.js";
 import { SidebarUtilityLinks } from "./sidebar-utility-links.js";
+import { ProjectSidebarHeader } from "./project-sidebar-header.js";
+export { ProductBrand } from "./project-sidebar-header.js";
 export * from "./project-sidebar-actions.js";
 export * from "./project-sidebar-state.js";
 export * from "./project-sidebar-task-row.js";
 
 const primaryActionClassName =
-  "flex h-9 w-full items-center gap-2.5 rounded-control px-2.5 text-body-small font-medium text-foreground transition-colors hover:bg-control-hover";
+  "flex h-8 w-full items-center gap-2.5 rounded-control px-2.5 text-body-small font-medium text-foreground transition-colors hover:bg-control-hover";
 const primaryActionIconClassName = "size-4 shrink-0 text-muted-foreground";
 type ProjectSidebarProps = Readonly<{
   appInfo?: AppInfoResponse;
@@ -326,42 +321,9 @@ export function ProjectSidebar({
       aria-label={t("sidebar.landmark")}
       className="workbench-sidebar z-30 grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] bg-sidebar shadow-divider"
     >
-      <div className="flex h-workbench-header items-center gap-2 px-3">
-        {/* 品牌标识只承担展示职责，新聊天由下方的显式入口创建。 */}
-        <ProductBrand />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              aria-label={t("sidebar.close")}
-              className="min-workbench:hidden"
-              onClick={onClose}
-              size="icon-sm"
-              type="button"
-              variant="ghost"
-            >
-              <PanelLeftClose className="size-3.5" aria-hidden="true" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("sidebar.close")}</TooltipContent>
-        </Tooltip>
-      </div>
+      <ProjectSidebarHeader onClose={onClose} query={query} setQuery={setQuery} />
 
       <nav className="space-y-0.5 px-2" aria-label={t("sidebar.agentNavigation")}>
-        <div className="relative px-1 pb-1">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground"
-          />
-          <Input
-            aria-label={t("sidebar.search")}
-            className="h-9 w-full rounded-control bg-control pl-8 pr-2.5 text-body-small text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:shadow-focus"
-            onChange={(event) => {
-              setQuery(event.currentTarget.value);
-            }}
-            placeholder={t("sidebar.search")}
-            value={query}
-          />
-        </div>
         <Link className={primaryActionClassName} to="/temporary">
           <Send className={primaryActionIconClassName} aria-hidden="true" />
           {t("sidebar.newTask")}
@@ -476,19 +438,5 @@ export function ProjectSidebar({
         />
       </div>
     </aside>
-  );
-}
-
-export function ProductBrand() {
-  return (
-    <div className="flex min-w-0 flex-1 items-center">
-      <img
-        alt="Codexly"
-        className="h-7 w-auto max-w-full"
-        height="28"
-        src="/brand/codexly-logo.svg"
-        width="116"
-      />
-    </div>
   );
 }
