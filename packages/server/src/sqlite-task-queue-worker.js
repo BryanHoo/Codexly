@@ -6,6 +6,7 @@ function queueRecord(row) {
     projectId: row.project_id,
     status: row.status,
     taskId: row.task_id,
+    ...(row.execution_json === null ? {} : { executionJson: row.execution_json }),
   };
 }
 
@@ -14,7 +15,7 @@ export function createTaskQueueOperations(database) {
   const getStatements = () => {
     if (statements !== undefined) return statements;
     const list = database.prepare(`
-      SELECT project_id, task_id, id, client_user_message_id, input_json, status
+      SELECT project_id, task_id, id, client_user_message_id, input_json, status, execution_json
       FROM task_queue WHERE project_id = ? AND task_id = ? ORDER BY position
     `);
     const move = database.prepare(
@@ -37,11 +38,11 @@ export function createTaskQueueOperations(database) {
     statements = {
       insert: database.prepare(`
         INSERT INTO task_queue (
-          project_id, task_id, id, client_user_message_id, input_json, status, position, updated_at
+          project_id, task_id, id, client_user_message_id, input_json, status, position, updated_at, execution_json
         ) VALUES (?, ?, ?, ?, ?, ?, (
           SELECT COALESCE(MAX(position) + 1, 0)
           FROM task_queue WHERE project_id = ? AND task_id = ?
-        ), ?)
+        ), ?, ?)
       `),
       list,
       remove: database.prepare(
@@ -50,13 +51,30 @@ export function createTaskQueueOperations(database) {
       reorder,
       update: database.prepare(`
         UPDATE task_queue SET input_json = ?, status = ?, updated_at = ?
+        WHERE project_id = ? AND task_id = ? AND id = ? AND execution_json IS NULL
+      `),
+      execution: database.prepare(`
+        UPDATE task_queue SET execution_json = ?
         WHERE project_id = ? AND task_id = ? AND id = ?
+          AND (? = 0 OR (execution_json IS NULL AND status = 'queued'))
       `),
     };
     return statements;
   };
 
   return {
+    setTaskQueueExecution(payload) {
+      const { execution } = getStatements();
+      return (
+        execution.run(
+          payload.executionJson,
+          payload.projectId,
+          payload.taskId,
+          payload.id,
+          payload.claim ? 1 : 0,
+        ).changes > 0
+      );
+    },
     addTaskQueueRecord(payload) {
       const { insert, list } = getStatements();
       insert.run(
@@ -69,6 +87,7 @@ export function createTaskQueueOperations(database) {
         payload.projectId,
         payload.taskId,
         payload.updatedAt,
+        payload.execution === undefined ? null : JSON.stringify(payload.execution),
       );
       return list
         .all(payload.projectId, payload.taskId)

@@ -49,6 +49,14 @@ export class ScheduledTaskService {
   readonly #repository: ScheduledTaskRepository;
   readonly #persistTaskResources: ((task: ScheduledTask) => Promise<void>) | undefined;
   readonly #running = new Set<string>();
+  readonly #completions = new Map<
+    string,
+    Readonly<{
+      claim: ScheduledTaskClaim;
+      finishedAtUnixMs: number;
+      result: PromiseSettledResult<string>;
+    }>
+  >();
   readonly #startTask: (task: ScheduledTask) => Promise<string>;
   #closed = false;
   #mutation: Promise<void> = Promise.resolve();
@@ -158,8 +166,9 @@ export class ScheduledTaskService {
       if (claim === undefined) {
         throw new ScheduledTaskServiceError("busy", "Scheduled task is already running");
       }
-      this.#running.add(id);
       await this.#replace(result.tasks);
+      // mutation 已串行化；持久化成功后才占用运行锁，写入失败可直接重试。
+      this.#running.add(id);
       this.#launch(claim);
       return claim.task;
     });
@@ -180,17 +189,51 @@ export class ScheduledTaskService {
   }
 
   #launch(claim: ScheduledTaskClaim): void {
-    const launch = this.#startTask(claim.task)
+    const launch = Promise.resolve()
+      .then(() => this.#startTask(claim.task))
       .then((value) => ({ status: "fulfilled" as const, value }))
       .catch((reason: unknown) => ({ reason, status: "rejected" as const }))
       .then((result) =>
         this.#mutate(async () => {
-          this.#running.delete(claim.task.id);
-          await this.#replace(completeScheduledTaskRun(this.#tasks, claim, this.#now(), result));
+          // 保存已知启动结果，落库重试只提交结果，绝不重新启动任务。
+          this.#completions.set(claim.task.id, { claim, finishedAtUnixMs: this.#now(), result });
+          await this.#flushCompletions();
         }),
       )
+      .catch(() => {
+        this.#scheduleRetry();
+      })
       .finally(() => this.#inFlight.delete(launch));
     this.#inFlight.add(launch);
+  }
+
+  async #flushCompletions(): Promise<void> {
+    for (const [id, completion] of this.#completions) {
+      await this.#replace(
+        completeScheduledTaskRun(
+          this.#tasks,
+          completion.claim,
+          completion.finishedAtUnixMs,
+          completion.result,
+        ),
+      );
+      this.#completions.delete(id);
+      this.#running.delete(id);
+    }
+  }
+
+  #scheduleRetry(): void {
+    if (this.#timer !== undefined) clearTimeout(this.#timer);
+    if (this.#closed) return;
+    // 存储故障采用有界间隔重试，避免到期任务在失败后形成毫秒级忙循环。
+    this.#timer = setTimeout(
+      () =>
+        void this.#tick().catch(() => {
+          this.#scheduleRetry();
+        }),
+      1_000,
+    );
+    this.#timer.unref();
   }
 
   #reschedule(): void {
@@ -204,15 +247,23 @@ export class ScheduledTaskService {
         undefined,
       );
     const delay = next === undefined ? 24 * 60 * 60 * 1_000 : Math.max(1, next - this.#now());
-    this.#timer = setTimeout(() => void this.#tick(), Math.min(delay, 2_147_483_647));
+    this.#timer = setTimeout(
+      () =>
+        void this.#tick().catch(() => {
+          this.#scheduleRetry();
+        }),
+      Math.min(delay, this.#completions.size > 0 ? 1_000 : 2_147_483_647),
+    );
     this.#timer.unref();
   }
 
   async #tick(): Promise<void> {
     await this.#mutate(async () => {
+      if (this.#closed) return;
+      await this.#flushCompletions();
       const result = claimScheduledTasks(this.#tasks, this.#running, this.#now());
-      for (const claim of result.claims) this.#running.add(claim.task.id);
       await this.#replace(result.tasks);
+      for (const claim of result.claims) this.#running.add(claim.task.id);
       for (const claim of result.claims) this.#launch(claim);
     });
   }

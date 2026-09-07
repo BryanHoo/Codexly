@@ -19,7 +19,7 @@ import type { AttachmentStore } from "./attachment-store.js";
 
 export class TaskQueueBlockedError extends Error {
   public constructor() {
-    super("Task queue is blocked by an edited submission");
+    super("Task queue is blocked by an edited or unresolved submission");
     this.name = "TaskQueueBlockedError";
   }
 }
@@ -55,6 +55,7 @@ type PersistentTaskQueueOptions = Readonly<{
 export class PersistentTaskQueue {
   readonly #attachmentStore: AttachmentStore;
   readonly #locks = new Map<string, Promise<void>>();
+  readonly #startResults = new Map<string, AgentTurn>();
   readonly #readTaskSettings: PersistentTaskQueueOptions["readTaskSettings"];
   readonly #repository: AgentQueueRepository;
   readonly #resolveProviderInput: PersistentTaskQueueOptions["resolveProviderInput"];
@@ -99,6 +100,7 @@ export class PersistentTaskQueue {
         queuedSubmissionId,
       );
       if (deleted) {
+        this.#startResults.delete(queuedSubmissionId);
         await this.#attachmentStore.releaseQueue(runtime.projectId, queuedSubmissionId);
         this.#publishChanged(runtime);
       }
@@ -146,6 +148,10 @@ export class PersistentTaskQueue {
     status: AgentQueuedSubmissionStatus,
   ): Promise<AgentQueuedSubmission> {
     return this.#withTaskLock(runtime, async () => {
+      const current = (await this.#repository.listQueue(runtime.projectId, runtime.taskId)).find(
+        (record) => record.id === queuedSubmissionId,
+      );
+      if (current?.execution !== undefined) throw new TaskQueueBlockedError();
       const { attachmentIds } = await this.#resolveProviderInput(
         runtime.projectId,
         input,
@@ -206,6 +212,13 @@ export class PersistentTaskQueue {
     if (editingIndex >= 0 && selectedIndex >= editingIndex) throw new TaskQueueBlockedError();
     const selected = records[selectedIndex];
     if (selected?.status !== "queued") throw new TaskQueueBlockedError();
+    const recovered =
+      selected.execution?.state === "started"
+        ? selected.execution.turn
+        : this.#startResults.get(selected.id);
+    if (recovered !== undefined) return this.#finishStart(runtime, selected, recovered);
+    // Provider 响应丢失时执行结果未知，不能重新投递；持久标记在重启后仍阻止重复执行。
+    if (selected.execution !== undefined) throw new TaskQueueBlockedError();
     const task = await runtime.provider.readTask(runtime.taskId);
     if (task?.turns.some((turn) => turn.status === "running") === true) {
       throw new TaskQueueBlockedError();
@@ -217,9 +230,28 @@ export class PersistentTaskQueue {
       runtime.taskId,
     );
     const settings = await this.#readTaskSettings(runtime.projectId, runtime.taskId);
+    // 结果缓存只覆盖持久化故障窗口；达到上限时暂停新启动，避免持续故障耗尽内存。
+    if (this.#startResults.size >= 1_000) throw new TaskQueueBlockedError();
+    if (!(await this.#repository.setQueueExecution(selected, { state: "starting" }))) {
+      throw new TaskQueueBlockedError();
+    }
     const turn = await runtime.provider.startTurn(runtime.taskId, providerInput, settings);
-    await this.#repository.deleteQueue(runtime.projectId, runtime.taskId, selected.id);
+    this.#startResults.set(selected.id, turn);
+    return this.#finishStart(runtime, selected, turn);
+  }
+
+  async #finishStart(
+    runtime: QueueRuntime,
+    selected: AgentQueueRecord,
+    turn: AgentTurn,
+  ): Promise<AgentTurn> {
+    // 先保存启动结果和转移附件，再删除记录；任一步失败都可恢复，且不会再次调用 Provider。
+    if (!(await this.#repository.setQueueExecution(selected, { state: "started", turn }))) {
+      throw new TaskQueueItemNotFoundError();
+    }
+    this.#startResults.delete(selected.id);
     await this.#attachmentStore.startQueue(runtime.projectId, selected.id, turn.id);
+    await this.#repository.deleteQueue(runtime.projectId, runtime.taskId, selected.id);
     this.#publishChanged(runtime);
     return turn;
   }

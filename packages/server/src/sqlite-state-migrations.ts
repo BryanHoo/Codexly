@@ -456,4 +456,9 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
     `,
     version: 25,
   },
+  {
+    name: "persist_queue_execution",
+    sql: "ALTER TABLE task_queue ADD COLUMN execution_json TEXT;",
+    version: 26,
+  },
 ];

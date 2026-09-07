@@ -195,6 +195,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
   };
   const stateRepository = {
     addQueue: vi.fn((record) => Promise.resolve(record)),
+    setQueueExecution: vi.fn(() => Promise.resolve(true)),
     close: databaseClose,
     completeProjectSourceMigration: vi.fn(() => {
       lifecycle.push("projects.migration.complete");

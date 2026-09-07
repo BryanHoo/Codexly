@@ -8,6 +8,7 @@ Track where local, shared, and remote state should live in this project.
 
 - 临时交互状态默认留在组件或最近的功能 Hook 中。
 - HTTP 服务端状态使用 TanStack Query；查询 key 和 mutation 行为集中在对应功能模块。
+- 定时任务页面按最近到期时间刷新等待状态，到期或运行期间继续轮询；编辑未变更的调度字段必须保留完整 RRULE、原始时区和时间精度，仅完整匹配的规则可识别为预设。
 - 项目、访问控制和编辑器草稿等跨组件状态使用现有 Context；不要新增重复的全局状态源。
 - Agent 事件、快照和重放状态保持在 `features/conversation/runtime` 的专用 store 中，并遵守现有内存上限。
 - 持久化偏好继续使用对应功能已有的浏览器存储适配器。

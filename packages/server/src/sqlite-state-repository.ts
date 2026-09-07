@@ -9,17 +9,15 @@ import type {
   ProjectProjectionStore,
   ProjectSourceMigration,
 } from "@codexly/core";
-import {
-  AgentPromptInputSchema,
-  type AgentPromptInput,
-  type AgentQueuedSubmissionStatus,
-  type AgentProviderConnectionRecord,
-  type AgentGlobalSettings,
-  type AgentProjectDefaults,
-  type AgentTaskSettings,
-  type Project,
+import type {
+  AgentPromptInput,
+  AgentQueuedSubmissionStatus,
+  AgentProviderConnectionRecord,
+  AgentGlobalSettings,
+  AgentProjectDefaults,
+  AgentTaskSettings,
+  Project,
 } from "@codexly/protocol";
-import { Value } from "@sinclair/typebox/value";
 
 import {
   parseProviderConnectionRow,
@@ -29,6 +27,7 @@ import {
 import { deserializeWorkerError } from "./sqlite-state-helpers.js";
 import { SQLITE_MIGRATIONS, type SqliteMigration } from "./sqlite-state-migrations.js";
 import { SqliteScheduledTaskRepository } from "./scheduled-task-repository-helpers.js";
+import { parseQueueWorkerRecord, type QueueWorkerRecord } from "./queue-record-persistence.js";
 
 export type { SqliteMigration } from "./sqlite-state-migrations.js";
 
@@ -41,17 +40,6 @@ export type SqliteDatabaseDiagnostics = Readonly<{
   synchronous: string;
   writable: boolean;
 }>;
-
-type QueueWorkerRecord = Omit<AgentQueueRecord, "input"> & Readonly<{ inputJson: string }>;
-
-function parseQueueWorkerRecord(record: QueueWorkerRecord): AgentQueueRecord {
-  const input: unknown = JSON.parse(record.inputJson);
-  if (!Value.Check(AgentPromptInputSchema, input)) {
-    throw new Error("Persisted task queue input is invalid");
-  }
-  const { inputJson: _inputJson, ...identity } = record;
-  return { ...identity, input };
-}
 
 export interface SqliteStateRepositoryOptions {
   migrations?: readonly SqliteMigration[];
@@ -277,6 +265,19 @@ export class SqliteStateRepository
         updatedAt: this.#now().toISOString(),
       }),
     );
+  }
+
+  public setQueueExecution(
+    record: AgentQueueRecord,
+    execution: NonNullable<AgentQueueRecord["execution"]>,
+  ): Promise<boolean> {
+    return this.#call("setTaskQueueExecution", {
+      projectId: record.projectId,
+      taskId: record.taskId,
+      id: record.id,
+      executionJson: JSON.stringify(execution),
+      claim: execution.state === "starting",
+    });
   }
 
   public deleteQueue(

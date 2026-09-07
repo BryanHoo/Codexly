@@ -32,10 +32,16 @@ export function ScheduledTasksContainer({
   const tasksQuery = useQuery({
     queryFn: () => context.client.listScheduledTasks(),
     queryKey,
-    refetchInterval: (query) =>
-      query.state.data?.data.some((task) => task.lastRunStatus === "running") === true
-        ? 1_500
-        : false,
+    refetchInterval: (query) => {
+      const tasks = query.state.data?.data ?? emptyTasks;
+      if (tasks.some((task) => task.lastRunStatus === "running")) return 1_500;
+      const deadlines = tasks.flatMap((task) =>
+        task.enabled && task.nextRunAtUnixMs !== null ? [task.nextRunAtUnixMs] : [],
+      );
+      if (deadlines.length === 0) return false;
+      // 等待中的任务也需到期刷新；已到期数据短轮询，直到服务端返回执行结果。
+      return Math.min(60_000, Math.max(1_500, Math.min(...deadlines) - Date.now()));
+    },
   });
   const tasks = tasksQuery.data?.data ?? emptyTasks;
   const selectedTask = creating ? undefined : tasks.find((task) => task.id === selectedId);

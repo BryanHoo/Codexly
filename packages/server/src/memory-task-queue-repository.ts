@@ -4,6 +4,18 @@ export function createMemoryTaskQueueRepository(): AgentQueueRepository {
   const records = new Map<string, AgentQueueRecord[]>();
   const key = (projectId: string, taskId: string) => `${projectId}\u0000${taskId}`;
   return {
+    setQueueExecution(record, execution) {
+      const queue = records.get(key(record.projectId, record.taskId)) ?? [];
+      const index = queue.findIndex((item) => item.id === record.id);
+      const current = queue[index];
+      if (
+        current === undefined ||
+        (execution.state === "starting" && current.execution !== undefined)
+      )
+        return Promise.resolve(false);
+      queue[index] = { ...current, execution };
+      return Promise.resolve(true);
+    },
     addQueue(record) {
       const queue = records.get(key(record.projectId, record.taskId)) ?? [];
       queue.push(record);
@@ -40,7 +52,8 @@ export function createMemoryTaskQueueRepository(): AgentQueueRepository {
       const queue = records.get(key(projectId, taskId)) ?? [];
       const index = queue.findIndex((record) => record.id === queuedSubmissionId);
       const current = queue[index];
-      if (current === undefined) return Promise.resolve(undefined);
+      if (current === undefined || current.execution !== undefined)
+        return Promise.resolve(undefined);
       const updated = { ...current, input, status };
       queue[index] = updated;
       return Promise.resolve(updated);

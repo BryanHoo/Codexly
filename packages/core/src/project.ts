@@ -7,12 +7,14 @@ import type {
   AgentQueuedSubmissionStatus,
   AgentTask,
   AgentTaskSettings,
+  AgentTurn,
   Project,
   ProjectRootInput,
   ScheduledTask,
 } from "@codexly/protocol";
 
 export type AgentQueueRecord = Readonly<{
+  execution?: Readonly<{ state: "starting" }> | Readonly<{ state: "started"; turn: AgentTurn }>;
   clientUserMessageId: string;
   id: string;
   input: AgentPromptInput;
@@ -22,6 +24,11 @@ export type AgentQueueRecord = Readonly<{
 }>;
 
 export interface AgentQueueRepository {
+  // starting 仅允许从未执行记录原子占用；started 用于恢复成功结果和清理。
+  setQueueExecution(
+    record: AgentQueueRecord,
+    execution: NonNullable<AgentQueueRecord["execution"]>,
+  ): Promise<boolean>;
   addQueue(record: AgentQueueRecord): Promise<AgentQueueRecord>;
   deleteQueue(projectId: string, taskId: string, queuedSubmissionId: string): Promise<boolean>;
   listQueue(projectId: string, taskId: string): Promise<readonly AgentQueueRecord[]>;

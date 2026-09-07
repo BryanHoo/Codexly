@@ -21,7 +21,7 @@ describe("SQLite state migrations", () => {
       foreignKeys: true,
       integrityCheck: "ok",
       journalMode: "wal",
-      migrationVersion: 25,
+      migrationVersion: 26,
       synchronous: "normal",
       writable: true,
     });

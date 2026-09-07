@@ -6,6 +6,81 @@ import type {
 
 import { expect, test } from "./fixtures/app-shell.js";
 
+test("preserves custom recurrence on rename and refreshes an automatic run", async ({ page }) => {
+  const now = Date.now();
+  const schedule = {
+    type: "rrule" as const,
+    rrule: "RRULE:FREQ=DAILY;INTERVAL=2;COUNT=5",
+    startAtUnixMs: now + 60_000,
+    timezone: "America/New_York",
+  };
+  let task: ScheduledTask = {
+    id: "custom-schedule",
+    name: "自定义巡检",
+    projectId: "codexly",
+    projectName: "Codexly",
+    enabled: true,
+    schedule,
+    messageAttachments: [],
+    prompt: { attachments: [], skills: [], text: "检查最新改动", type: "prompt" },
+    turnOptions: {
+      approvalPolicy: "never",
+      approvalsReviewer: "user",
+      model: "gpt-5.6-sol",
+      reasoningEffort: "high",
+      sandboxMode: "workspace-write",
+    },
+    createdAtUnixMs: now,
+    updatedAtUnixMs: now,
+    nextRunAtUnixMs: now + 60_000,
+    lastRunAtUnixMs: null,
+    lastRunStatus: null,
+    runs: [],
+  };
+  let savedSchedule: ScheduledTaskInput["schedule"] | undefined;
+  let reads = 0;
+  await page.clock.install({ time: new Date(now) });
+  await page.route("**/v1/scheduled-tasks**", async (route) => {
+    if (route.request().method() === "GET") {
+      reads += 1;
+      await route.fulfill({ json: { data: [task] } });
+      return;
+    }
+    const input = route.request().postDataJSON() as ScheduledTaskInput;
+    savedSchedule = input.schedule;
+    task = { ...task, ...input };
+    await route.fulfill({ json: { task } });
+  });
+  await page.goto("/p/codexly/scheduled");
+  await page.getByRole("button", { name: "自定义巡检", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "重复规则" })).toHaveValue("custom");
+  await page.getByRole("textbox", { name: "任务名称" }).fill("重命名巡检");
+  await page.getByRole("button", { name: "保存任务" }).click();
+  await expect.poll(() => savedSchedule).toEqual(schedule);
+  await expect(page.getByRole("button", { name: "重命名巡检", exact: true })).toBeVisible();
+  // 无点击、无切换页面，只推进浏览器时间，验证等待任务到期后主动取得新记录。
+  const readsBeforeRun = reads;
+  task = {
+    ...task,
+    nextRunAtUnixMs: now + 2 * 24 * 60 * 60 * 1_000,
+    lastRunStatus: "started",
+    lastRunAtUnixMs: now + 60_000,
+    runs: [
+      {
+        id: "run-auto",
+        status: "started",
+        taskId: "automatic-task",
+        error: null,
+        startedAtUnixMs: now + 60_000,
+        finishedAtUnixMs: now + 60_001,
+      },
+    ],
+  };
+  await page.clock.fastForward(61_500);
+  await expect(page.getByRole("button", { name: "automatic-task", exact: true })).toBeVisible();
+  expect(reads).toBeGreaterThan(readsBeforeRun);
+});
+
 test("creates, toggles and runs a scheduled task", async ({ page }) => {
   let tasks: readonly ScheduledTask[] = [];
   const mutations: { method: string; path: string }[] = [];
