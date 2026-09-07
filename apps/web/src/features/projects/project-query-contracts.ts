@@ -66,13 +66,17 @@ export type CodexlySkillsClient = Pick<CodexlyClient, "listSkills">;
 export type CodexlySkillMarketClient = Pick<
   CodexlyClient,
   | "getClawhubSkill"
+  | "getOfficialPlugin"
   | "installClawhubSkill"
+  | "installOfficialPlugin"
   | "listClawhubSkills"
   | "listConfiguredMcpServers"
   | "listInstalledSkills"
+  | "listOfficialPlugins"
   | "openSkillDirectory"
   | "setMcpServerEnabled"
   | "setSkillEnabled"
+  | "uninstallOfficialPlugin"
 >;
 export type CodexlySettingsClient = Pick<
   CodexlyClient,

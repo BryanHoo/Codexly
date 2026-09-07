@@ -1,5 +1,5 @@
 const args = process.argv.slice(2);
-const expectedArgs = ["app-server", "--listen", "stdio://"];
+const expectedArgs = ["app-server", "--enable", "plugins", "--listen", "stdio://"];
 const scenario = process.env["FAKE_APP_SERVER_SCENARIO"] ?? "normal";
 const actionScenario = scenario === "agent-actions" || scenario === "realtime-actions";
 const realtimeScenario = scenario === "realtime" || scenario === "realtime-actions";

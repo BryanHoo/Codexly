@@ -16,6 +16,10 @@ import type {
   StartOfficialProviderLoginResponse,
   ConfiguredMcpServerPage,
   InstalledSkillPage,
+  OfficialPluginDetail,
+  OfficialPluginInstallResult,
+  OfficialPluginPage,
+  OfficialPluginUninstallResult,
   SetMcpServerEnabledResponse,
   SetSkillEnabledResponse,
 } from "@codexly/protocol";
@@ -32,10 +36,14 @@ import { CodexRuntimeProjectProvider } from "./runtime-project-provider.js";
 import { CodexFuzzyFileSearchService } from "./fuzzy-file-search.js";
 import { CodexGitMetadataWatchService } from "./git-metadata-watch.js";
 import {
+  getCodexOfficialPlugin,
+  installCodexOfficialPlugin,
   listCodexConfiguredMcpServers,
   listCodexInstalledSkills,
+  listCodexOfficialPlugins,
   setCodexMcpServerEnabled,
   setCodexSkillEnabled,
+  uninstallCodexOfficialPlugin,
 } from "./skill-market-provider.js";
 
 function optionalNonEmptyString(value: unknown): string | undefined {
@@ -295,6 +303,40 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     forceReload: boolean,
   ): Promise<InstalledSkillPage> {
     return listCodexInstalledSkills(this.#client, projects, forceReload);
+  }
+
+  public listOfficialPlugins(
+    projects: readonly Project[],
+    forceRefetch: boolean,
+  ): Promise<OfficialPluginPage> {
+    return listCodexOfficialPlugins(this.#client, projects, forceRefetch);
+  }
+
+  public getOfficialPlugin(
+    marketplaceName: string,
+    marketplacePath: string | null,
+    pluginName: string,
+  ): Promise<OfficialPluginDetail> {
+    return getCodexOfficialPlugin(this.#client, marketplaceName, marketplacePath, pluginName);
+  }
+
+  public installOfficialPlugin(
+    marketplaceName: string,
+    marketplacePath: string | null,
+    pluginName: string,
+    installAttemptId: string,
+  ): Promise<OfficialPluginInstallResult> {
+    return installCodexOfficialPlugin(
+      this.#client,
+      marketplaceName,
+      marketplacePath,
+      pluginName,
+      installAttemptId,
+    );
+  }
+
+  public uninstallOfficialPlugin(pluginId: string): Promise<OfficialPluginUninstallResult> {
+    return uninstallCodexOfficialPlugin(this.#client, pluginId);
   }
 
   public logoutProvider(): Promise<AgentProviderConnectionMutationResponse> {

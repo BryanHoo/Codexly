@@ -6,7 +6,14 @@ const LazySkillsMarketContainer = lazy(() =>
   })),
 );
 
-export function SkillsMarketView(props: Readonly<{ projectId?: string; rootPath?: string }>) {
+export function SkillsMarketView(
+  props: Readonly<{
+    onSectionChange?: (section: "marketplace" | "mcp" | "plugins" | "skills") => void;
+    projectId?: string;
+    rootPath?: string;
+    section?: string;
+  }>,
+) {
   return (
     <Suspense fallback={<div aria-busy="true" className="flex-1" />}>
       <LazySkillsMarketContainer {...props} />

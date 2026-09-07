@@ -12,23 +12,43 @@ import { useState } from "react";
 import { useTranslation } from "../../i18n/i18n.js";
 import { Button } from "../../shared/components/core/button.js";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../../shared/components/core/dialog.js";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "../../shared/components/core/select.js";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "../../shared/components/core/sheet.js";
 import type { CodexlySkillMarketClient } from "../projects/project-query-contracts.js";
 
-type SkillDetailDialogProps = Readonly<{
+function openMarketplace(url: string): void {
+  try {
+    // 仅允许目录返回的 HTTPS 页面离开应用，阻断危险协议。
+    const target = new URL(url);
+    if (target.protocol === "https:") window.open(target.href, "_blank", "noopener,noreferrer");
+  } catch {
+    // 非法目录地址保持无副作用。
+  }
+}
+
+export function SkillDetailSheet({
+  client,
+  currentProjectId,
+  currentRootPath,
+  installedSkills,
+  installingScope,
+  onClose,
+  onInstall,
+  projects,
+  skill,
+}: Readonly<{
   client: CodexlySkillMarketClient;
   currentProjectId: string | undefined;
   currentRootPath: string | undefined;
@@ -42,29 +62,7 @@ type SkillDetailDialogProps = Readonly<{
   ) => void;
   projects: readonly Project[];
   skill: ClawhubSkillSummary;
-}>;
-
-function openMarketplace(url: string): void {
-  try {
-    // 仅允许目录返回的 HTTPS 页面离开应用，阻断危险协议。
-    const target = new URL(url);
-    if (target.protocol === "https:") window.open(target.href, "_blank", "noopener,noreferrer");
-  } catch {
-    // 非法目录地址保持无副作用。
-  }
-}
-
-export function SkillDetailDialog({
-  client,
-  currentProjectId,
-  currentRootPath,
-  installedSkills,
-  installingScope,
-  onClose,
-  onInstall,
-  projects,
-  skill,
-}: SkillDetailDialogProps) {
+}>) {
   const { t } = useTranslation("workbench");
   const initialProjectId = projects.some((project) => project.id === currentProjectId)
     ? currentProjectId
@@ -80,7 +78,7 @@ export function SkillDetailDialog({
       : selectedProject?.roots[0]?.path;
   const detail = useQuery({
     queryFn: () => client.getClawhubSkill(skill.owner, skill.slug),
-    queryKey: ["skills-market", "detail", skill.owner, skill.slug],
+    queryKey: ["extensions", "marketplace", "detail", skill.owner, skill.slug],
     staleTime: 5 * 60_000,
   });
   const data: ClawhubSkillDetail | undefined = detail.data;
@@ -101,24 +99,26 @@ export function SkillDetailDialog({
   };
   const installing = installingScope !== null;
   const detailUnavailable = data?.scanStatus !== "clean";
-
   return (
-    <Dialog
+    <Sheet
       open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
-      <DialogContent className="skills-market-detail max-w-3xl gap-0 p-0">
-        <DialogHeader className="skills-market-detail__header">
-          <div aria-hidden="true" className="skills-market-detail__mark">
+      <SheetContent
+        className="skills-market-detail third-party-skill-sheet"
+        closeLabel={t("skillsMarket.closeSkillDetails")}
+      >
+        <SheetHeader className="skills-market-detail__header">
+          <div className="skills-market-detail__mark" aria-hidden="true">
             <Sparkles />
           </div>
           <div className="min-w-0 flex-1">
-            <DialogTitle className="truncate text-title">{skill.displayName}</DialogTitle>
-            <DialogDescription>
+            <SheetTitle className="truncate text-title">{skill.displayName}</SheetTitle>
+            <SheetDescription>
               @{skill.owner} / {skill.slug}
-            </DialogDescription>
+            </SheetDescription>
           </div>
           {data === undefined ? null : (
             <span className="skills-market-scan">
@@ -126,8 +126,7 @@ export function SkillDetailDialog({
               {t("skillsMarket.codexCompatible")}
             </span>
           )}
-        </DialogHeader>
-
+        </SheetHeader>
         <div className="skills-market-detail__facts">
           <span>{t("skillsMarket.version", { version: skill.latestVersion })}</span>
           <span>{t("skillsMarket.downloads", { count: skill.downloads })}</span>
@@ -136,8 +135,7 @@ export function SkillDetailDialog({
             <span>{t("skillsMarket.scan", { status: data.scanStatus })}</span>
           )}
         </div>
-
-        <div className="skills-market-detail__body">
+        <div className="skills-market-detail__body third-party-skill-sheet__body">
           {detail.isPending ? (
             <div className="skills-market-state" role="status">
               {t("skillsMarket.loadingDetail")}
@@ -150,9 +148,9 @@ export function SkillDetailDialog({
             <pre className="skills-market-readme">{data?.readme}</pre>
           )}
         </div>
-
-        <DialogFooter className="skills-market-detail__footer">
+        <SheetFooter className="skills-market-detail__footer third-party-skill-sheet__footer">
           <Button
+            className="third-party-skill-sheet__market-link"
             onClick={() => {
               openMarketplace(skill.canonicalUrl);
             }}
@@ -162,67 +160,68 @@ export function SkillDetailDialog({
             <ExternalLink aria-hidden="true" />
             {t("skillsMarket.openMarketplace")}
           </Button>
-          <div className="flex-1" />
-          {selectedProject === undefined || selectedRootPath === undefined ? null : (
-            <div className="skills-market-project-target">
-              <Select onValueChange={setSelectedProjectId} value={selectedProject.id}>
-                <SelectTrigger
-                  aria-label={t("skillsMarket.projectTarget")}
-                  size="sm"
-                  title={selectedProject.name}
+          <div className="third-party-skill-sheet__actions">
+            {selectedProject === undefined || selectedRootPath === undefined ? null : (
+              <div className="skills-market-project-target">
+                <Select onValueChange={setSelectedProjectId} value={selectedProject.id}>
+                  <SelectTrigger
+                    aria-label={t("skillsMarket.projectTarget")}
+                    size="sm"
+                    title={selectedProject.name}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end" position="popper">
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  disabled={
+                    detailUnavailable ||
+                    installing ||
+                    installedVersion("project") === skill.latestVersion
+                  }
+                  onClick={() => {
+                    onInstall(skill, "project", {
+                      projectId: selectedProject.id,
+                      rootPath: selectedRootPath,
+                    });
+                  }}
+                  type="button"
+                  variant="outline"
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end" position="popper">
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                disabled={
-                  detailUnavailable ||
-                  installing ||
-                  installedVersion("project") === skill.latestVersion
-                }
-                onClick={() => {
-                  onInstall(skill, "project", {
-                    projectId: selectedProject.id,
-                    rootPath: selectedRootPath,
-                  });
-                }}
-                type="button"
-                variant="outline"
-              >
-                {installingScope === "project" ? (
-                  <LoaderCircle aria-hidden="true" className="animate-spin" data-icon="loading" />
-                ) : (
-                  <Download aria-hidden="true" />
-                )}
-                {actionLabel("project")}
-              </Button>
-            </div>
-          )}
-          <Button
-            disabled={
-              detailUnavailable || installing || installedVersion("user") === skill.latestVersion
-            }
-            onClick={() => {
-              onInstall(skill, "user", {});
-            }}
-            type="button"
-          >
-            {installingScope === "user" ? (
-              <LoaderCircle aria-hidden="true" className="animate-spin" data-icon="loading" />
-            ) : (
-              <Download aria-hidden="true" />
+                  {installingScope === "project" ? (
+                    <LoaderCircle aria-hidden="true" className="animate-spin" data-icon="loading" />
+                  ) : (
+                    <Download aria-hidden="true" />
+                  )}
+                  {actionLabel("project")}
+                </Button>
+              </div>
             )}
-            {actionLabel("user")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <Button
+              disabled={
+                detailUnavailable || installing || installedVersion("user") === skill.latestVersion
+              }
+              onClick={() => {
+                onInstall(skill, "user", {});
+              }}
+              type="button"
+            >
+              {installingScope === "user" ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" data-icon="loading" />
+              ) : (
+                <Download aria-hidden="true" />
+              )}
+              {actionLabel("user")}
+            </Button>
+          </div>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -55,12 +55,16 @@ function createRealtimeClient(baseUrl: string): CodexlyClient {
 
 async function startFakeAppServer(scenario: string): Promise<CodexAppServerProcess> {
   // Fake Server 是 Node.js 脚本，Windows 必须通过原生 node.exe 启动。
-  const child = spawn(process.execPath, [fakeAppServerPath, "app-server", "--listen", "stdio://"], {
-    env: { ...process.env, FAKE_APP_SERVER_SCENARIO: scenario },
-    shell: false,
-    stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true,
-  });
+  const child = spawn(
+    process.execPath,
+    [fakeAppServerPath, "app-server", "--enable", "plugins", "--listen", "stdio://"],
+    {
+      env: { ...process.env, FAKE_APP_SERVER_SCENARIO: scenario },
+      shell: false,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    },
+  );
   const runtime = new CodexAppServerProcess(
     child,
     { path: process.execPath, source: "explicit" },

@@ -22,13 +22,19 @@ export function SidebarSkillsMarketLink({
     <Link
       activeProps={activeProps}
       className={className}
-      params={{ projectId }}
-      to="/p/$projectId/skills"
+      activeOptions={{ includeSearch: false }}
+      params={{ projectId, section: "skills" }}
+      to="/p/$projectId/extensions/$section"
     >
       {content}
     </Link>
   ) : (
-    <Link activeProps={activeProps} className={className} to="/temporary/skills">
+    <Link
+      activeProps={activeProps}
+      className={className}
+      params={{ section: "skills" }}
+      to="/temporary/extensions/$section"
+    >
       {content}
     </Link>
   );

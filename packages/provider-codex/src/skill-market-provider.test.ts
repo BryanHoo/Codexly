@@ -20,6 +20,151 @@ const projects: readonly Project[] = [
 ];
 
 describe("CodexRuntimeProvider skill market", () => {
+  it("maps official plugin catalog, detail, installation, and removal RPCs", async () => {
+    const client = new FakeRpcClient([
+      {
+        marketplaces: [
+          {
+            name: "openai-curated-remote",
+            plugins: [
+              {
+                authPolicy: "ON_INSTALL",
+                enabled: false,
+                id: "github@openai-curated-remote",
+                installPolicy: "AVAILABLE",
+                installed: false,
+                interface: {
+                  developerName: "OpenAI",
+                  displayName: "GitHub",
+                  shortDescription: "Search repositories",
+                },
+                name: "github",
+                remotePluginId: "plugins~Plugin_github",
+              },
+            ],
+          },
+          { name: "third-party", path: "/tmp/marketplace.json", plugins: [] },
+        ],
+      },
+      {
+        plugin: {
+          apps: [
+            {
+              description: "Access repositories",
+              id: "connector_github",
+              installUrl: "https://example.test/install",
+              name: "GitHub",
+            },
+          ],
+          description: "GitHub integration",
+          hooks: [{ key: "after-task" }],
+          marketplaceName: "openai-curated-remote",
+          marketplacePath: null,
+          mcpServers: ["github"],
+          skills: [{ name: "github-search", shortDescription: "Search repositories" }],
+          summary: {
+            authPolicy: "ON_INSTALL",
+            enabled: false,
+            id: "github@openai-curated-remote",
+            installPolicy: "AVAILABLE",
+            installed: false,
+            interface: {
+              developerName: "OpenAI",
+              displayName: "GitHub",
+              shortDescription: "Search repositories",
+              websiteUrl: "https://github.com",
+            },
+            name: "github",
+            remotePluginId: "plugins~Plugin_github",
+          },
+        },
+      },
+      {
+        appsNeedingAuth: [
+          {
+            description: null,
+            id: "connector_github",
+            installUrl: "https://example.test/install",
+            name: "GitHub",
+          },
+        ],
+        authPolicy: "ON_INSTALL",
+      },
+      {},
+    ]);
+    const runtime = new CodexRuntimeProvider(client);
+
+    const page = await runtime.listOfficialPlugins(projects, true);
+    expect(page.data).toHaveLength(1);
+    expect(page.data[0]).toMatchObject({
+      displayName: "GitHub",
+      marketplaceName: "openai-curated-remote",
+      marketplacePath: null,
+      pluginName: "plugins~Plugin_github",
+    });
+    await expect(
+      runtime.getOfficialPlugin("openai-curated-remote", null, "plugins~Plugin_github"),
+    ).resolves.toMatchObject({
+      apps: [{ description: "Access repositories", id: "connector_github" }],
+      hooks: ["after-task"],
+      mcpServers: ["github"],
+      skills: [{ description: "Search repositories", name: "github-search" }],
+      websiteUrl: "https://github.com",
+    });
+    await expect(
+      runtime.installOfficialPlugin(
+        "openai-curated-remote",
+        null,
+        "plugins~Plugin_github",
+        "attempt-1",
+      ),
+    ).resolves.toEqual({
+      appsNeedingAuth: [
+        {
+          description: "",
+          id: "connector_github",
+          installUrl: "https://example.test/install",
+          name: "GitHub",
+        },
+      ],
+      authPolicy: "ON_INSTALL",
+    });
+    await expect(runtime.uninstallOfficialPlugin("github@openai-curated-remote")).resolves.toEqual(
+      {},
+    );
+    expect(client.calls).toEqual([
+      {
+        method: "plugin/list",
+        params: {
+          cwds: ["/work", "/other"],
+          forceRefetch: true,
+          marketplaceKinds: null,
+        },
+      },
+      {
+        method: "plugin/read",
+        params: {
+          marketplacePath: null,
+          pluginName: "plugins~Plugin_github",
+          remoteMarketplaceName: "openai-curated-remote",
+        },
+      },
+      {
+        method: "plugin/install",
+        params: {
+          installAttemptId: "attempt-1",
+          marketplacePath: null,
+          pluginName: "plugins~Plugin_github",
+          remoteMarketplaceName: "openai-curated-remote",
+        },
+      },
+      {
+        method: "plugin/uninstall",
+        params: { pluginId: "github@openai-curated-remote" },
+      },
+    ]);
+  });
+
   it("lists installed skills once and preserves their project ownership", async () => {
     const client = new FakeRpcClient([
       {

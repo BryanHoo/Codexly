@@ -117,13 +117,17 @@ export function createRuntimeConnectionMethods(): Pick<
   AgentRuntimeProvider,
   | "cancelProviderLogin"
   | "configureCustomProvider"
+  | "getOfficialPlugin"
+  | "installOfficialPlugin"
   | "listConfiguredMcpServers"
   | "listInstalledSkills"
+  | "listOfficialPlugins"
   | "logoutProvider"
   | "readProviderConnection"
   | "setMcpServerEnabled"
   | "setSkillEnabled"
   | "startOfficialProviderLogin"
+  | "uninstallOfficialPlugin"
 > {
   const status: AgentProviderConnectionStatus = {
     account: null,
@@ -135,8 +139,11 @@ export function createRuntimeConnectionMethods(): Pick<
   return {
     cancelProviderLogin: vi.fn(() => Promise.resolve({ status })),
     configureCustomProvider: vi.fn(() => Promise.reject(new Error("Not configured"))),
+    getOfficialPlugin: vi.fn(() => Promise.reject(new Error("Not configured"))),
+    installOfficialPlugin: vi.fn(() => Promise.reject(new Error("Not configured"))),
     listConfiguredMcpServers: vi.fn(() => Promise.resolve({ data: [] })),
     listInstalledSkills: vi.fn(() => Promise.resolve({ data: [], nextCursor: null })),
+    listOfficialPlugins: vi.fn(() => Promise.resolve({ data: [] })),
     logoutProvider: vi.fn(() => Promise.resolve({ status })),
     readProviderConnection: vi.fn(() => Promise.resolve(status)),
     setMcpServerEnabled: vi.fn((_name: string, enabled: boolean) => Promise.resolve({ enabled })),
@@ -144,6 +151,7 @@ export function createRuntimeConnectionMethods(): Pick<
       Promise.resolve({ effectiveEnabled: enabled }),
     ),
     startOfficialProviderLogin: vi.fn(() => Promise.reject(new Error("Not configured"))),
+    uninstallOfficialPlugin: vi.fn(() => Promise.resolve({})),
   };
 }
 

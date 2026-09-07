@@ -137,3 +137,87 @@ export const OpenSkillDirectoryResponseSchema = Type.Object(
   { additionalProperties: false },
 );
 export type OpenSkillDirectoryResponse = Readonly<Static<typeof OpenSkillDirectoryResponseSchema>>;
+
+export const OfficialPluginAuthPolicySchema = Type.Union([
+  Type.Literal("ON_INSTALL"),
+  Type.Literal("ON_USE"),
+]);
+
+export const OfficialPluginSummarySchema = Type.Object(
+  {
+    authPolicy: OfficialPluginAuthPolicySchema,
+    availability: Type.Union([Type.Literal("AVAILABLE"), Type.Literal("DISABLED_BY_ADMIN")]),
+    description: Type.String(),
+    developerName: Type.Union([Type.String(), Type.Null()]),
+    disabledReason: Type.Union([Type.String(), Type.Null()]),
+    displayName: Type.String({ minLength: 1 }),
+    enabled: Type.Boolean(),
+    id: Type.String({ minLength: 1 }),
+    installPolicy: Type.Union([
+      Type.Literal("NOT_AVAILABLE"),
+      Type.Literal("AVAILABLE"),
+      Type.Literal("INSTALLED_BY_DEFAULT"),
+    ]),
+    installed: Type.Boolean(),
+    localVersion: Type.Union([Type.String(), Type.Null()]),
+    logoUrl: Type.Union([Type.String(), Type.Null()]),
+    marketplaceName: Type.String({ minLength: 1 }),
+    marketplacePath: Type.Union([Type.String(), Type.Null()]),
+    name: Type.String({ minLength: 1 }),
+    pluginName: Type.String({ minLength: 1 }),
+    version: Type.Union([Type.String(), Type.Null()]),
+  },
+  { additionalProperties: false },
+);
+export type OfficialPluginSummary = Readonly<Static<typeof OfficialPluginSummarySchema>>;
+
+export const OfficialPluginPageSchema = Type.Object(
+  { data: Type.Array(OfficialPluginSummarySchema) },
+  { additionalProperties: false },
+);
+export type OfficialPluginPage = Readonly<Static<typeof OfficialPluginPageSchema>>;
+
+export const OfficialPluginAssetSchema = Type.Object(
+  { description: Type.String(), name: Type.String({ minLength: 1 }) },
+  { additionalProperties: false },
+);
+
+export const OfficialPluginAppSchema = Type.Object(
+  {
+    description: Type.String(),
+    id: Type.String({ minLength: 1 }),
+    installUrl: Type.Union([Type.String(), Type.Null()]),
+    name: Type.String({ minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
+export type OfficialPluginApp = Readonly<Static<typeof OfficialPluginAppSchema>>;
+
+export const OfficialPluginDetailSchema = Type.Object(
+  {
+    ...OfficialPluginSummarySchema.properties,
+    apps: Type.Array(OfficialPluginAppSchema),
+    hooks: Type.Array(Type.String()),
+    mcpServers: Type.Array(Type.String()),
+    skills: Type.Array(OfficialPluginAssetSchema),
+    websiteUrl: Type.Union([Type.String(), Type.Null()]),
+  },
+  { additionalProperties: false },
+);
+export type OfficialPluginDetail = Readonly<Static<typeof OfficialPluginDetailSchema>>;
+
+export const OfficialPluginInstallResultSchema = Type.Object(
+  {
+    appsNeedingAuth: Type.Array(OfficialPluginAppSchema),
+    authPolicy: OfficialPluginAuthPolicySchema,
+  },
+  { additionalProperties: false },
+);
+export type OfficialPluginInstallResult = Readonly<
+  Static<typeof OfficialPluginInstallResultSchema>
+>;
+
+export const OfficialPluginUninstallResultSchema = Type.Object({}, { additionalProperties: false });
+export type OfficialPluginUninstallResult = Readonly<
+  Static<typeof OfficialPluginUninstallResultSchema>
+>;

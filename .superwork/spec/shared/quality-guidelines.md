@@ -7,6 +7,7 @@ Capture contract and verification standards for this project.
 ## 规则
 
 - 协议变更同时更新 TypeBox schema、类型导出、序列化/解码逻辑和消费者测试。
+- 官方插件能力必须通过带有 `--enable plugins` 的 Codex App Server 映射 `plugin/list`、`plugin/read`、`plugin/install` 和 `plugin/uninstall`；协议需保留 marketplace/plugin 标识、认证策略、应用与资源信息，并通过 `pnpm run codex:schema:check` 校验真实 RPC 基线。
 - 定时任务跨层契约统一使用严格的 `once`/`rrule` 联合计划、`AgentPromptInput` 与 `AgentTurnOptions`，客户端和服务端不得维护平行结构。
 - 升级固定 Codex 版本时，同步更新版本常量、catalog/lockfile 和真实 App Server Schema 基线；对新增通知与联合类型逐项映射或显式 opt-out，不使用旧协议兼容回退。
 - 内置 Codex 固定为 `0.153.4`；外部可执行文件仅接受稳定版 `>=0.153.4,<0.154.0`，不得默认兼容未知次版本或主版本。

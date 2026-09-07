@@ -9,8 +9,8 @@ import {
 import { JsonlRpcClient, RpcConnectionClosedError } from "./jsonl-rpc-client.js";
 import { CODEX_OPT_OUT_NOTIFICATION_METHODS } from "./codex-mapping-common.js";
 
-// 保留 Codex 对前向配置字段的默认兼容行为，避免 Desktop 与打包 CLI 的配置版本差异阻断启动。
-const APP_SERVER_ARGUMENTS = ["app-server", "--listen", "stdio://"] as const;
+// 官方插件默认是实验功能，必须随长驻 App Server 显式启用。
+const APP_SERVER_ARGUMENTS = ["app-server", "--enable", "plugins", "--listen", "stdio://"] as const;
 const MAX_STDERR_LENGTH = 8_192;
 
 export interface StartCodexAppServerOptions {

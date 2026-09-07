@@ -34,6 +34,10 @@ import type {
   WorkbenchPetDescriptor,
   ConfiguredMcpServerPage,
   InstalledSkillPage,
+  OfficialPluginDetail,
+  OfficialPluginInstallResult,
+  OfficialPluginPage,
+  OfficialPluginUninstallResult,
   SetMcpServerEnabledResponse,
   SetSkillEnabledResponse,
 } from "@codexly/protocol";
@@ -279,6 +283,22 @@ export interface AgentRuntimeProvider {
     projects: readonly Project[],
     forceReload: boolean,
   ): Promise<InstalledSkillPage>;
+  listOfficialPlugins(
+    projects: readonly Project[],
+    forceRefetch: boolean,
+  ): Promise<OfficialPluginPage>;
+  getOfficialPlugin(
+    marketplaceName: string,
+    marketplacePath: string | null,
+    pluginName: string,
+  ): Promise<OfficialPluginDetail>;
+  installOfficialPlugin(
+    marketplaceName: string,
+    marketplacePath: string | null,
+    pluginName: string,
+    installAttemptId: string,
+  ): Promise<OfficialPluginInstallResult>;
+  uninstallOfficialPlugin(pluginId: string): Promise<OfficialPluginUninstallResult>;
   logoutProvider(): Promise<AgentProviderConnectionMutationResponse>;
   readDefaultSettings(): Promise<AgentRuntimeDefaultSettings>;
   readProviderConnection(): Promise<AgentProviderConnectionStatus>;

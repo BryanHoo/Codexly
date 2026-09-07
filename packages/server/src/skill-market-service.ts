@@ -9,6 +9,10 @@ import type {
   InstalledSkill,
   InstalledSkillPage,
   OpenSkillDirectoryResponse,
+  OfficialPluginDetail,
+  OfficialPluginInstallResult,
+  OfficialPluginPage,
+  OfficialPluginUninstallResult,
   SetMcpServerEnabledResponse,
   SetSkillEnabledResponse,
   SkillInstallResult,
@@ -31,13 +35,26 @@ export type InstallSkillInput = Readonly<{
 
 export interface SkillMarketService {
   getSkill(owner: string, slug: string): Promise<ClawhubSkillDetail>;
+  getOfficialPlugin(
+    marketplaceName: string,
+    marketplacePath: string | null,
+    pluginName: string,
+  ): Promise<OfficialPluginDetail>;
   installSkill(owner: string, slug: string, input: InstallSkillInput): Promise<SkillInstallResult>;
+  installOfficialPlugin(
+    marketplaceName: string,
+    marketplacePath: string | null,
+    pluginName: string,
+    installAttemptId: string,
+  ): Promise<OfficialPluginInstallResult>;
   listConfiguredMcpServers(): Promise<ConfiguredMcpServerPage>;
   listInstalledSkills(forceReload: boolean): Promise<InstalledSkillPage>;
+  listOfficialPlugins(forceRefetch: boolean): Promise<OfficialPluginPage>;
   listSkills(query: string, cursor: string | null, sort: string): Promise<ClawhubSkillPage>;
   openSkillDirectory(path: string): Promise<OpenSkillDirectoryResponse>;
   setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResponse>;
   setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResponse>;
+  uninstallOfficialPlugin(pluginId: string): Promise<OfficialPluginUninstallResult>;
 }
 
 type CreateSkillMarketServiceOptions = Readonly<{
@@ -104,6 +121,8 @@ export function createSkillMarketService(
   };
   return {
     getSkill: (owner, slug) => options.catalog.getSkill(owner, slug),
+    getOfficialPlugin: (marketplaceName, marketplacePath, pluginName) =>
+      options.provider.getOfficialPlugin(marketplaceName, marketplacePath, pluginName),
     async installSkill(owner, slug, input) {
       const detail = await options.catalog.getSkill(owner, slug);
       if (detail.scanStatus !== "clean") {
@@ -131,10 +150,21 @@ export function createSkillMarketService(
       await options.provider.listInstalledSkills(projects, true);
       return result;
     },
+    installOfficialPlugin: (marketplaceName, marketplacePath, pluginName, installAttemptId) =>
+      options.provider.installOfficialPlugin(
+        marketplaceName,
+        marketplacePath,
+        pluginName,
+        installAttemptId,
+      ),
     listConfiguredMcpServers: () => options.provider.listConfiguredMcpServers(),
     async listInstalledSkills(forceReload) {
       const { page } = await discover(forceReload);
       return { ...page, data: await enrichInstalledSkills(page.data) };
+    },
+    async listOfficialPlugins(forceRefetch) {
+      const projects = await options.projectRepository.list();
+      return options.provider.listOfficialPlugins(projects, forceRefetch);
     },
     listSkills: (query, cursor, sort) => options.catalog.listSkills(query, cursor, sort),
     async openSkillDirectory(path) {
@@ -157,5 +187,6 @@ export function createSkillMarketService(
     },
     setMcpServerEnabled: (name, enabled) => options.provider.setMcpServerEnabled(name, enabled),
     setSkillEnabled: (path, enabled) => options.provider.setSkillEnabled(path, enabled),
+    uninstallOfficialPlugin: (pluginId) => options.provider.uninstallOfficialPlugin(pluginId),
   };
 }

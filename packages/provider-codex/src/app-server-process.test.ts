@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CodexAppServerExitedError, CodexAppServerProcess } from "./app-server-process.js";
+import {
+  CodexAppServerExitedError,
+  CodexAppServerProcess,
+  startCodexAppServer,
+} from "./app-server-process.js";
 import { CODEX_OPT_OUT_NOTIFICATION_METHODS } from "./codex-mapping-common.js";
 import { RpcConnectionClosedError, RpcProtocolError, RpcTimeoutError } from "./jsonl-rpc-client.js";
 
@@ -25,12 +29,16 @@ async function captureRejection(promise: Promise<unknown>): Promise<unknown> {
 
 async function startFake(scenario = "normal"): Promise<CodexAppServerProcess> {
   // Fake Server 由当前 Node.js 执行，避免 Windows 把测试脚本误当成原生 Codex Binary。
-  const child = spawn(process.execPath, [fakeAppServerPath, "app-server", "--listen", "stdio://"], {
-    env: { ...process.env, FAKE_APP_SERVER_SCENARIO: scenario },
-    shell: false,
-    stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true,
-  });
+  const child = spawn(
+    process.execPath,
+    [fakeAppServerPath, "app-server", "--enable", "plugins", "--listen", "stdio://"],
+    {
+      env: { ...process.env, FAKE_APP_SERVER_SCENARIO: scenario },
+      shell: false,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    },
+  );
   const runtime = new CodexAppServerProcess(
     child,
     { path: process.execPath, source: "explicit" },
@@ -72,12 +80,29 @@ afterEach(async () => {
 });
 
 describe("CodexAppServerProcess", () => {
+  it.runIf(process.platform !== "win32")(
+    "enables the plugins feature for the production app-server process",
+    async () => {
+      const runtime = await startCodexAppServer({
+        appVersion: "1.2.3",
+        binaryPath: fakeAppServerPath,
+        rpcTimeoutMs: 1_000,
+        shutdownTimeoutMs: 100,
+      });
+      runtimes.push(runtime);
+
+      await expect(runtime.client.request("inspect")).resolves.toMatchObject({
+        args: ["app-server", "--enable", "plugins", "--listen", "stdio://"],
+      });
+    },
+  );
+
   it("starts with fixed arguments, completes the handshake, and responds", async () => {
     const runtime = await startFake();
 
     await expect(runtime.client.request("echo", { ok: true })).resolves.toEqual({ ok: true });
     await expect(runtime.client.request("inspect")).resolves.toEqual({
-      args: ["app-server", "--listen", "stdio://"],
+      args: ["app-server", "--enable", "plugins", "--listen", "stdio://"],
       initializeParams: {
         capabilities: {
           experimentalApi: true,

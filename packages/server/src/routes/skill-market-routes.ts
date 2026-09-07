@@ -5,6 +5,10 @@ import {
   ConfiguredMcpServerPageSchema,
   InstalledSkillPageSchema,
   OpenSkillDirectoryResponseSchema,
+  OfficialPluginDetailSchema,
+  OfficialPluginInstallResultSchema,
+  OfficialPluginPageSchema,
+  OfficialPluginUninstallResultSchema,
   SetMcpServerEnabledResponseSchema,
   SetSkillEnabledResponseSchema,
   SkillInstallResultSchema,
@@ -55,6 +59,32 @@ const MarketQuerySchema = Type.Object(
   },
   { additionalProperties: false },
 );
+const OfficialPluginParamsSchema = Type.Object(
+  {
+    marketplaceName: Type.String({ maxLength: 160, minLength: 1 }),
+    pluginName: Type.String({ maxLength: 240, minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
+const OfficialPluginQuerySchema = Type.Object(
+  { marketplacePath: Type.Optional(Type.String({ maxLength: 4_096, minLength: 1 })) },
+  { additionalProperties: false },
+);
+const OfficialPluginListQuerySchema = Type.Object(
+  { forceRefetch: Type.Optional(Type.Boolean()) },
+  { additionalProperties: false },
+);
+const OfficialPluginInstallBodySchema = Type.Object(
+  {
+    installAttemptId: Type.String({ maxLength: 200, minLength: 1 }),
+    marketplacePath: Type.Union([Type.String({ maxLength: 4_096, minLength: 1 }), Type.Null()]),
+  },
+  { additionalProperties: false },
+);
+const OfficialPluginUninstallBodySchema = Type.Object(
+  { pluginId: Type.String({ maxLength: 300, minLength: 1 }) },
+  { additionalProperties: false },
+);
 
 function toHttpError(error: unknown): never {
   if (!(error instanceof SkillMarketError)) throw error;
@@ -95,6 +125,85 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
 
   app.get("/v1/skills/installed", { schema: { response: { 200: InstalledSkillPageSchema } } }, () =>
     skillMarketService.listInstalledSkills(false),
+  );
+  app.get<{ Querystring: { forceRefetch?: boolean } }>(
+    "/v1/plugins/official",
+    {
+      schema: {
+        querystring: OfficialPluginListQuerySchema,
+        response: { 200: OfficialPluginPageSchema },
+      },
+    },
+    (request) => skillMarketService.listOfficialPlugins(request.query.forceRefetch ?? false),
+  );
+  app.get<{
+    Params: { marketplaceName: string; pluginName: string };
+    Querystring: { marketplacePath?: string };
+  }>(
+    "/v1/plugins/official/:marketplaceName/:pluginName",
+    {
+      schema: {
+        params: OfficialPluginParamsSchema,
+        querystring: OfficialPluginQuerySchema,
+        response: { 200: OfficialPluginDetailSchema, ...mutationErrors },
+      },
+    },
+    (request) =>
+      skillMarketService.getOfficialPlugin(
+        request.params.marketplaceName,
+        request.query.marketplacePath ?? null,
+        request.params.pluginName,
+      ),
+  );
+  app.post<{
+    Body: { installAttemptId: string; marketplacePath: string | null };
+    Headers: { "idempotency-key": string };
+    Params: { marketplaceName: string; pluginName: string };
+  }>(
+    "/v1/plugins/official/:marketplaceName/:pluginName/install",
+    {
+      schema: {
+        body: OfficialPluginInstallBodySchema,
+        headers: IdempotencyHeadersSchema,
+        params: OfficialPluginParamsSchema,
+        response: { 200: OfficialPluginInstallResultSchema, ...mutationErrors },
+      },
+    },
+    (request) =>
+      runIdempotent(
+        ["install-official-plugin", request.params.marketplaceName, request.params.pluginName],
+        request.headers["idempotency-key"],
+        request.body,
+        () =>
+          skillMarketService.installOfficialPlugin(
+            request.params.marketplaceName,
+            request.body.marketplacePath,
+            request.params.pluginName,
+            request.body.installAttemptId,
+          ),
+      ),
+  );
+  app.post<{
+    Body: { pluginId: string };
+    Headers: { "idempotency-key": string };
+    Params: { marketplaceName: string; pluginName: string };
+  }>(
+    "/v1/plugins/official/:marketplaceName/:pluginName/uninstall",
+    {
+      schema: {
+        body: OfficialPluginUninstallBodySchema,
+        headers: IdempotencyHeadersSchema,
+        params: OfficialPluginParamsSchema,
+        response: { 200: OfficialPluginUninstallResultSchema, ...mutationErrors },
+      },
+    },
+    (request) =>
+      runIdempotent(
+        ["uninstall-official-plugin", request.params.marketplaceName, request.params.pluginName],
+        request.headers["idempotency-key"],
+        request.body,
+        () => skillMarketService.uninstallOfficialPlugin(request.body.pluginId),
+      ),
   );
   app.get<{ Querystring: { cursor?: string; query?: string; sort?: string } }>(
     "/v1/skills/market",

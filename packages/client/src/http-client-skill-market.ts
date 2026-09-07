@@ -5,6 +5,10 @@ import {
   ConfiguredMcpServerPageSchema,
   InstalledSkillPageSchema,
   OpenSkillDirectoryResponseSchema,
+  OfficialPluginDetailSchema,
+  OfficialPluginInstallResultSchema,
+  OfficialPluginPageSchema,
+  OfficialPluginUninstallResultSchema,
   SetMcpServerEnabledResponseSchema,
   SetSkillEnabledResponseSchema,
   SkillInstallResultSchema,
@@ -13,6 +17,10 @@ import {
   type ConfiguredMcpServerPage,
   type InstalledSkillPage,
   type OpenSkillDirectoryResponse,
+  type OfficialPluginDetail,
+  type OfficialPluginInstallResult,
+  type OfficialPluginPage,
+  type OfficialPluginUninstallResult,
   type SetMcpServerEnabledResponse,
   type SetSkillEnabledResponse,
   type SkillInstallResult,
@@ -27,6 +35,63 @@ import {
 } from "./http-client-transport.js";
 
 export class SkillMarketHttpClient extends CodexlyTransport {
+  public async listOfficialPlugins(
+    forceRefetch: boolean,
+    options: ReadOptions = {},
+  ): Promise<OfficialPluginPage> {
+    return this.read(
+      appendQuery("/v1/plugins/official", { forceRefetch: forceRefetch ? "true" : undefined }),
+      OfficialPluginPageSchema,
+      options,
+    );
+  }
+
+  public async getOfficialPlugin(
+    marketplaceName: string,
+    marketplacePath: string | null,
+    pluginName: string,
+    options: ReadOptions = {},
+  ): Promise<OfficialPluginDetail> {
+    return this.read(
+      appendQuery(
+        `/v1/plugins/official/${encodeURIComponent(marketplaceName)}/${encodeURIComponent(pluginName)}`,
+        { marketplacePath: marketplacePath ?? undefined },
+      ),
+      OfficialPluginDetailSchema,
+      options,
+      AgentMutationErrorSchema,
+    );
+  }
+
+  public async installOfficialPlugin(
+    marketplaceName: string,
+    marketplacePath: string | null,
+    pluginName: string,
+    installAttemptId: string,
+    options: MutationOptions = {},
+  ): Promise<OfficialPluginInstallResult> {
+    return this.mutation(
+      `/v1/plugins/official/${encodeURIComponent(marketplaceName)}/${encodeURIComponent(pluginName)}/install`,
+      { installAttemptId, marketplacePath },
+      OfficialPluginInstallResultSchema,
+      options,
+    );
+  }
+
+  public async uninstallOfficialPlugin(
+    marketplaceName: string,
+    pluginName: string,
+    pluginId: string,
+    options: MutationOptions = {},
+  ): Promise<OfficialPluginUninstallResult> {
+    return this.mutation(
+      `/v1/plugins/official/${encodeURIComponent(marketplaceName)}/${encodeURIComponent(pluginName)}/uninstall`,
+      { pluginId },
+      OfficialPluginUninstallResultSchema,
+      options,
+    );
+  }
+
   public async listInstalledSkills(options: ReadOptions = {}): Promise<InstalledSkillPage> {
     return this.read("/v1/skills/installed", InstalledSkillPageSchema, options);
   }

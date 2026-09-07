@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useRef, type CSSProperties } from "react";
 
 import { Button } from "../../../shared/components/core/button.js";
@@ -23,23 +24,24 @@ type WorkbenchShellStyle = CSSProperties &
 export function WorkbenchShellLayout({
   board,
   context,
+  extensionSection,
   projectId,
   scheduled,
-  skillsMarket,
   taskId,
   temporary,
   todoId,
 }: Readonly<{
   board: boolean;
   context: ReturnType<typeof useWorkbenchShellController>;
+  extensionSection?: string;
   projectId: string;
   scheduled: boolean;
-  skillsMarket: boolean;
   taskId?: string;
   temporary: boolean;
   todoId?: string;
 }>) {
   const composerRef = useRef<WorkbenchComposerHandle>(null);
+  const navigate = useNavigate();
   const {
     appInfoQuery,
     backgroundTerminals,
@@ -116,7 +118,8 @@ export function WorkbenchShellLayout({
     workbenchShellRef,
     t,
   } = context;
-  const utilityView = board || skillsMarket || scheduled;
+  const extensions = extensionSection !== undefined;
+  const utilityView = board || extensions || scheduled;
   return (
     <div
       className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
@@ -180,7 +183,7 @@ export function WorkbenchShellLayout({
         aria-label={t(
           scheduled
             ? "scheduledTasks.title"
-            : skillsMarket
+            : extensions
               ? "skillsMarket.title"
               : board
                 ? "taskBoard.label"
@@ -192,14 +195,25 @@ export function WorkbenchShellLayout({
           board={board}
           context={context}
           scheduled={scheduled}
-          skillsMarket={skillsMarket}
+          skillsMarket={extensions}
           temporary={temporary}
           {...(taskId === undefined ? {} : { taskId })}
         />
         {scheduled ? (
           <ScheduledTasksView context={context} projectId={projectId} temporary={temporary} />
-        ) : skillsMarket ? (
+        ) : extensions ? (
           <SkillsMarketView
+            section={extensionSection}
+            onSectionChange={(nextSection) => {
+              void navigate(
+                temporary
+                  ? { params: { section: nextSection }, to: "/temporary/extensions/$section" }
+                  : {
+                      params: { projectId, section: nextSection },
+                      to: "/p/$projectId/extensions/$section",
+                    },
+              );
+            }}
             {...(temporary ? {} : { projectId })}
             {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
           />

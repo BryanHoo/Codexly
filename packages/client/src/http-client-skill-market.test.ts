@@ -30,7 +30,37 @@ describe("CodexlyClient skill market", () => {
         url,
       });
       let response: unknown = { data: [], nextCursor: null };
-      if (url.includes("/market?")) response = { items: [summary], nextCursor: null };
+      if (url.includes("/plugins/official?")) response = { data: [] };
+      else if (url.includes("/plugins/official/openai-curated/github")) {
+        response = url.endsWith("/install")
+          ? { appsNeedingAuth: [], authPolicy: "ON_USE" }
+          : url.endsWith("/uninstall")
+            ? {}
+            : {
+                apps: [],
+                authPolicy: "ON_USE",
+                availability: "AVAILABLE",
+                description: "GitHub integration",
+                developerName: "OpenAI",
+                disabledReason: null,
+                displayName: "GitHub",
+                enabled: false,
+                hooks: [],
+                id: "github@openai-curated",
+                installPolicy: "AVAILABLE",
+                installed: false,
+                localVersion: null,
+                logoUrl: null,
+                marketplaceName: "openai-curated",
+                marketplacePath: null,
+                mcpServers: [],
+                name: "github",
+                pluginName: "github",
+                skills: [],
+                version: "1.0.0",
+                websiteUrl: null,
+              };
+      } else if (url.includes("/market?")) response = { items: [summary], nextCursor: null };
       else if (url.endsWith("/market/codex/review"))
         response = {
           ...summary,
@@ -63,6 +93,10 @@ describe("CodexlyClient skill market", () => {
     await client.setSkillEnabled("/skills/review/SKILL.md", false);
     await client.listConfiguredMcpServers();
     await client.setMcpServerEnabled("docs/search", false);
+    await client.listOfficialPlugins(true);
+    await client.getOfficialPlugin("openai-curated", null, "github");
+    await client.installOfficialPlugin("openai-curated", null, "github", "attempt-1");
+    await client.uninstallOfficialPlugin("openai-curated", "github", "github@openai-curated");
 
     expect(calls.map(({ method, url }) => ({ method, url }))).toEqual([
       { method: "GET", url: "http://localhost/v1/skills/installed" },
@@ -73,6 +107,16 @@ describe("CodexlyClient skill market", () => {
       { method: "PUT", url: "http://localhost/v1/skills/enabled" },
       { method: "GET", url: "http://localhost/v1/mcp-servers/configured" },
       { method: "PUT", url: "http://localhost/v1/mcp-servers/configured/docs%2Fsearch/enabled" },
+      { method: "GET", url: "http://localhost/v1/plugins/official?forceRefetch=true" },
+      { method: "GET", url: "http://localhost/v1/plugins/official/openai-curated/github" },
+      {
+        method: "POST",
+        url: "http://localhost/v1/plugins/official/openai-curated/github/install",
+      },
+      {
+        method: "POST",
+        url: "http://localhost/v1/plugins/official/openai-curated/github/uninstall",
+      },
     ]);
   });
 });
