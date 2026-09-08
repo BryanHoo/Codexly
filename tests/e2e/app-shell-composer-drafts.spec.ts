@@ -1,5 +1,6 @@
 import {
   chooseHostAttachment,
+  enableLanAccess,
   expect,
   taskSnapshot,
   taskSnapshotResponse,
@@ -36,6 +37,7 @@ test("disables composer mutations that the provider does not support", async ({ 
 });
 
 test("stores composer drafts independently between task routes", async ({ page }) => {
+  await enableLanAccess(page);
   await page.route("**/v1/projects/codexly/tasks/input-design", async (route) => {
     await route.fulfill({
       contentType: "application/json",

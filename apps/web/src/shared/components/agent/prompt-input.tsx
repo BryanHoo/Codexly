@@ -14,6 +14,7 @@ import { useTranslation } from "../../../i18n/i18n.js";
 import {
   PromptInputAttachmentsContext,
   type PromptInputAttachment,
+  type PromptInputAttachmentKind,
   type PromptInputAttachmentsContextValue,
   type PromptInputError,
   type PromptInputMessage,
@@ -107,6 +108,8 @@ export function PromptInput({
   const [internalFiles, setInternalFiles] = useState<PromptInputAttachment[]>([]);
   const files = attachments ?? internalFiles;
   const filesRef = useRef(files);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const controlledRef = useRef(attachments !== undefined);
   const previousResetKeyRef = useRef(resetKey);
   filesRef.current = files;
@@ -238,6 +241,10 @@ export function PromptInput({
     });
   }, [updateFiles]);
 
+  const openFilePicker = useCallback((kind: PromptInputAttachmentKind) => {
+    (kind === "image" ? imageInputRef : fileInputRef).current?.click();
+  }, []);
+
   useLayoutEffect(() => {
     if (previousResetKeyRef.current === resetKey) {
       return;
@@ -305,10 +312,20 @@ export function PromptInput({
       clear,
       disabled,
       files,
+      openFilePicker,
       remove,
     }),
-    [clear, disabled, files, remove],
+    [clear, disabled, files, openFilePicker, remove],
   );
+
+  const handleFileSelection = (input: HTMLInputElement) => {
+    const selectedFiles = input.files;
+    if (selectedFiles !== null && selectedFiles.length > 0) {
+      addFiles([...selectedFiles]);
+    }
+    // 清空原生控件，确保用户删除附件后仍可重新选择同一个文件。
+    input.value = "";
+  };
 
   return (
     <PromptInputAttachmentsContext.Provider value={context}>
@@ -351,6 +368,30 @@ export function PromptInput({
           onSubmit?.({ files, text: typeof value === "string" ? value : "" }, event);
         }}
       >
+        <input
+          {...(fileAccept === undefined ? {} : { accept: fileAccept })}
+          data-prompt-input-picker="file"
+          disabled={disabled}
+          hidden
+          multiple={multiple}
+          onChange={(event) => {
+            handleFileSelection(event.currentTarget);
+          }}
+          ref={fileInputRef}
+          type="file"
+        />
+        <input
+          {...(imageAccept === undefined ? {} : { accept: imageAccept })}
+          data-prompt-input-picker="image"
+          disabled={disabled}
+          hidden
+          multiple={multiple}
+          onChange={(event) => {
+            handleFileSelection(event.currentTarget);
+          }}
+          ref={imageInputRef}
+          type="file"
+        />
         {children}
       </form>
     </PromptInputAttachmentsContext.Provider>

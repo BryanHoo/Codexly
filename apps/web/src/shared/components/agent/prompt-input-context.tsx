@@ -48,6 +48,7 @@ export type PromptInputAttachmentsContextValue = Readonly<{
   clear: () => void;
   disabled: boolean;
   files: readonly PromptInputAttachment[];
+  openFilePicker: (kind: PromptInputAttachmentKind) => void;
   remove: (id: string) => void;
 }>;
 

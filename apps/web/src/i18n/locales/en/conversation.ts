@@ -17,6 +17,8 @@ export const conversation = {
     addFile: "Add file",
     addImage: "Add image",
     addImageOrFile: "Add image or file",
+    currentDevice: "Current device",
+    deploymentHost: "Deployment host",
     approval: "Approval",
     approvalAccepted: "Request allowed",
     approvalRejected: "Request denied",

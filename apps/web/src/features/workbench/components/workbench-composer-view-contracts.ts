@@ -113,6 +113,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   selectedModel: AgentModel | undefined;
   selectedReasoningEffort: string | undefined;
   selectedProjectRootId: string;
+  showDeploymentHostAttachments: boolean;
   setActiveCommandIndex: Dispatch<SetStateAction<number>>;
   skills: readonly AgentSkill[];
   skillEditorRef: RefObject<PromptSkillEditorHandle | null>;

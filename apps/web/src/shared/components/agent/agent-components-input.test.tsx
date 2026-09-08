@@ -46,7 +46,7 @@ describe("agent input components", () => {
         </PromptInputBody>
         <PromptInputFooter>
           <PromptInputTools>
-            <PromptInputActionAddAttachments onSelectKind={vi.fn()} />
+            <PromptInputActionAddAttachments onSelectKind={vi.fn()} showDeploymentHost />
           </PromptInputTools>
           <PromptInputSubmit aria-label="提交" disabled status="idle" />
         </PromptInputFooter>
@@ -57,12 +57,38 @@ describe("agent input components", () => {
     expect(markup).toContain('aria-label="提交"');
     expect(markup).toContain("disabled");
     expect(markup).toContain("shadow-floating");
-    expect(markup).not.toContain('type="file"');
+    expect(markup.match(/type="file"/gu)).toHaveLength(2);
+    expect(markup).toContain('data-prompt-input-picker="image"');
+    expect(markup).toContain('accept=".png,.jpg,.jpeg,.webp,.gif"');
+    expect(markup).toContain('data-prompt-input-picker="file"');
+    expect(markup).toContain('accept=".pdf,.docx,.xlsx,.txt,.md"');
     expect(markup).toContain('aria-label="添加图片或文件"');
+    expect(markup).toContain('aria-label="当前设备"');
+    expect(markup).toContain('aria-label="部署主机"');
+    expect(markup.match(/data-content-align="start"/gu)).toHaveLength(4);
+    expect(markup).toMatch(/<p[^>]*>当前设备<\/p>/u);
+    expect(markup).toMatch(/<p[^>]*>部署主机<\/p>/u);
     expect(markup).toContain("添加图片");
     expect(markup).toContain("添加文件");
     expect(markup).not.toContain("aria-disabled");
     expect(markup).toContain('data-prompt-input=""');
+  });
+
+  it("本机模式仅显示当前设备附件来源", () => {
+    const markup = renderToStaticMarkup(
+      <PromptInput multiple>
+        <PromptInputFooter>
+          <PromptInputTools>
+            <PromptInputActionAddAttachments onSelectKind={vi.fn()} />
+          </PromptInputTools>
+        </PromptInputFooter>
+      </PromptInput>,
+    );
+
+    expect(markup).toContain('aria-label="当前设备"');
+    expect(markup).not.toContain('aria-label="部署主机"');
+    expect(markup.match(/data-content-align="start"/gu)).toHaveLength(2);
+    expect(markup).not.toMatch(/<p[^>]*>当前设备<\/p>/u);
   });
 
   it("识别多平台输入框换行快捷键", () => {

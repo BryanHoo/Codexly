@@ -1,4 +1,10 @@
-import { chooseHostAttachment, expect, projects, test } from "./fixtures/app-shell.js";
+import {
+  chooseHostAttachment,
+  enableLanAccess,
+  expect,
+  projects,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -299,6 +305,7 @@ test("shows a newly submitted task from the launch checkpoint without reading it
 });
 
 test("stores new-chat text and attachments independently between projects", async ({ page }) => {
+  await enableLanAccess(page);
   await page.goto("/p/codexly");
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("保留这段新聊天草稿");

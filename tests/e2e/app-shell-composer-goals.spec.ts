@@ -1,4 +1,10 @@
-import { chooseHostAttachment, expect, taskSnapshot, test } from "./fixtures/app-shell.js";
+import {
+  chooseHostAttachment,
+  enableLanAccess,
+  expect,
+  taskSnapshot,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -196,6 +202,7 @@ test("builds a completed plan as a normal development turn", async ({ page }) =>
 });
 
 test("selects and submits a host file as an attachment", async ({ page }) => {
+  await enableLanAccess(page);
   let importRequest: { body: unknown; url: string } | undefined;
   let turnBody: unknown;
   await page.route("**/v1/projects/codexly/attachments/file/host", async (route) => {

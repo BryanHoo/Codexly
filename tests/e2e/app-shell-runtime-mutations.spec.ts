@@ -1,4 +1,4 @@
-import { chooseHostAttachment, expect, test } from "./fixtures/app-shell.js";
+import { chooseHostAttachment, enableLanAccess, expect, test } from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -87,6 +87,7 @@ test("ignores repeated interrupt clicks while the request is in flight", async (
 });
 
 test("preserves the prompt draft when submission fails", async ({ page }) => {
+  await enableLanAccess(page);
   await page.route("**/v1/projects/codexly/attachments/image/host", async (route) => {
     await route.fulfill({
       contentType: "application/json",

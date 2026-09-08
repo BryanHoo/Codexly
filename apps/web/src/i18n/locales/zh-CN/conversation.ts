@@ -17,6 +17,8 @@ export const conversation = {
     addFile: "添加文件",
     addImage: "添加图片",
     addImageOrFile: "添加图片或文件",
+    currentDevice: "当前设备",
+    deploymentHost: "部署主机",
     approval: "审批",
     approvalAccepted: "请求已允许",
     approvalRejected: "请求已拒绝",

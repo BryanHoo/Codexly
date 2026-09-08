@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useState } from "react";
+import { useAccess } from "../../access/access-context.js";
 import { AsyncQuestionComposer } from "./async-question-composer.js";
 import { useComposerSettingsUpdate } from "./workbench-composer-settings.js";
 import { useComposerMenuDismissal } from "./workbench-composer-menus.js";
@@ -63,6 +64,7 @@ export function WorkbenchComposer({
   taskId,
 }: WorkbenchComposerProps) {
   const { t } = useTranslation(["workbench", "settings"]);
+  const access = useAccess();
   const todoEditing = useProjectTodoEditing(projectId, initialTodoId);
   const { editingTodoId, projectTodos, todos } = todoEditing;
   const session = useComposerSession({
@@ -441,6 +443,7 @@ export function WorkbenchComposer({
       selectedModel={selectedModel}
       selectedReasoningEffort={selectedReasoningEffort}
       selectedProjectRootId={selectedProjectRootId}
+      showDeploymentHostAttachments={access.status?.mode === "lan"}
       setActiveCommandIndex={setActiveCommandIndex}
       skills={skills}
       skillEditorRef={skillEditorRef}

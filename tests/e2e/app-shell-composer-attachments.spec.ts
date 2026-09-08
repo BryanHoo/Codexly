@@ -1,4 +1,9 @@
-import { chooseHostAttachment, expect, test } from "./fixtures/app-shell.js";
+import {
+  chooseBrowserAttachment,
+  chooseHostAttachment,
+  expect,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -117,6 +122,108 @@ test("converts large pasted text into a submitted file attachment", async ({ pag
   });
 });
 
+test("uploads images and files selected from the browser device in LAN mode @cross-browser", async ({
+  page,
+}) => {
+  const uploadRequests: {
+    contentType: string | undefined;
+    postData: string | null;
+    url: string;
+  }[] = [];
+  let turnBody: unknown;
+  await page.route("**/v1/projects/codexly/attachments/*", async (route) => {
+    const request = route.request();
+    uploadRequests.push({
+      contentType: request.headers()["content-type"],
+      postData: request.postData(),
+      url: request.url(),
+    });
+    const image = request.url().endsWith("/image");
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        attachment: {
+          id: image ? "attachment-browser-image" : "attachment-browser-file",
+          kind: image ? "image" : "file",
+          mediaType: image ? "image/png" : "application/pdf",
+          name: image ? "visitor.png" : "visitor.pdf",
+          size: 8,
+        },
+      },
+      status: 201,
+    });
+  });
+  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+    turnBody = route.request().postDataJSON();
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
+        taskId: "task-1",
+        turn: {
+          completedAt: null,
+          error: null,
+          id: "turn-browser-file",
+          items: [],
+          startedAt: "2026-09-08T00:00:00.000Z",
+          status: "running",
+        },
+      },
+      status: 201,
+    });
+  });
+  await page.route("**/v1/access", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: { authenticated: true, mode: "lan", version: 1 },
+    });
+  });
+  await page.goto("/p/codexly/t/task-1");
+
+  await chooseBrowserAttachment(page, "image", {
+    buffer: Buffer.from("png-data"),
+    mimeType: "image/png",
+    name: "visitor.png",
+  });
+  await chooseBrowserAttachment(page, "file", {
+    buffer: Buffer.from("pdf-data"),
+    mimeType: "application/pdf",
+    name: "visitor.pdf",
+  });
+  await expect(page.getByText("visitor.png", { exact: true })).toBeVisible();
+  await expect(page.getByText("visitor.pdf", { exact: true })).toBeVisible();
+  await page.getByRole("textbox", { name: "任务输入" }).fill("检查访问设备附件");
+  await page.getByRole("button", { exact: true, name: "提交" }).click();
+
+  await expect.poll(() => uploadRequests).toHaveLength(2);
+  expect(uploadRequests.map((request) => request.url)).toEqual(
+    expect.arrayContaining([
+      expect.stringMatching(/\/attachments\/image$/u),
+      expect.stringMatching(/\/attachments\/file$/u),
+    ]),
+  );
+  expect(
+    uploadRequests.every(
+      (request) => request.contentType?.startsWith("multipart/form-data; boundary=") === true,
+    ),
+  ).toBe(true);
+  expect(uploadRequests.map((request) => request.postData).join("\n")).toContain(
+    'name="attachment"; filename="visitor.png"',
+  );
+  expect(uploadRequests.map((request) => request.postData).join("\n")).toContain(
+    'name="attachment"; filename="visitor.pdf"',
+  );
+  await expect
+    .poll(() => turnBody)
+    .toMatchObject({
+      input: {
+        attachments: [{ id: "attachment-browser-image" }, { id: "attachment-browser-file" }],
+        text: "检查访问设备附件",
+        type: "prompt",
+      },
+    });
+});
+
 test("submits host attachments, approval policy, model, and reasoning effort through the real client contract", async ({
   page,
 }) => {
@@ -168,6 +275,12 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
         },
       },
       status: 201,
+    });
+  });
+  await page.route("**/v1/access", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: { authenticated: true, mode: "lan", version: 1 },
     });
   });
   await page.goto("/p/codexly/t/task-1");

@@ -1,4 +1,10 @@
-import { expect, taskSnapshot, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
+import {
+  enableLanAccess,
+  expect,
+  taskSnapshot,
+  taskSnapshotResponse,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -11,7 +17,20 @@ test("keeps composer attachment icons aligned with the compact toolbar", async (
   await expect(attachmentButton.locator("svg")).toHaveCSS("height", "14px");
 
   await attachmentButton.click();
-  const imageMenuIcon = page.getByRole("menuitem", { name: "添加图片" }).locator("svg");
+  const imageMenuIcon = page
+    .getByRole("group", { name: "当前设备" })
+    .getByRole("menuitem", { name: "添加图片" })
+    .locator("svg");
+  await expect(page.getByRole("menuitem", { name: "添加图片" })).toHaveCSS(
+    "justify-content",
+    "flex-start",
+  );
+  await expect(page.getByRole("menuitem", { name: "添加文件" })).toHaveCSS(
+    "justify-content",
+    "flex-start",
+  );
+  await expect(page.getByText("当前设备", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("group", { name: "部署主机" })).toHaveCount(0);
   await expect(imageMenuIcon).toHaveCSS("width", "16px");
   await expect(imageMenuIcon).toHaveCSS("height", "16px");
 });
@@ -83,6 +102,7 @@ test("switches composer task settings without success toasts", async ({ page }) 
 test("navigates absolute paths and toggles hidden files in the host file picker", async ({
   page,
 }) => {
+  await enableLanAccess(page);
   const hostFileQueries: URL[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
@@ -92,8 +112,11 @@ test("navigates absolute paths and toggles hidden files in the host file picker"
   await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("button", { name: "添加图片或文件" }).click();
-  await page.getByRole("menuitem", { name: "添加文件" }).click();
-  const dialog = page.getByRole("dialog", { name: "选择本机文件" });
+  await page
+    .getByRole("group", { name: "部署主机" })
+    .getByRole("menuitem", { name: "添加文件" })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "选择部署主机文件" });
   const pathInput = dialog.getByRole("textbox", { name: "绝对目录路径" });
   await expect(pathInput).toHaveValue("/Users/bryan/Attachments");
   await expect(dialog.getByRole("treeitem", { name: ".secret.pdf", exact: true })).toHaveCount(0);

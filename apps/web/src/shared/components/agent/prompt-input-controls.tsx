@@ -165,13 +165,68 @@ export const PromptInputTextarea = forwardRef<HTMLTextAreaElement, PromptInputTe
 type PromptInputActionAddAttachmentsProps = PromptInputButtonProps & {
   label?: string;
   onSelectKind: (kind: PromptInputAttachmentKind) => void;
+  showDeploymentHost?: boolean;
 };
+
+type AttachmentMenuGroupProps = Readonly<{
+  label: string;
+  onSelect: (kind: PromptInputAttachmentKind) => void;
+  separated?: boolean;
+  showHeading?: boolean;
+}>;
+
+function AttachmentMenuGroup({
+  label,
+  onSelect,
+  separated = false,
+  showHeading = true,
+}: AttachmentMenuGroupProps) {
+  const { t } = useTranslation("conversation");
+  return (
+    <div
+      aria-label={label}
+      className={separated ? "mt-1 border-t border-separator pt-1" : undefined}
+      role="group"
+    >
+      {showHeading ? (
+        <p className="px-2 pb-1 pt-1 text-caption text-muted-foreground">{label}</p>
+      ) : null}
+      <Button
+        variant="ghost"
+        className="flex h-8 w-full items-center gap-2 rounded-control px-2 text-label text-foreground hover:bg-control-hover"
+        contentAlign="start"
+        onClick={() => {
+          onSelect("image");
+        }}
+        role="menuitem"
+        type="button"
+      >
+        <ImagePlus aria-hidden="true" className="size-4 text-muted-foreground" />
+        {t("agentComponents.addImage")}
+      </Button>
+      <Button
+        variant="ghost"
+        className="flex h-8 w-full items-center gap-2 rounded-control px-2 text-label text-foreground hover:bg-control-hover"
+        contentAlign="start"
+        onClick={() => {
+          onSelect("file");
+        }}
+        role="menuitem"
+        type="button"
+      >
+        <FilePlus2 aria-hidden="true" className="size-4 text-muted-foreground" />
+        {t("agentComponents.addFile")}
+      </Button>
+    </div>
+  );
+}
 
 export function PromptInputActionAddAttachments({
   children,
   label,
   onClick,
   onSelectKind,
+  showDeploymentHost = false,
   ...props
 }: PromptInputActionAddAttachmentsProps) {
   const attachments = usePromptInputAttachments();
@@ -214,37 +269,30 @@ export function PromptInputActionAddAttachments({
         {children ?? <Paperclip aria-hidden="true" className="size-3.5" />}
       </PromptInputButton>
       <div
-        className="absolute bottom-9 left-0 z-50 min-w-36 rounded-control border border-separator-strong bg-raised p-1 shadow-floating"
+        className="absolute bottom-9 left-0 z-50 min-w-40 rounded-control border border-separator-strong bg-raised p-1 shadow-floating"
         data-floating-surface
         hidden={!open}
         role="menu"
       >
-        <Button
-          variant="ghost"
-          className="flex h-8 w-full items-center gap-2 rounded-control px-2 text-left text-label text-foreground hover:bg-control-hover"
-          onClick={() => {
+        {/* 本机只有一种来源，直接展示附件动作即可。 */}
+        <AttachmentMenuGroup
+          label={t("agentComponents.currentDevice")}
+          onSelect={(kind) => {
             setOpen(false);
-            onSelectKind("image");
+            attachments.openFilePicker(kind);
           }}
-          role="menuitem"
-          type="button"
-        >
-          <ImagePlus aria-hidden="true" className="size-4 text-muted-foreground" />
-          {t("agentComponents.addImage")}
-        </Button>
-        <Button
-          variant="ghost"
-          className="flex h-8 w-full items-center gap-2 rounded-control px-2 text-left text-label text-foreground hover:bg-control-hover"
-          onClick={() => {
-            setOpen(false);
-            onSelectKind("file");
-          }}
-          role="menuitem"
-          type="button"
-        >
-          <FilePlus2 aria-hidden="true" className="size-4 text-muted-foreground" />
-          {t("agentComponents.addFile")}
-        </Button>
+          showHeading={showDeploymentHost}
+        />
+        {showDeploymentHost ? (
+          <AttachmentMenuGroup
+            label={t("agentComponents.deploymentHost")}
+            onSelect={(kind) => {
+              setOpen(false);
+              onSelectKind(kind);
+            }}
+            separated
+          />
+        ) : null}
       </div>
     </div>
   );

@@ -33,7 +33,7 @@ describe("HostAttachmentPickerDialog", () => {
     );
 
     expect(markup).toContain('role="dialog"');
-    expect(markup).toContain("选择本机图片");
+    expect(markup).toContain("选择部署主机图片");
     expect(markup).toContain("正在读取文件");
     expect(markup).toContain('aria-label="绝对目录路径"');
     expect(markup).toContain('aria-label="前往此路径"');

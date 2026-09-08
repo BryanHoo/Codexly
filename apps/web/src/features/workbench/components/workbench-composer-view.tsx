@@ -361,6 +361,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                 className="max-workbench:w-8 max-workbench:min-w-8 max-workbench:px-0 max-[360px]:!w-6 max-[360px]:!min-w-6"
                 disabled={props.attachmentsDisabled}
                 onSelectKind={props.onSelectAttachmentKind}
+                showDeploymentHost={props.showDeploymentHostAttachments}
               />
               <ComposerApprovalControls
                 disabled={props.turnControlsDisabled}
