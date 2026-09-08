@@ -297,8 +297,6 @@ export {
   UnsubscribeAgentTaskResponseSchema,
   TerminateAgentBackgroundTerminalResponseSchema,
   AGENT_FILE_ACCEPT,
-  AGENT_FILE_EXTENSIONS,
-  AGENT_FILE_MEDIA_TYPES,
   AGENT_IMAGE_ACCEPT,
   MAX_AGENT_ATTACHMENT_BYTES,
   MAX_AGENT_FILE_BYTES,

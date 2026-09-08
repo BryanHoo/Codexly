@@ -9,8 +9,6 @@ import { pipeline } from "node:stream/promises";
 import { TextDecoder } from "node:util";
 
 import {
-  AGENT_FILE_EXTENSIONS,
-  AGENT_FILE_MEDIA_TYPES,
   MAX_AGENT_FILE_BYTES,
   MAX_AGENT_FILE_TOTAL_BYTES,
   MAX_AGENT_IMAGE_BYTES,
@@ -47,8 +45,6 @@ const IMAGE_EXTENSIONS = new Map<AgentImageMediaType, string>([
   ["image/png", ".png"],
   ["image/webp", ".webp"],
 ]);
-const FILE_EXTENSIONS = new Set<string>(AGENT_FILE_EXTENSIONS);
-const FILE_MEDIA_TYPES = new Set<string>(AGENT_FILE_MEDIA_TYPES);
 
 export class AttachmentNotFoundError extends Error {
   public constructor() {
@@ -90,9 +86,7 @@ function validateUploadMetadata(input: AttachmentUploadInput): string {
     return ".txt";
   }
   const extension = extname(input.name).toLowerCase();
-  if (!FILE_EXTENSIONS.has(extension) && !FILE_MEDIA_TYPES.has(input.mediaType)) {
-    throw new TypeError("Attachment file type is unsupported");
-  }
+  // 普通文件不解析内容，保留后缀落盘后由 Provider 作为本地路径交给 Codex。
   return extension;
 }
 

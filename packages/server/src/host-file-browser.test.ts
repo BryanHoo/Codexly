@@ -25,7 +25,7 @@ async function createTemporaryDirectory() {
 }
 
 describe("host file browser", () => {
-  it("lists real directories and only supported files for the requested attachment kind", async () => {
+  it("lists real directories and every ordinary file for file attachments", async () => {
     const homePath = await createTemporaryDirectory();
     const outsidePath = await createTemporaryDirectory();
     const filesystemRoots = () => Promise.resolve([]);
@@ -36,7 +36,7 @@ describe("host file browser", () => {
       writeFile(join(homePath, ".hidden.png"), "hidden image bytes"),
       writeFile(join(homePath, "README.md"), "# Codexly\n"),
       writeFile(join(homePath, "screen.PNG"), "image bytes"),
-      writeFile(join(homePath, "archive.zip"), "unsupported"),
+      writeFile(join(homePath, "archive.zip"), "archive bytes"),
       symlink(outsidePath, join(homePath, "linked-directory"), "junction"),
       symlink(outsidePath, join(homePath, "linked-file.md"), "junction"),
     ]);
@@ -57,6 +57,7 @@ describe("host file browser", () => {
       entries: [
         { name: "Alpha", type: "directory" },
         { name: "zeta", type: "directory" },
+        { name: "archive.zip", type: "file" },
         { name: "README.md", type: "file" },
       ],
     });
@@ -91,13 +92,13 @@ describe("host file browser", () => {
     });
   });
 
-  it("resolves supported ordinary files and rejects unsupported or symbolic-link targets", async () => {
+  it("resolves arbitrary ordinary files and rejects invalid or symbolic-link targets", async () => {
     const homePath = await createTemporaryDirectory();
     const imagePath = join(homePath, "screen.png");
-    const unsupportedPath = join(homePath, "archive.zip");
+    const arbitraryPath = join(homePath, "license_4_V009R001C-企业版-180天.dat");
     const linkedPath = join(homePath, "linked.png");
     await writeFile(imagePath, "image bytes");
-    await writeFile(unsupportedPath, "archive bytes");
+    await writeFile(arbitraryPath, "license bytes");
     const outsidePath = await createTemporaryDirectory();
     await symlink(outsidePath, linkedPath, "junction");
 
@@ -109,9 +110,13 @@ describe("host file browser", () => {
     });
     // 消费返回流，触发 autoClose，避免测试把文件句柄留给 GC。
     for await (const chunk of attachment.content) void chunk;
-    await expect(resolveHostAttachment("file", unsupportedPath)).rejects.toMatchObject({
-      reason: "unsupported-file",
+    const arbitraryAttachment = await resolveHostAttachment("file", arbitraryPath);
+    expect(arbitraryAttachment).toMatchObject({
+      kind: "file",
+      mediaType: "application/octet-stream",
+      name: "license_4_V009R001C-企业版-180天.dat",
     });
+    for await (const chunk of arbitraryAttachment.content) void chunk;
     await expect(resolveHostAttachment("image", linkedPath)).rejects.toBeInstanceOf(
       HostFileBrowserError,
     );

@@ -4,17 +4,11 @@ import { homedir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join } from "node:path";
 import type { Readable } from "node:stream";
 
-import {
-  AGENT_FILE_EXTENSIONS,
-  type AgentAttachmentMediaType,
-  type HostFileKind,
-  type HostFileListing,
-} from "@codexly/protocol";
+import type { AgentAttachmentMediaType, HostFileKind, HostFileListing } from "@codexly/protocol";
 
 import { classifyFilesystemEntries } from "./filesystem-entry-type.js";
 import { listFilesystemRoots } from "./filesystem-roots.js";
 
-const FILE_EXTENSIONS = new Set<string>(AGENT_FILE_EXTENSIONS);
 const IMAGE_MEDIA_TYPES = new Map<string, AgentAttachmentMediaType>([
   [".gif", "image/gif"],
   [".jpeg", "image/jpeg"],
@@ -75,9 +69,10 @@ function mediaTypeFor(kind: HostFileKind, path: string): AgentAttachmentMediaTyp
   if (kind === "image") {
     return IMAGE_MEDIA_TYPES.get(extension);
   }
-  return FILE_EXTENSIONS.has(extension)
-    ? (FILE_MEDIA_TYPES.get(extension) ?? "application/octet-stream")
-    : undefined;
+  // 图片由独立入口处理；其余普通文件均可上传并通过本地路径传递。
+  return IMAGE_MEDIA_TYPES.has(extension)
+    ? undefined
+    : (FILE_MEDIA_TYPES.get(extension) ?? "application/octet-stream");
 }
 
 function compareEntries(

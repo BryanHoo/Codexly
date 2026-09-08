@@ -11,6 +11,7 @@ const pixelDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const pastedTextDataUrl = "data:text/plain;base64,5L2g5aW9IENvZGV4bHk=";
 const pdfDataUrl = "data:application/pdf;base64,JVBERi0xLjQ=";
+const datDataUrl = "data:application/octet-stream;base64,bGljZW5zZQ==";
 
 function uploadInput(dataUrl: string, kind: "file" | "image" | "text", name: string) {
   const [header, encoded = ""] = dataUrl.split(",");
@@ -125,6 +126,33 @@ describe("AttachmentStore", () => {
 
     await store.dispose();
     expect(existsSync(resolved.path)).toBe(false);
+  });
+
+  it("materializes arbitrary file types for path-backed Codex inputs", async () => {
+    const store = new AttachmentStore({
+      attachmentDirectory: join(tmpdir(), `codexly-attachment-test-${crypto.randomUUID()}`),
+      createId: () => "attachment-dat",
+    });
+
+    const { attachment } = await store.add(
+      "codexly",
+      uploadInput(datDataUrl, "file", "license_4_V009R001C-企业版-180天.dat"),
+    );
+    const [resolved] = await store.resolve("codexly", [attachment.id]);
+
+    expect(attachment).toMatchObject({
+      kind: "file",
+      mediaType: "application/octet-stream",
+      name: "license_4_V009R001C-企业版-180天.dat",
+      size: 7,
+    });
+    if (resolved?.kind !== "file") {
+      throw new Error("Expected a materialized file attachment");
+    }
+    expect(resolved.path).toMatch(/\.dat$/u);
+    expect(readFileSync(resolved.path, "utf8")).toBe("license");
+
+    await store.dispose();
   });
 
   it("expires, consumes, and clears stored attachments", async () => {
