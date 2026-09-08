@@ -323,6 +323,16 @@ export function WorkbenchComposer({
       : "queue";
   const composerView = (
     <WorkbenchComposerView
+      asyncQuestions={
+        <AsyncQuestionComposer
+          key={composerScope}
+          scope={JSON.stringify([projectId, taskId])}
+          activeTurnId={activeTurnId}
+          enabled={!turnControlsDisabled}
+          submit={submitPrompt}
+          taskStore={runtime?.store}
+        />
+      }
       activeCommandIndex={activeCommandIndex}
       activeCommandItemId={activeCommandItemId}
       activeSettings={activeSettings}
@@ -461,13 +471,6 @@ export function WorkbenchComposer({
   );
   return (
     <>
-      <AsyncQuestionComposer
-        key={composerScope}
-        activeTurnId={activeTurnId}
-        enabled={!turnControlsDisabled}
-        submit={submitPrompt}
-        taskStore={runtime?.store}
-      />
       {composerView}
       <WorkbenchComposerAttachmentPicker
         active={isCurrentScope(routeScope)}

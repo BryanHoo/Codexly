@@ -189,7 +189,7 @@ export function WorkbenchShellLayout({
                 ? "taskBoard.label"
                 : "shell.timeline",
         )}
-        className="relative flex min-h-0 min-w-0 flex-col bg-content"
+        className="flex min-h-0 min-w-0 flex-col bg-content"
       >
         <WorkbenchShellHeader
           board={board}

@@ -61,13 +61,17 @@ for (const viewport of [
     await page.goto("/p/codexly/t/task-1");
     const dock = page.getByRole("region", { name: "待回答问题" });
     await expect(dock).toBeVisible();
-    const mainBounds = await page.getByRole("main").boundingBox();
+    const inputBounds = await page
+      .getByRole("textbox", { name: "任务输入" })
+      .locator("xpath=ancestor::form")
+      .boundingBox();
     const dockBounds = await dock.boundingBox();
-    if (mainBounds === null || dockBounds === null)
+    if (inputBounds === null || dockBounds === null)
       throw new Error("Missing question panel bounds");
-    expect(dockBounds.x).toBeCloseTo(mainBounds.x, 0);
-    expect(dockBounds.width).toBeCloseTo(mainBounds.width, 0);
-    expect(dockBounds.y - mainBounds.y).toBeLessThan(80);
+    expect(dockBounds.x).toBeCloseTo(inputBounds.x, 0);
+    expect(dockBounds.width).toBeCloseTo(inputBounds.width, 0);
+    expect(inputBounds.y - dockBounds.y - dockBounds.height).toBeGreaterThanOrEqual(0);
+    expect(inputBounds.y - dockBounds.y - dockBounds.height).toBeLessThanOrEqual(12);
     await expect(dock.getByRole("button", { name: "关闭问题", exact: true })).toBeEnabled();
     await expect(getComposerModelSelector(page)).toHaveAccessibleName(
       "模型和思考量：GPT-5.6 Terra，低",
@@ -109,6 +113,7 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     const submitted: string[] = [];
+    const questionIds = ["async-dismiss"];
     await page.route("**/v1/projects/codexly/tasks/task-1", (route) =>
       route.fulfill({
         json: {
@@ -121,15 +126,13 @@ for (const viewport of [
                 ...taskSnapshot.turns[0],
                 status: "running",
                 completedAt: null,
-                items: [
-                  {
-                    id: "async-dismiss",
-                    type: "message",
-                    role: "assistant",
-                    text: "补充要求",
-                    questions: [{ title: "补充要求", options: null }],
-                  },
-                ],
+                items: questionIds.map((id) => ({
+                  id,
+                  type: "message",
+                  role: "assistant",
+                  text: "补充要求",
+                  questions: [{ title: "补充要求", options: null }],
+                })),
               },
             ],
           },
@@ -143,12 +146,26 @@ for (const viewport of [
     await page.goto("/p/codexly/t/task-1");
     const dock = page.getByRole("region", { name: "待回答问题" });
     await expect(dock).toBeVisible();
-    const conversation = page.getByRole("log");
-    const before = await conversation.boundingBox();
     await expect(dock.getByRole("button", { name: "发送回答" })).toBeDisabled();
     await dock.getByRole("button", { name: "关闭问题", exact: true }).click();
     await expect(dock).toHaveCount(0);
-    expect(await conversation.boundingBox()).toEqual(before);
+    expect(submitted).toHaveLength(0);
+    await page.goto("/temporary");
+    await page.goto("/p/codexly/t/task-1");
+    await expect(page.getByRole("textbox", { name: "任务输入" })).toBeVisible();
+    await expect(dock).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "任务输入" })).toBeVisible();
+    await expect(dock).toHaveCount(0);
+    expect(submitted).toHaveLength(0);
+    questionIds.push("async-new");
+    await page.reload();
+    await expect(dock).toBeVisible();
+    await expect(dock).toContainText("待回答 · 1 组");
+    await dock.getByRole("button", { name: "关闭问题", exact: true }).click();
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "任务输入" })).toBeVisible();
+    await expect(dock).toHaveCount(0);
     expect(submitted).toHaveLength(0);
   });
 }

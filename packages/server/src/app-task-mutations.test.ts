@@ -407,4 +407,21 @@ describe("server task mutations", () => {
     expect(deleted.json()).toEqual({ status: "deleted", taskId: "task-1" });
     expect(deleteTask).toHaveBeenCalledWith("task-1");
   });
+
+  it("restores an archived task without reading its active snapshot first", async () => {
+    const { app, readTask, unarchiveTask } = await createHarness();
+    readTask.mockRejectedValue(new Error("thread not found: task-1"));
+
+    const response = await app.inject({
+      headers: { "idempotency-key": "unarchive-without-snapshot" },
+      method: "POST",
+      payload: {},
+      url: "/v1/projects/codexly/tasks/task-1/unarchive",
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toMatchObject({ task: { id: "task-1" } });
+    expect(readTask).not.toHaveBeenCalled();
+    expect(unarchiveTask).toHaveBeenCalledWith("task-1");
+  });
 });

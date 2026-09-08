@@ -21,23 +21,31 @@ import type { TaskStore } from "../../conversation/runtime/task-store-core.js";
 import { createAsyncQuestionProjection, type QuestionEntry } from "./async-question-projection.js";
 import { useAsyncQuestionSession } from "./async-question-session.js";
 import { AsyncQuestions } from "./async-questions.js";
+import { readQuestionDismissals, saveQuestionDismissals } from "./async-question-dismissals.js";
 
-export function AsyncQuestionDock({ taskStore }: Readonly<{ taskStore: TaskStore | undefined }>) {
+export function AsyncQuestionDock({
+  taskStore,
+  scope,
+}: Readonly<{ taskStore: TaskStore | undefined; scope: string }>) {
   const session = useAsyncQuestionSession();
   const projection = useMemo(() => createAsyncQuestionProjection(taskStore), [taskStore]);
   const entries = useSyncExternalStore(projection.subscribe, projection.getSnapshot);
-  return session === null ? null : <QuestionDockContent entries={entries} session={session} />;
+  return session === null ? null : (
+    <QuestionDockContent key={scope} entries={entries} session={session} scope={scope} />
+  );
 }
 
 function QuestionDockContent({
   entries,
   session,
+  scope,
 }: Readonly<{
   entries: readonly QuestionEntry[];
   session: NonNullable<ReturnType<typeof useAsyncQuestionSession>>;
+  scope: string;
 }>) {
   const { t } = useTranslation("conversation");
-  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
+  const [dismissed, setDismissed] = useState(() => readQuestionDismissals(scope));
   const pending = useStore(
     session.store,
     useShallow((state) =>
@@ -59,9 +67,8 @@ function QuestionDockContent({
   return (
     <section
       aria-label={t("asyncQuestions.pending")}
-      data-floating-surface
-      // 相对中栏定位在 Header 下方，覆盖聊天区而不占用时间线或输入框高度。
-      className="absolute inset-x-0 top-workbench-header z-20 min-w-0 border-b border-separator bg-content px-5 pb-2 shadow-md"
+      // 与引导消息共用输入框的宽度容器，问答区固定在输入框上方并独立滚动。
+      className="mb-2 min-w-0 rounded-control border border-separator bg-control px-3 pb-2"
     >
       <div className="flex min-w-0 items-center gap-2 pt-2 pb-1">
         <MessageCircleQuestion aria-hidden="true" className="size-3.5 shrink-0 text-brand" />
@@ -107,9 +114,9 @@ function QuestionDockContent({
               }}
             >
               {collapsed ? (
-                <ChevronDown className="size-3.5" />
-              ) : (
                 <ChevronUp className="size-3.5" />
+              ) : (
+                <ChevronDown className="size-3.5" />
               )}
             </Button>
           </TooltipTrigger>
@@ -121,8 +128,13 @@ function QuestionDockContent({
           label={t("asyncQuestions.close")}
           disabled={false}
           onClick={() => {
-            // 仅隐藏当前会话已出现的问题，不提交回答；后续新增问题仍可显示。
-            setDismissed(new Set(entries.map((entry) => entry.key)));
+            // 按任务保存关闭标识，重开任务不再展示旧问题，新增问题不受影响。
+            setDismissed(
+              saveQuestionDismissals(
+                scope,
+                new Set([...dismissed, ...entries.map((entry) => entry.key)]),
+              ),
+            );
             setCollapsed(false);
           }}
         >

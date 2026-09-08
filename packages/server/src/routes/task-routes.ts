@@ -383,10 +383,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
           if (context === undefined) {
             throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
           }
-          const task = await context.provider.readTask(request.params.taskId);
-          if (task?.projectId !== context.scope.id) {
-            throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
-          }
+          // 归档 Thread 无法读取 Goal 和历史快照，恢复时直接交由 Provider 校验归属。
           return { task: await context.provider.unarchiveTask(request.params.taskId) };
         },
       ),

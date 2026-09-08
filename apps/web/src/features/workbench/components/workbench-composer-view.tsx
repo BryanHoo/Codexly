@@ -115,7 +115,6 @@ export function ComposerProjectRootControls({
     </div>
   );
 }
-
 export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
   const { t } = useTranslation(["workbench", "settings"]);
   const editingIndex = props.queuedPrompts.findIndex((prompt) => prompt.status === "editing");
@@ -127,6 +126,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
       <div className="relative mx-auto w-full max-w-content" ref={props.commandSurfaceRef}>
         <ComposerCommandMenu props={props} />
         <ComposerFileMenu props={props} />
+        {props.asyncQuestions}
         {props.queuedPrompts.length === 0 ? null : (
           <div aria-label={t("composer.queuedMessages")} className="mb-2 space-y-1.5" role="list">
             {props.queuedPrompts.map((queuedPrompt, index) => {

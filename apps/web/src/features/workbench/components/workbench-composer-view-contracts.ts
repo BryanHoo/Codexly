@@ -10,7 +10,7 @@ import type {
   ProjectGitWorktree,
   ProjectRoot,
 } from "@codexly/protocol";
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { Dispatch, ReactNode, RefObject, SetStateAction } from "react";
 
 import type {
   PromptInputAttachment,
@@ -27,6 +27,7 @@ import type { ProjectTodoRecord } from "../project-todo-store.js";
 export type CommandAvailability = Readonly<{ available: boolean; reason?: string }>;
 
 export type WorkbenchComposerViewProps = Readonly<{
+  asyncQuestions?: ReactNode;
   activeCommandIndex: number;
   activeCommandItemId: string | undefined;
   activeSettings: AgentTaskSettings;

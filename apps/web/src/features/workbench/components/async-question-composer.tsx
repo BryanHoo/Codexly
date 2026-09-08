@@ -8,11 +8,13 @@ export function AsyncQuestionComposer({
   activeTurnId,
   submit,
   taskStore,
+  scope,
 }: Readonly<{
   enabled: boolean;
   activeTurnId: string | undefined;
   submit: ReturnType<typeof createComposerSubmission>;
   taskStore: TaskStore | undefined;
+  scope: string;
 }>) {
   return (
     <AsyncQuestionProvider
@@ -26,7 +28,7 @@ export function AsyncQuestionComposer({
         })
       }
     >
-      <AsyncQuestionDock taskStore={taskStore} />
+      <AsyncQuestionDock taskStore={taskStore} scope={scope} />
     </AsyncQuestionProvider>
   );
 }
