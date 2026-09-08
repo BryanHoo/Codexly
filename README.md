@@ -39,7 +39,7 @@
 - Run project or temporary Codex tasks and follow responses, commands, and file changes in real time
 - Keep follow-up work in a persistent task queue, and edit queued messages and attachments before they run
 - Track active work on a task board, maintain project to-dos, and schedule persistent one-time or recurring tasks
-- Attach files and images, reference project files with `@`, answer MCP input requests, and ask asynchronous questions while a task runs
+- Attach files and images, reference project files with `@`, answer MCP input requests, and ask or dismiss asynchronous questions while a task runs
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access level for each task
 - Manage installed Skills, official Plugins, MCP servers, and compatible third-party Skills from ClawHub in one extension center
 - Organize ordered multi-root projects, archive project or temporary tasks, and permanently delete tasks when needed
