@@ -55,12 +55,12 @@ describe("readProjectImageFile", () => {
     const outsideImagePath = join(outsideRoot, "outside.png");
     await writeFile(invalidImagePath, "not an image");
     await writeFile(outsideImagePath, pngContent);
-    await symlink(outsideImagePath, join(projectRoot, "linked.png"));
+    await symlink(outsideRoot, join(projectRoot, "linked"), "junction");
 
     await expect(readProjectImageFile(projectRoot, invalidImagePath)).rejects.toThrow(
       "Unsupported project image file",
     );
-    await expect(readProjectImageFile(projectRoot, "linked.png")).rejects.toThrow(
+    await expect(readProjectImageFile(projectRoot, "linked/outside.png")).rejects.toThrow(
       "outside the project root",
     );
   });

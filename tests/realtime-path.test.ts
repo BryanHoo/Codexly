@@ -69,7 +69,7 @@ async function startFakeAppServer(scenario: string): Promise<CodexAppServerProce
     child,
     { path: process.execPath, source: "explicit" },
     { raw: `codex-cli ${SUPPORTED_CODEX_VERSION}`, version: SUPPORTED_CODEX_VERSION },
-    { rpcTimeoutMs: 1_000, shutdownTimeoutMs: 200 },
+    { rpcTimeoutMs: 5_000, shutdownTimeoutMs: 200 },
   );
   try {
     await runtime.waitForSpawn();

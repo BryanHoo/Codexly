@@ -93,7 +93,7 @@ describe("readProjectFileTree", () => {
       writeFile(join(projectRoot, "src", "components", "button.tsx"), "export {};\n"),
       writeFile(join(outsideRoot, "secret.txt"), "secret\n"),
     ]);
-    await symlink(outsideRoot, join(projectRoot, "linked-outside"));
+    await symlink(outsideRoot, join(projectRoot, "linked-outside"), "junction");
 
     await expect(readProjectFileTree(projectRoot)).resolves.toEqual({
       entries: [

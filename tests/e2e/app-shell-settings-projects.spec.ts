@@ -250,7 +250,7 @@ test("aligns the center toolbar with sidebar controls and inspector tabs", async
   const rightTab = page
     .getByRole("complementary", { name: "运行环境" })
     .getByRole("tab", { name: "项目" });
-  const search = page.getByRole("textbox", { name: "搜索任务" });
+  const search = page.getByRole("button", { name: "搜索任务" });
   const [mainHeaderBox, leftTitleBox, centerTitleBox, rightTabBox, searchBox] = await Promise.all([
     mainHeader.boundingBox(),
     leftTitle.boundingBox(),
@@ -279,7 +279,6 @@ test("aligns the center toolbar with sidebar controls and inspector tabs", async
   expect(leftTitleBox.y + leftTitleBox.height / 2).toBe(centerTitlePosition);
   expect(rightTabBox.y + rightTabBox.height / 2).toBe(centerTitlePosition);
 
-  // 中栏分隔线与左栏第二层搜索控件顶部共用同一水平基线。
-  const dividerPosition = mainHeaderBox.y + mainHeaderBox.height;
-  expect(dividerPosition).toBe(searchBox.y);
+  // 折叠态搜索按钮与品牌位于同一行，不再占用第二层搜索工具栏。
+  expect(searchBox.y + searchBox.height / 2).toBe(centerTitlePosition);
 });

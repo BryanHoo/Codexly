@@ -13,6 +13,7 @@ interface ProjectPressSession {
   element: HTMLElement;
   pointerId: number;
   projectId: string;
+  projectIds: readonly string[];
   removeGlobalListeners: () => void;
   startClientX: number;
   startClientY: number;
@@ -139,6 +140,7 @@ export function useProjectReordering({
       element,
       pointerId: event.pointerId,
       projectId,
+      projectIds: orderedProjectsRef.current.map((project) => project.id),
       removeGlobalListeners: () => {
         window.removeEventListener("pointercancel", handleGlobalPointerCancel);
         window.removeEventListener("pointerup", handleGlobalPointerUp);
@@ -171,7 +173,7 @@ export function useProjectReordering({
       if (session.element.hasPointerCapture(session.pointerId)) {
         session.element.releasePointerCapture(session.pointerId);
       }
-      setTransientProjectIds(orderedProjectsRef.current.map((project) => project.id));
+      setTransientProjectIds(session.projectIds);
       setActiveProjectId(session.projectId);
       setAnnouncement(t("reorder.started"));
     }
@@ -191,11 +193,14 @@ export function useProjectReordering({
     const targetBounds = targetElement.getBoundingClientRect();
     const placement =
       event.clientY < targetBounds.top + targetBounds.height / 2 ? "before" : "after";
-    setTransientProjectIds((currentProjectIds) =>
-      currentProjectIds === null
-        ? currentProjectIds
-        : moveProject(currentProjectIds, session.projectId, targetProjectId, placement),
+    // 指针移动和释放可能发生在同一次 React 提交前，会话必须同步保存最终顺序。
+    session.projectIds = moveProject(
+      session.projectIds,
+      session.projectId,
+      targetProjectId,
+      placement,
     );
+    setTransientProjectIds(session.projectIds);
   };
 
   const finishPointerSession = (pointerId: number) => {
@@ -210,8 +215,7 @@ export function useProjectReordering({
     }
     suppressClickProjectIdRef.current = session.projectId;
     setActiveProjectId(null);
-    const projectIds = orderedProjectsRef.current.map((project) => project.id);
-    void commitOrder(projectIds, session.projectId);
+    void commitOrder(session.projectIds, session.projectId);
   };
 
   const cancelPointerSession = (pointerId: number) => {

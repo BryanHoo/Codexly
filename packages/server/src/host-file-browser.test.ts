@@ -37,8 +37,8 @@ describe("host file browser", () => {
       writeFile(join(homePath, "README.md"), "# Codexly\n"),
       writeFile(join(homePath, "screen.PNG"), "image bytes"),
       writeFile(join(homePath, "archive.zip"), "unsupported"),
-      symlink(outsidePath, join(homePath, "linked-directory")),
-      symlink(join(homePath, "README.md"), join(homePath, "linked-file.md")),
+      symlink(outsidePath, join(homePath, "linked-directory"), "junction"),
+      symlink(outsidePath, join(homePath, "linked-file.md"), "junction"),
     ]);
 
     await expect(
@@ -98,13 +98,17 @@ describe("host file browser", () => {
     const linkedPath = join(homePath, "linked.png");
     await writeFile(imagePath, "image bytes");
     await writeFile(unsupportedPath, "archive bytes");
-    await symlink(imagePath, linkedPath);
+    const outsidePath = await createTemporaryDirectory();
+    await symlink(outsidePath, linkedPath, "junction");
 
-    await expect(resolveHostAttachment("image", imagePath)).resolves.toMatchObject({
+    const attachment = await resolveHostAttachment("image", imagePath);
+    expect(attachment).toMatchObject({
       kind: "image",
       mediaType: "image/png",
       name: "screen.png",
     });
+    // 消费返回流，触发 autoClose，避免测试把文件句柄留给 GC。
+    for await (const chunk of attachment.content) void chunk;
     await expect(resolveHostAttachment("file", unsupportedPath)).rejects.toMatchObject({
       reason: "unsupported-file",
     });

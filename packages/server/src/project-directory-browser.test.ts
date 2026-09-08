@@ -34,7 +34,7 @@ describe("project directory browser", () => {
       mkdir(join(homePath, "Alpha")),
       mkdir(join(homePath, ".hidden")),
       writeFile(join(homePath, "README.md"), "# ignored\n"),
-      symlink(outsidePath, join(homePath, "linked-directory")),
+      symlink(outsidePath, join(homePath, "linked-directory"), "junction"),
     ]);
 
     await expect(readProjectDirectory(undefined, { filesystemRoots, homePath })).resolves.toEqual({

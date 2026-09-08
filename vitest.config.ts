@@ -48,6 +48,8 @@ export default defineConfig({
     },
     exclude: [...configDefaults.exclude, "**/*.performance.test.{ts,tsx}"],
     include: ["{apps,packages,src}/**/*.test.{ts,tsx}", "tests/*.test.ts"],
+    // 本地 Windows 同样限制并发，避免子进程启动争抢资源导致集成用例超时。
+    ...(process.platform === "win32" ? { maxWorkers: 2 } : {}),
     // CI 使用线程池避免为每个隔离测试文件重复创建子进程，并限制托管 runner 的并发开销。
     ...(process.env["CI"] ? { maxWorkers: 2, pool: "threads" } : {}),
     passWithNoTests: true,

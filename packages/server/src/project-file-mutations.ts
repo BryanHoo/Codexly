@@ -1,10 +1,12 @@
 import { lstat, realpath, rename, rm } from "node:fs/promises";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { DeleteProjectFileResponse, RenameProjectFileResponse } from "@codexly/protocol";
 
 const MAX_PROJECT_FILE_DEPTH = 20;
 const validFileName = /^(?!\.\.?$)[^/\\]{1,255}$/u;
+const invalidWindowsFileName =
+  /[<>:"|?*]|[. ]$|^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/iu;
 
 function parseProjectRelativePath(path: string): readonly string[] {
   const segments = path.split("/");
@@ -26,12 +28,10 @@ function assertPathInsideRoot(rootPath: string, targetPath: string): void {
   if (
     pathFromRoot === "" ||
     pathFromRoot === ".." ||
-    pathFromRoot.startsWith(`..${String.raw`/`}`)
+    pathFromRoot.startsWith(`..${sep}`) ||
+    // Windows 跨盘 relative 会返回绝对路径，而不是以 .. 开头。
+    isAbsolute(pathFromRoot)
   ) {
-    throw new TypeError("Project file path is outside the project root");
-  }
-  // Windows 的 relative 使用反斜杠，单独覆盖跨目录逃逸。
-  if (pathFromRoot.startsWith("..\\") || resolve(rootPath, pathFromRoot) !== targetPath) {
     throw new TypeError("Project file path is outside the project root");
   }
 }
@@ -74,7 +74,10 @@ export async function renameProjectFile(
     !validFileName.test(name) ||
     name.includes("\0") ||
     name.includes("\r") ||
-    name.includes("\n")
+    name.includes("\n") ||
+    (process.platform === "win32" &&
+      (invalidWindowsFileName.test(name) ||
+        name.split("").some((character) => character.charCodeAt(0) < 32)))
   ) {
     throw new TypeError("Project file name is invalid");
   }

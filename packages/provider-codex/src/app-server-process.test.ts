@@ -214,28 +214,26 @@ describe("CodexAppServerProcess", () => {
   });
 
   it("rejects shutdown when the process does not exit after SIGKILL", async () => {
-    const { child, kill } = createUnresponsiveChild();
-    const runtime = new CodexAppServerProcess(
-      child,
-      { path: "/fake/codex", source: "explicit" },
-      { raw: "codex-cli 0.153.4", version: "0.153.4" },
-      { rpcTimeoutMs: 100, shutdownTimeoutMs: 5 },
-    );
+    vi.useFakeTimers();
+    try {
+      const { child, kill } = createUnresponsiveChild();
+      const runtime = new CodexAppServerProcess(
+        child,
+        { path: "/fake/codex", source: "explicit" },
+        { raw: "codex-cli 0.153.4", version: "0.153.4" },
+        { rpcTimeoutMs: 100, shutdownTimeoutMs: 5 },
+      );
 
-    const outcome = await Promise.race([
-      runtime.close().catch((error: unknown) => error),
-      new Promise<string>((resolve) => {
-        setTimeout(() => {
-          resolve("shutdown remained pending");
-        }, 50);
-      }),
-    ]);
-
-    expect(outcome).toMatchObject({
-      message: "Codex App Server did not exit within 5ms after SIGKILL",
-      name: "CodexAppServerShutdownError",
-    });
-    expect(kill).toHaveBeenNthCalledWith(1, "SIGTERM");
-    expect(kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+      const outcome = expect(runtime.close()).rejects.toMatchObject({
+        message: "Codex App Server did not exit within 5ms after SIGKILL",
+        name: "CodexAppServerShutdownError",
+      });
+      await vi.advanceTimersByTimeAsync(15);
+      await outcome;
+      expect(kill).toHaveBeenNthCalledWith(1, "SIGTERM");
+      expect(kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

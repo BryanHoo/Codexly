@@ -473,7 +473,8 @@ test("preserves the original sidebar control typography and dimensions", async (
         (projectAddTaskBox.x + projectAddTaskBox.width),
     ),
   ).toBeLessThanOrEqual(1);
-  await expect(sidebar.getByRole("textbox", { name: "搜索任务" })).toHaveCSS("height", "36px");
+  await sidebar.getByRole("button", { name: "搜索任务" }).click();
+  await expect(sidebar.getByRole("textbox", { name: "搜索任务" })).toHaveCSS("height", "32px");
 });
 
 test("uses the brand logo across the sidebar and favicon", async ({ page }) => {

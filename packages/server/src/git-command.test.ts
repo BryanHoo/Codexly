@@ -9,7 +9,7 @@ import { createGitCommandExecutor, createGitEnvironment } from "./git-command.js
 const temporaryRoots: string[] = [];
 
 async function createFakeGitRoot(): Promise<{ root: string; scriptPath: string }> {
-  const root = await mkdtemp(join(tmpdir(), "codexly-git-command-test-"));
+  const root = await mkdtemp(join(tmpdir(), "codexly git 测试-"));
   temporaryRoots.push(root);
   const scriptPath = join(root, "fake-git.mjs");
   await writeFile(
@@ -62,11 +62,12 @@ describe("createGitCommandExecutor", () => {
     const { root, scriptPath } = await createFakeGitRoot();
     const executeGit = createGitCommandExecutor({ binary: [process.execPath, scriptPath] });
 
-    const output = await executeGit(root, ["inspect", "--", "path with spaces.txt"]);
+    const args = ["--", "path with spaces.txt", "中文 & literal $(echo).txt"];
+    const output = await executeGit(root, ["inspect", ...args]);
 
     expect(output.endsWith("\0")).toBe(true);
     expect(JSON.parse(output.slice(0, -1))).toEqual({
-      args: ["--", "path with spaces.txt"],
+      args,
       optionalLocks: "0",
     });
   });

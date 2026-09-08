@@ -113,13 +113,14 @@ describe("readProjectSourceFile", () => {
 
   it("rejects project-relative symbolic links outside the project root", async () => {
     const projectRoot = await createTemporaryProject();
-    const outsidePath = join(tmpdir(), `outside-${String(Date.now())}.md`);
-    temporaryDirectories.push(outsidePath);
+    const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-source-outside-"));
+    temporaryDirectories.push(outsideRoot);
+    const outsidePath = join(outsideRoot, "outside.md");
     await writeFile(outsidePath, "secret");
-    const linkedPath = join(projectRoot, "docs", "outside.md");
-    await symlink(outsidePath, linkedPath);
+    const linkedPath = join(projectRoot, "docs", "linked");
+    await symlink(outsideRoot, linkedPath, "junction");
 
-    await expect(readProjectSourceFile(projectRoot, "docs/outside.md")).rejects.toThrow(
+    await expect(readProjectSourceFile(projectRoot, "docs/linked/outside.md")).rejects.toThrow(
       "outside the project root",
     );
   });

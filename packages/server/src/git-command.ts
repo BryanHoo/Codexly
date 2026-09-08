@@ -75,6 +75,8 @@ export function createGitCommandExecutor(
     };
     if (options.binary !== undefined) {
       clientOptions.binary = options.binary;
+      // 仅由内部调用方注入的可执行文件路径允许空格和非 ASCII 字符；参数仍通过 spawn 数组传递。
+      clientOptions.unsafe = { allowUnsafeCustomBinary: true };
     }
 
     const git = simpleGit(clientOptions);

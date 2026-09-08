@@ -29,7 +29,7 @@ describe("filterProjectFileSearchMatches", () => {
     await Promise.all([
       writeFile(join(projectRoot, "dist", "generated.ts"), "generated\n"),
       writeFile(join(projectRoot, "src", "agent.ts"), "export {};\n"),
-      symlink(join(outsideRoot, "secret.ts"), join(projectRoot, "src", "linked.ts")),
+      symlink(outsideRoot, join(projectRoot, "src", "linked"), "junction"),
     ]);
 
     await expect(
@@ -37,7 +37,7 @@ describe("filterProjectFileSearchMatches", () => {
         data: [
           { name: "agent.ts", path: "src/agent.ts", rootPath: projectRoot },
           { name: "generated.ts", path: "dist/generated.ts", rootPath: projectRoot },
-          { name: "linked.ts", path: "src/linked.ts", rootPath: projectRoot },
+          { name: "secret.ts", path: "src/linked/secret.ts", rootPath: projectRoot },
           { name: "missing.ts", path: "src/missing.ts", rootPath: projectRoot },
           { name: "outside.ts", path: "../outside.ts", rootPath: projectRoot },
           { name: "wrong.ts", path: "src/agent.ts", rootPath: outsideRoot },

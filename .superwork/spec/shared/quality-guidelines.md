@@ -19,6 +19,7 @@ Capture contract and verification standards for this project.
 - `StartAgentTurnResponse` 必须包含启动前捕获的 `EventCheckpoint`，确保首轮乐观 Snapshot 与后续事件回放之间无缺口。
 - 保持依赖方向：`protocol` 独立；`core` 仅依赖 `protocol`；`client` 不依赖服务端运行时。
 - 使用 `pnpm run lint:architecture` 检查循环依赖、越层导入和包边界。
+- 本地 Windows 与 CI 的单元测试均限制为最多两个 Worker，避免大量子进程同时启动导致集成测试超时；性能测试保持独立串行执行。
 - 不保留废弃契约的兼容分支；按新契约更新全部仓库内消费者并删除旧逻辑。
 - `AgentMcpServer` 仅传递 `displayName`、`name`、`status` 和 `toolCount`；状态完整保留 Codex `0.151` 的线程连接态，不传输工具定义、工具名、认证或版本详情。
 - 任务 MCP 清单以 `mcpServerStatus/list(threadId)` 响应为唯一权威数据源；启动通知只触发刷新，不得用本地缓存覆盖查询快照。

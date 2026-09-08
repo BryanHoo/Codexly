@@ -340,7 +340,6 @@ describe("createProjectOpenService", () => {
     const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-open-outside-"));
     const outsideFile = join(outsideRoot, "outside.ts");
     await writeFile(outsideFile, "export {};\n");
-    await symlink(outsideFile, join(projectRoot, "linked.ts"));
     const spawnDetached = vi.fn(() => Promise.resolve());
     const service = createProjectOpenService({
       environment: { HOME: "/Users/test" },
@@ -351,7 +350,9 @@ describe("createProjectOpenService", () => {
     });
 
     try {
-      for (const path of ["missing.ts", "../outside.ts", "linked.ts"]) {
+      // Junction 在普通 Windows 账户下也可创建；同时验证链接本身与穿过链接的文件。
+      await symlink(outsideRoot, join(projectRoot, "linked"), "junction");
+      for (const path of ["missing.ts", "../outside.ts", "linked", "linked/outside.ts"]) {
         await expect(service.open(projectRoot, "zed", path)).rejects.toMatchObject({
           name: "ProjectOpenTargetInvalidError",
         });

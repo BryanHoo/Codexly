@@ -170,6 +170,7 @@ test("searches tasks across projects", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
+  await sidebar.getByRole("button", { name: "搜索任务" }).click();
   await sidebar.getByRole("textbox", { name: "搜索任务" }).fill("Markdown");
 
   await expect(sidebar.getByRole("link", { name: /完善 Markdown 渲染/ })).toBeVisible();

@@ -2,6 +2,7 @@ import performanceBudgets from "../performance-budgets.json" with { type: "json"
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CDPSession, Page } from "@playwright/test";
+import type { StartAgentTurnResponse } from "@codexly/protocol";
 import { expect, taskSnapshot, taskSnapshotResponse, test } from "../e2e/fixtures/app-shell.js";
 import {
   measureBrowserWork,
@@ -154,7 +155,7 @@ test("reports 100 turn soak and next message paint", async ({ page }) => {
     }
   }
 
-  const postSoakPaint = await measureNextUserPaint(page, cdp);
+  const postSoakPaint = await measureNextUserPaint(page, cdp, sequence);
   expect(await page.locator('[aria-label^="Turn "]').count()).toBeLessThanOrEqual(
     performanceBudgets.longHistory.maxMountedTurns,
   );
@@ -335,6 +336,7 @@ async function emitCompletedTurn(
 async function measureNextUserPaint(
   page: Page,
   cdp: CDPSession,
+  sequence: number,
 ): Promise<{
   measurement: BrowserMeasurement;
   timing: Awaited<ReturnType<typeof stopUserPaintProbe>>;
@@ -344,6 +346,7 @@ async function measureNextUserPaint(
     await route.fulfill({
       contentType: "application/json",
       json: {
+        checkpoint: { sequence, sessionId: "e2e-session" },
         taskId: "task-1",
         turn: {
           completedAt: null,
@@ -353,7 +356,7 @@ async function measureNextUserPaint(
           startedAt: timestamp,
           status: "running",
         },
-      },
+      } satisfies StartAgentTurnResponse,
       status: 201,
     });
   });
