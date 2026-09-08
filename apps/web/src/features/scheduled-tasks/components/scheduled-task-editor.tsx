@@ -11,7 +11,7 @@ import {
   type ScheduledTaskInput,
 } from "@codexly/protocol";
 import { ExternalLink, Play, Save, Trash2 } from "lucide-react";
-import { lazy, Suspense, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -23,20 +23,14 @@ import {
   type WorkbenchComposerHandle,
   type WorkbenchComposerProps,
 } from "../../workbench/components/workbench-composer.js";
+import { ScheduledTaskScheduleFields } from "./scheduled-task-schedule-fields.js";
 import {
   defaultScheduleDraft,
   draftToSchedule,
   formatScheduledTime,
   scheduleToDraft,
   type ScheduleDraft,
-  type SchedulePreset,
 } from "../scheduled-task-schedule.js";
-
-const ScheduledTaskDateTimePicker = lazy(() =>
-  import("./scheduled-task-date-time-picker.js").then((module) => ({
-    default: module.ScheduledTaskDateTimePicker,
-  })),
-);
 
 type EditorProps = Readonly<{
   composerProps: WorkbenchComposerProps;
@@ -82,10 +76,13 @@ function promptDraft(
 
 export function ScheduledTaskEditor(props: EditorProps) {
   const { i18n, t } = useTranslation("workbench");
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const timezone =
+    props.task?.schedule.type === "rrule"
+      ? props.task.schedule.timezone
+      : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const composerRef = useRef<WorkbenchComposerHandle>(null);
   const [name, setName] = useState(props.task?.name ?? "");
-  const [schedule, setSchedule] = useState<ScheduleDraft>(
+  const [schedule, setSchedule] = useState<ScheduleDraft>(() =>
     props.task === undefined ? defaultScheduleDraft() : scheduleToDraft(props.task.schedule),
   );
   const [settings, setSettings] = useState<AgentTaskSettings>(
@@ -188,53 +185,7 @@ export function ScheduledTaskEditor(props: EditorProps) {
             ))}
           </select>
         </label>
-        <label>
-          <span>{t("scheduledTasks.time")}</span>
-          <Suspense
-            fallback={
-              <Input aria-label={t("scheduledTasks.time")} aria-busy="true" disabled value="" />
-            }
-          >
-            <ScheduledTaskDateTimePicker
-              minimum={defaultScheduleDraft(Date.now() - 59 * 60 * 1_000).dateTime}
-              onChange={(dateTime) => {
-                setSchedule({ ...schedule, dateTime });
-              }}
-              value={schedule.dateTime}
-            />
-          </Suspense>
-        </label>
-        <label>
-          <span>{t("scheduledTasks.repeat")}</span>
-          <select
-            onChange={(event) => {
-              setSchedule({ ...schedule, preset: event.currentTarget.value as SchedulePreset });
-            }}
-            value={schedule.preset}
-          >
-            {(["once", "daily", "weekdays", "weekly", "monthly", "custom"] as const).map(
-              (preset) => (
-                <option key={preset} value={preset}>
-                  {t(`scheduledTasks.${preset}`)}
-                </option>
-              ),
-            )}
-          </select>
-        </label>
-        {schedule.preset === "custom" ? (
-          <label className="scheduled-task-wide">
-            <span>{t("scheduledTasks.rrule")}</span>
-            <Input
-              maxLength={2_048}
-              onChange={(event) => {
-                setSchedule({ ...schedule, rrule: event.currentTarget.value });
-              }}
-              placeholder={t("scheduledTasks.rrulePlaceholder")}
-              spellCheck={false}
-              value={schedule.rrule}
-            />
-          </label>
-        ) : null}
+        <ScheduledTaskScheduleFields onChange={setSchedule} schedule={schedule} />
       </div>
       <div className="scheduled-task-prompt">
         <h3>{t("scheduledTasks.prompt")}</h3>

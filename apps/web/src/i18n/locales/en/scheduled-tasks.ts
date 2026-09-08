@@ -13,6 +13,7 @@ export const scheduledTasks = {
   failed: "Failed",
   lastRun: "Last run",
   monthly: "Monthly",
+  monthDay: "Day of month",
   name: "Task name",
   namePlaceholder: "For example: Daily code review",
   nextMonth: "Next month",
@@ -27,7 +28,7 @@ export const scheduledTasks = {
   runNow: "Run now",
   running: "Starting",
   save: "Save task",
-  scheduleInvalid: "Enter a valid RRULE",
+  scheduleInvalid: "Check the date, time, or recurrence rule",
   search: "Search scheduled tasks",
   selectTask: "Select a task on the left to view its configuration",
   skipped: "Skipped",
@@ -36,5 +37,6 @@ export const scheduledTasks = {
   timeOfDay: "Time",
   title: "Scheduled tasks",
   weekdays: "Weekdays",
+  weekday: "Day of week",
   weekly: "Weekly",
 } as const;

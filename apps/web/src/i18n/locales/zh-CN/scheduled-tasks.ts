@@ -13,6 +13,7 @@ export const scheduledTasks = {
   failed: "执行失败",
   lastRun: "最近执行",
   monthly: "每月",
+  monthDay: "每月几号",
   name: "任务名称",
   namePlaceholder: "例如：每日代码巡检",
   nextMonth: "下个月",
@@ -27,7 +28,7 @@ export const scheduledTasks = {
   runNow: "立即运行",
   running: "正在启动",
   save: "保存任务",
-  scheduleInvalid: "请输入有效的 RRULE",
+  scheduleInvalid: "请检查日期、时间或重复规则",
   search: "搜索定时任务",
   selectTask: "选择左侧任务查看配置",
   skipped: "已跳过",
@@ -36,5 +37,6 @@ export const scheduledTasks = {
   timeOfDay: "时间",
   title: "定时任务",
   weekdays: "工作日",
+  weekday: "周几",
   weekly: "每周",
 } as const;
