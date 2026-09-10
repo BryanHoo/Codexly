@@ -207,6 +207,20 @@ describe("AttachmentStore", () => {
     );
   });
 
+  it("preserves queued attachments consumed by an active turn when the queue item is deleted", async () => {
+    const store = new AttachmentStore({ createId: () => "attachment-1" });
+    const queued = await store.add("codexly", uploadInput(pixelDataUrl, "image", "queued.png"));
+    await store.retainQueue("codexly", [queued.attachment.id], "queue-1");
+
+    // 立即引导先把附件交给当前 Turn，随后才删除原排队记录。
+    await store.consume("codexly", [queued.attachment.id], "turn-1");
+    await store.releaseQueue("codexly", "queue-1");
+
+    await expect(store.readSubmitted("codexly", queued.attachment.id)).resolves.toMatchObject({
+      attachment: { id: queued.attachment.id, kind: "image" },
+    });
+  });
+
   it("releases attachments removed while a persisted queue item is edited", async () => {
     const now = 0;
     let nextId = 1;

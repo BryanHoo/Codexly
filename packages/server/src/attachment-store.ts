@@ -422,7 +422,15 @@ export class AttachmentStore {
 
   public async releaseQueue(projectId: string, queuedSubmissionId: string): Promise<void> {
     const attachmentIds = this.#queueIndex.take(projectId, queuedSubmissionId);
-    await Promise.all(attachmentIds.map((attachmentId) => this.#delete(attachmentId)));
+    await Promise.all(
+      attachmentIds.map(async (attachmentId) => {
+        const entry = this.#entries.get(attachmentId);
+        // 立即引导会先把附件交给当前 Turn，再删除原队列项；已提交附件由 Turn 生命周期释放。
+        if (entry?.projectId === projectId && entry.consumedTurnId === undefined) {
+          await this.#delete(attachmentId);
+        }
+      }),
+    );
   }
 
   public async discard(id: string): Promise<void> {

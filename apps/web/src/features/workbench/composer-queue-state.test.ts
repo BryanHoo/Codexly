@@ -144,18 +144,21 @@ describe("composer queue state", () => {
         text: "检查附件",
       },
       "project-1",
-      "task-1",
-      (_projectId, _taskId, attachmentId) => `/attachments/${attachmentId}`,
+      (projectId, attachmentId) => `/projects/${projectId}/attachments/${attachmentId}`,
       [],
     );
 
     expect(prompt.files).toEqual([
       expect.objectContaining({
         id: "image-1",
-        previewUrl: "/attachments/image-1",
+        previewUrl: "/projects/project-1/attachments/image-1",
         source: "host",
       }),
-      expect.objectContaining({ id: "file-1", previewUrl: "/attachments/file-1", source: "host" }),
+      expect.objectContaining({
+        id: "file-1",
+        previewUrl: "/projects/project-1/attachments/file-1",
+        source: "host",
+      }),
     ]);
   });
 });

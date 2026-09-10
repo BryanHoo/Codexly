@@ -33,8 +33,7 @@ export type AcceptedSteerPrompt = Readonly<{
 export function mapAgentQueuedSubmission(
   submission: AgentQueuedSubmission,
   projectId: string,
-  taskId: string,
-  getAttachmentUrl: (projectId: string, taskId: string, attachmentId: string) => string,
+  getAttachmentUrl: (projectId: string, attachmentId: string) => string,
   availableSkills: readonly AgentSkill[],
 ): QueuedComposerPrompt {
   const skillsById = new Map(availableSkills.map((skill) => [skill.id, skill]));
@@ -42,7 +41,7 @@ export function mapAgentQueuedSubmission(
     files: submission.attachments.map((attachment) => ({
       attachment,
       ...attachment,
-      previewUrl: getAttachmentUrl(projectId, taskId, attachment.id),
+      previewUrl: getAttachmentUrl(projectId, attachment.id),
       source: "host" as const,
     })),
     id: submission.id,

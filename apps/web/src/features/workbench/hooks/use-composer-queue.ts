@@ -1,3 +1,4 @@
+import { buildProjectAttachmentUrl } from "@codexly/client";
 import type { AgentPromptInput, AgentQueuedSubmission, AgentSkill } from "@codexly/protocol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -97,12 +98,12 @@ export function useComposerQueue({
             mapAgentQueuedSubmission(
               submission,
               projectId,
-              taskId,
-              client.getTaskAttachmentUrl.bind(client),
+              (attachmentProjectId, attachmentId) =>
+                buildProjectAttachmentUrl("", attachmentProjectId, attachmentId),
               skills,
             ),
           ),
-    [client, projectId, queueQuery.data, skills, taskId],
+    [projectId, queueQuery.data, skills, taskId],
   );
   const currentAwaiting = awaitingSteers
     .filter((entry) => entry.scope === routeScope)
