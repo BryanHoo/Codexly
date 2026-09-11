@@ -40,7 +40,8 @@ test("visual recurrence shares previews and stays within a narrow viewport @cros
   await page.getByRole("button", { name: "新建定时任务" }).click();
   const now = new Date();
   await page.clock.install({ time: now });
-  await page.clock.pauseAt(now);
+  // 安装时钟与暂停之间可能已流逝数毫秒，暂停目标必须在未来。
+  await page.clock.pauseAt(new Date(now.getTime() + 1_000));
   const repeat = page.getByRole("combobox", { name: "重复规则" });
   await repeat.selectOption("weekends");
   await page.clock.runFor(250);

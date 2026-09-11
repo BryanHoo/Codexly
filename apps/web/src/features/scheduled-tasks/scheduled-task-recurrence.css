@@ -86,6 +86,15 @@
   margin-top: 12px;
   color: var(--ui-color-text-muted);
 }
+/* 加载、错误和执行列表共用固定空间，防止预览收缩触发滚动锚定和整页跳动。 */
+.scheduled-task-preview__results {
+  height: 7rem;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+.scheduled-task-preview__results[data-expanded="true"] {
+  height: 10rem;
+}
 .scheduled-task-preview button {
   margin-top: 8px;
   color: var(--ui-color-accent);

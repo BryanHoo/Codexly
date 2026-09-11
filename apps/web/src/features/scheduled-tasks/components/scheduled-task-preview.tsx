@@ -52,12 +52,6 @@ export function ScheduledTaskPreview({
         .find((part) => part.type === "timeZoneName")?.value,
     [language, timezone],
   );
-  if (error)
-    return (
-      <p className="scheduled-task-error" role="alert">
-        {t(`scheduledTasks.${error}`)}
-      </p>
-    );
   const frequency = scheduleFrequency(schedule);
   const interval = schedule.preset === "custom" ? schedule.interval : 1;
   let rule = t("scheduledTasks.summaryEvery", {
@@ -105,39 +99,45 @@ export function ScheduledTaskPreview({
         <p className="scheduled-task-preview__meta">{t("scheduledTasks.startHint")}</p>
       ) : null}
       <h4>{t("scheduledTasks.preview")}</h4>
-      {pending ? (
-        <p>{t("scheduledTasks.previewLoading")}</p>
-      ) : failed ? (
-        <>
-          <p>{t("scheduledTasks.previewFailed")}</p>
-          <button type="button" onClick={retry}>
-            {t("scheduledTasks.retryPreview")}
-          </button>
-        </>
-      ) : dates?.length === 0 ? (
-        <p>{t("scheduledTasks.noFutureRuns")}</p>
-      ) : (
-        <>
-          <ol>
-            {dates?.slice(0, expanded ? 5 : 3).map((date) => (
-              <li key={date}>
-                <time dateTime={new Date(date).toISOString()}>{formatter.format(date)}</time>
-              </li>
-            ))}
-          </ol>
-          {(dates?.length ?? 0) > 3 ? (
-            <button
-              type="button"
-              aria-expanded={expanded}
-              onClick={() => {
-                setExpanded(!expanded);
-              }}
-            >
-              {t(expanded ? "scheduledTasks.showLess" : "scheduledTasks.showMore")}
+      <div className="scheduled-task-preview__results" data-expanded={expanded}>
+        {error ? (
+          <p className="scheduled-task-error" role="alert">
+            {t(`scheduledTasks.${error}`)}
+          </p>
+        ) : pending ? (
+          <p>{t("scheduledTasks.previewLoading")}</p>
+        ) : failed ? (
+          <>
+            <p>{t("scheduledTasks.previewFailed")}</p>
+            <button type="button" onClick={retry}>
+              {t("scheduledTasks.retryPreview")}
             </button>
-          ) : null}
-        </>
-      )}
+          </>
+        ) : dates?.length === 0 ? (
+          <p>{t("scheduledTasks.noFutureRuns")}</p>
+        ) : (
+          <>
+            <ol>
+              {dates?.slice(0, expanded ? 5 : 3).map((date) => (
+                <li key={date}>
+                  <time dateTime={new Date(date).toISOString()}>{formatter.format(date)}</time>
+                </li>
+              ))}
+            </ol>
+            {(dates?.length ?? 0) > 3 ? (
+              <button
+                type="button"
+                aria-expanded={expanded}
+                onClick={() => {
+                  setExpanded(!expanded);
+                }}
+              >
+                {t(expanded ? "scheduledTasks.showLess" : "scheduledTasks.showMore")}
+              </button>
+            ) : null}
+          </>
+        )}
+      </div>
     </div>
   );
 }
