@@ -4,6 +4,8 @@ import { isAbsolute, relative, resolve } from "node:path";
 import type { AgentItem, ProjectGitStatus } from "@codexly/protocol";
 
 import { GitCommandOutputLimitError, type GitCommandExecutor } from "./git-command.js";
+import { limitGitFileIO } from "./git-concurrency.js";
+export { MAX_GIT_COMMAND_CONCURRENCY, MAX_FILE_IO_CONCURRENCY } from "./git-concurrency.js";
 
 export type GitFileChange = Extract<AgentItem, { type: "file_change" }>["changes"][number];
 export type GitWorkingTreeChanges = Pick<ProjectGitStatus, "staged" | "unstaged">;
@@ -14,8 +16,6 @@ export type WorkingTreeEntry = Readonly<{
   workingTreeStatus: string;
 }>;
 
-export const MAX_GIT_COMMAND_CONCURRENCY = 4;
-export const MAX_FILE_IO_CONCURRENCY = 8;
 const MAX_WORKING_TREE_DIFF_BYTES = 10 * 1024 * 1024;
 export const MAX_WORKING_TREE_FILES = 1_000;
 const MAX_UNTRACKED_DIFF_BYTES = 5 * 1024 * 1024;
@@ -123,6 +123,11 @@ export async function createUntrackedFileDiff(
   projectRoot: string,
   path: string,
 ): Promise<GitFileChange> {
+  // 打开、读取和关闭占用同一名额，跨请求限制文件句柄与正文缓冲区的峰值。
+  return limitGitFileIO(() => readUntrackedFileDiff(projectRoot, path));
+}
+
+async function readUntrackedFileDiff(projectRoot: string, path: string): Promise<GitFileChange> {
   const absolutePath = resolve(projectRoot, path);
   const relativePath = relative(projectRoot, absolutePath);
   if (relativePath.startsWith("..") || isAbsolute(relativePath)) {

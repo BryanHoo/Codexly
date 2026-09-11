@@ -3,7 +3,8 @@ import { lstat, readdir, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 
 import type { ProjectGitStatus, ProjectGitStatusQuery } from "@codexly/protocol";
-import pLimit from "p-limit";
+import { limitGitCommandExecutor, limitGitFileIO } from "./git-concurrency.js";
+import { readInflightGitStatus } from "./git-status-inflight.js";
 
 import { executeGit, type GitCommandExecutor } from "./git-command.js";
 import {
@@ -52,7 +53,7 @@ export function invalidateProjectGitBranchCache(projectRoot: string): void {
 
 async function hasGitMetadata(repositoryRoot: string): Promise<boolean> {
   try {
-    await lstat(join(repositoryRoot, ".git"));
+    await limitGitFileIO(() => lstat(join(repositoryRoot, ".git")));
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
@@ -78,7 +79,7 @@ export async function resolveProjectGitRepositoryRoot(
   if (!isAbsolute(projectRoot)) {
     throw new TypeError("Project root must be absolute");
   }
-  const resolvedProjectRoot = await realpath(projectRoot);
+  const resolvedProjectRoot = await limitGitFileIO(() => realpath(projectRoot));
   if (repository === undefined) {
     return resolvedProjectRoot;
   }
@@ -93,11 +94,11 @@ export async function resolveProjectGitRepositoryRoot(
   }
   const candidate = join(resolvedProjectRoot, repository);
   try {
-    const candidateStat = await lstat(candidate);
+    const candidateStat = await limitGitFileIO(() => lstat(candidate));
     if (!candidateStat.isDirectory()) {
       throw new GitRepositorySelectionError();
     }
-    const resolvedCandidate = await realpath(candidate);
+    const resolvedCandidate = await limitGitFileIO(() => realpath(candidate));
     if (
       dirname(resolvedCandidate) !== resolvedProjectRoot ||
       !(await hasGitMetadata(resolvedCandidate))
@@ -304,7 +305,9 @@ async function readImmediateChildRepositoryStatuses(
   includeDiff: boolean,
   repositoryFingerprints: Map<string, string>,
 ): Promise<GitWorkingTreeChanges | undefined> {
-  const childDirectories = (await readdir(projectRoot, { withFileTypes: true }))
+  const childDirectories = (
+    await limitGitFileIO(() => readdir(projectRoot, { withFileTypes: true }))
+  )
     .filter((entry) => entry.isDirectory())
     .toSorted((left, right) => left.name.localeCompare(right.name));
   const repositoryCandidates = await mapWithConcurrency(
@@ -361,22 +364,27 @@ async function readImmediateChildRepositoryStatuses(
   return { staged, unstaged };
 }
 
-export async function readGitWorkingTreeStatus(
+export function readGitWorkingTreeStatus(
   projectRoot: string,
   gitCommandExecutor: GitCommandExecutor = executeGit,
   options: Readonly<{ includeDiff?: boolean }> = {},
 ): Promise<ProjectGitStatus> {
-  if (!isAbsolute(projectRoot)) {
-    throw new TypeError("Project root must be absolute");
-  }
+  return readInflightGitStatus(
+    projectRoot,
+    gitCommandExecutor,
+    options.includeDiff === true,
+    (root) => readResolvedGitWorkingTreeStatus(root, gitCommandExecutor, options),
+  );
+}
 
-  // 每次读取都重新解析真实路径，避免 Project 根目录被符号链接替换后越过配置边界。
-  const resolvedProjectRoot = await realpath(projectRoot);
+async function readResolvedGitWorkingTreeStatus(
+  resolvedProjectRoot: string,
+  gitCommandExecutor: GitCommandExecutor,
+  options: Readonly<{ includeDiff?: boolean }>,
+): Promise<ProjectGitStatus> {
   const budget = new WorkingTreeReadBudget();
   const repositoryFingerprints = new Map<string, string>();
-  const limitGitCommand = pLimit(MAX_GIT_COMMAND_CONCURRENCY);
-  const limitedGitCommandExecutor: GitCommandExecutor = (repositoryRoot, arguments_) =>
-    limitGitCommand(() => gitCommandExecutor(repositoryRoot, arguments_));
+  const limitedGitCommandExecutor = limitGitCommandExecutor(gitCommandExecutor);
   let status: GitWorkingTreeChanges;
   let repositoryBranches: Pick<ProjectGitStatus, "baseBranches" | "branch" | "branches"> = {
     baseBranches: [],
@@ -442,7 +450,9 @@ export async function readGitWorkingTreeStatus(
     mapWithConcurrency(changes, MAX_FILE_IO_CONCURRENCY, async (change) => {
       let metadata = "missing";
       try {
-        const stats = await lstat(join(resolvedProjectRoot, change.path), { bigint: true });
+        const stats = await limitGitFileIO(() =>
+          lstat(join(resolvedProjectRoot, change.path), { bigint: true }),
+        );
         metadata = [stats.mode, stats.size, stats.mtimeNs, stats.ctimeNs].join(":");
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;

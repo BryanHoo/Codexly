@@ -10,6 +10,7 @@ import type {
 } from "@codexly/protocol";
 
 import { createGitEnvironment } from "./git-command.js";
+import { limitGitProcess } from "./git-concurrency.js";
 import { originalErrorMessage } from "./error-message.js";
 import { readGitWorkingTreeStatus, resolveProjectGitRepositoryRoot } from "./git-working-tree.js";
 
@@ -53,7 +54,16 @@ async function executeGit(
   input = "",
   environment: Readonly<NodeJS.ProcessEnv> = {},
 ): Promise<GitCommandResult> {
-  return new Promise((resolve, reject) => {
+  return limitGitProcess(() => runGitCommand(repositoryRoot, arguments_, input, environment));
+}
+
+async function runGitCommand(
+  repositoryRoot: string,
+  arguments_: readonly string[],
+  input: string,
+  environment: Readonly<NodeJS.ProcessEnv>,
+): Promise<GitCommandResult> {
+  return new Promise<GitCommandResult>((resolve, reject) => {
     const consumesInput = input !== "";
     const child = spawn("git", ["-C", repositoryRoot, ...arguments_], {
       env: { ...createGitEnvironment(), ...environment, GIT_TERMINAL_PROMPT: "0" },
@@ -66,6 +76,7 @@ async function executeGit(
     const stderr: Buffer[] = [];
     let outputBytes = 0;
     let settled = false;
+    let terminationError: Error | undefined;
     const finish = (error?: Error, result?: GitCommandResult) => {
       if (settled) {
         return;
@@ -81,16 +92,19 @@ async function executeGit(
     const collect = (target: Buffer[], chunk: Buffer) => {
       outputBytes += chunk.byteLength;
       if (outputBytes > MAX_GIT_OUTPUT_BYTES) {
-        child.kill("SIGKILL");
-        finish(new GitCommandError(null, "Git command output exceeded the limit"));
+        terminate(new GitCommandError(null, "Git command output exceeded the limit"));
         return;
       }
       target.push(chunk);
     };
     const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      finish(new GitCommandError(null, "Git command timed out"));
+      terminate(new GitCommandError(null, "Git command timed out"));
     }, GIT_COMMAND_TIMEOUT_MS);
+    // 终止信号发出后等待 close，确保子进程真正退出才归还全局并发名额。
+    const terminate = (error: Error) => {
+      terminationError ??= error;
+      child.kill("SIGKILL");
+    };
 
     child.stdout?.on("data", (chunk: Buffer) => {
       collect(stdout, chunk);
@@ -102,9 +116,13 @@ async function executeGit(
       finish(error);
     });
     child.stdin?.on("error", (error) => {
-      finish(error);
+      terminate(error);
     });
     child.on("close", (exitCode) => {
+      if (terminationError !== undefined) {
+        finish(terminationError);
+        return;
+      }
       const result = {
         stderr: Buffer.concat(stderr).toString("utf8"),
         stdout: Buffer.concat(stdout).toString("utf8"),

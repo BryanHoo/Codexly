@@ -18,6 +18,7 @@ vi.mock("./git-working-tree.js", () => ({
 }));
 
 import { commitSelectedProjectChanges } from "./git-commit.js";
+import { limitGitProcess } from "./git-concurrency.js";
 
 function createSuccessfulChild(stdout = "") {
   const child = new EventEmitter() as EventEmitter & {
@@ -72,6 +73,43 @@ describe("Git commit process input", () => {
       expect(spawnMock.mock.calls[commandIndex]?.[2]).toMatchObject({
         stdio: ["ignore", "pipe", "pipe"],
       });
+    }
+  });
+
+  it("holds the shared process slot until an oversized child has closed", async () => {
+    spawnMock.mockReset();
+    const child = new EventEmitter() as ReturnType<typeof createSuccessfulChild>;
+    child.kill = vi.fn();
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.stdin = new PassThrough();
+    spawnMock.mockReturnValue(child);
+    const occupied = Promise.withResolvers<undefined>();
+    const slots = Array.from({ length: 3 }, () => limitGitProcess(() => occupied.promise));
+    const commit = commitSelectedProjectChanges("/project", {
+      action: "commit",
+      expectedSnapshot: "snapshot",
+      message: "fix(git): 校验进程限流",
+      paths: ["selected.txt"],
+    });
+    const rejected = expect(commit).rejects.toMatchObject({ code: "GIT_COMMIT_FAILED" });
+    try {
+      await vi.waitFor(() => {
+        expect(spawnMock).toHaveBeenCalledTimes(1);
+      });
+      child.stdout.write(Buffer.alloc(10 * 1024 * 1024 + 1));
+      expect(child.kill).toHaveBeenCalledWith("SIGKILL");
+      const next = vi.fn();
+      const queued = limitGitProcess(next);
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(next).not.toHaveBeenCalled();
+      child.emit("close", 1);
+      await queued;
+      await rejected;
+    } finally {
+      child.emit("close", 1);
+      occupied.resolve(undefined);
+      await Promise.all(slots);
     }
   });
 });

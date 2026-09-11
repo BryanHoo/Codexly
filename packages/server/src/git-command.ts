@@ -1,4 +1,6 @@
 import { simpleGit, type SimpleGitOptions } from "simple-git";
+import { limitGitCommandExecutor, type GitCommandExecutor } from "./git-concurrency.js";
+export type { GitCommandExecutor } from "./git-concurrency.js";
 
 const MAX_GIT_OUTPUT_BYTES = 10 * 1024 * 1024;
 const GIT_COMMAND_TIMEOUT_MS = 10_000;
@@ -22,11 +24,6 @@ const UNSAFE_GIT_ENVIRONMENT_KEYS = new Set([
   "prefix",
   "ssh_askpass",
 ]);
-
-export type GitCommandExecutor = (
-  repositoryRoot: string,
-  arguments_: readonly string[],
-) => Promise<string>;
 
 type GitCommandExecutorOptions = Readonly<{
   binary?: SimpleGitOptions["binary"];
@@ -65,7 +62,7 @@ export function createGitCommandExecutor(
   const maxOutputBytes = options.maxOutputBytes ?? MAX_GIT_OUTPUT_BYTES;
   const timeoutMs = options.timeoutMs ?? GIT_COMMAND_TIMEOUT_MS;
 
-  return async (repositoryRoot, arguments_) => {
+  return limitGitCommandExecutor(async (repositoryRoot, arguments_) => {
     const controller = new AbortController();
     const clientOptions: Partial<SimpleGitOptions> = {
       abort: controller.signal,
@@ -119,7 +116,7 @@ export function createGitCommandExecutor(
     } finally {
       clearTimeout(timeout);
     }
-  };
+  });
 }
 
 export const executeGit = createGitCommandExecutor();
