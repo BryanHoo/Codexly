@@ -43,6 +43,7 @@ type ScheduledTaskServiceOptions = Readonly<{
 }>;
 
 export class ScheduledTaskService {
+  readonly #listeners = new Set<() => void>();
   readonly #inFlight = new Set<Promise<void>>();
   readonly #deleteTaskResources: ((taskId: string) => Promise<void>) | undefined;
   readonly #now: () => number;
@@ -92,6 +93,13 @@ export class ScheduledTaskService {
           left.createdAtUnixMs - right.createdAtUnixMs,
       ),
     );
+  }
+
+  public subscribe(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => {
+      this.#listeners.delete(listener);
+    };
   }
 
   public create(input: ScheduledTaskInput): Promise<ScheduledTask> {
@@ -176,6 +184,7 @@ export class ScheduledTaskService {
 
   public async close(): Promise<void> {
     this.#closed = true;
+    this.#listeners.clear();
     if (this.#timer !== undefined) clearTimeout(this.#timer);
     await Promise.allSettled(this.#inFlight);
     await this.#mutation;
@@ -269,8 +278,17 @@ export class ScheduledTaskService {
   }
 
   async #replace(tasks: readonly ScheduledTask[]): Promise<void> {
+    // 空闲唤醒不写库、不推送；保持下次调度，变化落库后才通知浏览器。
+    if (
+      tasks.length === this.#tasks.length &&
+      tasks.every((task, index) => task === this.#tasks[index])
+    ) {
+      this.#reschedule();
+      return;
+    }
     this.#tasks = await this.#repository.replaceScheduledTasks(tasks);
     this.#reschedule();
+    for (const listener of this.#listeners) listener();
   }
 
   async #storeTask(tasks: readonly ScheduledTask[], task: ScheduledTask): Promise<void> {

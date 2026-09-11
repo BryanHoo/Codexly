@@ -4,6 +4,11 @@ import { AgentPromptInputSchema } from "./agent-task.js";
 import { AgentMessageAttachmentSchema } from "./agent-attachments.js";
 import { AgentTurnOptionsSchema } from "./project-settings.js";
 
+export const ScheduledTaskChangeSchema = Type.Object(
+  { type: Type.Literal("scheduled-tasks.changed") },
+  { additionalProperties: false },
+);
+
 export const ScheduledTaskScheduleSchema = Type.Union([
   Type.Object(
     { atUnixMs: Type.Integer(), type: Type.Literal("once") },

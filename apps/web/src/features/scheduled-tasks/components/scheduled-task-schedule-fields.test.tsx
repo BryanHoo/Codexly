@@ -35,7 +35,7 @@ describe("ScheduledTaskScheduleFields", () => {
 
     expect(markup).toContain('type="time"');
     expect(markup).toContain("周几");
-    expect(markup).toContain('<option value="FR">');
+    expect(markup).toMatch(/<option value="FR"(?: selected="")?>/u);
     expect(markup).not.toContain("每月几号");
   });
 

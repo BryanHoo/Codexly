@@ -6,11 +6,15 @@ import {
 } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { CalendarClock } from "lucide-react";
 
 import "./scheduled-tasks.css";
 import type { useWorkbenchShellController } from "../workbench/components/workbench-shell-controller.js";
 import { ScheduledTaskEditor } from "./components/scheduled-task-editor.js";
 import { ScheduledTaskList } from "./components/scheduled-task-list.js";
+import { scheduledTasksQueryOptions } from "./scheduled-task-sync.js";
+import { readScheduledTaskRun } from "./scheduled-task-run.js";
+import { notifyActionError } from "../notifications/action-notifications.js";
 
 const queryKey = ["scheduled-tasks"] as const;
 const emptyTasks: readonly ScheduledTask[] = [];
@@ -29,20 +33,7 @@ export function ScheduledTasksContainer({
   const [selectedId, setSelectedId] = useState<string>();
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
-  const tasksQuery = useQuery({
-    queryFn: () => context.client.listScheduledTasks(),
-    queryKey,
-    refetchInterval: (query) => {
-      const tasks = query.state.data?.data ?? emptyTasks;
-      if (tasks.some((task) => task.lastRunStatus === "running")) return 1_500;
-      const deadlines = tasks.flatMap((task) =>
-        task.enabled && task.nextRunAtUnixMs !== null ? [task.nextRunAtUnixMs] : [],
-      );
-      if (deadlines.length === 0) return false;
-      // 等待中的任务也需到期刷新；已到期数据短轮询，直到服务端返回执行结果。
-      return Math.min(60_000, Math.max(1_500, Math.min(...deadlines) - Date.now()));
-    },
-  });
+  const tasksQuery = useQuery(scheduledTasksQueryOptions(context.client, queryClient));
   const tasks = tasksQuery.data?.data ?? emptyTasks;
   const selectedTask = creating ? undefined : tasks.find((task) => task.id === selectedId);
   const visibleTasks = useMemo(() => {
@@ -69,9 +60,9 @@ export function ScheduledTasksContainer({
   });
   const deleteMutation = useMutation({
     mutationFn: (taskId: string) => context.client.deleteScheduledTask(taskId),
-    onSuccess: () => {
-      setSelectedId(undefined);
-      setCreating(false);
+    onSuccess: (_response, taskId) => {
+      // 删除其他任务时保留当前编辑内容与新建草稿。
+      setSelectedId((current) => (current === taskId ? undefined : current));
       void refresh();
     },
   });
@@ -94,6 +85,25 @@ export function ScheduledTasksContainer({
   const runMutation = useMutation({
     mutationFn: (taskId: string) => context.client.runScheduledTaskNow(taskId),
     onSuccess: () => void refresh(),
+  });
+  const openRunMutation = useMutation({
+    meta: { actionNotification: false },
+    mutationFn: ({ runProjectId, taskId }: { runProjectId: string; taskId: string }) =>
+      readScheduledTaskRun(context.client, runProjectId, taskId),
+    onError: notifyActionError,
+    onSuccess: (response, { runProjectId, taskId }) => {
+      if (response === null) {
+        notifyActionError(context.t("scheduledTasks.runUnavailable"));
+        return;
+      }
+      // 校验通过后预热快照，目标页面直接接管这次新读取的结果。
+      queryClient.setQueryData(["projects", runProjectId, "tasks", taskId], response);
+      void context.navigate(
+        runProjectId === TEMPORARY_TASK_SCOPE_ID
+          ? { params: { taskId }, to: "/temporary/t/$taskId" }
+          : { params: { projectId: runProjectId, taskId }, to: "/p/$projectId/t/$taskId" },
+      );
+    },
   });
   const changeProject = (nextProjectId: string) =>
     void context.navigate(
@@ -131,6 +141,7 @@ export function ScheduledTasksContainer({
       <ScheduledTaskList
         {...(selectedTask === undefined ? {} : { activeId: selectedTask.id })}
         loading={tasksQuery.isPending}
+        onDelete={deleteMutation.mutateAsync}
         onCreate={() => {
           setCreating(true);
           setSelectedId(undefined);
@@ -151,14 +162,10 @@ export function ScheduledTasksContainer({
         <ScheduledTaskEditor
           key={selectedTask?.id ?? `new:${projectId}`}
           composerProps={composerProps}
-          onDelete={(id) => deleteMutation.mutateAsync(id).then(noop)}
-          onOpenRun={(runProjectId, taskId) =>
-            void context.navigate(
-              runProjectId === TEMPORARY_TASK_SCOPE_ID
-                ? { params: { taskId }, to: "/temporary/t/$taskId" }
-                : { params: { projectId: runProjectId, taskId }, to: "/p/$projectId/t/$taskId" },
-            )
-          }
+          openingRun={openRunMutation.isPending}
+          onOpenRun={(runProjectId, taskId) => {
+            if (!openRunMutation.isPending) openRunMutation.mutate({ runProjectId, taskId });
+          }}
           onProjectChange={changeProject}
           onRunNow={(id) => runMutation.mutateAsync(id).then(noop)}
           onSave={(taskId, input) =>
@@ -172,7 +179,12 @@ export function ScheduledTasksContainer({
           {...(selectedTask === undefined ? {} : { task: selectedTask })}
         />
       ) : (
-        <div className="scheduled-task-welcome">{context.t("scheduledTasks.selectTask")}</div>
+        <div className="scheduled-task-welcome">
+          <CalendarClock aria-hidden="true" />
+          <h2>{context.t("scheduledTasks.welcome")}</h2>
+          <p>{context.t("scheduledTasks.welcomeHint")}</p>
+          <span>{context.t("scheduledTasks.selectTask")}</span>
+        </div>
       )}
     </div>
   );

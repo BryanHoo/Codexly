@@ -9,7 +9,7 @@ import { EventQuerySchema, ProjectParamsSchema } from "./schemas.js";
 
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
-function scheduleSessionExpiry(socket: WebSocket, expiresAt: number): () => void {
+export function scheduleSessionExpiry(socket: WebSocket, expiresAt: number): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expire = () => {
     const remainingMs = expiresAt - Date.now();

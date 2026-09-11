@@ -10,8 +10,12 @@ import {
 
 import type { MutationOptions, ReadOptions } from "./http-client-transport.js";
 import { TaskHttpClient } from "./http-client-tasks.js";
+import { subscribeScheduledTaskChanges } from "./scheduled-task-events.js";
 
 export class ScheduledTaskHttpClient extends TaskHttpClient {
+  public subscribeScheduledTasks(onChange: () => void): () => void {
+    return subscribeScheduledTaskChanges(this.baseUrl, this.webSocketFactory, onChange);
+  }
   public listScheduledTasks(options: ReadOptions = {}): Promise<ScheduledTaskPage> {
     return this.read("/v1/scheduled-tasks", ScheduledTaskPageSchema, options);
   }

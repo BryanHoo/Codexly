@@ -1,11 +1,12 @@
 import type { ScheduledTask } from "@codexly/protocol";
 import { CalendarClock, CircleAlert, Clock3, Plus, Search } from "lucide-react";
-import { Switch } from "radix-ui";
+import { ScheduledTaskMenu } from "./scheduled-task-menu.js";
+import { useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
 import { Input } from "../../../shared/components/core/input.js";
-import { formatScheduledTime } from "../scheduled-task-schedule.js";
+import { formatScheduledTime, scheduleToDraft } from "../scheduled-task-schedule.js";
 
 function statusTone(task: ScheduledTask): "failed" | "paused" | "running" | "scheduled" {
   if (!task.enabled) return "paused";
@@ -18,6 +19,7 @@ export function ScheduledTaskList({
   activeId,
   loading,
   onCreate,
+  onDelete,
   onEnabledChange,
   onSelect,
   query,
@@ -27,6 +29,7 @@ export function ScheduledTaskList({
   activeId?: string;
   loading: boolean;
   onCreate: () => void;
+  onDelete: (id: string) => Promise<unknown>;
   onEnabledChange: (id: string, enabled: boolean) => void;
   onSelect: (task: ScheduledTask) => void;
   query: string;
@@ -34,12 +37,17 @@ export function ScheduledTaskList({
   tasks: readonly ScheduledTask[];
 }>) {
   const { i18n, t } = useTranslation("workbench");
+  const [filter, setFilter] = useState<"all" | "enabled" | "disabled">("all");
+  // 筛选只作用于列表，保留右侧编辑草稿；后端未提供完成态，不推断执行结果。
+  const filteredTasks = tasks.filter(
+    (task) => filter === "all" || task.enabled === (filter === "enabled"),
+  );
   return (
     <aside className="scheduled-task-list">
-      <div className="scheduled-task-list-header">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <h2 className="text-body-small font-semibold">{t("scheduledTasks.title")}</h2>
-          <span className="text-caption text-subtle-foreground">{tasks.length}</span>
+      <div className="scheduled-task-list__header">
+        <div>
+          <h2>{t("scheduledTasks.title")}</h2>
+          <span>{tasks.length}</span>
         </div>
         <Button
           aria-label={t("scheduledTasks.create")}
@@ -50,14 +58,24 @@ export function ScheduledTaskList({
           <Plus aria-hidden="true" />
         </Button>
       </div>
-      <div className="relative mx-3 mb-2.5">
-        <Search
-          aria-hidden="true"
-          className="pointer-events-none absolute left-2.5 top-2 size-3.5 text-subtle-foreground"
-        />
+      <div className="scheduled-task-filters" role="group" aria-label={t("scheduledTasks.filter")}>
+        {(["all", "enabled", "disabled"] as const).map((value) => (
+          <button
+            aria-pressed={filter === value}
+            key={value}
+            onClick={() => {
+              setFilter(value);
+            }}
+            type="button"
+          >
+            {t(`scheduledTasks.${value}`)}
+          </button>
+        ))}
+      </div>
+      <div className="scheduled-task-search">
+        <Search aria-hidden="true" />
         <Input
           aria-label={t("scheduledTasks.search")}
-          className="h-8 pl-8"
           onChange={(event) => {
             setQuery(event.currentTarget.value);
           }}
@@ -66,62 +84,63 @@ export function ScheduledTaskList({
           value={query}
         />
       </div>
-      <div className="min-h-0 overflow-y-auto px-2 pb-3 [scrollbar-gutter:stable]">
+      <div className="scheduled-task-list__items">
         {loading ? (
-          <div className="scheduled-task-empty" role="status">
+          <div className="scheduled-task-list__empty" role="status">
             <Clock3 aria-hidden="true" />
           </div>
-        ) : tasks.length === 0 ? (
-          <div className="scheduled-task-empty">
+        ) : filteredTasks.length === 0 ? (
+          <div className="scheduled-task-list__empty">
             <CalendarClock aria-hidden="true" />
-            <span>{t("scheduledTasks.empty")}</span>
+            <span>
+              {t(
+                tasks.length === 0 && query === ""
+                  ? "scheduledTasks.empty"
+                  : "scheduledTasks.noMatches",
+              )}
+            </span>
           </div>
         ) : (
-          tasks.map((task) => {
+          filteredTasks.map((task) => {
             const tone = statusTone(task);
             return (
               <div
                 className="scheduled-task-row"
-                data-active={activeId === task.id || undefined}
+                data-active={activeId === task.id ? "true" : undefined}
                 data-tone={tone}
                 key={task.id}
               >
-                <span className="scheduled-task-rail" />
+                <span className="scheduled-task-row__rail" />
                 <button
                   aria-current={activeId === task.id ? "page" : undefined}
                   aria-label={task.name}
-                  className="scheduled-task-row-content"
+                  className="scheduled-task-row__content"
                   onClick={() => {
                     onSelect(task);
                   }}
                   type="button"
                 >
                   <strong>{task.name}</strong>
-                  <span>{task.projectName}</span>
-                  <span className="flex items-center gap-1.5">
+                  <span>
+                    {t(`scheduledTasks.${scheduleToDraft(task.schedule).preset}`)} ·{" "}
+                    {task.projectName}
+                  </span>
+                  <span className="scheduled-task-row__time">
                     {tone === "failed" ? (
-                      <CircleAlert aria-hidden="true" className="size-3" />
+                      <CircleAlert aria-hidden="true" />
                     ) : (
-                      <Clock3 aria-hidden="true" className="size-3" />
+                      <Clock3 aria-hidden="true" />
                     )}
                     {task.enabled
                       ? formatScheduledTime(task.nextRunAtUnixMs, i18n.resolvedLanguage)
                       : t("scheduledTasks.disabled")}
                   </span>
                 </button>
-                <Switch.Root
-                  aria-label={t(
-                    task.enabled ? "scheduledTasks.disableTask" : "scheduledTasks.enableTask",
-                    { name: task.name },
-                  )}
-                  checked={task.enabled}
-                  className="scheduled-task-switch"
-                  onCheckedChange={(enabled) => {
-                    onEnabledChange(task.id, enabled);
-                  }}
-                >
-                  <Switch.Thumb className="scheduled-task-switch-thumb" />
-                </Switch.Root>
+                <ScheduledTaskMenu
+                  task={task}
+                  onDelete={onDelete}
+                  onEnabledChange={onEnabledChange}
+                />
               </div>
             );
           })

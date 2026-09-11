@@ -1,5 +1,6 @@
 import { TEMPORARY_TASK_SCOPE_ID, type Project } from "@codexly/protocol";
 import type { ReactNode } from "react";
+import { ScheduledTaskSyncObserver } from "../scheduled-tasks/scheduled-task-sync-observer.js";
 import {
   ProjectActionsContext,
   ProjectActivityContext,
@@ -40,6 +41,7 @@ export function ProjectProviderView({
 }: ProjectProviderViewProps) {
   return (
     <>
+      <ScheduledTaskSyncObserver client={client} />
       <ProjectTaskQuery
         client={client}
         onRemove={onRemoveTaskQuery}

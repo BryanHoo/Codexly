@@ -12,6 +12,62 @@ import {
 } from "./app-all.test-support.js";
 
 describe("server scheduled tasks", () => {
+  it("pushes automatic deadline execution to an idle global subscriber", async () => {
+    const { provider } = createProvider();
+    const app = await createCodexlyServer(createServerOptions(provider));
+    closeCallbacks.push(() => app.close());
+    await app.ready();
+    const messages: unknown[] = [];
+    const socket = await app.injectWS(
+      "/v1/scheduled-tasks/events",
+      {
+        headers: { host: "127.0.0.1:3210", origin: "http://127.0.0.1:3210" },
+      },
+      {
+        onInit(webSocket) {
+          webSocket.on("message", (data: { toString(): string }) => {
+            messages.push(JSON.parse(data.toString()) as unknown);
+          });
+        },
+      },
+    );
+    try {
+      await vi.waitFor(() => {
+        expect(messages).toHaveLength(1);
+      });
+      await app.inject({
+        method: "POST",
+        url: "/v1/scheduled-tasks",
+        payload: {
+          enabled: true,
+          messageAttachments: [],
+          name: "Automatic",
+          projectId: project.id,
+          projectName: project.name,
+          prompt: { attachments: [], skills: [], text: "Review", type: "prompt" },
+          schedule: { atUnixMs: Date.now() + 200, type: "once" },
+          turnOptions,
+        },
+      });
+      await vi.waitFor(
+        () => {
+          expect(messages.length).toBeGreaterThanOrEqual(4);
+        },
+        { timeout: 5_000 },
+      );
+      expect(
+        messages.every(
+          (message) => JSON.stringify(message) === '{"type":"scheduled-tasks.changed"}',
+        ),
+      ).toBe(true);
+      const response = await app.inject({ method: "GET", url: "/v1/scheduled-tasks" });
+      expect(response.json()).toMatchObject({
+        data: [{ enabled: false, lastRunStatus: "started", runs: [{ status: "started" }] }],
+      });
+    } finally {
+      socket.terminate();
+    }
+  });
   it("creates, toggles, runs and deletes scheduled tasks", async () => {
     let records: readonly ScheduledTask[] = [];
     const repository = {

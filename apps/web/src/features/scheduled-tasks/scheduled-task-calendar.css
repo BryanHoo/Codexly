@@ -1,0 +1,237 @@
+.scheduled-task-date-time-field {
+  width: min(100%, 240px);
+  justify-self: end;
+  min-width: 0;
+  height: 34px;
+}
+
+.scheduled-task-date-picker,
+.scheduled-task-date-picker .react-datepicker__input-container {
+  display: block;
+  width: 100%;
+  height: 34px;
+}
+
+.scheduled-task-date-picker .react-datepicker__input-container .react-datepicker__calendar-icon {
+  top: 50%;
+  right: 10px;
+  left: auto;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  color: var(--ui-color-text-subtle);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.scheduled-task-date-picker .react-datepicker__view-calendar-icon input {
+  text-align: right;
+  text-align-last: right;
+  padding-right: 38px;
+  padding-left: 10px;
+  cursor: pointer;
+}
+.scheduled-task-calendar-popper {
+  z-index: 30;
+  padding-top: 5px;
+}
+
+.react-datepicker.scheduled-task-calendar {
+  width: 292px;
+  border: 1px solid var(--ui-color-separator-strong);
+  border-radius: var(--ui-radius-surface);
+  color: var(--ui-color-text);
+  background: var(--ui-color-raised);
+  box-shadow: var(--ui-shadow-floating);
+  font-family: inherit;
+  font-size: var(--ui-font-size-label);
+  overflow: hidden;
+}
+
+.scheduled-task-calendar .react-datepicker__header {
+  border-radius: 0;
+  border-color: var(--ui-color-separator);
+  padding: 12px 12px 8px;
+  background: var(--ui-color-panel);
+}
+
+.scheduled-task-calendar .react-datepicker__current-month,
+.scheduled-task-calendar .react-datepicker__day-name,
+.scheduled-task-calendar .react-datepicker__day,
+.scheduled-task-calendar .react-datepicker__month-text {
+  color: var(--ui-color-text);
+}
+
+.scheduled-task-calendar .react-datepicker__current-month {
+  height: 24px;
+  font-size: var(--ui-font-size-body-small);
+  font-weight: var(--ui-font-weight-semibold);
+  line-height: 24px;
+}
+
+.scheduled-task-calendar .react-datepicker__header__dropdown {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.scheduled-task-calendar .react-datepicker__month-dropdown-container--select,
+.scheduled-task-calendar .react-datepicker__year-dropdown-container--select {
+  margin: 0;
+}
+
+.scheduled-task-calendar .react-datepicker__month-select,
+.scheduled-task-calendar .react-datepicker__year-select {
+  height: 28px;
+  border: 1px solid var(--ui-color-separator-strong);
+  border-radius: var(--ui-radius-control);
+  padding: 0 7px;
+  color: var(--ui-color-text);
+  background: var(--ui-color-raised);
+  font: inherit;
+  outline: none;
+}
+
+.scheduled-task-calendar .react-datepicker__month-select:focus,
+.scheduled-task-calendar .react-datepicker__year-select:focus {
+  border-color: var(--ui-color-accent);
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.scheduled-task-calendar .react-datepicker__month-container {
+  float: none;
+  width: 100%;
+}
+
+.scheduled-task-calendar .react-datepicker__month {
+  margin: 8px 12px 10px;
+}
+
+.scheduled-task-calendar .react-datepicker__day-names {
+  margin-top: 8px;
+}
+
+.scheduled-task-calendar .react-datepicker__day-name,
+.scheduled-task-calendar .react-datepicker__day {
+  width: 34px;
+  height: 32px;
+  border-radius: var(--ui-radius-control);
+  margin: 1px;
+  line-height: 32px;
+}
+
+.scheduled-task-calendar .react-datepicker__day-name {
+  color: var(--ui-color-text-subtle);
+  font-size: var(--ui-font-size-caption);
+  font-weight: var(--ui-font-weight-medium);
+}
+
+.scheduled-task-calendar .react-datepicker__day:hover,
+.scheduled-task-calendar .react-datepicker__month-text:hover {
+  background: var(--ui-color-control-hover) !important;
+}
+
+.scheduled-task-calendar .react-datepicker__day--selected,
+.scheduled-task-calendar .react-datepicker__day--selected:hover,
+.scheduled-task-calendar .react-datepicker__day--keyboard-selected,
+.scheduled-task-calendar .react-datepicker__day--keyboard-selected:hover,
+.scheduled-task-calendar .react-datepicker__month-text--selected {
+  color: white !important;
+  background: var(--ui-color-accent) !important;
+}
+
+.scheduled-task-calendar .react-datepicker__day--today {
+  color: var(--ui-color-accent-strong);
+  font-weight: var(--ui-font-weight-semibold);
+}
+
+.scheduled-task-calendar .react-datepicker__day--outside-month {
+  color: var(--ui-color-text-subtle);
+  opacity: 0.55;
+}
+
+.scheduled-task-calendar .react-datepicker__day--disabled {
+  color: var(--ui-color-text-subtle);
+  opacity: 0.45;
+}
+
+.scheduled-task-calendar .react-datepicker__day--disabled:hover {
+  background: transparent !important;
+}
+
+.scheduled-task-calendar .react-datepicker__navigation {
+  top: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ui-radius-control);
+}
+.scheduled-task-calendar .react-datepicker__navigation:hover {
+  background: var(--ui-color-control-hover);
+}
+.scheduled-task-calendar .react-datepicker__navigation--previous {
+  left: 9px;
+}
+.scheduled-task-calendar .react-datepicker__navigation--next {
+  right: 9px;
+}
+
+.scheduled-task-calendar .react-datepicker__navigation-icon::before {
+  border-color: var(--ui-color-text-muted);
+}
+
+.scheduled-task-calendar .react-datepicker__input-time-container {
+  display: flex;
+  clear: both;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--ui-color-separator);
+  margin: 0;
+  padding: 11px 14px;
+  background: color-mix(in srgb, var(--ui-color-panel) 72%, var(--ui-color-raised));
+}
+
+.scheduled-task-calendar .react-datepicker-time__caption,
+.scheduled-task-calendar .react-datepicker-time__input-container {
+  float: none;
+  margin: 0;
+}
+
+.scheduled-task-calendar .react-datepicker-time__caption {
+  color: var(--ui-color-text-muted);
+  font-weight: var(--ui-font-weight-medium);
+}
+
+.scheduled-task-calendar .react-datepicker-time__input-container,
+.scheduled-task-calendar .react-datepicker-time__input {
+  display: block;
+}
+
+.scheduled-task-calendar
+  .react-datepicker__input-time-container
+  .react-datepicker-time__input-container
+  .react-datepicker-time__input
+  input {
+  width: 112px;
+  height: 30px;
+  border: 1px solid var(--ui-color-separator-strong);
+  border-radius: var(--ui-radius-control);
+  margin: 0;
+  padding: 0 8px;
+  color: var(--ui-color-text);
+  background: var(--ui-color-raised);
+  font: inherit;
+  text-align: right;
+  outline: none;
+  color-scheme: light dark;
+}
+
+.scheduled-task-calendar
+  .react-datepicker__input-time-container
+  .react-datepicker-time__input-container
+  .react-datepicker-time__input
+  input:focus {
+  border-color: var(--ui-color-accent);
+  box-shadow: var(--ui-shadow-focus);
+}

@@ -55,36 +55,6 @@ export function ScheduledTaskScheduleFields({
           ))}
         </select>
       </label>
-      {needsDate ? (
-        <label>
-          <span>{t("scheduledTasks.time")}</span>
-          <Suspense
-            fallback={
-              <Input aria-label={t("scheduledTasks.time")} aria-busy="true" disabled value="" />
-            }
-          >
-            <ScheduledTaskDateTimePicker
-              minimum={schedule.preset === "once" ? minimum : ""}
-              onChange={(dateTime) => {
-                onChange({ ...schedule, dateTime });
-              }}
-              value={schedule.dateTime}
-            />
-          </Suspense>
-        </label>
-      ) : (
-        <label>
-          <span>{t("scheduledTasks.timeOfDay")}</span>
-          <Input
-            onChange={(event) => {
-              onChange({ ...schedule, time: event.currentTarget.value });
-            }}
-            step={60}
-            type="time"
-            value={schedule.time}
-          />
-        </label>
-      )}
       {schedule.preset === "weekly" ? (
         <label>
           <span>{t("scheduledTasks.weekday")}</span>
@@ -119,6 +89,36 @@ export function ScheduledTaskScheduleFields({
           </select>
         </label>
       ) : null}
+      {needsDate ? (
+        <label>
+          <span>{t("scheduledTasks.time")}</span>
+          <Suspense
+            fallback={
+              <Input aria-label={t("scheduledTasks.time")} aria-busy="true" disabled value="" />
+            }
+          >
+            <ScheduledTaskDateTimePicker
+              minimum={schedule.preset === "once" ? minimum : ""}
+              onChange={(dateTime) => {
+                onChange({ ...schedule, dateTime });
+              }}
+              value={schedule.dateTime}
+            />
+          </Suspense>
+        </label>
+      ) : (
+        <label>
+          <span>{t("scheduledTasks.timeOfDay")}</span>
+          <Input
+            onChange={(event) => {
+              onChange({ ...schedule, time: event.currentTarget.value });
+            }}
+            step={60}
+            type="time"
+            value={schedule.time}
+          />
+        </label>
+      )}
       {schedule.preset === "custom" ? (
         <label className="scheduled-task-wide">
           <span>{t("scheduledTasks.rrule")}</span>

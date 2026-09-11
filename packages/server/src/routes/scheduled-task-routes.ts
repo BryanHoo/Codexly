@@ -13,6 +13,7 @@ import type { FastifyPluginCallback } from "fastify";
 import { ScheduledTaskServiceError } from "../scheduled-task-service.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { Type } from "@sinclair/typebox";
+import { registerScheduledTaskEvents } from "./scheduled-task-events.js";
 
 const ParamsSchema = Type.Object(
   { taskId: Type.String({ minLength: 1 }) },
@@ -30,6 +31,7 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
   context,
   done,
 ) => {
+  registerScheduledTaskEvents(app, context);
   const response = {
     400: AgentMutationErrorSchema,
     404: AgentMutationErrorSchema,

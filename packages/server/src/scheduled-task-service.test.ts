@@ -44,6 +44,8 @@ describe("ScheduledTaskService", () => {
       startTask,
     });
     await service.start();
+    const changed = vi.fn();
+    const unsubscribe = service.subscribe(changed);
     await service.create({
       enabled: true,
       messageAttachments: [],
@@ -68,6 +70,12 @@ describe("ScheduledTaskService", () => {
     const [task] = await service.list();
     expect(task).toMatchObject({ enabled: false, lastRunStatus: "started" });
     expect(task?.runs[0]).toMatchObject({ status: "started", taskId: "task-a" });
+    // 创建、到期领取、启动结果落库均主动通知，无需浏览器轮询。
+    expect(changed).toHaveBeenCalledTimes(3);
+    unsubscribe();
+    if (task === undefined) throw new Error("Expected scheduled task");
+    await service.setEnabled(task.id, false);
+    expect(changed).toHaveBeenCalledTimes(3);
     await service.close();
   });
 });

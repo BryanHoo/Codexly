@@ -29,12 +29,13 @@ const task: ScheduledTask = {
 };
 
 describe("ScheduledTaskList rendering", () => {
-  it("renders selection, failure state, search and enable controls", () => {
+  it("renders selection, failure state, search, status filters and task menu", () => {
     const markup = renderToStaticMarkup(
       <ScheduledTaskList
         activeId={task.id}
         loading={false}
         onCreate={vi.fn()}
+        onDelete={vi.fn()}
         onEnabledChange={vi.fn()}
         onSelect={vi.fn()}
         query="Daily"
@@ -48,6 +49,7 @@ describe("ScheduledTaskList rendering", () => {
     expect(markup).toContain('data-tone="failed"');
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain('type="search"');
-    expect(markup).toContain('role="switch"');
+    expect(markup).toContain('aria-pressed="true"');
+    expect(markup).toContain('aria-haspopup="menu"');
   });
 });
