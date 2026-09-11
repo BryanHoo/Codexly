@@ -15,7 +15,7 @@ import type {
   ProjectFileSearchEntry,
   ProjectRoot,
 } from "@codexly/protocol";
-import { buildProjectAttachmentUrl } from "@codexly/client";
+import { buildProjectAttachmentUrl, buildTaskAttachmentUrl } from "@codexly/client";
 import type { Ref } from "react";
 
 import type {
@@ -160,4 +160,19 @@ export async function persistPromptAttachments(
   };
   await Promise.all(Array.from({ length: Math.min(2, attachments.length) }, persistNext));
   return persisted;
+}
+
+export function createHostedPromptAttachments(
+  projectId: string,
+  taskId: string,
+  resolvedAttachments: readonly AgentAttachment[],
+): readonly PromptInputAttachment[] {
+  return resolvedAttachments.map((resolved) => ({
+    attachment: resolved,
+    ...resolved,
+    // 附件交给 Turn 后 Project 预览会失效，必须改用已提交附件端点。
+    previewUrl:
+      resolved.kind === "image" ? buildTaskAttachmentUrl("", projectId, taskId, resolved.id) : "",
+    source: "host",
+  }));
 }

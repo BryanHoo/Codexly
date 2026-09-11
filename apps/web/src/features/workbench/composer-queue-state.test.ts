@@ -7,6 +7,7 @@ import {
   mapAgentQueuedSubmission,
   retainAcceptedSteerPrompt,
   resolveQueuedPromptEdit,
+  withTaskAttachmentPreviews,
 } from "./composer-queue-state.js";
 
 const waitingPrompt: QueuedComposerPrompt = {
@@ -28,6 +29,38 @@ const queuedPrompt: QueuedComposerPrompt = {
 };
 
 describe("composer queue state", () => {
+  it("switches a started queued image to the submitted Task preview", () => {
+    const files = [
+      {
+        attachment: {
+          id: "image-1",
+          kind: "image" as const,
+          mediaType: "image/png" as const,
+          name: "screen.png",
+          size: 6,
+        },
+        id: "image-1",
+        kind: "image" as const,
+        mediaType: "image/png",
+        name: "screen.png",
+        previewUrl: "/v1/projects/project-1/attachments/image-1",
+        size: 6,
+        source: "host" as const,
+      },
+    ];
+
+    expect(
+      withTaskAttachmentPreviews(
+        files,
+        (attachmentId) => `/v1/projects/project-1/tasks/task-1/attachments/${attachmentId}`,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        previewUrl: "/v1/projects/project-1/tasks/task-1/attachments/image-1",
+      }),
+    ]);
+  });
+
   it("keeps accepted steer loading when only an assistant message streams", () => {
     expect(
       hasQueuedPromptFinishedInSnapshot(waitingPrompt, {

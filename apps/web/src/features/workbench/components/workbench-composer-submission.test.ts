@@ -57,6 +57,17 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
   const steerTurn = vi.fn<ComposerSubmissionOptions["client"]["steerTurn"]>(() =>
     Promise.resolve({ status: "accepted", taskId: "task-1", turnId: "turn-1" }),
   );
+  const uploadAttachment = vi.fn<ComposerSubmissionOptions["client"]["uploadAttachment"]>(() =>
+    Promise.resolve({
+      attachment: {
+        id: "attachment-1",
+        kind: "image",
+        mediaType: "image/png",
+        name: "screen.png",
+        size: 6,
+      },
+    }),
+  );
   const clearComposerInput = vi.fn();
   const saveQueuedSubmission = vi.fn(() => Promise.resolve(true));
   const skillEditor = {
@@ -88,7 +99,7 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
     canSubmit: true,
     clearComposerInput,
     activeUserMessageIds: [],
-    client: { startTask, startTurn, steerTurn },
+    client: { startTask, startTurn, steerTurn, uploadAttachment },
     composerMode: undefined,
     controller,
     editingQueuedSubmission: false,
@@ -127,6 +138,7 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
     startTurn,
     steerTurn,
     submit: createComposerSubmission(options),
+    uploadAttachment,
   };
 }
 
@@ -225,6 +237,48 @@ describe("createComposerSubmission", () => {
       turnId: "turn-1",
       userMessageIds: [],
     });
+  });
+
+  it("uses a stable Project preview after steering a browser image", async () => {
+    const onSteerAccepted = vi.fn();
+    const harness = createHarness({
+      activeTaskId: "task-1",
+      activeTurnId: "turn-1",
+      canSteer: true,
+      followUpBehavior: "steer",
+      onSteerAccepted,
+      state: "running",
+      taskId: "task-1",
+    });
+    const file = new File(["screen"], "screen.png", { type: "image/png" });
+
+    await harness.submit({
+      files: [
+        {
+          file,
+          id: "browser-image-1",
+          kind: "image",
+          mediaType: file.type,
+          name: file.name,
+          previewUrl: "blob:screen-preview",
+          size: file.size,
+          source: "browser",
+        },
+      ],
+      text: "检查截图",
+    });
+
+    expect(onSteerAccepted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        files: [
+          expect.objectContaining({
+            id: "attachment-1",
+            previewUrl: "/v1/projects/codexly/tasks/task-1/attachments/attachment-1",
+            source: "host",
+          }),
+        ],
+      }),
+    );
   });
 
   it("creates a new Task and starts its first Turn with one submission", async () => {

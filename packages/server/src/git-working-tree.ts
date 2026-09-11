@@ -116,13 +116,19 @@ export async function resolveProjectGitRepositoryRoot(
 async function readRepositoryWorkingTreeEntries(
   repositoryRoot: string,
   gitCommandExecutor: GitCommandExecutor,
+  repositoryFingerprints: Map<string, string>,
 ): Promise<readonly WorkingTreeEntry[]> {
-  const statusOutput = await gitCommandExecutor(repositoryRoot, [
-    "status",
-    "--porcelain=v1",
-    "-z",
-    "--untracked-files=all",
+  const [statusOutput, head, index] = await Promise.all([
+    gitCommandExecutor(repositoryRoot, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]),
+    // 未产生首次提交时 --revs-only 返回空值；读取失败则向上传播，禁止弱化提交校验。
+    gitCommandExecutor(repositoryRoot, ["rev-parse", "--revs-only", "HEAD"]),
+    gitCommandExecutor(repositoryRoot, ["ls-files", "--stage", "-z"]),
   ]);
+  // 索引记录包含 mode、完整对象 ID、冲突 stage 和 NUL 分隔的路径，无需读取 Diff 正文。
+  repositoryFingerprints.set(
+    repositoryRoot,
+    createHash("sha256").update(head).update("\0").update(index).digest("hex"),
+  );
   return parsePorcelainStatus(statusOutput, MAX_WORKING_TREE_FILES);
 }
 
@@ -296,6 +302,7 @@ async function readImmediateChildRepositoryStatuses(
   gitCommandExecutor: GitCommandExecutor,
   budget: WorkingTreeReadBudget,
   includeDiff: boolean,
+  repositoryFingerprints: Map<string, string>,
 ): Promise<GitWorkingTreeChanges | undefined> {
   const childDirectories = (await readdir(projectRoot, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
@@ -328,7 +335,11 @@ async function readImmediateChildRepositoryStatuses(
     const repositoryBatch = repositories.slice(offset, offset + MAX_GIT_COMMAND_CONCURRENCY);
     const repositoryEntries = await Promise.all(
       repositoryBatch.map((repository) =>
-        readRepositoryWorkingTreeEntries(repository.root, gitCommandExecutor),
+        readRepositoryWorkingTreeEntries(
+          repository.root,
+          gitCommandExecutor,
+          repositoryFingerprints,
+        ),
       ),
     );
     for (const [repositoryIndex, repository] of repositoryBatch.entries()) {
@@ -362,6 +373,7 @@ export async function readGitWorkingTreeStatus(
   // 每次读取都重新解析真实路径，避免 Project 根目录被符号链接替换后越过配置边界。
   const resolvedProjectRoot = await realpath(projectRoot);
   const budget = new WorkingTreeReadBudget();
+  const repositoryFingerprints = new Map<string, string>();
   const limitGitCommand = pLimit(MAX_GIT_COMMAND_CONCURRENCY);
   const limitedGitCommandExecutor: GitCommandExecutor = (repositoryRoot, arguments_) =>
     limitGitCommand(() => gitCommandExecutor(repositoryRoot, arguments_));
@@ -374,7 +386,11 @@ export async function readGitWorkingTreeStatus(
   let repositoryMode: ProjectGitStatus["repositoryMode"] = "root";
   if (await hasGitMetadata(resolvedProjectRoot)) {
     const [entries, branches] = await Promise.all([
-      readRepositoryWorkingTreeEntries(resolvedProjectRoot, limitedGitCommandExecutor),
+      readRepositoryWorkingTreeEntries(
+        resolvedProjectRoot,
+        limitedGitCommandExecutor,
+        repositoryFingerprints,
+      ),
       readRepositoryBranches(resolvedProjectRoot, limitedGitCommandExecutor),
     ]);
     status = await materializeRepositoryWorkingTreeStatus(
@@ -392,6 +408,7 @@ export async function readGitWorkingTreeStatus(
       limitedGitCommandExecutor,
       budget,
       options.includeDiff === true,
+      repositoryFingerprints,
     );
     if (childStatus === undefined) {
       // 非 Git 是可恢复的 Project 状态，手动刷新时仍需允许重新探测仓库。
@@ -408,6 +425,12 @@ export async function readGitWorkingTreeStatus(
   const staged = status.staged.toSorted(comparePaths);
   const unstaged = status.unstaged.toSorted(comparePaths);
   const snapshotHash = createHash("sha256");
+  // 固定仓库顺序，避免并发命令完成顺序影响聚合快照。
+  for (const [root, fingerprint] of [...repositoryFingerprints].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    snapshotHash.update(root).update("\0").update(fingerprint).update("\0");
+  }
   snapshotHash
     .update(repositoryBranches.branch ?? "")
     .update("\0")

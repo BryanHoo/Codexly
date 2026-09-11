@@ -43,6 +43,8 @@ describe("readGitWorkingTreeStatus", () => {
       await mkdir(join(projectRoot, ".git"));
       let refReads = 0;
       const executeGit = (_root: string, arguments_: readonly string[]) => {
+        if (arguments_[0] === "rev-parse" || arguments_[0] === "ls-files")
+          return Promise.resolve("");
         if (arguments_[0] === "status") {
           return Promise.resolve("");
         }
@@ -89,6 +91,8 @@ describe("readGitWorkingTreeStatus", () => {
       const diffCommands: string[][] = [];
       const executeGit = (_root: string, arguments_: readonly string[]) => {
         if (arguments_[0] === "status") return Promise.resolve(" M tracked.txt\0");
+        if (arguments_[0] === "rev-parse" || arguments_[0] === "ls-files")
+          return Promise.resolve("");
         if (arguments_[0] === "branch") return Promise.resolve("main\n");
         if (arguments_[0] === "for-each-ref" || arguments_[0] === "symbolic-ref") {
           return Promise.resolve("");
@@ -370,6 +374,8 @@ describe("readGitWorkingTreeStatus", () => {
       // 摘要快照使用文件元数据；显式设置时间，避免 Windows 快速等长写入未更新时间戳。
       await utimes(join(projectRoot, "tracked.txt"), 1_700_000_000, 1_700_000_000);
       const executeGit = (_root: string, arguments_: readonly string[]) => {
+        if (arguments_[0] === "rev-parse" || arguments_[0] === "ls-files")
+          return Promise.resolve("");
         if (arguments_[0] === "status") {
           return Promise.resolve(" M tracked.txt\0");
         }

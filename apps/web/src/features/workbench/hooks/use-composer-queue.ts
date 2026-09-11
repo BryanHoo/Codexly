@@ -1,4 +1,4 @@
-import { buildProjectAttachmentUrl } from "@codexly/client";
+import { buildProjectAttachmentUrl, buildTaskAttachmentUrl } from "@codexly/client";
 import type { AgentPromptInput, AgentQueuedSubmission, AgentSkill } from "@codexly/protocol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -12,6 +12,7 @@ import {
   mapAgentQueuedSubmission,
   resolveQueuedPromptEdit,
   retainAcceptedSteerPrompt,
+  withTaskAttachmentPreviews,
   type AcceptedSteerPrompt,
   type QueuedComposerPrompt,
 } from "../composer-queue-state.js";
@@ -255,7 +256,9 @@ export function useComposerQueue({
       idempotencyKey: createUuid(),
     });
     onSteerAccepted({
-      files: queuedPrompt.files,
+      files: withTaskAttachmentPreviews(queuedPrompt.files, (attachmentId) =>
+        buildTaskAttachmentUrl("", projectId, taskId, attachmentId),
+      ),
       id: queuedPrompt.id,
       skills: queuedPrompt.skills,
       text: queuedPrompt.text,

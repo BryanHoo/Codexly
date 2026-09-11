@@ -27,6 +27,7 @@ import {
   type PromptSkillEditorHandle,
 } from "./prompt-skill-editor.js";
 import {
+  createHostedPromptAttachments,
   createComposerTurnOptions,
   resolvePromptAttachment,
   type ComposerMode,
@@ -288,8 +289,13 @@ export function createComposerSubmission({
           steerAttempt.key,
         );
         if (isCurrentScope(requestScope)) {
+          const hostedFiles = createHostedPromptAttachments(
+            projectId,
+            activeTaskId,
+            messageAttachments,
+          );
           onSteerAccepted({
-            files: message.files,
+            files: hostedFiles,
             ...(options.queuedPromptId === undefined ? {} : { id: options.queuedPromptId }),
             skills,
             text,

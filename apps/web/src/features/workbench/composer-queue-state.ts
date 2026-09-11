@@ -30,6 +30,16 @@ export type AcceptedSteerPrompt = Readonly<{
   userMessageIds: readonly string[];
 }>;
 
+export function withTaskAttachmentPreviews(
+  files: readonly PromptInputAttachment[],
+  getAttachmentUrl: (attachmentId: string) => string,
+): readonly PromptInputAttachment[] {
+  return files.map((file) => ({
+    ...file,
+    previewUrl: file.kind === "image" ? getAttachmentUrl(file.id) : "",
+  }));
+}
+
 export function mapAgentQueuedSubmission(
   submission: AgentQueuedSubmission,
   projectId: string,

@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 const gitCommand = vi.hoisted(() => ({
   executeGit: vi.fn((_root: string, arguments_: readonly string[]) => {
+    if (arguments_[0] === "rev-parse" || arguments_[0] === "ls-files") {
+      return Promise.resolve("");
+    }
     if (arguments_[0] === "status") {
       return Promise.resolve("");
     }
