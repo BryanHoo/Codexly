@@ -268,6 +268,7 @@ export interface AgentProvider {
 
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。
 export interface AgentRuntimeProvider {
+  readonly personalization?: PersonalizationProvider;
   readonly fileSearch?: AgentFileSearchProvider;
   cancelProviderLogin(loginId: string): Promise<AgentProviderConnectionMutationResponse>;
   configureCustomProvider(
@@ -307,3 +308,4 @@ export interface AgentRuntimeProvider {
   setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResponse>;
   startOfficialProviderLogin(): Promise<StartOfficialProviderLoginResponse>;
 }
+import type { PersonalizationProvider } from "./personalization.js";

@@ -1,3 +1,8 @@
+import { Buffer } from "node:buffer";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 import {
   FakeRpcClient,
@@ -8,7 +13,12 @@ import {
 } from "./agent-provider.test-support.js";
 
 describe("CodexAgentProvider mutations", () => {
-  it("maps task and turn mutations to Codex App Server RPC", async () => {
+  it("maps task and turn mutations to Codex App Server RPC", async ({ onTestFinished }) => {
+    const directory = await mkdtemp(join(tmpdir(), "codexly-turn-image-"));
+    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    const imagePath = join(directory, "image.png");
+    const imageContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+    await writeFile(imagePath, imageContent);
     const runningTurn = {
       completedAt: null,
       durationMs: null,
@@ -34,7 +44,7 @@ describe("CodexAgentProvider mutations", () => {
             {
               detail: "auto",
               mediaType: "image/png",
-              path: "/tmp/image.png",
+              path: imagePath,
             },
           ],
           files: [
@@ -112,7 +122,11 @@ describe("CodexAgentProvider mutations", () => {
               ],
               type: "text",
             },
-            { detail: "auto", path: "/tmp/image.png", type: "localImage" },
+            {
+              detail: "auto",
+              type: "image",
+              url: `data:image/png;base64,${imageContent.toString("base64")}`,
+            },
           ],
           model: "gpt-5.6-sol",
           outputSchema: {

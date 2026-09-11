@@ -1,4 +1,24 @@
 export const settings = {
+  sectionKeywords: {
+    appearance: "颜色模式 语言 通知 编辑器 默认打开方式 跟进消息 背景 壁纸 Bing 自定义 模糊 遮罩",
+    personalization:
+      "Codex 说明 AGENTS.md 全局指令 记忆 MCP 网页搜索 Git 提交消息 提交模型 提示词 生成规则",
+    pets: "启用 宠物 选择",
+    provider: "API 密钥 Base URL 模型 官方 自定义",
+    agent: "快速模式 模型 思考强度 审批 文件访问 沙箱 网页搜索 输出详细程度",
+    about: "版本 更新 更新日志 诊断",
+  },
+  search: {
+    label: "搜索设置",
+    placeholder: "搜索设置…",
+    clear: "清除搜索",
+    empty: "未找到相关设置",
+  },
+  groups: {
+    personal: "个人",
+    coding: "编码",
+    app: "应用",
+  },
   about: {
     available: "发现新版本 {{version}}",
     check: "检查更新",
@@ -33,6 +53,7 @@ export const settings = {
     sessionDescription: "此浏览器当前已配对到本次 Codexly 局域网会话。",
   },
   actions: {
+    backToApp: "返回应用",
     cancel: "取消",
     close: "关闭",
     closeDialog: "关闭全局设置",
@@ -169,14 +190,12 @@ export const settings = {
     workspaceWrite: "工作区可写",
   },
   sections: {
+    personalization: "个性化",
     about: "关于",
     access: "局域网访问",
-    agent: "Agent 默认值",
-    appearance: "基础设置",
-    background: "工作台背景",
-    commit: "提交消息",
-    integration: "应用集成",
-    pets: "工作台宠物",
+    agent: "智能体配置",
+    appearance: "常规",
+    pets: "宠物",
     provider: "模型服务",
   },
   title: "全局设置",

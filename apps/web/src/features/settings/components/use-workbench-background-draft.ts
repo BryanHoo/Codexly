@@ -22,25 +22,30 @@ export function useWorkbenchBackgroundDraft() {
   const [customImages, setCustomImages] = useState<readonly CustomBackgroundImage[]>([]);
   const [storedImageIds, setStoredImageIds] = useState<ReadonlySet<string>>(() => new Set());
   const [deletedImageIds, setDeletedImageIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
+    if (background.mode !== "custom" || loaded) return;
     let disposed = false;
+    setLoadError(false);
     void readCustomBackgroundImages()
       .then((images) => {
         if (disposed) return;
         setCustomImages(images);
         setStoredImageIds(new Set(images.map((image) => image.id)));
+        setLoaded(true);
       })
       .catch(() => {
         if (!disposed) {
-          setCustomImages([]);
-          setStoredImageIds(new Set());
+          setLoadError(true);
         }
       });
     return () => {
       disposed = true;
     };
-  }, []);
+  }, [background.mode, loaded, loadAttempt]);
 
   const backgroundMutation = useMemo(
     () => ({
@@ -51,6 +56,11 @@ export function useWorkbenchBackgroundDraft() {
   );
 
   return {
+    isLoading: background.mode === "custom" && !loaded && !loadError,
+    loadError,
+    retryLoad: () => {
+      setLoadAttempt((attempt) => attempt + 1);
+    },
     addCustomBackgroundFiles: (files: readonly File[]) => {
       const addedImages = files.map((file) => createCustomBackgroundImage(file));
       if (addedImages.length === 0) return;
@@ -77,6 +87,7 @@ export function useWorkbenchBackgroundDraft() {
       setCustomImages(result.images);
       setBackground((preference) => ({
         ...preference,
+        mode: result.images.length === 0 ? "none" : preference.mode,
         selectedCustomImageId:
           preference.selectedCustomImageId === imageId
             ? result.selectedCustomImageId

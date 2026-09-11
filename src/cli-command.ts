@@ -87,6 +87,7 @@ interface CliManagedProjectRepository extends ProjectRepository {
 }
 
 interface CreateRuntimeProviderInput {
+  codexHome?: string;
   client: CodexRpcClient;
 }
 
@@ -358,6 +359,7 @@ async function runStart(
       await stateRepository.completeProjectSourceMigration();
     }
     const provider = await dependencies.createRuntimeProvider({
+      codexHome,
       client: runtime.client,
     });
     const petProvider = dependencies.createPetProvider({ codexHome });

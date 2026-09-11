@@ -2,13 +2,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
-import { WorkbenchBackgroundSettings } from "./workbench-background-settings.js";
+import { CustomBackgroundGallery } from "./custom-background-gallery.js";
+import "../../../i18n/settings-background.js";
 
-describe("WorkbenchBackgroundSettings", () => {
-  it("renders uploaded images as selectable square thumbnails with delete actions", () => {
+describe("CustomBackgroundGallery", () => {
+  it("renders uploaded images as selectable thumbnails with delete actions", () => {
     const markup = renderToStaticMarkup(
       <TooltipProvider>
-        <WorkbenchBackgroundSettings
+        <CustomBackgroundGallery
           customImages={[
             {
               blob: new Blob(["first"], { type: "image/png" }),
@@ -42,7 +43,7 @@ describe("WorkbenchBackgroundSettings", () => {
     expect(markup).toContain('aria-label="使用 first.png 作为工作台背景"');
     expect(markup).toContain('aria-label="删除 first.png"');
     expect(markup).toMatch(/aria-label="使用 second\.jpg 作为工作台背景" aria-pressed="true"/u);
-    expect(markup.match(/aspect-square/gu)).toHaveLength(3);
+    expect(markup.match(/class="wallpaper-tile"/gu)).toHaveLength(2);
     expect(markup).toContain("multiple");
   });
 });

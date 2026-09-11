@@ -71,12 +71,12 @@ describe("Workbench 加载边界", () => {
 
   it("只让重型内容和按需设置保留组件级动态加载", () => {
     const layout = readWebSource("features/workbench/components/workbench-shell-layout.tsx");
-    const dialogs = readWebSource("features/workbench/components/workbench-shell-dialogs.tsx");
+    const dialogs = readWebSource("features/workbench/components/workbench-settings-page.tsx");
     const commitPanel = readWebSource("features/workbench/components/commit-changes-panel.tsx");
     expect(layout).not.toContain("lazy(");
     expect(commitPanel).not.toContain("lazy(");
-    expect(dialogs).toContain("const LazyGlobalSettingsDialog = lazy");
-    expect(dialogs).toContain("loadGlobalSettingsDialog()");
+    expect(dialogs).toContain("const LazyGlobalSettingsPage = lazy");
+    expect(dialogs).toContain("loadGlobalSettingsPage()");
 
     expect(readWebSource("shared/components/agent/lazy-message-response.tsx")).toContain(
       'import("./message-response.js")',

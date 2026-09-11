@@ -178,7 +178,9 @@ export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode
     preference.mode === "custom"
       ? customImageUrl
       : preference.mode === "bing"
-        ? bingImageUrl
+        ? preference.selectedBingDay
+          ? `/v1/workbench-background/bing/image?day=${encodeURIComponent(preference.selectedBingDay)}`
+          : bingImageUrl
         : null;
   useEffect(() => {
     setImageLoaded(false);

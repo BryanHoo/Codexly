@@ -27,7 +27,7 @@ function fetchWithGlobal(input: string, init: RequestInit): Promise<Response> {
   return globalThis.fetch(input, init);
 }
 
-async function readBoundedBody(
+export async function readBoundedBody(
   response: Response,
   maximumBytes: number,
   label: string,

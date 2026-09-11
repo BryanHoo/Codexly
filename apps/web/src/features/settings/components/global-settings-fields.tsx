@@ -2,63 +2,35 @@ import type { AgentModel } from "@codexly/protocol";
 import {
   Bot,
   ChevronDown,
-  GitCommitHorizontal,
-  Images,
   Info,
-  MonitorCog,
-  Moon,
   Network,
   PawPrint,
-  Palette,
+  SlidersHorizontal,
+  Settings,
   ServerCog,
-  Sun,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode, SelectHTMLAttributes } from "react";
+import { useId, type ReactNode, type SelectHTMLAttributes } from "react";
 
-import type { SupportedLanguage } from "../../../i18n/language-preference.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { PromptInputSelect } from "../../../shared/components/agent/prompt-input.js";
-import { Button } from "../../../shared/components/core/button.js";
 import { Checkbox } from "../../../shared/components/core/checkbox.js";
-import type { ThemePreference } from "../theme-preference.js";
 
 export type SettingsSectionId =
-  | "about"
-  | "access"
-  | "agent"
-  | "appearance"
-  | "background"
-  | "commit"
-  | "integration"
-  | "pets"
-  | "provider";
+  "access" | "about" | "agent" | "appearance" | "pets" | "personalization" | "provider";
 
 export const settingsSections: readonly Readonly<{
   icon: LucideIcon;
   id: SettingsSectionId;
 }>[] = [
-  { icon: Palette, id: "appearance" },
-  { icon: Images, id: "background" },
+  { icon: Settings, id: "appearance" },
   { icon: PawPrint, id: "pets" },
   { icon: ServerCog, id: "provider" },
   { icon: Bot, id: "agent" },
-  { icon: GitCommitHorizontal, id: "commit" },
-  { icon: MonitorCog, id: "integration" },
+  { icon: SlidersHorizontal, id: "personalization" },
   { icon: Network, id: "access" },
   { icon: Info, id: "about" },
 ];
-
-const themeOptions = [
-  {
-    ariaKey: "appearance.automaticMode",
-    icon: MonitorCog,
-    labelKey: "appearance.automatic",
-    value: "system",
-  },
-  { ariaKey: "appearance.lightMode", icon: Sun, labelKey: "appearance.light", value: "light" },
-  { ariaKey: "appearance.darkMode", icon: Moon, labelKey: "appearance.dark", value: "dark" },
-] as const;
 
 export function SettingsPanel({
   activeSection,
@@ -71,40 +43,76 @@ export function SettingsPanel({
   id: SettingsSectionId;
   title: string;
 }>) {
+  if (activeSection !== id) return null;
   return (
-    <section hidden={activeSection !== id} id={`settings-panel-${id}`}>
-      <h3 className="mb-4 text-heading font-semibold">{title}</h3>
-      <div className="divide-y divide-separator">{children}</div>
+    <section id={`settings-panel-${id}`}>
+      <h1 className="mb-6 text-xl font-semibold">{title}</h1>
+      <SettingsCard>{children}</SettingsCard>
     </section>
+  );
+}
+
+export function SettingsGroup({
+  children,
+  title,
+  description,
+}: Readonly<{ children: ReactNode; title: string; description?: string }>) {
+  const id = useId();
+  return (
+    <section aria-labelledby={id}>
+      <h2
+        className={`${description === undefined ? "mb-2" : "mb-1"} text-body font-semibold`}
+        id={id}
+      >
+        {title}
+      </h2>
+      {description === undefined ? null : (
+        <p className="mb-3 text-body-small text-muted-foreground">{description}</p>
+      )}
+      <SettingsCard>{children}</SettingsCard>
+    </section>
+  );
+}
+
+function SettingsCard({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <div className="divide-y divide-separator rounded-surface border border-separator bg-panel px-4">
+      {children}
+    </div>
   );
 }
 
 export function SettingsField({
   alignStart = false,
   children,
+  description,
   label,
 }: Readonly<{
   alignStart?: boolean;
   children: ReactNode;
+  description?: string;
   label: string;
 }>) {
   return (
     <div
-      className={`grid min-h-16 gap-3 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] ${alignStart ? "items-start" : "items-center"}`}
+      className={`grid min-h-14 ${description === undefined ? "sm:grid-cols-[minmax(9rem,1fr)_minmax(0,22rem)]" : "sm:grid-cols-[minmax(0,1fr)_minmax(10rem,16rem)]"} gap-4 py-3 ${alignStart ? "items-start" : "items-center"}`}
     >
-      <span className={`text-body-small font-medium text-foreground ${alignStart ? "pt-2" : ""}`}>
-        {label}
-      </span>
-      {children}
+      <div className={`min-w-0 ${alignStart ? "pt-2" : ""}`}>
+        <span className="block text-body-small font-medium text-foreground">{label}</span>
+        {description === undefined ? null : (
+          <p className="mt-0.5 text-label text-muted-foreground">{description}</p>
+        )}
+      </div>
+      <div className="flex min-w-0 justify-end">{children}</div>
     </div>
   );
 }
 
 export function FastModeSettingsField({
-  disabled,
+  disabled = false,
   enabled,
   onChange,
-}: Readonly<{ disabled: boolean; enabled: boolean; onChange: (enabled: boolean) => void }>) {
+}: Readonly<{ disabled?: boolean; enabled: boolean; onChange: (enabled: boolean) => void }>) {
   const { t } = useTranslation("settings");
   const label = t("fields.fastMode");
   return (
@@ -121,109 +129,15 @@ export function FastModeSettingsField({
   );
 }
 
-export function ThemeButton({
-  ariaLabel,
-  icon: Icon,
-  label,
-  onClick,
-  selected,
-}: Readonly<{
-  ariaLabel: string;
-  icon: LucideIcon;
-  label: string;
-  onClick: () => void;
-  selected: boolean;
-}>) {
-  return (
-    <Button
-      aria-label={ariaLabel}
-      aria-pressed={selected}
-      className={`inline-flex h-8 items-center justify-center gap-1 rounded-[5px] px-1 text-body-small font-medium transition-colors ${selected ? "bg-raised text-foreground shadow-control" : "text-muted-foreground hover:text-foreground"}`}
-      onClick={onClick}
-      type="button"
-      variant="ghost"
-    >
-      <Icon aria-hidden="true" className="hidden size-4 min-[360px]:block" />
-      <span>{label}</span>
-    </Button>
-  );
-}
-
-export function AppearanceSettingsPanel({
-  activeSection,
-  language,
-  notificationsEnabled,
-  onLanguageChange,
-  onNotificationsChange,
-  onThemeChange,
-  theme,
-}: Readonly<{
-  activeSection: SettingsSectionId;
-  language: SupportedLanguage;
-  notificationsEnabled: boolean;
-  onLanguageChange: (language: SupportedLanguage) => void;
-  onNotificationsChange: (enabled: boolean) => void;
-  onThemeChange: (theme: ThemePreference) => void;
-  theme: ThemePreference;
-}>) {
-  const { t } = useTranslation("settings");
-  return (
-    <SettingsPanel activeSection={activeSection} id="appearance" title={t("sections.appearance")}>
-      <SettingsField label={t("appearance.colorMode")}>
-        <div className="grid grid-cols-3 rounded-control bg-control p-0.5">
-          {themeOptions.map((option) => {
-            return (
-              <ThemeButton
-                ariaLabel={t(option.ariaKey)}
-                icon={option.icon}
-                key={option.value}
-                label={t(option.labelKey)}
-                onClick={() => {
-                  onThemeChange(option.value);
-                }}
-                selected={theme === option.value}
-              />
-            );
-          })}
-        </div>
-      </SettingsField>
-      <SettingsField label={t("appearance.language")}>
-        <SettingsSelect
-          aria-label={t("appearance.language")}
-          onChange={(event) => {
-            onLanguageChange(event.currentTarget.value as SupportedLanguage);
-          }}
-          value={language}
-        >
-          <option value="zh-CN">{t("languages.zhCN")}</option>
-          <option value="en">{t("languages.en")}</option>
-        </SettingsSelect>
-      </SettingsField>
-      <SettingsField label={t("appearance.notifications")}>
-        <SettingsSelect
-          aria-label={t("appearance.notifications")}
-          onChange={(event) => {
-            onNotificationsChange(event.currentTarget.value === "enabled");
-          }}
-          value={notificationsEnabled ? "enabled" : "disabled"}
-        >
-          <option value="enabled">{t("notifications.enabled")}</option>
-          <option value="disabled">{t("notifications.disabled")}</option>
-        </SettingsSelect>
-      </SettingsField>
-    </SettingsPanel>
-  );
-}
-
 export function ModelSelect({
   ariaLabel,
-  disabled,
+  disabled = false,
   models,
   onChange,
   value,
 }: Readonly<{
   ariaLabel: string;
-  disabled: boolean;
+  disabled?: boolean;
   models: readonly AgentModel[];
   onChange: (modelId: string) => void;
   value: string;
@@ -280,9 +194,9 @@ export function ReasoningSelect({
 
 export function SettingsSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <div className="relative min-w-0">
+    <div className="relative min-w-40 max-w-full">
       <PromptInputSelect
-        className="h-9 w-full max-w-none !border !border-separator-strong !bg-control px-2.5 pr-8 text-body-small text-foreground"
+        className="h-8 w-full max-w-none !border !border-separator-strong !bg-control px-2.5 pr-8 text-body-small text-foreground"
         {...props}
       />
       <ChevronDown

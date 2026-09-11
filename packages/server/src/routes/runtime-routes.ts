@@ -1,5 +1,6 @@
 import {
   AgentCapabilitiesSchema,
+  BingWallpaperCatalogSchema,
   AgentGlobalSettingsResponseSchema,
   AgentGlobalSettingsSchema,
   AgentModelPageSchema,
@@ -18,6 +19,7 @@ import type { FastifyPluginCallback } from "fastify";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { IdempotencyHeadersSchema } from "./schemas.js";
 import { createBingWallpaperService } from "../bing-wallpaper.js";
+import { createBingWallpaperCatalog } from "../bing-wallpaper-catalog.js";
 
 const APP_UPDATE_HANDLER_TIMEOUT_MS = 150_000;
 const BingWallpaperQuerySchema = {
@@ -33,6 +35,32 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
   done,
 ) => {
   const bingWallpaper = createBingWallpaperService();
+  const bingCatalog = createBingWallpaperCatalog();
+  app.get(
+    "/v1/workbench-background/bing/catalog",
+    { schema: { response: { 200: BingWallpaperCatalogSchema } } },
+    () => bingCatalog.list(),
+  );
+  app.get<{ Querystring: { day: string; thumbnail?: boolean } }>(
+    "/v1/workbench-background/bing/image",
+    {
+      schema: {
+        querystring: {
+          type: "object",
+          additionalProperties: false,
+          required: ["day"],
+          properties: {
+            day: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+            thumbnail: { type: "boolean" },
+          },
+        },
+      },
+    },
+    async (request, reply) =>
+      reply
+        .type("image/jpeg")
+        .send(await bingCatalog.read(request.query.day, request.query.thumbnail ?? false)),
+  );
   const {
     assertValidProjectDefaults,
     capabilities,

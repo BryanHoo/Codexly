@@ -482,6 +482,7 @@ export async function createCodexlyServer(
     ...(accessService === undefined ? {} : { service: accessService }),
   });
   await app.register(registerRuntimeRoutes, routeContext);
+  await app.register(registerPersonalizationRoutes, routeContext);
   await app.register(registerProviderConnectionRoutes, routeContext);
   await app.register(registerPetRoutes, routeContext);
   await app.register(registerProjectRoutes, routeContext);
@@ -494,3 +495,4 @@ export async function createCodexlyServer(
   await app.ready();
   return app;
 }
+import { registerPersonalizationRoutes } from "./routes/personalization-routes.js";

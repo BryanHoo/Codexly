@@ -1,11 +1,12 @@
 import type { WorkbenchPetDescriptor, WorkbenchPetSettings } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, PawPrint, RefreshCw } from "lucide-react";
+import { Check, Download, PawPrint, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
-import { Checkbox } from "../../../shared/components/core/checkbox.js";
+import "./pet-settings.css";
+import "../../../i18n/settings-pets.js";
 import {
   downloadWorkbenchPetMutationOptions,
   petCatalogQueryOptions,
@@ -40,13 +41,13 @@ type GlobalSettingsPetsViewProps = Readonly<{
 function PetPreview({ pet }: Readonly<{ pet: WorkbenchPetDescriptor }>) {
   if (pet.availability !== "ready") {
     return (
-      <span className="grid size-12 shrink-0 place-items-center rounded-control bg-control text-muted-foreground">
+      <span className="pet-settings-preview" aria-hidden="true">
         <PawPrint aria-hidden="true" className="size-5" />
       </span>
     );
   }
   return (
-    <span className="size-12 shrink-0 overflow-hidden" aria-hidden="true">
+    <span className="pet-settings-preview" aria-hidden="true">
       <WorkbenchPetCanvas animationName="idle" pet={pet} />
     </span>
   );
@@ -64,24 +65,39 @@ export function GlobalSettingsPetsView({
   const { t } = useTranslation("settings");
   return (
     <section id="settings-panel-pets">
-      <div className="mb-4 flex min-w-0 items-center justify-between gap-3">
-        <h3 className="text-heading font-semibold">{t("sections.pets")}</h3>
+      <div className="mb-6 flex min-w-0 items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">{t("sections.pets")}</h1>
         <Button onClick={onRefresh} size="sm" type="button" variant="ghost">
           <RefreshCw aria-hidden="true" data-icon="inline-start" />
           {t("pets.refresh")}
         </Button>
       </div>
-      <label className="flex min-h-12 items-center justify-between gap-3 border-b border-separator py-3 text-body-small font-medium">
-        <span>{t("pets.enabled")}</span>
-        <Checkbox
+      <div className="pet-settings-power" data-enabled={settings.enabled}>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-body-small font-medium">{t("pets.enabled")}</h2>
+          <p className="mt-1 text-label text-muted-foreground" id="pet-power-description">
+            {t(settings.enabled ? "petPage.onHint" : "petPage.offHint")}
+          </p>
+        </div>
+        {/* 关闭始终可用，即使目录正在加载或加载失败，也不能阻止用户隐藏宠物。 */}
+        <button
+          className="pet-settings-toggle"
+          type="button"
+          role="switch"
           aria-label={t("pets.enabled")}
-          checked={settings.enabled}
-          disabled={isLoading || pets.length === 0}
-          onCheckedChange={(checked) => {
-            onEnabledChange(checked === true);
+          aria-describedby="pet-power-description"
+          aria-checked={settings.enabled}
+          disabled={!settings.enabled && (isLoading || pets.length === 0)}
+          onClick={() => {
+            onEnabledChange(!settings.enabled);
           }}
-        />
-      </label>
+        >
+          <span>{t(settings.enabled ? "petPage.on" : "petPage.off")}</span>
+          <span className="pet-settings-track" aria-hidden="true">
+            <span />
+          </span>
+        </button>
+      </div>
       {isLoading ? (
         <p
           className="grid min-h-36 place-items-center text-body-small text-muted-foreground"
@@ -104,9 +120,16 @@ export function GlobalSettingsPetsView({
               {t("pets.errors.load")}
             </p>
           )}
+          <div className="pet-settings-collection-heading">
+            <h2>{t("pets.selectionLabel")}</h2>
+            <span>{t("petPage.selectionHint")}</span>
+          </div>
+          {pets.length === 0 ? (
+            <p className="py-8 text-body-small text-muted-foreground">{t("petPage.empty")}</p>
+          ) : null}
           <div
             aria-label={t("pets.selectionLabel")}
-            className="grid gap-2 py-4 sm:grid-cols-2"
+            className="pet-settings-gallery"
             role="radiogroup"
           >
             {pets.map((pet) => {
@@ -114,7 +137,8 @@ export function GlobalSettingsPetsView({
               return (
                 <Button
                   aria-checked={selected}
-                  className={`h-auto min-w-0 items-center justify-start gap-3 whitespace-normal border p-3 text-left ${selected ? "border-brand bg-control-active text-foreground" : "border-separator-strong bg-panel text-foreground"}`}
+                  className="pet-settings-card"
+                  contentAlign="start"
                   key={pet.id}
                   onClick={() => {
                     onPetSelect(pet.id);
@@ -125,7 +149,15 @@ export function GlobalSettingsPetsView({
                 >
                   <PetPreview pet={pet} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{pet.displayName}</span>
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate font-medium">{pet.displayName}</span>
+                      {selected ? (
+                        <span className="pet-settings-selected">
+                          <Check aria-hidden="true" className="size-3" />
+                          {t("petPage.selected")}
+                        </span>
+                      ) : null}
+                    </span>
                     <span className="mt-0.5 line-clamp-2 block text-label text-muted-foreground">
                       {pet.description}
                     </span>

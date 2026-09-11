@@ -5,6 +5,7 @@ export type WorkbenchBackgroundPreference = Readonly<{
   mode: WorkbenchBackgroundMode;
   overlayOpacity: number;
   selectedCustomImageId: string | null;
+  selectedBingDay?: string | null;
 }>;
 
 export type CustomBackgroundImage = Readonly<{
@@ -73,6 +74,12 @@ export function readWorkbenchBackgroundPreference(
         mode: value.mode,
         overlayOpacity: value.overlayOpacity,
         selectedCustomImageId: value.selectedCustomImageId,
+        ...("selectedBingDay" in value &&
+        (value.selectedBingDay === null ||
+          (typeof value.selectedBingDay === "string" &&
+            /^\d{4}-\d{2}-\d{2}$/u.test(value.selectedBingDay)))
+          ? { selectedBingDay: value.selectedBingDay }
+          : {}),
       };
     }
   } catch {

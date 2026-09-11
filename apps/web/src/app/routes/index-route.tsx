@@ -10,7 +10,7 @@ import {
   globalSettingsQueryOptions,
   modelsQueryOptions,
 } from "../../features/projects/project-queries.js";
-import { loadGlobalSettingsDialog } from "../../features/settings/components/global-settings-lazy.js";
+import { loadGlobalSettingsPage } from "../../features/settings/components/global-settings-lazy.js";
 import { useTranslation } from "../../i18n/i18n.js";
 import { useAccess } from "../../features/access/access-context.js";
 import { RuntimeUnavailable } from "../../shared/components/core/runtime-unavailable.js";
@@ -25,8 +25,8 @@ import {
 } from "../../features/workbench/project-sidebar-preferences.js";
 import { rootRoute } from "./root-route.js";
 
-const LazyGlobalSettingsDialog = lazy(() =>
-  loadGlobalSettingsDialog().then((module) => ({ default: module.GlobalSettingsDialog })),
+const LazyGlobalSettingsPage = lazy(() =>
+  loadGlobalSettingsPage().then((module) => ({ default: module.GlobalSettingsPage })),
 );
 
 export const indexRoute = createRoute({
@@ -97,25 +97,29 @@ function IndexPage() {
     );
   }
   return (
-    <div
-      className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
-      data-inspector-open="false"
-      data-sidebar-open="true"
-    >
-      <ProjectSidebar
-        {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
-        connectionState="connected"
-        onClose={() => undefined}
-        onOpenSettings={(section) => {
-          setGlobalSettingsSection(section);
-        }}
-      />
-      <main className="grid min-h-0 min-w-0 place-items-center bg-content text-sm text-muted-foreground">
-        {t("app.noProjects")}
-      </main>
+    <>
+      <div
+        hidden={globalSettingsSection !== null}
+        className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
+        data-inspector-open="false"
+        data-sidebar-open="true"
+      >
+        <ProjectSidebar
+          {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
+          connectionState="connected"
+          onClose={() => undefined}
+          onOpenSettings={(section) => {
+            setGlobalSettingsSection(section);
+          }}
+        />
+        <main className="grid min-h-0 min-w-0 place-items-center bg-content text-sm text-muted-foreground">
+          {t("app.noProjects")}
+        </main>
+      </div>
       {globalSettingsSection === null ? null : (
         <Suspense fallback={null}>
-          <LazyGlobalSettingsDialog
+          <LazyGlobalSettingsPage
+            client={client}
             {...(access.status === undefined ? {} : { accessMode: access.status.mode })}
             {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
             appInfoError={appInfoQuery.error}
@@ -149,6 +153,6 @@ function IndexPage() {
           />
         </Suspense>
       )}
-    </div>
+    </>
   );
 }

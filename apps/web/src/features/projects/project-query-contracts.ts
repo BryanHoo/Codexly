@@ -80,6 +80,14 @@ export type CodexlySkillMarketClient = Pick<
 >;
 export type CodexlySettingsClient = Pick<
   CodexlyClient,
+  | "listWorkbenchBackgrounds"
+  | "getGlobalInstructions"
+  | "saveGlobalInstructions"
+  | "getMemorySettings"
+  | "updateMemorySettings"
+  | "resetMemories"
+  | "getAgentPreferences"
+  | "updateAgentPreferences"
   | "getGlobalSettings"
   | "getProjectDefaults"
   | "updateGlobalSettings"

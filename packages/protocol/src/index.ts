@@ -489,3 +489,5 @@ export {
   type UnsubscribeAgentTaskResponse,
   type TerminateAgentBackgroundTerminalResponse,
 } from "./project.js";
+export * from "./personalization.js";
+export * from "./workbench-background.js";

@@ -19,8 +19,8 @@ import {
 } from "./rpc-overload-retry.js";
 import { RpcPendingRequest } from "./rpc-pending-request.js";
 
-// 原生 imageGeneration 会把图片 Base64 放进单个 JSONL 帧，64 MiB 可覆盖最大图片并保留协议边界。
-const DEFAULT_MAX_JSONL_BYTES = 64 * 1_024 * 1_024;
+// 单次上传最多 50 MiB 图片，Base64 后约 67 MiB；为文本和协议字段保留余量。
+const DEFAULT_MAX_JSONL_BYTES = 80 * 1_024 * 1_024;
 const DEFAULT_LARGE_FRAME_THRESHOLD_BYTES = 1 * 1_024 * 1_024;
 
 export {

@@ -1,11 +1,14 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToReadableStream } from "react-dom/server";
 import type { AppInfoResponse, AgentModel } from "@codexly/protocol";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import { changeAppLanguage } from "../../../i18n/i18n.js";
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
-import { GlobalSettingsDialog, resolveGlobalSettingsModel } from "./global-settings-dialog.js";
+import { GlobalSettingsPage } from "./global-settings-page.js";
+import { resolveGlobalSettingsModel } from "./global-settings-model.js";
+import { CodexlyClient } from "@codexly/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   applyApprovalMode,
   createFallbackSettings,
@@ -14,8 +17,14 @@ import {
 import { GlobalSettingsAbout } from "./global-settings-about.js";
 import { AppReleaseNotesDialog } from "./app-release-notes-dialog.js";
 
-function renderSettingsDialog(children: ReactNode): string {
-  return renderToStaticMarkup(<TooltipProvider>{children}</TooltipProvider>);
+async function renderSettingsDialog(children: ReactNode): Promise<string> {
+  const stream = await renderToReadableStream(
+    <QueryClientProvider client={new QueryClient()}>
+      <TooltipProvider>{children}</TooltipProvider>
+    </QueryClientProvider>,
+  );
+  await stream.allReady;
+  return new Response(stream).text();
 }
 
 const models: AgentModel[] = [
@@ -40,7 +49,9 @@ const models: AgentModel[] = [
   },
 ];
 
-describe("GlobalSettingsDialog", () => {
+vi.mock("./global-settings-about.js", async (importOriginal) => await importOriginal());
+
+describe("GlobalSettingsPage", () => {
   beforeEach(async () => {
     await changeAppLanguage("zh-CN");
   });
@@ -62,9 +73,10 @@ describe("GlobalSettingsDialog", () => {
     });
   });
 
-  it("renders all global defaults with accessible 项目 Agent 组件 selects", () => {
-    const markup = renderSettingsDialog(
-      <GlobalSettingsDialog
+  it("renders all global defaults with accessible 项目 Agent 组件 selects", async () => {
+    const markup = await renderSettingsDialog(
+      <GlobalSettingsPage
+        client={new CodexlyClient()}
         apps={[
           { id: "visual-studio-code", kind: "editor", name: "Visual Studio Code" },
           { id: "system-default", kind: "system-default", name: "__SYSTEM_DEFAULT__" },
@@ -93,61 +105,20 @@ describe("GlobalSettingsDialog", () => {
       />,
     );
 
-    expect(markup).toContain('role="dialog"');
-    expect(markup).toContain('aria-labelledby="global-settings-title"');
-    expect(markup).toContain('aria-label="设置分类"');
-    expect(markup).toContain("基础设置");
-    expect(markup).toContain("工作台背景");
-    expect(markup).toContain("Agent 默认值");
-    expect(markup).toContain("提交消息");
-    expect(markup).toContain("应用集成");
-    expect(markup).toContain("模型服务");
-    expect(markup).toContain("工作台宠物");
-    expect(markup).toContain('aria-label="自动模式"');
-    expect(markup).toContain('aria-label="浅色模式"');
-    expect(markup).toContain('aria-label="深色模式"');
-    expect(markup).toContain('aria-label="审批"');
-    expect(markup).toMatch(/<option value="on-request"[^>]*>按需审批<\/option>/u);
-    expect(markup).toContain('<option value="never">从不询问</option>');
-    expect(markup).not.toContain('<option value="granular">');
-    expect(markup).not.toContain('<option value="untrusted">');
-    expect(markup).toMatch(/<option value="auto-review"[^>]*>自动审核<\/option>/u);
-    expect(markup).not.toContain('aria-label="自动审核"');
-    expect(markup).toContain('aria-label="工作区"');
-    expect(markup).toContain('aria-label="跟进消息"');
-    expect(markup).toContain('aria-label="快速模式"');
-    expect(markup).toContain("排队");
-    expect(markup).toContain("引导");
-    expect(markup).toContain('aria-label="模型"');
-    expect(markup).toContain('aria-label="思考量"');
-    expect(markup).toContain('aria-label="语言"');
-    expect(markup).toContain('aria-label="通知"');
-    expect(markup).toContain('aria-label="无工作台背景"');
-    expect(markup).toContain('aria-label="自定义工作台背景"');
-    expect(markup).toContain('aria-label="Bing 每日壁纸"');
-    expect(markup).toContain('aria-label="壁纸遮罩不透明度"');
-    expect(markup).toContain('aria-label="壁纸背景模糊度"');
-    expect(markup).toContain('<section hidden="" id="settings-panel-background">');
-    expect(markup).toMatch(/<label[^>]*for="background-opacity"[^>]*>遮罩不透明度<\/label>/u);
-    expect(markup).toMatch(/<label[^>]*for="background-blur"[^>]*>背景模糊度<\/label>/u);
-    expect(markup.match(/type="range"/gu)).toHaveLength(2);
-    expect(markup).toMatch(/<option value="enabled"[^>]*>开启<\/option>/u);
-    expect(markup).toContain('<option value="disabled">关闭</option>');
+    expect(markup).not.toContain('role="dialog"');
+    expect(markup).toContain('aria-label="搜索设置"');
+    expect(markup).toContain("常规");
+    expect(markup).toContain("个性化");
     expect(markup).toContain('aria-label="默认打开方式"');
-    expect(markup).toContain('aria-label="提交模型"');
-    expect(markup).toContain('aria-label="提交提示词"');
-    expect(markup).not.toContain("提交思考量");
-    expect(markup.match(/<select/gu)).toHaveLength(9);
-    expect(markup).toContain("突出用户可见影响。");
-    expect(markup).toMatch(/<button[^>]*type="submit"[^>]*>保存<\/button>/u);
-    expect(markup).not.toContain("保存全局默认");
     expect(markup).not.toContain("__SYSTEM_DEFAULT__");
   });
 
-  it("offers explicit logout only for LAN access", () => {
-    const markup = renderSettingsDialog(
-      <GlobalSettingsDialog
+  it("offers explicit logout only for LAN access", async () => {
+    const markup = await renderSettingsDialog(
+      <GlobalSettingsPage
+        client={new CodexlyClient()}
         accessMode="lan"
+        initialSection="access"
         apps={[]}
         error={null}
         isPending={false}
@@ -177,7 +148,7 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).not.toContain('aria-label="快速模式"');
   });
 
-  it("shows Codexly and Codex versions with an available update", () => {
+  it("shows Codexly and Codex versions with an available update", async () => {
     const appInfo: AppInfoResponse = {
       appVersion: "1.3.0",
       codexVersion: "0.153.4",
@@ -186,34 +157,14 @@ describe("GlobalSettingsDialog", () => {
       status: "available" as const,
       updateAvailable: true,
     };
-    const markup = renderSettingsDialog(
-      <GlobalSettingsDialog
+    const markup = await renderSettingsDialog(
+      <GlobalSettingsAbout
+        activeSection="about"
         appInfo={appInfo}
-        appInfoError={null}
-        apps={[]}
         error={null}
-        initialSection="about"
-        isAppInfoPending={false}
         isPending={false}
-        models={models}
-        onClose={vi.fn()}
         onRetry={vi.fn()}
-        onRetryAppInfo={vi.fn()}
-        onSave={vi.fn()}
         onUpdate={vi.fn()}
-        settings={{
-          approvalPolicy: "on-request",
-          approvalsReviewer: "user",
-          commitMessageModel: "gpt-5.6-sol",
-          commitMessagePrompt: "",
-          defaultOpenAppId: null,
-          fastMode: false,
-          followUpBehavior: "queue",
-          model: "gpt-5.6-sol",
-          pet: { enabled: false, selectedPetId: null },
-          reasoningEffort: "high",
-          sandboxMode: "workspace-write",
-        }}
       />,
     );
 
@@ -235,9 +186,10 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).toContain('<section id="settings-panel-about">');
   });
 
-  it("keeps About available when global settings fail to load", () => {
-    const markup = renderSettingsDialog(
-      <GlobalSettingsDialog
+  it("keeps About available when global settings fail to load", async () => {
+    const markup = await renderSettingsDialog(
+      <GlobalSettingsPage
+        client={new CodexlyClient()}
         appInfo={{
           appVersion: "1.3.0",
           codexVersion: "0.153.4",
@@ -262,7 +214,7 @@ describe("GlobalSettingsDialog", () => {
     expect(markup).not.toContain("加载全局设置失败");
   });
 
-  it("shows updating, restart, and update-check failure states", () => {
+  it("shows updating, restart, and update-check failure states", async () => {
     const available: AppInfoResponse = {
       appVersion: "1.3.0",
       codexVersion: "0.153.4",
@@ -271,7 +223,7 @@ describe("GlobalSettingsDialog", () => {
       status: "available",
       updateAvailable: true,
     };
-    const updating = renderSettingsDialog(
+    const updating = await renderSettingsDialog(
       <GlobalSettingsAbout
         activeSection="about"
         appInfo={available}
@@ -283,7 +235,7 @@ describe("GlobalSettingsDialog", () => {
         updateProgress={{ percent: 30, phase: "downloading" }}
       />,
     );
-    const restartRequired = renderSettingsDialog(
+    const restartRequired = await renderSettingsDialog(
       <GlobalSettingsAbout
         activeSection="about"
         appInfo={{
@@ -297,7 +249,7 @@ describe("GlobalSettingsDialog", () => {
         onUpdate={vi.fn()}
       />,
     );
-    const checkFailed = renderSettingsDialog(
+    const checkFailed = await renderSettingsDialog(
       <GlobalSettingsAbout
         activeSection="about"
         appInfo={{
@@ -322,8 +274,8 @@ describe("GlobalSettingsDialog", () => {
     expect(checkFailed).toContain("检查更新");
   });
 
-  it("renders detailed release notes in a dedicated dialog", () => {
-    const markup = renderSettingsDialog(
+  it("renders detailed release notes in a dedicated dialog", async () => {
+    const markup = await renderSettingsDialog(
       <AppReleaseNotesDialog
         notes={"### 新增\n\n- 添加在线更新。"}
         onClose={vi.fn()}
@@ -351,8 +303,9 @@ describe("GlobalSettingsDialog", () => {
   it("renders official Codex terminology in English without rewriting model data", async () => {
     await changeAppLanguage("en");
     try {
-      const markup = renderSettingsDialog(
-        <GlobalSettingsDialog
+      const markup = await renderSettingsDialog(
+        <GlobalSettingsPage
+          client={new CodexlyClient()}
           apps={[]}
           error={null}
           isPending={false}
@@ -378,11 +331,9 @@ describe("GlobalSettingsDialog", () => {
 
       expect(markup).toContain("Global settings");
       expect(markup).toContain("General");
-      expect(markup).toContain("Approval policy");
-      expect(markup).toContain("Reasoning effort");
+      expect(markup).toContain("Personalization");
+      expect(markup).toContain("Follow-up messages");
       expect(markup).toContain('aria-label="Language"');
-      expect(markup).toContain("GPT-5.6 Sol");
-      expect(markup).toContain(">High</option>");
     } finally {
       await changeAppLanguage("zh-CN");
     }

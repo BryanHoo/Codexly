@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { readFile } from "node:fs/promises";
 import type {
   AgentProviderQueue,
   AgentProviderTurnInput,
@@ -45,12 +46,20 @@ export abstract class CodexAgentProviderQueue extends CodexAgentProviderBase {
       }
       return { name: skill.name, path: skill.path, type: "skill" as const };
     });
-    const images = input.images.map((image) => {
-      if (image.path.length === 0) {
-        throw new CodexProtocolMappingError("Provider image path must not be empty");
-      }
-      return { detail: image.detail, path: image.path, type: "localImage" as const };
-    });
+    const images = await Promise.all(
+      input.images.map(async (image) => {
+        if (image.path.length === 0) {
+          throw new CodexProtocolMappingError("Provider image path must not be empty");
+        }
+        // 上传文件在 Turn 结束后删除；发送图片正文，让引导回显和持久历史不再依赖临时路径。
+        const content = await readFile(image.path);
+        return {
+          detail: image.detail,
+          type: "image" as const,
+          url: `data:${image.mediaType};base64,${content.toString("base64")}`,
+        };
+      }),
+    );
     const files = input.files.map(createCodexFileTextInput);
     const textAttachments = input.textAttachments.map((attachment) => ({
       text: attachment.text,

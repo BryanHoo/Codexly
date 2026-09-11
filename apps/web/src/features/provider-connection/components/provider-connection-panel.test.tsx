@@ -1,14 +1,14 @@
+import {
+  hasIncompleteCustomModels,
+  ProviderConnectionPanelView,
+} from "./provider-connection-panel-view.js";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { changeAppLanguage } from "../../../i18n/i18n.js";
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
-import {
-  createCustomProviderInput,
-  hasIncompleteCustomModels,
-  ProviderConnectionPanelView,
-} from "./provider-connection-panel.js";
+import { createCustomProviderInput } from "./provider-connection-panel.js";
 
 const handlers = {
   onApiKeyChange: vi.fn(),
@@ -56,7 +56,7 @@ describe("ProviderConnectionPanelView", () => {
     expect(markup).toContain("等待浏览器登录");
     expect(markup).toContain("取消登录");
     expect(markup).toContain('aria-pressed="true"');
-    expect(markup).toContain("inline-flex h-10 items-center justify-center gap-2");
+    expect(markup).toContain('data-content-align="center"');
     expect(markup).not.toContain("min-h-56");
     expect(markup).not.toContain('name="custom-models"');
   });

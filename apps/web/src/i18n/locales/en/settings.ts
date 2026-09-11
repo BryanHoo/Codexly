@@ -1,4 +1,25 @@
 export const settings = {
+  sectionKeywords: {
+    appearance:
+      "Color mode language notifications editor default open follow-up messages background wallpaper Bing custom blur overlay non-project temporary task folder storage location",
+    personalization:
+      "Codex instructions AGENTS.md global memory MCP web search Git commit messages model prompt generation rules",
+    pets: "Enable pet selection",
+    provider: "API key Base URL models official custom",
+    agent: "Fast mode model reasoning approval file access sandbox web search output verbosity",
+    about: "Version update release notes diagnostics",
+  },
+  search: {
+    label: "Search settings",
+    placeholder: "Search settings...",
+    clear: "Clear search",
+    empty: "No matching settings",
+  },
+  groups: {
+    personal: "Personal",
+    coding: "Coding",
+    app: "Application",
+  },
   about: {
     available: "Version {{version}} is available",
     check: "Check for updates",
@@ -33,6 +54,7 @@ export const settings = {
     sessionDescription: "This browser is paired with the current Codexly LAN session.",
   },
   actions: {
+    backToApp: "Back to app",
     cancel: "Cancel",
     close: "Close",
     closeDialog: "Close global settings",
@@ -169,13 +191,11 @@ export const settings = {
     workspaceWrite: "Workspace write",
   },
   sections: {
+    personalization: "Personalization",
     about: "About",
     access: "LAN access",
-    agent: "Agent defaults",
+    agent: "Agent configuration",
     appearance: "General",
-    background: "Workbench background",
-    commit: "Commit messages",
-    integration: "App integrations",
     pets: "Workbench pet",
     provider: "Model service",
   },

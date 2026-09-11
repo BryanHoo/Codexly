@@ -1,4 +1,12 @@
 import { resolve } from "node:path";
+import { homedir } from "node:os";
+import type {
+  MemorySettingsUpdate,
+  AgentPreferences,
+  SaveGlobalInstructions,
+} from "@codexly/protocol";
+import { createGlobalInstructionsStore } from "./global-instructions.js";
+import * as personalization from "./personalization.js";
 import type {
   AgentProvider,
   AgentRuntimeDefaultSettings,
@@ -102,6 +110,7 @@ function optionalSandboxMode(value: unknown): AgentRuntimeDefaultSettings["sandb
 }
 
 export class CodexRuntimeProvider implements AgentRuntimeProvider {
+  public readonly personalization;
   public readonly fileSearch: CodexFuzzyFileSearchService;
   readonly #client: CodexRpcClient;
   readonly #logger: CodexProviderLogger;
@@ -119,9 +128,23 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
   public constructor(
     client: CodexRpcClient,
     logger: CodexProviderLogger = DEFAULT_PROVIDER_LOGGER,
-    options: Readonly<{ fetch?: typeof globalThis.fetch }> = {},
+    options: Readonly<{ fetch?: typeof globalThis.fetch; codexHome?: string }> = {},
   ) {
     this.#client = client;
+    const instructions = createGlobalInstructionsStore(
+      options.codexHome ?? process.env["CODEX_HOME"] ?? resolve(homedir(), ".codex"),
+    );
+    this.personalization = {
+      getGlobalInstructions: instructions.read,
+      saveGlobalInstructions: (input: SaveGlobalInstructions) => instructions.save(input),
+      getMemorySettings: () => personalization.readMemorySettings(client),
+      updateMemorySettings: (input: MemorySettingsUpdate) =>
+        personalization.updateMemorySettings(client, input),
+      resetMemories: () => personalization.resetMemories(client),
+      getAgentPreferences: () => personalization.readAgentPreferences(client),
+      updateAgentPreferences: (input: AgentPreferences) =>
+        personalization.updateAgentPreferences(client, input),
+    };
     this.#logger = logger;
     this.#providerConnection = new CodexProviderConnectionService(client, options);
     this.fileSearch = new CodexFuzzyFileSearchService(client);
@@ -442,6 +465,7 @@ export function createCodexRuntimeProvider(
   options: CreateCodexRuntimeProviderOptions,
 ): CodexRuntimeProvider {
   return new CodexRuntimeProvider(options.client, options.logger, {
+    ...(options.codexHome === undefined ? {} : { codexHome: options.codexHome }),
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
   });
 }

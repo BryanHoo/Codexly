@@ -9,7 +9,7 @@ import type {
 
 import type { SettingsSectionId } from "./global-settings-fields.js";
 
-export type GlobalSettingsDialogProps = Readonly<{
+export type GlobalSettingsPageProps = Readonly<{
   accessMode?: AccessMode;
   appInfo?: AppInfoResponse;
   appInfoError?: Error | null;
@@ -30,3 +30,14 @@ export type GlobalSettingsDialogProps = Readonly<{
   onUpdate?: (version: string) => Promise<void>;
   settings?: AgentGlobalSettings;
 }>;
+import type { CodexlyClient } from "@codexly/client";
+export type SettingsClient = Pick<
+  CodexlyClient,
+  | "getGlobalInstructions"
+  | "saveGlobalInstructions"
+  | "getMemorySettings"
+  | "updateMemorySettings"
+  | "resetMemories"
+  | "getAgentPreferences"
+  | "updateAgentPreferences"
+>;

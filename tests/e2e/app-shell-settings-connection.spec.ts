@@ -28,7 +28,7 @@ test("connects a custom API from the provider gate and reuses it in settings", a
 
   await expect(page).toHaveURL(/\/p\/codexly$/u);
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const dialog = page.getByRole("dialog", { name: "全局设置" });
+  const dialog = page.getByRole("region", { name: "全局设置" });
   await dialog.getByRole("button", { name: "模型服务" }).click();
   await expect(dialog.getByRole("textbox", { name: "API Base URL" })).toHaveValue(
     "https://api.example.com/v1",
@@ -36,7 +36,7 @@ test("connects a custom API from the provider gate and reuses it in settings", a
   await expect(dialog.getByLabel("API Key（可选）")).toHaveValue("");
   await expect(dialog.getByText("已连接", { exact: true })).toBeVisible();
 
-  await dialog.getByRole("button", { name: "Agent 默认值" }).click();
+  await dialog.getByRole("button", { name: "智能体配置" }).click();
   await dialog.getByRole("combobox", { name: "模型" }).selectOption("custom-coder");
   const reasoningSelect = dialog.getByRole("combobox", { name: "思考量" });
   await expect(reasoningSelect.locator("option")).toHaveText(["最低", "低", "中", "高", "极高"]);
@@ -76,12 +76,12 @@ test("opens the requested settings section and aligns the sidebar footer with th
   ).toBeLessThanOrEqual(1);
 
   await settingsTrigger.click();
-  const dialog = page.getByRole("dialog", { name: "全局设置" });
-  await expect(dialog.getByRole("button", { name: "基础设置" })).toHaveAttribute(
+  const dialog = page.getByRole("region", { name: "全局设置" });
+  await expect(dialog.getByRole("button", { name: "常规" })).toHaveAttribute(
     "aria-current",
     "page",
   );
-  await dialog.getByRole("button", { name: "关闭全局设置" }).click();
+  await dialog.getByRole("button", { name: "返回应用" }).click();
 
   await sidebar.getByRole("button", { name: /关于，Codexly .*终端连接状态/u }).click();
   await expect(dialog.getByRole("button", { name: "关于" })).toHaveAttribute(
@@ -96,7 +96,7 @@ test("defaults appearance to automatic and follows the system color scheme", asy
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const dialog = page.getByRole("dialog", { name: "全局设置" });
+  const dialog = page.getByRole("region", { name: "全局设置" });
   const automaticMode = dialog.getByRole("button", { name: "自动模式" });
   await expect(automaticMode).toHaveAttribute("aria-pressed", "true");
 
@@ -106,23 +106,23 @@ test("defaults appearance to automatic and follows the system color scheme", asy
   await dialog.getByRole("button", { name: "深色模式" }).click();
   await page.emulateMedia({ colorScheme: "dark" });
   await page.emulateMedia({ colorScheme: "light" });
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await dialog.getByRole("button", { exact: true, name: "保存" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const reopenedDialog = page.getByRole("dialog", { name: "全局设置" });
+  const reopenedDialog = page.getByRole("region", { name: "全局设置" });
   await reopenedDialog.getByRole("button", { name: "自动模式" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await reopenedDialog.getByRole("button", { exact: true, name: "保存" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await reopenedDialog.getByRole("button", { exact: true, name: "返回应用" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const languageDialog = page.getByRole("dialog", { name: "全局设置" });
+  const languageDialog = page.getByRole("region");
   await languageDialog.getByRole("combobox", { name: "语言" }).selectOption("en");
   await page.setViewportSize({ height: 844, width: 320 });
-  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
-  for (const name of ["自动模式", "浅色模式", "深色模式"]) {
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  for (const name of ["Automatic mode", "Light mode", "Dark mode"]) {
     await expect(languageDialog.getByRole("button", { name })).toBeVisible();
     expect(
       await languageDialog.getByRole("button", { name }).evaluate((button) => {
@@ -130,19 +130,26 @@ test("defaults appearance to automatic and follows the system color scheme", asy
       }),
     ).toBe(true);
   }
-  await languageDialog.getByRole("button", { exact: true, name: "保存" }).click();
+  await page.getByRole("button", { exact: true, name: "Back to app" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 });
 
 test("applies and restores a custom workbench background", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const dialog = page.getByRole("dialog", { name: "全局设置" });
-  await dialog.getByRole("button", { name: "工作台背景" }).click();
+  const dialog = page.getByRole("region", { name: "全局设置" });
   await dialog.getByRole("button", { name: "自定义工作台背景" }).click();
-  await dialog.locator('input[type="file"]').setInputFiles("docs/images/codexly-preview.png");
+  await dialog.getByRole("button", { name: "选择图片", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "选择图片", exact: true })
+    .locator('input[type="file"]')
+    .setInputFiles("docs/images/codexly-preview.png");
+  await page
+    .getByRole("dialog", { name: "选择图片", exact: true })
+    .getByRole("button", { name: "完成", exact: true })
+    .click();
   await dialog.getByRole("slider", { name: "壁纸遮罩不透明度" }).fill("35");
-  await dialog.getByRole("button", { exact: true, name: "保存" }).click();
+  await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
 
   const background = page.locator("[data-workbench-background]");
   await expect(background).toHaveAttribute("data-background-mode", "custom");
@@ -216,18 +223,22 @@ test("applies and restores a custom workbench background", async ({ page }) => {
   await page.setViewportSize({ height: 720, width: 1280 });
   await page.getByRole("button", { name: "展开项目侧栏" }).click();
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const reopenedDialog = page.getByRole("dialog", { name: "全局设置" });
+  const reopenedDialog = page.getByRole("region", { name: "全局设置" });
   const settingsDialogBackgroundAlpha = parseCssAlpha(
     await reopenedDialog.evaluate((element) => getComputedStyle(element).backgroundColor),
   );
-  expect(settingsDialogBackgroundAlpha).toBeGreaterThanOrEqual(0.94);
-  expect(settingsDialogBackgroundAlpha).toBeLessThanOrEqual(0.96);
-  await reopenedDialog.getByRole("button", { name: "工作台背景" }).click();
+  expect(settingsDialogBackgroundAlpha).toBe(1);
   await reopenedDialog.getByRole("button", { name: "自定义工作台背景" }).click();
-  await reopenedDialog
+  await reopenedDialog.getByRole("button", { name: "选择图片", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "选择图片", exact: true })
     .locator('input[type="file"]')
     .setInputFiles("docs/images/codexly-preview.png");
-  await reopenedDialog.getByRole("button", { exact: true, name: "保存" }).click();
+  await page
+    .getByRole("dialog", { name: "选择图片", exact: true })
+    .getByRole("button", { name: "完成", exact: true })
+    .click();
+  await reopenedDialog.getByRole("button", { exact: true, name: "返回应用" }).click();
   await expect(background).toHaveAttribute("data-has-image", "true");
   await expect
     .poll(() =>
@@ -236,7 +247,7 @@ test("applies and restores a custom workbench background", async ({ page }) => {
     .not.toBe(restoredPreference);
 });
 
-test("edits global defaults in a dialog without overriding task settings", async ({ page }) => {
+test("edits global defaults on a page without overriding task settings", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/p/codexly/t/task-1");
   const workbenchUrl = page.url();
@@ -246,30 +257,30 @@ test("edits global defaults in a dialog without overriding task settings", async
   await expect(taskApproval).toHaveValue("on-request");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const dialog = page.getByRole("dialog", { name: "全局设置" });
+  const dialog = page.getByRole("region", { name: "全局设置" });
   await expect(dialog).toBeVisible();
   await expect(page).toHaveURL(workbenchUrl);
-  await expect(dialog.getByRole("button", { name: "基础设置" })).toHaveCSS(
+  await expect(dialog.getByRole("button", { name: "常规" })).toHaveCSS(
     "justify-content",
     "flex-start",
   );
 
-  await dialog.getByRole("button", { name: "基础设置" }).click();
+  await dialog.getByRole("button", { name: "常规" }).click();
   await dialog.getByRole("button", { name: "深色模式" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await dialog.getByRole("button", { name: "Agent 默认值" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await dialog.getByRole("button", { name: "引导", exact: true }).click();
+  await dialog.getByRole("button", { name: "智能体配置" }).click();
   await dialog.getByRole("combobox", { name: "审批" }).selectOption("never");
   await dialog.getByRole("combobox", { name: "工作区" }).selectOption("danger-full-access");
-  await dialog.getByRole("combobox", { name: "跟进消息" }).selectOption("steer");
   await dialog.getByRole("combobox", { name: "模型" }).selectOption("gpt-5.6-terra");
   await expect(dialog.getByRole("combobox", { name: "思考" })).toHaveValue("medium");
-  await dialog.getByRole("button", { name: "提交消息" }).click();
+  await dialog.getByRole("button", { name: "个性化" }).click();
   await dialog.getByRole("combobox", { name: "提交模型" }).selectOption("gpt-5.6-terra");
   await expect(dialog.getByRole("combobox", { name: "提交思考量" })).toHaveCount(0);
   await dialog.getByRole("textbox", { name: "提交提示词" }).fill("突出用户可见影响。");
-  await dialog.getByRole("button", { name: "应用集成" }).click();
+  await dialog.getByRole("button", { name: "常规" }).click();
   await dialog.getByRole("combobox", { name: "默认打开方式" }).selectOption("finder");
-  await dialog.getByRole("button", { exact: true, name: "保存" }).click();
+  await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
 
   await expect(dialog).toHaveCount(0);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -278,20 +289,19 @@ test("edits global defaults in a dialog without overriding task settings", async
   await expect(taskApproval).toHaveValue("on-request");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const reopenedDialog = page.getByRole("dialog", { name: "全局设置" });
-  await reopenedDialog.getByRole("button", { name: "基础设置" }).click();
+  const reopenedDialog = page.getByRole("region", { name: "全局设置" });
+  await reopenedDialog.getByRole("button", { name: "常规" }).click();
   await expect(reopenedDialog.getByRole("button", { name: "深色模式" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  await reopenedDialog.getByRole("button", { name: "Agent 默认值" }).click();
+  await reopenedDialog.getByRole("button", { name: "智能体配置" }).click();
   await expect(reopenedDialog.getByRole("combobox", { name: "审批" })).toHaveValue("never");
   await expect(reopenedDialog.getByRole("combobox", { name: "工作区" })).toHaveValue(
     "danger-full-access",
   );
-  await expect(reopenedDialog.getByRole("combobox", { name: "跟进消息" })).toHaveValue("steer");
   await expect(reopenedDialog.getByRole("combobox", { name: "模型" })).toHaveValue("gpt-5.6-terra");
-  await reopenedDialog.getByRole("button", { name: "提交消息" }).click();
+  await reopenedDialog.getByRole("button", { name: "个性化" }).click();
   await expect(reopenedDialog.getByRole("combobox", { name: "提交模型" })).toHaveValue(
     "gpt-5.6-terra",
   );
@@ -299,7 +309,7 @@ test("edits global defaults in a dialog without overriding task settings", async
   await expect(reopenedDialog.getByRole("textbox", { name: "提交提示词" })).toHaveValue(
     "突出用户可见影响。",
   );
-  await reopenedDialog.getByRole("button", { name: "应用集成" }).click();
+  await reopenedDialog.getByRole("button", { name: "常规" }).click();
   await expect(reopenedDialog.getByRole("combobox", { name: "默认打开方式" })).toHaveValue(
     "finder",
   );
@@ -316,54 +326,24 @@ test("edits global defaults in a dialog without overriding task settings", async
   ).toBe(true);
 });
 
-test("saves browser preferences only with global settings", async ({ page }) => {
+test("automatically saves browser preferences", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
-
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const chineseDialog = page.getByRole("dialog", { name: "全局设置" });
-  await chineseDialog.getByRole("button", { name: "基础设置" }).click();
-  await chineseDialog.getByRole("combobox", { name: "语言" }).selectOption("en");
-  await chineseDialog.getByRole("combobox", { name: "通知" }).selectOption("disabled");
-
-  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
-  expect(
-    await page.evaluate(() => localStorage.getItem("codexly.notification-preference")),
-  ).toBeNull();
-  await chineseDialog.getByRole("button", { name: "取消" }).click();
-  await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
-
-  await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const reopenedChineseDialog = page.getByRole("dialog", { name: "全局设置" });
-  await reopenedChineseDialog.getByRole("button", { name: "基础设置" }).click();
-  await expect(reopenedChineseDialog.getByRole("combobox", { name: "通知" })).toHaveValue(
-    "enabled",
-  );
-  await reopenedChineseDialog.getByRole("combobox", { name: "语言" }).selectOption("en");
-  await reopenedChineseDialog.getByRole("combobox", { name: "通知" }).selectOption("disabled");
-  await reopenedChineseDialog.getByRole("button", { exact: true, name: "保存" }).click();
-
+  await page.getByRole("combobox", { name: "语言" }).selectOption("en");
+  await page.getByRole("switch", { name: "Task notifications" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  expect(await page.evaluate(() => localStorage.getItem("codexly.notification-preference"))).toBe(
-    '{"enabled":false,"version":1}',
-  );
+  await page.getByRole("button", { name: "Back to app" }).click();
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await page.getByRole("button", { exact: true, name: "Settings" }).click();
-  const englishDialog = page.getByRole("dialog", { name: "Global settings" });
-  await englishDialog.getByRole("button", { name: "Agent defaults" }).click();
-  await expect(englishDialog.getByRole("combobox", { name: "Reasoning effort" })).toBeVisible();
-  await expect(englishDialog.getByRole("combobox", { name: "Approval policy" })).toBeVisible();
-  // Modal 会把背景移出可访问性树；这里仅验证服务端动态内容保持原文。
+  await expect(page.getByRole("switch", { name: "Task notifications" })).toHaveAttribute(
+    "aria-checked",
+    "false",
+  );
+  await page.getByRole("button", { name: "Agent configuration" }).click();
+  await expect(page.getByRole("combobox", { name: "Reasoning effort" })).toBeVisible();
+  await page.getByRole("button", { name: "Back to app" }).click();
   await expect(page.locator("h1").filter({ hasText: "构建 macOS 工作台" })).toBeVisible();
-  await expect(
-    page.getByText("工作台界面已按统一的 项目 Agent 组件 结构重新组织。", { exact: false }),
-  ).toBeVisible();
-
-  await englishDialog.getByRole("button", { name: "Cancel" }).click();
-  await page.reload();
-
-  await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await page.getByRole("button", { exact: true, name: "Settings" }).click();
-  await expect(page.getByRole("dialog", { name: "Global settings" })).toBeVisible();
 });
 
 test("opens About from the sidebar and installs an available update", async ({ page }) => {
@@ -406,7 +386,7 @@ test("opens About from the sidebar and installs an available update", async ({ p
   await expect(settingsButton.locator(".lucide-circle-arrow-up")).toBeVisible();
   await settingsButton.click();
 
-  const dialog = page.getByRole("dialog", { name: "全局设置" });
+  const dialog = page.getByRole("region", { name: "全局设置" });
   await expect(dialog.getByRole("button", { name: "关于" })).toHaveAttribute(
     "aria-current",
     "page",
@@ -417,7 +397,7 @@ test("opens About from the sidebar and installs an available update", async ({ p
   await expect(githubLink).toHaveAttribute("href", "https://github.com/BryanHoo/Codexly");
   await expect(githubLink).toHaveAttribute("target", "_blank");
 
-  // GitHub 链接按内容宽度贴齐值列起点，不能在拉伸后的整列中居中。
+  // 独立设置页的值与链接统一贴齐卡片右边缘。
   const [versionBox, githubBox] = await Promise.all([
     dialog.getByText("1.3.0", { exact: true }).boundingBox(),
     githubLink.boundingBox(),
@@ -425,10 +405,12 @@ test("opens About from the sidebar and installs an available update", async ({ p
   expect(versionBox).not.toBeNull();
   expect(githubBox).not.toBeNull();
   if (versionBox === null || githubBox === null) throw new Error("关于字段缺少布局边界");
-  expect(Math.abs(versionBox.x - githubBox.x)).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(versionBox.x + versionBox.width - githubBox.x - githubBox.width),
+  ).toBeLessThanOrEqual(1);
 
-  // 更新状态和全部操作在桌面设置弹窗中共用同一横向操作行。
-  const updateControlCenters = await Promise.all(
+  // 参考页面的值列允许操作换行，但不能溢出卡片。
+  const updateControlRightEdges = await Promise.all(
     [
       dialog.getByText("发现新版本 1.4.0", { exact: true }),
       dialog.getByRole("button", { name: "检查更新" }),
@@ -439,11 +421,11 @@ test("opens About from the sidebar and installs an available update", async ({ p
       const box = await control.boundingBox();
       expect(box).not.toBeNull();
       if (box === null) throw new Error("更新操作控件缺少布局边界");
-      return box.y + box.height / 2;
+      return box.x + box.width;
     }),
   );
-  expect(Math.max(...updateControlCenters) - Math.min(...updateControlCenters)).toBeLessThanOrEqual(
-    1,
+  expect(Math.max(...updateControlRightEdges)).toBeLessThanOrEqual(
+    versionBox.x + versionBox.width + 1,
   );
 
   const initialAppInfoRequests = appInfoRequests;

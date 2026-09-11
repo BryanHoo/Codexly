@@ -22,12 +22,12 @@ test("saves pet settings without waiting for the asset download", async ({ page 
 
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const dialog = page.getByRole("dialog", { name: "全局设置" });
-  await dialog.getByRole("button", { name: "工作台宠物" }).click();
-  await dialog.getByRole("checkbox", { name: "启用工作台宠物" }).click();
+  const dialog = page.getByRole("region", { name: "全局设置" });
+  await dialog.getByRole("button", { name: "宠物" }).click();
+  await dialog.getByRole("switch", { name: "启用工作台宠物" }).click();
   await expect.poll(() => petRequests).toContain("POST /v1/pets/downloads");
 
-  const save = dialog.getByRole("button", { exact: true, name: "保存" });
+  const save = dialog.getByRole("button", { exact: true, name: "返回应用" });
   await expect(save).toBeEnabled();
   await save.click();
   await expect.poll(() => petRequests).toContain("PUT /v1/settings");
@@ -47,14 +47,14 @@ test("downloads, renders, moves, and restores the workbench pet", async ({ page 
   await expect(page.locator(".workbench-pet-layer")).toHaveCount(0);
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const dialog = page.getByRole("dialog", { name: "全局设置" });
-  await dialog.getByRole("button", { name: "工作台宠物" }).click();
+  const dialog = page.getByRole("region", { name: "全局设置" });
+  await dialog.getByRole("button", { name: "宠物" }).click();
   await expect.poll(() => petRequests).toContain("GET /v1/pets");
   await expect.poll(() => petRequests).toContain("POST /v1/pets/downloads");
   await expect(dialog.getByText("已就绪")).toBeVisible();
   await expect(dialog.getByRole("radio", { name: /Codex/u }).locator("canvas")).toHaveCount(1);
-  await dialog.getByRole("checkbox", { name: "启用工作台宠物" }).click();
-  await dialog.getByRole("button", { exact: true, name: "保存" }).click();
+  await dialog.getByRole("switch", { name: "启用工作台宠物" }).click();
+  await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
 
   const pet = page.getByRole("button", { name: "移动工作台宠物 Codex" });
   await expect(pet).toBeVisible();
@@ -84,17 +84,9 @@ test("downloads, renders, moves, and restores the workbench pet", async ({ page 
   expect(Math.abs(restored.y - moved.y)).toBeLessThanOrEqual(2);
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const reopenedDialog = page.getByRole("dialog", { name: "全局设置" });
-  const layerZIndex = Number(
-    await page
-      .locator(".workbench-pet-layer")
-      .evaluate((element) => getComputedStyle(element).zIndex),
-  );
-  const dialogZIndex = Number(
-    await reopenedDialog.evaluate((element) => getComputedStyle(element).zIndex),
-  );
-  expect(dialogZIndex).toBeGreaterThan(layerZIndex);
-  await reopenedDialog.getByRole("button", { name: "关闭全局设置" }).click();
+  const reopenedDialog = page.getByRole("region", { name: "全局设置" });
+  await expect(page.locator(".workbench-pet-layer")).toBeHidden();
+  await reopenedDialog.getByRole("button", { name: "返回应用" }).click();
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.reload();

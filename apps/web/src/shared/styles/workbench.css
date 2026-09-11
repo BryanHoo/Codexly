@@ -24,7 +24,9 @@
 }
 
 /* 显式覆盖前景语义，避免运行环境仅将 color-scheme 应用于原生控件和局部属性。 */
-body:has(.workbench-background[data-has-image="true"][data-background-tone="light"]) {
+body:not(:has(.settings-page)):has(
+    .workbench-background[data-has-image="true"][data-background-tone="light"]
+  ) {
   color-scheme: light;
   --ui-color-text: #111111;
   --ui-color-text-muted: rgb(17 17 17 / 0.72);
@@ -32,7 +34,9 @@ body:has(.workbench-background[data-has-image="true"][data-background-tone="ligh
   --ui-color-wallpaper-overlay: #ffffff;
 }
 
-body:has(.workbench-background[data-has-image="true"][data-background-tone="dark"]) {
+body:not(:has(.settings-page)):has(
+    .workbench-background[data-has-image="true"][data-background-tone="dark"]
+  ) {
   color-scheme: dark;
   --ui-color-text: #ffffff;
   --ui-color-text-muted: rgb(255 255 255 / 0.68);
@@ -41,7 +45,7 @@ body:has(.workbench-background[data-has-image="true"][data-background-tone="dark
 }
 
 /* 壁纸加载后保持工作台通透，并以 95% 实色浮层兼顾图片可见性与内容可读性。 */
-body:has(.workbench-background[data-has-image="true"]) {
+body:not(:has(.settings-page)):has(.workbench-background[data-has-image="true"]) {
   --ui-color-window: transparent;
   --ui-color-content: transparent;
   --ui-color-sidebar: transparent;
@@ -56,12 +60,12 @@ body:has(.workbench-background[data-has-image="true"]) {
 }
 
 /* 弹窗内的次级 raised 区域继承浮层材质，避免大块子区域重新降回 68%。 */
-body:has(.workbench-background[data-has-image="true"])
+body:not(:has(.settings-page)):has(.workbench-background[data-has-image="true"])
   :is([data-slot="dialog-content"], [data-slot="sheet-content"]) {
   --ui-color-raised: var(--ui-color-floating-surface);
 }
 
-body:has(.workbench-background[data-has-image="true"])
+body:not(:has(.settings-page)):has(.workbench-background[data-has-image="true"])
   :is(
     [data-slot="dialog-content"],
     [data-slot="sheet-content"],
@@ -78,8 +82,13 @@ body:has(.workbench-background[data-has-image="true"])
   background: var(--ui-color-floating-surface) !important;
 }
 
-body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-content"] {
+body:not(:has(.settings-page)):has(.workbench-background[data-has-image="true"])
+  [data-slot="tooltip-content"] {
   color: var(--ui-color-text);
+}
+
+.workbench-shell[hidden] {
+  display: none;
 }
 
 .workbench-shell {

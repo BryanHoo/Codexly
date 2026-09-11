@@ -77,7 +77,7 @@ test("pairs real browsers, persists the cookie, and invalidates it on logout @cr
   }
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
-  const dialog = page.getByRole("dialog", { name: "全局设置" });
+  const dialog = page.getByRole("region", { name: "全局设置" });
   await dialog.getByRole("button", { name: "局域网访问" }).click();
   await dialog.getByRole("button", { name: "退出局域网访问" }).click();
 

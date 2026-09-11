@@ -75,6 +75,7 @@ describe("runCli startup", () => {
     expect(startOptions?.env?.["CODEX_HOME"]).toBe("/custom/home");
     expect(harness.dependencies.createRuntimeProvider).toHaveBeenCalledWith({
       client: harness.client,
+      codexHome: "/custom/home",
     });
     expect(harness.dependencies.createProjectRepository).toHaveBeenCalledWith({
       client: harness.client,
