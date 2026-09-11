@@ -11,8 +11,8 @@ test("preserves custom recurrence on rename and refreshes an automatic run", asy
   const now = Date.now();
   const schedule = {
     type: "rrule" as const,
-    rrule: "RRULE:FREQ=DAILY;INTERVAL=2;COUNT=5",
-    startAtUnixMs: now + 60_000,
+    rrule: "RRULE:FREQ=DAILY;INTERVAL=2;BYHOUR=9;BYMINUTE=15;BYSECOND=0;COUNT=5",
+    startAtUnixMs: Math.floor((now + 60_000) / 60_000) * 60_000,
     timezone: "America/New_York",
   };
   let task: ScheduledTask = {
@@ -51,6 +51,10 @@ test("preserves custom recurrence on rename and refreshes an automatic run", asy
   });
   await page.clock.install({ time: new Date(now) });
   await page.route("**/v1/scheduled-tasks**", async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith("/preview")) {
+      await route.fulfill({ json: { dates: [now + 86_400_000] } });
+      return;
+    }
     if (route.request().method() === "GET") {
       reads += 1;
       await route.fulfill({ json: { data: [task] } });
@@ -65,6 +69,7 @@ test("preserves custom recurrence on rename and refreshes an automatic run", asy
   await page.getByRole("button", { name: "自定义巡检", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "重复规则" })).toHaveValue("custom");
   await page.getByRole("textbox", { name: "任务名称" }).fill("重命名巡检");
+  await page.clock.runFor(250);
   await page.getByRole("button", { name: "保存任务" }).click();
   await expect.poll(() => savedSchedule).toEqual(schedule);
   await expect(page.getByRole("button", { name: "重命名巡检", exact: true })).toBeVisible();
@@ -132,6 +137,10 @@ test("creates, toggles and runs a scheduled task", async ({ page }) => {
   await page.route("**/v1/scheduled-tasks**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
+    if (pathname.endsWith("/preview")) {
+      await route.fulfill({ json: { dates: [Date.now() + 86_400_000] } });
+      return;
+    }
     if (request.method() !== "GET") mutations.push({ method: request.method(), path: pathname });
 
     if (request.method() === "GET") {

@@ -3,9 +3,10 @@ import {
   type ScheduledTask,
   type ScheduledTaskInput,
   type ScheduledTaskPage,
+  type ScheduledTaskSchedule,
 } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { CalendarClock } from "lucide-react";
 
 import "./scheduled-tasks.css";
@@ -30,6 +31,10 @@ export function ScheduledTasksContainer({
   temporary: boolean;
 }>) {
   const queryClient = useQueryClient();
+  const previewSchedule = useCallback(
+    (schedule: ScheduledTaskSchedule) => context.client.previewScheduledTask(schedule),
+    [context.client],
+  );
   const [selectedId, setSelectedId] = useState<string>();
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
@@ -167,6 +172,7 @@ export function ScheduledTasksContainer({
             if (!openRunMutation.isPending) openRunMutation.mutate({ runProjectId, taskId });
           }}
           onProjectChange={changeProject}
+          onPreview={previewSchedule}
           onRunNow={(id) => runMutation.mutateAsync(id).then(noop)}
           onSave={(taskId, input) =>
             saveMutation

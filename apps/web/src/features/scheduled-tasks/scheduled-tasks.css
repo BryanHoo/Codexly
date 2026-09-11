@@ -1,5 +1,6 @@
 @import "./scheduled-task-panel.css";
 @import "./scheduled-task-calendar.css";
+@import "./scheduled-task-recurrence.css";
 
 /* 定时任务采用稳定双栏与时间轨道，异步刷新只更新内容，不改变面板尺寸。 */
 .scheduled-tasks {

@@ -28,15 +28,19 @@ import {
   draftToSchedule,
   formatScheduledTime,
   scheduleToDraft,
+  scheduleDraftError,
   type ScheduleDraft,
 } from "../scheduled-task-schedule.js";
 import { ScheduledTaskScheduleFields } from "./scheduled-task-schedule-fields.js";
+import { ScheduledTaskPreview } from "./scheduled-task-preview.js";
+import { useSchedulePreview, type PreviewSchedule } from "../use-schedule-preview.js";
 
 type EditorProps = Readonly<{
   composerProps: WorkbenchComposerProps;
   onOpenRun: (projectId: string, taskId: string) => void;
   openingRun?: boolean;
   onProjectChange: (projectId: string) => void;
+  onPreview: PreviewSchedule;
   onRunNow: (id: string) => Promise<void>;
   onSave: (taskId: string | undefined, input: ScheduledTaskInput) => Promise<void>;
   projectId: string;
@@ -76,10 +80,11 @@ function promptDraft(
 
 export function ScheduledTaskEditor(props: EditorProps) {
   const { i18n, t } = useTranslation("workbench");
-  const timezone =
+  const [timezone] = useState(() =>
     props.task?.schedule.type === "rrule"
       ? props.task.schedule.timezone
-      : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+  );
   const composerRef = useRef<WorkbenchComposerHandle>(null);
   const [name, setName] = useState(props.task?.name ?? "");
   const [schedule, setSchedule] = useState<ScheduleDraft>(() =>
@@ -103,8 +108,23 @@ export function ScheduledTaskEditor(props: EditorProps) {
     props.projectId === TEMPORARY_TASK_SCOPE_ID
       ? t("shell.temporaryTask")
       : (props.projects.find((project) => project.id === props.projectId)?.name ?? props.projectId);
-  const resolvedSchedule = draftToSchedule(schedule, timezone);
-  const formComplete = name.trim() !== "" && resolvedSchedule !== undefined && hasPromptInput;
+  // 只有调度字段变化才重新转换时区；名称和提示词输入不触发计算或网络请求。
+  const resolvedSchedule = useMemo(() => draftToSchedule(schedule, timezone), [schedule, timezone]);
+  const preview = useSchedulePreview(resolvedSchedule, props.onPreview);
+  const scheduleError =
+    scheduleDraftError(schedule) ??
+    (resolvedSchedule === undefined
+      ? schedule.preset === "once"
+        ? "oncePast"
+        : "invalidWallTime"
+      : undefined);
+  const formComplete =
+    name.trim() !== "" &&
+    resolvedSchedule !== undefined &&
+    hasPromptInput &&
+    !preview.pending &&
+    !preview.failed &&
+    (preview.dates?.length ?? 0) > 0;
 
   const capture = async (
     prompt: AgentPromptInput,
@@ -115,7 +135,13 @@ export function ScheduledTaskEditor(props: EditorProps) {
       throw new Error(t("scheduledTasks.name"));
     }
     const capturedSchedule = draftToSchedule(schedule, timezone);
-    if (capturedSchedule === undefined) throw new Error(t("scheduledTasks.scheduleInvalid"));
+    if (
+      capturedSchedule === undefined ||
+      preview.pending ||
+      preview.failed ||
+      !preview.dates?.length
+    )
+      throw new Error(t("scheduledTasks.scheduleInvalid"));
     await props.onSave(props.task?.id, {
       enabled: props.task?.enabled ?? true,
       // Web 附件快照随配置保存，供重新编辑和执行时恢复。
@@ -241,12 +267,12 @@ export function ScheduledTaskEditor(props: EditorProps) {
           <div className="scheduled-task-fields">
             <ScheduledTaskScheduleFields onChange={setSchedule} schedule={schedule} />
           </div>
-          {props.task?.enabled && props.task.nextRunAtUnixMs !== null ? (
-            <p className="scheduled-task-next-run">
-              {t("scheduledTasks.nextRun")}
-              <span>{formatScheduledTime(props.task.nextRunAtUnixMs, i18n.resolvedLanguage)}</span>
-            </p>
-          ) : null}
+          <ScheduledTaskPreview
+            schedule={schedule}
+            timezone={timezone}
+            {...preview}
+            error={scheduleError}
+          />
         </section>
         {props.task === undefined ? null : (
           <>

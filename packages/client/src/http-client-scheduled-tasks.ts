@@ -2,6 +2,9 @@ import {
   DeleteScheduledTaskResponseSchema,
   ScheduledTaskMutationResponseSchema,
   ScheduledTaskPageSchema,
+  ScheduledTaskPreviewSchema,
+  type ScheduledTaskPreview,
+  type ScheduledTaskSchedule,
   type DeleteScheduledTaskResponse,
   type ScheduledTaskInput,
   type ScheduledTaskMutationResponse,
@@ -13,6 +16,18 @@ import { TaskHttpClient } from "./http-client-tasks.js";
 import { subscribeScheduledTaskChanges } from "./scheduled-task-events.js";
 
 export class ScheduledTaskHttpClient extends TaskHttpClient {
+  public previewScheduledTask(
+    schedule: ScheduledTaskSchedule,
+    options: MutationOptions = {},
+  ): Promise<ScheduledTaskPreview> {
+    return this.mutation(
+      "/v1/scheduled-tasks/preview",
+      { schedule },
+      ScheduledTaskPreviewSchema,
+      options,
+    );
+  }
+
   public subscribeScheduledTasks(onChange: () => void): () => void {
     return subscribeScheduledTaskChanges(this.baseUrl, this.webSocketFactory, onChange);
   }

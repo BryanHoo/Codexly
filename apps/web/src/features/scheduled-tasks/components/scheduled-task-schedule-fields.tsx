@@ -1,42 +1,73 @@
-import { lazy, Suspense, useMemo, useState } from "react";
-
+import { lazy, memo, Suspense, useMemo, useState } from "react";
+import "../../../i18n/scheduled-recurrence.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Input } from "../../../shared/components/core/input.js";
 import {
-  resolveScheduledTaskLocale,
+  SCHEDULE_FREQUENCIES,
   SCHEDULE_WEEKDAYS,
+  resolveScheduledTaskLocale,
+  scheduleFrequency,
   toLocalDateTimeInput,
   type ScheduleDraft,
   type SchedulePreset,
-  type ScheduleWeekday,
+  type ScheduleFrequency,
 } from "../scheduled-task-schedule.js";
+import { ScheduledTaskMonthFields } from "./scheduled-task-month-fields.js";
+import type { ScheduleFieldsProps } from "../scheduled-task-draft.js";
 
-// 仅需要日期的规则加载日历，常用重复规则保持轻量。
-const ScheduledTaskDateTimePicker = lazy(() =>
-  import("./scheduled-task-date-time-picker.js").then((module) => ({
-    default: module.ScheduledTaskDateTimePicker,
-  })),
-);
-const MONTH_DAYS = Array.from({ length: 31 }, (_, index) => index + 1);
+// 日历仍按需拆包；常用每天和每周设置不提前加载日期控件。
+const DateTimePicker = lazy(async () => {
+  const module = await import("./scheduled-task-date-time-picker.js");
+  return { default: module.ScheduledTaskDateTimePicker };
+});
 
-export function ScheduledTaskScheduleFields({
+export function ScheduleDateField({
+  label,
+  value,
   onChange,
-  schedule,
+  minimum = "",
+  dateOnly = true,
 }: Readonly<{
-  onChange: (draft: ScheduleDraft) => void;
-  schedule: ScheduleDraft;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  minimum?: string;
+  dateOnly?: boolean;
 }>) {
+  return (
+    <div className="scheduled-task-field">
+      <span>{label}</span>
+      <Suspense fallback={<Input aria-label={label} aria-busy="true" disabled value="" />}>
+        <DateTimePicker
+          dateOnly={dateOnly}
+          label={label}
+          minimum={minimum}
+          onChange={onChange}
+          value={value}
+        />
+      </Suspense>
+    </div>
+  );
+}
+
+export const ScheduledTaskScheduleFields = memo(function ScheduledTaskScheduleFields({
+  schedule,
+  onChange,
+}: ScheduleFieldsProps) {
   const { i18n, t } = useTranslation("workbench");
   const [minimum] = useState(() => toLocalDateTimeInput(Date.now()));
-  const needsDate = schedule.preset === "once" || schedule.preset === "custom";
+  const [rangeExpanded, setRangeExpanded] = useState(schedule.endMode !== "never");
+  const frequency = scheduleFrequency(schedule);
   const language = resolveScheduledTaskLocale(i18n.resolvedLanguage);
   const weekdayNames = useMemo(() => {
     const formatter = new Intl.DateTimeFormat(language, { timeZone: "UTC", weekday: "short" });
-    // 固定使用从周一开始的 UTC 日期，避免宿主时区改变星期标签。
     return SCHEDULE_WEEKDAYS.map((_, index) =>
       formatter.format(new Date(Date.UTC(2024, 0, index + 1))),
     );
   }, [language]);
+  const patch = (value: Partial<ScheduleDraft>) => {
+    onChange({ ...schedule, ...value });
+  };
 
   return (
     <>
@@ -44,95 +75,179 @@ export function ScheduledTaskScheduleFields({
         <span>{t("scheduledTasks.repeat")}</span>
         <select
           onChange={(event) => {
-            onChange({ ...schedule, preset: event.currentTarget.value as SchedulePreset });
+            patch({
+              preset: event.currentTarget.value as SchedulePreset,
+              frequency,
+              unsupported: false,
+            });
           }}
           value={schedule.preset}
         >
-          {(["once", "daily", "weekdays", "weekly", "monthly", "custom"] as const).map((preset) => (
-            <option key={preset} value={preset}>
-              {t(`scheduledTasks.${preset}`)}
-            </option>
-          ))}
+          {(["once", "daily", "weekdays", "weekends", "weekly", "monthly", "custom"] as const).map(
+            (preset) => (
+              <option key={preset} value={preset}>
+                {t(`scheduledTasks.${preset}`)}
+              </option>
+            ),
+          )}
         </select>
       </label>
-      {schedule.preset === "weekly" ? (
-        <label>
-          <span>{t("scheduledTasks.weekday")}</span>
-          <select
-            onChange={(event) => {
-              onChange({ ...schedule, weekday: event.currentTarget.value as ScheduleWeekday });
-            }}
-            value={schedule.weekday}
-          >
-            {SCHEDULE_WEEKDAYS.map((day, index) => (
-              <option key={day} value={day}>
-                {weekdayNames[index]}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-      {schedule.preset === "monthly" ? (
-        <label>
-          <span>{t("scheduledTasks.monthDay")}</span>
-          <select
-            onChange={(event) => {
-              onChange({ ...schedule, monthDay: Number(event.currentTarget.value) });
-            }}
-            value={schedule.monthDay}
-          >
-            {MONTH_DAYS.map((day) => (
-              <option key={day} value={day}>
-                {day}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-      {needsDate ? (
-        <label>
-          <span>{t("scheduledTasks.time")}</span>
-          <Suspense
-            fallback={
-              <Input aria-label={t("scheduledTasks.time")} aria-busy="true" disabled value="" />
-            }
-          >
-            <ScheduledTaskDateTimePicker
-              minimum={schedule.preset === "once" ? minimum : ""}
-              onChange={(dateTime) => {
-                onChange({ ...schedule, dateTime });
-              }}
-              value={schedule.dateTime}
-            />
-          </Suspense>
-        </label>
+      {schedule.preset === "once" ? (
+        <ScheduleDateField
+          dateOnly={false}
+          label={t("scheduledTasks.time")}
+          minimum={minimum}
+          value={schedule.dateTime}
+          onChange={(dateTime) => {
+            patch({ dateTime });
+          }}
+        />
       ) : (
-        <label>
-          <span>{t("scheduledTasks.timeOfDay")}</span>
-          <Input
-            onChange={(event) => {
-              onChange({ ...schedule, time: event.currentTarget.value });
-            }}
-            step={60}
-            type="time"
-            value={schedule.time}
-          />
-        </label>
+        <>
+          {schedule.preset === "custom" ? (
+            <div className="scheduled-task-field">
+              <span>{t("scheduledTasks.every")}</span>
+              <div className="scheduled-task-inline-controls">
+                <Input
+                  aria-label={t("scheduledTasks.interval")}
+                  type="number"
+                  min={1}
+                  max={999}
+                  step={1}
+                  value={Number.isNaN(schedule.interval) ? "" : schedule.interval}
+                  onChange={(event) => {
+                    patch({ interval: event.currentTarget.valueAsNumber });
+                  }}
+                />
+                <select
+                  aria-label={t("scheduledTasks.intervalUnit")}
+                  value={schedule.frequency}
+                  onChange={(event) => {
+                    patch({ frequency: event.currentTarget.value as ScheduleFrequency });
+                  }}
+                >
+                  {SCHEDULE_FREQUENCIES.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {t(`scheduledTasks.units.${unit}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : null}
+          {frequency === "WEEKLY" &&
+          schedule.preset !== "weekdays" &&
+          schedule.preset !== "weekends" ? (
+            <div className="scheduled-task-field scheduled-task-field--choices">
+              <span>{t("scheduledTasks.repeatDays")}</span>
+              <div
+                className="scheduled-task-choices"
+                role="group"
+                aria-label={t("scheduledTasks.repeatDays")}
+              >
+                {SCHEDULE_WEEKDAYS.map((day, index) => (
+                  <button
+                    key={day}
+                    type="button"
+                    aria-pressed={schedule.weekdays.includes(day)}
+                    onClick={() => {
+                      patch({
+                        weekdays: schedule.weekdays.includes(day)
+                          ? schedule.weekdays.filter((value) => value !== day)
+                          : [...schedule.weekdays, day],
+                      });
+                    }}
+                  >
+                    {weekdayNames[index]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {frequency === "MONTHLY" || frequency === "YEARLY" ? (
+            <ScheduledTaskMonthFields
+              schedule={schedule}
+              onChange={onChange}
+              weekdayNames={weekdayNames}
+            />
+          ) : null}
+          <label>
+            <span>{t("scheduledTasks.timeOfDay")}</span>
+            <Input
+              step={60}
+              type="time"
+              value={schedule.time}
+              onChange={(event) => {
+                patch({ time: event.currentTarget.value });
+              }}
+            />
+          </label>
+          {schedule.preset !== "custom" ? (
+            <button
+              className="scheduled-task-range-toggle"
+              type="button"
+              aria-expanded={rangeExpanded}
+              onClick={() => {
+                setRangeExpanded(!rangeExpanded);
+              }}
+            >
+              {t("scheduledTasks.rangeSettings")}
+            </button>
+          ) : null}
+          {schedule.preset === "custom" || rangeExpanded ? (
+            <>
+              <ScheduleDateField
+                label={t("scheduledTasks.startDate")}
+                value={schedule.startDate}
+                onChange={(startDate) => {
+                  patch({ startDate });
+                }}
+              />
+              <label>
+                <span>{t("scheduledTasks.end")}</span>
+                <select
+                  value={schedule.endMode}
+                  onChange={(event) => {
+                    patch({ endMode: event.currentTarget.value as ScheduleDraft["endMode"] });
+                  }}
+                >
+                  <option value="never">{t("scheduledTasks.never")}</option>
+                  <option value="date">{t("scheduledTasks.onDate")}</option>
+                  <option value="count">{t("scheduledTasks.afterCount")}</option>
+                </select>
+              </label>
+              {schedule.endMode === "date" ? (
+                <ScheduleDateField
+                  label={t("scheduledTasks.endDate")}
+                  minimum={schedule.startDate}
+                  value={schedule.endDate}
+                  onChange={(endDate) => {
+                    patch({ endDate });
+                  }}
+                />
+              ) : null}
+              {schedule.endMode === "count" ? (
+                <label>
+                  <span>{t("scheduledTasks.count")}</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10000}
+                    step={1}
+                    value={Number.isNaN(schedule.count) ? "" : schedule.count}
+                    onChange={(event) => {
+                      patch({ count: event.currentTarget.valueAsNumber });
+                    }}
+                  />
+                </label>
+              ) : null}
+              {schedule.endMode === "count" ? (
+                <p className="scheduled-task-hint">{t("scheduledTasks.countHint")}</p>
+              ) : null}
+            </>
+          ) : null}
+        </>
       )}
-      {schedule.preset === "custom" ? (
-        <label className="scheduled-task-wide">
-          <span>{t("scheduledTasks.rrule")}</span>
-          <Input
-            maxLength={2_048}
-            onChange={(event) => {
-              onChange({ ...schedule, rrule: event.currentTarget.value });
-            }}
-            placeholder={t("scheduledTasks.rrulePlaceholder")}
-            spellCheck={false}
-            value={schedule.rrule}
-          />
-        </label>
-      ) : null}
     </>
   );
-}
+});

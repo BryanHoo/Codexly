@@ -5,39 +5,15 @@ import type {
   ScheduledTaskRun,
   ScheduledTaskSchedule,
 } from "@codexly/protocol";
-import { rrulestr } from "rrule";
+import { previewScheduledTask } from "./scheduled-task-recurrence.js";
+export { previewScheduledTask } from "./scheduled-task-recurrence.js";
 
 export const MAX_SCHEDULED_TASK_RUNS = 20;
-const MIN_RECURRENCE_MS = 60_000;
 
 export type ScheduledTaskClaim = Readonly<{
   runId: string;
   task: ScheduledTask;
 }>;
-
-function rruleDateTime(unixMs: number, timezone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    day: "2-digit",
-    hour: "2-digit",
-    hour12: false,
-    minute: "2-digit",
-    month: "2-digit",
-    second: "2-digit",
-    timeZone: timezone,
-    year: "numeric",
-  })
-    .formatToParts(unixMs)
-    .reduce<Record<string, string>>((result, part) => {
-      result[part.type] = part.value;
-      return result;
-    }, {});
-  const requiredPart = (name: string): string => {
-    const value = parts[name];
-    if (value === undefined) throw new Error(`Scheduled task timezone part ${name} is unavailable`);
-    return value;
-  };
-  return `${requiredPart("year")}${requiredPart("month")}${requiredPart("day")}T${requiredPart("hour")}${requiredPart("minute")}${requiredPart("second")}`;
-}
 
 export function resolveNextScheduledRun(
   schedule: ScheduledTaskSchedule,
@@ -48,25 +24,9 @@ export function resolveNextScheduledRun(
       throw new Error("Scheduled task time must be in the future");
     return schedule.atUnixMs;
   }
-  const normalized = schedule.rrule.trim().replace(/^RRULE:/u, "");
-  if (normalized === "" || /[\r\n]/u.test(normalized)) {
-    throw new Error("Scheduled task RRULE is invalid");
-  }
-  const rule = rrulestr(
-    `DTSTART;TZID=${schedule.timezone}:${rruleDateTime(schedule.startAtUnixMs, schedule.timezone)}\nRRULE:${normalized}`,
-    { forceset: true },
-  );
-  const first = rule.all((_date, index) => index < 2);
-  if (
-    first[0] !== undefined &&
-    first[1] !== undefined &&
-    first[1].getTime() - first[0].getTime() < MIN_RECURRENCE_MS
-  ) {
-    throw new Error("Scheduled task recurrence must be at least one minute");
-  }
-  const next = rule.after(new Date(afterUnixMs), false);
-  if (next === null) throw new Error("Scheduled task RRULE has no future occurrence");
-  return next.getTime();
+  const next = previewScheduledTask(schedule, afterUnixMs, 1)[0];
+  if (next === undefined) throw new Error("Scheduled task RRULE has no future occurrence");
+  return next;
 }
 
 export function createScheduledTask(

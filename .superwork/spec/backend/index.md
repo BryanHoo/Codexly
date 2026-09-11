@@ -16,6 +16,7 @@
 
 - 确认变更所属层，并沿 `protocol -> core -> provider/server -> client` 检查影响。
 - 路由仅处理输入输出适配，领域规则留在 `packages/core`。
+- 定时任务预览和实际执行共用调度计算，显式转换任务时区；`COUNT` 从原始起点累计且跳过不存在的夏令时时间，`UNTIL` 按绝对时间判断。无次数限制的高频规则按完整周期跳过历史，预览只返回最多五次，不生成无限结果集。
 - 数据库和 Codex 进程生命周期必须有明确启动、失败和清理路径。
 - `turn/start` 在调用 Provider 前捕获事件 checkpoint，并将 checkpoint 与 Turn 作为同一幂等结果返回。
 - 归档 Task 恢复不得预读 Goal 或历史快照；由 Provider 在 `thread/unarchive` 边界校验归属并返回恢复后的 Task。

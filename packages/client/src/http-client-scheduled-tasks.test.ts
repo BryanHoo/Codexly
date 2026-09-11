@@ -29,6 +29,24 @@ const task = {
 } as const satisfies ScheduledTask;
 
 describe("CodexlyClient scheduled tasks", () => {
+  it("posts schedule previews and validates the bounded response", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ dates: [2_000_000_000_000] }));
+    const client = new CodexlyClient({ fetch: fetchMock });
+    await expect(client.previewScheduledTask(task.schedule)).resolves.toEqual({
+      dates: [2_000_000_000_000],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/v1/scheduled-tasks/preview",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ schedule: task.schedule }),
+      }),
+    );
+    fetchMock.mockResolvedValue(jsonResponse({ dates: Array.from({ length: 6 }, () => 1) }));
+    await expect(client.previewScheduledTask(task.schedule)).rejects.toThrow();
+  });
   it("calls and decodes every scheduled task endpoint", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock

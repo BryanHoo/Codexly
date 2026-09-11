@@ -4,6 +4,9 @@ import {
   ScheduledTaskInputSchema,
   ScheduledTaskMutationResponseSchema,
   ScheduledTaskPageSchema,
+  ScheduledTaskPreviewSchema,
+  ScheduledTaskPreviewRequestSchema,
+  type ScheduledTaskPreviewRequest,
   SetScheduledTaskEnabledRequestSchema,
   type ScheduledTaskInput,
   type SetScheduledTaskEnabledRequest,
@@ -14,6 +17,7 @@ import { ScheduledTaskServiceError } from "../scheduled-task-service.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { Type } from "@sinclair/typebox";
 import { registerScheduledTaskEvents } from "./scheduled-task-events.js";
+import { previewScheduledTask } from "../scheduled-task-runtime.js";
 
 const ParamsSchema = Type.Object(
   { taskId: Type.String({ minLength: 1 }) },
@@ -37,6 +41,26 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
     404: AgentMutationErrorSchema,
     409: AgentMutationErrorSchema,
   };
+  app.post<{ Body: ScheduledTaskPreviewRequest }>(
+    "/v1/scheduled-tasks/preview",
+    {
+      schema: {
+        body: ScheduledTaskPreviewRequestSchema,
+        response: { 200: ScheduledTaskPreviewSchema, 400: AgentMutationErrorSchema },
+      },
+    },
+    (request) => {
+      try {
+        return { dates: previewScheduledTask(request.body.schedule, Date.now()) };
+      } catch (error) {
+        throw new MutationHttpError(
+          "INVALID_REQUEST",
+          error instanceof Error ? error.message : String(error),
+          400,
+        );
+      }
+    },
+  );
   app.get(
     "/v1/scheduled-tasks",
     { schema: { response: { 200: ScheduledTaskPageSchema } } },
