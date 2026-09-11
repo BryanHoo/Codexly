@@ -78,6 +78,10 @@ export async function listCodexMcpServers(
           ? null
           : expectRecord(serverInfoValue, "mcpServerStatus/list serverInfo");
       const tools = expectRecord(server["tools"], "mcpServerStatus/list tools");
+      const toolsError = server["toolsError"];
+      if (toolsError !== null && typeof toolsError !== "string") {
+        throw new CodexProtocolMappingError("mcpServerStatus/list toolsError is invalid");
+      }
       const authStatus = mapMcpAuthStatus(server["authStatus"]);
       let displayName = name;
       if (serverInfo !== null) {
@@ -91,10 +95,16 @@ export async function listCodexMcpServers(
       if (servers.has(name)) {
         continue;
       }
+      const runtimeStatus = mapMcpRuntimeStatus(server["runtimeStatus"], authStatus);
+      // 0.154 单独报告工具发现失败；只修正假成功，保留认证等状态，不外传原始错误。
+      const status =
+        toolsError !== null && (runtimeStatus === "connected" || runtimeStatus === "unknown")
+          ? "failed"
+          : runtimeStatus;
       servers.set(name, {
         displayName,
         name,
-        status: mapMcpRuntimeStatus(server["runtimeStatus"], authStatus),
+        status,
         toolCount: Object.keys(tools).length,
       });
     }

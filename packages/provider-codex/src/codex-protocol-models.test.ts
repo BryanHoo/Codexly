@@ -96,7 +96,7 @@ describe("Codex model and message mapping", () => {
     ]);
   });
 
-  it("rejects missing or invalid 0.153.4 agent message delivery", () => {
+  it("rejects missing or invalid 0.154.0 agent message delivery", () => {
     const mapMessage = (delivery?: unknown) =>
       mapAgentTurn({
         completedAt: 1_753_228_830,
@@ -122,7 +122,7 @@ describe("Codex model and message mapping", () => {
     );
   });
 
-  it("rejects missing or invalid 0.153.4 asynchronous user input questions", () => {
+  it("rejects missing or invalid 0.154.0 asynchronous user input questions", () => {
     const mapMessage = (questions?: unknown) =>
       mapAgentTurn({
         completedAt: 1_753_228_830,

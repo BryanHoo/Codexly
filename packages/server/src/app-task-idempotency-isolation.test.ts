@@ -64,7 +64,7 @@ describe("server task idempotency isolation", () => {
       readAppInfo: vi.fn(() =>
         Promise.resolve({
           appVersion: "1.3.0",
-          codexVersion: "0.153.4",
+          codexVersion: "0.154.0",
           latestVersion: "1.3.0",
           releaseNotes: null,
           status: "current" as const,

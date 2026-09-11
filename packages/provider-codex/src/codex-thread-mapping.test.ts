@@ -16,7 +16,7 @@ describe("Codex thread mapping", () => {
       });
     }
   });
-  it("requires the 0.153.4 nullable native model settings", async () => {
+  it("requires the 0.154.0 nullable native model settings", async () => {
     await expect(
       mapAgentTask(nativeThread({ model: undefined }), projectTaskScope),
     ).rejects.toThrow("Codex thread model must be a string or null");

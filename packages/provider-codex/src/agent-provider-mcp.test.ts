@@ -21,6 +21,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: null,
             resourceTemplates: [],
             resources: [],
+            toolsError: null,
             runtimeStatus: "connected",
             serverInfo: null,
             tools: { browser_open: { description: "secret detail", inputSchema: {} } },
@@ -36,6 +37,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: "plugin-fast-context",
             resourceTemplates: [],
             resources: [],
+            toolsError: null,
             runtimeStatus: "connected",
             serverInfo: null,
             tools: {},
@@ -46,6 +48,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: null,
             resourceTemplates: [],
             resources: [],
+            toolsError: null,
             runtimeStatus: "connected",
             serverInfo: null,
             tools: {},
@@ -148,6 +151,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: "plugin-fast-context",
             resourceTemplates: [],
             resources: [],
+            toolsError: null,
             runtimeStatus: "connected",
             serverInfo: {
               description: "Semantic repository search at https://internal.example.com/docs",
@@ -174,6 +178,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: "plugin-fast-context",
             resourceTemplates: [],
             resources: [],
+            toolsError: null,
             runtimeStatus: "connected",
             serverInfo: {
               description: "Semantic repository search",
@@ -254,6 +259,7 @@ describe("CodexAgentProvider MCP servers", () => {
           pluginId: null,
           resourceTemplates: [],
           resources: [],
+          toolsError: null,
           runtimeStatus: "connected",
           serverInfo: null,
           tools: {},
@@ -291,7 +297,7 @@ describe("CodexAgentProvider MCP servers", () => {
     );
   });
 
-  it("preserves every 0.153.4 MCP runtime connection status", async () => {
+  it("preserves every 0.154.0 MCP runtime connection status", async () => {
     const statuses = [
       "notStarted",
       "starting",
@@ -311,6 +317,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: null,
             resourceTemplates: [],
             resources: [],
+            toolsError: null,
             runtimeStatus,
             serverInfo: null,
             tools: {},
@@ -321,6 +328,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: null,
             resourceTemplates: [],
             resources: [],
+            toolsError: null,
             runtimeStatus: null,
             serverInfo: null,
             tools: {},
@@ -331,6 +339,7 @@ describe("CodexAgentProvider MCP servers", () => {
             pluginId: null,
             resourceTemplates: [],
             resources: [],
+            toolsError: null,
             runtimeStatus: null,
             serverInfo: null,
             tools: {},
@@ -356,7 +365,7 @@ describe("CodexAgentProvider MCP servers", () => {
     });
   });
 
-  it("rejects MCP status entries without the 0.153.4 plugin ownership field", async () => {
+  it("rejects MCP status entries without the 0.154.0 plugin ownership field", async () => {
     const rpc = new FakeRpcClient([
       { thread: nativeThread() },
       {
@@ -366,6 +375,7 @@ describe("CodexAgentProvider MCP servers", () => {
             name: "incomplete-server",
             resourceTemplates: [],
             resources: [],
+            toolsError: null,
             runtimeStatus: "connected",
             serverInfo: null,
             tools: {},
