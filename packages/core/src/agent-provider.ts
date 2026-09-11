@@ -68,6 +68,7 @@ export class WorkbenchPetProviderError extends Error {
 }
 
 export type AgentRuntimeDefaultSettings = Readonly<{
+  fastMode?: boolean;
   approvalPolicy?: AgentGlobalApprovalPolicy;
   approvalsReviewer?: AgentApprovalsReviewer;
   model?: string;
@@ -302,6 +303,7 @@ export interface AgentRuntimeProvider {
   uninstallOfficialPlugin(pluginId: string): Promise<OfficialPluginUninstallResult>;
   logoutProvider(): Promise<AgentProviderConnectionMutationResponse>;
   readDefaultSettings(): Promise<AgentRuntimeDefaultSettings>;
+  updateDefaultSettings(settings: AgentRuntimeDefaultSettings): Promise<void>;
   readProviderConnection(): Promise<AgentProviderConnectionStatus>;
   releaseProject(projectId: string, expectedProvider?: AgentProvider): Promise<void>;
   setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResponse>;

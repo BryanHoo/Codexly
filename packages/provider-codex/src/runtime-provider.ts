@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { homedir } from "node:os";
+import { writeRuntimeDefaultSettings } from "./runtime-default-settings.js";
 import type {
   MemorySettingsUpdate,
   AgentPreferences,
@@ -384,6 +385,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
 
     return {
       ...approvalDefaults,
+      fastMode: config["service_tier"] === "priority" || config["service_tier"] === "fast",
       ...(model === undefined ? {} : { model }),
       ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
       ...(sandboxMode === undefined ? {} : { sandboxMode }),
@@ -392,6 +394,12 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
 
   public readProviderConnection(): Promise<AgentProviderConnectionStatus> {
     return this.#providerConnection.readStatus();
+  }
+
+  public async updateDefaultSettings(settings: AgentRuntimeDefaultSettings): Promise<void> {
+    await writeRuntimeDefaultSettings(this.#client, settings);
+    // 写入后立即清除原生快照，避免自动保存返回旧值覆盖页面草稿。
+    this.#providerConnection.invalidateConfig();
   }
 
   public async releaseProject(projectId: string, expectedProvider?: AgentProvider): Promise<void> {

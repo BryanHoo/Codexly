@@ -253,12 +253,12 @@ describe("server task settings", () => {
     });
     expect(updatedResponse.json()).toEqual({ settings: globalSettings });
     expect(writeGlobalSettings).toHaveBeenCalledWith(globalSettings);
-    expect(readDefaultSettings).not.toHaveBeenCalled();
+    expect(readDefaultSettings).toHaveBeenCalled();
     expect(writeProjectDefaults).not.toHaveBeenCalled();
     expect(writeTaskSettings).not.toHaveBeenCalled();
   });
 
-  it("uses Codex user settings only while global settings are absent", async () => {
+  it("uses Codex user settings without persisting a snapshot on read", async () => {
     const { listModels, provider } = createProvider();
     listModels.mockResolvedValue({
       data: [

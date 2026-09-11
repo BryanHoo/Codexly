@@ -421,6 +421,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     const runtime = createCodexRuntimeProvider({ client: rpc });
 
     await expect(runtime.readDefaultSettings()).resolves.toEqual({
+      fastMode: false,
       approvalPolicy: "never",
       approvalsReviewer: "user",
       model: "gpt-5.6-sol",
@@ -429,6 +430,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     });
     now += 60_000;
     await expect(runtime.readDefaultSettings()).resolves.toEqual({
+      fastMode: false,
       approvalPolicy: {
         granular: {
           mcp_elicitations: false,
@@ -442,6 +444,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     });
     now += 60_000;
     await expect(runtime.readDefaultSettings()).resolves.toEqual({
+      fastMode: false,
       approvalPolicy: "never",
       approvalsReviewer: "auto_review",
     });

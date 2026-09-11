@@ -142,6 +142,7 @@ export function createRuntimeConnectionMethods(): Pick<
   | "setSkillEnabled"
   | "startOfficialProviderLogin"
   | "uninstallOfficialPlugin"
+  | "updateDefaultSettings"
 > {
   const status: AgentProviderConnectionStatus = {
     account: null,
@@ -166,6 +167,7 @@ export function createRuntimeConnectionMethods(): Pick<
     ),
     startOfficialProviderLogin: vi.fn(() => Promise.reject(new Error("Not configured"))),
     uninstallOfficialPlugin: vi.fn(() => Promise.resolve({})),
+    updateDefaultSettings: vi.fn(() => Promise.resolve()),
   };
 }
 

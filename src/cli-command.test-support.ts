@@ -154,6 +154,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
       }),
     ),
     readDefaultSettings: vi.fn(() => Promise.resolve({})),
+    updateDefaultSettings: vi.fn(() => Promise.resolve()),
     readProviderConnection: vi.fn(() =>
       Promise.resolve({
         account: null,

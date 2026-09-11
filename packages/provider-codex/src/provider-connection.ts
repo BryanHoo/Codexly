@@ -265,6 +265,10 @@ export class CodexProviderConnectionService {
     return this.#nativeState.readConfig();
   }
 
+  public invalidateConfig(): void {
+    this.#nativeState.clear();
+  }
+
   public async configureCustom(
     input: ConfigureCustomProviderRequest,
     persistedModels?: ConfigureCustomProviderResponse["models"],

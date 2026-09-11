@@ -244,10 +244,9 @@ export async function createCodexlyServer(
   ): Promise<AgentGlobalSettings> => {
     const catalog = models ?? (await listModels());
     const stored = await options.settingsRepository.readGlobalSettings();
-    // 仅在 Codexly 尚无全局记录时读取 Codex 用户配置，持久化后不再被外部变化覆盖。
-    const runtimeDefaults =
-      stored === undefined ? await options.provider.readDefaultSettings() : {};
-    const requestedDefaults = stored ?? runtimeDefaults;
+    // Codex 是智能体默认值的来源；本地记录仅补齐未配置字段与应用专属偏好。
+    const runtimeDefaults = await options.provider.readDefaultSettings();
+    const requestedDefaults = { ...stored, ...runtimeDefaults };
     const effectiveModel = resolveProjectDefaults(
       catalog,
       requestedDefaults,
@@ -270,7 +269,7 @@ export async function createCodexlyServer(
       commitMessageModel: effectiveCommitModel.model,
       commitMessagePrompt: stored?.commitMessagePrompt ?? "",
       defaultOpenAppId: stored?.defaultOpenAppId ?? null,
-      fastMode: stored?.fastMode ?? false,
+      fastMode: runtimeDefaults.fastMode ?? stored?.fastMode ?? false,
       followUpBehavior: stored?.followUpBehavior ?? "queue",
       pet: stored?.pet ?? { enabled: false, selectedPetId: null },
       ...effectiveModel,

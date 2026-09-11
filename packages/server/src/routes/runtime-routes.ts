@@ -1,3 +1,4 @@
+import { createGlobalSettingsWriter } from "../global-settings-writer.js";
 import {
   AgentCapabilitiesSchema,
   BingWallpaperCatalogSchema,
@@ -72,8 +73,8 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
     readAppUpdateProgress,
     readEffectiveGlobalSettings,
     runIdempotent,
-    settingsRepository,
   } = context;
+  const writeGlobalSettings = createGlobalSettingsWriter(context);
 
   app.get("/v1/health", { schema: { response: { 200: HealthResponseSchema } } }, () => ({
     status: "ok" as const,
@@ -203,7 +204,7 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
         async () => {
           assertValidProjectDefaults(await listModels(), request.body);
           return {
-            settings: await settingsRepository.writeGlobalSettings(request.body),
+            settings: await writeGlobalSettings(request.body),
           };
         },
       ),

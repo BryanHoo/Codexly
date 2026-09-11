@@ -8,6 +8,7 @@ Capture contract and verification standards for this project.
 
 - 协议变更同时更新 TypeBox schema、类型导出、序列化/解码逻辑和消费者测试。
 - 个性化接口通过现有鉴权与幂等链路访问部署主机的 Codex 配置；全局说明保存必须校验 `expectedContent`，冲突返回 `GLOBAL_INSTRUCTIONS_CHANGED`，保留原文和符号链接。记忆开关批量写入官方配置，删除记忆使用 `memory/reset`，不得仅删除文件。
+- 智能体全局默认值以不带 `cwd` 的 Codex `config/read` 为准；已有本地记录不能屏蔽 Codex 配置变化。修改时仅将变化字段提交 `config/batchWrite` 并设置 `reloadUserConfig: true`，成功后清除原生配置缓存并保存应用快照；快速模式开启写入 `service_tier: priority`，关闭写入 `default`。保存串行执行，Codex 写入失败不得更新本地快照；项目和任务的显式覆盖保持独立。
 - 官方插件能力必须通过带有 `--enable plugins` 的 Codex App Server 映射 `plugin/list`、`plugin/read`、`plugin/install` 和 `plugin/uninstall`；协议需保留 marketplace/plugin 标识、认证策略、应用与资源信息，并通过 `pnpm run codex:schema:check` 校验真实 RPC 基线。
 - 定时任务跨层契约统一使用严格的 `once`/`rrule` 联合计划、`AgentPromptInput` 与 `AgentTurnOptions`，客户端和服务端不得维护平行结构。
 - 升级固定 Codex 版本时，同步更新版本常量、catalog/lockfile 和真实 App Server Schema 基线；对新增通知与联合类型逐项映射或显式 opt-out，不使用旧协议兼容回退。
