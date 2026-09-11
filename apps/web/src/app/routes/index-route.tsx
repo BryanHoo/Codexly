@@ -24,6 +24,7 @@ import {
   resolveInitialProjectId,
 } from "../../features/workbench/project-sidebar-preferences.js";
 import { rootRoute } from "./root-route.js";
+import { WorkbenchBackground } from "../../features/workbench/components/workbench-background.js";
 
 const LazyGlobalSettingsPage = lazy(() =>
   loadGlobalSettingsPage().then((module) => ({ default: module.GlobalSettingsPage })),
@@ -97,7 +98,7 @@ function IndexPage() {
     );
   }
   return (
-    <>
+    <WorkbenchBackground>
       <div
         hidden={globalSettingsSection !== null}
         className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
@@ -153,6 +154,6 @@ function IndexPage() {
           />
         </Suspense>
       )}
-    </>
+    </WorkbenchBackground>
   );
 }

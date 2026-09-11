@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import type { CodexlyClient } from "@codexly/client";
-import type { MemorySettingsUpdate } from "@codexly/protocol";
+import { MemorySettingField, memoriesKey, memoryMutationScope } from "./memory-setting-field.js";
 import "../../../i18n/settings-personalization.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -25,7 +25,6 @@ type PersonalizationClient = Pick<
   | "resetMemories"
 >;
 const instructionsKey = ["personalization", "instructions"] as const;
-const memoriesKey = ["personalization", "memories"] as const;
 
 export function PersonalizationSettingsPanel({
   client,
@@ -52,14 +51,8 @@ export function PersonalizationSettingsPanel({
     },
     meta: { actionNotification: false },
   });
-  const memoryUpdate = useMutation({
-    mutationFn: (update: MemorySettingsUpdate) => client.updateMemorySettings(update),
-    onSuccess: (result) => {
-      cache.setQueryData(memoriesKey, result);
-    },
-    meta: { actionNotification: false },
-  });
   const reset = useMutation({
+    scope: memoryMutationScope,
     mutationFn: () => client.resetMemories(),
     onSuccess: () => {
       setConfirmDelete(false);
@@ -68,7 +61,6 @@ export function PersonalizationSettingsPanel({
     meta: { actionNotification: false },
   });
   const content = draft ?? instructions.data?.content ?? "";
-  const memoryBusy = memoryUpdate.isPending || reset.isPending;
   const conflict =
     save.error !== null &&
     "code" in save.error &&
@@ -158,40 +150,14 @@ export function PersonalizationSettingsPanel({
           title={t("personalization.memories")}
           description={t("personalization.memoryDescription")}
         >
-          {(["enabled", "allowExternalContext"] as const).map((key) => {
-            const label = t(
-              key === "enabled" ? "personalization.enabled" : "personalization.external",
-            );
-            const checked = memories.data?.[key] ?? false;
-            return (
-              <SettingsField
-                key={key}
-                label={label}
-                description={t(
-                  key === "enabled"
-                    ? "personalization.enabledDescription"
-                    : "personalization.externalDescription",
-                )}
-              >
-                <Button
-                  role="switch"
-                  aria-label={label}
-                  aria-checked={checked}
-                  disabled={!memories.data || memoryBusy}
-                  className={`h-6 w-10 rounded-pill p-0.5 ${checked ? "bg-brand hover:bg-brand" : "bg-control-hover"}`}
-                  variant="ghost"
-                  type="button"
-                  onClick={() => {
-                    memoryUpdate.mutate({ [key]: !checked });
-                  }}
-                >
-                  <span
-                    className={`block size-5 rounded-full bg-white transition-transform ${checked ? "translate-x-2" : "-translate-x-2"}`}
-                  />
-                </Button>
-              </SettingsField>
-            );
-          })}
+          {(["enabled", "allowExternalContext"] as const).map((field) => (
+            <MemorySettingField
+              key={field}
+              field={field}
+              client={client}
+              settings={memories.data}
+            />
+          ))}
           <SettingsField
             label={t("personalization.remove")}
             description={t("personalization.removeDescription")}
@@ -201,7 +167,7 @@ export function PersonalizationSettingsPanel({
               className="text-danger"
               type="button"
               variant="ghost"
-              disabled={memoryBusy || !memories.data}
+              disabled={reset.isPending || !memories.data}
               onClick={() => {
                 reset.reset();
                 setConfirmDelete(true);
@@ -218,11 +184,6 @@ export function PersonalizationSettingsPanel({
               {t("common:actions.retry")}
             </Button>
           </div>
-        ) : null}
-        {memoryUpdate.isError ? (
-          <p role="alert" className="text-body-small text-danger">
-            {t("personalization.memoryError")}
-          </p>
         ) : null}
       </div>
       <Dialog

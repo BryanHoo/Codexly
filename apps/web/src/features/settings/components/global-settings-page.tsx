@@ -147,13 +147,22 @@ export function GlobalSettingsPage({
       onBack={close}
       onSectionChange={setActiveSection}
     >
-      {saving ? (
-        <p role="status" className="mb-3 text-body-small text-muted-foreground">
+      {/* 保存提示脱离文档流，避免自动保存开始、结束或失败时改变内容高度与滚动位置。 */}
+      {saving && !saveError ? (
+        <p
+          role="status"
+          data-floating-surface
+          className="pointer-events-none fixed bottom-5 right-5 z-50 rounded-control border border-separator bg-panel px-3 py-2 text-body-small text-muted-foreground shadow-control"
+        >
           {t("actions.saving")}
         </p>
       ) : null}
       {saveError ? (
-        <div role="alert" className="mb-4 text-danger">
+        <div
+          role="alert"
+          data-floating-surface
+          className="fixed bottom-5 right-5 z-50 max-w-[calc(100vw-2.5rem)] rounded-control border border-separator bg-panel px-3 py-2 text-body-small text-danger shadow-control"
+        >
           {t("personalization.saveError")}
           <Button
             variant="ghost"

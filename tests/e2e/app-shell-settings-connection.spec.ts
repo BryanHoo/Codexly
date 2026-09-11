@@ -149,6 +149,22 @@ test("applies and restores a custom workbench background", async ({ page }) => {
     .getByRole("button", { name: "完成", exact: true })
     .click();
   await dialog.getByRole("slider", { name: "壁纸遮罩不透明度" }).fill("35");
+  // 设置页共用工作台背景，调整时无需退出页面即可看到图片和遮罩变化。
+  const liveBackground = page.locator("[data-workbench-background]");
+  await expect(liveBackground).toHaveAttribute("data-has-image", "true");
+  await expect(dialog).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(page.locator('[data-workbench-background-overlay="true"]')).toHaveCSS(
+    "opacity",
+    "0.35",
+  );
+  const liveCanvas = page.locator('[data-workbench-background-canvas="true"]');
+  const beforeBlur = await liveCanvas.evaluate((element) =>
+    (element as HTMLCanvasElement).toDataURL(),
+  );
+  await dialog.getByRole("slider", { name: "背景模糊度" }).fill("65");
+  await expect
+    .poll(() => liveCanvas.evaluate((element) => (element as HTMLCanvasElement).toDataURL()))
+    .not.toBe(beforeBlur);
   await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
 
   const background = page.locator("[data-workbench-background]");
@@ -227,7 +243,7 @@ test("applies and restores a custom workbench background", async ({ page }) => {
   const settingsDialogBackgroundAlpha = parseCssAlpha(
     await reopenedDialog.evaluate((element) => getComputedStyle(element).backgroundColor),
   );
-  expect(settingsDialogBackgroundAlpha).toBe(1);
+  expect(settingsDialogBackgroundAlpha).toBe(0);
   await reopenedDialog.getByRole("button", { name: "自定义工作台背景" }).click();
   await reopenedDialog.getByRole("button", { name: "选择图片", exact: true }).click();
   await page
