@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -362,11 +362,13 @@ describe("readGitWorkingTreeStatus", () => {
     }
   });
 
-  it("changes the snapshot when selected file content changes", async () => {
+  it("changes the snapshot when selected file modification time changes", async () => {
     const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
     try {
       await mkdir(join(projectRoot, ".git"));
       await writeFile(join(projectRoot, "tracked.txt"), "first\n");
+      // 摘要快照使用文件元数据；显式设置时间，避免 Windows 快速等长写入未更新时间戳。
+      await utimes(join(projectRoot, "tracked.txt"), 1_700_000_000, 1_700_000_000);
       const executeGit = (_root: string, arguments_: readonly string[]) => {
         if (arguments_[0] === "status") {
           return Promise.resolve(" M tracked.txt\0");
@@ -377,12 +379,11 @@ describe("readGitWorkingTreeStatus", () => {
         if (arguments_[0] === "for-each-ref" || arguments_[0] === "symbolic-ref") {
           return Promise.resolve("");
         }
-        return Promise.resolve(createGitDiffOutput(["tracked.txt"], awaitText));
+        throw new Error(`Unexpected Git command: ${arguments_.join(" ")}`);
       };
-      let awaitText = "second";
       const first = await readGitWorkingTreeStatus(projectRoot, executeGit);
-      awaitText = "third";
       await writeFile(join(projectRoot, "tracked.txt"), "third\n");
+      await utimes(join(projectRoot, "tracked.txt"), 1_700_000_002, 1_700_000_002);
       const second = await readGitWorkingTreeStatus(projectRoot, executeGit);
 
       expect(first.snapshot).not.toBe(second.snapshot);

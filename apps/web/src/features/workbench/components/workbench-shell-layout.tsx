@@ -282,6 +282,8 @@ export function WorkbenchShellLayout({
                 projectPath={projectPath}
                 projectPathOpenDisabled={projectFolderOpenDisabled}
                 projectRoots={projectRoots}
+                // 新建临时任务也必须禁用依赖 Project 根目录的命令。
+                projectToolsEnabled={!temporary}
                 selectedProjectRootId={selectedRootId ?? ""}
                 {...(gitStatusQuery.data === undefined ? {} : { gitStatus: gitStatusQuery.data })}
                 settings={draftSettings}

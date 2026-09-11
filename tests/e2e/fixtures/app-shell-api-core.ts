@@ -70,6 +70,9 @@ export async function handleAppShellCoreRoute(
     body = { authenticated: true, mode: "local", version: 1 };
   } else if (url.pathname === "/v1/health") {
     body = { status: "ok", version: 1 };
+  } else if (url.pathname === "/v1/scheduled-tasks" && route.request().method() === "GET") {
+    // 全局同步器在所有页面读取列表；默认空列表，具体场景可覆盖此路由。
+    body = { data: [] };
   } else if (url.pathname === "/v1/app-info") {
     body = {
       appVersion: "1.3.0",

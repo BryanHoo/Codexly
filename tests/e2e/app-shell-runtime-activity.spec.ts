@@ -38,16 +38,21 @@ test("opens a completed file change diff while the turn is still running", async
     });
   });
   await page.addInitScript(() => {
+    const NativeWebSocket = window.WebSocket;
     type FileChangeEventWindow = Window & {
       __emitFileChangeEvent?: (event: unknown) => void;
     };
 
     class FileChangeWebSocket extends EventTarget {
-      public readonly bufferedAmount = 0;
+      public readonly bufferedAmount: number = 0;
       public readyState = 0;
 
-      public constructor() {
+      public constructor(url: string) {
         super();
+        // 仅接管项目事件，避免定时任务连接覆盖文件变更的测试入口。
+        if (new URL(url).pathname !== "/v1/projects/codexly/events") {
+          return new NativeWebSocket(url);
+        }
         (window as FileChangeEventWindow).__emitFileChangeEvent = (event) => {
           this.dispatchEvent(
             new MessageEvent("message", {
@@ -76,7 +81,7 @@ test("opens a completed file change diff while the turn is still running", async
         this.dispatchEvent(new CloseEvent("close", { code, reason }));
       }
 
-      public send(): void {
+      public send(_data: string | BufferSource | Blob): void {
         return undefined;
       }
     }
@@ -229,16 +234,21 @@ test("updates a running background task title and preserves blocking status", as
     });
   });
   await page.addInitScript(() => {
+    const NativeWebSocket = window.WebSocket;
     type SidebarEventEmitterWindow = Window & {
       __emitSidebarTaskEvent?: (event: unknown) => void;
     };
 
     class ControlledWebSocket extends EventTarget {
-      public readonly bufferedAmount = 0;
+      public readonly bufferedAmount: number = 0;
       public readyState = 0;
 
-      public constructor() {
+      public constructor(url: string) {
         super();
+        // 只统计项目连接，后台全局订阅不得覆盖侧栏事件入口或连接代次。
+        if (new URL(url).pathname !== "/v1/projects/codexly/events") {
+          return new NativeWebSocket(url);
+        }
         const connectionGeneration =
           Number(sessionStorage.getItem("__sidebarEventConnectionGeneration") ?? "0") + 1;
         sessionStorage.setItem("__sidebarEventConnectionGeneration", String(connectionGeneration));
@@ -276,7 +286,7 @@ test("updates a running background task title and preserves blocking status", as
         this.dispatchEvent(new CloseEvent("close", { code, reason }));
       }
 
-      public send(): void {
+      public send(_data: string | BufferSource | Blob): void {
         return undefined;
       }
     }

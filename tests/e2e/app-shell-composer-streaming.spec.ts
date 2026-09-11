@@ -95,16 +95,21 @@ test("renders a streaming Markdown table as a semantic table", async ({ page }) 
     });
   });
   await page.addInitScript(() => {
+    const NativeWebSocket = window.WebSocket;
     type MarkdownTableEventWindow = Window & {
       __emitMarkdownTableEvent?: (event: unknown) => void;
     };
 
     class MarkdownTableWebSocket extends EventTarget {
-      public readonly bufferedAmount = 0;
+      public readonly bufferedAmount: number = 0;
       public readyState = 0;
 
-      public constructor() {
+      public constructor(url: string) {
         super();
+        // 仅接管项目事件，避免定时任务连接覆盖流式消息的测试入口。
+        if (new URL(url).pathname !== "/v1/projects/codexly/events") {
+          return new NativeWebSocket(url);
+        }
         (window as MarkdownTableEventWindow).__emitMarkdownTableEvent = (event) => {
           this.dispatchEvent(
             new MessageEvent("message", {
@@ -133,7 +138,7 @@ test("renders a streaming Markdown table as a semantic table", async ({ page }) 
         this.dispatchEvent(new CloseEvent("close", { code, reason }));
       }
 
-      public send(): void {
+      public send(_data: string | BufferSource | Blob): void {
         return undefined;
       }
     }
