@@ -112,7 +112,6 @@ export function createComposerSubmission({
     setMutationError,
     setPendingTaskState,
     setSubmittedTurnState,
-    startTaskAttempt,
     startTurnAttempt,
     steerTurnAttempt,
     uploadAttempts,
@@ -324,27 +323,17 @@ export function createComposerSubmission({
 
     const turnAttempt = resolveIdempotencyAttempt(
       startTurnAttempt.current,
-      JSON.stringify({ input, options: turnOptions }),
+      JSON.stringify({ projectId, taskId: activeTaskId, input, options: turnOptions }),
     );
     startTurnAttempt.current = turnAttempt;
-    const taskAttempt =
-      activeTaskId === undefined
-        ? resolveIdempotencyAttempt(startTaskAttempt.current, projectId)
-        : undefined;
-    startTaskAttempt.current = taskAttempt;
     try {
       const result = await startPromptTurn(client, {
-        idempotencyKeys: {
-          ...(taskAttempt === undefined ? {} : { startTask: taskAttempt.key }),
-          startTurn: turnAttempt.key,
-        },
+        idempotencyKey: turnAttempt.key,
         input,
         onTaskCreated(task) {
-          // Turn 启动失败时保留已创建 Task，重试不能重复创建。
+          // 后端完成创建与启动后发布 Task，浏览器只更新当前页面。
           if (isCurrentScope(requestScope)) {
             setPendingTaskState({ scope: requestScope, task });
-            startTaskAttempt.current = undefined;
-            // 真实 taskId 可用后立即交给工作台缓存并选中，不等待 turn/start。
             onTaskCreated?.(task);
           }
         },

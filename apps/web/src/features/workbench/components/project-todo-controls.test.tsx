@@ -11,6 +11,8 @@ const todos: readonly ProjectTodoRecord[] = [
     createdAt: 1_000,
     draft: { attachments: [], content: [{ text: "修复登录状态恢复", type: "text" }] },
     id: "todo-a",
+    projectId: "codexly",
+    version: 1,
     updatedAt: 2_000,
     workingDraft: { attachments: [], content: [{ text: "尚未保存的修改", type: "text" }] },
   },

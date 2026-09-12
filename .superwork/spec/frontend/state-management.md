@@ -8,6 +8,9 @@ Track where local, shared, and remote state should live in this project.
 
 - 临时交互状态默认留在组件或最近的功能 Hook 中。
 - HTTP 服务端状态使用 TanStack Query；查询 key 和 mutation 行为集中在对应功能模块。
+- 正式项目待办通过 `/v1/projects/:projectId/todos` 存取，TanStack Query 是前端唯一正式数据源；未保存编辑副本保留在组件侧 Store，固定编辑起点版本，不能因后台刷新推进 `expectedVersion`。仅在服务器确认成功后更新列表或移除待办。
+- 首次读取待办时，一次性导入当前浏览器的旧待办（优先保留最新编辑内容）；只有后端确认后才标记完成，保留旧记录作为备份。导入以原始 ID 去重，不覆盖已有正式数据；附件失效等失败必须提示并保留原数据，刷新后可重试。迁移逻辑不作为第二套正式存储。
+- 普通提交与评审使用单次 `submitTask` 意图请求，由后端创建 Task、保存设置、启动 Turn 并返回 checkpoint；前端仅保持请求幂等 Key、输入草稿及渲染状态，不再串联 Task 创建和 Turn 启动。
 - 定时任务页面按最近到期时间刷新等待状态，到期或运行期间继续轮询；编辑未变更的调度字段必须保留完整 RRULE、原始时区和时间精度，仅完整匹配的规则可识别为预设。
 - 项目、访问控制和编辑器草稿等跨组件状态使用现有 Context；不要新增重复的全局状态源。
 - Agent 事件、快照和重放状态保持在 `features/conversation/runtime` 的专用 store 中，并遵守现有内存上限。

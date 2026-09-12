@@ -30,7 +30,6 @@ export function useWorkbenchComposerController(
   const routeScopeRef = useRef(routeScope);
   routeScopeRef.current = routeScope;
 
-  const startTaskAttempt = useRef<IdempotencyAttempt | undefined>(undefined);
   const startTurnAttempt = useRef<IdempotencyAttempt | undefined>(undefined);
   const steerTurnAttempt = useRef<IdempotencyAttempt | undefined>(undefined);
   const interruptAttempt = useRef<IdempotencyAttempt | undefined>(undefined);
@@ -74,7 +73,6 @@ export function useWorkbenchComposerController(
         setPendingTaskState(undefined);
         setSubmittedTurnState(undefined);
       }
-      startTaskAttempt.current = undefined;
       startTurnAttempt.current = undefined;
       steerTurnAttempt.current = undefined;
       interruptAttempt.current = undefined;
@@ -98,7 +96,6 @@ export function useWorkbenchComposerController(
     setMutationError,
     setPendingTaskState,
     setSubmittedTurnState,
-    startTaskAttempt,
     startTurnAttempt,
     steerTurnAttempt,
     submittedTurnState,

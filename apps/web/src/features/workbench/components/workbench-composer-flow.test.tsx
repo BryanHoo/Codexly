@@ -1,178 +1,90 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  interruptPromptTurn,
   startPromptTurn,
   startTaskReview,
+  interruptPromptTurn,
   steerPromptTurn,
 } from "./workbench-composer.js";
 import { task, turn } from "./workbench-composer.test-support.js";
 
 describe("WorkbenchComposer submission", () => {
-  it("creates a task before its first turn and continues existing tasks directly", async () => {
-    const checkpoint = { sequence: 0, sessionId: "session-1" } as const;
+  const checkpoint = { sequence: 0, sessionId: "session-1" };
+  const input = { attachments: [], skills: [], text: "首次提交", type: "prompt" as const };
+  const turnOptions = {
+    approvalPolicy: "on-request",
+    approvalsReviewer: "user",
+    model: "gpt-5.6-sol",
+    reasoningEffort: "high",
+    sandboxMode: "workspace-write",
+  } as const;
+
+  it("sends one business request and publishes the returned task", async () => {
     const onTaskCreated = vi.fn();
     const client = {
-      interruptTurn: vi.fn(),
-      startTask: vi.fn(() => Promise.resolve({ task })),
-      startTurn: vi.fn(() => {
-        expect(onTaskCreated).toHaveBeenCalledWith(task);
-        return Promise.resolve({ checkpoint, taskId: task.id, turn });
-      }),
-      uploadAttachment: vi.fn(),
+      submitTask: vi.fn(() =>
+        Promise.resolve({ checkpoint, createdTask: task, taskId: task.id, turn }),
+      ),
     };
-
-    await expect(
-      startPromptTurn(client, {
-        idempotencyKeys: { startTask: "task-key", startTurn: "turn-key" },
-        input: { attachments: [], skills: [], text: "首次提交", type: "prompt" },
-        onTaskCreated,
-        projectId: "codexly",
-        turnOptions: {
-          approvalPolicy: "on-request",
-          approvalsReviewer: "user",
-          model: "gpt-5.6-sol",
-          reasoningEffort: "high",
-          sandboxMode: "workspace-write",
-        },
-      }),
-    ).resolves.toEqual({ checkpoint, createdTask: task, taskId: task.id, turn });
-    await expect(
-      startPromptTurn(client, {
-        idempotencyKeys: { startTurn: "existing-turn-key" },
-        input: { attachments: [], skills: [], text: "继续任务", type: "prompt" },
-        projectId: "codexly",
-        taskId: task.id,
-        turnOptions: {
-          approvalPolicy: "never",
-          approvalsReviewer: "user",
-          model: "gpt-5.6-terra",
-          reasoningEffort: "low",
-          sandboxMode: "danger-full-access",
-        },
-      }),
-    ).resolves.toEqual({ checkpoint, taskId: task.id, turn });
-
-    expect(client.startTask).toHaveBeenCalledTimes(1);
-    expect(onTaskCreated).toHaveBeenCalledOnce();
-    expect(client.startTask).toHaveBeenCalledWith("codexly", { idempotencyKey: "task-key" });
-    expect(client.startTurn).toHaveBeenNthCalledWith(
-      1,
+    await startPromptTurn(client, {
+      idempotencyKey: "submit-key",
+      input,
+      turnOptions,
+      onTaskCreated,
+      projectId: "codexly",
+    });
+    expect(client.submitTask).toHaveBeenCalledExactlyOnceWith(
       "codexly",
-      task.id,
-      {
-        attachments: [],
-        skills: [],
-        text: "首次提交",
-        type: "prompt",
-      },
-      {
-        approvalPolicy: "on-request",
-        approvalsReviewer: "user",
-        model: "gpt-5.6-sol",
-        reasoningEffort: "high",
-        sandboxMode: "workspace-write",
-      },
-      { idempotencyKey: "turn-key" },
+      { type: "prompt", input, options: turnOptions },
+      { idempotencyKey: "submit-key" },
     );
-    expect(client.startTurn).toHaveBeenNthCalledWith(
-      2,
-      "codexly",
-      task.id,
-      {
-        attachments: [],
-        skills: [],
-        text: "继续任务",
-        type: "prompt",
-      },
-      {
-        approvalPolicy: "never",
-        approvalsReviewer: "user",
-        model: "gpt-5.6-terra",
-        reasoningEffort: "low",
-        sandboxMode: "danger-full-access",
-      },
-      { idempotencyKey: "existing-turn-key" },
-    );
+    expect(onTaskCreated).toHaveBeenCalledExactlyOnceWith(task);
   });
 
-  it("starts code review from a new chat without creating message history", async () => {
-    const calls: string[] = [];
-    const reviewTurn = { ...turn, id: "review-turn" };
+  it("preserves request identity on failure without creating a task in the browser", async () => {
+    const onTaskCreated = vi.fn();
     const client = {
-      startReview: vi.fn(() => {
-        calls.push("review");
-        return Promise.resolve({ taskId: task.id, turn: reviewTurn });
-      }),
-      startTask: vi.fn(() => {
-        calls.push("task");
-        return Promise.resolve({ task });
-      }),
+      submitTask: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("unavailable"))
+        .mockResolvedValueOnce({ checkpoint, createdTask: task, taskId: task.id, turn }),
     };
+    const options = {
+      idempotencyKey: "same-key",
+      input,
+      turnOptions,
+      onTaskCreated,
+      projectId: "codexly",
+    };
+    await expect(startPromptTurn(client, options)).rejects.toThrow("unavailable");
+    expect(onTaskCreated).not.toHaveBeenCalled();
+    await startPromptTurn(client, options);
+    expect(client.submitTask.mock.calls[0]).toEqual(client.submitTask.mock.calls[1]);
+  });
 
-    await expect(
-      startTaskReview(client, {
-        idempotencyKey: "review-key",
-        projectId: "codexly",
-        target: { type: "uncommitted_changes" },
-      }),
-    ).resolves.toEqual({ createdTask: task, taskId: task.id, turn: reviewTurn });
-
-    expect(calls).toEqual(["task", "review"]);
-    expect(client.startTask).toHaveBeenCalledWith("codexly", {
+  it("submits review intent with the existing task when selected", async () => {
+    const client = {
+      submitTask: vi.fn(() => Promise.resolve({ checkpoint, taskId: task.id, turn })),
+    };
+    await startTaskReview(client, {
       idempotencyKey: "review-key",
+      projectId: "codexly",
+      taskId: task.id,
+      target: { type: "uncommitted_changes" },
     });
-    expect(client.startReview).toHaveBeenCalledWith(
+    expect(client.submitTask).toHaveBeenCalledExactlyOnceWith(
       "codexly",
-      task.id,
-      { target: { type: "uncommitted_changes" } },
+      { type: "review", taskId: task.id, target: { type: "uncommitted_changes" } },
       { idempotencyKey: "review-key" },
     );
-
-    await startTaskReview(client, {
-      idempotencyKey: "base-review-key",
-      projectId: "codexly",
-      target: { branch: "origin/main", type: "base_branch" },
-      taskId: task.id,
-    });
-    expect(client.startReview).toHaveBeenLastCalledWith(
-      "codexly",
-      task.id,
-      { target: { branch: "origin/main", type: "base_branch" } },
-      { idempotencyKey: "base-review-key" },
-    );
   });
 
-  it("interrupts the active turn through the client", async () => {
-    const client = {
-      interruptTurn: vi.fn(() =>
-        Promise.resolve({ status: "interrupting" as const, taskId: task.id, turnId: turn.id }),
-      ),
-      startTask: vi.fn(),
-      startTurn: vi.fn(),
-      uploadAttachment: vi.fn(),
-    };
-
-    await expect(
-      interruptPromptTurn(client, "codexly", task.id, turn.id, "interrupt-key"),
-    ).resolves.toMatchObject({
-      status: "interrupting",
-    });
+  it("keeps explicit interrupt and steer actions", async () => {
+    const client = { interruptTurn: vi.fn(), steerTurn: vi.fn() };
+    await interruptPromptTurn(client, "codexly", task.id, turn.id, "interrupt-key");
+    await steerPromptTurn(client, "codexly", task.id, turn.id, input, "steer-key");
     expect(client.interruptTurn).toHaveBeenCalledWith("codexly", task.id, turn.id, {
       idempotencyKey: "interrupt-key",
     });
-  });
-
-  it("steers the active turn through the client", async () => {
-    const client = {
-      steerTurn: vi.fn(() =>
-        Promise.resolve({ status: "accepted" as const, taskId: task.id, turnId: turn.id }),
-      ),
-    };
-    const input = { attachments: [], skills: [], text: "补充约束", type: "prompt" as const };
-
-    await expect(
-      steerPromptTurn(client, "codexly", task.id, turn.id, input, "steer-key"),
-    ).resolves.toMatchObject({ status: "accepted" });
     expect(client.steerTurn).toHaveBeenCalledWith("codexly", task.id, turn.id, input, {
       idempotencyKey: "steer-key",
     });

@@ -383,7 +383,7 @@ export function WorkbenchComposer({
         setComposerModeState(undefined);
       }}
       onProjectTodoDelete={(todoId) => {
-        todoEditing.remove(todoId);
+        void todoEditing.remove(todoId);
       }}
       onProjectTodoRestore={(todoId) => {
         todoEditing.restore(todoId, clearComposerInput);
@@ -471,7 +471,18 @@ export function WorkbenchComposer({
   );
   return (
     <>
-      {composerView}
+      {initialTodoId !== undefined && !todoEditing.query.isSuccess ? (
+        <div role="status" className="p-4 text-sm text-muted-foreground">
+          {todoEditing.query.error?.message ?? t("taskBoard.loading")}
+          {todoEditing.query.isError && (
+            <button type="button" onClick={() => void todoEditing.query.refetch()}>
+              {t("composer.retryTodoLoad")}
+            </button>
+          )}
+        </div>
+      ) : (
+        composerView
+      )}
       <WorkbenchComposerAttachmentPicker
         active={isCurrentScope(routeScope)}
         client={client}

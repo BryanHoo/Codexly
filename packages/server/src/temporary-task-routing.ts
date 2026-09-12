@@ -17,6 +17,7 @@ export function rewriteTemporaryTaskUrl(url: string): string {
     !attachmentRoute &&
     !streamedFileRoute &&
     !hostOpenRoute &&
+    suffix !== "/submissions" &&
     suffix !== "/events" &&
     suffix !== "/skills"
   ) {

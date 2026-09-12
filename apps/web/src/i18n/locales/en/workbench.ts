@@ -153,6 +153,9 @@ export const workbench = {
     saveAsTodo: "Save as todo",
     saveTodoChanges: "Save todo changes",
     saveTodoFailed: "Unable to save todo",
+    retryTodoLoad: "Reload todo",
+    todoMigrationError:
+      "Some previous todos could not be imported. The original data is preserved. Check for expired attachments, then reload to retry.",
     sendSteer: "Send steer",
     steerNow: "Steer now: {{summary}}",
     steerNowTooltip: "Send as a steer now",

@@ -1,11 +1,14 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   CodexAppServerProcess,
   createCodexRuntimeProvider,
 } from "../../dist/providers/codex/index.js";
-import { createCodexlyServer } from "../../dist/server/index.js";
+import { createCodexlyServer, SqliteStateRepository } from "../../dist/server/index.js";
 
 const projectRoot = "/workspace/Codexly";
 const fakeAppServerPath = fileURLToPath(
@@ -72,7 +75,11 @@ const stateRepository = {
     return Promise.resolve(settings);
   },
 };
+const persistenceRoot = await mkdtemp(join(tmpdir(), "codexly-e2e-todos-"));
+const persistence = await SqliteStateRepository.open(join(persistenceRoot, "state.sqlite"));
 const server = await createCodexlyServer({
+  projectTodoRepository: persistence,
+  submissionRepository: persistence,
   ...(pairingCode === undefined
     ? {}
     : { access: { pairingCode, sessionTtlMs: 24 * 60 * 60 * 1_000 } }),
@@ -94,6 +101,8 @@ const server = await createCodexlyServer({
 const close = async () => {
   await server.close();
   await runtime.close();
+  await persistence.close();
+  await rm(persistenceRoot, { recursive: true, force: true });
 };
 process.once("SIGINT", () => void close().finally(() => process.exit(0)));
 process.once("SIGTERM", () => void close().finally(() => process.exit(0)));

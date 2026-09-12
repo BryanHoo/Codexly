@@ -296,7 +296,7 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
       },
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

@@ -38,18 +38,16 @@ test("starts code review from a new chat with one fixed review message", async (
     if (request.method() === "POST") {
       mutationPaths.push(url.pathname);
     }
-    if (url.pathname === "/v1/projects/codexly/tasks" && request.method() === "POST") {
-      await route.fulfill({ contentType: "application/json", json: { task: reviewTask } });
-      return;
-    }
-    if (
-      url.pathname === "/v1/projects/codexly/tasks/review-task/review" &&
-      request.method() === "POST"
-    ) {
+    if (url.pathname === "/v1/projects/codexly/submissions" && request.method() === "POST") {
       reviewBodies.push(request.postDataJSON());
       await route.fulfill({
         contentType: "application/json",
-        json: { taskId: reviewTask.id, turn: reviewTurn },
+        json: {
+          createdTask: reviewTask,
+          checkpoint: { sequence: 0, sessionId: "review-session" },
+          taskId: reviewTask.id,
+          turn: reviewTurn,
+        },
       });
       return;
     }
@@ -97,10 +95,8 @@ test("starts code review from a new chat with one fixed review message", async (
   await expect(page.getByText("请检查我未提交的更改", { exact: true })).toHaveCount(1);
   await expect(page.getByText("审查模式", { exact: true })).toBeVisible();
   await expect(page.getByText(/Review the current code changes/u)).toHaveCount(0);
-  await expect
-    .poll(() => mutationPaths)
-    .toEqual(["/v1/projects/codexly/tasks", "/v1/projects/codexly/tasks/review-task/review"]);
-  expect(reviewBodies).toEqual([{ target: { type: "uncommitted_changes" } }]);
+  await expect.poll(() => mutationPaths).toEqual(["/v1/projects/codexly/submissions"]);
+  expect(reviewBodies).toEqual([{ type: "review", target: { type: "uncommitted_changes" } }]);
 });
 
 test("selects a real base branch before starting code review", async ({ page }) => {
@@ -108,7 +104,7 @@ test("selects a real base branch before starting code review", async ({ page }) 
   page.on("request", (request) => {
     if (
       request.method() === "POST" &&
-      new URL(request.url()).pathname === "/v1/projects/codexly/tasks/task-1/review"
+      new URL(request.url()).pathname === "/v1/projects/codexly/submissions"
     ) {
       reviewBodies.push(request.postDataJSON());
     }
@@ -128,7 +124,9 @@ test("selects a real base branch before starting code review", async ({ page }) 
 
   await expect
     .poll(() => reviewBodies)
-    .toEqual([{ target: { branch: "release", type: "base_branch" } }]);
+    .toEqual([
+      { type: "review", taskId: "task-1", target: { branch: "release", type: "base_branch" } },
+    ]);
 });
 
 test("loads long source files while scrolling", async ({ context, page }) => {

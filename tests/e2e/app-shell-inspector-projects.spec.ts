@@ -234,20 +234,17 @@ test("shows a newly submitted task from the launch checkpoint without reading it
 
   await page.route("**/v1/**", async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === "/v1/projects/codexly/tasks" && route.request().method() === "POST") {
-      taskStartRequestCount += 1;
-      await route.fulfill({ contentType: "application/json", json: { task: createdTask } });
-      return;
-    }
     if (
-      url.pathname === `/v1/projects/codexly/tasks/${createdTask.id}/turns` &&
+      url.pathname === "/v1/projects/codexly/submissions" &&
       route.request().method() === "POST"
     ) {
+      taskStartRequestCount += 1;
       await turnStartGate;
       await route.fulfill({
         contentType: "application/json",
         json: {
           checkpoint: { sequence: 0, sessionId: "e2e-session" },
+          createdTask,
           taskId: createdTask.id,
           turn: startedTurn,
         },
@@ -277,12 +274,12 @@ test("shows a newly submitted task from the launch checkpoint without reading it
   });
   await expect.poll(() => taskStartRequestCount).toBe(1);
 
-  // Codex 返回真实 taskId 后立即写入并选中 Sidebar，中栏仍保留可重试的 Project 草稿。
+  // 提交完成前保持 Project 草稿，真实 Task 由单次后端响应发布。
   await expect(page).toHaveURL(/\/p\/codexly$/u);
   const main = page.getByRole("main", { name: "任务时间线" });
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const runningTaskLink = sidebar.getByRole("link", { name: "新聊天" });
-  await expect(runningTaskLink).toHaveAttribute("aria-current", "page");
+  await expect(runningTaskLink).toHaveCount(0);
 
   releaseTurnStartRequest();
 

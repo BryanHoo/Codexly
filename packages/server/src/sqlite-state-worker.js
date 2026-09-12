@@ -21,13 +21,10 @@ import {
 import { serializeApprovalPolicy } from "./approval-policy-persistence.js";
 import { createTaskQueueOperations } from "./sqlite-task-queue-worker.js";
 import { createScheduledTaskOperations } from "./sqlite-state-worker-scheduled-tasks.js";
+import { createSubmissionOperations } from "./sqlite-submission-worker.js";
+import { createProjectTodoOperations } from "./sqlite-project-todo-worker.js";
 
-function serializeError(error) {
-  return {
-    message: error instanceof Error ? error.message : String(error),
-    name: error instanceof Error ? error.name : "Error",
-  };
-}
+import { serializeError } from "./sqlite-worker-error.js";
 function createOperations(database) {
   const statements =
     hasTable(database, "projects") && hasTable(database, "project_roots")
@@ -309,6 +306,8 @@ function createOperations(database) {
   return {
     ...createTaskQueueOperations(database),
     ...createScheduledTaskOperations(database),
+    ...createSubmissionOperations(database),
+    ...createProjectTodoOperations(database),
     diagnose() {
       database.exec("BEGIN IMMEDIATE");
       try {

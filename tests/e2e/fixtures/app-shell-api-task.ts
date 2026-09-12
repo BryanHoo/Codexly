@@ -24,7 +24,9 @@ export async function handleAppShellTaskRoute(
     url.pathname,
   );
   let body: unknown;
-  if (queueMatch !== null) {
+  if (/^\/v1\/projects\/[^/]+\/todos$/u.test(url.pathname) && route.request().method() === "GET") {
+    body = { data: [] };
+  } else if (queueMatch !== null) {
     const taskKey = `${queueMatch[1] ?? ""}:${queueMatch[2] ?? ""}`;
     const queue = state.queuedSubmissionsByTask.get(taskKey) ?? [];
     if (route.request().method() === "POST") {
@@ -215,8 +217,9 @@ export async function handleAppShellTaskRoute(
     };
   } else if (url.pathname === "/v1/projects/codexly/tasks/task-1/compact") {
     body = { status: "compacting", taskId: "task-1" };
-  } else if (url.pathname === "/v1/projects/codexly/tasks/task-1/review") {
+  } else if (url.pathname === "/v1/projects/codexly/submissions") {
     body = {
+      checkpoint: { sequence: 0, sessionId: "e2e-session" },
       taskId: "task-1",
       turn: {
         completedAt: null,

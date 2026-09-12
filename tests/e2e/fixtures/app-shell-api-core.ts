@@ -228,10 +228,29 @@ export async function handleAppShellCoreRoute(
     state.temporaryTasks = state.temporaryTasks.filter((item) => item.id !== taskId);
     state.temporaryTurns.delete(taskId);
     body = { status: "deleted", taskId };
-  } else if (temporaryTurnMatch !== null && route.request().method() === "POST") {
-    const taskId = temporaryTurnMatch[1] ?? "";
-    const task = state.temporaryTasks.find((item) => item.id === taskId);
+  } else if (
+    (temporaryTurnMatch !== null || url.pathname === "/v1/temporary/submissions") &&
+    route.request().method() === "POST"
+  ) {
     const request = parseRequestRecord(route.request().postData());
+    const submittedId = request["taskId"];
+    const taskId =
+      temporaryTurnMatch?.[1] ??
+      (typeof submittedId === "string"
+        ? submittedId
+        : `temporary-task-${String(state.temporaryTasks.length + 1)}`);
+    const createdTask =
+      temporaryTurnMatch === null && submittedId === undefined
+        ? {
+            id: taskId,
+            pinned: false,
+            projectId: "temporary",
+            title: "临时任务会话",
+            updatedAt: "2026-08-06T08:00:00.000Z",
+          }
+        : undefined;
+    if (createdTask !== undefined) state.temporaryTasks.unshift(createdTask);
+    const task = state.temporaryTasks.find((item) => item.id === taskId);
     const input = request["input"];
     const options = request["options"];
     if (
@@ -283,6 +302,7 @@ export async function handleAppShellCoreRoute(
     };
     state.temporaryTurns.set(taskId, [...(state.temporaryTurns.get(taskId) ?? []), turn]);
     body = {
+      ...(createdTask === undefined ? {} : { createdTask }),
       checkpoint: { sequence: 0, sessionId: "e2e-session" },
       taskId,
       turn,

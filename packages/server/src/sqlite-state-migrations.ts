@@ -3,6 +3,7 @@ import {
   WORKBENCH_PET_SETTINGS_MIGRATION,
 } from "./global-settings-persistence.js";
 import { PROVIDER_CONNECTION_MIGRATION } from "./provider-connection-persistence.js";
+import { PROJECT_TODO_MIGRATION } from "./project-todo-migration.js";
 
 export type SqliteMigration = Readonly<{
   name: string;
@@ -461,4 +462,20 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
     sql: "ALTER TABLE task_queue ADD COLUMN execution_json TEXT;",
     version: 26,
   },
+  {
+    name: "persist_task_submissions",
+    version: 27,
+    sql: `CREATE TABLE task_submissions (
+      project_id TEXT NOT NULL,
+      submission_key TEXT NOT NULL,
+      record_json TEXT NOT NULL,
+      completed INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (project_id, submission_key)
+    ) STRICT;
+    CREATE TRIGGER delete_project_submissions AFTER DELETE ON projects BEGIN
+      DELETE FROM task_submissions WHERE project_id = OLD.id;
+    END;`,
+  },
+  PROJECT_TODO_MIGRATION,
 ];

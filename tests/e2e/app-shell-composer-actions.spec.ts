@@ -199,7 +199,7 @@ test("runs official task actions from the slash command menu", async ({ page }) 
 
 test("recognizes typed Codex skill references before submission", async ({ page }) => {
   let turnRequest: Record<string, unknown> | undefined;
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",
@@ -250,7 +250,7 @@ test("selects and submits a project file reference from an inline @ mention", as
       fileSearchSessionIds.push(url.searchParams.get("sessionId") ?? "");
     }
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",

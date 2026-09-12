@@ -61,7 +61,7 @@ test("converts large pasted text into a submitted file attachment", async ({ pag
       status: 201,
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -153,7 +153,7 @@ test("uploads images and files selected from the browser device in LAN mode @cro
       status: 201,
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -258,7 +258,7 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
       status: 201,
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -362,6 +362,8 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
   expect(importRequest?.url).toMatch(/\/attachments\/image\/host$/u);
   expect(importRequest?.body).toEqual({ path: "/Users/bryan/Attachments/screen.png" });
   expect(turnBody).toEqual({
+    type: "prompt",
+    taskId: "task-1",
     input: {
       attachments: [{ id: "attachment-1" }],
       skills: [

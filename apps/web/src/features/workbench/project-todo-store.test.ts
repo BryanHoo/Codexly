@@ -1,68 +1,67 @@
-import { describe, expect, it } from "vitest";
-
+import { QueryClient } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
 import { createProjectTodoStore } from "./project-todo-store.js";
 
-function createMemoryStorage(): Pick<Storage, "getItem" | "removeItem" | "setItem"> {
-  const values = new Map<string, string>();
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    removeItem: (key) => {
-      values.delete(key);
-    },
-    setItem: (key, value) => {
-      values.set(key, value);
-    },
+describe("project todo server state", () => {
+  const draft = { attachments: [], content: [{ type: "text" as const, text: "正式内容" }] };
+  const todo = {
+    id: "todo-1",
+    projectId: "project-a",
+    createdAt: 1,
+    updatedAt: 1,
+    version: 1,
+    draft,
   };
-}
-
-describe("project todo store", () => {
-  it("isolates todos by project and saves working changes explicitly", () => {
-    const storage = createMemoryStorage();
-    const store = createProjectTodoStore(storage, {
-      createId: () => "todo-a",
-      now: () => 1_000,
-    });
-    const original = {
-      attachments: [],
-      content: [{ text: "原始内容", type: "text" as const }],
+  function setup() {
+    const queryClient = new QueryClient();
+    const client = {
+      createProjectTodo: vi.fn(() => Promise.resolve({ todo })),
+      listProjectTodos: vi.fn(() => Promise.resolve({ data: [todo] })),
+      saveProjectTodo: vi.fn(() => Promise.resolve({ todo: { ...todo, version: 2 } })),
+      deleteProjectTodo: vi.fn(() => Promise.resolve({ deleted: true })),
     };
-    store.create("project-a", original);
-    store.updateWorking("project-a", "todo-a", {
+    return { client, queryClient, store: createProjectTodoStore({ client, queryClient }) };
+  }
+  it("stores only server-confirmed records and keeps working drafts local", async () => {
+    const { store, client } = setup();
+    await store.create("project-a", draft);
+    store.updateWorking("project-a", "todo-1", {
       attachments: [],
-      content: [{ text: "未保存修改", type: "text" }],
+      content: [{ type: "text", text: "未保存" }],
     });
-
-    expect(store.list("project-b")).toEqual([]);
-    expect(store.read("project-a", "todo-a")?.draft).toEqual(original);
-    expect(store.readWorking("project-a", "todo-a")?.content).toEqual([
-      { text: "未保存修改", type: "text" },
-    ]);
-
-    const workingDraft = store.readWorking("project-a", "todo-a");
-    expect(workingDraft).toBeDefined();
-    if (workingDraft === undefined) throw new Error("Expected a working todo draft");
-    store.save("project-a", "todo-a", workingDraft);
-
-    expect(store.read("project-a", "todo-a")?.draft.content).toEqual([
-      { text: "未保存修改", type: "text" },
-    ]);
-    expect(store.readWorking("project-a", "todo-a")).toBeUndefined();
+    expect(store.read("project-a", "todo-1")?.draft).toEqual(draft);
+    expect(store.readWorking("project-a", "todo-1")?.content[0]).toEqual({
+      type: "text",
+      text: "未保存",
+    });
+    expect(client.saveProjectTodo).not.toHaveBeenCalled();
+    expect(store.list("other")).toEqual([]);
+    await store.save("project-a", "todo-1", draft);
+    expect(client.saveProjectTodo).toHaveBeenCalledWith(
+      "project-a",
+      "todo-1",
+      { draft, expectedVersion: 1 },
+      expect.any(Object),
+    );
+    expect(store.readWorking("project-a", "todo-1")).toBeUndefined();
   });
-
-  it("restores persisted todos in newest-first order", () => {
-    const storage = createMemoryStorage();
-    let now = 1_000;
-    let sequence = 0;
-    const store = createProjectTodoStore(storage, {
-      createId: () => `todo-${String(++sequence)}`,
-      now: () => now,
+  it("does not remove a todo or its draft when the server rejects deletion", async () => {
+    const { store, client } = setup();
+    await store.create("project-a", draft);
+    client.deleteProjectTodo.mockRejectedValueOnce(new Error("conflict"));
+    await expect(store.remove("project-a", "todo-1")).rejects.toThrow("conflict");
+    expect(store.read("project-a", "todo-1")).toBeDefined();
+  });
+  it("shares Query cache updates without replacing a working draft", async () => {
+    const { store, queryClient } = setup();
+    await store.create("project-a", draft);
+    const working = { ...draft, content: [{ type: "text" as const, text: "本地修改" }] };
+    store.updateWorking("project-a", "todo-1", working);
+    queryClient.setQueryData(["projects", "project-a", "todos"], {
+      data: [{ ...todo, version: 2 }],
     });
-
-    store.create("project-a", { attachments: [], content: [{ text: "第一条", type: "text" }] });
-    now = 2_000;
-    store.create("project-a", { attachments: [], content: [{ text: "第二条", type: "text" }] });
-
-    const reloaded = createProjectTodoStore(storage);
-    expect(reloaded.list("project-a").map((todo) => todo.id)).toEqual(["todo-2", "todo-1"]);
+    expect(store.read("project-a", "todo-1")?.version).toBe(1);
+    expect(store.readWorking("project-a", "todo-1")).toEqual(working);
+    // 工作副本保留编辑起点版本，保存时交给服务器检测冲突。
   });
 });

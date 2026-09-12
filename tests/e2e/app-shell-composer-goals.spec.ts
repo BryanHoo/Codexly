@@ -10,7 +10,7 @@ test.describe.configure({ mode: "serial" });
 
 test("selects, clears, and submits goal mode", async ({ page }) => {
   let turnBody: unknown;
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -59,6 +59,8 @@ test("selects, clears, and submits goal mode", async ({ page }) => {
 
   await expect(page.getByRole("button", { name: "取消目标模式" })).toHaveCount(0);
   expect(turnBody).toEqual({
+    type: "prompt",
+    taskId: "task-1",
     input: {
       attachments: [],
       skills: [],
@@ -158,7 +160,7 @@ test("builds a completed plan as a normal development turn", async ({ page }) =>
       },
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",
@@ -191,6 +193,8 @@ test("builds a completed plan as a normal development turn", async ({ page }) =>
   await expect(page.getByRole("button", { name: "取消计划模式" })).toHaveCount(0);
   await expect(page.getByText("请开始按照上述计划进行开发。", { exact: true })).toBeVisible();
   expect(turnBody).toEqual({
+    type: "prompt",
+    taskId: "task-1",
     input: {
       attachments: [],
       skills: [],
@@ -225,7 +229,7 @@ test("selects and submits a host file as an attachment", async ({ page }) => {
       status: 201,
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnBody = route.request().postDataJSON();
     await route.fulfill({
       contentType: "application/json",

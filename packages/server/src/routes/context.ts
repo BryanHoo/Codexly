@@ -1,3 +1,4 @@
+import type { ProjectTodoRepository, TaskSubmissionRepository } from "@codexly/core";
 import type {
   AgentFileSearchProvider,
   AgentProvider,
@@ -111,6 +112,8 @@ export type TaskStartRecovery = Readonly<{
 }>;
 
 export interface ServerRouteContext {
+  readonly projectTodoRepository?: ProjectTodoRepository;
+  readonly submissionRepository: TaskSubmissionRepository;
   readonly accessService?: AccessSessionService;
   readonly activeGitMutations: Set<string>;
   readonly assertCommitSelection: (

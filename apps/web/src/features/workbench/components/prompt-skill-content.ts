@@ -1,11 +1,9 @@
+import type { PromptDocumentPart } from "@codexly/protocol";
 import type { AgentSkill, ProjectFileSearchEntry } from "@codexly/protocol";
 
 import type { PromptSlashCommand } from "./prompt-command.js";
 
-export type PromptSkillContentPart =
-  | Readonly<{ file: ProjectFileSearchEntry; type: "file" }>
-  | Readonly<{ skill: AgentSkill; type: "skill" }>
-  | Readonly<{ text: string; type: "text" }>;
+export type PromptSkillContentPart = PromptDocumentPart;
 
 export type PromptSkillContent = readonly PromptSkillContentPart[];
 

@@ -10,7 +10,7 @@ test("creates and restores a temporary task without exposing its internal projec
   page.on("request", (request) => {
     const pathname = new URL(request.url()).pathname;
     requestedPaths.push(pathname);
-    if (request.method() === "POST" && /^\/v1\/temporary\/tasks\/[^/]+\/turns$/u.test(pathname)) {
+    if (request.method() === "POST" && pathname === "/v1/temporary/submissions") {
       const body = parseRequestRecord(request.postData());
       temporaryTurnOptions = parseRequestRecord(JSON.stringify(body["options"]));
     }

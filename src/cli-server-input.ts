@@ -1,3 +1,4 @@
+import type { ProjectTodoRepository, TaskSubmissionRepository } from "@codexly/core";
 import type {
   AgentProviderConnectionRepository,
   AgentQueueRepository,
@@ -13,6 +14,8 @@ import type { CodexlyAccessOptions } from "@codexly/server";
 import type { createAppUpdateService } from "./app-update.js";
 
 export interface CreateServerInput {
+  projectTodoRepository: ProjectTodoRepository;
+  submissionRepository: TaskSubmissionRepository;
   access?: CodexlyAccessOptions;
   allowedHosts?: readonly string[];
   installAppUpdate: ReturnType<typeof createAppUpdateService>["install"];

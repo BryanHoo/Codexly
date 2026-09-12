@@ -279,6 +279,9 @@ export const InterruptAgentTurnResponseSchema = Type.Object(
 export type InterruptAgentTurnResponse = Readonly<Static<typeof InterruptAgentTurnResponseSchema>>;
 
 export const AgentMutationErrorCodeSchema = Type.Union([
+  Type.Literal("PROJECT_TODO_CHANGED"),
+  Type.Literal("PROJECT_TODO_NOT_FOUND"),
+  Type.Literal("SUBMISSION_OUTCOME_UNKNOWN"),
   Type.Literal("ACCESS_DENIED"),
   Type.Literal("IDEMPOTENCY_KEY_REQUIRED"),
   Type.Literal("IDEMPOTENCY_CONFLICT"),

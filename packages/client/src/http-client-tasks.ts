@@ -1,4 +1,7 @@
 import {
+  SubmitTaskResponseSchema,
+  type SubmitTaskRequest,
+  type SubmitTaskResponse,
   AgentAttachmentUploadResponseSchema,
   AddAgentQueuedSubmissionResponseSchema,
   AgentQueuedSubmissionPageSchema,
@@ -78,6 +81,18 @@ import {
 import { TaskGoalHttpClient } from "./http-client-task-goals.js";
 
 export class TaskHttpClient extends TaskGoalHttpClient {
+  public submitTask(
+    projectId: string,
+    input: SubmitTaskRequest,
+    options: MutationOptions = {},
+  ): Promise<SubmitTaskResponse> {
+    return this.mutation(
+      `${projectPath(projectId)}/submissions`,
+      input,
+      SubmitTaskResponseSchema,
+      options,
+    );
+  }
   public async listQueuedSubmissions(
     projectId: string,
     taskId: string,

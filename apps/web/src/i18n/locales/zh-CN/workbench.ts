@@ -152,6 +152,8 @@ export const workbench = {
     saveAsTodo: "保存为待办",
     saveTodoChanges: "保存待办修改",
     saveTodoFailed: "无法保存待办",
+    retryTodoLoad: "重新加载待办",
+    todoMigrationError: "部分旧待办未能导入，原始数据已保留。请检查附件是否过期，修复后刷新重试。",
     sendSteer: "发送引导",
     steerNow: "立即引导：{{summary}}",
     steerNowTooltip: "立即作为引导发送",

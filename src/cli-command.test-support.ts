@@ -195,6 +195,12 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     }),
   };
   const stateRepository = {
+    listProjectTodos: vi.fn(() => Promise.resolve([])),
+    saveProjectTodo: vi.fn(() => Promise.resolve()),
+    deleteProjectTodo: vi.fn(() => Promise.resolve(false)),
+    readProjectTodoAttachment: vi.fn(() => Promise.resolve(undefined)),
+    readSubmission: vi.fn(() => Promise.resolve(undefined)),
+    writeSubmission: vi.fn(() => Promise.resolve()),
     addQueue: vi.fn((record) => Promise.resolve(record)),
     setQueueExecution: vi.fn(() => Promise.resolve(true)),
     close: databaseClose,

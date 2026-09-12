@@ -1,3 +1,4 @@
+import type { ProjectTodoAttachment } from "@codexly/core";
 import { Readable } from "node:stream";
 
 import type { AgentProvider, AgentProviderTurnInput } from "@codexly/core";
@@ -11,7 +12,13 @@ import {
 import { AttachmentNotFoundError, type AttachmentStore } from "./attachment-store.js";
 import { MutationHttpError } from "./routes/context.js";
 
-export function createProviderTurnInputResolver(attachmentStore: AttachmentStore) {
+export function createProviderTurnInputResolver(
+  attachmentStore: AttachmentStore,
+  readPersistentAttachment?: (
+    projectId: string,
+    id: string,
+  ) => Promise<ProjectTodoAttachment | undefined>,
+) {
   return async (
     projectId: string,
     input: AgentPromptInput,
@@ -37,10 +44,13 @@ export function createProviderTurnInputResolver(attachmentStore: AttachmentStore
       } catch (error) {
         if (!(error instanceof AttachmentNotFoundError)) throw error;
       }
+      const persistent = await readPersistentAttachment?.(projectId, requestedId);
       const historical =
-        provider === undefined || taskId === undefined
-          ? undefined
-          : await provider.readTaskAttachment(taskId, requestedId);
+        persistent === undefined
+          ? provider === undefined || taskId === undefined
+            ? undefined
+            : await provider.readTaskAttachment(taskId, requestedId)
+          : { ...persistent.attachment, content: persistent.content };
       if (historical === undefined) {
         throw new MutationHttpError(
           "ATTACHMENT_NOT_FOUND",

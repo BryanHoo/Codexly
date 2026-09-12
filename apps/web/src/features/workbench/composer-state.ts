@@ -169,7 +169,7 @@ export function resolveActiveTurnId(
 }
 
 type StartPromptTurnOptions = Readonly<{
-  idempotencyKeys: Readonly<{ startTask?: string; startTurn: string }>;
+  idempotencyKey: string;
   input: AgentPromptInput;
   onTaskCreated?: (task: AgentTask) => void;
   projectId: string;
@@ -178,7 +178,7 @@ type StartPromptTurnOptions = Readonly<{
 }>;
 
 export async function startPromptTurn(
-  client: Pick<CodexlyMutationClient, "startTask" | "startTurn">,
+  client: Pick<CodexlyMutationClient, "submitTask">,
   options: StartPromptTurnOptions,
 ): Promise<
   Readonly<{
@@ -188,35 +188,18 @@ export async function startPromptTurn(
     turn: AgentTurn;
   }>
 > {
-  let taskId = options.taskId;
-  let createdTask: AgentTask | undefined;
-  if (taskId === undefined) {
-    const startTaskKey = options.idempotencyKeys.startTask;
-    if (startTaskKey === undefined) {
-      throw new Error("Task creation requires an idempotency key");
-    }
-    const response = await client.startTask(options.projectId, {
-      idempotencyKey: startTaskKey,
-    });
-    createdTask = response.task;
-    taskId = response.task.id;
-    options.onTaskCreated?.(response.task);
-  }
-  const response = await client.startTurn(
+  const response = await client.submitTask(
     options.projectId,
-    taskId,
-    options.input,
-    options.turnOptions,
     {
-      idempotencyKey: options.idempotencyKeys.startTurn,
+      type: "prompt",
+      ...(options.taskId === undefined ? {} : { taskId: options.taskId }),
+      input: options.input,
+      options: options.turnOptions,
     },
+    { idempotencyKey: options.idempotencyKey },
   );
-  return {
-    checkpoint: response.checkpoint,
-    ...(createdTask === undefined ? {} : { createdTask }),
-    taskId,
-    turn: response.turn,
-  };
+  if (response.createdTask !== undefined) options.onTaskCreated?.(response.createdTask);
+  return response;
 }
 
 type StartTaskReviewOptions = Readonly<{
@@ -228,30 +211,20 @@ type StartTaskReviewOptions = Readonly<{
 }>;
 
 export async function startTaskReview(
-  client: Pick<CodexlyMutationClient, "startReview" | "startTask">,
+  client: Pick<CodexlyMutationClient, "submitTask">,
   options: StartTaskReviewOptions,
 ): Promise<Readonly<{ createdTask?: AgentTask; taskId: string; turn: AgentTurn }>> {
-  let taskId = options.taskId;
-  let createdTask: AgentTask | undefined;
-  if (taskId === undefined) {
-    const response = await client.startTask(options.projectId, {
-      idempotencyKey: options.idempotencyKey,
-    });
-    createdTask = response.task;
-    taskId = response.task.id;
-    options.onTaskCreated?.(response.task);
-  }
-  const response = await client.startReview(
+  const response = await client.submitTask(
     options.projectId,
-    taskId,
-    { target: options.target },
+    {
+      type: "review",
+      target: options.target,
+      ...(options.taskId === undefined ? {} : { taskId: options.taskId }),
+    },
     { idempotencyKey: options.idempotencyKey },
   );
-  return {
-    ...(createdTask === undefined ? {} : { createdTask }),
-    taskId,
-    turn: response.turn,
-  };
+  if (response.createdTask !== undefined) options.onTaskCreated?.(response.createdTask);
+  return response;
 }
 
 export function interruptPromptTurn(

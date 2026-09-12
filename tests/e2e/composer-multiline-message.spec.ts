@@ -2,7 +2,7 @@ import { expect, parseRequestRecord, test } from "./fixtures/app-shell.js";
 
 test("submits and renders the live multiline editor text @cross-browser", async ({ page }) => {
   let turnRequest: Record<string, unknown> | undefined;
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",

@@ -88,11 +88,10 @@ export function createProjectTodoComposerActions({
           content: skillEditorRef.current?.getContent() ?? promptContent,
         };
         if (editingTodoId === undefined) {
-          projectTodos.create(projectId, draft);
+          await projectTodos.create(projectId, draft);
           if (isCurrentScope(routeScope)) clearComposerInput();
         } else {
-          const saved = projectTodos.save(projectId, editingTodoId, draft);
-          if (saved === undefined) throw new Error("Project todo is unavailable");
+          await projectTodos.save(projectId, editingTodoId, draft);
           if (isCurrentScope(routeScope)) onEditingComplete();
         }
       } catch (error) {
@@ -108,7 +107,7 @@ export function createProjectTodoComposerActions({
   const submit = async (message: PromptInputMessage) => {
     const submitted = await submitPrompt(message);
     if (submitted && editingTodoId !== undefined) {
-      projectTodos.remove(projectId, editingTodoId);
+      await projectTodos.remove(projectId, editingTodoId);
       onEditingComplete();
     }
   };

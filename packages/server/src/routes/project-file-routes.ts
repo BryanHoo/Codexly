@@ -16,12 +16,11 @@ import {
   type ProjectFileSearchQuery,
   type ProjectSourceFileQuery,
   type StopProjectFileSearchRequest,
-  TEMPORARY_TASK_SCOPE_ID,
 } from "@codexly/protocol";
-import type { ProjectRepository } from "@codexly/core";
 import { AttachmentNotFoundError, type StoredAttachmentUpload } from "../attachment-store.js";
 import { HostFileBrowserError } from "../host-file-browser.js";
-import { ProjectRootScopeError, resolveProjectRootEntry } from "../project-root-scope.js";
+import { resolveReadRoot, resolveProjectFileRoot } from "./project-file-root.js";
+import { ProjectRootScopeError } from "../project-root-scope.js";
 import { sendScheduledTaskAttachment } from "../scheduled-task-attachment-response.js";
 import { filterProjectFileSearchMatches } from "../project-file-search.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
@@ -35,45 +34,7 @@ import {
   ProjectStoredAttachmentParamsSchema,
 } from "./schemas.js";
 
-import type { FastifyInstance, FastifyReply } from "fastify";
-
-async function resolveReadRoot(
-  repository: ProjectRepository,
-  getProjectContext: ServerRouteContext["getProjectContext"],
-  projectId: string,
-  rootPath: string | undefined,
-  reply: FastifyReply,
-): Promise<Readonly<{ id: string; path: string }> | undefined> {
-  try {
-    return await resolveProjectFileRoot(repository, getProjectContext, projectId, rootPath);
-  } catch (error) {
-    if (error instanceof ProjectRootScopeError) {
-      const status = error.code === "PROJECT_NOT_FOUND" ? 404 : 400;
-      await reply.code(status).send({ code: error.code, message: error.message });
-      return undefined;
-    }
-    throw error;
-  }
-}
-
-async function resolveProjectFileRoot(
-  repository: ProjectRepository,
-  getProjectContext: ServerRouteContext["getProjectContext"],
-  projectId: string,
-  rootPath: string | undefined,
-): Promise<Readonly<{ id: string; path: string }>> {
-  if (projectId === TEMPORARY_TASK_SCOPE_ID) {
-    const temporaryRoot = (await getProjectContext(projectId))?.scope.rootPath;
-    if (temporaryRoot === undefined) {
-      throw new ProjectRootScopeError("PROJECT_NOT_FOUND", "Project not found");
-    }
-    return { id: TEMPORARY_TASK_SCOPE_ID, path: temporaryRoot };
-  }
-  if (rootPath === undefined) {
-    throw new ProjectRootScopeError("PROJECT_ROOT_INVALID", "Project root is required");
-  }
-  return resolveProjectRootEntry(repository, projectId, rootPath);
-}
+import type { FastifyInstance } from "fastify";
 
 export function registerProjectFileRoutes(app: FastifyInstance, context: ServerRouteContext): void {
   const {
@@ -480,10 +441,15 @@ export function registerProjectFileRoutes(app: FastifyInstance, context: ServerR
           .send(stored.content);
       } catch (error) {
         if (error instanceof AttachmentNotFoundError) {
-          const stored = await context.readScheduledTaskAttachment(
-            request.params.projectId,
-            request.params.attachmentId,
-          );
+          const stored =
+            (await context.projectTodoRepository?.readProjectTodoAttachment(
+              request.params.projectId,
+              request.params.attachmentId,
+            )) ??
+            (await context.readScheduledTaskAttachment(
+              request.params.projectId,
+              request.params.attachmentId,
+            ));
           if (stored !== undefined) {
             return sendScheduledTaskAttachment(reply, stored);
           }

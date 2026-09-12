@@ -1,3 +1,4 @@
+import type { ProjectTodoRepository, TaskSubmissionRepository } from "@codexly/core";
 import { vi } from "vitest";
 import { createCodexlyServer } from "./app.js";
 import type { ProjectOpenService } from "./project-open.js";
@@ -8,6 +9,8 @@ import { createServerOptions, createSettingsRepository } from "./app-options.tes
 // 仅在需要完整 Fastify 实例时创建 harness，并统一登记关闭回调。
 export async function createHarness(
   options: Readonly<{
+    projectTodoRepository?: ProjectTodoRepository;
+    submissionRepository?: TaskSubmissionRepository;
     idempotencyCacheSize?: number;
     modelCatalogCacheMaxBytes?: number;
     modelCatalogCacheTtlMs?: number;

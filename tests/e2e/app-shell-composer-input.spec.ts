@@ -220,7 +220,7 @@ test("does not submit or select a command when Safari confirms an IME candidate 
   const turnRequests: string[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
-    if (request.method() === "POST" && url.pathname === "/v1/projects/codexly/tasks/task-1/turns") {
+    if (request.method() === "POST" && url.pathname === "/v1/projects/codexly/submissions") {
       turnRequests.push(url.pathname);
     }
   });
@@ -267,7 +267,7 @@ test("shows processing state while an existing task turn is still starting", asy
   const turnStartRequested = new Promise<void>((resolve) => {
     markTurnStartRequested = resolve;
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     markTurnStartRequested();
     await turnStartGate;
     await route.fulfill({

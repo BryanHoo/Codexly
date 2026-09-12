@@ -16,6 +16,9 @@
 
 - 确认变更所属层，并沿 `protocol -> core -> provider/server -> client` 检查影响。
 - 路由仅处理输入输出适配，领域规则留在 `packages/core`。
+- 普通提交与评审通过 `/v1/projects/:projectId/submissions` 进入 `core.submitTask`；临时任务公开路由为 `/v1/temporary/submissions`，不得遗漏临时作用域重写。
+- CLI 必须注入 SQLite 提交记录：创建 Task 后、启动 Turn 前保存恢复阶段；Provider 调用结果不明时返回 `SUBMISSION_OUTCOME_UNKNOWN`，禁止自动重复执行。成功后的资源清理仅重试收尾，保存实际解析后的附件 ID。完成记录至少保留七天，未确定结果不按 TTL 淘汰；同一 Server 内继续通过 `runIdempotent` 合并并发请求。
+- 待办正文、版本及附件二进制在同一 SQLite 事务提交；保存和删除必须比较 `expectedVersion`，拒绝跨设备过期编辑。附件恢复与预览只能读取同项目资源，不能依赖进程内附件 TTL。覆盖重启、并发版本冲突、删除级联和持久附件再次提交。
 - 定时任务五个写接口必须校验 `Idempotency-Key` 并复用 `runIdempotent`，按操作及任务隔离作用域，在 runner 内映射业务错误；覆盖并发、结果复用及参数冲突。幂等缓存仅限当前 Server 实例，重启不保留，具体边界见[幂等约定](../../../docs/scheduled-task-idempotency.md)。
 - 定时任务预览和实际执行共用调度计算，显式转换任务时区；`COUNT` 从原始起点累计且跳过不存在的夏令时时间，`UNTIL` 按绝对时间判断。无次数限制的高频规则按完整周期跳过历史，预览只返回最多五次，不生成无限结果集。
 - 数据库和 Codex 进程生命周期必须有明确启动、失败和清理路径。

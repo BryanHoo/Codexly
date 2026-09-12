@@ -6,7 +6,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   page,
 }) => {
   let turnRequest: Record<string, unknown> | undefined;
-  await page.route("**/v1/projects/codexly/tasks/task-1/turns", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     turnRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",

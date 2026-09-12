@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createComposerDraftStore } from "./composer-draft-context.js";
 import { createProjectTodoBinding, shouldRestoreComposerBinding } from "./project-todo-binding.js";
-import { createProjectTodoStore } from "./project-todo-store.js";
+import { createTodoTestStore } from "./project-todo.test-support.js";
 
 function createMemoryStorage(): Pick<Storage, "getItem" | "removeItem" | "setItem"> {
   const values = new Map<string, string>();
@@ -23,11 +23,11 @@ describe("composer project todo binding", () => {
     ).toBe(true);
   });
 
-  it("keeps a todo working copy stable across task route changes", () => {
+  it("keeps a todo working copy stable across task route changes", async () => {
     const storage = createMemoryStorage();
     const composerDrafts = createComposerDraftStore(storage);
-    const projectTodos = createProjectTodoStore(storage, { createId: () => "todo-a" });
-    projectTodos.create("project-a", {
+    const projectTodos = createTodoTestStore();
+    await projectTodos.create("project-a", {
       attachments: [],
       content: [{ text: "保存版本", type: "text" }],
     });
@@ -58,7 +58,7 @@ describe("composer project todo binding", () => {
   it("keeps ordinary composer drafts task-scoped", () => {
     const storage = createMemoryStorage();
     const composerDrafts = createComposerDraftStore(storage);
-    const projectTodos = createProjectTodoStore(storage);
+    const projectTodos = createTodoTestStore();
     const taskA = createProjectTodoBinding({
       composerDrafts,
       editingTodoId: undefined,

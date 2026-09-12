@@ -5,7 +5,7 @@ import type { FastifyReply } from "fastify";
 
 export function sendScheduledTaskAttachment(
   reply: FastifyReply,
-  stored: ScheduledTaskAttachmentRecord,
+  stored: Pick<ScheduledTaskAttachmentRecord, "attachment" | "content">,
 ) {
   return reply
     .header("x-content-type-options", "nosniff")

@@ -3,13 +3,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
   AgentRuntimeProvider,
-  AgentQueueRepository,
-  AgentProviderConnectionRepository,
-  AgentSettingsRepository,
   ProjectProjectionStore,
   ProjectRepository,
-  ScheduledTaskAttachmentRepository,
-  ScheduledTaskRepository,
   WorkbenchPetProvider,
 } from "@codexly/core";
 import type { AppUpdateProgress } from "@codexly/protocol";
@@ -40,6 +35,7 @@ import { createAppUpdateService } from "./app-update.js";
 import { CLI_HELP, parseCommandOptions, type ParsedCommandOptions } from "./cli-command-options.js";
 import { listenOnAvailablePort } from "./cli-server-listen.js";
 import type { CreateServerInput } from "./cli-server-input.js";
+import type { CliManagedStateRepository } from "./cli-state-repository.js";
 import {
   confirmTerminalAppUpdate,
   createStartupAppUpdateOperations,
@@ -67,18 +63,6 @@ interface CliManagedRuntime {
 interface CliManagedServer {
   close: () => Promise<void>;
   listen: (options: { host: string; port: number }) => Promise<string>;
-}
-
-interface CliManagedStateRepository
-  extends
-    ProjectProjectionStore,
-    AgentSettingsRepository,
-    AgentProviderConnectionRepository,
-    AgentQueueRepository,
-    ScheduledTaskAttachmentRepository,
-    ScheduledTaskRepository {
-  close: () => Promise<void>;
-  diagnose: () => Promise<SqliteDatabaseDiagnostics>;
 }
 
 interface CliManagedProjectRepository extends ProjectRepository {
@@ -380,6 +364,8 @@ async function runStart(
       queueRepository: stateRepository,
       scheduledTaskAttachmentRepository: stateRepository,
       scheduledTaskRepository: stateRepository,
+      submissionRepository: stateRepository,
+      projectTodoRepository: stateRepository,
       settingsRepository: stateRepository,
       staticRoot: dependencies.webRoot,
       // Standalone Thread 继承 app-server 的 cwd，不再创建伪项目目录。

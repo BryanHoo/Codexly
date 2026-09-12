@@ -26,7 +26,7 @@ import {
 } from "./provider-connection-persistence.js";
 import { deserializeWorkerError } from "./sqlite-state-helpers.js";
 import { SQLITE_MIGRATIONS, type SqliteMigration } from "./sqlite-state-migrations.js";
-import { SqliteScheduledTaskRepository } from "./scheduled-task-repository-helpers.js";
+import { SqliteProjectTodoRepository } from "./project-todo-repository.js";
 import { parseQueueWorkerRecord, type QueueWorkerRecord } from "./queue-record-persistence.js";
 
 export type { SqliteMigration } from "./sqlite-state-migrations.js";
@@ -63,7 +63,7 @@ type PendingRequest = Readonly<{
 }>;
 
 export class SqliteStateRepository
-  extends SqliteScheduledTaskRepository
+  extends SqliteProjectTodoRepository
   implements
     ProjectProjectionStore,
     AgentSettingsRepository,

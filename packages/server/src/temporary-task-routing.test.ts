@@ -4,6 +4,7 @@ import { rewriteTemporaryTaskUrl } from "./temporary-task-routing.js";
 
 describe("rewriteTemporaryTaskUrl", () => {
   it.each([
+    ["/v1/temporary/submissions", "/v1/projects/temporary/submissions"],
     [
       "/v1/temporary/files/source?path=%2Ftmp%2Fnotes.md",
       "/v1/projects/temporary/files/source?path=%2Ftmp%2Fnotes.md",

@@ -96,6 +96,7 @@ export type CodexlySettingsClient = Pick<
 >;
 export type CodexlyMutationClient = Pick<
   CodexlyClient,
+  | "submitTask"
   | "addQueuedSubmission"
   | "addProject"
   | "archiveTask"

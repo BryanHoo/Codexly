@@ -48,11 +48,8 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
   const setMutationError = vi.fn();
   const setPendingTaskState = vi.fn();
   const setSubmittedTurnState = vi.fn();
-  const startTask = vi.fn<ComposerSubmissionOptions["client"]["startTask"]>(() =>
-    Promise.resolve({ task }),
-  );
-  const startTurn = vi.fn<ComposerSubmissionOptions["client"]["startTurn"]>(() =>
-    Promise.resolve({ checkpoint, taskId: task.id, turn }),
+  const submitTask = vi.fn<ComposerSubmissionOptions["client"]["submitTask"]>(() =>
+    Promise.resolve({ checkpoint, createdTask: task, taskId: task.id, turn }),
   );
   const steerTurn = vi.fn<ComposerSubmissionOptions["client"]["steerTurn"]>(() =>
     Promise.resolve({ status: "accepted", taskId: "task-1", turnId: "turn-1" }),
@@ -82,7 +79,6 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
     setMutationError,
     setPendingTaskState,
     setSubmittedTurnState,
-    startTaskAttempt: { current: undefined },
     startTurnAttempt: { current: undefined },
     steerTurnAttempt: { current: undefined },
     uploadAttempts: { current: new Map() },
@@ -99,7 +95,7 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
     canSubmit: true,
     clearComposerInput,
     activeUserMessageIds: [],
-    client: { startTask, startTurn, steerTurn, uploadAttachment },
+    client: { submitTask, steerTurn, uploadAttachment },
     composerMode: undefined,
     controller,
     editingQueuedSubmission: false,
@@ -134,8 +130,7 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
     onTurnStarted,
     saveQueuedSubmission,
     skillEditor,
-    startTask,
-    startTurn,
+    submitTask,
     steerTurn,
     submit: createComposerSubmission(options),
     uploadAttachment,
@@ -154,8 +149,7 @@ describe("createComposerSubmission", () => {
       settings,
       [],
     );
-    expect(harness.startTask).not.toHaveBeenCalled();
-    expect(harness.startTurn).not.toHaveBeenCalled();
+    expect(harness.submitTask).not.toHaveBeenCalled();
   });
 
   it("rejects an empty Goal objective before starting a mutation", async () => {
@@ -170,8 +164,7 @@ describe("createComposerSubmission", () => {
     expect(harness.controller.setMutationError).toHaveBeenCalledWith(
       new Error("composer.goalObjectiveRequired"),
     );
-    expect(harness.startTask).not.toHaveBeenCalled();
-    expect(harness.startTurn).not.toHaveBeenCalled();
+    expect(harness.submitTask).not.toHaveBeenCalled();
   });
 
   it("queues a follow-up and clears the active draft while a Turn is running", async () => {
@@ -194,7 +187,7 @@ describe("createComposerSubmission", () => {
       expect.any(String),
     );
     expect(harness.clearComposerInput).toHaveBeenCalledOnce();
-    expect(harness.startTurn).not.toHaveBeenCalled();
+    expect(harness.submitTask).not.toHaveBeenCalled();
     expect(onDirectSubmission).not.toHaveBeenCalled();
   });
 
@@ -210,7 +203,7 @@ describe("createComposerSubmission", () => {
 
     expect(submitted).toBe(true);
     expect(harness.saveQueuedSubmission).toHaveBeenCalledOnce();
-    expect(harness.startTurn).not.toHaveBeenCalled();
+    expect(harness.submitTask).not.toHaveBeenCalled();
   });
 
   it("keeps a directly accepted steer visible until the assistant responds", async () => {
@@ -287,16 +280,16 @@ describe("createComposerSubmission", () => {
     const submitted = await harness.submit({ files: [], text: "提交内容" });
 
     expect(submitted).toBe(true);
-    const [startTaskProjectId, startTaskOptions] = harness.startTask.mock.calls[0] ?? [];
-    expect(startTaskProjectId).toBe("codexly");
-    expect(startTaskOptions?.idempotencyKey).toMatch(/\S/u);
-    const [startTurnProjectId, startedTaskId, input, turnSettings, startTurnOptions] =
-      harness.startTurn.mock.calls[0] ?? [];
-    expect(startTurnProjectId).toBe("codexly");
-    expect(startedTaskId).toBe(task.id);
-    expect(input).toEqual({ attachments: [], skills: [], text: "提交内容", type: "prompt" });
-    expect(turnSettings).toEqual(settings);
-    expect(startTurnOptions?.idempotencyKey).toMatch(/\S/u);
+    expect(harness.submitTask).toHaveBeenCalledWith(
+      "codexly",
+      {
+        type: "prompt",
+        input: { attachments: [], skills: [], text: "提交内容", type: "prompt" },
+        options: settings,
+      },
+      expect.any(Object),
+    );
+    expect(harness.submitTask.mock.calls[0]?.[2]?.idempotencyKey).toMatch(/\S/u);
     expect(harness.onTaskCreated).toHaveBeenCalledWith(task);
     expect(harness.onTurnStarted).toHaveBeenCalledWith(turn, expect.any(Object), []);
     expect(harness.onTaskStarted).toHaveBeenCalledWith(
@@ -320,11 +313,13 @@ describe("createComposerSubmission", () => {
     const submitted = await harness.submit({ files: [], text: "第一行" });
 
     expect(submitted).toBe(true);
-    expect(harness.startTurn).toHaveBeenCalledWith(
+    expect(harness.submitTask).toHaveBeenCalledWith(
       "codexly",
-      task.id,
-      { attachments: [], skills: [], text: "第一行\n第二行", type: "prompt" },
-      settings,
+      {
+        type: "prompt",
+        input: { attachments: [], skills: [], text: "第一行\n第二行", type: "prompt" },
+        options: settings,
+      },
       expect.any(Object),
     );
   });

@@ -21,6 +21,6 @@ export { SkillMarketHttpClient } from "./http-client-skill-market.js";
 export { TaskHttpClient } from "./http-client-tasks.js";
 export { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 
-import { PersonalizationHttpClient } from "./http-client-personalization.js";
+import { ProjectTodoHttpClient } from "./http-client-project-todos.js";
 
-export class CodexlyClient extends PersonalizationHttpClient {}
+export class CodexlyClient extends ProjectTodoHttpClient {}
