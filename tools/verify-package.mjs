@@ -84,6 +84,7 @@ try {
     "dist/codex-jsonl-frame-worker.js",
     "dist/server/index.js",
     "dist/sqlite-state-worker.js",
+    "dist/scheduled-task-recurrence-worker.js",
     "dist/web/index.html",
   ];
   const missingFiles = requiredFiles.filter((path) => !files.has(path));

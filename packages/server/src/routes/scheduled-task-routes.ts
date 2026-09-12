@@ -49,9 +49,9 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
         response: { 200: ScheduledTaskPreviewSchema, 400: AgentMutationErrorSchema },
       },
     },
-    (request) => {
+    async (request) => {
       try {
-        return { dates: previewScheduledTask(request.body.schedule, Date.now()) };
+        return { dates: await previewScheduledTask(request.body.schedule, Date.now()) };
       } catch (error) {
         throw new MutationHttpError(
           "INVALID_REQUEST",

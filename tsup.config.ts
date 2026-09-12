@@ -3,6 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     cli: "src/cli.ts",
+    "scheduled-task-recurrence-worker": "packages/server/src/scheduled-task-recurrence-worker.js",
     "codex-jsonl-frame-worker": "packages/provider-codex/src/codex-jsonl-frame-worker.js",
     "client/index": "packages/client/src/index.ts",
     "core/index": "packages/core/src/index.ts",

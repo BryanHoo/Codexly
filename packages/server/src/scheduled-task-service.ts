@@ -106,7 +106,7 @@ export class ScheduledTaskService {
     return this.#mutate(async () => {
       let task: ScheduledTask;
       try {
-        task = createScheduledTask(randomUUID(), input, this.#now());
+        task = await createScheduledTask(randomUUID(), input, this.#now());
       } catch (error) {
         throw new ScheduledTaskServiceError("invalid", String(error));
       }
@@ -121,7 +121,7 @@ export class ScheduledTaskService {
       let task: ScheduledTask;
       try {
         task = {
-          ...createScheduledTask(id, input, this.#now()),
+          ...(await createScheduledTask(id, input, this.#now())),
           createdAtUnixMs: existing.createdAtUnixMs,
           lastRunAtUnixMs: existing.lastRunAtUnixMs,
           lastRunStatus: existing.lastRunStatus,
@@ -155,7 +155,7 @@ export class ScheduledTaskService {
       let nextRunAtUnixMs = existing.nextRunAtUnixMs;
       if (enabled) {
         try {
-          nextRunAtUnixMs = resolveNextScheduledRun(existing.schedule, this.#now());
+          nextRunAtUnixMs = await resolveNextScheduledRun(existing.schedule, this.#now());
         } catch (error) {
           throw new ScheduledTaskServiceError("invalid", String(error));
         }
@@ -169,7 +169,7 @@ export class ScheduledTaskService {
   public runNow(id: string): Promise<ScheduledTask> {
     return this.#mutate(async () => {
       this.#find(id);
-      const result = claimScheduledTasks(this.#tasks, this.#running, this.#now(), id);
+      const result = await claimScheduledTasks(this.#tasks, this.#running, this.#now(), id);
       const claim = result.claims[0];
       if (claim === undefined) {
         throw new ScheduledTaskServiceError("busy", "Scheduled task is already running");
@@ -270,7 +270,7 @@ export class ScheduledTaskService {
     await this.#mutate(async () => {
       if (this.#closed) return;
       await this.#flushCompletions();
-      const result = claimScheduledTasks(this.#tasks, this.#running, this.#now());
+      const result = await claimScheduledTasks(this.#tasks, this.#running, this.#now());
       await this.#replace(result.tasks);
       for (const claim of result.claims) this.#running.add(claim.task.id);
       for (const claim of result.claims) this.#launch(claim);

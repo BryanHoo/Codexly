@@ -5,7 +5,7 @@ import type {
   ScheduledTaskRun,
   ScheduledTaskSchedule,
 } from "@codexly/protocol";
-import { previewScheduledTask } from "./scheduled-task-recurrence.js";
+import { previewScheduledTask, RecurrenceWorkerBusyError } from "./scheduled-task-recurrence.js";
 export { previewScheduledTask } from "./scheduled-task-recurrence.js";
 
 export const MAX_SCHEDULED_TASK_RUNS = 20;
@@ -15,25 +15,25 @@ export type ScheduledTaskClaim = Readonly<{
   task: ScheduledTask;
 }>;
 
-export function resolveNextScheduledRun(
+export async function resolveNextScheduledRun(
   schedule: ScheduledTaskSchedule,
   afterUnixMs: number,
-): number {
+): Promise<number> {
   if (schedule.type === "once") {
     if (schedule.atUnixMs <= afterUnixMs)
       throw new Error("Scheduled task time must be in the future");
     return schedule.atUnixMs;
   }
-  const next = previewScheduledTask(schedule, afterUnixMs, 1)[0];
+  const next = (await previewScheduledTask(schedule, afterUnixMs, 1))[0];
   if (next === undefined) throw new Error("Scheduled task RRULE has no future occurrence");
   return next;
 }
 
-export function createScheduledTask(
+export async function createScheduledTask(
   id: string,
   input: ScheduledTaskInput,
   nowUnixMs: number,
-): ScheduledTask {
+): Promise<ScheduledTask> {
   const name = input.name.trim();
   if (name === "") throw new Error("Scheduled task name must not be empty");
   return {
@@ -43,7 +43,9 @@ export function createScheduledTask(
     lastRunAtUnixMs: null,
     lastRunStatus: null,
     name,
-    nextRunAtUnixMs: input.enabled ? resolveNextScheduledRun(input.schedule, nowUnixMs) : null,
+    nextRunAtUnixMs: input.enabled
+      ? await resolveNextScheduledRun(input.schedule, nowUnixMs)
+      : null,
     runs: [],
     updatedAtUnixMs: nowUnixMs,
   };
@@ -53,26 +55,35 @@ function appendRun(task: ScheduledTask, run: ScheduledTaskRun): ScheduledTask["r
   return [...task.runs, run].slice(-MAX_SCHEDULED_TASK_RUNS);
 }
 
-function advanceSchedule(
+async function advanceSchedule(
   task: ScheduledTask,
   nowUnixMs: number,
-): Pick<ScheduledTask, "enabled" | "nextRunAtUnixMs"> {
+): Promise<Pick<ScheduledTask, "enabled" | "nextRunAtUnixMs">> {
   if (task.schedule.type === "once") return { enabled: false, nextRunAtUnixMs: null };
   try {
-    return { enabled: true, nextRunAtUnixMs: resolveNextScheduledRun(task.schedule, nowUnixMs) };
-  } catch {
+    return {
+      enabled: true,
+      nextRunAtUnixMs: await resolveNextScheduledRun(task.schedule, nowUnixMs),
+    };
+  } catch (error) {
+    // 并发暂满交给服务的重试机制，不能把正常计划永久禁用。
+    if (error instanceof RecurrenceWorkerBusyError) throw error;
     return { enabled: false, nextRunAtUnixMs: null };
   }
 }
 
-export function claimScheduledTasks(
+export async function claimScheduledTasks(
   source: readonly ScheduledTask[],
   running: ReadonlySet<string>,
   nowUnixMs: number,
   manualId?: string,
-): Readonly<{ claims: readonly ScheduledTaskClaim[]; tasks: readonly ScheduledTask[] }> {
+): Promise<Readonly<{ claims: readonly ScheduledTaskClaim[]; tasks: readonly ScheduledTask[] }>> {
   const claims: ScheduledTaskClaim[] = [];
-  const tasks = source.map((task) => {
+  const tasks: ScheduledTask[] = [];
+  // 串行推进任务，避免一批到期任务瞬间耗尽 Worker 并发名额。
+  for (const task of source) tasks.push(await claim(task));
+  return { claims, tasks };
+  async function claim(task: ScheduledTask): Promise<ScheduledTask> {
     const selected =
       manualId === undefined
         ? task.enabled && task.nextRunAtUnixMs !== null && task.nextRunAtUnixMs <= nowUnixMs
@@ -90,7 +101,7 @@ export function claimScheduledTasks(
       };
       return {
         ...task,
-        ...advanceSchedule(task, nowUnixMs),
+        ...(await advanceSchedule(task, nowUnixMs)),
         lastRunAtUnixMs: nowUnixMs,
         lastRunStatus: "skipped" as const,
         runs: appendRun(task, run),
@@ -100,7 +111,7 @@ export function claimScheduledTasks(
     const runId = randomUUID();
     const claimed: ScheduledTask = {
       ...task,
-      ...(manualId === undefined ? advanceSchedule(task, nowUnixMs) : {}),
+      ...(manualId === undefined ? await advanceSchedule(task, nowUnixMs) : {}),
       lastRunAtUnixMs: nowUnixMs,
       lastRunStatus: "running",
       runs: appendRun(task, {
@@ -115,8 +126,7 @@ export function claimScheduledTasks(
     };
     claims.push({ runId, task: claimed });
     return claimed;
-  });
-  return { claims, tasks };
+  }
 }
 
 export function completeScheduledTaskRun(

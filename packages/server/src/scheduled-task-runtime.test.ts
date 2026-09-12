@@ -1,5 +1,6 @@
 import type { ScheduledTask, ScheduledTaskInput } from "@codexly/protocol";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as recurrence from "./scheduled-task-recurrence.js";
 
 import {
   claimScheduledTasks,
@@ -26,15 +27,38 @@ const input: ScheduledTaskInput = {
 };
 
 describe("scheduled task runtime", () => {
-  it("rejects an empty normalized name", () => {
-    expect(() => createScheduledTask("schedule-empty", { ...input, name: "   " }, 1_000)).toThrow(
-      "must not be empty",
-    );
+  it("retries worker saturation instead of disabling a recurring task", async () => {
+    const task = await createScheduledTask("schedule-busy", input, 1_000);
+    const recurring = {
+      ...task,
+      schedule: {
+        type: "rrule" as const,
+        rrule: "FREQ=DAILY",
+        timezone: "UTC",
+        startAtUnixMs: 2_000,
+      },
+    };
+    const spy = vi
+      .spyOn(recurrence, "previewScheduledTask")
+      .mockRejectedValueOnce(new recurrence.RecurrenceWorkerBusyError());
+    try {
+      await expect(claimScheduledTasks([recurring], new Set(), 2_000)).rejects.toBeInstanceOf(
+        recurrence.RecurrenceWorkerBusyError,
+      );
+      expect(recurring.enabled).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+  it("rejects an empty normalized name", async () => {
+    await expect(
+      createScheduledTask("schedule-empty", { ...input, name: "   " }, 1_000),
+    ).rejects.toThrow("must not be empty");
   });
 
-  it("claims a due one-time task and completes its run", () => {
-    const task = createScheduledTask("schedule-a", input, 1_000);
-    const { claims, tasks } = claimScheduledTasks([task], new Set(), 2_000);
+  it("claims a due one-time task and completes its run", async () => {
+    const task = await createScheduledTask("schedule-a", input, 1_000);
+    const { claims, tasks } = await claimScheduledTasks([task], new Set(), 2_000);
 
     expect(claims).toHaveLength(1);
     expect(tasks[0]).toMatchObject({
@@ -51,10 +75,10 @@ describe("scheduled task runtime", () => {
     expect(completed[0]?.runs[0]).toMatchObject({ status: "started", taskId: "task-a" });
   });
 
-  it("records skipped overlap and repairs interrupted runs", () => {
+  it("records skipped overlap and repairs interrupted runs", async () => {
     const scheduledAt = 1_709_971_200_000;
     const recurring: ScheduledTask = {
-      ...createScheduledTask(
+      ...(await createScheduledTask(
         "schedule-b",
         {
           ...input,
@@ -66,10 +90,11 @@ describe("scheduled task runtime", () => {
           },
         },
         1_700_000_000_000,
-      ),
+      )),
       nextRunAtUnixMs: scheduledAt,
     };
-    const skipped = claimScheduledTasks([recurring], new Set([recurring.id]), scheduledAt).tasks;
+    const skipped = (await claimScheduledTasks([recurring], new Set([recurring.id]), scheduledAt))
+      .tasks;
     const skippedTask = skipped[0];
     if (skippedTask === undefined) throw new Error("Expected a skipped scheduled task");
     expect(skippedTask.lastRunStatus).toBe("skipped");

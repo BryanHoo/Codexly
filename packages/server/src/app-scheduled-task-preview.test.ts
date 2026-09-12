@@ -3,6 +3,38 @@ import { createCodexlyServer } from "./app.js";
 import { closeCallbacks, createProvider, createServerOptions } from "./app-all.test-support.js";
 
 describe("scheduled task preview endpoint", () => {
+  it("keeps other HTTP requests responsive while a recurrence times out", async () => {
+    const { provider } = createProvider();
+    const app = await createCodexlyServer(createServerOptions(provider));
+    closeCallbacks.push(() => app.close());
+    let finished = false;
+    const pending = app
+      .inject({
+        method: "POST",
+        url: "/v1/scheduled-tasks/preview",
+        payload: {
+          schedule: {
+            type: "rrule",
+            timezone: "UTC",
+            startAtUnixMs: Date.UTC(2030, 0, 1),
+            rrule: "FREQ=MINUTELY;BYMONTH=2;BYMONTHDAY=30",
+          },
+        },
+      })
+      .then((response) => {
+        finished = true;
+        return response;
+      });
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 50);
+    });
+    const other = await app.inject({ method: "GET", url: "/v1/scheduled-tasks" });
+    expect(other.statusCode).toBe(200);
+    expect(finished).toBe(false);
+    const response = await pending;
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toContain("timed out");
+  });
   it("previews at most five occurrences without creating a task", async () => {
     const { provider } = createProvider();
     const app = await createCodexlyServer(createServerOptions(provider));
