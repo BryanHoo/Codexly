@@ -171,10 +171,8 @@ describe("server scheduled tasks", () => {
     };
     let records: readonly ScheduledTask[] = [scheduled];
     const attachmentRepository: ScheduledTaskAttachmentRepository = {
-      deleteScheduledTaskAttachments: () => Promise.resolve(),
       listScheduledTaskAttachments: () => Promise.resolve([]),
       readScheduledTaskAttachment: () => Promise.resolve(undefined),
-      replaceScheduledTaskAttachments: () => Promise.resolve(),
     };
     const { provider, startTask } = createProvider();
     const app = await createCodexlyServer(

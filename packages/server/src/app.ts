@@ -342,8 +342,7 @@ export async function createCodexlyServer(
     ...(scheduledTaskAttachmentManager === undefined
       ? {}
       : {
-          deleteTaskResources: (taskId) => scheduledTaskAttachmentManager.delete(taskId),
-          persistTaskResources: (task) => scheduledTaskAttachmentManager.persist(task),
+          prepareTaskResources: (task) => scheduledTaskAttachmentManager.prepare(task),
         }),
     repository: options.scheduledTaskRepository ?? createMemoryScheduledTaskRepository(),
     startTask: async (scheduled) => {

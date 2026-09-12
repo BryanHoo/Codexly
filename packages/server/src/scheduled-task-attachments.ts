@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import type {
   ScheduledTaskAttachmentRecord,
   ScheduledTaskAttachmentRepository,
+  ScheduledTaskAttachmentReplacement,
 } from "@codexly/core";
 import type { AgentMessageAttachment, AgentPromptInput, ScheduledTask } from "@codexly/protocol";
 
@@ -30,7 +31,7 @@ export class ScheduledTaskAttachmentManager {
     this.#repository = repository;
   }
 
-  public async persist(task: ScheduledTask): Promise<void> {
+  public async prepare(task: ScheduledTask): Promise<ScheduledTaskAttachmentReplacement> {
     const references = new Set(task.prompt.attachments.map((attachment) => attachment.id));
     const metadata = new Map(
       task.messageAttachments.map((attachment) => [attachment.id, attachment]),
@@ -66,12 +67,8 @@ export class ScheduledTaskAttachmentManager {
         return record;
       }),
     );
-    // 附件集合整批替换，编辑任务时不会遗留已移除的二进制内容。
-    await this.#repository.replaceScheduledTaskAttachments(task.id, task.projectId, attachments);
-  }
-
-  public delete(taskId: string): Promise<void> {
-    return this.#repository.deleteScheduledTaskAttachments(taskId);
+    // 只读取并校验内容，交给任务仓储与快照一起提交，避免提前持久化半成品。
+    return { attachments, projectId: task.projectId, taskId: task.id };
   }
 
   public read(

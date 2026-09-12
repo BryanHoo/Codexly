@@ -1,6 +1,7 @@
 import type {
   ScheduledTaskAttachmentRecord,
   ScheduledTaskAttachmentRepository,
+  ScheduledTaskAttachmentReplacement,
   ScheduledTaskRepository,
 } from "@codexly/core";
 import {
@@ -73,15 +74,13 @@ export abstract class SqliteScheduledTaskRepository
 
   public async replaceScheduledTasks(
     tasks: readonly ScheduledTask[],
+    attachments?: ScheduledTaskAttachmentReplacement,
   ): Promise<readonly ScheduledTask[]> {
     await this.callScheduledTaskWorker("writeScheduledTasks", {
+      attachments,
       tasksJson: serializeScheduledTaskSnapshot(tasks),
     });
     return tasks;
-  }
-
-  public async deleteScheduledTaskAttachments(taskId: string): Promise<void> {
-    await this.callScheduledTaskWorker("deleteScheduledTaskAttachments", { taskId });
   }
 
   public async listScheduledTaskAttachments(
@@ -102,17 +101,5 @@ export abstract class SqliteScheduledTaskRepository
       projectId,
     });
     return row === undefined ? undefined : parseScheduledTaskAttachment(row);
-  }
-
-  public async replaceScheduledTaskAttachments(
-    taskId: string,
-    projectId: string,
-    attachments: readonly Omit<ScheduledTaskAttachmentRecord, "projectId" | "taskId">[],
-  ): Promise<void> {
-    await this.callScheduledTaskWorker("replaceScheduledTaskAttachments", {
-      attachments,
-      projectId,
-      taskId,
-    });
   }
 }

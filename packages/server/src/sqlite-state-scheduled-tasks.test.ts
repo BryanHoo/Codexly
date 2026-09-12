@@ -35,7 +35,6 @@ describe("SQLite scheduled task state", () => {
       updatedAtUnixMs: 1,
     };
 
-    await expect(repository.replaceScheduledTasks([task])).resolves.toEqual([task]);
     const content = new Uint8Array([115, 99, 104, 101, 100, 117, 108, 101, 100]);
     const attachment = {
       id: "attachment-a",
@@ -44,14 +43,23 @@ describe("SQLite scheduled task state", () => {
       name: "review.txt",
       size: content.byteLength,
     };
-    await repository.replaceScheduledTaskAttachments(task.id, task.projectId, [
-      { attachment, content },
-    ]);
+    const attachedTask = {
+      ...task,
+      messageAttachments: [attachment],
+      prompt: { ...task.prompt, attachments: [{ id: attachment.id }] },
+    };
+    await expect(
+      repository.replaceScheduledTasks([attachedTask], {
+        taskId: task.id,
+        projectId: task.projectId,
+        attachments: [{ attachment, content }],
+      }),
+    ).resolves.toEqual([attachedTask]);
     await repository.close();
     repositories.splice(repositories.indexOf(repository), 1);
 
     const reopened = await openRepository(root);
-    await expect(reopened.listScheduledTasks()).resolves.toEqual([task]);
+    await expect(reopened.listScheduledTasks()).resolves.toEqual([attachedTask]);
     await expect(reopened.listScheduledTaskAttachments(task.id)).resolves.toEqual([
       { attachment, content, projectId: task.projectId, taskId: task.id },
     ]);

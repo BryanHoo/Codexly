@@ -12,13 +12,10 @@ import { ScheduledTaskAttachmentManager } from "./scheduled-task-attachments.js"
 
 const stores: AttachmentStore[] = [];
 
-function createRepository(): ScheduledTaskAttachmentRepository {
-  let records: readonly ScheduledTaskAttachmentRecord[] = [];
+function createRepository(
+  records: readonly ScheduledTaskAttachmentRecord[] = [],
+): ScheduledTaskAttachmentRepository {
   return {
-    deleteScheduledTaskAttachments: (taskId) => {
-      records = records.filter((record) => record.taskId !== taskId);
-      return Promise.resolve();
-    },
     listScheduledTaskAttachments: (taskId) =>
       Promise.resolve(records.filter((record) => record.taskId === taskId)),
     readScheduledTaskAttachment: (projectId, attachmentId) =>
@@ -27,13 +24,6 @@ function createRepository(): ScheduledTaskAttachmentRepository {
           (record) => record.projectId === projectId && record.attachment.id === attachmentId,
         ),
       ),
-    replaceScheduledTaskAttachments: (taskId, projectId, attachments) => {
-      records = [
-        ...records.filter((record) => record.taskId !== taskId),
-        ...attachments.map((record) => ({ ...record, projectId, taskId })),
-      ];
-      return Promise.resolve();
-    },
   };
 }
 
@@ -43,7 +33,6 @@ afterEach(async () => {
 
 describe("ScheduledTaskAttachmentManager", () => {
   it("restores persisted prompt attachments into a fresh attachment store", async () => {
-    const repository = createRepository();
     const initialStore = new AttachmentStore();
     stores.push(initialStore);
     const upload = await initialStore.add("project-a", {
@@ -80,7 +69,17 @@ describe("ScheduledTaskAttachmentManager", () => {
       },
       updatedAtUnixMs: 1,
     };
-    await new ScheduledTaskAttachmentManager(initialStore, repository).persist(task);
+    const prepared = await new ScheduledTaskAttachmentManager(
+      initialStore,
+      createRepository(),
+    ).prepare(task);
+    const repository = createRepository(
+      prepared.attachments.map((record) => ({
+        ...record,
+        projectId: task.projectId,
+        taskId: task.id,
+      })),
+    );
 
     const restoredStore = new AttachmentStore();
     stores.push(restoredStore);

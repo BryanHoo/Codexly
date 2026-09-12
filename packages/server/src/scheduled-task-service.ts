@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ScheduledTaskRepository } from "@codexly/core";
+import type { ScheduledTaskAttachmentReplacement, ScheduledTaskRepository } from "@codexly/core";
 import type { ScheduledTask, ScheduledTaskInput } from "@codexly/protocol";
 
 import {
@@ -35,9 +35,8 @@ export function createMemoryScheduledTaskRepository(): ScheduledTaskRepository {
 }
 
 type ScheduledTaskServiceOptions = Readonly<{
-  deleteTaskResources?: (taskId: string) => Promise<void>;
   now?: () => number;
-  persistTaskResources?: (task: ScheduledTask) => Promise<void>;
+  prepareTaskResources?: (task: ScheduledTask) => Promise<ScheduledTaskAttachmentReplacement>;
   repository: ScheduledTaskRepository;
   startTask: (task: ScheduledTask) => Promise<string>;
 }>;
@@ -45,10 +44,9 @@ type ScheduledTaskServiceOptions = Readonly<{
 export class ScheduledTaskService {
   readonly #listeners = new Set<() => void>();
   readonly #inFlight = new Set<Promise<void>>();
-  readonly #deleteTaskResources: ((taskId: string) => Promise<void>) | undefined;
   readonly #now: () => number;
   readonly #repository: ScheduledTaskRepository;
-  readonly #persistTaskResources: ((task: ScheduledTask) => Promise<void>) | undefined;
+  readonly #prepareTaskResources: ScheduledTaskServiceOptions["prepareTaskResources"];
   readonly #running = new Set<string>();
   readonly #completions = new Map<
     string,
@@ -65,10 +63,9 @@ export class ScheduledTaskService {
   #timer: ReturnType<typeof setTimeout> | undefined;
 
   public constructor(options: ScheduledTaskServiceOptions) {
-    this.#deleteTaskResources = options.deleteTaskResources;
     this.#now = options.now ?? Date.now;
     this.#repository = options.repository;
-    this.#persistTaskResources = options.persistTaskResources;
+    this.#prepareTaskResources = options.prepareTaskResources;
     this.#startTask = options.startTask;
   }
 
@@ -145,7 +142,6 @@ export class ScheduledTaskService {
         throw new ScheduledTaskServiceError("busy", "Scheduled task is running");
       }
       await this.#replace(this.#tasks.filter((task) => task.id !== id));
-      await this.#deleteTaskResources?.(id);
     });
   }
 
@@ -277,7 +273,10 @@ export class ScheduledTaskService {
     });
   }
 
-  async #replace(tasks: readonly ScheduledTask[]): Promise<void> {
+  async #replace(
+    tasks: readonly ScheduledTask[],
+    attachments?: ScheduledTaskAttachmentReplacement,
+  ): Promise<void> {
     // 空闲唤醒不写库、不推送；保持下次调度，变化落库后才通知浏览器。
     if (
       tasks.length === this.#tasks.length &&
@@ -286,20 +285,20 @@ export class ScheduledTaskService {
       this.#reschedule();
       return;
     }
-    this.#tasks = await this.#repository.replaceScheduledTasks(tasks);
+    // 仓储事务成功后再更新内存、调度与订阅者；失败时保留原状态。
+    this.#tasks = await this.#repository.replaceScheduledTasks(tasks, attachments);
     this.#reschedule();
     for (const listener of this.#listeners) listener();
   }
 
   async #storeTask(tasks: readonly ScheduledTask[], task: ScheduledTask): Promise<void> {
-    const previous = this.#tasks;
-    await this.#replace(tasks);
+    let attachments: ScheduledTaskAttachmentReplacement | undefined;
     try {
-      await this.#persistTaskResources?.(task);
+      attachments = await this.#prepareTaskResources?.(task);
     } catch (error) {
-      await this.#replace(previous);
       throw new ScheduledTaskServiceError("invalid", String(error));
     }
+    await this.#replace(tasks, attachments);
   }
 
   #mutate<T>(operation: () => Promise<T> | T): Promise<T> {
