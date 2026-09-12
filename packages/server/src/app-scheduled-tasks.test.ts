@@ -38,6 +38,7 @@ describe("server scheduled tasks", () => {
       await app.inject({
         method: "POST",
         url: "/v1/scheduled-tasks",
+        headers: { "idempotency-key": "automatic" },
         payload: {
           enabled: true,
           messageAttachments: [],
@@ -96,6 +97,7 @@ describe("server scheduled tasks", () => {
     const created = await app.inject({
       method: "POST",
       payload: input,
+      headers: { "idempotency-key": "create" },
       url: "/v1/scheduled-tasks",
     });
     expect(created.statusCode).toBe(201);
@@ -107,10 +109,15 @@ describe("server scheduled tasks", () => {
     const toggled = await app.inject({
       method: "PATCH",
       payload: { enabled: false },
+      headers: { "idempotency-key": "toggle" },
       url: `/v1/scheduled-tasks/${taskId}/enabled`,
     });
     expect(toggled.json()).toMatchObject({ task: { enabled: false, id: taskId } });
-    const started = await app.inject({ method: "POST", url: `/v1/scheduled-tasks/${taskId}/run` });
+    const started = await app.inject({
+      method: "POST",
+      url: `/v1/scheduled-tasks/${taskId}/run`,
+      headers: { "idempotency-key": "run" },
+    });
     expect(started.statusCode).toBe(200);
     await vi.waitFor(() => {
       expect(startTurn).toHaveBeenCalledOnce();
@@ -118,7 +125,11 @@ describe("server scheduled tasks", () => {
     expect(startTask).toHaveBeenCalledOnce();
 
     await vi.waitFor(async () => {
-      const response = await app.inject({ method: "DELETE", url: `/v1/scheduled-tasks/${taskId}` });
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/v1/scheduled-tasks/${taskId}`,
+        headers: { "idempotency-key": "delete" },
+      });
       expect(response.statusCode).toBe(200);
     });
     expect((await app.inject({ method: "GET", url: "/v1/scheduled-tasks" })).json()).toEqual({
@@ -183,6 +194,7 @@ describe("server scheduled tasks", () => {
     const response = await app.inject({
       method: "POST",
       url: `/v1/scheduled-tasks/${scheduled.id}/run`,
+      headers: { "idempotency-key": "missing-attachment" },
     });
     expect(response.statusCode).toBe(200);
     await vi.waitFor(() => {
