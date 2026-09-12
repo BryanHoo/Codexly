@@ -1,4 +1,4 @@
-import type { AgentItem } from "@codexly/protocol";
+import type { AsyncQuestionGroup } from "@codexly/protocol";
 import { Check, LoaderCircle, Send } from "lucide-react";
 import { useId, useState } from "react";
 import { useStore } from "zustand";
@@ -11,16 +11,14 @@ import {
   type QuestionDraft,
 } from "./async-question-session.js";
 
-type MessageItem = Extract<AgentItem, { type: "message" }>;
-
-export function AsyncQuestions({ item }: Readonly<{ item: MessageItem }>) {
+export function AsyncQuestions({ item }: Readonly<{ item: AsyncQuestionGroup }>) {
   const { t } = useTranslation("conversation");
   const session = useAsyncQuestionSession();
   const [fallbackStore] = useState(createQuestionDraftStore);
   const store = session?.store ?? fallbackStore;
   const draft = useStore(store, (state) => state.drafts.get(item.id));
   const [initial] = useState<QuestionDraft>(() => ({
-    answers: (item.questions ?? []).map((question) => ({
+    answers: item.questions.map((question) => ({
       choice: question.options === null ? null : 0,
       text: "",
     })),
@@ -29,18 +27,17 @@ export function AsyncQuestions({ item }: Readonly<{ item: MessageItem }>) {
   }));
   const current = draft ?? initial;
   const name = useId();
-  const questions = item.questions ?? [];
-  const disabled = session?.enabled !== true || current.status !== "editing";
+  const questions = item.questions;
+  const disabled =
+    session?.enabled !== true || current.status !== "editing" || item.status !== "pending";
   const answerTexts = questions.map((question, index) => {
     const answer = current.answers[index];
     return answer?.choice === null
       ? answer.text.trim()
       : (question.options?.[answer?.choice ?? 0] ?? "");
   });
-  const text = questions
-    .map((question, index) => `${question.title}\n${answerTexts[index] ?? ""}`)
-    .join("\n\n");
-  const valid = answerTexts.every((answer) => answer.length > 0) && text.length <= 100_000;
+  // 表单只收集答案；问题标题、最终提示词和执行方式均由后端决定。
+  const valid = answerTexts.every((answer) => answer.length > 0 && answer.length <= 4000);
   const update = (index: number, patch: Partial<QuestionDraft["answers"][number]>) => {
     saveQuestionDraft(store, item.id, {
       ...current,
@@ -56,7 +53,7 @@ export function AsyncQuestions({ item }: Readonly<{ item: MessageItem }>) {
     saveQuestionDraft(store, item.id, { ...current, status: "sending", error: false });
     let accepted = false;
     try {
-      accepted = await session.submit(text);
+      accepted = await session.submit(item.id, answerTexts);
     } catch {
       /* 失败保留草稿，允许用户重试。 */
     }

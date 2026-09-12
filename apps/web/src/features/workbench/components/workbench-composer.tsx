@@ -1,6 +1,8 @@
 import { useEffect, useImperativeHandle, useState } from "react";
 import { useAccess } from "../../access/access-context.js";
 import { AsyncQuestionComposer } from "./async-question-composer.js";
+import { createAsyncQuestionAnswerHandler } from "./async-question-answer-handler.js";
+import { ProjectTodoComposerGate } from "./project-todo-composer-gate.js";
 import { useComposerSettingsUpdate } from "./workbench-composer-settings.js";
 import { useComposerMenuDismissal } from "./workbench-composer-menus.js";
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -326,11 +328,17 @@ export function WorkbenchComposer({
       asyncQuestions={
         <AsyncQuestionComposer
           key={composerScope}
-          scope={JSON.stringify([projectId, taskId])}
-          activeTurnId={activeTurnId}
+          projectId={projectId}
+          taskId={activeTaskId}
           enabled={!turnControlsDisabled}
-          submit={submitPrompt}
-          taskStore={runtime?.store}
+          onAnswered={createAsyncQuestionAnswerHandler({
+            controller: composerController,
+            requestScope: routeScope,
+            store: runtime?.store,
+            onDirectSubmission,
+            onTurnStarted,
+            onSteerAccepted: composerQueue.onSteerAccepted,
+          })}
         />
       }
       activeCommandIndex={activeCommandIndex}
@@ -471,18 +479,9 @@ export function WorkbenchComposer({
   );
   return (
     <>
-      {initialTodoId !== undefined && !todoEditing.query.isSuccess ? (
-        <div role="status" className="p-4 text-sm text-muted-foreground">
-          {todoEditing.query.error?.message ?? t("taskBoard.loading")}
-          {todoEditing.query.isError && (
-            <button type="button" onClick={() => void todoEditing.query.refetch()}>
-              {t("composer.retryTodoLoad")}
-            </button>
-          )}
-        </div>
-      ) : (
-        composerView
-      )}
+      <ProjectTodoComposerGate active={initialTodoId !== undefined} query={todoEditing.query}>
+        {composerView}
+      </ProjectTodoComposerGate>
       <WorkbenchComposerAttachmentPicker
         active={isCurrentScope(routeScope)}
         client={client}

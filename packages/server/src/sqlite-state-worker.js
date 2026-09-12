@@ -19,10 +19,7 @@ import {
   taskSettingsFromRow,
 } from "./sqlite-state-worker-bootstrap.js";
 import { serializeApprovalPolicy } from "./approval-policy-persistence.js";
-import { createTaskQueueOperations } from "./sqlite-task-queue-worker.js";
-import { createScheduledTaskOperations } from "./sqlite-state-worker-scheduled-tasks.js";
-import { createSubmissionOperations } from "./sqlite-submission-worker.js";
-import { createProjectTodoOperations } from "./sqlite-project-todo-worker.js";
+import { createFeatureOperations } from "./sqlite-state-worker-features.js";
 
 import { serializeError } from "./sqlite-worker-error.js";
 function createOperations(database) {
@@ -304,10 +301,7 @@ function createOperations(database) {
     : undefined;
 
   return {
-    ...createTaskQueueOperations(database),
-    ...createScheduledTaskOperations(database),
-    ...createSubmissionOperations(database),
-    ...createProjectTodoOperations(database),
+    ...createFeatureOperations(database),
     diagnose() {
       database.exec("BEGIN IMMEDIATE");
       try {

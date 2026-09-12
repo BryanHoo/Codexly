@@ -1,34 +1,34 @@
-import type { TaskStore } from "../../conversation/runtime/task-store-core.js";
-import type { createComposerSubmission } from "./workbench-composer-submission.js";
+import type { AnswerAsyncQuestionResponse } from "@codexly/protocol";
+import { useAsyncQuestions } from "../hooks/use-async-questions.js";
+import { useTranslation } from "../../../i18n/i18n.js";
 import { AsyncQuestionDock } from "./async-question-dock.js";
 import { AsyncQuestionProvider } from "./async-question-session.js";
 
 export function AsyncQuestionComposer({
   enabled,
-  activeTurnId,
-  submit,
-  taskStore,
-  scope,
+  projectId,
+  taskId,
+  onAnswered,
 }: Readonly<{
   enabled: boolean;
-  activeTurnId: string | undefined;
-  submit: ReturnType<typeof createComposerSubmission>;
-  taskStore: TaskStore | undefined;
-  scope: string;
+  projectId: string;
+  taskId: string | undefined;
+  onAnswered: () => (result: AnswerAsyncQuestionResponse) => void;
 }>) {
+  const questions = useAsyncQuestions(projectId, taskId, onAnswered);
+  const { t } = useTranslation("conversation");
   return (
-    <AsyncQuestionProvider
-      enabled={enabled}
-      submit={(text) =>
-        // 回答主动送入当前回合；不受跟进排队偏好影响，也不清空编辑中的正文。
-        submit({ files: [], text }, [], {
-          clearInputOnSuccess: false,
-          composerMode: null,
-          forceAction: activeTurnId === undefined ? "start" : "steer",
-        })
-      }
-    >
-      <AsyncQuestionDock taskStore={taskStore} scope={scope} />
+    <AsyncQuestionProvider enabled={enabled} submit={questions.answer}>
+      {questions.error ? (
+        <p role="alert" className="text-label text-danger">
+          {t("asyncQuestions.syncFailed")}
+        </p>
+      ) : null}
+      <AsyncQuestionDock
+        groups={questions.groups}
+        dismiss={questions.dismiss}
+        dismissing={questions.dismissing}
+      />
     </AsyncQuestionProvider>
   );
 }

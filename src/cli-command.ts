@@ -365,6 +365,7 @@ async function runStart(
       scheduledTaskAttachmentRepository: stateRepository,
       scheduledTaskRepository: stateRepository,
       submissionRepository: stateRepository,
+      asyncQuestionRepository: stateRepository,
       projectTodoRepository: stateRepository,
       settingsRepository: stateRepository,
       staticRoot: dependencies.webRoot,

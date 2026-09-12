@@ -7,6 +7,38 @@ import {
 } from "./fixtures/app-shell.js";
 import { getComposerModelSelector } from "./app-shell-settings-navigation.test-support.js";
 
+test("blocks repeat answers when delivery is unconfirmed", async ({ page }) => {
+  let answering = false;
+  let deliveries = 0;
+  const group = () => ({
+    id: "uncertain",
+    turnId: "turn-1",
+    createdAt: "2026-09-12T00:00:00.000Z",
+    status: answering ? "answering" : "pending",
+    questions: [{ title: "范围", options: ["当前文件"] }],
+  });
+  await page.route("**/tasks/task-1/async-questions", (route) =>
+    route.fulfill({ json: { data: [group()] } }),
+  );
+  await page.route("**/tasks/task-1/async-questions/uncertain/answer", (route) => {
+    deliveries += 1;
+    answering = true;
+    return route.fulfill({
+      status: 409,
+      json: { code: "SUBMISSION_OUTCOME_UNKNOWN", message: "Delivery unknown", retryable: false },
+    });
+  });
+  await page.goto("/p/codexly/t/task-1");
+  const dock = page.getByRole("region", { name: "待回答问题" });
+  await dock.getByRole("button", { name: "发送回答" }).click();
+  await expect(dock.getByRole("status")).toContainText("投递结果尚未确认");
+  await expect(dock.getByRole("button", { name: "发送回答" })).toBeDisabled();
+  await expect(dock.getByRole("button", { name: "关闭问题", exact: true })).toBeDisabled();
+  await page.reload();
+  await expect(dock.getByRole("button", { name: "发送回答" })).toBeDisabled();
+  expect(deliveries).toBe(1);
+});
+
 for (const viewport of [
   { width: 1280, height: 900 },
   { width: 390, height: 844 },
@@ -17,6 +49,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     const submitted: Record<string, unknown>[] = [];
     const settingsUpdates: Record<string, unknown>[] = [];
+    let answered = false;
     const question = {
       id: "async-1",
       type: "message",
@@ -47,7 +80,17 @@ for (const viewport of [
       settingsUpdates.push(parseRequestRecord(route.request().postData()));
       await route.fallback();
     });
-    await page.route("**/v1/projects/codexly/tasks/task-1/turns/turn-1/steer", async (route) => {
+    const group = {
+      id: "stable-question-1",
+      turnId: "turn-1",
+      questions: question.questions,
+      createdAt: "2026-09-12T00:00:00.000Z",
+      status: "pending",
+    };
+    await page.route("**/tasks/task-1/async-questions", (route) =>
+      route.fulfill({ json: { data: answered ? [] : [group] } }),
+    );
+    await page.route("**/tasks/task-1/async-questions/stable-question-1/answer", async (route) => {
       submitted.push(parseRequestRecord(route.request().postData()));
       if (submitted.length === 1) {
         await route.fulfill({
@@ -55,7 +98,22 @@ for (const viewport of [
           json: { code: "PROVIDER_ERROR", message: "Retry answer", retryable: true },
         });
       } else {
-        await route.fulfill({ json: { status: "accepted", taskId: "task-1", turnId: "turn-1" } });
+        answered = true;
+        await route.fulfill({
+          json: {
+            question: { ...group, status: "answered" },
+            input: {
+              type: "prompt",
+              text: "选择范围\n整个项目\n\n补充要求\n保留测试",
+              attachments: [],
+              skills: [],
+            },
+            messageId: "server-message-1",
+            turnId: "turn-1",
+            turn: null,
+            checkpoint: taskSnapshotResponse.checkpoint,
+          },
+        });
       }
     });
     await page.goto("/p/codexly/t/task-1");
@@ -99,12 +157,7 @@ for (const viewport of [
     await expect(dock).toHaveCount(0);
     expect(submitted).toHaveLength(2);
     expect(submitted[1]).toMatchObject({
-      input: {
-        type: "prompt",
-        text: "选择范围\n整个项目\n\n补充要求\n保留测试",
-        attachments: [],
-        skills: [],
-      },
+      answers: ["整个项目", "保留测试"],
     });
   });
 
@@ -114,6 +167,25 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     const submitted: string[] = [];
     const questionIds = ["async-dismiss"];
+    const dismissed = new Set<string>();
+    const groups = () =>
+      questionIds
+        .filter((id) => !dismissed.has(id))
+        .map((id) => ({
+          id,
+          turnId: "turn-1",
+          questions: [{ title: "补充要求", options: null }],
+          createdAt: "2026-09-12T00:00:00.000Z",
+          status: "pending",
+        }));
+    await page.route("**/tasks/task-1/async-questions", (route) =>
+      route.fulfill({ json: { data: groups() } }),
+    );
+    await page.route("**/tasks/task-1/async-questions/dismiss", (route) => {
+      const body = parseRequestRecord(route.request().postData());
+      for (const id of body["ids"] as string[]) dismissed.add(id);
+      return route.fulfill({ json: { data: groups() } });
+    });
     await page.route("**/v1/projects/codexly/tasks/task-1", (route) =>
       route.fulfill({
         json: {
@@ -139,7 +211,7 @@ for (const viewport of [
         },
       }),
     );
-    await page.route("**/v1/projects/codexly/tasks/task-1/turns/turn-1/steer", (route) => {
+    await page.route("**/tasks/task-1/async-questions/*/answer", (route) => {
       submitted.push(route.request().postData() ?? "");
       return route.fulfill({ json: { status: "accepted", taskId: "task-1", turnId: "turn-1" } });
     });

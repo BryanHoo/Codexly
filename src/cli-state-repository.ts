@@ -1,4 +1,5 @@
 import type {
+  AsyncQuestionRepository,
   AgentSettingsRepository,
   AgentProviderConnectionRepository,
   AgentQueueRepository,
@@ -17,6 +18,7 @@ export interface CliManagedStateRepository
     AgentProviderConnectionRepository,
     AgentQueueRepository,
     TaskSubmissionRepository,
+    AsyncQuestionRepository,
     ProjectTodoRepository,
     ScheduledTaskAttachmentRepository,
     ScheduledTaskRepository {

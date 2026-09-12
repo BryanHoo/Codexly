@@ -1,5 +1,7 @@
 export const conversation = {
   asyncQuestions: {
+    syncFailed: "Could not sync question state. Please try again later.",
+    deliveryPending: "Answer delivery is unconfirmed. Check task progress before sending again.",
     pending: "Pending questions",
     pendingCount: "Pending · {{count}} groups",
     previous: "Previous questions",

@@ -1,4 +1,6 @@
-import type { QuestionMessage } from "./async-question-projection.js";
+import type { AgentItem } from "@codexly/protocol";
+
+type QuestionMessage = Extract<AgentItem, { type: "message" }>;
 
 export function AsyncQuestionHistory({ item }: Readonly<{ item: QuestionMessage }>) {
   return (

@@ -24,7 +24,12 @@ export async function handleAppShellTaskRoute(
     url.pathname,
   );
   let body: unknown;
-  if (/^\/v1\/projects\/[^/]+\/todos$/u.test(url.pathname) && route.request().method() === "GET") {
+  if (url.pathname.endsWith("/async-questions") && route.request().method() === "GET") {
+    body = { data: [] };
+  } else if (
+    /^\/v1\/projects\/[^/]+\/todos$/u.test(url.pathname) &&
+    route.request().method() === "GET"
+  ) {
     body = { data: [] };
   } else if (queueMatch !== null) {
     const taskKey = `${queueMatch[1] ?? ""}:${queueMatch[2] ?? ""}`;

@@ -6,9 +6,8 @@ import {
   MessageCircleQuestion,
   X,
 } from "lucide-react";
-import { useId, useMemo, useState, useSyncExternalStore } from "react";
-import { useStore } from "zustand";
-import { useShallow } from "zustand/react/shallow";
+import { useId, useState } from "react";
+import type { AsyncQuestionGroup } from "@codexly/protocol";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -17,49 +16,24 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
-import type { TaskStore } from "../../conversation/runtime/task-store-core.js";
-import { createAsyncQuestionProjection, type QuestionEntry } from "./async-question-projection.js";
-import { useAsyncQuestionSession } from "./async-question-session.js";
 import { AsyncQuestions } from "./async-questions.js";
-import { readQuestionDismissals, saveQuestionDismissals } from "./async-question-dismissals.js";
 
 export function AsyncQuestionDock({
-  taskStore,
-  scope,
-}: Readonly<{ taskStore: TaskStore | undefined; scope: string }>) {
-  const session = useAsyncQuestionSession();
-  const projection = useMemo(() => createAsyncQuestionProjection(taskStore), [taskStore]);
-  const entries = useSyncExternalStore(projection.subscribe, projection.getSnapshot);
-  return session === null ? null : (
-    <QuestionDockContent key={scope} entries={entries} session={session} scope={scope} />
-  );
-}
-
-function QuestionDockContent({
-  entries,
-  session,
-  scope,
+  groups: pending,
+  dismiss,
+  dismissing,
 }: Readonly<{
-  entries: readonly QuestionEntry[];
-  session: NonNullable<ReturnType<typeof useAsyncQuestionSession>>;
-  scope: string;
+  groups: readonly AsyncQuestionGroup[];
+  dismiss: (ids: readonly string[]) => Promise<void>;
+  dismissing: boolean;
 }>) {
   const { t } = useTranslation("conversation");
-  const [dismissed, setDismissed] = useState(() => readQuestionDismissals(scope));
-  const pending = useStore(
-    session.store,
-    useShallow((state) =>
-      entries.filter(
-        (entry) => !dismissed.has(entry.key) && state.drafts.get(entry.item.id)?.status !== "sent",
-      ),
-    ),
-  );
   const [selectedKey, setSelectedKey] = useState<string>();
   const [collapsed, setCollapsed] = useState(false);
   const contentId = useId();
   const selectedIndex = Math.max(
     0,
-    pending.findIndex((entry) => entry.key === selectedKey),
+    pending.findIndex((entry) => entry.id === selectedKey),
   );
   const selected = pending[selectedIndex];
   if (selected === undefined) return null;
@@ -81,7 +55,7 @@ function QuestionDockContent({
               label={t("asyncQuestions.previous")}
               disabled={selectedIndex === 0}
               onClick={() => {
-                setSelectedKey(pending[selectedIndex - 1]?.key);
+                setSelectedKey(pending[selectedIndex - 1]?.id);
               }}
             >
               <ChevronLeft className="size-3.5" />
@@ -93,7 +67,7 @@ function QuestionDockContent({
               label={t("asyncQuestions.next")}
               disabled={selectedIndex === pending.length - 1}
               onClick={() => {
-                setSelectedKey(pending[selectedIndex + 1]?.key);
+                setSelectedKey(pending[selectedIndex + 1]?.id);
               }}
             >
               <ChevronRight className="size-3.5" />
@@ -126,14 +100,10 @@ function QuestionDockContent({
         </Tooltip>
         <DockButton
           label={t("asyncQuestions.close")}
-          disabled={false}
+          disabled={dismissing || !pending.some((group) => group.status === "pending")}
           onClick={() => {
-            // 按任务保存关闭标识，重开任务不再展示旧问题，新增问题不受影响。
-            setDismissed(
-              saveQuestionDismissals(
-                scope,
-                new Set([...dismissed, ...entries.map((entry) => entry.key)]),
-              ),
+            void dismiss(
+              pending.filter((group) => group.status === "pending").map((group) => group.id),
             );
             setCollapsed(false);
           }}
@@ -147,7 +117,12 @@ function QuestionDockContent({
         hidden={collapsed}
         className="max-h-[min(32vh,20rem)] overflow-y-auto overscroll-contain py-2"
       >
-        <AsyncQuestions key={selected.key} item={selected.item} />
+        {selected.status === "answering" ? (
+          <p role="status" className="mb-2 text-label">
+            {t("asyncQuestions.deliveryPending")}
+          </p>
+        ) : null}
+        <AsyncQuestions key={selected.id} item={selected} />
       </div>
     </section>
   );

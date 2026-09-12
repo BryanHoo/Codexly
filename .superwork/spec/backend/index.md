@@ -22,6 +22,7 @@
 - 定时任务五个写接口必须校验 `Idempotency-Key` 并复用 `runIdempotent`，按操作及任务隔离作用域，在 runner 内映射业务错误；覆盖并发、结果复用及参数冲突。幂等缓存仅限当前 Server 实例，重启不保留，具体边界见[幂等约定](../../../docs/scheduled-task-idempotency.md)。
 - 定时任务预览和实际执行共用调度计算，显式转换任务时区；`COUNT` 从原始起点累计且跳过不存在的夏令时时间，`UNTIL` 按绝对时间判断。无次数限制的高频规则按完整周期跳过历史，预览只返回最多五次，不生成无限结果集。
 - 数据库和 Codex 进程生命周期必须有明确启动、失败和清理路径。
+- 非阻塞异步问题通过 `async-questions` 查询、回答与关闭接口管理，CLI 必须注入 SQLite 状态仓库。稳定身份使用回合、问题内容及同内容出现次序，不依赖原生消息 ID；历史发现只补充记录，不能重置已回答或关闭状态。后端按当前回合选择 start/steer，原子占用后才调用 Provider；结果不明保留占用并禁止重发，成功结果在重启后可复用。覆盖历史分页、跨项目校验、跨实例竞争与重启。
 - `turn/start` 在调用 Provider 前捕获事件 checkpoint，并将 checkpoint 与 Turn 作为同一幂等结果返回。
 - 归档 Task 恢复不得预读 Goal 或历史快照；由 Provider 在 `thread/unarchive` 边界校验归属并返回恢复后的 Task。
 - Codex standalone Task 仅以 `projectId: null` 归属；创建、列表、恢复和 Fork 不得使用 cwd 过滤或合成工作区覆盖原生运行时上下文。

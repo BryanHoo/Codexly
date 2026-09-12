@@ -49,6 +49,7 @@ import { registerRuntimeRoutes } from "./routes/runtime-routes.js";
 import { registerTaskRoutes } from "./routes/task-routes.js";
 import { registerTurnRoutes } from "./routes/turn-routes.js";
 import { registerSubmissionRoutes } from "./routes/submission-routes.js";
+import { registerAsyncQuestionRoutes } from "./routes/async-question-routes.js";
 import { registerProjectTodoRoutes } from "./routes/project-todo-routes.js";
 import { createMemorySubmissionRepository } from "./task-submission-service.js";
 import { registerQueueRoutes } from "./routes/queue-routes.js";
@@ -365,6 +366,9 @@ export async function createCodexlyServer(
     ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot }),
   });
   const routeContext: ServerRouteContext = {
+    ...(options.asyncQuestionRepository === undefined
+      ? {}
+      : { asyncQuestionRepository: options.asyncQuestionRepository }),
     ...(options.projectTodoRepository === undefined
       ? {}
       : { projectTodoRepository: options.projectTodoRepository }),
@@ -450,6 +454,7 @@ export async function createCodexlyServer(
   await app.register(registerTaskRoutes, routeContext);
   await app.register(registerTurnRoutes, routeContext);
   await app.register(registerSubmissionRoutes, routeContext);
+  await app.register(registerAsyncQuestionRoutes, routeContext);
   await app.register(registerProjectTodoRoutes, routeContext);
   await app.register(registerQueueRoutes, routeContext);
   await app.register(registerEventRoutes, routeContext);

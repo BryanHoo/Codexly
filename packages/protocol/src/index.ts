@@ -494,3 +494,4 @@ export * from "./personalization.js";
 export * from "./workbench-background.js";
 export * from "./task-submission.js";
 export * from "./project-todo.js";
+export * from "./async-question.js";

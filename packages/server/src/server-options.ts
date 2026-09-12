@@ -1,4 +1,8 @@
-import type { ProjectTodoRepository, TaskSubmissionRepository } from "@codexly/core";
+import type {
+  AsyncQuestionRepository,
+  ProjectTodoRepository,
+  TaskSubmissionRepository,
+} from "@codexly/core";
 import type {
   AgentFileSearchProvider,
   AgentQueueRepository,
@@ -46,6 +50,7 @@ import type { ProjectOpenService } from "./project-open.js";
 import type { SkillMarketService } from "./skill-market-service.js";
 
 export interface CreateCodexlyServerOptions {
+  asyncQuestionRepository?: AsyncQuestionRepository;
   projectTodoRepository?: ProjectTodoRepository;
   submissionRepository?: TaskSubmissionRepository;
   access?: CodexlyAccessOptions;

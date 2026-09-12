@@ -4,6 +4,7 @@ import {
 } from "./global-settings-persistence.js";
 import { PROVIDER_CONNECTION_MIGRATION } from "./provider-connection-persistence.js";
 import { PROJECT_TODO_MIGRATION } from "./project-todo-migration.js";
+import { ASYNC_QUESTION_MIGRATION } from "./async-question-migration.js";
 
 export type SqliteMigration = Readonly<{
   name: string;
@@ -478,4 +479,5 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
     END;`,
   },
   PROJECT_TODO_MIGRATION,
+  ASYNC_QUESTION_MIGRATION,
 ];

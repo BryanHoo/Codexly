@@ -18,7 +18,7 @@ export const createQuestionDraftStore = () =>
 const AsyncQuestionContext = createContext<Readonly<{
   enabled: boolean;
   store: ReturnType<typeof createQuestionDraftStore>;
-  submit: (text: string) => Promise<boolean>;
+  submit: (id: string, answers: readonly string[]) => Promise<boolean>;
 }> | null>(null);
 
 export function AsyncQuestionProvider({
@@ -28,7 +28,7 @@ export function AsyncQuestionProvider({
 }: Readonly<{
   children: ReactNode;
   enabled: boolean;
-  submit: (text: string) => Promise<boolean>;
+  submit: (id: string, answers: readonly string[]) => Promise<boolean>;
 }>) {
   // 会话级保存草稿，虚拟列表卸载问题表单后仍可恢复；逐问题订阅避免流式重绘。
   const [store] = useState(createQuestionDraftStore);

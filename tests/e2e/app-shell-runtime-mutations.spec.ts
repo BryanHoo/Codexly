@@ -103,7 +103,7 @@ test("preserves the prompt draft when submission fails", async ({ page }) => {
       status: 201,
     });
   });
-  await page.route("**/v1/projects/codexly/tasks", async (route) => {
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     if (route.request().method() !== "POST") {
       await route.fallback();
       return;

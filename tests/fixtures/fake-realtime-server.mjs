@@ -79,6 +79,7 @@ const persistenceRoot = await mkdtemp(join(tmpdir(), "codexly-e2e-todos-"));
 const persistence = await SqliteStateRepository.open(join(persistenceRoot, "state.sqlite"));
 const server = await createCodexlyServer({
   projectTodoRepository: persistence,
+  asyncQuestionRepository: persistence,
   submissionRepository: persistence,
   ...(pairingCode === undefined
     ? {}
