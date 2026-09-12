@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { getSafeLocalStorage } from "../../../shared/lib/browser-storage.js";
 
 import {
-  DEFAULT_WORKBENCH_BACKGROUND,
   readCustomBackgroundImage,
   readWorkbenchBackgroundPreference,
   WORKBENCH_BACKGROUND_CHANGED_EVENT,
@@ -107,9 +107,7 @@ export function WorkbenchBackgroundFrame({
 export function WorkbenchBackground({ children }: Readonly<{ children: ReactNode }>) {
   const [backgroundTone, setBackgroundTone] = useState<WorkbenchBackgroundTone | null>(null);
   const [preference, setPreference] = useState<WorkbenchBackgroundPreference>(() =>
-    typeof window === "undefined"
-      ? DEFAULT_WORKBENCH_BACKGROUND
-      : readWorkbenchBackgroundPreference(window.localStorage),
+    readWorkbenchBackgroundPreference(getSafeLocalStorage()),
   );
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
   const [bingImageUrl, setBingImageUrl] = useState(() => createBingWallpaperUrl(new Date()));

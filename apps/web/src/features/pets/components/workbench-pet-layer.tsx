@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { useAccess } from "../../access/access-context.js";
+import { getSafeLocalStorage } from "../../../shared/lib/browser-storage.js";
 import { useProjectActivity, useProjectData } from "../../projects/project-context.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { deriveWorkbenchPetActivity, type WorkbenchPetActivity } from "../pet-activity.js";
@@ -94,7 +95,7 @@ export function WorkbenchPetLayerView({
     const boundary = boundaryRef.current;
     const positioner = positionerRef.current;
     if (boundary === null || positioner === null) return;
-    preferenceRef.current = readPetPositionPreference(window.localStorage);
+    preferenceRef.current = readPetPositionPreference(getSafeLocalStorage());
     const updateBounds = () => {
       const bounds = {
         height: boundary.clientHeight,
@@ -130,7 +131,7 @@ export function WorkbenchPetLayerView({
       }
       if (bounds !== null) {
         const preference = petPositionToRatio(positionRef.current, bounds);
-        writePetPositionPreference(window.localStorage, preference);
+        writePetPositionPreference(getSafeLocalStorage(), preference);
       }
     },
     [],
@@ -155,7 +156,7 @@ export function WorkbenchPetLayerView({
     const bounds = boundsRef.current;
     if (bounds === null) return;
     preferenceRef.current = petPositionToRatio(positionRef.current, bounds);
-    writePetPositionPreference(window.localStorage, preferenceRef.current);
+    writePetPositionPreference(getSafeLocalStorage(), preferenceRef.current);
   };
 
   const finishDrag = (pointerId: number) => {

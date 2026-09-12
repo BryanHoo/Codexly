@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { getSafeLocalStorage } from "../../../shared/lib/browser-storage.js";
 
 import {
   createCustomBackgroundImage,
-  DEFAULT_WORKBENCH_BACKGROUND,
   readCustomBackgroundImages,
   readWorkbenchBackgroundPreference,
   removeCustomBackgroundFromDraft,
@@ -11,9 +11,7 @@ import {
 } from "../workbench-background-preference.js";
 
 function readInitialBackground(): WorkbenchBackgroundPreference {
-  return typeof window === "undefined"
-    ? DEFAULT_WORKBENCH_BACKGROUND
-    : readWorkbenchBackgroundPreference(window.localStorage);
+  return readWorkbenchBackgroundPreference(getSafeLocalStorage());
 }
 
 export function useWorkbenchBackgroundDraft() {

@@ -12,4 +12,5 @@ Track where local, shared, and remote state should live in this project.
 - 项目、访问控制和编辑器草稿等跨组件状态使用现有 Context；不要新增重复的全局状态源。
 - Agent 事件、快照和重放状态保持在 `features/conversation/runtime` 的专用 store 中，并遵守现有内存上限。
 - 持久化偏好继续使用对应功能已有的浏览器存储适配器。
+- 主题、背景和宠物偏好通过 `shared/lib/browser-storage.ts` 获取本地存储；获取属性与读写方法均须保护，禁用存储时回退默认值且不阻断启动或当前页面交互。回归测试同时覆盖 getter 抛出 `SecurityError` 和读写方法抛错。
 - 应用更新进度作为 HTTP 服务端状态交给 TanStack Query；仅在更新 mutation 活跃时轮询独立进度端点，空闲后停止轮询，不在组件中维护重复定时器。

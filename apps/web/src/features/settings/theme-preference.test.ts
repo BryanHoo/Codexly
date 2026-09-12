@@ -9,6 +9,26 @@ import {
 } from "./theme-preference.js";
 
 describe("theme preference", () => {
+  it("initializes and switches themes when the storage getter is blocked", () => {
+    const root = { dataset: {} as Record<string, string | undefined> };
+    vi.stubGlobal("window", {
+      get localStorage() {
+        throw new DOMException("Storage is blocked", "SecurityError");
+      },
+      matchMedia: () => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    });
+    vi.stubGlobal("document", { documentElement: root });
+
+    expect(initializeThemePreference()).toBe("system");
+    expect(root.dataset["theme"]).toBe("dark");
+    setThemePreference("light");
+    expect(root.dataset["theme"]).toBe("light");
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });

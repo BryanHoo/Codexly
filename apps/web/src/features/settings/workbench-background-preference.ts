@@ -1,3 +1,5 @@
+import { getSafeLocalStorage } from "../../shared/lib/browser-storage.js";
+
 export type WorkbenchBackgroundMode = "bing" | "custom" | "none";
 
 export type WorkbenchBackgroundPreference = Readonly<{
@@ -239,7 +241,7 @@ export async function applyWorkbenchBackgroundPreference(
 ): Promise<void> {
   // 先提交图片集合再发布偏好，避免工作台读取到尚未落盘的图片 ID。
   await applyCustomBackgroundMutation(mutation);
-  saveWorkbenchBackgroundPreference(preference, window.localStorage);
+  saveWorkbenchBackgroundPreference(preference, getSafeLocalStorage());
   window.dispatchEvent(
     new CustomEvent<WorkbenchBackgroundPreference>(WORKBENCH_BACKGROUND_CHANGED_EVENT, {
       detail: preference,

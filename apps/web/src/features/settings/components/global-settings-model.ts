@@ -6,6 +6,7 @@ import {
 } from "@codexly/protocol";
 
 import { readThemePreference, type ThemePreference } from "../theme-preference.js";
+import { getSafeLocalStorage } from "../../../shared/lib/browser-storage.js";
 import {
   applyApprovalMode as applySharedApprovalMode,
   deriveApprovalMode as deriveSharedApprovalMode,
@@ -60,5 +61,5 @@ export function createFallbackSettings(models: readonly AgentModel[]): AgentGlob
 }
 
 export function readInitialTheme(): ThemePreference {
-  return typeof window === "undefined" ? "system" : readThemePreference(window.localStorage);
+  return readThemePreference(getSafeLocalStorage());
 }
