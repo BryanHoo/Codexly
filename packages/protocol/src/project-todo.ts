@@ -43,7 +43,7 @@ export const ProjectTodoPageSchema = Type.Object(
   { additionalProperties: false },
 );
 export const ProjectTodoResponseSchema = Type.Object(
-  { todo: ProjectTodoSchema },
+  { todo: ProjectTodoSchema, todos: ProjectTodoPageSchema },
   { additionalProperties: false },
 );
 export const SaveProjectTodoRequestSchema = Type.Object(
@@ -59,6 +59,6 @@ export const DeleteProjectTodoRequestSchema = Type.Object(
   { additionalProperties: false },
 );
 export const DeleteProjectTodoResponseSchema = Type.Object(
-  { deleted: Type.Boolean() },
+  { deleted: Type.Boolean(), todos: ProjectTodoPageSchema },
   { additionalProperties: false },
 );

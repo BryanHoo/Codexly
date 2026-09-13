@@ -57,6 +57,7 @@ describe("project todo API", () => {
     expect(created.statusCode, created.body).toBe(201);
     expect((await first.app.inject(request)).json()).toEqual(created.json());
     const todo = created.json<{ todo: ProjectTodo }>().todo;
+    expect(created.json()).toEqual({ todo, todos: { data: [todo] } });
     await first.app.close();
     await repository.close();
     const second = await createHarness({ projectTodoRepository: await openRepository(root) });

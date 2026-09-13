@@ -110,14 +110,6 @@ export function createProjectTodoStore({
   };
   const read = (projectId: string, todoId: string) =>
     list(projectId).find((todo) => todo.id === todoId);
-  const cache = (projectId: string, todo: ProjectTodo | undefined, removedId?: string) => {
-    queryClient.setQueryData<{ data: ProjectTodo[] }>(projectTodoQueryKey(projectId), (page) => ({
-      data: [
-        ...(page?.data ?? []).filter((item) => item.id !== (todo?.id ?? removedId)),
-        ...(todo === undefined ? [] : [todo]),
-      ].sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id)),
-    }));
-  };
   const mutate = async <T>(id: string, payload: unknown, action: (key: string) => Promise<T>) => {
     const fingerprint = JSON.stringify(payload);
     let attempt = attempts.get(id);
@@ -144,31 +136,34 @@ export function createProjectTodoStore({
       working.get(scope(projectId, todoId))?.workingDraft,
     async create(projectId: string, draft: ComposerDraft) {
       const persisted = toPersistentDraft(draft);
-      const { todo } = await mutate(`create:${projectId}`, persisted, (key) =>
+      const { todo, todos } = await mutate(`create:${projectId}`, persisted, (key) =>
         client.createProjectTodo(projectId, persisted, { idempotencyKey: key }),
       );
-      cache(projectId, todo);
+      queryClient.setQueryData(projectTodoQueryKey(projectId), todos);
       return toRecord(todo);
     },
     async save(projectId: string, todoId: string, draft: ComposerDraft) {
       const existing = read(projectId, todoId);
       if (existing === undefined) throw new Error("Project todo is unavailable");
       const input = { draft: toPersistentDraft(draft), expectedVersion: existing.version };
-      const { todo } = await mutate(`save:${scope(projectId, todoId)}`, input, (key) =>
+      const { todo, todos } = await mutate(`save:${scope(projectId, todoId)}`, input, (key) =>
         client.saveProjectTodo(projectId, todoId, input, { idempotencyKey: key }),
       );
       discardWorking(projectId, todoId);
-      cache(projectId, todo);
+      queryClient.setQueryData(projectTodoQueryKey(projectId), todos);
       return toRecord(todo);
     },
     async remove(projectId: string, todoId: string) {
       const existing = read(projectId, todoId);
       if (existing === undefined) return;
-      await mutate(`delete:${scope(projectId, todoId)}`, existing.version, (key) =>
-        client.deleteProjectTodo(projectId, todoId, existing.version, { idempotencyKey: key }),
+      const { todos } = await mutate(
+        `delete:${scope(projectId, todoId)}`,
+        existing.version,
+        (key) =>
+          client.deleteProjectTodo(projectId, todoId, existing.version, { idempotencyKey: key }),
       );
       discardWorking(projectId, todoId);
-      cache(projectId, undefined, todoId);
+      queryClient.setQueryData(projectTodoQueryKey(projectId), todos);
     },
     discardWorking,
     updateWorking(projectId: string, todoId: string, draft: ComposerDraft) {

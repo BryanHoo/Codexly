@@ -15,10 +15,15 @@ describe("project todo server state", () => {
   function setup() {
     const queryClient = new QueryClient();
     const client = {
-      createProjectTodo: vi.fn(() => Promise.resolve({ todo })),
+      createProjectTodo: vi.fn(() => Promise.resolve({ todo, todos: { data: [todo] } })),
       listProjectTodos: vi.fn(() => Promise.resolve({ data: [todo] })),
-      saveProjectTodo: vi.fn(() => Promise.resolve({ todo: { ...todo, version: 2 } })),
-      deleteProjectTodo: vi.fn(() => Promise.resolve({ deleted: true })),
+      saveProjectTodo: vi.fn(() =>
+        Promise.resolve({
+          todo: { ...todo, version: 2 },
+          todos: { data: [{ ...todo, version: 2 }] },
+        }),
+      ),
+      deleteProjectTodo: vi.fn(() => Promise.resolve({ deleted: true, todos: { data: [] } })),
     };
     return { client, queryClient, store: createProjectTodoStore({ client, queryClient }) };
   }

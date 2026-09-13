@@ -15,6 +15,7 @@ Capture contract and verification standards for this project.
 - `GET /v1/projects/:projectId/tasks/catalog` 返回完整 `{ data }` 任务目录，临时作用域使用 `/v1/temporary/tasks/catalog`；`pinned=true` 只收集置顶任务。Node 按每页 100 项收集、按 ID 保留首次版本及顺序，最多 1000 页和 10000 个唯一任务。重复游标、跨作用域及超限必须报错，不返回伪完整目录；覆盖分页重叠、空页增长、置顶参数传递及前端单次读取。
 - 项目新增、重命名和移除响应必须携带操作完成后的完整 `projects` 页面，并作为同一幂等结果保存；Node 负责读取最终项目注册表，浏览器直接替换项目列表缓存，不得自行追加、映射或过滤项目。
 - Worktree 创建与切换响应必须在注册目标 Project 后并行读取并携带完整 `projects` 和 `worktrees`，作为同一幂等结果保存；浏览器只替换两份查询缓存，不得根据单个 `project` 或 `worktree` 合并服务端状态。
+- 项目待办创建、导入、保存和删除响应必须携带写入完成后的完整 `todos` 页面，并作为同一幂等结果保存；Node 负责按仓库顺序读取最终列表，浏览器直接替换缓存，不得自行追加、删除或按时间排序待办。
 - 批量归档删除使用 `DELETE /v1/projects/:projectId/tasks/archived`（临时作用域为 `/v1/temporary/tasks/archived`），请求仅接受空对象并要求 `Idempotency-Key`。响应为非负整数 `deletedCount` / `failedCount`；部分失败仍作为 200 结果缓存，同一 Server 实例缓存有效期内重放不得重新枚举后来归档的任务，不承诺跨重启幂等。覆盖分页去重、有界并发、作用域隔离、异常分页及部分失败重放。
 - 消息规范 ID 与 `identityAliases` 由 Node Provider 统一生成，快照、启动响应和实时事件共用身份表；客户端仅按显式 ID / 别名迁移渲染状态，不按文本前缀或图片元数据推断消息身份。覆盖快照先到、事件先到、终态批量歧义和多订阅者一致性。
 - 个性化接口通过现有鉴权与幂等链路访问部署主机的 Codex 配置；全局说明保存必须校验 `expectedContent`，冲突返回 `GLOBAL_INSTRUCTIONS_CHANGED`，保留原文和符号链接。记忆开关批量写入官方配置，删除记忆使用 `memory/reset`，不得仅删除文件。

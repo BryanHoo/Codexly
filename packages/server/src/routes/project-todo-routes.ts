@@ -48,6 +48,9 @@ export const registerProjectTodoRoutes: FastifyPluginCallback<ServerRouteContext
     if ((await context.projectRepository.read(projectId)) === undefined)
       throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
   };
+  const listTodos = async (projectId: string) => ({
+    data: await requireProjectTodoRepository(context).listProjectTodos(projectId),
+  });
   const run = async <T>(
     projectId: string,
     scope: string[],
@@ -90,14 +93,17 @@ export const registerProjectTodoRoutes: FastifyPluginCallback<ServerRouteContext
     },
     async (request, reply) => {
       const { projectId } = request.params;
-      const todo = await run(
+      const response = await run(
         projectId,
         ["create-project-todo", projectId],
         request.headers["idempotency-key"],
         request.body,
-        () => writeProjectTodo(context, projectId, request.body),
+        async () => {
+          const todo = await writeProjectTodo(context, projectId, request.body);
+          return { todo, todos: await listTodos(projectId) };
+        },
       );
-      return reply.code(201).send({ todo });
+      return reply.code(201).send(response);
     },
   );
   app.post<{ Params: Params; Body: ProjectTodoDraft; Headers: Headers }>(
@@ -112,14 +118,16 @@ export const registerProjectTodoRoutes: FastifyPluginCallback<ServerRouteContext
     },
     async (request) => {
       const { projectId, todoId } = request.params;
-      const todo = await run(
+      return run(
         projectId,
         ["import-project-todo", projectId, todoId],
         request.headers["idempotency-key"],
         request.body,
-        () => importProjectTodo(context, projectId, todoId, request.body),
+        async () => {
+          const todo = await importProjectTodo(context, projectId, todoId, request.body);
+          return { todo, todos: await listTodos(projectId) };
+        },
       );
-      return { todo };
     },
   );
   app.put<{ Params: Params; Body: SaveProjectTodoRequest; Headers: Headers }>(
@@ -134,21 +142,22 @@ export const registerProjectTodoRoutes: FastifyPluginCallback<ServerRouteContext
     },
     async (request) => {
       const { projectId, todoId } = request.params;
-      const todo = await run(
+      return run(
         projectId,
         ["save-project-todo", projectId, todoId],
         request.headers["idempotency-key"],
         request.body,
-        () =>
-          writeProjectTodo(
+        async () => {
+          const todo = await writeProjectTodo(
             context,
             projectId,
             request.body.draft,
             todoId,
             request.body.expectedVersion,
-          ),
+          );
+          return { todo, todos: await listTodos(projectId) };
+        },
       );
-      return { todo };
     },
   );
   app.delete<{ Params: Params; Body: { expectedVersion: number }; Headers: Headers }>(
@@ -163,19 +172,21 @@ export const registerProjectTodoRoutes: FastifyPluginCallback<ServerRouteContext
     },
     async (request) => {
       const { projectId, todoId } = request.params;
-      const deleted = await run(
+      return run(
         projectId,
         ["delete-project-todo", projectId, todoId],
         request.headers["idempotency-key"],
         request.body,
-        () =>
-          requireProjectTodoRepository(context).deleteProjectTodo(
+        async () => {
+          const deleted = await requireProjectTodoRepository(context).deleteProjectTodo(
             projectId,
             todoId,
             request.body.expectedVersion,
-          ),
+          );
+          // 最终列表与删除结果一起进入幂等缓存，重放不会重新执行或读取。
+          return { deleted, todos: await listTodos(projectId) };
+        },
       );
-      return { deleted };
     },
   );
   done();
