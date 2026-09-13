@@ -73,7 +73,7 @@ describe("task store reconciliation", () => {
     expect(store.getState().itemStructureRevision).toBeGreaterThan(previousStructureRevision);
   });
 
-  it("reconciles synthetic snapshot message ids with their realtime items", () => {
+  it("renders Node-normalized snapshot identities with their realtime items", () => {
     const liveTurn = {
       completedAt: null,
       error: null,
@@ -107,14 +107,16 @@ describe("task store reconciliation", () => {
             ...liveTurn,
             items: [
               {
-                id: "item-1",
+                id: "realtime-user-id",
+                identityAliases: ["item-1"],
                 role: "user",
                 skills: [{ name: "superwork:superwork-start" }],
                 text: "执行检查",
                 type: "message",
               },
               {
-                id: "item-2",
+                id: "realtime-assistant-id",
+                identityAliases: ["item-2"],
                 role: "assistant",
                 text: "正在处理",
                 type: "message",
@@ -150,7 +152,7 @@ describe("task store reconciliation", () => {
     });
   });
 
-  it("matches later commentary after unmatched and omitted snapshot messages", () => {
+  it("retains omitted realtime commentary alongside normalized snapshot messages", () => {
     const liveTurn = {
       completedAt: null,
       error: null,
@@ -190,7 +192,8 @@ describe("task store reconciliation", () => {
             ...liveTurn,
             items: [
               {
-                id: "snapshot-commentary-first",
+                id: "realtime-commentary-first",
+                identityAliases: ["snapshot-commentary-first"],
                 role: "assistant",
                 text: "先读取配置完成",
                 type: "message",
@@ -202,7 +205,8 @@ describe("task store reconciliation", () => {
                 type: "message",
               },
               {
-                id: "snapshot-commentary-last",
+                id: "realtime-commentary-last",
+                identityAliases: ["snapshot-commentary-last"],
                 role: "assistant",
                 text: "再运行检查完成",
                 type: "message",
@@ -339,7 +343,7 @@ describe("task store reconciliation", () => {
     });
   });
 
-  it("reconciles multiple steer user messages by unique text", () => {
+  it("reconciles multiple steer user messages by Node-provided identities", () => {
     const liveTurn = {
       completedAt: null,
       error: null,
@@ -379,21 +383,24 @@ describe("task store reconciliation", () => {
             ...liveTurn,
             items: [
               {
-                id: "snapshot-user-initial",
+                id: "realtime-user-initial",
+                identityAliases: ["snapshot-user-initial"],
                 role: "user",
                 skills: [{ name: "initial-skill" }],
                 text: "检查项目",
                 type: "message",
               },
               {
-                id: "snapshot-user-steer-first",
+                id: "realtime-user-steer-first",
+                identityAliases: ["snapshot-user-steer-first"],
                 role: "user",
                 skills: [{ name: "steer-first-skill" }],
                 text: "继续检查配置",
                 type: "message",
               },
               {
-                id: "snapshot-user-steer-last",
+                id: "realtime-user-steer-last",
+                identityAliases: ["snapshot-user-steer-last"],
                 role: "user",
                 skills: [{ name: "steer-last-skill" }],
                 text: "补充测试覆盖",

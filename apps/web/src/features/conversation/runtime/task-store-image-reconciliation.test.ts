@@ -61,8 +61,8 @@ describe("task store image reconciliation", () => {
       }),
     );
 
-    expect(readTurnItemIds(store, "turn-running")).toEqual(["submitted-user-turn-running"]);
-    expect(store.getState().getItem("submitted-user-turn-running", "turn-running")).toMatchObject({
+    expect(readTurnItemIds(store, "turn-running")).toEqual(["provider-user-image"]);
+    expect(store.getState().getItem("provider-user-image", "turn-running")).toMatchObject({
       attachments: [{ id: "historical-image", name: "图片-1" }],
     });
   });

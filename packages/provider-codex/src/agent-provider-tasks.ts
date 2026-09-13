@@ -117,11 +117,14 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       );
       const transcriptSkillsByTurnId = await readCodexTranscriptTurnSkills(taskId);
       // Store 为未变化的来源复用随机授权 ID，重复读取不能使已交付的 Snapshot 图片失效。
-      const turns = mapAgentTurns(
-        reviewPage.turns,
-        (part, imageIndex) => this.mapMessageImage(taskId, part, imageIndex),
-        (input, textIndex) => this.mapMessageText(taskId, input, textIndex),
-      ).map((turn) => attachTranscriptSkills(turn, transcriptSkillsByTurnId.get(turn.id) ?? []));
+      const turns = this.runtime.messageIdentities.snapshot(
+        taskId,
+        mapAgentTurns(
+          reviewPage.turns,
+          (part, imageIndex) => this.mapMessageImage(taskId, part, imageIndex),
+          (input, textIndex) => this.mapMessageText(taskId, input, textIndex),
+        ).map((turn) => attachTranscriptSkills(turn, transcriptSkillsByTurnId.get(turn.id) ?? [])),
+      );
       const status = turns.some((turn) => turn.status === "running")
         ? "running"
         : mapThreadStatus(thread["status"]);

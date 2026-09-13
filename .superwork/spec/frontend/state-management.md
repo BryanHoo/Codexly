@@ -15,6 +15,7 @@ Track where local, shared, and remote state should live in this project.
 - 定时任务页面按最近到期时间刷新等待状态，到期或运行期间继续轮询；编辑未变更的调度字段必须保留完整 RRULE、原始时区和时间精度，仅完整匹配的规则可识别为预设。
 - 项目、访问控制和编辑器草稿等跨组件状态使用现有 Context；不要新增重复的全局状态源。
 - Agent 事件、快照和重放状态保持在 `features/conversation/runtime` 的专用 store 中，并遵守现有内存上限。
+- 消息去重只消费 Node 提供的规范 ID 与 `identityAliases`，别名替换必须保留原渲染位置并清理旧 Store 项；事件会话 ID 改变时使用新快照，不能将旧会话消息身份混入新状态。乐观用户消息仅按所属 Turn 的占位 ID 替换。
 - 持久化偏好继续使用对应功能已有的浏览器存储适配器。
 - 主题、背景和宠物偏好通过 `shared/lib/browser-storage.ts` 获取本地存储；获取属性与读写方法均须保护，禁用存储时回退默认值且不阻断启动或当前页面交互。回归测试同时覆盖 getter 抛出 `SecurityError` 和读写方法抛错。
 - 应用更新进度作为 HTTP 服务端状态交给 TanStack Query；仅在更新 mutation 活跃时轮询独立进度端点，空闲后停止轮询，不在组件中维护重复定时器。

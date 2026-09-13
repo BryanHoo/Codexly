@@ -11,6 +11,7 @@ import {
   type TaskStoreState,
 } from "./task-store-core.js";
 import { mergeRealtimeExpandedSkill } from "./task-store-skill.js";
+import { applyMessageAliases, resolveMessageAliases } from "./task-store-identity.js";
 export function getTouchedCommandOutputItemKeys(
   previousState: TaskStoreState,
   nextState: TaskStoreState,
@@ -106,29 +107,12 @@ function mergeTerminalTurnItems(
   turnId: string,
   terminalItems: readonly AgentItem[],
 ): readonly AgentItem[] {
-  const submittedUserItemId = `submitted-user-${turnId}`;
-  const terminalUserItem = terminalItems.find(
-    (item) => item.type === "message" && item.role === "user",
-  );
-  const currentItems: AgentItem[] = [];
-  const seenCurrentItemIds = new Set<string>();
-  for (const itemKey of state.itemKeysByTurnId[turnId] ?? []) {
-    const currentItem = readTaskItem(state, itemKey);
-    if (currentItem === undefined) {
-      continue;
-    }
-    // 启动响应可能缺少用户 Item；终态到达后由真实实体接管本地提交占位符。
-    const resolvedItem =
-      currentItem.id === submittedUserItemId && terminalUserItem !== undefined
-        ? terminalUserItem
-        : currentItem;
-    if (!seenCurrentItemIds.has(resolvedItem.id)) {
-      seenCurrentItemIds.add(resolvedItem.id);
-      currentItems.push(resolvedItem);
-    }
-  }
-
-  const currentItemIds = new Set(currentItems.map((item) => item.id));
+  const currentItems = (state.itemKeysByTurnId[turnId] ?? []).flatMap((key) => {
+    const item = readTaskItem(state, key);
+    return item === undefined ? [] : [item];
+  });
+  const normalizedCurrentItems = resolveMessageAliases(currentItems, terminalItems, turnId);
+  const currentItemIds = new Set(normalizedCurrentItems.map((item) => item.id));
   const terminalItemsById = new Map(terminalItems.map((item) => [item.id, item]));
   const terminalItemsBeforeCurrentId = new Map<string, AgentItem[]>();
   let pendingTerminalItems: AgentItem[] = [];
@@ -145,7 +129,7 @@ function mergeTerminalTurnItems(
 
   // 已展示 Item 不移动；终态新增 Item 依照下一个共同实体插入，兼顾两条有序序列。
   return [
-    ...currentItems.flatMap((item) => [
+    ...normalizedCurrentItems.flatMap((item) => [
       ...(terminalItemsBeforeCurrentId.get(item.id) ?? []),
       terminalItemsById.get(item.id) ?? item,
     ]),
@@ -345,8 +329,8 @@ export function applyAcceptedEvent(
       }
       const itemKey = createTaskItemKey(event.turnId, event.itemId);
       const currentItemStore = state.itemStoresByKey.get(itemKey);
-      const itemAlreadyExists = currentItemStore !== undefined;
-      const currentItemIds = state.itemKeysByTurnId[event.turnId] ?? [];
+      const currentItemIds = applyMessageAliases(state, event.turnId, event.payload.item);
+      const itemAlreadyExists = currentItemIds.includes(itemKey);
       const previousItemId = currentItemIds.at(-1);
       const previousItemStore =
         previousItemId === undefined ? undefined : state.itemStoresByKey.get(previousItemId);
@@ -389,7 +373,7 @@ export function applyAcceptedEvent(
       return {
         checkpoint,
         itemKeysByTurnId:
-          nextItemIds === currentItemIds
+          nextItemIds === state.itemKeysByTurnId[event.turnId]
             ? state.itemKeysByTurnId
             : { ...state.itemKeysByTurnId, [event.turnId]: nextItemIds },
         itemStructureRevision: state.itemStructureRevision + 1,

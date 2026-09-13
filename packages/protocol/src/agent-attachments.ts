@@ -175,6 +175,10 @@ export type AgentMessagePhase = Readonly<Static<typeof AgentMessagePhaseSchema>>
 
 export const AgentMessageItemSchema = Type.Object(
   {
+    // Node 确认同一实体的旧 ID，客户端仅据此迁移渲染键，不再猜测消息身份。
+    identityAliases: Type.Optional(
+      Type.Array(Type.String({ minLength: 1 }), { maxItems: 256, uniqueItems: true }),
+    ),
     attachments: Type.Optional(
       Type.Array(AgentMessageAttachmentSchema, { maxItems: MAX_AGENT_HISTORY_IMAGES }),
     ),
