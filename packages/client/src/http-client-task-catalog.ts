@@ -1,10 +1,12 @@
 import {
   AgentTaskCatalogSchema,
   CompletedTasksPageSchema,
+  NavigableAgentTaskResponseSchema,
   UpdateTaskSettingsAndDefaultsResponseSchema,
   type AgentTaskCatalog,
   type CompletedTasksQuery,
   type CompletedTasksPage,
+  type NavigableAgentTaskResponse,
   type UpdateTaskSettingsAndDefaultsRequest,
   type UpdateTaskSettingsAndDefaultsResponse,
 } from "@codexly/protocol";
@@ -18,6 +20,17 @@ import {
 import { TaskGoalHttpClient } from "./http-client-task-goals.js";
 
 export class TaskCatalogHttpClient extends TaskGoalHttpClient {
+  public readNavigableTask(
+    projectId: string,
+    taskId: string,
+    options: ReadOptions = {},
+  ): Promise<NavigableAgentTaskResponse> {
+    return this.read(
+      `${taskPath(projectId, taskId)}/navigation`,
+      NavigableAgentTaskResponseSchema,
+      options,
+    );
+  }
   public updateTaskSettingsAndDefaults(
     projectId: string,
     taskId: string,

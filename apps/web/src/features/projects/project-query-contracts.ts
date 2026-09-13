@@ -138,6 +138,7 @@ export type CodexlyScheduledTaskClient = Pick<
   | "deleteScheduledTask"
   | "listScheduledTasks"
   | "previewScheduledTask"
+  | "readNavigableTask"
   | "subscribeScheduledTasks"
   | "runScheduledTaskNow"
   | "setScheduledTaskEnabled"

@@ -371,3 +371,10 @@ export const AgentTaskSnapshotResponseSchema = Type.Object(
 );
 
 export type AgentTaskSnapshotResponse = Readonly<Static<typeof AgentTaskSnapshotResponseSchema>>;
+
+export const NavigableAgentTaskResponseSchema = Type.Object(
+  { task: Type.Union([AgentTaskSnapshotResponseSchema, Type.Null()]) },
+  { additionalProperties: false },
+);
+
+export type NavigableAgentTaskResponse = Readonly<Static<typeof NavigableAgentTaskResponseSchema>>;

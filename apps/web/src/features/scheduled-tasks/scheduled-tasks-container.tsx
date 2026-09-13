@@ -14,7 +14,6 @@ import type { useWorkbenchShellController } from "../workbench/components/workbe
 import { ScheduledTaskEditor } from "./components/scheduled-task-editor.js";
 import { ScheduledTaskList } from "./components/scheduled-task-list.js";
 import { scheduledTasksQueryOptions } from "./scheduled-task-sync.js";
-import { readScheduledTaskRun } from "./scheduled-task-run.js";
 import { notifyActionError } from "../notifications/action-notifications.js";
 
 const queryKey = ["scheduled-tasks"] as const;
@@ -94,15 +93,15 @@ export function ScheduledTasksContainer({
   const openRunMutation = useMutation({
     meta: { actionNotification: false },
     mutationFn: ({ runProjectId, taskId }: { runProjectId: string; taskId: string }) =>
-      readScheduledTaskRun(context.client, runProjectId, taskId),
+      context.client.readNavigableTask(runProjectId, taskId),
     onError: notifyActionError,
     onSuccess: (response, { runProjectId, taskId }) => {
-      if (response === null) {
+      if (response.task === null) {
         notifyActionError(context.t("scheduledTasks.runUnavailable"));
         return;
       }
       // 校验通过后预热快照，目标页面直接接管这次新读取的结果。
-      queryClient.setQueryData(["projects", runProjectId, "tasks", taskId], response);
+      queryClient.setQueryData(["projects", runProjectId, "tasks", taskId], response.task);
       void context.navigate(
         runProjectId === TEMPORARY_TASK_SCOPE_ID
           ? { params: { taskId }, to: "/temporary/t/$taskId" }

@@ -5,7 +5,7 @@ import type {
 } from "@codexly/protocol";
 import type { WebSocketRoute } from "@playwright/test";
 
-import { expect, test, taskSnapshotResponse, tasks as fixtureTasks } from "./fixtures/app-shell.js";
+import { expect, test } from "./fixtures/app-shell.js";
 
 test("preserves custom recurrence on rename and refreshes an automatic run", async ({ page }) => {
   const now = Date.now();
@@ -102,32 +102,24 @@ test("preserves custom recurrence on rename and refreshes an automatic run", asy
   await expect.poll(() => projectReads).toBeGreaterThan(projectReadsBeforeRun);
   await page.getByRole("link", { name: "定时任务", exact: true }).click();
   await page.getByRole("button", { name: "重命名巡检", exact: true }).click();
-  await page.route("**/v1/projects/codexly/tasks/automatic-task", (route) =>
-    route.fulfill({ status: 404, json: { message: "Task not found" } }),
-  );
+  let navigationReads = 0;
+  let legacyArchiveReads = 0;
+  await page.route("**/v1/projects/codexly/tasks/automatic-task/navigation", (route) => {
+    navigationReads += 1;
+    return route.fulfill({ json: { task: null } });
+  });
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/v1/projects/codexly/tasks" && url.searchParams.has("archived")) {
+      legacyArchiveReads += 1;
+    }
+  });
   await page.getByRole("button", { name: "automatic-task", exact: true }).click();
   await expect(page.getByText("任务已删除、归档或不可用。", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(/\/scheduled$/u);
-  // 已归档任务的快照仍可读，也必须阻止跳转。
-  await page.route("**/v1/projects/codexly/tasks/automatic-task", (route) =>
-    route.fulfill({
-      json: {
-        ...taskSnapshotResponse,
-        snapshot: { ...taskSnapshotResponse.snapshot, id: "automatic-task" },
-      },
-    }),
-  );
-  let archiveChecks = 0;
-  await page.route("**/v1/projects/codexly/tasks?**", async (route) => {
-    if (new URL(route.request().url()).searchParams.get("archived") !== "true")
-      return route.fallback();
-    archiveChecks += 1;
-    await route.fulfill({
-      json: { data: [{ ...fixtureTasks[0], id: "automatic-task" }], nextCursor: null },
-    });
-  });
   await page.getByRole("button", { name: "automatic-task", exact: true }).click();
-  await expect.poll(() => archiveChecks).toBeGreaterThan(0);
+  expect(navigationReads).toBe(2);
+  expect(legacyArchiveReads).toBe(0);
   await expect(page).toHaveURL(/\/scheduled$/u);
 });
 

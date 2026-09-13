@@ -19,6 +19,7 @@ Track where local, shared, and remote state should live in this project.
 - 保存编辑后的队列项只发送一次更新请求；空闲检测、队首恢复及编辑屏障由 Node 处理。前端不得在更新成功后追加 `/queue/start`，也不将更新响应作为剩余队列列表。
 - “删除全部归档任务”确认后仅调用一次 `deleteArchivedTasks`；浏览器不得遍历分页或逐项删除。部分失败显示服务端返回的数量并保留确认弹窗，完成后刷新列表；浏览器回归需验证搜索过滤不缩小批量操作范围，且一次确认只有一次批量写请求。
 - 定时任务页面按最近到期时间刷新等待状态，到期或运行期间继续轮询；编辑未变更的调度字段必须保留完整 RRULE、原始时区和时间精度，仅完整匹配的规则可识别为预设。
+- 打开定时任务 Run 时只调用一次 `readNavigableTask`；Task 缺失、归档分区遍历和分页停滞判断由 Node 处理。前端只缓存非空快照并导航，不匹配 Provider 错误文本，也不遍历归档分页。
 - 项目、访问控制和编辑器草稿等跨组件状态使用现有 Context；不要新增重复的全局状态源。
 - Agent 事件、快照和重放状态保持在 `features/conversation/runtime` 的专用 store 中，并遵守现有内存上限。
 - 消息去重只消费 Node 提供的规范 ID 与 `identityAliases`，别名替换必须保留原渲染位置并清理旧 Store 项；事件会话 ID 改变时使用新快照，不能将旧会话消息身份混入新状态。乐观用户消息仅按所属 Turn 的占位 ID 替换。

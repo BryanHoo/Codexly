@@ -58,6 +58,7 @@ export {
   ItemCompletedEventSchema,
   ItemStartedEventSchema,
   MessageDeltaEventSchema,
+  NavigableAgentTaskResponseSchema,
   MAX_EVENT_BATCH_SIZE,
   MAX_REALTIME_DIFF_BYTES,
   MAX_REALTIME_FILE_CHANGES,
@@ -83,6 +84,7 @@ export {
   type EventBatch,
   type EventCheckpoint,
   type EventStreamMessage,
+  type NavigableAgentTaskResponse,
   type ResyncRequired,
 } from "./agent-event.js";
 export {
