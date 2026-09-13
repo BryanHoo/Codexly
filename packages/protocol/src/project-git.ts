@@ -237,6 +237,17 @@ export type ProjectWorktreeMutationResponse = Readonly<
   Static<typeof ProjectWorktreeMutationResponseSchema>
 >;
 
+export const CreateProjectWorktreeResponseSchema = Type.Object(
+  {
+    ...ProjectWorktreeMutationResponseSchema.properties,
+    status: ProjectGitStatusSchema,
+  },
+  { additionalProperties: false },
+);
+export type CreateProjectWorktreeResponse = Readonly<
+  Static<typeof CreateProjectWorktreeResponseSchema>
+>;
+
 export const GenerateCommitMessageRequestSchema = Type.Object(
   {
     expectedSnapshot: GitSnapshotSchema,

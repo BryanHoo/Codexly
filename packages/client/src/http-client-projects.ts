@@ -5,6 +5,7 @@ import {
   AgentProjectDefaultsResponseSchema,
   AgentSkillPageSchema,
   CommitProjectChangesResponseSchema,
+  CreateProjectWorktreeResponseSchema,
   DeleteProjectFileResponseSchema,
   type CreateProjectBranchRequest,
   type CreateProjectWorktreeRequest,
@@ -361,11 +362,11 @@ export class ProjectHttpClient extends SkillMarketHttpClient {
     rootPath: string,
     request: CreateProjectWorktreeRequest,
     options: MutationOptions = {},
-  ): Promise<ProjectWorktreeMutationResponse> {
+  ) {
     return this.mutation(
       appendQuery(`${projectPath(projectId)}/git/worktrees`, { rootPath }),
       request,
-      ProjectWorktreeMutationResponseSchema,
+      CreateProjectWorktreeResponseSchema,
       options,
     );
   }

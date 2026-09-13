@@ -1,6 +1,7 @@
 import {
   AgentMutationErrorSchema,
   CreateProjectWorktreeRequestSchema,
+  CreateProjectWorktreeResponseSchema,
   ProjectGitWorktreePageSchema,
   ProjectRootQuerySchema,
   ProjectWorktreeMutationResponseSchema,
@@ -43,6 +44,7 @@ export function registerProjectGitWorktreeRoutes(
     activeGitMutations,
     createProjectWorktree,
     projectRepository,
+    readProjectGitStatus,
     readProjectWorktrees,
     resolveProjectWorktree,
     runIdempotent,
@@ -128,7 +130,7 @@ export function registerProjectGitWorktreeRoutes(
         params: ProjectParamsSchema,
         querystring: ProjectRootQuerySchema,
         response: {
-          200: ProjectWorktreeMutationResponseSchema,
+          200: CreateProjectWorktreeResponseSchema,
           400: AgentMutationErrorSchema,
           404: AgentMutationErrorSchema,
           409: AgentMutationErrorSchema,
@@ -155,8 +157,12 @@ export function registerProjectGitWorktreeRoutes(
               name: basename(worktree.path),
               roots: [{ path: worktree.path }],
             });
-            // 注册表与 worktree 列表均由 Node 重新读取，作为同一幂等结果返回。
-            return { project, ...(await readMutationState(rootPath)), worktree };
+            // 并行读取源仓库状态、注册表和 worktree 列表，作为同一幂等结果返回。
+            const [state, status] = await Promise.all([
+              readMutationState(rootPath),
+              readProjectGitStatus(rootPath),
+            ]);
+            return { project, ...state, status, worktree };
           } catch (error) {
             if (error instanceof GitWorktreeError) throw toGitWorktreeHttpError(error);
             throw new MutationHttpError(

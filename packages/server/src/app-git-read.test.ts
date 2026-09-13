@@ -289,10 +289,21 @@ describe("server Git read routes", () => {
       roots: [{ id: "root-worktree", path: worktree.path }],
     };
     const readProjectWorktrees = vi.fn(() => Promise.resolve({ worktrees: [worktree] }));
+    const sourceStatus = {
+      baseBranches: ["origin/main", "main"],
+      branch: "main",
+      branches: ["feat/worktree", "main"],
+      repositoryMode: "root" as const,
+      snapshot: "b".repeat(64),
+      staged: [],
+      unstaged: [],
+    };
+    const readProjectGitStatus = vi.fn(() => Promise.resolve(sourceStatus));
     const createProjectWorktree = vi.fn(() => Promise.resolve(worktree));
     const resolveProjectWorktree = vi.fn(() => Promise.resolve(worktree));
     const options = createServerOptions(provider, {
       createProjectWorktree,
+      readProjectGitStatus,
       readProjectWorktrees,
       resolveProjectWorktree,
     });
@@ -341,13 +352,15 @@ describe("server Git read routes", () => {
       worktree,
       worktrees: { worktrees: [worktree] },
     };
-    expect(created.json()).toEqual(mutationResponse);
-    expect(repeated.json()).toEqual(mutationResponse);
+    expect(created.json()).toEqual({ ...mutationResponse, status: sourceStatus });
+    expect(repeated.json()).toEqual({ ...mutationResponse, status: sourceStatus });
     expect(switched.json()).toEqual(mutationResponse);
     expect(createProjectWorktree).toHaveBeenCalledOnce();
     expect(createProjectWorktree).toHaveBeenCalledWith(projectRootPath, createRequest);
     expect(resolveProjectWorktree).toHaveBeenCalledWith(projectRootPath, worktree.path);
     expect(readProjectWorktrees).toHaveBeenCalledTimes(3);
+    expect(readProjectGitStatus).toHaveBeenCalledOnce();
+    expect(readProjectGitStatus).toHaveBeenCalledWith(projectRootPath);
     expect(register).toHaveBeenCalledTimes(2);
   });
 

@@ -147,6 +147,7 @@ describe("WorkbenchComposer Git", () => {
 
   it("creates a worktree and writes its target project into shared caches", async () => {
     const queryClient = new QueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
     const status = {
       baseBranches: ["origin/main"],
       branch: "main",
@@ -188,6 +189,11 @@ describe("WorkbenchComposer Git", () => {
           },
         ],
       },
+      status: {
+        ...status,
+        branches: ["feat/review", "main"],
+        snapshot: "b".repeat(64),
+      },
     };
     const client = { createProjectWorktree: vi.fn(() => Promise.resolve(response)) };
 
@@ -206,6 +212,10 @@ describe("WorkbenchComposer Git", () => {
     expect(queryClient.getQueryData(["projects", "codexly", rootPath, "git-worktrees"])).toEqual({
       worktrees: [response.worktree],
     });
+    expect(queryClient.getQueryData(["projects", "codexly", rootPath, "git-status"])).toEqual(
+      response.status,
+    );
+    expect(invalidateQueries).not.toHaveBeenCalled();
   });
 
   it("switches only to a listed non-current worktree", async () => {

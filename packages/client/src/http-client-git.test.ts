@@ -214,6 +214,18 @@ describe("CodexlyClient Git routes", () => {
       worktree,
       worktrees: page,
     };
+    const createResponse = {
+      ...response,
+      status: {
+        baseBranches: ["origin/main", "main"],
+        branch: "main",
+        branches: ["feat/worktree", "main"],
+        repositoryMode: "root" as const,
+        snapshot: "b".repeat(64),
+        staged: [],
+        unstaged: [],
+      },
+    };
     const createRequest = {
       branch: worktree.branch,
       expectedSnapshot: "a".repeat(64),
@@ -222,7 +234,7 @@ describe("CodexlyClient Git routes", () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse(page))
-      .mockResolvedValueOnce(jsonResponse(response))
+      .mockResolvedValueOnce(jsonResponse(createResponse))
       .mockResolvedValueOnce(jsonResponse(response));
     const client = new CodexlyClient({ fetch: fetchMock });
 
@@ -233,7 +245,7 @@ describe("CodexlyClient Git routes", () => {
       client.createProjectWorktree("project one", projectRootPath, createRequest, {
         idempotencyKey: "create-worktree-key",
       }),
-    ).resolves.toEqual(response);
+    ).resolves.toEqual(createResponse);
     await expect(
       client.switchProjectWorktree("project one", projectRootPath, switchRequest, {
         idempotencyKey: "switch-worktree-key",

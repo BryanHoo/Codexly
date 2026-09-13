@@ -99,11 +99,7 @@ export async function createComposerWorktree(
     expectedSnapshot: gitStatus.snapshot,
   });
   cacheProjectWorktreeMutation(queryClient, projectId, rootPath, response);
-  await queryClient.invalidateQueries({
-    exact: true,
-    queryKey: gitStatusQueryKey(projectId, rootPath),
-    refetchType: "none",
-  });
+  queryClient.setQueryData(gitStatusQueryKey(projectId, rootPath), response.status);
   return response.project;
 }
 

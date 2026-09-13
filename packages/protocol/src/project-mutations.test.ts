@@ -4,6 +4,7 @@ import {
   CommitProjectChangesRequestSchema,
   CommitProjectChangesResponseSchema,
   CreateProjectWorktreeRequestSchema,
+  CreateProjectWorktreeResponseSchema,
   CreateProjectBranchRequestSchema,
   GenerateCommitMessageRequestSchema,
   GenerateCommitMessageResponseSchema,
@@ -321,8 +322,25 @@ describe("project mutation protocol", () => {
       projects: { data: [project], nextCursor: null },
       worktrees: { worktrees: [worktree] },
     };
+    const status = {
+      baseBranches: ["origin/main", "main"],
+      branch: "main",
+      branches: ["feat/worktree", "main"],
+      repositoryMode: "root",
+      snapshot: expectedSnapshot,
+      staged: [],
+      unstaged: [],
+    };
     expect(
       Value.Check(ProjectWorktreeMutationResponseSchema, { project, ...mutationState, worktree }),
+    ).toBe(true);
+    expect(
+      Value.Check(CreateProjectWorktreeResponseSchema, {
+        project,
+        ...mutationState,
+        status,
+        worktree,
+      }),
     ).toBe(true);
     expect(
       Value.Check(ProjectWorktreeMutationResponseSchema, {
