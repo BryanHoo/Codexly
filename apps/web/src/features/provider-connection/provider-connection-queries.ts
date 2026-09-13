@@ -35,10 +35,21 @@ export function providerConnectionQueryOptions(
   });
 }
 
-export async function invalidateProviderConnectionQueries(queryClient: QueryClient): Promise<void> {
+type ProviderConnectionResult = Readonly<{
+  models?: ConfigureCustomProviderResponse["models"];
+  status: AgentProviderConnectionStatus;
+}>;
+
+function applyProviderConnectionResult(
+  queryClient: QueryClient,
+  result: ProviderConnectionResult,
+): void {
+  queryClient.setQueryData(providerConnectionQueryKey, result.status);
+  if (result.models !== undefined) queryClient.setQueryData(["models"], result.models);
+}
+
+export async function invalidateProviderDependentQueries(queryClient: QueryClient): Promise<void> {
   await Promise.all([
-    queryClient.invalidateQueries({ exact: true, queryKey: providerConnectionQueryKey }),
-    queryClient.invalidateQueries({ exact: true, queryKey: ["models"] }),
     queryClient.invalidateQueries({ exact: true, queryKey: ["settings"] }),
     queryClient.invalidateQueries({
       predicate: (query) => query.queryKey[0] === "projects" && query.queryKey[2] === "defaults",
@@ -53,7 +64,11 @@ export function startOfficialProviderLoginMutationOptions(
   return mutationOptions({
     mutationFn: () => client.startOfficialProviderLogin(),
     mutationKey: ["provider-connection", "official-login"] as const,
-    onSuccess: () => invalidateProviderConnectionQueries(queryClient),
+    onSuccess: async (result) => {
+      // 连接状态直接采用 Node 响应，只刷新响应未携带的依赖数据。
+      applyProviderConnectionResult(queryClient, result);
+      await invalidateProviderDependentQueries(queryClient);
+    },
     scope: { id: "provider-connection" },
   });
 }
@@ -65,7 +80,10 @@ export function cancelProviderLoginMutationOptions(
   return mutationOptions({
     mutationFn: (loginId: string) => client.cancelProviderLogin(loginId),
     mutationKey: ["provider-connection", "official-login", "cancel"] as const,
-    onSuccess: () => invalidateProviderConnectionQueries(queryClient),
+    onSuccess: async (result) => {
+      applyProviderConnectionResult(queryClient, result);
+      await invalidateProviderDependentQueries(queryClient);
+    },
     scope: { id: "provider-connection" },
   });
 }
@@ -77,7 +95,10 @@ export function logoutProviderMutationOptions(
   return mutationOptions({
     mutationFn: () => client.logoutProvider(),
     mutationKey: ["provider-connection", "logout"] as const,
-    onSuccess: () => invalidateProviderConnectionQueries(queryClient),
+    onSuccess: async (result) => {
+      applyProviderConnectionResult(queryClient, result);
+      await invalidateProviderDependentQueries(queryClient);
+    },
     scope: { id: "provider-connection" },
   });
 }
@@ -89,6 +110,7 @@ export async function configureCustomProvider(
 ): Promise<ConfigureCustomProviderResponse> {
   // Secret 只存在于当前调用栈，不作为 TanStack Mutation 变量进入缓存。
   const result = await client.configureCustomProvider(input);
-  await invalidateProviderConnectionQueries(queryClient);
+  applyProviderConnectionResult(queryClient, result);
+  await invalidateProviderDependentQueries(queryClient);
   return result;
 }

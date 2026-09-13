@@ -53,11 +53,13 @@ describe("provider connection queries", () => {
     );
 
     expect(configure).toHaveBeenCalledOnce();
+    expect(queryClient.getQueryData(["provider-connection"])).toMatchObject({ mode: "custom" });
+    expect(queryClient.getQueryData(["models"])).toEqual({ data: [], nextCursor: null });
     expect(queryClient.getMutationCache().getAll()).toHaveLength(0);
     expect(JSON.stringify(queryClient.getQueryCache().getAll())).not.toContain("custom-secret");
   });
 
-  it("uses a stable mutation key and invalidates dependent reads after login starts", async () => {
+  it("uses the returned login status and only invalidates uncaptured dependent reads", async () => {
     const queryClient = new QueryClient();
     const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
     const startOfficialProviderLogin = vi.fn(() =>
@@ -74,11 +76,12 @@ describe("provider connection queries", () => {
     await queryClient.getMutationCache().build(queryClient, options).execute(undefined);
 
     expect(options.mutationKey).toEqual(["provider-connection", "official-login"]);
-    expect(invalidateQueries).toHaveBeenCalledWith({
+    expect(queryClient.getQueryData(["provider-connection"])).toEqual(pendingStatus);
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
       exact: true,
       queryKey: ["provider-connection"],
     });
-    expect(invalidateQueries).toHaveBeenCalledWith({ exact: true, queryKey: ["models"] });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({ exact: true, queryKey: ["models"] });
     expect(invalidateQueries).toHaveBeenCalledWith({ exact: true, queryKey: ["settings"] });
   });
 });

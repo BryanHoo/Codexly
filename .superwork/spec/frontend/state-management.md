@@ -18,6 +18,7 @@ Track where local, shared, and remote state should live in this project.
 - 队列项“立即发送”仅提交队列 ID 到 `/queue/start`，不根据浏览器的活动 Turn 决定 start/steer，也不在成功后另行删除队列项。前端只更新队列查询与等待回显状态；浏览器回归必须断言一次发送仅产生一个写请求。
 - Composer Queue 通过一次 GET `/queue` 获取完整列表；Node 不对已完整载入内存的持久队列再次分页，浏览器不得循环 cursor/limit 聚合。
 - 终止后台终端时，前端直接用 mutation 响应中的 `terminals` 更新对应 Query cache，不在成功后追加列表 GET；失败时保留原列表供重试。
+- Provider 连接 mutation 返回的 `status` 必须直接写入连接缓存，自定义 Provider 返回的 `models` 必须直接写入模型缓存；前端不得为响应已覆盖的数据追加 GET，只失效刷新未包含的设置与 Project 默认值。
 - 保存编辑后的队列项只发送一次更新请求；空闲检测、队首恢复及编辑屏障由 Node 处理。前端不得在更新成功后追加 `/queue/start`，也不将更新响应作为剩余队列列表。
 - “删除全部归档任务”确认后仅调用一次 `deleteArchivedTasks`；浏览器不得遍历分页或逐项删除。部分失败显示服务端返回的数量并保留确认弹窗，完成后刷新列表；浏览器回归需验证搜索过滤不缩小批量操作范围，且一次确认只有一次批量写请求。
 - 定时任务页面按最近到期时间刷新等待状态，到期或运行期间继续轮询；编辑未变更的调度字段必须保留完整 RRULE、原始时区和时间精度，仅完整匹配的规则可识别为预设。
