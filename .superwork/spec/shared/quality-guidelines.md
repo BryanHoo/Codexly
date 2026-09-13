@@ -13,6 +13,7 @@ Capture contract and verification standards for this project.
 - 已有正式 Task 的完整设置与 Project 默认值通过 `PUT /v1/projects/:projectId/tasks/:taskId/settings-and-defaults` 同一意图更新，请求为 `{ settings, fastMode }` 并要求 `Idempotency-Key`。Node 必须在任何写入前完成 Project、Task 归属和模型组合校验，并保持运行中 `approvalsReviewer` 的即时发布语义；随后依次写 Task 设置和 Project 默认值，失败重试以同一完整意图收敛。响应同时返回 `settings` 和 `defaults`，幂等重放不得重复写入。
 - 已完成任务聚合使用只读 `POST /v1/tasks/completed/query`，请求包含最多 100 个唯一 `projectIds`（允许 `temporary`）及可选 `cursor`；游标键必须与作用域集合完全匹配。Node 按活跃作用域分配每页容量、最多四项并发，合并时按作用域和任务 ID 去重并按更新时间排序；任一页失败、越界或原地游标重复均整页失败。返回 `{ data, nextCursor }`，全部耗尽时游标为 null；仅保证当前聚合页排序，不保证不同项目后续分页的全局时间边界。覆盖分页继续、已耗尽跳过、作用域隔离和前端单请求。
 - `GET /v1/projects/:projectId/tasks/catalog` 返回完整 `{ data }` 任务目录，临时作用域使用 `/v1/temporary/tasks/catalog`；`pinned=true` 只收集置顶任务。Node 按每页 100 项收集、按 ID 保留首次版本及顺序，最多 1000 页和 10000 个唯一任务。重复游标、跨作用域及超限必须报错，不返回伪完整目录；覆盖分页重叠、空页增长、置顶参数传递及前端单次读取。
+- 项目新增、重命名和移除响应必须携带操作完成后的完整 `projects` 页面，并作为同一幂等结果保存；Node 负责读取最终项目注册表，浏览器直接替换项目列表缓存，不得自行追加、映射或过滤项目。
 - 批量归档删除使用 `DELETE /v1/projects/:projectId/tasks/archived`（临时作用域为 `/v1/temporary/tasks/archived`），请求仅接受空对象并要求 `Idempotency-Key`。响应为非负整数 `deletedCount` / `failedCount`；部分失败仍作为 200 结果缓存，同一 Server 实例缓存有效期内重放不得重新枚举后来归档的任务，不承诺跨重启幂等。覆盖分页去重、有界并发、作用域隔离、异常分页及部分失败重放。
 - 消息规范 ID 与 `identityAliases` 由 Node Provider 统一生成，快照、启动响应和实时事件共用身份表；客户端仅按显式 ID / 别名迁移渲染状态，不按文本前缀或图片元数据推断消息身份。覆盖快照先到、事件先到、终态批量歧义和多订阅者一致性。
 - 个性化接口通过现有鉴权与幂等链路访问部署主机的 Codex 配置；全局说明保存必须校验 `expectedContent`，冲突返回 `GLOBAL_INSTRUCTIONS_CHANGED`，保留原文和符号链接。记忆开关批量写入官方配置，删除记忆使用 `memory/reset`，不得仅删除文件。

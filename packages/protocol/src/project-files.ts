@@ -201,8 +201,13 @@ export type AddProjectRequest = Readonly<
   Omit<AddProjectRequestValue, "roots"> & { roots: ProjectRootInputs }
 >;
 
+const ProjectMutationPageSchema = Type.Object(
+  { data: Type.Array(ProjectSchema), nextCursor: Type.Null() },
+  { additionalProperties: false },
+);
+
 export const AddProjectResponseSchema = Type.Object(
-  { project: ProjectSchema },
+  { project: ProjectSchema, projects: ProjectMutationPageSchema },
   { additionalProperties: false },
 );
 
@@ -310,7 +315,7 @@ export const RenameProjectRequestSchema = Type.Object(
 export type RenameProjectRequest = Readonly<Static<typeof RenameProjectRequestSchema>>;
 
 export const RenameProjectResponseSchema = Type.Object(
-  { project: ProjectSchema },
+  { project: ProjectSchema, projects: ProjectMutationPageSchema },
   { additionalProperties: false },
 );
 
@@ -324,6 +329,7 @@ export type RemoveProjectRequest = Readonly<Static<typeof RemoveProjectRequestSc
 export const RemoveProjectResponseSchema = Type.Object(
   {
     projectId: Type.String({ minLength: 1 }),
+    projects: ProjectMutationPageSchema,
     status: Type.Literal("removed"),
   },
   { additionalProperties: false },

@@ -61,11 +61,12 @@ export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = 
     resolveProjectDirectory,
     settingsRepository,
   } = context;
-
-  app.get("/v1/projects", { schema: { response: { 200: ProjectPageSchema } } }, async () => ({
+  const readProjectPage = async () => ({
     data: await projectRepository.list(),
     nextCursor: null,
-  }));
+  });
+
+  app.get("/v1/projects", { schema: { response: { 200: ProjectPageSchema } } }, readProjectPage);
 
   app.get<{ Querystring: HostFileQuery }>(
     "/v1/host-files",
@@ -352,7 +353,7 @@ export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = 
           name: basename(selectedPaths[0] ?? ""),
           roots: selectedPaths.map((path) => ({ path })),
         });
-        return { project };
+        return { project, projects: await readProjectPage() };
       }),
   );
 
@@ -390,7 +391,7 @@ export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = 
           if (project === undefined) {
             throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
           }
-          return { project };
+          return { project, projects: await readProjectPage() };
         },
       ),
   );
@@ -426,7 +427,11 @@ export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = 
             throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
           }
           await releaseProjectContext(request.params.projectId);
-          return { projectId: request.params.projectId, status: "removed" as const };
+          return {
+            projectId: request.params.projectId,
+            projects: await readProjectPage(),
+            status: "removed" as const,
+          };
         },
       ),
   );

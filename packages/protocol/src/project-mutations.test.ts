@@ -84,6 +84,7 @@ describe("project mutation protocol", () => {
           name: "工作区别名",
           roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
         },
+        projects: { data: [], nextCursor: null },
       }),
     ).toBe(true);
     expect(Value.Check(RemoveProjectRequestSchema, {})).toBe(true);
@@ -91,6 +92,7 @@ describe("project mutation protocol", () => {
     expect(
       Value.Check(RemoveProjectResponseSchema, {
         projectId: "codexly",
+        projects: { data: [], nextCursor: null },
         status: "removed",
       }),
     ).toBe(true);

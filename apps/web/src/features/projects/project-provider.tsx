@@ -278,24 +278,8 @@ export function ProjectProvider({
         setIsProjectAddPending(true);
         try {
           const response = await client.addProject(rootPaths);
-          // 注册响应已包含完整 Project，直接写入精确缓存，避免重取当前 Task 等无关查询。
-          queryClient.setQueryData<ProjectPage>(["projects"], (currentPage) => {
-            if (currentPage === undefined) {
-              return { data: [response.project], nextCursor: null };
-            }
-            const existingProjectIndex = currentPage.data.findIndex(
-              (project) => project.id === response.project.id,
-            );
-            if (existingProjectIndex < 0) {
-              return { ...currentPage, data: [...currentPage.data, response.project] };
-            }
-            return {
-              ...currentPage,
-              data: currentPage.data.map((project, index) =>
-                index === existingProjectIndex ? response.project : project,
-              ),
-            };
-          });
+          // Node 已返回注册后的完整项目表，浏览器仅更新服务端状态缓存。
+          queryClient.setQueryData<ProjectPage>(["projects"], response.projects);
           notifyActionSuccess();
           return response.project;
         } catch (error) {
@@ -337,16 +321,7 @@ export function ProjectProvider({
       (await projectActionLockRef.current.run(async () => {
         try {
           const response = await mutateProjectRename({ name, projectId });
-          queryClient.setQueryData<ProjectPage>(["projects"], (currentPage) =>
-            currentPage === undefined
-              ? undefined
-              : {
-                  ...currentPage,
-                  data: currentPage.data.map((project) =>
-                    project.id === projectId ? response.project : project,
-                  ),
-                },
-          );
+          queryClient.setQueryData<ProjectPage>(["projects"], response.projects);
           return true;
         } catch {
           return false;
@@ -358,25 +333,20 @@ export function ProjectProvider({
     (projectId: string) =>
       projectActionLockRef.current.run(async () => {
         try {
-          await mutateProjectRemove(projectId);
+          const response = await mutateProjectRemove(projectId);
           // 先停止该 Project 的请求和实时连接，再从列表移除，避免旧响应回填缓存。
           await queryClient.cancelQueries({ queryKey: ["projects", projectId] });
           queryClient.removeQueries({ queryKey: ["projects", projectId] });
           gitStatusCoordinator.forgetProject(projectId);
           projectRuntime.forgetProject(projectId);
-          const currentPage = queryClient.getQueryData<ProjectPage>(["projects"]);
-          const remainingProjects =
-            currentPage?.data.filter((project) => project.id !== projectId) ?? emptyProjects;
+          const remainingProjects = response.projects.data;
           setSelectedRootIds((current) => {
             if (!current.has(projectId)) return current;
             const next = new Map(current);
             next.delete(projectId);
             return next;
           });
-          queryClient.setQueryData<ProjectPage>(
-            ["projects"],
-            currentPage === undefined ? undefined : { ...currentPage, data: remainingProjects },
-          );
+          queryClient.setQueryData<ProjectPage>(["projects"], response.projects);
           return remainingProjects;
         } catch {
           return undefined;

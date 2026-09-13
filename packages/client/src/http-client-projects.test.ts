@@ -101,7 +101,9 @@ describe("CodexlyClient project routes", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(listing))
       .mockResolvedValueOnce(jsonResponse(listing))
-      .mockResolvedValueOnce(jsonResponse({ project }));
+      .mockResolvedValueOnce(
+        jsonResponse({ project, projects: { data: [project], nextCursor: null } }),
+      );
     const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listProjectDirectories(listing.path)).resolves.toEqual(listing);
@@ -115,6 +117,7 @@ describe("CodexlyClient project routes", () => {
       ),
     ).resolves.toEqual({
       project,
+      projects: { data: [project], nextCursor: null },
     });
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "/v1/project-directories?path=%2FUsers%2Fbryan%2FDevelop",
@@ -176,18 +179,36 @@ describe("CodexlyClient project routes", () => {
     };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ project: renamedProject }))
-      .mockResolvedValueOnce(jsonResponse({ projectId: renamedProject.id, status: "removed" }));
+      .mockResolvedValueOnce(
+        jsonResponse({
+          project: renamedProject,
+          projects: { data: [renamedProject], nextCursor: null },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          projectId: renamedProject.id,
+          projects: { data: [], nextCursor: null },
+          status: "removed",
+        }),
+      );
     const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
       client.renameProject(renamedProject.id, "工作区别名", {
         idempotencyKey: "rename-project-key",
       }),
-    ).resolves.toEqual({ project: renamedProject });
+    ).resolves.toEqual({
+      project: renamedProject,
+      projects: { data: [renamedProject], nextCursor: null },
+    });
     await expect(
       client.removeProject(renamedProject.id, { idempotencyKey: "remove-project-key" }),
-    ).resolves.toEqual({ projectId: renamedProject.id, status: "removed" });
+    ).resolves.toEqual({
+      projectId: renamedProject.id,
+      projects: { data: [], nextCursor: null },
+      status: "removed",
+    });
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%20%2F%20one/rename");
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({

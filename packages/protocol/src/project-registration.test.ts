@@ -94,7 +94,12 @@ describe("project registration protocol", () => {
     expect(Value.Check(AddProjectRequestSchema, { roots: [{ path: "workspace/Codexly" }] })).toBe(
       false,
     );
-    expect(Value.Check(AddProjectResponseSchema, { project })).toBe(true);
+    expect(
+      Value.Check(AddProjectResponseSchema, {
+        project,
+        projects: { data: [project], nextCursor: null },
+      }),
+    ).toBe(true);
     expect(Value.Check(AddProjectResponseSchema, { project: null })).toBe(false);
   });
 

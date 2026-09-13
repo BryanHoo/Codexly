@@ -37,7 +37,7 @@ describe("server project management", () => {
     const app = await createCodexlyServer(
       createServerOptions(provider, {
         projectRepository: {
-          list: () => Promise.resolve([]),
+          list: () => Promise.resolve([selectedProject]),
           read: () => Promise.resolve(undefined),
           register,
         },
@@ -64,7 +64,10 @@ describe("server project management", () => {
       includeHidden: true,
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ project: selectedProject });
+    expect(response.json()).toEqual({
+      project: selectedProject,
+      projects: { data: [selectedProject], nextCursor: null },
+    });
     expect(resolveProjectDirectory).toHaveBeenCalledWith(selectedPath);
     expect(register).toHaveBeenCalledWith({
       idempotencyKey: "add-project",
@@ -233,12 +236,17 @@ describe("server project management", () => {
 
     expect(firstRenameResponse.json()).toEqual({
       project: { ...project, name: "工作区别名" },
+      projects: { data: [{ ...project, name: "工作区别名" }], nextCursor: null },
     });
     expect(repeatedRenameResponse.json()).toEqual(firstRenameResponse.json());
     expect(rename).toHaveBeenCalledOnce();
     expect(rename).toHaveBeenCalledWith(project.id, "工作区别名");
     expect(invalidRenameResponse.statusCode).toBe(400);
-    expect(firstRemoveResponse.json()).toEqual({ projectId: project.id, status: "removed" });
+    expect(firstRemoveResponse.json()).toEqual({
+      projectId: project.id,
+      projects: { data: [], nextCursor: null },
+      status: "removed",
+    });
     expect(repeatedRemoveResponse.json()).toEqual(firstRemoveResponse.json());
     // 成功请求只执行一次；第二次调用来自使用新 Key 的缺失资源验证。
     expect(remove).toHaveBeenCalledTimes(2);
