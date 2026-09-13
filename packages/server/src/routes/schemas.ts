@@ -127,15 +127,6 @@ export const TaskSnapshotQuerySchema = {
   type: "object",
 } as const;
 
-export const QueuePageQuerySchema = {
-  additionalProperties: false,
-  properties: {
-    cursor: { minLength: 1, type: "string" },
-    limit: { maximum: 100, minimum: 1, type: "integer" },
-  },
-  type: "object",
-} as const;
-
 export const SourceFileQuerySchema = {
   additionalProperties: false,
   properties: { path: { minLength: 1, type: "string" } },

@@ -76,7 +76,6 @@ test("dispatches from the server snapshot and replays concurrent requests withou
   expect(startTurn).not.toHaveBeenCalled();
   expect((await app.inject({ method: "GET", url: base })).json()).toEqual({
     data: [],
-    nextCursor: null,
   });
 });
 

@@ -2,7 +2,7 @@ import {
   AddAgentQueuedSubmissionRequestSchema,
   AddAgentQueuedSubmissionResponseSchema,
   AgentMutationErrorSchema,
-  AgentQueuedSubmissionPageSchema,
+  AgentQueuedSubmissionListSchema,
   DeleteAgentQueuedSubmissionResponseSchema,
   ReorderAgentQueuedSubmissionsRequestSchema,
   ReorderAgentQueuedSubmissionsResponseSchema,
@@ -23,7 +23,6 @@ import {
   IdempotencyHeadersSchema,
   ProjectTaskParamsSchema,
   ProjectTaskQueueParamsSchema,
-  QueuePageQuerySchema,
 } from "./schemas.js";
 
 interface TaskParams {
@@ -69,28 +68,17 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
     };
   };
 
-  app.get<{
-    Params: TaskParams;
-    Querystring: { cursor?: string; limit?: number };
-  }>(
+  app.get<{ Params: TaskParams }>(
     "/v1/projects/:projectId/tasks/:taskId/queue",
     {
       schema: {
         params: ProjectTaskParamsSchema,
-        querystring: QueuePageQuerySchema,
-        response: { 200: AgentQueuedSubmissionPageSchema, 404: AgentMutationErrorSchema },
+        response: { 200: AgentQueuedSubmissionListSchema, 404: AgentMutationErrorSchema },
       },
     },
     async (request) => {
       const runtime = await readQueue(request.params);
-      const data = await taskQueue.list(runtime);
-      const offset = Number(request.query.cursor ?? "0");
-      const limit = request.query.limit ?? 100;
-      const nextOffset = offset + limit;
-      return {
-        data: data.slice(offset, nextOffset),
-        nextCursor: nextOffset < data.length ? String(nextOffset) : null,
-      };
+      return { data: await taskQueue.list(runtime) };
     },
   );
 

@@ -81,13 +81,7 @@ export async function handleAppShellTaskRoute(
       state.queuedSubmissionsByTask.set(taskKey, queue);
       body = { queuedSubmission };
     } else {
-      const limit = Number(url.searchParams.get("limit") ?? "100");
-      const offset = Number(url.searchParams.get("cursor") ?? "0");
-      const nextOffset = offset + limit;
-      body = {
-        data: queue.slice(offset, nextOffset),
-        nextCursor: nextOffset < queue.length ? String(nextOffset) : null,
-      };
+      body = { data: queue };
     }
   } else if (queueReorderMatch !== null && route.request().method() === "PUT") {
     const taskKey = `${queueReorderMatch[1] ?? ""}:${queueReorderMatch[2] ?? ""}`;

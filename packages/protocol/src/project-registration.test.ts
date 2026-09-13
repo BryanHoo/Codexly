@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Value } from "@sinclair/typebox/value";
 import {
   AddAgentQueuedSubmissionRequestSchema,
-  AgentQueuedSubmissionPageSchema,
+  AgentQueuedSubmissionListSchema,
   ReorderAgentQueuedSubmissionsRequestSchema,
   StartAgentQueuedSubmissionResponseSchema,
   UpdateAgentQueuedSubmissionRequestSchema,
@@ -36,9 +36,8 @@ describe("project registration protocol", () => {
       }),
     ).toBe(true);
     expect(
-      Value.Check(AgentQueuedSubmissionPageSchema, {
+      Value.Check(AgentQueuedSubmissionListSchema, {
         data: [queuedSubmission],
-        nextCursor: null,
       }),
     ).toBe(true);
     expect(

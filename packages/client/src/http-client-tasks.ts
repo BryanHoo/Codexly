@@ -4,7 +4,7 @@ import {
   type SubmitTaskResponse,
   AgentAttachmentUploadResponseSchema,
   AddAgentQueuedSubmissionResponseSchema,
-  AgentQueuedSubmissionPageSchema,
+  AgentQueuedSubmissionListSchema,
   AgentBackgroundTerminalPageSchema,
   AgentMutationErrorSchema,
   AgentTaskPageSchema,
@@ -32,7 +32,7 @@ import {
   type AddAgentQueuedSubmissionResponse,
   type AgentBackgroundTerminalPage,
   type AgentPromptInput,
-  type AgentQueuedSubmissionPage,
+  type AgentQueuedSubmissionList,
   type AgentQueuedSubmissionStatus,
   type AgentTaskPage,
   type AgentTaskSettings,
@@ -96,12 +96,11 @@ export class TaskHttpClient extends TaskCatalogHttpClient {
   public async listQueuedSubmissions(
     projectId: string,
     taskId: string,
-    input: Readonly<{ cursor?: string; limit?: number }> = {},
     options: ReadOptions = {},
-  ): Promise<AgentQueuedSubmissionPage> {
+  ): Promise<AgentQueuedSubmissionList> {
     return this.read(
-      appendQuery(`${taskPath(projectId, taskId)}/queue`, input),
-      AgentQueuedSubmissionPageSchema,
+      `${taskPath(projectId, taskId)}/queue`,
+      AgentQueuedSubmissionListSchema,
       options,
     );
   }

@@ -1,5 +1,5 @@
 import { buildProjectAttachmentUrl, buildTaskAttachmentUrl } from "@codexly/client";
-import type { AgentPromptInput, AgentQueuedSubmission, AgentSkill } from "@codexly/protocol";
+import type { AgentPromptInput, AgentSkill } from "@codexly/protocol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { v4 as createUuid } from "uuid";
@@ -36,27 +36,6 @@ type ComposerQueueOptions = Readonly<{
   taskId: string | undefined;
 }>;
 
-async function listAllQueuedSubmissions(
-  client: CodexlyMutationClient,
-  projectId: string,
-  taskId: string,
-  signal: AbortSignal,
-): Promise<readonly AgentQueuedSubmission[]> {
-  const submissions: AgentQueuedSubmission[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await client.listQueuedSubmissions(
-      projectId,
-      taskId,
-      { ...(cursor === undefined ? {} : { cursor }), limit: 100 },
-      { signal },
-    );
-    submissions.push(...page.data);
-    cursor = page.nextCursor ?? undefined;
-  } while (cursor !== undefined);
-  return submissions;
-}
-
 export function useComposerQueue({
   client,
   handleAttachmentsChange,
@@ -72,7 +51,8 @@ export function useComposerQueue({
   const queryKey = taskQueueQueryKey(projectId, taskId ?? "");
   const queueQuery = useQuery({
     enabled: taskId !== undefined,
-    queryFn: ({ signal }) => listAllQueuedSubmissions(client, projectId, taskId ?? "", signal),
+    queryFn: ({ signal }) =>
+      client.listQueuedSubmissions(projectId, taskId ?? "", { signal }).then((page) => page.data),
     queryKey,
     staleTime: Number.POSITIVE_INFINITY,
   });

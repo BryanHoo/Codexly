@@ -220,7 +220,7 @@ describe("CodexlyClient task mutations", () => {
     };
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ data: [queuedSubmission], nextCursor: null }))
+      .mockResolvedValueOnce(jsonResponse({ data: [queuedSubmission] }))
       .mockResolvedValueOnce(jsonResponse({ queuedSubmission }))
       .mockResolvedValueOnce(
         jsonResponse({ queuedSubmission: { ...queuedSubmission, text: "更新内容" } }),
@@ -236,7 +236,9 @@ describe("CodexlyClient task mutations", () => {
       type: "prompt",
     };
 
-    await client.listQueuedSubmissions("codexly", task.id);
+    await expect(client.listQueuedSubmissions("codexly", task.id)).resolves.toEqual({
+      data: [queuedSubmission],
+    });
     await client.addQueuedSubmission("codexly", task.id, input, "client-message-1", {
       idempotencyKey: "queue-add-key",
     });

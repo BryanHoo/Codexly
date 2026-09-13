@@ -394,3 +394,10 @@ export const AgentQueuedSubmissionPageSchema = Type.Object(
 );
 
 export type AgentQueuedSubmissionPage = Readonly<Static<typeof AgentQueuedSubmissionPageSchema>>;
+
+export const AgentQueuedSubmissionListSchema = Type.Object(
+  { data: Type.Array(AgentQueuedSubmissionSchema) },
+  { additionalProperties: false },
+);
+
+export type AgentQueuedSubmissionList = Readonly<Static<typeof AgentQueuedSubmissionListSchema>>;

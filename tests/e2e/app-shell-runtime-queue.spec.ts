@@ -7,6 +7,13 @@ test("queues follow-up messages and can steer or cancel them during an active tu
 }) => {
   test.setTimeout(60_000);
   await page.unroute("**/v1/**");
+  const queueReadQueries: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (request.method() === "GET" && url.pathname.endsWith("/queue")) {
+      queueReadQueries.push(url.search);
+    }
+  });
   await page.route("**/v1/settings", async (route) => {
     const response = await route.fetch();
     const body = (await response.json()) as { settings: Record<string, unknown> };
@@ -190,6 +197,8 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await expect(followingTurn).toHaveAttribute("data-status", "completed");
   // 保存编辑只发 PUT，恢复出队由 Node 完成，浏览器不能再追加启动请求。
   expect(dispatchWrites).toEqual([]);
+  expect(queueReadQueries.length).toBeGreaterThan(0);
+  expect(queueReadQueries.every((query) => query === "")).toBe(true);
 });
 
 test("keeps a direct steer above the composer until its streamed message appears", async ({

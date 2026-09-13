@@ -263,7 +263,9 @@ describe("server task mutations", () => {
     });
 
     expect(add.statusCode).toBe(201);
-    expect(list.json()).toMatchObject({ data: [{ status: "queued", text: "排队处理" }] });
+    expect(list.json()).toEqual({
+      data: [expect.objectContaining({ status: "queued", text: "排队处理" })],
+    });
     expect(update.json()).toMatchObject({
       queuedSubmission: { status: "editing", text: "更新内容" },
     });
