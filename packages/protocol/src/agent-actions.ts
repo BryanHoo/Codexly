@@ -72,7 +72,11 @@ export const DeleteAgentTaskRequestSchema = Type.Object({}, { additionalProperti
 export type DeleteAgentTaskRequest = Readonly<Static<typeof DeleteAgentTaskRequestSchema>>;
 
 export const DeleteAgentTaskResponseSchema = Type.Object(
-  { status: Type.Literal("deleted"), taskId: Type.String({ minLength: 1 }) },
+  {
+    status: Type.Literal("deleted"),
+    taskId: Type.String({ minLength: 1 }),
+    tasks: AgentTaskPageSchema,
+  },
   { additionalProperties: false },
 );
 export type DeleteAgentTaskResponse = Readonly<Static<typeof DeleteAgentTaskResponseSchema>>;

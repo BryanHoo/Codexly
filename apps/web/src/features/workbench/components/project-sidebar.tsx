@@ -21,7 +21,7 @@ import {
   useProjectTaskSearch,
 } from "../../projects/project-context.js";
 import {
-  cacheArchivedProjectTask,
+  cacheRemovedProjectTask,
   cachePinnedProjectTask,
   replaceProjectTaskInQueryCaches,
   taskArchiveMutationOptions,
@@ -278,7 +278,7 @@ export function ProjectSidebar({
           projectId: task.projectId,
           taskId: task.id,
         });
-        cacheArchivedProjectTask(queryClient, task.projectId, task.id, response.tasks);
+        cacheRemovedProjectTask(queryClient, task.projectId, task.id, response.tasks);
         queryClient.removeQueries({
           exact: true,
           queryKey: ["projects", task.projectId, "tasks", task.id],

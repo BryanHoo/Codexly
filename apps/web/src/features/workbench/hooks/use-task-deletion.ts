@@ -7,7 +7,7 @@ import type { AsyncActionLock } from "../../../shared/utils/async-action-lock.js
 import { removeRetainedTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
 import { useProjectActions, useProjectData } from "../../projects/project-context.js";
 import {
-  removeArchivedProjectTaskAndRefill,
+  cacheRemovedProjectTask,
   taskDeleteMutationOptions,
 } from "../../projects/project-queries.js";
 
@@ -35,13 +35,12 @@ export function useTaskDeletion({
 
     return actionLock.run(async () => {
       try {
-        await deleteMutation.mutateAsync({ projectId: task.projectId, taskId: task.id });
+        const response = await deleteMutation.mutateAsync({
+          projectId: task.projectId,
+          taskId: task.id,
+        });
         setDeletingTask(null);
-
-        // Provider 已完成永久删除，本地清理不得因列表重新校准失败而中断。
-        await removeArchivedProjectTaskAndRefill(queryClient, task.projectId, task.id).catch(
-          () => undefined,
-        );
+        cacheRemovedProjectTask(queryClient, task.projectId, response.taskId, response.tasks);
         queryClient.removeQueries({
           exact: true,
           queryKey: ["projects", task.projectId, "tasks", task.id],

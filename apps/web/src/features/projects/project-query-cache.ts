@@ -367,7 +367,7 @@ export async function removeArchivedProjectTaskAndRefill(
   await queryClient.invalidateQueries({ exact: true, queryKey: projectTaskQueryKey });
 }
 
-export function cacheArchivedProjectTask(
+export function cacheRemovedProjectTask(
   queryClient: QueryClient,
   projectId: string,
   taskId: string,

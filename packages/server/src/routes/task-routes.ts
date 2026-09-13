@@ -448,7 +448,9 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
             throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
           }
           await context.provider.deleteTask(request.params.taskId);
-          return { status: "deleted" as const, taskId: request.params.taskId };
+          // 删除后的分页边界由 Provider 重新计算，响应直接携带补位后的首屏。
+          const tasks = await context.provider.listTasks({ limit: 5 });
+          return { status: "deleted" as const, taskId: request.params.taskId, tasks };
         },
       ),
   );

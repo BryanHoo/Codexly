@@ -1,7 +1,7 @@
 import { InfiniteQueryObserver, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import {
-  cacheArchivedProjectTask,
+  cacheRemovedProjectTask,
   cachePinnedProjectTask,
   cacheUnarchivedProjectTask,
   type CodexlyReadClient,
@@ -129,7 +129,7 @@ describe("project pagination queries", () => {
     queryClient.setQueryData(["projects", "codexly", "tasks", "pinned"], [task, nextTask]);
     queryClient.setQueryData(["projects", "codexly", "tasks", "search-source"], [task, nextTask]);
 
-    cacheArchivedProjectTask(queryClient, "codexly", task.id, {
+    cacheRemovedProjectTask(queryClient, "codexly", task.id, {
       data: [nextTask],
       nextCursor: null,
     });

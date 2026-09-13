@@ -26,6 +26,7 @@ import {
 } from "../../../shared/components/core/tooltip.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import {
+  cacheRemovedProjectTask,
   cacheUnarchivedProjectTask,
   taskDeleteMutationOptions,
   taskUnarchiveMutationOptions,
@@ -267,7 +268,11 @@ export function ArchivedTasksDialog({
   const deleteTask = (task: AgentTask) =>
     actionLockRef.current.run(async () => {
       try {
-        await deleteMutation.mutateAsync({ projectId: project.id, taskId: task.id });
+        const response = await deleteMutation.mutateAsync({
+          projectId: project.id,
+          taskId: task.id,
+        });
+        cacheRemovedProjectTask(queryClient, project.id, response.taskId, response.tasks);
         setDeletingTask(null);
         resetArchivedPages();
       } catch {

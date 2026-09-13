@@ -174,9 +174,13 @@ describe("project task basics protocol", () => {
         tasks: { data: [task], nextCursor: null },
       }),
     ).toBe(true);
-    expect(Value.Check(DeleteAgentTaskResponseSchema, { status: "deleted", taskId: task.id })).toBe(
-      true,
-    );
+    expect(
+      Value.Check(DeleteAgentTaskResponseSchema, {
+        status: "deleted",
+        taskId: task.id,
+        tasks: { data: [], nextCursor: null },
+      }),
+    ).toBe(true);
     expect(
       Value.Check(DeleteAgentTaskResponseSchema, {
         status: "deleted",

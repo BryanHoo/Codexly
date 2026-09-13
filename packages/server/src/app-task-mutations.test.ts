@@ -420,15 +420,20 @@ describe("server task mutations", () => {
     expect(archived.statusCode, archived.body).toBe(200);
     expect(archived.json()).toEqual({ status: "archived", taskId: "task-1", tasks: activeTasks });
     expect(archiveTask).toHaveBeenCalledWith("task-1");
-    expect(listTasks).toHaveBeenCalledTimes(3);
+    expect(listTasks).toHaveBeenCalledTimes(4);
     expect(listTasks).toHaveBeenNthCalledWith(1, { limit: 100, pinnedOnly: true });
     expect(listTasks).toHaveBeenNthCalledWith(2, { limit: 5 });
     expect(listTasks).toHaveBeenNthCalledWith(3, { limit: 5 });
+    expect(listTasks).toHaveBeenNthCalledWith(4, { limit: 5 });
     expect(unarchived.statusCode, unarchived.body).toBe(200);
     expect(unarchived.json()).toMatchObject({ task: { id: "task-1" }, tasks: activeTasks });
     expect(unarchiveTask).toHaveBeenCalledWith("task-1");
     expect(deleted.statusCode, deleted.body).toBe(200);
-    expect(deleted.json()).toEqual({ status: "deleted", taskId: "task-1" });
+    expect(deleted.json()).toEqual({
+      status: "deleted",
+      taskId: "task-1",
+      tasks: activeTasks,
+    });
     expect(deleteTask).toHaveBeenCalledWith("task-1");
   });
 
