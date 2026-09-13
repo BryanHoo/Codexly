@@ -38,8 +38,8 @@ import type {
   OfficialPluginInstallResult,
   OfficialPluginPage,
   OfficialPluginUninstallResult,
-  SetMcpServerEnabledResponse,
-  SetSkillEnabledResponse,
+  SetMcpServerEnabledResult,
+  SetSkillEnabledResult,
 } from "@codexly/protocol";
 
 export type WorkbenchPetAsset = Readonly<{
@@ -306,8 +306,8 @@ export interface AgentRuntimeProvider {
   updateDefaultSettings(settings: AgentRuntimeDefaultSettings): Promise<void>;
   readProviderConnection(): Promise<AgentProviderConnectionStatus>;
   releaseProject(projectId: string, expectedProvider?: AgentProvider): Promise<void>;
-  setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResponse>;
-  setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResponse>;
+  setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResult>;
+  setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResult>;
   startOfficialProviderLogin(): Promise<StartOfficialProviderLoginResponse>;
 }
 import type { PersonalizationProvider } from "./personalization.js";

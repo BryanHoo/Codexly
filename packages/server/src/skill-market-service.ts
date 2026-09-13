@@ -13,8 +13,8 @@ import type {
   OfficialPluginInstallResult,
   OfficialPluginPage,
   OfficialPluginUninstallResult,
-  SetMcpServerEnabledResponse,
-  SetSkillEnabledResponse,
+  SetMcpServerEnabledResult,
+  SetSkillEnabledResult,
   SkillInstallResult,
   SkillInstallScope,
 } from "@codexly/protocol";
@@ -52,8 +52,8 @@ export interface SkillMarketService {
   listOfficialPlugins(forceRefetch: boolean): Promise<OfficialPluginPage>;
   listSkills(query: string, cursor: string | null, sort: string): Promise<ClawhubSkillPage>;
   openSkillDirectory(path: string): Promise<OpenSkillDirectoryResponse>;
-  setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResponse>;
-  setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResponse>;
+  setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResult>;
+  setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResult>;
   uninstallOfficialPlugin(pluginId: string): Promise<OfficialPluginUninstallResult>;
 }
 

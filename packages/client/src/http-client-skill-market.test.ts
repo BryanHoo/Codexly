@@ -73,8 +73,12 @@ describe("CodexlyClient skill market", () => {
       else if (url.endsWith("/install"))
         response = { path: "/work/review", status: "installed", version: "1.0.0" };
       else if (url.endsWith("/skills/open")) response = { status: "opened" };
-      else if (url.endsWith("/skills/enabled")) response = { effectiveEnabled: false };
-      else if (url.endsWith("/enabled")) response = { enabled: false };
+      else if (url.endsWith("/skills/enabled"))
+        response = {
+          effectiveEnabled: false,
+          installedSkills: { data: [], nextCursor: null },
+        };
+      else if (url.endsWith("/enabled")) response = { enabled: false, servers: { data: [] } };
       else if (url.endsWith("/mcp-servers/configured")) response = { data: [] };
       return Promise.resolve(
         new Response(JSON.stringify(response), {

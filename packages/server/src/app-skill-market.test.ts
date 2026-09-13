@@ -132,29 +132,31 @@ describe("Skills market routes", () => {
         })
       ).statusCode,
     ).toBe(200);
-    expect(
-      (
-        await app.inject({
-          headers,
-          method: "PUT",
-          payload: { enabled: false, path: "/skills/review/SKILL.md" },
-          url: "/v1/skills/enabled",
-        })
-      ).statusCode,
-    ).toBe(200);
+    const skillToggle = await app.inject({
+      headers,
+      method: "PUT",
+      payload: { enabled: false, path: "/skills/review/SKILL.md" },
+      url: "/v1/skills/enabled",
+    });
+    expect(skillToggle.statusCode).toBe(200);
+    expect(skillToggle.json()).toMatchObject({
+      effectiveEnabled: false,
+      installedSkills: { data: [], nextCursor: null },
+    });
     expect(
       (await app.inject({ method: "GET", url: "/v1/mcp-servers/configured" })).statusCode,
     ).toBe(200);
-    expect(
-      (
-        await app.inject({
-          headers,
-          method: "PUT",
-          payload: { enabled: false },
-          url: "/v1/mcp-servers/configured/docs/enabled",
-        })
-      ).statusCode,
-    ).toBe(200);
+    const mcpToggle = await app.inject({
+      headers,
+      method: "PUT",
+      payload: { enabled: false },
+      url: "/v1/mcp-servers/configured/docs/enabled",
+    });
+    expect(mcpToggle.statusCode).toBe(200);
+    expect(mcpToggle.json()).toMatchObject({
+      enabled: false,
+      servers: { data: [{ enabled: true, name: "docs" }] },
+    });
     expect(
       (
         await app.inject({

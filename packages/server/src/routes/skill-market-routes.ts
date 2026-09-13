@@ -267,10 +267,13 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
         ["set-skill-enabled", request.body.path],
         request.headers["idempotency-key"],
         request.body,
-        () =>
-          skillMarketService
+        async () => ({
+          ...(await skillMarketService
             .setSkillEnabled(request.body.path, request.body.enabled)
-            .catch(toHttpError),
+            .catch(toHttpError)),
+          // Provider 完成写入后强制刷新发现结果，随幂等响应返回权威目录。
+          installedSkills: await skillMarketService.listInstalledSkills(true),
+        }),
       ),
   );
   app.put<{
@@ -291,10 +294,12 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
         ["set-mcp-enabled", request.params.name],
         request.headers["idempotency-key"],
         request.body,
-        () =>
-          skillMarketService
+        async () => ({
+          ...(await skillMarketService
             .setMcpServerEnabled(request.params.name, request.body.enabled)
-            .catch(toHttpError),
+            .catch(toHttpError)),
+          servers: await skillMarketService.listConfiguredMcpServers(),
+        }),
       ),
   );
   app.post<{

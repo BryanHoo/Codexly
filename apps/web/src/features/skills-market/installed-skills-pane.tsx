@@ -66,7 +66,8 @@ export function InstalledSkillsPane() {
   });
   const toggle = useMutation({
     mutationFn: (skill: InstalledSkill) => client.setSkillEnabled(skill.path, !skill.enabled),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["extensions", "skills"] }),
+    onSuccess: (response) =>
+      queryClient.setQueryData(["extensions", "skills"], response.installedSkills),
   });
   const open = useMutation({
     meta: { actionNotification: { successMessage: false } },

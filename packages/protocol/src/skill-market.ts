@@ -118,14 +118,24 @@ export const SkillInstallResultSchema = Type.Object(
 );
 export type SkillInstallResult = Readonly<Static<typeof SkillInstallResultSchema>>;
 
+const SetSkillEnabledResultProperties = { effectiveEnabled: Type.Boolean() };
+export const SetSkillEnabledResultSchema = Type.Object(SetSkillEnabledResultProperties, {
+  additionalProperties: false,
+});
+export type SetSkillEnabledResult = Readonly<Static<typeof SetSkillEnabledResultSchema>>;
 export const SetSkillEnabledResponseSchema = Type.Object(
-  { effectiveEnabled: Type.Boolean() },
+  { ...SetSkillEnabledResultProperties, installedSkills: InstalledSkillPageSchema },
   { additionalProperties: false },
 );
 export type SetSkillEnabledResponse = Readonly<Static<typeof SetSkillEnabledResponseSchema>>;
 
+const SetMcpServerEnabledResultProperties = { enabled: Type.Boolean() };
+export const SetMcpServerEnabledResultSchema = Type.Object(SetMcpServerEnabledResultProperties, {
+  additionalProperties: false,
+});
+export type SetMcpServerEnabledResult = Readonly<Static<typeof SetMcpServerEnabledResultSchema>>;
 export const SetMcpServerEnabledResponseSchema = Type.Object(
-  { enabled: Type.Boolean() },
+  { ...SetMcpServerEnabledResultProperties, servers: ConfiguredMcpServerPageSchema },
   { additionalProperties: false },
 );
 export type SetMcpServerEnabledResponse = Readonly<

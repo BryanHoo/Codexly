@@ -18,7 +18,7 @@ export function McpManagementPane() {
   const toggle = useMutation({
     mutationFn: (server: ConfiguredMcpServer) =>
       client.setMcpServerEnabled(server.name, !server.enabled),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["extensions", "mcp"] }),
+    onSuccess: (response) => queryClient.setQueryData(["extensions", "mcp"], response.servers),
   });
   return (
     <div className="skills-market-pane" role="tabpanel">

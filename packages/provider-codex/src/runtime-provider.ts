@@ -29,8 +29,8 @@ import type {
   OfficialPluginInstallResult,
   OfficialPluginPage,
   OfficialPluginUninstallResult,
-  SetMcpServerEnabledResponse,
-  SetSkillEnabledResponse,
+  SetMcpServerEnabledResult,
+  SetSkillEnabledResult,
 } from "@codexly/protocol";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { RuntimeOwnerRegistry, isSameResolvedPath } from "./runtime-owner-registry.js";
@@ -431,11 +431,11 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     return this.#providerConnection.startOfficialLogin();
   }
 
-  public setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResponse> {
+  public setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResult> {
     return setCodexMcpServerEnabled(this.#client, name, enabled);
   }
 
-  public setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResponse> {
+  public setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResult> {
     return setCodexSkillEnabled(this.#client, path, enabled);
   }
 

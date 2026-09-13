@@ -9,8 +9,8 @@ import type {
   OfficialPluginSummary,
   OfficialPluginUninstallResult,
   Project,
-  SetMcpServerEnabledResponse,
-  SetSkillEnabledResponse,
+  SetMcpServerEnabledResult,
+  SetSkillEnabledResult,
 } from "@codexly/protocol";
 
 import {
@@ -281,7 +281,7 @@ export async function setCodexSkillEnabled(
   client: SkillMarketRpcClient,
   path: string,
   enabled: boolean,
-): Promise<SetSkillEnabledResponse> {
+): Promise<SetSkillEnabledResult> {
   const response = expectRecord(
     await client.request("skills/config/write", { enabled, name: null, path }),
     "skills/config/write response",
@@ -327,7 +327,7 @@ export async function setCodexMcpServerEnabled(
   client: SkillMarketRpcClient,
   name: string,
   enabled: boolean,
-): Promise<SetMcpServerEnabledResponse> {
+): Promise<SetMcpServerEnabledResult> {
   await client.request("config/value/write", {
     expectedVersion: null,
     filePath: null,
