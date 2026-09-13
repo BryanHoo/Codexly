@@ -371,6 +371,28 @@ export function cacheArchivedProjectTask(
   );
 }
 
+export function cacheUnarchivedProjectTask(
+  queryClient: QueryClient,
+  projectId: string,
+  tasks: ProjectTaskInfiniteData["pages"][number],
+): void {
+  const projectTaskQueryKey = ["projects", projectId, "tasks"] as const;
+  queryClient.setQueryData<ProjectTaskInfiniteData>(projectTaskQueryKey, {
+    pageParams: [undefined],
+    pages: [tasks],
+  });
+
+  // 恢复会改变完整目录，不能由单个 Task 推断置顶与搜索排序。
+  queryClient.removeQueries({
+    exact: true,
+    queryKey: [...projectTaskQueryKey, PROJECT_PINNED_TASKS_KEY],
+  });
+  queryClient.removeQueries({
+    exact: true,
+    queryKey: [...projectTaskQueryKey, PROJECT_TASK_SEARCH_SOURCE_KEY],
+  });
+}
+
 export function reorderProjectPage(
   currentPage: ProjectPage | undefined,
   projectIds: readonly string[],

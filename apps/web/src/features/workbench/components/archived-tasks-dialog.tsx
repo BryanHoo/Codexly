@@ -26,12 +26,10 @@ import {
 } from "../../../shared/components/core/tooltip.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import {
-  replaceProjectTaskInQueryCaches,
+  cacheUnarchivedProjectTask,
   taskDeleteMutationOptions,
   taskUnarchiveMutationOptions,
-  upsertProjectTaskInInfiniteData,
   type CodexlyArchivedTaskClient,
-  type ProjectTaskInfiniteData,
 } from "../../projects/project-queries.js";
 import { archivedProjectTasksQueryOptions } from "../../projects/project-task-query-options.js";
 import { TaskDeleteConfirmationDialog } from "./task-delete-dialog.js";
@@ -259,11 +257,7 @@ export function ArchivedTasksDialog({
           projectId: project.id,
           taskId: task.id,
         });
-        queryClient.setQueryData<ProjectTaskInfiniteData>(
-          ["projects", project.id, "tasks"],
-          (currentData) => upsertProjectTaskInInfiniteData(currentData, response.task),
-        );
-        replaceProjectTaskInQueryCaches(queryClient, response.task);
+        cacheUnarchivedProjectTask(queryClient, project.id, response.tasks);
         resetArchivedPages();
       } catch {
         // 根级 MutationCache 已展示 Provider 原始错误。

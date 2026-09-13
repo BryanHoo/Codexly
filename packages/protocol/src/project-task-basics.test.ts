@@ -168,7 +168,12 @@ describe("project task basics protocol", () => {
       updatedAt: "2026-08-23T00:00:00.000Z",
     };
 
-    expect(Value.Check(UnarchiveAgentTaskResponseSchema, { task })).toBe(true);
+    expect(
+      Value.Check(UnarchiveAgentTaskResponseSchema, {
+        task,
+        tasks: { data: [task], nextCursor: null },
+      }),
+    ).toBe(true);
     expect(Value.Check(DeleteAgentTaskResponseSchema, { status: "deleted", taskId: task.id })).toBe(
       true,
     );

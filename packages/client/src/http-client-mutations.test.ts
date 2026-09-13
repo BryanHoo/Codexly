@@ -292,7 +292,7 @@ describe("CodexlyClient task mutations", () => {
           tasks: { data: [], nextCursor: null },
         }),
       )
-      .mockResolvedValueOnce(jsonResponse({ task }))
+      .mockResolvedValueOnce(jsonResponse({ task, tasks: { data: [task], nextCursor: null } }))
       .mockResolvedValueOnce(jsonResponse({ status: "deleted", taskId: task.id }));
     const client = new CodexlyClient({ fetch: fetchMock });
 
@@ -313,7 +313,7 @@ describe("CodexlyClient task mutations", () => {
     });
     await expect(
       client.unarchiveTask("codexly", task.id, { idempotencyKey: "unarchive-key" }),
-    ).resolves.toEqual({ task });
+    ).resolves.toEqual({ task, tasks: { data: [task], nextCursor: null } });
     await expect(
       client.deleteTask("codexly", task.id, { idempotencyKey: "delete-key" }),
     ).resolves.toEqual({ status: "deleted", taskId: task.id });

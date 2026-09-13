@@ -62,7 +62,7 @@ export const UnarchiveAgentTaskRequestSchema = Type.Object({}, { additionalPrope
 export type UnarchiveAgentTaskRequest = Readonly<Static<typeof UnarchiveAgentTaskRequestSchema>>;
 
 export const UnarchiveAgentTaskResponseSchema = Type.Object(
-  { task: AgentTaskSchema },
+  { task: AgentTaskSchema, tasks: AgentTaskPageSchema },
   { additionalProperties: false },
 );
 export type UnarchiveAgentTaskResponse = Readonly<Static<typeof UnarchiveAgentTaskResponseSchema>>;

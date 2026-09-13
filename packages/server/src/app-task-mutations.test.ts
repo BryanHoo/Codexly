@@ -417,9 +417,11 @@ describe("server task mutations", () => {
     expect(archived.statusCode, archived.body).toBe(200);
     expect(archived.json()).toEqual({ status: "archived", taskId: "task-1", tasks: activeTasks });
     expect(archiveTask).toHaveBeenCalledWith("task-1");
-    expect(listTasks).toHaveBeenCalledWith({ limit: 5 });
+    expect(listTasks).toHaveBeenCalledTimes(2);
+    expect(listTasks).toHaveBeenNthCalledWith(1, { limit: 5 });
+    expect(listTasks).toHaveBeenNthCalledWith(2, { limit: 5 });
     expect(unarchived.statusCode, unarchived.body).toBe(200);
-    expect(unarchived.json()).toMatchObject({ task: { id: "task-1" } });
+    expect(unarchived.json()).toMatchObject({ task: { id: "task-1" }, tasks: activeTasks });
     expect(unarchiveTask).toHaveBeenCalledWith("task-1");
     expect(deleted.statusCode, deleted.body).toBe(200);
     expect(deleted.json()).toEqual({ status: "deleted", taskId: "task-1" });
