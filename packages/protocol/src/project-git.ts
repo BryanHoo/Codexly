@@ -336,7 +336,7 @@ export const RenameProjectFileRequestSchema = Type.Object(
 export type RenameProjectFileRequest = Readonly<Static<typeof RenameProjectFileRequestSchema>>;
 
 export const RenameProjectFileResponseSchema = Type.Object(
-  { path: ProjectRelativePathSchema },
+  { path: ProjectRelativePathSchema, tree: ProjectFileTreeSchema },
   { additionalProperties: false },
 );
 export type RenameProjectFileResponse = Readonly<Static<typeof RenameProjectFileResponseSchema>>;
@@ -351,6 +351,7 @@ export const DeleteProjectFileResponseSchema = Type.Object(
   {
     path: ProjectRelativePathSchema,
     status: Type.Literal("deleted"),
+    tree: ProjectFileTreeSchema,
   },
   { additionalProperties: false },
 );

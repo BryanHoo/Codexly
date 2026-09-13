@@ -186,12 +186,12 @@ export interface ServerRouteContext {
   readonly deleteProjectFile: (
     projectRoot: string,
     path: string,
-  ) => Promise<DeleteProjectFileResponse>;
+  ) => Promise<Omit<DeleteProjectFileResponse, "tree">>;
   readonly renameProjectFile: (
     projectRoot: string,
     path: string,
     name: string,
-  ) => Promise<RenameProjectFileResponse>;
+  ) => Promise<Omit<RenameProjectFileResponse, "tree">>;
   readonly searchProjectFiles: AgentFileSearchProvider["search"];
   readonly stopProjectFileSearch: AgentFileSearchProvider["stop"];
   readonly readHostFileDirectory: (

@@ -10,6 +10,7 @@ import {
   type RenameProjectFileRequest,
 } from "@codexly/protocol";
 import type { FastifyInstance } from "fastify";
+import { posix } from "node:path";
 
 import { ProjectRootScopeError } from "../project-root-scope.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
@@ -53,12 +54,17 @@ const mutationResponses = {
   503: AgentMutationErrorSchema,
 } as const;
 
+function getParentDirectory(path: string): string | undefined {
+  const parent = posix.dirname(path);
+  return parent === "." ? undefined : parent;
+}
+
 export function registerProjectFileMutationRoutes(
   app: FastifyInstance,
   context: ServerRouteContext,
   resolveProjectFileRoot: ResolveProjectFileRoot,
 ): void {
-  const { deleteProjectFile, renameProjectFile, runIdempotent } = context;
+  const { deleteProjectFile, readFileTree, renameProjectFile, runIdempotent } = context;
 
   app.post<{
     Body: RenameProjectFileRequest;
@@ -92,7 +98,10 @@ export function registerProjectFileMutationRoutes(
               request.params.projectId,
               request.query.rootPath,
             );
-            return await renameProjectFile(root.path, request.body.path, request.body.name);
+            const result = await renameProjectFile(root.path, request.body.path, request.body.name);
+            // 写操作响应携带父目录权威状态，前端无需再发起一次目录查询。
+            const tree = await readFileTree(root.path, getParentDirectory(request.body.path));
+            return { ...result, tree };
           } catch (error) {
             mapProjectFileMutationError(error);
           }
@@ -132,7 +141,10 @@ export function registerProjectFileMutationRoutes(
               request.params.projectId,
               request.query.rootPath,
             );
-            return await deleteProjectFile(root.path, request.body.path);
+            const result = await deleteProjectFile(root.path, request.body.path);
+            // 删除后重新读取目录，确保响应反映磁盘上的最终状态。
+            const tree = await readFileTree(root.path, getParentDirectory(request.body.path));
+            return { ...result, tree };
           } catch (error) {
             mapProjectFileMutationError(error);
           }

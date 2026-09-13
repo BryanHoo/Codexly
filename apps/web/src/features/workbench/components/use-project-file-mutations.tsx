@@ -1,4 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
+import type { ProjectFileTree } from "@codexly/protocol";
 import { v4 as createUuid } from "uuid";
 import { useRef, useState } from "react";
 
@@ -9,11 +10,6 @@ import {
 } from "./project-file-mutation-dialog.js";
 
 type ProjectFileMutationAction = "delete" | "rename";
-
-export function getProjectFileParentPath(path: string): string | null {
-  const separatorIndex = path.lastIndexOf("/");
-  return separatorIndex === -1 ? null : path.slice(0, separatorIndex);
-}
 
 export function useProjectFileMutations({
   client,
@@ -26,7 +22,7 @@ export function useProjectFileMutations({
 }: Readonly<{
   client: CodexlyFileTreeClient;
   name: string;
-  onRefreshDirectory: (path: string | null) => void;
+  onRefreshDirectory: (path: string | null, tree?: ProjectFileTree) => void;
   path: string | null;
   projectId: string;
   projectPath: string;
@@ -48,10 +44,10 @@ export function useProjectFileMutations({
       }
       return client.deleteProjectFile(projectId, projectPath, { path }, options);
     },
-    onSuccess: () => {
+    onSuccess: ({ tree }) => {
       setAction(null);
       idempotencyKeyRef.current = null;
-      if (path !== null) onRefreshDirectory(getProjectFileParentPath(path));
+      onRefreshDirectory(tree.path, tree);
     },
   });
   const openAction = (nextAction: ProjectFileMutationAction) => {

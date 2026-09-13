@@ -336,11 +336,19 @@ describe("project repository protocol", () => {
     expect(Value.Check(RenameProjectFileRequestSchema, { name: "renamed.ts", path: "." })).toBe(
       false,
     );
-    expect(Value.Check(RenameProjectFileResponseSchema, { path: "src/renamed.ts" })).toBe(true);
+    const tree = { entries: [{ path: "src/renamed.ts", type: "file" }], path: "src" };
+    expect(Value.Check(RenameProjectFileResponseSchema, { path: "src/renamed.ts", tree })).toBe(
+      true,
+    );
+    expect(Value.Check(RenameProjectFileResponseSchema, { path: "src/renamed.ts" })).toBe(false);
     expect(Value.Check(DeleteProjectFileRequestSchema, { path: "src/renamed.ts" })).toBe(true);
     expect(Value.Check(DeleteProjectFileRequestSchema, { path: "../src" })).toBe(false);
     expect(
-      Value.Check(DeleteProjectFileResponseSchema, { path: "src/renamed.ts", status: "deleted" }),
+      Value.Check(DeleteProjectFileResponseSchema, {
+        path: "src/renamed.ts",
+        status: "deleted",
+        tree: { entries: [], path: "src" },
+      }),
     ).toBe(true);
     expect(Value.Check(AgentMutationErrorCodeSchema, "PROJECT_FILE_NOT_FOUND")).toBe(true);
     expect(Value.Check(AgentMutationErrorCodeSchema, "PROJECT_FILE_CONFLICT")).toBe(true);

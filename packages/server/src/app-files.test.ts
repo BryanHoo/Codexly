@@ -133,8 +133,14 @@ describe("server project files", () => {
     const deleteProjectFile = vi.fn(() =>
       Promise.resolve({ path: "generated", status: "deleted" as const }),
     );
+    const readProjectFileTree = vi.fn((_rootPath: string, path?: string) =>
+      Promise.resolve({
+        entries: path === "src" ? [{ path: "src/app.ts", type: "file" as const }] : [],
+        path: path ?? null,
+      }),
+    );
     const app = await createCodexlyServer(
-      createServerOptions(provider, { deleteProjectFile, renameProjectFile }),
+      createServerOptions(provider, { deleteProjectFile, readProjectFileTree, renameProjectFile }),
     );
     closeCallbacks.push(() => app.close());
 
@@ -157,11 +163,20 @@ describe("server project files", () => {
     });
 
     expect(renameResponse.statusCode).toBe(200);
-    expect(renameResponse.json()).toEqual({ path: "src/app.ts" });
+    expect(renameResponse.json()).toEqual({
+      path: "src/app.ts",
+      tree: { entries: [{ path: "src/app.ts", type: "file" }], path: "src" },
+    });
     expect(renameProjectFile).toHaveBeenCalledWith(projectRootPath, "src/main.ts", "app.ts");
     expect(deleteResponse.statusCode).toBe(200);
-    expect(deleteResponse.json()).toEqual({ path: "generated", status: "deleted" });
+    expect(deleteResponse.json()).toEqual({
+      path: "generated",
+      status: "deleted",
+      tree: { entries: [], path: null },
+    });
     expect(deleteProjectFile).toHaveBeenCalledWith(projectRootPath, "generated");
+    expect(readProjectFileTree).toHaveBeenNthCalledWith(1, projectRootPath, "src");
+    expect(readProjectFileTree).toHaveBeenNthCalledWith(2, projectRootPath, undefined);
     expect(missingKeyResponse.statusCode).toBe(400);
   });
 

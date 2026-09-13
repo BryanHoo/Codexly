@@ -119,12 +119,15 @@ export interface CreateCodexlyServerOptions {
   ) => Promise<ProjectGitStatus>;
   readHostFileDirectory?: (kind: HostFileKind, path?: string) => Promise<HostFileListing>;
   readProjectFileTree?: (projectRoot: string, directoryPath?: string) => Promise<ProjectFileTree>;
-  deleteProjectFile?: (projectRoot: string, path: string) => Promise<DeleteProjectFileResponse>;
+  deleteProjectFile?: (
+    projectRoot: string,
+    path: string,
+  ) => Promise<Omit<DeleteProjectFileResponse, "tree">>;
   renameProjectFile?: (
     projectRoot: string,
     path: string,
     name: string,
-  ) => Promise<RenameProjectFileResponse>;
+  ) => Promise<Omit<RenameProjectFileResponse, "tree">>;
   searchProjectFiles?: AgentFileSearchProvider["search"];
   stopProjectFileSearch?: AgentFileSearchProvider["stop"];
   readProjectDirectory?: (

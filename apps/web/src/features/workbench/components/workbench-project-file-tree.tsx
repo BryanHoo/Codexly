@@ -1,9 +1,8 @@
-import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppId } from "@codexly/protocol";
+import type { ProjectFileTree, ProjectOpenAppId } from "@codexly/protocol";
 import {
   asyncDataLoaderFeature,
   buildProxiedInstance,
   hotkeysCoreFeature,
-  type ItemInstance,
   propMemoizationFeature,
   type SetStateFn,
   selectionFeature,
@@ -30,7 +29,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
-import type { CodexlyFileTreeClient } from "../../projects/project-query-contracts.js";
 import {
   createProjectFileTreeDataLoader,
   getProjectFileTreeItemName,
@@ -50,29 +48,13 @@ import { createProjectFileTreeOpenTarget } from "./project-file-tree-open-target
 import { openProjectFileInNewWindow } from "../project-file-popup.js";
 import { useProjectFileMutations } from "./use-project-file-mutations.js";
 import type { WorkbenchProjectFileTreeProps } from "./workbench-project-file-tree-contracts.js";
+import type { ProjectFileTreeRowProps } from "./workbench-project-file-tree-row-contracts.js";
 
 export const PROJECT_FILE_TREE_ROW_HEIGHT_PX = 28;
 const PROJECT_FILE_TREE_INDENT_PX = 16;
 const PROJECT_FILE_TREE_OVERSCAN = 8;
 const PROJECT_FILE_TREE_INITIAL_RECT = { height: 600, width: 320 };
 type TreeItemProps = HTMLAttributes<HTMLDivElement> & Readonly<{ ref?: RefCallback<HTMLElement> }>;
-type ProjectFileTreeRowProps = Readonly<{
-  changeStatsByPath: ReturnType<typeof collectVisibleProjectFileTreeChangeStats>;
-  client: CodexlyFileTreeClient;
-  item: ItemInstance<ProjectFileTreeItem>;
-  onOpenProjectPath: (appId: ProjectOpenAppId, path?: string) => void;
-  onReferenceProjectPath: (entry: ProjectFileSearchEntry) => void;
-  onRefreshDirectory: (path: string | null) => void;
-  onRefreshProject: () => unknown;
-  onSelect: (id: string) => void;
-  projectOpenApps: readonly ProjectOpenApp[];
-  projectOpenPending: boolean;
-  projectId: string;
-  projectPath: string;
-  projectRootId: string;
-  projectRefreshing: boolean;
-}>;
-
 const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
   changeStatsByPath,
   client,
@@ -408,12 +390,13 @@ export function WorkbenchProjectFileTree({
     if (index !== undefined) virtualizer.scrollToIndex(index, { align: "auto" });
   };
   const refreshDirectory = useCallback(
-    async (directoryPath: string | null, optimistic = false) => {
-      await queryClient.invalidateQueries({
-        exact: true,
-        queryKey: ["projects", projectId, projectPath, "file-tree", directoryPath],
-        refetchType: "none",
-      });
+    async (directoryPath: string | null, optimistic = false, serverTree?: ProjectFileTree) => {
+      const queryKey = ["projects", projectId, projectPath, "file-tree", directoryPath] as const;
+      if (serverTree === undefined) {
+        await queryClient.invalidateQueries({ exact: true, queryKey, refetchType: "none" });
+      } else {
+        queryClient.setQueryData(queryKey, serverTree);
+      }
       const itemId = directoryPath ?? PROJECT_FILE_TREE_PROJECT_ROOT_ID;
       await tree.getItemInstance(itemId).invalidateChildrenIds(optimistic);
     },
@@ -474,8 +457,8 @@ export function WorkbenchProjectFileTree({
                 item={item}
                 onOpenProjectPath={onOpenProjectPath}
                 onReferenceProjectPath={onReferenceProjectPath}
-                onRefreshDirectory={(path) => {
-                  void refreshDirectory(path);
+                onRefreshDirectory={(path, serverTree) => {
+                  void refreshDirectory(path, false, serverTree);
                 }}
                 onRefreshProject={refreshProject}
                 onSelect={(id) => {

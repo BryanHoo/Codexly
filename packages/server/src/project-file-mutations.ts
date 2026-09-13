@@ -69,7 +69,7 @@ export async function renameProjectFile(
   projectRoot: string,
   path: string,
   name: string,
-): Promise<RenameProjectFileResponse> {
+): Promise<Omit<RenameProjectFileResponse, "tree">> {
   if (
     !validFileName.test(name) ||
     name.includes("\0") ||
@@ -97,7 +97,7 @@ export async function renameProjectFile(
 export async function deleteProjectFile(
   projectRoot: string,
   path: string,
-): Promise<DeleteProjectFileResponse> {
+): Promise<Omit<DeleteProjectFileResponse, "tree">> {
   const { absolutePath } = await resolveProjectFileTarget(projectRoot, path);
   // 目录删除是用户明确确认后的单次磁盘 Mutation，不跟随目录内符号链接。
   await rm(absolutePath, { recursive: true });
