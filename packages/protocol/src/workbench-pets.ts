@@ -74,7 +74,7 @@ export type WorkbenchPetDownloadRequest = Readonly<
 >;
 
 export const WorkbenchPetDownloadResponseSchema = Type.Object(
-  { data: WorkbenchPetDescriptorSchema },
+  { pets: WorkbenchPetCatalogResponseSchema },
   { additionalProperties: false },
 );
 export type WorkbenchPetDownloadResponse = Readonly<

@@ -1,10 +1,8 @@
-import { QueryClient } from "@tanstack/react-query";
 import type { WorkbenchPetDescriptor } from "@codexly/protocol";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { changeAppLanguage } from "../../../i18n/i18n.js";
-import { mergeDownloadedPet, petCatalogQueryKey } from "../pet-catalog-query.js";
 import { GlobalSettingsPetsView, resolveEnabledPetSettings } from "./global-settings-pets.js";
 
 const codexPet: WorkbenchPetDescriptor = {
@@ -36,20 +34,6 @@ describe("GlobalSettingsPets", () => {
         { ...codexPet, id: "custom", source: "custom" },
       ]),
     ).toEqual({ enabled: true, selectedPetId: "custom" });
-  });
-
-  it("下载成功后只替换目标宠物并写回目录缓存", () => {
-    const queryClient = new QueryClient();
-    const other = { ...codexPet, assetId: "b".repeat(64), id: "dewey" };
-    const ready = { ...codexPet, availability: "ready" as const };
-    queryClient.setQueryData(petCatalogQueryKey, { data: [codexPet, other] });
-
-    queryClient.setQueryData(
-      petCatalogQueryKey,
-      mergeDownloadedPet(queryClient.getQueryData(petCatalogQueryKey), ready),
-    );
-
-    expect(queryClient.getQueryData(petCatalogQueryKey)).toEqual({ data: [ready, other] });
   });
 
   it("展示启用开关、可下载状态和刷新入口", async () => {

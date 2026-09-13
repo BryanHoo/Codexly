@@ -108,7 +108,9 @@ export const registerPetRoutes: FastifyPluginCallback<ServerRouteContext> = (
         request.body,
         async () => {
           try {
-            return { data: await petProvider.ensurePetAsset(request.body.petId) };
+            await petProvider.ensurePetAsset(request.body.petId);
+            // 下载会改变目录可用状态，响应必须携带后端重新发现的权威目录。
+            return { pets: { data: await petProvider.listPets() } };
           } catch (error) {
             if (error instanceof WorkbenchPetProviderError) {
               if (error.code === "not_found") {

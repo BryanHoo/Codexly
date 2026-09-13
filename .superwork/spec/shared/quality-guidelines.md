@@ -39,5 +39,5 @@ Capture contract and verification standards for this project.
 - 任务 MCP 清单以 `mcpServerStatus/list(threadId)` 响应为唯一权威数据源；启动通知只触发刷新，不得用本地缓存覆盖查询快照。
 - MCP `toolsError` 必须为字符串或 null；发现失败时仅将 `connected` / `unknown` 转为 `failed`，保留认证等具体状态，不泄露原始错误、不新增探测请求。`toolsError: null` 的空工具目录不得视为失败。
 - `AgentGlobalSettings.pet` 使用严格联合契约：关闭时允许 `selectedPetId` 为空，开启时必须提供非空 `selectedPetId`。
-- 宠物资产以 SHA-256 内容标识寻址；下载和自定义资产加载必须校验路径边界、文件类型、尺寸和清单结构。
+- 宠物资产以 SHA-256 内容标识寻址；下载和自定义资产加载必须校验路径边界、文件类型、尺寸和清单结构。Node 必须在同一幂等下载 action 内重新发现并返回完整 `pets` 目录，浏览器直接替换目录缓存，不得合并单个宠物描述符或推断可用状态。
 - 应用更新进度使用 `AppUpdateProgress` 严格契约，终端与 Web 必须消费同一组阶段和 `0..100` 整数百分比；备份、下载、安装与回滚边界均需发布可观察状态。

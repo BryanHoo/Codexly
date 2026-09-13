@@ -28,7 +28,7 @@ describe("pet catalog query", () => {
     const queryClient = new QueryClient({ mutationCache: createActionMutationCache() });
     const readyPet = { ...downloadablePet, availability: "ready" as const };
     const client = {
-      downloadWorkbenchPet: vi.fn().mockResolvedValue({ data: readyPet }),
+      downloadWorkbenchPet: vi.fn().mockResolvedValue({ pets: { data: [readyPet] } }),
       listWorkbenchPets: vi.fn(),
     };
     queryClient.setQueryData(petCatalogQueryKey, { data: [downloadablePet] });

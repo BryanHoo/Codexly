@@ -25,13 +25,13 @@ describe("CodexlyClient workbench pets", () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse({ data: [descriptor] }))
-      .mockResolvedValueOnce(jsonResponse({ data: descriptor }));
+      .mockResolvedValueOnce(jsonResponse({ pets: { data: [descriptor] } }));
     const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listWorkbenchPets()).resolves.toEqual({ data: [descriptor] });
     await expect(
       client.downloadWorkbenchPet("codex", { idempotencyKey: "download-codex" }),
-    ).resolves.toEqual({ data: descriptor });
+    ).resolves.toEqual({ pets: { data: [descriptor] } });
 
     expect(fetchMock.mock.calls.map((call) => call[0])).toEqual(["/v1/pets", "/v1/pets/downloads"]);
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({

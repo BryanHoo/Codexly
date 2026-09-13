@@ -60,6 +60,12 @@ describe("workbench pet routes", () => {
       method: "GET",
       url: `/v1/pets/assets/${descriptor.assetId}`,
     });
+    const downloaded = await app.inject({
+      headers: { "idempotency-key": "download-codex" },
+      method: "POST",
+      payload: { petId: "codex" },
+      url: "/v1/pets/downloads",
+    });
 
     expect(catalog.statusCode).toBe(200);
     expect(catalog.json()).toEqual({ data: [descriptor] });
@@ -74,6 +80,9 @@ describe("workbench pet routes", () => {
     });
     expect(unchanged.statusCode).toBe(304);
     expect(unchanged.rawPayload).toHaveLength(0);
+    expect(downloaded.statusCode).toBe(200);
+    expect(downloaded.json()).toEqual({ pets: { data: [descriptor] } });
+    expect(petProvider.listPets).toHaveBeenCalledTimes(2);
   });
 
   it("requires an idempotency key and maps download failures", async () => {
