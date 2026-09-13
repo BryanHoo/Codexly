@@ -177,6 +177,14 @@ describe("project mutation protocol", () => {
       Value.Check(CommitProjectChangesResponseSchema, {
         branch: "feat/commit",
         commitSha: "0123456789abcdef0123456789abcdef01234567",
+        history: {
+          branch: "feat/commit",
+          commits: [],
+          nextCursor: null,
+          repositories: [],
+          repository: null,
+          repositoryMode: "root",
+        },
         message: "feat(git): 添加选择文件提交",
         pushError: null,
         pushStatus: "pushed",

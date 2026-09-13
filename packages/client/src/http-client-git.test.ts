@@ -298,6 +298,14 @@ describe("CodexlyClient Git routes", () => {
         jsonResponse({
           branch: "feat/commit",
           commitSha: "0123456789abcdef0123456789abcdef01234567",
+          history: {
+            branch: "feat/commit",
+            commits: [],
+            nextCursor: null,
+            repositories: [],
+            repository: null,
+            repositoryMode: "root",
+          },
           message: commitRequest.message,
           pushError: null,
           pushStatus: "pushed",

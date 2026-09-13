@@ -12,27 +12,35 @@ const status = {
   staged: [],
   unstaged: [],
 };
+const history = {
+  branch: "main",
+  commits: [],
+  nextCursor: null,
+  repositories: [],
+  repository: null,
+  repositoryMode: "root" as const,
+};
 
 describe("cacheCommittedGitStatus", () => {
-  it("writes authoritative root and child repository status without invalidation", () => {
+  it("writes authoritative status and history without invalidation", () => {
     const queryClient = new QueryClient();
     const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
-    cacheCommittedGitStatus(queryClient, "codexly", "/workspace/Codexly", undefined, status);
-    cacheCommittedGitStatus(queryClient, "codexly", "/workspace/Codexly", "apps/web", status);
+    cacheCommittedGitStatus(
+      queryClient,
+      "codexly",
+      "/workspace/Codexly",
+      undefined,
+      status,
+      history,
+    );
 
     expect(
       queryClient.getQueryData(["projects", "codexly", "/workspace/Codexly", "git-status"]),
     ).toEqual(status);
     expect(
-      queryClient.getQueryData([
-        "projects",
-        "codexly",
-        "/workspace/Codexly",
-        "git-status",
-        "apps/web",
-      ]),
-    ).toEqual(status);
+      queryClient.getQueryData(["projects", "codexly", "/workspace/Codexly", "git-history", null]),
+    ).toEqual({ pageParams: [undefined], pages: [history] });
     expect(invalidateQueries).not.toHaveBeenCalled();
   });
 });

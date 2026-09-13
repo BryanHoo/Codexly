@@ -177,6 +177,14 @@ describe("project runtime queries", () => {
           message: commitRequest.message,
           pushError: null,
           pushStatus: "not_requested" as const,
+          history: {
+            branch: "feat/commit",
+            commits: [],
+            nextCursor: null,
+            repositories: [],
+            repository: null,
+            repositoryMode: "root" as const,
+          },
           status: {
             baseBranches: ["origin/main", "main"],
             branch: "feat/commit",

@@ -139,7 +139,7 @@ export interface ServerRouteContext {
   readonly commitProjectChanges: (
     projectRoot: string,
     request: CommitProjectChangesRequest,
-  ) => Promise<Omit<CommitProjectChangesResponse, "status">>;
+  ) => Promise<Omit<CommitProjectChangesResponse, "history" | "status">>;
   readonly generateCommitMessageWithCodex: (
     provider: AgentProvider,
     prompt: string,

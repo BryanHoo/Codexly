@@ -8,6 +8,14 @@ describe("CommitProjectChangesResponseSchema", () => {
     const base = {
       branch: "main",
       commitSha: "a".repeat(40),
+      history: {
+        branch: "main",
+        commits: [],
+        nextCursor: null,
+        repositories: [],
+        repository: null,
+        repositoryMode: "root",
+      },
       message: "fix(git): preserve errors",
       status: {
         baseBranches: ["origin/main", "main"],

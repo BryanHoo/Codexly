@@ -114,6 +114,14 @@ describe("CommitChangesPanel", () => {
       result: {
         branch: "feat/commit",
         commitSha: "0123456789abcdef0123456789abcdef01234567",
+        history: {
+          branch: "feat/commit",
+          commits: [],
+          nextCursor: null,
+          repositories: [],
+          repository: null,
+          repositoryMode: "root",
+        },
         message: "feat(git): 提交选择文件",
         pushError: "fatal: unable to access remote repository",
         pushStatus: "failed",

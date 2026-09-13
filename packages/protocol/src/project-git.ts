@@ -286,6 +286,7 @@ export const CommitProjectChangesResponseSchema = Type.Object(
   {
     branch: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
     commitSha: Type.String({ maxLength: 64, minLength: 7, pattern: "^[a-f0-9]+$" }),
+    history: ProjectGitHistoryPageSchema,
     message: CommitMessageSchema,
     pushError: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
     pushStatus: Type.Union([

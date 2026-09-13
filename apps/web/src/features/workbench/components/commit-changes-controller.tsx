@@ -1,4 +1,8 @@
-import type { CommitProjectChangesResponse, ProjectGitStatus } from "@codexly/protocol";
+import type {
+  CommitProjectChangesResponse,
+  ProjectGitHistoryPage,
+  ProjectGitStatus,
+} from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -39,12 +43,17 @@ export function cacheCommittedGitStatus(
   rootPath: string,
   repository: string | undefined,
   status: ProjectGitStatus,
+  history: ProjectGitHistoryPage,
 ): void {
   const queryKey =
     repository === undefined
       ? (["projects", projectId, rootPath, "git-status"] as const)
       : (["projects", projectId, rootPath, "git-status", repository] as const);
   queryClient.setQueryData(queryKey, status);
+  queryClient.setQueryData(["projects", projectId, rootPath, "git-history", repository ?? null], {
+    pageParams: [undefined],
+    pages: [history],
+  });
 }
 
 export function CommitChangesController({
@@ -105,10 +114,8 @@ export function CommitChangesController({
           rootPath,
           request.repository,
           response.status,
+          response.history,
         );
-        void queryClient.invalidateQueries({
-          queryKey: ["projects", projectId, rootPath, "git-history"],
-        });
         const successMessageKey = getCommitSuccessMessageKey(response);
         if (successMessageKey !== null) {
           notifyActionSuccess(t(successMessageKey));

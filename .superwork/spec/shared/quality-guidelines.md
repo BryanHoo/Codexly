@@ -15,7 +15,7 @@ Capture contract and verification standards for this project.
 - `GET /v1/projects/:projectId/tasks/catalog` 返回完整 `{ data }` 任务目录，临时作用域使用 `/v1/temporary/tasks/catalog`；`pinned=true` 只收集置顶任务。Node 按每页 100 项收集、按 ID 保留首次版本及顺序，最多 1000 页和 10000 个唯一任务。重复游标、跨作用域及超限必须报错，不返回伪完整目录；覆盖分页重叠、空页增长、置顶参数传递及前端单次读取。
 - 项目新增、重命名和移除响应必须携带操作完成后的完整 `projects` 页面，并作为同一幂等结果保存；Node 负责读取最终项目注册表，浏览器直接替换项目列表缓存，不得自行追加、映射或过滤项目。
 - Worktree 创建与切换响应必须在注册目标 Project 后并行读取并携带完整 `projects` 和 `worktrees`，创建响应还必须携带源仓库最新 `status`，全部作为同一幂等结果保存；浏览器直接替换对应缓存，不得根据单个 `project` 或 `worktree` 合并状态或在成功后追加 GET。切换不改变源仓库，因此无需返回 `status`。
-- Git 提交响应必须携带目标根仓库或子仓库提交完成后的 `status`，并作为同一幂等结果保存；浏览器按 repository 作用域直接替换 Git 状态缓存，不得在成功后追加状态 GET。提交历史分页保持独立失效刷新。
+- Git 提交响应必须并行读取并携带目标根仓库或子仓库提交完成后的 `status` 与最新历史首屏，作为同一幂等结果保存；浏览器按 repository 作用域直接替换 Git 状态缓存，并将历史缓存重置为服务端首屏，不得在成功后追加 GET。
 - 项目待办创建、导入、保存和删除响应必须携带写入完成后的完整 `todos` 页面，并作为同一幂等结果保存；Node 负责按仓库顺序读取最终列表，浏览器直接替换缓存，不得自行追加、删除或按时间排序待办。
 - 项目文件重命名和删除响应必须携带写入完成后的父目录 `tree`，并作为同一幂等结果保存；Node 负责解析父目录并读取最终文件树，浏览器直接替换对应目录缓存，不得在成功后追加 GET。
 - 批量归档删除使用 `DELETE /v1/projects/:projectId/tasks/archived`（临时作用域为 `/v1/temporary/tasks/archived`），请求仅接受空对象并要求 `Idempotency-Key`。响应为非负整数 `deletedCount` / `failedCount`；部分失败仍作为 200 结果缓存，同一 Server 实例缓存有效期内重放不得重新枚举后来归档的任务，不承诺跨重启幂等。覆盖分页去重、有界并发、作用域隔离、异常分页及部分失败重放。

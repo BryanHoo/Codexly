@@ -36,6 +36,7 @@ import { resolveProjectDefaults } from "../server-runtime.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { ErrorResponseSchema, IdempotencyHeadersSchema, ProjectParamsSchema } from "./schemas.js";
 import { registerProjectGitWorktreeRoutes } from "./project-git-worktree-routes.js";
+import { toGitBranchHttpError } from "./project-git-branch-errors.js";
 import {
   omitGitRootPath,
   resolveGitMutationRoot,
@@ -43,27 +44,6 @@ import {
 } from "./project-git-route-scope.js";
 
 import type { FastifyInstance, FastifyReply } from "fastify";
-
-function toGitBranchHttpError(error: GitBranchError): MutationHttpError {
-  switch (error.code) {
-    case "SNAPSHOT_MISMATCH":
-      return new MutationHttpError("GIT_STATUS_CHANGED", "Git working tree changed", 409, true);
-    case "ALREADY_ACTIVE":
-      return new MutationHttpError("GIT_BRANCH_ALREADY_ACTIVE", error.message, 409, true);
-    case "BRANCH_ALREADY_EXISTS":
-      return new MutationHttpError("GIT_BRANCH_ALREADY_EXISTS", error.message, 409, true);
-    case "BRANCH_NOT_FOUND":
-      return new MutationHttpError("GIT_BRANCH_NOT_FOUND", error.message, 409, true);
-    case "INVALID_BRANCH_NAME":
-      return new MutationHttpError("GIT_BRANCH_INVALID", error.message, 400, false);
-    case "REPOSITORY_READ_ONLY":
-      return new MutationHttpError("GIT_REPOSITORY_READ_ONLY", error.message, 409, true);
-    case "SWITCH_FAILED":
-      return new MutationHttpError("GIT_BRANCH_SWITCH_FAILED", error.message, 502, true);
-    case "CREATE_FAILED":
-      return new MutationHttpError("GIT_BRANCH_CREATE_FAILED", error.message, 502, true);
-  }
-}
 
 export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRouteContext): void {
   const {
@@ -477,9 +457,12 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
           try {
             const result = await commitProjectChanges(rootPath, request.body);
             const repository = request.body.repository;
-            // 返回目标仓库最终状态，浏览器无需追加状态查询。
-            const status = await readProjectGitStatus(rootPath, repository ? { repository } : {});
-            return { ...result, status };
+            // 并行返回目标仓库状态与历史首屏，浏览器无需追加查询。
+            const [history, status] = await Promise.all([
+              readProjectGitHistory(rootPath, repository ? { repository } : {}),
+              readProjectGitStatus(rootPath, repository ? { repository } : {}),
+            ]);
+            return { ...result, history, status };
           } catch (error) {
             if (error instanceof GitCommitError) {
               throw toGitCommitHttpError(error);

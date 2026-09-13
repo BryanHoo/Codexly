@@ -278,8 +278,29 @@ describe("server Git mutations", () => {
       unstaged: [],
     };
     const readProjectGitStatus = vi.fn(() => Promise.resolve(committedStatus));
+    const history = {
+      branch: "feat/commit",
+      commits: [
+        {
+          authoredAt: "2026-09-13T10:00:00.000Z",
+          authorEmail: "developer@example.com",
+          authorName: "Developer",
+          sha: "0123456789abcdef0123456789abcdef01234567",
+          title: "feat(git): 提交选择文件",
+        },
+      ],
+      nextCursor: null,
+      repositories: [],
+      repository: null,
+      repositoryMode: "root" as const,
+    };
+    const readProjectGitHistory = vi.fn(() => Promise.resolve(history));
     const app = await createCodexlyServer(
-      createServerOptions(provider, { commitProjectChanges, readProjectGitStatus }),
+      createServerOptions(provider, {
+        commitProjectChanges,
+        readProjectGitHistory,
+        readProjectGitStatus,
+      }),
     );
     closeCallbacks.push(() => app.close());
     const request = {
@@ -303,12 +324,14 @@ describe("server Git mutations", () => {
     });
 
     expect(first.statusCode).toBe(201);
-    expect(first.json()).toMatchObject({ pushStatus: "failed", status: committedStatus });
+    expect(first.json()).toMatchObject({ history, pushStatus: "failed", status: committedStatus });
     expect(repeated.json()).toEqual(first.json());
     expect(commitProjectChanges).toHaveBeenCalledOnce();
     expect(commitProjectChanges).toHaveBeenCalledWith(projectRootPath, request);
     expect(readProjectGitStatus).toHaveBeenCalledOnce();
     expect(readProjectGitStatus).toHaveBeenCalledWith(projectRootPath, {});
+    expect(readProjectGitHistory).toHaveBeenCalledOnce();
+    expect(readProjectGitHistory).toHaveBeenCalledWith(projectRootPath, {});
   });
 
   it("rejects concurrent Git mutations for the same project", async () => {
@@ -343,8 +366,22 @@ describe("server Git mutations", () => {
         unstaged: [],
       }),
     );
+    const readProjectGitHistory = vi.fn(() =>
+      Promise.resolve({
+        branch: "feat/commit",
+        commits: [],
+        nextCursor: null,
+        repositories: [],
+        repository: null,
+        repositoryMode: "root" as const,
+      }),
+    );
     const app = await createCodexlyServer(
-      createServerOptions(provider, { commitProjectChanges, readProjectGitStatus }),
+      createServerOptions(provider, {
+        commitProjectChanges,
+        readProjectGitHistory,
+        readProjectGitStatus,
+      }),
     );
     closeCallbacks.push(() => app.close());
     const payload = {
