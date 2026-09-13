@@ -6,9 +6,9 @@ import {
   InstalledSkillPageSchema,
   OpenSkillDirectoryResponseSchema,
   OfficialPluginDetailSchema,
-  OfficialPluginInstallResultSchema,
+  OfficialPluginInstallResponseSchema,
   OfficialPluginPageSchema,
-  OfficialPluginUninstallResultSchema,
+  OfficialPluginUninstallResponseSchema,
   SetMcpServerEnabledResponseSchema,
   SetSkillEnabledResponseSchema,
   SkillInstallResponseSchema,
@@ -166,7 +166,7 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
         body: OfficialPluginInstallBodySchema,
         headers: IdempotencyHeadersSchema,
         params: OfficialPluginParamsSchema,
-        response: { 200: OfficialPluginInstallResultSchema, ...mutationErrors },
+        response: { 200: OfficialPluginInstallResponseSchema, ...mutationErrors },
       },
     },
     (request) =>
@@ -174,13 +174,15 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
         ["install-official-plugin", request.params.marketplaceName, request.params.pluginName],
         request.headers["idempotency-key"],
         request.body,
-        () =>
-          skillMarketService.installOfficialPlugin(
+        async () => ({
+          ...(await skillMarketService.installOfficialPlugin(
             request.params.marketplaceName,
             request.body.marketplacePath,
             request.params.pluginName,
             request.body.installAttemptId,
-          ),
+          )),
+          plugins: await skillMarketService.listOfficialPlugins(true),
+        }),
       ),
   );
   app.post<{
@@ -194,7 +196,7 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
         body: OfficialPluginUninstallBodySchema,
         headers: IdempotencyHeadersSchema,
         params: OfficialPluginParamsSchema,
-        response: { 200: OfficialPluginUninstallResultSchema, ...mutationErrors },
+        response: { 200: OfficialPluginUninstallResponseSchema, ...mutationErrors },
       },
     },
     (request) =>
@@ -202,7 +204,10 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
         ["uninstall-official-plugin", request.params.marketplaceName, request.params.pluginName],
         request.headers["idempotency-key"],
         request.body,
-        () => skillMarketService.uninstallOfficialPlugin(request.body.pluginId),
+        async () => {
+          await skillMarketService.uninstallOfficialPlugin(request.body.pluginId);
+          return { plugins: await skillMarketService.listOfficialPlugins(true) };
+        },
       ),
   );
   app.get<{ Querystring: { cursor?: string; query?: string; sort?: string } }>(

@@ -33,9 +33,9 @@ describe("CodexlyClient skill market", () => {
       if (url.includes("/plugins/official?")) response = { data: [] };
       else if (url.includes("/plugins/official/openai-curated/github")) {
         response = url.endsWith("/install")
-          ? { appsNeedingAuth: [], authPolicy: "ON_USE" }
+          ? { appsNeedingAuth: [], authPolicy: "ON_USE", plugins: { data: [] } }
           : url.endsWith("/uninstall")
-            ? {}
+            ? { plugins: { data: [] } }
             : {
                 apps: [],
                 authPolicy: "ON_USE",

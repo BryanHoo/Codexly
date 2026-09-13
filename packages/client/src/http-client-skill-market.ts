@@ -6,9 +6,9 @@ import {
   InstalledSkillPageSchema,
   OpenSkillDirectoryResponseSchema,
   OfficialPluginDetailSchema,
-  OfficialPluginInstallResultSchema,
+  OfficialPluginInstallResponseSchema,
   OfficialPluginPageSchema,
-  OfficialPluginUninstallResultSchema,
+  OfficialPluginUninstallResponseSchema,
   SetMcpServerEnabledResponseSchema,
   SetSkillEnabledResponseSchema,
   SkillInstallResponseSchema,
@@ -18,9 +18,9 @@ import {
   type InstalledSkillPage,
   type OpenSkillDirectoryResponse,
   type OfficialPluginDetail,
-  type OfficialPluginInstallResult,
+  type OfficialPluginInstallResponse,
   type OfficialPluginPage,
-  type OfficialPluginUninstallResult,
+  type OfficialPluginUninstallResponse,
   type SetMcpServerEnabledResponse,
   type SetSkillEnabledResponse,
   type SkillInstallResponse,
@@ -69,11 +69,11 @@ export class SkillMarketHttpClient extends CodexlyTransport {
     pluginName: string,
     installAttemptId: string,
     options: MutationOptions = {},
-  ): Promise<OfficialPluginInstallResult> {
+  ): Promise<OfficialPluginInstallResponse> {
     return this.mutation(
       `/v1/plugins/official/${encodeURIComponent(marketplaceName)}/${encodeURIComponent(pluginName)}/install`,
       { installAttemptId, marketplacePath },
-      OfficialPluginInstallResultSchema,
+      OfficialPluginInstallResponseSchema,
       options,
     );
   }
@@ -83,11 +83,11 @@ export class SkillMarketHttpClient extends CodexlyTransport {
     pluginName: string,
     pluginId: string,
     options: MutationOptions = {},
-  ): Promise<OfficialPluginUninstallResult> {
+  ): Promise<OfficialPluginUninstallResponse> {
     return this.mutation(
       `/v1/plugins/official/${encodeURIComponent(marketplaceName)}/${encodeURIComponent(pluginName)}/uninstall`,
       { pluginId },
-      OfficialPluginUninstallResultSchema,
+      OfficialPluginUninstallResponseSchema,
       options,
     );
   }

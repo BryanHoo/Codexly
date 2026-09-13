@@ -1,8 +1,4 @@
-import type {
-  OfficialPluginInstallResult,
-  OfficialPluginPage,
-  OfficialPluginSummary,
-} from "@codexly/protocol";
+import type { OfficialPluginInstallResult, OfficialPluginSummary } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, PlugZap, RefreshCw, Search } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -115,17 +111,6 @@ export function OfficialPluginsPane() {
     }
     return { available, installed };
   }, [plugins.data?.data, query]);
-  const updateInstalledState = (pluginId: string, installed: boolean) => {
-    queryClient.setQueryData<OfficialPluginPage>(officialPluginsQueryKey, (current) =>
-      current === undefined
-        ? current
-        : {
-            data: current.data.map((plugin) =>
-              plugin.id === pluginId ? { ...plugin, enabled: installed, installed } : plugin,
-            ),
-          },
-    );
-  };
   const install = useMutation({
     mutationFn: (plugin: OfficialPluginSummary) =>
       client.installOfficialPlugin(
@@ -134,17 +119,17 @@ export function OfficialPluginsPane() {
         plugin.pluginName,
         globalThis.crypto.randomUUID(),
       ),
-    onSuccess: (result, plugin) => {
+    onSuccess: (result) => {
       setInstallResult(result);
-      updateInstalledState(plugin.id, true);
+      queryClient.setQueryData(officialPluginsQueryKey, result.plugins);
     },
   });
   const uninstall = useMutation({
     mutationFn: (plugin: OfficialPluginSummary) =>
       client.uninstallOfficialPlugin(plugin.marketplaceName, plugin.pluginName, plugin.id),
-    onSuccess: (_, plugin) => {
+    onSuccess: (result) => {
       setInstallResult(null);
-      updateInstalledState(plugin.id, false);
+      queryClient.setQueryData(officialPluginsQueryKey, result.plugins);
       setSelectedId(null);
     },
   });

@@ -100,26 +100,25 @@ describe("Skills market routes", () => {
         })
       ).statusCode,
     ).toBe(200);
-    expect(
-      (
-        await app.inject({
-          headers,
-          method: "POST",
-          payload: { installAttemptId: "attempt-1", marketplacePath: null },
-          url: "/v1/plugins/official/openai-curated/github/install",
-        })
-      ).statusCode,
-    ).toBe(200);
-    expect(
-      (
-        await app.inject({
-          headers,
-          method: "POST",
-          payload: { pluginId: "github@openai-curated" },
-          url: "/v1/plugins/official/openai-curated/github/uninstall",
-        })
-      ).statusCode,
-    ).toBe(200);
+    const pluginInstall = await app.inject({
+      headers,
+      method: "POST",
+      payload: { installAttemptId: "attempt-1", marketplacePath: null },
+      url: "/v1/plugins/official/openai-curated/github/install",
+    });
+    expect(pluginInstall.statusCode).toBe(200);
+    expect(pluginInstall.json()).toMatchObject({
+      appsNeedingAuth: [],
+      plugins: { data: [] },
+    });
+    const pluginUninstall = await app.inject({
+      headers,
+      method: "POST",
+      payload: { pluginId: "github@openai-curated" },
+      url: "/v1/plugins/official/openai-curated/github/uninstall",
+    });
+    expect(pluginUninstall.statusCode).toBe(200);
+    expect(pluginUninstall.json()).toEqual({ plugins: { data: [] } });
     expect(
       (await app.inject({ method: "GET", url: "/v1/skills/market/codex/review" })).statusCode,
     ).toBe(200);

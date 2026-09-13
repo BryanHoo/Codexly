@@ -227,8 +227,22 @@ export const OfficialPluginInstallResultSchema = Type.Object(
 export type OfficialPluginInstallResult = Readonly<
   Static<typeof OfficialPluginInstallResultSchema>
 >;
+export const OfficialPluginInstallResponseSchema = Type.Object(
+  { ...OfficialPluginInstallResultSchema.properties, plugins: OfficialPluginPageSchema },
+  { additionalProperties: false },
+);
+export type OfficialPluginInstallResponse = Readonly<
+  Static<typeof OfficialPluginInstallResponseSchema>
+>;
 
 export const OfficialPluginUninstallResultSchema = Type.Object({}, { additionalProperties: false });
 export type OfficialPluginUninstallResult = Readonly<
   Static<typeof OfficialPluginUninstallResultSchema>
+>;
+export const OfficialPluginUninstallResponseSchema = Type.Object(
+  { plugins: OfficialPluginPageSchema },
+  { additionalProperties: false },
+);
+export type OfficialPluginUninstallResponse = Readonly<
+  Static<typeof OfficialPluginUninstallResponseSchema>
 >;
