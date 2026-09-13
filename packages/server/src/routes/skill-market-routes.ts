@@ -11,7 +11,7 @@ import {
   OfficialPluginUninstallResultSchema,
   SetMcpServerEnabledResponseSchema,
   SetSkillEnabledResponseSchema,
-  SkillInstallResultSchema,
+  SkillInstallResponseSchema,
   SkillInstallScopeSchema,
   type SkillInstallScope,
 } from "@codexly/protocol";
@@ -313,7 +313,7 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
         body: InstallBodySchema,
         headers: IdempotencyHeadersSchema,
         params: IdentityParamsSchema,
-        response: { 200: SkillInstallResultSchema, ...mutationErrors },
+        response: { 200: SkillInstallResponseSchema, ...mutationErrors },
       },
     },
     (request) =>

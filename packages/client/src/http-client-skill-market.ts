@@ -11,7 +11,7 @@ import {
   OfficialPluginUninstallResultSchema,
   SetMcpServerEnabledResponseSchema,
   SetSkillEnabledResponseSchema,
-  SkillInstallResultSchema,
+  SkillInstallResponseSchema,
   type ClawhubSkillDetail,
   type ClawhubSkillPage,
   type ConfiguredMcpServerPage,
@@ -23,7 +23,7 @@ import {
   type OfficialPluginUninstallResult,
   type SetMcpServerEnabledResponse,
   type SetSkillEnabledResponse,
-  type SkillInstallResult,
+  type SkillInstallResponse,
   type SkillInstallScope,
 } from "@codexly/protocol";
 
@@ -134,11 +134,11 @@ export class SkillMarketHttpClient extends CodexlyTransport {
     projectId?: string,
     rootPath?: string,
     options: MutationOptions = {},
-  ): Promise<SkillInstallResult> {
+  ): Promise<SkillInstallResponse> {
     return this.mutation(
       `/v1/skills/market/${encodeURIComponent(owner)}/${encodeURIComponent(slug)}/install`,
       { projectId, rootPath, scope },
-      SkillInstallResultSchema,
+      SkillInstallResponseSchema,
       options,
     );
   }

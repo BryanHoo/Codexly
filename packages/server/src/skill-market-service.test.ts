@@ -150,7 +150,11 @@ describe("SkillMarketService", () => {
         rootPath: projectRoot,
         scope: "project",
       }),
-    ).resolves.toMatchObject({ status: "installed", version: "1.2.0" });
+    ).resolves.toMatchObject({
+      installedSkills: { data: [], nextCursor: null },
+      status: "installed",
+      version: "1.2.0",
+    });
     expect(listInstalledSkills).toHaveBeenLastCalledWith(projects, true);
   });
 });

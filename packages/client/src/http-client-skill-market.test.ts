@@ -71,7 +71,12 @@ describe("CodexlyClient skill market", () => {
           versions: [],
         };
       else if (url.endsWith("/install"))
-        response = { path: "/work/review", status: "installed", version: "1.0.0" };
+        response = {
+          installedSkills: { data: [], nextCursor: null },
+          path: "/work/review",
+          status: "installed",
+          version: "1.0.0",
+        };
       else if (url.endsWith("/skills/open")) response = { status: "opened" };
       else if (url.endsWith("/skills/enabled"))
         response = {

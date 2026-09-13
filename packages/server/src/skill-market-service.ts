@@ -15,7 +15,7 @@ import type {
   OfficialPluginUninstallResult,
   SetMcpServerEnabledResult,
   SetSkillEnabledResult,
-  SkillInstallResult,
+  SkillInstallResponse,
   SkillInstallScope,
 } from "@codexly/protocol";
 import pLimit from "p-limit";
@@ -40,7 +40,11 @@ export interface SkillMarketService {
     marketplacePath: string | null,
     pluginName: string,
   ): Promise<OfficialPluginDetail>;
-  installSkill(owner: string, slug: string, input: InstallSkillInput): Promise<SkillInstallResult>;
+  installSkill(
+    owner: string,
+    slug: string,
+    input: InstallSkillInput,
+  ): Promise<SkillInstallResponse>;
   installOfficialPlugin(
     marketplaceName: string,
     marketplacePath: string | null,
@@ -146,9 +150,12 @@ export function createSkillMarketService(
         slug,
         detail.latestVersion,
       );
-      // 安装绕过 App Server 文件写入，强制刷新其发现缓存后再返回成功。
-      await options.provider.listInstalledSkills(projects, true);
-      return result;
+      // 安装绕过 App Server 文件写入，强制刷新发现缓存并返回增强后的权威目录。
+      const page = await options.provider.listInstalledSkills(projects, true);
+      return {
+        ...result,
+        installedSkills: { ...page, data: await enrichInstalledSkills(page.data) },
+      };
     },
     installOfficialPlugin: (marketplaceName, marketplacePath, pluginName, installAttemptId) =>
       options.provider.installOfficialPlugin(

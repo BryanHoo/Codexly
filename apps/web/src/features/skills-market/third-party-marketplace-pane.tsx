@@ -109,9 +109,9 @@ export function ThirdPartyMarketplacePane({
       skill: ClawhubSkillSummary;
     }) =>
       client.installClawhubSkill(skill.owner, skill.slug, scope, targetProjectId, targetRootPath),
-    onSuccess: () => {
+    onSuccess: (response) => {
       setSelected(null);
-      return queryClient.invalidateQueries({ queryKey: ["extensions", "skills"] });
+      queryClient.setQueryData(["extensions", "skills"], response.installedSkills);
     },
   });
   const data = market.data as InfiniteData<ClawhubSkillPage, string | null> | undefined;

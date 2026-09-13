@@ -104,19 +104,20 @@ export type ClawhubSkillDetail = Readonly<Static<typeof ClawhubSkillDetailSchema
 export const SkillInstallScopeSchema = Type.Union([Type.Literal("project"), Type.Literal("user")]);
 export type SkillInstallScope = Static<typeof SkillInstallScopeSchema>;
 
-export const SkillInstallResultSchema = Type.Object(
-  {
-    path: Type.String({ minLength: 1 }),
-    status: Type.Union([
-      Type.Literal("current"),
-      Type.Literal("installed"),
-      Type.Literal("updated"),
-    ]),
-    version: Type.String({ minLength: 1 }),
-  },
+const SkillInstallResultProperties = {
+  path: Type.String({ minLength: 1 }),
+  status: Type.Union([Type.Literal("current"), Type.Literal("installed"), Type.Literal("updated")]),
+  version: Type.String({ minLength: 1 }),
+};
+export const SkillInstallResultSchema = Type.Object(SkillInstallResultProperties, {
+  additionalProperties: false,
+});
+export type SkillInstallResult = Readonly<Static<typeof SkillInstallResultSchema>>;
+export const SkillInstallResponseSchema = Type.Object(
+  { ...SkillInstallResultProperties, installedSkills: InstalledSkillPageSchema },
   { additionalProperties: false },
 );
-export type SkillInstallResult = Readonly<Static<typeof SkillInstallResultSchema>>;
+export type SkillInstallResponse = Readonly<Static<typeof SkillInstallResponseSchema>>;
 
 const SetSkillEnabledResultProperties = { effectiveEnabled: Type.Boolean() };
 export const SetSkillEnabledResultSchema = Type.Object(SetSkillEnabledResultProperties, {

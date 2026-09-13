@@ -31,6 +31,7 @@ describe("Skills market routes", () => {
       ),
       installSkill: vi.fn(() =>
         Promise.resolve({
+          installedSkills: { data: [], nextCursor: null },
           path: "/work/review",
           status: "installed",
           version: "1.0.0",
@@ -157,16 +158,14 @@ describe("Skills market routes", () => {
       enabled: false,
       servers: { data: [{ enabled: true, name: "docs" }] },
     });
-    expect(
-      (
-        await app.inject({
-          headers,
-          method: "POST",
-          payload: { projectId: "codexly", rootPath: "/workspace/Codexly", scope: "project" },
-          url: "/v1/skills/market/codex/review/install",
-        })
-      ).statusCode,
-    ).toBe(200);
+    const installed = await app.inject({
+      headers,
+      method: "POST",
+      payload: { projectId: "codexly", rootPath: "/workspace/Codexly", scope: "project" },
+      url: "/v1/skills/market/codex/review/install",
+    });
+    expect(installed.statusCode).toBe(200);
+    expect(installed.json()).toMatchObject({ installedSkills: { data: [], nextCursor: null } });
 
     expect(service.listSkills).toHaveBeenCalledWith("review", null, "downloads");
     expect(service.setMcpServerEnabled).toHaveBeenCalledWith("docs", false);
