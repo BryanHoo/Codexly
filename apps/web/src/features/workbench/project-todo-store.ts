@@ -184,6 +184,8 @@ export function createProjectTodoStore({
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       unsubscribe ??= queryClient.getQueryCache().subscribe((event) => {
+        // 观察器每次渲染都会更新选项，不能因此推进外部 Store 版本并触发下一次渲染。
+        if (event.type !== "updated" && event.type !== "removed") return;
         const key = event.query.queryKey as readonly unknown[];
         if (key[2] !== "todos") return;
         if (event.type === "removed") views.delete(String(key[1]));

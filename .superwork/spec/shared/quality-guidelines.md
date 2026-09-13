@@ -7,6 +7,7 @@ Capture contract and verification standards for this project.
 ## 规则
 
 - 协议变更同时更新 TypeBox schema、类型导出、序列化/解码逻辑和消费者测试。
+- 已完成任务聚合使用只读 `POST /v1/tasks/completed/query`，请求包含最多 100 个唯一 `projectIds`（允许 `temporary`）及可选 `cursor`；游标键必须与作用域集合完全匹配。Node 按活跃作用域分配每页容量、最多四项并发，合并时按作用域和任务 ID 去重并按更新时间排序；任一页失败、越界或原地游标重复均整页失败。返回 `{ data, nextCursor }`，全部耗尽时游标为 null；仅保证当前聚合页排序，不保证不同项目后续分页的全局时间边界。覆盖分页继续、已耗尽跳过、作用域隔离和前端单请求。
 - `GET /v1/projects/:projectId/tasks/catalog` 返回完整 `{ data }` 任务目录，临时作用域使用 `/v1/temporary/tasks/catalog`；`pinned=true` 只收集置顶任务。Node 按每页 100 项收集、按 ID 保留首次版本及顺序，最多 1000 页和 10000 个唯一任务。重复游标、跨作用域及超限必须报错，不返回伪完整目录；覆盖分页重叠、空页增长、置顶参数传递及前端单次读取。
 - 批量归档删除使用 `DELETE /v1/projects/:projectId/tasks/archived`（临时作用域为 `/v1/temporary/tasks/archived`），请求仅接受空对象并要求 `Idempotency-Key`。响应为非负整数 `deletedCount` / `failedCount`；部分失败仍作为 200 结果缓存，同一 Server 实例缓存有效期内重放不得重新枚举后来归档的任务，不承诺跨重启幂等。覆盖分页去重、有界并发、作用域隔离、异常分页及部分失败重放。
 - 消息规范 ID 与 `identityAliases` 由 Node Provider 统一生成，快照、启动响应和实时事件共用身份表；客户端仅按显式 ID / 别名迁移渲染状态，不按文本前缀或图片元数据推断消息身份。覆盖快照先到、事件先到、终态批量歧义和多订阅者一致性。

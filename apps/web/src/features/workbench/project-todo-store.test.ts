@@ -1,4 +1,4 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { createProjectTodoStore } from "./project-todo-store.js";
 
@@ -22,6 +22,20 @@ describe("project todo server state", () => {
     };
     return { client, queryClient, store: createProjectTodoStore({ client, queryClient }) };
   }
+  it("ignores observer option changes but publishes query data changes", () => {
+    const { store, queryClient } = setup();
+    const options = store.queryOptions("project-a");
+    const observer = new QueryObserver(queryClient, options);
+    const listener = vi.fn();
+    const unsubscribe = store.subscribe(listener);
+    observer.setOptions({ ...options, staleTime: 100 });
+    expect(listener).not.toHaveBeenCalled();
+    queryClient.setQueryData(options.queryKey, { data: [todo] });
+    expect(listener).toHaveBeenCalledOnce();
+    expect(store.list("project-a")).toHaveLength(1);
+    unsubscribe();
+    observer.destroy();
+  });
   it("stores only server-confirmed records and keeps working drafts local", async () => {
     const { store, client } = setup();
     await store.create("project-a", draft);

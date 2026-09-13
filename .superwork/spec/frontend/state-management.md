@@ -8,6 +8,7 @@ Track where local, shared, and remote state should live in this project.
 
 - 临时交互状态默认留在组件或最近的功能 Hook 中。
 - HTTP 服务端状态使用 TanStack Query；查询 key 和 mutation 行为集中在对应功能模块。
+- 任务看板已完成列表每页仅调用一次 `queryCompletedTasks`，传递选中作用域和上次 `nextCursor`；前端不分配各项目分页容量、不并发请求各 Provider 页，也不判断各作用域是否耗尽。分页后的缓存展示仍可合并已收到的任务与实时完成事件。
 - 搜索源和置顶列表通过单次 `listTaskCatalog` 读取各作用域完整目录，浏览器不得遍历 Provider 游标或重复去重；保留 Query 取消信号、现有缓存失效和输入过滤。普通最近任务仍按用户操作逐页加载。
 - 非阻塞异步问题的身份、待回答/关闭状态和答案格式由后端管理；前端只保留选择、草稿、折叠等交互状态，提交问题 ID 与答案数组，不按用户消息文本推断回答、不使用 localStorage 保存关闭状态。未知投递结果必须禁用重复发送。升级前仅存在浏览器中的旧关闭记录不导入，历史问题可重新显示，由用户按新接口关闭。
 - 正式项目待办通过 `/v1/projects/:projectId/todos` 存取，TanStack Query 是前端唯一正式数据源；未保存编辑副本保留在组件侧 Store，固定编辑起点版本，不能因后台刷新推进 `expectedVersion`。仅在服务器确认成功后更新列表或移除待办。
