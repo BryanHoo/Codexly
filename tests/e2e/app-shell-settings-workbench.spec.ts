@@ -409,19 +409,19 @@ test("restores task settings after a page refresh", async ({ page }) => {
   const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
   await Promise.all([
     page.waitForResponse(
-      (response) => response.url().endsWith("/tasks/task-1/settings") && response.ok(),
+      (response) => response.url().endsWith("/tasks/task-1/settings-and-defaults") && response.ok(),
     ),
     selectComposerModel(page, "GPT-5.6 Terra"),
   ]);
   await Promise.all([
     page.waitForResponse(
-      (response) => response.url().endsWith("/tasks/task-1/settings") && response.ok(),
+      (response) => response.url().endsWith("/tasks/task-1/settings-and-defaults") && response.ok(),
     ),
     selectComposerReasoning(page, "低"),
   ]);
   await Promise.all([
     page.waitForResponse(
-      (response) => response.url().endsWith("/tasks/task-1/settings") && response.ok(),
+      (response) => response.url().endsWith("/tasks/task-1/settings-and-defaults") && response.ok(),
     ),
     approvalSelect.selectOption("auto-review"),
   ]);

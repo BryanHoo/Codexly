@@ -154,6 +154,21 @@ export const AgentTaskSettingsResponseSchema = Type.Object(
 
 export type AgentTaskSettingsResponse = Readonly<Static<typeof AgentTaskSettingsResponseSchema>>;
 
+export const UpdateTaskSettingsAndDefaultsRequestSchema = Type.Object(
+  { settings: AgentTaskSettingsSchema, fastMode: Type.Boolean() },
+  { additionalProperties: false },
+);
+export const UpdateTaskSettingsAndDefaultsResponseSchema = Type.Object(
+  { settings: AgentTaskSettingsSchema, defaults: AgentProjectDefaultsSchema },
+  { additionalProperties: false },
+);
+export type UpdateTaskSettingsAndDefaultsRequest = Readonly<
+  Static<typeof UpdateTaskSettingsAndDefaultsRequestSchema>
+>;
+export type UpdateTaskSettingsAndDefaultsResponse = Readonly<
+  Static<typeof UpdateTaskSettingsAndDefaultsResponseSchema>
+>;
+
 const AgentTurnOptionProperties = {
   collaborationMode: Type.Optional(AgentCollaborationModeSchema),
   fastMode: Type.Optional(Type.Literal(true)),

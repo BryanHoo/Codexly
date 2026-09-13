@@ -14,6 +14,7 @@ Track where local, shared, and remote state should live in this project.
 - 正式项目待办通过 `/v1/projects/:projectId/todos` 存取，TanStack Query 是前端唯一正式数据源；未保存编辑副本保留在组件侧 Store，固定编辑起点版本，不能因后台刷新推进 `expectedVersion`。仅在服务器确认成功后更新列表或移除待办。
 - 首次读取待办时，一次性导入当前浏览器的旧待办（优先保留最新编辑内容）；只有后端确认后才标记完成，保留旧记录作为备份。导入以原始 ID 去重，不覆盖已有正式数据；附件失效等失败必须提示并保留原数据，刷新后可重试。迁移逻辑不作为第二套正式存储。
 - 普通提交与评审使用单次 `submitTask` 意图请求，由后端创建 Task、保存设置、启动 Turn 并返回 checkpoint；前端仅保持请求幂等 Key、输入草稿及渲染状态，不再串联 Task 创建和 Turn 启动。
+- 已有正式 Task 修改模型、推理强度、审批或沙盒设置时，只调用一次 `updateTaskSettingsAndDefaults`；前端不得并发写 Task 设置和 Project 默认值。成功后分别用响应中的 `settings` 更新运行时 Store、用 `defaults` 更新 Query 缓存。仅切换快速模式仍只更新 Project 默认值；临时 Task 不持久化 Project 默认值。
 - 队列项“立即发送”仅提交队列 ID 到 `/queue/start`，不根据浏览器的活动 Turn 决定 start/steer，也不在成功后另行删除队列项。前端只更新队列查询与等待回显状态；浏览器回归必须断言一次发送仅产生一个写请求。
 - 保存编辑后的队列项只发送一次更新请求；空闲检测、队首恢复及编辑屏障由 Node 处理。前端不得在更新成功后追加 `/queue/start`，也不将更新响应作为剩余队列列表。
 - “删除全部归档任务”确认后仅调用一次 `deleteArchivedTasks`；浏览器不得遍历分页或逐项删除。部分失败显示服务端返回的数量并保留确认弹窗，完成后刷新列表；浏览器回归需验证搜索过滤不缩小批量操作范围，且一次确认只有一次批量写请求。

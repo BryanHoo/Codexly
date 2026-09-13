@@ -94,6 +94,7 @@ export type CodexlySettingsClient = Pick<
   | "updateGlobalSettings"
   | "updateProjectDefaults"
   | "updateTaskSettings"
+  | "updateTaskSettingsAndDefaults"
 >;
 export type CodexlyMutationClient = Pick<
   CodexlyClient,

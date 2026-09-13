@@ -66,11 +66,19 @@ test("shows every mobile composer action in full on one row", async ({ page }) =
 });
 
 test("switches composer task settings without success toasts", async ({ page }) => {
+  const settingsWrites: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "PUT" &&
+      /\/(?:defaults|settings(?:-and-defaults)?)$/u.test(request.url())
+    )
+      settingsWrites.push(new URL(request.url()).pathname);
+  });
   await page.goto("/p/codexly/t/task-1");
   const successToast = page.locator('[data-sonner-toast][data-type="success"]');
   const waitForSettingsUpdate = () =>
     page.waitForResponse(
-      (response) => response.url().endsWith("/tasks/task-1/settings") && response.ok(),
+      (response) => response.url().endsWith("/tasks/task-1/settings-and-defaults") && response.ok(),
     );
 
   const approvalUpdate = waitForSettingsUpdate();
@@ -82,7 +90,6 @@ test("switches composer task settings without success toasts", async ({ page }) 
   await page.getByRole("combobox", { name: "沙盒模式" }).selectOption("danger-full-access");
   await sandboxUpdate;
   await expect(successToast).toHaveCount(0);
-
   const modelSelector = page.getByRole("button", { name: /^模型和思考量：/u });
   await modelSelector.click();
   await page.getByRole("menuitem", { name: "选择模型" }).click();
@@ -97,6 +104,9 @@ test("switches composer task settings without success toasts", async ({ page }) 
   await page.getByRole("menuitemradio", { name: /低/u }).click();
   await reasoningUpdate;
   await expect(successToast).toHaveCount(0);
+  expect(settingsWrites).toEqual(
+    Array.from({ length: 4 }, () => "/v1/projects/codexly/tasks/task-1/settings-and-defaults"),
+  );
 });
 
 test("navigates absolute paths and toggles hidden files in the host file picker", async ({

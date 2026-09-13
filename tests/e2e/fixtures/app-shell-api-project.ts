@@ -22,6 +22,8 @@ export async function handleAppShellProjectRoute(
   const url = new URL(route.request().url());
   const defaultsMatch = /^\/v1\/projects\/([^/]+)\/defaults$/u.exec(url.pathname);
   const settingsMatch = /^\/v1\/projects\/([^/]+)\/tasks\/([^/]+)\/settings$/u.exec(url.pathname);
+  const combinedSettingsMatch =
+    /^\/v1\/projects\/([^/]+)\/tasks\/([^/]+)\/settings-and-defaults$/u.exec(url.pathname);
   const projectRenameMatch = /^\/v1\/projects\/([^/]+)\/rename$/u.exec(url.pathname);
   const projectRemoveMatch = /^\/v1\/projects\/([^/]+)\/remove$/u.exec(url.pathname);
   let body: unknown;
@@ -183,6 +185,18 @@ export async function handleAppShellProjectRoute(
       url.searchParams.get("rootPath") === "/workspace/shared"
         ? { ...state.routedProjectGitStatus, branch: "shared-main" }
         : state.routedProjectGitStatus;
+  } else if (combinedSettingsMatch !== null && route.request().method() === "PUT") {
+    const projectId = combinedSettingsMatch[1] ?? "";
+    const taskId = combinedSettingsMatch[2] ?? "";
+    const request = parseRequestRecord(route.request().postData());
+    const rawSettings = request["settings"];
+    const fastMode = request["fastMode"];
+    if (typeof fastMode !== "boolean") throw new Error("Invalid combined settings request");
+    const settings = parseTaskSettingsRequest(JSON.stringify(rawSettings));
+    const defaults = { ...settings, fastMode };
+    state.taskSettings.set(`${projectId}:${taskId}`, settings);
+    state.projectDefaults.set(projectId, defaults);
+    body = { settings, defaults };
   } else if (defaultsMatch !== null) {
     const projectId = defaultsMatch[1] ?? "";
     if (route.request().method() === "PUT") {

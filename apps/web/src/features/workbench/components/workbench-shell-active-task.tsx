@@ -12,7 +12,7 @@ import type {
   ProjectGitStatus,
   ProjectRoot,
 } from "@codexly/protocol";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { memo, useEffect, useState, type RefObject } from "react";
 
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
@@ -23,7 +23,6 @@ import {
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
-import { taskSettingsMutationOptions } from "../../projects/project-queries.js";
 import type { PendingRequestResolution } from "./pending-request.js";
 import { TaskTimeline } from "./task-timeline.js";
 import { WorkbenchComposer, type WorkbenchComposerHandle } from "./workbench-composer.js";
@@ -98,6 +97,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   onOpenSourceFile: (reference: MessageFileReference) => void;
   onReviewFileChanges: (changes: readonly AgentFileChange[]) => void;
 }>) {
+  const queryClient = useQueryClient();
   const taskScope = `${projectId}:${taskId}`;
   const [timelineScrollToBottomSignal, setTimelineScrollToBottomSignal] = useState(0);
   const {
@@ -140,11 +140,17 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
     store.getState().setError(previousError);
   }, [runtime, submittedPrompt]);
   const settingsMutation = useMutation({
-    ...taskSettingsMutationOptions(projectId, taskId, client),
+    mutationFn: ({ settings, fastMode }: { settings: AgentTaskSettings; fastMode: boolean }) =>
+      client.updateTaskSettingsAndDefaults(projectId, taskId, { settings, fastMode }),
+    mutationKey: ["projects", projectId, "tasks", taskId, "settings-and-defaults"] as const,
+    meta: { actionNotification: { successMessage: false } },
     // 同一会话按选择顺序发布，避免快速切换 reviewer 时逆序覆盖。
     scope: { id: `task-settings:${taskScope}` },
     onSuccess(response) {
       runtime.store?.getState().setTaskSettings(response.settings);
+      queryClient.setQueryData(["projects", projectId, "defaults"], {
+        settings: response.defaults,
+      });
     },
   });
   const resolvePendingRequest = (
@@ -200,10 +206,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         onRequestNotificationPermission={onRequestNotificationPermission}
         onFastModeChange={(enabled, settings) => onProjectTaskDefaultsChange(settings, enabled)}
         onSettingsChange={(settings, _field, fastMode) =>
-          Promise.all([
-            settingsMutation.mutateAsync(settings),
-            onProjectTaskDefaultsChange(settings, fastMode),
-          ]).then(() => undefined)
+          settingsMutation.mutateAsync({ settings, fastMode }).then(() => undefined)
         }
         onSubmissionStateChange={handleSubmissionStateChange}
         onTaskStarted={onTaskStarted}
