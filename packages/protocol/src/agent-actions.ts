@@ -11,6 +11,7 @@ import {
   AgentTurnSchema,
 } from "./agent-task.js";
 import { AgentTurnOptionsSchema } from "./project-settings.js";
+import { AgentTaskCatalogSchema } from "./task-catalog.js";
 
 export const StartAgentTaskRequestSchema = Type.Object({}, { additionalProperties: false });
 export type StartAgentTaskRequest = Readonly<Static<typeof StartAgentTaskRequestSchema>>;
@@ -28,7 +29,7 @@ export const PinAgentTaskRequestSchema = Type.Object(
 export type PinAgentTaskRequest = Readonly<Static<typeof PinAgentTaskRequestSchema>>;
 
 export const PinAgentTaskResponseSchema = Type.Object(
-  { task: AgentTaskSchema },
+  { pinnedTasks: AgentTaskCatalogSchema, task: AgentTaskSchema },
   { additionalProperties: false },
 );
 export type PinAgentTaskResponse = Readonly<Static<typeof PinAgentTaskResponseSchema>>;

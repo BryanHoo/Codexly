@@ -160,6 +160,23 @@ export function replaceProjectTaskInQueryCaches(queryClient: QueryClient, task: 
   );
 }
 
+export function cachePinnedProjectTask(
+  queryClient: QueryClient,
+  task: AgentTask,
+  pinnedTasks: readonly AgentTask[],
+): void {
+  const projectTaskQueryKey = ["projects", task.projectId, "tasks"] as const;
+  queryClient.setQueryData<ProjectTaskInfiniteData>(projectTaskQueryKey, (currentData) =>
+    replaceProjectTaskInInfiniteData(currentData, task),
+  );
+  queryClient.setQueryData([...projectTaskQueryKey, PROJECT_PINNED_TASKS_KEY], pinnedTasks);
+  queryClient.setQueryData<readonly AgentTask[]>(
+    [...projectTaskQueryKey, PROJECT_TASK_SEARCH_SOURCE_KEY],
+    (currentTasks) =>
+      currentTasks?.map((currentTask) => (currentTask.id === task.id ? task : currentTask)),
+  );
+}
+
 function deriveStartedTaskTitle(
   snapshot: TaskTitleSnapshot,
   options: TaskTitleUpdateOptions = {},

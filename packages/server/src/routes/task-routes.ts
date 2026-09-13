@@ -22,6 +22,7 @@ import {
   type RenameAgentTaskRequest,
   type UnarchiveAgentTaskRequest,
 } from "@codexly/protocol";
+import { listTaskCatalog } from "@codexly/core";
 import type { FastifyPluginCallback } from "fastify";
 import { MutationHttpError, toMcpProviderHttpError, type ServerRouteContext } from "./context.js";
 import {
@@ -272,9 +273,15 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
           if (task?.projectId !== context.scope.id) {
             throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
           }
-          return {
-            task: await context.provider.pinTask(request.params.taskId, request.body.pinned),
-          };
+          const updatedTask = await context.provider.pinTask(
+            request.params.taskId,
+            request.body.pinned,
+          );
+          // 固定目录的完整顺序由 Provider 分页结果决定，浏览器不自行插入或排序。
+          const pinnedTasks = await listTaskCatalog(context.provider, context.scope.id, {
+            pinned: true,
+          });
+          return { pinnedTasks, task: updatedTask };
         },
       ),
   );

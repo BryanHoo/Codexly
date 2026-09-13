@@ -22,6 +22,7 @@ import {
 } from "../../projects/project-context.js";
 import {
   cacheArchivedProjectTask,
+  cachePinnedProjectTask,
   replaceProjectTaskInQueryCaches,
   taskArchiveMutationOptions,
   taskPinMutationOptions,
@@ -249,7 +250,7 @@ export function ProjectSidebar({
           projectId: task.projectId,
           taskId: task.id,
         });
-        replaceTaskCache(response.task);
+        cachePinnedProjectTask(queryClient, response.task, response.pinnedTasks.data);
       } catch {
         // 根级 MutationCache 已展示失败 toast。
       }

@@ -306,7 +306,12 @@ describe("project pending request protocol", () => {
     expect(Value.Check(ForkAgentTaskResponseSchema, { task })).toBe(true);
     expect(Value.Check(PinAgentTaskRequestSchema, { pinned: true })).toBe(true);
     expect(Value.Check(PinAgentTaskRequestSchema, { pinned: true, taskId: "task-2" })).toBe(false);
-    expect(Value.Check(PinAgentTaskResponseSchema, { task: { ...task, pinned: true } })).toBe(true);
+    expect(
+      Value.Check(PinAgentTaskResponseSchema, {
+        pinnedTasks: { data: [{ ...task, pinned: true }] },
+        task: { ...task, pinned: true },
+      }),
+    ).toBe(true);
     expect(Value.Check(RenameAgentTaskRequestSchema, { title: "重命名任务" })).toBe(true);
     expect(Value.Check(RenameAgentTaskRequestSchema, { title: "   " })).toBe(false);
     expect(Value.Check(RenameAgentTaskRequestSchema, { title: "" })).toBe(false);

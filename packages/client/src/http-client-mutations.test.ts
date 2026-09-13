@@ -283,7 +283,12 @@ describe("CodexlyClient task mutations", () => {
   it("sends typed task metadata mutations with idempotency keys", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ task: { ...task, pinned: true } }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          pinnedTasks: { data: [{ ...task, pinned: true }] },
+          task: { ...task, pinned: true },
+        }),
+      )
       .mockResolvedValueOnce(jsonResponse({ task: { ...task, title: "新的任务名称" } }))
       .mockResolvedValueOnce(
         jsonResponse({
@@ -298,7 +303,7 @@ describe("CodexlyClient task mutations", () => {
 
     await expect(
       client.pinTask("codexly", task.id, true, { idempotencyKey: "pin-key" }),
-    ).resolves.toMatchObject({ task: { pinned: true } });
+    ).resolves.toMatchObject({ pinnedTasks: { data: [{ pinned: true }] }, task: { pinned: true } });
     await expect(
       client.renameTask("codexly", task.id, "新的任务名称", {
         idempotencyKey: "rename-key",

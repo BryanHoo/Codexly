@@ -2,6 +2,7 @@ import { InfiniteQueryObserver, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import {
   cacheArchivedProjectTask,
+  cachePinnedProjectTask,
   cacheUnarchivedProjectTask,
   type CodexlyReadClient,
   listProjectTasksForSearch,
@@ -162,5 +163,19 @@ describe("project pagination queries", () => {
     expect(
       queryClient.getQueryData(["projects", "codexly", "tasks", "search-source"]),
     ).toBeUndefined();
+  });
+
+  it("caches the server-sorted pinned catalog after pinning", () => {
+    const queryClient = new QueryClient();
+    const pinnedTask = { ...task, pinned: true };
+    const olderPinnedTask = { ...task, id: "older-task", pinned: true };
+    queryClient.setQueryData(["projects", "codexly", "tasks", "pinned"], [olderPinnedTask]);
+
+    cachePinnedProjectTask(queryClient, pinnedTask, [pinnedTask, olderPinnedTask]);
+
+    expect(queryClient.getQueryData(["projects", "codexly", "tasks", "pinned"])).toEqual([
+      pinnedTask,
+      olderPinnedTask,
+    ]);
   });
 });
