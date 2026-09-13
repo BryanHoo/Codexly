@@ -1,6 +1,7 @@
 import { Type, type Static } from "@sinclair/typebox";
 
 import { AgentReviewTargetSchema, AgentTaskSchema } from "./agent-attachments.js";
+import { AgentTaskPageSchema } from "./agent-runtime.js";
 import { EventCheckpointSchema } from "./event-checkpoint.js";
 import {
   AgentMcpServerPageSchema,
@@ -48,7 +49,11 @@ export const ArchiveAgentTaskRequestSchema = Type.Object({}, { additionalPropert
 export type ArchiveAgentTaskRequest = Readonly<Static<typeof ArchiveAgentTaskRequestSchema>>;
 
 export const ArchiveAgentTaskResponseSchema = Type.Object(
-  { status: Type.Literal("archived"), taskId: Type.String({ minLength: 1 }) },
+  {
+    status: Type.Literal("archived"),
+    taskId: Type.String({ minLength: 1 }),
+    tasks: AgentTaskPageSchema,
+  },
   { additionalProperties: false },
 );
 export type ArchiveAgentTaskResponse = Readonly<Static<typeof ArchiveAgentTaskResponseSchema>>;

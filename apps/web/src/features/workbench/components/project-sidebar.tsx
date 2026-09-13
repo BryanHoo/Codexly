@@ -21,7 +21,7 @@ import {
   useProjectTaskSearch,
 } from "../../projects/project-context.js";
 import {
-  removeArchivedProjectTaskAndRefill,
+  cacheArchivedProjectTask,
   replaceProjectTaskInQueryCaches,
   taskArchiveMutationOptions,
   taskPinMutationOptions,
@@ -273,8 +273,11 @@ export function ProjectSidebar({
   const archiveTask = (task: AgentTask) =>
     taskActionLockRef.current.run(async () => {
       try {
-        await archiveMutation.mutateAsync({ projectId: task.projectId, taskId: task.id });
-        await removeArchivedProjectTaskAndRefill(queryClient, task.projectId, task.id);
+        const response = await archiveMutation.mutateAsync({
+          projectId: task.projectId,
+          taskId: task.id,
+        });
+        cacheArchivedProjectTask(queryClient, task.projectId, task.id, response.tasks);
         queryClient.removeQueries({
           exact: true,
           queryKey: ["projects", task.projectId, "tasks", task.id],

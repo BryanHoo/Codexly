@@ -372,8 +372,10 @@ describe("server task mutations", () => {
   });
 
   it("delegates task metadata and archive lifecycle mutations to the Provider", async () => {
-    const { app, archiveTask, deleteTask, pinTask, renameTask, unarchiveTask } =
+    const { app, archiveTask, deleteTask, listTasks, pinTask, renameTask, unarchiveTask } =
       await createHarness();
+    const activeTasks = { data: [], nextCursor: null };
+    listTasks.mockResolvedValue(activeTasks);
 
     const pinned = await app.inject({
       headers: { "idempotency-key": "pin-key" },
@@ -413,8 +415,9 @@ describe("server task mutations", () => {
     expect(renamed.json()).toMatchObject({ task: { id: "task-1", title: "新的任务名称" } });
     expect(renameTask).toHaveBeenCalledWith("task-1", "新的任务名称");
     expect(archived.statusCode, archived.body).toBe(200);
-    expect(archived.json()).toEqual({ status: "archived", taskId: "task-1" });
+    expect(archived.json()).toEqual({ status: "archived", taskId: "task-1", tasks: activeTasks });
     expect(archiveTask).toHaveBeenCalledWith("task-1");
+    expect(listTasks).toHaveBeenCalledWith({ limit: 5 });
     expect(unarchived.statusCode, unarchived.body).toBe(200);
     expect(unarchived.json()).toMatchObject({ task: { id: "task-1" } });
     expect(unarchiveTask).toHaveBeenCalledWith("task-1");

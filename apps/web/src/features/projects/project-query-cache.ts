@@ -350,6 +350,27 @@ export async function removeArchivedProjectTaskAndRefill(
   await queryClient.invalidateQueries({ exact: true, queryKey: projectTaskQueryKey });
 }
 
+export function cacheArchivedProjectTask(
+  queryClient: QueryClient,
+  projectId: string,
+  taskId: string,
+  tasks: ProjectTaskInfiniteData["pages"][number],
+): void {
+  const projectTaskQueryKey = ["projects", projectId, "tasks"] as const;
+  queryClient.setQueryData<ProjectTaskInfiniteData>(projectTaskQueryKey, {
+    pageParams: [undefined],
+    pages: [tasks],
+  });
+  queryClient.setQueryData<readonly AgentTask[]>(
+    [...projectTaskQueryKey, PROJECT_PINNED_TASKS_KEY],
+    (currentTasks) => currentTasks?.filter((task) => task.id !== taskId),
+  );
+  queryClient.setQueryData<readonly AgentTask[]>(
+    [...projectTaskQueryKey, PROJECT_TASK_SEARCH_SOURCE_KEY],
+    (currentTasks) => currentTasks?.filter((task) => task.id !== taskId),
+  );
+}
+
 export function reorderProjectPage(
   currentPage: ProjectPage | undefined,
   projectIds: readonly string[],

@@ -1,6 +1,7 @@
 import { InfiniteQueryObserver, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import {
+  cacheArchivedProjectTask,
   type CodexlyReadClient,
   listProjectTasksForSearch,
   listPinnedProjectTasks,
@@ -118,5 +119,27 @@ describe("project pagination queries", () => {
     );
     expect(listTasks).toHaveBeenCalledTimes(2);
     unsubscribe();
+  });
+
+  it("caches the server-refilled page after archive without another read", () => {
+    const queryClient = new QueryClient();
+    const nextTask = { ...task, id: "task-2", title: "补位任务" };
+    queryClient.setQueryData(["projects", "codexly", "tasks", "pinned"], [task, nextTask]);
+    queryClient.setQueryData(["projects", "codexly", "tasks", "search-source"], [task, nextTask]);
+
+    cacheArchivedProjectTask(queryClient, "codexly", task.id, {
+      data: [nextTask],
+      nextCursor: null,
+    });
+
+    expect(
+      flattenProjectTaskPages(queryClient.getQueryData(["projects", "codexly", "tasks"])),
+    ).toEqual([nextTask]);
+    expect(queryClient.getQueryData(["projects", "codexly", "tasks", "pinned"])).toEqual([
+      nextTask,
+    ]);
+    expect(queryClient.getQueryData(["projects", "codexly", "tasks", "search-source"])).toEqual([
+      nextTask,
+    ]);
   });
 });

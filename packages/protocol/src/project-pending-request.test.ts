@@ -316,7 +316,11 @@ describe("project pending request protocol", () => {
     expect(Value.Check(ArchiveAgentTaskRequestSchema, {})).toBe(true);
     expect(Value.Check(ArchiveAgentTaskRequestSchema, { permanent: true })).toBe(false);
     expect(
-      Value.Check(ArchiveAgentTaskResponseSchema, { status: "archived", taskId: "task-2" }),
+      Value.Check(ArchiveAgentTaskResponseSchema, {
+        status: "archived",
+        taskId: "task-2",
+        tasks: { data: [], nextCursor: null },
+      }),
     ).toBe(true);
     expect(
       Value.Check(UploadAgentFeedbackRequestSchema, {

@@ -358,7 +358,9 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
             throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
           }
           await context.provider.archiveTask(request.params.taskId);
-          return { status: "archived" as const, taskId: request.params.taskId };
+          // 归档后的首屏由 Provider 重新排序和补位，浏览器无需自行维护游标。
+          const tasks = await context.provider.listTasks({ limit: 5 });
+          return { status: "archived" as const, taskId: request.params.taskId, tasks };
         },
       ),
   );
