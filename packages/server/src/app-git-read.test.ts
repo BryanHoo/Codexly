@@ -299,7 +299,11 @@ describe("server Git read routes", () => {
     const register = vi.fn(() => Promise.resolve(targetProject));
     const app = await createCodexlyServer({
       ...options,
-      projectRepository: { ...options.projectRepository, register },
+      projectRepository: {
+        ...options.projectRepository,
+        list: () => Promise.resolve([targetProject]),
+        register,
+      },
     });
     closeCallbacks.push(() => app.close());
     const createRequest = {
@@ -331,12 +335,19 @@ describe("server Git read routes", () => {
     });
 
     expect(listed.json()).toEqual({ worktrees: [worktree] });
-    expect(created.json()).toEqual({ project: targetProject, worktree });
-    expect(repeated.json()).toEqual({ project: targetProject, worktree });
-    expect(switched.json()).toEqual({ project: targetProject, worktree });
+    const mutationResponse = {
+      project: targetProject,
+      projects: { data: [targetProject], nextCursor: null },
+      worktree,
+      worktrees: { worktrees: [worktree] },
+    };
+    expect(created.json()).toEqual(mutationResponse);
+    expect(repeated.json()).toEqual(mutationResponse);
+    expect(switched.json()).toEqual(mutationResponse);
     expect(createProjectWorktree).toHaveBeenCalledOnce();
     expect(createProjectWorktree).toHaveBeenCalledWith(projectRootPath, createRequest);
     expect(resolveProjectWorktree).toHaveBeenCalledWith(projectRootPath, worktree.path);
+    expect(readProjectWorktrees).toHaveBeenCalledTimes(3);
     expect(register).toHaveBeenCalledTimes(2);
   });
 

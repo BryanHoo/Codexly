@@ -317,10 +317,17 @@ describe("project mutation protocol", () => {
     ).toBe(false);
     expect(Value.Check(SwitchProjectWorktreeRequestSchema, { path: worktree.path })).toBe(true);
     expect(Value.Check(SwitchProjectWorktreeRequestSchema, { path: "relative/path" })).toBe(false);
-    expect(Value.Check(ProjectWorktreeMutationResponseSchema, { project, worktree })).toBe(true);
+    const mutationState = {
+      projects: { data: [project], nextCursor: null },
+      worktrees: { worktrees: [worktree] },
+    };
+    expect(
+      Value.Check(ProjectWorktreeMutationResponseSchema, { project, ...mutationState, worktree }),
+    ).toBe(true);
     expect(
       Value.Check(ProjectWorktreeMutationResponseSchema, {
         project,
+        ...mutationState,
         worktree: { ...worktree, path: "relative/path" },
       }),
     ).toBe(false);

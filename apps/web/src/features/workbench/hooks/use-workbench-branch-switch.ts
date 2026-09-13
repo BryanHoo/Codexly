@@ -2,8 +2,6 @@ import type {
   Project,
   ProjectGitStatus,
   ProjectGitWorktree,
-  ProjectGitWorktreePage,
-  ProjectPage,
   ProjectWorktreeMutationResponse,
 } from "@codexly/protocol";
 import { useNavigate } from "@tanstack/react-router";
@@ -16,7 +14,6 @@ import {
   notifyActionSuccess,
 } from "../../notifications/action-notifications.js";
 import type { WorkbenchComposerProps } from "../components/workbench-composer-contracts.js";
-import { upsertProjectInPage } from "../../projects/project-query-cache.js";
 import { useProjectData } from "../../projects/project-context.js";
 
 const gitStatusQueryKey = (projectId: string, rootPath: string) =>
@@ -30,26 +27,9 @@ function cacheProjectWorktreeMutation(
   rootPath: string,
   response: ProjectWorktreeMutationResponse,
 ) {
-  queryClient.setQueryData<ProjectPage>(["projects"], (currentPage) =>
-    upsertProjectInPage(currentPage, response.project),
-  );
-  queryClient.setQueryData<ProjectGitWorktreePage>(
-    gitWorktreesQueryKey(projectId, rootPath),
-    (currentPage) => {
-      const worktrees = currentPage?.worktrees ?? [];
-      const existingIndex = worktrees.findIndex(
-        (worktree) => worktree.path === response.worktree.path,
-      );
-      return {
-        worktrees:
-          existingIndex < 0
-            ? [...worktrees, response.worktree]
-            : worktrees.map((worktree, index) =>
-                index === existingIndex ? response.worktree : worktree,
-              ),
-      };
-    },
-  );
+  // 响应已包含 Node 重新读取的完整状态，浏览器仅替换对应缓存。
+  queryClient.setQueryData(["projects"], response.projects);
+  queryClient.setQueryData(gitWorktreesQueryKey(projectId, rootPath), response.worktrees);
 }
 
 export async function switchComposerBranch(

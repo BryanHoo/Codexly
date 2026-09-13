@@ -71,6 +71,13 @@ export function registerProjectGitWorktreeRoutes(
       throw error;
     }
   };
+  const readMutationState = async (rootPath: string) => {
+    const [projects, worktrees] = await Promise.all([
+      projectRepository.list(),
+      readProjectWorktrees(rootPath),
+    ]);
+    return { projects: { data: projects, nextCursor: null }, worktrees };
+  };
 
   app.get<{ Params: { projectId: string }; Querystring: ProjectRootQuery }>(
     "/v1/projects/:projectId/git/worktrees",
@@ -148,7 +155,8 @@ export function registerProjectGitWorktreeRoutes(
               name: basename(worktree.path),
               roots: [{ path: worktree.path }],
             });
-            return { project, worktree };
+            // 注册表与 worktree 列表均由 Node 重新读取，作为同一幂等结果返回。
+            return { project, ...(await readMutationState(rootPath)), worktree };
           } catch (error) {
             if (error instanceof GitWorktreeError) throw toGitWorktreeHttpError(error);
             throw new MutationHttpError(
@@ -202,7 +210,7 @@ export function registerProjectGitWorktreeRoutes(
               name: basename(worktree.path),
               roots: [{ path: worktree.path }],
             });
-            return { project, worktree };
+            return { project, ...(await readMutationState(rootPath)), worktree };
           } catch (error) {
             if (error instanceof GitWorktreeError) throw toGitWorktreeHttpError(error);
             throw new MutationHttpError(

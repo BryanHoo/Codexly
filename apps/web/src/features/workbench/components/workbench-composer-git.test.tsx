@@ -163,10 +163,30 @@ describe("WorkbenchComposer Git", () => {
         name: "Codexly-feat-review",
         roots: [{ id: "root-review", path: "/workspace/Codexly-feat-review" }],
       },
+      projects: {
+        data: [
+          {
+            createdAt: "2026-08-18T00:00:00.000Z",
+            id: "codexly-worktree",
+            name: "Codexly-feat-review",
+            roots: [{ id: "root-review", path: "/workspace/Codexly-feat-review" }],
+          },
+        ],
+        nextCursor: null,
+      },
       worktree: {
         branch: "feat/review",
         current: false,
         path: "/workspace/Codexly-feat-review",
+      },
+      worktrees: {
+        worktrees: [
+          {
+            branch: "feat/review",
+            current: false,
+            path: "/workspace/Codexly-feat-review",
+          },
+        ],
       },
     };
     const client = { createProjectWorktree: vi.fn(() => Promise.resolve(response)) };
@@ -202,7 +222,19 @@ describe("WorkbenchComposer Git", () => {
         name: "Codexly-feat-review",
         roots: [{ id: "root-worktree", path: worktree.path }],
       },
+      projects: {
+        data: [
+          {
+            createdAt: "2026-08-18T00:00:00.000Z",
+            id: "codexly-worktree",
+            name: "Codexly-feat-review",
+            roots: [{ id: "root-worktree", path: worktree.path }],
+          },
+        ],
+        nextCursor: null,
+      },
       worktree,
+      worktrees: { worktrees: [worktree] },
     };
     const client = { switchProjectWorktree: vi.fn(() => Promise.resolve(response)) };
 

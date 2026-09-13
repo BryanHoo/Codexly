@@ -222,7 +222,15 @@ export type SwitchProjectWorktreeRequest = Readonly<
 >;
 
 export const ProjectWorktreeMutationResponseSchema = Type.Object(
-  { project: ProjectSchema, worktree: ProjectGitWorktreeSchema },
+  {
+    project: ProjectSchema,
+    projects: Type.Object(
+      { data: Type.Array(ProjectSchema), nextCursor: Type.Null() },
+      { additionalProperties: false },
+    ),
+    worktree: ProjectGitWorktreeSchema,
+    worktrees: ProjectGitWorktreePageSchema,
+  },
   { additionalProperties: false },
 );
 export type ProjectWorktreeMutationResponse = Readonly<

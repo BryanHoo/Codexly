@@ -200,7 +200,19 @@ describe("CodexlyClient Git routes", () => {
         name: "Codexly-feat-worktree",
         roots: [{ id: "root-codexly-feat-worktree", path: worktree.path }],
       },
+      projects: {
+        data: [
+          {
+            createdAt: "2026-08-18T00:00:00.000Z",
+            id: "codexly-feat-worktree",
+            name: "Codexly-feat-worktree",
+            roots: [{ id: "root-codexly-feat-worktree", path: worktree.path }],
+          },
+        ],
+        nextCursor: null,
+      },
       worktree,
+      worktrees: page,
     };
     const createRequest = {
       branch: worktree.branch,
