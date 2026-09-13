@@ -142,7 +142,7 @@ async function runGitCommand(
 export async function commitSelectedProjectChanges(
   projectRoot: string,
   request: CommitProjectChangesRequest,
-): Promise<CommitProjectChangesResponse> {
+): Promise<Omit<CommitProjectChangesResponse, "status">> {
   const repositoryRoot = await resolveProjectGitRepositoryRoot(
     projectRoot,
     request.repository,

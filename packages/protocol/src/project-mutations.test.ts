@@ -180,6 +180,15 @@ describe("project mutation protocol", () => {
         message: "feat(git): 添加选择文件提交",
         pushError: null,
         pushStatus: "pushed",
+        status: {
+          baseBranches: ["origin/main", "main"],
+          branch: "feat/commit",
+          branches: ["feat/commit", "main"],
+          repositoryMode: "root",
+          snapshot: "b".repeat(64),
+          staged: [],
+          unstaged: [],
+        },
       }),
     ).toBe(true);
 

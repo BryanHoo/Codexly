@@ -177,6 +177,15 @@ describe("project runtime queries", () => {
           message: commitRequest.message,
           pushError: null,
           pushStatus: "not_requested" as const,
+          status: {
+            baseBranches: ["origin/main", "main"],
+            branch: "feat/commit",
+            branches: ["feat/commit", "main"],
+            repositoryMode: "root" as const,
+            snapshot: "b".repeat(64),
+            staged: [],
+            unstaged: [],
+          },
         }),
       ),
       generateCommitMessage: vi.fn(() =>

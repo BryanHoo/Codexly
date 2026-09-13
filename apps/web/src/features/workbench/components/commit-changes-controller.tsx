@@ -1,5 +1,5 @@
 import type { CommitProjectChangesResponse, ProjectGitStatus } from "@codexly/protocol";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import type { AgentFileChange } from "../../diff/file-change.js";
@@ -31,6 +31,20 @@ function getCommitSuccessMessageKey(result: CommitProjectChangesResponse): strin
     return "commit.commitAndPushSucceeded";
   }
   return result.pushStatus === "not_requested" ? "commit.commitSucceeded" : null;
+}
+
+export function cacheCommittedGitStatus(
+  queryClient: QueryClient,
+  projectId: string,
+  rootPath: string,
+  repository: string | undefined,
+  status: ProjectGitStatus,
+): void {
+  const queryKey =
+    repository === undefined
+      ? (["projects", projectId, rootPath, "git-status"] as const)
+      : (["projects", projectId, rootPath, "git-status", repository] as const);
+  queryClient.setQueryData(queryKey, status);
 }
 
 export function CommitChangesController({
@@ -85,9 +99,13 @@ export function CommitChangesController({
         const submittedSnapshot = request.expectedSnapshot;
         const response = await commitMutation.mutateAsync(request);
         setResultState({ result: response, snapshot: submittedSnapshot });
-        void queryClient.invalidateQueries({
-          queryKey: ["projects", projectId, rootPath, "git-status"],
-        });
+        cacheCommittedGitStatus(
+          queryClient,
+          projectId,
+          rootPath,
+          request.repository,
+          response.status,
+        );
         void queryClient.invalidateQueries({
           queryKey: ["projects", projectId, rootPath, "git-history"],
         });

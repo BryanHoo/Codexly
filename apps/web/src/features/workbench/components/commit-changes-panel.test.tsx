@@ -117,6 +117,7 @@ describe("CommitChangesPanel", () => {
         message: "feat(git): 提交选择文件",
         pushError: "fatal: unable to access remote repository",
         pushStatus: "failed",
+        status: gitStatus,
       },
     });
 

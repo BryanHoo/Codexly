@@ -294,6 +294,7 @@ export const CommitProjectChangesResponseSchema = Type.Object(
       Type.Literal("failed"),
       Type.Literal("not_configured"),
     ]),
+    status: ProjectGitStatusSchema,
   },
   { additionalProperties: false },
 );

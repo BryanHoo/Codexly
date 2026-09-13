@@ -475,7 +475,11 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
           assertGitMutationAvailable(mutationScope);
           activeGitMutations.add(mutationScope);
           try {
-            return await commitProjectChanges(rootPath, request.body);
+            const result = await commitProjectChanges(rootPath, request.body);
+            const repository = request.body.repository;
+            // 返回目标仓库最终状态，浏览器无需追加状态查询。
+            const status = await readProjectGitStatus(rootPath, repository ? { repository } : {});
+            return { ...result, status };
           } catch (error) {
             if (error instanceof GitCommitError) {
               throw toGitCommitHttpError(error);

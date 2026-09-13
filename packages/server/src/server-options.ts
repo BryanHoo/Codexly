@@ -83,7 +83,7 @@ export interface CreateCodexlyServerOptions {
   commitProjectChanges?: (
     projectRoot: string,
     request: CommitProjectChangesRequest,
-  ) => Promise<CommitProjectChangesResponse>;
+  ) => Promise<Omit<CommitProjectChangesResponse, "status">>;
   createProjectBranch?: (
     projectRoot: string,
     request: CreateProjectBranchRequest,

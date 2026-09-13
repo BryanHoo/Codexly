@@ -268,7 +268,19 @@ describe("server Git mutations", () => {
         pushStatus: "failed" as const,
       }),
     );
-    const app = await createCodexlyServer(createServerOptions(provider, { commitProjectChanges }));
+    const committedStatus = {
+      baseBranches: ["origin/main", "main"],
+      branch: "feat/commit",
+      branches: ["feat/commit", "main"],
+      repositoryMode: "root" as const,
+      snapshot: "c".repeat(64),
+      staged: [],
+      unstaged: [],
+    };
+    const readProjectGitStatus = vi.fn(() => Promise.resolve(committedStatus));
+    const app = await createCodexlyServer(
+      createServerOptions(provider, { commitProjectChanges, readProjectGitStatus }),
+    );
     closeCallbacks.push(() => app.close());
     const request = {
       action: "commit_and_push",
@@ -291,10 +303,12 @@ describe("server Git mutations", () => {
     });
 
     expect(first.statusCode).toBe(201);
-    expect(first.json()).toMatchObject({ pushStatus: "failed" });
+    expect(first.json()).toMatchObject({ pushStatus: "failed", status: committedStatus });
     expect(repeated.json()).toEqual(first.json());
     expect(commitProjectChanges).toHaveBeenCalledOnce();
     expect(commitProjectChanges).toHaveBeenCalledWith(projectRootPath, request);
+    expect(readProjectGitStatus).toHaveBeenCalledOnce();
+    expect(readProjectGitStatus).toHaveBeenCalledWith(projectRootPath, {});
   });
 
   it("rejects concurrent Git mutations for the same project", async () => {
@@ -318,7 +332,20 @@ describe("server Git mutations", () => {
           resolveCommit = resolve;
         }),
     );
-    const app = await createCodexlyServer(createServerOptions(provider, { commitProjectChanges }));
+    const readProjectGitStatus = vi.fn(() =>
+      Promise.resolve({
+        baseBranches: ["origin/main", "main"],
+        branch: "feat/commit",
+        branches: ["feat/commit", "main"],
+        repositoryMode: "root" as const,
+        snapshot: "2".repeat(64),
+        staged: [],
+        unstaged: [],
+      }),
+    );
+    const app = await createCodexlyServer(
+      createServerOptions(provider, { commitProjectChanges, readProjectGitStatus }),
+    );
     closeCallbacks.push(() => app.close());
     const payload = {
       action: "commit",

@@ -9,6 +9,15 @@ describe("CommitProjectChangesResponseSchema", () => {
       branch: "main",
       commitSha: "a".repeat(40),
       message: "fix(git): preserve errors",
+      status: {
+        baseBranches: ["origin/main", "main"],
+        branch: "main",
+        branches: ["main"],
+        repositoryMode: "root",
+        snapshot: "b".repeat(64),
+        staged: [],
+        unstaged: [],
+      },
     };
 
     expect(

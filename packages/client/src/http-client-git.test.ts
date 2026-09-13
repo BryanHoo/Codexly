@@ -301,6 +301,15 @@ describe("CodexlyClient Git routes", () => {
           message: commitRequest.message,
           pushError: null,
           pushStatus: "pushed",
+          status: {
+            baseBranches: ["origin/main", "main"],
+            branch: "feat/commit",
+            branches: ["feat/commit", "main"],
+            repositoryMode: "root",
+            snapshot: "b".repeat(64),
+            staged: [],
+            unstaged: [],
+          },
         }),
       );
     const client = new CodexlyClient({ fetch: fetchMock });
