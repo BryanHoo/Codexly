@@ -7,6 +7,30 @@ import {
   nativeThread,
 } from "./agent-provider.test-support.js";
 
+test("publishes a complete user message after native skill expansion to every subscriber", async () => {
+  const rpc = new FakeRpcClient([{ data: [nativeThread()], nextCursor: null }]);
+  const provider = createCodexAgentProvider({ client: rpc, project });
+  const first: AgentProviderEvent[] = [];
+  const second: AgentProviderEvent[] = [];
+  provider.subscribeEvents((event) => first.push(event));
+  provider.subscribeEvents((event) => second.push(event));
+  await provider.listTasks();
+  for (const item of [
+    { id: "user", type: "userMessage", content: [{ type: "text", text: "$check\n继续" }] },
+    {
+      id: "skill",
+      type: "userMessage",
+      content: [{ type: "skill", name: "check", path: "/skills/check/SKILL.md" }],
+    },
+  ])
+    rpc.emitNotification("item/completed", { threadId: "task-1", turnId: "turn-1", item });
+  expect(first.at(-1)).toMatchObject({
+    itemId: "user",
+    payload: { item: { id: "user", text: "继续", skills: [{ name: "check" }] } },
+  });
+  expect(second).toEqual(first);
+});
+
 test("shares normalized IDs between provider snapshots and every realtime subscriber", async () => {
   const nativeItem = {
     id: "snapshot-id",

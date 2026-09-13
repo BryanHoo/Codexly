@@ -179,7 +179,9 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
     if (turn.status === "running") {
       this.runtime.runningTaskIds.add(taskId);
     }
-    return this.runtime.messageIdentities.snapshot(taskId, [turn])[0] ?? turn;
+    const normalized = this.runtime.messageIdentities.snapshot(taskId, [turn])[0] ?? turn;
+    this.runtime.skillMessages.seed(taskId, [normalized]);
+    return normalized;
   }
 
   protected async readGoalResponse(taskId: string): Promise<AgentGoal | null> {
@@ -280,7 +282,9 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
       this.runtime.activeReviewWorkerTaskIds.delete(taskId);
       this.runtime.reviewWorkerOutputTaskIds.delete(taskId);
     }
-    return this.runtime.messageIdentities.snapshot(taskId, [turn])[0] ?? turn;
+    const normalized = this.runtime.messageIdentities.snapshot(taskId, [turn])[0] ?? turn;
+    this.runtime.skillMessages.seed(taskId, [normalized]);
+    return normalized;
   }
 
   public async interruptTurn(taskId: string, turnId: string): Promise<void> {

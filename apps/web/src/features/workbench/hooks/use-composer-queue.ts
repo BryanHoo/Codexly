@@ -9,6 +9,7 @@ import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtim
 import { taskQueueQueryKey, type CodexlyMutationClient } from "../../projects/project-queries.js";
 import {
   hasQueuedPromptFinishedInStore,
+  getTurnUserMessageIds,
   mapAgentQueuedSubmission,
   resolveQueuedPromptEdit,
   retainAcceptedSteerPrompt,
@@ -23,19 +24,7 @@ import {
   type PromptSkillEditorHandle,
 } from "../components/prompt-skill-editor.js";
 
-type SubmitPrompt = (
-  message: Readonly<{ files: readonly PromptInputAttachment[]; text: string }>,
-  skills?: readonly AgentSkill[],
-  options?: Readonly<{
-    clearInputOnSuccess?: boolean;
-    forceAction?: "start" | "steer";
-    queuedPromptId?: string;
-    requestTimelineScroll?: boolean;
-  }>,
-) => Promise<boolean>;
-
 type ComposerQueueOptions = Readonly<{
-  activeTurnId: string | undefined;
   client: CodexlyMutationClient;
   handleAttachmentsChange: (files: readonly PromptInputAttachment[]) => void;
   projectId: string;
@@ -69,7 +58,6 @@ async function listAllQueuedSubmissions(
 }
 
 export function useComposerQueue({
-  activeTurnId,
   client,
   handleAttachmentsChange,
   projectId,
@@ -152,11 +140,6 @@ export function useComposerQueue({
       await client.updateQueuedSubmission(projectId, taskId, editingId, input, "queued", {
         idempotencyKey: createUuid(),
       });
-      if (activeTurnId === undefined) {
-        await client.startQueuedSubmission(projectId, taskId, editingId, {
-          idempotencyKey: createUuid(),
-        });
-      }
     }
     await invalidateQueue();
     return true;
@@ -222,10 +205,7 @@ export function useComposerQueue({
     });
   };
 
-  const sendQueuedPrompt = async (
-    queuedPrompt: QueuedComposerPrompt,
-    submitPrompt: SubmitPrompt,
-  ) => {
+  const sendQueuedPrompt = async (queuedPrompt: QueuedComposerPrompt) => {
     const promptIndex = serverPrompts.findIndex((prompt) => prompt.id === queuedPrompt.id);
     const editingIndex = serverPrompts.findIndex((prompt) => prompt.status === "editing");
     if (
@@ -235,23 +215,8 @@ export function useComposerQueue({
     ) {
       return;
     }
-    if (activeTurnId !== undefined) {
-      const sent = await submitPrompt(
-        { files: queuedPrompt.files, text: queuedPrompt.text },
-        queuedPrompt.skills,
-        {
-          clearInputOnSuccess: false,
-          forceAction: "steer",
-          queuedPromptId: queuedPrompt.id,
-          requestTimelineScroll: false,
-        },
-      );
-      if (!sent) {
-        return;
-      }
-      await removeQueuedPrompt(queuedPrompt.id);
-      return;
-    }
+    // 浏览器只提交队列 ID；投递方式、附件归属和成功后的删除统一由 Node 处理。
+    const before = runtime?.readSnapshot();
     const response = await client.startQueuedSubmission(projectId, taskId, queuedPrompt.id, {
       idempotencyKey: createUuid(),
     });
@@ -263,7 +228,7 @@ export function useComposerQueue({
       skills: queuedPrompt.skills,
       text: queuedPrompt.text,
       turnId: response.turn.id,
-      userMessageIds: [],
+      userMessageIds: getTurnUserMessageIds(before, response.turn.id),
     });
     await invalidateQueue();
   };

@@ -36,6 +36,29 @@ test("keeps different identities distinct even when message text matches", () =>
   expect(readTurnItemIds(store, "turn-running")).toEqual(["old", "new"]);
 });
 
+test("does not infer a skill merge between separate server user messages", () => {
+  const store = makeStore();
+  const user = { ...item("user", "$check\n继续"), role: "user" as const };
+  store.getState().applyEvents([
+    {
+      ...eventEnvelope(11),
+      type: "item.completed",
+      turnId: "turn-running",
+      itemId: "user",
+      payload: { item: user },
+    },
+    {
+      ...eventEnvelope(12),
+      type: "item.completed",
+      turnId: "turn-running",
+      itemId: "skill",
+      payload: { item: { ...user, id: "skill", text: "", skills: [{ name: "check" }] } },
+    },
+  ]);
+  expect(readTurnItemIds(store, "turn-running")).toEqual(["old", "user", "skill"]);
+  expect(store.getState().getItem("user", "turn-running")).toMatchObject({ text: "$check\n继续" });
+});
+
 test("applies a server-provided alias without comparing message content", () => {
   const store = makeStore();
   store.getState().reconcile(response([item("canonical", "权威内容", ["old"])]));

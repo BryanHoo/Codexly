@@ -80,11 +80,15 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   ).toHaveCount(1);
   await page.getByRole("button", { name: "取消排队：外部删除后重新排队" }).click();
 
-  let steerPayload: unknown;
-  await page.route("**/v1/projects/codexly/tasks/*/turns/*/steer", async (route) => {
+  let dispatchPayload: unknown;
+  const dispatchWrites: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" || request.method() === "DELETE")
+      dispatchWrites.push(new URL(request.url()).pathname);
+  });
+  await page.route("**/v1/projects/codexly/tasks/*/queue/start", async (route) => {
     const request = route.request();
-    const payload = request.postDataJSON() as { taskId: string };
-    steerPayload = payload;
+    dispatchPayload = request.postDataJSON();
     await route.fulfill({ response: await route.fetch() });
   });
   const queueMessage = page.getByRole("button", { exact: true, name: "排队消息" });
@@ -106,14 +110,15 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await expect(steerQueued).toBeEnabled();
   await steerQueued.hover();
   await expect(page.getByRole("tooltip")).toHaveText("立即作为引导发送");
+  dispatchWrites.length = 0;
   await steerQueued.click();
   await expect(page.getByRole("status", { name: "等待发送" })).toBeVisible();
   await expect
-    .poll(() => steerPayload)
+    .poll(() => dispatchPayload)
     .toEqual({
-      input: { attachments: [], skills: [], text: "先补充失败测试（已编辑）", type: "prompt" },
-      taskId: expect.stringMatching(/^task-action-\d+$/u),
+      queuedSubmissionId: expect.any(String),
     });
+  expect(dispatchWrites).toEqual([`/v1/projects/codexly/tasks/${taskId}/queue/start`]);
   await expect(
     page.getByRole("button", { name: "编辑排队消息：先补充失败测试（已编辑）" }),
   ).toHaveCount(0);
@@ -175,6 +180,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await expect(page.getByLabel("Turn 2")).toHaveCount(0);
   await expect(page.getByText("后续排队内容", { exact: true })).toBeVisible();
 
+  dispatchWrites.length = 0;
   await page.getByRole("button", { exact: true, name: "排队消息" }).click();
   const editedTurn = page.getByLabel("Turn 2");
   await expect(editedTurn.getByText("刷新后继续编辑", { exact: true })).toBeVisible();
@@ -182,6 +188,8 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   const followingTurn = page.getByLabel("Turn 3");
   await expect(followingTurn.getByText("后续排队内容", { exact: true })).toBeVisible();
   await expect(followingTurn).toHaveAttribute("data-status", "completed");
+  // 保存编辑只发 PUT，恢复出队由 Node 完成，浏览器不能再追加启动请求。
+  expect(dispatchWrites).toEqual([]);
 });
 
 test("keeps a direct steer above the composer until its streamed message appears", async ({

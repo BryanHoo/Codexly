@@ -134,11 +134,13 @@ export class PersistentTaskQueue {
   }
 
   public async startNext(runtime: QueueRuntime): Promise<void> {
-    await this.#withTaskLock(runtime, async () => {
-      const [first] = await this.#repository.listQueue(runtime.projectId, runtime.taskId);
-      if (first?.status !== "queued") return;
-      await this.#startUnlocked(runtime, first.id);
-    });
+    await this.#withTaskLock(runtime, () => this.#startNextUnlocked(runtime));
+  }
+
+  async #startNextUnlocked(runtime: QueueRuntime): Promise<void> {
+    const [first] = await this.#repository.listQueue(runtime.projectId, runtime.taskId);
+    if (first?.status !== "queued") return;
+    await this.#startUnlocked(runtime, first.id, false);
   }
 
   public async update(
@@ -174,7 +176,10 @@ export class PersistentTaskQueue {
         true,
       );
       this.#publishChanged(runtime);
-      return this.#mapRecord(record);
+      // 先固定保存结果，再恢复队首；启动可能立即完成并释放附件，不能事后读取附件元数据。
+      const submission = await this.#mapRecord(record);
+      if (status === "queued") await this.#startNextUnlocked(runtime);
+      return submission;
     });
   }
 
@@ -201,6 +206,7 @@ export class PersistentTaskQueue {
   async #startUnlocked(
     runtime: QueueRuntime,
     queuedSubmissionId?: string,
+    allowSteer = true,
   ): Promise<AgentTurn | undefined> {
     const records = await this.#repository.listQueue(runtime.projectId, runtime.taskId);
     const selectedIndex =
@@ -220,9 +226,9 @@ export class PersistentTaskQueue {
     // Provider 响应丢失时执行结果未知，不能重新投递；持久标记在重启后仍阻止重复执行。
     if (selected.execution !== undefined) throw new TaskQueueBlockedError();
     const task = await runtime.provider.readTask(runtime.taskId);
-    if (task?.turns.some((turn) => turn.status === "running") === true) {
-      throw new TaskQueueBlockedError();
-    }
+    const running = task?.turns.find((turn) => turn.status === "running");
+    // 手动立即发送由服务端选择 start/steer；自动出队不得打断正在运行的新回合。
+    if (running !== undefined && !allowSteer) return undefined;
     const { providerInput } = await this.#resolveProviderInput(
       runtime.projectId,
       selected.input,
@@ -235,7 +241,14 @@ export class PersistentTaskQueue {
     if (!(await this.#repository.setQueueExecution(selected, { state: "starting" }))) {
       throw new TaskQueueBlockedError();
     }
-    const turn = await runtime.provider.startTurn(runtime.taskId, providerInput, settings);
+    let turn: AgentTurn;
+    if (running !== undefined) {
+      // steer 失败可能已被 Provider 接收，保留执行标记，禁止回退 start 或重新发送。
+      await runtime.provider.steerTurn(runtime.taskId, running.id, providerInput);
+      turn = running;
+    } else {
+      turn = await runtime.provider.startTurn(runtime.taskId, providerInput, settings);
+    }
     this.#startResults.set(selected.id, turn);
     return this.#finishStart(runtime, selected, turn);
   }

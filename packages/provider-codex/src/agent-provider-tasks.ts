@@ -128,6 +128,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       const status = turns.some((turn) => turn.status === "running")
         ? "running"
         : mapThreadStatus(thread["status"]);
+      this.runtime.skillMessages.seed(taskId, turns);
       const runningReviewTurn = turns.findLast(
         (turn) => turn.status === "running" && turn.items.some((item) => item.type === "review"),
       );

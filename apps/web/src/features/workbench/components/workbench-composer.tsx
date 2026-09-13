@@ -180,7 +180,6 @@ export function WorkbenchComposer({
     turnControlsDisabled,
   });
   const composerQueue = useComposerQueue({
-    activeTurnId,
     client,
     handleAttachmentsChange,
     projectId,
@@ -467,7 +466,7 @@ export function WorkbenchComposer({
       skillEditorRef={skillEditorRef}
       state={state}
       steerQueuedPrompt={(queuedPrompt) => {
-        void composerQueue.sendQueuedPrompt(queuedPrompt, submitPrompt).catch(setMutationError);
+        void composerQueue.sendQueuedPrompt(queuedPrompt).catch(setMutationError);
       }}
       submitAction={submitAction}
       switchingBranch={branchMutation.switchingBranch}

@@ -241,7 +241,7 @@ describe("server task mutations", () => {
       payload: { queuedSubmissionId },
       url: `${baseUrl}/start`,
     });
-    await app.inject({
+    const resumed = await app.inject({
       headers: { "idempotency-key": "queue-update-2" },
       method: "PUT",
       payload: {
@@ -269,7 +269,12 @@ describe("server task mutations", () => {
     });
     expect(reorder.json()).toEqual({ status: "reordered" });
     expect(blocked.statusCode).toBe(409);
-    expect(start.json()).toMatchObject({ taskId: "task-1", turn: { id: "turn-1" } });
+    expect(resumed.statusCode).toBe(200);
+    expect(resumed.json()).toMatchObject({
+      queuedSubmission: { status: "queued", text: "更新内容" },
+    });
+    // 保存即恢复出队；对已消费队列项的额外启动不能再次投递。
+    expect(start.statusCode).toBe(404);
     expect(remove.json()).toEqual({ deleted: false });
     expect(startTurn).toHaveBeenCalledOnce();
     expect(queue.add).not.toHaveBeenCalled();

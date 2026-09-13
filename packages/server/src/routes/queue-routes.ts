@@ -133,7 +133,11 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         body: UpdateAgentQueuedSubmissionRequestSchema,
         headers: IdempotencyHeadersSchema,
         params: ProjectTaskQueueParamsSchema,
-        response: { 200: UpdateAgentQueuedSubmissionResponseSchema },
+        response: {
+          200: UpdateAgentQueuedSubmissionResponseSchema,
+          404: AgentMutationErrorSchema,
+          409: AgentMutationErrorSchema,
+        },
       },
     },
     async (request) => {
@@ -143,12 +147,14 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         { ...request.body, queuedSubmissionId: request.params.queuedSubmissionId },
         async () => {
           const runtime = await readQueue(request.params);
-          return taskQueue.update(
-            runtime,
-            request.params.queuedSubmissionId,
-            request.body.input,
-            request.body.status,
-          );
+          return taskQueue
+            .update(
+              runtime,
+              request.params.queuedSubmissionId,
+              request.body.input,
+              request.body.status,
+            )
+            .catch(toQueueHttpError);
         },
       );
       return { queuedSubmission };

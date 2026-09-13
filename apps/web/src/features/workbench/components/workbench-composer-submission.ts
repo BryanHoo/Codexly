@@ -124,7 +124,6 @@ export function createComposerSubmission({
       clearInputOnSuccess?: boolean;
       forceAction?: "start" | "steer";
       composerMode?: ComposerMode | null;
-      queuedPromptId?: string;
       requestTimelineScroll?: boolean;
     }> = {},
   ): Promise<boolean> => {
@@ -295,7 +294,6 @@ export function createComposerSubmission({
           );
           onSteerAccepted({
             files: hostedFiles,
-            ...(options.queuedPromptId === undefined ? {} : { id: options.queuedPromptId }),
             skills,
             text,
             turnId: activeTurnId,
@@ -391,7 +389,6 @@ export function createComposerSubmission({
       clearInputOnSuccess?: boolean;
       forceAction?: "start" | "steer";
       composerMode?: ComposerMode | null;
-      queuedPromptId?: string;
       requestTimelineScroll?: boolean;
     }> = {},
   ): Promise<boolean> =>

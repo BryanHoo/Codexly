@@ -9,10 +9,12 @@ import type {
 
 import type { PendingCodexRequest } from "./codex-protocol-mapping.js";
 import { MessageIdentityRegistry } from "./message-identity.js";
+import { RealtimeSkillMessages } from "./realtime-skill-messages.js";
 
 /** 集中拥有所有 Task 级运行状态，确保释放时不会遗漏只增不减的 Map。 */
 export class TaskRuntimeState {
   public readonly messageIdentities = new MessageIdentityRegistry();
+  public readonly skillMessages = new RealtimeSkillMessages();
   public readonly activeReviewTargets = new Map<string, AgentReviewTarget>();
   public readonly activeReviewTurnIds = new Map<string, string>();
   public readonly activeReviewWorkerTaskIds = new Set<string>();
@@ -62,6 +64,7 @@ export class TaskRuntimeState {
 
   public clearTask(taskId: string): void {
     this.messageIdentities.clearTask(taskId);
+    this.skillMessages.clearTask(taskId);
     this.activeReviewTargets.delete(taskId);
     this.activeReviewTurnIds.delete(taskId);
     this.activeReviewWorkerTaskIds.delete(taskId);
@@ -90,6 +93,7 @@ export class TaskRuntimeState {
 
   public clear(): void {
     this.messageIdentities.clear();
+    this.skillMessages.clear();
     this.activeReviewTargets.clear();
     this.activeReviewTurnIds.clear();
     this.activeReviewWorkerTaskIds.clear();

@@ -10,7 +10,6 @@ import {
   type TaskItemStore,
   type TaskStoreState,
 } from "./task-store-core.js";
-import { mergeRealtimeExpandedSkill } from "./task-store-skill.js";
 import { applyMessageAliases, resolveMessageAliases } from "./task-store-identity.js";
 export function getTouchedCommandOutputItemKeys(
   previousState: TaskStoreState,
@@ -331,22 +330,6 @@ export function applyAcceptedEvent(
       const currentItemStore = state.itemStoresByKey.get(itemKey);
       const currentItemIds = applyMessageAliases(state, event.turnId, event.payload.item);
       const itemAlreadyExists = currentItemIds.includes(itemKey);
-      const previousItemId = currentItemIds.at(-1);
-      const previousItemStore =
-        previousItemId === undefined ? undefined : state.itemStoresByKey.get(previousItemId);
-      const mergedExpandedSkill = mergeRealtimeExpandedSkill(
-        previousItemStore?.read(),
-        event.payload.item,
-      );
-      if (mergedExpandedSkill !== undefined && previousItemStore !== undefined) {
-        // Codex 将 Skill 展开为紧邻用户项；实时链路原位合并，避免产生第二个用户气泡。
-        previousItemStore.replace(mergedExpandedSkill);
-        changedItemStores.add(previousItemStore);
-        return {
-          checkpoint,
-          snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
-        };
-      }
       const submittedUserItemId = `submitted-user-${event.turnId}`;
       const submittedUserItemKey = createTaskItemKey(event.turnId, submittedUserItemId);
       const replacesSubmittedUserItem =

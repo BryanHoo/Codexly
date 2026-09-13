@@ -372,7 +372,9 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
   }
 
   protected publishEvent(event: AgentProviderEvent): void {
-    const normalizedEvent = this.runtime.messageIdentities.event(event);
+    const normalizedEvent = this.runtime.messageIdentities.event(
+      this.runtime.skillMessages.event(event),
+    );
     // 内部订阅接收所有事件；普通订阅只接收用户可导航的持久 Task 事件。
     const notify = (listener: (event: AgentProviderEvent) => void): void => {
       try {

@@ -152,6 +152,21 @@ export function mapUserMessageContent(
   return { attachments, skills, text: textParts.join("\n") };
 }
 
+export function mergeMessageSkills(
+  message: Extract<AgentItem, { type: "message" }>,
+  incoming: readonly { name: string }[],
+): Extract<AgentItem, { type: "message" }> {
+  const skills = [...(message.skills ?? [])];
+  const names = new Set(skills.map((skill) => skill.name));
+  for (const skill of incoming) {
+    if (!names.has(skill.name)) {
+      names.add(skill.name);
+      skills.push(skill);
+    }
+  }
+  return { ...message, skills, text: stripLeadingAgentSkillReferences(message.text, skills) };
+}
+
 export function mergeExpandedSkillMessages(items: readonly AgentItem[]): AgentItem[] {
   const mergedItems: AgentItem[] = [];
 
@@ -160,23 +175,12 @@ export function mergeExpandedSkillMessages(items: readonly AgentItem[]): AgentIt
       item.type === "message" &&
       item.role === "user" &&
       item.text.length === 0 &&
+      (item.attachments?.length ?? 0) === 0 &&
       (item.skills?.length ?? 0) > 0;
     const previousItem = mergedItems.at(-1);
     if (isSkillOnlyMessage && previousItem?.type === "message" && previousItem.role === "user") {
       // 持久化历史把 Skill 指令放在原消息之后，恢复时合并为一个用户气泡。
-      const skillNames = new Set((previousItem.skills ?? []).map((skill) => skill.name));
-      const mergedSkills = [...(previousItem.skills ?? [])];
-      for (const skill of item.skills ?? []) {
-        if (!skillNames.has(skill.name)) {
-          skillNames.add(skill.name);
-          mergedSkills.push(skill);
-        }
-      }
-      mergedItems[mergedItems.length - 1] = {
-        ...previousItem,
-        skills: mergedSkills,
-        text: stripLeadingAgentSkillReferences(previousItem.text, mergedSkills),
-      };
+      mergedItems[mergedItems.length - 1] = mergeMessageSkills(previousItem, item.skills ?? []);
       continue;
     }
     mergedItems.push(item);

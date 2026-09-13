@@ -347,7 +347,7 @@ describe("task store terminal state", () => {
     expect(store.getState().getItem(submittedUserItemId, "turn-running")).toBeUndefined();
   });
 
-  it("merges a realtime expanded skill into the provider user message", () => {
+  it("renders a provider-normalized skill update on the same user message", () => {
     const submittedUserItemId = "submitted-user-turn-running";
     const store = createTaskStore(
       { projectId: "project-1", taskId: "task-1" },
@@ -392,13 +392,13 @@ describe("task store terminal state", () => {
       },
       {
         ...eventEnvelope(12),
-        itemId: "provider-skill-item",
+        itemId: "provider-user-item",
         payload: {
           item: {
-            id: "provider-skill-item",
+            id: "provider-user-item",
             role: "user",
             skills: [{ name: "superwork:superwork-init" }],
-            text: "",
+            text: "继续执行检查",
             type: "message",
           },
         },
