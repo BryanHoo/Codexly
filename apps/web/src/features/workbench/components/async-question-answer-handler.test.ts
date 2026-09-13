@@ -4,6 +4,7 @@ import { createAsyncQuestionAnswerHandler } from "./async-question-answer-handle
 import { questionTask } from "./async-question-test-fixtures.js";
 
 const result: AnswerAsyncQuestionResponse = {
+  questions: { data: [] },
   question: {
     id: "question",
     turnId: "turn-a",

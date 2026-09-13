@@ -42,15 +42,20 @@ export const AnswerAsyncQuestionRequestSchema = Type.Object(
   { additionalProperties: false },
 );
 export type AnswerAsyncQuestionRequest = Readonly<Static<typeof AnswerAsyncQuestionRequestSchema>>;
+const AnswerAsyncQuestionResultProperties = {
+  checkpoint: EventCheckpointSchema,
+  input: AgentPromptInputSchema,
+  messageId: Type.String({ minLength: 1 }),
+  question: AsyncQuestionGroupSchema,
+  turn: Type.Union([AgentTurnSchema, Type.Null()]),
+  turnId: Type.String({ minLength: 1 }),
+};
+export const AnswerAsyncQuestionResultSchema = Type.Object(AnswerAsyncQuestionResultProperties, {
+  additionalProperties: false,
+});
+export type AnswerAsyncQuestionResult = Readonly<Static<typeof AnswerAsyncQuestionResultSchema>>;
 export const AnswerAsyncQuestionResponseSchema = Type.Object(
-  {
-    question: AsyncQuestionGroupSchema,
-    input: AgentPromptInputSchema,
-    messageId: Type.String({ minLength: 1 }),
-    turnId: Type.String({ minLength: 1 }),
-    turn: Type.Union([AgentTurnSchema, Type.Null()]),
-    checkpoint: EventCheckpointSchema,
-  },
+  { ...AnswerAsyncQuestionResultProperties, questions: AsyncQuestionPageSchema },
   { additionalProperties: false },
 );
 export type AnswerAsyncQuestionResponse = Readonly<

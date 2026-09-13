@@ -5,7 +5,7 @@ import {
   type AsyncQuestionRepository,
   type AgentProviderTaskSnapshot,
 } from "@codexly/core";
-import type { AsyncQuestionGroup, AnswerAsyncQuestionResponse } from "@codexly/protocol";
+import type { AsyncQuestionGroup, AnswerAsyncQuestionResult } from "@codexly/protocol";
 import { MutationHttpError, type ServerRouteContext } from "./routes/context.js";
 
 const identify = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -83,7 +83,7 @@ export class AsyncQuestionService {
     await this.refresh(projectId, taskId);
     return this.pending(projectId, taskId);
   }
-  private async pending(projectId: string, taskId: string) {
+  public async pending(projectId: string, taskId: string) {
     const records = await this.repository().listAsyncQuestions(projectId, taskId);
     return {
       data: records
@@ -101,7 +101,7 @@ export class AsyncQuestionService {
     taskId: string,
     id: string,
     answers: readonly string[],
-  ): Promise<AnswerAsyncQuestionResponse> {
+  ): Promise<AnswerAsyncQuestionResult> {
     const repository = this.repository();
     const { runtime, task } = await this.task(projectId, taskId);
     const record = (await repository.listAsyncQuestions(projectId, taskId)).find(

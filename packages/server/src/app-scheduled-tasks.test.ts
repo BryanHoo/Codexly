@@ -102,6 +102,7 @@ describe("server scheduled tasks", () => {
     });
     expect(created.statusCode).toBe(201);
     const taskId = created.json<{ task: ScheduledTask }>().task.id;
+    expect(created.json()).toMatchObject({ tasks: { data: [{ id: taskId }] } });
     expect((await app.inject({ method: "GET", url: "/v1/scheduled-tasks" })).json()).toMatchObject({
       data: [{ id: taskId }],
     });
@@ -112,13 +113,17 @@ describe("server scheduled tasks", () => {
       headers: { "idempotency-key": "toggle" },
       url: `/v1/scheduled-tasks/${taskId}/enabled`,
     });
-    expect(toggled.json()).toMatchObject({ task: { enabled: false, id: taskId } });
+    expect(toggled.json()).toMatchObject({
+      task: { enabled: false, id: taskId },
+      tasks: { data: [{ enabled: false, id: taskId }] },
+    });
     const started = await app.inject({
       method: "POST",
       url: `/v1/scheduled-tasks/${taskId}/run`,
       headers: { "idempotency-key": "run" },
     });
     expect(started.statusCode).toBe(200);
+    expect(started.json()).toMatchObject({ tasks: { data: [{ id: taskId }] } });
     await vi.waitFor(() => {
       expect(startTurn).toHaveBeenCalledOnce();
     });
@@ -131,6 +136,7 @@ describe("server scheduled tasks", () => {
         headers: { "idempotency-key": "delete" },
       });
       expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ status: "deleted", taskId, tasks: { data: [] } });
     });
     expect((await app.inject({ method: "GET", url: "/v1/scheduled-tasks" })).json()).toEqual({
       data: [],

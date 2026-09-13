@@ -1,7 +1,7 @@
 import type { AsyncQuestionRecord, AsyncQuestionRepository } from "@codexly/core";
 import {
   AsyncQuestionGroupSchema,
-  AnswerAsyncQuestionResponseSchema,
+  AnswerAsyncQuestionResultSchema,
   type AsyncQuestionGroup,
 } from "@codexly/protocol";
 import { Type } from "@sinclair/typebox";
@@ -12,7 +12,7 @@ const RecordSchema = Type.Object(
   {
     group: AsyncQuestionGroupSchema,
     fingerprint: Type.Optional(Type.String()),
-    result: Type.Optional(AnswerAsyncQuestionResponseSchema),
+    result: Type.Optional(AnswerAsyncQuestionResultSchema),
   },
   { additionalProperties: false },
 );

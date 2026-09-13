@@ -26,18 +26,14 @@ export function useAsyncQuestions(
     try {
       const result = await codexlyClient.answerAsyncQuestion(projectId, taskId, id, answers);
       await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData<Awaited<ReturnType<typeof codexlyClient.listAsyncQuestions>>>(
-        queryKey,
-        (page) =>
-          page === undefined
-            ? page
-            : { data: page.data.filter((group) => group.id !== result.question.id) },
-      );
+      // Node 返回投递完成后的权威集合，浏览器只更新渲染缓存。
+      queryClient.setQueryData(queryKey, result.questions);
       accept(result);
       return true;
-    } finally {
+    } catch (error) {
       // 失败也刷新：其他页面可能已经处理，或后端正在保留未知投递结果。
       await queryClient.invalidateQueries({ queryKey });
+      throw error;
     }
   };
   const dismiss = async (ids: readonly string[]) => {
@@ -46,13 +42,19 @@ export function useAsyncQuestions(
     setDismissError(false);
     try {
       // 关闭只针对当前展示的 ID，不能影响同时出现的新问题。
+      let questions;
       for (let index = 0; index < ids.length; index += 128) {
-        await codexlyClient.dismissAsyncQuestions(projectId, taskId, ids.slice(index, index + 128));
+        questions = await codexlyClient.dismissAsyncQuestions(
+          projectId,
+          taskId,
+          ids.slice(index, index + 128),
+        );
       }
+      queryClient.setQueryData(queryKey, questions);
     } catch {
       setDismissError(true);
-    } finally {
       await queryClient.invalidateQueries({ queryKey });
+    } finally {
       setDismissing(false);
     }
   };

@@ -98,7 +98,7 @@ export const ScheduledTaskPageSchema = Type.Object(
 export type ScheduledTaskPage = Readonly<Static<typeof ScheduledTaskPageSchema>>;
 
 export const ScheduledTaskMutationResponseSchema = Type.Object(
-  { task: ScheduledTaskSchema },
+  { task: ScheduledTaskSchema, tasks: ScheduledTaskPageSchema },
   { additionalProperties: false },
 );
 export type ScheduledTaskMutationResponse = Readonly<
@@ -106,7 +106,11 @@ export type ScheduledTaskMutationResponse = Readonly<
 >;
 
 export const DeleteScheduledTaskResponseSchema = Type.Object(
-  { status: Type.Literal("deleted"), taskId: Type.String({ minLength: 1 }) },
+  {
+    status: Type.Literal("deleted"),
+    taskId: Type.String({ minLength: 1 }),
+    tasks: ScheduledTaskPageSchema,
+  },
   { additionalProperties: false },
 );
 export type DeleteScheduledTaskResponse = Readonly<

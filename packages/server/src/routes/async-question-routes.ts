@@ -58,8 +58,8 @@ export const registerAsyncQuestionRoutes: FastifyPluginCallback<ServerRouteConte
         response: { 200: AnswerAsyncQuestionResponseSchema, ...errors },
       },
     },
-    (request) =>
-      context.runIdempotent(
+    async (request) => {
+      const result = await context.runIdempotent(
         [
           "answer-async-question",
           request.params.projectId,
@@ -75,7 +75,12 @@ export const registerAsyncQuestionRoutes: FastifyPluginCallback<ServerRouteConte
             request.params.questionId,
             request.body.answers,
           ),
-      ),
+      );
+      return {
+        ...result,
+        questions: await service.pending(request.params.projectId, request.params.taskId),
+      };
+    },
   );
   app.post<{ Params: Params; Body: { ids: string[] }; Headers: Headers }>(
     `${path}/dismiss`,

@@ -1,9 +1,9 @@
-import type { AgentTurn, AsyncQuestionGroup, AnswerAsyncQuestionResponse } from "@codexly/protocol";
+import type { AgentTurn, AsyncQuestionGroup, AnswerAsyncQuestionResult } from "@codexly/protocol";
 
 export type AsyncQuestionRecord = Readonly<{
   group: AsyncQuestionGroup;
   fingerprint?: string;
-  result?: AnswerAsyncQuestionResponse;
+  result?: AnswerAsyncQuestionResult;
 }>;
 export interface AsyncQuestionRepository {
   listAsyncQuestions(projectId: string, taskId: string): Promise<readonly AsyncQuestionRecord[]>;

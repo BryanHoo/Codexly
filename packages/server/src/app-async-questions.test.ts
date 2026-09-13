@@ -55,6 +55,7 @@ describe("async question API", () => {
     };
     const results = await Promise.all([first.app.inject(request), first.app.inject(request)]);
     expect(results[0].statusCode, results[0].body).toBe(200);
+    expect(results[0].json()).toMatchObject({ questions: { data: [] } });
     expect(first.steerTurn).toHaveBeenCalledOnce();
     expect(first.steerTurn).toHaveBeenCalledWith("task-1", expect.any(String), {
       text: "范围\n整个项目",

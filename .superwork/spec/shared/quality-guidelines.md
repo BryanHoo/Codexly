@@ -19,9 +19,10 @@ Capture contract and verification standards for this project.
 - 智能体全局默认值以不带 `cwd` 的 Codex `config/read` 为准；已有本地记录不能屏蔽 Codex 配置变化。修改时仅将变化字段提交 `config/batchWrite` 并设置 `reloadUserConfig: true`，成功后清除原生配置缓存并保存应用快照；快速模式开启写入 `service_tier: priority`，关闭写入 `default`。保存串行执行，Codex 写入失败不得更新本地快照；项目和任务的显式覆盖保持独立。
 - 官方插件能力必须通过带有 `--enable plugins` 的 Codex App Server 映射 `plugin/list`、`plugin/read`、`plugin/install` 和 `plugin/uninstall`；协议需保留 marketplace/plugin 标识、认证策略、应用与资源信息，并通过 `pnpm run codex:schema:check` 校验真实 RPC 基线。
 - 定时任务跨层契约统一使用严格的 `once`/`rrule` 联合计划、`AgentPromptInput` 与 `AgentTurnOptions`，客户端和服务端不得维护平行结构。
+- 定时任务 create、update、delete、enabled 和 run 写响应必须在幂等 action 内附带服务端排序后的完整 `tasks`；同一 `Idempotency-Key` 重放返回完全相同的任务与列表快照。浏览器成功后直接替换列表缓存，不得复制调度排序或追加 GET；后续运行进度由事件同步。
 - 升级固定 Codex 版本时，同步更新版本常量、catalog/lockfile 和真实 App Server Schema 基线；对新增通知与联合类型逐项映射或显式 opt-out，不使用旧协议兼容回退。
 - 内置 Codex 固定为 `0.154.0`；外部可执行文件仅接受稳定版 `>=0.154.0,<0.155.0`，不得默认兼容未知次版本或主版本。
-- `agentMessage.questions` 映射为消息内结构化问题，禁止创建 `PendingRequest`；问题状态与回答编排归后端管理，通过独立 `async-questions` 接口提交结构化答案，后端选择启动或 `turn/steer`，客户端刷新服务端问题状态。
+- `agentMessage.questions` 映射为消息内结构化问题，禁止创建 `PendingRequest`；问题状态与回答编排归后端管理，通过独立 `async-questions` 接口提交结构化答案，后端选择启动或 `turn/steer`。持久化仅保存 `AnswerAsyncQuestionResult`，HTTP 回答响应额外返回投递完成后的权威 `questions`；回答与关闭成功后客户端直接更新查询缓存，失败时才重新读取。
 - `thread/read` 与 `thread/list` 中 nullable 的 `model`、`reasoningEffort` 统一保留为 `threadConfiguration`，与应用设置分别传递。
 - 运行中审批设置只向精确 `threadId`、`turnId` 发布 `turn/settings/update.approvalsReviewer`；不携带模型字段、不启用 `step_model_switching`、不修改挂起审批。`targetUnavailable` 仅保留后续回合设置，不重试其他回合。
 - 上传图片必须保持本地文件路径并映射为 Codex `localImage`，默认使用 `detail: "auto"`；禁止在 Server 或 Provider 中转换为 Base64 data URL，以保留原生图像处理并避免内存与 JSON 膨胀。

@@ -63,6 +63,11 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
     502: AgentMutationErrorSchema,
     503: AgentMutationErrorSchema,
   };
+  const withTasks = async <T extends object>(result: T) => ({
+    ...result,
+    // mutation 响应统一携带服务端排序后的最终列表，避免浏览器复制调度排序规则。
+    tasks: { data: await context.scheduledTaskService.list() },
+  });
   app.post<{ Body: ScheduledTaskPreviewRequest }>(
     "/v1/scheduled-tasks/preview",
     {
@@ -102,7 +107,7 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
         ["create-scheduled-task"],
         request.headers["idempotency-key"],
         request.body,
-        async () => ({ task: await context.scheduledTaskService.create(request.body) }),
+        async () => withTasks({ task: await context.scheduledTaskService.create(request.body) }),
       );
       return reply.code(201).send(result);
     },
@@ -122,9 +127,10 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
         ["update-scheduled-task", request.params.taskId],
         request.headers["idempotency-key"],
         request.body,
-        async () => ({
-          task: await context.scheduledTaskService.update(request.params.taskId, request.body),
-        }),
+        async () =>
+          withTasks({
+            task: await context.scheduledTaskService.update(request.params.taskId, request.body),
+          }),
       ),
   );
   app.delete<{ Params: { taskId: string }; Headers: MutationHeaders }>(
@@ -143,7 +149,7 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
         {},
         async () => {
           await context.scheduledTaskService.delete(request.params.taskId);
-          return { status: "deleted" as const, taskId: request.params.taskId };
+          return withTasks({ status: "deleted" as const, taskId: request.params.taskId });
         },
       ),
   );
@@ -166,12 +172,13 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
         ["set-scheduled-task-enabled", request.params.taskId],
         request.headers["idempotency-key"],
         request.body,
-        async () => ({
-          task: await context.scheduledTaskService.setEnabled(
-            request.params.taskId,
-            request.body.enabled,
-          ),
-        }),
+        async () =>
+          withTasks({
+            task: await context.scheduledTaskService.setEnabled(
+              request.params.taskId,
+              request.body.enabled,
+            ),
+          }),
       ),
   );
   app.post<{ Params: { taskId: string }; Headers: MutationHeaders }>(
@@ -188,7 +195,8 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
         ["run-scheduled-task", request.params.taskId],
         request.headers["idempotency-key"],
         {},
-        async () => ({ task: await context.scheduledTaskService.runNow(request.params.taskId) }),
+        async () =>
+          withTasks({ task: await context.scheduledTaskService.runNow(request.params.taskId) }),
       ),
   );
   done();

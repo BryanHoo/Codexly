@@ -51,11 +51,15 @@ describe("CodexlyClient scheduled tasks", () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: [task] }))
-      .mockResolvedValueOnce(jsonResponse({ task }))
-      .mockResolvedValueOnce(jsonResponse({ task }))
-      .mockResolvedValueOnce(jsonResponse({ task: { ...task, enabled: false } }))
-      .mockResolvedValueOnce(jsonResponse({ task }))
-      .mockResolvedValueOnce(jsonResponse({ status: "deleted", taskId: task.id }));
+      .mockResolvedValueOnce(jsonResponse({ task, tasks: { data: [task] } }))
+      .mockResolvedValueOnce(jsonResponse({ task, tasks: { data: [task] } }))
+      .mockResolvedValueOnce(
+        jsonResponse({ task: { ...task, enabled: false }, tasks: { data: [] } }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ task, tasks: { data: [task] } }))
+      .mockResolvedValueOnce(
+        jsonResponse({ status: "deleted", taskId: task.id, tasks: { data: [] } }),
+      );
     const client = new CodexlyClient({ fetch: fetchMock });
 
     await client.listScheduledTasks();

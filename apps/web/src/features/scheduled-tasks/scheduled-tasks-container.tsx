@@ -48,7 +48,7 @@ export function ScheduledTasksContainer({
           `${task.name}\n${task.projectName}`.toLocaleLowerCase().includes(normalized),
         );
   }, [search, tasks]);
-  const refresh = () => queryClient.invalidateQueries({ queryKey });
+  const applyTasks = (page: ScheduledTaskPage) => queryClient.setQueryData(queryKey, page);
   const saveMutation = useMutation({
     // 捕获模式由 Composer 展示保存错误，避免根级 MutationCache 再次通知。
     meta: { actionNotification: false },
@@ -59,36 +59,27 @@ export function ScheduledTasksContainer({
     onSuccess: (response) => {
       setSelectedId(response.task.id);
       setCreating(false);
-      void refresh();
+      applyTasks(response.tasks);
     },
   });
   const deleteMutation = useMutation({
     mutationFn: (taskId: string) => context.client.deleteScheduledTask(taskId),
-    onSuccess: (_response, taskId) => {
+    onSuccess: (response, taskId) => {
       // 删除其他任务时保留当前编辑内容与新建草稿。
       setSelectedId((current) => (current === taskId ? undefined : current));
-      void refresh();
+      applyTasks(response.tasks);
     },
   });
   const enabledMutation = useMutation({
     mutationFn: ({ enabled, taskId }: { enabled: boolean; taskId: string }) =>
       context.client.setScheduledTaskEnabled(taskId, enabled),
     onSuccess: (response) => {
-      queryClient.setQueryData<ScheduledTaskPage>(queryKey, (current) =>
-        current === undefined
-          ? current
-          : {
-              data: current.data.map((task) =>
-                task.id === response.task.id ? response.task : task,
-              ),
-            },
-      );
-      void refresh();
+      applyTasks(response.tasks);
     },
   });
   const runMutation = useMutation({
     mutationFn: (taskId: string) => context.client.runScheduledTaskNow(taskId),
-    onSuccess: () => void refresh(),
+    onSuccess: (response) => applyTasks(response.tasks),
   });
   const openRunMutation = useMutation({
     meta: { actionNotification: false },
