@@ -78,9 +78,9 @@ import {
   type ReadOptions,
   type ReadTaskOptions,
 } from "./http-client-transport.js";
-import { TaskGoalHttpClient } from "./http-client-task-goals.js";
+import { TaskCatalogHttpClient } from "./http-client-task-catalog.js";
 
-export class TaskHttpClient extends TaskGoalHttpClient {
+export class TaskHttpClient extends TaskCatalogHttpClient {
   public submitTask(
     projectId: string,
     input: SubmitTaskRequest,

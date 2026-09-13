@@ -179,6 +179,12 @@ export async function handleAppShellCoreRoute(
       sandboxMode: state.globalSettings.sandboxMode,
     });
     body = { task };
+  } else if (url.pathname === "/v1/temporary/tasks/catalog") {
+    body = {
+      data: state.temporaryTasks.filter(
+        (task) => url.searchParams.get("pinned") !== "true" || task.pinned,
+      ),
+    };
   } else if (url.pathname === "/v1/temporary/tasks") {
     const visibleTemporaryTasks =
       url.searchParams.get("pinned") === "true"

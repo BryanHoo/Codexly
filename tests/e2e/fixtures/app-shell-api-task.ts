@@ -188,6 +188,15 @@ export async function handleAppShellTaskRoute(
     body = { status: "deleted", taskId };
   } else if (url.pathname.endsWith("/background-terminals")) {
     body = { data: [], nextCursor: null };
+  } else if (url.pathname.startsWith("/v1/projects/") && url.pathname.endsWith("/tasks/catalog")) {
+    const projectId = url.pathname.split("/")[3];
+    body = {
+      data: state.routedTasks.filter(
+        (task) =>
+          task.projectId === projectId &&
+          (url.searchParams.get("pinned") !== "true" || task.pinned),
+      ),
+    };
   } else if (url.pathname.startsWith("/v1/projects/") && url.pathname.endsWith("/tasks")) {
     const projectId = url.pathname.split("/")[3];
     const projectTasks = state.routedTasks.filter(

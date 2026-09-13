@@ -62,41 +62,28 @@ describe("project pagination queries", () => {
     unsubscribe();
   });
 
-  it("loads every task page for search and removes overlapping tasks", async () => {
+  it("reads the search catalog once and forwards the query signal", async () => {
     const secondTask = { ...task, id: "task-2", title: "完整搜索结果" };
-    const listTasks = vi
-      .fn()
-      .mockResolvedValueOnce({ data: [task], nextCursor: "next-page" })
-      .mockResolvedValueOnce({ data: [task, secondTask], nextCursor: null });
+    const listTaskCatalog = vi.fn().mockResolvedValueOnce({ data: [task, secondTask] });
+    const signal = new AbortController().signal;
 
-    await expect(listProjectTasksForSearch("codexly", { listTasks })).resolves.toEqual([
-      task,
-      secondTask,
-    ]);
-    expect(listTasks).toHaveBeenNthCalledWith(1, "codexly", { limit: 100 });
-    expect(listTasks).toHaveBeenNthCalledWith(2, "codexly", {
-      cursor: "next-page",
-      limit: 100,
-    });
+    await expect(
+      listProjectTasksForSearch("codexly", { listTaskCatalog }, signal),
+    ).resolves.toEqual([task, secondTask]);
+    expect(listTaskCatalog).toHaveBeenCalledExactlyOnceWith("codexly", {}, { signal });
   });
 
-  it("loads only pinned tasks across every pinned page", async () => {
+  it("reads the pinned catalog once", async () => {
     const secondTask = { ...task, id: "task-2", pinned: true, title: "较早固定任务" };
-    const listTasks = vi
+    const listTaskCatalog = vi
       .fn()
-      .mockResolvedValueOnce({ data: [{ ...task, pinned: true }], nextCursor: "next-page" })
-      .mockResolvedValueOnce({ data: [secondTask], nextCursor: null });
+      .mockResolvedValueOnce({ data: [{ ...task, pinned: true }, secondTask] });
 
-    await expect(listPinnedProjectTasks("codexly", { listTasks })).resolves.toEqual([
+    await expect(listPinnedProjectTasks("codexly", { listTaskCatalog })).resolves.toEqual([
       { ...task, pinned: true },
       secondTask,
     ]);
-    expect(listTasks).toHaveBeenNthCalledWith(1, "codexly", { limit: 100, pinned: true });
-    expect(listTasks).toHaveBeenNthCalledWith(2, "codexly", {
-      cursor: "next-page",
-      limit: 100,
-      pinned: true,
-    });
+    expect(listTaskCatalog).toHaveBeenCalledExactlyOnceWith("codexly", { pinned: true });
   });
 
   it("refetches the active first page after archive to keep five recent tasks visible", async () => {

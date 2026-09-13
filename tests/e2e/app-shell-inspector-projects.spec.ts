@@ -173,6 +173,11 @@ test("keeps icon button tooltips visible within clipping and viewport boundaries
 });
 
 test("searches tasks across projects", async ({ page }) => {
+  const catalogRequests: URL[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.endsWith("/tasks/catalog")) catalogRequests.push(url);
+  });
   await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
@@ -181,6 +186,14 @@ test("searches tasks across projects", async ({ page }) => {
 
   await expect(sidebar.getByRole("link", { name: /完善 Markdown 渲染/ })).toBeVisible();
   await expect(sidebar.getByRole("link", { name: /构建 macOS 工作台/ })).not.toBeVisible();
+  // 搜索完整目录每个作用域只读取一次，浏览器不再追逐 Provider 分页。
+  expect(
+    catalogRequests.filter(
+      (url) =>
+        url.pathname === "/v1/projects/codexly/tasks/catalog" && !url.searchParams.has("pinned"),
+    ),
+  ).toHaveLength(1);
+  expect(catalogRequests.some((url) => url.pathname === "/v1/temporary/tasks/catalog")).toBe(true);
 });
 
 test("opens and reuses project new chats without creating empty Codex tasks", async ({ page }) => {
@@ -414,7 +427,7 @@ test("toggles project tasks from the project name without navigation", async ({ 
 test("loads tasks only for the current or expanded projects", async ({ page }) => {
   let superworkTaskRequests = 0;
   let superworkPinnedTaskRequests = 0;
-  await page.route("**/v1/projects/superwork/tasks?*", async (route) => {
+  await page.route(/\/v1\/projects\/superwork\/tasks(?:\/catalog)?\?/u, async (route) => {
     const requestUrl = new URL(route.request().url());
     if (requestUrl.searchParams.get("pinned") === "true") {
       superworkPinnedTaskRequests += 1;

@@ -141,7 +141,8 @@ export type CodexlyScheduledTaskClient = Pick<
   | "setScheduledTaskEnabled"
   | "updateScheduledTask"
 >;
-export type CodexlyWorkbenchClient = CodexlyReadClient &
+export type CodexlyWorkbenchClient = Pick<CodexlyClient, "listTaskCatalog"> &
+  CodexlyReadClient &
   CodexlyBackgroundTerminalClient &
   CodexlyGitStatusClient &
   CodexlyGitHistoryClient &
@@ -169,7 +170,6 @@ export type CodexlySnapshotClient = Pick<CodexlyClient, "readTask">;
 export const PROJECT_TASK_PAGE_SIZE = 5;
 export const COMPLETED_TASK_PAGE_SIZE = 10;
 export const ARCHIVED_TASK_PAGE_SIZE = 20;
-export const PROJECT_TASK_SEARCH_PAGE_SIZE = 100;
 export const PROJECT_PINNED_TASKS_KEY = "pinned";
 export const PROJECT_TASK_SEARCH_SOURCE_KEY = "search-source";
 export const TASK_BOARD_COMPLETED_TASKS_QUERY_KEY = ["task-board", "completed"] as const;

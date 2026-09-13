@@ -38,6 +38,7 @@ import { registerTaskActionRoutes } from "./task-action-routes.js";
 import { registerTaskAttachmentRoutes } from "./task-attachment-routes.js";
 import { registerTaskGoalRoutes } from "./task-goal-routes.js";
 import { registerArchivedTaskRoutes } from "./archived-task-routes.js";
+import { registerTaskCatalogRoutes } from "./task-catalog-routes.js";
 
 export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
   app,
@@ -433,6 +434,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
 
   registerTaskActionRoutes(app, context);
   registerArchivedTaskRoutes(app, context);
+  registerTaskCatalogRoutes(app, context);
   registerTaskAttachmentRoutes(app, context);
   registerTaskGoalRoutes(app, context);
   done();

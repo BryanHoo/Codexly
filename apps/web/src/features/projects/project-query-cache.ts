@@ -5,7 +5,6 @@ import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { i18n } from "../../i18n/i18n.js";
 import {
   PROJECT_PINNED_TASKS_KEY,
-  PROJECT_TASK_SEARCH_PAGE_SIZE,
   PROJECT_TASK_SEARCH_SOURCE_KEY,
   TASK_BOARD_COMPLETED_TASKS_QUERY_KEY,
   codexlyClient,
@@ -277,60 +276,39 @@ export function removeProjectTaskFromInfiniteData(
   };
 }
 
-async function listAllProjectTasks(
+async function readProjectTaskCatalog(
   projectId: string,
-  client: Pick<CodexlyClient, "listTasks">,
+  client: Pick<CodexlyClient, "listTaskCatalog">,
   options: Readonly<{ pinned?: true }>,
   signal?: AbortSignal,
 ): Promise<readonly AgentTask[]> {
-  const taskById = new Map<string, AgentTask>();
-  const requestedCursors = new Set<string>();
-  let cursor: string | undefined;
-
-  for (;;) {
-    const pageOptions = {
-      ...(cursor === undefined ? {} : { cursor }),
-      limit: PROJECT_TASK_SEARCH_PAGE_SIZE,
-      ...options,
-    };
-    const page =
-      signal === undefined
-        ? await client.listTasks(projectId, pageOptions)
-        : await client.listTasks(projectId, pageOptions, { signal });
-    for (const task of page.data) {
-      // Cursor 页边界可能重叠，保留首次出现的较新任务版本。
-      if (!taskById.has(task.id)) {
-        taskById.set(task.id, task);
-      }
-    }
-
-    if (page.nextCursor === null || requestedCursors.has(page.nextCursor)) {
-      return [...taskById.values()];
-    }
-    requestedCursors.add(page.nextCursor);
-    cursor = page.nextCursor;
-  }
+  // 完整性和去重由 Node 保证，浏览器仅消费目录并保留查询取消语义。
+  const catalog =
+    signal === undefined
+      ? await client.listTaskCatalog(projectId, options)
+      : await client.listTaskCatalog(projectId, options, { signal });
+  return catalog.data;
 }
 
 export function listProjectTasksForSearch(
   projectId: string,
-  client: Pick<CodexlyClient, "listTasks">,
+  client: Pick<CodexlyClient, "listTaskCatalog">,
   signal?: AbortSignal,
 ) {
-  return listAllProjectTasks(projectId, client, {}, signal);
+  return readProjectTaskCatalog(projectId, client, {}, signal);
 }
 
 export function listPinnedProjectTasks(
   projectId: string,
-  client: Pick<CodexlyClient, "listTasks">,
+  client: Pick<CodexlyClient, "listTaskCatalog">,
   signal?: AbortSignal,
 ) {
-  return listAllProjectTasks(projectId, client, { pinned: true }, signal);
+  return readProjectTaskCatalog(projectId, client, { pinned: true }, signal);
 }
 
 export function projectPinnedTasksQueryOptions(
   projectId: string,
-  client: Pick<CodexlyClient, "listTasks"> = codexlyClient,
+  client: Pick<CodexlyClient, "listTaskCatalog"> = codexlyClient,
 ) {
   return queryOptions({
     queryFn: ({ signal }) => listPinnedProjectTasks(projectId, client, signal),
@@ -341,7 +319,7 @@ export function projectPinnedTasksQueryOptions(
 export function projectTaskSearchSourceQueryOptions(
   projectId: string,
   enabled: boolean,
-  client: Pick<CodexlyClient, "listTasks"> = codexlyClient,
+  client: Pick<CodexlyClient, "listTaskCatalog"> = codexlyClient,
 ) {
   return queryOptions({
     enabled,

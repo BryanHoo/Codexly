@@ -47,3 +47,4 @@ export * from "./task-submission.js";
 export * from "./project-todo.js";
 export * from "./async-question.js";
 export * from "./archived-task-deletion.js";
+export * from "./task-catalog.js";
