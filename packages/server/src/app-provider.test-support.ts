@@ -42,7 +42,9 @@ export function createProvider() {
   const archiveTask = vi.fn(() => Promise.resolve());
   const deleteTask = vi.fn(() => Promise.resolve());
   const forkTask = vi.fn(() => Promise.resolve({ ...task, id: "task-2", title: "续接任务" }));
-  const listTasks = vi.fn(() => Promise.resolve({ data: [task], nextCursor: "next" }));
+  const listTasks = vi.fn<AgentProvider["listTasks"]>(() =>
+    Promise.resolve({ data: [task], nextCursor: "next" }),
+  );
   const listModels = vi.fn(() => Promise.resolve(modelPage));
   const listMcpServers = vi.fn(() =>
     Promise.resolve({

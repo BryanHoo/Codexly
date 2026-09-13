@@ -1,17 +1,31 @@
 import {
   ArchiveAgentTaskResponseSchema,
   DeleteAgentTaskResponseSchema,
+  DeleteArchivedTasksResponseSchema,
+  type DeleteArchivedTasksResponse,
   UnarchiveAgentTaskResponseSchema,
   type ArchiveAgentTaskResponse,
   type DeleteAgentTaskResponse,
   type UnarchiveAgentTaskResponse,
 } from "@codexly/protocol";
 
-import { taskPath, type MutationOptions } from "./http-client-transport.js";
+import { projectPath, taskPath, type MutationOptions } from "./http-client-transport.js";
 import { ProjectHttpClient } from "./http-client-projects.js";
 
 // 归档生命周期独立于普通 Task 操作，避免主 Client 模块继续膨胀。
 export class TaskArchiveHttpClient extends ProjectHttpClient {
+  public deleteArchivedTasks(
+    projectId: string,
+    options: MutationOptions = {},
+  ): Promise<DeleteArchivedTasksResponse> {
+    return this.mutation(
+      `${projectPath(projectId)}/tasks/archived`,
+      {},
+      DeleteArchivedTasksResponseSchema,
+      options,
+      "DELETE",
+    );
+  }
   public async archiveTask(
     projectId: string,
     taskId: string,

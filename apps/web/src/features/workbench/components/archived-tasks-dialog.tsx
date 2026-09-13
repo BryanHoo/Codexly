@@ -34,7 +34,6 @@ import {
   type ProjectTaskInfiniteData,
 } from "../../projects/project-queries.js";
 import { archivedProjectTasksQueryOptions } from "../../projects/project-task-query-options.js";
-import { deleteAllArchivedTasks } from "./archived-task-delete-all.js";
 import { TaskDeleteConfirmationDialog } from "./task-delete-dialog.js";
 
 export type ArchivedTaskScope = Readonly<Pick<Project, "id" | "name">>;
@@ -224,7 +223,12 @@ export function ArchivedTasksDialog({
   const unarchiveMutation = useMutation(taskUnarchiveMutationOptions(client));
   const deleteMutation = useMutation(taskDeleteMutationOptions(client));
   const deleteAllMutation = useMutation({
-    mutationFn: () => deleteAllArchivedTasks(client, project.id),
+    mutationFn: async () => {
+      const result = await client.deleteArchivedTasks(project.id);
+      if (result.failedCount > 0)
+        throw new Error(t("archivedTasks.deleteAllPartialFailure", result));
+      return result;
+    },
     mutationKey: ["tasks", "delete-all-archived", project.id] as const,
   });
   const mutationPending =

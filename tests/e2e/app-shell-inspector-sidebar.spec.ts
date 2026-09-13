@@ -332,6 +332,8 @@ test("manages searchable paginated archived tasks from the project menu", async 
   }));
   let restoredTaskId: string | null = null;
   const deletedTaskIds = new Set<string>();
+  let bulkDeleteRequests = 0;
+  let individualDeleteRequests = 0;
 
   await page.route("**/v1/projects/codexly/tasks?*", async (route) => {
     const url = new URL(route.request().url());
@@ -367,11 +369,21 @@ test("manages searchable paginated archived tasks from the project menu", async 
       return;
     }
     const deletedTaskId = /tasks\/([^/?]+)$/u.exec(route.request().url())?.[1] ?? null;
+    individualDeleteRequests++;
     if (deletedTaskId !== null) deletedTaskIds.add(deletedTaskId);
     await route.fulfill({
       contentType: "application/json",
       json: { status: "deleted", taskId: deletedTaskId },
     });
+  });
+
+  await page.route("**/v1/projects/codexly/tasks/archived", async (route) => {
+    bulkDeleteRequests++;
+    const remaining = archivedTasks.filter(
+      (task) => task.id !== restoredTaskId && !deletedTaskIds.has(task.id),
+    );
+    for (const task of remaining) deletedTaskIds.add(task.id);
+    await route.fulfill({ json: { deletedCount: remaining.length, failedCount: 0 } });
   });
 
   await page.goto("/p/codexly/t/task-1");
@@ -406,6 +418,8 @@ test("manages searchable paginated archived tasks from the project menu", async 
   await expect(deleteAllConfirmation).toContainText("Codexly");
   await deleteAllConfirmation.getByRole("button", { name: "全部永久删除" }).click();
   await expect.poll(() => deletedTaskIds.size).toBe(20);
+  expect(bulkDeleteRequests).toBe(1);
+  expect(individualDeleteRequests).toBe(1);
   await expect(dialog.getByText("没有已归档任务", { exact: true })).toBeVisible();
 });
 

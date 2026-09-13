@@ -5,7 +5,7 @@ import type { InfiniteData } from "@tanstack/react-query";
 export type CodexlyReadClient = Pick<CodexlyClient, "listProjects" | "listTasks" | "readTask">;
 export type CodexlyArchivedTaskClient = Pick<
   CodexlyClient,
-  "deleteTask" | "listTasks" | "unarchiveTask"
+  "deleteTask" | "deleteArchivedTasks" | "listTasks" | "unarchiveTask"
 >;
 export type CodexlyAccessClient = Pick<
   CodexlyClient,
@@ -103,6 +103,7 @@ export type CodexlyMutationClient = Pick<
   | "compactTask"
   | "clearTaskGoal"
   | "deleteTask"
+  | "deleteArchivedTasks"
   | "deleteQueuedSubmission"
   | "forkTask"
   | "interruptTurn"

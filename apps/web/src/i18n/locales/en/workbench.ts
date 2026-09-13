@@ -376,6 +376,8 @@ export const workbench = {
     deleteAllDescription:
       'All archived tasks in "{{project}}" and their associated history will be permanently deleted. This cannot be undone.',
     deleteAllTitle: "Permanently delete all archived tasks",
+    deleteAllPartialFailure:
+      "Deleted {{deletedCount}} tasks; {{failedCount}} could not be deleted. Refresh and retry.",
     deleteDescription:
       '"{{task}}" and its associated history will be permanently deleted. This cannot be undone.',
     deleteTask: "Permanently delete task {{task}}",

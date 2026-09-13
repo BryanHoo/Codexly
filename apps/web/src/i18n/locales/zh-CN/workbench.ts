@@ -373,6 +373,8 @@ export const workbench = {
     deleteAllDescription:
       "“{{project}}”中的全部已归档任务及其关联历史将被永久删除，此操作无法撤销。",
     deleteAllTitle: "永久删除全部已归档任务",
+    deleteAllPartialFailure:
+      "已删除 {{deletedCount}} 个任务，{{failedCount}} 个任务未能删除，请刷新后重试。",
     deleteDescription: "“{{task}}”及其关联历史将被永久删除，此操作无法撤销。",
     deleteTask: "永久删除任务 {{task}}",
     deleteTitle: "永久删除任务",

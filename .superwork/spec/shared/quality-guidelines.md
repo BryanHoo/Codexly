@@ -7,6 +7,7 @@ Capture contract and verification standards for this project.
 ## 规则
 
 - 协议变更同时更新 TypeBox schema、类型导出、序列化/解码逻辑和消费者测试。
+- 批量归档删除使用 `DELETE /v1/projects/:projectId/tasks/archived`（临时作用域为 `/v1/temporary/tasks/archived`），请求仅接受空对象并要求 `Idempotency-Key`。响应为非负整数 `deletedCount` / `failedCount`；部分失败仍作为 200 结果缓存，同一 Server 实例缓存有效期内重放不得重新枚举后来归档的任务，不承诺跨重启幂等。覆盖分页去重、有界并发、作用域隔离、异常分页及部分失败重放。
 - 消息规范 ID 与 `identityAliases` 由 Node Provider 统一生成，快照、启动响应和实时事件共用身份表；客户端仅按显式 ID / 别名迁移渲染状态，不按文本前缀或图片元数据推断消息身份。覆盖快照先到、事件先到、终态批量歧义和多订阅者一致性。
 - 个性化接口通过现有鉴权与幂等链路访问部署主机的 Codex 配置；全局说明保存必须校验 `expectedContent`，冲突返回 `GLOBAL_INSTRUCTIONS_CHANGED`，保留原文和符号链接。记忆开关批量写入官方配置，删除记忆使用 `memory/reset`，不得仅删除文件。
 - 智能体全局默认值以不带 `cwd` 的 Codex `config/read` 为准；已有本地记录不能屏蔽 Codex 配置变化。修改时仅将变化字段提交 `config/batchWrite` 并设置 `reloadUserConfig: true`，成功后清除原生配置缓存并保存应用快照；快速模式开启写入 `service_tier: priority`，关闭写入 `default`。保存串行执行，Codex 写入失败不得更新本地快照；项目和任务的显式覆盖保持独立。
