@@ -226,7 +226,13 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
             request.params.taskId,
             request.params.terminalId,
           );
-          return { status: "terminated" as const, terminalId: request.params.terminalId };
+          // 将终止后的权威列表纳入幂等结果，浏览器无需追加读取。
+          const terminals = await context.provider.listBackgroundTerminals(request.params.taskId);
+          return {
+            status: "terminated" as const,
+            terminalId: request.params.terminalId,
+            terminals,
+          };
         },
       ),
   );

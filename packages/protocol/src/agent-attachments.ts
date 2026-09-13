@@ -262,6 +262,7 @@ export const TerminateAgentBackgroundTerminalResponseSchema = Type.Object(
   {
     status: Type.Literal("terminated"),
     terminalId: Type.String({ minLength: 1 }),
+    terminals: AgentBackgroundTerminalPageSchema,
   },
   { additionalProperties: false },
 );

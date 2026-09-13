@@ -1,5 +1,5 @@
 import type { AgentBackgroundTerminal } from "@codexly/protocol";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { v4 as createUuid } from "uuid";
 
@@ -39,6 +39,7 @@ export function useBackgroundTerminals(
   isTaskRunning: boolean,
   enabled = true,
 ): BackgroundTerminalView {
+  const queryClient = useQueryClient();
   const previousTaskRunningRef = useRef(isTaskRunning);
   const idempotencyKeysRef = useRef(new Map<string, string>());
   const terminateLockRef = useRef(createAsyncActionLock());
@@ -59,11 +60,17 @@ export function useBackgroundTerminals(
   const terminateMutation = useMutation({
     mutationFn: async (terminalId: string) => {
       if (taskId === undefined) {
-        return;
+        throw new Error("Background terminal termination requires a task");
       }
       const idempotencyKey = idempotencyKeysRef.current.get(terminalId) ?? createUuid();
       idempotencyKeysRef.current.set(terminalId, idempotencyKey);
-      await client.terminateBackgroundTerminal(projectId, taskId, terminalId, { idempotencyKey });
+      return client.terminateBackgroundTerminal(projectId, taskId, terminalId, { idempotencyKey });
+    },
+    onSuccess: (response) => {
+      queryClient.setQueryData(
+        ["projects", projectId, "tasks", taskId, "background-terminals"],
+        response.terminals,
+      );
     },
   });
   const refetchTerminals = terminalsQuery.refetch;
@@ -90,12 +97,11 @@ export function useBackgroundTerminals(
         try {
           await terminateTerminalMutation(terminalId);
           idempotencyKeysRef.current.delete(terminalId);
-          await refetchTerminals();
         } catch {
           // 根级 MutationCache 已展示失败 toast，终端列表保持原状态供重试。
         }
       }),
-    [refetchTerminals, terminateTerminalMutation],
+    [terminateTerminalMutation],
   );
 
   return {

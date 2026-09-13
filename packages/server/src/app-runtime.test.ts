@@ -72,10 +72,20 @@ describe("server runtime and core routes", () => {
     expect(repeatedTerminateResponse.json()).toEqual({
       status: "terminated",
       terminalId: "terminal-1",
+      terminals: {
+        data: [
+          {
+            command: "pnpm dev",
+            cwd: "/workspace/Codexly",
+            id: "terminal-1",
+            itemId: "command-1",
+          },
+        ],
+      },
     });
     expect(terminateBackgroundTerminal).toHaveBeenCalledOnce();
     expect(terminateBackgroundTerminal).toHaveBeenCalledWith("task-1", "terminal-1");
-    expect(listBackgroundTerminals).toHaveBeenCalledTimes(2);
+    expect(listBackgroundTerminals).toHaveBeenCalledTimes(3);
   });
 
   it("serves health, capabilities, and projects", async () => {

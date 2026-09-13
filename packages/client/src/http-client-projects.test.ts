@@ -51,9 +51,14 @@ describe("CodexlyClient project routes", () => {
       ],
     };
     const fetchMock = vi.fn<typeof fetch>();
+    const terminateResponse = {
+      status: "terminated" as const,
+      terminalId: "terminal/1",
+      terminals: terminalPage,
+    };
     fetchMock
       .mockResolvedValueOnce(jsonResponse(terminalPage))
-      .mockResolvedValueOnce(jsonResponse({ status: "terminated", terminalId: "terminal/1" }));
+      .mockResolvedValueOnce(jsonResponse(terminateResponse));
     const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.listBackgroundTerminals("project one", "task one")).resolves.toEqual(
@@ -63,7 +68,7 @@ describe("CodexlyClient project routes", () => {
       client.terminateBackgroundTerminal("project one", "task one", "terminal/1", {
         idempotencyKey: "stop-terminal",
       }),
-    ).resolves.toEqual({ status: "terminated", terminalId: "terminal/1" });
+    ).resolves.toEqual(terminateResponse);
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "/v1/projects/project%20one/tasks/task%20one/background-terminals",
     );

@@ -17,6 +17,7 @@ Track where local, shared, and remote state should live in this project.
 - 已有正式 Task 修改模型、推理强度、审批或沙盒设置时，只调用一次 `updateTaskSettingsAndDefaults`；前端不得并发写 Task 设置和 Project 默认值。成功后分别用响应中的 `settings` 更新运行时 Store、用 `defaults` 更新 Query 缓存。仅切换快速模式仍只更新 Project 默认值；临时 Task 不持久化 Project 默认值。
 - 队列项“立即发送”仅提交队列 ID 到 `/queue/start`，不根据浏览器的活动 Turn 决定 start/steer，也不在成功后另行删除队列项。前端只更新队列查询与等待回显状态；浏览器回归必须断言一次发送仅产生一个写请求。
 - Composer Queue 通过一次 GET `/queue` 获取完整列表；Node 不对已完整载入内存的持久队列再次分页，浏览器不得循环 cursor/limit 聚合。
+- 终止后台终端时，前端直接用 mutation 响应中的 `terminals` 更新对应 Query cache，不在成功后追加列表 GET；失败时保留原列表供重试。
 - 保存编辑后的队列项只发送一次更新请求；空闲检测、队首恢复及编辑屏障由 Node 处理。前端不得在更新成功后追加 `/queue/start`，也不将更新响应作为剩余队列列表。
 - “删除全部归档任务”确认后仅调用一次 `deleteArchivedTasks`；浏览器不得遍历分页或逐项删除。部分失败显示服务端返回的数量并保留确认弹窗，完成后刷新列表；浏览器回归需验证搜索过滤不缩小批量操作范围，且一次确认只有一次批量写请求。
 - 定时任务页面按最近到期时间刷新等待状态，到期或运行期间继续轮询；编辑未变更的调度字段必须保留完整 RRULE、原始时区和时间精度，仅完整匹配的规则可识别为预设。
