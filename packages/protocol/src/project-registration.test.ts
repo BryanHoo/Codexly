@@ -55,6 +55,7 @@ describe("project registration protocol", () => {
     ).toBe(false);
     expect(
       Value.Check(StartAgentQueuedSubmissionResponseSchema, {
+        queue: { data: [] },
         taskId: "task-1",
         turn: {
           completedAt: null,

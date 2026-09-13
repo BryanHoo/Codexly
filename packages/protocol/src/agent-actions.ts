@@ -5,6 +5,7 @@ import { EventCheckpointSchema } from "./event-checkpoint.js";
 import {
   AgentMcpServerPageSchema,
   AgentPromptInputSchema,
+  AgentQueuedSubmissionListSchema,
   AgentQueuedSubmissionSchema,
   AgentTurnSchema,
 } from "./agent-task.js";
@@ -194,7 +195,7 @@ export type AddAgentQueuedSubmissionRequest = Readonly<
 >;
 
 export const AddAgentQueuedSubmissionResponseSchema = Type.Object(
-  { queuedSubmission: AgentQueuedSubmissionSchema },
+  { queue: AgentQueuedSubmissionListSchema, queuedSubmission: AgentQueuedSubmissionSchema },
   { additionalProperties: false },
 );
 export type AddAgentQueuedSubmissionResponse = Readonly<
@@ -216,7 +217,7 @@ export const UpdateAgentQueuedSubmissionResponseSchema = AddAgentQueuedSubmissio
 export type UpdateAgentQueuedSubmissionResponse = AddAgentQueuedSubmissionResponse;
 
 export const DeleteAgentQueuedSubmissionResponseSchema = Type.Object(
-  { deleted: Type.Boolean() },
+  { deleted: Type.Boolean(), queue: AgentQueuedSubmissionListSchema },
   { additionalProperties: false },
 );
 export type DeleteAgentQueuedSubmissionResponse = Readonly<
@@ -236,7 +237,7 @@ export type ReorderAgentQueuedSubmissionsRequest = Readonly<
 >;
 
 export const ReorderAgentQueuedSubmissionsResponseSchema = Type.Object(
-  { status: Type.Literal("reordered") },
+  { queue: AgentQueuedSubmissionListSchema, status: Type.Literal("reordered") },
   { additionalProperties: false },
 );
 export type ReorderAgentQueuedSubmissionsResponse = Readonly<
@@ -253,6 +254,7 @@ export type StartAgentQueuedSubmissionRequest = Readonly<
 
 export const StartAgentQueuedSubmissionResponseSchema = Type.Object(
   {
+    queue: AgentQueuedSubmissionListSchema,
     taskId: Type.String({ minLength: 1 }),
     turn: AgentTurnSchema,
   },

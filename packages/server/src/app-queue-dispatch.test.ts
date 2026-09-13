@@ -65,7 +65,7 @@ test("dispatches from the server snapshot and replays concurrent requests withou
   };
   const [first, concurrent] = await Promise.all([app.inject(request), app.inject(request)]);
   expect(first.statusCode).toBe(201);
-  expect(first.json()).toMatchObject({ taskId: "task-1", turn: running });
+  expect(first.json()).toMatchObject({ queue: { data: [] }, taskId: "task-1", turn: running });
   expect(concurrent.json()).toEqual(first.json());
   expect((await app.inject(request)).json()).toEqual(first.json());
   expect(steerTurn).toHaveBeenCalledExactlyOnceWith(

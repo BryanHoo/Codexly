@@ -97,16 +97,17 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
       },
     },
     async (request, reply) => {
+      const runtime = await readQueue(request.params);
       const queuedSubmission = await runIdempotent(
         ["queue-add", request.params.projectId, request.params.taskId],
         request.headers["idempotency-key"],
         request.body,
-        async () => {
-          const runtime = await readQueue(request.params);
-          return taskQueue.add(runtime, request.body.input, request.body.clientUserMessageId);
-        },
+        () => taskQueue.add(runtime, request.body.input, request.body.clientUserMessageId),
       );
-      return reply.code(201).send({ queuedSubmission });
+      return reply.code(201).send({
+        queue: { data: await taskQueue.list(runtime) },
+        queuedSubmission,
+      });
     },
   );
 
@@ -129,23 +130,22 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
       },
     },
     async (request) => {
+      const runtime = await readQueue(request.params);
       const queuedSubmission = await runIdempotent(
         ["queue-update", request.params.projectId, request.params.taskId],
         request.headers["idempotency-key"],
         { ...request.body, queuedSubmissionId: request.params.queuedSubmissionId },
-        async () => {
-          const runtime = await readQueue(request.params);
-          return taskQueue
+        () =>
+          taskQueue
             .update(
               runtime,
               request.params.queuedSubmissionId,
               request.body.input,
               request.body.status,
             )
-            .catch(toQueueHttpError);
-        },
+            .catch(toQueueHttpError),
       );
-      return { queuedSubmission };
+      return { queue: { data: await taskQueue.list(runtime) }, queuedSubmission };
     },
   );
 
@@ -162,16 +162,14 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
       },
     },
     async (request) => {
+      const runtime = await readQueue(request.params);
       const deleted = await runIdempotent(
         ["queue-delete", request.params.projectId, request.params.taskId],
         request.headers["idempotency-key"],
         { queuedSubmissionId: request.params.queuedSubmissionId },
-        async () => {
-          const runtime = await readQueue(request.params);
-          return taskQueue.delete(runtime, request.params.queuedSubmissionId);
-        },
+        () => taskQueue.delete(runtime, request.params.queuedSubmissionId),
       );
-      return { deleted };
+      return { deleted, queue: { data: await taskQueue.list(runtime) } };
     },
   );
 
@@ -190,17 +188,17 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
       },
     },
     async (request) => {
+      const runtime = await readQueue(request.params);
       await runIdempotent(
         ["queue-reorder", request.params.projectId, request.params.taskId],
         request.headers["idempotency-key"],
         request.body,
         async () => {
-          const runtime = await readQueue(request.params);
           await taskQueue.reorder(runtime, request.body.queuedSubmissionIds);
           return { status: "reordered" as const };
         },
       );
-      return { status: "reordered" as const };
+      return { queue: { data: await taskQueue.list(runtime) }, status: "reordered" as const };
     },
   );
 
@@ -219,12 +217,12 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
       },
     },
     async (request, reply) => {
+      const runtime = await readQueue(request.params);
       const turn = await runIdempotent(
         ["queue-start", request.params.projectId, request.params.taskId],
         request.headers["idempotency-key"],
         request.body,
         async () => {
-          const runtime = await readQueue(request.params);
           try {
             return await taskQueue.start(runtime, request.body.queuedSubmissionId);
           } catch (error) {
@@ -232,7 +230,11 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
           }
         },
       );
-      return reply.code(201).send({ taskId: request.params.taskId, turn });
+      return reply.code(201).send({
+        queue: { data: await taskQueue.list(runtime) },
+        taskId: request.params.taskId,
+        turn,
+      });
     },
   );
 

@@ -263,21 +263,29 @@ describe("server task mutations", () => {
     });
 
     expect(add.statusCode).toBe(201);
+    expect(add.json()).toMatchObject({
+      queue: { data: [expect.objectContaining({ status: "queued", text: "排队处理" })] },
+    });
     expect(list.json()).toEqual({
       data: [expect.objectContaining({ status: "queued", text: "排队处理" })],
     });
     expect(update.json()).toMatchObject({
+      queue: { data: [expect.objectContaining({ status: "editing", text: "更新内容" })] },
       queuedSubmission: { status: "editing", text: "更新内容" },
     });
-    expect(reorder.json()).toEqual({ status: "reordered" });
+    expect(reorder.json()).toMatchObject({
+      queue: { data: [expect.objectContaining({ status: "editing", text: "更新内容" })] },
+      status: "reordered",
+    });
     expect(blocked.statusCode).toBe(409);
     expect(resumed.statusCode).toBe(200);
     expect(resumed.json()).toMatchObject({
+      queue: { data: [] },
       queuedSubmission: { status: "queued", text: "更新内容" },
     });
     // 保存即恢复出队；对已消费队列项的额外启动不能再次投递。
     expect(start.statusCode).toBe(404);
-    expect(remove.json()).toEqual({ deleted: false });
+    expect(remove.json()).toEqual({ deleted: false, queue: { data: [] } });
     expect(startTurn).toHaveBeenCalledOnce();
     expect(queue.add).not.toHaveBeenCalled();
   });

@@ -1,5 +1,5 @@
 import { buildProjectAttachmentUrl, buildTaskAttachmentUrl } from "@codexly/client";
-import type { AgentPromptInput, AgentSkill } from "@codexly/protocol";
+import type { AgentPromptInput, AgentQueuedSubmissionList, AgentSkill } from "@codexly/protocol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { v4 as createUuid } from "uuid";
@@ -102,8 +102,9 @@ export function useComposerQueue({
     });
   }, [routeScope, runtime?.store]);
 
-  const invalidateQueue = async () => {
-    await queryClient.invalidateQueries({ exact: true, queryKey });
+  const applyQueue = (queue: AgentQueuedSubmissionList) => {
+    // mutation 响应已携带 Node 计算后的完整队列，浏览器只负责更新渲染缓存。
+    queryClient.setQueryData(queryKey, queue.data);
   };
   const saveQueuedSubmission = async (
     input: AgentPromptInput,
@@ -113,15 +114,29 @@ export function useComposerQueue({
       return false;
     }
     if (editingId === undefined) {
-      await client.addQueuedSubmission(projectId, taskId, input, clientUserMessageId, {
-        idempotencyKey: createUuid(),
-      });
+      const response = await client.addQueuedSubmission(
+        projectId,
+        taskId,
+        input,
+        clientUserMessageId,
+        {
+          idempotencyKey: createUuid(),
+        },
+      );
+      applyQueue(response.queue);
     } else {
-      await client.updateQueuedSubmission(projectId, taskId, editingId, input, "queued", {
-        idempotencyKey: createUuid(),
-      });
+      const response = await client.updateQueuedSubmission(
+        projectId,
+        taskId,
+        editingId,
+        input,
+        "queued",
+        {
+          idempotencyKey: createUuid(),
+        },
+      );
+      applyQueue(response.queue);
     }
-    await invalidateQueue();
     return true;
   };
 
@@ -129,10 +144,10 @@ export function useComposerQueue({
     if (taskId === undefined) {
       return;
     }
-    await client.deleteQueuedSubmission(projectId, taskId, queuedPromptId, {
+    const response = await client.deleteQueuedSubmission(projectId, taskId, queuedPromptId, {
       idempotencyKey: createUuid(),
     });
-    await invalidateQueue();
+    applyQueue(response.queue);
   };
 
   const editQueuedPrompt = async (queuedPrompt: QueuedComposerPrompt) => {
@@ -168,8 +183,7 @@ export function useComposerQueue({
     requestAnimationFrame(() => {
       skillEditorRef.current?.focus(serializePromptSkillContent(content).length);
     });
-    await updateRequest;
-    await invalidateQueue();
+    applyQueue((await updateRequest).queue);
   };
 
   const onSteerAccepted = (accepted: AcceptedSteerPrompt) => {
@@ -210,7 +224,7 @@ export function useComposerQueue({
       turnId: response.turn.id,
       userMessageIds: getTurnUserMessageIds(before, response.turn.id),
     });
-    await invalidateQueue();
+    applyQueue(response.queue);
   };
 
   const moveQueuedPrompt = async (queuedPromptId: string, offset: -1 | 1) => {
@@ -230,10 +244,10 @@ export function useComposerQueue({
     }
     ids[index] = targetId;
     ids[target] = currentId;
-    await client.reorderQueuedSubmissions(projectId, taskId, ids, {
+    const response = await client.reorderQueuedSubmissions(projectId, taskId, ids, {
       idempotencyKey: createUuid(),
     });
-    await invalidateQueue();
+    applyQueue(response.queue);
   };
 
   return {

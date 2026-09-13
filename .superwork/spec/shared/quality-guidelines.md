@@ -8,6 +8,7 @@ Capture contract and verification standards for this project.
 
 - 协议变更同时更新 TypeBox schema、类型导出、序列化/解码逻辑和消费者测试。
 - Codexly 持久 Queue 的读取契约使用 `AgentQueuedSubmissionList`，只返回完整 `data`；`AgentQueuedSubmissionPage` 仅保留给 Provider 原生分页接口，不能用于浏览器持久 Queue。
+- Codexly 持久 Queue 的 add、update、delete、reorder 和 start 响应必须携带操作完成后的完整 `queue`；Node 负责读取最终状态，浏览器直接更新查询缓存，不得在成功后追加 GET。幂等重放仍返回当前权威队列，不能复用旧队列快照。
 - `TerminateAgentBackgroundTerminalResponse` 必须同时返回 `status`、`terminalId` 和终止后的权威 `terminals` 列表；该列表属于幂等结果，重放不得重复终止或重复读取 Provider。
 - 已有正式 Task 的完整设置与 Project 默认值通过 `PUT /v1/projects/:projectId/tasks/:taskId/settings-and-defaults` 同一意图更新，请求为 `{ settings, fastMode }` 并要求 `Idempotency-Key`。Node 必须在任何写入前完成 Project、Task 归属和模型组合校验，并保持运行中 `approvalsReviewer` 的即时发布语义；随后依次写 Task 设置和 Project 默认值，失败重试以同一完整意图收敛。响应同时返回 `settings` 和 `defaults`，幂等重放不得重复写入。
 - 已完成任务聚合使用只读 `POST /v1/tasks/completed/query`，请求包含最多 100 个唯一 `projectIds`（允许 `temporary`）及可选 `cursor`；游标键必须与作用域集合完全匹配。Node 按活跃作用域分配每页容量、最多四项并发，合并时按作用域和任务 ID 去重并按更新时间排序；任一页失败、越界或原地游标重复均整页失败。返回 `{ data, nextCursor }`，全部耗尽时游标为 null；仅保证当前聚合页排序，不保证不同项目后续分页的全局时间边界。覆盖分页继续、已耗尽跳过、作用域隔离和前端单请求。

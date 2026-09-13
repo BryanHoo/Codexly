@@ -221,13 +221,20 @@ describe("CodexlyClient task mutations", () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: [queuedSubmission] }))
-      .mockResolvedValueOnce(jsonResponse({ queuedSubmission }))
       .mockResolvedValueOnce(
-        jsonResponse({ queuedSubmission: { ...queuedSubmission, text: "更新内容" } }),
+        jsonResponse({ queue: { data: [queuedSubmission] }, queuedSubmission }),
       )
-      .mockResolvedValueOnce(jsonResponse({ status: "reordered" }))
-      .mockResolvedValueOnce(jsonResponse({ taskId: task.id, turn: queuedTurn }))
-      .mockResolvedValueOnce(jsonResponse({ deleted: true }));
+      .mockResolvedValueOnce(
+        jsonResponse({
+          queue: { data: [] },
+          queuedSubmission: { ...queuedSubmission, text: "更新内容" },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ queue: { data: [] }, status: "reordered" }))
+      .mockResolvedValueOnce(
+        jsonResponse({ queue: { data: [] }, taskId: task.id, turn: queuedTurn }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ deleted: true, queue: { data: [] } }));
     const client = new CodexlyClient({ fetch: fetchMock });
     const input: AgentPromptInput = {
       attachments: [],
