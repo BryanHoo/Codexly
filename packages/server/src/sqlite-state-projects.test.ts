@@ -9,30 +9,35 @@ import {
 } from "./sqlite-state-repository.test-support.js";
 
 describe("SQLite project state", () => {
-  it("persists complete project ordering and appends newly registered projects", async () => {
-    const root = await createWorkspace();
-    const firstRoot = join(root, "first");
-    const secondRoot = join(root, "second");
-    const thirdRoot = join(root, "third");
-    await Promise.all([mkdir(firstRoot), mkdir(secondRoot), mkdir(thirdRoot)]);
-    const repository = await openRepository(root);
-    const first = createProject("codex-first", "First", firstRoot);
-    const second = createProject("codex-second", "Second", secondRoot);
-    await repository.upsertProject(first);
-    await repository.upsertProject(second);
+  // 重启用例会多次创建真实服务或 SQLite Worker，为 Windows CI 的启动与磁盘 I/O 留出预算。
+  it(
+    "persists complete project ordering and appends newly registered projects",
+    { timeout: 15_000 },
+    async () => {
+      const root = await createWorkspace();
+      const firstRoot = join(root, "first");
+      const secondRoot = join(root, "second");
+      const thirdRoot = join(root, "third");
+      await Promise.all([mkdir(firstRoot), mkdir(secondRoot), mkdir(thirdRoot)]);
+      const repository = await openRepository(root);
+      const first = createProject("codex-first", "First", firstRoot);
+      const second = createProject("codex-second", "Second", secondRoot);
+      await repository.upsertProject(first);
+      await repository.upsertProject(second);
 
-    await expect(repository.setProjectOrder([second.id, first.id])).resolves.toEqual([
-      second,
-      first,
-    ]);
-    await repository.close();
-    repositories.splice(repositories.indexOf(repository), 1);
+      await expect(repository.setProjectOrder([second.id, first.id])).resolves.toEqual([
+        second,
+        first,
+      ]);
+      await repository.close();
+      repositories.splice(repositories.indexOf(repository), 1);
 
-    const reopened = await openRepository(root);
-    const third = createProject("codex-third", "Third", thirdRoot);
-    await reopened.upsertProject(third);
-    await expect(reopened.list()).resolves.toEqual([second, first, third]);
-  });
+      const reopened = await openRepository(root);
+      const third = createProject("codex-third", "Third", thirdRoot);
+      await reopened.upsertProject(third);
+      await expect(reopened.list()).resolves.toEqual([second, first, third]);
+    },
+  );
 
   it("rejects incomplete or duplicated project ordering without partial writes", async () => {
     const root = await createWorkspace();

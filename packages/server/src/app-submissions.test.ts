@@ -10,27 +10,32 @@ describe("task submission use case", () => {
     payload: { type: "prompt", ...turnRequest("实现需求") },
   };
 
-  it("resumes a prepared task and replays its result across server restarts", async () => {
-    const root = await createWorkspace();
-    const repository = await openRepository(root);
-    const first = await createHarness({ submissionRepository: repository });
-    first.writeTaskSettings.mockRejectedValueOnce(new Error("database unavailable"));
-    expect((await first.app.inject(request)).statusCode).toBe(502);
-    await first.app.close();
-    await repository.close();
-    const reopened = await openRepository(root);
-    const second = await createHarness({ submissionRepository: reopened });
-    const resumed = await second.app.inject(request);
-    expect(resumed.statusCode, resumed.body).toBe(201);
-    expect(second.startTask).not.toHaveBeenCalled();
-    expect(second.startTurn).toHaveBeenCalledOnce();
-    await second.app.close();
-    await reopened.close();
-    const third = await createHarness({ submissionRepository: await openRepository(root) });
-    expect((await third.app.inject(request)).json()).toEqual(resumed.json());
-    expect(third.startTask).not.toHaveBeenCalled();
-    expect(third.startTurn).not.toHaveBeenCalled();
-  });
+  // 重启用例会多次创建真实服务或 SQLite Worker，为 Windows CI 的启动与磁盘 I/O 留出预算。
+  it(
+    "resumes a prepared task and replays its result across server restarts",
+    { timeout: 15_000 },
+    async () => {
+      const root = await createWorkspace();
+      const repository = await openRepository(root);
+      const first = await createHarness({ submissionRepository: repository });
+      first.writeTaskSettings.mockRejectedValueOnce(new Error("database unavailable"));
+      expect((await first.app.inject(request)).statusCode).toBe(502);
+      await first.app.close();
+      await repository.close();
+      const reopened = await openRepository(root);
+      const second = await createHarness({ submissionRepository: reopened });
+      const resumed = await second.app.inject(request);
+      expect(resumed.statusCode, resumed.body).toBe(201);
+      expect(second.startTask).not.toHaveBeenCalled();
+      expect(second.startTurn).toHaveBeenCalledOnce();
+      await second.app.close();
+      await reopened.close();
+      const third = await createHarness({ submissionRepository: await openRepository(root) });
+      expect((await third.app.inject(request)).json()).toEqual(resumed.json());
+      expect(third.startTask).not.toHaveBeenCalled();
+      expect(third.startTurn).not.toHaveBeenCalled();
+    },
+  );
 
   it("creates and starts a task in one idempotent request", async () => {
     const { app, startTask, startTurn } = await createHarness();
