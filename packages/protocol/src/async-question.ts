@@ -65,7 +65,7 @@ export const DismissAsyncQuestionsRequestSchema = Type.Object(
   {
     ids: Type.Array(Type.String({ minLength: 1, maxLength: 128 }), {
       minItems: 1,
-      maxItems: 128,
+      maxItems: 10000,
       uniqueItems: true,
     }),
   },

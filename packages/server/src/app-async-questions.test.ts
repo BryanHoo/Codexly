@@ -133,6 +133,21 @@ describe("async question API", () => {
     expect(refreshed.json<{ data: AsyncQuestionGroup[] }>().data).toHaveLength(1);
     expect(refreshed.json<{ data: AsyncQuestionGroup[] }>().data[0]?.id).not.toBe(id);
   });
+  it("accepts one bounded bulk dismissal beyond the former browser chunk size", async () => {
+    const { app } = await setup();
+    const id = questionId(await app.inject({ method: "GET", url }));
+    const ids = [id, ...Array.from({ length: 128 }, (_, index) => `missing-${String(index)}`)];
+
+    const response = await app.inject({
+      method: "POST",
+      url: `${url}/dismiss`,
+      headers: { "idempotency-key": "bulk-dismiss" },
+      payload: { ids },
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toEqual({ data: [] });
+  });
   it("does not repeat a delivery with an unknown Provider outcome", async () => {
     const { app, steerTurn } = await setup();
     const listed = await app.inject({ method: "GET", url });

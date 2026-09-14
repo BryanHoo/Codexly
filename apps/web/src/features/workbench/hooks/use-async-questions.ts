@@ -41,15 +41,8 @@ export function useAsyncQuestions(
     setDismissing(true);
     setDismissError(false);
     try {
-      // 关闭只针对当前展示的 ID，不能影响同时出现的新问题。
-      let questions;
-      for (let index = 0; index < ids.length; index += 128) {
-        questions = await codexlyClient.dismissAsyncQuestions(
-          projectId,
-          taskId,
-          ids.slice(index, index + 128),
-        );
-      }
+      // Node 在单次事务中批量关闭当前展示的 ID，不影响同时出现的新问题。
+      const questions = await codexlyClient.dismissAsyncQuestions(projectId, taskId, ids);
       queryClient.setQueryData(queryKey, questions);
     } catch {
       setDismissError(true);
