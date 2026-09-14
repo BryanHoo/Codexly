@@ -308,6 +308,8 @@ export abstract class CodexAgentProviderBase {
     // Fork 成功后立即接受新 Task 的实时通知与后续 Mutation。
     this.runtime.projectTaskIds.add(task.id);
     this.runtime.resumedTaskIds.add(task.id);
+    // 上游列表可能尚未收录分支；保留已确认的元数据，避免未发送消息时刷新丢失任务。
+    this.runtime.unmaterializedTasks.set(task.id, task);
     return task;
   }
 

@@ -431,7 +431,7 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
       this.runtime.projectTaskIds.add(task.id);
       this.runtime.unmaterializedTasks.delete(task.id);
     }
-    // thread/list 可能晚于 thread/start materialize；首屏先合并本地已确认的新 Task。
+    // thread/list 可能晚于 thread/start 或 thread/fork 收录任务；首屏先合并本地已确认的新 Task。
     const pendingTasks =
       input.cursor === undefined && input.archived !== true && input.searchTerm === undefined
         ? [...this.runtime.unmaterializedTasks.values()].toSorted((leftTask, rightTask) =>
