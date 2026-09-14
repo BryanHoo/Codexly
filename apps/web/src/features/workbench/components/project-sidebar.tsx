@@ -23,7 +23,7 @@ import {
 import {
   cacheRemovedProjectTask,
   cachePinnedProjectTask,
-  replaceProjectTaskInQueryCaches,
+  cacheRenamedProjectTask,
   taskArchiveMutationOptions,
   taskPinMutationOptions,
   taskRenameMutationOptions,
@@ -237,11 +237,6 @@ export function ProjectSidebar({
     await navigate({ params: { projectId: targetProjectId }, to: "/p/$projectId" });
   };
 
-  const replaceTaskCache = (task: AgentTask) => {
-    // Mutation 成功后原位更新对应 Project，避免任务跳到列表顶部或等待 Provider 最终一致。
-    replaceProjectTaskInQueryCaches(queryClient, task);
-  };
-
   const pinTask = (task: AgentTask) =>
     taskActionLockRef.current.run(async () => {
       try {
@@ -264,7 +259,7 @@ export function ProjectSidebar({
           taskId: task.id,
           title,
         });
-        replaceTaskCache(response.task);
+        cacheRenamedProjectTask(queryClient, response.task, response.taskCatalog.data);
         setRenamingTask(null);
       } catch {
         // 根级 MutationCache 已展示失败 toast。

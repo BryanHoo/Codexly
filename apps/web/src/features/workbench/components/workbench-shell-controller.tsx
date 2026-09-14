@@ -18,7 +18,7 @@ import type { AgentFileChange } from "../../diff/file-change.js";
 import { notifyActionError } from "../../notifications/action-notifications.js";
 import {
   PROJECT_TASK_SEARCH_SOURCE_KEY,
-  replaceProjectTaskInQueryCaches,
+  cacheRenamedProjectTask,
   updateNewTaskTitleFromSnapshotInInfiniteData,
   upsertProjectTaskInInfiniteData,
   type ProjectTaskInfiniteData,
@@ -203,8 +203,7 @@ export function useWorkbenchShellController(
       }
       try {
         const response = await renameMutation.mutateAsync({ projectId, taskId, title: nextTitle });
-        // 服务端结果同时覆盖普通列表与已加载的搜索源，确保中栏和侧栏立即一致。
-        replaceProjectTaskInQueryCaches(queryClient, response.task);
+        cacheRenamedProjectTask(queryClient, response.task, response.taskCatalog.data);
         closeTaskRenameDialog();
       } catch {
         // 根级 MutationCache 已展示失败 toast，Dialog 保留原输入供重试。

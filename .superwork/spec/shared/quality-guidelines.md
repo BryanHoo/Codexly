@@ -19,6 +19,7 @@ Capture contract and verification standards for this project.
 - Task 归档响应必须携带 Provider 重新排序并补位后的活动任务首屏 `tasks`（最多 5 项），作为同一幂等结果保存；浏览器直接重置活动任务 infinite-query 缓存，不得在成功后追加活动列表 GET。pinned 与 search-source 索引只移除已归档 Task。
 - Task 恢复响应必须同时携带恢复后的 `task` 与 Provider 重新排序后的活动任务首屏 `tasks`（最多 5 项），作为同一幂等结果保存；浏览器直接重置活动任务 infinite-query 缓存，并丢弃无法从单个 Task 推断排序的 pinned 与 search-source 缓存。
 - Task 固定响应必须同时携带更新后的 `task` 与 Node 聚合的完整 `pinnedTasks` 目录，并作为同一幂等结果保存；浏览器直接替换 pinned 缓存，不得根据单个 Task 自行插入、删除或排序。
+- Task 重命名响应必须同时携带更新后的 `task` 与 Node 聚合的完整 `taskCatalog`，并作为同一幂等结果保存；浏览器直接替换 search-source 缓存，仅在活动页和 pinned 缓存中原位替换同一 Task，不自行重建搜索目录。
 - Task 永久删除响应必须携带 Provider 重新排序并补位后的活动任务首屏 `tasks`（最多 5 项），作为同一幂等结果保存；活动列表和归档列表入口都直接重置活动任务缓存，不得在成功后追加活动列表 GET。
 - 项目待办创建、导入、保存和删除响应必须携带写入完成后的完整 `todos` 页面，并作为同一幂等结果保存；Node 负责按仓库顺序读取最终列表，浏览器直接替换缓存，不得自行追加、删除或按时间排序待办。
 - 项目文件重命名和删除响应必须携带写入完成后的父目录 `tree`，并作为同一幂等结果保存；Node 负责解析父目录并读取最终文件树，浏览器直接替换对应目录缓存，不得在成功后追加 GET。

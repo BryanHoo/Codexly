@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   cacheRemovedProjectTask,
   cachePinnedProjectTask,
+  cacheRenamedProjectTask,
   cacheUnarchivedProjectTask,
   type CodexlyReadClient,
   listProjectTasksForSearch,
@@ -176,6 +177,20 @@ describe("project pagination queries", () => {
     expect(queryClient.getQueryData(["projects", "codexly", "tasks", "pinned"])).toEqual([
       pinnedTask,
       olderPinnedTask,
+    ]);
+  });
+
+  it("caches the server task catalog after renaming", () => {
+    const queryClient = new QueryClient();
+    const renamedTask = { ...task, title: "服务端标题" };
+    const catalogTask = { ...task, id: "catalog-task", title: "目录任务" };
+    queryClient.setQueryData(["projects", "codexly", "tasks", "search-source"], [task]);
+
+    cacheRenamedProjectTask(queryClient, renamedTask, [catalogTask, renamedTask]);
+
+    expect(queryClient.getQueryData(["projects", "codexly", "tasks", "search-source"])).toEqual([
+      catalogTask,
+      renamedTask,
     ]);
   });
 });

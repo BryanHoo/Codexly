@@ -138,8 +138,12 @@ export function replaceProjectTaskInInfiniteData(
   };
 }
 
-export function replaceProjectTaskInQueryCaches(queryClient: QueryClient, task: AgentTask) {
-  // 重命名和固定操作必须同步普通分页、固定列表与已加载的全量搜索源。
+export function cacheRenamedProjectTask(
+  queryClient: QueryClient,
+  task: AgentTask,
+  taskCatalog: readonly AgentTask[],
+): void {
+  // 重命名不改变活动页和固定页顺序，仅替换同一 Task 的展示字段。
   queryClient.setQueryData<ProjectTaskInfiniteData>(
     ["projects", task.projectId, "tasks"],
     (currentData) => replaceProjectTaskInInfiniteData(currentData, task),
@@ -147,16 +151,11 @@ export function replaceProjectTaskInQueryCaches(queryClient: QueryClient, task: 
   queryClient.setQueryData<readonly AgentTask[]>(
     ["projects", task.projectId, "tasks", PROJECT_PINNED_TASKS_KEY],
     (currentTasks) =>
-      currentTasks === undefined
-        ? undefined
-        : task.pinned
-          ? [task, ...currentTasks.filter((currentTask) => currentTask.id !== task.id)]
-          : currentTasks.filter((currentTask) => currentTask.id !== task.id),
-  );
-  queryClient.setQueryData<readonly AgentTask[]>(
-    ["projects", task.projectId, "tasks", PROJECT_TASK_SEARCH_SOURCE_KEY],
-    (currentTasks) =>
       currentTasks?.map((currentTask) => (currentTask.id === task.id ? task : currentTask)),
+  );
+  queryClient.setQueryData(
+    ["projects", task.projectId, "tasks", PROJECT_TASK_SEARCH_SOURCE_KEY],
+    taskCatalog,
   );
 }
 

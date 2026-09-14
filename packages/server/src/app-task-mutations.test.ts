@@ -415,16 +415,20 @@ describe("server task mutations", () => {
     });
     expect(pinTask).toHaveBeenCalledWith("task-1", true);
     expect(renamed.statusCode, renamed.body).toBe(200);
-    expect(renamed.json()).toMatchObject({ task: { id: "task-1", title: "新的任务名称" } });
+    expect(renamed.json()).toMatchObject({
+      task: { id: "task-1", title: "新的任务名称" },
+      taskCatalog: { data: [] },
+    });
     expect(renameTask).toHaveBeenCalledWith("task-1", "新的任务名称");
     expect(archived.statusCode, archived.body).toBe(200);
     expect(archived.json()).toEqual({ status: "archived", taskId: "task-1", tasks: activeTasks });
     expect(archiveTask).toHaveBeenCalledWith("task-1");
-    expect(listTasks).toHaveBeenCalledTimes(4);
+    expect(listTasks).toHaveBeenCalledTimes(5);
     expect(listTasks).toHaveBeenNthCalledWith(1, { limit: 100, pinnedOnly: true });
-    expect(listTasks).toHaveBeenNthCalledWith(2, { limit: 5 });
+    expect(listTasks).toHaveBeenNthCalledWith(2, { limit: 100 });
     expect(listTasks).toHaveBeenNthCalledWith(3, { limit: 5 });
     expect(listTasks).toHaveBeenNthCalledWith(4, { limit: 5 });
+    expect(listTasks).toHaveBeenNthCalledWith(5, { limit: 5 });
     expect(unarchived.statusCode, unarchived.body).toBe(200);
     expect(unarchived.json()).toMatchObject({ task: { id: "task-1" }, tasks: activeTasks });
     expect(unarchiveTask).toHaveBeenCalledWith("task-1");

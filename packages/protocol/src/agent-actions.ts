@@ -41,7 +41,7 @@ export const RenameAgentTaskRequestSchema = Type.Object(
 export type RenameAgentTaskRequest = Readonly<Static<typeof RenameAgentTaskRequestSchema>>;
 
 export const RenameAgentTaskResponseSchema = Type.Object(
-  { task: AgentTaskSchema },
+  { task: AgentTaskSchema, taskCatalog: AgentTaskCatalogSchema },
   { additionalProperties: false },
 );
 export type RenameAgentTaskResponse = Readonly<Static<typeof RenameAgentTaskResponseSchema>>;

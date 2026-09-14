@@ -324,7 +324,10 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
           const title = request.body.title.trim();
           // Web 只提交统一标题，Codex 原生命名字段由 Provider 边界负责映射。
           await context.provider.renameTask(request.params.taskId, title);
-          return { task: taskFromSnapshot(task, { title }) };
+          const updatedTask = taskFromSnapshot(task, { title });
+          // 搜索目录由 Node 完整聚合，浏览器不在旧目录上局部改名。
+          const taskCatalog = await listTaskCatalog(context.provider, context.scope.id);
+          return { task: updatedTask, taskCatalog };
         },
       ),
   );

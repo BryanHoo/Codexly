@@ -316,7 +316,10 @@ describe("project pending request protocol", () => {
     expect(Value.Check(RenameAgentTaskRequestSchema, { title: "   " })).toBe(false);
     expect(Value.Check(RenameAgentTaskRequestSchema, { title: "" })).toBe(false);
     expect(
-      Value.Check(RenameAgentTaskResponseSchema, { task: { ...task, title: "重命名任务" } }),
+      Value.Check(RenameAgentTaskResponseSchema, {
+        task: { ...task, title: "重命名任务" },
+        taskCatalog: { data: [{ ...task, title: "重命名任务" }] },
+      }),
     ).toBe(true);
     expect(Value.Check(ArchiveAgentTaskRequestSchema, {})).toBe(true);
     expect(Value.Check(ArchiveAgentTaskRequestSchema, { permanent: true })).toBe(false);
