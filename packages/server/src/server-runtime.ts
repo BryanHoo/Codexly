@@ -136,7 +136,21 @@ export function createModelCatalogLoader(
         true,
       );
     }
-    return storedConnection.customModels;
+    try {
+      const runtimeModels = await provider.listModels();
+      const runtimeModelIds = new Set(runtimeModels.data.map((model) => model.id));
+      // 实时目录提供新增模型和最新能力，持久化目录补回用户手动配置的模型。
+      return {
+        data: [
+          ...runtimeModels.data,
+          ...storedConnection.customModels.data.filter((model) => !runtimeModelIds.has(model.id)),
+        ],
+        nextCursor: null,
+      };
+    } catch {
+      // 远端目录暂时不可用时，保留已验证的持久化目录以维持自定义 Provider 可用。
+      return storedConnection.customModels;
+    }
   };
 }
 

@@ -201,7 +201,7 @@ describe("server diagnostics and provider connection", () => {
       { apiKey: "custom-secret", baseUrl: "https://api.example.com/v1" },
       customModels,
     );
-    expect(listModels).toHaveBeenCalledOnce();
+    expect(listModels).toHaveBeenCalledTimes(2);
     expect(JSON.stringify(state.writeProviderConnection.mock.calls)).not.toContain("custom-secret");
     expect(officialResponse.statusCode, officialResponse.body).toBe(200);
     expect(repeatedOfficialResponse.json()).toEqual(officialResponse.json());
