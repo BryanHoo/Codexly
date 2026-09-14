@@ -38,7 +38,7 @@ test("defaults task context and keeps user-controlled tab selection", async ({ p
   const contextTab = inspector.getByRole("tab", { name: "上下文" });
   await expect
     .poll(() => inspector.locator('[role="tablist"]').first().getByRole("tab").allTextContents())
-    .toEqual(["上下文", "项目", "变更", "历史"]);
+    .toEqual(["项目", "上下文", "变更", "历史"]);
   await expect(contextTab).toHaveCSS("height", "24px");
   await expect(contextTab.locator("svg")).toHaveCSS("width", "14px");
   await expect(contextTab).toHaveAttribute("aria-selected", "true");
@@ -103,11 +103,11 @@ test("shows Git tabs only for repositories and pending changes", async ({ page }
 
   gitStatus = { ...projectGitStatus, staged: [], unstaged: [] };
   await page.goto("/p/codexly/t/task-1");
-  await expect.poll(readTabs).toEqual(["上下文", "项目", "历史"]);
+  await expect.poll(readTabs).toEqual(["项目", "上下文", "历史"]);
 
   gitStatus = { ...projectGitStatus };
   await page.reload();
-  await expect.poll(readTabs).toEqual(["上下文", "项目", "变更", "历史"]);
+  await expect.poll(readTabs).toEqual(["项目", "上下文", "变更", "历史"]);
 
   detailedStatusRequestCount = 0;
   await page.goto("/p/codexly");

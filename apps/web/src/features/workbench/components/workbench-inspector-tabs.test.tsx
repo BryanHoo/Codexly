@@ -49,7 +49,7 @@ describe("WorkbenchInspector tabs", () => {
       />,
     );
 
-    expect(readInspectorTabLabels(markup)).toEqual(["上下文", "项目", "文件"]);
+    expect(readInspectorTabLabels(markup)).toEqual(["项目", "上下文", "文件"]);
     expect(markup).toContain('aria-selected="true"');
     const pathTrigger =
       /<div(?=[^>]*data-slot="tooltip-trigger")(?=[^>]*class="([^"]*)")[^>]*>/u.exec(markup);
@@ -108,7 +108,7 @@ describe("WorkbenchInspector tabs", () => {
       />,
     );
 
-    expect(readInspectorTabLabels(markup)).toEqual(["上下文", "项目", "文件"]);
+    expect(readInspectorTabLabels(markup)).toEqual(["项目", "上下文", "文件"]);
     expect(markup).toContain('aria-label="src/live.ts"');
     expect(markup).toContain("live.ts");
     expect(markup).toContain("+1");
@@ -363,7 +363,7 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).not.toContain(">项目文件</span>");
   });
 
-  it("orders tabs by context, project, changes and history when all are available", () => {
+  it("orders tabs by project, context, changes and history when all are available", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
         gitStatus={lightweightGitStatus}
@@ -373,7 +373,7 @@ describe("WorkbenchInspector tabs", () => {
       />,
     );
 
-    expect(readInspectorTabLabels(markup)).toEqual(["上下文", "项目", "变更", "历史"]);
+    expect(readInspectorTabLabels(markup)).toEqual(["项目", "上下文", "变更", "历史"]);
     expect(markup).toContain("lucide-braces");
     expect(markup).toContain('data-size="toolbar"');
   });
@@ -398,9 +398,9 @@ describe("WorkbenchInspector tabs", () => {
       />,
     );
 
-    expect(readInspectorTabLabels(cleanMarkup)).toEqual(["上下文", "项目", "历史"]);
-    expect(cleanMarkup).toMatch(/aria-selected="true"[^>]*>.*?<span>上下文<\/span>/su);
-    expect(readInspectorTabLabels(nonGitMarkup)).toEqual(["上下文", "项目"]);
+    expect(readInspectorTabLabels(cleanMarkup)).toEqual(["项目", "上下文", "历史"]);
+    expect(cleanMarkup).toMatch(/aria-selected="true"[^>]*>.*?<span>项目<\/span>/su);
+    expect(readInspectorTabLabels(nonGitMarkup)).toEqual(["项目", "上下文"]);
   });
 
   it("shows the commit entry for immediate child Git repositories", () => {

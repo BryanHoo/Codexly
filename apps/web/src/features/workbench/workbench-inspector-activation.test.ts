@@ -76,7 +76,7 @@ describe("deriveWorkbenchInspectorActivation", () => {
         requestedTab: "changes",
         taskId: "task-1",
       }),
-    ).toMatchObject({ activeTab: "context", changes: false, context: true });
+    ).toMatchObject({ activeTab: "project", changes: false, project: true });
     expect(getAvailableWorkbenchInspectorTabs("task-1", clean)).not.toContain("changes");
   });
 
@@ -105,13 +105,13 @@ describe("deriveWorkbenchInspectorActivation", () => {
         contextOnly: false,
         fileOpen: false,
       }),
-    ).toEqual(["context", "project", "changes", "history"]);
+    ).toEqual(["project", "context", "changes", "history"]);
     expect(
       getAvailableWorkbenchInspectorTabs("task-1", gitStatus, {
         contextOnly: false,
         fileOpen: true,
       }),
-    ).toEqual(["context", "project", "changes", "history", "file"]);
+    ).toEqual(["project", "context", "changes", "history", "file"]);
     expect(
       deriveWorkbenchInspectorActivation({
         fileOpen: true,

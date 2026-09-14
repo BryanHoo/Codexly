@@ -54,9 +54,9 @@ export function getAvailableWorkbenchInspectorTabs(
     if (fileOpen) tabs.push("file");
     return tabs;
   }
-  // 标签顺序保持稳定，当前标签不可用时由激活策略选择回退标签。
-  if (taskId !== undefined) tabs.push("context");
+  // 项目始终排在首位，当前标签不可用时由激活策略选择回退标签。
   tabs.push("project");
+  if (taskId !== undefined) tabs.push("context");
   // 工作区清空后移除变更标签，提交结果由 toast 反馈。
   if (hasGitChanges) tabs.push("changes");
   if (isGitProject) tabs.push("history");
