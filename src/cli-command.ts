@@ -33,7 +33,9 @@ import {
 import packageManifest from "../package.json" with { type: "json" };
 import { createAppUpdateService } from "./app-update.js";
 import { CLI_HELP, parseCommandOptions, type ParsedCommandOptions } from "./cli-command-options.js";
+import { createProcessShutdownSignal, waitForAbort } from "./cli-shutdown.js";
 import { listenOnAvailablePort } from "./cli-server-listen.js";
+import { acquireRuntimeLock, type RuntimeInstanceLock } from "./runtime-instance-lock.js";
 import type { CreateServerInput } from "./cli-server-input.js";
 import type { CliManagedStateRepository } from "./cli-state-repository.js";
 import {
@@ -76,6 +78,7 @@ interface CreateRuntimeProviderInput {
 }
 
 export interface CliDependencies {
+  acquireRuntimeLock: typeof acquireRuntimeLock;
   appVersion: string;
   checkAppUpdate: () => Promise<StartupAppUpdateCheck>;
   checkCodexVersion: (binaryPath: string) => Promise<CodexVersionInfo>;
@@ -115,6 +118,7 @@ export interface RunCliOptions {
 const startupAppUpdate = createStartupAppUpdateOperations(packageManifest.version);
 
 const defaultDependencies: CliDependencies = {
+  acquireRuntimeLock,
   appVersion: packageManifest.version,
   checkAppUpdate: startupAppUpdate.check,
   checkCodexVersion,
@@ -175,38 +179,6 @@ function assertDatabaseDiagnostics(diagnostics: SqliteDatabaseDiagnostics): void
   ) {
     throw new Error("SQLite PRAGMA configuration is invalid");
   }
-}
-
-function createProcessShutdownSignal(): { cleanup: () => void; signal: AbortSignal } {
-  const controller = new AbortController();
-  const abort = (): void => {
-    controller.abort();
-  };
-  process.once("SIGINT", abort);
-  process.once("SIGTERM", abort);
-
-  return {
-    cleanup: () => {
-      process.off("SIGINT", abort);
-      process.off("SIGTERM", abort);
-    },
-    signal: controller.signal,
-  };
-}
-
-async function waitForAbort(signal: AbortSignal): Promise<void> {
-  if (signal.aborted) {
-    return;
-  }
-  await new Promise<void>((resolve) => {
-    signal.addEventListener(
-      "abort",
-      () => {
-        resolve();
-      },
-      { once: true },
-    );
-  });
 }
 
 async function runDoctor(
@@ -311,9 +283,11 @@ async function runStart(
   let runtime: CliManagedRuntime | undefined;
   let server: CliManagedServer | undefined;
   let stateRepository: CliManagedStateRepository | undefined;
+  let instanceLock: RuntimeInstanceLock | undefined;
 
   try {
     const codexHome = resolveCodexHome(options);
+    instanceLock = await dependencies.acquireRuntimeLock(codexHome);
     const env = {
       ...process.env,
       ...(options.codexHome ? { CODEX_HOME: options.codexHome } : {}),
@@ -414,7 +388,10 @@ async function runStart(
     // 同时观察退出信号和子进程，避免 App Server 崩溃后 CLI 继续空等。
     const outcome = await Promise.race([
       runtime.waitForExit().then((exit) => ({ exit, type: "process-exit" as const })),
-      waitForAbort(shutdownSignal).then(() => ({ type: "shutdown" as const })),
+      waitForAbort(AbortSignal.any([shutdownSignal, instanceLock.signal])).then(() => {
+        instanceLock?.signal.throwIfAborted();
+        return { type: "shutdown" as const };
+      }),
     ]);
     if (outcome.type === "process-exit") {
       const reason = outcome.exit.signal
@@ -434,7 +411,11 @@ async function runStart(
         try {
           await runtime?.close();
         } finally {
-          ownedShutdown?.cleanup();
+          try {
+            await instanceLock?.close();
+          } finally {
+            ownedShutdown?.cleanup();
+          }
         }
       }
     }

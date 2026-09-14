@@ -63,7 +63,7 @@ test("preserves custom recurrence on rename and refreshes an automatic run", asy
     const input = route.request().postDataJSON() as ScheduledTaskInput;
     savedSchedule = input.schedule;
     task = { ...task, ...input };
-    await route.fulfill({ json: { task } });
+    await route.fulfill({ json: { task, tasks: { data: [task] } } });
   });
   await page.goto("/p/codexly/scheduled");
   await page.getByRole("button", { name: "自定义巡检", exact: true }).click();
@@ -154,25 +154,34 @@ test("creates, toggles and runs a scheduled task", async ({ page }) => {
         updatedAtUnixMs: now,
       };
       tasks = [task];
-      await route.fulfill({ contentType: "application/json", json: { task } });
+      await route.fulfill({
+        contentType: "application/json",
+        json: { task, tasks: { data: [task] } },
+      });
       return;
     }
     const task = tasks[0];
     if (task === undefined) throw new Error("Expected scheduled task state");
     if (request.method() === "DELETE") {
       tasks = [];
-      await route.fulfill({ json: { status: "deleted", taskId: task.id } });
+      await route.fulfill({ json: { status: "deleted", taskId: task.id, tasks: { data: tasks } } });
       return;
     }
     if (request.method() === "PATCH" && pathname.endsWith("/enabled")) {
       const body = request.postDataJSON() as SetScheduledTaskEnabledRequest;
       const updated = { ...task, enabled: body.enabled, updatedAtUnixMs: Date.now() };
       tasks = [updated];
-      await route.fulfill({ contentType: "application/json", json: { task: updated } });
+      await route.fulfill({
+        contentType: "application/json",
+        json: { task: updated, tasks: { data: tasks } },
+      });
       return;
     }
     if (request.method() === "POST" && pathname.endsWith("/run")) {
-      await route.fulfill({ contentType: "application/json", json: { task } });
+      await route.fulfill({
+        contentType: "application/json",
+        json: { task, tasks: { data: [task] } },
+      });
       return;
     }
     await route.fulfill({ contentType: "application/json", status: 404, json: {} });

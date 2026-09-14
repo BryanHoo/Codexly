@@ -13,4 +13,8 @@ Capture review and verification standards for this project.
 - Web 生产构建必须在写入前清理独立输出目录，避免旧哈希资源累积并被重复预压缩。
 - Vite 原始 Chunk 警告阈值保持为 512 kB，仅容纳不可继续切分的单模块 Grammar；传输体积仍由 `bundle:check` 的 gzip 预算约束。
 - Web Bundle 门禁限制首屏、工作台就绪和最大异步组的 gzip 体积；请求数仅保留报告观测，不作为失败条件。
+- 首屏 gzip 上限为 320 KiB；工作台就绪 500 KiB、最大异步组 200 KiB。开发代理显式保持 `changeOrigin: false` 并启用 `ws: true`，使用实际 HTTP 写请求和 WebSocket 握手验证同源策略。
 - 扩展中心、定时任务等非首屏管理页按功能异步加载组件和样式；扩展中心各页签继续按需加载，重型日期弹层继续二次异步加载。变更后使用 `bundle:check` 和对应 Playwright 关键流程验证。
+
+- E2E 的变更接口夹具须返回当前协议要求的列表快照（如 `tasks`、`projects`、`queue`），并与夹具内存状态一致；不得仅返回变更对象或放宽客户端 Schema 来掩盖协议漂移。
+- 提交后结果绑定服务端返回的新 Git 快照；当前变更面板在工作区清空后仍保持选中，直到用户离开或项目失去 Git 能力。

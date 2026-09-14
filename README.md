@@ -66,6 +66,8 @@ npx --package @bryanhu/codexly@latest codexly start
 
 Codexly opens the browser automatically. If it does not, use the address printed in the terminal; the default is `http://127.0.0.1:3210`. Keep the terminal running and press `Ctrl+C` to stop.
 
+Only one Codexly instance can use a data directory. The instance lock is released automatically on exit or crash. Use different `--codex-home <directory>` values for independent instances.
+
 On first launch, sign in with ChatGPT or configure an OpenAI-compatible service that supports the Responses API and `GET /models`.
 
 For regular use, install Codexly globally:
@@ -82,6 +84,8 @@ The installation command tries the China mirror first, falls back to the officia
 Select **New task** for work that does not need a project. For repository work, add one or more host directories as ordered project roots, create a task, and submit your request with any required files, images, project references, or Skills. Archived tasks can be restored or permanently deleted from the project task list.
 
 Task controls set the model, reasoning, Fast mode, approval, and file access behavior. Notification preferences and the last complete project settings are saved for later tasks. The right inspector provides project files, sources, code changes, Git history, review, and commit actions. Project directories and files always come from the computer running Codexly, including when the UI is opened on another device.
+
+Scheduled tasks with an unknown outcome pause further runs. Inspect the linked conversation before deleting and recreating the schedule. Tasks marked as finishing cleanup retry cleanup automatically without another launch.
 
 ## Local Network Access
 

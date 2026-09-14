@@ -174,7 +174,15 @@ export function ScheduledTaskEditor(props: EditorProps) {
           ) : (
             <Button
               aria-label={t("scheduledTasks.runNow")}
-              disabled={props.task.lastRunStatus === "running"}
+              disabled={
+                props.task.lastRunStatus === "running" ||
+                props.task.runs.some(
+                  (run) =>
+                    run.status === "running" ||
+                    run.status === "unknown" ||
+                    run.status === "cleanup_pending",
+                )
+              }
               onClick={() => {
                 if (props.task !== undefined) void props.onRunNow(props.task.id);
               }}
@@ -188,7 +196,16 @@ export function ScheduledTaskEditor(props: EditorProps) {
           <Button
             aria-label={t("scheduledTasks.save")}
             className="disabled:bg-control-active disabled:text-muted-foreground disabled:opacity-100"
-            disabled={saving || !formComplete}
+            disabled={
+              saving ||
+              !formComplete ||
+              props.task?.runs.some(
+                (run) =>
+                  run.status === "running" ||
+                  run.status === "unknown" ||
+                  run.status === "cleanup_pending",
+              )
+            }
             onClick={() => void composerRef.current?.submitCurrent()}
             size="sm"
           >
@@ -289,6 +306,15 @@ export function ScheduledTaskEditor(props: EditorProps) {
                   <div className="scheduled-task-run" data-status={run.status} key={run.id}>
                     <span>{t(`scheduledTasks.${run.status}`)}</span>
                     <time>{formatScheduledTime(run.startedAtUnixMs, i18n.resolvedLanguage)}</time>
+                    {run.status === "unknown" || run.status === "cleanup_pending" ? (
+                      <span className="scheduled-task-run__error">
+                        {t(
+                          run.status === "unknown"
+                            ? "scheduledTasks.unknownHint"
+                            : "scheduledTasks.cleanupHint",
+                        )}
+                      </span>
+                    ) : null}
                     {run.taskId === null ? (
                       <span className="scheduled-task-run__error">{run.error}</span>
                     ) : (

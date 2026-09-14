@@ -3,6 +3,13 @@ import { describe, expect, it } from "vitest";
 import webConfig, { supportedBrowserTargets } from "./vite.config.js";
 
 describe("Web Vite browser targets", () => {
+  it("proxies same-origin writes and WebSocket upgrades without changing Host", () => {
+    expect(webConfig.server?.proxy?.["/v1"]).toMatchObject({
+      target: "http://127.0.0.1:3210",
+      changeOrigin: false,
+      ws: true,
+    });
+  });
   it("locks the production build to the supported browser minimums", () => {
     expect(supportedBrowserTargets).toEqual(["chrome116", "firefox124", "safari17.4"]);
     expect(webConfig).toMatchObject({

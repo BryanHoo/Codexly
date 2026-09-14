@@ -1,4 +1,9 @@
-import { expect, parseRequestRecord, test } from "./fixtures/app-shell.js";
+import {
+  expect,
+  parseRequestRecord,
+  projectFileTreeByDirectory,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -198,6 +203,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
 test("project file tree context and ellipsis menus rename and delete disk entries", async ({
   page,
 }) => {
+  let tree = projectFileTreeByDirectory.get(null) ?? { entries: [], path: null };
   let renameRequest: Record<string, unknown> | undefined;
   let deleteRequest: Record<string, unknown> | undefined;
   let renameIdempotencyKey: string | undefined;
@@ -205,12 +211,19 @@ test("project file tree context and ellipsis menus rename and delete disk entrie
   await page.route("**/v1/projects/codexly/files/rename?*", async (route) => {
     renameRequest = parseRequestRecord(route.request().postData());
     renameIdempotencyKey = route.request().headers()["idempotency-key"];
-    await route.fulfill({ json: { path: "package-lock.json" }, status: 200 });
+    tree = {
+      ...tree,
+      entries: tree.entries.map((entry) =>
+        entry.path === "package.json" ? { ...entry, path: "package-lock.json" } : entry,
+      ),
+    };
+    await route.fulfill({ json: { path: "package-lock.json", tree }, status: 200 });
   });
   await page.route("**/v1/projects/codexly/files/delete?*", async (route) => {
     deleteRequest = parseRequestRecord(route.request().postData());
     deleteIdempotencyKey = route.request().headers()["idempotency-key"];
-    await route.fulfill({ json: { path: "docs", status: "deleted" }, status: 200 });
+    tree = { ...tree, entries: tree.entries.filter((entry) => entry.path !== "docs") };
+    await route.fulfill({ json: { path: "docs", status: "deleted", tree }, status: 200 });
   });
   await page.goto("/p/codexly/t/task-1");
 

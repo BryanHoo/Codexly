@@ -235,7 +235,7 @@ export class CodexlyLogController extends LogController {
   ): void {
     const fields = {
       durationMs: reply.elapsedTime,
-      ...(error ? { errorCode: error.name } : {}),
+      ...(error ? { errorCode: "REQUEST_FAILED" } : {}),
       method: request.method,
       requestId: request.id,
       route: request.routeOptions.url,

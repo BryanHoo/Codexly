@@ -18,6 +18,7 @@ type InspectorActivationInput = Readonly<{
 }>;
 
 type InspectorTabAvailability = Readonly<{
+  changesSelected?: boolean;
   contextOnly?: boolean;
   fileOpen?: boolean;
 }>;
@@ -43,7 +44,7 @@ export function shouldEnableProjectGitDetails({
 export function getAvailableWorkbenchInspectorTabs(
   taskId: string | undefined,
   gitStatus: InspectorGitAvailability | undefined,
-  { contextOnly = false, fileOpen = false }: InspectorTabAvailability = {},
+  { contextOnly = false, fileOpen = false, changesSelected = false }: InspectorTabAvailability = {},
 ): WorkbenchInspectorTab[] {
   const isGitProject = gitStatus !== undefined && gitStatus.repositoryMode !== "none";
   const hasGitChanges = isGitProject && gitStatus.staged.length + gitStatus.unstaged.length > 0;
@@ -57,7 +58,8 @@ export function getAvailableWorkbenchInspectorTabs(
   // 标签顺序是稳定的，能力消失时由激活策略统一回落到项目标签。
   if (taskId !== undefined) tabs.push("context");
   tabs.push("project");
-  if (hasGitChanges) tabs.push("changes");
+  // 提交清空工作区后保留当前面板，让用户查看结果；离开后恢复按需显示。
+  if (hasGitChanges || (isGitProject && changesSelected)) tabs.push("changes");
   if (isGitProject) tabs.push("history");
   // 文件标签只代表当前选择，不保留空面板或历史文件列表。
   if (fileOpen) tabs.push("file");
@@ -75,6 +77,7 @@ export function deriveWorkbenchInspectorActivation({
   const availableTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatus, {
     contextOnly,
     fileOpen,
+    changesSelected: requestedTab === "changes",
   });
   const activeTab = contextOnly
     ? requestedTab === "file" && fileOpen

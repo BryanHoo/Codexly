@@ -251,6 +251,9 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     writeTaskSettings: vi.fn((_projectId, _taskId, settings) => Promise.resolve(settings)),
   };
   const dependencies: CliDependencies = {
+    acquireRuntimeLock: vi.fn(() =>
+      Promise.resolve({ close: () => Promise.resolve(), signal: new AbortController().signal }),
+    ),
     appVersion: "1.2.3",
     checkAppUpdate: vi.fn(() =>
       Promise.resolve({ latestVersion: "1.2.3", status: "current" as const }),

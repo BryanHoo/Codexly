@@ -202,8 +202,11 @@ export async function createCodexlyServer(
           onActivity: () => {
             projectRuntimeIdleReaper.touch(projectId);
           },
-          onAttachmentReleaseError: (error) => {
-            app.log.warn({ error }, "Failed to release turn attachments");
+          onAttachmentReleaseError: () => {
+            app.log.warn(
+              { errorCode: "ATTACHMENT_CLEANUP_FAILED" },
+              "Failed to release turn attachments",
+            );
           },
           onTurnCompleted: (runtime) => taskQueue.startNext(runtime),
           provider: resolved.provider,
@@ -237,8 +240,11 @@ export async function createCodexlyServer(
       options.projectRuntimeCleanupIntervalMs ?? DEFAULT_PROJECT_RUNTIME_CLEANUP_INTERVAL_MS,
     contexts: projectContexts,
     idleTtlMs: options.projectRuntimeIdleTtlMs ?? DEFAULT_PROJECT_RUNTIME_IDLE_TTL_MS,
-    onReleaseError: (error, projectId) => {
-      app.log.warn({ error, projectId }, "Failed to release idle Project runtime");
+    onReleaseError: (_error, projectId) => {
+      app.log.warn(
+        { errorCode: "PROJECT_RELEASE_FAILED", projectId },
+        "Failed to release idle Project runtime",
+      );
     },
     release: (projectId) => releaseProjectContext(projectId, true),
   });

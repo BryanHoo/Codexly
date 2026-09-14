@@ -378,7 +378,7 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).toContain('data-size="toolbar"');
   });
 
-  it("shows Git tabs only for repositories and hides changes for a clean worktree", () => {
+  it("keeps selected changes for a clean worktree and hides unavailable Git tabs", () => {
     const cleanGitStatus = { ...gitStatus, staged: [], unstaged: [] };
     const cleanMarkup = renderInspectorMarkup(
       <WorkbenchInspector
@@ -398,8 +398,8 @@ describe("WorkbenchInspector tabs", () => {
       />,
     );
 
-    expect(readInspectorTabLabels(cleanMarkup)).toEqual(["上下文", "项目", "历史"]);
-    expect(cleanMarkup).toMatch(/aria-selected="true"[^>]*>.*?<span>项目<\/span>/su);
+    expect(readInspectorTabLabels(cleanMarkup)).toEqual(["上下文", "项目", "变更", "历史"]);
+    expect(cleanMarkup).toMatch(/aria-selected="true"[^>]*>.*?<span>变更<\/span>/su);
     expect(readInspectorTabLabels(nonGitMarkup)).toEqual(["上下文", "项目"]);
   });
 

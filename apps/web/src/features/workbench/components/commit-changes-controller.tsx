@@ -105,9 +105,9 @@ export function CommitChangesController({
       isGenerating={messageMutation.isPending}
       isRepositoryLoading={detailsPending || repositoryStatusQuery.isFetching}
       onCommit={async (request) => {
-        const submittedSnapshot = request.expectedSnapshot;
         const response = await commitMutation.mutateAsync(request);
-        setResultState({ result: response, snapshot: submittedSnapshot });
+        // 返回的状态已包含提交后的快照，结果应随新快照保留，直到下一次工作区变化。
+        setResultState({ result: response, snapshot: response.status.snapshot });
         cacheCommittedGitStatus(
           queryClient,
           projectId,

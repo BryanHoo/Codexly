@@ -6,6 +6,7 @@ import type {
   ScheduledTaskSchedule,
 } from "@codexly/protocol";
 import { previewScheduledTask, RecurrenceWorkerBusyError } from "./scheduled-task-recurrence.js";
+import { ScheduledTaskLaunchError } from "./scheduled-task-outcome.js";
 export { previewScheduledTask } from "./scheduled-task-recurrence.js";
 
 export const MAX_SCHEDULED_TASK_RUNS = 20;
@@ -137,18 +138,26 @@ export function completeScheduledTaskRun(
 ): readonly ScheduledTask[] {
   return source.map((task) => {
     if (task.id !== claim.task.id) return task;
-    const status = result.status === "fulfilled" ? "started" : "failed";
+    const failure =
+      result.status === "rejected" && result.reason instanceof ScheduledTaskLaunchError
+        ? result.reason
+        : undefined;
+    const status = result.status === "fulfilled" ? "started" : (failure?.status ?? "failed");
     return {
       ...task,
+      ...(status === "unknown" ? { enabled: false, nextRunAtUnixMs: null } : {}),
       lastRunStatus: status,
       runs: task.runs.map((run) =>
         run.id === claim.runId
           ? {
               ...run,
-              error: result.status === "rejected" ? String(result.reason) : null,
+              error:
+                result.status === "rejected"
+                  ? (failure?.message ?? "Scheduled task could not be launched")
+                  : null,
               finishedAtUnixMs,
               status,
-              taskId: result.status === "fulfilled" ? result.value : null,
+              taskId: result.status === "fulfilled" ? result.value : (failure?.taskId ?? null),
             }
           : run,
       ),
@@ -165,14 +174,16 @@ export function repairInterruptedScheduledTasks(
     if (!task.runs.some((run) => run.status === "running")) return task;
     return {
       ...task,
-      lastRunStatus: "failed",
+      enabled: false,
+      nextRunAtUnixMs: null,
+      lastRunStatus: "unknown",
       runs: task.runs.map((run) =>
         run.status === "running"
           ? {
               ...run,
               error: "server exited before launch was confirmed",
               finishedAtUnixMs: nowUnixMs,
-              status: "failed" as const,
+              status: "unknown" as const,
             }
           : run,
       ),

@@ -76,7 +76,7 @@ for (const viewport of [
         },
       }),
     );
-    await page.route("**/v1/projects/codexly/tasks/task-1/settings", async (route) => {
+    await page.route("**/v1/projects/codexly/tasks/task-1/settings-and-defaults", async (route) => {
       settingsUpdates.push(parseRequestRecord(route.request().postData()));
       await route.fallback();
     });
@@ -141,7 +141,7 @@ for (const viewport of [
     await dock.getByRole("textbox", { name: "回答：补充要求" }).fill("保留测试");
     await page.getByRole("combobox", { name: "批准模式" }).selectOption("auto-review");
     await expect.poll(() => settingsUpdates.length).toBe(1);
-    expect(settingsUpdates[0]).toMatchObject({
+    expect(settingsUpdates[0]?.["settings"]).toMatchObject({
       approvalsReviewer: "auto_review",
       model: "gpt-5.6-terra",
       reasoningEffort: "low",

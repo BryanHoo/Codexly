@@ -37,6 +37,24 @@ const officialPlugin = {
 
 test("manages installed Skills, ClawHub installs, and MCP servers", async ({ page }) => {
   const mutations: { body: unknown; method: string; path: string }[] = [];
+  let installedSkills = {
+    data: [
+      {
+        description: "Review local changes.",
+        displayName: "Local Review",
+        enabled: true,
+        id: "/workspace/Codexly/.agents/skills/review/SKILL.md",
+        name: "review",
+        path: "/workspace/Codexly/.agents/skills/review/SKILL.md",
+        projectId: "codexly",
+        projectName: "Codexly",
+        rootPath: "/workspace/Codexly",
+        scope: "repo",
+        source: "local",
+      },
+    ],
+    nextCursor: null,
+  };
   await page.route("**/v1/skills/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -46,26 +64,13 @@ test("manages installed Skills, ClawHub installs, and MCP servers", async ({ pag
     }
     let json: unknown;
     if (url.pathname === "/v1/skills/installed") {
-      json = {
-        data: [
-          {
-            description: "Review local changes.",
-            displayName: "Local Review",
-            enabled: true,
-            id: "/workspace/Codexly/.agents/skills/review/SKILL.md",
-            name: "review",
-            path: "/workspace/Codexly/.agents/skills/review/SKILL.md",
-            projectId: "codexly",
-            projectName: "Codexly",
-            rootPath: "/workspace/Codexly",
-            scope: "repo",
-            source: "local",
-          },
-        ],
-        nextCursor: null,
-      };
+      json = installedSkills;
     } else if (url.pathname === "/v1/skills/enabled") {
-      json = { effectiveEnabled: false };
+      installedSkills = {
+        ...installedSkills,
+        data: installedSkills.data.map((skill) => ({ ...skill, enabled: false })),
+      };
+      json = { effectiveEnabled: false, installedSkills };
     } else if (url.pathname === "/v1/skills/open") {
       json = { status: "opened" };
     } else if (url.pathname === "/v1/skills/market") {
@@ -74,6 +79,7 @@ test("manages installed Skills, ClawHub installs, and MCP servers", async ({ pag
       json = {
         path: "/workspace/Codexly/.agents/skills/review",
         status: "installed",
+        installedSkills,
         version: "1.2.0",
       };
     } else {
@@ -93,7 +99,10 @@ test("manages installed Skills, ClawHub installs, and MCP servers", async ({ pag
     const path = new URL(request.url()).pathname;
     if (request.method() === "PUT") {
       mutations.push({ body: request.postDataJSON(), method: "PUT", path });
-      await route.fulfill({ contentType: "application/json", json: { enabled: false } });
+      await route.fulfill({
+        contentType: "application/json",
+        json: { enabled: false, servers: { data: [{ enabled: false, name: "docs" }] } },
+      });
       return;
     }
     await route.fulfill({
@@ -124,6 +133,7 @@ test("manages installed Skills, ClawHub installs, and MCP servers", async ({ pag
             },
           ],
           authPolicy: "ON_INSTALL",
+          plugins: { data: [{ ...officialPlugin, installed: true }] },
         },
       });
       return;

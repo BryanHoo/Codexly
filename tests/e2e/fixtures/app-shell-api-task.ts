@@ -79,7 +79,7 @@ export async function handleAppShellTaskRoute(
       state.nextQueuedSubmission += 1;
       queue.push(queuedSubmission);
       state.queuedSubmissionsByTask.set(taskKey, queue);
-      body = { queuedSubmission };
+      body = { queuedSubmission, queue: { data: queue } };
     } else {
       body = { data: queue };
     }
@@ -100,7 +100,10 @@ export async function handleAppShellTaskRoute(
       taskKey,
       ids.flatMap((id) => byId.get(id) ?? []),
     );
-    body = { status: "reordered" };
+    body = {
+      status: "reordered",
+      queue: { data: state.queuedSubmissionsByTask.get(taskKey) ?? [] },
+    };
   } else if (queueStartMatch !== null && route.request().method() === "POST") {
     const taskKey = `${queueStartMatch[1] ?? ""}:${queueStartMatch[2] ?? ""}`;
     const queue = state.queuedSubmissionsByTask.get(taskKey) ?? [];
@@ -114,6 +117,7 @@ export async function handleAppShellTaskRoute(
       queue.splice(index, 1);
     }
     body = {
+      queue: { data: queue },
       taskId: queueStartMatch[2] ?? "",
       turn: {
         completedAt: null,
@@ -134,7 +138,7 @@ export async function handleAppShellTaskRoute(
       if (deleted) {
         queue.splice(index, 1);
       }
-      body = { deleted };
+      body = { deleted, queue: { data: queue } };
     } else {
       const current = queue[index];
       const request = parseRequestRecord(route.request().postData());
@@ -152,7 +156,7 @@ export async function handleAppShellTaskRoute(
         text: input["text"],
       };
       queue[index] = queuedSubmission;
-      body = { queuedSubmission };
+      body = { queuedSubmission, queue: { data: queue } };
     }
   } else if (pinMatch !== null) {
     const taskId = pinMatch[2] ?? "";
@@ -163,7 +167,12 @@ export async function handleAppShellTaskRoute(
       throw new Error("Invalid pin task request");
     }
     task.pinned = pinned;
-    body = { task };
+    body = {
+      task,
+      pinnedTasks: {
+        data: state.routedTasks.filter((item) => item.projectId === task.projectId && item.pinned),
+      },
+    };
   } else if (renameMatch !== null) {
     const taskId = renameMatch[2] ?? "";
     const request = parseRequestRecord(route.request().postData());
@@ -173,15 +182,32 @@ export async function handleAppShellTaskRoute(
       throw new Error("Invalid rename task request");
     }
     task.title = title;
-    body = { task };
+    body = {
+      task,
+      taskCatalog: { data: state.routedTasks.filter((item) => item.projectId === task.projectId) },
+    };
   } else if (archiveMatch !== null) {
     const taskId = archiveMatch[2] ?? "";
     state.routedTasks = state.routedTasks.filter((item) => item.id !== taskId);
-    body = { status: "archived", taskId };
+    body = {
+      status: "archived",
+      taskId,
+      tasks: {
+        data: state.routedTasks.filter((item) => item.projectId === archiveMatch[1]),
+        nextCursor: null,
+      },
+    };
   } else if (deleteMatch !== null && route.request().method() === "DELETE") {
     const taskId = deleteMatch[2] ?? "";
     state.routedTasks = state.routedTasks.filter((item) => item.id !== taskId);
-    body = { status: "deleted", taskId };
+    body = {
+      status: "deleted",
+      taskId,
+      tasks: {
+        data: state.routedTasks.filter((item) => item.projectId === deleteMatch[1]),
+        nextCursor: null,
+      },
+    };
   } else if (url.pathname.endsWith("/background-terminals")) {
     body = { data: [], nextCursor: null };
   } else if (url.pathname.startsWith("/v1/projects/") && url.pathname.endsWith("/tasks/catalog")) {

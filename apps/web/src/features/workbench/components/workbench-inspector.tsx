@@ -173,6 +173,7 @@ export function WorkbenchInspector({
 }: WorkbenchInspectorProps) {
   useTranslation("conversation");
   const availableTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatus, {
+    changesSelected: tab === "changes",
     contextOnly,
     fileOpen: fileSelection !== null,
   });

@@ -1,3 +1,5 @@
+import type { ProjectFileTree } from "@codexly/protocol";
+
 // 集中维护 App Shell E2E 使用的协议样本。
 export const projects = [
   {
@@ -192,7 +194,7 @@ export const projectGitWorktrees = [
   },
 ];
 
-export const projectFileTreeByDirectory = new Map<string | null, object>([
+export const projectFileTreeByDirectory = new Map<string | null, ProjectFileTree>([
   [
     null,
     {

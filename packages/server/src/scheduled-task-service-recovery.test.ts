@@ -19,6 +19,29 @@ const input: ScheduledTaskInput = {
 };
 
 describe("scheduled task persistence recovery", () => {
+  it("blocks a new launch when the previous launch outcome is unknown after restart", async () => {
+    const repository = createMemoryScheduledTaskRepository();
+    const first = new ScheduledTaskService({
+      repository,
+      startTask: () => new Promise(() => undefined),
+    });
+    await first.start();
+    const task = await first.create({ ...input, enabled: false });
+    await first.runNow(task.id);
+    // 持久运行标记模拟进程退出后的磁盘状态，替代实例不得重新投递。
+    const startTask = vi.fn(() => Promise.resolve("duplicate"));
+    const recovered = new ScheduledTaskService({ repository, startTask });
+    await recovered.start();
+    try {
+      await expect(recovered.runNow(task.id)).rejects.toThrow();
+      expect(startTask).not.toHaveBeenCalled();
+      expect((await recovered.list())[0]?.lastRunStatus).toBe("unknown");
+    } finally {
+      await recovered.close();
+      // 初始实例只有未决 Promise，无活动句柄；禁用它的未引用调度计时器。
+      void first.close();
+    }
+  });
   it.each(["claim", "completion"])(
     "retries a failed automatic %s write without relaunching",
     async (phase) => {

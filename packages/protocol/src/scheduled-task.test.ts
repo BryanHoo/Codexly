@@ -1,9 +1,24 @@
 import { Value } from "@sinclair/typebox/value";
 import { describe, expect, it } from "vitest";
 
-import { ScheduledTaskSchema } from "./scheduled-task.js";
+import { ScheduledTaskSchema, ScheduledTaskRunSchema } from "./scheduled-task.js";
 
 describe("ScheduledTaskSchema", () => {
+  it.each(["unknown", "cleanup_pending"])(
+    "accepts recoverable run status %s with the linked task",
+    (status) => {
+      expect(
+        Value.Check(ScheduledTaskRunSchema, {
+          id: "run-a",
+          taskId: "task-a",
+          status,
+          error: null,
+          startedAtUnixMs: 1,
+          finishedAtUnixMs: 2,
+        }),
+      ).toBe(true);
+    },
+  );
   it("accepts scheduled task snapshots and rejects removed cron schedules", () => {
     const task = {
       createdAtUnixMs: 1,

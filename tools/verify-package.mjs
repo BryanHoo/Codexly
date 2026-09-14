@@ -84,6 +84,7 @@ try {
     "dist/codex-jsonl-frame-worker.js",
     "dist/server/index.js",
     "dist/sqlite-state-worker.js",
+    "dist/runtime-instance-worker.js",
     "dist/scheduled-task-recurrence-worker.js",
     "dist/web/index.html",
   ];

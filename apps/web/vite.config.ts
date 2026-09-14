@@ -80,7 +80,8 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5173,
     proxy: {
-      "/v1": "http://127.0.0.1:3210",
+      // 保留浏览器 Host 与 Origin 的一致性，后端继续执行原有同源校验。
+      "/v1": { target: "http://127.0.0.1:3210", changeOrigin: false, ws: true },
     },
     strictPort: true,
   },

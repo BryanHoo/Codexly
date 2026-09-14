@@ -214,7 +214,11 @@ export async function configureServerDelivery(
         retryable: false,
       });
     }
-    request.log.error({ err: error }, "Unhandled request error");
+    // 上游 Error 的 message、cause、data 甚至 name 都可能携带 Secret，仅记录可信上下文。
+    request.log.error(
+      { errorCode: "INTERNAL_ERROR", route: request.routeOptions.url },
+      "Unhandled request error",
+    );
     return reply.code(explicitStatusCode).send({
       code: "INTERNAL_ERROR",
       message: "Internal server error",

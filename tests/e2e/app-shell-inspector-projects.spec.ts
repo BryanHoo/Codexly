@@ -52,16 +52,14 @@ test("adds a validated absolute path directly as one project root", async ({ pag
       return;
     }
     addProjectRequest = route.request().postDataJSON();
+    const project = {
+      createdAt: "2026-08-24T00:00:00.000Z",
+      id: "project-vault",
+      name: "ProjectVault",
+      roots: [{ id: "root-project-vault", path: "/workspace/ProjectVault" }],
+    };
     await route.fulfill({
-      contentType: "application/json",
-      json: {
-        project: {
-          createdAt: "2026-08-24T00:00:00.000Z",
-          id: "project-vault",
-          name: "ProjectVault",
-          roots: [{ id: "root-project-vault", path: "/workspace/ProjectVault" }],
-        },
-      },
+      json: { project, projects: { data: [...projects, project], nextCursor: null } },
     });
   });
   await page.goto("/p/codexly");

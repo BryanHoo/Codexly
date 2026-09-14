@@ -19,6 +19,37 @@ import {
 } from "./app-all.test-support.js";
 
 describe("server diagnostics and provider connection", () => {
+  it("does not log provider exception messages, causes or data", async () => {
+    const { provider } = createProvider();
+    const secret = "synthetic-sensitive-marker";
+    const error = Object.assign(new Error(secret, { cause: new Error(secret) }), {
+      name: secret,
+      code: secret,
+      data: { apiKey: secret },
+    });
+    const logLines: string[] = [];
+    const app = await createCodexlyServer(
+      createServerOptions(
+        {
+          ...provider,
+          listTasks: vi.fn(() => Promise.reject(error)),
+        },
+        {
+          loggerEnabled: true,
+          logDestination: {
+            write: (line: string) => {
+              logLines.push(line);
+            },
+          },
+        },
+      ),
+    );
+    closeCallbacks.push(() => app.close());
+    const response = await app.inject("/v1/projects/codexly/tasks");
+    expect(response.statusCode).toBe(500);
+    expect(logLines.length).toBeGreaterThan(0);
+    expect(logLines.join("\n")).not.toContain(secret);
+  });
   it("only emits redacted warning and error logs", async () => {
     const { provider } = createProvider();
     const slowProvider = {

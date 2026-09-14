@@ -152,7 +152,7 @@ export async function handleAppShellCoreRoute(
     const request = parseRequestRecord(route.request().postData());
     if (request["petId"] !== workbenchPet.id) throw new Error("Invalid pet download request");
     state.petReady = true;
-    body = { data: { ...workbenchPet, availability: "ready" } };
+    body = { pets: { data: [{ ...workbenchPet, availability: "ready" }] } };
   } else if (url.pathname === "/v1/settings") {
     if (route.request().method() === "PUT") {
       state.globalSettings = parseGlobalSettingsRequest(route.request().postData());
@@ -213,7 +213,7 @@ export async function handleAppShellCoreRoute(
       throw new Error("Invalid temporary pin request");
     }
     task.pinned = pinned;
-    body = { task };
+    body = { task, pinnedTasks: { data: state.temporaryTasks.filter((item) => item.pinned) } };
   } else if (temporaryRenameMatch !== null) {
     const taskId = temporaryRenameMatch[1] ?? "";
     const request = parseRequestRecord(route.request().postData());
@@ -223,17 +223,17 @@ export async function handleAppShellCoreRoute(
       throw new Error("Invalid temporary rename request");
     }
     task.title = title;
-    body = { task };
+    body = { task, taskCatalog: { data: state.temporaryTasks } };
   } else if (temporaryArchiveMatch !== null) {
     const taskId = temporaryArchiveMatch[1] ?? "";
     state.temporaryTasks = state.temporaryTasks.filter((item) => item.id !== taskId);
     state.temporaryTurns.delete(taskId);
-    body = { status: "archived", taskId };
+    body = { status: "archived", taskId, tasks: { data: state.temporaryTasks, nextCursor: null } };
   } else if (temporaryTaskMatch !== null && route.request().method() === "DELETE") {
     const taskId = temporaryTaskMatch[1] ?? "";
     state.temporaryTasks = state.temporaryTasks.filter((item) => item.id !== taskId);
     state.temporaryTurns.delete(taskId);
-    body = { status: "deleted", taskId };
+    body = { status: "deleted", taskId, tasks: { data: state.temporaryTasks, nextCursor: null } };
   } else if (
     (temporaryTurnMatch !== null || url.pathname === "/v1/temporary/submissions") &&
     route.request().method() === "POST"
@@ -469,7 +469,7 @@ export async function handleAppShellCoreRoute(
       ],
     };
     state.routedProjects = [...state.routedProjects, addedProject];
-    body = { project: addedProject };
+    body = { project: addedProject, projects: { data: state.routedProjects, nextCursor: null } };
   } else {
     return false;
   }

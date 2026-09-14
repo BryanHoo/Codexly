@@ -16,3 +16,11 @@
 Server 关闭、进程崩溃或重启后，幂等记录丢失；多个 Server 实例之间也不共享记录。定时任务及运行历史的持久化不等于请求 key 的持久化，因此跨重启或缓存淘汰后的同 key 重试可能再次创建或执行任务。响应丢失且超出保护范围时，应先核对任务列表及运行历史，不能把盲目重试视为安全操作。
 
 本约定采用请求标识、参数冲突校验和响应复用的接口设计原则，参考 [AWS：Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/)。当前实现不承诺跨重启的持久化幂等或 Agent 工作的端到端恰好一次执行。
+
+## 运行恢复与实例所有权
+
+CLI 对同一数据目录只允许一个实例，避免内存快照相互覆盖和重复领取。嵌入 Server 的调用方也必须保证共享持久状态只有一个调度所有者。
+
+每次已领取的运行使用 `scheduled:<runId>` 保存独立持久提交阶段，与上述 HTTP 请求 Key 的内存缓存不同。已确认启动的结果先持久化，再清理附件；清理或结果写入失败显示 `cleanup_pending`，当前进程与重启恢复只重试收尾。Provider 调用结果无法确认时显示 `unknown`，保留已知 Task，暂停计划并禁止再次运行或启用；查看关联对话后可删除旧计划并重新创建。
+
+HTTP Key 重启后仍不保留：已完成运行后的新一次请求可能创建新 runId，本机制不承诺跨重启 HTTP 幂等或 Agent 的端到端恰好一次执行。

@@ -1,7 +1,8 @@
-import { lstat, realpath, rename, rm } from "node:fs/promises";
+import { lstat, realpath, rm } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { DeleteProjectFileResponse, RenameProjectFileResponse } from "@codexly/protocol";
+import { renameWithoutOverwrite } from "./rename-without-overwrite.js";
 
 const MAX_PROJECT_FILE_DEPTH = 20;
 const validFileName = /^(?!\.\.?$)[^/\\]{1,255}$/u;
@@ -52,17 +53,7 @@ async function resolveProjectFileTarget(projectRoot: string, path: string) {
   if (!stats.isFile() && !stats.isDirectory()) {
     throw new TypeError("Project file target is not a file or directory");
   }
-  return { absolutePath, resolvedRoot };
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await lstat(path);
-    return true;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-    throw error;
-  }
+  return { absolutePath, resolvedRoot, directory: stats.isDirectory() };
 }
 
 export async function renameProjectFile(
@@ -81,14 +72,20 @@ export async function renameProjectFile(
   ) {
     throw new TypeError("Project file name is invalid");
   }
-  const { absolutePath, resolvedRoot } = await resolveProjectFileTarget(projectRoot, path);
+  const { absolutePath, resolvedRoot, directory } = await resolveProjectFileTarget(
+    projectRoot,
+    path,
+  );
   const targetPath = resolve(dirname(absolutePath), name);
   assertPathInsideRoot(resolvedRoot, targetPath);
-  if (await pathExists(targetPath)) {
-    throw new TypeError("Project file rename target already exists");
+  try {
+    await renameWithoutOverwrite(absolutePath, targetPath, directory);
+  } catch (error) {
+    if (["EEXIST", "ENOTEMPTY"].includes((error as NodeJS.ErrnoException).code ?? "")) {
+      throw new TypeError("Project file rename target already exists", { cause: error });
+    }
+    throw error;
   }
-
-  await rename(absolutePath, targetPath);
   const separatorIndex = path.lastIndexOf("/");
   const renamedPath = separatorIndex === -1 ? name : `${path.slice(0, separatorIndex)}/${name}`;
   return { path: renamedPath };

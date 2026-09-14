@@ -38,11 +38,15 @@ export async function handleAppShellProjectRoute(
     }
     const renamedProject = { ...project, name };
     state.routedProjects[projectIndex] = renamedProject;
-    body = { project: renamedProject };
+    body = { project: renamedProject, projects: { data: state.routedProjects, nextCursor: null } };
   } else if (projectRemoveMatch !== null && route.request().method() === "POST") {
     const projectId = projectRemoveMatch[1] ?? "";
     state.routedProjects = state.routedProjects.filter((project) => project.id !== projectId);
-    body = { projectId, status: "removed" };
+    body = {
+      projectId,
+      status: "removed",
+      projects: { data: state.routedProjects, nextCursor: null },
+    };
   } else if (url.pathname === "/v1/projects") {
     body = { data: state.routedProjects, nextCursor: null };
   } else if (
@@ -110,7 +114,13 @@ export async function handleAppShellProjectRoute(
     };
     state.routedProjectGitWorktrees.push(worktree);
     state.routedProjects = [...state.routedProjects, project];
-    body = { project, worktree };
+    body = {
+      project,
+      worktree,
+      projects: { data: state.routedProjects, nextCursor: null },
+      worktrees: { worktrees: state.routedProjectGitWorktrees },
+      status: state.routedProjectGitStatus,
+    };
   } else if (
     url.pathname === "/v1/projects/codexly/git/worktree" &&
     route.request().method() === "POST"
@@ -129,7 +139,12 @@ export async function handleAppShellProjectRoute(
     if (!state.routedProjects.some((candidate) => candidate.id === project.id)) {
       state.routedProjects = [...state.routedProjects, project];
     }
-    body = { project, worktree };
+    body = {
+      project,
+      worktree,
+      projects: { data: state.routedProjects, nextCursor: null },
+      worktrees: { worktrees: state.routedProjectGitWorktrees },
+    };
   } else if (
     url.pathname === "/v1/projects/codexly/git/branch" &&
     route.request().method() === "POST"

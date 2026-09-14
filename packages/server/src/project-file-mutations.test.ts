@@ -23,6 +23,32 @@ async function createTemporaryProject() {
 }
 
 describe("project file mutations", () => {
+  it("preserves both contents when concurrent renames target the same file", async () => {
+    const root = await createTemporaryProject();
+    await Promise.all([writeFile(join(root, "a.txt"), "A"), writeFile(join(root, "b.txt"), "B")]);
+    const results = await Promise.allSettled([
+      renameProjectFile(root, "a.txt", "target.txt"),
+      renameProjectFile(root, "b.txt", "target.txt"),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const loser = results[0].status === "rejected" ? "a.txt" : "b.txt";
+    expect(
+      new Set([
+        await readFile(join(root, loser), "utf8"),
+        await readFile(join(root, "target.txt"), "utf8"),
+      ]),
+    ).toEqual(new Set(["A", "B"]));
+  });
+
+  it("renames directories and rejects an existing empty destination", async () => {
+    const root = await createTemporaryProject();
+    await mkdir(join(root, "source"));
+    await mkdir(join(root, "existing"));
+    await writeFile(join(root, "source", "content"), "preserved");
+    await expect(renameProjectFile(root, "source", "existing")).rejects.toThrow("already exists");
+    await renameProjectFile(root, "source", "renamed");
+    expect(await readFile(join(root, "renamed", "content"), "utf8")).toBe("preserved");
+  });
   it
     .runIf(process.platform === "win32")
     .each([

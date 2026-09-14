@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ScheduledTaskAttachmentReplacement, ScheduledTaskRepository } from "@codexly/core";
 import type { ScheduledTask, ScheduledTaskInput } from "@codexly/protocol";
+import { isUnresolvedScheduledRun } from "./scheduled-task-outcome.js";
 
 import {
   claimScheduledTasks,
@@ -38,6 +39,7 @@ type ScheduledTaskServiceOptions = Readonly<{
   now?: () => number;
   prepareTaskResources?: (task: ScheduledTask) => Promise<ScheduledTaskAttachmentReplacement>;
   repository: ScheduledTaskRepository;
+  recoverTask?: (task: ScheduledTask) => Promise<ScheduledTask>;
   startTask: (task: ScheduledTask) => Promise<string>;
 }>;
 
@@ -57,6 +59,7 @@ export class ScheduledTaskService {
     }>
   >();
   readonly #startTask: (task: ScheduledTask) => Promise<string>;
+  readonly #recoverTask: ScheduledTaskServiceOptions["recoverTask"];
   #closed = false;
   #mutation: Promise<void> = Promise.resolve();
   #tasks: readonly ScheduledTask[] = [];
@@ -67,12 +70,17 @@ export class ScheduledTaskService {
     this.#repository = options.repository;
     this.#prepareTaskResources = options.prepareTaskResources;
     this.#startTask = options.startTask;
+    this.#recoverTask = options.recoverTask;
   }
 
   public async start(): Promise<void> {
     await this.#mutate(async () => {
       const stored = await this.#repository.listScheduledTasks();
-      const repaired = repairInterruptedScheduledTasks(stored, this.#now());
+      const recoverTask = this.#recoverTask;
+      const repaired =
+        recoverTask === undefined
+          ? repairInterruptedScheduledTasks(stored, this.#now())
+          : await Promise.all(stored.map(recoverTask));
       this.#tasks = repaired;
       if (repaired.some((task, index) => task !== stored[index])) {
         await this.#repository.replaceScheduledTasks(repaired);
@@ -115,6 +123,7 @@ export class ScheduledTaskService {
   public update(id: string, input: ScheduledTaskInput): Promise<ScheduledTask> {
     return this.#mutate(async () => {
       const existing = this.#find(id);
+      this.#assertResolved(existing);
       let task: ScheduledTask;
       try {
         task = {
@@ -137,8 +146,8 @@ export class ScheduledTaskService {
 
   public delete(id: string): Promise<void> {
     return this.#mutate(async () => {
-      this.#find(id);
-      if (this.#running.has(id)) {
+      const task = this.#find(id);
+      if (this.#running.has(id) || task.runs.some((run) => run.status === "cleanup_pending")) {
         throw new ScheduledTaskServiceError("busy", "Scheduled task is running");
       }
       await this.#replace(this.#tasks.filter((task) => task.id !== id));
@@ -148,6 +157,7 @@ export class ScheduledTaskService {
   public setEnabled(id: string, enabled: boolean): Promise<ScheduledTask> {
     return this.#mutate(async () => {
       const existing = this.#find(id);
+      if (enabled) this.#assertResolved(existing);
       let nextRunAtUnixMs = existing.nextRunAtUnixMs;
       if (enabled) {
         try {
@@ -164,7 +174,7 @@ export class ScheduledTaskService {
 
   public runNow(id: string): Promise<ScheduledTask> {
     return this.#mutate(async () => {
-      this.#find(id);
+      this.#assertResolved(this.#find(id));
       const result = await claimScheduledTasks(this.#tasks, this.#running, this.#now(), id);
       const claim = result.claims[0];
       if (claim === undefined) {
@@ -191,6 +201,15 @@ export class ScheduledTaskService {
     if (task === undefined)
       throw new ScheduledTaskServiceError("not_found", "Scheduled task not found");
     return task;
+  }
+
+  #assertResolved(task: ScheduledTask): void {
+    if (
+      this.#running.has(task.id) ||
+      task.runs.some((run) => run.status === "running" || isUnresolvedScheduledRun(run))
+    ) {
+      throw new ScheduledTaskServiceError("busy", "Previous launch requires reconciliation");
+    }
   }
 
   #launch(claim: ScheduledTaskClaim): void {
@@ -251,13 +270,16 @@ export class ScheduledTaskService {
         (minimum, value) => (minimum === undefined ? value : Math.min(minimum, value)),
         undefined,
       );
+    const pendingCleanup = this.#tasks.some((task) =>
+      task.runs.some((run) => run.status === "cleanup_pending"),
+    );
     const delay = next === undefined ? 24 * 60 * 60 * 1_000 : Math.max(1, next - this.#now());
     this.#timer = setTimeout(
       () =>
         void this.#tick().catch(() => {
           this.#scheduleRetry();
         }),
-      Math.min(delay, this.#completions.size > 0 ? 1_000 : 2_147_483_647),
+      Math.min(delay, pendingCleanup || this.#completions.size > 0 ? 1_000 : 2_147_483_647),
     );
     this.#timer.unref();
   }
@@ -266,6 +288,13 @@ export class ScheduledTaskService {
     await this.#mutate(async () => {
       if (this.#closed) return;
       await this.#flushCompletions();
+      for (const task of this.#tasks) {
+        const run = task.runs.find((item) => item.status === "cleanup_pending");
+        if (run === undefined || this.#running.has(task.id)) continue;
+        // 复用原 runId 的持久提交，只补写结果和收尾，绝不创建新的执行记录。
+        this.#running.add(task.id);
+        this.#launch({ task, runId: run.id });
+      }
       const result = await claimScheduledTasks(this.#tasks, this.#running, this.#now());
       await this.#replace(result.tasks);
       for (const claim of result.claims) this.#running.add(claim.task.id);

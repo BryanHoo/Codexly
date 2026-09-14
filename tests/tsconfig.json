@@ -14,7 +14,13 @@
     "tsBuildInfoFile": "../.cache/types/tests.tsbuildinfo",
     "types": ["node", "@playwright/test", "vitest"]
   },
-  "include": ["e2e/**/*.ts", "performance/**/*.ts", "*.test.ts"],
+  "include": [
+    "e2e/**/*.ts",
+    "performance/**/*.ts",
+    "*.test.ts",
+    "../apps/web/vite.proxy.test.ts",
+    "../apps/web/vite.config.ts"
+  ],
   "references": [
     { "path": "../packages/protocol" },
     { "path": "../packages/provider-codex" },

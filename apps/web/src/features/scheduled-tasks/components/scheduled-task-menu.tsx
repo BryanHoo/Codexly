@@ -52,6 +52,15 @@ export function ScheduledTaskMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" sideOffset={4} className="scheduled-task-menu">
           <DropdownMenuItem
+            disabled={
+              !task.enabled &&
+              task.runs.some(
+                (run) =>
+                  run.status === "running" ||
+                  run.status === "unknown" ||
+                  run.status === "cleanup_pending",
+              )
+            }
             aria-label={t(
               task.enabled ? "scheduledTasks.disableTask" : "scheduledTasks.enableTask",
               { name: task.name },
@@ -66,6 +75,10 @@ export function ScheduledTaskMenu({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-danger"
+            disabled={
+              task.lastRunStatus === "running" ||
+              task.runs.some((run) => run.status === "cleanup_pending")
+            }
             onSelect={() => {
               setDeleteArmed(true);
             }}

@@ -9,6 +9,37 @@ import {
 afterEach(() => vi.useRealTimers());
 
 describe("ScheduledTaskService", () => {
+  it("rejects edits while a launch is using the saved prompt", async () => {
+    let finish: (value: string) => void = () => undefined;
+    const pending = new Promise<string>((resolve) => {
+      finish = resolve;
+    });
+    const service = new ScheduledTaskService({
+      repository: createMemoryScheduledTaskRepository(),
+      startTask: () => pending,
+    });
+    await service.start();
+    const input = {
+      enabled: false,
+      messageAttachments: [],
+      name: "Review",
+      projectId: "temporary",
+      projectName: "Temporary",
+      prompt: { attachments: [], skills: [], text: "Original", type: "prompt" as const },
+      schedule: { type: "once" as const, atUnixMs: Date.now() + 60_000 },
+      turnOptions,
+    };
+    const task = await service.create(input);
+    await service.runNow(task.id);
+    try {
+      await expect(
+        service.update(task.id, { ...input, prompt: { ...input.prompt, text: "Changed" } }),
+      ).rejects.toThrow();
+    } finally {
+      finish("task-a");
+      await service.close();
+    }
+  });
   it("allows retry after the manual claim cannot be persisted", async () => {
     const repository = createMemoryScheduledTaskRepository();
     const startTask = vi.fn(() => Promise.resolve("task-a"));

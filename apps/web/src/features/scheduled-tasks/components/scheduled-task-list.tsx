@@ -9,6 +9,8 @@ import { Input } from "../../../shared/components/core/input.js";
 import { formatScheduledTime, scheduleToDraft } from "../scheduled-task-schedule.js";
 
 function statusTone(task: ScheduledTask): "failed" | "paused" | "running" | "scheduled" {
+  if (task.lastRunStatus === "unknown") return "failed";
+  if (task.lastRunStatus === "cleanup_pending") return "running";
   if (!task.enabled) return "paused";
   if (task.lastRunStatus === "failed") return "failed";
   if (task.lastRunStatus === "running") return "running";
@@ -131,9 +133,11 @@ export function ScheduledTaskList({
                     ) : (
                       <Clock3 aria-hidden="true" />
                     )}
-                    {task.enabled
-                      ? formatScheduledTime(task.nextRunAtUnixMs, i18n.resolvedLanguage)
-                      : t("scheduledTasks.disabled")}
+                    {task.lastRunStatus === "unknown" || task.lastRunStatus === "cleanup_pending"
+                      ? t(`scheduledTasks.${task.lastRunStatus}`)
+                      : task.enabled
+                        ? formatScheduledTime(task.nextRunAtUnixMs, i18n.resolvedLanguage)
+                        : t("scheduledTasks.disabled")}
                   </span>
                 </button>
                 <ScheduledTaskMenu

@@ -44,6 +44,11 @@ export const scheduledTasks = {
   rrulePlaceholder: "RRULE:FREQ=WEEKLY;BYDAY=MO;BYHOUR=9;BYMINUTE=0",
   runNow: "Run now",
   running: "Starting",
+  unknown: "Outcome unknown",
+  cleanup_pending: "Started, finishing cleanup",
+  unknownHint:
+    "The launch outcome is unconfirmed. Further runs are paused. Inspect the linked conversation before deleting and recreating this schedule.",
+  cleanupHint: "The task has started. Resource cleanup is being retried; do not run it again.",
   save: "Save task",
   scheduleInvalid: "Check the date, time, or recurrence rule",
   search: "Search scheduled tasks",

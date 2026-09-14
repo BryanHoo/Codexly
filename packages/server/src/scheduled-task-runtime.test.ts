@@ -113,8 +113,9 @@ describe("scheduled task runtime", () => {
       1_800_000_000_000,
     );
     expect(repaired[0]?.runs[0]).toMatchObject({
-      status: "failed",
+      status: "unknown",
       finishedAtUnixMs: 1_800_000_000_000,
     });
+    expect(repaired[0]?.enabled).toBe(false);
   });
 });

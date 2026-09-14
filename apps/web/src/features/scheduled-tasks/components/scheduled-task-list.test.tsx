@@ -29,6 +29,22 @@ const task: ScheduledTask = {
 };
 
 describe("ScheduledTaskList rendering", () => {
+  it("shows unknown outcomes instead of hiding them as paused", () => {
+    const markup = renderToStaticMarkup(
+      <ScheduledTaskList
+        loading={false}
+        onCreate={vi.fn()}
+        onDelete={vi.fn()}
+        onEnabledChange={vi.fn()}
+        onSelect={vi.fn()}
+        query=""
+        setQuery={vi.fn()}
+        tasks={[{ ...task, enabled: false, lastRunStatus: "unknown" }]}
+      />,
+    );
+    expect(markup).toContain('data-tone="failed"');
+    expect(markup).toContain("结果未知");
+  });
   it("renders selection, failure state, search, status filters and task menu", () => {
     const markup = renderToStaticMarkup(
       <ScheduledTaskList

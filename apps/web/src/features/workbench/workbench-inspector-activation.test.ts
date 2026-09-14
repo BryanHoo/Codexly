@@ -52,7 +52,7 @@ describe("deriveWorkbenchInspectorActivation", () => {
   it("activates project when the requested tab is no longer available", () => {
     expect(
       deriveWorkbenchInspectorActivation({
-        gitStatus: { ...gitStatus, staged: [] },
+        gitStatus: { ...gitStatus, repositoryMode: "none", staged: [] },
         inspectorOpen: true,
         requestedTab: "changes",
         taskId: "task-1",
@@ -65,6 +65,19 @@ describe("deriveWorkbenchInspectorActivation", () => {
       history: false,
       project: true,
     });
+  });
+
+  it("keeps the selected changes panel after a commit clears the working tree", () => {
+    const clean = { ...gitStatus, staged: [] };
+    expect(
+      deriveWorkbenchInspectorActivation({
+        gitStatus: clean,
+        inspectorOpen: true,
+        requestedTab: "changes",
+        taskId: "task-1",
+      }),
+    ).toMatchObject({ activeTab: "changes", changes: true });
+    expect(getAvailableWorkbenchInspectorTabs("task-1", clean)).not.toContain("changes");
   });
 
   it("activates context directly for temporary tasks", () => {

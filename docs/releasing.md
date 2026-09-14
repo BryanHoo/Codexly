@@ -36,7 +36,7 @@ git push origin main
 git push origin "v${RELEASE_VERSION}"
 ```
 
-工作流会校验标签和包版本，运行 `pnpm check`，通过 `pnpm pack` 转换 `catalog:` 与 `workspace:` 协议，再使用 npm CLI 发布 tarball。npm 发布成功后才创建 GitHub Release。
+工作流先将标签解析为不可变提交，在 Linux、Windows 上构建并运行 Chromium、Firefox、WebKit E2E；发布 Job 必须等待全部 E2E 成功，并检出同一提交、再次验证标签归属。随后执行质量门禁，通过 `pnpm pack` 转换 `catalog:` 与 `workspace:` 协议，再使用 npm CLI 发布 tarball。npm 发布成功后才创建 GitHub Release。
 
 ## 失败恢复
 

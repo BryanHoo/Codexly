@@ -40,6 +40,8 @@ export const ScheduledTaskPreviewSchema = Type.Object(
 export type ScheduledTaskPreview = Readonly<Static<typeof ScheduledTaskPreviewSchema>>;
 
 export const ScheduledTaskRunStatusSchema = Type.Union([
+  Type.Literal("unknown"),
+  Type.Literal("cleanup_pending"),
   Type.Literal("failed"),
   Type.Literal("running"),
   Type.Literal("skipped"),
