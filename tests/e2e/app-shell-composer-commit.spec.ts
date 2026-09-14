@@ -267,7 +267,7 @@ for (const scenario of [
   { actionName: "提交", pushStatus: "not_requested", toastMessage: "提交成功" },
   { actionName: "提交并推送", pushStatus: "pushed", toastMessage: "提交并推送成功" },
 ] as const) {
-  test(`${scenario.actionName}成功后保留变更标签并显示 toast`, async ({ page }) => {
+  test(`${scenario.actionName}成功后隐藏变更标签并回到第一个标签`, async ({ page }) => {
     await page.route("**/v1/projects/codexly/git/status*", async (route) => {
       await route.fulfill({ contentType: "application/json", json: projectGitStatus });
     });
@@ -306,11 +306,10 @@ for (const scenario of [
       await panel.getByRole("button", { name: scenario.actionName, exact: true }).click();
     }
 
-    await expect(inspector.getByRole("tab", { name: "变更" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    await expect(panel).toContainText("0123456");
+    await expect(inspector.getByRole("tab", { name: "变更" })).toHaveCount(0);
+    await expect(inspector.getByRole("tab").first()).toHaveAttribute("aria-selected", "true");
+    await expect(panel).toHaveCount(0);
+    await expect(inspector).not.toContainText("0123456");
     await expect(page.locator('[data-slot="sheet-content"]')).toHaveCount(0);
     const toaster = page.locator("[data-sonner-toaster]");
     await expect(toaster).toHaveAttribute("data-x-position", "center");

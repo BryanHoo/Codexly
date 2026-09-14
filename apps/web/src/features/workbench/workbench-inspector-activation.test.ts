@@ -67,7 +67,7 @@ describe("deriveWorkbenchInspectorActivation", () => {
     });
   });
 
-  it("keeps the selected changes panel after a commit clears the working tree", () => {
+  it("returns to the first tab after a commit clears the working tree", () => {
     const clean = { ...gitStatus, staged: [] };
     expect(
       deriveWorkbenchInspectorActivation({
@@ -76,7 +76,7 @@ describe("deriveWorkbenchInspectorActivation", () => {
         requestedTab: "changes",
         taskId: "task-1",
       }),
-    ).toMatchObject({ activeTab: "changes", changes: true });
+    ).toMatchObject({ activeTab: "context", changes: false, context: true });
     expect(getAvailableWorkbenchInspectorTabs("task-1", clean)).not.toContain("changes");
   });
 
