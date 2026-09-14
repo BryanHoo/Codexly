@@ -85,6 +85,10 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
       this.runtime.ephemeralTaskIds.add(task.id);
     } else {
       this.runtime.unmaterializedTasks.set(task.id, task);
+      const thread = expectRecord(response["thread"], "thread/start thread");
+      if (typeof thread["name"] !== "string" || !thread["name"].trim()) {
+        this.taskTitles?.register(task.id, this.project, expectString(thread["cwd"], "thread cwd"));
+      }
     }
     return task;
   }
@@ -152,7 +156,9 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
           }, 30_000);
           timeout.unref();
         });
-        return await Promise.race([startedTurn, timeoutTurn]);
+        const turn = await Promise.race([startedTurn, timeoutTurn]);
+        this.taskTitles?.start(taskId, input);
+        return turn;
       } finally {
         this.eventListeners.delete(listener);
         if (timeout !== undefined) {
@@ -181,6 +187,7 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
     }
     const normalized = this.runtime.messageIdentities.snapshot(taskId, [turn])[0] ?? turn;
     this.runtime.skillMessages.seed(taskId, [normalized]);
+    this.taskTitles?.start(taskId, input);
     return normalized;
   }
 

@@ -7,7 +7,7 @@ import type {
   ProjectRepository,
   WorkbenchPetProvider,
 } from "@codexly/core";
-import type { AppUpdateProgress } from "@codexly/protocol";
+import { DEFAULT_COMMIT_MESSAGE_MODEL, type AppUpdateProgress } from "@codexly/protocol";
 import {
   checkCodexVersion,
   CodexProjectRepository,
@@ -73,6 +73,7 @@ interface CliManagedProjectRepository extends ProjectRepository {
 }
 
 interface CreateRuntimeProviderInput {
+  readTaskTitleModel: () => Promise<string>;
   codexHome?: string;
   client: CodexRpcClient;
 }
@@ -316,9 +317,14 @@ async function runStart(
       // 仅在上游迁移和本地投影都成功后标记完成，失败重启时可依赖幂等键安全重试。
       await stateRepository.completeProjectSourceMigration();
     }
+    const titleSettingsRepository = stateRepository;
     const provider = await dependencies.createRuntimeProvider({
       codexHome,
       client: runtime.client,
+      // 标题与提交信息共用应用模型设置，按需读取最新值，不阻塞首次发送。
+      readTaskTitleModel: async () =>
+        (await titleSettingsRepository.readGlobalSettings())?.commitMessageModel ??
+        DEFAULT_COMMIT_MESSAGE_MODEL,
     });
     const petProvider = dependencies.createPetProvider({ codexHome });
     const appUpdateService = createAppUpdateService({

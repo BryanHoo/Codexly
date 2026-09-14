@@ -216,6 +216,7 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
   }
 
   protected clearTaskRuntimeState(taskId: string): void {
+    this.taskTitles?.forget(taskId);
     this.historicalAttachments.clearTask(taskId);
     this.pendingLifecycle.clearTask(taskId);
     this.runtime.clearTask(taskId);

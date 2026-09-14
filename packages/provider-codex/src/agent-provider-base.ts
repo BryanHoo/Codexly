@@ -1,3 +1,5 @@
+import type { CodexRpcClient } from "./codex-rpc-client.js";
+import type { CodexTaskTitles } from "./task-titles.js";
 import { realpath } from "node:fs/promises";
 import type {
   AgentTaskScope,
@@ -14,12 +16,7 @@ import type {
   AgentSkillPage,
   AgentTask,
 } from "@codexly/protocol";
-import {
-  RpcResponseError,
-  type RpcErrorPayload,
-  type RpcRequestId,
-  type RpcServerRequest,
-} from "./jsonl-rpc-client.js";
+import { RpcResponseError, type RpcServerRequest } from "./jsonl-rpc-client.js";
 import { CodexHistoricalAttachmentStore } from "./historical-attachment-store.js";
 import { PendingRequestLifecycle } from "./pending-request-lifecycle.js";
 import { listCodexMcpServers, reloadCodexMcpServers } from "./agent-provider-mcp.js";
@@ -50,19 +47,13 @@ export {
   isProjectThread,
   mapAgentTask,
 } from "./codex-protocol-mapping.js";
-export interface CodexRpcClient {
-  notify(method: string, params?: unknown): void;
-  onNotification(listener: (notification: { method: string; params: unknown }) => void): () => void;
-  onServerRequest(listener: (request: RpcServerRequest) => void): () => void;
-  rejectServerRequest(id: RpcRequestId, error: RpcErrorPayload): Promise<void>;
-  request(method: string, params?: unknown): Promise<unknown>;
-  respondToServerRequest(id: RpcRequestId, result: unknown): Promise<void> | void;
-}
+export type { CodexRpcClient } from "./codex-rpc-client.js";
 
 export interface CreateCodexRuntimeProviderOptions {
   codexHome?: string;
   client: CodexRpcClient;
   fetch?: typeof globalThis.fetch;
+  readTaskTitleModel?: () => Promise<string>;
   logger?: CodexProviderLogger;
 }
 
@@ -127,6 +118,7 @@ export function createUnmaterializedTaskSnapshot(task: AgentTask): AgentProvider
 
 export abstract class CodexAgentProviderBase {
   protected readonly client: CodexRpcClient;
+  protected readonly taskTitles: CodexTaskTitles | undefined;
   protected readonly eventListenersIncludingEphemeral = new Set<AgentProviderEventListener>();
   protected readonly eventListeners = new Set<AgentProviderEventListener>();
   protected readonly historicalAttachments = new CodexHistoricalAttachmentStore();
@@ -198,9 +190,14 @@ export abstract class CodexAgentProviderBase {
   public constructor(
     client: CodexRpcClient,
     project: AgentTaskScope,
-    options: { logger?: CodexProviderLogger; subscribeRpc?: boolean } = {},
+    options: {
+      logger?: CodexProviderLogger;
+      subscribeRpc?: boolean;
+      taskTitles?: CodexTaskTitles;
+    } = {},
   ) {
     this.client = client;
+    this.taskTitles = options.taskTitles;
     this.logger = options.logger ?? DEFAULT_PROVIDER_LOGGER;
     this.project = project;
     this.pendingLifecycle = new PendingRequestLifecycle({
@@ -239,6 +236,7 @@ export abstract class CodexAgentProviderBase {
   }
 
   public async releaseProject(): Promise<void> {
+    await this.taskTitles?.releaseProject(this.project.id);
     await releaseCodexProjectThreads(this.client, this.logger, this.project.id, [
       ...this.runtime.projectTaskIds,
     ]);
@@ -315,10 +313,14 @@ export abstract class CodexAgentProviderBase {
 
   public async renameTask(taskId: string, title: string): Promise<void> {
     this.assertKnownProjectTask(taskId);
-    expectRecord(
-      await this.client.request("thread/name/set", { name: title, threadId: taskId }),
-      "thread/name/set response",
-    );
+    const rename = async () => {
+      expectRecord(
+        await this.client.request("thread/name/set", { name: title, threadId: taskId }),
+        "thread/name/set response",
+      );
+    };
+    if (this.taskTitles === undefined) await rename();
+    else await this.taskTitles.mutate(taskId, rename);
   }
 
   public async pinTask(taskId: string, pinned: boolean): Promise<AgentTask> {

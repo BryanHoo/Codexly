@@ -1,6 +1,12 @@
+import { CodexTaskTitles } from "./task-titles.js";
 import { resolve } from "node:path";
 import { homedir } from "node:os";
-import { writeRuntimeDefaultSettings } from "./runtime-default-settings.js";
+import {
+  optionalNonEmptyString,
+  optionalApprovalPolicy,
+  optionalSandboxMode,
+  writeRuntimeDefaultSettings,
+} from "./runtime-default-settings.js";
 import type {
   MemorySettingsUpdate,
   AgentPreferences,
@@ -55,65 +61,11 @@ import {
   uninstallCodexOfficialPlugin,
 } from "./skill-market-provider.js";
 
-function optionalNonEmptyString(value: unknown): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-function optionalApprovalPolicy(value: unknown): AgentRuntimeDefaultSettings["approvalPolicy"] {
-  if (value === "on-request" || value === "never") {
-    return value;
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return undefined;
-  }
-  const record = value as Record<string, unknown>;
-  if (Object.keys(record).length !== 1 || !("granular" in record)) {
-    return undefined;
-  }
-  const granular = record["granular"];
-  if (typeof granular !== "object" || granular === null || Array.isArray(granular)) {
-    return undefined;
-  }
-  const fields = granular as Record<string, unknown>;
-  const knownFields = new Set([
-    "mcp_elicitations",
-    "request_permissions",
-    "rules",
-    "sandbox_approval",
-    "skill_approval",
-  ]);
-  if (
-    Object.keys(fields).some((key) => !knownFields.has(key)) ||
-    typeof fields["mcp_elicitations"] !== "boolean" ||
-    typeof fields["rules"] !== "boolean" ||
-    typeof fields["sandbox_approval"] !== "boolean" ||
-    (fields["request_permissions"] !== undefined &&
-      typeof fields["request_permissions"] !== "boolean") ||
-    (fields["skill_approval"] !== undefined && typeof fields["skill_approval"] !== "boolean")
-  ) {
-    return undefined;
-  }
-  return {
-    granular: {
-      mcp_elicitations: fields["mcp_elicitations"],
-      request_permissions: fields["request_permissions"] ?? false,
-      rules: fields["rules"],
-      sandbox_approval: fields["sandbox_approval"],
-      skill_approval: fields["skill_approval"] ?? false,
-    },
-  };
-}
-
-function optionalSandboxMode(value: unknown): AgentRuntimeDefaultSettings["sandboxMode"] {
-  return value === "read-only" || value === "workspace-write" || value === "danger-full-access"
-    ? value
-    : undefined;
-}
-
 export class CodexRuntimeProvider implements AgentRuntimeProvider {
   public readonly personalization;
   public readonly fileSearch: CodexFuzzyFileSearchService;
   readonly #client: CodexRpcClient;
+  readonly #taskTitles: CodexTaskTitles | undefined;
   readonly #logger: CodexProviderLogger;
   readonly #gitMetadataWatch: CodexGitMetadataWatchService;
   readonly #providerConnection: CodexProviderConnectionService;
@@ -129,9 +81,13 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
   public constructor(
     client: CodexRpcClient,
     logger: CodexProviderLogger = DEFAULT_PROVIDER_LOGGER,
-    options: Readonly<{ fetch?: typeof globalThis.fetch; codexHome?: string }> = {},
+    options: Omit<CreateCodexRuntimeProviderOptions, "client" | "logger"> = {},
   ) {
     this.#client = client;
+    this.#taskTitles =
+      options.readTaskTitleModel === undefined
+        ? undefined
+        : new CodexTaskTitles(client, options.readTaskTitleModel, logger);
     const instructions = createGlobalInstructionsStore(
       options.codexHome ?? process.env["CODEX_HOME"] ?? resolve(homedir(), ".codex"),
     );
@@ -157,6 +113,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     });
     client.onNotification((notification) => {
       // 所有 App Server 通知保持单订阅，再按能力分发给内部服务。
+      this.#taskTitles?.receiveNotification(notification);
       this.#gitMetadataWatch.receiveNotification(notification.method, notification.params);
       if (notification.method === "fs/changed") return;
       this.fileSearch.receiveNotification(notification.method, notification.params);
@@ -272,6 +229,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     }
     const rawProvider = new CodexAgentProvider(this.#client, project, {
       logger: this.#logger,
+      ...(this.#taskTitles === undefined ? {} : { taskTitles: this.#taskTitles }),
       subscribeRpc: false,
     });
     const provider = new CodexRuntimeProjectProvider(this, rawProvider, project);
@@ -475,5 +433,8 @@ export function createCodexRuntimeProvider(
   return new CodexRuntimeProvider(options.client, options.logger, {
     ...(options.codexHome === undefined ? {} : { codexHome: options.codexHome }),
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+    ...(options.readTaskTitleModel === undefined
+      ? {}
+      : { readTaskTitleModel: options.readTaskTitleModel }),
   });
 }

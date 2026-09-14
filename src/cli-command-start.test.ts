@@ -57,6 +57,7 @@ describe("runCli startup", () => {
 
   it("starts Codex, HTTP, and static Web then closes on abort", async () => {
     const harness = createHarness();
+    const readSettings = vi.spyOn(harness.stateRepository, "readGlobalSettings");
     const controller = new AbortController();
     const run = runCli(["start", "--codex-bin", "/custom/codex", "--codex-home", "/custom/home"], {
       ...harness.options,
@@ -76,7 +77,12 @@ describe("runCli startup", () => {
     expect(harness.dependencies.createRuntimeProvider).toHaveBeenCalledWith({
       client: harness.client,
       codexHome: "/custom/home",
+      readTaskTitleModel: expect.any(Function) as unknown,
     });
+    const [runtimeOptions] =
+      vi.mocked(harness.dependencies.createRuntimeProvider).mock.calls[0] ?? [];
+    expect(readSettings).not.toHaveBeenCalled();
+    await expect(runtimeOptions?.readTaskTitleModel()).resolves.toBe("gpt-5.6-luna");
     expect(harness.dependencies.createProjectRepository).toHaveBeenCalledWith({
       client: harness.client,
       projection: harness.stateRepository,

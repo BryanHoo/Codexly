@@ -8,6 +8,7 @@
 - `better-sqlite3` 同步操作只在独立 `worker_threads` Worker 中执行，Fastify 主线程不直接访问数据库。
 - SQLite 操作超时后必须终止状态未知的 Worker，使当前请求明确失败，并重建 Worker 供后续请求恢复，不能让 Repository 永久停留在 closed 状态。
 - 以 `project_id` 表示 Task 作用域的持久表必须接纳没有 `projects` 记录的 `temporary` 作用域，不得通过 Project 外键阻断临时任务；真实 Project 删除时需显式清理所属数据。
+- 新建无名称 Task 在首次成功启动普通或 Goal Turn 后，只在后台领取一次自动标题生成；计划任务复用同一 Provider 入口。CLI 按需注入 `commitMessageModel` 及其默认值，提示正文最多 1024 个 Unicode 字符，结构化标题最多 36 个字符。辅助 Thread 隔离 MCP、工具和用户可见事件，60 秒超时或失败后中断并退订；任务删除、释放与项目关闭取消相关生成。写回前校验 Task/Project 身份，并与手动命名共用锁，已有名称不覆盖，失败保留消息预览。
 - Agent Event 保持顺序、断线恢复和取消语义；跨层事件结构由 `@codexly/protocol` 定义。
 - 新增长驻缓存、队列或事件流时定义容量上限、所有权和关闭行为。
 - 批量删除归档任务由 Node 先收集全部归档分页并按 ID 去重，再以最多四项并发删除；列表跨作用域、重复游标、超过 1000 页或 10000 个目标时必须在删除前失败。删除前重新校验任务归属，单项失败不阻止其他目标，返回成功与失败数量。
