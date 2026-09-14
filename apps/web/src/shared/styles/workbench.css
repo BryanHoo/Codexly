@@ -321,7 +321,7 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
   visibility: hidden;
 }
 
-/* 高饱和度纯色提升小尺寸辨识度，快速呼吸只改变透明度以避免布局抖动。 */
+/* 高饱和度纯色提升小尺寸辨识度，呼吸只改变透明度以避免布局抖动。 */
 .task-status-dot {
   opacity: 1;
 }
@@ -329,6 +329,41 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
 .task-status-dot--breathing {
   animation: task-status-breathe 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   will-change: opacity;
+}
+
+/* 运行态使用小尺寸常亮光点；外围柔光独立呼吸，避免整颗标记闪烁干扰任务标题。 */
+.text-task-running .task-status-dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  animation: none;
+  will-change: auto;
+}
+
+.text-task-running .task-status-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(circle, currentColor 20%, transparent 70%);
+  /* 固定渐变只做合成层缩放与透明度变化，让柔光始终收敛在状态槽内。 */
+  animation: task-running-glow-breathe 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+@keyframes task-running-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
 }
 
 @keyframes task-status-breathe {
@@ -343,6 +378,13 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .text-task-running .task-status-dot::after {
+    animation: none;
+    opacity: 0.25;
+    transform: none;
+    will-change: auto;
+  }
+
   .task-status-dot--breathing {
     animation: none;
     opacity: 1;

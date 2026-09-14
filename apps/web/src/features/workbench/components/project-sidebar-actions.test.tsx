@@ -169,7 +169,9 @@ describe("TaskStatusIndicator", () => {
     expect(keyframes).toContain("opacity: 1");
     expect(keyframes).not.toContain("box-shadow");
     expect(statusStyles).not.toContain("box-shadow");
-    expect(statusStyles).not.toContain("transform");
+    expect(statusStyles.slice(0, statusStyles.indexOf(".text-task-running"))).not.toContain(
+      "transform",
+    );
     expect(css).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.task-status-dot--breathing[\s\S]*?animation: none;/u,
     );
