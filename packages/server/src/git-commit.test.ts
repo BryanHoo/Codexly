@@ -70,10 +70,16 @@ describe("commitSelectedProjectChanges", () => {
     expect(after.snapshot).not.toBe(before.snapshot);
   });
 
-  it.each(["object", "mode", "HEAD"])(
-    "rejects an old snapshot when only %s changes",
-    async (change) => {
+  it.each([
+    ["object", true],
+    ["mode", true],
+    ["mode", false],
+    ["HEAD", true],
+  ] as const)(
+    "rejects an old snapshot when only %s changes with core.filemode=%s",
+    async (change, fileMode) => {
       const root = await createRepository();
+      await runGit(root, "config", "core.filemode", String(fileMode));
       await writeFile(join(root, "selected.txt"), "staged version\n");
       await runGit(root, "add", "selected.txt");
       await writeFile(join(root, "selected.txt"), "working version\n");
@@ -85,7 +91,10 @@ describe("commitSelectedProjectChanges", () => {
         const object = (await runGit(root, "rev-parse", "HEAD:unselected.txt")).stdout.trim();
         await runGit(root, "update-index", "--cacheinfo", `100644,${object},selected.txt`);
       } else if (change === "mode") {
-        await runGit(root, "update-index", "--chmod=+x", "selected.txt");
+        // 保留原暂存对象，只修改索引权限；--chmod 会顺带暂存工作区内容。
+        const object = (await runGit(root, "rev-parse", ":selected.txt")).stdout.trim();
+        await runGit(root, "update-index", "--cacheinfo", `100755,${object},selected.txt`);
+        expect((await runGit(root, "rev-parse", ":selected.txt")).stdout.trim()).toBe(object);
       } else {
         await runGit(root, "commit", "--amend", "--only", "-m", "chore(test): 更新提交说明");
       }
