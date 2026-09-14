@@ -143,11 +143,57 @@ describe("task timeline operation groups", () => {
 
     expect(summary).toEqual({
       commandCount: 2,
+      fileCount: 0,
       failedCount: 2,
       isActive: true,
       toolCount: 2,
     });
   });
+
+  it.each([false, true])(
+    "collapses file diffs after assistant text resumes (mixed: %s)",
+    (mixed) => {
+      const items: AgentItem[] = [
+        ...(mixed ? [command("check", "completed"), tool("read", "completed")] : []),
+        {
+          id: "edit",
+          type: "file_change",
+          status: "completed",
+          changes: [{ path: "src/edited.ts", kind: "update", diff: "+export {};" }],
+        },
+      ];
+      const render = (status: "running" | "completed", text: string) =>
+        renderToStaticMarkup(
+          <TaskSnapshotTimeline
+            snapshot={{
+              ...snapshot,
+              status: "running",
+              turns: [
+                {
+                  ...completedTurn,
+                  status: "running",
+                  completedAt: null,
+                  items: [
+                    ...items.map((item): AgentItem =>
+                      item.type === "file_change" ? { ...item, status } : item,
+                    ),
+                    { id: "reply", type: "message", role: "assistant", text },
+                  ],
+                },
+              ],
+            }}
+          />,
+        );
+
+      expect(render("completed", "")).toContain('data-file-change="update"');
+      expect(render("running", "继续处理。")).not.toContain('data-operation-group=""');
+      const markup = render("completed", "继续处理。");
+      expect(markup).toContain('data-operation-group=""');
+      expect(markup).toContain("修改 1 个文件");
+      expect(markup).not.toContain('data-file-change="update"');
+      expect(markup).not.toContain("edited.ts");
+    },
+  );
 
   it("collapses terminal operations after assistant text resumes", () => {
     const completedOperationsSnapshot: RuntimeTaskSnapshot = {

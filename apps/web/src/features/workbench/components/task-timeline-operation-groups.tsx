@@ -12,14 +12,14 @@ import {
 import { i18n } from "../../../i18n/i18n.js";
 import type { TaskItemStore, TaskStore } from "../../conversation/runtime/task-store.js";
 
-type TimelineOperationItem = Extract<AgentItem, { type: "command" } | { type: "tool" }>;
+type TimelineOperationItem = Extract<AgentItem, { type: "command" | "tool" | "file_change" }>;
 
 export type TimelineOperationGroup =
   | Readonly<{ itemKey: string; type: "item" }>
   | Readonly<{ itemKeys: readonly string[]; key: string; type: "operation_group" }>;
 
 function isTimelineOperation(item: AgentItem | undefined): item is TimelineOperationItem {
-  return item?.type === "command" || item?.type === "tool";
+  return item?.type === "command" || item?.type === "tool" || item?.type === "file_change";
 }
 
 export function filterRenderableTimelineItemKeys(
@@ -48,9 +48,9 @@ export function groupConsecutiveTimelineOperations(
       return;
     }
 
-    // 单项继续使用原有 Tool 渲染，只有连续操作才压缩为摘要。
+    // 文件修改没有 Tool 自带的折叠容器，单项也需在后续回复出现后收起。
     groups.push(
-      operationKeys.length === 1
+      operationKeys.length === 1 && getItem(firstKey)?.type !== "file_change"
         ? { itemKey: firstKey, type: "item" }
         : { itemKeys: operationKeys, key: firstKey, type: "operation_group" },
     );
@@ -74,6 +74,7 @@ export function groupConsecutiveTimelineOperations(
 export type TimelineOperationSummary = Readonly<{
   commandCount: number;
   failedCount: number;
+  fileCount: number;
   isActive: boolean;
   toolCount: number;
 }>;
@@ -83,6 +84,7 @@ export function summarizeTimelineOperations(items: readonly AgentItem[]): Timeli
   let failedCount = 0;
   let isActive = false;
   let toolCount = 0;
+  const filePaths = new Set<string>();
 
   for (const item of items) {
     if (!isTimelineOperation(item)) {
@@ -90,8 +92,11 @@ export function summarizeTimelineOperations(items: readonly AgentItem[]): Timeli
     }
     if (item.type === "command") {
       commandCount += 1;
-    } else {
+    } else if (item.type === "tool") {
       toolCount += 1;
+    } else {
+      // 同一组多次修改同一文件时，摘要仅计数一次。
+      for (const change of item.changes) filePaths.add(change.path);
     }
     if (item.status === "pending" || item.status === "running") {
       isActive = true;
@@ -107,13 +112,14 @@ export function summarizeTimelineOperations(items: readonly AgentItem[]): Timeli
   return {
     commandCount,
     failedCount,
+    fileCount: filePaths.size,
     isActive,
     toolCount,
   };
 }
 
 function formatTimelineOperationSummary(summary: TimelineOperationSummary): string {
-  const baseSummary =
+  let baseSummary =
     summary.toolCount > 0 && summary.commandCount > 0
       ? i18n.t("timeline.operationGroup.summary", {
           commandCount: summary.commandCount,
@@ -125,10 +131,22 @@ function formatTimelineOperationSummary(summary: TimelineOperationSummary): stri
             count: summary.toolCount,
             ns: "conversation",
           })
-        : i18n.t("timeline.operationGroup.commandsOnly", {
-            count: summary.commandCount,
-            ns: "conversation",
-          });
+        : summary.commandCount > 0
+          ? i18n.t("timeline.operationGroup.commandsOnly", {
+              count: summary.commandCount,
+              ns: "conversation",
+            })
+          : i18n.t("timeline.operationGroup.filesOnly", {
+              count: summary.fileCount,
+              ns: "conversation",
+            });
+
+  if (summary.fileCount > 0 && summary.commandCount + summary.toolCount > 0) {
+    baseSummary += i18n.t("timeline.operationGroup.filesSuffix", {
+      count: summary.fileCount,
+      ns: "conversation",
+    });
+  }
 
   return summary.failedCount === 0
     ? baseSummary

@@ -294,6 +294,8 @@ export const conversation = {
       commandsOnly: "Commands complete: {{count}}",
       expand: "Expand operation details: {{summary}}",
       failed: "; {{count}} failed",
+      filesOnly: "Operations complete: {{count}} files changed",
+      filesSuffix: ", {{count}} files changed",
       summary: "Operations complete: {{toolCount}} tool calls, {{commandCount}} commands",
       toolsOnly: "Tool calls complete: {{count}}",
     },
