@@ -47,7 +47,11 @@ describe("server diagnostics and provider connection", () => {
     closeCallbacks.push(() => app.close());
     const response = await app.inject("/v1/projects/codexly/tasks");
     expect(response.statusCode).toBe(500);
-    expect(logLines.length).toBeGreaterThan(0);
+    expect(logLines).toHaveLength(1);
+    expect(JSON.parse(logLines[0] ?? "{}")).toMatchObject({
+      errorCode: "INTERNAL_ERROR",
+      statusCode: 500,
+    });
     expect(logLines.join("\n")).not.toContain(secret);
   });
   it("only emits redacted warning and error logs", async () => {

@@ -90,8 +90,8 @@ export async function createCodexlyServer(
     options.loggerEnabled === false
       ? false
       : {
-          // CLI 运行时只向终端输出警告和错误。
-          level: "warn",
+          // 请求控制器仅放行关键操作、慢请求和错误。
+          level: "info",
           // 即使后续扩展请求 Serializer，也不能让认证字段进入结构化日志。
           redact: {
             censor: "[Redacted]",

@@ -11,6 +11,7 @@ import type { FastifyInstance } from "fastify";
 
 import { AccessSessionService, type CodexlyAccessOptions } from "./access-control.js";
 import { ACCESS_SESSION_COOKIE } from "./routes/access-routes.js";
+import { recordRequestError } from "./request-logging.js";
 import { MutationHttpError } from "./routes/context.js";
 
 function isInternalTemporaryProjectPath(pathname: string): boolean {
@@ -176,6 +177,7 @@ export async function configureServerDelivery(
   });
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof MutationHttpError) {
+      recordRequestError(request, error.code);
       return reply.code(error.statusCode).send({
         code: error.code,
         message: error.message,
@@ -214,11 +216,7 @@ export async function configureServerDelivery(
         retryable: false,
       });
     }
-    // 上游 Error 的 message、cause、data 甚至 name 都可能携带 Secret，仅记录可信上下文。
-    request.log.error(
-      { errorCode: "INTERNAL_ERROR", route: request.routeOptions.url },
-      "Unhandled request error",
-    );
+    recordRequestError(request, "INTERNAL_ERROR");
     return reply.code(explicitStatusCode).send({
       code: "INTERNAL_ERROR",
       message: "Internal server error",

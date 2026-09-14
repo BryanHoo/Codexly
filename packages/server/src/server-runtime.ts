@@ -20,7 +20,7 @@ import {
   type GenerateCommitMessageRequest,
   type ProjectGitStatus,
 } from "@codexly/protocol";
-import { LogController, type FastifyReply, type FastifyRequest } from "fastify";
+export { CodexlyLogController } from "./request-logging.js";
 import stringify from "safe-stable-stringify";
 import type { GitCommitError } from "./git-commit.js";
 import { originalErrorMessage } from "./error-message.js";
@@ -222,30 +222,6 @@ const COMMIT_MESSAGE_OUTPUT_SCHEMA = {
   required: ["message"],
   type: "object",
 } as const;
-
-export class CodexlyLogController extends LogController {
-  public override incomingRequest(): void {
-    // 正常请求不写终端日志，只保留服务端错误的完成上下文。
-  }
-
-  public override requestCompleted(
-    error: Error | null,
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): void {
-    const fields = {
-      durationMs: reply.elapsedTime,
-      ...(error ? { errorCode: "REQUEST_FAILED" } : {}),
-      method: request.method,
-      requestId: request.id,
-      route: request.routeOptions.url,
-      statusCode: reply.statusCode,
-    };
-    if (reply.statusCode >= 500) {
-      request.log.error(fields, "request completed");
-    }
-  }
-}
 
 export function fingerprintPayload(payload: unknown): string {
   const fingerprint = stringify(payload);
