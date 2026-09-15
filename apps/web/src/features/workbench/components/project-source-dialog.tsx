@@ -6,6 +6,7 @@ import { ProjectSourcePanel } from "./project-source-panel.js";
 type ProjectSourceDialogProps = Readonly<{
   client: CodexlyWorkbenchClient;
   onClose: () => void;
+  onOpenDiff?: () => void;
   previewKind: "image" | "source";
   projectId: string;
   reference: MessageFileReference;
@@ -19,6 +20,7 @@ function getFileName(path: string): string {
 export function ProjectSourceDialog({
   client,
   onClose,
+  onOpenDiff,
   previewKind,
   projectId,
   reference,
@@ -43,6 +45,7 @@ export function ProjectSourceDialog({
         <ProjectSourcePanel
           client={client}
           onClose={onClose}
+          {...(onOpenDiff === undefined ? {} : { onOpenDiff })}
           previewKind={previewKind}
           projectId={projectId}
           reference={reference}

@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { buildProjectImageFileUrl } from "@codexly/client";
 import type { ProjectSourceFile } from "@codexly/protocol";
-import { Code2, Eye, FileCode2, Image, X } from "lucide-react";
+import { Code2, Eye, FileCode2, GitCompareArrows, Image, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react";
 
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
@@ -34,6 +34,7 @@ export { getCodeLanguage } from "../../../shared/components/agent/code-languages
 type ProjectSourcePanelProps = Readonly<{
   client: CodexlyWorkbenchClient;
   onClose?: () => void;
+  onOpenDiff?: () => void;
   previewKind: "image" | "source";
   projectId: string;
   reference: MessageFileReference;
@@ -48,6 +49,7 @@ type SourceHeaderProps = Readonly<{
   actions?: ReactNode;
   lineNumber: number | null;
   onClose?: () => void;
+  onOpenDiff?: () => void;
   previewKind: "image" | "source";
   sourcePath: string;
   sourceStatus: "error" | "loading" | "partial" | null;
@@ -57,6 +59,7 @@ function SourceHeader({
   actions,
   lineNumber,
   onClose,
+  onOpenDiff,
   previewKind,
   sourcePath,
   sourceStatus,
@@ -100,6 +103,22 @@ function SourceHeader({
         </span>
       )}
       <CodeBlockActions>
+        {onOpenDiff === undefined ? null : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                aria-label={t("projectDialog.showDiff")}
+                onClick={onOpenDiff}
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              >
+                <GitCompareArrows className="size-3.5" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("projectDialog.showDiff")}</TooltipContent>
+          </Tooltip>
+        )}
         {actions}
         {onClose === undefined ? null : (
           <Tooltip>
@@ -171,6 +190,7 @@ export function mergeProjectSourcePages(
 export function ProjectSourcePanel({
   client,
   onClose,
+  onOpenDiff,
   previewKind,
   projectId,
   reference,
@@ -255,6 +275,7 @@ export function ProjectSourcePanel({
   const headerProps = {
     lineNumber: reference.lineNumber,
     ...(onClose === undefined ? {} : { onClose }),
+    ...(onOpenDiff === undefined ? {} : { onOpenDiff }),
     previewKind,
     sourcePath,
     sourceStatus,

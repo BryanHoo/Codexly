@@ -81,7 +81,7 @@ type WorkbenchInspectorProps = Readonly<{
   onOpenFileDiff?: (change: AgentFileChange) => void;
   onOpenTaskAttachment?: (attachmentId: string) => void;
   onOpenProjectPath?: (appId: ProjectOpenAppId, path?: string) => void;
-  onOpenProjectFile?: (path: string) => void;
+  onOpenProjectFile?: (path: string, change?: AgentFileChange) => void;
   onReferenceProjectPath?: (entry: ProjectFileSearchEntry) => void;
   onOpenSubagent?: (selection: SubagentSelection) => void;
   onReloadMcpServers?: () => void;
@@ -110,6 +110,7 @@ type WorkbenchInspectorProps = Readonly<{
 
 export type WorkbenchInspectorFileSelection =
   | Readonly<{
+      change?: AgentFileChange;
       kind: "image" | "source";
       reference: MessageFileReference;
     }>
@@ -313,7 +314,6 @@ export function WorkbenchInspector({
                   fileChangesByPath={fileChangesByPath}
                   key={`${projectId ?? projectName}:${projectPath}`}
                   onExpandedPathsChange={onFileTreeExpandedChange}
-                  onOpenFileDiff={onOpenFileDiff}
                   onOpenProjectFile={onOpenProjectFile}
                   onOpenProjectPath={onOpenProjectPath}
                   onReferenceProjectPath={onReferenceProjectPath}

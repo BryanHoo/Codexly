@@ -63,6 +63,10 @@ import { useSubmissionStartedAt } from "./use-submission-started-at.js";
 export { useSubmissionStartedAt } from "./use-submission-started-at.js";
 
 const emptyExpandedFileTreePaths = new Set<string>();
+type ProjectFilePreviewSelection = Extract<
+  WorkbenchInspectorFileSelection,
+  { kind: "image" | "source" }
+> & { projectId: string };
 
 export function taskLaunchQueryKey(projectId: string, taskId: string) {
   return ["projects", projectId, "tasks", taskId, "launch"] as const;
@@ -313,9 +317,12 @@ export function useWorkbenchShellRuntime({
   const [globalSettingsSection, setGlobalSettingsSection] = useState<SidebarSettingsSection | null>(
     null,
   );
-  const [projectFileDialogSelection, setProjectFileDialogSelection] = useState<
-    (WorkbenchInspectorFileSelection & { projectId: string }) | null
-  >(null);
+  const [projectFileDialogSelection, setProjectFileDialogSelection] =
+    useState<ProjectFilePreviewSelection | null>(null);
+  const [projectFileDiffDialogSelection, setProjectFileDiffDialogSelection] = useState<{
+    change: AgentFileChange;
+    projectId: string;
+  } | null>(null);
   const [fileReviewSelection, setFileReviewSelection] = useState<{
     changes: readonly AgentFileChange[];
     projectId: string;
@@ -330,6 +337,7 @@ export function useWorkbenchShellRuntime({
       setSelectedProjectRoot(projectId, rootId);
       // 根切换后关闭旧根派生的详情，避免相同相对路径被误解为新根文件。
       setProjectFileDialogSelection(null);
+      setProjectFileDiffDialogSelection(null);
       setFileReviewSelection(null);
       setInspectorFileSelection(null);
     },
@@ -372,6 +380,8 @@ export function useWorkbenchShellRuntime({
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
   const selectedProjectFileDialog =
     projectFileDialogSelection?.projectId === projectId ? projectFileDialogSelection : null;
+  const selectedProjectFileDiffDialog =
+    projectFileDiffDialogSelection?.projectId === projectId ? projectFileDiffDialogSelection : null;
   const selectedInspectorFile =
     inspectorFileSelection?.projectId === projectId ? inspectorFileSelection : null;
   const selectedFileReview =
@@ -452,6 +462,7 @@ export function useWorkbenchShellRuntime({
     runtime,
     selectedFileReview,
     selectedInspectorFile,
+    selectedProjectFileDiffDialog,
     selectedProjectFileDialog,
     selectedRootId: activeRootId,
     selectedRootPath,
@@ -466,6 +477,7 @@ export function useWorkbenchShellRuntime({
     setSidebarOpen,
     setSidebarWidth,
     setInspectorFileSelection,
+    setProjectFileDiffDialogSelection,
     setProjectFileDialogSelection,
     setSelectedRootId,
     setSubagentDialogSelection,

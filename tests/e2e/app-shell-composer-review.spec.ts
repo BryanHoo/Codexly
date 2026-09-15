@@ -262,10 +262,19 @@ test("project file tree opens changed, source, image, and system files by shared
   const packageFile = fileTree.getByRole("treeitem", { name: /package\.json/u });
   await expect(packageFile).toHaveCSS("cursor", "default");
   await packageFile.click();
-  const diffDialog = page.getByRole("dialog", { name: "package.json" });
+  const sourceDialog = page.getByRole("dialog", { name: "package.json" });
+  await expect(sourceDialog).toBeVisible();
+  await expect(sourceDialog.locator(".file-diff-renderer")).toHaveCount(0);
+  await sourceDialog.getByRole("button", { name: "查看 Diff" }).click();
+  const diffDialog = page
+    .getByRole("dialog", { name: "package.json" })
+    .filter({ has: page.locator(".file-diff-renderer") });
   await expect(diffDialog.locator(".file-diff-renderer")).toContainText("pnpm run dev");
   await diffDialog.getByRole("button", { name: "关闭文件 Diff" }).click();
   await expect(diffDialog).not.toBeAttached();
+  await expect(sourceDialog).toBeVisible();
+  await sourceDialog.getByRole("button", { name: "关闭源文件" }).click();
+  await expect(sourceDialog).not.toBeAttached();
 
   const docsRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
@@ -278,10 +287,10 @@ test("project file tree opens changed, source, image, and system files by shared
   await docsDirectory.click();
   await docsRequest;
   await fileTree.getByRole("treeitem", { name: "architecture-design.md" }).click();
-  const sourceDialog = page.getByRole("dialog", { name: "architecture-design.md" });
-  await expect(sourceDialog).toBeVisible();
-  await sourceDialog.getByRole("button", { name: "关闭源文件" }).click();
-  await expect(sourceDialog).not.toBeAttached();
+  const architectureDialog = page.getByRole("dialog", { name: "architecture-design.md" });
+  await expect(architectureDialog).toBeVisible();
+  await architectureDialog.getByRole("button", { name: "关闭源文件" }).click();
+  await expect(architectureDialog).not.toBeAttached();
 
   const imageRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());

@@ -35,7 +35,6 @@ describe("WorkbenchProjectFileTree", () => {
           expandedPaths={new Set()}
           fileChangesByPath={new Map()}
           onExpandedPathsChange={() => undefined}
-          onOpenFileDiff={() => undefined}
           onOpenProjectFile={() => undefined}
           onOpenProjectPath={() => undefined}
           onReferenceProjectPath={() => undefined}

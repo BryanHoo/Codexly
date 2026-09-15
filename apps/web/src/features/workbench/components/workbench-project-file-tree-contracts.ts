@@ -8,8 +8,7 @@ export type WorkbenchProjectFileTreeProps = Readonly<{
   expandedPaths: ReadonlySet<string>;
   fileChangesByPath: ReadonlyMap<string, AgentFileChange>;
   onExpandedPathsChange: (paths: Set<string>) => void;
-  onOpenFileDiff: (change: AgentFileChange) => void;
-  onOpenProjectFile: (path: string) => void;
+  onOpenProjectFile: (path: string, change?: AgentFileChange) => void;
   onOpenProjectPath: (appId: ProjectOpenAppId, path?: string) => void;
   onReferenceProjectPath: (entry: ProjectFileSearchEntry) => void;
   onRefreshProject: () => unknown;

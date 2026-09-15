@@ -284,6 +284,7 @@ export const workbench = {
     removeDescription: "将“{{name}}”从 Codexly 左栏移除，不会删除磁盘上的文件夹及文件。",
     rename: "重命名项目",
     renameDescription: "只修改左栏显示名称，不会修改磁盘上的文件夹名称。",
+    showDiff: "查看 Diff",
     showRawContent: "显示原始内容",
     sourcePartial: "部分内容",
   },

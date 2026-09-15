@@ -17,40 +17,50 @@ export function WorkbenchShellDialogs({
   const {
     client,
     closeTaskRenameDialog,
+    openProjectFileDiff,
     projectRuntime,
     renameActiveTask,
     renameMutation,
     selectedFileReview,
+    selectedProjectFileDiffDialog,
     selectedProjectFileDialog,
     selectedRootPath,
     selectedSubagent,
     setFileReviewSelection,
+    setProjectFileDiffDialogSelection,
     setProjectFileDialogSelection,
     setSubagentDialogSelection,
     taskRenameOpen,
     title,
   } = context;
+  const previewChange = selectedProjectFileDialog?.change;
+  const openPreviewDiff =
+    previewChange === undefined
+      ? undefined
+      : () => {
+          openProjectFileDiff(previewChange);
+        };
   return (
     <>
-      {selectedProjectFileDialog?.kind === "diff" ? (
-        <FileDiffDialog
-          change={selectedProjectFileDialog.change}
-          onClose={() => {
-            setProjectFileDialogSelection(null);
-          }}
-        />
-      ) : selectedProjectFileDialog === null ? null : (
+      {selectedProjectFileDialog === null ? null : (
         <ProjectSourceDialog
           client={client}
           onClose={() => {
             setProjectFileDialogSelection(null);
           }}
+          {...(openPreviewDiff === undefined ? {} : { onOpenDiff: openPreviewDiff })}
           previewKind={selectedProjectFileDialog.kind}
           projectId={projectId}
           reference={selectedProjectFileDialog.reference}
           {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
         />
       )}
+      <FileDiffDialog
+        change={selectedProjectFileDiffDialog?.change ?? null}
+        onClose={() => {
+          setProjectFileDiffDialogSelection(null);
+        }}
+      />
       {selectedFileReview === null ? null : (
         <FileReviewDialog
           changes={selectedFileReview}

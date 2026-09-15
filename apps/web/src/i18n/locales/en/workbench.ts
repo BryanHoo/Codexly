@@ -287,6 +287,7 @@ export const workbench = {
     removeDescription: "Remove {{name}} from Codexly? Files on disk will not be deleted.",
     rename: "Rename project",
     renameDescription: "This changes only the sidebar display name, not the folder name on disk.",
+    showDiff: "View Diff",
     showRawContent: "Show raw content",
     sourcePartial: "Partial content",
   },

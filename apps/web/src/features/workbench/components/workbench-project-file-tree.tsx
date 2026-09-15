@@ -283,7 +283,6 @@ export function WorkbenchProjectFileTree({
   expandedPaths,
   fileChangesByPath,
   onExpandedPathsChange,
-  onOpenFileDiff,
   onOpenProjectFile,
   onOpenProjectPath,
   onReferenceProjectPath,
@@ -350,9 +349,8 @@ export function WorkbenchProjectFileTree({
     onPrimaryAction: (item) => {
       const data = item.getItemData();
       if (data.kind !== "entry" || data.type !== "file") return;
-      const change = fileChangesByPath.get(data.path);
-      if (change === undefined) onOpenProjectFile(data.path);
-      else onOpenFileDiff(change);
+      // 文件树始终先展示磁盘上的当前内容，变更文件可在预览顶部切换 Diff。
+      onOpenProjectFile(data.path, fileChangesByPath.get(data.path));
     },
     rootItemId: PROJECT_FILE_TREE_ROOT_ID,
     scrollToItem: (item) => {

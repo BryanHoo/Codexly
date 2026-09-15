@@ -84,6 +84,7 @@ export function useWorkbenchShellController(
     setInspectorOpen,
     setInspectorTab,
     setPendingTaskSelection,
+    setProjectFileDiffDialogSelection,
     setProjectFileDialogSelection,
     setSidebarOpen,
     setTaskRenameOpen,
@@ -109,8 +110,8 @@ export function useWorkbenchShellController(
         change,
       )
         .then((loadedChange) => {
-          // Inspector 文件树和变更面板保留弹窗，不改变用户当前查看的标签。
-          setProjectFileDialogSelection({ change: loadedChange, kind: "diff", projectId });
+          // Diff 使用独立弹窗，关闭后可继续查看底层文件预览。
+          setProjectFileDiffDialogSelection({ change: loadedChange, projectId });
         })
         .catch((error: unknown) => {
           notifyActionError(error instanceof Error ? error : new Error("Git diff is unavailable"));
@@ -122,7 +123,7 @@ export function useWorkbenchShellController(
       projectId,
       queryClient,
       selectedRootPath,
-      setProjectFileDialogSelection,
+      setProjectFileDiffDialogSelection,
     ],
   );
   const openMessageFileReference = useCallback(
@@ -165,7 +166,7 @@ export function useWorkbenchShellController(
     ],
   );
   const openProjectFile = useCallback(
-    (path: string) => {
+    (path: string, change?: AgentFileChange) => {
       const kind = classifyProjectFileReference(path);
       if (kind === "system") {
         const mutation = projectPathOpenMutationRef.current;
@@ -177,6 +178,7 @@ export function useWorkbenchShellController(
       }
 
       setProjectFileDialogSelection({
+        ...(change === undefined ? {} : { change }),
         kind,
         projectId,
         reference: { lineNumber: null, path },
