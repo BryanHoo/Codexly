@@ -1,11 +1,7 @@
 import type {
   AgentMessageAttachment,
   AgentPromptInput,
-  AgentTask,
-  AgentTaskSnapshot,
-  AgentTaskSettings,
   AgentTurn,
-  EventCheckpoint,
   ProjectOpenAppId,
 } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,10 +10,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { useAccess } from "../../access/access-context.js";
-import {
-  mergeSubmittedPromptIntoSnapshot,
-  type RuntimeTaskSnapshot,
-} from "../../conversation/runtime/task-runtime.js";
+import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
 import { useTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import { providerConnectionQueryOptions } from "../../provider-connection/provider-connection-queries.js";
@@ -45,6 +38,7 @@ import {
   taskRenameMutationOptions,
 } from "../../projects/project-queries.js";
 import { useBackgroundTerminals } from "../hooks/use-background-terminals.js";
+import { useProjectGitStatusRefresh } from "../hooks/use-project-git-status-refresh.js";
 import type { SidebarSettingsSection } from "./project-sidebar-actions.js";
 import { deriveProjectSidebarConnectionState } from "./project-sidebar.js";
 import { getProjectFileManagerApp } from "./project-open-menu.js";
@@ -59,6 +53,11 @@ import {
 } from "../workbench-inspector-activation.js";
 import { useWorkbenchPanelLayout } from "./workbench-panel-layout.js";
 import { useSubmissionStartedAt } from "./use-submission-started-at.js";
+import {
+  createTaskLaunchSnapshot,
+  taskLaunchQueryKey,
+  type TaskLaunchState,
+} from "./workbench-task-launch.js";
 
 export { useSubmissionStartedAt } from "./use-submission-started-at.js";
 
@@ -67,39 +66,6 @@ type ProjectFilePreviewSelection = Extract<
   WorkbenchInspectorFileSelection,
   { kind: "image" | "source" }
 > & { projectId: string };
-
-export function taskLaunchQueryKey(projectId: string, taskId: string) {
-  return ["projects", projectId, "tasks", taskId, "launch"] as const;
-}
-
-export type TaskLaunchState = Readonly<{
-  checkpoint: EventCheckpoint;
-  input: AgentPromptInput;
-  messageAttachments: readonly AgentMessageAttachment[];
-  settings: AgentTaskSettings;
-  submissionStartedAt?: string;
-  task: AgentTask;
-  turn: AgentTurn;
-}>;
-
-export function createTaskLaunchSnapshot(taskLaunchState: TaskLaunchState): AgentTaskSnapshot {
-  const snapshot = mergeSubmittedPromptIntoSnapshot(
-    {
-      ...taskLaunchState.task,
-      contextUsage: null,
-      goal: null,
-      plan: null,
-      pendingRequests: [],
-      settings: taskLaunchState.settings,
-      status: "running",
-      turns: [taskLaunchState.turn],
-      turnsNextCursor: null,
-    },
-    taskLaunchState.turn,
-    { ...taskLaunchState.input, messageAttachments: taskLaunchState.messageAttachments },
-  );
-  return { ...snapshot, pendingRequests: [] };
-}
 
 export type SubmittedPromptState = Readonly<{
   input: AgentPromptInput;
@@ -174,6 +140,11 @@ export function useWorkbenchShellRuntime({
       !temporary && selectedRootPath !== undefined,
     ),
   );
+  useProjectGitStatusRefresh({
+    enabled: !temporary && selectedRootPath !== undefined,
+    refresh: gitStatusQuery.refetch,
+    scopeKey: `${projectId}:${taskId ?? "draft"}:${selectedRootPath ?? ""}`,
+  });
   const inspectorActivation = deriveWorkbenchInspectorActivation({
     contextOnly: temporary,
     fileOpen: inspectorFileSelection?.projectId === projectId,

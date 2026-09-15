@@ -32,8 +32,8 @@ import {
   createTaskLaunchSnapshot,
   taskLaunchQueryKey,
   type TaskLaunchState,
-  type useWorkbenchShellRuntime,
-} from "./workbench-shell-runtime.js";
+} from "./workbench-task-launch.js";
+import type { useWorkbenchShellRuntime } from "./workbench-shell-runtime.js";
 import { inspectorOverlayQuery, sidebarOverlayQuery } from "./workbench-panel-layout.js";
 
 type WorkbenchShellControllerOptions = Readonly<{

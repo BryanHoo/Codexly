@@ -267,7 +267,8 @@ export function projectGitStatusQueryOptions(
     enabled,
     queryFn: ({ signal }) => client.getProjectGitStatus(projectId, { rootPath }, { signal }),
     queryKey: ["projects", projectId, rootPath, "git-status"] as const,
-    // Project 级协调器负责刷新生命周期，Query 只维护共享服务端状态。
+    // 工作台重新挂载时跳过全局 staleTime，读取外部工具可能修改的 Git 状态。
+    refetchOnMount: "always",
     retry: 1,
   });
 }

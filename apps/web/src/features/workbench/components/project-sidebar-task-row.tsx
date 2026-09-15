@@ -1,5 +1,5 @@
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@codexly/protocol";
-import { Archive, Ellipsis, Pencil, Pin, Trash2 } from "lucide-react";
+import { Archive, CircleCheck, CircleX, Clock3, Ellipsis, Pencil, Pin, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 
@@ -113,10 +113,12 @@ type TaskStatusIndicatorProps = Readonly<{
 }>;
 
 type TaskStatusPresentation = Readonly<{
-  animated: boolean;
+  icon: ReactNode;
   label: string;
   tone: string;
 }>;
+
+const taskStatusIconClassName = "size-3.5 stroke-[2.25]";
 
 export function TaskStatusIndicator({
   attention,
@@ -129,25 +131,27 @@ export function TaskStatusIndicator({
   let presentation: TaskStatusPresentation | null;
   if (isAwaitingApproval || attention === "approval") {
     presentation = {
-      animated: true,
+      icon: <Clock3 aria-hidden="true" className={taskStatusIconClassName} />,
       label: t("sidebar.taskApproval"),
       tone: "text-task-waiting",
     };
   } else if (isRunning) {
     presentation = {
-      animated: true,
+      icon: (
+        <span aria-hidden="true" className="task-status-dot block size-2 rounded-full bg-current" />
+      ),
       label: t("sidebar.taskRunning"),
       tone: "text-task-running",
     };
   } else if (attention === "completed") {
     presentation = {
-      animated: false,
+      icon: <CircleCheck aria-hidden="true" className={taskStatusIconClassName} />,
       label: t("sidebar.taskComplete"),
       tone: "text-task-completed",
     };
   } else if (attention === "failed") {
     presentation = {
-      animated: false,
+      icon: <CircleX aria-hidden="true" className={taskStatusIconClassName} />,
       label: t("sidebar.taskIncomplete"),
       tone: "text-task-failed",
     };
@@ -169,10 +173,7 @@ export function TaskStatusIndicator({
       className={`task-status ml-auto inline-grid size-3.5 shrink-0 place-items-center ${presentation.tone}`}
       role="status"
     >
-      <span
-        aria-hidden="true"
-        className={`task-status-dot block size-2 rounded-full bg-current ${presentation.animated ? "task-status-dot--breathing" : ""}`}
-      />
+      {presentation.icon}
     </span>
   );
 }

@@ -119,7 +119,7 @@ describe("project Git queries", () => {
     expect(reorderProjectPage(page, [project.id, project.id])).toBeUndefined();
   });
 
-  it("loads shared Project Git status without owning a polling interval", async () => {
+  it("refreshes Project Git status whenever the workbench query mounts", async () => {
     const getProjectGitStatus = vi.fn<CodexlyGitStatusClient["getProjectGitStatus"]>(() =>
       Promise.resolve({
         baseBranches: ["origin/main"],
@@ -145,8 +145,11 @@ describe("project Git queries", () => {
       staged: [],
       unstaged: [],
     });
+
     expect(options.queryKey).toEqual(["projects", "codexly", rootPath, "git-status"]);
     expect(options.refetchInterval).toBeUndefined();
+    expect(options.refetchOnMount).toBe("always");
+    expect(getProjectGitStatus).toHaveBeenCalledOnce();
     expect(getProjectGitStatus.mock.calls[0]?.[0]).toBe("codexly");
     expect(getProjectGitStatus.mock.calls[0]?.[1]).toEqual({ rootPath });
     expect(getProjectGitStatus.mock.calls[0]?.[2]?.signal).toBeInstanceOf(AbortSignal);

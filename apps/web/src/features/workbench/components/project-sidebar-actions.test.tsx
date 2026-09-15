@@ -141,17 +141,17 @@ describe("Project folder actions", () => {
 });
 
 describe("TaskStatusIndicator", () => {
-  it("uses vivid status colors and a fast breathing animation that respects reduced motion", () => {
+  it("uses vivid status colors and a running glow that respects reduced motion", () => {
     const css = ["globals.css", "workbench.css"]
       .map((fileName) =>
         readFileSync(new URL(`../../../shared/styles/${fileName}`, import.meta.url), "utf8"),
       )
       .join("\n");
     const keyframes = css.slice(
-      css.indexOf("@keyframes task-status-breathe"),
+      css.indexOf("@keyframes task-running-glow-breathe"),
       css.indexOf(
         "@media (prefers-reduced-motion: reduce)",
-        css.indexOf("@keyframes task-status-breathe"),
+        css.indexOf("@keyframes task-running-glow-breathe"),
       ),
     );
     const statusStyles = css.slice(
@@ -159,21 +159,21 @@ describe("TaskStatusIndicator", () => {
       css.indexOf("@media (hover: none)"),
     );
 
-    expect(css).toContain("@keyframes task-status-breathe");
+    expect(css).toContain("@keyframes task-running-glow-breathe");
     expect(css).toContain("--ui-color-task-running: light-dark(#087cf0, #2196ff);");
     expect(css).toContain("--ui-color-task-waiting: light-dark(#e59a00, #ffb300);");
     expect(css).toContain("--ui-color-task-completed: light-dark(#4d7c0f, #a3e635);");
     expect(css).toContain("--ui-color-task-failed: light-dark(#ed1b2e, #ff3b4f);");
-    expect(css).toContain("animation: task-status-breathe 1.6s");
-    expect(keyframes).toContain("opacity: 0.65");
-    expect(keyframes).toContain("opacity: 1");
+    expect(css).toContain("animation: task-running-glow-breathe 1.2s");
+    expect(keyframes).toContain("opacity: 0.2");
+    expect(keyframes).toContain("opacity: 0.45");
     expect(keyframes).not.toContain("box-shadow");
     expect(statusStyles).not.toContain("box-shadow");
     expect(statusStyles.slice(0, statusStyles.indexOf(".text-task-running"))).not.toContain(
       "transform",
     );
     expect(css).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.task-status-dot--breathing[\s\S]*?animation: none;/u,
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.text-task-running \.task-status-dot::after[\s\S]*?animation: none;/u,
     );
   });
 
@@ -189,13 +189,13 @@ describe("TaskStatusIndicator", () => {
 
     expect(markup).toContain('aria-label="任务运行中"');
     expect(markup).toContain("text-task-running");
-    expect(markup).toContain("task-status-dot--breathing");
+    expect(markup).toContain("task-status-dot");
     expect(markup).toContain("size-2");
     expect(markup).not.toContain("lucide-");
     expect(markup).not.toContain("task-age");
   });
 
-  it("shows a yellow breathing dot while awaiting approval", () => {
+  it("shows a refined yellow clock while awaiting approval", () => {
     const markup = renderToStaticMarkup(
       <TaskStatusIndicator
         attention={null}
@@ -207,14 +207,15 @@ describe("TaskStatusIndicator", () => {
 
     expect(markup).toContain('aria-label="任务等待审批"');
     expect(markup).toContain("text-task-waiting");
-    expect(markup).toContain("task-status-dot--breathing");
-    expect(markup).toContain("size-2");
-    expect(markup).not.toContain("lucide-");
+    expect(markup).toContain("lucide-clock-3");
+    expect(markup).toContain("size-3.5");
+    expect(markup).toContain("stroke-[2.25]");
+    expect(markup).not.toContain("task-status-dot");
     expect(markup).not.toContain("animate-spin");
     expect(markup).not.toContain("task-age");
   });
 
-  it("shows a static green dot when the reply completes", () => {
+  it("shows a refined green check icon when the reply completes", () => {
     const markup = renderToStaticMarkup(
       <TaskStatusIndicator
         attention="completed"
@@ -226,13 +227,14 @@ describe("TaskStatusIndicator", () => {
 
     expect(markup).toContain('aria-label="AI 回复已完成"');
     expect(markup).toContain("text-task-completed");
-    expect(markup).toContain("size-2");
-    expect(markup).not.toContain("task-status-dot--breathing");
-    expect(markup).not.toContain("lucide-");
+    expect(markup).toContain("lucide-circle-check");
+    expect(markup).toContain("size-3.5");
+    expect(markup).toContain("stroke-[2.25]");
+    expect(markup).not.toContain("task-status-dot");
     expect(markup).not.toContain("task-age");
   });
 
-  it("shows a static red dot when the reply is interrupted", () => {
+  it("shows a refined red error icon when the reply is interrupted", () => {
     const markup = renderToStaticMarkup(
       <TaskStatusIndicator
         attention="failed"
@@ -244,9 +246,10 @@ describe("TaskStatusIndicator", () => {
 
     expect(markup).toContain('aria-label="AI 回复未完成"');
     expect(markup).toContain("text-task-failed");
-    expect(markup).toContain("size-2");
-    expect(markup).not.toContain("task-status-dot--breathing");
-    expect(markup).not.toContain("lucide-");
+    expect(markup).toContain("lucide-circle-x");
+    expect(markup).toContain("size-3.5");
+    expect(markup).toContain("stroke-[2.25]");
+    expect(markup).not.toContain("task-status-dot");
     expect(markup).not.toContain("task-age");
   });
 
