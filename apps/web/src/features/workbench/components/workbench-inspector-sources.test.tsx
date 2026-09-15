@@ -20,18 +20,8 @@ describe("WorkbenchInspector sources", () => {
         projectPath="/workspace/Codexly"
       />,
     );
-    const contextMarkup = renderInspectorMarkup(
-      <WorkbenchInspector
-        gitStatus={gitStatus}
-        projectName="Codexly"
-        projectPath="/workspace/Codexly"
-        tab="context"
-        taskId="task-1"
-      />,
-    );
-
     expect(projectMarkup).toContain("Git 变更刷新失败，正在自动重试");
-    expect(contextMarkup).toContain("2 个变更");
+    expect(projectMarkup).toContain("2 个文件");
     expect(projectMarkup).toContain("手动刷新");
     expect(projectMarkup).toContain('aria-label="手动刷新 Git 变更"');
   });

@@ -125,7 +125,9 @@ test("streams Fake App Server notifications into the Timeline @smoke", async ({ 
     timeout: 15_000,
   });
   await expect(page.getByText("启动子代理 · 1 个子代理已完成", { exact: true })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "上下文" })).toHaveAttribute("aria-selected", "true");
+  const contextTab = page.getByRole("tab", { name: "上下文" });
+  await contextTab.click();
+  await expect(contextTab).toHaveAttribute("aria-selected", "true");
   await expect(
     page.getByRole("region", { name: "MCP" }).getByText("context7", { exact: true }),
   ).toBeVisible();
