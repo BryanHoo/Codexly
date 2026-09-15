@@ -431,6 +431,7 @@ export function WorkbenchShellLayout({
               setInspectorTab("changes");
               setInspectorOpen(true);
             }}
+            onReviewChanges={openFileReview}
             onTerminateBackgroundTerminal={backgroundTerminals.terminateTerminal}
             onTabChange={setInspectorTab}
             onOpenSubagent={(selection) => {

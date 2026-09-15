@@ -20,7 +20,7 @@ test("creates and restores a temporary task without exposing its internal projec
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   await expect(sidebar.getByRole("link", { name: "新建任务" })).toBeVisible();
-  const temporaryGroup = sidebar.getByRole("region", { name: "临时任务" });
+  const temporaryGroup = sidebar.getByRole("region", { name: "聊天" });
   await expect(temporaryGroup.getByRole("button", { name: "新建任务" })).toBeVisible();
 
   const input = page.getByRole("textbox", { name: "任务输入" });
@@ -41,6 +41,8 @@ test("creates and restores a temporary task without exposing its internal projec
   await expect(page).toHaveURL(/\/temporary\/t\/temporary-task-1$/u);
   await expect(page.getByText("解释这段临时需求", { exact: true })).toBeVisible();
   await expect(page.getByText("临时回复：解释这段临时需求", { exact: true })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "运行环境" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "展开上下文面板" })).toBeVisible();
   const changedFiles = page.getByRole("region", { name: "本次修改了 1 个文件" });
   await changedFiles.getByRole("button", { name: "审核", exact: true }).click();
   const reviewDialog = page.getByRole("dialog", { name: "temporary-change.ts" });
@@ -122,7 +124,7 @@ test("creates and restores a temporary task without exposing its internal projec
   await renameDialog.getByRole("button", { name: "保存" }).click();
   await expect(main.getByRole("heading", { name: "临时排查记录" })).toBeVisible();
 
-  const temporaryGroupToggle = temporaryGroup.getByRole("button", { name: "临时任务" });
+  const temporaryGroupToggle = temporaryGroup.getByRole("button", { name: "聊天" });
   await temporaryGroupToggle.click();
   await expect(temporaryGroupToggle).toHaveAttribute("aria-expanded", "false");
   await expect(temporaryGroup.getByRole("link", { name: /临时排查记录/u })).toHaveCount(0);
@@ -156,7 +158,7 @@ test("permanently deletes a temporary task through its public route", async ({ p
   await page.getByRole("button", { exact: true, name: "提交" }).click();
   await expect(page).toHaveURL(/\/temporary\/t\/temporary-task-1$/u);
 
-  const temporaryGroup = page.getByRole("region", { name: "临时任务" });
+  const temporaryGroup = page.getByRole("region", { name: "聊天" });
   const taskLink = temporaryGroup.getByRole("link", { name: /临时任务会话/u });
   await taskLink.hover();
   await temporaryGroup.getByRole("button", { name: "打开 临时任务会话 的操作菜单" }).click();

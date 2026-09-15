@@ -119,9 +119,9 @@ export function useWorkbenchShellRuntime({
     sidebarOpen,
     sidebarWidth,
     workbenchShellRef,
-  } = useWorkbenchPanelLayout();
+  } = useWorkbenchPanelLayout({ inspectorInitiallyOpen: !temporary });
   const inspectorScopeKey = `${projectId}:${taskId ?? "draft"}`;
-  const defaultInspectorTab: WorkbenchInspectorTab = taskId === undefined ? "project" : "context";
+  const defaultInspectorTab: WorkbenchInspectorTab = "project";
   const [inspectorTabState, setInspectorTabState] = useState<{
     scopeKey: string;
     tab: WorkbenchInspectorTab;
@@ -129,7 +129,7 @@ export function useWorkbenchShellRuntime({
   const [inspectorFileSelection, setInspectorFileSelection] = useState<
     (WorkbenchInspectorFileSelection & { projectId: string }) | null
   >(null);
-  // 标签选择绑定当前路由身份；Task 首屏进入上下文，草稿页仍以项目浏览为主。
+  // 标签选择绑定当前路由身份；新打开的草稿与历史任务都从项目开始。
   const inspectorTab =
     inspectorTabState.scopeKey === inspectorScopeKey ? inspectorTabState.tab : defaultInspectorTab;
   const gitStatusQuery = useQuery(
@@ -153,6 +153,9 @@ export function useWorkbenchShellRuntime({
     requestedTab: inspectorTab,
     taskId,
   });
+  useLayoutEffect(() => {
+    if (temporary) setInspectorOpen(false);
+  }, [setInspectorOpen, taskId, temporary]);
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation({
     ...appUpdateMutationOptions(client),
@@ -322,8 +325,7 @@ export function useWorkbenchShellRuntime({
       null,
       gitStatusQuery.data?.snapshot ?? "",
       shouldEnableProjectGitDetails({
-        activePanel:
-          inspectorActivation.context || inspectorActivation.project || inspectorActivation.changes,
+        activePanel: inspectorActivation.project || inspectorActivation.changes,
         gitStatus: gitStatusQuery.data,
         temporary,
       }),

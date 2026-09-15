@@ -8,7 +8,9 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-test("defaults task context and keeps user-controlled tab selection", async ({ page }) => {
+test("defaults historical tasks to project and keeps user-controlled tab selection", async ({
+  page,
+}) => {
   let snapshotRequestCount = 0;
   await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
     snapshotRequestCount += 1;
@@ -41,20 +43,21 @@ test("defaults task context and keeps user-controlled tab selection", async ({ p
     .toEqual(["项目", "上下文", "变更", "历史"]);
   await expect(contextTab).toHaveCSS("height", "24px");
   await expect(contextTab.locator("svg")).toHaveCSS("width", "14px");
-  await expect(contextTab).toHaveAttribute("aria-selected", "true");
-  const selectedStyle = await contextTab.evaluate((element) => {
+  await expect(projectTab).toHaveAttribute("aria-selected", "true");
+  const selectedStyle = await projectTab.evaluate((element) => {
     const style = getComputedStyle(element);
     return { backgroundColor: style.backgroundColor, color: style.color };
   });
-  await projectTab.hover();
+  await contextTab.hover();
   await expect
     .poll(() =>
-      projectTab.evaluate((element) => {
+      contextTab.evaluate((element) => {
         const style = getComputedStyle(element);
         return { backgroundColor: style.backgroundColor, color: style.color };
       }),
     )
     .toEqual(selectedStyle);
+  await contextTab.click();
   const plan = inspector.getByRole("region", { name: "计划" });
   await expect(plan).toBeVisible();
   await expect(plan.getByText("定义计划协议")).toBeVisible();
@@ -73,7 +76,7 @@ test("shows context only after a task has been created", async ({ page }) => {
   await expect(inspector.getByRole("tab", { name: "上下文" })).toHaveCount(0);
 
   await page.goto("/p/codexly/t/task-1");
-  await expect(inspector.getByRole("tab", { name: "上下文" })).toHaveAttribute(
+  await expect(inspector.getByRole("tab", { name: "项目" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
@@ -141,7 +144,7 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
   const pinnedSection = sidebar.getByRole("heading", { name: "已固定" }).locator("xpath=..");
   const projectsBox = await sidebar.getByRole("heading", { name: "项目" }).boundingBox();
   const extensionCenterBox = await extensionCenter.boundingBox();
-  const temporaryGroupBox = await sidebar.getByRole("region", { name: "临时任务" }).boundingBox();
+  const temporaryGroupBox = await sidebar.getByRole("region", { name: "聊天" }).boundingBox();
   const firstProjectBox = await sidebar
     .getByRole("button", { name: "切换项目 Codexly" })
     .boundingBox();
@@ -212,7 +215,7 @@ test("preserves the original sidebar control typography and dimensions", async (
   const addProjectIcon = sidebar.getByRole("button", { name: "添加项目" }).locator("svg");
   const addTaskIcon = sidebar.getByRole("button", { name: "在 Codexly 中新建任务" }).locator("svg");
   const temporaryAddTask = sidebar
-    .getByRole("region", { name: "临时任务" })
+    .getByRole("region", { name: "聊天" })
     .getByRole("button", { name: "新建任务" });
   const projectAddTask = sidebar.getByRole("button", { name: "在 Codexly 中新建任务" });
   await expect(addProjectIcon).toHaveCSS("height", "14px");

@@ -9,7 +9,7 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-test("opens timeline review while showing Git stats in the Inspector project tree", async ({
+test("opens project review while showing Git stats in the Inspector project tree", async ({
   page,
 }) => {
   const consoleErrors: string[] = [];
@@ -71,7 +71,7 @@ test("opens timeline review while showing Git stats in the Inspector project tre
   const contextTab = inspector.getByRole("tab", { name: "上下文" });
   const changesTab = inspector.getByRole("tab", { name: "变更" });
   const projectTab = inspector.getByRole("tab", { name: "项目" });
-  await expect(contextTab).toHaveAttribute("aria-selected", "true");
+  await expect(projectTab).toHaveAttribute("aria-selected", "true");
 
   await expect(page.getByRole("region", { name: "本次修改了 2 个文件" })).toHaveCSS(
     "margin-top",
@@ -91,30 +91,39 @@ test("opens timeline review while showing Git stats in the Inspector project tre
   await inspector.getByRole("button", { name: "关闭文件" }).click();
   await contextTab.click();
 
-  const changedFiles = page.getByRole("region", { name: "本次修改了 2 个文件" });
-  const timelineReviewButton = changedFiles.getByRole("button", { name: "审核", exact: true });
+  await expect(inspector.getByRole("region", { name: "未提交变更" })).toHaveCount(0);
+  await projectTab.click();
   const gitChanges = inspector.getByRole("region", { name: "未提交变更" });
+  const reviewButton = gitChanges.getByRole("button", { name: "审核 2 个未提交变更" });
   const commitButton = gitChanges.getByRole("button", { name: "提交 2 个未提交变更" });
-  const changeStats = gitChanges.getByRole("button", { name: "查看 2 个未提交变更" });
-  await expect(page.getByRole("button", { name: "审核 2 个未提交变更" })).toHaveCount(0);
+  const changeCount = gitChanges.locator("[data-git-change-count]");
+  const changeStats = gitChanges.locator("[data-git-change-stats]");
+  await expect(reviewButton).toHaveText("审核");
   await expect(commitButton).toHaveText("提交");
-  await expect(changeStats).toHaveText("2 个变更+2-1");
+  await expect
+    .poll(() => reviewButton.evaluate((element) => getComputedStyle(element).backgroundColor))
+    .not.toBe("rgba(0, 0, 0, 0)");
+  await expect(changeCount).toHaveText("2 个文件");
+  await expect(changeStats).toHaveText("+2-1");
+  await expect(gitChanges.locator("svg")).toHaveCount(0);
   await expect(gitChanges.getByRole("tree", { name: "变更文件导航" })).toHaveCount(0);
   await expect(gitChanges.getByText("package.json", { exact: true })).toHaveCount(0);
-  await projectTab.click();
-  await expect(inspector.getByRole("region", { name: "未提交变更" })).toHaveCount(0);
   await expect(
     inspector
       .getByRole("tree", { name: "项目文件" })
       .getByLabel("package.json，新增 1 行，删除 1 行"),
   ).toHaveCount(1);
-  await contextTab.click();
-  const [statsBox, commitBox] = await Promise.all([
+  const [countBox, statsBox, commitBox] = await Promise.all([
+    changeCount.boundingBox(),
     changeStats.boundingBox(),
     commitButton.boundingBox(),
   ]);
+  const countCenter = (countBox?.y ?? 0) + (countBox?.height ?? 0) / 2;
+  const statsCenter = (statsBox?.y ?? 0) + (statsBox?.height ?? 0) / 2;
+  expect(Math.abs(countCenter - statsCenter)).toBeLessThanOrEqual(2);
+  expect(countBox?.x).toBeLessThan(commitBox?.x ?? 0);
   expect(statsBox?.x).toBeLessThan(commitBox?.x ?? 0);
-  await timelineReviewButton.click();
+  await reviewButton.click();
   const reviewDialog = page.getByRole("dialog");
   const reviewContent = reviewDialog.getByRole("region", { name: "审核文件内容" });
   const reviewNavigation = reviewDialog.getByRole("complementary", { name: "变更文件导航" });
@@ -186,15 +195,16 @@ test("opens timeline review while showing Git stats in the Inspector project tre
   await expect(reviewDialog.getByRole("tree", { name: "变更文件导航" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(reviewDialog).not.toBeAttached();
-  await changesTab.click();
+  await commitButton.click();
+  await expect(changesTab).toHaveAttribute("aria-selected", "true");
   await expect(inspector.getByRole("button", { name: "切换为文件列表" })).toBeVisible();
 
   // 刷新后右栏仍保持树，审核弹窗独立恢复列表偏好。
   await page.reload();
   await inspector.getByRole("tab", { name: "变更" }).click();
   await expect(inspector.getByRole("button", { name: "切换为文件列表" })).toBeVisible();
-  await inspector.getByRole("tab", { name: "上下文" }).click();
-  await page.getByRole("button", { name: "审核", exact: true }).click();
+  await inspector.getByRole("tab", { name: "项目" }).click();
+  await inspector.getByRole("button", { name: "审核 2 个未提交变更" }).click();
   await expect(reviewDialog.getByRole("listbox", { name: "变更文件导航" })).toBeVisible();
   await expect(reviewDialog.getByRole("button", { name: "切换为文件树" })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -243,6 +253,7 @@ test("defaults to the first child repository and keeps the changes panel mounted
     await route.fulfill({ contentType: "application/json", json: status });
   });
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("tab", { name: "项目" }).click();
   await page.getByRole("button", { name: "提交 2 个未提交变更" }).click();
   const panel = page.locator('[data-slot="commit-changes-panel"]');
   const repositorySelect = panel.getByRole("combobox", { name: "Git 项目" });
@@ -295,6 +306,7 @@ for (const scenario of [
       });
     });
     await page.goto("/p/codexly/t/task-1");
+    await page.getByRole("tab", { name: "项目" }).click();
     await page.getByRole("button", { name: /提交 \d+ 个未提交变更/u }).click();
     const inspector = page.locator(".workbench-inspector");
     const panel = inspector.locator('[data-slot="commit-changes-panel"]');

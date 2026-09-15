@@ -18,10 +18,12 @@ export function getInspectorMaximumWidth(shellWidth: number, sidebarWidth: numbe
   return Math.max(inspectorWidthLimits.minimum, Math.floor((shellWidth - sidebarWidth) / 2));
 }
 
-export function useWorkbenchPanelLayout() {
+export function useWorkbenchPanelLayout({
+  inspectorInitiallyOpen = true,
+}: Readonly<{ inspectorInitiallyOpen?: boolean }> = {}) {
   const [sidebarOpen, setSidebarOpen] = useState(() => shouldOpenDesktopPanel(sidebarOverlayQuery));
-  const [inspectorOpen, setInspectorOpen] = useState(() =>
-    shouldOpenDesktopPanel(inspectorOverlayQuery),
+  const [inspectorOpen, setInspectorOpen] = useState(
+    () => inspectorInitiallyOpen && shouldOpenDesktopPanel(inspectorOverlayQuery),
   );
   const [sidebarWidth, setSidebarWidth] = useState<number>(sidebarWidthLimits.default);
   const [inspectorWidth, setInspectorWidth] = useState<number>(inspectorWidthLimits.default);

@@ -88,6 +88,7 @@ type WorkbenchInspectorProps = Readonly<{
   onRefreshGitStatus?: () => void;
   onRefreshProject?: () => unknown;
   onCommitChanges?: () => void;
+  onReviewChanges?: (changes: readonly AgentFileChange[]) => void;
   onClose?: () => void;
   onCloseFile?: () => void;
   onTerminateBackgroundTerminal?: (terminalId: string) => Promise<void>;
@@ -153,6 +154,7 @@ export function WorkbenchInspector({
   onRefreshGitStatus = () => undefined,
   onRefreshProject = () => undefined,
   onCommitChanges = () => undefined,
+  onReviewChanges = () => undefined,
   onClose,
   onCloseFile,
   onTerminateBackgroundTerminal = () => Promise.resolve(),
@@ -188,7 +190,7 @@ export function WorkbenchInspector({
   const isGitProject = gitStatus !== undefined && gitStatus.repositoryMode !== "none";
   const { changeStats, displayChanges, fileChangesByPath } = useMemo(
     () =>
-      isGitProject && (activeTab === "context" || activeTab === "project")
+      isGitProject && activeTab === "project"
         ? deriveInspectorGitChangeState(gitStatus, gitStatusDetails)
         : {
             changeStats: undefined,
@@ -203,16 +205,6 @@ export function WorkbenchInspector({
       {task?.goal === null || task?.goal === undefined ? null : (
         <GoalSection goal={task.goal} onClear={onClearGoal} onStatusChange={onGoalStatusChange} />
       )}
-      {isGitProject && displayChanges.length > 0 ? (
-        <InspectorGitChangesSection
-          changeCount={displayChanges.length}
-          changeStats={changeStats}
-          onCommitChanges={onCommitChanges}
-          onOpenChanges={() => {
-            onTabChange("changes");
-          }}
-        />
-      ) : null}
       {backgroundTerminals.length > 0 ||
       backgroundTerminalsPending ||
       backgroundTerminalsError !== null ? (
@@ -306,6 +298,18 @@ export function WorkbenchInspector({
                 <p className="mb-2 px-4 text-caption text-muted-foreground">
                   {i18n.t("inspector.gitLoading", { ns: "conversation" })}
                 </p>
+              ) : null}
+              {isGitProject && displayChanges.length > 0 ? (
+                <div className="px-2.5 pb-1">
+                  <InspectorGitChangesSection
+                    changeCount={displayChanges.length}
+                    changeStats={changeStats}
+                    onCommitChanges={onCommitChanges}
+                    onReviewChanges={() => {
+                      onReviewChanges(displayChanges);
+                    }}
+                  />
+                </div>
               ) : null}
               <div className="min-h-0 flex-1 px-2.5 pb-2.5">
                 <WorkbenchProjectFileTree

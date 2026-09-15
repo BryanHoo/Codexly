@@ -25,22 +25,31 @@ describe("InspectorGitChangesSection", () => {
         changeCount={changes.length}
         changeStats={{ additions: 3, removals: 1 }}
         onCommitChanges={() => undefined}
-        onOpenChanges={() => undefined}
+        onReviewChanges={() => undefined}
       />,
     );
 
     expect(markup).toContain('aria-label="未提交变更"');
-    expect(markup).toContain('aria-label="查看 2 个未提交变更"');
-    expect(markup).toContain("2 个变更");
+    expect(markup).toContain('data-git-change-count=""');
+    expect(markup).toContain("2 个文件");
+    expect(markup).toContain('data-git-change-stats=""');
     expect(markup).toContain("+3");
     expect(markup).toContain("-1");
     expect(markup).toContain('aria-label="提交 2 个未提交变更"');
+    expect(markup).toContain('aria-label="审核 2 个未提交变更"');
+    expect(markup.match(/data-variant="secondary"/gu)).toHaveLength(2);
     expect(markup).not.toContain('aria-label="变更文件导航"');
     expect(markup).not.toContain("apps/web/src/app.tsx");
     expect(markup).not.toContain("README.md");
-    expect(markup).toContain('data-open-inspector-changes=""');
+    expect(markup).not.toContain("<svg");
+    expect(markup).not.toContain('data-open-inspector-changes=""');
     expect(markup).toContain("hover:bg-control-hover");
-    expect(markup).not.toMatch(/data-open-inspector-changes=""[^>]*(?:bg-panel|border|shadow-sm)/u);
+    expect(markup).not.toContain(">未提交变更<");
+    expect(markup).toContain('class="flex h-8 items-center justify-between gap-2"');
+    expect(markup).not.toContain("min-h-12");
+    expect(markup).toMatch(
+      /class="[^"]*flex[^"]*items-center[^"]*"[^>]*><span[^>]*data-git-change-count="">2 个文件<\/span><div[^>]*data-git-change-stats="">/u,
+    );
   });
 
   it("keeps the file count while detailed statistics resolve", () => {
@@ -49,11 +58,11 @@ describe("InspectorGitChangesSection", () => {
         changeCount={changes.length}
         changeStats={undefined}
         onCommitChanges={() => undefined}
-        onOpenChanges={() => undefined}
+        onReviewChanges={() => undefined}
       />,
     );
 
-    expect(markup).toContain("2 个变更");
+    expect(markup).toContain("2 个文件");
     expect(markup).not.toContain("新增 0 行");
     expect(markup).not.toContain("+0");
     expect(markup).not.toContain('aria-label="变更文件导航"');

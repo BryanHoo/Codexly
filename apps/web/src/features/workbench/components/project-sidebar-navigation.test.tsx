@@ -38,7 +38,7 @@ describe("Project task pagination", () => {
       </TooltipProvider>,
     );
 
-    expect(markup).toContain("临时任务");
+    expect(markup).toContain("聊天");
     expect(markup).toContain('aria-expanded="true"');
     expect(markup).toContain('aria-label="新建任务"');
     expect(markup).toContain("lucide-plus");

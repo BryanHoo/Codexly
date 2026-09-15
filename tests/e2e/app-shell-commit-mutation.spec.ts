@@ -69,6 +69,7 @@ test("generates a message and commits only selected files", async ({ page }) => 
   });
 
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("tab", { name: "项目" }).click();
   await page.getByRole("button", { name: "提交 17 个未提交变更" }).click();
   const inspector = page.locator(".workbench-inspector");
   const changesTab = inspector.getByRole("tab", { name: "变更" });

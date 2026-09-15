@@ -294,7 +294,7 @@ describe("WorkbenchInspector tabs", () => {
     expect(markup).not.toContain("pnpm dev");
   });
 
-  it("renders the uncommitted change summary in context and removes it from project", () => {
+  it("renders the uncommitted change summary in project and removes it from context", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
         onOpenProjectFile={() => undefined}
@@ -317,26 +317,22 @@ describe("WorkbenchInspector tabs", () => {
       />,
     );
 
-    expect(markup).toContain("2 个变更");
-    expect(markup).toContain('aria-label="未提交变更"');
-    expect(markup).toContain('aria-label="提交 2 个未提交变更"');
-    expect(markup).toContain(">提交</button>");
-    expect(markup).toMatch(
-      /aria-label="查看 2 个未提交变更"[^>]*><span>2 个变更<\/span><span[^>]*>\+3<\/span><span[^>]*>-1<\/span>/u,
+    expect(markup).not.toContain('aria-label="未提交变更"');
+    expect(markup).not.toContain('data-open-inspector-changes=""');
+    expect(markup).not.toContain('aria-label="提交 2 个未提交变更"');
+    expect(projectMarkup).toContain("2 个文件");
+    expect(projectMarkup).toContain('aria-label="未提交变更"');
+    expect(projectMarkup).toContain('aria-label="审核 2 个未提交变更"');
+    expect(projectMarkup).toContain('aria-label="提交 2 个未提交变更"');
+    expect(projectMarkup).toContain(">提交</button>");
+    expect(projectMarkup).toMatch(
+      /data-git-change-count="">2 个文件<\/span>.*data-git-change-stats="">.*\+3.*-1/su,
     );
-    const changeSummaryButton = /<button[^>]*aria-label="查看 2 个未提交变更"[^>]*>/u.exec(
-      markup,
-    )?.[0];
-    expect(changeSummaryButton).toBeDefined();
-    expect(changeSummaryButton).toContain('data-open-inspector-changes=""');
-    expect(changeSummaryButton).toContain("transition-colors");
-    expect(changeSummaryButton).toContain("hover:bg-control-hover");
-    expect(markup).not.toContain('aria-label="变更文件导航"');
-    expect(markup).not.toContain('aria-label="package.json，新增 2 行，删除 1 行"');
-    expect(markup).not.toContain('aria-label="new-file.ts，新增 1 行，删除 0 行"');
-    expect(projectMarkup).not.toContain('aria-label="未提交变更"');
     expect(projectMarkup).not.toContain('data-open-inspector-changes=""');
-    expect(projectMarkup).not.toContain('aria-label="提交 2 个未提交变更"');
+    expect(projectMarkup).not.toContain("lucide-git-compare-arrows");
+    expect(projectMarkup).not.toContain("lucide-scan-search");
+    expect(projectMarkup).not.toContain("lucide-git-commit-horizontal size-3.5");
+    expect(projectMarkup).not.toContain('aria-label="变更文件导航"');
     expect(markup).not.toContain("bg-brand");
     expect(markup).toContain('aria-label="运行环境"');
     expect(markup).not.toContain(">运行环境</h2>");
@@ -409,7 +405,7 @@ describe("WorkbenchInspector tabs", () => {
         gitStatus={{ ...gitStatus, repositoryMode: "children" }}
         projectName="Codexly"
         projectPath="/workspace/Codexly"
-        tab="context"
+        tab="project"
         taskId="task-1"
       />,
     );
@@ -419,7 +415,7 @@ describe("WorkbenchInspector tabs", () => {
     expect(commitButton).not.toContain(' disabled=""');
   });
 
-  it("shows only aggregate Git change stats in context", () => {
+  it("shows only aggregate Git change stats in project", () => {
     const renderInspector = (expandedFileTreePaths: Set<string>) =>
       renderInspectorMarkup(
         <WorkbenchInspector
@@ -427,7 +423,7 @@ describe("WorkbenchInspector tabs", () => {
           gitStatus={nestedGitStatus}
           projectName="Codexly"
           projectPath="/workspace/Codexly"
-          tab="context"
+          tab="project"
           taskId="task-1"
         />,
       );
@@ -435,7 +431,7 @@ describe("WorkbenchInspector tabs", () => {
     const fileVisibleMarkup = renderInspector(new Set(["src", "src/components"]));
 
     expect(fileVisibleMarkup).toMatch(
-      /aria-label="查看 1 个未提交变更"[^>]*><span>1 个变更<\/span><span[^>]*>\+2<\/span><span[^>]*>-1<\/span>/u,
+      /data-git-change-count="">1 个文件<\/span>.*data-git-change-stats="">.*\+2.*-1/su,
     );
     expect(fileVisibleMarkup).not.toContain("后代新增");
     expect(fileVisibleMarkup).not.toContain('aria-label="变更文件导航"');

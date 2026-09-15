@@ -191,7 +191,8 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
   await expect(inspector.getByText("This Mac", { exact: true })).toHaveCount(0);
   await expect(inspector.getByText("项目 Agent 组件", { exact: true })).toHaveCount(0);
   await expect(inspector.getByRole("button", { name: "添加来源" })).toHaveCount(0);
-  await inspector.getByRole("button", { name: "查看 1 个未提交变更" }).click();
+  await inspector.getByRole("tab", { name: "项目" }).click();
+  await inspector.getByRole("button", { name: "提交 1 个未提交变更" }).click();
   await expect(inspector.getByRole("tab", { name: "变更" })).toHaveAttribute(
     "aria-selected",
     "true",
