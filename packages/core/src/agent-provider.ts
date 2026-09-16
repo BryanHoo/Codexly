@@ -40,6 +40,10 @@ import type {
   OfficialPluginUninstallResult,
   SetMcpServerEnabledResult,
   SetSkillEnabledResult,
+  SearchOccurrencesPage,
+  SearchOccurrencesQuery,
+  TaskSearchPage,
+  TaskSearchQuery,
 } from "@codexly/protocol";
 
 export type WorkbenchPetAsset = Readonly<{
@@ -195,6 +199,17 @@ export interface AgentFileSearchProvider {
   stop(projectId: string, sessionId: string): Promise<void>;
 }
 
+export type AgentSearchScope = Readonly<Pick<AgentTaskScope, "id" | "kind">>;
+
+export interface AgentSearchProvider {
+  searchTaskOccurrences(
+    taskId: string,
+    input: SearchOccurrencesQuery,
+    scope: AgentSearchScope,
+  ): Promise<SearchOccurrencesPage>;
+  searchTasks(input: TaskSearchQuery, scopes: readonly AgentSearchScope[]): Promise<TaskSearchPage>;
+}
+
 export type ResolvePendingRequestInput = Readonly<
   ResolvePendingRequestRequest & { requestId: string }
 >;
@@ -271,6 +286,7 @@ export interface AgentProvider {
 export interface AgentRuntimeProvider {
   readonly personalization?: PersonalizationProvider;
   readonly fileSearch?: AgentFileSearchProvider;
+  readonly search?: AgentSearchProvider;
   cancelProviderLogin(loginId: string): Promise<AgentProviderConnectionMutationResponse>;
   configureCustomProvider(
     input: ConfigureCustomProviderRequest,

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { changeAppLanguage } from "../../../i18n/i18n.js";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
-import { createTaskStore } from "../../conversation/runtime/task-store.js";
+import { createTaskItemKey, createTaskStore } from "../../conversation/runtime/task-store.js";
 import {
   resolveMessageResponseRendering,
   TaskSnapshotTimeline,
@@ -189,6 +189,31 @@ describe("task timeline basics", () => {
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={multilineSnapshot} />);
 
     expect(markup.match(/whitespace-pre-wrap!/g)).toHaveLength(1);
+  });
+
+  it("renders a stable anchor for every assistant message", () => {
+    const assistantId = "message-assistant-anchor";
+    const anchoredSnapshot: RuntimeTaskSnapshot = {
+      ...snapshot,
+      turns: [
+        {
+          ...completedTurn,
+          items: [
+            {
+              id: assistantId,
+              role: "assistant",
+              text: "需要高亮的历史答复",
+              type: "message",
+            },
+          ],
+        },
+      ],
+    };
+
+    const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={anchoredSnapshot} />);
+    const anchorId = createTaskItemKey(completedTurn.id, assistantId).replaceAll('"', "&quot;");
+
+    expect(markup).toContain(`data-conversation-anchor="${anchorId}"`);
   });
 
   it("uses streaming Markdown only for the active assistant tail item", () => {

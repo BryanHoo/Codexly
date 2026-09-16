@@ -8,7 +8,7 @@ import {
 } from "@codexly/protocol";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Send } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -18,7 +18,6 @@ import {
   useProjectActivity,
   useProjectData,
   usePinnedProjectTasks,
-  useProjectTaskSearch,
 } from "../../projects/project-context.js";
 import {
   cacheRemovedProjectTask,
@@ -50,6 +49,12 @@ export { ProductBrand } from "./project-sidebar-header.js";
 export * from "./project-sidebar-actions.js";
 export * from "./project-sidebar-state.js";
 export * from "./project-sidebar-task-row.js";
+
+const GlobalSearchDialog = lazy(() =>
+  import("../../search/global-search-dialog.js").then((module) => ({
+    default: module.GlobalSearchDialog,
+  })),
+);
 
 const primaryActionClassName =
   "flex h-8 w-full items-center gap-2.5 rounded-control px-2.5 text-body-small font-medium text-foreground transition-colors hover:bg-control-hover";
@@ -86,6 +91,7 @@ export function ProjectSidebar({
     useProjectActivity();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const sidebarRef = useRef<HTMLElement>(null);
   const [preferenceStorage] = useState(getProjectSidebarPreferenceStorage);
   const [initialSavedExpandedProjectIds] = useState(() =>
     readExpandedProjectIds(preferenceStorage),
@@ -99,7 +105,7 @@ export function ProjectSidebar({
     ),
   );
   const expandedProjectsRef = useRef(expandedProjects);
-  const [query, setQuery] = useState("");
+  const [searchState, setSearchState] = useState<"idle" | "open" | "closed">("idle");
   const [expandedTaskProjects, setExpandedTaskProjects] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -117,15 +123,13 @@ export function ProjectSidebar({
     activeProjectId: projectId,
     activeTaskId: taskId,
   });
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const taskSearch = useProjectTaskSearch(normalizedQuery);
+  const normalizedQuery = "";
+  const taskSearch = { error: null, isPending: false };
   const pinnedTaskQuery = usePinnedProjectTasks();
-  const visibleTasks = normalizedQuery.length === 0 ? tasks : taskSearch.tasks;
+  const visibleTasks = tasks;
   // 大列表只分组一次，Project 渲染不再重复扫描全部 Task。
   const tasksByProjectId = useMemo(() => groupTasksByProjectId(visibleTasks), [visibleTasks]);
-  const pinnedTasks = getPinnedTasks(
-    normalizedQuery.length === 0 ? pinnedTaskQuery.tasks : visibleTasks,
-  );
+  const pinnedTasks = getPinnedTasks(pinnedTaskQuery.tasks);
   const hasTaskError =
     pinnedTaskQuery.error !== null ||
     [...projectTaskStates.values()].some((state) => state.error !== null);
@@ -191,6 +195,33 @@ export function ProjectSidebar({
     // 任务列表请求跟随可见文件夹；当前路由 Project 由 ProjectProvider 单独保持激活。
     setExpandedProjectTaskIds(expandedProjects);
   }, [expandedProjects, setExpandedProjectTaskIds]);
+
+  useEffect(() => {
+    const openSearch = (event: KeyboardEvent) => {
+      const hasVisibleDialog = Array.from(
+        document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]'),
+      ).some((element) => element.getClientRects().length > 0);
+      if (
+        sidebarRef.current?.getClientRects().length === 0 ||
+        hasVisibleDialog ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.repeat ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLocaleLowerCase() !== "f" ||
+        !(event.metaKey || event.ctrlKey)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setSearchState("open");
+    };
+    document.addEventListener("keydown", openSearch);
+    return () => {
+      document.removeEventListener("keydown", openSearch);
+    };
+  }, []);
 
   const updateExpandedProjects = useCallback(
     (update: (current: ReadonlySet<string>) => ReadonlySet<string>) => {
@@ -319,8 +350,14 @@ export function ProjectSidebar({
     <aside
       aria-label={t("sidebar.landmark")}
       className="workbench-sidebar z-30 grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] bg-sidebar shadow-divider"
+      ref={sidebarRef}
     >
-      <ProjectSidebarHeader onClose={onClose} query={query} setQuery={setQuery} />
+      <ProjectSidebarHeader
+        onClose={onClose}
+        onSearch={() => {
+          setSearchState("open");
+        }}
+      />
 
       <nav className="space-y-0.5 px-2" aria-label={t("sidebar.agentNavigation")}>
         <Link className={primaryActionClassName} to="/temporary">
@@ -436,6 +473,18 @@ export function ProjectSidebar({
           onOpen={onOpenSettings}
         />
       </div>
+      {searchState === "idle" ? null : (
+        <Suspense fallback={null}>
+          <GlobalSearchDialog
+            client={client}
+            onClose={() => {
+              setSearchState("closed");
+            }}
+            open={searchState === "open"}
+            projects={projects}
+          />
+        </Suspense>
+      )}
     </aside>
   );
 }

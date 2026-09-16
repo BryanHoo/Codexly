@@ -8,6 +8,8 @@ export {
   type AgentProviderAttachment,
   type AgentProviderQueue,
   type AgentRuntimeProvider,
+  type AgentSearchProvider,
+  type AgentSearchScope,
   type AgentTaskUnsubscribeStatus,
   type AgentProviderEvent,
   type AgentProviderEventListener,

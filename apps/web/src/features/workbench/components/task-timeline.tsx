@@ -1,5 +1,6 @@
 import type { PendingRequest, Project } from "@codexly/protocol";
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
+import { useHistoryLocation } from "../../search/history-location.js";
 
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
 
@@ -22,6 +23,11 @@ import { TaskStoreTimeline } from "./task-timeline-store.js";
 
 export { resolveMessageResponseRendering } from "./task-timeline-running.js";
 export { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
+const HistoryTaskTimeline = lazy(() =>
+  import("../../search/history-task-timeline.js").then((module) => ({
+    default: module.HistoryTaskTimeline,
+  })),
+);
 type BuildPlanAction = () => Promise<boolean>;
 
 type TaskTimelineCommonProps = Readonly<{
@@ -68,6 +74,34 @@ const ignoreFileChanges = () => undefined;
 const ignorePendingRequest = () => Promise.resolve();
 export function TaskTimeline(props: TaskTimelineProps) {
   useTranslation("conversation");
+  const location = useHistoryLocation((state) =>
+    state.location?.projectId === props.projectId && state.location.taskId === props.taskId
+      ? state.location
+      : null,
+  );
+  if (location !== null) {
+    return (
+      <Suspense
+        fallback={
+          <TimelineState
+            message={i18n.t("timeline.loading", { ns: "conversation" })}
+            role="status"
+          />
+        }
+      >
+        <HistoryTaskTimeline
+          location={location}
+          {...(props.onOpenFileDiff === undefined ? {} : { onOpenFileDiff: props.onOpenFileDiff })}
+          {...(props.onOpenSourceFile === undefined
+            ? {}
+            : { onOpenSourceFile: props.onOpenSourceFile })}
+          {...(props.onReviewFileChanges === undefined
+            ? {}
+            : { onReviewFileChanges: props.onReviewFileChanges })}
+        />
+      </Suspense>
+    );
+  }
   if (props.taskId === undefined) {
     if (props.submissionStartedAt !== undefined) {
       return (

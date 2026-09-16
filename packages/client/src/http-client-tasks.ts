@@ -78,9 +78,9 @@ import {
   type ReadOptions,
   type ReadTaskOptions,
 } from "./http-client-transport.js";
-import { TaskCatalogHttpClient } from "./http-client-task-catalog.js";
+import { GlobalSearchHttpClient } from "./http-client-global-search.js";
 
-export class TaskHttpClient extends TaskCatalogHttpClient {
+export class TaskHttpClient extends GlobalSearchHttpClient {
   public submitTask(
     projectId: string,
     input: SubmitTaskRequest,

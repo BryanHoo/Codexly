@@ -50,6 +50,7 @@ import { CodexProviderConnectionService } from "./provider-connection.js";
 import { CodexRuntimeProjectProvider } from "./runtime-project-provider.js";
 import { CodexFuzzyFileSearchService } from "./fuzzy-file-search.js";
 import { CodexGitMetadataWatchService } from "./git-metadata-watch.js";
+import { CodexGlobalSearchService } from "./global-search.js";
 import {
   getCodexOfficialPlugin,
   installCodexOfficialPlugin,
@@ -64,6 +65,7 @@ import {
 export class CodexRuntimeProvider implements AgentRuntimeProvider {
   public readonly personalization;
   public readonly fileSearch: CodexFuzzyFileSearchService;
+  public readonly search: CodexGlobalSearchService;
   readonly #client: CodexRpcClient;
   readonly #taskTitles: CodexTaskTitles | undefined;
   readonly #logger: CodexProviderLogger;
@@ -105,6 +107,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     this.#logger = logger;
     this.#providerConnection = new CodexProviderConnectionService(client, options);
     this.fileSearch = new CodexFuzzyFileSearchService(client);
+    this.search = new CodexGlobalSearchService(client);
     this.#gitMetadataWatch = new CodexGitMetadataWatchService(client, {
       logger,
       onChanged: (projectId, rootPath) => {

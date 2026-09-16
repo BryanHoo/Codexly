@@ -1,9 +1,7 @@
-import { PanelLeftClose, Search, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { PanelLeftClose, Search } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
-import { Input } from "../../../shared/components/core/input.js";
 import {
   Tooltip,
   TooltipContent,
@@ -12,93 +10,30 @@ import {
 
 type ProjectSidebarHeaderProps = Readonly<{
   onClose: () => void;
-  query: string;
-  setQuery: (query: string) => void;
+  onSearch: () => void;
 }>;
 
-export function ProjectSidebarHeader({ onClose, query, setQuery }: ProjectSidebarHeaderProps) {
+export function ProjectSidebarHeader({ onClose, onSearch }: ProjectSidebarHeaderProps) {
   const { t } = useTranslation("workbench");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const searchButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (isSearchOpen) {
-      inputRef.current?.focus();
-    }
-  }, [isSearchOpen]);
-
-  const closeSearch = () => {
-    // 收起时同步取消筛选，并把焦点交还触发按钮，保证键盘操作连续。
-    setQuery("");
-    setIsSearchOpen(false);
-    requestAnimationFrame(() => {
-      searchButtonRef.current?.focus();
-    });
-  };
 
   return (
     <div className="flex h-workbench-header items-center gap-1.5 px-3">
-      {isSearchOpen ? (
-        <div className="relative min-w-0 flex-1">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-2.5 top-2 size-3.5 text-muted-foreground"
-          />
-          <Input
-            aria-label={t("sidebar.search")}
-            className="h-8 w-full rounded-control bg-control pl-8 pr-2 text-body-small text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:shadow-focus"
-            onChange={(event) => {
-              setQuery(event.currentTarget.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                closeSearch();
-              }
-            }}
-            placeholder={t("sidebar.search")}
-            ref={inputRef}
-            value={query}
-          />
-        </div>
-      ) : (
-        <ProductBrand />
-      )}
-
-      {isSearchOpen ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              aria-label={t("sidebar.closeSearch")}
-              onClick={closeSearch}
-              size="icon-sm"
-              type="button"
-              variant="ghost"
-            >
-              <X className="size-3.5" aria-hidden="true" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("sidebar.closeSearch")}</TooltipContent>
-        </Tooltip>
-      ) : (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              aria-label={t("sidebar.search")}
-              onClick={() => {
-                setIsSearchOpen(true);
-              }}
-              ref={searchButtonRef}
-              size="icon-sm"
-              type="button"
-              variant="ghost"
-            >
-              <Search className="size-3.5" aria-hidden="true" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("sidebar.search")}</TooltipContent>
-        </Tooltip>
-      )}
+      <ProductBrand />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            aria-keyshortcuts="Meta+F Control+F"
+            aria-label={t("globalSearch.title")}
+            onClick={onSearch}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <Search className="size-3.5" aria-hidden="true" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t("globalSearch.title")}</TooltipContent>
+      </Tooltip>
 
       <Tooltip>
         <TooltipTrigger asChild>

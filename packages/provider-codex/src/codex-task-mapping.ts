@@ -58,7 +58,10 @@ function isPinnedThreadSection(value: unknown): boolean {
   return sectionId === CODEX_PINNED_THREAD_SECTION_ID;
 }
 
-export function isProjectThread(thread: Record<string, unknown>, project: AgentTaskScope): boolean {
+export function isProjectThread(
+  thread: Record<string, unknown>,
+  project: Pick<AgentTaskScope, "id" | "kind">,
+): boolean {
   const nativeProjectId = thread["projectId"];
   if (nativeProjectId !== null && typeof nativeProjectId !== "string") {
     throw new CodexProtocolMappingError("Codex thread projectId must be a string or null");
@@ -75,7 +78,7 @@ export function isProjectThread(thread: Record<string, unknown>, project: AgentT
 
 export function assertProjectThread(
   thread: Record<string, unknown>,
-  project: AgentTaskScope,
+  project: Pick<AgentTaskScope, "id" | "kind">,
 ): Promise<void> {
   if (!isProjectThread(thread, project)) {
     return Promise.reject(
@@ -87,7 +90,7 @@ export function assertProjectThread(
 
 export async function mapAgentTask(
   thread: Record<string, unknown>,
-  project: AgentTaskScope,
+  project: Pick<AgentTaskScope, "id" | "kind">,
 ): Promise<AgentTask> {
   await assertProjectThread(thread, project);
   if (thread["model"] !== null && typeof thread["model"] !== "string") {

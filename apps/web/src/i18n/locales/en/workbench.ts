@@ -1,7 +1,9 @@
 import { skillsMarket } from "./skills-market.js";
 import { scheduledTasks } from "./scheduled-tasks.js";
+import { globalSearch } from "./global-search.js";
 
 export const workbench = {
+  globalSearch,
   scheduledTasks,
   skillsMarket,
   pet: {

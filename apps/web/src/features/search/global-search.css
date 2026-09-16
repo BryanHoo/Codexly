@@ -1,0 +1,20 @@
+.search-text-match {
+  border-radius: 3px;
+  color: inherit;
+  background-color: light-dark(rgb(255 196 0 / 0.32), rgb(255 190 46 / 0.28));
+  box-shadow: inset 0 -1px light-dark(rgb(166 104 0 / 0.55), rgb(255 211 92 / 0.58));
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+::highlight(global-search-match) {
+  color: var(--ui-color-text);
+  background-color: light-dark(rgb(255 196 0 / 0.32), rgb(255 190 46 / 0.28));
+  text-decoration: underline;
+  text-decoration-color: light-dark(rgb(166 104 0 / 0.7), rgb(255 211 92 / 0.72));
+}
+
+[data-global-search-input]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}

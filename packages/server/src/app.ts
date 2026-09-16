@@ -47,6 +47,7 @@ import { registerProviderConnectionRoutes } from "./routes/provider-connection-r
 import { registerPetRoutes } from "./routes/pet-routes.js";
 import { registerRuntimeRoutes } from "./routes/runtime-routes.js";
 import { registerTaskRoutes } from "./routes/task-routes.js";
+import { registerSearchRoutes } from "./routes/search-routes.js";
 import { registerTurnRoutes } from "./routes/turn-routes.js";
 import { registerSubmissionRoutes } from "./routes/submission-routes.js";
 import { registerAsyncQuestionRoutes } from "./routes/async-question-routes.js";
@@ -458,6 +459,7 @@ export async function createCodexlyServer(
   await app.register(registerSkillMarketRoutes, routeContext);
   await app.register(registerScheduledTaskRoutes, routeContext);
   await app.register(registerTaskRoutes, routeContext);
+  await app.register(registerSearchRoutes, routeContext);
   await app.register(registerTurnRoutes, routeContext);
   await app.register(registerSubmissionRoutes, routeContext);
   await app.register(registerAsyncQuestionRoutes, routeContext);

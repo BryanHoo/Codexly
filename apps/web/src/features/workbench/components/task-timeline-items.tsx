@@ -73,6 +73,7 @@ import {
 const preservedUserMessageClassName = "whitespace-pre-wrap!";
 
 export function TimelineItemContent({
+  anchorId,
   commandOutput,
   isLastTurnItem,
   item,
@@ -83,6 +84,7 @@ export function TimelineItemContent({
   taskId,
   turnStatus,
 }: Readonly<{
+  anchorId?: string;
   commandOutput?: CommandOutputView;
   isLastTurnItem: boolean;
   item: AgentItem;
@@ -96,7 +98,11 @@ export function TimelineItemContent({
   switch (item.type) {
     case "message": {
       if (item.role === "assistant" && (item.questions?.length ?? 0) > 0) {
-        return <AsyncQuestionHistory item={item} />;
+        return (
+          <div data-conversation-anchor={anchorId}>
+            <AsyncQuestionHistory item={item} />
+          </div>
+        );
       }
       const attachments = item.attachments ?? [];
       const skills = item.role === "user" ? (item.skills ?? []) : [];
@@ -169,7 +175,7 @@ export function TimelineItemContent({
 
       if (item.role === "assistant") {
         return (
-          <MessageContent className="w-full">
+          <MessageContent className="w-full" data-conversation-anchor={anchorId}>
             <div className="flex min-w-0 w-full flex-col gap-2">
               {attachmentBody}
               {messageBody}

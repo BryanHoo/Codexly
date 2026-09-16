@@ -67,6 +67,7 @@ export function getUserMessageCopyText(item: Extract<AgentItem, { type: "message
 }
 
 export function StoredTimelineItemContentValue({
+  anchorId,
   isLastTurnItem,
   itemStore,
   onBuildPlan,
@@ -76,6 +77,7 @@ export function StoredTimelineItemContentValue({
   taskId,
   turnStatus,
 }: Readonly<{
+  anchorId: string;
   isLastTurnItem: boolean;
   itemStore: TaskItemStore;
   onBuildPlan?: BuildPlanAction;
@@ -91,6 +93,7 @@ export function StoredTimelineItemContentValue({
   const commandOutput = baseItem.type === "command" ? itemStore.readCommandOutput() : undefined;
   return (
     <TimelineItemContent
+      anchorId={anchorId}
       {...(commandOutput === undefined ? {} : { commandOutput })}
       isLastTurnItem={isLastTurnItem}
       item={item}
@@ -128,6 +131,7 @@ export function StoredTimelineItemContent({
   const itemStore = useStore(store, (state) => state.itemStoresByKey.get(itemKey));
   return itemStore === undefined ? null : (
     <StoredTimelineItemContentValue
+      anchorId={itemKey}
       isLastTurnItem={isLastTurnItem}
       itemStore={itemStore}
       {...(onBuildPlan === undefined ? {} : { onBuildPlan })}

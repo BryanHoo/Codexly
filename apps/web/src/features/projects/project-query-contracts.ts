@@ -4,6 +4,10 @@ import type { InfiniteData } from "@tanstack/react-query";
 import type { CompletedTasksCursor, CompletedTasksPage } from "@codexly/protocol";
 
 export type CodexlyReadClient = Pick<CodexlyClient, "listProjects" | "listTasks" | "readTask">;
+export type CodexlyGlobalSearchClient = Pick<
+  CodexlyClient,
+  "searchTasks" | "searchTaskOccurrences"
+>;
 export type CodexlyArchivedTaskClient = Pick<
   CodexlyClient,
   "deleteTask" | "deleteArchivedTasks" | "listTasks" | "unarchiveTask"
@@ -170,7 +174,8 @@ export type CodexlyWorkbenchClient = Pick<
   CodexlySkillMarketClient &
   CodexlySettingsClient &
   CodexlyScheduledTaskClient &
-  CodexlySourceFileClient;
+  CodexlySourceFileClient &
+  CodexlyGlobalSearchClient;
 export type CodexlySnapshotClient = Pick<CodexlyClient, "readTask">;
 
 export const PROJECT_TASK_PAGE_SIZE = 5;

@@ -2,6 +2,7 @@ import type { PendingRequest } from "@codexly/protocol";
 import { AlertTriangle, Info } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useStore } from "zustand";
+import type { HistoryAnchor } from "../../search/history-navigation.js";
 
 import { i18n } from "../../../i18n/i18n.js";
 
@@ -23,10 +24,8 @@ import type { BuildPlanAction, ForkTaskAction } from "./task-timeline-contracts.
 import { ChangedFilesCard } from "./task-timeline-file-changes.js";
 import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
 import { TaskTimelinePagination } from "./task-timeline-pagination.js";
-import {
-  TaskTimelineNavigation,
-  getTaskTimelineNavigationItems,
-} from "./task-timeline-navigation.js";
+import { getTaskTimelineNavigationItems } from "./task-timeline-navigation.js";
+import { TaskTimelineSearchNavigation } from "./task-timeline-search-navigation.js";
 import { RunningReplyStatus } from "./task-timeline-running.js";
 import { StoredAssistantTimelineItems } from "./task-timeline-store-operation-groups.js";
 import {
@@ -351,6 +350,7 @@ export function TaskStoreTimeline({
   store,
   submissionStartedAt,
   submissionTurnId,
+  searchTarget,
 }: Readonly<{
   connected: boolean;
   hasOlderHistory?: boolean;
@@ -371,6 +371,7 @@ export function TaskStoreTimeline({
   store: TaskStore;
   submissionStartedAt?: string;
   submissionTurnId?: string;
+  searchTarget?: HistoryAnchor;
 }>) {
   const projectId = store.getState().projectId;
   const taskId = store.getState().taskId;
@@ -462,13 +463,13 @@ export function TaskStoreTimeline({
         getItemKey={getTurnIdKey}
         items={turnIds}
         renderNavigation={(navigateToItem, scrollbarWidth, scrollContainerRef) => (
-          <TaskTimelineNavigation
+          <TaskTimelineSearchNavigation
             items={navigationItems}
+            navigateToItem={navigateToItem}
             scrollContainerRef={scrollContainerRef}
             scrollbarWidth={scrollbarWidth}
-            onNavigate={(item) => {
-              navigateToItem(item.turnIndex, item.anchorId);
-            }}
+            {...(searchTarget === undefined ? {} : { searchTarget })}
+            turnIds={turnIds}
           />
         )}
         renderItem={(turnId, turnIndex) => (
