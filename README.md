@@ -43,6 +43,7 @@
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access level for each task
 - Manage installed Skills, official Plugins, MCP servers, and compatible third-party Skills from ClawHub in one extension center
 - Organize ordered multi-root projects, archive project or temporary tasks, and permanently delete tasks when needed
+- Search tasks, conversation history, and project files globally, then jump to a matching message or preview a file
 - Inspect, preview, rename, and delete project files; review diffs; manage branches and worktrees; and commit or push changes
 - Fork a task from an AI response and continue it in a new Git worktree
 - Add animated workspace pets with separate task activity bubbles and custom PNG or WebP sprite manifests
