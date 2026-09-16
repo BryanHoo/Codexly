@@ -171,27 +171,44 @@ test("keeps icon button tooltips visible within clipping and viewport boundaries
 });
 
 test("searches tasks across projects", async ({ page }) => {
-  const catalogRequests: URL[] = [];
-  page.on("request", (request) => {
-    const url = new URL(request.url());
-    if (url.pathname.endsWith("/tasks/catalog")) catalogRequests.push(url);
+  const searchRequests: URL[] = [];
+  await page.route("**/v1/search/tasks?*", async (route) => {
+    const url = new URL(route.request().url());
+    searchRequests.push(url);
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        data: [
+          {
+            snippet: "",
+            task: {
+              id: "plan-check",
+              pinned: false,
+              projectId: "superwork",
+              title: "完善 Markdown 渲染",
+              updatedAt: "2026-07-26T07:00:00.000Z",
+            },
+          },
+        ],
+        nextCursor: null,
+      },
+    });
   });
   await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
-  await sidebar.getByRole("button", { name: "搜索任务" }).click();
-  await sidebar.getByRole("textbox", { name: "搜索任务" }).fill("Markdown");
+  await sidebar.getByRole("button", { name: "全局搜索" }).click();
+  const search = page.getByRole("dialog", { name: "全局搜索" });
+  await search.getByRole("button", { name: "任务", exact: true }).click();
+  await search.getByRole("combobox", { name: "全局搜索" }).fill("Markdown");
 
-  await expect(sidebar.getByRole("link", { name: /完善 Markdown 渲染/ })).toBeVisible();
-  await expect(sidebar.getByRole("link", { name: /构建 macOS 工作台/ })).not.toBeVisible();
-  // 搜索完整目录每个作用域只读取一次，浏览器不再追逐 Provider 分页。
-  expect(
-    catalogRequests.filter(
-      (url) =>
-        url.pathname === "/v1/projects/codexly/tasks/catalog" && !url.searchParams.has("pinned"),
-    ),
-  ).toHaveLength(1);
-  expect(catalogRequests.some((url) => url.pathname === "/v1/temporary/tasks/catalog")).toBe(true);
+  await expect(search.getByText("完善 Markdown 渲染", { exact: true })).toBeVisible();
+  await expect(search.getByText("构建 macOS 工作台", { exact: true })).not.toBeVisible();
+  expect(searchRequests).toHaveLength(1);
+  expect(searchRequests[0]?.pathname).toBe("/v1/search/tasks");
+  expect(searchRequests[0]?.searchParams.get("kind")).toBe("tasks");
+  expect(searchRequests[0]?.searchParams.get("query")).toBe("Markdown");
+  expect(searchRequests[0]?.searchParams.get("archived")).toBe("false");
 });
 
 test("opens and reuses project new chats without creating empty Codex tasks", async ({ page }) => {

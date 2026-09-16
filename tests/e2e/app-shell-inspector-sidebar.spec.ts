@@ -123,8 +123,8 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const newAgent = sidebar.getByRole("link", { name: "新建任务" });
   const extensionCenter = sidebar.getByRole("link", { name: "扩展中心" });
-  const searchButton = sidebar.getByRole("button", { name: "搜索任务" });
-  const search = sidebar.getByRole("textbox", { name: "搜索任务" });
+  const searchButton = sidebar.getByRole("button", { name: "全局搜索" });
+  const search = page.getByRole("combobox", { name: "全局搜索" });
   const productBrand = sidebar.getByText("Codexly", { exact: true }).first();
   await expect(productBrand).toBeVisible();
   await expect(searchButton).toBeVisible();
@@ -132,6 +132,7 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
   await expect(sidebar.getByRole("button", { name: "添加项目" })).toBeVisible();
 
   await searchButton.click();
+  await expect(page.getByRole("dialog", { name: "全局搜索" })).toBeVisible();
   await expect(search).toBeVisible();
   await expect(search).toBeFocused();
   await search.fill("Protocol");
@@ -212,6 +213,9 @@ test("preserves the original sidebar control typography and dimensions", async (
   await expect
     .poll(() => readControlStyle(sidebar.getByRole("button", { name: "添加项目" })))
     .toMatchObject({ display: "grid", height: "28px", width: "28px" });
+  await expect
+    .poll(() => readControlStyle(sidebar.getByRole("button", { name: "全局搜索" })))
+    .toMatchObject({ display: "grid", height: "28px", width: "28px" });
   const addProjectIcon = sidebar.getByRole("button", { name: "添加项目" }).locator("svg");
   const addTaskIcon = sidebar.getByRole("button", { name: "在 Codexly 中新建任务" }).locator("svg");
   const temporaryAddTask = sidebar
@@ -238,8 +242,6 @@ test("preserves the original sidebar control typography and dimensions", async (
         (projectAddTaskBox.x + projectAddTaskBox.width),
     ),
   ).toBeLessThanOrEqual(1);
-  await sidebar.getByRole("button", { name: "搜索任务" }).click();
-  await expect(sidebar.getByRole("textbox", { name: "搜索任务" })).toHaveCSS("height", "32px");
 });
 
 test("uses the brand logo across the sidebar and favicon", async ({ page }) => {

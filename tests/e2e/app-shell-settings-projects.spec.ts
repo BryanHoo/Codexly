@@ -250,7 +250,7 @@ test("aligns the center toolbar with sidebar controls and inspector tabs", async
   const rightTab = page
     .getByRole("complementary", { name: "运行环境" })
     .getByRole("tab", { name: "项目" });
-  const search = page.getByRole("button", { name: "搜索任务" });
+  const search = page.getByRole("button", { name: "全局搜索" });
   const [mainHeaderBox, leftTitleBox, centerTitleBox, rightTabBox, searchBox] = await Promise.all([
     mainHeader.boundingBox(),
     leftTitle.boundingBox(),
