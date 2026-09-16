@@ -1,7 +1,7 @@
 const MIRROR_REGISTRY = "https://registry.npmmirror.com";
 const OFFICIAL_REGISTRY = "https://registry.npmjs.org";
 
-export type RunNpmOptions = Readonly<{ signal?: AbortSignal }>;
+export type RunNpmOptions = Readonly<{ elevated?: boolean; signal?: AbortSignal }>;
 type RunNpm = (args: readonly string[], options?: RunNpmOptions) => Promise<string>;
 
 export async function withRegistryFallback<T>(

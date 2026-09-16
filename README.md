@@ -116,6 +116,8 @@ Interactive startup and **Settings > About** check for new releases. Built-in up
 npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
 ```
 
+If an older Linux release was installed into a system directory with `sudo npm install --global`, manually run the command above with `sudo` once to reach a release that supports elevated updates. Later built-in updates request `sudo` access when needed.
+
 ## Help
 
 - [Report an issue](https://github.com/BryanHoo/Codexly/issues)

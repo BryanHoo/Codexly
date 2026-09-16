@@ -1,9 +1,14 @@
-import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, parse, resolve, win32 } from "node:path";
+import { basename, dirname, join, parse, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  requiresElevatedNpmInstall,
+  resolveNpmCommandInvocation,
+  runNpmCommand,
+  type NpmCommandInvocation,
+} from "./app-update-command.js";
 import {
   runNpmWithRegistryFallback,
   withRegistryFallback,
@@ -22,7 +27,6 @@ const INITIAL_APP_VERSION = "0.1.0";
 const CHANGELOG_URL_PREFIX = "https://raw.githubusercontent.com/BryanHoo/Codexly/v";
 const REGISTRY_TIMEOUT_MS = 10_000;
 const MAX_RELEASE_NOTES_BYTES = 32 * 1024;
-const INSTALL_TIMEOUT_MS = 2 * 60_000;
 const SEMANTIC_VERSION_PATTERN =
   /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:(?:0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:(?:0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 
@@ -63,14 +67,10 @@ type ParsedVersion = Readonly<{
   prerelease: readonly string[];
 }>;
 
-type NpmInstallInvocation = Readonly<{
-  args: readonly string[];
-  command: string;
-}>;
-
 export interface SafeGlobalInstallOptions {
   currentPackageRoot?: string;
   onProgress?: (progress: AppUpdateProgress) => void;
+  requiresElevation?: (currentPackageRoot: string) => Promise<boolean>;
   runNpm?: (args: readonly string[], options?: RunNpmOptions) => Promise<string>;
 }
 
@@ -138,30 +138,15 @@ export function resolveNpmInstallInvocation(
   version: string,
   platform: NodeJS.Platform = process.platform,
   execPath = process.execPath,
-): NpmInstallInvocation {
+  elevated = false,
+): NpmCommandInvocation {
   const packageSpec = `${PACKAGE_NAME}@${version}`;
-  return resolveNpmCommandInvocation(["install", "--global", packageSpec], platform, execPath);
-}
-
-function resolveNpmCommandInvocation(
-  args: readonly string[],
-  platform: NodeJS.Platform = process.platform,
-  execPath = process.execPath,
-): NpmInstallInvocation {
-  if (platform !== "win32") {
-    return { args, command: "npm" };
-  }
-  const npmCliPath = win32.join(
-    win32.dirname(execPath),
-    "node_modules",
-    "npm",
-    "bin",
-    "npm-cli.js",
+  return resolveNpmCommandInvocation(
+    ["install", "--global", packageSpec],
+    platform,
+    execPath,
+    elevated,
   );
-  return {
-    args: [npmCliPath, ...args],
-    command: execPath,
-  };
 }
 
 export function isNewerVersion(candidate: string, current: string): boolean {
@@ -215,30 +200,6 @@ async function fetchTaggedChangelog(version: string): Promise<string> {
   });
   if (!response.ok) throw new Error(`GitHub returned ${String(response.status)}`);
   return response.text();
-}
-
-async function runNpmCommand(
-  args: readonly string[],
-  options: RunNpmOptions = {},
-): Promise<string> {
-  const invocation = resolveNpmCommandInvocation(args);
-  return new Promise<string>((resolveCommand, reject) => {
-    // Windows 直接交给 node.exe 执行 npm CLI，所有平台都不经过 shell。
-    execFile(
-      invocation.command,
-      invocation.args,
-      {
-        shell: false,
-        signal: options.signal,
-        timeout: INSTALL_TIMEOUT_MS,
-        windowsHide: true,
-      },
-      (error, stdout) => {
-        if (error === null) resolveCommand(stdout);
-        else reject(new Error("npm install failed", { cause: error }));
-      },
-    );
-  });
 }
 
 async function findCurrentPackageRoot(): Promise<string> {
@@ -305,12 +266,14 @@ export async function installGlobalPackageSafely(
     controller.abort(new Error("Codexly update interrupted"));
   };
   let backupArchive: string | undefined;
+  let elevated = false;
   let replacementStarted = false;
   process.once("SIGINT", abort);
   process.once("SIGTERM", abort);
 
   try {
     const currentPackageRoot = options.currentPackageRoot ?? (await findCurrentPackageRoot());
+    elevated = await (options.requiresElevation ?? requiresElevatedNpmInstall)(currentPackageRoot);
     // 先备份旧包并下载新包；依赖仍在后续安装阶段由 npm 获取或复用缓存。
     options.onProgress?.({ percent: 10, phase: "backing-up" });
     backupArchive = await packPackage(
@@ -329,13 +292,16 @@ export async function installGlobalPackageSafely(
     if (controller.signal.aborted) throw controller.signal.reason;
     options.onProgress?.({ percent: 80, phase: "installing" });
     replacementStarted = true;
-    await runRemoteNpm(["install", "--global", updateArchive], { signal: controller.signal });
+    await runRemoteNpm(["install", "--global", updateArchive], {
+      elevated,
+      signal: controller.signal,
+    });
   } catch (error) {
     if (replacementStarted && backupArchive !== undefined) {
       try {
         // 回滚使用本地旧包并优先复用缓存；缺失的依赖仍需从可用源补齐。
         options.onProgress?.({ percent: 90, phase: "rolling-back" });
-        await runRemoteNpm(["install", "--global", backupArchive]);
+        await runRemoteNpm(["install", "--global", backupArchive], { elevated });
       } catch (rollbackError) {
         const updateMessage = error instanceof Error ? error.message : String(error);
         const rollbackMessage =

@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createAppUpdateService, installGlobalPackageSafely } from "./app-update.js";
+import {
+  createAppUpdateService,
+  installGlobalPackageSafely,
+  resolveNpmInstallInvocation,
+  type SafeGlobalInstallOptions,
+} from "./app-update.js";
+import type { RunNpmOptions } from "./npm-registry.js";
 
 const mirror = "https://registry.npmmirror.com";
 const official = "https://registry.npmjs.org";
@@ -96,5 +102,45 @@ describe("app update registry selection", () => {
     ).rejects.toThrow();
     expect(runNpm).toHaveBeenCalledTimes(2);
     expect(runNpm.mock.calls.some(([args]) => args[0] === "install")).toBe(false);
+  });
+
+  it("runs npm through sudo for an elevated Linux installation", () => {
+    expect(resolveNpmInstallInvocation("1.4.0", "linux", "/usr/bin/node", true)).toEqual({
+      args: ["--", "npm", "install", "--global", "@bryanhu/codexly@1.4.0"],
+      command: "sudo",
+    });
+  });
+
+  it("elevates replacement and rollback when the global package directory is not writable", async () => {
+    const invocations: { args: readonly string[]; elevated: boolean }[] = [];
+    let installAttempts = 0;
+    const runNpm = vi.fn((args: readonly string[], options?: RunNpmOptions) => {
+      invocations.push({
+        args,
+        elevated: options?.elevated === true,
+      });
+      if (args[0] === "install" && ++installAttempts <= 2) {
+        return Promise.reject(new Error("replacement failed"));
+      }
+      return Promise.resolve(
+        args[0] === "pack" ? JSON.stringify([{ filename: "codexly.tgz" }]) : "",
+      );
+    });
+    const options: SafeGlobalInstallOptions = {
+      currentPackageRoot: "/usr/lib/node_modules/@bryanhu/codexly",
+      requiresElevation: () => Promise.resolve(true),
+      runNpm,
+    };
+
+    await expect(installGlobalPackageSafely("1.4.0", options)).rejects.toThrow(
+      "replacement failed",
+    );
+
+    const installs = invocations.filter(({ args }) => args[0] === "install");
+    expect(installs).toHaveLength(3);
+    expect(installs.every(({ elevated }) => elevated)).toBe(true);
+    expect(
+      invocations.filter(({ args }) => args[0] === "pack").every(({ elevated }) => !elevated),
+    ).toBe(true);
   });
 });

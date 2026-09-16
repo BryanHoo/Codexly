@@ -86,6 +86,8 @@ codexly start --lan
 npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
 ```
 
+如果 Linux 上的旧版本通过 `sudo npm install --global` 安装到系统目录，首次升级到支持提权更新的版本时需要手动执行一次上述命令并在前面加上 `sudo`。后续内置更新会在需要时请求 `sudo` 权限。
+
 ## 获取帮助
 
 - [问题反馈](https://github.com/BryanHoo/Codexly/issues)
