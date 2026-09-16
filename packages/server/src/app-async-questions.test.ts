@@ -42,39 +42,44 @@ describe("async question API", () => {
     harness.readTask.mockResolvedValue(source);
     return { ...harness, repository, root };
   }
-  it("answers with one server-side steer and replays the accepted response after restart", async () => {
-    const first = await setup();
-    const listed = await first.app.inject({ method: "GET", url });
-    expect(listed.statusCode, listed.body).toBe(200);
-    const id = questionId(listed);
-    const request = {
-      method: "POST" as const,
-      url: `${url}/${id}/answer`,
-      headers: { "idempotency-key": "answer" },
-      payload: { answers: ["整个项目"] },
-    };
-    const results = await Promise.all([first.app.inject(request), first.app.inject(request)]);
-    expect(results[0].statusCode, results[0].body).toBe(200);
-    expect(results[0].json()).toMatchObject({ questions: { data: [] } });
-    expect(first.steerTurn).toHaveBeenCalledOnce();
-    expect(first.steerTurn).toHaveBeenCalledWith("task-1", expect.any(String), {
-      text: "范围\n整个项目",
-      skills: [],
-      images: [],
-      files: [],
-      textAttachments: [],
-    });
-    expect(first.startTurn).not.toHaveBeenCalled();
-    await first.app.close();
-    await first.repository.close();
-    const second = await createHarness({
-      asyncQuestionRepository: await openRepository(first.root),
-    });
-    second.readTask.mockResolvedValue(source);
-    expect((await second.app.inject(request)).json()).toEqual(results[0].json());
-    expect(second.steerTurn).not.toHaveBeenCalled();
-    expect((await second.app.inject({ method: "GET", url })).json()).toEqual({ data: [] });
-  });
+  // 重启用例会创建两套真实服务与 SQLite Worker，为 Windows CI 的启动与磁盘 I/O 留出预算。
+  it(
+    "answers with one server-side steer and replays the accepted response after restart",
+    { timeout: 15_000 },
+    async () => {
+      const first = await setup();
+      const listed = await first.app.inject({ method: "GET", url });
+      expect(listed.statusCode, listed.body).toBe(200);
+      const id = questionId(listed);
+      const request = {
+        method: "POST" as const,
+        url: `${url}/${id}/answer`,
+        headers: { "idempotency-key": "answer" },
+        payload: { answers: ["整个项目"] },
+      };
+      const results = await Promise.all([first.app.inject(request), first.app.inject(request)]);
+      expect(results[0].statusCode, results[0].body).toBe(200);
+      expect(results[0].json()).toMatchObject({ questions: { data: [] } });
+      expect(first.steerTurn).toHaveBeenCalledOnce();
+      expect(first.steerTurn).toHaveBeenCalledWith("task-1", expect.any(String), {
+        text: "范围\n整个项目",
+        skills: [],
+        images: [],
+        files: [],
+        textAttachments: [],
+      });
+      expect(first.startTurn).not.toHaveBeenCalled();
+      await first.app.close();
+      await first.repository.close();
+      const second = await createHarness({
+        asyncQuestionRepository: await openRepository(first.root),
+      });
+      second.readTask.mockResolvedValue(source);
+      expect((await second.app.inject(request)).json()).toEqual(results[0].json());
+      expect(second.steerTurn).not.toHaveBeenCalled();
+      expect((await second.app.inject({ method: "GET", url })).json()).toEqual({ data: [] });
+    },
+  );
   it("starts an idle task using persisted settings and rejects incomplete answers", async () => {
     const { app, readTask, startTurn, steerTurn, readTaskSettings } = await setup();
     readTaskSettings.mockResolvedValue(turnOptions);
