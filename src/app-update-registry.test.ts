@@ -56,7 +56,7 @@ describe("app update registry selection", () => {
   );
 
   it.each(["pack", "install"])(
-    "retries failed remote %s with the official registry and shares npm cache",
+    "retries failed remote %s with the official registry and revalidates stale cache metadata",
     async (failedCommand) => {
       const runNpm = vi.fn((args: readonly string[]) => {
         const isRemote = args[0] === "install" || args.at(-1)?.startsWith("@bryanhu/");
@@ -77,7 +77,8 @@ describe("app update registry selection", () => {
       expect(commands[0]).not.toContain(`--registry=${mirror}`);
       const remote = commands.slice(1);
       for (const args of remote) {
-        expect(args).toContain("--prefer-offline");
+        expect(args).not.toContain("--prefer-offline");
+        expect(args).not.toContain("--prefer-online=false");
         expect(args.some((arg) => arg.startsWith("--cache"))).toBe(false);
       }
       expect(
