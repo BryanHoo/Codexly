@@ -1,7 +1,7 @@
 import type { Dirent } from "node:fs";
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 
 import type { ProjectDirectoryListing } from "@codexly/protocol";
 
@@ -25,7 +25,38 @@ type ProjectDirectoryBrowserOptions = Readonly<{
   filesystemRoots?: typeof listFilesystemRoots;
   homePath?: string;
   includeHidden?: boolean;
+  workspaceRoots?: readonly string[];
 }>;
+
+function isWithinRoot(root: string, path: string): boolean {
+  const relativePath = relative(root, path);
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith(`..${sep}`) && relativePath !== ".." && !isAbsolute(relativePath))
+  );
+}
+
+async function normalizeWorkspaceRoots(roots: readonly string[] | undefined): Promise<string[]> {
+  if (roots === undefined) return [];
+  return Promise.all(
+    roots.map(async (root) => {
+      if (!isAbsolute(root)) {
+        throw new ProjectDirectoryBrowserError(
+          "Workspace root path must be absolute",
+          "invalid-directory",
+        );
+      }
+      const normalizedRoot = await realpath(root);
+      if (!(await lstat(normalizedRoot)).isDirectory()) {
+        throw new ProjectDirectoryBrowserError(
+          "Workspace root path must identify a directory",
+          "invalid-directory",
+        );
+      }
+      return normalizedRoot;
+    }),
+  );
+}
 
 function toDirectoryError(error: unknown): ProjectDirectoryBrowserError {
   const code = (error as NodeJS.ErrnoException).code;
@@ -48,7 +79,14 @@ export async function resolveProjectDirectory(
   requestedPath?: string,
   options: ProjectDirectoryBrowserOptions = {},
 ): Promise<string> {
-  const path = requestedPath ?? options.homePath ?? homedir();
+  let workspaceRoots: string[];
+  try {
+    workspaceRoots = await normalizeWorkspaceRoots(options.workspaceRoots);
+  } catch (error) {
+    if (error instanceof ProjectDirectoryBrowserError) throw error;
+    throw toDirectoryError(error);
+  }
+  const path = requestedPath ?? workspaceRoots[0] ?? options.homePath ?? homedir();
   if (!isAbsolute(path)) {
     throw new ProjectDirectoryBrowserError(
       "Project directory path must be absolute",
@@ -61,6 +99,15 @@ export async function resolveProjectDirectory(
     if (!(await lstat(normalizedPath)).isDirectory()) {
       throw new ProjectDirectoryBrowserError(
         "Project directory path must identify a directory",
+        "invalid-directory",
+      );
+    }
+    if (
+      workspaceRoots.length > 0 &&
+      !workspaceRoots.some((root) => isWithinRoot(root, normalizedPath))
+    ) {
+      throw new ProjectDirectoryBrowserError(
+        "Project directory is outside the configured workspace roots",
         "invalid-directory",
       );
     }
@@ -77,10 +124,14 @@ export async function readProjectDirectory(
   requestedPath?: string,
   options: ProjectDirectoryBrowserOptions = {},
 ): Promise<ProjectDirectoryListing> {
-  const [path, roots] = await Promise.all([
+  const [path, workspaceRoots] = await Promise.all([
     resolveProjectDirectory(requestedPath, options),
-    (options.filesystemRoots ?? listFilesystemRoots)(),
+    normalizeWorkspaceRoots(options.workspaceRoots),
   ]);
+  const roots =
+    workspaceRoots.length > 0
+      ? workspaceRoots.map((root) => ({ name: basename(root), path: root }))
+      : await (options.filesystemRoots ?? listFilesystemRoots)();
   let entries: ProjectDirectoryListing["entries"];
   try {
     const children: Dirent[] = await readdir(path, { withFileTypes: true });
@@ -100,7 +151,8 @@ export async function readProjectDirectory(
   const parentPath = dirname(path);
   return {
     entries,
-    parentPath: parentPath === path ? null : parentPath,
+    parentPath:
+      parentPath === path || workspaceRoots.some((root) => root === path) ? null : parentPath,
     path,
     roots,
   };

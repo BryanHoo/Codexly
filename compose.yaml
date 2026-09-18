@@ -1,0 +1,21 @@
+services:
+  codexly:
+    image: ghcr.io/bryanhoo/codexly:${CODEXLY_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CODEXLY_PORT:-3210}:${CODEXLY_PORT:-3210}"
+    command: ["start", "--lan"]
+    environment:
+      CODEXLY_ALLOWED_HOSTS: ${CODEXLY_ALLOWED_HOSTS:-}
+      CODEXLY_LAN_PASSWORD: ${CODEXLY_LAN_PASSWORD:-}
+      CODEXLY_PORT: ${CODEXLY_PORT:-3210}
+      CODEXLY_SESSION_TTL: ${CODEXLY_SESSION_TTL:-}
+      CODEXLY_WORKSPACE: /workspace
+    volumes:
+      - ${CODEXLY_CODEX_HOME:-codexly-data}:/home/node/.codex
+      # 默认挂载宿主根目录；设置 CODEXLY_WORKSPACE 后仅暴露指定目录。
+      - ${CODEXLY_WORKSPACE:-/}:/workspace
+    stop_grace_period: 30s
+
+volumes:
+  codexly-data:

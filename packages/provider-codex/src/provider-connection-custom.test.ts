@@ -284,6 +284,16 @@ describe("Codex custom provider connection", () => {
       method: "modelProvider/capabilities/read",
       params: {},
     });
+    const capabilityIndex = client.requests.findIndex(
+      (request) => request.method === "modelProvider/capabilities/read",
+    );
+    const logoutIndex = client.requests.findIndex((request) => request.method === "account/logout");
+    const loginIndex = client.requests.findIndex(
+      (request) => request.method === "account/login/start",
+    );
+    expect(capabilityIndex).toBeGreaterThanOrEqual(0);
+    expect(logoutIndex).toBeGreaterThan(capabilityIndex);
+    expect(loginIndex).toBeGreaterThan(logoutIndex);
   });
 
   it("uses manually configured models when the custom model endpoint is unavailable", async () => {

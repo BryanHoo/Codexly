@@ -95,6 +95,35 @@ describe("runCli LAN", () => {
     await expect(run).resolves.toBe(0);
   });
 
+  it("loads container settings from environment and lets CLI options override them", async () => {
+    vi.stubEnv("CODEXLY_ALLOWED_HOSTS", "Code.Example.com,admin.example.com");
+    vi.stubEnv("CODEXLY_LAN_PASSWORD", "Strong-Env_Pass9!");
+    vi.stubEnv("CODEXLY_PORT", "4321");
+    vi.stubEnv("CODEXLY_SESSION_TTL", "12h");
+    vi.stubEnv("CODEXLY_WORKSPACE", "/workspace");
+    const harness = createHarness();
+    const controller = new AbortController();
+    const run = runCli(["start", "--lan", "--port", "4567"], {
+      ...harness.options,
+      signal: controller.signal,
+    });
+
+    await vi.waitFor(() => {
+      expect(harness.serverListen).toHaveBeenCalledOnce();
+    });
+    expect(harness.serverListen).toHaveBeenCalledWith({ host: "0.0.0.0", port: 4567 });
+    expect(harness.dependencies.createServer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        access: { pairingCode: "Strong-Env_Pass9!", sessionTtlMs: 43_200_000 },
+        allowedHosts: ["code.example.com", "admin.example.com"],
+        workspaceRoots: ["/workspace"],
+      }),
+    );
+
+    controller.abort();
+    await expect(run).resolves.toBe(0);
+  });
+
   it("rejects invalid LAN options before starting runtime resources", async () => {
     for (const args of [
       ["start", "--session-ttl", "12h"],

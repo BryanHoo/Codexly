@@ -1,6 +1,6 @@
 # 发布 Codexly
 
-仓库只发布根包 `@bryanhu/codexly`；内部 Workspace 包保持私有。推送版本标签后，GitHub Actions 自动发布 npm 包并创建 GitHub Release。
+仓库只发布根包 `@bryanhu/codexly`；内部 Workspace 包保持私有。推送版本标签后，GitHub Actions 自动发布 npm 包、GHCR 多架构镜像并创建 GitHub Release。
 
 ## 首次配置
 
@@ -36,14 +36,15 @@ git push origin main
 git push origin "v${RELEASE_VERSION}"
 ```
 
-工作流先将标签解析为不可变提交，在 Linux、Windows 上构建并运行 Chromium、Firefox、WebKit E2E；发布 Job 必须等待全部 E2E 成功，并检出同一提交、再次验证标签归属。随后执行质量门禁，通过 `pnpm pack` 转换 `catalog:` 与 `workspace:` 协议，再使用 npm CLI 发布 tarball。npm 发布成功后才创建 GitHub Release。
+工作流先将标签解析为不可变提交，在 Linux、Windows 上构建并运行 Chromium、Firefox、WebKit E2E；发布 Job 必须等待全部 E2E 成功，并检出同一提交、再次验证标签归属。随后执行质量门禁，通过 `pnpm pack` 转换 `catalog:` 与 `workspace:` 协议，再使用 npm CLI 发布 tarball。npm 发布成功后，构建并推送 `linux/amd64`、`linux/arm64` 镜像及 SBOM、provenance，最后创建 GitHub Release。
 
 ## 失败恢复
 
 - 已推送标签的工作流失败：手动运行 `Release` workflow，并将 `tag` 设置为原标签。
 - npm 已发布但 GitHub Release 失败：重跑失败 Job；工作流会跳过已存在的 npm 版本。
+- npm 已发布但 GHCR 镜像失败：重跑失败 Job；npm Job 会检测并跳过已发布版本。
 - `ENEEDAUTH` 或 OIDC 失败：检查 Trusted Publisher、`release.yml`、`npm` Environment 和 `id-token: write` 是否一致。
 - `EUNSUPPORTEDPROTOCOL`：确认发布对象来自 `pnpm pack`，并检查 `pnpm run package:check`。
 - 版本或标签错误：未发布时修正；版本已发布后必须提升版本号并创建新标签。
 
-发布结果以 [npm](https://www.npmjs.com/package/@bryanhu/codexly) 和 [GitHub Releases](https://github.com/BryanHoo/Codexly/releases) 为准。
+发布结果以 [npm](https://www.npmjs.com/package/@bryanhu/codexly)、[GHCR](https://github.com/BryanHoo/Codexly/pkgs/container/codexly) 和 [GitHub Releases](https://github.com/BryanHoo/Codexly/releases) 为准。

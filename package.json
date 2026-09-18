@@ -48,6 +48,8 @@
     "codex:schema:check": "node ./tools/verify-codex-schema.mjs",
     "codex:schema:update": "node ./tools/verify-codex-schema.mjs --update",
     "dev": "pnpm --filter @codexly/web dev",
+    "docker:build": "docker build --tag codexly:local .",
+    "docker:test": "node ./tools/test-docker-image.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "oxlint . --max-warnings 0 --report-unused-disable-directives",

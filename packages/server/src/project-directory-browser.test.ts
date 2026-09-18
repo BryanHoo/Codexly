@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -25,6 +25,38 @@ async function createTemporaryDirectory() {
 }
 
 describe("project directory browser", () => {
+  it("restricts browsing and selection to configured workspace roots", async () => {
+    const workspace = await createTemporaryDirectory();
+    const childPath = join(workspace, "project");
+    const outside = await createTemporaryDirectory();
+    await mkdir(childPath);
+
+    await expect(
+      readProjectDirectory(undefined, { workspaceRoots: [workspace] }),
+    ).resolves.toMatchObject({
+      parentPath: null,
+      path: await realpath(workspace),
+      roots: [{ name: basename(workspace), path: await realpath(workspace) }],
+    });
+    await expect(resolveProjectDirectory(childPath, { workspaceRoots: [workspace] })).resolves.toBe(
+      await realpath(childPath),
+    );
+    await expect(
+      resolveProjectDirectory(outside, { workspaceRoots: [workspace] }),
+    ).rejects.toMatchObject({ reason: "invalid-directory" });
+  });
+
+  it("rejects a workspace symlink that resolves outside the configured root", async () => {
+    const workspace = await createTemporaryDirectory();
+    const outside = await createTemporaryDirectory();
+    const linkPath = join(workspace, "outside-link");
+    await symlink(outside, linkPath, process.platform === "win32" ? "junction" : "dir");
+
+    await expect(
+      resolveProjectDirectory(linkPath, { workspaceRoots: [workspace] }),
+    ).rejects.toMatchObject({ reason: "invalid-directory" });
+  });
+
   it("starts from the provided home directory and lists only direct real directories", async () => {
     const homePath = await createTemporaryDirectory();
     const outsidePath = await createTemporaryDirectory();

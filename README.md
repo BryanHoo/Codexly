@@ -80,6 +80,40 @@ codexly
 
 The installation command tries the China mirror first, falls back to the official registry on failure, and reuses the npm cache. `||` works in Bash, Zsh, cmd, and PowerShell 7+. In Windows PowerShell 5.1, run the command to the right of `||` separately if the first command fails.
 
+## Docker
+
+Download the user-facing Compose file and start the published image:
+
+```bash
+mkdir codexly && cd codexly
+curl -fsSLO https://raw.githubusercontent.com/BryanHoo/Codexly/main/compose.yaml
+curl -fsSLo .env.example https://raw.githubusercontent.com/BryanHoo/Codexly/main/.env.example
+cp .env.example .env
+docker compose pull
+docker compose up --detach
+docker compose logs --tail=50 codexly
+```
+
+Open `http://127.0.0.1:3210` and use the random pairing code printed in the logs. The default named volume preserves Codex login data and Codexly's SQLite state. On Linux and macOS, the Compose file mounts the host root at `/workspace`, so every mounted disk is available to the project picker. Set `CODEXLY_WORKSPACE` to expose only one directory:
+
+```bash
+CODEXLY_WORKSPACE=/path/to/projects docker compose up --detach
+```
+
+Docker can only access host paths shared with the Docker engine. On Windows, set `CODEXLY_WORKSPACE` to a shared drive such as `C:/`; add extra bind mounts and repeat `--workspace` in `command` when multiple drives are required.
+
+| Variable                | Purpose                                                              |
+| ----------------------- | -------------------------------------------------------------------- |
+| `CODEXLY_VERSION`       | Select the GHCR image tag; defaults to `latest`                      |
+| `CODEXLY_PORT`          | Set both the host and container port; defaults to `3210`             |
+| `CODEXLY_WORKSPACE`     | Restrict the host directory mounted at `/workspace`; defaults to `/` |
+| `CODEXLY_CODEX_HOME`    | Bind a host Codex home instead of the managed `codexly-data` volume  |
+| `CODEXLY_LAN_PASSWORD`  | Set a strong fixed access password instead of the logged random code |
+| `CODEXLY_ALLOWED_HOSTS` | Allow comma-separated exact reverse proxy domains                    |
+| `CODEXLY_SESSION_TTL`   | Set a fixed session lifetime such as `12h`                           |
+
+The image entrypoint accepts all normal CLI arguments, so orchestration platforms can replace `command` when needed. See the [complete Docker Compose deployment guide](docs/docker-deployment.md) for workspace, multiple-disk, Codex Home, update, backup, and troubleshooting instructions. Run `pnpm docker:build && pnpm docker:test` in a development checkout to build and smoke-test the local image.
+
 ## Usage
 
 Select **New task** for work that does not need a project. For repository work, add one or more host directories as ordered project roots, create a task, and submit your request with any required files, images, project references, or Skills. Archived tasks can be restored or permanently deleted from the project task list.
@@ -104,6 +138,7 @@ The terminal prints the LAN address and a random access password. Common options
 | `--lan-password <password>` | Set a 16-128 character password containing uppercase, lowercase, number, and symbol        |
 | `--allowed-host <domain>`   | Allow an exact reverse proxy domain; repeat the option for multiple domains                |
 | `--session-ttl <duration>`  | Set a fixed LAN session lifetime such as `12h`; omitted sessions last until server restart |
+| `--workspace <path>`        | Restrict project selection to this absolute root; repeat for multiple roots                |
 
 Quote passwords containing shell-special characters. LAN mode uses unencrypted HTTP, so use it only on a trusted network and never expose it directly to the internet. Restarting Codexly invalidates the password and all sessions.
 

@@ -140,6 +140,15 @@ export async function createCodexlyServer(
   const readImageFile = options.readProjectImageFile ?? readProjectImageFile;
   const readSourceFile = options.readProjectSourceFile ?? readProjectSourceFile;
   const projectOpenService = options.projectOpenService ?? createProjectOpenService();
+  const workspaceBrowserOptions =
+    options.workspaceRoots === undefined ? {} : { workspaceRoots: options.workspaceRoots };
+  const browseProjectDirectory =
+    options.readProjectDirectory ??
+    ((path, browserOptions) =>
+      readProjectDirectory(path, { ...browserOptions, ...workspaceBrowserOptions }));
+  const selectProjectDirectory =
+    options.resolveProjectDirectory ??
+    ((path) => resolveProjectDirectory(path, workspaceBrowserOptions));
   const skillMarketService =
     options.skillMarketService ??
     createSkillMarketService({
@@ -417,7 +426,7 @@ export async function createCodexlyServer(
     searchProjectFiles,
     stopProjectFileSearch,
     readHostFileDirectory: options.readHostFileDirectory ?? readHostFileDirectory,
-    readProjectDirectory: options.readProjectDirectory ?? readProjectDirectory,
+    readProjectDirectory: browseProjectDirectory,
     readImageFile,
     readInheritedTaskSettings,
     readProjectGitHistory: options.readProjectGitHistory ?? readProjectGitHistory,
@@ -430,7 +439,7 @@ export async function createCodexlyServer(
     releaseProjectContext,
     resolveProviderTurnInput,
     runIdempotent: idempotencyRunner.run,
-    resolveProjectDirectory: options.resolveProjectDirectory ?? resolveProjectDirectory,
+    resolveProjectDirectory: selectProjectDirectory,
     resolveHostAttachment: options.resolveHostAttachment ?? resolveHostAttachment,
     readScheduledTaskAttachment: async (projectId, attachmentId) =>
       scheduledTaskAttachmentManager === undefined

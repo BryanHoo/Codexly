@@ -316,6 +316,8 @@ export class CodexProviderConnectionService {
       // 0.154.0 只能校验当前 Provider；失败时必须补偿恢复刚才的原子配置写入。
       readProviderCapabilities(await this.#client.request("modelProvider/capabilities/read", {}));
       if (apiKey !== undefined) {
+        // 先结束旧认证会话，确保 App Server 丢弃已缓存的 ChatGPT 请求客户端。
+        await this.#client.request("account/logout");
         const loginResponse = await this.#client.request("account/login/start", {
           apiKey,
           type: "apiKey",

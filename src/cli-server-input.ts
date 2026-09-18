@@ -36,4 +36,5 @@ export interface CreateServerInput {
   settingsRepository: AgentSettingsRepository;
   staticRoot: string;
   standaloneCwd: string;
+  workspaceRoots?: readonly string[];
 }

@@ -3,8 +3,10 @@
 ## 规则
 
 - CLI 在根目录 `src` 完成配置解析和运行时装配，包内模块不读取 CLI 隐式状态。
+- 配置 `--workspace` 或 `CODEXLY_WORKSPACE` 后，项目目录浏览和注册必须在 `realpath` 解析后限制于配置根目录内，符号链接不得逃逸；未配置时保留宿主文件系统浏览范围。
 - CLI 在打开业务数据库和启动 Codex 前，使用独立 Worker 持有同数据目录的 SQLite 独占实例锁；锁不随业务 Worker 重建，锁失效必须停止运行，所有退出路径最终释放锁。数据库文件保留不表示仍被占用，不使用 PID 文件猜测崩溃状态。
 - Codex App Server 子进程、WebSocket、HTTP Server 和 Worker 都必须在失败、取消和正常退出时释放。
+- 自定义 Provider 使用 API Key 时，先校验 Provider 能力，再通过 `account/logout` 清除 App Server 的旧认证缓存，最后以 `account/login/start` 建立 API Key 会话；切换后无需重启进程即可使用所选模型。
 - `better-sqlite3` 同步操作只在独立 `worker_threads` Worker 中执行，Fastify 主线程不直接访问数据库。
 - SQLite 操作超时后必须终止状态未知的 Worker，使当前请求明确失败，并重建 Worker 供后续请求恢复，不能让 Repository 永久停留在 closed 状态。
 - 以 `project_id` 表示 Task 作用域的持久表必须接纳没有 `projects` 记录的 `temporary` 作用域，不得通过 Project 外键阻断临时任务；真实 Project 删除时需显式清理所属数据。

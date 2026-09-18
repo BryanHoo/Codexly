@@ -80,6 +80,7 @@ export interface CreateCodexlyServerOptions {
   settingsRepository: AgentSettingsRepository;
   skillMarketService?: SkillMarketService;
   standaloneCwd: string;
+  workspaceRoots?: readonly string[];
   commitProjectChanges?: (
     projectRoot: string,
     request: CommitProjectChangesRequest,

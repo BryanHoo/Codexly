@@ -6,6 +6,7 @@ export interface ParsedCommandOptions {
   lanPassword?: string;
   port?: number;
   sessionTtl?: string;
+  workspaceRoots?: string[];
 }
 
 export const CLI_HELP = `Usage: codexly [command] [options]
@@ -28,6 +29,8 @@ Start options:
   --codex-bin <path>         Use the Codex executable at the specified path.
   --codex-home <path>        Use a custom Codex home directory instead of CODEX_HOME
                              or the default ~/.codex directory.
+  --workspace <path>         Restrict project selection to an absolute workspace root.
+                             May be repeated for multiple roots.
 
 Doctor options:
   --codex-bin <path>         Check the Codex executable at the specified path.
@@ -42,6 +45,7 @@ Examples:
   codexly start --lan --lan-password 'Strong-Lan_Pass9!'
   codexly start --allowed-host code.example.com
   codexly start --lan --session-ttl 12h
+  codexly start --workspace /workspace
   codexly doctor --codex-bin /path/to/codex
   codexly version
 
@@ -61,7 +65,7 @@ export function parseCommandOptions(
     if (!option || (!valueOptions.has(option) && !flagOptions.has(option))) {
       throw new Error(`未知选项: ${option ?? "<empty>"}`);
     }
-    const repeatable = option === "--allowed-host";
+    const repeatable = option === "--allowed-host" || option === "--workspace";
     if (seen.has(option) && !repeatable) {
       throw new Error(`选项重复: ${option}`);
     }
@@ -85,6 +89,8 @@ export function parseCommandOptions(
       parsed.lanPassword = value;
     } else if (option === "--allowed-host") {
       parsed.allowedHosts = [...(parsed.allowedHosts ?? []), value];
+    } else if (option === "--workspace") {
+      parsed.workspaceRoots = [...(parsed.workspaceRoots ?? []), value];
     } else if (option === "--port") {
       if (!/^\d+$/u.test(value)) {
         throw new Error("--port 必须是 1 到 65535 之间的整数");
@@ -101,4 +107,28 @@ export function parseCommandOptions(
   }
 
   return parsed;
+}
+
+export function applyStartEnvironmentDefaults(
+  options: ParsedCommandOptions,
+  environment: NodeJS.ProcessEnv,
+): ParsedCommandOptions {
+  const environmentArgs: string[] = [];
+  const append = (option: string, value: string | undefined): void => {
+    if (value !== undefined && value.trim() !== "") environmentArgs.push(option, value.trim());
+  };
+
+  append("--lan-password", environment["CODEXLY_LAN_PASSWORD"]);
+  append("--port", environment["CODEXLY_PORT"]);
+  append("--session-ttl", environment["CODEXLY_SESSION_TTL"]);
+  append("--workspace", environment["CODEXLY_WORKSPACE"]);
+  for (const host of environment["CODEXLY_ALLOWED_HOSTS"]?.split(",") ?? []) {
+    append("--allowed-host", host);
+  }
+
+  const defaults = parseCommandOptions(
+    environmentArgs,
+    new Set(["--allowed-host", "--lan-password", "--port", "--session-ttl", "--workspace"]),
+  );
+  return { ...defaults, ...options };
 }

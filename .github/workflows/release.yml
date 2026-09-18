@@ -36,6 +36,19 @@ jobs:
         id: commit
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Verify release version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        shell: bash
+        run: |
+          package_version="$(node --print "require('./package.json').version")"
+          if [[ "v${package_version}" != "${RELEASE_TAG}" ]]; then
+            echo "Release tag ${RELEASE_TAG} does not match package version ${package_version}." >&2
+            exit 1
+          fi
+          # 标签与后续任务使用同一不可变提交，避免校验期间标签移动造成错配。
+          git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
 
   e2e:
     name: Release E2E (${{ matrix.os }})
@@ -69,8 +82,8 @@ jobs:
           pnpm run build
           pnpm exec playwright test
 
-  publish:
-    name: Publish GitHub release and npm package
+  publish-npm:
+    name: Publish npm package
     needs: [prepare, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -92,17 +105,6 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Verify release version
-        shell: bash
-        run: |
-          package_version="$(node --print "require('./package.json').version")"
-          if [[ "v${package_version}" != "${RELEASE_TAG}" ]]; then
-            echo "Release tag ${RELEASE_TAG} does not match package version ${package_version}." >&2
-            exit 1
-          fi
-          # 标签与 E2E、发布使用同一不可变提交，避免校验期间标签移动造成错配。
-          git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
-          test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
       - name: Run quality gates
         shell: bash
         run: |
@@ -121,13 +123,6 @@ jobs:
           pnpm run build:clean
           pnpm run bundle:check
           pnpm run package:check
-      - name: Extract release notes
-        shell: bash
-        run: |
-          package_version="$(node --print "require('./package.json').version")"
-          release_notes="${RUNNER_TEMP}/release-notes.md"
-          node ./tools/extract-release-notes.mjs "${package_version}" "${release_notes}"
-          echo "RELEASE_NOTES_PATH=${release_notes}" >> "${GITHUB_ENV}"
       # Node.js 22.14.0 自带 npm 10，发布前固定升级到 Trusted Publisher 支持的版本。
       - name: Setup publishing npm
         run: npm install --global npm@11.5.1
@@ -144,6 +139,77 @@ jobs:
             pnpm pack --out "${package_tarball}"
             npm publish "${package_tarball}" --access public --provenance
           fi
+  publish-image:
+    name: Publish GHCR image
+    needs: [prepare, e2e, publish-npm]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Login to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ghcr.io/bryanhoo/codexly
+          tags: |
+            type=semver,pattern={{version}},value=${{ env.RELEASE_TAG }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.RELEASE_TAG }}
+            type=raw,value=latest
+      - name: Build and publish image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          build-args: |
+            REVISION=${{ needs.prepare.outputs.sha }}
+            VERSION=${{ env.RELEASE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          context: .
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          provenance: mode=max
+          push: true
+          sbom: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  release:
+    name: Create GitHub release
+    needs: [prepare, publish-npm, publish-image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - name: Extract release notes
+        shell: bash
+        run: |
+          package_version="$(node --print "require('./package.json').version")"
+          release_notes="${RUNNER_TEMP}/release-notes.md"
+          node ./tools/extract-release-notes.mjs "${package_version}" "${release_notes}"
+          echo "RELEASE_NOTES_PATH=${release_notes}" >> "${GITHUB_ENV}"
       - name: Create GitHub release
         run: gh release create "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_PATH}" --title "Codexly ${RELEASE_TAG}" --verify-tag
         env:

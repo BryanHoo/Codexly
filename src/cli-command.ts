@@ -32,7 +32,12 @@ import {
 
 import packageManifest from "../package.json" with { type: "json" };
 import { createAppUpdateService } from "./app-update.js";
-import { CLI_HELP, parseCommandOptions, type ParsedCommandOptions } from "./cli-command-options.js";
+import {
+  applyStartEnvironmentDefaults,
+  CLI_HELP,
+  parseCommandOptions,
+  type ParsedCommandOptions,
+} from "./cli-command-options.js";
 import { createProcessShutdownSignal, waitForAbort } from "./cli-shutdown.js";
 import { listenOnAvailablePort } from "./cli-server-listen.js";
 import { acquireRuntimeLock, type RuntimeInstanceLock } from "./runtime-instance-lock.js";
@@ -222,17 +227,21 @@ async function runStart(
   signal: AbortSignal | undefined,
   output: TerminalOutput,
 ): Promise<number> {
-  const options = parseCommandOptions(
-    args,
-    new Set([
-      "--allowed-host",
-      "--codex-bin",
-      "--codex-home",
-      "--lan-password",
-      "--port",
-      "--session-ttl",
-    ]),
-    new Set(["--lan"]),
+  const options = applyStartEnvironmentDefaults(
+    parseCommandOptions(
+      args,
+      new Set([
+        "--allowed-host",
+        "--codex-bin",
+        "--codex-home",
+        "--lan-password",
+        "--port",
+        "--session-ttl",
+        "--workspace",
+      ]),
+      new Set(["--lan"]),
+    ),
+    process.env,
   );
   if (options.sessionTtl !== undefined && options.lan !== true) {
     throw new Error("--session-ttl 只能与 --lan 一起使用");
@@ -349,8 +358,9 @@ async function runStart(
       projectTodoRepository: stateRepository,
       settingsRepository: stateRepository,
       staticRoot: dependencies.webRoot,
-      // Standalone Thread 继承 app-server 的 cwd，不再创建伪项目目录。
-      standaloneCwd: process.cwd(),
+      // 受限部署让临时任务继承首个工作区，避免绕过项目目录边界。
+      standaloneCwd: options.workspaceRoots?.[0] ?? process.cwd(),
+      ...(options.workspaceRoots === undefined ? {} : { workspaceRoots: options.workspaceRoots }),
     });
     const host = options.lan === true ? "0.0.0.0" : "127.0.0.1";
     const activePort = await listenOnAvailablePort(server, host, port);

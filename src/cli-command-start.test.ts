@@ -125,6 +125,24 @@ describe("runCli startup", () => {
     ]);
   });
 
+  it("passes configured workspace roots to the server", async () => {
+    const harness = createHarness();
+    const controller = new AbortController();
+    const run = runCli(
+      ["start", "--workspace", "/workspace/apps", "--workspace", "/workspace/libs"],
+      { ...harness.options, signal: controller.signal },
+    );
+
+    await vi.waitFor(() => {
+      expect(harness.dependencies.createServer).toHaveBeenCalledOnce();
+    });
+    const [serverOptions] = vi.mocked(harness.dependencies.createServer).mock.calls[0] ?? [];
+    expect(serverOptions?.workspaceRoots).toEqual(["/workspace/apps", "/workspace/libs"]);
+
+    controller.abort();
+    await expect(run).resolves.toBe(0);
+  });
+
   it("stops startup and cleans resources when Codex project synchronization fails", async () => {
     const harness = createHarness();
     harness.projectRepository.synchronize.mockRejectedValue(new Error("project sync failed"));
