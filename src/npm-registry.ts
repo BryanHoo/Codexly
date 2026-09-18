@@ -31,9 +31,7 @@ export function runNpmWithRegistryFallback(
           `--registry=${registry}`,
           `--@openai:registry=${registry}`,
           `--@bryanhu:registry=${registry}`,
-          // 沿用用户的持久 npm cache，缺失内容仍联网获取，不创建随更新删除的缓存。
-          "--prefer-offline",
-          "--prefer-online=false",
+          // 沿用用户的持久 npm cache，并保留 npm 默认的过期元数据重新校验行为。
           // 限制单源等待，避免 npm 默认重试退避延迟官方源兜底。
           "--fetch-retries=0",
           "--fetch-timeout=30000",

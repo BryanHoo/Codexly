@@ -276,32 +276,39 @@ describe("server task runtime", () => {
     expect(listModels).toHaveBeenCalledOnce();
   });
 
-  it("expires, bounds, and clears the model catalog cache with the Runtime lifecycle", async () => {
-    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
-    const cached = await createHarness({ modelCatalogCacheTtlMs: 100 });
-    await cached.app.inject({ method: "GET", url: "/v1/models" });
-    await cached.app.inject({ method: "GET", url: "/v1/models" });
-    expect(cached.listModels).toHaveBeenCalledOnce();
+  // This lifecycle case creates four real server runtimes, so allow for CI startup contention.
+  it(
+    "expires, bounds, and clears the model catalog cache with the Runtime lifecycle",
+    { timeout: 15_000 },
+    async () => {
+      const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
+      const cached = await createHarness({ modelCatalogCacheTtlMs: 100 });
+      await cached.app.inject({ method: "GET", url: "/v1/models" });
+      await cached.app.inject({ method: "GET", url: "/v1/models" });
+      expect(cached.listModels).toHaveBeenCalledOnce();
 
-    now.mockReturnValue(1_101);
-    await cached.app.inject({ method: "GET", url: "/v1/models" });
-    expect(cached.listModels).toHaveBeenCalledTimes(2);
+      now.mockReturnValue(1_101);
+      await cached.app.inject({ method: "GET", url: "/v1/models" });
+      expect(cached.listModels).toHaveBeenCalledTimes(2);
 
-    const bounded = await createHarness({ modelCatalogCacheMaxBytes: 1 });
-    await bounded.app.inject({ method: "GET", url: "/v1/models" });
-    await bounded.app.inject({ method: "GET", url: "/v1/models" });
-    expect(bounded.listModels).toHaveBeenCalledTimes(2);
+      const bounded = await createHarness({ modelCatalogCacheMaxBytes: 1 });
+      await bounded.app.inject({ method: "GET", url: "/v1/models" });
+      await bounded.app.inject({ method: "GET", url: "/v1/models" });
+      expect(bounded.listModels).toHaveBeenCalledTimes(2);
 
-    const restartedProvider = createProvider();
-    const firstRuntime = await createCodexlyServer(createServerOptions(restartedProvider.provider));
-    await firstRuntime.inject({ method: "GET", url: "/v1/models" });
-    await firstRuntime.close();
-    const secondRuntime = await createCodexlyServer(
-      createServerOptions(restartedProvider.provider),
-    );
-    closeCallbacks.push(() => secondRuntime.close());
-    await secondRuntime.inject({ method: "GET", url: "/v1/models" });
-    expect(restartedProvider.listModels).toHaveBeenCalledTimes(2);
-    now.mockRestore();
-  });
+      const restartedProvider = createProvider();
+      const firstRuntime = await createCodexlyServer(
+        createServerOptions(restartedProvider.provider),
+      );
+      await firstRuntime.inject({ method: "GET", url: "/v1/models" });
+      await firstRuntime.close();
+      const secondRuntime = await createCodexlyServer(
+        createServerOptions(restartedProvider.provider),
+      );
+      closeCallbacks.push(() => secondRuntime.close());
+      await secondRuntime.inject({ method: "GET", url: "/v1/models" });
+      expect(restartedProvider.listModels).toHaveBeenCalledTimes(2);
+      now.mockRestore();
+    },
+  );
 });

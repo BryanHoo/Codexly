@@ -74,11 +74,11 @@ On first launch, sign in with ChatGPT or configure an OpenAI-compatible service 
 For regular use, install Codexly globally:
 
 ```bash
-npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
+npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org
 codexly
 ```
 
-The installation command tries the China mirror first, falls back to the official registry on failure, and reuses the npm cache. `||` works in Bash, Zsh, cmd, and PowerShell 7+. In Windows PowerShell 5.1, run the command to the right of `||` separately if the first command fails.
+The installation command tries the China mirror first, falls back to the official registry on failure, reuses the npm cache, and revalidates stale package metadata. `||` works in Bash, Zsh, cmd, and PowerShell 7+. In Windows PowerShell 5.1, run the command to the right of `||` separately if the first command fails.
 
 ## Docker
 
@@ -149,7 +149,7 @@ Run `codexly doctor` when startup, Codex, or local data checks fail. Run `codexl
 Interactive startup and **Settings > About** check for new releases. Built-in updates try the China mirror first for version checks, package downloads, and dependency installation, falling back to the official registry on failure and reusing your npm cache. New releases may appear later while the mirror synchronizes. A global installation can also be updated with:
 
 ```bash
-npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
+npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org
 ```
 
 If an older Linux release was installed into a system directory with `sudo npm install --global`, manually run the command above with `sudo` once to reach a release that supports elevated updates. Later built-in updates request `sudo` access when needed.

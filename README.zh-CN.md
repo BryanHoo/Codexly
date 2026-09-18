@@ -44,11 +44,11 @@ Codexly 会自动打开浏览器。若未打开，请访问终端输出的地址
 经常使用时可以全局安装：
 
 ```bash
-npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
+npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org
 codexly
 ```
 
-安装命令优先使用国内镜像，失败后回退官方源，并复用 npm 缓存。`||` 适用于 Bash、Zsh、cmd 和 PowerShell 7+；Windows PowerShell 5.1 请在第一条命令失败后单独执行 `||` 右侧的命令。
+安装命令优先使用国内镜像，失败后回退官方源，复用 npm 缓存并重新校验过期的包元数据。`||` 适用于 Bash、Zsh、cmd 和 PowerShell 7+；Windows PowerShell 5.1 请在第一条命令失败后单独执行 `||` 右侧的命令。
 
 ## Docker 部署
 
@@ -119,7 +119,7 @@ codexly start --lan
 交互式启动和“设置 > 关于”会检查新版本。内置更新的版本查询、包下载和依赖安装优先使用国内镜像，失败后回退官方源；下载和安装复用用户的 npm 缓存。镜像同步期间可能稍晚显示新版本。全局安装也可以通过以下命令更新：
 
 ```bash
-npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com --prefer-offline || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org --prefer-offline
+npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirror.com || npm install --global @bryanhu/codexly@latest --registry=https://registry.npmjs.org
 ```
 
 如果 Linux 上的旧版本通过 `sudo npm install --global` 安装到系统目录，首次升级到支持提权更新的版本时需要手动执行一次上述命令并在前面加上 `sudo`。后续内置更新会在需要时请求 `sudo` 权限。
