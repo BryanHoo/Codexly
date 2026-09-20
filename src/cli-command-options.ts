@@ -21,8 +21,8 @@ Start options:
                              Automatically increases the port when it is occupied.
   --lan                      Listen on all network interfaces for trusted LAN access.
                              This disables automatic browser opening.
-  --lan-password <password>  Use a custom strong LAN access password instead of a random one.
-                             Requires 16-128 characters and all character types. Requires --lan.
+  --lan-password <password>  Use a custom LAN access password instead of a random one.
+                             Requires 16-128 characters with uppercase, lowercase, and number. Requires --lan.
   --allowed-host <domain>    Allow an exact reverse proxy domain. May be repeated.
   --session-ttl <duration>   Set the fixed LAN session lifetime using ms, s, m, h, or d.
                              Sessions do not expire when omitted. Requires --lan.

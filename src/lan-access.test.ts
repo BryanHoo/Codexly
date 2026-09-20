@@ -21,9 +21,12 @@ describe("LAN access helpers", () => {
     }
   });
 
-  it("accepts only high-strength custom LAN passwords", () => {
+  it("accepts custom LAN passwords with mixed-case letters and numbers", () => {
     expect(() => {
       validateLanPassword("Strong-Lan_Pass9!");
+    }).not.toThrow();
+    expect(() => {
+      validateLanPassword("PasswordWithoutSymbol9");
     }).not.toThrow();
 
     for (const invalid of [
@@ -32,7 +35,6 @@ describe("LAN access helpers", () => {
       "lowercase-password9!",
       "UPPERCASE-PASSWORD9!",
       "Password-Without-Digit!",
-      "PasswordWithoutSymbol9",
     ]) {
       expect(() => {
         validateLanPassword(invalid);

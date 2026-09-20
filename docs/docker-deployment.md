@@ -44,7 +44,7 @@ docker compose ps
 docker compose logs --tail=50 codexly
 ```
 
-状态变为 `healthy` 后打开 `http://127.0.0.1:3210`，输入日志中的随机配对码。也可以通过 `CODEXLY_LAN_PASSWORD` 设置固定密码，密码必须为 16 至 128 位并同时包含大小写字母、数字和符号。
+状态变为 `healthy` 后打开 `http://127.0.0.1:3210`，输入日志中的随机配对码。也可以通过 `CODEXLY_LAN_PASSWORD` 设置固定密码，密码必须为 16 至 128 位并同时包含大小写字母和数字。
 
 ## 配置存储目录
 

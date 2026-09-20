@@ -138,7 +138,7 @@ The terminal prints the LAN address and a random access password. Common options
 | Option                      | Purpose                                                                                    |
 | --------------------------- | ------------------------------------------------------------------------------------------ |
 | `--port <port>`             | Choose the starting port; occupied ports are skipped automatically                         |
-| `--lan-password <password>` | Set a 16-128 character password containing uppercase, lowercase, number, and symbol        |
+| `--lan-password <password>` | Set a 16-128 character password containing uppercase, lowercase, and number                |
 | `--allowed-host <domain>`   | Allow an exact reverse proxy domain; repeat the option for multiple domains                |
 | `--session-ttl <duration>`  | Set a fixed LAN session lifetime such as `12h`; omitted sessions last until server restart |
 | `--workspace <path>`        | Restrict project selection to this absolute root; repeat for multiple roots                |

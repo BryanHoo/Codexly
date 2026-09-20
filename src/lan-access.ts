@@ -31,17 +31,16 @@ export function parseSessionTtl(value: string): number {
 }
 
 export function validateLanPassword(value: string): void {
-  // 自定义 LAN 密码必须同时满足长度和字符类别要求，避免弱口令替代随机凭据。
+  // 自定义 LAN 密码必须满足长度、大小写和数字要求，避免弱口令替代随机凭据。
   const hasRequiredStrength =
     value.length >= MIN_LAN_PASSWORD_LENGTH &&
     value.length <= MAX_LAN_PASSWORD_LENGTH &&
     /[A-Z]/u.test(value) &&
     /[a-z]/u.test(value) &&
-    /[0-9]/u.test(value) &&
-    /[^A-Za-z0-9]/u.test(value);
+    /[0-9]/u.test(value);
   if (!hasRequiredStrength) {
     throw new Error(
-      "Invalid LAN password; expected 16 to 128 characters with uppercase, lowercase, number, and symbol",
+      "Invalid LAN password; expected 16 to 128 characters with uppercase, lowercase, and number",
     );
   }
 }
