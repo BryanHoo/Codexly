@@ -25,6 +25,19 @@ describe("agent Markdown components", () => {
     expect(markup).not.toContain("## 结果");
   });
 
+  it("renders streamed-style strong emphasis before adjacent Chinese text", () => {
+    const markup = renderToStaticMarkup(
+      <MessageResponse>
+        {"结论： **在该源码版本中，目标模式由本地 Codex 实现。**准确说是本地编排。"}
+      </MessageResponse>,
+    );
+
+    expect(markup).toContain(
+      'data-streamdown="strong">在该源码版本中，目标模式由本地 Codex 实现</span>。准确说是本地编排。',
+    );
+    expect(markup).not.toContain("**");
+  });
+
   it("renders unfenced SVG markup as visible XML source", () => {
     const svgSource = `<svg viewBox="0 0 24 24">
   <path d="M1 1h22v22H1z" />

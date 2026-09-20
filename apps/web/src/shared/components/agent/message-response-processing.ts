@@ -18,9 +18,81 @@ const WHITESPACE_PATTERN = /^\s+$/u;
 const EXCESSIVE_NEWLINES_PATTERN = /\n{3,}/g;
 const FOOTNOTE_REFERENCE_PATTERN = /\[\^[\w-]{1,200}\](?!:)/;
 const FOOTNOTE_DEFINITION_PATTERN = /\[\^[\w-]{1,200}\]:/;
+const FENCE_PATTERN = /^(?: {0,3})(`{3,}|~{3,})/u;
+const INDENTED_CODE_PATTERN = /^(?: {4}|\t)/u;
+const INLINE_CODE_PATTERN = /(`+)[\s\S]*?\1/gu;
+const PUNCTUATION_BOUNDARY_STRONG_PATTERN =
+  /(?<![\p{L}\p{N}\\])(\*\*|__)(\S(?:(?!\1).)*?)(\p{P})\1(?=[\p{L}\p{N}])/gu;
 
 export const UNC_FILE_REFERENCE_PREFIX = "/__codexly_unc__/";
 export const RELATIVE_FILE_REFERENCE_PREFIX = "/__codexly_relative__/";
+
+type MarkdownFence = Readonly<{
+  character: "`" | "~";
+  length: number;
+}>;
+
+function normalizePlainTextEmphasisBoundaries(source: string): string {
+  return source.replace(
+    PUNCTUATION_BOUNDARY_STRONG_PATTERN,
+    (_match, marker: string, content: string, punctuation: string) =>
+      `${marker}${content}${marker}${punctuation}`,
+  );
+}
+
+class MarkdownEmphasisBoundaryNormalizer {
+  private fence: MarkdownFence | null;
+
+  constructor(fence: MarkdownFence | null = null) {
+    this.fence = fence;
+  }
+
+  normalizeLine(source: string): string {
+    const fenceMatch = FENCE_PATTERN.exec(source);
+    if (this.fence !== null) {
+      if (
+        fenceMatch?.[1]?.startsWith(this.fence.character) === true &&
+        fenceMatch[1].length >= this.fence.length
+      ) {
+        this.fence = null;
+      }
+      return source;
+    }
+
+    if (fenceMatch?.[1] !== undefined) {
+      this.fence = {
+        character: fenceMatch[1][0] as "`" | "~",
+        length: fenceMatch[1].length,
+      };
+      return source;
+    }
+    if (INDENTED_CODE_PATTERN.test(source)) {
+      return source;
+    }
+
+    // 仅规范化普通文本片段，确保代码中的 Markdown 示例保持原样。
+    let cursor = 0;
+    let normalized = "";
+    for (const match of source.matchAll(INLINE_CODE_PATTERN)) {
+      normalized += normalizePlainTextEmphasisBoundaries(source.slice(cursor, match.index));
+      normalized += match[0];
+      cursor = match.index + match[0].length;
+    }
+    return normalized + normalizePlainTextEmphasisBoundaries(source.slice(cursor));
+  }
+
+  clone(): MarkdownEmphasisBoundaryNormalizer {
+    return new MarkdownEmphasisBoundaryNormalizer(this.fence);
+  }
+}
+
+export function normalizeMarkdownEmphasisBoundaries(markdown: string): string {
+  const normalizer = new MarkdownEmphasisBoundaryNormalizer();
+  return markdown
+    .split("\n")
+    .map((line) => normalizer.normalizeLine(line))
+    .join("\n");
+}
 
 export function normalizeMarkdownFileReferences(markdown: string): string {
   // 路径目标不会跨行；该约束允许流式处理只保留尚未结束的当前行。
@@ -45,7 +117,9 @@ export function preprocessMessageResponse(markdown: string): ParsedCodeComments 
   const parsedResponse = parseCodeComments(markdown);
   return {
     comments: parsedResponse.comments,
-    markdown: normalizeMarkdownFileReferences(parsedResponse.markdown),
+    markdown: normalizeMarkdownEmphasisBoundaries(
+      normalizeMarkdownFileReferences(parsedResponse.markdown),
+    ),
   };
 }
 
@@ -92,6 +166,7 @@ class IncrementalWhitespaceBuffer {
 type ProcessingState = Readonly<{
   comments: CodeComment[];
   discardBlankLines: boolean;
+  emphasisNormalizer: MarkdownEmphasisBoundaryNormalizer;
   whitespace: IncrementalWhitespaceBuffer;
 }>;
 
@@ -109,7 +184,10 @@ function processLine(source: string, hasLineFeed: boolean, state: ProcessingStat
     return true;
   }
 
-  state.whitespace.append(`${normalizeMarkdownFileReferences(source)}${hasLineFeed ? "\n" : ""}`);
+  const normalizedSource = state.emphasisNormalizer.normalizeLine(
+    normalizeMarkdownFileReferences(source),
+  );
+  state.whitespace.append(`${normalizedSource}${hasLineFeed ? "\n" : ""}`);
   return false;
 }
 
@@ -117,6 +195,7 @@ export class IncrementalMessageResponseProcessor {
   private cachedResult: ParsedCodeComments = { comments: [], markdown: "" };
   private committedComments: CodeComment[] = [];
   private discardBlankLines = false;
+  private emphasisNormalizer = new MarkdownEmphasisBoundaryNormalizer();
   private pendingLine = "";
   private previousSource = "";
   private whitespace = new IncrementalWhitespaceBuffer();
@@ -138,6 +217,7 @@ export class IncrementalMessageResponseProcessor {
       this.discardBlankLines = processLine(line, true, {
         comments: this.committedComments,
         discardBlankLines: this.discardBlankLines,
+        emphasisNormalizer: this.emphasisNormalizer,
         whitespace: this.whitespace,
       });
       lineFeedIndex = this.pendingLine.indexOf("\n");
@@ -145,11 +225,13 @@ export class IncrementalMessageResponseProcessor {
 
     // 当前行仍可能继续增长，基于已提交状态制作轻量预览，不能污染后续 Chunk。
     const previewComments = [...this.committedComments];
+    const previewEmphasisNormalizer = this.emphasisNormalizer.clone();
     const previewWhitespace = this.whitespace.clone();
     if (this.pendingLine.length > 0) {
       processLine(this.pendingLine, false, {
         comments: previewComments,
         discardBlankLines: this.discardBlankLines,
+        emphasisNormalizer: previewEmphasisNormalizer,
         whitespace: previewWhitespace,
       });
     }
@@ -164,6 +246,7 @@ export class IncrementalMessageResponseProcessor {
     this.cachedResult = { comments: [], markdown: "" };
     this.committedComments = [];
     this.discardBlankLines = false;
+    this.emphasisNormalizer = new MarkdownEmphasisBoundaryNormalizer();
     this.pendingLine = "";
     this.previousSource = "";
     this.whitespace = new IncrementalWhitespaceBuffer();

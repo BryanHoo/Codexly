@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createIncrementalMarkdownBlockParser,
   IncrementalMessageResponseProcessor,
+  normalizeMarkdownEmphasisBoundaries,
   preprocessMessageResponse,
 } from "./message-response-processing.js";
 
@@ -42,6 +43,39 @@ describe("streaming message response processing", () => {
     expect(nextBlocks).toEqual(parseMarkdownIntoBlocks(nextMarkdown));
     expect(parseBlocks).toHaveBeenCalledTimes(2);
     expect(parseBlocks.mock.calls[1]?.[0].length).toBeLessThan(nextMarkdown.length);
+  });
+
+  it("repairs strong emphasis followed immediately by Chinese text", () => {
+    const source = "结论： **在该源码版本中，目标模式由本地 Codex 实现。**准确说是本地编排。";
+
+    expect(normalizeMarkdownEmphasisBoundaries(source)).toBe(
+      "结论： **在该源码版本中，目标模式由本地 Codex 实现**。准确说是本地编排。",
+    );
+  });
+
+  it("keeps emphasis-like content unchanged inside code", () => {
+    const source = [
+      "`**行内示例。**继续`",
+      "",
+      "```md",
+      "**围栏示例。**继续",
+      "```",
+      "",
+      "    **缩进示例。**继续",
+    ].join("\n");
+
+    expect(normalizeMarkdownEmphasisBoundaries(source)).toBe(source);
+  });
+
+  it("keeps repaired emphasis stable across character-by-character streaming", () => {
+    const source = "结论： **本地 Codex 实现。**准确说是本地编排。";
+    const processor = new IncrementalMessageResponseProcessor();
+    let streamedSource = "";
+
+    for (const character of source) {
+      streamedSource += character;
+      expect(processor.process(streamedSource)).toEqual(preprocessMessageResponse(streamedSource));
+    }
   });
 
   it.each([
