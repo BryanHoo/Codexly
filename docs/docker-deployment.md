@@ -69,6 +69,17 @@ CODEXLY_WORKSPACE=/home/example/projects
 
 宿主目录必须允许容器内 `node` 用户读写。工作区在宿主和容器内使用相同绝对路径，因此 Codex Home 中已有的项目记录仍然有效。不要让两个 Codexly 实例同时使用同一个 Codex Home。
 
+## 配置 Git 身份
+
+容器不会自动读取宿主的全局 Git 配置。将配置文件放在容器可见的工作区内，并设置其容器绝对路径：
+
+```dotenv
+CODEXLY_WORKSPACE=/home/example
+CODEXLY_GIT_CONFIG=/home/example/.gitconfig
+```
+
+Linux 和 macOS 的同路径工作区可直接复用宿主 `~/.gitconfig`。Windows 使用 `CODEXLY_WORKSPACE_TARGET` 映射后的 POSIX 路径。
+
 ## 配置工作区
 
 不设置 `CODEXLY_WORKSPACE` 时，Compose 把宿主 `/` 挂载到容器 `/workspace`，因此 Linux 上可选择根目录下的磁盘和项目。设置后，源路径和容器路径保持一致。Docker Desktop 仍只能访问已经共享给 Docker 的目录。
@@ -118,16 +129,17 @@ services:
 
 常用环境变量如下：
 
-| 变量                       | 默认值         | 用途                                          |
-| -------------------------- | -------------- | --------------------------------------------- |
-| `CODEXLY_VERSION`          | `latest`       | GHCR 镜像标签                                 |
-| `CODEXLY_PORT`             | `3210`         | 宿主和容器监听端口                            |
-| `CODEXLY_WORKSPACE`        | `/`            | 限制工作区并在容器内保留相同绝对路径          |
-| `CODEXLY_WORKSPACE_TARGET` | 自动选择       | 覆盖容器工作区路径，Windows 使用 `/workspace` |
-| `CODEXLY_CODEX_HOME`       | `codexly-data` | Codex Home 的命名卷或宿主绝对路径             |
-| `CODEXLY_LAN_PASSWORD`     | 随机生成       | 固定配对密码                                  |
-| `CODEXLY_SESSION_TTL`      | 当前进程有效   | 会话期限，例如 `12h`                          |
-| `CODEXLY_ALLOWED_HOSTS`    | 空             | 反向代理允许的精确域名，多个值用逗号分隔      |
+| 变量                       | 默认值                  | 用途                                          |
+| -------------------------- | ----------------------- | --------------------------------------------- |
+| `CODEXLY_VERSION`          | `latest`                | GHCR 镜像标签                                 |
+| `CODEXLY_PORT`             | `3210`                  | 宿主和容器监听端口                            |
+| `CODEXLY_WORKSPACE`        | `/`                     | 限制工作区并在容器内保留相同绝对路径          |
+| `CODEXLY_WORKSPACE_TARGET` | 自动选择                | 覆盖容器工作区路径，Windows 使用 `/workspace` |
+| `CODEXLY_GIT_CONFIG`       | `/home/node/.gitconfig` | 容器可见的全局 Git 配置文件                   |
+| `CODEXLY_CODEX_HOME`       | `codexly-data`          | Codex Home 的命名卷或宿主绝对路径             |
+| `CODEXLY_LAN_PASSWORD`     | 随机生成                | 固定配对密码                                  |
+| `CODEXLY_SESSION_TTL`      | 当前进程有效            | 会话期限，例如 `12h`                          |
+| `CODEXLY_ALLOWED_HOSTS`    | 空                      | 反向代理允许的精确域名，多个值用逗号分隔      |
 
 ## 更新与回退
 

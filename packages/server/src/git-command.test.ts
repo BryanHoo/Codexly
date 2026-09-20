@@ -16,7 +16,11 @@ async function createFakeGitRoot(): Promise<{ root: string; scriptPath: string }
     scriptPath,
     `const [command, ...args] = process.argv.slice(2);
 if (command === "inspect") {
-  process.stdout.write(JSON.stringify({ args, optionalLocks: process.env.GIT_OPTIONAL_LOCKS }) + "\\0");
+  process.stdout.write(JSON.stringify({
+    args,
+    configGlobal: process.env.GIT_CONFIG_GLOBAL,
+    optionalLocks: process.env.GIT_OPTIONAL_LOCKS,
+  }) + "\\0");
 } else if (command === "large-output") {
   process.stdout.write("x".repeat(2_048));
 } else if (command === "hang") {
@@ -58,6 +62,22 @@ describe("createGitCommandExecutor", () => {
     }
   });
 
+  it("maps the configured global Git config into the Git subprocess environment", async () => {
+    vi.stubEnv("CODEXLY_GIT_CONFIG", "/workspace/user/.gitconfig");
+    vi.stubEnv("GIT_CONFIG_GLOBAL", "/tmp/untrusted.gitconfig");
+
+    const environment = createGitEnvironment();
+    expect(environment["CODEXLY_GIT_CONFIG"]).toBe("/workspace/user/.gitconfig");
+    expect(environment["GIT_CONFIG_GLOBAL"]).toBe("/workspace/user/.gitconfig");
+
+    const { root, scriptPath } = await createFakeGitRoot();
+    const executeGit = createGitCommandExecutor({ binary: [process.execPath, scriptPath] });
+    const output = await executeGit(root, ["inspect"]);
+    expect(JSON.parse(output.slice(0, -1))).toMatchObject({
+      configGlobal: "/workspace/user/.gitconfig",
+    });
+  });
+
   it("preserves argument boundaries, the Git read environment, and trailing NUL output", async () => {
     const { root, scriptPath } = await createFakeGitRoot();
     const executeGit = createGitCommandExecutor({ binary: [process.execPath, scriptPath] });
@@ -68,6 +88,7 @@ describe("createGitCommandExecutor", () => {
     expect(output.endsWith("\0")).toBe(true);
     expect(JSON.parse(output.slice(0, -1))).toEqual({
       args,
+      configGlobal: undefined,
       optionalLocks: "0",
     });
   });

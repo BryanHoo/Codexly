@@ -11,6 +11,7 @@ services:
       CODEXLY_PORT: ${CODEXLY_PORT:-3210}
       CODEXLY_SESSION_TTL: ${CODEXLY_SESSION_TTL:-}
       CODEXLY_WORKSPACE: ${CODEXLY_WORKSPACE_TARGET:-${CODEXLY_WORKSPACE:-/workspace}}
+      CODEXLY_GIT_CONFIG: ${CODEXLY_GIT_CONFIG:-/home/node/.gitconfig}
     volumes:
       - ${CODEXLY_CODEX_HOME:-codexly-data}:/home/node/.codex
       # 显式工作区保留宿主绝对路径，使复用 Codex Home 时的项目记录仍然有效。

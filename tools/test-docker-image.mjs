@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 const image = process.env["CODEXLY_DOCKER_IMAGE"] ?? "codexly:local";
 const container = `codexly-smoke-${String(process.pid)}`;
 const composeWorkspace = "/srv/codexly-projects";
+const gitConfigPath = "/tmp/codexly-gitconfig";
 
 function docker(args, options = {}) {
   return execFileSync("docker", args, {
@@ -50,6 +51,11 @@ function verifyComposeWorkspaceMapping() {
     windowsMount?.target !== "/workspace"
   ) {
     throw new Error("Compose does not apply the configured container workspace path");
+  }
+
+  const gitConfig = readConfig({ CODEXLY_GIT_CONFIG: gitConfigPath });
+  if (gitConfig.services?.codexly?.environment?.CODEXLY_GIT_CONFIG !== gitConfigPath) {
+    throw new Error("Compose does not expose the configured global Git config path");
   }
 }
 
