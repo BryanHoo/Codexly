@@ -2,11 +2,11 @@ import type { AgentMessageAttachment } from "@codexly/protocol";
 
 import { readCodexFileTextInput } from "./codex-file-input.js";
 import { optionalString } from "./codex-protocol-mapping.js";
-import type { CodexHistoricalAttachmentStore } from "./historical-attachment-store.js";
+import type { HistoricalAttachmentStore } from "./persistent-historical-attachment-store.js";
 import { readStagedImage, stagedImageName } from "./jsonl-frame-processor.js";
 
 export function mapCodexMessageImage(
-  store: CodexHistoricalAttachmentStore,
+  store: HistoricalAttachmentStore,
   taskId: string,
   part: Record<string, unknown>,
   imageIndex: number,
@@ -42,7 +42,7 @@ export function mapCodexMessageImage(
 }
 
 export function mapCodexMessageText(
-  store: CodexHistoricalAttachmentStore,
+  store: HistoricalAttachmentStore,
   taskId: string,
   input: Readonly<{ name: string; text: string }>,
   textIndex: number,

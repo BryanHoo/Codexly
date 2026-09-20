@@ -18,6 +18,8 @@ import type {
 } from "@codexly/protocol";
 import { RpcResponseError, type RpcServerRequest } from "./jsonl-rpc-client.js";
 import { CodexHistoricalAttachmentStore } from "./historical-attachment-store.js";
+import type { HistoricalAttachmentStore } from "./persistent-historical-attachment-store.js";
+import { CodexThreadAttachmentService } from "./thread-attachment-service.js";
 import { PendingRequestLifecycle } from "./pending-request-lifecycle.js";
 import { listCodexMcpServers, reloadCodexMcpServers } from "./agent-provider-mcp.js";
 import { TaskRuntimeState } from "./task-runtime-state.js";
@@ -121,7 +123,8 @@ export abstract class CodexAgentProviderBase {
   protected readonly taskTitles: CodexTaskTitles | undefined;
   protected readonly eventListenersIncludingEphemeral = new Set<AgentProviderEventListener>();
   protected readonly eventListeners = new Set<AgentProviderEventListener>();
-  protected readonly historicalAttachments = new CodexHistoricalAttachmentStore();
+  protected readonly historicalAttachments: HistoricalAttachmentStore;
+  protected readonly threadAttachments: CodexThreadAttachmentService | undefined;
   protected readonly logger: CodexProviderLogger;
   protected readonly project: AgentTaskScope;
   protected readonly pendingLifecycle: PendingRequestLifecycle;
@@ -172,7 +175,10 @@ export abstract class CodexAgentProviderBase {
         else this.runtime.runningTaskIds.delete(event.taskId);
       }
       this.routeEvent(event);
-      if (event.type === "task.removed") this.clearTaskRuntimeState(event.taskId);
+      if (event.type === "task.removed") {
+        if (method === "thread/deleted") this.threadAttachments?.deleteTask(event.taskId);
+        this.clearTaskRuntimeState(event.taskId);
+      }
     } catch {
       // 状态通知字段漂移时沿用统一丢弃诊断，不影响后续 JSONL 帧。
       warnDroppedCodexNotification(
@@ -191,12 +197,19 @@ export abstract class CodexAgentProviderBase {
     client: CodexRpcClient,
     project: AgentTaskScope,
     options: {
+      attachmentDirectory?: string;
       logger?: CodexProviderLogger;
       subscribeRpc?: boolean;
       taskTitles?: CodexTaskTitles;
     } = {},
   ) {
     this.client = client;
+    this.threadAttachments =
+      options.attachmentDirectory === undefined
+        ? undefined
+        : new CodexThreadAttachmentService(client, options.attachmentDirectory);
+    this.historicalAttachments =
+      this.threadAttachments?.store ?? new CodexHistoricalAttachmentStore();
     this.taskTitles = options.taskTitles;
     this.logger = options.logger ?? DEFAULT_PROVIDER_LOGGER;
     this.project = project;
@@ -243,7 +256,8 @@ export abstract class CodexAgentProviderBase {
     // Project 销毁后同步切断所有本地状态，避免定时器和监听器继续持有 Provider。
     this.eventListenersIncludingEphemeral.clear();
     this.eventListeners.clear();
-    this.historicalAttachments.dispose();
+    if (this.threadAttachments === undefined) this.historicalAttachments.dispose();
+    else this.threadAttachments.dispose();
     this.pendingLifecycle.clear();
     this.runtime.clear();
     this.skillsById.clear();
@@ -266,6 +280,7 @@ export abstract class CodexAgentProviderBase {
   public async deleteTask(taskId: string): Promise<void> {
     this.assertKnownProjectTask(taskId);
     await taskArchive.deleteCodexTask(this.client, taskId);
+    this.threadAttachments?.deleteTask(taskId);
     // 永久删除成功后立即释放所有本地 Task 状态，不能等待可选通知。
     this.clearTaskRuntimeState(taskId);
   }

@@ -3,6 +3,16 @@ import * as realtime from "./fake-app-server-realtime.mjs";
 import * as stream from "./fake-app-server-stream.mjs";
 import { state } from "./fake-app-server-state.mjs";
 
+function publicThreadAttachment(attachment) {
+  return {
+    attachmentType: attachment.attachmentType,
+    createdAt: attachment.createdAt,
+    id: attachment.id,
+    identityKey: attachment.identityKey,
+    payload: attachment.payload,
+  };
+}
+
 // 返回 true 表示当前协议领域已经处理该消息。
 export function handleProtocolMessage(message) {
   if (message.method === undefined && state.pendingServerRequests.has(message.id)) {
@@ -135,6 +145,83 @@ export function handleProtocolMessage(message) {
 
   if (message.method === "thread/goal/get") {
     base.send({ id: message.id, result: { goal: null } });
+    return true;
+  }
+
+  if (message.method === "thread/attachment/list") {
+    const threadId = message.params?.threadId;
+    const offset = Number.parseInt(message.params?.cursor ?? "0", 10);
+    const limit = Math.min(Math.max(message.params?.limit ?? 50, 1), 100);
+    const attachments = [...state.threadAttachments.values()].filter(
+      (attachment) => attachment.threadId === threadId,
+    );
+    const page = attachments.slice(offset, offset + limit);
+    base.send({
+      id: message.id,
+      result: {
+        data: page.map(publicThreadAttachment),
+        nextCursor: offset + page.length < attachments.length ? String(offset + page.length) : null,
+      },
+    });
+    return true;
+  }
+
+  if (message.method === "thread/attachment/add") {
+    const { attachmentType, identityKey, payload, threadId } = message.params ?? {};
+    const key = JSON.stringify([threadId, attachmentType, identityKey]);
+    const existing = state.threadAttachments.get(key);
+    if (existing !== undefined) {
+      base.send({
+        id: message.id,
+        result: { attachment: publicThreadAttachment(existing), outcome: "existing" },
+      });
+      return true;
+    }
+    const attachment = {
+      attachmentType,
+      createdAt: 1_753_228_800,
+      id: `fake-thread-attachment-${String(state.nextThreadAttachment)}`,
+      identityKey,
+      payload,
+      threadId,
+    };
+    state.nextThreadAttachment += 1;
+    state.threadAttachments.set(key, attachment);
+    base.send({
+      id: message.id,
+      result: { attachment: publicThreadAttachment(attachment), outcome: "created" },
+    });
+    base.send({
+      method: "thread/attachment/updated",
+      params: {
+        attachmentId: attachment.id,
+        attachmentType,
+        identityKey,
+        operation: "created",
+        threadId,
+      },
+    });
+    return true;
+  }
+
+  if (message.method === "thread/attachment/remove") {
+    const { attachmentType, identityKey, threadId } = message.params ?? {};
+    const key = JSON.stringify([threadId, attachmentType, identityKey]);
+    const attachment = state.threadAttachments.get(key);
+    state.threadAttachments.delete(key);
+    base.send({ id: message.id, result: {} });
+    if (attachment !== undefined) {
+      base.send({
+        method: "thread/attachment/updated",
+        params: {
+          attachmentId: attachment.id,
+          attachmentType,
+          identityKey,
+          operation: "deleted",
+          threadId,
+        },
+      });
+    }
     return true;
   }
 

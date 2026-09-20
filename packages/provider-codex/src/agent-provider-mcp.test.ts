@@ -113,6 +113,7 @@ describe("CodexAgentProvider MCP servers", () => {
       "thread/read",
       "thread/goal/get",
       "thread/turns/list",
+      "thread/attachment/list",
       "thread/resume",
       "mcpServerStatus/list",
     ]);
@@ -134,6 +135,7 @@ describe("CodexAgentProvider MCP servers", () => {
       "thread/read",
       "thread/goal/get",
       "thread/turns/list",
+      "thread/attachment/list",
       "thread/resume",
       "config/mcpServer/reload",
       "mcpServerStatus/list",

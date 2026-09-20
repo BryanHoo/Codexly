@@ -327,6 +327,10 @@ describe("CodexAgentProvider task lifecycle", () => {
         },
       },
       {
+        method: "thread/attachment/list",
+        params: { limit: 100, threadId: "task-1" },
+      },
+      {
         method: "thread/backgroundTerminals/list",
         params: { limit: 100, threadId: "task-1" },
       },

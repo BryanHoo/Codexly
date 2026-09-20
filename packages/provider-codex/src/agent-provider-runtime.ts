@@ -50,8 +50,14 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
     });
     return true;
   }
-
   public receiveNotification(method: string, params: unknown): void {
+    if (method === "thread/attachment/updated") {
+      const taskId = readTaskId(params);
+      if (taskId === undefined)
+        this.warnDroppedNotification("invalid_notification", method, params);
+      else this.threadAttachments?.invalidate(taskId);
+      return;
+    }
     if (this.handleProjectStateNotification(method, params)) return;
     this.handleNotification(method, params);
   }
@@ -217,7 +223,8 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
 
   protected clearTaskRuntimeState(taskId: string): void {
     this.taskTitles?.forget(taskId);
-    this.historicalAttachments.clearTask(taskId);
+    if (this.threadAttachments === undefined) this.historicalAttachments.clearTask(taskId);
+    else this.threadAttachments.forget(taskId);
     this.pendingLifecycle.clearTask(taskId);
     this.runtime.clearTask(taskId);
   }

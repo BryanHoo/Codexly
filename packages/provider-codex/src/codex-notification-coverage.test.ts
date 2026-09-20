@@ -111,7 +111,7 @@ describe("Codex notification coverage", () => {
   });
 
   it("explicitly opts out of 0.155.1 thread attachment metadata notifications", () => {
-    expect(CODEX_IGNORED_NOTIFICATION_METHODS.has("thread/attachment/updated")).toBe(true);
-    expect(CODEX_OPT_OUT_NOTIFICATION_METHODS).toContain("thread/attachment/updated");
+    expect(CODEX_SPECIAL_NOTIFICATION_METHODS.has("thread/attachment/updated")).toBe(true);
+    expect(CODEX_OPT_OUT_NOTIFICATION_METHODS).not.toContain("thread/attachment/updated");
   });
 });

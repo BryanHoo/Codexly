@@ -37,6 +37,19 @@ export class FakeRpcClient {
     this.calls.push({ method, params });
     const requestParams =
       params !== null && typeof params === "object" ? (params as Record<string, unknown>) : {};
+    if (method === "thread/attachment/list") {
+      return Promise.resolve({ data: [], nextCursor: null });
+    }
+    if (method === "thread/attachment/add") {
+      const attachment = {
+        attachmentType: requestParams["attachmentType"],
+        createdAt: 1,
+        id: `native-${String(this.calls.length)}`,
+        identityKey: requestParams["identityKey"],
+        payload: requestParams["payload"],
+      };
+      return Promise.resolve({ attachment, outcome: "created" });
+    }
     const queuedResponse = this.#responses[0];
     if (
       method === "thread/goal/get" &&
@@ -162,6 +175,7 @@ export const PINNED_THREAD_SECTION = {
 } as const;
 
 export function createCodexAgentProvider(options: {
+  attachmentDirectory?: string;
   client: CodexRpcClient;
   logger?: CodexProviderLogger;
   project: Project;
@@ -175,6 +189,9 @@ export function createCodexAgentProvider(options: {
       runtimeWorkspaceRoots: options.project.roots.map((root) => root.path),
     },
     {
+      ...(options.attachmentDirectory === undefined
+        ? {}
+        : { attachmentDirectory: options.attachmentDirectory }),
       ...(options.logger === undefined ? {} : { logger: options.logger }),
     },
   );

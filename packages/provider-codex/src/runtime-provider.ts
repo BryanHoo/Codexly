@@ -1,5 +1,5 @@
 import { CodexTaskTitles } from "./task-titles.js";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import {
   optionalNonEmptyString,
@@ -67,6 +67,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
   public readonly fileSearch: CodexFuzzyFileSearchService;
   public readonly search: CodexGlobalSearchService;
   readonly #client: CodexRpcClient;
+  readonly #attachmentDirectory: string;
   readonly #taskTitles: CodexTaskTitles | undefined;
   readonly #logger: CodexProviderLogger;
   readonly #gitMetadataWatch: CodexGitMetadataWatchService;
@@ -86,13 +87,14 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     options: Omit<CreateCodexRuntimeProviderOptions, "client" | "logger"> = {},
   ) {
     this.#client = client;
+    const codexHome =
+      options.codexHome ?? process.env["CODEX_HOME"] ?? resolve(homedir(), ".codex");
+    this.#attachmentDirectory = join(codexHome, "codexly", "thread-attachments");
     this.#taskTitles =
       options.readTaskTitleModel === undefined
         ? undefined
         : new CodexTaskTitles(client, options.readTaskTitleModel, logger);
-    const instructions = createGlobalInstructionsStore(
-      options.codexHome ?? process.env["CODEX_HOME"] ?? resolve(homedir(), ".codex"),
-    );
+    const instructions = createGlobalInstructionsStore(codexHome);
     this.personalization = {
       getGlobalInstructions: instructions.read,
       saveGlobalInstructions: (input: SaveGlobalInstructions) => instructions.save(input),
@@ -231,6 +233,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
       return current;
     }
     const rawProvider = new CodexAgentProvider(this.#client, project, {
+      attachmentDirectory: this.#attachmentDirectory,
       logger: this.#logger,
       ...(this.#taskTitles === undefined ? {} : { taskTitles: this.#taskTitles }),
       subscribeRpc: false,

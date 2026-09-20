@@ -171,8 +171,8 @@ describe("CodexAgentProvider ownership and resume", () => {
         threadId: "task-1",
         turnId: "turn-timed",
       });
-      // 历史附件清理与 Pending Request 各持有一个受控 timer。
-      expect(vi.getTimerCount()).toBe(2);
+      // 持久附件不依赖清理 timer，仅 Pending Request 保留受控 timer。
+      expect(vi.getTimerCount()).toBe(1);
 
       await runtime.releaseProject(project.id);
 
@@ -224,7 +224,7 @@ describe("CodexAgentProvider ownership and resume", () => {
 
     await expect(provider.renameTask("task-1", "释放后重命名")).resolves.toBeUndefined();
 
-    expect(rpc.calls.slice(-4)).toEqual([
+    expect(rpc.calls.slice(-5)).toEqual([
       {
         method: "thread/read",
         params: { includeTurns: false, threadId: "task-1" },
@@ -238,6 +238,10 @@ describe("CodexAgentProvider ownership and resume", () => {
           sortDirection: "desc",
           threadId: "task-1",
         },
+      },
+      {
+        method: "thread/attachment/list",
+        params: { limit: 100, threadId: "task-1" },
       },
       {
         method: "thread/name/set",
@@ -293,10 +297,11 @@ describe("CodexAgentProvider ownership and resume", () => {
       "thread/read",
       "thread/goal/get",
       "thread/turns/list",
+      "thread/attachment/list",
       "thread/resume",
       "turn/start",
     ]);
-    expect(rpc.calls[3]).toEqual({
+    expect(rpc.calls[4]).toEqual({
       method: "thread/resume",
       params: {
         config: { "tools.update_plan.enabled": true },
@@ -305,7 +310,7 @@ describe("CodexAgentProvider ownership and resume", () => {
         threadId: "task-1",
       },
     });
-    expect(rpc.calls[4]).toMatchObject({
+    expect(rpc.calls[5]).toMatchObject({
       method: "turn/start",
       params: {
         approvalPolicy: {
@@ -574,6 +579,7 @@ describe("CodexAgentProvider ownership and resume", () => {
       "thread/read",
       "thread/goal/get",
       "thread/turns/list",
+      "thread/attachment/list",
       "thread/resume",
     ]);
     resolveResume({ thread: nativeThread() });

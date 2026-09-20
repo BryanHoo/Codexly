@@ -17,6 +17,8 @@ const queuedSubmissionsByThread = new Map();
 const pendingServerRequests = new Map();
 const pendingServerResponses = [];
 const nextPendingRequest = 1;
+const threadAttachments = new Map();
+const nextThreadAttachment = 1;
 
 // 单个 Fake App Server 进程共享一份可变协议状态。
 export const state = {
@@ -39,4 +41,6 @@ export const state = {
   pendingServerRequests,
   pendingServerResponses,
   nextPendingRequest,
+  threadAttachments,
+  nextThreadAttachment,
 };
