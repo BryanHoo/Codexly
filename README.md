@@ -94,23 +94,26 @@ docker compose up --detach
 docker compose logs --tail=50 codexly
 ```
 
-Open `http://127.0.0.1:3210` and use the random pairing code printed in the logs. The default named volume preserves Codex login data and Codexly's SQLite state. On Linux and macOS, the Compose file mounts the host root at `/workspace`, so every mounted disk is available to the project picker. Set `CODEXLY_WORKSPACE` to expose only one directory:
+Open `http://127.0.0.1:3210` and use the random pairing code printed in the logs. The default named volume preserves Codex login data and Codexly's SQLite state. On Linux and macOS, the Compose file mounts the host root at `/workspace`, so every mounted disk is available to the project picker. Set `CODEXLY_WORKSPACE` to expose only one directory and preserve its absolute path inside the container:
 
 ```bash
 CODEXLY_WORKSPACE=/path/to/projects docker compose up --detach
 ```
 
-Docker can only access host paths shared with the Docker engine. On Windows, set `CODEXLY_WORKSPACE` to a shared drive such as `C:/`; add extra bind mounts and repeat `--workspace` in `command` when multiple drives are required.
+When binding the host `CODEXLY_CODEX_HOME`, also set `CODEXLY_WORKSPACE` to a common parent of the existing projects. Their absolute paths then remain identical on the host and in the container.
 
-| Variable                | Purpose                                                              |
-| ----------------------- | -------------------------------------------------------------------- |
-| `CODEXLY_VERSION`       | Select the GHCR image tag; defaults to `latest`                      |
-| `CODEXLY_PORT`          | Set both the host and container port; defaults to `3210`             |
-| `CODEXLY_WORKSPACE`     | Restrict the host directory mounted at `/workspace`; defaults to `/` |
-| `CODEXLY_CODEX_HOME`    | Bind a host Codex home instead of the managed `codexly-data` volume  |
-| `CODEXLY_LAN_PASSWORD`  | Set a strong fixed access password instead of the logged random code |
-| `CODEXLY_ALLOWED_HOSTS` | Allow comma-separated exact reverse proxy domains                    |
-| `CODEXLY_SESSION_TTL`   | Set a fixed session lifetime such as `12h`                           |
+Docker can only access host paths shared with the Docker engine. On Windows, set `CODEXLY_WORKSPACE` to a shared drive such as `C:/` and set `CODEXLY_WORKSPACE_TARGET=/workspace`. Windows and Linux container paths use different absolute path formats, so a Codex Home containing host project records cannot be reused directly. Add extra bind mounts and repeat `--workspace` in `command` when multiple drives are required.
+
+| Variable                   | Purpose                                                                |
+| -------------------------- | ---------------------------------------------------------------------- |
+| `CODEXLY_VERSION`          | Select the GHCR image tag; defaults to `latest`                        |
+| `CODEXLY_PORT`             | Set both the host and container port; defaults to `3210`               |
+| `CODEXLY_WORKSPACE`        | Restrict the workspace and preserve its absolute path; defaults to `/` |
+| `CODEXLY_WORKSPACE_TARGET` | Override the container path; use `/workspace` on Windows               |
+| `CODEXLY_CODEX_HOME`       | Bind a host Codex home instead of the managed `codexly-data` volume    |
+| `CODEXLY_LAN_PASSWORD`     | Set a strong fixed access password instead of the logged random code   |
+| `CODEXLY_ALLOWED_HOSTS`    | Allow comma-separated exact reverse proxy domains                      |
+| `CODEXLY_SESSION_TTL`      | Set a fixed session lifetime such as `12h`                             |
 
 The image entrypoint accepts all normal CLI arguments, so orchestration platforms can replace `command` when needed. See the [complete Docker Compose deployment guide](docs/docker-deployment.md) for workspace, multiple-disk, Codex Home, update, backup, and troubleshooting instructions. Run `pnpm docker:build && pnpm docker:test` in a development checkout to build and smoke-test the local image.
 

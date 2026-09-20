@@ -10,11 +10,13 @@ services:
       CODEXLY_LAN_PASSWORD: ${CODEXLY_LAN_PASSWORD:-}
       CODEXLY_PORT: ${CODEXLY_PORT:-3210}
       CODEXLY_SESSION_TTL: ${CODEXLY_SESSION_TTL:-}
-      CODEXLY_WORKSPACE: /workspace
+      CODEXLY_WORKSPACE: ${CODEXLY_WORKSPACE_TARGET:-${CODEXLY_WORKSPACE:-/workspace}}
     volumes:
       - ${CODEXLY_CODEX_HOME:-codexly-data}:/home/node/.codex
-      # 默认挂载宿主根目录；设置 CODEXLY_WORKSPACE 后仅暴露指定目录。
-      - ${CODEXLY_WORKSPACE:-/}:/workspace
+      # 显式工作区保留宿主绝对路径，使复用 Codex Home 时的项目记录仍然有效。
+      - type: bind
+        source: ${CODEXLY_WORKSPACE:-/}
+        target: ${CODEXLY_WORKSPACE_TARGET:-${CODEXLY_WORKSPACE:-/workspace}}
     stop_grace_period: 30s
 
 volumes:

@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 
 const image = process.env["CODEXLY_DOCKER_IMAGE"] ?? "codexly:local";
 const container = `codexly-smoke-${String(process.pid)}`;
+const composeWorkspace = "/srv/codexly-projects";
 
 function docker(args, options = {}) {
   return execFileSync("docker", args, {
@@ -15,7 +16,45 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+function verifyComposeWorkspaceMapping() {
+  const readConfig = (environment) =>
+    JSON.parse(
+      execFileSync("docker", ["compose", "config", "--format", "json"], {
+        encoding: "utf8",
+        env: { ...process.env, ...environment },
+        stdio: ["ignore", "pipe", "pipe"],
+      }),
+    );
+  const config = readConfig({ CODEXLY_WORKSPACE: composeWorkspace });
+  const service = config.services?.codexly;
+  const workspaceMount = service?.volumes?.find((mount) => mount.source === composeWorkspace);
+
+  // POSIX 宿主与容器路径必须一致，否则复用 Codex Home 后的项目路径会失效。
+  if (
+    service?.environment?.CODEXLY_WORKSPACE !== composeWorkspace ||
+    workspaceMount?.target !== composeWorkspace
+  ) {
+    throw new Error("Compose does not preserve the configured workspace path");
+  }
+
+  const windowsConfig = readConfig({
+    CODEXLY_WORKSPACE: "C:/",
+    CODEXLY_WORKSPACE_TARGET: "/workspace",
+  });
+  const windowsService = windowsConfig.services?.codexly;
+  const windowsMount = windowsService?.volumes?.find((mount) => mount.source === "C:/");
+
+  // Windows 源路径不能直接作为 Linux 容器目标，必须允许显式覆盖。
+  if (
+    windowsService?.environment?.CODEXLY_WORKSPACE !== "/workspace" ||
+    windowsMount?.target !== "/workspace"
+  ) {
+    throw new Error("Compose does not apply the configured container workspace path");
+  }
+}
+
 try {
+  verifyComposeWorkspaceMapping();
   // 保留失败容器直到读取日志，确保启动错误不会被 --rm 丢失。
   docker(["run", "--detach", "--name", container, image]);
   const deadline = Date.now() + 90_000;

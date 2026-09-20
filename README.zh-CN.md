@@ -64,23 +64,26 @@ docker compose up --detach
 docker compose logs --tail=50 codexly
 ```
 
-打开 `http://127.0.0.1:3210`，使用日志中的随机配对码。默认命名卷会持久化 Codex 登录数据和 Codexly SQLite 状态。在 Linux 和 macOS 上，Compose 默认把宿主根目录挂载到 `/workspace`，项目选择器可读取所有已挂载磁盘。设置 `CODEXLY_WORKSPACE` 后只暴露指定目录：
+打开 `http://127.0.0.1:3210`，使用日志中的随机配对码。默认命名卷会持久化 Codex 登录数据和 Codexly SQLite 状态。在 Linux 和 macOS 上，Compose 默认把宿主根目录挂载到 `/workspace`，项目选择器可读取所有已挂载磁盘。设置 `CODEXLY_WORKSPACE` 后只暴露指定目录，并在容器中保留其绝对路径：
 
 ```bash
 CODEXLY_WORKSPACE=/path/to/projects docker compose up --detach
 ```
 
-Docker 只能访问 Docker Engine 已共享的宿主路径。Windows 需将 `CODEXLY_WORKSPACE` 设置为已共享盘符，例如 `C:/`；需要多个盘符时，在 Compose 中增加 bind mount，并在 `command` 中重复传入 `--workspace`。
+绑定宿主 `CODEXLY_CODEX_HOME` 时，应同时把 `CODEXLY_WORKSPACE` 设置为已有项目的公共父目录。Codex 保存的项目绝对路径随后可在宿主和容器中保持一致。
 
-| 变量                    | 用途                                                |
-| ----------------------- | --------------------------------------------------- |
-| `CODEXLY_VERSION`       | 指定 GHCR 镜像标签，默认 `latest`                   |
-| `CODEXLY_PORT`          | 同时设置宿主与容器端口，默认 `3210`                 |
-| `CODEXLY_WORKSPACE`     | 限制挂载到 `/workspace` 的宿主目录，默认 `/`        |
-| `CODEXLY_CODEX_HOME`    | 绑定宿主 Codex Home，替代默认 `codexly-data` 命名卷 |
-| `CODEXLY_LAN_PASSWORD`  | 设置固定强密码，替代日志中生成的随机配对码          |
-| `CODEXLY_ALLOWED_HOSTS` | 设置逗号分隔的反向代理精确域名                      |
-| `CODEXLY_SESSION_TTL`   | 设置固定会话期限，例如 `12h`                        |
+Docker 只能访问 Docker Engine 已共享的宿主路径。Windows 需将 `CODEXLY_WORKSPACE` 设置为已共享盘符（例如 `C:/`），并设置 `CODEXLY_WORKSPACE_TARGET=/workspace`。Windows 与 Linux 容器的绝对路径格式不同，不能直接复用包含宿主项目记录的 Codex Home；需要多个盘符时，在 Compose 中增加 bind mount，并在 `command` 中重复传入 `--workspace`。
+
+| 变量                       | 用途                                                |
+| -------------------------- | --------------------------------------------------- |
+| `CODEXLY_VERSION`          | 指定 GHCR 镜像标签，默认 `latest`                   |
+| `CODEXLY_PORT`             | 同时设置宿主与容器端口，默认 `3210`                 |
+| `CODEXLY_WORKSPACE`        | 限制工作区并在容器内保留相同绝对路径，默认 `/`      |
+| `CODEXLY_WORKSPACE_TARGET` | 覆盖容器工作区路径，Windows 使用 `/workspace`       |
+| `CODEXLY_CODEX_HOME`       | 绑定宿主 Codex Home，替代默认 `codexly-data` 命名卷 |
+| `CODEXLY_LAN_PASSWORD`     | 设置固定强密码，替代日志中生成的随机配对码          |
+| `CODEXLY_ALLOWED_HOSTS`    | 设置逗号分隔的反向代理精确域名                      |
+| `CODEXLY_SESSION_TTL`      | 设置固定会话期限，例如 `12h`                        |
 
 镜像入口支持全部 CLI 参数，编排平台可按需覆盖 `command`。工作区、多磁盘、Codex Home、更新、备份和故障排查参见[完整 Docker Compose 部署指南](docs/docker-deployment.md)。开发仓库可运行 `pnpm docker:build && pnpm docker:test` 构建并冒烟测试本地镜像。
 
