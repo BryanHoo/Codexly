@@ -81,6 +81,7 @@ export function WorkbenchShellLayout({
     openProjectFolder,
     pendingTaskSelection,
     projectDefaultsQuery,
+    projectFolderOpenAvailable,
     projectFolderOpenDisabled,
     projectName,
     projectRoots,
@@ -280,6 +281,7 @@ export function WorkbenchShellLayout({
                 projectId={projectId}
                 projectName={projectName}
                 projectPath={projectPath}
+                projectPathOpenAvailable={projectFolderOpenAvailable}
                 projectPathOpenDisabled={projectFolderOpenDisabled}
                 projectRoots={projectRoots}
                 // 新建临时任务也必须禁用依赖 Project 根目录的命令。
@@ -309,6 +311,7 @@ export function WorkbenchShellLayout({
               onTaskStarted={handleTaskStarted}
               projectId={projectId}
               projectPath={projectPath}
+              projectPathOpenAvailable={projectFolderOpenAvailable}
               projectPathOpenDisabled={projectFolderOpenDisabled}
               projectRoots={projectRoots}
               projectToolsEnabled={!temporary}

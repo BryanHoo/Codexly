@@ -61,6 +61,15 @@ export class ProjectOpenTargetInvalidError extends Error {
   }
 }
 
+export function createDisabledProjectOpenService(
+  platform: ProjectOpenPlatform = process.platform as ProjectOpenPlatform,
+): ProjectOpenService {
+  return {
+    getCapabilities: () => Promise.resolve({ apps: [], platform }),
+    open: (_projectRoot, appId) => Promise.reject(new ProjectOpenAppUnavailableError(appId)),
+  };
+}
+
 function isOutsideProject(relativePath: string): boolean {
   return relativePath === ".." || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath);
 }

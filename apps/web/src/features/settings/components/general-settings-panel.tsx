@@ -58,29 +58,31 @@ export function GeneralSettingsPanel({
       <h1 className="mb-6 text-xl font-semibold">{t("sections.appearance")}</h1>
       <div className="space-y-6">
         <SettingsGroup title={t("general.preferences")}>
-          <SettingsField
-            label={t("fields.defaultOpenWith")}
-            description={t("general.openAppDescription")}
-          >
-            <SettingsSelect
-              aria-label={t("fields.defaultOpenWith")}
-              value={settings.defaultOpenAppId ?? ""}
-              onChange={(event) => {
-                onDefaultOpenAppChange(
-                  (event.currentTarget.value || null) as AgentGlobalSettings["defaultOpenAppId"],
-                );
-              }}
+          {apps.some((app) => app.kind !== "system-default") ? (
+            <SettingsField
+              label={t("fields.defaultOpenWith")}
+              description={t("general.openAppDescription")}
             >
-              <option value="">{t("integration.automatic")}</option>
-              {apps
-                .filter((app) => app.kind !== "system-default")
-                .map((app) => (
-                  <option key={app.id} value={app.id}>
-                    {app.name}
-                  </option>
-                ))}
-            </SettingsSelect>
-          </SettingsField>
+              <SettingsSelect
+                aria-label={t("fields.defaultOpenWith")}
+                value={settings.defaultOpenAppId ?? ""}
+                onChange={(event) => {
+                  onDefaultOpenAppChange(
+                    (event.currentTarget.value || null) as AgentGlobalSettings["defaultOpenAppId"],
+                  );
+                }}
+              >
+                <option value="">{t("integration.automatic")}</option>
+                {apps
+                  .filter((app) => app.kind !== "system-default")
+                  .map((app) => (
+                    <option key={app.id} value={app.id}>
+                      {app.name}
+                    </option>
+                  ))}
+              </SettingsSelect>
+            </SettingsField>
+          ) : null}
           <SettingsField
             label={t("appearance.language")}
             description={t("general.languageDescription")}

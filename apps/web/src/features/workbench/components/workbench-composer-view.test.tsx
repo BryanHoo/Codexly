@@ -8,13 +8,15 @@ import {
 } from "./composer-branch-switcher.js";
 import { ComposerApprovalControls } from "./workbench-composer-approval-controls.js";
 import {
-  ComposerModeTag,
-  ComposerGoalStatusTag,
-  ComposerFastModeButton,
   ComposerProjectRootControls,
   ComposerProjectPathButton,
-  resolveQueuedPromptSummary,
 } from "./workbench-composer-view.js";
+import { resolveQueuedPromptSummary } from "./workbench-composer-view-contracts.js";
+import {
+  ComposerFastModeButton,
+  ComposerGoalStatusTag,
+  ComposerModeTag,
+} from "./workbench-composer-toolbar.js";
 
 describe("WorkbenchComposerView", () => {
   it("没有其他分支和 worktree 时隐藏两个切换模块", () => {
@@ -300,5 +302,27 @@ describe("WorkbenchComposerView", () => {
     expect(markup.indexOf('aria-label="选择项目目录"')).toBeLessThan(
       markup.indexOf('aria-label="在系统文件夹中打开"'),
     );
+  });
+
+  it("没有宿主文件管理器能力时隐藏项目路径打开按钮", () => {
+    const markup = renderToStaticMarkup(
+      <TooltipProvider>
+        <ComposerProjectRootControls
+          onOpen={() => undefined}
+          onRootChange={() => undefined}
+          projectPath="/workspace/primary"
+          projectPathOpenAvailable={false}
+          projectPathOpenDisabled
+          roots={[
+            { id: "root-primary", path: "/workspace/primary" },
+            { id: "root-secondary", path: "/workspace/secondary" },
+          ]}
+          selectedRootId="root-primary"
+        />
+      </TooltipProvider>,
+    );
+
+    expect(markup).not.toContain('aria-label="在系统文件夹中打开"');
+    expect(markup).toContain('aria-label="选择项目目录"');
   });
 });

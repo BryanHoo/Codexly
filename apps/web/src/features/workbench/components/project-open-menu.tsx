@@ -60,11 +60,11 @@ export function ProjectQuickOpenMenu({
   onSelect,
 }: ProjectQuickOpenMenuProps) {
   const { t } = useTranslation("workbench");
-  // 临时任务没有 Project 根目录，不渲染目录快捷打开入口。
-  if (hidden) {
+  const directoryApps = getProjectOpenAppsForTarget(apps, "directory");
+  // 临时任务和无宿主应用能力的 LAN 模式均不渲染快捷打开入口。
+  if (hidden || (!isDetecting && directoryApps.length === 0)) {
     return null;
   }
-  const directoryApps = getProjectOpenAppsForTarget(apps, "directory");
   // 全局默认值不可用时回退到首个宿主应用，确保快捷入口仍可直接执行。
   const selectedApp = directoryApps.find((app) => app.id === defaultOpenAppId) ?? directoryApps[0];
   const openButtonLabel = isDetecting
@@ -184,31 +184,34 @@ export function ProjectOpenContextMenuItems({
         <Copy aria-hidden="true" className="size-4 text-muted-foreground" />
         <span>{t("openMenu.copyAbsolutePath")}</span>
       </ContextMenuItem>
-      <ContextMenuSub>
-        <ContextMenuSubTrigger>
-          <FolderOpen aria-hidden="true" className="size-4 text-muted-foreground" />
-          <span>{t("openMenu.open")}</span>
-        </ContextMenuSubTrigger>
-        <ContextMenuSubContent>
-          {targetApps.map((app) => {
-            const Icon = projectOpenAppKindIcons[app.kind];
-            const appName = app.kind === "system-default" ? t("openMenu.systemDefault") : app.name;
-            return (
-              <ContextMenuItem
-                aria-label={appName}
-                disabled={isPending}
-                key={app.id}
-                onSelect={() => {
-                  onSelect(app.id, target.path);
-                }}
-              >
-                <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate">{appName}</span>
-              </ContextMenuItem>
-            );
-          })}
-        </ContextMenuSubContent>
-      </ContextMenuSub>
+      {targetApps.length === 0 ? null : (
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>
+            <FolderOpen aria-hidden="true" className="size-4 text-muted-foreground" />
+            <span>{t("openMenu.open")}</span>
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent>
+            {targetApps.map((app) => {
+              const Icon = projectOpenAppKindIcons[app.kind];
+              const appName =
+                app.kind === "system-default" ? t("openMenu.systemDefault") : app.name;
+              return (
+                <ContextMenuItem
+                  aria-label={appName}
+                  disabled={isPending}
+                  key={app.id}
+                  onSelect={() => {
+                    onSelect(app.id, target.path);
+                  }}
+                >
+                  <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate">{appName}</span>
+                </ContextMenuItem>
+              );
+            })}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      )}
       {target.type === "file" && onOpenInNewWindow !== undefined ? (
         <ContextMenuItem onSelect={onOpenInNewWindow}>
           <ExternalLink aria-hidden="true" className="size-4 text-muted-foreground" />

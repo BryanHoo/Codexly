@@ -4,9 +4,18 @@ import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { createProjectOpenService } from "./project-open.js";
+import { createDisabledProjectOpenService, createProjectOpenService } from "./project-open.js";
 
 describe("createProjectOpenService", () => {
+  it("disables host application capabilities for LAN access", async () => {
+    const service = createDisabledProjectOpenService("darwin");
+
+    await expect(service.getCapabilities()).resolves.toEqual({ apps: [], platform: "darwin" });
+    await expect(service.open("/workspace/Codexly", "zed")).rejects.toMatchObject({
+      name: "ProjectOpenAppUnavailableError",
+    });
+  });
+
   it("opens an absolute file reference outside the Project with the system application", async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), "codexly-open-project-"));
     const outsideRoot = await mkdtemp(join(tmpdir(), "codexly-open-absolute-"));

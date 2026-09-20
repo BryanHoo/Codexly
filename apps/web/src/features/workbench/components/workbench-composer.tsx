@@ -55,6 +55,7 @@ export function WorkbenchComposer({
   projectId,
   projectName,
   projectPath,
+  projectPathOpenAvailable = true,
   projectPathOpenDisabled,
   projectRoots,
   projectToolsEnabled = true,
@@ -444,6 +445,7 @@ export function WorkbenchComposer({
         setMutationError(error);
       }}
       projectPath={projectPath}
+      projectPathOpenAvailable={projectPathOpenAvailable}
       projectPathOpenDisabled={projectPathOpenDisabled}
       projectRoots={projectRoots}
       projectToolsEnabled={projectToolsEnabled}

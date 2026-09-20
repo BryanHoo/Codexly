@@ -100,6 +100,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   onSubmit: (message: PromptInputMessage) => void;
   onViewError: (error: Error) => void;
   projectPath: string;
+  projectPathOpenAvailable?: boolean;
   projectPathOpenDisabled: boolean;
   projectRoots: readonly ProjectRoot[];
   projectToolsEnabled: boolean;

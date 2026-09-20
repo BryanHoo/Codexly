@@ -56,9 +56,40 @@ describe("ProjectQuickOpenMenu", () => {
 
     expect(markup).toBe("");
   });
+
+  it("没有宿主应用能力时隐藏顶部快捷打开", () => {
+    const markup = renderToStaticMarkup(
+      <ProjectQuickOpenMenu apps={[]} isDetecting={false} isPending={false} onSelect={vi.fn()} />,
+    );
+
+    expect(markup).toBe("");
+  });
 });
 
 describe("ProjectOpenContextMenuItems", () => {
+  it("没有宿主应用能力时隐藏打开应用子菜单", () => {
+    const markup = renderToStaticMarkup(
+      <ContextMenu open>
+        <ProjectOpenContextMenuItems
+          apps={[]}
+          isPending={false}
+          onOpenInNewWindow={vi.fn()}
+          onReference={vi.fn()}
+          onSelect={vi.fn()}
+          target={{
+            absolutePath: "/workspace/Codexly/README.md",
+            path: "README.md",
+            relativePath: "README.md",
+            type: "file",
+          }}
+        />
+      </ContextMenu>,
+    );
+
+    expect(markup).not.toContain('data-slot="context-menu-sub-trigger"');
+    expect(markup).toContain("在独立窗口打开");
+  });
+
   it("renders copy, open, and reference commands as one target menu", () => {
     const markup = renderToStaticMarkup(
       <ContextMenu open>

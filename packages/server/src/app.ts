@@ -21,7 +21,7 @@ import { deleteProjectFile, renameProjectFile } from "./project-file-mutations.j
 import { readProjectImageFile } from "./project-image-file.js";
 import { readProjectSourceFile } from "./project-source-file.js";
 import { createProviderTurnInputResolver } from "./provider-turn-input-resolver.js";
-import { createProjectOpenService } from "./project-open.js";
+import { createDisabledProjectOpenService, createProjectOpenService } from "./project-open.js";
 import { createClawhubClient } from "./skill-market-client.js";
 import { createSkillMarketService } from "./skill-market-service.js";
 import { createProjectRuntimeContext } from "./project-runtime-context.js";
@@ -139,7 +139,11 @@ export async function createCodexlyServer(
     });
   const readImageFile = options.readProjectImageFile ?? readProjectImageFile;
   const readSourceFile = options.readProjectSourceFile ?? readProjectSourceFile;
-  const projectOpenService = options.projectOpenService ?? createProjectOpenService();
+  // LAN 客户端与服务端可能不在同一宿主，禁止暴露或执行服务端桌面应用。
+  const projectOpenService =
+    options.access === undefined
+      ? (options.projectOpenService ?? createProjectOpenService())
+      : createDisabledProjectOpenService();
   const workspaceBrowserOptions =
     options.workspaceRoots === undefined ? {} : { workspaceRoots: options.workspaceRoots };
   const browseProjectDirectory =

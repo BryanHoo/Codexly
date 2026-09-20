@@ -112,6 +112,7 @@ export type WorkbenchComposerProps = Readonly<{
   ) => void;
   projectId: string;
   projectName?: string;
+  projectPathOpenAvailable?: boolean;
   projectPathOpenDisabled: boolean;
   projectPath: string;
   projectToolsEnabled?: boolean;

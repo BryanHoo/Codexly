@@ -18,6 +18,17 @@ describe("server access security", () => {
     const lanStatus = await lan.inject({ method: "GET", url: "/v1/access" });
     const health = await lan.inject({ method: "GET", url: "/v1/health" });
     const protectedResponse = await lan.inject({ method: "GET", url: "/v1/projects" });
+    const pair = await lan.inject({
+      method: "POST",
+      payload: { code: "test-pairing-code" },
+      url: "/v1/access/pair",
+    });
+    const sessionCookie = pair.headers["set-cookie"];
+    const openCapabilities = await lan.inject({
+      headers: { cookie: Array.isArray(sessionCookie) ? sessionCookie[0] : sessionCookie },
+      method: "GET",
+      url: "/v1/projects/codexly/open-capabilities",
+    });
 
     expect(localStatus.json()).toEqual({ authenticated: true, mode: "local", version: 1 });
     expect(lanStatus.json()).toEqual({ authenticated: false, mode: "lan", version: 1 });
@@ -38,6 +49,7 @@ describe("server access security", () => {
     );
     expect(protectedResponse.headers["x-frame-options"]).toBe("DENY");
     expect(protectedResponse.headers["strict-transport-security"]).toBeUndefined();
+    expect(openCapabilities.json()).toMatchObject({ apps: [] });
   });
 
   it("rejects DNS rebinding hosts and cross-origin local browser mutations", async () => {

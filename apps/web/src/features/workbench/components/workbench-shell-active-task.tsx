@@ -46,6 +46,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   onTaskStarted,
   projectId,
   projectPath,
+  projectPathOpenAvailable,
   projectPathOpenDisabled,
   projectRoots,
   projectToolsEnabled,
@@ -83,6 +84,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   ) => void;
   projectId: string;
   projectPath: string;
+  projectPathOpenAvailable: boolean;
   projectPathOpenDisabled: boolean;
   projectRoots: readonly ProjectRoot[];
   projectToolsEnabled: boolean;
@@ -224,6 +226,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         }}
         projectId={projectId}
         projectPath={projectPath}
+        projectPathOpenAvailable={projectPathOpenAvailable}
         projectPathOpenDisabled={projectPathOpenDisabled}
         projectRoots={projectRoots}
         projectToolsEnabled={projectToolsEnabled}

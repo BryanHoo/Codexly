@@ -133,31 +133,34 @@ export function ProjectOpenDropdownMenuItems({
         <Copy aria-hidden="true" className="size-4 text-muted-foreground" />
         <span>{t("openMenu.copyAbsolutePath")}</span>
       </DropdownMenuItem>
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
-          <FolderOpen aria-hidden="true" className="size-4 text-muted-foreground" />
-          <span>{t("openMenu.open")}</span>
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          {targetApps.map((app) => {
-            const Icon = projectOpenAppKindIcons[app.kind];
-            const appName = app.kind === "system-default" ? t("openMenu.systemDefault") : app.name;
-            return (
-              <DropdownMenuItem
-                aria-label={appName}
-                disabled={isPending}
-                key={app.id}
-                onSelect={() => {
-                  onSelect(app.id, target.path);
-                }}
-              >
-                <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate">{appName}</span>
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
+      {targetApps.length === 0 ? null : (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <FolderOpen aria-hidden="true" className="size-4 text-muted-foreground" />
+            <span>{t("openMenu.open")}</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {targetApps.map((app) => {
+              const Icon = projectOpenAppKindIcons[app.kind];
+              const appName =
+                app.kind === "system-default" ? t("openMenu.systemDefault") : app.name;
+              return (
+                <DropdownMenuItem
+                  aria-label={appName}
+                  disabled={isPending}
+                  key={app.id}
+                  onSelect={() => {
+                    onSelect(app.id, target.path);
+                  }}
+                >
+                  <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate">{appName}</span>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
       {target.type === "file" && onOpenInNewWindow !== undefined ? (
         <DropdownMenuItem onSelect={onOpenInNewWindow}>
           <ExternalLink aria-hidden="true" className="size-4 text-muted-foreground" />

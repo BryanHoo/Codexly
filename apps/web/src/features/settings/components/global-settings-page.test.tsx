@@ -148,6 +148,24 @@ describe("GlobalSettingsPage", () => {
     expect(markup).not.toContain('aria-label="快速模式"');
   });
 
+  it("hides the default open application setting without host capabilities", async () => {
+    const markup = await renderSettingsDialog(
+      <GlobalSettingsPage
+        client={new CodexlyClient()}
+        apps={[]}
+        error={null}
+        isPending={false}
+        models={models}
+        onClose={vi.fn()}
+        onRetry={vi.fn()}
+        onSave={vi.fn()}
+        settings={createFallbackSettings(models)}
+      />,
+    );
+
+    expect(markup).not.toContain('aria-label="默认打开方式"');
+  });
+
   it("shows Codexly and Codex versions with an available update", async () => {
     const appInfo: AppInfoResponse = {
       appVersion: "1.3.0",

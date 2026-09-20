@@ -22,9 +22,11 @@ import {
   isPromptInputNewlineShortcut,
 } from "../../../shared/components/agent/prompt-input.js";
 import { Button } from "../../../shared/components/core/button.js";
-import { Tooltip } from "../../../shared/components/core/tooltip.js";
-import { TooltipContent } from "../../../shared/components/core/tooltip.js";
-import { TooltipTrigger } from "../../../shared/components/core/tooltip.js";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../../../shared/components/core/tooltip.js";
 import {
   LARGE_PASTE_CHARACTER_THRESHOLD,
   PASTED_TEXT_ATTACHMENT_NAME,
@@ -52,13 +54,6 @@ import {
   resolveQueuedPromptSummary,
   type WorkbenchComposerViewProps,
 } from "./workbench-composer-view-contracts.js";
-export {
-  ComposerFastModeButton,
-  ComposerGoalStatusTag,
-  ComposerModeTag,
-} from "./workbench-composer-toolbar.js";
-export * from "./workbench-composer-view-contracts.js";
-
 export function ComposerProjectPathButton({
   disabled,
   onOpen,
@@ -91,6 +86,7 @@ export function ComposerProjectRootControls({
   onOpen,
   onRootChange,
   projectPath,
+  projectPathOpenAvailable = true,
   projectPathOpenDisabled,
   roots,
   selectedRootId,
@@ -98,6 +94,7 @@ export function ComposerProjectRootControls({
   onOpen: () => void;
   onRootChange: (rootId: string) => void;
   projectPath: string;
+  projectPathOpenAvailable?: boolean;
   projectPathOpenDisabled: boolean;
   roots: WorkbenchComposerViewProps["projectRoots"];
   selectedRootId: string;
@@ -105,13 +102,15 @@ export function ComposerProjectRootControls({
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1" data-composer-project-root-controls="">
       <ProjectRootSelector onChange={onRootChange} roots={roots} value={selectedRootId} />
-      <div className="min-w-0 flex-1">
-        <ComposerProjectPathButton
-          disabled={projectPathOpenDisabled}
-          onOpen={onOpen}
-          projectPath={projectPath}
-        />
-      </div>
+      {projectPathOpenAvailable ? (
+        <div className="min-w-0 flex-1">
+          <ComposerProjectPathButton
+            disabled={projectPathOpenDisabled}
+            onOpen={onOpen}
+            projectPath={projectPath}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

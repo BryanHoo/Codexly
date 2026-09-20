@@ -417,6 +417,7 @@ export function useWorkbenchShellRuntime({
     projectRoots: project?.roots ?? [],
     projectOpenCapabilitiesQuery,
     providerConnectionQuery,
+    projectFolderOpenAvailable: projectFileManagerApp !== undefined,
     projectFolderOpenDisabled:
       projectFileManagerApp === undefined || projectPathOpenMutation.isPending,
     projectPath,
