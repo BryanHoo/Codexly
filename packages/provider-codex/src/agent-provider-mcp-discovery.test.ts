@@ -21,7 +21,7 @@ function createClient(toolsError: unknown, runtimeStatus = "connected") {
   };
 }
 
-describe("Codex 0.154 MCP 工具发现", () => {
+describe("Codex 0.155 MCP 工具发现", () => {
   it("将工具发现失败显示为失败，且不转发原始错误或追加请求", async () => {
     const client = createClient("Bearer secret-token https://private.example.com");
     await expect(listCodexMcpServers(client, "task-1")).resolves.toEqual({

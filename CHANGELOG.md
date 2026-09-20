@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### 优化
+
+- 升级内置 Codex 至 `0.155.1`，刷新 App Server Schema 基线并适配 Thread Attachment 通知协议。
+
 ## [0.23.0] - 2026-09-18
 
 ### 新增

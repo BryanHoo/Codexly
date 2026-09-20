@@ -85,6 +85,7 @@ export const CODEX_IGNORED_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
   "rawResponseItem/completed",
   "remoteControl/status/changed",
   "project/changed",
+  "thread/attachment/updated",
   "thread/closed",
   "thread/compacted",
   "thread/environment/connected",

@@ -96,7 +96,7 @@ export async function listCodexMcpServers(
         continue;
       }
       const runtimeStatus = mapMcpRuntimeStatus(server["runtimeStatus"], authStatus);
-      // 0.154 单独报告工具发现失败；只修正假成功，保留认证等状态，不外传原始错误。
+      // 0.155 单独报告工具发现失败；只修正假成功，保留认证等状态，不外传原始错误。
       const status =
         toolsError !== null && (runtimeStatus === "connected" || runtimeStatus === "unknown")
           ? "failed"

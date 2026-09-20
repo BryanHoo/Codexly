@@ -33,7 +33,7 @@ Capture contract and verification standards for this project.
 - 定时任务跨层契约统一使用严格的 `once`/`rrule` 联合计划、`AgentPromptInput` 与 `AgentTurnOptions`，客户端和服务端不得维护平行结构。
 - 定时任务 create、update、delete、enabled 和 run 写响应必须在幂等 action 内附带服务端排序后的完整 `tasks`；同一 `Idempotency-Key` 重放返回完全相同的任务与列表快照。浏览器成功后直接替换列表缓存，不得复制调度排序或追加 GET；后续运行进度由事件同步。
 - 升级固定 Codex 版本时，同步更新版本常量、catalog/lockfile 和真实 App Server Schema 基线；对新增通知与联合类型逐项映射或显式 opt-out，不使用旧协议兼容回退。
-- 内置 Codex 固定为 `0.154.0`；外部可执行文件仅接受稳定版 `>=0.154.0,<0.155.0`，不得默认兼容未知次版本或主版本。
+- 内置 Codex 固定为 `0.155.1`；外部可执行文件仅接受稳定版 `>=0.155.0,<0.156.0`，不得默认兼容未知次版本或主版本。
 - `agentMessage.questions` 映射为消息内结构化问题，禁止创建 `PendingRequest`；问题状态与回答编排归后端管理，通过独立 `async-questions` 接口提交结构化答案，后端选择启动或 `turn/steer`。持久化仅保存 `AnswerAsyncQuestionResult`，HTTP 回答响应额外返回投递完成后的权威 `questions`；回答与关闭成功后客户端直接更新查询缓存，失败时才重新读取。批量关闭单请求最多接受 10,000 个唯一 ID，由 Node 在一次仓储事务中处理，浏览器不得按内部批次拆分为多个写请求。
 - `thread/read` 与 `thread/list` 中 nullable 的 `model`、`reasoningEffort` 统一保留为 `threadConfiguration`，与应用设置分别传递。
 - 运行中审批设置只向精确 `threadId`、`turnId` 发布 `turn/settings/update.approvalsReviewer`；不携带模型字段、不启用 `step_model_switching`、不修改挂起审批。`targetUnavailable` 仅保留后续回合设置，不重试其他回合。
