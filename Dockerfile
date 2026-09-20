@@ -60,7 +60,7 @@ LABEL org.opencontainers.image.title="Codexly" \
       org.opencontainers.image.revision="${REVISION}"
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends ca-certificates git tini \
+    && apt-get install --yes --no-install-recommends ca-certificates git openssh-client tini \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /home/node/.codex /workspace \
     && chown -R node:node /home/node/.codex /workspace

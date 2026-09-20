@@ -4,6 +4,7 @@ const image = process.env["CODEXLY_DOCKER_IMAGE"] ?? "codexly:local";
 const container = `codexly-smoke-${String(process.pid)}`;
 const composeWorkspace = "/srv/codexly-projects";
 const gitConfigPath = "/tmp/codexly-gitconfig";
+const sshHomePath = "/tmp/codexly-ssh";
 
 function docker(args, options = {}) {
   return execFileSync("docker", args, {
@@ -57,12 +58,22 @@ function verifyComposeWorkspaceMapping() {
   if (gitConfig.services?.codexly?.environment?.CODEXLY_GIT_CONFIG !== gitConfigPath) {
     throw new Error("Compose does not expose the configured global Git config path");
   }
+
+  const sshConfig = readConfig({ CODEXLY_SSH_HOME: sshHomePath });
+  const sshMount = sshConfig.services?.codexly?.volumes?.find(
+    (mount) => mount.source === sshHomePath,
+  );
+  if (sshMount?.target !== "/home/node/.ssh" || sshMount?.read_only !== true) {
+    throw new Error("Compose does not mount the configured SSH home read-only");
+  }
 }
 
 try {
   verifyComposeWorkspaceMapping();
   // 保留失败容器直到读取日志，确保启动错误不会被 --rm 丢失。
   docker(["run", "--detach", "--name", container, image]);
+  // Git SSH 远程依赖运行镜像提供 ssh 客户端，否则 push 会在 fork 前失败。
+  docker(["exec", container, "ssh", "-V"]);
   const deadline = Date.now() + 90_000;
 
   // 镜像内健康检查覆盖 Codex 子进程、SQLite 初始化与 HTTP 服务启动。

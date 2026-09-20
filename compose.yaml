@@ -14,6 +14,8 @@ services:
       CODEXLY_GIT_CONFIG: ${CODEXLY_GIT_CONFIG:-/home/node/.gitconfig}
     volumes:
       - ${CODEXLY_CODEX_HOME:-codexly-data}:/home/node/.codex
+      # SSH 配置和私钥保持只读；未配置宿主目录时使用隔离命名卷。
+      - ${CODEXLY_SSH_HOME:-codexly-ssh}:/home/node/.ssh:ro
       # 显式工作区保留宿主绝对路径，使复用 Codex Home 时的项目记录仍然有效。
       - type: bind
         source: ${CODEXLY_WORKSPACE:-/}
@@ -22,3 +24,4 @@ services:
 
 volumes:
   codexly-data:
+  codexly-ssh:

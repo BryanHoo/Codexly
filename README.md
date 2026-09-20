@@ -102,7 +102,7 @@ CODEXLY_WORKSPACE=/path/to/projects docker compose up --detach
 
 When binding the host `CODEXLY_CODEX_HOME`, also set `CODEXLY_WORKSPACE` to a common parent of the existing projects. Their absolute paths then remain identical on the host and in the container.
 
-The container does not automatically inherit the host Git identity. Set `CODEXLY_GIT_CONFIG` to a global Git config file visible inside the container. With an identity-mapped Linux or macOS workspace, use the absolute path to the host `~/.gitconfig` directly.
+The container does not automatically inherit the host Git identity. Set `CODEXLY_GIT_CONFIG` to a global Git config file visible inside the container. With an identity-mapped Linux or macOS workspace, use the absolute path to the host `~/.gitconfig` directly. For SSH remotes, set `CODEXLY_SSH_HOME` to the absolute path of the host `~/.ssh` directory.
 
 Docker can only access host paths shared with the Docker engine. On Windows, set `CODEXLY_WORKSPACE` to a shared drive such as `C:/` and set `CODEXLY_WORKSPACE_TARGET=/workspace`. Windows and Linux container paths use different absolute path formats, so a Codex Home containing host project records cannot be reused directly. Add extra bind mounts and repeat `--workspace` in `command` when multiple drives are required.
 
@@ -113,6 +113,7 @@ Docker can only access host paths shared with the Docker engine. On Windows, set
 | `CODEXLY_WORKSPACE`        | Restrict the workspace and preserve its absolute path; defaults to `/` |
 | `CODEXLY_WORKSPACE_TARGET` | Override the container path; use `/workspace` on Windows               |
 | `CODEXLY_GIT_CONFIG`       | Select a container-visible global Git config file                      |
+| `CODEXLY_SSH_HOME`         | Mount host SSH config, keys, and `known_hosts` read-only               |
 | `CODEXLY_CODEX_HOME`       | Bind a host Codex home instead of the managed `codexly-data` volume    |
 | `CODEXLY_LAN_PASSWORD`     | Set a strong fixed access password instead of the logged random code   |
 | `CODEXLY_ALLOWED_HOSTS`    | Allow comma-separated exact reverse proxy domains                      |

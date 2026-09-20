@@ -76,9 +76,10 @@ CODEXLY_WORKSPACE=/home/example/projects
 ```dotenv
 CODEXLY_WORKSPACE=/home/example
 CODEXLY_GIT_CONFIG=/home/example/.gitconfig
+CODEXLY_SSH_HOME=/home/example/.ssh
 ```
 
-Linux 和 macOS 的同路径工作区可直接复用宿主 `~/.gitconfig`。Windows 使用 `CODEXLY_WORKSPACE_TARGET` 映射后的 POSIX 路径。
+Linux 和 macOS 的同路径工作区可直接复用宿主 `~/.gitconfig`。使用 SSH 远程时，`CODEXLY_SSH_HOME` 会把宿主 SSH 配置、私钥和 `known_hosts` 只读挂载到容器。Windows 使用 `CODEXLY_WORKSPACE_TARGET` 映射后的 POSIX 路径。
 
 ## 配置工作区
 
@@ -136,6 +137,7 @@ services:
 | `CODEXLY_WORKSPACE`        | `/`                     | 限制工作区并在容器内保留相同绝对路径          |
 | `CODEXLY_WORKSPACE_TARGET` | 自动选择                | 覆盖容器工作区路径，Windows 使用 `/workspace` |
 | `CODEXLY_GIT_CONFIG`       | `/home/node/.gitconfig` | 容器可见的全局 Git 配置文件                   |
+| `CODEXLY_SSH_HOME`         | `codexly-ssh`           | 只读挂载宿主 SSH 配置、私钥和 `known_hosts`   |
 | `CODEXLY_CODEX_HOME`       | `codexly-data`          | Codex Home 的命名卷或宿主绝对路径             |
 | `CODEXLY_LAN_PASSWORD`     | 随机生成                | 固定配对密码                                  |
 | `CODEXLY_SESSION_TTL`      | 当前进程有效            | 会话期限，例如 `12h`                          |

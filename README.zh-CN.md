@@ -72,7 +72,7 @@ CODEXLY_WORKSPACE=/path/to/projects docker compose up --detach
 
 绑定宿主 `CODEXLY_CODEX_HOME` 时，应同时把 `CODEXLY_WORKSPACE` 设置为已有项目的公共父目录。Codex 保存的项目绝对路径随后可在宿主和容器中保持一致。
 
-容器不会自动继承宿主 Git 身份。将 `CODEXLY_GIT_CONFIG` 设置为容器可见的全局 Git 配置文件；在 Linux 和 macOS 的同路径工作区中可直接填写宿主 `~/.gitconfig` 的绝对路径。
+容器不会自动继承宿主 Git 身份。将 `CODEXLY_GIT_CONFIG` 设置为容器可见的全局 Git 配置文件；在 Linux 和 macOS 的同路径工作区中可直接填写宿主 `~/.gitconfig` 的绝对路径。使用 SSH 远程时，将 `CODEXLY_SSH_HOME` 设置为宿主 `~/.ssh` 的绝对路径。
 
 Docker 只能访问 Docker Engine 已共享的宿主路径。Windows 需将 `CODEXLY_WORKSPACE` 设置为已共享盘符（例如 `C:/`），并设置 `CODEXLY_WORKSPACE_TARGET=/workspace`。Windows 与 Linux 容器的绝对路径格式不同，不能直接复用包含宿主项目记录的 Codex Home；需要多个盘符时，在 Compose 中增加 bind mount，并在 `command` 中重复传入 `--workspace`。
 
@@ -83,6 +83,7 @@ Docker 只能访问 Docker Engine 已共享的宿主路径。Windows 需将 `COD
 | `CODEXLY_WORKSPACE`        | 限制工作区并在容器内保留相同绝对路径，默认 `/`      |
 | `CODEXLY_WORKSPACE_TARGET` | 覆盖容器工作区路径，Windows 使用 `/workspace`       |
 | `CODEXLY_GIT_CONFIG`       | 指定容器可见的全局 Git 配置文件                     |
+| `CODEXLY_SSH_HOME`         | 只读挂载宿主 SSH 配置、私钥和 `known_hosts`         |
 | `CODEXLY_CODEX_HOME`       | 绑定宿主 Codex Home，替代默认 `codexly-data` 命名卷 |
 | `CODEXLY_LAN_PASSWORD`     | 设置固定强密码，替代日志中生成的随机配对码          |
 | `CODEXLY_ALLOWED_HOSTS`    | 设置逗号分隔的反向代理精确域名                      |
