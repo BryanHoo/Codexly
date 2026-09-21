@@ -20,6 +20,7 @@ import { EmptyTimeline, TimelineState } from "./task-timeline-status.js";
 import { TurnProcessingTime } from "./task-timeline-status.js";
 import { RunningReplyStatus } from "./task-timeline-running.js";
 import { TaskStoreTimeline } from "./task-timeline-store.js";
+import { TimelineFileDownloadProvider } from "./task-timeline-file-changes.js";
 
 export { resolveMessageResponseRendering } from "./task-timeline-running.js";
 export { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
@@ -42,6 +43,7 @@ type TaskTimelineCommonProps = Readonly<{
     idempotencyKey: string,
   ) => Promise<void>;
   runtime?: TaskRuntimeView;
+  projectRootPath?: string;
   scrollToBottomSignal?: number;
   submissionStartedAt?: string;
   submissionTurnId?: string;
@@ -134,6 +136,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
     onOpenFileDiff,
     onOpenSourceFile,
     onReviewFileChanges,
+    projectRootPath,
     onResolvePendingRequest,
     runtime,
     scrollToBottomSignal,
@@ -147,19 +150,24 @@ export function TaskTimeline(props: TaskTimelineProps) {
     );
   }
   return (
-    <ActiveTaskTimeline
-      onOpenFileDiff={onOpenFileDiff ?? ignoreFileChange}
-      onOpenSourceFile={onOpenSourceFile ?? ignoreSourceFile}
-      onReviewFileChanges={onReviewFileChanges ?? ignoreFileChanges}
-      onResolvePendingRequest={onResolvePendingRequest ?? ignorePendingRequest}
-      {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
-      {...(onForkTask === undefined ? {} : { onForkTask })}
-      runtime={runtime}
-      scrollToBottomSignal={scrollToBottomSignal}
-      submissionStartedAt={submissionStartedAt}
-      submissionTurnId={submissionTurnId}
-      startingSnapshot={startingSnapshot}
-    />
+    <TimelineFileDownloadProvider
+      projectId={props.projectId}
+      {...(projectRootPath === undefined ? {} : { rootPath: projectRootPath })}
+    >
+      <ActiveTaskTimeline
+        onOpenFileDiff={onOpenFileDiff ?? ignoreFileChange}
+        onOpenSourceFile={onOpenSourceFile ?? ignoreSourceFile}
+        onReviewFileChanges={onReviewFileChanges ?? ignoreFileChanges}
+        onResolvePendingRequest={onResolvePendingRequest ?? ignorePendingRequest}
+        {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
+        {...(onForkTask === undefined ? {} : { onForkTask })}
+        runtime={runtime}
+        scrollToBottomSignal={scrollToBottomSignal}
+        submissionStartedAt={submissionStartedAt}
+        submissionTurnId={submissionTurnId}
+        startingSnapshot={startingSnapshot}
+      />
+    </TimelineFileDownloadProvider>
   );
 }
 

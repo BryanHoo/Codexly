@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildProjectAttachmentUrl,
+  buildProjectFileDownloadUrl,
   buildProjectImageFileUrl,
   CodexlyClient,
 } from "./http-client.js";
@@ -23,6 +24,28 @@ describe("CodexlyClient project routes", () => {
     ).toBe(
       "http://127.0.0.1:3210/v1/projects/sample%20project/files/image?path=%2Fworkspace%2FCodexly%2Fdesign%2Fresult+image.png",
     );
+  });
+
+  it("builds encoded Project file download URLs", () => {
+    expect(
+      buildProjectFileDownloadUrl(
+        "http://127.0.0.1:3210/",
+        "sample project",
+        "design/result image.png",
+        "/workspace/Codexly",
+      ),
+    ).toBe(
+      "http://127.0.0.1:3210/v1/projects/sample%20project/files/download?path=design%2Fresult+image.png&rootPath=%2Fworkspace%2FCodexly",
+    );
+
+    expect(
+      buildProjectFileDownloadUrl(
+        "http://127.0.0.1:3210/",
+        "temporary",
+        "/tmp/generated report.txt",
+        "",
+      ),
+    ).toBe("http://127.0.0.1:3210/v1/temporary/files/download?path=%2Ftmp%2Fgenerated+report.txt");
   });
 
   it("builds opaque pending attachment preview URLs", () => {

@@ -177,6 +177,7 @@ export const workbench = {
     copyRelativePath: "复制相对路径",
     detect: "正在检测打开方式",
     delete: "删除",
+    download: "下载文件",
     moreActions: "更多操作",
     none: "没有可用的打开方式",
     open: "打开",

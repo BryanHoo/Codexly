@@ -63,6 +63,7 @@ import type { GitCommitError } from "../git-commit.js";
 import type { HostAttachmentSource } from "../host-file-browser.js";
 import type { ProjectOpenService } from "../project-open.js";
 import type { ProjectImageFile } from "../project-image-file.js";
+import type { ProjectFileDownload } from "../project-file-download.js";
 import type { PersistentTaskQueue } from "../persistent-task-queue.js";
 import type { SkillMarketService } from "../skill-market-service.js";
 import type { ScheduledTaskService } from "../scheduled-task-service.js";
@@ -183,6 +184,7 @@ export interface ServerRouteContext {
     models?: readonly AgentModel[],
   ) => Promise<AgentTaskSettings>;
   readonly readFileTree: (projectRoot: string, directoryPath?: string) => Promise<ProjectFileTree>;
+  readonly readFileDownload: (projectRoot: string, path: string) => Promise<ProjectFileDownload>;
   readonly deleteProjectFile: (
     projectRoot: string,
     path: string,

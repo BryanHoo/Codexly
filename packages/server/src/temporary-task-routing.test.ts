@@ -13,6 +13,10 @@ describe("rewriteTemporaryTaskUrl", () => {
       "/v1/temporary/files/image?path=%2Ftmp%2Fresult.png",
       "/v1/projects/temporary/files/image?path=%2Ftmp%2Fresult.png",
     ],
+    [
+      "/v1/temporary/files/download?path=%2Ftmp%2Fresult.txt",
+      "/v1/projects/temporary/files/download?path=%2Ftmp%2Fresult.txt",
+    ],
     ["/v1/temporary/open-capabilities", "/v1/projects/temporary/open-capabilities"],
     ["/v1/temporary/open", "/v1/projects/temporary/open"],
   ])("forwards the temporary common file route %s", (publicUrl, internalUrl) => {

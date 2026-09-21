@@ -1,4 +1,5 @@
 import {
+  enableLanAccess,
   expect,
   parseRequestRecord,
   projectFileTreeByDirectory,
@@ -6,6 +7,32 @@ import {
 } from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
+
+test("downloads a project file from its LAN context menu", async ({ page }) => {
+  await enableLanAccess(page);
+  await page.route("**/v1/projects/codexly/files/download?*", async (route) => {
+    await route.fulfill({
+      body: "# Architecture",
+      contentType: "application/octet-stream",
+      headers: { "content-disposition": "attachment; filename=architecture-design.md" },
+    });
+  });
+  await page.goto("/p/codexly/t/task-1");
+
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  await inspector.getByRole("tab", { name: "项目" }).click();
+  const fileTree = inspector.getByRole("tree", { name: "项目文件" });
+  await fileTree.getByRole("treeitem", { name: "docs" }).click();
+  const file = fileTree.getByRole("treeitem", { name: "architecture-design.md" });
+  await file.hover();
+  await file.getByRole("button", { name: "docs/architecture-design.md 的操作" }).click();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "下载文件" }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toBe("architecture-design.md");
+});
 
 test("project file tree refresh, context menu, and ellipsis share target actions", async ({
   page,

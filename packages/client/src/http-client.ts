@@ -3,6 +3,7 @@ export {
   CodexlyMutationError,
   CodexlyResponseError,
   buildProjectAttachmentUrl,
+  buildProjectFileDownloadUrl,
   buildProjectImageFileUrl,
   buildTaskAttachmentUrl,
   buildWorkbenchPetAssetUrl,

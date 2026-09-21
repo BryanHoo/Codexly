@@ -8,6 +8,7 @@ export {
 } from "./event-client.js";
 export {
   buildProjectAttachmentUrl,
+  buildProjectFileDownloadUrl,
   buildProjectImageFileUrl,
   buildTaskAttachmentUrl,
   buildWorkbenchPetAssetUrl,

@@ -177,6 +177,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         onReviewFileChanges={onReviewFileChanges}
         onResolvePendingRequest={resolvePendingRequest}
         projectId={projectId}
+        projectRootPath={projectPath}
         key={taskScope}
         runtime={runtime}
         scrollToBottomSignal={timelineScrollToBottomSignal}

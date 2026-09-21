@@ -179,6 +179,7 @@ export const workbench = {
     copyRelativePath: "Copy relative path",
     detect: "Detecting available apps",
     delete: "Delete",
+    download: "Download file",
     moreActions: "More actions",
     none: "No apps available",
     open: "Open",

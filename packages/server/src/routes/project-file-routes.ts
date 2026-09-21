@@ -25,6 +25,7 @@ import { sendScheduledTaskAttachment } from "../scheduled-task-attachment-respon
 import { filterProjectFileSearchMatches } from "../project-file-search.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { registerProjectFileMutationRoutes } from "./project-file-mutation-routes.js";
+import { createAttachmentContentDisposition } from "../project-file-download.js";
 import {
   ErrorResponseSchema,
   IdempotencyHeadersSchema,
@@ -44,6 +45,7 @@ export function registerProjectFileRoutes(app: FastifyInstance, context: ServerR
     multipartEnvelopeBytes,
     projectRepository,
     readFileTree,
+    readFileDownload,
     searchProjectFiles,
     readImageFile,
     readSourceFile,
@@ -53,6 +55,40 @@ export function registerProjectFileRoutes(app: FastifyInstance, context: ServerR
   } = context;
   registerProjectFileMutationRoutes(app, context, (projectId, rootPath) =>
     resolveProjectFileRoot(projectRepository, getProjectContext, projectId, rootPath),
+  );
+
+  app.get<{ Params: { projectId: string }; Querystring: ProjectSourceFileQuery }>(
+    "/v1/projects/:projectId/files/download",
+    {
+      schema: {
+        params: ProjectParamsSchema,
+        querystring: ProjectSourceFileQuerySchema,
+        response: { 400: ErrorResponseSchema, 404: ErrorResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const root = await resolveReadRoot(
+        projectRepository,
+        getProjectContext,
+        request.params.projectId,
+        request.query.rootPath,
+        reply,
+      );
+      if (root === undefined) return;
+      try {
+        const download = await readFileDownload(root.path, request.query.path);
+        return await reply
+          .header("content-disposition", createAttachmentContentDisposition(download.name))
+          .header("x-content-type-options", "nosniff")
+          .type("application/octet-stream")
+          .send(download.content);
+      } catch {
+        return reply.code(404).send({
+          code: "PROJECT_FILE_NOT_FOUND",
+          message: "Project file is unavailable",
+        });
+      }
+    },
   );
 
   app.get<{ Params: { projectId: string }; Querystring: ProjectFileTreeQuery }>(

@@ -168,6 +168,20 @@ export function buildProjectImageFileUrl(
   return `${baseUrl.replace(/\/$/u, "")}${requestPath}`;
 }
 
+export function buildProjectFileDownloadUrl(
+  baseUrl: string,
+  projectId: string,
+  path: string,
+  rootPath?: string,
+): string {
+  // 临时任务没有浏览器侧 Project 根目录，空字符串不能进入查询参数校验。
+  const requestPath = appendQuery(`${projectPath(projectId)}/files/download`, {
+    path,
+    rootPath: rootPath === "" ? undefined : rootPath,
+  });
+  return `${baseUrl.replace(/\/$/u, "")}${requestPath}`;
+}
+
 export function buildProjectAttachmentUrl(
   baseUrl: string,
   projectId: string,

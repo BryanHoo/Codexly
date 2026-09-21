@@ -14,6 +14,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
+import { useIsLanAccess } from "../../access/access-context.js";
+import { LanDownloadContextMenu } from "./lan-download-context-menu.js";
 
 type MessageImageAttachmentProps = Readonly<{
   name: string;
@@ -29,36 +31,39 @@ export function MessageImageAttachment({
   url,
 }: MessageImageAttachmentProps) {
   const { t } = useTranslation("conversation");
+  const isLanAccess = useIsLanAccess();
   const [isOpen, setIsOpen] = useState(false);
   const titleId = useId();
 
   return (
     <Dialog onOpenChange={setIsOpen} open={isOpen}>
-      <DialogTrigger asChild>
-        <Button
-          aria-label={t("timeline.showImage", { name })}
-          className={
-            triggerClassName ??
-            "block size-40 max-w-full cursor-zoom-in overflow-hidden rounded-surface bg-control p-0 shadow-control transition-opacity hover:opacity-90 focus-visible:shadow-focus"
-          }
-          data-message-attachment="image"
-          type="button"
-          variant="ghost"
-        >
-          {triggerChildren ?? (
-            // 历史图片只在进入可视区时读取和解码。
-            <img
-              alt={name}
-              className="size-full object-cover"
-              decoding="async"
-              height={160}
-              loading="lazy"
-              src={url}
-              width={160}
-            />
-          )}
-        </Button>
-      </DialogTrigger>
+      <LanDownloadContextMenu enabled={isLanAccess} name={name} url={url}>
+        <DialogTrigger asChild>
+          <Button
+            aria-label={t("timeline.showImage", { name })}
+            className={
+              triggerClassName ??
+              "block size-40 max-w-full cursor-zoom-in overflow-hidden rounded-surface bg-control p-0 shadow-control transition-opacity hover:opacity-90 focus-visible:shadow-focus"
+            }
+            data-message-attachment="image"
+            type="button"
+            variant="ghost"
+          >
+            {triggerChildren ?? (
+              // 历史图片只在进入可视区时读取和解码。
+              <img
+                alt={name}
+                className="size-full object-cover"
+                decoding="async"
+                height={160}
+                loading="lazy"
+                src={url}
+                width={160}
+              />
+            )}
+          </Button>
+        </DialogTrigger>
+      </LanDownloadContextMenu>
       <DialogContent
         aria-labelledby={titleId}
         className="h-[min(92dvh,54rem)] max-w-[72rem] overflow-hidden p-0"

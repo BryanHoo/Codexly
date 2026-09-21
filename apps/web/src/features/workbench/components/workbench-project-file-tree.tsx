@@ -1,4 +1,5 @@
 import type { ProjectFileTree, ProjectOpenAppId } from "@codexly/protocol";
+import { buildProjectFileDownloadUrl } from "@codexly/client";
 import {
   asyncDataLoaderFeature,
   buildProxiedInstance,
@@ -22,6 +23,7 @@ import {
 } from "react";
 
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
+import { useIsLanAccess } from "../../access/access-context.js";
 import { FileTreeActions } from "../../../shared/components/agent/file-tree.js";
 import { Button } from "../../../shared/components/core/button.js";
 import {
@@ -71,6 +73,7 @@ const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
   projectRootId,
   projectRefreshing,
 }: ProjectFileTreeRowProps) {
+  const isLanAccess = useIsLanAccess();
   const data = item.getItemData();
   const name = getProjectFileTreeItemName(data);
   const target = createProjectFileTreeOpenTarget(data, { id: projectRootId, path: projectPath });
@@ -90,6 +93,13 @@ const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
   const openRoot = (appId: ProjectOpenAppId) => {
     onOpenProjectPath(appId);
   };
+  const download =
+    isLanAccess && target?.type === "file"
+      ? {
+          name,
+          url: buildProjectFileDownloadUrl("", projectId, target.relativePath, projectPath),
+        }
+      : undefined;
   const openTarget = data.kind === "root" ? openRoot : onOpenProjectPath;
   const { ref: itemRef, ...itemProps } = item.getProps() as TreeItemProps;
   const level = item.getItemMeta().level;
@@ -233,6 +243,7 @@ const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
         <FileTreeActions>
           <ProjectOpenDropdownMenu
             apps={projectOpenApps}
+            {...(download === undefined ? {} : { download })}
             isPending={projectOpenPending}
             onDelete={fileMutations.openDelete}
             onOpen={() => {
@@ -255,6 +266,7 @@ const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
     ) : (
       <ProjectOpenContextMenu
         apps={projectOpenApps}
+        {...(download === undefined ? {} : { download })}
         isPending={projectOpenPending}
         onOpen={() => {
           onSelect(item.getId());

@@ -1,4 +1,36 @@
-import { expect, mockAppShellApi, parseRequestRecord, test } from "./fixtures/app-shell.js";
+import {
+  enableLanAccess,
+  expect,
+  mockAppShellApi,
+  parseRequestRecord,
+  test,
+} from "./fixtures/app-shell.js";
+
+test("downloads a generated file outside the project from a temporary task", async ({ page }) => {
+  await enableLanAccess(page);
+  await page.route("**/v1/temporary/files/download?*", async (route) => {
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get("path")).toBe("/tmp/temporary-note.md");
+    expect(url.searchParams.has("rootPath")).toBe(false);
+    await route.fulfill({
+      body: "允许从临时任务下载",
+      contentType: "application/octet-stream",
+      headers: { "content-disposition": 'attachment; filename="temporary-note.md"' },
+    });
+  });
+  await page.goto("/temporary");
+
+  await page.getByRole("textbox", { name: "任务输入" }).fill("生成临时文件");
+  await page.getByRole("button", { exact: true, name: "提交" }).click();
+  await expect(page).toHaveURL(/\/temporary\/t\/temporary-task-1$/u);
+
+  const fileReference = page.getByRole("button", { name: "temporary-note.md" });
+  await fileReference.click({ button: "right" });
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "下载文件" }).click();
+
+  expect((await downloadPromise).suggestedFilename()).toBe("temporary-note.md");
+});
 
 test("creates and restores a temporary task without exposing its internal project", async ({
   page,

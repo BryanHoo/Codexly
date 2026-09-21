@@ -133,6 +133,14 @@ test("uploads images and files selected from the browser device in LAN mode @cro
   let turnBody: unknown;
   await page.route("**/v1/projects/codexly/attachments/*", async (route) => {
     const request = route.request();
+    if (request.method() === "GET") {
+      const image = request.url().endsWith("attachment-browser-image");
+      await route.fulfill({
+        body: image ? Buffer.from("png-data") : Buffer.from("pdf-data"),
+        contentType: image ? "image/png" : "application/pdf",
+      });
+      return;
+    }
     uploadRequests.push({
       contentType: request.headers()["content-type"],
       postData: request.postData(),
@@ -170,6 +178,13 @@ test("uploads images and files selected from the browser device in LAN mode @cro
         },
       },
       status: 201,
+    });
+  });
+  await page.route("**/v1/projects/codexly/tasks/task-1/attachments/*", async (route) => {
+    const image = route.request().url().endsWith("attachment-browser-image");
+    await route.fulfill({
+      body: image ? Buffer.from("png-data") : Buffer.from("pdf-data"),
+      contentType: image ? "image/png" : "application/pdf",
     });
   });
   await page.route("**/v1/access", async (route) => {
@@ -222,6 +237,18 @@ test("uploads images and files selected from the browser device in LAN mode @cro
         type: "prompt",
       },
     });
+
+  const imageAttachment = page.getByRole("button", { name: "查看图片 visitor.png" });
+  await imageAttachment.click({ button: "right" });
+  const imageDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "下载文件" }).click();
+  expect((await imageDownloadPromise).suggestedFilename()).toBe("visitor.png");
+
+  const fileAttachment = page.getByRole("link", { name: "下载附件 visitor.pdf" });
+  await fileAttachment.click({ button: "right" });
+  const fileDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "下载文件" }).click();
+  expect((await fileDownloadPromise).suggestedFilename()).toBe("visitor.pdf");
 });
 
 test("submits host attachments, approval policy, model, and reasoning effort through the real client contract", async ({

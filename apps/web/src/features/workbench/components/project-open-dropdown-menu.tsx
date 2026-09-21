@@ -1,5 +1,5 @@
 import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppId } from "@codexly/protocol";
-import { AtSign, Copy, Ellipsis, ExternalLink, FolderOpen } from "lucide-react";
+import { AtSign, Copy, Download, Ellipsis, ExternalLink, FolderOpen } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -28,6 +28,7 @@ import {
 
 type ProjectOpenDropdownMenuProps = Readonly<{
   apps: readonly ProjectOpenApp[];
+  download?: Readonly<{ name: string; url: string }>;
   isPending: boolean;
   onOpen: () => void;
   onDelete?: () => void;
@@ -40,6 +41,7 @@ type ProjectOpenDropdownMenuProps = Readonly<{
 
 export function ProjectOpenDropdownMenu({
   apps,
+  download,
   isPending,
   onOpen,
   onDelete,
@@ -77,6 +79,7 @@ export function ProjectOpenDropdownMenu({
       </Tooltip>
       <ProjectOpenDropdownMenuItems
         apps={apps}
+        {...(download === undefined ? {} : { download })}
         isPending={isPending}
         onReference={onReference}
         onSelect={onSelect}
@@ -92,6 +95,7 @@ type ProjectOpenDropdownMenuItemsProps = Omit<ProjectOpenDropdownMenuProps, "onO
 
 export function ProjectOpenDropdownMenuItems({
   apps,
+  download,
   isPending,
   onDelete,
   onOpenInNewWindow,
@@ -165,6 +169,14 @@ export function ProjectOpenDropdownMenuItems({
         <DropdownMenuItem onSelect={onOpenInNewWindow}>
           <ExternalLink aria-hidden="true" className="size-4 text-muted-foreground" />
           <span>{t("openMenu.openInNewWindow")}</span>
+        </DropdownMenuItem>
+      ) : null}
+      {target.type === "file" && download !== undefined ? (
+        <DropdownMenuItem asChild>
+          <a download={download.name} href={download.url}>
+            <Download aria-hidden="true" className="size-4 text-muted-foreground" />
+            <span>{t("openMenu.download")}</span>
+          </a>
         </DropdownMenuItem>
       ) : null}
       {reference === undefined ? null : (

@@ -12,6 +12,7 @@
 - 子进程路径测试覆盖空格、中文和 shell 元字符，始终保持可执行文件与参数数组分离；只允许内部显式注入的 custom binary 放宽路径字符限制。
 - 生命周期计时断言优先使用可控时钟；需要真实 Worker 的测试为启动保留合理预算，不能把数十毫秒的进程启动速度作为正确性要求。返回附件流的测试必须消费或关闭流。
 - Fastify 路由使用现有 schema 和统一错误映射，不在 handler 中复制领域规则。
+- 任务生成文件下载不限制在 Project 根目录内：绝对路径直接读取，相对路径以任务工作目录解析，并以 `Content-Disposition: attachment` 流式返回；`/v1/temporary/files/download` 必须重写到临时任务内部路由，测试覆盖 Project 内文件、`..` 路径、绝对路径、外部符号链接及临时公开地址。
 - 定时任务 Run 导航由 `/v1/projects/:projectId/tasks/:taskId/navigation` 聚合新快照与普通、置顶归档分区；缺失或归档返回 `task: null`，归档分页游标不推进时必须终止并报错。
 - 官方插件安装与卸载端点复用请求幂等机制；列表、详情和变更响应均通过共享 TypeBox 协议校验，不在路由层维护平行数据结构。
 - 包边界变更运行 `pnpm run lint:architecture`，Node 构建运行 `pnpm run build:node` 或完整 `pnpm run build`。

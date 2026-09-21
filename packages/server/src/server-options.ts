@@ -46,6 +46,7 @@ import type {
 import type { CodexlyAccessOptions } from "./access-control.js";
 import type { HostAttachmentSource } from "./host-file-browser.js";
 import type { ProjectImageFile } from "./project-image-file.js";
+import type { ProjectFileDownload } from "./project-file-download.js";
 import type { ProjectOpenService } from "./project-open.js";
 import type { SkillMarketService } from "./skill-market-service.js";
 
@@ -120,6 +121,7 @@ export interface CreateCodexlyServerOptions {
   ) => Promise<ProjectGitStatus>;
   readHostFileDirectory?: (kind: HostFileKind, path?: string) => Promise<HostFileListing>;
   readProjectFileTree?: (projectRoot: string, directoryPath?: string) => Promise<ProjectFileTree>;
+  readProjectFileDownload?: (projectRoot: string, path: string) => Promise<ProjectFileDownload>;
   deleteProjectFile?: (
     projectRoot: string,
     path: string,

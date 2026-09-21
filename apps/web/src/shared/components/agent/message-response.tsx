@@ -1,4 +1,4 @@
-import { ExternalLink, File } from "lucide-react";
+import { Download, ExternalLink, File } from "lucide-react";
 import {
   createContext,
   memo,
@@ -25,6 +25,7 @@ import {
 } from "../core/context-menu.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { CodeComments } from "./code-comments.js";
+import { useMessageFileDownload } from "./message-file-download.js";
 import type { MessageFileReference } from "./message.js";
 import {
   createIncrementalMarkdownBlockParser,
@@ -66,6 +67,7 @@ function FileReferenceContextMenu({
   reference: MessageFileReference;
 }>) {
   const { t } = useTranslation("workbench");
+  const download = useMessageFileDownload(reference);
   return (
     <ContextMenu modal={false}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
@@ -78,6 +80,14 @@ function FileReferenceContextMenu({
           <ExternalLink aria-hidden="true" className="size-4 text-muted-foreground" />
           <span>{t("openMenu.openInNewWindow")}</span>
         </ContextMenuItem>
+        {download === null ? null : (
+          <ContextMenuItem asChild>
+            <a download={download.name} href={download.url}>
+              <Download aria-hidden="true" className="size-4 text-muted-foreground" />
+              <span>{t("openMenu.download")}</span>
+            </a>
+          </ContextMenuItem>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

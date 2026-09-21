@@ -1,8 +1,17 @@
+import { buildProjectFileDownloadUrl } from "@codexly/client";
+import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { FilePenLine, Files } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
+import {
+  MessageFileDownloadProvider,
+  useMessageFileDownload,
+  type MessageFileDownload,
+} from "../../../shared/components/agent/message-file-download.js";
+import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { Button } from "../../../shared/components/core/button.js";
+import { useIsLanAccess } from "../../access/access-context.js";
 
 import {
   countFileChangeLines,
@@ -10,18 +19,65 @@ import {
   summarizeFileChanges,
   type AgentFileChange,
 } from "../../diff/file-change.js";
+import { LanDownloadContextMenu } from "./lan-download-context-menu.js";
+
+type TimelineFileDownloadContext = Readonly<{
+  projectId: string;
+  rootPath?: string;
+}>;
+
+function resolveTimelineFileDownload(
+  context: TimelineFileDownloadContext,
+  reference: MessageFileReference,
+): MessageFileDownload | null {
+  if (reference.path.length === 0) return null;
+  return {
+    name: reference.path.split(/[\\/]/u).at(-1) ?? reference.path,
+    url: buildProjectFileDownloadUrl("", context.projectId, reference.path, context.rootPath),
+  };
+}
+
+export function TimelineFileDownloadProvider({
+  children,
+  projectId,
+  rootPath,
+}: Readonly<{
+  children: ReactNode;
+  projectId: string;
+  rootPath?: string;
+}>) {
+  const isLanAccess = useIsLanAccess();
+  const context = useMemo<TimelineFileDownloadContext | null>(
+    () =>
+      isLanAccess && (projectId === TEMPORARY_TASK_SCOPE_ID || rootPath !== undefined)
+        ? { projectId, ...(rootPath === undefined ? {} : { rootPath }) }
+        : null,
+    [isLanAccess, projectId, rootPath],
+  );
+  const resolveDownload = useCallback(
+    (reference: MessageFileReference) =>
+      context === null ? null : resolveTimelineFileDownload(context, reference),
+    [context],
+  );
+  return (
+    <MessageFileDownloadProvider resolveDownload={context === null ? null : resolveDownload}>
+      {children}
+    </MessageFileDownloadProvider>
+  );
+}
 
 export function FileChangeButton({
   change,
   onOpen,
 }: Readonly<{ change: AgentFileChange; onOpen: (change: AgentFileChange) => void }>) {
   const fileName = getFileName(change.path);
+  const download = useMessageFileDownload({ lineNumber: null, path: change.path });
   const operationLabel = i18n.t(`timeline.fileOperation.${change.kind}`, {
     ns: "conversation",
   });
   const { additions, removals } = countFileChangeLines(change);
 
-  return (
+  const button = (
     <Button
       variant="ghost"
       aria-haspopup="dialog"
@@ -45,6 +101,13 @@ export function FileChangeButton({
       <span className="ml-auto shrink-0 text-diff-added">+{additions}</span>
       <span className="shrink-0 text-diff-removed">-{removals}</span>
     </Button>
+  );
+  if (download === null || change.kind === "delete") return button;
+
+  return (
+    <LanDownloadContextMenu enabled name={download.name} url={download.url}>
+      {button}
+    </LanDownloadContextMenu>
   );
 }
 

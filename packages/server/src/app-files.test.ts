@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { createCodexlyServer } from "./app.js";
 import {
@@ -10,6 +11,59 @@ import {
 } from "./app-all.test-support.js";
 
 describe("server project files", () => {
+  it("downloads a verified project file as a browser attachment", async () => {
+    const { provider } = createProvider();
+    const readProjectFileDownload = vi.fn(() =>
+      Promise.resolve({
+        content: Readable.from(Buffer.from("downloaded")),
+        name: "报告.txt",
+      }),
+    );
+    const app = await createCodexlyServer(
+      createServerOptions(provider, { readProjectFileDownload }),
+    );
+    closeCallbacks.push(() => app.close());
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/projects/codexly/files/download?path=docs%2Freport.txt&rootPath=${encodedProjectRootPath}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toBe("application/octet-stream");
+    expect(response.headers["content-disposition"]).toContain(
+      "filename*=UTF-8''%E6%8A%A5%E5%91%8A.txt",
+    );
+    expect(response.rawPayload).toEqual(Buffer.from("downloaded"));
+    expect(readProjectFileDownload).toHaveBeenCalledWith(projectRootPath, "docs/report.txt");
+  });
+
+  it("downloads an absolute generated file through the public temporary route", async () => {
+    const { provider } = createProvider();
+    const readProjectFileDownload = vi.fn(() =>
+      Promise.resolve({
+        content: Readable.from(Buffer.from("temporary download")),
+        name: "project-file-download.ts",
+      }),
+    );
+    const app = await createCodexlyServer(
+      createServerOptions(provider, { readProjectFileDownload }),
+    );
+    closeCallbacks.push(() => app.close());
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/temporary/files/download?path=%2FUsers%2Fbryanhu%2Fproject-file-download.ts",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.rawPayload).toEqual(Buffer.from("temporary download"));
+    expect(readProjectFileDownload).toHaveBeenCalledWith(
+      expect.any(String),
+      "/Users/bryanhu/project-file-download.ts",
+    );
+  });
+
   it("serves paginated local source previews for the configured project", async () => {
     const { provider } = createProvider();
     const readProjectSourceFile = vi.fn((_projectRoot: string, _path: string, cursor = 0) =>

@@ -177,3 +177,7 @@ export function useAccess(): AccessContextValue {
   }
   return value;
 }
+
+export function useIsLanAccess(): boolean {
+  return useContext(AccessContext)?.status?.mode === "lan";
+}

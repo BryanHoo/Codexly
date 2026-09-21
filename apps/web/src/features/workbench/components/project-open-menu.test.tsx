@@ -136,6 +136,33 @@ describe("ProjectOpenContextMenuItems", () => {
     expect(markup).not.toContain("aria-checked");
   });
 
+  it("renders a browser download link for LAN project files", () => {
+    const markup = renderToStaticMarkup(
+      <ContextMenu open>
+        <ProjectOpenContextMenuItems
+          apps={[]}
+          download={{
+            name: "README.md",
+            url: "/v1/projects/codexly/files/download?path=README.md",
+          }}
+          isPending={false}
+          onReference={vi.fn()}
+          onSelect={vi.fn()}
+          target={{
+            absolutePath: "/workspace/Codexly/README.md",
+            path: "README.md",
+            relativePath: "README.md",
+            type: "file",
+          }}
+        />
+      </ContextMenu>,
+    );
+
+    expect(markup).toContain("下载文件");
+    expect(markup).toContain('download="README.md"');
+    expect(markup).toContain('href="/v1/projects/codexly/files/download?path=README.md"');
+  });
+
   it("removes the reference command for directory targets", () => {
     const markup = renderToStaticMarkup(
       <ContextMenu open>
@@ -213,6 +240,10 @@ describe("ProjectOpenDropdownMenuItems", () => {
       <DropdownMenu open>
         <ProjectOpenDropdownMenuItems
           apps={[{ id: "zed", kind: "editor", name: "Zed" }]}
+          download={{
+            name: "README.md",
+            url: "/v1/projects/codexly/files/download?path=README.md",
+          }}
           isPending={false}
           onDelete={vi.fn()}
           onOpenInNewWindow={vi.fn()}
@@ -237,5 +268,7 @@ describe("ProjectOpenDropdownMenuItems", () => {
 
     expect(markup).toContain('data-slot="dropdown-menu-content"');
     expect(markup).toContain("在独立窗口打开");
+    expect(markup).toContain("下载文件");
+    expect(markup).toContain('download="README.md"');
   });
 });

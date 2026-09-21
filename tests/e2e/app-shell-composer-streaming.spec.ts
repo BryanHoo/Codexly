@@ -1,6 +1,123 @@
-import { expect, taskSnapshot, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
+import {
+  enableLanAccess,
+  expect,
+  taskSnapshot,
+  taskSnapshotResponse,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
+
+test("downloads a streaming Markdown file reference from the same context menu", async ({
+  page,
+}) => {
+  const historicalTurn = taskSnapshot.turns[0];
+  if (historicalTurn === undefined) {
+    throw new Error("Expected the task fixture to contain a turn");
+  }
+  await enableLanAccess(page);
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        ...taskSnapshotResponse,
+        snapshot: {
+          ...taskSnapshot,
+          status: "running",
+          turns: [
+            {
+              ...historicalTurn,
+              completedAt: null,
+              items: [
+                {
+                  id: "message-streaming-file-reference",
+                  role: "assistant",
+                  text: "核心实现：[live.ts](/tmp/generated/live.ts:12)",
+                  type: "message",
+                },
+              ],
+              status: "running",
+            },
+          ],
+        },
+      },
+    });
+  });
+  await page.route("**/v1/projects/codexly/files/download?*", async (route) => {
+    expect(new URL(route.request().url()).searchParams.get("path")).toBe("/tmp/generated/live.ts");
+    await route.fulfill({
+      body: "export const live = true;",
+      contentType: "application/octet-stream",
+      headers: { "content-disposition": 'attachment; filename="live.ts"' },
+    });
+  });
+  await page.goto("/p/codexly/t/task-1");
+
+  const fileReference = page.locator('[data-file-reference="true"]');
+  await expect(fileReference).toContainText("live.ts");
+  await fileReference.click({ button: "right" });
+  await expect(page.getByRole("menuitem", { name: "在独立窗口打开" })).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "下载文件" }).click();
+
+  expect((await downloadPromise).suggestedFilename()).toBe("live.ts");
+});
+
+test("downloads a completed streaming file change from its LAN context menu", async ({ page }) => {
+  const historicalTurn = taskSnapshot.turns[0];
+  if (historicalTurn === undefined) {
+    throw new Error("Expected the task fixture to contain a turn");
+  }
+  await enableLanAccess(page);
+  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        ...taskSnapshotResponse,
+        snapshot: {
+          ...taskSnapshot,
+          status: "running",
+          turns: [
+            {
+              ...historicalTurn,
+              completedAt: null,
+              items: [
+                {
+                  changes: [
+                    {
+                      diff: "+export const live = true;",
+                      kind: "update",
+                      path: "src/live.ts",
+                    },
+                  ],
+                  id: "file-live",
+                  status: "completed",
+                  type: "file_change",
+                },
+              ],
+              status: "running",
+            },
+          ],
+        },
+      },
+    });
+  });
+  await page.route("**/v1/projects/codexly/files/download?*", async (route) => {
+    await route.fulfill({
+      body: "export const live = true;",
+      contentType: "application/octet-stream",
+    });
+  });
+  await page.goto("/p/codexly/t/task-1");
+
+  const fileChange = page.locator('[data-file-change="update"]');
+  await expect(fileChange).toContainText("live.ts");
+  await fileChange.click({ button: "right" });
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "下载文件" }).click();
+
+  expect((await downloadPromise).suggestedFilename()).toBe("live.ts");
+});
 
 test("keeps a streaming code block within the conversation and copies its code", async ({
   context,

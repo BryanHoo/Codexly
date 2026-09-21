@@ -17,6 +17,7 @@ import { readProjectGitStatus as readGitProjectStatus } from "./git-working-tree
 import { readHostFileDirectory, resolveHostAttachment } from "./host-file-browser.js";
 import { createIdempotencyRunner } from "./idempotency-runner.js";
 import { readProjectFileTree } from "./project-file-tree.js";
+import { readProjectFileDownload } from "./project-file-download.js";
 import { deleteProjectFile, renameProjectFile } from "./project-file-mutations.js";
 import { readProjectImageFile } from "./project-image-file.js";
 import { readProjectSourceFile } from "./project-source-file.js";
@@ -120,6 +121,7 @@ export async function createCodexlyServer(
   const readProjectGitStatus = options.readProjectGitStatus ?? readGitProjectStatus;
   const commitProjectChanges = options.commitProjectChanges ?? commitSelectedProjectChanges;
   const readFileTree = options.readProjectFileTree ?? readProjectFileTree;
+  const readFileDownload = options.readProjectFileDownload ?? readProjectFileDownload;
   const nativeFileSearch = options.provider.fileSearch;
   const searchProjectFiles =
     options.searchProjectFiles ??
@@ -425,6 +427,7 @@ export async function createCodexlyServer(
     readEffectiveProjectDefaults,
     readEffectiveTaskSettings,
     readFileTree,
+    readFileDownload,
     deleteProjectFile: options.deleteProjectFile ?? deleteProjectFile,
     renameProjectFile: options.renameProjectFile ?? renameProjectFile,
     searchProjectFiles,

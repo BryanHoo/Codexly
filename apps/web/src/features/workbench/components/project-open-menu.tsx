@@ -1,5 +1,5 @@
 import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppId } from "@codexly/protocol";
-import { AtSign, ChevronDown, Copy, ExternalLink, FolderOpen } from "lucide-react";
+import { AtSign, ChevronDown, Copy, Download, ExternalLink, FolderOpen } from "lucide-react";
 import type { ReactElement } from "react";
 
 import {
@@ -134,6 +134,7 @@ export function ProjectQuickOpenMenu({
 type ProjectOpenContextMenuItemsProps = Readonly<{
   apps: readonly ProjectOpenApp[];
   ariaLabel?: string;
+  download?: Readonly<{ name: string; url: string }>;
   isPending: boolean;
   onDelete?: () => void;
   onOpenInNewWindow?: () => void;
@@ -146,6 +147,7 @@ type ProjectOpenContextMenuItemsProps = Readonly<{
 export function ProjectOpenContextMenuItems({
   apps,
   ariaLabel,
+  download,
   isPending,
   onDelete,
   onOpenInNewWindow,
@@ -218,6 +220,14 @@ export function ProjectOpenContextMenuItems({
           <span>{t("openMenu.openInNewWindow")}</span>
         </ContextMenuItem>
       ) : null}
+      {target.type === "file" && download !== undefined ? (
+        <ContextMenuItem asChild>
+          <a download={download.name} href={download.url}>
+            <Download aria-hidden="true" className="size-4 text-muted-foreground" />
+            <span>{t("openMenu.download")}</span>
+          </a>
+        </ContextMenuItem>
+      ) : null}
       {reference === undefined ? null : (
         <ContextMenuItem
           onSelect={() => {
@@ -242,6 +252,7 @@ export function ProjectOpenContextMenuItems({
 type ProjectOpenContextMenuProps = Readonly<{
   apps: readonly ProjectOpenApp[];
   children: ReactElement;
+  download?: Readonly<{ name: string; url: string }>;
   isPending: boolean;
   onOpen: () => void;
   onDelete?: () => void;
@@ -255,6 +266,7 @@ type ProjectOpenContextMenuProps = Readonly<{
 export function ProjectOpenContextMenu({
   apps,
   children,
+  download,
   isPending,
   onOpen,
   onDelete,
@@ -286,6 +298,7 @@ export function ProjectOpenContextMenu({
       <ProjectOpenContextMenuItems
         apps={apps}
         ariaLabel={t("openMenu.targetLabel", { path: target.path })}
+        {...(download === undefined ? {} : { download })}
         isPending={isPending}
         onReference={onReference}
         {...(onOpenInNewWindow === undefined ? {} : { onOpenInNewWindow })}
