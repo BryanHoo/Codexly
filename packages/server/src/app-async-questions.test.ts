@@ -21,6 +21,7 @@ const question = {
 };
 const source = {
   ...snapshot,
+  status: "running" as const,
   turns: [
     {
       id: "turn-1",
@@ -78,18 +79,32 @@ describe("async question API", () => {
       expect((await second.app.inject(request)).json()).toEqual(results[0].json());
       expect(second.steerTurn).not.toHaveBeenCalled();
       expect((await second.app.inject({ method: "GET", url })).json()).toEqual({ data: [] });
+      const refreshedTask = await second.app.inject({
+        method: "GET",
+        url: "/v1/projects/codexly/tasks/task-1",
+      });
+      expect(refreshedTask.statusCode, refreshedTask.body).toBe(200);
+      expect(
+        refreshedTask
+          .json<{ snapshot: typeof source }>()
+          .snapshot.turns[0]?.items.map((item) => [
+            item.type,
+            "role" in item ? item.role : null,
+            "text" in item ? item.text : null,
+          ]),
+      ).toContainEqual(["message", "user", "范围\n整个项目"]);
     },
   );
   it("starts an idle task using persisted settings and rejects incomplete answers", async () => {
     const { app, readTask, startTurn, steerTurn, readTaskSettings } = await setup();
     readTaskSettings.mockResolvedValue(turnOptions);
+    const listed = await app.inject({ method: "GET", url });
+    const id = questionId(listed);
     readTask.mockResolvedValue({
       ...source,
       status: "idle",
       turns: source.turns.map((turn) => ({ ...turn, status: "completed" })),
     });
-    const listed = await app.inject({ method: "GET", url });
-    const id = questionId(listed);
     const request = {
       method: "POST" as const,
       url: `${url}/${id}/answer`,
@@ -107,6 +122,20 @@ describe("async question API", () => {
     );
     expect(steerTurn).not.toHaveBeenCalled();
   });
+  it.each(["completed", "interrupted"] as const)(
+    "hides unanswered questions after their turn becomes %s",
+    async (status) => {
+      const { app, readTask } = await setup();
+      expect(questionId(await app.inject({ method: "GET", url }))).toBeTruthy();
+      readTask.mockResolvedValue({
+        ...source,
+        status: "idle",
+        turns: source.turns.map((turn) => ({ ...turn, completedAt: source.updatedAt, status })),
+      });
+
+      expect((await app.inject({ method: "GET", url })).json()).toEqual({ data: [] });
+    },
+  );
   it("persists dismissals and keeps a newly repeated group visible after native ids change", async () => {
     const { app, readTask } = await setup();
     const listed = await app.inject({ method: "GET", url });

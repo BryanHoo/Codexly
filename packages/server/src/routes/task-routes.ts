@@ -24,6 +24,7 @@ import {
 } from "@codexly/protocol";
 import { listTaskCatalog } from "@codexly/core";
 import type { FastifyPluginCallback } from "fastify";
+import { restorePersistedAsyncQuestionAnswers } from "../async-question-snapshot.js";
 import { MutationHttpError, toMcpProviderHttpError, type ServerRouteContext } from "./context.js";
 import {
   ErrorResponseSchema,
@@ -119,18 +120,24 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
       },
     },
     async (request, reply) => {
-      const context = await getProjectContext(request.params.projectId);
-      if (context === undefined) {
+      const projectContext = await getProjectContext(request.params.projectId);
+      if (projectContext === undefined) {
         return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Project not found" });
       }
-      const task = await context.provider.readTask(request.params.taskId, {
+      const providerTask = await projectContext.provider.readTask(request.params.taskId, {
         ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
       });
-      if (task?.projectId !== context.scope.id) {
+      if (providerTask?.projectId !== projectContext.scope.id) {
         return reply.code(404).send({ code: "TASK_NOT_FOUND", message: "Task not found" });
       }
+      const task = await restorePersistedAsyncQuestionAnswers(
+        context,
+        request.params.projectId,
+        request.params.taskId,
+        providerTask,
+      );
       // Provider Promise 完成时已交付此前通知，此处 checkpoint 与返回 Snapshot 对齐。
-      const checkpoint = context.eventStream.checkpoint;
+      const checkpoint = projectContext.eventStream.checkpoint;
       const settings = await readEffectiveTaskSettings(
         request.params.projectId,
         request.params.taskId,

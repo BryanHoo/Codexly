@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AgentTurn } from "@codexly/protocol";
-import { collectQuestionGroups, formatQuestionAnswers } from "./async-question.js";
+import type { AgentProviderTaskSnapshot } from "./agent-provider.js";
+import {
+  collectQuestionGroups,
+  formatQuestionAnswers,
+  restoreAsyncQuestionAnswers,
+  type AsyncQuestionRecord,
+} from "./async-question.js";
 
 describe("async question domain", () => {
   const message = {
@@ -65,5 +71,45 @@ describe("async question domain", () => {
     expect(() => formatQuestionAnswers(message.questions, ["整个项目", "  "])).toThrow(
       "Invalid question answers",
     );
+  });
+  it("restores a persisted steer answer once after its question", () => {
+    const answer = {
+      id: "native-answer",
+      role: "user" as const,
+      text: "选择范围\n整个项目\n\n要求\n保留测试",
+      type: "message" as const,
+    };
+    const snapshot: AgentProviderTaskSnapshot = {
+      contextUsage: null,
+      goal: null,
+      id: "task-1",
+      pendingRequests: [],
+      pinned: false,
+      plan: null,
+      projectId: "project-1",
+      status: "running",
+      title: "Task",
+      turns: [turn],
+      turnsNextCursor: null,
+      updatedAt: "2026-09-12T00:00:00.000Z",
+    };
+    const group = collectQuestionGroups([turn], identity)[0];
+    if (group === undefined) throw new Error("Missing question group");
+    const record: AsyncQuestionRecord = {
+      group: { ...group, status: "answered" },
+      result: {
+        checkpoint: { sequence: 1, sessionId: "session" },
+        input: { attachments: [], skills: [], text: answer.text, type: "prompt" },
+        messageId: "persisted-answer",
+        question: { ...group, status: "answered" },
+        turn: null,
+        turnId: turn.id,
+      },
+    };
+
+    const restored = restoreAsyncQuestionAnswers(snapshot, [record]);
+    expect(restored.turns[0]?.items).toEqual([message, { ...answer, id: "persisted-answer" }]);
+    const nativeSnapshot = { ...snapshot, turns: [{ ...turn, items: [message, answer] }] };
+    expect(restoreAsyncQuestionAnswers(nativeSnapshot, [record])).toBe(nativeSnapshot);
   });
 });

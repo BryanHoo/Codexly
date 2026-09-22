@@ -9,9 +9,13 @@ import type { AsyncQuestionGroup, AnswerAsyncQuestionResult } from "@codexly/pro
 import { MutationHttpError, type ServerRouteContext } from "./routes/context.js";
 
 const identify = (value: string) => createHash("sha256").update(value).digest("hex");
+const collectRunningTurnIds = (task: AgentProviderTaskSnapshot) =>
+  task.turns.filter((turn) => turn.status === "running").map((turn) => turn.id);
+
 export class AsyncQuestionService {
   readonly #anchors = new Map<string, string>();
-  readonly #refreshes = new Map<string, Promise<void>>();
+  readonly #refreshes = new Map<string, Promise<ReadonlySet<string>>>();
+  readonly #runningTurnIds = new Map<string, ReadonlySet<string>>();
   constructor(private readonly context: ServerRouteContext) {}
 
   private repository(): AsyncQuestionRepository {
@@ -33,7 +37,7 @@ export class AsyncQuestionService {
       throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
     return { runtime, task };
   }
-  private refresh(projectId: string, taskId: string): Promise<void> {
+  private refresh(projectId: string, taskId: string): Promise<ReadonlySet<string>> {
     const key = JSON.stringify([projectId, taskId]);
     const existing = this.#refreshes.get(key);
     if (existing !== undefined) return existing;
@@ -50,7 +54,16 @@ export class AsyncQuestionService {
     const newestId = task.turns.at(-1)?.id;
     let page: AgentProviderTaskSnapshot = task;
     const cursors = new Set<string>();
+    const runningTurnIds = new Set(
+      task.status === "running" && previousAnchor === newestId
+        ? this.#runningTurnIds.get(key)
+        : undefined,
+    );
     for (let count = 0; ; count++) {
+      for (const turn of page.turns) {
+        if (turn.status === "running") runningTurnIds.add(turn.id);
+        else runningTurnIds.delete(turn.id);
+      }
       await repository.discoverAsyncQuestions(
         projectId,
         taskId,
@@ -76,25 +89,36 @@ export class AsyncQuestionService {
       this.#anchors.delete(key);
       this.#anchors.set(key, newestId);
       const oldest = this.#anchors.keys().next().value;
-      if (this.#anchors.size > 128 && oldest !== undefined) this.#anchors.delete(oldest);
+      if (this.#anchors.size > 128 && oldest !== undefined) {
+        this.#anchors.delete(oldest);
+        this.#runningTurnIds.delete(oldest);
+      }
     }
+    this.#runningTurnIds.set(key, runningTurnIds);
+    return runningTurnIds;
   }
   public async list(projectId: string, taskId: string) {
-    await this.refresh(projectId, taskId);
-    return this.pending(projectId, taskId);
+    const runningTurnIds = await this.refresh(projectId, taskId);
+    return this.pending(projectId, taskId, runningTurnIds);
   }
-  public async pending(projectId: string, taskId: string) {
+  public async pending(projectId: string, taskId: string, activeTurnIds?: ReadonlySet<string>) {
+    const runningTurnIds =
+      activeTurnIds ?? new Set(collectRunningTurnIds((await this.task(projectId, taskId)).task));
     const records = await this.repository().listAsyncQuestions(projectId, taskId);
     return {
       data: records
         .map((record) => record.group)
-        .filter((group) => group.status === "pending" || group.status === "answering"),
+        .filter(
+          (group) =>
+            runningTurnIds.has(group.turnId) &&
+            (group.status === "pending" || group.status === "answering"),
+        ),
     };
   }
   public async dismiss(projectId: string, taskId: string, ids: readonly string[]) {
-    await this.task(projectId, taskId);
+    const { task } = await this.task(projectId, taskId);
     await this.repository().dismissAsyncQuestions(projectId, taskId, ids);
-    return this.pending(projectId, taskId);
+    return this.pending(projectId, taskId, new Set(collectRunningTurnIds(task)));
   }
   public async answer(
     projectId: string,
