@@ -181,6 +181,12 @@ export function applyAcceptedEvent(
         currentTurn.status === "running" && currentTurn.error !== null
           ? { ...state.turnsById, [event.turnId]: { ...currentTurn, error: null } }
           : state.turnsById;
+      // Assistant 文本恢复流式后，压缩阶段的运行时警告已失去时效，避免继续占据时间线底部。
+      const notices =
+        event.type === "message.delta" &&
+        state.notices.some((notice) => notice.payload.code === "runtime_warning")
+          ? state.notices.filter((notice) => notice.payload.code !== "runtime_warning")
+          : state.notices;
       const itemKey = createTaskItemKey(event.turnId, event.itemId);
       const currentItemStore = state.itemStoresByKey.get(itemKey);
       if (currentItemStore !== undefined) {
@@ -189,6 +195,7 @@ export function applyAcceptedEvent(
         }
         return {
           checkpoint,
+          notices,
           snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
           turnsById,
         };
@@ -208,6 +215,7 @@ export function applyAcceptedEvent(
           [event.turnId]: [...(state.itemKeysByTurnId[event.turnId] ?? []), itemKey],
         },
         itemStructureRevision: state.itemStructureRevision + 1,
+        notices,
         snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
         turnsById,
       };
