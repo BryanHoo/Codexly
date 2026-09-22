@@ -1,3 +1,4 @@
+import { mermaid } from "@streamdown/mermaid";
 import { Download, ExternalLink, File } from "lucide-react";
 import {
   createContext,
@@ -101,9 +102,10 @@ const PROMPT_FILE_REFERENCE_PATTERN =
   /(^|\s)@(?<path>[^\s,!?;:，。！？；：、()[\]{}"'`]+)(?=$|\s|[,!?;:，。！？；：、()[\]{}"'`])/gu;
 const MESSAGE_RESPONSE_CONTROLS = {
   code: { copy: true, download: false },
-  mermaid: false,
+  mermaid: true,
   table: false,
 } as const;
+const MESSAGE_RESPONSE_PLUGINS = { mermaid } as const;
 
 function decodeMarkdownFileReference(href: string): string {
   try {
@@ -382,6 +384,7 @@ function MessageResponseContent({
         BlockComponent={InteractiveMessageBlock}
         components={markdownComponents}
         parseMarkdownIntoBlocksFn={parseMarkdownIntoBlocksFn ?? incrementalBlockParser}
+        plugins={MESSAGE_RESPONSE_PLUGINS}
         remarkPlugins={resolvedRemarkPlugins}
       >
         {parsedResponse.markdown}

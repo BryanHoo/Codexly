@@ -3,7 +3,8 @@ import { dirname, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const initialGzipBudgetBytes = 320 * 1024;
-const maxAsyncGzipBudgetBytes = 200 * 1024;
+// Mermaid 完整图表引擎按异步组加载，允许其覆盖复杂图表解析与布局依赖。
+const maxAsyncGzipBudgetBytes = 420 * 1024;
 const workbenchReadyGzipBudgetBytes = 500 * 1024;
 const workbenchEntryKey = "src/features/workbench/components/workbench-shell.tsx";
 const reportSchemaVersion = 3;

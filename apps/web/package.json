@@ -14,6 +14,7 @@
     "@headless-tree/core": "catalog:",
     "@headless-tree/react": "catalog:",
     "@pierre/diffs": "catalog:",
+    "@streamdown/mermaid": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-virtual": "catalog:",

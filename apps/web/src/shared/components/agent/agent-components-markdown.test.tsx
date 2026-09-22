@@ -62,6 +62,19 @@ describe("agent Markdown components", () => {
     expect(resolveStreamdownDompurifyVersion()).toBe("3.4.13");
   });
 
+  it.each(["static", "streaming"] as const)(
+    "routes Mermaid diagrams to the renderer in %s Markdown mode",
+    (mode) => {
+      const markup = renderToStaticMarkup(
+        <MessageResponse mode={mode}>{"```mermaid\ngraph TD\nA-->B\n```"}</MessageResponse>,
+      );
+
+      expect(markup).toContain("animate-spin");
+      expect(markup).not.toContain('data-streamdown="code-block"');
+      expect(markup).not.toContain('data-language="mermaid"');
+    },
+  );
+
   it.each([
     [
       "CSS sibling injection",
@@ -98,10 +111,9 @@ info`,
       <MessageResponse>{`\`\`\`mermaid\n${diagram}\n\`\`\``}</MessageResponse>,
     );
 
-    // Agent 产出的 Mermaid 未配置受信任插件时只能作为代码显示，不能进入图表执行路径。
-    expect(markup).toContain('data-streamdown="code-block"');
-    expect(markup).toContain('data-language="mermaid"');
-    expect(markup).not.toContain('data-streamdown="mermaid-block"');
+    // Mermaid 使用 strict 安全级别异步解析，SSR 阶段不得把不可信源码注入页面。
+    expect(markup).not.toContain('data-streamdown="code-block"');
+    expect(markup).not.toContain(diagram);
     expect(markup).not.toContain("<style");
   });
 
