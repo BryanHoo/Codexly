@@ -3,7 +3,7 @@ import { createTaskStore } from "./task-store.js";
 import { createResponse, eventEnvelope } from "./task-store.test-support.js";
 
 describe("task store notices", () => {
-  it("clears runtime warnings when assistant streaming resumes", () => {
+  it("retains every runtime warning while assistant streaming resumes", () => {
     const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
     store.getState().applyEvents([
       {
@@ -18,6 +18,15 @@ describe("task store notices", () => {
       {
         ...eventEnvelope(12),
         payload: {
+          code: "runtime_warning",
+          level: "warning",
+          message: "Another runtime warning",
+        },
+        type: "task.notice",
+      },
+      {
+        ...eventEnvelope(13),
+        payload: {
           code: "strict_review_required",
           level: "warning",
           message: "Strict review remains active",
@@ -25,7 +34,7 @@ describe("task store notices", () => {
         type: "task.notice",
       },
       {
-        ...eventEnvelope(13),
+        ...eventEnvelope(14),
         itemId: "message-running",
         payload: { delta: "继续处理当前任务。" },
         turnId: "turn-running",
@@ -34,6 +43,18 @@ describe("task store notices", () => {
     ]);
 
     expect(store.getState().notices).toMatchObject([
+      {
+        payload: {
+          code: "runtime_warning",
+          message: "Runtime warning after context compaction",
+        },
+      },
+      {
+        payload: {
+          code: "runtime_warning",
+          message: "Another runtime warning",
+        },
+      },
       {
         payload: {
           code: "strict_review_required",

@@ -171,8 +171,18 @@ export function createTaskStore(
           // 同一事件会话内禁止旧 Snapshot 回滚 Store，否则历史回放会重复追加 Delta。
           return state;
         }
+        const normalized = normalizeSnapshot(reconcileSnapshot(state, response));
+        // 同会话快照不携带 Notice，保留已收到的运行时警告；新会话则清空旧记录。
+        const retainedWarnings =
+          checkpoint?.sessionId === response.checkpoint.sessionId
+            ? state.notices.filter((notice) => notice.payload.code === "runtime_warning")
+            : [];
         return {
-          ...normalizeSnapshot(reconcileSnapshot(state, response)),
+          ...normalized,
+          notices: retainedWarnings,
+          retainedBytes:
+            normalized.retainedBytes +
+            retainedWarnings.reduce((total, warning) => total + estimateRetainedBytes(warning), 0),
           // 即使 Task 元数据未变，缺失或新增 Turn 也必须通知快照消费者重新读取 Store。
           itemStructureRevision: state.itemStructureRevision + 1,
           connectionState: "connecting",

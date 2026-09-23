@@ -181,12 +181,6 @@ export function applyAcceptedEvent(
         currentTurn.status === "running" && currentTurn.error !== null
           ? { ...state.turnsById, [event.turnId]: { ...currentTurn, error: null } }
           : state.turnsById;
-      // Assistant 文本恢复流式后，压缩阶段的运行时警告已失去时效，避免继续占据时间线底部。
-      const notices =
-        event.type === "message.delta" &&
-        state.notices.some((notice) => notice.payload.code === "runtime_warning")
-          ? state.notices.filter((notice) => notice.payload.code !== "runtime_warning")
-          : state.notices;
       const itemKey = createTaskItemKey(event.turnId, event.itemId);
       const currentItemStore = state.itemStoresByKey.get(itemKey);
       if (currentItemStore !== undefined) {
@@ -195,7 +189,6 @@ export function applyAcceptedEvent(
         }
         return {
           checkpoint,
-          notices,
           snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
           turnsById,
         };
@@ -215,7 +208,6 @@ export function applyAcceptedEvent(
           [event.turnId]: [...(state.itemKeysByTurnId[event.turnId] ?? []), itemKey],
         },
         itemStructureRevision: state.itemStructureRevision + 1,
-        notices,
         snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
         turnsById,
       };
@@ -282,13 +274,19 @@ export function applyAcceptedEvent(
     }
     case "task.notice": {
       // 自动审批结果已由 approval_review Item 展示，避免 Guardian 摘要在底部永久重复出现。
-      const notices =
-        event.payload.code === "guardian_warning"
-          ? state.notices
-          : [...state.notices, event].slice(-MAX_RETAINED_TASK_NOTICES);
+      if (event.payload.code === "guardian_warning") {
+        return {
+          checkpoint,
+          snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
+        };
+      }
+      const notices = [...state.notices, event];
+      // 运行时警告跨 Turn 保留；只有短暂状态通知遵守数量上限。
+      const transient = notices.filter((notice) => notice.payload.code !== "runtime_warning");
+      const discarded = new Set(transient.slice(0, -MAX_RETAINED_TASK_NOTICES));
       return {
         checkpoint,
-        notices,
+        notices: notices.filter((notice) => !discarded.has(notice)),
         snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
       };
     }
@@ -386,8 +384,8 @@ export function applyAcceptedEvent(
         ...(currentTurn === undefined
           ? {}
           : replaceTurnItems(state, event.turnId, items, changedItemStores)),
-        // Notice 仅描述当前流式运行过程；Turn 终态到达后由最终回复或错误承载结果。
-        notices: [],
+        // 终态只清理流式状态通知，运行时警告留在右栏供后续查看。
+        notices: state.notices.filter((notice) => notice.payload.code === "runtime_warning"),
         snapshotMetadata: {
           ...snapshotMetadata,
           status: completedTurn.status === "failed" ? "failed" : "idle",

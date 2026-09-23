@@ -22,6 +22,7 @@
 - 续聊模型与思考强度从 `threadConfiguration` 独立回填；用户手动选择优先，模型目录继续校验可用性。问答区只订阅完整 Item 结构变化，不拼接流式正文。
 - 运行中时间线的连续 `reasoning`、`command`、`tool`（包括映射为 `tool` 的 MCP 调用）与 `file_change` 在后续 Assistant 文本出现且组内操作均结束后统一折叠；单独的文件修改也遵循此规则，摘要按文件路径去重计数；空白 `reasoning.summary` 必须在创建 Item 组件前过滤且不得截断连续操作分组，非空摘要与相邻操作进入同一分组。
 - 推理摘要复用工具折叠容器，标题提取摘要中的纯文本并单行截断，默认收起；展开后展示完整 Markdown 摘要，不展示原始 reasoning content。
+- 运行时警告不进入中栏时间线；右栏上下文单独列出全部收到的警告，点击条目展开完整详情，沿用默认配色。Assistant 文本续流与 Turn 终态不清除警告；其他临时 Notice 保持原有清理规则。
 - 中栏 Assistant Markdown 的 fenced `mermaid` 在静态与流式模式均通过官方 Streamdown Mermaid 插件渲染，保持 `strict` 安全级别和已修复的 Mermaid、DOMPurify 版本；Tailwind 必须扫描 Streamdown 及 Mermaid 插件源码，回归测试同时覆盖图表路由与恶意输入不进入 SSR HTML。
 - 工作台宠物 Overlay 关闭时不得主动请求目录或资产；开启后再按选中项加载 Canvas 渲染模块和图片。
 - 工作台背景图片加载后，Dialog、Sheet、Tooltip、菜单、通知与宠物气泡统一使用 95% 不透明的浮层表面；未使用核心 Portal 组件的手工浮层添加 `data-floating-surface` 接入同一规则。

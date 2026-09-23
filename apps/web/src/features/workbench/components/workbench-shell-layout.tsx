@@ -452,6 +452,7 @@ export function WorkbenchShellLayout({
             skills={skillsQuery.data?.data ?? []}
             subagents={subagents}
             tab={inspectorTab}
+            {...(runtime.store === undefined ? {} : { taskStore: runtime.store })}
             terminatingTerminalId={backgroundTerminals.terminatingTerminalId}
             {...(inspectorTask === undefined ? {} : { task: inspectorTask })}
             {...(taskId === undefined ? {} : { taskId })}

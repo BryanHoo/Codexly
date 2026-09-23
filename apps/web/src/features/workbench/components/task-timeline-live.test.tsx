@@ -120,6 +120,26 @@ describe("task timeline live state", () => {
         sequence: 7,
         type: "task.notice",
       },
+      {
+        ...eventBase,
+        payload: {
+          code: "runtime_warning",
+          level: "warning",
+          message: "First runtime detail",
+        },
+        sequence: 8,
+        type: "task.notice",
+      },
+      {
+        ...eventBase,
+        payload: {
+          code: "runtime_warning",
+          level: "warning",
+          message: "Second runtime detail",
+        },
+        sequence: 9,
+        type: "task.notice",
+      },
     ]);
     // Zustand 的 SSR 快照固定为建 Store 时的状态；同步瞬时字段以覆盖静态标记输出。
     Object.assign(store.getInitialState(), {
@@ -156,5 +176,9 @@ describe("task timeline live state", () => {
     expect(markup).toContain("需要严格审核");
     expect(markup).toContain("安全审核已升级，当前操作将在严格审核完成后继续");
     expect(markup).not.toContain("provider strict review text");
+    expect(markup).not.toContain('data-runtime-warning=""');
+    expect(markup).not.toContain("运行时警告");
+    expect(markup).not.toContain("First runtime detail");
+    expect(markup).not.toContain("Second runtime detail");
   });
 });

@@ -358,7 +358,7 @@ describe("task store hydration", () => {
     expect(keys).not.toHaveBeenCalled();
   });
 
-  it("retains only the latest task notices", () => {
+  it("retains every runtime warning instead of limiting them to transient notices", () => {
     const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
     store.getState().applyEvents(
       Array.from({ length: 25 }, (_, index) => ({
@@ -372,12 +372,12 @@ describe("task store hydration", () => {
       })),
     );
 
-    expect(store.getState().notices).toHaveLength(20);
-    expect(store.getState().notices[0]?.payload.message).toBe("警告 5");
+    expect(store.getState().notices).toHaveLength(25);
+    expect(store.getState().notices[0]?.payload.message).toBe("警告 0");
     expect(store.getState().notices.at(-1)?.payload.message).toBe("警告 24");
   });
 
-  it("clears transient task notices when the active turn completes", () => {
+  it("retains runtime warnings when the active turn completes", () => {
     const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
     store.getState().applyEvents([
       {
@@ -413,6 +413,32 @@ describe("task store hydration", () => {
       },
     ]);
 
+    expect(store.getState().notices).toMatchObject([
+      { payload: { code: "runtime_warning", message: "Runtime warning during streaming" } },
+    ]);
+  });
+
+  it("preserves runtime warnings across same-session snapshot reconciliation", () => {
+    const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
+    store.getState().applyEvents([
+      {
+        ...eventEnvelope(11),
+        payload: { code: "runtime_warning", level: "warning", message: "Warning before reconnect" },
+        type: "task.notice",
+      },
+    ]);
+    store.getState().reconcile({
+      ...createResponse(),
+      checkpoint: { sequence: 12, sessionId: "session-1" },
+    });
+    expect(store.getState().notices).toMatchObject([
+      { payload: { code: "runtime_warning", message: "Warning before reconnect" } },
+    ]);
+
+    store.getState().reconcile({
+      ...createResponse(),
+      checkpoint: { sequence: 1, sessionId: "session-2" },
+    });
     expect(store.getState().notices).toEqual([]);
   });
 

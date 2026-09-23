@@ -76,6 +76,7 @@ export const conversation = {
     commit: "提交",
     context: "上下文",
     contextSources: "上下文来源",
+    runtimeWarnings: "运行时警告",
     emptyFolder: "空文件夹",
     fileTree: "项目文件",
     file: "文件",
