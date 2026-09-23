@@ -37,6 +37,7 @@
 ## Features
 
 - Run project or temporary Codex tasks and follow responses, commands, and file changes in real time
+- Review persistent runtime warnings and expand their full context in the task inspector
 - Keep follow-up work in a persistent task queue, and edit queued messages and attachments before they run
 - Track active work on a task board, maintain project to-dos, and schedule persistent one-time or recurring tasks
 - Attach files and images from the current device or deployment host, reference project files with `@`, answer MCP input requests, and ask or dismiss asynchronous questions while a task runs
