@@ -40,4 +40,21 @@ describe("extractReleaseNotes", () => {
     expect(workflow).toContain('--notes-file "${RELEASE_NOTES_PATH}"');
     expect(workflow).not.toContain("--generate-notes");
   });
+
+  it("keeps the release version and dated changelog section aligned", () => {
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
+      version: string;
+    };
+    const changelog = readFileSync(join(process.cwd(), "CHANGELOG.md"), "utf8");
+
+    const releaseHeading = `## [${packageJson.version}] - `;
+    expect(changelog).toMatch(
+      new RegExp(
+        `^## \\[${packageJson.version.replaceAll(".", "\\.")}\\] - \\d{4}-\\d{2}-\\d{2}$`,
+        "m",
+      ),
+    );
+    expect(changelog.split("## [Unreleased]")[1]?.split(releaseHeading)[0]?.trim()).toBe("");
+    expect(extractReleaseNotes(changelog, packageJson.version).length).toBeGreaterThan(0);
+  });
 });

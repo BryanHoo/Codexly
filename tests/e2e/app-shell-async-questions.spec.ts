@@ -151,7 +151,7 @@ for (const viewport of [
     });
     expect(await dock.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await dock.getByRole("button", { name: "发送回答" }).click();
-    await expect(dock.getByRole("alert")).toContainText("回答未发送");
+    await expect(page.locator('[data-sonner-toast][data-type="error"]')).toHaveText("Retry answer");
     await expect(dock.getByRole("textbox", { name: "回答：补充要求" })).toHaveValue("保留测试");
     await dock.getByRole("button", { name: "发送回答" }).click();
     await expect(dock).toHaveCount(0);

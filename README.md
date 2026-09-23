@@ -44,11 +44,12 @@
 - Manage installed Skills, official Plugins, MCP servers, and compatible third-party Skills from ClawHub in one extension center
 - Organize ordered multi-root projects, archive project or temporary tasks, and permanently delete tasks when needed
 - Search tasks, conversation history, and project files globally, then jump to a matching message or preview a file
+- View Mermaid diagrams in AI responses
 - Inspect, preview, rename, and delete project files; review diffs; manage branches and worktrees; and commit or push changes
 - Fork a task from an AI response and continue it in a new Git worktree
 - Add animated workspace pets with separate task activity bubbles and custom PNG or WebP sprite manifests
 - Manage a collection of custom workspace backgrounds, or use Bing daily images, with automatic foreground colors, overlay opacity, and blur
-- Access the workspace from another device on a trusted local network
+- Access the workspace and download task files from another device on a trusted local network
 
 ## Requirements
 
@@ -70,6 +71,7 @@ Codexly opens the browser automatically. If it does not, use the address printed
 Only one Codexly instance can use a data directory. The instance lock is released automatically on exit or crash. Use different `--codex-home <directory>` values for independent instances.
 
 On first launch, sign in with ChatGPT or configure an OpenAI-compatible service that supports the Responses API and `GET /models`.
+Custom providers discover available models; basic reasoning levels remain selectable when model metadata omits them.
 
 For regular use, install Codexly globally:
 
