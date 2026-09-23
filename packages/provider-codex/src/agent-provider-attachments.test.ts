@@ -183,6 +183,45 @@ describe("CodexAgentProvider attachments and validation", () => {
     ).resolves.toMatchObject({ content: imageContent, mediaType: "image/png" });
   });
 
+  it("keeps Codex 0.156 remote file images visible without exposing unresolved file IDs", async () => {
+    const rpc = new FakeRpcClient([
+      {
+        thread: nativeThread({
+          turns: [
+            {
+              completedAt: 1_753_232_400,
+              error: null,
+              id: "turn-file-image",
+              items: [
+                {
+                  content: [
+                    { text: "分析远程图片", type: "text" },
+                    { fileId: "file_123", type: "image" },
+                  ],
+                  id: "message-file-image",
+                  type: "userMessage",
+                },
+              ],
+              startedAt: 1_753_228_800,
+              status: "completed",
+            },
+          ],
+        }),
+      },
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+
+    const snapshot = await provider.readTask("task-1");
+
+    expect(snapshot?.turns[0]?.items[0]).toEqual({
+      id: "message-file-image",
+      role: "user",
+      text: "分析远程图片\n[图片]",
+      type: "message",
+    });
+    expect(JSON.stringify(snapshot)).not.toContain("file_123");
+  });
+
   it("preserves failures and bounds command output in task snapshots", async () => {
     const lineLimitedOutput = Array.from(
       { length: 10_001 },

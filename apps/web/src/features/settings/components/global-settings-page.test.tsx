@@ -169,7 +169,7 @@ describe("GlobalSettingsPage", () => {
   it("shows Codexly and Codex versions with an available update", async () => {
     const appInfo: AppInfoResponse = {
       appVersion: "1.3.0",
-      codexVersion: "0.155.1",
+      codexVersion: "0.156.0",
       latestVersion: "1.4.0",
       releaseNotes: "### 新增\n\n- 添加在线更新。",
       status: "available" as const,
@@ -190,7 +190,7 @@ describe("GlobalSettingsPage", () => {
     expect(markup).toContain("Codexly 版本");
     expect(markup).toContain("1.3.0");
     expect(markup).toContain("Codex 版本");
-    expect(markup).toContain("0.155.1");
+    expect(markup).toContain("0.156.0");
     expect(markup).toContain("发现新版本 1.4.0");
     expect(markup).toContain("检查更新");
     expect(markup).toContain("更新日志");
@@ -210,7 +210,7 @@ describe("GlobalSettingsPage", () => {
         client={new CodexlyClient()}
         appInfo={{
           appVersion: "1.3.0",
-          codexVersion: "0.155.1",
+          codexVersion: "0.156.0",
           latestVersion: "1.4.0",
           releaseNotes: "### 新增\n\n- 添加在线更新。",
           status: "available",
@@ -235,7 +235,7 @@ describe("GlobalSettingsPage", () => {
   it("shows updating, restart, and update-check failure states", async () => {
     const available: AppInfoResponse = {
       appVersion: "1.3.0",
-      codexVersion: "0.155.1",
+      codexVersion: "0.156.0",
       latestVersion: "1.4.0",
       releaseNotes: "### 新增\n\n- 添加在线更新。",
       status: "available",

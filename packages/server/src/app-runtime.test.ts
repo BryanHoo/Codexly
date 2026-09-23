@@ -153,7 +153,7 @@ describe("server runtime and core routes", () => {
     const readAppInfo = vi.fn(() =>
       Promise.resolve({
         appVersion: "1.3.0",
-        codexVersion: "0.155.1",
+        codexVersion: "0.156.0",
         latestVersion: "1.4.0",
         releaseNotes: "### 新增\n\n- 添加在线更新。",
         status: "available" as const,
@@ -164,7 +164,7 @@ describe("server runtime and core routes", () => {
       await new Promise((resolve) => setTimeout(resolve, 25));
       return {
         appVersion: "1.3.0",
-        codexVersion: "0.155.1",
+        codexVersion: "0.156.0",
         latestVersion: "1.4.0",
         releaseNotes: null,
         status: "restart-required" as const,
@@ -202,7 +202,7 @@ describe("server runtime and core routes", () => {
     });
     expect(infoResponse.json()).toEqual({
       appVersion: "1.3.0",
-      codexVersion: "0.155.1",
+      codexVersion: "0.156.0",
       latestVersion: "1.4.0",
       releaseNotes: "### 新增\n\n- 添加在线更新。",
       status: "available",

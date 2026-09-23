@@ -222,7 +222,7 @@ describe("ProjectPickerButton", () => {
 describe("SidebarSettingsButton", () => {
   const appInfo = {
     appVersion: "1.3.0",
-    codexVersion: "0.155.1",
+    codexVersion: "0.156.0",
     latestVersion: "1.3.0",
     releaseNotes: null,
     status: "current" as const,

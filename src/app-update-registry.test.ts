@@ -18,7 +18,7 @@ describe("app update registry selection", () => {
       .mockResolvedValue(Response.json({ latest: "1.4.0" }));
     const service = createAppUpdateService({
       appVersion: "1.3.0",
-      codexVersion: "0.155.1",
+      codexVersion: "0.156.0",
       fetchChangelog: () => Promise.resolve(""),
     });
 
@@ -43,7 +43,7 @@ describe("app update registry selection", () => {
       fetch.mockResolvedValueOnce(Response.json({ latest: "1.4.0" }));
       const service = createAppUpdateService({
         appVersion: "1.3.0",
-        codexVersion: "0.155.1",
+        codexVersion: "0.156.0",
         fetchChangelog: () => Promise.resolve(""),
       });
 

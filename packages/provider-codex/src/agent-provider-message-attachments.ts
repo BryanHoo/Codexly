@@ -32,6 +32,7 @@ export function mapCodexMessageImage(
   if (part["type"] === "image") {
     const url = optionalString(part["url"]);
     if (url === undefined) {
+      // 0.156 可返回仅含 fileId 的远程图片；App Server 未提供读取接口时只显示图片占位符。
       return undefined;
     }
     const name = optionalString(part["name"]);

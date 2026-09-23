@@ -313,7 +313,7 @@ export class CodexProviderConnectionService {
     this.#nativeState.clear();
 
     try {
-      // 0.155.1 只能校验当前 Provider；失败时必须补偿恢复刚才的原子配置写入。
+      // 0.156.0 只能校验当前 Provider；失败时必须补偿恢复刚才的原子配置写入。
       readProviderCapabilities(await this.#client.request("modelProvider/capabilities/read", {}));
       if (apiKey !== undefined) {
         // 先结束旧认证会话，确保 App Server 丢弃已缓存的 ChatGPT 请求客户端。
