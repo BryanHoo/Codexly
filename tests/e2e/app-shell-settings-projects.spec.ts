@@ -192,19 +192,22 @@ test("uses the available user message width before wrapping or truncating", asyn
   await page.goto("/p/codexly/t/task-1");
 
   const shortText = page.getByText("现在系统的 gh cli 是可以用的", { exact: true });
-  // 等待虚拟化消息进入可见布局后再测量文本行数。
-  await expect(shortText).toBeVisible();
-  await shortText.scrollIntoViewIfNeeded();
-  const shortTextLineCount = await shortText.evaluate((element) => {
-    const textNode = element.firstChild;
-    if (!(textNode instanceof Text)) {
-      throw new Error("Expected a short user message text node");
-    }
-    const range = document.createRange();
-    range.selectNodeContents(textNode);
-    return range.getClientRects().length;
-  });
-  expect(shortTextLineCount).toBe(1);
+  // 快照刷新可能替换消息节点；在同一次轮询中定位并测量已布局的文本。
+  await expect
+    .poll(
+      () =>
+        shortText.evaluate((element) => {
+          const textNode = element.firstChild;
+          if (!(textNode instanceof Text)) {
+            throw new Error("Expected a short user message text node");
+          }
+          const range = document.createRange();
+          range.selectNodeContents(textNode);
+          return range.getClientRects().length;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(1);
 
   const skillLabel = page.locator('[data-message-skill="git-commit"] > span');
   const skillOverflow = await skillLabel.evaluate(
