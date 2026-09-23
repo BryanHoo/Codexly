@@ -68,6 +68,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
   public readonly search: CodexGlobalSearchService;
   readonly #client: CodexRpcClient;
   readonly #attachmentDirectory: string;
+  readonly #forkTaskDirectory: string;
   readonly #taskTitles: CodexTaskTitles | undefined;
   readonly #logger: CodexProviderLogger;
   readonly #gitMetadataWatch: CodexGitMetadataWatchService;
@@ -91,6 +92,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     const codexHome =
       options.codexHome ?? process.env["CODEX_HOME"] ?? resolve(homedir(), ".codex");
     this.#attachmentDirectory = join(codexHome, "codexly", "thread-attachments");
+    this.#forkTaskDirectory = join(codexHome, "codexly", "fork-tasks");
     this.#taskTitles =
       options.readTaskTitleModel === undefined
         ? undefined
@@ -236,6 +238,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     }
     const rawProvider = new CodexAgentProvider(this.#client, project, {
       attachmentDirectory: this.#attachmentDirectory,
+      forkTaskDirectory: this.#forkTaskDirectory,
       logger: this.#logger,
       ...(this.#taskTitles === undefined ? {} : { taskTitles: this.#taskTitles }),
       subscribeRpc: false,

@@ -20,6 +20,7 @@ import { RpcResponseError, type RpcServerRequest } from "./jsonl-rpc-client.js";
 import { CodexHistoricalAttachmentStore } from "./historical-attachment-store.js";
 import type { HistoricalAttachmentStore } from "./persistent-historical-attachment-store.js";
 import { CodexThreadAttachmentService } from "./thread-attachment-service.js";
+import { ForkTaskRegistry } from "./fork-task-registry.js";
 import { PendingRequestLifecycle } from "./pending-request-lifecycle.js";
 import { listCodexMcpServers, reloadCodexMcpServers } from "./agent-provider-mcp.js";
 import { TaskRuntimeState } from "./task-runtime-state.js";
@@ -129,6 +130,7 @@ export abstract class CodexAgentProviderBase {
   protected readonly eventListeners = new Set<AgentProviderEventListener>();
   protected readonly historicalAttachments: HistoricalAttachmentStore;
   protected readonly threadAttachments: CodexThreadAttachmentService | undefined;
+  protected readonly forkTasks: ForkTaskRegistry | undefined;
   protected readonly logger: CodexProviderLogger;
   protected readonly project: AgentTaskScope;
   protected readonly pendingLifecycle: PendingRequestLifecycle;
@@ -202,6 +204,7 @@ export abstract class CodexAgentProviderBase {
     project: AgentTaskScope,
     options: {
       attachmentDirectory?: string;
+      forkTaskDirectory?: string;
       logger?: CodexProviderLogger;
       subscribeRpc?: boolean;
       taskTitles?: CodexTaskTitles;
@@ -212,6 +215,10 @@ export abstract class CodexAgentProviderBase {
       options.attachmentDirectory === undefined
         ? undefined
         : new CodexThreadAttachmentService(client, options.attachmentDirectory);
+    this.forkTasks =
+      options.forkTaskDirectory === undefined
+        ? undefined
+        : new ForkTaskRegistry(options.forkTaskDirectory);
     this.historicalAttachments =
       this.threadAttachments?.store ?? new CodexHistoricalAttachmentStore();
     this.taskTitles = options.taskTitles;
@@ -284,6 +291,7 @@ export abstract class CodexAgentProviderBase {
   public async deleteTask(taskId: string): Promise<void> {
     this.assertKnownProjectTask(taskId);
     await taskArchive.deleteCodexTask(this.client, taskId);
+    await this.forkTasks?.forget(this.project.id, taskId);
     this.threadAttachments?.deleteTask(taskId);
     // 永久删除成功后立即释放所有本地 Task 状态，不能等待可选通知。
     this.clearTaskRuntimeState(taskId);
@@ -320,10 +328,24 @@ export abstract class CodexAgentProviderBase {
       }),
       "thread/fork response",
     );
-    const task = await mapAgentTask(
-      expectRecord(response["thread"], "thread/fork thread"),
-      this.project,
-    );
+    let thread = expectRecord(response["thread"], "thread/fork thread");
+    if (this.project.kind === "project" && thread["projectId"] === null) {
+      const forkId = expectString(thread["id"], "thread/fork thread id");
+      // 原生 fork 会创建 rollout，但不会继承项目归属；先持久绑定再暴露分支。
+      const assignment = expectRecord(
+        await this.client.request("thread/metadata/update", {
+          projectId: this.project.id,
+          threadId: forkId,
+        }),
+        "thread/metadata/update response",
+      );
+      thread = expectRecord(assignment["thread"], "thread/metadata/update thread");
+      if (thread["id"] !== forkId) {
+        throw new CodexProtocolMappingError("thread/metadata/update returned a different thread");
+      }
+    }
+    const task = await mapAgentTask(thread, this.project);
+    await this.forkTasks?.record(this.project.id, task.id);
     // Fork 成功后立即接受新 Task 的实时通知与后续 Mutation。
     this.runtime.projectTaskIds.add(task.id);
     this.runtime.resumedTaskIds.add(task.id);

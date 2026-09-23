@@ -31,6 +31,7 @@ import {
 
 import { CODEX_PINNED_THREAD_SECTION_ID } from "./agent-provider-base.js";
 import { isBackgroundTerminalThreadMissingError, mapAgentTask } from "./agent-provider-base.js";
+import { pendingLocalTasks, restoreUnlistedForks } from "./fork-task-restoration.js";
 import { CodexAgentProviderQueue } from "./agent-provider-queue.js";
 import { mapCodexGoal } from "./codex-goal-mapping.js";
 
@@ -427,18 +428,16 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
         mapAgentTask(expectRecord(thread, "Codex thread"), this.project),
       ),
     );
-    for (const task of nativeTasks) {
-      this.runtime.projectTaskIds.add(task.id);
-      this.runtime.unmaterializedTasks.delete(task.id);
-    }
-    // thread/list 可能晚于 thread/start 或 thread/fork 收录任务；首屏先合并本地已确认的新 Task。
-    const pendingTasks =
-      input.cursor === undefined && input.archived !== true && input.searchTerm === undefined
-        ? [...this.runtime.unmaterializedTasks.values()].toSorted((leftTask, rightTask) =>
-            rightTask.updatedAt.localeCompare(leftTask.updatedAt),
-          )
-        : [];
-    const data = [...pendingTasks, ...nativeTasks];
+    await restoreUnlistedForks(
+      this.client,
+      this.forkTasks,
+      this.project,
+      this.runtime,
+      nativeTasks,
+      input,
+    );
+    // 首屏合并本地已确认但尚未进入原生列表的新 Task。
+    const data = [...pendingLocalTasks(this.runtime, input), ...nativeTasks];
     return { data, nextCursor: nextCursor ?? null };
   }
 
