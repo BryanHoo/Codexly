@@ -192,6 +192,9 @@ test("uses the available user message width before wrapping or truncating", asyn
   await page.goto("/p/codexly/t/task-1");
 
   const shortText = page.getByText("现在系统的 gh cli 是可以用的", { exact: true });
+  // 等待虚拟化消息进入可见布局后再测量文本行数。
+  await expect(shortText).toBeVisible();
+  await shortText.scrollIntoViewIfNeeded();
   const shortTextLineCount = await shortText.evaluate((element) => {
     const textNode = element.firstChild;
     if (!(textNode instanceof Text)) {
