@@ -26,6 +26,7 @@ export interface CreateServerInput {
   installAppUpdate: ReturnType<typeof createAppUpdateService>["install"];
   projectRepository: ProjectRepository;
   provider: AgentRuntimeProvider;
+  preloadModelCatalog?: boolean;
   petProvider: WorkbenchPetProvider;
   providerConnectionRepository: AgentProviderConnectionRepository;
   queueRepository: AgentQueueRepository;

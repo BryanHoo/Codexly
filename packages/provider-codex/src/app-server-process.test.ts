@@ -31,7 +31,16 @@ async function startFake(scenario = "normal"): Promise<CodexAppServerProcess> {
   // Fake Server 由当前 Node.js 执行，避免 Windows 把测试脚本误当成原生 Codex Binary。
   const child = spawn(
     process.execPath,
-    [fakeAppServerPath, "app-server", "--enable", "plugins", "--listen", "stdio://"],
+    [
+      fakeAppServerPath,
+      "app-server",
+      "--enable",
+      "plugins",
+      "--enable",
+      "api_key_model_discovery",
+      "--listen",
+      "stdio://",
+    ],
     {
       env: { ...process.env, FAKE_APP_SERVER_SCENARIO: scenario },
       shell: false,
@@ -92,7 +101,15 @@ describe("CodexAppServerProcess", () => {
       runtimes.push(runtime);
 
       await expect(runtime.client.request("inspect")).resolves.toMatchObject({
-        args: ["app-server", "--enable", "plugins", "--listen", "stdio://"],
+        args: [
+          "app-server",
+          "--enable",
+          "plugins",
+          "--enable",
+          "api_key_model_discovery",
+          "--listen",
+          "stdio://",
+        ],
       });
     },
   );
@@ -102,7 +119,15 @@ describe("CodexAppServerProcess", () => {
 
     await expect(runtime.client.request("echo", { ok: true })).resolves.toEqual({ ok: true });
     await expect(runtime.client.request("inspect")).resolves.toEqual({
-      args: ["app-server", "--enable", "plugins", "--listen", "stdio://"],
+      args: [
+        "app-server",
+        "--enable",
+        "plugins",
+        "--enable",
+        "api_key_model_discovery",
+        "--listen",
+        "stdio://",
+      ],
       initializeParams: {
         capabilities: {
           experimentalApi: true,

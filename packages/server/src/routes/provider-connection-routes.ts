@@ -107,22 +107,22 @@ export const registerProviderConnectionRoutes: FastifyPluginCallback<ServerRoute
         request.headers["idempotency-key"],
         request.body,
         async () => {
-          const reconnectModels = await resolveReconnectModels(
+          const fallbackModels = await resolveReconnectModels(
             request.body,
             provider,
             providerConnectionRepository,
           );
           const result =
-            reconnectModels === undefined
+            fallbackModels === undefined
               ? await provider.configureCustomProvider(request.body)
-              : await provider.configureCustomProvider(request.body, reconnectModels);
+              : await provider.configureCustomProvider(request.body, fallbackModels);
           await providerConnectionRepository.writeProviderConnection({
             customBaseUrl: result.status.customBaseUrl,
             customModels: result.models,
             mode: "custom",
             updatedAt: new Date().toISOString(),
           });
-          modelCatalogCache.clear();
+          modelCatalogCache.replace(result.models);
           return result;
         },
       ),
@@ -138,8 +138,15 @@ export const registerProviderConnectionRoutes: FastifyPluginCallback<ServerRoute
       },
     },
     (request) =>
-      runIdempotent(["logout-provider"], request.headers["idempotency-key"], request.body, () =>
-        provider.logoutProvider(),
+      runIdempotent(
+        ["logout-provider"],
+        request.headers["idempotency-key"],
+        request.body,
+        async () => {
+          const result = await provider.logoutProvider();
+          modelCatalogCache.clear();
+          return result;
+        },
       ),
   );
 

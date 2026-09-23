@@ -71,6 +71,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
   readonly #taskTitles: CodexTaskTitles | undefined;
   readonly #logger: CodexProviderLogger;
   readonly #gitMetadataWatch: CodexGitMetadataWatchService;
+  readonly #modelCatalogRuntimeFactory: CreateCodexRuntimeProviderOptions["modelCatalogRuntimeFactory"];
   readonly #providerConnection: CodexProviderConnectionService;
   readonly #owners = new RuntimeOwnerRegistry();
   readonly #projects = new Map<string, AgentTaskScope>();
@@ -107,6 +108,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
         personalization.updateAgentPreferences(client, input),
     };
     this.#logger = logger;
+    this.#modelCatalogRuntimeFactory = options.modelCatalogRuntimeFactory;
     this.#providerConnection = new CodexProviderConnectionService(client, options);
     this.fileSearch = new CodexFuzzyFileSearchService(client);
     this.search = new CodexGlobalSearchService(client);
@@ -193,9 +195,9 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
 
   public configureCustomProvider(
     input: ConfigureCustomProviderRequest,
-    persistedModels?: ConfigureCustomProviderResponse["models"],
+    fallbackModels?: ConfigureCustomProviderResponse["models"],
   ): Promise<ConfigureCustomProviderResponse> {
-    return this.#providerConnection.configureCustom(input, persistedModels);
+    return this.#providerConnection.configureCustom(input, fallbackModels);
   }
 
   public forProject(project: Project): AgentProvider {
@@ -265,7 +267,48 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     });
   }
 
-  public listModels(): Promise<AgentModelPage> {
+  public async listModels(): Promise<AgentModelPage> {
+    if (this.#modelCatalogRuntimeFactory !== undefined) {
+      let catalogRuntime: Awaited<
+        ReturnType<NonNullable<CreateCodexRuntimeProviderOptions["modelCatalogRuntimeFactory"]>>
+      > | null = null;
+      try {
+        await this.#providerConnection.prepareModelCatalog();
+        // 独立进程按磁盘上的最新 Provider 配置构建模型管理器，避免切换后复用旧端点。
+        catalogRuntime = await this.#modelCatalogRuntimeFactory();
+        return await this.#listModelsWithClient(catalogRuntime.client);
+      } catch {
+        this.#logger.warn(
+          { diagnosticCode: "model_catalog_refresh_failed" },
+          "Fresh model catalog unavailable; falling back to the primary Codex CLI catalog",
+        );
+      } finally {
+        if (catalogRuntime !== null) {
+          await catalogRuntime.close().catch(() => {
+            this.#logger.warn(
+              { diagnosticCode: "model_catalog_runtime_close_failed" },
+              "Failed to close the model catalog App Server",
+            );
+          });
+        }
+      }
+    }
+    return this.#listModelsWithClient(this.#client);
+  }
+
+  #listModelsWithClient(client: CodexRpcClient): Promise<AgentModelPage> {
+    if (client !== this.#client) {
+      const runtimeProject: AgentTaskScope = {
+        id: "runtime-model-catalog",
+        kind: "project",
+        rootPath: resolve("/"),
+        runtimeWorkspaceRoots: [resolve("/")],
+      };
+      return new CodexAgentProvider(client, runtimeProject, {
+        logger: this.#logger,
+        subscribeRpc: false,
+      }).listModels();
+    }
     const firstProvider = this.#projectProviders.values().next().value;
     if (firstProvider !== undefined) {
       return firstProvider.listModels();
@@ -439,6 +482,9 @@ export function createCodexRuntimeProvider(
   return new CodexRuntimeProvider(options.client, options.logger, {
     ...(options.codexHome === undefined ? {} : { codexHome: options.codexHome }),
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+    ...(options.modelCatalogRuntimeFactory === undefined
+      ? {}
+      : { modelCatalogRuntimeFactory: options.modelCatalogRuntimeFactory }),
     ...(options.readTaskTitleModel === undefined
       ? {}
       : { readTaskTitleModel: options.readTaskTitleModel }),

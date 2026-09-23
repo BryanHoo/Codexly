@@ -41,15 +41,22 @@ describe("createModelCatalogLoader", () => {
           updatedAt: "2026-08-07T00:00:00.000Z",
         }),
       ),
-    } satisfies Pick<AgentProviderConnectionRepository, "readProviderConnection">;
+      writeProviderConnection: vi.fn((record) => Promise.resolve(record)),
+    } satisfies Pick<
+      AgentProviderConnectionRepository,
+      "readProviderConnection" | "writeProviderConnection"
+    >;
 
     const load = createModelCatalogLoader(provider, repository);
 
     await expect(load()).resolves.toEqual(cliModels);
     expect(provider.listModels).toHaveBeenCalledOnce();
+    expect(repository.writeProviderConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ customBaseUrl: "https://cli.example.test/v1", mode: "custom" }),
+    );
   });
 
-  it("merges newly available runtime models into the persisted custom catalog", async () => {
+  it("refreshes the online catalog before using a matching persisted catalog", async () => {
     const runtimeModels: AgentModelPage = {
       data: [
         {
@@ -113,33 +120,37 @@ describe("createModelCatalogLoader", () => {
           updatedAt: "2026-09-14T00:00:00.000Z",
         }),
       ),
-    } satisfies Pick<AgentProviderConnectionRepository, "readProviderConnection">;
+      writeProviderConnection: vi.fn((record) => Promise.resolve(record)),
+    } satisfies Pick<
+      AgentProviderConnectionRepository,
+      "readProviderConnection" | "writeProviderConnection"
+    >;
 
     const load = createModelCatalogLoader(provider, repository);
 
-    await expect(load()).resolves.toEqual({
-      data: [...runtimeModels.data, persistedModels.data[1]],
-      nextCursor: null,
-    });
+    await expect(load()).resolves.toEqual(runtimeModels);
     expect(provider.listModels).toHaveBeenCalledOnce();
+    expect(repository.writeProviderConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ customModels: runtimeModels, mode: "custom" }),
+    );
   });
 
-  it("falls back to the persisted custom catalog when the runtime catalog is unavailable", async () => {
-    const persistedModels = {
+  it("uses the Codex CLI catalog when no persisted custom catalog is available", async () => {
+    const cliModels: AgentModelPage = {
       data: [
         {
           defaultReasoningEffort: "medium",
           description: "",
-          displayName: "Manual Model",
-          id: "manual-model",
+          displayName: "CLI Model",
+          id: "cli-model",
           isDefault: true,
           supportedReasoningEfforts: [{ description: "", id: "medium" }],
         },
       ],
       nextCursor: null,
-    } satisfies NonNullable<AgentProviderConnectionRecord["customModels"]>;
+    };
     const provider = {
-      listModels: vi.fn(() => Promise.reject(new Error("catalog unavailable"))),
+      listModels: vi.fn(() => Promise.resolve(cliModels)),
       readProviderConnection: vi.fn(() =>
         Promise.resolve({
           account: { type: "apiKey" as const },
@@ -154,15 +165,67 @@ describe("createModelCatalogLoader", () => {
       readProviderConnection: vi.fn(() =>
         Promise.resolve({
           customBaseUrl: "https://api.example.test/v1",
-          customModels: persistedModels,
+          customModels: null,
           mode: "custom" as const,
           updatedAt: "2026-09-14T00:00:00.000Z",
         }),
       ),
-    } satisfies Pick<AgentProviderConnectionRepository, "readProviderConnection">;
+      writeProviderConnection: vi.fn((record) => Promise.resolve(record)),
+    } satisfies Pick<
+      AgentProviderConnectionRepository,
+      "readProviderConnection" | "writeProviderConnection"
+    >;
 
     const load = createModelCatalogLoader(provider, repository);
 
-    await expect(load()).resolves.toEqual(persistedModels);
+    await expect(load()).resolves.toEqual(cliModels);
+    expect(provider.listModels).toHaveBeenCalledOnce();
+  });
+
+  it("uses the persisted catalog when online and CLI catalog loading fails", async () => {
+    const persistedModels = {
+      data: [
+        {
+          defaultReasoningEffort: "high",
+          description: "Cached metadata",
+          displayName: "Cached Model",
+          id: "cached-model",
+          isDefault: true,
+          supportedReasoningEfforts: [{ description: "Deep", id: "high" }],
+        },
+      ],
+      nextCursor: null,
+    } satisfies NonNullable<AgentProviderConnectionRecord["customModels"]>;
+    const provider = {
+      listModels: vi.fn(() => Promise.reject(new Error("catalog unavailable"))),
+      readProviderConnection: vi.fn(() =>
+        Promise.resolve({
+          account: { type: "chatgpt" as const, email: null, planType: "pro" },
+          customBaseUrl: null,
+          mode: "official" as const,
+          pendingLogin: null,
+          state: "connected" as const,
+        }),
+      ),
+    } satisfies Pick<AgentRuntimeProvider, "listModels" | "readProviderConnection">;
+    const repository = {
+      readProviderConnection: vi.fn(() =>
+        Promise.resolve({
+          customBaseUrl: null,
+          customModels: persistedModels,
+          mode: "official" as const,
+          updatedAt: "2026-09-23T00:00:00.000Z",
+        }),
+      ),
+      writeProviderConnection: vi.fn((record) => Promise.resolve(record)),
+    } satisfies Pick<
+      AgentProviderConnectionRepository,
+      "readProviderConnection" | "writeProviderConnection"
+    >;
+
+    await expect(createModelCatalogLoader(provider, repository)()).resolves.toEqual(
+      persistedModels,
+    );
+    expect(repository.writeProviderConnection).not.toHaveBeenCalled();
   });
 });

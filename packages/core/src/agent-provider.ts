@@ -290,7 +290,7 @@ export interface AgentRuntimeProvider {
   cancelProviderLogin(loginId: string): Promise<AgentProviderConnectionMutationResponse>;
   configureCustomProvider(
     input: ConfigureCustomProviderRequest,
-    persistedModels?: ConfigureCustomProviderResponse["models"],
+    fallbackModels?: ConfigureCustomProviderResponse["models"],
   ): Promise<ConfigureCustomProviderResponse>;
   forProject(project: Project): AgentProvider;
   forTemporary(rootPath: string): AgentProvider;

@@ -57,7 +57,16 @@ async function startFakeAppServer(scenario: string): Promise<CodexAppServerProce
   // Fake Server 是 Node.js 脚本，Windows 必须通过原生 node.exe 启动。
   const child = spawn(
     process.execPath,
-    [fakeAppServerPath, "app-server", "--enable", "plugins", "--listen", "stdio://"],
+    [
+      fakeAppServerPath,
+      "app-server",
+      "--enable",
+      "plugins",
+      "--enable",
+      "api_key_model_discovery",
+      "--listen",
+      "stdio://",
+    ],
     {
       env: { ...process.env, FAKE_APP_SERVER_SCENARIO: scenario },
       shell: false,

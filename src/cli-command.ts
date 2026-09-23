@@ -81,6 +81,7 @@ interface CreateRuntimeProviderInput {
   readTaskTitleModel: () => Promise<string>;
   codexHome?: string;
   client: CodexRpcClient;
+  modelCatalogRuntimeFactory?: () => Promise<CliManagedRuntime>;
 }
 
 export interface CliDependencies {
@@ -330,6 +331,12 @@ async function runStart(
     const provider = await dependencies.createRuntimeProvider({
       codexHome,
       client: runtime.client,
+      modelCatalogRuntimeFactory: () =>
+        dependencies.startCodexAppServer({
+          appVersion: dependencies.appVersion,
+          env,
+          ...(options.codexBin ? { binaryPath: options.codexBin } : {}),
+        }),
       // 标题与提交信息共用应用模型设置，按需读取最新值，不阻塞首次发送。
       readTaskTitleModel: async () =>
         (await titleSettingsRepository.readGlobalSettings())?.commitMessageModel ??
@@ -346,6 +353,7 @@ async function runStart(
       projectRepository,
       providerConnectionRepository: stateRepository,
       provider,
+      preloadModelCatalog: true,
       petProvider,
       installAppUpdate: appUpdateService.install,
       readAppInfo: appUpdateService.read,

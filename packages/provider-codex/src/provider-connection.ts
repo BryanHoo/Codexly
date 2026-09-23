@@ -20,6 +20,7 @@ import {
 import { CodexNativeStateSnapshot } from "./native-state-snapshot.js";
 import {
   createCustomProviderConfigUpdate,
+  hasCurrentCustomModelCatalog,
   readActiveProvider,
 } from "./provider-connection-config.js";
 
@@ -269,9 +270,25 @@ export class CodexProviderConnectionService {
     this.#nativeState.clear();
   }
 
+  public async prepareModelCatalog(): Promise<void> {
+    const config = await this.#nativeState.readConfig();
+    const activeProvider = readActiveProvider(config);
+    if (activeProvider.mode !== "custom" || activeProvider.customBaseUrl === null) return;
+    if (hasCurrentCustomModelCatalog(config)) return;
+
+    const update = createCustomProviderConfigUpdate(
+      config,
+      normalizeBaseUrl(activeProvider.customBaseUrl),
+      /*hasApiKey*/ false,
+    );
+    // 旧版只配置推理 base_url；启动刷新前补齐目录端点和发现开关。
+    await this.#client.request("config/batchWrite", { edits: update.edits });
+    this.#nativeState.clear();
+  }
+
   public async configureCustom(
     input: ConfigureCustomProviderRequest,
-    persistedModels?: ConfigureCustomProviderResponse["models"],
+    fallbackModels?: ConfigureCustomProviderResponse["models"],
   ): Promise<ConfigureCustomProviderResponse> {
     const baseUrl = normalizeBaseUrl(input.baseUrl);
     const apiKey = input.apiKey;
@@ -280,20 +297,21 @@ export class CodexProviderConnectionService {
     }
     const manualModels = normalizeManualModels(input.models ?? [], this.#modelCountLimit);
     let models: ConfigureCustomProviderResponse["models"];
-    if (input.models === undefined && persistedModels !== undefined) {
-      // 重连时复用 Server 已校验的目录，避免在无明文 API Key 时重复请求远端。
-      models = persistedModels;
-    } else {
-      let discoveredModels: CustomModelDefinition[];
-      try {
-        discoveredModels = await this.#discoverModels(baseUrl, apiKey);
-      } catch (error) {
-        if (manualModels.length === 0) throw error;
-        // 部分兼容 API 不提供模型目录；显式模型仍可用于 Responses API Turn。
-        discoveredModels = [];
-      }
+    try {
+      // 每次重新配置都刷新上游目录，避免同一 baseUrl 长期复用过期快照。
+      const discoveredModels = await this.#discoverModels(baseUrl, apiKey);
       // 手动条目位于后侧，同 ID 时覆盖远端缺省名称。
       models = mapCustomModels([...discoveredModels, ...manualModels], this.#modelCountLimit);
+    } catch (error) {
+      if (manualModels.length > 0) {
+        // 部分兼容 API 不提供目录；显式模型仍可用于 Responses API Turn。
+        models = mapCustomModels(manualModels, this.#modelCountLimit);
+      } else if (fallbackModels !== undefined) {
+        // Server 按 CLI、持久化顺序提供回退目录，避免上游短暂故障导致配置不可用。
+        models = fallbackModels;
+      } else {
+        throw error;
+      }
     }
     this.#nativeState.clear();
     const [configResponse, accountResponse] = await Promise.all([

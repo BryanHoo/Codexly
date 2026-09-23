@@ -75,6 +75,7 @@ export interface CreateCodexlyServerOptions {
   projectRuntimeCleanupIntervalMs?: number;
   projectRuntimeIdleTtlMs?: number;
   provider: AgentRuntimeProvider;
+  preloadModelCatalog?: boolean;
   petProvider: WorkbenchPetProvider;
   readAppInfo: () => Promise<AppInfoResponse>;
   readAppUpdateProgress: () => Promise<AppUpdateProgressResponse>;

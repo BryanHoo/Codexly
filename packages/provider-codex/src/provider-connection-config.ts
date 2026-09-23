@@ -38,6 +38,22 @@ function readModelProviderConfig(
   return isRecord(provider) ? provider : null;
 }
 
+export function hasCurrentCustomModelCatalog(config: Record<string, unknown>): boolean {
+  const activeProvider = readActiveProvider(config);
+  const providerId = readConfiguredProviderId(config);
+  if (activeProvider.mode !== "custom" || providerId === null || providerId === "openai") {
+    return false;
+  }
+  const provider = readModelProviderConfig(config, providerId);
+  const features = isRecord(config["features"]) ? config["features"] : null;
+  const configuredBaseUrl = optionalString(provider?.["base_url"], 2_048);
+  const configuredCatalogUrl = optionalString(provider?.["model_catalog_url"], 2_048);
+  if (configuredBaseUrl === null || configuredCatalogUrl === null) return false;
+  const baseUrl = configuredBaseUrl.replace(/\/+$/u, "");
+  const catalogUrl = configuredCatalogUrl.replace(/\/+$/u, "");
+  return catalogUrl === `${baseUrl}/models` && features?.["api_key_model_discovery"] === true;
+}
+
 export function readActiveProvider(config: Record<string, unknown>): {
   customBaseUrl: string | null;
   mode: "custom" | "official";
@@ -66,31 +82,22 @@ export function createCustomProviderConfigUpdate(
 ): CustomProviderConfigUpdate {
   const configuredProviderId = readConfiguredProviderId(config);
   const existingProviderId =
-    readActiveProvider(config).mode === "custom" ? configuredProviderId : null;
+    readActiveProvider(config).mode === "custom" && configuredProviderId !== "openai"
+      ? configuredProviderId
+      : null;
   const providerId = existingProviderId ?? DEFAULT_CUSTOM_PROVIDER_ID;
-
-  if (providerId === "openai") {
-    return {
-      edits: [{ keyPath: "openai_base_url", mergeStrategy: "upsert", value: baseUrl }],
-      providerId,
-      requiresOpenaiAuth: true,
-      rollbackEdits: [
-        {
-          keyPath: "openai_base_url",
-          mergeStrategy: "replace",
-          value: config["openai_base_url"] ?? null,
-        },
-      ],
-    };
-  }
-
   const previousProvider = readModelProviderConfig(config, providerId);
+  const previousFeatures = isRecord(config["features"]) ? config["features"] : null;
   const previousRequiresOpenaiAuth = previousProvider?.["requires_openai_auth"];
+  const migratesOpenAiOverride =
+    configuredProviderId === "openai" && readActiveProvider(config).mode === "custom";
   const requiresOpenaiAuth = hasApiKey
     ? true
-    : typeof previousRequiresOpenaiAuth === "boolean"
-      ? previousRequiresOpenaiAuth
-      : false;
+    : migratesOpenAiOverride
+      ? true
+      : typeof previousRequiresOpenaiAuth === "boolean"
+        ? previousRequiresOpenaiAuth
+        : false;
   const configuredName = nonEmptyString(previousProvider?.["name"]);
   const edits: ProviderConfigEdit[] = [
     {
@@ -98,10 +105,16 @@ export function createCustomProviderConfigUpdate(
       mergeStrategy: "upsert",
       value: {
         base_url: baseUrl,
+        model_catalog_url: `${baseUrl}/models`,
         name: configuredName ?? providerId,
         requires_openai_auth: requiresOpenaiAuth,
         wire_api: "responses",
       },
+    },
+    {
+      keyPath: "features.api_key_model_discovery",
+      mergeStrategy: "upsert",
+      value: true,
     },
   ];
   const rollbackEdits: ProviderConfigEdit[] = [
@@ -109,6 +122,11 @@ export function createCustomProviderConfigUpdate(
       keyPath: `model_providers.${providerId}`,
       mergeStrategy: "replace",
       value: previousProvider,
+    },
+    {
+      keyPath: "features.api_key_model_discovery",
+      mergeStrategy: "replace",
+      value: previousFeatures?.["api_key_model_discovery"] ?? null,
     },
   ];
   // 已激活的自定义 Provider 属于用户配置；重连只能更新它，不能切换选择。
@@ -123,6 +141,14 @@ export function createCustomProviderConfigUpdate(
       mergeStrategy: "replace",
       value: config["model_provider"] ?? null,
     });
+    if (configuredProviderId === "openai" && config["openai_base_url"] !== undefined) {
+      edits.push({ keyPath: "openai_base_url", mergeStrategy: "replace", value: null });
+      rollbackEdits.push({
+        keyPath: "openai_base_url",
+        mergeStrategy: "replace",
+        value: config["openai_base_url"],
+      });
+    }
   }
   return { edits, providerId, requiresOpenaiAuth, rollbackEdits };
 }

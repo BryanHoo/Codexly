@@ -185,6 +185,10 @@ export async function createCodexlyServer(
     createModelCatalogLoader(options.provider, options.providerConnectionRepository),
     { maxBytes: modelCatalogCacheMaxBytes, ttlMs: modelCatalogCacheTtlMs },
   );
+  if (options.preloadModelCatalog === true) {
+    // 启动阶段主动刷新在线目录；失败时 loader 已按连接身份回退持久化缓存。
+    await modelCatalogCache.read().catch(() => undefined);
+  }
   const projectContexts = new Map<string, ProjectRuntimeContext>();
   const projectInitializations = new Map<string, Promise<ProjectRuntimeContext | undefined>>();
   const projectRuntimeLifecycleLock = new ProjectRuntimeLifecycleLock();

@@ -155,6 +155,7 @@ export interface ServerRouteContext {
   readonly modelCatalogCache: Readonly<{
     clear: () => void;
     read: () => Promise<AgentModelPage>;
+    replace: (page: AgentModelPage) => void;
   }>;
   readonly multipartEnvelopeBytes: number;
   readonly projectOpenService: ProjectOpenService;

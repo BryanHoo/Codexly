@@ -19,6 +19,23 @@ import {
 } from "./app-all.test-support.js";
 
 describe("server diagnostics and provider connection", () => {
+  it("preloads and persists the current model catalog during production startup", async () => {
+    const providerHarness = createProvider();
+    const state = createSettingsRepository();
+    const app = await createCodexlyServer(
+      createServerOptions(providerHarness.provider, {
+        preloadModelCatalog: true,
+        providerConnectionRepository: state.repository,
+      }),
+    );
+    closeCallbacks.push(() => app.close());
+
+    expect(providerHarness.listModels).toHaveBeenCalledOnce();
+    expect(state.writeProviderConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "official" }),
+    );
+  });
+
   it("does not log provider exception messages, causes or data", async () => {
     const { provider } = createProvider();
     const secret = "synthetic-sensitive-marker";
@@ -236,7 +253,8 @@ describe("server diagnostics and provider connection", () => {
       { apiKey: "custom-secret", baseUrl: "https://api.example.com/v1" },
       customModels,
     );
-    expect(listModels).toHaveBeenCalledTimes(2);
+    // 三次自定义配置均先准备 CLI 目录，供上游 /models 请求失败时回退。
+    expect(listModels).toHaveBeenCalledTimes(3);
     expect(JSON.stringify(state.writeProviderConnection.mock.calls)).not.toContain("custom-secret");
     expect(officialResponse.statusCode, officialResponse.body).toBe(200);
     expect(repeatedOfficialResponse.json()).toEqual(officialResponse.json());

@@ -34,24 +34,28 @@ export async function resolveReconnectModels(
 ): Promise<ConfigureCustomProviderResponse["models"] | undefined> {
   if (input.models !== undefined) return undefined;
 
-  const persistedConnection = await repository.readProviderConnection();
+  const [activeConnection, persistedConnection] = await Promise.all([
+    provider.readProviderConnection(),
+    repository.readProviderConnection(),
+  ]);
+  if (
+    activeConnection.mode === "custom" &&
+    hasSameBaseUrl(activeConnection.customBaseUrl, input.baseUrl)
+  ) {
+    try {
+      // 上游 /models 由 configureCustomProvider 优先请求；这里准备第二层 CLI 回退目录。
+      return createSerializableModelPage(await provider.listModels());
+    } catch {
+      // CLI 目录不可用时继续读取最后一层持久化快照。
+    }
+  }
+
   if (
     persistedConnection?.mode === "custom" &&
     persistedConnection.customModels !== null &&
-    persistedConnection.customModels.data.length > 0 &&
     hasSameBaseUrl(persistedConnection.customBaseUrl, input.baseUrl)
   ) {
     return persistedConnection.customModels;
   }
-
-  const activeConnection = await provider.readProviderConnection();
-  if (
-    activeConnection.mode !== "custom" ||
-    !hasSameBaseUrl(activeConnection.customBaseUrl, input.baseUrl)
-  ) {
-    return undefined;
-  }
-
-  // 外部 config.toml 没有 SQLite 记录时，从已认证的 Codex Provider 恢复目录。
-  return createSerializableModelPage(await provider.listModels());
+  return undefined;
 }

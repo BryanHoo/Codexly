@@ -77,6 +77,7 @@ describe("runCli startup", () => {
     expect(harness.dependencies.createRuntimeProvider).toHaveBeenCalledWith({
       client: harness.client,
       codexHome: "/custom/home",
+      modelCatalogRuntimeFactory: expect.any(Function) as unknown,
       readTaskTitleModel: expect.any(Function) as unknown,
     });
     const [runtimeOptions] =
@@ -93,6 +94,7 @@ describe("runCli startup", () => {
       projectRepository: harness.projectRepository,
       providerConnectionRepository: harness.stateRepository,
       provider: harness.runtimeProvider,
+      preloadModelCatalog: true,
       settingsRepository: harness.stateRepository,
       staticRoot: "/package/dist/web",
       standaloneCwd: process.cwd(),

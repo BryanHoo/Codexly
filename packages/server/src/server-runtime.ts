@@ -114,43 +114,45 @@ type ModelCatalogCacheEntry = Readonly<{
 
 export function createModelCatalogLoader(
   provider: Pick<AgentRuntimeProvider, "listModels" | "readProviderConnection">,
-  repository: Pick<AgentProviderConnectionRepository, "readProviderConnection">,
+  repository: Pick<
+    AgentProviderConnectionRepository,
+    "readProviderConnection" | "writeProviderConnection"
+  >,
 ): () => Promise<AgentModelPage> {
   return async () => {
     const [activeConnection, storedConnection] = await Promise.all([
       provider.readProviderConnection(),
       repository.readProviderConnection(),
     ]);
-    if (
-      activeConnection.mode !== "custom" ||
-      storedConnection?.mode !== "custom" ||
-      storedConnection.customBaseUrl !== activeConnection.customBaseUrl
-    ) {
-      return provider.listModels();
-    }
-    if (storedConnection.customModels === null) {
-      throw new MutationHttpError(
-        "PROVIDER_ERROR",
-        "Custom provider model catalog is unavailable",
-        502,
-        true,
-      );
-    }
+    let models: AgentModelPage;
     try {
-      const runtimeModels = await provider.listModels();
-      const runtimeModelIds = new Set(runtimeModels.data.map((model) => model.id));
-      // 实时目录提供新增模型和最新能力，持久化目录补回用户手动配置的模型。
-      return {
-        data: [
-          ...runtimeModels.data,
-          ...storedConnection.customModels.data.filter((model) => !runtimeModelIds.has(model.id)),
-        ],
-        nextCursor: null,
-      };
-    } catch {
-      // 远端目录暂时不可用时，保留已验证的持久化目录以维持自定义 Provider 可用。
-      return storedConnection.customModels;
+      // 在线目录由当前模式决定：官方走 OpenAI，自定义 API 走其 model_catalog_url。
+      models = await provider.listModels();
+    } catch (error) {
+      const cacheMatchesConnection =
+        storedConnection?.mode === activeConnection.mode &&
+        storedConnection.customBaseUrl === activeConnection.customBaseUrl;
+      if (cacheMatchesConnection && storedConnection.customModels !== null) {
+        return storedConnection.customModels;
+      }
+      throw error;
     }
+    // 缓存写入失败不能覆盖已成功取得的在线目录。
+    await repository
+      .writeProviderConnection({
+        customBaseUrl: activeConnection.customBaseUrl,
+        customModels: {
+          data: models.data.map((model) => ({
+            ...model,
+            supportedReasoningEfforts: [...model.supportedReasoningEfforts],
+          })),
+          nextCursor: models.nextCursor,
+        },
+        mode: activeConnection.mode,
+        updatedAt: new Date().toISOString(),
+      })
+      .catch(() => undefined);
+    return models;
   };
 }
 
@@ -205,6 +207,14 @@ export class ModelCatalogCache {
     this.#generation += 1;
     this.#entry = undefined;
     this.#inFlight = undefined;
+  }
+
+  public replace(page: AgentModelPage): void {
+    this.#generation += 1;
+    this.#inFlight = undefined;
+    const size = Buffer.byteLength(JSON.stringify(page), "utf8");
+    this.#entry =
+      size <= this.#maxBytes ? { expiresAt: Date.now() + this.#ttlMs, page } : undefined;
   }
 }
 

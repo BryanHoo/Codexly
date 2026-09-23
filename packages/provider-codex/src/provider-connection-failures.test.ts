@@ -44,6 +44,11 @@ describe("Codex provider connection failures", () => {
               base_url: "https://existing.example.com/v1",
             },
           },
+          {
+            keyPath: "features.api_key_model_discovery",
+            mergeStrategy: "replace",
+            value: null,
+          },
         ],
       },
     });
@@ -76,6 +81,11 @@ describe("Codex provider connection failures", () => {
         edits: [
           {
             keyPath: "model_providers.OpenAI",
+            mergeStrategy: "replace",
+            value: null,
+          },
+          {
+            keyPath: "features.api_key_model_discovery",
             mergeStrategy: "replace",
             value: null,
           },

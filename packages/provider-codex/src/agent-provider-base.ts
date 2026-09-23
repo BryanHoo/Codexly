@@ -55,6 +55,10 @@ export interface CreateCodexRuntimeProviderOptions {
   codexHome?: string;
   client: CodexRpcClient;
   fetch?: typeof globalThis.fetch;
+  modelCatalogRuntimeFactory?: () => Promise<{
+    client: CodexRpcClient;
+    close(): Promise<void>;
+  }>;
   readTaskTitleModel?: () => Promise<string>;
   logger?: CodexProviderLogger;
 }
