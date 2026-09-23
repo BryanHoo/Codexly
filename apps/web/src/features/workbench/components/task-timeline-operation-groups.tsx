@@ -12,14 +12,22 @@ import {
 import { i18n } from "../../../i18n/i18n.js";
 import type { TaskItemStore, TaskStore } from "../../conversation/runtime/task-store.js";
 
-type TimelineOperationItem = Extract<AgentItem, { type: "command" | "tool" | "file_change" }>;
+type TimelineOperationItem = Extract<
+  AgentItem,
+  { type: "command" | "tool" | "file_change" | "reasoning" }
+>;
 
 export type TimelineOperationGroup =
   | Readonly<{ itemKey: string; type: "item" }>
   | Readonly<{ itemKeys: readonly string[]; key: string; type: "operation_group" }>;
 
 function isTimelineOperation(item: AgentItem | undefined): item is TimelineOperationItem {
-  return item?.type === "command" || item?.type === "tool" || item?.type === "file_change";
+  return (
+    item?.type === "command" ||
+    item?.type === "tool" ||
+    item?.type === "file_change" ||
+    item?.type === "reasoning"
+  );
 }
 
 export function filterRenderableTimelineItemKeys(
@@ -76,6 +84,7 @@ export type TimelineOperationSummary = Readonly<{
   failedCount: number;
   fileCount: number;
   isActive: boolean;
+  reasoningCount: number;
   toolCount: number;
 }>;
 
@@ -83,11 +92,16 @@ export function summarizeTimelineOperations(items: readonly AgentItem[]): Timeli
   let commandCount = 0;
   let failedCount = 0;
   let isActive = false;
+  let reasoningCount = 0;
   let toolCount = 0;
   const filePaths = new Set<string>();
 
   for (const item of items) {
     if (!isTimelineOperation(item)) {
+      continue;
+    }
+    if (item.type === "reasoning") {
+      reasoningCount += 1;
       continue;
     }
     if (item.type === "command") {
@@ -114,6 +128,7 @@ export function summarizeTimelineOperations(items: readonly AgentItem[]): Timeli
     failedCount,
     fileCount: filePaths.size,
     isActive,
+    reasoningCount,
     toolCount,
   };
 }
@@ -136,10 +151,25 @@ function formatTimelineOperationSummary(summary: TimelineOperationSummary): stri
               count: summary.commandCount,
               ns: "conversation",
             })
-          : i18n.t("timeline.operationGroup.filesOnly", {
-              count: summary.fileCount,
-              ns: "conversation",
-            });
+          : summary.fileCount > 0
+            ? i18n.t("timeline.operationGroup.filesOnly", {
+                count: summary.fileCount,
+                ns: "conversation",
+              })
+            : i18n.t("timeline.operationGroup.reasoningOnly", {
+                count: summary.reasoningCount,
+                ns: "conversation",
+              });
+
+  if (
+    summary.reasoningCount > 0 &&
+    summary.commandCount + summary.toolCount + summary.fileCount > 0
+  ) {
+    baseSummary += i18n.t("timeline.operationGroup.reasoningSuffix", {
+      count: summary.reasoningCount,
+      ns: "conversation",
+    });
+  }
 
   if (summary.fileCount > 0 && summary.commandCount + summary.toolCount > 0) {
     baseSummary += i18n.t("timeline.operationGroup.filesSuffix", {

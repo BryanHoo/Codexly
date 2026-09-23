@@ -1,6 +1,8 @@
 import { buildTaskAttachmentUrl } from "@codexly/client";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
-import { FileText, LoaderCircle } from "lucide-react";
+import { BrainCircuit, FileText, LoaderCircle } from "lucide-react";
+import { fromMarkdown } from "mdast-util-from-markdown";
+import { toString } from "mdast-util-to-string";
 import { useState } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
@@ -24,11 +26,6 @@ import {
   PlanTitle,
   PlanTrigger,
 } from "../../../shared/components/agent/plan.js";
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from "../../../shared/components/agent/reasoning.js";
 import { Task, TaskContent, TaskItem, TaskTrigger } from "../../../shared/components/agent/task.js";
 import {
   Terminal,
@@ -71,6 +68,16 @@ import {
 
 // 覆盖 Streamdown 的 whitespace-normal，保留用户原文中的单换行和缩进。
 const preservedUserMessageClassName = "whitespace-pre-wrap!";
+
+function getReasoningTitle(markdown: string): string {
+  // 标题只提取 Markdown 文本；链接地址和格式标记保留在展开后的详情中。
+  return fromMarkdown(markdown)
+    .children.map((block) => toString(block, { includeHtml: false }))
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
 
 export function TimelineItemContent({
   anchorId,
@@ -204,23 +211,29 @@ export function TimelineItemContent({
       if (item.summary.trim().length === 0) {
         return null;
       }
-      // 后续 Item 出现即表示当前推理已结束，及时收起并停止流式渲染。
+      // 标题直接展示摘要，详情按工具容器的展开状态按需渲染。
       const isStreamingReasoning = turnStatus === "running" && isLastTurnItem;
       return (
-        <Reasoning isStreaming={isStreamingReasoning}>
-          <ReasoningTrigger
-            title={i18n.t(
-              isStreamingReasoning ? "timeline.reasoningStreaming" : "timeline.reasoning",
-              { ns: "conversation" },
-            )}
+        <Tool data-reasoning-summary="">
+          <ToolHeader
+            icon={
+              <BrainCircuit
+                className="size-3.5 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+            }
+            title={
+              getReasoningTitle(item.summary) ||
+              i18n.t("timeline.reasoning", { ns: "conversation" })
+            }
           />
-          <ReasoningContent>
+          <ToolContent>
             {/* 仅渲染 Provider 明确提供的摘要，原始 content 永不进入展示组件。 */}
             <LazyMessageResponse mode={isStreamingReasoning ? "streaming" : "static"}>
               {item.summary}
             </LazyMessageResponse>
-          </ReasoningContent>
-        </Reasoning>
+          </ToolContent>
+        </Tool>
       );
     }
     case "approval_review":

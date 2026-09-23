@@ -5,7 +5,6 @@ export type QuestionAnswer = Readonly<{ choice: number | null; text: string }>;
 export type QuestionDraft = Readonly<{
   answers: readonly QuestionAnswer[];
   status: "editing" | "sending" | "sent";
-  error: boolean;
 }>;
 
 export const createQuestionDraftStore = () =>

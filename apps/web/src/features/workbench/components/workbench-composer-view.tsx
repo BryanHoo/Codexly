@@ -441,11 +441,6 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
           </PromptInputFooter>
         </PromptInput>
       </div>
-      {props.modelsError === null ? null : (
-        <p className="mx-auto mt-1 w-full max-w-content px-1 text-caption text-danger" role="alert">
-          {t("composer.modelListFailed")}
-        </p>
-      )}
       {props.footerVisible ? (
         <div className="mx-auto mt-1.5 flex h-9 w-full max-w-content min-w-0 items-center gap-3 px-1 text-caption text-muted-foreground">
           {props.projectToolsEnabled ? (

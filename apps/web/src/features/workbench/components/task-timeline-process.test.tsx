@@ -154,7 +154,7 @@ describe("task timeline process", () => {
     expect(markup).toContain("已修正消息判定。");
     expect(markup).toContain("核对消息分组");
     expect(markup).not.toContain("正在核对时间线的分组逻辑。");
-    expect(markup).toContain("data-ai-reasoning");
+    expect(markup).toContain('data-reasoning-summary=""');
   });
 
   it("collapses completed commentary and operations behind the processing time", () => {
@@ -335,7 +335,7 @@ describe("task timeline process", () => {
   it("shows completed reasoning summaries without exposing raw content", () => {
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={snapshot} />);
 
-    expect(markup).toContain("data-ai-reasoning");
+    expect(markup).toContain('data-reasoning-summary=""');
     expect(markup).toContain("Preparing final build and test verification");
     expect(markup).toContain("Preparing implementation");
   });
@@ -407,7 +407,7 @@ describe("task timeline process", () => {
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={emptyReasoningSnapshot} />);
 
     expect(markup).not.toContain('data-ai-chain-of-thought=""');
-    expect(markup).not.toContain('data-ai-reasoning=""');
+    expect(markup).not.toContain('data-reasoning-summary=""');
     expect(markup).not.toContain(">推理<");
   });
 });

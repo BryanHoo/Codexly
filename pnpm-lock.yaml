@@ -288,6 +288,12 @@ importers:
       lucide-react:
         specifier: 'catalog:'
         version: 1.25.0(react@19.2.8)
+      mdast-util-from-markdown:
+        specifier: 2.0.3
+        version: 2.0.3(supports-color@7.2.0)
+      mdast-util-to-string:
+        specifier: 4.0.0
+        version: 4.0.0
       radix-ui:
         specifier: 'catalog:'
         version: 1.6.7(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

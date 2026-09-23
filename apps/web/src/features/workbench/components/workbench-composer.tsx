@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useState } from "react";
 import { useAccess } from "../../access/access-context.js";
+import { useActionErrorToast } from "../../notifications/use-action-error-toast.js";
 import { AsyncQuestionComposer } from "./async-question-composer.js";
 import { createAsyncQuestionAnswerHandler } from "./async-question-answer-handler.js";
 import { ProjectTodoComposerGate } from "./project-todo-composer-gate.js";
@@ -67,6 +68,7 @@ export function WorkbenchComposer({
   taskId,
 }: WorkbenchComposerProps) {
   const { t } = useTranslation(["workbench", "settings"]);
+  useActionErrorToast(modelsError, t("composer.modelListFailed"));
   const access = useAccess();
   const todoEditing = useProjectTodoEditing(projectId, initialTodoId);
   const { editingTodoId, projectTodos, todos } = todoEditing;
@@ -144,8 +146,7 @@ export function WorkbenchComposer({
     state,
     turnControlsDisabled,
   } = session;
-  const [fastModeSelection, setFastModeSelection] =
-    useState<Readonly<{ enabled: boolean; scope: string }>>();
+  const [fastModeSelection, setFastModeSelection] = useState<{ enabled: boolean; scope: string }>();
   const fastModeSelected =
     fastModeSelection?.scope === composerScope ? fastModeSelection.enabled : fastModeDefault;
   const fastModeEnabled = fastModeAvailable && fastModeSelected;
@@ -329,7 +330,7 @@ export function WorkbenchComposer({
         <AsyncQuestionComposer
           key={composerScope}
           projectId={projectId}
-          taskId={activeTaskId}
+          taskId={taskId}
           enabled={!turnControlsDisabled}
           onAnswered={createAsyncQuestionAnswerHandler({
             controller: composerController,
@@ -382,7 +383,6 @@ export function WorkbenchComposer({
         void composerQueue.moveQueuedPrompt(queuedPromptId, offset).catch(setMutationError);
       }}
       models={models}
-      modelsError={modelsError}
       modelsPending={modelsPending}
       editQueuedPrompt={(queuedPrompt) => {
         void composerQueue.editQueuedPrompt(queuedPrompt).catch(setMutationError);

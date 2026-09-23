@@ -13,7 +13,6 @@ export const conversation = {
     answer: "Answer: {{question}}",
     send: "Send answers",
     sent: "Sent",
-    failed: "Answers were not sent. Please retry.",
   },
   agentComponents: {
     addFile: "Add file",
@@ -296,6 +295,8 @@ export const conversation = {
       failed: "; {{count}} failed",
       filesOnly: "Operations complete: {{count}} files changed",
       filesSuffix: ", {{count}} files changed",
+      reasoningOnly: "Reasoning complete: {{count}} summaries",
+      reasoningSuffix: ", {{count}} reasoning summaries",
       summary: "Operations complete: {{toolCount}} tool calls, {{commandCount}} commands",
       toolsOnly: "Tool calls complete: {{count}}",
     },

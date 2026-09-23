@@ -24,6 +24,8 @@
     "date-fns": "catalog:",
     "i18next": "catalog:",
     "lucide-react": "catalog:",
+    "mdast-util-from-markdown": "2.0.3",
+    "mdast-util-to-string": "4.0.0",
     "radix-ui": "catalog:",
     "react": "catalog:",
     "react-datepicker": "catalog:",

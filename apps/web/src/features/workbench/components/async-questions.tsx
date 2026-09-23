@@ -23,7 +23,6 @@ export function AsyncQuestions({ item }: Readonly<{ item: AsyncQuestionGroup }>)
       text: "",
     })),
     status: "editing",
-    error: false,
   }));
   const current = draft ?? initial;
   const name = useId();
@@ -41,7 +40,6 @@ export function AsyncQuestions({ item }: Readonly<{ item: AsyncQuestionGroup }>)
   const update = (index: number, patch: Partial<QuestionDraft["answers"][number]>) => {
     saveQuestionDraft(store, item.id, {
       ...current,
-      error: false,
       answers: current.answers.map((answer, position) =>
         position === index ? { ...answer, ...patch } : answer,
       ),
@@ -50,7 +48,7 @@ export function AsyncQuestions({ item }: Readonly<{ item: AsyncQuestionGroup }>)
   const submit = async () => {
     const status = store.getState().drafts.get(item.id)?.status ?? "editing";
     if (!valid || session?.enabled !== true || status !== "editing") return;
-    saveQuestionDraft(store, item.id, { ...current, status: "sending", error: false });
+    saveQuestionDraft(store, item.id, { ...current, status: "sending" });
     let accepted = false;
     try {
       accepted = await session.submit(item.id, answerTexts);
@@ -60,7 +58,6 @@ export function AsyncQuestions({ item }: Readonly<{ item: AsyncQuestionGroup }>)
     saveQuestionDraft(store, item.id, {
       ...current,
       status: accepted ? "sent" : "editing",
-      error: !accepted,
     });
   };
   return (
@@ -135,11 +132,6 @@ export function AsyncQuestions({ item }: Readonly<{ item: AsyncQuestionGroup }>)
           )}
           {t(current.status === "sent" ? "asyncQuestions.sent" : "asyncQuestions.send")}
         </Button>
-        {current.error ? (
-          <span className="text-label text-danger" role="alert">
-            {t("asyncQuestions.failed")}
-          </span>
-        ) : null}
       </div>
     </form>
   );

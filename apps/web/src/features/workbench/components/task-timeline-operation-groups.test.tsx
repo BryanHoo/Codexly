@@ -96,6 +96,37 @@ describe("task timeline operation groups", () => {
     ]);
   });
 
+  it("groups non-empty reasoning with adjacent tools, commands, and file edits", () => {
+    const items: AgentItem[] = [
+      { content: "", id: "reasoning-1", summary: "检查项目", type: "reasoning" },
+      tool("tool-read", "completed"),
+      {
+        id: "edit",
+        type: "file_change",
+        status: "completed",
+        changes: [{ path: "src/index.ts", kind: "update", diff: "+export {};" }],
+      },
+      { content: "", id: "reasoning-2", summary: "验证修改", type: "reasoning" },
+      command("command-check", "completed"),
+    ];
+    const itemsById = new Map(items.map((item) => [item.id, item]));
+
+    expect(
+      groupConsecutiveTimelineOperations(
+        items.map((item) => item.id),
+        (key) => itemsById.get(key),
+      ),
+    ).toEqual([
+      { itemKeys: items.map((item) => item.id), key: "reasoning-1", type: "operation_group" },
+    ]);
+    expect(summarizeTimelineOperations(items)).toMatchObject({
+      reasoningCount: 2,
+      toolCount: 1,
+      commandCount: 1,
+      fileCount: 1,
+    });
+  });
+
   it("filters empty reasoning before rendering and restores it after a summary delta", () => {
     const reasoningStore = createTaskItemStore({
       content: "raw reasoning",
@@ -146,8 +177,40 @@ describe("task timeline operation groups", () => {
       fileCount: 0,
       failedCount: 2,
       isActive: true,
+      reasoningCount: 0,
       toolCount: 2,
     });
+  });
+
+  it("folds reasoning together with completed tools and file edits after assistant text", () => {
+    const items: AgentItem[] = [
+      { content: "", id: "reasoning", summary: "检查文件", type: "reasoning" },
+      tool("tool-read", "completed"),
+      {
+        id: "edit",
+        type: "file_change",
+        status: "completed",
+        changes: [{ path: "src/index.ts", kind: "update", diff: "+export {};" }],
+      },
+      { id: "reply", role: "assistant", text: "继续处理。", type: "message" },
+    ];
+    const markup = renderToStaticMarkup(
+      <TaskSnapshotTimeline
+        snapshot={{
+          ...snapshot,
+          status: "running",
+          turns: [{ ...completedTurn, status: "running", completedAt: null, items }],
+        }}
+      />,
+    );
+
+    expect(markup).toContain('data-operation-group=""');
+    expect(markup).toContain("工具调用完成：1 个，推理 1 条，修改 1 个文件");
+    expect(markup).not.toContain('data-reasoning-summary=""');
+    expect(markup).not.toContain("检查文件");
+    expect(markup).not.toContain("tool-read");
+    expect(markup).not.toContain("src/index.ts");
+    expect(markup).toContain("继续处理。");
   });
 
   it.each([false, true])(
@@ -272,7 +335,7 @@ describe("task timeline operation groups", () => {
     expect(markup).toContain("操作完成：调用 2 个工具，执行 2 条命令；其中 1 项失败");
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain("继续处理。");
-    expect(markup).not.toContain('data-ai-reasoning=""');
+    expect(markup).not.toContain('data-reasoning-summary=""');
     expect(markup).not.toContain("read_file");
     expect(markup).not.toContain("fast-context/search");
     expect(markup).not.toContain("pnpm check");

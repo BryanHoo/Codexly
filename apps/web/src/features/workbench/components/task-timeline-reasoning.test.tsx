@@ -34,39 +34,69 @@ function renderRunningReasoning(withReply: boolean) {
 }
 
 describe("task timeline reasoning", () => {
-  it("keeps only the active reasoning expanded without a loading icon", () => {
+  it("shows the summary as a single-line tool title and stays collapsed while running", () => {
     const markup = renderRunningReasoning(false);
-
-    expect(markup).toMatch(
-      /<details[^>]*data-ai-reasoning=""[^>]*data-streaming="true"[^>]*open=""/u,
-    );
-    expect(markup).toContain("正在推理");
-    expect(markup).not.toContain("animate-spin");
-  });
-
-  it("collapses reasoning and changes its icon when the reply starts", () => {
-    const markup = renderRunningReasoning(true);
-    const reasoning = /<details[^>]*data-ai-reasoning=""[^>]*>[\s\S]*?<\/summary>/u.exec(
+    const reasoning = /<details[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/summary>/u.exec(
       markup,
     )?.[0];
 
     expect(reasoning).toBeDefined();
-    expect(reasoning).toContain('data-streaming="false"');
+    expect(reasoning).toContain("group/tool");
     expect(reasoning).not.toContain('open=""');
-    expect(reasoning).toContain("推理摘要");
-    expect(reasoning).not.toContain("正在推理");
-    expect(reasoning).toContain('class="lucide lucide-check');
-    expect(markup).toContain("已找到原因");
+    expect(reasoning).toMatch(/<span class="[^"]*truncate[^"]*">正在分析问题<\/span>/u);
+    expect(markup).not.toContain("正在推理");
+    expect(markup).not.toContain("animate-spin");
   });
 
-  it("shows the completed icon on a finished turn", () => {
-    const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={snapshot} />);
-    const reasoning = /<details[^>]*data-ai-reasoning=""[^>]*>[\s\S]*?<\/summary>/u.exec(
+  it("shows markdown summary as plain text in the title and excludes raw reasoning", () => {
+    const runningSnapshot: RuntimeTaskSnapshot = {
+      ...snapshot,
+      turns: [
+        {
+          ...completedTurn,
+          items: [
+            {
+              content: "原始推理不应显示",
+              id: "reasoning-long",
+              summary:
+                "## **Detaching from Redis init**\n\n查看 [Redis 配置](https://example.com) 和 `init.ts`",
+              type: "reasoning",
+            },
+          ],
+        },
+      ],
+    };
+    const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={runningSnapshot} />);
+
+    expect(markup).toContain('data-reasoning-summary=""');
+    expect(markup).toMatch(
+      /<summary[^>]*>[\s\S]*<span class="[^"]*truncate[^"]*">Detaching from Redis init 查看 Redis 配置 和 init\.ts<\/span>[\s\S]*<\/summary>/u,
+    );
+    expect(markup).not.toContain("**Detaching from Redis init**");
+    expect(markup).not.toContain("https://example.com");
+    expect(markup).not.toContain("原始推理不应显示");
+  });
+
+  it("stays collapsed after the reply starts", () => {
+    const markup = renderRunningReasoning(true);
+    const reasoning = /<details[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/summary>/u.exec(
       markup,
     )?.[0];
 
-    expect(reasoning).toContain('data-streaming="false"');
+    expect(reasoning).toBeDefined();
     expect(reasoning).not.toContain('open=""');
-    expect(reasoning).toContain('class="lucide lucide-check');
+    expect(reasoning).toContain("正在分析问题");
+    expect(markup).toContain("已找到原因");
+  });
+
+  it("uses the same collapsed tool presentation on a finished turn", () => {
+    const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={snapshot} />);
+    const reasoning = /<details[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/summary>/u.exec(
+      markup,
+    )?.[0];
+
+    expect(reasoning).toContain("group/tool");
+    expect(reasoning).not.toContain('open=""');
+    expect(reasoning).not.toContain("推理摘要");
   });
 });

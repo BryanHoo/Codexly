@@ -68,7 +68,6 @@ export type WorkbenchComposerViewProps = Readonly<{
   menuItemCount: number;
   moveQueuedPrompt: (queuedPromptId: string, offset: -1 | 1) => void;
   models: readonly AgentModel[];
-  modelsError: Error | null;
   modelsPending: boolean;
   onAttachmentsChange: (files: readonly PromptInputAttachment[]) => void;
   onBranchCreate: (branch: string) => Promise<boolean>;

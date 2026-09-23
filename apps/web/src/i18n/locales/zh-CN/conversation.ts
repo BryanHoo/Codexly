@@ -13,7 +13,6 @@ export const conversation = {
     answer: "回答：{{question}}",
     send: "发送回答",
     sent: "已发送",
-    failed: "回答未发送，请重试",
   },
   agentComponents: {
     addFile: "添加文件",
@@ -294,6 +293,8 @@ export const conversation = {
       failed: "；其中 {{count}} 项失败",
       filesOnly: "操作完成：修改 {{count}} 个文件",
       filesSuffix: "，修改 {{count}} 个文件",
+      reasoningOnly: "推理完成：{{count}} 条",
+      reasoningSuffix: "，推理 {{count}} 条",
       summary: "操作完成：调用 {{toolCount}} 个工具，执行 {{commandCount}} 条命令",
       toolsOnly: "工具调用完成：{{count}} 个",
     },

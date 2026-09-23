@@ -86,12 +86,13 @@ const statusPresentation: Record<ToolState, { icon: ReactNode; labelKey: string 
 };
 
 type ToolHeaderProps = HTMLAttributes<HTMLElement> & {
-  state: ToolState;
+  icon?: ReactNode;
+  state?: ToolState;
   title: string;
 };
 
-export function ToolHeader({ className = "", state, title, ...props }: ToolHeaderProps) {
-  const presentation = statusPresentation[state];
+export function ToolHeader({ className = "", icon, state, title, ...props }: ToolHeaderProps) {
+  const presentation = state === undefined ? undefined : statusPresentation[state];
   const { t } = useTranslation("conversation");
 
   return (
@@ -99,16 +100,18 @@ export function ToolHeader({ className = "", state, title, ...props }: ToolHeade
       className={`flex min-h-9 cursor-pointer list-none items-center gap-2 text-label text-foreground [&::-webkit-details-marker]:hidden ${className}`}
       {...props}
     >
-      <Wrench className="size-3.5 text-muted-foreground" aria-hidden="true" />
+      {icon ?? <Wrench className="size-3.5 text-muted-foreground" aria-hidden="true" />}
       <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
-      <span
-        className={`inline-flex items-center gap-1 ${
-          state === "output-error" ? "text-danger" : "text-muted-foreground"
-        }`}
-      >
-        {presentation.icon}
-        {t(presentation.labelKey)}
-      </span>
+      {presentation === undefined ? null : (
+        <span
+          className={`inline-flex items-center gap-1 ${
+            state === "output-error" ? "text-danger" : "text-muted-foreground"
+          }`}
+        >
+          {presentation.icon}
+          {t(presentation.labelKey)}
+        </span>
+      )}
       <ChevronRight
         className="size-3.5 text-muted-foreground transition-transform group-open/tool:rotate-90"
         aria-hidden="true"
