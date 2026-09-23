@@ -1,4 +1,4 @@
-import { BrainCircuit, ChevronRight, LoaderCircle } from "lucide-react";
+import { BrainCircuit, Check, ChevronRight } from "lucide-react";
 import { createContext, useContext, useMemo, type HTMLAttributes } from "react";
 
 import { cn } from "../../lib/utils.js";
@@ -55,9 +55,9 @@ export function ReasoningTrigger({ className, title, ...props }: ReasoningTrigge
       {...props}
     >
       {context.isStreaming ? (
-        <LoaderCircle aria-hidden="true" className="size-3.5 shrink-0 animate-spin" />
-      ) : (
         <BrainCircuit aria-hidden="true" className="size-3.5 shrink-0" />
+      ) : (
+        <Check aria-hidden="true" className="size-3.5 shrink-0" />
       )}
       <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
       <ChevronRight

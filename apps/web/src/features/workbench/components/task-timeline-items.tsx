@@ -200,26 +200,29 @@ export function TimelineItemContent({
           <p>{getReviewMessageText(item)}</p>
         </MessageContent>
       );
-    case "reasoning":
+    case "reasoning": {
       if (item.summary.trim().length === 0) {
         return null;
       }
+      // 后续 Item 出现即表示当前推理已结束，及时收起并停止流式渲染。
+      const isStreamingReasoning = turnStatus === "running" && isLastTurnItem;
       return (
-        <Reasoning isStreaming={turnStatus === "running"}>
+        <Reasoning isStreaming={isStreamingReasoning}>
           <ReasoningTrigger
             title={i18n.t(
-              turnStatus === "running" ? "timeline.reasoningStreaming" : "timeline.reasoning",
+              isStreamingReasoning ? "timeline.reasoningStreaming" : "timeline.reasoning",
               { ns: "conversation" },
             )}
           />
           <ReasoningContent>
             {/* 仅渲染 Provider 明确提供的摘要，原始 content 永不进入展示组件。 */}
-            <LazyMessageResponse mode={turnStatus === "running" ? "streaming" : "static"}>
+            <LazyMessageResponse mode={isStreamingReasoning ? "streaming" : "static"}>
               {item.summary}
             </LazyMessageResponse>
           </ReasoningContent>
         </Reasoning>
       );
+    }
     case "approval_review":
       return <ApprovalReviewItem item={item} />;
     case "command": {
