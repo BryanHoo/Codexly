@@ -1,10 +1,11 @@
 import { Buffer } from "node:buffer";
-import type {
-  AgentProvider,
-  AgentProviderEvent,
-  AgentProviderConnectionRepository,
-  AgentRuntimeProvider,
-  PendingRequestResolutionError,
+import {
+  normalizeCustomModelReasoning,
+  type AgentProvider,
+  type AgentProviderEvent,
+  type AgentProviderConnectionRepository,
+  type AgentRuntimeProvider,
+  type PendingRequestResolutionError,
 } from "@codexly/core";
 import {
   MAX_AGENT_FILE_BYTES,
@@ -127,13 +128,19 @@ export function createModelCatalogLoader(
     let models: AgentModelPage;
     try {
       // 在线目录由当前模式决定：官方走 OpenAI，自定义 API 走其 model_catalog_url。
-      models = await provider.listModels();
+      const providerModels = await provider.listModels();
+      models =
+        activeConnection.mode === "custom"
+          ? normalizeCustomModelReasoning(providerModels)
+          : providerModels;
     } catch (error) {
       const cacheMatchesConnection =
         storedConnection?.mode === activeConnection.mode &&
         storedConnection.customBaseUrl === activeConnection.customBaseUrl;
       if (cacheMatchesConnection && storedConnection.customModels !== null) {
-        return storedConnection.customModels;
+        return activeConnection.mode === "custom"
+          ? normalizeCustomModelReasoning(storedConnection.customModels)
+          : storedConnection.customModels;
       }
       throw error;
     }

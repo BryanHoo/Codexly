@@ -1,4 +1,8 @@
-import type { AgentProviderConnectionRepository, AgentRuntimeProvider } from "@codexly/core";
+import {
+  normalizeCustomModelReasoning,
+  type AgentProviderConnectionRepository,
+  type AgentRuntimeProvider,
+} from "@codexly/core";
 import type {
   AgentModelPage,
   ConfigureCustomProviderRequest,
@@ -44,7 +48,9 @@ export async function resolveReconnectModels(
   ) {
     try {
       // 上游 /models 由 configureCustomProvider 优先请求；这里准备第二层 CLI 回退目录。
-      return createSerializableModelPage(await provider.listModels());
+      return normalizeCustomModelReasoning(
+        createSerializableModelPage(await provider.listModels()),
+      );
     } catch {
       // CLI 目录不可用时继续读取最后一层持久化快照。
     }
@@ -55,7 +61,7 @@ export async function resolveReconnectModels(
     persistedConnection.customModels !== null &&
     hasSameBaseUrl(persistedConnection.customBaseUrl, input.baseUrl)
   ) {
-    return persistedConnection.customModels;
+    return normalizeCustomModelReasoning(persistedConnection.customModels);
   }
   return undefined;
 }

@@ -86,4 +86,37 @@ describe("resolveReconnectModels", () => {
       ),
     ).resolves.toEqual(persistedModels);
   });
+
+  it("normalizes the Codex CLI none placeholder before reconnecting", async () => {
+    const provider = createProvider(() =>
+      Promise.resolve({
+        data: [
+          {
+            defaultReasoningEffort: "none",
+            description: "",
+            displayName: "GPT-6 Sol",
+            id: "gpt-6-sol",
+            isDefault: true,
+            supportedReasoningEfforts: [{ description: "", id: "none" }],
+          },
+        ],
+        nextCursor: null,
+      }),
+    );
+
+    await expect(
+      resolveReconnectModels(
+        { baseUrl: "https://api.example.com/v1" },
+        provider,
+        createRepository(),
+      ),
+    ).resolves.toMatchObject({
+      data: [
+        {
+          defaultReasoningEffort: "medium",
+          supportedReasoningEfforts: [{ id: "low" }, { id: "medium" }, { id: "high" }],
+        },
+      ],
+    });
+  });
 });
