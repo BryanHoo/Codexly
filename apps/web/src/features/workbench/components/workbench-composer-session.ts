@@ -256,7 +256,7 @@ export function useComposerSession({
         ...current,
         content: nextContent,
       }));
-      // 程序化命令直接同步编辑 DOM，避免受控回写破坏 IME 组合缓冲。
+      // 程序化命令同步更新 textarea；普通输入由浏览器维护，避免干扰 IME。
       skillEditorRef.current?.replace(nextContent, cursorOffset);
     },
     [composerDraftBinding],
@@ -293,7 +293,7 @@ export function useComposerSession({
       }
       const currentContent = skillEditorRef.current?.getContent() ?? promptContent;
       const nextContent = insertPromptFileReference(currentContent, fileMention, file);
-      const cursorPosition = fileMention.start + fileReferencePlainText(file).length;
+      const cursorPosition = fileMention.start + fileReferencePlainText(file).length + 1;
       replacePromptContent(nextContent, cursorPosition);
       closeFileMenu();
       requestAnimationFrame(() => {

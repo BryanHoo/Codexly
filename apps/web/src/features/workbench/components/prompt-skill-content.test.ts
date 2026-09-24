@@ -6,7 +6,6 @@ import {
   createPromptSkillContent,
   insertPromptFileReference,
   insertPromptSkill,
-  removePromptFileReference,
   serializePromptSkillContent,
   toPromptSkillSubmission,
 } from "./prompt-skill-content.js";
@@ -43,7 +42,7 @@ describe("prompt file reference content", () => {
     });
 
     expect(serializePromptSkillContent(withDirectory)).toBe(
-      "Review this @/workspace/primary/src/main.tsx @/workspace/primary/src/components",
+      "Review this @/workspace/primary/src/main.tsx @/workspace/primary/src/components ",
     );
     expect(appendPromptFileReference(withDirectory, sourceFile)).toBe(withDirectory);
   });
@@ -100,7 +99,7 @@ describe("prompt file reference content", () => {
     ).toBe("@C:\\workspace\\Codexly\\src\\main.tsx");
   });
 
-  it("deduplicates by root identity and removes only the requested file token", () => {
+  it("deduplicates selected references by root identity", () => {
     const once = appendPromptFileReference(createPromptSkillContent("对比 "), sourceFile);
     const duplicate = appendPromptFileReference(once, sourceFile);
     const withTest = appendPromptFileReference(duplicate, testFile);
@@ -111,15 +110,15 @@ describe("prompt file reference content", () => {
     };
     const withSecondary = appendPromptFileReference(withTest, secondaryFile);
 
-    expect(serializePromptSkillContent(duplicate)).toBe("对比 @/workspace/primary/src/main.tsx");
+    expect(serializePromptSkillContent(duplicate)).toBe("对比 @/workspace/primary/src/main.tsx ");
     expect(serializePromptSkillContent(withSecondary)).toContain(
       "@/workspace/secondary/src/main.tsx",
     );
-    const afterPrimaryRemoval = serializePromptSkillContent(
-      removePromptFileReference(withSecondary, sourceFile),
+    expect(serializePromptSkillContent(withSecondary)).toContain(
+      "@/workspace/primary/src/main.test.tsx",
     );
-    expect(afterPrimaryRemoval).not.toContain("@/workspace/primary/src/main.tsx");
-    expect(afterPrimaryRemoval).toContain("@/workspace/primary/src/main.test.tsx");
-    expect(afterPrimaryRemoval).toContain("@/workspace/secondary/src/main.tsx");
+    expect(serializePromptSkillContent(withSecondary)).toContain(
+      "@/workspace/secondary/src/main.tsx",
+    );
   });
 });

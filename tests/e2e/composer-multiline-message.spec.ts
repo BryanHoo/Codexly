@@ -27,7 +27,7 @@ test("submits and renders the live multiline editor text @cross-browser", async 
   await prompt.fill("第一行");
   await expect(prompt).toHaveAttribute("data-serialized-value", "第一行");
 
-  // 使用真实按键覆盖各浏览器对 contentEditable 换行 DOM 的平台差异。
+  // 使用真实按键覆盖各浏览器对 textarea 修饰键换行的差异。
   await prompt.press("Shift+Enter");
   await expect(prompt).toHaveAttribute("data-serialized-value", "第一行\n");
   await prompt.pressSequentially("第二行");

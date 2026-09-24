@@ -157,6 +157,9 @@ export function insertPromptFileReference(
   return normalizePromptSkillContent([
     ...before,
     ...(alreadySelected ? [] : [{ file, type: "file" as const }]),
+    ...(alreadySelected || serializePromptSkillContent(after).startsWith(" ")
+      ? []
+      : [{ text: " ", type: "text" as const }]),
     ...after,
   ]);
 }
@@ -181,6 +184,7 @@ export function appendPromptFileReference(
       ? []
       : [{ text: " ", type: "text" as const }]),
     { file, type: "file" },
+    { text: " ", type: "text" },
   ]);
 }
 
@@ -189,9 +193,6 @@ export function recognizePromptSkillReferences(
   availableSkills: readonly AgentSkill[],
 ): PromptSkillContent {
   const skillsByName = new Map(availableSkills.map((skill) => [skill.name, skill]));
-  const selectedSkillIds = new Set(
-    content.flatMap((part) => (part.type === "skill" ? [part.skill.id] : [])),
-  );
   const recognized: PromptSkillContentPart[] = [];
   let changed = false;
 
@@ -216,10 +217,7 @@ export function recognizePromptSkillReferences(
 
       const referenceEnd = referenceStart + match[0].length;
       recognized.push({ text: part.text.slice(textOffset, referenceStart), type: "text" });
-      if (!selectedSkillIds.has(skill.id)) {
-        recognized.push({ skill, type: "skill" });
-        selectedSkillIds.add(skill.id);
-      }
+      recognized.push({ skill, type: "skill" });
       textOffset = referenceEnd;
       changed = true;
     }
@@ -238,25 +236,6 @@ export function removePromptSlashCommand(
   return normalizePromptSkillContent([...before, ...after]);
 }
 
-export function removePromptSkill(
-  content: PromptSkillContent,
-  skillId: string,
-): PromptSkillContent {
-  return normalizePromptSkillContent(
-    content.filter((part) => part.type !== "skill" || part.skill.id !== skillId),
-  );
-}
-
-export function removePromptFileReference(
-  content: PromptSkillContent,
-  file: Pick<ProjectFileSearchEntry, "path" | "rootId">,
-): PromptSkillContent {
-  const key = projectFileReferenceKey(file);
-  return normalizePromptSkillContent(
-    content.filter((part) => part.type !== "file" || projectFileReferenceKey(part.file) !== key),
-  );
-}
-
 export function serializePromptSkillContent(content: PromptSkillContent): string {
   return content
     .map((part) =>
@@ -271,11 +250,15 @@ export function serializePromptSkillContent(content: PromptSkillContent): string
 
 export function toPromptSkillSubmission(content: PromptSkillContent): PromptSkillSubmission {
   const skills: AgentSkill[] = [];
+  const selectedSkillIds = new Set<string>();
   let text = "";
   let needsFileBoundary = false;
   for (const part of content) {
     if (part.type === "skill") {
-      skills.push(part.skill);
+      if (!selectedSkillIds.has(part.skill.id)) {
+        skills.push(part.skill);
+        selectedSkillIds.add(part.skill.id);
+      }
       continue;
     }
     const partText = part.type === "file" ? fileReferencePlainText(part.file) : part.text;

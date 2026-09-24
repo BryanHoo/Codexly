@@ -28,7 +28,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await page.getByRole("button", { exact: true, name: "提交" }).click();
   await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/u);
   await expect(page.getByRole("button", { name: "停止" })).toBeVisible();
-  await expect(input).toHaveAttribute("data-placeholder", "输入后续要求");
+  await expect(input).toHaveAttribute("placeholder", "输入后续要求");
 
   const taskId = page.url().split("/").at(-1) ?? "";
   const attachmentResponse = await page.request.post("/v1/projects/codexly/attachments/text", {

@@ -41,7 +41,6 @@ import { ComposerApprovalControls } from "./workbench-composer-approval-controls
 import { shouldNavigatePromptHistory } from "./prompt-history.js";
 import { PromptSkillEditor } from "./prompt-skill-editor.js";
 import { ProjectRootSelector } from "./project-root-selector.js";
-import { selectionOffset } from "./prompt-skill-editor-dom.js";
 import { ComposerCommandMenu } from "./workbench-composer-command-menu.js";
 import { ComposerFileMenu } from "./workbench-composer-file-menu.js";
 import {
@@ -331,15 +330,12 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                   (event.key === "ArrowDown" || event.key === "ArrowUp") &&
                   !(event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
                 ) {
-                  const selection = document.getSelection();
                   const direction = event.key === "ArrowUp" ? "previous" : "next";
-                  const serializedText = event.currentTarget.dataset["serializedValue"] ?? "";
                   if (
-                    selection?.isCollapsed === true &&
-                    event.currentTarget.contains(selection.anchorNode) &&
+                    event.currentTarget.selectionStart === event.currentTarget.selectionEnd &&
                     shouldNavigatePromptHistory(
-                      serializedText,
-                      selectionOffset(event.currentTarget),
+                      event.currentTarget.value,
+                      event.currentTarget.selectionStart,
                       direction,
                     ) &&
                     props.onPromptHistoryNavigate(direction)

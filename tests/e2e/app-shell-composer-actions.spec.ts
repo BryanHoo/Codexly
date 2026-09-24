@@ -91,42 +91,16 @@ test("runs official task actions from the slash command menu", async ({ page }) 
   await prompt.fill("说明 /security");
   await expect(commandMenu).toBeVisible();
   await prompt.press("Enter");
-  const selectedSkill = prompt.locator('[data-prompt-skill-id="skill-security"]');
-  await expect(selectedSkill).toContainText("Security review");
-  await expect(selectedSkill).toHaveAttribute("data-serialized-text", "$review-security");
+  await expect(prompt).toHaveValue("说明 $review-security");
+  await expect(prompt.locator("[data-prompt-skill-id]")).toHaveCount(0);
   await expect(prompt).toHaveAttribute("data-serialized-value", "说明 $review-security");
-  const caretAnchor = await prompt.evaluate((editor) => {
-    const selection = document.getSelection();
-    const anchorNode = selection?.anchorNode;
-    return {
-      anchorOffset: selection?.anchorOffset,
-      anchoredAfterSkill:
-        anchorNode instanceof Node &&
-        editor.contains(anchorNode) &&
-        anchorNode.parentElement?.dataset["promptCaretAnchor"] !== undefined &&
-        anchorNode.parentElement.previousElementSibling?.matches("[data-prompt-skill-id]") === true,
-    };
-  });
-  // Safari 会把根节点边界选区绘制到行首，末尾 Token 必须使用可编辑文本锚点承载光标。
-  expect(caretAnchor).toEqual({ anchorOffset: 1, anchoredAfterSkill: true });
-  const editorBaselineOffset = await selectedSkill.evaluate((token) => {
-    const labelText = token.lastElementChild?.firstChild;
-    const adjacentText = token.previousSibling;
-    if (!(labelText instanceof Text) || !(adjacentText instanceof Text)) {
-      throw new Error("Expected adjacent editor text nodes");
-    }
-    const labelRange = document.createRange();
-    labelRange.selectNodeContents(labelText);
-    const textRange = document.createRange();
-    textRange.selectNodeContents(adjacentText);
-    return labelRange.getBoundingClientRect().top - textRange.getBoundingClientRect().top;
-  });
-  expect(Math.abs(editorBaselineOffset)).toBeLessThanOrEqual(1);
+  expect(await prompt.evaluate((input: HTMLTextAreaElement) => input.selectionStart)).toBe(
+    "说明 $review-security".length,
+  );
   await page.keyboard.type(" /documentation");
   await expect(commandMenu).toBeVisible();
   await prompt.press("Enter");
-  const selectedDocumentationSkill = prompt.locator('[data-prompt-skill-id="skill-docs"]');
-  await expect(selectedDocumentationSkill).toContainText("Documentation writer");
+  await expect(prompt).toHaveValue("说明 $review-security $documentation-writer");
   await expect(prompt).toHaveAttribute(
     "data-serialized-value",
     "说明 $review-security $documentation-writer",
@@ -138,38 +112,14 @@ test("runs official task actions from the slash command menu", async ({ page }) 
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toBe("说明 $review-security $documentation-writer");
-  const skillColors = await selectedSkill.evaluate((element) => {
-    const probe = document.createElement("span");
-    probe.style.color = "var(--ui-color-accent)";
-    document.body.append(probe);
-    const colors = {
-      expected: getComputedStyle(probe).color,
-      selected: getComputedStyle(element).color,
-    };
-    probe.remove();
-    return colors;
-  });
-  expect(skillColors.selected).toBe(skillColors.expected);
-  await selectedSkill.click();
-  await expect(selectedSkill).toBeHidden();
-  await expect(selectedDocumentationSkill).toBeVisible();
+  await prompt.fill("说明 $documentation-writer");
   await prompt.focus();
   await prompt.press("End");
-  const endCaretAnchor = await prompt.evaluate((editor) => {
-    const selection = document.getSelection();
-    const anchorNode = selection?.anchorNode;
-    return {
-      anchorOffset: selection?.anchorOffset,
-      anchoredAfterSkill:
-        anchorNode instanceof Node &&
-        editor.contains(anchorNode) &&
-        anchorNode.parentElement?.dataset["promptCaretAnchor"] !== undefined &&
-        anchorNode.parentElement.previousElementSibling?.matches("[data-prompt-skill-id]") === true,
-    };
-  });
-  expect(endCaretAnchor).toEqual({ anchorOffset: 1, anchoredAfterSkill: true });
+  expect(await prompt.evaluate((input: HTMLTextAreaElement) => input.selectionStart)).toBe(
+    "说明 $documentation-writer".length,
+  );
   await prompt.press("Backspace");
-  await expect(selectedDocumentationSkill).toBeHidden();
+  await expect(prompt).toHaveValue("说明 $documentation-write");
 
   await prompt.fill("/压缩");
   await prompt.press("Enter");
@@ -224,9 +174,7 @@ test("recognizes typed Codex skill references before submission", async ({ page 
   await expect(page.getByRole("option", { name: /Security review/u })).toBeVisible();
   await prompt.fill("");
   await prompt.fill("$review-security 其他需求");
-  await expect(prompt.locator('[data-prompt-skill-id="skill-security"]')).toContainText(
-    "Security review",
-  );
+  await expect(prompt).toHaveValue("$review-security 其他需求");
   await expect(prompt).toHaveAttribute("data-serialized-value", "$review-security 其他需求");
   await prompt.press("Enter");
 
@@ -235,6 +183,57 @@ test("recognizes typed Codex skill references before submission", async ({ page 
     attachments: [],
     skills: [{ id: "skill-security", name: "review-security" }],
     text: "其他需求",
+    type: "prompt",
+  });
+});
+
+test("submits the visible text after partially editing selected references", async ({ page }) => {
+  let turnRequest: Record<string, unknown> | undefined;
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
+    turnRequest = parseRequestRecord(route.request().postData());
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        checkpoint: { sequence: 0, sessionId: "e2e-session" },
+        taskId: "task-1",
+        turn: {
+          completedAt: null,
+          error: null,
+          id: "edited-reference-turn",
+          items: [],
+          startedAt: "2026-08-10T00:00:00.000Z",
+          status: "running",
+        },
+      },
+      status: 201,
+    });
+  });
+  await page.goto("/p/codexly/t/task-1");
+
+  const prompt = page.getByRole("textbox", { name: "任务输入" });
+  await prompt.fill("/security");
+  await expect(page.getByRole("option", { name: /Security review/u })).toBeVisible();
+  await prompt.press("Enter");
+  await prompt.press("End");
+  await page.keyboard.type(" @main");
+  await expect(
+    page.getByRole("listbox", { name: "搜索项目文件" }).getByRole("option").first(),
+  ).toBeVisible();
+  await prompt.press("Enter");
+  await expect(prompt).toHaveValue("$review-security @/workspace/Codexly/src/main.tsx ");
+
+  const editedText = "$review-secur 修复 @/workspace/Codexly/src/main.t 继续";
+  await prompt.evaluate((input: HTMLTextAreaElement, text) => {
+    // 模拟组合输入尚未派发 input 事件时提交，缓存必须以可见内容为准。
+    input.value = text;
+  }, editedText);
+  await page.getByRole("button", { exact: true, name: "提交" }).click();
+
+  await expect.poll(() => turnRequest).toBeDefined();
+  expect(turnRequest?.["input"]).toEqual({
+    attachments: [],
+    skills: [],
+    text: editedText,
     type: "prompt",
   });
 });
@@ -286,14 +285,13 @@ test("selects and submits a project file reference from an inline @ mention", as
   );
   await prompt.press("Enter");
 
-  const fileToken = prompt.locator('[data-prompt-file-path="src/main.tsx"]');
-  await expect(fileToken).toBeVisible();
+  await expect(prompt.locator("[data-prompt-file-path]")).toHaveCount(0);
   const stopRequest = await stopRequestPromise;
   expect(parseRequestRecord(stopRequest.postData())["sessionId"]).toBe(fileSearchSessionIds[0]);
   await page.keyboard.type("读取文件");
   await expect(prompt).toHaveAttribute(
     "data-serialized-value",
-    "请检查 @/workspace/Codexly/src/main.tsx读取文件",
+    "请检查 @/workspace/Codexly/src/main.tsx 读取文件",
   );
   await page.getByRole("button", { exact: true, name: "提交" }).click();
 

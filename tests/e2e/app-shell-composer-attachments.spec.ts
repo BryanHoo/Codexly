@@ -368,13 +368,13 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
   await prompt.fill("/security");
   await expect(commandMenu.getByRole("option", { name: /Security review/u })).toBeVisible();
   await prompt.press("Enter");
-  await expect(prompt.locator('[data-prompt-skill-id="skill-security"]')).toBeVisible();
+  await expect(prompt).toHaveValue("$review-security");
   await prompt.focus();
   await prompt.press("End");
   await page.keyboard.type(" /documentation");
   await expect(commandMenu.getByRole("option", { name: /Documentation writer/u })).toBeVisible();
   await prompt.press("Enter");
-  await expect(prompt.locator('[data-prompt-skill-id="skill-docs"]')).toBeVisible();
+  await expect(prompt).toHaveValue("$review-security $documentation-writer");
   await prompt.focus();
   await prompt.press("End");
   await page.keyboard.type(" 按截图完成改造");

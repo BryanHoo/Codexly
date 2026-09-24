@@ -86,11 +86,11 @@ test("preserves provisional IME text across composer rerenders @cross-browser", 
   await prompt.focus();
   await prompt.dispatchEvent("compositionstart");
   await prompt.evaluate((editor) => {
-    if (!(editor instanceof HTMLDivElement) || editor.contentEditable !== "true") {
-      throw new Error("任务输入不是可编辑区域");
+    if (!(editor instanceof HTMLTextAreaElement) || editor.disabled) {
+      throw new Error("任务输入不是 textarea");
     }
     // 中文输入法首键先写入组合缓冲，此时还不会触发 React onChange。
-    editor.textContent = "n";
+    editor.value = "n";
     editor.dispatchEvent(new CompositionEvent("compositionupdate", { data: "n" }));
   });
 
@@ -102,7 +102,7 @@ test("preserves provisional IME text across composer rerenders @cross-browser", 
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
 
-  await expect(prompt).toHaveText("n");
+  await expect(prompt).toHaveValue("n");
 });
 
 test("uses material hierarchy instead of strong workbench borders", async ({ page }) => {

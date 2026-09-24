@@ -9,7 +9,6 @@ import {
   PromptSkillEditor,
   recognizePromptSkillReferences,
   removePromptSlashCommand,
-  removePromptSkill,
   serializePromptSkillContent,
   toPromptSkillSubmission,
 } from "./prompt-skill-editor.js";
@@ -42,8 +41,37 @@ describe("prompt skill editor model", () => {
       />,
     );
 
-    expect(markup).toContain('data-placeholder="告诉 Codexly 你想完成什么"');
-    expect(markup).toContain("before:text-muted-foreground/60");
+    expect(markup).toContain('placeholder="告诉 Codexly 你想完成什么"');
+    expect(markup).toContain("placeholder:text-muted-foreground/60");
+    expect(markup).toContain("<textarea");
+  });
+
+  it("renders selected references as plain textarea text", () => {
+    const markup = renderToStaticMarkup(
+      <PromptSkillEditor
+        content={[
+          { skill: securitySkill, type: "skill" },
+          { text: " ", type: "text" },
+          {
+            file: {
+              name: "main.tsx",
+              path: "src/main.tsx",
+              rootId: "primary",
+              rootPath: "/workspace",
+            },
+            type: "file",
+          },
+        ]}
+        onChange={() => undefined}
+        placeholder="任务输入"
+        skills={[securitySkill]}
+        scope="project-1:new"
+      />,
+    );
+
+    expect(markup).toContain("$review-security @/workspace/src/main.tsx</textarea>");
+    expect(markup).not.toContain("data-prompt-skill-id");
+    expect(markup).not.toContain("data-prompt-file-path");
   });
 
   it("inserts multiple skills at slash ranges while preserving inline order", () => {
@@ -78,20 +106,33 @@ describe("prompt skill editor model", () => {
     ).toEqual(createPromptSkillContent("前缀$review-security $unknown"));
   });
 
-  it("deduplicates the same skill and removes only the selected token", () => {
+  it("treats partially edited references as text while retaining intact skills", () => {
+    const visibleText = "$review-secur 修复 @/workspace/src/main.t 继续 $documentation-writer";
+    const content = recognizePromptSkillReferences(createPromptSkillContent(visibleText), [
+      securitySkill,
+      documentationSkill,
+    ]);
+
+    expect(serializePromptSkillContent(content)).toBe(visibleText);
+    expect(toPromptSkillSubmission(content)).toEqual({
+      skills: [documentationSkill],
+      text: "$review-secur 修复 @/workspace/src/main.t 继续",
+    });
+  });
+
+  it("deduplicates selected skills and keeps typed references editable", () => {
     const initial = createPromptSkillContent("/security 说明 /security");
     const once = insertPromptSkill(initial, { end: 9, start: 0 }, securitySkill);
     const duplicate = insertPromptSkill(once, { end: 29, start: 20 }, securitySkill);
-    const withDocumentation = insertPromptSkill(
-      duplicate,
-      { end: 20, start: 20 },
-      documentationSkill,
-    );
-
     expect(serializePromptSkillContent(duplicate)).toBe("$review-security 说明 ");
-    expect(
-      serializePromptSkillContent(removePromptSkill(withDocumentation, securitySkill.id)),
-    ).toBe(" 说明 $documentation-writer");
+    const typed = recognizePromptSkillReferences(
+      createPromptSkillContent("$review-security $review-security $documentation-writer"),
+      [securitySkill, documentationSkill],
+    );
+    expect(serializePromptSkillContent(typed)).toBe(
+      "$review-security $review-security $documentation-writer",
+    );
+    expect(toPromptSkillSubmission(typed).skills).toEqual([securitySkill, documentationSkill]);
   });
 
   it("removes only the selected Slash command while preserving Skill tokens", () => {

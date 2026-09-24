@@ -123,20 +123,20 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
 
   const nextPrompt = page.getByRole("textbox", { name: "任务输入" });
   const inputStateWhileSnapshotLoads = await nextPrompt.evaluate((editor) => {
-    if (!(editor instanceof HTMLDivElement) || editor.contentEditable !== "true") {
-      throw new Error("任务输入不是可编辑区域");
+    if (!(editor instanceof HTMLTextAreaElement) || editor.disabled) {
+      throw new Error("任务输入不是 textarea");
     }
-    const wasEmpty = editor.textContent === "";
+    const wasEmpty = editor.value === "";
     editor.focus();
     const acceptsFocus = document.activeElement === editor;
     editor.dispatchEvent(new CompositionEvent("compositionstart"));
-    editor.textContent = "n";
+    editor.value = "n";
     editor.dispatchEvent(new CompositionEvent("compositionupdate", { data: "n" }));
     return { acceptsFocus, wasEmpty };
   });
   releaseSnapshot();
   expect(inputStateWhileSnapshotLoads).toEqual({ acceptsFocus: true, wasEmpty: true });
-  await expect(nextPrompt).toHaveText("n");
+  await expect(nextPrompt).toHaveValue("n");
   await expect
     .poll(() =>
       nextPrompt.evaluate((editor) => Reflect.get(globalThis, "__testComposerEditor") === editor),
