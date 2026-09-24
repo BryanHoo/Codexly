@@ -93,3 +93,49 @@ test("downloads, renders, moves, and restores the workbench pet", async ({ page 
   await expect(pet).toBeVisible();
   await expect(pet.locator("canvas")).toHaveCount(1);
 });
+
+test("opens a temporary task from its pet bubble without entering a Project route", async ({
+  page,
+}) => {
+  const invalidProjectRequests: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith("/v1/projects/temporary/")) invalidProjectRequests.push(path);
+  });
+  await page.goto("/temporary");
+  await page.getByRole("button", { exact: true, name: "设置" }).click();
+  const settings = page.getByRole("region", { name: "全局设置" });
+  await settings.getByRole("button", { name: "宠物" }).click();
+  await expect(settings.getByText("已就绪")).toBeVisible();
+  await settings.getByRole("switch", { name: "启用工作台宠物" }).click();
+  await settings.getByRole("button", { exact: true, name: "返回应用" }).click();
+
+  await page.getByRole("textbox", { name: "任务输入" }).fill("检查临时任务");
+  await page.getByRole("button", { exact: true, name: "提交" }).click();
+  await expect(page).toHaveURL(/\/temporary\/t\/temporary-task-1$/u);
+  await page.locator('a[href="/p/codexly/t/task-1"]').first().click();
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/u);
+  await page.evaluate(() => {
+    const routes: string[] = [];
+    Object.defineProperty(window, "__petRoutes", { value: routes });
+    for (const method of ["pushState", "replaceState"] as const) {
+      const original = history[method].bind(history);
+      history[method] = (data, unused, url) => {
+        if (url !== undefined && url !== null) routes.push(String(url));
+        original(data, unused, url);
+      };
+    }
+  });
+  const bubble = page.getByRole("button", { name: /打开任务 临时任务会话/u });
+  await expect(bubble).toBeVisible();
+  await bubble.click();
+
+  const routes = await page.evaluate(
+    () => (window as Window & { __petRoutes?: string[] }).__petRoutes ?? [],
+  );
+  expect(routes).toContain("/temporary/t/temporary-task-1");
+  expect(routes).not.toContain("/p/temporary/t/temporary-task-1");
+  expect(invalidProjectRequests).toEqual([]);
+  await expect(page).toHaveURL(/\/temporary\/t\/temporary-task-1$/u);
+  await expect(page.getByRole("heading", { name: "Codex Runtime 不可用" })).toHaveCount(0);
+});

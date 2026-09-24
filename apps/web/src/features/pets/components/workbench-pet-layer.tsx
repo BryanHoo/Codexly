@@ -1,4 +1,8 @@
-import type { WorkbenchPetDescriptor, WorkbenchPetSettings } from "@codexly/protocol";
+import {
+  TEMPORARY_TASK_SCOPE_ID,
+  type WorkbenchPetDescriptor,
+  type WorkbenchPetSettings,
+} from "@codexly/protocol";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -303,7 +307,12 @@ function EnabledWorkbenchPetLayer({ petId }: Readonly<{ petId: string }>) {
   );
   const handleTaskSelect = useCallback(
     (projectId: string, taskId: string) => {
-      void navigate({ params: { projectId, taskId }, to: "/p/$projectId/t/$taskId" });
+      // 临时任务没有 Project，必须使用独立路由以免触发不存在的 Project 查询。
+      void navigate(
+        projectId === TEMPORARY_TASK_SCOPE_ID
+          ? { params: { taskId }, to: "/temporary/t/$taskId" }
+          : { params: { projectId, taskId }, to: "/p/$projectId/t/$taskId" },
+      );
     },
     [navigate],
   );
