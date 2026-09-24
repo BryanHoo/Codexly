@@ -42,7 +42,7 @@ const settings: AgentTaskSettings = {
 };
 
 describe("ComposerModelSelector", () => {
-  it("在统一触发器中展示当前模型和本地化思考量", () => {
+  it("分别展示模型和思考量的下拉触发器", () => {
     const markup = renderToStaticMarkup(
       <ComposerModelSelector
         activeSettings={settings}
@@ -55,8 +55,12 @@ describe("ComposerModelSelector", () => {
       />,
     );
 
-    expect(markup).toContain('aria-label="模型和思考量：GPT-5.6 Sol，高"');
+    expect(markup).toContain('aria-label="选择模型：GPT-5.6 Sol"');
+    expect(markup).toContain('aria-label="选择思考量：高"');
     expect(markup).toContain('data-slot="composer-model-selector"');
+    expect(markup).toContain('data-slot="composer-reasoning-selector"');
+    expect(markup.match(/aria-haspopup="menu"/gu)).toHaveLength(2);
+    expect(markup).not.toContain("dropdown-menu-sub-trigger");
     expect(markup).toContain("GPT-5.6 Sol");
     expect(markup).toContain("高");
     expect(markup).toContain("模型");

@@ -1,9 +1,7 @@
 import type { AnswerAsyncQuestionResponse } from "@codexly/protocol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useTranslation } from "../../../i18n/i18n.js";
 import { notifyActionError } from "../../notifications/action-notifications.js";
-import { useActionErrorToast } from "../../notifications/use-action-error-toast.js";
 import { codexlyClient } from "../../projects/project-queries.js";
 
 export function useAsyncQuestions(
@@ -12,19 +10,17 @@ export function useAsyncQuestions(
   onAnswered: () => (result: AnswerAsyncQuestionResponse) => void,
 ) {
   const queryClient = useQueryClient();
-  const { t } = useTranslation("conversation");
   const queryKey = ["async-questions", projectId, taskId];
   const [dismissing, setDismissing] = useState(false);
   const query = useQuery({
     queryKey,
-    // 仅进入已创建的 Task 后轮询，避免新建期间的临时 ID 触发错误提示。
+    // 仅进入已创建的 Task 后轮询，失败保持静默并等待下一轮自动恢复。
     enabled: taskId !== undefined,
     queryFn: ({ signal }) => codexlyClient.listAsyncQuestions(projectId, taskId ?? "", { signal }),
     // 后端提供完整待处理集合；轮询不依赖虚拟列表已加载的历史或消息文本。
     refetchInterval: 2000,
     retry: false,
   });
-  useActionErrorToast(query.error, t("asyncQuestions.syncFailed"));
   const answer = async (id: string, answers: readonly string[]) => {
     if (taskId === undefined) return false;
     const accept = onAnswered();

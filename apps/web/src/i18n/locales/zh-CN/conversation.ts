@@ -1,6 +1,5 @@
 export const conversation = {
   asyncQuestions: {
-    syncFailed: "问题状态同步失败，请稍后重试。",
     deliveryPending: "答案已提交，投递结果尚未确认。请查看任务进展，勿重复发送。",
     pending: "待回答问题",
     pendingCount: "待回答 · {{count}} 组",
