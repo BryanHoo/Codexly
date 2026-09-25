@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export async function windowsTerminalNative(action: "activate" | "keys" | "request" | "cancel" | "confirm" | "inspect", text = "", delayMicroseconds = 10000, enter = false): Promise<Record<string, unknown>> {
-  const executable = resolve("src-tauri/target", process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug", "codeagent.exe");
+  const executable = resolve("src-tauri/target", process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug", "codexly.exe");
   const { stdout } = await promisify(execFile)("powershell.exe", [
     "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", fileURLToPath(new URL("./windows-terminal-native.ps1", import.meta.url)),
     "-Executable", executable, "-Action", action, "-TextBase64", Buffer.from(text).toString("base64"),

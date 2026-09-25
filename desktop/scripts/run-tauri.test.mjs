@@ -13,6 +13,33 @@ void test("the project Tauri command should enforce platform build constraints",
   assert.equal(packageJson.scripts.tauri, "node scripts/run-tauri.mjs");
 });
 
+void test("native test launchers should use the configured Tauri binary name", async () => {
+  const config = JSON.parse(
+    await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
+  );
+  const launchers = [
+    ["../wdio.conf.ts", [`.exe`, ""]],
+    ["../tests/webview/windows-terminal-native.ts", [`.exe`]],
+    ["../tests/webview/terminal-native-dialog.ts", [""]],
+    ["../tests/webview/terminal-system-keyboard.ts", [""]],
+    ["../tests/webview/terminal-ui.spec.ts", [""]],
+    ["../benchmarks/terminal/terminal-native.spec.ts", [""]],
+  ];
+
+  for (const [path, extensions] of launchers) {
+    const source = await readFile(new URL(path, import.meta.url), "utf8");
+    for (const extension of extensions) {
+      assert.ok(source.includes(`"${config.mainBinaryName}${extension}"`), path);
+    }
+  }
+
+  const windowsNative = await readFile(
+    new URL("../tests/webview/windows-terminal-native.ps1", import.meta.url), "utf8",
+  );
+  assert.ok(windowsNative.includes(`Get-Process ${config.mainBinaryName} `));
+  assert.ok(windowsNative.includes(`-eq '${config.productName}'`));
+});
+
 void test("the main window should allow SPA navigation event subscriptions", async () => {
   const capability = JSON.parse(
     await readFile(new URL("../src-tauri/capabilities/default.json", import.meta.url)),

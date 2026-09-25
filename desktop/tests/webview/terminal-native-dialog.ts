@@ -14,7 +14,7 @@ export async function terminalNativeDialog(action: "request" | "cancel" | "confi
     await writeFile("artifacts/terminal/windows-native-dialog.json", JSON.stringify({ measuredAt: new Date().toISOString(), actions: windowsActions }, null, 2));
     return;
   }
-  const executable = resolve("src-tauri/target/aarch64-apple-darwin", process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug", "codeagent");
+  const executable = resolve("src-tauri/target/aarch64-apple-darwin", process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug", "codexly");
   // 只访问测试 PID 的原生窗口树，并跳过 WebView 内容，避免把网页按钮当作系统提示。
   await promisify(execFile)("swift", ["-e", `
     import AppKit

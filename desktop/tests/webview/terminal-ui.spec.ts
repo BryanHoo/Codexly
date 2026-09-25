@@ -103,7 +103,7 @@ describe("project terminal native UI", () => {
   it("renders the real terminal in a visible native window", async function () {
     if (process.platform === "darwin") {
       // 直接启动的测试二进制可能未成为前台应用；只激活当前构建路径对应的进程。
-      const executable = resolve("src-tauri/target/aarch64-apple-darwin", process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug", "codeagent");
+      const executable = resolve("src-tauri/target/aarch64-apple-darwin", process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug", "codexly");
       await promisify(execFile)("swift", ["-e", "import AppKit; let path = CommandLine.arguments[1]; for app in NSWorkspace.shared.runningApplications where app.executableURL?.path == path { print(app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])) }", executable]);
       await browser.waitUntil(async () => browser.execute(() => !document.hidden), { timeout: 5000 }).catch(() => undefined);
     }

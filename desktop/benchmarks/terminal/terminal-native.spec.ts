@@ -69,7 +69,7 @@ describe("Release native terminal measurements", () => {
       // 资源采样仅要求窗口可见；已可见时不额外争抢系统前台输入焦点。
       if (await browser.execute(() => document.hidden)) await windowsTerminalNative("activate");
     } else {
-      const executable = resolve("src-tauri/target/aarch64-apple-darwin/release/codeagent");
+      const executable = resolve("src-tauri/target/aarch64-apple-darwin/release", "codexly");
       await promisify(execFile)("swift", ["-e", "import AppKit; let path = CommandLine.arguments[1]; for app in NSWorkspace.shared.runningApplications where app.executableURL?.path == path { print(app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])) }", executable]);
     }
     await browser.waitUntil(async () => browser.execute(() => !document.hidden));

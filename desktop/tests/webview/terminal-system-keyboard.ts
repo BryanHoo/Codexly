@@ -8,7 +8,7 @@ export async function postTerminalSystemText(text: string, delayMicroseconds = 1
     await windowsTerminalNative("keys", text, delayMicroseconds, enter);
     return;
   }
-  const executable = resolve("src-tauri/target/aarch64-apple-darwin", process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug", "codeagent");
+  const executable = resolve("src-tauri/target/aarch64-apple-darwin", process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug", "codexly");
   // 精确匹配测试二进制，系统事件只投递到该 PID；不触碰其他前台应用。
   await promisify(execFile)("swift", ["-e", `
     import AppKit

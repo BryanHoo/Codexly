@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import type { Options } from "@wdio/types";
 
-const executable = process.platform === "win32" ? "codeagent.exe" : "codeagent";
+const executable = process.platform === "win32" ? "codexly.exe" : "codexly";
 const targetPath =
   process.platform === "darwin" ? ["target", "aarch64-apple-darwin"] : ["target"];
 const buildProfile = process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug";

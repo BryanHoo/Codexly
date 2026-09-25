@@ -67,12 +67,12 @@ public static class TerminalNative {
 }
 '@
 $resolvedExecutable = [IO.Path]::GetFullPath($Executable)
-$targets = @(Get-Process codeagent -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $resolvedExecutable })
+$targets = @(Get-Process codexly -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $resolvedExecutable })
 if ($targets.Count -ne 1) { throw 'Expected exactly one application matching the test executable' }
 $targetProcess = $targets[0]
 $text = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($TextBase64))
-$main = @([TerminalNative]::Windows($targetProcess.Id) | Where-Object { [TerminalNative]::Class($_) -ne '#32770' -and [TerminalNative]::Text($_) -eq 'CodeAgent' })
-if ($main.Count -ne 1) { throw 'Expected one visible CodeAgent test window' }
+$main = @([TerminalNative]::Windows($targetProcess.Id) | Where-Object { [TerminalNative]::Class($_) -ne '#32770' -and [TerminalNative]::Text($_) -eq 'Codexly' })
+if ($main.Count -ne 1) { throw 'Expected one visible Codexly test window' }
 $mainWindow = $main[0]
 if ($Action -eq 'inspect') {
     @{ action = $Action; processId = $targetProcess.Id; mainVisible = [TerminalNative]::IsWindowVisible($mainWindow); children = [TerminalNative]::Children($mainWindow) } | ConvertTo-Json -Compress
