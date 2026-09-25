@@ -1,0 +1,10 @@
+{
+  "asyncChunkBytes": 525000,
+  "initialLoadBytes": 421000,
+  "scenarioLoadBytes": {
+    "cppHighlight": 2600000,
+    "markdown": 1950000,
+    "workspace": 1460000,
+    "taskWindow": 530000
+  }
+}

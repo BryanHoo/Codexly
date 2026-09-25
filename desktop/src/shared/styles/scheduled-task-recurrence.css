@@ -1,0 +1,25 @@
+/* 复用桌面主题 tokens；多选以静态边框和选中态表达，不引入动画或额外图标资源。 */
+.scheduled-task-field--choices { padding-block: 12px; }
+.scheduled-task-choices { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 5px; }
+.scheduled-task-month-days { display: grid; grid-template-columns: repeat(7, 32px); justify-content: end; gap: 4px; }
+.scheduled-task-choices button,
+.scheduled-task-month-days button { min-width: 32px; min-height: 32px; padding: 3px 7px; border: 1px solid var(--ui-color-separator); border-radius: var(--ui-radius-control); font-size: var(--ui-font-size-label); color: var(--ui-color-text-muted); cursor: pointer; }
+.scheduled-task-choices button[aria-pressed="true"],
+.scheduled-task-month-days button[aria-pressed="true"] { background: var(--ui-color-accent); color: var(--ui-color-accent-foreground, white); border-color: var(--ui-color-accent); }
+.scheduled-task-choices button:focus-visible,
+.scheduled-task-month-days button:focus-visible { outline: 2px solid var(--ui-color-accent); outline-offset: 2px; }
+.scheduled-task-month-days__last { grid-column: span 4; }
+.scheduled-task-inline-controls { display: flex; gap: 6px; justify-content: flex-end; min-width: 0; }
+.scheduled-task-inline-controls input,
+.scheduled-task-fields input[type="number"] { width: 80px; justify-self: end; }
+.scheduled-task-hint { padding-block: 10px; color: var(--ui-color-text-muted); font-size: var(--ui-font-size-caption); line-height: 1.7; }
+.scheduled-task-preview { margin-top: 14px; padding: 14px 16px; border-left: 2px solid var(--ui-color-accent); background: var(--ui-color-panel); border-radius: 0 var(--ui-radius-control) var(--ui-radius-control) 0; font-size: var(--ui-font-size-label); }
+.scheduled-task-preview__summary { color: var(--ui-color-text); line-height: 1.7; overflow-wrap: anywhere; }
+.scheduled-task-preview__meta { color: var(--ui-color-text-muted); font-size: var(--ui-font-size-caption); line-height: 1.7; }
+.scheduled-task-preview ol { margin-top: 8px; display: grid; gap: 5px; list-style: none; padding: 0; font-variant-numeric: tabular-nums; }
+.scheduled-task-preview h4 { margin-top: 12px; color: var(--ui-color-text-muted); }
+.scheduled-task-preview button { margin-top: 8px; color: var(--ui-color-accent); cursor: pointer; }
+.scheduled-task-preview button:focus-visible { outline: 2px solid var(--ui-color-accent); outline-offset: 2px; }
+.scheduled-task-error { margin-top: 10px; color: var(--ui-color-danger, #dc2626); font-size: var(--ui-font-size-label); }
+.scheduled-task-range-toggle { min-height: 38px; text-align: right; color: var(--ui-color-text-muted); font-size: var(--ui-font-size-caption); cursor: pointer; }
+.scheduled-task-range-toggle:focus-visible { outline: 2px solid var(--ui-color-accent); outline-offset: -2px; }

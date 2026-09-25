@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 3,
+  "packageManager": "pnpm",
+  "packages": [
+    {
+      "name": "root",
+      "layers": [
+        "frontend",
+        "backend"
+      ]
+    },
+    {
+      "name": "src-tauri",
+      "layers": [
+        "backend"
+      ]
+    }
+  ],
+  "artifactPaths": {
+    "designs": ".superwork/prd",
+    "plans": ".superwork/plans",
+    "specs": ".superwork/spec"
+  },
+  "verification": [
+    "pnpm check:web",
+    "pnpm check:rust",
+    "pnpm check"
+  ]
+}

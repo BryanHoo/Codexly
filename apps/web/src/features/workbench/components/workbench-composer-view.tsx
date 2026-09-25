@@ -383,7 +383,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
               ) : null}
             </PromptInputTools>
             {/* 模型、思考量与提交动作保持固定分组，避免内容宽度变化时拆成两行。 */}
-            <div className="flex min-w-0 items-center gap-1 max-workbench:shrink-0 max-workbench:gap-0.5 max-[360px]:!gap-0">
+            <div className="flex min-w-0 items-center gap-1 max-workbench:shrink max-workbench:gap-0.5 max-[360px]:!gap-0">
               <ComposerModelSelector
                 activeSettings={props.activeSettings}
                 disabled={props.turnControlsDisabled}

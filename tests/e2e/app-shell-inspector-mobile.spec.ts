@@ -15,11 +15,13 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
 
   const composer = page.getByRole("region", { name: "消息编辑器" });
   const composerFooter = composer.locator("form > div:last-child");
-  const modelSelector = page.getByRole("button", { name: /^模型和思考量：/u });
+  const modelSelector = page.getByRole("button", { name: /^选择模型：/u });
+  const reasoningSelector = page.getByRole("button", { name: /^选择思考量：/u });
   const composerControls = [
     page.getByRole("button", { name: "添加图片或文件" }),
     page.getByRole("combobox", { name: "批准模式" }),
     modelSelector,
+    reasoningSelector,
     page.getByRole("button", { name: "提交", exact: true }),
   ];
   const touchButtons = [
@@ -28,7 +30,7 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
     page.getByRole("button", { name: "添加图片或文件" }),
     page.getByRole("button", { name: "提交", exact: true }),
   ];
-  const touchControls = [...touchButtons, ...composerControls.slice(1, 3)];
+  const touchControls = [...touchButtons, ...composerControls.slice(1, 4)];
 
   // 最窄支持宽度必须同时保证页面边界、Composer 内部布局和触控尺寸。
   const composerMetrics = await composerFooter.evaluate((element) => ({
@@ -64,24 +66,24 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   expect((await composerFooter.boundingBox())?.height).toBeLessThanOrEqual(52);
 
   await composerControls[2]?.click();
-  const mobileModelDialog = page.getByRole("dialog", { name: "模型和思考量" });
-  await expect(mobileModelDialog.getByRole("radio")).toHaveCount(4);
-  await expect(mobileModelDialog).not.toContainText("适合复杂编码任务");
-  const mobileModelDialogBox = await mobileModelDialog.boundingBox();
-  expect(mobileModelDialogBox).not.toBeNull();
-  expect(mobileModelDialogBox?.x ?? -1).toBeGreaterThanOrEqual(8);
-  expect((mobileModelDialogBox?.x ?? 0) + (mobileModelDialogBox?.width ?? 0)).toBeLessThanOrEqual(
-    312,
-  );
-  expect(mobileModelDialogBox?.y ?? -1).toBeGreaterThanOrEqual(8);
-  expect((mobileModelDialogBox?.y ?? 0) + (mobileModelDialogBox?.height ?? 0)).toBeLessThanOrEqual(
-    560,
-  );
-  expect(mobileModelDialogBox?.width).toBeLessThanOrEqual(304);
-  await mobileModelDialog.getByRole("radio", { name: "GPT-5.6 Terra" }).click();
-  await expect(mobileModelDialog).not.toBeVisible();
-  await expect(modelSelector).toHaveAccessibleName("模型和思考量：GPT-5.6 Terra，中");
-  await modelSelector.click();
+  const mobileModelMenu = page.getByRole("menu", { name: "选择模型" });
+  await expect(mobileModelMenu.getByRole("menuitemradio")).toHaveCount(2);
+  await expect(mobileModelMenu).not.toContainText("适合复杂编码任务");
+  const mobileModelMenuBox = await mobileModelMenu.boundingBox();
+  expect(mobileModelMenuBox).not.toBeNull();
+  expect(mobileModelMenuBox?.x ?? -1).toBeGreaterThanOrEqual(8);
+  expect((mobileModelMenuBox?.x ?? 0) + (mobileModelMenuBox?.width ?? 0)).toBeLessThanOrEqual(312);
+  expect(mobileModelMenuBox?.y ?? -1).toBeGreaterThanOrEqual(8);
+  expect((mobileModelMenuBox?.y ?? 0) + (mobileModelMenuBox?.height ?? 0)).toBeLessThanOrEqual(560);
+  expect(mobileModelMenuBox?.width).toBeLessThanOrEqual(160);
+  await mobileModelMenu.getByRole("menuitemradio", { name: "GPT-5.6 Terra" }).click();
+  await expect(mobileModelMenu).not.toBeVisible();
+  await expect(modelSelector).toHaveAccessibleName("选择模型：GPT-5.6 Terra");
+  await expect(reasoningSelector).toHaveAccessibleName("选择思考量：中");
+  await reasoningSelector.click();
+  await expect(
+    page.getByRole("menu", { name: "选择思考量" }).getByRole("menuitemradio"),
+  ).toHaveCount(2);
   await page.keyboard.press("Escape");
 
   await page.getByRole("button", { name: "展开上下文面板" }).click();

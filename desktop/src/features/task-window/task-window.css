@@ -1,0 +1,111 @@
+/* 透明必须贯穿原生窗口与整个页面；留出阴影空间，圆角外不再露出矩形底色。 */
+html[data-app-surface="task-window"],
+html[data-app-surface="task-window"] body,
+html[data-app-surface="task-window"] #root { background: transparent; }
+html[data-app-surface="task-window"] #root { padding: 6px; }
+
+/* 只压缩字号与布局，颜色、字体和内容边框沿用工作台 tokens。 */
+.task-window {
+  box-sizing: border-box;
+  height: calc(100dvh - 12px);
+  --ui-font-size-body-small: 0.6875rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+  background: var(--ui-color-content);
+  color: var(--ui-color-text);
+  border: 0;
+  border-radius: 12px;
+  font-family: var(--ui-font-family-text);
+  font-size: var(--ui-font-size-label);
+  font-weight: var(--ui-font-weight-regular);
+  line-height: var(--ui-line-height-relaxed);
+  -webkit-font-smoothing: antialiased;
+  /* 阴影收束在透明留白内，避免大模糊被 WebView 边界裁掉后白底难以辨识。 */
+  box-shadow: 0 1px 3px light-dark(rgb(0 0 0 / 0.28), rgb(0 0 0 / 0.65)),
+    0 2px 6px light-dark(rgb(0 0 0 / 0.2), rgb(0 0 0 / 0.5));
+}
+.task-window * { box-sizing: border-box; }
+.task-window-header {
+  display: flex;
+  align-items: center;
+  flex: 0 0 34px;
+  gap: 6px;
+  padding: 0 9px 0 15px;
+  border-bottom: 0;
+  cursor: grab;
+}
+.task-window-header:active { cursor: grabbing; }
+.task-window-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 3px;
+  font-size: 12px;
+  font-weight: var(--ui-font-weight-semibold);
+  letter-spacing: 0.01em;
+}
+.task-window button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ui-color-text-muted);
+  cursor: pointer;
+}
+.task-window button:hover { background: var(--ui-color-control-hover); color: var(--ui-color-text); }
+.task-window .task-window-close:hover { background: var(--ui-color-control-hover); color: var(--ui-color-danger); }
+.task-window button:focus-visible { outline: 2px solid var(--ui-color-accent); outline-offset: 1px; }
+.task-window button:disabled { opacity: 0.4; cursor: default; }
+.task-window-indicator { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: var(--ui-color-task-completed); }
+.task-window-indicator[data-status="running"] { background: var(--ui-color-task-running); }
+.task-window-indicator[data-status="waiting"] { background: var(--ui-color-task-waiting); }
+.task-window-indicator[data-status="failed"], .task-window-indicator[data-status="disconnected"] { background: var(--ui-color-task-failed); }
+.task-window-output {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  overflow-anchor: none;
+  padding: 0 16px;
+  /* 顶部微弱淡出提示流式内容向上离开，不持续运行动画。 */
+  mask-image: linear-gradient(to bottom, transparent, #000 8px);
+}
+.task-window-output-sizer { position: relative; width: 100%; }
+.task-window-output-block { position: absolute; left: 0; width: 100%; padding: 4px 0; }
+.task-window-markdown { margin: 0; min-height: 20px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.task-window-markdown--code { padding: 1px 8px; border-inline: 1px solid var(--ui-color-separator-strong); background: var(--ui-color-raised); font-family: var(--ui-font-family-mono); font-size: var(--ui-font-size-body-small); }
+.task-window-markdown--list { position: relative; padding-left: 16px; }
+.task-window-bullet { position: absolute; left: 0; color: var(--ui-color-text-muted); }
+.task-window-markdown--rule { min-height: 1px; border: 0; border-top: 1px solid var(--ui-color-separator-strong); }
+.task-window-markdown--table { font-size: 11px; border-bottom: 1px solid var(--ui-color-separator-strong); }
+.task-window-link { color: var(--ui-color-accent); }
+.task-window-operation {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 27px;
+  padding: 4px 8px;
+  border: 1px solid var(--ui-color-separator-strong);
+  border-radius: 7px;
+  color: var(--ui-color-text-muted);
+  font-size: 10px;
+}
+.task-window-operation svg, .task-window-operation-kind { flex-shrink: 0; }
+.task-window-operation-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ui-color-text); font-family: var(--ui-font-family-mono); font-size: var(--ui-font-size-meta); }
+.task-window-empty { display: grid; place-content: center; height: 100%; margin: 0; color: var(--ui-color-text-muted); }
+.task-window-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex: 0 0 20px; padding: 0 15px; color: var(--ui-color-text-muted); font-size: 9px; }
+.task-window-status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-window-footer > :last-child { flex-shrink: 0; }
+.task-window-error { display: flex; align-items: center; gap: 6px; padding: 5px 15px; color: var(--ui-color-danger); font-size: 11px; }
+.task-window-error button { width: auto; padding: 0 6px; font: inherit; }

@@ -13,6 +13,7 @@ coverage
 dist
 Dockerfile*
 node_modules
+desktop
 playwright-report
 test-results
 compose*.yaml

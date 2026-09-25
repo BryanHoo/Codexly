@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
+  <title>Codexly status icon</title>
+  <!-- 模板图使用黑色与透明像素定义形状，macOS 会按状态栏外观统一着色。 -->
+  <rect x="8" y="8" width="48" height="48" rx="11" fill="none" stroke="#000000" stroke-width="5" />
+  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-width="5">
+    <path d="m19 24 8 8-8 8" />
+    <path d="M34 40h12" />
+  </g>
+</svg>

@@ -5,3 +5,4 @@ test-results
 pnpm-lock.yaml
 docs/architecture-design.md
 .agents
+desktop

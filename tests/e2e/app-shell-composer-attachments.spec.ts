@@ -312,27 +312,26 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
   });
   await page.goto("/p/codexly/t/task-1");
 
-  const modelSelector = page.getByRole("button", { name: /^模型和思考量：/u });
-  await expect(modelSelector).toHaveAccessibleName("模型和思考量：GPT-5.6 Sol，高");
+  const modelSelector = page.getByRole("button", { name: /^选择模型：/u });
+  const reasoningSelector = page.getByRole("button", { name: /^选择思考量：/u });
+  await expect(modelSelector).toHaveAccessibleName("选择模型：GPT-5.6 Sol");
+  await expect(reasoningSelector).toHaveAccessibleName("选择思考量：高");
   await modelSelector.click();
-  const selectorMenu = page.getByRole("menu", { name: "模型和思考量" });
-  expect((await selectorMenu.boundingBox())?.width).toBeLessThanOrEqual(160);
-  await page.getByRole("menuitem", { name: "选择模型" }).click();
   const modelMenu = page.getByRole("menu", { name: "选择模型" });
   await expect(modelMenu.getByRole("menuitemradio")).toHaveCount(2);
   await expect(modelMenu).not.toContainText("适合复杂编码任务");
   expect((await modelMenu.boundingBox())?.width).toBeLessThanOrEqual(160);
   await modelMenu.getByRole("menuitemradio", { name: /GPT-5\.6 Terra/u }).click();
-  await expect(modelSelector).toHaveAccessibleName("模型和思考量：GPT-5.6 Terra，中");
+  await expect(modelSelector).toHaveAccessibleName("选择模型：GPT-5.6 Terra");
+  await expect(reasoningSelector).toHaveAccessibleName("选择思考量：中");
 
-  await modelSelector.click();
-  await page.getByRole("menuitem", { name: "选择思考量" }).click();
+  await reasoningSelector.click();
   const reasoningMenu = page.getByRole("menu", { name: "选择思考量" });
   await expect(reasoningMenu.getByRole("menuitemradio")).toHaveCount(2);
   await expect(reasoningMenu.getByRole("menuitemradio")).toHaveText(["低", "中"]);
   expect((await reasoningMenu.boundingBox())?.width).toBeLessThanOrEqual(112);
   await reasoningMenu.getByRole("menuitemradio", { name: /低/u }).click();
-  await expect(modelSelector).toHaveAccessibleName("模型和思考量：GPT-5.6 Terra，低");
+  await expect(reasoningSelector).toHaveAccessibleName("选择思考量：低");
   const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
   const sandboxSelect = page.getByRole("combobox", { name: "沙盒模式" });
   await expect(approvalSelect.locator("xpath=following-sibling::select[1]")).toHaveAttribute(

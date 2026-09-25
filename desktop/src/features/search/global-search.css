@@ -1,0 +1,39 @@
+/* 定位使用低对比底色、留白与侧边细线，不改变消息布局尺寸。 */
+.search-message-match {
+  position: relative;
+  border-radius: var(--ui-radius-control);
+  background: color-mix(in srgb, var(--ui-color-accent) 5%, transparent);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--ui-color-accent) 5%, transparent);
+}
+
+.search-message-match::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -14px;
+  width: 2px;
+  border-radius: var(--ui-radius-pill);
+  background: color-mix(in srgb, var(--ui-color-accent) 45%, transparent);
+}
+
+/* 列表片段、定位摘要与正文共享品牌色语义；保留原文字色，兼顾代码可读性。 */
+.search-text-match {
+  border-radius: 3px;
+  color: inherit;
+  background-color: var(--ui-color-accent-soft);
+  box-shadow: inset 0 -1px color-mix(in srgb, var(--ui-color-accent) 30%, transparent);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+::highlight(global-search-match) {
+  color: var(--ui-color-text);
+  background-color: var(--ui-color-accent-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--ui-color-accent-soft);
+}
+
+/* 搜索输入由圆角外壳统一绘制焦点，避免全局 outline 覆盖 Tailwind 的重置。 */
+[data-global-search-input]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}

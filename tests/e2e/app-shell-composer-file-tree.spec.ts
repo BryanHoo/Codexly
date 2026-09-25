@@ -214,9 +214,7 @@ test("project file tree refresh, context menu, and ellipsis share target actions
   await page.keyboard.press("Escape");
   await packageTreeItem.click({ button: "right" });
   await fileMenu.getByRole("menuitem", { name: "引用" }).click();
-  await expect(
-    prompt.getByRole("button", { name: "@/workspace/Codexly/package.json" }),
-  ).toBeVisible();
+  await expect(prompt).toHaveValue(/@\/workspace\/Codexly\/package\.json/u);
   await page.getByRole("button", { exact: true, name: "提交" }).click();
   await expect.poll(() => turnRequest).toBeDefined();
   expect(turnRequest?.["input"]).toEqual({

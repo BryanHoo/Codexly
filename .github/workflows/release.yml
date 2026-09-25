@@ -49,6 +49,28 @@ jobs:
           # 标签与后续任务使用同一不可变提交，避免校验期间标签移动造成错配。
           git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
           test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
+      - name: Verify both release versions and notes
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: node tools/joint-release.mjs --check
+      - name: Verify desktop signing key
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          test -n "${TAURI_SIGNING_PRIVATE_KEY}" || { echo 'TAURI_SIGNING_PRIVATE_KEY is required' >&2; exit 1; }
+
+  desktop-quality:
+    name: Desktop quality gate
+    needs: prepare
+    uses: ./.github/workflows/desktop-quality.yml
+
+  desktop-webview:
+    name: Desktop native WebView gate
+    needs: prepare
+    uses: ./.github/workflows/desktop-webview.yml
+    with:
+      run_performance: true
 
   e2e:
     name: Release E2E (${{ matrix.os }})
@@ -84,7 +106,7 @@ jobs:
 
   publish-npm:
     name: Publish npm package
-    needs: [prepare, e2e]
+    needs: [prepare, e2e, desktop-quality, desktop-webview, publish-desktop]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: npm
@@ -114,11 +136,12 @@ jobs:
           pnpm run lint
           pnpm run lint:architecture
           # 分组结束后释放 Vitest 与原生模块进程，避免长套件在托管 runner 尾段崩溃。
-          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests apps/web
-          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/client packages/core packages/protocol
-          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/provider-codex
-          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/server
-          CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests "$PWD"/src/*.test.ts "$PWD"/tests/*.test.ts --exclude packages/protocol/src/app-update.test.ts
+          CI='' pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests apps/web
+          CI='' pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/client packages/core packages/protocol
+          CI='' pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/provider-codex
+          CI='' pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/server
+          CI='' pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests "$PWD"/src/*.test.ts "$PWD"/tests/*.test.ts --exclude packages/protocol/src/app-update.test.ts
+          pnpm run test:release
           pnpm run test:performance
           pnpm run build:clean
           pnpm run bundle:check
@@ -190,9 +213,137 @@ jobs:
           sbom: true
           tags: ${{ steps.meta.outputs.tags }}
 
+  publish-desktop:
+    name: ${{ matrix.name }}
+    needs: [prepare, e2e, desktop-quality, desktop-webview]
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64 Portable
+            platform: windows-latest
+            args: --no-bundle --no-sign --ci
+            rustTargets: ""
+            uploadPlainBinary: true
+            uploadUpdaterArtifacts: false
+            releaseAssetNamePattern: "[name]_[version]_[arch]_portable[ext]"
+          - name: Windows x64 NSIS
+            platform: windows-latest
+            args: --bundles nsis --ci
+            rustTargets: ""
+            uploadPlainBinary: false
+            uploadUpdaterArtifacts: true
+            releaseAssetNamePattern: ""
+          - name: Ubuntu x64 DEB and AppImage
+            platform: ubuntu-24.04
+            args: --bundles deb,appimage --ci
+            rustTargets: ""
+            uploadPlainBinary: false
+            uploadUpdaterArtifacts: true
+            releaseAssetNamePattern: ""
+          - name: macOS Apple Silicon
+            platform: macos-latest
+            args: --target aarch64-apple-darwin --bundles app,dmg --ci
+            rustTargets: aarch64-apple-darwin
+            uploadPlainBinary: false
+            uploadUpdaterArtifacts: true
+            releaseAssetNamePattern: ""
+          - name: macOS Intel
+            platform: macos-latest
+            args: --target x86_64-apple-darwin --bundles app,dmg --ci
+            rustTargets: x86_64-apple-darwin
+            uploadPlainBinary: false
+            uploadUpdaterArtifacts: true
+            releaseAssetNamePattern: ""
+          - name: macOS Intel Legacy
+            platform: macos-latest
+            args: --target x86_64-apple-darwin --config src-tauri/tauri.macos-legacy.conf.json --bundles app,dmg --ci
+            rustTargets: x86_64-apple-darwin
+            macosProfile: legacy
+            uploadPlainBinary: false
+            uploadUpdaterArtifacts: false
+            releaseAssetNamePattern: "[name]_[version]_[arch]_legacy[ext]"
+    steps:
+      - name: Checkout verified commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - name: Install pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11.22.0
+          run_install: false
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          targets: ${{ matrix.rustTargets }}
+      - name: Install Tauri system dependencies
+        if: matrix.platform == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            patchelf \
+            xdg-utils
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: "./desktop/src-tauri -> target"
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: pnpm install --frozen-lockfile
+      - name: Verify desktop version
+        working-directory: desktop
+        shell: bash
+        run: RELEASE_TAG="v$(node --print "require('./package.json').version")" pnpm version:check
+      - name: Build and upload desktop artifacts to draft
+        id: build
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          CODEAGENT_MACOS_PROFILE: ${{ matrix.macosProfile || 'modern' }}
+          CARGO_TARGET_DIR: ${{ matrix.macosProfile == 'legacy' && format('{0}/desktop/src-tauri/target/legacy', github.workspace) || format('{0}/desktop/src-tauri/target', github.workspace) }}
+        with:
+          projectPath: desktop
+          tauriScript: pnpm tauri
+          tagName: ${{ inputs.tag || github.ref_name }}
+          releaseName: Codexly ${{ inputs.tag || github.ref_name }}
+          releaseDraft: true
+          prerelease: ${{ contains(inputs.tag || github.ref_name, '-') }}
+          uploadUpdaterJson: ${{ matrix.uploadUpdaterArtifacts }}
+          uploadUpdaterSignatures: ${{ matrix.uploadUpdaterArtifacts }}
+          uploadPlainBinary: ${{ matrix.uploadPlainBinary }}
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: ${{ matrix.macosProfile == 'legacy' && '[platform]-[arch]-[bundle]-legacy' || '' }}
+          releaseAssetNamePattern: ${{ matrix.releaseAssetNamePattern }}
+          args: ${{ matrix.args }}
+      - name: Publish isolated Legacy updater metadata
+        if: matrix.macosProfile == 'legacy'
+        shell: bash
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_PATHS: ${{ steps.build.outputs.artifactPaths }}
+          APP_VERSION: ${{ steps.build.outputs.appVersion }}
+          JOINT_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          node scripts/legacy-release.mjs
+          gh release upload "${JOINT_RELEASE_TAG}" "${RUNNER_TEMP}/latest-legacy.json" --clobber
+
   release:
-    name: Create GitHub release
-    needs: [prepare, publish-npm, publish-image]
+    name: Publish joint GitHub release
+    needs: [prepare, publish-npm, publish-image, publish-desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -206,11 +357,10 @@ jobs:
       - name: Extract release notes
         shell: bash
         run: |
-          package_version="$(node --print "require('./package.json').version")"
           release_notes="${RUNNER_TEMP}/release-notes.md"
-          node ./tools/extract-release-notes.mjs "${package_version}" "${release_notes}"
+          node ./tools/joint-release.mjs --notes "${release_notes}"
           echo "RELEASE_NOTES_PATH=${release_notes}" >> "${GITHUB_ENV}"
-      - name: Create GitHub release
-        run: gh release create "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_PATH}" --title "Codexly ${RELEASE_TAG}" --verify-tag
+      - name: Publish draft release
+        run: gh release edit "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_PATH}" --title "Codexly ${RELEASE_TAG}" --draft=false
         env:
           GH_TOKEN: ${{ github.token }}

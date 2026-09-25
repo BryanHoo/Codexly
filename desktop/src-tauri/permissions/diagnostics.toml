@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-record-frontend-diagnostic"
+description = "Allows the main window to submit sanitized diagnostic events."
+commands.allow = ["record_frontend_diagnostic"]
+
+[[permission]]
+identifier = "allow-export-diagnostics"
+description = "Allows the main window to export the diagnostics archive selected by the user."
+commands.allow = ["export_diagnostics"]

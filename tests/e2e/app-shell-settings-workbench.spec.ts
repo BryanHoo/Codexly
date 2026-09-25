@@ -1,5 +1,6 @@
 import { expect, taskSnapshot, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
 import {
+  expectComposerSelection,
   getComposerModelSelector,
   selectComposerModel,
   selectComposerReasoning,
@@ -29,7 +30,7 @@ test("renders the AI workbench landmarks with an enabled composer", async ({ pag
     .poll(() => approvalSelect.evaluate((element) => getComputedStyle(element).fieldSizing))
     .toBe("content");
   await expect(modelSelector).toHaveAttribute("data-slot", "composer-model-selector");
-  await expect(modelSelector).toHaveAccessibleName("模型和思考量：GPT-5.6 Sol，高");
+  await expectComposerSelection(page, "GPT-5.6 Sol", "高");
   const composerForm = page.getByRole("region", { name: "消息编辑器" }).locator("form");
   const composerControls = [
     prompt,
@@ -429,9 +430,7 @@ test("restores task settings after a page refresh", async ({ page }) => {
 
   await page.reload();
 
-  await expect(getComposerModelSelector(page)).toHaveAccessibleName(
-    "模型和思考量：GPT-5.6 Terra，低",
-  );
+  await expectComposerSelection(page, "GPT-5.6 Terra", "低");
   await expect(page.getByRole("combobox", { name: "批准模式" })).toHaveValue("auto-review");
 });
 
@@ -454,8 +453,6 @@ test("restores the project's complete last task configuration", async ({ page })
 
   await page.reload();
 
-  await expect(getComposerModelSelector(page)).toHaveAccessibleName(
-    "模型和思考量：GPT-5.6 Terra，低",
-  );
+  await expectComposerSelection(page, "GPT-5.6 Terra", "低");
   await expect(page.getByRole("combobox", { name: "批准模式" })).toHaveValue("never");
 });

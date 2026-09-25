@@ -36,7 +36,8 @@ describe("extractReleaseNotes", () => {
   it("publishes the extracted notes through the release workflow", () => {
     const workflow = readFileSync(join(process.cwd(), ".github/workflows/release.yml"), "utf8");
 
-    expect(workflow).toContain("node ./tools/extract-release-notes.mjs");
+    expect(workflow).toContain("node ./tools/joint-release.mjs --notes");
+    expect(workflow).toContain("--draft=false");
     expect(workflow).toContain('--notes-file "${RELEASE_NOTES_PATH}"');
     expect(workflow).not.toContain("--generate-notes");
   });

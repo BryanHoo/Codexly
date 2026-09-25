@@ -1,0 +1,37 @@
+{
+  "measuredAt": "2026-09-07T23:34:53.919Z",
+  "actions": [
+    {
+      "action": "request",
+      "processId": 8236,
+      "ownedByMainWindow": true,
+      "nativeClass": "#32770",
+      "parentDisabled": true,
+      "button": ""
+    },
+    {
+      "action": "cancel",
+      "processId": 8236,
+      "ownedByMainWindow": true,
+      "nativeClass": "#32770",
+      "parentDisabled": true,
+      "button": "取消"
+    },
+    {
+      "action": "request",
+      "processId": 8236,
+      "ownedByMainWindow": true,
+      "nativeClass": "#32770",
+      "parentDisabled": true,
+      "button": ""
+    },
+    {
+      "action": "confirm",
+      "processId": 8236,
+      "ownedByMainWindow": true,
+      "nativeClass": "#32770",
+      "parentDisabled": true,
+      "button": "结束并关闭"
+    }
+  ]
+}

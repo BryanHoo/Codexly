@@ -1,0 +1,90 @@
+diff --git a/dist/cjs/index.js b/dist/cjs/index.js
+index 6b7af77b7d4e8b59ff12771e6cf35bbc92fcea31..4598ed656c521a83e025ddfcca18ab993a2cb969 100644
+--- a/dist/cjs/index.js
++++ b/dist/cjs/index.js
+@@ -1141,8 +1141,12 @@ async function diagnoseTauriEnvironment(binaryPath, options = {}) {
+ }
+ async function diagnoseDriver(options) {
+     const results = [];
++    if (options.driverProvider === 'embedded') {
++        return results;
++    }
+     const driverOptions = {
+         autoInstallTauriDriver: options.autoInstallTauriDriver,
++        driverProvider: options.driverProvider,
+     };
+     const driverResult = await ensureTauriDriver(driverOptions);
+     if (nativeUtils.isErr(driverResult)) {
+@@ -2561,6 +2565,7 @@ class TauriLaunchService {
+     async diagnoseEnvironment(binaryPath) {
+         const results = await diagnoseTauriEnvironment(binaryPath, {
+             autoInstallTauriDriver: this.options.autoInstallTauriDriver,
++            driverProvider: this.options.driverProvider,
+         });
+         nativeUtils.formatDiagnosticResults(results);
+     }
+@@ -4053,14 +4058,17 @@ class TauriWorkerService {
+                 const mrBrowser = this.browser;
+                 for (const instanceName of mrBrowser.instances) {
+                     try {
+-                        await restoreAllMocks.call({ browser: mrBrowser.getInstance(instanceName) });
++                        const instance = mrBrowser.getInstance(instanceName);
++                        if (instance.sessionId) {
++                            await restoreAllMocks.call({ browser: instance });
++                        }
+                     }
+                     catch (instanceError) {
+                         log$1.warn(`Failed to restore mocks on instance ${instanceName}:`, instanceError);
+                     }
+                 }
+             }
+-            else if (this.browser) {
++            else if (this.browser?.sessionId) {
+                 await restoreAllMocks.call({ browser: this.browser });
+             }
+             mockStore.clear();
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 160a6f513fd6897758a08e00f7b1d4c79d821234..364f1c13a8fef05893f1d6b29c5a5f99be3f99c3 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -1137,8 +1137,12 @@ async function diagnoseTauriEnvironment(binaryPath, options = {}) {
+ }
+ async function diagnoseDriver(options) {
+     const results = [];
++    if (options.driverProvider === 'embedded') {
++        return results;
++    }
+     const driverOptions = {
+         autoInstallTauriDriver: options.autoInstallTauriDriver,
++        driverProvider: options.driverProvider,
+     };
+     const driverResult = await ensureTauriDriver(driverOptions);
+     if (isErr(driverResult)) {
+@@ -2557,6 +2561,7 @@ class TauriLaunchService {
+     async diagnoseEnvironment(binaryPath) {
+         const results = await diagnoseTauriEnvironment(binaryPath, {
+             autoInstallTauriDriver: this.options.autoInstallTauriDriver,
++            driverProvider: this.options.driverProvider,
+         });
+         formatDiagnosticResults(results);
+     }
+@@ -4049,14 +4054,17 @@ class TauriWorkerService {
+                 const mrBrowser = this.browser;
+                 for (const instanceName of mrBrowser.instances) {
+                     try {
+-                        await restoreAllMocks.call({ browser: mrBrowser.getInstance(instanceName) });
++                        const instance = mrBrowser.getInstance(instanceName);
++                        if (instance.sessionId) {
++                            await restoreAllMocks.call({ browser: instance });
++                        }
+                     }
+                     catch (instanceError) {
+                         log$1.warn(`Failed to restore mocks on instance ${instanceName}:`, instanceError);
+                     }
+                 }
+             }
+-            else if (this.browser) {
++            else if (this.browser?.sessionId) {
+                 await restoreAllMocks.call({ browser: this.browser });
+             }
+             mockStore.clear();

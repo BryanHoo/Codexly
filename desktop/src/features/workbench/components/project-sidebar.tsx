@@ -1,0 +1,470 @@
+import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  TEMPORARY_TASK_SCOPE_ID,
+  type AgentTask,
+  type AppInfoResponse,
+  type Project,
+} from "@/protocol/index.js";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Send } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
+import { useTranslation } from "../../../i18n/i18n.js";
+import { getPinnedTasks } from "../../projects/project-data.js";
+import {
+  useProjectActions,
+  useProjectActivity,
+  useProjectData,
+  usePinnedProjectTasks,
+} from "../../projects/project-context.js";
+import {
+  removeArchivedProjectTaskAndRefill,
+  replaceProjectTaskInQueryCaches,
+  taskArchiveMutationOptions,
+  taskPinMutationOptions,
+  taskRenameMutationOptions,
+} from "../../projects/project-queries.js";
+import { removeRetainedTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
+import { useProjectReordering } from "../hooks/use-project-reordering.js";
+import { useTaskDeletion } from "../hooks/use-task-deletion.js";
+import {
+  getProjectSidebarPreferenceStorage,
+  readExpandedProjectIds,
+  resolveInitialExpandedProjectIds,
+  writeExpandedProjectIds,
+} from "../project-sidebar-preferences.js";
+
+import { ProjectSidebarDialogs } from "./project-sidebar-dialogs.js";
+import { ArchivedTasksDialog, type ArchivedTaskScope } from "./archived-tasks-dialog.js";
+import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
+import { SidebarTaskBoardLink } from "./sidebar-task-board-link.js";
+import { SidebarExtensionCenterLink } from "./sidebar-extension-center-link.js";
+import { SidebarScheduledTasksLink } from "./sidebar-scheduled-tasks-link.js";
+import { TaskDeleteDialog } from "./task-delete-dialog.js";
+import { SidebarSettingsButton, type SidebarSettingsSection } from "./project-sidebar-actions.js";
+import { groupTasksByProjectId } from "./project-sidebar-state.js";
+import { ProjectSidebarHeader } from "./project-sidebar-header.js";
+import { KeyboardShortcutsDialog } from "./keyboard-shortcuts-dialog.js";
+import { WorkbenchShortcuts } from "./workbench-shortcuts.js";
+export { ProductBrand } from "./project-sidebar-header.js";
+export * from "./project-sidebar-actions.js";
+export * from "./project-sidebar-state.js";
+export * from "./project-sidebar-task-row.js";
+
+const GlobalSearchDialog = lazy(() => import("../../search/global-search-dialog.js").then((module) => ({ default: module.GlobalSearchDialog })));
+
+const primaryActionClassName =
+  "flex h-8 w-full items-center gap-2.5 rounded-control px-2.5 text-body-small font-medium text-foreground transition-colors hover:bg-control-hover";
+const primaryActionIconClassName = "size-4 shrink-0 text-muted-foreground";
+type ProjectSidebarProps = Readonly<{
+  appInfo?: AppInfoResponse;
+  onClose: () => void;
+  onOpenSettings: (section: SidebarSettingsSection) => void;
+  onPanelShortcut: (panel: "inspector" | "search" | "sidebar") => void;
+  projectId?: string;
+  taskId?: string;
+}>;
+
+export function ProjectSidebar({
+  appInfo,
+  onClose,
+  onOpenSettings,
+  onPanelShortcut,
+  projectId,
+  taskId,
+}: ProjectSidebarProps) {
+  const { t } = useTranslation("workbench");
+  const { client, error, isPending, projects, projectTaskStates, tasks } = useProjectData();
+  const {
+    addProject,
+    fetchNextProjectTaskPage,
+    forgetTask,
+    reorderProjects,
+    removeProject,
+    renameProject,
+    setExpandedProjectTaskIds,
+  } = useProjectActions();
+  const { isProjectActionPending, isProjectOrderPending, isProjectAddPending, taskActivity } =
+    useProjectActivity();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [preferenceStorage] = useState(getProjectSidebarPreferenceStorage);
+  const [initialSavedExpandedProjectIds] = useState(() =>
+    readExpandedProjectIds(preferenceStorage),
+  );
+  const savedExpandedProjectIdsRef = useRef(initialSavedExpandedProjectIds);
+  const hasInitializedProjectExpansionRef = useRef(projects.length > 0);
+  const [expandedProjects, setExpandedProjects] = useState<ReadonlySet<string>>(() =>
+    resolveInitialExpandedProjectIds(
+      projects.map((project) => project.id),
+      initialSavedExpandedProjectIds,
+    ),
+  );
+  const expandedProjectsRef = useRef(expandedProjects);
+  const [searchState, setSearchState] = useState<"idle" | "open" | "closed">("idle");
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [expandedTaskProjects, setExpandedTaskProjects] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [renamingTask, setRenamingTask] = useState<AgentTask | null>(null);
+  const [renamingProject, setRenamingProject] = useState<Project | null>(null);
+  const [removingProject, setRemovingProject] = useState<Project | null>(null);
+  const [archivedProject, setArchivedProject] = useState<ArchivedTaskScope | null>(null);
+  const [isProjectPickerOpen, setIsProjectPickerOpen] = useState(false);
+  const pinMutation = useMutation(taskPinMutationOptions(client));
+  const renameMutation = useMutation(taskRenameMutationOptions(client));
+  const archiveMutation = useMutation(taskArchiveMutationOptions(client));
+  const taskActionLockRef = useRef(createAsyncActionLock());
+  const taskDeletion = useTaskDeletion({
+    actionLock: taskActionLockRef.current,
+    activeProjectId: projectId,
+    activeTaskId: taskId,
+  });
+  const normalizedQuery = "";
+  const taskSearch = { error: null, isPending: false };
+  const pinnedTaskQuery = usePinnedProjectTasks();
+  const visibleTasks = tasks;
+  // 大列表只分组一次，Project 渲染不再重复扫描全部 Task。
+  const tasksByProjectId = useMemo(() => groupTasksByProjectId(visibleTasks), [visibleTasks]);
+  const pinnedTasks = getPinnedTasks(
+    pinnedTaskQuery.tasks,
+  );
+  const hasTaskError =
+    pinnedTaskQuery.error !== null ||
+    [...projectTaskStates.values()].some((state) => state.error !== null);
+  const taskActionPending =
+    pinMutation.isPending ||
+    renameMutation.isPending ||
+    archiveMutation.isPending ||
+    taskDeletion.isDeletePending;
+  const {
+    activeProjectId: reorderingProjectId,
+    announcement: projectOrderAnnouncement,
+    getProjectReorderProps,
+    orderedProjects,
+  } = useProjectReordering({
+    disabled: isProjectOrderPending,
+    onReorder: reorderProjects,
+    projects,
+  });
+  useEffect(() => {
+    if (
+      isPending ||
+      projectId === undefined ||
+      projectId === TEMPORARY_TASK_SCOPE_ID ||
+      projects.some((project) => project.id === projectId)
+    ) {
+      return;
+    }
+    // 缓存提交后再修正已删除 Project 的路由，避免事件回调与 React Query 渲染竞态。
+    const nextProject = projects[0];
+    void (nextProject === undefined
+      ? navigate({ replace: true, to: "/" })
+      : navigate({ params: { projectId: nextProject.id }, replace: true, to: "/p/$projectId" }));
+  }, [isPending, navigate, projectId, projects]);
+
+  useEffect(() => {
+    // 首次加载只展开第一个 Project；已有配置则恢复上次保存的文件夹形态。
+    const projectIds = projects.map((project) => project.id);
+    if (!hasInitializedProjectExpansionRef.current && projectIds.length > 0) {
+      hasInitializedProjectExpansionRef.current = true;
+      const initialExpandedProjectIds = resolveInitialExpandedProjectIds(
+        projectIds,
+        savedExpandedProjectIdsRef.current,
+      );
+      expandedProjectsRef.current = initialExpandedProjectIds;
+      setExpandedProjects(initialExpandedProjectIds);
+      return;
+    }
+
+    const availableProjectIds = new Set(projectIds);
+    const currentExpandedProjectIds = expandedProjectsRef.current;
+    const nextExpandedProjectIds = new Set(
+      [...currentExpandedProjectIds].filter((expandedProjectId) =>
+        availableProjectIds.has(expandedProjectId),
+      ),
+    );
+    if (nextExpandedProjectIds.size !== currentExpandedProjectIds.size) {
+      expandedProjectsRef.current = nextExpandedProjectIds;
+      setExpandedProjects(nextExpandedProjectIds);
+    }
+  }, [projects]);
+  useEffect(() => {
+    // 任务列表请求跟随可见文件夹；当前路由 Project 由 ProjectProvider 单独保持激活。
+    setExpandedProjectTaskIds(expandedProjects);
+  }, [expandedProjects, setExpandedProjectTaskIds]);
+  const updateExpandedProjects = useCallback(
+    (update: (current: ReadonlySet<string>) => ReadonlySet<string>) => {
+      const nextExpandedProjectIds = update(expandedProjectsRef.current);
+      expandedProjectsRef.current = nextExpandedProjectIds;
+      savedExpandedProjectIdsRef.current = nextExpandedProjectIds;
+      writeExpandedProjectIds(preferenceStorage, nextExpandedProjectIds);
+      setExpandedProjects(nextExpandedProjectIds);
+    },
+    [preferenceStorage],
+  );
+
+  const toggleProject = (targetProjectId: string) => {
+    // Project 名称只控制任务树展开形态，新聊天导航由独立的“+”入口负责。
+    updateExpandedProjects((current) => {
+      const next = new Set(current);
+      if (next.has(targetProjectId)) {
+        next.delete(targetProjectId);
+      } else {
+        next.add(targetProjectId);
+      }
+      return next;
+    });
+  };
+
+  const addSelectedProject = async (rootPaths: readonly string[]) => {
+    const project = await addProject(rootPaths);
+    if (project !== undefined) {
+      // 新增 Project 保持收起，交由用户显式展开任务列表。
+      setIsProjectPickerOpen(false);
+    }
+  };
+
+  const openProjectDraft = async (targetProjectId: string) => {
+    // 项目切换和新建入口都只打开 Project 草稿，首次提交后才展示真实 Task。
+    updateExpandedProjects((current) => {
+      if (current.has(targetProjectId)) {
+        return current;
+      }
+      const next = new Set(current);
+      next.add(targetProjectId);
+      return next;
+    });
+    await navigate({ params: { projectId: targetProjectId }, to: "/p/$projectId" });
+  };
+
+  const replaceTaskCache = (task: AgentTask) => {
+    // Mutation 成功后原位更新对应 Project，避免任务跳到列表顶部或等待 Provider 最终一致。
+    replaceProjectTaskInQueryCaches(queryClient, task);
+  };
+
+  const pinTask = (task: AgentTask) =>
+    taskActionLockRef.current.run(async () => {
+      try {
+        const response = await pinMutation.mutateAsync({
+          pinned: !task.pinned,
+          projectId: task.projectId,
+          taskId: task.id,
+        });
+        replaceTaskCache(response.task);
+      } catch {
+        // 根级 MutationCache 已展示失败 toast。
+      }
+    });
+
+  const renameTask = (task: AgentTask, title: string) =>
+    taskActionLockRef.current.run(async () => {
+      try {
+        const response = await renameMutation.mutateAsync({
+          projectId: task.projectId,
+          taskId: task.id,
+          title,
+        });
+        replaceTaskCache(response.task);
+        setRenamingTask(null);
+      } catch {
+        // 根级 MutationCache 已展示失败 toast。
+      }
+    });
+
+  const archiveTask = (task: AgentTask) =>
+    taskActionLockRef.current.run(async () => {
+      try {
+        await archiveMutation.mutateAsync({ projectId: task.projectId, taskId: task.id });
+        await removeArchivedProjectTaskAndRefill(queryClient, task.projectId, task.id);
+        queryClient.removeQueries({
+          exact: true,
+          queryKey: ["projects", task.projectId, "tasks", task.id],
+        });
+        forgetTask(task.projectId, task.id);
+        if (task.projectId === projectId && task.id === taskId) {
+          await (task.projectId === TEMPORARY_TASK_SCOPE_ID
+            ? navigate({ to: "/temporary" })
+            : navigate({ params: { projectId: task.projectId }, to: "/p/$projectId" }));
+        }
+        removeRetainedTaskRuntime(task.projectId, task.id);
+        // 归档后的 Runtime 清理由 Provider 判定安全性，失败不回滚已成功的归档。
+        void client.releaseTaskSubscription(task.projectId, task.id).catch(() => undefined);
+      } catch {
+        // 根级 MutationCache 已展示失败 toast。
+      }
+    });
+
+  const closeProjectDialog = (targetProjectId: string) => {
+    setArchivedProject(null);
+    setRenamingProject(null);
+    setRemovingProject(null);
+    requestAnimationFrame(() => {
+      document.getElementById(`project-actions-${targetProjectId}`)?.focus();
+    });
+  };
+
+  const submitProjectRename = async (project: Project, name: string) => {
+    if (await renameProject(project.id, name)) {
+      closeProjectDialog(project.id);
+    }
+  };
+
+  const confirmProjectRemoval = async (project: Project) => {
+    const remainingProjects = await removeProject(project.id);
+    if (remainingProjects === undefined) {
+      return;
+    }
+    setRemovingProject(null);
+  };
+
+  return (
+    <aside
+      aria-label={t("sidebar.landmark")}
+      className="workbench-sidebar z-30 grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] bg-sidebar shadow-divider"
+    >
+      <WorkbenchShortcuts
+        onNewTask={() => void navigate({ to: "/temporary" })}
+        onOpenSettings={() => onOpenSettings("appearance")}
+        onSearchTasks={() => {
+          setSearchState("open");
+        }}
+        onShowShortcuts={() => setShortcutsOpen(true)}
+        onToggleInspector={() => onPanelShortcut("inspector")}
+        onToggleSidebar={() => onPanelShortcut("sidebar")}
+      />
+      <ProjectSidebarHeader
+        onClose={onClose}
+        onSearch={() => setSearchState("open")}
+      />
+
+      <nav className="space-y-0.5 px-2" aria-label={t("sidebar.agentNavigation")}>
+        <Link className={primaryActionClassName} to="/temporary">
+          <Send className={primaryActionIconClassName} aria-hidden="true" />
+          {t("sidebar.newTask")}
+        </Link>
+        <SidebarScheduledTasksLink
+          className={primaryActionClassName}
+          iconClassName={primaryActionIconClassName}
+          {...(projectId === undefined ? {} : { projectId })}
+        />
+        <SidebarTaskBoardLink
+          className={primaryActionClassName}
+          iconClassName={primaryActionIconClassName}
+          {...(projectId === undefined ? {} : { projectId })}
+        />
+        <SidebarExtensionCenterLink
+          className={primaryActionClassName}
+          iconClassName={primaryActionIconClassName}
+          {...(projectId === undefined ? {} : { projectId })}
+        />
+      </nav>
+
+      <ProjectSidebarTaskList
+        archiveTask={archiveTask}
+        deleteTask={taskDeletion.requestTaskDeletion}
+        error={error}
+        expandedProjects={expandedProjects}
+        expandedTaskProjects={expandedTaskProjects}
+        fetchNextProjectTaskPage={fetchNextProjectTaskPage}
+        getProjectReorderProps={getProjectReorderProps}
+        hasTaskError={hasTaskError}
+        isPending={isPending}
+        isProjectActionPending={isProjectActionPending}
+        isProjectAddPending={isProjectAddPending}
+        normalizedQuery={normalizedQuery}
+        onOpenTemporaryDraft={() => {
+          void navigate({ to: "/temporary" });
+        }}
+        onOpenProjectDraft={openProjectDraft}
+        onOpenArchived={setArchivedProject}
+        onOpenProjectPicker={() => {
+          setIsProjectPickerOpen(true);
+        }}
+        onRemoveProject={(project) => {
+          setRemovingProject(project);
+        }}
+        onRenameProject={(project) => {
+          setRenamingProject(project);
+        }}
+        orderedProjects={orderedProjects}
+        pinTask={pinTask}
+        pinnedTasks={pinnedTasks}
+        {...(projectId === undefined ? {} : { projectId })}
+        projectOrderAnnouncement={projectOrderAnnouncement}
+        projectTaskStates={projectTaskStates}
+        reorderingProjectId={reorderingProjectId}
+        setExpandedTaskProjects={setExpandedTaskProjects}
+        setRenamingTask={setRenamingTask}
+        taskActionPending={taskActionPending}
+        taskActivity={taskActivity}
+        {...(taskId === undefined ? {} : { taskId })}
+        taskSearch={taskSearch}
+        tasksByProjectId={tasksByProjectId}
+        toggleProject={toggleProject}
+      />
+
+      {archivedProject === null ? null : (
+        <ArchivedTasksDialog
+          client={client}
+          onClose={() => {
+            closeProjectDialog(archivedProject.id);
+          }}
+          project={archivedProject}
+        />
+      )}
+
+      {taskDeletion.deletingTask === null ? null : (
+        <TaskDeleteDialog
+          isPending={taskDeletion.isDeletePending}
+          onClose={taskDeletion.closeTaskDeletion}
+          onDelete={() => {
+            void taskDeletion.confirmTaskDeletion();
+          }}
+          task={taskDeletion.deletingTask}
+        />
+      )}
+
+      <ProjectSidebarDialogs
+        client={client}
+        isProjectActionPending={isProjectActionPending}
+        isProjectAddPending={isProjectAddPending}
+        isProjectPickerOpen={isProjectPickerOpen}
+        onAddProject={addSelectedProject}
+        onCloseProjectDialog={closeProjectDialog}
+        onCloseProjectPicker={() => {
+          if (!isProjectAddPending) {
+            setIsProjectPickerOpen(false);
+          }
+        }}
+        onCloseTaskRename={() => {
+          setRenamingTask(null);
+        }}
+        onRemoveProject={(project) => {
+          void confirmProjectRemoval(project);
+        }}
+        onRenameProject={(project, name) => {
+          void submitProjectRename(project, name);
+        }}
+        onRenameTask={(task, title) => {
+          void renameTask(task, title);
+        }}
+        removingProject={removingProject}
+        renamingProject={renamingProject}
+        renamingTask={renamingTask}
+        taskRenamePending={renameMutation.isPending}
+      />
+
+      <div className="p-2">
+        <SidebarSettingsButton
+          {...(appInfo === undefined ? {} : { appInfo })}
+          onOpen={onOpenSettings}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
+        />
+      </div>
+      <KeyboardShortcutsDialog onOpenChange={setShortcutsOpen} open={shortcutsOpen} />
+      {searchState !== "idle" ? <Suspense fallback={null}><GlobalSearchDialog open={searchState === "open"} client={client} projects={projects} onClose={() => setSearchState("closed")} /></Suspense> : null}
+    </aside>
+  );
+}

@@ -1,0 +1,99 @@
+html[data-app-surface^="desktop-pet"],
+html[data-app-surface^="desktop-pet"] body,
+html[data-app-surface^="desktop-pet"] #root {
+  padding: 0;
+  background: transparent;
+}
+
+.desktop-pet-root {
+  display: flex;
+  width: max-content;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.desktop-pet-target {
+  display: grid;
+  width: 96px;
+  height: 96px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  padding: 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.desktop-pet-target[data-dragging] {
+  cursor: grabbing;
+}
+
+.desktop-pet-sprite {
+  display: block;
+  width: calc(80px * 192 / 208);
+  height: 80px;
+  pointer-events: none;
+}
+
+.desktop-pet-bubble-root {
+  width: 192px;
+  flex: none;
+}
+
+.workbench-pet-bubbles {
+  --workbench-pet-bubble-height: 32px;
+
+  width: 192px;
+  cursor: default;
+}
+
+.workbench-pet-bubble-list {
+  display: flex;
+  max-height: 320px;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.workbench-pet-bubble-item {
+  height: var(--workbench-pet-bubble-height);
+  flex: 0 0 var(--workbench-pet-bubble-height);
+}
+
+.workbench-pet-bubble-button {
+  display: flex;
+  width: 100%;
+  height: 32px;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ui-color-separator-strong);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-color-raised);
+  box-shadow: var(--ui-shadow-control);
+  color: var(--ui-color-text);
+  cursor: pointer;
+  font: var(--ui-font-weight-regular) var(--ui-font-size-body-small) / 1 var(--ui-font-family-text);
+  padding: 0 10px;
+  text-align: left;
+}
+
+.workbench-pet-bubble-button:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.workbench-pet-bubble-button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-pet-bubble-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}

@@ -1,0 +1,380 @@
+.workbench-background {
+  position: relative;
+  isolation: isolate;
+  background: var(--ui-color-window);
+}
+
+.workbench-background__image,
+.workbench-background__overlay {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.workbench-background__image {
+  transition: opacity var(--ui-motion-normal) var(--ui-ease-standard);
+}
+
+.workbench-background__overlay {
+  z-index: -1;
+  background: var(--ui-color-wallpaper-overlay);
+}
+
+/* 显式覆盖前景语义，避免运行环境仅将 color-scheme 应用于原生控件和局部属性。 */
+body:has(.workbench-background[data-has-image="true"][data-background-tone="light"]) {
+  color-scheme: light;
+  --ui-color-text: #111111;
+  --ui-color-text-muted: rgb(17 17 17 / 0.72);
+  --ui-color-text-subtle: rgb(17 17 17 / 0.52);
+  --ui-color-wallpaper-overlay: #ffffff;
+}
+
+body:has(.workbench-background[data-has-image="true"][data-background-tone="dark"]) {
+  color-scheme: dark;
+  --ui-color-text: #ffffff;
+  --ui-color-text-muted: rgb(255 255 255 / 0.68);
+  --ui-color-text-subtle: rgb(255 255 255 / 0.5);
+  --ui-color-wallpaper-overlay: #181818;
+}
+
+/* 壁纸加载后保持工作台通透，并以 95% 实色浮层兼顾图片可见性与内容可读性。 */
+body:has(.workbench-background[data-has-image="true"]) {
+  --ui-color-window: transparent;
+  --ui-color-content: transparent;
+  --ui-color-sidebar: transparent;
+  --ui-color-panel: transparent;
+  --ui-color-raised: color-mix(in oklab, var(--ui-color-wallpaper-overlay) 68%, transparent);
+  --ui-color-floating-surface: color-mix(
+    in oklab,
+    var(--ui-color-wallpaper-overlay) 95%,
+    transparent
+  );
+  --ui-color-dialog: var(--ui-color-floating-surface);
+}
+
+/* 弹窗内的次级 raised 区域继承浮层材质，避免大块子区域重新降回 68%。 */
+body:has(.workbench-background[data-has-image="true"])
+  :is([data-slot="dialog-content"], [data-slot="sheet-content"]) {
+  --ui-color-raised: var(--ui-color-floating-surface);
+}
+
+body:has(.workbench-background[data-has-image="true"])
+  :is(
+    [data-slot="dialog-content"],
+    [data-slot="sheet-content"],
+    [data-slot="tooltip-content"],
+    [data-slot="dropdown-menu-content"],
+    [data-slot="dropdown-menu-sub-content"],
+    [data-slot="context-menu-content"],
+    [data-slot="context-menu-sub-content"],
+    [data-slot="select-content"],
+    [data-floating-surface],
+    [data-sonner-toast]
+  ) {
+  background: var(--ui-color-floating-surface) !important;
+}
+
+body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-content"] {
+  color: var(--ui-color-text);
+}
+
+.workbench-shell {
+  --sidebar-width: 0px;
+  --inspector-width: 0px;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--inspector-width);
+  transition: grid-template-columns var(--ui-motion-normal) var(--ui-ease-standard);
+}
+
+.workbench-shell[data-sidebar-open="true"] {
+  --sidebar-width: var(--sidebar-open-width, var(--ui-layout-sidebar-width));
+}
+
+.workbench-shell[data-inspector-open="true"] {
+  --inspector-width: min(
+    var(--inspector-open-width, var(--ui-layout-inspector-width)),
+    calc((100% - var(--sidebar-width)) / 2)
+  );
+}
+
+.workbench-shell[data-resizing-panel] {
+  cursor: col-resize;
+  user-select: none;
+  transition: none;
+}
+
+.workbench-pet-canvas,
+.workbench-pet-static-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-position: left top;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.workbench-panel-resizer {
+  position: absolute;
+  z-index: 40;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: col-resize;
+  touch-action: none;
+  transform: translateX(-50%);
+}
+
+.workbench-panel-resizer::after {
+  position: absolute;
+  inset: 0 auto 0 4px;
+  width: 1px;
+  background: transparent;
+  content: "";
+  transition: background-color var(--ui-motion-fast) var(--ui-ease-standard);
+}
+
+.workbench-panel-resizer:hover::after,
+.workbench-panel-resizer:focus-visible::after,
+.workbench-panel-resizer:active::after {
+  background: var(--ui-color-accent);
+}
+
+.workbench-panel-resizer--sidebar {
+  left: var(--sidebar-width);
+}
+
+.workbench-panel-resizer--inspector {
+  right: var(--inspector-width);
+  transform: translateX(50%);
+}
+
+/* 用户消息目录位于中栏右侧，并在真实滚动条内侧继续保留 10px 间距。 */
+.task-timeline-navigation {
+  position: fixed;
+  z-index: 45;
+  top: 50%;
+  right: calc(
+    var(--inspector-width) + var(--conversation-scrollbar-width, 0px) + var(--ui-space-unit) * 2.5
+  );
+  width: calc(var(--ui-space-unit) * 11);
+  max-height: 50dvh;
+  overflow-y: auto;
+  transform: translateY(-50%);
+  transition: right var(--ui-motion-normal) var(--ui-ease-standard);
+  scrollbar-width: none;
+}
+
+.task-timeline-navigation::-webkit-scrollbar {
+  display: none;
+}
+
+/* 默认刻度保持轻巧克制，只在明确交互时放大并提高对比度。 */
+.task-timeline-navigation-marker {
+  width: calc(var(--ui-space-unit) * 2);
+  height: 2px;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-color-text-muted);
+  opacity: 0.34;
+  transform-origin: right center;
+  transition:
+    width var(--ui-motion-fast) var(--ui-ease-standard),
+    height var(--ui-motion-fast) var(--ui-ease-standard),
+    opacity var(--ui-motion-fast) var(--ui-ease-standard);
+}
+
+[data-timeline-navigation-item][aria-current="location"] .task-timeline-navigation-marker {
+  background: var(--ui-color-text);
+  opacity: 0.72;
+}
+
+[data-timeline-navigation-item]:hover .task-timeline-navigation-marker,
+[data-timeline-navigation-item]:focus-visible .task-timeline-navigation-marker {
+  width: calc(var(--ui-space-unit) * 3.5);
+  height: 3px;
+  opacity: 0.82;
+}
+
+.workbench-sidebar,
+.workbench-inspector {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Task 行始终保留操作位，hover/focus 只切换内容，避免标题和列表宽度抖动。 */
+.task-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.group:hover > .task-actions,
+.group:focus-within > .task-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.group:hover .task-status,
+.group:focus-within .task-status {
+  visibility: hidden;
+}
+
+/* 高饱和度纯色提升紧凑状态位的辨识度。 */
+.task-status-dot {
+  opacity: 1;
+}
+
+/* 运行态使用小尺寸常亮光点；外围柔光独立呼吸，避免整颗标记闪烁干扰任务标题。 */
+.text-task-running .task-status-dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  animation: none;
+  will-change: auto;
+}
+
+.text-task-running .task-status-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(circle, currentColor 20%, transparent 70%);
+  /* 固定渐变只做合成层缩放与透明度变化，让柔光始终收敛在状态槽内。 */
+  animation: task-running-glow-breathe 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+@keyframes task-running-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-task-running .task-status-dot::after {
+    animation: none;
+    opacity: 0.25;
+    transform: none;
+    will-change: auto;
+  }
+}
+
+@media (hover: none) {
+  .task-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .task-status {
+    visibility: hidden;
+  }
+}
+
+.workbench-shell[data-sidebar-open="false"] .workbench-sidebar,
+.workbench-shell[data-inspector-open="false"] .workbench-inspector {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.workbench-shell[data-sidebar-open="true"] .workbench-sidebar,
+.workbench-shell[data-inspector-open="true"] .workbench-inspector {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.workbench-sidebar-scrim,
+.workbench-inspector-scrim {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .workbench-shell {
+    --inspector-width: 0px !important;
+  }
+
+  .workbench-inspector {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(var(--ui-layout-inspector-width), calc(100vw - calc(var(--ui-space-unit) * 8)));
+    transform: translateX(100%);
+    box-shadow: var(--ui-shadow-panel);
+    transition: transform var(--ui-motion-normal) var(--ui-ease-standard);
+  }
+
+  .workbench-shell[data-inspector-open="true"] .workbench-inspector {
+    transform: translateX(0);
+  }
+
+  .workbench-shell[data-inspector-open="true"] .workbench-inspector-scrim {
+    position: absolute;
+    z-index: 20;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: var(--ui-color-scrim);
+  }
+
+  .workbench-panel-resizer--inspector {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .workbench-shell {
+    --sidebar-width: 0px !important;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-timeline-navigation {
+    display: none;
+  }
+
+  .workbench-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(var(--ui-layout-sidebar-width), calc(100vw - calc(var(--ui-space-unit) * 8)));
+    transform: translateX(-100%);
+    box-shadow: var(--ui-shadow-panel);
+    transition: transform var(--ui-motion-normal) var(--ui-ease-standard);
+  }
+
+  .workbench-shell[data-sidebar-open="true"] .workbench-sidebar {
+    transform: translateX(0);
+  }
+
+  .workbench-shell[data-sidebar-open="true"] .workbench-sidebar-scrim {
+    position: absolute;
+    z-index: 20;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: var(--ui-color-scrim);
+  }
+
+  .workbench-panel-resizer--sidebar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workbench-shell,
+  .workbench-sidebar,
+  .workbench-inspector,
+  .task-timeline-navigation {
+    transition: none;
+  }
+}

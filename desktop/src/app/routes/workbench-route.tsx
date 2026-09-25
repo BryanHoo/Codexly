@@ -1,0 +1,76 @@
+import { TEMPORARY_TASK_SCOPE_ID } from "@/protocol/index.js";
+import { createRoute, useRouterState } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
+
+import { useTranslation } from "../../i18n/i18n.js";
+import type { WorkbenchShellProps } from "../../features/workbench/components/workbench-shell-runtime.js";
+import { WorkbenchBackground } from "../../features/workbench/components/workbench-background.js";
+import { rootRoute } from "./root-route.js";
+
+export const workbenchLayoutRoute = createRoute({
+  component: WorkbenchLayout,
+  getParentRoute: () => rootRoute,
+  id: "workbench",
+});
+
+function WorkbenchLayout() {
+  const routeParams = useRouterState({
+    select: (state) => {
+      const params = state.matches.at(-1)?.params;
+      return {
+        board: state.location.pathname.endsWith("/board"),
+        scheduledTasks: state.location.pathname.endsWith("/scheduled"),
+        extensionSection:
+          params !== undefined && "section" in params ? params.section : undefined,
+        draftId: params !== undefined && "draftId" in params ? params.draftId : undefined,
+        projectId: params !== undefined && "projectId" in params ? params.projectId : undefined,
+        taskId: params !== undefined && "taskId" in params ? params.taskId : undefined,
+      };
+    },
+  });
+  const projectId = routeParams.projectId ?? TEMPORARY_TASK_SCOPE_ID;
+  const temporary = routeParams.projectId === undefined;
+
+  // Shell 与背景都归属共同父路由，切换 Task 或新建任务时保留侧栏和面板布局。
+  return (
+    <WorkbenchBackground>
+      <WorkbenchRoute
+        board={routeParams.board}
+        scheduledTasks={routeParams.scheduledTasks}
+        {...(routeParams.extensionSection === undefined
+          ? {}
+          : { extensionSection: routeParams.extensionSection })}
+        {...(routeParams.draftId === undefined ? {} : { draftId: routeParams.draftId })}
+        projectId={projectId}
+        temporary={temporary}
+        {...(routeParams.taskId === undefined ? {} : { taskId: routeParams.taskId })}
+      />
+    </WorkbenchBackground>
+  );
+}
+
+export function loadWorkbenchShell() {
+  return import("../../features/workbench/components/workbench-shell.js");
+}
+
+const DeferredWorkbenchShell = lazy(() =>
+  loadWorkbenchShell().then((module) => ({ default: module.WorkbenchShell })),
+);
+
+export function WorkbenchRoute(props: WorkbenchShellProps) {
+  const { t } = useTranslation("common");
+  return (
+    <Suspense
+      fallback={
+        <main
+          className="grid h-full place-items-center text-sm text-muted-foreground"
+          role="status"
+        >
+          {t("app.loadingProjects")}
+        </main>
+      }
+    >
+      <DeferredWorkbenchShell {...props} />
+    </Suspense>
+  );
+}

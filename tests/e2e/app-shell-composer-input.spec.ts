@@ -35,15 +35,16 @@ test("keeps composer attachment icons aligned with the compact toolbar", async (
   await expect(imageMenuIcon).toHaveCSS("height", "16px");
 });
 
-test("shows every mobile composer action in full on one row", async ({ page }) => {
+test("keeps every mobile composer action accessible on one row", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/p/codexly/t/task-1");
 
   const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
   const sandboxSelect = page.getByRole("combobox", { name: "沙盒模式" });
-  const modelSelector = page.getByRole("button", { name: /^模型和思考量：/u });
+  const modelSelector = page.getByRole("button", { name: /^选择模型：/u });
+  const reasoningSelector = page.getByRole("button", { name: /^选择思考量：/u });
   const submitButton = page.getByRole("button", { exact: true, name: "提交" });
-  const controls = [approvalSelect, sandboxSelect, modelSelector, submitButton];
+  const controls = [approvalSelect, sandboxSelect, modelSelector, reasoningSelector, submitButton];
   const boxes = await Promise.all(controls.map((control) => control.boundingBox()));
 
   expect(boxes.every((box) => box !== null)).toBe(true);
@@ -52,12 +53,9 @@ test("shows every mobile composer action in full on one row", async ({ page }) =
   await expect(sandboxSelect).toHaveCSS("field-sizing", "content");
   expect(boxes[0]?.width).toBeGreaterThan(44);
   expect(boxes[1]?.width).toBeGreaterThan(44);
-  expect(
-    await modelSelector
-      .locator("span")
-      .first()
-      .evaluate((element) => element.scrollWidth <= element.clientWidth),
-  ).toBe(true);
+  await expect(modelSelector.locator("span").first()).toHaveCSS("text-overflow", "ellipsis");
+  await expect(modelSelector).toHaveAccessibleName("选择模型：GPT-5.6 Sol");
+  await expect(reasoningSelector).toHaveAccessibleName("选择思考量：高");
   const footerSize = await approvalSelect.locator("xpath=../..").evaluate((element) => ({
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
@@ -90,16 +88,14 @@ test("switches composer task settings without success toasts", async ({ page }) 
   await page.getByRole("combobox", { name: "沙盒模式" }).selectOption("danger-full-access");
   await sandboxUpdate;
   await expect(successToast).toHaveCount(0);
-  const modelSelector = page.getByRole("button", { name: /^模型和思考量：/u });
+  const modelSelector = page.getByRole("button", { name: /^选择模型：/u });
   await modelSelector.click();
-  await page.getByRole("menuitem", { name: "选择模型" }).click();
   const modelUpdate = waitForSettingsUpdate();
   await page.getByRole("menuitemradio", { name: /GPT-5\.6 Terra/u }).click();
   await modelUpdate;
   await expect(successToast).toHaveCount(0);
 
-  await modelSelector.click();
-  await page.getByRole("menuitem", { name: "选择思考量" }).click();
+  await page.getByRole("button", { name: /^选择思考量：/u }).click();
   const reasoningUpdate = waitForSettingsUpdate();
   await page.getByRole("menuitemradio", { name: /低/u }).click();
   await reasoningUpdate;

@@ -32,7 +32,7 @@ describe("CI 质量门禁", () => {
     );
 
     expect(packageJson.scripts["lint"]).toBe(
-      "oxlint . --max-warnings 0 --report-unused-disable-directives",
+      "oxlint . --ignore-pattern 'desktop/**' --max-warnings 0 --report-unused-disable-directives",
     );
     expect(packageJson.devDependencies["oxlint"]).toBe("catalog:");
     expect(packageJson.devDependencies["oxlint-tsgolint"]).toBe("catalog:");
@@ -84,15 +84,15 @@ describe("CI 质量门禁", () => {
   it("使用 Trusted Publisher OIDC 发布 npm 包", () => {
     const workflow = readFileSync(join(process.cwd(), ".github/workflows/release.yml"), "utf8");
     const publishStart = workflow.indexOf("      - name: Publish with provenance\n");
-    const releaseStart = workflow.indexOf("      - name: Create GitHub release\n", publishStart);
+    const publishJobEnd = workflow.indexOf("\n  publish-image:\n", publishStart);
 
     expect(publishStart).toBeGreaterThanOrEqual(0);
-    expect(releaseStart).toBeGreaterThan(publishStart);
+    expect(publishJobEnd).toBeGreaterThan(publishStart);
 
     // Trusted Publisher 通过 id-token 权限换取短期凭据，流水线不再读取长期 Token。
     expect(workflow).not.toContain("secrets.NPM_TOKEN");
     expect(workflow).not.toContain("NODE_AUTH_TOKEN");
-    expect(workflow.slice(publishStart, releaseStart)).toContain(
+    expect(workflow.slice(publishStart, publishJobEnd)).toContain(
       'npm publish "${package_tarball}" --access public --provenance',
     );
   });
@@ -128,7 +128,7 @@ describe("CI 质量门禁", () => {
 
     const qualityStep = workflow.slice(qualityStepStart, qualityStepEnd);
     const testCommand =
-      "CI= pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests";
+      "CI='' pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests";
     const testGroups = [
       "apps/web",
       "packages/client packages/core packages/protocol",
@@ -140,7 +140,7 @@ describe("CI 质量门禁", () => {
     for (const testGroup of testGroups) {
       expect(qualityStep).toContain(`${testCommand} ${testGroup}`);
     }
-    expect(qualityStep.match(/CI= pnpm exec vitest run/g)).toHaveLength(testGroups.length);
+    expect(qualityStep.match(/CI='' pnpm exec vitest run/gu)).toHaveLength(testGroups.length);
 
     for (const gate of [
       "pnpm run audit:prod",

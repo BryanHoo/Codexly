@@ -5,7 +5,7 @@ import {
   taskSnapshotResponse,
   test,
 } from "./fixtures/app-shell.js";
-import { getComposerModelSelector } from "./app-shell-settings-navigation.test-support.js";
+import { expectComposerSelection } from "./app-shell-settings-navigation.test-support.js";
 
 test("blocks repeat answers when delivery is unconfirmed", async ({ page }) => {
   let answering = false;
@@ -131,9 +131,7 @@ for (const viewport of [
     expect(inputBounds.y - dockBounds.y - dockBounds.height).toBeGreaterThanOrEqual(0);
     expect(inputBounds.y - dockBounds.y - dockBounds.height).toBeLessThanOrEqual(12);
     await expect(dock.getByRole("button", { name: "关闭问题", exact: true })).toBeEnabled();
-    await expect(getComposerModelSelector(page)).toHaveAccessibleName(
-      "模型和思考量：GPT-5.6 Terra，低",
-    );
+    await expectComposerSelection(page, "GPT-5.6 Terra", "低");
     await expect(dock.getByRole("radio", { name: "当前文件", exact: true })).toBeChecked();
     expect(submitted).toHaveLength(0);
     await expect(dock.getByRole("button", { name: "发送回答" })).toBeDisabled();

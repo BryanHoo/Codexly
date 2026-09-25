@@ -11,3 +11,4 @@ Document how reusable code should be organized for this project.
 - `packages/core/src` 保存领域模型、用例和端口，不承载 HTTP、数据库或浏览器实现。
 - `packages/*/src/index.ts` 是包的公开出口；跨包导入使用 `@codexly/*`，不穿透其他包内部路径。
 - Web 内部的 `apps/web/src/shared` 只服务前端，不得作为 Node 包间共享层。
+- 根目录保留 Codexly Web 的 pnpm workspace；`desktop/` 是独立的 Codexly Tauri 桌面项目，保留自身的 `package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml` 和 Rust 工程，不加入根 workspace，也不在两端之间穿透源码导入。

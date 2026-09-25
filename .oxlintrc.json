@@ -15,6 +15,7 @@
     "**/coverage/**",
     "**/.cache/**",
     "**/.agents/**",
+    "desktop/**",
     "**/node_modules/**",
     "playwright-report/**",
     "test-results/**"

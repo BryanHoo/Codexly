@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "task-window",
+  "description": "Read-only task output and lifecycle for floating task windows",
+  "windows": ["task-window-*"],
+  "permissions": [
+    "allow-connect-task-window",
+    "allow-acknowledge-task-window",
+    "allow-close-task-window",
+    "allow-restore-task-window",
+    "allow-drag-task-window",
+    "allow-record-frontend-diagnostic"
+  ]
+}

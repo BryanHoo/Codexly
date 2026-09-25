@@ -1,0 +1,79 @@
+/* 复用主题色与系统字体，使用留白和时间状态建立层级，不增加字体或动画开销。 */
+.scheduled-task-filters {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 20px;
+  border-radius: 10px;
+  background: var(--ui-color-control);
+}
+.scheduled-task-filters button {
+  flex: 1;
+  min-height: 32px;
+  border-radius: 7px;
+  color: var(--ui-color-text-muted);
+  font-size: var(--ui-font-size-label);
+  white-space: nowrap;
+}
+.scheduled-task-filters button[aria-pressed="true"] {
+  color: var(--ui-color-text);
+  background: var(--ui-color-content);
+  box-shadow: 0 1px 3px #0000000d;
+  font-weight: var(--ui-font-weight-semibold);
+}
+.scheduled-task-filters button:focus-visible,
+.scheduled-task-row__content:focus-visible {
+  outline: 2px solid var(--ui-color-accent);
+  outline-offset: -2px;
+}
+.scheduled-task-editor__actions { display: flex; align-items: center; gap: 8px; }
+.scheduled-task-status { display: flex; align-items: center; gap: 7px; color: var(--ui-color-text-muted); font-size: var(--ui-font-size-label); }
+.scheduled-task-status > span { width: 6px; height: 6px; border-radius: 50%; background: var(--ui-color-text-subtle); }
+.scheduled-task-status[data-enabled="true"] > span { background: var(--ui-color-accent); }
+.scheduled-task-editor__body { max-width: 860px; margin: 0 auto; padding: 26px 32px 0; }
+.scheduled-task-title { display: block; }
+.scheduled-task-title input {
+  height: 42px;
+  border: 1px solid var(--ui-color-separator-strong);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 18px;
+  font-weight: var(--ui-font-weight-semibold);
+  letter-spacing: normal;
+}
+.scheduled-task-title input::placeholder { color: var(--ui-color-text-subtle); font-size: var(--ui-font-size-body-small); font-weight: normal; opacity: 1; }
+.scheduled-task-title input:focus-visible { box-shadow: var(--ui-shadow-focus); }
+.scheduled-task-section { margin-top: 28px; }
+.scheduled-task-section h3,
+.scheduled-task-runs h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--ui-color-text-muted); font-size: var(--ui-font-size-label); font-weight: var(--ui-font-weight-medium); }
+.scheduled-task-section h3 > svg,
+.scheduled-task-runs h3 > svg { width: 15px; height: 15px; }
+.scheduled-task-section h3 > span,
+.scheduled-task-runs h3 > span { margin-left: auto; color: var(--ui-color-text-subtle); font-size: var(--ui-font-size-caption); font-weight: normal; }
+.scheduled-task-info { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 16px; color: var(--ui-color-text-muted); font-size: var(--ui-font-size-label); }
+.scheduled-task-info > :last-child { color: var(--ui-color-text); }
+.scheduled-task-next-run { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 0 4px; color: var(--ui-color-text-subtle); font-size: var(--ui-font-size-caption); }
+.scheduled-task-next-run > span { color: var(--ui-color-text-muted); font-variant-numeric: tabular-nums; }
+.scheduled-task-welcome { padding: 32px; justify-items: center; align-content: center; }
+.scheduled-task-welcome > svg { width: 48px; height: 48px; padding: 10px; margin-bottom: 14px; border: 1px solid var(--ui-color-separator); border-radius: 14px; color: var(--ui-color-accent); background: var(--ui-color-panel); }
+.scheduled-task-welcome h2 { color: var(--ui-color-text); font-size: 22px; font-weight: var(--ui-font-weight-semibold); }
+.scheduled-task-welcome p { max-width: 340px; margin: 4px 0 20px; line-height: 1.8; }
+.scheduled-task-welcome > span { font-size: var(--ui-font-size-caption); }
+
+
+.scheduled-task-row__menu { align-self: center; margin-right: 10px; opacity: 0; }
+.scheduled-task-row:hover .scheduled-task-row__menu,
+.scheduled-task-row:focus-within .scheduled-task-row__menu,
+.scheduled-task-row__menu[data-state="open"] { opacity: 1; }
+.scheduled-task-menu { min-width: 112px; width: max-content; border: 1px solid var(--ui-color-separator); }
+.scheduled-task-menu svg { width: 15px; height: 15px; }
+/* 原生时间控件在 WebKit 中有独立内部盒，显式右对齐以保持各行数值对齐。 */
+.scheduled-task-fields input::-webkit-date-and-time-value,
+.scheduled-task-date-time-picker__calendar input::-webkit-date-and-time-value { text-align: right; }
+.scheduled-task-fields input::-webkit-datetime-edit,
+.scheduled-task-date-time-picker__calendar input::-webkit-datetime-edit { display: block; flex: 1; text-align: right; }
+.scheduled-task-fields input::-webkit-datetime-edit-fields-wrapper,
+.scheduled-task-date-time-picker__calendar input::-webkit-datetime-edit-fields-wrapper { padding: 0; text-align: right; }
+.scheduled-task-fields input[type="time"] { width: 104px; justify-self: end; }

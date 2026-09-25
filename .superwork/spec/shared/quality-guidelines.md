@@ -6,6 +6,8 @@ Capture contract and verification standards for this project.
 
 ## 规则
 
+- 联合发布只由根目录 `.github/workflows/release.yml` 接受与 Web 和桌面版本一致的标签；`desktop/` 的版本文件、Cargo lock 与两端带日期的日志必须同步。Web E2E、桌面质量及真实 WebView 门禁都通过后先上传桌面草稿，再发布 npm、GHCR 并公开联合 Release。根项目格式、lint、Docker 与 npm 包装均排除 `desktop/`。
+- 桌面窗口、安装包、可执行文件、通知、界面和新发布说明统一显示 Codexly；新包使用 `com.codexly.desktop`，签名公钥和内部持久化键不随品牌变更而改动。更新清单只从联合仓发布。
 - 协议变更同时更新 TypeBox schema、类型导出、序列化/解码逻辑和消费者测试。
 - Codexly 持久 Queue 的读取契约使用 `AgentQueuedSubmissionList`，只返回完整 `data`；`AgentQueuedSubmissionPage` 仅保留给 Provider 原生分页接口，不能用于浏览器持久 Queue。
 - Codexly 持久 Queue 的 add、update、delete、reorder 和 start 响应必须携带操作完成后的完整 `queue`；Node 负责读取最终状态，浏览器直接更新查询缓存，不得在成功后追加 GET。幂等重放仍返回当前权威队列，不能复用旧队列快照。

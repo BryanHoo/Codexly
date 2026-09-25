@@ -1,0 +1,500 @@
+import {
+  isAgentFastModeAvailable,
+  type AgentTaskSnapshotResponse,
+  type AgentMessageAttachment,
+  type AgentProjectDefaults,
+  type AgentPromptInput,
+  type AgentTask,
+  type AgentTaskSettings,
+  type AgentTurn,
+  type EventCheckpoint,
+  type ProjectOpenAppId,
+} from "@/protocol/index.js";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  classifyProjectFileReference,
+  getProjectFileManagerOpenPath,
+} from "../project-file-reference.js";
+import { openProjectFileInNewWindow } from "../project-file-popup.js";
+
+import type {
+  MessageFileReference,
+  MessageFileReferenceOpenMode,
+} from "../../../shared/components/agent/message.js";
+import type { AgentFileChange } from "../../diff/file-change.js";
+import { notifyActionError } from "../../notifications/action-notifications.js";
+import {
+  cacheCreatedProjectTask,
+  replaceProjectTaskInQueryCaches,
+  updateNewTaskTitleFromSnapshotInInfiniteData,
+  type ProjectTaskInfiniteData,
+  type TaskTitleSnapshot,
+  taskSnapshotQueryOptions,
+} from "../../projects/project-queries.js";
+import type { TaskStoreState } from "../../conversation/runtime/task-store.js";
+import { getTaskStoreUserMessageIds } from "../composer-queue-state.js";
+import { loadProjectGitFileDiff } from "../project-git-file-diff.js";
+import {
+  createTaskLaunchSnapshot,
+  taskLaunchQueryKey,
+  type TaskLaunchState,
+  type useWorkbenchShellRuntime,
+} from "./workbench-shell-runtime.js";
+import { inspectorOverlayQuery, sidebarOverlayQuery } from "./workbench-panel-layout.js";
+import { getProjectFileManagerApp } from "./project-open-menu.js";
+
+type WorkbenchShellControllerOptions = Readonly<{
+  projectId: string;
+  taskId?: string;
+  temporary?: boolean;
+}>;
+
+export function createProjectTaskDefaults(
+  settings: AgentTaskSettings,
+  fastMode: boolean,
+): AgentProjectDefaults {
+  return { ...settings, fastMode };
+}
+
+export function resolveProjectFastModeDefault(
+  temporary: boolean,
+  projectFastMode: boolean | undefined,
+  globalFastMode: boolean | undefined,
+): boolean {
+  return temporary ? (globalFastMode ?? false) : (projectFastMode ?? globalFastMode ?? false);
+}
+
+export function useWorkbenchShellController(
+  shell: ReturnType<typeof useWorkbenchShellRuntime>,
+  { projectId, taskId, temporary = false }: WorkbenchShellControllerOptions,
+) {
+  const {
+    activeTaskRenameLockRef,
+    client,
+    getNewChatSubmissionStartedAt,
+    globalSettingsQuery,
+    gitStatusQuery,
+    markTaskRunning,
+    modelsQuery,
+    navigate,
+    projectDefaultsMutation,
+    projectDefaultsQuery,
+    providerConnectionQuery,
+    projectPathOpenLockRef,
+    projectPathOpenMutationRef,
+    projectOpenCapabilitiesQuery,
+    queryClient,
+    renameMutation,
+    runtime,
+    selectedRootPath,
+    setFileReviewSelection,
+    setInspectorFileSelection,
+    setInspectorOpen,
+    setInspectorTab,
+    setPendingTaskSelection,
+    setProjectFileDialogSelection,
+    setSidebarOpen,
+    setTaskRenameOpen,
+    taskLaunchState,
+  } = shell;
+  const openFileDiff = useCallback(
+    (change: AgentFileChange) => {
+      setInspectorFileSelection({ change, kind: "diff", projectId });
+      setInspectorTab("file");
+      setInspectorOpen(true);
+    },
+    [projectId, setInspectorFileSelection, setInspectorOpen, setInspectorTab],
+  );
+  const loadProjectFileDiff = useCallback(
+    (change: AgentFileChange) => {
+      if (selectedRootPath === undefined) {
+        return Promise.reject(new Error("Project root is unavailable"));
+      }
+      return loadProjectGitFileDiff(
+        queryClient,
+        client,
+        projectId,
+        selectedRootPath,
+        gitStatusQuery.data,
+        change,
+      );
+    },
+    [client, gitStatusQuery.data, projectId, queryClient, selectedRootPath],
+  );
+  const openProjectFileDiff = useCallback(
+    (change: AgentFileChange) => {
+      void loadProjectFileDiff(change)
+        .then((loadedChange) => {
+          // Inspector 文件树和变更面板保留弹窗，不改变用户当前查看的标签。
+          setProjectFileDialogSelection({ change: loadedChange, kind: "diff", projectId });
+        })
+        .catch((error: unknown) => {
+          notifyActionError(error instanceof Error ? error : new Error("Git diff is unavailable"));
+        });
+    },
+    [loadProjectFileDiff, projectId, setProjectFileDialogSelection],
+  );
+  const openMessageFileReference = useCallback(
+    (reference: MessageFileReference, mode?: MessageFileReferenceOpenMode) => {
+      const openExternalPath = (
+        appId: ProjectOpenAppId,
+        path: string | undefined,
+        fallbackToExistingAncestor?: boolean,
+      ) => {
+        const mutation = projectPathOpenMutationRef.current;
+        mutation.reset();
+        void projectPathOpenLockRef.current
+          .run(() =>
+            mutation.mutateAsync({
+              appId,
+              ...(fallbackToExistingAncestor === undefined
+                ? {}
+                : { fallbackToExistingAncestor }),
+              path,
+            }),
+          )
+          .catch(() => undefined);
+      };
+      if (mode === "containing-folder") {
+        const openCapabilities = projectOpenCapabilitiesQuery.data;
+        const fileManager = getProjectFileManagerApp(openCapabilities?.apps ?? []);
+        if (fileManager !== undefined && openCapabilities !== undefined) {
+          openExternalPath(
+            fileManager.id,
+            getProjectFileManagerOpenPath(reference.path, openCapabilities.platform),
+            true,
+          );
+        }
+        return;
+      }
+      if (mode === "popup") {
+        openProjectFileInNewWindow({
+          onOpenSystemDefault: (path) => {
+            openExternalPath("system-default", path);
+          },
+          projectId,
+          reference,
+          ...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath }),
+          ...(taskId === undefined ? {} : { taskId }),
+        });
+        return;
+      }
+      const kind = classifyProjectFileReference(reference.path);
+      if (kind === "system") {
+        openExternalPath("system-default", reference.path);
+        return;
+      }
+
+      setInspectorFileSelection({ kind, projectId, reference });
+      // 文件选择与右栏切换在同一用户事件中完成，避免先渲染空标签。
+      setInspectorTab("file");
+      setInspectorOpen(true);
+    },
+    [
+      projectId,
+      projectPathOpenLockRef,
+      projectPathOpenMutationRef,
+      projectOpenCapabilitiesQuery.data,
+      selectedRootPath,
+      setInspectorOpen,
+      setInspectorTab,
+      setInspectorFileSelection,
+      taskId,
+    ],
+  );
+  const openProjectFile = useCallback(
+    (path: string, change?: AgentFileChange) => {
+      const kind = classifyProjectFileReference(path);
+      if (kind === "system") {
+        const mutation = projectPathOpenMutationRef.current;
+        mutation.reset();
+        void projectPathOpenLockRef.current
+          .run(() => mutation.mutateAsync({ appId: "system-default", path }))
+          .catch(() => undefined);
+        return;
+      }
+
+      setProjectFileDialogSelection({
+        ...(change === undefined ? {} : { change }),
+        kind,
+        projectId,
+        reference: { lineNumber: null, path },
+      });
+    },
+    [projectId, projectPathOpenLockRef, projectPathOpenMutationRef, setProjectFileDialogSelection],
+  );
+  const openFileReview = useCallback(
+    (changes: readonly AgentFileChange[]) => {
+      setFileReviewSelection({ changes, projectId });
+    },
+    [projectId, setFileReviewSelection],
+  );
+  const closeTaskRenameDialog = () => {
+    setTaskRenameOpen(false);
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>("#workbench-task-title-rename")?.focus();
+    });
+  };
+  const renameActiveTask = (nextTitle: string) =>
+    activeTaskRenameLockRef.current.run(async () => {
+      if (taskId === undefined) {
+        return;
+      }
+      try {
+        const response = await renameMutation.mutateAsync({ projectId, taskId, title: nextTitle });
+        // 服务端结果同时覆盖普通列表与已加载的搜索源，确保中栏和侧栏立即一致。
+        replaceProjectTaskInQueryCaches(queryClient, response.task);
+        closeTaskRenameDialog();
+      } catch {
+        // 根级 MutationCache 已展示失败 toast，Dialog 保留原输入供重试。
+      }
+    });
+  const cacheProjectTask = useCallback(
+    (startedTask: AgentTask) => cacheCreatedProjectTask(queryClient, startedTask),
+    [queryClient],
+  );
+  const handleTaskCreated = useCallback(
+    (startedTask: AgentTask) => {
+      // 真实 taskId 返回后立即展示并选中，但保持 Project Composer 以支持失败重试。
+      void cacheProjectTask(startedTask);
+      setPendingTaskSelection({ projectId: startedTask.projectId, taskId: startedTask.id });
+    },
+    [cacheProjectTask, setPendingTaskSelection],
+  );
+  const handleTaskStarted = useCallback(
+    (
+      startedTask: AgentTask,
+      startedTurn?: AgentTurn,
+      startedInput?: AgentPromptInput,
+      settings?: AgentTaskSettings,
+      messageAttachments: readonly AgentMessageAttachment[] = [],
+      checkpoint?: EventCheckpoint,
+    ) => {
+      void cacheProjectTask(startedTask);
+      if (
+        startedTurn !== undefined &&
+        startedInput !== undefined &&
+        settings !== undefined &&
+        checkpoint !== undefined
+      ) {
+        const confirmedStartedAt = getNewChatSubmissionStartedAt() ?? startedTurn.startedAt;
+        const launchState: TaskLaunchState = {
+          checkpoint,
+          input: startedInput,
+          messageAttachments,
+          settings,
+          ...(confirmedStartedAt === null ? {} : { submissionStartedAt: confirmedStartedAt }),
+          task: startedTask,
+          turn: startedTurn,
+        };
+        // 导航前写入标准 Snapshot 缓存，首屏直接接管事件回放，不再并发读取未稳定的历史。
+        queryClient.setQueryData<TaskLaunchState>(
+          taskLaunchQueryKey(startedTask.projectId, startedTask.id),
+          launchState,
+        );
+        queryClient.setQueryData<AgentTaskSnapshotResponse>(
+          taskSnapshotQueryOptions(startedTask.projectId, startedTask.id, client).queryKey,
+          { checkpoint, snapshot: createTaskLaunchSnapshot(launchState) },
+        );
+      }
+      if (startedTurn !== undefined) {
+        // 首轮 Turn 已确认运行，导航前写入 Sidebar 活动态，Review 不需要伪造用户消息。
+        markTaskRunning(projectId, startedTask.id);
+      }
+      setPendingTaskSelection(undefined);
+      void navigate({
+        ...(temporary
+          ? { params: { taskId: startedTask.id }, to: "/temporary/t/$taskId" as const }
+          : {
+              params: { projectId, taskId: startedTask.id },
+              to: "/p/$projectId/t/$taskId" as const,
+            }),
+      });
+    },
+    [
+      cacheProjectTask,
+      client,
+      getNewChatSubmissionStartedAt,
+      markTaskRunning,
+      navigate,
+      projectId,
+      queryClient,
+      setPendingTaskSelection,
+      temporary,
+    ],
+  );
+  const models = modelsQuery.data?.data ?? [];
+  const globalSettings = globalSettingsQuery.data?.settings;
+  const projectDefaults = projectDefaultsQuery.data?.settings;
+  const fastModeAvailable =
+    providerConnectionQuery.data === undefined
+      ? false
+      : isAgentFastModeAvailable(providerConnectionQuery.data);
+  const draftDefaults = temporary ? globalSettings : projectDefaults;
+  const defaultModel =
+    models.find((model) => model.id === draftDefaults?.model) ??
+    models.find((model) => model.isDefault) ??
+    models[0];
+  // 仅在 Project 尚无用户选择时，服务端返回的 effective defaults 才来自 Global。
+  const inheritedDraftSettings = useMemo<AgentTaskSettings>(
+    () => ({
+      approvalPolicy:
+        draftDefaults?.approvalPolicy ?? globalSettings?.approvalPolicy ?? "on-request",
+      approvalsReviewer:
+        draftDefaults?.approvalsReviewer ?? globalSettings?.approvalsReviewer ?? "user",
+      model: defaultModel?.id ?? draftDefaults?.model ?? "",
+      reasoningEffort: draftDefaults?.reasoningEffort ?? defaultModel?.defaultReasoningEffort ?? "",
+      sandboxMode: draftDefaults?.sandboxMode ?? "workspace-write",
+    }),
+    [defaultModel, draftDefaults, globalSettings],
+  );
+  const [temporaryDraftSettings, setTemporaryDraftSettings] = useState<AgentTaskSettings>();
+  const draftSettings = temporary
+    ? (temporaryDraftSettings ?? inheritedDraftSettings)
+    : inheritedDraftSettings;
+  const fastModeDefault = resolveProjectFastModeDefault(
+    temporary,
+    projectDefaults?.fastMode,
+    globalSettings?.fastMode,
+  );
+  const updateProjectTaskDefaults = async (settings: AgentTaskSettings, fastMode: boolean) => {
+    if (temporary) {
+      return;
+    }
+    await projectDefaultsMutation.mutateAsync(createProjectTaskDefaults(settings, fastMode));
+  };
+  const updateDraftSettings = async (
+    settings: AgentTaskSettings,
+    _field: keyof AgentTaskSettings,
+    fastMode: boolean,
+  ) => {
+    if (temporary) {
+      setTemporaryDraftSettings(settings);
+      return;
+    }
+    await updateProjectTaskDefaults(settings, fastMode);
+  };
+  const handleNewTaskProjectChange = useCallback(
+    (nextProjectId: string) => {
+      // 空聊天切换只移动草稿路由，首次提交时再在目标 Project 中创建真实 Task。
+      void navigate({ params: { projectId: nextProjectId }, to: "/p/$projectId" });
+    },
+    [navigate],
+  );
+
+  const closeSidebar = () => {
+    setSidebarOpen(false);
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>("#workbench-sidebar-toggle")?.focus();
+    });
+  };
+
+  const closeInspector = () => {
+    setInspectorOpen(false);
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>("#workbench-inspector-toggle")?.focus();
+    });
+  };
+
+  const launchTurnHasAuthoritativeUserMessage = taskLaunchState?.turn.id
+    ? runtime.store !== undefined &&
+      getTaskStoreUserMessageIds(runtime.store.getState(), taskLaunchState.turn.id).length > 0
+    : false;
+
+  useEffect(() => {
+    if (taskId !== undefined && launchTurnHasAuthoritativeUserMessage) {
+      queryClient.removeQueries({
+        exact: true,
+        queryKey: taskLaunchQueryKey(projectId, taskId),
+      });
+    }
+  }, [launchTurnHasAuthoritativeUserMessage, projectId, queryClient, taskId]);
+
+  useEffect(() => {
+    const activeSnapshot = selectTaskTitleSnapshot(runtime.store?.getState());
+    if (taskId === undefined || activeSnapshot === undefined) {
+      return;
+    }
+    // 首个 Assistant Item 出现即移除“新聊天”，Turn 结束后再由服务端正式标题校准。
+    queryClient.setQueryData<ProjectTaskInfiniteData>(
+      ["projects", projectId, "tasks"],
+      (currentData) => updateNewTaskTitleFromSnapshotInInfiniteData(currentData, activeSnapshot),
+    );
+  }, [
+    projectId,
+    queryClient,
+    runtime.itemStructureRevision,
+    runtime.metadata,
+    runtime.store,
+    taskId,
+  ]);
+
+  useEffect(() => {
+    // 窗口缩窄进入覆盖模式时关闭桌面面板，避免两个抽屉同时遮住主内容。
+    const sidebarMedia = window.matchMedia(sidebarOverlayQuery);
+    const inspectorMedia = window.matchMedia(inspectorOverlayQuery);
+    const syncOverlayPanels = () => {
+      if (sidebarMedia.matches) {
+        setSidebarOpen(false);
+      }
+      if (inspectorMedia.matches) {
+        setInspectorOpen(false);
+      }
+    };
+
+    sidebarMedia.addEventListener("change", syncOverlayPanels);
+    inspectorMedia.addEventListener("change", syncOverlayPanels);
+    return () => {
+      sidebarMedia.removeEventListener("change", syncOverlayPanels);
+      inspectorMedia.removeEventListener("change", syncOverlayPanels);
+    };
+  }, [setInspectorOpen, setSidebarOpen]);
+
+  return {
+    ...shell,
+    closeInspector,
+    closeSidebar,
+    closeTaskRenameDialog,
+    draftSettings,
+    fastModeDefault,
+    fastModeAvailable,
+    globalSettings,
+    handleNewTaskProjectChange,
+    handleTaskCreated,
+    handleTaskStarted,
+    models,
+    loadProjectFileDiff,
+    openFileDiff,
+    openProjectFileDiff,
+    openFileReview,
+    openMessageFileReference,
+    openProjectFile,
+    renameActiveTask,
+    updateDraftSettings,
+    updateProjectTaskDefaults,
+  };
+}
+
+function selectTaskTitleSnapshot(state: TaskStoreState | undefined): TaskTitleSnapshot | undefined {
+  const metadata = state?.snapshotMetadata;
+  if (state === undefined || metadata === null || metadata === undefined) {
+    return undefined;
+  }
+  return {
+    id: metadata.id,
+    projectId: metadata.projectId,
+    title: metadata.title,
+    turns: state.turnIds.flatMap((turnId) => {
+      const turn = state.turnsById[turnId];
+      if (turn === undefined) {
+        return [];
+      }
+      const items = (state.itemKeysByTurnId[turnId] ?? []).flatMap((itemKey) => {
+        const item = state.getItemByKey(itemKey);
+        return item?.type === "message" ? [item] : [];
+      });
+      return [{ ...turn, items }];
+    }),
+    updatedAt: metadata.updatedAt,
+  };
+}

@@ -1,0 +1,1137 @@
+{
+  "measuredAt": "2026-09-07T13:07:37.059Z",
+  "build": "Release + webview-tests",
+  "platform": "darwin",
+  "osRelease": "25.6.0",
+  "cpu": "Apple M1 Pro",
+  "logicalCpus": 8,
+  "memoryBytes": 17179869184,
+  "webview": "605.1.15",
+  "visibility": "hidden",
+  "scope": "App PID and its direct shell PIDs only; WebContent/GPU RSS not attributed. Test driver has a 50ms main-runloop pump. Fixture roots use a temporary directory; shells use user login profiles.",
+  "phases": [
+    {
+      "label": "baseline-no-terminal",
+      "samples": [
+        {
+          "elapsedMs": 4.835416999999779,
+          "appRssKiB": 117008,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.44,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 5029.103125,
+          "appRssKiB": 106784,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.47,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 10037.911917000001,
+          "appRssKiB": 106176,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.49,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 15045.616750000001,
+          "appRssKiB": 106304,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.5,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 20053.81125,
+          "appRssKiB": 105408,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.51,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 25066.820375,
+          "appRssKiB": 105328,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.52,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 30073.407709,
+          "appRssKiB": 105296,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.53,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 35085.735292,
+          "appRssKiB": 103184,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.54,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 40092.99075,
+          "appRssKiB": 99232,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.55,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 45098.820917,
+          "appRssKiB": 96944,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.56,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 50107.107249999994,
+          "appRssKiB": 101568,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.58,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 55115.648541999995,
+          "appRssKiB": 101488,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.59,
+          "shellCpuSeconds": 0
+        },
+        {
+          "elapsedMs": 60009.013667,
+          "appRssKiB": 101600,
+          "shellRssKiB": 0,
+          "appCpuSeconds": 0.61,
+          "shellCpuSeconds": 0
+        }
+      ],
+      "summary": {
+        "appCpuPercent": 0.28331360408222905,
+        "shellCpuPercent": 0,
+        "appRssKiB": {
+          "first": 117008,
+          "last": 101600,
+          "max": 117008
+        },
+        "shellRssKiB": {
+          "first": 0,
+          "last": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "label": "one-idle-terminal",
+      "samples": [
+        {
+          "elapsedMs": 7.196416999999201,
+          "appRssKiB": 105360,
+          "shellRssKiB": 7152,
+          "appCpuSeconds": 0.75,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 5019.065208999993,
+          "appRssKiB": 105344,
+          "shellRssKiB": 7152,
+          "appCpuSeconds": 0.77,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 10032.353625000003,
+          "appRssKiB": 105392,
+          "shellRssKiB": 7152,
+          "appCpuSeconds": 0.79,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 15048.369833999997,
+          "appRssKiB": 102320,
+          "shellRssKiB": 7152,
+          "appCpuSeconds": 0.81,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 20062.94379199999,
+          "appRssKiB": 91408,
+          "shellRssKiB": 6320,
+          "appCpuSeconds": 0.82,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 25077.494833999997,
+          "appRssKiB": 91312,
+          "shellRssKiB": 6320,
+          "appCpuSeconds": 0.83,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 30089.483458999995,
+          "appRssKiB": 91312,
+          "shellRssKiB": 6320,
+          "appCpuSeconds": 0.84,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 35102.737375,
+          "appRssKiB": 91504,
+          "shellRssKiB": 6320,
+          "appCpuSeconds": 0.86,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 40118.13175,
+          "appRssKiB": 94560,
+          "shellRssKiB": 6320,
+          "appCpuSeconds": 0.88,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 45129.508625,
+          "appRssKiB": 91632,
+          "shellRssKiB": 6320,
+          "appCpuSeconds": 0.89,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 50155.977709,
+          "appRssKiB": 91632,
+          "shellRssKiB": 6320,
+          "appCpuSeconds": 0.91,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 55170.158874999994,
+          "appRssKiB": 94704,
+          "shellRssKiB": 6320,
+          "appCpuSeconds": 0.94,
+          "shellCpuSeconds": 0.13
+        },
+        {
+          "elapsedMs": 60011.304917,
+          "appRssKiB": 94704,
+          "shellRssKiB": 6320,
+          "appCpuSeconds": 0.95,
+          "shellCpuSeconds": 0.13
+        }
+      ],
+      "summary": {
+        "appCpuPercent": 0.3333105098961681,
+        "shellCpuPercent": 0,
+        "appRssKiB": {
+          "first": 105360,
+          "last": 94704,
+          "max": 105392
+        },
+        "shellRssKiB": {
+          "first": 7152,
+          "last": 6320,
+          "max": 7152
+        }
+      }
+    },
+    {
+      "label": "twelve-idle-1",
+      "samples": [
+        {
+          "elapsedMs": 11.091165999998339,
+          "appRssKiB": 96240,
+          "shellRssKiB": 84672,
+          "appCpuSeconds": 1.09,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 5031.778707999998,
+          "appRssKiB": 93328,
+          "shellRssKiB": 84672,
+          "appCpuSeconds": 1.13,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 10043.18504099999,
+          "appRssKiB": 93168,
+          "shellRssKiB": 84672,
+          "appCpuSeconds": 1.14,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 15059.589749999985,
+          "appRssKiB": 93248,
+          "shellRssKiB": 84672,
+          "appCpuSeconds": 1.17,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 20067.148583000002,
+          "appRssKiB": 93008,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.23,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 25076.423875000008,
+          "appRssKiB": 92912,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.25,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 30094.228791,
+          "appRssKiB": 92912,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.26,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 35116.497833,
+          "appRssKiB": 92800,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.28,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 40131.489458,
+          "appRssKiB": 92800,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.29,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 45150.312000000005,
+          "appRssKiB": 92800,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.3,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 50165.54691599999,
+          "appRssKiB": 92864,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.33,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 55181.05225000001,
+          "appRssKiB": 92912,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.35,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 60024.89833299999,
+          "appRssKiB": 92864,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.36,
+          "shellCpuSeconds": 1.6400000000000001
+        }
+      ],
+      "summary": {
+        "appCpuPercent": 0.44989647007175027,
+        "shellCpuPercent": 0,
+        "appRssKiB": {
+          "first": 96240,
+          "last": 92864,
+          "max": 96240
+        },
+        "shellRssKiB": {
+          "first": 84672,
+          "last": 83040,
+          "max": 84672
+        }
+      }
+    },
+    {
+      "label": "twelve-idle-2",
+      "samples": [
+        {
+          "elapsedMs": 10.464959000004455,
+          "appRssKiB": 92864,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.36,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 5022.2935,
+          "appRssKiB": 92864,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.37,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 10033.491209,
+          "appRssKiB": 92864,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.38,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 15051.422583999985,
+          "appRssKiB": 92848,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.39,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 20067.183958999987,
+          "appRssKiB": 92848,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.41,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 25085.266499999998,
+          "appRssKiB": 92864,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.42,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 30106.23199999999,
+          "appRssKiB": 92864,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.43,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 35121.45129199998,
+          "appRssKiB": 92848,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.44,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 40132.385209,
+          "appRssKiB": 92960,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.48,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 45147.575416999985,
+          "appRssKiB": 93280,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.5,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 50165.36979199998,
+          "appRssKiB": 93136,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.51,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 55184.02212499999,
+          "appRssKiB": 93232,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.52,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 60012.82466700001,
+          "appRssKiB": 93136,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.53,
+          "shellCpuSeconds": 1.6400000000000001
+        }
+      ],
+      "summary": {
+        "appCpuPercent": 0.2833221907060001,
+        "shellCpuPercent": 0,
+        "appRssKiB": {
+          "first": 92864,
+          "last": 93136,
+          "max": 93280
+        },
+        "shellRssKiB": {
+          "first": 83040,
+          "last": 83040,
+          "max": 83040
+        }
+      }
+    },
+    {
+      "label": "twelve-idle-3",
+      "samples": [
+        {
+          "elapsedMs": 8.968958999990718,
+          "appRssKiB": 93136,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.53,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 5019.753583999991,
+          "appRssKiB": 93120,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.54,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 10037.678209000005,
+          "appRssKiB": 93120,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.55,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 15055.990875000018,
+          "appRssKiB": 93120,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.56,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 20072.32712500001,
+          "appRssKiB": 93120,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.57,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 25089.599209000007,
+          "appRssKiB": 93136,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.58,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 30103.221542000014,
+          "appRssKiB": 93136,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.59,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 35124.85924999998,
+          "appRssKiB": 93120,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.6,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 40135.89641699998,
+          "appRssKiB": 93152,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.62,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 45147.30291700002,
+          "appRssKiB": 93152,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.63,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 50157.976792,
+          "appRssKiB": 93152,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.64,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 55175.56833400001,
+          "appRssKiB": 93152,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.65,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 60018.94400000002,
+          "appRssKiB": 93152,
+          "shellRssKiB": 83040,
+          "appCpuSeconds": 1.66,
+          "shellCpuSeconds": 1.6400000000000001
+        }
+      ],
+      "summary": {
+        "appCpuPercent": 0.21663065167279483,
+        "shellCpuPercent": 0,
+        "appRssKiB": {
+          "first": 93136,
+          "last": 93152,
+          "max": 93152
+        },
+        "shellRssKiB": {
+          "first": 83040,
+          "last": 83040,
+          "max": 83040
+        }
+      }
+    },
+    {
+      "label": "sixty-second-output",
+      "samples": [
+        {
+          "elapsedMs": 6.14366699999664,
+          "appRssKiB": 93216,
+          "shellRssKiB": 83264,
+          "appCpuSeconds": 1.66,
+          "shellCpuSeconds": 1.6400000000000001
+        },
+        {
+          "elapsedMs": 5022.197999999975,
+          "appRssKiB": 93376,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 1.8,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 10043.101874999993,
+          "appRssKiB": 93376,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 1.94,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 15057.95199999999,
+          "appRssKiB": 93376,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 2.06,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 20074.657791999984,
+          "appRssKiB": 93408,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 2.2,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 25090.156666999974,
+          "appRssKiB": 93408,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 2.32,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 30107.35254199995,
+          "appRssKiB": 93408,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 2.47,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 35122.81274999998,
+          "appRssKiB": 93408,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 2.6,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 40146.13187499996,
+          "appRssKiB": 93488,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 2.74,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 45161.26554199995,
+          "appRssKiB": 93440,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 2.87,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 50178.682333999954,
+          "appRssKiB": 93440,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 3.01,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 55189.574792,
+          "appRssKiB": 93456,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 3.15,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 60198.907542,
+          "appRssKiB": 93552,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 3.45,
+          "shellCpuSeconds": 1.6800000000000002
+        },
+        {
+          "elapsedMs": 65017.80220899999,
+          "appRssKiB": 93616,
+          "shellRssKiB": 83248,
+          "appCpuSeconds": 3.58,
+          "shellCpuSeconds": 1.7000000000000002
+        }
+      ],
+      "summary": {
+        "appCpuPercent": 2.9533164405575154,
+        "shellCpuPercent": 0.09229113876742243,
+        "appRssKiB": {
+          "first": 93216,
+          "last": 93616,
+          "max": 93616
+        },
+        "shellRssKiB": {
+          "first": 83264,
+          "last": 83248,
+          "max": 83264
+        }
+      }
+    }
+  ],
+  "idleTerminalCalls": 0,
+  "renderer": [
+    {
+      "cols": 82,
+      "lines": 15,
+      "parseSamplesMs": [
+        2,
+        2.000000000014552
+      ],
+      "parsedBytes": 519,
+      "peakPendingBytes": 311,
+      "pendingBytes": 0,
+      "renders": 7,
+      "rows": 15
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        1,
+        0,
+        1
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 1,
+      "rows": 24
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        0,
+        0,
+        0
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 1,
+      "rows": 24
+    },
+    {
+      "cols": 82,
+      "lines": 3015,
+      "parseSamplesMs": [
+        1,
+        1,
+        0.9999999999417923,
+        4,
+        1,
+        1,
+        0.9999999999417923,
+        2,
+        2,
+        1,
+        3,
+        1,
+        1,
+        1,
+        1.0000000000582077,
+        4.000000000058208,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0.9999999999417923,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0.9999999999417923,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0.9999999999417923,
+        0.9999999999417923,
+        1,
+        0.9999999999417923,
+        2,
+        1,
+        0,
+        1,
+        0.9999999999417923,
+        1,
+        1,
+        2.0000000000582077,
+        1.0000000000582077,
+        1.0000000000582077,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0.9999999999417923,
+        0,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0,
+        1.0000000000582077,
+        1,
+        1,
+        1,
+        1,
+        2,
+        6.999999999941792,
+        2.0000000000582077,
+        1,
+        4.999999999941792,
+        1.0000000000582077,
+        1,
+        1,
+        0,
+        1.0000000000582077,
+        0,
+        1,
+        2,
+        0,
+        1,
+        1,
+        7,
+        1,
+        1,
+        3,
+        1,
+        1,
+        9,
+        0,
+        1,
+        0.9999999999417923,
+        1,
+        0,
+        1,
+        0,
+        1.0000000000582077,
+        0,
+        0.9999999999417923,
+        0.9999999999417923,
+        3,
+        1,
+        1,
+        1,
+        0.9999999999417923,
+        1,
+        1,
+        0,
+        0,
+        3,
+        2,
+        0.9999999999417923,
+        8.999999999941792,
+        0,
+        1,
+        1,
+        1.0000000000582077,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.9999999999417923,
+        0,
+        1,
+        1.0000000000582077,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.9999999999417923,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0.9999999999417923,
+        1.0000000000582077,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0,
+        0.9999999999417923,
+        1,
+        1,
+        1,
+        1,
+        0.9999999999417923,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1.0000000000582077,
+        1,
+        1.0000000000582077,
+        1,
+        0,
+        1.0000000000582077,
+        0,
+        0,
+        1,
+        1.0000000000582077,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "parsedBytes": 4920144,
+      "peakPendingBytes": 8195,
+      "pendingBytes": 0,
+      "renders": 82,
+      "rows": 15
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        0,
+        0,
+        0
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 0,
+      "rows": 24
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        0,
+        0.9999999999854481,
+        0
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 0,
+      "rows": 24
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        0,
+        0,
+        1
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 0,
+      "rows": 24
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        0,
+        0,
+        0
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 0,
+      "rows": 24
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        1,
+        1,
+        0
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 0,
+      "rows": 24
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        0,
+        0,
+        0
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 0,
+      "rows": 24
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        0,
+        0,
+        0
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 0,
+      "rows": 24
+    },
+    {
+      "cols": 80,
+      "lines": 24,
+      "parseSamplesMs": [
+        1,
+        0,
+        0
+      ],
+      "parsedBytes": 517,
+      "peakPendingBytes": 214,
+      "pendingBytes": 0,
+      "renders": 0,
+      "rows": 24
+    }
+  ],
+  "outputMetrics": {
+    "appPid": 79370,
+    "liveCount": 12,
+    "sessions": [
+      {
+        "outstandingBytes": 0,
+        "pid": 80394,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80410,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80453,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80390,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80375,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80362,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80433,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80528,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 79718,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80443,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80357,
+        "queuedInputBytes": 0,
+        "state": "running"
+      },
+      {
+        "outstandingBytes": 0,
+        "pid": 80422,
+        "queuedInputBytes": 0,
+        "state": "running"
+      }
+    ]
+  },
+  "cleanupMs": 94.63345900003333,
+  "remainingNativeSessions": 0,
+  "unverified": [
+    "WebContent/GPU memory",
+    "native dialog confirmation",
+    "Windows",
+    "Linux",
+    "input-to-paint latency",
+    "switch-to-paint latency",
+    "native visible render"
+  ]
+}

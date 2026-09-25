@@ -1,5 +1,5 @@
 import { expect, mockAppShellApi, parseRequestRecord, test } from "./fixtures/app-shell.js";
-import { getComposerModelSelector } from "./app-shell-settings-navigation.test-support.js";
+import { expectComposerSelection } from "./app-shell-settings-navigation.test-support.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -267,9 +267,8 @@ test("edits global defaults on a page without overriding task settings", async (
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/p/codexly/t/task-1");
   const workbenchUrl = page.url();
-  const taskModel = getComposerModelSelector(page);
   const taskApproval = page.getByRole("combobox", { name: "批准模式" });
-  await expect(taskModel).toHaveAccessibleName("模型和思考量：GPT-5.6 Sol，高");
+  await expectComposerSelection(page, "GPT-5.6 Sol", "高");
   await expect(taskApproval).toHaveValue("on-request");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
@@ -301,7 +300,7 @@ test("edits global defaults on a page without overriding task settings", async (
   await expect(dialog).toHaveCount(0);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page).toHaveURL(workbenchUrl);
-  await expect(taskModel).toHaveAccessibleName("模型和思考量：GPT-5.6 Sol，高");
+  await expectComposerSelection(page, "GPT-5.6 Sol", "高");
   await expect(taskApproval).toHaveValue("on-request");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();

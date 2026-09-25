@@ -48,6 +48,7 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
     const skillsRef = useRef(skills);
     const onChangeRef = useRef(onChange);
     const previousScopeRef = useRef<string | undefined>(undefined);
+    const skillsScopeRef = useRef<string | undefined>(undefined);
     skillsRef.current = skills;
     onChangeRef.current = onChange;
 
@@ -107,6 +108,11 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
     }, [content, replace, scope]);
 
     useLayoutEffect(() => {
+      if (skillsScopeRef.current !== scope) {
+        // 路由刚切换时，父级尚未恢复当前项目草稿，不得用旧输入覆盖新作用域。
+        skillsScopeRef.current = scope;
+        return;
+      }
       const input = inputRef.current;
       if (input === null || skills.length === 0) {
         return;
@@ -117,7 +123,7 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
       );
       contentRef.current = recognized;
       onChangeRef.current(recognized, input.value, input.selectionStart);
-    }, [skills]);
+    }, [scope, skills]);
 
     const emitChange = (input: HTMLTextAreaElement) => {
       readCurrentContent(input);

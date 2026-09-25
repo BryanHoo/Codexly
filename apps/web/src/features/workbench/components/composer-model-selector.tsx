@@ -41,7 +41,7 @@ function ComposerModelSelectorTrigger({
     <Button
       {...triggerProps}
       aria-label={accessibleLabel}
-      className="min-w-0 max-w-36 max-workbench:gap-0.5 max-workbench:px-1"
+      className="min-w-0 max-w-36 max-workbench:shrink max-workbench:gap-0.5 max-workbench:px-1"
       data-slot={slot}
       disabled={disabled}
       size="sm"
@@ -160,7 +160,7 @@ export function ComposerModelSelector({
         <DropdownMenuContent
           align="end"
           aria-label={t("composer.reasonEffortSelect")}
-          className="w-28 max-w-[calc(100vw-1rem)]"
+          className="w-28 min-w-0 max-w-[calc(100vw-1rem)]"
           side="top"
         >
           <DropdownMenuRadioGroup

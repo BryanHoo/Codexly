@@ -20,6 +20,8 @@
   A local AI coding workspace for using Codex in a browser.
 </p>
 
+The independent Codexly desktop app lives in [`desktop/`](desktop/README.en.md). Both platforms are built from this repository and shipped by one release workflow; see [releasing](docs/releasing.md).
+
 <p align="center">
   <a href="#features">Features</a>
   ·

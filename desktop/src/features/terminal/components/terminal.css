@@ -1,0 +1,13 @@
+.project-terminal-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px;
+  background: var(--ui-color-terminal, #181818);
+  color: var(--ui-color-terminal-foreground, #f5f5f5);
+}
+.project-terminal-viewport > .xterm { height: 100%; }
+.project-terminal-viewport .xterm-viewport { overscroll-behavior: contain; }
+.project-terminal-resize { height: 4px; flex-shrink: 0; cursor: row-resize; }
+.project-terminal-resize:hover,
+.project-terminal-resize:focus-visible { background: var(--ui-color-accent-soft); }

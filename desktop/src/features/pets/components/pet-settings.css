@@ -1,0 +1,18 @@
+.pet-settings-power { display: flex; align-items: center; gap: 16px; min-height: 68px; padding: 12px 16px; border: 1px solid var(--ui-color-separator); border-radius: 6px; background: var(--ui-color-panel); }
+.pet-settings-toggle { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 4px; flex-shrink: 0; font-size: 12px; color: var(--ui-color-text-muted); cursor: pointer; border-radius: 4px; }
+.pet-settings-toggle:focus-visible { outline: none; box-shadow: var(--ui-shadow-focus); }
+.pet-settings-toggle:disabled { opacity: .45; cursor: default; }
+.pet-settings-track { display: flex; align-items: center; width: 36px; height: 20px; padding: 2px; border-radius: 12px; background: var(--ui-color-text-subtle); }
+.pet-settings-track > span { width: 16px; height: 16px; border-radius: 50%; background: white; box-shadow: 0 1px 2px #0002; }
+.pet-settings-toggle[aria-checked="true"] .pet-settings-track { background: var(--ui-color-accent); }
+.pet-settings-toggle[aria-checked="true"] .pet-settings-track > span { transform: translateX(16px); }
+.pet-settings-toggle[aria-checked="true"] { color: var(--ui-color-accent); }
+.pet-settings-collection-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 24px 0 12px; }
+.pet-settings-collection-heading h2 { font-size: 14px; font-weight: 600; }
+.pet-settings-collection-heading > span { font-size: 12px; color: var(--ui-color-text-muted); }
+.pet-settings-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+[data-slot="button"].pet-settings-card { height: auto; min-height: 88px; min-width: 0; justify-content: start; gap: 12px; padding: 12px; white-space: normal; text-align: left; border: 1px solid var(--ui-color-separator); background: var(--ui-color-panel); color: var(--ui-color-text); }
+[data-slot="button"].pet-settings-card:hover { background: var(--ui-color-control); }
+[data-slot="button"].pet-settings-card[aria-checked="true"] { border-color: color-mix(in srgb, var(--ui-color-accent) 45%, var(--ui-color-separator)); background: var(--ui-color-control); }
+.pet-settings-preview { display: grid; place-items: center; width: 48px; height: 56px; flex-shrink: 0; overflow: hidden; color: var(--ui-color-text-subtle); }
+.pet-settings-selected { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; font-size: 11px; color: var(--ui-color-accent); }

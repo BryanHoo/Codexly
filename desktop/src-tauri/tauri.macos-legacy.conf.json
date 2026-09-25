@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": {
+    "beforeBuildCommand": "pnpm build:legacy",
+    "frontendDist": "../dist-legacy"
+  },
+  "bundle": {
+    "macOS": {
+      "minimumSystemVersion": "12.4"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/BryanHoo/Codexly/releases/latest/download/latest-legacy.json"
+      ]
+    }
+  }
+}

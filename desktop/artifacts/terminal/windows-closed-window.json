@@ -1,0 +1,12 @@
+{
+  "processId": 8236,
+  "mainVisible": false,
+  "action": "inspect",
+  "children": [
+    "WRY_WEBVIEW:8236",
+    "Chrome_WidgetWin_0:8236",
+    "Chrome_WidgetWin_1:15344",
+    "Chrome_RenderWidgetHostHWND:15344",
+    "Intermediate D3D Window:16760"
+  ]
+}

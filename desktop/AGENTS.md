@@ -1,0 +1,3 @@
+- Codex 156.0 版本源码位置：/Users/bryanhu/Develop/person/codex
+- 项目实现必须保证高性能、运行低占用、低传输延迟、低渲染延迟
+- 项目不支持移动端，仅做桌面端

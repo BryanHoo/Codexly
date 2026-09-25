@@ -4,7 +4,7 @@ import {
   parseRequestRecord,
   test,
 } from "./fixtures/app-shell.js";
-import { getComposerModelSelector } from "./app-shell-settings-navigation.test-support.js";
+import { expectComposerSelection } from "./app-shell-settings-navigation.test-support.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -49,9 +49,7 @@ test("uses global defaults throughout a new task composer", async ({ page }) => 
 
   await expect(page.getByRole("combobox", { name: "批准模式" })).toHaveValue("never");
   await expect(page.getByRole("combobox", { name: "沙盒模式" })).toHaveValue("danger-full-access");
-  await expect(getComposerModelSelector(page)).toHaveAccessibleName(
-    "模型和思考量：GPT-5.6 Terra，中",
-  );
+  await expectComposerSelection(page, "GPT-5.6 Terra", "中");
   await expect(page.getByRole("button", { name: "在 Finder 中打开" })).toBeVisible();
 });
 

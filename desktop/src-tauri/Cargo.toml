@@ -1,0 +1,87 @@
+[package]
+name = "codeagent"
+version = "0.26.1"
+description = "Codexly desktop runtime"
+edition = "2024"
+rust-version = "1.97"
+publish = false
+
+[lib]
+name = "codeagent_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = []
+webview-tests = ["dep:tauri-plugin-wdio", "dep:tauri-plugin-wdio-webdriver"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+base64 = "0.23.1"
+chrono = { version = "0.4.42", default-features = false, features = ["clock"] }
+chrono-tz = "0.10.4"
+futures-util = "0.3.32"
+flate2 = "1.1.9"
+ignore = "0.4"
+log = "0.4.34"
+memchr = "2.8.3"
+tempfile = "3.27.0"
+portable-pty = "=0.9.0"
+reqwest = { version = "0.13.2", default-features = false, features = ["rustls", "stream"] }
+rrule = "0.14.0"
+semver = "1.0.28"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.149", features = ["raw_value"] }
+serde_yaml = "0.9.34"
+sha2 = "0.11.0"
+shlex = "2.0.1"
+tar = "0.4.44"
+tauri = { version = "2.11.5", features = ["macos-private-api", "protocol-asset", "tray-icon"] }
+tauri-plugin-dialog = "2.7.3"
+tauri-plugin-log = "2.9.1"
+tauri-plugin-notification = "2.3.3"
+tauri-plugin-opener = "2.5.4"
+tauri-plugin-wdio = { version = "1.3.0", optional = true }
+tauri-plugin-wdio-webdriver = { version = "1.3.0", optional = true }
+thiserror = "2.0.20"
+time = { version = "0.3.47", features = ["formatting"] }
+tokio = { version = "1.50.0", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
+tokio-util = "0.7.18"
+tauri-plugin-updater = "=2.11.0"
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+tauri-plugin-clipboard-manager = "=2.3.3"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+mac-notification-sys = "=0.6.15"
+macos-panel-activation = { path = "native/macos-panel-activation", version = "=0.1.0" }
+tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "c9ec2130422200f0863b23dfdad02b133a529b07", version = "=2.1.0" }
+
+[target.'cfg(unix)'.dependencies]
+filedescriptor = "=0.8.3"
+nix = { version = "=0.31.3", features = ["signal", "process"] }
+
+[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
+desktop-pet-platform = { path = "native/desktop-pet-platform", version = "=0.1.0" }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+atomicwrites = "0.4.4"
+tauri-winrt-notification = "=0.8.1"
+windows-process-platform = { path = "native/windows-process-platform", version = "=0.1.0" }
+winreg = "0.56.0"
+
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+notify-rust = "=4.18.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = 3
+panic = "abort"
+strip = true
