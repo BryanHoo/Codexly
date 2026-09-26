@@ -32,13 +32,13 @@ void test("WebView bridge readiness reports the last startup failure on timeout"
 });
 
 void test("Native WebView workflow installs the Ubuntu WebKit driver", async () => {
-  const workflow = await readFile(new URL("../.github/workflows/webview.yml", import.meta.url), "utf8");
+  const workflow = await readFile(new URL("../../.github/workflows/desktop-webview.yml", import.meta.url), "utf8");
 
   assert.match(workflow, /\bwebkit2gtk-driver\b/u);
 });
 
 void test("Native WebView workflow builds the test application after Cargo lifecycle tests", async () => {
-  const workflow = await readFile(new URL("../.github/workflows/webview.yml", import.meta.url), "utf8");
+  const workflow = await readFile(new URL("../../.github/workflows/desktop-webview.yml", import.meta.url), "utf8");
   const lifecycleTestAt = workflow.indexOf("- name: Run real Codex lifecycle test");
   const webviewBuildAt = workflow.indexOf("- name: Build native WebView test application");
   const webviewTestAt = workflow.indexOf("- name: Run native WebView tests");

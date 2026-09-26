@@ -3,10 +3,14 @@ import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const rootUrl = new URL("../", import.meta.url);
-const workflowsUrl = new URL(".github/workflows/", rootUrl);
+const workflowsUrl = new URL("../.github/workflows/", rootUrl);
 
 async function readProjectFile(path) {
   return readFile(new URL(path, rootUrl), "utf8");
+}
+
+async function readWorkflow(name) {
+  return readFile(new URL(name, workflowsUrl), "utf8");
 }
 
 void test("GitHub Actions should be pinned to full commit SHAs", async () => {
@@ -41,7 +45,7 @@ void test("Git dependencies should use auditable commit revisions", async () => 
 });
 
 void test("quality CI should audit production dependencies", async () => {
-  const qualityWorkflow = await readProjectFile(".github/workflows/quality.yml");
+  const qualityWorkflow = await readWorkflow("desktop-quality.yml");
 
   assert.match(qualityWorkflow, /run:\s*pnpm audit --prod\b/);
   assert.match(qualityWorkflow, /uses:\s*EmbarkStudios\/cargo-deny-action@[0-9a-f]{40}/);
@@ -49,7 +53,7 @@ void test("quality CI should audit production dependencies", async () => {
 });
 
 void test("quality CI should install every configured browser engine", async () => {
-  const qualityWorkflow = await readProjectFile(".github/workflows/quality.yml");
+  const qualityWorkflow = await readWorkflow("desktop-quality.yml");
 
   assert.match(
     qualityWorkflow,
@@ -57,11 +61,13 @@ void test("quality CI should install every configured browser engine", async () 
   );
 });
 
-void test("stable releases should publish signed updater artifacts directly", async () => {
-  const releaseWorkflow = await readProjectFile(".github/workflows/release.yml");
+void test("stable releases should publish signed updater artifacts after all gates", async () => {
+  const releaseWorkflow = await readWorkflow("release.yml");
 
-  assert.match(releaseWorkflow, /releaseDraft:\s*false/);
-  assert.ok(releaseWorkflow.includes("prerelease: ${{ contains(steps.build-version.outputs.version, '-') }}"));
+  assert.match(releaseWorkflow, /releaseDraft:\s*true/);
+  assert.match(releaseWorkflow, /needs: \[prepare, publish-npm, publish-image, publish-desktop\]/);
+  assert.match(releaseWorkflow, /gh release edit .* --draft=false/);
+  assert.ok(releaseWorkflow.includes("prerelease: ${{ contains(inputs.tag || github.ref_name, '-') }}"));
   assert.match(
     releaseWorkflow,
     /TAURI_SIGNING_PRIVATE_KEY:\s*\$\{\{ secrets\.TAURI_SIGNING_PRIVATE_KEY \}\}/,

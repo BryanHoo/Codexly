@@ -17,7 +17,7 @@ const BUNDLES = [
   "codex_app_server_protocol.v2.schemas.json",
 ];
 const qualityWorkflow = await readFile(
-  new URL("../.github/workflows/quality.yml", import.meta.url),
+  new URL("../../.github/workflows/desktop-quality.yml", import.meta.url),
   "utf8",
 );
 

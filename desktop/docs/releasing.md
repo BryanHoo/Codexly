@@ -46,7 +46,7 @@ chmod +x Codexly.AppImage
 
 - 根目录 `Desktop Quality`：在 Ubuntu 上执行桌面 Web 和 Rust 的 lint、测试与构建。
 - 根目录 `Desktop Native WebView`：验证 Windows、Ubuntu、macOS 的原生应用链路。
-- 根目录 `Release`：Web 版本标签触发联合发布，通过两端门禁后构建桌面安装包、签名更新清单，并与 Web 制品一起公开。`desktop/.github/workflows/` 中原仓工作流不再执行。
+- 根目录 `Release`：Web 版本标签触发联合发布，通过两端门禁后构建桌面安装包、签名更新清单，并与 Web 制品一起公开。
 
 Windows portable 构建显式使用 `--no-sign` 且不进入自动更新链路；Windows NSIS、Ubuntu 与
 macOS Modern 构建生成 Tauri updater artifact、`.sig` 和 `latest.json`。macOS Legacy 单独上传

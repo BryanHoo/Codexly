@@ -39,7 +39,7 @@ Windows runner 使用独立临时 `WEBVIEW2_USER_DATA_FOLDER`，避免测试窗�
 
 最终 200 次可信按键观测：keydown → xterm onRender P50 31.1ms、P95 39.3ms、最大 40.6ms；keydown → 首个 native 输出 P95 1.7ms，输出 → onRender P95 37.9ms。UI paste P95 40.6ms，标签切换 P95 38.5ms，动画帧 P95 20.1ms。输入仍超过 30ms 目标，标签切换低于 50ms 目标；本次没有放宽目标或把 SendInput 当作实体键盘到显示器的端到端测量。
 
-原始可信键盘数据：[`release-system-key-latency-windows.json`](../artifacts/terminal/release-system-key-latency-windows.json)。当前修复后的 Rust all-features 回归为 294 项库测试、3 项协议测试和 3 项 ConPTY 测试通过；默认功能集及 all-features 严格 Clippy、Rust 格式检查、lint、类型检查、3 项终端工程约束和 Release 构建均通过。其余全量检查沿用下一节注明的前一轮记录，未把历史执行冒充为本轮重跑。
+原始可信键盘数据：[`release-system-key-latency-windows.json`](./evidence/terminal/release-system-key-latency-windows.json)。当前修复后的 Rust all-features 回归为 294 项库测试、3 项协议测试和 3 项 ConPTY 测试通过；默认功能集及 all-features 严格 Clippy、Rust 格式检查、lint、类型检查、3 项终端工程约束和 Release 构建均通过。其余全量检查沿用下一节注明的前一轮记录，未把历史执行冒充为本轮重跑。
 
 ### 多终端实机压测
 
@@ -62,7 +62,7 @@ CPU 为各阶段进程时间增量 / 墙钟时间，100% 代表一个逻辑核�
 
 12 会话关闭并移除耗时 86.68ms，native 存活会话归零，低于 3 秒门槛。runner 结束后按 PID + 启动时间检查，采样进程树无遗留进程。负载后进程树 RSS 从约 2,378MiB 降到 1,928.5MiB，private bytes 从约 1,892MiB 降到 1,437.5MiB，未恢复至初始空闲值；此次覆盖证明空闲 CPU、背压和关闭回收满足测试门槛，不构成严格 RSS 上界或长期无泄漏证明。
 
-原始数据：[`release-native-measurements-windows.json`](../artifacts/terminal/release-native-measurements-windows.json)。原生按钮记录：[`windows-native-dialog.json`](../artifacts/terminal/windows-native-dialog.json)，关闭后 Win32 窗口状态：[`windows-closed-window.json`](../artifacts/terminal/windows-closed-window.json)。
+原始数据：[`release-native-measurements-windows.json`](./evidence/terminal/release-native-measurements-windows.json)。原生按钮记录：[`windows-native-dialog.json`](./evidence/terminal/windows-native-dialog.json)，关闭后 Win32 窗口状态：[`windows-closed-window.json`](./evidence/terminal/windows-closed-window.json)。
 
 ## 检查结果（前一轮全量检查）
 
@@ -109,7 +109,7 @@ MSVC 链接器将“正在创建库”的普通输出报告为 `linker_messages`
 
 最终组合回归的 5 个原生测试文件全部通过（15 项通过、3 项 macOS 专用项跳过）。普通工作台的启动到可交互约 56.6ms，Runtime delta 渲染 P95 约 19.1ms。上述数字均包含测试驱动影响；onRender 不是显示器实际呈现时间。
 
-原始终端数据：[`artifacts/terminal/release-render-latency.json`](../artifacts/terminal/release-render-latency.json)，每次复测会覆盖，查看 `measuredAt` 和 `platform` 确认所属运行。真实截图：[`artifacts/terminal/native-terminal.png`](../artifacts/terminal/native-terminal.png)。历史失败截图不作为通过证据。
+原始终端数据：[`release-render-latency.json`](./evidence/terminal/release-render-latency.json)。新复测写入 `artifacts/terminal/`，查看 `measuredAt` 和 `platform` 确认所属运行。真实截图：[`native-terminal.png`](./evidence/terminal/native-terminal.png)。历史失败截图不作为通过证据。
 
 Windows 可信系统键盘事件、原生关闭确认/取消和 Release 多终端 CPU/RSS 已在上方专项补充中覆盖。启动到 Job Object 归属竞态、任意阻塞 I/O 取消、长期内存稳定性及物理显示器呈现延迟仍未由这些测试证明。
 

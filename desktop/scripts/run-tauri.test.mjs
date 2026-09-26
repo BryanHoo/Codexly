@@ -117,7 +117,7 @@ void test("Windows local builds should still default to an unpackaged executable
 
 void test("Windows releases should publish portable and updater NSIS artifacts", async () => {
   const workflow = await readFile(
-    new URL("../.github/workflows/release.yml", import.meta.url),
+    new URL("../../.github/workflows/release.yml", import.meta.url),
     "utf8",
   );
 
@@ -134,14 +134,14 @@ void test("Windows releases should publish portable and updater NSIS artifacts",
 
 void test("bundled releases should publish signed updater artifacts", async () => {
   const workflow = await readFile(
-    new URL("../.github/workflows/release.yml", import.meta.url),
+    new URL("../../.github/workflows/release.yml", import.meta.url),
     "utf8",
   );
 
   assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY: \$\{\{ secrets\.TAURI_SIGNING_PRIVATE_KEY \}\}/);
   assert.match(workflow, /uploadUpdaterJson: \$\{\{ matrix\.uploadUpdaterArtifacts \}\}/);
   assert.match(workflow, /uploadUpdaterSignatures: \$\{\{ matrix\.uploadUpdaterArtifacts \}\}/);
-  assert.ok(workflow.includes("prerelease: ${{ contains(steps.build-version.outputs.version, '-') }}"));
+  assert.ok(workflow.includes("prerelease: ${{ contains(inputs.tag || github.ref_name, '-') }}"));
 });
 
 void test("Tauri should use signed GitHub release metadata", async () => {
@@ -158,7 +158,7 @@ void test("Tauri should use signed GitHub release metadata", async () => {
 
 void test("Windows should verify Codex through the app instead of the Tauri test harness", async () => {
   const workflow = await readFile(
-    new URL("../.github/workflows/webview.yml", import.meta.url),
+    new URL("../../.github/workflows/desktop-webview.yml", import.meta.url),
     "utf8",
   );
 
@@ -175,7 +175,7 @@ void test("Windows should verify Codex through the app instead of the Tauri test
 
 void test("native WebView CI should exercise private installation without global Codex", async () => {
   const [workflow, processSource] = await Promise.all([
-    readFile(new URL("../.github/workflows/webview.yml", import.meta.url), "utf8"),
+    readFile(new URL("../../.github/workflows/desktop-webview.yml", import.meta.url), "utf8"),
     readFile(
       new URL("../src-tauri/src/infrastructure/codex/process.rs", import.meta.url),
       "utf8",

@@ -6,7 +6,7 @@ import { extractVersionNotes } from "./changelog.mjs";
 
 const changelog = await readFile(new URL("../CHANGELOG.md", import.meta.url), "utf8");
 const releaseWorkflow = await readFile(
-  new URL("../.github/workflows/release.yml", import.meta.url),
+  new URL("../../.github/workflows/release.yml", import.meta.url),
   "utf8",
 );
 
@@ -27,7 +27,6 @@ void test("rejects a release version missing from the changelog", () => {
 });
 
 void test("publishes the matching changelog section as the GitHub release body", () => {
-  assert.match(releaseWorkflow, /node scripts\/release-notes\.mjs/);
-  assert.match(releaseWorkflow, /id: release-notes\n\s+shell: bash/);
-  assert.match(releaseWorkflow, /releaseBody: \$\{\{ steps\.release-notes\.outputs\.body \}\}/);
+  assert.match(releaseWorkflow, /node \.\/tools\/joint-release\.mjs --notes/);
+  assert.match(releaseWorkflow, /gh release edit .* --notes-file/);
 });

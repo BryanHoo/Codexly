@@ -10,6 +10,20 @@ updates:
         dependency-type: development
       production-dependencies:
         dependency-type: production
+  - package-ecosystem: npm
+    directory: /desktop
+    schedule:
+      interval: weekly
+    groups:
+      desktop-dependencies:
+        patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: /desktop/src-tauri
+    schedule:
+      interval: weekly
+    groups:
+      desktop-rust-dependencies:
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

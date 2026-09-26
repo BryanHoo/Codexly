@@ -51,4 +51,4 @@ git push origin "v${RELEASE_VERSION}"
 - `EUNSUPPORTEDPROTOCOL`：确认发布对象来自 `pnpm pack`，并检查 `pnpm run package:check`。
 - 版本或标签错误：未发布时修正；版本已发布后必须提升版本号并创建新标签。
 
-发布结果以 [npm](https://www.npmjs.com/package/@bryanhu/codexly)、[GHCR](https://github.com/BryanHoo/Codexly/pkgs/container/codexly) 和包含桌面安装包的 [GitHub Releases](https://github.com/BryanHoo/Codexly/releases) 为准。`desktop/.github/workflows/` 是从原项目保留的历史工作流，不在合仓后由 GitHub 执行；生效的联合流水线位于根目录 `.github/workflows/`。
+发布结果以 [npm](https://www.npmjs.com/package/@bryanhu/codexly)、[GHCR](https://github.com/BryanHoo/Codexly/pkgs/container/codexly) 和包含桌面安装包的 [GitHub Releases](https://github.com/BryanHoo/Codexly/releases) 为准。两端 CI 与联合发布工作流统一维护在根目录 `.github/workflows/`。

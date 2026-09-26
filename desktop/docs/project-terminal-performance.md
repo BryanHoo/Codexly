@@ -2,7 +2,7 @@
 
 本文供开发者复测项目终端，记录实际测量及其边界，不代表发布就绪或跨平台验收完成。测量日期：2026-09-07。
 
-2026-09-08 的 Windows Release 全量复测、修复和性能边界见 [Windows 终端验证记录](./windows-terminal-verification.md)。下文 macOS 历史测量保持原始口径，`artifacts/terminal/release-render-latency.json` 与原生截图可能已由最近一次 Windows 复测更新。
+2026-09-08 的 Windows Release 全量复测、修复和性能边界见 [Windows 终端验证记录](./windows-terminal-verification.md)。下文 macOS 历史测量保持原始口径，归档样本中的 `release-render-latency.json` 与原生截图来自后续 Windows 复测。
 
 ## 环境与测量口径
 
@@ -36,7 +36,7 @@ pnpm exec cross-env CODEAGENT_WEBVIEW_RELEASE=1 wdio run wdio.conf.ts --spec tes
 
 保持 Mac 解锁。真实系统按键用 `CGEvent.postToPid` 定向发送到精确匹配构建路径的测试进程，需要给运行测试的应用授予 macOS 辅助功能权限。测试不修改系统权限，不向其他应用发送按键。窗口激活同样按精确二进制路径匹配。
 
-原始结果位于 `artifacts/terminal/`：
+历史原始结果归档在 `docs/evidence/terminal/`；复测结果写入未跟踪的 `artifacts/terminal/`：
 
 - `release-native-measurements.json`：逐次 CPU/RSS 样本、解析计数、队列占用和回收时间。
 - `release-render-latency.json`：200 次 UI 输入和 200 次标签切换的原始毫秒样本。
@@ -45,7 +45,7 @@ pnpm exec cross-env CODEAGENT_WEBVIEW_RELEASE=1 wdio run wdio.conf.ts --spec tes
 - `native-terminal.png`：最近一次真实可见 WebView 截图（当前为 Windows WebView2），已检查终端、Composer 和底栏布局。
 - `native-terminal-failure.png`：历史失败诊断，不是通过证据。
 
-这些测试由 runner 管理应用生命周期，不需要留下开发服务器。复测会覆盖同名测量文件；比较不同版本前应保留相应样本。
+这些测试由 runner 管理应用生命周期，不需要留下开发服务器。复测会覆盖 `artifacts/terminal/` 中的同名测量文件；比较不同版本前应另行保存相应样本。
 
 ## 实测结果
 

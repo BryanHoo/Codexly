@@ -1,2 +1,13 @@
 # 统一各平台的文本换行符，避免 Windows CRLF 导致格式检查误报。
 * text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+*.icns binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.webp binary
