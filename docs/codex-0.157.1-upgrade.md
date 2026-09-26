@@ -18,5 +18,5 @@
 ## 验证
 
 - 六个平台安装包 URL 和 SHA-512 与 `pnpm-lock.yaml` 中 `0.157.1` 平台分发一致。
-- 运行 `pnpm codex:schema:check` 与桌面 `pnpm codex:protocol:check`，以真实 `0.157.1` CLI 校验实验协议快照。
+- 运行 `pnpm codex:schema:check` 与桌面 `pnpm codex:protocol:check`；两者共用 `schemas/codex-app-server/0.157.1.schema-baseline.json`，校验实验协议。
 - 运行 Provider、Web 与桌面测试，并在 macOS 验证桌面私有运行时安装和 App Server 握手。

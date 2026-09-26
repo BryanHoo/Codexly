@@ -19,6 +19,7 @@ Codexly 在同一仓库发布 Web CLI 与桌面应用。根目录 `pnpm-workspac
 ## 通用约束
 
 - 依赖方向以 `dependency-cruiser.config.cjs` 和各包 `package.json` 为准；跨层改动参照[契约检查](./cross-layer-thinking-guide.md)。
+- Codex App Server Schema 只维护仓库根目录 `schemas/codex-app-server/<version>.schema-baseline.json`；Web 与桌面分别运行 `pnpm codex:schema:check` 和 `pnpm codex:protocol:check` 校验同一基线。
 - 复用规则参照[代码复用](./code-reuse-thinking-guide.md)；平台差异参照[跨平台检查](./cross-platform-thinking-guide.md)。
 - Web/CLI 提交门槛为根目录 `pnpm check`；浏览器流程使用 `pnpm test:e2e`。桌面工程在 `desktop/` 运行 `pnpm check`；细分为 `pnpm check:web`、`pnpm check:rust`。
 - 改动公共协议时同步 Schema、契约测试与 `CHANGELOG.md`；用户文档 `README.md` 和 `README.zh-CN.md` 保持同步，见 `CONTRIBUTING.md`。
