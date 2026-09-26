@@ -314,8 +314,8 @@ describe("GlobalSettingsPage", () => {
     });
   });
 
-  it("uses GPT-5.6 Luna as the fallback commit message model", () => {
-    expect(createFallbackSettings(models).commitMessageModel).toBe("gpt-5.6-luna");
+  it("uses GPT-6 Luna as the fallback commit message model", () => {
+    expect(createFallbackSettings(models).commitMessageModel).toBe("gpt-6-luna");
   });
 
   it("renders official Codex terminology in English without rewriting model data", async () => {

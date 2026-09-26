@@ -264,6 +264,14 @@ describe("server task settings", () => {
       data: [
         ...modelPage.data.map((model) => ({ ...model, isDefault: false })),
         {
+          defaultReasoningEffort: "low",
+          description: "快速生成提交信息",
+          displayName: "GPT-6 Luna",
+          id: "gpt-6-luna",
+          isDefault: false,
+          supportedReasoningEfforts: [{ description: "低", id: "low" }],
+        },
+        {
           defaultReasoningEffort: "medium",
           description: "用户模型",
           displayName: "GPT-5.6 Terra",
@@ -302,7 +310,7 @@ describe("server task settings", () => {
       settings: {
         approvalPolicy: "never",
         approvalsReviewer: "user",
-        commitMessageModel: "gpt-5.6-luna",
+        commitMessageModel: "gpt-6-luna",
         commitMessagePrompt: "",
         defaultOpenAppId: null,
         fastMode: false,

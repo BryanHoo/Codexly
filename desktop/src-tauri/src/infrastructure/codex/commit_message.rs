@@ -73,7 +73,7 @@ pub fn resolve_commit_message_settings(settings: &Value) -> CommitMessageSetting
         .get("commitMessageModel")
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or("gpt-5.6-luna")
+        .unwrap_or("gpt-6-luna")
         .to_owned();
     let prompt = settings
         .get("commitMessagePrompt")
@@ -165,6 +165,14 @@ mod tests {
         AppServerConnection, parse_commit_message_output, resolve_commit_message_settings,
         start_commit_message_thread, start_commit_message_turn,
     };
+
+    #[test]
+    fn missing_model_should_default_to_gpt_6_luna() {
+        assert_eq!(
+            resolve_commit_message_settings(&json!({})).model,
+            "gpt-6-luna"
+        );
+    }
 
     #[test]
     fn structured_output_should_return_only_the_commit_message() {
