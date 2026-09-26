@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const REQUIRED_CODEX_VERSION = "0.156.0";
+export const REQUIRED_CODEX_VERSION = "0.157.1";
 export const SCHEMA_BUNDLES = [
   "codex_app_server_protocol.schemas.json",
   "codex_app_server_protocol.v2.schemas.json",

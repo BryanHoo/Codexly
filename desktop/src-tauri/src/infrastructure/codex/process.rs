@@ -18,7 +18,7 @@ use super::connection::{AppServerConnection, ConnectionError};
 use super::runtime_manager::{RuntimeDiscoveryError, find_compatible_codex_binary};
 use super::stderr::spawn_codex_stderr_tasks;
 
-pub const SUPPORTED_CODEX_VERSION: &str = "0.156.0";
+pub const SUPPORTED_CODEX_VERSION: &str = "0.157.1";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 const VERSION_OUTPUT_LIMIT: usize = 4 * 1024;
@@ -35,7 +35,7 @@ pub enum ProcessError {
     VersionProbeTimeout,
     #[error("Codex version output exceeded the limit")]
     VersionOutputTooLarge,
-    #[error("unsupported Codex version; expected 0.156.0")]
+    #[error("unsupported Codex version; expected 0.157.1")]
     UnsupportedVersion,
     #[error(transparent)]
     RuntimeDiscovery(#[from] RuntimeDiscoveryError),
@@ -259,7 +259,7 @@ fn build_app_server_command(program: &OsStr, runtime_path: Option<&OsStr>) -> Co
 
 #[cfg(any(target_os = "macos", test))]
 fn configure_packaged_shell(command: &mut Command, macos_major: isize) {
-    // 官方 0.156.0 内置 zsh 的 Mach-O 最低系统为 15.0；旧系统保留标准 shell 执行路径。
+    // 官方 0.157.1 内置 zsh 的 Mach-O 最低系统为 15.0；旧系统保留标准 shell 执行路径。
     // 按宿主能力选择，而非按 Legacy 标志选择，让升级后的系统自动使用原生实现。
     if macos_major < 15 {
         command.args(["--disable", "shell_zsh_fork"]);

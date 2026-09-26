@@ -31,8 +31,8 @@ describe("CodexRuntimeGate", () => {
   it("restores the workbench without inspecting a runtime that stayed ready in the background", async () => {
     runtimeMocks.connect.mockResolvedValue({ status: "ready", lastSeq: 8, provider: "codex" });
     runtimeMocks.inspect.mockResolvedValue({
-      detectedVersion: "0.156.0",
-      requiredVersion: "0.156.0",
+      detectedVersion: "0.157.1",
+      requiredVersion: "0.157.1",
       status: "compatible",
     });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -96,7 +96,7 @@ describe("CodexRuntimeGate", () => {
       downloadedBytes: 0,
       phase: "preparing",
       sequence: 1,
-      targetVersion: "0.156.0",
+      targetVersion: "0.157.1",
       totalBytes: null,
     });
 
@@ -112,7 +112,7 @@ describe("CodexRuntimeGate", () => {
     ] as const) {
       flushSync(() => reportProgress?.({
         currentVersion: "0.150.0", downloadedBytes, phase,
-        sequence: 2, targetVersion: "0.156.0", totalBytes,
+        sequence: 2, targetVersion: "0.157.1", totalBytes,
       }));
       expect(progressbar.element().firstElementChild).toBeNull();
     }
@@ -122,12 +122,12 @@ describe("CodexRuntimeGate", () => {
       downloadedBytes: 42,
       phase: "downloading",
       sequence: 2,
-      targetVersion: "0.156.0",
+      targetVersion: "0.157.1",
       totalBytes: 100,
     });
 
     await expect.element(screen.getByText("0.150.0")).toBeVisible();
-    await expect.element(screen.getByText("0.156.0")).toBeVisible();
+    await expect.element(screen.getByText("0.157.1")).toBeVisible();
     await expect
       .element(progressbar)
       .toHaveAttribute("aria-valuenow", "42");
@@ -138,11 +138,11 @@ describe("CodexRuntimeGate", () => {
     await i18n.changeLanguage("en");
     runtimeMocks.inspect.mockImplementationOnce(async (onProgress) => {
       onProgress({ currentVersion: null, downloadedBytes: 0, phase: "failed",
-        sequence: 2, targetVersion: "0.156.0", totalBytes: null });
-      return { detectedVersion: null, requiredVersion: "0.156.0", status: "missing" };
+        sequence: 2, targetVersion: "0.157.1", totalBytes: null });
+      return { detectedVersion: null, requiredVersion: "0.157.1", status: "missing" };
     });
     runtimeMocks.download.mockResolvedValue({
-      detectedVersion: "0.156.0", requiredVersion: "0.156.0", status: "compatible",
+      detectedVersion: "0.157.1", requiredVersion: "0.157.1", status: "compatible",
     });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const screen = await render(
@@ -165,7 +165,7 @@ describe("CodexRuntimeGate", () => {
     let finish: ((value: unknown) => void) | undefined;
     runtimeMocks.inspect.mockImplementation((onProgress) => {
       onProgress({ currentVersion: null, downloadedBytes: 10, phase: "downloading",
-        sequence: 1, targetVersion: "0.156.0", totalBytes: 100 });
+        sequence: 1, targetVersion: "0.157.1", totalBytes: 100 });
       return new Promise((resolve) => { finish = resolve; });
     });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -178,7 +178,7 @@ describe("CodexRuntimeGate", () => {
     );
     await expect.element(screen.getByRole("heading", { name: "Installing Codex" })).toBeVisible();
     expect(runtimeMocks.download).not.toHaveBeenCalled();
-    finish?.({ detectedVersion: "0.156.0", requiredVersion: "0.156.0", status: "compatible" });
+    finish?.({ detectedVersion: "0.157.1", requiredVersion: "0.157.1", status: "compatible" });
     await expect.element(screen.getByText("Workbench")).toBeVisible();
   });
 
@@ -186,7 +186,7 @@ describe("CodexRuntimeGate", () => {
     await i18n.changeLanguage("en");
     runtimeMocks.inspect.mockResolvedValue({
       detectedVersion: null,
-      requiredVersion: "0.156.0",
+      requiredVersion: "0.157.1",
       status: "missing",
     });
     let reportProgress:
@@ -234,7 +234,7 @@ describe("CodexRuntimeGate", () => {
     for (const totalBytes of [null, 100]) {
       flushSync(() => reportProgress?.({
         currentVersion: null, downloadedBytes: 0, phase: "downloading",
-        sequence: 1, targetVersion: "0.156.0", totalBytes,
+        sequence: 1, targetVersion: "0.157.1", totalBytes,
       }));
       const emptyBar = screen.getByRole("progressbar", { name: "Download progress" });
       await expect.element(emptyBar).toBeInTheDocument();
@@ -246,7 +246,7 @@ describe("CodexRuntimeGate", () => {
       downloadedBytes: 42,
       phase: "downloading",
       sequence: 1,
-      targetVersion: "0.156.0",
+      targetVersion: "0.157.1",
       totalBytes: 100,
     });
 

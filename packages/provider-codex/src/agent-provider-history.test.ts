@@ -329,7 +329,7 @@ describe("CodexAgentProvider history", () => {
     );
   });
 
-  it("requires the 0.156.0 nullable native project assignment", async () => {
+  it("requires the 0.157.1 nullable native project assignment", async () => {
     const missingRpc = new FakeRpcClient([
       { data: [nativeThread({ projectId: undefined })], nextCursor: null },
     ]);
@@ -441,7 +441,7 @@ describe("CodexAgentProvider history", () => {
     expect(warn.mock.calls).toEqual([
       [
         {
-          codexVersion: "0.156.0",
+          codexVersion: "0.157.1",
           diagnosticCode: "unknown_notification",
           method: "future/notification",
           projectId: "codexly",
@@ -451,7 +451,7 @@ describe("CodexAgentProvider history", () => {
       ],
       [
         {
-          codexVersion: "0.156.0",
+          codexVersion: "0.157.1",
           diagnosticCode: "invalid_notification",
           method: "thread/goal/updated",
           projectId: "codexly",
@@ -461,7 +461,7 @@ describe("CodexAgentProvider history", () => {
       ],
       [
         {
-          codexVersion: "0.156.0",
+          codexVersion: "0.157.1",
           diagnosticCode: "invalid_notification",
           method: "item/agentMessage/delta",
           projectId: "codexly",
@@ -471,7 +471,7 @@ describe("CodexAgentProvider history", () => {
       ],
       [
         {
-          codexVersion: "0.156.0",
+          codexVersion: "0.157.1",
           diagnosticCode: "event_listener_failed",
           eventType: "message.delta",
           projectId: "codexly",

@@ -22,10 +22,10 @@ const qualityWorkflow = await readFile(
 );
 
 void test("requires the exact verified Codex version", () => {
-  assert.equal(assertCodexVersion("codex-cli 0.156.0\n"), REQUIRED_CODEX_VERSION);
+  assert.equal(assertCodexVersion("codex-cli 0.157.1\n"), REQUIRED_CODEX_VERSION);
   assert.throws(
     () => assertCodexVersion("codex-cli 0.152.3\n"),
-    /expected codex-cli 0\.156\.0/u,
+    /expected codex-cli 0\.157\.1/u,
   );
 });
 

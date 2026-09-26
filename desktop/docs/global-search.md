@@ -10,7 +10,7 @@
 | 历史记录 | Codex `thread/search` 提供候选；展示前用 `thread/searchOccurrences(limit=1)` 校验并附带消息 ID、回合游标和 UTF-16 命中范围 | 默认定位首个命中；选中历史结果后可查看其他匹配位置 |
 | 项目文件 | 复用 Rust `ProjectFileSearch`，搜索各项目根目录内的文件名和相对路径 | 文本/图片内部预览，其他格式或预览读取失败时使用系统默认应用 |
 
-文件检索不扫描源码正文。历史检索以 Codex 定义的可见用户消息和助手最终答复为准，不搜索内部推理或工具输出。精确历史定位使用 0.156.0 的分页历史协议；服务端拒绝定位或消息已删除时保留搜索结果并提示错误，不把任务首页伪装成命中位置。
+文件检索不扫描源码正文。历史检索以 Codex 定义的可见用户消息和助手最终答复为准，不搜索内部推理或工具输出。精确历史定位使用 0.157.1 的分页历史协议；服务端拒绝定位或消息已删除时保留搜索结果并提示错误，不把任务首页伪装成命中位置。
 
 ## 性能与一致性
 
@@ -35,7 +35,7 @@
 
 优先使用已有权威能力，比另建 SQLite/向量索引更适合本项目：无需复制全部历史、维护索引迁移和监视器，也不增加桌面端常驻内存。这里不将“最优”解释为脱离当前架构的普适性能结论；后续只有实测表明官方检索成为瓶颈时，再考虑独立持久化索引。
 
-- [Codex 官方协议源码](https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/src/protocol/v2/thread.rs)：实施以仓库内 `schemas/codex-app-server/0.156.0/` 与本地 0.156.0 源码为准，而非浮动的 main 分支。
+- [Codex 官方协议源码](https://github.com/openai/codex/blob/rust-v0.157.1/codex-rs/app-server-protocol/src/protocol/v2/thread.rs)：实施以仓库内 `schemas/codex-app-server/0.157.1/` 与本地 0.157.1 源码为准。
 - [VS Code 社区项目的搜索架构实践](https://github.com/microsoft/vscode/wiki/Search-Issues)：将文件搜索交给原生搜索进程，保持忽略规则和文件系统边界。
 - [TanStack Query 请求取消](https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation)：查询函数消费 `AbortSignal`。
 - [WAI-ARIA Combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) 与 [Radix Dialog](https://www.radix-ui.com/primitives/docs/components/dialog)：弹窗焦点管理、组合框结果列表、方向键、Enter 和 Escape。

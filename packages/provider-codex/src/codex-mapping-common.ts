@@ -67,6 +67,8 @@ export const CODEX_SPECIAL_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
 ]);
 
 export const CODEX_IGNORED_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
+  // 当前产品不接入 Gateway OAuth；握手时关闭该状态推送，避免无效事件传输。
+  "account/gatewayOAuth/changed",
   "account/rateLimits/updated",
   "app/list/updated",
   "command/exec/outputDelta",

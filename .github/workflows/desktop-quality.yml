@@ -45,7 +45,7 @@ jobs:
           node-version-file: .node-version
 
       - name: Install verified Codex
-        run: npm install --global @openai/codex@0.156.0
+        run: npm install --global @openai/codex@0.157.1
 
       - name: Check Codex protocol schema
         run: pnpm codex:protocol:check

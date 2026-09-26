@@ -64,7 +64,7 @@ fn windows_background_process_should_inherit_the_apps_hidden_console() {
 #[test]
 fn codex_version_should_require_the_verified_protocol_version() {
     assert_eq!(
-        parse_codex_version("codex-cli 0.156.0\n"),
+        parse_codex_version("codex-cli 0.157.1\n"),
         Some(SUPPORTED_CODEX_VERSION)
     );
     assert_eq!(parse_codex_version("codex-cli 0.152.3\n"), None);
@@ -72,18 +72,19 @@ fn codex_version_should_require_the_verified_protocol_version() {
     assert_eq!(parse_codex_version("codex-cli 0.153.5\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.153.4\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.154.1\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.156.0-beta.1\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.156.0+build\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.156.0\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.157.1-beta.1\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.157.1+build\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.151.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.152.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.153.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 1.0.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.152.0-beta.1\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.156.0 unexpected\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.157.1 unexpected\n"), None);
 }
 
 #[tokio::test]
-#[ignore = "downloads the private codex-cli 0.156.0 binary"]
+#[ignore = "downloads the private codex-cli 0.157.1 binary"]
 async fn private_codex_should_install_and_complete_real_app_server_lifecycle() {
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
