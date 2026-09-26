@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
-import { constants } from "node:fs";
+import { constants, existsSync } from "node:fs";
 import { access } from "node:fs/promises";
-import { dirname, win32 } from "node:path";
+import { dirname, join, win32 } from "node:path";
 
 import type { RunNpmOptions } from "./npm-registry.js";
 
@@ -18,6 +18,16 @@ export function resolveNpmCommandInvocation(
   execPath = process.execPath,
   elevated = false,
 ): NpmCommandInvocation {
+  // 优先用当前 Node 自带的 npm，避免 PATH 指向另一套 Node 安装。
+  const bundledNpmCli = join(
+    dirname(execPath),
+    "..",
+    "lib",
+    "node_modules",
+    "npm",
+    "bin",
+    "npm-cli.js",
+  );
   const invocation =
     platform === "win32"
       ? {
@@ -27,7 +37,9 @@ export function resolveNpmCommandInvocation(
           ],
           command: execPath,
         }
-      : { args, command: "npm" };
+      : existsSync(bundledNpmCli)
+        ? { args: [bundledNpmCli, ...args], command: execPath }
+        : { args, command: "npm" };
 
   if (!elevated) return invocation;
   if (platform === "win32") throw new Error("Elevated npm updates are not supported on Windows");

@@ -1,3 +1,7 @@
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 import type { AppUpdateProgress } from "@codexly/protocol";
 
@@ -39,6 +43,30 @@ describe("app update service", () => {
     });
   });
 
+  it("uses the npm CLI bundled with the running Node installation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codexly-npm-cli-"));
+    try {
+      const nodePath = join(root, "bin", "node");
+      const npmCliPath = join(root, "lib", "node_modules", "npm", "bin", "npm-cli.js");
+      await mkdir(join(root, "lib", "node_modules", "npm", "bin"), { recursive: true });
+      await writeFile(npmCliPath, "");
+
+      expect(resolveNpmInstallInvocation("1.4.0", "darwin", nodePath)).toEqual({
+        args: [npmCliPath, "install", "--global", "@bryanhu/codexly@1.4.0"],
+        command: nodePath,
+      });
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("uses system npm when the running Node installation has no bundled npm CLI", () => {
+    expect(resolveNpmInstallInvocation("1.4.0", "linux", "/nonexistent/bin/node")).toEqual({
+      args: ["install", "--global", "@bryanhu/codexly@1.4.0"],
+      command: "npm",
+    });
+  });
+
   it("restores the installed package from a local backup when replacement fails", async () => {
     const commands: string[][] = [];
     const progress: string[] = [];
@@ -64,7 +92,7 @@ describe("app update service", () => {
 
     await expect(
       installGlobalPackageSafely("1.4.0", {
-        currentPackageRoot: "/installed/codexly",
+        currentPackageRoot: "/opt/homebrew/lib/node_modules/@bryanhu/codexly",
         onProgress: (update) => {
           progress.push(`${update.phase}:${String(update.percent)}`);
         },
@@ -73,11 +101,16 @@ describe("app update service", () => {
     ).rejects.toThrow("interrupted");
 
     expect(commands.map((args) => [args[0], args.at(-1)])).toEqual([
-      ["pack", "/installed/codexly"],
+      ["pack", "/opt/homebrew/lib/node_modules/@bryanhu/codexly"],
       ["pack", "@bryanhu/codexly@1.4.0"],
       ["install", expect.stringMatching(/bryanhu-codexly-1\.4\.0\.tgz$/u)],
       ["install", expect.stringMatching(/bryanhu-codexly-1\.4\.0\.tgz$/u)],
       ["install", expect.stringMatching(/bryanhu-codexly-1\.3\.0\.tgz$/u)],
+    ]);
+    expect(commands.filter((args) => args[0] === "install")).toEqual([
+      expect.arrayContaining(["--prefix=/opt/homebrew"]),
+      expect.arrayContaining(["--prefix=/opt/homebrew"]),
+      expect.arrayContaining(["--prefix=/opt/homebrew"]),
     ]);
     expect(progress).toEqual([
       "backing-up:10",

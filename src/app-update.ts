@@ -224,6 +224,15 @@ async function findCurrentPackageRoot(): Promise<string> {
   throw new Error("Unable to locate the installed Codexly package");
 }
 
+function resolveGlobalNpmPrefix(currentPackageRoot: string): string {
+  const nodeModulesDirectory = dirname(dirname(currentPackageRoot));
+  if (basename(nodeModulesDirectory) !== "node_modules") {
+    throw new Error("Codexly is not installed as a global npm package");
+  }
+  const parent = dirname(nodeModulesDirectory);
+  return basename(parent) === "lib" ? dirname(parent) : parent;
+}
+
 function readPackedArchivePath(output: string, temporaryDirectory: string): string {
   const payload = JSON.parse(output) as unknown;
   const entries = Array.isArray(payload) ? (payload as unknown[]) : [];
@@ -260,6 +269,9 @@ export async function installGlobalPackageSafely(
   const runNpm = options.runNpm ?? runNpmCommand;
   const runRemoteNpm: NonNullable<SafeGlobalInstallOptions["runNpm"]> = (args, runOptions) =>
     runNpmWithRegistryFallback(runNpm, args, runOptions);
+  const currentPackageRoot = options.currentPackageRoot ?? (await findCurrentPackageRoot());
+  // 始终写回当前安装前缀，避免 PATH 中的其他 Node/npm 把更新装入另一套全局目录。
+  const installPrefix = `--prefix=${resolveGlobalNpmPrefix(currentPackageRoot)}`;
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "codexly-update-"));
   const controller = new AbortController();
   const abort = (): void => {
@@ -272,7 +284,6 @@ export async function installGlobalPackageSafely(
   process.once("SIGTERM", abort);
 
   try {
-    const currentPackageRoot = options.currentPackageRoot ?? (await findCurrentPackageRoot());
     elevated = await (options.requiresElevation ?? requiresElevatedNpmInstall)(currentPackageRoot);
     // 先备份旧包并下载新包；依赖仍在后续安装阶段由 npm 获取或复用缓存。
     options.onProgress?.({ percent: 10, phase: "backing-up" });
@@ -292,7 +303,7 @@ export async function installGlobalPackageSafely(
     if (controller.signal.aborted) throw controller.signal.reason;
     options.onProgress?.({ percent: 80, phase: "installing" });
     replacementStarted = true;
-    await runRemoteNpm(["install", "--global", updateArchive], {
+    await runRemoteNpm(["install", "--global", installPrefix, updateArchive], {
       elevated,
       signal: controller.signal,
     });
@@ -301,7 +312,7 @@ export async function installGlobalPackageSafely(
       try {
         // 回滚使用本地旧包并优先复用缓存；缺失的依赖仍需从可用源补齐。
         options.onProgress?.({ percent: 90, phase: "rolling-back" });
-        await runRemoteNpm(["install", "--global", backupArchive], { elevated });
+        await runRemoteNpm(["install", "--global", installPrefix, backupArchive], { elevated });
       } catch (rollbackError) {
         const updateMessage = error instanceof Error ? error.message : String(error);
         const rollbackMessage =
