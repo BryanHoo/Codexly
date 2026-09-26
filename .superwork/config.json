@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 3,
+  "packageManager": "pnpm",
+  "packages": [
+    {
+      "name": "root",
+      "layers": ["backend"],
+      "path": "."
+    },
+    {
+      "name": "desktop",
+      "layers": ["frontend", "backend"],
+      "path": "desktop"
+    },
+    {
+      "name": "web",
+      "layers": ["frontend"],
+      "path": "apps/web"
+    },
+    {
+      "name": "protocol",
+      "layers": ["shared"],
+      "path": "packages/protocol"
+    },
+    {
+      "name": "core",
+      "layers": ["shared"],
+      "path": "packages/core"
+    },
+    {
+      "name": "client",
+      "layers": ["shared"],
+      "path": "packages/client"
+    },
+    {
+      "name": "provider-codex",
+      "layers": ["backend"],
+      "path": "packages/provider-codex"
+    },
+    {
+      "name": "server",
+      "layers": ["backend"],
+      "path": "packages/server"
+    }
+  ],
+  "artifactPaths": {
+    "designs": ".superwork/prd",
+    "plans": ".superwork/plans",
+    "specs": ".superwork/spec"
+  },
+  "verification": [
+    "pnpm test",
+    "pnpm lint:architecture",
+    "pnpm typecheck",
+    "pnpm check",
+    "pnpm test:e2e",
+    "cd desktop && pnpm check:web",
+    "cd desktop && pnpm check:rust",
+    "cd desktop && pnpm check"
+  ]
+}
