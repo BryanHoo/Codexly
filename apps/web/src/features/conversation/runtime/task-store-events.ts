@@ -11,6 +11,7 @@ import {
   type TaskStoreState,
 } from "./task-store-core.js";
 import { applyMessageAliases, resolveMessageAliases } from "./task-store-identity.js";
+import { recordToolItemTiming, retainTurnItemTimings } from "./task-store-timing.js";
 export function getTouchedCommandOutputItemKeys(
   previousState: TaskStoreState,
   nextState: TaskStoreState,
@@ -162,7 +163,10 @@ export function applyAcceptedEvent(
         },
         itemStructureRevision: state.itemStructureRevision + 1,
         turnIds: [...state.turnIds.filter((turnId) => turnId !== event.turnId), event.turnId],
-        turnsById: { ...state.turnsById, [event.turnId]: normalizedTurn },
+        turnsById: {
+          ...state.turnsById,
+          [event.turnId]: retainTurnItemTimings(state.turnsById[event.turnId], normalizedTurn),
+        },
       };
     }
     case "message.delta":
@@ -326,7 +330,8 @@ export function applyAcceptedEvent(
       return { checkpoint };
     case "item.started":
     case "item.completed": {
-      if (state.turnsById[event.turnId] === undefined) {
+      const currentTurn = state.turnsById[event.turnId];
+      if (currentTurn === undefined) {
         return {
           checkpoint,
           snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
@@ -359,6 +364,7 @@ export function applyAcceptedEvent(
         currentItemStore.replace(event.payload.item);
         changedItemStores.add(currentItemStore);
       }
+      const timedTurn = recordToolItemTiming(currentTurn, event);
       return {
         checkpoint,
         itemKeysByTurnId:
@@ -367,6 +373,9 @@ export function applyAcceptedEvent(
             : { ...state.itemKeysByTurnId, [event.turnId]: nextItemIds },
         itemStructureRevision: state.itemStructureRevision + 1,
         snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
+        ...(timedTurn === currentTurn
+          ? {}
+          : { turnsById: { ...state.turnsById, [event.turnId]: timedTurn } }),
       };
     }
     case "turn.completed": {
@@ -395,7 +404,10 @@ export function applyAcceptedEvent(
         turnsById:
           currentTurn === undefined
             ? state.turnsById
-            : { ...state.turnsById, [event.turnId]: normalizedTurn },
+            : {
+                ...state.turnsById,
+                [event.turnId]: retainTurnItemTimings(currentTurn, normalizedTurn),
+              },
       };
     }
     case "plan.updated":

@@ -1,5 +1,6 @@
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { resolveMessageAliases } from "./task-store-identity.js";
+import { mergeTurnItemTimings } from "./task-store-timing.js";
 
 import {
   readTaskItem,
@@ -81,12 +82,16 @@ export function reconcileSnapshot(
         ...retainedOlderTurns,
         ...response.snapshot.turns.map((snapshotTurn) => {
           const currentTurn = currentTurnsById.get(snapshotTurn.id);
-          return currentTurn === undefined
-            ? snapshotTurn
-            : {
-                ...snapshotTurn,
-                items: retainSnapshotTurnItems(currentTurn, snapshotTurn),
-              };
+          if (currentTurn === undefined) return snapshotTurn;
+          const itemTimings = mergeTurnItemTimings(
+            currentTurn.itemTimings,
+            snapshotTurn.itemTimings,
+          );
+          return {
+            ...snapshotTurn,
+            ...(itemTimings === undefined ? {} : { itemTimings }),
+            items: retainSnapshotTurnItems(currentTurn, snapshotTurn),
+          };
         }),
         ...retainedNewerTurns,
       ],

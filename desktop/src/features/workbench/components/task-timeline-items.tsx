@@ -1,13 +1,11 @@
 import { buildNativeAssetUrl } from "@/platform/native-asset-url.js";
 import type { AgentItem, AgentTurn } from "@/protocol/index.js";
-import { FileText, LoaderCircle } from "lucide-react";
-import { useState } from "react";
+import { FileText } from "lucide-react";
 
 import { i18n } from "../../../i18n/i18n.js";
 import { Attachments } from "../../../shared/components/agent/attachments.js";
 import { cn } from "../../../shared/lib/utils.js";
 import type { TextSnapshot } from "../../../shared/lib/append-only-text.js";
-import { Button } from "../../../shared/components/core/button.js";
 
 import { LazyMessageResponse } from "../../../shared/components/agent/lazy-message-response.js";
 import {
@@ -52,6 +50,7 @@ import { parseSubagentOperation } from "./subagent.js";
 import { reasoningTitle } from "./reasoning-title.js";
 
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
+import { BuildPlanButton } from "./task-timeline-build-plan-button.js";
 import { FileChangeButton } from "./task-timeline-file-changes.js";
 import {
   ApprovalReviewItem,
@@ -61,7 +60,7 @@ import {
 } from "./task-timeline-running.js";
 import {
   SubagentToolItem,
-  formatToolDuration,
+  ToolDuration,
   formatStructuredValue,
   toTaskStatus,
   toToolState,
@@ -95,6 +94,10 @@ export function TimelineItemContent({
   turnStatus: AgentTurn["status"];
   textSource?: TextSnapshot;
 }>) {
+  const toolDuration =
+    (item.type === "command" || item.type === "tool") && itemTiming !== undefined ? (
+      <ToolDuration status={item.status} timing={itemTiming} />
+    ) : undefined;
   switch (item.type) {
     case "message": {
       if (item.role === "assistant" && item.questions !== undefined) {
@@ -239,7 +242,7 @@ export function TimelineItemContent({
       return (
         <Tool>
           <ToolHeader
-            duration={formatToolDuration(itemTiming)}
+            duration={toolDuration}
             state={toToolState(item.status)}
             title={commandLabel}
           />
@@ -320,7 +323,7 @@ export function TimelineItemContent({
       return (
         <Tool>
           <ToolHeader
-            duration={formatToolDuration(itemTiming)}
+            duration={toolDuration}
             state={toToolState(item.status)}
             title={item.progress === undefined ? item.name : `${item.name} · ${item.progress}`}
           />
@@ -457,31 +460,4 @@ export function TimelineItemContent({
       );
     }
   }
-}
-
-export function BuildPlanButton({ onBuildPlan }: Readonly<{ onBuildPlan: BuildPlanAction }>) {
-  const [isBuilding, setIsBuilding] = useState(false);
-
-  return (
-    <Button
-      disabled={isBuilding}
-      onClick={() => {
-        setIsBuilding(true);
-        void onBuildPlan().then(
-          (started) => {
-            if (!started) {
-              setIsBuilding(false);
-            }
-          },
-          () => {
-            setIsBuilding(false);
-          },
-        );
-      }}
-      type="button"
-    >
-      {isBuilding ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
-      {i18n.t("timeline.buildPlan", { ns: "conversation" })}
-    </Button>
-  );
 }

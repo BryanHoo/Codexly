@@ -86,7 +86,7 @@ const statusPresentation: Record<ToolState, { icon: ReactNode; labelKey: string 
 };
 
 type ToolHeaderProps = HTMLAttributes<HTMLElement> & {
-  duration?: string | undefined;
+  duration?: ReactNode;
   state: ToolState;
   title: string;
 };
@@ -102,14 +102,7 @@ export function ToolHeader({ className = "", duration, state, title, ...props }:
     >
       <Wrench className="size-3.5 text-muted-foreground" aria-hidden="true" />
       <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
-      {duration === undefined ? null : (
-        <span
-          className="shrink-0 tabular-nums text-caption text-muted-foreground"
-          data-tool-duration=""
-        >
-          {duration}
-        </span>
-      )}
+      {duration}
       <span
         className={`inline-flex items-center gap-1 ${
           state === "output-error" ? "text-danger" : "text-muted-foreground"

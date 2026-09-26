@@ -3,9 +3,44 @@ import { describe, expect, it, vi } from "vitest";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
 import { TaskSnapshotTimeline } from "./task-timeline.js";
 import { TimelineItemContent } from "./task-timeline-items.js";
+import { formatToolDuration } from "./task-timeline-status.js";
 import { renderToStaticMarkup, completedTurn, snapshot } from "./task-timeline.test-support.js";
 
 describe("task timeline tools", () => {
+  it("shows elapsed duration while a command is running", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-26T00:00:03.500Z"));
+    try {
+      const markup = renderToStaticMarkup(
+        <TimelineItemContent
+          isLastTurnItem
+          item={{
+            command: "pwd",
+            cwd: "/workspace",
+            id: "command-live",
+            outputOmitted: { bytes: 0, lines: 0 },
+            status: "running",
+            type: "command",
+          }}
+          itemTiming={{ startedAtMs: Date.parse("2026-09-26T00:00:01.000Z") }}
+          onOpenFileDiff={vi.fn()}
+          onOpenSourceFile={vi.fn()}
+          projectId="project-1"
+          taskId="task-1"
+          turnStatus="running"
+        />,
+      );
+      expect(markup).toMatch(/data-tool-duration[^>]*>2\.5s<\/span>\s*<span[^>]*>.*?运行中/su);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("freezes a completed tool duration", () => {
+    const timing = { startedAtMs: 1_000, completedAtMs: 3_500 };
+    expect(formatToolDuration(timing, 10_000)).toBe("2.5s");
+  });
+
   it("defers completed ANSI command output until the tool is opened", () => {
     const ansiOutput = "\u001B[31m失败\u001B[0m\n请检查日志";
     const commandSnapshot: RuntimeTaskSnapshot = {
