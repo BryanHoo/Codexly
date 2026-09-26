@@ -49,4 +49,29 @@ describe("McpServerSection", () => {
       expect(markup).not.toContain("认证状态未知");
     }
   });
+
+  it("shows the HTTP origin of a connected server", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        TooltipProvider,
+        null,
+        createElement(McpServerSection, {
+          canRetry: true,
+          isRefreshing: false,
+          isRetrying: false,
+          onRetry: () => undefined,
+          servers: [
+            {
+              displayName: "Docs",
+              httpOrigin: "https://mcp.example.com",
+              name: "docs",
+              status: "connected",
+              toolCount: 1,
+            },
+          ],
+        }),
+      ),
+    );
+    expect(markup).toContain("https://mcp.example.com");
+  });
 });

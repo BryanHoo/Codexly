@@ -61,6 +61,7 @@ import {
 } from "./task-timeline-running.js";
 import {
   SubagentToolItem,
+  formatToolDuration,
   formatStructuredValue,
   toTaskStatus,
   toToolState,
@@ -84,6 +85,7 @@ export function TimelineItemContent({
   commandOutput,
   isLastTurnItem,
   item,
+  itemTiming,
   onBuildPlan,
   onOpenFileDiff,
   onOpenSourceFile,
@@ -95,6 +97,7 @@ export function TimelineItemContent({
   commandOutput?: CommandOutputView;
   isLastTurnItem: boolean;
   item: AgentItem;
+  itemTiming?: NonNullable<AgentTurn["itemTimings"]>[string] | undefined;
   onBuildPlan?: BuildPlanAction;
   onOpenFileDiff: (change: AgentFileChange) => void;
   onOpenSourceFile: (reference: MessageFileReference) => void;
@@ -251,7 +254,11 @@ export function TimelineItemContent({
       const isStreamingCommand = turnStatus === "running" && item.status === "running";
       return (
         <Tool>
-          <ToolHeader state={toToolState(item.status)} title={commandLabel} />
+          <ToolHeader
+            duration={formatToolDuration(itemTiming)}
+            state={toToolState(item.status)}
+            title={commandLabel}
+          />
           <ToolBody>
             <div className="mb-2 space-y-4">
               {/* 命令文本与工作目录共同构成调用输入，展开后必须完整展示。 */}
@@ -315,7 +322,9 @@ export function TimelineItemContent({
     case "tool": {
       const subagentOperation = parseSubagentOperation(item);
       if (subagentOperation !== null) {
-        return <SubagentToolItem item={item} operation={subagentOperation} />;
+        return (
+          <SubagentToolItem item={item} itemTiming={itemTiming} operation={subagentOperation} />
+        );
       }
       const hasErrorOutput =
         item.status === "failed" || item.status === "declined" || item.status === "interrupted";
@@ -327,6 +336,7 @@ export function TimelineItemContent({
       return (
         <Tool>
           <ToolHeader
+            duration={formatToolDuration(itemTiming)}
             state={toToolState(item.status)}
             title={item.progress === undefined ? item.name : `${item.name} · ${item.progress}`}
           />

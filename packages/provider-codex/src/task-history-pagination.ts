@@ -20,7 +20,9 @@ export type NativeTaskTurnPage = Readonly<{
 }>;
 
 type NativeThreadItemEntry = Readonly<{
+  completedAtMs?: number;
   item: Record<string, unknown>;
+  startedAtMs?: number;
   turnId: string;
 }>;
 
@@ -122,8 +124,20 @@ async function readThreadItemPage(
   return {
     entries: response["data"].map((value) => {
       const entry = expectRecord(value, "Codex thread item entry");
+      const readTimestamp = (key: "startedAtMs" | "completedAtMs") => {
+        const timestamp = entry[key];
+        if (timestamp === null || timestamp === undefined) return undefined;
+        if (!Number.isSafeInteger(timestamp) || (timestamp as number) < 0) {
+          throw new CodexProtocolMappingError(`Codex thread item ${key} is invalid`);
+        }
+        return timestamp as number;
+      };
+      const completedAtMs = readTimestamp("completedAtMs");
+      const startedAtMs = readTimestamp("startedAtMs");
       return {
+        ...(completedAtMs === undefined ? {} : { completedAtMs }),
         item: expectRecord(entry["item"], "Codex thread item"),
+        ...(startedAtMs === undefined ? {} : { startedAtMs }),
         turnId: expectString(entry["turnId"], "Codex thread item turn id"),
       };
     }),
@@ -152,6 +166,8 @@ async function hydratePaginatedTurnItems(
     turns.map(async (turn) => {
       const turnId = expectString(turn["id"], "Codex turn id");
       const items: Record<string, unknown>[] = [];
+      // 分页条目的时间戳与 Item 正文分开保存，避免修改所有 Item 变体。
+      const itemTimings: Record<string, { startedAtMs?: number; completedAtMs?: number }> = {};
       const seenCursors = new Set<string>();
       let cursor: string | null | undefined;
       while (cursor !== null) {
@@ -167,6 +183,13 @@ async function hydratePaginatedTurnItems(
             throw new CodexProtocolMappingError("thread/items/list returned an unexpected turn");
           }
           items.push(entry.item);
+          const itemId = expectString(entry.item["id"], "Codex thread item id");
+          if (entry.startedAtMs !== undefined || entry.completedAtMs !== undefined) {
+            itemTimings[itemId] = {
+              ...(entry.startedAtMs === undefined ? {} : { startedAtMs: entry.startedAtMs }),
+              ...(entry.completedAtMs === undefined ? {} : { completedAtMs: entry.completedAtMs }),
+            };
+          }
         }
         if (page.nextCursor === null) {
           break;
@@ -176,6 +199,7 @@ async function hydratePaginatedTurnItems(
       }
       return {
         ...turn,
+        ...(Object.keys(itemTimings).length === 0 ? {} : { itemTimings }),
         items: items.reverse(),
         itemsView: "full",
       };

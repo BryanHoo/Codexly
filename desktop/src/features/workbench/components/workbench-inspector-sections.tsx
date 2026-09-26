@@ -237,6 +237,11 @@ function McpServerRow({ server }: Readonly<{ server: AgentMcpServer }>) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-label font-medium text-foreground">{server.displayName}</p>
         <p className="text-caption text-muted-foreground">{metadata.join(" · ")}</p>
+        {server.httpOrigin === undefined ? null : (
+          <p className="truncate text-caption text-muted-foreground" title={server.httpOrigin}>
+            {server.httpOrigin}
+          </p>
+        )}
       </div>
     </div>
   );

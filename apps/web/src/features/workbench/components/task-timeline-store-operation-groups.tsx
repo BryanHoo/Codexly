@@ -13,6 +13,7 @@ import { StoredTimelineItemContent } from "./task-timeline-store-items.js";
 
 export function StoredAssistantTimelineItems({
   itemKeys,
+  itemTimings,
   lastTurnItemKey,
   onBuildPlan,
   onOpenFileDiff,
@@ -23,6 +24,7 @@ export function StoredAssistantTimelineItems({
   turnStatus,
 }: Readonly<{
   itemKeys: readonly string[];
+  itemTimings?: NormalizedAgentTurn["itemTimings"];
   lastTurnItemKey: string | undefined;
   onBuildPlan?: BuildPlanAction;
   onOpenFileDiff: (change: AgentFileChange) => void;
@@ -79,20 +81,26 @@ export function StoredAssistantTimelineItems({
 
   return visibleGroups.map((group) => {
     const groupItemKeys = group.type === "item" ? [group.itemKey] : group.itemKeys;
-    const content = groupItemKeys.map((itemKey) => (
-      <StoredTimelineItemContent
-        isLastTurnItem={itemKey === lastTurnItemKey}
-        itemKey={itemKey}
-        key={itemKey}
-        {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
-        onOpenFileDiff={onOpenFileDiff}
-        onOpenSourceFile={onOpenSourceFile}
-        projectId={projectId}
-        store={store}
-        taskId={taskId}
-        turnStatus={turnStatus}
-      />
-    ));
+    const content = groupItemKeys.map((itemKey) => {
+      const item = itemStoresByKey.get(itemKey)?.peek();
+      const itemTiming =
+        item?.type === "command" || item?.type === "tool" ? itemTimings?.[item.id] : undefined;
+      return (
+        <StoredTimelineItemContent
+          isLastTurnItem={itemKey === lastTurnItemKey}
+          itemKey={itemKey}
+          {...(itemTiming === undefined ? {} : { itemTiming })}
+          key={itemKey}
+          {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
+          onOpenFileDiff={onOpenFileDiff}
+          onOpenSourceFile={onOpenSourceFile}
+          projectId={projectId}
+          store={store}
+          taskId={taskId}
+          turnStatus={turnStatus}
+        />
+      );
+    });
     if (group.type === "item") {
       return content[0] ?? null;
     }

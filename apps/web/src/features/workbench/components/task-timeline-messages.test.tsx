@@ -67,7 +67,7 @@ describe("task timeline messages", () => {
     expect(markup).toContain("/workspace/pending-change");
   });
 
-  it("renders copy controls, timestamps, and spacing for user and assistant messages", () => {
+  it("renders copy controls without timestamps for user and assistant messages", () => {
     const messageSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       turns: [
@@ -94,8 +94,8 @@ describe("task timeline messages", () => {
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={messageSnapshot} />);
 
     expect(markup.match(/aria-label="复制消息"/g)).toHaveLength(2);
-    expect(markup).toContain('dateTime="2026-07-24T00:00:00.000Z"');
-    expect(markup).toContain('dateTime="2026-07-24T00:01:00.000Z"');
+    expect(markup).not.toContain('dateTime="2026-07-24T00:00:00.000Z"');
+    expect(markup).not.toContain('dateTime="2026-07-24T00:01:00.000Z"');
     expect(markup).toContain("space-y-4");
   });
 

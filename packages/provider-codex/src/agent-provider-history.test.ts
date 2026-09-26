@@ -99,6 +99,8 @@ describe("CodexAgentProvider history", () => {
         text,
         type: "agentMessage",
       },
+      startedAtMs: 1_753_228_801_000,
+      completedAtMs: 1_753_228_803_500,
       turnId,
     });
     const itemPage = (turnId: string, text: string, nextCursor: string | null = null) => ({
@@ -127,6 +129,12 @@ describe("CodexAgentProvider history", () => {
         {
           id: "turn-old",
           items: [{ id: "turn-old-message", text: "更早回复" }],
+          itemTimings: {
+            "turn-old-message": {
+              startedAtMs: 1_753_228_801_000,
+              completedAtMs: 1_753_228_803_500,
+            },
+          },
         },
       ],
       turnsNextCursor: null,

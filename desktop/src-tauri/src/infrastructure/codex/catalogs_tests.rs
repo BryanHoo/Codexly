@@ -56,7 +56,7 @@ async fn catalogs_should_map_codex_protocol_without_losing_order() {
                 "mcpServerStatus/list",
                 json!({"data": [
                     {
-                        "name": "docs", "pluginId": null, "runtimeStatus": "connected",
+                        "name": "docs", "pluginId": null, "runtimeStatus": "connected", "httpOrigin": "https://mcp.example.com",
                         "serverInfo": {"name": "docs", "title": "Docs", "version": "1.2.0", "description": "Documentation", "icons": null, "websiteUrl": null},
                         "tools": {"search": {"name": "search"}}, "resources": [], "resourceTemplates": [], "authStatus": "oAuth"
                     },
@@ -155,7 +155,7 @@ async fn catalogs_should_map_codex_protocol_without_losing_order() {
     assert_eq!(
         servers["data"],
         json!([
-            {"displayName": "Docs", "name": "docs", "status": "connected", "toolCount": 1},
+            {"displayName": "Docs", "httpOrigin": "https://mcp.example.com", "name": "docs", "status": "connected", "toolCount": 1},
             {"displayName": "login", "name": "login", "status": "authenticationRequired", "toolCount": 0},
             {"displayName": "failed", "name": "failed", "status": "failed", "toolCount": 0},
             {"displayName": "disabled", "name": "disabled", "status": "disabled", "toolCount": 0},

@@ -232,6 +232,18 @@ export const AgentTurnSchema = Type.Object(
     completedAt: NullableDateTimeSchema,
     error: Type.Union([Type.String(), Type.Null()]),
     id: Type.String({ minLength: 1 }),
+    itemTimings: Type.Optional(
+      Type.Record(
+        Type.String(),
+        Type.Object(
+          {
+            completedAtMs: Type.Optional(Type.Integer({ minimum: 0 })),
+            startedAtMs: Type.Optional(Type.Integer({ minimum: 0 })),
+          },
+          { additionalProperties: false },
+        ),
+      ),
+    ),
     items: Type.Array(AgentItemSchema),
     startedAt: NullableDateTimeSchema,
     status: AgentTurnStatusSchema,
@@ -319,6 +331,7 @@ export type AgentMcpServerFailureReason = Readonly<
 export const AgentMcpServerSchema = Type.Object(
   {
     displayName: Type.String({ minLength: 1 }),
+    httpOrigin: Type.Optional(Type.String({ minLength: 1 })),
     name: Type.String({ minLength: 1 }),
     status: AgentMcpServerConnectionStatusSchema,
     toolCount: Type.Integer({ minimum: 0 }),
@@ -406,4 +419,6 @@ export const AgentQueuedSubmissionSnapshotSchema = Type.Object(
   { additionalProperties: false },
 );
 
-export type AgentQueuedSubmissionSnapshot = Readonly<Static<typeof AgentQueuedSubmissionSnapshotSchema>>;
+export type AgentQueuedSubmissionSnapshot = Readonly<
+  Static<typeof AgentQueuedSubmissionSnapshotSchema>
+>;

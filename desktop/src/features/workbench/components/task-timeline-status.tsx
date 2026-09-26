@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { copyText } from "../../../platform/tauri/clipboard.js";
 import { v4 as createUuid } from "uuid";
 
-import { getCurrentLanguage, i18n } from "../../../i18n/i18n.js";
+import { i18n } from "../../../i18n/i18n.js";
 import {
   getApplicationDetailViewUpdateGate,
   runDetailViewInterval,
@@ -151,50 +151,47 @@ export function formatStructuredValue(value: unknown): string {
 
 export function SubagentToolItem({
   item,
+  itemTiming,
   operation,
 }: Readonly<{
   item: Extract<AgentItem, { type: "tool" }>;
+  itemTiming?: NonNullable<AgentTurn["itemTimings"]>[string] | undefined;
   operation: SubagentOperation;
 }>) {
   const operationStatus = resolveSubagentOperationStatus(item.status, operation.agents);
   const summary = formatSubagentOperationSummary(item.status, operation.agents);
+  const duration = formatToolDuration(itemTiming);
 
   return (
     <Task collapsible={false} status={operationStatus}>
-      <TaskTrigger title={`${getSubagentOperationTitle(operation.name)} · ${summary}`} />
+      <TaskTrigger
+        statusPrefix={
+          duration === undefined ? undefined : (
+            <span
+              className="shrink-0 tabular-nums text-caption text-muted-foreground"
+              data-tool-duration=""
+            >
+              {duration}
+            </span>
+          )
+        }
+        title={`${getSubagentOperationTitle(operation.name)} · ${summary}`}
+      />
     </Task>
   );
 }
 
 const TURN_PROCESSING_TIMER_INTERVAL_MS = 1_000;
 
-type MessageDateFormatters = Readonly<{
-  full: Intl.DateTimeFormat;
-  time: Intl.DateTimeFormat;
-}>;
-
-const messageDateFormattersByLocale = new Map<string, MessageDateFormatters>();
-
-function getMessageDateFormatters(locale: string): MessageDateFormatters {
-  const cachedFormatters = messageDateFormattersByLocale.get(locale);
-  if (cachedFormatters !== undefined) {
-    return cachedFormatters;
-  }
-
-  // 流式更新会频繁重渲染消息，按语言复用构造成本较高的日期格式器。
-  const formatters = {
-    full: new Intl.DateTimeFormat(locale, {
-      dateStyle: "medium",
-      timeStyle: "medium",
-    }),
-    time: new Intl.DateTimeFormat(locale, {
-      hour: "2-digit",
-      hour12: false,
-      minute: "2-digit",
-    }),
-  };
-  messageDateFormattersByLocale.set(locale, formatters);
-  return formatters;
+export function formatToolDuration(
+  timing: NonNullable<AgentTurn["itemTimings"]>[string] | undefined,
+): string | undefined {
+  if (timing?.startedAtMs === undefined || timing.completedAtMs === undefined) return undefined;
+  const durationMs = timing.completedAtMs - timing.startedAtMs;
+  if (!Number.isFinite(durationMs) || durationMs < 0) return undefined;
+  return durationMs < 1_000
+    ? `${String(durationMs)}ms`
+    : `${String(Math.round(durationMs / 100) / 10)}s`;
 }
 
 export function formatTurnProcessingDuration(totalSeconds: number): Readonly<{
@@ -281,37 +278,20 @@ export function TurnProcessingTime({
   );
 }
 
-export function getMessageTimestamp(
-  role: "assistant" | "user",
-  turn: Pick<AgentTurn, "completedAt" | "startedAt">,
-  latestSnapshotTimestamp: string,
-): string {
-  // 协议尚未记录 Item 时间；用户消息使用 Turn 开始时间，AI 消息使用完成或最新事件时间。
-  if (role === "user") {
-    return turn.startedAt ?? latestSnapshotTimestamp;
-  }
-  return turn.completedAt ?? latestSnapshotTimestamp;
-}
-
 export function MessageMetadata({
   lastTurnId,
   modeLabel,
   onForkTask,
   text,
-  timestamp,
 }: Readonly<{
   lastTurnId?: string;
   modeLabel?: string;
   onForkTask?: ForkTaskAction;
   text: string;
-  timestamp?: string;
 }>) {
   const [forkPending, setForkPending] = useState(false);
   const forkIdempotencyKeyRef = useRef<string | null>(null);
   const messageActionLockRef = useRef(createAsyncActionLock());
-  const messageDate = timestamp === undefined ? undefined : new Date(timestamp);
-  const locale = getCurrentLanguage();
-  const dateFormatters = messageDate === undefined ? undefined : getMessageDateFormatters(locale);
 
   const copyMessage = () =>
     messageActionLockRef.current.run(async () => {
@@ -347,7 +327,9 @@ export function MessageMetadata({
       <MessageAction
         label={i18n.t("timeline.copyMarkdown", { ns: "conversation" })}
         tooltip={i18n.t("timeline.copyMarkdown", { ns: "conversation" })}
-        onClick={() => { void copyMessage(); }}
+        onClick={() => {
+          void copyMessage();
+        }}
       >
         <Copy className="size-3.5" aria-hidden="true" />
       </MessageAction>
@@ -368,11 +350,6 @@ export function MessageMetadata({
         </MessageAction>
       )}
       {modeLabel === undefined ? null : <span>{modeLabel}</span>}
-      {timestamp === undefined || messageDate === undefined ? null : (
-        <time dateTime={timestamp} title={dateFormatters?.full.format(messageDate)}>
-          {dateFormatters?.time.format(messageDate)}
-        </time>
-      )}
     </MessageActions>
   );
 }

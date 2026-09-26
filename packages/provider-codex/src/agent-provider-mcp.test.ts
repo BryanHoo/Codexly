@@ -17,6 +17,7 @@ describe("CodexAgentProvider MCP servers", () => {
         data: [
           {
             authStatus: "unsupported",
+            httpOrigin: "https://mcp.example.com",
             name: "playwright",
             pluginId: null,
             resourceTemplates: [],
@@ -70,6 +71,7 @@ describe("CodexAgentProvider MCP servers", () => {
         },
         {
           displayName: "playwright",
+          httpOrigin: "https://mcp.example.com",
           name: "playwright",
           status: "connected",
           toolCount: 1,

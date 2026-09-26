@@ -29,18 +29,12 @@ import {
   StoredUserMessage,
   groupStoredTurnTimelineItems,
 } from "./task-timeline-store-items.js";
-import {
-  MessageMetadata,
-  TimelineState,
-  TurnProcessingTime,
-  getMessageTimestamp,
-} from "./task-timeline-status.js";
+import { MessageMetadata, TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
 
 const getTurnIdKey = (turnId: string) => turnId;
 export function StoredAssistantGroup({
   itemKeys,
   lastTurnItemKey,
-  latestSnapshotTimestamp,
   onOpenFileDiff,
   onForkTask,
   onBuildPlan,
@@ -59,7 +53,6 @@ export function StoredAssistantGroup({
 }: Readonly<{
   itemKeys: readonly string[];
   lastTurnItemKey: string | undefined;
-  latestSnapshotTimestamp: string;
   onOpenFileDiff: (change: AgentFileChange) => void;
   onForkTask?: ForkTaskAction;
   onBuildPlan?: BuildPlanAction;
@@ -110,6 +103,7 @@ export function StoredAssistantGroup({
         <div className="w-full space-y-4">
           <StoredAssistantTimelineItems
             itemKeys={visibleItemKeys}
+            itemTimings={turn.itemTimings}
             lastTurnItemKey={lastTurnItemKey}
             {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
             onOpenFileDiff={onOpenFileDiff}
@@ -136,7 +130,6 @@ export function StoredAssistantGroup({
           lastTurnId={turn.id}
           {...(onForkTask === undefined ? {} : { onForkTask })}
           text={assistantText}
-          timestamp={getMessageTimestamp("assistant", turn, latestSnapshotTimestamp)}
         />
       ) : null}
     </Message>
@@ -174,7 +167,6 @@ export function StoreTurnTimelineSection({
   if (turn === undefined) {
     return null;
   }
-  const latestSnapshotTimestamp = store.getState().snapshotMetadata?.updatedAt ?? "";
   const itemStoresByKey = store.getState().itemStoresByKey;
   const timelineGroups = groupStoredTurnTimelineItems(itemKeys, itemStoresByKey);
   const processNativeItemIds = new Set(
@@ -204,7 +196,6 @@ export function StoreTurnTimelineSection({
           <StoredUserMessage
             itemKey={group.itemKey}
             key={group.itemKey}
-            latestSnapshotTimestamp={latestSnapshotTimestamp}
             onOpenFileDiff={onOpenFileDiff}
             onOpenSourceFile={onOpenSourceFile}
             projectId={projectId}
@@ -217,7 +208,6 @@ export function StoreTurnTimelineSection({
             itemKeys={group.itemKeys}
             key={group.key}
             lastTurnItemKey={lastTurnItemKey}
-            latestSnapshotTimestamp={latestSnapshotTimestamp}
             {...(turn.status === "completed" && onBuildPlan !== undefined ? { onBuildPlan } : {})}
             onOpenFileDiff={onOpenFileDiff}
             onToggleProcess={() => {

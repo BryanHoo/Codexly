@@ -149,7 +149,7 @@ describe("task timeline process", () => {
     // 只展示 Codex 提供的摘要，不把原始 reasoning content 传入 DOM。
     expect(markup.match(/data-role="assistant"/g)).toHaveLength(1);
     expect(markup.match(/aria-label="复制消息"/g)).toHaveLength(1);
-    expect(markup.match(/dateTime="2026-07-24T00:01:00.000Z"/g)).toHaveLength(1);
+    expect(markup).not.toContain('dateTime="2026-07-24T00:01:00.000Z"');
     expect(markup).toContain("我先检查消息判定。");
     expect(markup).toContain("已修正消息判定。");
     expect(markup).toContain("核对消息分组");
