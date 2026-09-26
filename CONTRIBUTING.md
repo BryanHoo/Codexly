@@ -7,6 +7,8 @@ pnpm install --frozen-lockfile
 pnpm check
 ```
 
+在仓库根目录安装一次即可为 Web 与桌面端建立依赖；桌面端检查在 `desktop/` 运行 `pnpm check`。
+
 提交前必须通过 `pnpm check`。涉及浏览器工作流时，另行运行：
 
 ```bash

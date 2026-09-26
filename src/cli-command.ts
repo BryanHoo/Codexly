@@ -156,9 +156,10 @@ const defaultDependencies: CliDependencies = {
 };
 
 function assertSupportedNodeVersion(version: string): void {
-  const [major = Number.NaN, minor = Number.NaN] = version.split(".").map(Number);
-  if (!(major > 22 || (major === 22 && minor >= 14))) {
-    throw new Error(`需要 Node.js 22.14.0 或更高版本，当前版本为 ${version}`);
+  const major = Number(version.split(".")[0]);
+  // CLI 的最低运行时版本与 package.json 的 engines.node 保持一致。
+  if (!Number.isInteger(major) || major < 24) {
+    throw new Error(`需要 Node.js 24.0.0 或更高版本，当前版本为 ${version}`);
   }
 }
 

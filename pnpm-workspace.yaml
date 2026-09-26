@@ -1,12 +1,17 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "desktop"
 
 allowBuilds:
   # SQLite Adapter 通过独立 Worker 加载原生驱动。
   better-sqlite3: true
   # esbuild 是 Vite、Vitest 与 tsup 的构建器，只允许其安装本机二进制。
   esbuild: true
+  # 桌面端 WebDriverIO 的可选浏览器驱动不执行安装脚本。
+  core-js: false
+  edgedriver: false
+  geckodriver: false
 
 catalog:
   "@fastify/cookie": 11.1.2
@@ -16,19 +21,19 @@ catalog:
   "@headless-tree/core": 1.7.0
   "@headless-tree/react": 1.7.0
   "@openai/codex": 0.156.0
-  "@playwright/test": 1.61.1
+  "@playwright/test": 1.62.1
   "@sinclair/typebox": 0.34.52
   "@streamdown/mermaid": 1.0.2
   "@tailwindcss/vite": 4.3.3
   "@tanstack/react-query": 5.101.4
   "@tanstack/react-router": 1.170.18
-  "@types/node": 22.13.17
-  "@types/react": 19.2.17
-  "@types/react-dom": 19.2.3
+  "@types/node": 24.13.3
+  "@types/react": 19.2.18
+  "@types/react-dom": 19.2.5
   "@types/better-sqlite3": 7.6.13
   "@types/ws": 8.18.1
-  "@vitejs/plugin-react": 6.0.3
-  "@vitest/coverage-v8": 4.1.10
+  "@vitejs/plugin-react": 6.1.0
+  "@vitest/coverage-v8": 4.1.11
   anser: 2.3.5
   better-sqlite3: 13.0.3
   class-variance-authority: 0.7.1
@@ -39,7 +44,7 @@ catalog:
   lucide-react: 1.25.0
   p-limit: 7.3.1
   pino: 10.3.1
-  oxlint: 1.79.0
+  oxlint: 1.80.0
   oxlint-tsgolint: 7.0.2001
   prettier: 3.9.6
   react: 19.2.8
@@ -48,10 +53,10 @@ catalog:
   safe-stable-stringify: 2.5.0
   tsup: 8.5.1
   tailwindcss: 4.3.3
-  typescript: 6.0.2
+  typescript: 6.0.3
   uuid: 14.0.1
-  vite: 8.1.5
-  vitest: 4.1.10
+  vite: 8.2.2
+  vitest: 4.1.11
   ws: 8.21.1
   yaml: 2.9.0
   streamdown: 2.5.0
@@ -62,7 +67,7 @@ catalog:
   "@pierre/diffs": 1.2.12
   zustand: 5.0.14
   sonner: 2.0.7
-  "@tanstack/react-virtual": 3.14.9
+  "@tanstack/react-virtual": 3.14.10
   i18next: 26.3.6
   image-dimensions: 2.5.1
   react-i18next: 17.0.11
@@ -72,7 +77,7 @@ catalog:
 
 catalogMode: strict
 cleanupUnusedCatalogs: true
-autoInstallPeers: false
+autoInstallPeers: true
 linkWorkspacePackages: false
 # 显式设置最小发布时间，启用严格年龄校验，避免回退到新发布版本。
 minimumReleaseAge: 1440
@@ -83,9 +88,22 @@ minimumReleaseAgeExclude:
   - react@19.2.8
   - "@tanstack/query-core@5.101.4"
   - "@tanstack/react-query@5.101.4"
+  - "@wdio/cli@9.31.5"
+  - "@wdio/config@9.31.5"
+  - "@wdio/local-runner@9.31.5"
+  - "@wdio/mocha-framework@9.31.5"
+  - "@wdio/protocols@9.31.5"
+  - "@wdio/runner@9.31.5"
+  - "@wdio/utils@9.31.5"
+  - "webdriver@9.31.5"
+  - "webdriverio@9.31.5"
+patchedDependencies:
+  "@wdio/tauri-service@1.3.0": desktop/patches/@wdio__tauri-service@1.3.0.patch
 overrides:
-  # 所有 Node 类型依赖统一到最低支持线，避免宽泛依赖重新引入 Node 24 API。
+  # 所有 Node 类型依赖统一到当前 Node 24 运行时。
   "@types/node": "catalog:"
+  # Tauri Service 固定旧 Globals；统一版本以满足 expect-webdriverio 的 peer 约束。
+  "@wdio/tauri-service@1.3.0>@wdio/globals": 9.31.3
   # 上游兼容范围尚未刷新锁文件时，强制选择公告已修复的补丁版本。
   "brace-expansion@>=4.0.0 <5.0.9": 5.0.9
   "dompurify@<=3.4.12": 3.4.13

@@ -1,6 +1,6 @@
 # 工程规范入口
 
-Codexly 在同一仓库发布 Web CLI 与独立桌面应用。根目录 `pnpm-workspace.yaml` 管理 `apps/*`、`packages/*`；`desktop/package.json` 和 `desktop/pnpm-lock.yaml` 属于独立工程。
+Codexly 在同一仓库发布 Web CLI 与桌面应用。根目录 `pnpm-workspace.yaml` 和 `pnpm-lock.yaml` 统一管理 `apps/*`、`packages/*` 与 `desktop/`；桌面端保留自己的 `package.json` 和 Rust 工程。
 
 ## 按代码位置阅读
 

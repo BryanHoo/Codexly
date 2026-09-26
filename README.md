@@ -5,7 +5,7 @@
 <h1 align="center">Codexly</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Node.js-22-339933" alt="Node.js" />
+  <img src="https://img.shields.io/badge/Node.js-24-339933" alt="Node.js" />
   <img src="https://img.shields.io/badge/React-19-149eca" alt="React" />
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Vite-8-646cff" alt="Vite" />
@@ -56,7 +56,7 @@ The independent Codexly desktop app lives in [`desktop/`](desktop/README.en.md).
 
 ## Requirements
 
-- Node.js >=22.14.0
+- Node.js >=24.0.0
 - Chrome/Chromium 116+, Firefox 124+, or Safari 17.4+
 
 Codexly includes Codex CLI `0.156.0` through `@openai/codex`; a separate installation is not required. External binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.156.0,<0.157.0`.

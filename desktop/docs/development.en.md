@@ -10,8 +10,9 @@ Requirements:
 
 ```bash
 git clone https://github.com/BryanHoo/Codexly.git
-cd Codexly/desktop
+cd Codexly
 pnpm install --frozen-lockfile
+cd desktop
 pnpm tauri dev
 ```
 

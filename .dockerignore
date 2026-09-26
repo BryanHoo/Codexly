@@ -13,7 +13,9 @@ coverage
 dist
 Dockerfile*
 node_modules
-desktop
+desktop/**
+!desktop/package.json
+!desktop/patches/@wdio__tauri-service@1.3.0.patch
 playwright-report
 test-results
 compose*.yaml

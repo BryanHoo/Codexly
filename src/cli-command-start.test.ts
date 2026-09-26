@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { DEFAULT_COMMIT_MESSAGE_MODEL } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { runCli } from "./cli-command.js";
 import { createHarness } from "./cli-command.test-support.js";
@@ -25,7 +26,7 @@ describe("runCli startup", () => {
       explicitPath: "/custom/codex",
     });
     expect(harness.dependencies.checkCodexVersion).toHaveBeenCalledWith("/fake/codex");
-    expect(harness.stdout.join("")).toContain("[成功] Node.js 22.14.0");
+    expect(harness.stdout.join("")).toContain("[成功] Node.js 24.19.0");
     expect(harness.stdout.join("")).toContain("[成功] Codex 0.156.0 (/fake/codex)");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
       join("/custom/home", "codexly", "state.sqlite3"),
@@ -38,10 +39,10 @@ describe("runCli startup", () => {
   });
 
   it("returns a non-zero code when doctor finds an unsupported Node.js", async () => {
-    const harness = createHarness({ nodeVersion: "22.13.0" });
+    const harness = createHarness({ nodeVersion: "22.14.0" });
 
     await expect(runCli(["doctor"], harness.options)).resolves.toBe(1);
-    expect(harness.stderr.join("")).toContain("需要 Node.js 22.14.0 或更高版本");
+    expect(harness.stderr.join("")).toContain("需要 Node.js 24.0.0 或更高版本");
     expect(harness.dependencies.locateCodexBinary).not.toHaveBeenCalled();
   });
 
@@ -83,7 +84,7 @@ describe("runCli startup", () => {
     const [runtimeOptions] =
       vi.mocked(harness.dependencies.createRuntimeProvider).mock.calls[0] ?? [];
     expect(readSettings).not.toHaveBeenCalled();
-    await expect(runtimeOptions?.readTaskTitleModel()).resolves.toBe("gpt-5.6-luna");
+    await expect(runtimeOptions?.readTaskTitleModel()).resolves.toBe(DEFAULT_COMMIT_MESSAGE_MODEL);
     expect(harness.dependencies.createProjectRepository).toHaveBeenCalledWith({
       client: harness.client,
       projection: harness.stateRepository,

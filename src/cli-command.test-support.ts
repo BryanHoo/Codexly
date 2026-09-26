@@ -285,7 +285,7 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     locateCodexBinary: vi.fn(() =>
       Promise.resolve({ path: "/fake/codex", source: "explicit" as const }),
     ),
-    nodeVersion: "22.14.0",
+    nodeVersion: "24.19.0",
     openBrowser: vi.fn(() => {
       lifecycle.push("browser.open");
       return Promise.resolve();

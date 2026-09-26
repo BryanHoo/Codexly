@@ -26,7 +26,7 @@ Codexly 桌面客户端位于 [`desktop/`](desktop/README.md)。两端独立开�
 
 ## 环境要求
 
-- Node.js >=22.14.0
+- Node.js >=24.0.0
 - Chrome/Chromium 116+、Firefox 124+ 或 Safari 17.4+
 
 Codexly 通过 `@openai/codex` 自带 Codex CLI `0.156.0`，无需单独安装。通过 `--codex-bin <path>` 或 `CODEXLY_CODEX_BIN` 指定的外部版本必须满足 `>=0.156.0,<0.157.0`。

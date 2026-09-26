@@ -22,7 +22,7 @@ test("自动保存期间保持内容位置、滚动和组件节点稳定", async
   try {
     await control.selectOption("never");
     await expect(region.getByRole("status").filter({ hasText: "正在保存" })).toBeVisible();
-    expect(await node?.evaluate((element) => element.isConnected)).toBe(true);
+    expect(await node.evaluate((element) => element.isConnected)).toBe(true);
     expect((await panel.boundingBox())?.y).toBe(before?.y);
     expect(await region.getByRole("main").evaluate((element) => element.scrollTop)).toBe(
       scrollBefore,
@@ -31,7 +31,7 @@ test("自动保存期间保持内容位置、滚动和组件节点稳定", async
     releaseSave();
   }
   await expect(region.getByRole("status").filter({ hasText: "正在保存" })).toHaveCount(0);
-  expect(await node?.evaluate((element) => element.isConnected)).toBe(true);
+  expect(await node.evaluate((element) => element.isConnected)).toBe(true);
   expect((await panel.boundingBox())?.y).toBe(before?.y);
   await expect(control).toHaveValue("never");
 });

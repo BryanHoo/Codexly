@@ -93,7 +93,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.14.0
+          node-version-file: .node-version
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -122,7 +122,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.14.0
+          node-version-file: .node-version
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - name: Install dependencies
@@ -146,7 +146,7 @@ jobs:
           pnpm run build:clean
           pnpm run bundle:check
           pnpm run package:check
-      # Node.js 22.14.0 自带 npm 10，发布前固定升级到 Trusted Publisher 支持的版本。
+      # 发布前固定 npm 版本，确保 Trusted Publisher 的 OIDC 认证行为一致。
       - name: Setup publishing npm
         run: npm install --global npm@11.5.1
       - name: Publish with provenance
@@ -272,15 +272,13 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          version: 11.22.0
-          package_json_file: desktop/package.json
           run_install: false
       - name: Install Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
-          cache-dependency-path: desktop/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - name: Install Rust
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
@@ -300,7 +298,7 @@ jobs:
         with:
           workspaces: "./desktop/src-tauri -> target"
       - name: Install desktop dependencies
-        working-directory: desktop
+        working-directory: .
         run: pnpm install --frozen-lockfile
       - name: Verify desktop version
         working-directory: desktop

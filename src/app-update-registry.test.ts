@@ -10,6 +10,7 @@ import type { RunNpmOptions } from "./npm-registry.js";
 
 const mirror = "https://registry.npmmirror.com";
 const official = "https://registry.npmjs.org";
+const installedPackageRoot = "/installed/lib/node_modules/@bryanhu/codexly";
 
 describe("app update registry selection", () => {
   it("checks the mirror first without contacting the official registry on success", async () => {
@@ -69,7 +70,7 @@ describe("app update registry selection", () => {
       });
 
       await installGlobalPackageSafely("1.4.0", {
-        currentPackageRoot: "/installed/codexly",
+        currentPackageRoot: installedPackageRoot,
         runNpm,
       });
 
@@ -99,7 +100,7 @@ describe("app update registry selection", () => {
     });
 
     await expect(
-      installGlobalPackageSafely("1.4.0", { currentPackageRoot: "/installed/codexly", runNpm }),
+      installGlobalPackageSafely("1.4.0", { currentPackageRoot: installedPackageRoot, runNpm }),
     ).rejects.toThrow();
     expect(runNpm).toHaveBeenCalledTimes(2);
     expect(runNpm.mock.calls.some(([args]) => args[0] === "install")).toBe(false);

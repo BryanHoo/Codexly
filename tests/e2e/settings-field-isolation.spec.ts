@@ -30,7 +30,7 @@ test("智能体选项独立更新，排队保存不会覆盖另一项", async ({
     await expect(verbosity).toBeEnabled();
     await expect(verbosity).toHaveValue("");
     await expect(search).toHaveValue("live");
-    expect(await sibling?.evaluate((element) => element.isConnected)).toBe(true);
+    expect(await sibling.evaluate((element) => element.isConnected)).toBe(true);
     await verbosity.selectOption("high");
     await expect(verbosity).toHaveValue("high");
   } finally {
@@ -85,5 +85,5 @@ test("记忆开关保存期间不改变其他开关和删除按钮，失败仅�
   await expect(enabled).toBeEnabled();
   await expect(enabled).toHaveAttribute("aria-checked", "false");
   await expect(external).toHaveAttribute("aria-checked", "true");
-  expect(await sibling?.evaluate((element) => element.isConnected)).toBe(true);
+  expect(await sibling.evaluate((element) => element.isConnected)).toBe(true);
 });

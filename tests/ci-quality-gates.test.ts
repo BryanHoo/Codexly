@@ -39,7 +39,7 @@ describe("CI 质量门禁", () => {
     expect(
       Object.keys(packageJson.devDependencies).filter((name) => name.includes("eslint")),
     ).toEqual([]);
-    expect(workspaceConfig).toContain("  oxlint: 1.79.0");
+    expect(workspaceConfig).toContain("  oxlint: 1.80.0");
     expect(workspaceConfig).toContain("  oxlint-tsgolint: 7.0.2001");
     expect(workspaceConfig).not.toMatch(/^\s+eslint(?:-|:)/m);
     expect(oxlintConfig.options.typeAware).toBe(true);
@@ -53,20 +53,45 @@ describe("CI 质量门禁", () => {
     expect(webOverride?.rules["jsx-a11y/alt-text"]).toBe("error");
   });
 
-  it("使用最低支持的 Node.js 版本执行 Release 门禁", () => {
+  it("统一 Node.js 与 pnpm 版本执行 CI 和 Release 门禁", () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       engines: { node: string };
+      packageManager: string;
     };
+    const desktopPackageJson = JSON.parse(
+      readFileSync(join(process.cwd(), "desktop/package.json"), "utf8"),
+    ) as { engines: { node: string }; packageManager: string };
+    const nodeVersion = readFileSync(join(process.cwd(), ".node-version"), "utf8").trim();
     const ciWorkflow = readFileSync(join(process.cwd(), ".github/workflows/ci.yml"), "utf8");
     const releaseWorkflow = readFileSync(
       join(process.cwd(), ".github/workflows/release.yml"),
       "utf8",
     );
+    const desktopQualityWorkflow = readFileSync(
+      join(process.cwd(), ".github/workflows/desktop-quality.yml"),
+      "utf8",
+    );
+    const desktopWebviewWorkflow = readFileSync(
+      join(process.cwd(), ".github/workflows/desktop-webview.yml"),
+      "utf8",
+    );
+    const buildConfig = readFileSync(join(process.cwd(), "tsup.config.ts"), "utf8");
 
-    expect(packageJson.engines.node).toBe(">=22.14.0");
-    expect(ciWorkflow).not.toContain("node-version: 22.13.0");
-    expect(ciWorkflow.match(/node-version: 22\.14\.0/g)).toHaveLength(3);
-    expect(releaseWorkflow).toContain("node-version: 22.14.0");
+    expect(packageJson.engines.node).toBe(">=24.0.0");
+    expect(desktopPackageJson.engines.node).toBe(packageJson.engines.node);
+    expect(packageJson.packageManager).toBe("pnpm@11.22.0");
+    expect(desktopPackageJson.packageManager).toBe(packageJson.packageManager);
+    expect(nodeVersion).toBe("24.19.0");
+    for (const workflow of [
+      ciWorkflow,
+      releaseWorkflow,
+      desktopQualityWorkflow,
+      desktopWebviewWorkflow,
+    ]) {
+      expect(workflow).toContain("node-version-file: .node-version");
+      expect(workflow).not.toMatch(/node-version: \d+/);
+    }
+    expect(buildConfig).toContain('target: "node24"');
   });
 
   it("安装支持 Trusted Publisher 的 npm CLI", () => {

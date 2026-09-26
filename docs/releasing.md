@@ -1,6 +1,6 @@
 # Codexly 联合发布
 
-根目录是 Codexly Web 项目；`desktop/` 是独立的 Codexly Tauri 桌面项目，拥有自己的 `package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml` 与 Rust 工程。两边不共享前后端代码和锁文件，但必须使用同一个版本号与 Git 标签。推送标签后，同一流水线发布 npm 包、GHCR 镜像和桌面安装包，并创建一个 GitHub Release。
+根目录统一管理 Codexly Web 与 `desktop/` Tauri 应用的 pnpm workspace 和锁文件；桌面端保留自己的 `package.json` 与 Rust 工程。两边使用同一个版本号与 Git 标签。推送标签后，同一流水线发布 npm 包、GHCR 镜像和桌面安装包，并创建一个 GitHub Release。
 
 ## 首次配置
 
@@ -25,9 +25,10 @@ GitHub 仓库必须有名为 `npm` 的 Environment。工作流使用 OIDC 和 np
 3. 运行发布校验：
 
 ```bash
+pnpm install --frozen-lockfile
 pnpm check
 pnpm test:e2e
-cd desktop && pnpm install --frozen-lockfile && pnpm check
+cd desktop && pnpm check
 ```
 
 4. 提交发布准备后，创建并推送与根目录 `package.json` 版本一致的标签：
