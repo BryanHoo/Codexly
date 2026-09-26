@@ -121,6 +121,7 @@ export interface AgentProviderQueue {
 
 export type StartAgentTaskOptions = Readonly<{
   ephemeral?: boolean;
+  workspacePath?: string;
 }>;
 
 export type ReadAgentTaskInput = Readonly<{

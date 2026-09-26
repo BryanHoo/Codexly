@@ -2,6 +2,7 @@ import {
   AgentMutationErrorSchema,
   CreateProjectWorktreeRequestSchema,
   CreateProjectWorktreeResponseSchema,
+  CreateTaskWorktreeResponseSchema,
   ProjectGitWorktreePageSchema,
   ProjectRootQuerySchema,
   ProjectWorktreeMutationResponseSchema,
@@ -113,6 +114,59 @@ export function registerProjectGitWorktreeRoutes(
           message: originalErrorMessage(error, "Git worktree list failed"),
         });
       }
+    },
+  );
+
+  app.post<{
+    Body: CreateProjectWorktreeRequest;
+    Headers: { "idempotency-key": string };
+    Params: { projectId: string };
+    Querystring: ProjectRootQuery;
+  }>(
+    "/v1/projects/:projectId/git/task-worktrees",
+    {
+      schema: {
+        body: CreateProjectWorktreeRequestSchema,
+        headers: IdempotencyHeadersSchema,
+        params: ProjectParamsSchema,
+        querystring: ProjectRootQuerySchema,
+        response: {
+          200: CreateTaskWorktreeResponseSchema,
+          400: AgentMutationErrorSchema,
+          404: AgentMutationErrorSchema,
+          409: AgentMutationErrorSchema,
+          502: AgentMutationErrorSchema,
+          503: AgentMutationErrorSchema,
+        },
+      },
+    },
+    async (request) => {
+      const rootPath = await resolveMutationRoot(request.params.projectId, request.query.rootPath);
+      const mutationScope = `${request.params.projectId}\0${rootPath}`;
+      return runIdempotent(
+        ["create-task-worktree", mutationScope],
+        request.headers["idempotency-key"],
+        { request: request.body, rootPath },
+        async () => {
+          assertGitMutationAvailable(mutationScope);
+          activeGitMutations.add(mutationScope);
+          try {
+            const worktree = await createProjectWorktree(rootPath, request.body);
+            // 任务 worktree 只保存在线程 cwd 中，Project 注册表保持原有层级。
+            return { worktree };
+          } catch (error) {
+            if (error instanceof GitWorktreeError) throw toGitWorktreeHttpError(error);
+            throw new MutationHttpError(
+              "GIT_WORKTREE_CREATE_FAILED",
+              originalErrorMessage(error, "Git worktree creation failed"),
+              502,
+              true,
+            );
+          } finally {
+            activeGitMutations.delete(mutationScope);
+          }
+        },
+      );
     },
   );
 

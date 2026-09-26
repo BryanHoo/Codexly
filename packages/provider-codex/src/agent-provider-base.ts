@@ -1,6 +1,5 @@
 import type { CodexRpcClient } from "./codex-rpc-client.js";
 import type { CodexTaskTitles } from "./task-titles.js";
-import { realpath } from "node:fs/promises";
 import type {
   AgentTaskScope,
   AgentProviderEvent,
@@ -24,7 +23,7 @@ import { ForkTaskRegistry } from "./fork-task-registry.js";
 import { PendingRequestLifecycle } from "./pending-request-lifecycle.js";
 import { listCodexMcpServers, reloadCodexMcpServers } from "./agent-provider-mcp.js";
 import { TaskRuntimeState } from "./task-runtime-state.js";
-import { normalizedPathIdentity } from "./runtime-owner-registry.js";
+import { isSameCanonicalPath } from "./canonical-path-identity.js";
 import { mapCodexProjectStateNotification } from "./agent-provider-notifications.js";
 import { warnDroppedCodexNotification } from "./agent-provider-diagnostics.js";
 import { DEFAULT_PROVIDER_LOGGER, type CodexProviderLogger } from "./agent-provider-logger.js";
@@ -51,6 +50,7 @@ export {
   mapAgentTask,
 } from "./codex-protocol-mapping.js";
 export type { CodexRpcClient } from "./codex-rpc-client.js";
+export { canonicalPathIdentity, isSameCanonicalPath } from "./canonical-path-identity.js";
 
 export interface CreateCodexRuntimeProviderOptions {
   codexHome?: string;
@@ -62,23 +62,6 @@ export interface CreateCodexRuntimeProviderOptions {
   }>;
   readTaskTitleModel?: () => Promise<string>;
   logger?: CodexProviderLogger;
-}
-
-export async function canonicalPathIdentity(path: string): Promise<string> {
-  try {
-    // 历史 Thread 可能保留符号链接路径，归属校验需要与已注册 Project 的真实路径对齐。
-    return normalizedPathIdentity(await realpath(path));
-  } catch {
-    return normalizedPathIdentity(path);
-  }
-}
-
-export async function isSameCanonicalPath(left: string, right: string): Promise<boolean> {
-  const [leftIdentity, rightIdentity] = await Promise.all([
-    canonicalPathIdentity(left),
-    canonicalPathIdentity(right),
-  ]);
-  return leftIdentity === rightIdentity;
 }
 
 export function isThreadNotLoadedError(error: unknown): boolean {
@@ -322,7 +305,12 @@ export abstract class CodexAgentProviderBase {
         excludeTurns: true,
         ...(lastTurnId === undefined ? {} : { lastTurnId }),
         ...(this.project.kind === "project"
-          ? { runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots] }
+          ? {
+              runtimeWorkspaceRoots: this.runtime.workspaceRootsForTask(
+                taskId,
+                this.project.runtimeWorkspaceRoots,
+              ),
+            }
           : {}),
         threadId: taskId,
       }),
@@ -345,6 +333,8 @@ export abstract class CodexAgentProviderBase {
       }
     }
     const task = await mapAgentTask(thread, this.project);
+    if (task.workspacePath !== undefined)
+      this.runtime.taskWorkspacePaths.set(task.id, task.workspacePath);
     await this.forkTasks?.record(this.project.id, task.id);
     // Fork 成功后立即接受新 Task 的实时通知与后续 Mutation。
     this.runtime.projectTaskIds.add(task.id);

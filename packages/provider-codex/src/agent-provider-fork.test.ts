@@ -8,9 +8,24 @@ import {
   createCodexAgentProvider,
   nativeThread,
   project,
+  projectRootPath,
 } from "./agent-provider.test-support.js";
 
 describe("CodexAgentProvider fork visibility", () => {
+  it("preserves a worktree task workspace when forking", async () => {
+    const workspacePath = "/workspace/Codexly-feature";
+    const source = nativeThread({ cwd: workspacePath });
+    const fork = nativeThread({ cwd: workspacePath, id: "task-fork" });
+    const rpc = new FakeRpcClient([{ data: [source], nextCursor: null }, { thread: fork }]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    await provider.listTasks();
+    await expect(provider.forkTask("task-1")).resolves.toMatchObject({ workspacePath });
+    expect(rpc.calls[1]).toMatchObject({
+      method: "thread/fork",
+      params: { runtimeWorkspaceRoots: [projectRootPath, workspacePath] },
+    });
+  });
+
   it("restores an untouched fork after the provider restarts", async ({ onTestFinished }) => {
     const codexHome = await mkdtemp(join(tmpdir(), "codexly-fork-"));
     onTestFinished(() => rm(codexHome, { recursive: true, force: true }));

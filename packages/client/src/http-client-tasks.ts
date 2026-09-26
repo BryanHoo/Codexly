@@ -286,6 +286,19 @@ export class TaskHttpClient extends GlobalSearchHttpClient {
     );
   }
 
+  public async startWorktreeTask(
+    projectId: string,
+    request: { rootPath: string; worktreePath: string },
+    options: MutationOptions = {},
+  ): Promise<StartAgentTaskResponse> {
+    return this.mutation(
+      `${projectPath(projectId)}/tasks`,
+      request,
+      StartAgentTaskResponseSchema,
+      options,
+    );
+  }
+
   public async pinTask(
     projectId: string,
     taskId: string,

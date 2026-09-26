@@ -14,12 +14,18 @@ import {
 import { Input } from "../../../shared/components/core/input.js";
 
 type CreateWorktreeDialogProps = Readonly<{
+  branchLocked?: boolean;
   isPending: boolean;
   onClose: () => void;
   onCreate: (branch: string) => Promise<boolean>;
 }>;
 
-export function CreateWorktreeDialog({ isPending, onClose, onCreate }: CreateWorktreeDialogProps) {
+export function CreateWorktreeDialog({
+  branchLocked = false,
+  isPending,
+  onClose,
+  onCreate,
+}: CreateWorktreeDialogProps) {
   const { t } = useTranslation("workbench");
   const [branch, setBranch] = useState("");
   const submissionRef = useRef(false);
@@ -56,8 +62,8 @@ export function CreateWorktreeDialog({ isPending, onClose, onCreate }: CreateWor
           }}
         >
           <DialogHeader>
-            <DialogTitle id="create-worktree-title">{t("composer.createWorktree")}</DialogTitle>
-            <DialogDescription>{t("composer.createWorktreeDescription")}</DialogDescription>
+            <DialogTitle id="create-worktree-title">{t("sidebar.worktreeTaskTitle")}</DialogTitle>
+            <DialogDescription>{t("sidebar.worktreeTaskDescription")}</DialogDescription>
           </DialogHeader>
           <label
             className="grid gap-1.5 text-label font-medium text-foreground"
@@ -69,7 +75,7 @@ export function CreateWorktreeDialog({ isPending, onClose, onCreate }: CreateWor
               autoComplete="off"
               autoCorrect="off"
               autoFocus
-              disabled={isPending}
+              disabled={isPending || branchLocked}
               id="create-worktree-branch"
               maxLength={1_024}
               name="branch"
@@ -87,7 +93,7 @@ export function CreateWorktreeDialog({ isPending, onClose, onCreate }: CreateWor
               {t("actions.cancel")}
             </Button>
             <Button disabled={isPending || normalizedBranch.length === 0} type="submit">
-              {t("composer.createAndSwitchWorktree")}
+              {t("sidebar.createWorktreeTaskConfirm")}
             </Button>
           </DialogFooter>
         </form>

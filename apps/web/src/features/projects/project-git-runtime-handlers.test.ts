@@ -11,6 +11,41 @@ const project = {
 } as const;
 
 describe("createProjectGitRuntimeHandlers", () => {
+  it("routes worktree task activity to its own workspace", () => {
+    const handleActivity = vi.fn();
+    const handlers = createProjectGitRuntimeHandlers({
+      coordinator: { handleActivity, handleGitMetadataChanged: vi.fn() },
+      getProject: () => project,
+      getSelectedRootIds: () => new Map(),
+      getTaskWorkspacePath: (_projectId, taskId) =>
+        taskId === "task-worktree" ? "/workspace/feature" : project.roots[0].path,
+    });
+    handlers.onProjectGitActivity("project-1", "task-worktree", "turn_started");
+    handlers.onProjectGitActivity("project-1", "task-worktree", "turn_completed");
+    handlers.onProjectGitActivity("project-1", "task-regular", "turn_started");
+    expect(handleActivity).toHaveBeenNthCalledWith(
+      1,
+      "project-1",
+      "/workspace/feature",
+      "task-worktree",
+      "turn_started",
+    );
+    expect(handleActivity).toHaveBeenNthCalledWith(
+      2,
+      "project-1",
+      "/workspace/feature",
+      "task-worktree",
+      "turn_completed",
+    );
+    expect(handleActivity).toHaveBeenNthCalledWith(
+      3,
+      "project-1",
+      "/workspace/primary",
+      "task-regular",
+      "turn_started",
+    );
+  });
+
   it("routes activity and metadata changes only to the current Project root", () => {
     const handleActivity = vi.fn();
     const handleGitMetadataChanged = vi.fn();

@@ -19,12 +19,10 @@ import {
 } from "./workbench-composer-toolbar.js";
 
 describe("WorkbenchComposerView", () => {
-  it("没有其他分支和 worktree 时隐藏两个切换模块", () => {
-    const targets = resolveComposerGitSwitchTargets(["main"], "main", [
-      { branch: "main", current: true, path: "/workspace/Codexly" },
-    ]);
+  it("分支弹窗只提供分支切换目标", () => {
+    const targets = resolveComposerGitSwitchTargets(["main"], "main");
 
-    expect(targets).toEqual({ branches: [], worktrees: [] });
+    expect(targets).toEqual({ branches: [] });
   });
 
   it("仅渲染 CLI 对外提供的审批选项", () => {
@@ -173,7 +171,6 @@ describe("WorkbenchComposerView", () => {
       <TooltipProvider>
         <ComposerBranchSwitcher
           creatingBranch={undefined}
-          creatingWorktree={undefined}
           gitStatus={{
             baseBranches: ["origin/main", "main"],
             branch: "feat/review",
@@ -185,11 +182,7 @@ describe("WorkbenchComposerView", () => {
           }}
           onBranchChange={() => undefined}
           onBranchCreate={() => Promise.resolve(true)}
-          onWorktreeChange={() => undefined}
-          onWorktreeCreate={() => Promise.resolve(true)}
           switchingBranch={undefined}
-          switchingWorktree={undefined}
-          worktrees={[]}
         />
       </TooltipProvider>,
     );
@@ -202,7 +195,6 @@ describe("WorkbenchComposerView", () => {
     const markup = renderToStaticMarkup(
       <ComposerBranchSwitcher
         creatingBranch={undefined}
-        creatingWorktree={undefined}
         gitStatus={{
           baseBranches: [],
           branch: null,
@@ -214,11 +206,7 @@ describe("WorkbenchComposerView", () => {
         }}
         onBranchChange={() => undefined}
         onBranchCreate={() => Promise.resolve(true)}
-        onWorktreeChange={() => undefined}
-        onWorktreeCreate={() => Promise.resolve(true)}
         switchingBranch={undefined}
-        switchingWorktree={undefined}
-        worktrees={[]}
       />,
     );
 
@@ -230,7 +218,6 @@ describe("WorkbenchComposerView", () => {
     const markup = renderToStaticMarkup(
       <ComposerBranchSwitcher
         creatingBranch={undefined}
-        creatingWorktree={undefined}
         gitStatus={{
           baseBranches: [],
           branch: null,
@@ -242,11 +229,7 @@ describe("WorkbenchComposerView", () => {
         }}
         onBranchChange={() => undefined}
         onBranchCreate={() => Promise.resolve(true)}
-        onWorktreeChange={() => undefined}
-        onWorktreeCreate={() => Promise.resolve(true)}
         switchingBranch={undefined}
-        switchingWorktree={undefined}
-        worktrees={[]}
       />,
     );
 

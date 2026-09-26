@@ -44,6 +44,10 @@ describe("Web Vite browser targets", () => {
                 },
                 {
                   includeDependenciesRecursively: false,
+                  name: "snapshot-memory",
+                },
+                {
+                  includeDependenciesRecursively: false,
                   maxSize: 480 * 1024,
                   name: "initial-deps",
                   tags: ["$initial"],
@@ -89,5 +93,15 @@ describe("Web Vite browser targets", () => {
     expect(floatingUiPattern.test("/node_modules/@floating-ui/react-dom/dist/index.mjs")).toBe(
       false,
     );
+
+    const memoryPattern =
+      typeof codeSplitting === "object" ? codeSplitting.groups?.[3]?.test : undefined;
+    expect(memoryPattern).toBeInstanceOf(RegExp);
+    if (!(memoryPattern instanceof RegExp)) {
+      throw new TypeError("missing snapshot memory chunk pattern");
+    }
+    expect(memoryPattern.test("/apps/web/src/shared/memory/byte-lru.ts")).toBe(true);
+    expect(memoryPattern.test("C:\\apps\\web\\src\\shared\\memory\\byte-lru.ts")).toBe(true);
+    expect(memoryPattern.test("/apps/web/src/app/snapshot-memory.ts")).toBe(false);
   });
 });

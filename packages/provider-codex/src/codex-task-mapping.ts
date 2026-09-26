@@ -90,7 +90,8 @@ export function assertProjectThread(
 
 export async function mapAgentTask(
   thread: Record<string, unknown>,
-  project: Pick<AgentTaskScope, "id" | "kind">,
+  project: Pick<AgentTaskScope, "id" | "kind"> &
+    Partial<Pick<AgentTaskScope, "runtimeWorkspaceRoots">>,
 ): Promise<AgentTask> {
   await assertProjectThread(thread, project);
   if (thread["model"] !== null && typeof thread["model"] !== "string") {
@@ -110,6 +111,12 @@ export async function mapAgentTask(
     },
     title: normalizedTitle(thread),
     updatedAt: toDateTime(thread["updatedAt"], "Codex thread updatedAt"),
+    // 仅额外 worktree 需要绑定路径；普通 Project root 继续按用户选择显示。
+    ...(project.runtimeWorkspaceRoots !== undefined &&
+    optionalString(thread["cwd"]) !== undefined &&
+    !project.runtimeWorkspaceRoots.includes(expectString(thread["cwd"], "Codex thread cwd"))
+      ? { workspacePath: expectString(thread["cwd"], "Codex thread cwd") }
+      : {}),
   };
 }
 

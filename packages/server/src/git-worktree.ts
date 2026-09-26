@@ -1,5 +1,5 @@
 import { lstat, realpath } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 
 import type {
   CreateProjectWorktreeRequest,
@@ -113,11 +113,8 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-async function resolveAvailableWorktreePath(repositoryRoot: string, branch: string) {
-  const basePath = join(
-    dirname(repositoryRoot),
-    `${basename(repositoryRoot)}-${worktreeDirectorySlug(branch)}`,
-  );
+async function resolveAvailableWorktreePath(mainWorktreeRoot: string, branch: string) {
+  const basePath = join(dirname(mainWorktreeRoot), worktreeDirectorySlug(branch));
   for (let suffix = 1; suffix <= MAX_PROJECT_WORKTREES; suffix += 1) {
     const candidate = suffix === 1 ? basePath : `${basePath}-${String(suffix)}`;
     if (!(await pathExists(candidate))) return candidate;
@@ -157,13 +154,21 @@ export async function createProjectWorktree(
     );
   }
 
-  const targetPath = await resolveAvailableWorktreePath(repositoryRoot, request.branch);
-  const arguments_ = status.branches.includes(request.branch)
-    ? ["worktree", "add", "--", targetPath, request.branch]
-    : ["worktree", "add", "-b", request.branch, "--", targetPath, "HEAD"];
+  let targetPath: string;
   try {
+    // 以主 worktree 为基准，避免从 linked worktree 再创建时目录越放越深。
+    const mainWorktreeRoot = (await readProjectWorktrees(repositoryRoot, gitCommandExecutor))
+      .worktrees[0]?.path;
+    if (mainWorktreeRoot === undefined) {
+      throw new GitWorktreeError("CREATE_FAILED", "Main Git worktree was not found");
+    }
+    targetPath = await resolveAvailableWorktreePath(mainWorktreeRoot, request.branch);
+    const arguments_ = status.branches.includes(request.branch)
+      ? ["worktree", "add", "--", targetPath, request.branch]
+      : ["worktree", "add", "-b", request.branch, "--", targetPath, "HEAD"];
     await gitCommandExecutor(repositoryRoot, arguments_);
   } catch (error) {
+    if (error instanceof GitWorktreeError) throw error;
     throw new GitWorktreeError(
       "CREATE_FAILED",
       originalErrorMessage(error, "Git worktree creation failed"),

@@ -248,6 +248,12 @@ export type CreateProjectWorktreeResponse = Readonly<
   Static<typeof CreateProjectWorktreeResponseSchema>
 >;
 
+export const CreateTaskWorktreeResponseSchema = Type.Object(
+  { worktree: ProjectGitWorktreeSchema },
+  { additionalProperties: false },
+);
+export type CreateTaskWorktreeResponse = Readonly<Static<typeof CreateTaskWorktreeResponseSchema>>;
+
 export const GenerateCommitMessageRequestSchema = Type.Object(
   {
     expectedSnapshot: GitSnapshotSchema,

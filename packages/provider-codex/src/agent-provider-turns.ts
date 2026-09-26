@@ -25,7 +25,6 @@ import {
   expectString,
   mapAgentTurn,
   mapBackgroundTerminal,
-  mapSandboxPolicy,
   optionalString,
 } from "./codex-protocol-mapping.js";
 
@@ -34,27 +33,7 @@ import { isBackgroundTerminalThreadMissingError, mapAgentTask } from "./agent-pr
 import { pendingLocalTasks, restoreUnlistedForks } from "./fork-task-restoration.js";
 import { CodexAgentProviderQueue } from "./agent-provider-queue.js";
 import { mapCodexGoal } from "./codex-goal-mapping.js";
-
-function mapCodexTurnSettings(options: AgentTurnOptions) {
-  // 普通 Turn 与 Goal 自动 Turn 必须使用完全相同的执行设置。
-  return {
-    approvalPolicy: options.approvalPolicy,
-    approvalsReviewer: options.approvalsReviewer,
-    collaborationMode: {
-      mode: options.collaborationMode === "plan" ? ("plan" as const) : ("default" as const),
-      settings: {
-        developer_instructions: null,
-        model: options.model,
-        reasoning_effort: options.reasoningEffort,
-      },
-    },
-    effort: options.reasoningEffort,
-    model: options.model,
-    sandboxPolicy: mapSandboxPolicy(options.sandboxMode),
-    // Codex 会把 Service Tier 粘附到 Thread，关闭时必须显式清除。
-    serviceTier: options.fastMode === true ? "fast" : null,
-  };
-}
+import { mapCodexTurnSettings } from "./codex-turn-settings.js";
 
 export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   public async startTask(options: StartAgentTaskOptions = {}): Promise<AgentTask> {
@@ -65,10 +44,15 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
         ...(this.project.kind === "temporary"
           ? {}
           : {
-              cwd: this.project.rootPath,
+              cwd: options.workspacePath ?? this.project.rootPath,
               projectId: this.project.id,
               // Project 身份与运行时文件系统授权彼此独立，必须显式传递完整根列表。
-              runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots],
+              runtimeWorkspaceRoots: [
+                ...new Set([
+                  ...this.project.runtimeWorkspaceRoots,
+                  ...(options.workspacePath === undefined ? [] : [options.workspacePath]),
+                ]),
+              ],
             }),
         ...(options.ephemeral === true ? { ephemeral: true } : {}),
       }),
@@ -78,6 +62,11 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
       expectRecord(response["thread"], "thread/start thread"),
       this.project,
     );
+    if (options.workspacePath !== undefined && task.workspacePath !== options.workspacePath) {
+      throw new CodexProtocolMappingError("Codex thread started in a different workspace");
+    }
+    if (task.workspacePath !== undefined)
+      this.runtime.taskWorkspacePaths.set(task.id, task.workspacePath);
     // 新建 Task 必须立即接收后续 Turn 通知，不能等待下一次列表刷新。
     this.runtime.projectTaskIds.add(task.id);
     this.runtime.resumedTaskIds.add(task.id);
@@ -428,6 +417,10 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
         mapAgentTask(expectRecord(thread, "Codex thread"), this.project),
       ),
     );
+    for (const task of nativeTasks) {
+      if (task.workspacePath !== undefined)
+        this.runtime.taskWorkspacePaths.set(task.id, task.workspacePath);
+    }
     await restoreUnlistedForks(
       this.client,
       this.forkTasks,
@@ -472,7 +465,10 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
           "Codex thread status type",
         );
         if (status !== "idle" && status !== "notLoaded") continue;
-        data.push(await mapAgentTask(thread, this.project));
+        const task = await mapAgentTask(thread, this.project);
+        if (task.workspacePath !== undefined)
+          this.runtime.taskWorkspacePaths.set(task.id, task.workspacePath);
+        data.push(task);
         if (data.length === limit) break;
       }
 

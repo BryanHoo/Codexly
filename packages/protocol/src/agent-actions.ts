@@ -12,8 +12,15 @@ import {
 } from "./agent-task.js";
 import { AgentTurnOptionsSchema } from "./project-settings.js";
 import { AgentTaskCatalogSchema } from "./task-catalog.js";
+import { ProjectRootPathSchema } from "./project-root.js";
 
-export const StartAgentTaskRequestSchema = Type.Object({}, { additionalProperties: false });
+export const StartAgentTaskRequestSchema = Type.Object(
+  {
+    rootPath: Type.Optional(ProjectRootPathSchema),
+    worktreePath: Type.Optional(ProjectRootPathSchema),
+  },
+  { additionalProperties: false },
+);
 export type StartAgentTaskRequest = Readonly<Static<typeof StartAgentTaskRequestSchema>>;
 
 export const StartAgentTaskResponseSchema = Type.Object(

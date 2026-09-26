@@ -34,6 +34,15 @@ export class TaskRuntimeState {
   public readonly resumePromises = new Map<string, Promise<void>>();
   public readonly runningTaskIds = new Set<string>();
   public readonly unmaterializedTasks = new Map<string, AgentTask>();
+  public readonly taskWorkspacePaths = new Map<string, string>();
+
+  public workspaceRootsForTask(taskId: string, projectRoots: readonly string[]): string[] {
+    const workspacePath = this.taskWorkspacePaths.get(taskId);
+    // 恢复和 fork 必须保留任务 worktree 的文件系统授权。
+    return workspacePath === undefined
+      ? [...projectRoots]
+      : [...new Set([...projectRoots, workspacePath])];
+  }
 
   public retainSnapshotEvent(event: AgentProviderEvent): void {
     if (!this.projectTaskIds.has(event.taskId) && !this.pendingTaskReads.has(event.taskId)) {
@@ -89,6 +98,7 @@ export class TaskRuntimeState {
     this.resumePromises.delete(taskId);
     this.runningTaskIds.delete(taskId);
     this.unmaterializedTasks.delete(taskId);
+    this.taskWorkspacePaths.delete(taskId);
   }
 
   public clear(): void {
@@ -113,5 +123,6 @@ export class TaskRuntimeState {
     this.resumePromises.clear();
     this.runningTaskIds.clear();
     this.unmaterializedTasks.clear();
+    this.taskWorkspacePaths.clear();
   }
 }

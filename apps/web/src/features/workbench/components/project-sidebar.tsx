@@ -373,6 +373,7 @@ export function ProjectSidebar({
 
       <ProjectSidebarTaskList
         archiveTask={archiveTask}
+        client={client}
         deleteTask={taskDeletion.requestTaskDeletion}
         error={error}
         expandedProjects={expandedProjects}
@@ -388,6 +389,9 @@ export function ProjectSidebar({
           void navigate({ to: "/temporary" });
         }}
         onOpenProjectDraft={openProjectDraft}
+        onWorktreeTaskCreated={(createdProjectId) => {
+          updateExpandedProjects((current) => new Set(current).add(createdProjectId));
+        }}
         onOpenArchived={setArchivedProject}
         onOpenProjectPicker={() => {
           setIsProjectPickerOpen(true);

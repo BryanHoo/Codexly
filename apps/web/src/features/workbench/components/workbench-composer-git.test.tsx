@@ -2,9 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import {
   createComposerBranch,
-  createComposerWorktree,
   switchComposerBranch,
-  switchComposerWorktree,
 } from "../hooks/use-workbench-branch-switch.js";
 import { rootPath } from "./workbench-composer.test-support.js";
 
@@ -143,128 +141,5 @@ describe("WorkbenchComposer Git", () => {
       ),
     ).resolves.toBe(false);
     expect(client.createProjectBranch).not.toHaveBeenCalled();
-  });
-
-  it("creates a worktree and writes its target project into shared caches", async () => {
-    const queryClient = new QueryClient();
-    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-    const status = {
-      baseBranches: ["origin/main"],
-      branch: "main",
-      branches: ["main"],
-      repositoryMode: "root" as const,
-      snapshot: "a".repeat(64),
-      staged: [],
-      unstaged: [],
-    };
-    const response = {
-      project: {
-        createdAt: "2026-08-18T00:00:00.000Z",
-        id: "codexly-worktree",
-        name: "Codexly-feat-review",
-        roots: [{ id: "root-review", path: "/workspace/Codexly-feat-review" }],
-      },
-      projects: {
-        data: [
-          {
-            createdAt: "2026-08-18T00:00:00.000Z",
-            id: "codexly-worktree",
-            name: "Codexly-feat-review",
-            roots: [{ id: "root-review", path: "/workspace/Codexly-feat-review" }],
-          },
-        ],
-        nextCursor: null,
-      },
-      worktree: {
-        branch: "feat/review",
-        current: false,
-        path: "/workspace/Codexly-feat-review",
-      },
-      worktrees: {
-        worktrees: [
-          {
-            branch: "feat/review",
-            current: false,
-            path: "/workspace/Codexly-feat-review",
-          },
-        ],
-      },
-      status: {
-        ...status,
-        branches: ["feat/review", "main"],
-        snapshot: "b".repeat(64),
-      },
-    };
-    const client = { createProjectWorktree: vi.fn(() => Promise.resolve(response)) };
-
-    await expect(
-      createComposerWorktree(client, queryClient, "codexly", rootPath, status, " feat/review "),
-    ).resolves.toEqual(response.project);
-
-    expect(client.createProjectWorktree).toHaveBeenCalledWith("codexly", rootPath, {
-      branch: "feat/review",
-      expectedSnapshot: status.snapshot,
-    });
-    expect(queryClient.getQueryData(["projects"])).toEqual({
-      data: [response.project],
-      nextCursor: null,
-    });
-    expect(queryClient.getQueryData(["projects", "codexly", rootPath, "git-worktrees"])).toEqual({
-      worktrees: [response.worktree],
-    });
-    expect(queryClient.getQueryData(["projects", "codexly", rootPath, "git-status"])).toEqual(
-      response.status,
-    );
-    expect(invalidateQueries).not.toHaveBeenCalled();
-  });
-
-  it("switches only to a listed non-current worktree", async () => {
-    const queryClient = new QueryClient();
-    const worktree = {
-      branch: "feat/review",
-      current: false,
-      path: "/workspace/Codexly-feat-review",
-    };
-    const response = {
-      project: {
-        createdAt: "2026-08-18T00:00:00.000Z",
-        id: "codexly-worktree",
-        name: "Codexly-feat-review",
-        roots: [{ id: "root-worktree", path: worktree.path }],
-      },
-      projects: {
-        data: [
-          {
-            createdAt: "2026-08-18T00:00:00.000Z",
-            id: "codexly-worktree",
-            name: "Codexly-feat-review",
-            roots: [{ id: "root-worktree", path: worktree.path }],
-          },
-        ],
-        nextCursor: null,
-      },
-      worktree,
-      worktrees: { worktrees: [worktree] },
-    };
-    const client = { switchProjectWorktree: vi.fn(() => Promise.resolve(response)) };
-
-    await expect(
-      switchComposerWorktree(client, queryClient, "codexly", rootPath, [worktree], worktree.path),
-    ).resolves.toEqual(response.project);
-    await expect(
-      switchComposerWorktree(
-        client,
-        queryClient,
-        "codexly",
-        rootPath,
-        [worktree],
-        "/workspace/missing",
-      ),
-    ).resolves.toBeUndefined();
-
-    expect(client.switchProjectWorktree).toHaveBeenCalledOnce();
-    expect(client.switchProjectWorktree).toHaveBeenCalledWith("codexly", rootPath, {
-      path: worktree.path,
-    });
   });
 });

@@ -7,7 +7,6 @@ import type {
   AgentTaskSettings,
   ProjectFileSearchEntry,
   ProjectGitStatus,
-  ProjectGitWorktree,
   ProjectRoot,
 } from "@codexly/protocol";
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from "react";
@@ -47,7 +46,6 @@ export type WorkbenchComposerViewProps = Readonly<{
   composerScope: string;
   contextUsage: AgentContextUsage | null | undefined;
   creatingBranch: string | undefined;
-  creatingWorktree: string | undefined;
   draftInputDisabled: boolean;
   editingTodoId: string | undefined;
   editQueuedPrompt: (queuedPrompt: QueuedComposerPrompt) => void;
@@ -72,8 +70,6 @@ export type WorkbenchComposerViewProps = Readonly<{
   onAttachmentsChange: (files: readonly PromptInputAttachment[]) => void;
   onBranchCreate: (branch: string) => Promise<boolean>;
   onBranchChange: (branch: string) => void;
-  onWorktreeChange: (path: string) => void;
-  onWorktreeCreate: (branch: string) => Promise<boolean>;
   onExecuteCommand: (command: PromptCommandItem) => void;
   onExecuteReview: (target: AgentReviewTarget) => void;
   onFastModeChange: (enabled: boolean) => void;
@@ -122,10 +118,8 @@ export type WorkbenchComposerViewProps = Readonly<{
   steerQueuedPrompt: (queuedPrompt: QueuedComposerPrompt) => void;
   submitAction: ComposerSubmitAction;
   switchingBranch: string | undefined;
-  switchingWorktree: string | undefined;
   taskId: string | undefined;
   turnControlsDisabled: boolean;
-  worktrees: readonly ProjectGitWorktree[];
 }>;
 
 export function resolveQueuedPromptSummary(

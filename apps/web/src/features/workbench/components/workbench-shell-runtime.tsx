@@ -53,6 +53,7 @@ import {
 } from "../workbench-inspector-activation.js";
 import { useWorkbenchPanelLayout } from "./workbench-panel-layout.js";
 import { useSubmissionStartedAt } from "./use-submission-started-at.js";
+import { resolveWorkbenchTaskRoot } from "./workbench-task-root.js";
 import {
   createTaskLaunchSnapshot,
   taskLaunchQueryKey,
@@ -94,10 +95,6 @@ export function useWorkbenchShellRuntime({
   const { capabilities, client, error, isPending, projects, projectTaskStates, tasks } =
     useProjectData();
   const project = projects.find((item) => item.id === projectId);
-  const { selectedRootIds, setSelectedProjectRoot } = useProjectRootSelection();
-  const selectedRoot = resolveProjectRootFromSelections(project, selectedRootIds);
-  const activeRootId = temporary ? undefined : selectedRoot?.id;
-  const selectedRootPath = temporary ? undefined : selectedRoot?.path;
   const {
     markTaskRunning,
     projectRuntime,
@@ -106,6 +103,24 @@ export function useWorkbenchShellRuntime({
     retry,
     viewTask,
   } = useProjectActions();
+  const runtime = useTaskRuntime(projectId, taskId, projectRuntime);
+  const activeTask = tasks.find((task) => task.projectId === projectId && task.id === taskId);
+  const reportedWorkspacePath =
+    activeTask?.workspacePath ??
+    (runtime.metadata !== undefined && runtime.metadata.id === taskId
+      ? runtime.metadata.workspacePath
+      : undefined);
+  const { selectedRootIds, setSelectedProjectRoot } = useProjectRootSelection();
+  const selectedRoot = resolveProjectRootFromSelections(project, selectedRootIds);
+  const { activeRootId, projectRoots, selectedRootPath } = resolveWorkbenchTaskRoot({
+    metadataTaskId: runtime.metadata?.id,
+    projectRoots: project?.roots ?? [],
+    reportedWorkspacePath,
+    selectedRoot,
+    taskId,
+    taskKnown: activeTask !== undefined,
+    temporary,
+  });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const {
@@ -132,14 +147,16 @@ export function useWorkbenchShellRuntime({
   // 标签选择绑定当前路由身份；新打开的草稿与历史任务都从项目开始。
   const inspectorTab =
     inspectorTabState.scopeKey === inspectorScopeKey ? inspectorTabState.tab : defaultInspectorTab;
-  const gitStatusQuery = useQuery(
-    projectGitStatusQueryOptions(
+  const gitStatusQuery = useQuery({
+    ...projectGitStatusQueryOptions(
       projectId,
       selectedRootPath ?? "",
       client,
       !temporary && selectedRootPath !== undefined,
     ),
-  );
+    // worktree 位于 Project 根列表外，终端改动仍需定期刷新 Git 状态。
+    refetchInterval: activeRootId === "worktree" ? 10_000 : false,
+  });
   useProjectGitStatusRefresh({
     enabled: !temporary && selectedRootPath !== undefined,
     refresh: gitStatusQuery.refetch,
@@ -247,7 +264,6 @@ export function useWorkbenchShellRuntime({
     taskId === undefined
       ? undefined
       : queryClient.getQueryData<TaskLaunchState>(taskLaunchQueryKey(projectId, taskId));
-  const runtime = useTaskRuntime(projectId, taskId, projectRuntime);
   const startingSnapshot = useMemo<RuntimeTaskSnapshot | undefined>(
     () => (taskLaunchState === undefined ? undefined : createTaskLaunchSnapshot(taskLaunchState)),
     [taskLaunchState],
@@ -414,7 +430,7 @@ export function useWorkbenchShellRuntime({
     projectDefaultsMutation,
     projectDefaultsQuery,
     projectName,
-    projectRoots: project?.roots ?? [],
+    projectRoots,
     projectOpenCapabilitiesQuery,
     providerConnectionQuery,
     projectFolderOpenAvailable: projectFileManagerApp !== undefined,
