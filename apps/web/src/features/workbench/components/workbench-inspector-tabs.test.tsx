@@ -9,21 +9,55 @@ import {
   readInspectorTabLabels,
 } from "./workbench-inspector.test-support.js";
 import { WorkbenchInspectorTabs } from "./workbench-inspector-tabs.js";
+import { Tabs } from "radix-ui";
+import { closeInspectorDocument, documentTabId } from "./workbench-inspector-documents.js";
 
 describe("WorkbenchInspector tabs", () => {
-  it("renders the close action inside the active file tab surface", () => {
+  it("keeps every opened file tab while mounting only the selected panel", () => {
+    const documents = Array.from({ length: 24 }, (_, index) => ({
+      id: `source:file-${String(index)}.ts`,
+      kind: "source" as const,
+      reference: { lineNumber: null, path: `file-${String(index)}.ts` },
+    }));
+    const lastDocument = documents.at(-1);
+    if (lastDocument === undefined) throw new Error("Missing test document");
     const markup = renderInspectorMarkup(
-      <WorkbenchInspectorTabs
-        activeTab="file"
-        availableTabs={["context", "file"]}
-        onCloseFile={() => undefined}
-        onTabChange={() => undefined}
+      <WorkbenchInspector
+        documents={documents}
+        onCloseDocument={() => undefined}
+        projectId="project-1"
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
+        tab={documentTabId(lastDocument.id)}
       />,
     );
+    expect(readInspectorTabLabels(markup)).toHaveLength(25);
+    expect(markup.match(/role="tabpanel"/gu)).toHaveLength(1);
+    expect(closeInspectorDocument(documents, lastDocument.id)).toHaveLength(23);
+  });
 
-    expect(readInspectorTabLabels(markup)).toEqual(["上下文", "文件"]);
+  it("renders the close action inside the active file tab surface", () => {
+    const markup = renderInspectorMarkup(
+      <Tabs.Root value={documentTabId("source:README.md")}>
+        <WorkbenchInspectorTabs
+          activeTab={documentTabId("source:README.md")}
+          availableTabs={["context", documentTabId("source:README.md")]}
+          documents={[
+            {
+              id: "source:README.md",
+              kind: "source",
+              reference: { lineNumber: null, path: "README.md" },
+            },
+          ]}
+          onCloseDocument={() => undefined}
+          onTabChange={() => undefined}
+        />
+      </Tabs.Root>,
+    );
+
+    expect(readInspectorTabLabels(markup)).toEqual(["上下文", "README.md"]);
     expect(markup).toMatch(
-      /<div[^>]*role="group"[^>]*>.*?<button[^>]*role="tab"[^>]*>.*?文件<\/span><\/button>.*?aria-label="关闭文件".*?<\/div>/su,
+      /<div[^>]*role="group"[^>]*>.*?<button[^>]*role="tab"[^>]*>.*?README.md<\/span><\/button>.*?aria-label="关闭文件".*?<\/div>/su,
     );
     const closeButton = /<button[^>]*aria-label="关闭文件"[^>]*>/u.exec(markup)?.[0];
     expect(closeButton).toContain('data-size="embedded"');
@@ -36,20 +70,27 @@ describe("WorkbenchInspector tabs", () => {
       "src/features/workbench/components/nested/very-long-directory/very-long-source-file-name.tsx";
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
-        fileSelection={{
-          kind: "source",
-          reference: { lineNumber: 12, path: sourcePath },
-        }}
-        onCloseFile={() => undefined}
+        documents={[
+          {
+            id: `source:${sourcePath}`,
+            kind: "source",
+            reference: { lineNumber: 12, path: sourcePath },
+          },
+        ]}
+        onCloseDocument={() => undefined}
         projectId="project-1"
         projectName="Codexly"
         projectPath="/workspace/Codexly"
-        tab="file"
+        tab={documentTabId(`source:${sourcePath}`)}
         taskId="task-1"
       />,
     );
 
-    expect(readInspectorTabLabels(markup)).toEqual(["项目", "上下文", "文件"]);
+    expect(readInspectorTabLabels(markup)).toEqual([
+      "项目",
+      "上下文",
+      "very-long-source-file-name.tsx",
+    ]);
     expect(markup).toContain('aria-selected="true"');
     const pathTrigger =
       /<div(?=[^>]*data-slot="tooltip-trigger")(?=[^>]*class="([^"]*)")[^>]*>/u.exec(markup);
@@ -57,7 +98,7 @@ describe("WorkbenchInspector tabs", () => {
       expect.arrayContaining(["w-0", "overflow-hidden"]),
     );
     expect(markup).toContain(sourcePath);
-    expect(markup).not.toContain(`title="${sourcePath}"`);
+    expect(markup).toContain(`title="${sourcePath}"`);
     expect(markup).toContain("正在加载源文件");
     expect(markup).not.toContain('role="dialog"');
   });
@@ -65,21 +106,24 @@ describe("WorkbenchInspector tabs", () => {
   it("keeps the tab header fixed while the file preview fills the remaining height", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
-        fileSelection={{
-          kind: "source",
-          reference: { lineNumber: null, path: "README.md" },
-        }}
+        documents={[
+          {
+            id: "source:README.md",
+            kind: "source",
+            reference: { lineNumber: null, path: "README.md" },
+          },
+        ]}
         projectId="project-1"
         projectName="Codexly"
         projectPath="/workspace/Codexly"
-        tab="file"
+        tab={documentTabId("source:README.md")}
         taskId="task-1"
       />,
     );
 
     const inspectorClassName = /<aside[^>]*class="([^"]*)"/u.exec(markup)?.[1];
     const headerClassName = /<aside[^>]*>\s*<div class="([^"]*)"/u.exec(markup)?.[1];
-    const tabPanelClassName = /<div class="([^"]*)" role="tabpanel"/u.exec(markup)?.[1];
+    const tabPanelClassName = /<div[^>]*class="([^"]*)"[^>]*role="tabpanel"/u.exec(markup)?.[1];
 
     expect(inspectorClassName?.split(" ")).toEqual(expect.arrayContaining(["flex", "flex-col"]));
     expect(headerClassName?.split(" ")).toEqual(
@@ -91,24 +135,27 @@ describe("WorkbenchInspector tabs", () => {
   it("mounts the selected Diff inside the file tab instead of a dialog", () => {
     const markup = renderInspectorMarkup(
       <WorkbenchInspector
-        fileSelection={{
-          change: {
-            diff: "@@ -1 +1 @@\n-export const live = false;\n+export const live = true;",
-            kind: "update",
-            path: "src/live.ts",
+        documents={[
+          {
+            id: "diff:src/live.ts",
+            change: {
+              diff: "@@ -1 +1 @@\n-export const live = false;\n+export const live = true;",
+              kind: "update",
+              path: "src/live.ts",
+            },
+            kind: "diff",
           },
-          kind: "diff",
-        }}
-        onCloseFile={() => undefined}
+        ]}
+        onCloseDocument={() => undefined}
         projectId="project-1"
         projectName="Codexly"
         projectPath="/workspace/Codexly"
-        tab="file"
+        tab={documentTabId("diff:src/live.ts")}
         taskId="task-1"
       />,
     );
 
-    expect(readInspectorTabLabels(markup)).toEqual(["项目", "上下文", "文件"]);
+    expect(readInspectorTabLabels(markup)).toEqual(["项目", "上下文", "Diff: live.ts"]);
     expect(markup).toContain('aria-label="src/live.ts"');
     expect(markup).toContain("live.ts");
     expect(markup).toContain("+1");
@@ -395,7 +442,7 @@ describe("WorkbenchInspector tabs", () => {
     );
 
     expect(readInspectorTabLabels(cleanMarkup)).toEqual(["项目", "上下文", "历史"]);
-    expect(cleanMarkup).toMatch(/aria-selected="true"[^>]*>.*?<span>项目<\/span>/su);
+    expect(cleanMarkup).toMatch(/aria-selected="true"[^>]*>.*?<span[^>]*>项目<\/span>/su);
     expect(readInspectorTabLabels(nonGitMarkup)).toEqual(["项目", "上下文"]);
   });
 

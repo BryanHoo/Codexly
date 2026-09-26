@@ -18,13 +18,16 @@ import {
 } from "../../conversation/runtime/task-runtime.js";
 import { useTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
 import { useInspectorTask } from "./use-inspector-task.js";
-import type { AgentFileChange } from "../../diff/file-change.js";
 import { providerConnectionQueryOptions } from "../../provider-connection/provider-connection-queries.js";
 import { notifyActionError } from "../../notifications/action-notifications.js";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
 import { isGitUnavailableError } from "../../projects/project-git-error.js";
 import { shouldRefreshTaskDefaults } from "../../projects/global-settings-effects.js";
-import { useProjectActions, useProjectData, useProjectRootSelection } from "../../projects/project-context.js";
+import {
+  useProjectActions,
+  useProjectData,
+  useProjectRootSelection,
+} from "../../projects/project-context.js";
 import { resolveProjectRootFromSelections } from "../../projects/project-root-selection.js";
 import {
   appInfoQueryOptions,
@@ -46,10 +49,12 @@ import { useProjectGitStatusRouteRefresh } from "../hooks/use-project-git-status
 import type { SidebarSettingsSection } from "./project-sidebar-actions.js";
 import { getProjectFileManagerApp } from "./project-open-menu.js";
 import { collectSubagents, type SubagentSelection } from "./subagent.js";
-import type {
-  WorkbenchInspectorFileSelection,
-  WorkbenchInspectorTab,
-} from "./workbench-inspector.js";
+import type { WorkbenchInspectorTab } from "./workbench-inspector.js";
+import {
+  closeInspectorDocument,
+  documentTabId,
+  type InspectorDocument,
+} from "./workbench-inspector-documents.js";
 import {
   deriveWorkbenchInspectorActivation,
   deriveWorkbenchInspectorContextActivation,
@@ -59,10 +64,7 @@ import {
 import { shouldEnableWorkbenchSkills } from "../workbench-query-availability.js";
 import { useWorkbenchPanelLayout } from "./workbench-panel-layout.js";
 import { useSubmissionStartedAt } from "./use-submission-started-at.js";
-import {
-  createProjectOpenRequest,
-  type ProjectPathOpenInput,
-} from "../project-file-reference.js";
+import { createProjectOpenRequest, type ProjectPathOpenInput } from "../project-file-reference.js";
 export { useSubmissionStartedAt } from "./use-submission-started-at.js";
 const emptyExpandedFileTreePaths = new Set<string>();
 export function taskLaunchQueryKey(projectId: string, taskId: string) {
@@ -128,13 +130,8 @@ export function useWorkbenchShellRuntime({
   const selectedRoot = resolveProjectRootFromSelections(project, selectedRootIds);
   const activeRootId = temporary ? undefined : selectedRoot?.id;
   const selectedRootPath = temporary ? undefined : selectedRoot?.path;
-  const {
-    markTaskRunning,
-    projectRuntime,
-    refreshProjectGitStatus,
-    retry,
-    viewTask,
-  } = useProjectActions();
+  const { markTaskRunning, projectRuntime, refreshProjectGitStatus, retry, viewTask } =
+    useProjectActions();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const inspectorScopeKey = `${projectId}:${taskId ?? "draft"}`;
@@ -155,9 +152,13 @@ export function useWorkbenchShellRuntime({
     scopeKey: string;
     tab: WorkbenchInspectorTab;
   }>({ scopeKey: inspectorScopeKey, tab: defaultInspectorTab });
-  const [inspectorFileSelection, setInspectorFileSelection] = useState<
-    (WorkbenchInspectorFileSelection & { projectId: string }) | null
-  >(null);
+  const [inspectorDocumentsState, setInspectorDocumentsState] = useState<{
+    scopeKey: string;
+    documents: InspectorDocument[];
+  }>({ scopeKey: `${projectId}:${selectedRootPath ?? ""}`, documents: [] });
+  const documentsScopeKey = `${projectId}:${selectedRootPath ?? ""}`;
+  const inspectorDocuments =
+    inspectorDocumentsState.scopeKey === documentsScopeKey ? inspectorDocumentsState.documents : [];
   // 标签选择绑定当前路由身份；普通 Task 启动后继续展示项目面板。
   const inspectorTab =
     inspectorTabState.scopeKey === inspectorScopeKey ? inspectorTabState.tab : defaultInspectorTab;
@@ -169,7 +170,11 @@ export function useWorkbenchShellRuntime({
       !temporary && selectedRootPath !== undefined,
     ),
   );
-  useProjectGitStatusRouteRefresh(inspectorScopeKey, !temporary && selectedRootPath !== undefined, gitStatusQuery);
+  useProjectGitStatusRouteRefresh(
+    inspectorScopeKey,
+    !temporary && selectedRootPath !== undefined,
+    gitStatusQuery,
+  );
   useEffect(() => {
     if (gitStatusQuery.error === null) return;
     recordInternalWarning("git_status_query_failed", gitStatusQuery.error, { projectId });
@@ -177,7 +182,7 @@ export function useWorkbenchShellRuntime({
   }, [gitStatusQuery.error, projectId]);
   const inspectorActivation = deriveWorkbenchInspectorActivation({
     contextOnly: temporary,
-    fileOpen: inspectorFileSelection?.projectId === projectId,
+    fileOpen: inspectorDocuments.some((document) => documentTabId(document.id) === inspectorTab),
     gitStatus: gitStatusQuery.data,
     inspectorOpen,
     requestedTab: inspectorTab,
@@ -200,18 +205,12 @@ export function useWorkbenchShellRuntime({
     },
   });
   const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client));
-  const projectOpenCapabilitiesQuery = useQuery(
-    projectOpenCapabilitiesQueryOptions(client),
-  );
+  const projectOpenCapabilitiesQuery = useQuery(projectOpenCapabilitiesQueryOptions(client));
   const projectPathOpenMutation = useMutation({
     // 外部应用已经提供明确的成功反馈，仅保留失败 toast。
     meta: { actionNotification: { successMessage: false } },
     mutationFn: (input: ProjectPathOpenInput) =>
-      client.openProject(
-        projectId,
-        selectedRootPath,
-        createProjectOpenRequest(input, taskId),
-      ),
+      client.openProject(projectId, selectedRootPath, createProjectOpenRequest(input, taskId)),
   });
   const taskAttachmentOpenMutation = useMutation({
     meta: { actionNotification: { successMessage: false } },
@@ -304,13 +303,6 @@ export function useWorkbenchShellRuntime({
   const [globalSettingsSection, setGlobalSettingsSection] = useState<SidebarSettingsSection | null>(
     null,
   );
-  const [projectFileDialogSelection, setProjectFileDialogSelection] = useState<
-    (WorkbenchInspectorFileSelection & { projectId: string }) | null
-  >(null);
-  const [fileReviewSelection, setFileReviewSelection] = useState<{
-    changes: readonly AgentFileChange[];
-    projectId: string;
-  } | null>(null);
   const [subagentDialogSelection, setSubagentDialogSelection] = useState<{
     parentTaskId: string;
     projectId: string;
@@ -319,20 +311,42 @@ export function useWorkbenchShellRuntime({
   const setSelectedRootId = useCallback(
     (rootId: string) => {
       setSelectedProjectRoot(projectId, rootId);
-      // 根切换后关闭旧根派生的详情，避免相同相对路径被误解为新根文件。
-      setProjectFileDialogSelection(null);
-      setFileReviewSelection(null);
-      setInspectorFileSelection(null);
+      // 根切换后文件标签按新根隔离，避免相同相对路径指向旧文件。
     },
     [projectId, setSelectedProjectRoot],
   );
-
 
   const setInspectorTab = useCallback(
     (tab: WorkbenchInspectorTab) => {
       setInspectorTabState({ scopeKey: inspectorScopeKey, tab });
     },
     [inspectorScopeKey],
+  );
+  const openInspectorDocument = useCallback(
+    (document: InspectorDocument) => {
+      // 同一路径复用标签；内容仅存描述数据，未激活的预览不会挂载或发起读取。
+      setInspectorDocumentsState((previous) => {
+        const documents = previous.scopeKey === documentsScopeKey ? previous.documents : [];
+        const index = documents.findIndex((item) => item.id === document.id);
+        const next = [...documents];
+        if (index === -1) next.push(document);
+        else next[index] = document;
+        return { scopeKey: documentsScopeKey, documents: next };
+      });
+      setInspectorTab(documentTabId(document.id));
+      setInspectorOpen(true);
+    },
+    [documentsScopeKey, setInspectorOpen, setInspectorTab],
+  );
+  const removeInspectorDocument = useCallback(
+    (id: string) => {
+      setInspectorDocumentsState((previous) => ({
+        ...previous,
+        documents: closeInspectorDocument(previous.documents, id),
+      }));
+      if (inspectorTab === documentTabId(id)) setInspectorTab(defaultInspectorTab);
+    },
+    [defaultInspectorTab, inspectorTab, setInspectorTab],
   );
 
   useLayoutEffect(() => {
@@ -347,12 +361,6 @@ export function useWorkbenchShellRuntime({
     t("shell.newChat");
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
-  const selectedProjectFileDialog =
-    projectFileDialogSelection?.projectId === projectId ? projectFileDialogSelection : null;
-  const selectedInspectorFile =
-    inspectorFileSelection?.projectId === projectId ? inspectorFileSelection : null;
-  const selectedFileReview =
-    fileReviewSelection?.projectId === projectId ? fileReviewSelection.changes : null;
   const inspectorTask = useInspectorTask(runtime.store, inspectorOpen, startingSnapshot);
   const hasInspectorGoal = inspectorTask?.goal !== null && inspectorTask?.goal !== undefined;
   const hasInspectorPlan = inspectorTask?.plan !== null && inspectorTask?.plan !== undefined;
@@ -402,7 +410,6 @@ export function useWorkbenchShellRuntime({
     client,
     error,
     expandedFileTreePaths,
-    fileReviewSelection,
     getNewChatSubmissionStartedAt,
     gitStatusQuery,
     globalSettingsMutation,
@@ -444,13 +451,12 @@ export function useWorkbenchShellRuntime({
     renameMutation,
     retry,
     runtime,
-    selectedFileReview,
-    selectedInspectorFile,
-    selectedProjectFileDialog,
+    inspectorDocuments,
+    openInspectorDocument,
+    removeInspectorDocument,
     selectedRootId: activeRootId,
     selectedRootPath,
     selectedSubagent,
-    setFileReviewSelection,
     setFileTreeExpansion,
     setGlobalSettingsSection,
     setInspectorOpen,
@@ -459,8 +465,6 @@ export function useWorkbenchShellRuntime({
     setPendingTaskSelection,
     setSidebarOpen,
     setSidebarWidth,
-    setInspectorFileSelection,
-    setProjectFileDialogSelection,
     setSelectedRootId,
     setSubagentDialogSelection,
     setTaskRenameOpen,

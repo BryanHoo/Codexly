@@ -5,16 +5,8 @@ import "../../i18n/global-search.js";
 import { SearchResults, type SearchResult } from "./search-results.js";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  ChevronLeft,
-  ChevronRight,
-  CircleX,
-  LoaderCircle,
-  Search,
-  SearchX,
-  X,
-} from "lucide-react";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, CircleX, LoaderCircle, Search, SearchX, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { AgentTask, Project } from "@/protocol/index.js";
 import type { SearchOccurrence } from "@/protocol/global-search.js";
 import type { NativeWorkbenchClient } from "../projects/project-query-contracts.js";
@@ -22,11 +14,7 @@ import { useTranslation } from "../../i18n/i18n.js";
 import { Button } from "../../shared/components/core/button.js";
 import { Checkbox } from "../../shared/components/core/checkbox.js";
 import { Input } from "../../shared/components/core/input.js";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "../../shared/components/core/dialog.js";
+import { Dialog, DialogContent, DialogTitle } from "../../shared/components/core/dialog.js";
 import { prepareSearchFile } from "./open-search-file.js";
 import { notifyActionError } from "../notifications/action-notifications.js";
 import { useGlobalSearch, type SearchCategory } from "./use-global-search.js";
@@ -34,22 +22,18 @@ import { useHistoryLocation } from "./history-location.js";
 import { SearchOccurrences } from "./search-occurrences.js";
 import type { SearchFile } from "./search-files.js";
 
-const ProjectSourceDialog = lazy(() =>
-  import("../workbench/components/project-source-dialog.js").then((module) => ({
-    default: module.ProjectSourceDialog,
-  })),
-);
-
 export function GlobalSearchDialog({
   open,
   client,
   projects,
   onClose,
+  onOpenFile,
 }: Readonly<{
   open: boolean;
   client: NativeWorkbenchClient;
   projects: readonly Project[];
   onClose: () => void;
+  onOpenFile: (file: SearchFile, kind: "image" | "source") => void;
 }>) {
   const { t } = useTranslation("workbench");
   const navigate = useNavigate();
@@ -59,17 +43,9 @@ export function GlobalSearchDialog({
   const [archived, setArchived] = useState(false);
   const [composing, setComposing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [taskCursors, setTaskCursors] = useState<(string | undefined)[]>([
-    undefined,
-  ]);
-  const [historyCursors, setHistoryCursors] = useState<(string | undefined)[]>([
-    undefined,
-  ]);
+  const [taskCursors, setTaskCursors] = useState<(string | undefined)[]>([undefined]);
+  const [historyCursors, setHistoryCursors] = useState<(string | undefined)[]>([undefined]);
   const [historyTask, setHistoryTask] = useState<AgentTask | null>(null);
-  const [preview, setPreview] = useState<{
-    file: SearchFile;
-    kind: "image" | "source";
-  } | null>(null);
   const [opening, setOpening] = useState(false);
   const openingRef = useRef(false);
   const actionAbortRef = useRef<AbortController | null>(null);
@@ -89,9 +65,7 @@ export function GlobalSearchDialog({
     historyCursors.at(-1),
     open,
   );
-  const projectNames = new Map(
-    projects.map((project) => [project.id, project.name]),
-  );
+  const projectNames = new Map(projects.map((project) => [project.id, project.name]));
   const rows: SearchResult[] = [];
   for (const kind of ["tasks", "history"] as const) {
     if (category !== "all" && category !== kind) continue;
@@ -100,9 +74,7 @@ export function GlobalSearchDialog({
         id: `${kind}:${result.task.id}`,
         kind,
         title: result.task.title,
-        subtitle:
-          projectNames.get(result.task.projectId) ??
-          t("globalSearch.temporary"),
+        subtitle: projectNames.get(result.task.projectId) ?? t("globalSearch.temporary"),
         snippet: result.snippet,
         task: result.task,
         ...(result.occurrence ? { occurrence: result.occurrence } : {}),
@@ -126,17 +98,12 @@ export function GlobalSearchDialog({
   );
   const selected = rows[selectedIndex];
   const visibleQueries =
-    category === "all"
-      ? [results.tasks, results.history, results.files]
-      : [results[category]];
+    category === "all" ? [results.tasks, results.history, results.files] : [results[category]];
   const loading =
-    normalized.length > 0 &&
-    (results.waiting || visibleQueries.some((item) => item.isFetching));
+    normalized.length > 0 && (results.waiting || visibleQueries.some((item) => item.isFetching));
   const failed = visibleQueries.some((item) => item.isError);
   useEffect(() => {
-    listRef.current
-      ?.querySelector('[aria-selected="true"]')
-      ?.scrollIntoView({ block: "nearest" });
+    listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
   }, [selected?.id]);
 
   const openTask = async (task: AgentTask, occurrence?: SearchOccurrence) => {
@@ -160,7 +127,10 @@ export function GlobalSearchDialog({
   };
   const openFile = async (file: SearchFile, signal: AbortSignal) => {
     const kind = await prepareSearchFile(client, cache, file, signal);
-    if (kind !== null) setPreview({ file, kind });
+    if (kind !== null) {
+      onOpenFile(file, kind);
+      onClose();
+    }
   };
   const activate = async (row: SearchResult) => {
     if (openingRef.current) return;
@@ -173,14 +143,11 @@ export function GlobalSearchDialog({
         // 列表已由后端校验，复用同一锚点，避免再次搜索改变点击目标。
         if (row.occurrence) await openTask(row.task, row.occurrence);
         else setHistoryTask(row.task);
-      } else if (row.file !== undefined)
-        await openFile(row.file, controller.signal);
+      } else if (row.file !== undefined) await openFile(row.file, controller.signal);
       else if (row.task !== undefined) await openTask(row.task);
     } catch (error) {
       if (!controller.signal.aborted)
-        notifyActionError(
-          error instanceof Error ? error : new Error(String(error)),
-        );
+        notifyActionError(error instanceof Error ? error : new Error(String(error)));
     } finally {
       openingRef.current = false;
       setOpening(false);
@@ -208,15 +175,10 @@ export function GlobalSearchDialog({
           onOpenAutoFocus={visibility.onOpenAutoFocus}
           onCloseAutoFocus={visibility.onCloseAutoFocus}
         >
-          <DialogTitle className="sr-only">
-            {t("globalSearch.title")}
-          </DialogTitle>
+          <DialogTitle className="sr-only">{t("globalSearch.title")}</DialogTitle>
           <div className="flex items-center gap-2 border-b border-separator px-4 pb-3 pt-4">
             <div className="flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-surface border border-separator-strong bg-control px-3 transition-[background-color,border-color,box-shadow] focus-within:border-brand focus-within:bg-panel focus-within:shadow-focus">
-              <Search
-                aria-hidden="true"
-                className="size-4 shrink-0 text-muted-foreground"
-              />
+              <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
               <Input
                 ref={inputRef}
                 autoComplete="off"
@@ -245,10 +207,7 @@ export function GlobalSearchDialog({
                 }}
                 onKeyDown={(event) => {
                   if (event.nativeEvent.isComposing || composing) return;
-                  if (
-                    (event.metaKey || event.ctrlKey) &&
-                    event.key.toLowerCase() === "f"
-                  ) {
+                  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
                     event.preventDefault();
                     event.currentTarget.select();
                     return;
@@ -258,8 +217,7 @@ export function GlobalSearchDialog({
                     event.preventDefault();
                     setSelectedId(
                       rows[
-                        (selectedIndex +
-                          (event.key === "ArrowDown" ? 1 : rows.length - 1)) %
+                        (selectedIndex + (event.key === "ArrowDown" ? 1 : rows.length - 1)) %
                           rows.length
                       ]!.id,
                     );
@@ -413,8 +371,7 @@ export function GlobalSearchDialog({
               {(["tasks", "history"] as const).map((kind) => {
                 if (category !== "all" && category !== kind) return null;
                 const cursors = kind === "tasks" ? taskCursors : historyCursors;
-                const setCursors =
-                  kind === "tasks" ? setTaskCursors : setHistoryCursors;
+                const setCursors = kind === "tasks" ? setTaskCursors : setHistoryCursors;
                 const next = results[kind].data?.nextCursor;
                 if (cursors.length === 1 && !next) return null;
                 return (
@@ -429,9 +386,7 @@ export function GlobalSearchDialog({
                       size="sm"
                       variant="ghost"
                       disabled={cursors.length === 1}
-                      onClick={() =>
-                        setCursors((current) => current.slice(0, -1))
-                      }
+                      onClick={() => setCursors((current) => current.slice(0, -1))}
                     >
                       <ChevronLeft />
                       {t("globalSearch.previous")}
@@ -457,11 +412,7 @@ export function GlobalSearchDialog({
               <p>{t("globalSearch.resultCount", { count: rows.length })}</p>
               <span className="ml-auto mr-3">{t("globalSearch.keyboard")}</span>
               {selected?.kind === "history" && selected.task !== undefined ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setHistoryTask(selected.task!)}
-                >
+                <Button size="sm" variant="ghost" onClick={() => setHistoryTask(selected.task!)}>
                   {t("globalSearch.occurrences")}
                 </Button>
               ) : null}
@@ -469,18 +420,6 @@ export function GlobalSearchDialog({
           ) : null}
         </DialogContent>
       </Dialog>
-      {!open || preview === null ? null : (
-        <Suspense fallback={null}>
-          <ProjectSourceDialog
-            client={client}
-            projectId={preview.file.projectId}
-            rootPath={preview.file.rootPath}
-            previewKind={preview.kind}
-            reference={{ path: preview.file.path, lineNumber: null }}
-            onClose={() => setPreview(null)}
-          />
-        </Suspense>
-      )}
     </>
   );
 }

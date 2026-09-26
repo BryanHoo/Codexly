@@ -13,6 +13,7 @@ import type { useWorkbenchShellController } from "./workbench-shell-controller.j
 import { WorkbenchShellDialogs } from "./workbench-shell-dialogs.js";
 import { ActiveTaskWorkbench } from "./workbench-shell-active-task.js";
 import { WorkbenchInspector } from "./workbench-inspector.js";
+import { fileDocumentId } from "./workbench-inspector-documents.js";
 import { WorkbenchPetLayer } from "../../pets/components/workbench-pet-layer.js";
 import { TaskBoardContainer } from "./task-board-container.js";
 import { WorkbenchShellHeader } from "./workbench-shell-header.js";
@@ -98,13 +99,14 @@ export function WorkbenchShellLayout({
     runtime,
     selectedRootPath,
     selectedRootId,
-    selectedInspectorFile,
+    inspectorDocuments,
+    openInspectorDocument,
+    removeInspectorDocument,
     setFileTreeExpansion,
     setGlobalSettingsSection,
     setInspectorOpen,
     setInspectorTab,
     setInspectorWidth,
-    setInspectorFileSelection,
     setSidebarWidth,
     setSelectedRootId,
     setSubagentDialogSelection,
@@ -142,6 +144,15 @@ export function WorkbenchShellLayout({
           {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
           connectionState={sidebarConnectionState}
           onClose={closeSidebar}
+          onOpenFile={(file, kind) => {
+            openInspectorDocument({
+              id: fileDocumentId(kind, `${file.projectId}:${file.rootPath}:${file.path}`),
+              kind,
+              projectId: file.projectId,
+              rootPath: file.rootPath,
+              reference: { lineNumber: null, path: file.path },
+            });
+          }}
           onOpenSettings={(section) => {
             setGlobalSettingsSection(section);
           }}
@@ -381,10 +392,17 @@ export function WorkbenchShellLayout({
             mcpServersRetrying={mcpServersReloadMutation.isPending}
             key={`${projectId}:${taskId ?? "draft"}`}
             onClose={closeInspector}
-            onCloseFile={() => {
-              setInspectorFileSelection(null);
+            documents={inspectorDocuments}
+            onCloseDocument={removeInspectorDocument}
+            onOpenLoadedDiff={openProjectFileDiff}
+            onOpenCommit={(commit, repository) => {
+              openInspectorDocument({
+                id: `commit:${repository ?? "root"}:${commit.sha}`,
+                kind: "commit",
+                commit,
+                ...(repository === undefined ? {} : { repository }),
+              });
             }}
-            fileSelection={selectedInspectorFile}
             onFileTreeExpandedChange={(nextExpandedPaths) => {
               setFileTreeExpansion({
                 paths: new Set(nextExpandedPaths),

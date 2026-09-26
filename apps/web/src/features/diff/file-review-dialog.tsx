@@ -21,7 +21,6 @@ import {
 } from "react";
 
 import { Button } from "../../shared/components/core/button.js";
-import { Dialog, DialogContent, DialogTitle } from "../../shared/components/core/dialog.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../shared/components/core/tooltip.js";
 import { useTranslation } from "../../i18n/i18n.js";
 import type { AgentFileChange } from "./file-change.js";
@@ -61,6 +60,7 @@ export function resolveReviewIndex(
 
 type FileReviewWorkspaceProps = Readonly<{
   changes: readonly AgentFileChange[];
+  compact?: boolean;
   currentIndex: number;
   navigationFooter?: ReactNode;
   onClose: () => void;
@@ -72,6 +72,7 @@ type FileReviewWorkspaceProps = Readonly<{
 
 export function FileReviewWorkspace({
   changes,
+  compact = false,
   currentIndex,
   navigationFooter,
   onClose,
@@ -83,7 +84,9 @@ export function FileReviewWorkspace({
   const { t } = useTranslation("workbench");
   const [fileViewMode, setFileViewMode] = useFileNavigationViewPreference("review");
   const reviewContentRef = useRef<HTMLElement>(null);
-  const [navigationOpen, setNavigationOpen] = useState(shouldOpenReviewNavigation);
+  const [navigationOpen, setNavigationOpen] = useState(
+    () => !compact && shouldOpenReviewNavigation(),
+  );
   const fileTree = useMemo(() => buildReviewFileTree(changes), [changes]);
   const fileIndexByPath = useMemo(
     () =>
@@ -95,8 +98,8 @@ export function FileReviewWorkspace({
 
   useEffect(() => {
     // 初始状态与工作台移动断点一致：桌面直接展示导航，移动端优先保留 Diff 宽度。
-    setNavigationOpen(shouldOpenReviewNavigation());
-  }, [changes]);
+    setNavigationOpen(!compact && shouldOpenReviewNavigation());
+  }, [changes, compact]);
 
   useEffect(() => {
     // 切换后原焦点按钮可能变为 disabled；窗口级监听保证上下方向键不因焦点丢失而中断。
@@ -230,7 +233,7 @@ export function FileReviewWorkspace({
         </div>
       </header>
       <div
-        className={`relative grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] bg-content ${navigationOpen ? "workbench:grid-cols-[minmax(0,1fr)_minmax(12rem,26%)]" : ""}`}
+        className={`relative grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] bg-content ${navigationOpen && !compact ? "workbench:grid-cols-[minmax(0,1fr)_minmax(12rem,26%)]" : ""}`}
       >
         <section
           aria-label={t("diff.reviewContent")}
@@ -256,7 +259,7 @@ export function FileReviewWorkspace({
         </section>
         <aside
           aria-label={t("diff.changedFilesNavigation")}
-          className="absolute inset-y-0 right-0 z-10 grid min-h-0 w-[min(16rem,82%)] grid-rows-[auto_minmax(0,1fr)] border-l border-separator bg-panel shadow-panel workbench:static workbench:z-auto workbench:w-auto workbench:shadow-none"
+          className={`absolute inset-y-0 right-0 z-10 grid min-h-0 w-[min(16rem,82%)] grid-rows-[auto_minmax(0,1fr)] border-l border-separator bg-panel shadow-panel ${compact ? "" : "workbench:static workbench:z-auto workbench:w-auto workbench:shadow-none"}`}
           hidden={!navigationOpen}
           id="file-review-navigation"
         >
@@ -309,48 +312,5 @@ export function FileReviewWorkspace({
         </aside>
       </div>
     </section>
-  );
-}
-
-type FileReviewDialogProps = Readonly<{
-  changes: readonly AgentFileChange[] | null;
-  onClose: () => void;
-}>;
-
-export function FileReviewDialog({ changes, onClose }: FileReviewDialogProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    if (changes !== null) {
-      setCurrentIndex(0);
-    }
-  }, [changes]);
-
-  if (changes === null || changes.length === 0) {
-    return null;
-  }
-
-  const titleId = "file-review-dialog-title";
-  return (
-    <Dialog
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      open
-    >
-      <DialogContent
-        aria-labelledby={titleId}
-        className="h-[min(86dvh,58rem)] max-w-[78rem] overflow-hidden bg-transparent p-0"
-      >
-        <DialogTitle className="sr-only">{getFileName(changes[0]?.path ?? "")}</DialogTitle>
-        <FileReviewWorkspace
-          changes={changes}
-          currentIndex={currentIndex}
-          onClose={onClose}
-          onCurrentIndexChange={setCurrentIndex}
-          titleId={titleId}
-        />
-      </DialogContent>
-    </Dialog>
   );
 }

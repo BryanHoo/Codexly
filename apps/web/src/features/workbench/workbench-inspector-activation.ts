@@ -17,10 +17,7 @@ type InspectorActivationInput = Readonly<{
   taskId: string | undefined;
 }>;
 
-type InspectorTabAvailability = Readonly<{
-  contextOnly?: boolean;
-  fileOpen?: boolean;
-}>;
+type InspectorTabAvailability = Readonly<{ contextOnly?: boolean }>;
 
 export function shouldEnableProjectGitDetails({
   activePanel,
@@ -43,7 +40,7 @@ export function shouldEnableProjectGitDetails({
 export function getAvailableWorkbenchInspectorTabs(
   taskId: string | undefined,
   gitStatus: InspectorGitAvailability | undefined,
-  { contextOnly = false, fileOpen = false }: InspectorTabAvailability = {},
+  { contextOnly = false }: InspectorTabAvailability = {},
 ): WorkbenchInspectorTab[] {
   const isGitProject = gitStatus !== undefined && gitStatus.repositoryMode !== "none";
   const hasGitChanges = isGitProject && gitStatus.staged.length + gitStatus.unstaged.length > 0;
@@ -51,7 +48,6 @@ export function getAvailableWorkbenchInspectorTabs(
 
   if (contextOnly) {
     tabs.push("context");
-    if (fileOpen) tabs.push("file");
     return tabs;
   }
   // 项目始终排在首位，当前标签不可用时由激活策略选择回退标签。
@@ -61,7 +57,6 @@ export function getAvailableWorkbenchInspectorTabs(
   if (hasGitChanges) tabs.push("changes");
   if (isGitProject) tabs.push("history");
   // 文件标签只代表当前选择，不保留空面板或历史文件列表。
-  if (fileOpen) tabs.push("file");
   return tabs;
 }
 
@@ -75,13 +70,12 @@ export function deriveWorkbenchInspectorActivation({
 }: InspectorActivationInput) {
   const availableTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatus, {
     contextOnly,
-    fileOpen,
   });
   const activeTab = contextOnly
-    ? requestedTab === "file" && fileOpen
-      ? "file"
+    ? requestedTab.startsWith("document:") && fileOpen
+      ? requestedTab
       : "context"
-    : availableTabs.includes(requestedTab)
+    : (requestedTab.startsWith("document:") && fileOpen) || availableTabs.includes(requestedTab)
       ? requestedTab
       : requestedTab === "changes" && gitStatus?.repositoryMode !== "none"
         ? (availableTabs[0] ?? "project")
@@ -92,7 +86,7 @@ export function deriveWorkbenchInspectorActivation({
     activeTab,
     changes: inspectorOpen && activeTab === "changes",
     context: inspectorOpen && activeTab === "context",
-    file: inspectorOpen && activeTab === "file",
+    file: inspectorOpen && activeTab.startsWith("document:"),
     history: inspectorOpen && activeTab === "history",
     project: inspectorOpen && activeTab === "project",
   } as const;

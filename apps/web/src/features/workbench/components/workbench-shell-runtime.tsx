@@ -12,7 +12,6 @@ import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.j
 import { useAccess } from "../../access/access-context.js";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
 import { useTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
-import type { AgentFileChange } from "../../diff/file-change.js";
 import { providerConnectionQueryOptions } from "../../provider-connection/provider-connection-queries.js";
 import {
   useProjectActions,
@@ -43,10 +42,12 @@ import type { SidebarSettingsSection } from "./project-sidebar-actions.js";
 import { deriveProjectSidebarConnectionState } from "./project-sidebar.js";
 import { getProjectFileManagerApp } from "./project-open-menu.js";
 import { collectSubagents, type SubagentSelection } from "./subagent.js";
-import type {
-  WorkbenchInspectorFileSelection,
-  WorkbenchInspectorTab,
-} from "./workbench-inspector.js";
+import type { WorkbenchInspectorTab } from "./workbench-inspector.js";
+import {
+  closeInspectorDocument,
+  documentTabId,
+  type InspectorDocument,
+} from "./workbench-inspector-documents.js";
 import {
   deriveWorkbenchInspectorActivation,
   shouldEnableProjectGitDetails,
@@ -63,10 +64,6 @@ import {
 export { useSubmissionStartedAt } from "./use-submission-started-at.js";
 
 const emptyExpandedFileTreePaths = new Set<string>();
-type ProjectFilePreviewSelection = Extract<
-  WorkbenchInspectorFileSelection,
-  { kind: "image" | "source" }
-> & { projectId: string };
 
 export type SubmittedPromptState = Readonly<{
   input: AgentPromptInput;
@@ -141,9 +138,13 @@ export function useWorkbenchShellRuntime({
     scopeKey: string;
     tab: WorkbenchInspectorTab;
   }>({ scopeKey: inspectorScopeKey, tab: defaultInspectorTab });
-  const [inspectorFileSelection, setInspectorFileSelection] = useState<
-    (WorkbenchInspectorFileSelection & { projectId: string }) | null
-  >(null);
+  const documentsScopeKey = `${projectId}:${selectedRootPath ?? ""}`;
+  const [inspectorDocumentsState, setInspectorDocumentsState] = useState<{
+    scopeKey: string;
+    documents: InspectorDocument[];
+  }>({ scopeKey: documentsScopeKey, documents: [] });
+  const inspectorDocuments =
+    inspectorDocumentsState.scopeKey === documentsScopeKey ? inspectorDocumentsState.documents : [];
   // 标签选择绑定当前路由身份；新打开的草稿与历史任务都从项目开始。
   const inspectorTab =
     inspectorTabState.scopeKey === inspectorScopeKey ? inspectorTabState.tab : defaultInspectorTab;
@@ -164,7 +165,7 @@ export function useWorkbenchShellRuntime({
   });
   const inspectorActivation = deriveWorkbenchInspectorActivation({
     contextOnly: temporary,
-    fileOpen: inspectorFileSelection?.projectId === projectId,
+    fileOpen: inspectorDocuments.some((document) => documentTabId(document.id) === inspectorTab),
     gitStatus: gitStatusQuery.data,
     inspectorOpen,
     requestedTab: inspectorTab,
@@ -307,16 +308,6 @@ export function useWorkbenchShellRuntime({
   const [globalSettingsSection, setGlobalSettingsSection] = useState<SidebarSettingsSection | null>(
     null,
   );
-  const [projectFileDialogSelection, setProjectFileDialogSelection] =
-    useState<ProjectFilePreviewSelection | null>(null);
-  const [projectFileDiffDialogSelection, setProjectFileDiffDialogSelection] = useState<{
-    change: AgentFileChange;
-    projectId: string;
-  } | null>(null);
-  const [fileReviewSelection, setFileReviewSelection] = useState<{
-    changes: readonly AgentFileChange[];
-    projectId: string;
-  } | null>(null);
   const [subagentDialogSelection, setSubagentDialogSelection] = useState<{
     parentTaskId: string;
     projectId: string;
@@ -325,11 +316,7 @@ export function useWorkbenchShellRuntime({
   const setSelectedRootId = useCallback(
     (rootId: string) => {
       setSelectedProjectRoot(projectId, rootId);
-      // 根切换后关闭旧根派生的详情，避免相同相对路径被误解为新根文件。
-      setProjectFileDialogSelection(null);
-      setProjectFileDiffDialogSelection(null);
-      setFileReviewSelection(null);
-      setInspectorFileSelection(null);
+      // 根切换后文件标签按新根隔离，避免相同相对路径指向旧文件。
     },
     [projectId, setSelectedProjectRoot],
   );
@@ -354,6 +341,32 @@ export function useWorkbenchShellRuntime({
     },
     [inspectorScopeKey],
   );
+  const openInspectorDocument = useCallback(
+    (document: InspectorDocument) => {
+      // 同一路径复用标签；内容仅存描述数据，未激活的预览不会挂载或发起读取。
+      setInspectorDocumentsState((previous) => {
+        const documents = previous.scopeKey === documentsScopeKey ? previous.documents : [];
+        const index = documents.findIndex((item) => item.id === document.id);
+        const next = [...documents];
+        if (index === -1) next.push(document);
+        else next[index] = document;
+        return { scopeKey: documentsScopeKey, documents: next };
+      });
+      setInspectorTab(documentTabId(document.id));
+      setInspectorOpen(true);
+    },
+    [documentsScopeKey, setInspectorOpen, setInspectorTab],
+  );
+  const removeInspectorDocument = useCallback(
+    (id: string) => {
+      setInspectorDocumentsState((previous) => ({
+        ...previous,
+        documents: closeInspectorDocument(previous.documents, id),
+      }));
+      if (inspectorTab === documentTabId(id)) setInspectorTab(defaultInspectorTab);
+    },
+    [defaultInspectorTab, inspectorTab, setInspectorTab],
+  );
 
   useLayoutEffect(() => {
     // 路由提交后、页面绘制前消费提醒，避免实时终态与被动 Effect 形成竞态。
@@ -367,14 +380,6 @@ export function useWorkbenchShellRuntime({
     t("shell.newChat");
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
-  const selectedProjectFileDialog =
-    projectFileDialogSelection?.projectId === projectId ? projectFileDialogSelection : null;
-  const selectedProjectFileDiffDialog =
-    projectFileDiffDialogSelection?.projectId === projectId ? projectFileDiffDialogSelection : null;
-  const selectedInspectorFile =
-    inspectorFileSelection?.projectId === projectId ? inspectorFileSelection : null;
-  const selectedFileReview =
-    fileReviewSelection?.projectId === projectId ? fileReviewSelection.changes : null;
   const inspectorTask = useMemo(() => {
     // Inspector 是低频完整视图；关闭时不保留兼容 Snapshot。
     void runtime.itemStructureRevision;
@@ -405,7 +410,6 @@ export function useWorkbenchShellRuntime({
     client,
     error,
     expandedFileTreePaths,
-    fileReviewSelection,
     getNewChatSubmissionStartedAt,
     gitStatusQuery,
     gitStatusDetailsQuery,
@@ -450,14 +454,12 @@ export function useWorkbenchShellRuntime({
     requestNotificationPermission,
     retry,
     runtime,
-    selectedFileReview,
-    selectedInspectorFile,
-    selectedProjectFileDiffDialog,
-    selectedProjectFileDialog,
+    inspectorDocuments,
+    openInspectorDocument,
+    removeInspectorDocument,
     selectedRootId: activeRootId,
     selectedRootPath,
     selectedSubagent,
-    setFileReviewSelection,
     setFileTreeExpansion,
     setGlobalSettingsSection,
     setInspectorOpen,
@@ -466,9 +468,6 @@ export function useWorkbenchShellRuntime({
     setPendingTaskSelection,
     setSidebarOpen,
     setSidebarWidth,
-    setInspectorFileSelection,
-    setProjectFileDiffDialogSelection,
-    setProjectFileDialogSelection,
     setSelectedRootId,
     setSubagentDialogSelection,
     setTaskRenameOpen,

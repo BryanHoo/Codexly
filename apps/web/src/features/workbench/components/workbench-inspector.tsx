@@ -7,15 +7,15 @@ import type {
   ProjectGitStatus,
   ProjectOpenApp,
   ProjectOpenAppId,
+  ProjectGitCommit,
 } from "@codexly/protocol";
 import { RefreshCw } from "lucide-react";
 import { lazy, Suspense, useMemo } from "react";
+import { Tabs } from "radix-ui";
 
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import type { TaskStore } from "../../conversation/runtime/task-store.js";
-import { FileDiffPanel } from "../../diff/file-diff-panel.js";
-import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { Button } from "../../../shared/components/core/button.js";
 import {
   Tooltip,
@@ -40,7 +40,8 @@ import {
 } from "./workbench-inspector-tabs.js";
 import { codexlyClient, type CodexlyWorkbenchClient } from "../../projects/project-queries.js";
 import { WorkbenchProjectFileTree } from "./workbench-project-file-tree.js";
-import { ProjectSourcePanel } from "./project-source-panel.js";
+import { WorkbenchInspectorDocument } from "./workbench-inspector-document.js";
+import { documentTabId, type InspectorDocument } from "./workbench-inspector-documents.js";
 import {
   deriveWorkbenchInspectorActivation,
   getAvailableWorkbenchInspectorTabs,
@@ -64,7 +65,7 @@ type WorkbenchInspectorProps = Readonly<{
   backgroundTerminalsPending?: boolean;
   contextOnly?: boolean;
   expandedFileTreePaths?: Set<string>;
-  fileSelection?: WorkbenchInspectorFileSelection | null;
+  documents?: readonly InspectorDocument[];
   gitStatus?: ProjectGitStatus;
   gitStatusDetails?: ProjectGitStatus | undefined;
   gitStatusDetailsError?: Error | null;
@@ -92,7 +93,9 @@ type WorkbenchInspectorProps = Readonly<{
   onCommitChanges?: () => void;
   onReviewChanges?: (changes: readonly AgentFileChange[]) => void;
   onClose?: () => void;
-  onCloseFile?: () => void;
+  onCloseDocument?: (id: string) => void;
+  onOpenLoadedDiff?: (change: AgentFileChange) => void;
+  onOpenCommit?: (commit: ProjectGitCommit, repository?: string) => void;
   onTerminateBackgroundTerminal?: (terminalId: string) => Promise<void>;
   onTabChange?: (tab: WorkbenchInspectorTab) => void;
   projectName: string;
@@ -112,17 +115,6 @@ type WorkbenchInspectorProps = Readonly<{
   terminatingTerminalId?: string | null;
 }>;
 
-export type WorkbenchInspectorFileSelection =
-  | Readonly<{
-      change?: AgentFileChange;
-      kind: "image" | "source";
-      reference: MessageFileReference;
-    }>
-  | Readonly<{
-      change: AgentFileChange;
-      kind: "diff";
-    }>;
-
 export type { WorkbenchInspectorTab } from "./workbench-inspector-tabs.js";
 
 export function WorkbenchInspector({
@@ -131,7 +123,7 @@ export function WorkbenchInspector({
   backgroundTerminalsPending = false,
   contextOnly = false,
   expandedFileTreePaths = emptyExpandedFileTreePaths,
-  fileSelection = null,
+  documents = [],
   gitStatus,
   gitStatusDetails,
   gitStatusDetailsError = null,
@@ -159,7 +151,9 @@ export function WorkbenchInspector({
   onCommitChanges = () => undefined,
   onReviewChanges = () => undefined,
   onClose,
-  onCloseFile,
+  onCloseDocument = () => undefined,
+  onOpenLoadedDiff = () => undefined,
+  onOpenCommit = () => undefined,
   onTerminateBackgroundTerminal = () => Promise.resolve(),
   onTabChange = () => undefined,
   projectId,
@@ -179,13 +173,12 @@ export function WorkbenchInspector({
   terminatingTerminalId = null,
 }: WorkbenchInspectorProps) {
   useTranslation("conversation");
-  const availableTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatus, {
-    contextOnly,
-    fileOpen: fileSelection !== null,
-  });
+  const staticTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatus, { contextOnly });
+  const availableTabs = [...staticTabs, ...documents.map((document) => documentTabId(document.id))];
+  const selectedDocument = documents.find((document) => documentTabId(document.id) === tab);
   const { activeTab } = deriveWorkbenchInspectorActivation({
     contextOnly,
-    fileOpen: fileSelection !== null,
+    fileOpen: selectedDocument !== undefined,
     gitStatus,
     inspectorOpen: true,
     requestedTab: tab,
@@ -242,128 +235,140 @@ export function WorkbenchInspector({
     </div>
   );
   return (
-    <aside
-      aria-label={i18n.t("inspector.title", { ns: "conversation" })}
-      className="workbench-inspector relative z-30 flex min-h-0 flex-col bg-panel shadow-divider-reverse"
+    <Tabs.Root
+      asChild
+      activationMode="manual"
+      onValueChange={(value) => {
+        onTabChange(value as WorkbenchInspectorTab);
+      }}
+      value={activeTab}
     >
-      <WorkbenchInspectorHeader
-        activeTab={activeTab}
-        availableTabs={availableTabs}
-        contextOnly={contextOnly}
-        onClose={onClose}
-        {...(onCloseFile === undefined ? {} : { onCloseFile })}
-        onTabChange={onTabChange}
-      />
+      <aside
+        aria-label={i18n.t("inspector.title", { ns: "conversation" })}
+        className="workbench-inspector relative z-30 flex min-h-0 flex-col bg-panel shadow-divider-reverse"
+      >
+        <WorkbenchInspectorHeader
+          activeTab={activeTab}
+          availableTabs={availableTabs}
+          documents={documents}
+          onCloseDocument={onCloseDocument}
+          contextOnly={contextOnly}
+          onClose={onClose}
+          onTabChange={onTabChange}
+        />
 
-      <div className="min-h-0 flex-1 overflow-hidden" role={contextOnly ? undefined : "tabpanel"}>
-        {activeTab === "file" && fileSelection !== null ? (
-          fileSelection.kind === "diff" ? (
-            <FileDiffPanel change={fileSelection.change} />
-          ) : (
-            <ProjectSourcePanel
-              client={gitClient ?? codexlyClient}
-              previewKind={fileSelection.kind}
-              projectId={projectId ?? projectName}
-              reference={fileSelection.reference}
-              {...(sourceRootPath === undefined ? {} : { rootPath: sourceRootPath })}
-            />
-          )
-        ) : activeTab === "project" ? (
-          <div className="flex h-full min-h-0 flex-col">
-            <div className="flex min-h-0 flex-1 flex-col">
-              {gitStatusError !== null ? (
-                <div className="mx-2.5 mb-2 flex items-center gap-2 rounded-control bg-control px-2 py-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-label text-diff-removed">
-                      {i18n.t("inspector.gitChangesRetrying", { ns: "conversation" })}
+        <Tabs.Content asChild value={activeTab}>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {selectedDocument !== undefined ? (
+              <WorkbenchInspectorDocument
+                client={gitClient ?? codexlyClient}
+                document={selectedDocument}
+                onClose={() => {
+                  onCloseDocument(selectedDocument.id);
+                }}
+                onOpenDiff={onOpenLoadedDiff}
+                projectId={projectId ?? projectName}
+                {...(sourceRootPath === undefined ? {} : { rootPath: sourceRootPath })}
+              />
+            ) : activeTab === "project" ? (
+              <div className="flex h-full min-h-0 flex-col">
+                <div className="flex min-h-0 flex-1 flex-col">
+                  {gitStatusError !== null ? (
+                    <div className="mx-2.5 mb-2 flex items-center gap-2 rounded-control bg-control px-2 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-label text-diff-removed">
+                          {i18n.t("inspector.gitChangesRetrying", { ns: "conversation" })}
+                        </p>
+                      </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            aria-label={i18n.t("inspector.refreshGit", { ns: "conversation" })}
+                            disabled={gitStatusRefreshing}
+                            onClick={onRefreshGitStatus}
+                            size="icon-sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <RefreshCw
+                              aria-hidden="true"
+                              className={`size-3.5 ${gitStatusRefreshing ? "animate-spin" : ""}`}
+                            />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {i18n.t("inspector.refreshGit", { ns: "conversation" })}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  ) : gitStatusPending && gitStatus === undefined ? (
+                    <p className="mb-2 px-4 text-caption text-muted-foreground">
+                      {i18n.t("inspector.gitLoading", { ns: "conversation" })}
                     </p>
+                  ) : null}
+                  {isGitProject && displayChanges.length > 0 ? (
+                    <div className="px-2.5 pb-1">
+                      <InspectorGitChangesSection
+                        changeCount={displayChanges.length}
+                        changeStats={changeStats}
+                        onCommitChanges={onCommitChanges}
+                        onReviewChanges={() => {
+                          onReviewChanges(displayChanges);
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                  <div className="min-h-0 flex-1 px-2.5 pb-2.5">
+                    <WorkbenchProjectFileTree
+                      client={gitClient ?? codexlyClient}
+                      expandedPaths={expandedFileTreePaths}
+                      fileChangesByPath={fileChangesByPath}
+                      key={`${projectId ?? projectName}:${projectPath}`}
+                      onExpandedPathsChange={onFileTreeExpandedChange}
+                      onOpenProjectFile={onOpenProjectFile}
+                      onOpenProjectPath={onOpenProjectPath}
+                      onReferenceProjectPath={onReferenceProjectPath}
+                      onRefreshProject={onRefreshProject}
+                      projectId={projectId ?? projectName}
+                      projectName={projectRootName}
+                      projectOpenApps={projectOpenApps}
+                      projectOpenPending={projectOpenPending}
+                      projectPath={projectPath}
+                      projectRootId={projectRootId}
+                      projectRefreshing={projectRefreshing}
+                    />
                   </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        aria-label={i18n.t("inspector.refreshGit", { ns: "conversation" })}
-                        disabled={gitStatusRefreshing}
-                        onClick={onRefreshGitStatus}
-                        size="icon-sm"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <RefreshCw
-                          aria-hidden="true"
-                          className={`size-3.5 ${gitStatusRefreshing ? "animate-spin" : ""}`}
-                        />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {i18n.t("inspector.refreshGit", { ns: "conversation" })}
-                    </TooltipContent>
-                  </Tooltip>
                 </div>
-              ) : gitStatusPending && gitStatus === undefined ? (
-                <p className="mb-2 px-4 text-caption text-muted-foreground">
-                  {i18n.t("inspector.gitLoading", { ns: "conversation" })}
-                </p>
-              ) : null}
-              {isGitProject && displayChanges.length > 0 ? (
-                <div className="px-2.5 pb-1">
-                  <InspectorGitChangesSection
-                    changeCount={displayChanges.length}
-                    changeStats={changeStats}
-                    onCommitChanges={onCommitChanges}
-                    onReviewChanges={() => {
-                      onReviewChanges(displayChanges);
-                    }}
-                  />
-                </div>
-              ) : null}
-              <div className="min-h-0 flex-1 px-2.5 pb-2.5">
-                <WorkbenchProjectFileTree
-                  client={gitClient ?? codexlyClient}
-                  expandedPaths={expandedFileTreePaths}
-                  fileChangesByPath={fileChangesByPath}
-                  key={`${projectId ?? projectName}:${projectPath}`}
-                  onExpandedPathsChange={onFileTreeExpandedChange}
-                  onOpenProjectFile={onOpenProjectFile}
-                  onOpenProjectPath={onOpenProjectPath}
-                  onReferenceProjectPath={onReferenceProjectPath}
-                  onRefreshProject={onRefreshProject}
-                  projectId={projectId ?? projectName}
-                  projectName={projectRootName}
-                  projectOpenApps={projectOpenApps}
-                  projectOpenPending={projectOpenPending}
-                  projectPath={projectPath}
-                  projectRootId={projectRootId}
-                  projectRefreshing={projectRefreshing}
-                />
               </div>
-            </div>
+            ) : activeTab === "changes" ? (
+              <Suspense fallback={null}>
+                <LazyWorkbenchInspectorChanges
+                  client={gitClient}
+                  detailsError={gitStatusDetailsError}
+                  detailsPending={gitStatusDetailsPending}
+                  detailsStatus={gitStatusDetails}
+                  gitStatus={gitStatus}
+                  gitStatusError={gitStatusError}
+                  onOpenFileDiff={onOpenFileDiff}
+                  projectId={projectId}
+                  rootPath={projectPath}
+                />
+              </Suspense>
+            ) : activeTab === "history" && projectId !== undefined ? (
+              <Suspense fallback={null}>
+                <LazyGitHistoryPanel
+                  {...(gitClient === undefined ? {} : { client: gitClient })}
+                  onOpenCommit={onOpenCommit}
+                  projectId={projectId}
+                  rootPath={projectPath}
+                />
+              </Suspense>
+            ) : (
+              contextContent
+            )}
           </div>
-        ) : activeTab === "changes" ? (
-          <Suspense fallback={null}>
-            <LazyWorkbenchInspectorChanges
-              client={gitClient}
-              detailsError={gitStatusDetailsError}
-              detailsPending={gitStatusDetailsPending}
-              detailsStatus={gitStatusDetails}
-              gitStatus={gitStatus}
-              gitStatusError={gitStatusError}
-              onOpenFileDiff={onOpenFileDiff}
-              projectId={projectId}
-              rootPath={projectPath}
-            />
-          </Suspense>
-        ) : activeTab === "history" && projectId !== undefined ? (
-          <Suspense fallback={null}>
-            <LazyGitHistoryPanel
-              {...(gitClient === undefined ? {} : { client: gitClient })}
-              projectId={projectId}
-              rootPath={projectPath}
-            />
-          </Suspense>
-        ) : (
-          contextContent
-        )}
-      </div>
-    </aside>
+        </Tabs.Content>
+      </aside>
+    </Tabs.Root>
   );
 }

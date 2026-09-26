@@ -45,6 +45,7 @@ import { SidebarSettingsButton, type SidebarSettingsSection } from "./project-si
 import { groupTasksByProjectId } from "./project-sidebar-state.js";
 import { SidebarUtilityLinks } from "./sidebar-utility-links.js";
 import { ProjectSidebarHeader } from "./project-sidebar-header.js";
+import type { SearchFile } from "../../search/search-files.js";
 export { ProductBrand } from "./project-sidebar-header.js";
 export * from "./project-sidebar-actions.js";
 export * from "./project-sidebar-state.js";
@@ -64,6 +65,7 @@ type ProjectSidebarProps = Readonly<{
   connectionState: AgentEventConnectionState;
   onClose: () => void;
   onOpenSettings: (section: SidebarSettingsSection) => void;
+  onOpenFile: (file: SearchFile, kind: "image" | "source") => void;
   projectId?: string;
   taskId?: string;
 }>;
@@ -73,6 +75,7 @@ export function ProjectSidebar({
   connectionState,
   onClose,
   onOpenSettings,
+  onOpenFile,
   projectId,
   taskId,
 }: ProjectSidebarProps) {
@@ -481,6 +484,7 @@ export function ProjectSidebar({
         <Suspense fallback={null}>
           <GlobalSearchDialog
             client={client}
+            onOpenFile={onOpenFile}
             onClose={() => {
               setSearchState("closed");
             }}

@@ -39,44 +39,57 @@ const projects = [
 ];
 function createClient() {
   return {
-    searchTasks: vi
+    searchTasks: vi.fn().mockImplementation(async (input) => ({
+      data: [
+        {
+          task,
+          snippet: input.kind === "history" ? "历史搜索命中" : "",
+          ...(input.kind === "history" ? { occurrence } : {}),
+        },
+      ],
+      nextCursor: null,
+    })),
+    searchTaskOccurrences: vi.fn().mockResolvedValue({ data: [occurrence], nextCursor: null }),
+    searchProjectFiles: vi.fn().mockResolvedValue({
+      data: [
+        {
+          rootId: "r",
+          rootPath: "/project",
+          name: "search.ts",
+          path: "src/search.ts",
+        },
+      ],
+    }),
+    readProjectSourceFile: vi
       .fn()
-      .mockImplementation(async (input) => ({
-        data: [
-          { task, snippet: input.kind === "history" ? "历史搜索命中" : "", ...(input.kind === "history" ? { occurrence } : {}) },
-        ],
-        nextCursor: null,
-      })),
-    searchTaskOccurrences: vi
-      .fn()
-      .mockResolvedValue({ data: [occurrence], nextCursor: null }),
-    searchProjectFiles: vi
-      .fn()
-      .mockResolvedValue({
-        data: [
-          {
-            rootId: "r",
-            rootPath: "/project",
-            name: "search.ts",
-            path: "src/search.ts",
-          },
-        ],
-      }),
+      .mockResolvedValue({ content: "export {};", nextCursor: null, path: "src/search.ts" }),
     openProject: vi.fn().mockResolvedValue({}),
   };
 }
 async function setup(client = createClient()) {
   await i18n.changeLanguage("zh-CN");
   const onClose = vi.fn();
+  const onOpenFile = vi.fn();
   const cache = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   function SearchHarness() {
     const [open, setOpen] = useState(true);
-    return <>
-      <button onClick={() => setOpen(true)}>重新打开搜索</button>
-      <GlobalSearchDialog open={open} client={client as unknown as NativeWorkbenchClient} projects={projects} onClose={() => { onClose(); setOpen(false); }} />
-    </>;
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>重新打开搜索</button>
+        <GlobalSearchDialog
+          open={open}
+          client={client as unknown as NativeWorkbenchClient}
+          projects={projects}
+          onClose={() => {
+            onClose();
+            setOpen(false);
+          }}
+          onOpenFile={onOpenFile}
+        />
+      </>
+    );
   }
   const screen = await render(
     <I18nextProvider i18n={i18n}>
@@ -87,7 +100,7 @@ async function setup(client = createClient()) {
       </QueryClientProvider>
     </I18nextProvider>,
   );
-  return { screen, client, onClose, cache };
+  return { screen, client, onClose, onOpenFile, cache };
 }
 beforeEach(() => {
   navigate.mockClear();
@@ -95,6 +108,20 @@ beforeEach(() => {
 });
 
 describe("global search dialog", () => {
+  it("opens a file result in a workbench tab", async () => {
+    const { screen, onClose, onOpenFile } = await setup();
+    await screen.getByRole("combobox").fill("search");
+    await screen.getByRole("group", { name: "项目文件" }).getByRole("option").first().click();
+    await vi.waitFor(() =>
+      expect(onOpenFile).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "p", rootPath: "/project", path: "src/search.ts" }),
+        "source",
+      ),
+    );
+    expect(onClose).toHaveBeenCalled();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("preserves results and filters after closing and selects the query on reopen", async () => {
     const { screen, client } = await setup();
     await screen.getByRole("combobox").fill("搜索");
@@ -155,19 +182,17 @@ describe("global search dialog", () => {
     expect(getComputedStyle(input.element()).outlineStyle).toBe("none");
     expect(parseFloat(getComputedStyle(input.element()).borderRadius)).toBeGreaterThan(0);
     await input.fill("搜索");
-    await expect
-      .element(screen.getByRole("group", { name: "任务", exact: true }))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("group", { name: "历史记录" }))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("group", { name: "项目文件" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("group", { name: "任务", exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("group", { name: "历史记录" })).toBeVisible();
+    await expect.element(screen.getByRole("group", { name: "项目文件" })).toBeVisible();
     await page.screenshot({ path: "../../../test-results/global-search.png" });
     document.documentElement.dataset["theme"] = "dark";
     try {
-      await vi.waitFor(() => expect(getComputedStyle(screen.getByRole("dialog").element()).backgroundColor).toBe("rgb(32, 32, 32)"));
+      await vi.waitFor(() =>
+        expect(getComputedStyle(screen.getByRole("dialog").element()).backgroundColor).toBe(
+          "rgb(32, 32, 32)",
+        ),
+      );
       await page.screenshot({ path: "../../../test-results/global-search-dark.png" });
     } finally {
       delete document.documentElement.dataset["theme"];
@@ -204,15 +229,9 @@ describe("global search dialog", () => {
     });
     const { screen } = await setup(client);
     await screen.getByRole("combobox").fill("搜索");
-    await expect
-      .element(screen.getByRole("group", { name: "任务", exact: true }))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("group", { name: "项目文件" }))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("搜索失败");
+    await expect.element(screen.getByRole("group", { name: "任务", exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("group", { name: "项目文件" })).toBeVisible();
+    await expect.element(screen.getByRole("alert")).toHaveTextContent("搜索失败");
   });
   it("cancels obsolete queries and never replaces fresh results with late responses", async () => {
     const client = createClient();
@@ -221,9 +240,14 @@ describe("global search dialog", () => {
     client.searchTasks.mockImplementation(async (input, options) => {
       if (input.query === "旧" && input.kind === "tasks") {
         oldSignal = options.signal;
-        await new Promise<void>((resolve) => { releaseOld = resolve; });
+        await new Promise<void>((resolve) => {
+          releaseOld = resolve;
+        });
       }
-      return { data: [{ task: { ...task, title: `${input.query}任务` }, snippet: "" }], nextCursor: null };
+      return {
+        data: [{ task: { ...task, title: `${input.query}任务` }, snippet: "" }],
+        nextCursor: null,
+      };
     });
     const { screen } = await setup(client);
     await screen.getByRole("combobox").fill("旧");
@@ -231,8 +255,11 @@ describe("global search dialog", () => {
     await screen.getByRole("combobox").fill("新");
     await vi.waitFor(() => expect(oldSignal?.aborted).toBe(true));
     releaseOld!();
-    await expect.element(screen.getByRole("option", { name: "新任务 CodeAgent", exact: true }).first()).toBeVisible();
-    expect(screen.getByRole("option", { name: "旧任务 CodeAgent", exact: true }).query()).toBeNull();
+    await expect
+      .element(screen.getByRole("option", { name: "新任务 CodeAgent", exact: true }).first())
+      .toBeVisible();
+    expect(
+      screen.getByRole("option", { name: "旧任务 CodeAgent", exact: true }).query(),
+    ).toBeNull();
   });
-
 });
