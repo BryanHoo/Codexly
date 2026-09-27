@@ -62,6 +62,7 @@ export const workbench = {
     nextFile: "审核下一个文件",
     previousFile: "审核上一个文件",
     reviewContent: "审核文件内容",
+    reviewTitle: "文件审核",
     showFileList: "切换为文件列表",
     showFileTree: "切换为文件树",
   },

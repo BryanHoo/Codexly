@@ -62,6 +62,7 @@ export const workbench = {
     nextFile: "Review next file",
     previousFile: "Review previous file",
     reviewContent: "File review content",
+    reviewTitle: "File review",
     showFileList: "Switch to file list",
     showFileTree: "Switch to file tree",
   },

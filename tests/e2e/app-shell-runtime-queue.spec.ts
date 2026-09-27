@@ -23,6 +23,10 @@ test("queues follow-up messages and can steer or cancel them during an active tu
     });
   });
   await page.goto("/p/codexly");
+  const initialQueueRead = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === "GET" && url.pathname.endsWith("/queue");
+  });
   const input = page.getByRole("textbox", { name: "任务输入" });
   await input.fill("等待中断");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
@@ -30,6 +34,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await expect(page.getByRole("button", { name: "停止" })).toBeVisible();
   await expect(input).toHaveAttribute("placeholder", "输入后续要求");
   await expect(page.getByRole("button", { name: /终端连接状态：在线/u })).toBeVisible();
+  await initialQueueRead;
 
   const taskId = page.url().split("/").at(-1) ?? "";
   const attachmentResponse = await page.request.post("/v1/projects/codexly/attachments/text", {

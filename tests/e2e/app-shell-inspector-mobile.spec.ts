@@ -124,7 +124,7 @@ test("keeps the mobile Diff preview and review dialog inside the viewport", asyn
   const diffSurface = inspector
     .getByRole("region")
     .filter({ has: page.locator(".file-diff-renderer") });
-  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+  await expect(inspector.getByRole("tab", { name: "Diff: package.json" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
@@ -139,23 +139,23 @@ test("keeps the mobile Diff preview and review dialog inside the viewport", asyn
     .getByRole("region", { name: /本次修改了 \d+ 个文件/u })
     .getByRole("button", { name: "审核", exact: true })
     .click();
-  const reviewDialog = page.getByRole("dialog");
-  const reviewContent = reviewDialog.getByRole("region", { name: "审核文件内容" });
-  const reviewNavigation = reviewDialog.getByRole("complementary", { name: "变更文件导航" });
-  await expect(reviewDialog.locator(".file-diff-renderer")).toBeVisible();
+  const reviewPanel = inspector.getByRole("tabpanel", { name: "文件审核" });
+  const reviewContent = reviewPanel.getByRole("region", { name: "审核文件内容" });
+  const reviewNavigation = reviewPanel.getByRole("complementary", { name: "变更文件导航" });
+  await expect(reviewPanel.locator(".file-diff-renderer")).toBeVisible();
   await expect(reviewNavigation).not.toBeVisible();
 
-  const collapsedDialogBox = await reviewDialog.boundingBox();
+  const collapsedDialogBox = await reviewPanel.boundingBox();
   const collapsedContentBox = await reviewContent.boundingBox();
   expect(collapsedDialogBox).not.toBeNull();
   expect(collapsedContentBox?.width).toBe(collapsedDialogBox?.width);
 
-  const expandNavigation = reviewDialog.getByRole("button", { name: "展开变更文件导航" });
+  const expandNavigation = reviewPanel.getByRole("button", { name: "展开变更文件导航" });
   expect((await expandNavigation.boundingBox())?.height).toBeGreaterThanOrEqual(44);
   await expandNavigation.click();
   await expect(reviewNavigation).toBeVisible();
   const [expandedDialogBox, expandedContentBox, navigationBox] = await Promise.all([
-    reviewDialog.boundingBox(),
+    reviewPanel.boundingBox(),
     reviewContent.boundingBox(),
     reviewNavigation.boundingBox(),
   ]);
@@ -165,7 +165,7 @@ test("keeps the mobile Diff preview and review dialog inside the viewport", asyn
     (expandedDialogBox?.x ?? 0) + (expandedDialogBox?.width ?? 0),
   );
 
-  await reviewDialog.getByRole("button", { name: "收起变更文件导航" }).click();
+  await reviewPanel.getByRole("button", { name: "收起变更文件导航" }).click();
   await expect(reviewNavigation).not.toBeVisible();
 });
 

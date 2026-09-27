@@ -140,7 +140,7 @@ test("loads long source files while scrolling", async ({ context, page }) => {
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
   const filePanel = inspector.getByRole("region", { name: "docs/architecture-design.md" });
-  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+  await expect(inspector.getByRole("tab", { name: "architecture-design.md" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
@@ -186,7 +186,7 @@ test("loads long source files while scrolling", async ({ context, page }) => {
 
   await inspector.getByRole("button", { name: "关闭文件" }).click();
   await expect(filePanel).not.toBeAttached();
-  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveCount(0);
+  await expect(inspector.getByRole("tab", { name: "architecture-design.md" })).toHaveCount(0);
 });
 
 test("routes assistant links, images, and system files by Markdown file rules", async ({
@@ -224,8 +224,8 @@ test("routes assistant links, images, and system files by Markdown file rules", 
   await expect(
     inspector.getByRole("region", { name: "docs/architecture-design.md" }),
   ).toBeVisible();
-  const fileTab = inspector.getByRole("tab", { name: "文件" });
-  const closeFileButton = inspector.getByRole("button", { name: "关闭文件" });
+  const fileTab = inspector.getByRole("tab", { name: "architecture-design.md" });
+  const closeFileButton = inspector.getByRole("button", { name: "关闭文件" }).last();
   await expect(fileTab).toHaveCount(1);
   const fileTabBox = await fileTab.boundingBox();
   const closeFileButtonBox = await closeFileButton.boundingBox();
@@ -245,7 +245,7 @@ test("routes assistant links, images, and system files by Markdown file rules", 
   await page.getByRole("button", { exact: true, name: "后续工作交接.pptx" }).click();
   await systemOpenRequest;
   await expect(page.getByRole("dialog", { name: "后续工作交接.pptx" })).toHaveCount(0);
-  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveCount(0);
+  await expect(inspector.getByRole("tab", { name: "architecture-design.md" })).toHaveCount(0);
 });
 
 test("project file tree opens changed, source, image, and system files by shared rules", async ({
@@ -262,19 +262,20 @@ test("project file tree opens changed, source, image, and system files by shared
   const packageFile = fileTree.getByRole("treeitem", { name: /package\.json/u });
   await expect(packageFile).toHaveCSS("cursor", "default");
   await packageFile.click();
-  const sourceDialog = page.getByRole("dialog", { name: "package.json" });
-  await expect(sourceDialog).toBeVisible();
-  await expect(sourceDialog.locator(".file-diff-renderer")).toHaveCount(0);
-  await sourceDialog.getByRole("button", { name: "查看 Diff" }).click();
-  const diffDialog = page
-    .getByRole("dialog", { name: "package.json" })
-    .filter({ has: page.locator(".file-diff-renderer") });
-  await expect(diffDialog.locator(".file-diff-renderer")).toContainText("pnpm run dev");
-  await diffDialog.getByRole("button", { name: "关闭文件 Diff" }).click();
-  await expect(diffDialog).not.toBeAttached();
-  await expect(sourceDialog).toBeVisible();
-  await sourceDialog.getByRole("button", { name: "关闭源文件" }).click();
-  await expect(sourceDialog).not.toBeAttached();
+  const sourcePanel = inspector.getByRole("region", { name: "package.json" });
+  await expect(sourcePanel).toBeVisible();
+  await expect(sourcePanel.locator(".file-diff-renderer")).toHaveCount(0);
+  await sourcePanel.getByRole("button", { name: "查看 Diff" }).click();
+  const diffPanel = inspector.getByRole("region", { name: "package.json" }).filter({
+    has: page.locator(".file-diff-renderer"),
+  });
+  await expect(diffPanel.locator(".file-diff-renderer")).toContainText("pnpm run dev");
+  await inspector.getByRole("button", { name: "关闭文件" }).last().click();
+  await expect(diffPanel).not.toBeAttached();
+  await inspector.getByRole("tab", { name: "package.json" }).click();
+  await expect(sourcePanel).toBeVisible();
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await expect(sourcePanel).not.toBeAttached();
 
   const docsRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
@@ -287,10 +288,10 @@ test("project file tree opens changed, source, image, and system files by shared
   await docsDirectory.click();
   await docsRequest;
   await fileTree.getByRole("treeitem", { name: "architecture-design.md" }).click();
-  const architectureDialog = page.getByRole("dialog", { name: "architecture-design.md" });
-  await expect(architectureDialog).toBeVisible();
-  await architectureDialog.getByRole("button", { name: "关闭源文件" }).click();
-  await expect(architectureDialog).not.toBeAttached();
+  const architecturePanel = inspector.getByRole("region", { name: "docs/architecture-design.md" });
+  await expect(architecturePanel).toBeVisible();
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await expect(architecturePanel).not.toBeAttached();
 
   const imageRequest = page.waitForRequest((request) => {
     const url = new URL(request.url());
@@ -302,10 +303,10 @@ test("project file tree opens changed, source, image, and system files by shared
   await fileTree.getByRole("button", { name: "展开文件夹 design" }).click();
   await fileTree.getByRole("treeitem", { name: "result.png" }).click();
   await imageRequest;
-  const imageDialog = page.getByRole("dialog", { name: "result.png" });
-  await expect(imageDialog.getByRole("img", { name: "result.png" })).toBeVisible();
-  await imageDialog.getByRole("button", { name: "关闭图片预览" }).click();
-  await expect(imageDialog).not.toBeAttached();
+  const imagePanel = inspector.getByRole("region", { name: "design/result.png" });
+  await expect(imagePanel.getByRole("img", { name: "result.png" })).toBeVisible();
+  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await expect(imagePanel).not.toBeAttached();
 
   const systemOpenRequest = page.waitForRequest((request) => {
     if (new URL(request.url()).pathname !== "/v1/projects/codexly/open") {

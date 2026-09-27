@@ -276,6 +276,7 @@ export class TaskEventTarget {
   readonly #store: TaskStore;
   readonly #updateGate: DetailViewUpdateGate;
   #frameId: number | undefined;
+  #timerId: ReturnType<typeof setTimeout> | undefined;
   #pendingConnectionState: AgentEventConnectionState | undefined;
   #pendingSnapshot: AgentTaskSnapshotResponse | undefined;
   #suspended: boolean;
@@ -324,10 +325,7 @@ export class TaskEventTarget {
 
   public resetForSnapshot(): void {
     // 新 Snapshot 是当前 Store 的权威基线，清除旧帧并允许后续事件重新进入增量路径。
-    if (this.#frameId !== undefined) {
-      cancelAnimationFrame(this.#frameId);
-      this.#frameId = undefined;
-    }
+    this.#clearScheduledFlush();
     this.#buffer.drain();
     this.#pendingSnapshot = undefined;
     this.#suspendedBufferOverflowed = false;
@@ -363,15 +361,22 @@ export class TaskEventTarget {
           event.receivedAtUnixMs,
         );
       }
-      if (this.#frameId === undefined) {
+      if (this.#frameId === undefined && this.#timerId === undefined) {
         // 当前帧的首个 Delta 立即进入 Store，避免再叠加一帧首字延迟。
-        this.#frameId = requestAnimationFrame(() => {
+        const flush = () => {
           this.#frameId = undefined;
+          this.#timerId = undefined;
           const pendingEvents = this.#buffer.drain();
           if (pendingEvents.length > 0) {
             this.#store.getState().applyEvents(pendingEvents);
           }
-        });
+        };
+        // 隐藏的原生 WebView 会暂停 rAF，但仍可能接收 Runtime 事件。
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+          this.#timerId = setTimeout(flush, 16);
+        } else {
+          this.#frameId = requestAnimationFrame(flush);
+        }
         this.#store.getState().applyEvents([event]);
         return;
       }
@@ -388,10 +393,7 @@ export class TaskEventTarget {
   public dispose(): void {
     this.#unsubscribeUpdateGate();
     this.#recovery.dispose();
-    if (this.#frameId !== undefined) {
-      cancelAnimationFrame(this.#frameId);
-      this.#frameId = undefined;
-    }
+    this.#clearScheduledFlush();
     this.#buffer.drain();
     this.#pendingConnectionState = undefined;
     this.#pendingSnapshot = undefined;
@@ -402,10 +404,7 @@ export class TaskEventTarget {
     if (!this.#recovery.isReady) {
       return;
     }
-    if (this.#frameId !== undefined) {
-      cancelAnimationFrame(this.#frameId);
-      this.#frameId = undefined;
-    }
+    this.#clearScheduledFlush();
     this.#buffer.drain();
     this.#pendingSnapshot = undefined;
     this.#suspendedBufferOverflowed = false;
@@ -430,11 +429,19 @@ export class TaskEventTarget {
   }
 
   #flushThrough(sequence: number): void {
+    this.#clearScheduledFlush();
+    this.#store.getState().applyEvents(this.#buffer.flushThrough(sequence));
+  }
+
+  #clearScheduledFlush(): void {
     if (this.#frameId !== undefined) {
       cancelAnimationFrame(this.#frameId);
       this.#frameId = undefined;
     }
-    this.#store.getState().applyEvents(this.#buffer.flushThrough(sequence));
+    if (this.#timerId !== undefined) {
+      clearTimeout(this.#timerId);
+      this.#timerId = undefined;
+    }
   }
 
   #handleUpdateGateChange(): void {
@@ -442,10 +449,7 @@ export class TaskEventTarget {
     if (this.#suspended === suspended) return;
     this.#suspended = suspended;
     if (suspended) {
-      if (this.#frameId !== undefined) {
-        cancelAnimationFrame(this.#frameId);
-        this.#frameId = undefined;
-      }
+      this.#clearScheduledFlush();
       return;
     }
     if (this.#suspendedBufferOverflowed) {

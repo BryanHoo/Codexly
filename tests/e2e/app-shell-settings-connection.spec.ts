@@ -207,21 +207,26 @@ test("applies and restores a custom workbench background", async ({ page }) => {
     .getByRole("region", { name: /本次修改了 \d+ 个文件/u })
     .getByRole("button", { exact: true, name: "审核" })
     .click();
-  const reviewDialog = page.getByRole("dialog");
-  const reviewDialogBackgroundAlpha = parseCssAlpha(
-    await reviewDialog.evaluate((element) => getComputedStyle(element).backgroundColor),
+  const reviewPanel = page
+    .getByRole("complementary", { name: "运行环境" })
+    .getByRole("tabpanel", { name: "文件审核" });
+  const reviewBackgroundAlpha = parseCssAlpha(
+    await reviewPanel
+      .locator("section")
+      .first()
+      .evaluate((element) => getComputedStyle(element).backgroundColor),
   );
-  expect(reviewDialogBackgroundAlpha).toBeGreaterThanOrEqual(0.94);
-  expect(reviewDialogBackgroundAlpha).toBeLessThanOrEqual(0.96);
-  await expect(reviewDialog.getByRole("region", { name: "审核文件内容" })).toHaveCSS(
+  expect(reviewBackgroundAlpha).toBeGreaterThanOrEqual(0.67);
+  expect(reviewBackgroundAlpha).toBeLessThanOrEqual(0.69);
+  await expect(reviewPanel.getByRole("region", { name: "审核文件内容" })).toHaveCSS(
     "background-color",
     transparentSurface,
   );
-  await expect(reviewDialog.getByRole("complementary", { name: "变更文件导航" })).toHaveCSS(
+  await expect(reviewPanel.locator('aside[aria-label="变更文件导航"]')).toHaveCSS(
     "background-color",
     transparentSurface,
   );
-  await reviewDialog.getByRole("button", { name: "关闭文件审核" }).click();
+  await reviewPanel.getByRole("button", { name: "关闭文件审核" }).click();
 
   await page.setViewportSize({ height: 844, width: 320 });
   await page.reload();
