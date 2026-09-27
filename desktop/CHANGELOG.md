@@ -5,7 +5,7 @@
 
 ## [Unreleased]
 
-## [0.27.0] - 2026-09-27
+## [0.27.1] - 2026-09-27
 
 ### Added
 
@@ -339,8 +339,8 @@
 
 - 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.27.0...HEAD
-[0.27.0]: https://github.com/BryanHoo/Codexly/compare/v0.26.1...v0.27.0
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/BryanHoo/Codexly/compare/v0.26.1...v0.27.1
 [0.26.1]: https://github.com/BryanHoo/Codexly/compare/v0.26.0...v0.26.1
 [0.2.5]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.3...v0.2.4

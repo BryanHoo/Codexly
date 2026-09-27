@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-## [0.27.0] - 2026-09-27
+## [0.27.1] - 2026-09-27
 
 ### 新增
 
@@ -455,8 +455,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.27.0...HEAD
-[0.27.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.27.0
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.27.1
 [0.26.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.26.1
 [0.11.2]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.2
 [0.11.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.1

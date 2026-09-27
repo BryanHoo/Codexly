@@ -6,7 +6,7 @@ describe("release verification", () => {
     for (const [readmePath, installationPath] of [
       ["README.md", "desktop/docs/installation.en.md"],
       ["README.zh-CN.md", "desktop/docs/installation.md"],
-    ]) {
+    ] as const) {
       const readme = readFileSync(readmePath, "utf8");
 
       expect(readme).toContain(installationPath);
