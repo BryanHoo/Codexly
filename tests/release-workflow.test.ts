@@ -2,6 +2,19 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("release verification", () => {
+  it("offers desktop downloads and web startup in both user-facing READMEs", () => {
+    for (const [readmePath, installationPath] of [
+      ["README.md", "desktop/docs/installation.en.md"],
+      ["README.zh-CN.md", "desktop/docs/installation.md"],
+    ]) {
+      const readme = readFileSync(readmePath, "utf8");
+
+      expect(readme).toContain(installationPath);
+      expect(readme).toContain("https://github.com/BryanHoo/Codexly/releases");
+      expect(readme).toContain("npx --package @bryanhu/codexly@latest codexly start");
+    }
+  });
+
   it("documents update commands that revalidate stale npm metadata", () => {
     for (const readmePath of ["README.md", "README.zh-CN.md"]) {
       const readme = readFileSync(readmePath, "utf8");

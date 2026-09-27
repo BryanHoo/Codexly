@@ -21,7 +21,7 @@ GitHub 仓库必须有名为 `npm` 的 Environment。工作流使用 OIDC 和 np
 ## 发布步骤
 
 1. 将根目录 `package.json` 与 `desktop/package.json`、`desktop/src-tauri/tauri.conf.json`、`desktop/src-tauri/Cargo.toml` 和 Cargo lock 更新为同一递增版本号。
-2. 分别将根目录和 `desktop/CHANGELOG.md` 的 `Unreleased` 内容移入对应版本，并填写发布日期。
+2. 分别将根目录和 `desktop/CHANGELOG.md` 的 `Unreleased` 内容移入对应版本，并填写发布日期；同步核对 `README.md`、`README.zh-CN.md`、`desktop/README.md` 和 `desktop/README.en.md` 的用户功能与安装说明。
 3. 运行发布校验：
 
 ```bash
@@ -41,6 +41,8 @@ git push origin "v${RELEASE_VERSION}"
 ```
 
 工作流先验证统一版本与两端日志，并运行 Web E2E、桌面质量和真实 WebView 门禁；全部通过后按 Windows、Ubuntu、macOS 矩阵构建签名桌面更新产物到草稿 Release，随后发布 npm 包与多架构镜像，最后公开联合 Release。桌面发行物以 Codexly 命名。内部 Workspace 包仍保持私有。
+
+发布完成后确认 `Release` 工作流成功，检查 npm 版本、GHCR 的 `linux/amd64` 和 `linux/arm64` 标签，以及 GitHub Release 的 Windows、Ubuntu、macOS 安装包、`latest.json`、`latest-legacy.json` 和对应签名。
 
 ## 失败恢复
 

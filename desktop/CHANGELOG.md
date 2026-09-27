@@ -5,6 +5,23 @@
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-09-27
+
+### Added
+
+- 为工具调用显示实时耗时，在上下文与时间线中保留运行时警告，并为流式回复添加渐进动画。
+- 将文件预览和差异整合到检查器文档标签，分离模型与思考量选择菜单。
+- 记录原生事件到达延迟，便于定位运行时与 WebView 之间的响应瓶颈。
+
+### Changed
+
+- 升级应用私有 Codex 至 `0.157.1`，与 Web 共用协议基线、UI 组件、命令输出缓冲、历史事件和文件搜索逻辑。
+- 搜索结果达到上限时停止目录扫描，降低历史搜索分页的并发验证规模。
+
+### Fixed
+
+- 修复待提交消息显示延迟、失败时草稿恢复、检查器标签与后台事件刷新，以及原生测试中的可执行文件名称。
+
 ## [0.26.1] - 2026-09-25
 
 ### Changed
@@ -322,7 +339,8 @@
 
 - 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/commits/main/desktop/
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/BryanHoo/Codexly/compare/v0.26.1...v0.27.0
 [0.26.1]: https://github.com/BryanHoo/Codexly/compare/v0.26.0...v0.26.1
 [0.2.5]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.3...v0.2.4

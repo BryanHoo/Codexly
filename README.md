@@ -5,63 +5,48 @@
 <h1 align="center">Codexly</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Node.js-24-339933" alt="Node.js" />
-  <img src="https://img.shields.io/badge/React-19-149eca" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-6.0-3178c6" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vite-8-646cff" alt="Vite" />
-  <img src="https://img.shields.io/badge/Fastify-5-000000" alt="Fastify" />
-  <img src="https://img.shields.io/badge/OpenAI_Codex-0.157.1-412991" alt="OpenAI Codex" />
-  <a href="./LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-0f766e" alt="MIT" />
-  </a>
+  A local AI coding workspace for desktop and browser.
 </p>
 
-<p align="center">
-  A local AI coding workspace for using Codex in a browser.
-</p>
-
-The independent Codexly desktop app lives in [`desktop/`](desktop/README.en.md). Both platforms are built from this repository and shipped by one release workflow; see [releasing](docs/releasing.md).
+Codexly keeps coding tasks, conversations, project files, and Git work in one place. Choose the desktop app for a self-contained workspace or run the Web edition locally and open it from a browser, including on a mobile device on your trusted network. Your projects and Codex runtime stay on the computer running Codexly.
 
 <p align="center">
-  <a href="#features">Features</a>
+  <a href="#get-codexly">Get Codexly</a>
   ·
-  <a href="#quick-start">Quick Start</a>
+  <a href="#features">Features</a>
   ·
   <a href="./README.zh-CN.md">简体中文</a>
   ·
   <a href="./LICENSE">License</a>
 </p>
 
-## Preview
+## Get Codexly
+
+| Edition | Best for                                                                                             | Get started                                                                                                                                                         |
+| ------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Desktop | A native workspace with an integrated terminal, task window, system notifications, and tray controls | [Download for Windows, Ubuntu, or macOS](https://github.com/BryanHoo/Codexly/releases) and follow the [desktop installation guide](desktop/docs/installation.en.md) |
+| Web     | A local browser workspace accessible from your computer or another device on a trusted LAN           | Install Node.js 24+ and [start the Web edition](#start-the-web-edition)                                                                                             |
+
+Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ (Apple Silicon or Intel), and a separate Legacy build for macOS 12.4+ Intel. The packages are not OS code-signed; review the [installation instructions](desktop/docs/installation.en.md) before opening a download. The desktop app installs and verifies its own private Codex runtime on first launch.
+
+## Web Preview
 
 ![Codexly preview](docs/images/codexly-preview.png)
 
 ## Features
 
-- Run project or temporary Codex tasks and follow responses, commands, and file changes in real time
-- Review persistent runtime warnings and expand their full context in the task inspector
-- Keep follow-up work in a persistent task queue, and edit queued messages and attachments before they run
-- Track active work on a task board, maintain project to-dos, and schedule persistent one-time or recurring tasks
-- Attach files and images from the current device or deployment host, reference project files with `@`, answer MCP input requests, and ask or dismiss asynchronous questions while a task runs
-- Choose the model, reasoning effort, Fast mode, approval behavior, and file access level for each task
-- Manage installed Skills, official Plugins, MCP servers, and compatible third-party Skills from ClawHub in one extension center
-- Organize ordered multi-root projects, archive project or temporary tasks, and permanently delete tasks when needed
-- Search tasks, conversation history, and project files globally, then jump to a matching message or preview a file
-- View Mermaid diagrams in AI responses
-- Inspect, preview, rename, and delete project files; review diffs; manage branches and worktrees; and commit or push changes
-- Fork a task from an AI response and continue it in a new Git worktree
-- Add animated workspace pets with separate task activity bubbles and custom PNG or WebP sprite manifests
-- Manage a collection of custom workspace backgrounds, or use Bing daily images, with automatic foreground colors, overlay opacity, and blur
-- Access the workspace and download task files from another device on a trusted local network
+- Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive; keep follow-up messages in a persistent queue.
+- Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task.
+- Search tasks, message history, and project files; inspect changes, work with branches and worktrees, and commit or push selected files.
+- Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work.
 
-## Requirements
+**Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and an app-private Codex installation. It supports Windows, Ubuntu, and macOS. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
 
-- Node.js >=24.0.0
-- Chrome/Chromium 116+, Firefox 124+, or Safari 17.4+
+**Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, Docker deployment, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.157.1` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.157.1,<0.158.0`.
 
-Codexly includes Codex CLI `0.157.1` through `@openai/codex`; a separate installation is not required. External binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.157.1,<0.158.0`.
+## Start the Web Edition
 
-## Quick Start
+Requires Node.js >=24.0.0 and Chrome/Chromium 116+, Firefox 124+, or Safari 17.4+.
 
 Run the latest version without installing it:
 
@@ -126,7 +111,7 @@ Docker can only access host paths shared with the Docker engine. On Windows, set
 
 The image entrypoint accepts all normal CLI arguments, so orchestration platforms can replace `command` when needed. See the [complete Docker Compose deployment guide](docs/docker-deployment.md) for workspace, multiple-disk, Codex Home, update, backup, and troubleshooting instructions. Run `pnpm docker:build && pnpm docker:test` in a development checkout to build and smoke-test the local image.
 
-## Usage
+## Using the Web Edition
 
 Select **New task** for work that does not need a project. For repository work, add one or more host directories as ordered project roots, create a task, and submit your request with any required files, images, project references, or Skills. Archived tasks can be restored or permanently deleted from the project task list.
 
@@ -134,7 +119,7 @@ Task controls set the model, reasoning, Fast mode, approval, and file access beh
 
 Scheduled tasks with an unknown outcome pause further runs. Inspect the linked conversation before deleting and recreating the schedule. Tasks marked as finishing cleanup retry cleanup automatically without another launch.
 
-## Local Network Access
+## Web Local Network Access
 
 Start trusted LAN access with:
 
@@ -154,7 +139,7 @@ The terminal prints the LAN address and a random access password. Common options
 
 Quote passwords containing shell-special characters. LAN mode uses unencrypted HTTP, so use it only on a trusted network and never expose it directly to the internet. Restarting Codexly invalidates the password and all sessions.
 
-## Diagnostics and Updates
+## Web Diagnostics and Updates
 
 Run `codexly doctor` when startup, Codex, or local data checks fail. Run `codexly --help` for the current command and option reference.
 
@@ -172,6 +157,7 @@ If an older Linux release was installed into a system directory with `sudo npm i
 - [Contributing guide](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
+- [Desktop changelog](desktop/CHANGELOG.md)
 
 ## Community
 
