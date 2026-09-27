@@ -119,7 +119,9 @@ pub(super) async fn publish_mapped_event(
         })
         .flatten();
     drop(session);
-    super::event_diagnostics::record_task_event(&event, &project_id, diagnostic_connection);
+    // 先完成有序投递并释放顺序锁，原生窗口和通知不得延迟 WebView 收到事件。
+    delivery.send(AppEvent::AgentEvent { event }).await;
+    super::event_diagnostics::record_task_event(&pet_event, &project_id, diagnostic_connection);
     if let Some(app) = app {
         // 原生状态已完成投影；即使窗口已销毁，仍更新托盘、宠物和通知。
         if let Some(task_activities) = task_activities.as_deref() {
@@ -147,7 +149,6 @@ pub(super) async fn publish_mapped_event(
             );
         }
     }
-    delivery.send(AppEvent::AgentEvent { event }).await;
     true
 }
 

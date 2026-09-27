@@ -33,7 +33,8 @@ type ResyncRequiredRuntimeEvent = Readonly<{
   type: "resyncRequired";
 }>;
 
-type RuntimeEvent = AgentRuntimeEvent | ResyncRequiredRuntimeEvent | RuntimeStatusEvent;
+type RuntimeEvent = (AgentRuntimeEvent | ResyncRequiredRuntimeEvent | RuntimeStatusEvent) &
+  Readonly<{ enqueuedAtUnixMs?: number }>;
 export type AgentEventSubscription = Readonly<{
   afterSequence: number;
   onEvent: (event: AgentEvent) => void;
@@ -101,6 +102,10 @@ export function connectCodexRuntime(): Promise<RuntimeSnapshot> {
       for (const subscription of agentEventSubscriptions) subscription.onEvent(event.data.event);
     };
     const channel = new Channel<RuntimeEvent & RuntimeDelivery>((event) => {
+      if (PERFORMANCE_MONITORING_ENABLED && event.enqueuedAtUnixMs !== undefined) {
+        // 在订阅者处理前取样，测量原生入队至 WebView 回调的传输延迟。
+        applicationPerformanceMetrics.recordEnqueueToWebView(event.enqueuedAtUnixMs, Date.now());
+      }
       consume(event);
       acknowledge(event);
     });

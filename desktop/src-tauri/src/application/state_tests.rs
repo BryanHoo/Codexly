@@ -181,18 +181,17 @@ async fn dropped_delta_signal_should_request_project_resync() {
         .filter_map(|event| serde_json::from_str::<Value>(event).ok())
         .find(|event| event.get("type").and_then(Value::as_str) == Some("resyncRequired"))
         .expect("dropped delta should publish an explicit resync signal");
+    assert_eq!(resync["type"], "resyncRequired");
+    assert!(resync["enqueuedAtUnixMs"].is_u64());
     assert_eq!(
-        resync,
+        resync["data"],
         json!({
-            "data": {
-                "latestSequence": 17,
-                "projectId": "project-a",
-                "reason": "event_retention_exceeded",
-                "sessionId": "codeagent-runtime",
-                "type": "resync.required",
-                "version": 3
-            },
-            "type": "resyncRequired"
+            "latestSequence": 17,
+            "projectId": "project-a",
+            "reason": "event_retention_exceeded",
+            "sessionId": "codeagent-runtime",
+            "type": "resync.required",
+            "version": 3
         })
     );
 }

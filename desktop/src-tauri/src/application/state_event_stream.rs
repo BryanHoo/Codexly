@@ -1,4 +1,8 @@
-use std::{collections::VecDeque, sync::Mutex};
+use std::{
+    collections::VecDeque,
+    sync::Mutex,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use serde::Serialize;
 use tauri::ipc::{Channel, InvokeResponseBody};
@@ -24,12 +28,13 @@ pub struct StreamMetrics {
 struct QueuedEvent {
     json: String,
     control: bool,
+    enqueued_at_unix_ms: u64,
 }
 
 impl QueuedEvent {
     fn bytes(&self) -> usize {
-        // 为两个 u64 传输标识预留固定空间，计入发送前的字节预算。
-        self.json.len() + 80
+        // 为三个 u64 传输字段预留固定空间，计入发送前的字节预算。
+        self.json.len() + 120
     }
 }
 
@@ -107,7 +112,6 @@ impl RuntimeEventStream {
         let Ok(json) = serde_json::to_string(&event) else {
             return;
         };
-        let event = QueuedEvent { json, control };
         let mut state = self
             .inner
             .lock()
@@ -115,6 +119,11 @@ impl RuntimeEventStream {
         if state.channel.is_none() {
             return;
         }
+        let event = QueuedEvent {
+            json,
+            control,
+            enqueued_at_unix_ms: unix_time_ms(),
+        };
         let limit = if control {
             IN_FLIGHT_BYTES
         } else {
@@ -199,6 +208,7 @@ impl StreamState {
                 let reset = QueuedEvent {
                     json: r#"{"type":"resyncRequired","data":{"latestSequence":0,"projectId":"*","reason":"event_retention_exceeded","sessionId":"codeagent-runtime","type":"resync.required","version":3}}"#.to_owned(),
                     control: true,
+                    enqueued_at_unix_ms: unix_time_ms(),
                 };
                 if !self.has_credit(reset.bytes(), true) {
                     return;
@@ -236,7 +246,8 @@ impl StreamState {
         self.next_id += 1;
         let id = self.next_id;
         let json = format!(
-            "{{\"streamId\":{generation},\"deliveryId\":{id},{}",
+            "{{\"streamId\":{generation},\"deliveryId\":{id},\"enqueuedAtUnixMs\":{},{}",
+            event.enqueued_at_unix_ms,
             &event.json[1..]
         );
         let bytes = json.len();
@@ -257,4 +268,11 @@ impl StreamState {
             self.metrics.queued_bytes = 0;
         }
     }
+}
+
+fn unix_time_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
