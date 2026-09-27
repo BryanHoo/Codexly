@@ -1,3 +1,4 @@
+import { searchFiles as coordinateSearchFiles } from "@codexly/frontend-core";
 import type { Project, ProjectFileSearchPage } from "@codexly/protocol";
 
 import type { CodexlyProjectFileSearchClient } from "../projects/project-query-contracts.js";
@@ -7,54 +8,13 @@ export type SearchFile = ProjectFileSearchPage["data"][number] & {
   projectName: string;
 };
 
-export async function searchFiles(
+export function searchFiles(
   client: CodexlyProjectFileSearchClient,
   projects: readonly Project[],
   query: string,
   signal: AbortSignal,
 ) {
-  const roots = projects.flatMap((project) => project.roots.map((root) => ({ project, root })));
-  const files: SearchFile[] = [];
-  const failedRoots: string[] = [];
-  let truncated = false;
-  let offset = 0;
-  // 全局限制为两个并发根目录，避免大型工作区同时占满磁盘与 Provider 请求队列。
-  await Promise.all(
-    Array.from({ length: Math.min(2, roots.length) }, async () => {
-      while (offset < roots.length && files.length < 50) {
-        signal.throwIfAborted();
-        const entry = roots[offset++];
-        if (entry === undefined) break;
-        const { project, root } = entry;
-        try {
-          const page = await client.searchProjectFiles(
-            project.id,
-            root.path,
-            query,
-            crypto.randomUUID(),
-            { signal },
-          );
-          signal.throwIfAborted();
-          for (const file of page.data) {
-            if (files.length >= 50) {
-              truncated = true;
-              break;
-            }
-            files.push({ ...file, projectId: project.id, projectName: project.name });
-          }
-          truncated ||= page.data.length >= 50;
-        } catch {
-          signal.throwIfAborted();
-          failedRoots.push(`${project.name}: ${root.path}`);
-        }
-      }
-    }),
+  return coordinateSearchFiles(projects, query, signal, (...args) =>
+    client.searchProjectFiles(...args),
   );
-  // 达到上限但仍有未访问的根目录时，结果集也属于截断。
-  truncated ||= files.length >= 50 && offset < roots.length;
-  files.sort(
-    (left, right) =>
-      left.projectName.localeCompare(right.projectName) || left.path.localeCompare(right.path),
-  );
-  return { failedRoots, files, truncated };
 }
