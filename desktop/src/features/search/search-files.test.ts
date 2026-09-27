@@ -66,5 +66,34 @@ describe("global file search", () => {
     );
     expect(page.files).toHaveLength(50);
     expect(page.truncated).toBe(true);
+    expect(client.searchProjectFiles).toHaveBeenCalledTimes(2);
+  });
+  it("stops dispatching roots when concurrent results reach the limit", async () => {
+    const client = {
+      stopProjectFileSearch: vi.fn(),
+      searchProjectFiles: vi.fn(async (projectId: string, rootPath: string) => ({
+        data: Array.from({ length: 25 }, (_, index) => ({
+          name: `${index}.ts`, path: `${index}.ts`, rootId: projectId, rootPath,
+        })),
+      })),
+    };
+    const page = await searchFiles(client, projects, "ts", new AbortController().signal);
+    expect(client.searchProjectFiles).toHaveBeenCalledTimes(3);
+    expect(page.files).toHaveLength(50);
+    expect(page.truncated).toBe(true);
+  });
+  it("does not mark a complete search with exactly 50 results as truncated", async () => {
+    const client = {
+      stopProjectFileSearch: vi.fn(),
+      searchProjectFiles: vi.fn(async (projectId: string, rootPath: string) => ({
+        data: Array.from({ length: 25 }, (_, index) => ({
+          name: `${index}.ts`, path: `${index}.ts`, rootId: projectId, rootPath,
+        })),
+      })),
+    };
+    const page = await searchFiles(client, projects.slice(0, 2), "ts", new AbortController().signal);
+    expect(client.searchProjectFiles).toHaveBeenCalledTimes(2);
+    expect(page.files).toHaveLength(50);
+    expect(page.truncated).toBe(false);
   });
 });

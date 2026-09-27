@@ -21,7 +21,7 @@ export async function searchFiles(
   // 全局限制为两个并发根目录，避免大型工作区同时占满磁盘与 Provider 请求队列。
   await Promise.all(
     Array.from({ length: Math.min(2, roots.length) }, async () => {
-      while (offset < roots.length) {
+      while (offset < roots.length && files.length < 50) {
         signal.throwIfAborted();
         const entry = roots[offset++];
         if (entry === undefined) break;
@@ -50,6 +50,8 @@ export async function searchFiles(
       }
     }),
   );
+  // 达到上限但仍有未访问的根目录时，结果集也属于截断。
+  truncated ||= files.length >= 50 && offset < roots.length;
   files.sort(
     (left, right) =>
       left.projectName.localeCompare(right.projectName) || left.path.localeCompare(right.path),
