@@ -1,4 +1,4 @@
-import { createContext, memo, useContext, useMemo } from "react";
+import { createContext, memo, useContext, useLayoutEffect, useMemo, useRef } from "react";
 import {
   Block, CodeBlockContainer, CodeBlockCopyButton, CodeBlockDownloadButton, CodeBlockHeader,
   Streamdown, StreamdownContext, type BlockProps, type StreamdownProps,
@@ -7,13 +7,14 @@ import type { SequenceNode } from "../../lib/persistent-sequence.js";
 import type { MarkdownBlockTree } from "./incremental-markdown-blocks.js";
 import type { CodeLineTree, MarkdownBlock } from "./streaming-markdown-block.js";
 
-const TreeContext = createContext<Readonly<{ tree: MarkdownBlockTree; fast: boolean }>>({ tree: null, fast: true });
+const TreeContext = createContext<Readonly<{ tree: MarkdownBlockTree; fast: boolean; animate: boolean }>>({ tree: null, fast: true, animate: false });
 const shellBlocks = () => [""];
 
 export function StreamingMarkdown({ tree, fast, enabled, ...props }: StreamdownProps & {
   tree: MarkdownBlockTree; fast: boolean; enabled: boolean;
 }) {
-  const value = useMemo(() => ({ tree, fast }), [tree, fast]);
+  const animate = props.isAnimating === true;
+  const value = useMemo(() => ({ tree, fast, animate }), [tree, fast, animate]);
   // 依赖全文的方向检测、动画和标签修复仍由 Streamdown 自己处理，避免改变调用方语义。
   if (!enabled || props.dir === "auto" || props.caret !== undefined || props.animated !== undefined ||
     props.allowedTags !== undefined || props.literalTagContent !== undefined || props.remend !== undefined) {
@@ -49,10 +50,22 @@ const BlockTree = memo(function BlockTree({ tree, options, offset, fast }: {
   </>;
 });
 
-const TextTree = memo(function TextTree({ tree }: { tree: SequenceNode<string> | null }) {
+function TextLeaf({ text, allowAnimation }: { text: string; allowAnimation: boolean }) {
+  const { animate } = useContext(TreeContext);
+  const previous = useRef("");
+  const shouldAnimate = animate && allowAnimation;
+  const prefixLength = shouldAnimate && text.startsWith(previous.current) ? previous.current.length : text.length;
+  useLayoutEffect(() => { previous.current = text; }, [text]);
+  return <span>{text.slice(0, prefixLength)}{shouldAnimate && prefixLength < text.length
+    ? <span data-streaming-text-reveal="">{text.slice(prefixLength)}</span> : null}</span>;
+}
+
+const TextTree = memo(function TextTree({ tree, allowAnimation = true }: {
+  tree: SequenceNode<string> | null; allowAnimation?: boolean;
+}) {
   if (tree === null) return null;
-  if (tree.items !== undefined) return tree.items.map((text, index) => <span key={index}>{text}</span>);
-  return <><TextTree tree={tree.left} /><TextTree tree={tree.right} /></>;
+  if (tree.items !== undefined) return tree.items.map((text, index) => <TextLeaf key={index} text={text} allowAnimation={allowAnimation} />);
+  return <><TextTree tree={tree.left} allowAnimation={allowAnimation} /><TextTree tree={tree.right} allowAnimation={allowAnimation} /></>;
 });
 
 const CodeLines = memo(function CodeLines({ tree, last = true, numbers }: {
@@ -64,7 +77,7 @@ const CodeLines = memo(function CodeLines({ tree, last = true, numbers }: {
       data-streaming-code-line=""
       key={index}
       className={numbers ? "[counter-increment:line] before:mr-4 before:inline-block before:w-8 before:select-none before:text-right before:text-muted-foreground before:content-[counter(line)]" : undefined}
-    >{typeof line === "string" ? line : <TextTree tree={line} />}{last && index === tree.items.length - 1 ? "" : "\n"}</span>
+    >{typeof line === "string" ? line : <TextTree tree={line} allowAnimation={false} />}{last && index === tree.items.length - 1 ? "" : "\n"}</span>
   ));
   return <>
     <CodeLines tree={tree.left} last={last && tree.right === null} numbers={numbers} />

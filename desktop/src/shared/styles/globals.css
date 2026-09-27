@@ -1,9 +1,21 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "streamdown/styles.css";
 /* 构建时扫描工作区共享控件中的 Tailwind 类。 */
 @source "../../../../packages/ui/src";
 
 @custom-variant dark (&:is([data-theme="dark"] *));
+
+[data-streaming-text-reveal] {
+  animation: sd-fadeIn 180ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sd-animate],
+  [data-streaming-text-reveal] {
+    animation: none;
+  }
+}
 
 :root {
   color-scheme: light dark;

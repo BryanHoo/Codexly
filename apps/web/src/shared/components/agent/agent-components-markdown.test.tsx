@@ -9,6 +9,18 @@ import {
 } from "./agent-components.test-support.js";
 
 describe("agent Markdown components", () => {
+  it("animates only the active streaming response", () => {
+    const active = renderToStaticMarkup(
+      <MessageResponse mode="streaming" isAnimating>{"Streaming words arrive"}</MessageResponse>,
+    );
+    const settled = renderToStaticMarkup(
+      <MessageResponse mode="static" isAnimating={false}>{"Streaming words arrive"}</MessageResponse>,
+    );
+
+    expect(active).toContain("data-sd-animate");
+    expect(settled).not.toContain("data-sd-animate");
+  });
+
   it("renders assistant Markdown as semantic HTML", () => {
     const markup = renderToStaticMarkup(
       <Message from="assistant">

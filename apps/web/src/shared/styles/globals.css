@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "streamdown/styles.css";
 /* 构建时扫描工作区共享控件中的 Tailwind 类。 */
 @source "../../../../../packages/ui/src";
 /* 扫描按需加载的 Markdown 组件，确保生产构建保留图表与操作控件样式。 */
@@ -7,6 +8,12 @@
 @source "../../../node_modules/@streamdown/mermaid/dist/*.js";
 
 @custom-variant dark (&:is([data-theme="dark"] *));
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sd-animate] {
+    animation: none;
+  }
+}
 
 :root {
   color-scheme: light dark;
