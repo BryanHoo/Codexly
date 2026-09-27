@@ -25,6 +25,7 @@ import type { AgentFileChange } from "../../diff/file-change.js";
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
 import type { PendingRequestResolution } from "./pending-request.js";
 import { TaskTimeline } from "./task-timeline.js";
+import type { PendingPrompt } from "./pending-prompt.js";
 import { WorkbenchComposer, type WorkbenchComposerHandle } from "./workbench-composer.js";
 import { useSubmissionStartedAt, type SubmittedPromptState } from "./workbench-shell-runtime.js";
 
@@ -102,6 +103,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   const queryClient = useQueryClient();
   const taskScope = `${projectId}:${taskId}`;
   const [timelineScrollToBottomSignal, setTimelineScrollToBottomSignal] = useState(0);
+  const [pendingPrompt, setPendingPrompt] = useState<PendingPrompt>();
   const {
     beginSubmission,
     getStartedAt: getSubmissionStartedAt,
@@ -116,7 +118,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
     submittedPromptState.taskScope === taskScope ? submittedPromptState.prompt : startingPrompt;
   const retainedSubmissionStartedAt = submissionStartedAt ?? submittedPrompt?.submissionStartedAt;
   const retainedSubmissionTurnId =
-    submissionStartedAt === undefined ? submittedPrompt?.turn.id : undefined;
+    submissionStartedAt === undefined ? submittedPrompt?.turn.id : runtime.activeTurnId;
   useEffect(() => {
     const store = runtime.store;
     if (store === undefined || submittedPrompt === undefined) {
@@ -180,6 +182,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         projectRootPath={projectPath}
         key={taskScope}
         runtime={runtime}
+        {...(pendingPrompt === undefined ? {} : { pendingPrompt })}
         scrollToBottomSignal={timelineScrollToBottomSignal}
         {...(retainedSubmissionStartedAt === undefined
           ? {}
@@ -200,9 +203,13 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         models={models}
         modelsError={modelsError}
         modelsPending={modelsPending || runtime.isPending}
-        onDirectSubmission={() => {
+        onDirectSubmission={(prompt) => {
           beginSubmission();
+          setPendingPrompt(prompt);
           setTimelineScrollToBottomSignal((current) => current + 1);
+        }}
+        onSubmissionFailed={() => {
+          setPendingPrompt(undefined);
         }}
         onOpenProjectPath={onOpenProjectPath}
         onProjectRootChange={onProjectRootChange}

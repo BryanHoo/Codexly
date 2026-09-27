@@ -23,6 +23,7 @@ import { getTaskTimelineNavigationItems } from "./task-timeline-navigation.js";
 import { TaskTimelineSearchNavigation } from "./task-timeline-search-navigation.js";
 import { StoreTaskNoticeList } from "./task-timeline-notices.js";
 import { RunningReplyStatus } from "./task-timeline-running.js";
+import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
 import { StoredAssistantTimelineItems } from "./task-timeline-store-operation-groups.js";
 import {
   StoredRunningReplyStatus,
@@ -148,6 +149,7 @@ export function StoreTurnTimelineSection({
   turnId,
   turnIndex,
   suppressEmptyRunningStatus,
+  pendingPrompt,
 }: Readonly<{
   onBuildPlan?: BuildPlanAction;
   onForkTask?: ForkTaskAction;
@@ -160,6 +162,7 @@ export function StoreTurnTimelineSection({
   turnId: string;
   turnIndex: number;
   suppressEmptyRunningStatus: boolean;
+  pendingPrompt?: PendingPrompt;
 }>) {
   const turn = useStore(store, (state) => state.turnsById[turnId]);
   const itemKeys = useStore(store, (state) => state.itemKeysByTurnId[turnId] ?? []);
@@ -184,6 +187,7 @@ export function StoreTurnTimelineSection({
   const firstAssistantGroupIndex = timelineGroups.findIndex((group) => group.type === "assistant");
   const hasAssistantItems = firstAssistantGroupIndex >= 0;
   const lastTurnItemKey = itemKeys.at(-1);
+  const hasUserMessage = timelineGroups.some((group) => group.type === "user");
 
   return (
     <section
@@ -191,6 +195,9 @@ export function StoreTurnTimelineSection({
       className="space-y-4"
       data-status={turn.status}
     >
+      {pendingPrompt !== undefined && !hasUserMessage ? (
+        <PendingPromptDisplay prompt={pendingPrompt} />
+      ) : null}
       {timelineGroups.map((group, groupIndex) =>
         group.type === "user" ? (
           <StoredUserMessage
@@ -299,6 +306,7 @@ export function TaskStoreTimeline({
   store,
   submissionStartedAt,
   submissionTurnId,
+  pendingPrompt,
   searchTarget,
 }: Readonly<{
   connected: boolean;
@@ -320,6 +328,7 @@ export function TaskStoreTimeline({
   store: TaskStore;
   submissionStartedAt?: string;
   submissionTurnId?: string;
+  pendingPrompt?: PendingPrompt;
   searchTarget?: HistoryAnchor;
 }>) {
   const projectId = store.getState().projectId;
@@ -357,6 +366,14 @@ export function TaskStoreTimeline({
       ? "finished"
       : "awaiting-assistant";
   });
+  const hasSubmittedUser = useStore(store, (state) =>
+    submissionTurnId === undefined
+      ? false
+      : (state.itemKeysByTurnId[submissionTurnId] ?? []).some((key) => {
+          const item = state.itemStoresByKey.get(key)?.peek();
+          return item?.type === "message" && item.role === "user";
+        }),
+  );
   // HTTP 返回不代表回复已经可见；首个 Assistant Item 到达前由稳定尾部持续承载运行态。
   const showPendingSubmission =
     submissionStartedAt !== undefined &&
@@ -400,10 +417,17 @@ export function TaskStoreTimeline({
                     />
                   ) : null}
                   {showPendingSubmission ? (
-                    <Message from="assistant">
-                      <TurnProcessingTime completedAt={null} startedAt={submissionStartedAt} />
-                      <RunningReplyStatus />
-                    </Message>
+                    pendingPrompt !== undefined && !hasSubmittedUser ? (
+                      <PendingPromptDisplay
+                        prompt={pendingPrompt}
+                        startedAt={submissionStartedAt}
+                      />
+                    ) : (
+                      <Message from="assistant">
+                        <TurnProcessingTime completedAt={null} startedAt={submissionStartedAt} />
+                        <RunningReplyStatus />
+                      </Message>
+                    )
                   ) : null}
                 </>
               ),
@@ -436,6 +460,11 @@ export function TaskStoreTimeline({
             turnId={turnId}
             turnIndex={turnIndex}
             suppressEmptyRunningStatus={showPendingSubmission && turnId === submissionTurnId}
+            {...(turnId === submissionTurnId &&
+            submissionHandoffState === "assistant-started" &&
+            pendingPrompt !== undefined
+              ? { pendingPrompt }
+              : {})}
           />
         )}
       />

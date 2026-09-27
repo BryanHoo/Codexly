@@ -42,12 +42,14 @@ type ComposerSubmissionOptions = Readonly<{
   canSteer: boolean;
   canSubmit: boolean;
   clearComposerInput: () => void;
+  restoreComposerInput?: (content: PromptSkillContent, files: PromptInputMessage["files"]) => void;
   client: CodexlyMutationClient;
   controller: ReturnType<typeof useWorkbenchComposerController>;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];
   editingQueuedSubmission: boolean;
   fastMode: boolean;
   onDirectSubmission: WorkbenchComposerProps["onDirectSubmission"];
+  onSubmissionFailed?: WorkbenchComposerProps["onSubmissionFailed"];
   onCaptureSubmission?: WorkbenchComposerProps["onCaptureSubmission"];
   onRequestNotificationPermission: () => void;
   onTaskCreated: WorkbenchComposerProps["onTaskCreated"];
@@ -78,12 +80,14 @@ export function createComposerSubmission({
   canSteer,
   canSubmit,
   clearComposerInput,
+  restoreComposerInput,
   client,
   controller,
   followUpBehavior,
   editingQueuedSubmission,
   fastMode,
   onDirectSubmission,
+  onSubmissionFailed,
   onCaptureSubmission,
   onRequestNotificationPermission,
   onTaskCreated,
@@ -129,10 +133,12 @@ export function createComposerSubmission({
   ): Promise<boolean> => {
     const requestScope = routeScope;
     // 直接提交读取编辑器实时快照，避免 React 隐藏字段尚未提交时丢失 Windows 换行。
-    const livePromptSubmission =
+    const livePromptContent =
       promptSkills === undefined
-        ? toPromptSkillSubmission(skillEditorRef.current?.getContent() ?? promptContent)
-        : undefined;
+        ? (skillEditorRef.current?.getContent() ?? promptContent)
+        : promptContent;
+    const livePromptSubmission =
+      promptSkills === undefined ? toPromptSkillSubmission(livePromptContent) : undefined;
     const text = (livePromptSubmission?.text ?? message.text).trim();
     const requestedComposerMode =
       options.composerMode === null ? undefined : (options.composerMode ?? composerMode);
@@ -176,12 +182,25 @@ export function createComposerSubmission({
       action !== "queue" &&
       options.requestTimelineScroll !== false
     ) {
-      onDirectSubmission?.();
+      onDirectSubmission?.(
+        action === "start" && options.clearInputOnSuccess !== false
+          ? { files: message.files, skills, text }
+          : undefined,
+      );
     }
     // 捕获模式只保存配置，不应为尚未运行的任务申请通知权限。
     if (onCaptureSubmission === undefined) onRequestNotificationPermission();
     setIsSubmitting(true);
     setMutationError(null);
+    const clearedForStart =
+      action === "start" &&
+      onCaptureSubmission === undefined &&
+      options.clearInputOnSuccess !== false;
+    if (clearedForStart && isCurrentScope(requestScope)) clearComposerInput();
+    const rejectPreview = () => {
+      onSubmissionFailed?.();
+      if (clearedForStart) restoreComposerInput?.(livePromptContent, message.files);
+    };
     let input: AgentPromptInput;
     let messageAttachments: readonly AgentMessageAttachment[];
     try {
@@ -218,6 +237,7 @@ export function createComposerSubmission({
       };
     } catch (error) {
       if (isCurrentScope(requestScope)) {
+        if (action === "start") rejectPreview();
         setMutationError(
           error instanceof Error ? error : new Error(t("composer.attachmentUploadFailed")),
         );
@@ -340,9 +360,6 @@ export function createComposerSubmission({
         turnOptions,
       });
       if (isCurrentScope(requestScope)) {
-        if (options.clearInputOnSuccess !== false) {
-          clearComposerInput();
-        }
         if (turnOptions.goalMode === true) {
           // Goal 已写入 Codex Thread，后续消息必须恢复为普通提交，避免替换目标。
           onGoalStarted();
@@ -372,6 +389,7 @@ export function createComposerSubmission({
       return true;
     } catch (error) {
       if (isCurrentScope(requestScope)) {
+        rejectPreview();
         setMutationError(error instanceof Error ? error : new Error("Prompt submission failed"));
       }
       return false;

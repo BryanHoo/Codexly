@@ -42,6 +42,7 @@ export function WorkbenchComposer({
   modelsError,
   modelsPending,
   onDirectSubmission,
+  onSubmissionFailed,
   onCaptureSubmission,
   onFastModeChange,
   onInputStateChange,
@@ -105,6 +106,7 @@ export function WorkbenchComposer({
     canSteer,
     canSubmit,
     clearComposerInput,
+    restoreComposerInput,
     closeCommandMenu,
     closeFileMenu,
     commandMenuId,
@@ -208,6 +210,7 @@ export function WorkbenchComposer({
     canSteer,
     canSubmit,
     clearComposerInput,
+    restoreComposerInput,
     client,
     controller: composerController,
     composerMode,
@@ -215,6 +218,7 @@ export function WorkbenchComposer({
     followUpBehavior,
     fastMode: fastModeEnabled,
     onDirectSubmission,
+    onSubmissionFailed,
     onCaptureSubmission,
     onGoalStarted: () => {
       setComposerModeState(undefined);

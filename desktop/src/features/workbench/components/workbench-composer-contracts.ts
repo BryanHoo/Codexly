@@ -25,6 +25,7 @@ import type {
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import type { ComposerDraft } from "../composer-draft-context.js";
 import type { NativeMutationClient } from "../../projects/project-queries.js";
+import type { PendingPrompt } from "./pending-prompt.js";
 import type {
   NativeGitMutationClient,
   NativeProjectFileSearchClient,
@@ -89,7 +90,8 @@ export type WorkbenchComposerProps = Readonly<{
   onFastModeChange: (enabled: boolean, settings: AgentTaskSettings) => Promise<void> | void;
   onOpenProjectPath: () => void;
   onProjectRootChange: (rootId: string) => void;
-  onDirectSubmission?: () => void;
+  onDirectSubmission?: (prompt?: PendingPrompt) => void;
+  onSubmissionFailed?: () => void;
   onCaptureSubmission?: (
     input: AgentPromptInput,
     options: AgentTurnOptions,

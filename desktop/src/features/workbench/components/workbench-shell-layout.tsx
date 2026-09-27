@@ -1,9 +1,10 @@
 import { TerminalWorkbench } from "../../terminal/components/terminal-workbench.js";
-import { Suspense, useRef, type CSSProperties } from "react";
+import { Suspense, useRef, useState, type CSSProperties } from "react";
 import { Button } from "../../../shared/components/core/button.js";
 import { RuntimeUnavailable } from "../../../shared/components/core/runtime-unavailable.js";
 import { ProjectSidebar } from "./project-sidebar.js";
 import { TaskTimeline } from "./task-timeline.js";
+import type { PendingPrompt } from "./pending-prompt.js";
 import { TaskBoardContainer } from "./task-board-container.js";
 import { SkillsMarketContainer } from "../../skills-market/skills-market-container.js";
 import { WorkbenchComposer, type WorkbenchComposerHandle } from "./workbench-composer.js";
@@ -39,6 +40,14 @@ export function WorkbenchShellLayout({
   temporary: boolean;
 }>) {
   const composerRef = useRef<WorkbenchComposerHandle>(null);
+  const [newChatPromptState, setNewChatPromptState] = useState<{
+    prompt: PendingPrompt | undefined;
+    scope: string;
+  }>();
+  const newChatScope = `${projectId}:${draftId ?? "new"}:${String(temporary)}`;
+  const newChatPrompt = newChatPromptState?.scope === newChatScope
+    ? newChatPromptState.prompt
+    : undefined;
   const {
     appInfoQuery,
     backgroundTerminals,
@@ -235,6 +244,7 @@ export function WorkbenchShellLayout({
                   projectId={projectId}
                   scopeName={t("shell.temporaryTask")}
                   temporary
+                  {...(newChatPrompt === undefined ? {} : { pendingPrompt: newChatPrompt })}
                   {...(newChatSubmissionStartedAt === undefined
                     ? {}
                     : { submissionStartedAt: newChatSubmissionStartedAt })}
@@ -244,6 +254,7 @@ export function WorkbenchShellLayout({
                   onProjectChange={handleNewTaskProjectChange}
                   projectId={projectId}
                   projects={projects}
+                  {...(newChatPrompt === undefined ? {} : { pendingPrompt: newChatPrompt })}
                   {...(newChatSubmissionStartedAt === undefined
                     ? {}
                     : { submissionStartedAt: newChatSubmissionStartedAt })}
@@ -271,7 +282,11 @@ export function WorkbenchShellLayout({
                 }
                 onOpenProjectPath={openProjectFolder}
                 onProjectRootChange={setSelectedRootId}
-                onDirectSubmission={beginNewChatSubmission}
+                onDirectSubmission={(prompt) => {
+                  beginNewChatSubmission();
+                  setNewChatPromptState({ prompt, scope: newChatScope });
+                }}
+                onSubmissionFailed={() => setNewChatPromptState(undefined)}
                 onSubmissionStateChange={handleNewChatSubmissionStateChange}
                 onTaskCreated={handleTaskCreated}
                 onTaskStarted={handleTaskStarted}

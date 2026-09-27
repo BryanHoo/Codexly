@@ -78,6 +78,77 @@ describe("findUnsupportedInputModality", () => {
 });
 
 describe("createComposerSubmission", () => {
+  it("clears an accepted prompt before native completion and restores it on rejection", async () => {
+    let rejectSubmission: (error: Error) => void = () => {};
+    const submitPrompt = vi.fn(() => new Promise<never>((_resolve, reject) => {
+      rejectSubmission = reject;
+    }));
+    const clearComposerInput = vi.fn();
+    const restoreComposerInput = vi.fn();
+    const onDirectSubmission = vi.fn();
+    const onSubmissionFailed = vi.fn();
+    const content = [{ text: "提交内容", type: "text" as const }];
+    const submit = createComposerSubmission({
+      activeSettings,
+      activeTaskId: "task-a",
+      activeTurnId: undefined,
+      activeUserMessageIds: [],
+      canSteer: false,
+      canSubmit: true,
+      clearComposerInput,
+      restoreComposerInput,
+      client: { submitPrompt } as never,
+      composerMode: undefined,
+      controller: {
+        actionLock: { run: async (action: () => Promise<unknown>) => action() },
+        attachmentUploadPromises: { current: new Map() },
+        isCurrentScope: () => true,
+        setIsSubmitting: vi.fn(),
+        setMutationError: vi.fn(),
+        setPendingTaskState: vi.fn(),
+        setSubmittedTurnState: vi.fn(),
+        startTaskAttempt: { current: undefined },
+        startTurnAttempt: { current: undefined },
+        steerTurnAttempt: { current: undefined },
+        uploadAttempts: { current: new Map() },
+        uploadedAttachments: { current: new Map() },
+      } as never,
+      fastMode: false,
+      followUpBehavior: "queue",
+      isCurrentSubmissionTarget: () => true,
+      onCaptureSubmission: undefined,
+      onDirectSubmission,
+      onSubmissionFailed,
+      onGoalStarted: vi.fn(),
+      onSteerAccepted: vi.fn(),
+      onTaskCreated: undefined,
+      onTaskStarted: vi.fn(),
+      onTurnStarted: undefined,
+      pendingTask: undefined,
+      projectId: "project-a",
+      promptContent: content,
+      routeScope: "project-a:task-a",
+      saveQueuedSubmission: vi.fn(),
+      selectedModel,
+      selectedReasoningEffort: "high",
+      skillEditorRef: { current: { getContent: () => content } } as never,
+      state: "idle",
+      taskId: "task-a",
+      t: (key) => key,
+      turnControlsDisabled: false,
+    });
+
+    const result = submit({ files: [], text: "提交内容" });
+    await vi.waitFor(() => expect(submitPrompt).toHaveBeenCalledOnce());
+    expect(clearComposerInput).toHaveBeenCalledOnce();
+    expect(onDirectSubmission).toHaveBeenCalledWith({ files: [], skills: [], text: "提交内容" });
+
+    rejectSubmission(new Error("native failure"));
+    await expect(result).resolves.toBe(false);
+    expect(onSubmissionFailed).toHaveBeenCalledOnce();
+    expect(restoreComposerInput).toHaveBeenCalledWith(content, []);
+  });
+
   it("passes Unicode Goal input to native validation without UTF-16 rejection", async () => {
     const capture = vi.fn(async () => undefined);
     const setMutationError = vi.fn();

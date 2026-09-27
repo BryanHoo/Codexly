@@ -20,6 +20,7 @@ import { EmptyTimeline, TimelineState } from "./task-timeline-status.js";
 import { TurnProcessingTime } from "./task-timeline-status.js";
 import { RunningReplyStatus } from "./task-timeline-running.js";
 import { TaskStoreTimeline } from "./task-timeline-store.js";
+import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
 
 export { resolveMessageResponseRendering } from "./task-timeline-running.js";
 export { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
@@ -40,6 +41,7 @@ type TaskTimelineCommonProps = Readonly<{
   runtime?: TaskRuntimeView;
   scrollToBottomSignal?: number;
   submissionStartedAt?: string;
+  pendingPrompt?: PendingPrompt;
   submissionTurnId?: string;
   startingSnapshot?: RuntimeTaskSnapshot;
 }>;
@@ -85,10 +87,10 @@ export function TaskTimeline(props: TaskTimelineProps) {
           conversationId={`${props.projectId}:new-chat`}
         >
           <ConversationContent className="gap-6">
-            <Message from="assistant">
+            {props.pendingPrompt === undefined ? <Message from="assistant">
               <TurnProcessingTime completedAt={null} startedAt={props.submissionStartedAt} />
               <RunningReplyStatus />
-            </Message>
+            </Message> : <PendingPromptDisplay prompt={props.pendingPrompt} startedAt={props.submissionStartedAt} />}
           </ConversationContent>
         </Conversation>
       );
@@ -113,6 +115,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
     runtime,
     scrollToBottomSignal,
     submissionStartedAt,
+    pendingPrompt,
     submissionTurnId,
     startingSnapshot,
   } = props;
@@ -132,6 +135,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
       runtime={runtime}
       scrollToBottomSignal={scrollToBottomSignal}
       submissionStartedAt={submissionStartedAt}
+      pendingPrompt={pendingPrompt}
       submissionTurnId={submissionTurnId}
       startingSnapshot={startingSnapshot}
     />
@@ -148,6 +152,7 @@ function ActiveTaskTimeline({
   runtime,
   scrollToBottomSignal,
   submissionStartedAt,
+  pendingPrompt,
   submissionTurnId,
   startingSnapshot,
 }: Readonly<{
@@ -164,6 +169,7 @@ function ActiveTaskTimeline({
   runtime: TaskRuntimeView;
   scrollToBottomSignal: number | undefined;
   submissionStartedAt: string | undefined;
+  pendingPrompt: PendingPrompt | undefined;
   submissionTurnId: string | undefined;
   startingSnapshot: RuntimeTaskSnapshot | undefined;
 }>) {
@@ -212,6 +218,7 @@ function ActiveTaskTimeline({
         {...(scrollToBottomSignal === undefined ? {} : { scrollToBottomSignal })}
         store={runtime.store}
         {...(submissionStartedAt === undefined ? {} : { submissionStartedAt })}
+        {...(pendingPrompt === undefined ? {} : { pendingPrompt })}
         {...(submissionTurnId === undefined ? {} : { submissionTurnId })}
       />
     </>

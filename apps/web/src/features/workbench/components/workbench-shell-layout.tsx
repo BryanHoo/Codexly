@@ -6,6 +6,7 @@ import { Button } from "../../../shared/components/core/button.js";
 import { RuntimeUnavailable } from "../../../shared/components/core/runtime-unavailable.js";
 import { ProjectSidebar } from "./project-sidebar.js";
 import { TaskTimeline } from "./task-timeline.js";
+import { useNewChatPendingPrompt } from "./use-new-chat-pending-prompt.js";
 import { WorkbenchComposer, type WorkbenchComposerHandle } from "./workbench-composer.js";
 import { WorkbenchPanelResizer } from "./workbench-panel-resizer.js";
 import { inspectorWidthLimits, sidebarWidthLimits } from "./workbench-panel-layout.js";
@@ -122,6 +123,10 @@ export function WorkbenchShellLayout({
     workbenchShellRef,
     t,
   } = context;
+  const newChatSubmission = useNewChatPendingPrompt(
+    `${projectId}:${todoId ?? "new"}:${String(temporary)}`,
+    beginNewChatSubmission,
+  );
   const extensions = extensionSection !== undefined;
   const utilityView = board || extensions || scheduled;
   return (
@@ -249,6 +254,7 @@ export function WorkbenchShellLayout({
                   projectId={projectId}
                   scopeName={t("shell.temporaryTask")}
                   temporary
+                  pendingPrompt={newChatSubmission.pendingPrompt}
                   {...(newChatSubmissionStartedAt === undefined
                     ? {}
                     : { submissionStartedAt: newChatSubmissionStartedAt })}
@@ -258,6 +264,7 @@ export function WorkbenchShellLayout({
                   onProjectChange={handleNewTaskProjectChange}
                   projectId={projectId}
                   projects={projects}
+                  pendingPrompt={newChatSubmission.pendingPrompt}
                   {...(newChatSubmissionStartedAt === undefined
                     ? {}
                     : { submissionStartedAt: newChatSubmissionStartedAt })}
@@ -285,7 +292,8 @@ export function WorkbenchShellLayout({
                 onOpenProjectPath={openProjectFolder}
                 onProjectRootChange={setSelectedRootId}
                 onRequestNotificationPermission={requestNotificationPermission}
-                onDirectSubmission={beginNewChatSubmission}
+                onDirectSubmission={newChatSubmission.onDirectSubmission}
+                onSubmissionFailed={newChatSubmission.onSubmissionFailed}
                 onSubmissionStateChange={handleNewChatSubmissionStateChange}
                 onTaskCreated={handleTaskCreated}
                 onTaskStarted={handleTaskStarted}
