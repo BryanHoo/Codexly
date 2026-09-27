@@ -361,7 +361,7 @@ export function TaskStoreTimeline({
   const showPendingSubmission =
     submissionStartedAt !== undefined &&
     (submissionHandoffState === "awaiting-turn" || submissionHandoffState === "awaiting-assistant");
-  const hasNotices = notices.some((notice) => notice.payload.code !== "runtime_warning");
+  const hasNotices = notices.length > 0;
   if (
     turnIds.length === 0 &&
     !hasVisiblePendingRequest &&

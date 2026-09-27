@@ -75,7 +75,6 @@ export const conversation = {
     commit: "Commit",
     context: "Context",
     contextSources: "Context sources",
-    runtimeWarnings: "Runtime warnings",
     emptyFolder: "Empty folder",
     fileTree: "Project files",
     file: "File",

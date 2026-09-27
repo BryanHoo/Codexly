@@ -9,6 +9,47 @@ import {
 } from "./task-timeline.test-support.js";
 
 describe("task timeline live state", () => {
+  it("keeps a warning-only stream visible and collapsed", () => {
+    const emptySnapshot: RuntimeTaskSnapshot = { ...snapshot, turns: [] };
+    const store = createTaskStore(
+      { projectId: snapshot.projectId, taskId: snapshot.id },
+      { checkpoint: { sequence: 1, sessionId: "runtime-live" }, snapshot: emptySnapshot },
+    );
+    store.getState().applyEvents([
+      {
+        provider: "codex",
+        sessionId: "runtime-live",
+        taskId: snapshot.id,
+        timestamp: snapshot.updatedAt,
+        version: 2,
+        sequence: 2,
+        type: "task.notice",
+        payload: { code: "runtime_warning", level: "warning", message: "Warning\nFull detail" },
+      },
+    ]);
+    Object.assign(store.getInitialState(), { notices: store.getState().notices });
+
+    const markup = renderToStaticMarkup(
+      <TaskTimeline
+        projectId={snapshot.projectId}
+        runtime={{
+          ...unpaginatedRuntime,
+          connectionState: "connected",
+          error: null,
+          isPending: false,
+          metadata: emptySnapshot,
+          store,
+        }}
+        taskId={snapshot.id}
+      />,
+    );
+
+    expect(markup).toContain('data-runtime-warning=""');
+    expect(markup).toContain("运行时警告: Warning");
+    expect(markup).not.toContain("Full detail");
+    expect(markup).not.toContain("暂无历史记录");
+  });
+
   it("renders live summaries, progress, file updates, runtime status, diff, and notices", () => {
     const runningSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
@@ -176,9 +217,10 @@ describe("task timeline live state", () => {
     expect(markup).toContain("需要严格审核");
     expect(markup).toContain("安全审核已升级，当前操作将在严格审核完成后继续");
     expect(markup).not.toContain("provider strict review text");
-    expect(markup).not.toContain('data-runtime-warning=""');
-    expect(markup).not.toContain("运行时警告");
-    expect(markup).not.toContain("First runtime detail");
-    expect(markup).not.toContain("Second runtime detail");
+    expect(markup.match(/data-runtime-warning=""/gu)).toHaveLength(2);
+    expect(markup).toMatch(/<details[^>]*data-runtime-warning=""[^>]*><summary[^>]*>/su);
+    expect(markup).toContain("运行时警告: First runtime detail");
+    expect(markup).toContain("运行时警告: Second runtime detail");
+    expect(markup).not.toMatch(/<details[^>]*data-runtime-warning=""[^>]*open=/su);
   });
 });
