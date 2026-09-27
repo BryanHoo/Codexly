@@ -32,7 +32,7 @@ describe("CI 质量门禁", () => {
     );
 
     expect(packageJson.scripts["lint"]).toBe(
-      "oxlint . --ignore-pattern 'desktop/**' --max-warnings 0 --report-unused-disable-directives",
+      "oxlint . --disable-nested-config --ignore-pattern 'desktop/**' --max-warnings 0 --report-unused-disable-directives",
     );
     expect(packageJson.devDependencies["oxlint"]).toBe("catalog:");
     expect(packageJson.devDependencies["oxlint-tsgolint"]).toBe("catalog:");

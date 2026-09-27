@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -45,8 +45,17 @@ describe("parseGitWorktreeList", () => {
     ].join("\0");
 
     expect(parseGitWorktreeList(output, currentPath)).toEqual([
-      { branch: "main", current: true, path: currentPath },
-      { branch: null, current: false, path: "/workspace/Codexly-review" },
+      { branch: "main", current: true, path: resolve(currentPath) },
+      { branch: null, current: false, path: resolve("/workspace/Codexly-review") },
+    ]);
+  });
+
+  it.skipIf(process.platform !== "win32")("normalizes Git's forward-slash Windows paths", () => {
+    const currentPath = "C:\\workspace\\Codexly";
+    const output = `worktree C:/workspace/Codexly\0HEAD ${"a".repeat(40)}\0\0`;
+
+    expect(parseGitWorktreeList(output, currentPath)).toEqual([
+      { branch: null, current: true, path: currentPath },
     ]);
   });
 });
@@ -76,10 +85,10 @@ describe("createProjectWorktree", () => {
     });
 
     expect(created.path).toBe(join(container, "feature"));
-    expect(
-      (await promisify(execFile)("git", ["-C", mainRoot, "worktree", "list", "--porcelain"]))
-        .stdout,
-    ).toContain(`worktree ${created.path}`);
+    const worktreeList = (
+      await promisify(execFile)("git", ["-C", mainRoot, "worktree", "list", "--porcelain", "-z"])
+    ).stdout;
+    expect(parseGitWorktreeList(worktreeList, mainRoot)).toContainEqual(created);
   });
 
   it("creates an existing branch in a unique sibling directory", async () => {

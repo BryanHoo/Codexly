@@ -15,6 +15,7 @@
     "**/coverage/**",
     "**/.cache/**",
     "**/.agents/**",
+    ".tmp-published-*/**",
     "desktop/**",
     "**/node_modules/**",
     "playwright-report/**",

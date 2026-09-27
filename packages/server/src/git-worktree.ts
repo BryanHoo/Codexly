@@ -45,10 +45,11 @@ type GitWorktreeReader = (
 function parseWorktreeRecord(fields: readonly string[], currentPath: string) {
   const pathField = fields.find((field) => field.startsWith("worktree "));
   if (pathField === undefined) return undefined;
-  const path = pathField.slice("worktree ".length);
-  if (!isAbsolute(path)) {
+  const gitPath = pathField.slice("worktree ".length);
+  if (!isAbsolute(gitPath)) {
     throw new Error("Git worktree path must be absolute");
   }
+  const path = resolve(gitPath);
   const branchField = fields.find((field) => field.startsWith("branch refs/heads/"));
   return {
     branch: branchField?.slice("branch refs/heads/".length) ?? null,
