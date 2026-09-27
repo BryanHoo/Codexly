@@ -359,6 +359,9 @@ importers:
 
   desktop:
     dependencies:
+      '@codexly/protocol':
+        specifier: workspace:*
+        version: link:../packages/protocol
       '@headless-tree/core':
         specifier: 'catalog:'
         version: 1.7.0

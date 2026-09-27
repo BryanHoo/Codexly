@@ -1,7 +1,8 @@
 import { Type, type Static } from "@sinclair/typebox";
 
-import { DateTimeSchema } from "./project-files.js";
 import { ProjectRootPathSchema } from "./project-root.js";
+import { AgentTaskBaseSchema } from "./task-common.js";
+export { AgentTaskBaseSchema } from "./task-common.js";
 
 export const AgentThreadConfigurationSchema = Type.Object(
   {
@@ -13,12 +14,8 @@ export const AgentThreadConfigurationSchema = Type.Object(
 
 export const AgentTaskSchema = Type.Object(
   {
-    id: Type.String({ minLength: 1 }),
-    pinned: Type.Boolean(),
-    projectId: Type.String({ minLength: 1 }),
+    ...AgentTaskBaseSchema.properties,
     threadConfiguration: Type.Optional(AgentThreadConfigurationSchema),
-    title: Type.String({ minLength: 1 }),
-    updatedAt: DateTimeSchema,
     workspacePath: Type.Optional(ProjectRootPathSchema),
   },
   { additionalProperties: false },

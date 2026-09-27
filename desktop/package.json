@@ -52,6 +52,7 @@
     "tauri": "node scripts/run-tauri.mjs"
   },
   "dependencies": {
+    "@codexly/protocol": "workspace:*",
     "@headless-tree/core": "catalog:",
     "@headless-tree/react": "catalog:",
     "@pierre/diffs": "catalog:",
