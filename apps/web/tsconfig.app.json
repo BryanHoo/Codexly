@@ -18,6 +18,7 @@
   "references": [
     { "path": "../../packages/protocol" },
     { "path": "../../packages/client" },
-    { "path": "../../packages/frontend-core" }
+    { "path": "../../packages/frontend-core" },
+    { "path": "../../packages/ui" }
   ]
 }

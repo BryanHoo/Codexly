@@ -33,6 +33,11 @@
       "path": "packages/frontend-core"
     },
     {
+      "name": "ui",
+      "layers": ["shared"],
+      "path": "packages/ui"
+    },
+    {
       "name": "client",
       "layers": ["shared"],
       "path": "packages/client"

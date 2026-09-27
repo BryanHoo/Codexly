@@ -47,6 +47,12 @@ module.exports = {
       to: { path: "^(apps|desktop|src|packages/(client|core|provider-codex|server))/" },
     },
     {
+      name: "ui-is-platform-independent",
+      severity: "error",
+      from: { path: "^packages/ui/src" },
+      to: { path: "^(apps|desktop|src|packages/(client|core|provider-codex|server))/" },
+    },
+    {
       name: "web-only-uses-client-and-protocol",
       severity: "error",
       from: { path: "^apps/web/src" },

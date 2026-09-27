@@ -12,6 +12,7 @@
     "@codexly/client": "workspace:*",
     "@codexly/frontend-core": "workspace:*",
     "@codexly/protocol": "workspace:*",
+    "@codexly/ui": "workspace:*",
     "@headless-tree/core": "catalog:",
     "@headless-tree/react": "catalog:",
     "@pierre/diffs": "catalog:",
