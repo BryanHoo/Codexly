@@ -8,6 +8,7 @@ import {
   createTaskItemKey,
   updateCommandOutputBudget,
   type TaskItemStore,
+  type TaskNotice,
   type TaskStore,
   type TaskStoreHydrationResponse,
   type TaskStoreIdentity,
@@ -132,10 +133,11 @@ export function createTaskStore(
       }
       set((state) => {
         const normalized = normalizeSnapshot(response);
+        const warnings = retainedWarnings(state, response.checkpoint.sessionId);
         return {
           ...normalized,
-          notices: state.notices.filter((notice) => notice.payload.level === "warning"),
-          retainedBytes: normalized.retainedBytes + retainedWarningBytes(state),
+          notices: warnings,
+          retainedBytes: normalized.retainedBytes + retainedWarningBytes(warnings),
           // Snapshot 替换会重建 Turn 与 Item 容器，必须推进修订号以失效兼容快照 memo。
           itemStructureRevision: state.itemStructureRevision + 1,
           connectionState: "connecting",
@@ -175,10 +177,11 @@ export function createTaskStore(
           return state;
         }
         const normalized = normalizeSnapshot(reconcileSnapshot(state, response));
+        const warnings = retainedWarnings(state, response.checkpoint.sessionId);
         return {
           ...normalized,
-          notices: state.notices.filter((notice) => notice.payload.level === "warning"),
-          retainedBytes: normalized.retainedBytes + retainedWarningBytes(state),
+          notices: warnings,
+          retainedBytes: normalized.retainedBytes + retainedWarningBytes(warnings),
           // 即使 Task 元数据未变，缺失或新增 Turn 也必须通知快照消费者重新读取 Store。
           itemStructureRevision: state.itemStructureRevision + 1,
           connectionState: "connecting",
@@ -316,11 +319,15 @@ function measureEventEntityBytes(state: TaskStoreState, event: AgentEvent): numb
   return retainedBytes;
 }
 
-function retainedWarningBytes(state: TaskStoreState): number {
-  return state.notices.reduce(
-    (total, notice) => total + (notice.payload.level === "warning" ? estimateRetainedBytes(notice) : 0),
-    0,
-  );
+function retainedWarnings(state: TaskStoreState, sessionId: string): TaskNotice[] {
+  // 快照不携带 Notice；只继承当前事件会话中已经收到的警告。
+  return state.checkpoint?.sessionId === sessionId
+    ? state.notices.filter((notice) => notice.payload.level === "warning")
+    : [];
+}
+
+function retainedWarningBytes(warnings: readonly TaskNotice[]): number {
+  return warnings.reduce((total, notice) => total + estimateRetainedBytes(notice), 0);
 }
 
 function getEventItemKeys(state: TaskStoreState, event: AgentEvent): readonly string[] {

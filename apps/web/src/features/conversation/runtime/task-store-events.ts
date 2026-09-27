@@ -256,15 +256,15 @@ export function applyAcceptedEvent(
       };
     }
     case "task.notice": {
-      // 自动审批结果已由 approval_review Item 展示，避免 Guardian 摘要在底部永久重复出现。
+      // 自动审批结果另由 Item 展示。
       if (event.payload.code === "guardian_warning") {
         return {
           checkpoint,
           snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
         };
       }
+      // 运行时警告跨 Turn 留在上下文；仅限制临时状态通知的数量。
       const notices = [...state.notices, event];
-      // 运行时警告跨 Turn 保留；只有短暂状态通知遵守数量上限。
       const transient = notices.filter((notice) => notice.payload.code !== "runtime_warning");
       const discarded = new Set(transient.slice(0, -MAX_RETAINED_TASK_NOTICES));
       return {
@@ -372,7 +372,7 @@ export function applyAcceptedEvent(
         ...(currentTurn === undefined
           ? {}
           : replaceTurnItems(state, event.turnId, items, changedItemStores)),
-        // 终态只清理流式状态通知，运行时警告留在右栏供后续查看。
+        // Turn 完成后只保留右栏中的运行时警告。
         notices: state.notices.filter((notice) => notice.payload.code === "runtime_warning"),
         snapshotMetadata: {
           ...snapshotMetadata,

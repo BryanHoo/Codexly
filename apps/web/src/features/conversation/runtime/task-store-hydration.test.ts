@@ -358,11 +358,16 @@ describe("task store hydration", () => {
     expect(keys).not.toHaveBeenCalled();
   });
 
-  it("retains every runtime warning instead of limiting them to transient notices", () => {
+  it("retains runtime warnings without displacing visible notices", () => {
     const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
-    store.getState().applyEvents(
-      Array.from({ length: 25 }, (_, index) => ({
-        ...eventEnvelope(11 + index),
+    store.getState().applyEvents([
+      {
+        ...eventEnvelope(11),
+        payload: { code: "model_verification", level: "info", message: "Verifying" },
+        type: "task.notice",
+      },
+      ...Array.from({ length: 25 }, (_, index) => ({
+        ...eventEnvelope(12 + index),
         payload: {
           code: "runtime_warning" as const,
           level: "warning" as const,
@@ -370,11 +375,12 @@ describe("task store hydration", () => {
         },
         type: "task.notice" as const,
       })),
-    );
+    ]);
 
-    expect(store.getState().notices).toHaveLength(25);
-    expect(store.getState().notices[0]?.payload.message).toBe("警告 0");
-    expect(store.getState().notices.at(-1)?.payload.message).toBe("警告 24");
+    expect(store.getState().notices.map((notice) => notice.payload.code)).toEqual([
+      "model_verification",
+      ...Array.from({ length: 25 }, () => "runtime_warning"),
+    ]);
   });
 
   it("retains runtime warnings when the active turn completes", () => {
@@ -413,12 +419,12 @@ describe("task store hydration", () => {
       },
     ]);
 
-    expect(store.getState().notices).toMatchObject([
-      { payload: { code: "runtime_warning", message: "Runtime warning during streaming" } },
+    expect(store.getState().notices.map((notice) => notice.payload.code)).toEqual([
+      "runtime_warning",
     ]);
   });
 
-  it("preserves runtime warnings across same-session snapshot reconciliation", () => {
+  it("retains runtime warnings within the same session across snapshot reconciliation", () => {
     const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
     store.getState().applyEvents([
       {
@@ -431,8 +437,8 @@ describe("task store hydration", () => {
       ...createResponse(),
       checkpoint: { sequence: 12, sessionId: "session-1" },
     });
-    expect(store.getState().notices).toMatchObject([
-      { payload: { code: "runtime_warning", message: "Warning before reconnect" } },
+    expect(store.getState().notices.map((notice) => notice.payload.code)).toEqual([
+      "runtime_warning",
     ]);
 
     store.getState().reconcile({
@@ -465,13 +471,8 @@ describe("task store hydration", () => {
       },
     ]);
 
-    expect(store.getState().notices).toMatchObject([
-      {
-        payload: {
-          code: "runtime_warning",
-          message: "Runtime remains unavailable",
-        },
-      },
+    expect(store.getState().notices.map((notice) => notice.payload.code)).toEqual([
+      "runtime_warning",
     ]);
   });
 

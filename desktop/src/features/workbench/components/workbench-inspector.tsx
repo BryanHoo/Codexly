@@ -57,9 +57,9 @@ const LazyWorkbenchInspectorChanges = lazy(async () => {
   const module = await import("./workbench-inspector-changes.js");
   return { default: module.WorkbenchInspectorChanges };
 });
-const LazyRuntimeWarningsSection = lazy(async () => {
-  const module = await import("./workbench-inspector-runtime-warnings.js");
-  return { default: module.StoreRuntimeWarningsSection };
+const LazyWarningNoticesSection = lazy(async () => {
+  const module = await import("./workbench-inspector-warnings.js");
+  return { default: module.StoreWarningNoticesSection };
 });
 const LazyInspectorSources = lazy(async () => {
   const module = await import("./workbench-inspector-sources.js");
@@ -211,7 +211,7 @@ export function WorkbenchInspector({
       )}
       {taskStore === undefined ? null : (
         <Suspense fallback={null}>
-          <LazyRuntimeWarningsSection store={taskStore} />
+          <LazyWarningNoticesSection store={taskStore} />
         </Suspense>
       )}
       {backgroundTerminals.length > 0 ? (

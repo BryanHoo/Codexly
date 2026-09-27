@@ -128,13 +128,24 @@ export function createTaskStore(
       ) {
         throw new Error("Task store identity does not match the snapshot");
       }
-      set((state) => ({
-        ...normalizeSnapshot(response),
-        // Snapshot 替换会重建 Turn 与 Item 容器，必须推进修订号以失效兼容快照 memo。
-        itemStructureRevision: state.itemStructureRevision + 1,
-        connectionState: "connecting",
-        error: null,
-      }));
+      set((state) => {
+        const normalized = normalizeSnapshot(response);
+        const retainedWarnings =
+          state.checkpoint?.sessionId === response.checkpoint.sessionId
+            ? state.notices.filter((notice) => notice.payload.code === "runtime_warning")
+            : [];
+        return {
+          ...normalized,
+          notices: retainedWarnings,
+          retainedBytes:
+            normalized.retainedBytes +
+            retainedWarnings.reduce((total, notice) => total + estimateRetainedBytes(notice), 0),
+          // Snapshot 替换会重建 Turn 与 Item 容器，必须推进修订号以失效兼容快照 memo。
+          itemStructureRevision: state.itemStructureRevision + 1,
+          connectionState: "connecting",
+          error: null,
+        };
+      });
     },
     projectId: identity.projectId,
     prependHistory(response) {
@@ -168,7 +179,6 @@ export function createTaskStore(
           return state;
         }
         const normalized = normalizeSnapshot(reconcileSnapshot(state, response));
-        // 同会话快照不携带 Notice，保留已收到的运行时警告；新会话则清空旧记录。
         const retainedWarnings =
           checkpoint?.sessionId === response.checkpoint.sessionId
             ? state.notices.filter((notice) => notice.payload.code === "runtime_warning")
@@ -178,7 +188,7 @@ export function createTaskStore(
           notices: retainedWarnings,
           retainedBytes:
             normalized.retainedBytes +
-            retainedWarnings.reduce((total, warning) => total + estimateRetainedBytes(warning), 0),
+            retainedWarnings.reduce((total, notice) => total + estimateRetainedBytes(notice), 0),
           // 即使 Task 元数据未变，缺失或新增 Turn 也必须通知快照消费者重新读取 Store。
           itemStructureRevision: state.itemStructureRevision + 1,
           connectionState: "connecting",

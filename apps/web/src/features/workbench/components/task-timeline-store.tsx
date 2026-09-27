@@ -378,7 +378,7 @@ export function TaskStoreTimeline({
   const showPendingSubmission =
     submissionStartedAt !== undefined &&
     (submissionHandoffState === "awaiting-turn" || submissionHandoffState === "awaiting-assistant");
-  const hasNotices = notices.length > 0;
+  const hasNotices = notices.some((notice) => notice.payload.code !== "runtime_warning");
   if (
     turnIds.length === 0 &&
     !hasVisiblePendingRequest &&
@@ -408,7 +408,7 @@ export function TaskStoreTimeline({
           ? {
               footer: (
                 <>
-                  {hasNotices ? <StoreTaskNoticeList store={store} /> : null}
+                  {hasNotices ? <StoreTaskNoticeList notices={notices} /> : null}
                   {hasVisiblePendingRequest ? (
                     <StorePendingRequestList
                       connected={connected}

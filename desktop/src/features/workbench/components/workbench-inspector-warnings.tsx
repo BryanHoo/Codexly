@@ -6,7 +6,7 @@ import { i18n } from "../../../i18n/i18n.js";
 import { WorkbenchInspectorIncrementalList } from "./workbench-inspector-incremental-list.js";
 import { InspectorSection } from "./workbench-inspector-sections.js";
 
-function RuntimeWarningRow({ notice }: Readonly<{ notice: TaskNotice }>) {
+function WarningNoticeRow({ notice }: Readonly<{ notice: TaskNotice }>) {
   const title = i18n.t(`timeline.notice.${notice.payload.code}`, { ns: "conversation" });
   return (
     <details className="group rounded-control px-2 hover:bg-control-hover">
@@ -22,26 +22,26 @@ function RuntimeWarningRow({ notice }: Readonly<{ notice: TaskNotice }>) {
   );
 }
 
-export function RuntimeWarningsSection({ notices }: Readonly<{ notices: readonly TaskNotice[] }>) {
+export function WarningNoticesSection({ notices }: Readonly<{ notices: readonly TaskNotice[] }>) {
   const warnings = notices.filter((notice) => notice.payload.level === "warning");
   if (warnings.length === 0) return null;
 
   return (
     <InspectorSection
       icon={<AlertTriangle className="size-3.5" />}
-      title={i18n.t("inspector.runtimeWarnings", { ns: "conversation" })}
+      title={i18n.t("inspector.warnings", { ns: "conversation" })}
     >
       <WorkbenchInspectorIncrementalList
-        ariaLabel={i18n.t("inspector.runtimeWarnings", { ns: "conversation" })}
+        ariaLabel={i18n.t("inspector.warnings", { ns: "conversation" })}
         getKey={(notice) => `${notice.sessionId}:${String(notice.sequence)}`}
         items={warnings}
-        renderItem={(notice) => <RuntimeWarningRow notice={notice} />}
+        renderItem={(notice) => <WarningNoticeRow notice={notice} />}
       />
     </InspectorSection>
   );
 }
 
-export function StoreRuntimeWarningsSection({ store }: Readonly<{ store: TaskStore }>) {
+export function StoreWarningNoticesSection({ store }: Readonly<{ store: TaskStore }>) {
   const notices = useStore(store, (state) => state.notices);
-  return <RuntimeWarningsSection notices={notices} />;
+  return <WarningNoticesSection notices={notices} />;
 }

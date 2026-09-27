@@ -3,7 +3,9 @@ import { i18n } from "../../../i18n/i18n.js";
 import type { TaskNotice } from "../../conversation/runtime/task-store.js";
 
 export function getTimelineNotices(notices: readonly TaskNotice[]): readonly TaskNotice[] {
-  return notices.filter((notice) => notice.payload.level !== "warning");
+  return notices.filter(
+    (notice) => notice.payload.level !== "warning" && notice.payload.code !== "runtime_warning",
+  );
 }
 
 export function StoreTaskInfoNotices({ notices }: Readonly<{ notices: readonly TaskNotice[] }>) {

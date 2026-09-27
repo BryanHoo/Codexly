@@ -1,6 +1,5 @@
 import type { AgentEvent, AgentTaskSnapshotResponse } from "@/protocol/index.js";
 import { describe, expect, it } from "vitest";
-import { estimateRetainedBytes } from "../../../shared/memory/byte-lru.js";
 
 import { createTaskStore } from "./task-store.js";
 
@@ -29,6 +28,16 @@ function warning(sequence: number, code: "runtime_warning" | "model_verification
 }
 
 describe("runtime warning lifetime", () => {
+  it("retains runtime warnings alongside other notices", () => {
+    const store = createTaskStore({ projectId: "project", taskId: "task" }, response);
+    store.getState().applyEvents([warning(1, "runtime_warning"), warning(2, "model_verification")]);
+    expect(store.getState().notices.map((notice) => notice.payload.code)).toEqual([
+      "runtime_warning",
+      "model_verification",
+    ]);
+    expect(store.getState().checkpoint?.sequence).toBe(2);
+  });
+
   it.each([
     { type: "message.delta", itemId: "reply", payload: { text: "继续" } },
     { type: "plan.delta", itemId: "plan", payload: { text: "继续" } },
@@ -43,7 +52,7 @@ describe("runtime warning lifetime", () => {
     expect(store.getState().notices.map((notice) => notice.payload.code)).toEqual(["runtime_warning", "model_verification"]);
   });
 
-  it.each(["idle", "failed"] as const)("keeps runtime warnings when task becomes %s", (status) => {
+  it.each(["idle", "failed"] as const)("retains runtime warnings when task becomes %s", (status) => {
     const store = createTaskStore({ projectId: "project", taskId: "task" }, response);
     store.getState().applyEvents([warning(1, "runtime_warning"), warning(2, "model_verification")]);
 
@@ -54,7 +63,7 @@ describe("runtime warning lifetime", () => {
     expect(store.getState().notices.map((notice) => notice.payload.code)).toEqual(["runtime_warning", "model_verification"]);
   });
 
-  it("keeps all warnings when the turn completes", () => {
+  it("keeps other warnings when the turn completes", () => {
     const store = createTaskStore({ projectId: "project", taskId: "task" }, response);
     store.getState().applyEvents([warning(1, "runtime_warning"), warning(2, "model_verification"), warning(3, "guardian_warning")]);
     store.getState().applyEvents([{
@@ -74,22 +83,35 @@ describe("runtime warning lifetime", () => {
     expect(store.getState().notices.map((notice) => notice.payload.code)).toEqual(["runtime_warning", "model_verification"]);
   });
 
-  it("keeps every warning beyond the old notice limit", () => {
+  it("retains every runtime warning beyond the old notice limit", () => {
     const store = createTaskStore({ projectId: "project", taskId: "task" }, response);
     store.getState().applyEvents(Array.from({ length: 25 }, (_, index) => warning(index + 1, "runtime_warning")));
     expect(store.getState().notices).toHaveLength(25);
   });
 
-  it.each(["hydrate", "reconcile"] as const)("preserves warnings and their memory budget during %s", (operation) => {
+  it.each(["hydrate", "reconcile"] as const)("retains runtime warnings during %s", (operation) => {
     const store = createTaskStore({ projectId: "project", taskId: "task" }, response);
     store.getState().applyEvents([warning(1, "runtime_warning")]);
-    const baseline = createTaskStore({ projectId: "project", taskId: "task" }, response);
+    const retainedBytes = store.getState().retainedBytes;
 
     store.getState()[operation](response);
 
     expect(store.getState().notices).toHaveLength(1);
-    expect(store.getState().retainedBytes).toBe(
-      baseline.getState().retainedBytes + estimateRetainedBytes(store.getState().notices[0]),
-    );
+    expect(store.getState().retainedBytes).toBe(retainedBytes);
+  });
+
+  it.each(["hydrate", "reconcile"] as const)("clears previous-session warnings during %s", (operation) => {
+    const store = createTaskStore({ projectId: "project", taskId: "task" }, response);
+    store.getState().applyEvents([warning(1, "runtime_warning")]);
+    const newSessionResponse = {
+      ...response,
+      checkpoint: { sequence: 0, sessionId: "next-session" },
+    };
+    const baseline = createTaskStore({ projectId: "project", taskId: "task" }, newSessionResponse);
+
+    store.getState()[operation](newSessionResponse);
+
+    expect(store.getState().notices).toEqual([]);
+    expect(store.getState().retainedBytes).toBe(baseline.getState().retainedBytes);
   });
 });

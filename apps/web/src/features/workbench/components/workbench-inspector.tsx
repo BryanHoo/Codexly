@@ -32,6 +32,8 @@ import { PlanSection } from "./workbench-inspector-plan.js";
 import { deriveInspectorGitChangeState } from "./workbench-inspector-git-status.js";
 import { InspectorGitChangesSection } from "./workbench-inspector-git-changes.js";
 import { GoalSection } from "./workbench-inspector-goal.js";
+import { RuntimeWarningsSection } from "./workbench-inspector-runtime-warnings.js";
+import type { TaskStore } from "../../conversation/runtime/task-store.js";
 import {
   WorkbenchInspectorHeader,
   type WorkbenchInspectorTab,
@@ -109,6 +111,7 @@ type WorkbenchInspectorProps = Readonly<{
   tab?: WorkbenchInspectorTab;
   task?: Pick<AgentTaskSnapshot, "turns"> & Partial<Pick<AgentTaskSnapshot, "goal" | "plan">>;
   taskId?: string;
+  taskStore?: TaskStore;
   terminatingTerminalId?: string | null;
 }>;
 
@@ -166,6 +169,7 @@ export function WorkbenchInspector({
   tab = "project",
   task,
   taskId,
+  taskStore,
   terminatingTerminalId = null,
 }: WorkbenchInspectorProps) {
   useTranslation("conversation");
@@ -198,6 +202,7 @@ export function WorkbenchInspector({
       {task?.goal === null || task?.goal === undefined ? null : (
         <GoalSection goal={task.goal} onClear={onClearGoal} onStatusChange={onGoalStatusChange} />
       )}
+      {taskStore === undefined ? null : <RuntimeWarningsSection store={taskStore} />}
       {backgroundTerminals.length > 0 ||
       backgroundTerminalsPending ||
       backgroundTerminalsError !== null ? (

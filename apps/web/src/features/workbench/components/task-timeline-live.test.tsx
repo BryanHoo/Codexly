@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { i18n } from "../../../i18n/i18n.js";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
 import { createTaskStore } from "../../conversation/runtime/task-store.js";
 import { TaskTimeline } from "./task-timeline.js";
@@ -9,7 +10,7 @@ import {
 } from "./task-timeline.test-support.js";
 
 describe("task timeline live state", () => {
-  it("keeps a warning-only stream visible and collapsed", () => {
+  it("does not show a warning-only stream", () => {
     const emptySnapshot: RuntimeTaskSnapshot = { ...snapshot, turns: [] };
     const store = createTaskStore(
       { projectId: snapshot.projectId, taskId: snapshot.id },
@@ -44,10 +45,10 @@ describe("task timeline live state", () => {
       />,
     );
 
-    expect(markup).toContain('data-runtime-warning=""');
-    expect(markup).toContain("运行时警告: Warning");
+    expect(markup).not.toContain('data-runtime-warning=""');
+    expect(markup).not.toContain("Warning");
     expect(markup).not.toContain("Full detail");
-    expect(markup).not.toContain("暂无历史记录");
+    expect(markup).toContain(i18n.t("timeline.noHistory", { ns: "conversation" }));
   });
 
   it("renders live summaries, progress, file updates, runtime status, diff, and notices", () => {
@@ -217,10 +218,8 @@ describe("task timeline live state", () => {
     expect(markup).toContain("需要严格审核");
     expect(markup).toContain("安全审核已升级，当前操作将在严格审核完成后继续");
     expect(markup).not.toContain("provider strict review text");
-    expect(markup.match(/data-runtime-warning=""/gu)).toHaveLength(2);
-    expect(markup).toMatch(/<details[^>]*data-runtime-warning=""[^>]*><summary[^>]*>/su);
-    expect(markup).toContain("运行时警告: First runtime detail");
-    expect(markup).toContain("运行时警告: Second runtime detail");
-    expect(markup).not.toMatch(/<details[^>]*data-runtime-warning=""[^>]*open=/su);
+    expect(markup).not.toContain('data-runtime-warning=""');
+    expect(markup).not.toContain("First runtime detail");
+    expect(markup).not.toContain("Second runtime detail");
   });
 });
