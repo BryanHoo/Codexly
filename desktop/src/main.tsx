@@ -12,6 +12,7 @@ import { recordFrontendDiagnostic } from "./platform/tauri/diagnostics.js";
 import { installPerformanceMonitoring } from "./shared/performance/performance-monitoring.js";
 import { PerformanceProfiler } from "./shared/performance/performance-profiler.js";
 import "./shared/styles/globals.css";
+import "./shared/styles/streamdown.css";
 import "./shared/styles/task-board.css";
 import "./shared/styles/skills-market.css";
 import "./shared/styles/workbench.css";
