@@ -11,10 +11,14 @@ import {
 describe("agent Markdown components", () => {
   it("animates only the active streaming response", () => {
     const active = renderToStaticMarkup(
-      <MessageResponse mode="streaming" isAnimating>{"Streaming words arrive"}</MessageResponse>,
+      <MessageResponse mode="streaming" isAnimating>
+        {"Streaming words arrive"}
+      </MessageResponse>,
     );
     const settled = renderToStaticMarkup(
-      <MessageResponse mode="static" isAnimating={false}>{"Streaming words arrive"}</MessageResponse>,
+      <MessageResponse mode="static" isAnimating={false}>
+        {"Streaming words arrive"}
+      </MessageResponse>,
     );
 
     expect(active).toContain("data-sd-animate");
