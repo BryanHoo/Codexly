@@ -180,9 +180,7 @@ export function useComposerQueue({
     // 首次 await 前同步回填，禁止慢请求在用户开始输入后用旧内容覆盖草稿。
     replacePromptContent(content, serializePromptSkillContent(content).length);
     handleAttachmentsChange(editablePrompt.files);
-    requestAnimationFrame(() => {
-      skillEditorRef.current?.focus(serializePromptSkillContent(content).length);
-    });
+    skillEditorRef.current?.focus(serializePromptSkillContent(content).length);
     applyQueue((await updateRequest).queue);
   };
 

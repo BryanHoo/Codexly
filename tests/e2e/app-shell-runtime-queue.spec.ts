@@ -168,6 +168,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await queueMessage.click();
   await page.getByRole("button", { name: "编辑排队消息：编辑前内容" }).click();
   await input.fill("刷新后继续编辑");
+  await expect(input).toHaveAttribute("data-serialized-value", "刷新后继续编辑");
   await expect(page.getByRole("status", { name: "编辑中" })).toBeVisible();
   await page.reload();
   await expect(input).toHaveAttribute("data-serialized-value", "刷新后继续编辑");
