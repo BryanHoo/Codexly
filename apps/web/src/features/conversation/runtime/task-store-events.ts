@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentItem } from "@codexly/protocol";
+import { touchedCommandOutputItemKeys as getTouchedCommandOutputItemKeys } from "@codexly/frontend-core";
 
 import {
   MAX_RETAINED_TASK_NOTICES,
@@ -12,29 +13,7 @@ import {
 } from "./task-store-core.js";
 import { applyMessageAliases, resolveMessageAliases } from "./task-store-identity.js";
 import { recordToolItemTiming, retainTurnItemTimings } from "./task-store-timing.js";
-export function getTouchedCommandOutputItemKeys(
-  previousState: TaskStoreState,
-  nextState: TaskStoreState,
-  event: AgentEvent,
-): readonly string[] | undefined {
-  if (event.type === "command.output_delta") {
-    return [createTaskItemKey(event.turnId, event.itemId)];
-  }
-  if (event.type === "item.started" || event.type === "item.completed") {
-    const itemKey = createTaskItemKey(event.turnId, event.itemId);
-    return event.payload.item.type === "command" ||
-      previousState.commandOutputBytesByItemKey.has(itemKey)
-      ? [itemKey]
-      : undefined;
-  }
-  if (event.type === "turn.started" || event.type === "turn.completed") {
-    return [
-      ...(previousState.itemKeysByTurnId[event.turnId] ?? []),
-      ...(nextState.itemKeysByTurnId[event.turnId] ?? []),
-    ];
-  }
-  return undefined;
-}
+export { getTouchedCommandOutputItemKeys };
 function createDeltaItem(event: Extract<AgentEvent, { itemId: string }>): AgentItem | undefined {
   switch (event.type) {
     case "message.delta":

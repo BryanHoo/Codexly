@@ -28,6 +28,11 @@
       "path": "packages/core"
     },
     {
+      "name": "frontend-core",
+      "layers": ["shared"],
+      "path": "packages/frontend-core"
+    },
+    {
       "name": "client",
       "layers": ["shared"],
       "path": "packages/client"

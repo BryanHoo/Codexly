@@ -41,6 +41,12 @@ module.exports = {
       to: { path: "^packages/(core|provider-codex|server)/src" },
     },
     {
+      name: "frontend-core-is-platform-independent",
+      severity: "error",
+      from: { path: "^packages/frontend-core/src" },
+      to: { path: "^(apps|desktop|src|packages/(client|core|provider-codex|server))/" },
+    },
+    {
       name: "web-only-uses-client-and-protocol",
       severity: "error",
       from: { path: "^apps/web/src" },

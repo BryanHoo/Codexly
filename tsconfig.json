@@ -4,6 +4,7 @@
     { "path": "./tsconfig.node.json" },
     { "path": "./packages/protocol" },
     { "path": "./packages/core" },
+    { "path": "./packages/frontend-core" },
     { "path": "./packages/provider-codex" },
     { "path": "./packages/server" },
     { "path": "./packages/client" },

@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "@codexly/protocol": "workspace:*",
+    "@codexly/frontend-core": "workspace:*",
     "@headless-tree/core": "catalog:",
     "@headless-tree/react": "catalog:",
     "@pierre/diffs": "catalog:",

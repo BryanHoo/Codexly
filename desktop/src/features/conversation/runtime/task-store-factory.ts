@@ -1,4 +1,5 @@
 import type { AgentEvent } from "@/protocol/index.js";
+import { acceptTaskEvent } from "@codexly/frontend-core";
 import { createStore } from "zustand/vanilla";
 
 import { estimateRetainedBytes } from "../../../shared/memory/byte-lru.js";
@@ -60,13 +61,8 @@ export function createTaskStore(
       set((currentState) => {
         let nextState = currentState;
         for (const event of events) {
-          const checkpoint = nextState.checkpoint;
-          const hasValidSequence =
-            checkpoint !== null &&
-            event.sessionId === checkpoint.sessionId &&
-            event.sequence > checkpoint.sequence;
           // Task、Session 与 Sequence 共同约束事件身份和顺序。
-          if (event.taskId !== nextState.taskId || !hasValidSequence) {
+          if (!acceptTaskEvent(nextState.taskId, nextState.checkpoint, event)) {
             continue;
           }
           const previousState = nextState;

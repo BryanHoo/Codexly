@@ -253,6 +253,9 @@ importers:
       '@codexly/client':
         specifier: workspace:*
         version: link:../../packages/client
+      '@codexly/frontend-core':
+        specifier: workspace:*
+        version: link:../../packages/frontend-core
       '@codexly/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -359,6 +362,9 @@ importers:
 
   desktop:
     dependencies:
+      '@codexly/frontend-core':
+        specifier: workspace:*
+        version: link:../packages/frontend-core
       '@codexly/protocol':
         specifier: workspace:*
         version: link:../packages/protocol
@@ -564,6 +570,8 @@ importers:
       '@codexly/protocol':
         specifier: workspace:*
         version: link:../protocol
+
+  packages/frontend-core: {}
 
   packages/protocol:
     dependencies:

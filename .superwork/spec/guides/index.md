@@ -10,6 +10,7 @@ Codexly 在同一仓库发布 Web CLI 与桌面应用。根目录 `pnpm-workspac
 | `apps/web/src/`                | [Web 前端](../web/frontend/index.md)             |
 | `packages/protocol/src/`       | [公共协议](../protocol/shared/index.md)          |
 | `packages/core/src/`           | [领域核心](../core/shared/index.md)              |
+| `packages/frontend-core/src/`  | [前端共享逻辑](../frontend-core/shared/index.md) |
 | `packages/client/src/`         | [HTTP / 事件客户端](../client/shared/index.md)   |
 | `packages/provider-codex/src/` | [Codex 集成](../provider-codex/backend/index.md) |
 | `packages/server/src/`         | [服务端](../server/backend/index.md)             |

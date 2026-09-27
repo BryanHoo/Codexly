@@ -1,11 +1,11 @@
 import type { AgentTaskPage } from "@/protocol/index.js";
+import { archivedProjectTasksQueryOptions as sharedArchivedTasks, projectTasksInfiniteQueryOptions as sharedProjectTasks, taskSnapshotQueryOptions as sharedTaskSnapshot } from "@codexly/frontend-core";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import {
   ARCHIVED_TASK_PAGE_SIZE,
   COMPLETED_TASK_PAGE_SIZE,
   PROJECT_TASK_PAGE_SIZE,
-  TASK_SNAPSHOT_GC_TIME_MS,
   TASK_BOARD_COMPLETED_TASKS_QUERY_KEY,
   nativeClient,
   type NativeReadClient,
@@ -20,9 +20,8 @@ export function archivedProjectTasksQueryOptions(
   searchTerm: string,
   client: NativeArchivedTaskClient = nativeClient,
 ) {
-  return queryOptions({
-    queryFn: ({ signal }) =>
-      client.listTasks(
+  return queryOptions(sharedArchivedTasks(projectId, cursor, searchTerm, (signal) =>
+    client.listTasks(
         projectId,
         {
           archived: true,
@@ -32,30 +31,15 @@ export function archivedProjectTasksQueryOptions(
         },
         { signal },
       ),
-    queryKey: ["projects", projectId, "archived-tasks", searchTerm, cursor ?? null] as const,
-    // 归档内容可能刚由侧栏 Mutation 改变，弹窗每次打开都绕过全局新鲜期重新校准。
-    refetchOnMount: "always",
-  });
+  ));
 }
 
 export function projectTasksInfiniteQueryOptions(
   projectId: string,
   client: NativeReadClient = nativeClient,
 ) {
-  return infiniteQueryOptions<
-    AgentTaskPage,
-    Error,
-    ProjectTaskInfiniteData,
-    readonly ["projects", string, "tasks"],
-    string | undefined
-  >({
-    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
-      lastPage.nextCursor === null || lastPage.nextCursor === lastPageParam
-        ? undefined
-        : lastPage.nextCursor,
-    initialPageParam: undefined,
-    queryFn: ({ pageParam, signal }) =>
-      client.listTasks(
+  return infiniteQueryOptions<AgentTaskPage, Error, ProjectTaskInfiniteData, readonly ["projects", string, "tasks"], string | undefined>(sharedProjectTasks(projectId, (pageParam, signal) =>
+    client.listTasks(
         projectId,
         {
           ...(pageParam === undefined ? {} : { cursor: pageParam }),
@@ -63,8 +47,7 @@ export function projectTasksInfiniteQueryOptions(
         },
         { signal },
       ),
-    queryKey: ["projects", projectId, "tasks"] as const,
-  });
+  ));
 }
 
 export function completedTasksInfiniteQueryOptions(
@@ -101,9 +84,5 @@ export function taskSnapshotQueryOptions(
   taskId: string,
   client: NativeSnapshotClient = nativeClient,
 ) {
-  return queryOptions({
-    gcTime: TASK_SNAPSHOT_GC_TIME_MS,
-    queryFn: ({ signal }) => client.readTask(projectId, taskId, { signal }),
-    queryKey: ["projects", projectId, "tasks", taskId] as const,
-  });
+  return queryOptions(sharedTaskSnapshot(projectId, taskId, (signal) => client.readTask(projectId, taskId, { signal })));
 }

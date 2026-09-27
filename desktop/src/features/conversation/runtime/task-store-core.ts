@@ -1,4 +1,5 @@
 import type { AgentEventConnectionState } from "@/platform/native-client-types.js";
+import { createTaskItemKey, retainPendingRequest } from "@codexly/frontend-core";
 import type {
   AgentEvent,
   AgentItem,
@@ -16,8 +17,7 @@ import { createTaskItemStore, RETAINED_COMMAND_OUTPUT_MARKER, type TaskItemStore
 export { createTaskItemStore, RETAINED_COMMAND_OUTPUT_MARKER, type TaskItemStore, type TaskItemStoreState } from "./task-item-store.js";
 
 export const MAX_TASK_COMMAND_OUTPUT_BYTES = 8 * 1_048_576;
-export const MAX_RETAINED_TASK_RUNTIME_BYTES = 64 * 1_048_576;
-export const MAX_RETAINED_TERMINAL_REQUESTS = 20;
+export { MAX_RETAINED_TASK_RUNTIME_BYTES, MAX_RETAINED_TERMINAL_REQUESTS, createTaskItemKey, retainPendingRequest } from "@codexly/frontend-core";
 export const MAX_RETAINED_TASK_NOTICES = 20;
 export const PENDING_COMMAND_LABEL = "__CODEXLY_PENDING_COMMAND__";
 const textEncoder = new TextEncoder();
@@ -38,10 +38,7 @@ export type TaskStoreHydrationResponse = Readonly<{
   snapshot: ReconstructedTaskSnapshot;
 }>;
 
-export interface TaskStoreIdentity {
-  projectId: string;
-  taskId: string;
-}
+export type { TaskStoreIdentity } from "@codexly/frontend-core";
 
 export interface TaskStoreState {
   writeAccess: "checking" | "writable" | "external" | "unavailable";
@@ -101,50 +98,6 @@ type NormalizedTaskData = Pick<
   | "turnsById"
 >;
 
-type PendingRequestState = Pick<TaskStoreState, "pendingRequestIds" | "pendingRequestsById">;
-
-export function retainPendingRequest(
-  state: PendingRequestState,
-  request: PendingRequest,
-): PendingRequestState {
-  const requestAlreadyExists = state.pendingRequestsById[request.requestId] !== undefined;
-  let pendingRequestIds = state.pendingRequestIds;
-  if (request.status !== "pending") {
-    // 终态按事件到达顺序移到末尾，容量淘汰基于实际结束时间而非创建时间。
-    pendingRequestIds = [
-      ...state.pendingRequestIds.filter((requestId) => requestId !== request.requestId),
-      request.requestId,
-    ];
-  } else if (!requestAlreadyExists) {
-    pendingRequestIds = [...state.pendingRequestIds, request.requestId];
-  }
-  const pendingRequestsById = {
-    ...state.pendingRequestsById,
-    [request.requestId]: request,
-  };
-  const terminalRequestIds = pendingRequestIds.filter(
-    (requestId) => pendingRequestsById[requestId]?.status !== "pending",
-  );
-  const evictedRequestIds = new Set(terminalRequestIds.slice(0, -MAX_RETAINED_TERMINAL_REQUESTS));
-  if (evictedRequestIds.size === 0) {
-    return { pendingRequestIds, pendingRequestsById };
-  }
-
-  // 活动请求全部保留；终态只保留最近一段，避免长会话持续扩大 Store 和 Timeline 遍历量。
-  return {
-    pendingRequestIds: pendingRequestIds.filter((requestId) => !evictedRequestIds.has(requestId)),
-    pendingRequestsById: Object.fromEntries(
-      Object.entries(pendingRequestsById).filter(
-        ([requestId]) => !evictedRequestIds.has(requestId),
-      ),
-    ),
-  };
-}
-
-export function createTaskItemKey(turnId: string, itemId: string): string {
-  return JSON.stringify([turnId, itemId]);
-}
-
 export function readTaskItem(state: TaskStoreState, itemKey: string): AgentItem | undefined {
   return state.itemStoresByKey.get(itemKey)?.read();
 }
@@ -167,7 +120,7 @@ export function normalizeSnapshot(response: TaskStoreHydrationResponse): Normali
     }
   }
 
-  let pendingRequestState: PendingRequestState = {
+  let pendingRequestState: Pick<TaskStoreState, "pendingRequestIds" | "pendingRequestsById"> = {
     pendingRequestIds: [],
     pendingRequestsById: {},
   };
