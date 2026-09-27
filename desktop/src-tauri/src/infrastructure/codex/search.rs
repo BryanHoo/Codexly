@@ -11,6 +11,7 @@ use serde_json::json;
 use std::time::Duration;
 
 const SEARCH_PAGE_SIZE: usize = 30;
+const HISTORY_PAGE_SIZE: usize = 10;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Deserialize)]
@@ -38,8 +39,16 @@ pub async fn search_tasks(
     input: TaskSearchInput,
 ) -> Result<TaskSearchPage, ConnectionError> {
     let query = validate_query(&input.query)?;
-    let mut params = json!({"searchTerm":query,"archived":input.archived,"cursor":input.cursor,"limit":SEARCH_PAGE_SIZE,"sortKey":"recency_at","sortDirection":"desc"});
-    let (results, next_cursor) = match input.kind.as_deref().unwrap_or("history") {
+    let kind = input.kind.as_deref().unwrap_or("history");
+    let is_history = kind == "history";
+    // 历史结果需逐条验证定位锚点，小页降低单次搜索的 RPC 数与尾延迟。
+    let page_size = if is_history {
+        HISTORY_PAGE_SIZE
+    } else {
+        SEARCH_PAGE_SIZE
+    };
+    let mut params = json!({"searchTerm":query,"archived":input.archived,"cursor":input.cursor,"limit":page_size,"sortKey":"recency_at","sortDirection":"desc"});
+    let (results, next_cursor) = match kind {
         "tasks" => {
             // 不指定 projectId/sectionId，包含临时、固定以及全部项目的任务标题。
             params["modelProviders"] = json!([]);
@@ -66,9 +75,8 @@ pub async fn search_tasks(
         }
         _ => return Err(ConnectionError::InvalidMessage),
     };
-    let is_history = input.kind.as_deref().unwrap_or("history") == "history";
     // rollout 搜索包含过程答复；只有当前可见历史确实有锚点才展示，最多并发 4 次轻量查询。
-    let data = stream::iter(results.into_iter().take(SEARCH_PAGE_SIZE))
+    let data = stream::iter(results.into_iter().take(page_size))
         .map(|result| async move {
             let occurrence = if is_history {
                 let page: SearchOccurrencesPage = connection

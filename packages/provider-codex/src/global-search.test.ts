@@ -93,6 +93,33 @@ describe("CodexGlobalSearchService", () => {
     });
   });
 
+  it("分批验证历史锚点并保留下一页游标", async () => {
+    const threads = Array.from({ length: 11 }, (_, index) => ({
+      snippet: "过程输出",
+      thread: { ...temporaryThread, id: `task-${String(index)}` },
+    }));
+    const client = new FakeRpcClient([
+      { data: threads, nextCursor: "next-page" },
+      ...Array.from({ length: 11 }, (_, index) => ({
+        data: index === 0 ? [] : [occurrence],
+        nextCursor: null,
+      })),
+    ]);
+    const service = new CodexGlobalSearchService(client);
+
+    const page = await service.searchTasks({ archived: false, kind: "history", query: "中文" }, [
+      { id: "temporary", kind: "temporary" },
+    ]);
+
+    expect(client.calls[0]).toMatchObject({ method: "thread/search", params: { limit: 10 } });
+    expect(client.calls.filter((call) => call.method === "thread/searchOccurrences")).toHaveLength(
+      10,
+    );
+    expect(page.data).toHaveLength(9);
+    expect(page.data.every((item) => item.occurrence !== undefined)).toBe(true);
+    expect(page.nextCursor).toBe("next-page");
+  });
+
   it("读取匹配位置前验证任务归属", async () => {
     const client = new FakeRpcClient([
       { thread: { ...temporaryThread, projectId: "project-1" } },
