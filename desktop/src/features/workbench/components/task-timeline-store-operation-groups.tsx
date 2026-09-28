@@ -43,7 +43,9 @@ export function StoredAssistantTimelineItems({
     const content = groupItemKeys.map((itemKey) => {
       const item = itemStoresByKey.get(itemKey)?.peek();
       const itemTiming =
-        item?.type === "command" || item?.type === "tool" ? itemTimings?.[item.id] : undefined;
+        item?.type === "command" || item?.type === "tool" || item?.type === "file_change"
+          ? itemTimings?.[item.id]
+          : undefined;
       return (
         <div key={itemKey} data-conversation-anchor={itemKey}>
           <StoredTimelineItemContent

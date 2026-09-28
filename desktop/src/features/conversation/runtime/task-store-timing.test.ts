@@ -1,7 +1,36 @@
-import type { AgentTaskSnapshotResponse, AgentTurn } from "@/protocol/index.js";
+import type { AgentItem, AgentTaskSnapshotResponse, AgentTurn } from "@/protocol/index.js";
 import { expect, it } from "vitest";
 
 import { createTaskStore } from "./task-store.js";
+import { recordToolItemTiming } from "./task-store-timing.js";
+
+it("records file editing time without timing reasoning that has no start event", () => {
+  const turn = { id: "turn-1", items: [], status: "running", startedAt: null, completedAt: null, error: null } as AgentTurn;
+  const file: Extract<AgentItem, { type: "file_change" }> = {
+    id: "files-1", changes: [], status: "running", type: "file_change",
+  };
+  const envelope = {
+    itemId: file.id, turnId: turn.id, timestamp: "2026-09-26T00:00:01.000Z",
+    version: 2 as const, provider: "codex", taskId: "task", sessionId: "session",
+  };
+  const started = recordToolItemTiming(turn, {
+    ...envelope, sequence: 1, type: "item.started", payload: { item: file },
+  });
+  const completed = recordToolItemTiming(started, {
+    ...envelope, sequence: 2, timestamp: "2026-09-26T00:00:03.500Z", type: "item.completed",
+    payload: { item: { ...file, status: "completed" } },
+  });
+  const afterReasoning = recordToolItemTiming(completed, {
+    ...envelope, sequence: 3, itemId: "reasoning-1", type: "item.completed",
+    payload: { item: { id: "reasoning-1", text: "思考", type: "reasoning" } },
+  });
+  expect(afterReasoning.itemTimings).toEqual({
+    [file.id]: {
+      startedAtMs: Date.parse(envelope.timestamp),
+      completedAtMs: Date.parse("2026-09-26T00:00:03.500Z"),
+    },
+  });
+});
 
 it("records streamed command duration before turn completion and retains it", () => {
   const startedAt = "2026-09-26T00:00:01.000Z";

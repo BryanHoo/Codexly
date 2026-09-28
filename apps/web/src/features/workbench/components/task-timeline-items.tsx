@@ -291,20 +291,35 @@ export function TimelineItemContent({
       );
     }
     case "file_change": {
+      const duration =
+        itemTiming === undefined ? undefined : (
+          <ToolDuration status={item.status} timing={itemTiming} />
+        );
       if (item.status === "completed") {
-        // Turn 结束前立即展示已完成修改；Turn 终态继续由回复末尾统一聚合。
-        return turnStatus === "running" ? (
-          <div className="space-y-1">
-            {item.changes.map((change) => (
-              <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
-            ))}
-          </div>
-        ) : null;
+        if (turnStatus !== "running" && itemTiming?.startedAtMs === undefined) return null;
+        // 完成回合只保留计时行；文件详情仍由回复末尾统一聚合。
+        return (
+          <Task collapsible={false} status="completed">
+            <TaskTrigger
+              statusPrefix={duration}
+              title={i18n.t("timeline.editedFiles", {
+                count: item.changes.length,
+                ns: "conversation",
+              })}
+            />
+            {turnStatus !== "running"
+              ? null
+              : item.changes.map((change) => (
+                  <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
+                ))}
+          </Task>
+        );
       }
       if (item.status !== "pending" && item.status !== "running") return null;
       return (
         <Task collapsible={item.changes.length > 0} status="in_progress">
           <TaskTrigger
+            statusPrefix={duration}
             title={i18n.t("timeline.editingFiles", {
               count: item.changes.length,
               ns: "conversation",

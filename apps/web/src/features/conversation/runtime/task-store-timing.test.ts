@@ -1,10 +1,47 @@
-import type { AgentTurn } from "@codexly/protocol";
+import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 
 import { createTaskStore } from "./task-store.js";
 import { createResponse, eventEnvelope, timestamp } from "./task-store.test-support.js";
 
 describe("streamed tool timing", () => {
+  it("records file changes but does not invent reasoning timing", () => {
+    const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
+    const file: Extract<AgentItem, { type: "file_change" }> = {
+      id: "files-1",
+      changes: [],
+      status: "running",
+      type: "file_change",
+    };
+    const reasoning = {
+      id: "reasoning-1",
+      content: "",
+      summary: "思考",
+      type: "reasoning",
+    } as const;
+    for (const [sequence, type, item] of [
+      [11, "item.started", file],
+      [12, "item.completed", { ...file, status: "completed" }],
+      [13, "item.completed", reasoning],
+    ] as const) {
+      store.getState().applyEvents([
+        {
+          ...eventEnvelope(sequence),
+          itemId: item.id,
+          payload: { item },
+          timestamp: sequence === 11 ? "2026-07-28T00:00:01.000Z" : "2026-07-28T00:00:03.500Z",
+          turnId: "turn-running",
+          type,
+        },
+      ]);
+    }
+    expect(store.getState().turnsById["turn-running"]?.itemTimings).toEqual({
+      [file.id]: {
+        startedAtMs: Date.parse("2026-07-28T00:00:01.000Z"),
+        completedAtMs: Date.parse("2026-07-28T00:00:03.500Z"),
+      },
+    });
+  });
   it("records tool events before the turn completes and retains them afterward", () => {
     const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
     const item = { id: "tool-1", name: "read_file", status: "running", type: "tool" } as const;

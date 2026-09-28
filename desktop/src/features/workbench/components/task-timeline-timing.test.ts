@@ -6,6 +6,16 @@ import { TimelineItemContent } from "./task-timeline-items.js";
 import { formatToolDuration } from "./task-timeline-status.js";
 
 describe("tool duration", () => {
+  it("keeps file editing duration visible after the turn completes", () => {
+    const markup = renderToStaticMarkup(createElement(TimelineItemContent, {
+      isLastTurnItem: true,
+      item: { id: "file-1", changes: [], status: "completed", type: "file_change" },
+      itemTiming: { startedAtMs: 1_000, completedAtMs: 3_500 },
+      onOpenFileDiff: () => undefined, onOpenSourceFile: () => undefined,
+      projectId: "project-1", taskId: "task-1", turnStatus: "completed",
+    }));
+    expect(markup).toContain("2.5s");
+  });
   it("freezes completed duration after later clock ticks", () => {
     expect(formatToolDuration({ startedAtMs: 1_000, completedAtMs: 3_500 }, 10_000)).toBe("2.5s");
   });

@@ -27,7 +27,7 @@ export function recordToolItemTiming(
   turn: NormalizedAgentTurn,
   event: Extract<AgentEvent, { type: "item.started" | "item.completed" }>,
 ): NormalizedAgentTurn {
-  if (event.payload.item.type !== "command" && event.payload.item.type !== "tool") return turn;
+  if (event.payload.item.type !== "command" && event.payload.item.type !== "tool" && event.payload.item.type !== "file_change") return turn;
   const timestampMs = Date.parse(event.timestamp);
   if (!Number.isFinite(timestampMs)) return turn;
   const previous = turn.itemTimings?.[event.itemId];
