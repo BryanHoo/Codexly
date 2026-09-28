@@ -3,6 +3,9 @@ pub mod domain;
 mod encoding;
 mod infrastructure;
 
+// 原生出站 HTTP 与 Web 服务端保持相同的产品标识。
+pub(crate) const HTTP_USER_AGENT: &str = "Codexly";
+
 use tauri::Manager;
 
 use application::{
@@ -104,12 +107,21 @@ pub fn run() {
     // WDIO 已注册全局 logger；测试构建不能再次安装正式诊断 logger。
     #[cfg(not(feature = "webview-tests"))]
     let builder = builder.plugin(diagnostics::plugin());
+    let mut updater_headers = tauri::http::HeaderMap::new();
+    updater_headers.insert(
+        tauri::http::header::USER_AGENT,
+        tauri::http::HeaderValue::from_static(HTTP_USER_AGENT),
+    );
     let result = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_updater::Builder::new()
+                .headers(updater_headers)
+                .build(),
+        )
         .manage(AppState::default())
         .manage(AppStorageRuntime::default())
         .manage(DesktopPetRuntime::default())

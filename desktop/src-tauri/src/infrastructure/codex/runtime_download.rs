@@ -50,6 +50,7 @@ where
         .connect_timeout(Duration::from_secs(8))
         .read_timeout(Duration::from_secs(15))
         .redirect(download_redirect_policy())
+        .user_agent(crate::HTTP_USER_AGENT)
         .build()?;
     download_from_sources(
         &client,

@@ -32,7 +32,7 @@ fn http_client() -> Result<&'static Client, SkillsMarketError> {
                 .connect_timeout(Duration::from_secs(5))
                 .timeout(Duration::from_secs(18))
                 .redirect(reqwest::redirect::Policy::limited(3))
-                .user_agent("CodeAgent/0.1 Skills-Market")
+                .user_agent(crate::HTTP_USER_AGENT)
                 .build()
         })
         .as_ref()

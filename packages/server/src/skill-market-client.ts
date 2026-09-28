@@ -1,4 +1,8 @@
-import type { ClawhubSkillDetail, ClawhubSkillPage } from "@codexly/protocol";
+import {
+  CODEXLY_USER_AGENT,
+  type ClawhubSkillDetail,
+  type ClawhubSkillPage,
+} from "@codexly/protocol";
 
 import {
   buildClawhubCatalogUrl,
@@ -45,7 +49,7 @@ async function request(
     let response: Response;
     try {
       response = await fetchImplementation(url, {
-        headers: { "user-agent": "Codexly Skills-Market" },
+        headers: { "user-agent": CODEXLY_USER_AGENT },
         redirect: "manual",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });

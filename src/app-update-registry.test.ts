@@ -13,6 +13,21 @@ const official = "https://registry.npmjs.org";
 const installedPackageRoot = "/installed/lib/node_modules/@bryanhu/codexly";
 
 describe("app update registry selection", () => {
+  it("identifies release notes requests with the same User-Agent", async () => {
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("## [1.4.0] - 2026-08-06\n\n### Added\n\n- Update notes.\n"));
+    const service = createAppUpdateService({
+      appVersion: "1.3.0",
+      codexVersion: "0.157.1",
+      fetchLatestVersion: () => Promise.resolve("1.4.0"),
+    });
+
+    await expect(service.read()).resolves.toMatchObject({ latestVersion: "1.4.0" });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({ "user-agent": "Codexly" });
+  });
+
   it("checks the mirror first without contacting the official registry on success", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")
@@ -53,6 +68,9 @@ describe("app update registry selection", () => {
         `${mirror}/-/package/%40bryanhu%2Fcodexly/dist-tags`,
         `${official}/-/package/%40bryanhu%2Fcodexly/dist-tags`,
       ]);
+      for (const [, init] of fetch.mock.calls) {
+        expect(init?.headers).toMatchObject({ "user-agent": "Codexly" });
+      }
     },
   );
 

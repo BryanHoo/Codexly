@@ -159,6 +159,7 @@ fn http_client() -> Result<&'static Client, UpdateCheckError> {
         .connect_timeout(CONNECT_TIMEOUT)
         .redirect(Policy::none())
         .timeout(REQUEST_TIMEOUT)
+        .user_agent(crate::HTTP_USER_AGENT)
         .build()
         .map_err(UpdateCheckError::from)?;
     let _ = HTTP_CLIENT.set(client);
@@ -170,7 +171,6 @@ async fn fetch_releases() -> Result<Vec<u8>, UpdateCheckError> {
     let response = http_client()?
         .get(RELEASES_URL)
         .header(header::ACCEPT, "application/vnd.github+json")
-        .header(header::USER_AGENT, "CodeAgent-update-check")
         .header("X-GitHub-Api-Version", "2022-11-28")
         .send()
         .await
@@ -336,6 +336,40 @@ fn truncate_notes(notes: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{AppUpdate, confirm_release_with_manifest, resolve_release_response_for_channel};
+
+    #[tokio::test]
+    async fn release_client_uses_codexly_user_agent() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut bytes = Vec::new();
+            while !bytes.ends_with(b"\r\n\r\n") {
+                let mut byte = [0];
+                socket.read_exact(&mut byte).await.unwrap();
+                bytes.push(byte[0]);
+            }
+            socket
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+                .await
+                .unwrap();
+            String::from_utf8(bytes).unwrap()
+        });
+        super::http_client()
+            .unwrap()
+            .get(format!("http://{address}"))
+            .send()
+            .await
+            .unwrap();
+        assert!(
+            server
+                .await
+                .unwrap()
+                .to_ascii_lowercase()
+                .contains("user-agent: codexly\r\n")
+        );
+    }
 
     #[tokio::test]
     async fn stalled_response_body_should_report_connection_failure() {

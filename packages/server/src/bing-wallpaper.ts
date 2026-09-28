@@ -1,3 +1,5 @@
+import { CODEXLY_USER_AGENT } from "@codexly/protocol";
+
 const BING_ORIGIN = "https://www.bing.com";
 const BING_METADATA_URL = `${BING_ORIGIN}/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN`;
 const FETCH_TIMEOUT_MS = 10_000;
@@ -83,6 +85,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function loadWallpaper(fetcher: Fetcher): Promise<BingWallpaper> {
   const metadataResponse = await fetcher(BING_METADATA_URL, {
+    headers: { "user-agent": CODEXLY_USER_AGENT },
     redirect: "error",
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
@@ -93,6 +96,7 @@ async function loadWallpaper(fetcher: Fetcher): Promise<BingWallpaper> {
   const imageUrl = readImageUrl(metadata);
 
   const imageResponse = await fetcher(imageUrl, {
+    headers: { "user-agent": CODEXLY_USER_AGENT },
     redirect: "error",
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });

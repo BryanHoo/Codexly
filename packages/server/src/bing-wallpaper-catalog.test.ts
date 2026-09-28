@@ -35,6 +35,8 @@ describe("Bing wallpaper catalog", () => {
     expect(fetcher.mock.calls[1]?.[0]).toBe(
       "https://www.bing.com/th?id=OHR.Valley.jpg&w=480&h=270",
     );
+    expect(fetcher.mock.calls[0]?.[1].headers).toMatchObject({ "user-agent": "Codexly" });
+    expect(fetcher.mock.calls[1]?.[1].headers).toMatchObject({ "user-agent": "Codexly" });
     await expect(catalog.read("2020-01-01", false)).rejects.toThrow("no longer available");
   });
   it("拒绝外部图片地址", async () => {

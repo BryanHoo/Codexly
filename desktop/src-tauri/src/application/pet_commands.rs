@@ -177,6 +177,7 @@ async fn describe_pet(codex_home: &Path, pet: &'static BuiltinPet) -> PetAssetRe
 async fn download_pet(codex_home: &Path, pet: &'static BuiltinPet) -> Result<(), AppError> {
     let response = reqwest::Client::new()
         .get(format!("{CDN_ROOT}/{}", pet.file))
+        .header(reqwest::header::USER_AGENT, crate::HTTP_USER_AGENT)
         .send()
         .await
         .map_err(|_| AppError::PetAssetUnavailable)?;

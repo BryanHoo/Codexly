@@ -13,7 +13,7 @@ const portableReadme = "---\nname: review\ndescription: Review code changes.\n--
 
 describe("ClawHubClient", () => {
   it("lists Skills and loads all detail resources", async () => {
-    const fetch = vi.fn((input: string | URL | Request) => {
+    const fetch = vi.fn((input: string | URL | Request, _init?: RequestInit) => {
       const url = new URL(input instanceof Request ? input.url : input.toString());
       if (url.pathname === "/api/v1/packages") {
         return Promise.resolve(
@@ -61,6 +61,9 @@ describe("ClawHubClient", () => {
       scanStatus: "clean",
     });
     expect(fetch).toHaveBeenCalledTimes(5);
+    for (const [, init] of fetch.mock.calls) {
+      expect(init?.headers).toMatchObject({ "user-agent": "Codexly" });
+    }
   });
 
   it("accepts only verified public GitHub archive handoffs", async () => {
