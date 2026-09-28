@@ -79,7 +79,7 @@ test("opens project review while showing Git stats in the Inspector project tree
   );
   await page.getByRole("button", { name: /已编辑 package\.json.*打开 Diff/ }).click();
   const timelineDiffPanel = inspector.getByRole("region", { name: "package.json" });
-  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+  await expect(inspector.getByRole("tab", { name: "Diff: package.json" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
@@ -124,19 +124,20 @@ test("opens project review while showing Git stats in the Inspector project tree
   expect(countBox?.x).toBeLessThan(commitBox?.x ?? 0);
   expect(statsBox?.x).toBeLessThan(commitBox?.x ?? 0);
   await reviewButton.click();
-  const reviewDialog = page.getByRole("dialog");
-  const reviewContent = reviewDialog.getByRole("region", { name: "审核文件内容" });
-  const reviewNavigation = reviewDialog.getByRole("complementary", { name: "变更文件导航" });
+  const reviewPanel = inspector.getByRole("tabpanel", { name: "文件审核" });
+  const reviewContent = reviewPanel.getByRole("region", { name: "审核文件内容" });
+  const reviewNavigation = reviewPanel.getByRole("complementary", { name: "变更文件导航" });
+  await reviewPanel.getByRole("button", { name: "展开变更文件导航" }).click();
   await expect(reviewNavigation).toBeVisible();
-  await expect(reviewDialog.getByRole("button", { name: "收起变更文件导航" })).toBeVisible();
-  const changedFileTree = reviewDialog.getByRole("tree", { name: "变更文件导航" });
+  await expect(reviewPanel.getByRole("button", { name: "收起变更文件导航" })).toBeVisible();
+  const changedFileTree = reviewPanel.getByRole("tree", { name: "变更文件导航" });
   const packageFileTreeItem = changedFileTree.getByRole("treeitem", {
     name: "package.json，新增 1 行，删除 1 行",
   });
   const reviewFileTreeItem = changedFileTree.getByRole("treeitem", {
     name: "apps/web/src/review-list.tsx，新增 1 行，删除 0 行",
   });
-  await expect(reviewDialog).toHaveAccessibleName("package.json");
+  await expect(reviewPanel.getByRole("heading", { name: "package.json" })).toBeVisible();
   await expect(
     changedFileTree.getByRole("button", { name: "收起文件夹 apps/web/src", exact: true }),
   ).toBeVisible();
@@ -146,7 +147,10 @@ test("opens project review while showing Git stats in the Inspector project tree
     reviewContent.boundingBox(),
     reviewNavigation.boundingBox(),
   ]);
-  expect(reviewContentBox?.x).toBeLessThan(reviewNavigationBox?.x ?? 0);
+  expect(reviewNavigationBox?.x).toBeGreaterThan(reviewContentBox?.x ?? 0);
+  expect((reviewNavigationBox?.x ?? 0) + (reviewNavigationBox?.width ?? 0)).toBeLessThanOrEqual(
+    (reviewContentBox?.x ?? 0) + (reviewContentBox?.width ?? 0),
+  );
   await reviewContent.evaluate((element) => {
     // 模拟长 Diff，确保左侧审核区产生真实滚动距离。
     const spacer = document.createElement("div");
@@ -161,18 +165,19 @@ test("opens project review while showing Git stats in the Inspector project tree
     .poll(() => reviewContent.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
   await reviewFileTreeItem.click();
-  await expect(reviewDialog).toHaveAccessibleName("review-list.tsx");
+  await expect(reviewPanel.getByRole("heading", { name: "review-list.tsx" })).toBeVisible();
   await expect.poll(() => reviewContent.evaluate((element) => element.scrollTop)).toBe(0);
   await packageFileTreeItem.click();
-  await expect(reviewDialog).toHaveAccessibleName("package.json");
+  await expect(reviewPanel.getByRole("heading", { name: "package.json" })).toBeVisible();
   await page.keyboard.press("ArrowDown");
-  await expect(reviewDialog).toHaveAccessibleName("review-list.tsx");
+  await expect(reviewPanel.getByRole("heading", { name: "review-list.tsx" })).toBeVisible();
   const horizontalDiffScroller = reviewContent.locator("[data-code]");
   await expect
     .poll(() =>
       horizontalDiffScroller.evaluate((element) => element.scrollWidth > element.clientWidth),
     )
     .toBe(true);
+  await reviewPanel.getByRole("button", { name: "收起变更文件导航" }).click();
   await horizontalDiffScroller.hover();
   await page.mouse.wheel(240, 0);
   await expect
@@ -181,33 +186,35 @@ test("opens project review while showing Git stats in the Inspector project tree
   await expect(reviewContent.locator(".file-diff-renderer")).toContainText(
     "export const reviewList",
   );
+  await reviewPanel.getByRole("button", { name: "展开变更文件导航" }).click();
   await expect(reviewFileTreeItem).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowUp");
-  await expect(reviewDialog).toHaveAccessibleName("package.json");
-  await reviewDialog.getByRole("button", { name: "切换为文件列表" }).click();
-  const changedFileList = reviewDialog.getByRole("listbox", { name: "变更文件导航" });
+  await expect(reviewPanel.getByRole("heading", { name: "package.json" })).toBeVisible();
+  await reviewPanel.getByRole("button", { name: "切换为文件列表" }).click();
+  const changedFileList = reviewPanel.getByRole("listbox", { name: "变更文件导航" });
   await expect(changedFileList).toBeVisible();
   await expect(
     changedFileList.getByRole("option", {
       name: "apps/web/src/review-list.tsx，新增 1 行，删除 0 行",
     }),
   ).toBeVisible();
-  await expect(reviewDialog.getByRole("tree", { name: "变更文件导航" })).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await expect(reviewDialog).not.toBeAttached();
+  await expect(reviewPanel.getByRole("tree", { name: "变更文件导航" })).toHaveCount(0);
+  await reviewPanel.getByRole("button", { name: "关闭文件审核" }).click();
+  await expect(reviewPanel).not.toBeAttached();
   await commitButton.click();
   await expect(changesTab).toHaveAttribute("aria-selected", "true");
   await expect(inspector.getByRole("button", { name: "切换为文件列表" })).toBeVisible();
 
-  // 刷新后右栏仍保持树，审核弹窗独立恢复列表偏好。
+  // 刷新后右栏仍保持树，审核标签独立恢复列表偏好。
   await page.reload();
   await inspector.getByRole("tab", { name: "变更" }).click();
   await expect(inspector.getByRole("button", { name: "切换为文件列表" })).toBeVisible();
   await inspector.getByRole("tab", { name: "项目" }).click();
   await inspector.getByRole("button", { name: "审核 2 个未提交变更" }).click();
-  await expect(reviewDialog.getByRole("listbox", { name: "变更文件导航" })).toBeVisible();
-  await expect(reviewDialog.getByRole("button", { name: "切换为文件树" })).toBeVisible();
-  await page.keyboard.press("Escape");
+  await reviewPanel.getByRole("button", { name: "展开变更文件导航" }).click();
+  await expect(reviewPanel.getByRole("listbox", { name: "变更文件导航" })).toBeVisible();
+  await expect(reviewPanel.getByRole("button", { name: "切换为文件树" })).toBeVisible();
+  await reviewPanel.getByRole("button", { name: "关闭文件审核" }).click();
   expect({ consoleErrors, failedResources }).toEqual({ consoleErrors: [], failedResources: [] });
 });
 

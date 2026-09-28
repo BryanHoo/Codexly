@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { i18n } from "../../../i18n/i18n.js";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
 import { createTaskStore } from "../../conversation/runtime/task-store.js";
 import { TaskTimeline } from "./task-timeline.js";
@@ -9,6 +10,47 @@ import {
 } from "./task-timeline.test-support.js";
 
 describe("task timeline live state", () => {
+  it("does not show a warning-only stream", () => {
+    const emptySnapshot: RuntimeTaskSnapshot = { ...snapshot, turns: [] };
+    const store = createTaskStore(
+      { projectId: snapshot.projectId, taskId: snapshot.id },
+      { checkpoint: { sequence: 1, sessionId: "runtime-live" }, snapshot: emptySnapshot },
+    );
+    store.getState().applyEvents([
+      {
+        provider: "codex",
+        sessionId: "runtime-live",
+        taskId: snapshot.id,
+        timestamp: snapshot.updatedAt,
+        version: 2,
+        sequence: 2,
+        type: "task.notice",
+        payload: { code: "runtime_warning", level: "warning", message: "Warning\nFull detail" },
+      },
+    ]);
+    Object.assign(store.getInitialState(), { notices: store.getState().notices });
+
+    const markup = renderToStaticMarkup(
+      <TaskTimeline
+        projectId={snapshot.projectId}
+        runtime={{
+          ...unpaginatedRuntime,
+          connectionState: "connected",
+          error: null,
+          isPending: false,
+          metadata: emptySnapshot,
+          store,
+        }}
+        taskId={snapshot.id}
+      />,
+    );
+
+    expect(markup).not.toContain('data-runtime-warning=""');
+    expect(markup).not.toContain("Warning");
+    expect(markup).not.toContain("Full detail");
+    expect(markup).toContain(i18n.t("timeline.noHistory", { ns: "conversation" }));
+  });
+
   it("renders live summaries, progress, file updates, runtime status, diff, and notices", () => {
     const runningSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
@@ -177,7 +219,6 @@ describe("task timeline live state", () => {
     expect(markup).toContain("安全审核已升级，当前操作将在严格审核完成后继续");
     expect(markup).not.toContain("provider strict review text");
     expect(markup).not.toContain('data-runtime-warning=""');
-    expect(markup).not.toContain("运行时警告");
     expect(markup).not.toContain("First runtime detail");
     expect(markup).not.toContain("Second runtime detail");
   });

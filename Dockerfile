@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG NODE_IMAGE=node:22.14.0-bookworm-slim@sha256:1c18d9ab3af4585870b92e4dbc5cac5a0dc77dd13df1a5905cea89fc720eb05b
+ARG NODE_IMAGE=node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df
 
 FROM ${NODE_IMAGE} AS build-tools
 
@@ -16,7 +16,7 @@ ENV PATH=${PNPM_HOME}:${PATH} \
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@11.15.1 --activate
+RUN corepack enable && corepack prepare pnpm@11.22.0 --activate
 
 # 先复制依赖清单，使源码变化不会使依赖层失效。
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
@@ -26,8 +26,10 @@ COPY packages/core/package.json ./packages/core/package.json
 COPY packages/protocol/package.json ./packages/protocol/package.json
 COPY packages/provider-codex/package.json ./packages/provider-codex/package.json
 COPY packages/server/package.json ./packages/server/package.json
+COPY desktop/package.json ./desktop/package.json
+COPY desktop/patches/@wdio__tauri-service@1.3.0.patch ./desktop/patches/@wdio__tauri-service@1.3.0.patch
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm --filter '!codeagent' install --frozen-lockfile
 
 FROM dependencies AS build
 

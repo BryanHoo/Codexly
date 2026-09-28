@@ -3,7 +3,7 @@ import { ChevronRight, Copy, GitFork, MessageSquareCode } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { v4 as createUuid } from "uuid";
 
-import { getCurrentLanguage, i18n } from "../../../i18n/i18n.js";
+import { i18n } from "../../../i18n/i18n.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import {
   notifyActionError,
@@ -146,9 +146,11 @@ export function formatStructuredValue(value: unknown): string {
 
 export function SubagentToolItem({
   item,
+  itemTiming,
   operation,
 }: Readonly<{
   item: Extract<AgentItem, { type: "tool" }>;
+  itemTiming?: NonNullable<AgentTurn["itemTimings"]>[string] | undefined;
   operation: SubagentOperation;
 }>) {
   const operationStatus = resolveSubagentOperationStatus(item.status, operation.agents);
@@ -156,40 +158,62 @@ export function SubagentToolItem({
 
   return (
     <Task collapsible={false} status={operationStatus}>
-      <TaskTrigger title={`${getSubagentOperationTitle(operation.name)} · ${summary}`} />
+      <TaskTrigger
+        statusPrefix={
+          itemTiming === undefined ? undefined : (
+            <ToolDuration status={item.status} timing={itemTiming} />
+          )
+        }
+        title={`${getSubagentOperationTitle(operation.name)} · ${summary}`}
+      />
     </Task>
   );
 }
 
 const TURN_PROCESSING_TIMER_INTERVAL_MS = 1_000;
 
-type MessageDateFormatters = Readonly<{
-  full: Intl.DateTimeFormat;
-  time: Intl.DateTimeFormat;
-}>;
+export function formatToolDuration(
+  timing: NonNullable<AgentTurn["itemTimings"]>[string] | undefined,
+  nowMs?: number,
+): string | undefined {
+  if (timing?.startedAtMs === undefined) return undefined;
+  const completedAtMs = timing.completedAtMs ?? nowMs;
+  if (completedAtMs === undefined) return undefined;
+  const durationMs = completedAtMs - timing.startedAtMs;
+  if (!Number.isFinite(durationMs) || durationMs < 0) return undefined;
+  return durationMs < 1_000
+    ? `${String(durationMs)}ms`
+    : `${String(Math.round(durationMs / 100) / 10)}s`;
+}
 
-const messageDateFormattersByLocale = new Map<string, MessageDateFormatters>();
-
-function getMessageDateFormatters(locale: string): MessageDateFormatters {
-  const cachedFormatters = messageDateFormattersByLocale.get(locale);
-  if (cachedFormatters !== undefined) {
-    return cachedFormatters;
-  }
-
-  // 流式更新会频繁重渲染消息，按语言复用构造成本较高的日期格式器。
-  const formatters = {
-    full: new Intl.DateTimeFormat(locale, {
-      dateStyle: "medium",
-      timeStyle: "medium",
-    }),
-    time: new Intl.DateTimeFormat(locale, {
-      hour: "2-digit",
-      hour12: false,
-      minute: "2-digit",
-    }),
-  };
-  messageDateFormattersByLocale.set(locale, formatters);
-  return formatters;
+export function ToolDuration({
+  status,
+  timing,
+}: Readonly<{
+  status: AgentItemStatus;
+  timing: NonNullable<AgentTurn["itemTimings"]>[string];
+}>) {
+  const [nowMs, setNowMs] = useState(Date.now);
+  const isRunning = status === "running" && timing.completedAtMs === undefined;
+  useEffect(() => {
+    if (!isRunning || timing.startedAtMs === undefined) return;
+    // 只在运行中的工具上刷新计时；完成事件会冻结最终耗时。
+    const interval = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 100);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [isRunning, timing.startedAtMs]);
+  const duration = formatToolDuration(timing, isRunning ? nowMs : undefined);
+  return duration === undefined ? null : (
+    <span
+      className="min-w-[6ch] shrink-0 text-right tabular-nums text-caption text-muted-foreground"
+      data-tool-duration=""
+    >
+      {duration}
+    </span>
+  );
 }
 
 export function formatTurnProcessingDuration(totalSeconds: number): Readonly<{
@@ -277,37 +301,20 @@ export function TurnProcessingTime({
   );
 }
 
-export function getMessageTimestamp(
-  role: "assistant" | "user",
-  turn: Pick<AgentTurn, "completedAt" | "startedAt">,
-  latestSnapshotTimestamp: string,
-): string {
-  // 协议尚未记录 Item 时间；用户消息使用 Turn 开始时间，AI 消息使用完成或最新事件时间。
-  if (role === "user") {
-    return turn.startedAt ?? latestSnapshotTimestamp;
-  }
-  return turn.completedAt ?? latestSnapshotTimestamp;
-}
-
 export function MessageMetadata({
   lastTurnId,
   modeLabel,
   onForkTask,
   text,
-  timestamp,
 }: Readonly<{
   lastTurnId?: string;
   modeLabel?: string;
   onForkTask?: ForkTaskAction;
   text: string;
-  timestamp?: string;
 }>) {
   const [forkPending, setForkPending] = useState(false);
   const forkIdempotencyKeyRef = useRef<string | null>(null);
   const messageActionLockRef = useRef(createAsyncActionLock());
-  const messageDate = timestamp === undefined ? undefined : new Date(timestamp);
-  const locale = getCurrentLanguage();
-  const dateFormatters = messageDate === undefined ? undefined : getMessageDateFormatters(locale);
 
   const copyMessage = () =>
     messageActionLockRef.current.run(async () => {
@@ -366,11 +373,6 @@ export function MessageMetadata({
         </MessageAction>
       )}
       {modeLabel === undefined ? null : <span>{modeLabel}</span>}
-      {timestamp === undefined || messageDate === undefined ? null : (
-        <time dateTime={timestamp} title={dateFormatters?.full.format(messageDate)}>
-          {dateFormatters?.time.format(messageDate)}
-        </time>
-      )}
     </MessageActions>
   );
 }

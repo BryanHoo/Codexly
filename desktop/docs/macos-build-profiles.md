@@ -11,10 +11,11 @@
 
 ## 构建
 
-使用支持项目 Node.js 24、Rust 工具链和最新 Xcode SDK 的 Mac 或 CI 交叉编译。用户运行安装包不需要 Node.js；不要求在 Monterey 本机编译。
+使用支持项目 Node.js 24、Rust 工具链和最新 Xcode SDK 的 Mac 或 CI 交叉编译。先在仓库根目录安装依赖，再进入 `desktop/` 构建。用户运行安装包不需要 Node.js；不要求在 Monterey 本机编译。
 
 ```sh
 pnpm install --frozen-lockfile
+cd desktop
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
 pnpm tauri build --target aarch64-apple-darwin
 pnpm tauri build --target x86_64-apple-darwin

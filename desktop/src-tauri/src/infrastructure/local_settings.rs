@@ -199,7 +199,7 @@ pub(crate) fn default_global_settings() -> Value {
     json!({
         "approvalPolicy": "on-request",
         "approvalsReviewer": "user",
-        "commitMessageModel": "gpt-5.6-luna",
+        "commitMessageModel": "gpt-6-luna",
         "commitMessagePrompt": "",
         "defaultOpenAppId": null,
         "fastMode": false,

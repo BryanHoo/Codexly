@@ -11,7 +11,6 @@ import {
   type NativeGitCommitReviewClient,
   type NativeGitHistoryClient,
 } from "../../projects/project-queries.js";
-import { GitCommitReview } from "./git-commit-review.js";
 import { GitHistoryContent, GitHistoryList } from "./git-history-list.js";
 
 type GitHistoryClient = NativeGitHistoryClient & NativeGitCommitReviewClient;
@@ -62,17 +61,21 @@ function getPanelId(index: number): string {
 
 export function GitHistoryPanel({
   client = nativeClient,
+  onOpenCommit = () => undefined,
   projectId,
   rootPath,
-}: Readonly<{ client?: GitHistoryClient; projectId: string; rootPath: string }>) {
+}: Readonly<{
+  client?: GitHistoryClient;
+  onOpenCommit?: (commit: ProjectGitCommit, repository?: string) => void;
+  projectId: string;
+  rootPath: string;
+}>) {
   useTranslation("conversation");
   const [selectedRepository, setSelectedRepository] = useState<string>();
   const [visitedRepositories, setVisitedRepositories] = useState<readonly string[]>([]);
   const [repositoryBranches, setRepositoryBranches] = useState<ReadonlyMap<string, string | null>>(
     () => new Map(),
   );
-  const [selectedCommit, setSelectedCommit] =
-    useState<Readonly<{ commit: ProjectGitCommit; repository?: string }>>();
   const initialQuery = useInfiniteQuery(
     projectGitHistoryInfiniteQueryOptions(projectId, rootPath, undefined, true, client),
   );
@@ -193,10 +196,7 @@ export function GitHistoryPanel({
           dateFormatter={dateFormatter}
           panelId={initialPanelId}
           onSelectCommit={(commit) => {
-            setSelectedCommit({
-              commit,
-              ...(activeRepository === null ? {} : { repository: activeRepository }),
-            });
+            onOpenCommit(commit, activeRepository ?? undefined);
           }}
           query={initialQuery}
         />
@@ -213,7 +213,7 @@ export function GitHistoryPanel({
               key={repository}
               onBranchLoaded={rememberRepositoryBranch}
               onSelectCommit={(commit, selectedRepository) => {
-                setSelectedCommit({ commit, repository: selectedRepository });
+                onOpenCommit(commit, selectedRepository);
               }}
               panelId={getPanelId(repositoryIndex)}
               projectId={projectId}
@@ -223,21 +223,6 @@ export function GitHistoryPanel({
           );
         })}
       </div>
-
-      {selectedCommit === undefined ? null : (
-        <GitCommitReview
-          client={client}
-          commit={selectedCommit.commit}
-          onClose={() => {
-            setSelectedCommit(undefined);
-          }}
-          projectId={projectId}
-          rootPath={rootPath}
-          {...(selectedCommit.repository === undefined
-            ? {}
-            : { repository: selectedCommit.repository })}
-        />
-      )}
     </div>
   );
 }

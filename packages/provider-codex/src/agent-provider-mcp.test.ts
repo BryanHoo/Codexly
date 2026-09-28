@@ -17,6 +17,7 @@ describe("CodexAgentProvider MCP servers", () => {
         data: [
           {
             authStatus: "unsupported",
+            httpOrigin: "https://mcp.example.com",
             name: "playwright",
             pluginId: null,
             resourceTemplates: [],
@@ -70,6 +71,7 @@ describe("CodexAgentProvider MCP servers", () => {
         },
         {
           displayName: "playwright",
+          httpOrigin: "https://mcp.example.com",
           name: "playwright",
           status: "connected",
           toolCount: 1,
@@ -299,7 +301,7 @@ describe("CodexAgentProvider MCP servers", () => {
     );
   });
 
-  it("preserves every 0.156.0 MCP runtime connection status", async () => {
+  it("preserves every 0.157.1 MCP runtime connection status", async () => {
     const statuses = [
       "notStarted",
       "starting",
@@ -367,7 +369,7 @@ describe("CodexAgentProvider MCP servers", () => {
     });
   });
 
-  it("rejects MCP status entries without the 0.156.0 plugin ownership field", async () => {
+  it("rejects MCP status entries without the 0.157.1 plugin ownership field", async () => {
     const rpc = new FakeRpcClient([
       { thread: nativeThread() },
       {

@@ -13,6 +13,25 @@ import {
 } from "./agent-provider.test-support.js";
 
 describe("CodexAgentProvider mutations", () => {
+  it("starts a worktree task with its own cwd and preserved Project identity", async () => {
+    const workspacePath = "/workspace/Codexly-feature";
+    const rpc = new FakeRpcClient([{ thread: nativeThread({ cwd: workspacePath }) }]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+
+    await expect(provider.startTask({ workspacePath })).resolves.toMatchObject({
+      projectId: project.id,
+      workspacePath,
+    });
+    expect(rpc.calls[0]).toMatchObject({
+      method: "thread/start",
+      params: {
+        cwd: workspacePath,
+        projectId: project.id,
+        runtimeWorkspaceRoots: [projectRootPath, workspacePath],
+      },
+    });
+  });
+
   it("maps task and turn mutations to Codex App Server RPC", async ({ onTestFinished }) => {
     const directory = await mkdtemp(join(tmpdir(), "codexly-turn-image-"));
     onTestFinished(() => rm(directory, { recursive: true, force: true }));

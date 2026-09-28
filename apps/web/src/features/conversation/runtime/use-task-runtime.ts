@@ -97,6 +97,12 @@ export function useTaskRuntime(
         if (disposed) {
           return;
         }
+        if (response.snapshot.workspacePath !== undefined) {
+          queryClient.setQueryData(
+            ["projects", projectId, "task-workspace-paths", taskId],
+            response.snapshot.workspacePath,
+          );
+        }
         detachStore = projectRuntime.attachTaskStore(response, store, () =>
           client.readTask(projectId, taskId),
         );

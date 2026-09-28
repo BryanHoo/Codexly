@@ -10,15 +10,31 @@ import type { RunNpmOptions } from "./npm-registry.js";
 
 const mirror = "https://registry.npmmirror.com";
 const official = "https://registry.npmjs.org";
+const installedPackageRoot = "/installed/lib/node_modules/@bryanhu/codexly";
 
 describe("app update registry selection", () => {
+  it("identifies release notes requests with the same User-Agent", async () => {
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("## [1.4.0] - 2026-08-06\n\n### Added\n\n- Update notes.\n"));
+    const service = createAppUpdateService({
+      appVersion: "1.3.0",
+      codexVersion: "0.157.1",
+      fetchLatestVersion: () => Promise.resolve("1.4.0"),
+    });
+
+    await expect(service.read()).resolves.toMatchObject({ latestVersion: "1.4.0" });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({ "user-agent": "Codexly" });
+  });
+
   it("checks the mirror first without contacting the official registry on success", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(Response.json({ latest: "1.4.0" }));
     const service = createAppUpdateService({
       appVersion: "1.3.0",
-      codexVersion: "0.156.0",
+      codexVersion: "0.157.1",
       fetchChangelog: () => Promise.resolve(""),
     });
 
@@ -43,7 +59,7 @@ describe("app update registry selection", () => {
       fetch.mockResolvedValueOnce(Response.json({ latest: "1.4.0" }));
       const service = createAppUpdateService({
         appVersion: "1.3.0",
-        codexVersion: "0.156.0",
+        codexVersion: "0.157.1",
         fetchChangelog: () => Promise.resolve(""),
       });
 
@@ -52,6 +68,9 @@ describe("app update registry selection", () => {
         `${mirror}/-/package/%40bryanhu%2Fcodexly/dist-tags`,
         `${official}/-/package/%40bryanhu%2Fcodexly/dist-tags`,
       ]);
+      for (const [, init] of fetch.mock.calls) {
+        expect(init?.headers).toMatchObject({ "user-agent": "Codexly" });
+      }
     },
   );
 
@@ -69,7 +88,7 @@ describe("app update registry selection", () => {
       });
 
       await installGlobalPackageSafely("1.4.0", {
-        currentPackageRoot: "/installed/codexly",
+        currentPackageRoot: installedPackageRoot,
         runNpm,
       });
 
@@ -99,7 +118,7 @@ describe("app update registry selection", () => {
     });
 
     await expect(
-      installGlobalPackageSafely("1.4.0", { currentPackageRoot: "/installed/codexly", runNpm }),
+      installGlobalPackageSafely("1.4.0", { currentPackageRoot: installedPackageRoot, runNpm }),
     ).rejects.toThrow();
     expect(runNpm).toHaveBeenCalledTimes(2);
     expect(runNpm.mock.calls.some(([args]) => args[0] === "install")).toBe(false);

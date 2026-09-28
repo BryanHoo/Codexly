@@ -134,7 +134,7 @@ test("opens a completed file change diff while the turn is still running", async
   await fileButton.click();
 
   const inspector = page.getByRole("complementary", { name: "运行环境" });
-  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+  await expect(inspector.getByRole("tab", { name: "Diff: live.ts" })).toHaveAttribute(
     "aria-selected",
     "true",
   );

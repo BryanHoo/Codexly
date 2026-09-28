@@ -74,6 +74,36 @@ fn acknowledgements_should_release_only_real_packets_and_reject_stale_generation
     assert_eq!(received.lock().unwrap().len(), 100);
 }
 
+#[test]
+fn stream_packet_should_include_enqueue_timestamp() {
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let output = Arc::clone(&received);
+    let mut session = RuntimeSession::default();
+    session.set_event_channel(Channel::new(move |body| {
+        if let InvokeResponseBody::Json(body) = body {
+            output.lock().unwrap().push(body);
+        }
+        Ok(())
+    }));
+    let before = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    session
+        .event_sender
+        .as_ref()
+        .unwrap()
+        .publish(AppEvent::AgentEvent {
+            event: json!({"sequence":1,"type":"message.delta"}).into(),
+        });
+    let after = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let packet: Value = serde_json::from_str(&received.lock().unwrap()[0]).unwrap();
+    assert!((before..=after).contains(&packet["enqueuedAtUnixMs"].as_u64().unwrap()));
+}
+
 #[tokio::test]
 async fn rpc_and_approval_should_progress_through_the_full_pipeline_without_webview_ack() {
     use crate::infrastructure::codex::AppServerConnection;

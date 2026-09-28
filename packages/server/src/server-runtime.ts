@@ -105,6 +105,7 @@ export function taskFromSnapshot(
       : { threadConfiguration: snapshot.threadConfiguration }),
     title: overrides.title ?? snapshot.title,
     updatedAt: snapshot.updatedAt,
+    ...(snapshot.workspacePath === undefined ? {} : { workspacePath: snapshot.workspacePath }),
   };
 }
 

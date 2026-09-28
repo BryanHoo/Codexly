@@ -15,5 +15,10 @@
     "tsBuildInfoFile": "../../.cache/types/web-app.tsbuildinfo"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "references": [{ "path": "../../packages/protocol" }, { "path": "../../packages/client" }]
+  "references": [
+    { "path": "../../packages/protocol" },
+    { "path": "../../packages/client" },
+    { "path": "../../packages/frontend-core" },
+    { "path": "../../packages/ui" }
+  ]
 }

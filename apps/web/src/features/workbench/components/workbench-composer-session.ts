@@ -47,8 +47,8 @@ import {
   resolvePromptHistoryIndex,
   type PromptHistoryDirection,
 } from "./prompt-history.js";
-import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
-import type { ComposerMode } from "./workbench-composer-contracts.js";
+import type { ComposerMode, WorkbenchComposerProps } from "./workbench-composer-contracts.js";
+import { useComposerInputReset } from "./use-composer-input-reset.js";
 
 type ComposerSessionOptions = Readonly<{
   capabilities: AgentCapabilities | undefined;
@@ -370,15 +370,16 @@ export function useComposerSession({
     [closeFileMenu, composerDraftBinding, projectToolsEnabled],
   );
 
-  const clearComposerInput = useCallback(() => {
-    setPromptContent([]);
-    setPromptHistoryIndex(null);
-    promptHistoryDraftRef.current = [];
-    setAttachments([]);
-    skillEditorRef.current?.replace([]);
-    // 编辑器同步完成后再删持久草稿，禁止其变更回调重新写入旧内容。
-    composerDraftBinding.clear();
-  }, [composerDraftBinding]);
+  const { clearComposerInput, restoreComposerInput } = useComposerInputReset({
+    binding: composerDraftBinding,
+    handleAttachmentsChange,
+    historyDraftRef: promptHistoryDraftRef,
+    replacePromptContent,
+    setAttachments,
+    setHistoryIndex: setPromptHistoryIndex,
+    setPromptContent,
+    skillEditorRef,
+  });
 
   useLayoutEffect(() => {
     if (
@@ -434,6 +435,7 @@ export function useComposerSession({
     canSteer,
     canSubmit,
     clearComposerInput,
+    restoreComposerInput,
     closeCommandMenu,
     closeFileMenu,
     commandMenuId,

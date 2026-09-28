@@ -1,15 +1,8 @@
 import { Type, type Static } from "@sinclair/typebox";
-
-import { DateTimeSchema } from "./project-files.js";
+import { AgentTaskBaseSchema } from "@codexly/protocol/task-common";
 
 export const AgentTaskSchema = Type.Object(
-  {
-    id: Type.String({ minLength: 1 }),
-    pinned: Type.Boolean(),
-    projectId: Type.String({ minLength: 1 }),
-    title: Type.String({ minLength: 1 }),
-    updatedAt: DateTimeSchema,
-  },
+  { ...AgentTaskBaseSchema.properties },
   { additionalProperties: false },
 );
 

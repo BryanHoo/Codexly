@@ -101,6 +101,7 @@ function IndexPage() {
           <ProjectSidebar
             {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
             onClose={() => undefined}
+            onOpenFile={() => undefined}
             onOpenSettings={(section) => {
               setGlobalSettingsSection(section);
             }}
@@ -115,7 +116,16 @@ function IndexPage() {
         </div>
       </Activity>
       {globalSettingsSection === null ? null : (
-        <Suspense fallback={<main className="grid h-full place-items-center text-body-small text-muted-foreground" role="status">{t("settings:loading")}</main>}>
+        <Suspense
+          fallback={
+            <main
+              className="grid h-full place-items-center text-body-small text-muted-foreground"
+              role="status"
+            >
+              {t("settings:loading")}
+            </main>
+          }
+        >
           <LazyGlobalSettingsPage
             {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
             appInfoError={appInfoQuery.error}

@@ -47,12 +47,17 @@ import { groupTasksByProjectId } from "./project-sidebar-state.js";
 import { ProjectSidebarHeader } from "./project-sidebar-header.js";
 import { KeyboardShortcutsDialog } from "./keyboard-shortcuts-dialog.js";
 import { WorkbenchShortcuts } from "./workbench-shortcuts.js";
+import type { SearchFile } from "../../search/search-files.js";
 export { ProductBrand } from "./project-sidebar-header.js";
 export * from "./project-sidebar-actions.js";
 export * from "./project-sidebar-state.js";
 export * from "./project-sidebar-task-row.js";
 
-const GlobalSearchDialog = lazy(() => import("../../search/global-search-dialog.js").then((module) => ({ default: module.GlobalSearchDialog })));
+const GlobalSearchDialog = lazy(() =>
+  import("../../search/global-search-dialog.js").then((module) => ({
+    default: module.GlobalSearchDialog,
+  })),
+);
 
 const primaryActionClassName =
   "flex h-8 w-full items-center gap-2.5 rounded-control px-2.5 text-body-small font-medium text-foreground transition-colors hover:bg-control-hover";
@@ -61,6 +66,7 @@ type ProjectSidebarProps = Readonly<{
   appInfo?: AppInfoResponse;
   onClose: () => void;
   onOpenSettings: (section: SidebarSettingsSection) => void;
+  onOpenFile: (file: SearchFile, kind: "image" | "source") => void;
   onPanelShortcut: (panel: "inspector" | "search" | "sidebar") => void;
   projectId?: string;
   taskId?: string;
@@ -70,6 +76,7 @@ export function ProjectSidebar({
   appInfo,
   onClose,
   onOpenSettings,
+  onOpenFile,
   onPanelShortcut,
   projectId,
   taskId,
@@ -127,9 +134,7 @@ export function ProjectSidebar({
   const visibleTasks = tasks;
   // 大列表只分组一次，Project 渲染不再重复扫描全部 Task。
   const tasksByProjectId = useMemo(() => groupTasksByProjectId(visibleTasks), [visibleTasks]);
-  const pinnedTasks = getPinnedTasks(
-    pinnedTaskQuery.tasks,
-  );
+  const pinnedTasks = getPinnedTasks(pinnedTaskQuery.tasks);
   const hasTaskError =
     pinnedTaskQuery.error !== null ||
     [...projectTaskStates.values()].some((state) => state.error !== null);
@@ -334,10 +339,7 @@ export function ProjectSidebar({
         onToggleInspector={() => onPanelShortcut("inspector")}
         onToggleSidebar={() => onPanelShortcut("sidebar")}
       />
-      <ProjectSidebarHeader
-        onClose={onClose}
-        onSearch={() => setSearchState("open")}
-      />
+      <ProjectSidebarHeader onClose={onClose} onSearch={() => setSearchState("open")} />
 
       <nav className="space-y-0.5 px-2" aria-label={t("sidebar.agentNavigation")}>
         <Link className={primaryActionClassName} to="/temporary">
@@ -464,7 +466,17 @@ export function ProjectSidebar({
         />
       </div>
       <KeyboardShortcutsDialog onOpenChange={setShortcutsOpen} open={shortcutsOpen} />
-      {searchState !== "idle" ? <Suspense fallback={null}><GlobalSearchDialog open={searchState === "open"} client={client} projects={projects} onClose={() => setSearchState("closed")} /></Suspense> : null}
+      {searchState !== "idle" ? (
+        <Suspense fallback={null}>
+          <GlobalSearchDialog
+            open={searchState === "open"}
+            client={client}
+            projects={projects}
+            onClose={() => setSearchState("closed")}
+            onOpenFile={onOpenFile}
+          />
+        </Suspense>
+      ) : null}
     </aside>
   );
 }

@@ -1,5 +1,5 @@
 import type { AgentEvent, AgentTaskSnapshotResponse } from "@/protocol/index.js";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DetailViewUpdateGate } from "../../../shared/lifecycle/application-visibility.js";
 import type { TaskStore } from "./task-store.js";
@@ -40,6 +40,40 @@ function createEvent(sequence: number, delta: string): AgentEvent {
 }
 
 describe("TaskEventTarget 后台暂停", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("WebView 隐藏但详情未暂停时定时提交后续 Delta", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("document", { visibilityState: "hidden" });
+    const applyEvents = vi.fn();
+    const state = {
+      applyEvents,
+      checkpoint: { sequence: 0, sessionId: "session-1" },
+      setConnectionState: vi.fn(),
+      setError: vi.fn(),
+      taskId: "task-1",
+    };
+    const gate = new FakeUpdateGate();
+    gate.resume();
+    const target = new TaskEventTarget(
+      { getState: () => state } as unknown as TaskStore,
+      vi.fn(),
+      vi.fn(),
+      gate,
+    );
+
+    target.apply(createEvent(1, "hello "));
+    target.apply(createEvent(2, "world"));
+    expect(applyEvents).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(16);
+    expect(applyEvents).toHaveBeenCalledWith([expect.objectContaining({ sequence: 2 })]);
+
+    target.dispose();
+  });
+
   it("暂停期间不更新详细 Store，并在恢复时单次提交合并事件", () => {
     const applyEvents = vi.fn();
     const state = {

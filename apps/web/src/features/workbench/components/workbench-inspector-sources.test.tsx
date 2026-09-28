@@ -349,6 +349,27 @@ describe("WorkbenchInspector sources", () => {
     expect(renderState([])).not.toContain('aria-label="MCP"');
   });
 
+  it("shows the MCP HTTP origin in connection details", () => {
+    const markup = renderInspectorMarkup(
+      <WorkbenchInspector
+        mcpServers={[
+          {
+            displayName: "Docs",
+            httpOrigin: "https://mcp.example.com",
+            name: "docs",
+            status: "connected",
+            toolCount: 2,
+          },
+        ]}
+        projectName="Codexly"
+        projectPath="/workspace/Codexly"
+        tab="context"
+        taskId="task-1"
+      />,
+    );
+    expect(markup).toContain("https://mcp.example.com");
+  });
+
   it("renders every Codex 0.152 MCP connection status", () => {
     const statuses = [
       ["notStarted", "未启动"],

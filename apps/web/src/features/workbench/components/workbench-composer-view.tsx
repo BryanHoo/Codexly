@@ -444,15 +444,10 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
               <div className="flex min-w-0 shrink items-center gap-0.5">
                 <ComposerBranchSwitcher
                   creatingBranch={props.creatingBranch}
-                  creatingWorktree={props.creatingWorktree}
                   gitStatus={props.gitStatus}
                   onBranchChange={props.onBranchChange}
                   onBranchCreate={props.onBranchCreate}
-                  onWorktreeChange={props.onWorktreeChange}
-                  onWorktreeCreate={props.onWorktreeCreate}
                   switchingBranch={props.switchingBranch}
-                  switchingWorktree={props.switchingWorktree}
-                  worktrees={props.worktrees}
                 />
               </div>
               {/* 主目录选择与路径保持同一操作区，切换后所有项目视图共享该 rootId。 */}

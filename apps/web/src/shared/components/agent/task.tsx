@@ -70,11 +70,18 @@ const statusPresentation: Readonly<Record<TaskStatus, { icon: ReactNode; labelKe
 };
 
 type TaskTriggerProps = Omit<HTMLAttributes<HTMLElement>, "title"> & {
+  statusPrefix?: ReactNode;
   suffix?: ReactNode;
   title: string;
 };
 
-export function TaskTrigger({ className = "", suffix, title, ...props }: TaskTriggerProps) {
+export function TaskTrigger({
+  className = "",
+  statusPrefix,
+  suffix,
+  title,
+  ...props
+}: TaskTriggerProps) {
   const context = useContext(TaskContext);
   const { t } = useTranslation("conversation");
   if (context === null) {
@@ -86,6 +93,7 @@ export function TaskTrigger({ className = "", suffix, title, ...props }: TaskTri
   } ${className}`;
   const content = (
     <>
+      {statusPrefix}
       <span
         className={`shrink-0 ${context.status === "error" ? "text-danger" : "text-muted-foreground"}`}
       >

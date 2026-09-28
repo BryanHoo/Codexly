@@ -78,6 +78,14 @@ export async function listCodexMcpServers(
           ? null
           : expectRecord(serverInfoValue, "mcpServerStatus/list serverInfo");
       const tools = expectRecord(server["tools"], "mcpServerStatus/list tools");
+      const httpOrigin = server["httpOrigin"];
+      if (
+        httpOrigin !== null &&
+        httpOrigin !== undefined &&
+        (typeof httpOrigin !== "string" || httpOrigin.length === 0)
+      ) {
+        throw new CodexProtocolMappingError("mcpServerStatus/list httpOrigin is invalid");
+      }
       const toolsError = server["toolsError"];
       if (toolsError !== null && typeof toolsError !== "string") {
         throw new CodexProtocolMappingError("mcpServerStatus/list toolsError is invalid");
@@ -103,6 +111,7 @@ export async function listCodexMcpServers(
           : runtimeStatus;
       servers.set(name, {
         displayName,
+        ...(typeof httpOrigin === "string" ? { httpOrigin } : {}),
         name,
         status,
         toolCount: Object.keys(tools).length,

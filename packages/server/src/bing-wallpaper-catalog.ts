@@ -1,4 +1,4 @@
-import type { BingWallpaperInfo } from "@codexly/protocol";
+import { CODEXLY_USER_AGENT, type BingWallpaperInfo } from "@codexly/protocol";
 import { readBoundedBody } from "./bing-wallpaper.js";
 
 type Entry = BingWallpaperInfo & Readonly<{ url: string }>;
@@ -44,6 +44,7 @@ export function createBingWallpaperCatalog(fetcher: Fetcher = (url, init) => fet
     if (pending) return pending;
     pending = (async () => {
       const response = await fetcher(metadataUrl, {
+        headers: { "user-agent": CODEXLY_USER_AGENT },
         redirect: "error",
         signal: AbortSignal.timeout(10_000),
       });
@@ -84,6 +85,7 @@ export function createBingWallpaperCatalog(fetcher: Fetcher = (url, init) => fet
           url.searchParams.set("h", "270");
         }
         const response = await fetcher(url.toString(), {
+          headers: { "user-agent": CODEXLY_USER_AGENT },
           redirect: "error",
           signal: AbortSignal.timeout(10_000),
         });

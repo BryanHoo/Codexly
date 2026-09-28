@@ -167,6 +167,9 @@ test.each([1280, 1920].flatMap((width) =>
     await screen.getByRole("button", { name: i18n.t("composer.submit", { ns: "workbench" }), exact: true }).click();
     expect(startTurn).toHaveBeenCalledTimes(1);
     for (let index = 0; index < 8; index += 1) await nextFrame();
+    expect((editor.element() as HTMLTextAreaElement).value).toBe("");
+    await expect.element(screen.getByText("继续回答", { exact: true })).toBeVisible();
+    assertSingleRunningStatus();
     if (responseOrder === "before-events") {
       resolveStart();
       for (let index = 0; index < 8; index += 1) await nextFrame();

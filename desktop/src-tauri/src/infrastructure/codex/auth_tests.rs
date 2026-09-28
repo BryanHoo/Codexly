@@ -301,6 +301,9 @@ async fn custom_provider_should_default_to_openai_when_provider_is_missing() {
                 .any(|edit| edit["keyPath"] == "features.api_key_model_discovery"
                     && edit["value"] == true)
         );
+        assert!(edits.iter().any(
+            |edit| edit["keyPath"] == "suppress_unstable_features_warning" && edit["value"] == true
+        ));
         assert!(
             edits
                 .iter()

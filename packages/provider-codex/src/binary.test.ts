@@ -142,11 +142,11 @@ describe("locateCodexBinary", () => {
 
 describe("checkCodexVersion", () => {
   it("pins the current Codex release", () => {
-    expect(SUPPORTED_CODEX_VERSION).toBe("0.156.0");
-    expect(SUPPORTED_CODEX_VERSION_RANGE).toBe(">=0.156.0,<0.157.0");
+    expect(SUPPORTED_CODEX_VERSION).toBe("0.157.1");
+    expect(SUPPORTED_CODEX_VERSION_RANGE).toBe(">=0.157.1,<0.158.0");
   });
 
-  it.each(["0.156.0", "0.156.1", "0.156.99"])(
+  it.each(["0.157.1", "0.157.2", "0.157.99"])(
     "accepts Codex %s within the supported release line",
     async (supportedVersion) => {
       const execute = vi.fn(() => Promise.resolve(`codex-cli ${supportedVersion}\n`));
@@ -159,7 +159,7 @@ describe("checkCodexVersion", () => {
     },
   );
 
-  it.each(["0.155.0", "0.155.99", "0.156.0-next.1", "0.156.99-next.1", "0.157.0", "1.0.0"])(
+  it.each(["0.156.0", "0.156.99", "0.157.0", "0.157.1-next.1", "0.158.0", "1.0.0"])(
     "rejects Codex %s outside the supported release line",
     async (unsupportedVersion) => {
       await expect(

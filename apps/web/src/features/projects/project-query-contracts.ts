@@ -27,6 +27,7 @@ export type CodexlyGitMutationClient = Pick<
   | "commitProjectChanges"
   | "createProjectBranch"
   | "createProjectWorktree"
+  | "createTaskWorktree"
   | "generateCommitMessage"
   | "listProjectWorktrees"
   | "switchProjectBranch"
@@ -127,6 +128,7 @@ export type CodexlyMutationClient = Pick<
   | "startReview"
   | "startQueuedSubmission"
   | "startTask"
+  | "startWorktreeTask"
   | "startTurn"
   | "steerTurn"
   | "uploadAttachment"
@@ -178,16 +180,15 @@ export type CodexlyWorkbenchClient = Pick<
   CodexlyGlobalSearchClient;
 export type CodexlySnapshotClient = Pick<CodexlyClient, "readTask">;
 
-export const PROJECT_TASK_PAGE_SIZE = 5;
-export const ARCHIVED_TASK_PAGE_SIZE = 20;
-export const PROJECT_PINNED_TASKS_KEY = "pinned";
+export {
+  PROJECT_TASK_PAGE_SIZE,
+  ARCHIVED_TASK_PAGE_SIZE,
+  PROJECT_PINNED_TASKS_KEY,
+  TASK_BOARD_COMPLETED_TASKS_QUERY_KEY,
+  TASK_SNAPSHOT_GC_TIME_MS,
+  taskQueueQueryKey,
+} from "@codexly/frontend-core";
 export const PROJECT_TASK_SEARCH_SOURCE_KEY = "search-source";
-export const TASK_BOARD_COMPLETED_TASKS_QUERY_KEY = ["task-board", "completed"] as const;
-export const TASK_SNAPSHOT_GC_TIME_MS = 30_000;
-
-export function taskQueueQueryKey(projectId: string, taskId: string) {
-  return ["projects", projectId, "tasks", taskId, "queue"] as const;
-}
 
 export const codexlyClient = new CodexlyClient();
 

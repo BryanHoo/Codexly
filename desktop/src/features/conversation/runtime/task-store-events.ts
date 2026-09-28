@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentItem } from "@/protocol/index.js";
+import { touchedCommandOutputItemKeys as getTouchedCommandOutputItemKeys } from "@codexly/frontend-core";
 
 import {
   MAX_RETAINED_TASK_NOTICES,
@@ -10,34 +11,14 @@ import {
   type TaskItemStore,
   type TaskStoreState,
 } from "./task-store-core.js";
-export function getTouchedCommandOutputItemKeys(
-  previousState: TaskStoreState,
-  nextState: TaskStoreState,
-  event: AgentEvent,
-): readonly string[] | undefined {
-  if (event.type === "command.output_delta") {
-    return [createTaskItemKey(event.turnId, event.itemId)];
-  }
-  if (event.type === "item.started" || event.type === "item.completed") {
-    const itemKey = createTaskItemKey(event.turnId, event.itemId);
-    return event.payload.item.type === "command" ||
-      previousState.commandOutputBytesByItemKey.has(itemKey)
-      ? [itemKey]
-      : undefined;
-  }
-  if (event.type === "turn.started" || event.type === "turn.completed") {
-    return [
-      ...(previousState.itemKeysByTurnId[event.turnId] ?? []),
-      ...(nextState.itemKeysByTurnId[event.turnId] ?? []),
-    ];
-  }
-  return undefined;
-}
+import { recordToolItemTiming, retainTurnItemTimings } from "./task-store-timing.js";
+export { getTouchedCommandOutputItemKeys };
 function createDeltaItem(event: Extract<AgentEvent, { itemId: string }>): AgentItem | undefined {
   switch (event.type) {
     case "message.delta":
     case "reasoning.delta":
-      if (event.type === "reasoning.delta") return { id: event.itemId, text: "", type: "reasoning" };
+      if (event.type === "reasoning.delta")
+        return { id: event.itemId, text: "", type: "reasoning" };
       return {
         id: event.itemId,
         role: "assistant",
@@ -176,7 +157,10 @@ export function applyAcceptedEvent(
         },
         itemStructureRevision: state.itemStructureRevision + 1,
         turnIds: [...state.turnIds.filter((turnId) => turnId !== event.turnId), event.turnId],
-        turnsById: { ...state.turnsById, [event.turnId]: normalizedTurn },
+        turnsById: {
+          ...state.turnsById,
+          [event.turnId]: retainTurnItemTimings(state.turnsById[event.turnId], normalizedTurn),
+        },
       };
     }
     case "message.delta":
@@ -292,7 +276,10 @@ export function applyAcceptedEvent(
       if (event.payload.level !== "warning") {
         const infoCount = notices.filter((notice) => notice.payload.level !== "warning").length;
         if (infoCount > MAX_RETAINED_TASK_NOTICES) {
-          notices.splice(notices.findIndex((notice) => notice.payload.level !== "warning"), 1);
+          notices.splice(
+            notices.findIndex((notice) => notice.payload.level !== "warning"),
+            1,
+          );
         }
       }
       return {
@@ -337,7 +324,8 @@ export function applyAcceptedEvent(
       return { checkpoint };
     case "item.started":
     case "item.completed": {
-      if (state.turnsById[event.turnId] === undefined) {
+      const currentTurn = state.turnsById[event.turnId];
+      if (currentTurn === undefined) {
         return {
           checkpoint,
           snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
@@ -355,9 +343,15 @@ export function applyAcceptedEvent(
         currentItemIds.includes(submittedUserItemKey);
       const nextItemIds = replacesSubmittedUserItem
         ? currentItemIds.flatMap((candidateKey) =>
-            candidateKey === itemKey ? [] : candidateKey === submittedUserItemKey ? itemKey : candidateKey,
+            candidateKey === itemKey
+              ? []
+              : candidateKey === submittedUserItemKey
+                ? itemKey
+                : candidateKey,
           )
-        : itemAlreadyExists ? currentItemIds : [...currentItemIds, itemKey];
+        : itemAlreadyExists
+          ? currentItemIds
+          : [...currentItemIds, itemKey];
       // 权威用户项原位接管提交占位，不能移到已到达的回复之后，否则气泡会重排并重挂。
       if (replacesSubmittedUserItem) {
         state.itemStoresByKey.delete(submittedUserItemKey);
@@ -368,6 +362,7 @@ export function applyAcceptedEvent(
         currentItemStore.replace(event.payload.item);
         changedItemStores.add(currentItemStore);
       }
+      const timedTurn = recordToolItemTiming(currentTurn, event);
       return {
         checkpoint,
         itemKeysByTurnId:
@@ -376,6 +371,9 @@ export function applyAcceptedEvent(
             : { ...state.itemKeysByTurnId, [event.turnId]: nextItemIds },
         itemStructureRevision: state.itemStructureRevision + 1,
         snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
+        ...(timedTurn === currentTurn
+          ? {}
+          : { turnsById: { ...state.turnsById, [event.turnId]: timedTurn } }),
       };
     }
     case "message.skills_updated": {
@@ -410,7 +408,10 @@ export function applyAcceptedEvent(
         turnsById:
           currentTurn === undefined
             ? state.turnsById
-            : { ...state.turnsById, [event.turnId]: normalizedTurn },
+            : {
+                ...state.turnsById,
+                [event.turnId]: retainTurnItemTimings(currentTurn, normalizedTurn),
+              },
       };
     }
     case "plan.updated":

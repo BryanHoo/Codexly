@@ -39,7 +39,7 @@ const fakeAppServer = spawn(
 const runtime = new CodexAppServerProcess(
   fakeAppServer,
   { path: process.execPath, source: "explicit" },
-  { raw: "codex-cli 0.156.0", version: "0.156.0" },
+  { raw: "codex-cli 0.157.1", version: "0.157.1" },
   { rpcTimeoutMs: 1_000, shutdownTimeoutMs: 500 },
 );
 await runtime.waitForSpawn();

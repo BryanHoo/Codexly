@@ -79,14 +79,14 @@ import {
   type MutationOptions,
   type ReadOptions,
 } from "./http-client-transport.js";
-import { SkillMarketHttpClient } from "./http-client-skill-market.js";
+import { TaskWorktreeHttpClient } from "./http-client-task-worktrees.js";
 
 export type ListFilesystemEntriesOptions = ReadOptions &
   Readonly<{
     includeHidden?: boolean;
   }>;
 
-export class ProjectHttpClient extends SkillMarketHttpClient {
+export class ProjectHttpClient extends TaskWorktreeHttpClient {
   public async listSkills(projectId: string, options: ReadOptions = {}): Promise<AgentSkillPage> {
     return this.read(`${projectPath(projectId)}/skills`, AgentSkillPageSchema, options);
   }

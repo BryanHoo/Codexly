@@ -207,21 +207,26 @@ test("applies and restores a custom workbench background", async ({ page }) => {
     .getByRole("region", { name: /本次修改了 \d+ 个文件/u })
     .getByRole("button", { exact: true, name: "审核" })
     .click();
-  const reviewDialog = page.getByRole("dialog");
-  const reviewDialogBackgroundAlpha = parseCssAlpha(
-    await reviewDialog.evaluate((element) => getComputedStyle(element).backgroundColor),
+  const reviewPanel = page
+    .getByRole("complementary", { name: "运行环境" })
+    .getByRole("tabpanel", { name: "文件审核" });
+  const reviewBackgroundAlpha = parseCssAlpha(
+    await reviewPanel
+      .locator("section")
+      .first()
+      .evaluate((element) => getComputedStyle(element).backgroundColor),
   );
-  expect(reviewDialogBackgroundAlpha).toBeGreaterThanOrEqual(0.94);
-  expect(reviewDialogBackgroundAlpha).toBeLessThanOrEqual(0.96);
-  await expect(reviewDialog.getByRole("region", { name: "审核文件内容" })).toHaveCSS(
+  expect(reviewBackgroundAlpha).toBeGreaterThanOrEqual(0.67);
+  expect(reviewBackgroundAlpha).toBeLessThanOrEqual(0.69);
+  await expect(reviewPanel.getByRole("region", { name: "审核文件内容" })).toHaveCSS(
     "background-color",
     transparentSurface,
   );
-  await expect(reviewDialog.getByRole("complementary", { name: "变更文件导航" })).toHaveCSS(
+  await expect(reviewPanel.locator('aside[aria-label="变更文件导航"]')).toHaveCSS(
     "background-color",
     transparentSurface,
   );
-  await reviewDialog.getByRole("button", { name: "关闭文件审核" }).click();
+  await reviewPanel.getByRole("button", { name: "关闭文件审核" }).click();
 
   await page.setViewportSize({ height: 844, width: 320 });
   await page.reload();
@@ -370,7 +375,7 @@ test("opens About from the sidebar and installs an available update", async ({ p
       contentType: "application/json",
       json: {
         appVersion: "1.3.0",
-        codexVersion: "0.156.0",
+        codexVersion: "0.157.1",
         latestVersion: "1.4.0",
         releaseNotes: "### 新增\n\n- 添加更新日志查看入口。",
         status: "available",
@@ -384,7 +389,7 @@ test("opens About from the sidebar and installs an available update", async ({ p
       contentType: "application/json",
       json: {
         appVersion: "1.3.0",
-        codexVersion: "0.156.0",
+        codexVersion: "0.157.1",
         latestVersion: "1.4.0",
         releaseNotes: null,
         status: "restart-required",
@@ -407,7 +412,7 @@ test("opens About from the sidebar and installs an available update", async ({ p
     "page",
   );
   await expect(dialog.getByText("1.3.0", { exact: true })).toBeVisible();
-  await expect(dialog.getByText("0.156.0", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("0.157.1", { exact: true })).toBeVisible();
   const githubLink = dialog.getByRole("link", { name: "BryanHoo/Codexly" });
   await expect(githubLink).toHaveAttribute("href", "https://github.com/BryanHoo/Codexly");
   await expect(githubLink).toHaveAttribute("target", "_blank");

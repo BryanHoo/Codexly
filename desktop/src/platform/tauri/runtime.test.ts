@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let channelHandler: ((event: unknown) => void) | undefined;
 const invoke = vi.fn(async (command: string) => ({
@@ -22,6 +22,8 @@ describe("Tauri runtime recovery", () => {
     invoke.mockClear();
     vi.resetModules();
   });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it("reconnects a recreated WebView without starting an already ready runtime", async () => {
     invoke.mockResolvedValueOnce({ lastSeq: 8, provider: "codex", status: "ready" });
@@ -104,5 +106,20 @@ describe("Tauri runtime recovery", () => {
     expect(invoke).not.toHaveBeenCalled();
     await Promise.resolve();
     expect(invoke).toHaveBeenCalledWith("acknowledge_runtime_events", { streamId: 1, deliveryIds: [1] });
+  });
+
+  it("records native enqueue latency at the channel callback", async () => {
+    vi.stubGlobal("window", { location: { search: "?performance-profile=1" } });
+    const runtime = await import("./runtime.js");
+    const { applicationPerformanceMetrics } = await import("@/shared/performance/performance-metrics.js");
+    await runtime.ensureCodexRuntime();
+    const now = vi.spyOn(Date, "now").mockReturnValue(2_000);
+    channelHandler?.({
+      type: "agentEvent", enqueuedAtUnixMs: 1_975,
+      data: { event: { sequence: 1 } },
+    });
+    now.mockRestore();
+    expect(applicationPerformanceMetrics.snapshot(performance.now()).enqueueToWebViewMs)
+      .toMatchObject({ count: 1, p95: 25 });
   });
 });

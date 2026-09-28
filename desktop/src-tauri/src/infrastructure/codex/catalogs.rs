@@ -406,10 +406,14 @@ fn map_mcp_server(server: Value) -> Option<Value> {
         .and_then(|value| value.get("title"))
         .and_then(Value::as_str)
         .unwrap_or(name);
-    Some(json!({
+    let mut mapped = json!({
         "displayName": display_name,
         "name": name,
         "status": status,
         "toolCount": tool_count,
-    }))
+    });
+    if let Some(origin) = server.get("httpOrigin").and_then(Value::as_str) {
+        mapped["httpOrigin"] = json!(origin);
+    }
+    Some(mapped)
 }

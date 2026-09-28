@@ -1,6 +1,6 @@
 # Codexly 联合发布
 
-根目录是 Codexly Web 项目；`desktop/` 是独立的 Codexly Tauri 桌面项目，拥有自己的 `package.json`、`pnpm-lock.yaml`、`pnpm-workspace.yaml` 与 Rust 工程。两边不共享前后端代码和锁文件，但必须使用同一个版本号与 Git 标签。推送标签后，同一流水线发布 npm 包、GHCR 镜像和桌面安装包，并创建一个 GitHub Release。
+根目录统一管理 Codexly Web 与 `desktop/` Tauri 应用的 pnpm workspace 和锁文件；桌面端保留自己的 `package.json` 与 Rust 工程。两边使用同一个版本号与 Git 标签。推送标签后，同一流水线发布 npm 包、GHCR 镜像和桌面安装包，并创建一个 GitHub Release。
 
 ## 首次配置
 
@@ -21,13 +21,14 @@ GitHub 仓库必须有名为 `npm` 的 Environment。工作流使用 OIDC 和 np
 ## 发布步骤
 
 1. 将根目录 `package.json` 与 `desktop/package.json`、`desktop/src-tauri/tauri.conf.json`、`desktop/src-tauri/Cargo.toml` 和 Cargo lock 更新为同一递增版本号。
-2. 分别将根目录和 `desktop/CHANGELOG.md` 的 `Unreleased` 内容移入对应版本，并填写发布日期。
+2. 分别将根目录和 `desktop/CHANGELOG.md` 的 `Unreleased` 内容移入对应版本，并填写发布日期；同步核对 `README.md`、`README.zh-CN.md`、`desktop/README.md` 和 `desktop/README.en.md` 的用户功能与安装说明。
 3. 运行发布校验：
 
 ```bash
+pnpm install --frozen-lockfile
 pnpm check
 pnpm test:e2e
-cd desktop && pnpm install --frozen-lockfile && pnpm check
+cd desktop && pnpm check
 ```
 
 4. 提交发布准备后，创建并推送与根目录 `package.json` 版本一致的标签：
@@ -40,6 +41,8 @@ git push origin "v${RELEASE_VERSION}"
 ```
 
 工作流先验证统一版本与两端日志，并运行 Web E2E、桌面质量和真实 WebView 门禁；全部通过后按 Windows、Ubuntu、macOS 矩阵构建签名桌面更新产物到草稿 Release，随后发布 npm 包与多架构镜像，最后公开联合 Release。桌面发行物以 Codexly 命名。内部 Workspace 包仍保持私有。
+
+发布完成后确认 `Release` 工作流成功，检查 npm 版本、GHCR 的 `linux/amd64` 和 `linux/arm64` 标签，以及 GitHub Release 的 Windows、Ubuntu、macOS 安装包、`latest.json`、`latest-legacy.json` 和对应签名。
 
 ## 失败恢复
 

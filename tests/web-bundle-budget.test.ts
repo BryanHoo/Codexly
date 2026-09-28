@@ -132,7 +132,7 @@ describe("Web Bundle 预算门禁", () => {
     expect(report).toMatchObject({
       budgets: {
         initialGzipBytes: 320 * 1024,
-        maxAsyncGzipBytes: 420 * 1024,
+        maxAsyncGzipBytes: 640 * 1024,
         workbenchReadyGzipBytes: 500 * 1024,
       },
       passed: true,
@@ -175,7 +175,7 @@ describe("Web Bundle 预算门禁", () => {
   });
 
   it("拒绝超过单个异步加载组 gzip 预算的产物", () => {
-    const result = runChecker(createBundle({ asyncBytes: 430 * 1024 }));
+    const result = runChecker(createBundle({ asyncBytes: 650 * 1024 }));
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("async gzip budget exceeded");

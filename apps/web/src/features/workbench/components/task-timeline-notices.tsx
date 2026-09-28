@@ -1,8 +1,7 @@
 import { AlertTriangle, Info } from "lucide-react";
-import { useStore } from "zustand";
 
 import { i18n } from "../../../i18n/i18n.js";
-import type { TaskNotice, TaskStore } from "../../conversation/runtime/task-store.js";
+import type { TaskNotice } from "../../conversation/runtime/task-store.js";
 
 function TaskNoticeRow({ notice }: Readonly<{ notice: TaskNotice }>) {
   const isWarning = notice.payload.level === "warning";
@@ -34,8 +33,7 @@ function TaskNoticeRow({ notice }: Readonly<{ notice: TaskNotice }>) {
   );
 }
 
-export function StoreTaskNoticeList({ store }: Readonly<{ store: TaskStore }>) {
-  const notices = useStore(store, (state) => state.notices);
+export function StoreTaskNoticeList({ notices }: Readonly<{ notices: readonly TaskNotice[] }>) {
   return notices
     .filter((notice) => notice.payload.code !== "runtime_warning")
     .map((notice) => (

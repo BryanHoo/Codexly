@@ -6,6 +6,7 @@ import {
   type AgentTask,
 } from "./agent-attachments.js";
 import { DateTimeSchema, ProjectSchema, type Project } from "./project-files.js";
+import { ProjectRootPathSchema } from "./project-root.js";
 import { ActivePendingRequestSchema } from "./pending-request.js";
 import { AgentSkillSchema, AgentTurnSchema, type AgentSkill } from "./agent-task.js";
 import { AgentGoalSchema } from "./agent-goal.js";
@@ -63,6 +64,7 @@ export const AgentTaskSnapshotSchema = Type.Object(
     turns: Type.Array(AgentTurnSchema),
     turnsNextCursor: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
     updatedAt: DateTimeSchema,
+    workspacePath: Type.Optional(ProjectRootPathSchema),
   },
   { additionalProperties: false },
 );

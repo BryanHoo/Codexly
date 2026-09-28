@@ -102,6 +102,42 @@ describe("runCli shutdown and help", () => {
     expect(invalidHarness.stderr.join("")).toContain("选项缺少值: --codex-bin");
   });
 
+  it("supports conventional global version and command-specific help without starting", async () => {
+    const versionHarness = createHarness();
+    await expect(runCli(["--version"], versionHarness.options)).resolves.toBe(0);
+    expect(versionHarness.stdout.join("")).toBe("codexly 1.2.3\n");
+    const shortVersionHarness = createHarness();
+    await expect(runCli(["-V"], shortVersionHarness.options)).resolves.toBe(0);
+    expect(shortVersionHarness.stdout.join("")).toBe("codexly 1.2.3\n");
+
+    for (const [args, usage, option] of [
+      [["start", "--help"], "Usage: codexly start [options]", "--port <port>"],
+      [["doctor", "-h"], "Usage: codexly doctor [options]", "--codex-bin <path>"],
+      [["version", "--help"], "Usage: codexly version", "--version"],
+    ] as const) {
+      const harness = createHarness();
+      await expect(runCli(args, harness.options)).resolves.toBe(0);
+      expect(harness.stdout.join("")).toContain(usage);
+      expect(harness.stdout.join("")).toContain(option);
+      expect(harness.stderr).toEqual([]);
+      expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
+      expect(harness.dependencies.checkCodexVersion).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rejects extra arguments after global flags", async () => {
+    for (const args of [
+      ["--help", "unexpected"],
+      ["--version", "unexpected"],
+      ["--version", "--help"],
+    ]) {
+      const harness = createHarness();
+      await expect(runCli(args, harness.options)).resolves.toBe(1);
+      expect(harness.stderr.join("")).toContain(`未知选项: ${args[1] ?? "<empty>"}`);
+      expect(harness.stdout).toEqual([]);
+    }
+  });
+
   it("rejects the removed --project option", async () => {
     const harness = createHarness();
 

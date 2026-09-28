@@ -1,11 +1,129 @@
 import type { ReactElement, ReactNode } from "react";
+import type { AgentItem } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
 import { TaskSnapshotTimeline } from "./task-timeline.js";
 import { TimelineItemContent } from "./task-timeline-items.js";
+import { formatToolDuration } from "./task-timeline-status.js";
 import { renderToStaticMarkup, completedTurn, snapshot } from "./task-timeline.test-support.js";
 
 describe("task timeline tools", () => {
+  it("shows live and completed file editing duration without timing reasoning", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-26T00:00:03.500Z"));
+    try {
+      const props = {
+        isLastTurnItem: true,
+        onOpenFileDiff: vi.fn(),
+        onOpenSourceFile: vi.fn(),
+        projectId: "project-1",
+        taskId: "task-1",
+        turnStatus: "running" as const,
+      };
+      const file: Extract<AgentItem, { type: "file_change" }> = {
+        id: "file-1",
+        changes: [],
+        status: "running",
+        type: "file_change",
+      };
+      const running = renderToStaticMarkup(
+        <TimelineItemContent
+          {...props}
+          item={file}
+          itemTiming={{ startedAtMs: Date.parse("2026-09-26T00:00:01.000Z") }}
+        />,
+      );
+      expect(running).toContain("2.5s");
+      const completed = renderToStaticMarkup(
+        <TimelineItemContent
+          {...props}
+          item={{ ...file, status: "completed" }}
+          turnStatus="completed"
+          itemTiming={{ startedAtMs: 1_000, completedAtMs: 3_500 }}
+        />,
+      );
+      expect(completed).toContain("2.5s");
+      const reasoning = renderToStaticMarkup(
+        <TimelineItemContent
+          {...props}
+          item={{ id: "reasoning-1", content: "", summary: "检查", type: "reasoning" }}
+          itemTiming={{ startedAtMs: 1_000, completedAtMs: 3_500 }}
+        />,
+      );
+      expect(reasoning).not.toContain("data-tool-duration");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the final file summary when a completed edit has timing", () => {
+    const markup = renderToStaticMarkup(
+      <TaskSnapshotTimeline
+        snapshot={{
+          ...snapshot,
+          turns: [
+            {
+              ...completedTurn,
+              itemTimings: { "file-1": { startedAtMs: 1_000, completedAtMs: 3_500 } },
+              items: [
+                {
+                  id: "file-1",
+                  status: "completed",
+                  type: "file_change",
+                  changes: [
+                    { kind: "update", path: "src/example.ts", diff: "@@ -1 +1 @@\n-old\n+new" },
+                  ],
+                },
+                {
+                  id: "final-1",
+                  role: "assistant",
+                  phase: "final_answer",
+                  text: "完成",
+                  type: "message",
+                },
+              ],
+            },
+          ],
+        }}
+      />,
+    );
+    expect(markup).toContain("已编辑 1 个文件");
+    expect(markup).toContain("example.ts");
+  });
+  it("shows elapsed duration while a command is running", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-26T00:00:03.500Z"));
+    try {
+      const markup = renderToStaticMarkup(
+        <TimelineItemContent
+          isLastTurnItem
+          item={{
+            command: "pwd",
+            cwd: "/workspace",
+            id: "command-live",
+            outputOmitted: { bytes: 0, lines: 0 },
+            status: "running",
+            type: "command",
+          }}
+          itemTiming={{ startedAtMs: Date.parse("2026-09-26T00:00:01.000Z") }}
+          onOpenFileDiff={vi.fn()}
+          onOpenSourceFile={vi.fn()}
+          projectId="project-1"
+          taskId="task-1"
+          turnStatus="running"
+        />,
+      );
+      expect(markup).toMatch(/data-tool-duration[^>]*>2\.5s<\/span>\s*<span[^>]*>.*?运行中/su);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("freezes a completed tool duration", () => {
+    const timing = { startedAtMs: 1_000, completedAtMs: 3_500 };
+    expect(formatToolDuration(timing, 10_000)).toBe("2.5s");
+  });
+
   it("defers completed ANSI command output until the tool is opened", () => {
     const ansiOutput = "\u001B[31m失败\u001B[0m\n请检查日志";
     const commandSnapshot: RuntimeTaskSnapshot = {

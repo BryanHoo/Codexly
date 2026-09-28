@@ -6,6 +6,36 @@ import { MessageResponse } from "./message-response.js";
 import { AppendOnlyTextBuffer } from "../../lib/append-only-text.js";
 
 describe("MessageResponse file reference menu", () => {
+  it("reveals appended plain text without remounting the incremental paragraph", async () => {
+    const buffer = new AppendOnlyTextBuffer("Initial words");
+    const screen = await render(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" isAnimating />);
+    const paragraph = screen.container.querySelector("p");
+    const firstText = screen.container.querySelector("[data-streaming-text-reveal]");
+    expect(firstText?.textContent).toBe("Initial words");
+
+    buffer.append(" more words");
+    await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" isAnimating />);
+    expect(screen.container.querySelector("p")).toBe(paragraph);
+    expect(screen.container.querySelector("[data-streaming-text-reveal]")?.textContent).toBe(" more words");
+    expect(screen.container.textContent).toContain("Initial words more words");
+
+    await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="static" isAnimating={false} />);
+    expect(screen.container.querySelector("[data-streaming-text-reveal]")).toBeNull();
+  });
+
+  it("animates parsed Markdown without retaining word wrappers after settling", async () => {
+    const screen = await render(
+      <MessageResponse mode="streaming" isAnimating>{"A **formatted** reply"}</MessageResponse>,
+    );
+    expect(screen.container.querySelector("[data-sd-animate]")).not.toBeNull();
+
+    await screen.rerender(
+      <MessageResponse mode="static" isAnimating={false}>{"A **formatted** reply"}</MessageResponse>,
+    );
+    expect(screen.container.querySelector("[data-sd-animate]")).toBeNull();
+    expect(screen.container.querySelector('[data-streamdown="strong"]')?.textContent).toBe("formatted");
+  });
+
   it("previews oversized complex blocks and fully parses the same snapshot when streaming ends", async () => {
     const buffer = new AppendOnlyTextBuffer("Stable paragraph\n\n- **first**\n");
     const screen = await render(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" isAnimating />);
@@ -63,6 +93,7 @@ describe("MessageResponse file reference menu", () => {
     await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" />);
     expect(screen.container.querySelector("[data-streaming-code-line]")).toBe(firstLine);
     expect(screen.container.querySelector("code")?.textContent).toContain("const last = 2;");
+    expect(screen.container.querySelector("[data-streaming-text-reveal]")).toBeNull();
     buffer.append("```\n\nDone");
     await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" />);
     await expect.element(screen.getByText("Done")).toBeVisible();

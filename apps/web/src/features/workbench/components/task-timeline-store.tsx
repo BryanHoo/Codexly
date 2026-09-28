@@ -23,24 +23,19 @@ import { getTaskTimelineNavigationItems } from "./task-timeline-navigation.js";
 import { TaskTimelineSearchNavigation } from "./task-timeline-search-navigation.js";
 import { StoreTaskNoticeList } from "./task-timeline-notices.js";
 import { RunningReplyStatus } from "./task-timeline-running.js";
+import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
 import { StoredAssistantTimelineItems } from "./task-timeline-store-operation-groups.js";
 import {
   StoredRunningReplyStatus,
   StoredUserMessage,
   groupStoredTurnTimelineItems,
 } from "./task-timeline-store-items.js";
-import {
-  MessageMetadata,
-  TimelineState,
-  TurnProcessingTime,
-  getMessageTimestamp,
-} from "./task-timeline-status.js";
+import { MessageMetadata, TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
 
 const getTurnIdKey = (turnId: string) => turnId;
 export function StoredAssistantGroup({
   itemKeys,
   lastTurnItemKey,
-  latestSnapshotTimestamp,
   onOpenFileDiff,
   onForkTask,
   onBuildPlan,
@@ -59,7 +54,6 @@ export function StoredAssistantGroup({
 }: Readonly<{
   itemKeys: readonly string[];
   lastTurnItemKey: string | undefined;
-  latestSnapshotTimestamp: string;
   onOpenFileDiff: (change: AgentFileChange) => void;
   onForkTask?: ForkTaskAction;
   onBuildPlan?: BuildPlanAction;
@@ -110,6 +104,7 @@ export function StoredAssistantGroup({
         <div className="w-full space-y-4">
           <StoredAssistantTimelineItems
             itemKeys={visibleItemKeys}
+            itemTimings={turn.itemTimings}
             lastTurnItemKey={lastTurnItemKey}
             {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
             onOpenFileDiff={onOpenFileDiff}
@@ -136,7 +131,6 @@ export function StoredAssistantGroup({
           lastTurnId={turn.id}
           {...(onForkTask === undefined ? {} : { onForkTask })}
           text={assistantText}
-          timestamp={getMessageTimestamp("assistant", turn, latestSnapshotTimestamp)}
         />
       ) : null}
     </Message>
@@ -155,6 +149,7 @@ export function StoreTurnTimelineSection({
   turnId,
   turnIndex,
   suppressEmptyRunningStatus,
+  pendingPrompt,
 }: Readonly<{
   onBuildPlan?: BuildPlanAction;
   onForkTask?: ForkTaskAction;
@@ -167,6 +162,7 @@ export function StoreTurnTimelineSection({
   turnId: string;
   turnIndex: number;
   suppressEmptyRunningStatus: boolean;
+  pendingPrompt?: PendingPrompt;
 }>) {
   const turn = useStore(store, (state) => state.turnsById[turnId]);
   const itemKeys = useStore(store, (state) => state.itemKeysByTurnId[turnId] ?? []);
@@ -174,7 +170,6 @@ export function StoreTurnTimelineSection({
   if (turn === undefined) {
     return null;
   }
-  const latestSnapshotTimestamp = store.getState().snapshotMetadata?.updatedAt ?? "";
   const itemStoresByKey = store.getState().itemStoresByKey;
   const timelineGroups = groupStoredTurnTimelineItems(itemKeys, itemStoresByKey);
   const processNativeItemIds = new Set(
@@ -192,6 +187,7 @@ export function StoreTurnTimelineSection({
   const firstAssistantGroupIndex = timelineGroups.findIndex((group) => group.type === "assistant");
   const hasAssistantItems = firstAssistantGroupIndex >= 0;
   const lastTurnItemKey = itemKeys.at(-1);
+  const hasUserMessage = timelineGroups.some((group) => group.type === "user");
 
   return (
     <section
@@ -199,12 +195,14 @@ export function StoreTurnTimelineSection({
       className="space-y-4"
       data-status={turn.status}
     >
+      {pendingPrompt !== undefined && !hasUserMessage ? (
+        <PendingPromptDisplay prompt={pendingPrompt} />
+      ) : null}
       {timelineGroups.map((group, groupIndex) =>
         group.type === "user" ? (
           <StoredUserMessage
             itemKey={group.itemKey}
             key={group.itemKey}
-            latestSnapshotTimestamp={latestSnapshotTimestamp}
             onOpenFileDiff={onOpenFileDiff}
             onOpenSourceFile={onOpenSourceFile}
             projectId={projectId}
@@ -217,7 +215,6 @@ export function StoreTurnTimelineSection({
             itemKeys={group.itemKeys}
             key={group.key}
             lastTurnItemKey={lastTurnItemKey}
-            latestSnapshotTimestamp={latestSnapshotTimestamp}
             {...(turn.status === "completed" && onBuildPlan !== undefined ? { onBuildPlan } : {})}
             onOpenFileDiff={onOpenFileDiff}
             onToggleProcess={() => {
@@ -309,6 +306,7 @@ export function TaskStoreTimeline({
   store,
   submissionStartedAt,
   submissionTurnId,
+  pendingPrompt,
   searchTarget,
 }: Readonly<{
   connected: boolean;
@@ -330,6 +328,7 @@ export function TaskStoreTimeline({
   store: TaskStore;
   submissionStartedAt?: string;
   submissionTurnId?: string;
+  pendingPrompt?: PendingPrompt;
   searchTarget?: HistoryAnchor;
 }>) {
   const projectId = store.getState().projectId;
@@ -367,6 +366,14 @@ export function TaskStoreTimeline({
       ? "finished"
       : "awaiting-assistant";
   });
+  const hasSubmittedUser = useStore(store, (state) =>
+    submissionTurnId === undefined
+      ? false
+      : (state.itemKeysByTurnId[submissionTurnId] ?? []).some((key) => {
+          const item = state.itemStoresByKey.get(key)?.peek();
+          return item?.type === "message" && item.role === "user";
+        }),
+  );
   // HTTP 返回不代表回复已经可见；首个 Assistant Item 到达前由稳定尾部持续承载运行态。
   const showPendingSubmission =
     submissionStartedAt !== undefined &&
@@ -401,7 +408,7 @@ export function TaskStoreTimeline({
           ? {
               footer: (
                 <>
-                  {hasNotices ? <StoreTaskNoticeList store={store} /> : null}
+                  {hasNotices ? <StoreTaskNoticeList notices={notices} /> : null}
                   {hasVisiblePendingRequest ? (
                     <StorePendingRequestList
                       connected={connected}
@@ -410,10 +417,17 @@ export function TaskStoreTimeline({
                     />
                   ) : null}
                   {showPendingSubmission ? (
-                    <Message from="assistant">
-                      <TurnProcessingTime completedAt={null} startedAt={submissionStartedAt} />
-                      <RunningReplyStatus />
-                    </Message>
+                    pendingPrompt !== undefined && !hasSubmittedUser ? (
+                      <PendingPromptDisplay
+                        prompt={pendingPrompt}
+                        startedAt={submissionStartedAt}
+                      />
+                    ) : (
+                      <Message from="assistant">
+                        <TurnProcessingTime completedAt={null} startedAt={submissionStartedAt} />
+                        <RunningReplyStatus />
+                      </Message>
+                    )
                   ) : null}
                 </>
               ),
@@ -446,6 +460,11 @@ export function TaskStoreTimeline({
             turnId={turnId}
             turnIndex={turnIndex}
             suppressEmptyRunningStatus={showPendingSubmission && turnId === submissionTurnId}
+            {...(turnId === submissionTurnId &&
+            submissionHandoffState === "assistant-started" &&
+            pendingPrompt !== undefined
+              ? { pendingPrompt }
+              : {})}
           />
         )}
       />

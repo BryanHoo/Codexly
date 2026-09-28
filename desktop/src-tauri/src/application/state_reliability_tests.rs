@@ -7,6 +7,19 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 use tokio::sync::{Mutex, oneshot};
 use tokio::time::{Duration, timeout};
 
+#[test]
+fn mapped_event_should_deliver_before_native_side_effects() {
+    let source = include_str!("state_event_publisher.rs");
+    let deliver = source
+        .find("    delivery.send(AppEvent::AgentEvent { event }).await;")
+        .unwrap();
+    let effects = source.find("    if let Some(app) = app {").unwrap();
+    assert!(
+        deliver < effects,
+        "native side effects must not hold the delivery order lock"
+    );
+}
+
 #[tokio::test]
 async fn concurrent_start_should_wait_for_the_same_ready_runtime() {
     let state = Arc::new(AppState::default());

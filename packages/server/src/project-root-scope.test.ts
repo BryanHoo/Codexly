@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { execFile } from "node:child_process";
+import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 
 import type { ProjectRepository } from "@codexly/core";
 import type { Project } from "@codexly/protocol";
@@ -27,6 +32,34 @@ function createRepository(value: Project | undefined): ProjectRepository {
 }
 
 describe("resolveProjectRoot", () => {
+  it("accepts only a linked worktree of the same Project repository", async ({
+    onTestFinished,
+  }) => {
+    const directory = await mkdtemp(join(tmpdir(), "codexly-task-root-"));
+    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    const rootPath = join(directory, "source");
+    const worktreePath = join(directory, "feature");
+    const runGit = async (...args: string[]) => {
+      await promisify(execFile)("git", ["-C", rootPath, ...args]);
+    };
+    await promisify(execFile)("git", ["init", rootPath]);
+    await runGit("config", "user.name", "Codexly Test");
+    await runGit("config", "user.email", "test@example.com");
+    await writeFile(join(rootPath, "README.md"), "test\n");
+    await runGit("add", "README.md");
+    await runGit("commit", "-m", "initial");
+    await runGit("worktree", "add", "-b", "feature", worktreePath, "HEAD");
+    const repository = createRepository({ ...project, roots: [{ id: "source", path: rootPath }] });
+
+    await expect(resolveProjectRoot(repository, project.id, worktreePath)).resolves.toBe(
+      await realpath(worktreePath),
+    );
+    await expect(resolveProjectRoot(repository, project.id, directory)).rejects.toHaveProperty(
+      "code",
+      "PROJECT_ROOT_INVALID",
+    );
+  });
+
   it("resolves a selected member and defaults internal callers to the primary root", async () => {
     const repository = createRepository(project);
 

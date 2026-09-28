@@ -1,5 +1,7 @@
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
+import { mergeSnapshotTurns } from "@codexly/frontend-core";
 import { resolveMessageAliases } from "./task-store-identity.js";
+import { mergeTurnItemTimings } from "./task-store-timing.js";
 
 import {
   readTaskItem,
@@ -56,44 +58,18 @@ export function reconcileSnapshot(
   if (currentSnapshot === undefined) {
     return response;
   }
-  const currentTurnsById = new Map(currentSnapshot.turns.map((turn) => [turn.id, turn]));
-  const snapshotTurnIds = new Set(response.snapshot.turns.map((turn) => turn.id));
-  const overlappingIndexes = currentSnapshot.turns.flatMap((turn, index) =>
-    snapshotTurnIds.has(turn.id) ? [index] : [],
-  );
-  const firstOverlap = overlappingIndexes.at(0);
-  const lastOverlap = overlappingIndexes.at(-1);
-  const preservesPartialHistory =
-    response.snapshot.turnsNextCursor !== null &&
-    firstOverlap !== undefined &&
-    lastOverlap !== undefined;
-  const retainedOlderTurns = preservesPartialHistory
-    ? currentSnapshot.turns.slice(0, firstOverlap).filter((turn) => !snapshotTurnIds.has(turn.id))
-    : [];
-  const retainedNewerTurns = preservesPartialHistory
-    ? currentSnapshot.turns.slice(lastOverlap + 1).filter((turn) => !snapshotTurnIds.has(turn.id))
-    : [];
   return {
     ...response,
     snapshot: {
       ...response.snapshot,
-      turns: [
-        ...retainedOlderTurns,
-        ...response.snapshot.turns.map((snapshotTurn) => {
-          const currentTurn = currentTurnsById.get(snapshotTurn.id);
-          return currentTurn === undefined
-            ? snapshotTurn
-            : {
-                ...snapshotTurn,
-                items: retainSnapshotTurnItems(currentTurn, snapshotTurn),
-              };
-        }),
-        ...retainedNewerTurns,
-      ],
-      turnsNextCursor:
-        retainedOlderTurns.length > 0
-          ? currentSnapshot.turnsNextCursor
-          : response.snapshot.turnsNextCursor,
+      ...mergeSnapshotTurns(currentSnapshot, response.snapshot, (currentTurn, snapshotTurn) => {
+        const itemTimings = mergeTurnItemTimings(currentTurn.itemTimings, snapshotTurn.itemTimings);
+        return {
+          ...snapshotTurn,
+          ...(itemTimings === undefined ? {} : { itemTimings }),
+          items: retainSnapshotTurnItems(currentTurn, snapshotTurn),
+        };
+      }),
     },
   };
 }

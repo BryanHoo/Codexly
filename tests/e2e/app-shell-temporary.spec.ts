@@ -77,21 +77,21 @@ test("creates and restores a temporary task without exposing its internal projec
   await expect(page.getByRole("button", { name: "展开上下文面板" })).toBeVisible();
   const changedFiles = page.getByRole("region", { name: "本次修改了 1 个文件" });
   await changedFiles.getByRole("button", { name: "审核", exact: true }).click();
-  const reviewDialog = page.getByRole("dialog", { name: "temporary-change.ts" });
-  await expect(reviewDialog).toBeVisible();
-  await reviewDialog.getByRole("button", { name: "关闭文件审核" }).click();
+  const inspector = page.getByRole("complementary", { name: "运行环境" });
+  const reviewPanel = inspector.getByRole("tabpanel", { name: "文件审核" });
+  await expect(reviewPanel.getByRole("heading", { name: "temporary-change.ts" })).toBeVisible();
+  await reviewPanel.getByRole("button", { name: "关闭文件审核" }).click();
   await changedFiles
     .getByRole("button", { name: "已编辑 temporary-change.ts，新增 1 行，删除 1 行" })
     .click();
-  const inspector = page.getByRole("complementary", { name: "运行环境" });
   const diffPanel = inspector.getByRole("region", { name: "/tmp/temporary-change.ts" });
   await expect(diffPanel.locator(".file-diff-renderer")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "temporary-change.ts" })).toHaveCount(0);
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await inspector.getByRole("button", { name: "关闭文件" }).last().click();
   await page.getByRole("button", { name: "temporary-note.md" }).click();
   const sourcePanel = inspector.getByRole("region", { name: "/tmp/temporary-note.md" });
   await expect(sourcePanel).toContainText("允许从临时任务打开");
-  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveAttribute(
+  await expect(inspector.getByRole("tab", { name: "temporary-note.md" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
@@ -128,8 +128,8 @@ test("creates and restores a temporary task without exposing its internal projec
     "src",
     "/v1/temporary/files/image?path=%2Ftmp%2Ftemporary-preview.png",
   );
-  await expect(inspector.getByRole("tab", { name: "文件" })).toHaveCount(1);
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await expect(inspector.getByRole("tab", { name: "temporary-preview.png" })).toHaveCount(1);
+  await inspector.getByRole("button", { name: "关闭文件" }).last().click();
   await expect(imagePanel).not.toBeAttached();
   await page.getByRole("button", { name: "temporary-report.pdf" }).click();
   await expect
@@ -138,7 +138,11 @@ test("creates and restores a temporary task without exposing its internal projec
   await expect(approvalSelect).toHaveValue("auto-review");
   expect(temporaryTurnOptions?.["sandboxMode"]).toBe("workspace-write");
   await expect(inspector).toBeVisible();
-  await expect(inspector.getByRole("tablist")).toHaveCount(0);
+  await expect(inspector.getByRole("tab", { name: "项目" })).toHaveCount(0);
+  await expect(inspector.getByRole("tab", { name: "上下文" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await expect(inspector.getByRole("region", { name: "MCP" })).toContainText("context7");
   await expect(page.getByText("temporary-workspace")).toHaveCount(0);
 

@@ -119,6 +119,7 @@ fn http_client() -> Result<&'static Client, AppError> {
     let client = Client::builder()
         .redirect(Policy::none())
         .timeout(Duration::from_secs(15))
+        .user_agent(crate::HTTP_USER_AGENT)
         .build()
         .map_err(|_| AppError::WorkbenchBackgroundUnavailable)?;
     let _ = HTTP_CLIENT.set(client);

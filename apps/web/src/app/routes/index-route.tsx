@@ -109,6 +109,7 @@ function IndexPage() {
           {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
           connectionState="connected"
           onClose={() => undefined}
+          onOpenFile={() => undefined}
           onOpenSettings={(section) => {
             setGlobalSettingsSection(section);
           }}

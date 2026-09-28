@@ -18,6 +18,7 @@ import { isProjectThread } from "./codex-task-mapping.js";
 import { encodeTaskTurnCursor } from "./task-history-pagination.js";
 
 const SEARCH_PAGE_SIZE = 30;
+const HISTORY_PAGE_SIZE = 10;
 const HISTORY_OCCURRENCE_CONCURRENCY = 4;
 
 type NativePage = Readonly<{ data: readonly unknown[]; nextCursor: string | null }>;
@@ -106,10 +107,12 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
     scopes: readonly AgentSearchScope[],
   ): Promise<TaskSearchPage> {
     const query = validateQuery(input.query);
+    // 历史结果必须逐条验证可见消息锚点；按小页加载，避免单次搜索放大为 30 个 RPC。
+    const pageSize = input.kind === "history" ? HISTORY_PAGE_SIZE : SEARCH_PAGE_SIZE;
     const params = {
       archived: input.archived,
       ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
-      limit: SEARCH_PAGE_SIZE,
+      limit: pageSize,
       searchTerm: query,
       sortDirection: "desc",
       sortKey: "recency_at",
@@ -122,7 +125,7 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
       input.kind === "tasks" ? "thread/list response" : "thread/search response",
     );
     const mapped = await mapWithConcurrency(
-      page.data.slice(0, SEARCH_PAGE_SIZE),
+      page.data.slice(0, pageSize),
       input.kind === "history" ? HISTORY_OCCURRENCE_CONCURRENCY : SEARCH_PAGE_SIZE,
       async (value): Promise<TaskSearchPage["data"][number] | undefined> => {
         const result =

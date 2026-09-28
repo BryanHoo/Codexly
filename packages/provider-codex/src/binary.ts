@@ -7,8 +7,8 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-export const SUPPORTED_CODEX_VERSION = "0.156.0";
-export const SUPPORTED_CODEX_VERSION_RANGE = ">=0.156.0,<0.157.0";
+export const SUPPORTED_CODEX_VERSION = "0.157.1";
+export const SUPPORTED_CODEX_VERSION_RANGE = ">=0.157.1,<0.158.0";
 
 interface BundledCodexTarget {
   executableName: string;
@@ -219,8 +219,8 @@ export async function checkCodexVersion(
   }
   const [major, minor, patch] = version.split("-", 1)[0]?.split(".").map(Number) ?? [];
   const isPrerelease = version.includes("-");
-  // experimentalApi 仅允许已验证的 0.156 补丁线，拒绝旧协议、预发布与未知次版本。
-  if (major !== 0 || minor !== 156 || patch === undefined || isPrerelease) {
+  // experimentalApi 仅允许已验证的 0.157.1 起补丁线，拒绝旧协议和预发布版本。
+  if (major !== 0 || minor !== 157 || patch === undefined || patch < 1 || isPrerelease) {
     throw new Error(
       `Unsupported Codex version ${version}; expected ${SUPPORTED_CODEX_VERSION_RANGE}`,
     );

@@ -32,4 +32,16 @@ describe("PerformanceMetrics", () => {
     expect(snapshot.ipc).toEqual({ eventsPerSecond: 2, mergeRate: 0.6, queueHighWatermark: 7 });
     expect(snapshot.longTaskMs).toMatchObject({ count: 2, max: 82, p95: 82 });
   });
+
+  it("reports P95 from native enqueue to WebView receipt", () => {
+    const metrics = new PerformanceMetrics();
+    for (let latency = 1; latency <= 100; latency += 1) {
+      metrics.recordEnqueueToWebView(1_000, 1_000 + latency);
+    }
+    metrics.recordEnqueueToWebView(1_200, 1_100);
+
+    expect(metrics.snapshot(2_000).enqueueToWebViewMs).toMatchObject({
+      count: 100, p50: 50, p95: 95, max: 100,
+    });
+  });
 });

@@ -16,6 +16,14 @@ fn test_root() -> PathBuf {
     ))
 }
 
+#[test]
+fn commit_message_should_default_to_gpt_6_luna() {
+    assert_eq!(
+        default_global_settings()["commitMessageModel"],
+        "gpt-6-luna"
+    );
+}
+
 #[tokio::test]
 async fn local_settings_should_not_store_agent_global_defaults() {
     let root = test_root();

@@ -73,17 +73,19 @@ export async function handleAppShellProjectRoute(
     };
   } else if (url.pathname === "/v1/projects/codexly/files/source") {
     body =
-      url.searchParams.get("cursor") === String(architectureSourceNextCursor)
-        ? {
-            content: architectureSourceSecondPage,
-            nextCursor: null,
-            path: "docs/architecture-design.md",
-          }
-        : {
-            content: architectureSourceFirstPage,
-            nextCursor: architectureSourceNextCursor,
-            path: "docs/architecture-design.md",
-          };
+      url.searchParams.get("path") === "package.json"
+        ? { content: '{"scripts":{"dev":"pnpm run dev"}}', nextCursor: null, path: "package.json" }
+        : url.searchParams.get("cursor") === String(architectureSourceNextCursor)
+          ? {
+              content: architectureSourceSecondPage,
+              nextCursor: null,
+              path: "docs/architecture-design.md",
+            }
+          : {
+              content: architectureSourceFirstPage,
+              nextCursor: architectureSourceNextCursor,
+              path: "docs/architecture-design.md",
+            };
   } else if (
     url.pathname === "/v1/projects/codexly/git/worktrees" &&
     route.request().method() === "GET"

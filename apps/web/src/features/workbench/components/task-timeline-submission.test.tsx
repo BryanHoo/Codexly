@@ -10,6 +10,123 @@ import {
 } from "./task-timeline.test-support.js";
 
 describe("task timeline submission", () => {
+  it("shows a pending user prompt before the response and avoids duplication after the user item", () => {
+    const pendingPrompt = { files: [], skills: [], text: "待发送消息" };
+    const emptyStore = createTaskStore(
+      { projectId: snapshot.projectId, taskId: snapshot.id },
+      { checkpoint: { sequence: 0, sessionId: "pending" }, snapshot: { ...snapshot, turns: [] } },
+    );
+    const runtime = {
+      ...unpaginatedRuntime,
+      connectionState: "connected" as const,
+      error: null,
+      isPending: false,
+    };
+    const pendingMarkup = renderToStaticMarkup(
+      <TaskTimeline
+        projectId={snapshot.projectId}
+        runtime={{ ...runtime, store: emptyStore }}
+        pendingPrompt={pendingPrompt}
+        submissionStartedAt="2026-07-24T00:01:00.000Z"
+        taskId={snapshot.id}
+      />,
+    );
+    expect(pendingMarkup).toContain("待发送消息");
+    expect(pendingMarkup.match(/aria-label="AI 回复正在运行"/gu)).toHaveLength(1);
+
+    const turnId = "turn-pending";
+    const confirmedStore = createTaskStore(
+      { projectId: snapshot.projectId, taskId: snapshot.id },
+      {
+        checkpoint: { sequence: 1, sessionId: "pending" },
+        snapshot: {
+          ...snapshot,
+          status: "running",
+          turns: [
+            {
+              id: turnId,
+              status: "running",
+              startedAt: snapshot.updatedAt,
+              completedAt: null,
+              error: null,
+              items: [
+                { id: "user-pending", role: "user", text: pendingPrompt.text, type: "message" },
+              ],
+            },
+          ],
+        },
+      },
+    );
+    const confirmedMarkup = renderToStaticMarkup(
+      <TaskTimeline
+        projectId={snapshot.projectId}
+        runtime={{ ...runtime, store: confirmedStore }}
+        pendingPrompt={pendingPrompt}
+        submissionStartedAt="2026-07-24T00:01:00.000Z"
+        submissionTurnId={turnId}
+        taskId={snapshot.id}
+      />,
+    );
+    expect(confirmedMarkup.split("待发送消息")).toHaveLength(2);
+    expect(confirmedMarkup.match(/aria-label="AI 回复正在运行"/gu)).toHaveLength(1);
+  });
+
+  it("keeps the user prompt visible in a new chat and when assistant output arrives first", () => {
+    const pendingPrompt = { files: [], skills: [], text: "立即展示的消息" };
+    const newChatMarkup = renderToStaticMarkup(
+      <TaskTimeline
+        onProjectChange={() => undefined}
+        projectId={snapshot.projectId}
+        projects={[]}
+        pendingPrompt={pendingPrompt}
+        submissionStartedAt="2026-07-24T00:01:00.000Z"
+      />,
+    );
+    expect(newChatMarkup).toContain(pendingPrompt.text);
+    expect(newChatMarkup.match(/aria-label="AI 回复正在运行"/gu)).toHaveLength(1);
+
+    const turnId = "assistant-first";
+    const store = createTaskStore(
+      { projectId: snapshot.projectId, taskId: snapshot.id },
+      {
+        checkpoint: { sequence: 1, sessionId: "pending" },
+        snapshot: {
+          ...snapshot,
+          status: "running",
+          turns: [
+            {
+              id: turnId,
+              status: "running",
+              startedAt: snapshot.updatedAt,
+              completedAt: null,
+              error: null,
+              items: [
+                { id: "assistant-first-item", role: "assistant", text: "处理中", type: "message" },
+              ],
+            },
+          ],
+        },
+      },
+    );
+    const markup = renderToStaticMarkup(
+      <TaskTimeline
+        projectId={snapshot.projectId}
+        runtime={{
+          ...unpaginatedRuntime,
+          connectionState: "connected",
+          error: null,
+          isPending: false,
+          store,
+        }}
+        pendingPrompt={pendingPrompt}
+        submissionStartedAt="2026-07-24T00:01:00.000Z"
+        submissionTurnId={turnId}
+        taskId={snapshot.id}
+      />,
+    );
+    expect(markup.split(pendingPrompt.text)).toHaveLength(2);
+  });
+
   it("keeps the local submission timer when a completed Snapshot has no assistant item yet", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-24T00:01:05.000Z"));

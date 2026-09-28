@@ -1,85 +1,36 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-import {
-  REQUIRED_CODEX_VERSION,
-  assertCodexVersion,
-  compareSchemaBundles,
-  resolveCodexBinary,
-  resolveCodexInvocation,
-} from "./codex-protocol-contract.mjs";
-
-const BUNDLES = [
-  "codex_app_server_protocol.schemas.json",
-  "codex_app_server_protocol.v2.schemas.json",
-];
 const qualityWorkflow = await readFile(
   new URL("../../.github/workflows/desktop-quality.yml", import.meta.url),
   "utf8",
 );
+const desktopPackage = JSON.parse(
+  await readFile(new URL("../package.json", import.meta.url), "utf8"),
+);
 
-void test("requires the exact verified Codex version", () => {
-  assert.equal(assertCodexVersion("codex-cli 0.156.0\n"), REQUIRED_CODEX_VERSION);
-  assert.throws(
-    () => assertCodexVersion("codex-cli 0.152.3\n"),
-    /expected codex-cli 0\.156\.0/u,
+void test("桌面和 Web 共用根目录的 Codex Schema 基线", async () => {
+  assert.equal(desktopPackage.scripts["codex:protocol:check"], "node ../tools/verify-codex-schema.mjs");
+  assert.equal(
+    desktopPackage.scripts["codex:protocol:update"],
+    "node ../tools/verify-codex-schema.mjs --update",
   );
+  const entries = await readdir(new URL("../schemas/codex-app-server/", import.meta.url), {
+    recursive: true,
+    withFileTypes: true,
+  }).catch((error) => {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  });
+  assert.deepEqual(entries.filter((entry) => entry.isFile()), []);
 });
 
-void test("resolves the npm Codex shim on Windows", () => {
-  assert.equal(resolveCodexBinary("win32", undefined), "codex.cmd");
-  assert.equal(resolveCodexBinary("linux", undefined), "codex");
-  assert.equal(resolveCodexBinary("win32", " C:/tools/codex.exe "), "C:/tools/codex.exe");
-  assert.deepEqual(
-    resolveCodexInvocation(
-      "win32",
-      "codex.cmd",
-      ["--version"],
-      "C:/Windows/System32/cmd.exe",
-    ),
-    {
-      file: "C:/Windows/System32/cmd.exe",
-      args: ["/d", "/s", "/c", "codex.cmd", "--version"],
-    },
-  );
-  assert.deepEqual(resolveCodexInvocation("win32", "C:/tools/codex.exe", ["--version"]), {
-    file: "C:/tools/codex.exe",
-    args: ["--version"],
-  });
-  assert.deepEqual(resolveCodexInvocation("linux", "codex", ["--version"]), {
-    file: "codex",
-    args: ["--version"],
-  });
-});
-
-void test("runs the pinned protocol contract check in CI", () => {
-  assert.ok(
-    qualityWorkflow.includes(`npm install --global @openai/codex@${REQUIRED_CODEX_VERSION}`),
+void test("桌面 CI 安装工作区依赖并校验共享基线", () => {
+  assert.match(
+    qualityWorkflow,
+    /name: Install dependencies\s+working-directory: \.\s+run: pnpm install --frozen-lockfile/u,
   );
   assert.match(qualityWorkflow, /pnpm codex:protocol:check/u);
-});
-
-void test("reports generated schema bundle differences", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codeagent-protocol-test-"));
-  const expected = join(root, "expected");
-  const generated = join(root, "generated");
-
-  try {
-    await Promise.all([mkdir(expected), mkdir(generated)]);
-    await Promise.all(
-      BUNDLES.flatMap((name) => [
-        writeFile(join(expected, name), `${name}:verified\n`),
-        writeFile(join(generated, name), `${name}:verified\n`),
-      ]),
-    );
-
-    assert.deepEqual(await compareSchemaBundles(expected, generated), []);
-    await writeFile(join(generated, BUNDLES[1]), "changed\n");
-    assert.deepEqual(await compareSchemaBundles(expected, generated), [BUNDLES[1]]);
-  } finally {
-    await rm(root, { force: true, recursive: true });
-  }
+  assert.doesNotMatch(qualityWorkflow, /npm install --global @openai\/codex/u);
 });

@@ -99,29 +99,22 @@ describe("deriveWorkbenchInspectorActivation", () => {
     });
   });
 
-  it("adds and activates the file panel only while a file is selected", () => {
+  it("activates an open document and falls back after it closes", () => {
     expect(
       getAvailableWorkbenchInspectorTabs("task-1", gitStatus, {
         contextOnly: false,
-        fileOpen: false,
       }),
     ).toEqual(["project", "context", "changes", "history"]);
-    expect(
-      getAvailableWorkbenchInspectorTabs("task-1", gitStatus, {
-        contextOnly: false,
-        fileOpen: true,
-      }),
-    ).toEqual(["project", "context", "changes", "history", "file"]);
     expect(
       deriveWorkbenchInspectorActivation({
         fileOpen: true,
         gitStatus,
         inspectorOpen: true,
-        requestedTab: "file",
+        requestedTab: "document:source:README.md",
         taskId: "task-1",
       }),
     ).toEqual({
-      activeTab: "file",
+      activeTab: "document:source:README.md",
       changes: false,
       context: false,
       file: true,
@@ -130,13 +123,12 @@ describe("deriveWorkbenchInspectorActivation", () => {
     });
   });
 
-  it("offers context and file tabs for a temporary task with an open file", () => {
+  it("keeps temporary task navigation scoped to context", () => {
     expect(
       getAvailableWorkbenchInspectorTabs(undefined, undefined, {
         contextOnly: true,
-        fileOpen: true,
       }),
-    ).toEqual(["context", "file"]);
+    ).toEqual(["context"]);
   });
 
   it("keeps detailed Git reads disabled for non-Git projects", () => {

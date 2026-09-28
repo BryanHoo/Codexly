@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentItem } from "@codexly/protocol";
+import { touchedCommandOutputItemKeys as getTouchedCommandOutputItemKeys } from "@codexly/frontend-core";
 
 import {
   MAX_RETAINED_TASK_NOTICES,
@@ -11,29 +12,8 @@ import {
   type TaskStoreState,
 } from "./task-store-core.js";
 import { applyMessageAliases, resolveMessageAliases } from "./task-store-identity.js";
-export function getTouchedCommandOutputItemKeys(
-  previousState: TaskStoreState,
-  nextState: TaskStoreState,
-  event: AgentEvent,
-): readonly string[] | undefined {
-  if (event.type === "command.output_delta") {
-    return [createTaskItemKey(event.turnId, event.itemId)];
-  }
-  if (event.type === "item.started" || event.type === "item.completed") {
-    const itemKey = createTaskItemKey(event.turnId, event.itemId);
-    return event.payload.item.type === "command" ||
-      previousState.commandOutputBytesByItemKey.has(itemKey)
-      ? [itemKey]
-      : undefined;
-  }
-  if (event.type === "turn.started" || event.type === "turn.completed") {
-    return [
-      ...(previousState.itemKeysByTurnId[event.turnId] ?? []),
-      ...(nextState.itemKeysByTurnId[event.turnId] ?? []),
-    ];
-  }
-  return undefined;
-}
+import { recordToolItemTiming, retainTurnItemTimings } from "./task-store-timing.js";
+export { getTouchedCommandOutputItemKeys };
 function createDeltaItem(event: Extract<AgentEvent, { itemId: string }>): AgentItem | undefined {
   switch (event.type) {
     case "message.delta":
@@ -162,7 +142,10 @@ export function applyAcceptedEvent(
         },
         itemStructureRevision: state.itemStructureRevision + 1,
         turnIds: [...state.turnIds.filter((turnId) => turnId !== event.turnId), event.turnId],
-        turnsById: { ...state.turnsById, [event.turnId]: normalizedTurn },
+        turnsById: {
+          ...state.turnsById,
+          [event.turnId]: retainTurnItemTimings(state.turnsById[event.turnId], normalizedTurn),
+        },
       };
     }
     case "message.delta":
@@ -273,15 +256,15 @@ export function applyAcceptedEvent(
       };
     }
     case "task.notice": {
-      // 自动审批结果已由 approval_review Item 展示，避免 Guardian 摘要在底部永久重复出现。
+      // 自动审批结果另由 Item 展示。
       if (event.payload.code === "guardian_warning") {
         return {
           checkpoint,
           snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
         };
       }
+      // 运行时警告跨 Turn 留在上下文；仅限制临时状态通知的数量。
       const notices = [...state.notices, event];
-      // 运行时警告跨 Turn 保留；只有短暂状态通知遵守数量上限。
       const transient = notices.filter((notice) => notice.payload.code !== "runtime_warning");
       const discarded = new Set(transient.slice(0, -MAX_RETAINED_TASK_NOTICES));
       return {
@@ -326,7 +309,8 @@ export function applyAcceptedEvent(
       return { checkpoint };
     case "item.started":
     case "item.completed": {
-      if (state.turnsById[event.turnId] === undefined) {
+      const currentTurn = state.turnsById[event.turnId];
+      if (currentTurn === undefined) {
         return {
           checkpoint,
           snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
@@ -359,6 +343,7 @@ export function applyAcceptedEvent(
         currentItemStore.replace(event.payload.item);
         changedItemStores.add(currentItemStore);
       }
+      const timedTurn = recordToolItemTiming(currentTurn, event);
       return {
         checkpoint,
         itemKeysByTurnId:
@@ -367,6 +352,9 @@ export function applyAcceptedEvent(
             : { ...state.itemKeysByTurnId, [event.turnId]: nextItemIds },
         itemStructureRevision: state.itemStructureRevision + 1,
         snapshotMetadata: { ...snapshotMetadata, updatedAt: event.timestamp },
+        ...(timedTurn === currentTurn
+          ? {}
+          : { turnsById: { ...state.turnsById, [event.turnId]: timedTurn } }),
       };
     }
     case "turn.completed": {
@@ -384,7 +372,7 @@ export function applyAcceptedEvent(
         ...(currentTurn === undefined
           ? {}
           : replaceTurnItems(state, event.turnId, items, changedItemStores)),
-        // 终态只清理流式状态通知，运行时警告留在右栏供后续查看。
+        // Turn 完成后只保留右栏中的运行时警告。
         notices: state.notices.filter((notice) => notice.payload.code === "runtime_warning"),
         snapshotMetadata: {
           ...snapshotMetadata,
@@ -395,7 +383,10 @@ export function applyAcceptedEvent(
         turnsById:
           currentTurn === undefined
             ? state.turnsById
-            : { ...state.turnsById, [event.turnId]: normalizedTurn },
+            : {
+                ...state.turnsById,
+                [event.turnId]: retainTurnItemTimings(currentTurn, normalizedTurn),
+              },
       };
     }
     case "plan.updated":

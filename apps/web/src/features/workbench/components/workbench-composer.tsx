@@ -42,6 +42,7 @@ export function WorkbenchComposer({
   modelsError,
   modelsPending,
   onDirectSubmission,
+  onSubmissionFailed,
   onCaptureSubmission,
   onFastModeChange,
   onInputStateChange,
@@ -105,6 +106,7 @@ export function WorkbenchComposer({
     canSteer,
     canSubmit,
     clearComposerInput,
+    restoreComposerInput,
     closeCommandMenu,
     closeFileMenu,
     commandMenuId,
@@ -208,6 +210,7 @@ export function WorkbenchComposer({
     canSteer,
     canSubmit,
     clearComposerInput,
+    restoreComposerInput,
     client,
     controller: composerController,
     composerMode,
@@ -215,6 +218,7 @@ export function WorkbenchComposer({
     followUpBehavior,
     fastMode: fastModeEnabled,
     onDirectSubmission,
+    onSubmissionFailed,
     onCaptureSubmission,
     onGoalStarted: () => {
       setComposerModeState(undefined);
@@ -361,7 +365,6 @@ export function WorkbenchComposer({
       composerScope={composerScope}
       contextUsage={contextUsage}
       creatingBranch={branchMutation.creatingBranch}
-      creatingWorktree={branchMutation.creatingWorktree}
       draftInputDisabled={draftInputDisabled}
       editingTodoId={editingTodoId}
       filteredCommands={filteredCommands}
@@ -407,10 +410,6 @@ export function WorkbenchComposer({
       onBranchChange={(branch) => {
         void branchMutation.switchBranch(branch);
       }}
-      onWorktreeChange={(path) => {
-        void branchMutation.switchWorktree(path);
-      }}
-      onWorktreeCreate={branchMutation.createWorktree}
       onExecuteCommand={(command) => {
         void executePromptCommand(command);
       }}
@@ -472,10 +471,8 @@ export function WorkbenchComposer({
       }}
       submitAction={submitAction}
       switchingBranch={branchMutation.switchingBranch}
-      switchingWorktree={branchMutation.switchingWorktree}
       taskId={taskId}
       turnControlsDisabled={turnControlsDisabled}
-      worktrees={branchMutation.worktrees}
     />
   );
   return (

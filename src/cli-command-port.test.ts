@@ -95,7 +95,7 @@ describe("runCli ports", () => {
             respondToServerRequest: vi.fn(),
           },
           pid: 4321,
-          version: { raw: "codex-cli 0.156.0", version: "0.156.0" },
+          version: { raw: "codex-cli 0.157.1", version: "0.157.1" },
           waitForExit: () => Promise.resolve({ code: 23, signal: null }),
         }),
       ),

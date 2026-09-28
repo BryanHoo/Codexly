@@ -6,13 +6,14 @@ import type { TaskStore } from "../../conversation/runtime/task-store.js";
 import { InspectorSection } from "./workbench-inspector-sections.js";
 
 export function RuntimeWarningsSection({ store }: Readonly<{ store: TaskStore }>) {
-  const notices = useStore(store, (state) => state.notices);
-  const warnings = notices.filter((notice) => notice.payload.code === "runtime_warning");
+  const warnings = useStore(store, (state) => state.notices).filter(
+    (notice) => notice.payload.code === "runtime_warning",
+  );
   if (warnings.length === 0) return null;
 
   return (
     <InspectorSection
-      icon={<AlertTriangle aria-hidden="true" className="size-3.5" />}
+      icon={<AlertTriangle className="size-3.5" />}
       title={i18n.t("inspector.runtimeWarnings", { ns: "conversation" })}
     >
       <div className="space-y-1">
@@ -22,7 +23,7 @@ export function RuntimeWarningsSection({ store }: Readonly<{ store: TaskStore }>
             data-runtime-warning=""
             key={`${warning.sessionId}:${String(warning.sequence)}`}
           >
-            <summary className="flex min-h-7 cursor-pointer list-none items-center gap-2 text-label text-foreground [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-7 cursor-pointer list-none items-center gap-2 text-label text-foreground focus-visible:shadow-focus focus-visible:outline-none [&::-webkit-details-marker]:hidden">
               <ChevronRight
                 aria-hidden="true"
                 className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"

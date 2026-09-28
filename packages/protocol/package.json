@@ -8,6 +8,22 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./event-common": {
+      "types": "./src/event-common.ts",
+      "default": "./src/event-common.ts"
+    },
+    "./project-entity": {
+      "types": "./src/project-entity.ts",
+      "default": "./src/project-entity.ts"
+    },
+    "./project-root": {
+      "types": "./src/project-root.ts",
+      "default": "./src/project-root.ts"
+    },
+    "./task-common": {
+      "types": "./src/task-common.ts",
+      "default": "./src/task-common.ts"
     }
   },
   "dependencies": {

@@ -38,11 +38,18 @@ async function measureStartupToInteractive(): Promise<number> {
       if (!interactive || !measuring) return;
       measuring = false;
       observer.disconnect();
-      requestAnimationFrame(() => {
+      const recordSample = () => {
         measuredWindow.__CODEAGENT_INTERACTIVE_SAMPLE__ = {
           durationMs: performance.now() - startedAt,
         };
-      });
+      };
+      if (document.visibilityState === "hidden") {
+        // Embedded WebView 在后台暂停 rAF；强制布局后记录可重复的 DOM 渲染延迟。
+        document.body.getBoundingClientRect();
+        recordSample();
+      } else {
+        requestAnimationFrame(recordSample);
+      }
     };
     observer.observe(document.documentElement, { childList: true, subtree: true });
     window.setTimeout(() => {
@@ -85,15 +92,21 @@ async function measureDeltaRender(iteration: number): Promise<number> {
       const startedAt = performance.now();
       let measuring = true;
       const observer = new MutationObserver(() => {
-        if (!measuring || !document.body.innerText.includes(input.expected)) return;
+        if (!measuring || !document.body.textContent?.includes(input.expected)) return;
         measuring = false;
         observer.disconnect();
-        // 下一帧记录包含 React commit 与 WebView render 的完整延迟。
-        requestAnimationFrame(() => {
+        // 可见时等待下一帧；后台 WebView 则以强制布局完成作为测量终点。
+        const recordSample = () => {
           measuredWindow.__CODEAGENT_RENDER_SAMPLE__ = {
             durationMs: performance.now() - startedAt,
           };
-        });
+        };
+        if (document.visibilityState === "hidden") {
+          document.body.getBoundingClientRect();
+          recordSample();
+        } else {
+          requestAnimationFrame(recordSample);
+        }
       });
       observer.observe(document.body, { characterData: true, childList: true, subtree: true });
       window.setTimeout(() => {
@@ -125,9 +138,9 @@ async function measureDeltaRender(iteration: number): Promise<number> {
       browser.execute(() => (window as MeasurementWindow).__CODEAGENT_RENDER_SAMPLE__ !== undefined),
     { timeout: 7_000, timeoutMsg: `未生成第 ${String(iteration + 1)} 个渲染样本` },
   );
-  const sample = await browser.execute(
-    () => (window as MeasurementWindow).__CODEAGENT_RENDER_SAMPLE__,
-  );
+  const { sample } = await browser.execute(() => ({
+    sample: (window as MeasurementWindow).__CODEAGENT_RENDER_SAMPLE__,
+  }));
   if (sample?.error !== undefined) throw new Error(sample.error);
   if (sample?.durationMs === undefined) throw new Error("渲染性能样本无效");
   return sample.durationMs;
@@ -136,6 +149,9 @@ async function measureDeltaRender(iteration: number): Promise<number> {
 describe("原生 WebView 性能基线", () => {
   it("限制启动和 Runtime delta commit/render 延迟", async () => {
     const mocks = await installWebviewMocks();
+    const renderMode = await browser.execute(() =>
+      document.visibilityState === "hidden" ? "layout" : "frame",
+    );
     const startupToInteractiveMs = await measureStartupToInteractive();
 
     const customMode = await $("aria/自定义 API");
@@ -149,6 +165,7 @@ describe("原生 WebView 性能基线", () => {
     const task = await $('//a[.//span[normalize-space(.)="验证流式消息"]]');
     await task.click();
     await expect(task).toHaveAttribute("aria-current", "page");
+    await expect($("aria/开始流式输出")).toBeDisplayed();
 
     const renderSamples: number[] = [];
     for (let iteration = 0; iteration < SAMPLE_COUNT; iteration += 1) {
@@ -156,6 +173,7 @@ describe("原生 WebView 性能基线", () => {
     }
     const result = {
       engine: NATIVE_ENGINE,
+      renderMode,
       renderP50Ms: percentile(renderSamples, 0.5),
       renderP95Ms: percentile(renderSamples, 0.95),
       startupToInteractiveMs,

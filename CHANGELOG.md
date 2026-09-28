@@ -4,6 +4,24 @@
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-09-27
+
+### 新增
+
+- 支持从项目侧栏为任务创建并绑定 Git worktree，在独立工作区中继续对话。
+- 在任务检查器中整合文件预览与差异，并展示工具实时耗时及更多任务上下文。
+- 为流式回复添加渐进动画，在时间线折叠展示运行时警告。
+
+### 优化
+
+- 升级内置 Codex CLI 至 `0.157.1`，统一 Web 与桌面端的协议基线、共享 UI 及高频前端逻辑。
+- 搜索结果达到上限时停止目录扫描，缩小历史搜索分页的并发验证规模。
+
+### 修复
+
+- 修复排队消息编辑时草稿重复追加、待提交消息反馈延迟，以及提交失败后草稿丢失的问题。
+- 修复 Git worktree 路径校验、全局更新使用的 npm 路径与安装前缀，以及检查器标签后台刷新的问题。
+
 ## [0.26.1] - 2026-09-25
 
 ### 新增
@@ -437,7 +455,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.26.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.27.1
 [0.26.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.26.1
 [0.11.2]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.2
 [0.11.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.1

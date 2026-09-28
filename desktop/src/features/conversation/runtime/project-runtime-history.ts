@@ -1,6 +1,7 @@
 import type { AgentEvent, AgentTaskSnapshotResponse } from "@/protocol/index.js";
+import { ProjectEventHistory as SharedProjectEventHistory } from "@codexly/frontend-core";
 import { estimateRetainedBytes } from "../../../shared/memory/byte-lru.js";
-import { RingBuffer } from "../../../shared/memory/ring-buffer.js";
+export { isDeltaEvent } from "@codexly/frontend-core";
 
 export const PROJECT_RUNTIME_IDLE_TIMEOUT_MS = 2 * 60_000;
 export const MAX_PROJECT_EVENT_HISTORY_BYTES = 4 * 1_048_576;
@@ -42,78 +43,10 @@ export type ProjectRuntimeManagerOptions = Readonly<{
   ) => void;
 }>;
 
-type BufferedProjectEvent = Readonly<{
-  event: AgentEvent;
-  retainedBytes: number;
-}>;
-
-export class ProjectEventHistory {
-  readonly #entries: RingBuffer<BufferedProjectEvent>;
-  #floorSequence = 0;
-  readonly #maxBytes: number;
-  readonly #maxEvents: number;
-  #retainedBytes = 0;
-
+export class ProjectEventHistory extends SharedProjectEventHistory<AgentEvent> {
   public constructor(options: Readonly<{ maxBytes: number; maxEvents: number }>) {
-    if (!Number.isSafeInteger(options.maxBytes) || options.maxBytes < 0) {
-      throw new RangeError("Project Event history maxBytes must be non-negative");
-    }
-    if (!Number.isSafeInteger(options.maxEvents) || options.maxEvents < 0) {
-      throw new RangeError("Project Event history maxEvents must be non-negative");
-    }
-    this.#maxBytes = options.maxBytes;
-    this.#maxEvents = options.maxEvents;
-    this.#entries = new RingBuffer<BufferedProjectEvent>(options.maxEvents);
+    super({ ...options, estimateBytes: estimateRetainedBytes });
   }
-
-  public get floorSequence(): number {
-    return this.#floorSequence;
-  }
-
-  public append(event: AgentEvent): void {
-    const retainedBytes = estimateRetainedBytes(event);
-    if (retainedBytes > this.#maxBytes || this.#maxEvents === 0) {
-      this.reset(event.sequence);
-      return;
-    }
-    const evicted = this.#entries.append({ event, retainedBytes });
-    if (evicted !== undefined) this.#recordEviction(evicted);
-    this.#retainedBytes += retainedBytes;
-    while (this.#retainedBytes > this.#maxBytes) {
-      this.#evictOldest();
-    }
-  }
-
-  public forEachAfter(sequence: number, visit: (event: AgentEvent) => void): void {
-    this.#entries.forEach((entry) => {
-      if (entry.event.sequence > sequence) visit(entry.event);
-    });
-  }
-
-  public reset(floorSequence = this.#floorSequence): void {
-    this.#entries.clear();
-    this.#floorSequence = floorSequence;
-    this.#retainedBytes = 0;
-  }
-
-  #evictOldest(): void {
-    const oldestEntry = this.#entries.evictOldest();
-    if (oldestEntry !== undefined) this.#recordEviction(oldestEntry);
-  }
-
-  #recordEviction(entry: BufferedProjectEvent): void {
-    this.#retainedBytes -= entry.retainedBytes;
-    this.#floorSequence = entry.event.sequence;
-  }
-}
-
-export function isDeltaEvent(event: AgentEvent): boolean {
-  return (
-    event.type === "message.delta" ||
-    event.type === "reasoning.delta" ||
-    event.type === "plan.delta" ||
-    event.type === "command.output_delta"
-  );
 }
 
 export function createProjectTaskKey(projectId: string, taskId: string): string {

@@ -1,4 +1,7 @@
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::{BTreeMap, HashSet},
+    time::Duration,
+};
 
 use futures_util::future::try_join_all;
 use serde::{Deserialize, Serialize};
@@ -9,8 +12,8 @@ pub(super) use super::conversation_items::map_item;
 use super::conversation_items::map_status;
 use super::{connection::ConnectionError, sidebar::unix_seconds_to_rfc3339};
 use crate::domain::conversation::{
-    AgentTaskSettings, AgentTaskSnapshot, AgentTaskSnapshotResponse, AgentThreadConfiguration,
-    AgentTurn, EventCheckpoint,
+    AgentItemTiming, AgentTaskSettings, AgentTaskSnapshot, AgentTaskSnapshotResponse,
+    AgentThreadConfiguration, AgentTurn, EventCheckpoint,
 };
 
 use super::AppServerConnection;
@@ -71,7 +74,9 @@ struct ThreadItemsListResponse {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NativeThreadItemEntry {
+    completed_at_ms: Option<i64>,
     item: Value,
+    started_at_ms: Option<i64>,
     turn_id: String,
 }
 
@@ -119,6 +124,8 @@ pub(super) struct NativeTurn {
     completed_at: Option<i64>,
     error: Option<NativeTurnError>,
     id: String,
+    #[serde(skip)]
+    item_timings: Option<BTreeMap<String, AgentItemTiming>>,
     #[serde(default)]
     items: Vec<Value>,
     started_at: Option<i64>,
@@ -308,6 +315,8 @@ async fn hydrate_paginated_turn(
     let mut cursor = None;
     let mut seen_cursors = HashSet::new();
     let mut items = Vec::new();
+    // 分页条目的时间戳与 Item 正文分开传输，避免修改所有 Item 变体。
+    let mut item_timings = BTreeMap::new();
     loop {
         let page: ThreadItemsListResponse = connection
             .request(
@@ -331,6 +340,25 @@ async fn hydrate_paginated_turn(
             if entry.turn_id != turn.id || items.len() >= MAX_TURN_ITEMS {
                 return Err(ConnectionError::InvalidMessage);
             }
+            if entry.started_at_ms.is_some_and(|value| value < 0)
+                || entry.completed_at_ms.is_some_and(|value| value < 0)
+            {
+                return Err(ConnectionError::InvalidMessage);
+            }
+            if entry.started_at_ms.is_some() || entry.completed_at_ms.is_some() {
+                let id = entry
+                    .item
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .ok_or(ConnectionError::InvalidMessage)?;
+                item_timings.insert(
+                    id.to_owned(),
+                    AgentItemTiming {
+                        completed_at_ms: entry.completed_at_ms,
+                        started_at_ms: entry.started_at_ms,
+                    },
+                );
+            }
             items.push(entry.item);
         }
         let Some(next_cursor) = page.next_cursor else {
@@ -342,6 +370,7 @@ async fn hydrate_paginated_turn(
         cursor = Some(next_cursor);
     }
     items.reverse();
+    turn.item_timings = (!item_timings.is_empty()).then_some(item_timings);
     turn.items = items;
     Ok(turn)
 }
@@ -406,6 +435,7 @@ pub(super) fn map_turn(turn: NativeTurn) -> Result<AgentTurn, ConnectionError> {
         completed_at: turn.completed_at.map(unix_seconds_to_rfc3339),
         error: turn.error.map(|error| error.message),
         id: turn.id,
+        item_timings: turn.item_timings,
         items,
         started_at: turn.started_at.map(unix_seconds_to_rfc3339),
         status,
@@ -413,68 +443,5 @@ pub(super) fn map_turn(turn: NativeTurn) -> Result<AgentTurn, ConnectionError> {
 }
 
 #[cfg(test)]
-mod pagination_tests {
-    use serde_json::{Value, json};
-    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, duplex, split};
-
-    use super::{ConnectionError, NativeTurn, hydrate_paginated_turn, validate_page_cursors};
-    use crate::infrastructure::codex::AppServerConnection;
-
-    #[test]
-    fn page_cursors_should_be_non_empty_and_advance() {
-        assert!(validate_page_cursors(None, Some("next"), Some("back")).is_ok());
-        assert!(matches!(
-            validate_page_cursors(Some("same"), Some("same"), None),
-            Err(ConnectionError::InvalidMessage)
-        ));
-        assert!(matches!(
-            validate_page_cursors(None, None, Some("")),
-            Err(ConnectionError::InvalidMessage)
-        ));
-    }
-
-    #[tokio::test]
-    async fn paginated_items_should_belong_to_requested_turn() {
-        let (client, server) = duplex(8 * 1024);
-        let (client_reader, client_writer) = split(client);
-        let (server_reader, mut server_writer) = split(server);
-        let connection = AppServerConnection::new(client_reader, client_writer);
-        let server_task = tokio::spawn(async move {
-            let mut lines = BufReader::new(server_reader).lines();
-            let request: Value =
-                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
-            assert_eq!(request["method"], "thread/items/list");
-            server_writer
-                .write_all(
-                    format!(
-                        "{}\n",
-                        json!({
-                            "id": request["id"].clone(),
-                            "result": {
-                                "data": [{"turnId": "turn-b", "item": {"id": "item-a", "type": "plan", "text": "x"}}],
-                                "nextCursor": null,
-                                "backwardsCursor": null
-                            }
-                        })
-                    )
-                    .as_bytes(),
-                )
-                .await
-                .unwrap();
-        });
-        let turn = NativeTurn {
-            completed_at: None,
-            error: None,
-            id: "turn-a".to_owned(),
-            items: Vec::new(),
-            started_at: None,
-            status: "completed".to_owned(),
-        };
-
-        assert!(matches!(
-            hydrate_paginated_turn(&connection, "thread-a", turn).await,
-            Err(ConnectionError::InvalidMessage)
-        ));
-        server_task.await.unwrap();
-    }
-}
+#[path = "conversation_pagination_tests.rs"]
+mod pagination_tests;

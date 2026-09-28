@@ -55,7 +55,6 @@ function isolatedConfig(effective: Record<string, unknown>): Record<string, unkn
     "context_management",
     "current_time_reminder",
     "deferred_executor",
-    "enable_fanout",
     "goals",
     "hooks",
     "image_generation",

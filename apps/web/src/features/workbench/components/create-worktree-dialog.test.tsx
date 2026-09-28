@@ -14,10 +14,10 @@ describe("CreateWorktreeDialog", () => {
     );
 
     expect(markup).toContain('aria-labelledby="create-worktree-title"');
-    expect(markup).toContain("在仓库同级目录创建 worktree 并切换");
+    expect(markup).toContain("创建 worktree 任务");
     expect(markup).toContain('for="create-worktree-branch"');
     expect(markup).toContain('name="branch"');
-    expect(markup).toContain("创建并切换");
+    expect(markup).toContain("创建 worktree 和任务");
   });
 
   it("提交期间禁用输入与操作", () => {

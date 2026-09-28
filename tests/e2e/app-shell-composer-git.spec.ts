@@ -1,4 +1,11 @@
-import { expect, parseRequestRecord, projectGitStatus, test } from "./fixtures/app-shell.js";
+import {
+  expect,
+  parseRequestRecord,
+  projectGitStatus,
+  taskSnapshotResponse,
+  tasks,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -71,54 +78,54 @@ test("creates and switches to a branch from the composer footer", async ({ page 
   });
 });
 
-test("switches to an existing worktree from the composer footer", async ({ page }) => {
-  let switchRequest: Record<string, unknown> | undefined;
-  page.on("request", (request) => {
-    const url = new URL(request.url());
-    if (request.method() === "POST" && url.pathname === "/v1/projects/codexly/git/worktree") {
-      switchRequest = parseRequestRecord(request.postData());
-    }
-  });
+test("keeps worktree task creation in the project sidebar", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("button", { name: "切换分支，当前分支 feat/review-targets" }).click();
-  const worktreeItem = page.getByRole("menuitem", { name: /feat\/worktree-review/u });
-  await expect(worktreeItem).toContainText("/workspace/Codexly-worktree-review");
-  const responsePromise = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === "/v1/projects/codexly/git/worktree",
-  );
-  await worktreeItem.click();
-
-  await expect(responsePromise.then((response) => response.json())).resolves.toMatchObject({
-    project: { id: "codexly-worktree-review" },
-  });
-
-  await expect(page).toHaveURL(/\/p\/codexly-worktree-review$/u);
-  expect(switchRequest).toEqual({ path: "/workspace/Codexly-worktree-review" });
+  await expect(page.getByRole("menuitem", { name: /worktree/u })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "在 Codexly 中创建 worktree 任务" }).click();
+  const dialog = page.getByRole("dialog", { name: "创建 worktree 任务" });
+  await expect(dialog.getByRole("textbox", { name: "分支名称" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "创建 worktree 和任务" })).toBeDisabled();
 });
 
-test("creates and switches to a worktree from the composer footer", async ({ page }) => {
-  let createRequest: Record<string, unknown> | undefined;
-  page.on("request", (request) => {
-    const url = new URL(request.url());
-    if (request.method() === "POST" && url.pathname === "/v1/projects/codexly/git/worktrees") {
-      createRequest = parseRequestRecord(request.postData());
-    }
+test("creates a worktree task under its original project", async ({ page }) => {
+  const worktreePath = "/workspace/Codexly-composer-worktree";
+  const task = { ...tasks[0], id: "worktree-task-1", title: "新任务" };
+  let worktreeRequest: Record<string, unknown> | undefined;
+  let taskRequest: Record<string, unknown> | undefined;
+  await page.route("**/v1/projects/codexly/git/task-worktrees?*", async (route) => {
+    worktreeRequest = parseRequestRecord(route.request().postData());
+    await route.fulfill({
+      contentType: "application/json",
+      json: { worktree: { branch: "feat/sidebar-worktree", current: false, path: worktreePath } },
+    });
+  });
+  await page.route("**/v1/projects/codexly/tasks", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    taskRequest = parseRequestRecord(route.request().postData());
+    await route.fulfill({ contentType: "application/json", json: { task } });
+  });
+  await page.route("**/v1/projects/codexly/tasks/worktree-task-1", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      json: { ...taskSnapshotResponse, snapshot: { ...taskSnapshotResponse.snapshot, ...task } },
+    });
   });
   await page.goto("/p/codexly/t/task-1");
 
-  await page.getByRole("button", { name: "切换分支，当前分支 feat/review-targets" }).click();
-  await page.getByRole("menuitem", { name: "新建 worktree" }).click();
-  const dialog = page.getByRole("dialog", { name: "新建 worktree" });
-  await expect(dialog).toContainText("在仓库同级目录创建 worktree 并切换");
-  await dialog.getByRole("textbox", { name: "分支名称" }).fill("feat/composer-worktree");
-  await dialog.getByRole("button", { name: "创建并切换" }).click();
+  await page.getByRole("button", { name: "在 Codexly 中创建 worktree 任务" }).click();
+  const dialog = page.getByRole("dialog", { name: "创建 worktree 任务" });
+  await dialog.getByRole("textbox", { name: "分支名称" }).fill("feat/sidebar-worktree");
+  await dialog.getByRole("button", { name: "创建 worktree 和任务" }).click();
 
-  await expect(page).toHaveURL(/\/p\/codexly-composer-worktree$/u);
-  expect(createRequest).toEqual({
-    branch: "feat/composer-worktree",
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/worktree-task-1$/u);
+  expect(worktreeRequest).toEqual({
+    branch: "feat/sidebar-worktree",
     expectedSnapshot: projectGitStatus.snapshot,
   });
+  expect(taskRequest).toEqual({ rootPath: "/workspace/Codexly", worktreePath });
 });
 
 test("opens current-branch Git history from the inspector tab", async ({ page }) => {
@@ -214,26 +221,27 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
   expect(historyRequests).toEqual([`?rootPath=${encodedRootPath}`]);
 
   await inspector.getByRole("button", { name: /^apps\/web commit 1 /u }).click();
-  const reviewDialog = page.locator('[data-slot="dialog-content"]');
-  await expect(page.getByRole("dialog", { name: "apps/web commit 1" })).toBeVisible();
-  await expect(inspector.getByText("apps/web commit 1", { exact: true })).toBeVisible();
-  await expect(reviewDialog.getByText("Diff 过长，仅展示前 512 KiB")).toBeVisible();
-  await expect(reviewDialog.locator(".file-diff-renderer")).toContainText("new");
+  const reviewPanel = inspector.getByRole("tabpanel", { name: "apps/web commit 1" });
+  await expect(reviewPanel).toBeVisible();
+  await expect(reviewPanel.getByText("Diff 过长，仅展示前 512 KiB")).toBeVisible();
+  await expect(reviewPanel.locator(".file-diff-renderer")).toContainText("new");
   expect(commitFileRequests).toEqual([
     `?repository=apps%2Fweb&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
   ]);
   expect(commitDiffRequests).toEqual([
     `?path=src%2Freview-0.ts&repository=apps%2Fweb&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
   ]);
-  await reviewDialog.getByRole("button", { name: "加载更多文件" }).click();
-  await expect(reviewDialog.getByText("review-100.ts")).toBeVisible();
+  await reviewPanel.getByRole("button", { name: "展开变更文件导航" }).click();
+  await reviewPanel.getByRole("button", { name: "加载更多文件" }).click();
+  await expect(reviewPanel.getByText("review-100.ts")).toBeAttached();
   expect(commitFileRequests).toEqual([
     `?repository=apps%2Fweb&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
     `?cursor=100&repository=apps%2Fweb&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
   ]);
   expect(commitDiffRequests).toHaveLength(1);
-  await reviewDialog.getByRole("button", { name: "关闭文件审核" }).click();
-  await expect(reviewDialog).not.toBeVisible();
+  await reviewPanel.getByRole("button", { name: "关闭文件审核" }).click();
+  await expect(reviewPanel).not.toBeAttached();
+  await historyTab.click();
   await expect(inspector.getByText("apps/web commit 1", { exact: true })).toBeVisible();
 
   await inspector.getByRole("tab", { name: "packages/server" }).click();

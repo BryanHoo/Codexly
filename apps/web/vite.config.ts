@@ -63,6 +63,12 @@ export default defineConfig({
               test: /node_modules[\\/]@floating-ui[\\/]react[\\/]/u,
             },
             {
+              // 内存工具在入口初始化时使用，独立成块以避开首屏块之间的循环初始化。
+              includeDependenciesRecursively: false,
+              name: "snapshot-memory",
+              test: /[\\/]shared[\\/]memory[\\/]byte-lru\.ts$/u,
+            },
+            {
               // 合并首屏静态依赖，抵消异步功能增加共享图后产生的细碎 Chunk 与重复压缩开销。
               includeDependenciesRecursively: false,
               maxSize: 480 * 1024,

@@ -368,6 +368,14 @@ function InteractiveMessageBlock(props: BlockProps) {
   );
 }
 
+const STREAMING_ANIMATION = {
+  animation: "fadeIn",
+  duration: 180,
+  easing: "ease-out",
+  sep: "word",
+  stagger: 12,
+} as const;
+
 function MessageResponseContent({
   children,
   className = "",
@@ -407,6 +415,8 @@ function MessageResponseContent({
   return (
     <MessageFileReferenceContext.Provider value={onOpenFileReference ?? null}>
       <StreamingMarkdown
+        key={props.isAnimating ? "animating" : "settled"}
+        {...(streaming && !enabled && props.isAnimating ? { animated: STREAMING_ANIMATION } : {})}
         enabled={enabled}
         tree={blockTree}
         fast={streaming && components === undefined && remarkPlugins === undefined && props.rehypePlugins === undefined && props.plugins === undefined && !promptFileReferences}

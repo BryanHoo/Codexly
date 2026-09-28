@@ -207,6 +207,15 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
   overflow: hidden;
 }
 
+/* 标签保留横向滚动，同时让滚动条不占用点击区域。 */
+.workbench-inspector-tab-list {
+  scrollbar-width: none;
+}
+
+.workbench-inspector-tab-list::-webkit-scrollbar {
+  display: none;
+}
+
 /* Task 行始终保留操作位，hover/focus 只切换内容，避免标题和列表宽度抖动。 */
 .task-actions {
   opacity: 0;

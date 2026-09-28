@@ -1,0 +1,36 @@
+{
+  "name": "@codexly/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./agent/message": {
+      "types": "./src/agent/message.tsx",
+      "default": "./src/agent/message.tsx"
+    },
+    "./agent/patch-diff-viewer": {
+      "types": "./src/agent/patch-diff-viewer.tsx",
+      "default": "./src/agent/patch-diff-viewer.tsx"
+    },
+    "./core/*": {
+      "types": "./src/core/*.tsx",
+      "default": "./src/core/*.tsx"
+    }
+  },
+  "dependencies": {
+    "@pierre/diffs": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "lucide-react": "catalog:",
+    "radix-ui": "catalog:",
+    "tailwind-merge": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "typescript": "catalog:"
+  }
+}

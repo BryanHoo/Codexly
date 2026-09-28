@@ -22,12 +22,12 @@ describe("Codex runtime manager", () => {
     invoke
       .mockResolvedValueOnce({
         detectedVersion: null,
-        requiredVersion: "0.156.0",
+        requiredVersion: "0.157.1",
         status: "compatible",
       })
       .mockResolvedValueOnce({
-        detectedVersion: "0.156.0",
-        requiredVersion: "0.156.0",
+        detectedVersion: "0.157.1",
+        requiredVersion: "0.157.1",
         status: "compatible",
       });
     const { downloadAndInspectCodexRuntime } = await import("./codex-runtime-manager.js");
@@ -73,7 +73,7 @@ describe("Codex runtime manager", () => {
         downloadedBytes: 42,
         phase: "downloading",
         sequence: 2,
-        targetVersion: "0.156.0",
+        targetVersion: "0.157.1",
         totalBytes: 100,
       });
       channelHandler?.({
@@ -81,7 +81,7 @@ describe("Codex runtime manager", () => {
         downloadedBytes: 10,
         phase: "downloading",
         sequence: 1,
-        targetVersion: "0.156.0",
+        targetVersion: "0.157.1",
         totalBytes: 100,
       });
       return { status: "compatible" };

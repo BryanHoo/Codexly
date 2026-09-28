@@ -30,7 +30,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Attach files, images, and audio, reference project files with `@` and Skills with `$` in the plain-text composer, and reliably restore attachments from the task queue
 - Install and manage Skills, official plugins, and third-party markets in the extension center, including MCP service controls and hot reload
 - Answer asynchronous questions in a pinned panel, prevent concurrent interactions with cross-client task locks, and restore thread model and reasoning settings
-- Follow streaming reasoning summaries and grouped operations, and inspect runtime warnings in the context panel
+- Follow streaming reasoning summaries and grouped operations, and inspect runtime warnings and live tool timing in the context panel and timeline
 - Run commands in the project-native integrated terminal and switch between persistent sessions
 - Use global shortcuts to create tasks, switch workspace areas, and perform common actions
 - Create scheduled tasks with visual recurrence rules for weekdays, weekends, weekly, or monthly schedules, then preview upcoming runs
@@ -39,7 +39,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Discover models from custom providers online and fall back to a local catalog when unavailable
 - Manage multiple project roots, temporary tasks, and archived tasks, generate titles for new tasks, and fork new tasks from existing conversations
 - Search tasks, message history, and project files across projects, then jump to exact history matches
-- Browse and manage project files, switch between file previews and diffs, review uncommitted changes and commit history, then copy messages as source-preserving Markdown
+- Browse and manage project files, switch between file previews and diffs in the inspector, review uncommitted changes and commit history, then copy messages as source-preserving Markdown
 - Create or switch Git branches and worktrees, then select files to commit or push
 - Use Simplified Chinese or English, system notifications, minimize to tray, and workspace pets
 

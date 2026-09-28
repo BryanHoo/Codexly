@@ -1,7 +1,6 @@
 import type { AgentProvider, AgentProviderEvent } from "@codexly/core";
 import type { AgentMessageAttachment } from "@codexly/protocol";
 import type { RpcErrorPayload, RpcServerRequest } from "./jsonl-rpc-client.js";
-import { SUPPORTED_CODEX_VERSION } from "./binary.js";
 import {
   CodexProtocolMappingError,
   CODEX_THREAD_CONFIG,
@@ -33,6 +32,7 @@ import {
 } from "./agent-provider-notifications.js";
 import { mapCodexMessageImage, mapCodexMessageText } from "./agent-provider-message-attachments.js";
 import { normalizedPathIdentity } from "./runtime-owner-registry.js";
+import { resumeReviewWorker } from "./review-worker-resume.js";
 
 export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
   public publishProjectGitMetadataChanged(rootPath: string): boolean {
@@ -102,7 +102,12 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
         );
         this.runtime.reviewWorkerTaskIds.set(reviewWorker.parentTaskId, reviewWorker.workerTaskId);
         this.runtime.activeReviewWorkerTaskIds.add(reviewWorker.parentTaskId);
-        void this.resumeReviewWorker(reviewWorker.workerTaskId);
+        void resumeReviewWorker(
+          this.client,
+          this.logger,
+          this.project.id,
+          reviewWorker.workerTaskId,
+        );
       }
       return;
     }
@@ -443,7 +448,12 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
           excludeTurns: true,
           // 恢复 Project Task 时覆盖旧运行时配置，使全部根立即生效。
           ...(this.project.kind === "project"
-            ? { runtimeWorkspaceRoots: [...this.project.runtimeWorkspaceRoots] }
+            ? {
+                runtimeWorkspaceRoots: this.runtime.workspaceRootsForTask(
+                  taskId,
+                  this.project.runtimeWorkspaceRoots,
+                ),
+              }
             : {}),
           threadId: taskId,
         }),
@@ -464,35 +474,6 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
       if (this.runtime.resumePromises.get(taskId) === resumePromise) {
         this.runtime.resumePromises.delete(taskId);
       }
-    }
-  }
-
-  protected async resumeReviewWorker(workerTaskId: string): Promise<void> {
-    try {
-      const response = expectRecord(
-        await this.client.request("thread/resume", {
-          config: CODEX_THREAD_CONFIG,
-          threadId: workerTaskId,
-        }),
-        "review worker thread/resume response",
-      );
-      const thread = expectRecord(response["thread"], "review worker thread/resume thread");
-      if (expectString(thread["id"], "review worker resumed thread id") !== workerTaskId) {
-        throw new CodexProtocolMappingError(
-          "review worker thread/resume returned a different thread",
-        );
-      }
-    } catch {
-      // Snapshot 会补偿订阅建立前的事件；恢复失败不能中断父 Task 的审查生命周期。
-      this.logger.warn(
-        {
-          codexVersion: SUPPORTED_CODEX_VERSION,
-          diagnosticCode: "review_worker_resume_failed",
-          projectId: this.project.id,
-          taskId: workerTaskId,
-        },
-        "Codex review worker resume failed",
-      );
     }
   }
 }

@@ -116,6 +116,11 @@ export function createCustomProviderConfigUpdate(
       mergeStrategy: "upsert",
       value: true,
     },
+    {
+      keyPath: "suppress_unstable_features_warning",
+      mergeStrategy: "upsert",
+      value: true,
+    },
   ];
   const rollbackEdits: ProviderConfigEdit[] = [
     {
@@ -127,6 +132,11 @@ export function createCustomProviderConfigUpdate(
       keyPath: "features.api_key_model_discovery",
       mergeStrategy: "replace",
       value: previousFeatures?.["api_key_model_discovery"] ?? null,
+    },
+    {
+      keyPath: "suppress_unstable_features_warning",
+      mergeStrategy: "replace",
+      value: config["suppress_unstable_features_warning"] ?? null,
     },
   ];
   // 已激活的自定义 Provider 属于用户配置；重连只能更新它，不能切换选择。

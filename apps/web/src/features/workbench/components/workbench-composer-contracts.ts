@@ -25,6 +25,7 @@ import type {
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 import type { ComposerDraft } from "../composer-draft-context.js";
 import type { CodexlyMutationClient } from "../../projects/project-queries.js";
+import type { PendingPrompt } from "./pending-prompt.js";
 import type {
   CodexlyGitMutationClient,
   CodexlyProjectFileSearchClient,
@@ -88,7 +89,8 @@ export type WorkbenchComposerProps = Readonly<{
   onRequestNotificationPermission: () => void;
   onOpenProjectPath: () => void;
   onProjectRootChange: (rootId: string) => void;
-  onDirectSubmission?: () => void;
+  onDirectSubmission?: (prompt?: PendingPrompt) => void;
+  onSubmissionFailed?: () => void;
   onCaptureSubmission?: (
     input: AgentPromptInput,
     options: AgentTurnOptions,

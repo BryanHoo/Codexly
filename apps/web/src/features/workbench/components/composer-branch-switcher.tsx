@@ -1,5 +1,5 @@
-import type { ProjectGitStatus, ProjectGitWorktree } from "@codexly/protocol";
-import { ChevronsUpDown, GitBranch, GitFork, LoaderCircle, Plus } from "lucide-react";
+import type { ProjectGitStatus } from "@codexly/protocol";
+import { ChevronsUpDown, GitBranch, LoaderCircle, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -16,48 +16,32 @@ import {
   DropdownMenuTrigger,
 } from "../../../shared/components/core/dropdown-menu.js";
 import { CreateBranchDialog } from "./create-branch-dialog.js";
-import { CreateWorktreeDialog } from "./create-worktree-dialog.js";
 
 type ComposerBranchSwitcherProps = Readonly<{
   creatingBranch: string | undefined;
-  creatingWorktree: string | undefined;
   gitStatus: ProjectGitStatus | undefined;
   onBranchChange: (branch: string) => void;
   onBranchCreate: (branch: string) => Promise<boolean>;
-  onWorktreeChange: (path: string) => void;
-  onWorktreeCreate: (branch: string) => Promise<boolean>;
   switchingBranch: string | undefined;
-  switchingWorktree: string | undefined;
-  worktrees: readonly ProjectGitWorktree[];
 }>;
 
 export function resolveComposerGitSwitchTargets(
   branches: readonly string[],
   currentBranch: string | null,
-  worktrees: readonly ProjectGitWorktree[],
 ) {
-  // 当前项无法再次切换；过滤后为空时，对应切换模块没有展示价值。
-  return {
-    branches: branches.filter((branch) => branch !== currentBranch),
-    worktrees: worktrees.filter((worktree) => !worktree.current),
-  };
+  // 当前分支不再列为可切换目标。
+  return { branches: branches.filter((branch) => branch !== currentBranch) };
 }
 
 export function ComposerBranchSwitcher({
   creatingBranch,
-  creatingWorktree,
   gitStatus,
   onBranchChange,
   onBranchCreate,
-  onWorktreeChange,
-  onWorktreeCreate,
   switchingBranch,
-  switchingWorktree,
-  worktrees,
 }: ComposerBranchSwitcherProps) {
   const { t } = useTranslation("workbench");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createWorktreeDialogOpen, setCreateWorktreeDialogOpen] = useState(false);
 
   if (gitStatus === undefined || gitStatus.repositoryMode === "none") {
     return null;
@@ -66,16 +50,8 @@ export function ComposerBranchSwitcher({
   const currentBranch = gitStatus.branch;
   const interactive = gitStatus.repositoryMode === "root" && currentBranch !== null;
   const label = currentBranch ?? t("composer.gitBranchMissing");
-  const mutationPending =
-    switchingBranch !== undefined ||
-    creatingBranch !== undefined ||
-    switchingWorktree !== undefined ||
-    creatingWorktree !== undefined;
-  const switchTargets = resolveComposerGitSwitchTargets(
-    gitStatus.branches,
-    currentBranch,
-    worktrees,
-  );
+  const mutationPending = switchingBranch !== undefined || creatingBranch !== undefined;
+  const switchTargets = resolveComposerGitSwitchTargets(gitStatus.branches, currentBranch);
 
   if (!interactive) {
     return (
@@ -135,34 +111,6 @@ export function ComposerBranchSwitcher({
               <DropdownMenuSeparator />
             </>
           )}
-          {switchTargets.worktrees.length === 0 ? null : (
-            <>
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>{t("composer.worktreeSwitcherMenu")}</DropdownMenuLabel>
-                {switchTargets.worktrees.map((worktree) => (
-                  <DropdownMenuItem
-                    disabled={mutationPending}
-                    key={worktree.path}
-                    onSelect={() => {
-                      onWorktreeChange(worktree.path);
-                    }}
-                    title={worktree.path}
-                  >
-                    <GitFork aria-hidden="true" className="size-3.5" />
-                    <span className="grid min-w-0 flex-1">
-                      <span className="truncate">
-                        {worktree.branch ?? t("composer.detachedHead")}
-                      </span>
-                      <span className="truncate text-caption text-muted-foreground">
-                        {worktree.path}
-                      </span>
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-            </>
-          )}
           <DropdownMenuItem
             disabled={mutationPending}
             onSelect={() => {
@@ -171,15 +119,6 @@ export function ComposerBranchSwitcher({
           >
             <Plus aria-hidden="true" className="size-3.5 text-muted-foreground" />
             {t("composer.createBranch")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={mutationPending}
-            onSelect={() => {
-              setCreateWorktreeDialogOpen(true);
-            }}
-          >
-            <GitFork aria-hidden="true" className="size-3.5 text-muted-foreground" />
-            {t("composer.createWorktree")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -190,15 +129,6 @@ export function ComposerBranchSwitcher({
             setCreateDialogOpen(false);
           }}
           onCreate={onBranchCreate}
-        />
-      ) : null}
-      {createWorktreeDialogOpen ? (
-        <CreateWorktreeDialog
-          isPending={creatingWorktree !== undefined}
-          onClose={() => {
-            setCreateWorktreeDialogOpen(false);
-          }}
-          onCreate={onWorktreeCreate}
         />
       ) : null}
     </>

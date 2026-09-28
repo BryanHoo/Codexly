@@ -64,6 +64,7 @@ describe("task title generation", () => {
           "features.hooks": false,
         },
       });
+      expect(rpc.calls[1]?.params).not.toHaveProperty(["config", "features.enable_fanout"]);
       expect(rpc.calls[2]?.params).toMatchObject({ outputSchema: { required: ["title"] } });
       expect(rpc.calls[2]?.params).not.toHaveProperty("effort");
       expect(rpc.calls.at(-1)).toEqual({

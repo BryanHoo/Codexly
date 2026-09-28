@@ -90,7 +90,8 @@ export function assertProjectThread(
 
 export async function mapAgentTask(
   thread: Record<string, unknown>,
-  project: Pick<AgentTaskScope, "id" | "kind">,
+  project: Pick<AgentTaskScope, "id" | "kind"> &
+    Partial<Pick<AgentTaskScope, "runtimeWorkspaceRoots">>,
 ): Promise<AgentTask> {
   await assertProjectThread(thread, project);
   if (thread["model"] !== null && typeof thread["model"] !== "string") {
@@ -110,6 +111,12 @@ export async function mapAgentTask(
     },
     title: normalizedTitle(thread),
     updatedAt: toDateTime(thread["updatedAt"], "Codex thread updatedAt"),
+    // 仅额外 worktree 需要绑定路径；普通 Project root 继续按用户选择显示。
+    ...(project.runtimeWorkspaceRoots !== undefined &&
+    optionalString(thread["cwd"]) !== undefined &&
+    !project.runtimeWorkspaceRoots.includes(expectString(thread["cwd"], "Codex thread cwd"))
+      ? { workspacePath: expectString(thread["cwd"], "Codex thread cwd") }
+      : {}),
   };
 }
 
@@ -213,6 +220,34 @@ export function mapAgentTurn(
     throw new CodexProtocolMappingError("Codex turn items must be an array");
   }
   const turnId = explicitTurnId ?? expectString(turn["id"], "Codex turn id");
+  const rawItemTimings = turn["itemTimings"];
+  const itemTimings =
+    rawItemTimings === undefined
+      ? undefined
+      : Object.fromEntries(
+          Object.entries(expectRecord(rawItemTimings, "Codex item timings")).map(
+            ([id, rawTiming]) => {
+              const timing = expectRecord(rawTiming, "Codex item timing");
+              const readTimestamp = (key: "startedAtMs" | "completedAtMs") => {
+                const value = timing[key];
+                if (value === undefined) return undefined;
+                if (!Number.isSafeInteger(value) || (value as number) < 0) {
+                  throw new CodexProtocolMappingError(`Codex item timing ${key} is invalid`);
+                }
+                return value as number;
+              };
+              const startedAtMs = readTimestamp("startedAtMs");
+              const completedAtMs = readTimestamp("completedAtMs");
+              return [
+                id,
+                {
+                  ...(startedAtMs === undefined ? {} : { startedAtMs }),
+                  ...(completedAtMs === undefined ? {} : { completedAtMs }),
+                },
+              ];
+            },
+          ),
+        );
   const nativeItems = turn["items"].map((item) => expectRecord(item, "Codex turn item"));
   const enteredReviewMode = nativeItems.find((item) => item["type"] === "enteredReviewMode");
   const exitedReviewMode = nativeItems.findLast(
@@ -261,6 +296,7 @@ export function mapAgentTurn(
             "Codex turn error message",
           ),
     id: turnId,
+    ...(itemTimings === undefined ? {} : { itemTimings }),
     // 先收集活动项中的昵称，再回填协作项，避免向 Web 暴露不可读的线程 ID。
     items: reviewWorker
       ? mergeExpandedSkillMessages([

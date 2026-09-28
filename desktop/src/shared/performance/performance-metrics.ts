@@ -15,6 +15,7 @@ export type DistributionSummary = Readonly<{
 
 export type PerformanceSnapshot = Readonly<{
   deltaToReactCommitMs: DistributionSummary;
+  enqueueToWebViewMs: DistributionSummary;
   ipc: Readonly<{
     eventsPerSecond: number;
     mergeRate: number;
@@ -45,6 +46,7 @@ function appendBounded(values: number[], value: number): void {
 export class PerformanceMetrics {
   readonly #deltaReceivedAtBySequence = new Map<string, number>();
   readonly #deltaToCommitMs: number[] = [];
+  readonly #enqueueToWebViewMs: number[] = [];
   readonly #ipcEventTimes: number[] = [];
   readonly #longTaskMs: number[] = [];
   readonly #reactActualDurationMs: number[] = [];
@@ -63,6 +65,11 @@ export class PerformanceMetrics {
   public recordIpcEvent(queueDepth: number, nowMs: number): void {
     appendBounded(this.#ipcEventTimes, nowMs);
     this.#queueHighWatermark = Math.max(this.#queueHighWatermark, queueDepth);
+  }
+
+  public recordEnqueueToWebView(enqueuedAtUnixMs: number, receivedAtUnixMs: number): void {
+    if (!Number.isFinite(enqueuedAtUnixMs) || enqueuedAtUnixMs > receivedAtUnixMs) return;
+    appendBounded(this.#enqueueToWebViewMs, receivedAtUnixMs - enqueuedAtUnixMs);
   }
 
   public recordIpcMerge(inputEvents: number, outputEvents: number): void {
@@ -90,6 +97,7 @@ export class PerformanceMetrics {
     const mergedEvents = Math.max(0, this.#ipcInputEvents - this.#ipcOutputEvents);
     return {
       deltaToReactCommitMs: summarize(this.#deltaToCommitMs),
+      enqueueToWebViewMs: summarize(this.#enqueueToWebViewMs),
       ipc: {
         eventsPerSecond: this.#ipcEventTimes.length,
         mergeRate: this.#ipcInputEvents === 0 ? 0 : mergedEvents / this.#ipcInputEvents,

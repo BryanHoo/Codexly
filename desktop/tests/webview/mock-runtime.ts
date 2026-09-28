@@ -105,7 +105,7 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
         get_app_info: {
           appVersion: "0.1.0",
           changelogUrl: "https://github.com/BryanHoo/Codexly/blob/main/desktop/CHANGELOG.md",
-          codexVersion: "0.156.0",
+          codexVersion: "0.157.1",
           latestVersion: null,
           releaseNotes: "## [0.1.0] - 2026-08-31",
           releaseNotesVersion: "0.1.0",
@@ -125,8 +125,8 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
           "codeagent.language-preference": JSON.stringify({ language: "zh-CN", version: 1 }),
         },
         inspect_codex_runtime: {
-          detectedVersion: "0.156.0",
-          requiredVersion: "0.156.0",
+          detectedVersion: "0.157.1",
+          requiredVersion: "0.157.1",
           status: "compatible",
         },
         list_background_terminals: { data: [] },

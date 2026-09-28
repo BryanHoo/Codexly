@@ -23,7 +23,7 @@ async fn global_search_maps_titles_and_history_without_loading_turns() {
             );
             let params = &request["params"];
             assert_eq!(params["searchTerm"], "中文");
-            assert_eq!(params["limit"], 30);
+            assert_eq!(params["limit"], if kind == "history" { 10 } else { 30 });
             assert_eq!(params["archived"], true);
             assert_eq!(params["cursor"], "page-2");
             assert!(params.get("projectId").is_none());
@@ -162,6 +162,57 @@ async fn history_search_filters_unlocatable_rollout_hits_and_preserves_paginatio
     .await
     .unwrap();
     assert!(page.data.is_empty());
+    assert_eq!(page.next_cursor.as_deref(), Some("next-page"));
+    worker.await.unwrap();
+}
+
+#[tokio::test]
+async fn history_search_limits_anchor_requests_to_one_small_page() {
+    let (client, server) = duplex(16384);
+    let (reader, writer) = split(client);
+    let connection = AppServerConnection::new(reader, writer);
+    let (reader, mut writer) = split(server);
+    let worker = tokio::spawn(async move {
+        let mut lines = BufReader::new(reader).lines();
+        let request: Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(request["method"], "thread/search");
+        assert_eq!(request["params"]["limit"], 10);
+        let entries = (0..11).map(|index| json!({"thread":{"id":format!("t{index}"),"name":"Task","preview":"","projectId":null,"status":{"type":"idle"},"updatedAt":0},"snippet":"过程消息"})).collect::<Vec<_>>();
+        let response =
+            json!({"id":request["id"],"result":{"data":entries,"nextCursor":"next-page"}});
+        writer
+            .write_all(format!("{response}\n").as_bytes())
+            .await
+            .unwrap();
+        for _ in 0..10 {
+            let request: Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert_eq!(request["method"], "thread/searchOccurrences");
+            let result = if request["params"]["threadId"] == "t0" {
+                json!({"data":[],"nextCursor":null})
+            } else {
+                json!({"data":[{"itemId":"item","turnId":"turn","turnCursor":"inclusive","snippet":"过程消息","snippetMatchRange":{"start":0,"end":2}}],"nextCursor":null})
+            };
+            writer
+                .write_all(format!("{}\n", json!({"id":request["id"],"result":result})).as_bytes())
+                .await
+                .unwrap();
+        }
+    });
+    let page = search_tasks(
+        &connection,
+        TaskSearchInput {
+            query: "消息".into(),
+            archived: false,
+            kind: Some("history".into()),
+            cursor: None,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(page.data.len(), 9);
+    assert!(page.data.iter().all(|entry| entry.occurrence.is_some()));
     assert_eq!(page.next_cursor.as_deref(), Some("next-page"));
     worker.await.unwrap();
 }

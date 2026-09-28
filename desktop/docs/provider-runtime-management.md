@@ -4,7 +4,7 @@
 
 Codexly 只运行应用数据目录中的私有 Codex，不将二进制打包为 Tauri Sidecar。
 首次打开应用时自动检查；缺失、损坏或版本不符时自动下载安装当前应用要求的精确版本。
-正常启动不联网检查最新版本，版本由应用的 Provider 协议适配器固定为 `0.156.0`。
+正常启动不联网检查最新版本，版本由应用的 Provider 协议适配器固定为 `0.157.1`。
 
 不扫描系统 `PATH`、官方安装目录、Node 版本管理器或全局包管理器，
 不接受 `CODEAGENT_CODEX_BIN` 覆盖，也不回退到全局 Codex。
@@ -15,7 +15,7 @@ Codexly 只运行应用数据目录中的私有 Codex，不将二进制打包为
 ```text
 appData/providers/codex/
 ├── bin/
-│   └── 0.156.0/
+│   └── 0.157.1/
 │       └── bin/codex[.exe]
 └── active.json
 ```

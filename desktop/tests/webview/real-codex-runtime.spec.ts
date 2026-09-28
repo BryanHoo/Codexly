@@ -13,7 +13,7 @@ import {
 } from "./mock-runtime.js";
 
 const execFileAsync = promisify(execFile);
-const REQUIRED_CODEX_VERSION = "0.156.0";
+const REQUIRED_CODEX_VERSION = "0.157.1";
 const realRuntimeEnabled = process.env.CODEAGENT_REAL_RUNTIME_TEST === "1";
 const describeRealRuntime = realRuntimeEnabled ? describe : describe.skip;
 const REAL_COMMANDS = [

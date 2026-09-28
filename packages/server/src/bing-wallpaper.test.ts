@@ -36,6 +36,8 @@ describe("Bing wallpaper service", () => {
     expect(fetcher.mock.calls[1]?.[0]).toBe(
       "https://www.bing.com/th?id=OHR.Workbench_1920x1080.jpg&pid=hp",
     );
+    expect(fetcher.mock.calls[0]?.[1].headers).toMatchObject({ "user-agent": "Codexly" });
+    expect(fetcher.mock.calls[1]?.[1].headers).toMatchObject({ "user-agent": "Codexly" });
   });
 
   it("rejects external image paths and oversized responses", async () => {

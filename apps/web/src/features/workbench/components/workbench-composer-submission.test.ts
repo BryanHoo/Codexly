@@ -138,6 +138,41 @@ function createHarness(overrides: Partial<ComposerSubmissionOptions> = {}) {
 }
 
 describe("createComposerSubmission", () => {
+  it("clears an immediate prompt before the server responds and restores it on rejection", async () => {
+    let rejectSubmission: ((error: Error) => void) | undefined;
+    const submitTask = vi.fn(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectSubmission = reject;
+        }),
+    );
+    const clearComposerInput = vi.fn();
+    const restoreComposerInput = vi.fn();
+    const onDirectSubmission = vi.fn();
+    const onSubmissionFailed = vi.fn();
+    const promptContent = createPromptSkillContent("提交内容");
+    const harness = createHarness({
+      clearComposerInput,
+      restoreComposerInput,
+      client: { submitTask } as unknown as ComposerSubmissionOptions["client"],
+      onDirectSubmission,
+      onSubmissionFailed,
+      promptContent,
+    });
+
+    const result = harness.submit({ files: [], text: "提交内容" });
+    await vi.waitFor(() => {
+      expect(submitTask).toHaveBeenCalledOnce();
+    });
+    expect(clearComposerInput).toHaveBeenCalledOnce();
+    expect(onDirectSubmission).toHaveBeenCalledWith({ files: [], skills: [], text: "提交内容" });
+
+    rejectSubmission?.(new Error("request failed"));
+    await expect(result).resolves.toBe(false);
+    expect(onSubmissionFailed).toHaveBeenCalledOnce();
+    expect(restoreComposerInput).toHaveBeenCalledWith(promptContent, []);
+  });
+
   it("captures a scheduled prompt without starting a task", async () => {
     const onCaptureSubmission = vi.fn(() => Promise.resolve());
     const harness = createHarness({ onCaptureSubmission });

@@ -216,6 +216,50 @@ describe("task timeline basics", () => {
     expect(markup).toContain(`data-conversation-anchor="${anchorId}"`);
   });
 
+  it("shows only tool duration immediately before its status", () => {
+    const timedSnapshot: RuntimeTaskSnapshot = {
+      ...snapshot,
+      turns: [
+        {
+          ...completedTurn,
+          itemTimings: {
+            "user-1": { startedAtMs: 1_753_318_799_000, completedAtMs: 1_753_318_799_250 },
+            "message-1": { startedAtMs: 1_753_318_800_000, completedAtMs: 1_753_318_802_500 },
+            "command-1": { startedAtMs: 1_753_318_803_000, completedAtMs: 1_753_318_805_500 },
+            "tool-1": { startedAtMs: 1_753_318_806_000, completedAtMs: 1_753_318_806_250 },
+            "subagent-1": { startedAtMs: 1_753_318_807_000, completedAtMs: 1_753_318_808_000 },
+          },
+          items: [
+            { id: "user-1", role: "user", text: "开始", type: "message" },
+            { id: "message-1", role: "assistant", text: "已完成", type: "message" },
+            {
+              command: "pwd",
+              cwd: "/workspace",
+              id: "command-1",
+              outputOmitted: { bytes: 0, lines: 0 },
+              status: "completed",
+              type: "command",
+            },
+            { id: "tool-1", name: "read_file", status: "completed", type: "tool" },
+            { id: "subagent-1", name: "agent/wait", status: "completed", type: "tool" },
+          ],
+        },
+      ],
+    };
+    const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={timedSnapshot} />);
+    expect(markup).not.toContain("data-item-timing");
+    expect(markup).toContain("2.5s");
+    expect(markup).toContain("250ms");
+    expect(markup).toMatch(/data-tool-duration[^>]*>2\.5s<\/span>\s*<span[^>]*>.*?已完成/su);
+    expect(markup).toMatch(/data-tool-duration[^>]*>250ms<\/span>\s*<span[^>]*>.*?已完成/su);
+    expect(markup).toMatch(
+      /data-tool-duration[^>]*>1s<\/span>\s*<span[^>]*>.*?sr-only[^>]*>已完成/su,
+    );
+    expect(markup).not.toContain(new Date(1_753_318_800_000).toISOString());
+    expect(markup).not.toContain(new Date(1_753_318_803_000).toISOString());
+    expect(markup).not.toContain('dateTime="2026-07-24T00:00:00.000Z"');
+  });
+
   it("uses streaming Markdown only for the active assistant tail item", () => {
     expect(
       resolveMessageResponseRendering({

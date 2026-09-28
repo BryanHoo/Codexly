@@ -3,7 +3,7 @@ import { Type, type Static } from "@sinclair/typebox";
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { WorkbenchPetSettingsSchema } from "./workbench-pets.js";
 
-export const DEFAULT_COMMIT_MESSAGE_MODEL = "gpt-5.6-luna";
+export const DEFAULT_COMMIT_MESSAGE_MODEL = "gpt-6-luna";
 
 export const AgentGranularApprovalConfigSchema = Type.Object(
   {

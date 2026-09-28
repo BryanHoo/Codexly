@@ -28,6 +28,7 @@ import {
 import type { TaskStoreState } from "../../conversation/runtime/task-store.js";
 import { getTaskStoreUserMessageIds } from "../composer-queue-state.js";
 import { loadProjectGitFileDiff } from "../project-git-file-diff.js";
+import { fileDocumentId } from "./workbench-inspector-documents.js";
 import {
   createTaskLaunchSnapshot,
   taskLaunchQueryKey,
@@ -79,24 +80,18 @@ export function useWorkbenchShellController(
     renameMutation,
     runtime,
     selectedRootPath,
-    setFileReviewSelection,
-    setInspectorFileSelection,
+    openInspectorDocument,
     setInspectorOpen,
-    setInspectorTab,
     setPendingTaskSelection,
-    setProjectFileDiffDialogSelection,
-    setProjectFileDialogSelection,
     setSidebarOpen,
     setTaskRenameOpen,
     taskLaunchState,
   } = shell;
   const openFileDiff = useCallback(
     (change: AgentFileChange) => {
-      setInspectorFileSelection({ change, kind: "diff", projectId });
-      setInspectorTab("file");
-      setInspectorOpen(true);
+      openInspectorDocument({ id: fileDocumentId("diff", change.path), change, kind: "diff" });
     },
-    [projectId, setInspectorFileSelection, setInspectorOpen, setInspectorTab],
+    [openInspectorDocument],
   );
   const openProjectFileDiff = useCallback(
     (change: AgentFileChange) => {
@@ -110,21 +105,17 @@ export function useWorkbenchShellController(
         change,
       )
         .then((loadedChange) => {
-          // Diff 使用独立弹窗，关闭后可继续查看底层文件预览。
-          setProjectFileDiffDialogSelection({ change: loadedChange, projectId });
+          openInspectorDocument({
+            id: fileDocumentId("diff", loadedChange.path),
+            change: loadedChange,
+            kind: "diff",
+          });
         })
         .catch((error: unknown) => {
           notifyActionError(error instanceof Error ? error : new Error("Git diff is unavailable"));
         });
     },
-    [
-      client,
-      gitStatusQuery.data,
-      projectId,
-      queryClient,
-      selectedRootPath,
-      setProjectFileDiffDialogSelection,
-    ],
+    [client, gitStatusQuery.data, projectId, queryClient, selectedRootPath, openInspectorDocument],
   );
   const openMessageFileReference = useCallback(
     (reference: MessageFileReference, mode?: "popup") => {
@@ -150,19 +141,14 @@ export function useWorkbenchShellController(
         return;
       }
 
-      setInspectorFileSelection({ kind, projectId, reference });
-      // 文件选择与右栏切换在同一用户事件中完成，避免先渲染空标签。
-      setInspectorTab("file");
-      setInspectorOpen(true);
+      openInspectorDocument({ id: fileDocumentId(kind, reference.path), kind, reference });
     },
     [
       projectId,
       projectPathOpenLockRef,
       projectPathOpenMutationRef,
       selectedRootPath,
-      setInspectorOpen,
-      setInspectorTab,
-      setInspectorFileSelection,
+      openInspectorDocument,
     ],
   );
   const openProjectFile = useCallback(
@@ -177,20 +163,20 @@ export function useWorkbenchShellController(
         return;
       }
 
-      setProjectFileDialogSelection({
+      openInspectorDocument({
+        id: fileDocumentId(kind, path),
         ...(change === undefined ? {} : { change }),
         kind,
-        projectId,
         reference: { lineNumber: null, path },
       });
     },
-    [projectId, projectPathOpenLockRef, projectPathOpenMutationRef, setProjectFileDialogSelection],
+    [openInspectorDocument, projectPathOpenLockRef, projectPathOpenMutationRef],
   );
   const openFileReview = useCallback(
     (changes: readonly AgentFileChange[]) => {
-      setFileReviewSelection({ changes, projectId });
+      openInspectorDocument({ id: `review:${crypto.randomUUID()}`, changes, kind: "review" });
     },
-    [projectId, setFileReviewSelection],
+    [openInspectorDocument],
   );
   const closeTaskRenameDialog = () => {
     setTaskRenameOpen(false);

@@ -26,6 +26,7 @@ describe("ProjectSidebarTaskList", () => {
       <TooltipProvider>
         <ProjectSidebarTaskList
           archiveTask={vi.fn()}
+          client={{} as React.ComponentProps<typeof ProjectSidebarTaskList>["client"]}
           deleteTask={vi.fn()}
           error={null}
           expandedProjects={new Set([project.id])}
@@ -42,6 +43,7 @@ describe("ProjectSidebarTaskList", () => {
           isProjectAddPending={false}
           normalizedQuery=""
           onOpenProjectDraft={vi.fn(() => Promise.resolve())}
+          onWorktreeTaskCreated={vi.fn()}
           onOpenArchived={vi.fn()}
           onOpenProjectPicker={vi.fn()}
           onOpenTemporaryDraft={vi.fn()}
@@ -76,5 +78,9 @@ describe("ProjectSidebarTaskList", () => {
     expect(markup).toMatch(
       /class="[^"]*opacity-0[^"]*focus-visible:opacity-100[^"]*group-hover\/project:opacity-100[^"]*"[^>]*aria-label="在 Codexly 中新建任务"/u,
     );
+    const worktreeAction = markup.indexOf('aria-label="在 Codexly 中创建 worktree 任务"');
+    const regularAction = markup.indexOf('aria-label="在 Codexly 中新建任务"');
+    expect(worktreeAction).toBeGreaterThan(0);
+    expect(worktreeAction).toBeLessThan(regularAction);
   });
 });

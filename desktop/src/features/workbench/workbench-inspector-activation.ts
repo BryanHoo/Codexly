@@ -17,10 +17,7 @@ type InspectorActivationInput = Readonly<{
   taskId: string | undefined;
 }>;
 
-type InspectorTabAvailability = Readonly<{
-  contextOnly?: boolean;
-  fileOpen?: boolean;
-}>;
+type InspectorTabAvailability = Readonly<{ contextOnly?: boolean }>;
 
 export type WorkbenchInspectorContextArtifactState = Readonly<{
   goal: boolean;
@@ -28,15 +25,13 @@ export type WorkbenchInspectorContextArtifactState = Readonly<{
   scopeKey: string;
 }>;
 
-export function getDefaultWorkbenchInspectorTab(
-  contextOnly: boolean,
-): WorkbenchInspectorTab {
+export function getDefaultWorkbenchInspectorTab(contextOnly: boolean): WorkbenchInspectorTab {
   return contextOnly ? "context" : "project";
 }
 
-export function getWorkbenchInspectorMountKey(
-  { projectId }: Readonly<{ projectId: string; taskId: string | undefined }>,
-): string {
+export function getWorkbenchInspectorMountKey({
+  projectId,
+}: Readonly<{ projectId: string; taskId: string | undefined }>): string {
   // 右栏外壳承载项目级文件树，任务变化只更新任务上下文，不能重建整个右栏。
   return projectId;
 }
@@ -74,7 +69,7 @@ export function shouldEnableProjectGitDetails({
 export function getAvailableWorkbenchInspectorTabs(
   taskId: string | undefined,
   gitStatus: InspectorGitAvailability | undefined,
-  { contextOnly = false, fileOpen = false }: InspectorTabAvailability = {},
+  { contextOnly = false }: InspectorTabAvailability = {},
 ): WorkbenchInspectorTab[] {
   const isGitProject = gitStatus !== undefined && gitStatus.repositoryMode !== "none";
   const hasGitChanges = isGitProject && gitStatus.staged.length + gitStatus.unstaged.length > 0;
@@ -82,7 +77,6 @@ export function getAvailableWorkbenchInspectorTabs(
 
   if (contextOnly) {
     tabs.push("context");
-    if (fileOpen) tabs.push("file");
     return tabs;
   }
   // 项目浏览保持首位，能力消失时由激活策略统一回落到项目标签。
@@ -90,8 +84,6 @@ export function getAvailableWorkbenchInspectorTabs(
   if (taskId !== undefined) tabs.push("context");
   if (hasGitChanges) tabs.push("changes");
   if (isGitProject) tabs.push("history");
-  // 文件标签只代表当前选择，不保留空面板或历史文件列表。
-  if (fileOpen) tabs.push("file");
   return tabs;
 }
 
@@ -105,13 +97,12 @@ export function deriveWorkbenchInspectorActivation({
 }: InspectorActivationInput) {
   const availableTabs = getAvailableWorkbenchInspectorTabs(taskId, gitStatus, {
     contextOnly,
-    fileOpen,
   });
   const activeTab = contextOnly
-    ? requestedTab === "file" && fileOpen
-      ? "file"
+    ? requestedTab.startsWith("document:") && fileOpen
+      ? requestedTab
       : "context"
-    : availableTabs.includes(requestedTab)
+    : (requestedTab.startsWith("document:") && fileOpen) || availableTabs.includes(requestedTab)
       ? requestedTab
       : "project";
 
@@ -120,7 +111,7 @@ export function deriveWorkbenchInspectorActivation({
     activeTab,
     changes: inspectorOpen && activeTab === "changes",
     context: inspectorOpen && activeTab === "context",
-    file: inspectorOpen && activeTab === "file",
+    file: inspectorOpen && activeTab.startsWith("document:"),
     history: inspectorOpen && activeTab === "history",
     project: inspectorOpen && activeTab === "project",
   } as const;

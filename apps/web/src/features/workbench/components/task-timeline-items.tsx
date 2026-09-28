@@ -1,15 +1,13 @@
 import { buildTaskAttachmentUrl } from "@codexly/client";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
-import { BrainCircuit, FileText, LoaderCircle } from "lucide-react";
+import { BrainCircuit, FileText } from "lucide-react";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { toString } from "mdast-util-to-string";
-import { useState } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
 import { AsyncQuestionHistory } from "./async-question-history.js";
 import { Attachments } from "../../../shared/components/agent/attachments.js";
 import { cn } from "../../../shared/lib/utils.js";
-import { Button } from "../../../shared/components/core/button.js";
 
 import { LazyMessageResponse } from "../../../shared/components/agent/lazy-message-response.js";
 import {
@@ -52,6 +50,7 @@ import { SkillToken } from "./skill-token.js";
 import { parseSubagentOperation } from "./subagent.js";
 
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
+import { BuildPlanButton } from "./task-timeline-build-plan-button.js";
 import { FileChangeButton } from "./task-timeline-file-changes.js";
 import {
   ApprovalReviewItem,
@@ -61,6 +60,7 @@ import {
 } from "./task-timeline-running.js";
 import {
   SubagentToolItem,
+  ToolDuration,
   formatStructuredValue,
   toTaskStatus,
   toToolState,
@@ -84,6 +84,7 @@ export function TimelineItemContent({
   commandOutput,
   isLastTurnItem,
   item,
+  itemTiming,
   onBuildPlan,
   onOpenFileDiff,
   onOpenSourceFile,
@@ -95,6 +96,7 @@ export function TimelineItemContent({
   commandOutput?: CommandOutputView;
   isLastTurnItem: boolean;
   item: AgentItem;
+  itemTiming?: NonNullable<AgentTurn["itemTimings"]>[string] | undefined;
   onBuildPlan?: BuildPlanAction;
   onOpenFileDiff: (change: AgentFileChange) => void;
   onOpenSourceFile: (reference: MessageFileReference) => void;
@@ -102,6 +104,10 @@ export function TimelineItemContent({
   taskId: string;
   turnStatus: AgentTurn["status"];
 }>) {
+  const toolDuration =
+    (item.type === "command" || item.type === "tool") && itemTiming !== undefined ? (
+      <ToolDuration status={item.status} timing={itemTiming} />
+    ) : undefined;
   switch (item.type) {
     case "message": {
       if (item.role === "assistant" && (item.questions?.length ?? 0) > 0) {
@@ -251,7 +257,11 @@ export function TimelineItemContent({
       const isStreamingCommand = turnStatus === "running" && item.status === "running";
       return (
         <Tool>
-          <ToolHeader state={toToolState(item.status)} title={commandLabel} />
+          <ToolHeader
+            duration={toolDuration}
+            state={toToolState(item.status)}
+            title={commandLabel}
+          />
           <ToolBody>
             <div className="mb-2 space-y-4">
               {/* 命令文本与工作目录共同构成调用输入，展开后必须完整展示。 */}
@@ -281,20 +291,35 @@ export function TimelineItemContent({
       );
     }
     case "file_change": {
+      const duration =
+        itemTiming === undefined ? undefined : (
+          <ToolDuration status={item.status} timing={itemTiming} />
+        );
       if (item.status === "completed") {
-        // Turn 结束前立即展示已完成修改；Turn 终态继续由回复末尾统一聚合。
-        return turnStatus === "running" ? (
-          <div className="space-y-1">
-            {item.changes.map((change) => (
-              <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
-            ))}
-          </div>
-        ) : null;
+        if (turnStatus !== "running" && itemTiming?.startedAtMs === undefined) return null;
+        // 完成回合只保留计时行；文件详情仍由回复末尾统一聚合。
+        return (
+          <Task collapsible={false} status="completed">
+            <TaskTrigger
+              statusPrefix={duration}
+              title={i18n.t("timeline.editedFiles", {
+                count: item.changes.length,
+                ns: "conversation",
+              })}
+            />
+            {turnStatus !== "running"
+              ? null
+              : item.changes.map((change) => (
+                  <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
+                ))}
+          </Task>
+        );
       }
       if (item.status !== "pending" && item.status !== "running") return null;
       return (
         <Task collapsible={item.changes.length > 0} status="in_progress">
           <TaskTrigger
+            statusPrefix={duration}
             title={i18n.t("timeline.editingFiles", {
               count: item.changes.length,
               ns: "conversation",
@@ -315,7 +340,9 @@ export function TimelineItemContent({
     case "tool": {
       const subagentOperation = parseSubagentOperation(item);
       if (subagentOperation !== null) {
-        return <SubagentToolItem item={item} operation={subagentOperation} />;
+        return (
+          <SubagentToolItem item={item} itemTiming={itemTiming} operation={subagentOperation} />
+        );
       }
       const hasErrorOutput =
         item.status === "failed" || item.status === "declined" || item.status === "interrupted";
@@ -327,6 +354,7 @@ export function TimelineItemContent({
       return (
         <Tool>
           <ToolHeader
+            duration={toolDuration}
             state={toToolState(item.status)}
             title={item.progress === undefined ? item.name : `${item.name} · ${item.progress}`}
           />
@@ -460,31 +488,4 @@ export function TimelineItemContent({
       );
     }
   }
-}
-
-export function BuildPlanButton({ onBuildPlan }: Readonly<{ onBuildPlan: BuildPlanAction }>) {
-  const [isBuilding, setIsBuilding] = useState(false);
-
-  return (
-    <Button
-      disabled={isBuilding}
-      onClick={() => {
-        setIsBuilding(true);
-        void onBuildPlan().then(
-          (started) => {
-            if (!started) {
-              setIsBuilding(false);
-            }
-          },
-          () => {
-            setIsBuilding(false);
-          },
-        );
-      }}
-      type="button"
-    >
-      {isBuilding ? <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" /> : null}
-      {i18n.t("timeline.buildPlan", { ns: "conversation" })}
-    </Button>
-  );
 }

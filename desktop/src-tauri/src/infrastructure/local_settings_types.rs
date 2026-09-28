@@ -148,7 +148,7 @@ pub(super) struct LocalPreferences {
 impl Default for LocalPreferences {
     fn default() -> Self {
         Self {
-            commit_message_model: "gpt-5.6-luna".into(),
+            commit_message_model: "gpt-6-luna".into(),
             commit_message_prompt: String::new(),
             default_open_app_id: None,
             follow_up_behavior: FollowUpBehavior::Queue,

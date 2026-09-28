@@ -72,7 +72,7 @@ export const readyMcpServer = {
 } as const satisfies AgentMcpServer;
 
 export function readInspectorTabLabels(markup: string): string[] {
-  return [...markup.matchAll(/role="tab"[^>]*>.*?<span>([^<]+)<\/span><\/button>/gsu)].map(
+  return [...markup.matchAll(/role="tab"[^>]*>.*?<span[^>]*>([^<]+)<\/span><\/button>/gsu)].map(
     (match) => match[1] ?? "",
   );
 }

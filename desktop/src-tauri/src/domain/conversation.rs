@@ -199,9 +199,20 @@ pub struct AgentTurn {
     pub completed_at: Option<String>,
     pub error: Option<String>,
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub item_timings: Option<std::collections::BTreeMap<String, AgentItemTiming>>,
     pub items: Vec<AgentItem>,
     pub started_at: Option<String>,
     pub status: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentItemTiming {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at_ms: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_at_ms: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]

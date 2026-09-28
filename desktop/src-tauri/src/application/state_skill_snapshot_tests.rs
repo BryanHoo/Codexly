@@ -8,6 +8,7 @@ fn user_snapshot() -> AgentTaskSnapshotResponse {
     let mut response = snapshot("project", "task");
     response.snapshot.turns.push(AgentTurn {
         id: "turn".into(),
+        item_timings: None,
         status: "running",
         started_at: None,
         completed_at: None,

@@ -77,7 +77,6 @@ pub async fn start_title_thread(
         "context_management",
         "current_time_reminder",
         "deferred_executor",
-        "enable_fanout",
         "goals",
         "hooks",
         "image_generation",

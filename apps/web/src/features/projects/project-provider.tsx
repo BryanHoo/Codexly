@@ -33,6 +33,7 @@ import {
   updateTaskTitleInProjectListCaches,
 } from "./project-queries.js";
 import type { ProjectProviderProps } from "./project-provider-types.js";
+import type { ProjectTaskInfiniteData } from "./project-query-contracts.js";
 import { ProjectProviderView } from "./project-provider-view.js";
 
 const emptyProjects: readonly Project[] = [];
@@ -71,6 +72,17 @@ export function ProjectProvider({
             .getQueryData<ProjectPage>(["projects"])
             ?.data.find((candidate) => candidate.id === projectId),
         getSelectedRootIds: () => selectedRootIdsRef.current,
+        getTaskWorkspacePath: (projectId, taskId) =>
+          queryClient.getQueryData<string>([
+            "projects",
+            projectId,
+            "task-workspace-paths",
+            taskId,
+          ]) ??
+          queryClient
+            .getQueryData<ProjectTaskInfiniteData>(["projects", projectId, "tasks"])
+            ?.pages.flatMap((page) => page.data)
+            .find((task) => task.id === taskId)?.workspacePath,
       }),
       onMcpServerStatusChanged(projectId, taskId) {
         // 官方通知只携带启动状态，重新读取清单以补齐工具数、认证和版本元数据。

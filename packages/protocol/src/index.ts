@@ -1,5 +1,10 @@
 // 统一协议、JSON Schema 与事件信封只能从此公开入口导出。
 export * from "./workbench-pets.js";
+export { CODEXLY_USER_AGENT } from "./user-agent.js";
+export {
+  CreateTaskWorktreeResponseSchema,
+  type CreateTaskWorktreeResponse,
+} from "./project-git.js";
 export * from "./global-search.js";
 export * from "./archived-task-deletion.js";
 export * from "./app-update.js";
@@ -46,6 +51,7 @@ export {
   type StartOfficialProviderLoginResponse,
 } from "./provider-connection.js";
 export {
+  AgentEventEnvelopeProperties,
   AgentEventSchema,
   AgentTaskSnapshotResponseSchema,
   CommandOutputDeltaEventSchema,
@@ -59,6 +65,7 @@ export {
   ItemCompletedEventSchema,
   ItemStartedEventSchema,
   MessageDeltaEventSchema,
+  McpServerStatusUpdatedEventSchema,
   NavigableAgentTaskResponseSchema,
   MAX_EVENT_BATCH_SIZE,
   MAX_REALTIME_DIFF_BYTES,
@@ -66,6 +73,7 @@ export {
   PendingRequestCreatedEventSchema,
   PendingRequestExpiredEventSchema,
   PendingRequestResolvedEventSchema,
+  PlanDeltaEventSchema,
   PlanUpdatedEventSchema,
   ProjectGitMetadataChangedEventSchema,
   QueueChangedEventSchema,
@@ -76,6 +84,8 @@ export {
   TaskMetadataChangedEventSchema,
   TaskRemovedEventSchema,
   TaskStatusUpdatedEventSchema,
+  TaskNoticeEventSchema,
+  ToolProgressEventSchema,
   TurnCompletedEventSchema,
   TurnStartedEventSchema,
   UsageUpdatedEventSchema,
@@ -177,6 +187,7 @@ export {
   AgentReasoningItemSchema,
   AgentReviewItemSchema,
   AgentTaskPageSchema,
+  AgentTaskBaseSchema,
   AgentTaskSchema,
   AgentTaskSnapshotSchema,
   AgentToolItemSchema,

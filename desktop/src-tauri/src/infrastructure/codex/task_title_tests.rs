@@ -62,6 +62,7 @@ async fn title_generation_should_use_isolated_structured_turn_and_persist_summar
                     );
                     assert_eq!(params["config"]["features.shell_tool"], false);
                     assert_eq!(params["config"]["features.hooks"], false);
+                    assert!(params["config"].get("features.enable_fanout").is_none());
                     assert_eq!(params["config"]["tools.update_plan.enabled"], true);
                     assert_eq!(params["dynamicTools"], json!([]));
                 }

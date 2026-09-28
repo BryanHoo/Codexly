@@ -1,6 +1,5 @@
 import { HistoryNavigation, type HistoryAnchor } from "../../search/history-navigation.js";
 import type { PendingRequest } from "@/protocol/index.js";
-import { Info } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 import { useStore } from "zustand";
 import { i18n } from "../../../i18n/i18n.js";
@@ -8,7 +7,6 @@ import { ConversationList } from "../../../shared/components/agent/conversation.
 import { Message, type MessageFileReference } from "../../../shared/components/agent/message.js";
 import type {
   NormalizedAgentTurn,
-  TaskNotice,
   TaskStore,
 } from "../../conversation/runtime/task-store.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
@@ -23,23 +21,20 @@ import {
   getTaskTimelineNavigationItems,
 } from "./task-timeline-navigation.js";
 import { RunningReplyStatus } from "./task-timeline-running.js";
+import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
+import { getTimelineNotices, StoreTaskInfoNotices } from "./task-timeline-notices.js";
+export { getTimelineNotices } from "./task-timeline-notices.js";
 import { StoredAssistantTimelineItems } from "./task-timeline-store-operation-groups.js";
 import {
   StoredRunningReplyStatus,
   StoredUserMessage,
   groupStoredTurnTimelineItems,
 } from "./task-timeline-store-items.js";
-import {
-  MessageMetadata,
-  TimelineState,
-  TurnProcessingTime,
-  getMessageTimestamp,
-} from "./task-timeline-status.js";
+import { MessageMetadata, TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
 const getTurnIdKey = (turnId: string) => turnId;
 export function StoredAssistantGroup({
   itemKeys,
   lastTurnItemKey,
-  latestSnapshotTimestamp,
   onOpenFileDiff,
   onForkTask,
   onBuildPlan,
@@ -58,7 +53,6 @@ export function StoredAssistantGroup({
 }: Readonly<{
   itemKeys: readonly string[];
   lastTurnItemKey: string | undefined;
-  latestSnapshotTimestamp: string;
   onOpenFileDiff: (change: AgentFileChange) => void;
   onForkTask?: ForkTaskAction;
   onBuildPlan?: BuildPlanAction;
@@ -109,6 +103,7 @@ export function StoredAssistantGroup({
         <div className="w-full space-y-4">
           <StoredAssistantTimelineItems
             itemKeys={visibleItemKeys}
+            itemTimings={turn.itemTimings}
             lastTurnItemKey={lastTurnItemKey}
             {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
             onOpenFileDiff={onOpenFileDiff}
@@ -135,7 +130,6 @@ export function StoredAssistantGroup({
           lastTurnId={turn.id}
           {...(onForkTask === undefined ? {} : { onForkTask })}
           text={assistantText}
-          timestamp={getMessageTimestamp("assistant", turn, latestSnapshotTimestamp)}
         />
       ) : null}
     </Message>
@@ -154,6 +148,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   turnId,
   turnIndex,
   pendingSubmission,
+  pendingPrompt,
 }: Readonly<{
   onBuildPlan?: BuildPlanAction;
   onForkTask?: ForkTaskAction;
@@ -166,6 +161,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   turnId: string;
   turnIndex: number;
   pendingSubmission: boolean;
+  pendingPrompt?: PendingPrompt;
 }>) {
   const turn = useStore(store, (state) => state.turnsById[turnId]);
   const itemKeys = useStore(store, (state) => state.itemKeysByTurnId[turnId] ?? []);
@@ -173,7 +169,6 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   if (turn === undefined) {
     return null;
   }
-  const latestSnapshotTimestamp = store.getState().snapshotMetadata?.updatedAt ?? "";
   const itemStoresByKey = store.getState().itemStoresByKey;
   const processNativeItemIds = new Set(
     resolveCompletedTurnProcessItemIds(
@@ -198,20 +193,17 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   const firstAssistantGroupIndex = timelineGroups.findIndex((group) => group.type === "assistant");
   const hasAssistantItems = firstAssistantGroupIndex >= 0;
   const lastTurnItemKey = itemKeys.at(-1);
+  const hasUserMessage = timelineGroups.some((group) => group.type === "user");
 
   return (
-    <section
-      aria-label={`Turn ${turnIndex + 1}`}
-      className="space-y-4"
-      data-status={turn.status}
-    >
+    <section aria-label={`Turn ${turnIndex + 1}`} className="space-y-4" data-status={turn.status}>
+      {pendingPrompt !== undefined && !hasUserMessage ? <PendingPromptDisplay prompt={pendingPrompt} /> : null}
       {timelineGroups.map((group, groupIndex) =>
         group.type === "user" ? (
           <StoredUserMessage
             itemKey={group.itemKey}
             // 首条输入从本地占位切换为权威 ID 时保留气泡节点，避免重新挂载 Markdown。
             key={groupIndex === 0 ? turn.id : group.itemKey}
-            latestSnapshotTimestamp={latestSnapshotTimestamp}
             onOpenFileDiff={onOpenFileDiff}
             onOpenSourceFile={onOpenSourceFile}
             projectId={projectId}
@@ -224,7 +216,6 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
             itemKeys={group.itemKeys}
             key={group.key}
             lastTurnItemKey={lastTurnItemKey}
-            latestSnapshotTimestamp={latestSnapshotTimestamp}
             {...(turn.status === "completed" && onBuildPlan !== undefined ? { onBuildPlan } : {})}
             onOpenFileDiff={onOpenFileDiff}
             onToggleProcess={() => {
@@ -247,7 +238,8 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
           />
         ),
       )}
-      {((turn.status === "running" && itemKeys.length > 0) || pendingSubmission) && !hasAssistantItems ? (
+      {((turn.status === "running" && itemKeys.length > 0) || pendingSubmission) &&
+      !hasAssistantItems ? (
         <Message from="assistant">
           <TurnProcessingTime completedAt={null} startedAt={turn.startedAt} />
           <RunningReplyStatus />
@@ -264,30 +256,6 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
     </section>
   );
 });
-
-function TaskInfoNotice({ notice }: Readonly<{ notice: TaskNotice }>) {
-  const message = notice.payload.message;
-  const title = i18n.t(`timeline.notice.${notice.payload.code}`, { ns: "conversation" });
-  return (
-    <div className="flex items-start gap-2 border-l-2 border-separator-strong px-3 py-2 text-label leading-5 text-muted-foreground" role="status">
-      <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-      <div className="min-w-0">
-        <p className="font-medium text-foreground">{title}</p>
-        <p className="break-words">{message}</p>
-      </div>
-    </div>
-  );
-}
-
-export function getTimelineNotices(notices: readonly TaskNotice[]): readonly TaskNotice[] {
-  return notices.filter((notice) => notice.payload.level !== "warning");
-}
-
-function StoreTaskInfoNotices({ notices }: Readonly<{ notices: readonly TaskNotice[] }>) {
-  return notices.map((notice) => (
-    <TaskInfoNotice key={`${notice.sessionId}:${String(notice.sequence)}`} notice={notice} />
-  ));
-}
 
 export function StorePendingRequestList({
   connected,
@@ -306,11 +274,12 @@ export function StorePendingRequestList({
   const pendingRequestsById = useStore(store, (state) => state.pendingRequestsById);
   const visiblePendingRequests = pendingRequestIds.flatMap((requestId) => {
     const request = pendingRequestsById[requestId];
-    return request === undefined || (request.status === "resolved" && request.type !== "plugin_install_suggestion") ? [] : [request];
+    return request === undefined ||
+      (request.status === "resolved" && request.type !== "plugin_install_suggestion")
+      ? []
+      : [request];
   });
-  const firstPendingIndex = visiblePendingRequests.findIndex(
-    (request) => request.status === "pending",
-  );
+  const firstPendingIndex = visiblePendingRequests.findIndex(({ status }) => status === "pending");
 
   return visiblePendingRequests.map((request, index) => (
     <PendingRequestCard
@@ -339,6 +308,7 @@ export function TaskStoreTimeline({
   store,
   submissionStartedAt,
   submissionTurnId,
+  pendingPrompt,
 }: Readonly<{
   searchTarget?: HistoryAnchor;
   connected: boolean;
@@ -360,6 +330,7 @@ export function TaskStoreTimeline({
   store: TaskStore;
   submissionStartedAt?: string;
   submissionTurnId?: string;
+  pendingPrompt?: PendingPrompt;
 }>) {
   const projectId = store.getState().projectId;
   const taskId = store.getState().taskId;
@@ -382,7 +353,7 @@ export function TaskStoreTimeline({
       return "footer";
     }
     const turn = state.turnsById[submissionTurnId];
-    if (turn === undefined || !state.itemKeysByTurnId[submissionTurnId]?.length) {
+    if (turn === undefined || (!state.itemKeysByTurnId[submissionTurnId]?.length && pendingPrompt === undefined)) {
       return "footer";
     }
     const groups = groupStoredTurnTimelineItems(
@@ -390,14 +361,16 @@ export function TaskStoreTimeline({
       state.itemStoresByKey,
     );
     // completed Snapshot 可能先于 Assistant Item 落盘，只有失败或中断才能提前结束本地提交态。
-    return groups.some((group) => group.type === "assistant") || turn.status === "failed" || turn.status === "interrupted"
+    return (groups.some((group) => group.type === "assistant") &&
+      (pendingPrompt === undefined || groups.some((group) => group.type === "user"))) ||
+      turn.status === "failed" ||
+      turn.status === "interrupted"
       ? undefined
       : "turn";
   });
   // 已知回合内同时布局输入、时间与运行态，避免独立虚拟尾部二次测量将输入顶走。
   const showPendingSubmission =
-    submissionStartedAt !== undefined &&
-    submissionHandoffState !== undefined;
+    submissionStartedAt !== undefined && submissionHandoffState !== undefined;
   const showPendingFooter = showPendingSubmission && submissionHandoffState === "footer";
   const timelineNotices = getTimelineNotices(notices);
   const hasNotices = timelineNotices.length > 0;
@@ -430,10 +403,10 @@ export function TaskStoreTimeline({
                   />
                 ) : null}
                 {showPendingFooter ? (
-                  <Message from="assistant">
+                  pendingPrompt === undefined ? <Message from="assistant">
                     <TurnProcessingTime completedAt={null} startedAt={submissionStartedAt} />
                     <RunningReplyStatus />
-                  </Message>
+                  </Message> : <PendingPromptDisplay prompt={pendingPrompt} startedAt={submissionStartedAt} />
                 ) : null}
               </>
             ),
@@ -454,15 +427,22 @@ export function TaskStoreTimeline({
       items={turnIds}
       renderNavigation={(navigateToItem, scrollbarWidth, scrollContainerRef) => (
         <>
-        {searchTarget === undefined ? null : <HistoryNavigation target={searchTarget} turnIds={turnIds} navigate={navigateToItem} containerRef={scrollContainerRef} />}
-        <TaskTimelineNavigation
-          items={navigationItems}
-          scrollContainerRef={scrollContainerRef}
-          scrollbarWidth={scrollbarWidth}
-          onNavigate={(item) => {
-            navigateToItem(item.turnIndex, item.anchorId);
-          }}
-        />
+          {searchTarget === undefined ? null : (
+            <HistoryNavigation
+              target={searchTarget}
+              turnIds={turnIds}
+              navigate={navigateToItem}
+              containerRef={scrollContainerRef}
+            />
+          )}
+          <TaskTimelineNavigation
+            items={navigationItems}
+            scrollContainerRef={scrollContainerRef}
+            scrollbarWidth={scrollbarWidth}
+            onNavigate={(item) => {
+              navigateToItem(item.turnIndex, item.anchorId);
+            }}
+          />
         </>
       )}
       renderItem={(turnId, turnIndex) => (
@@ -479,7 +459,12 @@ export function TaskStoreTimeline({
           taskId={taskId}
           turnId={turnId}
           turnIndex={turnIndex}
-          pendingSubmission={!showPendingFooter && showPendingSubmission && turnId === submissionTurnId}
+          pendingSubmission={
+            !showPendingFooter && showPendingSubmission && turnId === submissionTurnId
+          }
+          {...(turnId === submissionTurnId && showPendingSubmission && pendingPrompt !== undefined
+            ? { pendingPrompt }
+            : {})}
         />
       )}
       {...(scrollToBottomSignal === undefined ? {} : { scrollToBottomSignal })}

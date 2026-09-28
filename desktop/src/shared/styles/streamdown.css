@@ -1,0 +1,116 @@
+/* Streamdown 保留官方结构，视觉层统一映射到项目 Token，避免默认主题形成嵌套卡片。 */
+[data-streamdown="inline-code"] {
+  border-radius: var(--ui-radius-control) !important;
+  background: var(--ui-color-code-inline) !important;
+  padding: 0.1rem 0.35rem !important;
+  color: var(--ui-color-text) !important;
+  font-family: var(--ui-font-family-mono) !important;
+  font-size: var(--ui-font-size-body-small) !important;
+}
+
+/* 文件引用直接使用消息主色，并把目标行作为弱化的同组信息展示。 */
+.markdown-file-reference {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: calc(var(--ui-space-unit) * 1.25);
+  color: var(--ui-color-accent);
+  font-weight: 600;
+  line-height: inherit;
+  vertical-align: -0.08em;
+  white-space: nowrap;
+}
+
+.markdown-file-reference__line {
+  color: var(--ui-color-accent-strong);
+  font-weight: 500;
+}
+
+/* 列表使用悬挂项目符号，换行后与正文起点对齐，接近官方消息的阅读节奏。 */
+[data-streamdown="unordered-list"],
+[data-streamdown="ordered-list"] {
+  list-style-position: outside !important;
+  padding-inline-start: calc(var(--ui-space-unit) * 5) !important;
+}
+
+/* Tailwind 基础重置会清除列表标记，因此在 Streamdown 语义节点上显式恢复类型。 */
+[data-streamdown="unordered-list"] {
+  list-style-type: disc !important;
+}
+
+[data-streamdown="ordered-list"] {
+  list-style-type: decimal !important;
+}
+
+[data-streamdown="code-block"] {
+  position: relative;
+  gap: 0 !important;
+  overflow: hidden;
+  margin-block: calc(var(--ui-space-unit) * 3) !important;
+  border: 1px solid var(--ui-color-separator-strong) !important;
+  border-radius: var(--ui-radius-surface) !important;
+  background: var(--ui-color-raised) !important;
+  padding: 0 !important;
+  box-shadow: var(--ui-shadow-control);
+}
+
+/* Streamdown 原本依靠其包内的 -mt-10 抵消操作层高度；显式脱离文档流可避免代码正文上方留白。 */
+[data-streamdown="code-block"] > :has([data-streamdown="code-block-actions"]) {
+  position: absolute !important;
+  z-index: 1;
+  top: 0 !important;
+  right: 0;
+  width: auto;
+  margin-top: 0 !important;
+}
+
+[data-streamdown="code-block-header"] {
+  height: 2rem !important;
+  border-bottom: 1px solid var(--ui-color-separator) !important;
+  background: var(--ui-color-control) !important;
+  padding-inline: calc(var(--ui-space-unit) * 3) !important;
+  color: var(--ui-color-text-muted) !important;
+  font-size: var(--ui-font-size-label) !important;
+}
+
+[data-streamdown="code-block-header"] > span {
+  margin-left: 0 !important;
+}
+
+[data-streamdown="code-block-actions"] {
+  /* Tailwind 不扫描依赖源码，显式恢复 Streamdown 操作区的点击能力。 */
+  pointer-events: auto;
+  gap: calc(var(--ui-space-unit) * 1.5) !important;
+  border: 0 !important;
+  border-radius: var(--ui-radius-control) !important;
+  background: transparent !important;
+  padding: calc(var(--ui-space-unit) * 1.5) !important;
+  backdrop-filter: none !important;
+}
+
+[data-streamdown="code-block-actions"] button {
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-color-text-muted) !important;
+}
+
+[data-streamdown="code-block-actions"] button:hover {
+  background: var(--ui-color-control-hover);
+  color: var(--ui-color-text) !important;
+}
+
+[data-streamdown="code-block-body"] {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: calc(var(--ui-space-unit) * 3) !important;
+  color: var(--ui-color-text) !important;
+  font-size: var(--ui-font-size-body-small) !important;
+}
+
+[data-streamdown="code-block-body"] pre {
+  margin: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  font-family: var(--ui-font-family-mono) !important;
+  line-height: var(--ui-line-height-relaxed) !important;
+}

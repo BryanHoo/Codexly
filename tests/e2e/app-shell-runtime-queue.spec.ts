@@ -23,12 +23,18 @@ test("queues follow-up messages and can steer or cancel them during an active tu
     });
   });
   await page.goto("/p/codexly");
+  const initialQueueRead = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === "GET" && url.pathname.endsWith("/queue");
+  });
   const input = page.getByRole("textbox", { name: "任务输入" });
   await input.fill("等待中断");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
   await expect(page).toHaveURL(/\/p\/codexly\/t\/task-action-\d+$/u);
   await expect(page.getByRole("button", { name: "停止" })).toBeVisible();
   await expect(input).toHaveAttribute("placeholder", "输入后续要求");
+  await expect(page.getByRole("button", { name: /终端连接状态：在线/u })).toBeVisible();
+  await initialQueueRead;
 
   const taskId = page.url().split("/").at(-1) ?? "";
   const attachmentResponse = await page.request.post("/v1/projects/codexly/attachments/text", {
@@ -162,6 +168,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   await queueMessage.click();
   await page.getByRole("button", { name: "编辑排队消息：编辑前内容" }).click();
   await input.fill("刷新后继续编辑");
+  await expect(input).toHaveAttribute("data-serialized-value", "刷新后继续编辑");
   await expect(page.getByRole("status", { name: "编辑中" })).toBeVisible();
   await page.reload();
   await expect(input).toHaveAttribute("data-serialized-value", "刷新后继续编辑");
@@ -255,9 +262,6 @@ test("shows the latest raw Codex operation throughout a running turn", async ({ 
   await expect(page.getByText("正在运行 rg --files", { exact: true })).toBeVisible();
   const runningShimmer = page.locator('[data-agent-shimmer][aria-label^="AI 回复正在运行"]');
   const initialShimmer = await runningShimmer.elementHandle();
-  if (initialShimmer === null) {
-    throw new Error("未找到运行态 Shimmer");
-  }
   // 节点可见后 CSS 动画仍可能尚未启动，先等待时间轴完成初始化。
   await expect
     .poll(() =>

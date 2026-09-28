@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "lib": ["ES2024", "DOM"],
+    "outDir": "../../.cache/types/frontend-core",
+    "rootDir": "src",
+    "tsBuildInfoFile": "../../.cache/types/frontend-core.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"]
+}

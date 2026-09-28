@@ -4,7 +4,7 @@ import type { AgentTask, Project, SearchOccurrence } from "@codexly/protocol";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { CircleX, LoaderCircle, Search, SearchX, X } from "lucide-react";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useTranslation } from "../../i18n/i18n.js";
 import { Button } from "../../shared/components/core/button.js";
@@ -23,20 +23,16 @@ import { useGlobalSearch, type SearchCategory } from "./use-global-search.js";
 import { useSearchOccurrences } from "./use-search-occurrences.js";
 import { useSearchVisibility } from "./use-search-visibility.js";
 
-const ProjectSourceDialog = lazy(() =>
-  import("../workbench/components/project-source-dialog.js").then((module) => ({
-    default: module.ProjectSourceDialog,
-  })),
-);
-
 export function GlobalSearchDialog({
   client,
   onClose,
+  onOpenFile,
   open,
   projects,
 }: Readonly<{
   client: CodexlyWorkbenchClient;
   onClose: () => void;
+  onOpenFile: (file: SearchFile, kind: "image" | "source") => void;
   open: boolean;
   projects: readonly Project[];
 }>) {
@@ -51,9 +47,6 @@ export function GlobalSearchDialog({
   const [taskCursors, setTaskCursors] = useState<(string | undefined)[]>([undefined]);
   const [historyCursors, setHistoryCursors] = useState<(string | undefined)[]>([undefined]);
   const [historyTask, setHistoryTask] = useState<AgentTask | null>(null);
-  const [preview, setPreview] = useState<{ file: SearchFile; kind: "image" | "source" } | null>(
-    null,
-  );
   const [opening, setOpening] = useState(false);
   const openingRef = useRef(false);
   const actionAbortRef = useRef<AbortController | null>(null);
@@ -145,7 +138,10 @@ export function GlobalSearchDialog({
         else await openTask(row.task, row.occurrence);
       } else if (row.file !== undefined) {
         const kind = await prepareSearchFile(client, cache, row.file, controller.signal);
-        if (kind !== null) setPreview({ file: row.file, kind });
+        if (kind !== null) {
+          onOpenFile(row.file, kind);
+          onClose();
+        }
       } else if (row.task !== undefined) await openTask(row.task);
     } catch (error) {
       if (!controller.signal.aborted) {
@@ -419,20 +415,6 @@ export function GlobalSearchDialog({
           ) : null}
         </DialogContent>
       </Dialog>
-      {!open || preview === null ? null : (
-        <Suspense fallback={null}>
-          <ProjectSourceDialog
-            client={client}
-            onClose={() => {
-              setPreview(null);
-            }}
-            previewKind={preview.kind}
-            projectId={preview.file.projectId}
-            reference={{ lineNumber: null, path: preview.file.path }}
-            rootPath={preview.file.rootPath}
-          />
-        </Suspense>
-      )}
     </>
   );
 }

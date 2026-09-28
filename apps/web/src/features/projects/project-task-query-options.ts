@@ -1,11 +1,15 @@
-import type { AgentTaskPage } from "@codexly/protocol";
 import type { CodexlyClient } from "@codexly/client";
+import {
+  archivedProjectTasksQueryOptions as sharedArchivedTasks,
+  projectTasksInfiniteQueryOptions as sharedProjectTasks,
+  taskSnapshotQueryOptions as sharedTaskSnapshot,
+} from "@codexly/frontend-core";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import type { AgentTaskPage } from "@codexly/protocol";
 
 import {
-  PROJECT_TASK_PAGE_SIZE,
   ARCHIVED_TASK_PAGE_SIZE,
-  TASK_SNAPSHOT_GC_TIME_MS,
+  PROJECT_TASK_PAGE_SIZE,
   TASK_BOARD_COMPLETED_TASKS_QUERY_KEY,
   codexlyClient,
   type CodexlyReadClient,
@@ -23,8 +27,8 @@ export function archivedProjectTasksQueryOptions(
   searchTerm: string,
   client: CodexlyArchivedTaskClient = codexlyClient,
 ) {
-  return queryOptions({
-    queryFn: ({ signal }) =>
+  return queryOptions(
+    sharedArchivedTasks(projectId, cursor, searchTerm, (signal) =>
       client.listTasks(
         projectId,
         {
@@ -35,10 +39,8 @@ export function archivedProjectTasksQueryOptions(
         },
         { signal },
       ),
-    queryKey: ["projects", projectId, "archived-tasks", searchTerm, cursor ?? null] as const,
-    // 归档内容可能刚由侧栏 Mutation 改变，弹窗每次打开都绕过全局新鲜期重新校准。
-    refetchOnMount: "always",
-  });
+    ),
+  );
 }
 
 export function completedTasksInfiniteQueryOptions(
@@ -73,13 +75,8 @@ export function projectTasksInfiniteQueryOptions(
     ProjectTaskInfiniteData,
     readonly ["projects", string, "tasks"],
     string | undefined
-  >({
-    getNextPageParam: (lastPage, _allPages, lastPageParam) =>
-      lastPage.nextCursor === null || lastPage.nextCursor === lastPageParam
-        ? undefined
-        : lastPage.nextCursor,
-    initialPageParam: undefined,
-    queryFn: ({ pageParam, signal }) =>
+  >(
+    sharedProjectTasks(projectId, (pageParam, signal) =>
       client.listTasks(
         projectId,
         {
@@ -88,8 +85,8 @@ export function projectTasksInfiniteQueryOptions(
         },
         { signal },
       ),
-    queryKey: ["projects", projectId, "tasks"] as const,
-  });
+    ),
+  );
 }
 
 export function taskSnapshotQueryOptions(
@@ -97,9 +94,9 @@ export function taskSnapshotQueryOptions(
   taskId: string,
   client: CodexlySnapshotClient = codexlyClient,
 ) {
-  return queryOptions({
-    gcTime: TASK_SNAPSHOT_GC_TIME_MS,
-    queryFn: ({ signal }) => client.readTask(projectId, taskId, { signal }),
-    queryKey: ["projects", projectId, "tasks", taskId] as const,
-  });
+  return queryOptions(
+    sharedTaskSnapshot(projectId, taskId, (signal) =>
+      client.readTask(projectId, taskId, { signal }),
+    ),
+  );
 }

@@ -1,21 +1,18 @@
-import { FormatRegistry, Type, type Static } from "@sinclair/typebox";
+import { Type, type Static } from "@sinclair/typebox";
 
 import {
   ProjectRootInputsSchema,
   ProjectRootIdSchema,
   ProjectRootPathSchema,
-  ProjectRootsSchema,
   type ProjectRootInputs,
-  type ProjectRoots,
 } from "./project-root.js";
-
-if (!FormatRegistry.Has("date-time")) {
-  // HTTP 边界统一使用可解析的 ISO 时间，避免各层重复实现时间格式校验。
-  FormatRegistry.Set("date-time", (value) => !Number.isNaN(Date.parse(value)));
-}
-
-export const DateTimeSchema = Type.String({ format: "date-time" });
-export const NullableDateTimeSchema = Type.Union([DateTimeSchema, Type.Null()]);
+import { ProjectSchema } from "./project-entity.js";
+export {
+  DateTimeSchema,
+  NullableDateTimeSchema,
+  ProjectSchema,
+  type Project,
+} from "./project-entity.js";
 
 export const ProjectRelativePathSchema = Type.String({
   minLength: 1,
@@ -84,19 +81,6 @@ export const ProjectFileReferencePathSchema = Type.String({
 });
 
 export type ProjectFileReferencePath = Static<typeof ProjectFileReferencePathSchema>;
-
-export const ProjectSchema = Type.Object(
-  {
-    createdAt: DateTimeSchema,
-    id: Type.String({ minLength: 1 }),
-    name: Type.String({ minLength: 1 }),
-    roots: ProjectRootsSchema,
-  },
-  { additionalProperties: false },
-);
-
-type ProjectValue = Static<typeof ProjectSchema>;
-export type Project = Readonly<Omit<ProjectValue, "roots"> & { roots: ProjectRoots }>;
 
 export const ProjectDirectoryPathSchema = ProjectRootPathSchema;
 

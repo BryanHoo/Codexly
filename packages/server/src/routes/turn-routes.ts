@@ -12,11 +12,14 @@ import {
   SteerAgentTurnRequestSchema,
   SteerAgentTurnResponseSchema,
   type ResolvePendingRequestRequest,
+  type StartAgentTaskRequest,
   type StartAgentTurnRequest,
   type SteerAgentTurnRequest,
 } from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
+import { ProjectRootScopeError, resolveProjectRoot } from "../project-root-scope.js";
+import { GitWorktreeError } from "../git-worktree.js";
 import {
   IdempotencyHeadersSchema,
   ProjectParamsSchema,
@@ -38,6 +41,8 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
     idempotencyCacheSize,
     listModels,
     readInheritedTaskSettings,
+    projectRepository,
+    resolveProjectWorktree,
     resolveProviderTurnInput,
     runIdempotent,
     settingsRepository,
@@ -46,7 +51,7 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
   } = context;
 
   app.post<{
-    Body: Record<string, never>;
+    Body: StartAgentTaskRequest;
     Headers: { "idempotency-key": string };
     Params: { projectId: string };
   }>(
@@ -95,7 +100,33 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
               throw new Error("Task creation recovery capacity is exhausted");
             }
             const defaults = await readInheritedTaskSettings(request.params.projectId);
-            const task = await context.provider.startTask();
+            let workspacePath: string | undefined;
+            if (request.body.worktreePath !== undefined) {
+              if (request.body.rootPath === undefined) {
+                throw new MutationHttpError("INVALID_REQUEST", "Project root is required", 400);
+              }
+              try {
+                const rootPath = await resolveProjectRoot(
+                  projectRepository,
+                  request.params.projectId,
+                  request.body.rootPath,
+                );
+                workspacePath = (await resolveProjectWorktree(rootPath, request.body.worktreePath))
+                  .path;
+              } catch (error) {
+                if (error instanceof GitWorktreeError || error instanceof ProjectRootScopeError) {
+                  throw new MutationHttpError("INVALID_REQUEST", "Git worktree is invalid", 400);
+                }
+                throw error;
+              }
+            } else if (request.body.rootPath !== undefined) {
+              throw new MutationHttpError("INVALID_REQUEST", "Git worktree path is required", 400);
+            }
+            // 原 Project 保留任务归属，worktree 只覆盖 Codex 线程 cwd。
+            const task =
+              workspacePath === undefined
+                ? await context.provider.startTask()
+                : await context.provider.startTask({ workspacePath });
             // Provider 已创建 Task 后立即保留恢复状态，后续落库重试不能再次创建 Task。
             recovery = {
               fingerprint,
