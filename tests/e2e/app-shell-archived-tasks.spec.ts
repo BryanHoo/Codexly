@@ -68,7 +68,11 @@ test("manages searchable paginated archived tasks from the project menu", async 
   });
 
   await page.goto("/p/codexly/t/task-1");
-  await page.getByRole("button", { name: "打开 Codexly 的项目操作菜单" }).click();
+  const projectMenu = page.getByRole("button", { name: "打开 Codexly 的项目操作菜单" });
+  await expect(projectMenu).toBeVisible();
+  const now = new Date();
+  await page.clock.install({ time: now });
+  await projectMenu.click();
   await page.getByRole("menuitem", { name: "已归档" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Codexly 的已归档任务" });
@@ -76,6 +80,9 @@ test("manages searchable paginated archived tasks from the project menu", async 
   await expect(dialog.getByRole("button", { name: "下一页" })).toBeEnabled();
   await dialog.getByRole("button", { name: "下一页" }).focus();
   await page.keyboard.press("Enter");
+  await expect(dialog.getByText("第 2 页", { exact: true })).toBeVisible();
+  // 初次挂载的搜索防抖结束后，不能把用户刚翻到的第二页重置。
+  await page.clock.runFor(300);
   await expect(dialog.getByText("第 2 页", { exact: true })).toBeVisible();
   await expect(dialog.getByText("搜索命中的归档任务", { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "上一页" }).focus();

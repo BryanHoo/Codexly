@@ -234,15 +234,18 @@ export function ArchivedTasksDialog({
     unarchiveMutation.isPending || deleteMutation.isPending || deleteAllMutation.isPending;
 
   useEffect(() => {
+    const nextSearchTerm = query.trim();
+    // 初次挂载或搜索词未变时，不能用防抖回调覆盖用户当前页。
+    if (nextSearchTerm === searchTerm) return;
     const timeout = window.setTimeout(() => {
-      setSearchTerm(query.trim());
+      setSearchTerm(nextSearchTerm);
       setCursors([undefined]);
       setPageIndex(0);
     }, 250);
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [query]);
+  }, [query, searchTerm]);
 
   const resetArchivedPages = () => {
     // Mutation 会使 opaque cursor 失效，因此统一回到第一页并丢弃旧页缓存。
