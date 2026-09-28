@@ -142,6 +142,9 @@ pub async fn ensure_custom_model_discovery(
     if config.pointer("/features/api_key_model_discovery") != Some(&json!(true)) {
         edits.push(edit("features.api_key_model_discovery", json!(true)));
     }
+    if config.get("suppress_unstable_features_warning") != Some(&json!(true)) {
+        edits.push(edit("suppress_unstable_features_warning", json!(true)));
+    }
     if edits.is_empty() {
         return Ok(false);
     }
@@ -305,6 +308,9 @@ pub async fn configure_custom_provider(
     };
     edits.push(edit("desktop.codeagent.provider", Value::Null));
     edits.push(edit("features.api_key_model_discovery", json!(true)));
+    if config.get("suppress_unstable_features_warning") != Some(&json!(true)) {
+        edits.push(edit("suppress_unstable_features_warning", json!(true)));
+    }
     if existing_custom_provider_id.is_none() || existing_custom_provider_id == Some("openai") {
         edits.push(edit("model_provider", json!(DEFAULT_CUSTOM_PROVIDER_ID)));
     }

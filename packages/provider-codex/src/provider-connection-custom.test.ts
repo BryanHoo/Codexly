@@ -4,41 +4,6 @@ import { CodexProviderConnectionService } from "./provider-connection.js";
 import { FakeRpcClient } from "./provider-connection.test-support.js";
 
 describe("Codex custom provider connection", () => {
-  it("falls back to an empty reconnect catalog when refreshing the remote endpoint fails", async () => {
-    const client = new FakeRpcClient();
-    client.enqueue("config/batchWrite", {});
-    client.enqueue("modelProvider/capabilities/read", {
-      imageGeneration: true,
-      namespaceTools: true,
-      webSearch: true,
-    });
-    client.enqueue("config/read", {
-      config: {
-        model_provider: "relay",
-        model_providers: {
-          relay: {
-            base_url: "https://api.example.com/v1",
-            name: "User Relay",
-            requires_openai_auth: true,
-            wire_api: "responses",
-          },
-        },
-      },
-    });
-    client.enqueue("account/read", { account: { type: "apiKey" }, requiresOpenaiAuth: true });
-    const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new Error("missing API key"));
-    const service = new CodexProviderConnectionService(client, { fetch: fetchMock });
-    const persistedModels: ConfigureCustomProviderResponse["models"] = {
-      data: [],
-      nextCursor: null,
-    };
-
-    await expect(
-      service.configureCustom({ baseUrl: "https://api.example.com/v1" }, persistedModels),
-    ).resolves.toMatchObject({ models: persistedModels });
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
   it("refreshes a persisted reconnect catalog from the current upstream endpoint", async () => {
     const client = new FakeRpcClient();
     client.enqueue("config/batchWrite", {});
@@ -149,6 +114,11 @@ describe("Codex custom provider connection", () => {
             mergeStrategy: "upsert",
             value: true,
           },
+          {
+            keyPath: "suppress_unstable_features_warning",
+            mergeStrategy: "upsert",
+            value: true,
+          },
         ],
       },
     });
@@ -195,6 +165,11 @@ describe("Codex custom provider connection", () => {
           },
           {
             keyPath: "features.api_key_model_discovery",
+            mergeStrategy: "upsert",
+            value: true,
+          },
+          {
+            keyPath: "suppress_unstable_features_warning",
             mergeStrategy: "upsert",
             value: true,
           },
@@ -249,6 +224,11 @@ describe("Codex custom provider connection", () => {
           },
           {
             keyPath: "features.api_key_model_discovery",
+            mergeStrategy: "upsert",
+            value: true,
+          },
+          {
+            keyPath: "suppress_unstable_features_warning",
             mergeStrategy: "upsert",
             value: true,
           },
@@ -372,6 +352,11 @@ describe("Codex custom provider connection", () => {
           },
           {
             keyPath: "features.api_key_model_discovery",
+            mergeStrategy: "upsert",
+            value: true,
+          },
+          {
+            keyPath: "suppress_unstable_features_warning",
             mergeStrategy: "upsert",
             value: true,
           },

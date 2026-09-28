@@ -13,6 +13,7 @@ describe("Codex provider connection failures", () => {
             base_url: "https://existing.example.com/v1",
           },
         },
+        suppress_unstable_features_warning: false,
       },
     });
     client.enqueue("account/read", { account: { type: "chatgpt" }, requiresOpenaiAuth: true });
@@ -48,6 +49,11 @@ describe("Codex provider connection failures", () => {
             keyPath: "features.api_key_model_discovery",
             mergeStrategy: "replace",
             value: null,
+          },
+          {
+            keyPath: "suppress_unstable_features_warning",
+            mergeStrategy: "replace",
+            value: false,
           },
         ],
       },
@@ -86,6 +92,11 @@ describe("Codex provider connection failures", () => {
           },
           {
             keyPath: "features.api_key_model_discovery",
+            mergeStrategy: "replace",
+            value: null,
+          },
+          {
+            keyPath: "suppress_unstable_features_warning",
             mergeStrategy: "replace",
             value: null,
           },

@@ -274,15 +274,18 @@ export class CodexProviderConnectionService {
     const config = await this.#nativeState.readConfig();
     const activeProvider = readActiveProvider(config);
     if (activeProvider.mode !== "custom" || activeProvider.customBaseUrl === null) return;
-    if (hasCurrentCustomModelCatalog(config)) return;
+    const catalogCurrent = hasCurrentCustomModelCatalog(config);
+    if (catalogCurrent && config["suppress_unstable_features_warning"] === true) return;
 
-    const update = createCustomProviderConfigUpdate(
-      config,
-      normalizeBaseUrl(activeProvider.customBaseUrl),
-      /*hasApiKey*/ false,
-    );
-    // 旧版只配置推理 base_url；启动刷新前补齐目录端点和发现开关。
-    await this.#client.request("config/batchWrite", { edits: update.edits });
+    // 已有目录只补警告开关，不重写用户的 Provider 配置。
+    const edits = catalogCurrent
+      ? [{ keyPath: "suppress_unstable_features_warning", mergeStrategy: "upsert", value: true }]
+      : createCustomProviderConfigUpdate(
+          config,
+          normalizeBaseUrl(activeProvider.customBaseUrl),
+          /*hasApiKey*/ false,
+        ).edits;
+    await this.#client.request("config/batchWrite", { edits });
     this.#nativeState.clear();
   }
 

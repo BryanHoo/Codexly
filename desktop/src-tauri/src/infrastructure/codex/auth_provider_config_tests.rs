@@ -126,6 +126,55 @@ async fn legacy_custom_provider_should_gain_catalog_on_next_model_read() {
                 .any(|edit| edit["keyPath"] == "features.api_key_model_discovery"
                     && edit["value"] == true)
         );
+        assert!(edits.iter().any(
+            |edit| edit["keyPath"] == "suppress_unstable_features_warning" && edit["value"] == true
+        ));
+        server_writer
+            .write_all(format!("{}\n", json!({"id": write["id"], "result": {}})).as_bytes())
+            .await
+            .unwrap();
+    });
+    assert!(ensure_custom_model_discovery(&connection).await.unwrap());
+    server_task.await.unwrap();
+}
+
+#[tokio::test]
+async fn current_custom_provider_should_suppress_existing_warning() {
+    let (client, server) = duplex(32 * 1024);
+    let (client_reader, client_writer) = split(client);
+    let (server_reader, mut server_writer) = split(server);
+    let connection = AppServerConnection::new(client_reader, client_writer);
+    let server_task = tokio::spawn(async move {
+        let mut lines = BufReader::new(server_reader).lines();
+        let read: Value = serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        server_writer
+            .write_all(
+                format!(
+                    "{}\n",
+                    json!({"id": read["id"], "result": {"config": {
+                        "model_provider": "relay",
+                        "model_providers": {"relay": {
+                            "base_url": "https://relay.example/v1",
+                            "model_catalog_url": "https://relay.example/v1/models"
+                        }},
+                        "features": {"api_key_model_discovery": true}
+                    }}})
+                )
+                .as_bytes(),
+            )
+            .await
+            .unwrap();
+        let write: Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(write["method"], "config/batchWrite");
+        assert_eq!(
+            write["params"]["edits"],
+            json!([{
+                "keyPath": "suppress_unstable_features_warning",
+                "mergeStrategy": "replace",
+                "value": true
+            }])
+        );
         server_writer
             .write_all(format!("{}\n", json!({"id": write["id"], "result": {}})).as_bytes())
             .await
