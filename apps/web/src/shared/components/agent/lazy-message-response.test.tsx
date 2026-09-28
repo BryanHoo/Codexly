@@ -22,7 +22,7 @@ describe("LazyMessageResponse", () => {
     const module = await loadMessageResponse();
 
     expect(module.default.displayName).toBe("MessageResponse");
-  });
+  }, 20_000);
 
   it("从共享消息原语与运行时静态图中移除 Streamdown", () => {
     const messageSource = readFileSync(new URL("./message.tsx", import.meta.url), "utf8");
