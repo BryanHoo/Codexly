@@ -38,6 +38,7 @@ Doctor options:
 
 Global options:
   -h, --help                 Display all commands, options, and usage details.
+  -V, --version              Print the installed Codexly version.
 
 Examples:
   codexly
@@ -47,10 +48,42 @@ Examples:
   codexly start --lan --session-ttl 12h
   codexly start --workspace /workspace
   codexly doctor --codex-bin /path/to/codex
-  codexly version
+  codexly --version
 
 Running codexly without a command is equivalent to codexly start.
+Run codexly <command> --help for command-specific options.
 `;
+
+export const CLI_COMMAND_HELP: Readonly<Record<string, string>> = {
+  start: `Usage: codexly start [options]
+
+Start the Codexly server and open the Web interface.
+
+Options:
+  --port <port>              Start from this TCP port (default: 3210); skip occupied ports.
+  --lan                      Listen on all interfaces; do not open the browser.
+  --lan-password <password>  Set a 16-128 character LAN password (requires --lan).
+  --allowed-host <domain>    Allow an exact reverse proxy domain; may be repeated.
+  --session-ttl <duration>   Set the LAN session lifetime in ms, s, m, h, or d (requires --lan).
+  --codex-bin <path>         Use this Codex executable.
+  --codex-home <path>        Use this Codex home directory.
+  --workspace <path>         Restrict projects to this absolute root; may be repeated.
+  -h, --help                 Display help for start.
+`,
+  doctor: `Usage: codexly doctor [options]
+
+Check whether the local Codexly runtime is ready.
+
+Options:
+  --codex-bin <path>         Check this Codex executable.
+  --codex-home <path>        Check the state database in this Codex home.
+  -h, --help                 Display help for doctor.
+`,
+  version: `Usage: codexly version
+
+Print the installed Codexly version. You can also run codexly --version.
+`,
+};
 
 export function parseCommandOptions(
   args: readonly string[],

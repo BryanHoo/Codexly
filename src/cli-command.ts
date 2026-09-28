@@ -34,6 +34,7 @@ import packageManifest from "../package.json" with { type: "json" };
 import { createAppUpdateService } from "./app-update.js";
 import {
   applyStartEnvironmentDefaults,
+  CLI_COMMAND_HELP,
   CLI_HELP,
   parseCommandOptions,
   type ParsedCommandOptions,
@@ -464,14 +465,22 @@ export async function runCli(
   const args = rawArgs[0] === "--" ? rawArgs.slice(1) : rawArgs;
 
   try {
-    if (command === "--help" || command === "-h") {
-      output.plain(CLI_HELP);
+    // 全局标志只接受独立调用；子命令帮助必须位于命令之后。
+    if (
+      command === "--help" ||
+      command === "-h" ||
+      (!command.startsWith("-") && (args[0] === "--help" || args[0] === "-h"))
+    ) {
+      if (args.length > (command.startsWith("-") ? 0 : 1)) {
+        throw new Error(`未知选项: ${args[command.startsWith("-") ? 0 : 1] ?? "<empty>"}`);
+      }
+      const help = command.startsWith("-") ? CLI_HELP : CLI_COMMAND_HELP[command];
+      if (!help) throw new Error(`未知命令: ${command}`);
+      output.plain(help);
       return 0;
     }
-    if (command === "version") {
-      if (args.length > 0) {
-        throw new Error(`未知选项: ${args[0] ?? "<empty>"}`);
-      }
+    if (command === "version" || command === "--version" || command === "-V") {
+      if (args.length > 0) throw new Error(`未知选项: ${args[0] ?? "<empty>"}`);
       output.plain(`codexly ${dependencies.appVersion}\n`);
       return 0;
     }

@@ -121,7 +121,7 @@ codexly start --lan
 
 ## Web 诊断与更新
 
-启动、Codex 或本地数据检查失败时运行 `codexly doctor`。使用 `codexly --help` 查看当前命令和选项。
+启动、Codex 或本地数据检查失败时运行 `codexly doctor`。使用 `codexly --help` 查看完整命令，`codexly start --help` 或 `codexly doctor --help` 查看对应选项，`codexly --version` 查看版本。
 
 交互式启动和“设置 > 关于”会检查新版本。内置更新的版本查询、包下载和依赖安装优先使用国内镜像，失败后回退官方源；下载和安装复用用户的 npm 缓存。镜像同步期间可能稍晚显示新版本。全局安装也可以通过以下命令更新：
 

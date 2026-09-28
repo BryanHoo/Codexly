@@ -141,7 +141,7 @@ Quote passwords containing shell-special characters. LAN mode uses unencrypted H
 
 ## Web Diagnostics and Updates
 
-Run `codexly doctor` when startup, Codex, or local data checks fail. Run `codexly --help` for the current command and option reference.
+Run `codexly doctor` when startup, Codex, or local data checks fail. Use `codexly --help` for all commands, `codexly start --help` or `codexly doctor --help` for command options, and `codexly --version` for the installed version.
 
 Interactive startup and **Settings > About** check for new releases. Built-in updates try the China mirror first for version checks, package downloads, and dependency installation, falling back to the official registry on failure and reusing your npm cache. New releases may appear later while the mirror synchronizes. A global installation can also be updated with:
 
