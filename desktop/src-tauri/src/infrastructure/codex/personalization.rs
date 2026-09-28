@@ -17,10 +17,7 @@ fn memory_settings(config: &Value) -> MemorySettings {
         enabled: flag("/features/memories", false)
             && flag("/memories/generate_memories", true)
             && flag("/memories/use_memories", true),
-        allow_external_context: !flag(
-            "/memories/disable_on_external_context",
-            flag("/memories/no_memories_if_mcp_or_web_search", false),
-        ),
+        allow_external_context: !flag("/memories/disable_on_external_context", false),
     }
 }
 
@@ -34,7 +31,7 @@ pub async fn update_memory_settings(
     connection: &AppServerConnection,
     update: MemorySettingsUpdate,
 ) -> Result<MemorySettings, ConnectionError> {
-    let mut edits = Vec::with_capacity(5);
+    let mut edits = Vec::with_capacity(4);
     if let Some(enabled) = update.enabled {
         // 三个配置一起提交，关闭时同时停止后续生成与提示注入。
         for key in [
@@ -46,11 +43,6 @@ pub async fn update_memory_settings(
         }
     }
     if let Some(allowed) = update.allow_external_context {
-        // 同批移除官方旧别名，避免两个键并存导致配置反序列化失败。
-        edits.push(edit(
-            "memories.no_memories_if_mcp_or_web_search",
-            Value::Null,
-        ));
         edits.push(edit(
             "memories.disable_on_external_context",
             json!(!allowed),
@@ -91,10 +83,7 @@ mod tests {
                 if method == "config/batchWrite" {
                     assert_eq!(request["params"]["reloadUserConfig"], true);
                     let edits = request["params"]["edits"].as_array().unwrap();
-                    assert_eq!(edits.len(), 5);
-                    assert!(edits.iter().any(|item| item["keyPath"]
-                        == "memories.no_memories_if_mcp_or_web_search"
-                        && item["value"].is_null()));
+                    assert_eq!(edits.len(), 4);
                     for key in [
                         "features.memories",
                         "memories.generate_memories",

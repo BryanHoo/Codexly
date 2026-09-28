@@ -25,11 +25,6 @@ describe("personalization", () => {
           { keyPath: "memories.generate_memories", value: true, mergeStrategy: "replace" },
           { keyPath: "memories.use_memories", value: true, mergeStrategy: "replace" },
           {
-            keyPath: "memories.no_memories_if_mcp_or_web_search",
-            value: null,
-            mergeStrategy: "replace",
-          },
-          {
             keyPath: "memories.disable_on_external_context",
             value: true,
             mergeStrategy: "replace",

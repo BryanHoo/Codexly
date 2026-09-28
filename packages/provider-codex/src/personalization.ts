@@ -23,11 +23,7 @@ export async function readMemorySettings(client: CodexRpcClient): Promise<Memory
       features["memories"] === true &&
       memories["generate_memories"] !== false &&
       memories["use_memories"] !== false,
-    allowExternalContext: !(
-      memories["disable_on_external_context"] ??
-      memories["no_memories_if_mcp_or_web_search"] ??
-      false
-    ),
+    allowExternalContext: memories["disable_on_external_context"] !== true,
   };
 }
 export async function updateMemorySettings(client: CodexRpcClient, update: MemorySettingsUpdate) {
@@ -37,7 +33,6 @@ export async function updateMemorySettings(client: CodexRpcClient, update: Memor
     for (const key of ["features.memories", "memories.generate_memories", "memories.use_memories"])
       edits.push(edit(key, update.enabled));
   if (update.allowExternalContext !== undefined) {
-    edits.push(edit("memories.no_memories_if_mcp_or_web_search", null));
     edits.push(edit("memories.disable_on_external_context", !update.allowExternalContext));
   }
   if (edits.length) await client.request("config/batchWrite", { edits, reloadUserConfig: true });
