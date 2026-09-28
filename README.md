@@ -35,7 +35,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 
 ## Features
 
-- Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive; keep follow-up messages in a persistent queue.
+- Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive, with file edit timing and completion summaries; keep follow-up messages in a persistent queue.
 - Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task.
 - Search tasks, message history, and project files; inspect changes, work with branches and worktrees, and commit or push selected files.
 - Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work.
@@ -55,6 +55,8 @@ npx --package @bryanhu/codexly@latest codexly start
 ```
 
 Codexly opens the browser automatically. If it does not, use the address printed in the terminal; the default is `http://127.0.0.1:3210`. Keep the terminal running and press `Ctrl+C` to stop.
+
+Run `codexly --version` to check the installed version, or `codexly <command> --help` for command-specific options.
 
 Only one Codexly instance can use a data directory. The instance lock is released automatically on exit or crash. Use different `--codex-home <directory>` values for independent instances.
 

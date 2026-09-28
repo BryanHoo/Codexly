@@ -20,6 +20,8 @@ GitHub 仓库必须有名为 `npm` 的 Environment。工作流使用 OIDC 和 np
 
 ## 发布步骤
 
+先检查自上次标签以来的实际变更，按兼容性决定版本：仅修复、依赖维护或文档更新升补丁号；新增兼容功能升次版本号；不兼容变更才升主版本号。当前处于 `0.x` 阶段，仍按实际影响判断，不能每次发布都升主版本号。Web 与桌面始终共用同一版本；其中一端新增功能也会提升联合版本的次版本号。
+
 1. 将根目录 `package.json` 与 `desktop/package.json`、`desktop/src-tauri/tauri.conf.json`、`desktop/src-tauri/Cargo.toml` 和 Cargo lock 更新为同一递增版本号。
 2. 分别将根目录和 `desktop/CHANGELOG.md` 的 `Unreleased` 内容移入对应版本，并填写发布日期；同步核对 `README.md`、`README.zh-CN.md`、`desktop/README.md` 和 `desktop/README.en.md` 的用户功能与安装说明。
 3. 运行发布校验：

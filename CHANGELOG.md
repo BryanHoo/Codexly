@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-09-28
+
+### 新增
+
+- CLI 支持 `codexly <command> --help` 查看命令专属帮助，并支持 `codexly --version` 查看安装版本。
+- 在 Web 与桌面工作台展示文件编辑耗时，并在操作完成后保留耗时汇总。
+
+### 优化
+
+- 为两端应用出站请求统一设置 User-Agent，覆盖更新检查、资源下载与自定义 Provider 请求。
+- 升级桌面端 Tauri 相关依赖。
+
+### 修复
+
+- 修复自定义 Provider 的不稳定功能警告，以及个性化设置与任务标题生成的配置问题。
+- 修复归档任务搜索防抖后分页回到第一页的问题。
+
 ## [0.27.1] - 2026-09-27
 
 ### 新增
@@ -455,7 +472,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.27.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.28.0
 [0.27.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.27.1
 [0.26.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.26.1
 [0.11.2]: https://github.com/BryanHoo/Codexly/releases/tag/v0.11.2

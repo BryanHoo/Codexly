@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-09-28
+
+### Added
+
+- 在文件编辑时间线中展示耗时，并在操作结束后保留汇总，与 Web 工作台保持一致。
+
+### Changed
+
+- 为更新检查、运行时下载、市场请求和自定义 Provider 请求统一设置 User-Agent。
+- 升级 Tauri 相关依赖。
+
+### Fixed
+
+- 修复自定义 Provider 的不稳定功能警告，以及个性化设置与任务标题生成的配置问题。
+- 修复归档任务搜索防抖后分页回到第一页的问题。
+
 ## [0.27.1] - 2026-09-27
 
 ### Added
@@ -339,7 +355,8 @@
 
 - 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.27.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/BryanHoo/Codexly/compare/v0.27.1...v0.28.0
 [0.27.1]: https://github.com/BryanHoo/Codexly/compare/v0.26.1...v0.27.1
 [0.26.1]: https://github.com/BryanHoo/Codexly/compare/v0.26.0...v0.26.1
 [0.2.5]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.4...v0.2.5
