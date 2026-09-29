@@ -51,14 +51,22 @@ export function registerScheduledTaskEvents(app: FastifyInstance, context: Serve
       socket.ping();
     }, 30_000);
     heartbeat.unref();
+    let cancelInvalidation: () => void = () => undefined;
     const cleanup = () => {
+      if (closed) return;
       closed = true;
       unsubscribe();
       cancelExpiry();
+      cancelInvalidation();
       clearInterval(heartbeat);
     };
     socket.once("close", cleanup);
     socket.once("error", cleanup);
+    cancelInvalidation =
+      context.accessService?.onInvalidated(request.cookies[ACCESS_SESSION_COOKIE], () => {
+        cleanup();
+        socket.close(1008, "Access session expired");
+      }) ?? (() => undefined);
     // 首次连接和重连均校准，覆盖断线期间遗漏的执行。
     send();
   });

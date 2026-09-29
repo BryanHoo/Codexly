@@ -20,7 +20,11 @@ interface FailureWindow {
   count: number;
   startedAt: number;
 }
-type Session = Readonly<{ createdAt: number; expiresAt: number | null }>;
+type Session = Readonly<{
+  createdAt: number;
+  expiresAt: number | null;
+  invalidationListeners: Set<() => void>;
+}>;
 
 const FAILURE_LIMIT = 5;
 const FAILURE_WINDOW_MS = 60_000;
@@ -89,11 +93,13 @@ export class AccessSessionService {
       return { status: "failed" };
     }
 
-    this.#ensureCapacity(this.#sessions, this.#maxSessions);
+    this.#ensureCapacity(this.#sessions, this.#maxSessions, (id) => {
+      this.logout(id);
+    });
     const sessionId = this.#randomBytes(32).toString("base64url");
     // 未配置 TTL 的 Session 只受当前 Server 生命周期约束，关闭时仍会统一清空。
     const expiresAt = this.#sessionTtlMs === undefined ? null : now + this.#sessionTtlMs;
-    this.#sessions.set(sessionId, { createdAt: now, expiresAt });
+    this.#sessions.set(sessionId, { createdAt: now, expiresAt, invalidationListeners: new Set() });
     return { expiresAt, sessionId, status: "paired" };
   }
 
@@ -111,7 +117,7 @@ export class AccessSessionService {
     }
     // 认证只检查签发时固定的绝对期限，请求不得续期。
     if (session.expiresAt !== null && session.expiresAt <= this.#now()) {
-      this.#sessions.delete(sessionId);
+      this.logout(sessionId);
       return undefined;
     }
     return session.expiresAt;
@@ -119,8 +125,26 @@ export class AccessSessionService {
 
   public logout(sessionId: string | undefined): void {
     if (sessionId !== undefined) {
+      const session = this.#sessions.get(sessionId);
       this.#sessions.delete(sessionId);
+      // 先撤销认证，再同步停止所有关联连接，避免后续广播继续交付数据。
+      for (const listener of session?.invalidationListeners ?? []) {
+        listener();
+      }
+      session?.invalidationListeners.clear();
     }
+  }
+
+  public onInvalidated(sessionId: string | undefined, listener: () => void): () => void {
+    const session = sessionId === undefined ? undefined : this.#sessions.get(sessionId);
+    if (!this.validate(sessionId) || session === undefined) {
+      listener();
+      return () => undefined;
+    }
+    session.invalidationListeners.add(listener);
+    return () => {
+      session.invalidationListeners.delete(listener);
+    };
   }
 
   public diagnostics(): Readonly<{ failureWindows: number; sessions: number }> {
@@ -130,16 +154,24 @@ export class AccessSessionService {
   public close(): void {
     clearInterval(this.#cleanupTimer);
     this.#failureWindows.clear();
-    this.#sessions.clear();
+    for (const sessionId of this.#sessions.keys()) {
+      this.logout(sessionId);
+    }
   }
 
-  #ensureCapacity<T>(store: Map<string, T>, maximum: number): void {
+  #ensureCapacity<T>(
+    store: Map<string, T>,
+    maximum: number,
+    remove: (key: string) => void = (key) => {
+      store.delete(key);
+    },
+  ): void {
     while (store.size >= maximum) {
       const oldestKey = store.keys().next().value;
       if (oldestKey === undefined) {
         return;
       }
-      store.delete(oldestKey);
+      remove(oldestKey);
     }
   }
 
@@ -151,7 +183,7 @@ export class AccessSessionService {
     }
     for (const [sessionId, session] of this.#sessions) {
       if (session.expiresAt !== null && session.expiresAt <= now) {
-        this.#sessions.delete(sessionId);
+        this.logout(sessionId);
       }
     }
   }

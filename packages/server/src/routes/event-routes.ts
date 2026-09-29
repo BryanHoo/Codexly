@@ -66,6 +66,7 @@ export const registerEventRoutes: FastifyPluginCallback<ServerRouteContext> = (
       let liveFlushScheduled = false;
       const liveEvents: AgentEvent[] = [];
       let unsubscribe: () => void = () => undefined;
+      let cancelInvalidation: () => void = () => undefined;
       const cancelSessionExpiry =
         sessionExpiresAt === undefined || sessionExpiresAt === null
           ? () => undefined
@@ -77,11 +78,18 @@ export const registerEventRoutes: FastifyPluginCallback<ServerRouteContext> = (
         cleanedUp = true;
         liveEvents.length = 0;
         cancelSessionExpiry();
+        cancelInvalidation();
         unsubscribe();
         context.transportMetrics.activeClients -= 1;
       };
       socket.once("close", cleanup);
       socket.once("error", cleanup);
+      cancelInvalidation =
+        accessService?.onInvalidated(request.cookies[ACCESS_SESSION_COOKIE], () => {
+          cleanup();
+          socket.close(1008, "Access session expired");
+        }) ?? (() => undefined);
+      if (socket.readyState !== socket.OPEN) return;
       const send = (message: EventStreamMessage): boolean =>
         sendEventStreamMessage(
           socket,
