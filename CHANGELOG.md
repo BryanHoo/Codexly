@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-09-29
+
+### 新增
+
+- Web 与桌面端支持直接新建项目及项目目录，并可在新聊天中切换临时任务和项目范围。
+- 支持从消息中快捷引用文件，点击图片路径预览图片；桌面端可直接在原项目中创建 worktree 任务。
+
+### 优化
+
+- 优化移动端控件、触屏操作与侧栏交互，统一两端任务时间线和待提交消息的显示。
+- 升级内置 Codex CLI 与桌面应用私有运行时至 `0.159.0`，同步协议基线和 Guardian 错误分类。
+
+### 修复
+
+- 注销 Web 会话时关闭关联的事件流；修复聚焦时误弹提示和中断回合提交后的展示问题。
+
 ## [0.28.0] - 2026-09-28
 
 ### 新增
@@ -472,7 +488,8 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.29.0
 [0.28.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.28.0
 [0.27.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.27.1
 [0.26.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.26.1

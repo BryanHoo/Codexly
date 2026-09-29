@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-09-29
+
+### Added
+
+- 支持新建项目与项目目录，以及在原项目目录中创建 worktree 任务。
+- 新聊天可在临时任务和项目之间切换；消息文件引用和图片路径支持快捷操作。
+
+### Changed
+
+- 升级应用私有 Codex 至 `0.159.0`，同步实验协议基线与 Guardian 错误分类。
+- 优化工作台触屏控件、侧栏交互、任务时间线及待提交消息的呈现。
+
+### Fixed
+
+- 修复聚焦时提示自动弹出和中断回合提交后的展示问题。
+
 ## [0.28.0] - 2026-09-28
 
 ### Added
@@ -355,7 +371,8 @@
 
 - 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/BryanHoo/Codexly/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/BryanHoo/Codexly/compare/v0.27.1...v0.28.0
 [0.27.1]: https://github.com/BryanHoo/Codexly/compare/v0.26.1...v0.27.1
 [0.26.1]: https://github.com/BryanHoo/Codexly/compare/v0.26.0...v0.26.1
