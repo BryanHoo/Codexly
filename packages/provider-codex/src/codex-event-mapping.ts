@@ -61,6 +61,7 @@ function mapProviderErrorInfo(value: unknown): Readonly<{
     badRequest: "bad_request",
     contextWindowExceeded: "context_window_exceeded",
     cyberPolicy: "policy_blocked",
+    flexUnavailable: "flex_unavailable",
     internalServerError: "internal_error",
     other: "other",
     rateLimitExceeded: "rate_limit_exceeded",

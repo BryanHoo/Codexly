@@ -15,7 +15,9 @@ pub fn exit_fullscreen_before_hide(
     completed: impl FnOnce() + 'static,
 ) -> Result<(), &'static str> {
     let _mtm = MainThreadMarker::new().ok_or("fullscreen exit requires the main thread")?;
-    let handle = handle.window_handle().map_err(|_| "window handle unavailable")?;
+    let handle = handle
+        .window_handle()
+        .map_err(|_| "window handle unavailable")?;
     let RawWindowHandle::AppKit(handle) = handle.as_raw() else {
         return Err("expected an AppKit window handle");
     };

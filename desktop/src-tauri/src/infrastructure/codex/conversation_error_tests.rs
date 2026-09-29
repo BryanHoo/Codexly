@@ -7,6 +7,7 @@ use super::{connection::ServerMessage, conversation_events::map_server_message};
 fn codex_152_errors_should_keep_public_classification() {
     let cases = [
         (json!("rateLimitExceeded"), "rate_limit_exceeded", None),
+        (json!("flexUnavailable"), "flex_unavailable", None),
         (
             json!({"httpConnectionFailed": {"httpStatusCode": 429}}),
             "connection_failed",

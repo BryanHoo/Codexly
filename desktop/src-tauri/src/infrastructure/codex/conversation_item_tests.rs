@@ -13,6 +13,66 @@ fn absolute_test_path(name: &str) -> String {
 }
 
 #[test]
+fn command_launch_failure_should_complete_with_diagnostic_output() {
+    let item = json!({
+        "id": "command-launch-failure", "type": "commandExecution",
+        "command": "echo unreachable", "cwd": "/missing-work-directory", "processId": null
+    });
+    let cases = [
+        ("item/started", "inProgress", Value::Null, Value::Null),
+        (
+            "item/completed",
+            "failed",
+            json!(-1),
+            json!("Failed to create unified exec process: No such file or directory"),
+        ),
+    ];
+    for (method, status, exit_code, output) in cases {
+        let mut native_item = item.clone();
+        native_item["status"] = json!(status);
+        native_item["exitCode"] = exit_code.clone();
+        native_item["aggregatedOutput"] = output.clone();
+        if method == "item/completed" {
+            native_item["durationMs"] = json!(0);
+        }
+        let event = map_server_message(
+            ServerMessage {
+                id: None,
+                method: method.to_owned(),
+                params: to_raw_value(&json!({
+                    "threadId": "thread-a", "turnId": "turn-a", "item": native_item
+                }))
+                .unwrap(),
+            },
+            1,
+            "2026-09-29T00:00:00Z",
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(event["itemId"], "command-launch-failure");
+        assert_eq!(
+            event["type"],
+            if method == "item/started" {
+                "item.started"
+            } else {
+                "item.completed"
+            }
+        );
+        assert_eq!(event["payload"]["item"]["type"], "command");
+        assert_eq!(
+            event["payload"]["item"]["status"],
+            if method == "item/started" {
+                "running"
+            } else {
+                "failed"
+            }
+        );
+        assert_eq!(event["payload"]["item"]["exitCode"], exit_code);
+        assert_eq!(event["payload"]["item"]["output"], output);
+    }
+}
+
+#[test]
 fn file_change_stats_should_be_native_for_history_and_realtime() {
     let changes = json!([
         {"path":"new.txt", "kind":{"type":"add"}, "diff":"+++ content\n\nlast"},

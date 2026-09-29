@@ -22,7 +22,7 @@ Codexly 是本地 AI 编程工作台，提供桌面应用和 Web 版。它将编
 
 **桌面版**提供原生项目终端、全局快捷键、独立任务窗口、托盘集成和应用私有 Codex 安装。支持 Windows、Ubuntu 和 macOS；完整功能与更新方式见[桌面版指南](desktop/README.md)。
 
-**Web 版**在本机运行服务并由浏览器访问，支持手机等设备从可信局域网接入、Docker 部署、任务看板、Mermaid 图表和自定义工作台背景。Web 版通过 `@openai/codex` 自带 Codex CLI `0.157.1`；使用 `--codex-bin <path>` 或 `CODEXLY_CODEX_BIN` 指定外部版本时，版本必须满足 `>=0.157.1,<0.158.0`。
+**Web 版**在本机运行服务并由浏览器访问，支持手机等设备从可信局域网接入、Docker 部署、任务看板、Mermaid 图表和自定义工作台背景。Web 版通过 `@openai/codex` 自带 Codex CLI `0.158.0`；使用 `--codex-bin <path>` 或 `CODEXLY_CODEX_BIN` 指定外部版本时，版本必须满足 `>=0.158.0,<0.159.0`。
 
 ## 启动 Web 版
 

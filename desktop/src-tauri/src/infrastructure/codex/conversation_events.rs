@@ -280,6 +280,7 @@ fn map_codex_error_info(value: Option<&Value>) -> (&'static str, Option<u64>) {
         Some("sessionBudgetExceeded") => "session_budget_exceeded",
         Some("usageLimitExceeded") => "usage_limit_exceeded",
         Some("rateLimitExceeded") => "rate_limit_exceeded",
+        Some("flexUnavailable") => "flex_unavailable",
         Some("serverOverloaded") => "server_overloaded",
         Some("cyberPolicy" | "misalignmentPolicyViolation") => "policy_blocked",
         Some("internalServerError") => "internal_error",

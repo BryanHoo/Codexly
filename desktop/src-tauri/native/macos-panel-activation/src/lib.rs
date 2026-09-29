@@ -22,7 +22,9 @@ pub fn application_is_active() -> bool {
 
 /// 在启动外部原生组件前读取系统能力边界，不通过额外子进程探测版本。
 pub fn macos_major_version() -> isize {
-    NSProcessInfo::processInfo().operatingSystemVersion().majorVersion
+    NSProcessInfo::processInfo()
+        .operatingSystemVersion()
+        .majorVersion
 }
 
 /// 仅在应用已经位于前台时允许面板获得键盘焦点，避免桌面宠物抢走其他应用的 key window。

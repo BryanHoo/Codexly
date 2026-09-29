@@ -6,6 +6,50 @@ import { mapNotification } from "./codex-protocol-mapping.test-support.js";
 import { boundRealtimeDiff, mapCodexFileChange } from "./codex-diff-mapping.js";
 
 describe("Codex realtime protocol mapping", () => {
+  it("completes a command whose process could not start with its launch diagnostic", () => {
+    const item = {
+      command: "echo unreachable",
+      cwd: "/missing-work-directory",
+      id: "command-launch-failure",
+      processId: null,
+      type: "commandExecution",
+    };
+    const params = { threadId: "task-1", turnId: "turn-1" };
+    const started = mapNotification("item/started", {
+      ...params,
+      item: { ...item, aggregatedOutput: null, exitCode: null, status: "inProgress" },
+    });
+    const completed = mapNotification("item/completed", {
+      ...params,
+      item: {
+        ...item,
+        aggregatedOutput: "Failed to create unified exec process: No such file or directory",
+        durationMs: 0,
+        exitCode: -1,
+        status: "failed",
+      },
+    });
+
+    expect(started).toMatchObject({
+      itemId: item.id,
+      payload: { item: { id: item.id, status: "running", type: "command" } },
+      type: "item.started",
+    });
+    expect(completed).toMatchObject({
+      itemId: item.id,
+      payload: {
+        item: {
+          exitCode: -1,
+          id: item.id,
+          output: "Failed to create unified exec process: No such file or directory",
+          status: "failed",
+          type: "command",
+        },
+      },
+      type: "item.completed",
+    });
+  });
+
   it("removes repeated copied skill references when merging expanded skill history", () => {
     const turn = mapAgentTurn(
       {
@@ -324,6 +368,21 @@ describe("Codex realtime protocol mapping", () => {
       }),
     ).toMatchObject({
       payload: { code: "rate_limit_exceeded", willRetry: true },
+      type: "provider.error",
+    });
+    expect(
+      mapNotification("error", {
+        error: {
+          additionalDetails: null,
+          codexErrorInfo: "flexUnavailable",
+          message: "Flex capacity unavailable",
+        },
+        threadId: "task-1",
+        turnId: "turn-1",
+        willRetry: false,
+      }),
+    ).toMatchObject({
+      payload: { code: "flex_unavailable", willRetry: false },
       type: "provider.error",
     });
   });
