@@ -18,6 +18,7 @@ test("navigates absolute paths and toggles hidden folders in the project directo
   });
   await page.goto("/p/codexly");
   await page.getByRole("button", { name: "添加项目" }).click();
+  await page.getByRole("menuitem", { name: "添加已有项目" }).click();
   const picker = page.getByRole("dialog", { name: "选择项目文件夹" });
   const pathInput = picker.getByRole("textbox", { name: "绝对目录路径" });
   await pathInput.fill("/workspace/ProjectVault");
@@ -64,6 +65,7 @@ test("adds a validated absolute path directly as one project root", async ({ pag
   });
   await page.goto("/p/codexly");
   await page.getByRole("button", { name: "添加项目" }).click();
+  await page.getByRole("menuitem", { name: "添加已有项目" }).click();
   const picker = page.getByRole("dialog", { name: "选择项目文件夹" });
   const pathInput = picker.getByRole("textbox", { name: "绝对目录路径" });
 
@@ -98,6 +100,7 @@ test("keeps the Web directory picker open after add failure", async ({ page }) =
   await page.goto("/p/codexly");
 
   await page.getByRole("button", { name: "添加项目" }).click();
+  await page.getByRole("menuitem", { name: "添加已有项目" }).click();
   const picker = page.getByRole("dialog", { name: "选择项目文件夹" });
   await picker.getByRole("checkbox", { name: "选择 AddedProject" }).click();
   await picker.getByRole("button", { name: "添加此文件夹" }).click();

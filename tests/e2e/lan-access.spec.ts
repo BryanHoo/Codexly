@@ -41,6 +41,7 @@ test("pairs real browsers, persists the cookie, and invalidates it on logout @cr
     return url.pathname === "/v1/project-directories" && response.request().method() === "GET";
   });
   await page.getByRole("button", { name: "添加项目" }).click();
+  await page.getByRole("menuitem", { name: "添加已有项目" }).click();
   const projectPicker = page.getByRole("dialog", { name: "选择项目文件夹" });
   await expect(projectPicker).toBeVisible();
   expect((await directoryListingResponse).ok()).toBe(true);

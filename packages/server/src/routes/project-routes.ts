@@ -41,12 +41,14 @@ import { ErrorResponseSchema, IdempotencyHeadersSchema, ProjectParamsSchema } fr
 
 import { registerProjectFileRoutes } from "./project-file-routes.js";
 import { registerProjectGitRoutes } from "./project-git-routes.js";
+import { registerProjectDirectoryCreateRoutes } from "./project-directory-create-routes.js";
 
 export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = (
   app,
   context,
   done,
 ) => {
+  registerProjectDirectoryCreateRoutes(app, context);
   const {
     assertValidProjectDefaults,
     getProjectContext,

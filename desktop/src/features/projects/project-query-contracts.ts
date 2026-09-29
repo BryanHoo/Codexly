@@ -92,6 +92,7 @@ export type NativeMutationClient = Pick<
   NativeClient,
   | "addQueuedSubmission"
   | "addProject"
+  | "createProjectDirectory"
   | "archiveTask"
   | "compactTask"
   | "clearTaskGoal"

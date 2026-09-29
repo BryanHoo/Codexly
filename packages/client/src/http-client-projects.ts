@@ -79,14 +79,14 @@ import {
   type MutationOptions,
   type ReadOptions,
 } from "./http-client-transport.js";
-import { TaskWorktreeHttpClient } from "./http-client-task-worktrees.js";
+import { ProjectDirectoryHttpClient } from "./http-client-project-directory.js";
 
 export type ListFilesystemEntriesOptions = ReadOptions &
   Readonly<{
     includeHidden?: boolean;
   }>;
 
-export class ProjectHttpClient extends TaskWorktreeHttpClient {
+export class ProjectHttpClient extends ProjectDirectoryHttpClient {
   public async listSkills(projectId: string, options: ReadOptions = {}): Promise<AgentSkillPage> {
     return this.read(`${projectPath(projectId)}/skills`, AgentSkillPageSchema, options);
   }

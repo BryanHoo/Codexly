@@ -1,4 +1,5 @@
 import type { TaskSearchInput } from "@/protocol/global-search.js";
+import type { CreateProjectDirectoryRequest, CreateProjectDirectoryResponse } from "@codexly/protocol";
 import {
   type ListCompletedTasksOptions,
   type ListTasksOptions,
@@ -173,6 +174,10 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     _options: MutationOptions = {},
   ): Promise<AddProjectResponse> {
     return this.call("add_project", { rootPaths: [...rootPaths] });
+  }
+
+  public async createProjectDirectory(request: CreateProjectDirectoryRequest): Promise<CreateProjectDirectoryResponse> {
+    return this.call("create_project_directory", { ...request });
   }
 
   public async listProjectDirectories(

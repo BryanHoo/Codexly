@@ -1,4 +1,5 @@
 import { skillsMarket } from "./skills-market.js";
+import { newProject } from "./new-project.js";
 import { scheduledTasks } from "./scheduled-tasks.js";
 import { globalSearch } from "./global-search.js";
 
@@ -288,6 +289,7 @@ export const workbench = {
     showRawContent: "显示原始内容",
     sourcePartial: "部分内容",
   },
+  newProject,
   projectPicker: {
     primaryRoot: "主目录",
     primaryRootHint: "首个勾选的文件夹将作为主目录",

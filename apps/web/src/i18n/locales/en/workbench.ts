@@ -1,4 +1,5 @@
 import { skillsMarket } from "./skills-market.js";
+import { newProject } from "./new-project.js";
 import { scheduledTasks } from "./scheduled-tasks.js";
 import { globalSearch } from "./global-search.js";
 
@@ -291,6 +292,7 @@ export const workbench = {
     showRawContent: "Show raw content",
     sourcePartial: "Partial content",
   },
+  newProject,
   projectPicker: {
     primaryRoot: "Primary",
     primaryRootHint: "The first selected folder becomes the primary folder",

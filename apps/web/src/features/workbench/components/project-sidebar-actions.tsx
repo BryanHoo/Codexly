@@ -7,6 +7,8 @@ import {
   LoaderCircle,
   Pencil,
   Plus,
+  FolderOpen,
+  FolderPlus,
   Settings,
   Trash2,
   Wifi,
@@ -33,24 +35,45 @@ export type SidebarSettingsSection = "about" | "appearance";
 export function ProjectPickerButton({
   disabled,
   onOpen,
-}: Readonly<{ disabled: boolean; onOpen: () => void }>) {
+}: Readonly<{ disabled: boolean; onOpen: (mode: "existing" | "create") => void }>) {
   const { t } = useTranslation("workbench");
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          aria-label={t("sidebar.addProject")}
-          disabled={disabled}
-          onClick={onOpen}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={t("sidebar.addProject")}
+              disabled={disabled}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <Plus aria-hidden="true" className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{t("sidebar.addProject")}</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onSelect={() => {
+            onOpen("existing");
+          }}
         >
-          <Plus aria-hidden="true" className="size-3.5" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{t("sidebar.addProject")}</TooltipContent>
-    </Tooltip>
+          <FolderOpen aria-hidden="true" />
+          {t("newProject.existing")}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            onOpen("create");
+          }}
+        >
+          <FolderPlus aria-hidden="true" />
+          {t("newProject.title")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

@@ -2,16 +2,18 @@ import type { AgentTask, Project } from "@codexly/protocol";
 import type { ComponentProps } from "react";
 
 import { ProjectDirectoryPickerDialog } from "../../projects/components/project-directory-picker-dialog.js";
+import { ProjectCreateDialog } from "../../projects/components/project-create-dialog.js";
 import { ProjectRemoveDialog } from "./project-remove-dialog.js";
 import { ProjectRenameDialog } from "./project-rename-dialog.js";
 import { TaskRenameDialog } from "./task-rename-dialog.js";
 
 type ProjectSidebarDialogsProps = Readonly<{
-  client: ComponentProps<typeof ProjectDirectoryPickerDialog>["client"];
+  client: ComponentProps<typeof ProjectCreateDialog>["client"];
   isProjectActionPending: boolean;
   isProjectAddPending: boolean;
   isProjectPickerOpen: boolean;
-  onAddProject: (rootPaths: readonly string[]) => Promise<void>;
+  projectPickerMode: "existing" | "create";
+  onAddProject: (rootPaths: readonly string[]) => Promise<boolean>;
   onCloseProjectDialog: (projectId: string) => void;
   onCloseProjectPicker: () => void;
   onCloseTaskRename: () => void;
@@ -29,6 +31,7 @@ export function ProjectSidebarDialogs({
   isProjectActionPending,
   isProjectAddPending,
   isProjectPickerOpen,
+  projectPickerMode,
   onAddProject,
   onCloseProjectDialog,
   onCloseProjectPicker,
@@ -55,7 +58,9 @@ export function ProjectSidebarDialogs({
         />
       )}
 
-      {isProjectPickerOpen ? (
+      {isProjectPickerOpen && projectPickerMode === "create" ? (
+        <ProjectCreateDialog client={client} onAdd={onAddProject} onClose={onCloseProjectPicker} />
+      ) : isProjectPickerOpen ? (
         <ProjectDirectoryPickerDialog
           client={client}
           isAdding={isProjectAddPending}

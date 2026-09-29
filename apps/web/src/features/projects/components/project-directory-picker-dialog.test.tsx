@@ -12,6 +12,33 @@ import {
 } from "./project-directory-picker-dialog.js";
 
 describe("ProjectDirectoryPickerDialog", () => {
+  it("uses the current directory as a single parent without project root ordering hints", async () => {
+    await changeAppLanguage("zh-CN");
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["project-directories", "/work", false], {
+      path: "/work",
+      parentPath: "/",
+      roots: [],
+      entries: [],
+    });
+    const markup = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <ProjectDirectoryPickerDialog
+            client={{ listProjectDirectories: vi.fn() }}
+            initialPath="/work"
+            mode="parent"
+            isAdding={false}
+            onAdd={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+    expect(markup).toContain("选择父文件夹");
+    expect(markup).toContain("使用此文件夹");
+    expect(markup).not.toContain("首个勾选");
+  });
   it("renders an accessible loading dialog while resolving the host home directory", async () => {
     await changeAppLanguage("zh-CN");
     const queryClient = new QueryClient();

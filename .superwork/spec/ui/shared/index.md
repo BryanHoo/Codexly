@@ -4,5 +4,6 @@
 
 - 基础控件从 `@codexly/ui/core/*` 导入；Agent 展示组件只在平台行为拆出后从 `@codexly/ui/agent/*` 导入。
 - 文件打开、下载、Markdown 链接、通知和翻译由调用方提供。公共包不引入 Tauri API、Web 客户端或应用内 feature 代码。
+- 新建项目表单共用 `core/new-project-dialog.tsx`，父目录选择切换同一模态层并保留名称；目录创建与项目注册分开，注册失败只重试添加，同名目录须明确确认复用。Web 的文件系统操作面向服务器，须展示主机信息并验证移动端布局。
 - 两端 `globals.css` 必须扫描 `packages/ui/src`，以保留公共组件中的 Tailwind 类。
 - 验证边界使用 `apps/web/src/shared/components/shared-ui-boundary.test.ts`、根目录 `pnpm lint:architecture`，并分别运行 Web 与桌面构建。

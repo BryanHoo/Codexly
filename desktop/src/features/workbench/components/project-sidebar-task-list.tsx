@@ -42,7 +42,7 @@ type ProjectSidebarTaskListProps = Readonly<{
   onOpenTemporaryDraft: () => void;
   onOpenProjectDraft: (projectId: string) => Promise<void>;
   onOpenArchived: (project: ArchivedTaskScope) => void;
-  onOpenProjectPicker: () => void;
+  onOpenProjectPicker: (mode: "existing" | "create") => void;
   onRemoveProject: (project: Project) => void;
   onRenameProject: (project: Project) => void;
   orderedProjects: readonly Project[];
@@ -160,9 +160,7 @@ export function ProjectSidebarTaskList({
             </h2>
             <ProjectPickerButton
               disabled={isProjectAddPending}
-              onOpen={() => {
-                onOpenProjectPicker();
-              }}
+              onOpen={onOpenProjectPicker}
             />
           </div>
 

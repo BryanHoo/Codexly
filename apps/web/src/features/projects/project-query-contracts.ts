@@ -106,6 +106,7 @@ export type CodexlyMutationClient = Pick<
   | "submitTask"
   | "addQueuedSubmission"
   | "addProject"
+  | "createProjectDirectory"
   | "archiveTask"
   | "compactTask"
   | "clearTaskGoal"

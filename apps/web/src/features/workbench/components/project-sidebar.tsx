@@ -117,6 +117,7 @@ export function ProjectSidebar({
   const [removingProject, setRemovingProject] = useState<Project | null>(null);
   const [archivedProject, setArchivedProject] = useState<ArchivedTaskScope | null>(null);
   const [isProjectPickerOpen, setIsProjectPickerOpen] = useState(false);
+  const [projectPickerMode, setProjectPickerMode] = useState<"existing" | "create">("existing");
   const pinMutation = useMutation(taskPinMutationOptions(client));
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const archiveMutation = useMutation(taskArchiveMutationOptions(client));
@@ -253,9 +254,10 @@ export function ProjectSidebar({
   const addSelectedProject = async (rootPaths: readonly string[]) => {
     const project = await addProject(rootPaths);
     if (project !== undefined) {
-      // 新增 Project 保持收起，交由用户显式展开任务列表。
       setIsProjectPickerOpen(false);
+      if (projectPickerMode === "create") await openProjectDraft(project.id);
     }
+    return project !== undefined;
   };
 
   const openProjectDraft = async (targetProjectId: string) => {
@@ -396,7 +398,8 @@ export function ProjectSidebar({
           updateExpandedProjects((current) => new Set(current).add(createdProjectId));
         }}
         onOpenArchived={setArchivedProject}
-        onOpenProjectPicker={() => {
+        onOpenProjectPicker={(mode) => {
+          setProjectPickerMode(mode);
           setIsProjectPickerOpen(true);
         }}
         onRemoveProject={(project) => {
@@ -448,12 +451,11 @@ export function ProjectSidebar({
         isProjectActionPending={isProjectActionPending}
         isProjectAddPending={isProjectAddPending}
         isProjectPickerOpen={isProjectPickerOpen}
+        projectPickerMode={projectPickerMode}
         onAddProject={addSelectedProject}
         onCloseProjectDialog={closeProjectDialog}
         onCloseProjectPicker={() => {
-          if (!isProjectAddPending) {
-            setIsProjectPickerOpen(false);
-          }
+          if (!isProjectAddPending) setIsProjectPickerOpen(false);
         }}
         onCloseTaskRename={() => {
           setRenamingTask(null);

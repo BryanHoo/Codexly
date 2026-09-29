@@ -6,6 +6,7 @@ pub mod diagnostics;
 pub mod filesystem;
 pub mod local_settings;
 pub mod personalization;
+pub mod project_directory_create;
 pub mod provider_models;
 pub(crate) mod queued_media;
 pub mod scheduled_tasks;

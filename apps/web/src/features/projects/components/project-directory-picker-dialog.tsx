@@ -1,4 +1,5 @@
 import type { ProjectDirectoryListing } from "@codexly/protocol";
+import { Radio } from "@codexly/ui/core/radio";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { FolderPlus, LoaderCircle, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -28,6 +29,7 @@ export type ProjectDirectoryState = Readonly<{
 }>;
 
 type ProjectDirectoryTreeProps = Readonly<{
+  singleSelection?: boolean;
   directoryStates: readonly ProjectDirectoryState[];
   expandedPaths: Set<string>;
   listing: ProjectDirectoryListing;
@@ -39,6 +41,7 @@ type ProjectDirectoryTreeProps = Readonly<{
 }>;
 
 type ProjectDirectoryNodesProps = Readonly<{
+  singleSelection?: boolean;
   directoryStates: ReadonlyMap<string, ProjectDirectoryState>;
   entries: ProjectDirectoryListing["entries"];
   expandedPaths: Set<string>;
@@ -49,6 +52,7 @@ type ProjectDirectoryNodesProps = Readonly<{
 }>;
 
 function ProjectDirectoryNodes({
+  singleSelection = false,
   directoryStates,
   entries,
   expandedPaths,
@@ -67,14 +71,29 @@ function ProjectDirectoryNodes({
         name={entry.name}
         path={entry.path}
         selectionControl={
-          <Checkbox
-            aria-label={t("projectPicker.selectRoot", { name: entry.name })}
-            checked={selectedPaths.has(entry.path)}
-            disabled={selectionDisabled}
-            onCheckedChange={(checked) => {
-              onRootCheckedChange(entry.path, checked === true);
-            }}
-          />
+          singleSelection ? (
+            <Radio
+              name="project-parent-directory"
+              aria-label={t("projectPicker.selectRoot", { name: entry.name })}
+              checked={selectedPaths.has(entry.path)}
+              disabled={selectionDisabled}
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+              onChange={() => {
+                onRootCheckedChange(entry.path, true);
+              }}
+            />
+          ) : (
+            <Checkbox
+              aria-label={t("projectPicker.selectRoot", { name: entry.name })}
+              checked={selectedPaths.has(entry.path)}
+              disabled={selectionDisabled}
+              onCheckedChange={(checked) => {
+                onRootCheckedChange(entry.path, checked === true);
+              }}
+            />
+          )
         }
         trailing={
           isExpanded && state?.isFetching === true ? (
@@ -113,6 +132,7 @@ function ProjectDirectoryNodes({
           </p>
         ) : (
           <ProjectDirectoryNodes
+            singleSelection={singleSelection}
             directoryStates={directoryStates}
             entries={state.data.entries}
             expandedPaths={expandedPaths}
@@ -128,6 +148,7 @@ function ProjectDirectoryNodes({
 }
 
 export function ProjectDirectoryTree({
+  singleSelection = false,
   directoryStates,
   expandedPaths,
   listing,
@@ -149,6 +170,7 @@ export function ProjectDirectoryTree({
       onExpandedChange={onExpandedChange}
     >
       <ProjectDirectoryNodes
+        singleSelection={singleSelection}
         directoryStates={directoryStateMap}
         entries={listing.entries}
         expandedPaths={expandedPaths}
@@ -162,20 +184,26 @@ export function ProjectDirectoryTree({
 }
 
 type ProjectDirectoryPickerDialogProps = Readonly<{
+  mode?: "project" | "parent";
+  initialPath?: string;
+  hostLabel?: string;
   client: CodexlyProjectDirectoryClient;
   isAdding: boolean;
-  onAdd: (paths: readonly string[]) => Promise<void> | void;
+  onAdd: (paths: readonly string[]) => unknown;
   onClose: () => void;
 }>;
 
 export function ProjectDirectoryPickerDialog({
+  mode = "project",
+  initialPath,
+  hostLabel,
   client,
   isAdding,
   onAdd,
   onClose,
 }: ProjectDirectoryPickerDialogProps) {
   const { t } = useTranslation("workbench");
-  const [rootPath, setRootPath] = useState<string>();
+  const [rootPath, setRootPath] = useState<string | undefined>(initialPath);
   const [pathDraft, setPathDraft] = useState<string>();
   const [submittedPath, setSubmittedPath] = useState<string>();
   const [includeHidden, setIncludeHidden] = useState(false);
@@ -187,7 +215,7 @@ export function ProjectDirectoryPickerDialog({
     staleTime: 30_000,
   });
   const listing = rootQuery.data;
-  const addPaths = resolveProjectDirectoryAddPaths({
+  const projectPaths = resolveProjectDirectoryAddPaths({
     draftPath: pathDraft,
     isPathValidated: rootQuery.isSuccess,
     requestedPath: rootPath,
@@ -195,16 +223,28 @@ export function ProjectDirectoryPickerDialog({
     submittedPath,
     validatedPath: listing?.path,
   });
+  // 父目录选择允许直接使用当前浏览目录，多选项目仍沿用显式勾选规则。
+  const addPaths =
+    mode === "parent"
+      ? selectedPaths.length
+        ? selectedPaths
+        : rootQuery.isSuccess && pathDraft === undefined && listing
+          ? [listing.path]
+          : []
+      : projectPaths;
   const canAdd = addPaths.length > 0;
   const isDirectPathReady = selectedPaths.length === 0 && addPaths.length === 1;
   const selectedPathSet = useMemo(() => new Set(selectedPaths), [selectedPaths]);
-  const selectedRootsSummary = isDirectPathReady
-    ? (addPaths[0] ?? "")
-    : selectedPaths
-        .map((path, index) =>
-          index === 0 ? t("projectPicker.primaryRootSummary", { path }) : path,
-        )
-        .join(t("projectPicker.rootSeparator"));
+  const selectedRootsSummary =
+    mode === "parent"
+      ? (addPaths[0] ?? "")
+      : isDirectPathReady
+        ? (addPaths[0] ?? "")
+        : selectedPaths
+            .map((path, index) =>
+              index === 0 ? t("projectPicker.primaryRootSummary", { path }) : path,
+            )
+            .join(t("projectPicker.rootSeparator"));
   const expandedDirectoryPaths = useMemo(() => [...expandedPaths], [expandedPaths]);
   // 仅为当前展开的节点创建 Query，折叠目录不会预读整棵主机文件树。
   const directoryQueries = useQueries({
@@ -275,7 +315,14 @@ export function ProjectDirectoryPickerDialog({
         }}
       >
         <DialogHeader className="px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
-          <DialogTitle id="project-directory-picker-title">{t("projectPicker.title")}</DialogTitle>
+          <DialogTitle id="project-directory-picker-title">
+            {t(mode === "parent" ? "newProject.selectParent" : "projectPicker.title")}
+          </DialogTitle>
+          {hostLabel ? (
+            <p className="break-words text-caption text-muted-foreground [overflow-wrap:anywhere]">
+              {hostLabel}
+            </p>
+          ) : null}
           <DialogDescription className="sr-only">
             {t("projectPicker.description")}
           </DialogDescription>
@@ -298,6 +345,7 @@ export function ProjectDirectoryPickerDialog({
           onNavigatePath={navigateToPath}
           onNavigateRoot={navigateToRoot}
           onPathChange={(path) => {
+            if (mode === "parent") setSelectedPaths([]);
             setPathDraft(path);
             setSubmittedPath(undefined);
           }}
@@ -330,6 +378,7 @@ export function ProjectDirectoryPickerDialog({
             </p>
           ) : (
             <ProjectDirectoryTree
+              singleSelection={mode === "parent"}
               directoryStates={directoryStates}
               expandedPaths={expandedPaths}
               listing={listing}
@@ -341,7 +390,13 @@ export function ProjectDirectoryPickerDialog({
               onRootCheckedChange={(path, checked) => {
                 // checkbox 始终进入多目录选择模式，不与直接输入的单目录目标合并。
                 setSubmittedPath(undefined);
-                setSelectedPaths((current) => setProjectRootPathChecked(current, path, checked));
+                setSelectedPaths((current) =>
+                  mode === "parent"
+                    ? checked
+                      ? [path]
+                      : []
+                    : setProjectRootPathChecked(current, path, checked),
+                );
               }}
               selectedPaths={selectedPathSet}
               selectionDisabled={isAdding}
@@ -353,11 +408,13 @@ export function ProjectDirectoryPickerDialog({
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <p aria-live="polite" className="text-caption text-muted-foreground">
-                {isDirectPathReady
-                  ? t("projectPicker.directPathReady")
-                  : t("projectPicker.selectedRoots", { count: selectedPaths.length })}
+                {mode === "parent"
+                  ? t("newProject.parent")
+                  : isDirectPathReady
+                    ? t("projectPicker.directPathReady")
+                    : t("projectPicker.selectedRoots", { count: selectedPaths.length })}
               </p>
-              {isDirectPathReady ? null : (
+              {mode === "parent" || isDirectPathReady ? null : (
                 <p className="ml-auto text-right text-caption text-muted-foreground">
                   {t("projectPicker.primaryRootHint")}
                 </p>
@@ -377,7 +434,7 @@ export function ProjectDirectoryPickerDialog({
               type="button"
               variant="outline"
             >
-              {t("actions.cancel")}
+              {t(mode === "parent" ? "newProject.back" : "actions.cancel")}
             </Button>
             <Button
               className="h-10 w-full sm:h-8 sm:w-auto"
@@ -396,7 +453,13 @@ export function ProjectDirectoryPickerDialog({
               ) : (
                 <FolderPlus aria-hidden="true" data-icon="inline-start" />
               )}
-              {t(isAdding ? "projectPicker.adding" : "projectPicker.add")}
+              {t(
+                isAdding
+                  ? "projectPicker.adding"
+                  : mode === "parent"
+                    ? "newProject.useFolder"
+                    : "projectPicker.add",
+              )}
             </Button>
           </DialogFooter>
         </div>

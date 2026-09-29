@@ -1,5 +1,6 @@
 import { gitCommit } from "./git-commit.js";
 import { skillsMarket } from "./skills-market.js";
+import { newProject } from "./new-project.js";
 import { taskWindow } from "./task-window-menu.js";
 export const workbench = {
   taskWindow,
@@ -286,6 +287,7 @@ export const workbench = {
     showSource: "查看文件内容",
     sourcePartial: "部分内容",
   },
+  newProject,
   projectPicker: {
     primaryRoot: "主目录",
     primaryRootHint: "首个勾选的文件夹将作为主目录",

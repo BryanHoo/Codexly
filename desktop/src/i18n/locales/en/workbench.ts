@@ -1,5 +1,6 @@
 import { gitCommit } from "./git-commit.js";
 import { skillsMarket } from "./skills-market.js";
+import { newProject } from "./new-project.js";
 import { taskWindow } from "./task-window-menu.js";
 export const workbench = {
   taskWindow,
@@ -288,6 +289,7 @@ export const workbench = {
     showSource: "View file contents",
     sourcePartial: "Partial content",
   },
+  newProject,
   projectPicker: {
     primaryRoot: "Primary",
     primaryRootHint: "The first selected folder becomes the primary folder",

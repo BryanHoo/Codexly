@@ -46,7 +46,7 @@ type ProjectSidebarTaskListProps = Readonly<{
   onOpenProjectDraft: (projectId: string) => Promise<void>;
   onWorktreeTaskCreated: (projectId: string) => void;
   onOpenArchived: (project: ArchivedTaskScope) => void;
-  onOpenProjectPicker: () => void;
+  onOpenProjectPicker: (mode: "existing" | "create") => void;
   onRemoveProject: (project: Project) => void;
   onRenameProject: (project: Project) => void;
   orderedProjects: readonly Project[];
@@ -164,12 +164,7 @@ export function ProjectSidebarTaskList({
             <h2 className="text-body-small font-semibold text-foreground" id="projects-title">
               {t("sidebar.projects")}
             </h2>
-            <ProjectPickerButton
-              disabled={isProjectAddPending}
-              onOpen={() => {
-                onOpenProjectPicker();
-              }}
-            />
+            <ProjectPickerButton disabled={isProjectAddPending} onOpen={onOpenProjectPicker} />
           </div>
 
           {isPending ? (

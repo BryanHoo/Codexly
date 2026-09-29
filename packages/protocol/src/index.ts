@@ -1,4 +1,5 @@
 // 统一协议、JSON Schema 与事件信封只能从此公开入口导出。
+export * from "./project-directory-create.js";
 export * from "./workbench-pets.js";
 export { CODEXLY_USER_AGENT } from "./user-agent.js";
 export {

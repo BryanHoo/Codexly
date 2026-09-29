@@ -324,6 +324,7 @@ test("adds a folder through the Web project directory picker", async ({ page }) 
   await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("button", { name: "添加项目" }).click();
+  await page.getByRole("menuitem", { name: "添加已有项目" }).click();
   const picker = page.getByRole("dialog", { name: "选择项目文件夹" });
   await expect(picker).toBeVisible();
   await picker.getByRole("button", { name: "取消" }).click();
@@ -331,6 +332,7 @@ test("adds a folder through the Web project directory picker", async ({ page }) 
   expect(addProjectRequestCount).toBe(0);
 
   await page.getByRole("button", { name: "添加项目" }).click();
+  await page.getByRole("menuitem", { name: "添加已有项目" }).click();
   const addButton = picker.getByRole("button", { name: "添加此文件夹" });
   await expect(addButton).toBeDisabled();
   await picker.getByRole("button", { exact: true, name: "AddedProject" }).click();

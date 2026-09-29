@@ -60,7 +60,7 @@ use application::{
         rename_task, reorder_projects, resolve_pending_request, start_task, start_turn,
         unarchive_task, update_task_settings,
     },
-    sidebar_directory_commands::list_project_directories,
+    sidebar_directory_commands::{create_project_directory, list_project_directories},
     skills_market_commands::{
         get_clawhub_skill, install_clawhub_skill, list_clawhub_skills, list_configured_mcp_servers,
         list_installed_skills, open_skill_directory, set_mcp_server_enabled, set_skill_enabled,
@@ -244,6 +244,7 @@ pub fn run() {
             remove_project,
             reorder_projects,
             list_project_directories,
+            create_project_directory,
             list_completed_tasks,
             list_scheduled_tasks,
             preview_scheduled_task,

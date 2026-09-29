@@ -1,3 +1,4 @@
+use crate::infrastructure::project_directory_create::{self, CreateProjectDirectoryResponse};
 use tauri::{AppHandle, Manager, State};
 
 use super::{error::AppError, state::AppState};
@@ -5,6 +6,16 @@ use crate::{
     domain::sidebar::ProjectDirectoryListing,
     infrastructure::filesystem::list_project_directories as read_project_directories,
 };
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn create_project_directory(
+    parent_path: String,
+    name: String,
+) -> Result<CreateProjectDirectoryResponse, AppError> {
+    project_directory_create::create_project_directory(&parent_path, &name)
+        .await
+        .map_err(|_| AppError::FilesystemRequestFailed)
+}
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn list_project_directories(
