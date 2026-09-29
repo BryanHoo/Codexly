@@ -1,3 +1,4 @@
+import { selectComposerSetting } from "./fixtures/composer-settings.js";
 import {
   enableLanAccess,
   expect,
@@ -70,11 +71,11 @@ test("creates and restores a temporary task without exposing its internal projec
   await expect(temporaryGroup.getByRole("button", { name: "新建任务" })).toBeVisible();
 
   const input = page.getByRole("textbox", { name: "任务输入" });
-  const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
-  const sandboxSelect = page.getByRole("combobox", { name: "沙盒模式" });
+  const approvalSelect = page.getByRole("button", { name: "批准模式" });
+  const sandboxSelect = page.getByRole("button", { name: "沙盒模式" });
   await expect(approvalSelect).toBeEnabled();
-  await expect(sandboxSelect).toHaveValue("workspace-write");
-  await approvalSelect.selectOption("auto-review");
+  await expect(sandboxSelect).toHaveAttribute("value", "workspace-write");
+  await selectComposerSetting(approvalSelect, "auto-review");
   await input.fill("/");
   await expect(page.getByRole("option", { name: /Security review/u })).toBeVisible();
   await expect(page.getByRole("option", { name: /代码审查/u })).toHaveCount(0);
@@ -149,7 +150,7 @@ test("creates and restores a temporary task without exposing its internal projec
   await expect
     .poll(() => requestedPaths.filter((path) => path === "/v1/temporary/open").length)
     .toBe(1);
-  await expect(approvalSelect).toHaveValue("auto-review");
+  await expect(approvalSelect).toHaveAttribute("value", "auto-review");
   expect(temporaryTurnOptions?.["sandboxMode"]).toBe("workspace-write");
   await expect(inspector).toBeVisible();
   await expect(inspector.getByRole("tab", { name: "项目" })).toHaveCount(0);

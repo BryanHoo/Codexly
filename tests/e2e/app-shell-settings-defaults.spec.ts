@@ -47,8 +47,11 @@ test("uses global defaults throughout a new task composer", async ({ page }) => 
 
   await page.goto("/p/codexly");
 
-  await expect(page.getByRole("combobox", { name: "批准模式" })).toHaveValue("never");
-  await expect(page.getByRole("combobox", { name: "沙盒模式" })).toHaveValue("danger-full-access");
+  await expect(page.getByRole("button", { name: "批准模式" })).toHaveAttribute("value", "never");
+  await expect(page.getByRole("button", { name: "沙盒模式" })).toHaveAttribute(
+    "value",
+    "danger-full-access",
+  );
   await expectComposerSelection(page, "GPT-5.6 Terra", "中");
   await expect(page.getByRole("button", { name: "在 Finder 中打开" })).toBeVisible();
 });

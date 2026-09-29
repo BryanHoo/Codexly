@@ -235,7 +235,7 @@ export function GitHistoryContent({
           >
             {query.hasNextPage ? (
               <Button
-                className={compact ? "w-full" : "max-workbench:h-11"}
+                className={compact ? "w-full" : ""}
                 disabled={query.isFetchingNextPage}
                 onClick={() => void query.fetchNextPage()}
                 size={compact ? "sm" : "default"}

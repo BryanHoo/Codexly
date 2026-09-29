@@ -19,7 +19,7 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   const reasoningSelector = page.getByRole("button", { name: /^选择思考量：/u });
   const composerControls = [
     page.getByRole("button", { name: "添加图片或文件" }),
-    page.getByRole("combobox", { name: "批准模式" }),
+    page.getByRole("button", { name: "批准模式" }),
     modelSelector,
     reasoningSelector,
     page.getByRole("button", { name: "提交", exact: true }),
@@ -53,7 +53,7 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   const controlBoxes = await Promise.all(touchControls.map((control) => control.boundingBox()));
   for (const box of controlBoxes) {
     expect(box).not.toBeNull();
-    expect(box?.height).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(24);
   }
   for (const control of touchButtons) {
     await expect(control).toHaveAttribute("data-size", /.+/u);
@@ -62,7 +62,11 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   const composerControlBoxes = await Promise.all(
     composerControls.map((control) => control.boundingBox()),
   );
-  for (const box of composerControlBoxes) expect(box?.y).toBe(composerControlBoxes[0]?.y);
+  for (const box of composerControlBoxes) {
+    expect((box?.y ?? 0) + (box?.height ?? 0) / 2).toBe(
+      (composerControlBoxes[0]?.y ?? 0) + (composerControlBoxes[0]?.height ?? 0) / 2,
+    );
+  }
   expect((await composerFooter.boundingBox())?.height).toBeLessThanOrEqual(52);
 
   await composerControls[2]?.click();
@@ -91,7 +95,7 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
     .getByRole("complementary", { name: "运行环境" })
     .getByRole("button", { name: "关闭上下文面板" });
   await expect(inspectorClose).toBeVisible();
-  expect((await inspectorClose.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  expect((await inspectorClose.boundingBox())?.height).toBeGreaterThanOrEqual(24);
   await inspectorClose.click();
   await expect(page.getByRole("complementary", { name: "运行环境" })).not.toBeVisible();
 
@@ -151,7 +155,7 @@ test("keeps the mobile Diff preview and review dialog inside the viewport", asyn
   expect(collapsedContentBox?.width).toBe(collapsedDialogBox?.width);
 
   const expandNavigation = reviewPanel.getByRole("button", { name: "展开变更文件导航" });
-  expect((await expandNavigation.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  expect((await expandNavigation.boundingBox())?.height).toBeGreaterThanOrEqual(24);
   await expandNavigation.click();
   await expect(reviewNavigation).toBeVisible();
   const [expandedDialogBox, expandedContentBox, navigationBox] = await Promise.all([

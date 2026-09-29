@@ -350,10 +350,10 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
               scope={props.composerScope}
             />
           </PromptInputBody>
-          <PromptInputFooter className="max-workbench:gap-0.5 max-workbench:px-1 max-[360px]:!gap-0 max-[360px]:!px-0">
-            <PromptInputTools className="max-workbench:shrink-0 max-workbench:gap-0.5 max-[360px]:!gap-0">
+          <PromptInputFooter className="composer-toolbar max-workbench:gap-0.5 max-workbench:px-1">
+            <PromptInputTools className="composer-toolbar-options max-workbench:gap-0.5">
               <PromptInputActionAddAttachments
-                className="max-workbench:w-8 max-workbench:min-w-8 max-workbench:px-0 max-[360px]:!w-6 max-[360px]:!min-w-6"
+                className="max-workbench:size-7 max-workbench:px-0"
                 disabled={props.attachmentsDisabled}
                 onSelectKind={props.onSelectAttachmentKind}
                 showDeploymentHost={props.showDeploymentHostAttachments}
@@ -423,7 +423,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                     (props.submitAction === "interrupt" &&
                       (!props.canInterrupt || props.activeTurnId === undefined))
                   }
-                  className="max-workbench:w-8 max-workbench:min-w-8 max-[360px]:!w-6 max-[360px]:!min-w-6"
+                  className="max-workbench:size-7"
                   onClick={props.submitAction === "interrupt" ? props.onInterrupt : undefined}
                   status={
                     props.state === "running" && props.hasComposerInput ? "idle" : props.state

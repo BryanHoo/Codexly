@@ -26,7 +26,7 @@ export function TemporaryTasksHeading({
   const { t } = useTranslation("workbench");
   const temporaryTasksName = t("sidebar.temporaryTasks");
   const hoverActionClassName =
-    "opacity-0 transition-[color,background-color,opacity] focus-visible:opacity-100 group-hover/temporary:opacity-100";
+    "touch-visible-action opacity-0 transition-[color,background-color,opacity] focus-visible:opacity-100 group-hover/temporary:opacity-100";
 
   return (
     <div className="group/temporary flex h-8 items-center gap-0.5 text-muted-foreground">

@@ -64,7 +64,7 @@ export function ComposerModeTag({
           <span className="max-workbench:hidden">{label}</span>
           <X
             aria-hidden="true"
-            className="size-3 shrink-0 opacity-0 transition-opacity group-hover/composer-mode:opacity-100 group-focus-visible/composer-mode:opacity-100"
+            className="size-3 shrink-0 touch-visible-action opacity-0 transition-opacity group-hover/composer-mode:opacity-100 group-focus-visible/composer-mode:opacity-100"
           />
         </PromptInputButton>
       </TooltipTrigger>

@@ -164,7 +164,7 @@ export function GitHistoryPanel({
                 aria-controls={getPanelId(index)}
                 aria-selected={active}
                 className={cn(
-                  "h-7 shrink-0 rounded-control px-2 text-label max-workbench:h-11",
+                  "h-7 shrink-0 rounded-control px-2 text-label",
                   active
                     ? "bg-control text-foreground"
                     : "text-muted-foreground hover:bg-control-hover hover:text-foreground",

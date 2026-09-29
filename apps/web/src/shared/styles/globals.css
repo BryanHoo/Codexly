@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "streamdown/styles.css";
+@import "./touch-controls.css";
 /* 构建时扫描工作区共享控件中的 Tailwind 类。 */
 @source "../../../../../packages/ui/src";
 /* 扫描按需加载的 Markdown 组件，确保生产构建保留图表与操作控件样式。 */

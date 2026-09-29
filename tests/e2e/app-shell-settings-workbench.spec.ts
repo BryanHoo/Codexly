@@ -1,3 +1,4 @@
+import { selectComposerSetting } from "./fixtures/composer-settings.js";
 import { expect, taskSnapshot, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
 import {
   expectComposerSelection,
@@ -21,14 +22,11 @@ test("renders the AI workbench landmarks with an enabled composer", async ({ pag
   await expect(inspector.getByRole("tab", { name: "上下文" })).toBeVisible();
   await expect(page.getByRole("region", { name: "消息编辑器" })).toBeVisible();
   const prompt = page.getByRole("textbox", { name: "任务输入" });
-  const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
+  const approvalSelect = page.getByRole("button", { name: "批准模式" });
   const modelSelector = getComposerModelSelector(page);
   await expect(prompt).toBeEnabled();
-  await expect(approvalSelect).toHaveValue("on-request");
-  await expect(approvalSelect).toHaveCSS("appearance", "none");
-  await expect
-    .poll(() => approvalSelect.evaluate((element) => getComputedStyle(element).fieldSizing))
-    .toBe("content");
+  await expect(approvalSelect).toHaveAttribute("value", "on-request");
+  await expect(approvalSelect).toHaveAttribute("aria-haspopup", "menu");
   await expect(modelSelector).toHaveAttribute("data-slot", "composer-model-selector");
   await expectComposerSelection(page, "GPT-5.6 Sol", "高");
   const composerForm = page.getByRole("region", { name: "消息编辑器" }).locator("form");
@@ -408,7 +406,7 @@ test("renames the active task from the center title", async ({ page }) => {
 test("restores task settings after a page refresh", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
 
-  const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
+  const approvalSelect = page.getByRole("button", { name: "批准模式" });
   await Promise.all([
     page.waitForResponse(
       (response) => response.url().endsWith("/tasks/task-1/settings-and-defaults") && response.ok(),
@@ -425,19 +423,22 @@ test("restores task settings after a page refresh", async ({ page }) => {
     page.waitForResponse(
       (response) => response.url().endsWith("/tasks/task-1/settings-and-defaults") && response.ok(),
     ),
-    approvalSelect.selectOption("auto-review"),
+    selectComposerSetting(approvalSelect, "auto-review"),
   ]);
 
   await page.reload();
 
   await expectComposerSelection(page, "GPT-5.6 Terra", "低");
-  await expect(page.getByRole("combobox", { name: "批准模式" })).toHaveValue("auto-review");
+  await expect(page.getByRole("button", { name: "批准模式" })).toHaveAttribute(
+    "value",
+    "auto-review",
+  );
 });
 
 test("restores the project's complete last task configuration", async ({ page }) => {
   await page.goto("/p/codexly");
 
-  const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
+  const approvalSelect = page.getByRole("button", { name: "批准模式" });
   await Promise.all([
     page.waitForResponse((response) => response.url().endsWith("/defaults") && response.ok()),
     selectComposerModel(page, "GPT-5.6 Terra"),
@@ -448,11 +449,11 @@ test("restores the project's complete last task configuration", async ({ page })
   ]);
   await Promise.all([
     page.waitForResponse((response) => response.url().endsWith("/defaults") && response.ok()),
-    approvalSelect.selectOption("never"),
+    selectComposerSetting(approvalSelect, "never"),
   ]);
 
   await page.reload();
 
   await expectComposerSelection(page, "GPT-5.6 Terra", "低");
-  await expect(page.getByRole("combobox", { name: "批准模式" })).toHaveValue("never");
+  await expect(page.getByRole("button", { name: "批准模式" })).toHaveAttribute("value", "never");
 });

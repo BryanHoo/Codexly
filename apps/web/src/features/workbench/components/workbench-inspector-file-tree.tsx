@@ -50,7 +50,7 @@ export function ProjectFileTreeRootActions({
             className={`size-5 shrink-0 transition-opacity ${
               isRefreshing
                 ? "pointer-events-auto opacity-100"
-                : "pointer-events-none opacity-0 group-hover/file-tree-node:pointer-events-auto group-hover/file-tree-node:opacity-100 group-focus-within/file-tree-node:pointer-events-auto group-focus-within/file-tree-node:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+                : "pointer-events-none touch-visible-action opacity-0 group-hover/file-tree-node:pointer-events-auto group-hover/file-tree-node:opacity-100 group-focus-within/file-tree-node:pointer-events-auto group-focus-within/file-tree-node:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
             }`}
             disabled={isRefreshing}
             onClick={() => {

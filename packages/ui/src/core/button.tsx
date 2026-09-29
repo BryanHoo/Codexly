@@ -5,7 +5,7 @@ import type { ComponentProps } from "react";
 import { cn } from "../lib/utils.js";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control text-body-small outline-none transition-colors focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 touch-manipulation items-center gap-1.5 whitespace-nowrap rounded-control text-body-small outline-none transition-colors active:brightness-90 focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     defaultVariants: {
       contentAlign: "center",
@@ -21,16 +21,16 @@ const buttonVariants = cva(
         compact: "h-8 px-3 text-label",
         default: "h-8 px-3",
         embedded: "h-auto p-0",
-        sm: "h-7 px-2 text-label max-workbench:h-11",
-        toolbar: "h-6 px-2 text-label max-workbench:h-11 [&_svg:not([class*='size-'])]:size-3.5",
+        sm: "h-7 px-2 text-label",
+        toolbar: "h-6 px-2 text-label [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 px-4 text-body",
-        icon: "inline-grid size-9 place-items-center px-0 max-workbench:size-11",
-        "icon-compact": "inline-grid size-8 place-items-center px-0 max-workbench:size-11",
+        icon: "inline-grid size-9 place-items-center px-0",
+        "icon-compact": "inline-grid size-8 place-items-center px-0",
         "icon-sm":
-          "inline-grid size-7 place-items-center px-0 max-workbench:size-11 [&_svg:not([class*='size-'])]:size-3.5",
+          "inline-grid size-7 place-items-center px-0 [&_svg:not([class*='size-'])]:size-3.5",
         "icon-toolbar":
-          "inline-grid size-6 place-items-center px-0 max-workbench:size-11 [&_svg:not([class*='size-'])]:size-3",
-        "icon-lg": "inline-grid size-10 place-items-center px-0 max-workbench:size-11",
+          "inline-grid size-6 place-items-center px-0 [&_svg:not([class*='size-'])]:size-3",
+        "icon-lg": "inline-grid size-10 place-items-center px-0",
       },
       variant: {
         default: "bg-brand font-medium text-white hover:bg-brand-strong",

@@ -307,13 +307,7 @@ export function PromptInputButton({
   ...props
 }: PromptInputButtonProps) {
   return (
-    <Button
-      className={`max-workbench:min-w-11 ${className}`}
-      size="sm"
-      type={type}
-      variant="ghost"
-      {...props}
-    >
+    <Button className={className} size="sm" type={type} variant="ghost" {...props}>
       {children ?? <Plus className="size-3.5" aria-hidden="true" />}
     </Button>
   );
@@ -324,7 +318,7 @@ type PromptInputSelectProps = SelectHTMLAttributes<HTMLSelectElement>;
 export function PromptInputSelect({ className = "", ...props }: PromptInputSelectProps) {
   return (
     <select
-      className={`h-7 w-auto max-w-40 appearance-none rounded-control border-0 bg-transparent px-1.5 text-label text-muted-foreground outline-none [field-sizing:content] hover:bg-control-hover disabled:cursor-not-allowed disabled:opacity-45 max-workbench:h-11 ${className}`}
+      className={`h-7 w-auto max-w-40 appearance-none rounded-control border-0 bg-transparent px-1.5 text-label text-muted-foreground outline-none [field-sizing:content] hover:bg-control-hover disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
       {...props}
     />
   );

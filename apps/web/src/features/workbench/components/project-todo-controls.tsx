@@ -130,7 +130,7 @@ export function ProjectTodoList({
                   </Button>
                   <Button
                     aria-label={t("composer.deleteTodo", { summary })}
-                    className="mr-1 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                    className="mr-1 shrink-0 touch-visible-action opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                     onClick={() => {
                       onDelete(todo.id);
                     }}

@@ -81,7 +81,7 @@ export function ProjectQuickOpenMenu({
       <ButtonGroup className={`shrink-0 ${className}`}>
         <Button
           aria-label={openButtonLabel}
-          className="max-w-28 rounded-r-none border-r-0 max-workbench:min-w-11 max-workbench:px-0"
+          className="max-w-28 rounded-r-none border-r-0 max-workbench:px-0"
           disabled={selectedApp === undefined || isPending}
           onClick={() => {
             if (selectedApp !== undefined) {

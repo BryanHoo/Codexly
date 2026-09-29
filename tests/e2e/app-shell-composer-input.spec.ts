@@ -1,3 +1,4 @@
+import { selectComposerSetting } from "./fixtures/composer-settings.js";
 import {
   enableLanAccess,
   expect,
@@ -39,8 +40,8 @@ test("keeps every mobile composer action accessible on one row", async ({ page }
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/p/codexly/t/task-1");
 
-  const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
-  const sandboxSelect = page.getByRole("combobox", { name: "沙盒模式" });
+  const approvalSelect = page.getByRole("button", { name: "批准模式" });
+  const sandboxSelect = page.getByRole("button", { name: "沙盒模式" });
   const modelSelector = page.getByRole("button", { name: /^选择模型：/u });
   const reasoningSelector = page.getByRole("button", { name: /^选择思考量：/u });
   const submitButton = page.getByRole("button", { exact: true, name: "提交" });
@@ -49,10 +50,10 @@ test("keeps every mobile composer action accessible on one row", async ({ page }
 
   expect(boxes.every((box) => box !== null)).toBe(true);
   expect(new Set(boxes.map((box) => Math.round(box?.y ?? 0))).size).toBe(1);
-  await expect(approvalSelect).toHaveCSS("field-sizing", "content");
-  await expect(sandboxSelect).toHaveCSS("field-sizing", "content");
-  expect(boxes[0]?.width).toBeGreaterThan(44);
-  expect(boxes[1]?.width).toBeGreaterThan(44);
+  await expect(approvalSelect).toHaveAttribute("aria-haspopup", "menu");
+  await expect(sandboxSelect).toHaveAttribute("aria-haspopup", "menu");
+  expect(boxes[0]?.width).toBeGreaterThan(24);
+  expect(boxes[1]?.width).toBeGreaterThan(24);
   await expect(modelSelector.locator("span").first()).toHaveCSS("text-overflow", "ellipsis");
   await expect(modelSelector).toHaveAccessibleName("选择模型：GPT-5.6 Sol");
   await expect(reasoningSelector).toHaveAccessibleName("选择思考量：高");
@@ -80,12 +81,12 @@ test("switches composer task settings without success toasts", async ({ page }) 
     );
 
   const approvalUpdate = waitForSettingsUpdate();
-  await page.getByRole("combobox", { name: "批准模式" }).selectOption("never");
+  await selectComposerSetting(page.getByRole("button", { name: "批准模式" }), "never");
   await approvalUpdate;
   await expect(successToast).toHaveCount(0);
 
   const sandboxUpdate = waitForSettingsUpdate();
-  await page.getByRole("combobox", { name: "沙盒模式" }).selectOption("danger-full-access");
+  await selectComposerSetting(page.getByRole("button", { name: "沙盒模式" }), "danger-full-access");
   await sandboxUpdate;
   await expect(successToast).toHaveCount(0);
   const modelSelector = page.getByRole("button", { name: /^选择模型：/u });

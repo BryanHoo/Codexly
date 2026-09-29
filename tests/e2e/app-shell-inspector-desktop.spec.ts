@@ -94,13 +94,8 @@ test("preserves provisional IME text across composer rerenders @cross-browser", 
     editor.dispatchEvent(new CompositionEvent("compositionupdate", { data: "n" }));
   });
 
-  await page.getByRole("combobox", { name: "批准模式" }).evaluate((select) => {
-    if (!(select instanceof HTMLSelectElement)) {
-      throw new Error("批准模式不是 select");
-    }
-    select.value = "never";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  await page.getByRole("button", { name: "批准模式" }).click();
+  await page.getByRole("menuitemradio", { name: "从不询问" }).click();
 
   await expect(prompt).toHaveValue("n");
 });

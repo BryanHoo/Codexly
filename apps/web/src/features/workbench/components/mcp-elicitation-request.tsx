@@ -210,7 +210,7 @@ function McpFormField({
       </label>
       <FieldDescription field={field} />
       <Input
-        className="mt-2 max-workbench:h-11"
+        className="mt-2"
         disabled={disabled}
         id={controlId}
         max={field.type === "string" ? undefined : (field.maximum ?? undefined)}

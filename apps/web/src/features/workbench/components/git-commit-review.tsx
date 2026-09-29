@@ -184,7 +184,6 @@ export function GitCommitReview({
             filesQuery.hasNextPage ? (
               <div className="flex min-h-12 items-center justify-center px-2 py-2">
                 <Button
-                  className="max-workbench:h-11"
                   disabled={filesQuery.isFetchingNextPage}
                   onClick={() => void filesQuery.fetchNextPage()}
                   type="button"

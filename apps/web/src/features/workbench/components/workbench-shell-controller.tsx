@@ -360,12 +360,12 @@ export function useWorkbenchShellController(
     [navigate],
   );
 
-  const closeSidebar = () => {
+  const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
     requestAnimationFrame(() => {
       document.querySelector<HTMLButtonElement>("#workbench-sidebar-toggle")?.focus();
     });
-  };
+  }, [setSidebarOpen]);
 
   const closeInspector = () => {
     setInspectorOpen(false);

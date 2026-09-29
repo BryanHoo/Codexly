@@ -106,7 +106,7 @@ describe("ProjectSidebarTaskList", () => {
       );
     }
     expect(css).toMatch(
-      /@media \(hover: none\) \{[\s\S]*?\.project-hover-action \{\s*opacity: 1;/u,
+      /@media \(hover: none\), \(pointer: coarse\) \{[\s\S]*?\.project-hover-action \{\s*opacity: 1;/u,
     );
   });
 });

@@ -51,11 +51,12 @@ describe("WorkbenchComposerView", () => {
       </TooltipProvider>,
     );
 
-    expect(markup).toMatch(/<option value="on-request"[^>]*>按需审批<\/option>/u);
-    expect(markup).toContain('<option value="never">从不询问</option>');
-    expect(markup).not.toContain('<option value="untrusted">');
-    expect(markup).not.toContain('<option value="granular">');
-    expect(markup).toContain('<option value="auto-review">自动审核</option>');
+    expect(markup).toContain('aria-label="批准模式"');
+    expect(markup).toContain('aria-label="沙盒模式"');
+    expect(markup).toContain('aria-haspopup="menu"');
+    expect(markup).toContain('value="on-request"');
+    expect(markup).toContain("按需审批");
+    expect(markup).not.toContain("<select");
     expect(markup).not.toContain('data-approve-for-me=""');
   });
 

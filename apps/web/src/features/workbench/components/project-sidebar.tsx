@@ -30,6 +30,7 @@ import {
 import { removeRetainedTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
 import { useProjectReordering } from "../hooks/use-project-reordering.js";
 import { useTaskDeletion } from "../hooks/use-task-deletion.js";
+import { useCloseMobileSidebar } from "../hooks/use-close-mobile-sidebar.js";
 import {
   getProjectSidebarPreferenceStorage,
   readExpandedProjectIds,
@@ -95,6 +96,7 @@ export function ProjectSidebar({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const sidebarRef = useRef<HTMLElement>(null);
+  const closeOnMobile = useCloseMobileSidebar(sidebarRef, onClose);
   const [preferenceStorage] = useState(getProjectSidebarPreferenceStorage);
   const [initialSavedExpandedProjectIds] = useState(() =>
     readExpandedProjectIds(preferenceStorage),
@@ -250,7 +252,6 @@ export function ProjectSidebar({
       return next;
     });
   };
-
   const addSelectedProject = async (rootPaths: readonly string[]) => {
     const project = await addProject(rootPaths);
     if (project !== undefined) {
@@ -259,7 +260,6 @@ export function ProjectSidebar({
     }
     return project !== undefined;
   };
-
   const openProjectDraft = async (targetProjectId: string) => {
     // 项目切换和新建入口都只打开 Project 草稿，首次提交后才展示真实 Task。
     updateExpandedProjects((current) => {
@@ -270,7 +270,9 @@ export function ProjectSidebar({
       next.add(targetProjectId);
       return next;
     });
-    await navigate({ params: { projectId: targetProjectId }, to: "/p/$projectId" });
+    await navigate({ params: { projectId: targetProjectId }, to: "/p/$projectId" }).then(
+      closeOnMobile,
+    );
   };
 
   const pinTask = (task: AgentTask) =>
@@ -390,9 +392,7 @@ export function ProjectSidebar({
         isProjectActionPending={isProjectActionPending}
         isProjectAddPending={isProjectAddPending}
         normalizedQuery={normalizedQuery}
-        onOpenTemporaryDraft={() => {
-          void navigate({ to: "/temporary" });
-        }}
+        onOpenTemporaryDraft={() => void navigate({ to: "/temporary" }).then(closeOnMobile)}
         onOpenProjectDraft={openProjectDraft}
         onWorktreeTaskCreated={(createdProjectId) => {
           updateExpandedProjects((current) => new Set(current).add(createdProjectId));

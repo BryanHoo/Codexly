@@ -1,3 +1,4 @@
+import { selectComposerSetting } from "./fixtures/composer-settings.js";
 import {
   chooseBrowserAttachment,
   chooseHostAttachment,
@@ -332,14 +333,14 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
   expect((await reasoningMenu.boundingBox())?.width).toBeLessThanOrEqual(112);
   await reasoningMenu.getByRole("menuitemradio", { name: /低/u }).click();
   await expect(reasoningSelector).toHaveAccessibleName("选择思考量：低");
-  const approvalSelect = page.getByRole("combobox", { name: "批准模式" });
-  const sandboxSelect = page.getByRole("combobox", { name: "沙盒模式" });
-  await expect(approvalSelect.locator("xpath=following-sibling::select[1]")).toHaveAttribute(
+  const approvalSelect = page.getByRole("button", { name: "批准模式" });
+  const sandboxSelect = page.getByRole("button", { name: "沙盒模式" });
+  await expect(approvalSelect.locator("xpath=following-sibling::button[1]")).toHaveAttribute(
     "aria-label",
     "沙盒模式",
   );
-  await approvalSelect.selectOption("auto-review");
-  await sandboxSelect.selectOption("danger-full-access");
+  await selectComposerSetting(approvalSelect, "auto-review");
+  await selectComposerSetting(sandboxSelect, "danger-full-access");
   await chooseHostAttachment(page, "image", "screen.png");
   await expect(page.getByText("screen.png", { exact: true })).toBeVisible();
   await expect.poll(() => previewRequests).toHaveLength(1);

@@ -33,7 +33,7 @@ test("selects, clears, and submits goal mode", async ({ page }) => {
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   const commandMenu = page.getByRole("listbox", { name: "输入命令" });
-  const sandboxSelect = page.getByRole("combobox", { name: "沙盒模式" });
+  const sandboxSelect = page.getByRole("button", { name: "沙盒模式" });
   await prompt.fill("/goal");
   await expect(commandMenu.getByRole("option", { name: /目标/u })).toBeVisible();
   await prompt.press("Enter");

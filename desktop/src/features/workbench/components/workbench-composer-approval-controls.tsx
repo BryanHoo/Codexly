@@ -1,7 +1,7 @@
 import type { AgentSandboxMode, AgentTaskSettings } from "@/protocol/index.js";
 
 import { useTranslation } from "../../../i18n/i18n.js";
-import { PromptInputSelect } from "../../../shared/components/agent/prompt-input.js";
+import { CompactSelector } from "@codexly/ui/core/compact-selector";
 import { applyApprovalMode, deriveApprovalMode, type ApprovalMode } from "../composer-state.js";
 
 type ComposerApprovalControlsProps = Readonly<{
@@ -23,43 +23,43 @@ export function ComposerApprovalControls({
   const { t } = useTranslation(["workbench", "settings"]);
   return (
     <>
-      <PromptInputSelect
-        aria-label={t("composer.approvalMode")}
-        className="max-workbench:px-0.5"
+      <CompactSelector<ApprovalMode>
+        label={t("composer.approvalMode")}
         disabled={disabled}
-        onChange={(event) => {
+        onValueChange={(value) => {
           void onSettingsChange(
-            applyApprovalMode(settings, event.currentTarget.value as ApprovalMode),
+            applyApprovalMode(settings, value),
             "approvalPolicy",
           );
         }}
         value={deriveApprovalMode(settings)}
-      >
-        <option value="on-request">{t("settings:approval.onRequest")}</option>
-        <option value="auto-review">{t("settings:approval.autoReview")}</option>
-        <option value="never">{t("settings:approval.never")}</option>
-      </PromptInputSelect>
+        options={[
+          { value: "on-request", label: t("settings:approval.onRequest") },
+          { value: "auto-review", label: t("settings:approval.autoReview") },
+          { value: "never", label: t("settings:approval.never") },
+        ]}
+      />
       {sandboxModeSelectable ? (
         <>
-          <PromptInputSelect
-            aria-label={t("composer.sandboxMode")}
-            className="max-workbench:px-0.5"
+          <CompactSelector<AgentSandboxMode>
+            label={t("composer.sandboxMode")}
             disabled={disabled}
-            onChange={(event) => {
+            onValueChange={(value) => {
               void onSettingsChange(
                 {
                   ...settings,
-                  sandboxMode: event.currentTarget.value as AgentSandboxMode,
+                  sandboxMode: value,
                 },
                 "sandboxMode",
               );
             }}
             value={settings.sandboxMode}
-          >
-            <option value="read-only">{t("settings:sandbox.readOnly")}</option>
-            <option value="workspace-write">{t("settings:sandbox.workspaceWrite")}</option>
-            <option value="danger-full-access">{t("settings:sandbox.dangerFullAccess")}</option>
-          </PromptInputSelect>
+            options={[
+              { value: "read-only", label: t("settings:sandbox.readOnly") },
+              { value: "workspace-write", label: t("settings:sandbox.workspaceWrite") },
+              { value: "danger-full-access", label: t("settings:sandbox.dangerFullAccess") },
+            ]}
+          />
         </>
       ) : null}
     </>

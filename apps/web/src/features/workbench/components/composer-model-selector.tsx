@@ -1,8 +1,8 @@
 import type { AgentModel, AgentTaskSettings } from "@codexly/protocol";
-import { ChevronDown } from "lucide-react";
+import { CompactSelectorTrigger } from "@codexly/ui/core/compact-selector";
 
 import { useTranslation } from "../../../i18n/i18n.js";
-import { Button, type ButtonProps } from "../../../shared/components/core/button.js";
+import type { ButtonProps } from "../../../shared/components/core/button.js";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,19 +38,14 @@ function ComposerModelSelectorTrigger({
   ...triggerProps
 }: ComposerModelSelectorTriggerProps) {
   return (
-    <Button
+    <CompactSelectorTrigger
       {...triggerProps}
       aria-label={accessibleLabel}
-      className="min-w-0 max-w-36 max-workbench:shrink max-workbench:gap-0.5 max-workbench:px-1"
       data-slot={slot}
       disabled={disabled}
-      size="sm"
-      type="button"
-      variant="ghost"
     >
-      <span className="min-w-0 truncate">{label}</span>
-      <ChevronDown aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" />
-    </Button>
+      {label}
+    </CompactSelectorTrigger>
   );
 }
 

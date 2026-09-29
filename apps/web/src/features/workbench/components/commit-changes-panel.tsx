@@ -209,7 +209,7 @@ export function CommitChangesPanel({
             <InputGroup
               className={cn(
                 "gap-1 rounded-surface border border-separator-strong bg-panel shadow-sm focus-within:border-brand focus-within:shadow-focus",
-                commitMessageRows === 1 ? "h-8 max-workbench:h-11" : "h-18 max-workbench:h-21",
+                commitMessageRows === 1 ? "h-8" : "h-18 max-workbench:h-21",
               )}
             >
               {/* 组合控件由外层绘制焦点态，避免 textarea 再叠加全局方形轮廓。 */}
@@ -231,7 +231,7 @@ export function CommitChangesPanel({
                   <TooltipTrigger asChild>
                     <PromptInputButton
                       aria-label={t("commit.generateMessage")}
-                      className="size-7 shrink-0 justify-center p-0 [&_svg]:size-3.5 max-workbench:size-11"
+                      className="size-7 shrink-0 justify-center p-0 [&_svg]:size-3.5"
                       disabled={!canGenerate}
                       onClick={() => {
                         void generateMessage().catch(() => undefined);

@@ -272,9 +272,9 @@ test("edits global defaults on a page without overriding task settings", async (
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/p/codexly/t/task-1");
   const workbenchUrl = page.url();
-  const taskApproval = page.getByRole("combobox", { name: "批准模式" });
+  const taskApproval = page.getByRole("button", { name: "批准模式" });
   await expectComposerSelection(page, "GPT-5.6 Sol", "高");
-  await expect(taskApproval).toHaveValue("on-request");
+  await expect(taskApproval).toHaveAttribute("value", "on-request");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const dialog = page.getByRole("region", { name: "全局设置" });
@@ -306,7 +306,7 @@ test("edits global defaults on a page without overriding task settings", async (
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page).toHaveURL(workbenchUrl);
   await expectComposerSelection(page, "GPT-5.6 Sol", "高");
-  await expect(taskApproval).toHaveValue("on-request");
+  await expect(taskApproval).toHaveAttribute("value", "on-request");
 
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const reopenedDialog = page.getByRole("region", { name: "全局设置" });

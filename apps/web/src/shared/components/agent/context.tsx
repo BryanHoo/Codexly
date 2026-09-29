@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
 import { i18n, useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../core/button.js";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../core/tooltip.js";
+import { Popover, PopoverContent, PopoverTrigger } from "../core/popover.js";
 
 type ContextValue = Readonly<{
   maxTokens: number | null | undefined;
@@ -163,8 +163,8 @@ export function ContextTrigger({ children, className = "", ...props }: ContextTr
   const usage = formatContextUsage(useContextValue());
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
+    <Popover>
+      <PopoverTrigger asChild>
         <Button
           {...props}
           aria-label={usage.accessibleLabel}
@@ -180,12 +180,21 @@ export function ContextTrigger({ children, className = "", ...props }: ContextTr
             </>
           )}
         </Button>
-      </TooltipTrigger>
-      <TooltipContent className="bg-raised text-foreground">
+      </PopoverTrigger>
+      {/* 信息详情使用点击弹层，避免触屏抬手时 Tooltip 的离开事件立即将其关闭。 */}
+      <PopoverContent
+        align="end"
+        aria-label={usage.accessibleLabel}
+        className="p-2"
+        side="top"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+        }}
+      >
         <ContextContent>
           <ContextContentHeader />
         </ContextContent>
-      </TooltipContent>
-    </Tooltip>
+      </PopoverContent>
+    </Popover>
   );
 }

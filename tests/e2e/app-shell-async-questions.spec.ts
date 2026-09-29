@@ -1,3 +1,4 @@
+import { selectComposerSetting } from "./fixtures/composer-settings.js";
 import {
   expect,
   parseRequestRecord,
@@ -137,7 +138,7 @@ for (const viewport of [
     await expect(dock.getByRole("button", { name: "发送回答" })).toBeDisabled();
     await dock.getByRole("radio", { name: "整个项目", exact: true }).check();
     await dock.getByRole("textbox", { name: "回答：补充要求" }).fill("保留测试");
-    await page.getByRole("combobox", { name: "批准模式" }).selectOption("auto-review");
+    await selectComposerSetting(page.getByRole("button", { name: "批准模式" }), "auto-review");
     await expect.poll(() => settingsUpdates.length).toBe(1);
     expect(settingsUpdates[0]?.["settings"]).toMatchObject({
       approvalsReviewer: "auto_review",
