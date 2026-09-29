@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import projectSidebarSource from "./project-sidebar.tsx?raw";
+import projectSidebarActionsSource from "./project-sidebar-actions.tsx?raw";
 import projectSidebarTaskListSource from "./project-sidebar-task-list.tsx?raw";
 
 describe("ProjectSidebar navigation", () => {
@@ -19,5 +20,10 @@ describe("ProjectSidebar navigation", () => {
   it("keeps primary navigation and the project section compact", () => {
     expect(projectSidebarSource).toContain('const primaryActionClassName =\n  "flex h-8 ');
     expect(projectSidebarTaskListSource).toContain("overflow-hidden px-2 pt-2");
+  });
+
+  it("keeps project actions visible on touch-capable desktops", () => {
+    expect(projectSidebarActionsSource).toContain("project-hover-action");
+    expect(projectSidebarTaskListSource).toContain("project-hover-action");
   });
 });

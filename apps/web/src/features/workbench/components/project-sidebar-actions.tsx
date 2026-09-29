@@ -78,7 +78,7 @@ export function ProjectActions({
           <Button
             variant="ghost"
             aria-label={t("sidebar.openProjectActions", { project: project.name })}
-            className="grid size-7 place-items-center rounded-control text-muted-foreground opacity-0 transition-[color,background-color,opacity] hover:bg-control-hover hover:text-foreground focus-visible:opacity-100 focus-visible:shadow-focus group-hover/project:opacity-100 data-[state=open]:opacity-100"
+            className="project-hover-action grid size-7 place-items-center rounded-control text-muted-foreground opacity-0 transition-[color,background-color,opacity] hover:bg-control-hover hover:text-foreground focus-visible:opacity-100 focus-visible:shadow-focus group-hover/project:opacity-100 data-[state=open]:opacity-100"
             disabled={isPending}
             id={`project-actions-${project.id}`}
             type="button"

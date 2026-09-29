@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { Project } from "@codexly/protocol";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -20,51 +21,55 @@ const pendingTaskState: ProjectTaskListState = {
   isPending: true,
 };
 
+function renderProjectTaskList(expandedProjects: ReadonlySet<string> = new Set([project.id])) {
+  return renderToStaticMarkup(
+    <TooltipProvider>
+      <ProjectSidebarTaskList
+        archiveTask={vi.fn()}
+        client={{} as React.ComponentProps<typeof ProjectSidebarTaskList>["client"]}
+        deleteTask={vi.fn()}
+        error={null}
+        expandedProjects={expandedProjects}
+        expandedTaskProjects={new Set()}
+        fetchNextProjectTaskPage={vi.fn(() => Promise.resolve())}
+        getProjectReorderProps={
+          vi.fn(() => ({})) as unknown as React.ComponentProps<
+            typeof ProjectSidebarTaskList
+          >["getProjectReorderProps"]
+        }
+        hasTaskError={false}
+        isPending={false}
+        isProjectActionPending={false}
+        isProjectAddPending={false}
+        normalizedQuery=""
+        onOpenProjectDraft={vi.fn(() => Promise.resolve())}
+        onWorktreeTaskCreated={vi.fn()}
+        onOpenArchived={vi.fn()}
+        onOpenProjectPicker={vi.fn()}
+        onOpenTemporaryDraft={vi.fn()}
+        onRemoveProject={vi.fn()}
+        onRenameProject={vi.fn()}
+        orderedProjects={[project]}
+        pinnedTasks={[]}
+        pinTask={vi.fn()}
+        projectOrderAnnouncement=""
+        projectTaskStates={new Map([[project.id, pendingTaskState]])}
+        reorderingProjectId={null}
+        setExpandedTaskProjects={vi.fn()}
+        setRenamingTask={vi.fn()}
+        taskActionPending={false}
+        taskActivity={new Map()}
+        taskSearch={{ error: null, isPending: false }}
+        tasksByProjectId={new Map()}
+        toggleProject={vi.fn()}
+      />
+    </TooltipProvider>,
+  );
+}
+
 describe("ProjectSidebarTaskList", () => {
   it("renders task loading state inside the expanded Project without shifting the tree", () => {
-    const markup = renderToStaticMarkup(
-      <TooltipProvider>
-        <ProjectSidebarTaskList
-          archiveTask={vi.fn()}
-          client={{} as React.ComponentProps<typeof ProjectSidebarTaskList>["client"]}
-          deleteTask={vi.fn()}
-          error={null}
-          expandedProjects={new Set([project.id])}
-          expandedTaskProjects={new Set()}
-          fetchNextProjectTaskPage={vi.fn(() => Promise.resolve())}
-          getProjectReorderProps={
-            vi.fn(() => ({})) as unknown as React.ComponentProps<
-              typeof ProjectSidebarTaskList
-            >["getProjectReorderProps"]
-          }
-          hasTaskError={false}
-          isPending={false}
-          isProjectActionPending={false}
-          isProjectAddPending={false}
-          normalizedQuery=""
-          onOpenProjectDraft={vi.fn(() => Promise.resolve())}
-          onWorktreeTaskCreated={vi.fn()}
-          onOpenArchived={vi.fn()}
-          onOpenProjectPicker={vi.fn()}
-          onOpenTemporaryDraft={vi.fn()}
-          onRemoveProject={vi.fn()}
-          onRenameProject={vi.fn()}
-          orderedProjects={[project]}
-          pinnedTasks={[]}
-          pinTask={vi.fn()}
-          projectOrderAnnouncement=""
-          projectTaskStates={new Map([[project.id, pendingTaskState]])}
-          reorderingProjectId={null}
-          setExpandedTaskProjects={vi.fn()}
-          setRenamingTask={vi.fn()}
-          taskActionPending={false}
-          taskActivity={new Map()}
-          taskSearch={{ error: null, isPending: false }}
-          tasksByProjectId={new Map()}
-          toggleProject={vi.fn()}
-        />
-      </TooltipProvider>,
-    );
+    const markup = renderProjectTaskList();
 
     const projectTreePosition = markup.indexOf('data-testid="project-tree-scroll"');
     const loadingPosition = markup.indexOf("正在加载任务");
@@ -82,5 +87,26 @@ describe("ProjectSidebarTaskList", () => {
     const regularAction = markup.indexOf('aria-label="在 Codexly 中新建任务"');
     expect(worktreeAction).toBeGreaterThan(0);
     expect(worktreeAction).toBeLessThan(regularAction);
+  });
+
+  it("keeps project actions visible on touch devices", () => {
+    const markup = renderProjectTaskList(new Set());
+    const css = readFileSync(
+      new URL("../../../shared/styles/workbench.css", import.meta.url),
+      "utf8",
+    );
+
+    for (const label of [
+      "打开 Codexly 的项目操作菜单",
+      "在 Codexly 中创建 worktree 任务",
+      "在 Codexly 中新建任务",
+    ]) {
+      expect(markup).toMatch(
+        new RegExp(`class="[^"]*project-hover-action[^"]*"[^>]*aria-label="${label}"`, "u"),
+      );
+    }
+    expect(css).toMatch(
+      /@media \(hover: none\) \{[\s\S]*?\.project-hover-action \{\s*opacity: 1;/u,
+    );
   });
 });

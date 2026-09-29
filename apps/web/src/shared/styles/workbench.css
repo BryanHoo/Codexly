@@ -379,6 +379,11 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
 }
 
 @media (hover: none) {
+  /* 触屏没有悬停状态，项目行的任务与菜单入口需要常显。 */
+  .project-hover-action {
+    opacity: 1;
+  }
+
   .task-actions {
     opacity: 1;
     pointer-events: auto;

@@ -353,7 +353,7 @@ export function ProjectSidebarTaskList({
                       <TooltipTrigger asChild>
                         <Button
                           aria-label={t("sidebar.createInProject", { project: project.name })}
-                          className="opacity-0 transition-[color,background-color,opacity] focus-visible:opacity-100 group-hover/project:opacity-100"
+                          className="project-hover-action opacity-0 transition-[color,background-color,opacity] focus-visible:opacity-100 group-hover/project:opacity-100"
                           onClick={() => {
                             void openProjectDraft(project.id);
                           }}

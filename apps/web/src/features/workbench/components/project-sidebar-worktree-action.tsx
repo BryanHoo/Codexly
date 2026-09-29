@@ -38,7 +38,7 @@ export function ProjectSidebarWorktreeAction({
         <TooltipTrigger asChild>
           <Button
             aria-label={label}
-            className="opacity-0 transition-[color,background-color,opacity] focus-visible:opacity-100 group-hover/project:opacity-100"
+            className="project-hover-action opacity-0 transition-[color,background-color,opacity] focus-visible:opacity-100 group-hover/project:opacity-100"
             disabled={rootPath === undefined}
             onClick={() => {
               setDialogOpen(true);
