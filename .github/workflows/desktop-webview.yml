@@ -16,6 +16,7 @@ on:
     paths:
       - ".github/workflows/desktop-webview.yml"
       - "desktop/**"
+      - "packages/**"
       - ".node-version"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -24,6 +25,7 @@ on:
     paths:
       - ".github/workflows/desktop-webview.yml"
       - "desktop/**"
+      - "packages/**"
       - ".node-version"
       - "package.json"
       - "pnpm-lock.yaml"

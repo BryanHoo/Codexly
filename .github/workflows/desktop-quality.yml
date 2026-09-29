@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "desktop/**"
+      - "packages/**"
       - ".github/workflows/desktop-quality.yml"
       - ".node-version"
       - "package.json"
@@ -16,6 +17,7 @@ on:
   pull_request:
     paths:
       - "desktop/**"
+      - "packages/**"
       - ".github/workflows/desktop-quality.yml"
       - ".node-version"
       - "package.json"
