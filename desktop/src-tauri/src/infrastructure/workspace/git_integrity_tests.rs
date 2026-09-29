@@ -19,7 +19,7 @@ impl Repository {
         static NEXT_REPOSITORY: AtomicU64 = AtomicU64::new(0);
         let sequence = NEXT_REPOSITORY.fetch_add(1, Ordering::Relaxed);
         let root = std::env::temp_dir().join(format!(
-            "codeagent-git-integrity-{}-{unique}-{sequence}",
+            "cg-{:x}-{unique:x}-{sequence:x}",
             std::process::id()
         ));
         fs::create_dir(&root).unwrap();
@@ -37,6 +37,14 @@ impl Drop for Repository {
     fn drop(&mut self) {
         fs::remove_dir_all(&self.0).unwrap();
     }
+}
+
+#[cfg(windows)]
+#[test]
+fn repository_fixture_keeps_long_git_paths_below_windows_limit() {
+    let repo = Repository::new();
+    let path = repo.0.join(format!("{}-000000.txt", "large".repeat(32)));
+    assert!(path.to_string_lossy().len() < 240, "{}", path.display());
 }
 
 fn git(root: &Path, args: &[&str]) -> String {
