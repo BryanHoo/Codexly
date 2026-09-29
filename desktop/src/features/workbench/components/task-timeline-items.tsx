@@ -275,16 +275,12 @@ export function TimelineItemContent({
       );
     }
     case "file_change": {
-      const duration = itemTiming === undefined ? undefined : (
-        <ToolDuration status={item.status} timing={itemTiming} />
-      );
       if (item.status === "completed") {
         if (turnStatus !== "running" && itemTiming?.startedAtMs === undefined) return null;
-        // 完成回合只保留计时行；文件详情仍由回复末尾统一聚合。
+        // 完成回合保留编辑摘要；文件详情仍由回复末尾统一聚合。
         return (
           <Task collapsible={false} status="completed">
             <TaskTrigger
-              statusPrefix={duration}
               title={i18n.t("timeline.editedFiles", { count: item.changes.length, ns: "conversation" })}
             />
             {turnStatus !== "running" ? null : item.changes.map((change) => (
@@ -297,7 +293,6 @@ export function TimelineItemContent({
       return (
         <Task collapsible={item.changes.length > 0} status="in_progress">
           <TaskTrigger
-            statusPrefix={duration}
             title={i18n.t("timeline.editingFiles", {
               count: item.changes.length,
               ns: "conversation",

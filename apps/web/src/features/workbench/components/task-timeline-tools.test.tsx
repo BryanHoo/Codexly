@@ -8,7 +8,7 @@ import { formatToolDuration } from "./task-timeline-status.js";
 import { renderToStaticMarkup, completedTurn, snapshot } from "./task-timeline.test-support.js";
 
 describe("task timeline tools", () => {
-  it("shows live and completed file editing duration without timing reasoning", () => {
+  it("hides live and completed file editing duration without timing reasoning", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-26T00:00:03.500Z"));
     try {
@@ -33,7 +33,8 @@ describe("task timeline tools", () => {
           itemTiming={{ startedAtMs: Date.parse("2026-09-26T00:00:01.000Z") }}
         />,
       );
-      expect(running).toContain("2.5s");
+      expect(running).toContain("正在编辑");
+      expect(running).not.toContain("data-tool-duration");
       const completed = renderToStaticMarkup(
         <TimelineItemContent
           {...props}
@@ -42,7 +43,8 @@ describe("task timeline tools", () => {
           itemTiming={{ startedAtMs: 1_000, completedAtMs: 3_500 }}
         />,
       );
-      expect(completed).toContain("2.5s");
+      expect(completed).toContain("已编辑 0 个文件");
+      expect(completed).not.toContain("data-tool-duration");
       const reasoning = renderToStaticMarkup(
         <TimelineItemContent
           {...props}
