@@ -179,6 +179,7 @@ export const workbench = {
     moreActions: "More actions",
     none: "No apps available",
     open: "Open",
+    openContainingFolder: "Open containing folder",
     openInNewWindow: "Open in new window",
     openIn: "Open in {{app}}",
     reference: "Reference",

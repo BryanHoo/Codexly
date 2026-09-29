@@ -1,5 +1,5 @@
 import { mermaid } from "@streamdown/mermaid";
-import { Download, ExternalLink, File } from "lucide-react";
+import { Copy, Download, ExternalLink, File, FolderOpen } from "lucide-react";
 import {
   createContext,
   memo,
@@ -55,7 +55,7 @@ interface MarkdownNode {
 }
 
 const MessageFileReferenceContext = createContext<
-  ((reference: MessageFileReference, mode?: "popup") => void) | null
+  ((reference: MessageFileReference, mode?: "containing-folder" | "popup") => void) | null
 >(null);
 const STREAMING_ANIMATION = {
   animation: "fadeIn",
@@ -71,7 +71,7 @@ function FileReferenceContextMenu({
   reference,
 }: Readonly<{
   children: ReactElement;
-  onOpen: (reference: MessageFileReference, mode?: "popup") => void;
+  onOpen: (reference: MessageFileReference, mode?: "containing-folder" | "popup") => void;
   reference: MessageFileReference;
 }>) {
   const { t } = useTranslation("workbench");
@@ -80,6 +80,23 @@ function FileReferenceContextMenu({
     <ContextMenu modal={false}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent aria-label={t("openMenu.targetLabel", { path: reference.path })}>
+        <ContextMenuItem
+          onSelect={() => {
+            // 菜单关闭不等待剪贴板授权，失败时保留当前引用状态。
+            void navigator.clipboard.writeText(reference.path).catch(() => undefined);
+          }}
+        >
+          <Copy aria-hidden="true" className="size-4 text-muted-foreground" />
+          <span>{t("openMenu.copyAbsolutePath")}</span>
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => {
+            onOpen(reference, "containing-folder");
+          }}
+        >
+          <FolderOpen aria-hidden="true" className="size-4 text-muted-foreground" />
+          <span>{t("openMenu.openContainingFolder")}</span>
+        </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
             onOpen(reference, "popup");
@@ -335,7 +352,10 @@ function MarkdownLink({ children, className = "", href, node, ...props }: Markdo
 }
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
-  onOpenFileReference?: (reference: MessageFileReference, mode?: "popup") => void;
+  onOpenFileReference?: (
+    reference: MessageFileReference,
+    mode?: "containing-folder" | "popup",
+  ) => void;
   promptFileReferences?: boolean;
 };
 

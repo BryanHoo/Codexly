@@ -76,6 +76,7 @@ export function useWorkbenchShellController(
     providerConnectionQuery,
     projectPathOpenLockRef,
     projectPathOpenMutationRef,
+    projectOpenCapabilitiesQuery,
     queryClient,
     renameMutation,
     runtime,
@@ -118,7 +119,7 @@ export function useWorkbenchShellController(
     [client, gitStatusQuery.data, projectId, queryClient, selectedRootPath, openInspectorDocument],
   );
   const openMessageFileReference = useCallback(
-    (reference: MessageFileReference, mode?: "popup") => {
+    (reference: MessageFileReference, mode?: "containing-folder" | "popup") => {
       const openSystemDefault = (path: string) => {
         const mutation = projectPathOpenMutationRef.current;
         mutation.reset();
@@ -126,6 +127,19 @@ export function useWorkbenchShellController(
           .run(() => mutation.mutateAsync({ appId: "system-default", path }))
           .catch(() => undefined);
       };
+      if (mode === "containing-folder") {
+        const fileManager = projectOpenCapabilitiesQuery.data?.apps.find(
+          (app) => app.kind === "file-manager",
+        );
+        if (fileManager !== undefined) {
+          const mutation = projectPathOpenMutationRef.current;
+          mutation.reset();
+          void projectPathOpenLockRef.current
+            .run(() => mutation.mutateAsync({ appId: fileManager.id, path: reference.path }))
+            .catch(() => undefined);
+        }
+        return;
+      }
       if (mode === "popup") {
         openProjectFileInNewWindow({
           onOpenSystemDefault: openSystemDefault,
@@ -147,6 +161,7 @@ export function useWorkbenchShellController(
       projectId,
       projectPathOpenLockRef,
       projectPathOpenMutationRef,
+      projectOpenCapabilitiesQuery.data,
       selectedRootPath,
       openInspectorDocument,
     ],
