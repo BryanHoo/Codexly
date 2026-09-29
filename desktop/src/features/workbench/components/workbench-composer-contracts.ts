@@ -64,10 +64,7 @@ export type WorkbenchComposerProps = Readonly<{
     Pick<
       NativeGitMutationClient,
       | "createProjectBranch"
-      | "createProjectWorktree"
-      | "listProjectWorktrees"
       | "switchProjectBranch"
-      | "switchProjectWorktree"
     > &
     NativeProjectFileSearchClient;
   fastModeAvailable: boolean;

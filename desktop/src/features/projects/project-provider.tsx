@@ -17,7 +17,7 @@ import {
   type ProjectRootSelectionContextValue,
 } from "./project-context-state.js";
 import { ProjectGitStatusCoordinator } from "./project-git-status-coordinator.js";
-import { createProjectGitRuntimeHandlers } from "./project-git-runtime-handlers.js";
+import { createCachedProjectGitRuntimeHandlers } from "./project-git-runtime-handlers.js";
 import {
   capabilitiesQueryOptions,
   cacheCompletedProjectTask,
@@ -63,14 +63,7 @@ export function ProjectProvider({
   const projectRuntime = useMemo(() => {
     const taskMetadataSyncs = new Map<string, Promise<void>>();
     return createProjectRuntimeManager(client, {
-      ...createProjectGitRuntimeHandlers({
-        coordinator: gitStatusCoordinator,
-        getProject: (projectId) =>
-          queryClient
-            .getQueryData<ProjectPage>(["projects"])
-            ?.data.find((candidate) => candidate.id === projectId),
-        getSelectedRootIds: () => selectedRootIdsRef.current,
-      }),
+      ...createCachedProjectGitRuntimeHandlers(gitStatusCoordinator, queryClient, () => selectedRootIdsRef.current),
       onMcpServerStatusChanged(projectId, taskId) {
         // 官方通知只携带启动状态，重新读取清单以补齐工具数、认证和版本元数据。
         void queryClient.invalidateQueries({

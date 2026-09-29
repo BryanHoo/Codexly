@@ -36,6 +36,7 @@ async fn read_task_snapshot_should_map_native_thread_history() {
                 "thread": {
                     "id": "thread-a",
                     "name": "真实会话",
+                    "cwd": "/repo-topic",
                     "preview": "ignored",
                     "projectId": "project-a",
                     "historyMode": "paginated",
@@ -120,6 +121,7 @@ async fn read_task_snapshot_should_map_native_thread_history() {
     let value = serde_json::to_value(snapshot).expect("snapshot should serialize");
 
     assert_eq!(value["snapshot"]["title"], "真实会话");
+    assert_eq!(value["snapshot"]["workspacePath"], "/repo-topic");
     assert_eq!(value["snapshot"]["status"], "idle");
     assert_eq!(value["snapshot"]["turnsNextCursor"], "older-a");
     assert_eq!(

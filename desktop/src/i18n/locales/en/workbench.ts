@@ -79,16 +79,11 @@ export const workbench = {
     gitBranchMissing: "No branch checked out",
     branchSwitcherLabel: "Switch branch, current branch {{branch}}",
     branchSwitcherMenu: "Switch branch",
-    detachedHead: "detached HEAD",
     branchSwitchFailed: "Unable to create or switch branches. Try again.",
     branchName: "Branch name",
     createBranch: "New branch",
     createBranchDescription: "Create from the current branch and switch immediately",
     createAndSwitchBranch: "Create and switch",
-    createAndSwitchWorktree: "Create and switch",
-    createWorktree: "New worktree",
-    createWorktreeDescription: "Create a sibling worktree and switch to it",
-    worktreeSwitcherMenu: "Switch worktree",
     goalMode: "Goal",
     goalStatus: {
       active: "Goal active",
@@ -393,6 +388,11 @@ export const workbench = {
     updatedAt: "Updated {{date}}",
   },
   sidebar: {
+    createWorktreeTask: "Create a worktree task in {{project}}",
+    createWorktreeTaskConfirm: "Create worktree and task",
+    worktreeTaskDescription:
+      "Create an isolated worktree from the current checkout and start a task in it",
+    worktreeTaskTitle: "Create worktree task",
     addProject: "Add project",
     agentNavigation: "Agent navigation",
     archive: "Archive",

@@ -1,4 +1,5 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import type { CreateTaskWorktreeResponse, StartAgentTaskResponse } from "@codexly/protocol";
 import type {
   AgentAttachmentUploadInput,
   ListFilesystemEntriesOptions,
@@ -25,13 +26,11 @@ import type {
   ProjectGitStatus,
   ProjectGitStatusQuery,
   ProjectGitWorktreePage,
-  ProjectWorktreeMutationResponse,
   ProjectSourceFile,
   RenameProjectFileRequest,
   RenameProjectFileResponse,
   StopProjectFileSearchResponse,
   SwitchProjectBranchRequest,
-  SwitchProjectWorktreeRequest,
   GenerateCommitMessageRequest,
   GenerateCommitMessageResponse,
   HostFileKind,
@@ -46,6 +45,16 @@ import { TauriNativeClient } from "./native-client.js";
 import { buildNativeAssetUrl } from "../native-asset-url.js";
 
 export class TauriWorkspaceClient extends TauriNativeClient {
+  public async createTaskWorktree(projectId: string, rootPath: string, input: CreateProjectWorktreeRequest): Promise<Pick<CreateTaskWorktreeResponse, "worktree">> {
+    return this.call("create_task_worktree", { projectId, rootPath, input });
+  }
+
+  public async startWorktreeTask(projectId: string, input: { rootPath: string; worktreePath: string }): Promise<StartAgentTaskResponse> {
+    const response = await this.call<StartAgentTaskResponse>("start_worktree_task", { projectId, input });
+    this.taskProjects.set(response.task.id, projectId);
+    return response;
+  }
+
   public async cacheProjectImage(
     projectId: string,
     rootPath: string | undefined,
@@ -162,24 +171,6 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     _options: ReadOptions = {},
   ): Promise<ProjectGitWorktreePage> {
     return this.call("list_project_worktrees", { projectId, rootPath });
-  }
-
-  public async createProjectWorktree(
-    projectId: string,
-    rootPath: string,
-    input: CreateProjectWorktreeRequest,
-    _options: MutationOptions = {},
-  ): Promise<ProjectWorktreeMutationResponse> {
-    return this.call("create_project_worktree", { input, projectId, rootPath });
-  }
-
-  public async switchProjectWorktree(
-    projectId: string,
-    rootPath: string,
-    input: SwitchProjectWorktreeRequest,
-    _options: MutationOptions = {},
-  ): Promise<ProjectWorktreeMutationResponse> {
-    return this.call("switch_project_worktree", { input, projectId, rootPath });
   }
 
   public async generateCommitMessage(

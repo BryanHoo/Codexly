@@ -13,6 +13,7 @@ pub(super) fn snapshot(project: &str, task: &str) -> AgentTaskSnapshotResponse {
             session_id: RUNTIME_SESSION_ID,
         },
         snapshot: AgentTaskSnapshot {
+            workspace_path: None,
             context_usage: None,
             goal: None,
             id: task.into(),

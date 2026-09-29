@@ -39,6 +39,7 @@ async fn list_tasks_should_filter_and_map_native_threads() {
                 "data": [{
                     "id": "thread-a",
                     "name": "  Fixed title  ",
+                    "cwd": "/repo-topic",
                     "preview": "ignored",
                     "projectId": "project-a",
                     "section": {"id": PINNED_SECTION_ID, "name": "Pinned", "appearance": null},
@@ -70,6 +71,7 @@ async fn list_tasks_should_filter_and_map_native_threads() {
     .expect("tasks should map");
 
     assert_eq!(page.data[0].id, "thread-a");
+    assert_eq!(page.data[0].workspace_path.as_deref(), Some("/repo-topic"));
     assert_eq!(page.data[0].project_id, "project-a");
     assert_eq!(page.data[0].title, "Fixed title");
     assert!(page.data[0].pinned);

@@ -84,12 +84,11 @@ use application::{
         terminate_background_terminal, update_task_goal, upload_feedback,
     },
     workspace_commands::{
-        commit_project_changes, create_project_branch, create_project_worktree,
-        delete_project_file, generate_commit_message, get_project_git_commit_file_diff,
-        get_project_git_commit_files, get_project_git_history, get_project_git_status,
-        list_project_files, list_project_worktrees, read_project_source_file, rename_project_file,
+        commit_project_changes, create_project_branch, delete_project_file,
+        generate_commit_message, get_project_git_commit_file_diff, get_project_git_commit_files,
+        get_project_git_history, get_project_git_status, list_project_files,
+        list_project_worktrees, read_project_source_file, rename_project_file,
         search_project_files, stop_project_file_search, switch_project_branch,
-        switch_project_worktree,
     },
 };
 use infrastructure::diagnostics;
@@ -292,8 +291,8 @@ pub fn run() {
             switch_project_branch,
             create_project_branch,
             list_project_worktrees,
-            create_project_worktree,
-            switch_project_worktree,
+            application::worktree_task_commands::create_task_worktree,
+            application::worktree_task_commands::start_worktree_task,
             generate_commit_message,
             commit_project_changes,
             upload_attachment,

@@ -2,7 +2,7 @@ import { Type, type Static } from "@sinclair/typebox";
 import { AgentTaskBaseSchema } from "@codexly/protocol/task-common";
 
 export const AgentTaskSchema = Type.Object(
-  { ...AgentTaskBaseSchema.properties },
+  { ...AgentTaskBaseSchema.properties, workspacePath: Type.Optional(Type.String({ minLength: 1 })) },
   { additionalProperties: false },
 );
 

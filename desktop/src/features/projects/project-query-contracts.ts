@@ -22,11 +22,11 @@ export type NativeGitMutationClient = Pick<
   NativeClient,
   | "commitProjectChanges"
   | "createProjectBranch"
-  | "createProjectWorktree"
+  | "createTaskWorktree"
+  | "startWorktreeTask"
   | "generateCommitMessage"
   | "listProjectWorktrees"
   | "switchProjectBranch"
-  | "switchProjectWorktree"
 >;
 export type NativeFileTreeReadClient = Pick<NativeClient, "listProjectFiles">;
 export type NativeFileTreeClient = Pick<

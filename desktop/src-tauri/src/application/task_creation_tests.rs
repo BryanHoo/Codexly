@@ -8,6 +8,7 @@ use std::sync::{
 fn response() -> AgentTaskMutationResponse {
     AgentTaskMutationResponse {
         task: AgentTask {
+            workspace_path: None,
             id: "task".into(),
             project_id: "project".into(),
             title: "Task".into(),

@@ -10,6 +10,7 @@ export function selectTaskRuntimeMetadata(state: TaskStoreState) {
   // 时间戳仅供按需读取；流式活动时间变化不应触发工作台重绘。
   return {
     id: metadata.id,
+    ...(metadata.workspacePath === undefined ? {} : { workspacePath: metadata.workspacePath }),
     title: metadata.title,
     status: metadata.status,
     settings: metadata.settings,

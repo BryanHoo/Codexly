@@ -8,6 +8,7 @@ use std::sync::{
 
 fn task() -> AgentTask {
     AgentTask {
+        workspace_path: None,
         id: "task-a".into(),
         project_id: "project-a".into(),
         title: "Task".into(),

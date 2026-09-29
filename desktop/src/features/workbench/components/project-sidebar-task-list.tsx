@@ -11,7 +11,8 @@ import {
 } from "../../../shared/components/core/tooltip.js";
 import { getTaskActivity, type TaskActivityMap } from "../../conversation/runtime/task-activity.js";
 import { getProjectTaskPreview, PROJECT_TASK_PREVIEW_LIMIT } from "../../projects/project-data.js";
-import type { ProjectTaskListState } from "../../projects/project-context.js";
+import { useProjectData, type ProjectTaskListState } from "../../projects/project-context.js";
+import { ProjectSidebarWorktreeAction } from "./project-sidebar-worktree-action.js";
 import type { useProjectReordering } from "../hooks/use-project-reordering.js";
 import {
   getProjectSidebarPreferenceStorage,
@@ -98,6 +99,7 @@ export function ProjectSidebarTaskList({
   toggleProject,
 }: ProjectSidebarTaskListProps) {
   const { t } = useTranslation("workbench");
+  const { client } = useProjectData();
   // 临时任务与 Project 文件夹保持一致：标题控制列表可见性，“+”独立创建任务。
   const [preferenceStorage] = useState(getProjectSidebarPreferenceStorage);
   const [temporaryTasksExpanded, setTemporaryTasksExpanded] = useState(() =>
@@ -336,6 +338,9 @@ export function ProjectSidebarTaskList({
                       }}
                       project={project}
                     />
+                    <ProjectSidebarWorktreeAction client={client} project={project} onCreated={() => {
+                      if (!expanded) toggleProject(project.id);
+                    }} />
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button

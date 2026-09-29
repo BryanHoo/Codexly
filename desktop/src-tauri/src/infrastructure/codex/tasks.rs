@@ -477,6 +477,7 @@ pub(super) fn map_task(thread: NativeThread, project_id: &str) -> AgentTask {
         .unwrap_or("新聊天")
         .to_owned();
     AgentTask {
+        workspace_path: thread.cwd,
         id: thread.id,
         pinned: thread
             .section

@@ -11,9 +11,9 @@ export function WorkbenchComposerFooter({ props, rootControls }: { props: Workbe
   return <TerminalFooter><div className="mx-auto mt-1.5 flex h-9 w-full max-w-content min-w-0 items-center gap-3 px-1 text-caption text-muted-foreground">
     {props.projectToolsEnabled ? <>
       <div className="flex min-w-0 shrink items-center gap-0.5"><ComposerBranchSwitcher
-        creatingBranch={props.creatingBranch} creatingWorktree={props.creatingWorktree} gitStatus={props.gitStatus}
-        onBranchChange={props.onBranchChange} onBranchCreate={props.onBranchCreate} onWorktreeChange={props.onWorktreeChange} onWorktreeCreate={props.onWorktreeCreate}
-        switchingBranch={props.switchingBranch} switchingWorktree={props.switchingWorktree} worktrees={props.worktrees}
+        creatingBranch={props.creatingBranch} gitStatus={props.gitStatus}
+        onBranchChange={props.onBranchChange} onBranchCreate={props.onBranchCreate}
+        switchingBranch={props.switchingBranch}
       /></div>
       {rootControls}
       <TerminalStatusTrigger />

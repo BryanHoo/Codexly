@@ -432,3 +432,47 @@ fn native_goal(status: &str, updated_at: i64) -> Value {
         "updatedAt": updated_at,
     })
 }
+
+#[tokio::test]
+async fn worktree_task_should_keep_project_and_override_workspace_roots() {
+    let (client, server) = duplex(8 * 1024);
+    let (reader, writer) = split(client);
+    let (server_reader, mut server_writer) = split(server);
+    let connection = AppServerConnection::new(reader, writer);
+    let cwd = std::env::temp_dir().join("codeagent-worktree-test");
+    let expected = cwd.to_string_lossy().into_owned();
+    let server_task = tokio::spawn(async move {
+        let mut lines = BufReader::new(server_reader).lines();
+        for method in ["project/read", "thread/start"] {
+            let request: Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert_eq!(request["method"], method);
+            let result = if method == "project/read" {
+                json!({"project": {"id": "project-a", "name": "repo", "roots": [{"id": "root", "path": "/repo"}], "createdAt": 1735689600}})
+            } else {
+                assert_eq!(request["params"]["projectId"], "project-a");
+                assert_eq!(request["params"]["cwd"], expected);
+                assert_eq!(
+                    request["params"]["runtimeWorkspaceRoots"],
+                    json!([expected])
+                );
+                json!({"thread": {"id": "worktree-task", "projectId": "project-a", "cwd": expected, "name": "topic", "preview": "", "updatedAt": 1735689600}})
+            };
+            server_writer
+                .write_all(
+                    format!("{}\n", json!({"id": request["id"], "result": result})).as_bytes(),
+                )
+                .await
+                .unwrap();
+        }
+    });
+    let response = start_task(
+        &connection,
+        "project-a".to_owned(),
+        Some(&cwd),
+        &Default::default(),
+    )
+    .await;
+    server_task.await.unwrap();
+    assert_eq!(response.unwrap().task.project_id, "project-a");
+}

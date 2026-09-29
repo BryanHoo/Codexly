@@ -87,6 +87,22 @@ pub async fn create_project_terminal(
         .map_err(|_| TerminalError::SpawnFailed)?
         .map_err(Into::into);
     }
+    if let Some(task_id) = input.root_id.strip_prefix("worktree:") {
+        // 与文件、Git 操作使用同一归属校验，客户端不能借终端访问任意目录。
+        let connection = state.codex_connection().await?;
+        let cwd = codex::task_working_directory(&connection, &input.project_id, task_id)
+            .await
+            .map_err(AppError::from)?;
+        let path = cwd.to_str().ok_or(TerminalError::RootInvalid)?;
+        let (_, root, _) =
+            super::workspace_commands::project_root(&state, &input.project_id, path).await?;
+        return tauri::async_runtime::spawn_blocking(move || {
+            reservation.spawn_root(&root, on_output)
+        })
+        .await
+        .map_err(|_| TerminalError::SpawnFailed)?
+        .map_err(Into::into);
+    }
     let connection = state.codex_connection().await?;
     let project = codex::read_project(&connection, &input.project_id)
         .await

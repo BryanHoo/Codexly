@@ -105,6 +105,7 @@ async fn review_submission_should_preserve_failure_and_created_task_on_replay() 
             async {
                 Ok(crate::domain::sidebar::AgentTaskMutationResponse {
                     task: AgentTask {
+                        workspace_path: None,
                         id: "task".into(),
                         project_id: "project".into(),
                         title: "Review".into(),

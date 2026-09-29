@@ -158,6 +158,8 @@ pub struct AgentTurnActionResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentTaskSnapshot {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_path: Option<String>,
     pub context_usage: Option<Value>,
     pub goal: Option<AgentGoal>,
     pub id: String,

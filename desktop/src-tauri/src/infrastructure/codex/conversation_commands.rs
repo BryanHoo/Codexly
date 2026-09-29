@@ -65,6 +65,7 @@ struct NativeTaskResponse {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NativeTask {
+    cwd: Option<String>,
     id: String,
     name: Option<String>,
     preview: String,
@@ -179,10 +180,10 @@ struct TurnInterruptParams<'a> {
 pub async fn start_task(
     connection: &AppServerConnection,
     project_id: String,
-    temporary_cwd: Option<&Path>,
+    workspace_cwd: Option<&Path>,
     settings: &AgentRuntimeSettings,
 ) -> Result<AgentTaskMutationResponse, ConnectionError> {
-    let root_paths = if project_id == TEMPORARY_PROJECT_ID {
+    let mut root_paths = if project_id == TEMPORARY_PROJECT_ID {
         Vec::new()
     } else {
         let project_response: NativeProjectResponse = connection
@@ -201,8 +202,19 @@ pub async fn start_task(
         project.roots.into_iter().map(|root| root.path).collect()
     };
     let native_project_id = (project_id != TEMPORARY_PROJECT_ID).then_some(project_id.as_str());
+    // worktree 只替换线程工作区，保留 projectId，避免写入原仓库或新增项目。
+    if project_id != TEMPORARY_PROJECT_ID
+        && let Some(path) = workspace_cwd
+    {
+        let path = path
+            .is_absolute()
+            .then(|| path.to_str())
+            .flatten()
+            .ok_or(ConnectionError::InvalidMessage)?;
+        root_paths = vec![path.to_owned()];
+    }
     let cwd = if project_id == TEMPORARY_PROJECT_ID {
-        let cwd = temporary_cwd
+        let cwd = workspace_cwd
             .filter(|path| path.is_absolute())
             .and_then(Path::to_str)
             .ok_or(ConnectionError::InvalidMessage)?;
@@ -399,6 +411,7 @@ pub async fn interrupt_turn(
 
 fn map_native_task(thread: NativeTask, project_id: String) -> AgentTask {
     AgentTask {
+        workspace_path: thread.cwd,
         id: thread.id,
         pinned: thread
             .section

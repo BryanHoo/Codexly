@@ -52,12 +52,6 @@ pub struct BranchMutationInput {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WorktreeSwitchInput {
-    path: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CommitMutationInput {
     action: Option<String>,
     expected_snapshot: String,
@@ -75,15 +69,22 @@ pub(super) async fn project_root(
     let project = codex::read_project(&connection, project_id)
         .await
         .map_err(AppError::from)?;
-    let root = project
-        .roots
-        .into_iter()
-        .find(|root| root.path == root_path)
-        .ok_or(AppError::FilesystemRequestFailed)?;
-    let canonical = workspace::canonical_root(&root.path)
+    let canonical = workspace::canonical_root(root_path)
         .await
         .map_err(|_| AppError::FilesystemRequestFailed)?;
-    Ok((connection, canonical, root.id))
+    if let Some(root) = project.roots.iter().find(|root| root.path == root_path) {
+        return Ok((connection, canonical, root.id.clone()));
+    }
+    // 工作树不写入项目 roots；按 Git 登记信息校验归属后供文件与 Git 操作共用。
+    for root in project.roots {
+        if workspace::switch_worktree(std::path::Path::new(&root.path), None, root_path)
+            .await
+            .is_ok()
+        {
+            return Ok((connection, canonical, "worktree".to_owned()));
+        }
+    }
+    Err(AppError::FilesystemRequestFailed)
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -328,36 +329,6 @@ pub async fn list_project_worktrees(
 }
 
 #[tauri::command(rename_all = "camelCase")]
-pub async fn create_project_worktree(
-    project_id: String,
-    root_path: String,
-    input: BranchMutationInput,
-    state: State<'_, AppState>,
-) -> Result<Value, AppError> {
-    let (connection, root, _) = project_root(&state, &project_id, &root_path).await?;
-    let worktree = workspace::create_worktree(&root, None, &input.branch, &input.expected_snapshot)
-        .await
-        .map_err(AppError::from)?;
-    let project = project_for_worktree(&connection, &worktree.path).await?;
-    Ok(json!({"project": project, "worktree": worktree}))
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn switch_project_worktree(
-    project_id: String,
-    root_path: String,
-    input: WorktreeSwitchInput,
-    state: State<'_, AppState>,
-) -> Result<Value, AppError> {
-    let (connection, root, _) = project_root(&state, &project_id, &root_path).await?;
-    let worktree = workspace::switch_worktree(&root, None, &input.path)
-        .await
-        .map_err(AppError::from)?;
-    let project = project_for_worktree(&connection, &worktree.path).await?;
-    Ok(json!({"project": project, "worktree": worktree}))
-}
-
-#[tauri::command(rename_all = "camelCase")]
 pub async fn generate_commit_message(
     app: AppHandle,
     project_id: String,
@@ -435,24 +406,4 @@ pub async fn commit_project_changes(
     .await
     .map_err(AppError::from)?;
     serde_json::to_value(response).map_err(|_| AppError::FilesystemRequestFailed)
-}
-
-async fn project_for_worktree(
-    connection: &codex::AppServerConnection,
-    path: &str,
-) -> Result<crate::domain::sidebar::Project, AppError> {
-    let projects = codex::list_projects(connection)
-        .await
-        .map_err(AppError::from)?;
-    if let Some(project) = projects
-        .data
-        .into_iter()
-        .find(|project| project.roots.iter().any(|root| root.path == path))
-    {
-        return Ok(project);
-    }
-    codex::add_project(connection, vec![path.to_owned()])
-        .await
-        .map(|response| response.project)
-        .map_err(AppError::from)
 }

@@ -77,6 +77,8 @@ pub struct HostFileListing {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentTask {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_path: Option<String>,
     pub id: String,
     pub pinned: bool,
     pub project_id: String,

@@ -88,6 +88,7 @@ struct NativeThreadResponse {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NativeThread {
+    cwd: Option<String>,
     model: Option<String>,
     reasoning_effort: Option<String>,
     history_mode: NativeThreadHistoryMode,
@@ -203,6 +204,7 @@ pub async fn read_task_snapshot(
             session_id: RUNTIME_SESSION_ID,
         },
         snapshot: AgentTaskSnapshot {
+            workspace_path: thread.cwd,
             context_usage: None,
             goal,
             id: thread.id,

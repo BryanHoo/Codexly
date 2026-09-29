@@ -1,5 +1,5 @@
 import { createWorktreeTask } from "@codexly/frontend-core";
-import type { CodexlyClient } from "@codexly/client";
+import type { NativeClient } from "@/platform/native-client-contract.js";
 import type { AgentTask } from "@codexly/protocol";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -7,7 +7,7 @@ import { upsertProjectTaskInInfiniteData } from "../../projects/project-query-ca
 import type { ProjectTaskInfiniteData } from "../../projects/project-query-contracts.js";
 
 export type WorktreeTaskClient = Pick<
-  CodexlyClient,
+  NativeClient,
   "createTaskWorktree" | "getProjectGitStatus" | "startWorktreeTask"
 >;
 

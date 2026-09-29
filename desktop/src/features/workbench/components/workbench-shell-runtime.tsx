@@ -1,3 +1,4 @@
+import { resolveDesktopTaskRoot } from "./workbench-task-root.js";
 import type {
   AgentMessageAttachment,
   AgentPromptInput,
@@ -128,10 +129,16 @@ export function useWorkbenchShellRuntime({
   const project = projects.find((item) => item.id === projectId);
   const { selectedRootIds, setSelectedProjectRoot } = useProjectRootSelection();
   const selectedRoot = resolveProjectRootFromSelections(project, selectedRootIds);
-  const activeRootId = temporary ? undefined : selectedRoot?.id;
-  const selectedRootPath = temporary ? undefined : selectedRoot?.path;
   const { markTaskRunning, projectRuntime, refreshProjectGitStatus, retry, viewTask } =
     useProjectActions();
+  const runtime = useTaskRuntime(projectId, taskId, projectRuntime);
+  const activeTask = tasks.find((task) => task.projectId === projectId && task.id === taskId);
+  const { activeRootId, projectRoots, selectedRootPath } = resolveDesktopTaskRoot({
+    metadataTaskId: runtime.metadata?.id,
+    projectRoots: project?.roots ?? [],
+    reportedWorkspacePath: activeTask?.workspacePath ?? (runtime.metadata?.id === taskId ? runtime.metadata?.workspacePath : undefined),
+    selectedRoot, taskId, taskKnown: activeTask !== undefined, temporary,
+  });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const inspectorScopeKey = `${projectId}:${taskId ?? "draft"}`;
@@ -265,7 +272,6 @@ export function useWorkbenchShellRuntime({
     taskId === undefined
       ? undefined
       : queryClient.getQueryData<TaskLaunchState>(taskLaunchQueryKey(projectId, taskId));
-  const runtime = useTaskRuntime(projectId, taskId, projectRuntime);
   const startingSnapshot = useMemo<RuntimeTaskSnapshot | undefined>(
     () => (taskLaunchState === undefined ? undefined : createTaskLaunchSnapshot(taskLaunchState)),
     [taskLaunchState],
@@ -433,7 +439,7 @@ export function useWorkbenchShellRuntime({
     projectDefaultsMutation,
     projectDefaultsQuery,
     projectName,
-    projectRoots: project?.roots ?? [],
+    projectRoots,
     projectOpenCapabilitiesQuery,
     providerConnectionQuery,
     projectFolderOpenDisabled:
