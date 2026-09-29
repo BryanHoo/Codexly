@@ -6,6 +6,17 @@ import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
 import { groupStoredTurnTimelineItems } from "./task-timeline-store-items.js";
 
 describe("completed turn process projection", () => {
+  it.each(["interrupted", "failed"] as const)("collapses all %s output only after another submission", (status) => {
+    const items: AgentItem[] = [
+      { id: "input", type: "message", role: "user", text: "Request" },
+      { id: "partial", type: "message", role: "assistant", phase: "final_answer", text: "Partial" },
+      { id: "changes", type: "file_change", status: "completed", changes: [] },
+    ];
+    expect(resolveCompletedTurnProcessItemIds(items, status, false)).toEqual([]);
+    expect(resolveCompletedTurnProcessItemIds(items, status, true)).toEqual(["partial", "changes"]);
+    expect(resolveCompletedTurnProcessItemIds(items, "running", true)).toEqual([]);
+  });
+
   it("collapses an in-turn steer and keeps the final file review with the answer", () => {
     const items: AgentItem[] = [
       { id: "initial-user", role: "user", text: "Fix the issue", type: "message" },

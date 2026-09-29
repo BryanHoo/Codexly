@@ -1,9 +1,17 @@
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
+import { resolveInterruptedTurnProcessItemIds } from "@codexly/frontend-core";
 
 export function resolveCompletedTurnProcessItemIds(
   items: readonly AgentItem[],
   turnStatus: AgentTurn["status"],
+  hasNextSubmission = false,
 ): string[] {
+  const interruptedItems = resolveInterruptedTurnProcessItemIds(
+    items,
+    turnStatus,
+    hasNextSubmission,
+  );
+  if (interruptedItems !== undefined) return interruptedItems;
   if (turnStatus === "running") {
     return [];
   }

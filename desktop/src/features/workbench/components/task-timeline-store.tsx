@@ -149,6 +149,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   turnIndex,
   pendingSubmission,
   pendingPrompt,
+  hasNextSubmission = false,
 }: Readonly<{
   onBuildPlan?: BuildPlanAction;
   onForkTask?: ForkTaskAction;
@@ -162,6 +163,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   turnIndex: number;
   pendingSubmission: boolean;
   pendingPrompt?: PendingPrompt;
+  hasNextSubmission?: boolean;
 }>) {
   const turn = useStore(store, (state) => state.turnsById[turnId]);
   const itemKeys = useStore(store, (state) => state.itemKeysByTurnId[turnId] ?? []);
@@ -174,6 +176,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
     resolveCompletedTurnProcessItemIds(
       itemKeys.flatMap((itemKey) => itemStoresByKey.get(itemKey)?.peek() ?? []),
       turn.status,
+      hasNextSubmission,
     ),
   );
   const processItemKeys = new Set(
@@ -182,8 +185,9 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
     ),
   );
   // 折叠项必须在分组前移除，否则隐藏的引导仍会切断最终答复与文件审核卡片。
+  // 中断回合没有保留的最终答复，需保留 Assistant 分组来承载展开入口。
   const hiddenProcessItemKeys =
-    turn.status === "running" || processExpanded ? undefined : processItemKeys;
+    turn.status !== "completed" || processExpanded ? undefined : processItemKeys;
   const timelineGroups = groupStoredTurnTimelineItems(
     itemKeys,
     itemStoresByKey,
@@ -459,6 +463,7 @@ export function TaskStoreTimeline({
           taskId={taskId}
           turnId={turnId}
           turnIndex={turnIndex}
+          hasNextSubmission={turnIndex < turnIds.length - 1 || (showPendingSubmission && turnId !== submissionTurnId)}
           pendingSubmission={
             !showPendingFooter && showPendingSubmission && turnId === submissionTurnId
           }

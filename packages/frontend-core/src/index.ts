@@ -4,5 +4,6 @@ export * from "./search-files.js";
 export * from "./task-queries.js";
 export * from "./task-snapshot.js";
 export * from "./task-state.js";
+export * from "./turn-process.js";
 export { createWorktreeTask } from "./worktree-task.js";
 export { resolveWorkbenchTaskRoot } from "./workbench-task-root.js";

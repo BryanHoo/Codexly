@@ -150,6 +150,7 @@ export function StoreTurnTimelineSection({
   turnIndex,
   suppressEmptyRunningStatus,
   pendingPrompt,
+  hasNextSubmission = false,
 }: Readonly<{
   onBuildPlan?: BuildPlanAction;
   onForkTask?: ForkTaskAction;
@@ -163,6 +164,7 @@ export function StoreTurnTimelineSection({
   turnIndex: number;
   suppressEmptyRunningStatus: boolean;
   pendingPrompt?: PendingPrompt;
+  hasNextSubmission?: boolean;
 }>) {
   const turn = useStore(store, (state) => state.turnsById[turnId]);
   const itemKeys = useStore(store, (state) => state.itemKeysByTurnId[turnId] ?? []);
@@ -176,6 +178,7 @@ export function StoreTurnTimelineSection({
     resolveCompletedTurnProcessItemIds(
       itemKeys.flatMap((itemKey) => itemStoresByKey.get(itemKey)?.peek() ?? []),
       turn.status,
+      hasNextSubmission,
     ),
   );
   const processItemKeys = new Set(
@@ -459,6 +462,10 @@ export function TaskStoreTimeline({
             taskId={taskId}
             turnId={turnId}
             turnIndex={turnIndex}
+            hasNextSubmission={
+              turnIndex < turnIds.length - 1 ||
+              (showPendingSubmission && turnId !== submissionTurnId)
+            }
             suppressEmptyRunningStatus={showPendingSubmission && turnId === submissionTurnId}
             {...(turnId === submissionTurnId &&
             submissionHandoffState === "assistant-started" &&
