@@ -68,6 +68,7 @@ function mapProviderErrorInfo(value: unknown): Readonly<{
     sandboxError: "sandbox_error",
     serverOverloaded: "server_overloaded",
     sessionBudgetExceeded: "session_budget_exceeded",
+    tooManyDenials: "too_many_denials",
     unauthorized: "unauthorized",
     usageLimitExceeded: "usage_limit_exceeded",
   };

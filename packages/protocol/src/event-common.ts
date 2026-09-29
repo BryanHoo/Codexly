@@ -116,6 +116,7 @@ export const ProviderErrorEventSchema = createEventSchema({
           Type.Literal("flex_unavailable"),
           Type.Literal("server_overloaded"),
           Type.Literal("policy_blocked"),
+          Type.Literal("too_many_denials"),
           Type.Literal("connection_failed"),
           Type.Literal("internal_error"),
           Type.Literal("unauthorized"),

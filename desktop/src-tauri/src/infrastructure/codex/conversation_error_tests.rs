@@ -8,6 +8,7 @@ fn codex_152_errors_should_keep_public_classification() {
     let cases = [
         (json!("rateLimitExceeded"), "rate_limit_exceeded", None),
         (json!("flexUnavailable"), "flex_unavailable", None),
+        (json!("tooManyDenials"), "too_many_denials", None),
         (
             json!({"httpConnectionFailed": {"httpStatusCode": 429}}),
             "connection_failed",
@@ -45,4 +46,35 @@ fn codex_152_errors_should_keep_public_classification() {
             expected_status
         );
     }
+}
+
+#[test]
+fn guardian_interruption_should_preserve_errors_in_history_and_notifications() {
+    let native = json!({
+        "id": "turn-a", "status": "interrupted", "items": [],
+        "error": {"message": "Guardian denial limit reached", "codexErrorInfo": "tooManyDenials"}
+    });
+    let turn =
+        super::conversation::map_turn(serde_json::from_value(native.clone()).unwrap()).unwrap();
+    assert_eq!(turn.status, "interrupted");
+    assert_eq!(turn.error.as_deref(), Some("Guardian denial limit reached"));
+
+    // 上游只发送中断终态；不能依赖额外 error 通知才能展示错误。
+    let event = map_server_message(
+        ServerMessage {
+            id: None,
+            method: "turn/completed".to_owned(),
+            params: to_raw_value(&json!({"threadId": "thread-a", "turn": native})).unwrap(),
+        },
+        1,
+        "2026-09-29T00:00:00Z",
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(event["type"], "turn.completed");
+    assert_eq!(event["payload"]["turn"]["status"], "interrupted");
+    assert_eq!(
+        event["payload"]["turn"]["error"],
+        "Guardian denial limit reached"
+    );
 }

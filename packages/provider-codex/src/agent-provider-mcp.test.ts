@@ -301,7 +301,7 @@ describe("CodexAgentProvider MCP servers", () => {
     );
   });
 
-  it("preserves every 0.158.0 MCP runtime connection status", async () => {
+  it("preserves every 0.159.0 MCP runtime connection status", async () => {
     const statuses = [
       "notStarted",
       "starting",
@@ -369,7 +369,7 @@ describe("CodexAgentProvider MCP servers", () => {
     });
   });
 
-  it("rejects MCP status entries without the 0.158.0 plugin ownership field", async () => {
+  it("rejects MCP status entries without the 0.159.0 plugin ownership field", async () => {
     const rpc = new FakeRpcClient([
       { thread: nativeThread() },
       {

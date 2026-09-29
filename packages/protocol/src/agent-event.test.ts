@@ -36,6 +36,21 @@ const baseEvent = {
   version: 2,
 } as const;
 
+it("accepts Guardian denial limits in the shared provider error contract", () => {
+  expect(
+    Value.Check(AgentEventSchema, {
+      ...baseEvent,
+      type: "provider.error",
+      turnId: "turn-1",
+      payload: {
+        code: "too_many_denials",
+        message: "Guardian denial limit reached",
+        willRetry: false,
+      },
+    }),
+  ).toBe(true);
+});
+
 const pendingRequest = {
   availableDecisions: ["allow", "deny"],
   command: "pnpm check",

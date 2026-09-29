@@ -2,38 +2,38 @@ use super::runtime_manager::Distribution;
 
 pub(super) const DARWIN_X64: Distribution = Distribution {
     target: "x86_64-apple-darwin",
-    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.158.0-darwin-x64.tgz",
-    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.158.0-darwin-x64.tgz",
-    integrity: "FrX1o3APrL7F6QkO8z08Rq8lJitH2sNI7pkebA02eYA103hDs3fyy9d32zeLLQJUeAhmZA4pV9xJR4m7cVyNpQ==",
+    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.159.0-darwin-x64.tgz",
+    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.159.0-darwin-x64.tgz",
+    integrity: "uNsvmDAYH2H7/uJi3NYtn0d+bpMHgovZyZwm62Q8q/cdd1rp5oEbk2Axe5pbyiWFwSpjdT6fbuY8gTdX2i7zjg==",
 };
 
 pub(super) const DARWIN_ARM64: Distribution = Distribution {
     target: "aarch64-apple-darwin",
-    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.158.0-darwin-arm64.tgz",
-    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.158.0-darwin-arm64.tgz",
-    integrity: "0OKSjlWY1j4Ld1fT87QttNw3Y2SthcXi4GcrWSHjleZg1n86eG3+shJl4Pv+siUmsBJhWlNmm6rRO4Yv8ZyQLg==",
+    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.159.0-darwin-arm64.tgz",
+    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.159.0-darwin-arm64.tgz",
+    integrity: "D1x+5n2y0TE43ERJs3CbBDRPLQl968hpqsInOwYNhfnTOTT53McpfFa6+VfPWwmPi0zW0aJ0C97K+6MhNHYe6A==",
 };
 pub(super) const LINUX_ARM64: Distribution = Distribution {
     target: "aarch64-unknown-linux-musl",
-    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.158.0-linux-arm64.tgz",
-    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.158.0-linux-arm64.tgz",
-    integrity: "T9AgGcoU7HNsxJ4prT/R9YvztyEmz9kWP/VlT2cbCop4PVwiqfG9YMJtLo4j2ScewvSaTl4sQFwla+fwGpoRZg==",
+    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.159.0-linux-arm64.tgz",
+    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.159.0-linux-arm64.tgz",
+    integrity: "cm7ihiXIZILGQPWgak3ApOcRZ6beupDNPHVAJ9CyHxZSQPsTy6CSYg1GYLVe2DlRUQYprnXHZceOgheXo0PvHA==",
 };
 pub(super) const LINUX_X64: Distribution = Distribution {
     target: "x86_64-unknown-linux-musl",
-    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.158.0-linux-x64.tgz",
-    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.158.0-linux-x64.tgz",
-    integrity: "mY12GZPM8TuOWVGxCyNV2NSA8t1uIupm9Nhu9VeQVEvvxBKN08U8bLH+vn7oISUHZPC8bwhROIbo/ZUxqV6XMg==",
+    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.159.0-linux-x64.tgz",
+    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.159.0-linux-x64.tgz",
+    integrity: "7ks+EeQjX33wfJXbggseyF0CJRFVgzDHA6BzC7mJjFsJKmdAuOFWMFeMeZe8vL/G6xEpL29wOdwR85sK49F0iA==",
 };
 pub(super) const WINDOWS_ARM64: Distribution = Distribution {
     target: "aarch64-pc-windows-msvc",
-    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.158.0-win32-arm64.tgz",
-    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.158.0-win32-arm64.tgz",
-    integrity: "Jw1u0q0+5PG97jPkINxE3UCFtsYBN8Af+IjjM0zlCO675Sv5lNsXU2K9aIaXwVeQIKw8q2lbPAR4SEkq2rSOoA==",
+    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.159.0-win32-arm64.tgz",
+    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.159.0-win32-arm64.tgz",
+    integrity: "o4oHXi4IONlLyMRHOIxXTPG1OdbD7Pxmqd2AcYRWHXP1YjrdqdEQozqQLU05rdYGcfrwBwcBqPpGO9LLVHd0fg==",
 };
 pub(super) const WINDOWS_X64: Distribution = Distribution {
     target: "x86_64-pc-windows-msvc",
-    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.158.0-win32-x64.tgz",
-    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.158.0-win32-x64.tgz",
-    integrity: "IaUmY11Zdqa/Zok6kE0Z5375pXtClKRbS8P1Gh2C73Aq65CaGn9N8gT6BXGC3+XD6yamAIiEQW5xM842UCCGow==",
+    url: "https://registry.npmmirror.com/@openai/codex/-/codex-0.159.0-win32-x64.tgz",
+    fallback_url: "https://registry.npmjs.org/@openai/codex/-/codex-0.159.0-win32-x64.tgz",
+    integrity: "Fp+TghoUzxOguHj/WAxOIZCIJpTOb4pB9p90tf6+g2PSTWSCvqpawwxPmDuCMxKs8Sn1gO5zP621PoCkBt5cuQ==",
 };

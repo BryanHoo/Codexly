@@ -282,6 +282,7 @@ fn map_codex_error_info(value: Option<&Value>) -> (&'static str, Option<u64>) {
         Some("rateLimitExceeded") => "rate_limit_exceeded",
         Some("flexUnavailable") => "flex_unavailable",
         Some("serverOverloaded") => "server_overloaded",
+        Some("tooManyDenials") => "too_many_denials",
         Some("cyberPolicy" | "misalignmentPolicyViolation") => "policy_blocked",
         Some("internalServerError") => "internal_error",
         Some("unauthorized") => "unauthorized",
