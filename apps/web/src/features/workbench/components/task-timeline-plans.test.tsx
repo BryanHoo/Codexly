@@ -80,7 +80,7 @@ describe("task timeline plans and activity", () => {
               type: "activity",
             },
             {
-              detail: "/workspace/apps/web/src/App.tsx",
+              detail: "/workspace/screenshots/image.png",
               id: "activity-detailed",
               label: "查看图片",
               status: "running",
@@ -98,7 +98,8 @@ describe("task timeline plans and activity", () => {
     expect(markup).toContain('data-status="in_progress"');
     expect(markup).toContain("上下文压缩");
     expect(markup).toContain("查看图片");
-    expect(markup).toContain("/workspace/apps/web/src/App.tsx");
+    expect(markup).toContain("/workspace/screenshots/image.png");
+    expect(markup).toMatch(/<button[^>]*>\/workspace\/screenshots\/image\.png<\/button>/);
     expect(markup.match(/<details/g)).toHaveLength(1);
     expect(markup).not.toContain("lucide-wrench");
   });

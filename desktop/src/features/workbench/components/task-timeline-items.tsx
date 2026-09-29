@@ -3,6 +3,7 @@ import type { AgentItem, AgentTurn } from "@/protocol/index.js";
 import { FileText } from "lucide-react";
 
 import { i18n } from "../../../i18n/i18n.js";
+import { Button } from "../../../shared/components/core/button.js";
 import { Attachments } from "../../../shared/components/agent/attachments.js";
 import { cn } from "../../../shared/lib/utils.js";
 import type { TextSnapshot } from "../../../shared/lib/append-only-text.js";
@@ -377,6 +378,8 @@ export function TimelineItemContent({
       );
     }
     case "activity": {
+      // Codex 的 imageView 在两端均映射为固定标签，detail 保留原始图片路径。
+      const imagePath = item.label === "查看图片" ? item.detail : undefined;
       // 瞬时活动仅承载运行状态，完成事件到达后立即退出时间线。
       if (item.transient === true && item.status !== "pending" && item.status !== "running") {
         return null;
@@ -389,7 +392,22 @@ export function TimelineItemContent({
           <TaskTrigger title={item.label} />
           {item.detail === undefined ? null : (
             <TaskContent>
-              <TaskItem>{item.detail}</TaskItem>
+              <TaskItem>
+                {imagePath === undefined || imagePath.trim().length === 0 ? item.detail : (
+                  <Button
+                    className="max-w-full whitespace-normal text-left text-meta [overflow-wrap:anywhere]"
+                    contentAlign="start"
+                    onClick={() => {
+                      onOpenSourceFile({ path: imagePath, lineNumber: null });
+                    }}
+                    size="embedded"
+                    type="button"
+                    variant="link"
+                  >
+                    {imagePath}
+                  </Button>
+                )}
+              </TaskItem>
             </TaskContent>
           )}
         </Task>
