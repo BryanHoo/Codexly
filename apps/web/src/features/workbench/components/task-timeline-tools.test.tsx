@@ -8,7 +8,7 @@ import { formatToolDuration } from "./task-timeline-status.js";
 import { renderToStaticMarkup, completedTurn, snapshot } from "./task-timeline.test-support.js";
 
 describe("task timeline tools", () => {
-  it("hides live and completed file editing duration without timing reasoning", () => {
+  it("hides completed edit rows while keeping live editing and file buttons", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-26T00:00:03.500Z"));
     try {
@@ -35,6 +35,20 @@ describe("task timeline tools", () => {
       );
       expect(running).toContain("正在编辑");
       expect(running).not.toContain("data-tool-duration");
+      const change = {
+        kind: "update" as const,
+        path: "src/example.ts",
+        diff: "@@ -1 +1 @@\n-old\n+new",
+      };
+      const completedWhileRunning = renderToStaticMarkup(
+        <TimelineItemContent
+          {...props}
+          item={{ ...file, changes: [change], status: "completed" }}
+          itemTiming={{ startedAtMs: 1_000, completedAtMs: 3_500 }}
+        />,
+      );
+      expect(completedWhileRunning).toContain("example.ts");
+      expect(completedWhileRunning).not.toContain("已编辑 1 个文件");
       const completed = renderToStaticMarkup(
         <TimelineItemContent
           {...props}
@@ -43,8 +57,7 @@ describe("task timeline tools", () => {
           itemTiming={{ startedAtMs: 1_000, completedAtMs: 3_500 }}
         />,
       );
-      expect(completed).toContain("已编辑 0 个文件");
-      expect(completed).not.toContain("data-tool-duration");
+      expect(completed).toBe("");
       const reasoning = renderToStaticMarkup(
         <TimelineItemContent
           {...props}
@@ -90,6 +103,8 @@ describe("task timeline tools", () => {
       />,
     );
     expect(markup).toContain("已编辑 1 个文件");
+    expect(markup.match(/已编辑 1 个文件/gu)).toHaveLength(1);
+    expect(markup).not.toContain('data-ai-task="" data-status="completed"');
     expect(markup).toContain("example.ts");
   });
   it("shows elapsed duration while a command is running", () => {

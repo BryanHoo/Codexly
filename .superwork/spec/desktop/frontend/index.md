@@ -6,7 +6,7 @@
 - `src/protocol/` 对任务、事件与项目的公共字段引用 `@codexly/protocol`；`receivedAtUnixMs` 等原生传输字段保留在桌面协议扩展中。
 - 修改任务流时检查 `task-store-*`、`project-runtime-*` 及对应测试；修改窗口或原生能力时联查[桌面原生层](../backend/index.md)。
 - Provider 的 `runtime_warning` 在 Turn 完成及同一事件会话的快照恢复后留在任务上下文中，右栏按条默认折叠展示，流式时间线不渲染；新会话不继承旧警告。
-- 时间线按 `item.started` / `item.completed` 展示命令和工具耗时；文件编辑只展示状态与文件汇总，不展示时长。思考项没有可靠起点，不估算耗时。
+- 时间线按 `item.started` / `item.completed` 展示命令和工具耗时；文件编辑完成后不渲染“已编辑 N 个文件”任务行，回合运行中保留可打开的文件修改，终态仅由回复末尾汇总。思考项没有可靠起点，不估算耗时。
 - 保持 `src/i18n/locales/en/` 与 `zh-CN/` 的可见文案同步。
 - Project 行的新增任务与项目菜单入口在 `hover: none` 的触屏桌面设备上常显；鼠标端仍可仅在悬停或聚焦时显示。
 - 新建任务中栏的范围选择器同时包含“聊天”和所有 Project；切换仅导航到对应空草稿路由，首次提交才创建任务。

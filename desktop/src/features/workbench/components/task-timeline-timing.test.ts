@@ -6,7 +6,7 @@ import { TimelineItemContent } from "./task-timeline-items.js";
 import { formatToolDuration } from "./task-timeline-status.js";
 
 describe("tool duration", () => {
-  it("hides file editing duration while running and after the turn completes", () => {
+  it("hides completed edit rows while keeping live editing and file buttons", () => {
     for (const status of ["running", "completed"] as const) {
       const markup = renderToStaticMarkup(createElement(TimelineItemContent, {
         isLastTurnItem: true,
@@ -15,9 +15,27 @@ describe("tool duration", () => {
         onOpenFileDiff: () => undefined, onOpenSourceFile: () => undefined,
         projectId: "project-1", taskId: "task-1", turnStatus: status,
       }));
-      expect(markup).toContain(status === "running" ? "正在编辑" : "已编辑 0 个文件");
-      expect(markup).not.toContain("data-tool-duration");
+      if (status === "running") {
+        expect(markup).toContain("正在编辑");
+        expect(markup).not.toContain("data-tool-duration");
+      } else {
+        expect(markup).toBe("");
+      }
     }
+    const markup = renderToStaticMarkup(createElement(TimelineItemContent, {
+      isLastTurnItem: true,
+      item: {
+        id: "file-1",
+        changes: [{ kind: "update", path: "src/example.ts", diff: "@@ -1 +1 @@\n-old\n+new", stats: { additions: 1, removals: 1 } }],
+        status: "completed",
+        type: "file_change",
+      },
+      itemTiming: { startedAtMs: 1_000, completedAtMs: 3_500 },
+      onOpenFileDiff: () => undefined, onOpenSourceFile: () => undefined,
+      projectId: "project-1", taskId: "task-1", turnStatus: "running",
+    }));
+    expect(markup).toContain("example.ts");
+    expect(markup).not.toContain("已编辑 1 个文件");
   });
   it("freezes completed duration after later clock ticks", () => {
     expect(formatToolDuration({ startedAtMs: 1_000, completedAtMs: 3_500 }, 10_000)).toBe("2.5s");

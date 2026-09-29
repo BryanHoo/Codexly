@@ -292,23 +292,14 @@ export function TimelineItemContent({
     }
     case "file_change": {
       if (item.status === "completed") {
-        if (turnStatus !== "running" && itemTiming?.startedAtMs === undefined) return null;
-        // 完成回合保留编辑摘要；文件详情仍由回复末尾统一聚合。
-        return (
-          <Task collapsible={false} status="completed">
-            <TaskTrigger
-              title={i18n.t("timeline.editedFiles", {
-                count: item.changes.length,
-                ns: "conversation",
-              })}
-            />
-            {turnStatus !== "running"
-              ? null
-              : item.changes.map((change) => (
-                  <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
-                ))}
-          </Task>
-        );
+        // 回合运行期间展示可打开的修改；终态文件汇总由回复末尾统一呈现。
+        return turnStatus === "running" ? (
+          <div className="space-y-1">
+            {item.changes.map((change) => (
+              <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
+            ))}
+          </div>
+        ) : null;
       }
       if (item.status !== "pending" && item.status !== "running") return null;
       return (
