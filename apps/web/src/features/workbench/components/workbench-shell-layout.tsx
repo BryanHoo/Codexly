@@ -249,27 +249,18 @@ export function WorkbenchShellLayout({
             <RuntimeUnavailable onRetry={() => void retry()} />
           ) : taskId === undefined ? (
             <>
-              {temporary ? (
-                <TaskTimeline
-                  projectId={projectId}
-                  scopeName={t("shell.temporaryTask")}
-                  temporary
-                  pendingPrompt={newChatSubmission.pendingPrompt}
-                  {...(newChatSubmissionStartedAt === undefined
-                    ? {}
-                    : { submissionStartedAt: newChatSubmissionStartedAt })}
-                />
-              ) : (
-                <TaskTimeline
-                  onProjectChange={handleNewTaskProjectChange}
-                  projectId={projectId}
-                  projects={projects}
-                  pendingPrompt={newChatSubmission.pendingPrompt}
-                  {...(newChatSubmissionStartedAt === undefined
-                    ? {}
-                    : { submissionStartedAt: newChatSubmissionStartedAt })}
-                />
-              )}
+              <TaskTimeline
+                onProjectChange={handleNewTaskProjectChange}
+                projectId={projectId}
+                projects={projects}
+                pendingPrompt={newChatSubmission.pendingPrompt}
+                {...(temporary
+                  ? { scopeName: t("shell.temporaryTask"), temporary: true as const }
+                  : {})}
+                {...(newChatSubmissionStartedAt === undefined
+                  ? {}
+                  : { submissionStartedAt: newChatSubmissionStartedAt })}
+              />
               <WorkbenchComposer
                 capabilities={capabilities}
                 client={client}

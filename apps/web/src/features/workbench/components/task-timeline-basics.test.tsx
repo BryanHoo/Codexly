@@ -16,14 +16,23 @@ import {
 } from "./task-timeline.test-support.js";
 
 describe("task timeline basics", () => {
-  it("renders a fixed scope name without a Project selector", () => {
+  it("lets a temporary new chat switch to a project", () => {
     const markup = renderToStaticMarkup(
-      <TaskTimeline projectId="temporary" scopeName="临时任务" temporary />,
+      <TaskTimeline
+        onProjectChange={vi.fn()}
+        projectId="temporary"
+        projects={[
+          { createdAt: "2026-07-22T06:00:00.000Z", id: "codexly", name: "Codexly", roots: [] },
+        ]}
+        scopeName="临时任务"
+        temporary
+      />,
     );
 
     expect(markup).toContain("临时任务");
-    expect(markup).not.toContain("<select");
-    expect(markup).not.toContain('value="temporary"');
+    expect(markup).toContain('<select aria-label="选择新聊天项目"');
+    expect(markup).toContain('<option value="temporary" selected="">临时任务</option>');
+    expect(markup).toContain('<option value="codexly">Codexly</option>');
   });
 
   it("renders a file change without a native path tooltip", () => {

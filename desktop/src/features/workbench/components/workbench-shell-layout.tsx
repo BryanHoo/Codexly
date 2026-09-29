@@ -239,27 +239,16 @@ export function WorkbenchShellLayout({
             <TaskBoardContainer projectId={projectId} />
           ) : taskId === undefined ? (
             <>
-              {temporary ? (
-                <TaskTimeline
-                  projectId={projectId}
-                  scopeName={t("shell.temporaryTask")}
-                  temporary
-                  {...(newChatPrompt === undefined ? {} : { pendingPrompt: newChatPrompt })}
-                  {...(newChatSubmissionStartedAt === undefined
-                    ? {}
-                    : { submissionStartedAt: newChatSubmissionStartedAt })}
-                />
-              ) : (
-                <TaskTimeline
-                  onProjectChange={handleNewTaskProjectChange}
-                  projectId={projectId}
-                  projects={projects}
-                  {...(newChatPrompt === undefined ? {} : { pendingPrompt: newChatPrompt })}
-                  {...(newChatSubmissionStartedAt === undefined
-                    ? {}
-                    : { submissionStartedAt: newChatSubmissionStartedAt })}
-                />
-              )}
+              <TaskTimeline
+                onProjectChange={handleNewTaskProjectChange}
+                projectId={projectId}
+                projects={projects}
+                {...(temporary ? { scopeName: t("shell.temporaryTask"), temporary: true as const } : {})}
+                {...(newChatPrompt === undefined ? {} : { pendingPrompt: newChatPrompt })}
+                {...(newChatSubmissionStartedAt === undefined
+                  ? {}
+                  : { submissionStartedAt: newChatSubmissionStartedAt })}
+              />
               <WorkbenchComposer
                 key={draftId === undefined ? "new-task" : `draft:${draftId}`}
                 capabilities={capabilities}

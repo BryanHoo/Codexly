@@ -6,6 +6,20 @@ import {
   test,
 } from "./fixtures/app-shell.js";
 
+test("switches new chat between the temporary scope and a project", async ({ page }) => {
+  await mockAppShellApi(page);
+  await page.goto("/temporary");
+
+  const selector = page.getByRole("combobox", { name: "选择新聊天项目" });
+  await expect(selector).toHaveValue("temporary");
+  await selector.selectOption("codexly");
+  await expect(page).toHaveURL(/\/p\/codexly$/u);
+  await expect(selector).toHaveValue("codexly");
+  await selector.selectOption("temporary");
+  await expect(page).toHaveURL(/\/temporary$/u);
+  await expect(selector).toHaveValue("temporary");
+});
+
 test("downloads a generated file outside the project from a temporary task", async ({ page }) => {
   await enableLanAccess(page);
   await page.route("**/v1/temporary/files/download?*", async (route) => {

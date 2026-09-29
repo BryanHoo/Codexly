@@ -61,7 +61,9 @@ type TaskTimelineProps = TaskTimelineCommonProps &
         taskId?: undefined;
       }
     | {
+        onProjectChange: (projectId: string) => void;
         projectId: string;
+        projects: readonly Project[];
         scopeName: string;
         taskId?: undefined;
         temporary: true;
@@ -129,13 +131,12 @@ export function TaskTimeline(props: TaskTimelineProps) {
         </Conversation>
       );
     }
-    return "temporary" in props ? (
-      <EmptyTimeline scopeName={props.scopeName} />
-    ) : (
+    return (
       <EmptyTimeline
         onProjectChange={props.onProjectChange}
         projectId={props.projectId}
         projects={props.projects}
+        {...("temporary" in props ? { scopeName: props.scopeName } : {})}
       />
     );
   }

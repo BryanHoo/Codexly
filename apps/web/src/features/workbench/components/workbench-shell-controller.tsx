@@ -1,4 +1,5 @@
 import {
+  TEMPORARY_TASK_SCOPE_ID,
   isAgentFastModeAvailable,
   type AgentTaskSnapshotResponse,
   type AgentMessageAttachment,
@@ -351,8 +352,10 @@ export function useWorkbenchShellController(
   };
   const handleNewTaskProjectChange = useCallback(
     (nextProjectId: string) => {
-      // 空聊天切换只移动草稿路由，首次提交时再在目标 Project 中创建真实 Task。
-      void navigate({ params: { projectId: nextProjectId }, to: "/p/$projectId" });
+      // 空聊天切换只移动草稿路由，首次提交时再在目标范围创建真实 Task。
+      void (nextProjectId === TEMPORARY_TASK_SCOPE_ID
+        ? navigate({ to: "/temporary" })
+        : navigate({ params: { projectId: nextProjectId }, to: "/p/$projectId" }));
     },
     [navigate],
   );

@@ -268,6 +268,7 @@ describe("task timeline submission", () => {
     );
 
     expect(markup).toContain('<select aria-label="选择新聊天项目"');
+    expect(markup).toContain('<option value="temporary">聊天</option>');
     expect(markup).toContain(">Codexly<");
     expect(markup).toContain("我们应该在");
     expect(markup).toContain("中做些什么？");

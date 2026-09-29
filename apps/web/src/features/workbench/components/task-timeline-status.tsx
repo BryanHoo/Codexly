@@ -1,4 +1,10 @@
-import type { AgentItem, AgentItemStatus, AgentTurn, Project } from "@codexly/protocol";
+import {
+  TEMPORARY_TASK_SCOPE_ID,
+  type AgentItem,
+  type AgentItemStatus,
+  type AgentTurn,
+  type Project,
+} from "@codexly/protocol";
 import { ChevronRight, Copy, GitFork, MessageSquareCode } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { v4 as createUuid } from "uuid";
@@ -26,22 +32,17 @@ export function EmptyTimeline({
   projectId,
   projects,
   scopeName,
-}: Readonly<
-  | {
-      onProjectChange: (projectId: string) => void;
-      projectId: string;
-      projects: readonly Project[];
-      scopeName?: undefined;
-    }
-  | {
-      onProjectChange?: undefined;
-      projectId?: undefined;
-      projects?: undefined;
-      scopeName: string;
-    }
->) {
+}: Readonly<{
+  onProjectChange: (projectId: string) => void;
+  projectId: string;
+  projects: readonly Project[];
+  scopeName?: string;
+}>) {
+  const temporaryName = scopeName ?? i18n.t("shell.temporaryTask", { ns: "workbench" });
   const selectedProjectName =
-    scopeName ?? projects.find((project) => project.id === projectId)?.name ?? "";
+    projectId === TEMPORARY_TASK_SCOPE_ID
+      ? temporaryName
+      : (projects.find((project) => project.id === projectId)?.name ?? "");
 
   return (
     <section
@@ -64,25 +65,24 @@ export function EmptyTimeline({
             >
               {selectedProjectName}
             </span>
-            {scopeName === undefined ? (
-              <select
-                aria-label={i18n.t("timeline.selectProject", { ns: "conversation" })}
-                className="absolute inset-0 size-full min-w-0 cursor-pointer appearance-none opacity-0 outline-none"
-                onChange={(event) => {
-                  const nextProjectId = event.currentTarget.value;
-                  if (nextProjectId !== projectId) {
-                    onProjectChange(nextProjectId);
-                  }
-                }}
-                value={projectId}
-              >
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            ) : null}
+            <select
+              aria-label={i18n.t("timeline.selectProject", { ns: "conversation" })}
+              className="absolute inset-0 size-full min-w-0 cursor-pointer appearance-none opacity-0 outline-none"
+              onChange={(event) => {
+                const nextProjectId = event.currentTarget.value;
+                if (nextProjectId !== projectId) {
+                  onProjectChange(nextProjectId);
+                }
+              }}
+              value={projectId}
+            >
+              <option value={TEMPORARY_TASK_SCOPE_ID}>{temporaryName}</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
           </span>
           {i18n.t("timeline.emptyAfter", { ns: "conversation" })}
         </h2>
