@@ -6,22 +6,21 @@ import { TimelineItemContent } from "./task-timeline-items.js";
 import { formatToolDuration } from "./task-timeline-status.js";
 
 describe("tool duration", () => {
-  it("hides completed edit rows while keeping live editing and file buttons", () => {
-    for (const status of ["running", "completed"] as const) {
-      const markup = renderToStaticMarkup(createElement(TimelineItemContent, {
-        isLastTurnItem: true,
-        item: { id: "file-1", changes: [], status, type: "file_change" },
-        itemTiming: { startedAtMs: 1_000, completedAtMs: 3_500 },
-        onOpenFileDiff: () => undefined, onOpenSourceFile: () => undefined,
-        projectId: "project-1", taskId: "task-1", turnStatus: status,
-      }));
-      if (status === "running") {
-        expect(markup).toContain("正在编辑");
-        expect(markup).not.toContain("data-tool-duration");
-      } else {
-        expect(markup).toBe("");
-      }
-    }
+  it.each([
+    { status: "running", expectedMarkup: expect.stringContaining("正在编辑") },
+    { status: "completed", expectedMarkup: "" },
+  ] as const)("renders empty file changes with status $status", ({ status, expectedMarkup }) => {
+    const markup = renderToStaticMarkup(createElement(TimelineItemContent, {
+      isLastTurnItem: true,
+      item: { id: "file-1", changes: [], status, type: "file_change" },
+      itemTiming: { startedAtMs: 1_000, completedAtMs: 3_500 },
+      onOpenFileDiff: () => undefined, onOpenSourceFile: () => undefined,
+      projectId: "project-1", taskId: "task-1", turnStatus: status,
+    }));
+    expect(markup).toEqual(expectedMarkup);
+    expect(markup).not.toContain("data-tool-duration");
+  });
+  it("keeps file buttons without the completed edit summary", () => {
     const markup = renderToStaticMarkup(createElement(TimelineItemContent, {
       isLastTurnItem: true,
       item: {

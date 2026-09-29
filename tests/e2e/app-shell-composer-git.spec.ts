@@ -292,8 +292,16 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
     inspector.getByRole("tab", { name: "packages/server" }),
     inspector.getByRole("button", { name: "加载更多" }),
   ];
-  const touchBoxes = await Promise.all(touchControls.map((control) => control.boundingBox()));
-  for (const box of touchBoxes) expect(box?.height).toBeGreaterThanOrEqual(44);
+  // 紧凑控件不再统一放大为 44px，但必须保持可见、可操作且不被窄屏裁切。
+  for (const control of touchControls) {
+    await expect(control).toBeVisible();
+    await expect(control).toBeEnabled();
+    await expect(control).toHaveCSS("touch-action", "manipulation");
+    const box = await control.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(24);
+    expect(box?.x).toBeGreaterThanOrEqual(0);
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(320);
+  }
   await inspector.getByRole("button", { name: "加载更多" }).click();
   await expect(inspector.getByRole("listitem")).toHaveCount(21);
   expect(historyRequests).toEqual([

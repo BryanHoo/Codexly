@@ -87,10 +87,13 @@ test("renders the AI workbench landmarks with an enabled composer", async ({ pag
     await contextUsageRing.evaluate((element) => element.getBoundingClientRect().left),
   );
   await expect(contextUsageButton).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  await contextUsageButton.hover();
-  const contextUsageTooltip = page.getByRole("tooltip");
-  await expect(contextUsageTooltip).toContainText("13% 上下文已使用");
-  await expect(contextUsageTooltip).toContainText("25K / 200K tokens");
+  // 上下文详情使用点击弹层，鼠标与触屏遵循同一交互契约。
+  await contextUsageButton.click();
+  const contextUsageDialog = page.getByRole("dialog", { name: "上下文已使用 13%" });
+  await expect(contextUsageDialog).toContainText("13% 上下文已使用");
+  await expect(contextUsageDialog).toContainText("25K / 200K tokens");
+  await page.keyboard.press("Escape");
+  await expect(contextUsageDialog).not.toBeVisible();
   await expect(inspector.getByRole("button", { name: "关闭上下文面板" })).toBeHidden();
   await expect(page.getByText("工作台界面已按统一的 项目 Agent 组件 结构重新组织。")).toBeVisible();
 });

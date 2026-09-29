@@ -1,4 +1,4 @@
-type WorktreeTaskClient<Task> = {
+interface WorktreeTaskClient<Task> {
   getProjectGitStatus(
     projectId: string,
     input: { rootPath: string },
@@ -12,7 +12,7 @@ type WorktreeTaskClient<Task> = {
     projectId: string,
     input: { rootPath: string; worktreePath: string },
   ): Promise<{ task: Task }>;
-};
+}
 
 /** 两端共用创建与重试顺序；缓存更新由各端适配层负责。 */
 export async function createWorktreeTask<Task>(
