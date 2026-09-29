@@ -24,8 +24,18 @@ function Tooltip(props: ComponentProps<typeof TooltipPrimitive.Root>) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
-function TooltipTrigger(props: ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
+function TooltipTrigger({ onFocus, ...props }: ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      {...props}
+      onFocus={(event) => {
+        onFocus?.(event);
+        // 保留业务焦点回调，但阻止 Radix 因自动聚焦或焦点恢复而打开提示。
+        event.preventDefault();
+      }}
+    />
+  );
 }
 
 function TooltipContent({

@@ -328,7 +328,7 @@ info`,
     expect(markup).toContain("packages/provider-codex/src/agent-provider.ts:939-941");
     expect(markup).toContain(">P1</span>");
     expect(markup).toContain(">P2</span>");
-    expect(markup).toContain('tabindex="0"');
+    expect(markup).toMatch(/<li><button[^>]*type="button"/u);
     expect(markup).toContain("cursor-pointer");
     expect(markup).not.toContain("::code-comment");
     expect(markup).not.toContain(">冲突决策不能共享结果。<");

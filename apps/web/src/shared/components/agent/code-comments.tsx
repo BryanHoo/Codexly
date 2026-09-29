@@ -1,4 +1,3 @@
-/* oxlint-disable jsx-a11y/no-noninteractive-tabindex -- 评论行需要键盘焦点来显示与悬停一致的说明浮层。 */
 import { MessageSquareText } from "lucide-react";
 import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -131,11 +130,8 @@ function formatCodeCommentTitle(title: string): string {
   return title.replace(/^\[P\d+\]\s*/, "");
 }
 
-function CodeCommentItem({
-  comment,
-  commentIndex,
-}: Readonly<{ comment: CodeComment; commentIndex: number }>) {
-  const rowRef = useRef<HTMLLIElement>(null);
+function CodeCommentItem({ comment }: Readonly<{ comment: CodeComment }>) {
+  const rowRef = useRef<HTMLButtonElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const tooltipId = useId();
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -191,63 +187,68 @@ function CodeCommentItem({
   }, [tooltipVisible, updateTooltipPosition]);
 
   return (
-    <li
-      aria-describedby={tooltipVisible ? tooltipId : undefined}
-      className="flex min-w-0 cursor-pointer items-center gap-3 rounded-control px-1 py-2 text-body-small transition-colors hover:bg-control-hover focus-visible:bg-control-hover"
-      key={`${comment.file}:${String(comment.start)}:${String(commentIndex)}`}
-      onBlur={() => {
-        setTooltipVisible(false);
-      }}
-      onFocus={() => {
-        setTooltipVisible(true);
-      }}
-      onMouseEnter={() => {
-        setTooltipVisible(true);
-      }}
-      onMouseLeave={() => {
-        setTooltipVisible(false);
-      }}
-      ref={rowRef}
-      tabIndex={0}
-    >
-      <span className="shrink-0 rounded-control border border-separator-strong px-1.5 py-0.5 text-label text-muted-foreground">
-        {comment.priority === null ? "--" : `P${String(comment.priority)}`}
-      </span>
-      <span className="min-w-0 shrink font-semibold text-foreground">{commentTitle}</span>
-      <span className="min-w-0 truncate text-muted-foreground">{commentLocation}</span>
-      {tooltipVisible && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              className="pointer-events-none fixed z-50 w-[min(28rem,calc(100vw-1.5rem))] rounded-surface border border-separator-strong bg-raised p-3 text-left shadow-floating"
-              data-floating-surface
-              id={tooltipId}
-              ref={tooltipRef}
-              role="tooltip"
-              style={
-                tooltipPosition === undefined
-                  ? { left: 0, top: 0, visibility: "hidden" }
-                  : { left: tooltipPosition.left, top: tooltipPosition.top }
-              }
-            >
-              <div className="flex items-center gap-2">
-                <span className="rounded-control border border-separator-strong px-1.5 py-0.5 text-label text-muted-foreground">
-                  {comment.priority === null ? "--" : `P${String(comment.priority)}`}
-                </span>
-                <p className="font-semibold text-foreground">{commentTitle}</p>
-              </div>
-              <p className="mt-2 break-all font-mono text-meta text-muted-foreground">
-                {commentLocation}
-              </p>
-              <Streamdown
-                className="mt-2 text-body-small leading-5 text-foreground [&_a]:text-brand [&_a]:underline [&_a]:underline-offset-2 [&_code]:font-mono [&_code]:text-body-small [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-                controls={false}
+    <li>
+      <button
+        aria-describedby={tooltipVisible ? tooltipId : undefined}
+        className="flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-control px-1 py-2 text-left text-body-small transition-colors hover:bg-control-hover focus-visible:bg-control-hover"
+        onBlur={() => {
+          setTooltipVisible(false);
+        }}
+        onClick={() => {
+          // 备注正文通过点击或 Enter/Space 主动查看，自动聚焦不展示详情。
+          setTooltipVisible(true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setTooltipVisible(false);
+        }}
+        onMouseEnter={() => {
+          setTooltipVisible(true);
+        }}
+        onMouseLeave={() => {
+          setTooltipVisible(false);
+        }}
+        ref={rowRef}
+        type="button"
+      >
+        <span className="shrink-0 rounded-control border border-separator-strong px-1.5 py-0.5 text-label text-muted-foreground">
+          {comment.priority === null ? "--" : `P${String(comment.priority)}`}
+        </span>
+        <span className="min-w-0 shrink font-semibold text-foreground">{commentTitle}</span>
+        <span className="min-w-0 truncate text-muted-foreground">{commentLocation}</span>
+        {tooltipVisible && typeof document !== "undefined"
+          ? createPortal(
+              <div
+                className="pointer-events-none fixed z-50 w-[min(28rem,calc(100vw-1.5rem))] rounded-surface border border-separator-strong bg-raised p-3 text-left shadow-floating"
+                data-floating-surface
+                id={tooltipId}
+                ref={tooltipRef}
+                role="tooltip"
+                style={
+                  tooltipPosition === undefined
+                    ? { left: 0, top: 0, visibility: "hidden" }
+                    : { left: tooltipPosition.left, top: tooltipPosition.top }
+                }
               >
-                {comment.body}
-              </Streamdown>
-            </div>,
-            document.body,
-          )
-        : null}
+                <div className="flex items-center gap-2">
+                  <span className="rounded-control border border-separator-strong px-1.5 py-0.5 text-label text-muted-foreground">
+                    {comment.priority === null ? "--" : `P${String(comment.priority)}`}
+                  </span>
+                  <p className="font-semibold text-foreground">{commentTitle}</p>
+                </div>
+                <p className="mt-2 break-all font-mono text-meta text-muted-foreground">
+                  {commentLocation}
+                </p>
+                <Streamdown
+                  className="mt-2 text-body-small leading-5 text-foreground [&_a]:text-brand [&_a]:underline [&_a]:underline-offset-2 [&_code]:font-mono [&_code]:text-body-small [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                  controls={false}
+                >
+                  {comment.body}
+                </Streamdown>
+              </div>,
+              document.body,
+            )
+          : null}
+      </button>
     </li>
   );
 }
@@ -274,7 +275,6 @@ export function CodeComments({ comments }: Readonly<{ comments: CodeComment[] }>
         {comments.map((comment, commentIndex) => (
           <CodeCommentItem
             comment={comment}
-            commentIndex={commentIndex}
             key={`${comment.file}:${String(comment.start)}:${String(commentIndex)}`}
           />
         ))}
