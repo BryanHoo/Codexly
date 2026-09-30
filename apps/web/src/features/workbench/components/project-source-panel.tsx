@@ -22,6 +22,7 @@ import { LazyMessageResponse } from "../../../shared/components/agent/lazy-messa
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { getCodeLanguage } from "../../../shared/components/agent/code-languages.js";
 import { Button } from "../../../shared/components/core/button.js";
+import { ImagePreview } from "../../../shared/components/core/image-preview.js";
 import {
   Tooltip,
   TooltipContent,
@@ -201,7 +202,6 @@ export function ProjectSourcePanel({
   const [preferMarkdownPreview, setPreferMarkdownPreview] = useState(() =>
     readMarkdownPreviewPreference(getMarkdownPreviewPreferenceStorage()),
   );
-  const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const sourceQuery = useInfiniteQuery({
     enabled: previewKind === "source",
     getNextPageParam: (
@@ -231,10 +231,6 @@ export function ProjectSourcePanel({
   const isMarkdown = sourceLanguage === "markdown" || sourceLanguage === "mdx";
   const canRenderMarkdown = isMarkdown && sourceData?.nextCursor === null;
   const showRenderedMarkdown = canRenderMarkdown && preferMarkdownPreview;
-
-  useEffect(() => {
-    setImageLoadFailed(false);
-  }, [previewKind, reference.path]);
 
   useEffect(() => {
     const lineNumber = reference.lineNumber;
@@ -303,23 +299,7 @@ export function ProjectSourcePanel({
       {previewKind === "image" ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
           <SourceHeader {...headerProps} />
-          <div className="grid min-h-0 place-items-center overflow-hidden p-4 sm:p-6">
-            {imageLoadFailed ? (
-              <div className="text-body-small text-danger" role="alert">
-                {t("projectDialog.loadImageError")}
-              </div>
-            ) : (
-              <img
-                alt={fileName}
-                className="block size-full object-contain"
-                decoding="async"
-                onError={() => {
-                  setImageLoadFailed(true);
-                }}
-                src={imageUrl}
-              />
-            )}
-          </div>
+          <ImagePreview alt={fileName} src={imageUrl} />
         </div>
       ) : sourceData === undefined && sourceQuery.isPending ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">

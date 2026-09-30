@@ -3,6 +3,7 @@ import { useId, useState, type ReactNode } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
+import { ImagePreview } from "../../../shared/components/core/image-preview.js";
 import {
   Dialog,
   DialogContent,
@@ -86,9 +87,7 @@ export function MessageImageAttachment({
               <TooltipContent>{t("timeline.closeImagePreview")}</TooltipContent>
             </Tooltip>
           </header>
-          <div className="grid min-h-0 place-items-center overflow-hidden bg-content p-2">
-            <img alt={name} className="block size-full object-contain" decoding="async" src={url} />
-          </div>
+          <ImagePreview alt={name} src={url} />
         </section>
       </DialogContent>
     </Dialog>

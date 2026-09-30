@@ -2,6 +2,7 @@ import { LoaderCircle, RotateCcw, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
+import { ImagePreview } from "../../../shared/components/core/image-preview.js";
 import { Dialog, DialogContent, DialogTitle } from "../../../shared/components/core/dialog.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../shared/components/core/tooltip.js";
 import { DEFAULT_WORKBENCH_BACKGROUND, type WorkbenchBackgroundPreference, type CustomBackgroundImage } from "../workbench-background-preference.js";
@@ -48,12 +49,11 @@ export function WallpaperImageDialog({ source, title, onClose, children, error =
   source: string | null; title: string; onClose: () => void; children?: ReactNode; error?: boolean;
 }>) {
   const { t } = useTranslation("settings");
-  const [failed, setFailed] = useState(false);
   return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
     <DialogContent className="wallpaper-dialog" aria-describedby={undefined}>
       <div className="wallpaper-section-heading"><DialogTitle>{title}</DialogTitle><WallpaperAction label={t("wallpaper.close")} onClick={onClose}><X aria-hidden="true" /></WallpaperAction></div>
       <div className="wallpaper-original">
-        {error || failed ? <span role="alert">{t("wallpaper.imageError")}</span> : source === null ? <LoaderCircle aria-label={t("wallpaper.loading")} className="size-5 motion-safe:animate-spin" /> : <img alt={title} src={source} onError={() => setFailed(true)} />}
+        {error ? <span role="alert">{t("wallpaper.imageError")}</span> : source === null ? <LoaderCircle aria-label={t("wallpaper.loading")} className="size-5 motion-safe:animate-spin" /> : <ImagePreview alt={title} src={source} />}
       </div>
       {children}
     </DialogContent>

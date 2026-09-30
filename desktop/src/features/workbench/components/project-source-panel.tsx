@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { ProjectSourceFile } from "@/protocol/index.js";
 import { Code2, Eye, FileCode2, Image, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode, type UIEvent } from "react";
+import { useCallback, useMemo, useState, type ReactNode, type UIEvent } from "react";
 
 import type { NativeSourceFileClient } from "../../projects/project-query-contracts.js";
 import {
@@ -21,6 +21,7 @@ import { LazyMessageResponse } from "../../../shared/components/agent/lazy-messa
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { getCodeLanguage } from "../../../shared/components/agent/code-languages.js";
 import { Button } from "../../../shared/components/core/button.js";
+import { ImagePreview } from "../../../shared/components/core/image-preview.js";
 import {
   Tooltip,
   TooltipContent,
@@ -170,7 +171,6 @@ export function ProjectSourcePanel({
   const [preferMarkdownPreview, setPreferMarkdownPreview] = useState(() =>
     readMarkdownPreviewPreference(getMarkdownPreviewPreferenceStorage()),
   );
-  const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const sourceQuery = useInfiniteQuery({
     enabled: previewKind === "source",
     getNextPageParam: (
@@ -238,10 +238,6 @@ export function ProjectSourcePanel({
     [showRenderedMarkdown, sourcePages],
   );
 
-  useEffect(() => {
-    setImageLoadFailed(false);
-  }, [previewKind, reference.path]);
-
   const sourceStatus: SourceHeaderProps["sourceStatus"] =
     firstSourcePage === undefined
       ? null
@@ -285,27 +281,21 @@ export function ProjectSourcePanel({
       {previewKind === "image" ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
           <SourceHeader {...headerProps} actions={headerActions} />
-          <div className="grid min-h-0 place-items-center overflow-hidden p-4 sm:p-6">
-            {imageQuery.isPending ? (
-              <div className="text-body-small text-muted-foreground" role="status">
-                {t("projectDialog.loadingSource")}
-              </div>
-            ) : imageLoadFailed || imageQuery.error !== null ? (
-              <div className="text-body-small text-danger" role="alert">
-                {t("projectDialog.loadImageError")}
-              </div>
-            ) : (
-              <img
-                alt={fileName}
-                className="block size-full object-contain"
-                decoding="async"
-                onError={() => {
-                  setImageLoadFailed(true);
-                }}
-                src={imageUrl}
-              />
-            )}
-          </div>
+          {imageQuery.isPending || imageQuery.error !== null ? (
+            <div className="grid min-h-0 place-items-center overflow-hidden p-4 sm:p-6">
+              {imageQuery.isPending ? (
+                <div className="text-body-small text-muted-foreground" role="status">
+                  {t("projectDialog.loadingSource")}
+                </div>
+              ) : (
+                <div className="text-body-small text-danger" role="alert">
+                  {t("projectDialog.loadImageError")}
+                </div>
+              )}
+            </div>
+          ) : (
+            <ImagePreview alt={fileName} src={imageUrl} />
+          )}
         </div>
       ) : firstSourcePage === undefined && sourceQuery.isPending ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">

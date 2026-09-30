@@ -74,6 +74,7 @@ catalog:
   rrule: 2.8.1
   react-datepicker: 9.1.0
   date-fns: 4.4.0
+  react-zoom-pan-pinch: 4.2.0
 
 catalogMode: strict
 cleanupUnusedCatalogs: true

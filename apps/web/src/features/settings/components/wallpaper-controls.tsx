@@ -2,6 +2,7 @@ import { LoaderCircle, RotateCcw, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
+import { ImagePreview } from "../../../shared/components/core/image-preview.js";
 import { Dialog, DialogContent, DialogTitle } from "../../../shared/components/core/dialog.js";
 import {
   Tooltip,
@@ -132,7 +133,6 @@ export function WallpaperImageDialog({
   error?: boolean;
 }>) {
   const { t } = useTranslation("settings");
-  const [failed, setFailed] = useState(false);
   return (
     <Dialog
       open
@@ -148,7 +148,7 @@ export function WallpaperImageDialog({
           </WallpaperAction>
         </div>
         <div className="wallpaper-original">
-          {error || failed ? (
+          {error ? (
             <span role="alert">{t("wallpaper.imageError")}</span>
           ) : source === null ? (
             <LoaderCircle
@@ -156,13 +156,7 @@ export function WallpaperImageDialog({
               className="size-5 motion-safe:animate-spin"
             />
           ) : (
-            <img
-              alt={title}
-              src={source}
-              onError={() => {
-                setFailed(true);
-              }}
-            />
+            <ImagePreview alt={title} src={source} />
           )}
         </div>
         {children}

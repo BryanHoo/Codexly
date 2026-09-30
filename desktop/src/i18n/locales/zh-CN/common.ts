@@ -1,4 +1,12 @@
 export const common = {
+  imagePreview: {
+    actualSize: "原始尺寸",
+    fit: "适应容器",
+    loadError: "图片无法预览",
+    loading: "正在加载图片",
+    zoomIn: "放大图片",
+    zoomOut: "缩小图片",
+  },
   actions: {
     backToWorkbench: "返回工作台",
     retry: "重试",

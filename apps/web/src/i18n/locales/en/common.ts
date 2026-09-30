@@ -1,4 +1,12 @@
 export const common = {
+  imagePreview: {
+    actualSize: "Original size",
+    fit: "Fit to container",
+    loadError: "Unable to preview image",
+    loading: "Loading image",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+  },
   access: {
     checking: "Checking access",
     codeLabel: "Access password",
