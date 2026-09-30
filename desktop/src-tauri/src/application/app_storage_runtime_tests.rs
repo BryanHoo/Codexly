@@ -3,6 +3,80 @@ use std::collections::BTreeMap;
 use super::app_storage_runtime::PreferenceWriteBuffer;
 
 #[tokio::test]
+async fn persistent_write_failure_should_bound_shutdown_and_allow_recovery() {
+    use std::time::Duration;
+
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir(root.path().join("app.json")).unwrap();
+    let runtime = super::app_storage_runtime::AppStorageRuntime::default();
+    runtime
+        .enqueue(
+            root.path().to_owned(),
+            BTreeMap::from([("codeagent.draft".into(), Some("unsaved".into()))]),
+        )
+        .await
+        .unwrap();
+
+    let result = tokio::time::timeout(Duration::from_secs(4), runtime.shutdown()).await;
+    let recovery = runtime
+        .enqueue(
+            root.path().to_owned(),
+            BTreeMap::from([("codeagent.draft".into(), Some("recovered".into()))]),
+        )
+        .await;
+    // 先解除故障并排空 writer，避免失败断言留下后台重试任务。
+    std::fs::remove_dir(root.path().join("app.json")).unwrap();
+    tokio::time::timeout(Duration::from_secs(5), runtime.shutdown())
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert!(matches!(result, Ok(Err(_))), "shutdown result: {result:?}");
+    recovery.unwrap();
+    let stored = crate::infrastructure::app_storage::read_preferences(root.path())
+        .await
+        .unwrap();
+    assert_eq!(stored.get("codeagent.draft").unwrap(), "recovered");
+}
+
+#[tokio::test]
+async fn invalid_data_should_bound_shutdown_and_keep_other_pending_updates() {
+    use std::time::Duration;
+
+    let root = tempfile::tempdir().unwrap();
+    let runtime = super::app_storage_runtime::AppStorageRuntime::default();
+    runtime
+        .enqueue(
+            root.path().to_owned(),
+            BTreeMap::from([
+                ("codeagent.draft".into(), Some("x".repeat(1024 * 1024 + 1))),
+                ("codeagent.theme".into(), Some("dark".into())),
+            ]),
+        )
+        .await
+        .unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_secs(4), runtime.shutdown())
+            .await
+            .unwrap()
+            .is_err()
+    );
+    runtime
+        .enqueue(
+            root.path().to_owned(),
+            BTreeMap::from([("codeagent.draft".into(), Some("valid".into()))]),
+        )
+        .await
+        .unwrap();
+    runtime.shutdown().await.unwrap();
+    let stored = crate::infrastructure::app_storage::read_preferences(root.path())
+        .await
+        .unwrap();
+    assert_eq!(stored.get("codeagent.draft").unwrap(), "valid");
+    assert_eq!(stored.get("codeagent.theme").unwrap(), "dark");
+}
+
+#[tokio::test]
 async fn shutdown_should_wait_for_failed_writes_to_recover() {
     use std::time::Duration;
     let root = std::env::temp_dir().join(format!(

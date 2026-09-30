@@ -130,25 +130,41 @@ pub(crate) fn handle_run_event(app: &AppHandle, event: RunEvent) {
                 .await
             {
                 Ok(()) => {
-                    app.state::<MainWindowLifecycle>()
-                        .storage_exit_ready
-                        .store(true, Ordering::Release);
-                    app.exit(code);
+                    finish_storage_exit(&app, code);
                 }
                 Err(error) => {
                     crate::infrastructure::diagnostics::record_error(
                         "app_storage_shutdown_failed",
                         error,
                     );
-                    super::app_close::reset_close_confirmation(&app);
-                    // writer 异常退出时保持应用存活，不能把未完成的落盘当作成功。
-                    app.state::<MainWindowLifecycle>()
-                        .storage_exit_pending
-                        .store(false, Ordering::Release);
+                    // 保留退出门闩直到用户选择，避免重复退出请求叠加恢复弹窗。
+                    super::app_close::request_storage_exit_recovery(&app, code);
                 }
             }
         });
     }
+}
+
+pub(super) fn finish_storage_exit(app: &AppHandle, code: i32) {
+    app.state::<MainWindowLifecycle>()
+        .storage_exit_ready
+        .store(true, Ordering::Release);
+    app.exit(code);
+}
+
+pub(super) fn retry_storage_exit(app: &AppHandle, code: i32) {
+    app.state::<MainWindowLifecycle>()
+        .storage_exit_pending
+        .store(false, Ordering::Release);
+    app.exit(code);
+}
+
+pub(super) fn cancel_storage_exit(app: &AppHandle) {
+    app.state::<MainWindowLifecycle>()
+        .storage_exit_pending
+        .store(false, Ordering::Release);
+    super::terminal_lifecycle::resume_after_cancelled_exit(app);
+    super::app_close::reset_close_confirmation(app);
 }
 
 fn should_keep_background_runtime_alive(exit_code: Option<i32>) -> bool {

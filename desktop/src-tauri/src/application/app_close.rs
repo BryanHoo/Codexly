@@ -9,6 +9,8 @@ use super::app_lifecycle::MainWindowLifecycle;
 
 const CLOSE_LABEL: &str = "关闭";
 const MINIMIZE_LABEL: &str = "最小化";
+const RETRY_STORAGE_LABEL: &str = "重试保存";
+const DISCARD_STORAGE_LABEL: &str = "不保存退出";
 
 #[derive(Default)]
 pub(super) struct CloseConfirmation {
@@ -40,6 +42,51 @@ fn close_choice(result: MessageDialogResult) -> CloseChoice {
         MessageDialogResult::Custom(label) if label == MINIMIZE_LABEL => CloseChoice::Minimize,
         _ => CloseChoice::Cancel,
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum StorageExitChoice {
+    Retry,
+    Discard,
+    Cancel,
+}
+
+fn storage_exit_choice(result: MessageDialogResult) -> StorageExitChoice {
+    match result {
+        MessageDialogResult::Custom(label) if label == RETRY_STORAGE_LABEL => {
+            StorageExitChoice::Retry
+        }
+        MessageDialogResult::Custom(label) if label == DISCARD_STORAGE_LABEL => {
+            StorageExitChoice::Discard
+        }
+        _ => StorageExitChoice::Cancel,
+    }
+}
+
+pub(super) fn request_storage_exit_recovery(app: &AppHandle, code: i32) {
+    let mut dialog = app
+        .dialog()
+        .message("设置或草稿未能保存，可能是磁盘已满、权限不足或数据无效。请修复后重试保存；不保存退出会丢失尚未写入的数据。取消将保持应用打开，已关闭的本地终端不会恢复。")
+        .title("保存失败")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::YesNoCancelCustom(
+            RETRY_STORAGE_LABEL.into(),
+            DISCARD_STORAGE_LABEL.into(),
+            "取消".into(),
+        ));
+    if let Some(window) = app.get_webview_window("main")
+        && window.is_visible().unwrap_or(false)
+        && !window.is_minimized().unwrap_or(true)
+    {
+        dialog = dialog.parent(&window);
+    }
+    let app = app.clone();
+    dialog.show_with_result(move |result| match storage_exit_choice(result) {
+        StorageExitChoice::Retry => super::app_lifecycle::retry_storage_exit(&app, code),
+        // 只有明确选择不保存时才绕过落盘屏障，关闭弹窗绝不能隐式丢弃草稿。
+        StorageExitChoice::Discard => super::app_lifecycle::finish_storage_exit(&app, code),
+        StorageExitChoice::Cancel => super::app_lifecycle::cancel_storage_exit(&app),
+    });
 }
 
 pub(super) fn reset_close_confirmation(app: &AppHandle) {
@@ -83,6 +130,26 @@ pub(super) fn request_close_confirmation(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn storage_failure_requires_explicit_retry_or_discard_choice() {
+        assert_eq!(
+            storage_exit_choice(MessageDialogResult::Custom("重试保存".into())),
+            StorageExitChoice::Retry
+        );
+        assert_eq!(
+            storage_exit_choice(MessageDialogResult::Custom("不保存退出".into())),
+            StorageExitChoice::Discard
+        );
+        for result in [
+            MessageDialogResult::Cancel,
+            MessageDialogResult::Custom("取消".into()),
+            MessageDialogResult::Custom("unknown".into()),
+            MessageDialogResult::Ok,
+        ] {
+            assert_eq!(storage_exit_choice(result), StorageExitChoice::Cancel);
+        }
+    }
 
     #[test]
     fn only_explicit_close_and_minimize_buttons_perform_actions() {

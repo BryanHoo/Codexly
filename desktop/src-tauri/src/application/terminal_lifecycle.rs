@@ -75,6 +75,14 @@ pub(crate) fn resume_owner(app: &AppHandle) {
     }
 }
 
+pub(super) fn resume_after_cancelled_exit(app: &AppHandle) {
+    // 终端清理已经完成；取消存储退出后只开放新终端，不重建已经结束的进程。
+    app.state::<TerminalLifecycle>()
+        .exiting
+        .store(false, Ordering::Release);
+    app.state::<AppState>().terminals.set_closing(false);
+}
+
 pub(crate) fn request_exit(app: &AppHandle, code: i32) -> bool {
     let manager = app.state::<AppState>().terminals.clone();
     if manager.live_count() == 0 {
