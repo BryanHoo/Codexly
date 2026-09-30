@@ -13,6 +13,7 @@ import {
 import type { SequenceNode } from "@codexly/frontend-core/persistent-sequence";
 import type { MarkdownBlockTree } from "@codexly/frontend-core/incremental-markdown-blocks";
 import type { CodeLineTree, MarkdownBlock } from "@codexly/frontend-core/streaming-markdown-block";
+import { separateBoldTitleFromNumberedList } from "@codexly/frontend-core/markdown-list-heading";
 
 const TreeContext = createContext<
   Readonly<{ tree: MarkdownBlockTree; fast: boolean; animate: boolean }>
@@ -41,7 +42,14 @@ export function StreamingMarkdown({
     props.literalTagContent !== undefined ||
     props.remend !== undefined
   ) {
-    return <Streamdown {...props} />;
+    return (
+      <Streamdown
+        {...props}
+        {...(typeof props.children === "string"
+          ? { children: separateBoldTitleFromNumberedList(props.children) }
+          : {})}
+      />
+    );
   }
   return (
     <TreeContext.Provider value={value}>

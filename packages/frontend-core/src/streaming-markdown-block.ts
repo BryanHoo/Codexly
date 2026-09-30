@@ -4,6 +4,7 @@ import {
   sequenceItem,
   type SequenceNode,
 } from "./persistent-sequence.js";
+import { separateBoldTitleFromNumberedList } from "./markdown-list-heading.js";
 
 type BlockSource = Readonly<{ content: string; source: string }>;
 type CodeLine = string | SequenceNode<string>;
@@ -132,7 +133,7 @@ export function createMarkdownBlock(content: string, source: string): MarkdownBl
       };
     }
   }
-  return { kind: "markdown", content, source };
+  return { kind: "markdown", content: separateBoldTitleFromNumberedList(content), source };
 }
 
 export function appendMarkdownBlock(block: MarkdownBlock, addition: string): MarkdownBlock | null {

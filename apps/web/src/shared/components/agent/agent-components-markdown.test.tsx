@@ -52,6 +52,27 @@ describe("agent Markdown components", () => {
     expect(markup).not.toContain("## 结果");
   });
 
+  it.each(["static", "streaming"] as const)(
+    "separates a bold section title from a continuing numbered list in %s mode",
+    (mode) => {
+      const source =
+        "**优先处理**\n\n1. 第一项\n2. 第二项\n3. 第三项\n\n**功能与性能问题**\n4. 第四项";
+      const markup = renderToStaticMarkup(
+        <MessageResponse
+          mode={mode}
+          {...(mode === "streaming"
+            ? { textSource: new AppendOnlyTextBuffer(source).getSnapshot() }
+            : {})}
+        >
+          {source}
+        </MessageResponse>,
+      );
+
+      expect(markup).toMatch(/功能与性能问题<\/span><\/p>\s*<ol[^>]*start="4"/u);
+      expect(markup).toContain("第四项");
+    },
+  );
+
   it("renders streamed-style strong emphasis before adjacent Chinese text", () => {
     const markup = renderToStaticMarkup(
       <MessageResponse>

@@ -1,5 +1,6 @@
 import { parseMarkdownIntoBlocks } from "streamdown";
 import { AppendOnlyTextBuffer } from "@codexly/frontend-core/append-only-text";
+import { separateBoldTitleFromNumberedList } from "@codexly/frontend-core/markdown-list-heading";
 import type { MarkdownBlockTree } from "@codexly/frontend-core/incremental-markdown-blocks";
 import { describe, expect, it, vi } from "vitest";
 
@@ -68,6 +69,19 @@ describe("streaming message response processing", () => {
 
     expect(nextBlocks).toEqual(parseMarkdownIntoBlocks(nextMarkdown));
     expect(parseBlocks).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains a numbered-list boundary while the title and item stream character by character", () => {
+    const source = "**优先处理**\n\n1. 第一项\n\n**功能与性能问题**\n4. 第四项";
+    const incrementalParser = createIncrementalMarkdownBlockParser();
+    let streamed = "";
+    for (const character of source) {
+      streamed += character;
+      const blocks = incrementalParser(streamed);
+      expect(blocks.join("")).toBe(
+        separateBoldTitleFromNumberedList(preprocessMessageResponse(streamed).markdown),
+      );
+    }
   });
 
   it("repairs strong emphasis followed immediately by Chinese text", () => {

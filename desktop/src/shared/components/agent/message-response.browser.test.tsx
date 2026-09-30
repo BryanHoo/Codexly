@@ -6,6 +6,16 @@ import { MessageResponse } from "./message-response.js";
 import { AppendOnlyTextBuffer } from "../../lib/append-only-text.js";
 
 describe("MessageResponse file reference menu", () => {
+  it("separates a bold title from a continuing numbered list while streaming", async () => {
+    const buffer = new AppendOnlyTextBuffer("**优先处理**\n\n1. 第一项\n\n**功能与性能问题**\n4");
+    const screen = await render(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" />);
+    buffer.append(". 第四项");
+    await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" />);
+    const title = screen.getByText("功能与性能问题").element();
+    expect(title.closest("p")?.textContent).toBe("功能与性能问题");
+    expect(screen.container.querySelector('ol[start="4"] li')?.textContent).toBe("第四项");
+  });
+
   it("reveals appended plain text without remounting the incremental paragraph", async () => {
     const buffer = new AppendOnlyTextBuffer("Initial words");
     const screen = await render(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" isAnimating />);
