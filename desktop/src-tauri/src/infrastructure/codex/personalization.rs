@@ -123,6 +123,33 @@ mod tests {
     }
 
     #[test]
+    fn memory_settings_should_apply_defaults_for_null_sections() {
+        // 与 Web 端保持一致：章节为 null 等同于未配置，不影响已有开关。
+        for (config, enabled, allow_external_context) in [
+            (json!({"features": null}), false, true),
+            (json!({"memories": null}), false, true),
+            (json!({"features": null, "memories": null}), false, true),
+            (
+                json!({"features": {"memories": true}, "memories": null}),
+                true,
+                true,
+            ),
+            (
+                json!({"features": null, "memories": {"disable_on_external_context": true}}),
+                false,
+                false,
+            ),
+        ] {
+            let settings = memory_settings(&config);
+            assert_eq!(settings.enabled, enabled, "config: {config}");
+            assert_eq!(
+                settings.allow_external_context, allow_external_context,
+                "config: {config}"
+            );
+        }
+    }
+
+    #[test]
     fn memory_settings_should_apply_cli_defaults_and_external_context_inversion() {
         let defaults = memory_settings(&json!({}));
         assert!(!defaults.enabled);

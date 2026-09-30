@@ -10,7 +10,9 @@ async function readConfig(client: CodexRpcClient) {
   return expectRecord(response["config"], "config/read config");
 }
 function section(config: Record<string, unknown>, key: string) {
-  return config[key] === undefined ? {} : expectRecord(config[key], key);
+  const value = config[key];
+  // Codex 未配置的章节可能返回 null，和字段缺失一样使用默认值；其他类型仍严格校验。
+  return value === undefined || value === null ? {} : expectRecord(value, key);
 }
 const edit = (keyPath: string, value: unknown) => ({ keyPath, value, mergeStrategy: "replace" });
 
