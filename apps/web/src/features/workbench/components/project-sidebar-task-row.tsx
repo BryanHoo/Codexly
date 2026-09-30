@@ -1,3 +1,4 @@
+import { SidebarTaskLabel } from "@codexly/ui/core/sidebar-task-label";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@codexly/protocol";
 import { Archive, CircleCheck, CircleX, Clock3, Ellipsis, Pencil, Pin, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -17,7 +18,6 @@ import type { TaskAttention } from "../../conversation/runtime/task-activity.js"
 type TaskLinkProps = Readonly<{
   active: boolean;
   attention: TaskAttention;
-  icon?: ReactNode;
   isActionPending: boolean;
   isAwaitingApproval: boolean;
   isRunning: boolean;
@@ -25,6 +25,7 @@ type TaskLinkProps = Readonly<{
   onDelete: (task: AgentTask) => void;
   onPin: (task: AgentTask) => void;
   onRename: (task: AgentTask) => void;
+  projectName?: string;
   task: AgentTask;
 }>;
 
@@ -37,7 +38,6 @@ export function getTaskRoute(projectId: string, taskId: string) {
 export function TaskLink({
   active,
   attention,
-  icon,
   isActionPending,
   isAwaitingApproval,
   isRunning,
@@ -45,6 +45,7 @@ export function TaskLink({
   onDelete,
   onPin,
   onRename,
+  projectName,
   task,
 }: TaskLinkProps) {
   const { t } = useTranslation("workbench");
@@ -61,10 +62,7 @@ export function TaskLink({
         }`}
         {...taskRoute}
       >
-        {icon === undefined ? null : (
-          <span className="shrink-0 text-subtle-foreground">{icon}</span>
-        )}
-        <span className="min-w-0 flex-1 truncate">{task.title}</span>
+        <SidebarTaskLabel projectName={projectName} title={task.title} />
         <TaskStatusIndicator
           attention={attention}
           isAwaitingApproval={isAwaitingApproval}

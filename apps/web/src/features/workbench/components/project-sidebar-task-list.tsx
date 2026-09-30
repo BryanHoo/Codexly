@@ -1,6 +1,6 @@
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask, type Project } from "@codexly/protocol";
-import { Folder, Pin, Plus } from "lucide-react";
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { Folder, Plus } from "lucide-react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -109,6 +109,11 @@ export function ProjectSidebarTaskList({
   const [temporaryTasksExpanded, setTemporaryTasksExpanded] = useState(() =>
     readTemporaryTasksExpanded(preferenceStorage),
   );
+  // 项目元数据只索引一次，固定任务展示不重复扫描项目列表或额外请求。
+  const projectsById = useMemo(
+    () => new Map(orderedProjects.map((project) => [project.id, project])),
+    [orderedProjects],
+  );
   const temporaryTasks = tasksByProjectId.get(TEMPORARY_TASK_SCOPE_ID) ?? EMPTY_PROJECT_TASKS;
   const temporaryTaskState = projectTaskStates.get(TEMPORARY_TASK_SCOPE_ID);
   const showAllTemporaryTasks = expandedTaskProjects.has(TEMPORARY_TASK_SCOPE_ID);
@@ -142,7 +147,6 @@ export function ProjectSidebarTaskList({
                   <TaskLink
                     active={task.projectId === projectId && task.id === taskId}
                     attention={activity.attention}
-                    icon={<Pin className="size-3.5" aria-hidden="true" />}
                     key={`${task.projectId}:${task.id}`}
                     isActionPending={taskActionPending}
                     isAwaitingApproval={activity.isAwaitingApproval}
@@ -151,6 +155,11 @@ export function ProjectSidebarTaskList({
                     onDelete={(task) => void deleteTask(task)}
                     onPin={(task) => void pinTask(task)}
                     onRename={setRenamingTask}
+                    projectName={
+                      task.projectId === TEMPORARY_TASK_SCOPE_ID
+                        ? t("sidebar.temporaryTasks")
+                        : (projectsById.get(task.projectId)?.name ?? task.projectId)
+                    }
                     task={task}
                   />
                 );
