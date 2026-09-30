@@ -31,6 +31,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Install and manage Skills, official plugins, and third-party markets in the extension center, including MCP service controls and hot reload
 - Answer asynchronous questions in a pinned panel, prevent concurrent interactions with cross-client task locks, and restore thread model and reasoning settings
 - Follow streaming reasoning summaries and grouped operations, and inspect runtime warnings and live tool timing in the context panel and timeline
+- Read incrementally rendered Markdown responses, zoom and pan message images, project images, and wallpapers, then fit them to the window or view them at their original size
 - Run commands in the project-native integrated terminal and switch between persistent sessions
 - Use global shortcuts to create tasks, switch workspace areas, and perform common actions
 - Create scheduled tasks with visual recurrence rules for weekdays, weekends, weekly, or monthly schedules, then preview upcoming runs
@@ -38,6 +39,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access for each task
 - Discover models from custom providers online and fall back to a local catalog when unavailable
 - Create projects and directories, manage multiple project roots, temporary tasks, and archived tasks, generate titles for new tasks, and fork new tasks from existing conversations
+- Identify tasks from different projects through project labels in the sidebar
 - Search tasks, message history, and project files across projects, then jump to exact history matches
 - Browse and manage project files, switch between file previews and diffs in the inspector, review uncommitted changes and commit history, then copy messages as source-preserving Markdown
 - Create or switch Git branches and worktrees, start worktree tasks in the original project, then select files to commit or push
