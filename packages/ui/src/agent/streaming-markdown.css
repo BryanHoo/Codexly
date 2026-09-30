@@ -1,0 +1,10 @@
+[data-streaming-text-reveal] {
+  animation: sd-fadeIn 180ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sd-animate],
+  [data-streaming-text-reveal] {
+    animation: none;
+  }
+}

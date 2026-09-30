@@ -1,33 +1,38 @@
+import { AppendOnlyTextBuffer, type TextSnapshot } from "@codexly/frontend-core/append-only-text";
+
 export class ReasoningSummaryBuffer {
-  private chunks: string[] = [];
+  private buffer: AppendOnlyTextBuffer;
+  private changed = false;
   private initialSummary: string | undefined;
-  private materializedSummary: string | undefined;
 
   constructor(initialSummary: string | undefined) {
     this.initialSummary = initialSummary;
-    this.materializedSummary = initialSummary;
+    this.buffer = new AppendOnlyTextBuffer(initialSummary ?? "");
   }
 
   get hasChanges(): boolean {
-    return this.chunks.length > 0;
+    return this.changed;
   }
 
   append(delta: string): void {
-    this.chunks.push(delta);
-    this.materializedSummary = undefined;
+    this.buffer.append(delta);
+    this.changed = true;
   }
 
   read(): string | undefined {
     if (this.initialSummary === undefined) {
       return undefined;
     }
-    this.materializedSummary ??= [this.initialSummary, ...this.chunks].join("");
-    return this.materializedSummary;
+    return this.buffer.materialize();
+  }
+
+  getSnapshot(): TextSnapshot | undefined {
+    return this.initialSummary === undefined ? undefined : this.buffer.getSnapshot();
   }
 
   replace(initialSummary: string | undefined): void {
-    this.chunks = [];
+    this.buffer = new AppendOnlyTextBuffer(initialSummary ?? "");
+    this.changed = false;
     this.initialSummary = initialSummary;
-    this.materializedSummary = initialSummary;
   }
 }

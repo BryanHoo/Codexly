@@ -30,6 +30,18 @@ function createIncrementalMarkdownBlockParser(parse = parseMarkdownIntoBlocks) {
 }
 
 describe("incremental message preprocessing", () => {
+  it.each(["**正文。**继续", "__正文！__继续"])("repairs punctuation-adjacent Chinese emphasis: %s", (source) => {
+    const expected = source.startsWith("**") ? "**正文**。继续" : "__正文__！继续";
+    expect(preprocessMessageResponse(source).markdown).toBe(expected);
+    const buffer = new AppendOnlyTextBuffer("");
+    const processor = new IncrementalMessageResponseProcessor();
+    for (const character of source) {
+      buffer.append(character);
+      expect(processor.process(buffer.getSnapshot())).toMatchObject(preprocessMessageResponse(buffer.materialize()));
+    }
+    expect(processor.process(buffer.getSnapshot()).markdown).toBe(expected);
+  });
+
   it("preserves a pending link boundary across empty chunks", () => {
     const processor = new IncrementalMessageResponseProcessor();
     const buffer = new AppendOnlyTextBuffer("[file]");

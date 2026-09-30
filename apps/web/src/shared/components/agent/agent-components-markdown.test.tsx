@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { AppendOnlyTextBuffer } from "@codexly/frontend-core/append-only-text";
 import { Message, MessageContent } from "./message.js";
 import { MessageResponse } from "./message-response.js";
 import {
@@ -9,6 +10,16 @@ import {
 } from "./agent-components.test-support.js";
 
 describe("agent Markdown components", () => {
+  it("preserves Mermaid rendering in the incremental snapshot path", () => {
+    const buffer = new AppendOnlyTextBuffer("```mermaid\ngraph TD\nA-->B");
+    const markup = renderToStaticMarkup(
+      <MessageResponse textSource={buffer.getSnapshot()} mode="streaming" isAnimating />,
+    );
+    expect(markup).toMatch(/animate-spin|data-streamdown="mermaid-block"/u);
+    expect(markup).not.toContain('data-language="mermaid"');
+    expect(markup).not.toContain("graph TD");
+  });
+
   it("animates only the active streaming response", () => {
     const active = renderToStaticMarkup(
       <MessageResponse mode="streaming" isAnimating>
@@ -85,7 +96,7 @@ describe("agent Markdown components", () => {
         <MessageResponse mode={mode}>{"```mermaid\ngraph TD\nA-->B\n```"}</MessageResponse>,
       );
 
-      expect(markup).toContain("animate-spin");
+      expect(markup).toMatch(/animate-spin|data-streamdown="mermaid-block"/u);
       expect(markup).not.toContain('data-streamdown="code-block"');
       expect(markup).not.toContain('data-language="mermaid"');
     },

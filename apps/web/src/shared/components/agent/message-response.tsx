@@ -1,4 +1,6 @@
 import { mermaid } from "@streamdown/mermaid";
+import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
+import { StreamingMarkdown } from "@codexly/ui/agent/streaming-markdown";
 import { Copy, Download, ExternalLink, File, FolderOpen } from "lucide-react";
 import {
   createContext,
@@ -11,7 +13,7 @@ import {
 import {
   Block,
   defaultRemarkPlugins,
-  Streamdown,
+  type Streamdown,
   StreamdownContext,
   type BlockProps,
   type Components,
@@ -352,6 +354,7 @@ function MarkdownLink({ children, className = "", href, node, ...props }: Markdo
 }
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
+  textSource?: TextSnapshot;
   onOpenFileReference?: (
     reference: MessageFileReference,
     mode?: "containing-folder" | "popup",
@@ -382,11 +385,19 @@ function MessageResponseContent({
   parseMarkdownIntoBlocksFn,
   promptFileReferences = false,
   remarkPlugins,
+  textSource,
   ...props
 }: MessageResponseProps) {
   const responseProcessor = useMemo(() => new IncrementalMessageResponseProcessor(), []);
   const incrementalBlockParser = useMemo(() => createIncrementalMarkdownBlockParser(), []);
-  const parsedResponse = responseProcessor.process(children ?? "");
+  const parsedResponse = responseProcessor.process(textSource ?? children ?? "");
+  const streaming = props.mode !== "static" && props.isAnimating !== false;
+  const enabled =
+    textSource !== undefined && props.mode !== "static" && parseMarkdownIntoBlocksFn === undefined;
+  const blockTree = useMemo(
+    () => (enabled ? incrementalBlockParser(parsedResponse, streaming) : null),
+    [enabled, incrementalBlockParser, parsedResponse, streaming],
+  );
   const markdownComponents: Components = useMemo(
     () => ({ ...components, a: MarkdownLink }),
     [components],
@@ -404,20 +415,30 @@ function MessageResponseContent({
 
   return (
     <MessageFileReferenceContext.Provider value={onOpenFileReference ?? null}>
-      <Streamdown
+      <StreamingMarkdown
         key={props.isAnimating ? "animating" : "settled"}
-        {...(props.isAnimating ? { animated: STREAMING_ANIMATION } : {})}
+        {...(!enabled && props.isAnimating ? { animated: STREAMING_ANIMATION } : {})}
+        enabled={enabled}
+        tree={blockTree}
+        fast={
+          streaming &&
+          components === undefined &&
+          remarkPlugins === undefined &&
+          props.rehypePlugins === undefined &&
+          props.plugins === undefined &&
+          !promptFileReferences
+        }
         className={`size-full break-words [&_blockquote]:border-l-2 [&_blockquote]:border-separator [&_blockquote]:pl-3 [&_code]:font-mono [&_code]:text-body-small [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:object-contain [&_pre]:overflow-x-auto [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${className}`}
         controls={MESSAGE_RESPONSE_CONTROLS}
         {...props}
         BlockComponent={InteractiveMessageBlock}
         components={markdownComponents}
-        parseMarkdownIntoBlocksFn={parseMarkdownIntoBlocksFn ?? incrementalBlockParser}
+        {...(parseMarkdownIntoBlocksFn === undefined ? {} : { parseMarkdownIntoBlocksFn })}
         plugins={MESSAGE_RESPONSE_PLUGINS}
         remarkPlugins={resolvedRemarkPlugins}
       >
         {parsedResponse.markdown}
-      </Streamdown>
+      </StreamingMarkdown>
       <CodeComments comments={parsedResponse.comments} />
     </MessageFileReferenceContext.Provider>
   );
@@ -426,6 +447,7 @@ function MessageResponseContent({
 export const MessageResponse = memo(
   MessageResponseContent,
   (previousProps, nextProps) =>
+    previousProps.textSource === nextProps.textSource &&
     previousProps.children === nextProps.children &&
     previousProps.isAnimating === nextProps.isAnimating &&
     previousProps.mode === nextProps.mode &&

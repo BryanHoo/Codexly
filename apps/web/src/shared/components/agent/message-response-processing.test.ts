@@ -1,12 +1,34 @@
 import { parseMarkdownIntoBlocks } from "streamdown";
+import { AppendOnlyTextBuffer } from "@codexly/frontend-core/append-only-text";
+import type { MarkdownBlockTree } from "@codexly/frontend-core/incremental-markdown-blocks";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  createIncrementalMarkdownBlockParser,
+  createIncrementalMarkdownBlockParser as createTreeParser,
   IncrementalMessageResponseProcessor,
   normalizeMarkdownEmphasisBoundaries,
   preprocessMessageResponse,
 } from "./message-response-processing.js";
+
+function flatten(tree: MarkdownBlockTree): string[] {
+  if (tree === null) return [];
+  if (tree.items !== undefined) return tree.items.map((block) => block.content);
+  return [...flatten(tree.left), ...flatten(tree.right)];
+}
+
+function createIncrementalMarkdownBlockParser(parse = parseMarkdownIntoBlocks) {
+  const parser = createTreeParser(parse);
+  const processor = new IncrementalMessageResponseProcessor();
+  let buffer = new AppendOnlyTextBuffer("");
+  let previous = "";
+  return (markdown: string) => {
+    // 这些语义测试使用小输入；生产路径直接消费预处理器提供的变更边界。
+    if (markdown.startsWith(previous)) buffer.append(markdown.slice(previous.length));
+    else buffer = new AppendOnlyTextBuffer(markdown);
+    previous = markdown;
+    return flatten(parser(processor.process(buffer.getSnapshot())));
+  };
+}
 
 describe("streaming message response processing", () => {
   it("matches full preprocessing while directives and paths cross chunk boundaries", () => {
@@ -18,14 +40,18 @@ describe("streaming message response processing", () => {
 
 [guide.md](docs/guide.md:8)  `;
     const processor = new IncrementalMessageResponseProcessor();
+    const buffer = new AppendOnlyTextBuffer("");
     let streamedSource = "";
 
     for (const chunk of source.match(/.{1,7}/gs) ?? []) {
       streamedSource += chunk;
-      expect(processor.process(streamedSource)).toEqual(preprocessMessageResponse(streamedSource));
+      buffer.append(chunk);
+      expect(processor.process(buffer.getSnapshot())).toMatchObject(
+        preprocessMessageResponse(streamedSource),
+      );
     }
 
-    const result = processor.process(source);
+    const result = processor.process(buffer.getSnapshot());
     expect(result.comments).toHaveLength(1);
     expect(result.markdown).toContain("/__codexly_relative__/docs/guide.md:8");
     expect(result.markdown).toContain("/C:/workspace/Codexly/server.ts:24");
@@ -41,8 +67,7 @@ describe("streaming message response processing", () => {
     const nextBlocks = incrementalParser(nextMarkdown);
 
     expect(nextBlocks).toEqual(parseMarkdownIntoBlocks(nextMarkdown));
-    expect(parseBlocks).toHaveBeenCalledTimes(2);
-    expect(parseBlocks.mock.calls[1]?.[0].length).toBeLessThan(nextMarkdown.length);
+    expect(parseBlocks).toHaveBeenCalledTimes(1);
   });
 
   it("repairs strong emphasis followed immediately by Chinese text", () => {
@@ -70,11 +95,15 @@ describe("streaming message response processing", () => {
   it("keeps repaired emphasis stable across character-by-character streaming", () => {
     const source = "结论： **本地 Codex 实现。**准确说是本地编排。";
     const processor = new IncrementalMessageResponseProcessor();
+    const buffer = new AppendOnlyTextBuffer("");
     let streamedSource = "";
 
     for (const character of source) {
       streamedSource += character;
-      expect(processor.process(streamedSource)).toEqual(preprocessMessageResponse(streamedSource));
+      buffer.append(character);
+      expect(processor.process(buffer.getSnapshot())).toMatchObject(
+        preprocessMessageResponse(streamedSource),
+      );
     }
   });
 
@@ -90,7 +119,7 @@ describe("streaming message response processing", () => {
     for (const character of source) {
       streamedMarkdown += character;
       expect(incrementalParser(streamedMarkdown)).toEqual(
-        parseMarkdownIntoBlocks(streamedMarkdown),
+        parseMarkdownIntoBlocks(preprocessMessageResponse(streamedMarkdown).markdown),
       );
     }
   });
@@ -99,6 +128,6 @@ describe("streaming message response processing", () => {
     const processor = new IncrementalMessageResponseProcessor();
     processor.process("旧内容\n\n[old.md](old.md:1)");
 
-    expect(processor.process("新内容")).toEqual(preprocessMessageResponse("新内容"));
+    expect(processor.process("新内容")).toMatchObject(preprocessMessageResponse("新内容"));
   });
 });

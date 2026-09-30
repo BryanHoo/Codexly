@@ -1,5 +1,6 @@
 import type { AgentEventConnectionState } from "@codexly/client";
 import { createTaskItemKey, retainPendingRequest } from "@codexly/frontend-core";
+import { AppendOnlyTextBuffer, type TextSnapshot } from "@codexly/frontend-core/append-only-text";
 import type {
   AgentEvent,
   AgentItem,
@@ -97,6 +98,7 @@ export interface TaskItemStore extends StoreApi<TaskItemStoreState> {
   read: () => AgentItem;
   readCommandOutput: () => CommandOutputView | undefined;
   readReasoningSummary: () => string | undefined;
+  readText: () => TextSnapshot | undefined;
   replace: (item: AgentItem) => void;
 }
 
@@ -114,7 +116,7 @@ function createBaseItem(item: AgentItem): AgentItem {
 export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
   let baseItem = createBaseItem(initialItem);
   // Delta 热路径只追加 Chunk；完整字符串仅在目标 Item 被读取时延迟物化并缓存。
-  const chunksByField = new Map<StreamedTextField, string[]>();
+  const chunksByField = new Map<StreamedTextField, AppendOnlyTextBuffer>();
   let contentGeneration = 0;
   let materializedGeneration = initialItem.type === "command" ? -1 : 0;
   let materializedItem = baseItem;
@@ -131,17 +133,27 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
     estimateRetainedBytes(baseItem) + (commandOutputBuffer?.getView().outputBytes ?? 0);
   const store = createStore<TaskItemStoreState>()(() => ({ revision: 0 }));
 
+  function textBuffer(field: Exclude<StreamedTextField, "summary">): AppendOnlyTextBuffer {
+    let buffer = chunksByField.get(field);
+    if (buffer === undefined) {
+      const initialText =
+        baseItem.type === "reasoning"
+          ? baseItem.content
+          : baseItem.type === "message" || baseItem.type === "plan"
+            ? baseItem.text
+            : "";
+      buffer = new AppendOnlyTextBuffer(initialText);
+      chunksByField.set(field, buffer);
+    }
+    return buffer;
+  }
+
   function appendChunk(field: StreamedTextField, delta: string): void {
     if (field === "summary") {
       reasoningSummaryBuffer.append(delta);
       summaryLength += delta.length;
     } else {
-      const chunks = chunksByField.get(field);
-      if (chunks === undefined) {
-        chunksByField.set(field, [delta]);
-      } else {
-        chunks.push(delta);
-      }
+      textBuffer(field).append(delta);
     }
     retainedBytes += getUtf8ByteLength(delta);
     contentGeneration += 1;
@@ -202,17 +214,14 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
       if (baseItem.type === "message") {
         const chunks = chunksByField.get("text");
         if (chunks !== undefined) {
-          nextItem = { ...baseItem, text: [baseItem.text, ...chunks].join("") };
+          nextItem = { ...baseItem, text: chunks.materialize() };
         }
       } else if (baseItem.type === "reasoning") {
         const contentChunks = chunksByField.get("content");
         if (contentChunks !== undefined || reasoningSummaryBuffer.hasChanges) {
           nextItem = {
             ...baseItem,
-            content:
-              contentChunks === undefined
-                ? baseItem.content
-                : [baseItem.content, ...contentChunks].join(""),
+            content: contentChunks === undefined ? baseItem.content : contentChunks.materialize(),
             summary: reasoningSummaryBuffer.read() ?? baseItem.summary,
           };
         }
@@ -228,7 +237,7 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
       } else if (baseItem.type === "plan") {
         const chunks = chunksByField.get("plan");
         if (chunks !== undefined) {
-          nextItem = { ...baseItem, text: [baseItem.text, ...chunks].join("") };
+          nextItem = { ...baseItem, text: chunks.materialize() };
         }
       }
       materializedItem = nextItem;
@@ -240,6 +249,12 @@ export function createTaskItemStore(initialItem: AgentItem): TaskItemStore {
     },
     // 时间线可见性只读取摘要，避免为过滤空项而物化原始 reasoning content。
     readReasoningSummary: () => reasoningSummaryBuffer.read(),
+    readText(): TextSnapshot | undefined {
+      if (baseItem.type === "reasoning") return reasoningSummaryBuffer.getSnapshot();
+      if (baseItem.type === "plan") return textBuffer("plan").getSnapshot();
+      if (baseItem.type === "message") return textBuffer("text").getSnapshot();
+      return undefined;
+    },
     replace(item: AgentItem): void {
       baseItem = createBaseItem(item);
       chunksByField.clear();

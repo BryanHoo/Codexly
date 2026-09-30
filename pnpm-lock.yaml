@@ -666,6 +666,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@codexly/frontend-core':
+        specifier: workspace:*
+        version: link:../frontend-core
       '@pierre/diffs':
         specifier: 'catalog:'
         version: 1.2.12(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -684,6 +687,9 @@ importers:
       react:
         specifier: 'catalog:'
         version: 19.2.8
+      streamdown:
+        specifier: 'catalog:'
+        version: 2.5.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@8.1.1)
       tailwind-merge:
         specifier: 'catalog:'
         version: 3.6.0

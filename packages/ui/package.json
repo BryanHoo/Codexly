@@ -13,17 +13,24 @@
       "types": "./src/agent/patch-diff-viewer.tsx",
       "default": "./src/agent/patch-diff-viewer.tsx"
     },
+    "./agent/streaming-markdown": {
+      "types": "./src/agent/streaming-markdown.tsx",
+      "default": "./src/agent/streaming-markdown.tsx"
+    },
+    "./agent/streaming-markdown.css": "./src/agent/streaming-markdown.css",
     "./core/*": {
       "types": "./src/core/*.tsx",
       "default": "./src/core/*.tsx"
     }
   },
   "dependencies": {
+    "@codexly/frontend-core": "workspace:*",
     "@pierre/diffs": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "lucide-react": "catalog:",
     "radix-ui": "catalog:",
+    "streamdown": "catalog:",
     "tailwind-merge": "catalog:"
   },
   "peerDependencies": {

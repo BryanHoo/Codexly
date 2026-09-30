@@ -1,8 +1,8 @@
 import { buildTaskAttachmentUrl } from "@codexly/client";
+import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { BrainCircuit, FileText } from "lucide-react";
-import { fromMarkdown } from "mdast-util-from-markdown";
-import { toString } from "mdast-util-to-string";
+import { getReasoningTitle } from "./reasoning-markdown-title.js";
 
 import { i18n } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -70,16 +70,6 @@ import {
 // 覆盖 Streamdown 的 whitespace-normal，保留用户原文中的单换行和缩进。
 const preservedUserMessageClassName = "whitespace-pre-wrap!";
 
-function getReasoningTitle(markdown: string): string {
-  // 标题只提取 Markdown 文本；链接地址和格式标记保留在展开后的详情中。
-  return fromMarkdown(markdown)
-    .children.map((block) => toString(block, { includeHtml: false }))
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/gu, " ")
-    .trim();
-}
-
 export function TimelineItemContent({
   anchorId,
   commandOutput,
@@ -91,6 +81,7 @@ export function TimelineItemContent({
   onOpenSourceFile,
   projectId,
   taskId,
+  textSource,
   turnStatus,
 }: Readonly<{
   anchorId?: string;
@@ -103,6 +94,7 @@ export function TimelineItemContent({
   onOpenSourceFile: (reference: MessageFileReference) => void;
   projectId: string;
   taskId: string;
+  textSource?: TextSnapshot;
   turnStatus: AgentTurn["status"];
 }>) {
   const toolDuration =
@@ -151,6 +143,7 @@ export function TimelineItemContent({
                 item.role === "user" && preservedUserMessageClassName,
               )}
               {...responseRendering}
+              {...(textSource === undefined ? {} : { textSource })}
               onOpenFileReference={onOpenSourceFile}
               promptFileReferences={item.role === "user"}
             >
@@ -236,7 +229,10 @@ export function TimelineItemContent({
           />
           <ToolContent>
             {/* 仅渲染 Provider 明确提供的摘要，原始 content 永不进入展示组件。 */}
-            <LazyMessageResponse mode={isStreamingReasoning ? "streaming" : "static"}>
+            <LazyMessageResponse
+              mode={isStreamingReasoning ? "streaming" : "static"}
+              {...(textSource === undefined ? {} : { textSource })}
+            >
               {item.summary}
             </LazyMessageResponse>
           </ToolContent>
@@ -376,7 +372,10 @@ export function TimelineItemContent({
             <PlanTrigger />
           </PlanHeader>
           <PlanContent>
-            <LazyMessageResponse mode={isStreamingPlan ? "streaming" : "static"}>
+            <LazyMessageResponse
+              mode={isStreamingPlan ? "streaming" : "static"}
+              {...(textSource === undefined ? {} : { textSource })}
+            >
               {item.text}
             </LazyMessageResponse>
           </PlanContent>
