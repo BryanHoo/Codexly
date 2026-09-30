@@ -7,8 +7,8 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-export const SUPPORTED_CODEX_VERSION = "0.159.0";
-export const SUPPORTED_CODEX_VERSION_RANGE = ">=0.159.0,<0.160.0";
+export const SUPPORTED_CODEX_VERSION = "0.159.2";
+export const SUPPORTED_CODEX_VERSION_RANGE = ">=0.159.2,<0.160.0";
 
 interface BundledCodexTarget {
   executableName: string;
@@ -219,8 +219,8 @@ export async function checkCodexVersion(
   }
   const [major, minor, patch] = version.split("-", 1)[0]?.split(".").map(Number) ?? [];
   const isPrerelease = version.includes("-");
-  // experimentalApi 仅允许已验证的 0.159 补丁线，拒绝旧协议和预发布版本。
-  if (major !== 0 || minor !== 159 || patch === undefined || isPrerelease) {
+  // 以 0.159.2 为最低补丁版本，确保新模型目录与 Windows 后台进程修复可用。
+  if (major !== 0 || minor !== 159 || patch === undefined || patch < 2 || isPrerelease) {
     throw new Error(
       `Unsupported Codex version ${version}; expected ${SUPPORTED_CODEX_VERSION_RANGE}`,
     );

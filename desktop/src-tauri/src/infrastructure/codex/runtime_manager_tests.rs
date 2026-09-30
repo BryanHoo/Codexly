@@ -13,7 +13,7 @@ async fn staged_runtime_should_allow_cold_launch_without_relaxing_regular_probes
     // 同一进程延迟用于验证安装与日常探测的不同预算，不依赖网络或 macOS 缓存。
     std::fs::write(
         &binary,
-        b"#!/bin/sh\nsleep 6\nprintf 'codex-cli 0.159.0\\n'\n",
+        b"#!/bin/sh\nsleep 6\nprintf 'codex-cli 0.159.2\\n'\n",
     )
     .unwrap();
     std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -51,7 +51,7 @@ fn runtime_download_should_prefer_the_domestic_mirror_on_every_platform() {
 fn private_runtime_should_use_the_provider_version_directory() {
     assert_eq!(
         private_codex_binary_path(Path::new("/application-data")),
-        Path::new("/application-data/providers/codex/bin/0.159.0/bin")
+        Path::new("/application-data/providers/codex/bin/0.159.2/bin")
             .join(format!("codex{}", std::env::consts::EXE_SUFFIX))
     );
 }
@@ -64,42 +64,42 @@ fn distribution_should_be_fixed_to_the_official_supported_package() {
             "x86_64",
             "x86_64-apple-darwin",
             "darwin-x64",
-            "uNsvmDAYH2H7/uJi3NYtn0d+bpMHgovZyZwm62Q8q/cdd1rp5oEbk2Axe5pbyiWFwSpjdT6fbuY8gTdX2i7zjg==",
+            "VPZGYHH2yVn8S3IuxJk38vxhBADJZp68IBL8hr4quJ2R7jM16l43TLCwRemN+1J27V/cs771fbx63aGRf5F8JA==",
         ),
         (
             "macos",
             "aarch64",
             "aarch64-apple-darwin",
             "darwin-arm64",
-            "D1x+5n2y0TE43ERJs3CbBDRPLQl968hpqsInOwYNhfnTOTT53McpfFa6+VfPWwmPi0zW0aJ0C97K+6MhNHYe6A==",
+            "7SPaPFU0tdqapQ5VEgrF+wb+p9dxfWfLMXMKZMRKoWPn/tLMajlMjYBBnu8o6VtaVH2DHQ6kpnp5TMkv5bqvrg==",
         ),
         (
             "linux",
             "aarch64",
             "aarch64-unknown-linux-musl",
             "linux-arm64",
-            "cm7ihiXIZILGQPWgak3ApOcRZ6beupDNPHVAJ9CyHxZSQPsTy6CSYg1GYLVe2DlRUQYprnXHZceOgheXo0PvHA==",
+            "Pm0W2PnFeTEqPx+AOIwgOVB4dBtY24cuD0tx1hjCor60CbSAT7WBPZVNUINSrTCDrMndvQC67p71ZEz+gmPPkA==",
         ),
         (
             "linux",
             "x86_64",
             "x86_64-unknown-linux-musl",
             "linux-x64",
-            "7ks+EeQjX33wfJXbggseyF0CJRFVgzDHA6BzC7mJjFsJKmdAuOFWMFeMeZe8vL/G6xEpL29wOdwR85sK49F0iA==",
+            "RrCZ1X52wpa1lOsXtCtSyhjOFdQPh7LH5Ccv8HsKmd/2UXbUwxXFqWXFK3JzatquUNGtW/TLox5Y7qVOGkV0/Q==",
         ),
         (
             "windows",
             "aarch64",
             "aarch64-pc-windows-msvc",
             "win32-arm64",
-            "o4oHXi4IONlLyMRHOIxXTPG1OdbD7Pxmqd2AcYRWHXP1YjrdqdEQozqQLU05rdYGcfrwBwcBqPpGO9LLVHd0fg==",
+            "8+xM4Wj2J38ieRse9kzbMRQQc2d+kvck2Zm2+gX2sth5RXPZQ1yqYhFmevHLC8IO73syk2xiIclH0qvoc97pgg==",
         ),
         (
             "windows",
             "x86_64",
             "x86_64-pc-windows-msvc",
             "win32-x64",
-            "Fp+TghoUzxOguHj/WAxOIZCIJpTOb4pB9p90tf6+g2PSTWSCvqpawwxPmDuCMxKs8Sn1gO5zP621PoCkBt5cuQ==",
+            "1ZJVTO40/ZaHPUUWc3uCX73jwzJRaDxAjRQEf37dC5Q3h1fp/Z7+1L8oX3bPlXgjhEY6kHW3rm0wz2sdQ5rxNw==",
         ),
     ];
 
@@ -109,7 +109,7 @@ fn distribution_should_be_fixed_to_the_official_supported_package() {
         assert_eq!(
             distribution.fallback_url,
             format!(
-                "https://registry.npmjs.org/@openai/codex/-/codex-0.159.0-{package_suffix}.tgz"
+                "https://registry.npmjs.org/@openai/codex/-/codex-0.159.2-{package_suffix}.tgz"
             )
         );
         assert_eq!(distribution.integrity, integrity);
@@ -167,10 +167,10 @@ mod private_runtime {
         let directory = fixture();
         let root = directory.path().join("app");
         let alternate = root.join("providers/codex/bin/alternate/bin/codex");
-        binary(&alternate, "0.159.0");
+        binary(&alternate, "0.159.2");
         std::fs::write(
             root.join("providers/codex/active.json"),
-            serde_json::to_vec(&serde_json::json!({"path": alternate, "version": "0.159.0"}))
+            serde_json::to_vec(&serde_json::json!({"path": alternate, "version": "0.159.2"}))
                 .unwrap(),
         )
         .unwrap();
@@ -182,7 +182,7 @@ mod private_runtime {
     async fn installation_should_reuse_valid_private_binary_without_progress_or_manifest_writes() {
         let directory = fixture();
         let root = directory.path().join("app");
-        binary(&private_codex_binary_path(&root), "0.159.0");
+        binary(&private_codex_binary_path(&root), "0.159.2");
         let result = install_codex_runtime(&root, |_| panic!("healthy runtime must not install"))
             .await
             .unwrap();

@@ -152,7 +152,7 @@ describe("CodexAgentProvider snapshots", () => {
     });
   });
 
-  it("rejects thread sections without the 0.159.0 appearance field", async () => {
+  it("rejects thread sections without the 0.159.2 appearance field", async () => {
     const rpc = new FakeRpcClient([
       {
         data: [

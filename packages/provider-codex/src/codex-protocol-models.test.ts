@@ -36,6 +36,38 @@ describe("Codex model and message mapping", () => {
     expect(mapAgentModel({ hidden: true, multiAgentVersion: "disabled" })).toBeUndefined();
   });
 
+  it.each(["gpt-6.1-sol", "openai.gpt-6.1-sol"])(
+    "preserves the server default and capabilities for %s",
+    (model) => {
+      // 模型目录由 Codex 提供，保留 Bedrock 模型标识，不引入客户端白名单或额外请求。
+      expect(
+        mapAgentModel({
+          defaultReasoningEffort: "medium",
+          description: "Coding model",
+          displayName: "GPT-6.1 Sol",
+          hidden: false,
+          inputModalities: ["text", "image"],
+          isDefault: true,
+          model,
+          multiAgentVersion: null,
+          supportedReasoningEfforts: [
+            { description: "Balanced", reasoningEffort: "medium" },
+            { description: "Deep reasoning", reasoningEffort: "xhigh" },
+          ],
+        }),
+      ).toMatchObject({
+        defaultReasoningEffort: "medium",
+        displayName: "GPT-6.1 Sol",
+        id: model,
+        isDefault: true,
+        supportedReasoningEfforts: [
+          { description: "Balanced", id: "medium" },
+          { description: "Deep reasoning", id: "xhigh" },
+        ],
+      });
+    },
+  );
+
   it("preserves documented agent message phases and omits a null legacy phase", () => {
     expect(
       mapAgentTurn({

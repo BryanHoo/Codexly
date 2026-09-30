@@ -7,6 +7,64 @@ use super::{
 };
 
 #[tokio::test]
+async fn models_should_preserve_gpt_6_1_defaults_without_reloading_the_catalog() {
+    for model in ["gpt-6.1-sol", "openai.gpt-6.1-sol"] {
+        let (client, server) = duplex(8 * 1024);
+        let (client_reader, client_writer) = split(client);
+        let (server_reader, mut server_writer) = split(server);
+        let connection = AppServerConnection::new(client_reader, client_writer);
+        let server_task = tokio::spawn(async move {
+            let mut lines = BufReader::new(server_reader).lines();
+            let request: Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert_eq!(request["method"], "model/list");
+            assert_eq!(request["params"]["limit"], 100);
+            server_writer
+                .write_all(
+                    format!(
+                        "{}\n",
+                        json!({"id": request["id"], "result": {
+                            "data": [{
+                                "id": model, "model": model, "displayName": "GPT-6.1 Sol",
+                                "description": "Coding model", "hidden": false, "isDefault": true,
+                                "inputModalities": ["text", "image"],
+                                "multiAgentVersion": null, "defaultReasoningEffort": "medium",
+                                "supportedReasoningEfforts": [
+                                    {"reasoningEffort": "medium", "description": "Balanced"},
+                                    {"reasoningEffort": "xhigh", "description": "Deep reasoning"}
+                                ]
+                            }], "nextCursor": null
+                        }})
+                    )
+                    .as_bytes(),
+                )
+                .await
+                .unwrap();
+            // 第二次读取必须命中缓存，不能为新模型额外查询或启动轮询。
+            assert!(
+                tokio::time::timeout(std::time::Duration::from_millis(50), lines.next_line())
+                    .await
+                    .is_err()
+            );
+        });
+        let models = list_models(&connection).await.unwrap();
+        assert_eq!(models["data"][0]["id"], model);
+        assert_eq!(models["data"][0]["isDefault"], true);
+        assert_eq!(models["data"][0]["defaultReasoningEffort"], "medium");
+        assert_eq!(
+            models["data"][0]["inputModalities"],
+            json!(["text", "image"])
+        );
+        assert_eq!(
+            models["data"][0]["supportedReasoningEfforts"][1]["id"],
+            "xhigh"
+        );
+        assert_eq!(list_models(&connection).await.unwrap(), models);
+        server_task.await.unwrap();
+    }
+}
+
+#[tokio::test]
 async fn catalogs_should_map_codex_protocol_without_losing_order() {
     let (client, server) = duplex(32 * 1024);
     let (client_reader, client_writer) = split(client);
