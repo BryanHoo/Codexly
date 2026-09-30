@@ -23,9 +23,11 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/client/package.json ./packages/client/package.json
 COPY packages/core/package.json ./packages/core/package.json
+COPY packages/frontend-core/package.json ./packages/frontend-core/package.json
 COPY packages/protocol/package.json ./packages/protocol/package.json
 COPY packages/provider-codex/package.json ./packages/provider-codex/package.json
 COPY packages/server/package.json ./packages/server/package.json
+COPY packages/ui/package.json ./packages/ui/package.json
 COPY desktop/package.json ./desktop/package.json
 COPY desktop/patches/@wdio__tauri-service@1.3.0.patch ./desktop/patches/@wdio__tauri-service@1.3.0.patch
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
