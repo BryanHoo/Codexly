@@ -107,7 +107,7 @@ describe("agent Markdown components", () => {
   });
 
   it("uses the patched DOMPurify release for untrusted Agent Markdown", () => {
-    expect(resolveStreamdownDompurifyVersion()).toBe("3.4.13");
+    expect(resolveStreamdownDompurifyVersion()).toBe("3.4.16");
   });
 
   it.each(["static", "streaming"] as const)(
