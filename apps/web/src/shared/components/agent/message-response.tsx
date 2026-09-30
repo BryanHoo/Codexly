@@ -1,4 +1,5 @@
 import { mermaid } from "@streamdown/mermaid";
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
 import { StreamingMarkdown } from "@codexly/ui/agent/streaming-markdown";
 import { Copy, Download, ExternalLink, File, FolderOpen } from "lucide-react";
@@ -85,7 +86,7 @@ function FileReferenceContextMenu({
         <ContextMenuItem
           onSelect={() => {
             // 菜单关闭不等待剪贴板授权，失败时保留当前引用状态。
-            void navigator.clipboard.writeText(reference.path).catch(() => undefined);
+            void writeClipboardText(reference.path).catch(() => undefined);
           }}
         >
           <Copy aria-hidden="true" className="size-4 text-muted-foreground" />

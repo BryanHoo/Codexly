@@ -1,4 +1,5 @@
 import type { ProjectFileSearchEntry, ProjectOpenApp, ProjectOpenAppKind } from "@codexly/protocol";
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { Code2, ExternalLink, FolderOpen, Terminal, Wrench } from "lucide-react";
 
 type ProjectOpenTargetType = "directory" | "file";
@@ -51,5 +52,5 @@ export function getProjectTargetAbsolutePath(projectRootPath: string, targetPath
 
 export function copyProjectTargetText(text: string): void {
   // 菜单关闭不应等待系统剪贴板，失败时保留当前文件树状态。
-  void navigator.clipboard.writeText(text).catch(() => undefined);
+  void writeClipboardText(text).catch(() => undefined);
 }

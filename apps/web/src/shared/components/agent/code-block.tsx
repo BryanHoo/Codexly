@@ -1,4 +1,5 @@
 import { Check, Copy } from "lucide-react";
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import {
   createContext,
   useContext,
@@ -268,7 +269,7 @@ export function CodeBlockCopyButton({
 
   const copyCode = async () => {
     try {
-      await navigator.clipboard.writeText(code);
+      await writeClipboardText(code);
       setCopied(true);
       onCopy?.();
       if (resetTimerRef.current !== null) {

@@ -5,6 +5,7 @@ import {
   type AgentTurn,
   type Project,
 } from "@codexly/protocol";
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { ChevronRight, Copy, GitFork, MessageSquareCode } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { v4 as createUuid } from "uuid";
@@ -320,7 +321,7 @@ export function MessageMetadata({
     messageActionLockRef.current.run(async () => {
       try {
         // 只在明确点击时访问 Clipboard，避免渲染阶段触发浏览器权限请求。
-        await navigator.clipboard.writeText(text);
+        await writeClipboardText(text);
         notifyActionSuccess();
       } catch (error) {
         notifyActionError(error);

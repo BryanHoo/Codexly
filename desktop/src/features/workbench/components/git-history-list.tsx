@@ -1,3 +1,4 @@
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import type { ProjectGitCommit, ProjectGitHistoryPage } from "@/protocol/index.js";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Copy, GitCommitHorizontal, LoaderCircle } from "lucide-react";
@@ -93,7 +94,7 @@ export function getGitCommitCopyText(commit: ProjectGitCommit, field: GitCommitC
 
 export function copyGitCommitText(commit: ProjectGitCommit, field: GitCommitCopyField): void {
   // 菜单选中后立即关闭，剪贴板失败不影响历史列表的当前状态。
-  void navigator.clipboard.writeText(getGitCommitCopyText(commit, field)).catch(() => undefined);
+  void writeClipboardText(getGitCommitCopyText(commit, field)).catch(() => undefined);
 }
 
 export function GitCommitContextMenuItems({ commit }: Readonly<{ commit: ProjectGitCommit }>) {

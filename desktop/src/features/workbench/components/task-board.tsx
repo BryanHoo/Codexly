@@ -1,3 +1,4 @@
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import type { AgentTask, Project } from "@/protocol/index.js";
 import {
   Activity,
@@ -198,7 +199,7 @@ function TaskCard({
                 aria-label={t("taskBoard.copyTaskId", { id })}
                 className="task-board-card-id"
                 onClick={() => {
-                  void navigator.clipboard.writeText(id).catch(() => undefined);
+                  void writeClipboardText(id).catch(() => undefined);
                 }}
                 type="button"
               >

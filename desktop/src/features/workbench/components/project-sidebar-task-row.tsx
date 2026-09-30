@@ -1,3 +1,4 @@
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@/protocol/index.js";
 import {
   Archive,
@@ -206,7 +207,7 @@ const taskActionClassName = "h-8 w-full text-left text-foreground";
 
 function copyTaskId(taskId: string): void {
   // 复制失败不阻塞菜单关闭，用户可重新打开菜单重试。
-  void navigator.clipboard.writeText(taskId).catch(() => undefined);
+  void writeClipboardText(taskId).catch(() => undefined);
 }
 
 export function TaskActionMenu({

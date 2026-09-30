@@ -1,3 +1,4 @@
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { Check, Copy } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -342,7 +343,7 @@ export function CodeBlockCopyButton({
 
   const copyCode = async () => {
     try {
-      await navigator.clipboard.writeText(getCode());
+      await writeClipboardText(getCode());
       setCopied(true);
       onCopy?.();
       if (resetTimerRef.current !== null) {

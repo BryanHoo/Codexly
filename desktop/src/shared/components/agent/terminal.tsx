@@ -1,4 +1,5 @@
 import Anser from "anser";
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { Check, Copy, Terminal as TerminalIcon } from "lucide-react";
 import {
   createContext,
@@ -188,7 +189,7 @@ export function TerminalCopyButton({
   const copyOutput = async () => {
     try {
       // 历史输出只允许复制，不提供清空或编辑入口。
-      await navigator.clipboard.writeText(materializeChunkedText(output));
+      await writeClipboardText(materializeChunkedText(output));
       setCopied(true);
       onCopy?.();
       if (resetTimerRef.current !== null) {

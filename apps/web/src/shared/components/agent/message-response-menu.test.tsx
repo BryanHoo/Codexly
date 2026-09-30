@@ -25,6 +25,36 @@ afterEach(() => {
 });
 
 describe("streaming message file reference menu", () => {
+  it("Clipboard API 缺失时仍能复制绝对路径", () => {
+    vi.stubGlobal("navigator", {});
+    const textarea = {
+      value: "",
+      style: {},
+      setAttribute: vi.fn(),
+      focus: vi.fn(),
+      select: vi.fn(),
+      setSelectionRange: vi.fn(),
+      remove: vi.fn(),
+    };
+    const execCommand = vi.fn(() => true);
+    vi.stubGlobal("document", {
+      body: { append: vi.fn() },
+      createElement: () => textarea,
+      getSelection: () => null,
+      activeElement: null,
+      execCommand,
+    });
+    renderToStaticMarkup(
+      <MessageResponse mode="streaming" onOpenFileReference={vi.fn()}>
+        {"[main.ts](/workspace/src/main.ts:12)"}
+      </MessageResponse>,
+    );
+    expect(() => menuActions.get("复制绝对路径")?.()).not.toThrow();
+    expect(execCommand).toHaveBeenCalledWith("copy");
+    expect(textarea.value).toBe("/workspace/src/main.ts");
+    expect(textarea.remove).toHaveBeenCalledOnce();
+  });
+
   it("copies the absolute path without the line number", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });

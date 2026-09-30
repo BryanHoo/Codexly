@@ -1,3 +1,4 @@
+import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { Copy, ExternalLink, FolderOpen } from "lucide-react";
 import { markdownTypographyClassName } from "./markdown-typography.js";
 import {
@@ -77,7 +78,7 @@ function FileReferenceContextMenu({
         <ContextMenuItem
           onSelect={() => {
             // 菜单关闭不等待系统剪贴板，权限失败也不改变当前文件引用状态。
-            void navigator.clipboard.writeText(reference.path).catch(() => undefined);
+            void writeClipboardText(reference.path).catch(() => undefined);
           }}
         >
           <Copy aria-hidden="true" className="size-4 text-muted-foreground" />
