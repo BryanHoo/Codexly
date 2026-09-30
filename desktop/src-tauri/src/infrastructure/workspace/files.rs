@@ -161,7 +161,23 @@ pub async fn read_source_file(
     file.seek(std::io::SeekFrom::Start(offset as u64)).await?;
     let mut bytes = vec![0; SOURCE_CHUNK_BYTES.min(length.saturating_sub(offset))];
     file.read_exact(&mut bytes).await?;
-    let content = String::from_utf8(bytes).map_err(|_| WorkspaceError::InvalidPath)?;
+    let content = match String::from_utf8(bytes) {
+        Ok(content) => content,
+        Err(error) => {
+            let boundary = error.utf8_error();
+            // 仅回退非末页尾部被截断的字符；非法编码、文件末尾残缺和空页仍报错。
+            if boundary.error_len().is_some()
+                || boundary.valid_up_to() == 0
+                || offset + error.as_bytes().len() == length
+            {
+                return Err(WorkspaceError::InvalidPath);
+            }
+            // 复用缓冲区，最多回退三个字节；下一页从完整字符的起始位置继续读取。
+            let mut bytes = error.into_bytes();
+            bytes.truncate(boundary.valid_up_to());
+            String::from_utf8(bytes).map_err(|_| WorkspaceError::InvalidPath)?
+        }
+    };
     let next = offset + content.len();
     Ok(SourceFile {
         content,
@@ -173,6 +189,10 @@ pub async fn read_source_file(
 #[cfg(test)]
 #[path = "files_symlink_tests.rs"]
 mod symlink_tests;
+
+#[cfg(test)]
+#[path = "files_source_tests.rs"]
+mod source_tests;
 
 #[cfg(test)]
 mod tests {
