@@ -1,10 +1,12 @@
 import type { AgentQueuedSubmission } from "@/protocol/index.js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createRef } from "react";
 import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
 import type { NativeMutationClient } from "../../projects/project-queries.js";
 import { useComposerQueue } from "./use-composer-queue.js";
+import { serializePromptSkillContent, type PromptSkillContent } from "../components/prompt-skill-content.js";
 
 const queuedSubmission: AgentQueuedSubmission = {
   attachments: [
@@ -184,7 +186,12 @@ test("withdraws the complete queued message into the composer before editing", a
     updateQueuedSubmission,
   } as unknown as NativeMutationClient;
   const handleAttachmentsChange = vi.fn();
-  const replacePromptContent = vi.fn();
+  const editorRef = createRef<HTMLTextAreaElement>();
+  const replacePromptContent = vi.fn((content: PromptSkillContent, offset?: number) => {
+    const input = editorRef.current!;
+    input.value = serializePromptSkillContent(content);
+    if (offset !== undefined) input.setSelectionRange(offset, offset);
+  });
 
   function Harness() {
     const queue = useComposerQueue({
@@ -195,15 +202,26 @@ test("withdraws the complete queued message into the composer before editing", a
       replacePromptContent,
       routeScope: "project-a:task-a:/work",
       runtime: undefined,
-      skillEditorRef: { current: null },
+      skillEditorRef: { current: {
+        focus(offset) {
+          const input = editorRef.current!;
+          input.focus();
+          if (offset !== undefined) input.setSelectionRange(offset, offset);
+        },
+        getContent: () => [],
+        replace: replacePromptContent,
+      } },
       skills: [],
       taskId: "task-a",
     });
-    return queue.queuedPrompts.map((prompt) => (
-      <button key={prompt.id} onClick={() => void queue.editQueuedPrompt(prompt)}>
+    return <><textarea ref={editorRef} />{queue.queuedPrompts.map((prompt) => (
+      <button key={prompt.id} onClick={() => void queue.editQueuedPrompt(prompt).then(() => {
+        const input = editorRef.current!;
+        input.setSelectionRange(0, input.value.length);
+      })}>
         编辑排队消息
       </button>
-    ));
+    ))}</>;
   }
 
   const screen = await render(
@@ -227,4 +245,7 @@ test("withdraws the complete queued message into the composer before editing", a
   });
   expect(replacePromptContent).toHaveBeenCalled();
   expect(updateQueuedSubmission).not.toHaveBeenCalled();
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  expect(editorRef.current!.selectionStart).toBe(0);
+  expect(editorRef.current!.selectionEnd).toBe(queuedSubmission.text.length);
 });

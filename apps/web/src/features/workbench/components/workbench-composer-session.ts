@@ -296,9 +296,7 @@ export function useComposerSession({
       const cursorPosition = fileMention.start + fileReferencePlainText(file).length + 1;
       replacePromptContent(nextContent, cursorPosition);
       closeFileMenu();
-      requestAnimationFrame(() => {
-        skillEditorRef.current?.focus(cursorPosition);
-      });
+      skillEditorRef.current?.focus(cursorPosition);
     },
     [closeFileMenu, fileMention, promptContent, replacePromptContent],
   );
@@ -311,9 +309,7 @@ export function useComposerSession({
       closeFileMenu();
       setPromptHistoryIndex(null);
       replacePromptContent(nextContent, cursorPosition);
-      requestAnimationFrame(() => {
-        skillEditorRef.current?.focus(cursorPosition);
-      });
+      skillEditorRef.current?.focus(cursorPosition);
     },
     [closeCommandMenu, closeFileMenu, promptContent, replacePromptContent],
   );

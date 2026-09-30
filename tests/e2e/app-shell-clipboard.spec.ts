@@ -72,10 +72,13 @@ for (const mode of ["unavailable", "denied"] as const) {
     );
     expect(copied).toBe(originalText);
     if (browserName === "chromium") {
-      const readClipboard = () =>
-        page.evaluate(() =>
-          (window as unknown as { __readClipboard: () => Promise<string> }).__readClipboard(),
-        );
+      // Windows 系统剪贴板将换行转换为 CRLF；原始复制文本已在上方严格校验。
+      const readClipboard = async () =>
+        (
+          await page.evaluate(() =>
+            (window as unknown as { __readClipboard: () => Promise<string> }).__readClipboard(),
+          )
+        ).replace(/\r\n/gu, "\n");
       await expect.poll(readClipboard).toBe(copied);
     }
     await expect(page.locator('textarea[aria-hidden="true"]')).toHaveCount(0);

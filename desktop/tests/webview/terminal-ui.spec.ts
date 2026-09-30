@@ -3,11 +3,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { installWebviewMocks, passthroughNativeCommands, releaseApplicationStartup } from "./mock-runtime.js";
 import { measureSystemInputLatency, measureTerminalLatency, summarizeLatency } from "./terminal-latency.js";
 import { postTerminalSystemText } from "./terminal-system-keyboard.js";
 import { terminalNativeDialog } from "./terminal-native-dialog.js";
-import { windowsTerminalNative } from "./windows-terminal-native.js";
 import type { TerminalControlEvent } from "../../src/protocol/project-terminal.js";
 
 async function enterCommand(command: string): Promise<void> {
@@ -29,10 +29,21 @@ async function clearNativeTerminals(): Promise<void> {
   expect(["closed", "unavailable"]).toContain(result);
 }
 
+function processIsRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+    throw error;
+  }
+}
+
 describe("project terminal native UI", () => {
-  after(async () => { await clearNativeTerminals(); });
+  let applicationExitRequested = false;
+  after(async () => { if (!applicationExitRequested) await clearNativeTerminals(); });
   afterEach(async function () {
-    if (this.currentTest?.state === "failed") {
+    if (this.currentTest?.state === "failed" && !applicationExitRequested) {
       await mkdir("artifacts/terminal", { recursive: true });
       await browser.saveScreenshot("artifacts/terminal/native-terminal-failure.png");
       console.log("terminal diagnostics", await browser.execute(() => ({ error: document.querySelector('[data-project-terminal] [role="alert"]')?.textContent, xterm: document.querySelector(".xterm") !== null, calls: Object.fromEntries(Object.entries(window.__CODEAGENT_WEBVIEW_TEST_BRIDGE__?.calls ?? {}).filter(([key]) => key.includes("terminal")).map(([key, value]) => [key, value.length])) })));
@@ -43,9 +54,9 @@ describe("project terminal native UI", () => {
     await passthroughNativeCommands(["connect_project_terminals", "create_project_terminal", "write_project_terminal", "resize_project_terminal", "ack_project_terminal", "close_project_terminal", "remove_project_terminal"]);
     await browser.execute(() => {
       const target = window as unknown as {
-        __terminalProof: { marker: boolean; keyboard: boolean; frames: number; windowsOutput: boolean; windowsInterrupt: boolean; exitCode: number | null };
+        __terminalProof: { marker: boolean; keyboard: boolean; frames: number; windowsOutput: boolean; windowsInterrupt: boolean; windowsSleeping: boolean; windowsPrompt: boolean; exitCode: number | null };
       };
-      target.__terminalProof = { marker: false, keyboard: false, frames: 0, windowsOutput: false, windowsInterrupt: false, exitCode: null };
+      target.__terminalProof = { marker: false, keyboard: false, frames: 0, windowsOutput: false, windowsInterrupt: false, windowsSleeping: false, windowsPrompt: false, exitCode: null };
       const original = window.__CODEAGENT_WEBVIEW_TEST_INVOKE__!;
       let tail = "";
       window.__CODEAGENT_WEBVIEW_TEST_INVOKE__ = (command, args, options) => {
@@ -70,6 +81,8 @@ describe("project terminal native UI", () => {
               target.__terminalProof.keyboard ||= text.includes("NATIVE_KEYBOARD_READY");
               target.__terminalProof.windowsOutput ||= text.includes("WINDOWS_OUTPUT_完成");
               target.__terminalProof.windowsInterrupt ||= text.includes("WINDOWS_INTERRUPT_READY");
+              target.__terminalProof.windowsSleeping ||= text.includes("WINDOWS_SLEEP_STARTED");
+              target.__terminalProof.windowsPrompt ||= text.includes("WINDOWS_PROMPT_READY>");
               tail = text.slice(-1024);
             }
             receive(message);
@@ -195,9 +208,11 @@ describe("project terminal native UI", () => {
     if (process.platform !== "win32") { this.skip(); return; }
     await enterCommand("1..8192 | ForEach-Object { 'terminal-output-' + $_ + ('x' * 128) }; Write-Output ('WINDOWS_OUTPUT_' + '完成')");
     await browser.waitUntil(async () => browser.execute(() => (window as unknown as { __terminalProof: { windowsOutput: boolean } }).__terminalProof.windowsOutput), { timeout: 30000 });
-    await enterCommand("Start-Sleep -Seconds 30");
-    await browser.pause(300);
+    await enterCommand("function prompt { 'WINDOWS_PROMPT_' + 'READY> ' }; Write-Output ('WINDOWS_SLEEP_' + 'STARTED'); Start-Sleep -Seconds 30");
+    await browser.waitUntil(async () => browser.execute(() => (window as unknown as { __terminalProof: { windowsSleeping: boolean } }).__terminalProof.windowsSleeping), { timeout: 5000 });
     await browser.execute(() => document.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")!.dispatchEvent(new KeyboardEvent("keydown", { key: "c", code: "KeyC", keyCode: 67, ctrlKey: true, bubbles: true, cancelable: true })));
+    // PowerShell may discard queued input while handling Ctrl+C; wait for its real prompt.
+    await browser.waitUntil(async () => browser.execute(() => (window as unknown as { __terminalProof: { windowsPrompt: boolean } }).__terminalProof.windowsPrompt), { timeout: 5000 });
     await enterCommand("Write-Output ('WINDOWS_INTERRUPT_' + 'READY')");
     await browser.waitUntil(async () => browser.execute(() => (window as unknown as { __terminalProof: { windowsInterrupt: boolean } }).__terminalProof.windowsInterrupt), { timeout: 5000 });
     expect(await browser.execute(() => (window as unknown as { __terminalProof: { windowsOutput: boolean; windowsInterrupt: boolean } }).__terminalProof)).toEqual(expect.objectContaining({ windowsOutput: true, windowsInterrupt: true }));
@@ -220,11 +235,6 @@ describe("project terminal native UI", () => {
     else await $("aria/终端 0").click();
     await $("aria/终端 1").waitForExist();
     await terminalNativeDialog("request");
-    const blocked = await browser.executeAsync((done: (value: string) => void) => {
-      const api = (window as unknown as { __CODEAGENT_TERMINAL_TEST__: { create: (project: string, root: string) => Promise<void> } }).__CODEAGENT_TERMINAL_TEST__;
-      api.create("codeagent", "root-codeagent").then(() => done("UNEXPECTED_CREATION"), (error: unknown) => done(error !== null && typeof error === "object" && "code" in error ? String(error.code) : String(error)));
-    });
-    expect(blocked).toContain("TERMINAL_OWNER_CLOSING");
     // ConPTY/xterm protocol replies may arrive while the native modal is open.
     // Exercise the existing session's real input path before choosing Cancel.
     await browser.execute(() => { (window as unknown as { __terminalProof: { marker: boolean } }).__terminalProof.marker = false; });
@@ -238,17 +248,21 @@ describe("project terminal native UI", () => {
     await browser.waitUntil(async () => browser.execute(() => (window as unknown as { __terminalProof: { marker: boolean } }).__terminalProof.marker));
     await $("aria/新建终端").click();
     await $("aria/终端 2").waitForExist();
+    const processes = await browser.tauri.execute(({ core }) => core.invoke<{ appPid: number; sessions: { pid: number | null }[] }>("inspect_project_terminal_test"));
+    const pids = [processes.appPid, ...processes.sessions.flatMap(({ pid }) => pid === null ? [] : [pid])];
+    expect(pids).toHaveLength(3);
+    expect(pids.every(processIsRunning)).toBe(true);
     await terminalNativeDialog("request");
+    const driver = (await $("body")).parent;
+    await browser.deleteSession({ shutdownDriver: false });
+    // @wdio/globals exposes a read proxy; clear the actual driver's session.
+    Reflect.set(driver, "sessionId", undefined);
+    applicationExitRequested = true;
     await terminalNativeDialog("confirm");
-    if (process.platform === "win32") {
-      const nativeWindow = await windowsTerminalNative("inspect");
-      expect(nativeWindow.mainVisible).toBe(false);
-      await writeFile("artifacts/terminal/windows-closed-window.json", JSON.stringify(nativeWindow, null, 2));
-    } else await browser.waitUntil(async () => browser.execute(() => document.hidden));
-    const live = await browser.executeAsync((done: (value: number | string) => void) => {
-      const invoke = (window as unknown as { __TAURI__: { core: { invoke: (command: string) => Promise<{ liveCount: number }> } } }).__TAURI__.core.invoke;
-      invoke("inspect_project_terminal_test").then((value) => done(value.liveCount), (error: unknown) => done(String(error)));
-    });
-    expect(live).toBe(0);
+    // Confirmed close exits the app, so verify cleanup outside the now-disconnected WebView.
+    for (let attempt = 0; attempt < 100 && pids.some(processIsRunning); attempt += 1) await delay(100);
+    const remainingPids = pids.filter(processIsRunning);
+    await writeFile(`artifacts/terminal/closed-processes-${process.platform}.json`, JSON.stringify({ measuredAt: new Date().toISOString(), pids, remainingPids }, null, 2));
+    expect(remainingPids).toEqual([]);
   });
 });

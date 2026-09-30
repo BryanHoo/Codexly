@@ -19,13 +19,11 @@ vi.mock("../hooks/use-workbench-branch-switch.js", () => ({
   }),
 }));
 
-test.each([1280, 1920])("locks the whole composer while preserving the draft and rejecting imperative actions (%s)", async (width) => {
-  await page.viewport(width, 720);
-  await i18n.changeLanguage("zh-CN");
-  const composerRef = createRef<WorkbenchComposerHandle>();
-  const onCaptureSubmission = vi.fn(async () => undefined);
-  const queryClient = new QueryClient();
-  const props: WorkbenchComposerProps = {
+function createComposerProps(
+  composerRef: NonNullable<WorkbenchComposerProps["composerRef"]>,
+  onCaptureSubmission: NonNullable<WorkbenchComposerProps["onCaptureSubmission"]>,
+): WorkbenchComposerProps {
+  return {
     capabilities: undefined, client: {} as WorkbenchComposerProps["client"], composerRef,
     fastModeAvailable: true, fastModeDefault: false, followUpBehavior: "queue",
     initialDraft: { content: [{ type: "text", text: "保留未发送草稿" }], attachments: [] },
@@ -39,6 +37,15 @@ test.each([1280, 1920])("locks the whole composer while preserving the draft and
     settings: { model: "model", reasoningEffort: "high", approvalPolicy: "on-request", approvalsReviewer: "user", sandboxMode: "workspace-write" },
     skills: [], taskId: "task-a",
   };
+}
+
+test.each([1280, 1920])("locks the whole composer while preserving the draft and rejecting imperative actions (%s)", async (width) => {
+  await page.viewport(width, 720);
+  await i18n.changeLanguage("zh-CN");
+  const composerRef = createRef<WorkbenchComposerHandle>();
+  const onCaptureSubmission = vi.fn(async () => undefined);
+  const queryClient = new QueryClient();
+  const props = createComposerProps(composerRef, onCaptureSubmission);
   const view = (writeAccess: string, taskId = "task-a") => <QueryClientProvider client={queryClient}>
     <TooltipProvider><ProjectDraftProvider><ComposerDraftProvider><WorkbenchComposer {...props} taskId={taskId}
       runtime={{ connectionState: "connected", error: null, writeAccess } as TaskRuntimeView} />
@@ -79,4 +86,27 @@ test.each([1280, 1920])("locks the whole composer while preserving the draft and
   await screen.rerender(view("writable", "task-b"));
   expect(screen.getByRole("textbox").element().hasAttribute("disabled")).toBe(false);
   await expect.element(screen.getByText("当前任务正在其他客户端进行")).not.toBeInTheDocument();
+});
+
+test("preserves immediate text selection after choosing a skill", async () => {
+  await i18n.changeLanguage("zh-CN");
+  const props = createComposerProps(createRef<WorkbenchComposerHandle>(), vi.fn(async () => undefined));
+  const screen = await render(<QueryClientProvider client={new QueryClient()}><TooltipProvider>
+    <ProjectDraftProvider><ComposerDraftProvider><WorkbenchComposer {...props}
+      capabilities={{ provider: "codex", feedback: { upload: false },
+        goals: { clear: false, read: false, update: false }, skills: { list: true, use: true },
+        tasks: { fork: false, list: true, read: true, start: true },
+        turns: { compact: false, interrupt: true, review: false, start: true, steer: true } }}
+      skills={[{ id: "security", name: "review-security", displayName: "Security review", description: "Review security", scope: "system" }]}
+    /></ComposerDraftProvider></ProjectDraftProvider>
+  </TooltipProvider></QueryClientProvider>);
+  await screen.getByRole("textbox").fill("/security");
+  await expect.element(screen.getByRole("option", { name: /Security review/u })).toBeVisible();
+  const input = screen.getByRole("textbox").element() as HTMLTextAreaElement;
+  input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
+  input.setSelectionRange(0, input.value.length);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  expect(input.value).toBe("$review-security");
+  expect(input.selectionStart).toBe(0);
+  expect(input.selectionEnd).toBe(input.value.length);
 });

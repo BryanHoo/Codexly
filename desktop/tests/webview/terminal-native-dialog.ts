@@ -8,7 +8,7 @@ const windowsActions: Record<string, unknown>[] = [];
 
 export async function terminalNativeDialog(action: "request" | "cancel" | "confirm"): Promise<void> {
   if (process.platform === "win32") {
-    const result = await windowsTerminalNative(action, action === "cancel" ? "取消" : action === "confirm" ? "结束并关闭" : "");
+    const result = await windowsTerminalNative(action, action === "cancel" ? "取消" : action === "confirm" ? "关闭" : "");
     windowsActions.push(result);
     await mkdir("artifacts/terminal", { recursive: true });
     await writeFile("artifacts/terminal/windows-native-dialog.json", JSON.stringify({ measuredAt: new Date().toISOString(), actions: windowsActions }, null, 2));
@@ -46,7 +46,7 @@ export async function terminalNativeDialog(action: "request" | "cancel" | "confi
         var target: AXUIElement?
         if action == "request" {
           if let close = attribute(window, kAXCloseButtonAttribute) { target = (close as! AXUIElement) }
-        } else { target = button(window, action == "cancel" ? "取消" : "结束并关闭", 0) }
+        } else { target = button(window, action == "cancel" ? "取消" : "关闭", 0) }
         if let target = target {
           guard AXUIElementPerformAction(target, kAXPressAction as CFString) == .success else { exit(4) }
           exit(0)

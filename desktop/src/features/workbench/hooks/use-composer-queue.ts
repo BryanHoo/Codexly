@@ -171,9 +171,7 @@ export function useComposerQueue({
     await removeQueuedPrompt(queuedPrompt.id);
     replacePromptContent(content, serializePromptSkillContent(content).length);
     handleAttachmentsChange(editablePrompt.files);
-    requestAnimationFrame(() => {
-      skillEditorRef.current?.focus(serializePromptSkillContent(content).length);
-    });
+    skillEditorRef.current?.focus(serializePromptSkillContent(content).length);
   };
 
   const onSteerAccepted = (accepted: AcceptedSteerPrompt) => {

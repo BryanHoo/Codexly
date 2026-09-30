@@ -147,6 +147,35 @@ test("runs official task actions from the slash command menu", async ({ page }) 
     .toContain("/v1/projects/codexly/tasks/task-1/fork");
 });
 
+test("preserves immediate text selection after choosing a skill", async ({ page }) => {
+  await page.goto("/p/codexly/t/task-1");
+  const prompt = page.getByRole("textbox", { name: "任务输入" });
+  await prompt.fill("/security");
+  await expect(page.getByRole("option", { name: /Security review/u })).toBeVisible();
+  const selection = await prompt.evaluate(async (input: HTMLTextAreaElement) => {
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        code: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    input.setSelectionRange(0, input.value.length);
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => {
+        resolve();
+      }),
+    );
+    return { start: input.selectionStart, end: input.selectionEnd, value: input.value };
+  });
+  expect(selection).toEqual({
+    start: 0,
+    end: "$review-security".length,
+    value: "$review-security",
+  });
+});
+
 test("recognizes typed Codex skill references before submission", async ({ page }) => {
   let turnRequest: Record<string, unknown> | undefined;
   await page.route("**/v1/projects/codexly/submissions", async (route) => {

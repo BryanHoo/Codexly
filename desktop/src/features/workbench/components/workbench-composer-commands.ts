@@ -66,9 +66,7 @@ export function createComposerCommands({
     setSubmittedTurnState,
   } = composerController;
   const focusEditor = (cursorPosition?: number) => {
-    requestAnimationFrame(() => {
-      skillEditorRef.current?.focus(cursorPosition);
-    });
+    skillEditorRef.current?.focus(cursorPosition);
   };
   const getCommandAvailability = (command: PromptCommandItem) => {
     const availability = getPromptCommandAvailability(

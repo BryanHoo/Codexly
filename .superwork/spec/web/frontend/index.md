@@ -14,7 +14,7 @@
 - 新建任务中栏的范围选择器同时包含“聊天”和所有 Project；切换仅导航到对应空草稿路由，首次提交才创建任务。
 - 中栏底部分支弹窗只提供分支创建与切换；worktree 任务从左栏 Project 入口创建，不在分支弹窗中创建或切换 worktree。
 - 即时发送通过校验后同步清空输入并展示本地用户消息和运行态；请求失败时仅在草稿仍为空时恢复原输入，真实用户 Item 到达后由它接管，不能重复显示。
-- 恢复排队消息到 Composer 时，同步替换草稿并定位光标；不要延迟到下一帧重设选区，以免覆盖用户紧接着的全选或输入。相关流程由 `tests/e2e/app-shell-runtime-queue.spec.ts` 验证。
+- Skill、文件引用、模式命令及排队消息更新 Composer 时，同步替换草稿并定位光标；不要延迟到下一帧重设选区，以免覆盖用户紧接着的全选或输入。相关流程由 `tests/e2e/app-shell-composer-actions.spec.ts` 与 `tests/e2e/app-shell-runtime-queue.spec.ts` 验证。
 - 可见文案同步更新 `i18n/locales/en/` 与 `zh-CN/`；组件改动检查相关 `*.test.tsx`。
 - 根目录运行 `pnpm test`、`pnpm typecheck`；浏览器工作流运行 `pnpm test:e2e`，提交前运行 `pnpm check`。
 - 调整 `vite.config.ts` 的首屏 `codeSplitting` 时，用 `pnpm start` 加载构建产物并检查浏览器运行时异常；构建成功不能验证循环导入的初始化顺序。
