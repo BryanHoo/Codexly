@@ -1,4 +1,4 @@
-import type { PluginReconcileResult } from "@codexly/protocol";
+import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type { MutationOptions, ReadOptions } from "@/platform/native-client-types.js";
 import type {
   AgentGlobalSettings,
@@ -28,6 +28,10 @@ import { TauriWorkspaceClient } from "./workspace-client.js";
 import type { GlobalInstructions, MemorySettings, MemorySettingsUpdate } from "@/protocol/index.js";
 
 export class TauriCatalogClient extends TauriWorkspaceClient {
+  public async compressHistory(): Promise<HistoryCompressionResult> {
+    return this.call("compress_history");
+  }
+
   public async getGlobalInstructions(): Promise<GlobalInstructions> {
     const { parseInstructions } = await import("./personalization-response.js");
     return parseInstructions(await this.call("get_global_instructions"));

@@ -1,3 +1,4 @@
+import { registerHistoryStorageRoutes } from "./routes/history-storage-routes.js";
 import {
   DEFAULT_COMMIT_MESSAGE_MODEL,
   type AgentGlobalSettings,
@@ -473,6 +474,7 @@ export async function createCodexlyServer(
   });
   await app.register(registerRuntimeRoutes, routeContext);
   await app.register(registerPersonalizationRoutes, routeContext);
+  await app.register(registerHistoryStorageRoutes, routeContext);
   await app.register(registerProviderConnectionRoutes, routeContext);
   await app.register(registerPetRoutes, routeContext);
   await app.register(registerProjectRoutes, routeContext);

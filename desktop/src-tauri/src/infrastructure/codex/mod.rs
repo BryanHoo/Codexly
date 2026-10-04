@@ -9,6 +9,7 @@ mod connection;
 mod connection_diagnostics;
 mod connection_event_buffer;
 mod connection_message_channel;
+pub mod history_storage;
 pub(crate) use connection_message_channel::ServerMessageReceiver;
 #[cfg(test)]
 pub(crate) use connection_message_channel::server_message_channel;

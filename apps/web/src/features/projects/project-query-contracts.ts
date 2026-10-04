@@ -93,6 +93,7 @@ export type CodexlySettingsClient = Pick<
   | "getMemorySettings"
   | "updateMemorySettings"
   | "resetMemories"
+  | "compressHistory"
   | "getAgentPreferences"
   | "updateAgentPreferences"
   | "getGlobalSettings"

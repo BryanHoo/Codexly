@@ -1,3 +1,5 @@
+import { nativeClient } from "../../projects/project-query-contracts.js";
+import { HistoryCompression } from "@codexly/ui/core/history-compression";
 import type { AgentGlobalSettings, AgentModel } from "@/protocol/index.js";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -57,6 +59,11 @@ export function AgentSettingsPanel({ settings, models, fastModeAvailable, onChan
             <ReasoningSelect ariaLabel={t("fields.reasoningEffort")} disabled={selectedModel === undefined} model={selectedModel} value={settings.reasoningEffort} onChange={(reasoningEffort) => onChange({ ...settings, reasoningEffort })} />
           </SettingsField>
         </SettingsGroup>
+        <HistoryCompression client={nativeClient} labels={{
+          title: t("agent.storage.title"), description: t("agent.storage.description"),
+          compatibility: t("agent.storage.compatibility"), action: t("agent.storage.action"),
+          pending: t("agent.storage.pending"), scheduled: t("agent.storage.scheduled"), failed: t("agent.storage.failed"),
+        }} />
       </div>
     </section>
   );

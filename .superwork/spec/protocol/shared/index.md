@@ -11,3 +11,5 @@
 - `tooManyDenials` 统一映射为 `too_many_denials`；Guardian 中断可能仅通过 `turn/completed` 和历史回合携带错误，必须保留 `interrupted` 状态及错误文本，不能依赖独立 `error` 通知或强制改成失败状态。
 
 - 插件同步结果由共享 `PluginReconcileResultSchema` 定义：保留本次变化的能力标记、远端失败与物化失败 ID；Web POST 使用幂等键，桌面命令返回同一投影。不得把部分失败当成全部成功，也不得将本次变化当作持久累计结果。
+
+- `HistoryCompressionResult` 只含 `status: "scheduled"`；该状态确认压缩维护请求已提交，不代表文件已压缩。两端不得推导完成进度、压缩数量或节省字节。

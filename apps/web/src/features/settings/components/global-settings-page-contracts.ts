@@ -38,6 +38,7 @@ export type SettingsClient = Pick<
   | "getMemorySettings"
   | "updateMemorySettings"
   | "resetMemories"
+  | "compressHistory"
   | "getAgentPreferences"
   | "updateAgentPreferences"
 >;

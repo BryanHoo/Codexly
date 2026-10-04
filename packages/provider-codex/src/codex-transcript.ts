@@ -1,3 +1,4 @@
+import { TranscriptZstdReader } from "./transcript-zstd-reader.js";
 import { createReadStream } from "node:fs";
 import { opendir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -16,6 +17,8 @@ const MAX_TRANSCRIPT_BYTES_PER_READ = 8 * 1024 * 1024;
 const MAX_TRANSCRIPT_LINE_BYTES = 1024 * 1024;
 
 interface TranscriptFileCache {
+  reader?: TranscriptZstdReader | undefined;
+  complete?: boolean;
   cachedSkillNameBytes: number;
   discardUntilNewline: boolean;
   mtimeMs: number;
@@ -145,6 +148,8 @@ function getTranscriptThreadCache(cacheKey: string): TranscriptThreadCache {
     if (oldestKey === undefined) {
       break;
     }
+    for (const file of transcriptCacheByThread.get(oldestKey)?.files.values() ?? [])
+      file.reader?.close();
     transcriptCacheByThread.delete(oldestKey);
   }
   return created;
@@ -152,7 +157,7 @@ function getTranscriptThreadCache(cacheKey: string): TranscriptThreadCache {
 
 async function discoverTranscriptPaths(
   cache: TranscriptThreadCache,
-  sessionsDirectory: string,
+  codexHome: string,
   threadId: string,
 ): Promise<void> {
   const now = Date.now();
@@ -165,20 +170,26 @@ async function discoverTranscriptPaths(
 
   const transcriptPaths: string[] = [];
   const transcriptSuffix = `-${threadId}.jsonl`;
-  // 使用稳定的目录迭代 API，避免 Node 22 的实验性 glob 在运行时输出警告。
-  const directory = await opendir(sessionsDirectory, { recursive: true });
-  for await (const entry of directory) {
-    if (
-      !entry.isFile() ||
-      !entry.name.startsWith("rollout-") ||
-      !entry.name.endsWith(transcriptSuffix)
-    ) {
-      continue;
+  // 普通历史与归档都支持当前 Codex 的两种存储表示；跳过尚未创建的目录。
+  for (const name of ["sessions", "archived_sessions"]) {
+    let directory;
+    try {
+      directory = await opendir(join(codexHome, name), { recursive: true });
+    } catch (error) {
+      if (isRecord(error) && error["code"] === "ENOENT") continue;
+      throw error;
     }
-    transcriptPaths.push(join(entry.parentPath, entry.name));
-    if (transcriptPaths.length >= MAX_TRANSCRIPT_FILES_PER_THREAD) {
-      break;
+    for await (const entry of directory) {
+      if (
+        !entry.isFile() ||
+        !entry.name.startsWith("rollout-") ||
+        !(entry.name.endsWith(transcriptSuffix) || entry.name.endsWith(`${transcriptSuffix}.zst`))
+      )
+        continue;
+      transcriptPaths.push(join(entry.parentPath, entry.name));
+      if (transcriptPaths.length >= MAX_TRANSCRIPT_FILES_PER_THREAD) break;
     }
+    if (transcriptPaths.length >= MAX_TRANSCRIPT_FILES_PER_THREAD) break;
   }
   cache.transcriptPaths = transcriptPaths;
   cache.lastDiscoveryAt = now;
@@ -186,6 +197,7 @@ async function discoverTranscriptPaths(
   const discoveredPaths = new Set(transcriptPaths);
   for (const cachedPath of cache.files.keys()) {
     if (!discoveredPaths.has(cachedPath)) {
+      cache.files.get(cachedPath)?.reader?.close();
       cache.files.delete(cachedPath);
       cache.mergedSkillsDirty = true;
     }
@@ -198,20 +210,25 @@ async function parseTranscriptFileIncrementally(
   remainingBytes: number,
 ): Promise<number> {
   const transcriptStats = await stat(transcriptPath);
+  const compressed = transcriptPath.endsWith(".zst");
   const cachedFile = cache.files.get(transcriptPath);
   if (
     cachedFile?.mtimeMs === transcriptStats.mtimeMs &&
     cachedFile.size === transcriptStats.size &&
-    cachedFile.offset === transcriptStats.size
+    (compressed ? cachedFile.complete : cachedFile.offset === transcriptStats.size)
   ) {
     return 0;
   }
 
   const canContinue =
     cachedFile !== undefined &&
-    transcriptStats.size >= cachedFile.size &&
-    transcriptStats.size >= cachedFile.offset &&
-    (transcriptStats.size > cachedFile.size || transcriptStats.mtimeMs === cachedFile.mtimeMs);
+    (compressed
+      ? cachedFile.size === transcriptStats.size &&
+        cachedFile.mtimeMs === transcriptStats.mtimeMs &&
+        cachedFile.reader?.closed === false
+      : transcriptStats.size >= cachedFile.size &&
+        transcriptStats.size >= cachedFile.offset &&
+        (transcriptStats.size > cachedFile.size || transcriptStats.mtimeMs === cachedFile.mtimeMs));
   const fileCache: TranscriptFileCache = canContinue
     ? cachedFile
     : {
@@ -224,7 +241,22 @@ async function parseTranscriptFileIncrementally(
         skillNamesByTurnId: new Map(),
       };
   if (cachedFile !== undefined && fileCache !== cachedFile) {
+    cachedFile.reader?.close();
     cache.mergedSkillsDirty = true;
+  }
+  if (compressed) {
+    fileCache.reader ??= TranscriptZstdReader.open(transcriptPath);
+    if (fileCache.reader === undefined) return 0;
+    const bytes = await fileCache.reader.read(remainingBytes, (chunk) => {
+      consumeTranscriptChunk(chunk, fileCache);
+    });
+    fileCache.complete = fileCache.reader.done;
+    fileCache.offset += bytes;
+    fileCache.mtimeMs = transcriptStats.mtimeMs;
+    fileCache.size = transcriptStats.size;
+    cache.files.set(transcriptPath, fileCache);
+    cache.mergedSkillsDirty = true;
+    return bytes;
   }
   const availableBytes = transcriptStats.size - fileCache.offset;
   const bytesToRead = Math.min(availableBytes, remainingBytes);
@@ -240,28 +272,7 @@ async function parseTranscriptFileIncrementally(
     start: fileCache.offset,
   });
   for await (const chunk of stream as AsyncIterable<Buffer>) {
-    const data =
-      fileCache.pendingLine.length === 0 ? chunk : Buffer.concat([fileCache.pendingLine, chunk]);
-    fileCache.pendingLine = Buffer.alloc(0);
-    let lineStart = 0;
-    let lineEnd = data.indexOf(0x0a, lineStart);
-    while (lineEnd >= 0) {
-      const line = data.subarray(lineStart, lineEnd);
-      if (!fileCache.discardUntilNewline && line.length <= MAX_TRANSCRIPT_LINE_BYTES) {
-        const contentEnd = line.at(-1) === 0x0d ? line.length - 1 : line.length;
-        collectTranscriptLineSkills(line.subarray(0, contentEnd).toString("utf8"), fileCache);
-      }
-      fileCache.discardUntilNewline = false;
-      lineStart = lineEnd + 1;
-      lineEnd = data.indexOf(0x0a, lineStart);
-    }
-    const incompleteLine = data.subarray(lineStart);
-    if (!fileCache.discardUntilNewline && incompleteLine.length <= MAX_TRANSCRIPT_LINE_BYTES) {
-      fileCache.pendingLine = Buffer.from(incompleteLine);
-    } else if (incompleteLine.length > 0) {
-      fileCache.pendingLine = Buffer.alloc(0);
-      fileCache.discardUntilNewline = true;
-    }
+    consumeTranscriptChunk(chunk, fileCache);
   }
 
   // 半行单独有界缓存，文件 offset 始终前进，避免大行反复读取同一字节区间。
@@ -271,6 +282,31 @@ async function parseTranscriptFileIncrementally(
   cache.files.set(transcriptPath, fileCache);
   cache.mergedSkillsDirty = true;
   return bytesToRead;
+}
+
+function consumeTranscriptChunk(chunk: Buffer, fileCache: TranscriptFileCache): void {
+  const data =
+    fileCache.pendingLine.length === 0 ? chunk : Buffer.concat([fileCache.pendingLine, chunk]);
+  fileCache.pendingLine = Buffer.alloc(0);
+  let lineStart = 0;
+  let lineEnd = data.indexOf(0x0a, lineStart);
+  while (lineEnd >= 0) {
+    const line = data.subarray(lineStart, lineEnd);
+    if (!fileCache.discardUntilNewline && line.length <= MAX_TRANSCRIPT_LINE_BYTES) {
+      const contentEnd = line.at(-1) === 0x0d ? line.length - 1 : line.length;
+      collectTranscriptLineSkills(line.subarray(0, contentEnd).toString("utf8"), fileCache);
+    }
+    fileCache.discardUntilNewline = false;
+    lineStart = lineEnd + 1;
+    lineEnd = data.indexOf(0x0a, lineStart);
+  }
+  const incompleteLine = data.subarray(lineStart);
+  if (!fileCache.discardUntilNewline && incompleteLine.length <= MAX_TRANSCRIPT_LINE_BYTES) {
+    fileCache.pendingLine = Buffer.from(incompleteLine);
+  } else if (incompleteLine.length > 0) {
+    fileCache.pendingLine = Buffer.alloc(0);
+    fileCache.discardUntilNewline = true;
+  }
 }
 
 function mergeTranscriptSkills(
@@ -298,11 +334,11 @@ function mergeTranscriptSkills(
 
 async function readCachedCodexTranscriptTurnSkills(
   cache: TranscriptThreadCache,
-  sessionsDirectory: string,
+  codexHome: string,
   threadId: string,
 ): Promise<ReadonlyMap<string, readonly string[]>> {
   try {
-    await discoverTranscriptPaths(cache, sessionsDirectory, threadId);
+    await discoverTranscriptPaths(cache, codexHome, threadId);
     let remainingBytes = MAX_TRANSCRIPT_BYTES_PER_READ;
     for (const transcriptPath of cache.transcriptPaths) {
       if (remainingBytes <= 0) {
@@ -317,10 +353,20 @@ async function readCachedCodexTranscriptTurnSkills(
       } catch (error) {
         // 瞬时 stat/read 失败不应清空此前已恢复的 Skill。
         if (isRecord(error) && error["code"] === "ENOENT") {
-          cache.files.delete(transcriptPath);
-          cache.mergedSkillsDirty = true;
-          cache.transcriptPaths = cache.transcriptPaths.filter((path) => path !== transcriptPath);
+          // 原生压缩/恢复/归档会切换路径；本次请求立即重发现，避免先返回空标签。
+          cache.files.get(transcriptPath)?.reader?.close();
+          cache.transcriptPaths = [];
           cache.lastDiscoveryAt = 0;
+          await discoverTranscriptPaths(cache, codexHome, threadId);
+          for (const replacement of cache.transcriptPaths) {
+            if (remainingBytes <= 0) break;
+            remainingBytes -= await parseTranscriptFileIncrementally(
+              replacement,
+              cache,
+              remainingBytes,
+            );
+          }
+          break;
         }
       }
     }
@@ -338,14 +384,13 @@ export async function readCodexTranscriptTurnSkills(
     return new Map();
   }
 
-  const sessionsDirectory = join(codexHome, "sessions");
   const cacheKey = `${codexHome}\0${threadId}`;
   const cache = getTranscriptThreadCache(cacheKey);
   if (cache.pendingRead !== undefined) {
     return cache.pendingRead;
   }
 
-  const pendingRead = readCachedCodexTranscriptTurnSkills(cache, sessionsDirectory, threadId);
+  const pendingRead = readCachedCodexTranscriptTurnSkills(cache, codexHome, threadId);
   cache.pendingRead = pendingRead;
   try {
     return await pendingRead;

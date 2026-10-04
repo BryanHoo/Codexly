@@ -13,6 +13,16 @@ export const generalSettings = {
 } as const;
 
 export const agentSettings = {
+  storage: {
+    title: "历史文件存储",
+    description: "由 Codex 在后台压缩服务端超过 7 天未写入的历史文件，释放服务端磁盘空间。",
+    compatibility: "共用此历史目录的其他 Codex 客户端也需支持压缩历史文件。",
+    action: "压缩历史文件",
+    pending: "正在提交…",
+    scheduled: "已提交后台压缩请求；不表示压缩已完成，也可能没有符合条件的文件。",
+    failed: "压缩请求提交失败，请检查 Codex 连接后重试。",
+  },
+
   defaults: "智能体默认设置",
   model: "模型默认设置",
   webSearch: {

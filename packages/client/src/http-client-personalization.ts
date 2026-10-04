@@ -1,5 +1,6 @@
 import {
   AgentPreferencesSchema,
+  HistoryCompressionResultSchema,
   GlobalInstructionsSchema,
   MemorySettingsSchema,
   PersonalizationResetSchema,
@@ -10,6 +11,9 @@ import { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 import type { MutationOptions, ReadOptions } from "./http-client-transport.js";
 
 export class PersonalizationHttpClient extends ScheduledTaskHttpClient {
+  compressHistory(options: MutationOptions = {}) {
+    return this.mutation("/v1/history/compress", {}, HistoryCompressionResultSchema, options);
+  }
   listWorkbenchBackgrounds(options: ReadOptions = {}) {
     return this.read("/v1/workbench-background/bing/catalog", BingWallpaperCatalogSchema, options);
   }

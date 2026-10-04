@@ -17,6 +17,7 @@ mod desktop_pet_window;
 pub mod diagnostic_commands;
 pub mod error;
 pub mod extension_commands;
+pub mod history_storage_commands;
 mod model_turn_waiters;
 pub mod notification_commands;
 pub mod open_commands;

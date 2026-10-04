@@ -15,6 +15,19 @@ export const generalSettings = {
 } as const;
 
 export const agentSettings = {
+  storage: {
+    title: "History storage",
+    description:
+      "Codex compresses server history files untouched for over 7 days in the background to free server disk space.",
+    compatibility:
+      "Other Codex clients sharing this history directory must also support compressed history files.",
+    action: "Compress history files",
+    pending: "Submitting…",
+    scheduled:
+      "Background compression requested. This does not confirm completion; there may be no eligible files.",
+    failed: "Could not request compression. Check the Codex connection and retry.",
+  },
+
   defaults: "Agent defaults",
   model: "Model defaults",
   webSearch: {

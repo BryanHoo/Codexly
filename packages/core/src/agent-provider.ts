@@ -1,4 +1,4 @@
-import type { PluginReconcileResult } from "@codexly/protocol";
+import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type {
   AgentGlobalApprovalPolicy,
   AgentGoal,
@@ -286,6 +286,7 @@ export interface AgentProvider {
 
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。
 export interface AgentRuntimeProvider {
+  readonly historyStorage?: { compress(): Promise<HistoryCompressionResult> };
   readonly personalization?: PersonalizationProvider;
   readonly fileSearch?: AgentFileSearchProvider;
   readonly search?: AgentSearchProvider;

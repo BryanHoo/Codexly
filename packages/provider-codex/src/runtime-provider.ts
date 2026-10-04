@@ -1,3 +1,4 @@
+import { createHistoryStorage } from "./history-storage.js";
 import { reconcileCodexPlugins } from "./plugin-reconcile.js";
 import { CodexTaskTitles } from "./task-titles.js";
 import { join, resolve } from "node:path";
@@ -65,6 +66,7 @@ import {
 
 export class CodexRuntimeProvider implements AgentRuntimeProvider {
   public readonly personalization;
+  public readonly historyStorage;
   public readonly fileSearch: CodexFuzzyFileSearchService;
   public readonly search: CodexGlobalSearchService;
   readonly #client: CodexRpcClient;
@@ -90,6 +92,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     options: Omit<CreateCodexRuntimeProviderOptions, "client" | "logger"> = {},
   ) {
     this.#client = client;
+    this.historyStorage = createHistoryStorage(client);
     const codexHome =
       options.codexHome ?? process.env["CODEX_HOME"] ?? resolve(homedir(), ".codex");
     this.#attachmentDirectory = join(codexHome, "codexly", "thread-attachments");

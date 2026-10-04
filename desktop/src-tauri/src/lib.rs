@@ -219,6 +219,7 @@ pub fn run() {
             application::personalization_commands::get_memory_settings,
             application::personalization_commands::update_memory_settings,
             application::personalization_commands::reset_memories,
+            application::history_storage_commands::compress_history,
             update_global_settings,
             get_project_defaults,
             update_project_defaults,

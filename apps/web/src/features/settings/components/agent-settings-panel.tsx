@@ -1,3 +1,4 @@
+import { HistoryCompression } from "@codexly/ui/core/history-compression";
 import { AgentPreferencesFields } from "./agent-preferences-fields.js";
 import type { SettingsClient } from "./global-settings-page-contracts.js";
 import type { AgentGlobalSettings, AgentModel } from "@codexly/protocol";
@@ -107,6 +108,18 @@ export function AgentSettingsPanel({
             />
           </SettingsField>
         </SettingsGroup>
+        <HistoryCompression
+          client={client}
+          labels={{
+            title: t("agent.storage.title"),
+            description: t("agent.storage.description"),
+            compatibility: t("agent.storage.compatibility"),
+            action: t("agent.storage.action"),
+            pending: t("agent.storage.pending"),
+            scheduled: t("agent.storage.scheduled"),
+            failed: t("agent.storage.failed"),
+          }}
+        />
       </div>
     </section>
   );
