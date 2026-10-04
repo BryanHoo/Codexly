@@ -165,7 +165,7 @@ async fn empty_custom_provider_models_should_fall_back_to_codex_catalog() {
 }
 
 #[tokio::test]
-async fn custom_provider_reconnect_should_keep_persisted_models_when_omitted() {
+async fn custom_provider_reconnect_should_clear_stale_models_when_omitted() {
     let root = test_root();
     let stored_models = json!({
         "data": [{
@@ -178,6 +178,9 @@ async fn custom_provider_reconnect_should_keep_persisted_models_when_omitted() {
         }],
         "nextCursor": null,
     });
+    write_provider_models(&root, "relay", "https://api.example/v1", &stored_models)
+        .await
+        .unwrap();
     let legacy_models = stored_models.clone();
     let (client, server) = duplex(32 * 1024);
     let (client_reader, client_writer) = split(client);
@@ -252,13 +255,13 @@ async fn custom_provider_reconnect_should_keep_persisted_models_when_omitted() {
     .await
     .unwrap();
 
-    assert_eq!(response["models"]["data"][0]["id"], "custom-a");
+    assert_eq!(response["models"], json!({"data": [], "nextCursor": null}));
     server_task.await.unwrap();
     assert_eq!(
         read_provider_models(&root, "relay", "https://api.example/v1")
             .await
             .unwrap(),
-        Some(stored_models)
+        Some(json!({"data": [], "nextCursor": null}))
     );
     fs::remove_dir_all(root).unwrap();
 }

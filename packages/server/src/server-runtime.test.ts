@@ -182,7 +182,7 @@ describe("createModelCatalogLoader", () => {
     expect(provider.listModels).toHaveBeenCalledOnce();
   });
 
-  it("uses the persisted catalog when online and CLI catalog loading fails", async () => {
+  it("propagates catalog failures without restoring a persisted catalog", async () => {
     const persistedModels = {
       data: [
         {
@@ -223,9 +223,10 @@ describe("createModelCatalogLoader", () => {
       "readProviderConnection" | "writeProviderConnection"
     >;
 
-    await expect(createModelCatalogLoader(provider, repository)()).resolves.toEqual(
-      persistedModels,
+    await expect(createModelCatalogLoader(provider, repository)()).rejects.toThrow(
+      "catalog unavailable",
     );
+    expect(repository.readProviderConnection).not.toHaveBeenCalled();
     expect(repository.writeProviderConnection).not.toHaveBeenCalled();
   });
 });

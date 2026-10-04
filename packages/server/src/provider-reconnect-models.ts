@@ -1,8 +1,4 @@
-import {
-  normalizeCustomModelReasoning,
-  type AgentProviderConnectionRepository,
-  type AgentRuntimeProvider,
-} from "@codexly/core";
+import { normalizeCustomModelReasoning, type AgentRuntimeProvider } from "@codexly/core";
 import type {
   AgentModelPage,
   ConfigureCustomProviderRequest,
@@ -34,14 +30,10 @@ function createSerializableModelPage(
 export async function resolveReconnectModels(
   input: ConfigureCustomProviderRequest,
   provider: ReconnectModelProvider,
-  repository: Pick<AgentProviderConnectionRepository, "readProviderConnection">,
 ): Promise<ConfigureCustomProviderResponse["models"] | undefined> {
   if (input.models !== undefined) return undefined;
 
-  const [activeConnection, persistedConnection] = await Promise.all([
-    provider.readProviderConnection(),
-    repository.readProviderConnection(),
-  ]);
+  const activeConnection = await provider.readProviderConnection();
   if (
     activeConnection.mode === "custom" &&
     hasSameBaseUrl(activeConnection.customBaseUrl, input.baseUrl)
@@ -52,16 +44,10 @@ export async function resolveReconnectModels(
         createSerializableModelPage(await provider.listModels()),
       );
     } catch {
-      // CLI 目录不可用时继续读取最后一层持久化快照。
+      // 允许随后重新连接和在线发现，但不能把失败前的持久化目录重新注入缓存。
+      return { data: [], nextCursor: null };
     }
   }
 
-  if (
-    persistedConnection?.mode === "custom" &&
-    persistedConnection.customModels !== null &&
-    hasSameBaseUrl(persistedConnection.customBaseUrl, input.baseUrl)
-  ) {
-    return normalizeCustomModelReasoning(persistedConnection.customModels);
-  }
   return undefined;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AgentProviderConnectionRepository, AgentRuntimeProvider } from "@codexly/core";
-import type { AgentModelPage, AgentProviderConnectionRecord } from "@codexly/protocol";
+import type { AgentRuntimeProvider } from "@codexly/core";
+import type { AgentModelPage } from "@codexly/protocol";
 
 import { resolveReconnectModels } from "./provider-reconnect-models.js";
 
@@ -18,33 +18,6 @@ const cliModels: AgentModelPage = {
   ],
   nextCursor: null,
 };
-
-const persistedModels: NonNullable<AgentProviderConnectionRecord["customModels"]> = {
-  data: [
-    {
-      defaultReasoningEffort: "medium",
-      description: "",
-      displayName: "Persisted Model",
-      id: "persisted-model",
-      isDefault: true,
-      supportedReasoningEfforts: [{ description: "", id: "medium" }],
-    },
-  ],
-  nextCursor: null,
-};
-
-function createRepository() {
-  return {
-    readProviderConnection: vi.fn(() =>
-      Promise.resolve({
-        customBaseUrl: "https://api.example.com/v1",
-        customModels: persistedModels,
-        mode: "custom" as const,
-        updatedAt: "2026-09-23T00:00:00.000Z",
-      }),
-    ),
-  } satisfies Pick<AgentProviderConnectionRepository, "readProviderConnection">;
-}
 
 function createProvider(listModels: () => Promise<AgentModelPage>) {
   return {
@@ -66,25 +39,17 @@ describe("resolveReconnectModels", () => {
     const provider = createProvider(() => Promise.resolve(cliModels));
 
     await expect(
-      resolveReconnectModels(
-        { baseUrl: "https://api.example.com/v1" },
-        provider,
-        createRepository(),
-      ),
+      resolveReconnectModels({ baseUrl: "https://api.example.com/v1" }, provider),
     ).resolves.toEqual(cliModels);
     expect(provider.listModels).toHaveBeenCalledOnce();
   });
 
-  it("uses the persisted catalog only when the Codex CLI catalog is unavailable", async () => {
+  it("keeps reconnect possible without reviving a persisted catalog after failure", async () => {
     const provider = createProvider(() => Promise.reject(new Error("CLI catalog unavailable")));
 
     await expect(
-      resolveReconnectModels(
-        { baseUrl: "https://api.example.com/v1" },
-        provider,
-        createRepository(),
-      ),
-    ).resolves.toEqual(persistedModels);
+      resolveReconnectModels({ baseUrl: "https://api.example.com/v1" }, provider),
+    ).resolves.toEqual({ data: [], nextCursor: null });
   });
 
   it("normalizes the Codex CLI none placeholder before reconnecting", async () => {
@@ -105,11 +70,7 @@ describe("resolveReconnectModels", () => {
     );
 
     await expect(
-      resolveReconnectModels(
-        { baseUrl: "https://api.example.com/v1" },
-        provider,
-        createRepository(),
-      ),
+      resolveReconnectModels({ baseUrl: "https://api.example.com/v1" }, provider),
     ).resolves.toMatchObject({
       data: [
         {

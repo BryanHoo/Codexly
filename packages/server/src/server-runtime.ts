@@ -122,29 +122,13 @@ export function createModelCatalogLoader(
   >,
 ): () => Promise<AgentModelPage> {
   return async () => {
-    const [activeConnection, storedConnection] = await Promise.all([
-      provider.readProviderConnection(),
-      repository.readProviderConnection(),
-    ]);
-    let models: AgentModelPage;
-    try {
-      // 在线目录由当前模式决定：官方走 OpenAI，自定义 API 走其 model_catalog_url。
-      const providerModels = await provider.listModels();
-      models =
-        activeConnection.mode === "custom"
-          ? normalizeCustomModelReasoning(providerModels)
-          : providerModels;
-    } catch (error) {
-      const cacheMatchesConnection =
-        storedConnection?.mode === activeConnection.mode &&
-        storedConnection.customBaseUrl === activeConnection.customBaseUrl;
-      if (cacheMatchesConnection && storedConnection.customModels !== null) {
-        return activeConnection.mode === "custom"
-          ? normalizeCustomModelReasoning(storedConnection.customModels)
-          : storedConnection.customModels;
-      }
-      throw error;
-    }
+    const activeConnection = await provider.readProviderConnection();
+    // Codex 0.160 的显式目录具有权威性，空目录和错误都不能被持久化快照覆盖。
+    const providerModels = await provider.listModels();
+    const models =
+      activeConnection.mode === "custom"
+        ? normalizeCustomModelReasoning(providerModels)
+        : providerModels;
     // 缓存写入失败不能覆盖已成功取得的在线目录。
     await repository
       .writeProviderConnection({

@@ -6,7 +6,9 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
-use tokio::{fs, sync::Mutex};
+#[cfg(test)]
+use tokio::fs;
+use tokio::sync::Mutex;
 
 const PROVIDER_MODELS_VERSION: u8 = 1;
 const MAX_PROVIDER_MODELS_BYTES: usize = 2 * 1024 * 1024;
@@ -32,6 +34,8 @@ struct ProviderModelsFile {
     version: u8,
 }
 
+// 仅供回归测试核对落盘内容；运行时不再读取可能失效的目录快照。
+#[cfg(test)]
 pub async fn read_provider_models(
     app_data: &Path,
     provider_id: &str,
@@ -80,6 +84,7 @@ pub async fn write_provider_models(
     Ok(())
 }
 
+#[cfg(test)]
 fn validate_file(stored: &ProviderModelsFile) -> Result<(), ProviderModelsError> {
     if stored.version != PROVIDER_MODELS_VERSION {
         return Err(ProviderModelsError::InvalidData);
@@ -101,10 +106,11 @@ fn validate_identity(provider_id: &str, base_url: &str) -> Result<(), ProviderMo
 }
 
 fn validate_models(models: &Value) -> Result<(), ProviderModelsError> {
+    // 空目录用于覆盖已失效快照，不能因为没有模型而拒绝持久化。
     let data = models
         .get("data")
         .and_then(Value::as_array)
-        .filter(|data| !data.is_empty() && data.len() <= 1_000)
+        .filter(|data| data.len() <= 1_000)
         .ok_or(ProviderModelsError::InvalidData)?;
     let cursor_valid = matches!(models.get("nextCursor"), Some(Value::Null))
         || models

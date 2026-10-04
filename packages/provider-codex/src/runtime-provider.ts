@@ -277,14 +277,10 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
       > | null = null;
       try {
         await this.#providerConnection.prepareModelCatalog();
+        // 最新目录是权威来源；失败直接上抛，禁止用旧进程恢复已失效的模型。
         // 独立进程按磁盘上的最新 Provider 配置构建模型管理器，避免切换后复用旧端点。
         catalogRuntime = await this.#modelCatalogRuntimeFactory();
         return await this.#listModelsWithClient(catalogRuntime.client);
-      } catch {
-        this.#logger.warn(
-          { diagnosticCode: "model_catalog_refresh_failed" },
-          "Fresh model catalog unavailable; falling back to the primary Codex CLI catalog",
-        );
       } finally {
         if (catalogRuntime !== null) {
           await catalogRuntime.close().catch(() => {

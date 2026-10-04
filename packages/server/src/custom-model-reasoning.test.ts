@@ -71,20 +71,29 @@ describe("custom model reasoning fallback", () => {
     );
   });
 
-  it("normalizes a matching persisted custom catalog after online failure", async () => {
+  it("does not revive a persisted custom catalog after a failed refresh", async () => {
+    const repository = createRepository(createNoneOnlyPage());
     const load = createModelCatalogLoader(
       createProvider("custom", () => Promise.reject(new Error("unavailable"))),
-      createRepository(createNoneOnlyPage()),
+      repository,
     );
 
-    await expect(load()).resolves.toMatchObject({
-      data: [
-        {
-          defaultReasoningEffort: "medium",
-          supportedReasoningEfforts: [{ id: "low" }, { id: "medium" }, { id: "high" }],
-        },
-      ],
-    });
+    await expect(load()).rejects.toThrow("unavailable");
+    expect(repository.readProviderConnection).not.toHaveBeenCalled();
+  });
+
+  it("preserves an authoritative empty custom catalog", async () => {
+    const page = { data: [], nextCursor: null };
+    const repository = createRepository(createNoneOnlyPage());
+    const load = createModelCatalogLoader(
+      createProvider("custom", () => Promise.resolve(page)),
+      repository,
+    );
+
+    await expect(load()).resolves.toEqual(page);
+    expect(repository.writeProviderConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ customModels: page }),
+    );
   });
 
   it("preserves an official model that explicitly supports only none", async () => {

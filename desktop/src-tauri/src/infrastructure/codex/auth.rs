@@ -4,9 +4,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use thiserror::Error;
 
-use crate::infrastructure::provider_models::{
-    ProviderModelsError, read_provider_models, write_provider_models,
-};
+use crate::infrastructure::provider_models::{ProviderModelsError, write_provider_models};
 
 use super::{
     catalogs::list_models,
@@ -60,23 +58,11 @@ pub async fn list_provider_models(
     if provider_mode(&config) == "custom" {
         let provider_id = selected_provider_id(&config);
         if let Some(base_url) = configured_custom_base_url(&config) {
-            // 在线目录及当前 CLI 目录优先；只有两者均不可用才读取相同端点的旧快照。
-            let cli_models = list_models(connection).await;
-            if cli_models.as_ref().is_ok_and(model_page_has_data) {
-                let mut models = cli_models?;
-                normalize_custom_reasoning(&mut models);
-                write_provider_models(app_data, provider_id, base_url, &models).await?;
-                return Ok(models);
-            }
-            if let Some(mut models) = read_provider_models(app_data, provider_id, base_url)
-                .await?
-                .or_else(|| legacy_provider_models(&config, base_url))
-            {
-                normalize_custom_reasoning(&mut models);
-                write_provider_models(app_data, provider_id, base_url, &models).await?;
-                return Ok(models);
-            }
-            return Ok(cli_models?);
+            // Codex 0.160 的目录是权威来源；空结果和错误均不能恢复旧快照。
+            let mut models = list_models(connection).await?;
+            normalize_custom_reasoning(&mut models);
+            write_provider_models(app_data, provider_id, base_url, &models).await?;
+            return Ok(models);
         }
     }
     Ok(list_models(connection).await?)
@@ -279,22 +265,12 @@ pub async fn configure_custom_provider(
         Some("openai") | None => DEFAULT_CUSTOM_PROVIDER_ID,
         Some(provider_id) => provider_id,
     };
-    let submitted_models = match input.get("models") {
+    let models = match input.get("models") {
         Some(models) => map_custom_models(Some(models))?,
         None => empty_model_page(),
     };
-    let models = if model_page_has_data(&submitted_models) {
-        submitted_models
-    } else {
-        read_provider_models(app_data, provider_id, base_url)
-            .await?
-            .or_else(|| legacy_provider_models(&config, base_url))
-            .unwrap_or_else(empty_model_page)
-    };
-    // 先保存可恢复目录，再清理旧 TOML，避免迁移过程中丢失用户模型。
-    if model_page_has_data(&models) {
-        write_provider_models(app_data, provider_id, base_url, &models).await?;
-    }
+    // 重连只接受本次明确提交的模型；未提交时清空旧快照，等待当前目录刷新。
+    write_provider_models(app_data, provider_id, base_url, &models).await?;
     let mut edits = {
         let provider_name = config
             .get("model_providers")
@@ -389,26 +365,6 @@ fn map_custom_models(value: Option<&Value>) -> Result<Value, ConnectionError> {
 
 fn empty_model_page() -> Value {
     json!({"data": [], "nextCursor": null})
-}
-
-fn model_page_has_data(models: &Value) -> bool {
-    models
-        .get("data")
-        .and_then(Value::as_array)
-        .is_some_and(|data| !data.is_empty())
-}
-
-fn legacy_provider_models(config: &Value, base_url: &str) -> Option<Value> {
-    let private = config.pointer("/desktop/codeagent/provider")?;
-    if private.get("customBaseUrl").and_then(Value::as_str) != Some(base_url) {
-        return None;
-    }
-    let data = private
-        .get("customModels")
-        .and_then(Value::as_array)
-        .filter(|data| !data.is_empty())?
-        .clone();
-    Some(json!({"data": data, "nextCursor": null}))
 }
 
 fn selected_provider_id(config: &Value) -> &str {

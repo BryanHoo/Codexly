@@ -44,7 +44,7 @@ describe("CodexRuntimeProvider model catalog", () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
-  it("falls back to the primary CLI catalog when fresh catalog loading fails", async () => {
+  it("propagates fresh catalog failures without reviving the primary catalog", async () => {
     const primary = new FakeRpcClient([
       { config: { model_provider: "openai" } },
       modelListResponse("cli-model"),
@@ -57,11 +57,8 @@ describe("CodexRuntimeProvider model catalog", () => {
       modelCatalogRuntimeFactory: () => Promise.resolve({ client: catalog, close }),
     });
 
-    await expect(runtime.listModels()).resolves.toMatchObject({ data: [{ id: "cli-model" }] });
-    expect(primary.calls).toEqual([
-      { method: "config/read", params: { includeLayers: false } },
-      { method: "model/list", params: { includeHidden: false, limit: 100 } },
-    ]);
+    await expect(runtime.listModels()).rejects.toThrow("online catalog unavailable");
+    expect(primary.calls).toEqual([{ method: "config/read", params: { includeLayers: false } }]);
     expect(close).toHaveBeenCalledOnce();
   });
 });
