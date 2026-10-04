@@ -176,3 +176,9 @@ mod model_cache_tests;
 
 mod search;
 pub use search::{search_task_occurrences, search_tasks};
+
+#[cfg(test)]
+mod plugin_reconcile_tests;
+
+mod plugin_reconcile;
+pub use plugin_reconcile::{PluginReconcileResult, reconcile_official_plugins};

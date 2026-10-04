@@ -580,7 +580,11 @@ importers:
         specifier: workspace:*
         version: link:../protocol
 
-  packages/frontend-core: {}
+  packages/frontend-core:
+    dependencies:
+      '@codexly/protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/protocol:
     dependencies:

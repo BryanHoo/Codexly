@@ -9,3 +9,5 @@
 - `AgentMcpServer.httpOrigin` 为可选的 Codex HTTP 来源；非 HTTP 服务不传此字段，界面不展示空来源。
 - Codex app-server 的 `flexUnavailable` 错误映射为公共 `provider.error` 的 `flex_unavailable`，Web Provider 与桌面 Rust 端保持同一分类；升级时同时验证两端映射和协议 Schema。
 - `tooManyDenials` 统一映射为 `too_many_denials`；Guardian 中断可能仅通过 `turn/completed` 和历史回合携带错误，必须保留 `interrupted` 状态及错误文本，不能依赖独立 `error` 通知或强制改成失败状态。
+
+- 插件同步结果由共享 `PluginReconcileResultSchema` 定义：保留本次变化的能力标记、远端失败与物化失败 ID；Web POST 使用幂等键，桌面命令返回同一投影。不得把部分失败当成全部成功，也不得将本次变化当作持久累计结果。

@@ -40,7 +40,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 - Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task.
 - Create projects and directories, search tasks, message history, and project files; inspect changes, work with branches and worktrees, and commit or push selected files.
 - Identify each task's project through labels in the sidebar.
-- Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work.
+- Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work. Refresh official plugins to synchronize their state and report partial failures.
 
 **Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and an app-private Codex installation. It supports Windows, Ubuntu, and macOS. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
 

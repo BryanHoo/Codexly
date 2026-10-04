@@ -1,3 +1,4 @@
+import { PluginReconcileResultSchema, type PluginReconcileResult } from "@codexly/protocol";
 import {
   AgentMutationErrorSchema,
   ClawhubSkillDetailSchema,
@@ -35,6 +36,17 @@ import {
 } from "./http-client-transport.js";
 
 export class SkillMarketHttpClient extends CodexlyTransport {
+  public async reconcileOfficialPlugins(
+    options: MutationOptions = {},
+  ): Promise<PluginReconcileResult> {
+    return this.mutation(
+      "/v1/plugins/official/reconcile",
+      {},
+      PluginReconcileResultSchema,
+      options,
+    );
+  }
+
   public async listOfficialPlugins(
     forceRefetch: boolean,
     options: ReadOptions = {},

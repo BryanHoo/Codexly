@@ -72,6 +72,7 @@ export type NativeSkillsClient = Pick<
   | "listConfiguredMcpServers"
   | "listInstalledSkills"
   | "listOfficialPlugins"
+  | "reconcileOfficialPlugins"
   | "getOfficialPlugin"
   | "installOfficialPlugin"
   | "uninstallOfficialPlugin"

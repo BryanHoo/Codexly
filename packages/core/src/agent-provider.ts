@@ -1,3 +1,4 @@
+import type { PluginReconcileResult } from "@codexly/protocol";
 import type {
   AgentGlobalApprovalPolicy,
   AgentGoal,
@@ -302,6 +303,7 @@ export interface AgentRuntimeProvider {
     projects: readonly Project[],
     forceReload: boolean,
   ): Promise<InstalledSkillPage>;
+  reconcileOfficialPlugins(): Promise<PluginReconcileResult>;
   listOfficialPlugins(
     projects: readonly Project[],
     forceRefetch: boolean,

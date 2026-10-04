@@ -58,6 +58,8 @@ export const skillsMarket = {
   loadingMcp: "Loading MCP",
   update: "Update",
   uninstallPlugin: "Uninstall plugin",
+  pluginSyncError: "Plugin synchronization failed. Please retry.",
+  pluginSyncPartial: "Some plugins failed to synchronize. Please retry.",
   pluginError: "Official plugins are temporarily unavailable",
   pluginFallbackDescription: "A Codex extension from the official catalog",
   version: "Version {{version}}",

@@ -8,6 +8,7 @@ import {
   OfficialPluginDetailSchema,
   OfficialPluginInstallResponseSchema,
   OfficialPluginPageSchema,
+  PluginReconcileResultSchema,
   OfficialPluginUninstallResponseSchema,
   SetMcpServerEnabledResponseSchema,
   SetSkillEnabledResponseSchema,
@@ -123,6 +124,23 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
 ) => {
   const { runIdempotent, skillMarketService } = context;
 
+  app.post<{ Body: Record<string, never>; Headers: { "idempotency-key": string } }>(
+    "/v1/plugins/official/reconcile",
+    {
+      schema: {
+        body: Type.Object({}, { additionalProperties: false }),
+        headers: IdempotencyHeadersSchema,
+        response: { 200: PluginReconcileResultSchema, ...mutationErrors },
+      },
+    },
+    (request) =>
+      runIdempotent(
+        ["reconcile-official-plugins"],
+        request.headers["idempotency-key"],
+        request.body,
+        () => skillMarketService.reconcileOfficialPlugins(),
+      ),
+  );
   app.get("/v1/skills/installed", { schema: { response: { 200: InstalledSkillPageSchema } } }, () =>
     skillMarketService.listInstalledSkills(false),
   );

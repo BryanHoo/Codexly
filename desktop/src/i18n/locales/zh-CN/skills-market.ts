@@ -58,6 +58,8 @@ export const skillsMarket = {
   loadingMcp: "正在加载 MCP",
   update: "更新",
   uninstallPlugin: "卸载插件",
+  pluginSyncError: "插件同步失败，请重试",
+  pluginSyncPartial: "部分插件同步失败，请重试",
   pluginError: "官方插件暂时不可用",
   pluginFallbackDescription: "由官方目录提供的 Codex 扩展",
   version: "版本 {{version}}",

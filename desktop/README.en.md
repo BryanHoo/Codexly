@@ -28,7 +28,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Follow task output in a separate transparent window without occupying the main workspace
 - Keep follow-up work in a persistent task queue, then withdraw messages for editing, reorder them, or cancel them before they run
 - Attach files, images, and audio, reference project files with `@` and Skills with `$` in the plain-text composer, and reliably restore attachments from the task queue
-- Install and manage Skills, official plugins, and third-party markets in the extension center, including MCP service controls and hot reload
+- Install and manage Skills, official plugins, and third-party markets in the extension center, including MCP service controls and hot reload; refresh official plugins to synchronize their state and report partial failures
 - Answer asynchronous questions in a pinned panel, prevent concurrent interactions with cross-client task locks, and restore thread model and reasoning settings
 - Follow streaming reasoning summaries and grouped operations, and inspect runtime warnings and live tool timing in the context panel and timeline
 - Read incrementally rendered Markdown responses, zoom and pan message images, project images, and wallpapers, then fit them to the window or view them at their original size

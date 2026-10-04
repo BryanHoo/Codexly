@@ -13,5 +13,8 @@
       "types": "./src/*.ts",
       "default": "./src/*.ts"
     }
+  },
+  "dependencies": {
+    "@codexly/protocol": "workspace:*"
   }
 }

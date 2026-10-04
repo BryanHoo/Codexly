@@ -1,3 +1,4 @@
+import type { PluginReconcileResult } from "@codexly/protocol";
 import type { MutationOptions, ReadOptions } from "@/platform/native-client-types.js";
 import type {
   AgentGlobalSettings,
@@ -183,6 +184,10 @@ export class TauriCatalogClient extends TauriWorkspaceClient {
     _options: MutationOptions = {},
   ): Promise<SkillInstallResult> {
     return this.call("install_clawhub_skill", { owner, projectId, rootPath, scope, slug });
+  }
+
+  public async reconcileOfficialPlugins(): Promise<PluginReconcileResult> {
+    return this.call("reconcile_official_plugins");
   }
 
   public async listOfficialPlugins(

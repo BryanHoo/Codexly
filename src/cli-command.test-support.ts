@@ -140,6 +140,13 @@ export function createHarness(overrides: Partial<CliDependencies> = {}): CliHarn
     getCapabilities: provider.getCapabilities,
     listConfiguredMcpServers: vi.fn(() => Promise.resolve({ data: [] })),
     listInstalledSkills: vi.fn(() => Promise.resolve({ data: [], nextCursor: null })),
+    reconcileOfficialPlugins: vi.fn(() =>
+      Promise.resolve({
+        changedPlugins: [],
+        failedRemotePluginIds: [],
+        failedMaterializationRemotePluginIds: [],
+      }),
+    ),
     listOfficialPlugins: vi.fn(() => Promise.resolve({ data: [] })),
     listModels: provider.listModels,
     logoutProvider: vi.fn(() =>

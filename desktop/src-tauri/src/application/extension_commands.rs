@@ -74,3 +74,19 @@ pub async fn uninstall_official_plugin(
         .await
         .map_err(AppError::from)
 }
+
+#[tauri::command]
+pub async fn reconcile_official_plugins(
+    state: State<'_, AppState>,
+) -> Result<codex::PluginReconcileResult, AppError> {
+    let connection = state.codex_connection().await?;
+    codex::reconcile_official_plugins(connection)
+        .await
+        .map_err(|error| match error.as_ref() {
+            codex::ConnectionError::Request { code, message } => AppError::CodexRpc {
+                rpc_code: *code,
+                message: message.clone(),
+            },
+            _ => AppError::CodexRequestFailed,
+        })
+}

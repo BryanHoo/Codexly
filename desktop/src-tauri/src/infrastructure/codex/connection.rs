@@ -78,6 +78,7 @@ pub enum ConnectionError {
 pub struct AppServerConnection {
     pub(super) queued_media: Option<crate::infrastructure::queued_media::QueuedMediaStore>,
     diagnostic_seq: u64,
+    pub(super) plugin_reconciler: super::plugin_reconcile::PluginReconciler,
     pub(super) model_catalog: Arc<ModelCatalogCache>,
     // 仅当前连接创建且尚未确认落盘的线程需要保留项目归属。
     pub(super) new_task_projects: Mutex<HashMap<String, String>>,
@@ -138,6 +139,7 @@ impl AppServerConnection {
         Self {
             queued_media: app_data.map(crate::infrastructure::queued_media::QueuedMediaStore::new),
             diagnostic_seq,
+            plugin_reconciler: Default::default(),
             model_catalog,
             new_task_projects: Mutex::new(HashMap::new()),
             pending_task_titles: Mutex::new(HashMap::new()),

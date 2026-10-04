@@ -63,6 +63,8 @@ export const skillsMarket = {
   toggleMcp: "Start or stop {{name}}",
   update: "Update",
   uninstallPlugin: "Uninstall plugin",
+  pluginSyncError: "Plugin synchronization failed. Please retry.",
+  pluginSyncPartial: "Some plugins failed to synchronize. Please retry.",
   pluginError: "Official plugins are temporarily unavailable",
   pluginFallbackDescription: "A Codex extension from the official catalog",
   version: "Version {{version}}",

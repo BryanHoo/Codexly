@@ -8,5 +8,10 @@
     "rootDir": "src",
     "tsBuildInfoFile": "../../.cache/types/frontend-core.tsbuildinfo"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../protocol"
+    }
+  ]
 }

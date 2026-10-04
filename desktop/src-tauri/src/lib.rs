@@ -41,7 +41,7 @@ use application::{
     diagnostic_commands::{export_diagnostics, record_frontend_diagnostic},
     extension_commands::{
         get_official_plugin, install_official_plugin, list_official_plugins,
-        uninstall_official_plugin,
+        reconcile_official_plugins, uninstall_official_plugin,
     },
     notification_commands::NotificationRuntime,
     open_commands::{get_project_open_capabilities, open_project, open_task_attachment},
@@ -235,6 +235,7 @@ pub fn run() {
             get_official_plugin,
             install_official_plugin,
             uninstall_official_plugin,
+            reconcile_official_plugins,
             list_mcp_servers,
             retry_mcp_servers,
             list_projects,

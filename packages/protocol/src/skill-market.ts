@@ -246,3 +246,5 @@ export const OfficialPluginUninstallResponseSchema = Type.Object(
 export type OfficialPluginUninstallResponse = Readonly<
   Static<typeof OfficialPluginUninstallResponseSchema>
 >;
+
+export * from "./plugin-reconcile.js";

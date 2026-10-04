@@ -490,3 +490,5 @@ export {
   type UnarchiveAgentTaskResponse,
   type TerminateAgentBackgroundTerminalResponse,
 } from "./project.js";
+
+export { PluginReconcileResultSchema, type PluginReconcileResult } from "@codexly/protocol";

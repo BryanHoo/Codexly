@@ -1,3 +1,4 @@
+import { reconcileCodexPlugins } from "./plugin-reconcile.js";
 import { CodexTaskTitles } from "./task-titles.js";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -333,6 +334,10 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     forceReload: boolean,
   ): Promise<InstalledSkillPage> {
     return listCodexInstalledSkills(this.#client, projects, forceReload);
+  }
+
+  public reconcileOfficialPlugins() {
+    return reconcileCodexPlugins(this.#client);
   }
 
   public listOfficialPlugins(

@@ -120,6 +120,26 @@ test("manages installed Skills, ClawHub installs, and MCP servers", async ({ pag
         path: url.pathname,
       });
     }
+    if (url.pathname.endsWith("/reconcile")) {
+      expect(request.method()).toBe("POST");
+      expect(request.headers()["idempotency-key"]).toBeTruthy();
+      await route.fulfill({
+        json: {
+          changedPlugins: [
+            {
+              id: officialPlugin.id,
+              hasApps: true,
+              hasHooks: true,
+              hasMcps: true,
+              hasSkills: true,
+            },
+          ],
+          failedRemotePluginIds: ["remote-unavailable"],
+          failedMaterializationRemotePluginIds: [],
+        },
+      });
+      return;
+    }
     if (url.pathname.endsWith("/install")) {
       await route.fulfill({
         contentType: "application/json",
@@ -175,6 +195,8 @@ test("manages installed Skills, ClawHub installs, and MCP servers", async ({ pag
 
   await page.getByRole("tab", { name: "官方插件" }).click();
   await expect(page).toHaveURL(/\/p\/codexly\/extensions\/plugins$/u);
+  await page.getByRole("button", { name: "刷新官方插件" }).click();
+  await expect(page.getByRole("alert")).toContainText("部分插件同步失败，请重试");
   await page.getByRole("button", { name: /GitHub/u }).click();
   const pluginSheet = page.getByRole("dialog");
   await expect(pluginSheet).toContainText("github-search");

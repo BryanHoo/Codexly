@@ -8,3 +8,5 @@
 - 在 `desktop/` 执行 `pnpm check:rust`；完整门槛为 `pnpm check`。环境要求见 `desktop/docs/development.md`。
 
 - 模型目录以当前 Codex App Server 为权威来源；刷新失败直接传播错误，空目录保持为空，不从旧进程或持久化快照恢复已失效模型。保留有界 TTL 缓存及并发请求合并，不增加轮询；回归覆盖空目录、刷新失败与缓存复用。
+
+- 插件同步按 App Server 连接合并在途请求，弱引用避免连接与共享 Future 循环持有；请求完成、失败或取消后不复用结果。只向 WebView 传递协议字段，保留部分失败，Hooks 生命周期由 Codex 管理。

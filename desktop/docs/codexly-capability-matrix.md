@@ -39,7 +39,7 @@ React -> Tauri invoke / Channel -> Rust -> codex app-server -> stdio JSONL
 - `agentMessage.questions` 在 Composer 上方固定显示单选及自由回答，支持折叠、多组切换、未回答数量与限高内部滚动；时间线只读留存。首项预选但不自动发送，复用 Composer 在运行中追加消息或结束后开启回合，不清空草稿、不继承计划/Goal 模式。实时和历史共用有界映射，超预算回退官方 `text`；发送成功移出固定区，恢复历史时识别完整格式化回答，Delta 不重建问题列表。
 - `Thread.model` / `reasoningEffort` 通过现有读取直接恢复到 Composer 的模型与思考强度，续聊发送沿用该配置；空值回退任务设置，用户手动选择优先，刷新不覆盖手动选择。沿用模型可用性与推理强度校验，不在 Inspector 重复展示，不增加读取、轮询或自动配置写回。
 - 现有审批模式选择可在运行中切换 reviewer；只更新后续步骤审核路由，沙箱与已有审批不变。精确目标已结束时仅保存未来设置并提示，被托管策略拒绝则保留原设置。
-- 插件详情的 `onboardingSkill` 合并进现有只读 Skills 列表并按名称去重；`plugin/reconcile` 和按 App 账户审批暂不新增入口，原始 usage metadata 不进入 WebView。
+- 插件详情的 `onboardingSkill` 合并进现有只读 Skills 列表并按名称去重；官方插件刷新接入 `plugin/reconcile`，合并在途请求并按变化失效资源缓存，部分失败明确提示；按 App 账户审批暂不新增入口，原始 usage metadata 不进入 WebView。
 - 保持单一 stdio 连接、RawValue Delta 映射、有界队列与分页历史；协议快照由本机 `codex-cli 0.160.0` 携带 `--experimental` 生成。
 
 ## 逐项矩阵
@@ -96,7 +96,7 @@ React -> Tauri invoke / Channel -> Rust -> codex app-server -> stdio JSONL
 | 分支与 worktree | switch/create/list | 受限 Git 命令和项目根校验 | 已实现 |
 | 右栏检查器 | 文件、Sources、Changes、历史、MCP | MCP 按当前 Task 读取线程级权威快照并展示紧凑连接态与工具数 | 已实现 |
 | 模型与 Skills | `listModels`, `listSkills` | 原生 `model/list`, `skills/list` | 已实现 |
-| 官方插件 | `list/get/install/uninstallOfficialPlugin` | 原生 `plugin/*`；官方目录由认证模式选择，本地与远程身份严格分离；详情只读展示 Skills、引导 Skill、MCP 与 Apps，引导 Skill 按名称合并去重 | 已实现 |
+| 官方插件 | `list/get/install/uninstallOfficialPlugin` | 原生 `plugin/*`；显式刷新先同步再读取目录，两端共享刷新与缓存失效规则，无后台轮询，不将同步成功视为运行时就绪；官方目录由认证模式选择，本地与远程身份严格分离；详情只读展示 Skills、引导 Skill、MCP 与 Apps，引导 Skill 按名称合并去重 | 已实现 |
 | MCP | `listMcpServers`, `retryMcpServers` | 原生 `mcpServerStatus/list`, `config/value/write`, `config/mcpServer/reload`；“扩展中心”的“MCP 管理”仅投影非插件来源的全局服务名称与启用状态，切换后热重载连接；当前 Task 继续精确保留 0.152 线程连接态，启动通知只触发清单失效，IPC 仅传固定大小摘要；`openaiForm` 与 `openai/form` 均显式降级为 unsupported | 已实现 |
 | Provider 认证 | login/cancel/logout/custom provider | 原生账号协议与受限配置写入；密钥不持久化到 WebView | 已实现 |
 | 全局/项目设置 | get/update settings/defaults | `appData/agent-settings.json` 原子配置；返回实际变化字段，模型与权限默认值不写入 Codex 配置 | 已实现 |

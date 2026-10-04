@@ -1,3 +1,4 @@
+import { officialPluginsQueryKey, refreshPluginQueries } from "@codexly/frontend-core/plugin-reconcile";
 import type {
   OfficialPluginInstallResult,
   OfficialPluginPage,
@@ -14,7 +15,6 @@ import "../../shared/styles/official-plugins.css";
 import { useProjectData } from "../projects/project-context.js";
 import { OfficialPluginSheet } from "./official-plugin-sheet.js";
 
-const officialPluginsQueryKey = ["extensions", "plugins"] as const;
 
 function OfficialPluginCard({
   onOpen,
@@ -97,6 +97,7 @@ export function OfficialPluginsPane() {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [installResult, setInstallResult] = useState<OfficialPluginInstallResult | null>(null);
+  const [syncPartial, setSyncPartial] = useState(false);
   const plugins = useQuery({
     queryFn: () => client.listOfficialPlugins(false),
     queryKey: officialPluginsQueryKey,
@@ -150,13 +151,17 @@ export function OfficialPluginsPane() {
     },
   });
   const selected = plugins.data?.data.find((plugin) => plugin.id === selectedId) ?? null;
-  const refresh = async () => {
-    await queryClient.fetchQuery({
-      queryFn: () => client.listOfficialPlugins(true),
-      queryKey: officialPluginsQueryKey,
-      staleTime: 0,
-    });
-  };
+  const refresh = useMutation({
+    mutationFn: async () => {
+      await refreshPluginQueries(client, queryClient, (result) => {
+        // 界面只保留失败标记，不长期持有本次同步的插件变化列表。
+        setSyncPartial(result.failedRemotePluginIds.length > 0 || result.failedMaterializationRemotePluginIds.length > 0);
+        setInstallResult(null);
+      });
+    },
+  });
+  const refreshing = refresh.isPending || plugins.isFetching;
+
 
   return (
     <div className="skills-market-pane" role="tabpanel">
@@ -170,12 +175,17 @@ export function OfficialPluginsPane() {
             value={query}
           />
         </div>
-        <Button onClick={() => void refresh()} type="button" variant="outline">
-          <RefreshCw aria-hidden="true" />
+        <Button disabled={refreshing || install.isPending || uninstall.isPending} onClick={() => refresh.mutate()} type="button" variant="outline">
+          <RefreshCw aria-hidden="true" className={refreshing ? "animate-spin" : ""} />
           {t("skillsMarket.refreshPlugins")}
         </Button>
       </div>
 
+      {refresh.error !== null ? (
+        <div className="skills-market-state" role="alert">{t("skillsMarket.pluginSyncError")}</div>
+      ) : syncPartial ? (
+        <div className="skills-market-state" role="alert">{t("skillsMarket.pluginSyncPartial")}</div>
+      ) : null}
       {plugins.isPending ? (
         <div className="skills-market-state" role="status">{t("skillsMarket.loadingPlugins")}</div>
       ) : plugins.error !== null ? (
@@ -207,12 +217,12 @@ export function OfficialPluginsPane() {
         <OfficialPluginSheet
           client={client}
           installResult={installResult}
-          installing={install.isPending}
+          installing={install.isPending || refresh.isPending}
           onInstall={() => install.mutate(selected)}
           onOpenChange={(open) => !open && setSelectedId(null)}
           onUninstall={() => uninstall.mutate(selected)}
           plugin={selected}
-          uninstalling={uninstall.isPending}
+          uninstalling={uninstall.isPending || refresh.isPending}
         />
       )}
     </div>

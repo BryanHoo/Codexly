@@ -20,6 +20,7 @@ describe("TauriCatalogClient extension center", () => {
     await client.getClawhubSkill("codex", "review");
     await client.installClawhubSkill("codex", "review", "project", "project-a", "/work");
     await client.listOfficialPlugins(false);
+    await client.reconcileOfficialPlugins();
     await client.getOfficialPlugin(
       "openai-api-curated",
       "/cache/api_marketplace.json",
@@ -55,6 +56,7 @@ describe("TauriCatalogClient extension center", () => {
         },
       ],
       ["list_official_plugins", { forceRefetch: false }],
+      ["reconcile_official_plugins"],
       [
         "get_official_plugin",
         {

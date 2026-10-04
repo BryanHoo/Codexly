@@ -136,6 +136,7 @@ export function createRuntimeConnectionMethods(): Pick<
   | "listConfiguredMcpServers"
   | "listInstalledSkills"
   | "listOfficialPlugins"
+  | "reconcileOfficialPlugins"
   | "logoutProvider"
   | "readProviderConnection"
   | "setMcpServerEnabled"
@@ -158,6 +159,13 @@ export function createRuntimeConnectionMethods(): Pick<
     installOfficialPlugin: vi.fn(() => Promise.reject(new Error("Not configured"))),
     listConfiguredMcpServers: vi.fn(() => Promise.resolve({ data: [] })),
     listInstalledSkills: vi.fn(() => Promise.resolve({ data: [], nextCursor: null })),
+    reconcileOfficialPlugins: vi.fn(() =>
+      Promise.resolve({
+        changedPlugins: [],
+        failedRemotePluginIds: [],
+        failedMaterializationRemotePluginIds: [],
+      }),
+    ),
     listOfficialPlugins: vi.fn(() => Promise.resolve({ data: [] })),
     logoutProvider: vi.fn(() => Promise.resolve({ status })),
     readProviderConnection: vi.fn(() => Promise.resolve(status)),

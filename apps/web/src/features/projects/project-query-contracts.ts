@@ -79,6 +79,7 @@ export type CodexlySkillMarketClient = Pick<
   | "listConfiguredMcpServers"
   | "listInstalledSkills"
   | "listOfficialPlugins"
+  | "reconcileOfficialPlugins"
   | "openSkillDirectory"
   | "setMcpServerEnabled"
   | "setSkillEnabled"

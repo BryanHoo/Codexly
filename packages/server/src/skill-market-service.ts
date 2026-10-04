@@ -1,3 +1,4 @@
+import type { PluginReconcileResult } from "@codexly/protocol";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { readFile, realpath, stat } from "node:fs/promises";
@@ -34,6 +35,7 @@ export type InstallSkillInput = Readonly<{
 }>;
 
 export interface SkillMarketService {
+  reconcileOfficialPlugins(): Promise<PluginReconcileResult>;
   getSkill(owner: string, slug: string): Promise<ClawhubSkillDetail>;
   getOfficialPlugin(
     marketplaceName: string,
@@ -169,6 +171,7 @@ export function createSkillMarketService(
       const { page } = await discover(forceReload);
       return { ...page, data: await enrichInstalledSkills(page.data) };
     },
+    reconcileOfficialPlugins: () => options.provider.reconcileOfficialPlugins(),
     async listOfficialPlugins(forceRefetch) {
       const projects = await options.projectRepository.list();
       return options.provider.listOfficialPlugins(projects, forceRefetch);
