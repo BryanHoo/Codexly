@@ -14,7 +14,6 @@ import { PerformanceProfiler } from "./shared/performance/performance-profiler.j
 import "./shared/styles/globals.css";
 import "./shared/styles/streamdown.css";
 import "./shared/styles/task-board.css";
-import "./shared/styles/skills-market.css";
 import "./shared/styles/workbench.css";
 import { prepareWebviewTestBridge } from "./webview-test-bootstrap.js";
 

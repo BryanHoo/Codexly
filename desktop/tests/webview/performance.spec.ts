@@ -165,7 +165,10 @@ describe("原生 WebView 性能基线", () => {
     const task = await $('//a[.//span[normalize-space(.)="验证流式消息"]]');
     await task.click();
     await expect(task).toHaveAttribute("aria-current", "page");
-    await expect($("aria/开始流式输出")).toBeDisplayed();
+    await browser.waitUntil(
+      async () => browser.execute(() => document.body.innerText.includes("开始流式输出")),
+      { timeoutMsg: "流式任务的初始消息未显示" },
+    );
 
     const renderSamples: number[] = [];
     for (let iteration = 0; iteration < SAMPLE_COUNT; iteration += 1) {

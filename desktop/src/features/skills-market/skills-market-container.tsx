@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import "../../shared/styles/skills-market.css";
 
 import { useTranslation } from "../../i18n/i18n.js";
 import {

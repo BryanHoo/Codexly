@@ -1,12 +1,11 @@
 import { TerminalWorkbench } from "../../terminal/components/terminal-workbench.js";
-import { Suspense, useRef, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useRef, useState, type CSSProperties } from "react";
 import { Button } from "../../../shared/components/core/button.js";
 import { RuntimeUnavailable } from "../../../shared/components/core/runtime-unavailable.js";
 import { ProjectSidebar } from "./project-sidebar.js";
 import { TaskTimeline } from "./task-timeline.js";
 import type { PendingPrompt } from "./pending-prompt.js";
 import { TaskBoardContainer } from "./task-board-container.js";
-import { SkillsMarketContainer } from "../../skills-market/skills-market-container.js";
 import { WorkbenchComposer, type WorkbenchComposerHandle } from "./workbench-composer.js";
 import { WorkbenchPanelResizer } from "./workbench-panel-resizer.js";
 import { inspectorWidthLimits, resolveInspectorVisibility } from "./workbench-panel-layout.js";
@@ -20,6 +19,11 @@ import { WorkbenchShellHeader } from "./workbench-shell-header.js";
 import { getWorkbenchInspectorMountKey } from "../workbench-inspector-activation.js";
 import { LazyScheduledTasksContainer } from "./scheduled-tasks-lazy.js";
 import { TaskInteractionContext } from "../task-interaction-context.js";
+const LazySkillsMarketContainer = lazy(() =>
+  import("../../skills-market/skills-market-container.js").then((module) => ({
+    default: module.SkillsMarketContainer,
+  })),
+);
 export function WorkbenchShellLayout({
   board,
   context,
@@ -213,21 +217,23 @@ export function WorkbenchShellLayout({
               />
             </Suspense>
           ) : extensions ? (
-            <SkillsMarketContainer
-              section={extensionSection}
-              onSectionChange={(nextSection) => {
-                void navigate(
-                  temporary
-                    ? { params: { section: nextSection }, to: "/temporary/extensions/$section" }
-                    : {
-                        params: { projectId, section: nextSection },
-                        to: "/p/$projectId/extensions/$section",
-                      },
-                );
-              }}
-              {...(temporary ? {} : { projectId })}
-              {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
-            />
+            <Suspense fallback={<div aria-busy="true" style={{ flex: 1 }} />}>
+              <LazySkillsMarketContainer
+                section={extensionSection}
+                onSectionChange={(nextSection) => {
+                  void navigate(
+                    temporary
+                      ? { params: { section: nextSection }, to: "/temporary/extensions/$section" }
+                      : {
+                          params: { projectId, section: nextSection },
+                          to: "/p/$projectId/extensions/$section",
+                        },
+                  );
+                }}
+                {...(temporary ? {} : { projectId })}
+                {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
+              />
+            </Suspense>
           ) : error !== null ||
             (projectTaskState?.error ?? null) !== null ||
             modelsQuery.error !== null ||

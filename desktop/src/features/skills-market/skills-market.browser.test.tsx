@@ -4,7 +4,6 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 import "../../shared/styles/globals.css";
-import "../../shared/styles/skills-market.css";
 import "../../shared/styles/official-plugins.css";
 
 import { I18nextProvider, i18n } from "../../i18n/i18n.js";

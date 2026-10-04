@@ -39,7 +39,7 @@ catalog:
   class-variance-authority: 0.7.1
   clsx: 2.1.1
   dependency-cruiser: 18.1.0
-  fastify: 5.12.1
+  fastify: 5.12.5
   fflate: 0.8.3
   lucide-react: 1.25.0
   p-limit: 7.3.1
@@ -105,6 +105,7 @@ overrides:
   # Tauri Service 固定旧 Globals；统一版本以满足 expect-webdriverio 的 peer 约束。
   "@wdio/tauri-service@1.3.0>@wdio/globals": 9.31.3
   # 上游兼容范围尚未刷新锁文件时，强制选择公告已修复的补丁版本。
+  "@fastify/busboy@>=1.0.0 <3.2.1": 3.2.1
   "brace-expansion@>=4.0.0 <5.0.12": 5.0.12
   "dompurify@<3.4.16": 3.4.16
   "fast-uri@>=3.0.0 <3.1.8": 3.1.8

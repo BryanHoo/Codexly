@@ -35,12 +35,12 @@
   font-family: var(--ui-font-family-mono);
 }
 
-.official-plugin-grid {
+.skills-market-grid.official-plugin-grid {
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 8px;
 }
 
-.official-plugin-card {
+.skills-market-card.official-plugin-card {
   min-height: 104px;
   gap: 7px;
   padding: 10px;
