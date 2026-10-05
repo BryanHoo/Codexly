@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { WebSocket } from "ws";
 import { createCodexlyServer } from "./app.js";
 import { normalizeAllowedHost } from "./server-delivery.js";
 import { closeCallbacks, createProvider, createServerOptions } from "./app-all.test-support.js";
@@ -268,28 +269,42 @@ describe("server access security", () => {
   });
 
   it("closes an authenticated LAN WebSocket at the absolute session expiry", async () => {
-    const app = await createCodexlyServer(
-      createServerOptions(createProvider().provider, {
-        access: { pairingCode: "test-pairing-code", sessionTtlMs: 50 },
-      }),
-    );
-    closeCallbacks.push(() => app.close());
-    const paired = await app.inject({
-      method: "POST",
-      payload: { code: "test-pairing-code" },
-      url: "/v1/access/pair",
-    });
-    const cookie = paired.cookies[0];
-    const socket = await app.injectWS("/v1/projects/codexly/events?afterSequence=0", {
-      headers: {
-        cookie: `${cookie?.name ?? ""}=${cookie?.value ?? ""}`,
-        host: "192.168.1.20",
-        origin: "http://192.168.1.20",
-      },
-    });
+    // Control expiry without replacing the I/O scheduling used by the real WebSocket.
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    let socket: WebSocket | undefined;
+    try {
+      const app = await createCodexlyServer(
+        createServerOptions(createProvider().provider, {
+          access: { pairingCode: "test-pairing-code", sessionTtlMs: 50 },
+        }),
+      );
+      closeCallbacks.push(() => app.close());
+      const paired = await app.inject({
+        method: "POST",
+        payload: { code: "test-pairing-code" },
+        url: "/v1/access/pair",
+      });
+      const cookie = paired.cookies[0];
+      socket = await app.injectWS("/v1/projects/codexly/events?afterSequence=0", {
+        headers: {
+          cookie: `${cookie?.name ?? ""}=${cookie?.value ?? ""}`,
+          host: "192.168.1.20",
+          origin: "http://192.168.1.20",
+        },
+      });
+      const connectedSocket = socket;
+      const closed = new Promise<number>((resolve) => connectedSocket.once("close", resolve));
 
-    await vi.waitFor(() => {
-      expect(socket.readyState).toBe(socket.CLOSED);
-    });
+      await vi.advanceTimersByTimeAsync(49);
+      expect(socket.readyState).toBe(socket.OPEN);
+      await vi.advanceTimersByTimeAsync(1);
+      await vi.waitFor(() => {
+        expect(connectedSocket.readyState).toBe(connectedSocket.CLOSED);
+      });
+      expect(await closed).toBe(1008);
+    } finally {
+      socket?.terminate();
+      vi.useRealTimers();
+    }
   });
 });
