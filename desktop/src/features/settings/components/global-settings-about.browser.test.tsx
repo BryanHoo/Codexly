@@ -7,7 +7,7 @@ import { GlobalSettingsAbout } from "./global-settings-about.js";
 
 const appInfo = {
   appVersion: "0.1.0",
-  changelogUrl: "https://github.com/BryanHoo/Codexly/blob/main/desktop/CHANGELOG.md",
+  changelogUrl: "https://github.com/BryanHoo/Codexly/blob/main/CHANGELOG.md",
   codexVersion: "0.160.0",
   latestVersion: null,
   releaseNotes: "## [0.1.0] - 2026-08-31",

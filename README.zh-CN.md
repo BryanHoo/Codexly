@@ -142,7 +142,6 @@ npm install --global @bryanhu/codexly@latest --registry=https://registry.npmmirr
 - [贡献指南](CONTRIBUTING.md)
 - [安全策略](SECURITY.md)
 - [版本记录](CHANGELOG.md)
-- [桌面版更新日志](desktop/CHANGELOG.md)
 
 ## 许可证
 

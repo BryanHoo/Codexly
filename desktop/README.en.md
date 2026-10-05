@@ -35,7 +35,8 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Run commands in the project-native integrated terminal and switch between persistent sessions
 - Use global shortcuts to create tasks, switch workspace areas, and perform common actions
 - Create scheduled tasks with visual recurrence rules for weekdays, weekends, weekly, or monthly schedules, then preview upcoming runs
-- Automatically install and verify an app-private Codex runtime without requiring a global Codex setup
+- Request background compression of history not written for more than 7 days under Settings → Agent Configuration → History File Storage; other Codex clients sharing the history directory must support the compressed format
+- Automatically install and verify an app-private Codex `0.160.0` runtime without requiring a global Codex setup
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access for each task
 - Discover models from custom providers online and fall back to a local catalog when unavailable
 - Create projects and directories, manage multiple project roots, temporary tasks, and archived tasks, generate titles for new tasks, and fork new tasks from existing conversations
@@ -67,7 +68,7 @@ The workspace provides project files, code changes, Git history, branches, workt
 - [Development and builds](./docs/development.en.md)
 - [macOS build profiles](./docs/macos-build-profiles.md)
 - [Release guide](./docs/releasing.md)
-- [Changelog](./CHANGELOG.md)
+- [Changelog](../CHANGELOG.md)
 
 ## Help
 

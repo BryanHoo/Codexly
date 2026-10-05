@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { extractVersionNotes } from "./changelog.mjs";
+import { extractReleaseNotes } from "../../tools/extract-release-notes.mjs";
 
 const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(workspaceRoot, "..");
@@ -49,7 +49,8 @@ if (releaseTag && releaseTag !== `v${packageVersion}`) {
   throw new Error(`release tag ${releaseTag} does not match v${packageVersion}`);
 }
 
-const changelog = readFileSync(resolve(workspaceRoot, "CHANGELOG.md"), "utf8");
-extractVersionNotes(changelog, packageVersion);
+// 桌面安装包与 Web 发布共用仓库根目录的版本日志。
+const changelog = readFileSync(resolve(repositoryRoot, "CHANGELOG.md"), "utf8");
+extractReleaseNotes(changelog, packageVersion);
 
 process.stdout.write(`version ${packageVersion} is consistent\n`);

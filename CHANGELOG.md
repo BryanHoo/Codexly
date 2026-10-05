@@ -1,8 +1,25 @@
 # 更新日志
 
-本文件记录 Codexly 的重要版本变化。版本号遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
+本文件统一记录 Codexly Web 与桌面端的重要版本变化；共用功能合并描述，平台专属变化注明适用端。版本号遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
 ## [Unreleased]
+
+## [0.31.0] - 2026-10-05
+
+### 新增
+
+- Web 与桌面端支持在「设置 → 智能体配置 → 历史文件存储」手动请求后台压缩超过 7 天未写入的历史，减少存储占用；Web 作用于服务端，桌面端作用于本机。
+- 两端刷新官方插件时同步插件状态，刷新相关列表并提示部分失败。
+
+### 优化
+
+- 升级内置 Codex CLI 与桌面私有运行时至 `0.160.0`，同步共享协议基线、六个平台下载校验与外部 CLI 版本要求。
+- 统一维护根目录 CHANGELOG 和 GitHub Release 正文，将 Web 与桌面端更新合并为一份；桌面端在线入口与离线日志共用同一来源。
+
+### 修复
+
+- 清除运行时重连、模型刷新失败或空目录时的过期模型，避免继续选择已失效模型。
+- 修复桌面端 Windows 校验中的菜单结构与重复 React 注入，隔离插件样式，并更新依赖以修复已知安全问题。
 
 ## [0.30.0] - 2026-10-01
 
@@ -62,7 +79,7 @@
 
 - 支持从项目侧栏为任务创建并绑定 Git worktree，在独立工作区中继续对话。
 - 在任务检查器中整合文件预览与差异，并展示工具实时耗时及更多任务上下文。
-- 为流式回复添加渐进动画，在时间线折叠展示运行时警告。
+- 为流式回复添加渐进动画，在时间线折叠展示运行时警告；桌面端记录原生事件到达延迟，便于定位响应瓶颈。
 
 ### 优化
 
@@ -78,7 +95,7 @@
 
 ### 新增
 
-- 将 Codexly Web 与 Codexly Desktop 纳入同一仓库，以同一版本标签发布 npm、GHCR 和桌面安装包。
+- 将 Codexly Web 与 Codexly Desktop 纳入同一仓库，以同一版本标签发布 npm、GHCR 和桌面安装包；桌面端统一使用 Codexly 产品名称和 `com.codexly.desktop` 应用标识。
 
 ### 修复
 
@@ -507,7 +524,323 @@
 - 拆分全栈测试套件并限制 Vitest 并发，提升跨平台门禁稳定性；GitHub Release 改为严格提取对应版本的完整更新日志。
 - 将最低 Node.js 版本调整为 `22.14.0`，同步 CLI、CI、发布环境和使用文档。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.29.0...HEAD
+## 桌面端独立发布历史
+
+以下为合并仓库前的桌面端版本，使用 `Desktop` 前缀区分同号的 Web 版本；自 `0.26.1` 起使用上方联合版本日志。
+
+### [Desktop 0.2.5] - 2026-09-24
+
+#### Changed
+
+- 改用纯文本编辑 Skill 与项目文件引用，提交时保留 `$name` 正文及结构化 Skill 数据，避免时间线和队列中重复显示标记。
+- 最小化主窗口时将其收纳到托盘，保持应用在后台运行。
+
+#### Fixed
+
+- 修复更新渠道缺少安装资产时的确认与错误提示，并校验更新清单的目标版本。
+- 修复 Provider 目录迁移与重命名路径处理，并稳定 Codex 运行时探测超时测试。
+
+### [Desktop 0.2.4] - 2026-09-23
+
+#### Added
+
+- 支持 Codex 推理摘要流式展示，并将工具调用与文件编辑按操作分组。
+- 支持自定义 Provider 在线发现模型，在不可用时回退本地模型目录。
+- 在上下文面板保留并查看运行时警告详情。
+
+#### Changed
+
+- 升级私有 Codex 运行时至 `0.156.0`，同步六个平台校验值、协议快照与版本门禁。
+- 更新插件详情映射，展示并去重 0.156 新增的引导 Skill。
+- 更新 `reqwest` 至 `0.13.5`，并同步 CI 的 Codex 协议检查版本。
+
+#### Fixed
+
+- 修复远程 `fileId` 图片导致历史会话解析失败的问题，并关闭未使用的线程附件通知。
+- 修复运行时警告在有效输出或任务终态后的清理，以及关于页面更新控件换行。
+
+### [Desktop 0.2.3] - 2026-09-16
+
+#### Added
+
+- 添加跨项目聚合搜索，统一检索任务、历史消息和项目文件，并支持精确定位历史命中位置。
+- 添加队列图片与音频快照恢复，支持多个文本附件解析并保留正文内容。
+
+#### Changed
+
+- 重构 Git 状态、统计、Diff 和提交路径读取，支持分页、按需加载与大型变更集的有界传输和渲染。
+- 统一本地设置的原子写入与配置校验，减少异常写入造成的配置损坏。
+
+#### Fixed
+
+- 修复分叉任务未继承源线程模型与思考强度的问题。
+
+### [Desktop 0.2.2] - 2026-09-15
+
+#### Added
+
+- 添加项目变更摘要与文件审核入口，并支持在文件预览和 Diff 之间按需切换。
+- 添加主窗口、托盘和 macOS `Cmd+Q` 共用的关闭确认流程，统一关闭、最小化和取消操作。
+- 添加任务完成、等待审批和失败状态图标，并在窗口聚焦与任务切换时刷新项目 Git 状态。
+
+#### Changed
+
+- 优化 Git 审核面板状态、延迟加载和文件树占位统计，减少不必要的 Diff 加载。
+- 更新 `rustls` 依赖版本。
+
+#### Fixed
+
+- 修复未跟踪目录展开导致 Git 状态输出和 IPC 负载增长的问题。
+- 修复 Git 错误分类与本地化提示，保留原始诊断并区分本地修改覆盖和状态输出超限。
+- 修复 Git 详情快照校准，以及 macOS 全屏窗口最小化时序。
+
+### [Desktop 0.2.1] - 2026-09-14
+
+#### Added
+
+- 添加新任务自动标题生成，复用提交信息模型配置，并隔离辅助线程中的工具与 MCP。
+- 添加运行时事件确认、有界背压恢复，以及任务创建、回合启动、追加、队列消费和待处理回答的原生幂等保护。
+- 添加 Codex 运行时结构化诊断日志，关联连接、请求、任务阶段、耗时与错误链。
+
+#### Changed
+
+- 将会话状态投影、Skill 关联、Diff 规范化与变更统计迁移至 Rust，减少 WebView 重复计算和传输开销。
+- 简化队列编辑流程，撤回队列项后在输入框修改，并加强并发消费与失败恢复。
+- 将提交消息生成规则改为手动保存，失败时保留草稿并支持重试。
+
+#### Fixed
+
+- 修复长行流式输出和复杂 Markdown 增量解析造成的重复扫描与工作台卡顿，并修复中文标点附近的加粗渲染。
+- 修复消息提交与尾部高度变化期间的虚拟列表回弹、置底失效和旧测量回滚。
+- 修复首次任务订阅闪错、写入权失败后输入丢失、新线程项目归属缺失，以及通知交错时半帧读取状态丢失。
+- 修复 Windows 空会话写入恢复、Git 路径校验，以及项目文件搜索、提交、符号链接和 Git 快照缓存边界问题。
+- 修复应用退出落盘、连接请求清理与权限审批回答校验。
+
+### [Desktop 0.2.0] - 2026-09-11
+
+#### Added
+
+- 添加定时任务可视化重复规则与执行预览，支持工作日、周末、每周和每月计划。
+- 添加跨客户端任务交互锁，防止多个窗口或客户端同时提交冲突操作。
+- 添加原生剪贴板 Markdown 复制，保留消息的原始格式。
+
+#### Changed
+
+- 升级私有 Codex 运行时至 `0.154.0`，同步六个平台的官方校验值、实验协议快照与 CI 版本。
+- 更新 Rust 依赖、WebDriver 插件与 CI 的 pnpm 安装动作。
+
+#### Fixed
+
+- 修复 MCP 工具发现失败显示为正常空清单的问题，并为设备验证请求提供可取消的不支持提示，保持有界 IPC 与现有流式性能路径。
+- 为首次安装的 Codex 二进制提供独立冷启动校验预算并保留错误原因，维持日常版本探测时限。
+- 修复应用更新检查未区分连接失败与服务响应异常的问题。
+- 修复任务写入权确认期间审批操作提前聚焦，以及空剪贴板导致 Native WebView 回归测试失败的问题。
+
+### [Desktop 0.1.12] - 2026-09-11
+
+#### Added
+
+- 添加 Modern Intel 与 Legacy Intel 独立 macOS 安装包和更新通道，Legacy 最低支持 macOS 12.4。
+
+#### Fixed
+
+- 修复 Legacy 打开任务时因旧 WebKit 不支持正则后行断言而出现的路由错误。
+- 修复 Legacy 回车无法发送消息及 Native WebView 真实运行时初始化超时。
+- 取消本机文件打开、预览及文件操作的项目目录限制，修复任务回复中项目外 Office 文件无法打开的问题，并区分文件访问和应用启动错误。
+
+#### Changed
+
+- 精简中英文 README，将安装、更新、卸载及源码构建步骤移至独立文档。
+
+### [Desktop 0.1.11] - 2026-09-11
+
+#### Added
+
+- 添加 Modern Intel 与 Legacy Intel 独立 macOS 构建，Legacy 最低构建目标为 macOS 12.4。
+- 添加旧 WebKit 兼容渲染、Intel Codex 运行时与隔离更新清单。
+
+#### Fixed
+
+- 修复 Legacy 版本打开任务时因正则后行断言不受支持而出现的路由错误。
+- 修复文件链接、流式 Markdown 与邮箱自动识别的旧 WebKit 兼容问题，并添加构建产物回归测试。
+
+#### Changed
+
+- 精简中英文 README，将安装、更新、卸载及源码构建步骤迁移至独立文档。
+
+#### Notes
+
+- 安装包尚未配置操作系统代码签名与 macOS 公证；macOS 12.4 最低构建目标仍需真机验收。
+
+### [Desktop 0.1.11-beta.3] - 2026-09-11
+
+#### Fixed
+
+- 修复 Legacy 版本打开任务时因旧 WebKit 不支持正则后行断言而出现的路由错误。
+- 修复文件链接、流式 Markdown 与邮箱自动识别的旧 WebKit 兼容问题。
+
+### [Desktop 0.1.11-beta.2] - 2026-09-10
+
+#### Added
+
+- 添加 Modern Intel 与 Legacy Intel 独立 macOS 构建，Legacy 最低构建目标为 macOS 12.4。
+- 添加旧 WebKit 兼容渲染、Intel Codex 运行时及隔离更新清单，保持 Modern 优化。
+
+#### Testing
+
+- 此预发布版本用于跨平台打包测试；macOS 12.4 尚需真机验收。
+
+### [Desktop 0.1.10] - 2026-09-08
+
+#### Added
+
+- 添加任务输出透明小窗，支持有界 Markdown 流式展示、自动滚动和独立窗口生命周期。
+
+#### Fixed
+
+- 修复终端关闭后的 PTY、进程组与前端会话资源清理流程。
+- 调整异步问题区布局，并持久化任务级问题关闭状态。
+
+### [Desktop 0.1.9] - 2026-09-08
+
+#### Added
+
+- 添加项目级原生集成终端，支持多会话、项目隔离、流量控制与跨平台进程清理。
+- 添加工作台全局快捷键及快捷键帮助，并支持关闭暂不回答的异步问题。
+- 添加按时间、星期和月份配置重复任务的表单控件。
+
+#### Fixed
+
+- 修复终端会话退出、任务切换、面板布局及 Windows 和 Linux 原生终端兼容性问题。
+- 修复启动恢复覆盖实时任务状态，以及 steer 后提交输入清理时机错误。
+- 修复重复任务规则解析与时区保存逻辑。
+
+### [Desktop 0.1.8] - 2026-09-07
+
+#### Added
+
+- 添加扩展中心，统一管理 Skills、MCP、官方插件与第三方市场，并支持官方插件安装、卸载和会话内安装建议。
+- 添加可折叠任务搜索，优化项目侧栏布局与搜索焦点恢复。
+- 添加临时任务文件打开与文件引用绝对路径复制。
+
+#### Fixed
+
+- 修复项目侧栏主操作顺序，使其与任务工作流一致。
+
+### [Desktop 0.1.7] - 2026-09-06
+
+#### Added
+
+- 添加 Codex `0.153.4` 协议支持、异步问题交互与线程模型和思考量恢复。
+- 添加流式 Markdown 增量渲染，降低长回复持续输出时的解析与渲染开销。
+- 添加应用私有 Codex 自动安装，支持镜像优先、官方源回退与 SHA-512 完整性校验。
+
+#### Changed
+
+- 优化后台运行时连接、模型目录和任务视图复用，减少窗口恢复与流式更新开销。
+
+#### Fixed
+
+- 修复运行时事件背压、回放缺口和并发启动导致的状态丢失。
+- 修复定时任务写入失败未回滚，以及 Git 重命名提交内容校验异常。
+
+### [Desktop 0.1.6] - 2026-09-04
+
+#### Added
+
+- 添加桌面端定时任务，支持调度、持久化、运行记录与崩溃恢复。
+- 添加 Skills 市场与安全安装流程，并支持 MCP 服务管理和运行时热重载。
+- 添加临时任务受控工作区，完善文件预览上下文与任务删除清理。
+
+#### Changed
+
+- 调整应用生命周期，仅在窗口后台不可见满 60 秒后暂停详细视图。
+
+#### Fixed
+
+- 修复通知聚焦时用户全屏状态被错误清除的问题。
+- 修复新任务被过期列表覆盖，以及未跟踪文本文件缺少 Diff 内容的问题。
+- 修复运行时事件背压丢弃后项目状态未及时重同步的问题。
+
+### [Desktop 0.1.5] - 2026-09-03
+
+#### Added
+
+- 添加 Codex 协议契约校验，固定 `0.152.1` 协议快照并覆盖实验 API 差异。
+- 添加文件变更操作分组与摘要，提升长任务时间线的浏览效率。
+
+#### Changed
+
+- 重构 Provider 配置与模型目录持久化，统一自定义模型的读取和保存行为。
+- 更新任务最近活动排序与窗口恢复行为，并保留任务切换时的检查器状态。
+
+#### Fixed
+
+- 修复 Codex 通知背压阻塞响应、超大消息帧和图片存储占用问题。
+- 修复自定义模型分页转换和 Codex RPC 错误详情丢失问题。
+- 修复对话虚拟列表动态内容置底、滚动校正与定位问题。
+- 修复运行时更新进度未知总量显示，以及 Windows Codex shim 调用失败问题。
+
+### [Desktop 0.1.4] - 2026-09-03
+
+#### Added
+
+- 升级内置 Codex `0.152.1` 运行时与协议契约，补充线程计划配置、认证恢复通知和 MCP 表单降级支持。
+- 添加任务看板的新完成任务标识，并在任务完成后同步已完成列表缓存。
+
+#### Changed
+
+- 调整 Linux Wayland 会话的桌面宠物初始化，优先使用 X11 后端并在不可用时回退 Wayland。
+
+#### Fixed
+
+- 修复入站文本附件的 `textElements` 字段解析，确保粘贴文本附件可正确恢复。
+- 修复完成态时间线的后续用户引导、流式 Assistant 文本和空 reasoning 导致的操作分组异常。
+- 修复浏览器质量门禁对虚拟列表 prepend 锚点的脆弱断言，避免虚拟节点卸载造成误报。
+- 修复真实 Codex 运行时检查缺少进度 Channel 导致三平台发布门禁失败的问题。
+
+### [Desktop 0.1.3] - 2026-09-03
+
+#### Added
+
+- 添加 Codex 运行时自动升级流程，在兼容版本变化时直接下载并切换到新版本。
+- 添加运行时升级失败后的自动回退，并在界面展示升级与恢复进度。
+
+### [Desktop 0.1.2] - 2026-09-03
+
+#### Added
+
+- 添加 Codex 运行时自动升级流程，在兼容版本变化时直接下载并切换到新版本。
+- 添加运行时升级失败后的自动回退，并在界面展示升级与恢复进度。
+
+### [Desktop 0.1.1] - 2026-09-02
+
+#### Changed
+
+- 将设置持久化迁移到本地原子存储，统一项目与全局设置的保存链路。
+- 将 GitHub Release 工作流改为在质量门禁通过后直接正式发布。
+
+#### Fixed
+
+- 修复设置自动保存、审批审核器参数及工作台背景草稿的同步问题。
+- 修复对话虚拟列表滚动锚定冲突和瞬时活动项生命周期状态映射。
+
+### [Desktop 0.1.0] - 2026-08-31
+
+#### Added
+
+- 添加基于 Tauri 与 React 的 CodeAgent 桌面工作台，支持项目、任务和多轮对话管理。
+- 添加 Codex 本地运行时检测、校验、安装与断线恢复流程。
+- 添加 Windows x64、Ubuntu x64 与 macOS Apple Silicon 的无签名预览构建。
+- 添加设置、主题、通知、工作台背景、Git 工作流和桌面宠物能力。
+
+#### Security
+
+- 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
+
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/BryanHoo/Codexly/compare/v0.30.0...v0.31.0
+[0.30.0]: https://github.com/BryanHoo/Codexly/compare/v0.29.0...v0.30.0
 [0.29.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.29.0
 [0.28.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.28.0
 [0.27.1]: https://github.com/BryanHoo/Codexly/releases/tag/v0.27.1
@@ -525,3 +858,22 @@
 [0.3.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.3.0
 [0.2.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.2.0
 [0.1.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.1.0
+[Desktop 0.2.5]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.4...v0.2.5
+[Desktop 0.2.4]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.3...v0.2.4
+[Desktop 0.2.3]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.2...v0.2.3
+[Desktop 0.2.2]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.1...v0.2.2
+[Desktop 0.2.1]: https://github.com/BryanHoo/CodeAgent/compare/v0.2.0...v0.2.1
+[Desktop 0.2.0]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.12...v0.2.0
+[Desktop 0.1.12]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.10...v0.1.12
+[Desktop 0.1.11]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.10...v0.1.11
+[Desktop 0.1.10]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.9...v0.1.10
+[Desktop 0.1.9]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.8...v0.1.9
+[Desktop 0.1.8]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.7...v0.1.8
+[Desktop 0.1.7]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.6...v0.1.7
+[Desktop 0.1.6]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.5...v0.1.6
+[Desktop 0.1.5]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.4...v0.1.5
+[Desktop 0.1.4]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.3...v0.1.4
+[Desktop 0.1.3]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.2...v0.1.3
+[Desktop 0.1.2]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.1...v0.1.2
+[Desktop 0.1.1]: https://github.com/BryanHoo/CodeAgent/compare/v0.1.0...v0.1.1
+[Desktop 0.1.0]: https://github.com/BryanHoo/CodeAgent/releases/tag/v0.1.0

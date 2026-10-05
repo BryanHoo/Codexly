@@ -9,8 +9,7 @@ use tauri_plugin_updater::UpdaterExt;
 
 use super::error::AppError;
 
-pub(super) const CHANGELOG_URL: &str =
-    "https://github.com/BryanHoo/Codexly/blob/main/desktop/CHANGELOG.md";
+pub(super) const CHANGELOG_URL: &str = "https://github.com/BryanHoo/Codexly/blob/main/CHANGELOG.md";
 pub(super) const REPOSITORY_URL: &str = "https://github.com/BryanHoo/Codexly";
 
 const INITIAL_VERSION: &str = "0.1.0";
@@ -19,7 +18,8 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 const MAX_RELEASE_NOTES_BYTES: usize = 32 * 1024;
-const CHANGELOG: &str = include_str!("../../../CHANGELOG.md");
+// 从仓库根目录内置联合版本日志，保持在线入口与离线展示内容一致。
+const CHANGELOG: &str = include_str!("../../../../CHANGELOG.md");
 static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
 
 #[derive(Debug)]

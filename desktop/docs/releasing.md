@@ -55,7 +55,7 @@ macOS Modern 构建生成 Tauri updater artifact、`.sig` 和 `latest.json`。ma
 
 ## 发布步骤
 
-1. 在 `desktop/CHANGELOG.md` 添加新版本日志，并将 `desktop/package.json`、Tauri 配置、Cargo 包版本及 lock 与根目录版本对齐。
+1. 仅在根目录 `CHANGELOG.md` 添加两端合并的新版本日志，共用功能写一次，并将 `desktop/package.json`、Tauri 配置、Cargo 包版本及 lock 与根目录版本对齐。
 2. 在 `desktop/` 执行 `pnpm version:check`、`pnpm codex:protocol:check` 和 `pnpm check`。
 3. 按根目录 [联合发布指南](../../docs/releasing.md)推送统一版本标签；桌面端不另推标签。
 4. 核对同一 Release 中桌面安装包、`latest.json`、`latest-legacy.json` 和签名。

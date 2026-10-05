@@ -49,7 +49,7 @@ jobs:
           # 标签与后续任务使用同一不可变提交，避免校验期间标签移动造成错配。
           git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
           test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
-      - name: Verify both release versions and notes
+      - name: Verify joint release version and unified notes
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: node tools/joint-release.mjs --check

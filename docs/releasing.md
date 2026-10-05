@@ -23,7 +23,7 @@ GitHub 仓库必须有名为 `npm` 的 Environment。工作流使用 OIDC 和 np
 先检查自上次标签以来的实际变更，按兼容性决定版本：仅修复、依赖维护或文档更新升补丁号；新增兼容功能升次版本号；不兼容变更才升主版本号。当前处于 `0.x` 阶段，仍按实际影响判断，不能每次发布都升主版本号。Web 与桌面始终共用同一版本；其中一端新增功能也会提升联合版本的次版本号。
 
 1. 将根目录 `package.json` 与 `desktop/package.json`、`desktop/src-tauri/tauri.conf.json`、`desktop/src-tauri/Cargo.toml` 和 Cargo lock 更新为同一递增版本号。
-2. 分别将根目录和 `desktop/CHANGELOG.md` 的 `Unreleased` 内容移入对应版本，并填写发布日期；同步核对 `README.md`、`README.zh-CN.md`、`desktop/README.md` 和 `desktop/README.en.md` 的用户功能与安装说明。
+2. 仅在根目录 `CHANGELOG.md` 将两端的 `Unreleased` 内容合并到对应版本，并填写发布日期；共用功能写一次，平台专属变化注明适用端，不再维护桌面端独立日志。同步核对 `README.md`、`README.zh-CN.md`、`desktop/README.md` 和 `desktop/README.en.md` 的用户功能与安装说明。
 3. 运行发布校验：
 
 ```bash
@@ -42,7 +42,7 @@ git push origin main
 git push origin "v${RELEASE_VERSION}"
 ```
 
-工作流先验证统一版本与两端日志，并运行 Web E2E、桌面质量和真实 WebView 门禁；全部通过后按 Windows、Ubuntu、macOS 矩阵构建签名桌面更新产物到草稿 Release，随后发布 npm 包与多架构镜像，最后公开联合 Release。桌面发行物以 Codexly 命名。内部 Workspace 包仍保持私有。
+工作流先验证统一版本与根目录联合日志，并运行 Web E2E、桌面质量和真实 WebView 门禁；全部通过后按 Windows、Ubuntu、macOS 矩阵构建签名桌面更新产物到草稿 Release，随后发布 npm 包与多架构镜像，最后公开联合 Release。Release 正文只提取根目录对应版本，使用一个 Codexly 标题和合并内容，保留桌面更新检查所需的版本标记。桌面应用离线日志也内置根目录同一文件。桌面发行物以 Codexly 命名。内部 Workspace 包仍保持私有。
 
 发布完成后确认 `Release` 工作流成功，检查 npm 版本、GHCR 的 `linux/amd64` 和 `linux/arm64` 标签，以及 GitHub Release 的 Windows、Ubuntu、macOS 安装包、`latest.json`、`latest-legacy.json` 和对应签名。
 

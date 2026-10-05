@@ -162,7 +162,6 @@ If an older Linux release was installed into a system directory with `sudo npm i
 - [Contributing guide](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
-- [Desktop changelog](desktop/CHANGELOG.md)
 
 ## Community
 

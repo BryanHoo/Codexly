@@ -2,28 +2,26 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { extractVersionNotes } from "./changelog.mjs";
+import { extractReleaseNotes } from "../../tools/extract-release-notes.mjs";
 
-const changelog = await readFile(new URL("../CHANGELOG.md", import.meta.url), "utf8");
+const changelog = await readFile(new URL("../../CHANGELOG.md", import.meta.url), "utf8");
 const releaseWorkflow = await readFile(
   new URL("../../.github/workflows/release.yml", import.meta.url),
   "utf8",
 );
 
 void test("extracts the dated changelog section for a release", () => {
-  const notes = extractVersionNotes(changelog, "0.1.10");
+  const notes = extractReleaseNotes(changelog, "0.30.0");
 
-  assert.match(notes, /^## \[0\.1\.10\] - 2026-09-08$/m);
-  assert.match(notes, /^### Added$/m);
-  assert.match(notes, /任务输出透明小窗/u);
-  assert.match(notes, /^### Fixed$/m);
-  assert.match(notes, /PTY/u);
-  assert.match(notes, /问题关闭状态/u);
+  assert.match(notes, /^### 新增$/m);
+  assert.match(notes, /Web 与桌面端共用交互式图片预览/u);
+  assert.match(notes, /^### 修复$/m);
+  assert.match(notes, /终端关闭清理/u);
   assert.doesNotMatch(notes, /^## \[Unreleased\]$/m);
 });
 
 void test("rejects a release version missing from the changelog", () => {
-  assert.throws(() => extractVersionNotes(changelog, "9.9.9"), /9\.9\.9/);
+  assert.throws(() => extractReleaseNotes(changelog, "9.9.9"), /9\.9\.9/);
 });
 
 void test("publishes the matching changelog section as the GitHub release body", () => {
