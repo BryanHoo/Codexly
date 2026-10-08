@@ -21,6 +21,7 @@ Codexly 在同一仓库发布 Web CLI 与桌面应用。根目录 `pnpm-workspac
 ## 通用约束
 
 - Web 与桌面共用版本号、标签及根目录 `CHANGELOG.md`；共用变化合并描述，Release 正文与桌面离线日志仅从此文件提取，不维护第二份桌面日志。发布流程见 `docs/releasing.md`。
+- GitHub Release 的产品与版本标题仅由页面标题显示；正文直接展示合并变更，首行保留桌面更新检查所需的 `codeagent-version` 隐藏标记，并通过 `pnpm test:release` 防止重复标题回归。
 
 - 依赖方向以 `dependency-cruiser.config.cjs` 和各包 `package.json` 为准；跨层改动参照[契约检查](./cross-layer-thinking-guide.md)。
 - Codex App Server Schema 只维护仓库根目录 `schemas/codex-app-server/<version>.schema-baseline.json`；Web 与桌面分别运行 `pnpm codex:schema:check` 和 `pnpm codex:protocol:check` 校验同一基线。

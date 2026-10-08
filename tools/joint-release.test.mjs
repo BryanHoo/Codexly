@@ -18,8 +18,8 @@ test("one release tag requires identical web and desktop versions", () => {
 
 test("release notes publish one unified body for both platforms", () => {
   const changes = "### 新增\n\n- Web 与桌面端共用历史压缩";
-  const notes = formatJointReleaseNotes("v0.26.1", "0.26.1", changes);
-  assert.equal(notes, `<!-- codeagent-version: 0.26.1 -->\n# Codexly 0.26.1\n\n${changes}\n`);
+  const notes = formatJointReleaseNotes("0.26.1", changes);
+  assert.equal(notes, `<!-- codeagent-version: 0.26.1 -->\n${changes}\n`);
 });
 
 test("release CLI reads only the root changelog", async () => {
@@ -31,7 +31,8 @@ test("release CLI reads only the root changelog", async () => {
       env: { ...process.env, RELEASE_TAG: `v${version}` },
     });
     const notes = await readFile(output, "utf8");
-    assert.equal(notes.match(/^# /gm)?.length, 1);
+    assert.doesNotMatch(notes, /^#{1,2} /m);
+    assert.match(notes, /^<!-- codeagent-version: /);
     assert.doesNotMatch(notes, /Codexly Desktop|undefined/);
   } finally {
     await rm(directory, { recursive: true, force: true });

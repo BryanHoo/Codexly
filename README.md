@@ -37,9 +37,10 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 
 - Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive, with file edit timing and completion summaries; keep follow-up messages in a persistent queue.
 - Read streaming Markdown responses and copy their source text; zoom and pan message images, project images, and wallpapers, or view them at their original size.
+- Preview PDFs directly from chat attachments, file links, and the project file tree.
 - Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task.
-- Create projects and directories, search tasks, message history, and project files; inspect changes, work with branches and worktrees, and commit or push selected files.
-- Identify each task's project through labels in the sidebar.
+- Create projects and directories, search tasks, message history, and project files; inspect changes, work with branches and worktrees, and commit or push selected files. Git actions require a repository at the project root; ordinary subdirectories do not use the parent repository.
+- Identify each task's project through labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks.
 - Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work. Refresh official plugins to synchronize their state and report partial failures.
 - Request background compression of history files untouched for over 7 days under Settings → Agent → History storage. Web compresses server history; desktop compresses local history. Other Codex clients sharing that directory must support compressed history.
 

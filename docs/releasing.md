@@ -42,7 +42,7 @@ git push origin main
 git push origin "v${RELEASE_VERSION}"
 ```
 
-工作流先验证统一版本与根目录联合日志，并运行 Web E2E、桌面质量和真实 WebView 门禁；全部通过后按 Windows、Ubuntu、macOS 矩阵构建签名桌面更新产物到草稿 Release，随后发布 npm 包与多架构镜像，最后公开联合 Release。Release 正文只提取根目录对应版本，使用一个 Codexly 标题和合并内容，保留桌面更新检查所需的版本标记。桌面应用离线日志也内置根目录同一文件。桌面发行物以 Codexly 命名。内部 Workspace 包仍保持私有。
+工作流先验证统一版本与根目录联合日志，并运行 Web E2E、桌面质量和真实 WebView 门禁；全部通过后按 Windows、Ubuntu、macOS 矩阵构建签名桌面更新产物到草稿 Release，随后发布 npm 包与多架构镜像，最后公开联合 Release。GitHub Release 页面标题统一为 `Codexly v<版本号>`；正文只提取根目录对应版本的合并更新内容，不再添加产品或版本标题，首行保留桌面更新检查所需的隐藏标记 `<!-- codeagent-version: <版本号> -->`。桌面应用离线日志也内置根目录同一文件。桌面发行物以 Codexly 命名。内部 Workspace 包仍保持私有。
 
 发布完成后确认 `Release` 工作流成功，检查 npm 版本、GHCR 的 `linux/amd64` 和 `linux/arm64` 标签，以及 GitHub Release 的 Windows、Ubuntu、macOS 安装包、`latest.json`、`latest-legacy.json` 和对应签名。
 

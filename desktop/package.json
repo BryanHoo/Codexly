@@ -1,7 +1,7 @@
 {
   "name": "codeagent",
   "private": true,
-  "version": "0.31.0",
+  "version": "0.32.0",
   "description": "A local-first desktop client for coding agents",
   "type": "module",
   "packageManager": "pnpm@11.22.0",

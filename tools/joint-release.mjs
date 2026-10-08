@@ -16,8 +16,9 @@ export function validateJointRelease(tag, webVersion, desktopVersion) {
   return { desktopVersion, webVersion };
 }
 
-export function formatJointReleaseNotes(tag, desktopVersion, notes) {
-  return `<!-- codeagent-version: ${desktopVersion} -->\n# Codexly ${tag.slice(1)}\n\n${notes.trim()}\n`;
+export function formatJointReleaseNotes(desktopVersion, notes) {
+  // GitHub 已显示 Release 标题，正文直接展示变更；隐藏标记供桌面更新检查读取。
+  return `<!-- codeagent-version: ${desktopVersion} -->\n${notes.trim()}\n`;
 }
 
 async function main() {
@@ -39,7 +40,7 @@ async function main() {
     throw new Error("Usage: node tools/joint-release.mjs --check | --notes <output-path>");
   }
   // 两端共用根目录日志，发布正文只输出一次；版本标记供桌面更新检查读取。
-  await writeFile(argument, formatJointReleaseNotes(tag, desktopVersion, notes));
+  await writeFile(argument, formatJointReleaseNotes(desktopVersion, notes));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
