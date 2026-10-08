@@ -94,7 +94,7 @@ describe("Codex provider model catalog configuration", () => {
     const client = new FakeRpcClient();
     client.enqueue("config/read", {
       config: {
-        features: { api_key_model_discovery: true },
+        features: {},
         model_provider: "relay",
         model_providers: {
           relay: {
@@ -126,7 +126,7 @@ describe("Codex provider model catalog configuration", () => {
     const client = new FakeRpcClient();
     client.enqueue("config/read", {
       config: {
-        features: { api_key_model_discovery: true },
+        features: {},
         model_provider: "relay",
         model_providers: {
           relay: {

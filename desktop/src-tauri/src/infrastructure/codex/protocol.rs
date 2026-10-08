@@ -40,6 +40,7 @@ pub const IGNORED_NOTIFICATION_METHODS: &[&str] = &[
     "thread/compacted",
     "thread/environment/connected",
     "thread/environment/disconnected",
+    "thread/prediction/updated",
     "thread/project/updated",
     "thread/realtime/closed",
     "thread/realtime/error",
@@ -185,6 +186,7 @@ mod tests {
     #[test]
     fn unsupported_codex_152_streams_should_be_disabled_at_initialization() {
         for method in [
+            "thread/prediction/updated",
             "mcpServer/event/stream/notification",
             "thread/realtime/item/completed",
             "thread/realtime/item/started",

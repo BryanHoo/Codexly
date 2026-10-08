@@ -11,17 +11,19 @@ React -> Tauri invoke / Channel -> Rust -> codex app-server -> stdio JSONL
 ```
 
 运行时不再使用 Codexly HTTP、WebSocket 或 mock。协议基线固定为本地
-`/Users/bryanhu/Develop/person/codex` `rust-v0.160.0`；应用私有运行时仅接受精确版本
-`0.160.0`，安装包校验官方 SHA-512，不扫描或回退全局 CLI。
+`/Users/bryanhu/Develop/person/codex` `rust-v0.161.0`；应用私有运行时仅接受精确版本
+`0.161.0`，安装包校验官方 SHA-512，不扫描或回退全局 CLI。
 
-### 0.160.0 接入边界
+### 0.161.0 接入边界
 
-- 实验协议快照由 `codex-cli 0.160.0` 生成；协议与 `0.159.2` 保持一致，继续统一映射 `tooManyDenials` 并保留中断回合错误。
+- 实验协议快照由 `codex-cli 0.161.0` 生成；新增目标来源、MCP OAuth 登录身份、开放错误枚举及预测协议，Web 与桌面共用根目录基线。
 - `0.159.1` 更新 GPT-6.1 Sol 与 Bedrock 模型目录；两端通过原生 `model/list` 保留默认模型、模型标识及思考强度，桌面另保留输入模态；不硬编码模型白名单，也不覆盖用户选择。
-- `0.160.0` 优化 SQLite、插件缓存与连接池、运行回合增量计数；继续保留应用自身的无窗口进程策略。
+- 用户目标启动、编辑、暂停、恢复和清除发送 `origin: "user"`，使指令在恢复执行前持久化；暂停目标的真实落盘验证不发起模型请求。
+- API Key 模型发现已稳定且默认开启；Web 删除强制启动开关，两端缺省配置不重复写入。新增线程预测没有产品入口，握手关闭 `thread/prediction/updated`。
+- `0.161.0` 修复线程权威历史恢复、SQLite 损坏恢复、重试建议与回合权限归属；沿用原生实现及应用无窗口进程策略。
 - 模型目录以当前 App Server 为准；空目录或读取失败不会恢复过期模型快照，沿用有界 TTL 缓存和请求合并。
 - `thread/items/list` 继续使用有界分页和服务端返回的字符串游标。MCP 列表仍使用 `toolsAndAuthOnly` 与 `threadId`，不增加全量资源发现或逐服务请求。
-- 六个平台安装包更新为 `0.160.0` 并校验各自 SHA-512；内置 zsh 仍要求 macOS 15.0，旧系统继续关闭 `shell_zsh_fork`。
+- 六个平台安装包更新为 `0.161.0` 并校验各自 SHA-512；内置 zsh 仍要求 macOS 15.0，旧系统继续关闭 `shell_zsh_fork`。
 
 ### 0.157.1 接入边界
 
@@ -40,14 +42,14 @@ React -> Tauri invoke / Channel -> Rust -> codex app-server -> stdio JSONL
 - `Thread.model` / `reasoningEffort` 通过现有读取直接恢复到 Composer 的模型与思考强度，续聊发送沿用该配置；空值回退任务设置，用户手动选择优先，刷新不覆盖手动选择。沿用模型可用性与推理强度校验，不在 Inspector 重复展示，不增加读取、轮询或自动配置写回。
 - 现有审批模式选择可在运行中切换 reviewer；只更新后续步骤审核路由，沙箱与已有审批不变。精确目标已结束时仅保存未来设置并提示，被托管策略拒绝则保留原设置。
 - 插件详情的 `onboardingSkill` 合并进现有只读 Skills 列表并按名称去重；官方插件刷新接入 `plugin/reconcile`，合并在途请求并按变化失效资源缓存，部分失败明确提示；按 App 账户审批暂不新增入口，原始 usage metadata 不进入 WebView。
-- 保持单一 stdio 连接、RawValue Delta 映射、有界队列与分页历史；协议快照由本机 `codex-cli 0.160.0` 携带 `--experimental` 生成。
+- 保持单一 stdio 连接、RawValue Delta 映射、有界队列与分页历史；协议快照由本机 `codex-cli 0.161.0` 携带 `--experimental` 生成。
 
 ## 逐项矩阵
 
 | 能力 | Codexly 公共方法 | Codexly 桌面端实现 | 状态 |
 | --- | --- | --- | --- |
 | 个性化说明与记忆 | Codex CLI 原生配置 | 当前运行时 `CODEX_HOME/AGENTS.md` 原文读取、显式保存与外部修改冲突检查；存在有效 `AGENTS.override.md` 时提示优先级。记忆通过 `config/read`、`config/batchWrite` 控制 `features.memories`、生成/使用及外部上下文资格；清除调用实验接口 `memory/reset`，保留聊天记录 | 已实现 |
-| 运行时与健康 | `getHealth`, `getCapabilities` | 仅使用应用私有 Codex `0.160.0`，首次缺失、损坏或版本不符时自动安装；六个平台固定官方 npm 包通过 SHA-512 校验后原子切换，失败提供重试；后台已就绪时恢复窗口跳过检测，Rust supervisor 按 1–30 秒有界退避恢复；CI 验证私有安装、app-server 生命周期与实验协议 Schema | 已实现 |
+| 运行时与健康 | `getHealth`, `getCapabilities` | 仅使用应用私有 Codex `0.161.0`，首次缺失、损坏或版本不符时自动安装；六个平台固定官方 npm 包通过 SHA-512 校验后原子切换，失败提供重试；后台已就绪时恢复窗口跳过检测，Rust supervisor 按 1–30 秒有界退避恢复；CI 验证私有安装、app-server 生命周期与实验协议 Schema | 已实现 |
 | 项目列表 | `listProjects`, `addProject`, `renameProject`, `removeProject`, `reorderProjects` | 原生 `project/*` app-server 方法；兼容 0.152 `recencyAt`，继续按用户维护的 `position` 排序且不请求 `recencyAt` 排序 | 已实现 |
 | 项目目录 | `listProjectDirectories` | Rust 受限目录枚举，不向 WebView 暴露 shell | 已实现 |
 | 项目打开方式 | `getProjectOpenCapabilities`, `openProject` | 探测编辑器、终端与文件管理器；本机绝对文件路径直接打开，不限制项目目录，相对路径按当前目录或任务 cwd 定位；分别提示文件不可访问与应用启动失败 | 已实现 |
@@ -154,7 +156,7 @@ React -> Tauri invoke / Channel -> Rust -> codex app-server -> stdio JSONL
 ## 参考资料
 
 - [Codex App Server 官方文档](https://developers.openai.com/codex/app-server)
-- [Codex 0.160.0 app-server 源码](https://github.com/openai/codex/tree/rust-v0.160.0/codex-rs/app-server/src)
+- [Codex 0.161.0 app-server 源码](https://github.com/openai/codex/tree/rust-v0.161.0/codex-rs/app-server/src)
 - [Codex 官方更新日志](https://developers.openai.com/codex/changelog)
 - [Tauri Rust 到前端通信](https://v2.tauri.app/develop/calling-frontend/)
 - [Tauri 前端调用 Rust](https://v2.tauri.app/develop/calling-rust/)

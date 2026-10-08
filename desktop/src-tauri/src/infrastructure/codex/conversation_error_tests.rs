@@ -9,6 +9,8 @@ fn codex_152_errors_should_keep_public_classification() {
         (json!("rateLimitExceeded"), "rate_limit_exceeded", None),
         (json!("flexUnavailable"), "flex_unavailable", None),
         (json!("tooManyDenials"), "too_many_denials", None),
+        (json!("futureError"), "other", None),
+        (json!({"futureError": {"detail": "unknown"}}), "other", None),
         (
             json!({"httpConnectionFailed": {"httpStatusCode": 429}}),
             "connection_failed",

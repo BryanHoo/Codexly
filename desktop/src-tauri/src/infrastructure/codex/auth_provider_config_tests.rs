@@ -123,8 +123,7 @@ async fn legacy_custom_provider_should_gain_catalog_on_next_model_read() {
         assert!(
             edits
                 .iter()
-                .any(|edit| edit["keyPath"] == "features.api_key_model_discovery"
-                    && edit["value"] == true)
+                .all(|edit| edit["keyPath"] != "features.api_key_model_discovery")
         );
         assert!(edits.iter().any(
             |edit| edit["keyPath"] == "suppress_unstable_features_warning" && edit["value"] == true
@@ -157,7 +156,7 @@ async fn current_custom_provider_should_suppress_existing_warning() {
                             "base_url": "https://relay.example/v1",
                             "model_catalog_url": "https://relay.example/v1/models"
                         }},
-                        "features": {"api_key_model_discovery": true}
+                        "features": {}
                     }}})
                 )
                 .as_bytes(),

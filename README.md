@@ -45,7 +45,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 
 **Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and an app-private Codex installation. It supports Windows, Ubuntu, and macOS. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
 
-**Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, Docker deployment, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.160.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.160.0,<0.161.0`.
+**Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, Docker deployment, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.161.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.161.0,<0.162.0`.
 
 ## Start the Web Edition
 

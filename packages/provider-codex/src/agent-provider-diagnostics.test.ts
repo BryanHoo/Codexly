@@ -49,7 +49,7 @@ describe("CodexAgentProvider diagnostics", () => {
     expect(warn.mock.calls).toEqual([
       [
         {
-          codexVersion: "0.160.0",
+          codexVersion: "0.161.0",
           diagnosticCode: "unknown_notification",
           method: "future/notification",
           projectId: "codexly",
@@ -59,7 +59,7 @@ describe("CodexAgentProvider diagnostics", () => {
       ],
       [
         {
-          codexVersion: "0.160.0",
+          codexVersion: "0.161.0",
           diagnosticCode: "invalid_notification",
           method: "thread/goal/updated",
           projectId: "codexly",
@@ -69,7 +69,7 @@ describe("CodexAgentProvider diagnostics", () => {
       ],
       [
         {
-          codexVersion: "0.160.0",
+          codexVersion: "0.161.0",
           diagnosticCode: "invalid_notification",
           method: "item/agentMessage/delta",
           projectId: "codexly",
@@ -79,7 +79,7 @@ describe("CodexAgentProvider diagnostics", () => {
       ],
       [
         {
-          codexVersion: "0.160.0",
+          codexVersion: "0.161.0",
           diagnosticCode: "event_listener_failed",
           eventType: "message.delta",
           projectId: "codexly",

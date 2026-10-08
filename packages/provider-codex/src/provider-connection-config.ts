@@ -51,7 +51,8 @@ export function hasCurrentCustomModelCatalog(config: Record<string, unknown>): b
   if (configuredBaseUrl === null || configuredCatalogUrl === null) return false;
   const baseUrl = configuredBaseUrl.replace(/\/+$/u, "");
   const catalogUrl = configuredCatalogUrl.replace(/\/+$/u, "");
-  return catalogUrl === `${baseUrl}/models` && features?.["api_key_model_discovery"] === true;
+  // 稳定版默认启用发现，缺省配置无需重复写入或重启 App Server。
+  return catalogUrl === `${baseUrl}/models` && features?.["api_key_model_discovery"] !== false;
 }
 
 export function readActiveProvider(config: Record<string, unknown>): {

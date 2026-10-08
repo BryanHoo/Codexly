@@ -130,9 +130,11 @@ struct FeedbackUploadResponse {
     thread_id: String,
 }
 
+// 目标写操作来自用户界面；显式来源确保 Codex 持久化指令并在恢复时遵守。
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct GoalUpdateParams<'a> {
+    origin: &'static str,
     thread_id: &'a str,
     status: &'a str,
 }
@@ -140,8 +142,16 @@ struct GoalUpdateParams<'a> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct GoalObjectiveParams<'a> {
+    origin: &'static str,
     objective: &'a str,
     status: &'static str,
+    thread_id: &'a str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GoalClearParams<'a> {
+    origin: &'static str,
     thread_id: &'a str,
 }
 
@@ -176,6 +186,7 @@ pub async fn update_goal(
         .request(
             "thread/goal/set",
             &GoalUpdateParams {
+                origin: "user",
                 thread_id: task_id,
                 status,
             },
@@ -198,6 +209,7 @@ pub async fn set_goal_objective(
         .request(
             "thread/goal/set",
             &GoalObjectiveParams {
+                origin: "user",
                 objective,
                 status: "active",
                 thread_id: task_id,
@@ -219,7 +231,10 @@ pub async fn clear_goal(
     connection
         .request(
             "thread/goal/clear",
-            &ThreadIdParams { thread_id: task_id },
+            &GoalClearParams {
+                origin: "user",
+                thread_id: task_id,
+            },
             REQUEST_TIMEOUT,
         )
         .await

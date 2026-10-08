@@ -12,3 +12,6 @@
 - 插件同步按 App Server 连接合并在途请求，弱引用避免连接与共享 Future 循环持有；请求完成、失败或取消后不复用结果。只向 WebView 传递协议字段，保留部分失败，Hooks 生命周期由 Codex 管理。
 
 - `compress_history` 原生命令转发无参数 `rollout/compress` 并校验对象回执；复用 Codex 的历史维护锁与压缩调度，不实现第二套文件压缩器。
+
+- 用户界面的目标启动、编辑、暂停、恢复和清除必须发送 `origin: "user"`；自动生命周期不得冒充用户指令。升级时验证回合前的设置提交顺序，以及隔离 `CODEX_HOME` 的目标指令落盘，在根目录执行：`CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-codex/src/goals-runtime.test.ts`。
+- Codex API Key 模型发现已稳定并默认开启；启动参数不强制覆盖此开关，缺省配置不因发现功能而重复写入。模型默认值及推理档位由当前 `model/list` 提供，不增加逐模型请求。

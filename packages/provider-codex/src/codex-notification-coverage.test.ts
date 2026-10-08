@@ -56,6 +56,10 @@ function resolveBundledCodexCli(): string {
 }
 
 describe("Codex notification coverage", () => {
+  it("opts out of unused thread prediction notifications", () => {
+    expect(CODEX_IGNORED_NOTIFICATION_METHODS.has("thread/prediction/updated")).toBe(true);
+    expect(CODEX_OPT_OUT_NOTIFICATION_METHODS).toContain("thread/prediction/updated");
+  });
   it("classifies every generated ServerNotification exactly once", () => {
     const officialMethods = generateOfficialNotificationMethods();
     const classifications = [

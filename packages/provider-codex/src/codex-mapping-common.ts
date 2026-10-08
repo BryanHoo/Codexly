@@ -92,6 +92,8 @@ export const CODEX_IGNORED_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
   "thread/compacted",
   "thread/environment/connected",
   "thread/environment/disconnected",
+  // 线程预测尚无产品入口；主动关闭通知，避免额外传输和解析。
+  "thread/prediction/updated",
   "thread/project/updated",
   "thread/realtime/closed",
   "thread/realtime/error",

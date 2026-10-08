@@ -74,6 +74,7 @@ async fn goal_start_should_persist_settings_before_setting_objective() {
         let goal: Value = serde_json::from_str(&lines.next_line().await.unwrap().unwrap())
             .expect("goal request should be JSON");
         assert_eq!(goal["method"], "thread/goal/set");
+        assert_eq!(goal["params"]["origin"], "user");
         assert_eq!(goal["params"]["objective"], "持续完成迁移");
         server_writer
             .write_all(
@@ -130,6 +131,9 @@ async fn native_goal_commands_should_map_protocol_contract() {
                 serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
             assert_eq!(request["method"], method);
             assert_eq!(request["params"]["threadId"], "thread-a");
+            if method != "thread/goal/get" {
+                assert_eq!(request["params"]["origin"], "user");
+            }
             if method == "thread/goal/set" {
                 assert_eq!(request["params"]["status"], "paused");
                 assert!(request["params"].get("objective").is_none());

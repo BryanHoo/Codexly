@@ -31,16 +31,7 @@ async function startFake(scenario = "normal"): Promise<CodexAppServerProcess> {
   // Fake Server 由当前 Node.js 执行，避免 Windows 把测试脚本误当成原生 Codex Binary。
   const child = spawn(
     process.execPath,
-    [
-      fakeAppServerPath,
-      "app-server",
-      "--enable",
-      "plugins",
-      "--enable",
-      "api_key_model_discovery",
-      "--listen",
-      "stdio://",
-    ],
+    [fakeAppServerPath, "app-server", "--enable", "plugins", "--listen", "stdio://"],
     {
       env: { ...process.env, FAKE_APP_SERVER_SCENARIO: scenario },
       shell: false,
@@ -51,7 +42,7 @@ async function startFake(scenario = "normal"): Promise<CodexAppServerProcess> {
   const runtime = new CodexAppServerProcess(
     child,
     { path: process.execPath, source: "explicit" },
-    { raw: "codex-cli 0.160.0", version: "0.160.0" },
+    { raw: "codex-cli 0.161.0", version: "0.161.0" },
     { rpcTimeoutMs: 1_000, shutdownTimeoutMs: 100 },
   );
   await runtime.waitForSpawn();
@@ -101,15 +92,7 @@ describe("CodexAppServerProcess", () => {
       runtimes.push(runtime);
 
       await expect(runtime.client.request("inspect")).resolves.toMatchObject({
-        args: [
-          "app-server",
-          "--enable",
-          "plugins",
-          "--enable",
-          "api_key_model_discovery",
-          "--listen",
-          "stdio://",
-        ],
+        args: ["app-server", "--enable", "plugins", "--listen", "stdio://"],
       });
     },
   );
@@ -119,15 +102,7 @@ describe("CodexAppServerProcess", () => {
 
     await expect(runtime.client.request("echo", { ok: true })).resolves.toEqual({ ok: true });
     await expect(runtime.client.request("inspect")).resolves.toEqual({
-      args: [
-        "app-server",
-        "--enable",
-        "plugins",
-        "--enable",
-        "api_key_model_discovery",
-        "--listen",
-        "stdio://",
-      ],
+      args: ["app-server", "--enable", "plugins", "--listen", "stdio://"],
       initializeParams: {
         capabilities: {
           experimentalApi: true,
@@ -137,7 +112,7 @@ describe("CodexAppServerProcess", () => {
       },
       initialized: true,
     });
-    expect(runtime.version.version).toBe("0.160.0");
+    expect(runtime.version.version).toBe("0.161.0");
     expect(runtime.closed).toBe(false);
   });
 
@@ -245,7 +220,7 @@ describe("CodexAppServerProcess", () => {
       const runtime = new CodexAppServerProcess(
         child,
         { path: "/fake/codex", source: "explicit" },
-        { raw: "codex-cli 0.160.0", version: "0.160.0" },
+        { raw: "codex-cli 0.161.0", version: "0.161.0" },
         { rpcTimeoutMs: 100, shutdownTimeoutMs: 5 },
       );
 

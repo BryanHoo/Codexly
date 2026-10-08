@@ -125,7 +125,8 @@ pub async fn ensure_custom_model_discovery(
             json!(catalog_url),
         ));
     }
-    if config.pointer("/features/api_key_model_discovery") != Some(&json!(true)) {
+    // 发现已默认开启；仅修正显式关闭，缺省值不触发配置写入。
+    if config.pointer("/features/api_key_model_discovery") == Some(&json!(false)) {
         edits.push(edit("features.api_key_model_discovery", json!(true)));
     }
     if config.get("suppress_unstable_features_warning") != Some(&json!(true)) {

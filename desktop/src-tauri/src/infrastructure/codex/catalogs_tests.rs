@@ -31,7 +31,7 @@ async fn models_should_preserve_gpt_6_1_defaults_without_reloading_the_catalog()
                                 "multiAgentVersion": null, "defaultReasoningEffort": "medium",
                                 "supportedReasoningEfforts": [
                                     {"reasoningEffort": "medium", "description": "Balanced"},
-                                    {"reasoningEffort": "xhigh", "description": "Deep reasoning"}
+                                    {"reasoningEffort": "ultra", "description": "Deep reasoning"}
                                 ]
                             }], "nextCursor": null
                         }})
@@ -57,7 +57,7 @@ async fn models_should_preserve_gpt_6_1_defaults_without_reloading_the_catalog()
         );
         assert_eq!(
             models["data"][0]["supportedReasoningEfforts"][1]["id"],
-            "xhigh"
+            "ultra"
         );
         assert_eq!(list_models(&connection).await.unwrap(), models);
         server_task.await.unwrap();

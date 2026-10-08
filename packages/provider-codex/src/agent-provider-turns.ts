@@ -130,6 +130,8 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
         const goalResponse = expectRecord(
           await this.client.request("thread/goal/set", {
             objective,
+            // 显式标记用户目标操作，让 Codex 在恢复执行前持久化用户指令。
+            origin: "user",
             status: "active",
             threadId: taskId,
           }),
@@ -198,7 +200,7 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   public async updateGoal(taskId: string, input: UpdateAgentGoalRequest): Promise<AgentGoal> {
     this.assertKnownProjectTask(taskId);
     const response = expectRecord(
-      await this.client.request("thread/goal/set", { ...input, threadId: taskId }),
+      await this.client.request("thread/goal/set", { ...input, origin: "user", threadId: taskId }),
       "thread/goal/set response",
     );
     return mapCodexGoal(response["goal"], taskId);
@@ -207,7 +209,7 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   public async clearGoal(taskId: string): Promise<void> {
     this.assertKnownProjectTask(taskId);
     const response = expectRecord(
-      await this.client.request("thread/goal/clear", { threadId: taskId }),
+      await this.client.request("thread/goal/clear", { origin: "user", threadId: taskId }),
       "thread/goal/clear response",
     );
     expectBoolean(response["cleared"], "thread/goal/clear cleared");
