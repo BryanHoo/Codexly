@@ -136,34 +136,40 @@ describe("ProjectGitStatusCoordinator", () => {
     coordinator.dispose();
   });
 
-  it("stops automatic polling for non-Git projects and resumes only after manual detection", async () => {
-    vi.useFakeTimers();
-    const getProjectGitStatus = vi
-      .fn<CodexlyGitStatusClient["getProjectGitStatus"]>()
-      .mockResolvedValueOnce(nonGitStatus)
-      .mockResolvedValueOnce(gitStatus)
-      .mockResolvedValueOnce(nonGitStatus);
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const coordinator = new ProjectGitStatusCoordinator(queryClient, { getProjectGitStatus });
+  it.each(["none", "children"] as const)(
+    "stops automatic polling for %s projects and resumes only after manual detection",
+    async (repositoryMode) => {
+      const unavailableStatus = { ...nonGitStatus, repositoryMode };
+      vi.useFakeTimers();
+      const getProjectGitStatus = vi
+        .fn<CodexlyGitStatusClient["getProjectGitStatus"]>()
+        .mockResolvedValueOnce(unavailableStatus)
+        .mockResolvedValueOnce(gitStatus)
+        .mockResolvedValueOnce(unavailableStatus);
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const coordinator = new ProjectGitStatusCoordinator(queryClient, { getProjectGitStatus });
 
-    coordinator.handleActivity("project-1", rootPath, "task-1", "turn_started");
-    await vi.advanceTimersByTimeAsync(0);
-    await vi.advanceTimersByTimeAsync(PROJECT_GIT_STATUS_POLL_INTERVAL_MS * 2);
-    coordinator.handleActivity("project-1", rootPath, "task-1", "file_changed");
-    await vi.advanceTimersByTimeAsync(PROJECT_GIT_STATUS_FILE_CHANGE_DEBOUNCE_MS);
-    expect(getProjectGitStatus).toHaveBeenCalledTimes(1);
+      coordinator.handleActivity("project-1", rootPath, "task-1", "turn_started");
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(PROJECT_GIT_STATUS_POLL_INTERVAL_MS * 2);
+      coordinator.handleActivity("project-1", rootPath, "task-1", "file_changed");
+      await vi.advanceTimersByTimeAsync(PROJECT_GIT_STATUS_FILE_CHANGE_DEBOUNCE_MS);
+      coordinator.handleGitMetadataChanged("project-1", rootPath);
+      await vi.advanceTimersByTimeAsync(PROJECT_GIT_STATUS_FILE_CHANGE_DEBOUNCE_MS);
+      expect(getProjectGitStatus).toHaveBeenCalledTimes(1);
 
-    await coordinator.refreshProject("project-1", rootPath);
-    expect(getProjectGitStatus).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(PROJECT_GIT_STATUS_POLL_INTERVAL_MS);
-    expect(getProjectGitStatus).toHaveBeenCalledTimes(3);
-    await vi.advanceTimersByTimeAsync(PROJECT_GIT_STATUS_POLL_INTERVAL_MS * 2);
-    expect(getProjectGitStatus).toHaveBeenCalledTimes(3);
-    expect(queryClient.getQueryData(["projects", "project-1", rootPath, "git-status"])).toEqual(
-      nonGitStatus,
-    );
-    coordinator.dispose();
-  });
+      await coordinator.refreshProject("project-1", rootPath);
+      expect(getProjectGitStatus).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(PROJECT_GIT_STATUS_POLL_INTERVAL_MS);
+      expect(getProjectGitStatus).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(PROJECT_GIT_STATUS_POLL_INTERVAL_MS * 2);
+      expect(getProjectGitStatus).toHaveBeenCalledTimes(3);
+      expect(queryClient.getQueryData(["projects", "project-1", rootPath, "git-status"])).toEqual(
+        unavailableStatus,
+      );
+      coordinator.dispose();
+    },
+  );
 
   it("retries failed polling automatically and resumes the normal interval after success", async () => {
     vi.useFakeTimers();

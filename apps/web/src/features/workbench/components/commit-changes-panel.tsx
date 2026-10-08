@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
   CommitProjectChangesRequest,
   CommitProjectChangesResponse,
@@ -24,14 +25,6 @@ import {
   InputGroupTextarea,
 } from "../../../shared/components/core/input-group.js";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../../shared/components/core/select.js";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -53,14 +46,10 @@ type CommitChangesPanelProps = Readonly<{
   gitStatus: ProjectGitStatus;
   isCommitting?: boolean;
   isGenerating?: boolean;
-  isRepositoryLoading?: boolean;
   onCommit: (request: CommitProjectChangesRequest) => Promise<void>;
   onGenerateMessage: (request: GenerateCommitMessageRequest) => Promise<string>;
   onOpenFileDiff: (change: AgentFileChange) => void;
-  onSelectRepository?: (repository: string) => void;
-  repositories?: readonly string[];
   result?: CommitProjectChangesResponse | null;
-  selectedRepository?: string | null;
 }>;
 
 export function collectCommitFileEntries(status: ProjectGitStatus): readonly CommitFileEntry[] {
@@ -79,20 +68,6 @@ export function collectCommitFileEntries(status: ProjectGitStatus): readonly Com
   return [...entries.values()].sort((left, right) => left.path.localeCompare(right.path, "en"));
 }
 
-export function collectCommitRepositories(status: ProjectGitStatus): readonly string[] {
-  if (status.repositoryMode !== "children") {
-    return [];
-  }
-  const repositories = new Set<string>();
-  for (const change of [...status.staged, ...status.unstaged]) {
-    const separator = change.path.indexOf("/");
-    if (separator > 0) {
-      repositories.add(change.path.slice(0, separator));
-    }
-  }
-  return [...repositories].toSorted((left, right) => left.localeCompare(right, "en"));
-}
-
 function createCommitContentState(identity: string, entries: readonly CommitFileEntry[]) {
   return {
     identity,
@@ -106,19 +81,15 @@ export function CommitChangesPanel({
   gitStatus,
   isCommitting = false,
   isGenerating = false,
-  isRepositoryLoading = false,
   onCommit,
   onGenerateMessage,
   onOpenFileDiff,
-  onSelectRepository = () => undefined,
-  repositories = [],
   result = null,
-  selectedRepository = null,
 }: CommitChangesPanelProps) {
   const { t } = useTranslation("workbench");
   const [fileViewMode, setFileViewMode] = useFileNavigationViewPreference("changes");
   const entries = useMemo(() => collectCommitFileEntries(gitStatus), [gitStatus]);
-  const contentIdentity = `${selectedRepository ?? "root"}:${gitStatus.snapshot}`;
+  const contentIdentity = gitStatus.snapshot;
   const [contentState, setContentState] = useState(() =>
     createCommitContentState(contentIdentity, entries),
   );
@@ -131,10 +102,7 @@ export function CommitChangesPanel({
   // 多行提交信息固定展示三行，更多内容继续由输入框内部滚动。
   const commitMessageRows = message.includes("\n") ? 3 : 1;
   const isPending = isGenerating || isCommitting;
-  const requiresRepository = repositories.length > 0 || gitStatus.repositoryMode === "children";
-  const repositoryReady =
-    !requiresRepository ||
-    (selectedRepository !== null && !isRepositoryLoading && gitStatus.repositoryMode === "root");
+  const repositoryReady = isRootGitProject(gitStatus);
   const canGenerate = repositoryReady && selectedPaths.size > 0 && !isPending && result === null;
   const canCommit = canGenerate && message.trim().length > 0;
 
@@ -143,7 +111,6 @@ export function CommitChangesPanel({
       const generated = await onGenerateMessage({
         expectedSnapshot: gitStatus.snapshot,
         paths: [...selectedPaths],
-        ...(selectedRepository === null ? {} : { repository: selectedRepository }),
       });
       setContentState((current) => ({ ...current, message: generated }));
     });
@@ -155,48 +122,13 @@ export function CommitChangesPanel({
         expectedSnapshot: gitStatus.snapshot,
         message,
         paths: [...selectedPaths],
-        ...(selectedRepository === null ? {} : { repository: selectedRepository }),
       }),
     );
 
+  if (!isRootGitProject(gitStatus)) return null;
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden" data-slot="commit-changes-panel">
-      {requiresRepository ? (
-        <div className="shrink-0 border-b border-separator px-3 py-2">
-          <label className="text-label font-medium" id="commit-repository-label">
-            {t("commit.repository")}
-          </label>
-          <Select
-            disabled={isPending || result !== null}
-            onValueChange={onSelectRepository}
-            {...(selectedRepository === null ? {} : { value: selectedRepository })}
-          >
-            <SelectTrigger aria-labelledby="commit-repository-label" className="mt-1 w-full">
-              <SelectValue placeholder={t("commit.selectRepository")} />
-            </SelectTrigger>
-            <SelectContent position="popper">
-              <SelectGroup>
-                {repositories.map((repository) => (
-                  <SelectItem key={repository} value={repository}>
-                    {repository}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          {isRepositoryLoading ? (
-            <p className="mt-1 text-caption text-muted-foreground" role="status">
-              {t("commit.repositoryLoading")}
-            </p>
-          ) : null}
-          {repositories.length === 0 ? (
-            <p className="mt-1 text-caption text-danger" role="alert">
-              {t("commit.repositoryUnavailable")}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
       {error === null ? null : (
         <p className="mx-3 mt-2 shrink-0 text-caption text-danger" role="alert">
           {error.message}

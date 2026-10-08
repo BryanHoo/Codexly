@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { ProjectGitStatus } from "@/protocol/index.js";
 import { ChevronsUpDown, GitBranch, LoaderCircle } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
@@ -25,7 +26,7 @@ export function ComposerBranchSwitcher(props: ComposerBranchSwitcherProps) {
   const { creatingBranch, gitStatus, switchingBranch } = props;
   const { t } = useTranslation("workbench");
   const [activated, setActivated] = useState(false);
-  if (gitStatus === undefined || gitStatus.repositoryMode === "none") return null;
+  if (!isRootGitProject(gitStatus)) return null;
   const currentBranch = gitStatus.branch;
   const interactive = gitStatus.repositoryMode === "root" && currentBranch !== null;
   const label = currentBranch ?? t("composer.gitBranchMissing");

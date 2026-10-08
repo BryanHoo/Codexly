@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import { resolveDesktopTaskRoot } from "./workbench-task-root.js";
 import type {
   AgentMessageAttachment,
@@ -179,7 +180,7 @@ export function useWorkbenchShellRuntime({
   );
   useProjectGitStatusRouteRefresh(
     inspectorScopeKey,
-    !temporary && selectedRootPath !== undefined,
+    !temporary && selectedRootPath !== undefined && isRootGitProject(gitStatusQuery.data),
     gitStatusQuery,
   );
   useEffect(() => {

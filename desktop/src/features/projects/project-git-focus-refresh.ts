@@ -1,3 +1,5 @@
+import type { ProjectGitStatus } from "@codexly/protocol";
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { Query, QueryClient } from "@tanstack/react-query";
 
 type FocusTarget = Readonly<{
@@ -8,7 +10,8 @@ type FocusTarget = Readonly<{
 function isProjectGitStatusQuery(query: Query): boolean {
   const { queryKey } = query;
   return (
-    queryKey.length === 4 && queryKey[0] === "projects" && queryKey[3] === "git-status"
+    queryKey.length === 4 && queryKey[0] === "projects" && queryKey[3] === "git-status" &&
+    isRootGitProject(query.state.data as ProjectGitStatus | undefined)
   );
 }
 

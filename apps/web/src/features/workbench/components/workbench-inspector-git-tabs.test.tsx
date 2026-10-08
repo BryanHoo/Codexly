@@ -34,21 +34,26 @@ describe("WorkbenchInspector Git tabs", () => {
     expect(readInspectorTabLabels(nonGitMarkup)).toEqual(["项目", "上下文"]);
   });
 
-  it("shows the commit entry for immediate child Git repositories", () => {
-    const markup = renderInspectorMarkup(
-      <WorkbenchInspector
-        gitStatus={{ ...gitStatus, repositoryMode: "children" }}
-        projectName="Codexly"
-        projectPath="/workspace/Codexly"
-        tab="project"
-        taskId="task-1"
-      />,
-    );
-    const commitButton = /<button[^>]*id="workbench-commit-changes"[^>]*>/u.exec(markup)?.[0];
-
-    expect(commitButton).toBeDefined();
-    expect(commitButton).not.toContain(' disabled=""');
-  });
+  it.each(["none", "children"] as const)(
+    "hides all Git UI for %s projects even with stale errors and changes",
+    (repositoryMode) => {
+      const markup = renderInspectorMarkup(
+        <WorkbenchInspector
+          gitStatus={{ ...gitStatus, repositoryMode }}
+          gitStatusError={new Error("not a git repository")}
+          gitStatusPending
+          projectName="Codexly"
+          projectPath="/workspace/Codexly"
+          tab="project"
+          taskId="task-1"
+        />,
+      );
+      expect(readInspectorTabLabels(markup)).toEqual(["项目", "上下文"]);
+      expect(markup).not.toContain('id="workbench-commit-changes"');
+      expect(markup).not.toContain("Git 变更刷新失败");
+      expect(markup).not.toContain('aria-label="手动刷新 Git 变更"');
+    },
+  );
 
   it("shows only aggregate Git change stats in project", () => {
     const renderInspector = (expandedFileTreePaths: Set<string>) =>

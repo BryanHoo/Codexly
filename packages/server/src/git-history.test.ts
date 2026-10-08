@@ -76,33 +76,17 @@ describe("readProjectGitHistory", () => {
     expect(firstPageArguments).not.toContain("--all");
   });
 
-  it("lists direct child repositories and reads only the selected tab", async () => {
+  it("ignores child repositories without running Git history commands", async () => {
     const projectRoot = await createTemporaryProject();
-    const appsRoot = join(projectRoot, "apps");
-    const packagesRoot = join(projectRoot, "packages");
-    await Promise.all([
-      mkdir(join(appsRoot, ".git"), { recursive: true }),
-      mkdir(join(packagesRoot, ".git"), { recursive: true }),
-      mkdir(join(projectRoot, "docs")),
-    ]);
-    const executeGit = vi.fn((_root: string, arguments_: readonly string[]) =>
-      Promise.resolve(arguments_[0] === "branch" ? "release/packages\n" : serializeCommits(1)),
-    );
-
-    const page = await readProjectGitHistory(projectRoot, { repository: "packages" }, executeGit);
-
-    expect(page).toMatchObject({
-      branch: "release/packages",
-      nextCursor: null,
-      repositories: ["apps", "packages"],
-      repository: "packages",
-      repositoryMode: "children",
+    await mkdir(join(projectRoot, "apps", ".git"), { recursive: true });
+    const executeGit = vi.fn(() => Promise.resolve(""));
+    await expect(readProjectGitHistory(projectRoot, {}, executeGit)).rejects.toMatchObject({
+      code: "REPOSITORY_NOT_FOUND",
     });
-    expect(executeGit).toHaveBeenCalledTimes(2);
-    expect(executeGit).toHaveBeenCalledWith(await realpath(packagesRoot), [
-      "branch",
-      "--show-current",
-    ]);
+    await expect(
+      readProjectGitHistory(projectRoot, { repository: "apps" }, executeGit),
+    ).rejects.toMatchObject({ code: "REPOSITORY_NOT_FOUND" });
+    expect(executeGit).not.toHaveBeenCalled();
   });
 
   it("rejects relative roots and unknown child repositories", async () => {

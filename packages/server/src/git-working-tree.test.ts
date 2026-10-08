@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, realpath, rm, utimes, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { GitCommandOutputLimitError } from "./git-command.js";
 import {
@@ -250,47 +250,25 @@ describe("readGitWorkingTreeStatus", () => {
     }
   });
 
-  it("reads and combines immediate child repositories when the project root is not Git", async () => {
+  it("ignores child repositories and executes no Git commands for a non-Git project", async () => {
     const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
-    const frontendRoot = join(projectRoot, "frontend");
-    const backendRoot = join(projectRoot, "backend");
-    const nestedRepositoryRoot = join(projectRoot, "workspace", "nested");
     try {
-      await Promise.all([
-        mkdir(join(frontendRoot, ".git"), { recursive: true }),
-        mkdir(join(backendRoot, ".git"), { recursive: true }),
-        mkdir(join(nestedRepositoryRoot, ".git"), { recursive: true }),
-        mkdir(join(projectRoot, "notes"), { recursive: true }),
-      ]);
-      const visitedStatusRoots: string[] = [];
-      const executeGit = (root: string, arguments_: readonly string[]) => {
-        if (arguments_[0] === "status") {
-          visitedStatusRoots.push(root);
-          if (root === projectRoot) {
-            return Promise.reject(new Error("not a git repository"));
-          }
-          if (root === frontendRoot) {
-            return Promise.resolve(" M src/app.ts\0");
-          }
-          if (root === backendRoot) {
-            return Promise.resolve("M  src/server.ts\0");
-          }
-        }
+      await mkdir(join(projectRoot, "frontend", ".git"), { recursive: true });
+      await mkdir(join(projectRoot, "workspace", "nested", ".git"), { recursive: true });
+      const executeGit = vi.fn(() => Promise.reject(new Error("must not execute Git")));
 
-        const path = root === frontendRoot ? "src/app.ts" : "src/server.ts";
-        return Promise.resolve(createGitDiffOutput([path], "new"));
-      };
-
-      const status = await readGitWorkingTreeStatus(projectRoot, executeGit);
-
-      expect(status.staged.map((change) => change.path)).toEqual(["backend/src/server.ts"]);
-      expect(status.unstaged.map((change) => change.path)).toEqual(["frontend/src/app.ts"]);
-      expect(status.repositoryMode).toBe("children");
-      expect(status.branches).toEqual([]);
-      expect(status.snapshot).toMatch(/^[a-f0-9]{64}$/u);
-      expect(visitedStatusRoots.toSorted()).toEqual([backendRoot, frontendRoot].toSorted());
-      expect(visitedStatusRoots).not.toContain(projectRoot);
-      expect(visitedStatusRoots).not.toContain(nestedRepositoryRoot);
+      for (const includeDiff of [false, true]) {
+        await expect(
+          readProjectGitStatus(projectRoot, { includeDiff }, executeGit),
+        ).resolves.toMatchObject({
+          repositoryMode: "none",
+          branch: null,
+          branches: [],
+          staged: [],
+          unstaged: [],
+        });
+      }
+      expect(executeGit).not.toHaveBeenCalled();
     } finally {
       await rm(projectRoot, { force: true, recursive: true });
     }
@@ -319,48 +297,15 @@ describe("readGitWorkingTreeStatus", () => {
     }
   });
 
-  it("reads one selected immediate child repository with repository-relative paths", async () => {
+  it("rejects child repository selection without executing Git", async () => {
     const projectRoot = await realpath(await mkdtemp(join(tmpdir(), "codexly-git-status-test-")));
-    const frontendRoot = join(projectRoot, "frontend");
     try {
-      await mkdir(join(frontendRoot, ".git"), { recursive: true });
-      let refReads = 0;
-      const visitedRoots: string[] = [];
-      const executeGit = (root: string, arguments_: readonly string[]) => {
-        if (arguments_[0] === "status") {
-          visitedRoots.push(root);
-          return Promise.resolve(" M src/app.ts\0");
-        }
-        if (arguments_[0] === "branch") {
-          return Promise.resolve("feat/frontend\n");
-        }
-        if (arguments_[0] === "for-each-ref") {
-          refReads += 1;
-          return Promise.resolve("");
-        }
-        if (arguments_[0] === "symbolic-ref") {
-          return Promise.resolve("");
-        }
-        return Promise.resolve(createGitDiffOutput(["src/app.ts"], "new"));
-      };
-
-      const status = await readProjectGitStatus(
-        projectRoot,
-        { repository: "frontend" },
-        executeGit,
-      );
-
-      expect(status).toMatchObject({ branch: "feat/frontend", repositoryMode: "root" });
-      expect(status.unstaged.map((change) => change.path)).toEqual(["src/app.ts"]);
-      expect(visitedRoots).toEqual([frontendRoot]);
-      await readProjectGitStatus(projectRoot, { repository: "frontend" }, executeGit);
-      expect(refReads).toBe(2);
-      invalidateProjectGitBranchCache(projectRoot);
-      await readProjectGitStatus(projectRoot, { repository: "frontend" }, executeGit);
-      expect(refReads).toBe(4);
+      await mkdir(join(projectRoot, "frontend", ".git"), { recursive: true });
+      const executeGit = vi.fn(() => Promise.resolve(""));
       await expect(
-        readProjectGitStatus(projectRoot, { repository: "workspace/nested" }, executeGit),
+        readProjectGitStatus(projectRoot, { repository: "frontend" }, executeGit),
       ).rejects.toMatchObject({ code: "REPOSITORY_NOT_FOUND" });
+      expect(executeGit).not.toHaveBeenCalled();
     } finally {
       await rm(projectRoot, { force: true, recursive: true });
     }

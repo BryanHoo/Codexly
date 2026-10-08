@@ -121,6 +121,7 @@ describe("CodexGitMetadataWatchService", () => {
 
   it("silently skips non-Git Projects", async () => {
     const root = await createTemporaryRoot("non-git-watch");
+    await write(join(root, "child", ".git", "HEAD"), "ref: refs/heads/main\n");
     const client = createClient();
     const logger = { warn: vi.fn() };
     const service = new CodexGitMetadataWatchService(client, {

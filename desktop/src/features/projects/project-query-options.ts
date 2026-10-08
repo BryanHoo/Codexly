@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { NativeClient } from "@/platform/native-client-contract.js";
 import type {
   AgentGlobalSettings,
@@ -267,7 +268,9 @@ export function projectGitStatusQueryOptions(
     enabled,
     queryFn: ({ signal }) => client.getProjectGitStatus(projectId, { rootPath }, { signal }),
     queryKey: ["projects", projectId, rootPath, "git-status"] as const,
-    // Project 级协调器负责刷新生命周期，Query 只维护共享服务端状态。
+    // 初次允许探测；确认非 Git 后仅显式刷新，避免挂载和窗口聚焦重复读取。
+    refetchOnMount: (query) => query.state.data === undefined || isRootGitProject(query.state.data) ? "always" : false,
+    refetchOnWindowFocus: (query) => isRootGitProject(query.state.data),
     retry: shouldRetryGitQuery,
   });
 }

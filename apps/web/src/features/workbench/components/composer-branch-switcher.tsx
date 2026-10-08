@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { ProjectGitStatus } from "@codexly/protocol";
 import { ChevronsUpDown, GitBranch, LoaderCircle, Plus } from "lucide-react";
 import { useState } from "react";
@@ -43,7 +44,7 @@ export function ComposerBranchSwitcher({
   const { t } = useTranslation("workbench");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  if (gitStatus === undefined || gitStatus.repositoryMode === "none") {
+  if (!isRootGitProject(gitStatus)) {
     return null;
   }
 

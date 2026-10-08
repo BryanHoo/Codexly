@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
   AgentBackgroundTerminal,
   AgentMcpServer,
@@ -188,7 +189,7 @@ export function WorkbenchInspector({
     requestedTab: tab,
     taskId,
   });
-  const isGitProject = gitStatus !== undefined && gitStatus.repositoryMode !== "none";
+  const isGitProject = isRootGitProject(gitStatus);
   const { changeStats, displayChanges, fileChangesByPath } = useMemo(
     () =>
       isGitProject && activeTab === "project"
@@ -296,7 +297,7 @@ export function WorkbenchInspector({
                   </div>
                 ) : null}
                 <div className="flex min-h-0 flex-1 flex-col">
-                  {gitStatusError !== null ? (
+                  {isGitProject && gitStatusError !== null ? (
                     <div className="mx-2.5 mb-2 flex items-center gap-2 rounded-control bg-control px-2 py-2">
                       <div className="min-w-0 flex-1">
                         <p className="text-label text-diff-removed">
@@ -324,7 +325,7 @@ export function WorkbenchInspector({
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                  ) : gitStatusPending && gitStatus === undefined ? (
+                  ) : isGitProject && gitStatusPending ? (
                     <p className="mb-2 px-4 text-caption text-muted-foreground">
                       {i18n.t("inspector.gitLoading", { ns: "conversation" })}
                     </p>

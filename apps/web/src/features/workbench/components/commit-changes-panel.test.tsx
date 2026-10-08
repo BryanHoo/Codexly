@@ -3,11 +3,7 @@ import type { ComponentProps } from "react";
 import { describe, expect, it } from "vitest";
 
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
-import {
-  CommitChangesPanel,
-  collectCommitFileEntries,
-  collectCommitRepositories,
-} from "./commit-changes-panel.js";
+import { CommitChangesPanel, collectCommitFileEntries } from "./commit-changes-panel.js";
 import { CommitChangesTreeSection } from "./commit-changes-tree.js";
 
 const gitStatus = {
@@ -89,25 +85,12 @@ describe("CommitChangesPanel", () => {
     expect(markup).not.toContain('data-ai-file-tree=""');
   });
 
-  it("requires a selected child repository before showing commit controls", () => {
-    const childGitStatus = {
-      ...gitStatus,
-      repositoryMode: "children" as const,
-      staged: [{ diff: "+staged", kind: "update" as const, path: "backend/src/server.ts" }],
-      unstaged: [{ diff: "+unstaged", kind: "update" as const, path: "frontend/src/app.ts" }],
-    };
-
-    expect(collectCommitRepositories(childGitStatus)).toEqual(["backend", "frontend"]);
-    const markup = renderPanel({
-      gitStatus: childGitStatus,
-      onSelectRepository: () => undefined,
-      repositories: ["backend", "frontend"],
-      selectedRepository: null,
-    });
-
-    expect(markup).toContain("选择 Git 项目");
-    expect(markup).not.toContain('id="commit-message"');
-  });
+  it.each(["none", "children"] as const)(
+    "renders no commit controls for %s projects",
+    (repositoryMode) => {
+      expect(renderPanel({ gitStatus: { ...gitStatus, repositoryMode } })).toBe("");
+    },
+  );
 
   it("keeps the commit result visible after a partial push failure", () => {
     const markup = renderPanel({

@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { ProjectGitStatus } from "@codexly/protocol";
 
 import type { WorkbenchInspectorTab } from "./components/workbench-inspector-tabs.js";
@@ -31,8 +32,7 @@ export function shouldEnableProjectGitDetails({
   return (
     !temporary &&
     activePanel &&
-    gitStatus !== undefined &&
-    gitStatus.repositoryMode !== "none" &&
+    isRootGitProject(gitStatus) &&
     gitStatus.staged.length + gitStatus.unstaged.length > 0
   );
 }
@@ -42,7 +42,7 @@ export function getAvailableWorkbenchInspectorTabs(
   gitStatus: InspectorGitAvailability | undefined,
   { contextOnly = false }: InspectorTabAvailability = {},
 ): WorkbenchInspectorTab[] {
-  const isGitProject = gitStatus !== undefined && gitStatus.repositoryMode !== "none";
+  const isGitProject = isRootGitProject(gitStatus);
   const hasGitChanges = isGitProject && gitStatus.staged.length + gitStatus.unstaged.length > 0;
   const tabs: WorkbenchInspectorTab[] = [];
 
@@ -77,7 +77,7 @@ export function deriveWorkbenchInspectorActivation({
       : "context"
     : (requestedTab.startsWith("document:") && fileOpen) || availableTabs.includes(requestedTab)
       ? requestedTab
-      : requestedTab === "changes" && gitStatus?.repositoryMode !== "none"
+      : requestedTab === "changes" && isRootGitProject(gitStatus)
         ? (availableTabs[0] ?? "project")
         : "project";
 

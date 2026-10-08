@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use super::{
     git_protocol::{MAX_METADATA_BYTES, read_complete},
-    path_guard::{WorkspaceError, valid_relative},
+    path_guard::WorkspaceError,
 };
 
 pub(super) struct RepositorySelection {
@@ -37,10 +37,11 @@ pub(super) async fn select_repository(
     root: &Path,
     requested: Option<&str>,
 ) -> Result<RepositorySelection, WorkspaceError> {
+    // 项目 Git 能力只属于当前根目录，拒绝子仓库选择，也不向父目录回溯。
+    if requested.is_some() {
+        return Err(WorkspaceError::InvalidPath);
+    }
     if tokio::fs::try_exists(root.join(".git")).await? {
-        if requested.is_some() {
-            return Err(WorkspaceError::InvalidPath);
-        }
         return Ok(RepositorySelection {
             mode: "root",
             path: Some(resolve_root(root).await?),
@@ -48,47 +49,12 @@ pub(super) async fn select_repository(
             repository: None,
         });
     }
-    let mut repositories = Vec::new();
-    let mut reader = tokio::fs::read_dir(root).await?;
-    while let Some(entry) = reader.next_entry().await? {
-        if entry.file_type().await?.is_dir()
-            && tokio::fs::try_exists(entry.path().join(".git")).await?
-        {
-            repositories.push(
-                entry
-                    .file_name()
-                    .into_string()
-                    .map_err(|_| WorkspaceError::GitPathEncoding)?,
-            );
-            if repositories.len() > 256 {
-                return Err(WorkspaceError::GitOutputTooLarge {
-                    operation: "repository discovery",
-                    maximum_bytes: MAX_METADATA_BYTES,
-                });
-            }
-        }
-    }
-    repositories.sort_unstable();
-    let path = match requested {
-        Some(value) if repositories.iter().any(|name| name == value) => {
-            Some(resolve_root(&root.join(valid_relative(value)?)).await?)
-        }
-        Some(_) => {
-            return Err(WorkspaceError::GitRepositoryUnavailable(
-                "selected Git repository is no longer available".to_owned(),
-            ));
-        }
-        None => None,
-    };
+    // 非 Git 项目是正常状态，不枚举目录，不启动 Git 子进程。
     Ok(RepositorySelection {
-        mode: if repositories.is_empty() {
-            "none"
-        } else {
-            "children"
-        },
-        path,
-        repositories,
-        repository: requested.map(str::to_owned),
+        mode: "none",
+        path: None,
+        repositories: Vec::new(),
+        repository: None,
     })
 }
 

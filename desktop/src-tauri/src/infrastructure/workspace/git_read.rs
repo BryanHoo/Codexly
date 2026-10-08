@@ -196,11 +196,7 @@ pub async fn get_git_file_status(
         base_branches: Vec::new(),
         branch: None,
         branches: Vec::new(),
-        repository_mode: if repository.is_some() {
-            "children"
-        } else {
-            "root"
-        },
+        repository_mode: "root",
         snapshot: hash_parts([output.as_slice()]),
         staged: if staged { parsed.staged } else { Vec::new() },
         unstaged: if staged { Vec::new() } else { parsed.unstaged },

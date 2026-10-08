@@ -192,7 +192,7 @@ describe("WorkbenchComposerView", () => {
     expect(markup).toContain("feat/review");
   });
 
-  it("聚合仓库模式只展示分支状态，不提供切换按钮", () => {
+  it("子仓库模式不展示分支状态或切换按钮", () => {
     const markup = renderToStaticMarkup(
       <ComposerBranchSwitcher
         creatingBranch={undefined}
@@ -211,7 +211,7 @@ describe("WorkbenchComposerView", () => {
       />,
     );
 
-    expect(markup).toContain("未检出分支");
+    expect(markup).toBe("");
     expect(markup).not.toContain("<button");
   });
 

@@ -1,3 +1,5 @@
+import type { ProjectGitStatus } from "@codexly/protocol";
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { getApplicationDetailViewUpdateGate } from "../../shared/lifecycle/application-visibility.js";
@@ -147,6 +149,7 @@ export class ProjectGitStatusCoordinator {
       return;
     }
     const state = this.#getOrCreateState(projectId, rootPath);
+    if (state.isGitProject === false) return;
     this.#clearRetryTimer(state);
     // 原生 Watch 已完成粗粒度合并，这里再合并同一轮多个元数据文件通知。
     this.#scheduleFileChangeRefresh(state);
@@ -214,13 +217,17 @@ export class ProjectGitStatusCoordinator {
     if (current !== undefined) {
       return current;
     }
+    const cachedStatus = this.#queryClient.getQueryData<ProjectGitStatus>(
+      ["projects", projectId, rootPath, "git-status"],
+    );
     const state: ProjectPollingState = {
       activeTaskIds: new Set(),
       closed: false,
       consecutiveFailures: 0,
       fileChangeTimer: undefined,
       inFlight: undefined,
-      isGitProject: undefined,
+      // 已确认非 Git 的项目复用检测结果，任务切换不能重新启动后台刷新。
+      isGitProject: cachedStatus === undefined ? undefined : isRootGitProject(cachedStatus),
       pollingTimer: undefined,
       projectId,
       rootPath,
@@ -256,7 +263,7 @@ export class ProjectGitStatusCoordinator {
       .then((status) => {
         this.#queryClient.setQueryData(queryOptions.queryKey, status);
         state.consecutiveFailures = 0;
-        state.isGitProject = status.repositoryMode !== "none";
+        state.isGitProject = isRootGitProject(status);
         if (!state.isGitProject) {
           this.#clearFileChangeTimer(state);
           this.#clearPollingTimer(state);

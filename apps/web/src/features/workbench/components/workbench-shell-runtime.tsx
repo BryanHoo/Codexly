@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
   AgentMessageAttachment,
   AgentPromptInput,
@@ -156,10 +157,11 @@ export function useWorkbenchShellRuntime({
       !temporary && selectedRootPath !== undefined,
     ),
     // worktree 位于 Project 根列表外，终端改动仍需定期刷新 Git 状态。
-    refetchInterval: activeRootId === "worktree" ? 10_000 : false,
+    refetchInterval: (query) =>
+      activeRootId === "worktree" && isRootGitProject(query.state.data) ? 10_000 : false,
   });
   useProjectGitStatusRefresh({
-    enabled: !temporary && selectedRootPath !== undefined,
+    enabled: !temporary && selectedRootPath !== undefined && isRootGitProject(gitStatusQuery.data),
     refresh: gitStatusQuery.refetch,
     scopeKey: `${projectId}:${taskId ?? "draft"}:${selectedRootPath ?? ""}`,
   });

@@ -1,4 +1,4 @@
-import { InfiniteQueryObserver, QueryClient } from "@tanstack/react-query";
+import { InfiniteQueryObserver, QueryClient, QueryObserver } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import {
   type CodexlyGitHistoryClient,
@@ -148,12 +148,38 @@ describe("project Git queries", () => {
 
     expect(options.queryKey).toEqual(["projects", "codexly", rootPath, "git-status"]);
     expect(options.refetchInterval).toBeUndefined();
-    expect(options.refetchOnMount).toBe("always");
+    expect(options.refetchOnMount).toBeTypeOf("function");
     expect(getProjectGitStatus).toHaveBeenCalledOnce();
     expect(getProjectGitStatus.mock.calls[0]?.[0]).toBe("codexly");
     expect(getProjectGitStatus.mock.calls[0]?.[1]).toEqual({ rootPath });
     expect(getProjectGitStatus.mock.calls[0]?.[2]?.signal).toBeInstanceOf(AbortSignal);
   });
+
+  it.each(["none", "children"] as const)(
+    "does not automatically refetch cached %s status on remount",
+    async (repositoryMode) => {
+      const status = {
+        repositoryMode,
+        baseBranches: [],
+        branch: null,
+        branches: [],
+        snapshot: "plain",
+        staged: [],
+        unstaged: [],
+      };
+      const getProjectGitStatus = vi.fn().mockResolvedValue(status);
+      const queryClient = new QueryClient();
+      const options = projectGitStatusQueryOptions("plain", rootPath, { getProjectGitStatus });
+      await queryClient.fetchQuery(options);
+      getProjectGitStatus.mockClear();
+      const observer = new QueryObserver(queryClient, options);
+      const unsubscribe = observer.subscribe(() => undefined);
+      await Promise.resolve();
+      expect(getProjectGitStatus).not.toHaveBeenCalled();
+      unsubscribe();
+      queryClient.clear();
+    },
+  );
 
   it("isolates an on-demand detailed Git status by repository and snapshot", async () => {
     const getProjectGitStatus = vi.fn<CodexlyGitStatusClient["getProjectGitStatus"]>(() =>

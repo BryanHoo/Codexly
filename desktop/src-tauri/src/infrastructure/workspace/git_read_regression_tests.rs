@@ -231,3 +231,23 @@ async fn git_read_should_generate_context_for_untracked_gitlinks() {
             .unwrap();
     assert!(context.changes.contains(&head));
 }
+
+#[tokio::test]
+async fn git_read_should_ignore_child_repositories_for_non_git_projects() {
+    let repo = Repository::new();
+    let project = repo.0.join("container");
+    fs::create_dir(&project).unwrap();
+    fs::create_dir(project.join("child")).unwrap();
+    git(&project.join("child"), &["init", "-b", "main"]);
+    let status = get_git_status(&project, None, false).await.unwrap();
+    assert_eq!(status.repository_mode, "none");
+    assert!(status.staged.is_empty() && status.unstaged.is_empty());
+    let history = get_git_history(&project, None, None).await.unwrap();
+    assert!(history.repositories.is_empty());
+    assert_eq!(history.repository_mode, "none");
+    assert!(
+        get_git_status(&project, Some("child"), false)
+            .await
+            .is_err()
+    );
+}

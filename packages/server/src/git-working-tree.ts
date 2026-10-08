@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { lstat, readdir, realpath } from "node:fs/promises";
-import { dirname, isAbsolute, join } from "node:path";
+import { lstat, realpath } from "node:fs/promises";
+import { isAbsolute, join } from "node:path";
 
 import type { ProjectGitStatus, ProjectGitStatusQuery } from "@codexly/protocol";
 import { limitGitCommandExecutor, limitGitFileIO } from "./git-concurrency.js";
@@ -9,7 +9,6 @@ import { readInflightGitStatus } from "./git-status-inflight.js";
 import { executeGit, type GitCommandExecutor } from "./git-command.js";
 import {
   MAX_FILE_IO_CONCURRENCY,
-  MAX_GIT_COMMAND_CONCURRENCY,
   MAX_WORKING_TREE_FILES,
   WorkingTreeReadBudget,
   applyDiffBudget,
@@ -45,7 +44,7 @@ export function invalidateGitBranchCache(repositoryRoot: string): void {
 
 export function invalidateProjectGitBranchCache(projectRoot: string): void {
   for (const repositoryRoot of branchCandidatesByRepository.keys()) {
-    if (repositoryRoot === projectRoot || dirname(repositoryRoot) === projectRoot) {
+    if (repositoryRoot === projectRoot) {
       branchCandidatesByRepository.delete(repositoryRoot);
     }
   }
@@ -79,39 +78,11 @@ export async function resolveProjectGitRepositoryRoot(
   if (!isAbsolute(projectRoot)) {
     throw new TypeError("Project root must be absolute");
   }
-  const resolvedProjectRoot = await limitGitFileIO(() => realpath(projectRoot));
-  if (repository === undefined) {
-    return resolvedProjectRoot;
-  }
-
-  // 子仓库必须是 Project 的真实直属目录；白名单解析禁止嵌套路径和符号链接跳转。
-  if (
-    repository.includes("/") ||
-    repository.includes("\\") ||
-    (await hasGitMetadata(resolvedProjectRoot))
-  ) {
+  // 项目级 Git 入口只接受当前目录，禁止通过 repository 参数访问子仓库。
+  if (repository !== undefined) {
     throw new GitRepositorySelectionError();
   }
-  const candidate = join(resolvedProjectRoot, repository);
-  try {
-    const candidateStat = await limitGitFileIO(() => lstat(candidate));
-    if (!candidateStat.isDirectory()) {
-      throw new GitRepositorySelectionError();
-    }
-    const resolvedCandidate = await limitGitFileIO(() => realpath(candidate));
-    if (
-      dirname(resolvedCandidate) !== resolvedProjectRoot ||
-      !(await hasGitMetadata(resolvedCandidate))
-    ) {
-      throw new GitRepositorySelectionError();
-    }
-    return resolvedCandidate;
-  } catch (error) {
-    if (error instanceof GitRepositorySelectionError) {
-      throw error;
-    }
-    throw new GitRepositorySelectionError();
-  }
+  return limitGitFileIO(() => realpath(projectRoot));
 }
 
 async function readRepositoryWorkingTreeEntries(
@@ -294,76 +265,6 @@ async function readRepositoryBranches(
   return { baseBranches: branches, branch, branches: localBranches };
 }
 
-function prefixRepositoryPath(repositoryName: string, change: GitFileChange): GitFileChange {
-  return { ...change, path: `${repositoryName}/${change.path}` };
-}
-
-async function readImmediateChildRepositoryStatuses(
-  projectRoot: string,
-  gitCommandExecutor: GitCommandExecutor,
-  budget: WorkingTreeReadBudget,
-  includeDiff: boolean,
-  repositoryFingerprints: Map<string, string>,
-): Promise<GitWorkingTreeChanges | undefined> {
-  const childDirectories = (
-    await limitGitFileIO(() => readdir(projectRoot, { withFileTypes: true }))
-  )
-    .filter((entry) => entry.isDirectory())
-    .toSorted((left, right) => left.name.localeCompare(right.name));
-  const repositoryCandidates = await mapWithConcurrency(
-    childDirectories,
-    MAX_FILE_IO_CONCURRENCY,
-    async (entry) => {
-      const repositoryRoot = join(projectRoot, entry.name);
-      return (await hasGitMetadata(repositoryRoot))
-        ? { name: entry.name, root: repositoryRoot }
-        : null;
-    },
-  );
-  const repositories = repositoryCandidates.filter(
-    (candidate): candidate is { name: string; root: string } => candidate !== null,
-  );
-  if (repositories.length === 0) {
-    return undefined;
-  }
-
-  const staged: GitFileChange[] = [];
-  const unstaged: GitFileChange[] = [];
-  // 每批只保留固定数量的 Porcelain 结果，并按仓库排序分配全局预算。
-  for (
-    let offset = 0;
-    offset < repositories.length && budget.hasFileCapacity;
-    offset += MAX_GIT_COMMAND_CONCURRENCY
-  ) {
-    const repositoryBatch = repositories.slice(offset, offset + MAX_GIT_COMMAND_CONCURRENCY);
-    const repositoryEntries = await Promise.all(
-      repositoryBatch.map((repository) =>
-        readRepositoryWorkingTreeEntries(
-          repository.root,
-          gitCommandExecutor,
-          repositoryFingerprints,
-        ),
-      ),
-    );
-    for (const [repositoryIndex, repository] of repositoryBatch.entries()) {
-      const selectedEntries = budget.takeEntries(repositoryEntries[repositoryIndex] ?? []);
-      const status = await materializeRepositoryWorkingTreeStatus(
-        repository.root,
-        selectedEntries,
-        gitCommandExecutor,
-        budget,
-        includeDiff,
-      );
-      staged.push(...status.staged.map((change) => prefixRepositoryPath(repository.name, change)));
-      unstaged.push(
-        ...status.unstaged.map((change) => prefixRepositoryPath(repository.name, change)),
-      );
-    }
-  }
-
-  return { staged, unstaged };
-}
-
 export function readGitWorkingTreeStatus(
   projectRoot: string,
   gitCommandExecutor: GitCommandExecutor = executeGit,
@@ -410,22 +311,9 @@ async function readResolvedGitWorkingTreeStatus(
     );
     repositoryBranches = branches;
   } else {
-    // 只认 Project 自身的 .git，避免把上级仓库误判为可提交根仓库。
-    const childStatus = await readImmediateChildRepositoryStatuses(
-      resolvedProjectRoot,
-      limitedGitCommandExecutor,
-      budget,
-      options.includeDiff === true,
-      repositoryFingerprints,
-    );
-    if (childStatus === undefined) {
-      // 非 Git 是可恢复的 Project 状态，手动刷新时仍需允许重新探测仓库。
-      status = { staged: [], unstaged: [] };
-      repositoryMode = "none";
-    } else {
-      status = childStatus;
-      repositoryMode = "children";
-    }
+    // 没有当前目录的 .git 就直接返回非 Git 状态，不扫描子目录或启动 Git 进程。
+    status = { staged: [], unstaged: [] };
+    repositoryMode = "none";
   }
 
   const comparePaths = (left: GitFileChange, right: GitFileChange) =>

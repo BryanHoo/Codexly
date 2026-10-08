@@ -3,8 +3,8 @@ import type {
   ProjectGitHistoryPage,
   ProjectGitStatus,
 } from "@codexly/protocol";
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import type { AgentFileChange } from "../../diff/file-change.js";
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
@@ -15,9 +15,8 @@ import {
 import {
   projectCommitChangesMutationOptions,
   projectCommitMessageMutationOptions,
-  projectGitRepositoryStatusQueryOptions,
 } from "../../projects/project-queries.js";
-import { CommitChangesPanel, collectCommitRepositories } from "./commit-changes-panel.js";
+import { CommitChangesPanel } from "./commit-changes-panel.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 
 type CommitChangesControllerProps = Readonly<{
@@ -59,7 +58,6 @@ export function cacheCommittedGitStatus(
 export function CommitChangesController({
   client,
   detailsError = null,
-  detailsPending = false,
   gitStatus,
   onOpenFileDiff,
   projectId,
@@ -74,36 +72,19 @@ export function CommitChangesController({
     ...projectCommitChangesMutationOptions(projectId, rootPath, client),
     meta: { actionNotification: { successMessage: false } },
   });
-  const repositories = useMemo(() => collectCommitRepositories(gitStatus), [gitStatus]);
   const [resultState, setResultState] = useState<{
     result: CommitProjectChangesResponse;
     snapshot: string;
   }>();
-  const [selectedRepository, setSelectedRepository] = useState<string | null>(null);
-  const effectiveRepository =
-    selectedRepository !== null && repositories.includes(selectedRepository)
-      ? selectedRepository
-      : (repositories[0] ?? null);
-  const repositoryStatusQuery = useQuery(
-    projectGitRepositoryStatusQueryOptions(
-      projectId,
-      rootPath,
-      effectiveRepository,
-      gitStatus.repositoryMode === "children",
-      client,
-    ),
-  );
-  const activeGitStatus =
-    gitStatus.repositoryMode === "root" ? gitStatus : (repositoryStatusQuery.data ?? gitStatus);
+  const activeGitStatus = gitStatus;
   const result = resultState?.snapshot === activeGitStatus.snapshot ? resultState.result : null;
 
   return (
     <CommitChangesPanel
-      error={detailsError ?? repositoryStatusQuery.error}
+      error={detailsError}
       gitStatus={activeGitStatus}
       isCommitting={commitMutation.isPending}
       isGenerating={messageMutation.isPending}
-      isRepositoryLoading={detailsPending || repositoryStatusQuery.isFetching}
       onCommit={async (request) => {
         const response = await commitMutation.mutateAsync(request);
         // 返回的状态已包含提交后的快照，结果应随新快照保留，直到下一次工作区变化。
@@ -128,15 +109,7 @@ export function CommitChangesController({
         return response.message;
       }}
       onOpenFileDiff={onOpenFileDiff}
-      onSelectRepository={(repository) => {
-        setResultState(undefined);
-        messageMutation.reset();
-        commitMutation.reset();
-        setSelectedRepository(repository);
-      }}
-      repositories={repositories}
       result={result}
-      selectedRepository={effectiveRepository}
     />
   );
 }

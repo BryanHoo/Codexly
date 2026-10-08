@@ -1,3 +1,4 @@
+import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { CodexlyClient } from "@codexly/client";
 import type {
   AgentGlobalSettings,
@@ -267,8 +268,10 @@ export function projectGitStatusQueryOptions(
     enabled,
     queryFn: ({ signal }) => client.getProjectGitStatus(projectId, { rootPath }, { signal }),
     queryKey: ["projects", projectId, rootPath, "git-status"] as const,
-    // 工作台重新挂载时跳过全局 staleTime，读取外部工具可能修改的 Git 状态。
-    refetchOnMount: "always",
+    // 初次允许探测；确认非 Git 后仅显式刷新，避免挂载和窗口聚焦重复读取。
+    refetchOnMount: (query) =>
+      query.state.data === undefined || isRootGitProject(query.state.data) ? "always" : false,
+    refetchOnWindowFocus: (query) => isRootGitProject(query.state.data),
     retry: 1,
   });
 }

@@ -16,3 +16,5 @@
 - `POST /v1/history/compress` 接受空对象并要求幂等键，通过 Runtime Provider 的 `historyStorage` 提交维护请求；不可用返回 503，上游失败返回 502，不扫描或传输历史内容。
 
 - `GET /v1/projects/:projectId/files/pdf` 与 `/v1/temporary/files/pdf` 使用已有任务目录解析，复验 `%PDF-` 签名后流式交付；返回 `application/pdf`、`inline` 和 `Accept-Ranges`，支持 206/416 与 HEAD。只有 PDF 响应允许同源嵌入，其他响应保留防嵌入策略；用 `app-files.test.ts` 验证范围请求、临时任务和伪装文件拒绝。
+
+- 项目 Git 读取仅检查当前根目录的 `.git`（目录或 worktree gitfile），缺失时返回 `repositoryMode: "none"`，不扫描子目录、不执行 Git 命令、不回溯父仓库；拒绝通过 `repository` 参数选择子仓库。元数据 Watch 同样不得发现子目录仓库；回归覆盖含子仓库的普通目录、父仓库下的普通目录以及正常 worktree。

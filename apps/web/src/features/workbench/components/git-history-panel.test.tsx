@@ -62,9 +62,9 @@ describe("GitHistoryPanel", () => {
           branch: "feat/inspector-history",
           commits: [commit],
           nextCursor: "20",
-          repositories: ["apps/web", "packages/server"],
-          repository: "apps/web",
-          repositoryMode: "children",
+          repositories: [],
+          repository: null,
+          repositoryMode: "root",
         },
       ],
     });
@@ -85,7 +85,7 @@ describe("GitHistoryPanel", () => {
 
     expect(markup).toContain('data-slot="git-history-panel"');
     expect(markup).toContain("当前分支：feat/inspector-history");
-    expect(markup).toContain('aria-label="子仓库"');
+    expect(markup).not.toContain('aria-label="子仓库"');
     expect(markup).toContain("feat(git): 渲染右栏历史");
     expect(markup).toContain('data-slot="context-menu-trigger"');
     expect(markup).toMatch(/class="[^"]*w-full[^"]*"[^>]*data-size="sm"[^>]*>加载更多/u);

@@ -1,4 +1,4 @@
-import { lstat, readdir, realpath } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 
 import type {
@@ -10,7 +10,6 @@ import type {
 import { executeGit, type GitCommandExecutor } from "./git-command.js";
 
 const GIT_HISTORY_PAGE_SIZE = 20;
-const MAX_GIT_HISTORY_REPOSITORIES = 256;
 const GIT_HISTORY_FIELD_COUNT = 5;
 
 export class GitHistoryError extends Error {
@@ -33,22 +32,6 @@ async function hasGitMetadata(repositoryRoot: string): Promise<boolean> {
     }
     throw error;
   }
-}
-
-async function listChildRepositories(projectRoot: string): Promise<string[]> {
-  const entries = (await readdir(projectRoot, { withFileTypes: true }))
-    .filter((entry) => entry.isDirectory())
-    .toSorted((left, right) => left.name.localeCompare(right.name));
-  const repositories: string[] = [];
-  for (const entry of entries) {
-    if (repositories.length === MAX_GIT_HISTORY_REPOSITORIES) {
-      break;
-    }
-    if (await hasGitMetadata(join(projectRoot, entry.name))) {
-      repositories.push(entry.name);
-    }
-  }
-  return repositories;
 }
 
 function parseCursor(cursor: string | undefined): number {
@@ -141,26 +124,12 @@ export async function readProjectGitHistory(
     throw new TypeError("Project root must be absolute");
   }
 
-  // 重新解析真实根目录，子仓库只允许从直属目录白名单中选择。
+  // 历史只读取项目本身，非 Git 目录不能回落到父仓库或子仓库。
   const resolvedProjectRoot = await realpath(projectRoot);
   const offset = parseCursor(query.cursor);
-  if (await hasGitMetadata(resolvedProjectRoot)) {
-    if (query.repository !== undefined) {
-      throw new GitHistoryError("REPOSITORY_NOT_FOUND", "Git repository was not found");
-    }
-    const page = await readRepositoryPage(resolvedProjectRoot, offset, gitCommandExecutor);
-    return { ...page, repositories: [], repository: null, repositoryMode: "root" };
-  }
-
-  const repositories = await listChildRepositories(resolvedProjectRoot);
-  const repository = query.repository ?? repositories[0];
-  if (repository === undefined || !repositories.includes(repository)) {
+  if (query.repository !== undefined || !(await hasGitMetadata(resolvedProjectRoot))) {
     throw new GitHistoryError("REPOSITORY_NOT_FOUND", "Git repository was not found");
   }
-  const page = await readRepositoryPage(
-    join(resolvedProjectRoot, repository),
-    offset,
-    gitCommandExecutor,
-  );
-  return { ...page, repositories, repository, repositoryMode: "children" };
+  const page = await readRepositoryPage(resolvedProjectRoot, offset, gitCommandExecutor);
+  return { ...page, repositories: [], repository: null, repositoryMode: "root" };
 }

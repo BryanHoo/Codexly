@@ -1,4 +1,4 @@
-import { lstat, readdir, readFile } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import type { AgentTaskScope } from "@codexly/core";
@@ -8,7 +8,6 @@ import type { CodexProviderLogger } from "./agent-provider-logger.js";
 import { SUPPORTED_CODEX_VERSION } from "./binary.js";
 
 const DEFAULT_CHANGE_DEBOUNCE_MS = 100;
-const MAX_GIT_REPOSITORIES_PER_ROOT = 32;
 export const MAX_CODEX_GIT_METADATA_WATCHES = 128;
 
 type WatchClient = Pick<CodexRpcClient, "request">;
@@ -105,23 +104,8 @@ async function resolveGitMetadata(repositoryRoot: string): Promise<GitMetadata |
 }
 
 async function discoverRepositoryRoots(rootPath: string): Promise<readonly string[]> {
-  if (await pathExists(join(rootPath, ".git"))) return [rootPath];
-  let entries;
-  try {
-    entries = (await readdir(rootPath, { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory())
-      .toSorted((left, right) => left.name.localeCompare(right.name));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
-  const repositories: string[] = [];
-  for (const entry of entries) {
-    const candidate = join(rootPath, entry.name);
-    if (await pathExists(join(candidate, ".git"))) repositories.push(candidate);
-    if (repositories.length >= MAX_GIT_REPOSITORIES_PER_ROOT) break;
-  }
-  return repositories;
+  // 仅监听配置工作区根目录的 Git 元数据；普通项目不扫描子仓库、不注册 Watch。
+  return (await pathExists(join(rootPath, ".git"))) ? [rootPath] : [];
 }
 
 function resolveHeadRef(commonDir: string, head: string | undefined): string | undefined {

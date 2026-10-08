@@ -52,7 +52,7 @@ describe("commitSelectedProjectChanges", () => {
     expect(detailed.staged[0]?.diff).toContain("+new");
   });
 
-  it("invalidates aggregate snapshots when a child index changes", async () => {
+  it("keeps non-Git project snapshots unchanged when a child index changes", async () => {
     const repositoryRoot = await createRepository();
     const projectRoot = await mkdtemp(join(tmpdir(), "codexly-git-aggregate-test-"));
     temporaryRoots.push(projectRoot);
@@ -67,7 +67,7 @@ describe("commitSelectedProjectChanges", () => {
     const after = await readGitWorkingTreeStatus(projectRoot);
     expect(after.staged).toEqual(before.staged);
     expect(after.unstaged).toEqual(before.unstaged);
-    expect(after.snapshot).not.toBe(before.snapshot);
+    expect(after.snapshot).toBe(before.snapshot);
   });
 
   it.each([
@@ -232,7 +232,7 @@ describe("commitSelectedProjectChanges", () => {
     });
   });
 
-  it("commits only inside the selected immediate child repository", async () => {
+  it("rejects commits into a child repository without changing its HEAD", async () => {
     const repositoryRoot = await createRepository();
     const projectRoot = await mkdtemp(join(tmpdir(), "codexly-git-project-test-"));
     temporaryRoots.push(projectRoot);
@@ -249,10 +249,10 @@ describe("commitSelectedProjectChanges", () => {
         paths: ["selected.txt"],
         repository: "frontend",
       }),
-    ).resolves.toMatchObject({ branch: "main", pushStatus: "not_requested" });
+    ).rejects.toMatchObject({ code: "GIT_REPOSITORY_UNAVAILABLE" });
     await expect(runGit(selectedRepositoryRoot, "log", "-1", "--pretty=%s")).resolves.toMatchObject(
       {
-        stdout: "feat(git): 提交子仓库变更\n",
+        stdout: "chore(test): 初始化仓库\n",
       },
     );
   });

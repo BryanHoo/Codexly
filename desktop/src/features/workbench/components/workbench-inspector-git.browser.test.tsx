@@ -177,3 +177,32 @@ it("仅有分页 numstat 元数据时，项目汇总与文件树直接显示增�
   expect(readDiff).not.toHaveBeenCalled();
   queryClient.clear();
 });
+
+it.for(["none", "children"] as const)("非 Git 项目隐藏提示、重试和 Git 标签（%s）", async (repositoryMode) => {
+  await i18n.changeLanguage("zh-CN");
+  vi.spyOn(nativeClient, "listProjectFiles").mockResolvedValue({ entries: [], path: null });
+  const queryClient = new QueryClient();
+  const screen = await render(
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WorkbenchInspector
+          projectName="Plain"
+          projectId="plain"
+          projectRootId="root"
+          projectPath="/plain"
+          tab="project"
+          taskId="task"
+          gitStatus={{ ...status, repositoryMode }}
+          gitStatusError={new Error("not a git repository")}
+          gitStatusPending
+        />
+      </TooltipProvider>
+    </QueryClientProvider>,
+  );
+  await expect.element(screen.getByText("Git 变更刷新失败，正在自动重试", { exact: true })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("button", { name: "手动刷新 Git 变更" })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("tab", { name: "历史", exact: true })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("tab", { name: "变更", exact: true })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("tree", { name: "项目文件" })).toBeVisible();
+  queryClient.clear();
+});
