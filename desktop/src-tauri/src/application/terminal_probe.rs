@@ -192,7 +192,6 @@ fn probe(output: Channel<Response>) -> Result<(u16, u16), String> {
             .map_err(|e| e.to_string())?;
         writer.flush().map_err(|e| e.to_string())
     });
-    drop(writer);
     let reader_result = match write_result {
         Ok(()) => reader_receiver
             .recv_timeout(Duration::from_secs(3))
@@ -210,6 +209,8 @@ fn probe(output: Channel<Response>) -> Result<(u16, u16), String> {
     if child_result.is_err() {
         let _ = killer.kill();
     }
+    // ConPTY input must remain open until the shell processes the queued exit.
+    drop(writer);
     drop(pair.master);
     if child_result.is_err()
         && let Ok(result) = child_receiver.recv_timeout(Duration::from_secs(1))

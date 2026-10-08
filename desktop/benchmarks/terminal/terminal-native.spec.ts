@@ -64,6 +64,8 @@ describe("Release native terminal measurements", () => {
     await $("aria/API Base URL").setValue("https://gateway.test/v1");
     await $("aria/API Key（可选）").setValue("sk-webview-test");
     await $("aria/连接").click();
+    await $('[aria-label="切换项目 CodeAgent"]').moveTo();
+    await $("aria/在 CodeAgent 中新建任务").click();
     await $("aria/终端 0").waitForExist();
     if (process.platform === "win32") {
       // 资源采样仅要求窗口可见；已可见时不额外争抢系统前台输入焦点。

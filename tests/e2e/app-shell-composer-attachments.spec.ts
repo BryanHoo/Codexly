@@ -245,7 +245,7 @@ test("uploads images and files selected from the browser device in LAN mode @cro
   await page.getByRole("menuitem", { name: "下载文件" }).click();
   expect((await imageDownloadPromise).suggestedFilename()).toBe("visitor.png");
 
-  const fileAttachment = page.getByRole("link", { name: "下载附件 visitor.pdf" });
+  const fileAttachment = page.getByRole("button", { exact: true, name: "visitor.pdf" });
   await fileAttachment.click({ button: "right" });
   const fileDownloadPromise = page.waitForEvent("download");
   await page.getByRole("menuitem", { name: "下载文件" }).click();

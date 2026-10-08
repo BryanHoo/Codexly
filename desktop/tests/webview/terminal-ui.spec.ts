@@ -97,6 +97,8 @@ describe("project terminal native UI", () => {
     await $("aria/API Key（可选）").setValue("sk-webview-test");
     await $("aria/连接").click();
     await $('[aria-label="切换项目 CodeAgent"]').waitForDisplayed();
+    await $('[aria-label="切换项目 CodeAgent"]').moveTo();
+    await $("aria/在 CodeAgent 中新建任务").click();
   });
 
   it("lazily creates a real PTY, accepts UI paste and retains it while hidden", async () => {

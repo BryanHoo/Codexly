@@ -147,9 +147,15 @@ test("creates and restores a temporary task without exposing its internal projec
   await inspector.getByRole("button", { name: "关闭文件" }).last().click();
   await expect(imagePanel).not.toBeAttached();
   await page.getByRole("button", { name: "temporary-report.pdf" }).click();
-  await expect
-    .poll(() => requestedPaths.filter((path) => path === "/v1/temporary/open").length)
-    .toBe(1);
+  const pdfPanel = inspector.getByRole("region", { name: "/tmp/temporary-report.pdf" });
+  await expect(pdfPanel.getByRole("link", { name: "打开 PDF" })).toHaveAttribute(
+    "href",
+    "/v1/temporary/files/pdf?path=%2Ftmp%2Ftemporary-report.pdf",
+  );
+  expect(requestedPaths.filter((path) => path === "/v1/temporary/open")).toHaveLength(0);
+  await inspector.getByRole("button", { name: "关闭文件" }).last().click();
+  await expect(pdfPanel).not.toBeAttached();
+  await inspector.getByRole("tab", { name: "上下文" }).click();
   await expect(approvalSelect).toHaveAttribute("value", "auto-review");
   expect(temporaryTurnOptions?.["sandboxMode"]).toBe("workspace-write");
   await expect(inspector).toBeVisible();
