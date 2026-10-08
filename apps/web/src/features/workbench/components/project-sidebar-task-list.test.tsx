@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import type { ProjectTaskListState } from "../../projects/project-context.js";
+import type { TaskActivityMap } from "../../conversation/runtime/task-activity.js";
 import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
 
 const project: Project = {
@@ -21,7 +22,10 @@ const pendingTaskState: ProjectTaskListState = {
   isPending: true,
 };
 
-function renderProjectTaskList(expandedProjects: ReadonlySet<string> = new Set([project.id])) {
+function renderProjectTaskList(
+  expandedProjects: ReadonlySet<string> = new Set([project.id]),
+  taskActivity: TaskActivityMap = new Map(),
+) {
   return renderToStaticMarkup(
     <TooltipProvider>
       <ProjectSidebarTaskList
@@ -58,7 +62,7 @@ function renderProjectTaskList(expandedProjects: ReadonlySet<string> = new Set([
         setExpandedTaskProjects={vi.fn()}
         setRenamingTask={vi.fn()}
         taskActionPending={false}
-        taskActivity={new Map()}
+        taskActivity={taskActivity}
         taskSearch={{ error: null, isPending: false }}
         tasksByProjectId={new Map()}
         toggleProject={vi.fn()}
@@ -68,6 +72,76 @@ function renderProjectTaskList(expandedProjects: ReadonlySet<string> = new Set([
 }
 
 describe("ProjectSidebarTaskList", () => {
+  function activityFor(
+    states: readonly ("running" | "approval" | "completed" | "failed" | null)[],
+  ): TaskActivityMap {
+    return new Map(
+      states.map((state, index) => [
+        String(index),
+        {
+          projectId: project.id,
+          taskId: String(index),
+          attention: state === "running" ? null : state,
+          isRunning: state === "running" || state === "approval",
+          pendingApprovalRequestIds: new Set(state === "approval" ? ["request"] : []),
+        },
+      ]),
+    );
+  }
+
+  it("shows unread completion ahead of approval and running even without loaded tasks", () => {
+    for (const states of [
+      ["running", "approval", "completed"],
+      ["completed", "approval", "running"],
+    ] as const) {
+      const markup = renderProjectTaskList(new Set(), activityFor(states));
+      expect(markup).toContain('aria-label="AI 回复已完成"');
+      expect(markup).toContain("project-status");
+      expect(markup).not.toContain('aria-label="任务等待审批"');
+      expect(markup).not.toContain('aria-label="任务运行中"');
+    }
+  });
+
+  it("falls back to approval and running after completion attention is cleared", () => {
+    expect(renderProjectTaskList(new Set(), activityFor([null, "approval", "running"]))).toContain(
+      'aria-label="任务等待审批"',
+    );
+    expect(renderProjectTaskList(new Set(), activityFor([null, "running"]))).toContain(
+      'aria-label="任务运行中"',
+    );
+  });
+
+  it("keeps approval visible after it is viewed while the request remains pending", () => {
+    const taskActivity: TaskActivityMap = new Map([
+      [
+        "task",
+        {
+          projectId: project.id,
+          taskId: "task",
+          attention: null,
+          isRunning: true,
+          pendingApprovalRequestIds: new Set(["request"]),
+        },
+      ],
+    ]);
+    expect(renderProjectTaskList(new Set(), taskActivity)).toContain('aria-label="任务等待审批"');
+  });
+
+  it("does not show a project status for expanded, viewed, failed, or unrelated tasks", () => {
+    expect(renderProjectTaskList(new Set([project.id]), activityFor(["completed"]))).not.toContain(
+      "project-status",
+    );
+    expect(renderProjectTaskList(new Set(), activityFor([null, "failed"]))).not.toContain(
+      "project-status",
+    );
+    const otherProjectActivity = new Map(
+      [...activityFor(["completed"])].map(
+        ([key, record]) => [key, { ...record, projectId: "other-project" }] as const,
+      ),
+    );
+    expect(renderProjectTaskList(new Set(), otherProjectActivity)).not.toContain("project-status");
+  });
+
   it("renders task loading state inside the expanded Project without shifting the tree", () => {
     const markup = renderProjectTaskList();
 

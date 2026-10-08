@@ -1,3 +1,5 @@
+import { getProjectTaskStatuses } from "@codexly/frontend-core/project-task-status";
+import { ProjectStatusIndicator } from "@codexly/ui/core/project-status-indicator";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask, type Project } from "@codexly/protocol";
 import { Folder, Plus } from "lucide-react";
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
@@ -114,6 +116,7 @@ export function ProjectSidebarTaskList({
     () => new Map(orderedProjects.map((project) => [project.id, project])),
     [orderedProjects],
   );
+  const projectStatuses = useMemo(() => getProjectTaskStatuses(taskActivity), [taskActivity]);
   const temporaryTasks = tasksByProjectId.get(TEMPORARY_TASK_SCOPE_ID) ?? EMPTY_PROJECT_TASKS;
   const temporaryTaskState = projectTaskStates.get(TEMPORARY_TASK_SCOPE_ID);
   const showAllTemporaryTasks = expandedTaskProjects.has(TEMPORARY_TASK_SCOPE_ID);
@@ -317,7 +320,7 @@ export function ProjectSidebarTaskList({
                   data-project-reordering={reorderingProjectId === project.id ? "true" : "false"}
                   key={project.id}
                 >
-                  <div className="group/project flex min-w-0 items-center gap-0.5">
+                  <div className="group/project relative flex min-w-0 items-center gap-0.5">
                     <Button
                       variant="ghost"
                       aria-expanded={expanded}
@@ -337,6 +340,17 @@ export function ProjectSidebarTaskList({
                       <Folder className="size-4 shrink-0" aria-hidden="true" />
                       <span className="truncate">{project.name}</span>
                     </Button>
+                    {expanded ? null : (
+                      <ProjectStatusIndicator
+                        hideOnMobile
+                        status={projectStatuses.get(project.id)}
+                        labels={{
+                          completed: t("sidebar.taskComplete"),
+                          approval: t("sidebar.taskApproval"),
+                          running: t("sidebar.taskRunning"),
+                        }}
+                      />
+                    )}
                     <ProjectActions
                       isPending={isProjectActionPending}
                       onOpenArchived={onOpenArchived}

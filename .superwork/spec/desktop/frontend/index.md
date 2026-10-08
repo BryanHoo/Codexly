@@ -9,6 +9,7 @@
 - 时间线按 `item.started` / `item.completed` 展示命令和工具耗时；文件编辑完成后不渲染“已编辑 N 个文件”任务行，回合运行中保留可打开的文件修改，终态仅由回复末尾汇总。思考项没有可靠起点，不估算耗时。
 - 保持 `src/i18n/locales/en/` 与 `zh-CN/` 的可见文案同步。
 - Project 行的新增任务与项目菜单入口在 `hover: none` 的触屏桌面设备上常显；鼠标端仍可仅在悬停或聚焦时显示。
+- 收起的 Project 在未悬停、未聚焦时于最右侧显示任务状态，优先级为未查看完成、等待审批、运行；展开和触屏隐藏，桌面窄窗口仍显示；悬停操作及布局保持原样。聚合完整活动记录，不依赖任务分页或搜索结果；两端共用 `frontend-core/project-task-status` 与 `ui/core/project-status-indicator`，浏览器回归覆盖 Chromium、WebKit、悬停和窄屏。
 - 新建任务中栏的范围选择器同时包含“聊天”和所有 Project；切换仅导航到对应空草稿路由，首次提交才创建任务。
 - worktree 任务从项目侧栏创建，保留原 Project 归属；中栏底部仅提供分支操作。两端共用创建、失败重试和工作区解析逻辑，任务启动失败时复用已创建的 worktree 并锁定分支输入。
 - worktree 任务按 `workspacePath` 固定文件与 Git 目录；目录未恢复时禁止回落到原仓库。原生终端使用 `worktree:<taskId>` 隔离会话，由后端读取任务 cwd 并校验仓库归属。
