@@ -152,6 +152,7 @@ fn main() {
         "upload_attachment",
         "import_host_attachment",
         "cache_project_image",
+        "get_project_pdf_file",
         "list_host_files",
         "get_project_open_capabilities",
         "open_project",

@@ -39,6 +39,7 @@ import { ProjectRootScopeError, resolveProjectRoot } from "../project-root-scope
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { ErrorResponseSchema, IdempotencyHeadersSchema, ProjectParamsSchema } from "./schemas.js";
 
+import { registerProjectPdfRoutes } from "./project-pdf-routes.js";
 import { registerProjectFileRoutes } from "./project-file-routes.js";
 import { registerProjectGitRoutes } from "./project-git-routes.js";
 import { registerProjectDirectoryCreateRoutes } from "./project-directory-create-routes.js";
@@ -440,5 +441,6 @@ export const registerProjectRoutes: FastifyPluginCallback<ServerRouteContext> = 
 
   registerProjectGitRoutes(app, context);
   registerProjectFileRoutes(app, context);
+  registerProjectPdfRoutes(app, context);
   done();
 };

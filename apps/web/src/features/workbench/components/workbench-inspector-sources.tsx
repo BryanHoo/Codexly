@@ -1,3 +1,4 @@
+import { PdfAttachment } from "@codexly/ui/core/pdf-attachment";
 import { buildTaskAttachmentUrl } from "@codexly/client";
 import type { AgentMessageAttachment, AgentSkill, AgentTurn } from "@codexly/protocol";
 import { Files, Paperclip, Sparkles } from "lucide-react";
@@ -124,6 +125,22 @@ function InspectorSourceRow({
           triggerClassName={interactiveSourceClassName}
           url={attachmentUrl}
         />
+      );
+    }
+    if (openKind === "pdf") {
+      return (
+        <PdfAttachment
+          name={source.name}
+          src={attachmentUrl}
+          className={interactiveSourceClassName}
+          labels={{
+            open: i18n.t("projectDialog.pdfOpen", { ns: "workbench" }),
+            close: i18n.t("projectDialog.closePdfPreview", { ns: "workbench" }),
+            unavailable: i18n.t("projectDialog.pdfUnavailable", { ns: "workbench" }),
+          }}
+        >
+          {content}
+        </PdfAttachment>
       );
     }
     if (openKind === "source") {

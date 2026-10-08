@@ -66,7 +66,7 @@ type ProjectSidebarProps = Readonly<{
   connectionState: AgentEventConnectionState;
   onClose: () => void;
   onOpenSettings: (section: SidebarSettingsSection) => void;
-  onOpenFile: (file: SearchFile, kind: "image" | "source") => void;
+  onOpenFile: (file: SearchFile, kind: "image" | "source" | "pdf") => void;
   projectId?: string;
   taskId?: string;
 }>;

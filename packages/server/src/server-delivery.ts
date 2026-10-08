@@ -157,13 +157,14 @@ export async function configureServerDelivery(
   });
   // oxlint-disable-next-line typescript/require-await -- Fastify 通过 async Hook 的返回值完成 payload 交付。
   app.addHook("onSend", async (request, reply, payload) => {
+    // PDF 仅允许同源应用内嵌，其他响应仍禁止被 iframe 加载。
+    const isPdf = reply.getHeader("content-type") === "application/pdf";
     reply.headers({
-      "Content-Security-Policy":
-        "default-src 'self'; base-uri 'none'; connect-src 'self'; frame-ancestors 'none'; img-src 'self' blob: data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+      "Content-Security-Policy": `default-src 'self'; base-uri 'none'; connect-src 'self'; frame-src 'self'; frame-ancestors ${isPdf ? "'self'" : "'none'"}; img-src 'self' blob: data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'`,
       "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
       "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
+      "X-Frame-Options": isPdf ? "SAMEORIGIN" : "DENY",
     });
     if (request.url.startsWith("/v1/pets/assets/")) {
       reply.header("Cache-Control", "private, no-cache");

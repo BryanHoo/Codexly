@@ -314,8 +314,8 @@ describe("WorkbenchInspector sources", () => {
     expect(markup).toContain('data-message-attachment="image"');
     expect(markup).toContain('aria-label="打开附件 notes.txt"');
     expect(markup).toContain('data-attachment-open="source"');
-    expect(markup).toContain('aria-label="打开附件 report.pdf"');
-    expect(markup).toContain('data-attachment-open="system"');
+    expect(markup).toContain('aria-label="report.pdf"');
+    expect(markup).toContain('data-message-attachment="pdf"');
     expect(markup).not.toContain(" download=");
     expect(markup).not.toContain('aria-label="下载附件');
   });

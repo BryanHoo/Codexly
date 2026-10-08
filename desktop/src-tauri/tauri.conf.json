@@ -28,8 +28,8 @@
         "enable": true,
         "scope": ["$APPDATA/attachments/**"]
       },
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; font-src 'self' data:; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'",
-      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://localhost:1421; font-src 'self' data:; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; font-src 'self' data:; img-src 'self' asset: http://asset.localhost data: blob:; frame-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'",
+      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://localhost:1421; font-src 'self' data:; img-src 'self' asset: http://asset.localhost data: blob:; frame-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {
@@ -48,9 +48,7 @@
   },
   "plugins": {
     "updater": {
-      "endpoints": [
-        "https://github.com/BryanHoo/Codexly/releases/latest/download/latest.json"
-      ],
+      "endpoints": ["https://github.com/BryanHoo/Codexly/releases/latest/download/latest.json"],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM2NUNCRUY0RDA0NDkxMTkKUldRWmtVVFE5TDVjeHJ3Z1RReUFPZVhJN2dpUUl5cUQwYWcwamFJWG4xc3RRMmNFR2treko4enIK",
       "windows": {
         "installMode": "passive"

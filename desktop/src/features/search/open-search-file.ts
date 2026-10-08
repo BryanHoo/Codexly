@@ -11,9 +11,10 @@ export async function prepareSearchFile(
   cache: QueryClient,
   file: SearchFile,
   signal?: AbortSignal,
-): Promise<"source" | "image" | null> {
+): Promise<"source" | "image" | "pdf" | null> {
   signal?.throwIfAborted();
   const kind = classifyProjectFileReference(file.path);
+  if (kind === "pdf") return kind;
   if (kind !== "system") {
     try {
       // 预检只读取首个受限页面并复用预览缓存，二进制拒绝后直接交给系统应用。

@@ -32,7 +32,7 @@ export function GlobalSearchDialog({
 }: Readonly<{
   client: CodexlyWorkbenchClient;
   onClose: () => void;
-  onOpenFile: (file: SearchFile, kind: "image" | "source") => void;
+  onOpenFile: (file: SearchFile, kind: "image" | "source" | "pdf") => void;
   open: boolean;
   projects: readonly Project[];
 }>) {

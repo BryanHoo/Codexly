@@ -66,7 +66,7 @@ type ProjectSidebarProps = Readonly<{
   appInfo?: AppInfoResponse;
   onClose: () => void;
   onOpenSettings: (section: SidebarSettingsSection) => void;
-  onOpenFile: (file: SearchFile, kind: "image" | "source") => void;
+  onOpenFile: (file: SearchFile, kind: "image" | "source" | "pdf") => void;
   onPanelShortcut: (panel: "inspector" | "search" | "sidebar") => void;
   projectId?: string;
   taskId?: string;

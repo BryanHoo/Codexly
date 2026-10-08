@@ -1,3 +1,5 @@
+import { notifyActionError } from "../../notifications/action-notifications.js";
+import { PdfPreview } from "@codexly/ui/core/pdf-preview";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { ProjectSourceFile } from "@/protocol/index.js";
 import { Code2, Eye, FileCode2, Image, X } from "lucide-react";
@@ -35,7 +37,7 @@ type ProjectSourcePanelProps = Readonly<{
   client: NativeSourceFileClient;
   headerActions?: ReactNode;
   onClose?: () => void;
-  previewKind: "image" | "source";
+  previewKind: "image" | "source" | "pdf";
   projectId: string;
   reference: MessageFileReference;
   rootPath?: string;
@@ -50,7 +52,7 @@ type SourceHeaderProps = Readonly<{
   actions?: ReactNode;
   lineNumber: number | null;
   onClose?: () => void;
-  previewKind: "image" | "source";
+  previewKind: "image" | "source" | "pdf";
   sourcePath: string;
   sourceStatus: "error" | "loading" | "partial" | null;
 }>;
@@ -108,9 +110,11 @@ function SourceHeader({
             <TooltipTrigger asChild>
               <Button
                 aria-label={t(
-                  previewKind === "image"
-                    ? "projectDialog.closeImagePreview"
-                    : "projectDialog.closeSource",
+                  previewKind === "pdf"
+                    ? "projectDialog.closePdfPreview"
+                    : previewKind === "image"
+                      ? "projectDialog.closeImagePreview"
+                      : "projectDialog.closeSource",
                 )}
                 onClick={onClose}
                 size="icon-sm"
@@ -122,9 +126,11 @@ function SourceHeader({
             </TooltipTrigger>
             <TooltipContent>
               {t(
-                previewKind === "image"
-                  ? "projectDialog.closeImagePreview"
-                  : "projectDialog.closeSource",
+                previewKind === "pdf"
+                  ? "projectDialog.closePdfPreview"
+                  : previewKind === "image"
+                    ? "projectDialog.closeImagePreview"
+                    : "projectDialog.closeSource",
               )}
             </TooltipContent>
           </Tooltip>
@@ -193,6 +199,17 @@ export function ProjectSourcePanel({
       reference.path,
     ] as const,
     staleTime: 30_000,
+  });
+  const pdfQuery = useQuery({
+    enabled: previewKind === "pdf",
+    queryKey: ["projects", projectId, taskId ?? null, rootPath ?? null, "pdf-file", reference.path],
+    queryFn: () =>
+      client.getProjectPdfFileUrl(projectId, rootPath, reference.path, {
+        ...(taskId === undefined ? {} : { taskId }),
+      }),
+    staleTime: 30_000,
+    gcTime: 30_000,
+    retry: false,
   });
   const imageQuery = useQuery({
     enabled: previewKind === "image",
@@ -278,7 +295,39 @@ export function ProjectSourcePanel({
       className="h-full min-h-0 bg-raised"
       onScrollCapture={handleSourceScroll}
     >
-      {previewKind === "image" ? (
+      {previewKind === "pdf" ? (
+        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
+          <SourceHeader {...headerProps} />
+          {pdfQuery.data === undefined ? (
+            <p
+              className="grid min-h-0 place-items-center text-body-small"
+              role={pdfQuery.isError ? "alert" : "status"}
+            >
+              {t(
+                pdfQuery.isError ? "projectDialog.loadSourceError" : "projectDialog.loadingSource",
+              )}
+            </p>
+          ) : (
+            <PdfPreview
+              name={fileName}
+              src={pdfQuery.data}
+              labels={{
+                open: t("projectDialog.pdfOpen"),
+                unavailable: t("projectDialog.pdfUnavailable"),
+              }}
+              onOpen={() => {
+                void client
+                  .openProject(projectId, rootPath, {
+                    appId: "system-default",
+                    path: reference.path,
+                    ...(taskId === undefined ? {} : { taskId }),
+                  })
+                  .catch(notifyActionError);
+              }}
+            />
+          )}
+        </div>
+      ) : previewKind === "image" ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
           <SourceHeader {...headerProps} actions={headerActions} />
           {imageQuery.isPending || imageQuery.error !== null ? (

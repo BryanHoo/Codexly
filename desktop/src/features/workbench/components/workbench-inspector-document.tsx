@@ -64,7 +64,7 @@ function SourceDocument({
   taskId,
 }: Readonly<{
   client: NativeWorkbenchClient;
-  document: Extract<InspectorDocument, { kind: "source" | "image" }>;
+  document: Extract<InspectorDocument, { kind: "source" | "image" | "pdf" }>;
   loadDiff?: (change: AgentFileChange) => Promise<AgentFileChange>;
   onOpenDiff: (change: AgentFileChange) => void;
   projectId: string;

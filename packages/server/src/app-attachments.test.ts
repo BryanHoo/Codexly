@@ -353,3 +353,24 @@ describe("server attachments and catalogs", () => {
     expect(open).toHaveBeenCalledWith(projectRootPath, "system-default", expect.any(String));
   });
 });
+
+it("serves PDF attachments inline even when their stored MIME type is generic", async () => {
+  const { app, readTaskAttachment } = await createHarness();
+  const content = Buffer.from("%PDF-1.7\nexample\n%%EOF");
+  readTaskAttachment.mockResolvedValueOnce({
+    content,
+    kind: "file",
+    size: content.byteLength,
+    name: "报告.PDF",
+    mediaType: "application/octet-stream",
+  });
+  const response = await app.inject({
+    method: "GET",
+    url: "/v1/projects/codexly/tasks/task-1/attachments/pdf",
+  });
+  expect(response.statusCode).toBe(200);
+  expect(response.headers["content-type"]).toBe("application/pdf");
+  expect(response.headers["content-disposition"]).toMatch(/^inline;/);
+  expect(response.headers["x-frame-options"]).toBe("SAMEORIGIN");
+  expect(response.rawPayload).toEqual(content);
+});

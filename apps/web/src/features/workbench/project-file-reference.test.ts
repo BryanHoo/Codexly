@@ -67,8 +67,8 @@ describe("classifyMessageAttachment", () => {
       classifyMessageAttachment({
         ...attachment,
         kind: "file",
-        mediaType: "application/pdf",
-        name: "report.pdf",
+        mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        name: "report.docx",
       }),
     ).toBe("system");
   });
@@ -82,5 +82,27 @@ describe("classifyMessageAttachment", () => {
         size: 1024 * 1024 + 1,
       }),
     ).toBe("system");
+  });
+});
+
+describe("PDF previews", () => {
+  it.each(["report.pdf", "/tmp/generated.PDF", "C:\\reports\\报告.pdf"])("previews %s", (path) => {
+    expect(classifyProjectFileReference(path)).toBe("pdf");
+  });
+  it("previews large PDF attachments by MIME type or extension", () => {
+    for (const [name, mediaType] of [
+      ["report.PDF", "application/octet-stream"],
+      ["report", "application/pdf"],
+    ] as const) {
+      expect(
+        classifyMessageAttachment({
+          id: "pdf",
+          kind: "file",
+          name,
+          mediaType,
+          size: 8 * 1024 * 1024,
+        }),
+      ).toBe("pdf");
+    }
   });
 });

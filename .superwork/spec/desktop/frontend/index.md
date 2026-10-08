@@ -20,3 +20,5 @@
 - Windows 发布构建使用 `chrome116`，常规前端构建默认使用 `safari17.5`；两者的 CSS 体积可能不同。Windows 发布后须对实际 `dist` 执行 `pnpm performance:budget`，不能只沿用常规构建的预算结果。
 
 - 历史压缩入口复用 `@codexly/ui/core/history-compression`，通过 Native Client 提交；说明作用于本机历史，并提示共用目录的其他客户端需支持压缩格式。不得将后台请求回执显示为压缩完成。
+
+- PDF 文件链接、附件和文件树共用 `core/pdf-preview` 原生预览；用 `navigator.pdfViewerEnabled` 检测能力，缺失时保留显式打开动作。附件点击后才加载，关闭后卸载；不引入 PDF.js 或 Base64 整文件传输。桌面只开放校验后的单文件 asset scope，独立预览窗口同时授权读取和打开命令。

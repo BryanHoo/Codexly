@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
+import { createAttachmentContentDisposition } from "../project-file-download.js";
 
 import {
   AgentMutationErrorSchema,
@@ -65,12 +66,22 @@ export function registerTaskAttachmentRoutes(
           throw error;
         }
       }
+      const content = Buffer.from(attachment.content);
+      const pdf =
+        (attachment.mediaType === "application/pdf" || /\.pdf$/iu.test(attachment.name)) &&
+        content.subarray(0, 5).toString("ascii") === "%PDF-";
+      if (pdf) {
+        reply.header(
+          "content-disposition",
+          createAttachmentContentDisposition(attachment.name).replace(/^attachment/u, "inline"),
+        );
+      }
       // 随机 ID 已绑定 Project/Task；响应只交付已复验的附件正文，不暴露本地路径。
       return reply
         .header("cache-control", "private, max-age=300")
         .header("x-content-type-options", "nosniff")
-        .type(attachment.mediaType)
-        .send(Buffer.from(attachment.content));
+        .type(pdf ? "application/pdf" : attachment.mediaType)
+        .send(content);
     },
   );
 

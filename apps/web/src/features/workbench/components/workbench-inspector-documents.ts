@@ -5,7 +5,7 @@ import type { ProjectGitCommit } from "@codexly/protocol";
 export type InspectorDocument =
   | Readonly<{
       id: string;
-      kind: "source" | "image";
+      kind: "source" | "image" | "pdf";
       reference: MessageFileReference;
       change?: AgentFileChange;
       projectId?: string;
@@ -15,7 +15,7 @@ export type InspectorDocument =
   | Readonly<{ id: string; kind: "review"; changes: readonly AgentFileChange[] }>
   | Readonly<{ id: string; kind: "commit"; commit: ProjectGitCommit; repository?: string }>;
 
-export function fileDocumentId(kind: "source" | "image" | "diff", path: string): string {
+export function fileDocumentId(kind: "source" | "image" | "pdf" | "diff", path: string): string {
   return `${kind}:${path.replaceAll("\\", "/")}`;
 }
 

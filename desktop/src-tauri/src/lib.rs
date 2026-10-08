@@ -47,6 +47,7 @@ use application::{
     open_commands::{get_project_open_capabilities, open_project, open_task_attachment},
     pet_commands::{download_workbench_pet, list_workbench_pets},
     project_file_window_commands::open_project_file_window,
+    project_pdf_commands::get_project_pdf_file,
     prompt_submission::submit_prompt,
     scheduled_task_commands::{
         create_scheduled_task, delete_scheduled_task, list_scheduled_tasks, preview_scheduled_task,
@@ -300,6 +301,7 @@ pub fn run() {
             upload_attachment,
             import_host_attachment,
             cache_project_image,
+            get_project_pdf_file,
             list_host_files,
             get_project_open_capabilities,
             open_project,

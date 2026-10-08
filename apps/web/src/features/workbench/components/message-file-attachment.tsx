@@ -1,3 +1,5 @@
+import { PdfAttachment } from "@codexly/ui/core/pdf-attachment";
+import { classifyMessageAttachment } from "../project-file-reference.js";
 import type { AgentMessageAttachment } from "@codexly/protocol";
 import type { ReactNode } from "react";
 
@@ -25,6 +27,38 @@ export function MessageFileAttachment({
   url,
 }: MessageFileAttachmentProps) {
   const isLanAccess = useIsLanAccess();
+  if (classifyMessageAttachment(attachment) === "pdf") {
+    return (
+      <PdfAttachment
+        wrapTrigger={(trigger) => (
+          <LanDownloadContextMenu enabled={isLanAccess} name={attachment.name} url={url}>
+            {trigger}
+          </LanDownloadContextMenu>
+        )}
+        name={attachment.name}
+        src={url}
+        labels={{
+          open: i18n.t("projectDialog.pdfOpen", { ns: "workbench" }),
+          close: i18n.t("projectDialog.closePdfPreview", { ns: "workbench" }),
+          unavailable: i18n.t("projectDialog.pdfUnavailable", { ns: "workbench" }),
+        }}
+        className={cn(
+          "block max-w-full rounded-control text-left transition-opacity hover:opacity-90 focus-visible:shadow-focus",
+          className,
+        )}
+      >
+        {children ?? (
+          <Attachment
+            className="h-12 max-w-64 pe-3 shadow-control"
+            data={{ ...attachment, previewUrl: url }}
+          >
+            <AttachmentPreview />
+            <AttachmentInfo />
+          </Attachment>
+        )}
+      </PdfAttachment>
+    );
+  }
   return (
     <LanDownloadContextMenu enabled={isLanAccess} name={attachment.name} url={url}>
       <a

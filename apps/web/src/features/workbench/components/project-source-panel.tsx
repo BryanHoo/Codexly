@@ -1,5 +1,6 @@
+import { PdfPreview } from "@codexly/ui/core/pdf-preview";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { buildProjectImageFileUrl } from "@codexly/client";
+import { buildProjectPdfFileUrl, buildProjectImageFileUrl } from "@codexly/client";
 import type { ProjectSourceFile } from "@codexly/protocol";
 import { Code2, Eye, FileCode2, GitCompareArrows, Image, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react";
@@ -36,7 +37,7 @@ type ProjectSourcePanelProps = Readonly<{
   client: CodexlyWorkbenchClient;
   onClose?: () => void;
   onOpenDiff?: () => void;
-  previewKind: "image" | "source";
+  previewKind: "image" | "source" | "pdf";
   projectId: string;
   reference: MessageFileReference;
   rootPath?: string;
@@ -51,7 +52,7 @@ type SourceHeaderProps = Readonly<{
   lineNumber: number | null;
   onClose?: () => void;
   onOpenDiff?: () => void;
-  previewKind: "image" | "source";
+  previewKind: "image" | "source" | "pdf";
   sourcePath: string;
   sourceStatus: "error" | "loading" | "partial" | null;
 }>;
@@ -126,9 +127,11 @@ function SourceHeader({
             <TooltipTrigger asChild>
               <Button
                 aria-label={t(
-                  previewKind === "image"
-                    ? "projectDialog.closeImagePreview"
-                    : "projectDialog.closeSource",
+                  previewKind === "pdf"
+                    ? "projectDialog.closePdfPreview"
+                    : previewKind === "image"
+                      ? "projectDialog.closeImagePreview"
+                      : "projectDialog.closeSource",
                 )}
                 onClick={onClose}
                 size="icon-sm"
@@ -140,9 +143,11 @@ function SourceHeader({
             </TooltipTrigger>
             <TooltipContent>
               {t(
-                previewKind === "image"
-                  ? "projectDialog.closeImagePreview"
-                  : "projectDialog.closeSource",
+                previewKind === "pdf"
+                  ? "projectDialog.closePdfPreview"
+                  : previewKind === "image"
+                    ? "projectDialog.closeImagePreview"
+                    : "projectDialog.closeSource",
               )}
             </TooltipContent>
           </Tooltip>
@@ -296,7 +301,19 @@ export function ProjectSourcePanel({
       onScrollCapture={handleSourceScroll}
       ref={contentRef}
     >
-      {previewKind === "image" ? (
+      {previewKind === "pdf" ? (
+        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
+          <SourceHeader {...headerProps} />
+          <PdfPreview
+            name={fileName}
+            src={buildProjectPdfFileUrl("", projectId, reference.path, rootPath)}
+            labels={{
+              open: t("projectDialog.pdfOpen"),
+              unavailable: t("projectDialog.pdfUnavailable"),
+            }}
+          />
+        </div>
+      ) : previewKind === "image" ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
           <SourceHeader {...headerProps} />
           <ImagePreview alt={fileName} src={imageUrl} />

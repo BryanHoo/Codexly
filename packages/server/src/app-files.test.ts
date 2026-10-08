@@ -1,4 +1,7 @@
 import { Buffer } from "node:buffer";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { createCodexlyServer } from "./app.js";
@@ -267,5 +270,60 @@ describe("server project files", () => {
     expect(stopped.statusCode).toBe(200);
     expect(stopped.json()).toEqual({});
     expect(stopProjectFileSearch).toHaveBeenCalledWith("codexly", "search-1");
+  });
+});
+
+describe("PDF file delivery", () => {
+  it("serves generated PDFs inline with byte ranges and rejects invalid files", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "codexly-pdf-"));
+    closeCallbacks.push(() => rm(directory, { recursive: true, force: true }));
+    const path = join(directory, "报告.PDF");
+    const content = Buffer.from("%PDF-1.7\nexample PDF content\n%%EOF");
+    await writeFile(path, content);
+    const { provider } = createProvider();
+    const app = await createCodexlyServer(createServerOptions(provider));
+    closeCallbacks.push(() => app.close());
+    const url = `/v1/projects/codexly/files/pdf?path=${encodeURIComponent(path)}&rootPath=${encodedProjectRootPath}`;
+    const full = await app.inject({ method: "GET", url });
+    expect(full.statusCode).toBe(200);
+    expect(full.headers["content-type"]).toBe("application/pdf");
+    expect(full.headers["content-disposition"]).toMatch(/^inline;/);
+    expect(full.headers["accept-ranges"]).toBe("bytes");
+    expect(full.headers["content-security-policy"]).toContain("frame-ancestors 'self'");
+    expect(full.rawPayload).toEqual(content);
+    const partial = await app.inject({ method: "GET", url, headers: { range: "bytes=0-4" } });
+    expect(partial.statusCode).toBe(206);
+    expect(partial.headers["content-range"]).toBe(`bytes 0-4/${String(content.length)}`);
+    expect(partial.body).toBe("%PDF-");
+    const suffix = await app.inject({ method: "GET", url, headers: { range: "bytes=-5" } });
+    expect(suffix.statusCode).toBe(206);
+    expect(suffix.rawPayload).toEqual(content.subarray(-5));
+    const tail = await app.inject({ method: "GET", url, headers: { range: "bytes=5-" } });
+    expect(tail.rawPayload).toEqual(content.subarray(5));
+    const head = await app.inject({ method: "HEAD", url });
+    expect(head.statusCode).toBe(200);
+    expect(head.body).toBe("");
+    const temporary = await app.inject({
+      method: "GET",
+      url: `/v1/temporary/files/pdf?path=${encodeURIComponent(path)}`,
+    });
+    expect(temporary.statusCode).toBe(200);
+    expect(temporary.rawPayload).toEqual(content);
+    const invalidRange = await app.inject({
+      method: "GET",
+      url,
+      headers: { range: "bytes=9999-" },
+    });
+    expect(invalidRange.statusCode).toBe(416);
+    await writeFile(path, "<html>not PDF</html>");
+    expect((await app.inject({ method: "GET", url })).statusCode).toBe(404);
+    expect(
+      (await app.inject({ method: "GET", url: url.replace("codexly/files", "other/files") }))
+        .statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: "GET", url: url.replace("projects/codexly", "temporary") }))
+        .statusCode,
+    ).toBe(404);
   });
 });

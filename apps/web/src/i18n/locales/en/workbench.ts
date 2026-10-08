@@ -274,6 +274,10 @@ export const workbench = {
     unsupportedForm: "This form cannot be displayed safely. Decline or cancel the request.",
   },
   projectDialog: {
+    pdfOpen: "Open PDF",
+    pdfUnavailable: "Inline PDF preview is unavailable. Open the file to view it.",
+    closePdfPreview: "Close PDF preview",
+
     closeImagePreview: "Close image preview",
     closeSource: "Close source file",
     delete: "Remove",

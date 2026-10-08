@@ -55,6 +55,21 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     return response;
   }
 
+  public async getProjectPdfFileUrl(
+    projectId: string,
+    rootPath: string | undefined,
+    path: string,
+    options: ProjectFileReadOptions = {},
+  ): Promise<string> {
+    const filePath = await this.call<string>("get_project_pdf_file", {
+      projectId,
+      rootPath: rootPath ?? null,
+      path,
+      taskId: options.taskId ?? null,
+    });
+    return buildNativeAssetUrl(filePath);
+  }
+
   public async cacheProjectImage(
     projectId: string,
     rootPath: string | undefined,

@@ -6,7 +6,7 @@ import { classifyProjectFileReference } from "./project-file-reference.js";
 export type ProjectFilePopupSearch = Readonly<{
   lineNumber: number | null;
   path: string;
-  previewKind: "image" | "source";
+  previewKind: "image" | "source" | "pdf";
   rootPath?: string;
   taskId?: string;
 }>;
@@ -38,7 +38,7 @@ export function parseProjectFilePopupSearch(
   if (typeof path !== "string" || path.length === 0) {
     throw new TypeError("Project file popup path is required");
   }
-  if (previewKind !== "image" && previewKind !== "source") {
+  if (previewKind !== "image" && previewKind !== "source" && previewKind !== "pdf") {
     throw new TypeError("Project file popup previewKind is invalid");
   }
   if (rootPath !== undefined && typeof rootPath !== "string") {

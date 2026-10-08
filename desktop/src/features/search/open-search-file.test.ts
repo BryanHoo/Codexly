@@ -37,10 +37,24 @@ describe("search file opening", () => {
     expect(
       await prepareSearchFile(client, new QueryClient(), {
         ...file,
-        path: "report.pdf",
+        path: "report.docx",
       }),
     ).toBeNull();
     expect(client.readProjectSourceFile).not.toHaveBeenCalled();
     expect(client.openProject).toHaveBeenCalledTimes(1);
   });
+});
+
+it("routes PDF search results to native previews without text reads", async () => {
+  const client = {
+    readProjectSourceFile: vi.fn(),
+    cacheProjectImage: vi.fn(),
+    openProject: vi.fn(),
+  };
+  expect(await prepareSearchFile(client, new QueryClient(), { ...file, path: "报告.PDF" })).toBe(
+    "pdf",
+  );
+  expect(client.readProjectSourceFile).not.toHaveBeenCalled();
+  expect(client.cacheProjectImage).not.toHaveBeenCalled();
+  expect(client.openProject).not.toHaveBeenCalled();
 });

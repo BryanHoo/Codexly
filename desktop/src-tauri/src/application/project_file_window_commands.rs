@@ -25,7 +25,9 @@ fn is_valid_project_file_route(route: &str) -> bool {
     for (key, value) in url.query_pairs() {
         match key.as_ref() {
             "path" => has_path = !value.is_empty(),
-            "previewKind" => has_preview_kind = matches!(value.as_ref(), "image" | "source"),
+            "previewKind" => {
+                has_preview_kind = matches!(value.as_ref(), "image" | "source" | "pdf")
+            }
             "window" => has_window_surface = value == "project-file",
             _ => {}
         }
@@ -56,6 +58,13 @@ pub fn open_project_file_window(app: AppHandle, route: String) -> Result<(), App
 #[cfg(test)]
 mod tests {
     use super::is_valid_project_file_route;
+
+    #[test]
+    fn pdf_preview_route_should_be_allowed() {
+        assert!(is_valid_project_file_route(
+            "p/project-a/file?path=report.pdf&previewKind=pdf&window=project-file"
+        ));
+    }
 
     #[test]
     fn project_file_window_only_accepts_internal_preview_routes() {

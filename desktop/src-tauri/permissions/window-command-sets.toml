@@ -122,6 +122,7 @@ permissions = [
   "allow-upload-attachment",
   "allow-import-host-attachment",
   "allow-cache-project-image",
+  "allow-get-project-pdf-file",
   "allow-list-host-files",
   "allow-get-project-open-capabilities",
   "allow-open-project",
@@ -148,6 +149,8 @@ permissions = [
   "allow-record-frontend-diagnostic",
   "allow-read-project-source-file",
   "allow-cache-project-image",
+  "allow-get-project-pdf-file",
+  "allow-open-project",
   "core:window:allow-close",
 ]
 

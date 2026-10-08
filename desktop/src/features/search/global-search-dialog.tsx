@@ -33,7 +33,7 @@ export function GlobalSearchDialog({
   client: NativeWorkbenchClient;
   projects: readonly Project[];
   onClose: () => void;
-  onOpenFile: (file: SearchFile, kind: "image" | "source") => void;
+  onOpenFile: (file: SearchFile, kind: "image" | "source" | "pdf") => void;
 }>) {
   const { t } = useTranslation("workbench");
   const navigate = useNavigate();

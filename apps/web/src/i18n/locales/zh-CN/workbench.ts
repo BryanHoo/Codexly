@@ -271,6 +271,10 @@ export const workbench = {
     unsupportedForm: "此表单无法安全显示，请拒绝或取消请求。",
   },
   projectDialog: {
+    pdfOpen: "打开 PDF",
+    pdfUnavailable: "当前环境不支持内嵌 PDF，请打开文件查看。",
+    closePdfPreview: "关闭 PDF 预览",
+
     closeImagePreview: "关闭图片预览",
     closeSource: "关闭源文件",
     delete: "删除",

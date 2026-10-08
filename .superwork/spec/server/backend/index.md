@@ -13,3 +13,5 @@
 - 模型目录以当前 Codex App Server 为权威来源；刷新失败直接传播错误，空目录保持为空，不从旧进程或持久化快照恢复已失效模型。保留有界 TTL 缓存及并发请求合并，不增加轮询；回归覆盖空目录、刷新失败与缓存复用。
 
 - `POST /v1/history/compress` 接受空对象并要求幂等键，通过 Runtime Provider 的 `historyStorage` 提交维护请求；不可用返回 503，上游失败返回 502，不扫描或传输历史内容。
+
+- `GET /v1/projects/:projectId/files/pdf` 与 `/v1/temporary/files/pdf` 使用已有任务目录解析，复验 `%PDF-` 签名后流式交付；返回 `application/pdf`、`inline` 和 `Accept-Ranges`，支持 206/416 与 HEAD。只有 PDF 响应允许同源嵌入，其他响应保留防嵌入策略；用 `app-files.test.ts` 验证范围请求、临时任务和伪装文件拒绝。

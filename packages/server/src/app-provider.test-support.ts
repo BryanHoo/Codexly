@@ -88,7 +88,7 @@ export function createProvider() {
       input?: Readonly<{ cursor?: string }>,
     ) => Promise<AgentProviderTaskSnapshot | undefined>
   >((taskId) => Promise.resolve(taskId === task.id ? snapshot : undefined));
-  const readTaskAttachment = vi.fn((taskId: string, attachmentId: string) =>
+  const readTaskAttachment = vi.fn<AgentProvider["readTaskAttachment"]>((taskId, attachmentId) =>
     Promise.resolve(
       taskId === task.id && attachmentId === "history/image-1"
         ? {

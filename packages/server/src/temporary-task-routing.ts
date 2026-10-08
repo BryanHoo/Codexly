@@ -11,7 +11,10 @@ export function rewriteTemporaryTaskUrl(url: string): string {
   const taskRoute = suffix === "/tasks" || suffix.startsWith("/tasks/");
   const attachmentRoute = suffix.startsWith("/attachments/");
   const streamedFileRoute =
-    suffix === "/files/download" || suffix === "/files/image" || suffix === "/files/source";
+    suffix === "/files/pdf" ||
+    suffix === "/files/download" ||
+    suffix === "/files/image" ||
+    suffix === "/files/source";
   const hostOpenRoute = suffix === "/open" || suffix === "/open-capabilities";
   if (
     !taskRoute &&

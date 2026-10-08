@@ -9,10 +9,10 @@ export async function prepareSearchFile(
   cache: QueryClient,
   file: SearchFile,
   signal?: AbortSignal,
-): Promise<"source" | "image" | null> {
+): Promise<"source" | "image" | "pdf" | null> {
   signal?.throwIfAborted();
   const kind = classifyProjectFileReference(file.path);
-  if (kind === "image") return kind;
+  if (kind === "image" || kind === "pdf") return kind;
   if (kind === "source") {
     try {
       // 先验证首个受限文本页，二进制或不可读文件交给系统默认应用处理。

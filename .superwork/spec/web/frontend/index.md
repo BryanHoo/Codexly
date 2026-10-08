@@ -20,3 +20,5 @@
 - 调整 `vite.config.ts` 的首屏 `codeSplitting` 时，用 `pnpm start` 加载构建产物并检查浏览器运行时异常；构建成功不能验证循环导入的初始化顺序。
 
 - 历史压缩入口在智能体设置中，Web 与桌面复用 `@codexly/ui/core/history-compression`。只由用户点击触发，区分提交中、已提交与失败；Web 文案明确压缩的是服务端历史。不要轮询完成状态或批量失效会话缓存。
+
+- PDF 文件链接、附件和文件树共用 `core/pdf-preview` 原生预览；用 `navigator.pdfViewerEnabled` 检测能力，缺失时保留显式打开动作。附件点击后才加载，关闭后卸载；不引入 PDF.js 或 Base64 整文件传输。桌面只开放校验后的单文件 asset scope，独立预览窗口同时授权读取和打开命令。
