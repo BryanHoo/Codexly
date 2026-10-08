@@ -4,26 +4,7 @@ export type { GitCommandExecutor } from "./git-concurrency.js";
 
 const MAX_GIT_OUTPUT_BYTES = 10 * 1024 * 1024;
 const GIT_COMMAND_TIMEOUT_MS = 10_000;
-const UNSAFE_GIT_ENVIRONMENT_KEYS = new Set([
-  "editor",
-  "git_askpass",
-  "git_config",
-  "git_config_count",
-  "git_config_global",
-  "git_config_system",
-  "git_editor",
-  "git_exec_path",
-  "git_external_diff",
-  "git_pager",
-  "git_proxy_command",
-  "git_sequence_editor",
-  "git_ssh",
-  "git_ssh_command",
-  "git_template_dir",
-  "pager",
-  "prefix",
-  "ssh_askpass",
-]);
+const UNSAFE_GIT_ENVIRONMENT_KEYS = new Set(["editor", "pager", "prefix", "ssh_askpass", "visual"]);
 
 type GitCommandExecutorOptions = Readonly<{
   binary?: SimpleGitOptions["binary"];
@@ -48,9 +29,11 @@ function chunkByteLength(chunk: unknown): number {
 export function createGitEnvironment(): NodeJS.ProcessEnv {
   // 保留 PATH、HOME、Locale 与 SSH Agent 等常规环境，拒绝能改写 Git 执行链的变量。
   const environment = Object.fromEntries(
-    Object.entries(process.env).filter(
-      ([key]) => !UNSAFE_GIT_ENVIRONMENT_KEYS.has(key.toLowerCase()),
-    ),
+    Object.entries(process.env).filter(([key]) => {
+      // 覆盖全部 GIT_ 前缀，避免配置计数、仓库路径及未来新增变量绕过隔离。
+      const normalizedKey = key.toLowerCase().trim();
+      return !normalizedKey.startsWith("git_") && !UNSAFE_GIT_ENVIRONMENT_KEYS.has(normalizedKey);
+    }),
   );
   const globalConfig = process.env["CODEXLY_GIT_CONFIG"];
   if (globalConfig !== undefined && globalConfig.length > 0) {
@@ -71,6 +54,8 @@ export function createGitCommandExecutor(
     const controller = new AbortController();
     const clientOptions: Partial<SimpleGitOptions> = {
       abort: controller.signal,
+      // simple-git 4 要求显式放行；这两个变量仅由 createGitEnvironment 受控设置。
+      allowEnvironment: ["GIT_CONFIG_GLOBAL", "GIT_OPTIONAL_LOCKS"],
       baseDir: repositoryRoot,
       maxConcurrentProcesses: 1,
       trimmed: false,

@@ -42,13 +42,19 @@ afterEach(async () => {
 });
 
 describe("createGitCommandExecutor", () => {
-  it("filters inherited environment variables that can alter Git execution", () => {
+  it("filters inherited environment variables that can alter Git execution", async () => {
     const unsafeEnvironment = {
       GIT_ASKPASS: "malicious-askpass",
       GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "core.editor",
+      GIT_CONFIG_VALUE_0: "malicious-editor",
+      GIT_CONFIG_PARAMETERS: "'core.editor=malicious-editor'",
+      GIT_DIR: "/tmp/untrusted.git",
       GIT_EXEC_PATH: "malicious-exec-path",
       GIT_EXTERNAL_DIFF: "malicious-diff",
       GIT_SSH_COMMAND: "malicious-ssh",
+      VISUAL: "malicious-editor",
+      gIt_Work_Tree: "/tmp/untrusted-worktree",
     };
     for (const [key, value] of Object.entries(unsafeEnvironment)) {
       vi.stubEnv(key, value);
@@ -60,6 +66,11 @@ describe("createGitCommandExecutor", () => {
     for (const key of Object.keys(unsafeEnvironment)) {
       expect(environment[key]).toBeUndefined();
     }
+    // 过滤后仍能执行常规命令，不能靠新依赖拒绝全部 Git 操作来满足安全断言。
+    const { root, scriptPath } = await createFakeGitRoot();
+    const executeGit = createGitCommandExecutor({ binary: [process.execPath, scriptPath] });
+    const output = await executeGit(root, ["inspect"]);
+    expect(JSON.parse(output.slice(0, -1))).toMatchObject({ optionalLocks: "0" });
   });
 
   it("maps the configured global Git config into the Git subprocess environment", async () => {
