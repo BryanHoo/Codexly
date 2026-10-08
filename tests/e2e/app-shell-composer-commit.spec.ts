@@ -218,67 +218,33 @@ test("opens project review while showing Git stats in the Inspector project tree
   expect({ consoleErrors, failedResources }).toEqual({ consoleErrors: [], failedResources: [] });
 });
 
-test("defaults to the first child repository and keeps the changes panel mounted when switching", async ({
-  page,
-}) => {
+test("hides Git controls for a project containing only child repositories", async ({ page }) => {
   const aggregateSnapshot = "a".repeat(64);
-  const backendSnapshot = "b".repeat(64);
-  const frontendSnapshot = "c".repeat(64);
   const requestedRepositories: string[] = [];
   await page.route("**/v1/projects/codexly/git/status*", async (route) => {
     const repository = new URL(route.request().url()).searchParams.get("repository");
     if (repository !== null) requestedRepositories.push(repository);
-    const status =
-      repository === "backend"
-        ? {
-            ...projectGitStatus,
-            branch: "feat/backend",
-            snapshot: backendSnapshot,
-            staged: [],
-            unstaged: [{ diff: "+backend", kind: "update", path: "src/server.ts" }],
-          }
-        : repository === "frontend"
-          ? {
-              ...projectGitStatus,
-              branch: "feat/frontend",
-              snapshot: frontendSnapshot,
-              staged: [],
-              unstaged: [{ diff: "+frontend", kind: "update", path: "src/app.tsx" }],
-            }
-          : {
-              baseBranches: [],
-              branch: null,
-              branches: [],
-              repositoryMode: "children",
-              snapshot: aggregateSnapshot,
-              staged: [],
-              unstaged: [
-                { diff: "+backend", kind: "update", path: "backend/src/server.ts" },
-                { diff: "+frontend", kind: "update", path: "frontend/src/app.tsx" },
-              ],
-            };
+    const status = {
+      baseBranches: [],
+      branch: null,
+      branches: [],
+      repositoryMode: "none",
+      snapshot: aggregateSnapshot,
+      staged: [],
+      unstaged: [],
+    };
     await route.fulfill({ contentType: "application/json", json: status });
   });
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("tab", { name: "项目" }).click();
-  await page.getByRole("button", { name: "提交 2 个未提交变更" }).click();
-  const panel = page.locator('[data-slot="commit-changes-panel"]');
-  const repositorySelect = panel.getByRole("combobox", { name: "Git 项目" });
-  await expect(repositorySelect).toContainText("backend");
-  await expect(panel.getByRole("treeitem", { name: "src/server.ts" })).toBeVisible();
-  await panel.getByRole("textbox", { name: "提交信息" }).fill("fix(backend): 更新服务");
-  await panel.evaluate((element) => {
-    element.dataset["mountMarker"] = "stable";
-  });
-
-  await repositorySelect.click();
-  await page.getByRole("option", { name: "frontend" }).click();
-
-  await expect(repositorySelect).toContainText("frontend");
-  await expect(panel).toHaveAttribute("data-mount-marker", "stable");
-  await expect(panel.getByRole("treeitem", { name: "src/app.tsx" })).toBeVisible();
-  await expect(panel.getByRole("textbox", { name: "提交信息" })).toHaveValue("");
-  expect(requestedRepositories).toEqual(["backend", "frontend"]);
+  const inspector = page.locator(".workbench-inspector");
+  await expect(inspector.getByRole("tree", { name: "项目文件" })).toBeVisible();
+  await expect(inspector.getByRole("region", { name: "未提交变更" })).toHaveCount(0);
+  await expect(inspector.getByRole("tab", { name: "变更" })).toHaveCount(0);
+  await expect(inspector.getByRole("tab", { name: "历史" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /切换分支，当前分支/u })).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Git 项目" })).toHaveCount(0);
+  expect(requestedRepositories).toEqual([]);
 });
 
 for (const scenario of [

@@ -133,34 +133,27 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
   const historyRequests: string[] = [];
   const commitFileRequests: string[] = [];
   const commitDiffRequests: string[] = [];
-  let releaseServerHistory: (() => void) | undefined;
   await page.route("**/v1/projects/codexly/git/history*", async (route) => {
     const url = new URL(route.request().url());
     const cursor = url.searchParams.get("cursor");
-    const repository = url.searchParams.get("repository");
     historyRequests.push(url.search);
     const count = cursor === "20" ? 1 : 20;
     const start = cursor === "20" ? 20 : 0;
-    if (repository === "packages/server") {
-      await new Promise<void>((resolve) => {
-        releaseServerHistory = resolve;
-      });
-    }
     await route.fulfill({
       contentType: "application/json",
       json: {
-        branch: repository === "packages/server" ? "release/server" : "feat/apps-web",
+        branch: "feat/apps-web",
         commits: Array.from({ length: count }, (_, index) => ({
           authoredAt: "2026-08-06T08:30:00+08:00",
           authorEmail: "developer@example.com",
           authorName: "Developer",
           sha: (start + index).toString(16).padStart(40, "0"),
-          title: `${repository ?? "apps/web"} commit ${String(start + index + 1)}`,
+          title: `root commit ${String(start + index + 1)}`,
         })),
-        nextCursor: cursor === null && repository !== "packages/server" ? "20" : null,
-        repositories: ["apps/web", "packages/server"],
-        repository: repository ?? "apps/web",
-        repositoryMode: "children",
+        nextCursor: cursor === null ? "20" : null,
+        repositories: [],
+        repository: null,
+        repositoryMode: "root",
       },
     });
   });
@@ -213,63 +206,31 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
   await expect(page.locator('[data-slot="sheet-content"]')).toHaveCount(0);
   await expect(inspector.getByText("当前分支：feat/apps-web")).toBeVisible();
   await expect(inspector.getByRole("listitem")).toHaveCount(20);
-  await expect(inspector.getByRole("tab", { name: "apps/web" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  const initialInspectorBox = await inspector.boundingBox();
+  await expect(inspector.getByRole("tab", { name: "apps/web" })).toHaveCount(0);
   expect(historyRequests).toEqual([`?rootPath=${encodedRootPath}`]);
 
-  await inspector.getByRole("button", { name: /^apps\/web commit 1 /u }).click();
-  const reviewPanel = inspector.getByRole("tabpanel", { name: "apps/web commit 1" });
+  await inspector.getByRole("button", { name: /^root commit 1 /u }).click();
+  const reviewPanel = inspector.getByRole("tabpanel", { name: "root commit 1" });
   await expect(reviewPanel).toBeVisible();
   await expect(reviewPanel.getByText("Diff 过长，仅展示前 512 KiB")).toBeVisible();
   await expect(reviewPanel.locator(".file-diff-renderer")).toContainText("new");
-  expect(commitFileRequests).toEqual([
-    `?repository=apps%2Fweb&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
-  ]);
+  expect(commitFileRequests).toEqual([`?rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`]);
   expect(commitDiffRequests).toEqual([
-    `?path=src%2Freview-0.ts&repository=apps%2Fweb&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
+    `?path=src%2Freview-0.ts&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
   ]);
   await reviewPanel.getByRole("button", { name: "展开变更文件导航" }).click();
   await reviewPanel.getByRole("button", { name: "加载更多文件" }).click();
   await expect(reviewPanel.getByText("review-100.ts")).toBeAttached();
   expect(commitFileRequests).toEqual([
-    `?repository=apps%2Fweb&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
-    `?cursor=100&repository=apps%2Fweb&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
+    `?rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
+    `?cursor=100&rootPath=${encodedRootPath}&sha=${"0".repeat(40)}`,
   ]);
   expect(commitDiffRequests).toHaveLength(1);
   await reviewPanel.getByRole("button", { name: "关闭文件审核" }).click();
   await expect(reviewPanel).not.toBeAttached();
   await historyTab.click();
-  await expect(inspector.getByText("apps/web commit 1", { exact: true })).toBeVisible();
-
-  await inspector.getByRole("tab", { name: "packages/server" }).click();
-  await expect(inspector.getByText("正在读取 Git 历史...")).toBeVisible();
-  await expect(inspector.getByText("当前分支：读取中...")).toBeVisible();
-  const pendingInspectorBox = await inspector.boundingBox();
-  expect(pendingInspectorBox?.height).toBe(initialInspectorBox?.height);
-  expect(pendingInspectorBox?.y).toBe(initialInspectorBox?.y);
-  await expect(inspector.getByText("apps/web commit 1", { exact: true })).toBeAttached();
-  await expect(inspector.getByText("apps/web commit 1", { exact: true })).toBeHidden();
-  releaseServerHistory?.();
-  await expect(inspector.getByText("packages/server commit 20", { exact: true })).toBeVisible();
-  await expect(inspector.getByText("当前分支：release/server")).toBeVisible();
-  const loadedInspectorBox = await inspector.boundingBox();
-  expect(loadedInspectorBox?.height).toBe(initialInspectorBox?.height);
-  expect(loadedInspectorBox?.y).toBe(initialInspectorBox?.y);
-  expect(historyRequests).toEqual([
-    `?rootPath=${encodedRootPath}`,
-    `?repository=packages%2Fserver&rootPath=${encodedRootPath}`,
-  ]);
-
-  await inspector.getByRole("tab", { name: "apps/web" }).click();
-  await expect(inspector.getByRole("listitem")).toHaveCount(20);
-  await expect(inspector.getByText("当前分支：feat/apps-web")).toBeVisible();
-  expect(historyRequests).toEqual([
-    `?rootPath=${encodedRootPath}`,
-    `?repository=packages%2Fserver&rootPath=${encodedRootPath}`,
-  ]);
+  await expect(inspector.getByText("root commit 1", { exact: true })).toBeVisible();
+  expect(historyRequests).toEqual([`?rootPath=${encodedRootPath}`]);
 
   await inspector.getByRole("tab", { name: "项目" }).click();
   await expect(inspector.locator('[data-slot="git-history-panel"]')).toHaveCount(0);
@@ -288,8 +249,7 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
   );
   const touchControls = [
     inspector.getByRole("button", { name: "关闭上下文面板" }),
-    inspector.getByRole("tab", { name: "apps/web" }),
-    inspector.getByRole("tab", { name: "packages/server" }),
+    historyTab,
     inspector.getByRole("button", { name: "加载更多" }),
   ];
   // 紧凑控件不再统一放大为 44px，但必须保持可见、可操作且不被窄屏裁切。
@@ -306,7 +266,6 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
   await expect(inspector.getByRole("listitem")).toHaveCount(21);
   expect(historyRequests).toEqual([
     `?rootPath=${encodedRootPath}`,
-    `?repository=packages%2Fserver&rootPath=${encodedRootPath}`,
     `?cursor=20&rootPath=${encodedRootPath}`,
   ]);
 });
