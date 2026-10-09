@@ -28,7 +28,7 @@ cp .env.example .env
 生产环境建议至少限制工作区：
 
 ```dotenv
-CODEXLY_VERSION=0.33.1
+CODEXLY_VERSION=0.33.2
 CODEXLY_PORT=3210
 CODEXLY_WORKSPACE=/srv/projects
 ```
