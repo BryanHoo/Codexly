@@ -696,7 +696,7 @@ dependencies = [
 
 [[package]]
 name = "codeagent"
-version = "0.32.0"
+version = "0.33.0"
 dependencies = [
  "atomicwrites",
  "base64 0.23.1",

@@ -36,6 +36,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 ## Features
 
 - Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive, with file edit timing and completion summaries; keep follow-up messages in a persistent queue.
+- Open up to four task panes in desktop browsers and the desktop app, each with its own draft and message queue. File and Git panels follow the focused task; mobile Web keeps a single-task view.
 - Read streaming Markdown responses and copy their source text; zoom and pan message images, project images, and wallpapers, or view them at their original size.
 - Preview PDFs directly from chat attachments, file links, and the project file tree.
 - Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task.
@@ -47,6 +48,8 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 **Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and an app-private Codex installation. It supports Windows, Ubuntu, and macOS. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
 
 **Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, Docker deployment, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.162.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.162.0,<0.163.0`.
+
+In workspaces that support split view, open a task in another pane from its sidebar menu or right-click a blank area in the chat to split up, down, left, or right. Use `⌘+⌥+Arrow` on macOS or `Ctrl+Alt+Arrow` on Windows / Linux, up to four panes.
 
 ## Start the Web Edition
 

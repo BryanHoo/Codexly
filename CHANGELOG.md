@@ -4,6 +4,26 @@
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-10-09
+
+### 新增
+
+- Web 桌面浏览器与桌面端支持最多四个任务分屏聊天，可通过任务入口、聊天空白处右键菜单或方向快捷键打开分屏；Web 移动端保持单任务视图。
+- 分屏支持独立的新任务草稿、输入与消息队列，项目文件、Git 面板和桌面终端跟随当前聚焦任务，便于并行处理不同项目。
+- Web 应用内更新按响应速度选择官方 npm 源或镜像，复用用户缓存并在选中源失败时回退。
+
+### 优化
+
+- 升级内置 Codex CLI 与桌面私有运行时至 `0.162.0`，同步共享协议基线和六个平台下载校验；保留部分答案正文，适配自定义 Provider 能力响应。
+- 两端共用分屏布局与交互逻辑，按需加载右键菜单并保持任务面板挂载，减少切换时的重建和重复订阅。
+
+### 修复
+
+- 修复排队消息未自动续发、投递状态同步和输入区排队计数异常。
+- 删除任务因分叉历史依赖被阻止时，明确提示原因。
+- 修复桌面主窗口缺少历史压缩命令权限的问题。
+- 修复分屏导航与输入区状态保留，以及桌面 Markdown 中文字体不一致的问题。
+
 ## [0.32.0] - 2026-10-08
 
 ### 新增
@@ -856,7 +876,9 @@
 
 - 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/BryanHoo/Codexly/compare/v0.32.0...v0.33.0
+[0.32.0]: https://github.com/BryanHoo/Codexly/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/BryanHoo/Codexly/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/BryanHoo/Codexly/compare/v0.29.0...v0.30.0
 [0.29.0]: https://github.com/BryanHoo/Codexly/releases/tag/v0.29.0

@@ -30,6 +30,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Attach files, images, and audio, reference project files with `@` and Skills with `$` in the plain-text composer, and reliably restore attachments from the task queue
 - Install and manage Skills, official plugins, and third-party markets in the extension center, including MCP service controls and hot reload; refresh official plugins to synchronize their state and report partial failures
 - Answer asynchronous questions in a pinned panel, prevent concurrent interactions with cross-client task locks, and restore thread model and reasoning settings
+- Open up to four task panes with independent drafts and message queues; project files, Git panels, and the terminal follow the focused task
 - Follow streaming reasoning summaries and grouped operations, and inspect runtime warnings and live tool timing in the context panel and timeline
 - Read incrementally rendered Markdown responses, zoom and pan message images, project images, and wallpapers, then fit them to the window or view them at their original size
 - Preview PDFs directly from chat attachments, file links, and the project file tree with access granted to individual local files
@@ -58,6 +59,8 @@ Supports Windows, Ubuntu, and macOS. See the installation guide for architecture
 ## Usage
 
 For repository work, add one or more local directories as project roots, create a task, and submit your request. Create a temporary task when no project context is required. Messages can include files, images, project references, and Skills.
+
+Open a task in another pane from its sidebar menu, or right-click a blank area in the chat to split up, down, left, or right, up to four panes. Use `⌘+⌥+Arrow` on macOS or `Ctrl+Alt+Arrow` on Windows / Ubuntu. Focus a pane to switch the project files, Git panels, and terminal to its task.
 
 While a task is running, send additional guidance immediately or queue follow-up messages. Task controls configure the model, reasoning effort, Fast mode, approval behavior, and file access.
 
