@@ -1,3 +1,6 @@
+import { useContext, useId } from "react";
+import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
+import { SplitPaneControls } from "@codexly/ui/core/split-pane-controls";
 import { PanelLeft, PanelRight, Pencil } from "lucide-react";
 
 import { Button } from "../../../shared/components/core/button.js";
@@ -24,6 +27,8 @@ export function WorkbenchShellHeader({
   taskId?: string;
   temporary: boolean;
 }>) {
+  const pane = useContext(SplitPaneContext);
+  const id = useId();
   const {
     globalSettings,
     inspectorOpen,
@@ -33,10 +38,11 @@ export function WorkbenchShellHeader({
     setInspectorOpen,
     setSidebarOpen,
     setTaskRenameOpen,
-    sidebarOpen,
+    sidebarOpen: ownSidebarOpen,
     t,
     title,
   } = context;
+  const sidebarOpen = pane?.sidebarOpen ?? ownSidebarOpen;
   const utilityView = board || skillsMarket || scheduled;
   const heading = scheduled
     ? t("scheduledTasks.title")
@@ -52,9 +58,10 @@ export function WorkbenchShellHeader({
           <TooltipTrigger asChild>
             <Button
               aria-label={sidebarOpen ? t("shell.collapseSidebar") : t("shell.expandSidebar")}
-              id="workbench-sidebar-toggle"
+              id={!pane?.multiple ? "workbench-sidebar-toggle" : `${id}-sidebar-toggle`}
               onClick={() => {
-                setSidebarOpen((open) => !open);
+                if (pane === null) setSidebarOpen((open) => !open);
+                else pane.toggleSidebar();
               }}
               size="icon-sm"
               type="button"
@@ -74,7 +81,7 @@ export function WorkbenchShellHeader({
             <Button
               aria-label={t("shell.renameTask", { title })}
               className="group flex max-w-full items-center gap-1 rounded-control px-1 py-0.5 text-left hover:bg-control-hover focus-visible:shadow-focus"
-              id="workbench-task-title-rename"
+              id={!pane?.multiple ? "workbench-task-title-rename" : `${id}-task-title-rename`}
               onClick={() => {
                 setTaskRenameOpen(true);
               }}
@@ -114,7 +121,7 @@ export function WorkbenchShellHeader({
                 aria-label={
                   inspectorOpen ? t("shell.collapseInspector") : t("shell.expandInspector")
                 }
-                id="workbench-inspector-toggle"
+                id={!pane?.multiple ? "workbench-inspector-toggle" : `${id}-inspector-toggle`}
                 onClick={() => {
                   setInspectorOpen((open) => !open);
                 }}
@@ -129,6 +136,7 @@ export function WorkbenchShellHeader({
               {inspectorOpen ? t("shell.collapseInspector") : t("shell.expandInspector")}
             </TooltipContent>
           </Tooltip>
+          <SplitPaneControls closeLabel={t("split.close")} soloLabel={t("split.solo")} />
         </div>
       )}
     </header>

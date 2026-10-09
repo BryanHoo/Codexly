@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { TerminalWorkbench } from "../../terminal/components/terminal-workbench.js";
 import { lazy, Suspense, useRef, useState, type CSSProperties } from "react";
 import { Button } from "../../../shared/components/core/button.js";
@@ -26,6 +27,8 @@ const LazySkillsMarketContainer = lazy(() =>
 );
 export function WorkbenchShellLayout({
   board,
+  embedded = false,
+  workspaceContent,
   context,
   draftId,
   extensionSection,
@@ -36,6 +39,8 @@ export function WorkbenchShellLayout({
 }: Readonly<{
   context: ReturnType<typeof useWorkbenchShellController>;
   board: boolean;
+  embedded?: boolean;
+  workspaceContent?: ReactNode;
   draftId?: string;
   projectId: string;
   scheduledTasks: boolean;
@@ -142,11 +147,12 @@ export function WorkbenchShellLayout({
         : title;
   const inspectorVisible = resolveInspectorVisibility(utilityView, inspectorOpen);
   const taskWriteBlocked =
-    taskId !== undefined && runtime.writeAccess !== undefined && runtime.writeAccess !== "writable";
+    workspaceContent === undefined && taskId !== undefined && runtime.writeAccess !== undefined && runtime.writeAccess !== "writable";
   return (
     <TaskInteractionContext value={taskWriteBlocked ? JSON.stringify([projectId, taskId]) : null}>
       <div
         className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
+        data-embedded={embedded}
         data-inspector-open={inspectorVisible}
         data-sidebar-open={sidebarOpen}
         ref={workbenchShellRef}
@@ -157,6 +163,7 @@ export function WorkbenchShellLayout({
           } as CSSProperties
         }
       >
+        {!embedded ? <>
         <ProjectSidebar
           {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
           onClose={closeSidebar}
@@ -193,6 +200,8 @@ export function WorkbenchShellLayout({
           shellRef={workbenchShellRef}
           width={sidebarWidth}
         />
+        </> : null}
+        {workspaceContent ?? (
         <TerminalWorkbench
           label={t("shell.timeline")}
           enabled={!utilityView && !temporary && projectRoots.length > 0}
@@ -332,6 +341,8 @@ export function WorkbenchShellLayout({
             />
           )}
         </TerminalWorkbench>
+        )}
+
         {inspectorVisible ? (
           <Button
             variant="ghost"

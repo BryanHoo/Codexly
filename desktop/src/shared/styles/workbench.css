@@ -1,3 +1,5 @@
+@import "@codexly/ui/core/split-workspace.css";
+
 .workbench-background {
   position: relative;
   isolation: isolate;
@@ -298,14 +300,14 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
   }
 }
 
-.workbench-shell[data-sidebar-open="false"] .workbench-sidebar,
-.workbench-shell[data-inspector-open="false"] .workbench-inspector {
+.workbench-shell[data-sidebar-open="false"] > .workbench-sidebar,
+.workbench-shell[data-inspector-open="false"] > .workbench-inspector {
   visibility: hidden;
   pointer-events: none;
 }
 
-.workbench-shell[data-sidebar-open="true"] .workbench-sidebar,
-.workbench-shell[data-inspector-open="true"] .workbench-inspector {
+.workbench-shell[data-sidebar-open="true"] > .workbench-sidebar,
+.workbench-shell[data-inspector-open="true"] > .workbench-inspector {
   visibility: visible;
   pointer-events: auto;
 }
@@ -329,11 +331,11 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
     transition: transform var(--ui-motion-normal) var(--ui-ease-standard);
   }
 
-  .workbench-shell[data-inspector-open="true"] .workbench-inspector {
+  .workbench-shell[data-inspector-open="true"] > .workbench-inspector {
     transform: translateX(0);
   }
 
-  .workbench-shell[data-inspector-open="true"] .workbench-inspector-scrim {
+  .workbench-shell[data-inspector-open="true"] > .workbench-inspector-scrim {
     position: absolute;
     z-index: 20;
     inset: 0;
@@ -366,11 +368,11 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
     transition: transform var(--ui-motion-normal) var(--ui-ease-standard);
   }
 
-  .workbench-shell[data-sidebar-open="true"] .workbench-sidebar {
+  .workbench-shell[data-sidebar-open="true"] > .workbench-sidebar {
     transform: translateX(0);
   }
 
-  .workbench-shell[data-sidebar-open="true"] .workbench-sidebar-scrim {
+  .workbench-shell[data-sidebar-open="true"] > .workbench-sidebar-scrim {
     position: absolute;
     z-index: 20;
     inset: 0;

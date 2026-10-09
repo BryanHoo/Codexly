@@ -1,3 +1,5 @@
+import { useContext } from "react";
+import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { terminalStore } from "../terminal-store.js";
 import { initializeTerminalLayout, terminalActionError } from "../terminal-layout.js";
@@ -7,6 +9,7 @@ import { TerminalContext } from "./terminal-context.js";
 const TerminalPanel = lazy(() => import("./terminal-panel.js").then((module) => ({ default: module.TerminalPanel })));
 
 export function TerminalWorkbench({ children, enabled, projectId, rootId, taskId, label }: { children: ReactNode; enabled: boolean; projectId: string; rootId: string | undefined; taskId?: string | undefined; label: string }) {
+  const active = useContext(SplitPaneContext)?.active ?? true;
   const state = useSyncExternalStore(useCallback((listener) => enabled ? terminalStore.subscribe(projectId, listener) : () => undefined, [enabled, projectId]), useCallback(() => terminalStore.get(projectId), [projectId]));
   const previousFocus = useRef<HTMLElement | null>(null);
   const wasVisible = useRef(false);
@@ -23,32 +26,34 @@ export function TerminalWorkbench({ children, enabled, projectId, rootId, taskId
   }, [captureFocus, projectId, rootId]);
 
   useLayoutEffect(() => {
+    if (!enabled || !active) return;
     // 设置页使用 Activity 暂停工作台；同一任务恢复时保留终端展开状态。
     if (collapsedScope.current?.projectId === projectId && collapsedScope.current.taskId === taskId) return;
     collapsedScope.current = { projectId, taskId };
     terminalStore.update(projectId, { visible: false });
-  }, [projectId, taskId]);
+  }, [enabled, active, projectId, taskId]);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !active) return;
     if (initializedScope.current?.projectId === projectId && initializedScope.current.taskId === taskId) return;
-    let active = true;
+    let attached = true;
     void initializeTerminalLayout(projectId)
       .then(() => {
         // 布局恢复可能晚于任务切换完成，恢复后再次确保终端不会自动展开。
-        if (active) {
+        if (attached) {
           initializedScope.current = { projectId, taskId };
           terminalStore.update(projectId, { visible: false });
         }
       })
       .catch((error: unknown) => terminalActionError(projectId, error));
-    return () => { active = false; };
-  }, [enabled, projectId, taskId]);
+    return () => { attached = false; };
+  }, [enabled, active, projectId, taskId]);
   useEffect(() => {
-    if (wasVisible.current && !state.visible) { if (previousFocus.current?.isConnected) previousFocus.current.focus(); previousFocus.current = null; }
-    wasVisible.current = enabled && state.visible;
-  }, [enabled, state.visible]);
+    if (!active) previousFocus.current = null;
+    else if (wasVisible.current && !state.visible) { if (previousFocus.current?.isConnected) previousFocus.current.focus(); previousFocus.current = null; }
+    wasVisible.current = enabled && active && state.visible;
+  }, [active, enabled, state.visible]);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !active) return;
     const handler = (event: KeyboardEvent) => {
       if (!isTerminalShortcut(event, /mac/i.test(navigator.platform), true)) return;
       const modal = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]')].some((element) => element.getClientRects().length > 0);
@@ -57,14 +62,14 @@ export function TerminalWorkbench({ children, enabled, projectId, rootId, taskId
     };
     document.addEventListener("keydown", handler, true);
     return () => document.removeEventListener("keydown", handler, true);
-  }, [captureFocus, enabled, toggle]);
+  }, [captureFocus, enabled, active, toggle]);
 
   if (!enabled) return <main aria-label={label} className="flex min-h-0 min-w-0 flex-col bg-content">{children}</main>;
   return <main aria-label={label} className="flex min-h-0 min-w-0 flex-1 flex-col bg-content">
     <TerminalContext.Provider value={{ projectId, rootId, footer, toggle, captureFocus }}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
       <div data-terminal-footer="" className="shrink-0 bg-content px-1 pb-2 sm:px-5" ref={setFooter} />
-      {state.visible ? <div className="shrink-0 bg-window pb-2">
+      {active && state.visible ? <div className="shrink-0 bg-window pb-2">
         {/* 工作台底色留白用于收住终端底边，避免内容贴住窗口边缘。 */}
         <Suspense fallback={null}><TerminalPanel projectId={projectId} rootId={rootId} /></Suspense>
       </div> : null}

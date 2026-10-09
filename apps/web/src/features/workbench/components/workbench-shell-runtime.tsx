@@ -1,3 +1,4 @@
+import type { SplitRuntimeOptions } from "@codexly/frontend-core/split-workspace";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
   AgentMessageAttachment,
@@ -87,7 +88,11 @@ export function useWorkbenchShellRuntime({
   projectId,
   taskId,
   temporary = false,
-}: WorkbenchShellProps) {
+  workspaceOnly = false,
+  paneOnly = false,
+  paneActive = true,
+  compactPane = false,
+}: WorkbenchShellProps & SplitRuntimeOptions) {
   const { t } = useTranslation("workbench");
   const access = useAccess();
   const { capabilities, client, error, isPending, projects, projectTaskStates, tasks } =
@@ -101,7 +106,7 @@ export function useWorkbenchShellRuntime({
     retry,
     viewTask,
   } = useProjectActions();
-  const runtime = useTaskRuntime(projectId, taskId, projectRuntime);
+  const runtime = useTaskRuntime(projectId, workspaceOnly ? undefined : taskId, projectRuntime);
   const activeTask = tasks.find((task) => task.projectId === projectId && task.id === taskId);
   const reportedWorkspacePath =
     activeTask?.workspacePath ??
@@ -132,7 +137,10 @@ export function useWorkbenchShellRuntime({
     sidebarOpen,
     sidebarWidth,
     workbenchShellRef,
-  } = useWorkbenchPanelLayout({ inspectorInitiallyOpen: !temporary });
+  } = useWorkbenchPanelLayout({
+    inspectorInitiallyOpen: !temporary && !workspaceOnly && !compactPane,
+    sidebarInitiallyOpen: !paneOnly,
+  });
   const inspectorScopeKey = `${projectId}:${taskId ?? "draft"}`;
   const defaultInspectorTab: WorkbenchInspectorTab = "project";
   const [inspectorTabState, setInspectorTabState] = useState<{
@@ -174,8 +182,8 @@ export function useWorkbenchShellRuntime({
     taskId,
   });
   useLayoutEffect(() => {
-    if (temporary) setInspectorOpen(false);
-  }, [setInspectorOpen, taskId, temporary]);
+    if (temporary || workspaceOnly || compactPane) setInspectorOpen(false);
+  }, [setInspectorOpen, taskId, temporary, workspaceOnly, compactPane]);
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation({
     ...appUpdateMutationOptions(client),
@@ -273,7 +281,7 @@ export function useWorkbenchShellRuntime({
   );
   const projectTaskState = projectTaskStates.get(projectId);
   const sidebarConnectionState = deriveProjectSidebarConnectionState({
-    hasActiveTask: taskId !== undefined,
+    hasActiveTask: !workspaceOnly && taskId !== undefined,
     projectDataFailed: error !== null || (projectTaskState?.error ?? null) !== null,
     projectDataPending: isPending || projectTaskState?.isPending === true,
     taskConnectionState: runtime.connectionState,
@@ -372,8 +380,8 @@ export function useWorkbenchShellRuntime({
 
   useLayoutEffect(() => {
     // 路由提交后、页面绘制前消费提醒，避免实时终态与被动 Effect 形成竞态。
-    viewTask(projectId, taskId);
-  }, [projectId, taskId, viewTask]);
+    if (!workspaceOnly && paneActive) viewTask(projectId, taskId);
+  }, [projectId, taskId, viewTask, workspaceOnly, paneActive]);
   const projectName = temporary ? t("shell.temporaryTask") : (project?.name ?? projectId);
   const projectPath = selectedRootPath ?? "";
   const title =

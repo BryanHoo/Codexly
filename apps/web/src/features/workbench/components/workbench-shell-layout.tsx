@@ -1,6 +1,6 @@
 import { WorkbenchSettingsPage } from "./workbench-settings-page.js";
 import { useNavigate } from "@tanstack/react-router";
-import { useRef, type CSSProperties } from "react";
+import { useRef, type CSSProperties, type ReactNode } from "react";
 
 import { Button } from "../../../shared/components/core/button.js";
 import { RuntimeUnavailable } from "../../../shared/components/core/runtime-unavailable.js";
@@ -21,11 +21,10 @@ import { WorkbenchShellHeader } from "./workbench-shell-header.js";
 import { SkillsMarketView } from "./skills-market-view.js";
 import { ScheduledTasksView } from "./scheduled-tasks-view.js";
 
-type WorkbenchShellStyle = CSSProperties &
-  Readonly<{ "--inspector-open-width": string; "--sidebar-open-width": string }>;
-
 export function WorkbenchShellLayout({
   board,
+  embedded = false,
+  workspaceContent,
   context,
   extensionSection,
   projectId,
@@ -35,6 +34,8 @@ export function WorkbenchShellLayout({
   todoId,
 }: Readonly<{
   board: boolean;
+  embedded?: boolean;
+  workspaceContent?: ReactNode;
   context: ReturnType<typeof useWorkbenchShellController>;
   extensionSection?: string;
   projectId: string;
@@ -133,6 +134,7 @@ export function WorkbenchShellLayout({
     <>
       <div
         className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
+        data-embedded={embedded}
         hidden={context.globalSettingsSection !== null}
         inert={context.globalSettingsSection !== null}
         data-inspector-open={!utilityView && inspectorOpen}
@@ -142,202 +144,209 @@ export function WorkbenchShellLayout({
           {
             "--inspector-open-width": `${String(inspectorWidth)}px`,
             "--sidebar-open-width": `${String(sidebarWidth)}px`,
-          } as WorkbenchShellStyle
+          } as CSSProperties
         }
       >
-        <ProjectSidebar
-          {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
-          connectionState={sidebarConnectionState}
-          onClose={closeSidebar}
-          onOpenFile={(file, kind) => {
-            openInspectorDocument({
-              id: fileDocumentId(kind, `${file.projectId}:${file.rootPath}:${file.path}`),
-              kind,
-              projectId: file.projectId,
-              rootPath: file.rootPath,
-              reference: { lineNumber: null, path: file.path },
-            });
-          }}
-          onOpenSettings={(section) => {
-            setGlobalSettingsSection(section);
-          }}
-          projectId={projectId}
-          {...(taskId === undefined && pendingTaskSelection?.projectId === projectId
-            ? { taskId: pendingTaskSelection.taskId }
-            : taskId === undefined
-              ? {}
-              : { taskId })}
-        />
-        {sidebarOpen ? (
-          <Button
-            variant="ghost"
-            aria-label={t("shell.closeSidebar")}
-            className="workbench-sidebar-scrim"
-            onClick={closeSidebar}
-            type="button"
-          />
-        ) : null}
-        {sidebarOpen ? (
-          <WorkbenchPanelResizer
-            direction={1}
-            label={t("shell.resizeSidebar")}
-            maximumWidth={sidebarWidthLimits.maximum}
-            minimumWidth={sidebarWidthLimits.minimum}
-            onResize={(width) => {
-              workbenchShellRef.current?.style.setProperty(
-                "--sidebar-open-width",
-                `${String(width)}px`,
-              );
-            }}
-            onResizeEnd={(width) => {
-              workbenchShellRef.current?.removeAttribute("data-resizing-panel");
-              setSidebarWidth(width);
-            }}
-            onResizeStart={() => {
-              workbenchShellRef.current?.setAttribute("data-resizing-panel", "sidebar");
-            }}
-            panel="sidebar"
-            width={sidebarWidth}
-          />
-        ) : null}
-        <main
-          aria-label={t(
-            scheduled
-              ? "scheduledTasks.title"
-              : extensions
-                ? "skillsMarket.title"
-                : board
-                  ? "taskBoard.label"
-                  : "shell.timeline",
-          )}
-          className="flex min-h-0 min-w-0 flex-col bg-content"
-        >
-          <WorkbenchShellHeader
-            board={board}
-            context={context}
-            scheduled={scheduled}
-            skillsMarket={extensions}
-            temporary={temporary}
-            {...(taskId === undefined ? {} : { taskId })}
-          />
-          {scheduled ? (
-            <ScheduledTasksView context={context} projectId={projectId} temporary={temporary} />
-          ) : extensions ? (
-            <SkillsMarketView
-              section={extensionSection}
-              onSectionChange={(nextSection) => {
-                void navigate(
-                  temporary
-                    ? { params: { section: nextSection }, to: "/temporary/extensions/$section" }
-                    : {
-                        params: { projectId, section: nextSection },
-                        to: "/p/$projectId/extensions/$section",
-                      },
-                );
+        {!embedded ? (
+          <>
+            <ProjectSidebar
+              {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
+              connectionState={sidebarConnectionState}
+              onClose={closeSidebar}
+              onOpenFile={(file, kind) => {
+                openInspectorDocument({
+                  id: fileDocumentId(kind, `${file.projectId}:${file.rootPath}:${file.path}`),
+                  kind,
+                  projectId: file.projectId,
+                  rootPath: file.rootPath,
+                  reference: { lineNumber: null, path: file.path },
+                });
               }}
-              {...(temporary ? {} : { projectId })}
-              {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
-            />
-          ) : board ? (
-            <TaskBoardContainer projectId={projectId} />
-          ) : error !== null ||
-            (projectTaskState?.error ?? null) !== null ||
-            modelsQuery.error !== null ||
-            skillsQuery.error !== null ||
-            (!temporary && projectDefaultsQuery.error !== null) ||
-            (taskId === undefined && globalSettingsQuery.error !== null) ? (
-            <RuntimeUnavailable onRetry={() => void retry()} />
-          ) : taskId === undefined ? (
-            <>
-              <TaskTimeline
-                onProjectChange={handleNewTaskProjectChange}
-                projectId={projectId}
-                projects={projects}
-                pendingPrompt={newChatSubmission.pendingPrompt}
-                {...(temporary
-                  ? { scopeName: t("shell.temporaryTask"), temporary: true as const }
-                  : {})}
-                {...(newChatSubmissionStartedAt === undefined
+              onOpenSettings={(section) => {
+                setGlobalSettingsSection(section);
+              }}
+              projectId={projectId}
+              {...(taskId === undefined && pendingTaskSelection?.projectId === projectId
+                ? { taskId: pendingTaskSelection.taskId }
+                : taskId === undefined
                   ? {}
-                  : { submissionStartedAt: newChatSubmissionStartedAt })}
+                  : { taskId })}
+            />
+            {sidebarOpen ? (
+              <Button
+                variant="ghost"
+                aria-label={t("shell.closeSidebar")}
+                className="workbench-sidebar-scrim"
+                onClick={closeSidebar}
+                type="button"
               />
-              <WorkbenchComposer
+            ) : null}
+            {sidebarOpen ? (
+              <WorkbenchPanelResizer
+                direction={1}
+                label={t("shell.resizeSidebar")}
+                maximumWidth={sidebarWidthLimits.maximum}
+                minimumWidth={sidebarWidthLimits.minimum}
+                onResize={(width) => {
+                  workbenchShellRef.current?.style.setProperty(
+                    "--sidebar-open-width",
+                    `${String(width)}px`,
+                  );
+                }}
+                onResizeEnd={(width) => {
+                  workbenchShellRef.current?.removeAttribute("data-resizing-panel");
+                  setSidebarWidth(width);
+                }}
+                onResizeStart={() => {
+                  workbenchShellRef.current?.setAttribute("data-resizing-panel", "sidebar");
+                }}
+                panel="sidebar"
+                width={sidebarWidth}
+              />
+            ) : null}
+          </>
+        ) : null}
+        {workspaceContent ?? (
+          <main
+            aria-label={t(
+              scheduled
+                ? "scheduledTasks.title"
+                : extensions
+                  ? "skillsMarket.title"
+                  : board
+                    ? "taskBoard.label"
+                    : "shell.timeline",
+            )}
+            className="flex min-h-0 min-w-0 flex-col bg-content"
+          >
+            <WorkbenchShellHeader
+              board={board}
+              context={context}
+              scheduled={scheduled}
+              skillsMarket={extensions}
+              temporary={temporary}
+              {...(taskId === undefined ? {} : { taskId })}
+            />
+            {scheduled ? (
+              <ScheduledTasksView context={context} projectId={projectId} temporary={temporary} />
+            ) : extensions ? (
+              <SkillsMarketView
+                section={extensionSection}
+                onSectionChange={(nextSection) => {
+                  void navigate(
+                    temporary
+                      ? { params: { section: nextSection }, to: "/temporary/extensions/$section" }
+                      : {
+                          params: { projectId, section: nextSection },
+                          to: "/p/$projectId/extensions/$section",
+                        },
+                  );
+                }}
+                {...(temporary ? {} : { projectId })}
+                {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
+              />
+            ) : board ? (
+              <TaskBoardContainer projectId={projectId} />
+            ) : error !== null ||
+              (projectTaskState?.error ?? null) !== null ||
+              modelsQuery.error !== null ||
+              skillsQuery.error !== null ||
+              (!temporary && projectDefaultsQuery.error !== null) ||
+              (taskId === undefined && globalSettingsQuery.error !== null) ? (
+              <RuntimeUnavailable onRetry={() => void retry()} />
+            ) : taskId === undefined ? (
+              <>
+                <TaskTimeline
+                  onProjectChange={handleNewTaskProjectChange}
+                  projectId={projectId}
+                  projects={projects}
+                  pendingPrompt={newChatSubmission.pendingPrompt}
+                  {...(temporary
+                    ? { scopeName: t("shell.temporaryTask"), temporary: true as const }
+                    : {})}
+                  {...(newChatSubmissionStartedAt === undefined
+                    ? {}
+                    : { submissionStartedAt: newChatSubmissionStartedAt })}
+                />
+                <WorkbenchComposer
+                  capabilities={capabilities}
+                  client={client}
+                  composerRef={composerRef}
+                  followUpBehavior={globalSettings?.followUpBehavior ?? "queue"}
+                  fastModeAvailable={fastModeAvailable}
+                  fastModeDefault={fastModeDefault}
+                  {...(todoId === undefined ? {} : { initialTodoId: todoId })}
+                  models={models}
+                  modelsError={null}
+                  modelsPending={
+                    modelsQuery.isPending ||
+                    (!temporary && projectDefaultsQuery.isPending) ||
+                    globalSettingsQuery.isPending
+                  }
+                  onSettingsChange={updateDraftSettings}
+                  onFastModeChange={(enabled, settings) =>
+                    updateProjectTaskDefaults(settings, enabled)
+                  }
+                  onOpenProjectPath={openProjectFolder}
+                  onProjectRootChange={setSelectedRootId}
+                  onRequestNotificationPermission={requestNotificationPermission}
+                  onDirectSubmission={newChatSubmission.onDirectSubmission}
+                  onSubmissionFailed={newChatSubmission.onSubmissionFailed}
+                  onSubmissionStateChange={handleNewChatSubmissionStateChange}
+                  onTaskCreated={handleTaskCreated}
+                  onTaskStarted={handleTaskStarted}
+                  projectId={projectId}
+                  projectName={projectName}
+                  projectPath={projectPath}
+                  projectPathOpenAvailable={projectFolderOpenAvailable}
+                  projectPathOpenDisabled={projectFolderOpenDisabled}
+                  projectRoots={projectRoots}
+                  // 新建临时任务也必须禁用依赖 Project 根目录的命令。
+                  projectToolsEnabled={!temporary}
+                  selectedProjectRootId={selectedRootId ?? ""}
+                  {...(gitStatusQuery.data === undefined ? {} : { gitStatus: gitStatusQuery.data })}
+                  settings={draftSettings}
+                  skills={skillsQuery.data?.data ?? []}
+                />
+              </>
+            ) : (
+              <ActiveTaskWorkbench
                 capabilities={capabilities}
                 client={client}
                 composerRef={composerRef}
+                fallbackSettings={draftSettings}
                 followUpBehavior={globalSettings?.followUpBehavior ?? "queue"}
                 fastModeAvailable={fastModeAvailable}
                 fastModeDefault={fastModeDefault}
-                {...(todoId === undefined ? {} : { initialTodoId: todoId })}
                 models={models}
-                modelsError={null}
-                modelsPending={
-                  modelsQuery.isPending ||
-                  (!temporary && projectDefaultsQuery.isPending) ||
-                  globalSettingsQuery.isPending
-                }
-                onSettingsChange={updateDraftSettings}
-                onFastModeChange={(enabled, settings) =>
-                  updateProjectTaskDefaults(settings, enabled)
-                }
+                modelsError={modelsQuery.error}
+                modelsPending={modelsQuery.isPending}
+                onRequestNotificationPermission={requestNotificationPermission}
+                onProjectTaskDefaultsChange={updateProjectTaskDefaults}
                 onOpenProjectPath={openProjectFolder}
                 onProjectRootChange={setSelectedRootId}
-                onRequestNotificationPermission={requestNotificationPermission}
-                onDirectSubmission={newChatSubmission.onDirectSubmission}
-                onSubmissionFailed={newChatSubmission.onSubmissionFailed}
-                onSubmissionStateChange={handleNewChatSubmissionStateChange}
-                onTaskCreated={handleTaskCreated}
                 onTaskStarted={handleTaskStarted}
                 projectId={projectId}
-                projectName={projectName}
                 projectPath={projectPath}
                 projectPathOpenAvailable={projectFolderOpenAvailable}
                 projectPathOpenDisabled={projectFolderOpenDisabled}
                 projectRoots={projectRoots}
-                // 新建临时任务也必须禁用依赖 Project 根目录的命令。
                 projectToolsEnabled={!temporary}
                 selectedProjectRootId={selectedRootId ?? ""}
                 {...(gitStatusQuery.data === undefined ? {} : { gitStatus: gitStatusQuery.data })}
-                settings={draftSettings}
+                runtime={runtime}
                 skills={skillsQuery.data?.data ?? []}
+                startingSnapshot={startingSnapshot}
+                startingPrompt={taskLaunchState}
+                taskId={taskId}
+                onOpenFileDiff={openFileDiff}
+                onOpenSourceFile={openMessageFileReference}
+                onReviewFileChanges={openFileReview}
               />
-            </>
-          ) : (
-            <ActiveTaskWorkbench
-              capabilities={capabilities}
-              client={client}
-              composerRef={composerRef}
-              fallbackSettings={draftSettings}
-              followUpBehavior={globalSettings?.followUpBehavior ?? "queue"}
-              fastModeAvailable={fastModeAvailable}
-              fastModeDefault={fastModeDefault}
-              models={models}
-              modelsError={modelsQuery.error}
-              modelsPending={modelsQuery.isPending}
-              onRequestNotificationPermission={requestNotificationPermission}
-              onProjectTaskDefaultsChange={updateProjectTaskDefaults}
-              onOpenProjectPath={openProjectFolder}
-              onProjectRootChange={setSelectedRootId}
-              onTaskStarted={handleTaskStarted}
-              projectId={projectId}
-              projectPath={projectPath}
-              projectPathOpenAvailable={projectFolderOpenAvailable}
-              projectPathOpenDisabled={projectFolderOpenDisabled}
-              projectRoots={projectRoots}
-              projectToolsEnabled={!temporary}
-              selectedProjectRootId={selectedRootId ?? ""}
-              {...(gitStatusQuery.data === undefined ? {} : { gitStatus: gitStatusQuery.data })}
-              runtime={runtime}
-              skills={skillsQuery.data?.data ?? []}
-              startingSnapshot={startingSnapshot}
-              startingPrompt={taskLaunchState}
-              taskId={taskId}
-              onOpenFileDiff={openFileDiff}
-              onOpenSourceFile={openMessageFileReference}
-              onReviewFileChanges={openFileReview}
-            />
-          )}
-        </main>
+            )}
+          </main>
+        )}
+
         {!utilityView && inspectorOpen ? (
           <Button
             variant="ghost"
@@ -476,7 +485,7 @@ export function WorkbenchShellLayout({
             {...(gitStatusQuery.data === undefined ? {} : { gitStatus: gitStatusQuery.data })}
           />
         ) : null}
-        <WorkbenchPetLayer settings={globalSettings?.pet} />
+        {!embedded ? <WorkbenchPetLayer settings={globalSettings?.pet} /> : null}
         <WorkbenchShellDialogs
           context={context}
           projectId={projectId}

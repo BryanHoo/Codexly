@@ -1,3 +1,6 @@
+import { useContext, useId } from "react";
+import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
+import { SplitPaneControls } from "@codexly/ui/core/split-pane-controls";
 import { PanelLeft, Pencil } from "lucide-react";
 
 import { Button } from "../../../shared/components/core/button.js";
@@ -26,6 +29,8 @@ export function WorkbenchShellHeader({
   utilityView: boolean;
   viewTitle: string;
 }>) {
+  const pane = useContext(SplitPaneContext);
+  const id = useId();
   const {
     globalSettings,
     inspectorOpen,
@@ -35,10 +40,11 @@ export function WorkbenchShellHeader({
     setInspectorOpen,
     setSidebarOpen,
     setTaskRenameOpen,
-    sidebarOpen,
+    sidebarOpen: ownSidebarOpen,
     t,
     title,
   } = context;
+  const sidebarOpen = pane?.sidebarOpen ?? ownSidebarOpen;
 
   return (
     <header className="flex h-workbench-header shrink-0 items-center justify-between gap-3 bg-content px-2.5 shadow-toolbar sm:px-3">
@@ -47,8 +53,8 @@ export function WorkbenchShellHeader({
           <TooltipTrigger asChild>
             <Button
               aria-label={sidebarOpen ? t("shell.collapseSidebar") : t("shell.expandSidebar")}
-              id="workbench-sidebar-toggle"
-              onClick={() => setSidebarOpen((open) => !open)}
+              id={!pane?.multiple ? "workbench-sidebar-toggle" : `${id}-sidebar-toggle`}
+              onClick={() => pane === null ? setSidebarOpen((open) => !open) : pane.toggleSidebar()}
               size="icon-sm"
               type="button"
               variant="ghost"
@@ -71,7 +77,7 @@ export function WorkbenchShellHeader({
               aria-label={t("shell.renameTask", { title })}
               className="group flex max-w-full items-center gap-1 rounded-control px-1 py-0.5 text-left hover:bg-control-hover focus-visible:shadow-focus"
               disabled={taskWriteBlocked}
-              id="workbench-task-title-rename"
+              id={!pane?.multiple ? "workbench-task-title-rename" : `${id}-task-title-rename`}
               onClick={() => setTaskRenameOpen(true)}
               type="button"
               variant="ghost"
@@ -112,6 +118,7 @@ export function WorkbenchShellHeader({
             onToggle={() => setInspectorOpen((open) => !open)}
           />
         )}
+          <SplitPaneControls closeLabel={t("split.close")} soloLabel={t("split.solo")} />
       </div>
     </header>
   );

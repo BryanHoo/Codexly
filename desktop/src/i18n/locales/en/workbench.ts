@@ -1,8 +1,10 @@
+import { splitWorkspaceEnglish } from "@codexly/frontend-core/split-workspace-labels";
 import { gitCommit } from "./git-commit.js";
 import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
 import { taskWindow } from "./task-window-menu.js";
 export const workbench = {
+  split: splitWorkspaceEnglish,
   taskWindow,
   pet: {
     activeTasks: "Active tasks",

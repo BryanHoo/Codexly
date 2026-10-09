@@ -21,7 +21,8 @@
     "./core/*": {
       "types": "./src/core/*.tsx",
       "default": "./src/core/*.tsx"
-    }
+    },
+    "./core/split-workspace.css": "./src/core/split-workspace.css"
   },
   "dependencies": {
     "@codexly/frontend-core": "workspace:*",

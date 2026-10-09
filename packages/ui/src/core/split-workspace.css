@@ -1,0 +1,73 @@
+.split-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.split-workspace[data-multiple="true"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--ui-color-separator-strong);
+}
+
+.split-workspace[data-count="3"],
+.split-workspace[data-count="4"] {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.split-workspace[data-count="3"] > .split-workspace-pane:first-child {
+  grid-row: span 2;
+}
+
+.split-workspace-pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--ui-color-content);
+}
+
+.split-workspace[data-multiple="true"] > .split-workspace-pane[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--ui-color-accent);
+  pointer-events: none;
+}
+
+/* 每个窗口复用完整工作台，但只保留中栏及其自己的右栏。 */
+.workbench-shell[data-embedded="true"] {
+  grid-template-columns: minmax(0, 1fr) var(--inspector-width);
+}
+
+/* 分屏中的右栏覆盖所属窗口，不挤压其他聊天或改变网格轨道。 */
+.split-workspace[data-multiple="true"] .workbench-shell[data-embedded="true"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.split-workspace[data-multiple="true"] .workbench-shell > .workbench-inspector {
+  position: absolute;
+  z-index: 30;
+  inset: 0 0 0 auto;
+  width: min(var(--inspector-open-width), 100%);
+  box-shadow: var(--ui-shadow-panel);
+}
+
+.split-workspace[data-multiple="true"] .workbench-shell > .workbench-panel-resizer--inspector {
+  display: none;
+}
+
+.split-workspace[data-multiple="true"]
+  .workbench-shell[data-inspector-open="true"]
+  > .workbench-inspector-scrim {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: block;
+  background: var(--ui-color-scrim);
+}

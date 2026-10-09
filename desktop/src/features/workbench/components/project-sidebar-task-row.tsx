@@ -1,3 +1,6 @@
+import { getSplitAction, useSplitWorkspace } from "@codexly/ui/core/split-workspace";
+import { splitPaneKey } from "@codexly/frontend-core/split-workspace";
+import { PanelsTopLeft } from "lucide-react";
 import { SidebarTaskLabel } from "@codexly/ui/core/sidebar-task-label";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@/protocol/index.js";
@@ -63,6 +66,10 @@ export function TaskLink({
   task,
 }: TaskLinkProps) {
   const { t } = useTranslation("workbench");
+  const workspace = useSplitWorkspace();
+  const pane = { projectId: task.projectId, taskId: task.id };
+  const selected = workspace?.panes.some((item) => splitPaneKey(item) === splitPaneKey(pane)) === true;
+  if (workspace !== null && workspace.panes.length > 0) active = workspace.activeKey === splitPaneKey(pane);
   const taskRoute = getTaskRoute(task.projectId, task.id);
   const isActionPending = useTaskInteractionBlocked(task.projectId, task.id) || actionPending;
 
@@ -75,6 +82,11 @@ export function TaskLink({
             ? "bg-control-active font-medium text-foreground"
             : "text-muted-foreground hover:bg-control-hover hover:text-foreground"
         }`}
+        onClick={(event) => {
+          if (!selected || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          workspace.focus(pane);
+        }}
         {...taskRoute}
       >
         <SidebarTaskLabel projectName={projectName} title={task.title} />
@@ -218,6 +230,9 @@ export function TaskActionMenu({
 }: TaskActionMenuProps) {
   const { t } = useTranslation("workbench");
   const isPending = useTaskInteractionBlocked(task.projectId, task.id) || actionPending;
+  const workspace = useSplitWorkspace();
+  const pane = { projectId: task.projectId, taskId: task.id };
+  const splitAction = getSplitAction(workspace, pane);
   return (
     <DropdownMenuContent
       align="start"
@@ -225,6 +240,10 @@ export function TaskActionMenu({
       aria-labelledby={undefined}
       className="w-40"
     >
+      {splitAction !== null ? <DropdownMenuItem className={taskActionClassName} disabled={isPending || splitAction !== "add"} onSelect={() => workspace?.add(pane)}>
+        <PanelsTopLeft className="size-3.5" aria-hidden="true" />
+        {t(`split.${splitAction}`)}
+      </DropdownMenuItem> : null}
       <DropdownMenuItem className={taskActionClassName} disabled={isPending} onSelect={() => {
         void import("../../task-window/open-task-window.js")
           .then(({ openTaskWindowFromMenu }) => openTaskWindowFromMenu(task.projectId, task.id))

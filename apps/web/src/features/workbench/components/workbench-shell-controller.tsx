@@ -1,3 +1,4 @@
+import { useNavigateSplitTask } from "@codexly/ui/core/split-workspace";
 import {
   TEMPORARY_TASK_SCOPE_ID,
   isAgentFastModeAvailable,
@@ -63,6 +64,7 @@ export function useWorkbenchShellController(
   shell: ReturnType<typeof useWorkbenchShellRuntime>,
   { projectId, taskId, temporary = false }: WorkbenchShellControllerOptions,
 ) {
+  const navigateSplitTask = useNavigateSplitTask();
   const {
     activeTaskRenameLockRef,
     client,
@@ -278,6 +280,8 @@ export function useWorkbenchShellController(
         markTaskRunning(projectId, startedTask.id);
       }
       setPendingTaskSelection(undefined);
+      // 分屏中的继续执行与 Fork 只更新所属窗口，不能触发整页导航清空其他聊天。
+      if (navigateSplitTask(startedTask.projectId, startedTask.id)) return;
       void navigate({
         ...(temporary
           ? { params: { taskId: startedTask.id }, to: "/temporary/t/$taskId" as const }
@@ -297,6 +301,7 @@ export function useWorkbenchShellController(
       queryClient,
       setPendingTaskSelection,
       temporary,
+      navigateSplitTask,
     ],
   );
   const models = modelsQuery.data?.data ?? [];

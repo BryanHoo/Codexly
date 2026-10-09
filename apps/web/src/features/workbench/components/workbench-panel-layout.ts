@@ -20,8 +20,11 @@ export function getInspectorMaximumWidth(shellWidth: number, sidebarWidth: numbe
 
 export function useWorkbenchPanelLayout({
   inspectorInitiallyOpen = true,
-}: Readonly<{ inspectorInitiallyOpen?: boolean }> = {}) {
-  const [sidebarOpen, setSidebarOpen] = useState(() => shouldOpenDesktopPanel(sidebarOverlayQuery));
+  sidebarInitiallyOpen = true,
+}: Readonly<{ inspectorInitiallyOpen?: boolean; sidebarInitiallyOpen?: boolean }> = {}) {
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => sidebarInitiallyOpen && shouldOpenDesktopPanel(sidebarOverlayQuery),
+  );
   const [inspectorOpen, setInspectorOpen] = useState(
     () => inspectorInitiallyOpen && shouldOpenDesktopPanel(inspectorOverlayQuery),
   );

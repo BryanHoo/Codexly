@@ -1,3 +1,5 @@
+import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
+import { useId, useContext } from "react";
 import { PanelRight } from "lucide-react";
 
 import { Button } from "../../../shared/components/core/button.js";
@@ -18,13 +20,15 @@ export function WorkbenchInspectorToggle({
   inspectorOpen: boolean;
   onToggle: () => void;
 }>) {
+  const id = useId();
+  const multiple = useContext(SplitPaneContext)?.multiple ?? false;
   const label = inspectorOpen ? collapseLabel : expandLabel;
   return (
     <Tooltip key={inspectorOpen ? "inspector-open" : "inspector-closed"}>
       <TooltipTrigger asChild>
         <Button
           aria-label={label}
-          id="workbench-inspector-toggle"
+          id={multiple ? `${id}-inspector-toggle` : "workbench-inspector-toggle"}
           onClick={onToggle}
           size="icon-sm"
           type="button"

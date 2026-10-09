@@ -26,13 +26,15 @@ export function resolveQuickOpenVisibility(board: boolean, temporary: boolean): 
   return !board && !temporary;
 }
 
-export function useWorkbenchPanelLayout({ temporary = false, scopeKey = "" }: Readonly<{
+export function useWorkbenchPanelLayout({ temporary = false, scopeKey = "", inspectorInitiallyOpen = true, sidebarInitiallyOpen = true }: Readonly<{
+  inspectorInitiallyOpen?: boolean;
+  sidebarInitiallyOpen?: boolean;
   temporary?: boolean;
   scopeKey?: string;
 }> = {}) {
-  const [sidebarOpen, setSidebarOpen] = useState(() => shouldOpenDesktopPanel(sidebarOverlayQuery));
+  const [sidebarOpen, setSidebarOpen] = useState(() => sidebarInitiallyOpen && shouldOpenDesktopPanel(sidebarOverlayQuery));
   const [projectInspectorOpen, setProjectInspectorOpen] = useState(() =>
-    shouldOpenDesktopPanel(inspectorOverlayQuery),
+    inspectorInitiallyOpen && shouldOpenDesktopPanel(inspectorOverlayQuery),
   );
   const [chatInspector, setChatInspector] = useState({ scopeKey, open: false });
   // 聊天的展开操作只属于当前任务，切换任务时同步回到默认收起，不影响项目偏好。

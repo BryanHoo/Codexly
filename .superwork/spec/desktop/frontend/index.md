@@ -28,3 +28,6 @@
 - PDF 文件链接、附件和文件树共用 `core/pdf-preview` 原生预览；用 `navigator.pdfViewerEnabled` 检测能力，缺失时保留显式打开动作。附件点击后才加载，关闭后卸载；不引入 PDF.js 或 Base64 整文件传输。桌面只开放校验后的单文件 asset scope，独立预览窗口同时授权读取和打开命令。
 
 - Git 能力仅由当前所选项目根目录决定，禁止扫描、聚合或选择子目录仓库。非 Git 项目隐藏右栏 Git 提示、重试、变更、历史和 Composer 分支入口，并停止活动、元数据、窗口聚焦及挂载自动刷新；显式项目刷新仍可重新探测。Web 与桌面共用 `frontend-core/project-git-availability` 判定，回归覆盖子仓库误判和残留错误状态。
+
+- 分屏最多同时展示 4 个已创建任务，入口位于左栏任务菜单。共用 `frontend-core/split-workspace` 的身份与选择规则及 `ui/core/split-workspace` 的布局；按项目和任务组合设置稳定 key，增删其他窗口不得清空草稿或重挂时间线。每个窗口复用完整中栏，继续执行与 Fork 只更新所属窗口，迟到请求不得恢复已关闭窗口。
+- 桌面分屏共享项目终端资源，但仅活动窗口挂载终端视图并响应快捷键；各窗口的任务写权限必须同步给外侧任务菜单。使用 `task-interaction-context.test.ts` 验证权限隔离，并运行 `pnpm check:web` 验证构建与性能预算。
