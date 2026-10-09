@@ -271,6 +271,26 @@ export function SplitWorkspaceGrid({
 }>) {
   const workspace = useSplitWorkspace();
   if (workspace === null) throw new Error("Missing split workspace provider");
+  const [mounts, setMounts] = useState(() => ({
+    panes: workspace.panes,
+    keys: workspace.panes.map((_, index) => index),
+    nextKey: workspace.panes.length,
+  }));
+  if (mounts.panes !== workspace.panes) {
+    let nextKey = mounts.nextKey;
+    // 普通路由切换复用唯一输入框；分屏增删按身份复用，并分配无冲突的挂载 key。
+    const keys = workspace.panes.map((pane) => {
+      const previousIndex = mounts.panes.findIndex(
+        (previous) => splitPaneKey(previous) === splitPaneKey(pane),
+      );
+      return (
+        (mounts.panes.length === 1 && workspace.panes.length === 1
+          ? mounts.keys[0]
+          : mounts.keys[previousIndex]) ?? nextKey++
+      );
+    });
+    setMounts({ panes: workspace.panes, keys, nextKey });
+  }
   const multiple = workspace.enabled && workspace.panes.length > 1;
   const cells = useMemo(
     () => (workspace.layout === undefined ? undefined : getSplitLayoutCells(workspace.layout)),
@@ -285,12 +305,15 @@ export function SplitWorkspaceGrid({
       aria-label={label}
     >
       <SplitWorkspaceShortcuts workspace={workspace} />
-      {workspace.panes.map((pane) => {
+      {workspace.panes.map((pane, index) => {
         const key = splitPaneKey(pane);
         const active = key === workspace.activeKey;
         const cell = multiple ? cells?.get(key) : undefined;
         return (
-          <Activity key={key} mode={workspace.enabled || active ? "visible" : "hidden"}>
+          <Activity
+            key={mounts.keys[index]}
+            mode={workspace.enabled || active ? "visible" : "hidden"}
+          >
             <SplitPaneMenu pane={pane} labels={splitLabels} workspace={workspace}>
               <section
                 className="split-workspace-pane"
@@ -329,7 +352,11 @@ export function useNavigateSplitTask() {
   const workspace = useSplitWorkspace();
   // 左栏异步创建任务也绑定发起时的窗口，避免等待期间的焦点变化覆盖其他聊天。
   const identity =
-    (pane?.pane.draftId === ROUTE_SPLIT_DRAFT_ID && !pane.multiple ? undefined : pane?.pane) ??
+    (pane !== null &&
+    (pane.multiple ||
+      (pane.pane.draftId !== undefined && pane.pane.draftId !== ROUTE_SPLIT_DRAFT_ID))
+      ? pane.pane
+      : undefined) ??
     (workspace?.enabled && workspace.panes.length > 1
       ? workspace.panes.find((item) => splitPaneKey(item) === workspace.activeKey)
       : undefined);
@@ -351,7 +378,9 @@ export function useOpenSplitDraft() {
     (projectId: string) => {
       if (
         workspace === null ||
-        (pane?.pane.draftId === ROUTE_SPLIT_DRAFT_ID && !pane.multiple) ||
+        (pane !== null &&
+          !pane.multiple &&
+          (pane.pane.draftId === undefined || pane.pane.draftId === ROUTE_SPLIT_DRAFT_ID)) ||
         (pane === null && (!workspace.enabled || workspace.panes.length < 2))
       )
         return false;

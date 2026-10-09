@@ -22,6 +22,7 @@
 - 在 `desktop/` 执行 `pnpm check:web`；交互依赖浏览器行为时使用已有 `pnpm test:browser` 或 WebView 测试。
 - 扩展中心及其专用样式按路由加载；专用插件样式覆盖通用市场样式时，不得依赖 CSS 加载顺序。浏览器测试由功能入口加载基础样式，并保留插件卡片尺寸检查。
 - Windows 发布构建使用 `chrome116`，常规前端构建默认使用 `safari17.5`；两者的 CSS 体积可能不同。Windows 发布后须对实际 `dist` 执行 `pnpm performance:budget`，不能只沿用常规构建的预算结果。
+- 主时间线与只读任务小窗共用 `markdown-typography` 样式；保持 Tailwind utilities 层和主题字号 token，避免向运行时重复传入长排版类列表。调整时用 `markdown-typography.browser.test.tsx` 验证 Chromium、WebKit 的标题、引用、代码和宽图片布局。
 
 - 历史压缩入口复用 `@codexly/ui/core/history-compression`，通过 Native Client 提交；说明作用于本机历史，并提示共用目录的其他客户端需支持压缩格式。不得将后台请求回执显示为压缩完成。
 

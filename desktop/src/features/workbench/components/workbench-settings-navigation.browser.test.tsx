@@ -19,7 +19,7 @@ type Context = {
 vi.mock("./workbench-shell-runtime.js", () => ({
   useWorkbenchShellRuntime: () => {
     const [globalSettingsSection, setGlobalSettingsSection] = useState<"appearance" | null>(null);
-    return { globalSettingsSection, setGlobalSettingsSection };
+    return { globalSettingsSection, setGlobalSettingsSection, t: (key: string) => key };
   },
 }));
 vi.mock("./workbench-shell-controller.js", () => ({ useWorkbenchShellController: (value: unknown) => value }));

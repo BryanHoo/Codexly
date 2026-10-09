@@ -1,9 +1,12 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../../");
 @import "tw-animate-css";
 @import "streamdown/styles.css";
 @import "@codexly/ui/agent/streaming-markdown.css";
+@import "../components/agent/markdown-typography.css";
 /* 构建时扫描工作区共享控件中的 Tailwind 类。 */
 @source "../../../../packages/ui/src";
+@source not "../../**/*.test.*";
+@source not "../../../../packages/ui/src/**/*.test.*";
 
 @custom-variant dark (&:is([data-theme="dark"] *));
 

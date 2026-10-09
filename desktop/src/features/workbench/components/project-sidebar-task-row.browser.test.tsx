@@ -1,5 +1,5 @@
 import type { AgentTask } from "@/protocol/index.js";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ComponentType } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
@@ -21,6 +21,12 @@ const { openTaskWindow } = vi.hoisted(() => ({ openTaskWindow: vi.fn().mockResol
 vi.mock("../../../platform/tauri/task-window-client.js", () => ({ openTaskWindow }));
 
 vi.mock("@tanstack/react-router", () => ({
+  createLink: (Component: ComponentType<ComponentProps<"a"> & { taskActive: boolean }>) =>
+    ({ params: _params, to: _to, ...props }: ComponentProps<"a"> & {
+      params?: unknown;
+      taskActive: boolean;
+      to?: string;
+    }) => <Component {...props} />,
   Link: ({ children, params: _params, to: _to, ...props }: ComponentProps<"a"> & {
     params?: unknown;
     to?: string;

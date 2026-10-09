@@ -146,7 +146,7 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
 
 test("keeps the workbench shell mounted between a task and a new task route", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
-  const shell = page.locator(".workbench-shell");
+  const shell = page.locator('.workbench-shell[data-embedded="false"]');
   await shell.evaluate((element) => {
     element.setAttribute("data-e2e-mount-marker", "retained");
   });
@@ -155,17 +155,11 @@ test("keeps the workbench shell mounted between a task and a new task route", as
   await sidebar.getByRole("button", { name: "在 Codexly 中新建任务" }).click();
 
   await expect(page).toHaveURL(/\/p\/codexly$/u);
-  await expect(page.locator(".workbench-shell")).toHaveAttribute(
-    "data-e2e-mount-marker",
-    "retained",
-  );
+  await expect(shell).toHaveAttribute("data-e2e-mount-marker", "retained");
 
   await page.locator('a[href="/p/codexly/t/task-1"]').first().click();
   await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/u);
-  await expect(page.locator(".workbench-shell")).toHaveAttribute(
-    "data-e2e-mount-marker",
-    "retained",
-  );
+  await expect(shell).toHaveAttribute("data-e2e-mount-marker", "retained");
 });
 
 test("scrolls the conversation area to the bottom whenever the active task changes", async ({

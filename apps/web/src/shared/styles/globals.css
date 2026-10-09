@@ -1,15 +1,22 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../../");
 @import "tw-animate-css";
 @import "streamdown/styles.css";
 @import "@codexly/ui/agent/streaming-markdown.css";
 @import "./touch-controls.css";
 /* 构建时扫描工作区共享控件中的 Tailwind 类。 */
 @source "../../../../../packages/ui/src";
+@source not "../../**/*.test.*";
+@source not "../../../../../packages/ui/src/**/*.test.*";
 /* 扫描按需加载的 Markdown 组件，确保生产构建保留图表与操作控件样式。 */
 @source "../../../node_modules/streamdown/dist/*.js";
 @source "../../../node_modules/@streamdown/mermaid/dist/*.js";
 
 @custom-variant dark (&:is([data-theme="dark"] *));
+
+@theme inline static {
+  --color-brand: var(--ui-color-accent);
+  --color-control-hover: var(--ui-color-control-hover);
+}
 
 @media (prefers-reduced-motion: reduce) {
   [data-sd-animate] {
@@ -186,7 +193,6 @@
   --color-raised: var(--ui-color-raised);
   --color-dialog: var(--ui-color-dialog);
   --color-control: var(--ui-color-control);
-  --color-control-hover: var(--ui-color-control-hover);
   --color-control-active: var(--ui-color-control-active);
   --color-separator: var(--ui-color-separator);
   --color-separator-strong: var(--ui-color-separator-strong);
@@ -199,7 +205,6 @@
   --color-terminal-foreground: var(--ui-color-terminal-foreground);
   --color-terminal-muted: var(--ui-color-terminal-muted);
   --color-terminal-separator: var(--ui-color-terminal-separator);
-  --color-brand: var(--ui-color-accent);
   --color-brand-strong: var(--ui-color-accent-strong);
   --color-brand-soft: var(--ui-color-accent-soft);
   --color-brand-contrast: light-dark(#ffffff, #071a2b);

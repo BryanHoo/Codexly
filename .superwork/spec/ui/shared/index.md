@@ -7,7 +7,8 @@
 - Composer 权限与沙盒使用共享 `CompactSelector` 锚定下拉菜单；触发器与模型、思考量保持一致，支持窄屏标签截断和视口碰撞边界，不使用原生 select 弹层。
 - 文件打开、下载、Markdown 链接、通知和翻译由调用方提供。公共包不引入 Tauri API、Web 客户端或应用内 feature 代码。
 - 新建项目表单共用 `core/new-project-dialog.tsx`，父目录选择切换同一模态层并保留名称；目录创建与项目注册分开，注册失败只重试添加，同名目录须明确确认复用。Web 的文件系统操作面向服务器，须展示主机信息并验证移动端布局。
-- 两端 `globals.css` 必须扫描 `packages/ui/src`，以保留公共组件中的 Tailwind 类。
+- 两端 `globals.css` 从应用 `src` 扫描 Tailwind 类，保留 `packages/ui/src` 与第三方组件的显式扫描，并排除测试文件；不得仅扫描 `.tsx`，排版类也可能定义在 `.ts` 中。
+- Web 对外可读取的 `--color-brand` 与 `--color-control-hover` 通过 `@theme inline static` 保留，不能依赖测试源码使变量进入生产 CSS；用主题 E2E 校验浅色和深色的实际解析值。
 - 消息附件、项目图片和壁纸原图共用 `core/image-preview`，翻译由各端传入；手势引擎仅在预览挂载时加载。预览支持容器内缩放、拖动、双指手势和复位，切换资源或容器尺寸变化时恢复适配；捏合后的触摸拖动不得误判为双击。用 `desktop/src/shared/components/core/image-preview.browser.test.tsx` 验证 Chromium、WebKit 和移动端窄屏。
 - 流式 Markdown 的树形渲染与文本揭示动画放在 `agent/streaming-markdown`，两端引入其共享样式；稳定前缀不能因追加而重挂，图表和自定义插件不得被普通代码快路径替代。
 - 验证边界使用 `apps/web/src/shared/components/shared-ui-boundary.test.ts`、根目录 `pnpm lint:architecture`，并分别运行 Web 与桌面构建。
