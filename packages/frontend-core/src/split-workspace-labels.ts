@@ -7,6 +7,10 @@ export const splitWorkspaceEnglish = {
   solo: "Show only this task",
   expandComposer: "Expand composer",
   collapseComposer: "Collapse composer",
+  up: "Split up",
+  down: "Split down",
+  left: "Split left",
+  right: "Split right",
 };
 export const splitWorkspaceChinese = {
   label: "分屏聊天",
@@ -17,4 +21,8 @@ export const splitWorkspaceChinese = {
   solo: "仅显示此任务",
   expandComposer: "展开输入框",
   collapseComposer: "收起输入框",
+  up: "向上分屏",
+  down: "向下分屏",
+  left: "向左分屏",
+  right: "向右分屏",
 };

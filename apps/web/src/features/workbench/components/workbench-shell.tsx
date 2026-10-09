@@ -1,4 +1,7 @@
-import type { SplitPaneIdentity } from "@codexly/frontend-core/split-workspace";
+import {
+  ROUTE_SPLIT_DRAFT_ID,
+  type SplitPaneIdentity,
+} from "@codexly/frontend-core/split-workspace";
 import { SplitInspectorProvider } from "@codexly/ui/core/split-inspector";
 import {
   SplitWorkspaceProvider,
@@ -38,11 +41,25 @@ function WorkbenchShellContent({
                 <SplitWorkspaceGrid
                   sidebarOpen={context.sidebarOpen}
                   label={context.t("split.label")}
+                  splitLabels={{
+                    up: context.t("split.up"),
+                    down: context.t("split.down"),
+                    left: context.t("split.left"),
+                    right: context.t("split.right"),
+                    limit: context.t("split.limit"),
+                  }}
                   toggleSidebar={() => {
                     context.setSidebarOpen((open) => !open);
                   }}
                 >
-                  {(pane) => <WorkbenchTaskPane {...pane} />}
+                  {(pane) => (
+                    <WorkbenchTaskPane
+                      {...pane}
+                      {...(todoId === undefined || pane.draftId !== ROUTE_SPLIT_DRAFT_ID
+                        ? {}
+                        : { todoId })}
+                    />
+                  )}
                 </SplitWorkspaceGrid>
               ),
             }
@@ -60,7 +77,11 @@ function WorkbenchShellContent({
 // 外层只管理侧栏和全局设置；各窗口独立订阅任务，避免重复读取同一份聊天历史。
 export function WorkbenchShell(props: WorkbenchShellProps) {
   const current =
-    props.taskId === undefined ? undefined : { projectId: props.projectId, taskId: props.taskId };
+    props.taskId === undefined
+      ? props.board || props.scheduled || props.extensionSection !== undefined
+        ? undefined
+        : { projectId: props.projectId, draftId: ROUTE_SPLIT_DRAFT_ID }
+      : { projectId: props.projectId, taskId: props.taskId };
   const routeKey = JSON.stringify(props);
   return (
     <SplitWorkspaceProvider current={current} routeKey={routeKey}>
@@ -73,7 +94,8 @@ const WorkbenchTaskPane = memo(function WorkbenchTaskPane({
   projectId,
   taskId,
   draftId,
-}: SplitPaneIdentity) {
+  todoId,
+}: SplitPaneIdentity & { todoId?: string }) {
   const pane = useContext(SplitPaneContext);
   if (pane === null) throw new Error("Missing split pane provider");
   const temporary = projectId === TEMPORARY_TASK_SCOPE_ID;
@@ -88,7 +110,10 @@ const WorkbenchTaskPane = memo(function WorkbenchTaskPane({
     <WorkbenchShellLayout
       context={context}
       {...scope}
-      {...(draftId === undefined ? {} : { composerDraftId: draftId })}
+      {...(draftId === undefined || draftId === ROUTE_SPLIT_DRAFT_ID
+        ? {}
+        : { composerDraftId: draftId })}
+      {...(todoId === undefined ? {} : { todoId })}
       board={false}
       scheduled={false}
       embedded

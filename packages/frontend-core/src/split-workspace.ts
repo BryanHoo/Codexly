@@ -1,4 +1,6 @@
 export const MAX_SPLIT_PANES = 4;
+// 普通新建页的身份只用于布局，输入框继续使用原有路由草稿存储范围。
+export const ROUTE_SPLIT_DRAFT_ID = "route-draft";
 
 export type SplitPaneIdentity = Readonly<
   { projectId: string } & (

@@ -28,5 +28,5 @@
 
 - Git 能力仅由当前所选项目根目录决定，禁止扫描、聚合或选择子目录仓库。非 Git 项目隐藏右栏 Git 提示、重试、变更、历史和 Composer 分支入口，并停止活动、元数据、窗口聚焦及挂载自动刷新；显式项目刷新仍可重新探测。Web 与桌面共用 `frontend-core/project-git-availability` 判定，回归覆盖子仓库误判和残留错误状态。
 
-- 分屏最多同时展示 4 个聊天窗口，支持已创建任务和新建草稿；添加窗口的入口位于左栏任务菜单。共用 `frontend-core/split-workspace` 的身份与选择规则及 `ui/core/split-workspace` 的布局；按项目和任务组合设置稳定 key，增删其他窗口不得清空草稿或重挂时间线。每个窗口复用完整中栏，继续执行与 Fork 只更新所属窗口，迟到请求不得恢复已关闭窗口。
+- 分屏最多同时展示 4 个聊天窗口，支持已创建任务和新建草稿；添加窗口保留任务菜单入口，并支持中栏空白处右键上下左右分屏和 `⌘/Ctrl + Alt + 方向键`；新窗口打开当前项目的独立草稿。共用 `frontend-core/split-workspace` 的身份与选择规则及 `ui/core/split-workspace` 的布局；按项目和任务组合设置稳定 key，增删其他窗口不得清空草稿或重挂时间线。每个窗口复用完整中栏，继续执行与 Fork 只更新所属窗口，迟到请求不得恢复已关闭窗口。
 - 移动端不支持分屏：窄屏及无悬停的触摸设备隐藏入口，只展示活动任务；桌面尺寸恢复后保留其余窗口状态。验证四屏上限、重复添加、关闭首个窗口、独立发送和缩放往返时的输入保留。状态保留依据 [React 官方说明](https://react.dev/learn/preserving-and-resetting-state)，隐藏窗口使用 [Activity](https://react.dev/reference/react/Activity) 暂停副作用。

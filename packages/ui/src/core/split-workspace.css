@@ -22,6 +22,12 @@
   grid-row: span 2;
 }
 
+.split-workspace[data-directed="true"] {
+  /* 保持窗口作为同级网格项，嵌套切分仅改变坐标，不改变 React 挂载位置。 */
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+}
+
 .split-workspace-pane {
   position: relative;
   min-width: 0;
