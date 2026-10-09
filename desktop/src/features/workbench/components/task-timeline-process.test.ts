@@ -6,6 +6,21 @@ import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
 import { groupStoredTurnTimelineItems } from "./task-timeline-store-items.js";
 
 describe("completed turn process projection", () => {
+  it("keeps partial answers visible when a later final answer completes the turn", () => {
+    const items = [
+      {
+        id: "partial",
+        type: "message",
+        role: "assistant",
+        phase: "partial_answer",
+        text: "第一部分",
+      },
+      { id: "progress", type: "message", role: "assistant", phase: "commentary", text: "继续检查" },
+      { id: "final", type: "message", role: "assistant", phase: "final_answer", text: "检查完成" },
+    ] as const;
+    expect(resolveCompletedTurnProcessItemIds(items, "running")).toEqual([]);
+    expect(resolveCompletedTurnProcessItemIds(items, "completed")).toEqual(["progress"]);
+  });
   it.each(["interrupted", "failed"] as const)("collapses all %s output only after another submission", (status) => {
     const items: AgentItem[] = [
       { id: "input", type: "message", role: "user", text: "Request" },

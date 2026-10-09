@@ -10,7 +10,6 @@ describe("Codex provider model catalog configuration", () => {
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
       imageGeneration: true,
-      namespaceTools: true,
       webSearch: true,
     });
     client.enqueue("config/read", {

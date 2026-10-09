@@ -66,7 +66,6 @@ describe("Codex provider connection failures", () => {
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
       imageGeneration: true,
-      namespaceTools: true,
       webSearch: true,
     });
     client.enqueue("account/login/start", new Error("API key login failed"));

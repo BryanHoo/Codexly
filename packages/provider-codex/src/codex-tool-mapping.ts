@@ -3,6 +3,7 @@ import type {
   AgentCommandOutputOmission,
   AgentItem,
   AgentItemStatus,
+  AgentMessagePhase,
   AgentReviewTarget,
 } from "@codexly/protocol";
 
@@ -250,8 +251,6 @@ export function mapSubagentActivityItem(item: Record<string, unknown>, id: strin
   };
 }
 
-type CodexMessagePhase = "commentary" | "final_answer";
-
 const CODEX_UNCOMMITTED_REVIEW_PROMPT =
   "Review the current code changes (staged, unstaged, and untracked files)";
 
@@ -319,11 +318,11 @@ export function createReviewItem(turnId: string, target: AgentReviewTarget): Age
   return { id: `review-mode-${turnId}`, target, type: "review" };
 }
 
-export function mapCodexMessagePhase(value: unknown): CodexMessagePhase | undefined {
+export function mapCodexMessagePhase(value: unknown): AgentMessagePhase | undefined {
   if (value === null || value === undefined) {
     return undefined;
   }
-  if (value === "commentary" || value === "final_answer") {
+  if (value === "commentary" || value === "partial_answer" || value === "final_answer") {
     return value;
   }
   throw new CodexProtocolMappingError("Codex agent message phase is invalid");

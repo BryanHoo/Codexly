@@ -167,6 +167,8 @@ export type OpenAgentTaskAttachmentResponse = Readonly<
 
 export const AgentMessagePhaseSchema = Type.Union([
   Type.Literal("commentary"),
+  // 部分答案是可展示的稳定正文，但仍允许后续工具与消息，不能据此结束回合。
+  Type.Literal("partial_answer"),
   Type.Literal("final_answer"),
 ]);
 

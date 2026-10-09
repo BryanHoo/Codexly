@@ -1,8 +1,13 @@
 import { Type, type Static } from "@sinclair/typebox";
 import { AgentTaskBaseSchema } from "@codexly/protocol/task-common";
+import { AgentMessagePhaseSchema } from "@codexly/protocol";
+export { AgentMessagePhaseSchema, type AgentMessagePhase } from "@codexly/protocol";
 
 export const AgentTaskSchema = Type.Object(
-  { ...AgentTaskBaseSchema.properties, workspacePath: Type.Optional(Type.String({ minLength: 1 })) },
+  {
+    ...AgentTaskBaseSchema.properties,
+    workspacePath: Type.Optional(Type.String({ minLength: 1 })),
+  },
   { additionalProperties: false },
 );
 
@@ -160,13 +165,6 @@ export const OpenAgentTaskAttachmentResponseSchema = Type.Object(
 export type OpenAgentTaskAttachmentResponse = Readonly<
   Static<typeof OpenAgentTaskAttachmentResponseSchema>
 >;
-
-export const AgentMessagePhaseSchema = Type.Union([
-  Type.Literal("commentary"),
-  Type.Literal("final_answer"),
-]);
-
-export type AgentMessagePhase = Readonly<Static<typeof AgentMessagePhaseSchema>>;
 
 export const AgentAsyncQuestionSchema = Type.Object(
   {

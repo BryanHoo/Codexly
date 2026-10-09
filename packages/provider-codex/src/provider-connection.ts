@@ -161,9 +161,9 @@ function createConnectionStatus(
 }
 
 function readProviderCapabilities(response: unknown): void {
+  // Codex 0.162 已移除 namespaceTools；只校验当前协议仍返回的能力字段。
   if (
     !isRecord(response) ||
-    typeof response["namespaceTools"] !== "boolean" ||
     typeof response["imageGeneration"] !== "boolean" ||
     typeof response["webSearch"] !== "boolean"
   ) {

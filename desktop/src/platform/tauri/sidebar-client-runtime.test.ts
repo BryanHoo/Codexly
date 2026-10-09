@@ -29,7 +29,7 @@ describe("TauriSidebarClient runtime metadata", () => {
     const appInfo = {
       appVersion: "0.1.0",
       changelogUrl: "https://github.com/BryanHoo/CodeAgent/blob/main/CHANGELOG.md",
-      codexVersion: "0.161.0",
+      codexVersion: "0.162.0",
       latestVersion: null,
       releaseNotes: "## [0.1.0] - 2026-08-31",
       releaseNotesVersion: "0.1.0",

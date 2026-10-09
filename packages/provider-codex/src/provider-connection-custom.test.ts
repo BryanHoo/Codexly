@@ -9,7 +9,6 @@ describe("Codex custom provider connection", () => {
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
       imageGeneration: true,
-      namespaceTools: true,
       webSearch: true,
     });
     client.enqueue("config/read", {
@@ -68,7 +67,6 @@ describe("Codex custom provider connection", () => {
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
       imageGeneration: true,
-      namespaceTools: true,
       webSearch: true,
     });
     client.enqueue("config/read", {
@@ -129,7 +127,6 @@ describe("Codex custom provider connection", () => {
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
       imageGeneration: true,
-      namespaceTools: true,
       webSearch: true,
     });
     client.enqueue("config/read", {
@@ -193,7 +190,6 @@ describe("Codex custom provider connection", () => {
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
       imageGeneration: true,
-      namespaceTools: true,
       webSearch: true,
     });
     client.enqueue("config/read", { config: {} });
@@ -248,7 +244,6 @@ describe("Codex custom provider connection", () => {
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
       imageGeneration: true,
-      namespaceTools: true,
       webSearch: true,
     });
     client.enqueue("config/read", {
@@ -384,7 +379,6 @@ describe("Codex custom provider connection", () => {
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
       imageGeneration: true,
-      namespaceTools: true,
       webSearch: true,
     });
     client.enqueue("config/read", {
@@ -444,7 +438,6 @@ describe("Codex custom provider connection", () => {
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
       imageGeneration: true,
-      namespaceTools: true,
       webSearch: true,
     });
     client.enqueue("config/read", {

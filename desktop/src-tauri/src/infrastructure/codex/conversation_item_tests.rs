@@ -13,6 +13,35 @@ fn absolute_test_path(name: &str) -> String {
 }
 
 #[test]
+fn partial_answers_should_survive_history_and_live_projection() {
+    // 部分答案继续走普通消息路径，Item 完成不能被投影为 Turn 完成。
+    let native = json!({
+        "id": "partial-a", "type": "agentMessage", "text": "第一部分答案",
+        "phase": "partial_answer", "delivery": null, "questions": null
+    });
+    let history = to_value(map_item(native.clone()).unwrap()).unwrap();
+    assert_eq!(history["phase"], "partial_answer");
+    for method in ["item/started", "item/completed"] {
+        let event = map_server_message(
+            ServerMessage {
+                id: None,
+                method: method.to_owned(),
+                params: to_raw_value(&json!({
+                    "threadId": "thread-a", "turnId": "turn-a", "item": native
+                }))
+                .unwrap(),
+            },
+            1,
+            "2026-10-09T00:00:00Z",
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(event["type"], method.replace('/', "."));
+        assert_eq!(event["payload"]["item"], history);
+    }
+}
+
+#[test]
 fn command_launch_failure_should_complete_with_diagnostic_output() {
     let item = json!({
         "id": "command-launch-failure", "type": "commandExecution",

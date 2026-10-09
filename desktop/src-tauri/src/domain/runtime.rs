@@ -264,7 +264,7 @@ mod tests {
     fn codex_runtime_availability_should_expose_recovery_details() {
         let availability = CodexRuntimeAvailability {
             detected_version: Some("0.150.0".to_owned()),
-            required_version: "0.161.0",
+            required_version: "0.162.0",
             status: CodexRuntimeAvailabilityStatus::Incompatible,
         };
 
@@ -272,7 +272,7 @@ mod tests {
             serde_json::to_value(availability).unwrap(),
             json!({
                 "detectedVersion": "0.150.0",
-                "requiredVersion": "0.161.0",
+                "requiredVersion": "0.162.0",
                 "status": "incompatible"
             })
         );
@@ -285,7 +285,7 @@ mod tests {
             downloaded_bytes: 42,
             phase: CodexRuntimeInstallPhase::Downloading,
             sequence: 3,
-            target_version: "0.161.0",
+            target_version: "0.162.0",
             total_bytes: Some(100),
         };
 
@@ -296,7 +296,7 @@ mod tests {
                 "downloadedBytes": 42,
                 "phase": "downloading",
                 "sequence": 3,
-                "targetVersion": "0.161.0",
+                "targetVersion": "0.162.0",
                 "totalBytes": 100
             })
         );

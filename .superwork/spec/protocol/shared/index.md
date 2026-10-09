@@ -13,3 +13,5 @@
 - 插件同步结果由共享 `PluginReconcileResultSchema` 定义：保留本次变化的能力标记、远端失败与物化失败 ID；Web POST 使用幂等键，桌面命令返回同一投影。不得把部分失败当成全部成功，也不得将本次变化当作持久累计结果。
 
 - `HistoryCompressionResult` 只含 `status: "scheduled"`；该状态确认压缩维护请求已提交，不代表文件已压缩。两端不得推导完成进度、压缩数量或节省字节。
+
+- 消息阶段共用 `AgentMessagePhaseSchema`，支持 `commentary`、`partial_answer`、`final_answer`；桌面直接引用公共定义。`partial_answer` 保留历史与实时正文，不能触发回合完成，也不能按过程旁白折叠；终态以 `turn/completed` 为准。升级时验证两端消息映射与时间线投影。

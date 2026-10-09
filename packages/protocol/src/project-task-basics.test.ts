@@ -120,6 +120,15 @@ describe("project task basics protocol", () => {
     ).toBe(true);
     expect(
       Value.Check(AgentMessageItemSchema, {
+        id: "message-partial",
+        phase: "partial_answer",
+        role: "assistant",
+        text: "第一部分答案。",
+        type: "message",
+      }),
+    ).toBe(true);
+    expect(
+      Value.Check(AgentMessageItemSchema, {
         id: "message-invalid",
         phase: "analysis",
         role: "assistant",

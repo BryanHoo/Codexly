@@ -11,8 +11,14 @@ React -> Tauri invoke / Channel -> Rust -> codex app-server -> stdio JSONL
 ```
 
 运行时不再使用 Codexly HTTP、WebSocket 或 mock。协议基线固定为本地
-`/Users/bryanhu/Develop/person/codex` `rust-v0.161.0`；应用私有运行时仅接受精确版本
-`0.161.0`，安装包校验官方 SHA-512，不扫描或回退全局 CLI。
+`/Users/bryanhu/Develop/person/codex` `rust-v0.162.0`；应用私有运行时仅接受精确版本
+`0.162.0`，安装包校验官方 SHA-512，不扫描或回退全局 CLI。
+
+### 0.162.0 接入边界
+
+- 新增 `partial_answer`：桌面直接复用公共消息阶段 Schema；历史与实时映射保留正文，部分答案不触发回合完成，也不作为 commentary 折叠。
+- 两端沿用原生单一 stdio、分页和有界缓存；上游新增回合归因、子代理模型信息、附件归属反查和环境请求均不增加后台 RPC。
+- 六个平台私有运行时固定 `0.162.0`，校验各自官方 SHA-512；实验 Schema 与 Web 共用根目录基线。
 
 ### 0.161.0 接入边界
 
@@ -49,7 +55,7 @@ React -> Tauri invoke / Channel -> Rust -> codex app-server -> stdio JSONL
 | 能力 | Codexly 公共方法 | Codexly 桌面端实现 | 状态 |
 | --- | --- | --- | --- |
 | 个性化说明与记忆 | Codex CLI 原生配置 | 当前运行时 `CODEX_HOME/AGENTS.md` 原文读取、显式保存与外部修改冲突检查；存在有效 `AGENTS.override.md` 时提示优先级。记忆通过 `config/read`、`config/batchWrite` 控制 `features.memories`、生成/使用及外部上下文资格；清除调用实验接口 `memory/reset`，保留聊天记录 | 已实现 |
-| 运行时与健康 | `getHealth`, `getCapabilities` | 仅使用应用私有 Codex `0.161.0`，首次缺失、损坏或版本不符时自动安装；六个平台固定官方 npm 包通过 SHA-512 校验后原子切换，失败提供重试；后台已就绪时恢复窗口跳过检测，Rust supervisor 按 1–30 秒有界退避恢复；CI 验证私有安装、app-server 生命周期与实验协议 Schema | 已实现 |
+| 运行时与健康 | `getHealth`, `getCapabilities` | 仅使用应用私有 Codex `0.162.0`，首次缺失、损坏或版本不符时自动安装；六个平台固定官方 npm 包通过 SHA-512 校验后原子切换，失败提供重试；后台已就绪时恢复窗口跳过检测，Rust supervisor 按 1–30 秒有界退避恢复；CI 验证私有安装、app-server 生命周期与实验协议 Schema | 已实现 |
 | 项目列表 | `listProjects`, `addProject`, `renameProject`, `removeProject`, `reorderProjects` | 原生 `project/*` app-server 方法；兼容 0.152 `recencyAt`，继续按用户维护的 `position` 排序且不请求 `recencyAt` 排序 | 已实现 |
 | 项目目录 | `listProjectDirectories` | Rust 受限目录枚举，不向 WebView 暴露 shell | 已实现 |
 | 项目打开方式 | `getProjectOpenCapabilities`, `openProject` | 探测编辑器、终端与文件管理器；本机绝对文件路径直接打开，不限制项目目录，相对路径按当前目录或任务 cwd 定位；分别提示文件不可访问与应用启动失败 | 已实现 |
@@ -156,7 +162,7 @@ React -> Tauri invoke / Channel -> Rust -> codex app-server -> stdio JSONL
 ## 参考资料
 
 - [Codex App Server 官方文档](https://developers.openai.com/codex/app-server)
-- [Codex 0.161.0 app-server 源码](https://github.com/openai/codex/tree/rust-v0.161.0/codex-rs/app-server/src)
+- [Codex 0.162.0 app-server 源码](https://github.com/openai/codex/tree/rust-v0.162.0/codex-rs/app-server/src)
 - [Codex 官方更新日志](https://developers.openai.com/codex/changelog)
 - [Tauri Rust 到前端通信](https://v2.tauri.app/develop/calling-frontend/)
 - [Tauri 前端调用 Rust](https://v2.tauri.app/develop/calling-rust/)

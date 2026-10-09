@@ -1,6 +1,7 @@
 import { Value } from "@sinclair/typebox/value";
 import {
   AgentTaskBaseSchema,
+  AgentMessagePhaseSchema as SharedMessagePhaseSchema,
   AgentEventEnvelopeProperties,
   MessageDeltaEventSchema as SharedMessageDeltaEventSchema,
   ProviderErrorEventSchema as SharedProviderErrorEventSchema,
@@ -9,7 +10,7 @@ import {
 } from "@codexly/protocol";
 import { describe, expect, it } from "vitest";
 
-import { AgentTaskSchema } from "./agent-attachments.js";
+import { AgentTaskSchema, AgentMessagePhaseSchema } from "./agent-attachments.js";
 import {
   MessageDeltaEventSchema,
   ProviderErrorEventSchema,
@@ -19,6 +20,10 @@ import { ProjectSchema } from "./project-files.js";
 import { ProjectRootSchema } from "./project-root.js";
 
 describe("共享契约与桌面扩展", () => {
+  it("两端共用消息阶段，并接受非终态的部分答案", () => {
+    expect(AgentMessagePhaseSchema).toBe(SharedMessagePhaseSchema);
+    expect(Value.Check(AgentMessagePhaseSchema, "partial_answer")).toBe(true);
+  });
   it("项目实体和根目录引用同一共享 Schema", () => {
     expect(ProjectSchema).toBe(SharedProjectSchema);
     expect(ProjectRootSchema).toBe(SharedProjectRootSchema);
@@ -40,9 +45,7 @@ describe("共享契约与桌面扩展", () => {
   });
 
   it("事件沿用公共信封，并在桌面扩展接收时间", () => {
-    expect(TurnStartedEventSchema.properties.sequence).toBe(
-      AgentEventEnvelopeProperties.sequence,
-    );
+    expect(TurnStartedEventSchema.properties.sequence).toBe(AgentEventEnvelopeProperties.sequence);
     expect(TurnStartedEventSchema.properties.receivedAtUnixMs).toMatchObject({
       minimum: 0,
     });

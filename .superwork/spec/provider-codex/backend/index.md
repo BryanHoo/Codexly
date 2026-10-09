@@ -11,7 +11,9 @@
 
 - 历史文件压缩通过无参数的 `rollout/compress` 提交给原生 worker；只返回 `scheduled`，不宣称完成、不修改自动压缩开关，也不添加后台轮询。冷文件筛选、写锁、跨进程维护锁与原子替换由 Codex 负责。
 - Web 补充读取必须覆盖 `sessions` 和 `archived_sessions` 中的 `.jsonl` / `.jsonl.zst`，压缩、恢复或归档导致路径消失时重新发现。Zstd 使用 Node 原生流式解码，限制并发解码器、窗口、每次解压字节与行大小；保留分段游标，空闲和缓存淘汰时释放资源。
-- 升级 Codex 或改动历史读取后，执行 `CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-codex/src/history-storage-runtime.test.ts`，仅使用隔离的临时 `CODEX_HOME` 验证真实压缩、读取、搜索和恢复。`0.161.0` 的 `thread/searchOccurrences` 本地实现仍返回不支持，不能把线程搜索通过等同于精确命中搜索可用。
+- 升级 Codex 或改动历史读取后，执行 `CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-codex/src/history-storage-runtime.test.ts`，仅使用隔离的临时 `CODEX_HOME` 验证真实压缩、读取、搜索和恢复。`0.162.0` 的 `thread/searchOccurrences` 本地实现仍返回不支持，不能把线程搜索通过等同于精确命中搜索可用。
 
 - 用户界面的目标启动、编辑、暂停、恢复和清除必须发送 `origin: "user"`；自动生命周期不得冒充用户指令。升级时验证回合前的设置提交顺序，以及隔离 `CODEX_HOME` 的目标指令落盘，在根目录执行：`CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-codex/src/goals-runtime.test.ts`。
 - Codex API Key 模型发现已稳定并默认开启；启动参数不强制覆盖此开关，缺省配置不因发现功能而重复写入。模型默认值及推理档位由当前 `model/list` 提供，不增加逐模型请求。
+
+- `0.162.0` 的 `modelProvider/capabilities/read` 只返回 `imageGeneration` 和 `webSearch`，不得再要求已移除的 `namespaceTools`。自定义 Provider 回归必须使用当前响应结构，继续验证失败回滚和有界模型发现。
