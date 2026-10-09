@@ -54,7 +54,8 @@ window.runSourceBenchmark = async (bytes: number): Promise<SourceOpenSample> => 
       }}
     >
       <CodeBlock
-        className="grid h-[600px] w-[800px] grid-rows-[minmax(0,1fr)]"
+        // Benchmarks are outside the production Tailwind source scan.
+        style={{ display: "grid", gridTemplateRows: "minmax(0, 1fr)", height: 600, width: 800 }}
         code={source}
         language="text"
         showLineNumbers

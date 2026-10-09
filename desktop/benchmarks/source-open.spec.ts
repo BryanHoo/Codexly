@@ -33,6 +33,11 @@ for (const benchmarkCase of CASES) {
           benchmarkCase.bytes,
         ),
       );
+      if (iteration === 0) {
+        const viewport = page.locator('[data-language="text"]');
+        await expect(viewport).toHaveCSS("height", "600px");
+        await expect(viewport).toHaveCSS("width", "800px");
+      }
     }
     const result = {
       actualDurationP95Ms: percentile(
