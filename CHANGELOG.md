@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-## [0.33.0] - 2026-10-09
+## [0.33.1] - 2026-10-09
 
 ### 新增
 
@@ -23,6 +23,10 @@
 - 删除任务因分叉历史依赖被阻止时，明确提示原因。
 - 修复桌面主窗口缺少历史压缩命令权限的问题。
 - 修复分屏导航与输入区状态保留，以及桌面 Markdown 中文字体不一致的问题。
+
+### 工程
+
+- 修复历史搜索浏览器门禁的异步就绪等待，覆盖超过一秒的分页响应；保留滚动位置、高亮样式与单次读取校验。
 
 ## [0.32.0] - 2026-10-08
 
@@ -876,8 +880,8 @@
 
 - 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.33.0...HEAD
-[0.33.0]: https://github.com/BryanHoo/Codexly/compare/v0.32.0...v0.33.0
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.33.1...HEAD
+[0.33.1]: https://github.com/BryanHoo/Codexly/compare/v0.32.0...v0.33.1
 [0.32.0]: https://github.com/BryanHoo/Codexly/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/BryanHoo/Codexly/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/BryanHoo/Codexly/compare/v0.29.0...v0.30.0

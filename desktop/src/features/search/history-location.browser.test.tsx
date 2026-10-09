@@ -65,6 +65,11 @@ describe("history search location", () => {
   it("reads only the cursor page and scrolls to a highlighted assistant message", async () => {
     await i18n.changeLanguage("zh-CN");
     readTask.mockResolvedValue(historyPage());
+    // 模拟历史分页响应超过 vi.waitFor 默认的一秒，确保定位断言等待真实数据就绪。
+    readTask.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 1_200));
+      return historyPage();
+    });
     const location = {
       projectId: "project",
       taskId: "task",
@@ -77,37 +82,30 @@ describe("history search location", () => {
     };
     const screen = await render(
       <QueryClientProvider
-        client={
-          new QueryClient({ defaultOptions: { queries: { retry: false } } })
-        }
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
         <TooltipProvider>
-          <div
-            style={{ height: 500, display: "flex", flexDirection: "column" }}
-          >
+          <div style={{ height: 500, display: "flex", flexDirection: "column" }}>
             <HistoryTaskTimeline location={location} />
           </div>
         </TooltipProvider>
       </QueryClientProvider>,
     );
-    await expect
-      .element(screen.getByRole("button", { name: "返回最新消息" }))
-      .toBeVisible();
-    await vi.waitFor(() => {
-      const anchor = document.querySelector<HTMLElement>(
-        '[data-search-match="true"]',
-      );
-      expect(anchor?.dataset["conversationAnchor"]).toBe(
-        createTaskItemKey("turn-2", "assistant-2"),
-      );
-      const viewport = screen
-        .getByRole("log")
-        .element()
-        .getBoundingClientRect();
-      const bounds = anchor!.getBoundingClientRect();
-      expect(bounds.top).toBeGreaterThanOrEqual(viewport.top - 10);
-      expect(bounds.top).toBeLessThan(viewport.bottom);
-    });
+    await expect.element(screen.getByRole("button", { name: "返回最新消息" })).toBeVisible();
+    // 这是异步查询、虚拟列表定位和高亮的功能校验，沿用浏览器用例的五秒就绪预算。
+    await vi.waitFor(
+      () => {
+        const anchor = document.querySelector<HTMLElement>('[data-search-match="true"]');
+        expect(anchor?.dataset["conversationAnchor"]).toBe(
+          createTaskItemKey("turn-2", "assistant-2"),
+        );
+        const viewport = screen.getByRole("log").element().getBoundingClientRect();
+        const bounds = anchor!.getBoundingClientRect();
+        expect(bounds.top).toBeGreaterThanOrEqual(viewport.top - 10);
+        expect(bounds.top).toBeLessThan(viewport.bottom);
+      },
+      { timeout: 5_000 },
+    );
     const marked = document.querySelector<HTMLElement>('[data-search-match="true"]')!;
     expect(getComputedStyle(marked).outlineStyle).toBe("none");
     expect(getComputedStyle(marked).boxShadow).not.toBe("none");
@@ -140,26 +138,26 @@ describe("history search location", () => {
     };
     const screen = await render(
       <QueryClientProvider
-        client={
-          new QueryClient({ defaultOptions: { queries: { retry: false } } })
-        }
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
         <TooltipProvider>
-          <div
-            style={{ height: 500, display: "flex", flexDirection: "column" }}
-          >
+          <div style={{ height: 500, display: "flex", flexDirection: "column" }}>
             <HistoryTaskTimeline location={location} />
           </div>
         </TooltipProvider>
       </QueryClientProvider>,
     );
 
-    await vi.waitFor(() => {
-      expect(screen.getByRole("alert").query()).toBeNull();
-      expect(
-        document.querySelector<HTMLElement>('[data-search-match="true"]')
-          ?.dataset["conversationAnchor"],
-      ).toBe(createTaskItemKey("turn-2", "assistant-2"));
-    });
+    await vi.waitFor(
+      () => {
+        expect(screen.getByRole("alert").query()).toBeNull();
+        expect(
+          document.querySelector<HTMLElement>('[data-search-match="true"]')?.dataset[
+            "conversationAnchor"
+          ],
+        ).toBe(createTaskItemKey("turn-2", "assistant-2"));
+      },
+      { timeout: 5_000 },
+    );
   });
 });

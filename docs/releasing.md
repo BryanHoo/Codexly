@@ -48,10 +48,11 @@ git push origin "v${RELEASE_VERSION}"
 
 ## 失败恢复
 
-- 已推送标签的工作流失败：手动运行 `Release` workflow，并将 `tag` 设置为原标签。
+- 已推送标签因临时网络或外部服务故障失败：重跑失败 Job，或手动运行 `Release` workflow，并将 `tag` 设置为原标签。
 - npm 已发布但 GitHub Release 失败：重跑失败 Job；工作流会跳过已存在的 npm 版本。
 - npm 已发布但 GHCR 镜像失败：重跑失败 Job；npm Job 会检测并跳过已发布版本。
-- 桌面构建失败：联合 Release 保持草稿；修复同标签的流水线配置后重跑，已经发布的 npm 版本会跳过。不要在已发布标签上替换源码。
+- 代码、测试或工作流需要修改：保留原标签的不可变提交，修复后同步递增两端版本、更新日志与部署示例，提交并创建新标签。即使原版本尚未公开，也不要移动已推送标签；新版本的日志应包含上次正式发布以来的全部变化。
+- 桌面构建失败：联合 Release 保持草稿；临时环境故障可重跑，需要修改仓库文件则按上一条发布新版本。已经发布的 npm 版本会跳过。
 - `ENEEDAUTH` 或 OIDC 失败：检查 Trusted Publisher、`release.yml`、`npm` Environment 和 `id-token: write` 是否一致。
 - `EUNSUPPORTEDPROTOCOL`：确认发布对象来自 `pnpm pack`，并检查 `pnpm run package:check`。
 - 版本或标签错误：未发布时修正；版本已发布后必须提升版本号并创建新标签。
