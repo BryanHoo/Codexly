@@ -1,3 +1,4 @@
+import { useSplitInspectorBridge } from "@codexly/ui/core/split-inspector";
 import type { ReactNode } from "react";
 import { TerminalWorkbench } from "../../terminal/components/terminal-workbench.js";
 import { lazy, Suspense, useRef, useState, type CSSProperties } from "react";
@@ -14,10 +15,9 @@ import { WorkbenchSidebarChrome } from "./workbench-sidebar-chrome.js";
 import type { useWorkbenchShellController } from "./workbench-shell-controller.js";
 import { WorkbenchShellDialogs } from "./workbench-shell-dialogs.js";
 import { ActiveTaskWorkbench } from "./workbench-shell-active-task.js";
-import { WorkbenchInspector } from "./workbench-inspector.js";
+import { WorkbenchShellInspector } from "./workbench-shell-inspector.js";
 import { fileDocumentId } from "./workbench-inspector-documents.js";
 import { WorkbenchShellHeader } from "./workbench-shell-header.js";
-import { getWorkbenchInspectorMountKey } from "../workbench-inspector-activation.js";
 import { LazyScheduledTasksContainer } from "./scheduled-tasks-lazy.js";
 import { TaskInteractionContext } from "../task-interaction-context.js";
 const LazySkillsMarketContainer = lazy(() =>
@@ -29,6 +29,7 @@ export function WorkbenchShellLayout({
   board,
   embedded = false,
   workspaceContent,
+  composerDraftId,
   context,
   draftId,
   extensionSection,
@@ -41,6 +42,7 @@ export function WorkbenchShellLayout({
   board: boolean;
   embedded?: boolean;
   workspaceContent?: ReactNode;
+  composerDraftId?: string;
   draftId?: string;
   projectId: string;
   scheduledTasks: boolean;
@@ -59,7 +61,6 @@ export function WorkbenchShellLayout({
     : undefined;
   const {
     appInfoQuery,
-    backgroundTerminals,
     beginNewChatSubmission,
     capabilities,
     client,
@@ -69,7 +70,6 @@ export function WorkbenchShellLayout({
     error,
     fastModeAvailable,
     fastModeDefault,
-    expandedFileTreePaths,
     gitStatusQuery,
     globalSettings,
     globalSettingsQuery,
@@ -79,56 +79,38 @@ export function WorkbenchShellLayout({
     handleTaskStarted,
     inspectorOpen,
     inspectorMaximumWidth,
-    inspectorTab,
-    inspectorTask,
     inspectorWidth,
-    loadProjectFileDiff,
-    mcpServersQuery,
-    mcpServersReloadMutation,
     models,
     modelsQuery,
     navigate,
     newChatSubmissionStartedAt,
     openFileDiff,
-    openProjectFileDiff,
     openFileReview,
     openMessageFileReference,
-    openProjectFile,
     openProjectFolder,
     pendingTaskSelection,
     projectDefaultsQuery,
     projectFolderOpenDisabled,
     projectName,
     projectRoots,
-    projectOpenCapabilitiesQuery,
     projectPath,
-    projectPathOpenLockRef,
-    projectPathOpenMutation,
-    taskAttachmentOpenMutation,
     projectTaskState,
     projects,
-    refreshProjectGitStatus,
     retry,
     runtime,
     selectedRootPath,
     selectedRootId,
-    inspectorDocuments,
     openInspectorDocument,
-    removeInspectorDocument,
-    setFileTreeExpansion,
     setGlobalSettingsSection,
     setInspectorOpen,
-    setInspectorTab,
     setInspectorWidth,
     setSidebarOpen,
     setSidebarWidth,
     setSelectedRootId,
-    setSubagentDialogSelection,
     sidebarOpen,
     sidebarWidth,
     skillsQuery,
     startingSnapshot,
-    subagents,
     taskLaunchState,
     title,
     updateDraftSettings,
@@ -136,6 +118,7 @@ export function WorkbenchShellLayout({
     workbenchShellRef,
     t,
   } = context;
+  const { activePane, openSidebarDocument } = useSplitInspectorBridge(workbenchShellRef, openInspectorDocument);
   const extensions = extensionSection !== undefined;
   const utilityView = board || extensions || scheduledTasks;
   const viewTitle = scheduledTasks
@@ -153,7 +136,7 @@ export function WorkbenchShellLayout({
       <div
         className="workbench-shell h-full min-h-0 overflow-hidden bg-window"
         data-embedded={embedded}
-        data-inspector-open={inspectorVisible}
+        data-inspector-open={!embedded && inspectorVisible}
         data-sidebar-open={sidebarOpen}
         ref={workbenchShellRef}
         style={
@@ -168,7 +151,7 @@ export function WorkbenchShellLayout({
           {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
           onClose={closeSidebar}
           onOpenFile={(file, kind) => {
-            openInspectorDocument({
+            openSidebarDocument({
               id: fileDocumentId(kind, `${file.projectId}:${file.rootPath}:${file.path}`),
               kind,
               projectId: file.projectId,
@@ -184,8 +167,8 @@ export function WorkbenchShellLayout({
             else if (panel === "sidebar") setSidebarOpen((open) => !open);
             else if (!utilityView) setInspectorOpen((open) => !open);
           }}
-          projectId={projectId}
-          {...(taskId === undefined && pendingTaskSelection?.projectId === projectId
+          projectId={activePane?.projectId ?? projectId}
+          {...(activePane !== undefined ? (activePane.taskId === undefined ? {} : { taskId: activePane.taskId }) : taskId === undefined && pendingTaskSelection?.projectId === projectId
             ? { taskId: pendingTaskSelection.taskId }
             : taskId === undefined
               ? {}
@@ -265,6 +248,7 @@ export function WorkbenchShellLayout({
                   : { submissionStartedAt: newChatSubmissionStartedAt })}
               />
               <WorkbenchComposer
+                {...(composerDraftId === undefined ? {} : { composerDraftId })}
                 key={draftId === undefined ? "new-task" : `draft:${draftId}`}
                 capabilities={capabilities}
                 client={client}
@@ -343,7 +327,7 @@ export function WorkbenchShellLayout({
         </TerminalWorkbench>
         )}
 
-        {inspectorVisible ? (
+        {!embedded && inspectorVisible ? (
           <Button
             variant="ghost"
             aria-label={t("shell.closeInspector")}
@@ -352,7 +336,7 @@ export function WorkbenchShellLayout({
             type="button"
           />
         ) : null}
-        {inspectorVisible ? (
+        {!embedded && inspectorVisible ? (
           <WorkbenchPanelResizer
             direction={-1}
             label={t("shell.resizeInspector")}
@@ -375,103 +359,10 @@ export function WorkbenchShellLayout({
             width={inspectorWidth}
           />
         ) : null}
-        {inspectorVisible ? (
-          <WorkbenchInspector
-            backgroundTerminals={backgroundTerminals.terminals}
-            contextOnly={temporary}
-            expandedFileTreePaths={expandedFileTreePaths}
-            gitStatusError={gitStatusQuery.error}
-            gitStatusPending={gitStatusQuery.isPending}
-            gitStatusRefreshing={gitStatusQuery.isFetching}
-            gitClient={client}
-            mcpServers={mcpServersQuery.data?.data ?? []}
-            mcpServersRetryAvailable={taskId !== undefined}
-            mcpServersRefreshing={mcpServersQuery.isFetching && !mcpServersQuery.isPending}
-            mcpServersRetrying={mcpServersReloadMutation.isPending}
-            key={getWorkbenchInspectorMountKey({ projectId, taskId })}
-            onClose={closeInspector}
-            documents={inspectorDocuments}
-            onCloseDocument={removeInspectorDocument}
-            loadProjectFileDiff={loadProjectFileDiff}
-            onOpenLoadedDiff={openFileDiff}
-            onOpenCommit={(commit, repository) => {
-              openInspectorDocument({
-                id: `commit:${repository ?? "root"}:${commit.sha}`,
-                kind: "commit",
-                commit,
-                ...(repository === undefined ? {} : { repository }),
-              });
-            }}
-            onFileTreeExpandedChange={(nextExpandedPaths) => {
-              setFileTreeExpansion({
-                paths: new Set(nextExpandedPaths),
-                scope: `${projectId}:${selectedRootPath ?? "temporary"}`,
-              });
-            }}
-            onClearGoal={() =>
-              taskId === undefined
-                ? Promise.resolve()
-                : client.clearTaskGoal(projectId, taskId).then(() => undefined)
-            }
-            onGoalStatusChange={(status) =>
-              taskId === undefined
-                ? Promise.resolve()
-                : client.updateTaskGoal(projectId, taskId, { status }).then(() => undefined)
-            }
-            onReloadMcpServers={() => {
-              mcpServersReloadMutation.mutate();
-            }}
-            onOpenFileDiff={openProjectFileDiff}
-            onOpenProjectPath={(appId, path) => {
-              projectPathOpenMutation.reset();
-              void projectPathOpenLockRef.current
-                .run(() => projectPathOpenMutation.mutateAsync({ appId, path }))
-                .catch(() => undefined);
-            }}
-            onOpenProjectFile={openProjectFile}
-            onOpenTaskAttachment={(attachmentId) => {
-              if (taskId !== undefined) {
-                taskAttachmentOpenMutation.mutate({ attachmentId, taskId });
-              }
-            }}
-            onReferenceProjectPath={(entry) => {
-              composerRef.current?.referenceProjectPath(entry);
-            }}
-            onRefreshGitStatus={() => {
-              if (selectedRootPath !== undefined) {
-                void refreshProjectGitStatus(projectId, selectedRootPath);
-              }
-            }}
-            onRefreshProject={() =>
-              selectedRootPath === undefined
-                ? Promise.resolve()
-                : refreshProjectGitStatus(projectId, selectedRootPath)
-            }
-            onReviewFileChanges={openFileReview}
-            onCommitChanges={() => setInspectorTab("changes")}
-            onTerminateBackgroundTerminal={backgroundTerminals.terminateTerminal}
-            onTabChange={setInspectorTab}
-            onOpenSubagent={(selection) => {
-              if (taskId !== undefined) {
-                setSubagentDialogSelection({ parentTaskId: taskId, projectId, selection });
-              }
-            }}
-            projectName={projectName}
-            projectId={projectId}
-            projectOpenApps={projectOpenCapabilitiesQuery.data?.apps ?? []}
-            projectOpenPending={projectPathOpenMutation.isPending}
-            projectPath={projectPath}
-            projectRootId={selectedRootId ?? ""}
-            {...(selectedRootPath === undefined ? {} : { sourceRootPath: selectedRootPath })}
-            skills={skillsQuery.data?.data ?? []}
-            subagents={subagents}
-            tab={inspectorTab}
-            terminatingTerminalId={backgroundTerminals.terminatingTerminalId}
-            {...(inspectorTask === undefined ? {} : { task: inspectorTask })}
-            {...(taskId === undefined ? {} : { taskId })}
-            {...(runtime.store === undefined ? {} : { taskStore: runtime.store })}
-            {...(gitStatusQuery.data === undefined ? {} : { gitStatus: gitStatusQuery.data })}
-          />
+        {workspaceContent === undefined && inspectorVisible ? (
+          <WorkbenchShellInspector context={context} composerRef={composerRef}
+            projectId={projectId} temporary={temporary}
+            {...(taskId === undefined ? {} : { taskId })} />
         ) : null}
         <WorkbenchShellDialogs
           context={context}

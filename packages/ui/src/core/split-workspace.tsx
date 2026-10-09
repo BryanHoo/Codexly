@@ -13,6 +13,7 @@ import {
   MAX_SPLIT_PANES,
   removeSplitPane,
   replaceSplitPane,
+  selectSplitTask,
   splitPaneKey,
   type SplitPaneIdentity,
 } from "@codexly/frontend-core/split-workspace";
@@ -35,6 +36,7 @@ type Workspace = Readonly<{
   add: (pane: SplitPaneIdentity) => void;
   close: (pane: SplitPaneIdentity) => void;
   focus: (pane: SplitPaneIdentity) => void;
+  select: (pane: SplitPaneIdentity) => boolean;
   replace: (previous: SplitPaneIdentity, next: SplitPaneIdentity) => void;
   solo: (pane: SplitPaneIdentity) => void;
 }>;
@@ -105,6 +107,16 @@ export function SplitWorkspaceProvider({
   const solo = useCallback((pane: SplitPaneIdentity) => {
     setSelection((previous) => ({ ...previous, panes: [pane], activeKey: splitPaneKey(pane) }));
   }, []);
+  const select = useCallback(
+    (pane: SplitPaneIdentity) => {
+      const alreadyOpen = selection.panes.some((item) => splitPaneKey(item) === splitPaneKey(pane));
+      // 单窗口和移动端继续走普通路由；真正分屏时由工作区接管左栏任务切换。
+      if (!alreadyOpen && (!enabled || selection.panes.length < 2)) return false;
+      setSelection((previous) => selectSplitTask(previous, pane));
+      return true;
+    },
+    [enabled, selection.panes],
+  );
   const replace = useCallback((previous: SplitPaneIdentity, next: SplitPaneIdentity) => {
     setSelection((selection) => {
       // 请求可能在关闭窗口后返回，不能让迟到结果把活动身份指向不存在的窗口。
@@ -125,10 +137,11 @@ export function SplitWorkspaceProvider({
       add,
       close,
       focus,
+      select,
       solo,
       replace,
     }),
-    [enabled, selection.panes, selection.activeKey, add, close, focus, solo, replace],
+    [enabled, selection.panes, selection.activeKey, add, close, focus, select, solo, replace],
   );
   return <SplitWorkspaceContext value={value}>{children}</SplitWorkspaceContext>;
 }
@@ -199,7 +212,12 @@ export function SplitWorkspaceGrid({
 export function useNavigateSplitTask() {
   const pane = useContext(SplitPaneContext);
   const workspace = useSplitWorkspace();
-  const identity = pane?.pane;
+  // 左栏异步创建任务也绑定发起时的窗口，避免等待期间的焦点变化覆盖其他聊天。
+  const identity =
+    pane?.pane ??
+    (workspace?.enabled && workspace.panes.length > 1
+      ? workspace.panes.find((item) => splitPaneKey(item) === workspace.activeKey)
+      : undefined);
   const replace = workspace?.replace;
   return useCallback(
     (projectId: string, taskId: string) => {
@@ -208,5 +226,30 @@ export function useNavigateSplitTask() {
       return true;
     },
     [identity, replace],
+  );
+}
+
+export function useOpenSplitDraft() {
+  const pane = useContext(SplitPaneContext);
+  const workspace = useSplitWorkspace();
+  return useCallback(
+    (projectId: string) => {
+      if (
+        workspace === null ||
+        (pane === null && (!workspace.enabled || workspace.panes.length < 2))
+      )
+        return false;
+      // 每次新建都分配独立草稿身份；同项目多窗不会串写，也不会接收旧草稿的迟到结果。
+      // getRandomValues 在 HTTP 部署中也可用，随机身份避免多标签页写入相同持久化草稿。
+      const id = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) =>
+        value.toString(16).padStart(8, "0"),
+      ).join("");
+      const draft = { projectId, draftId: `split-draft:${id}` };
+      if (pane === null) return workspace.select(draft);
+      // 窗口内切换草稿范围只替换所属窗口，恢复单窗后仍可继续创建任务。
+      workspace.replace(pane.pane, draft);
+      return true;
+    },
+    [pane, workspace],
   );
 }

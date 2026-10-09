@@ -1,3 +1,4 @@
+import { useRevealSplitComposer } from "@codexly/ui/core/split-composer";
 import type { ReactNode } from "react";
 import { Context, ContextTrigger } from "../../../shared/components/agent/context.js";
 import { TerminalFooter } from "../../terminal/components/terminal-context.js";
@@ -6,7 +7,8 @@ import { ComposerBranchSwitcher } from "./composer-branch-switcher.js";
 import { ProjectDraftList } from "./project-draft-controls.js";
 import type { WorkbenchComposerViewProps } from "./workbench-composer-view-contracts.js";
 
-export function WorkbenchComposerFooter({ props, rootControls }: { props: WorkbenchComposerViewProps; rootControls: ReactNode }) {
+export function WorkbenchComposerFooter({ props, rootControls, controls }: { props: WorkbenchComposerViewProps; rootControls: ReactNode; controls: ReactNode }) {
+  const revealComposer = useRevealSplitComposer();
   if (!props.footerVisible) return null;
   return <TerminalFooter><div className="mx-auto mt-1.5 flex h-9 w-full max-w-content min-w-0 items-center gap-3 px-1 text-caption text-muted-foreground">
     {props.projectToolsEnabled ? <>
@@ -19,8 +21,9 @@ export function WorkbenchComposerFooter({ props, rootControls }: { props: Workbe
       <TerminalStatusTrigger />
     </> : null}
     <div className="ml-auto flex shrink-0 items-center gap-1">
-      {props.captureMode ? null : <ProjectDraftList composerHasInput={props.hasComposerInput} drafts={props.projectDrafts} onDelete={props.onProjectDraftDelete} onRestore={props.onProjectDraftRestore} projectName={props.projectName} />}
+      {props.captureMode ? null : <ProjectDraftList composerHasInput={props.hasComposerInput} drafts={props.projectDrafts} onDelete={props.onProjectDraftDelete} onRestore={(draftId) => { props.onProjectDraftRestore(draftId); revealComposer?.(); }} projectName={props.projectName} />}
       <Context maxTokens={props.contextUsage?.contextWindow} usedTokens={props.contextUsage?.usedTokens}><ContextTrigger /></Context>
+      {controls}
     </div>
   </div></TerminalFooter>;
 }

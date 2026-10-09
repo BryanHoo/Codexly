@@ -33,41 +33,28 @@
 .split-workspace[data-multiple="true"] > .split-workspace-pane[data-active="true"]::after {
   content: "";
   position: absolute;
-  z-index: 1;
-  inset: 0 0 auto;
-  height: 2px;
-  background: var(--ui-color-accent);
+  z-index: 6;
+  inset: 0;
+  /* 内描边不占布局空间，切换焦点时正文、滚动条和输入框均不位移。 */
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ui-color-accent) 65%, transparent);
   pointer-events: none;
 }
 
-/* 每个窗口复用完整工作台，但只保留中栏及其自己的右栏。 */
-.workbench-shell[data-embedded="true"] {
-  grid-template-columns: minmax(0, 1fr) var(--inspector-width);
+.split-workspace[data-multiple="true"]
+  > .split-workspace-pane[data-active="true"]
+  .workbench-pane-header {
+  /* 复用主题的柔和强调色，只染标题栏，保持正文阅读区域的原有对比度。 */
+  background-image: linear-gradient(var(--ui-color-accent-soft), var(--ui-color-accent-soft));
 }
 
-/* 分屏中的右栏覆盖所属窗口，不挤压其他聊天或改变网格轨道。 */
-.split-workspace[data-multiple="true"] .workbench-shell[data-embedded="true"] {
+/* 嵌入窗口只占中栏，左右面板由最外层工作区统一布局。 */
+.workbench-shell[data-embedded="true"] {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.split-workspace[data-multiple="true"] .workbench-shell > .workbench-inspector {
-  position: absolute;
-  z-index: 30;
-  inset: 0 0 0 auto;
-  width: min(var(--inspector-open-width), 100%);
-  box-shadow: var(--ui-shadow-panel);
-}
-
-.split-workspace[data-multiple="true"] .workbench-shell > .workbench-panel-resizer--inspector {
-  display: none;
-}
-
-.split-workspace[data-multiple="true"]
-  .workbench-shell[data-inspector-open="true"]
-  > .workbench-inspector-scrim {
-  position: absolute;
-  z-index: 20;
-  inset: 0;
-  display: block;
-  background: var(--ui-color-scrim);
+/* 目录定位在各自窗口内部，高度随该窗口变化，不覆盖相邻聊天。 */
+.split-workspace-pane > .task-timeline-navigation {
+  right: calc(var(--conversation-scrollbar-width, 0px) + var(--ui-space-unit) * 2.5);
+  max-height: 50%;
+  z-index: 5;
 }

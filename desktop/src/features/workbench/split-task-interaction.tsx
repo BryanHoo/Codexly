@@ -30,14 +30,15 @@ export function SplitTaskInteractionProvider({ children }: { children: ReactNode
   );
 }
 
-export function useReportSplitTaskInteraction(projectId: string, taskId: string, blocked: boolean) {
+export function useReportSplitTaskInteraction(projectId: string, taskId: string | undefined, blocked: boolean) {
   const report = useContext(ReportTaskInteractionContext);
   const key = JSON.stringify([projectId, taskId]);
   useLayoutEffect(() => {
+    if (taskId === undefined) return;
     // 侧栏在窗口外渲染，单独同步低频写权限；不广播消息正文或整个任务 Store。
     report?.(key, blocked);
     return () => {
       report?.(key, false);
     };
-  }, [blocked, key, report]);
+  }, [blocked, key, report, taskId]);
 }

@@ -1,3 +1,4 @@
+import { SplitComposer } from "@codexly/ui/core/split-composer";
 import {
   AGENT_FILE_ACCEPT,
   AGENT_IMAGE_ACCEPT,
@@ -10,7 +11,6 @@ import {
 import { ArrowDown, ArrowUp, Folder, LoaderCircle, Pencil, SendHorizontal, X } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
-import { Context, ContextTrigger } from "../../../shared/components/agent/context.js";
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -33,10 +33,10 @@ import {
   resolveComposerPlaceholder,
 } from "../composer-state.js";
 import { movePromptCommandSelection } from "./prompt-command.js";
-import { ComposerBranchSwitcher } from "./composer-branch-switcher.js";
+import { WorkbenchComposerFooter } from "./workbench-composer-footer.js";
 import { ComposerCaptureSubmitIcon } from "./composer-capture-submit-icon.js";
 import { ComposerModelSelector } from "./composer-model-selector.js";
-import { ComposerTodoSaveButton, ProjectTodoList } from "./project-todo-controls.js";
+import { ComposerTodoSaveButton } from "./project-todo-controls.js";
 import { ComposerApprovalControls } from "./workbench-composer-approval-controls.js";
 import { shouldNavigatePromptHistory } from "./prompt-history.js";
 import { PromptSkillEditor } from "./prompt-skill-editor.js";
@@ -117,14 +117,37 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
   const { t } = useTranslation(["workbench", "settings"]);
   const editingIndex = props.queuedPrompts.findIndex((prompt) => prompt.status === "editing");
   return (
-    <section
-      className="shrink-0 bg-content px-1 pb-2 max-[360px]:px-0 sm:px-5"
-      aria-label={t("composer.landmark")}
+    <SplitComposer
+      collapsible={props.footerVisible}
+      label={t("composer.landmark")}
+      expandLabel={t("split.expandComposer")}
+      collapseLabel={t("split.collapseComposer")}
+      stopLabel={t("composer.stop")}
+      onInterrupt={props.onInterrupt}
+      interruptible={
+        props.canInterrupt && !props.turnControlsDisabled && props.activeTurnId !== undefined
+      }
+      notice={props.asyncQuestions}
+      footer={(controls) => (
+        <WorkbenchComposerFooter
+          props={props}
+          controls={controls}
+          rootControls={
+            <ComposerProjectRootControls
+              onOpen={props.onOpenProjectPath}
+              onRootChange={props.onProjectRootChange}
+              projectPath={props.projectPath}
+              projectPathOpenDisabled={props.projectPathOpenDisabled}
+              roots={props.projectRoots}
+              selectedRootId={props.selectedProjectRootId}
+            />
+          }
+        />
+      )}
     >
       <div className="relative mx-auto w-full max-w-content" ref={props.commandSurfaceRef}>
         <ComposerCommandMenu props={props} />
         <ComposerFileMenu props={props} />
-        {props.asyncQuestions}
         {props.queuedPrompts.length === 0 ? null : (
           <div aria-label={t("composer.queuedMessages")} className="mb-2 space-y-1.5" role="list">
             {props.queuedPrompts.map((queuedPrompt, index) => {
@@ -437,49 +460,6 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
           </PromptInputFooter>
         </PromptInput>
       </div>
-      {props.footerVisible ? (
-        <div className="mx-auto mt-1.5 flex h-9 w-full max-w-content min-w-0 items-center gap-3 px-1 text-caption text-muted-foreground">
-          {props.projectToolsEnabled ? (
-            <>
-              <div className="flex min-w-0 shrink items-center gap-0.5">
-                <ComposerBranchSwitcher
-                  creatingBranch={props.creatingBranch}
-                  gitStatus={props.gitStatus}
-                  onBranchChange={props.onBranchChange}
-                  onBranchCreate={props.onBranchCreate}
-                  switchingBranch={props.switchingBranch}
-                />
-              </div>
-              {/* 主目录选择与路径保持同一操作区，切换后所有项目视图共享该 rootId。 */}
-              <ComposerProjectRootControls
-                onOpen={props.onOpenProjectPath}
-                onRootChange={props.onProjectRootChange}
-                projectPath={props.projectPath}
-                projectPathOpenDisabled={props.projectPathOpenDisabled}
-                roots={props.projectRoots}
-                selectedRootId={props.selectedProjectRootId}
-              />
-            </>
-          ) : null}
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            {props.projectToolsEnabled && !props.captureMode ? (
-              <ProjectTodoList
-                composerHasInput={props.hasComposerInput}
-                onDelete={props.onProjectTodoDelete}
-                onRestore={props.onProjectTodoRestore}
-                projectName={props.projectName}
-                todos={props.projectTodos}
-              />
-            ) : null}
-            <Context
-              maxTokens={props.contextUsage?.contextWindow}
-              usedTokens={props.contextUsage?.usedTokens}
-            >
-              <ContextTrigger />
-            </Context>
-          </div>
-        </div>
-      ) : null}
-    </section>
+    </SplitComposer>
   );
 }

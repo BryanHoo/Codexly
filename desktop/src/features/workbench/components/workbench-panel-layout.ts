@@ -1,3 +1,4 @@
+import { useSplitInspector } from "@codexly/ui/core/split-inspector";
 import { useCallback, useLayoutEffect, useRef, useState, type SetStateAction } from "react";
 
 export const sidebarOverlayQuery = "(max-width: 760px)";
@@ -32,6 +33,7 @@ export function useWorkbenchPanelLayout({ temporary = false, scopeKey = "", insp
   temporary?: boolean;
   scopeKey?: string;
 }> = {}) {
+  const sharedInspector = useSplitInspector();
   const [sidebarOpen, setSidebarOpen] = useState(() => sidebarInitiallyOpen && shouldOpenDesktopPanel(sidebarOverlayQuery));
   const [projectInspectorOpen, setProjectInspectorOpen] = useState(() =>
     inspectorInitiallyOpen && shouldOpenDesktopPanel(inspectorOverlayQuery),
@@ -88,9 +90,9 @@ export function useWorkbenchPanelLayout({ temporary = false, scopeKey = "", insp
 
   return {
     inspectorMaximumWidth,
-    inspectorOpen,
+    inspectorOpen: sharedInspector?.open ?? inspectorOpen,
     inspectorWidth,
-    setInspectorOpen,
+    setInspectorOpen: sharedInspector?.setOpen ?? setInspectorOpen,
     setInspectorWidth,
     setSidebarOpen,
     setSidebarWidth,

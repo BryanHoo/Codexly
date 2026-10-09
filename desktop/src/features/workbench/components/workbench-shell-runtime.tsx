@@ -127,7 +127,6 @@ export function useWorkbenchShellRuntime({
   workspaceOnly = false,
   paneOnly = false,
   paneActive = true,
-  compactPane = false,
 }: WorkbenchShellProps & SplitRuntimeOptions) {
   const { t } = useTranslation("workbench");
   const { capabilities, client, error, isPending, projects, projectTaskStates, tasks } =
@@ -159,10 +158,7 @@ export function useWorkbenchShellRuntime({
     sidebarOpen,
     sidebarWidth,
     workbenchShellRef,
-  } = useWorkbenchPanelLayout({ temporary, scopeKey: inspectorScopeKey, inspectorInitiallyOpen: !workspaceOnly && !compactPane, sidebarInitiallyOpen: !paneOnly });
-  useLayoutEffect(() => {
-    if (workspaceOnly || compactPane) setInspectorOpen(false);
-  }, [workspaceOnly, compactPane, setInspectorOpen]);
+  } = useWorkbenchPanelLayout({ temporary, scopeKey: inspectorScopeKey, inspectorInitiallyOpen: true, sidebarInitiallyOpen: !paneOnly });
   const defaultInspectorTab: WorkbenchInspectorTab = getDefaultWorkbenchInspectorTab(temporary);
   const [inspectorTabState, setInspectorTabState] = useState<{
     scopeKey: string;
@@ -200,7 +196,7 @@ export function useWorkbenchShellRuntime({
     contextOnly: temporary,
     fileOpen: inspectorDocuments.some((document) => documentTabId(document.id) === inspectorTab),
     gitStatus: gitStatusQuery.data,
-    inspectorOpen,
+    inspectorOpen: inspectorOpen && !workspaceOnly && paneActive,
     requestedTab: inspectorTab,
     taskId,
   });
@@ -376,7 +372,7 @@ export function useWorkbenchShellRuntime({
     t("shell.newChat");
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
-  const inspectorTask = useInspectorTask(runtime.store, inspectorOpen, startingSnapshot);
+  const inspectorTask = useInspectorTask(runtime.store, inspectorOpen && paneActive && !workspaceOnly, startingSnapshot);
   const hasInspectorGoal = inspectorTask?.goal !== null && inspectorTask?.goal !== undefined;
   const hasInspectorPlan = inspectorTask?.plan !== null && inspectorTask?.plan !== undefined;
   const previousInspectorContextArtifactState = useRef<WorkbenchInspectorContextArtifactState>({

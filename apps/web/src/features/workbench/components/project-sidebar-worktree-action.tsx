@@ -1,3 +1,4 @@
+import { useNavigateSplitTask } from "@codexly/ui/core/split-workspace";
 import type { Project } from "@codexly/protocol";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -81,6 +82,7 @@ function ProjectSidebarWorktreeDialog({
   rootPath: string;
 }>) {
   const navigate = useNavigate();
+  const navigateSplitTask = useNavigateSplitTask();
   const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
   const [pendingWorktreePath, setPendingWorktreePath] = useState<string>();
@@ -102,6 +104,7 @@ function ProjectSidebarWorktreeDialog({
         return false;
       } else {
         onCreated(projectId);
+        if (navigateSplitTask(projectId, result.task.id)) return true;
         await navigate({
           params: { projectId, taskId: result.task.id },
           to: "/p/$projectId/t/$taskId",

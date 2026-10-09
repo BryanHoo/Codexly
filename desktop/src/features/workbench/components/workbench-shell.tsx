@@ -1,3 +1,5 @@
+import type { SplitPaneIdentity } from "@codexly/frontend-core/split-workspace";
+import { SplitInspectorProvider } from "@codexly/ui/core/split-inspector";
 import {
   SplitTaskInteractionProvider,
   useReportSplitTaskInteraction,
@@ -34,7 +36,7 @@ function WorkbenchShellContent({
   const shell = useWorkbenchShellRuntime({ ...taskScope, temporary, workspaceOnly });
   const context = useWorkbenchShellController(shell, { ...taskScope, temporary });
   return (
-    <>
+    <SplitInspectorProvider open={context.inspectorOpen} setOpen={context.setInspectorOpen}>
       {/* 隐藏时暂停工作台组件的订阅和快捷键，保留草稿、滚动位置与运行时连接。 */}
       <Activity mode={context.globalSettingsSection === null ? "visible" : "hidden"}>
         <WorkbenchShellLayout
@@ -51,7 +53,7 @@ function WorkbenchShellContent({
                     toggleSidebar={() => context.setSidebarOpen((open) => !open)}
                   >
                     {(pane) => (
-                      <WorkbenchTaskPane projectId={pane.projectId} taskId={pane.taskId} />
+                      <WorkbenchTaskPane {...pane} />
                     )}
                   </SplitWorkspaceGrid>
                 ),
@@ -64,7 +66,7 @@ function WorkbenchShellContent({
       </Activity>
       <WorkbenchSettingsPage context={context} projectToolsEnabled={!temporary} />
       <WorkbenchPetLayer settings={context.globalSettings?.pet} />
-    </>
+    </SplitInspectorProvider>
   );
 }
 
@@ -85,19 +87,16 @@ export function WorkbenchShell(props: WorkbenchShellProps) {
 const WorkbenchTaskPane = memo(function WorkbenchTaskPane({
   projectId,
   taskId,
-}: {
-  projectId: string;
-  taskId: string;
-}) {
+  draftId,
+}: SplitPaneIdentity) {
   const pane = useContext(SplitPaneContext);
   if (pane === null) throw new Error("Missing split pane provider");
   const temporary = projectId === TEMPORARY_TASK_SCOPE_ID;
-  const scope = { projectId, taskId, temporary };
+  const scope = { projectId, ...(taskId === undefined ? {} : { taskId }), temporary };
   const shell = useWorkbenchShellRuntime({
     ...scope,
     paneOnly: true,
     paneActive: pane.active,
-    compactPane: pane.multiple,
   });
   useReportSplitTaskInteraction(
     projectId,
@@ -108,6 +107,7 @@ const WorkbenchTaskPane = memo(function WorkbenchTaskPane({
   return (
     <WorkbenchShellLayout
       context={context}
+      {...(draftId === undefined ? {} : { composerDraftId: draftId })}
       {...scope}
       board={false}
       scheduledTasks={false}

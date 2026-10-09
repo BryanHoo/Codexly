@@ -1,3 +1,4 @@
+import { useRevealSplitComposer } from "@codexly/ui/core/split-composer";
 import type { AgentSkill } from "@codexly/protocol";
 import {
   forwardRef,
@@ -43,6 +44,7 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
     { content, onChange, onKeyDown, scope, skills, ...props },
     forwardedRef,
   ) {
+    const revealComposer = useRevealSplitComposer();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const contentRef = useRef(content);
     const skillsRef = useRef(skills);
@@ -85,6 +87,7 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
       forwardedRef,
       () => ({
         focus(offset) {
+          revealComposer?.();
           const input = inputRef.current;
           input?.focus();
           if (offset !== undefined) {
@@ -97,7 +100,7 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
         },
         replace,
       }),
-      [readCurrentContent, replace],
+      [readCurrentContent, replace, revealComposer],
     );
 
     useLayoutEffect(() => {

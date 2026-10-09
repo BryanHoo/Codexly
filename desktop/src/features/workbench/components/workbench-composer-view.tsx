@@ -1,3 +1,4 @@
+import { SplitComposer } from "@codexly/ui/core/split-composer";
 import {
   AGENT_FILE_ACCEPT,
   AGENT_IMAGE_ACCEPT,
@@ -119,9 +120,18 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
   const { t } = useTranslation(["workbench", "settings"]);
   return (
     <ComposerInteractionBoundary access={props.writeAccess}>
-    <section
-      className="shrink-0 bg-content px-1 pb-2 max-[360px]:px-0 sm:px-5"
-      aria-label={t("composer.landmark")}
+    <SplitComposer
+      collapsible={props.footerVisible}
+      label={t("composer.landmark")}
+      expandLabel={t("split.expandComposer")}
+      collapseLabel={t("split.collapseComposer")}
+      stopLabel={t("composer.stop")}
+      onInterrupt={props.onInterrupt}
+      footer={(controls) => <WorkbenchComposerFooter props={props} controls={controls} rootControls={<ComposerProjectRootControls
+        onOpen={props.onOpenProjectPath} onRootChange={props.onProjectRootChange} projectPath={props.projectPath}
+        projectPathOpenDisabled={props.projectPathOpenDisabled} roots={props.projectRoots} selectedRootId={props.selectedProjectRootId}
+      />} />}
+      interruptible={props.canInterrupt && !props.turnControlsDisabled && props.activeTurnId !== undefined}
     >
       <div className="relative mx-auto w-full max-w-content" ref={props.commandSurfaceRef}>
         <ComposerCommandMenu props={props} />
@@ -427,11 +437,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
           {t("composer.modelListFailed")}
         </p>
       )}
-      <WorkbenchComposerFooter props={props} rootControls={<ComposerProjectRootControls
-        onOpen={props.onOpenProjectPath} onRootChange={props.onProjectRootChange} projectPath={props.projectPath}
-        projectPathOpenDisabled={props.projectPathOpenDisabled} roots={props.projectRoots} selectedRootId={props.selectedProjectRootId}
-      />} />
-    </section>
+    </SplitComposer>
     </ComposerInteractionBoundary>
   );
 }

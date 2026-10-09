@@ -47,7 +47,7 @@ export function WorkbenchShellHeader({
   const sidebarOpen = pane?.sidebarOpen ?? ownSidebarOpen;
 
   return (
-    <header className="flex h-workbench-header shrink-0 items-center justify-between gap-3 bg-content px-2.5 shadow-toolbar sm:px-3">
+    <header className="workbench-pane-header flex h-workbench-header shrink-0 items-center justify-between gap-3 bg-content px-2.5 shadow-toolbar sm:px-3">
       <div className="flex min-w-0 items-center gap-2">
         <Tooltip key={sidebarOpen ? "sidebar-open" : "sidebar-closed"}>
           <TooltipTrigger asChild>

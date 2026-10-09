@@ -91,7 +91,6 @@ export function useWorkbenchShellRuntime({
   workspaceOnly = false,
   paneOnly = false,
   paneActive = true,
-  compactPane = false,
 }: WorkbenchShellProps & SplitRuntimeOptions) {
   const { t } = useTranslation("workbench");
   const access = useAccess();
@@ -138,7 +137,7 @@ export function useWorkbenchShellRuntime({
     sidebarWidth,
     workbenchShellRef,
   } = useWorkbenchPanelLayout({
-    inspectorInitiallyOpen: !temporary && !workspaceOnly && !compactPane,
+    inspectorInitiallyOpen: !temporary,
     sidebarInitiallyOpen: !paneOnly,
   });
   const inspectorScopeKey = `${projectId}:${taskId ?? "draft"}`;
@@ -177,13 +176,13 @@ export function useWorkbenchShellRuntime({
     contextOnly: temporary,
     fileOpen: inspectorDocuments.some((document) => documentTabId(document.id) === inspectorTab),
     gitStatus: gitStatusQuery.data,
-    inspectorOpen,
+    inspectorOpen: inspectorOpen && !workspaceOnly && paneActive,
     requestedTab: inspectorTab,
     taskId,
   });
   useLayoutEffect(() => {
-    if (temporary || workspaceOnly || compactPane) setInspectorOpen(false);
-  }, [setInspectorOpen, taskId, temporary, workspaceOnly, compactPane]);
+    if (temporary && !paneOnly) setInspectorOpen(false);
+  }, [setInspectorOpen, taskId, temporary, paneOnly]);
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation({
     ...appUpdateMutationOptions(client),
@@ -394,8 +393,10 @@ export function useWorkbenchShellRuntime({
     // Inspector 是低频完整视图；关闭时不保留兼容 Snapshot。
     void runtime.itemStructureRevision;
     void runtime.metadata;
-    return inspectorOpen ? (runtime.readSnapshot() ?? startingSnapshot) : startingSnapshot;
-  }, [inspectorOpen, runtime, startingSnapshot]);
+    return inspectorOpen && paneActive && !workspaceOnly
+      ? (runtime.readSnapshot() ?? startingSnapshot)
+      : startingSnapshot;
+  }, [inspectorOpen, paneActive, workspaceOnly, runtime, startingSnapshot]);
   const subagents = useMemo(() => collectSubagents(inspectorTask), [inspectorTask]);
   const selectedSubagent =
     subagentDialogSelection?.projectId === projectId &&

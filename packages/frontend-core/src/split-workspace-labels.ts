@@ -5,6 +5,8 @@ export const splitWorkspaceEnglish = {
   limit: "Maximum 4 tasks",
   close: "Close this pane",
   solo: "Show only this task",
+  expandComposer: "Expand composer",
+  collapseComposer: "Collapse composer",
 };
 export const splitWorkspaceChinese = {
   label: "分屏聊天",
@@ -13,4 +15,6 @@ export const splitWorkspaceChinese = {
   limit: "最多打开 4 个任务",
   close: "关闭此分屏",
   solo: "仅显示此任务",
+  expandComposer: "展开输入框",
+  collapseComposer: "收起输入框",
 };

@@ -1,3 +1,4 @@
+import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -233,17 +234,17 @@ export function ProjectSidebar({
     return project !== undefined;
   };
 
+  const { openDraft, onNewTaskClick } = useSidebarDraftNavigation(TEMPORARY_TASK_SCOPE_ID, (id) =>
+    (id === TEMPORARY_TASK_SCOPE_ID
+      ? navigate({ to: "/temporary" })
+      : navigate({ params: { projectId: id }, to: "/p/$projectId" })),
+  );
   const openProjectDraft = async (targetProjectId: string) => {
     // 项目切换和新建入口都只打开 Project 草稿，首次提交后才展示真实 Task。
-    updateExpandedProjects((current) => {
-      if (current.has(targetProjectId)) {
-        return current;
-      }
-      const next = new Set(current);
-      next.add(targetProjectId);
-      return next;
-    });
-    await navigate({ params: { projectId: targetProjectId }, to: "/p/$projectId" });
+    updateExpandedProjects((current) =>
+      current.has(targetProjectId) ? current : new Set([...current, targetProjectId]),
+    );
+    await openDraft(targetProjectId);
   };
 
   const replaceTaskCache = (task: AgentTask) => {
@@ -332,7 +333,7 @@ export function ProjectSidebar({
       className="workbench-sidebar z-30 grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_auto] bg-sidebar shadow-divider"
     >
       <WorkbenchShortcuts
-        onNewTask={() => void navigate({ to: "/temporary" })}
+        onNewTask={() => void openDraft(TEMPORARY_TASK_SCOPE_ID)}
         onOpenSettings={() => onOpenSettings("appearance")}
         onSearchTasks={() => {
           setSearchState("open");
@@ -344,7 +345,7 @@ export function ProjectSidebar({
       <ProjectSidebarHeader onClose={onClose} onSearch={() => setSearchState("open")} />
 
       <nav className="space-y-0.5 px-2" aria-label={t("sidebar.agentNavigation")}>
-        <Link className={primaryActionClassName} to="/temporary">
+        <Link className={primaryActionClassName} to="/temporary" onClick={onNewTaskClick}>
           <Send className={primaryActionIconClassName} aria-hidden="true" />
           {t("sidebar.newTask")}
         </Link>
@@ -378,9 +379,7 @@ export function ProjectSidebar({
         isProjectActionPending={isProjectActionPending}
         isProjectAddPending={isProjectAddPending}
         normalizedQuery={normalizedQuery}
-        onOpenTemporaryDraft={() => {
-          void navigate({ to: "/temporary" });
-        }}
+        onOpenTemporaryDraft={() => void openDraft(TEMPORARY_TASK_SCOPE_ID)}
         onOpenProjectDraft={openProjectDraft}
         onOpenArchived={setArchivedProject}
         onOpenProjectPicker={(mode) => {

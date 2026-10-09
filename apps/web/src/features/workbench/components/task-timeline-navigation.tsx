@@ -1,3 +1,4 @@
+import { useTimelineNavigationHost } from "@codexly/ui/core/timeline-navigation-host";
 import type { AgentItem } from "@codexly/protocol";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -129,6 +130,7 @@ export function TaskTimelineNavigation({
   scrollContainerRef: RefObject<HTMLDivElement | null>;
   scrollbarWidth: number;
 }>) {
+  const navigationHost = useTimelineNavigationHost(scrollContainerRef);
   const { t } = useTranslation("conversation");
   const navigationRef = useRef<HTMLElement>(null);
   const getScrollElement = useCallback(() => navigationRef.current, []);
@@ -202,12 +204,6 @@ export function TaskTimelineNavigation({
     </nav>
   );
 
-  // 提升到 Workbench 根层，避免滚动容器裁剪固定目录与 Hover 预览。
-  if (typeof document === "undefined") {
-    return navigation;
-  }
-  return createPortal(
-    navigation,
-    document.querySelector<HTMLElement>(".workbench-shell") ?? document.body,
-  );
+  if (typeof document === "undefined") return navigation;
+  return navigationHost === null ? null : createPortal(navigation, navigationHost);
 }

@@ -1,4 +1,4 @@
-import { useNavigateSplitTask } from "@codexly/ui/core/split-workspace";
+import { useNavigateSplitTask, useOpenSplitDraft } from "@codexly/ui/core/split-workspace";
 import {
   TEMPORARY_TASK_SCOPE_ID,
   isAgentFastModeAvailable,
@@ -72,6 +72,7 @@ export function useWorkbenchShellController(
   { projectId, taskId, temporary = false }: WorkbenchShellControllerOptions,
 ) {
   const navigateSplitTask = useNavigateSplitTask();
+  const openSplitDraft = useOpenSplitDraft();
   const {
     activeTaskRenameLockRef,
     client,
@@ -374,21 +375,20 @@ export function useWorkbenchShellController(
   };
   const handleNewTaskProjectChange = useCallback(
     (nextProjectId: string) => {
-      // 空聊天切换只移动草稿路由，首次提交时再在目标范围创建真实 Task。
+      // 分屏草稿切换范围保留其他窗口，普通工作台沿用草稿路由。
+      if (nextProjectId === projectId || openSplitDraft(nextProjectId)) return;
       void (nextProjectId === TEMPORARY_TASK_SCOPE_ID
         ? navigate({ to: "/temporary" })
         : navigate({ params: { projectId: nextProjectId }, to: "/p/$projectId" }));
     },
-    [navigate],
+    [navigate, openSplitDraft, projectId],
   );
-
   const closeSidebar = () => {
     setSidebarOpen(false);
     requestAnimationFrame(() => {
       document.querySelector<HTMLButtonElement>("#workbench-sidebar-toggle")?.focus();
     });
   };
-
   const closeInspector = () => {
     setInspectorOpen(false);
     requestAnimationFrame(() => {

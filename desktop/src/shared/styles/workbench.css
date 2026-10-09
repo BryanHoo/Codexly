@@ -159,7 +159,7 @@ body:has(.workbench-background[data-has-image="true"]) [data-slot="tooltip-conte
 
 /* 用户消息目录位于中栏右侧，并在真实滚动条内侧继续保留 10px 间距。 */
 .task-timeline-navigation {
-  position: fixed;
+  position: absolute;
   z-index: 45;
   top: 50%;
   right: calc(

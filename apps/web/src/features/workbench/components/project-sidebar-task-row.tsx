@@ -1,3 +1,4 @@
+import { SidebarTaskAnchor } from "@codexly/ui/core/sidebar-task-anchor";
 import { getSplitAction, useSplitWorkspace } from "@codexly/ui/core/split-workspace";
 import { splitPaneKey } from "@codexly/frontend-core/split-workspace";
 import { PanelsTopLeft } from "lucide-react";
@@ -5,7 +6,8 @@ import { SidebarTaskLabel } from "@codexly/ui/core/sidebar-task-label";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@codexly/protocol";
 import { Archive, CircleCheck, CircleX, Clock3, Ellipsis, Pencil, Pin, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { createLink } from "@tanstack/react-router";
+const TaskRouteLink = createLink(SidebarTaskAnchor);
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -54,25 +56,30 @@ export function TaskLink({
   const { t } = useTranslation("workbench");
   const workspace = useSplitWorkspace();
   const pane = { projectId: task.projectId, taskId: task.id };
-  const selected =
-    workspace?.panes.some((item) => splitPaneKey(item) === splitPaneKey(pane)) === true;
   if (workspace !== null && workspace.panes.length > 0)
     active = workspace.activeKey === splitPaneKey(pane);
   const taskRoute = getTaskRoute(task.projectId, task.id);
 
   return (
     <div className="group relative min-w-0">
-      <Link
-        aria-current={active ? "page" : undefined}
+      <TaskRouteLink
+        taskActive={active}
         className={`flex h-8 min-w-0 items-center gap-2 rounded-control px-2 text-body-small transition-colors ${
           active
             ? "bg-control-active font-medium text-foreground"
             : "text-muted-foreground hover:bg-control-hover hover:text-foreground"
         }`}
         onClick={(event) => {
-          if (!selected || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-          event.preventDefault();
-          workspace.focus(pane);
+          if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+          )
+            return;
+          if (workspace?.select(pane)) event.preventDefault();
         }}
         {...taskRoute}
       >
@@ -83,7 +90,7 @@ export function TaskLink({
           isRunning={isRunning}
           updatedAt={task.updatedAt}
         />
-      </Link>
+      </TaskRouteLink>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button

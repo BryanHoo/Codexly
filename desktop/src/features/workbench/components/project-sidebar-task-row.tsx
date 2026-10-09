@@ -1,3 +1,4 @@
+import { SidebarTaskAnchor } from "@codexly/ui/core/sidebar-task-anchor";
 import { getSplitAction, useSplitWorkspace } from "@codexly/ui/core/split-workspace";
 import { splitPaneKey } from "@codexly/frontend-core/split-workspace";
 import { PanelsTopLeft } from "lucide-react";
@@ -18,7 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { createLink } from "@tanstack/react-router";
+const TaskRouteLink = createLink(SidebarTaskAnchor);
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -68,24 +70,31 @@ export function TaskLink({
   const { t } = useTranslation("workbench");
   const workspace = useSplitWorkspace();
   const pane = { projectId: task.projectId, taskId: task.id };
-  const selected = workspace?.panes.some((item) => splitPaneKey(item) === splitPaneKey(pane)) === true;
-  if (workspace !== null && workspace.panes.length > 0) active = workspace.activeKey === splitPaneKey(pane);
+  if (workspace !== null && workspace.panes.length > 0)
+    active = workspace.activeKey === splitPaneKey(pane);
   const taskRoute = getTaskRoute(task.projectId, task.id);
   const isActionPending = useTaskInteractionBlocked(task.projectId, task.id) || actionPending;
 
   return (
     <div className="group relative mr-1 min-w-0">
-      <Link
-        aria-current={active ? "page" : undefined}
+      <TaskRouteLink
+        taskActive={active}
         className={`flex h-8 min-w-0 items-center gap-2 rounded-control px-2 text-body-small transition-colors ${
           active
             ? "bg-control-active font-medium text-foreground"
             : "text-muted-foreground hover:bg-control-hover hover:text-foreground"
         }`}
         onClick={(event) => {
-          if (!selected || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-          event.preventDefault();
-          workspace.focus(pane);
+          if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+          )
+            return;
+          if (workspace?.select(pane)) event.preventDefault();
         }}
         {...taskRoute}
       >
@@ -96,7 +105,7 @@ export function TaskLink({
           isRunning={isRunning}
           updatedAt={task.updatedAt}
         />
-      </Link>
+      </TaskRouteLink>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
@@ -195,10 +204,7 @@ export function TaskStatusIndicator({
       role="status"
     >
       {presentation.icon ?? (
-        <span
-          aria-hidden="true"
-          className="task-status-dot block size-2 rounded-full bg-current"
-        />
+        <span aria-hidden="true" className="task-status-dot block size-2 rounded-full bg-current" />
       )}
     </span>
   );
@@ -240,15 +246,25 @@ export function TaskActionMenu({
       aria-labelledby={undefined}
       className="w-40"
     >
-      {splitAction !== null ? <DropdownMenuItem className={taskActionClassName} disabled={isPending || splitAction !== "add"} onSelect={() => workspace?.add(pane)}>
-        <PanelsTopLeft className="size-3.5" aria-hidden="true" />
-        {t(`split.${splitAction}`)}
-      </DropdownMenuItem> : null}
-      <DropdownMenuItem className={taskActionClassName} disabled={isPending} onSelect={() => {
-        void import("../../task-window/open-task-window.js")
-          .then(({ openTaskWindowFromMenu }) => openTaskWindowFromMenu(task.projectId, task.id))
-          .catch(() => toast.error(t("taskWindow.failed")));
-      }}>
+      {splitAction !== null ? (
+        <DropdownMenuItem
+          className={taskActionClassName}
+          disabled={isPending || splitAction !== "add"}
+          onSelect={() => workspace?.add(pane)}
+        >
+          <PanelsTopLeft className="size-3.5" aria-hidden="true" />
+          {t(`split.${splitAction}`)}
+        </DropdownMenuItem>
+      ) : null}
+      <DropdownMenuItem
+        className={taskActionClassName}
+        disabled={isPending}
+        onSelect={() => {
+          void import("../../task-window/open-task-window.js")
+            .then(({ openTaskWindowFromMenu }) => openTaskWindowFromMenu(task.projectId, task.id))
+            .catch(() => toast.error(t("taskWindow.failed")));
+        }}
+      >
         <ArrowUpRight className="size-3.5" aria-hidden="true" />
         {t("taskWindow.open")}
       </DropdownMenuItem>
@@ -270,11 +286,7 @@ export function TaskActionMenu({
         <Copy className="size-3.5" aria-hidden="true" />
         {t("sidebar.copyTaskId")}
       </DropdownMenuItem>
-      <DropdownMenuItem
-        className={taskActionClassName}
-        disabled={isPending}
-        onSelect={onArchive}
-      >
+      <DropdownMenuItem className={taskActionClassName} disabled={isPending} onSelect={onArchive}>
         <Archive className="size-3.5" aria-hidden="true" />
         {t("sidebar.archive")}
       </DropdownMenuItem>

@@ -1,3 +1,4 @@
+import { useRevealSplitComposer } from "@codexly/ui/core/split-composer";
 import type { AgentSkill } from "@/protocol/index.js";
 import {
   forwardRef,
@@ -35,6 +36,7 @@ type PromptSkillEditorProps = Omit<
 
 export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkillEditorProps>(
   function PromptSkillEditor({ content, onChange, skills, scope, ...props }, forwardedRef) {
+    const revealComposer = useRevealSplitComposer();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const contentRef = useRef(content);
     const skillsRef = useRef(skills);
@@ -62,6 +64,7 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
 
     useImperativeHandle(forwardedRef, () => ({
       focus(offset) {
+        revealComposer?.();
         const input = inputRef.current;
         input?.focus();
         if (offset !== undefined) input?.setSelectionRange(offset, offset);
@@ -87,6 +90,11 @@ export const PromptSkillEditor = forwardRef<PromptSkillEditorHandle, PromptSkill
           contentRef.current = nextContent;
           resize(input);
           onChange(nextContent, input.value, input.selectionStart);
+        }}
+        onFocus={(event) => {
+          // 收起期间恢复的草稿无法测量高度，展开聚焦时重新计算。
+          resize(event.currentTarget);
+          props.onFocus?.(event);
         }}
         ref={inputRef}
       />

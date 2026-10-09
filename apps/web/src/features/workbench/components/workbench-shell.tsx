@@ -1,3 +1,5 @@
+import type { SplitPaneIdentity } from "@codexly/frontend-core/split-workspace";
+import { SplitInspectorProvider } from "@codexly/ui/core/split-inspector";
 import {
   SplitWorkspaceProvider,
   SplitWorkspaceGrid,
@@ -26,30 +28,32 @@ function WorkbenchShellContent({
   const shell = useWorkbenchShellRuntime({ ...taskScope, temporary, workspaceOnly });
   const context = useWorkbenchShellController(shell, { ...taskScope, temporary });
   return (
-    <WorkbenchShellLayout
-      board={board}
-      context={context}
-      {...(workspaceOnly
-        ? {
-            workspaceContent: (
-              <SplitWorkspaceGrid
-                sidebarOpen={context.sidebarOpen}
-                label={context.t("split.label")}
-                toggleSidebar={() => {
-                  context.setSidebarOpen((open) => !open);
-                }}
-              >
-                {(pane) => <WorkbenchTaskPane projectId={pane.projectId} taskId={pane.taskId} />}
-              </SplitWorkspaceGrid>
-            ),
-          }
-        : {})}
-      {...(extensionSection === undefined ? {} : { extensionSection })}
-      scheduled={scheduled}
-      {...taskScope}
-      temporary={temporary}
-      {...(todoId === undefined ? {} : { todoId })}
-    />
+    <SplitInspectorProvider open={context.inspectorOpen} setOpen={context.setInspectorOpen}>
+      <WorkbenchShellLayout
+        board={board}
+        context={context}
+        {...(workspaceOnly
+          ? {
+              workspaceContent: (
+                <SplitWorkspaceGrid
+                  sidebarOpen={context.sidebarOpen}
+                  label={context.t("split.label")}
+                  toggleSidebar={() => {
+                    context.setSidebarOpen((open) => !open);
+                  }}
+                >
+                  {(pane) => <WorkbenchTaskPane {...pane} />}
+                </SplitWorkspaceGrid>
+              ),
+            }
+          : {})}
+        {...(extensionSection === undefined ? {} : { extensionSection })}
+        scheduled={scheduled}
+        {...taskScope}
+        temporary={temporary}
+        {...(todoId === undefined ? {} : { todoId })}
+      />
+    </SplitInspectorProvider>
   );
 }
 
@@ -68,22 +72,26 @@ export function WorkbenchShell(props: WorkbenchShellProps) {
 const WorkbenchTaskPane = memo(function WorkbenchTaskPane({
   projectId,
   taskId,
-}: {
-  projectId: string;
-  taskId: string;
-}) {
+  draftId,
+}: SplitPaneIdentity) {
   const pane = useContext(SplitPaneContext);
   if (pane === null) throw new Error("Missing split pane provider");
   const temporary = projectId === TEMPORARY_TASK_SCOPE_ID;
-  const scope = { projectId, taskId, temporary };
+  const scope = { projectId, ...(taskId === undefined ? {} : { taskId }), temporary };
   const shell = useWorkbenchShellRuntime({
     ...scope,
     paneOnly: true,
     paneActive: pane.active,
-    compactPane: pane.multiple,
   });
   const context = useWorkbenchShellController(shell, scope);
   return (
-    <WorkbenchShellLayout context={context} {...scope} board={false} scheduled={false} embedded />
+    <WorkbenchShellLayout
+      context={context}
+      {...scope}
+      {...(draftId === undefined ? {} : { composerDraftId: draftId })}
+      board={false}
+      scheduled={false}
+      embedded
+    />
   );
 });
