@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createAppUpdateService,
@@ -13,6 +13,9 @@ const official = "https://registry.npmjs.org";
 const installedPackageRoot = "/installed/lib/node_modules/@bryanhu/codexly";
 
 describe("app update registry selection", () => {
+  beforeEach(() => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null));
+  });
   it("identifies release notes requests with the same User-Agent", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")
@@ -28,7 +31,7 @@ describe("app update registry selection", () => {
     expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({ "user-agent": "Codexly" });
   });
 
-  it("checks the mirror first without contacting the official registry on success", async () => {
+  it("checks the official registry when its probe succeeds first", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(Response.json({ latest: "1.4.0" }));
@@ -39,24 +42,34 @@ describe("app update registry selection", () => {
     });
 
     await expect(service.read()).resolves.toMatchObject({ latestVersion: "1.4.0" });
-    expect(fetch).toHaveBeenCalledOnce();
-    expect(fetch.mock.calls[0]?.[0]).toBe(`${mirror}/-/package/%40bryanhu%2Fcodexly/dist-tags`);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch.mock.calls[2]?.[0]).toBe(`${official}/-/package/%40bryanhu%2Fcodexly/dist-tags`);
   });
 
   it.each(["network", "missing", "invalid", "timeout"])(
     "falls back to the official registry after a %s mirror failure",
     async (failure) => {
-      const fetch = vi.spyOn(globalThis, "fetch");
-      if (failure === "network" || failure === "timeout") {
-        fetch.mockRejectedValueOnce(new Error(failure));
-      } else {
-        fetch.mockResolvedValueOnce(
-          failure === "missing"
-            ? new Response("", { status: 404 })
-            : Response.json({ latest: "bad" }),
-        );
-      }
-      fetch.mockResolvedValueOnce(Response.json({ latest: "1.4.0" }));
+      let attempted = false;
+      const fetch = vi.spyOn(globalThis, "fetch").mockImplementation((url, init) => {
+        if (init?.method === "HEAD") {
+          return Promise.resolve(
+            new Response(null, {
+              status: typeof url === "string" && url.startsWith(mirror) ? 200 : 503,
+            }),
+          );
+        }
+        if (!attempted) {
+          attempted = true;
+          if (failure === "network" || failure === "timeout")
+            return Promise.reject(new Error(failure));
+          return Promise.resolve(
+            failure === "missing"
+              ? new Response("", { status: 404 })
+              : Response.json({ latest: "bad" }),
+          );
+        }
+        return Promise.resolve(Response.json({ latest: "1.4.0" }));
+      });
       const service = createAppUpdateService({
         appVersion: "1.3.0",
         codexVersion: "0.162.0",
@@ -64,7 +77,9 @@ describe("app update registry selection", () => {
       });
 
       await expect(service.read()).resolves.toMatchObject({ latestVersion: "1.4.0" });
-      expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      expect(
+        fetch.mock.calls.filter(([, init]) => init?.method !== "HEAD").map(([url]) => url),
+      ).toEqual([
         `${mirror}/-/package/%40bryanhu%2Fcodexly/dist-tags`,
         `${official}/-/package/%40bryanhu%2Fcodexly/dist-tags`,
       ]);
@@ -77,6 +92,13 @@ describe("app update registry selection", () => {
   it.each(["pack", "install"])(
     "retries failed remote %s with the official registry and revalidates stale cache metadata",
     async (failedCommand) => {
+      const fetch = vi.spyOn(globalThis, "fetch").mockImplementation((url) =>
+        Promise.resolve(
+          new Response(null, {
+            status: typeof url === "string" && url.startsWith(mirror) ? 200 : 503,
+          }),
+        ),
+      );
       const runNpm = vi.fn((args: readonly string[]) => {
         const isRemote = args[0] === "install" || args.at(-1)?.startsWith("@bryanhu/");
         if (isRemote && args[0] === failedCommand && args.includes(`--registry=${mirror}`)) {
@@ -93,6 +115,8 @@ describe("app update registry selection", () => {
       });
 
       const commands = runNpm.mock.calls.map(([args]) => args);
+      // 包下载和依赖安装复用同一组探测，不因切源重试再次探测。
+      expect(fetch).toHaveBeenCalledTimes(2);
       expect(commands[0]).not.toContain(`--registry=${mirror}`);
       const remote = commands.slice(1);
       for (const args of remote) {

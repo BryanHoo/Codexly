@@ -13,6 +13,7 @@ use super::{
 use crate::domain::runtime::CodexRuntimeInstallProgress;
 
 const MAX_DOWNLOAD_BYTES: u64 = 192 * 1024 * 1024;
+const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 const MIRROR_TIMEOUT: Duration = Duration::from_secs(90);
 const OFFICIAL_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
@@ -72,31 +73,65 @@ async fn download_from_sources<OnProgress>(
 where
     OnProgress: Fn(CodexRuntimeInstallProgress) + Send + Sync,
 {
+    // 两个源并行发送 HEAD，请求涵盖实际压缩包及其 CDN 跳转，但不下载包体。
+    // 最先成功的探测决定顺序；两个探测都失败时按官方源优先尝试真实下载。
+    let prefer_mirror = {
+        let official_probe = probe_source(client, urls[0]);
+        let mirror_probe = probe_source(client, urls[1]);
+        tokio::pin!(official_probe, mirror_probe);
+        tokio::select! {
+            biased;
+            result = &mut official_probe => result.is_err() && mirror_probe.await.is_ok(),
+            result = &mut mirror_probe => {
+                if result.is_ok() {
+                    true
+                } else {
+                    let _ = official_probe.await;
+                    false
+                }
+            }
+        }
+    };
+    // 未完成的探测随 Future 释放而取消；下载超时跟随源本身，不跟随排序位置。
+    let mut sources = [(urls[0], OFFICIAL_TIMEOUT), (urls[1], MIRROR_TIMEOUT)];
+    if prefer_mirror {
+        sources.swap(0, 1);
+    }
     match download_source(
         client,
-        urls[0],
+        sources[0].0,
         integrity,
         archive_path,
         progress,
-        MIRROR_TIMEOUT,
+        sources[0].1,
     )
     .await
     {
         Ok(()) => Ok(()),
-        // 本地写入失败与下载源无关；网络、大小或校验失败才回退一次官方源。
+        // 本地写入失败与下载源无关；网络、大小或校验失败才切换一次备用源。
         Err(error @ RuntimeInstallError::Filesystem(_)) => Err(error),
         Err(_) => {
             download_source(
                 client,
-                urls[1],
+                sources[1].0,
                 integrity,
                 archive_path,
                 progress,
-                OFFICIAL_TIMEOUT,
+                sources[1].1,
             )
             .await
         }
     }
+}
+
+async fn probe_source(client: &Client, url: &str) -> Result<(), reqwest::Error> {
+    client
+        .head(url)
+        .timeout(PROBE_TIMEOUT)
+        .send()
+        .await?
+        .error_for_status()?;
+    Ok(())
 }
 
 async fn download_source<OnProgress>(

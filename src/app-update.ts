@@ -13,8 +13,10 @@ import {
 } from "./app-update-command.js";
 import {
   runNpmWithRegistryFallback,
+  selectRegistryOrder,
   withRegistryFallback,
   type RunNpmOptions,
+  type RegistryOrder,
 } from "./npm-registry.js";
 
 import type {
@@ -269,8 +271,15 @@ export async function installGlobalPackageSafely(
   options: SafeGlobalInstallOptions = {},
 ): Promise<void> {
   const runNpm = options.runNpm ?? runNpmCommand;
-  const runRemoteNpm: NonNullable<SafeGlobalInstallOptions["runNpm"]> = (args, runOptions) =>
-    runNpmWithRegistryFallback(runNpm, args, runOptions);
+  let registryOrder: Promise<RegistryOrder> | undefined;
+  const runRemoteNpm: NonNullable<SafeGlobalInstallOptions["runNpm"]> = async (
+    args,
+    runOptions,
+  ) => {
+    // 仅在真正需要远程依赖时探测；下载、安装和回滚共用本次更新的结果。
+    registryOrder ??= selectRegistryOrder(runOptions?.signal);
+    return runNpmWithRegistryFallback(runNpm, args, runOptions, await registryOrder);
+  };
   const currentPackageRoot = options.currentPackageRoot ?? (await findCurrentPackageRoot());
   // 始终写回当前安装前缀，避免 PATH 中的其他 Node/npm 把更新装入另一套全局目录。
   const installPrefix = `--prefix=${resolveGlobalNpmPrefix(currentPackageRoot)}`;

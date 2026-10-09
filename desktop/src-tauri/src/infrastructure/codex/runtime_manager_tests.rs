@@ -28,7 +28,7 @@ async fn staged_runtime_should_allow_cold_launch_without_relaxing_regular_probes
 }
 
 #[test]
-fn runtime_download_should_prefer_the_domestic_mirror_on_every_platform() {
+fn runtime_download_should_default_to_official_before_network_selection_on_every_platform() {
     for (os, arch) in [
         ("macos", "aarch64"),
         ("macos", "x86_64"),
@@ -39,9 +39,7 @@ fn runtime_download_should_prefer_the_domestic_mirror_on_every_platform() {
     ] {
         let distribution = distribution_for(os, arch).unwrap();
         assert!(
-            distribution
-                .url
-                .starts_with("https://registry.npmmirror.com/"),
+            distribution.url.starts_with("https://registry.npmjs.org/"),
             "unexpected primary download URL: {}",
             distribution.url
         );
@@ -107,7 +105,7 @@ fn distribution_should_be_fixed_to_the_official_supported_package() {
         let distribution = distribution_for(os, arch).unwrap();
         assert_eq!(distribution.target, target);
         assert_eq!(
-            distribution.fallback_url,
+            distribution.url,
             format!(
                 "https://registry.npmjs.org/@openai/codex/-/codex-0.162.0-{package_suffix}.tgz"
             )

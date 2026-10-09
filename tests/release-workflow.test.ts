@@ -15,13 +15,13 @@ describe("release verification", () => {
     }
   });
 
-  it("documents update commands that revalidate stale npm metadata", () => {
+  it("documents npm installation and updates without overriding the default registry", () => {
     for (const readmePath of ["README.md", "README.zh-CN.md"]) {
       const readme = readFileSync(readmePath, "utf8");
 
       expect(readme).not.toContain("--prefer-offline");
-      expect(readme).toContain("--registry=https://registry.npmmirror.com");
-      expect(readme).toContain("--registry=https://registry.npmjs.org");
+      expect(readme).toContain("npm install --global @bryanhu/codexly@latest");
+      expect(readme).not.toContain("--registry=");
     }
   });
 

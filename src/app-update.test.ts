@@ -68,6 +68,7 @@ describe("app update service", () => {
   });
 
   it("restores the installed package from a local backup when replacement fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null));
     const commands: string[][] = [];
     const progress: string[] = [];
     const runNpm = vi.fn((args: readonly string[]) => {
