@@ -29,6 +29,31 @@ const queuedPrompt: QueuedComposerPrompt = {
 };
 
 describe("composer queue state", () => {
+  it("does not retain a pending prompt when its event arrived before the request response", () => {
+    const accepted = { ...waitingPrompt, userMessageIds: [] };
+    expect(
+      retainAcceptedSteerPrompt([], accepted, () => "generated", {
+        getItemByKey: () => ({
+          id: "already-delivered",
+          type: "message",
+          role: "user",
+          text: accepted.text,
+        }),
+        itemKeysByTurnId: { "turn-1": ["already-delivered"] },
+        turnsById: {},
+      }),
+    ).toEqual([]);
+  });
+  it.each(["completed", "failed"] as const)(
+    "clears pending delivery on %s without a new user item",
+    (status) => {
+      expect(
+        hasQueuedPromptFinishedInSnapshot(waitingPrompt, {
+          turns: [{ id: "turn-1", items: [], status }],
+        }),
+      ).toBe(true);
+    },
+  );
   it("switches a started queued image to the submitted Task preview", () => {
     const files = [
       {

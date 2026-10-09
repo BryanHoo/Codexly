@@ -1,3 +1,4 @@
+import { hasPromptDeliveryFinished } from "@codexly/frontend-core/prompt-delivery";
 import type { AgentItem, AgentQueuedSubmission, AgentSkill, AgentTurn } from "@codexly/protocol";
 
 import type { PromptInputAttachment } from "../../shared/components/agent/prompt-input.js";
@@ -82,6 +83,7 @@ export function retainAcceptedSteerPrompt(
   prompts: readonly QueuedComposerPrompt[],
   accepted: AcceptedSteerPrompt,
   createId: () => string,
+  state?: Pick<TaskStoreState, "getItemByKey" | "itemKeysByTurnId" | "turnsById">,
 ): readonly QueuedComposerPrompt[] {
   const waitingPrompt: QueuedComposerPrompt = {
     files: accepted.files,
@@ -92,6 +94,10 @@ export function retainAcceptedSteerPrompt(
     turnId: accepted.turnId,
     userMessageIds: accepted.userMessageIds,
   };
+  // 事件可能早于提交响应；创建 loading 前读取现态，避免等待一个已经到达的事件。
+  if (state !== undefined && hasQueuedPromptFinishedInStore(waitingPrompt, state)) {
+    return prompts.filter((prompt) => prompt.id !== waitingPrompt.id);
+  }
   if (accepted.id === undefined || !prompts.some((prompt) => prompt.id === accepted.id)) {
     return [...prompts, waitingPrompt];
   }
@@ -146,8 +152,7 @@ function isAwaitingSteerFinished(
   userMessageIds: readonly string[],
   turnStatus: AgentTurn["status"] | undefined,
 ): boolean {
-  // 中断后不会再产生引导对应的用户消息，必须以权威终态结束本地 loading。
-  return turnStatus === "interrupted" || hasQueuedPromptReceivedUserMessage(prompt, userMessageIds);
+  return hasPromptDeliveryFinished(prompt.userMessageIds, userMessageIds, turnStatus);
 }
 
 export function hasQueuedPromptFinishedInSnapshot(

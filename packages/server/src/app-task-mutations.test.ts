@@ -207,7 +207,20 @@ describe("server task mutations", () => {
   });
 
   it("serves the complete persistent task queue API", async () => {
-    const { app, queue, startTurn } = await createHarness();
+    const { app, queue, startTurn, readTask } = await createHarness();
+    readTask.mockResolvedValue({
+      ...snapshot,
+      turns: [
+        {
+          id: "active",
+          status: "running",
+          items: [],
+          error: null,
+          startedAt: null,
+          completedAt: null,
+        },
+      ],
+    });
     const baseUrl = "/v1/projects/codexly/tasks/task-1/queue";
     const add = await app.inject({
       headers: { "idempotency-key": "queue-add-1" },
@@ -241,6 +254,7 @@ describe("server task mutations", () => {
       payload: { queuedSubmissionId },
       url: `${baseUrl}/start`,
     });
+    readTask.mockResolvedValue(snapshot);
     const resumed = await app.inject({
       headers: { "idempotency-key": "queue-update-2" },
       method: "PUT",

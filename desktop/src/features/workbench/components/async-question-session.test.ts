@@ -3,6 +3,36 @@ import { createQuestionDraftStore, saveQuestionDraft, type QuestionDraft } from 
 
 const draft: QuestionDraft = { answers: [{ choice: null, text: "answer" }], status: "editing", error: false };
 
+test("preserves accepted answers after reopening and draft eviction without hiding failed answers", () => {
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); } };
+  const scope = JSON.stringify(["project-a", "task-a"]);
+  const store = createQuestionDraftStore(scope, storage);
+  saveQuestionDraft(store, "accepted", { ...draft, status: "sent" });
+  saveQuestionDraft(store, "failed", { ...draft, error: true });
+  for (let index = 0; index < 130; index++) saveQuestionDraft(store, `${index}`, draft);
+  expect(store.getState().sentIds.has("accepted")).toBe(true);
+  const reopened = createQuestionDraftStore(scope, storage);
+  expect(reopened.getState().sentIds.has("accepted")).toBe(true);
+  expect(reopened.getState().sentIds.has("failed")).toBe(false);
+  expect(createQuestionDraftStore("another-task", storage).getState().sentIds.size).toBe(0);
+});
+
+test("shares an in-flight answer across task navigation until the original request finishes", () => {
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); } };
+  const original = createQuestionDraftStore("task-a", storage);
+  saveQuestionDraft(original, "question", { ...draft, status: "sending" });
+  const returned = createQuestionDraftStore("task-a", storage);
+  expect(returned).toBe(original);
+  expect(returned.getState().drafts.get("question")?.status).toBe("sending");
+  saveQuestionDraft(original, "question", { ...draft, status: "sent" });
+  expect(returned.getState().sentIds.has("question")).toBe(true);
+  expect(createQuestionDraftStore("task-a", storage)).not.toBe(original);
+});
+
 test("dismisses untouched questions and preserves existing drafts without marking them sent", () => {
   const store = createQuestionDraftStore();
   store.getState().dismiss("untouched");

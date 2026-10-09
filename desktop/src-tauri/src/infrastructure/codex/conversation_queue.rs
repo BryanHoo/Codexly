@@ -125,6 +125,29 @@ pub struct StartQueuedSubmissionResponse {
     pub turn: AgentTurn,
 }
 
+pub(super) async fn has_queued_submissions(
+    connection: &AppServerConnection,
+    task_id: &str,
+) -> Result<bool, ConnectionError> {
+    #[derive(Deserialize)]
+    struct QueuePresence {
+        data: Vec<serde::de::IgnoredAny>,
+    }
+    // 释放线程只需判断队列非空；最多读取首项，跳过正文、附件和技能的构造与映射。
+    let response: QueuePresence = connection
+        .request(
+            "thread/queue/list",
+            &ListParams {
+                cursor: None,
+                limit: 1,
+                thread_id: task_id,
+            },
+            REQUEST_TIMEOUT,
+        )
+        .await?;
+    Ok(!response.data.is_empty())
+}
+
 pub async fn list_queued_submissions(
     connection: &AppServerConnection,
     task_id: &str,

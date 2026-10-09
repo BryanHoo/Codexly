@@ -72,24 +72,27 @@ export class PersistentTaskQueue {
     input: AgentPromptInput,
     clientUserMessageId: string,
   ): Promise<AgentQueuedSubmission> {
-    const { attachmentIds } = await this.#resolveProviderInput(
-      runtime.projectId,
-      input,
-      runtime.provider,
-      runtime.taskId,
-    );
-    const storedInput = { ...input, attachments: attachmentIds.map((id) => ({ id })) };
-    const record = await this.#repository.addQueue({
-      clientUserMessageId,
-      id: randomUUID(),
-      input: storedInput,
-      projectId: runtime.projectId,
-      status: "queued",
-      taskId: runtime.taskId,
+    // 入队和附件保留必须与终态续发互斥，避免刚写入的记录提前被消费。
+    return this.#withTaskLock(runtime, async () => {
+      const { attachmentIds } = await this.#resolveProviderInput(
+        runtime.projectId,
+        input,
+        runtime.provider,
+        runtime.taskId,
+      );
+      const storedInput = { ...input, attachments: attachmentIds.map((id) => ({ id })) };
+      const record = await this.#repository.addQueue({
+        clientUserMessageId,
+        id: randomUUID(),
+        input: storedInput,
+        projectId: runtime.projectId,
+        status: "queued",
+        taskId: runtime.taskId,
+      });
+      await this.#attachmentStore.retainQueue(runtime.projectId, attachmentIds, record.id);
+      this.#publishChanged(runtime);
+      return this.#mapRecord(record);
     });
-    await this.#attachmentStore.retainQueue(runtime.projectId, attachmentIds, record.id);
-    this.#publishChanged(runtime);
-    return this.#mapRecord(record);
   }
 
   public async delete(runtime: QueueRuntime, queuedSubmissionId: string): Promise<boolean> {

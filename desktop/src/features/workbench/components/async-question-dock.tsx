@@ -26,7 +26,7 @@ function QuestionDockContent({ entries, session }: Readonly<{
 }>) {
   const { t } = useTranslation("conversation");
   const pending = useStore(session.store, useShallow((state) =>
-    entries.filter((entry) => state.drafts.get(entry.item.id)?.status !== "sent" && !state.dismissedIds.has(entry.item.id))));
+    entries.filter((entry) => !state.sentIds.has(entry.item.id) && !state.dismissedIds.has(entry.item.id))));
   const [selectedKey, setSelectedKey] = useState<string>();
   const [collapsed, setCollapsed] = useState(false);
   const contentId = useId();

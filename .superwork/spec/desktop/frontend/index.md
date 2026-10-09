@@ -2,6 +2,9 @@
 
 代码位于 `desktop/src/`。路由与全局 Provider 在 `app/`，业务页面和运行时状态在 `features/`，通用组件在 `shared/`。`features/conversation/runtime/` 管理任务流与恢复。
 
+- 异步问题发送成功后按项目与任务持久化问题身份，独立于草稿淘汰和历史分页；失败仍可重试。切换任务时仅共享在途投递的状态，结果返回后释放共享登记，禁止重复提交。
+- 待发送提示使用共享 `frontend-core/prompt-delivery` 规则，在新用户消息或权威回合终态到达后清理；请求响应和返回任务时均检查当前 Store，不能等待已经错过的事件。
+
 - 遵守 `desktop/AGENTS.md`：只面向桌面端，重点控制资源、传输和渲染开销。
 - `src/protocol/` 对任务、事件与项目的公共字段引用 `@codexly/protocol`；`receivedAtUnixMs` 等原生传输字段保留在桌面协议扩展中。
 - 修改任务流时检查 `task-store-*`、`project-runtime-*` 及对应测试；修改窗口或原生能力时联查[桌面原生层](../backend/index.md)。

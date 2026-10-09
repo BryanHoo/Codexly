@@ -90,7 +90,7 @@ export function useComposerQueue({
     if (store === undefined) {
       return undefined;
     }
-    return store.subscribe((state) => {
+    const reconcile = (state: ReturnType<typeof store.getState>) => {
       setAwaitingSteers((current) =>
         current.filter((entry) => {
           if (entry.scope !== routeScope || entry.prompt.status !== "awaiting-response") {
@@ -99,7 +99,10 @@ export function useComposerQueue({
           return !hasQueuedPromptFinishedInStore(entry.prompt, state);
         }),
       );
-    });
+    };
+    // 返回任务时先清理离开期间已完成的投递，无需等待下一条运行事件。
+    reconcile(store.getState());
+    return store.subscribe(reconcile);
   }, [routeScope, runtime?.store]);
 
   const applyQueue = (queue: AgentQueuedSubmissionList) => {
@@ -189,7 +192,12 @@ export function useComposerQueue({
       const prompts = current
         .filter((entry) => entry.scope === routeScope)
         .map((entry) => entry.prompt);
-      const retained = retainAcceptedSteerPrompt(prompts, accepted, createUuid);
+      const retained = retainAcceptedSteerPrompt(
+        prompts,
+        accepted,
+        createUuid,
+        runtime?.store?.getState(),
+      );
       return [
         ...current.filter((entry) => entry.scope !== routeScope),
         ...retained.map((prompt) => ({ prompt, scope: routeScope })),

@@ -107,6 +107,28 @@ describe("resuming an edited queue", () => {
 });
 
 describe("server-owned queue dispatch", () => {
+  it("does not dispatch an enqueue before its attachments are retained", async () => {
+    const { runtime, createQueue, attachmentStore, startTurn } = setup();
+    let release!: () => void;
+    const retained = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const retain = vi.spyOn(attachmentStore, "retainQueue").mockReturnValue(retained);
+    const queue = createQueue();
+    const adding = queue.add(runtime, prompt, "message");
+    await vi.waitFor(() => {
+      expect(retain).toHaveBeenCalledOnce();
+    });
+    const starting = queue.startNext(runtime);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(startTurn).not.toHaveBeenCalled();
+    } finally {
+      release();
+      await Promise.all([adding, starting]);
+    }
+    expect(startTurn).toHaveBeenCalledOnce();
+  });
   it("steers a running turn and transfers attachments before removing the queue record", async () => {
     const { runtime, createQueue, readTask, steerTurn, startTurn, repository, attachmentStore } =
       setup();

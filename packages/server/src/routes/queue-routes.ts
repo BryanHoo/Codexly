@@ -102,7 +102,19 @@ export const registerQueueRoutes: FastifyPluginCallback<ServerRouteContext> = (
         ["queue-add", request.params.projectId, request.params.taskId],
         request.headers["idempotency-key"],
         request.body,
-        () => taskQueue.add(runtime, request.body.input, request.body.clientUserMessageId),
+        async () => {
+          const submission = await taskQueue.add(
+            runtime,
+            request.body.input,
+            request.body.clientUserMessageId,
+          );
+          // 入队可能晚于回合终态事件；沿同一任务锁补查空闲状态，禁止自动 steer。
+          // 投递失败不撤销持久化入队；同一个幂等键重放时也不能消费下一条消息。
+          await taskQueue.startNext(runtime).catch((error: unknown) => {
+            request.log.error({ err: error }, "Failed to dispatch queued submission");
+          });
+          return submission;
+        },
       );
       return reply.code(201).send({
         queue: { data: await taskQueue.list(runtime) },

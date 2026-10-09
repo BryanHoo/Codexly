@@ -229,6 +229,7 @@ async fn unsubscribe_task_should_preserve_active_runtime_and_release_idle_thread
                 "thread/backgroundTerminals/list",
                 json!({"data": [], "nextCursor": null}),
             ),
+            ("thread/queue/list", json!({"data": [], "nextCursor": null})),
             ("thread/unsubscribe", json!({"status": "unsubscribed"})),
         ];
         for (method, result) in cases {
@@ -286,6 +287,43 @@ async fn unsubscribe_task_should_report_busy_without_releasing_active_thread() {
     let response = unsubscribe_task(&connection, "project-a", "thread-a")
         .await
         .expect("active thread should report busy");
+    assert_eq!(response.status, "busy");
+    server_task.await.unwrap();
+}
+
+#[tokio::test]
+async fn unsubscribe_task_should_preserve_idle_thread_with_queued_messages() {
+    let (client, server) = duplex(16 * 1024);
+    let (client_reader, client_writer) = split(client);
+    let (server_reader, mut server_writer) = split(server);
+    let connection = AppServerConnection::new(client_reader, client_writer);
+    let server_task = tokio::spawn(async move {
+        let mut lines = BufReader::new(server_reader).lines();
+        for (method, result) in [
+            ("thread/read", json!({"thread": task_thread("Idle", false)})),
+            (
+                "thread/backgroundTerminals/list",
+                json!({"data": [], "nextCursor": null}),
+            ),
+            (
+                "thread/queue/list",
+                json!({"data": [{"id": "queued-a", "clientUserMessageId": "message-a", "input": [{"type": "text", "text": "继续", "text_elements": []}]}], "nextCursor": null}),
+            ),
+        ] {
+            let request: Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert_eq!(request["method"], method);
+            server_writer
+                .write_all(
+                    format!("{}\n", json!({"id": request["id"], "result": result})).as_bytes(),
+                )
+                .await
+                .unwrap();
+        }
+    });
+    let response = unsubscribe_task(&connection, "project-a", "thread-a")
+        .await
+        .unwrap();
     assert_eq!(response.status, "busy");
     server_task.await.unwrap();
 }

@@ -17,6 +17,7 @@ export function AsyncQuestions({ item }: Readonly<{ item: MessageItem }>) {
   const [fallbackStore] = useState(createQuestionDraftStore);
   const store = session?.store ?? fallbackStore;
   const draft = useStore(store, (state) => state.drafts.get(item.id));
+  const sent = useStore(store, (state) => state.sentIds.has(item.id));
   const [initial] = useState<QuestionDraft>(() => ({
     answers: (item.questions ?? []).map((question) => ({
       choice: question.options === null ? null : 0, text: "",
@@ -25,7 +26,7 @@ export function AsyncQuestions({ item }: Readonly<{ item: MessageItem }>) {
   const current = draft ?? initial;
   const name = useId();
   const questions = item.questions ?? [];
-  const disabled = session?.enabled !== true || current.status !== "editing";
+  const disabled = session?.enabled !== true || sent || current.status !== "editing";
   const answerTexts = questions.map((question, index) => {
     const answer = current.answers[index];
     return answer?.choice === null ? answer.text.trim() : question.options?.[answer?.choice ?? 0] ?? "";
@@ -40,7 +41,7 @@ export function AsyncQuestions({ item }: Readonly<{ item: MessageItem }>) {
   };
   const submit = async () => {
     const status = store.getState().drafts.get(item.id)?.status ?? "editing";
-    if (!valid || session?.enabled !== true || status !== "editing") return;
+    if (!valid || session?.enabled !== true || store.getState().sentIds.has(item.id) || status !== "editing") return;
     saveQuestionDraft(store, item.id, { ...current, status: "sending", error: false });
     let accepted = false;
     try { accepted = await session.submit(text); } catch { /* 失败保留草稿，允许用户重试。 */ }
@@ -77,8 +78,8 @@ export function AsyncQuestions({ item }: Readonly<{ item: MessageItem }>) {
     <div className="flex items-center gap-2">
       <Button disabled={disabled || !valid} type="submit" size="sm">
         {current.status === "sending" ? <LoaderCircle className="size-3.5 animate-spin" /> :
-          current.status === "sent" ? <Check className="size-3.5" /> : <Send className="size-3.5" />}
-        {t(current.status === "sent" ? "asyncQuestions.sent" : "asyncQuestions.send")}
+          sent ? <Check className="size-3.5" /> : <Send className="size-3.5" />}
+        {t(sent ? "asyncQuestions.sent" : "asyncQuestions.send")}
       </Button>
       {current.error ? <span className="text-label text-danger" role="alert">{t("asyncQuestions.failed")}</span> : null}
     </div>

@@ -12,8 +12,30 @@ const running = {
   completedAt: null,
 };
 
+test("dispatches an enqueue that arrives after the previous turn completed", async () => {
+  const { app, startTurn, readTask } = await createHarness();
+  readTask.mockResolvedValue({ ...snapshot, turns: [] });
+  const added = await app.inject({
+    method: "POST",
+    url: base,
+    headers: { "idempotency-key": "late-add" },
+    payload: { input, clientUserMessageId: "late-message" },
+  });
+  expect(added.statusCode).toBe(201);
+  expect(startTurn).toHaveBeenCalledOnce();
+  expect(added.json()).toMatchObject({ queue: { data: [] } });
+  await app.inject({
+    method: "POST",
+    url: base,
+    headers: { "idempotency-key": "late-add" },
+    payload: { input, clientUserMessageId: "late-message" },
+  });
+  expect(startTurn).toHaveBeenCalledOnce();
+});
+
 test("blocks retries when saving an edit has an unknown launch result", async () => {
-  const { app, startTurn } = await createHarness();
+  const { app, startTurn, readTask } = await createHarness();
+  readTask.mockResolvedValue({ ...snapshot, turns: [running] });
   const added = await app.inject({
     method: "POST",
     url: base,
@@ -27,6 +49,7 @@ test("blocks retries when saving an edit has an unknown launch result", async ()
     headers: { "idempotency-key": "edit" },
     payload: { input, status: "editing" },
   });
+  readTask.mockResolvedValue(snapshot);
   startTurn.mockRejectedValueOnce(new Error("response lost"));
   const save = await app.inject({
     method: "PUT",
@@ -47,6 +70,7 @@ test("blocks retries when saving an edit has an unknown launch result", async ()
 
 test("dispatches from the server snapshot and replays concurrent requests without steering twice", async () => {
   const { app, readTask, steerTurn, startTurn } = await createHarness();
+  readTask.mockResolvedValue({ ...snapshot, turns: [running] });
   const added = await app.inject({
     method: "POST",
     url: base,

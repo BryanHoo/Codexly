@@ -2,6 +2,8 @@
 
 `packages/server/src/app.ts` 创建服务并注册 `routes/`；`server-delivery.ts` 配置交付层，`project-runtime-context.ts` 组织项目运行时。SQLite 仓储和 Worker 在 `sqlite-*` 文件中，Codex Provider 通过 `CreateCodexlyServerOptions` 注入。
 
+- 入队与附件保留共用任务执行锁；入队完成后检查空闲并续发，覆盖入队晚于回合终态事件的竞态。续发属于同次幂等操作，重放不得消费下一项；入队已持久化后投递失败不得误报入队失败。自动续发不能 steer 运行中的回合。
+
 - HTTP 输入与错误边界由 `routes/`、`routes/schemas.ts` 维护；修改接口要同步客户端和协议。
 - 持久化变更检查 `sqlite-state-migrations.ts`、Worker、仓储测试和重启恢复场景。
 - 实时任务、队列与定时任务变更分别检查 `agent-event-stream.ts`、`persistent-task-queue.ts`、`scheduled-task-*` 及对应测试。

@@ -368,6 +368,8 @@ pub async fn unsubscribe_task(
             .await?
             .data
             .is_empty()
+        // Core 在终态后才触发队列续发；此处不得在短暂 idle 窗口卸载仍有排队消息的线程。
+        || super::conversation_queue::has_queued_submissions(connection, task_id).await?
     {
         return Ok(AgentTaskStatusResponse {
             status: "busy",
