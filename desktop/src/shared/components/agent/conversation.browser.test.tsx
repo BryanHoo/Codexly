@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
 
@@ -16,6 +17,50 @@ async function settleVirtualScroll(): Promise<void> {
 }
 
 describe("Conversation visual anchor", () => {
+  it("历史导航后立即重新测量尾部时保持目标位置", async () => {
+    let navigateToHistory: () => void = () => undefined;
+    let resizeFooter: () => void = () => undefined;
+    const items = Array.from({ length: 20 }, (_, index) => `turn-${String(index)}`);
+    function NavigationHarness() {
+      const [footerHeight, setFooterHeight] = useState(80);
+      useEffect(() => {
+        resizeFooter = () => setFooterHeight(160);
+        return () => { resizeFooter = () => undefined; };
+      }, []);
+      return (
+        <ConversationList
+          conversationId="history-navigation-measurement"
+          getItemKey={(turnId) => turnId}
+          items={items}
+          footer={<div style={{ height: footerHeight }}>footer</div>}
+          renderItem={(turnId) => (
+            <div data-conversation-anchor={turnId} style={{ height: 240 }}>
+              {turnId}
+            </div>
+          )}
+          renderNavigation={(navigate) => {
+            navigateToHistory = () => navigate(2, "turn-2");
+            return null;
+          }}
+          style={{ height: 320, overflowY: "auto" }}
+        />
+      );
+    }
+    const screen = await render(<NavigationHarness />);
+    await settleVirtualScroll();
+    // 模拟 WebKit 原生 scroll 事件尚未送达时，异步尾部内容已经触发同步测量。
+    navigateToHistory();
+    flushSync(resizeFooter);
+    await settleVirtualScroll();
+    const container = screen.getByRole("log").element();
+    const target = container.querySelector<HTMLElement>('[data-conversation-anchor="turn-2"]');
+    expect(target).not.toBeNull();
+    const viewport = container.getBoundingClientRect();
+    const bounds = target!.getBoundingClientRect();
+    expect(bounds.top).toBeGreaterThanOrEqual(viewport.top - 10);
+    expect(bounds.top).toBeLessThan(viewport.bottom);
+  });
+
   it("从短任务切换到长任务且视口收缩后保持最新位置置底", async () => {
     let showLongTask = () => undefined;
     let showShortTask = () => undefined;

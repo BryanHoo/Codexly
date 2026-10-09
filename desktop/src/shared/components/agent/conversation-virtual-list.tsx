@@ -316,17 +316,30 @@ export function ConversationVirtualList<TItem>({
     (index: number, anchorId: string) => {
       if (index < 0 || index >= items.length) return;
       initialEndFollowRef.current = false;
+      // 历史导航立即解除置底状态；WebKit 的 scroll 事件可能晚于尾部同步测量，不能等事件再更新。
+      pinnedToEndRef.current = false;
       cancelAnimationFrame(navigationFrameRef.current);
       virtualizer.scrollToIndex(index + headerOffset, { align: "start", behavior: "auto" });
-      navigationFrameRef.current = requestAnimationFrame(() => {
+      let remainingFrames = 12;
+      const finishNavigation = () => {
         const container = scrollContainerRef.current;
         const anchor = container
-          ? Array.from(
-              container.querySelectorAll<HTMLElement>("[data-conversation-anchor]"),
-            ).find((element) => element.dataset["conversationAnchor"] === anchorId)
+          ? Array.from(container.querySelectorAll<HTMLElement>("[data-conversation-anchor]")).find(
+              (element) => element.dataset["conversationAnchor"] === anchorId,
+            )
           : undefined;
-        anchor?.scrollIntoView({ behavior: "auto", block: "start" });
-      });
+        if (anchor !== undefined) {
+          anchor.scrollIntoView({ behavior: "auto", block: "start" });
+          return;
+        }
+        remainingFrames -= 1;
+        if (remainingFrames > 0) {
+          // 与 Web 端一致：动态测高可能改变估算位置，目标挂载前最多校准十二帧，不持续轮询。
+          virtualizer.scrollToIndex(index + headerOffset, { align: "start", behavior: "auto" });
+          navigationFrameRef.current = requestAnimationFrame(finishNavigation);
+        }
+      };
+      navigationFrameRef.current = requestAnimationFrame(finishNavigation);
     },
     [headerOffset, items.length, virtualizer],
   );

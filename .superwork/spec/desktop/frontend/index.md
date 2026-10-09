@@ -20,6 +20,7 @@
 - 即时发送通过校验后同步清空输入并展示本地用户消息和运行态；原生提交失败时仅在草稿仍为空时恢复原输入，真实用户 Item 到达后由它接管，不能重复显示。
 - Skill、文件引用、模式命令及排队消息更新 Composer 时，同步替换草稿并定位光标；不得用下一帧回调覆盖用户的新选区或输入。浏览器回归覆盖命令选择和排队消息恢复后的立即全选。
 - 在 `desktop/` 执行 `pnpm check:web`；交互依赖浏览器行为时使用已有 `pnpm test:browser` 或 WebView 测试。
+- 历史导航必须同步解除初始跟随和置底状态；动态测高期间最多十二帧校准目标 Turn，挂载后定位消息锚点，卸载时取消动画帧。与 Web 端保持相同的有界重试策略，用 `conversation.browser.test.tsx` 覆盖导航后立即测量尾部的竞态。
 - 扩展中心及其专用样式按路由加载；专用插件样式覆盖通用市场样式时，不得依赖 CSS 加载顺序。浏览器测试由功能入口加载基础样式，并保留插件卡片尺寸检查。
 - Windows 发布构建使用 `chrome116`，常规前端构建默认使用 `safari17.5`；两者的 CSS 体积可能不同。Windows 发布后须对实际 `dist` 执行 `pnpm performance:budget`，不能只沿用常规构建的预算结果。
 - 主时间线与只读任务小窗共用 `markdown-typography` 样式；保持 Tailwind utilities 层和主题字号 token，避免向运行时重复传入长排版类列表。调整时用 `markdown-typography.browser.test.tsx` 验证 Chromium、WebKit 的标题、引用、代码和宽图片布局。
