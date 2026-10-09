@@ -81,6 +81,8 @@ fn main() {
         "get_memory_settings",
         "update_memory_settings",
         "reset_memories",
+        // 历史压缩必须进入 ACL 命令清单，主窗口授权后才能转发给 Codex。
+        "compress_history",
         "update_global_settings",
         "get_project_defaults",
         "update_project_defaults",

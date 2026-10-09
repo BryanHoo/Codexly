@@ -46,7 +46,7 @@
     "test:webview": "wdio run wdio.conf.ts",
     "test:webview:build": "cross-env VITE_WEBVIEW_TEST=1 node scripts/run-tauri.mjs build --debug --features webview-tests --no-bundle --no-sign --ci --config src-tauri/tauri.webview-test.conf.json",
     "test:webview:real": "cross-env CODEAGENT_REAL_RUNTIME_TEST=1 wdio run wdio.conf.ts",
-    "tauri:constraints:test": "node --test scripts/app-icon.test.mjs scripts/changelog.test.mjs scripts/codex-protocol-contract.test.mjs scripts/project-terminal.test.mjs scripts/queue-command.test.mjs scripts/run-tauri.test.mjs scripts/task-window.test.mjs scripts/webview-bridge-readiness.test.mjs scripts/windows-subsystem.test.mjs",
+    "tauri:constraints:test": "node --test scripts/app-icon.test.mjs scripts/changelog.test.mjs scripts/codex-protocol-contract.test.mjs scripts/history-storage.test.mjs scripts/project-terminal.test.mjs scripts/queue-command.test.mjs scripts/run-tauri.test.mjs scripts/task-window.test.mjs scripts/webview-bridge-readiness.test.mjs scripts/windows-subsystem.test.mjs",
     "typecheck": "tsc -b",
     "version:check": "node scripts/check-version.mjs",
     "tauri": "node scripts/run-tauri.mjs"

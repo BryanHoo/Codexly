@@ -51,6 +51,7 @@ permissions = [
   "allow-get-memory-settings",
   "allow-update-memory-settings",
   "allow-reset-memories",
+  "allow-compress-history",
   "allow-update-global-settings",
   "allow-get-project-defaults",
   "allow-update-project-defaults",
