@@ -19,6 +19,8 @@ export const common = {
     notificationRegion: "Notifications",
   },
   errors: {
+    taskDeletionBlockedByForks:
+      "This task can’t be deleted because forked tasks still use its history. You can archive it, or delete the related forked tasks first and try again.",
     attachmentTooLarge: "The attachment is too large. Files support up to 50 MiB and images up to 512 MiB.",
     gitPathEncodingUnsupported: "Rename non-UTF-8 Git filenames and retry.",
     gitRepositoryUnavailable: "Git repository unavailable. Reselect its root.",

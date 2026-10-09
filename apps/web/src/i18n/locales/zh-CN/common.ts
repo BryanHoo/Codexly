@@ -29,6 +29,8 @@ export const common = {
     notificationRegion: "通知",
   },
   errors: {
+    taskDeletionBlockedByForks:
+      "无法删除此任务：分叉任务仍在使用它的历史记录。你可以归档此任务，或先删除相关分叉任务后再试。",
     notFoundDescription: "当前地址不属于已注册的应用路由。",
     notFoundTitle: "页面不存在",
     routeErrorLabel: "路由错误",

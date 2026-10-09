@@ -1,3 +1,4 @@
+import { isForkHistoryDeletionError } from "@codexly/frontend-core/task-deletion-error";
 import { MutationCache } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -31,6 +32,9 @@ function readNotificationOptions(
 }
 
 export function actionErrorMessage(error: unknown): string {
+  if (isForkHistoryDeletionError(error)) {
+    return i18n.t("errors.taskDeletionBlockedByForks", { ns: "common" });
+  }
   if (error instanceof Error && "code" in error) {
     switch (error.code) {
       case "FILE_OPEN_TARGET_UNAVAILABLE":

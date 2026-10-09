@@ -1,3 +1,4 @@
+import { isForkHistoryDeletionError } from "@codexly/frontend-core/task-deletion-error";
 import { MutationCache } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -30,6 +31,9 @@ function readNotificationOptions(
 }
 
 export function actionErrorMessage(error: unknown): string {
+  if (isForkHistoryDeletionError(error)) {
+    return i18n.t("errors.taskDeletionBlockedByForks", { ns: "common" });
+  }
   if (error instanceof Error && error.message.trim().length > 0) return error.message;
   if (typeof error === "string" && error.trim().length > 0) return error;
   return i18n.t("app.actionFailed", { ns: "common" });

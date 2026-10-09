@@ -19,6 +19,8 @@ export const common = {
     notificationRegion: "通知",
   },
   errors: {
+    taskDeletionBlockedByForks:
+      "无法删除此任务：分叉任务仍在使用它的历史记录。你可以归档此任务，或先删除相关分叉任务后再试。",
     attachmentTooLarge: "附件超过大小限制：普通文件最多 50 MiB，图片最多 512 MiB。",
     gitPathEncodingUnsupported: "Git 文件名非 UTF-8，请重命名后重试。",
     gitRepositoryUnavailable: "Git 仓库不可用，请重选仓库根目录。",

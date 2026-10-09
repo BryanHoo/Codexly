@@ -29,6 +29,8 @@ export const common = {
     notificationRegion: "Notifications",
   },
   errors: {
+    taskDeletionBlockedByForks:
+      "This task can’t be deleted because forked tasks still use its history. You can archive it, or delete the related forked tasks first and try again.",
     notFoundDescription: "This address does not match a registered application route.",
     notFoundTitle: "Page not found",
     routeErrorLabel: "Route error",

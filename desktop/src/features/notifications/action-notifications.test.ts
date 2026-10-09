@@ -9,6 +9,27 @@ describe("actionErrorMessage", () => {
     await i18n.changeLanguage("zh-CN");
   });
 
+  it("explains why fork history blocks deletion without changing diagnostic details", () => {
+    const message =
+      "cannot delete thread 01a03139-f883-73c1-abad-402de0de6252: forked history still references it";
+    const error = new NativeCommandError("CODEX_RPC_ERROR", message, -32600);
+
+    expect(actionErrorMessage(error)).toBe(
+      "无法删除此任务：分叉任务仍在使用它的历史记录。你可以归档此任务，或先删除相关分叉任务后再试。",
+    );
+    expect(error.message).toBe(message);
+  });
+
+  it("uses the selected language for fork history deletion guidance", async () => {
+    await i18n.changeLanguage("en");
+
+    expect(
+      actionErrorMessage("cannot delete thread task-1: forked history still references it"),
+    ).toBe(
+      "This task can’t be deleted because forked tasks still use its history. You can archive it, or delete the related forked tasks first and try again.",
+    );
+  });
+
   it.each([
     ["FILE_OPEN_TARGET_UNAVAILABLE", "fileOpenTargetUnavailable"],
     ["FILE_OPEN_APPLICATION_FAILED", "fileOpenApplicationFailed"],
