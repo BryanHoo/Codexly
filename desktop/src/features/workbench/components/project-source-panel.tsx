@@ -95,8 +95,52 @@ export function ProjectSourcePanel({
   const [preferMarkdownPreview, setPreferMarkdownPreview] = useState(() =>
     readMarkdownPreviewPreference(getMarkdownPreviewPreferenceStorage()),
   );
+  const editorEnabled = previewKind === "source" && rootPath !== undefined;
+  const editor = useInlineTextFile({
+    enabled: editorEnabled,
+    fileKey: JSON.stringify([projectId, rootPath, reference.path]),
+    scope: client,
+    lineNumber: reference.lineNumber,
+    registerCloseGuard: registerTextEditorCloseGuard,
+    read: (signal) => client.readProjectTextFile(projectId, rootPath, reference.path, { signal }),
+    checkRevision: (signal) => client.readProjectTextFileRevision(projectId, rootPath, reference.path, { signal }),
+    save: (input) => client.saveProjectTextFile(projectId, rootPath, input),
+    notify: (result) => {
+      const labels = t("textEditor", { returnObjects: true }) as TextFileEditorLabels;
+      const message =
+        result === "saved"
+          ? labels.saved
+          : result === "conflict"
+            ? labels.conflict
+            : result === "load-error"
+              ? labels.loadError
+              : labels.saveError;
+      // 仅显示文件名，与提示使用同一段文字，只有宽度不足时才换行，长文件名也不会撑破提示。
+      const text = (
+        <span className="whitespace-normal [overflow-wrap:anywhere]">
+          {getFileName(reference.path)} {message}
+        </span>
+      );
+      if (result === "saved") toast.success(text);
+      else toast.error(text);
+    },
+    onSaved: () => {
+      // 只刷新当前文件与根目录状态，不触发聊天或整个项目的重新加载。
+      void queryClient.invalidateQueries({
+        queryKey: ["projects", projectId],
+        predicate: (query) =>
+          query.queryKey.includes(rootPath) &&
+          ((query.queryKey.includes("source-file") && query.queryKey.at(-1) === reference.path) ||
+            query.queryKey.some(
+              (part) => typeof part === "string" && part.startsWith("git-status"),
+            )),
+      });
+    },
+  });
+  // 可编辑文件只使用共享会话的全文；确认不能编辑或读取失败后才启用分页预览。
+  const usePagedSource = previewKind === "source" && (!editorEnabled || editor.fallback);
   const sourceQuery = useInfiniteQuery({
-    enabled: previewKind === "source",
+    enabled: usePagedSource,
     getNextPageParam: (
       lastPage: ProjectSourceFile,
       _pages: ProjectSourceFile[],
@@ -146,7 +190,7 @@ export function ProjectSourcePanel({
     ] as const,
     staleTime: 30_000,
   });
-  const sourcePages = sourceQuery.data?.pages;
+  const sourcePages = usePagedSource ? sourceQuery.data?.pages : undefined;
   const sourcePageParams = sourceQuery.data?.pageParams;
   const fetchNextSourcePage = sourceQuery.fetchNextPage;
   const hasNextSourcePage = sourceQuery.hasNextPage;
@@ -161,59 +205,23 @@ export function ProjectSourcePanel({
   );
   const firstSourcePage = sourcePages?.[0];
   const lastSourcePage = sourcePages?.at(-1);
-  const sourcePath = firstSourcePage?.path ?? reference.path;
+  const sourcePath = editor.path ?? firstSourcePage?.path ?? reference.path;
   const fileName = getFileName(sourcePath);
   const imageUrl = imageQuery.data ?? "";
   const sourceLanguage = getCodeLanguage(sourcePath);
   const isMarkdown = sourceLanguage === "markdown" || sourceLanguage === "mdx";
-  const canRenderMarkdown = isMarkdown && lastSourcePage?.nextCursor === null;
+  const canRenderMarkdown = isMarkdown && (editor.ready || lastSourcePage?.nextCursor === null);
   const showRenderedMarkdown = canRenderMarkdown && preferMarkdownPreview;
+  const getEditorContent = editor.getContent;
   const sourceContent = useMemo(
-    () => (showRenderedMarkdown ? (sourcePages?.map((page) => page.content).join("") ?? "") : ""),
-    [showRenderedMarkdown, sourcePages],
+    () => {
+      if (!showRenderedMarkdown) return "";
+      if (editor.ready) return getEditorContent();
+      return sourcePages?.map((page) => page.content).join("") ?? "";
+    },
+    [editor.ready, getEditorContent, showRenderedMarkdown, sourcePages],
   );
 
-  const editor = useInlineTextFile({
-    enabled: previewKind === "source" && rootPath !== undefined && !showRenderedMarkdown,
-    fileKey: JSON.stringify([projectId, rootPath, reference.path]),
-    scope: client,
-    lineNumber: reference.lineNumber,
-    registerCloseGuard: registerTextEditorCloseGuard,
-    read: (signal) => client.readProjectTextFile(projectId, rootPath, reference.path, { signal }),
-    checkRevision: (signal) => client.readProjectTextFileRevision(projectId, rootPath, reference.path, { signal }),
-    save: (input) => client.saveProjectTextFile(projectId, rootPath, input),
-    notify: (result) => {
-      const labels = t("textEditor", { returnObjects: true }) as TextFileEditorLabels;
-      const message =
-        result === "saved"
-          ? labels.saved
-          : result === "conflict"
-            ? labels.conflict
-            : result === "load-error"
-              ? labels.loadError
-              : labels.saveError;
-      // 仅显示文件名，与提示使用同一段文字，只有宽度不足时才换行，长文件名也不会撑破提示。
-      const text = (
-        <span className="whitespace-normal [overflow-wrap:anywhere]">
-          {getFileName(reference.path)} {message}
-        </span>
-      );
-      if (result === "saved") toast.success(text);
-      else toast.error(text);
-    },
-    onSaved: () => {
-      // 只刷新当前文件与根目录状态，不触发聊天或整个项目的重新加载。
-      void queryClient.invalidateQueries({
-        queryKey: ["projects", projectId],
-        predicate: (query) =>
-          query.queryKey.includes(rootPath) &&
-          ((query.queryKey.includes("source-file") && query.queryKey.at(-1) === reference.path) ||
-            query.queryKey.some(
-              (part) => typeof part === "string" && part.startsWith("git-status"),
-            )),
-      });
-    },
-  });
   const editorRef = useRef(editor);
   editorRef.current = editor;
   useEffect(() => {
@@ -243,7 +251,7 @@ export function ProjectSourcePanel({
   };
   const handleSourceScroll = (event: UIEvent<HTMLElement>) => {
     if (
-      previewKind !== "source" ||
+      !usePagedSource ||
       editor.ready ||
       !hasNextSourcePage ||
       isFetchingNextSourcePage
@@ -256,8 +264,8 @@ export function ProjectSourcePanel({
   };
   const handleHighlightedLineUnavailable = useCallback(() => {
     // 目标行尚未加载时逐页补齐；虚拟列表在行可用后负责精确定位。
-    if (hasNextSourcePage && !isFetchingNextSourcePage) void fetchNextSourcePage();
-  }, [fetchNextSourcePage, hasNextSourcePage, isFetchingNextSourcePage]);
+    if (usePagedSource && hasNextSourcePage && !isFetchingNextSourcePage) void fetchNextSourcePage();
+  }, [fetchNextSourcePage, hasNextSourcePage, isFetchingNextSourcePage, usePagedSource]);
   const updateMarkdownPreviewPreference = (preview: boolean) => {
     editor.runAfterSave(() => {
       setPreferMarkdownPreview(preview);
@@ -322,7 +330,7 @@ export function ProjectSourcePanel({
             <ImagePreview alt={fileName} src={imageUrl} />
           )}
         </div>
-      ) : editor.ready ? (
+      ) : editor.ready && !showRenderedMarkdown ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
           <SourceHeader
             {...headerProps}
@@ -351,7 +359,7 @@ export function ProjectSourcePanel({
           />
           {editor.element}
         </div>
-      ) : firstSourcePage === undefined && sourceQuery.isPending ? (
+      ) : editor.loading || (!editor.ready && firstSourcePage === undefined && sourceQuery.isPending) ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
           <SourceHeader {...headerProps} actions={headerActions} />
           <div
@@ -361,7 +369,7 @@ export function ProjectSourcePanel({
             {t("projectDialog.loadingSource")}
           </div>
         </div>
-      ) : firstSourcePage === undefined && sourceQuery.error !== null ? (
+      ) : !editor.ready && firstSourcePage === undefined && sourceQuery.error !== null ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
           <SourceHeader {...headerProps} actions={headerActions} />
           <div

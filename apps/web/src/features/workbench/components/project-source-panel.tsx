@@ -98,38 +98,9 @@ export function ProjectSourcePanel({
   const [preferMarkdownPreview, setPreferMarkdownPreview] = useState(() =>
     readMarkdownPreviewPreference(getMarkdownPreviewPreferenceStorage()),
   );
-  const sourceQuery = useInfiniteQuery({
-    enabled: previewKind === "source",
-    getNextPageParam: (
-      lastPage: ProjectSourceFile,
-      _pages: ProjectSourceFile[],
-      lastPageParam: number | undefined,
-    ) => getNextSourceCursor(lastPage, lastPageParam),
-    initialPageParam: undefined as number | undefined,
-    queryFn: async ({ pageParam, signal }): Promise<ProjectSourceFile> =>
-      client.readProjectSourceFile(projectId, rootPath, reference.path, pageParam, { signal }),
-    queryKey: ["projects", projectId, rootPath ?? null, "source-file", reference.path] as const,
-    staleTime: 30_000,
-  });
-  const sourcePages = sourceQuery.data?.pages;
-  const fetchNextSourcePage = sourceQuery.fetchNextPage;
-  const hasNextSourcePage = sourceQuery.hasNextPage;
-  const isFetchingNextSourcePage = sourceQuery.isFetchingNextPage;
-  const sourceData = useMemo(
-    () => (sourcePages === undefined ? undefined : mergeProjectSourcePages(sourcePages)),
-    [sourcePages],
-  );
-  const sourcePath = sourceData?.path ?? reference.path;
-  const sourceContent = sourceData?.content ?? "";
-  const fileName = getFileName(sourcePath);
-  const imageUrl = buildProjectImageFileUrl("", projectId, reference.path, rootPath);
-  const sourceLanguage = getCodeLanguage(sourcePath);
-  const isMarkdown = sourceLanguage === "markdown" || sourceLanguage === "mdx";
-  const canRenderMarkdown = isMarkdown && sourceData?.nextCursor === null;
-  const showRenderedMarkdown = canRenderMarkdown && preferMarkdownPreview;
-
+  const editorEnabled = previewKind === "source" && rootPath !== undefined;
   const editor = useInlineTextFile({
-    enabled: previewKind === "source" && rootPath !== undefined && !showRenderedMarkdown,
+    enabled: editorEnabled,
     fileKey: JSON.stringify([projectId, rootPath, reference.path]),
     scope: client,
     lineNumber: reference.lineNumber,
@@ -169,6 +140,42 @@ export function ProjectSourcePanel({
       });
     },
   });
+  // 可编辑文件只使用共享会话的全文；确认不能编辑或读取失败后才启用分页预览。
+  const usePagedSource = previewKind === "source" && (!editorEnabled || editor.fallback);
+  const sourceQuery = useInfiniteQuery({
+    enabled: usePagedSource,
+    getNextPageParam: (
+      lastPage: ProjectSourceFile,
+      _pages: ProjectSourceFile[],
+      lastPageParam: number | undefined,
+    ) => getNextSourceCursor(lastPage, lastPageParam),
+    initialPageParam: undefined as number | undefined,
+    queryFn: async ({ pageParam, signal }): Promise<ProjectSourceFile> =>
+      client.readProjectSourceFile(projectId, rootPath, reference.path, pageParam, { signal }),
+    queryKey: ["projects", projectId, rootPath ?? null, "source-file", reference.path] as const,
+    staleTime: 30_000,
+  });
+  const sourcePages = usePagedSource ? sourceQuery.data?.pages : undefined;
+  const fetchNextSourcePage = sourceQuery.fetchNextPage;
+  const hasNextSourcePage = sourceQuery.hasNextPage;
+  const isFetchingNextSourcePage = sourceQuery.isFetchingNextPage;
+  const sourceData = useMemo(
+    () => (sourcePages === undefined ? undefined : mergeProjectSourcePages(sourcePages)),
+    [sourcePages],
+  );
+  const sourcePath = editor.path ?? sourceData?.path ?? reference.path;
+  const fileName = getFileName(sourcePath);
+  const imageUrl = buildProjectImageFileUrl("", projectId, reference.path, rootPath);
+  const sourceLanguage = getCodeLanguage(sourcePath);
+  const isMarkdown = sourceLanguage === "markdown" || sourceLanguage === "mdx";
+  const canRenderMarkdown = isMarkdown && (editor.ready || sourceData?.nextCursor === null);
+  const showRenderedMarkdown = canRenderMarkdown && preferMarkdownPreview;
+  const getEditorContent = editor.getContent;
+  const sourceContent = useMemo(
+    () => (editor.ready && showRenderedMarkdown ? getEditorContent() : (sourceData?.content ?? "")),
+    [editor.ready, getEditorContent, showRenderedMarkdown, sourceData],
+  );
+
   const editorRef = useRef(editor);
   editorRef.current = editor;
   useEffect(() => {
@@ -237,12 +244,7 @@ export function ProjectSourcePanel({
     sourceStatus,
   };
   const handleSourceScroll = (event: UIEvent<HTMLElement>) => {
-    if (
-      previewKind !== "source" ||
-      editor.ready ||
-      !hasNextSourcePage ||
-      isFetchingNextSourcePage
-    ) {
+    if (!usePagedSource || editor.ready || !hasNextSourcePage || isFetchingNextSourcePage) {
       return;
     }
     const scrollTarget = event.target;
@@ -280,7 +282,7 @@ export function ProjectSourcePanel({
           <SourceHeader {...headerProps} />
           <ImagePreview alt={fileName} src={imageUrl} />
         </div>
-      ) : editor.ready ? (
+      ) : editor.ready && !showRenderedMarkdown ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
           <SourceHeader
             {...headerProps}
@@ -310,7 +312,7 @@ export function ProjectSourcePanel({
           />
           {editor.element}
         </div>
-      ) : sourceData === undefined && sourceQuery.isPending ? (
+      ) : editor.loading || (!editor.ready && sourceData === undefined && sourceQuery.isPending) ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
           <SourceHeader {...headerProps} />
           <div
@@ -320,7 +322,7 @@ export function ProjectSourcePanel({
             {t("projectDialog.loadingSource")}
           </div>
         </div>
-      ) : sourceData === undefined && sourceQuery.error !== null ? (
+      ) : !editor.ready && sourceData === undefined && sourceQuery.error !== null ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
           <SourceHeader {...headerProps} />
           <div
