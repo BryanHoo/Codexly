@@ -1,4 +1,4 @@
-import { Compartment, type EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension, type Text } from "@codemirror/state";
 import { history } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
 import type {
@@ -6,21 +6,31 @@ import type {
   SaveProjectTextFileRequest,
   SaveProjectTextFileResponse,
 } from "@codexly/frontend-core/text-file-editor";
-import { createTextEditorState, TextEditorSession } from "./text-editor-state.js";
+import {
+  createTextEditorState,
+  getTextEditorByteLength,
+  getTextEditorTransactionBytes,
+  MAX_TEXT_EDITOR_BYTES,
+  MAX_TEXT_EDITOR_PARSE_BYTES,
+  TextEditorSession,
+} from "./text-editor-state.js";
+import { textEditorCapacity } from "./text-editor-capacity.js";
 
-export type TextEditorSaveResult = "saved" | "error" | "conflict";
+export type TextEditorSaveResult = "saved" | "error" | "conflict" | "input-limit";
 export class TextEditorAutosave {
   state: EditorState;
   private snapshot: TextEditorSession;
   private pending: Promise<boolean> | null = null;
   private listeners = new Set<() => void>();
+  private inputRejected = false;
+  private saveFailure: "error" | "conflict" | null = null;
   readonly file: Pick<ProjectTextFile, "path">;
-  readonly byteLength: number;
   revision: string | undefined;
   scrollSnapshot: ReturnType<EditorView["scrollSnapshot"]> | undefined;
   navigationLine: number | null | undefined;
   readonly language = new Compartment();
   languageLoaded = false;
+  private languageExtension: Extension = [];
   private bindings = new Compartment();
   private historyBytes = 0;
   private save: (input: SaveProjectTextFileRequest) => Promise<SaveProjectTextFileResponse>;
@@ -34,23 +44,75 @@ export class TextEditorAutosave {
   ) {
     // 原始字符串在建树后即可释放，缓存只保留文件身份和持久化文本状态。
     this.file = { path: file.path };
-    this.byteLength = new TextEncoder().encode(file.content).byteLength;
     this.revision = file.revision;
     this.save = save;
     this.onSaved = onSaved;
     this.notify = notify;
-    this.state = createTextEditorState(file.content, [
-      history({ minDepth: 30 }),
-      this.language.of([]),
-      this.bindings.of([]),
-    ]);
+    this.state = this.createState(file.content);
     this.snapshot = new TextEditorSession(this.state.doc, file.version);
+  }
+  private createState(content: string | Text, lineBreak?: string): EditorState {
+    return createTextEditorState(
+      content,
+      [
+        history({ minDepth: 30 }),
+        this.language.of([]),
+        this.bindings.of([]),
+        EditorState.transactionExtender.of((transaction) => {
+          if (!transaction.docChanged) return null;
+          const enabled = getTextEditorTransactionBytes(transaction) <= MAX_TEXT_EDITOR_PARSE_BYTES;
+          const wasEnabled =
+            getTextEditorByteLength(transaction.startState) <= MAX_TEXT_EDITOR_PARSE_BYTES;
+          // 与正文事务一起重配，超阈值的文本不会先交给旧解析器；缩小后复用已加载的语言。
+          return enabled === wasEnabled
+            ? null
+            : {
+                effects: this.language.reconfigure(enabled ? this.languageExtension : []),
+              };
+        }),
+      ],
+      () => {
+        this.inputRejected = true;
+        this.notify("input-limit");
+      },
+      lineBreak,
+    );
+  }
+  get byteLength(): number {
+    return getTextEditorByteLength(this.state);
+  }
+  installLanguage(extension: Extension) {
+    this.languageExtension = extension;
+    this.languageLoaded = true;
+    // 异步加载完成时再次核对最新正文，不能用发起加载时的大小决定解析开关。
+    return this.language.reconfigure(
+      this.byteLength <= MAX_TEXT_EDITOR_PARSE_BYTES ? extension : [],
+    );
+  }
+  compactDraft(): void {
+    // 闲置未保存文件只保留正文、选择和版本快照；历史/解析器不应随失败草稿累积。
+    const selection = this.state.selection;
+    this.languageExtension = [];
+    this.languageLoaded = false;
+    this.historyBytes = 0;
+    this.state = this.createState(this.state.doc, this.state.lineBreak).update({ selection }).state;
   }
   get dirty(): boolean {
     return this.snapshot.isDirty(this.state.doc);
   }
   get saving(): boolean {
     return this.pending !== null;
+  }
+  get feedback(): "input-limit" | "error" | "conflict" | null {
+    return this.inputRejected
+      ? "input-limit"
+      : this.saveFailure && this.dirty
+        ? this.saveFailure
+        : null;
+  }
+  dismissInputLimit(): void {
+    this.inputRejected = false;
+    this.emit();
   }
   get version(): string {
     return this.snapshot.version;
@@ -65,6 +127,8 @@ export class TextEditorAutosave {
     return this.state;
   }
   update(state: EditorState, changedBytes = 0): void {
+    // 超限提示只在用户确认或下一次有效正文修改后解除；保存失败仍保留，直到成功保存。
+    if (state.doc !== this.state.doc) this.inputRejected = false;
     this.historyBytes += changedBytes;
     this.state = state;
     this.emit();
@@ -103,7 +167,7 @@ export class TextEditorAutosave {
       do {
         const submitted = this.state.doc;
         const content = this.state.sliceDoc();
-        if (new TextEncoder().encode(content).byteLength > 2 * 1024 * 1024)
+        if (new TextEncoder().encode(content).byteLength > MAX_TEXT_EDITOR_BYTES)
           throw new Error("File too large");
         const result = await this.save({
           path: this.file.path,
@@ -120,10 +184,12 @@ export class TextEditorAutosave {
         error !== null &&
         "code" in error &&
         error.code === "TEXT_FILE_CONFLICT";
-      this.notify(conflict ? "conflict" : "error");
+      this.saveFailure = conflict ? "conflict" : "error";
+      this.notify(this.saveFailure);
       return false;
     }
     this.onSaved();
+    this.saveFailure = null;
     this.notify("saved");
     return true;
   }
@@ -132,6 +198,26 @@ export class TextEditorAutosave {
 // 草稿集合负责退出保护和失败恢复；保存后移除，闲置会话由有界缓存管理。
 const drafts = new Map<object, Map<string, TextEditorAutosave>>();
 const retainedDrafts = new WeakSet<TextEditorAutosave>();
+const capacityLeases = new WeakMap<
+  TextEditorAutosave,
+  { release: () => void; active: () => boolean }
+>();
+export function getTextEditorSessionCapacity(
+  session: TextEditorAutosave,
+): (() => void) | undefined {
+  return capacityLeases.get(session)?.release;
+}
+export function reserveTextEditorSession(
+  session: TextEditorAutosave,
+  release: () => void,
+  active: () => boolean,
+): void {
+  capacityLeases.set(session, { release, active });
+}
+export function releaseTextEditorSession(session: TextEditorAutosave): void {
+  capacityLeases.get(session)?.release();
+  capacityLeases.delete(session);
+}
 const protectDrafts = (event: BeforeUnloadEvent) => {
   event.preventDefault();
 };
@@ -148,6 +234,9 @@ export function retainTextEditorDraft(
     void session.flush();
     return;
   }
+  // 独立调用的保留路径也必须占用预算；缓存路径已在读取之前预留，不能重复计数。
+  if (!capacityLeases.has(session))
+    reserveTextEditorSession(session, textEditorCapacity.reserve(), () => false);
   retainedDrafts.add(session);
   if (!drafts.size && typeof window !== "undefined")
     window.addEventListener("beforeunload", protectDrafts);
@@ -162,6 +251,7 @@ export function retainTextEditorDraft(
     }
     if (session.dirty || session.saving) return;
     entries.delete(key);
+    if (!capacityLeases.get(session)?.active()) releaseTextEditorSession(session);
     retainedDrafts.delete(session);
     if (!entries.size) drafts.delete(scope);
     if (!drafts.size && typeof window !== "undefined")

@@ -7,6 +7,7 @@ import {
 import { registerTextEditorCloseGuard } from "../../../platform/tauri/text-editor-close-guard.js";
 import type { TextFileEditorLabels } from "@codexly/frontend-core/text-file-editor";
 import { useInlineTextFile } from "@codexly/ui/core/inline-text-file";
+import { TextEditorNotice } from "@codexly/ui/core/text-editor-notice";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { notifyActionError } from "../../notifications/action-notifications.js";
@@ -114,7 +115,11 @@ export function ProjectSourcePanel({
             ? labels.conflict
             : result === "load-error"
               ? labels.loadError
-              : labels.saveError;
+              : result === "input-limit"
+                ? labels.inputLimit
+                : result === "capacity"
+                  ? labels.capacity
+                  : labels.saveError;
       // 仅显示文件名，与提示使用同一段文字，只有宽度不足时才换行，长文件名也不会撑破提示。
       const text = (
         <span className="whitespace-normal [overflow-wrap:anywhere]">
@@ -276,9 +281,18 @@ export function ProjectSourcePanel({
   return (
     <section
       aria-label={sourcePath}
-      className="h-full min-h-0 bg-raised"
+      className="flex h-full min-h-0 flex-col bg-raised"
       onScrollCapture={handleSourceScroll}
     >
+      <TextEditorNotice
+        kind={editor.noticeKind}
+        labels={t("textEditor", { returnObjects: true }) as TextFileEditorLabels}
+        onRetryEdit={editor.retryEdit}
+        onRetrySave={editor.retrySave}
+        onDismiss={editor.dismissNotice}
+        busy={editor.retrying || editor.saving}
+      />
+      <div className="min-h-0 flex-1">
       {previewKind === "pdf" ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
           <SourceHeader {...headerProps} />
@@ -447,6 +461,7 @@ export function ProjectSourcePanel({
           />
         </CodeBlock>
       )}
+      </div>
     </section>
   );
 }

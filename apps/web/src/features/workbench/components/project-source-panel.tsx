@@ -6,6 +6,7 @@ import {
 } from "@codexly/frontend-core/text-editor-navigation";
 import type { TextFileEditorLabels } from "@codexly/frontend-core/text-file-editor";
 import { useInlineTextFile } from "@codexly/ui/core/inline-text-file";
+import { TextEditorNotice } from "@codexly/ui/core/text-editor-notice";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { PdfPreview } from "@codexly/ui/core/pdf-preview";
@@ -117,7 +118,11 @@ export function ProjectSourcePanel({
             ? labels.conflict
             : result === "load-error"
               ? labels.loadError
-              : labels.saveError;
+              : result === "input-limit"
+                ? labels.inputLimit
+                : result === "capacity"
+                  ? labels.capacity
+                  : labels.saveError;
       // 仅显示文件名，与提示使用同一段文字，只有宽度不足时才换行，长文件名也不会撑破提示。
       const text = (
         <span className="whitespace-normal [overflow-wrap:anywhere]">
@@ -261,140 +266,153 @@ export function ProjectSourcePanel({
   return (
     <section
       aria-label={sourcePath}
-      className="h-full min-h-0 bg-raised"
+      className="flex h-full min-h-0 flex-col bg-raised"
       onScrollCapture={handleSourceScroll}
       ref={contentRef}
     >
-      {previewKind === "pdf" ? (
-        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
-          <SourceHeader {...headerProps} />
-          <PdfPreview
-            name={fileName}
-            src={buildProjectPdfFileUrl("", projectId, reference.path, rootPath)}
-            labels={{
-              open: t("projectDialog.pdfOpen"),
-              unavailable: t("projectDialog.pdfUnavailable"),
-            }}
-          />
-        </div>
-      ) : previewKind === "image" ? (
-        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
-          <SourceHeader {...headerProps} />
-          <ImagePreview alt={fileName} src={imageUrl} />
-        </div>
-      ) : editor.ready && !showRenderedMarkdown ? (
-        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
-          <SourceHeader
-            {...headerProps}
-            sourceStatus={null}
-            actions={
-              <>
-                {isMarkdown ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        aria-label={t("projectDialog.previewMarkdown")}
-                        onClick={() => {
-                          updateMarkdownPreviewPreference(true);
-                        }}
-                        size="icon-sm"
-                        variant="ghost"
-                      >
-                        <Eye className="size-3.5" aria-hidden="true" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("projectDialog.previewMarkdown")}</TooltipContent>
-                  </Tooltip>
-                ) : null}
-                <CodeBlockCopyButton getText={editor.getContent} />
-              </>
-            }
-          />
-          {editor.element}
-        </div>
-      ) : editor.loading || (!editor.ready && sourceData === undefined && sourceQuery.isPending) ? (
-        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
-          <SourceHeader {...headerProps} />
-          <div
-            className="grid min-h-48 place-items-center text-body-small text-muted-foreground"
-            role="status"
+      <TextEditorNotice
+        kind={editor.noticeKind}
+        labels={t("textEditor", { returnObjects: true }) as TextFileEditorLabels}
+        onRetryEdit={editor.retryEdit}
+        onRetrySave={editor.retrySave}
+        onDismiss={editor.dismissNotice}
+        busy={editor.retrying || editor.saving}
+      />
+      <div className="min-h-0 flex-1">
+        {previewKind === "pdf" ? (
+          <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
+            <SourceHeader {...headerProps} />
+            <PdfPreview
+              name={fileName}
+              src={buildProjectPdfFileUrl("", projectId, reference.path, rootPath)}
+              labels={{
+                open: t("projectDialog.pdfOpen"),
+                unavailable: t("projectDialog.pdfUnavailable"),
+              }}
+            />
+          </div>
+        ) : previewKind === "image" ? (
+          <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
+            <SourceHeader {...headerProps} />
+            <ImagePreview alt={fileName} src={imageUrl} />
+          </div>
+        ) : editor.ready && !showRenderedMarkdown ? (
+          <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
+            <SourceHeader
+              {...headerProps}
+              sourceStatus={null}
+              actions={
+                <>
+                  {isMarkdown ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          aria-label={t("projectDialog.previewMarkdown")}
+                          onClick={() => {
+                            updateMarkdownPreviewPreference(true);
+                          }}
+                          size="icon-sm"
+                          variant="ghost"
+                        >
+                          <Eye className="size-3.5" aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("projectDialog.previewMarkdown")}</TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                  <CodeBlockCopyButton getText={editor.getContent} />
+                </>
+              }
+            />
+            {editor.element}
+          </div>
+        ) : editor.loading ||
+          (!editor.ready && sourceData === undefined && sourceQuery.isPending) ? (
+          <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
+            <SourceHeader {...headerProps} />
+            <div
+              className="grid min-h-48 place-items-center text-body-small text-muted-foreground"
+              role="status"
+            >
+              {t("projectDialog.loadingSource")}
+            </div>
+          </div>
+        ) : !editor.ready && sourceData === undefined && sourceQuery.error !== null ? (
+          <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
+            <SourceHeader {...headerProps} />
+            <div
+              className="grid min-h-48 place-items-center text-body-small text-danger"
+              role="alert"
+            >
+              {t("projectDialog.loadSourceError")}
+            </div>
+          </div>
+        ) : showRenderedMarkdown ? (
+          <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
+            <SourceHeader
+              {...headerProps}
+              actions={
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label={t("projectDialog.showRawContent")}
+                      onClick={() => {
+                        updateMarkdownPreviewPreference(false);
+                      }}
+                      size="icon-sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <Code2 className="size-3.5" aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("projectDialog.showRawContent")}</TooltipContent>
+                </Tooltip>
+              }
+            />
+            <div className="min-h-0 overflow-auto px-5 py-4 sm:px-8 sm:py-6">
+              <LazyMessageResponse className="mx-auto max-w-4xl">
+                {sourceContent}
+              </LazyMessageResponse>
+            </div>
+          </div>
+        ) : (
+          <CodeBlock
+            className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] rounded-none bg-content shadow-none"
+            code={sourceContent}
+            highlightedLine={reference.lineNumber}
+            language={sourceLanguage}
+            showLineNumbers
           >
-            {t("projectDialog.loadingSource")}
-          </div>
-        </div>
-      ) : !editor.ready && sourceData === undefined && sourceQuery.error !== null ? (
-        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
-          <SourceHeader {...headerProps} />
-          <div
-            className="grid min-h-48 place-items-center text-body-small text-danger"
-            role="alert"
-          >
-            {t("projectDialog.loadSourceError")}
-          </div>
-        </div>
-      ) : showRenderedMarkdown ? (
-        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
-          <SourceHeader
-            {...headerProps}
-            actions={
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    aria-label={t("projectDialog.showRawContent")}
-                    onClick={() => {
-                      updateMarkdownPreviewPreference(false);
-                    }}
-                    size="icon-sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Code2 className="size-3.5" aria-hidden="true" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("projectDialog.showRawContent")}</TooltipContent>
-              </Tooltip>
-            }
-          />
-          <div className="min-h-0 overflow-auto px-5 py-4 sm:px-8 sm:py-6">
-            <LazyMessageResponse className="mx-auto max-w-4xl">{sourceContent}</LazyMessageResponse>
-          </div>
-        </div>
-      ) : (
-        <CodeBlock
-          className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] rounded-none bg-content shadow-none"
-          code={sourceContent}
-          highlightedLine={reference.lineNumber}
-          language={sourceLanguage}
-          showLineNumbers
-        >
-          <SourceHeader
-            {...headerProps}
-            actions={
-              <>
-                {canRenderMarkdown ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        aria-label={t("projectDialog.previewMarkdown")}
-                        onClick={() => {
-                          updateMarkdownPreviewPreference(true);
-                        }}
-                        size="icon-sm"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <Eye className="size-3.5" aria-hidden="true" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("projectDialog.previewMarkdown")}</TooltipContent>
-                  </Tooltip>
-                ) : null}
-                <CodeBlockCopyButton />
-              </>
-            }
-          />
-        </CodeBlock>
-      )}
+            <SourceHeader
+              {...headerProps}
+              actions={
+                <>
+                  {canRenderMarkdown ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          aria-label={t("projectDialog.previewMarkdown")}
+                          onClick={() => {
+                            updateMarkdownPreviewPreference(true);
+                          }}
+                          size="icon-sm"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <Eye className="size-3.5" aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("projectDialog.previewMarkdown")}</TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                  <CodeBlockCopyButton />
+                </>
+              }
+            />
+          </CodeBlock>
+        )}
+      </div>
     </section>
   );
 }

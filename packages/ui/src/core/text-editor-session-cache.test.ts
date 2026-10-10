@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { historyField, undo } from "@codemirror/commands";
 import { TextEditorSessionCache } from "./text-editor-session-cache.js";
+import { TextEditorCapacity } from "./text-editor-capacity.js";
 
 function fixture(maxEntries = 16, maxBytes = 64 * 1024 * 1024) {
   const scope = {};
@@ -176,4 +177,57 @@ it("keeps active entries pinned and isolates caches for distinct clients", async
   first.release();
   second.release();
   isolated.release();
+});
+
+it("reserves draft capacity across clients, blocks new reads and recovers the failed draft", async () => {
+  for (const [count, bytes] of [
+    [1, 32 * 1024 * 1024],
+    [16, 2 * 1024 * 1024],
+  ]) {
+    const capacity = new TextEditorCapacity(count, bytes);
+    const { callbacks } = fixture();
+    callbacks.save.mockRejectedValue(new Error("offline"));
+    const cache = new TextEditorSessionCache({}, 16, 64 * 1024 * 1024, capacity);
+    const first = cache.acquire("draft", callbacks);
+    const session = await first.ready;
+    session.update(session.state.update({ changes: { from: 0, insert: "不能丢" } }).state);
+    first.release();
+    await vi.waitFor(() => {
+      expect(session.saving).toBe(false);
+    });
+    const other = new TextEditorSessionCache({}, 16, 64 * 1024 * 1024, capacity);
+    const blocked = other.acquire("next", callbacks);
+    await expect(blocked.ready).rejects.toMatchObject({ code: "TEXT_EDITOR_CAPACITY" });
+    blocked.release();
+    expect(callbacks.read).toHaveBeenCalledTimes(1);
+    const recovered = cache.acquire("draft", callbacks);
+    expect(await recovered.ready).toBe(session);
+    expect(session.state.sliceDoc()).toBe("不能丢原文\r\n");
+    expect(undo({ state: session.state, dispatch: () => undefined })).toBe(false);
+    callbacks.save.mockResolvedValue({ version: "v2", revision: "r2" });
+    await session.flush();
+    // 草稿已保存但编辑器仍活动时继续预留，以免下一次输入重新变脏后失去名额。
+    const activeBlocked = other.acquire("next", callbacks);
+    await expect(activeBlocked.ready).rejects.toMatchObject({ code: "TEXT_EDITOR_CAPACITY" });
+    activeBlocked.release();
+    recovered.release();
+    const next = other.acquire("next", callbacks);
+    await next.ready;
+    next.release();
+  }
+});
+
+it("releases a reserved slot after failed reads and shares it during concurrent acquisition", async () => {
+  const { callbacks } = fixture();
+  const capacity = new TextEditorCapacity(1, 2 * 1024 * 1024);
+  const cache = new TextEditorSessionCache({}, 16, 64 * 1024 * 1024, capacity);
+  callbacks.read.mockRejectedValueOnce(new Error("read failed"));
+  const failed = cache.acquire("a", callbacks);
+  await expect(failed.ready).rejects.toThrow("read failed");
+  failed.release();
+  const first = cache.acquire("b", callbacks);
+  const second = cache.acquire("b", callbacks);
+  expect(await first.ready).toBe(await second.ready);
+  first.release();
+  second.release();
 });

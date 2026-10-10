@@ -10,6 +10,7 @@ import { bracketMatching, defaultHighlightStyle, syntaxHighlighting } from "@cod
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { loadTextEditorLanguage } from "./text-editor-languages.js";
 import type { TextEditorAutosave } from "./text-editor-autosave.js";
+import { MAX_TEXT_EDITOR_PARSE_BYTES } from "./text-editor-state.js";
 export {
   TextEditorAutosave,
   getTextEditorDraft,
@@ -62,7 +63,32 @@ export function TextFileEditor({ session, lineNumber }: TextFileEditorProps) {
   useLayoutEffect(() => {
     if (!host.current) return;
     let disposed = false;
-    const language = session.language;
+    let languagePending = false;
+    const ensureLanguage = () => {
+      if (
+        disposed ||
+        session.languageLoaded ||
+        languagePending ||
+        session.byteLength > MAX_TEXT_EDITOR_PARSE_BYTES
+      )
+        return;
+      languagePending = true;
+      void loadTextEditorLanguage(session.file.path)
+        .then((extension) => {
+          if (!disposed)
+            view.dispatch({
+              effects: session.installLanguage([
+                extension,
+                syntaxHighlighting(defaultHighlightStyle),
+                bracketMatching(),
+              ]),
+            });
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          languagePending = false;
+        });
+    };
     const state = session.bindView([
       lineNumbers(),
       drawSelection(),
@@ -94,6 +120,7 @@ export function TextFileEditor({ session, lineNumber }: TextFileEditorProps) {
         // 选择、语言及撤销事务也须留在会话中，重新挂载才不会重置状态。
         session.update(update.state, changedBytes);
         if (update.docChanged) {
+          ensureLanguage();
           // DOM / 输入法事务可能晚于 blur 到达；失焦后提交的字符也必须补存。
           if (!update.view.hasFocus)
             queueMicrotask(() => {
@@ -121,25 +148,7 @@ export function TextFileEditor({ session, lineNumber }: TextFileEditorProps) {
     viewRef.current = view;
     // 预览加载不能抢走聊天输入框焦点；用户直接点击正文即可编辑。
     // 语言与解析状态属于会话，切屏不反复创建解析器和语法树。
-    if (
-      !session.languageLoaded &&
-      session.byteLength <= 256 * 1024 &&
-      session.state.doc.length <= 256 * 1024
-    )
-      void loadTextEditorLanguage(session.file.path)
-        .then((extension) => {
-          if (!disposed) {
-            view.dispatch({
-              effects: language.reconfigure([
-                extension,
-                syntaxHighlighting(defaultHighlightStyle),
-                bracketMatching(),
-              ]),
-            });
-            session.languageLoaded = true;
-          }
-        })
-        .catch(() => undefined);
+    ensureLanguage();
     const onWindowBlur = () => {
       void session.flush();
     };

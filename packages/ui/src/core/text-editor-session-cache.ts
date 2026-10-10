@@ -1,10 +1,14 @@
 import type { ProjectTextFile } from "@codexly/frontend-core/text-file-editor";
 import {
   getTextEditorDraft,
+  getTextEditorSessionCapacity,
   retainTextEditorDraft,
+  reserveTextEditorSession,
+  releaseTextEditorSession,
   TextEditorAutosave,
   type TextEditorSaveResult,
 } from "./text-editor-autosave.js";
+import { textEditorCapacity, type TextEditorCapacity } from "./text-editor-capacity.js";
 
 type Callbacks = Readonly<{
   read: (signal: AbortSignal) => Promise<ProjectTextFile>;
@@ -19,6 +23,7 @@ interface Entry {
   pending?: Promise<TextEditorAutosave> | undefined;
   controller?: AbortController | undefined;
   unlisten?: (() => void) | undefined;
+  releaseCapacity?: (() => void) | undefined;
 }
 
 export class TextEditorSessionCache {
@@ -26,10 +31,17 @@ export class TextEditorSessionCache {
   private scope: object;
   private maxEntries: number;
   private maxBytes: number;
-  constructor(scope: object, maxEntries = 16, maxBytes = 64 * 1024 * 1024) {
+  private capacity: TextEditorCapacity;
+  constructor(
+    scope: object,
+    maxEntries = 16,
+    maxBytes = 64 * 1024 * 1024,
+    capacity: TextEditorCapacity = textEditorCapacity,
+  ) {
     this.scope = scope;
     this.maxEntries = maxEntries;
     this.maxBytes = maxBytes;
+    this.capacity = capacity;
   }
 
   acquire(key: string, callbacks: Callbacks) {
@@ -45,6 +57,9 @@ export class TextEditorSessionCache {
       const cached = draft ?? entry.session;
       // 已挂载或未保存的状态直接复用；草稿不能被外部磁盘版本覆盖。
       entry.pending = (async () => {
+        // 读取前占位，在途请求、活动编辑和失败草稿共用同一份预留，容量满时回退只读。
+        entry.releaseCapacity ??=
+          (cached && getTextEditorSessionCapacity(cached)) ?? this.capacity.reserve();
         let session = cached;
         if (!session || (!wasActive && !session.dirty && !session.saving)) {
           const unchanged =
@@ -67,6 +82,7 @@ export class TextEditorSessionCache {
         if (!session) throw new Error("Missing text editor session");
         signal.throwIfAborted();
         session.setCallbacks(callbacks.save, callbacks.onSaved, callbacks.notify);
+        reserveTextEditorSession(session, entry.releaseCapacity, () => entry.users > 0);
         entry.unlisten?.();
         entry.session = session;
         entry.unlisten = session.subscribe(() => {
@@ -79,6 +95,8 @@ export class TextEditorSessionCache {
           entry.unlisten?.();
           entry.unlisten = undefined;
           entry.session = undefined;
+          entry.releaseCapacity?.();
+          entry.releaseCapacity = undefined;
           throw error;
         })
         .finally(() => {
@@ -95,7 +113,10 @@ export class TextEditorSessionCache {
         if (released) return;
         released = true;
         entry.users--;
-        if (!entry.users && entry.session) retainTextEditorDraft(this.scope, key, entry.session);
+        if (!entry.users && entry.session) {
+          if (entry.session.dirty) entry.session.compactDraft();
+          retainTextEditorDraft(this.scope, key, entry.session);
+        }
         // 失焦不取消共享读取；原生读取无法撤回，短暂切走再回来仍等待同一结果。
         this.prune();
       },
@@ -104,11 +125,18 @@ export class TextEditorSessionCache {
 
   private prune(): void {
     let bytes = 0;
-    for (const entry of this.entries.values()) bytes += entry.session?.retainedBytes ?? 64 * 1024;
+    for (const entry of this.entries.values()) {
+      bytes += entry.session?.retainedBytes ?? 64 * 1024;
+      if (!entry.users && !entry.pending && !entry.session?.dirty && !entry.session?.saving) {
+        entry.releaseCapacity?.();
+        entry.releaseCapacity = undefined;
+        if (entry.session) releaseTextEditorSession(entry.session);
+      }
+    }
     for (const [key, entry] of this.entries) {
       if (this.entries.size <= this.maxEntries && bytes <= this.maxBytes) break;
       // 活动会话和未保存草稿不参与淘汰；预算只约束可丢弃的闲置缓存。
-      if (entry.users || entry.session?.dirty || entry.session?.saving) continue;
+      if (entry.users || entry.pending || entry.session?.dirty || entry.session?.saving) continue;
       bytes -= entry.session?.retainedBytes ?? 64 * 1024;
       entry.controller?.abort();
       entry.unlisten?.();
