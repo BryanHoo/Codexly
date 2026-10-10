@@ -213,6 +213,7 @@ export function WorkbenchShellLayout({
             <WorkbenchShellHeader
               board={board}
               context={context}
+              projectId={projectId}
               scheduled={scheduled}
               skillsMarket={extensions}
               temporary={temporary}

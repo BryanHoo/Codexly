@@ -194,6 +194,7 @@ export function WorkbenchShellLayout({
         >
           <WorkbenchShellHeader
             context={context}
+            projectId={projectId}
             {...(taskId === undefined ? {} : { taskId })}
             taskWriteBlocked={taskWriteBlocked}
             temporary={temporary}

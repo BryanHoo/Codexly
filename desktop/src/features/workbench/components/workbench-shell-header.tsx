@@ -1,6 +1,7 @@
 import { useContext, useId } from "react";
 import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
 import { SplitPaneControls } from "@codexly/ui/core/split-pane-controls";
+import { WorkbenchNewTaskButton } from "@codexly/ui/core/workbench-new-task-button";
 import { PanelLeft, Pencil } from "lucide-react";
 
 import { Button } from "../../../shared/components/core/button.js";
@@ -16,6 +17,7 @@ import type { useWorkbenchShellController } from "./workbench-shell-controller.j
 
 export function WorkbenchShellHeader({
   context,
+  projectId,
   taskId,
   taskWriteBlocked,
   temporary,
@@ -23,6 +25,7 @@ export function WorkbenchShellHeader({
   viewTitle,
 }: Readonly<{
   context: ReturnType<typeof useWorkbenchShellController>;
+  projectId: string;
   taskId?: string;
   taskWriteBlocked: boolean;
   temporary: boolean;
@@ -34,6 +37,7 @@ export function WorkbenchShellHeader({
   const {
     globalSettings,
     inspectorOpen,
+    navigate,
     projectOpenCapabilitiesQuery,
     projectPathOpenLockRef,
     projectPathOpenMutation,
@@ -92,6 +96,17 @@ export function WorkbenchShellHeader({
         </h1>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {utilityView ? null : (
+          <WorkbenchNewTaskButton
+            label={t("sidebar.newTask")}
+            projectId={projectId}
+            onNavigate={() => {
+              void (temporary
+                ? navigate({ to: "/temporary" })
+                : navigate({ params: { projectId }, to: "/p/$projectId" }));
+            }}
+          />
+        )}
         {resolveQuickOpenVisibility(utilityView, temporary) ? (
           <ProjectQuickOpenMenu
             apps={projectOpenCapabilitiesQuery.data?.apps ?? []}
