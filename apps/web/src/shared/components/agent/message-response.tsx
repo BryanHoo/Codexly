@@ -1,3 +1,8 @@
+import {
+  MessageImageProvider,
+  MessageMarkdownImage,
+  type ResolveMessageImage,
+} from "@codexly/ui/core/message-markdown-image";
 import { mermaid } from "@streamdown/mermaid";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
@@ -354,7 +359,13 @@ function MarkdownLink({ children, className = "", href, node, ...props }: Markdo
   );
 }
 
+function MarkdownImage(props: ComponentProps<"img"> & { node?: unknown }) {
+  const { t } = useTranslation("workbench");
+  return <MessageMarkdownImage {...props} unavailableLabel={t("composer.attachmentReadFailed")} />;
+}
+
 export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
+  resolveImage?: ResolveMessageImage;
   textSource?: TextSnapshot;
   onOpenFileReference?: (
     reference: MessageFileReference,
@@ -386,6 +397,7 @@ function MessageResponseContent({
   parseMarkdownIntoBlocksFn,
   promptFileReferences = false,
   remarkPlugins,
+  resolveImage,
   textSource,
   ...props
 }: MessageResponseProps) {
@@ -400,7 +412,7 @@ function MessageResponseContent({
     [enabled, incrementalBlockParser, parsedResponse, streaming],
   );
   const markdownComponents: Components = useMemo(
-    () => ({ ...components, a: MarkdownLink }),
+    () => ({ ...components, a: MarkdownLink, img: components?.img ?? MarkdownImage }),
     [components],
   );
   const resolvedRemarkPlugins = useMemo(
@@ -415,33 +427,35 @@ function MessageResponseContent({
   );
 
   return (
-    <MessageFileReferenceContext.Provider value={onOpenFileReference ?? null}>
-      <StreamingMarkdown
-        key={props.isAnimating ? "animating" : "settled"}
-        {...(!enabled && props.isAnimating ? { animated: STREAMING_ANIMATION } : {})}
-        enabled={enabled}
-        tree={blockTree}
-        fast={
-          streaming &&
-          components === undefined &&
-          remarkPlugins === undefined &&
-          props.rehypePlugins === undefined &&
-          props.plugins === undefined &&
-          !promptFileReferences
-        }
-        className={`size-full break-words [&_blockquote]:border-l-2 [&_blockquote]:border-separator [&_blockquote]:pl-3 [&_code]:font-mono [&_code]:text-body-small [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:object-contain [&_pre]:overflow-x-auto [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${className}`}
-        controls={MESSAGE_RESPONSE_CONTROLS}
-        {...props}
-        BlockComponent={InteractiveMessageBlock}
-        components={markdownComponents}
-        {...(parseMarkdownIntoBlocksFn === undefined ? {} : { parseMarkdownIntoBlocksFn })}
-        plugins={MESSAGE_RESPONSE_PLUGINS}
-        remarkPlugins={resolvedRemarkPlugins}
-      >
-        {parsedResponse.markdown}
-      </StreamingMarkdown>
-      <CodeComments comments={parsedResponse.comments} />
-    </MessageFileReferenceContext.Provider>
+    <MessageImageProvider resolveImage={resolveImage}>
+      <MessageFileReferenceContext.Provider value={onOpenFileReference ?? null}>
+        <StreamingMarkdown
+          key={props.isAnimating ? "animating" : "settled"}
+          {...(!enabled && props.isAnimating ? { animated: STREAMING_ANIMATION } : {})}
+          enabled={enabled}
+          tree={blockTree}
+          fast={
+            streaming &&
+            components === undefined &&
+            remarkPlugins === undefined &&
+            props.rehypePlugins === undefined &&
+            props.plugins === undefined &&
+            !promptFileReferences
+          }
+          className={`size-full break-words [&_blockquote]:border-l-2 [&_blockquote]:border-separator [&_blockquote]:pl-3 [&_code]:font-mono [&_code]:text-body-small [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:object-contain [&_pre]:overflow-x-auto [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${className}`}
+          controls={MESSAGE_RESPONSE_CONTROLS}
+          {...props}
+          BlockComponent={InteractiveMessageBlock}
+          components={markdownComponents}
+          {...(parseMarkdownIntoBlocksFn === undefined ? {} : { parseMarkdownIntoBlocksFn })}
+          plugins={MESSAGE_RESPONSE_PLUGINS}
+          remarkPlugins={resolvedRemarkPlugins}
+        >
+          {parsedResponse.markdown}
+        </StreamingMarkdown>
+        <CodeComments comments={parsedResponse.comments} />
+      </MessageFileReferenceContext.Provider>
+    </MessageImageProvider>
   );
 }
 
@@ -453,6 +467,7 @@ export const MessageResponse = memo(
     previousProps.isAnimating === nextProps.isAnimating &&
     previousProps.mode === nextProps.mode &&
     previousProps.onOpenFileReference === nextProps.onOpenFileReference &&
+    previousProps.resolveImage === nextProps.resolveImage &&
     previousProps.promptFileReferences === nextProps.promptFileReferences,
 );
 

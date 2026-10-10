@@ -1,3 +1,4 @@
+import { TimelineImageProvider } from "./timeline-image-provider.js";
 import type { PendingRequest } from "@codexly/protocol";
 import { useMemo, useState } from "react";
 import { useStore } from "zustand";
@@ -336,6 +337,7 @@ export function TaskStoreTimeline({
 }>) {
   const projectId = store.getState().projectId;
   const taskId = store.getState().taskId;
+  const imageRootPath = useStore(store, (state) => state.snapshotMetadata?.workspacePath);
   const turnIds = useStore(store, (state) => state.turnIds);
   const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);
   const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
@@ -394,88 +396,90 @@ export function TaskStoreTimeline({
     );
   }
   return (
-    <Conversation
-      aria-label={i18n.t("timeline.conversation", { ns: "conversation" })}
-      conversationId={`${projectId}:${taskId}`}
-      {...(scrollToBottomSignal === undefined ? {} : { scrollToBottomSignal })}
-    >
-      {hasOlderHistory ? (
-        <TaskTimelinePagination
-          error={olderHistoryError}
-          isLoading={isLoadingOlderHistory}
-          onLoad={onLoadOlderHistory}
-        />
-      ) : null}
-      <ConversationVirtualList
-        {...(hasVisiblePendingRequest || showPendingSubmission || hasNotices
-          ? {
-              footer: (
-                <>
-                  {hasNotices ? <StoreTaskNoticeList notices={notices} /> : null}
-                  {hasVisiblePendingRequest ? (
-                    <StorePendingRequestList
-                      connected={connected}
-                      onResolvePendingRequest={onResolvePendingRequest}
-                      store={store}
-                    />
-                  ) : null}
-                  {showPendingSubmission ? (
-                    pendingPrompt !== undefined && !hasSubmittedUser ? (
-                      <PendingPromptDisplay
-                        prompt={pendingPrompt}
-                        startedAt={submissionStartedAt}
+    <TimelineImageProvider projectId={projectId} rootPath={imageRootPath}>
+      <Conversation
+        aria-label={i18n.t("timeline.conversation", { ns: "conversation" })}
+        conversationId={`${projectId}:${taskId}`}
+        {...(scrollToBottomSignal === undefined ? {} : { scrollToBottomSignal })}
+      >
+        {hasOlderHistory ? (
+          <TaskTimelinePagination
+            error={olderHistoryError}
+            isLoading={isLoadingOlderHistory}
+            onLoad={onLoadOlderHistory}
+          />
+        ) : null}
+        <ConversationVirtualList
+          {...(hasVisiblePendingRequest || showPendingSubmission || hasNotices
+            ? {
+                footer: (
+                  <>
+                    {hasNotices ? <StoreTaskNoticeList notices={notices} /> : null}
+                    {hasVisiblePendingRequest ? (
+                      <StorePendingRequestList
+                        connected={connected}
+                        onResolvePendingRequest={onResolvePendingRequest}
+                        store={store}
                       />
-                    ) : (
-                      <Message from="assistant">
-                        <TurnProcessingTime completedAt={null} startedAt={submissionStartedAt} />
-                        <RunningReplyStatus />
-                      </Message>
-                    )
-                  ) : null}
-                </>
-              ),
-            }
-          : {})}
-        getItemKey={getTurnIdKey}
-        items={turnIds}
-        renderNavigation={(navigateToItem, scrollbarWidth, scrollContainerRef) => (
-          <TaskTimelineSearchNavigation
-            items={navigationItems}
-            navigateToItem={navigateToItem}
-            scrollContainerRef={scrollContainerRef}
-            scrollbarWidth={scrollbarWidth}
-            {...(searchTarget === undefined ? {} : { searchTarget })}
-            turnIds={turnIds}
-          />
-        )}
-        renderItem={(turnId, turnIndex) => (
-          <StoreTurnTimelineSection
-            {...(connected && turnId === turnIds.at(-1) && onBuildPlan !== undefined
-              ? { onBuildPlan }
-              : {})}
-            {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
-            onOpenFileDiff={onOpenFileDiff}
-            onOpenSourceFile={onOpenSourceFile}
-            onReviewFileChanges={onReviewFileChanges}
-            projectId={projectId}
-            store={store}
-            taskId={taskId}
-            turnId={turnId}
-            turnIndex={turnIndex}
-            hasNextSubmission={
-              turnIndex < turnIds.length - 1 ||
-              (showPendingSubmission && turnId !== submissionTurnId)
-            }
-            suppressEmptyRunningStatus={showPendingSubmission && turnId === submissionTurnId}
-            {...(turnId === submissionTurnId &&
-            submissionHandoffState === "assistant-started" &&
-            pendingPrompt !== undefined
-              ? { pendingPrompt }
-              : {})}
-          />
-        )}
-      />
-      <ConversationScrollButton />
-    </Conversation>
+                    ) : null}
+                    {showPendingSubmission ? (
+                      pendingPrompt !== undefined && !hasSubmittedUser ? (
+                        <PendingPromptDisplay
+                          prompt={pendingPrompt}
+                          startedAt={submissionStartedAt}
+                        />
+                      ) : (
+                        <Message from="assistant">
+                          <TurnProcessingTime completedAt={null} startedAt={submissionStartedAt} />
+                          <RunningReplyStatus />
+                        </Message>
+                      )
+                    ) : null}
+                  </>
+                ),
+              }
+            : {})}
+          getItemKey={getTurnIdKey}
+          items={turnIds}
+          renderNavigation={(navigateToItem, scrollbarWidth, scrollContainerRef) => (
+            <TaskTimelineSearchNavigation
+              items={navigationItems}
+              navigateToItem={navigateToItem}
+              scrollContainerRef={scrollContainerRef}
+              scrollbarWidth={scrollbarWidth}
+              {...(searchTarget === undefined ? {} : { searchTarget })}
+              turnIds={turnIds}
+            />
+          )}
+          renderItem={(turnId, turnIndex) => (
+            <StoreTurnTimelineSection
+              {...(connected && turnId === turnIds.at(-1) && onBuildPlan !== undefined
+                ? { onBuildPlan }
+                : {})}
+              {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
+              onOpenFileDiff={onOpenFileDiff}
+              onOpenSourceFile={onOpenSourceFile}
+              onReviewFileChanges={onReviewFileChanges}
+              projectId={projectId}
+              store={store}
+              taskId={taskId}
+              turnId={turnId}
+              turnIndex={turnIndex}
+              hasNextSubmission={
+                turnIndex < turnIds.length - 1 ||
+                (showPendingSubmission && turnId !== submissionTurnId)
+              }
+              suppressEmptyRunningStatus={showPendingSubmission && turnId === submissionTurnId}
+              {...(turnId === submissionTurnId &&
+              submissionHandoffState === "assistant-started" &&
+              pendingPrompt !== undefined
+                ? { pendingPrompt }
+                : {})}
+            />
+          )}
+        />
+        <ConversationScrollButton />
+      </Conversation>
+    </TimelineImageProvider>
   );
 }

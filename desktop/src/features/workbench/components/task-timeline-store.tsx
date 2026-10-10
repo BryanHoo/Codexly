@@ -1,3 +1,4 @@
+import { TimelineImageProvider } from "./timeline-image-provider.js";
 import { HistoryNavigation, type HistoryAnchor } from "../../search/history-navigation.js";
 import type { PendingRequest } from "@/protocol/index.js";
 import { memo, useMemo, useState } from "react";
@@ -338,6 +339,7 @@ export function TaskStoreTimeline({
 }>) {
   const projectId = store.getState().projectId;
   const taskId = store.getState().taskId;
+  const imageRootPath = useStore(store, (state) => state.snapshotMetadata?.workspacePath);
   const turnIds = useStore(store, (state) => state.turnIds);
   const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);
   const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
@@ -390,6 +392,7 @@ export function TaskStoreTimeline({
     );
   }
   return (
+    <TimelineImageProvider projectId={projectId} taskId={taskId} rootPath={imageRootPath}>
     <ConversationList
       aria-label={i18n.t("timeline.conversation", { ns: "conversation" })}
       conversationId={`${projectId}:${taskId}`}
@@ -474,5 +477,6 @@ export function TaskStoreTimeline({
       )}
       {...(scrollToBottomSignal === undefined ? {} : { scrollToBottomSignal })}
     />
+    </TimelineImageProvider>
   );
 }

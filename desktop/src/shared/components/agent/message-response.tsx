@@ -1,3 +1,4 @@
+import { MessageImageProvider, MessageMarkdownImage, type ResolveMessageImage } from "@codexly/ui/core/message-markdown-image";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { Copy, ExternalLink, FolderOpen } from "lucide-react";
 import { markdownTypographyClassName } from "./markdown-typography.js";
@@ -345,7 +346,13 @@ function MarkdownLink({
   );
 }
 
+function MarkdownImage(props: ComponentProps<"img"> & { node?: unknown }) {
+  const { t } = useTranslation("workbench");
+  return <MessageMarkdownImage {...props} unavailableLabel={t("composer.attachmentReadFailed")} />;
+}
+
 export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
+  resolveImage?: ResolveMessageImage;
   textSource?: TextSnapshot;
   onOpenFileReference?: (
     reference: MessageFileReference,
@@ -385,6 +392,7 @@ function MessageResponseContent({
   parseMarkdownIntoBlocksFn,
   promptFileReferences = false,
   remarkPlugins,
+  resolveImage,
   textSource,
   ...props
 }: MessageResponseProps) {
@@ -398,7 +406,7 @@ function MessageResponseContent({
     [enabled, incrementalBlockParser, parsedResponse, streaming],
   );
   const markdownComponents: Components = useMemo(
-    () => ({ ...components, a: MarkdownLink }),
+    () => ({ ...components, a: MarkdownLink, img: components?.img ?? MarkdownImage }),
     [components],
   );
   const resolvedRemarkPlugins = useMemo(
@@ -414,6 +422,7 @@ function MessageResponseContent({
   );
 
   return (
+    <MessageImageProvider resolveImage={resolveImage}>
     <MessageFileReferenceContext.Provider value={onOpenFileReference ?? null}>
       <StreamingMarkdown
         key={props.isAnimating ? "animating" : "settled"}
@@ -433,6 +442,7 @@ function MessageResponseContent({
       </StreamingMarkdown>
       <CodeComments comments={parsedResponse.comments} />
     </MessageFileReferenceContext.Provider>
+    </MessageImageProvider>
   );
 }
 
@@ -444,6 +454,7 @@ export const MessageResponse = memo(
     previousProps.isAnimating === nextProps.isAnimating &&
     previousProps.mode === nextProps.mode &&
     previousProps.onOpenFileReference === nextProps.onOpenFileReference &&
+    previousProps.resolveImage === nextProps.resolveImage &&
     previousProps.promptFileReferences === nextProps.promptFileReferences,
 );
 

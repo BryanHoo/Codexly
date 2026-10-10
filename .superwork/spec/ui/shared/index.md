@@ -10,6 +10,7 @@
 - 两端 `globals.css` 从应用 `src` 扫描 Tailwind 类，保留 `packages/ui/src` 与第三方组件的显式扫描，并排除测试文件；不得仅扫描 `.tsx`，排版类也可能定义在 `.ts` 中。
 - Web 对外可读取的 `--color-brand` 与 `--color-control-hover` 通过 `@theme inline static` 保留，不能依赖测试源码使变量进入生产 CSS；用主题 E2E 校验浅色和深色的实际解析值。
 - 消息附件、项目图片和壁纸原图共用 `core/image-preview`，翻译由各端传入；手势引擎仅在预览挂载时加载。预览支持容器内缩放、拖动、双指手势和复位，切换资源或容器尺寸变化时恢复适配；捏合后的触摸拖动不得误判为双击。用 `desktop/src/shared/components/core/image-preview.browser.test.tsx` 验证 Chromium、WebKit 和移动端窄屏。
+- 聊天 Markdown 的本地图片共用 `core/message-markdown-image`；文件链接规范化产生的相对路径、Windows 盘符及 UNC 标记须先还原，再通过任务所属工作目录的图片接口读取，禁止将本地路径直接作为网页地址。Web 使用受控文件 URL，桌面复用原生缓存与 asset 通道；普通任务未绑定 `workspacePath` 时使用所属项目的根选择，worktree 绑定目录始终优先；历史回放与分屏不能借用其他活动项目目录，任务切换后丢弃旧异步结果。图片不以 Base64 消息正文传输。回归见两端 `message-response-images.test` 与共享 `markdown-image-source.test.ts`。
 - 流式 Markdown 的树形渲染与文本揭示动画放在 `agent/streaming-markdown`，两端引入其共享样式；稳定前缀不能因追加而重挂，图表和自定义插件不得被普通代码快路径替代。
 - 验证边界使用 `apps/web/src/shared/components/shared-ui-boundary.test.ts`、根目录 `pnpm lint:architecture`，并分别运行 Web 与桌面构建。
 
