@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
+import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
 
@@ -44,6 +45,8 @@ export function createAppQueryClient() {
 const queryClient = createAppQueryClient();
 
 export function navigateToTaskFromNotification(projectId: string, taskId: string): void {
+  // 分屏优先更新聚焦窗口，避免路由变化重置整个工作区。
+  if (requestSplitTaskNavigation({ projectId, taskId })) return;
   // 交给 Router 完成应用内导航，避免整页刷新丢失瞬时弹窗状态。
   void (projectId === TEMPORARY_TASK_SCOPE_ID
     ? router.navigate({ params: { taskId }, to: "/temporary/t/$taskId" })

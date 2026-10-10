@@ -8,6 +8,13 @@ import {
 } from "./providers.js";
 import { router } from "./router.js";
 
+const { requestSplitTaskNavigation } = vi.hoisted(() => ({
+  requestSplitTaskNavigation: vi.fn(() => false),
+}));
+vi.mock("@codexly/frontend-core/split-task-navigation", () => ({
+  requestSplitTaskNavigation,
+}));
+
 describe("createAppQueryClient", () => {
   it("uses stable defaults for a local long-running project", () => {
     const queryClient = createAppQueryClient();
@@ -42,6 +49,19 @@ describe("createAppQueryClient", () => {
       to: "/temporary/t/$taskId",
     });
     navigate.mockRestore();
+  });
+
+  it.each(["project", "temporary"])("通知任务由分屏接管时不切换 %s 路由", (projectId) => {
+    requestSplitTaskNavigation.mockReturnValueOnce(true);
+    const navigate = vi.spyOn(router, "navigate").mockResolvedValue();
+
+    navigateToTaskFromNotification(projectId, "notified-task");
+
+    expect(requestSplitTaskNavigation).toHaveBeenLastCalledWith({
+      projectId,
+      taskId: "notified-task",
+    });
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("does not render the business provider subtree before authentication", () => {

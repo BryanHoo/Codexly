@@ -3,6 +3,8 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -28,6 +30,7 @@ import {
   type SplitDirection,
   type SplitLayout,
 } from "@codexly/frontend-core/split-layout";
+import { subscribeSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import { SplitPaneMenu, SplitWorkspaceShortcuts } from "./split-workspace-actions.js";
 import { SplitWorkspaceResizers, splitPaneStyle } from "./split-workspace-resizers.js";
 
@@ -166,6 +169,11 @@ export function SplitWorkspaceProvider({
     },
     [enabled, selection.panes],
   );
+  const selectExternalTask = useEffectEvent((pane: SplitPaneIdentity) => {
+    // 通知按点击时的最新焦点选择任务；单窗口和移动端仍由平台路由处理。
+    return enabled && selection.panes.length > 1 && select(pane);
+  });
+  useEffect(() => subscribeSplitTaskNavigation(selectExternalTask), []);
   const replace = useCallback((previous: SplitPaneIdentity, next: SplitPaneIdentity) => {
     setSelection((selection) => {
       // 请求可能在关闭窗口后返回，不能让迟到结果把活动身份指向不存在的窗口。
