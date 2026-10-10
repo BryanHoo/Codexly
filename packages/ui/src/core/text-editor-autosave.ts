@@ -1,4 +1,6 @@
-import type { EditorState } from "@codemirror/state";
+import { Compartment, type EditorState, type Extension } from "@codemirror/state";
+import { history } from "@codemirror/commands";
+import type { EditorView } from "@codemirror/view";
 import type {
   ProjectTextFile,
   SaveProjectTextFileRequest,
@@ -12,7 +14,15 @@ export class TextEditorAutosave {
   private snapshot: TextEditorSession;
   private pending: Promise<boolean> | null = null;
   private listeners = new Set<() => void>();
-  readonly file: ProjectTextFile;
+  readonly file: Pick<ProjectTextFile, "path">;
+  readonly byteLength: number;
+  revision: string | undefined;
+  scrollSnapshot: ReturnType<EditorView["scrollSnapshot"]> | undefined;
+  navigationLine: number | null | undefined;
+  readonly language = new Compartment();
+  languageLoaded = false;
+  private bindings = new Compartment();
+  private historyBytes = 0;
   private save: (input: SaveProjectTextFileRequest) => Promise<SaveProjectTextFileResponse>;
   private onSaved: () => void;
   private notify: (result: TextEditorSaveResult) => void;
@@ -22,11 +32,18 @@ export class TextEditorAutosave {
     onSaved: () => void,
     notify: (result: TextEditorSaveResult) => void,
   ) {
-    this.file = file;
+    // 原始字符串在建树后即可释放，缓存只保留文件身份和持久化文本状态。
+    this.file = { path: file.path };
+    this.byteLength = new TextEncoder().encode(file.content).byteLength;
+    this.revision = file.revision;
     this.save = save;
     this.onSaved = onSaved;
     this.notify = notify;
-    this.state = createTextEditorState(file.content);
+    this.state = createTextEditorState(file.content, [
+      history({ minDepth: 30 }),
+      this.language.of([]),
+      this.bindings.of([]),
+    ]);
     this.snapshot = new TextEditorSession(this.state.doc, file.version);
   }
   get dirty(): boolean {
@@ -35,9 +52,31 @@ export class TextEditorAutosave {
   get saving(): boolean {
     return this.pending !== null;
   }
-  update(state: EditorState): void {
+  get version(): string {
+    return this.snapshot.version;
+  }
+  get retainedBytes(): number {
+    // 保守估计文本树、保存快照、历史与解析状态；它是缓存预算单位，不是精确堆测量。
+    return 64 * 1024 + this.state.doc.length * 8 + this.historyBytes;
+  }
+  bindView(extensions: Extension): EditorState {
+    // 仅替换视图回调，不重建文档、选择或撤销历史；卸载后清除闭包以释放 DOM 引用。
+    this.state = this.state.update({ effects: this.bindings.reconfigure(extensions) }).state;
+    return this.state;
+  }
+  update(state: EditorState, changedBytes = 0): void {
+    this.historyBytes += changedBytes;
     this.state = state;
     this.emit();
+  }
+  setCallbacks(
+    save: TextEditorAutosave["save"],
+    onSaved: () => void,
+    notify: TextEditorAutosave["notify"],
+  ): void {
+    this.save = save;
+    this.onSaved = onSaved;
+    this.notify = notify;
   }
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -72,6 +111,7 @@ export class TextEditorAutosave {
           expectedVersion: this.snapshot.version,
         });
         this.snapshot.markSaved(submitted, result.version);
+        this.revision = result.revision;
         // 等待期间有新输入时使用新版本串行补存，不能把旧快照误报为全部保存。
       } while (this.dirty);
     } catch (error) {
@@ -89,8 +129,9 @@ export class TextEditorAutosave {
   }
 }
 
-// 仅保留离开时尚未保存的会话；成功后立即释放，避免缓存所有打开过的文件。
+// 草稿集合负责退出保护和失败恢复；保存后移除，闲置会话由有界缓存管理。
 const drafts = new Map<object, Map<string, TextEditorAutosave>>();
+const retainedDrafts = new WeakSet<TextEditorAutosave>();
 const protectDrafts = (event: BeforeUnloadEvent) => {
   event.preventDefault();
 };
@@ -103,6 +144,11 @@ export function retainTextEditorDraft(
   session: TextEditorAutosave,
 ): void {
   if (!session.dirty && !session.saving) return;
+  if (retainedDrafts.has(session)) {
+    void session.flush();
+    return;
+  }
+  retainedDrafts.add(session);
   if (!drafts.size && typeof window !== "undefined")
     window.addEventListener("beforeunload", protectDrafts);
   const entries = drafts.get(scope) ?? new Map<string, TextEditorAutosave>();
@@ -110,11 +156,13 @@ export function retainTextEditorDraft(
   drafts.set(scope, entries);
   const unlisten = session.subscribe(() => {
     if (entries.get(key) !== session) {
+      retainedDrafts.delete(session);
       unlisten();
       return;
     }
     if (session.dirty || session.saving) return;
     entries.delete(key);
+    retainedDrafts.delete(session);
     if (!entries.size) drafts.delete(scope);
     if (!drafts.size && typeof window !== "undefined")
       window.removeEventListener("beforeunload", protectDrafts);

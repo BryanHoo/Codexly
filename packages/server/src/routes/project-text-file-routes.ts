@@ -3,6 +3,7 @@ import {
   AgentMutationErrorSchema,
   MAX_TEXT_FILE_BYTES,
   ProjectTextFileSchema,
+  ProjectTextFileRevisionSchema,
   ProjectSourceFileQuerySchema,
   ProjectRootQuerySchema,
   SaveProjectTextFileRequestSchema,
@@ -11,7 +12,12 @@ import {
   type ProjectRootQuery,
   type SaveProjectTextFileRequest,
 } from "@codexly/protocol";
-import { readProjectTextFile, saveProjectTextFile, TextFileError } from "../project-text-file.js";
+import {
+  readProjectTextFile,
+  readProjectTextFileRevision,
+  saveProjectTextFile,
+  TextFileError,
+} from "../project-text-file.js";
 import { ProjectRootScopeError } from "../project-root-scope.js";
 import { ProjectParamsSchema } from "./schemas.js";
 
@@ -39,6 +45,25 @@ export function registerProjectTextFileRoutes(
     404: AgentMutationErrorSchema,
     409: AgentMutationErrorSchema,
   };
+  app.get<{ Params: { projectId: string }; Querystring: ProjectSourceFileQuery }>(
+    "/v1/projects/:projectId/files/text/revision",
+    {
+      schema: {
+        params: ProjectParamsSchema,
+        querystring: ProjectSourceFileQuerySchema,
+        response: { 200: ProjectTextFileRevisionSchema, ...errors },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const root = await resolveRoot(request.params.projectId, request.query.rootPath);
+        reply.header("cache-control", "no-store");
+        return await readProjectTextFileRevision(root.path, request.query.path);
+      } catch (error) {
+        return sendError(reply, error);
+      }
+    },
+  );
   app.get<{ Params: { projectId: string }; Querystring: ProjectSourceFileQuery }>(
     "/v1/projects/:projectId/files/text",
     {

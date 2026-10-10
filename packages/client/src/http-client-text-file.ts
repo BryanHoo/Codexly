@@ -1,5 +1,7 @@
 import {
   ProjectTextFileSchema,
+  ProjectTextFileRevisionSchema,
+  type ProjectTextFileRevision,
   SaveProjectTextFileResponseSchema,
   type ProjectTextFile,
   type SaveProjectTextFileRequest,
@@ -15,6 +17,18 @@ import {
 import { ProjectDirectoryHttpClient } from "./http-client-project-directory.js";
 
 export class ProjectTextFileHttpClient extends ProjectDirectoryHttpClient {
+  public async readProjectTextFileRevision(
+    projectId: string,
+    rootPath: string | undefined,
+    path: string,
+    options: ReadOptions = {},
+  ): Promise<ProjectTextFileRevision> {
+    return this.read(
+      appendQuery(`${projectPath(projectId)}/files/text/revision`, { path, rootPath }),
+      ProjectTextFileRevisionSchema,
+      options,
+    );
+  }
   public async readProjectTextFile(
     projectId: string,
     rootPath: string | undefined,

@@ -44,7 +44,7 @@ export type NativeHostAttachmentClient = Pick<
 >;
 export type NativeSourceFileClient = Pick<
   NativeClient,
-  "cacheProjectImage" | "getProjectPdfFileUrl" | "openProject" | "readProjectSourceFile" | "readProjectTextFile" | "saveProjectTextFile"
+  "cacheProjectImage" | "getProjectPdfFileUrl" | "openProject" | "readProjectSourceFile" | "readProjectTextFile" | "readProjectTextFileRevision" | "saveProjectTextFile"
 >;
 export type NativeProjectOpenClient = Pick<
   NativeClient,

@@ -19,6 +19,19 @@ it("reads full text, saves with a version and rejects stale or malformed writes"
     const url = "/v1/projects/test/files/text?rootPath=" + encodeURIComponent(root);
     const read = await app.inject({ url: url + "&path=a.txt" });
     expect(read.statusCode).toBe(200);
+    const revision = await app.inject({
+      url: url.replace("/files/text?", "/files/text/revision?") + "&path=a.txt",
+    });
+    expect(revision.statusCode).toBe(200);
+    expect(revision.json()).toEqual({ revision: read.json<{ revision: string }>().revision });
+    expect(revision.headers["cache-control"]).toBe("no-store");
+    expect(
+      (
+        await app.inject({
+          url: url.replace("/files/text?", "/files/text/revision?") + "&path=../outside",
+        })
+      ).statusCode,
+    ).toBe(400);
     const input = {
       path: "a.txt",
       content: "new",

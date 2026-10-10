@@ -21,4 +21,4 @@
 
 - 项目 Git 读取仅检查当前根目录的 `.git`（目录或 worktree gitfile），缺失时返回 `repositoryMode: "none"`，不扫描子目录、不执行 Git 命令、不回溯父仓库；拒绝通过 `repository` 参数选择子仓库。元数据 Watch 同样不得发现子目录仓库；回归覆盖含子仓库的普通目录、父仓库下的普通目录以及正常 worktree。
 
-- 文本编辑通过 `/v1/projects/:projectId/files/text` 完整有界读取及条件保存，限定根目录内 2 MiB UTF-8 文本，拒绝符号链接、`.git`、二进制及不一致换行。版本校验、同文件保存串行和同目录原子替换不可省略；以 `project-text-file.test.ts` 与路由测试覆盖冲突、路径边界和字节保留。详见 [文本文件编辑方案](../../../../docs/text-file-editing.md)。
+- 文本编辑通过 `/v1/projects/:projectId/files/text` 完整有界读取及条件保存，限定根目录内 2 MiB UTF-8 文本，拒绝符号链接、`.git`、二进制及不一致换行。`/files/text/revision` 共用严格路径权限，只返回磁盘元数据修订标记，不读取正文；完整读取与保存回执绑定各自快照的修订标记。SHA-256 版本校验、同文件保存串行和同目录原子替换不可省略；以 `project-text-file.test.ts` 与路由测试覆盖冲突、路径边界和字节保留。详见 [文本文件编辑方案](../../../../docs/text-file-editing.md)。

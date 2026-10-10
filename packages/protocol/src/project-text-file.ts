@@ -1,11 +1,17 @@
 import { Type, type Static } from "@sinclair/typebox";
 
 export const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
+export const ProjectTextFileRevisionSchema = Type.Object(
+  { revision: Type.String({ pattern: "^[a-f0-9]{64}$" }) },
+  { additionalProperties: false },
+);
+export type ProjectTextFileRevision = Readonly<Static<typeof ProjectTextFileRevisionSchema>>;
 export const ProjectTextFileSchema = Type.Object(
   {
     path: Type.String(),
     content: Type.String({ maxLength: MAX_TEXT_FILE_BYTES }),
     version: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+    revision: Type.Optional(Type.String({ pattern: "^[a-f0-9]{64}$" })),
   },
   { additionalProperties: false },
 );
@@ -22,6 +28,7 @@ export type SaveProjectTextFileRequest = Readonly<Static<typeof SaveProjectTextF
 export const SaveProjectTextFileResponseSchema = Type.Object(
   {
     version: Type.String({ pattern: "^[a-f0-9]{64}$" }),
+    revision: Type.Optional(Type.String({ pattern: "^[a-f0-9]{64}$" })),
   },
   { additionalProperties: false },
 );

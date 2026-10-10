@@ -18,6 +18,11 @@ pub struct TextFile {
     pub path: String,
     pub content: String,
     pub version: String,
+    pub revision: String,
+}
+#[derive(Debug, Serialize)]
+pub struct TextFileRevision {
+    pub revision: String,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,6 +34,57 @@ pub struct SaveTextInput {
 #[derive(Debug, Serialize)]
 pub struct SavedTextFile {
     pub version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revision: Option<String>,
+}
+
+fn revision_of(metadata: &Metadata) -> Result<String, WorkspaceError> {
+    // 元数据标记用于缓存校验，不代替保存时的全文 SHA-256；忽略读取导致变化的 atime。
+    let mut fingerprint = format!(
+        "{}:{:?}:{:?}",
+        metadata.len(),
+        metadata.modified()?,
+        metadata.created().ok()
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        fingerprint.push_str(&format!(
+            ":{}:{}:{}:{}",
+            metadata.dev(),
+            metadata.ino(),
+            metadata.ctime(),
+            metadata.ctime_nsec()
+        ));
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        fingerprint.push_str(&format!(
+            ":{}:{}:{}",
+            metadata.creation_time(),
+            metadata.last_write_time(),
+            metadata.file_attributes()
+        ));
+    }
+    Ok(crate::encoding::encode_lower_hex(Sha256::digest(
+        fingerprint.as_bytes(),
+    )))
+}
+
+pub fn read_text_file_revision(
+    root: &Path,
+    path: &str,
+) -> Result<TextFileRevision, WorkspaceError> {
+    let (target, _) = resolve_target(root, path)?;
+    // 路径权限与完整读取一致；只做 stat，避免切屏触发文件正文 I/O 与 IPC 传输。
+    let metadata = fs::symlink_metadata(target)?;
+    if !metadata.is_file() || metadata.len() > MAX_TEXT_BYTES as u64 {
+        return Err(WorkspaceError::TextFileUnsupported);
+    }
+    Ok(TextFileRevision {
+        revision: revision_of(&metadata)?,
+    })
 }
 
 fn resolve_target(root: &Path, requested: &str) -> Result<(PathBuf, String), WorkspaceError> {
@@ -114,7 +170,10 @@ fn snapshot(path: &Path) -> Result<(String, Metadata), WorkspaceError> {
         .read_to_string(&mut content)
         .map_err(|_| WorkspaceError::TextFileUnsupported)?;
     let after = file.metadata()?;
-    if content.len() as u64 != before.len() || before.modified()? != after.modified()? {
+    if content.len() as u64 != before.len()
+        || revision_of(&before)? != revision_of(&after)?
+        || revision_of(&before)? != revision_of(&fs::symlink_metadata(path)?)?
+    {
         return Err(WorkspaceError::TextFileConflict);
     }
     validate_text(&content)?;
@@ -123,10 +182,11 @@ fn snapshot(path: &Path) -> Result<(String, Metadata), WorkspaceError> {
 
 pub fn read_text_file(root: &Path, path: &str) -> Result<TextFile, WorkspaceError> {
     let (target, path) = resolve_target(root, path)?;
-    let (content, _) = snapshot(&target)?;
+    let (content, metadata) = snapshot(&target)?;
     Ok(TextFile {
         path,
         version: version_of(&content),
+        revision: revision_of(&metadata)?,
         content,
     })
 }
@@ -165,11 +225,26 @@ pub fn save_text_file(root: &Path, input: &SaveTextInput) -> Result<SavedTextFil
         return Err(WorkspaceError::TextFileConflict);
     }
     // tempfile 在同目录原子替换，失败或提前返回时自动清理临时文件，保留原文。
-    temporary
+    let written_before = temporary.as_file().metadata()?;
+    let written = temporary
         .persist(&target)
         .map_err(|error| WorkspaceError::Io(error.error))?;
+    // 只有目标仍是本次写入的快照才附带缓存标记；外部改写后下一次打开必须重读。
+    // 保存已完成，附加缓存标记的失败不得把已成功写入误报为失败。
+    let revision = (|| -> Result<Option<String>, WorkspaceError> {
+        let written_after = written.metadata()?;
+        let current = fs::symlink_metadata(&target)?;
+        (written_before.len() == written_after.len()
+            && written_before.modified()? == written_after.modified()?
+            && revision_of(&written_after)? == revision_of(&current)?)
+        .then(|| revision_of(&written_after))
+        .transpose()
+    })()
+    .ok()
+    .flatten();
     Ok(SavedTextFile {
         version: version_of(&input.content),
+        revision,
     })
 }
 

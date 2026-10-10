@@ -105,3 +105,36 @@ it("rejects traversal and symlinks, including absolute paths outside the root", 
   await expect(textFiles.readProjectTextFile(root, "linked.md")).rejects.toThrow();
   expect((await textFiles.readProjectTextFile(root, join(root, "notes.md"))).path).toBe("notes.md");
 });
+
+it("provides a metadata revision for unchanged files and invalidates same-size external writes", async () => {
+  const root = await fixture("before");
+  const original = await textFiles.readProjectTextFile(root, "notes.md");
+  expect(original).toHaveProperty("revision");
+  expect(await textFiles.readProjectTextFileRevision(root, "notes.md")).toEqual({
+    revision: original.revision,
+  });
+  const modified = (await stat(join(root, "notes.md"))).mtime;
+  await writeFile(join(root, "notes.md"), "change");
+  await import("node:fs/promises").then(({ utimes }) =>
+    utimes(join(root, "notes.md"), modified, modified),
+  );
+  expect((await textFiles.readProjectTextFileRevision(root, "notes.md")).revision).not.toBe(
+    original.revision,
+  );
+});
+
+it("binds the save receipt revision to the replaced file and rejects deleted revision checks", async () => {
+  const root = await fixture("old");
+  const original = await textFiles.readProjectTextFile(root, "notes.md");
+  const saved = await textFiles.saveProjectTextFile(root, {
+    path: "notes.md",
+    content: "new",
+    expectedVersion: original.version,
+  });
+  expect(saved).toHaveProperty("revision");
+  expect(await textFiles.readProjectTextFileRevision(root, "notes.md")).toEqual({
+    revision: saved.revision,
+  });
+  await rm(join(root, "notes.md"));
+  await expect(textFiles.readProjectTextFileRevision(root, "notes.md")).rejects.toThrow();
+});

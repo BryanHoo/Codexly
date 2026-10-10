@@ -46,3 +46,17 @@ it("preserves the conflict code for the editor instead of accepting a stale save
     }),
   ).rejects.toMatchObject({ code: "TEXT_FILE_CONFLICT", status: 409 });
 });
+
+it("checks metadata revisions through an abortable small response", async () => {
+  const revision = "b".repeat(64);
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ revision }));
+  const client = new CodexlyClient({ fetch: fetchMock });
+  const controller = new AbortController();
+  expect(
+    await client.readProjectTextFileRevision("p", "/root", "a.txt", { signal: controller.signal }),
+  ).toEqual({ revision });
+  expect(fetchMock.mock.calls[0]?.[0]).toBe(
+    "/v1/projects/p/files/text/revision?path=a.txt&rootPath=%2Froot",
+  );
+  expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeDefined();
+});

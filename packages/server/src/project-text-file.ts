@@ -1,9 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
+import type { BigIntStats } from "node:fs";
 import { lstat, open, realpath, rename, unlink } from "node:fs/promises";
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
   MAX_TEXT_FILE_BYTES,
   type ProjectTextFile,
+  type ProjectTextFileRevision,
   type SaveProjectTextFileRequest,
   type SaveProjectTextFileResponse,
 } from "@codexly/protocol";
@@ -44,6 +46,21 @@ const blockedExtensions = new Set([
 ]);
 const saves = new Map<string, Promise<unknown>>();
 const versionOf = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+const revisionOf = (stat: BigIntStats) =>
+  createHash("sha256")
+    .update([stat.dev, stat.ino, stat.size, stat.mtimeNs, stat.ctimeNs, stat.birthtimeNs].join(":"))
+    .digest("hex");
+
+export async function readProjectTextFileRevision(
+  root: string,
+  path: string,
+): Promise<ProjectTextFileRevision> {
+  const { target } = await resolveTarget(root, path);
+  // 只检查元数据，不读取或哈希正文；ctime 与文件身份可识别同长度写入和原子替换。
+  const stat = await lstat(target, { bigint: true });
+  if (!stat.isFile() || stat.size > BigInt(MAX_TEXT_FILE_BYTES)) throw unsupported();
+  return { revision: revisionOf(stat) };
+}
 
 async function resolveTarget(root: string, requestedPath: string) {
   const canonicalRoot = await realpath(root);
@@ -93,28 +110,29 @@ function decodeText(bytes: Buffer): string {
 async function snapshot(target: string) {
   const handle = await open(target, "r");
   try {
-    const before = await handle.stat();
-    if (!before.isFile() || before.size > MAX_TEXT_FILE_BYTES) throw unsupported();
+    const before = await handle.stat({ bigint: true });
+    if (!before.isFile() || before.size > BigInt(MAX_TEXT_FILE_BYTES)) throw unsupported();
     // 有界读取，即使文件在 stat 后增长也不会无限分配内存。
-    const buffer = Buffer.alloc(before.size + 1);
+    const buffer = Buffer.alloc(Number(before.size) + 1);
     let length = 0;
     while (length < buffer.length) {
       const { bytesRead } = await handle.read(buffer, length, buffer.length - length, length);
       if (!bytesRead) break;
       length += bytesRead;
     }
-    const after = await handle.stat();
+    const after = await handle.stat({ bigint: true });
     if (
-      length !== before.size ||
-      after.mtimeMs !== before.mtimeMs ||
-      after.ctimeMs !== before.ctimeMs
+      BigInt(length) !== before.size ||
+      revisionOf(after) !== revisionOf(before) ||
+      revisionOf(await lstat(target, { bigint: true })) !== revisionOf(before)
     )
       throw conflict();
     const bytes = buffer.subarray(0, length);
     return {
       content: decodeText(bytes),
       version: versionOf(bytes),
-      mode: before.mode,
+      revision: revisionOf(before),
+      mode: Number(before.mode),
       ino: before.ino,
       dev: before.dev,
     };
@@ -126,7 +144,12 @@ async function snapshot(target: string) {
 export async function readProjectTextFile(root: string, path: string): Promise<ProjectTextFile> {
   const resolved = await resolveTarget(root, path);
   const data = await snapshot(resolved.target);
-  return { path: resolved.path, content: data.content, version: data.version };
+  return {
+    path: resolved.path,
+    content: data.content,
+    version: data.version,
+    revision: data.revision,
+  };
 }
 
 export async function saveProjectTextFile(
@@ -149,7 +172,7 @@ export async function saveProjectTextFile(
         await handle.writeFile(bytes);
         await handle.chmod(original.mode & 0o777);
         await handle.sync();
-        await handle.close();
+        const submitted = await handle.stat({ bigint: true });
         await resolveTarget(root, input.path);
         const latest = await snapshot(target);
         if (
@@ -160,7 +183,20 @@ export async function saveProjectTextFile(
           throw conflict();
         // 同目录原子替换，不先截断原文件；失败时原内容仍然可用。
         await rename(temporary, target);
-        return { version: versionOf(bytes) };
+        // 回执仅绑定本次写入：重命名后检查句柄与目标身份，迟到的外部替换不得标为已缓存。
+        const written = await handle.stat({ bigint: true }).catch(() => null);
+        // 原子保存已经成功，附加缓存信息失败不能把成功写入误报为保存失败。
+        const current = await lstat(target, { bigint: true }).catch(() => null);
+        return {
+          version: versionOf(bytes),
+          ...(written !== null &&
+          current !== null &&
+          written.size === submitted.size &&
+          written.mtimeNs === submitted.mtimeNs &&
+          revisionOf(written) === revisionOf(current)
+            ? { revision: revisionOf(written) }
+            : {}),
+        };
       } finally {
         await handle.close();
         await unlink(temporary).catch((error: unknown) => {

@@ -1,4 +1,4 @@
-import type { ProjectTextFile, SaveProjectTextFileRequest, SaveProjectTextFileResponse } from "@codexly/protocol";
+import type { ProjectTextFile, ProjectTextFileRevision, SaveProjectTextFileRequest, SaveProjectTextFileResponse } from "@codexly/protocol";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CreateTaskWorktreeResponse, StartAgentTaskResponse } from "@codexly/protocol";
 import type {
@@ -317,8 +317,23 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     return this.call("delete_project_file", { input, projectId, rootPath });
   }
 
-  public async readProjectTextFile(projectId: string, rootPath: string | undefined, path: string): Promise<ProjectTextFile> {
-    return this.call("read_project_text_file", {projectId, rootPath, path});
+  public async readProjectTextFile(projectId: string, rootPath: string | undefined, path: string, options: ReadOptions = {}): Promise<ProjectTextFile> {
+    // 未启动的 IPC 可以取消；已启动的原生读取由共享会话合并并复用其结果。
+    options.signal?.throwIfAborted();
+    await this.ensureRuntime();
+    options.signal?.throwIfAborted();
+    const result = await this.invokeCommand<ProjectTextFile>("read_project_text_file", {projectId, rootPath, path});
+    options.signal?.throwIfAborted();
+    return result;
+  }
+
+  public async readProjectTextFileRevision(projectId: string, rootPath: string | undefined, path: string, options: ReadOptions = {}): Promise<ProjectTextFileRevision> {
+    options.signal?.throwIfAborted();
+    await this.ensureRuntime();
+    options.signal?.throwIfAborted();
+    const result = await this.invokeCommand<ProjectTextFileRevision>("read_project_text_file_revision", {projectId, rootPath, path});
+    options.signal?.throwIfAborted();
+    return result;
   }
 
   public async saveProjectTextFile(projectId: string, rootPath: string | undefined, input: SaveProjectTextFileRequest): Promise<SaveProjectTextFileResponse> {

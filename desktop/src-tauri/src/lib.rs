@@ -78,7 +78,9 @@ use application::{
     temporary_workspace_commands::{
         choose_temporary_workspace_root, get_temporary_workspace_settings,
     },
-    text_file_commands::{read_project_text_file, save_project_text_file},
+    text_file_commands::{
+        read_project_text_file, read_project_text_file_revision, save_project_text_file,
+    },
     tray_commands::setup_tray,
     workflow_commands::{
         add_queued_submission, clear_task_goal, delete_queued_submission,
@@ -289,6 +291,7 @@ pub fn run() {
             open_project_file_window,
             read_project_source_file,
             read_project_text_file,
+            read_project_text_file_revision,
             save_project_text_file,
             get_project_git_status,
             get_project_git_history,

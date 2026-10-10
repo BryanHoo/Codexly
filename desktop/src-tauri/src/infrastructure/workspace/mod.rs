@@ -56,7 +56,7 @@ pub use git_worktree::{create_worktree, list_worktrees, switch_worktree};
 pub use git_write::{commit_changes, create_branch, switch_branch};
 pub use open::{open_path, platform_apps, reveal_path};
 pub use path_guard::{WorkspaceError, canonical_root, resolve_existing};
-pub use text_files::{SaveTextInput, read_text_file, save_text_file};
+pub use text_files::{SaveTextInput, read_text_file, read_text_file_revision, save_text_file};
 
 #[cfg(test)]
 pub use git_read::get_git_status;

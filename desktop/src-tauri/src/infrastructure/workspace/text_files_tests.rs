@@ -99,3 +99,42 @@ fn text_files_serialize_competing_saves() {
         );
     });
 }
+
+#[test]
+fn text_file_revisions_validate_cached_reads_and_saved_content() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("a.txt");
+    fs::write(&path, "before").unwrap();
+    let original = read_text_file(root.path(), "a.txt").unwrap();
+    assert_eq!(
+        read_text_file_revision(root.path(), "a.txt")
+            .unwrap()
+            .revision,
+        original.revision
+    );
+    fs::write(&path, "change").unwrap();
+    assert_ne!(
+        read_text_file_revision(root.path(), "a.txt")
+            .unwrap()
+            .revision,
+        original.revision
+    );
+    let changed = read_text_file(root.path(), "a.txt").unwrap();
+    let saved = save_text_file(
+        root.path(),
+        &SaveTextInput {
+            path: "a.txt".into(),
+            content: "saved".into(),
+            expected_version: changed.version,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        read_text_file_revision(root.path(), "a.txt")
+            .unwrap()
+            .revision,
+        saved.revision.unwrap()
+    );
+    fs::remove_file(&path).unwrap();
+    assert!(read_text_file_revision(root.path(), "a.txt").is_err());
+}

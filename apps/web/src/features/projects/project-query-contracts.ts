@@ -49,7 +49,10 @@ export type CodexlyHostAttachmentClient = Pick<
 >;
 export type CodexlySourceFileClient = Pick<
   CodexlyClient,
-  "readProjectSourceFile" | "readProjectTextFile" | "saveProjectTextFile"
+  | "readProjectSourceFile"
+  | "readProjectTextFile"
+  | "readProjectTextFileRevision"
+  | "saveProjectTextFile"
 >;
 export type CodexlyProjectOpenClient = Pick<
   CodexlyClient,

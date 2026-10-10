@@ -14,6 +14,7 @@ export type InlineTextFileOptions = Readonly<{
   scope: object;
   lineNumber?: number | null;
   read: (signal: AbortSignal) => Promise<ProjectTextFile>;
+  checkRevision: (signal: AbortSignal) => Promise<{ revision: string }>;
   save: (input: SaveProjectTextFileRequest) => Promise<SaveProjectTextFileResponse>;
   onSaved: () => void;
   notify: (result: TextEditorSaveResult | "load-error") => void;
@@ -27,6 +28,7 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
   const active = useRef<TextEditorAutosave | null>(null);
   const [loaded, setLoaded] = useState<{
     fileKey: string;
+    scope: object;
     session: TextEditorAutosave;
     module: EditorModule;
   } | null>(null);
@@ -35,29 +37,19 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
     const controller = new AbortController();
     // 回调绑定本次文件身份，迟到的保存不能写入刚切换到的另一个文件。
     const current = callbacks.current;
-    let session: TextEditorAutosave | undefined;
-    let module: EditorModule | undefined;
+    let release: (() => void) | undefined;
     setLoaded(null);
-    // 完整读取与编辑器模块并行；读取结果先收敛，恢复失败草稿时不会产生未处理拒绝。
-    const reading = current.read(controller.signal).then(
-      (file) => ({ file, error: null }),
-      (error: unknown) => ({ file: null, error }),
-    );
+    // 先查询共享会话，再决定是否读取；草稿、已保存状态及在途请求都不会重复读取全文。
     void import("./text-file-editor.js")
       .then(async (editor) => {
-        module = editor;
-        const draft = editor.getTextEditorDraft(scope, fileKey);
-        if (draft) return draft;
-        const result = await reading;
-        if (!result.file) throw result.error;
-        const file = result.file;
-        return new editor.TextEditorAutosave(file, current.save, current.onSaved, current.notify);
-      })
-      .then((value) => {
-        if (controller.signal.aborted || !module) return;
-        session = value;
+        if (controller.signal.aborted) return;
+        const lease = editor.getTextEditorSessionCache(scope).acquire(fileKey, current);
+        release = lease.release;
+        const value = await lease.ready;
+        controller.signal.throwIfAborted();
+        value.setCallbacks(current.save, current.onSaved, current.notify);
         active.current = value;
-        setLoaded({ fileKey, session: value, module });
+        setLoaded({ fileKey, scope, session: value, module: editor });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -69,8 +61,7 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
     return () => {
       controller.abort();
       active.current = null;
-      // 文件切换可能直接卸载正文，仍须补存；失败草稿保留到再次打开该文件。
-      if (session && module) module.retainTextEditorDraft(scope, fileKey, session);
+      release?.();
     };
   }, [enabled, fileKey, scope]);
   useEffect(() => {
@@ -101,7 +92,7 @@ export function useInlineTextFile(options: InlineTextFileOptions) {
       unlisten?.();
     };
   }, [registerCloseGuard]);
-  const current = enabled && loaded?.fileKey === fileKey ? loaded : null;
+  const current = enabled && loaded?.fileKey === fileKey && loaded.scope === scope ? loaded : null;
   const Editor = current?.module.TextFileEditor;
   return {
     ready: current !== null,

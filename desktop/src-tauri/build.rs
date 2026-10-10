@@ -141,6 +141,7 @@ fn main() {
         "open_project_file_window",
         "read_project_source_file",
         "read_project_text_file",
+        "read_project_text_file_revision",
         "save_project_text_file",
         "get_project_git_status",
         "get_project_git_history",

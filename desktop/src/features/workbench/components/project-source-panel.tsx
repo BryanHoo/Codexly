@@ -179,7 +179,8 @@ export function ProjectSourcePanel({
     scope: client,
     lineNumber: reference.lineNumber,
     registerCloseGuard: registerTextEditorCloseGuard,
-    read: (_signal) => client.readProjectTextFile(projectId, rootPath, reference.path),
+    read: (signal) => client.readProjectTextFile(projectId, rootPath, reference.path, { signal }),
+    checkRevision: (signal) => client.readProjectTextFileRevision(projectId, rootPath, reference.path, { signal }),
     save: (input) => client.saveProjectTextFile(projectId, rootPath, input),
     notify: (result) => {
       const labels = t("textEditor", { returnObjects: true }) as TextFileEditorLabels;
