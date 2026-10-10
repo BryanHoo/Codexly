@@ -1,9 +1,11 @@
+import { textFileEditorChinese } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceChinese } from "@codexly/frontend-core/split-workspace-labels";
 import { gitCommit } from "./git-commit.js";
 import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
 import { taskWindow } from "./task-window-menu.js";
 export const workbench = {
+  textEditor: textFileEditorChinese,
   split: splitWorkspaceChinese,
   taskWindow,
   pet: {

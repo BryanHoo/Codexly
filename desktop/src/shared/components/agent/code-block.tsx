@@ -36,14 +36,6 @@ type CodeBlockContextValue = Readonly<{
 const CodeBlockContext = createContext<CodeBlockContextValue | null>(null);
 const tokenCache = new CodeTokenCache();
 
-function useCodeBlockContext(): CodeBlockContextValue {
-  const context = useContext(CodeBlockContext);
-  if (context === null) {
-    throw new Error("CodeBlock components must be rendered inside CodeBlock");
-  }
-  return context;
-}
-
 function getTokenStyle(token: ThemedToken): CSSProperties {
   const sourceStyle = token.htmlStyle as
     (CSSProperties & { "--shiki-dark"?: string; "--shiki-dark-bg"?: string }) | undefined;
@@ -213,7 +205,11 @@ export function CodeBlockContent({
                           <span
                             key={`${String(lineNumber)}-${String(tokenIndex)}`}
                             style={getTokenStyle(token)}
-                            className={import.meta.env.VITE_MACOS_LEGACY === "true" ? "legacy-code-token" : undefined}
+                            className={
+                              import.meta.env.VITE_MACOS_LEGACY === "true"
+                                ? "legacy-code-token"
+                                : undefined
+                            }
                           >
                             {token.content}
                           </span>
@@ -272,9 +268,7 @@ export function CodeBlock({
         <CodeBlockContent
           highlightedLine={highlightedLine}
           language={language}
-          {...(onHighlightedLineUnavailable === undefined
-            ? {}
-            : { onHighlightedLineUnavailable })}
+          {...(onHighlightedLineUnavailable === undefined ? {} : { onHighlightedLineUnavailable })}
           pages={resolvedPages}
           showLineNumbers={showLineNumbers}
         />
@@ -313,6 +307,7 @@ export function CodeBlockActions({ className = "", ...props }: CodeBlockActionsP
 }
 
 export type CodeBlockCopyButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onError"> & {
+  getText?: () => string;
   onCopy?: () => void;
   onError?: (error: Error) => void;
   timeout?: number;
@@ -323,11 +318,12 @@ export function CodeBlockCopyButton({
   className = "",
   onClick,
   onCopy,
+  getText,
   onError,
   timeout = 2_000,
   ...props
 }: CodeBlockCopyButtonProps) {
-  const { getCode } = useCodeBlockContext();
+  const context = useContext(CodeBlockContext);
   const [copied, setCopied] = useState(false);
   const { t } = useTranslation("conversation");
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -343,7 +339,7 @@ export function CodeBlockCopyButton({
 
   const copyCode = async () => {
     try {
-      await writeClipboardText(getCode());
+      await writeClipboardText(getText?.() ?? context?.getCode() ?? "");
       setCopied(true);
       onCopy?.();
       if (resetTimerRef.current !== null) {

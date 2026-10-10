@@ -1,9 +1,19 @@
+import { SourceHeader, getFileName, type SourceHeaderProps } from "./project-source-header.js";
+import { useRouter } from "@tanstack/react-router";
+import {
+  blockTextEditorNavigation,
+  type TextEditorNavigation,
+} from "@codexly/frontend-core/text-editor-navigation";
+import type { TextFileEditorLabels } from "@codexly/frontend-core/text-file-editor";
+import { useInlineTextFile } from "@codexly/ui/core/inline-text-file";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { PdfPreview } from "@codexly/ui/core/pdf-preview";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { buildProjectPdfFileUrl, buildProjectImageFileUrl } from "@codexly/client";
 import type { ProjectSourceFile } from "@codexly/protocol";
-import { Code2, Eye, FileCode2, GitCompareArrows, Image, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react";
+import { Code2, Eye } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type UIEvent } from "react";
 
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
 import {
@@ -11,14 +21,7 @@ import {
   readMarkdownPreviewPreference,
   writeMarkdownPreviewPreference,
 } from "../markdown-preview-preference.js";
-import {
-  CodeBlock,
-  CodeBlockActions,
-  CodeBlockCopyButton,
-  CodeBlockFilename,
-  CodeBlockHeader,
-  CodeBlockTitle,
-} from "../../../shared/components/agent/code-block.js";
+import { CodeBlock, CodeBlockCopyButton } from "../../../shared/components/agent/code-block.js";
 import { LazyMessageResponse } from "../../../shared/components/agent/lazy-message-response.js";
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import { getCodeLanguage } from "../../../shared/components/agent/code-languages.js";
@@ -42,120 +45,6 @@ type ProjectSourcePanelProps = Readonly<{
   reference: MessageFileReference;
   rootPath?: string;
 }>;
-
-function getFileName(path: string): string {
-  return path.split(/[\\/]/u).at(-1) ?? path;
-}
-
-type SourceHeaderProps = Readonly<{
-  actions?: ReactNode;
-  lineNumber: number | null;
-  onClose?: () => void;
-  onOpenDiff?: () => void;
-  previewKind: "image" | "source" | "pdf";
-  sourcePath: string;
-  sourceStatus: "error" | "loading" | "partial" | null;
-}>;
-
-function SourceHeader({
-  actions,
-  lineNumber,
-  onClose,
-  onOpenDiff,
-  previewKind,
-  sourcePath,
-  sourceStatus,
-}: SourceHeaderProps) {
-  const { t } = useTranslation("workbench");
-  return (
-    <CodeBlockHeader className="min-h-toolbar gap-3 overflow-hidden bg-raised px-3 shadow-toolbar sm:px-4">
-      <CodeBlockTitle className="w-0 flex-1 overflow-hidden">
-        {previewKind === "image" ? (
-          <Image className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        ) : (
-          <FileCode2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="w-0 flex-1 overflow-hidden">
-              <h2 className="truncate text-body-small font-semibold">
-                <CodeBlockFilename>
-                  {getFileName(sourcePath)}
-                  {lineNumber === null ? null : ` (line ${String(lineNumber)})`}
-                </CodeBlockFilename>
-              </h2>
-              <p className="truncate text-caption text-muted-foreground">{sourcePath}</p>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent className="break-all">{sourcePath}</TooltipContent>
-        </Tooltip>
-      </CodeBlockTitle>
-      {sourceStatus === null ? null : (
-        <span
-          className={`shrink-0 text-label ${sourceStatus === "error" ? "text-danger" : "text-warning"}`}
-          role={sourceStatus === "error" ? "alert" : "status"}
-        >
-          {t(
-            sourceStatus === "loading"
-              ? "projectDialog.loadingMoreSource"
-              : sourceStatus === "error"
-                ? "projectDialog.loadMoreSourceError"
-                : "projectDialog.sourcePartial",
-          )}
-        </span>
-      )}
-      <CodeBlockActions>
-        {onOpenDiff === undefined ? null : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                aria-label={t("projectDialog.showDiff")}
-                onClick={onOpenDiff}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <GitCompareArrows className="size-3.5" aria-hidden="true" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t("projectDialog.showDiff")}</TooltipContent>
-          </Tooltip>
-        )}
-        {actions}
-        {onClose === undefined ? null : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                aria-label={t(
-                  previewKind === "pdf"
-                    ? "projectDialog.closePdfPreview"
-                    : previewKind === "image"
-                      ? "projectDialog.closeImagePreview"
-                      : "projectDialog.closeSource",
-                )}
-                onClick={onClose}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <X className="size-3.5" aria-hidden="true" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {t(
-                previewKind === "pdf"
-                  ? "projectDialog.closePdfPreview"
-                  : previewKind === "image"
-                    ? "projectDialog.closeImagePreview"
-                    : "projectDialog.closeSource",
-              )}
-            </TooltipContent>
-          </Tooltip>
-        )}
-      </CodeBlockActions>
-    </CodeBlockHeader>
-  );
-}
 
 const SOURCE_LOAD_MORE_THRESHOLD_PX = 400;
 
@@ -203,6 +92,8 @@ export function ProjectSourcePanel({
   rootPath,
 }: ProjectSourcePanelProps) {
   const { t } = useTranslation("workbench");
+  const queryClient = useQueryClient();
+  const router = useRouter({ warn: false }) as { history: TextEditorNavigation } | undefined;
   const contentRef = useRef<HTMLElement>(null);
   const [preferMarkdownPreview, setPreferMarkdownPreview] = useState(() =>
     readMarkdownPreviewPreference(getMarkdownPreviewPreferenceStorage()),
@@ -237,9 +128,58 @@ export function ProjectSourcePanel({
   const canRenderMarkdown = isMarkdown && sourceData?.nextCursor === null;
   const showRenderedMarkdown = canRenderMarkdown && preferMarkdownPreview;
 
+  const editor = useInlineTextFile({
+    enabled: previewKind === "source" && rootPath !== undefined && !showRenderedMarkdown,
+    fileKey: JSON.stringify([projectId, rootPath, reference.path]),
+    scope: client,
+    lineNumber: reference.lineNumber,
+    read: (signal) => client.readProjectTextFile(projectId, rootPath, reference.path, { signal }),
+    save: (input) => client.saveProjectTextFile(projectId, rootPath, input),
+    notify: (result) => {
+      const labels = t("textEditor", { returnObjects: true }) as TextFileEditorLabels;
+      const message =
+        result === "saved"
+          ? labels.saved
+          : result === "conflict"
+            ? labels.conflict
+            : result === "load-error"
+              ? labels.loadError
+              : labels.saveError;
+      // 仅显示文件名，与提示使用同一段文字，只有宽度不足时才换行，长文件名也不会撑破提示。
+      const text = (
+        <span className="whitespace-normal [overflow-wrap:anywhere]">
+          {getFileName(reference.path)} {message}
+        </span>
+      );
+      if (result === "saved") toast.success(text);
+      else toast.error(text);
+    },
+    onSaved: () => {
+      // 只刷新当前文件与根目录状态，不触发聊天或整个项目的重新加载。
+      void queryClient.invalidateQueries({
+        queryKey: ["projects", projectId],
+        predicate: (query) =>
+          query.queryKey.includes(rootPath) &&
+          ((query.queryKey.includes("source-file") && query.queryKey.at(-1) === reference.path) ||
+            query.queryKey.some(
+              (part) => typeof part === "string" && part.startsWith("git-status"),
+            )),
+      });
+    },
+  });
+  const editorRef = useRef(editor);
+  editorRef.current = editor;
+  useEffect(() => {
+    if (router)
+      return blockTextEditorNavigation(
+        router.history,
+        () => editorRef.current.hasUnsavedChanges(),
+        () => editorRef.current.flush(),
+      );
+  }, [router]);
   useEffect(() => {
     const lineNumber = reference.lineNumber;
-    if (sourceData === undefined || lineNumber === null || showRenderedMarkdown) {
+    if (sourceData === undefined || lineNumber === null || showRenderedMarkdown || editor.ready) {
       return;
     }
 
@@ -256,6 +196,7 @@ export function ProjectSourcePanel({
       void fetchNextSourcePage();
     }
   }, [
+    editor.ready,
     fetchNextSourcePage,
     hasNextSourcePage,
     isFetchingNextSourcePage,
@@ -275,14 +216,31 @@ export function ProjectSourcePanel({
             : null;
   const headerProps = {
     lineNumber: reference.lineNumber,
-    ...(onClose === undefined ? {} : { onClose }),
-    ...(onOpenDiff === undefined ? {} : { onOpenDiff }),
+    ...(onClose === undefined
+      ? {}
+      : {
+          onClose: () => {
+            editor.runAfterSave(onClose);
+          },
+        }),
+    ...(onOpenDiff === undefined
+      ? {}
+      : {
+          onOpenDiff: () => {
+            editor.runAfterSave(onOpenDiff);
+          },
+        }),
     previewKind,
     sourcePath,
     sourceStatus,
   };
   const handleSourceScroll = (event: UIEvent<HTMLElement>) => {
-    if (previewKind !== "source" || !hasNextSourcePage || isFetchingNextSourcePage) {
+    if (
+      previewKind !== "source" ||
+      editor.ready ||
+      !hasNextSourcePage ||
+      isFetchingNextSourcePage
+    ) {
       return;
     }
     const scrollTarget = event.target;
@@ -290,8 +248,10 @@ export function ProjectSourcePanel({
     void fetchNextSourcePage();
   };
   const updateMarkdownPreviewPreference = (preview: boolean) => {
-    setPreferMarkdownPreview(preview);
-    writeMarkdownPreviewPreference(preview, getMarkdownPreviewPreferenceStorage());
+    editor.runAfterSave(() => {
+      setPreferMarkdownPreview(preview);
+      writeMarkdownPreviewPreference(preview, getMarkdownPreviewPreferenceStorage());
+    });
   };
 
   return (
@@ -317,6 +277,36 @@ export function ProjectSourcePanel({
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
           <SourceHeader {...headerProps} />
           <ImagePreview alt={fileName} src={imageUrl} />
+        </div>
+      ) : editor.ready ? (
+        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">
+          <SourceHeader
+            {...headerProps}
+            sourceStatus={null}
+            actions={
+              <>
+                {isMarkdown ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        aria-label={t("projectDialog.previewMarkdown")}
+                        onClick={() => {
+                          updateMarkdownPreviewPreference(true);
+                        }}
+                        size="icon-sm"
+                        variant="ghost"
+                      >
+                        <Eye className="size-3.5" aria-hidden="true" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("projectDialog.previewMarkdown")}</TooltipContent>
+                  </Tooltip>
+                ) : null}
+                <CodeBlockCopyButton getText={editor.getContent} />
+              </>
+            }
+          />
+          {editor.element}
         </div>
       ) : sourceData === undefined && sourceQuery.isPending ? (
         <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">

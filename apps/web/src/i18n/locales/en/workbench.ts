@@ -1,3 +1,4 @@
+import { textFileEditorEnglish } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceEnglish } from "@codexly/frontend-core/split-workspace-labels";
 import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
@@ -5,6 +6,7 @@ import { scheduledTasks } from "./scheduled-tasks.js";
 import { globalSearch } from "./global-search.js";
 
 export const workbench = {
+  textEditor: textFileEditorEnglish,
   split: splitWorkspaceEnglish,
   globalSearch,
   scheduledTasks,

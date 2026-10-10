@@ -27,14 +27,6 @@ type CodeBlockContextValue = Readonly<{
 const CodeBlockContext = createContext<CodeBlockContextValue | null>(null);
 const tokenCache = new CodeTokenCache();
 
-function useCodeBlockContext(): CodeBlockContextValue {
-  const context = useContext(CodeBlockContext);
-  if (context === null) {
-    throw new Error("CodeBlock components must be rendered inside CodeBlock");
-  }
-  return context;
-}
-
 function createRawTokens(code: string): TokenizedCode {
   return {
     background: "transparent",
@@ -239,6 +231,7 @@ export function CodeBlockActions({ className = "", ...props }: CodeBlockActionsP
 }
 
 export type CodeBlockCopyButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onError"> & {
+  getText?: () => string;
   onCopy?: () => void;
   onError?: (error: Error) => void;
   timeout?: number;
@@ -249,11 +242,12 @@ export function CodeBlockCopyButton({
   className = "",
   onClick,
   onCopy,
+  getText,
   onError,
   timeout = 2_000,
   ...props
 }: CodeBlockCopyButtonProps) {
-  const { code } = useCodeBlockContext();
+  const context = useContext(CodeBlockContext);
   const [copied, setCopied] = useState(false);
   const { t } = useTranslation("conversation");
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -269,7 +263,7 @@ export function CodeBlockCopyButton({
 
   const copyCode = async () => {
     try {
-      await writeClipboardText(code);
+      await writeClipboardText(getText?.() ?? context?.code ?? "");
       setCopied(true);
       onCopy?.();
       if (resetTimerRef.current !== null) {

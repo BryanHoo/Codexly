@@ -25,6 +25,20 @@
     "./core/split-workspace.css": "./src/core/split-workspace.css"
   },
   "dependencies": {
+    "@codemirror/commands": "catalog:",
+    "@codemirror/lang-css": "catalog:",
+    "@codemirror/lang-html": "catalog:",
+    "@codemirror/lang-javascript": "catalog:",
+    "@codemirror/lang-json": "catalog:",
+    "@codemirror/lang-markdown": "catalog:",
+    "@codemirror/lang-python": "catalog:",
+    "@codemirror/lang-rust": "catalog:",
+    "@codemirror/lang-sql": "catalog:",
+    "@codemirror/lang-xml": "catalog:",
+    "@codemirror/lang-yaml": "catalog:",
+    "@codemirror/language": "catalog:",
+    "@codemirror/state": "catalog:",
+    "@codemirror/view": "catalog:",
     "@codexly/frontend-core": "workspace:*",
     "@pierre/diffs": "catalog:",
     "class-variance-authority": "catalog:",
@@ -39,6 +53,7 @@
     "react": "catalog:"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "typescript": "catalog:"
   }

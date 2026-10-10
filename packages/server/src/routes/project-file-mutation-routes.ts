@@ -1,3 +1,4 @@
+import { registerProjectTextFileRoutes } from "./project-text-file-routes.js";
 import {
   AgentMutationErrorSchema,
   DeleteProjectFileRequestSchema,
@@ -65,6 +66,7 @@ export function registerProjectFileMutationRoutes(
   resolveProjectFileRoot: ResolveProjectFileRoot,
 ): void {
   const { deleteProjectFile, readFileTree, renameProjectFile, runIdempotent } = context;
+  registerProjectTextFileRoutes(app, resolveProjectFileRoot);
 
   app.post<{
     Body: RenameProjectFileRequest;

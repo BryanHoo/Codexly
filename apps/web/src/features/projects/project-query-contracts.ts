@@ -47,7 +47,10 @@ export type CodexlyHostAttachmentClient = Pick<
   CodexlyClient,
   "importHostAttachment" | "listHostFiles"
 >;
-export type CodexlySourceFileClient = Pick<CodexlyClient, "readProjectSourceFile">;
+export type CodexlySourceFileClient = Pick<
+  CodexlyClient,
+  "readProjectSourceFile" | "readProjectTextFile" | "saveProjectTextFile"
+>;
 export type CodexlyProjectOpenClient = Pick<
   CodexlyClient,
   "getProjectOpenCapabilities" | "openProject"

@@ -1,0 +1,163 @@
+import { Compartment } from "@codemirror/state";
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  highlightActiveLine,
+  drawSelection,
+} from "@codemirror/view";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { bracketMatching, defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { useEffect, useRef } from "react";
+import { createTextEditorState } from "./text-editor-state.js";
+import { loadTextEditorLanguage } from "./text-editor-languages.js";
+import type { TextEditorAutosave } from "./text-editor-autosave.js";
+export {
+  TextEditorAutosave,
+  getTextEditorDraft,
+  retainTextEditorDraft,
+} from "./text-editor-autosave.js";
+
+export type TextFileEditorProps = Readonly<{
+  session: TextEditorAutosave;
+  lineNumber?: number | null;
+}>;
+
+const editorTheme = EditorView.theme({
+  "&": {
+    height: "100%",
+    color: "var(--color-foreground)",
+    backgroundColor: "var(--color-content)",
+  },
+  ".cm-scroller": {
+    overflow: "auto",
+    fontFamily: "var(--font-mono, monospace)",
+    fontSize: "14px",
+    overscrollBehavior: "contain",
+  },
+  ".cm-content": { padding: "12px 0", caretColor: "var(--color-foreground)" },
+  ".cm-gutters": {
+    backgroundColor: "var(--color-raised)",
+    color: "var(--color-muted-foreground)",
+    border: "none",
+  },
+  ".cm-activeLine": { backgroundColor: "var(--color-control-hover)" },
+  "&.cm-focused": { outline: "none" },
+  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+    backgroundColor: "color-mix(in srgb, var(--color-brand) 25%, transparent)",
+  },
+  ".cm-cursor": { borderLeftColor: "var(--color-foreground)" },
+  ".cm-panels": { backgroundColor: "var(--color-raised)", color: "var(--color-foreground)" },
+  ".cm-textfield, .cm-button": {
+    color: "inherit",
+    background: "var(--color-content)",
+    border: "1px solid var(--color-muted-foreground)",
+    borderRadius: "4px",
+    fontSize: "14px",
+  },
+});
+
+export function TextFileEditor({ session, lineNumber }: TextFileEditorProps) {
+  const host = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  useEffect(() => {
+    if (!host.current) return;
+    let disposed = false;
+    const language = new Compartment();
+    const content = session.state.sliceDoc();
+    const state = createTextEditorState(content, [
+      lineNumbers(),
+      history({ minDepth: 30 }),
+      drawSelection(),
+      highlightActiveLine(),
+      editorTheme,
+      language.of([]),
+      keymap.of([
+        {
+          key: "Mod-s",
+          run: () => {
+            void session.flush();
+            return true;
+          },
+        },
+        ...defaultKeymap,
+        ...historyKeymap,
+      ]),
+      EditorView.contentAttributes.of({
+        "aria-label": session.file.path,
+        spellcheck: "false",
+        autocapitalize: "off",
+        autocorrect: "off",
+      }),
+      EditorView.updateListener.of((update) => {
+        // 文本留在 CodeMirror 文本树中；输入不触发网络请求，也不复制到 React state。
+        if (update.docChanged) {
+          session.update(update.state);
+          // DOM / 输入法事务可能晚于 blur 到达；失焦后提交的字符也必须补存。
+          if (!update.view.hasFocus)
+            queueMicrotask(() => {
+              void session.flush();
+            });
+        }
+      }),
+      EditorView.domEventHandlers({
+        blur: () => {
+          void session.flush();
+        },
+        compositionend: (_event, view) => {
+          // 输入法在失焦之后才提交最终字符时，等待本轮事务应用后补存。
+          queueMicrotask(() => {
+            if (!disposed && !view.hasFocus) void session.flush();
+          });
+        },
+      }),
+    ]);
+    const view = new EditorView({ parent: host.current, state });
+    viewRef.current = view;
+    // 预览加载不能抢走聊天输入框焦点；用户直接点击正文即可编辑。
+    if (new TextEncoder().encode(content).byteLength <= 256 * 1024)
+      void loadTextEditorLanguage(session.file.path)
+        .then((extension) => {
+          if (!disposed)
+            view.dispatch({
+              effects: language.reconfigure([
+                extension,
+                syntaxHighlighting(defaultHighlightStyle),
+                bracketMatching(),
+              ]),
+            });
+        })
+        .catch(() => undefined);
+    const onWindowBlur = () => {
+      void session.flush();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") void session.flush();
+    };
+    window.addEventListener("blur", onWindowBlur);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      disposed = true;
+      window.removeEventListener("blur", onWindowBlur);
+      document.removeEventListener("visibilitychange", onVisibility);
+      viewRef.current = null;
+      view.destroy();
+    };
+  }, [session]);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !lineNumber || lineNumber < 1) return;
+    const position = view.state.doc.line(Math.min(lineNumber, view.state.doc.lines)).from;
+    view.dispatch({
+      selection: { anchor: position },
+      effects: EditorView.scrollIntoView(position, { y: "center" }),
+    });
+  }, [session, lineNumber]);
+  return (
+    <div
+      ref={host}
+      className="h-full min-h-0 overflow-hidden bg-content"
+      data-inline-text-editor=""
+    />
+  );
+}

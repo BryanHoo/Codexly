@@ -20,3 +20,5 @@
 - `GET /v1/projects/:projectId/files/pdf` 与 `/v1/temporary/files/pdf` 使用已有任务目录解析，复验 `%PDF-` 签名后流式交付；返回 `application/pdf`、`inline` 和 `Accept-Ranges`，支持 206/416 与 HEAD。只有 PDF 响应允许同源嵌入，其他响应保留防嵌入策略；用 `app-files.test.ts` 验证范围请求、临时任务和伪装文件拒绝。
 
 - 项目 Git 读取仅检查当前根目录的 `.git`（目录或 worktree gitfile），缺失时返回 `repositoryMode: "none"`，不扫描子目录、不执行 Git 命令、不回溯父仓库；拒绝通过 `repository` 参数选择子仓库。元数据 Watch 同样不得发现子目录仓库；回归覆盖含子仓库的普通目录、父仓库下的普通目录以及正常 worktree。
+
+- 文本编辑通过 `/v1/projects/:projectId/files/text` 完整有界读取及条件保存，限定根目录内 2 MiB UTF-8 文本，拒绝符号链接、`.git`、二进制及不一致换行。版本校验、同文件保存串行和同目录原子替换不可省略；以 `project-text-file.test.ts` 与路由测试覆盖冲突、路径边界和字节保留。详见 [文本文件编辑方案](../../../../docs/text-file-editing.md)。

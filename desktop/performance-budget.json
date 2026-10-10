@@ -3,8 +3,9 @@
   "initialLoadBytes": 425000,
   "scenarioLoadBytes": {
     "cppHighlight": 2600000,
-    "markdown": 2010000,
-    "workspace": 1530000,
-    "taskWindow": 530000
+    "markdown": 2040000,
+    "workspace": 1560000,
+    "taskWindow": 530000,
+    "textEditor": 2050000
   }
 }

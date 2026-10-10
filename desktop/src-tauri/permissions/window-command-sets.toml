@@ -109,6 +109,8 @@ permissions = [
   "allow-delete-project-file",
   "allow-open-project-file-window",
   "allow-read-project-source-file",
+  "allow-read-project-text-file",
+  "allow-save-project-text-file",
   "allow-get-project-git-status",
   "allow-get-project-git-history",
   "allow-get-project-git-commit-files",
@@ -144,15 +146,19 @@ permissions = [
 
 [[set]]
 identifier = "project-file-window-commands"
-description = "Allows project file windows to initialize preferences and read one project file."
+description = "Allows project file windows to preview and edit scoped project text files."
 permissions = [
   "allow-initialize-app-storage",
   "allow-record-frontend-diagnostic",
   "allow-read-project-source-file",
+  "allow-read-project-text-file",
+  "allow-save-project-text-file",
   "allow-cache-project-image",
   "allow-get-project-pdf-file",
   "allow-open-project",
   "core:window:allow-close",
+  "core:event:allow-listen",
+  "core:event:allow-unlisten",
 ]
 
 [[set]]

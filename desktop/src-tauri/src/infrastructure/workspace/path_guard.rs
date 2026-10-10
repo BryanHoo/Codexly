@@ -4,6 +4,10 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum WorkspaceError {
+    #[error("Only project UTF-8 text files up to 2 MiB with consistent line endings can be edited")]
+    TextFileUnsupported,
+    #[error("File changed on disk; reload before saving")]
+    TextFileConflict,
     #[error("invalid workspace path")]
     InvalidPath,
     #[error("git {operation} returned invalid data: {detail}")]
@@ -42,6 +46,8 @@ impl WorkspaceError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::InvalidPath => "INVALID_PATH",
+            Self::TextFileUnsupported => "TEXT_FILE_UNSUPPORTED",
+            Self::TextFileConflict => "TEXT_FILE_CONFLICT",
             Self::GitOutputInvalid { .. } => "GIT_OUTPUT_INVALID",
             Self::GitOutputTooLarge { .. } => "GIT_OUTPUT_TOO_LARGE",
             Self::GitPathEncoding => "GIT_PATH_ENCODING_UNSUPPORTED",

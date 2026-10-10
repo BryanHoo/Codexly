@@ -353,6 +353,9 @@ export const AgentMutationErrorCodeSchema = Type.Union([
   Type.Literal("SKILL_MARKET_UNSAFE"),
   Type.Literal("PROVIDER_ERROR"),
   Type.Literal("GLOBAL_INSTRUCTIONS_CHANGED"),
+  Type.Literal("TEXT_FILE_CONFLICT"),
+  Type.Literal("TEXT_FILE_UNSUPPORTED"),
+  Type.Literal("TEXT_FILE_UNAVAILABLE"),
   Type.Literal("ASYNC_QUESTION_NOT_FOUND"),
   Type.Literal("ASYNC_QUESTION_RESOLVED"),
 ]);

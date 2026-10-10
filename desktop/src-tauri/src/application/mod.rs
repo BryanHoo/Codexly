@@ -70,6 +70,7 @@ pub(crate) mod terminal_lifecycle;
 #[cfg(feature = "webview-tests")]
 pub mod terminal_probe;
 mod terminal_project;
+pub mod text_file_commands;
 pub mod tray_commands;
 #[cfg(test)]
 mod tray_commands_tests;

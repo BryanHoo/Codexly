@@ -1,3 +1,4 @@
+import type { ProjectTextFile, SaveProjectTextFileRequest, SaveProjectTextFileResponse } from "@codexly/protocol";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CreateTaskWorktreeResponse, StartAgentTaskResponse } from "@codexly/protocol";
 import type {
@@ -314,6 +315,14 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     _options: MutationOptions = {},
   ): Promise<DeleteProjectFileResponse> {
     return this.call("delete_project_file", { input, projectId, rootPath });
+  }
+
+  public async readProjectTextFile(projectId: string, rootPath: string | undefined, path: string): Promise<ProjectTextFile> {
+    return this.call("read_project_text_file", {projectId, rootPath, path});
+  }
+
+  public async saveProjectTextFile(projectId: string, rootPath: string | undefined, input: SaveProjectTextFileRequest): Promise<SaveProjectTextFileResponse> {
+    return this.call("save_project_text_file", {projectId, rootPath, input});
   }
 
   public async readProjectSourceFile(

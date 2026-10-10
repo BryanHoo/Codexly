@@ -105,7 +105,7 @@ pub(super) fn request_close_confirmation(app: &AppHandle) {
     }
 
     let mut dialog = app.dialog()
-        .message("是否关闭 Codexly？关闭将退出应用并结束所有本地终端及其运行中的程序；最小化将继续在后台运行。")
+        .message("是否关闭 Codexly？关闭将丢弃未保存的文件编辑、退出应用并结束所有本地终端及其运行中的程序；最小化将继续在后台运行。")
         .title("关闭 Codexly？")
         .kind(MessageDialogKind::Warning)
         .buttons(MessageDialogButtons::YesNoCancelCustom(
