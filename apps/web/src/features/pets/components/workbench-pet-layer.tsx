@@ -1,3 +1,4 @@
+import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import {
   TEMPORARY_TASK_SCOPE_ID,
   type WorkbenchPetDescriptor,
@@ -307,6 +308,7 @@ function EnabledWorkbenchPetLayer({ petId }: Readonly<{ petId: string }>) {
   );
   const handleTaskSelect = useCallback(
     (projectId: string, taskId: string) => {
+      if (requestSplitTaskNavigation({ projectId, taskId })) return;
       // 临时任务没有 Project，必须使用独立路由以免触发不存在的 Project 查询。
       void navigate(
         projectId === TEMPORARY_TASK_SCOPE_ID

@@ -1,3 +1,4 @@
+import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { AgentEventConnectionState } from "@codexly/client";
@@ -10,7 +11,6 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Send } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { getPinnedTasks } from "../../projects/project-data.js";
@@ -38,7 +38,6 @@ import {
   resolveInitialExpandedProjectIds,
   writeExpandedProjectIds,
 } from "../project-sidebar-preferences.js";
-
 import { ProjectSidebarDialogs } from "./project-sidebar-dialogs.js";
 import { ArchivedTasksDialog, type ArchivedTaskScope } from "./archived-tasks-dialog.js";
 import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
@@ -52,13 +51,11 @@ export { ProductBrand } from "./project-sidebar-header.js";
 export * from "./project-sidebar-actions.js";
 export * from "./project-sidebar-state.js";
 export * from "./project-sidebar-task-row.js";
-
 const GlobalSearchDialog = lazy(() =>
   import("../../search/global-search-dialog.js").then((module) => ({
     default: module.GlobalSearchDialog,
   })),
 );
-
 const primaryActionClassName =
   "flex h-8 w-full items-center gap-2.5 rounded-control px-2.5 text-body-small font-medium text-foreground transition-colors hover:bg-control-hover";
 const primaryActionIconClassName = "size-4 shrink-0 text-muted-foreground";
@@ -95,6 +92,7 @@ export function ProjectSidebar({
   const { isProjectActionPending, isProjectOrderPending, isProjectAddPending, taskActivity } =
     useProjectActivity();
   const navigate = useNavigate();
+  const workspaceActions = useSplitWorkspaceActions();
   const queryClient = useQueryClient();
   const sidebarRef = useRef<HTMLElement>(null);
   const closeOnMobile = useCloseMobileSidebar(sidebarRef, onClose);
@@ -317,7 +315,9 @@ export function ProjectSidebar({
           queryKey: ["projects", task.projectId, "tasks", task.id],
         });
         forgetTask(task.projectId, task.id);
-        if (task.projectId === projectId && task.id === taskId) {
+        // 归档与删除共用窗口清理规则，不能让原 URL 重置仍在显示的聊天。
+        const handled = workspaceActions?.dismiss({ projectId: task.projectId, taskId: task.id });
+        if (!handled && task.projectId === projectId && task.id === taskId) {
           await (task.projectId === TEMPORARY_TASK_SCOPE_ID
             ? navigate({ to: "/temporary" })
             : navigate({ params: { projectId: task.projectId }, to: "/p/$projectId" }));

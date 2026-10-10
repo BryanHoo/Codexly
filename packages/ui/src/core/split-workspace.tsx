@@ -1,4 +1,10 @@
 import {
+  dismissSplitTask,
+  isSplitWorkspaceDetached,
+  syncSplitTaskRoute,
+  type SplitWorkspaceSelection,
+} from "@codexly/frontend-core/split-workspace-selection";
+import {
   Activity,
   createContext,
   useCallback,
@@ -57,6 +63,7 @@ type WorkspaceActions = Readonly<{
   split: (pane: SplitPaneIdentity, direction: SplitDirection) => void;
   add: (pane: SplitPaneIdentity) => void;
   close: (pane: SplitPaneIdentity) => void;
+  dismiss: (pane: SplitPaneIdentity) => boolean;
   focus: (pane: SplitPaneIdentity) => void;
   select: (pane: SplitPaneIdentity) => boolean;
   replace: (previous: SplitPaneIdentity, next: SplitPaneIdentity) => void;
@@ -103,22 +110,18 @@ export function SplitWorkspaceProvider({
   desktop?: boolean;
 }>) {
   const mobile = useSyncExternalStore(subscribeMobile, getMobile, getServerMobile);
-  const [selection, setSelection] = useState(() => ({
+  const enabled = desktop || !mobile;
+  const [selection, setSelection] = useState<SplitWorkspaceSelection>(() => ({
     routeKey,
+    routePaneKey: current === undefined ? undefined : splitPaneKey(current),
     panes: current === undefined ? [] : ([current] as readonly SplitPaneIdentity[]),
     activeKey: current === undefined ? undefined : splitPaneKey(current),
     layout: undefined as SplitLayout | undefined,
   }));
-  // 外部导航开始新工作区；分屏内部的焦点切换不修改路由或重挂聊天。
+  // 任务入口即使遗漏导航桥，也只更新聚焦窗口；工具页面仍使用独立路由工作区。
   if (selection.routeKey !== routeKey) {
-    setSelection({
-      routeKey,
-      panes: current === undefined ? [] : [current],
-      activeKey: current === undefined ? undefined : splitPaneKey(current),
-      layout: undefined,
-    });
+    setSelection(syncSplitTaskRoute(selection, current, routeKey, enabled));
   }
-  const enabled = desktop || !mobile;
   const selectionRef = useRef(selection);
   useLayoutEffect(() => {
     // 操作读取已提交的最新窗口集合，避免闭包过期，也不因焦点或布局更新改变方法身份。
@@ -167,6 +170,14 @@ export function SplitWorkspaceProvider({
       };
     });
   }, []);
+  const dismiss = useCallback(
+    (pane: SplitPaneIdentity) => {
+      if (!enabled || !isSplitWorkspaceDetached(selectionRef.current)) return false;
+      setSelection((latest) => dismissSplitTask(latest, pane, createSplitDraft));
+      return true;
+    },
+    [enabled],
+  );
   const focus = useCallback((pane: SplitPaneIdentity) => {
     setSelection((previous) => {
       const key = splitPaneKey(pane);
@@ -280,12 +291,13 @@ export function SplitWorkspaceProvider({
       split,
       add,
       close,
+      dismiss,
       focus,
       select,
       solo,
       replace,
     }),
-    [resize, split, add, close, focus, select, solo, replace],
+    [resize, split, add, close, dismiss, focus, select, solo, replace],
   );
   const activePane = selection.panes.find((pane) => splitPaneKey(pane) === selection.activeKey);
   return (
@@ -297,14 +309,7 @@ export function SplitWorkspaceProvider({
   );
 }
 
-export function getSplitAction(
-  workspace: Pick<WorkspaceState, "enabled" | "panes"> | null,
-  pane: SplitPaneIdentity,
-) {
-  if (!workspace?.enabled) return null;
-  if (workspace.panes.some((item) => splitPaneKey(item) === splitPaneKey(pane))) return "added";
-  return workspace.panes.length >= MAX_SPLIT_PANES ? "limit" : "add";
-}
+export { getSplitAction } from "@codexly/frontend-core/split-workspace";
 
 export const SplitPaneContext = createContext<Readonly<{
   pane: SplitPaneIdentity;
@@ -400,6 +405,7 @@ export function SplitWorkspaceGrid({
                 className="split-workspace-pane"
                 data-split-pane={key}
                 data-active={active}
+                tabIndex={-1}
                 style={cell === undefined ? undefined : splitPaneStyle(cell)}
                 onPointerDownCapture={() => {
                   workspace.focus(pane);

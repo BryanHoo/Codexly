@@ -15,6 +15,15 @@ export function splitPaneKey(pane: SplitPaneIdentity): string {
     : JSON.stringify([pane.projectId, pane.taskId]);
 }
 
+export function getSplitAction(
+  workspace: Readonly<{ enabled: boolean; panes: readonly SplitPaneIdentity[] }> | null,
+  pane: SplitPaneIdentity,
+) {
+  if (!workspace?.enabled) return null;
+  if (workspace.panes.some((item) => splitPaneKey(item) === splitPaneKey(pane))) return "added";
+  return workspace.panes.length >= MAX_SPLIT_PANES ? "limit" : "add";
+}
+
 export function addSplitPane(
   panes: readonly SplitPaneIdentity[],
   pane: SplitPaneIdentity,

@@ -1,3 +1,4 @@
+import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import {
   TEMPORARY_TASK_SCOPE_ID,
   type ScheduledTask,
@@ -193,6 +194,7 @@ export function ScheduledTasksContainer({
                   return;
                 }
                 queryClient.setQueryData(["projects", runProjectId, "tasks", taskId], response);
+                if (requestSplitTaskNavigation({ projectId: runProjectId, taskId })) return;
                 void navigate(
                   runProjectId === TEMPORARY_TASK_SCOPE_ID
                     ? { params: { taskId }, to: "/temporary/t/$taskId" }

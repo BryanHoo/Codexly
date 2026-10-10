@@ -1,3 +1,4 @@
+import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -96,6 +97,7 @@ export function ProjectSidebar({
   const { isProjectActionPending, isProjectOrderPending, isProjectAddPending, taskActivity } =
     useProjectActivity();
   const navigate = useNavigate();
+  const workspaceActions = useSplitWorkspaceActions();
   const queryClient = useQueryClient();
   const [preferenceStorage] = useState(getProjectSidebarPreferenceStorage);
   const [initialSavedExpandedProjectIds] = useState(() =>
@@ -291,7 +293,9 @@ export function ProjectSidebar({
           queryKey: ["projects", task.projectId, "tasks", task.id],
         });
         forgetTask(task.projectId, task.id);
-        if (task.projectId === projectId && task.id === taskId) {
+        // 归档与删除共用窗口清理规则，不能让原 URL 重置仍在显示的聊天。
+        const handled = workspaceActions?.dismiss({ projectId: task.projectId, taskId: task.id });
+        if (!handled && task.projectId === projectId && task.id === taskId) {
           await (task.projectId === TEMPORARY_TASK_SCOPE_ID
             ? navigate({ to: "/temporary" })
             : navigate({ params: { projectId: task.projectId }, to: "/p/$projectId" }));

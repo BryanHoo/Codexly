@@ -1,3 +1,4 @@
+import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import "./global-search.css";
 import { useSearchOccurrences } from "./use-search-occurrences.js";
 import { useSearchVisibility } from "./use-search-visibility.js";
@@ -117,6 +118,11 @@ export function GlobalSearchDialog({
             query: normalized,
           },
     );
+    // 搜索任务与历史定位使用点击时的活动分屏，已打开任务只切换焦点。
+    if (requestSplitTaskNavigation({ projectId: task.projectId, taskId: task.id })) {
+      onClose();
+      return;
+    }
     await (task.projectId === "temporary"
       ? navigate({ to: "/temporary/t/$taskId", params: { taskId: task.id } })
       : navigate({

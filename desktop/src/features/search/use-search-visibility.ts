@@ -1,3 +1,4 @@
+import { restoreSplitPaneFocus } from "@codexly/ui/core/split-pane-focus";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type RefObject, type UIEvent } from "react";
 
@@ -28,7 +29,7 @@ export function useSearchVisibility(
     },
     onCloseAutoFocus: (event: Event) => {
       event.preventDefault();
-      returnFocus.current?.focus();
+      if (!restoreSplitPaneFocus(returnFocus.current)) returnFocus.current?.focus();
     },
     onScroll: (event: UIEvent<HTMLDivElement>) => {
       scrollTop.current = event.currentTarget.scrollTop;

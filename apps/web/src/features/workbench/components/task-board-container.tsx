@@ -1,3 +1,5 @@
+import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
+import { useOpenSplitDraft } from "@codexly/ui/core/split-workspace";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -15,6 +17,7 @@ import { TaskBoard } from "./task-board.js";
 
 export function TaskBoardContainer({ projectId }: Readonly<{ projectId: string }>) {
   const navigate = useNavigate();
+  const openSplitDraft = useOpenSplitDraft();
   const { projects } = useProjectData();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const projectIds = useMemo(() => projects.map((project) => project.id), [projects]);
@@ -52,6 +55,7 @@ export function TaskBoardContainer({ projectId }: Readonly<{ projectId: string }
       }
       onCreateTask={(selectedId) => {
         const targetProjectId = selectedId ?? projectId;
+        if (openSplitDraft(targetProjectId)) return;
         void (targetProjectId === TEMPORARY_TASK_SCOPE_ID
           ? navigate({ to: "/temporary" })
           : navigate({ params: { projectId: targetProjectId }, to: "/p/$projectId" }));
@@ -60,6 +64,7 @@ export function TaskBoardContainer({ projectId }: Readonly<{ projectId: string }
         await completedQuery.fetchNextPage();
       }}
       onOpenTask={(task) => {
+        if (requestSplitTaskNavigation({ projectId: task.projectId, taskId: task.id })) return;
         void navigate({
           params: { projectId: task.projectId, taskId: task.id },
           to: "/p/$projectId/t/$taskId",

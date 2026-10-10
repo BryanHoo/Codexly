@@ -2,6 +2,7 @@ import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@codexly/protocol";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 
 import type { AsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { removeRetainedTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
@@ -25,6 +26,7 @@ export function useTaskDeletion({
   const { client } = useProjectData();
   const { forgetTask } = useProjectActions();
   const navigate = useNavigate();
+  const workspace = useSplitWorkspaceActions();
   const queryClient = useQueryClient();
   const [deletingTask, setDeletingTask] = useState<AgentTask | null>(null);
   const deleteMutation = useMutation(taskDeleteMutationOptions(client));
@@ -48,7 +50,9 @@ export function useTaskDeletion({
         forgetTask(task.projectId, task.id);
         removeRetainedTaskRuntime(task.projectId, task.id);
 
-        if (task.projectId === activeProjectId && task.id === activeTaskId) {
+        // 删除成功后仅移除对应分屏；工作区未接管时保留普通单窗口导航。
+        const handled = workspace?.dismiss({ projectId: task.projectId, taskId: task.id });
+        if (!handled && task.projectId === activeProjectId && task.id === activeTaskId) {
           await (task.projectId === TEMPORARY_TASK_SCOPE_ID
             ? navigate({ to: "/temporary" })
             : navigate({ params: { projectId: task.projectId }, to: "/p/$projectId" }));
