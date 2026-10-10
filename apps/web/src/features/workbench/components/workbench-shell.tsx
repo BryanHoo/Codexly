@@ -47,6 +47,8 @@ function WorkbenchShellContent({
                     left: context.t("split.left"),
                     right: context.t("split.right"),
                     limit: context.t("split.limit"),
+                    resizeWidth: context.t("split.resizeWidth"),
+                    resizeHeight: context.t("split.resizeHeight"),
                   }}
                   toggleSidebar={() => {
                     context.setSidebarOpen((open) => !open);

@@ -3,6 +3,7 @@ export type SplitLayout =
   | string
   | Readonly<{
       axis: "horizontal" | "vertical";
+      ratio?: number;
       first: SplitLayout;
       second: SplitLayout;
     }>;
@@ -53,27 +54,70 @@ export function remapSplitLayout(
   return first === layout.first && second === layout.second ? layout : { ...layout, first, second };
 }
 
-type Cell = Readonly<{ x: number; y: number; width: number; height: number }>;
-export function getSplitLayoutCells(layout: SplitLayout): ReadonlyMap<string, Cell> {
-  const cells = new Map<string, Cell>();
-  const visit = (node: SplitLayout, cell: Cell) => {
+export const MIN_SPLIT_RATIO = 0.1;
+export const MAX_SPLIT_RATIO = 0.9;
+
+export function resizeSplitLayout(layout: SplitLayout, path: string, ratio: number): SplitLayout {
+  if (typeof layout === "string" || !Number.isFinite(ratio)) return layout;
+  if (path === "") {
+    const nextRatio = Math.min(MAX_SPLIT_RATIO, Math.max(MIN_SPLIT_RATIO, ratio));
+    return nextRatio === (layout.ratio ?? 0.5) ? layout : { ...layout, ratio: nextRatio };
+  }
+  // 路径描述切分节点而非任务身份；替换任务保留比例，关闭后不存在的节点不响应。
+  const branch = path.startsWith("0") ? "first" : path.startsWith("1") ? "second" : undefined;
+  if (branch === undefined) return layout;
+  const next = resizeSplitLayout(layout[branch], path.slice(1), ratio);
+  return next === layout[branch] ? layout : { ...layout, [branch]: next };
+}
+
+export type SplitLayoutCell = Readonly<{ x: number; y: number; width: number; height: number }>;
+export type SplitLayoutDivider = SplitLayoutCell &
+  Readonly<{ path: string; axis: "horizontal" | "vertical"; ratio: number }>;
+
+function visitSplitLayout(
+  layout: SplitLayout,
+  onPane: (key: string, cell: SplitLayoutCell) => void,
+  onDivider: (divider: SplitLayoutDivider) => void,
+) {
+  const visit = (node: SplitLayout, cell: SplitLayoutCell, path: string) => {
     if (typeof node === "string") {
-      cells.set(node, cell);
+      onPane(node, cell);
       return;
     }
+    const ratio = node.ratio ?? 0.5;
+    onDivider({ ...cell, path, axis: node.axis, ratio });
     if (node.axis === "horizontal") {
-      const width = cell.width / 2;
-      visit(node.first, { ...cell, width });
-      visit(node.second, { ...cell, x: cell.x + width, width });
+      const width = cell.width * ratio;
+      visit(node.first, { ...cell, width }, `${path}0`);
+      visit(node.second, { ...cell, x: cell.x + width, width: cell.width - width }, `${path}1`);
     } else {
-      const height = cell.height / 2;
-      visit(node.first, { ...cell, height });
-      visit(node.second, { ...cell, y: cell.y + height, height });
+      const height = cell.height * ratio;
+      visit(node.first, { ...cell, height }, `${path}0`);
+      visit(node.second, { ...cell, y: cell.y + height, height: cell.height - height }, `${path}1`);
     }
   };
-  // 最多四屏、三层切分，8 格足以精确表示所有半分位置；扁平渲染避免聊天重挂。
-  visit(layout, { x: 0, y: 0, width: 8, height: 8 });
+  // 保留原有 8 单位坐标契约，允许连续小数比例；扁平渲染避免聊天重挂。
+  visit(layout, { x: 0, y: 0, width: 8, height: 8 }, "");
+}
+
+export function getSplitLayoutCells(layout: SplitLayout): ReadonlyMap<string, SplitLayoutCell> {
+  const cells = new Map<string, SplitLayoutCell>();
+  visitSplitLayout(
+    layout,
+    (key, cell) => cells.set(key, cell),
+    () => undefined,
+  );
   return cells;
+}
+
+export function getSplitLayoutDividers(layout: SplitLayout): readonly SplitLayoutDivider[] {
+  const dividers: SplitLayoutDivider[] = [];
+  visitSplitLayout(
+    layout,
+    () => undefined,
+    (divider) => dividers.push(divider),
+  );
+  return dividers;
 }
 
 export function getSplitShortcutDirection(

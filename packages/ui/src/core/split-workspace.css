@@ -23,9 +23,83 @@
 }
 
 .split-workspace[data-directed="true"] {
-  /* 保持窗口作为同级网格项，嵌套切分仅改变坐标，不改变 React 挂载位置。 */
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  grid-template-rows: repeat(8, minmax(0, 1fr));
+  /* 同级窗口使用连续比例定位，拖动嵌套分割线不会改变 React 挂载位置。 */
+  display: block;
+  position: relative;
+}
+
+.split-workspace[data-directed="true"] > .split-workspace-pane {
+  position: absolute;
+}
+
+.split-workspace-resizer {
+  position: absolute;
+  z-index: 8;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+
+.split-workspace-resizer[data-axis="horizontal"] {
+  width: 8px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+}
+
+.split-workspace-resizer[data-axis="vertical"] {
+  height: 8px;
+  transform: translateY(-50%);
+  cursor: row-resize;
+}
+
+.split-workspace-resizer::after {
+  content: "";
+  position: absolute;
+  background: var(--ui-color-separator-strong);
+}
+
+.split-workspace-resizer[data-axis="horizontal"]::after {
+  inset: 0 auto 0 50%;
+  width: 1px;
+}
+
+.split-workspace-resizer[data-axis="vertical"]::after {
+  inset: 50% 0 auto 0;
+  height: 1px;
+}
+
+.split-workspace-resizer:is(:hover, :focus-visible, :active)::after {
+  background: var(--ui-color-accent);
+}
+
+.split-workspace[data-resizing] {
+  user-select: none;
+}
+
+/* 拖动时覆盖正文及内嵌页面，防止选中文字或让 iframe 抢走指针事件。 */
+.split-workspace[data-resizing]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+}
+
+.split-workspace[data-resizing="horizontal"]::before {
+  cursor: col-resize;
+}
+
+.split-workspace[data-resizing="vertical"]::before {
+  cursor: row-resize;
+}
+
+@media (pointer: coarse) {
+  .split-workspace-resizer[data-axis="horizontal"] {
+    width: 16px;
+  }
+
+  .split-workspace-resizer[data-axis="vertical"] {
+    height: 16px;
+  }
 }
 
 .split-workspace-pane {

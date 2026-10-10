@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -22,11 +23,13 @@ import {
   createSplitLayout,
   getSplitLayoutCells,
   remapSplitLayout,
+  resizeSplitLayout,
   splitLayout,
   type SplitDirection,
   type SplitLayout,
 } from "@codexly/frontend-core/split-layout";
 import { SplitPaneMenu, SplitWorkspaceShortcuts } from "./split-workspace-actions.js";
+import { SplitWorkspaceResizers, splitPaneStyle } from "./split-workspace-resizers.js";
 
 const mobileQuery = "(max-width: 760px), (hover: none) and (pointer: coarse)";
 function subscribeMobile(listener: () => void) {
@@ -44,6 +47,7 @@ type Workspace = Readonly<{
   panes: readonly SplitPaneIdentity[];
   activeKey: string | undefined;
   layout: SplitLayout | undefined;
+  resize: (path: string, ratio: number) => void;
   split: (pane: SplitPaneIdentity, direction: SplitDirection) => void;
   add: (pane: SplitPaneIdentity) => void;
   close: (pane: SplitPaneIdentity) => void;
@@ -211,12 +215,21 @@ export function SplitWorkspaceProvider({
     },
     [enabled],
   );
+  const resize = useCallback((path: string, ratio: number) => {
+    setSelection((previous) => {
+      const layout = previous.layout ?? createSplitLayout(previous.panes.map(splitPaneKey));
+      if (layout === undefined) return previous;
+      const next = resizeSplitLayout(layout, path, ratio);
+      return next === layout ? previous : { ...previous, layout: next };
+    });
+  }, []);
   const value = useMemo(
     () => ({
       enabled,
       panes: selection.panes,
       activeKey: selection.activeKey,
       layout: selection.layout,
+      resize,
       split,
       add,
       close,
@@ -230,6 +243,7 @@ export function SplitWorkspaceProvider({
       selection.panes,
       selection.activeKey,
       selection.layout,
+      resize,
       split,
       add,
       close,
@@ -267,9 +281,12 @@ export function SplitWorkspaceGrid({
   label: string;
   toggleSidebar: () => void;
   sidebarOpen: boolean;
-  splitLabels: Readonly<Record<SplitDirection, string> & { limit: string }>;
+  splitLabels: Readonly<
+    Record<SplitDirection, string> & { limit: string; resizeWidth?: string; resizeHeight?: string }
+  >;
 }>) {
   const workspace = useSplitWorkspace();
+  const containerRef = useRef<HTMLDivElement>(null);
   if (workspace === null) throw new Error("Missing split workspace provider");
   const [mounts, setMounts] = useState(() => ({
     panes: workspace.panes,
@@ -292,12 +309,17 @@ export function SplitWorkspaceGrid({
     setMounts({ panes: workspace.panes, keys, nextKey });
   }
   const multiple = workspace.enabled && workspace.panes.length > 1;
+  const layout = useMemo(
+    () => workspace.layout ?? createSplitLayout(workspace.panes.map(splitPaneKey)),
+    [workspace.layout, workspace.panes],
+  );
   const cells = useMemo(
-    () => (workspace.layout === undefined ? undefined : getSplitLayoutCells(workspace.layout)),
-    [workspace.layout],
+    () => (layout === undefined ? undefined : getSplitLayoutCells(layout)),
+    [layout],
   );
   return (
     <div
+      ref={containerRef}
       className="split-workspace"
       data-multiple={multiple}
       data-count={multiple ? workspace.panes.length : 1}
@@ -319,14 +341,7 @@ export function SplitWorkspaceGrid({
                 className="split-workspace-pane"
                 data-split-pane={key}
                 data-active={active}
-                style={
-                  cell === undefined
-                    ? undefined
-                    : {
-                        gridColumn: `${String(cell.x + 1)} / span ${String(cell.width)}`,
-                        gridRow: `${String(cell.y + 1)} / span ${String(cell.height)}`,
-                      }
-                }
+                style={cell === undefined ? undefined : splitPaneStyle(cell)}
                 onPointerDownCapture={() => {
                   workspace.focus(pane);
                 }}
@@ -343,6 +358,15 @@ export function SplitWorkspaceGrid({
           </Activity>
         );
       })}
+      {multiple && layout !== undefined ? (
+        <SplitWorkspaceResizers
+          layout={layout}
+          containerRef={containerRef}
+          resize={workspace.resize}
+          widthLabel={splitLabels.resizeWidth ?? `${label} ↔`}
+          heightLabel={splitLabels.resizeHeight ?? `${label} ↕`}
+        />
+      ) : null}
     </div>
   );
 }

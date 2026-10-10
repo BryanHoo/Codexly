@@ -11,6 +11,8 @@ export const splitWorkspaceEnglish = {
   down: "Split down",
   left: "Split left",
   right: "Split right",
+  resizeWidth: "Resize split pane width",
+  resizeHeight: "Resize split pane height",
 };
 export const splitWorkspaceChinese = {
   label: "分屏聊天",
@@ -25,4 +27,6 @@ export const splitWorkspaceChinese = {
   down: "向下分屏",
   left: "向左分屏",
   right: "向右分屏",
+  resizeWidth: "调整分屏宽度",
+  resizeHeight: "调整分屏高度",
 };
