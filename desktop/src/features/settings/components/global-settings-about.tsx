@@ -94,8 +94,9 @@ export function GlobalSettingsAbout({
               </a>
             </Button>
           </SettingsField>
-          <SettingsField alignStart label={t("about.update")}>
-            <div className="flex min-w-0 flex-nowrap items-center gap-2 py-2">
+          <SettingsField alignStart expandControl label={t("about.update")}>
+            {/* 更新提示和按钮保持单行；极窄窗口仅在操作区内滚动，避免入口溢出卡片。 */}
+            <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap py-2">
               <p
                 className={cn(
                   "shrink-0 text-body-small",

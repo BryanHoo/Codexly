@@ -86,16 +86,24 @@ export function SettingsField({
   alignStart = false,
   children,
   description,
+  expandControl = false,
   label,
 }: Readonly<{
   alignStart?: boolean;
   children: ReactNode;
   description?: string;
+  expandControl?: boolean;
   label: string;
 }>) {
+  // 多按钮字段使用标签之外的剩余宽度；移动端仍将标签放在操作区上方。
+  const columns = expandControl
+    ? "sm:grid-cols-[auto_minmax(0,1fr)]"
+    : description === undefined
+      ? "sm:grid-cols-[minmax(9rem,1fr)_minmax(0,22rem)]"
+      : "sm:grid-cols-[minmax(0,1fr)_minmax(10rem,16rem)]";
   return (
     <div
-      className={`grid min-h-14 ${description === undefined ? "sm:grid-cols-[minmax(9rem,1fr)_minmax(0,22rem)]" : "sm:grid-cols-[minmax(0,1fr)_minmax(10rem,16rem)]"} gap-4 py-3 ${alignStart ? "items-start" : "items-center"}`}
+      className={`grid min-h-14 ${columns} gap-4 py-3 ${alignStart ? "items-start" : "items-center"}`}
     >
       <div className={`min-w-0 ${alignStart ? "pt-2" : ""}`}>
         <span className="block text-body-small font-medium text-foreground">{label}</span>
