@@ -4,6 +4,7 @@ import { expect, test } from "./fixtures/app-shell.js";
 test("preview recalculation preserves editor height and scroll position @cross-browser", async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date(2030, 0, 2, 9, 30));
   const requests: Route[] = [];
   await page.route("**/v1/scheduled-tasks", (route) => route.fulfill({ json: { data: [] } }));
   await page.route("**/v1/scheduled-tasks/preview", (route) => {
@@ -25,7 +26,9 @@ test("preview recalculation preserves editor height and scroll position @cross-b
     element.scrollTop = element.scrollHeight;
   });
   const ready = await measure();
-  await page.locator('.scheduled-task-fields input[type="time"]').fill("10:30");
+  const timeInput = page.locator('.scheduled-task-fields input[type="time"]');
+  await expect(timeInput).toHaveValue("10:30");
+  await timeInput.fill("10:31");
   // 修改前、等待响应和新结果显示后，编辑区高度及滚动位置必须相同。
   await expect.poll(() => requests.length).toBe(2);
   const pending = await measure();
@@ -40,7 +43,7 @@ test("preview recalculation preserves editor height and scroll position @cross-b
     element.scrollTop = element.scrollHeight;
   });
   const expanded = await measure();
-  await page.locator('.scheduled-task-fields input[type="time"]').fill("11:30");
+  await timeInput.fill("11:30");
   await expect.poll(() => requests.length).toBe(3);
   expect(await measure()).toEqual(expanded);
   const third = requests[2];
@@ -48,7 +51,7 @@ test("preview recalculation preserves editor height and scroll position @cross-b
   await third.fulfill({ status: 500, json: { message: "Preview failed" } });
   await expect(page.getByRole("button", { name: "重新计算" })).toBeVisible();
   expect(await measure()).toEqual(expanded);
-  await page.locator('.scheduled-task-fields input[type="time"]').fill("");
+  await timeInput.fill("");
   await expect(page.getByRole("alert")).toBeVisible();
   expect(await measure()).toEqual(expanded);
 });
