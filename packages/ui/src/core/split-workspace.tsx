@@ -5,10 +5,12 @@ import {
   useContext,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
+  type ContextType,
   type ReactNode,
 } from "react";
 import {
@@ -45,11 +47,12 @@ function subscribeMobile(listener: () => void) {
 const getMobile = () => window.matchMedia(mobileQuery).matches;
 const getServerMobile = () => false;
 
-type Workspace = Readonly<{
+type WorkspaceState = Readonly<{
   enabled: boolean;
   panes: readonly SplitPaneIdentity[];
-  activeKey: string | undefined;
   layout: SplitLayout | undefined;
+}>;
+type WorkspaceActions = Readonly<{
   resize: (path: string, ratio: number) => void;
   split: (pane: SplitPaneIdentity, direction: SplitDirection) => void;
   add: (pane: SplitPaneIdentity) => void;
@@ -59,8 +62,34 @@ type Workspace = Readonly<{
   replace: (previous: SplitPaneIdentity, next: SplitPaneIdentity) => void;
   solo: (pane: SplitPaneIdentity) => void;
 }>;
-const SplitWorkspaceContext = createContext<Workspace | null>(null);
-export const useSplitWorkspace = () => useContext(SplitWorkspaceContext);
+type Workspace = WorkspaceState & WorkspaceActions & { readonly activeKey: string | undefined };
+const SplitWorkspaceStateContext = createContext<WorkspaceState | null>(null);
+const SplitWorkspaceActionsContext = createContext<WorkspaceActions | null>(null);
+const SplitActivePaneContext = createContext<SplitPaneIdentity | undefined>(undefined);
+const UnsubscribedWorkspaceContext = createContext<WorkspaceState | null>(null);
+const UnsubscribedActivePaneContext = createContext<SplitPaneIdentity | undefined>(undefined);
+export const useSplitWorkspaceActions = () => useContext(SplitWorkspaceActionsContext);
+// 窗口内使用自己的身份和 active 状态；只有外层入口需要订阅全局布局及焦点。
+export const useSplitWorkspaceState = (subscribe = true) =>
+  useContext(subscribe ? SplitWorkspaceStateContext : UnsubscribedWorkspaceContext);
+export const useSplitActivePane = (subscribe = true) =>
+  useContext(subscribe ? SplitActivePaneContext : UnsubscribedActivePaneContext);
+export function useSplitWorkspace(): Workspace | null {
+  const state = useSplitWorkspaceState();
+  const actions = useSplitWorkspaceActions();
+  const activePane = useSplitActivePane();
+  return useMemo(
+    () =>
+      state === null || actions === null
+        ? null
+        : {
+            ...state,
+            ...actions,
+            activeKey: activePane === undefined ? undefined : splitPaneKey(activePane),
+          },
+    [state, actions, activePane],
+  );
+}
 
 export function SplitWorkspaceProvider({
   children,
@@ -90,6 +119,11 @@ export function SplitWorkspaceProvider({
     });
   }
   const enabled = desktop || !mobile;
+  const selectionRef = useRef(selection);
+  useLayoutEffect(() => {
+    // 操作读取已提交的最新窗口集合，避免闭包过期，也不因焦点或布局更新改变方法身份。
+    selectionRef.current = selection;
+  }, [selection]);
   const add = useCallback(
     (pane: SplitPaneIdentity) => {
       if (!enabled) return;
@@ -151,9 +185,10 @@ export function SplitWorkspaceProvider({
   }, []);
   const select = useCallback(
     (pane: SplitPaneIdentity) => {
-      const alreadyOpen = selection.panes.some((item) => splitPaneKey(item) === splitPaneKey(pane));
+      const panes = selectionRef.current.panes;
+      const alreadyOpen = panes.some((item) => splitPaneKey(item) === splitPaneKey(pane));
       // 单窗口和移动端继续走普通路由；真正分屏时由工作区接管左栏任务切换。
-      if (!alreadyOpen && (!enabled || selection.panes.length < 2)) return false;
+      if (!alreadyOpen && (!enabled || panes.length < 2)) return false;
       setSelection((previous) => {
         const next = selectSplitTask(previous, pane);
         return next.panes === previous.panes
@@ -167,7 +202,7 @@ export function SplitWorkspaceProvider({
       });
       return true;
     },
-    [enabled, selection.panes],
+    [enabled],
   );
   const selectExternalTask = useEffectEvent((pane: SplitPaneIdentity) => {
     // 通知按点击时的最新焦点选择任务；单窗口和移动端仍由平台路由处理。
@@ -231,12 +266,16 @@ export function SplitWorkspaceProvider({
       return next === layout ? previous : { ...previous, layout: next };
     });
   }, []);
-  const value = useMemo(
+  const state = useMemo(
     () => ({
       enabled,
       panes: selection.panes,
-      activeKey: selection.activeKey,
       layout: selection.layout,
+    }),
+    [enabled, selection.panes, selection.layout],
+  );
+  const actions = useMemo(
+    () => ({
       resize,
       split,
       add,
@@ -246,25 +285,22 @@ export function SplitWorkspaceProvider({
       solo,
       replace,
     }),
-    [
-      enabled,
-      selection.panes,
-      selection.activeKey,
-      selection.layout,
-      resize,
-      split,
-      add,
-      close,
-      focus,
-      select,
-      solo,
-      replace,
-    ],
+    [resize, split, add, close, focus, select, solo, replace],
   );
-  return <SplitWorkspaceContext value={value}>{children}</SplitWorkspaceContext>;
+  const activePane = selection.panes.find((pane) => splitPaneKey(pane) === selection.activeKey);
+  return (
+    <SplitWorkspaceActionsContext value={actions}>
+      <SplitWorkspaceStateContext value={state}>
+        <SplitActivePaneContext value={activePane}>{children}</SplitActivePaneContext>
+      </SplitWorkspaceStateContext>
+    </SplitWorkspaceActionsContext>
+  );
 }
 
-export function getSplitAction(workspace: Workspace | null, pane: SplitPaneIdentity) {
+export function getSplitAction(
+  workspace: Pick<WorkspaceState, "enabled" | "panes"> | null,
+  pane: SplitPaneIdentity,
+) {
   if (!workspace?.enabled) return null;
   if (workspace.panes.some((item) => splitPaneKey(item) === splitPaneKey(pane))) return "added";
   return workspace.panes.length >= MAX_SPLIT_PANES ? "limit" : "add";
@@ -277,6 +313,21 @@ export const SplitPaneContext = createContext<Readonly<{
   toggleSidebar: () => void;
   sidebarOpen: boolean;
 }> | null>(null);
+
+function SplitPaneProvider({
+  children,
+  ...props
+}: NonNullable<ContextType<typeof SplitPaneContext>> & {
+  children: ReactNode;
+}) {
+  const { pane, active, multiple, toggleSidebar, sidebarOpen } = props;
+  // 每个窗口独立缓存 Context；焦点切换只改变原活动窗口和新活动窗口的值。
+  const value = useMemo(
+    () => ({ pane, active, multiple, toggleSidebar, sidebarOpen }),
+    [pane, active, multiple, toggleSidebar, sidebarOpen],
+  );
+  return <SplitPaneContext value={value}>{children}</SplitPaneContext>;
+}
 
 export function SplitWorkspaceGrid({
   children,
@@ -358,9 +409,15 @@ export function SplitWorkspaceGrid({
                 }}
               >
                 {/* 身份和父级位置始终稳定，增删相邻窗口不重建输入框或时间线。 */}
-                <SplitPaneContext value={{ pane, active, multiple, toggleSidebar, sidebarOpen }}>
+                <SplitPaneProvider
+                  pane={pane}
+                  active={active}
+                  multiple={multiple}
+                  toggleSidebar={toggleSidebar}
+                  sidebarOpen={sidebarOpen}
+                >
                   {children(pane)}
-                </SplitPaneContext>
+                </SplitPaneProvider>
               </section>
             </SplitPaneMenu>
           </Activity>
@@ -381,18 +438,17 @@ export function SplitWorkspaceGrid({
 
 export function useNavigateSplitTask() {
   const pane = useContext(SplitPaneContext);
-  const workspace = useSplitWorkspace();
+  const workspace = useSplitWorkspaceState(pane === null);
+  const activePane = useSplitActivePane(pane === null);
+  const actions = useSplitWorkspaceActions();
   // 左栏异步创建任务也绑定发起时的窗口，避免等待期间的焦点变化覆盖其他聊天。
   const identity =
     (pane !== null &&
     (pane.multiple ||
       (pane.pane.draftId !== undefined && pane.pane.draftId !== ROUTE_SPLIT_DRAFT_ID))
       ? pane.pane
-      : undefined) ??
-    (workspace?.enabled && workspace.panes.length > 1
-      ? workspace.panes.find((item) => splitPaneKey(item) === workspace.activeKey)
-      : undefined);
-  const replace = workspace?.replace;
+      : undefined) ?? (workspace?.enabled && workspace.panes.length > 1 ? activePane : undefined);
+  const replace = actions?.replace;
   return useCallback(
     (projectId: string, taskId: string) => {
       if (identity === undefined || replace === undefined) return false;
@@ -405,26 +461,27 @@ export function useNavigateSplitTask() {
 
 export function useOpenSplitDraft() {
   const pane = useContext(SplitPaneContext);
-  const workspace = useSplitWorkspace();
+  const workspace = useSplitWorkspaceState(pane === null);
+  const actions = useSplitWorkspaceActions();
   return useCallback(
     (projectId: string) => {
       if (
-        workspace === null ||
+        actions === null ||
         (pane !== null &&
           !pane.multiple &&
           (pane.pane.draftId === undefined || pane.pane.draftId === ROUTE_SPLIT_DRAFT_ID)) ||
-        (pane === null && (!workspace.enabled || workspace.panes.length < 2))
+        (pane === null && (!workspace?.enabled || workspace.panes.length < 2))
       )
         return false;
       // 每次新建都分配独立草稿身份；同项目多窗不会串写，也不会接收旧草稿的迟到结果。
       // getRandomValues 在 HTTP 部署中也可用，随机身份避免多标签页写入相同持久化草稿。
       const draft = createSplitDraft(projectId);
-      if (pane === null) return workspace.select(draft);
+      if (pane === null) return actions.select(draft);
       // 窗口内切换草稿范围只替换所属窗口，恢复单窗后仍可继续创建任务。
-      workspace.replace(pane.pane, draft);
+      actions.replace(pane.pane, draft);
       return true;
     },
-    [pane, workspace],
+    [pane, workspace, actions],
   );
 }
 

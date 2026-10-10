@@ -6,11 +6,11 @@ import { SplitInspectorProvider } from "@codexly/ui/core/split-inspector";
 import {
   SplitWorkspaceProvider,
   SplitWorkspaceGrid,
-  useSplitWorkspace,
+  useSplitWorkspaceState,
   SplitPaneContext,
 } from "@codexly/ui/core/split-workspace";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
-import { useContext, memo } from "react";
+import { useCallback, useContext, memo } from "react";
 import { useWorkbenchShellController } from "./workbench-shell-controller.js";
 import { WorkbenchShellLayout } from "./workbench-shell-layout.js";
 import { useWorkbenchShellRuntime, type WorkbenchShellProps } from "./workbench-shell-runtime.js";
@@ -25,11 +25,15 @@ function WorkbenchShellContent({
   todoId,
 }: WorkbenchShellProps) {
   const taskScope = taskId === undefined ? { projectId } : { projectId, taskId };
-  const workspace = useSplitWorkspace();
+  const workspace = useSplitWorkspaceState();
   if (workspace === null) throw new Error("Missing split workspace provider");
   const workspaceOnly = workspace.panes.length > 0;
   const shell = useWorkbenchShellRuntime({ ...taskScope, temporary, workspaceOnly });
   const context = useWorkbenchShellController(shell, { ...taskScope, temporary });
+  const setSidebarOpen = context.setSidebarOpen;
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((open) => !open);
+  }, [setSidebarOpen]);
   return (
     <SplitInspectorProvider open={context.inspectorOpen} setOpen={context.setInspectorOpen}>
       <WorkbenchShellLayout
@@ -50,9 +54,7 @@ function WorkbenchShellContent({
                     resizeWidth: context.t("split.resizeWidth"),
                     resizeHeight: context.t("split.resizeHeight"),
                   }}
-                  toggleSidebar={() => {
-                    context.setSidebarOpen((open) => !open);
-                  }}
+                  toggleSidebar={toggleSidebar}
                 >
                   {(pane) => (
                     <WorkbenchTaskPane

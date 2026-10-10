@@ -10,11 +10,11 @@ import {
 import {
   SplitWorkspaceProvider,
   SplitWorkspaceGrid,
-  useSplitWorkspace,
+  useSplitWorkspaceState,
   SplitPaneContext,
 } from "@codexly/ui/core/split-workspace";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
-import { useContext, memo } from "react";
+import { useCallback, useContext, memo } from "react";
 import { Activity } from "react";
 
 import { WorkbenchPetLayer } from "../../pets/components/workbench-pet-layer.js";
@@ -33,11 +33,15 @@ function WorkbenchShellContent({
   temporary = false,
 }: WorkbenchShellProps) {
   const taskScope = taskId === undefined ? { projectId } : { projectId, taskId };
-  const workspace = useSplitWorkspace();
+  const workspace = useSplitWorkspaceState();
   if (workspace === null) throw new Error("Missing split workspace provider");
   const workspaceOnly = workspace.panes.length > 0;
   const shell = useWorkbenchShellRuntime({ ...taskScope, temporary, workspaceOnly });
   const context = useWorkbenchShellController(shell, { ...taskScope, temporary });
+  const setSidebarOpen = context.setSidebarOpen;
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((open) => !open);
+  }, [setSidebarOpen]);
   return (
     <SplitInspectorProvider open={context.inspectorOpen} setOpen={context.setInspectorOpen}>
       {/* 隐藏时暂停工作台组件的订阅和快捷键，保留草稿、滚动位置与运行时连接。 */}
@@ -62,7 +66,7 @@ function WorkbenchShellContent({
                       resizeWidth: context.t("split.resizeWidth"),
                       resizeHeight: context.t("split.resizeHeight"),
                     }}
-                    toggleSidebar={() => context.setSidebarOpen((open) => !open)}
+                    toggleSidebar={toggleSidebar}
                   >
                     {(pane) => (
                       <WorkbenchTaskPane

@@ -11,8 +11,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
-import { SplitPaneContext, useSplitWorkspace } from "./split-workspace.js";
-import { splitPaneKey } from "@codexly/frontend-core/split-workspace";
+import { SplitPaneContext, useSplitActivePane } from "./split-workspace.js";
 
 type SidebarDocument = Readonly<{
   id: string;
@@ -56,8 +55,8 @@ export function useSplitInspectorBridge(
 ) {
   const inspector = useSplitInspector();
   const pane = useContext(SplitPaneContext);
-  const workspace = useSplitWorkspace();
-  const activePane = workspace?.panes.find((item) => splitPaneKey(item) === workspace.activeKey);
+  // 外层侧栏跟随全局焦点；窗口内桥接仅订阅所属窗口，避免唤醒其余聊天。
+  const activePane = useSplitActivePane(pane === null);
   const setTarget = inspector?.setTarget;
   const openDocumentRef = inspector?.openDocumentRef;
   const root = pane === null;
