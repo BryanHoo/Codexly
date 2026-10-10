@@ -377,6 +377,19 @@ export function ProjectProvider({
     },
     [gitStatusCoordinator],
   );
+  const observeProjectGitStatus = useCallback(
+    (projectId: string, rootPath: string, worktree: boolean) =>
+      gitStatusCoordinator.observeProject(projectId, rootPath, worktree),
+    [gitStatusCoordinator],
+  );
+  const syncProjectGitStatus = useCallback(
+    (projectId: string, rootPath: string) => {
+      gitStatusCoordinator.refreshObservedProject(projectId, rootPath);
+    },
+    [gitStatusCoordinator],
+  );
+  // 整个 Web 应用共享焦点监听，分屏仅登记各自正在观察的项目根目录。
+  useEffect(() => gitStatusCoordinator.subscribeWindowFocus(), [gitStatusCoordinator]);
   const retry = useCallback(async () => {
     await queryClient.invalidateQueries();
   }, [queryClient]);
@@ -416,6 +429,7 @@ export function ProjectProvider({
       fetchNextProjectTaskPage,
       forgetTask,
       markTaskRunning,
+      observeProjectGitStatus,
       projectRuntime,
       refreshProjectGitStatus,
       removeProject,
@@ -424,6 +438,7 @@ export function ProjectProvider({
       requestNotificationPermission,
       retry,
       setExpandedProjectTaskIds,
+      syncProjectGitStatus,
       viewTask,
     }),
     [
@@ -431,6 +446,7 @@ export function ProjectProvider({
       fetchNextProjectTaskPage,
       forgetTask,
       markTaskRunning,
+      observeProjectGitStatus,
       projectRuntime,
       refreshProjectGitStatus,
       removeProject,
@@ -439,6 +455,7 @@ export function ProjectProvider({
       requestNotificationPermission,
       retry,
       setExpandedProjectTaskIds,
+      syncProjectGitStatus,
       viewTask,
     ],
   );

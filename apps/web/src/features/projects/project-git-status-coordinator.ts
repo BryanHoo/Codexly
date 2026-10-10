@@ -6,6 +6,7 @@ import { recordInternalWarning } from "../notifications/internal-diagnostics.js"
 import { type CodexlyGitStatusClient, projectGitStatusQueryOptions } from "./project-queries.js";
 
 export const PROJECT_GIT_STATUS_POLL_INTERVAL_MS = 300_000;
+export const PROJECT_GIT_STATUS_WORKTREE_POLL_INTERVAL_MS = 10_000;
 export const PROJECT_GIT_STATUS_FILE_CHANGE_DEBOUNCE_MS = 300;
 export const PROJECT_GIT_STATUS_RETRY_BASE_MS = 1_000;
 export const PROJECT_GIT_STATUS_RETRY_MAX_MS = 30_000;
@@ -28,6 +29,8 @@ interface ProjectPollingState {
   fileChangeTimer: ReturnType<typeof setTimeout> | undefined;
   inFlight: Promise<void> | undefined;
   isGitProject: boolean | undefined;
+  observers: Set<Readonly<{ worktree: boolean }>>;
+  pollingIntervalMs: number | undefined;
   pollingTimer: ReturnType<typeof setInterval> | undefined;
   projectId: string;
   rootPath: string;
@@ -49,6 +52,7 @@ export class ProjectGitStatusCoordinator {
   readonly #random: () => number;
   readonly #retryBaseMs: number;
   readonly #retryMaxMs: number;
+  #disposeWindowFocus: (() => void) | undefined;
   #disposed = false;
 
   public constructor(
@@ -72,6 +76,7 @@ export class ProjectGitStatusCoordinator {
       return;
     }
     this.#disposed = true;
+    this.#disposeWindowFocus?.();
     for (const state of this.#projects.values()) {
       this.#closeState(state);
     }
@@ -84,6 +89,62 @@ export class ProjectGitStatusCoordinator {
       this.#closeState(state);
       this.#projects.delete(key);
     }
+  }
+
+  public subscribeWindowFocus(
+    target: Pick<Window, "addEventListener" | "removeEventListener"> | undefined = typeof window ===
+    "undefined"
+      ? undefined
+      : window,
+  ): () => void {
+    this.#disposeWindowFocus?.();
+    if (this.#disposed || target === undefined) return () => undefined;
+    const onFocus = () => {
+      if (!this.#isPageVisible()) return;
+      // Provider 只安装一个焦点监听；同根目录无论挂载多少分屏都只刷新一次。
+      for (const state of this.#projects.values()) {
+        if (state.observers.size > 0) {
+          this.refreshObservedProject(state.projectId, state.rootPath);
+        }
+      }
+    };
+    target.addEventListener("focus", onFocus);
+    let subscribed = true;
+    const cleanup = () => {
+      if (!subscribed) return;
+      subscribed = false;
+      target.removeEventListener("focus", onFocus);
+    };
+    this.#disposeWindowFocus = cleanup;
+    return cleanup;
+  }
+
+  public observeProject(projectId: string, rootPath: string, worktree: boolean): () => void {
+    if (this.#disposed) return () => undefined;
+    const state = this.#getOrCreateState(projectId, rootPath);
+    // 每个观察者使用独立身份，关闭任意一个分屏不会释放其他分屏的轮询需求。
+    const observer = { worktree };
+    state.observers.add(observer);
+    this.#ensurePolling(state);
+    return () => {
+      state.observers.delete(observer);
+      this.#ensurePolling(state);
+      this.#releaseIdleState(state);
+    };
+  }
+
+  public refreshObservedProject(projectId: string, rootPath: string): void {
+    if (this.#disposed) return;
+    const state = this.#projects.get(this.#stateKey(projectId, rootPath));
+    if (state === undefined || state.observers.size === 0) return;
+    const status = this.#queryClient.getQueryData<ProjectGitStatus>([
+      "projects",
+      projectId,
+      rootPath,
+      "git-status",
+    ]);
+    if (!isRootGitProject(status)) return;
+    this.#requestBackgroundRefresh(state, "passive");
   }
 
   public handleActivity(
@@ -129,7 +190,7 @@ export class ProjectGitStatusCoordinator {
       this.#clearPollingTimer(state);
     }
     if (state.isGitProject === false) {
-      if (state.activeTaskIds.size === 0) {
+      if (state.activeTaskIds.size === 0 && state.observers.size === 0) {
         this.#projects.delete(this.#stateKey(state.projectId, state.rootPath));
       }
       return;
@@ -170,6 +231,7 @@ export class ProjectGitStatusCoordinator {
       clearInterval(state.pollingTimer);
       state.pollingTimer = undefined;
     }
+    state.pollingIntervalMs = undefined;
   }
 
   #clearRetryTimer(state: ProjectPollingState): void {
@@ -188,21 +250,45 @@ export class ProjectGitStatusCoordinator {
   }
 
   #ensurePolling(state: ProjectPollingState): void {
+    const hasWorktreeObserver = [...state.observers].some((observer) => observer.worktree);
+    const intervalMs = hasWorktreeObserver
+      ? PROJECT_GIT_STATUS_WORKTREE_POLL_INTERVAL_MS
+      : state.activeTaskIds.size > 0
+        ? this.#pollIntervalMs
+        : undefined;
     if (
       state.closed ||
       state.isGitProject !== true ||
       state.consecutiveFailures > 0 ||
-      state.activeTaskIds.size === 0 ||
-      state.pollingTimer !== undefined ||
+      intervalMs === undefined ||
       state.retryTimer !== undefined
     ) {
+      this.#clearPollingTimer(state);
       return;
     }
+    if (state.pollingIntervalMs === intervalMs) return;
+    // worktree 的短周期与任务兜底轮询共享一个计时器，取当前需求中的最短周期。
+    this.#clearPollingTimer(state);
+    state.pollingIntervalMs = intervalMs;
     state.pollingTimer = setInterval(() => {
       if (this.#isPageVisible()) {
-        this.#requestBackgroundRefresh(state);
+        this.#requestBackgroundRefresh(state, "passive");
       }
-    }, this.#pollIntervalMs);
+    }, intervalMs);
+  }
+
+  #releaseIdleState(state: ProjectPollingState): void {
+    const key = this.#stateKey(state.projectId, state.rootPath);
+    if (
+      this.#projects.get(key) === state &&
+      state.activeTaskIds.size === 0 &&
+      state.observers.size === 0 &&
+      state.inFlight === undefined &&
+      state.fileChangeTimer === undefined
+    ) {
+      this.#closeState(state);
+      this.#projects.delete(key);
+    }
   }
 
   #getOrCreateState(projectId: string, rootPath: string): ProjectPollingState {
@@ -225,6 +311,8 @@ export class ProjectGitStatusCoordinator {
       inFlight: undefined,
       // 已确认非 Git 的项目复用检测结果，任务切换不能重新启动后台刷新。
       isGitProject: cachedStatus === undefined ? undefined : isRootGitProject(cachedStatus),
+      observers: new Set(),
+      pollingIntervalMs: undefined,
       pollingTimer: undefined,
       projectId,
       rootPath,
@@ -239,11 +327,16 @@ export class ProjectGitStatusCoordinator {
     return `${projectId}\u0000${rootPath}`;
   }
 
-  #requestRefresh(state: ProjectPollingState, source: "background" | "manual"): Promise<void> {
+  #requestRefresh(
+    state: ProjectPollingState,
+    source: "background" | "manual" | "passive",
+  ): Promise<void> {
     if (state.closed || this.#disposed) {
       return Promise.resolve();
     }
     if (state.inFlight !== undefined) {
+      // 焦点、路由和轮询只复用在途读取；仓库变更与手动操作才需要排队补读。
+      if (source === "passive") return state.inFlight;
       // 手动请求优先级更高，必须在当前读取结束后再次执行真实仓库探测。
       state.refreshPending =
         source === "manual" || state.refreshPending === "manual" ? "manual" : "background";
@@ -255,10 +348,10 @@ export class ProjectGitStatusCoordinator {
       state.rootPath,
       this.#client,
     );
-    const refresh = this.#client
-      .getProjectGitStatus(state.projectId, { rootPath: state.rootPath })
+    const refresh = this.#queryClient
+      // 与初次挂载、Query 自身的可见性刷新共用在途请求，不取消后重新发送。
+      .fetchQuery({ ...queryOptions, retry: false, staleTime: 0 })
       .then((status) => {
-        this.#queryClient.setQueryData(queryOptions.queryKey, status);
         state.consecutiveFailures = 0;
         state.isGitProject = isRootGitProject(status);
         if (!state.isGitProject) {
@@ -286,7 +379,7 @@ export class ProjectGitStatusCoordinator {
           this.#requestBackgroundRefresh(state, pendingSource);
           return;
         }
-        if (state.activeTaskIds.size > 0) {
+        if (state.activeTaskIds.size > 0 || state.observers.size > 0) {
           if (state.consecutiveFailures > 0) {
             if (state.isGitProject !== false) {
               this.#scheduleRetry(state);
@@ -296,9 +389,7 @@ export class ProjectGitStatusCoordinator {
           }
           return;
         }
-        if (state.activeTaskIds.size === 0 && state.fileChangeTimer === undefined) {
-          this.#projects.delete(this.#stateKey(state.projectId, state.rootPath));
-        }
+        this.#releaseIdleState(state);
       });
     state.inFlight = refresh;
     return refresh;
@@ -306,7 +397,7 @@ export class ProjectGitStatusCoordinator {
 
   #requestBackgroundRefresh(
     state: ProjectPollingState,
-    source: "background" | "manual" = "background",
+    source: "background" | "manual" | "passive" = "background",
   ): void {
     void this.#requestRefresh(state, source).catch((error: unknown) => {
       recordInternalWarning("git_status_poll_failed", error, {
@@ -328,7 +419,8 @@ export class ProjectGitStatusCoordinator {
     if (
       state.closed ||
       state.isGitProject === false ||
-      state.activeTaskIds.size === 0 ||
+      (state.activeTaskIds.size === 0 &&
+        ![...state.observers].some((observer) => observer.worktree)) ||
       state.retryTimer !== undefined
     ) {
       return;

@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  refreshProjectGitStatusForScopeChange,
-  subscribeProjectGitStatusWindowFocus,
-} from "./use-project-git-status-refresh.js";
+import { refreshProjectGitStatusForScopeChange } from "./use-project-git-status-refresh.js";
 
 describe("Project Git status refresh triggers", () => {
   it("refreshes when the active Task scope changes", () => {
@@ -22,16 +19,9 @@ describe("Project Git status refresh triggers", () => {
     expect(refresh).toHaveBeenCalledOnce();
   });
 
-  it("refreshes on window focus and removes the listener during cleanup", () => {
-    const target = new EventTarget();
-    const refresh = vi.fn(() => Promise.resolve());
-    const cleanup = subscribeProjectGitStatusWindowFocus(refresh, target);
-
-    target.dispatchEvent(new Event("focus"));
-    expect(refresh).toHaveBeenCalledOnce();
-
-    cleanup();
-    target.dispatchEvent(new Event("focus"));
-    expect(refresh).toHaveBeenCalledOnce();
+  it("does not refresh a changed Task scope when Git is unavailable", () => {
+    const refresh = vi.fn();
+    expect(refreshProjectGitStatusForScopeChange("old", "new", false, refresh)).toBe("new");
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

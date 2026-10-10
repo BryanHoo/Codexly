@@ -156,21 +156,20 @@ export function useWorkbenchShellRuntime({
   // 标签选择绑定当前路由身份；新打开的草稿与历史任务都从项目开始。
   const inspectorTab =
     inspectorTabState.scopeKey === inspectorScopeKey ? inspectorTabState.tab : defaultInspectorTab;
-  const gitStatusQuery = useQuery({
-    ...projectGitStatusQueryOptions(
+  const gitStatusQuery = useQuery(
+    projectGitStatusQueryOptions(
       projectId,
       selectedRootPath ?? "",
       client,
       !temporary && selectedRootPath !== undefined,
     ),
-    // worktree 位于 Project 根列表外，终端改动仍需定期刷新 Git 状态。
-    refetchInterval: (query) =>
-      activeRootId === "worktree" && isRootGitProject(query.state.data) ? 10_000 : false,
-  });
+  );
   useProjectGitStatusRefresh({
     enabled: !temporary && selectedRootPath !== undefined && isRootGitProject(gitStatusQuery.data),
-    refresh: gitStatusQuery.refetch,
+    projectId,
+    rootPath: selectedRootPath ?? "",
     scopeKey: `${projectId}:${taskId ?? "draft"}:${selectedRootPath ?? ""}`,
+    worktree: activeRootId === "worktree",
   });
   const inspectorActivation = deriveWorkbenchInspectorActivation({
     contextOnly: temporary,

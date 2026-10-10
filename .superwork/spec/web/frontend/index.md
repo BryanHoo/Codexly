@@ -27,6 +27,7 @@
 - PDF 文件链接、附件和文件树共用 `core/pdf-preview` 原生预览；用 `navigator.pdfViewerEnabled` 检测能力，缺失时保留显式打开动作。附件点击后才加载，关闭后卸载；不引入 PDF.js 或 Base64 整文件传输。桌面只开放校验后的单文件 asset scope，独立预览窗口同时授权读取和打开命令。
 
 - Git 能力仅由当前所选项目根目录决定，禁止扫描、聚合或选择子目录仓库。非 Git 项目隐藏右栏 Git 提示、重试、变更、历史和 Composer 分支入口，并停止活动、元数据、窗口聚焦及挂载自动刷新；显式项目刷新仍可重新探测。Web 与桌面共用 `frontend-core/project-git-availability` 判定，回归覆盖子仓库误判和残留错误状态。
+- Web 的窗口焦点刷新由 Project Provider 集中安装，按项目及根目录去重；分屏只登记观察需求。worktree 的 10 秒轮询与活动任务的兜底轮询共用每根目录一个计时器，最后一个观察者退出后释放无活动任务的状态。焦点、任务切换和轮询复用 Query 在途读取，禁止取消后重新发送；文件变化、任务终态和手动刷新保留必要的串行补读。回归使用实际 TanStack Query 的五观察者覆盖请求次数、取消次数、根目录隔离与资源释放。
 
 - 分屏最多同时展示 4 个聊天窗口，支持已创建任务和新建草稿；添加窗口保留任务菜单入口，并支持中栏空白处右键上下左右分屏和 `⌘/Ctrl + Alt + 方向键`；新窗口打开当前项目的独立草稿。共用 `frontend-core/split-workspace` 的身份与选择规则及 `ui/core/split-workspace` 的布局；按项目和任务组合设置稳定 key，增删其他窗口不得清空草稿或重挂时间线。每个窗口复用完整中栏，继续执行与 Fork 只更新所属窗口，迟到请求不得恢复已关闭窗口。
 - 移动端不支持分屏：窄屏及无悬停的触摸设备隐藏入口，只展示活动任务；桌面尺寸恢复后保留其余窗口状态。验证四屏上限、重复添加、关闭首个窗口、独立发送和缩放往返时的输入保留。状态保留依据 [React 官方说明](https://react.dev/learn/preserving-and-resetting-state)，隐藏窗口使用 [Activity](https://react.dev/reference/react/Activity) 暂停副作用。

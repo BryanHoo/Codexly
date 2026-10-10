@@ -73,6 +73,8 @@ export type ProjectActionsContextValue = Readonly<{
   removeProject: (projectId: string) => Promise<readonly Project[] | undefined>;
   renameProject: (projectId: string, name: string) => Promise<boolean>;
   refreshProjectGitStatus: (projectId: string, rootPath: string) => Promise<void>;
+  observeProjectGitStatus: (projectId: string, rootPath: string, worktree: boolean) => () => void;
+  syncProjectGitStatus: (projectId: string, rootPath: string) => void;
   retry: () => Promise<void>;
   setExpandedProjectTaskIds: (projectIds: ReadonlySet<string>) => void;
   viewTask: (projectId: string, taskId?: string) => void;
