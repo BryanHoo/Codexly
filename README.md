@@ -37,8 +37,11 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 
 - Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive, with file edit timing and completion summaries; keep follow-up messages in a persistent queue.
 - Open up to four task panes in desktop browsers and the desktop app, each with its own draft and message queue. File and Git panels follow the focused task; mobile Web keeps a single-task view.
+- Resize task panes by dragging their dividers, create tasks from the title bar, and see the model and reasoning effort while the composer is collapsed.
+- Edit project text files directly in the source preview on desktop or mobile, with undo, redo, and automatic saving when leaving the editor or switching windows.
 - Read streaming Markdown responses and copy their source text; zoom and pan message images, project images, and wallpapers, or view them at their original size.
 - Preview PDFs directly from chat attachments, file links, and the project file tree.
+- View task-local images embedded in Markdown responses and open them in the image preview.
 - Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task.
 - Create projects and directories, search tasks, message history, and project files; inspect changes, work with branches and worktrees, and commit or push selected files. Git actions require a repository at the project root; ordinary subdirectories do not use the parent repository.
 - Identify each task's project through labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks.
@@ -50,6 +53,8 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 **Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, Docker deployment, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.162.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.162.0,<0.163.0`.
 
 In workspaces that support split view, open a task in another pane from its sidebar menu or right-click a blank area in the chat to split up, down, left, or right. Use `⌘+⌥+Arrow` on macOS or `Ctrl+Alt+Arrow` on Windows / Linux, up to four panes.
+
+Drag a divider to resize adjacent panes; navigation from notifications, search, or the task board preserves the split layout.
 
 ## Start the Web Edition
 
@@ -127,6 +132,8 @@ Select **New task** for work that does not need a project. For repository work, 
 Task controls set the model, reasoning, Fast mode, approval, and file access behavior. Notification preferences and the last complete project settings are saved for later tasks. The right inspector provides project files, sources, code changes, Git history, review, and commit actions. Project directories and files always come from the computer running Codexly, including when the UI is opened on another device.
 
 Scheduled tasks with an unknown outcome pause further runs. Inspect the linked conversation before deleting and recreating the schedule. Tasks marked as finishing cleanup retry cleanup automatically without another launch.
+
+Open a project text file in the source preview to edit it; switch Markdown to source mode first. Changes save when the editor loses focus, you leave the file, or you switch windows; use `⌘/Ctrl+S` to save manually. UTF-8 files up to 2 MiB are editable, with their line endings and BOM preserved. Larger or unsupported files remain read-only. Save errors and conflicts keep your draft in the current window and show recovery actions. Drafts are held in memory and are not guaranteed to survive a refresh, forced exit, or crash.
 
 ## Web Local Network Access
 

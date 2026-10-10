@@ -31,9 +31,12 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Install and manage Skills, official plugins, and third-party markets in the extension center, including MCP service controls and hot reload; refresh official plugins to synchronize their state and report partial failures
 - Answer asynchronous questions in a pinned panel, prevent concurrent interactions with cross-client task locks, and restore thread model and reasoning settings
 - Open up to four task panes with independent drafts and message queues; project files, Git panels, and the terminal follow the focused task
+- Resize panes by dragging dividers, create tasks from the title bar, and see the current model and reasoning effort while the composer is collapsed
+- Edit project text files directly in the source preview with undo, redo, manual saving, and automatic saving on blur
 - Follow streaming reasoning summaries and grouped operations, and inspect runtime warnings and live tool timing in the context panel and timeline
 - Read incrementally rendered Markdown responses, zoom and pan message images, project images, and wallpapers, then fit them to the window or view them at their original size
 - Preview PDFs directly from chat attachments, file links, and the project file tree with access granted to individual local files
+- View task-local images embedded in Markdown responses and open them in the image preview
 - Run commands in the project-native integrated terminal and switch between persistent sessions
 - Use global shortcuts to create tasks, switch workspace areas, and perform common actions
 - Create scheduled tasks with visual recurrence rules for weekdays, weekends, weekly, or monthly schedules, then preview upcoming runs
@@ -63,6 +66,10 @@ For repository work, add one or more local directories as project roots, create 
 Open a task in another pane from its sidebar menu, or right-click a blank area in the chat to split up, down, left, or right, up to four panes. Use `⌘+⌥+Arrow` on macOS or `Ctrl+Alt+Arrow` on Windows / Ubuntu. Focus a pane to switch the project files, Git panels, and terminal to its task.
 
 While a task is running, send additional guidance immediately or queue follow-up messages. Task controls configure the model, reasoning effort, Fast mode, approval behavior, and file access.
+
+Drag a divider to resize adjacent panes. Navigation from notifications, search, or scheduled tasks preserves the split layout and focuses the target task.
+
+Open a project text file in the source preview to edit it; switch Markdown to source mode first. Changes save when the editor loses focus, you leave the file, or you switch windows; use `⌘/Ctrl+S` to save manually. UTF-8 files up to 2 MiB are editable, with line endings and BOM preserved; larger or unsupported files stay read-only. Save errors and conflicts keep your draft in the current window and show recovery actions. Closing a panel or exiting the app protects unsaved edits. Drafts are held in memory and are not guaranteed to survive a forced exit or crash.
 
 The workspace provides project files, code changes, Git history, branches, worktrees, reviews, commits, and push actions. Archived tasks can be restored or permanently deleted after confirmation.
 
