@@ -128,10 +128,11 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
         props.canInterrupt && !props.turnControlsDisabled && props.activeTurnId !== undefined
       }
       notice={props.asyncQuestions}
-      footer={(controls) => (
+      footer={(controls, collapsed) => (
         <WorkbenchComposerFooter
           props={props}
           controls={controls}
+          collapsed={collapsed}
           rootControls={
             <ComposerProjectRootControls
               onOpen={props.onOpenProjectPath}

@@ -127,7 +127,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
       collapseLabel={t("split.collapseComposer")}
       stopLabel={t("composer.stop")}
       onInterrupt={props.onInterrupt}
-      footer={(controls) => <WorkbenchComposerFooter props={props} controls={controls} rootControls={<ComposerProjectRootControls
+      footer={(controls, collapsed) => <WorkbenchComposerFooter props={props} controls={controls} collapsed={collapsed} rootControls={<ComposerProjectRootControls
         onOpen={props.onOpenProjectPath} onRootChange={props.onProjectRootChange} projectPath={props.projectPath}
         projectPathOpenDisabled={props.projectPathOpenDisabled} roots={props.projectRoots} selectedRootId={props.selectedProjectRootId}
       />} />}

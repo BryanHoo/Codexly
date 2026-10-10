@@ -67,4 +67,31 @@ describe("分屏输入框", () => {
     expect(markup).not.toContain('hidden=""');
     expect(markup).not.toContain("aria-expanded");
   });
+
+  it.each([true, false])("向底栏提供输入框的实际收起状态：分屏 %s", (multiple) => {
+    const markup = renderToStaticMarkup(
+      <SplitPaneContext
+        value={{
+          pane: { projectId: "project", taskId: "task" },
+          active: true,
+          multiple,
+          sidebarOpen: false,
+          toggleSidebar: () => undefined,
+        }}
+      >
+        <SplitComposer
+          label="聊天输入"
+          expandLabel="展开"
+          collapseLabel="收起"
+          stopLabel="停止"
+          interruptible={false}
+          onInterrupt={() => undefined}
+          footer={(_controls, collapsed) => <footer data-collapsed={String(collapsed)} />}
+        >
+          <textarea />
+        </SplitComposer>
+      </SplitPaneContext>,
+    );
+    expect(markup).toContain(`data-collapsed="${String(multiple)}"`);
+  });
 });

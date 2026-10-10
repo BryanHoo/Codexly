@@ -35,7 +35,7 @@ export function SplitComposer({
   onInterrupt: () => void;
   interruptible: boolean;
   notice?: ReactNode;
-  footer: (controls: ReactNode) => ReactNode;
+  footer: (controls: ReactNode, collapsed: boolean) => ReactNode;
   collapsible?: boolean;
 }>) {
   // 定时任务等无底栏编辑器不参与分屏收起，避免隐藏后失去展开入口。
@@ -114,7 +114,7 @@ export function SplitComposer({
         <div id={contentId} ref={contentRef} hidden={!expanded} inert={!expanded}>
           {children}
         </div>
-        {footer(controls)}
+        {footer(controls, !expanded)}
       </RevealComposerContext>
     </section>
   );
