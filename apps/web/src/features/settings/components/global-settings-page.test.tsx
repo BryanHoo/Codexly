@@ -195,8 +195,11 @@ describe("GlobalSettingsPage", () => {
     expect(markup).toContain("检查更新");
     expect(markup).toContain("更新日志");
     expect(markup).toContain("更新到 1.4.0");
-    expect(markup).toContain('class="min-w-0 py-2"');
-    expect(markup).toContain('class="flex min-w-0 flex-wrap items-center gap-2"');
+    // 更新操作保持单行，窄屏在操作区内横向滚动，与桌面端的布局约定一致。
+    expect(markup).toContain('class="min-w-0 max-w-full py-2"');
+    expect(markup).toContain(
+      'class="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap"',
+    );
     expect(markup).not.toContain('class="flex min-w-0 flex-col items-start gap-2 py-2"');
     expect(markup).toContain("https://github.com/BryanHoo/Codexly");
     expect(markup).toContain('target="_blank"');
