@@ -118,14 +118,14 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         cursor.reviewCursor,
       );
       const transcriptSkillsByTurnId = await readCodexTranscriptTurnSkills(taskId);
-      // 先恢复 Thread 级元数据，再同步映射历史，确保跨进程仍使用相同授权 ID。
+      // 先恢复 Thread 级元数据，再等待正文持久化后映射历史，确保跨进程仍使用相同授权 ID。
       await this.threadAttachments?.prepare(taskId);
       const turns = this.runtime.messageIdentities.snapshot(
         taskId,
-        mapAgentTurns(
-          reviewPage.turns,
-          (part, imageIndex) => this.mapMessageImage(taskId, part, imageIndex),
-          (input, textIndex) => this.mapMessageText(taskId, input, textIndex),
+        (
+          await this.mapTaskAttachments(taskId, (image, text) =>
+            mapAgentTurns(reviewPage.turns, image, text),
+          )
         ).map((turn) => attachTranscriptSkills(turn, transcriptSkillsByTurnId.get(turn.id) ?? [])),
       );
       await this.threadAttachments?.flush(taskId);

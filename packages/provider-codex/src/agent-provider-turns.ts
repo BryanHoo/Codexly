@@ -169,10 +169,8 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
       }),
       "turn/start response",
     );
-    const turn = mapAgentTurn(
-      response["turn"],
-      (part, imageIndex) => this.mapMessageImage(taskId, part, imageIndex),
-      (input, textIndex) => this.mapMessageText(taskId, input, textIndex),
+    const turn = await this.mapTaskAttachments(taskId, (image, text) =>
+      mapAgentTurn(response["turn"], image, text),
     );
     if (turn.status === "running") {
       this.runtime.runningTaskIds.add(taskId);
@@ -267,11 +265,8 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
     if (expectString(response["reviewThreadId"], "review/start thread id") !== taskId) {
       throw new CodexProtocolMappingError("review/start returned a different thread");
     }
-    const turn = mapAgentTurn(
-      response["turn"],
-      (part, imageIndex) => this.mapMessageImage(taskId, part, imageIndex),
-      (input, textIndex) => this.mapMessageText(taskId, input, textIndex),
-      target,
+    const turn = await this.mapTaskAttachments(taskId, (image, text) =>
+      mapAgentTurn(response["turn"], image, text, target),
     );
     // enteredReviewMode 通常先到；RPC 结果是外层 Turn ID 的最终校准来源。
     this.runtime.activeReviewTurnIds.set(taskId, turn.id);

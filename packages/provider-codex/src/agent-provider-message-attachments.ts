@@ -1,8 +1,9 @@
-import type { AgentMessageAttachment } from "@codexly/protocol";
-
 import { readCodexFileTextInput } from "./codex-file-input.js";
 import { optionalString } from "./codex-protocol-mapping.js";
-import type { HistoricalAttachmentStore } from "./persistent-historical-attachment-store.js";
+import type {
+  HistoricalAttachmentStore,
+  HistoricalAttachmentResult,
+} from "./persistent-historical-attachment-store.js";
 import { readStagedImage, stagedImageName } from "./jsonl-frame-processor.js";
 
 export function mapCodexMessageImage(
@@ -10,7 +11,7 @@ export function mapCodexMessageImage(
   taskId: string,
   part: Record<string, unknown>,
   imageIndex: number,
-): AgentMessageAttachment | undefined {
+): HistoricalAttachmentResult {
   const staged = readStagedImage(part);
   if (staged !== undefined) {
     const name = optionalString(part["name"]) ?? stagedImageName(part, imageIndex);
@@ -20,9 +21,16 @@ export function mapCodexMessageImage(
     const savedPath = optionalString(part["savedPath"]);
     if (savedPath !== undefined) {
       const savedAttachment = store.addLocalImage(taskId, savedPath, imageIndex);
-      if (savedAttachment !== undefined) {
-        return savedAttachment;
+      if (savedAttachment instanceof Promise) {
+        return savedAttachment.then((attachment) => {
+          if (attachment !== undefined) return attachment;
+          const encoded = optionalString(part["result"]);
+          return encoded === undefined
+            ? undefined
+            : store.addBase64Image(taskId, { encoded }, imageIndex);
+        });
       }
+      if (savedAttachment !== undefined) return savedAttachment;
     }
     const encoded = optionalString(part["result"]);
     return encoded === undefined
@@ -47,7 +55,7 @@ export function mapCodexMessageText(
   taskId: string,
   input: Readonly<{ name: string; text: string }>,
   textIndex: number,
-): AgentMessageAttachment | undefined {
+): HistoricalAttachmentResult {
   const file = readCodexFileTextInput(input);
   return file === undefined
     ? store.addText(taskId, input, textIndex)

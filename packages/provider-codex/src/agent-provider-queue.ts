@@ -99,10 +99,8 @@ export abstract class CodexAgentProviderQueue extends CodexAgentProviderBase {
     value: unknown,
   ): Promise<AgentQueuedSubmission> {
     const queued = expectRecord(value, "thread queue submission");
-    const content = mapUserMessageContent(
-      queued["input"],
-      (part, imageIndex) => this.mapMessageImage(taskId, part, imageIndex),
-      (input, textIndex) => this.mapMessageText(taskId, input, textIndex),
+    const content = await this.mapTaskAttachments(taskId, (image, text) =>
+      mapUserMessageContent(queued["input"], image, text),
     );
     if (content.skills.length > 0 && this.skillsById.size === 0) {
       await this.listSkills();
@@ -229,10 +227,8 @@ export abstract class CodexAgentProviderQueue extends CodexAgentProviderBase {
       }),
       "thread/queue/start response",
     );
-    const turn = mapAgentTurn(
-      response["turn"],
-      (part, imageIndex) => this.mapMessageImage(taskId, part, imageIndex),
-      (input, textIndex) => this.mapMessageText(taskId, input, textIndex),
+    const turn = await this.mapTaskAttachments(taskId, (image, text) =>
+      mapAgentTurn(response["turn"], image, text),
     );
     if (turn.status === "running") {
       this.runtime.runningTaskIds.add(taskId);

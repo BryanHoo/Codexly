@@ -2,7 +2,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
+import type { AgentProviderEvent } from "@codexly/core";
 
 import {
   FakeRpcClient,
@@ -102,5 +103,64 @@ test("restores stable attachment metadata and bytes after rebuilding the provide
     await restoredProvider.releaseProject();
   } finally {
     await rm(attachmentDirectory, { force: true, recursive: true });
+  }
+});
+
+test("preserves event order while persisting an attachment without delaying another task", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "codexly-thread-event-attachments-"));
+  const rpc = new FakeRpcClient([
+    { thread: nativeThread() },
+    { thread: nativeThread({ id: "task-2" }) },
+  ]);
+  const provider = createCodexAgentProvider({
+    client: rpc,
+    project,
+    attachmentDirectory: directory,
+  });
+  const events: AgentProviderEvent[] = [];
+  try {
+    await provider.readTask("task-1");
+    await provider.readTask("task-2");
+    provider.subscribeEvents((event) => {
+      events.push(event);
+    });
+    rpc.emitNotification("item/completed", {
+      threadId: "task-1",
+      turnId: "turn-1",
+      item: {
+        id: "image",
+        type: "imageGeneration",
+        failure: null,
+        status: "completed",
+        result: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64"),
+      },
+    });
+    rpc.emitNotification("item/agentMessage/delta", {
+      threadId: "task-1",
+      turnId: "turn-1",
+      itemId: "after-image",
+      delta: "继续",
+    });
+    rpc.emitNotification("item/agentMessage/delta", {
+      threadId: "task-2",
+      turnId: "turn-2",
+      itemId: "other-task",
+      delta: "另一个会话",
+    });
+    expect(events.map((event) => event.taskId)).toEqual(["task-2"]);
+    await vi.waitFor(() => {
+      expect(events.map((event) => event.taskId)).toEqual(["task-2", "task-1", "task-1"]);
+    });
+    const imageEvent = events[1];
+    expect(imageEvent?.type).toBe("item.completed");
+    const item = imageEvent?.type === "item.completed" ? imageEvent.payload.item : undefined;
+    const id = item?.type === "message" ? item.attachments?.[0]?.id : undefined;
+    expect(id).toBeDefined();
+    await expect(provider.readTaskAttachment("task-1", id ?? "")).resolves.toMatchObject({
+      mediaType: "image/png",
+    });
+  } finally {
+    await provider.releaseProject();
+    await rm(directory, { force: true, recursive: true });
   }
 });

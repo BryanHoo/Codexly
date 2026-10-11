@@ -5,6 +5,9 @@
 - Codex 版本与协议基线以根目录 `package.json`、`schemas/codex-app-server/` 为准；升级时运行 `pnpm codex:schema:check`。
 - Provider 层不引入 Web、HTTP 客户端或服务端交付逻辑；用相邻测试及 `pnpm lint:architecture` 验证。
 
+- 历史附件正文的读取、校验、持久化不得在 Node 主线程执行同步文件操作或整块 SHA-256。使用异步流式 I/O，并将解码与摘要计算交给进程内共享、限制并发的 Worker；正文校验与原子发布完成后才登记授权元数据。普通附件仍支持 50 MiB，保留稳定 ID、跨会话授权隔离和损坏正文撤销行为。
+- 附件异步处理只能等待当前会话的后续通知，保持该会话事件顺序，其他会话继续处理；恢复请求需合并，删除会话需阻止在途写入重新登记授权。回归执行 `pnpm exec vitest run packages/provider-codex/src/persistent-historical-attachment-store.test.ts packages/provider-codex/src/historical-attachment-worker-pool.test.ts packages/provider-codex/src/agent-provider-thread-attachments.test.ts`；新增 Worker 必须纳入 `tsup.config.ts` 和 `pnpm package:check` 的文件清单与实际启动验证。
+
 - 任务标题只能共用 Git 提交信息的模型设置，不能复用提交提示词或格式。辅助会话设置 `project_doc_max_bytes: 0`，并通过专用 `baseInstructions`、`developerInstructions` 约束全局指令，生成自然语言标题；禁用工具或设置 `ephemeral` 不等于隔离 `AGENTS.md`。两端共用 `packages/provider-codex/src/task-title-instructions.json`，验证标题生成的相邻测试与桌面 Rust `task_title` 测试。
 
 - 模型目录以当前 Codex App Server 为权威来源；刷新失败直接传播错误，空目录保持为空，不从旧进程或持久化快照恢复已失效模型。保留有界 TTL 缓存及并发请求合并，不增加轮询；回归覆盖空目录、刷新失败与缓存复用。

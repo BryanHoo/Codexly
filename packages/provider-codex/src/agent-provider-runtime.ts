@@ -1,20 +1,19 @@
 import type { AgentProvider, AgentProviderEvent } from "@codexly/core";
-import type { AgentMessageAttachment } from "@codexly/protocol";
+import type { HistoricalAttachmentResult } from "./persistent-historical-attachment-store.js";
+import { TaskNotificationQueue } from "./task-notification-queue.js";
+import { resolveAttachmentMapping } from "./resolve-attachment-mapping.js";
 import type { RpcErrorPayload, RpcServerRequest } from "./jsonl-rpc-client.js";
 import {
   CodexProtocolMappingError,
-  CODEX_THREAD_CONFIG,
   CODEX_NOTIFICATION_METHODS,
   type PendingCodexRequest,
   expectRecord,
-  expectString,
   mapCodexNotification,
   mapCodexServerRequest,
   requestIdKey,
 } from "./codex-protocol-mapping.js";
 
-import { CodexAgentProviderTasks } from "./agent-provider-tasks.js";
-import { assertProjectThread } from "./agent-provider-base.js";
+import { CodexAgentProviderTaskResume } from "./agent-provider-task-resume.js";
 import {
   warnDroppedCodexNotification,
   warnEventListenerFailure,
@@ -34,7 +33,7 @@ import { mapCodexMessageImage, mapCodexMessageText } from "./agent-provider-mess
 import { normalizedPathIdentity } from "./runtime-owner-registry.js";
 import { resumeReviewWorker } from "./review-worker-resume.js";
 
-export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
+export class CodexAgentProviderEvents extends CodexAgentProviderTaskResume {
   public publishProjectGitMetadataChanged(rootPath: string): boolean {
     const rootIdentity = normalizedPathIdentity(rootPath);
     const configuredRoot = this.project.runtimeWorkspaceRoots.find(
@@ -50,7 +49,21 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
     });
     return true;
   }
+  readonly #notificationQueue = new TaskNotificationQueue();
+
   public receiveNotification(method: string, params: unknown): void {
+    const nativeTaskId = readTaskId(params) ?? "";
+    const taskId = this.runtime.reviewWorkerParentTaskIds.get(nativeTaskId) ?? nativeTaskId;
+    this.#notificationQueue.run(
+      taskId,
+      () => this.#receiveNotification(method, params),
+      () => {
+        this.warnDroppedNotification("invalid_notification", method, params);
+      },
+    );
+  }
+
+  #receiveNotification(method: string, params: unknown): void | Promise<void> {
     if (method === "thread/attachment/updated") {
       const taskId = readTaskId(params);
       if (taskId === undefined)
@@ -59,14 +72,14 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
       return;
     }
     if (this.handleProjectStateNotification(method, params)) return;
-    this.handleNotification(method, params);
+    return this.handleNotification(method, params);
   }
 
   public receiveServerRequest(request: RpcServerRequest): void {
     this.handleServerRequest(request);
   }
 
-  protected handleNotification(method: string, params: unknown): void {
+  protected handleNotification(method: string, params: unknown): void | Promise<void> {
     if (method === "mcpServer/startupStatus/updated") {
       try {
         const update = readMcpServerStartupStatus(params);
@@ -168,24 +181,41 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
       // 外层仍会代理结构化活动，只过滤内部 Prompt 和已由 worker 交付的重复终态。
       return;
     }
-    let event: AgentProviderEvent | undefined;
+    let mapped: AgentProviderEvent | undefined | Promise<AgentProviderEvent | undefined>;
     try {
-      event = mapCodexNotification(
-        method,
-        params,
-        (taskId, part, imageIndex) => this.mapMessageImage(taskId, part, imageIndex),
-        (taskId, input, textIndex) => this.mapMessageText(taskId, input, textIndex),
-        activeReviewTarget,
-        isReviewWorker ? reviewTurnId : undefined,
-        isReviewWorker,
-        hasReviewWorkerOutput && !isReviewWorker,
-        isReviewWorker ? taskId : undefined,
+      mapped = resolveAttachmentMapping(
+        (image, text) =>
+          mapCodexNotification(
+            method,
+            params,
+            image,
+            text,
+            activeReviewTarget,
+            isReviewWorker ? reviewTurnId : undefined,
+            isReviewWorker,
+            hasReviewWorkerOutput && !isReviewWorker,
+            isReviewWorker ? taskId : undefined,
+          ),
+        this.mapMessageImage.bind(this),
+        this.mapMessageText.bind(this),
       );
     } catch {
       // 单个原生通知字段漂移不能中断 JSONL Client 或后续关键事件。
       this.warnDroppedNotification("invalid_notification", method, params);
       return;
     }
+    if (mapped instanceof Promise)
+      return mapped.then((event) => {
+        this.#publishMappedNotification(event, method, params);
+      });
+    this.#publishMappedNotification(mapped, method, params);
+  }
+
+  #publishMappedNotification(
+    event: AgentProviderEvent | undefined,
+    method: string,
+    params: unknown,
+  ): void {
     if (event === undefined) {
       if (!CODEX_NOTIFICATION_METHODS.has(method)) {
         this.warnDroppedNotification("unknown_notification", method, params);
@@ -413,7 +443,7 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
     taskId: string,
     part: Record<string, unknown>,
     imageIndex: number,
-  ): AgentMessageAttachment | undefined {
+  ): HistoricalAttachmentResult {
     return mapCodexMessageImage(this.historicalAttachments, taskId, part, imageIndex);
   }
 
@@ -421,59 +451,13 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTasks {
     taskId: string,
     input: Readonly<{ name: string; text: string }>,
     textIndex: number,
-  ): AgentMessageAttachment | undefined {
+  ): HistoricalAttachmentResult {
     return mapCodexMessageText(this.historicalAttachments, taskId, input, textIndex);
   }
 
   protected assertKnownProjectTask(taskId: string): void {
     if (!this.runtime.projectTaskIds.has(taskId)) {
       throw new CodexProtocolMappingError("Codex thread does not belong to the active project");
-    }
-  }
-
-  protected async resumeTask(taskId: string): Promise<void> {
-    if (this.runtime.resumedTaskIds.has(taskId)) {
-      return;
-    }
-    const currentResume = this.runtime.resumePromises.get(taskId);
-    if (currentResume !== undefined) {
-      return currentResume;
-    }
-
-    const resumePromise = (async () => {
-      const response = expectRecord(
-        await this.client.request("thread/resume", {
-          config: CODEX_THREAD_CONFIG,
-          // 恢复只负责加载运行时，Snapshot 历史继续通过分页接口获取。
-          excludeTurns: true,
-          // 恢复 Project Task 时覆盖旧运行时配置，使全部根立即生效。
-          ...(this.project.kind === "project"
-            ? {
-                runtimeWorkspaceRoots: this.runtime.workspaceRootsForTask(
-                  taskId,
-                  this.project.runtimeWorkspaceRoots,
-                ),
-              }
-            : {}),
-          threadId: taskId,
-        }),
-        "thread/resume response",
-      );
-      const thread = expectRecord(response["thread"], "thread/resume thread");
-      if (expectString(thread["id"], "thread/resume thread id") !== taskId) {
-        throw new CodexProtocolMappingError("thread/resume returned a different thread");
-      }
-      await assertProjectThread(thread, this.project);
-      // 恢复成功后，本次 App Server 生命周期内可直接继续后续 Turn。
-      this.runtime.resumedTaskIds.add(taskId);
-    })();
-    this.runtime.resumePromises.set(taskId, resumePromise);
-    try {
-      await resumePromise;
-    } finally {
-      if (this.runtime.resumePromises.get(taskId) === resumePromise) {
-        this.runtime.resumePromises.delete(taskId);
-      }
     }
   }
 }

@@ -1,16 +1,6 @@
 import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
-import { readFile } from "node:fs/promises";
+import { rm, stat } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
 
 import type { AgentProviderAttachment } from "@codexly/core";
@@ -21,20 +11,21 @@ import {
   MAX_AGENT_IMAGE_BYTES,
   MAX_AGENT_TEXT_BYTES,
   type AgentAttachmentKind,
-  type AgentAttachmentMediaType,
   type AgentImageMediaType,
   type AgentMessageAttachment,
 } from "@codexly/protocol";
 
 import {
-  detectImageMediaType,
   imageExtensionsByMediaType,
   normalizeAttachmentName,
 } from "./historical-attachment-files.js";
+import {
+  historicalAttachmentWorkers,
+  InvalidHistoricalAttachmentError,
+  type AttachmentWorkerJob,
+} from "./historical-attachment-worker-pool.js";
 import type { StagedImageAttachment } from "./jsonl-frame-processor.js";
 import type { CodexlyThreadAttachmentMetadata } from "./thread-attachment-repository.js";
-
-const DATA_URL_PATTERN = /^data:(image\/(?:gif|jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/u;
 
 type PersistentEntry = Readonly<{
   attachment: AgentMessageAttachment;
@@ -43,37 +34,36 @@ type PersistentEntry = Readonly<{
   taskId: string;
 }>;
 
+export type HistoricalAttachmentResult =
+  AgentMessageAttachment | undefined | Promise<AgentMessageAttachment | undefined>;
+
 export interface HistoricalAttachmentStore {
   addBase64Image(
     taskId: string,
     input: Readonly<{ encoded: string; name?: string }>,
     imageIndex: number,
-  ): AgentMessageAttachment | undefined;
+  ): HistoricalAttachmentResult;
   addDataUrl(
     taskId: string,
     input: Readonly<{ name?: string; url: string }>,
     imageIndex: number,
-  ): AgentMessageAttachment | undefined;
+  ): HistoricalAttachmentResult;
   addLocalFile(
     taskId: string,
     input: Readonly<{ mediaType: string; name: string; path: string }>,
-  ): AgentMessageAttachment | undefined;
-  addLocalImage(
-    taskId: string,
-    path: string,
-    imageIndex: number,
-  ): AgentMessageAttachment | undefined;
+  ): HistoricalAttachmentResult;
+  addLocalImage(taskId: string, path: string, imageIndex: number): HistoricalAttachmentResult;
   addStagedImage(
     taskId: string,
     staged: StagedImageAttachment,
     imageIndex: number,
     inputName?: string,
-  ): AgentMessageAttachment | undefined;
+  ): HistoricalAttachmentResult;
   addText(
     taskId: string,
     input: Readonly<{ name: string; text: string }>,
     textIndex: number,
-  ): AgentMessageAttachment | undefined;
+  ): HistoricalAttachmentResult;
   clearTask(taskId: string): void;
   dispose(): void;
   read(taskId: string, attachmentId: string): Promise<AgentProviderAttachment | undefined>;
@@ -83,156 +73,135 @@ export class CodexPersistentHistoricalAttachmentStore implements HistoricalAttac
   readonly #entries = new Map<string, PersistentEntry>();
   readonly #pending = new Map<string, Map<string, CodexlyThreadAttachmentMetadata>>();
   #totalBytes = 0;
+  #disposed = false;
+  readonly #taskEpochs = new Map<string, object>();
+  readonly #inflight = new Map<string, Set<Promise<unknown>>>();
 
   public constructor(private readonly directory: string) {
     // 目录按首个附件延迟创建，仅读取 Thread 不产生空的本地状态。
   }
 
-  public addDataUrl(
+  public async addDataUrl(
     taskId: string,
     input: Readonly<{ name?: string; url: string }>,
     imageIndex: number,
-  ): AgentMessageAttachment | undefined {
-    const match = DATA_URL_PATTERN.exec(input.url);
-    const mediaType = match?.[1] as AgentImageMediaType | undefined;
-    const content = this.#decodeBase64(match?.[2]);
-    if (
-      content === undefined ||
-      mediaType === undefined ||
-      detectImageMediaType(content) !== mediaType
-    ) {
-      return undefined;
-    }
+  ): Promise<AgentMessageAttachment | undefined> {
+    // 先用字符串长度拒绝超大输入，Base64 正则、解码和正文校验交给 Worker。
+    if (input.url.length > Math.ceil((MAX_AGENT_IMAGE_BYTES * 4) / 3) + 64) return undefined;
+    const separator = input.url.indexOf(",");
+    const prefix = input.url.slice(0, separator);
+    const match = /^data:(image\/(?:gif|jpeg|png|webp));base64$/u.exec(prefix);
+    if (match === null) return undefined;
     return this.#add(
       taskId,
       "image",
-      mediaType,
+      match[1],
       normalizeAttachmentName(input.name, `图片-${String(imageIndex + 1)}`),
-      content,
+      { type: "base64", value: input.url.slice(separator + 1) },
     );
   }
 
-  public addBase64Image(
+  public async addBase64Image(
     taskId: string,
     input: Readonly<{ encoded: string; name?: string }>,
     imageIndex: number,
-  ): AgentMessageAttachment | undefined {
-    const content = this.#decodeBase64(input.encoded);
-    const mediaType = content === undefined ? undefined : detectImageMediaType(content);
-    if (content === undefined || mediaType === undefined) return undefined;
+  ): Promise<AgentMessageAttachment | undefined> {
+    if (input.encoded.length > Math.ceil((MAX_AGENT_IMAGE_BYTES * 4) / 3) + 4) return undefined;
     return this.#add(
       taskId,
       "image",
-      mediaType,
-      normalizeAttachmentName(
-        input.name,
-        `生成图片-${String(imageIndex + 1)}${imageExtensionsByMediaType[mediaType]}`,
-      ),
-      content,
+      undefined,
+      (mediaType) =>
+        normalizeAttachmentName(
+          input.name,
+          `生成图片-${String(imageIndex + 1)}${imageExtensionsByMediaType[mediaType as AgentImageMediaType]}`,
+        ),
+      { type: "base64", value: input.encoded },
     );
   }
 
-  public addStagedImage(
+  public async addStagedImage(
     taskId: string,
     staged: StagedImageAttachment,
     imageIndex: number,
     inputName?: string,
-  ): AgentMessageAttachment | undefined {
+  ): Promise<AgentMessageAttachment | undefined> {
     if (staged.size <= 0 || staged.size > MAX_AGENT_IMAGE_BYTES) return undefined;
-    try {
-      const content = readFileSync(staged.path);
-      if (
-        content.byteLength !== staged.size ||
-        createHash("sha256").update(content).digest("hex") !== staged.contentDigest ||
-        detectImageMediaType(content) !== staged.mediaType
-      ) {
-        return undefined;
-      }
-      const attachment = this.#add(
-        taskId,
-        "image",
-        staged.mediaType,
-        normalizeAttachmentName(
-          inputName,
-          `生成图片-${String(imageIndex + 1)}${imageExtensionsByMediaType[staged.mediaType]}`,
-        ),
-        content,
-      );
-      if (attachment !== undefined) unlinkSync(staged.path);
-      return attachment;
-    } catch {
-      return undefined;
-    }
+    const attachment = await this.#add(
+      taskId,
+      "image",
+      staged.mediaType,
+      normalizeAttachmentName(
+        inputName,
+        `生成图片-${String(imageIndex + 1)}${imageExtensionsByMediaType[staged.mediaType]}`,
+      ),
+      { type: "file", path: staged.path },
+      staged,
+    );
+    if (attachment !== undefined)
+      await rm(staged.path, { force: true }).catch(() => {
+        // 文件清理失败不影响已经完成的授权状态变更。
+      });
+    return attachment;
   }
 
-  public addLocalImage(
+  public async addLocalImage(
     taskId: string,
     path: string,
     imageIndex: number,
-  ): AgentMessageAttachment | undefined {
+  ): Promise<AgentMessageAttachment | undefined> {
     if (!isAbsolute(path)) return undefined;
-    try {
-      const stats = statSync(path);
-      if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_AGENT_IMAGE_BYTES)
-        return undefined;
-      const content = readFileSync(path);
-      const mediaType = detectImageMediaType(content);
-      if (mediaType === undefined) return undefined;
-      return this.#add(
-        taskId,
-        "image",
-        mediaType,
-        normalizeAttachmentName(basename(path), `图片-${String(imageIndex + 1)}`),
-        content,
-      );
-    } catch {
-      return undefined;
-    }
+    return this.#add(
+      taskId,
+      "image",
+      undefined,
+      normalizeAttachmentName(basename(path), `图片-${String(imageIndex + 1)}`),
+      { type: "file", path },
+    );
   }
 
-  public addText(
+  public async addText(
     taskId: string,
     input: Readonly<{ name: string; text: string }>,
     textIndex: number,
-  ): AgentMessageAttachment | undefined {
-    const content = Buffer.from(input.text, "utf8");
-    if (content.byteLength > MAX_AGENT_TEXT_BYTES) return undefined;
+  ): Promise<AgentMessageAttachment | undefined> {
+    if (input.text.length > MAX_AGENT_TEXT_BYTES) return undefined;
     return this.#add(
       taskId,
       "text",
       "text/plain",
       normalizeAttachmentName(input.name, `Pasted text-${String(textIndex + 1)}.txt`),
-      content,
+      { type: "text", value: input.text },
     );
   }
 
-  public addLocalFile(
+  public async addLocalFile(
     taskId: string,
     input: Readonly<{ mediaType: string; name: string; path: string }>,
-  ): AgentMessageAttachment | undefined {
+  ): Promise<AgentMessageAttachment | undefined> {
     if (!isAbsolute(input.path)) return undefined;
-    try {
-      const stats = statSync(input.path);
-      if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_AGENT_FILE_BYTES) return undefined;
-      return this.#add(
-        taskId,
-        "file",
-        input.mediaType,
-        normalizeAttachmentName(input.name, "Attachment"),
-        readFileSync(input.path),
-      );
-    } catch {
-      return undefined;
-    }
+    return this.#add(
+      taskId,
+      "file",
+      input.mediaType,
+      normalizeAttachmentName(input.name, "Attachment"),
+      { type: "file", path: input.path },
+    );
   }
 
-  public restoreTask(taskId: string, metadata: readonly CodexlyThreadAttachmentMetadata[]): void {
+  public async restoreTask(
+    taskId: string,
+    metadata: readonly CodexlyThreadAttachmentMetadata[],
+  ): Promise<void> {
     this.clearTask(taskId);
+    const epoch = this.#epoch(taskId);
     for (const record of metadata) {
       const path = this.#blobPath(taskId, record.blobKey);
       try {
-        const stats = statSync(path);
+        const stats = await stat(path);
+        if (this.#disposed || this.#taskEpochs.get(taskId) !== epoch) return;
         if (!stats.isFile() || stats.size !== record.attachment.size) continue;
+        this.#ensureCapacity(record.attachment.size);
         this.#register({ attachment: record.attachment, blobKey: record.blobKey, path, taskId });
       } catch {
         // 元数据与正文可能被独立清理；缺失正文不再授权下载。
@@ -257,26 +226,37 @@ export class CodexPersistentHistoricalAttachmentStore implements HistoricalAttac
     const entry = this.#entries.get(attachmentId);
     if (entry?.taskId !== taskId) return undefined;
     try {
-      const content = await readFile(entry.path);
+      // 下载正文也在 Worker 中流式复验哈希，最后转移 ArrayBuffer，主线程不再计算整块摘要。
+      const result = await historicalAttachmentWorkers.run({
+        operation: "read",
+        source: { type: "file", path: entry.path },
+        kind: entry.attachment.kind,
+        mediaType: entry.attachment.mediaType,
+        maxBytes: entry.attachment.size,
+        size: entry.attachment.size,
+        digest: entry.blobKey,
+      });
+      if (this.#entries.get(attachmentId) !== entry || result.content === undefined)
+        return undefined;
+      this.#touch(entry);
+      return { ...entry.attachment, content: Buffer.from(result.content) };
+    } catch (error) {
       if (
-        content.byteLength !== entry.attachment.size ||
-        createHash("sha256").update(content).digest("hex") !== entry.blobKey ||
-        (entry.attachment.kind === "image" &&
-          detectImageMediaType(content) !== entry.attachment.mediaType)
+        error instanceof InvalidHistoricalAttachmentError &&
+        this.#entries.get(attachmentId) === entry
       ) {
         this.#forget(attachmentId);
-        rmSync(entry.path, { force: true });
-        return undefined;
+        await rm(entry.path, { force: true }).catch(() => {
+          // 损坏附件必须撤销授权，外部文件系统清理失败不应恢复旧授权。
+        });
       }
-      this.#touch(entry);
-      return { ...entry.attachment, content };
-    } catch {
-      this.#forget(attachmentId);
+      // 繁忙或 Worker 故障不撤销已有授权；后续读取仍会完整复验正文。
       return undefined;
     }
   }
 
   public clearTask(taskId: string): void {
+    this.#taskEpochs.delete(taskId);
     for (const [attachmentId, entry] of this.#entries) {
       if (entry.taskId === taskId) this.#forget(attachmentId);
     }
@@ -285,70 +265,97 @@ export class CodexPersistentHistoricalAttachmentStore implements HistoricalAttac
 
   public deleteTask(taskId: string): void {
     this.clearTask(taskId);
-    rmSync(this.#taskDirectory(taskId), { force: true, recursive: true });
+    // 删除先撤销授权，再等待此前已提交的写入结束，防止晚到的任务重建已删除目录。
+    const inflight = [...(this.#inflight.get(taskId) ?? [])];
+    void Promise.allSettled(inflight)
+      .then(() => rm(this.#taskDirectory(taskId), { force: true, recursive: true }))
+      .catch(() => {
+        // 文件清理失败不影响已经完成的授权状态变更。
+      });
   }
 
   public dispose(): void {
+    this.#disposed = true;
+    this.#taskEpochs.clear();
     this.#entries.clear();
     this.#pending.clear();
     this.#totalBytes = 0;
   }
 
-  #add(
+  async #add(
     taskId: string,
     kind: AgentAttachmentKind,
-    mediaType: AgentAttachmentMediaType,
-    name: string,
-    content: Buffer,
-  ): AgentMessageAttachment | undefined {
+    mediaType: string | undefined,
+    attachmentName: string | ((mediaType: string) => string),
+    source: AttachmentWorkerJob["source"],
+    staged?: StagedImageAttachment,
+  ): Promise<AgentMessageAttachment | undefined> {
+    if (this.#disposed) return undefined;
+    const epoch = this.#epoch(taskId);
     const maxBytes =
       kind === "image"
         ? MAX_AGENT_IMAGE_BYTES
         : kind === "text"
           ? MAX_AGENT_TEXT_BYTES
           : MAX_AGENT_FILE_BYTES;
-    if (content.byteLength === 0 || content.byteLength > maxBytes) {
-      return undefined;
-    }
-    const blobKey = createHash("sha256").update(content).digest("hex");
-    const id = `history-${createHash("sha256")
-      .update(JSON.stringify([taskId, kind, mediaType, name, content.byteLength, blobKey]))
-      .digest("hex")}`;
-    const existing = this.#entries.get(id);
-    if (existing?.taskId === taskId) {
-      this.#touch(existing);
-      return existing.attachment;
-    }
-    const attachment = { id, kind, mediaType, name, size: content.byteLength } as const;
-    const path = this.#blobPath(taskId, blobKey);
-    mkdirSync(this.#taskDirectory(taskId), { recursive: true });
-    if (!existsSync(path)) {
-      const temporaryPath = `${path}.${process.pid.toString()}.${id}.tmp`;
-      try {
-        writeFileSync(temporaryPath, content, { flag: "wx" });
-        renameSync(temporaryPath, path);
-      } catch {
-        rmSync(temporaryPath, { force: true });
-        if (!existsSync(path)) return undefined;
+    const job = historicalAttachmentWorkers.run({
+      operation: "persist",
+      source,
+      directory: this.#taskDirectory(taskId),
+      kind,
+      maxBytes,
+      ...(mediaType === undefined ? {} : { mediaType }),
+      ...(staged === undefined ? {} : { size: staged.size, digest: staged.contentDigest }),
+    });
+    const inflight = this.#inflight.get(taskId) ?? new Set<Promise<unknown>>();
+    inflight.add(job);
+    this.#inflight.set(taskId, inflight);
+    try {
+      const result = await job;
+      if (!this.#isCurrent(taskId, epoch) || result.path === undefined) return undefined;
+      const name =
+        typeof attachmentName === "string" ? attachmentName : attachmentName(result.mediaType);
+      // 仅对少量身份元数据同步哈希；大正文的 SHA-256 已由有界 Worker 完成。
+      const id = `history-${createHash("sha256")
+        .update(JSON.stringify([taskId, kind, result.mediaType, name, result.size, result.blobKey]))
+        .digest("hex")}`;
+      const existing = this.#entries.get(id);
+      if (existing !== undefined) {
+        this.#touch(existing);
+        return existing.attachment;
       }
+      const attachment: AgentMessageAttachment = {
+        id,
+        kind,
+        mediaType: result.mediaType,
+        name,
+        size: result.size,
+      };
+      this.#ensureCapacity(attachment.size);
+      this.#register({ attachment, blobKey: result.blobKey, path: result.path, taskId });
+      const taskPending =
+        this.#pending.get(taskId) ?? new Map<string, CodexlyThreadAttachmentMetadata>();
+      taskPending.set(id, { attachment, blobKey: result.blobKey, schemaVersion: 1 });
+      this.#pending.set(taskId, taskPending);
+      return attachment;
+    } catch {
+      // 单个附件无效、源文件消失或Worker 故障只产生占位符，不中断其他会话。
+      return undefined;
+    } finally {
+      inflight.delete(job);
+      if (inflight.size === 0 && this.#inflight.get(taskId) === inflight)
+        this.#inflight.delete(taskId);
     }
-    this.#ensureCapacity(attachment.size);
-    this.#register({ attachment, blobKey, path, taskId });
-    const taskPending =
-      this.#pending.get(taskId) ?? new Map<string, CodexlyThreadAttachmentMetadata>();
-    taskPending.set(id, { attachment, blobKey, schemaVersion: 1 });
-    this.#pending.set(taskId, taskPending);
-    return attachment;
   }
 
-  #decodeBase64(encoded: string | undefined): Buffer | undefined {
-    if (encoded === undefined || encoded.length === 0) return undefined;
-    const content = Buffer.from(encoded, "base64");
-    return content.byteLength === 0 ||
-      content.byteLength > MAX_AGENT_IMAGE_BYTES ||
-      content.toString("base64").replace(/=+$/u, "") !== encoded.replace(/=+$/u, "")
-      ? undefined
-      : content;
+  #isCurrent(taskId: string, epoch: object): boolean {
+    return !this.#disposed && this.#taskEpochs.get(taskId) === epoch;
+  }
+
+  #epoch(taskId: string): object {
+    const epoch = this.#taskEpochs.get(taskId) ?? {};
+    this.#taskEpochs.set(taskId, epoch);
+    return epoch;
   }
 
   #taskDirectory(taskId: string): string {

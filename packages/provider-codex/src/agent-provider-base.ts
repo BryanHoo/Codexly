@@ -8,7 +8,6 @@ import type {
 } from "@codexly/core";
 import type {
   AgentCapabilities,
-  AgentMessageAttachment,
   AgentMcpServerPage,
   AgentModelPage,
   AgentSandboxMode,
@@ -17,7 +16,12 @@ import type {
 } from "@codexly/protocol";
 import { RpcResponseError, type RpcServerRequest } from "./jsonl-rpc-client.js";
 import { CodexHistoricalAttachmentStore } from "./historical-attachment-store.js";
-import type { HistoricalAttachmentStore } from "./persistent-historical-attachment-store.js";
+import { resolveTaskAttachmentMapping } from "./resolve-attachment-mapping.js";
+import type { MapCodexMessageImage, MapCodexMessageText } from "./codex-message-mapping.js";
+import type {
+  HistoricalAttachmentStore,
+  HistoricalAttachmentResult,
+} from "./persistent-historical-attachment-store.js";
 import { CodexThreadAttachmentService } from "./thread-attachment-service.js";
 import { ForkTaskRegistry } from "./fork-task-registry.js";
 import { PendingRequestLifecycle } from "./pending-request-lifecycle.js";
@@ -128,12 +132,24 @@ export abstract class CodexAgentProviderBase {
     taskId: string,
     part: Record<string, unknown>,
     imageIndex: number,
-  ): AgentMessageAttachment | undefined;
+  ): HistoricalAttachmentResult;
   protected abstract mapMessageText(
     taskId: string,
     input: Readonly<{ name: string; text: string }>,
     textIndex: number,
-  ): AgentMessageAttachment | undefined;
+  ): HistoricalAttachmentResult;
+  protected mapTaskAttachments<T>(
+    taskId: string,
+    map: (image: MapCodexMessageImage, text: MapCodexMessageText) => T,
+  ): T | Promise<T> {
+    return resolveTaskAttachmentMapping(
+      taskId,
+      map,
+      this.mapMessageImage.bind(this),
+      this.mapMessageText.bind(this),
+    );
+  }
+
   protected abstract promotePendingServerRequests(taskId: string): void;
   protected abstract resumeTask(taskId: string): Promise<void>;
   protected abstract routeEvent(event: AgentProviderEvent): void;

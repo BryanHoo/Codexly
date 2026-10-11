@@ -1,8 +1,11 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { once } from "node:events";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { Worker } from "node:worker_threads";
 
 const require = createRequire(import.meta.url);
 
@@ -82,6 +85,7 @@ try {
     "CHANGELOG.md",
     "dist/cli.js",
     "dist/codex-jsonl-frame-worker.js",
+    "dist/historical-attachment-worker.js",
     "dist/server/index.js",
     "dist/sqlite-state-worker.js",
     "dist/runtime-instance-worker.js",
@@ -135,6 +139,33 @@ try {
   const { SqliteStateRepository } = await import("../dist/server/index.js");
   const repository = await SqliteStateRepository.open(join(stateRoot, "state.sqlite3"));
   await repository.close();
+
+  // 实际启动附件 Worker 并写入正文，覆盖打包后的相对 URL、共享模块及异步文件流程。
+  const attachmentWorker = new Worker(
+    new URL("../dist/historical-attachment-worker.js", import.meta.url),
+  );
+  try {
+    const text = "附件持久化发布验证";
+    const response = once(attachmentWorker, "message", { signal: AbortSignal.timeout(5_000) });
+    attachmentWorker.postMessage({
+      operation: "persist",
+      source: { type: "text", value: text },
+      directory: join(stateRoot, "attachments"),
+      kind: "text",
+      maxBytes: 1_024,
+      mediaType: "text/plain",
+    });
+    const [message] = await response;
+    const result = message.result;
+    if (
+      result?.blobKey !== createHash("sha256").update(text).digest("hex") ||
+      readFileSync(result.path, "utf8") !== text
+    ) {
+      throw new Error("Built attachment worker failed to persist verified bytes");
+    }
+  } finally {
+    await attachmentWorker.terminate();
+  }
 
   process.stdout.write(`Package verified: ${manifest.filename} (${manifest.files.length} files)\n`);
 } finally {
