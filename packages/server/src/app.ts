@@ -1,4 +1,6 @@
 import { registerHistoryStorageRoutes } from "./routes/history-storage-routes.js";
+import { WorkbenchChanges } from "./workbench-changes.js";
+import { registerWorkbenchEvents } from "./routes/resource-change-events.js";
 import {
   DEFAULT_COMMIT_MESSAGE_MODEL,
   type AgentGlobalSettings,
@@ -165,6 +167,7 @@ export async function createCodexlyServer(
       provider: options.provider,
     });
   const attachmentStore = new AttachmentStore();
+  const workbenchChanges = new WorkbenchChanges();
   const resolveProviderTurnInput = createProviderTurnInputResolver(
     attachmentStore,
     (projectId, id) =>
@@ -230,6 +233,7 @@ export async function createCodexlyServer(
             );
           },
           onTurnCompleted: (runtime) => taskQueue.startNext(runtime),
+          workbenchChanges,
           provider: resolved.provider,
           scope: resolved.scope,
         });
@@ -393,6 +397,7 @@ export async function createCodexlyServer(
     ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot }),
   });
   const routeContext: ServerRouteContext = {
+    workbenchChanges,
     ...(options.asyncQuestionRepository === undefined
       ? {}
       : { asyncQuestionRepository: options.asyncQuestionRepository }),
@@ -486,6 +491,7 @@ export async function createCodexlyServer(
   await app.register(registerSubmissionRoutes, routeContext);
   await app.register(registerAsyncQuestionRoutes, routeContext);
   await app.register(registerProjectTodoRoutes, routeContext);
+  registerWorkbenchEvents(app, routeContext);
   await app.register(registerQueueRoutes, routeContext);
   await app.register(registerEventRoutes, routeContext);
   await app.ready();

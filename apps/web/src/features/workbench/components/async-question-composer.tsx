@@ -8,13 +8,15 @@ export function AsyncQuestionComposer({
   projectId,
   taskId,
   onAnswered,
+  isTaskRunning = false,
 }: Readonly<{
   enabled: boolean;
   projectId: string;
   taskId: string | undefined;
   onAnswered: () => (result: AnswerAsyncQuestionResponse) => void;
+  isTaskRunning?: boolean;
 }>) {
-  const questions = useAsyncQuestions(projectId, taskId, onAnswered);
+  const questions = useAsyncQuestions(projectId, taskId, onAnswered, isTaskRunning);
   return (
     <AsyncQuestionProvider enabled={enabled} submit={questions.answer}>
       <AsyncQuestionDock

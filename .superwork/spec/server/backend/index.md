@@ -8,6 +8,7 @@
 - 全局任务搜索和历史匹配位置搜索必须将 `request.signal` 传入 Provider 与 RPC 等待层；取消后停止派发后续锚点查询，移除等待项、超时及重试计时器和取消监听器。迟到响应不得触发重试，也不得关闭共享 RPC 连接；用 `app-global-search.test.ts` 验证真实 HTTP 断连，用 `global-search.test.ts` 和 `jsonl-rpc-cancellation.test.ts` 验证并发锚点取消及资源清理。
 - 持久化变更检查 `sqlite-state-migrations.ts`、Worker、仓储测试和重启恢复场景。
 - 实时任务、队列与定时任务变更分别检查 `agent-event-stream.ts`、`persistent-task-queue.ts`、`scheduled-task-*` 及对应测试。
+- 工作区异步问题和待办的变更流只发送资源身份及校准信号，不广播正文、答案或附件。待办成功落盘及问题占用、解决、关闭后广播，幂等重放和失败写入不重复通知；问题消息成型及回合边界触发校准，逐 token 增量不得广播。共用资源通知连接的会话清理、心跳与背压规则，用 `app-workbench-events.test.ts`、`app-async-questions.test.ts` 和 `app-session-revocation.test.ts` 验证跨设备同步及注销清理。
 - Session 注销、容量淘汰和过期清理必须同步停止关联事件订阅并关闭全部 WebSocket；项目事件流与定时任务事件流都要覆盖，并验证其他会话仍可接收消息。连接关闭或出错时必须解除会话监听。
 - 新建 Git worktree 的工作文件放在主 worktree 同级，以分支名生成目录；`.git/worktrees` 仅存 Git 管理信息。路径撞名时顺延编号，已有任务继续使用保存的原路径。
 - Git 子进程继承环境必须过滤全部 `GIT_` 前缀及 `EDITOR`、`VISUAL` 等执行控制变量；`simple-git` 的 `allowEnvironment` 仅放行内部设置的 `GIT_OPTIONAL_LOCKS` 和由 `CODEXLY_GIT_CONFIG` 映射的 `GIT_CONFIG_GLOBAL`。用 `git-command.test.ts` 验证恶意环境隔离、受控配置传递及正常命令执行。

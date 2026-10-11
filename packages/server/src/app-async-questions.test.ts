@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { LightMyRequestResponse } from "fastify";
 import type { AsyncQuestionGroup } from "@codexly/protocol";
 import { createHarness } from "./app-all.test-support.js";
@@ -43,6 +43,66 @@ describe("async question API", () => {
     harness.readTask.mockResolvedValue(source);
     return { ...harness, repository, root };
   }
+  it.each(["answer", "dismiss"] as const)(
+    "notifies other devices when questions appear or %s",
+    async (action) => {
+      const { app, emitEvent } = await setup();
+      const id = questionId(await app.inject({ method: "GET", url }));
+      const frames: unknown[] = [];
+      const socket = await app.injectWS(
+        "/v1/workbench/events",
+        {
+          headers: { host: "127.0.0.1:3210", origin: "http://127.0.0.1:3210" },
+        },
+        {
+          onInit(socket) {
+            socket.on("message", (data: { toString(): string }) =>
+              frames.push(JSON.parse(data.toString())),
+            );
+          },
+        },
+      );
+      try {
+        await vi.waitFor(() => {
+          expect(frames).toEqual([{ type: "workbench.ready" }]);
+        });
+        emitEvent({
+          type: "message.delta",
+          taskId: "task-1",
+          turnId: "turn-1",
+          itemId: question.id,
+          payload: { delta: "问题" },
+        });
+        emitEvent({
+          type: "item.completed",
+          taskId: "task-1",
+          turnId: "turn-1",
+          itemId: question.id,
+          payload: { item: question },
+        });
+        const change = { type: "async-questions.changed", projectId: "codexly", taskId: "task-1" };
+        await vi.waitFor(() => {
+          expect(frames).toEqual([{ type: "workbench.ready" }, change]);
+        });
+        const response = await app.inject({
+          method: "POST",
+          url: action === "answer" ? `${url}/${id}/answer` : `${url}/dismiss`,
+          headers: { "idempotency-key": `push-${action}` },
+          payload: action === "answer" ? { answers: ["当前文件"] } : { ids: [id] },
+        });
+        expect(response.statusCode, response.body).toBe(200);
+        await vi.waitFor(() => {
+          expect(frames.length).toBeGreaterThanOrEqual(3);
+        });
+        expect(
+          frames.slice(1).every((frame) => JSON.stringify(frame) === JSON.stringify(change)),
+        ).toBe(true);
+        expect((await app.inject({ method: "GET", url })).json()).toEqual({ data: [] });
+      } finally {
+        socket.terminate();
+      }
+    },
+  );
   // 重启用例会创建两套真实服务与 SQLite Worker，为 Windows CI 的启动与磁盘 I/O 留出预算。
   it(
     "answers with one server-side steer and replays the accepted response after restart",

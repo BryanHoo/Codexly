@@ -27,6 +27,11 @@ describe("project todo server state", () => {
     };
     return { client, queryClient, store: createProjectTodoStore({ client, queryClient }) };
   }
+  it("keeps a low-frequency fallback without background polling", () => {
+    const { store } = setup();
+    expect(store.queryOptions("project-a").refetchInterval).toBe(60_000);
+    expect(store.queryOptions("project-a").refetchIntervalInBackground).toBe(false);
+  });
   it("ignores observer option changes but publishes query data changes", () => {
     const { store, queryClient } = setup();
     const options = store.queryOptions("project-a");

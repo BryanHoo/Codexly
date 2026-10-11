@@ -6,6 +6,7 @@ import { AgentEventStream, type AgentEventStreamOptions } from "./agent-event-st
 import type { AttachmentStore } from "./attachment-store.js";
 import { invalidateProjectGitBranchCache } from "./git-working-tree.js";
 import type { ProjectRuntimeContext } from "./routes/context.js";
+import type { WorkbenchChanges } from "./workbench-changes.js";
 
 export function createProjectRuntimeContext(
   options: Readonly<{
@@ -14,6 +15,7 @@ export function createProjectRuntimeContext(
     eventProvider: AgentEventStreamOptions["provider"];
     eventSessionId?: string;
     onActivity: () => void;
+    workbenchChanges?: WorkbenchChanges;
     onAttachmentReleaseError: (error: unknown) => void;
     onTurnCompleted?: (
       runtime: Readonly<{
@@ -60,6 +62,7 @@ export function createProjectRuntimeContext(
         invalidateProjectGitBranchCache(event.payload.rootPath);
       }
       eventStream.publish(event);
+      options.workbenchChanges?.publishAgentEvent(scope.id, event);
     }),
   };
 }

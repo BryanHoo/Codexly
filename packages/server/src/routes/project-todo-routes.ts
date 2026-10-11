@@ -61,7 +61,9 @@ export const registerProjectTodoRoutes: FastifyPluginCallback<ServerRouteContext
     await assertProject(projectId);
     return context.runIdempotent(scope, key, payload, async () => {
       try {
-        return await action();
+        const result = await action();
+        context.workbenchChanges.publish({ type: "project-todos.changed", projectId });
+        return result;
       } catch (error) {
         return toProjectTodoHttpError(error);
       }

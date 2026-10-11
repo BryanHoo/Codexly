@@ -67,6 +67,7 @@ import type { ProjectFileDownload } from "../project-file-download.js";
 import type { PersistentTaskQueue } from "../persistent-task-queue.js";
 import type { SkillMarketService } from "../skill-market-service.js";
 import type { ScheduledTaskService } from "../scheduled-task-service.js";
+import type { WorkbenchChanges } from "../workbench-changes.js";
 
 export class MutationHttpError extends Error {
   public constructor(
@@ -117,6 +118,7 @@ export type TaskStartRecovery = Readonly<{
 }>;
 
 export interface ServerRouteContext {
+  readonly workbenchChanges: WorkbenchChanges;
   readonly projectTodoRepository?: ProjectTodoRepository;
   readonly submissionRepository: TaskSubmissionRepository;
   readonly asyncQuestionRepository?: AsyncQuestionRepository;

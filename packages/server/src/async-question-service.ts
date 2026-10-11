@@ -118,6 +118,7 @@ export class AsyncQuestionService {
   public async dismiss(projectId: string, taskId: string, ids: readonly string[]) {
     const { task } = await this.task(projectId, taskId);
     await this.repository().dismissAsyncQuestions(projectId, taskId, ids);
+    this.context.workbenchChanges.publish({ type: "async-questions.changed", projectId, taskId });
     return this.pending(projectId, taskId, new Set(collectRunningTurnIds(task)));
   }
   public async answer(
@@ -168,6 +169,7 @@ export class AsyncQuestionService {
         409,
       );
     const checkpoint = runtime.eventStream.checkpoint;
+    this.context.workbenchChanges.publish({ type: "async-questions.changed", projectId, taskId });
     const providerInput = { text, skills: [], files: [], images: [], textAttachments: [] };
     try {
       const turn =
@@ -189,6 +191,7 @@ export class AsyncQuestionService {
         ))
       )
         throw new Error("Answer state changed unexpectedly");
+      this.context.workbenchChanges.publish({ type: "async-questions.changed", projectId, taskId });
       return result;
     } catch {
       throw this.unknownOutcome();

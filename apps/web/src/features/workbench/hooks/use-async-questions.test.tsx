@@ -7,12 +7,18 @@ import { useActionErrorToast } from "../../notifications/use-action-error-toast.
 
 const query = vi.hoisted(() => ({
   error: null as Error | null,
-  options: undefined as { enabled: boolean } | undefined,
+  options: undefined as
+    | {
+        enabled: boolean;
+        refetchInterval: (query: { state: { data?: { data: unknown[] } } }) => number;
+        refetchIntervalInBackground: boolean;
+      }
+    | undefined,
 }));
 const invalidateQueries = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: (options: { enabled: boolean }) => {
+  useQuery: (options: NonNullable<typeof query.options>) => {
     query.options = options;
     return { data: undefined, error: query.error };
   },
@@ -21,10 +27,10 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("../../notifications/action-notifications.js", () => ({ notifyActionError: vi.fn() }));
 vi.mock("../../notifications/use-action-error-toast.js", () => ({ useActionErrorToast: vi.fn() }));
 
-function renderQuestions(taskId: string | undefined) {
+function renderQuestions(taskId: string | undefined, isTaskRunning = false) {
   let questions: ReturnType<typeof useAsyncQuestions> | undefined;
   function Probe() {
-    questions = useAsyncQuestions("project-a", taskId, () => vi.fn());
+    questions = useAsyncQuestions("project-a", taskId, () => vi.fn(), isTaskRunning);
     return null;
   }
   renderToStaticMarkup(<Probe />);
@@ -44,6 +50,15 @@ test("question polling waits for a task ID", () => {
   expect(query.options?.enabled).toBe(false);
   renderQuestions("task-a");
   expect(query.options?.enabled).toBe(true);
+});
+
+test("idle questions use a slow fallback and active or pending questions stay responsive", () => {
+  renderQuestions("task-a");
+  expect(query.options?.refetchInterval({ state: { data: { data: [] } } })).toBe(60_000);
+  expect(query.options?.refetchInterval({ state: { data: { data: [{}] } } })).toBe(10_000);
+  renderQuestions("task-a", true);
+  expect(query.options?.refetchInterval({ state: {} })).toBe(10_000);
+  expect(query.options?.refetchIntervalInBackground).toBe(false);
 });
 
 test("question polling errors stay silent while polling continues", () => {

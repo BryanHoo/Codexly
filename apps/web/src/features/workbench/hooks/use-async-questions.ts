@@ -8,17 +8,22 @@ export function useAsyncQuestions(
   projectId: string,
   taskId: string | undefined,
   onAnswered: () => (result: AnswerAsyncQuestionResponse) => void,
+  isTaskRunning = false,
 ) {
   const queryClient = useQueryClient();
   const queryKey = ["async-questions", projectId, taskId];
   const [dismissing, setDismissing] = useState(false);
   const query = useQuery({
     queryKey,
-    // 仅进入已创建的 Task 后轮询，失败保持静默并等待下一轮自动恢复。
+    // 仅进入已创建的 Task 后读取，失败保持静默并等待事件或兜底刷新恢复。
     enabled: taskId !== undefined,
     queryFn: ({ signal }) => codexlyClient.listAsyncQuestions(projectId, taskId ?? "", { signal }),
-    // 后端提供完整待处理集合；轮询不依赖虚拟列表已加载的历史或消息文本。
-    refetchInterval: 2000,
+    // 事件通知承担即时更新；运行态及未投递完成的问题保留较快兜底，空闲时降低请求频率。
+    refetchInterval: (query) =>
+      isTaskRunning || (query.state.data?.data.length ?? 0) > 0 ? 10_000 : 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
     retry: false,
   });
   const answer = async (id: string, answers: readonly string[]) => {

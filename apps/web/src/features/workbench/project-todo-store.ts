@@ -23,8 +23,9 @@ export function projectTodoQueryOptions(
       await prepareProject?.(projectId);
       return client.listProjectTodos(projectId, { signal });
     },
-    // 跨设备变更通过可见页面刷新与聚焦校准；后台页面不执行轮询。
-    refetchInterval: 10000,
+    // 变更通知负责即时同步；低频轮询兜底旧服务或漏通知，后台页面不执行轮询。
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     staleTime: 0,
   };

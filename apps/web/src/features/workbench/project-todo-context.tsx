@@ -14,6 +14,7 @@ import { notifyActionError } from "../notifications/action-notifications.js";
 import { getSafeLocalStorage } from "../../shared/lib/browser-storage.js";
 import { i18n } from "../../i18n/i18n.js";
 import { createLegacyTodoImporter } from "./project-todo-import.js";
+import { installWorkbenchQuerySync } from "./workbench-query-sync.js";
 
 import {
   createProjectTodoStore,
@@ -26,6 +27,7 @@ const ProjectTodoContext = createContext<ProjectTodoStore | undefined>(undefined
 
 export function ProjectTodoProvider({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
+  useEffect(() => installWorkbenchQuerySync(queryClient, codexlyClient, document), [queryClient]);
   const storeRef = useRef<ProjectTodoStore>(null);
   storeRef.current ??= createProjectTodoStore({
     client: codexlyClient,

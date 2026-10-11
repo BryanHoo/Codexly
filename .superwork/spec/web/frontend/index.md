@@ -5,6 +5,7 @@
 - 待发送提示使用共享 `frontend-core/prompt-delivery` 规则，在新用户消息或权威回合终态到达后清理；请求响应和返回任务时均检查当前 Store，不能等待已经错过的事件。
 
 - HTTP 和事件调用通过 `@codexly/client`，共享类型通过 `@codexly/protocol`；不要从服务端或 Codex Provider 引入运行时代码。
+- 异步问题与项目待办由 Provider 级单个工作区变更订阅失效对应 Query；后台只标记失效，恢复可见及连接重建后校准。保留运行态或待处理问题的较快兜底和空闲低频兜底，禁止恢复固定高频空闲轮询；通知遇到在途读取时合并一次结束后的补读，不取消共享请求。用 `workbench-query-sync.test.ts`、`use-async-questions.test.tsx` 和 `project-todo-store.test.ts` 验证作用域隔离、后台停读和竞态。
 - 任务实时状态集中在 `features/conversation/runtime/`；服务端查询交给 React Query，交互状态沿现有 feature 状态模块组织。
 - Provider 的 `runtime_warning` 保留在同一事件会话的任务上下文中，右栏按条默认折叠展示，流式时间线不渲染；其他 `task.notice` 保持原有可见行为。
 - 时间线按 `item.started` / `item.completed` 展示命令和工具耗时；文件编辑完成后不渲染“已编辑 N 个文件”任务行，回合运行中保留可打开的文件修改，终态仅由回复末尾汇总。思考项没有可靠起点，不估算耗时。

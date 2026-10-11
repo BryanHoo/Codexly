@@ -2,10 +2,8 @@
 export * from "./project-directory-create.js";
 export * from "./workbench-pets.js";
 export { CODEXLY_USER_AGENT } from "./user-agent.js";
-export {
-  CreateTaskWorktreeResponseSchema,
-  type CreateTaskWorktreeResponse,
-} from "./project-git.js";
+export { CreateTaskWorktreeResponseSchema } from "./project-git.js";
+export type { CreateTaskWorktreeResponse } from "./project-git.js";
 export * from "./global-search.js";
 export * from "./archived-task-deletion.js";
 export * from "./app-update.js";
@@ -498,3 +496,4 @@ export * from "./async-question.js";
 export * from "./task-catalog.js";
 export * from "./completed-task-query.js";
 export * from "./project-text-file.js";
+export { WorkbenchChangeSchema, type WorkbenchChange } from "./workbench-change.js";

@@ -336,6 +336,7 @@ export function WorkbenchComposer({
           projectId={projectId}
           taskId={taskId}
           enabled={!turnControlsDisabled}
+          isTaskRunning={state === "running" || state === "reconnecting"}
           onAnswered={createAsyncQuestionAnswerHandler({
             controller: composerController,
             requestScope: routeScope,

@@ -30,6 +30,7 @@ describe("session WebSocket revocation", () => {
     const paths = [
       "/v1/projects/codexly/events?afterSequence=0",
       "/v1/scheduled-tasks/events",
+      "/v1/workbench/events",
     ] as const;
     const sockets: WebSocket[] = [];
     for (const path of paths) {

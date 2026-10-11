@@ -2,13 +2,25 @@ import {
   ProjectTodoPageSchema,
   ProjectTodoResponseSchema,
   DeleteProjectTodoResponseSchema,
+  WorkbenchChangeSchema,
+  type WorkbenchChange,
   type ProjectTodoDraft,
   type SaveProjectTodoRequest,
 } from "@codexly/protocol";
 import { PersonalizationHttpClient } from "./http-client-personalization.js";
 import { projectPath, type MutationOptions, type ReadOptions } from "./http-client-transport.js";
+import { subscribeResourceChanges } from "./resource-change-events.js";
 
 export class ProjectTodoHttpClient extends PersonalizationHttpClient {
+  subscribeWorkbenchChanges(onChange: (change: WorkbenchChange) => void): () => void {
+    return subscribeResourceChanges(
+      this.baseUrl,
+      this.webSocketFactory,
+      "/v1/workbench/events",
+      WorkbenchChangeSchema,
+      onChange,
+    );
+  }
   // 浏览器历史记录属于不可信输入，由后端统一按当前协议校验。
   importProjectTodo(
     projectId: string,
