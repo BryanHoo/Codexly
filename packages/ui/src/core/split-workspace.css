@@ -127,9 +127,38 @@
   background-image: linear-gradient(var(--ui-color-accent-soft), var(--ui-color-accent-soft));
 }
 
+/* 右栏 Portal 恢复时可能先于中栏插入 DOM，必须按语义固定列，避免自动排位交换两栏。 */
+.workbench-shell > .workbench-sidebar {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.workbench-shell > main,
+.workbench-shell > .split-workspace {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.workbench-shell > .workbench-inspector {
+  grid-column: 3;
+  grid-row: 1;
+}
+
 /* 嵌入窗口只占中栏，左右面板由最外层工作区统一布局。 */
 .workbench-shell[data-embedded="true"] {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.workbench-shell[data-embedded="true"] > main {
+  grid-column: 1;
+}
+
+@media (max-width: 760px) {
+  /* 窄屏左右栏使用覆盖层，中栏回到唯一显式列，避免生成隐式第二列。 */
+  .workbench-shell > main,
+  .workbench-shell > .split-workspace {
+    grid-column: 1;
+  }
 }
 
 /* 目录定位在各自窗口内部，高度随该窗口变化，不覆盖相邻聊天。 */
