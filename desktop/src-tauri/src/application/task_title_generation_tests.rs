@@ -20,6 +20,7 @@ async fn task_title_should_collect_early_output_and_release_hidden_thread_on_suc
             .await
             .unwrap();
         settings["commitMessageModel"] = json!("git-message-model");
+        settings["commitMessagePrompt"] = json!("只生成 fix(git): 提交信息");
         crate::infrastructure::local_settings::update_global_settings(&app_data, settings)
             .await
             .unwrap();
@@ -51,6 +52,12 @@ async fn task_title_should_collect_early_output_and_release_hidden_thread_on_suc
                     assert_eq!(request["params"]["model"], "git-message-model");
                 }
                 if method == "turn/start" {
+                    assert!(
+                        !request["params"]["input"][0]["text"]
+                            .as_str()
+                            .unwrap()
+                            .contains("fix(git)")
+                    );
                     // 模拟 Codex 在 RPC 响应前就完成辅助 Turn，验证通知不会丢失。
                     for notification in [
                         json!({"method": "item/completed", "params": {

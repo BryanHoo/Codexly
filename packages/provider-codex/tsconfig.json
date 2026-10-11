@@ -8,6 +8,6 @@
     "tsBuildInfoFile": "../../.cache/types/provider-codex.tsbuildinfo",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.json"],
   "references": [{ "path": "../protocol" }, { "path": "../core" }]
 }

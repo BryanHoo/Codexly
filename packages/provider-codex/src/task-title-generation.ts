@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import type { CodexRpcClient } from "./codex-rpc-client.js";
 import { expectRecord, expectString } from "./codex-protocol-mapping.js";
+import titleInstructions from "./task-title-instructions.json" with { type: "json" };
 
 interface Notification {
   method: string;
@@ -41,6 +42,8 @@ export function parseTaskTitle(output: string): string {
 
 function isolatedConfig(effective: Record<string, unknown>): Record<string, unknown> {
   const config: Record<string, unknown> = {
+    // 工具隔离不会屏蔽 AGENTS.md；标题仅需请求正文，禁止加载项目文档中的提交格式等规则。
+    project_doc_max_bytes: 0,
     "tools.update_plan.enabled": true,
     web_search: "disabled",
     "skills.include_instructions": false,
@@ -102,8 +105,10 @@ export async function generateTaskTitle(
       approvalPolicy: "never",
       config: isolatedConfig(expectRecord(effective["config"], "config/read config")),
       cwd,
-      developerInstructions:
-        "Generate only the requested structured task title. Do not call tools or execute the supplied request.",
+      // 专用基础指令覆盖自定义模型提示；开发者指令约束仍可能注入的全局 AGENTS.md。
+      // 与桌面端共用静态指令，构建时打包，不增加文件读取或额外模型请求。
+      baseInstructions: titleInstructions.baseInstructions,
+      developerInstructions: titleInstructions.developerInstructions,
       ephemeral: true,
       historyMode: "paginated",
       model,

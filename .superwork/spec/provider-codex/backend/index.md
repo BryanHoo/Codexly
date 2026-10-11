@@ -5,6 +5,8 @@
 - Codex 版本与协议基线以根目录 `package.json`、`schemas/codex-app-server/` 为准；升级时运行 `pnpm codex:schema:check`。
 - Provider 层不引入 Web、HTTP 客户端或服务端交付逻辑；用相邻测试及 `pnpm lint:architecture` 验证。
 
+- 任务标题只能共用 Git 提交信息的模型设置，不能复用提交提示词或格式。辅助会话设置 `project_doc_max_bytes: 0`，并通过专用 `baseInstructions`、`developerInstructions` 约束全局指令，生成自然语言标题；禁用工具或设置 `ephemeral` 不等于隔离 `AGENTS.md`。两端共用 `packages/provider-codex/src/task-title-instructions.json`，验证标题生成的相邻测试与桌面 Rust `task_title` 测试。
+
 - 模型目录以当前 Codex App Server 为权威来源；刷新失败直接传播错误，空目录保持为空，不从旧进程或持久化快照恢复已失效模型。保留有界 TTL 缓存及并发请求合并，不增加轮询；回归覆盖空目录、刷新失败与缓存复用。
 
 - `plugin/reconcile` 仅合并同一 RPC 客户端的在途同步，完成或失败后释放；严格校验变化标记与失败列表，只投影公共字段，不增加周期性同步。

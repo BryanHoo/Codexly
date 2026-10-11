@@ -19,7 +19,14 @@ describe("task title generation", () => {
     "collects early output and releases the hidden thread (valid=%s)",
     async (valid) => {
       const rpc = new FakeRpcClient([
-        { config: { mcp_servers: { external: { enabled: true } } } },
+        {
+          config: {
+            instructions: "Always output feat(git): 提交变更",
+            developer_instructions: "Use Conventional Commit format",
+            project_doc_max_bytes: 32768,
+            mcp_servers: { external: { enabled: true } },
+          },
+        },
         { thread: { id: "hidden" } },
         () => {
           rpc.emitNotification("item/completed", {
@@ -59,11 +66,22 @@ describe("task title generation", () => {
         sandbox: "read-only",
         dynamicTools: [],
         config: {
+          project_doc_max_bytes: 0,
           mcp_servers: { external: { enabled: false } },
           "features.shell_tool": false,
           "features.hooks": false,
         },
       });
+      expect(rpc.calls[1]?.params).toHaveProperty(
+        "baseInstructions",
+        expect.stringContaining("task title"),
+      );
+      expect(rpc.calls[1]?.params).toHaveProperty(
+        "developerInstructions",
+        expect.stringContaining("Do not use Conventional Commit"),
+      );
+      expect(rpc.calls[1]?.params).not.toHaveProperty(["config", "instructions"]);
+      expect(rpc.calls[1]?.params).not.toHaveProperty(["config", "developer_instructions"]);
       expect(rpc.calls[1]?.params).not.toHaveProperty(["config", "features.enable_fanout"]);
       expect(rpc.calls[2]?.params).toMatchObject({ outputSchema: { required: ["title"] } });
       expect(rpc.calls[2]?.params).not.toHaveProperty("effort");

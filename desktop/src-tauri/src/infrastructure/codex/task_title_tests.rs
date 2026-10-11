@@ -31,7 +31,12 @@ async fn title_generation_should_use_isolated_structured_turn_and_persist_summar
         for (method, result) in [
             (
                 "config/read",
-                json!({"config": {"mcp_servers": {"external": {"enabled": true}}}}),
+                json!({"config": {
+                    "instructions": "Always output feat(git): 提交变更",
+                    "developer_instructions": "Use Conventional Commit format",
+                    "project_doc_max_bytes": 32768,
+                    "mcp_servers": {"external": {"enabled": true}},
+                }}),
             ),
             ("thread/start", json!({"thread": {"id": "title-thread"}})),
             ("turn/start", json!({"turn": {"id": "title-turn"}})),
@@ -56,6 +61,21 @@ async fn title_generation_should_use_isolated_structured_turn_and_persist_summar
                     assert_eq!(params["threadSource"], "system");
                     assert_eq!(params["approvalPolicy"], "never");
                     assert_eq!(params["sandbox"], "read-only");
+                    assert!(
+                        params["baseInstructions"]
+                            .as_str()
+                            .unwrap()
+                            .contains("task title")
+                    );
+                    assert!(
+                        params["developerInstructions"]
+                            .as_str()
+                            .unwrap()
+                            .contains("Do not use Conventional Commit")
+                    );
+                    assert_eq!(params["config"]["project_doc_max_bytes"], 0);
+                    assert!(params["config"].get("instructions").is_none());
+                    assert!(params["config"].get("developer_instructions").is_none());
                     assert_eq!(
                         params["config"]["mcp_servers"]["external"]["enabled"],
                         false
