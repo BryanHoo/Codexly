@@ -157,9 +157,16 @@ test("loads long source files while scrolling", async ({ context, page }) => {
   await expect(highlightedLine).toHaveAttribute("data-highlighted", "true");
   await expect(highlightedLine).toBeInViewport();
 
-  await filePanel.locator('[data-code-line="720"]').scrollIntoViewIfNeeded();
-  await expect(filePanel.locator('[data-code-line="800"]')).toContainText("line 800");
+  const sourceViewport = filePanel.locator('[data-language="markdown"] pre').locator("..");
+  await sourceViewport.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
   await expect(filePanel.getByText("部分内容")).toBeHidden();
+  await sourceViewport.evaluate((element) => {
+    element.scrollTop = element.scrollHeight * 0.55;
+  });
+  await expect(filePanel.locator('[data-code-line="800"]')).toContainText("line 800");
+  expect(await filePanel.locator("[data-code-line]").count()).toBeLessThan(120);
 
   await filePanel.getByRole("button", { name: "预览 Markdown" }).click();
   await expect(filePanel.getByRole("heading", { name: "11.7 外部登录边界" })).toBeVisible();

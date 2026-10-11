@@ -3,9 +3,12 @@ import { lazy, Suspense, useState } from "react";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import { FileDiffPanel } from "../../diff/file-diff-panel.js";
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
-import { ProjectSourcePanel } from "./project-source-panel.js";
 import type { InspectorDocument } from "./workbench-inspector-documents.js";
 
+const LazyProjectSourcePanel = lazy(async () => {
+  const module = await import("./project-source-panel.js");
+  return { default: module.ProjectSourcePanel };
+});
 const LazyFileReviewWorkspace = lazy(async () => {
   const module = await import("../../diff/file-review-dialog.js");
   return { default: module.FileReviewWorkspace };
@@ -69,21 +72,23 @@ export function WorkbenchInspectorDocument({
     );
   const change = document.change;
   return (
-    <ProjectSourcePanel
-      client={client}
-      {...(change === undefined
-        ? {}
-        : {
-            onOpenDiff: () => {
-              onOpenDiff(change);
-            },
-          })}
-      previewKind={document.kind}
-      projectId={document.projectId ?? projectId}
-      reference={document.reference}
-      {...((document.rootPath ?? rootPath) === undefined
-        ? {}
-        : { rootPath: document.rootPath ?? rootPath })}
-    />
+    <Suspense fallback={null}>
+      <LazyProjectSourcePanel
+        client={client}
+        {...(change === undefined
+          ? {}
+          : {
+              onOpenDiff: () => {
+                onOpenDiff(change);
+              },
+            })}
+        previewKind={document.kind}
+        projectId={document.projectId ?? projectId}
+        reference={document.reference}
+        {...((document.rootPath ?? rootPath) === undefined
+          ? {}
+          : { rootPath: document.rootPath ?? rootPath })}
+      />
+    </Suspense>
   );
 }

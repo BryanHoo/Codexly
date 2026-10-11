@@ -8,9 +8,12 @@ import type { NativeWorkbenchClient } from "../../projects/project-queries.js";
 import { notifyActionError } from "../../notifications/action-notifications.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
-import { ProjectSourcePanel } from "./project-source-panel.js";
 import type { InspectorDocument } from "./workbench-inspector-documents.js";
 
+const LazyProjectSourcePanel = lazy(async () => {
+  const module = await import("./project-source-panel.js");
+  return { default: module.ProjectSourcePanel };
+});
 const LazyFileReviewWorkspace = lazy(async () => {
   const module = await import("../../diff/file-review-dialog.js");
   return { default: module.FileReviewWorkspace };
@@ -103,17 +106,19 @@ function SourceDocument({
       </Button>
     );
   return (
-    <ProjectSourcePanel
-      client={client}
-      headerActions={headerActions}
-      previewKind={document.kind}
-      projectId={document.projectId ?? projectId}
-      reference={document.reference}
-      {...((document.rootPath ?? rootPath) === undefined
-        ? {}
-        : { rootPath: document.rootPath ?? rootPath })}
-      {...(taskId === undefined || document.projectId !== undefined ? {} : { taskId })}
-    />
+    <Suspense fallback={null}>
+      <LazyProjectSourcePanel
+        client={client}
+        headerActions={headerActions}
+        previewKind={document.kind}
+        projectId={document.projectId ?? projectId}
+        reference={document.reference}
+        {...((document.rootPath ?? rootPath) === undefined
+          ? {}
+          : { rootPath: document.rootPath ?? rootPath })}
+        {...(taskId === undefined || document.projectId !== undefined ? {} : { taskId })}
+      />
+    </Suspense>
   );
 }
 

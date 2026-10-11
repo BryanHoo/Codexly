@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   WorkbenchInspector,
   renderInspectorMarkup,
+  renderInspectorMarkupAsync,
   gitStatus,
   lightweightGitStatus,
   readyMcpServer,
@@ -80,10 +81,10 @@ describe("WorkbenchInspector tabs", () => {
     expect(readInspectorTabLabels(markup)).toEqual(["项目", "文件审核"]);
   });
 
-  it("mounts the selected source inside the file tab instead of a dialog", () => {
+  it("mounts the selected source inside the file tab instead of a dialog", async () => {
     const sourcePath =
       "src/features/workbench/components/nested/very-long-directory/very-long-source-file-name.tsx";
-    const markup = renderInspectorMarkup(
+    const markup = await renderInspectorMarkupAsync(
       <WorkbenchInspector
         documents={[
           {

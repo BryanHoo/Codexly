@@ -41,13 +41,17 @@ test("keeps retrying Snapshot recovery and applies later realtime events", async
     });
   });
   await page.addInitScript(() => {
+    const NativeWebSocket = window.WebSocket;
     class ResyncWebSocket extends EventTarget {
       static connectionCount = 0;
-      public readonly bufferedAmount = 0;
+      public readonly bufferedAmount: number = 0;
       public readyState = 0;
 
-      public constructor() {
+      public constructor(url: string | URL, protocols?: string | string[]) {
         super();
+        if (new URL(url, location.href).pathname === "/v1/workbench/events") {
+          return new NativeWebSocket(url, protocols);
+        }
         ResyncWebSocket.connectionCount += 1;
         const connectionCount = ResyncWebSocket.connectionCount;
         queueMicrotask(() => {
@@ -120,7 +124,7 @@ test("keeps retrying Snapshot recovery and applies later realtime events", async
         this.dispatchEvent(new CloseEvent("close", { code, reason }));
       }
 
-      public send(): void {
+      public send(_data: string | BufferSource | Blob): void {
         return undefined;
       }
     }
@@ -152,20 +156,24 @@ test("refreshes the snapshot when the realtime delta buffer overflows", async ({
         ...taskSnapshotResponse,
         checkpoint: {
           ...taskSnapshotResponse.checkpoint,
-          sequence: snapshotRequestCount === 1 ? 0 : 1_001,
+          sequence: snapshotRequestCount === 1 ? 0 : 1_002,
         },
       },
     });
   });
   await page.addInitScript(() => {
+    const NativeWebSocket = window.WebSocket;
     let connectionCount = 0;
 
     class BurstingWebSocket extends EventTarget {
-      public readonly bufferedAmount = 0;
+      public readonly bufferedAmount: number = 0;
       public readyState = 0;
 
-      public constructor() {
+      public constructor(url: string | URL, protocols?: string | string[]) {
         super();
+        if (new URL(url, location.href).pathname === "/v1/workbench/events") {
+          return new NativeWebSocket(url, protocols);
+        }
         connectionCount += 1;
         const shouldSendBurst = connectionCount <= 2;
         queueMicrotask(() => {
@@ -177,7 +185,7 @@ test("refreshes the snapshot when the realtime delta buffer overflows", async ({
           this.dispatchEvent(
             new MessageEvent("message", {
               data: JSON.stringify({
-                latestSequence: 1_001,
+                latestSequence: 1_002,
                 sessionId: "e2e-session",
                 type: "connection.ready",
                 version: 3,
@@ -187,7 +195,8 @@ test("refreshes the snapshot when the realtime delta buffer overflows", async ({
           if (!shouldSendBurst) {
             return;
           }
-          const events = Array.from({ length: 1_001 }, (_, index) => {
+          // The first delta is applied immediately; the remaining 1,001 exceed the buffer.
+          const events = Array.from({ length: 1_002 }, (_, index) => {
             const sequence = index + 1;
             return {
               itemId: `item-${String(sequence % 2)}`,
@@ -224,7 +233,7 @@ test("refreshes the snapshot when the realtime delta buffer overflows", async ({
         this.dispatchEvent(new CloseEvent("close", { code, reason }));
       }
 
-      public send(): void {
+      public send(_data: string | BufferSource | Blob): void {
         return undefined;
       }
     }
@@ -257,17 +266,21 @@ test("clears transient realtime errors after the WebSocket reconnects @cross-bro
     });
   });
   await page.addInitScript(() => {
+    const NativeWebSocket = window.WebSocket;
     let connectionCount = 0;
     sessionStorage.setItem("__testWebSocketConnections", String(connectionCount));
     sessionStorage.setItem("__testWebSocketFailed", "false");
     sessionStorage.setItem("__testWebSocketRecovered", "false");
 
     class ReconnectingWebSocket extends EventTarget {
-      public readonly bufferedAmount = 0;
+      public readonly bufferedAmount: number = 0;
       public readyState = 0;
 
-      public constructor() {
+      public constructor(url: string | URL, protocols?: string | string[]) {
         super();
+        if (new URL(url, location.href).pathname === "/v1/workbench/events") {
+          return new NativeWebSocket(url, protocols);
+        }
         connectionCount += 1;
         const shouldFail = connectionCount <= 2;
         sessionStorage.setItem("__testWebSocketConnections", String(connectionCount));
@@ -317,7 +330,7 @@ test("clears transient realtime errors after the WebSocket reconnects @cross-bro
         this.dispatchEvent(new CloseEvent("close", { code, reason }));
       }
 
-      public send(): void {
+      public send(_data: string | BufferSource | Blob): void {
         return undefined;
       }
     }

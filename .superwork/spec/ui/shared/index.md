@@ -16,6 +16,7 @@
 - 验证边界使用 `apps/web/src/shared/components/shared-ui-boundary.test.ts`、根目录 `pnpm lint:architecture`，并分别运行 Web 与桌面构建。
 - 只读代码查看器共用 `agent/code-block-content`、`code-block-pages` 和 `code-highlighter`。正文按行虚拟化，完整源码（含所有分页）超过 128 KiB UTF-8 时跳过语法高亮；限额内按批次让出浏览器任务队列并传递双主题语法状态，超长行保留纯文本。目标行定位由虚拟列表处理，只有行尚未加载时才补页，不得根据离屏 DOM 缺失读取剩余全文。回归覆盖一万行的节点与标记预算、UTF-8 与分页总预算、跨批次注释/字符串及交互任务执行；桌面旧 WebKit 主题兼容保留。
 - 代码查看器的组合组件、按需高亮与字节缓存统一由 `agent/code-block`、`code-tokenizer`、`code-token-cache` 实现；Web 与桌面包装层只注入翻译和旧 WebKit 主题参数。复制时才拼接分页全文，普通渲染不生成额外完整源码副本。两端本地 LRU、快照预算与高亮缓存路径保留薄导出，由 `shared-ui-boundary.test.ts` 防止重新引入独立实现。
+- Web 与桌面的 Inspector 文件预览面板只在打开源码、图片或 PDF 时加载，不进入工作台的静态依赖闭包；以两端生产构建和桌面场景体积预算验证。源码分页 E2E 必须滚动实际视口触发补页，不能定位尚未挂载的虚拟行，并检查补页后的节点数量仍受限。
 
 - PDF 文件链接、附件和文件树共用 `core/pdf-preview` 原生预览；用 `navigator.pdfViewerEnabled` 检测能力，缺失时保留显式打开动作。附件点击后才加载，关闭后卸载；不引入 PDF.js 或 Base64 整文件传输。桌面只开放校验后的单文件 asset scope，独立预览窗口同时授权读取和打开命令。
 

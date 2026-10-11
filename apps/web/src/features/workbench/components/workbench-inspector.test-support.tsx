@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToReadableStream, renderToStaticMarkup } from "react-dom/server";
 import type { AgentMcpServer } from "@codexly/protocol";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ComponentProps, ReactNode } from "react";
@@ -12,12 +12,22 @@ export function WorkbenchInspector(
   return <WorkbenchInspectorComponent {...props} projectRootId="root-codexly" />;
 }
 
-export function renderInspectorMarkup(children: ReactNode): string {
-  return renderToStaticMarkup(
+function wrapInspector(children: ReactNode) {
+  return (
     <QueryClientProvider client={new QueryClient()}>
       <TooltipProvider>{children}</TooltipProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+}
+
+export function renderInspectorMarkup(children: ReactNode): string {
+  return renderToStaticMarkup(wrapInspector(children));
+}
+
+export async function renderInspectorMarkupAsync(children: ReactNode): Promise<string> {
+  const stream = await renderToReadableStream(wrapInspector(children));
+  await stream.allReady;
+  return new Response(stream).text();
 }
 
 export const gitStatus = {
