@@ -1,5 +1,5 @@
 import type { AgentEvent } from "@codexly/protocol";
-import { acceptTaskEvent } from "@codexly/frontend-core";
+import { acceptTaskEvent, prependTaskHistoryPage } from "@codexly/frontend-core";
 import { createStore } from "zustand/vanilla";
 
 import { estimateRetainedBytes } from "../../../shared/memory/byte-lru.js";
@@ -225,24 +225,15 @@ function prependNormalizedHistory(
   changedItemStores: Set<TaskItemStore>,
 ): TaskStoreState {
   const history = normalizeSnapshot(response);
-  const addedTurnIds = history.turnIds.filter((turnId) => state.turnsById[turnId] === undefined);
-  const addedItemKeys = new Set(
-    addedTurnIds.flatMap((turnId) => history.itemKeysByTurnId[turnId] ?? []),
+  const { addedTurnIds, addedItemKeys, itemKeysByTurnId, turnsById } = prependTaskHistoryPage(
+    state,
+    history,
   );
   const itemStoresByKey = new Map(state.itemStoresByKey);
   for (const itemKey of addedItemKeys) {
     const itemStore = history.itemStoresByKey.get(itemKey);
     if (itemStore !== undefined) {
       itemStoresByKey.set(itemKey, itemStore);
-    }
-  }
-  const itemKeysByTurnId = { ...state.itemKeysByTurnId };
-  const turnsById = { ...state.turnsById };
-  for (const turnId of addedTurnIds) {
-    itemKeysByTurnId[turnId] = history.itemKeysByTurnId[turnId] ?? [];
-    const turn = history.turnsById[turnId];
-    if (turn !== undefined) {
-      turnsById[turnId] = turn;
     }
   }
   const { budget: commandOutputBudget, retainedBytesDeltaByItemKey } = updateCommandOutputBudget({
@@ -261,18 +252,19 @@ function prependNormalizedHistory(
     state.retainedBytes -
     estimateRetainedBytes(state.turnsNextCursor) +
     estimateRetainedBytes(response.snapshot.turnsNextCursor);
-  for (const turnId of addedTurnIds) {
-    retainedBytes += estimateRetainedBytes(turnsById[turnId]);
-    for (const itemKey of itemKeysByTurnId[turnId] ?? []) {
-      retainedBytes += itemStoresByKey.get(itemKey)?.getRetainedBytes() ?? 0;
-    }
+  for (const turnId of history.turnIds) {
+    retainedBytes +=
+      estimateRetainedBytes(turnsById[turnId]) - estimateRetainedBytes(state.turnsById[turnId]);
+  }
+  for (const itemKey of addedItemKeys) {
+    retainedBytes += itemStoresByKey.get(itemKey)?.getRetainedBytes() ?? 0;
   }
   for (const [itemKey, delta] of retainedBytesDeltaByItemKey) {
     if (!addedItemKeys.has(itemKey)) {
       retainedBytes += delta;
     }
   }
-  // 历史页只增加新实体，既有流式 Item 保持原 Store 和延迟物化状态。
+  // 旧回合与同一回合的 Item 续页共用索引合并，既有流式 Store 不读取、不替换。
   return {
     ...state,
     ...commandOutputBudget,

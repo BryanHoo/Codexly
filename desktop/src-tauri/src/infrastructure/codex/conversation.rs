@@ -1,9 +1,5 @@
-use std::{
-    collections::{BTreeMap, HashSet},
-    time::Duration,
-};
+use std::{collections::BTreeMap, time::Duration};
 
-use futures_util::future::try_join_all;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -22,7 +18,11 @@ pub(super) const PINNED_SECTION_ID: &str = "01984de2-8f74-7c91-a3b2-5c5e937cf318
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const TURN_PAGE_LIMIT: u32 = 10;
 const ITEM_PAGE_LIMIT: u32 = 100;
-const MAX_TURN_ITEMS: usize = 10_000;
+#[path = "conversation_item_pagination.rs"]
+mod item_pagination;
+#[cfg(test)]
+use item_pagination::hydrate_paginated_turn;
+use item_pagination::read_turn_page;
 #[cfg(test)]
 #[path = "conversation_preview_tests.rs"]
 mod preview_tests;
@@ -119,7 +119,7 @@ struct NativeThreadStatus {
     kind: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct NativeTurn {
     completed_at: Option<i64>,
@@ -127,13 +127,13 @@ pub(super) struct NativeTurn {
     id: String,
     #[serde(skip)]
     item_timings: Option<BTreeMap<String, AgentItemTiming>>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     items: Vec<Value>,
     started_at: Option<i64>,
     status: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct NativeTurnError {
     message: String,
 }
@@ -157,34 +157,8 @@ pub async fn read_task_snapshot(
     let thread = response.thread;
     validate_thread(&thread, &project_id, &task_id)?;
 
-    let items_view = match thread.history_mode {
-        NativeThreadHistoryMode::Legacy => "full",
-        NativeThreadHistoryMode::Paginated => "notLoaded",
-    };
-    let page: ThreadTurnsListResponse = connection
-        .request(
-            "thread/turns/list",
-            &ThreadTurnsListParams {
-                cursor,
-                items_view,
-                limit: TURN_PAGE_LIMIT,
-                sort_direction: "desc",
-                thread_id: &task_id,
-            },
-            REQUEST_TIMEOUT,
-        )
-        .await?;
-    validate_page_cursors(
-        cursor,
-        page.next_cursor.as_deref(),
-        page.backwards_cursor.as_deref(),
-    )?;
-    let native_turns = match thread.history_mode {
-        NativeThreadHistoryMode::Legacy => page.data,
-        NativeThreadHistoryMode::Paginated => {
-            hydrate_paginated_turns(connection, &task_id, page.data).await?
-        }
-    };
+    let (native_turns, next_cursor) =
+        read_turn_page(connection, &task_id, thread.history_mode, cursor).await?;
     // app-server 倒序分页以最新回合优先返回，UI 时间线保持正序展示。
     let turns = native_turns
         .into_iter()
@@ -222,7 +196,7 @@ pub async fn read_task_snapshot(
             status,
             title: normalized_title(thread.name.as_deref(), &thread.preview),
             turns,
-            turns_next_cursor: page.next_cursor,
+            turns_next_cursor: next_cursor,
             updated_at: unix_seconds_to_rfc3339(thread.updated_at),
         },
     })
@@ -293,88 +267,6 @@ pub async fn read_task_preview(
         map_thread_status(&thread.status)?,
         items,
     ))
-}
-
-async fn hydrate_paginated_turns(
-    connection: &AppServerConnection,
-    thread_id: &str,
-    turns: Vec<NativeTurn>,
-) -> Result<Vec<NativeTurn>, ConnectionError> {
-    // 同一页的回合互不依赖，并发补全可显著降低长会话首屏等待时间。
-    try_join_all(
-        turns
-            .into_iter()
-            .map(|turn| hydrate_paginated_turn(connection, thread_id, turn)),
-    )
-    .await
-}
-
-async fn hydrate_paginated_turn(
-    connection: &AppServerConnection,
-    thread_id: &str,
-    mut turn: NativeTurn,
-) -> Result<NativeTurn, ConnectionError> {
-    let mut cursor = None;
-    let mut seen_cursors = HashSet::new();
-    let mut items = Vec::new();
-    // 分页条目的时间戳与 Item 正文分开传输，避免修改所有 Item 变体。
-    let mut item_timings = BTreeMap::new();
-    loop {
-        let page: ThreadItemsListResponse = connection
-            .request(
-                "thread/items/list",
-                &ThreadItemsListParams {
-                    cursor: cursor.as_deref(),
-                    limit: ITEM_PAGE_LIMIT,
-                    sort_direction: "desc",
-                    thread_id,
-                    turn_id: &turn.id,
-                },
-                REQUEST_TIMEOUT,
-            )
-            .await?;
-        validate_page_cursors(
-            cursor.as_deref(),
-            page.next_cursor.as_deref(),
-            page.backwards_cursor.as_deref(),
-        )?;
-        for entry in page.data {
-            if entry.turn_id != turn.id || items.len() >= MAX_TURN_ITEMS {
-                return Err(ConnectionError::InvalidMessage);
-            }
-            if entry.started_at_ms.is_some_and(|value| value < 0)
-                || entry.completed_at_ms.is_some_and(|value| value < 0)
-            {
-                return Err(ConnectionError::InvalidMessage);
-            }
-            if entry.started_at_ms.is_some() || entry.completed_at_ms.is_some() {
-                let id = entry
-                    .item
-                    .get("id")
-                    .and_then(Value::as_str)
-                    .ok_or(ConnectionError::InvalidMessage)?;
-                item_timings.insert(
-                    id.to_owned(),
-                    AgentItemTiming {
-                        completed_at_ms: entry.completed_at_ms,
-                        started_at_ms: entry.started_at_ms,
-                    },
-                );
-            }
-            items.push(entry.item);
-        }
-        let Some(next_cursor) = page.next_cursor else {
-            break;
-        };
-        if !seen_cursors.insert(next_cursor.clone()) {
-            return Err(ConnectionError::InvalidMessage);
-        }
-        cursor = Some(next_cursor);
-    }
-    items.reverse();
-    turn.item_timings = (!item_timings.is_empty()).then_some(item_timings);
-    turn.items = items;
-    Ok(turn)
 }
 
 fn validate_page_cursors(

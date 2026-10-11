@@ -4,7 +4,7 @@ interface SnapshotTurns<Turn> {
 }
 
 export function mergeSnapshotTurns<
-  Turn extends { id: string },
+  Turn extends { id: string; items?: readonly { id: string }[] },
   Snapshot extends SnapshotTurns<Turn>,
 >(
   current: SnapshotTurns<Turn>,
@@ -23,6 +23,18 @@ export function mergeSnapshotTurns<
   const newer = partial
     ? current.turns.slice(last + 1).filter((turn) => !incomingIds.has(turn.id))
     : [];
+  // 最新 Item 页与已加载内容连续重叠时，保留续页进度；无重叠则使用新游标补齐断线缺口。
+  const retainedItemPage =
+    partial &&
+    incoming.turns.some((turn) => {
+      const existing = currentById.get(turn.id);
+      const anchor = turn.items?.[0];
+      return (
+        anchor !== undefined &&
+        (existing?.items?.length ?? 0) > (turn.items?.length ?? 0) &&
+        existing?.items?.some((item) => item.id === anchor.id)
+      );
+    });
   return {
     ...incoming,
     turns: [
@@ -33,6 +45,7 @@ export function mergeSnapshotTurns<
       }),
       ...newer,
     ],
-    turnsNextCursor: older.length > 0 ? current.turnsNextCursor : incoming.turnsNextCursor,
+    turnsNextCursor:
+      older.length > 0 || retainedItemPage ? current.turnsNextCursor : incoming.turnsNextCursor,
   };
 }

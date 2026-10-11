@@ -349,9 +349,11 @@ export function mapAgentTurns(
     const workerItems = Array.isArray(workerTurn["items"])
       ? workerTurn["items"].map((item) => expectRecord(item, "Codex reviewer item"))
       : [];
-    const isReviewerWorker = workerItems.some(
-      (item) => item["type"] === "userMessage" && inferReviewTargetFromPrompt(item) !== undefined,
-    );
+    const isReviewerWorker =
+      workerTurn["reviewParentTurnId"] === mappedTurn.id ||
+      workerItems.some(
+        (item) => item["type"] === "userMessage" && inferReviewTargetFromPrompt(item) !== undefined,
+      );
     if (!isReviewerWorker) {
       turns.push(mappedTurn);
       continue;

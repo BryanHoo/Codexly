@@ -328,11 +328,15 @@ describe("CodexAgentProvider history", () => {
       { thread: nativeThread({ historyMode: "paginated", turns: undefined }) },
       { backwardsCursor: "newer", data: [nativeTurn("turn-new")], nextCursor: null },
       { backwardsCursor: "item-new", data: [itemEntry("turn-new")], nextCursor: "item-old" },
+      { thread: nativeThread({ historyMode: "paginated", turns: undefined }) },
       { backwardsCursor: "item-old", data: [itemEntry("turn-new")], nextCursor: "item-old" },
     ]);
     const provider = createCodexAgentProvider({ client: rpc, project });
 
-    await expect(provider.readTask("task-1")).rejects.toThrow(
+    const first = await provider.readTask("task-1");
+    const cursor = first?.turnsNextCursor;
+    if (cursor === null || cursor === undefined) throw new Error("Expected an Item cursor");
+    await expect(provider.readTask("task-1", { cursor })).rejects.toThrow(
       "thread/items/list returned a repeated cursor",
     );
   });

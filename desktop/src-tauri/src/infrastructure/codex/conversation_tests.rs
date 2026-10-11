@@ -9,6 +9,15 @@ use super::{
 
 #[tokio::test]
 async fn read_task_snapshot_should_map_native_thread_history() {
+    assert_native_snapshot(None).await;
+}
+
+#[tokio::test]
+async fn read_task_snapshot_should_return_before_fetching_remaining_item_pages() {
+    assert_native_snapshot(Some("older-items")).await;
+}
+
+async fn assert_native_snapshot(item_cursor: Option<&'static str>) {
     let (client, server) = duplex(32 * 1024);
     let (client_reader, client_writer) = split(client);
     let (server_reader, mut server_writer) = split(server);
@@ -88,7 +97,7 @@ async fn read_task_snapshot_should_map_native_thread_history() {
             .write_all(
                 format!(
                     "{}\n",
-                    json!({"id": items_request["id"].clone(), "result": {"data": items, "nextCursor": null, "backwardsCursor": "newest-a"}})
+                    json!({"id": items_request["id"].clone(), "result": {"data": items, "nextCursor": item_cursor, "backwardsCursor": "newest-a"}})
                 )
                 .as_bytes(),
             )
@@ -123,7 +132,16 @@ async fn read_task_snapshot_should_map_native_thread_history() {
     assert_eq!(value["snapshot"]["title"], "真实会话");
     assert_eq!(value["snapshot"]["workspacePath"], "/repo-topic");
     assert_eq!(value["snapshot"]["status"], "idle");
-    assert_eq!(value["snapshot"]["turnsNextCursor"], "older-a");
+    if item_cursor.is_some() {
+        assert!(
+            value["snapshot"]["turnsNextCursor"]
+                .as_str()
+                .unwrap()
+                .starts_with("codexly-items-v1:")
+        );
+    } else {
+        assert_eq!(value["snapshot"]["turnsNextCursor"], "older-a");
+    }
     assert_eq!(
         value["snapshot"]["turns"][0]["itemTimings"]["agent-a"],
         json!({"startedAtMs": 1735689590000_i64, "completedAtMs": 1735689592500_i64})

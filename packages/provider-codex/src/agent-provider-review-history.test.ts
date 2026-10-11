@@ -49,6 +49,87 @@ const workerThread = (id: string) =>
   });
 
 describe("CodexAgentProvider review history", () => {
+  it("merges multiple older worker turns into one parent continuation", async () => {
+    const worker = { ...workerThread("worker"), historyMode: "paginated" };
+    const itemPage = (id: string) => ({
+      data: [{ turnId: id, item: workerTurn(id).items[1] }],
+      nextCursor: null,
+      backwardsCursor: null,
+    });
+    const rpc = new FakeRpcClient([
+      { thread: nativeThread({ turns: undefined }) },
+      { data: [reviewTurn("review")], nextCursor: null },
+      { data: [worker], nextCursor: null },
+      { data: [{ ...workerTurn("new"), items: [] }], nextCursor: "worker-older-turns" },
+      itemPage("new"),
+      { thread: nativeThread({ turns: undefined }) },
+      { thread: worker },
+      {
+        data: [
+          { ...workerTurn("middle"), items: [] },
+          { ...workerTurn("old"), items: [] },
+        ],
+        nextCursor: null,
+      },
+      itemPage("middle"),
+      itemPage("old"),
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    const first = await provider.readTask("task-1");
+    const cursor = first?.turnsNextCursor;
+    if (cursor === null || cursor === undefined) throw new Error("Expected a worker cursor");
+    const second = await provider.readTask("task-1", { cursor });
+    expect(second?.turns).toHaveLength(1);
+    expect(second?.turns[0]).toMatchObject({
+      id: "review",
+      items: [{ id: "old-command" }, { id: "middle-command" }],
+    });
+  });
+
+  it("keeps a paginated review worker on its parent turn and continues its older items on demand", async () => {
+    const worker = { ...workerThread("worker"), historyMode: "paginated" };
+    const nativeWorkerTurn = { ...workerTurn("worker-turn"), items: [] };
+    const rpc = new FakeRpcClient([
+      { thread: nativeThread({ turns: undefined }) },
+      { data: [reviewTurn("review")], nextCursor: null },
+      { data: [worker], nextCursor: null },
+      { data: [nativeWorkerTurn], nextCursor: null },
+      {
+        data: [{ turnId: "worker-turn", item: workerTurn("worker-turn").items[1] }],
+        nextCursor: "older-worker-items",
+        backwardsCursor: null,
+      },
+      { thread: nativeThread({ turns: undefined }) },
+      { thread: worker },
+      {
+        data: [
+          {
+            turnId: "worker-turn",
+            item: { ...workerTurn("worker-turn").items[1], id: "older-command" },
+          },
+        ],
+        nextCursor: null,
+        backwardsCursor: null,
+      },
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    const first = await provider.readTask("task-1");
+    expect(first?.turns).toHaveLength(1);
+    expect(first?.turns[0]).toMatchObject({
+      id: "review",
+      items: [{ type: "review" }, { id: "worker-turn-command" }],
+    });
+    expect(first?.turnsNextCursor).toEqual(expect.any(String));
+    const cursor = first?.turnsNextCursor;
+    if (cursor === null || cursor === undefined) throw new Error("Expected a review Item cursor");
+    const second = await provider.readTask("task-1", { cursor });
+    expect(second).toMatchObject({
+      turns: [{ id: "review", items: [{ id: "older-command" }] }],
+      turnsNextCursor: null,
+    });
+    expect(rpc.calls.filter((c) => c.method === "thread/items/list")).toHaveLength(2);
+  });
+
   it("pages review workers with the task cursor and reads the selected workers concurrently", async () => {
     let resolveMiddleWorker: ((value: unknown) => void) | undefined;
     const middleWorkerPage = new Promise((resolve) => {

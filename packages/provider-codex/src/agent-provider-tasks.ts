@@ -31,6 +31,7 @@ import {
   decodeTaskTurnCursor,
   encodeTaskTurnCursor,
   readNativeTaskTurnPage,
+  type PendingReviewItems,
   readThreadHistoryMode,
 } from "./task-history-pagination.js";
 import { unsubscribeCodexThread } from "./thread-unsubscribe.js";
@@ -94,12 +95,15 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         : requestedGoal;
       let nativePage: Awaited<ReturnType<typeof readNativeTaskTurnPage>>;
       try {
-        nativePage = await readNativeTaskTurnPage(
-          this.client,
-          taskId,
-          readThreadHistoryMode(thread),
-          cursor.turnCursor,
-        );
+        nativePage =
+          cursor.reviewItems !== undefined
+            ? { turns: [], nextTurnCursor: cursor.turnCursor ?? null }
+            : await readNativeTaskTurnPage(
+                this.client,
+                taskId,
+                readThreadHistoryMode(thread),
+                cursor.turnCursor,
+              );
       } catch (error) {
         const unmaterializedTask = this.runtime.unmaterializedTasks.get(taskId);
         if (
@@ -112,11 +116,10 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         }
         throw error;
       }
-      const reviewPage = await this.readReviewWorkerTurns(
-        taskId,
-        nativePage.turns,
-        cursor.reviewCursor,
-      );
+      const reviewPage =
+        cursor.reviewItems === undefined
+          ? await this.readReviewWorkerTurns(taskId, nativePage.turns, cursor.reviewCursor)
+          : await this.readReviewItemPages(taskId, cursor.reviewItems, cursor.reviewCursor);
       const transcriptSkillsByTurnId = await readCodexTranscriptTurnSkills(taskId);
       // 先恢复 Thread 级元数据，再等待正文持久化后映射历史，确保跨进程仍使用相同授权 ID。
       await this.threadAttachments?.prepare(taskId);
@@ -159,6 +162,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         turnsNextCursor: encodeTaskTurnCursor(
           nativePage.nextTurnCursor,
           reviewPage.nextReviewCursor,
+          reviewPage.pendingReviewItems,
         ),
       };
       return snapshot;
@@ -171,7 +175,13 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
     taskId: string,
     parentTurns: readonly unknown[],
     reviewCursor: string | null | undefined,
-  ): Promise<Readonly<{ nextReviewCursor: string | null | undefined; turns: unknown[] }>> {
+  ): Promise<
+    Readonly<{
+      nextReviewCursor: string | null | undefined;
+      pendingReviewItems?: readonly PendingReviewItems[];
+      turns: unknown[];
+    }>
+  > {
     const reviewTurnIndexes = parentTurns.flatMap((turn, turnIndex) => {
       const nativeTurn = expectRecord(turn, "Codex turn");
       const items = nativeTurn["items"];
@@ -222,7 +232,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
 
     // thread/list 已返回 historyMode；直接并发分页读取最多 10 个 worker，去掉元数据 RPC 瀑布。
     const workerPages = await Promise.all(
-      workerThreads.reverse().map(async (workerThreadValue) => {
+      workerThreads.reverse().map(async (workerThreadValue, workerIndex) => {
         const workerThread = expectRecord(workerThreadValue, "Codex review worker thread");
         const workerTaskId = expectString(workerThread["id"], "Codex review worker thread id");
         const workerPage = await readNativeTaskTurnPage(
@@ -230,7 +240,15 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
           workerTaskId,
           readThreadHistoryMode(workerThread),
         );
-        const workerTurns = workerPage.turns;
+        const parentTurnIndex = reviewTurnIndexes[workerIndex];
+        if (parentTurnIndex === undefined)
+          throw new CodexProtocolMappingError("review worker pagination is inconsistent");
+        const parentTurn = expectRecord(parentTurns[parentTurnIndex], "Codex review parent turn");
+        const parentTurnId = expectString(parentTurn["id"], "Codex review parent turn id");
+        const workerTurns = workerPage.turns.map((value) => ({
+          ...expectRecord(value, "Codex reviewer turn"),
+          reviewParentTurnId: parentTurnId,
+        }));
         const runningWorkerTurn = workerTurns.findLast((turn) => {
           const nativeTurn = expectRecord(turn, "Codex review worker turn");
           return nativeTurn["status"] === "inProgress";
@@ -245,6 +263,10 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
                 ),
           workerTaskId,
           workerTurns,
+          pending:
+            workerPage.nextTurnCursor === null
+              ? []
+              : [{ cursor: workerPage.nextTurnCursor, parentTurnId, workerTaskId }],
         };
       }),
     );
@@ -268,7 +290,90 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         workerIndex += 1;
       }
     }
-    return { nextReviewCursor, turns };
+    return {
+      nextReviewCursor,
+      turns,
+      pendingReviewItems: workerPages.flatMap((page) => page.pending),
+    };
+  }
+
+  protected async readReviewItemPages(
+    taskId: string,
+    pending: readonly PendingReviewItems[],
+    reviewCursor: string | null | undefined,
+  ): Promise<
+    Readonly<{
+      nextReviewCursor: string | null | undefined;
+      pendingReviewItems: readonly PendingReviewItems[];
+      turns: unknown[];
+    }>
+  > {
+    // 审查续页不重新读取主回合；先验证子会话归属，再按保存的 Item 游标读取。
+    const pages = await Promise.all(
+      pending.map(async (entry) => {
+        const response = expectRecord(
+          await this.client.request("thread/read", {
+            includeTurns: false,
+            threadId: entry.workerTaskId,
+          }),
+          "Codex review thread response",
+        );
+        const worker = expectRecord(response["thread"], "Codex review thread");
+        if (
+          worker["id"] !== entry.workerTaskId ||
+          worker["parentThreadId"] !== taskId ||
+          !isProjectThread(worker, this.project)
+        ) {
+          throw new CodexProtocolMappingError("Review worker does not belong to the active task");
+        }
+        const page = await readNativeTaskTurnPage(
+          this.client,
+          entry.workerTaskId,
+          readThreadHistoryMode(worker),
+          entry.cursor,
+        );
+        const workerTurns = page.turns.map((value) =>
+          expectRecord(value, "Codex review worker turn"),
+        );
+        const newestTurn = workerTurns.at(-1);
+        const items = workerTurns.flatMap((turn) => {
+          const values = turn["items"];
+          if (!Array.isArray(values)) return [];
+          return values
+            .map((item: unknown) => expectRecord(item, "Codex review item"))
+            .filter((item) => item["type"] !== "userMessage");
+        });
+        const itemTimings: Record<string, unknown> = {};
+        for (const turn of workerTurns) {
+          if (turn["itemTimings"] === undefined) continue;
+          for (const [id, timing] of Object.entries(
+            expectRecord(turn["itemTimings"], "Codex review item timings"),
+          )) {
+            itemTimings[id] = timing;
+          }
+        }
+        return {
+          pending: page.nextTurnCursor === null ? [] : [{ ...entry, cursor: page.nextTurnCursor }],
+          // 多个 worker 回合统一前插到父回合，避免同一 ID 的重复回合在 Store 规范化时相互覆盖。
+          turns:
+            newestTurn === undefined
+              ? []
+              : [
+                  {
+                    ...newestTurn,
+                    id: entry.parentTurnId,
+                    items,
+                    ...(Object.keys(itemTimings).length === 0 ? {} : { itemTimings }),
+                  },
+                ],
+        };
+      }),
+    );
+    return {
+      nextReviewCursor: reviewCursor,
+      pendingReviewItems: pages.flatMap((page) => page.pending),
+      turns: pages.flatMap((page) => page.turns),
+    };
   }
 
   public async readTaskAttachment(
