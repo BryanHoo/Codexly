@@ -56,9 +56,13 @@ export function installInactiveSnapshotMemoryLimit(
       inactiveSnapshots.delete(queryHash);
       return;
     }
-    inactiveSnapshots.set(queryHash, {
+    const retained = inactiveSnapshots.set(queryHash, {
       queryKey,
       retainedBytes: estimateRetainedBytes(data),
     });
+    if (!retained && query.getObserversCount() === 0) {
+      // 超预算或容量为零时，LRU 拒收且不触发淘汰回调，需立即释放无订阅快照。
+      queryClient.removeQueries({ exact: true, queryKey });
+    }
   });
 }
