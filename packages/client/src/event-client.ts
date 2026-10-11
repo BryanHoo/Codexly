@@ -1,5 +1,6 @@
 import {
   EventStreamMessageSchema,
+  MAX_EVENT_BATCH_BYTES,
   TEMPORARY_TASK_API_PATH,
   TEMPORARY_TASK_SCOPE_ID,
   type AgentEvent,
@@ -60,6 +61,21 @@ function createResyncRequired(
   };
 }
 
+function exceedsEventFrameBudget(data: string): boolean {
+  if (data.length > MAX_EVENT_BATCH_BYTES) return true;
+  // 每个 UTF-16 单元最多占 3 个 UTF-8 字节，小帧无需扫描或分配编码缓冲。
+  if (data.length * 3 <= MAX_EVENT_BATCH_BYTES) return false;
+  let bytes = 0;
+  for (let index = 0; index < data.length; index += 1) {
+    const codePoint = data.codePointAt(index);
+    if (codePoint === undefined) break;
+    bytes += codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
+    if (bytes > MAX_EVENT_BATCH_BYTES) return true;
+    if (codePoint > 0xffff) index += 1;
+  }
+  return false;
+}
+
 export function startAgentEventSubscription(
   options: StartAgentEventSubscriptionOptions,
 ): () => void {
@@ -117,9 +133,20 @@ export function startAgentEventSubscription(
       if (!isCurrentConnection()) {
         return;
       }
+      if (typeof event.data !== "string") {
+        failProtocol("Codexly event frame must be text");
+        return;
+      }
+      // 浏览器 WebSocket 无接收背压；解析前限制完整帧，避免巨帧继续扩张 JS 堆与验证开销。
+      if (exceedsEventFrameBudget(event.data)) {
+        stopForResync(
+          createResyncRequired(options.sessionId, lastSequence, "event_retention_exceeded"),
+        );
+        return;
+      }
       let frame: unknown;
       try {
-        frame = JSON.parse(String(event.data)) as unknown;
+        frame = JSON.parse(event.data) as unknown;
       } catch (error) {
         failProtocol("Codexly event frame is not valid JSON", error);
         return;
@@ -183,8 +210,15 @@ export function startAgentEventSubscription(
       options.onError?.(new CodexlyEventError("Codexly event connection failed"));
     };
 
-    const onClose = () => {
+    const onClose = (event: CloseEvent) => {
       if (socket !== currentSocket) {
+        return;
+      }
+      if (active && event.code === 1009) {
+        // 超大事件不可重放，直接沿用快照恢复路径，避免重连后再次接收相同正文。
+        stopForResync(
+          createResyncRequired(options.sessionId, lastSequence, "event_retention_exceeded"),
+        );
         return;
       }
       detachSocketListeners?.();

@@ -19,6 +19,52 @@ import {
 } from "./app-all.test-support.js";
 
 describe("server event delivery", () => {
+  it("closes oversized live events with 1009 and requires a snapshot on replay", async () => {
+    const { app, emitEvent } = await createHarness();
+    const messages: unknown[] = [];
+    let closeCode: number | undefined;
+    const connect = async () =>
+      await app.injectWS(
+        "/v1/projects/codexly/events?afterSequence=0",
+        { headers: { host: "localhost", origin: "http://localhost" } },
+        {
+          onInit(socket) {
+            socket.on("message", (data: { toString(): string }) => {
+              messages.push(JSON.parse(data.toString()) as unknown);
+            });
+            socket.on("close", (code: number) => {
+              closeCode = code;
+            });
+          },
+        },
+      );
+    await connect();
+    await vi.waitFor(() => {
+      expect(messages).toHaveLength(1);
+    });
+    emitEvent({
+      itemId: "large-item",
+      payload: { delta: "x".repeat(512 * 1_024) },
+      taskId: "task-1",
+      turnId: "turn-1",
+      type: "message.delta",
+    });
+    await vi.waitFor(() => {
+      expect(closeCode).toBe(1009);
+    });
+    expect(messages).toHaveLength(1);
+
+    await connect();
+    await vi.waitFor(() => {
+      expect(messages).toHaveLength(2);
+    });
+    expect(messages[1]).toMatchObject({
+      latestSequence: 1,
+      reason: "event_retention_exceeded",
+      type: "resync.required",
+    });
+  });
+
   it("streams ready and realtime Agent Events over WebSocket", async () => {
     const { app, emitEvent } = await createHarness();
     const messages: unknown[] = [];

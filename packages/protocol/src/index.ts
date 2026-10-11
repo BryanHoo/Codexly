@@ -49,6 +49,7 @@ export {
   type StartOfficialProviderLoginRequest,
   type StartOfficialProviderLoginResponse,
 } from "./provider-connection.js";
+export { MAX_AGENT_EVENT_BYTES, MAX_EVENT_BATCH_BYTES } from "./agent-event.js";
 export {
   AgentEventEnvelopeProperties,
   AgentEventSchema,

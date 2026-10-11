@@ -1,5 +1,5 @@
 import type { AgentProviderEvent } from "@codexly/core";
-import type { AgentEvent, EventCheckpoint } from "@codexly/protocol";
+import { MAX_AGENT_EVENT_BYTES, type AgentEvent, type EventCheckpoint } from "@codexly/protocol";
 import { getSerializedAgentEventByteLength } from "./event-socket-sender.js";
 
 type AgentEventListener = (event: AgentEvent) => void;
@@ -39,7 +39,7 @@ export interface AgentEventStreamOptions {
 }
 
 const DEFAULT_COALESCING_WINDOW_MS = 16;
-const DEFAULT_MAX_EVENT_BYTES = 1_048_576;
+const DEFAULT_MAX_EVENT_BYTES = MAX_AGENT_EVENT_BYTES;
 const DEFAULT_MAX_RETAINED_BYTES = 4 * 1_048_576;
 const DEFAULT_PRESSURE_COALESCING_WINDOW_MS = 32;
 

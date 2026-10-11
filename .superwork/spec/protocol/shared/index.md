@@ -5,6 +5,7 @@
 - 协议字段变化须追踪所有消费者、Schema 和契约测试；`CHANGELOG.md` 在发布流程更新，当前版本的 `Unreleased` 保持为空。不要把传输或持久化实现放入此包。
 - 任务公共字段、事件公共信封与同义的事件 payload、项目实体及根目录由此包定义；桌面端通过组合共享 Schema 扩展原生字段，跨包契约测试需验证两端引用同一公共定义。
 - 用相邻 `*.test.ts` 验证边界数据，并运行 `pnpm codex:schema:check`、`pnpm lint:architecture`、`pnpm typecheck`。
+- Web 事件流共用 `MAX_AGENT_EVENT_BYTES`（512 KiB）与 `MAX_EVENT_BATCH_BYTES`（1 MiB）限制序列化后的 UTF-8 字节；批次还需遵守 64 个事件上限，字节预算包含 JSON 封套、逗号和转义。超大事件通过快照恢复，不能截断或跳过其 Sequence。
 - `AgentTurn.itemTimings` 按 Item ID 保存可选的 `startedAtMs`、`completedAtMs`，时间单位为 Unix 毫秒；流式工具按事件更新，运行中显示临时耗时，完成后仅在开始与结束时间齐全时显示最终耗时。
 - `AgentMcpServer.httpOrigin` 为可选的 Codex HTTP 来源；非 HTTP 服务不传此字段，界面不展示空来源。
 - Codex app-server 的 `flexUnavailable` 错误映射为公共 `provider.error` 的 `flex_unavailable`，Web Provider 与桌面 Rust 端保持同一分类；升级时同时验证两端映射和协议 Schema。

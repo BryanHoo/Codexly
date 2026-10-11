@@ -112,6 +112,77 @@ afterEach(() => {
 });
 
 describe("CodexlyClient realtime events", () => {
+  it.each(["x", "中", "😀"])("rejects oversized UTF-8 frames before parsing (%j)", (character) => {
+    vi.useFakeTimers();
+    const { client, sockets } = createHarness();
+    const onEvent = vi.fn();
+    const onResyncRequired = vi.fn();
+    client.subscribeEvents({
+      afterSequence: 3,
+      projectId: "codexly",
+      sessionId: "runtime-1",
+      onEvent,
+      onResyncRequired,
+    });
+    const socket = sockets[0];
+    if (socket === undefined) throw new Error("Expected a subscribed socket");
+    socket.open();
+    socket.receive(ready);
+    const data = JSON.stringify(eventBatch(messageEvent(4, character.repeat(400 * 1_024))));
+    // ASCII 使用更长帧，中文用少于 1 Mi 字符复现 UTF-8 字节越界。
+    const oversizedData = character === "x" ? data + " ".repeat(1_024 * 1_024) : data;
+    const parse = vi.spyOn(JSON, "parse");
+    socket.dispatchEvent(new MessageEvent("message", { data: oversizedData }));
+
+    expect(parse.mock.calls.length).toBe(0);
+    expect(onEvent).not.toHaveBeenCalled();
+    expect(onResyncRequired).toHaveBeenCalledOnce();
+    expect(socket.readyState).toBe(WebSocket.CLOSED);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("accepts a frame exactly at the byte budget", () => {
+    const { client, sockets } = createHarness();
+    const onEvent = vi.fn();
+    const onResyncRequired = vi.fn();
+    client.subscribeEvents({
+      afterSequence: 3,
+      projectId: "codexly",
+      sessionId: "runtime-1",
+      onEvent,
+      onResyncRequired,
+    });
+    sockets[0]?.receive(ready);
+    const data = JSON.stringify(eventBatch(messageEvent(4)));
+    const padding = " ".repeat(1_024 * 1_024 - new TextEncoder().encode(data).byteLength);
+    sockets[0]?.dispatchEvent(new MessageEvent("message", { data: data + padding }));
+    expect(onEvent).toHaveBeenCalledOnce();
+    expect(onResyncRequired).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the snapshot on an oversized-event server close without retrying", () => {
+    vi.useFakeTimers();
+    const { client, sockets } = createHarness();
+    const onResyncRequired = vi.fn();
+    client.subscribeEvents({
+      afterSequence: 3,
+      projectId: "codexly",
+      sessionId: "runtime-1",
+      onEvent: vi.fn(),
+      onResyncRequired,
+    });
+    sockets[0]?.receive(ready);
+    sockets[0]?.serverClose(1009);
+    expect(onResyncRequired).toHaveBeenCalledWith({
+      latestSequence: 3,
+      reason: "event_retention_exceeded",
+      sessionId: "runtime-1",
+      type: "resync.required",
+      version: 3,
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("connects temporary tasks through the public temporary event route", () => {
     const { client, sockets } = createHarness();
 

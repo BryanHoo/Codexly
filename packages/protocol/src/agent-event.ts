@@ -211,6 +211,9 @@ export const AgentEventSchema = Type.Union([
 export type AgentEvent = Readonly<Static<typeof AgentEventSchema>>;
 
 export const MAX_EVENT_BATCH_SIZE = 64;
+// 统一按序列化后的 UTF-8 字节限制传输，避免事件数量有界但页面收到巨帧。
+export const MAX_AGENT_EVENT_BYTES = 512 * 1_024;
+export const MAX_EVENT_BATCH_BYTES = 1_024 * 1_024;
 
 export const EventBatchSchema = Type.Object(
   {
