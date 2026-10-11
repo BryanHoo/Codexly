@@ -14,7 +14,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { buildProjectPdfFileUrl, buildProjectImageFileUrl } from "@codexly/client";
 import type { ProjectSourceFile } from "@codexly/protocol";
 import { Code2, Eye } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type UIEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from "react";
 
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
 import {
@@ -191,33 +191,12 @@ export function ProjectSourcePanel({
         () => editorRef.current.flush(),
       );
   }, [router]);
-  useEffect(() => {
-    const lineNumber = reference.lineNumber;
-    if (sourceData === undefined || lineNumber === null || showRenderedMarkdown || editor.ready) {
-      return;
-    }
-
-    // 行节点由共享 CodeBlock 提供，查询完成后让所有可滚动祖先共同定位目标行。
-    const targetLine = contentRef.current?.querySelector(
-      `[data-code-line="${String(lineNumber)}"]`,
-    );
-    if (targetLine !== null && targetLine !== undefined) {
-      targetLine.scrollIntoView({ block: "center" });
-      return;
-    }
-    // 文件引用可能指向首段之外；继续逐页读取，直到目标行出现或文件结束。
-    if (hasNextSourcePage && !isFetchingNextSourcePage) {
+  const handleHighlightedLineUnavailable = useCallback(() => {
+    // 只在源码尚未覆盖目标行时补页；离屏节点由共享虚拟列表负责定位。
+    if (usePagedSource && hasNextSourcePage && !isFetchingNextSourcePage) {
       void fetchNextSourcePage();
     }
-  }, [
-    editor.ready,
-    fetchNextSourcePage,
-    hasNextSourcePage,
-    isFetchingNextSourcePage,
-    reference.lineNumber,
-    sourceData,
-    showRenderedMarkdown,
-  ]);
+  }, [fetchNextSourcePage, hasNextSourcePage, isFetchingNextSourcePage, usePagedSource]);
   const sourceStatus: SourceHeaderProps["sourceStatus"] =
     sourceData === undefined
       ? null
@@ -381,6 +360,7 @@ export function ProjectSourcePanel({
             className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] rounded-none bg-content shadow-none"
             code={sourceContent}
             highlightedLine={reference.lineNumber}
+            onHighlightedLineUnavailable={handleHighlightedLineUnavailable}
             language={sourceLanguage}
             showLineNumbers
           >

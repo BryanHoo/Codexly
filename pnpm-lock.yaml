@@ -767,6 +767,9 @@ importers:
       '@pierre/diffs':
         specifier: 'catalog:'
         version: 1.2.12(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/react-virtual':
+        specifier: 'catalog:'
+        version: 3.14.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -785,6 +788,9 @@ importers:
       react-zoom-pan-pinch:
         specifier: 'catalog:'
         version: 4.2.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      shiki:
+        specifier: 'catalog:'
+        version: 4.4.3
       streamdown:
         specifier: 'catalog:'
         version: 2.5.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@8.1.1)

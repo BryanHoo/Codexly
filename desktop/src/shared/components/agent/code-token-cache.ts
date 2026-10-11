@@ -1,4 +1,6 @@
-import type { ThemedToken } from "shiki/core";
+import type { TokenizedCode } from "@codexly/ui/agent/code-tokens";
+
+export type { TokenizedCode } from "@codexly/ui/agent/code-tokens";
 
 import { ByteLru, estimateRetainedBytes, getUtf8ByteLength } from "../../memory/byte-lru.js";
 import type { HighlightLanguage } from "./code-languages.js";
@@ -6,12 +8,6 @@ import type { HighlightLanguage } from "./code-languages.js";
 export const MAX_TOKEN_CACHE_BYTES = 24 * 1_024 * 1_024;
 export const MAX_TOKEN_CACHE_ENTRIES = 128;
 export const MAX_TOKEN_CACHE_SOURCE_BYTES = 512 * 1_024;
-
-export type TokenizedCode = Readonly<{
-  background: string;
-  foreground: string;
-  lines: ThemedToken[][];
-}>;
 
 type TokenCacheValue = Readonly<{
   source: string;

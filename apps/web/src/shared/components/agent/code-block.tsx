@@ -1,3 +1,7 @@
+import {
+  CodeBlockContent as SharedCodeBlockContent,
+  type CodeBlockContentProps as SharedCodeBlockContentProps,
+} from "@codexly/ui/agent/code-block-content";
 import { Check, Copy } from "lucide-react";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import {
@@ -8,14 +12,12 @@ import {
   useRef,
   useState,
   type ButtonHTMLAttributes,
-  type CSSProperties,
   type HTMLAttributes,
 } from "react";
-import type { ThemedToken } from "shiki/core";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../core/button.js";
-import type { CodeBlockLanguage } from "./code-languages.js";
+import type { CodeBlockLanguage, HighlightLanguage } from "./code-languages.js";
 import { CodeTokenCache, type TokenizedCode } from "./code-token-cache.js";
 
 export type { CodeBlockLanguage } from "./code-languages.js";
@@ -27,41 +29,7 @@ type CodeBlockContextValue = Readonly<{
 const CodeBlockContext = createContext<CodeBlockContextValue | null>(null);
 const tokenCache = new CodeTokenCache();
 
-function createRawTokens(code: string): TokenizedCode {
-  return {
-    background: "transparent",
-    foreground: "inherit",
-    lines: code.split("\n").map((line) => (line === "" ? [] : [{ content: line, offset: 0 }])),
-  };
-}
-
-function getTokenStyle(token: ThemedToken): CSSProperties {
-  const sourceStyle = token.htmlStyle as
-    (CSSProperties & { "--shiki-dark"?: string; "--shiki-dark-bg"?: string }) | undefined;
-  const lightColor = token.color ?? sourceStyle?.color;
-  const darkColor = sourceStyle?.["--shiki-dark"];
-  const lightBackground = token.bgColor ?? sourceStyle?.backgroundColor;
-  const darkBackground = sourceStyle?.["--shiki-dark-bg"];
-
-  // 项目通过 color-scheme 切换主题，light-dark() 可直接消费 Shiki 的双主题 token。
-  return {
-    ...sourceStyle,
-    backgroundColor:
-      lightBackground === undefined || darkBackground === undefined
-        ? lightBackground
-        : `light-dark(${lightBackground}, ${darkBackground})`,
-    color:
-      lightColor === undefined || darkColor === undefined
-        ? lightColor
-        : `light-dark(${lightColor}, ${darkColor})`,
-  };
-}
-
-async function tokenizeCode(code: string, language: CodeBlockLanguage): Promise<TokenizedCode> {
-  if (language === "text") {
-    return createRawTokens(code);
-  }
-
+async function tokenizeCode(code: string, language: HighlightLanguage): Promise<TokenizedCode> {
   const cached = tokenCache.get(language, code);
   if (cached !== undefined) {
     return cached;
@@ -74,92 +42,15 @@ async function tokenizeCode(code: string, language: CodeBlockLanguage): Promise<
   return tokenized;
 }
 
-export type CodeBlockContentProps = Readonly<{
-  code: string;
-  highlightedLine?: number | null;
-  language: CodeBlockLanguage;
-  showLineNumbers?: boolean;
-}> &
-  HTMLAttributes<HTMLDivElement>;
+export type CodeBlockContentProps = Omit<
+  SharedCodeBlockContentProps,
+  "pages" | "tokenizeCode" | "legacyTheme"
+> &
+  Readonly<{ code: string }>;
 
-export function CodeBlockContent({
-  className = "",
-  code,
-  highlightedLine = null,
-  language,
-  showLineNumbers = false,
-  ...props
-}: CodeBlockContentProps) {
-  const rawTokens = useMemo(() => createRawTokens(code), [code]);
-  const [tokenized, setTokenized] = useState(rawTokens);
-
-  useEffect(() => {
-    let active = true;
-    setTokenized(rawTokens);
-    void tokenizeCode(code, language)
-      .then((result) => {
-        if (active) {
-          setTokenized(result);
-        }
-      })
-      .catch(() => {
-        // 高亮失败时继续展示完整纯文本，避免查看器因可选增强不可用而清空。
-      });
-    return () => {
-      active = false;
-    };
-  }, [code, language, rawTokens]);
-
-  return (
-    <div className={`relative min-h-0 overflow-auto ${className}`} {...props}>
-      <pre
-        className="m-0 min-w-max bg-transparent py-3 font-mono text-body-small leading-6 text-foreground"
-        style={{ backgroundColor: tokenized.background, color: tokenized.foreground }}
-      >
-        <code>
-          {tokenized.lines.map((tokens, lineIndex) => {
-            const lineNumber = lineIndex + 1;
-            const highlighted = lineNumber === highlightedLine;
-            return (
-              <span
-                className={`block min-h-6 px-3 ${
-                  showLineNumbers ? "grid grid-cols-[4rem_minmax(0,1fr)]" : ""
-                } ${highlighted ? "bg-brand-soft text-brand-strong" : ""}`}
-                data-code-line={lineNumber}
-                data-highlighted={highlighted ? "true" : undefined}
-                key={lineNumber}
-              >
-                {showLineNumbers ? (
-                  <span
-                    aria-hidden="true"
-                    className={`select-none pr-4 text-right ${
-                      highlighted ? "text-brand" : "text-muted-foreground"
-                    }`}
-                  >
-                    {lineNumber}
-                  </span>
-                ) : null}
-                <span className="whitespace-pre">
-                  {tokens.length === 0
-                    ? " "
-                    : tokens.map((token, tokenIndex) => {
-                        return (
-                          <span
-                            key={`${String(lineNumber)}-${String(tokenIndex)}`}
-                            style={getTokenStyle(token)}
-                          >
-                            {token.content}
-                          </span>
-                        );
-                      })}
-                </span>
-              </span>
-            );
-          })}
-        </code>
-      </pre>
-    </div>
-  );
+export function CodeBlockContent({ code, ...props }: CodeBlockContentProps) {
+  const pages = useMemo(() => [{ code, key: "code" }], [code]);
+  return <SharedCodeBlockContent {...props} pages={pages} tokenizeCode={tokenizeCode} />;
 }
 
 export type CodeBlockProps = HTMLAttributes<HTMLDivElement> &
@@ -168,6 +59,7 @@ export type CodeBlockProps = HTMLAttributes<HTMLDivElement> &
     highlightedLine?: number | null;
     language: CodeBlockLanguage;
     showLineNumbers?: boolean;
+    onHighlightedLineUnavailable?: () => void;
   }>;
 
 export function CodeBlock({
@@ -177,6 +69,7 @@ export function CodeBlock({
   highlightedLine = null,
   language,
   showLineNumbers = false,
+  onHighlightedLineUnavailable,
   style,
   ...props
 }: CodeBlockProps) {
@@ -192,6 +85,7 @@ export function CodeBlock({
         {children}
         <CodeBlockContent
           code={code}
+          {...(onHighlightedLineUnavailable === undefined ? {} : { onHighlightedLineUnavailable })}
           highlightedLine={highlightedLine}
           language={language}
           showLineNumbers={showLineNumbers}

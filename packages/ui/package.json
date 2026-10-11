@@ -22,7 +22,27 @@
       "types": "./src/core/*.tsx",
       "default": "./src/core/*.tsx"
     },
-    "./core/split-workspace.css": "./src/core/split-workspace.css"
+    "./core/split-workspace.css": "./src/core/split-workspace.css",
+    "./agent/code-block-content": {
+      "types": "./src/agent/code-block-content.tsx",
+      "default": "./src/agent/code-block-content.tsx"
+    },
+    "./agent/code-block-pages": {
+      "types": "./src/agent/code-block-pages.ts",
+      "default": "./src/agent/code-block-pages.ts"
+    },
+    "./agent/code-languages": {
+      "types": "./src/agent/code-languages.ts",
+      "default": "./src/agent/code-languages.ts"
+    },
+    "./agent/code-highlighter": {
+      "types": "./src/agent/code-highlighter.ts",
+      "default": "./src/agent/code-highlighter.ts"
+    },
+    "./agent/code-tokens": {
+      "types": "./src/agent/code-tokens.ts",
+      "default": "./src/agent/code-tokens.ts"
+    }
   },
   "dependencies": {
     "@codemirror/commands": "catalog:",
@@ -47,7 +67,9 @@
     "radix-ui": "catalog:",
     "react-zoom-pan-pinch": "catalog:",
     "streamdown": "catalog:",
-    "tailwind-merge": "catalog:"
+    "tailwind-merge": "catalog:",
+    "@tanstack/react-virtual": "catalog:",
+    "shiki": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:"

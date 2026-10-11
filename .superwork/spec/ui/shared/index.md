@@ -13,6 +13,7 @@
 - 聊天 Markdown 的本地图片共用 `core/message-markdown-image`；文件链接规范化产生的相对路径、Windows 盘符及 UNC 标记须先还原，再通过任务所属工作目录的图片接口读取，禁止将本地路径直接作为网页地址。Web 使用受控文件 URL，桌面复用原生缓存与 asset 通道；普通任务未绑定 `workspacePath` 时使用所属项目的根选择，worktree 绑定目录始终优先；历史回放与分屏不能借用其他活动项目目录，任务切换后丢弃旧异步结果。图片不以 Base64 消息正文传输。回归见两端 `message-response-images.test` 与共享 `markdown-image-source.test.ts`。
 - 流式 Markdown 的树形渲染与文本揭示动画放在 `agent/streaming-markdown`，两端引入其共享样式；稳定前缀不能因追加而重挂，图表和自定义插件不得被普通代码快路径替代。
 - 验证边界使用 `apps/web/src/shared/components/shared-ui-boundary.test.ts`、根目录 `pnpm lint:architecture`，并分别运行 Web 与桌面构建。
+- 只读代码查看器共用 `agent/code-block-content`、`code-block-pages` 和 `code-highlighter`。正文按行虚拟化，完整源码（含所有分页）超过 128 KiB UTF-8 时跳过语法高亮；限额内按批次让出浏览器任务队列并传递双主题语法状态，超长行保留纯文本。目标行定位由虚拟列表处理，只有行尚未加载时才补页，不得根据离屏 DOM 缺失读取剩余全文。回归覆盖一万行的节点与标记预算、UTF-8 与分页总预算、跨批次注释/字符串及交互任务执行；桌面旧 WebKit 主题兼容保留。
 
 - PDF 文件链接、附件和文件树共用 `core/pdf-preview` 原生预览；用 `navigator.pdfViewerEnabled` 检测能力，缺失时保留显式打开动作。附件点击后才加载，关闭后卸载；不引入 PDF.js 或 Base64 整文件传输。桌面只开放校验后的单文件 asset scope，独立预览窗口同时授权读取和打开命令。
 
