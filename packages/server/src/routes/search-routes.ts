@@ -43,7 +43,8 @@ export const registerSearchRoutes: FastifyPluginCallback<ServerRouteContext> = (
         { id: TEMPORARY_TASK_SCOPE_ID, kind: "temporary" },
         ...projects.map((project) => ({ id: project.id, kind: "project" as const })),
       ];
-      return provider.search.searchTasks(request.query, scopes);
+      // 将 HTTP 断连和超时信号传到搜索工作链路，阻止旧查询继续占用 RPC。
+      return provider.search.searchTasks(request.query, scopes, request.signal);
     },
   );
 
@@ -78,6 +79,7 @@ export const registerSearchRoutes: FastifyPluginCallback<ServerRouteContext> = (
         request.params.taskId,
         request.query,
         project.scope,
+        request.signal,
       );
     },
   );

@@ -1,6 +1,7 @@
 import { calculateOverloadRetryDelay, type RpcOverloadRetryPolicy } from "./rpc-overload-retry.js";
 
 interface RpcPendingRequestOptions {
+  readonly cleanup?: () => void;
   readonly onTimeout: () => void;
   readonly reject: (error: Error) => void;
   readonly request: unknown;
@@ -17,9 +18,11 @@ export class RpcPendingRequest {
   readonly #timeoutTimer: NodeJS.Timeout;
   #retryCount = 0;
   #retryTimer: NodeJS.Timeout | undefined;
+  #cleanup: (() => void) | undefined;
 
   public constructor(options: RpcPendingRequestOptions) {
     this.request = options.request;
+    this.#cleanup = options.cleanup;
     this.#reject = options.reject;
     this.#resolve = options.resolve;
     this.#timeoutTimer = setTimeout(options.onTimeout, options.timeoutMs);
@@ -59,6 +62,9 @@ export class RpcPendingRequest {
   }
 
   public clearTimers(): void {
+    // 成功、失败、取消和连接关闭共用清理路径，避免监听器保留请求闭包。
+    this.#cleanup?.();
+    this.#cleanup = undefined;
     clearTimeout(this.#timeoutTimer);
     if (this.#retryTimer !== undefined) {
       clearTimeout(this.#retryTimer);

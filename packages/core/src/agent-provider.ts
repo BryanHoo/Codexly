@@ -208,8 +208,13 @@ export interface AgentSearchProvider {
     taskId: string,
     input: SearchOccurrencesQuery,
     scope: AgentSearchScope,
+    signal?: AgentCancellationSignal,
   ): Promise<SearchOccurrencesPage>;
-  searchTasks(input: TaskSearchQuery, scopes: readonly AgentSearchScope[]): Promise<TaskSearchPage>;
+  searchTasks(
+    input: TaskSearchQuery,
+    scopes: readonly AgentSearchScope[],
+    signal?: AgentCancellationSignal,
+  ): Promise<TaskSearchPage>;
 }
 
 export type ResolvePendingRequestInput = Readonly<

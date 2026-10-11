@@ -1,4 +1,5 @@
 import type { Readable, Writable } from "node:stream";
+import type { AgentCancellationSignal } from "@codexly/core";
 
 import { JsonlChunkBuffer } from "./jsonl-chunk-buffer.js";
 import { JsonlFrameParseError, JsonlFrameProcessor } from "./jsonl-frame-processor.js";
@@ -18,6 +19,7 @@ import {
   validatePositiveSafeInteger,
 } from "./rpc-overload-retry.js";
 import { RpcPendingRequest } from "./rpc-pending-request.js";
+import { createRpcAbortError } from "./rpc-cancellation.js";
 
 // 单次上传最多 50 MiB 图片，Base64 后约 67 MiB；为文本和协议字段保留余量。
 const DEFAULT_MAX_JSONL_BYTES = 80 * 1_024 * 1_024;
@@ -116,7 +118,9 @@ export class JsonlRpcClient {
     method: string,
     params?: unknown,
     timeoutMs = this.#defaultTimeoutMs,
+    signal?: AgentCancellationSignal,
   ): Promise<unknown> {
+    if (signal?.aborted === true) return Promise.reject(createRpcAbortError());
     this.#assertOpen();
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
       throw new RangeError("RPC timeout must be a positive finite number");
@@ -124,9 +128,13 @@ export class JsonlRpcClient {
 
     const id = this.#nextRequestId++;
     const request = params === undefined ? { id, method } : { id, method, params };
-
     return new Promise<unknown>((resolve, reject) => {
+      const onAbort = () => {
+        // 只移除当前等待项；共享进程和其他 RPC 继续运行，迟到响应直接忽略。
+        if (this.#removePending(id, pending)) pending.reject(createRpcAbortError());
+      };
       const pending = new RpcPendingRequest({
+        cleanup: () => signal?.removeEventListener("abort", onAbort),
         onTimeout: () => {
           if (this.#removePending(id, pending)) {
             pending.reject(new RpcTimeoutError(id, method, timeoutMs));
@@ -138,6 +146,7 @@ export class JsonlRpcClient {
         timeoutMs,
       });
       this.#pending.set(id, pending);
+      signal?.addEventListener("abort", onAbort, { once: true });
 
       try {
         void this.#sendMessage(request).catch(() => undefined);

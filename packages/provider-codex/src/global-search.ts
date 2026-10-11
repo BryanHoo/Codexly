@@ -1,4 +1,4 @@
-import type { AgentSearchProvider, AgentSearchScope } from "@codexly/core";
+import type { AgentCancellationSignal, AgentSearchProvider, AgentSearchScope } from "@codexly/core";
 import type {
   SearchOccurrence,
   SearchOccurrencesPage,
@@ -16,6 +16,7 @@ import {
 } from "./codex-protocol-mapping.js";
 import { isProjectThread } from "./codex-task-mapping.js";
 import { encodeTaskTurnCursor } from "./task-history-pagination.js";
+import { throwIfRpcAborted } from "./rpc-cancellation.js";
 
 const SEARCH_PAGE_SIZE = 30;
 const HISTORY_PAGE_SIZE = 10;
@@ -83,6 +84,7 @@ async function mapWithConcurrency<T, R>(
   values: readonly T[],
   concurrency: number,
   map: (value: T) => Promise<R>,
+  signal: AgentCancellationSignal | undefined,
 ): Promise<R[]> {
   const results = new Array<R>(values.length);
   const entries = values.entries();
@@ -90,6 +92,8 @@ async function mapWithConcurrency<T, R>(
     Array.from({ length: Math.min(concurrency, values.length) }, async () => {
       let entry = entries.next();
       while (!entry.done) {
+        // 每个并发槽位取下一项前检查取消，避免剩余历史锚点继续派发 RPC。
+        throwIfRpcAborted(signal);
         const [index, value] = entry.value;
         results[index] = await map(value);
         entry = entries.next();
@@ -105,7 +109,9 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
   public async searchTasks(
     input: TaskSearchQuery,
     scopes: readonly AgentSearchScope[],
+    signal?: AgentCancellationSignal,
   ): Promise<TaskSearchPage> {
+    throwIfRpcAborted(signal);
     const query = validateQuery(input.query);
     // 历史结果必须逐条验证可见消息锚点；按小页加载，避免单次搜索放大为 30 个 RPC。
     const pageSize = input.kind === "history" ? HISTORY_PAGE_SIZE : SEARCH_PAGE_SIZE;
@@ -121,6 +127,8 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
       await this.client.request(
         input.kind === "tasks" ? "thread/list" : "thread/search",
         input.kind === "tasks" ? { ...params, modelProviders: [] } : params,
+        undefined,
+        signal,
       ),
       input.kind === "tasks" ? "thread/list response" : "thread/search response",
     );
@@ -137,12 +145,14 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
         if (input.kind === "tasks") return { snippet: "", task };
 
         // 原生全文结果可能命中过过程消息，仅保留当前可定位的可见消息。
-        const occurrences = await this.requestOccurrences(task.id, query, undefined, 1);
+        const occurrences = await this.requestOccurrences(task.id, query, undefined, 1, signal);
         const occurrence = occurrences.data[0];
         if (occurrence === undefined) return undefined;
         return { occurrence, snippet: occurrence.snippet, task };
       },
+      signal,
     );
+    throwIfRpcAborted(signal);
     return { data: mapped.filter((item) => item !== undefined), nextCursor: page.nextCursor };
   }
 
@@ -150,17 +160,24 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
     taskId: string,
     input: SearchOccurrencesQuery,
     scope: AgentSearchScope,
+    signal?: AgentCancellationSignal,
   ): Promise<SearchOccurrencesPage> {
+    throwIfRpcAborted(signal);
     const query = validateQuery(input.query);
     const response = expectRecord(
-      await this.client.request("thread/read", { includeTurns: false, threadId: taskId }),
+      await this.client.request(
+        "thread/read",
+        { includeTurns: false, threadId: taskId },
+        undefined,
+        signal,
+      ),
       "thread/read response",
     );
     const thread = expectRecord(response["thread"], "thread/read thread");
     if (!isProjectThread(thread, scope)) {
       throw new CodexProtocolMappingError("Search task does not belong to the requested project");
     }
-    return this.requestOccurrences(taskId, query, input.cursor, SEARCH_PAGE_SIZE);
+    return this.requestOccurrences(taskId, query, input.cursor, SEARCH_PAGE_SIZE, signal);
   }
 
   private async requestOccurrences(
@@ -168,14 +185,21 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
     query: string,
     cursor: string | undefined,
     limit: number,
+    signal: AgentCancellationSignal | undefined,
   ): Promise<SearchOccurrencesPage> {
+    throwIfRpcAborted(signal);
     const page = parsePage(
-      await this.client.request("thread/searchOccurrences", {
-        ...(cursor === undefined ? {} : { cursor }),
-        limit,
-        searchTerm: query,
-        threadId: taskId,
-      }),
+      await this.client.request(
+        "thread/searchOccurrences",
+        {
+          ...(cursor === undefined ? {} : { cursor }),
+          limit,
+          searchTerm: query,
+          threadId: taskId,
+        },
+        undefined,
+        signal,
+      ),
       "thread/searchOccurrences response",
     );
     return { data: page.data.map(parseOccurrence), nextCursor: page.nextCursor };

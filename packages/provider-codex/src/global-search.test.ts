@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { FakeRpcClient } from "./agent-provider.test-support.js";
 import { CodexGlobalSearchService } from "./global-search.js";
 import { decodeTaskTurnCursor } from "./task-history-pagination.js";
+import { createHarness } from "./jsonl-rpc-client.test-support.js";
 
 const temporaryThread = {
   id: "task-1",
@@ -30,6 +31,80 @@ function decodeReturnedTurnCursor(value: string | undefined): string | undefined
 }
 
 describe("CodexGlobalSearchService", () => {
+  it.each(["tasks", "history"] as const)("取消的 %s 搜索不派发 RPC", async (kind) => {
+    const client = new FakeRpcClient([{ data: [], nextCursor: null }]);
+    const controller = new AbortController();
+    controller.abort();
+    const service = new CodexGlobalSearchService(client);
+
+    await expect(
+      service.searchTasks({ archived: false, kind, query: "中文" }, [], controller.signal),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(client.calls).toHaveLength(0);
+  });
+
+  it("取消首批历史锚点查询后立即结束等待且不派发剩余查询", async () => {
+    const { client, sentMessages, serverOutput } = createHarness();
+    const controller = new AbortController();
+    const service = new CodexGlobalSearchService(client);
+    const search = service.searchTasks(
+      { archived: false, kind: "history", query: "中文" },
+      [{ id: "temporary", kind: "temporary" }],
+      controller.signal,
+    );
+    const outcome = expect(search).rejects.toMatchObject({ name: "AbortError" });
+    try {
+      serverOutput.write(
+        `${JSON.stringify({
+          id: 1,
+          result: {
+            data: Array.from({ length: 10 }, (_, index) => ({
+              thread: { ...temporaryThread, id: `task-${String(index)}` },
+            })),
+            nextCursor: null,
+          },
+        })}\n`,
+      );
+      // 首批四个锚点全部在途时取消，证明不必等响应或超时才能释放搜索。
+      await vi.waitFor(() => {
+        expect(sentMessages).toHaveLength(5);
+      });
+      controller.abort();
+      await outcome;
+      for (let id = 2; id <= 5; id += 1) {
+        serverOutput.write(
+          `${JSON.stringify({ id, result: { data: [occurrence], nextCursor: null } })}\n`,
+        );
+      }
+      await Promise.resolve();
+      expect(sentMessages).toHaveLength(5);
+      expect(client.closed).toBe(false);
+    } finally {
+      client.close();
+    }
+  });
+
+  it("验证归属期间取消匹配位置搜索后不再查询锚点", async () => {
+    const controller = new AbortController();
+    const client = new FakeRpcClient([
+      () => {
+        controller.abort();
+        return { thread: temporaryThread };
+      },
+      { data: [occurrence], nextCursor: null },
+    ]);
+    const service = new CodexGlobalSearchService(client);
+    await expect(
+      service.searchTaskOccurrences(
+        "task-1",
+        { query: "中文" },
+        { id: "temporary", kind: "temporary" },
+        controller.signal,
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(client.calls.map((call) => call.method)).toEqual(["thread/read"]);
+  });
+
   it("搜索任务标题并过滤未注册项目", async () => {
     const foreignThread = { ...temporaryThread, id: "foreign", projectId: "foreign-project" };
     const client = new FakeRpcClient([
