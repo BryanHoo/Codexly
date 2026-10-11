@@ -1,3 +1,4 @@
+import { scheduleEventFlush } from "@codexly/frontend-core/event-flush-scheduler";
 import type { AgentEventConnectionState } from "@/platform/native-client-types.js";
 import type { AgentEvent, AgentTaskSnapshotResponse } from "@/protocol/index.js";
 import {
@@ -275,8 +276,7 @@ export class TaskEventTarget {
   readonly #recovery: SnapshotRecoveryController<AgentTaskSnapshotResponse>;
   readonly #store: TaskStore;
   readonly #updateGate: DetailViewUpdateGate;
-  #frameId: number | undefined;
-  #timerId: ReturnType<typeof setTimeout> | undefined;
+  #cancelFlush: (() => void) | undefined;
   #pendingConnectionState: AgentEventConnectionState | undefined;
   #pendingSnapshot: AgentTaskSnapshotResponse | undefined;
   #suspended: boolean;
@@ -361,22 +361,15 @@ export class TaskEventTarget {
           event.receivedAtUnixMs,
         );
       }
-      if (this.#frameId === undefined && this.#timerId === undefined) {
+      if (this.#cancelFlush === undefined) {
         // 当前帧的首个 Delta 立即进入 Store，避免再叠加一帧首字延迟。
-        const flush = () => {
-          this.#frameId = undefined;
-          this.#timerId = undefined;
+        this.#cancelFlush = scheduleEventFlush(() => {
+          this.#cancelFlush = undefined;
           const pendingEvents = this.#buffer.drain();
           if (pendingEvents.length > 0) {
             this.#store.getState().applyEvents(pendingEvents);
           }
-        };
-        // 隐藏的原生 WebView 会暂停 rAF，但仍可能接收 Runtime 事件。
-        if (typeof document !== "undefined" && document.visibilityState === "hidden") {
-          this.#timerId = setTimeout(flush, 16);
-        } else {
-          this.#frameId = requestAnimationFrame(flush);
-        }
+        });
         this.#store.getState().applyEvents([event]);
         return;
       }
@@ -434,14 +427,8 @@ export class TaskEventTarget {
   }
 
   #clearScheduledFlush(): void {
-    if (this.#frameId !== undefined) {
-      cancelAnimationFrame(this.#frameId);
-      this.#frameId = undefined;
-    }
-    if (this.#timerId !== undefined) {
-      clearTimeout(this.#timerId);
-      this.#timerId = undefined;
-    }
+    this.#cancelFlush?.();
+    this.#cancelFlush = undefined;
   }
 
   #handleUpdateGateChange(): void {

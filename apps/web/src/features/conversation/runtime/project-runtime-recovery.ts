@@ -1,3 +1,4 @@
+import { scheduleEventFlush } from "@codexly/frontend-core/event-flush-scheduler";
 import type { AgentEventConnectionState } from "@codexly/client";
 import type { AgentEvent, AgentTaskSnapshotResponse } from "@codexly/protocol";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
@@ -266,7 +267,7 @@ export class TaskEventTarget {
   readonly #recoverSnapshots = new Set<RecoverTaskSnapshot>();
   readonly #recovery: SnapshotRecoveryController<AgentTaskSnapshotResponse>;
   readonly #store: TaskStore;
-  #frameId: number | undefined;
+  #cancelFlush: (() => void) | undefined;
 
   public constructor(
     store: TaskStore,
@@ -306,10 +307,7 @@ export class TaskEventTarget {
 
   public resetForSnapshot(): void {
     // 新 Snapshot 是当前 Store 的权威基线，清除旧帧并允许后续事件重新进入增量路径。
-    if (this.#frameId !== undefined) {
-      cancelAnimationFrame(this.#frameId);
-      this.#frameId = undefined;
-    }
+    this.#clearScheduledFlush();
     this.#buffer.drain();
     this.#recovery.reset();
   }
@@ -319,10 +317,10 @@ export class TaskEventTarget {
       return;
     }
     if (isDeltaEvent(event)) {
-      if (this.#frameId === undefined) {
+      if (this.#cancelFlush === undefined) {
         // 当前帧的首个 Delta 立即进入 Store，避免再叠加一帧首字延迟。
-        this.#frameId = requestAnimationFrame(() => {
-          this.#frameId = undefined;
+        this.#cancelFlush = scheduleEventFlush(() => {
+          this.#cancelFlush = undefined;
           const pendingEvents = this.#buffer.drain();
           if (pendingEvents.length > 0) {
             this.#store.getState().applyEvents(pendingEvents);
@@ -343,10 +341,7 @@ export class TaskEventTarget {
 
   public dispose(): void {
     this.#recovery.dispose();
-    if (this.#frameId !== undefined) {
-      cancelAnimationFrame(this.#frameId);
-      this.#frameId = undefined;
-    }
+    this.#clearScheduledFlush();
     this.#buffer.drain();
   }
 
@@ -354,10 +349,7 @@ export class TaskEventTarget {
     if (!this.#recovery.isReady) {
       return;
     }
-    if (this.#frameId !== undefined) {
-      cancelAnimationFrame(this.#frameId);
-      this.#frameId = undefined;
-    }
+    this.#clearScheduledFlush();
     this.#buffer.drain();
     this.#recovery.requestRecovery();
   }
@@ -371,11 +363,13 @@ export class TaskEventTarget {
     }
   }
 
+  #clearScheduledFlush(): void {
+    this.#cancelFlush?.();
+    this.#cancelFlush = undefined;
+  }
+
   #flushThrough(sequence: number): void {
-    if (this.#frameId !== undefined) {
-      cancelAnimationFrame(this.#frameId);
-      this.#frameId = undefined;
-    }
+    this.#clearScheduledFlush();
     this.#store.getState().applyEvents(this.#buffer.flushThrough(sequence));
   }
 }

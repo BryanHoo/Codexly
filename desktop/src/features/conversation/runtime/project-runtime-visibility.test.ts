@@ -22,6 +22,11 @@ class FakeUpdateGate implements DetailViewUpdateGate {
     this.#suspended = false;
     for (const listener of this.#listeners) listener();
   }
+
+  public suspend(): void {
+    this.#suspended = true;
+    for (const listener of this.#listeners) listener();
+  }
 }
 
 function createEvent(sequence: number, delta: string): AgentEvent {
@@ -47,7 +52,7 @@ describe("TaskEventTarget 后台暂停", () => {
 
   it("WebView 隐藏但详情未暂停时定时提交后续 Delta", () => {
     vi.useFakeTimers();
-    vi.stubGlobal("document", { visibilityState: "hidden" });
+    vi.stubGlobal("document", Object.assign(new EventTarget(), { visibilityState: "hidden" }));
     const applyEvents = vi.fn();
     const state = {
       applyEvents,
@@ -71,6 +76,36 @@ describe("TaskEventTarget 后台暂停", () => {
     vi.advanceTimersByTime(16);
     expect(applyEvents).toHaveBeenCalledWith([expect.objectContaining({ sequence: 2 })]);
 
+    target.dispose();
+  });
+
+  it("已排队的帧随隐藏切换，并在详情暂停时取消后台计时器", () => {
+    vi.useFakeTimers();
+    const visibility = Object.assign(new EventTarget(), { visibilityState: "visible" });
+    vi.stubGlobal("document", visibility);
+    vi.stubGlobal("requestAnimationFrame", vi.fn(() => 1));
+    const cancelFrame = vi.fn();
+    vi.stubGlobal("cancelAnimationFrame", cancelFrame);
+    const state = { applyEvents: vi.fn(), taskId: "task-1" };
+    const gate = new FakeUpdateGate();
+    gate.resume();
+    const target = new TaskEventTarget(
+      { getState: () => state } as unknown as TaskStore,
+      vi.fn(), vi.fn(), gate,
+    );
+    target.apply(createEvent(1, "hello "));
+    target.apply(createEvent(2, "world"));
+    visibility.visibilityState = "hidden";
+    visibility.dispatchEvent(new Event("visibilitychange"));
+    expect(cancelFrame).toHaveBeenCalledWith(1);
+    expect(vi.getTimerCount()).toBe(1);
+    gate.suspend();
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(1_000);
+    expect(state.applyEvents).toHaveBeenCalledTimes(1);
+    gate.resume();
+    expect(state.applyEvents).toHaveBeenCalledTimes(2);
+    expect(state.applyEvents).toHaveBeenLastCalledWith([createEvent(2, "world")]);
     target.dispose();
   });
 
