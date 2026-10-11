@@ -14,10 +14,14 @@ import type { SequenceNode } from "@codexly/frontend-core/persistent-sequence";
 import type { MarkdownBlockTree } from "@codexly/frontend-core/incremental-markdown-blocks";
 import type { CodeLineTree, MarkdownBlock } from "@codexly/frontend-core/streaming-markdown-block";
 import { separateBoldTitleFromNumberedList } from "@codexly/frontend-core/markdown-list-heading";
+export { useStreamingMarkdownTree } from "./use-streaming-markdown-tree.js";
 
-const TreeContext = createContext<Readonly<{ tree: MarkdownBlockTree; fast: boolean }>>({
+const TreeContext = createContext<
+  Readonly<{ tree: MarkdownBlockTree; fast: boolean; parseIncomplete: boolean }>
+>({
   tree: null,
   fast: true,
+  parseIncomplete: true,
 });
 // 动画状态独立订阅，避免正文树增量更新穿透 memo，通知所有历史文本叶节点。
 const AnimationContext = createContext(false);
@@ -34,7 +38,8 @@ export function StreamingMarkdown({
   enabled: boolean;
 }) {
   const animate = props.isAnimating === true;
-  const value = useMemo(() => ({ tree, fast }), [tree, fast]);
+  const parseIncomplete = props.mode !== "static" && props.parseIncompleteMarkdown !== false;
+  const value = useMemo(() => ({ tree, fast, parseIncomplete }), [tree, fast, parseIncomplete]);
   // 依赖全文的方向检测、动画和标签修复仍由 Streamdown 自己处理，避免改变调用方语义。
   if (
     !enabled ||
@@ -72,8 +77,13 @@ export function StreamingMarkdown({
 }
 
 function TreeBridge(props: BlockProps) {
-  const { tree, fast } = useContext(TreeContext);
-  return <BlockTree tree={tree} options={props} offset={0} fast={fast} />;
+  const { tree, fast, parseIncomplete } = useContext(TreeContext);
+  // 固定外壳保持挂载身份，但 static 正文必须关闭不完整语法修复，保留静态 Markdown 语义。
+  const options = useMemo(
+    () => ({ ...props, shouldParseIncompleteMarkdown: parseIncomplete }),
+    [props, parseIncomplete],
+  );
+  return <BlockTree tree={tree} options={options} offset={0} fast={fast} />;
 }
 
 const BlockTree = memo(function BlockTree({

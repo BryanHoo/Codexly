@@ -144,6 +144,9 @@ catalogs:
     lucide-react:
       specifier: 1.25.0
       version: 1.25.0
+    marked:
+      specifier: 17.0.6
+      version: 17.0.6
     oxlint:
       specifier: 1.80.0
       version: 1.80.0
@@ -779,6 +782,9 @@ importers:
       lucide-react:
         specifier: 'catalog:'
         version: 1.25.0(react@19.2.8)
+      marked:
+        specifier: 'catalog:'
+        version: 17.0.6
       radix-ui:
         specifier: 'catalog:'
         version: 1.6.7(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

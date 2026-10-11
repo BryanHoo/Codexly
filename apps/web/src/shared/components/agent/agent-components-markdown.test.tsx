@@ -10,6 +10,15 @@ import {
 } from "./agent-components.test-support.js";
 
 describe("agent Markdown components", () => {
+  it("keeps oversized static snapshots on the incremental preview path for asynchronous finalization", () => {
+    const buffer = new AppendOnlyTextBuffer("- **列表项**\n".repeat(2_000));
+    const markup = renderToStaticMarkup(
+      <MessageResponse textSource={buffer.getSnapshot()} mode="static" isAnimating={false} />,
+    );
+    expect(markup.includes("data-streaming-markdown-preview")).toBe(true);
+    expect(markup.includes("data-streaming-text-reveal")).toBe(false);
+    expect(markup.includes("**列表项**")).toBe(true);
+  });
   it("preserves Mermaid rendering in the incremental snapshot path", () => {
     const buffer = new AppendOnlyTextBuffer("```mermaid\ngraph TD\nA-->B");
     const markup = renderToStaticMarkup(

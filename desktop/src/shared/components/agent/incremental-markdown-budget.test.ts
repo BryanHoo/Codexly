@@ -4,6 +4,7 @@ import { createIncrementalMarkdownBlockParser, type MarkdownBlockTree } from "./
 import type { ProcessedMessageResponse } from "./message-response-processing.js";
 import type { SequenceNode } from "../../lib/persistent-sequence.js";
 import type { MarkdownBlock } from "./streaming-markdown-block.js";
+import { parseFinalMarkdownBlocks } from "@codexly/frontend-core/incremental-markdown-blocks";
 
 function flatten<T>(tree: SequenceNode<T> | null): T[] {
   if (tree === null) return [];
@@ -23,7 +24,7 @@ function contents(tree: MarkdownBlockTree): string[] {
 
 it.each(["**bold** long paragraph text ", "- **bold** list item\n"])(
   "bounds cumulative production parser work for %s and flushes unchanged final input",
-  (delta) => {
+  async (delta) => {
     let now = 0;
     const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
     const parse = vi.fn(parseMarkdownIntoBlocks);
@@ -37,7 +38,9 @@ it.each(["**bold** long paragraph text ", "- **bold** list item\n"])(
       }
       expect(Math.max(...parse.mock.calls.map(([text]) => text.length))).toBeLessThanOrEqual(8_192);
       expect(parse.mock.calls.reduce((sum, [text]) => sum + text.length, 0)).toBeLessThan(250_000);
-      expect(contents(parser(response, false))).toEqual(parseMarkdownIntoBlocks(response.markdown));
+      parser(response, false);
+      const finalized = await parser.finalize((source) => Promise.resolve(parseFinalMarkdownBlocks(source, parse)), new AbortController().signal);
+      expect(contents(finalized)).toEqual(parseMarkdownIntoBlocks(response.markdown));
       const calls = parse.mock.calls.length;
       parser(response, false);
       expect(parse).toHaveBeenCalledTimes(calls);
@@ -74,7 +77,7 @@ it("requires both the time and growth budgets before parsing a complex tail agai
   }
 });
 
-it.each(["\r\n- **item** 😀", " text[^note]"])("preserves deferred source through edits, replay and finalization: %s", (delta) => {
+it.each(["\r\n- **item** 😀", " text[^note]"])("preserves deferred source through edits, replay and finalization: %s", async (delta) => {
   const parser = createIncrementalMarkdownBlockParser();
   const source = delta.repeat(1_000);
   const initial = { markdown: source, replacement: source, replaceFrom: 0, comments: [] };
@@ -82,7 +85,8 @@ it.each(["\r\n- **item** 😀", " text[^note]"])("preserves deferred source thro
   const edited = { markdown: source.slice(0, -4) + "changed", replacement: "changed", replaceFrom: source.length - 4, comments: [] };
   expect(flatten(parser(edited)).map(preview).join("")).toBe(edited.markdown);
   expect(flatten(parser(initial)).map(preview).join("")).toBe(source);
-  const final = contents(parser(initial, false));
+  parser(initial, false);
+  const final = contents(await parser.finalize((source) => Promise.resolve(parseFinalMarkdownBlocks(source, parseMarkdownIntoBlocks)), new AbortController().signal));
   expect(final).toEqual(source.includes("[^note]") ? [source] : parseMarkdownIntoBlocks(source));
   expect(contents(parser({ markdown: "new", replacement: "new", replaceFrom: 0, comments: [] }))).toEqual(["new"]);
 });

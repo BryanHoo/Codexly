@@ -29,7 +29,12 @@ describe("MessageResponse file reference menu", () => {
     expect(screen.container.querySelector("[data-streaming-text-reveal]")?.textContent).toBe(" more words");
     expect(screen.container.textContent).toContain("Initial words more words");
 
+    await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" isAnimating={false} />);
+    expect(screen.container.querySelector("p")).toBe(paragraph);
+    expect(screen.container.querySelector("[data-streaming-text-reveal]")).toBeNull();
+
     await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="static" isAnimating={false} />);
+    expect(screen.container.querySelector("p")).toBe(paragraph);
     expect(screen.container.querySelector("[data-streaming-text-reveal]")).toBeNull();
   });
 
@@ -61,8 +66,13 @@ describe("MessageResponse file reference menu", () => {
     await screen.rerender(<MessageResponse textSource={finalSnapshot} mode="streaming" isAnimating />);
     expect(screen.container.querySelector("[data-streaming-markdown-preview] > span")).toBe(firstPage);
     expect(screen.container.textContent).toContain("**latest**");
-    await screen.rerender(<MessageResponse textSource={finalSnapshot} mode="streaming" isAnimating={false} />);
-    expect(screen.container.querySelector("[data-streaming-markdown-preview]")).toBeNull();
+    await screen.rerender(<MessageResponse textSource={finalSnapshot} mode="static" isAnimating={false} />);
+    // Worker 完成前保留预览；结束状态与异步尾部提交都不能重挂历史段落。
+    expect(screen.container.querySelector("p")).toBe(stable);
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector("[data-streaming-markdown-preview]")).toBeNull();
+    }, { timeout: 5_000 });
+    expect(screen.container.querySelector("p")).toBe(stable);
     expect(screen.container.querySelectorAll("li")).toHaveLength(1_002);
     expect(screen.container.querySelector('li:last-child [data-streamdown="strong"]')?.textContent).toBe("latest");
   });

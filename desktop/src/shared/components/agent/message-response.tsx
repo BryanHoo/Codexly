@@ -34,10 +34,9 @@ import {
   RELATIVE_FILE_REFERENCE_PREFIX,
   UNC_FILE_REFERENCE_PREFIX,
 } from "./message-response-processing.js";
-import { createIncrementalMarkdownBlockParser } from "./incremental-markdown-blocks.js";
 import type { TextSnapshot } from "../../lib/append-only-text.js";
 import { unparsedStrongRemarkPlugin } from "./markdown-strong-plugin.js";
-import { StreamingMarkdown } from "./streaming-markdown.js";
+import { StreamingMarkdown, useStreamingMarkdownTree } from "@codexly/ui/agent/streaming-markdown";
 import { openMarkdownLink } from "./markdown-link-navigation.js";
 
 type MarkdownLinkProps = ComponentProps<"a"> & {
@@ -397,14 +396,11 @@ function MessageResponseContent({
   ...props
 }: MessageResponseProps) {
   const responseProcessor = useMemo(() => new IncrementalMessageResponseProcessor(), []);
-  const incrementalBlockParser = useMemo(() => createIncrementalMarkdownBlockParser(), []);
   const parsedResponse = responseProcessor.process(textSource ?? children ?? "");
   const streaming = props.mode !== "static" && props.isAnimating !== false;
-  const enabled = textSource !== undefined && props.mode !== "static" && parseMarkdownIntoBlocksFn === undefined;
-  const blockTree = useMemo(
-    () => enabled ? incrementalBlockParser(parsedResponse, streaming) : null,
-    [enabled, incrementalBlockParser, parsedResponse, streaming],
-  );
+  // 时间线结束时会切到 static；快照正文仍复用分块树，避免退回全文解析和另一套正文结构。
+  const enabled = textSource !== undefined && parseMarkdownIntoBlocksFn === undefined;
+  const blockTree = useStreamingMarkdownTree(parsedResponse, streaming, enabled);
   const markdownComponents: Components = useMemo(
     () => ({ ...components, a: MarkdownLink, img: components?.img ?? MarkdownImage }),
     [components],
@@ -425,11 +421,10 @@ function MessageResponseContent({
     <MessageImageProvider resolveImage={resolveImage}>
     <MessageFileReferenceContext.Provider value={onOpenFileReference ?? null}>
       <StreamingMarkdown
-        key={props.isAnimating ? "animating" : "settled"}
         {...(streaming && !enabled && props.isAnimating ? { animated: STREAMING_ANIMATION } : {})}
         enabled={enabled}
         tree={blockTree}
-        fast={streaming && components === undefined && remarkPlugins === undefined && props.rehypePlugins === undefined && props.plugins === undefined && !promptFileReferences}
+        fast={components === undefined && remarkPlugins === undefined && props.rehypePlugins === undefined && props.plugins === undefined && !promptFileReferences}
         className={`size-full ${markdownTypographyClassName} ${className}`}
         controls={MESSAGE_RESPONSE_CONTROLS}
         {...props}

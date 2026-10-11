@@ -6,7 +6,7 @@ import {
 import { mermaid } from "@streamdown/mermaid";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
-import { StreamingMarkdown } from "@codexly/ui/agent/streaming-markdown";
+import { StreamingMarkdown, useStreamingMarkdownTree } from "@codexly/ui/agent/streaming-markdown";
 import { Copy, Download, ExternalLink, File, FolderOpen } from "lucide-react";
 import {
   createContext,
@@ -37,7 +37,6 @@ import { CodeComments } from "./code-comments.js";
 import { useMessageFileDownload } from "./message-file-download.js";
 import type { MessageFileReference } from "./message.js";
 import {
-  createIncrementalMarkdownBlockParser,
   IncrementalMessageResponseProcessor,
   RELATIVE_FILE_REFERENCE_PREFIX,
   UNC_FILE_REFERENCE_PREFIX,
@@ -402,15 +401,11 @@ function MessageResponseContent({
   ...props
 }: MessageResponseProps) {
   const responseProcessor = useMemo(() => new IncrementalMessageResponseProcessor(), []);
-  const incrementalBlockParser = useMemo(() => createIncrementalMarkdownBlockParser(), []);
   const parsedResponse = responseProcessor.process(textSource ?? children ?? "");
   const streaming = props.mode !== "static" && props.isAnimating !== false;
-  const enabled =
-    textSource !== undefined && props.mode !== "static" && parseMarkdownIntoBlocksFn === undefined;
-  const blockTree = useMemo(
-    () => (enabled ? incrementalBlockParser(parsedResponse, streaming) : null),
-    [enabled, incrementalBlockParser, parsedResponse, streaming],
-  );
+  // 时间线结束时会切到 static；快照正文仍复用分块树，避免退回全文解析和另一套正文结构。
+  const enabled = textSource !== undefined && parseMarkdownIntoBlocksFn === undefined;
+  const blockTree = useStreamingMarkdownTree(parsedResponse, streaming, enabled);
   const markdownComponents: Components = useMemo(
     () => ({ ...components, a: MarkdownLink, img: components?.img ?? MarkdownImage }),
     [components],
@@ -430,12 +425,10 @@ function MessageResponseContent({
     <MessageImageProvider resolveImage={resolveImage}>
       <MessageFileReferenceContext.Provider value={onOpenFileReference ?? null}>
         <StreamingMarkdown
-          key={props.isAnimating ? "animating" : "settled"}
           {...(!enabled && props.isAnimating ? { animated: STREAMING_ANIMATION } : {})}
           enabled={enabled}
           tree={blockTree}
           fast={
-            streaming &&
             components === undefined &&
             remarkPlugins === undefined &&
             props.rehypePlugins === undefined &&

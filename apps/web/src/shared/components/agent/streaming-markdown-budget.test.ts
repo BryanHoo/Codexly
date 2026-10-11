@@ -2,6 +2,7 @@ import { parseMarkdownIntoBlocks } from "streamdown";
 import { expect, it, vi } from "vitest";
 import { AppendOnlyTextBuffer } from "@codexly/frontend-core/append-only-text";
 import type { MarkdownBlockTree } from "@codexly/frontend-core/incremental-markdown-blocks";
+import { parseFinalMarkdownBlocks } from "@codexly/frontend-core/incremental-markdown-blocks";
 
 import {
   createIncrementalMarkdownBlockParser,
@@ -30,7 +31,7 @@ function contents(tree: MarkdownBlockTree): string[] {
   return [...contents(tree.left), ...contents(tree.right)];
 }
 
-it("fully parses the unchanged final snapshot once after deferring a long complex block", () => {
+it("asynchronously finalizes the unchanged snapshot after deferring a long complex block", async () => {
   const parse = vi.fn(parseMarkdownIntoBlocks);
   const parser = createIncrementalMarkdownBlockParser(parse);
   const processor = new IncrementalMessageResponseProcessor();
@@ -38,7 +39,13 @@ it("fully parses the unchanged final snapshot once after deferring a long comple
   const response = processor.process(buffer.getSnapshot());
   parser(response);
   expect(parse).not.toHaveBeenCalled();
-  expect(contents(parser(response, false))).toEqual(parseMarkdownIntoBlocks(response.markdown));
+  parser(response, false);
+  expect(parse.mock.calls.length).toBe(0);
+  const finalized = await parser.finalize(
+    (source) => Promise.resolve(parseFinalMarkdownBlocks(source, parse)),
+    new AbortController().signal,
+  );
+  expect(contents(finalized)).toEqual(parseMarkdownIntoBlocks(response.markdown));
   expect(parse).toHaveBeenCalledTimes(1);
   parser(response, false);
   expect(parse).toHaveBeenCalledTimes(1);

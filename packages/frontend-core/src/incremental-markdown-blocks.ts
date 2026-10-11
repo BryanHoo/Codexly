@@ -18,10 +18,18 @@ const COMPLEX_BLOCK_CHARS = 2_048;
 const COMPLEX_PARSE_INTERVAL_MS = 100;
 type MarkdownBlockParser = (markdown: string) => string[];
 export type MarkdownBlockTree = SequenceNode<MarkdownBlock> | null;
+export type FinalMarkdownBlockParser = (
+  source: string,
+  signal: AbortSignal,
+) => Promise<MarkdownBlock[]>;
+export interface IncrementalMarkdownBlockParser {
+  (response: MarkdownBlockUpdate, streaming?: boolean): MarkdownBlockTree;
+  finalize: (parse: FinalMarkdownBlockParser, signal: AbortSignal) => Promise<MarkdownBlockTree>;
+}
 
 export function createIncrementalMarkdownBlockParser(
   parseBlocks: MarkdownBlockParser,
-): (response: MarkdownBlockUpdate, streaming?: boolean) => MarkdownBlockTree {
+): IncrementalMarkdownBlockParser {
   let previous: MarkdownBlockUpdate | undefined;
   let previousStreaming = true;
   let lastParsedAt = -Infinity;
@@ -29,6 +37,7 @@ export function createIncrementalMarkdownBlockParser(
   let tree: MarkdownBlockTree = null;
   const blocks: MarkdownBlock[] = [];
   const blockEnds: number[] = [];
+  let revision = 0;
 
   function commit(stableCount: number, stableLength: number, additions: MarkdownBlock[]): void {
     blocks.length = stableCount;
@@ -42,22 +51,39 @@ export function createIncrementalMarkdownBlockParser(
     tree = replaceSequenceTail(tree, stableCount, additions);
   }
 
-  return (response, streaming = true) => {
-    if (response === previous && streaming === previousStreaming) return tree;
-    previousStreaming = streaming;
-    if (!streaming) {
-      // 状态变化也必须刷新；结束时可能复用最后一个 Chunk 快照，没有新的正文增量。
-      const content = response.markdown;
-      const parsed = FOOTNOTE_PATTERN.test(content) ? [content] : parseBlocks(content);
-      const sources = content.includes("\r\n") ? restoreSourceBlocks(content, parsed) : parsed;
+  function settleTail(): MarkdownBlockTree {
+    const last = blocks.at(-1);
+    if (last?.kind === "code") {
+      // 未闭合代码只在收尾时交还完整渲染器，稳定文本块仍保留原来的分页树。
+      commit(blocks.length - 1, blockEnds.at(-2) ?? 0, [
+        { kind: "markdown", content: last.content, source: last.source },
+      ]);
+    } else if (last?.kind === "deferred" && last.source.length <= MAX_STREAMING_PARSE_CHARS) {
+      const global = FOOTNOTE_PATTERN.test(last.source);
+      if (global && (previous?.markdown.length ?? 0) > MAX_STREAMING_PARSE_CHARS) {
+        const source = previous?.markdown ?? last.source;
+        commit(0, 0, [deferMarkdownBlock(undefined, source, 0, source)]);
+        return tree;
+      }
+      const stableCount = global ? 0 : blocks.length - 1;
       commit(
-        0,
-        0,
-        parsed.map((block, index) => createMarkdownBlock(block, sources[index] ?? block)),
+        stableCount,
+        blockEnds[stableCount - 1] ?? 0,
+        parseFinalMarkdownBlocks(
+          global ? (previous?.markdown ?? last.source) : last.source,
+          parseBlocks,
+        ),
       );
-      previous = response;
-      return tree;
     }
+    return tree;
+  }
+
+  const update = (response: MarkdownBlockUpdate, streaming = true): MarkdownBlockTree => {
+    if (response === previous && streaming === previousStreaming) return tree;
+    revision += 1;
+    previousStreaming = streaming;
+    // 完成事件经常复用最后的快照；不能再次应用该快照的增量，也不能重建历史块。
+    if (response === previous) return streaming ? tree : settleTail();
     const { replaceFrom, replacement } = response;
     const last = blocks.at(-1);
     const appended =
@@ -69,7 +95,7 @@ export function createIncrementalMarkdownBlockParser(
       blockEnds[blockEnds.length - 1] = response.markdown.length;
       tree = replaceSequenceTail(tree, blocks.length - 1, [appended]);
       previous = response;
-      return tree;
+      return streaming ? tree : settleTail();
     }
 
     // 二分定位变更边界，再回退一块以处理 Setext 标题、列表等跨块语法。
@@ -92,7 +118,8 @@ export function createIncrementalMarkdownBlockParser(
     const complex = last?.kind === "markdown" || last?.kind === "deferred";
     const defer =
       tailLength > MAX_STREAMING_PARSE_CHARS ||
-      (complex &&
+      (streaming &&
+        complex &&
         tailLength > COMPLEX_BLOCK_CHARS &&
         replaceFrom > 0 &&
         (now - lastParsedAt < COMPLEX_PARSE_INTERVAL_MS || tailLength < lastParsedLength * 1.5));
@@ -119,11 +146,11 @@ export function createIncrementalMarkdownBlockParser(
     const tail = retainedTail + replacement;
     if (FOOTNOTE_PATTERN.test(tail)) {
       // 脚注保留全文作用域，只有普通块进入独立渲染路径。
-      blocks.length = 0;
-      blocks.push({ kind: "markdown", content: response.markdown, source: response.markdown });
-      blockEnds.length = 0;
-      blockEnds.push(response.markdown.length);
-      tree = replaceSequenceTail(tree, 0, blocks);
+      commit(0, 0, [
+        response.markdown.length > MAX_STREAMING_PARSE_CHARS
+          ? deferMarkdownBlock(undefined, response.markdown, 0, response.markdown)
+          : { kind: "markdown", content: response.markdown, source: response.markdown },
+      ]);
     } else {
       const tailBlocks = parseBlocks(tail);
       const tailSources = tail.includes("\r\n")
@@ -138,8 +165,45 @@ export function createIncrementalMarkdownBlockParser(
     lastParsedAt = now;
     lastParsedLength = tailLength;
     previous = response;
-    return tree;
+    return streaming ? tree : settleTail();
   };
+
+  return Object.assign(update, {
+    async finalize(
+      parse: FinalMarkdownBlockParser,
+      signal: AbortSignal,
+    ): Promise<MarkdownBlockTree> {
+      const last = blocks.at(-1);
+      if (previousStreaming || last?.kind !== "deferred" || signal.aborted) return tree;
+      const version = revision;
+      // 大尾块的 lexer 和分块对象构建由调用方移到 Worker；脚注仍保留全文作用域。
+      const global = FOOTNOTE_PATTERN.test(last.source);
+      const stableCount = global ? 0 : blocks.length - 1;
+      const stableLength = blockEnds[stableCount - 1] ?? 0;
+      const additions = await parse(
+        global ? (previous?.markdown ?? last.source) : last.source,
+        signal,
+      );
+      // 替换正文、恢复流式或卸载时，迟到结果不得覆盖较新的树。
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- await 期间 AbortSignal 可由调用方取消。
+      if (!signal.aborted && version === revision) commit(stableCount, stableLength, additions);
+      return tree;
+    },
+  });
+}
+
+function settledBlock(content: string, source: string): MarkdownBlock {
+  const block = createMarkdownBlock(content, source);
+  return block.kind === "code" ? { kind: "markdown", content, source } : block;
+}
+
+export function parseFinalMarkdownBlocks(
+  source: string,
+  parse: MarkdownBlockParser,
+): MarkdownBlock[] {
+  const parsed = FOOTNOTE_PATTERN.test(source) ? [source] : parse(source);
+  const sources = source.includes("\r\n") ? restoreSourceBlocks(source, parsed) : parsed;
+  return parsed.map((content, index) => settledBlock(content, sources[index] ?? content));
 }
 
 function restoreSourceBlocks(source: string, blocks: readonly string[]): string[] {
