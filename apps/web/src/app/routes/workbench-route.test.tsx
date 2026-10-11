@@ -82,8 +82,12 @@ describe("Workbench 加载边界", () => {
       'import("./message-response.js")',
     );
     expect(readWebSource("shared/components/agent/code-block.tsx")).toContain(
-      'import("./code-highlighter.js")',
+      'from "@codexly/ui/agent/code-block"',
     );
+    // 动态高亮入口由共享查看器持有，仍须阻止 Shiki 进入首屏静态依赖。
+    expect(
+      readFileSync(join(process.cwd(), "packages/ui/src/agent/code-tokenizer.ts"), "utf8"),
+    ).toContain('import("./code-highlighter.js")');
     expect(readWebSource("features/diff/file-diff-panel.tsx")).toContain(
       'lazy(() => import("./patch-diff-viewer.js"))',
     );

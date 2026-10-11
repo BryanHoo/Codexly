@@ -23,6 +23,32 @@ const primitives = [
 ];
 
 describe("共享 UI 边界", () => {
+  it("缓存策略与代码查看器只保留一份实现，平台只注入文案和兼容参数", () => {
+    for (const app of ["desktop", "apps/web"]) {
+      for (const [path, shared] of [
+        ["shared/memory/byte-lru.ts", "@codexly/frontend-core/byte-lru"],
+        ["app/snapshot-memory.ts", "@codexly/frontend-core/snapshot-memory"],
+        ["shared/components/agent/code-token-cache.ts", "@codexly/ui/agent/code-token-cache"],
+      ] as const) {
+        expect(readFileSync(join(root, app, `src/${path}`), "utf8").trim()).toBe(
+          `export * from "${shared}";`,
+        );
+      }
+      const viewer = readFileSync(
+        join(root, app, "src/shared/components/agent/code-block.tsx"),
+        "utf8",
+      );
+      expect(viewer).toContain("@codexly/ui/agent/code-block");
+      expect(viewer).not.toMatch(/new CodeTokenCache|createContext|tokenizeCode/u);
+      const timeline = readFileSync(
+        join(root, app, "src/features/workbench/components/task-timeline-navigation.tsx"),
+        "utf8",
+      );
+      expect(timeline).toContain("@codexly/frontend-core/timeline-navigation");
+      expect(timeline).not.toContain("state.turnIds.forEach");
+    }
+  });
+
   it("两端基础控件只从独立包导出，不保留实现副本", () => {
     const manifest = JSON.parse(readFileSync(join(uiRoot, "package.json"), "utf8")) as {
       exports: Record<string, unknown>;

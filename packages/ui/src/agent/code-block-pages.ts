@@ -1,13 +1,8 @@
+import { getUtf8ByteLength } from "@codexly/frontend-core/byte-lru";
 import type { Key } from "react";
 import type { ThemedToken } from "shiki/core";
 import type { CodeBlockLanguage } from "./code-languages.js";
 import type { TokenizedCode } from "./code-tokens.js";
-
-const textEncoder = new TextEncoder();
-
-function getUtf8ByteLength(code: string): number {
-  return textEncoder.encode(code).byteLength;
-}
 
 export const CODE_HIGHLIGHT_MAX_BYTES = 128 * 1_024;
 

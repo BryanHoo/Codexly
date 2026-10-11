@@ -1,9 +1,13 @@
+import { useCurrentNavigationAnchor } from "@codexly/ui/core/timeline-navigation-anchor";
+import {
+  getTaskTimelineNavigationItems as getSharedNavigationItems,
+  getUserMessageNavigationPreview,
+  type TaskTimelineNavigationItem,
+} from "@codexly/frontend-core/timeline-navigation";
+export type { TaskTimelineNavigationItem } from "@codexly/frontend-core/timeline-navigation";
 import { useTimelineNavigationHost } from "@codexly/ui/core/timeline-navigation-host";
 import type { AgentItem } from "@/protocol/index.js";
 import {
-  useEffect,
-  useRef,
-  useState,
   type CSSProperties,
   type RefObject,
 } from "react";
@@ -20,12 +24,6 @@ import type { TaskStoreState } from "../../conversation/runtime/task-store.js";
 
 import { getReviewMessageText } from "./task-timeline-running.js";
 
-export type TaskTimelineNavigationItem = Readonly<{
-  anchorId: string;
-  preview: string;
-  turnIndex: number;
-}>;
-
 function getNavigationPreview(item: AgentItem): string | null {
   if (item.type === "review") {
     return getReviewMessageText(item);
@@ -34,83 +32,13 @@ function getNavigationPreview(item: AgentItem): string | null {
     return null;
   }
 
-  // 预览按消息中的可见顺序保留 Skill、正文和附件名称，不改写用户原文。
-  const parts = [
-    ...(item.skills ?? []).map((skill) => `$${skill.name}`),
-    item.text,
-    ...(item.attachments ?? []).map((attachment) => attachment.name),
-  ].filter((part) => part.length > 0);
-  return parts.join("\n");
+  return getUserMessageNavigationPreview(item);
 }
 
 export function getTaskTimelineNavigationItems(
   state: Pick<TaskStoreState, "itemKeysByTurnId" | "itemStoresByKey" | "turnIds">,
 ): TaskTimelineNavigationItem[] {
-  const items: TaskTimelineNavigationItem[] = [];
-  state.turnIds.forEach((turnId, turnIndex) => {
-    for (const itemKey of state.itemKeysByTurnId[turnId] ?? []) {
-      const item = state.itemStoresByKey.get(itemKey)?.peek();
-      if (item === undefined) {
-        continue;
-      }
-      const preview = getNavigationPreview(item);
-      if (preview !== null) {
-        items.push({ anchorId: itemKey, preview, turnIndex });
-      }
-    }
-  });
-  return items;
-}
-
-function useCurrentNavigationAnchor(
-  items: readonly TaskTimelineNavigationItem[],
-  scrollContainerRef: RefObject<HTMLDivElement | null>,
-) {
-  const [currentAnchorId, setCurrentAnchorId] = useState<string | null>(items[0]?.anchorId ?? null);
-  const frameRef = useRef(0);
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (container === null) {
-      return;
-    }
-    const itemIndexes = new Map(items.map((item, index) => [item.anchorId, index]));
-    const updateCurrentAnchor = () => {
-      const readingLine =
-        container.getBoundingClientRect().top + Math.min(container.clientHeight * 0.25, 160);
-      let currentIndex = 0;
-
-      // 以阅读区域上四分之一处为基准，保持当前刻度与用户正在阅读的消息一致。
-      for (const anchor of container.querySelectorAll<HTMLElement>("[data-conversation-anchor]")) {
-        const anchorId = anchor.dataset["conversationAnchor"];
-        const anchorIndex = anchorId === undefined ? undefined : itemIndexes.get(anchorId);
-        if (anchorIndex === undefined) {
-          continue;
-        }
-        if (anchor.getBoundingClientRect().top > readingLine) {
-          break;
-        }
-        currentIndex = anchorIndex;
-      }
-      setCurrentAnchorId(items[currentIndex]?.anchorId ?? null);
-    };
-    const scheduleUpdate = () => {
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = requestAnimationFrame(updateCurrentAnchor);
-    };
-
-    scheduleUpdate();
-    container.addEventListener("scroll", scheduleUpdate, { passive: true });
-    const resizeObserver = new ResizeObserver(scheduleUpdate);
-    resizeObserver.observe(container);
-    return () => {
-      container.removeEventListener("scroll", scheduleUpdate);
-      resizeObserver.disconnect();
-      cancelAnimationFrame(frameRef.current);
-    };
-  }, [items, scrollContainerRef]);
-
-  return currentAnchorId;
+  return getSharedNavigationItems(state, getNavigationPreview);
 }
 
 export function TaskTimelineNavigation({

@@ -105,4 +105,50 @@ describe("installInactiveSnapshotMemoryLimit", () => {
 
     expect(queryClient.getQueryData(["projects"])).toEqual({ text: "保留" });
   });
+
+  it("enforces the budget on snapshots cached before installation", () => {
+    const queryKey = ["projects", "project-1", "tasks", "existing"] as const;
+    queryClient.setQueryData(queryKey, { text: "x".repeat(2048) });
+
+    uninstall = installInactiveSnapshotMemoryLimit(queryClient, 1024, 12);
+
+    expect(queryClient.getQueryData(queryKey)).toBeUndefined();
+  });
+
+  it("does not refresh inactive recency for metadata-only updates", () => {
+    uninstall = installInactiveSnapshotMemoryLimit(queryClient, 10_000, 2);
+    const firstKey = ["projects", "project-1", "tasks", "first"] as const;
+    const secondKey = ["projects", "project-1", "tasks", "second"] as const;
+    const thirdKey = ["projects", "project-1", "tasks", "third"] as const;
+    queryClient.setQueryData(firstKey, { text: "first" });
+    queryClient.setQueryData(secondKey, { text: "second" });
+
+    void queryClient.invalidateQueries({ queryKey: firstKey, exact: true, refetchType: "none" });
+    queryClient.setQueryData(thirdKey, { text: "third" });
+
+    expect(queryClient.getQueryData(firstKey)).toBeUndefined();
+    expect(queryClient.getQueryData(secondKey)).toEqual({ text: "second" });
+  });
+
+  it("refreshes recency without rescanning structurally shared data", () => {
+    uninstall = installInactiveSnapshotMemoryLimit(queryClient, 10_000, 2);
+    const firstKey = ["projects", "project-1", "tasks", "first"] as const;
+    const secondKey = ["projects", "project-1", "tasks", "second"] as const;
+    const thirdKey = ["projects", "project-1", "tasks", "third"] as const;
+    let scans = 0;
+    const data = {
+      get text() {
+        scans += 1;
+        return "first";
+      },
+    };
+    queryClient.setQueryData(firstKey, data, { updatedAt: 1 });
+    queryClient.setQueryData(secondKey, { text: "second" }, { updatedAt: 2 });
+    queryClient.setQueryData(firstKey, data, { updatedAt: 3 });
+    queryClient.setQueryData(thirdKey, { text: "third" }, { updatedAt: 4 });
+
+    expect(queryClient.getQueryData(firstKey)).toBe(data);
+    expect(queryClient.getQueryData(secondKey)).toBeUndefined();
+    expect(scans).toBe(1);
+  });
 });

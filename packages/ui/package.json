@@ -42,6 +42,14 @@
     "./agent/code-tokens": {
       "types": "./src/agent/code-tokens.ts",
       "default": "./src/agent/code-tokens.ts"
+    },
+    "./agent/code-block": {
+      "types": "./src/agent/code-block.tsx",
+      "default": "./src/agent/code-block.tsx"
+    },
+    "./agent/code-token-cache": {
+      "types": "./src/agent/code-token-cache.ts",
+      "default": "./src/agent/code-token-cache.ts"
     }
   },
   "dependencies": {

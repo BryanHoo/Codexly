@@ -75,7 +75,8 @@ function resolveScenarioRoots(manifest) {
   return {
     cppHighlight: [
       workspace,
-      "src/shared/components/agent/code-highlighter.ts",
+      // 高亮动态入口已移入共享 UI 包，场景预算继续统计其完整静态依赖。
+      "../packages/ui/src/agent/code-highlighter.ts",
       cppLanguageEntry,
     ],
     markdown: [workspace, "src/shared/components/agent/message-response.tsx"],
