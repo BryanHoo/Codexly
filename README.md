@@ -36,6 +36,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 ## Features
 
 - Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive, with file edit timing and completion summaries; keep follow-up messages in a persistent queue.
+- Load recent conversation history first and fetch older turns and items as needed; long code previews use shared rendering and bounded highlighting. See [conversation loading and performance](docs/conversation-performance.md).
 - Open up to four task panes in desktop browsers and the desktop app, each with its own draft and message queue. File and Git panels follow the focused task; mobile Web keeps a single-task view.
 - Resize task panes by dragging their dividers, create tasks from the title bar, and see the model and reasoning effort while the composer is collapsed.
 - Edit project text files directly in the source preview on desktop or mobile, with undo, redo, and automatic saving when leaving the editor or switching windows.
@@ -51,6 +52,8 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 **Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and an app-private Codex installation. It supports Windows, Ubuntu, and macOS. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
 
 **Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, Docker deployment, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.162.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.162.0,<0.163.0`.
+
+Browsers and devices connected to the same Web server synchronize project todos and asynchronous questions. Reconnecting or returning to a visible page refreshes their state.
 
 In workspaces that support split view, open a task in another pane from its sidebar menu or right-click a blank area in the chat to split up, down, left, or right. Use `⌘+⌥+Arrow` on macOS or `Ctrl+Alt+Arrow` on Windows / Linux, up to four panes.
 

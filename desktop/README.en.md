@@ -25,6 +25,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 ## Features
 
 - Run project or temporary tasks and follow responses, commands, plans, approvals, and file changes in real time
+- Load recent conversation history first, then fetch older turns and items as needed; long code previews share bounded highlighting with the Web edition
 - Follow task output in a separate transparent window without occupying the main workspace
 - Keep follow-up work in a persistent task queue, then withdraw messages for editing, reorder them, or cancel them before they run
 - Attach files, images, and audio, reference project files with `@` and Skills with `$` in the plain-text composer, and reliably restore attachments from the task queue
@@ -80,6 +81,7 @@ The workspace provides project files, code changes, Git history, branches, workt
 - [macOS build profiles](./docs/macos-build-profiles.md)
 - [Release guide](./docs/releasing.md)
 - [Changelog](../CHANGELOG.md)
+- [Conversation loading and performance](../docs/conversation-performance.md)
 
 ## Help
 
