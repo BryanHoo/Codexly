@@ -96,6 +96,8 @@ fn main() {
         "get_clawhub_skill",
         "install_clawhub_skill",
         "list_official_plugins",
+        // 刷新官方插件会先同步状态；此命令必须生成 ACL 权限，再由主窗口显式授权。
+        "reconcile_official_plugins",
         "get_official_plugin",
         "install_official_plugin",
         "uninstall_official_plugin",
