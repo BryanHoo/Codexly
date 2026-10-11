@@ -15,9 +15,12 @@ import type { MarkdownBlockTree } from "@codexly/frontend-core/incremental-markd
 import type { CodeLineTree, MarkdownBlock } from "@codexly/frontend-core/streaming-markdown-block";
 import { separateBoldTitleFromNumberedList } from "@codexly/frontend-core/markdown-list-heading";
 
-const TreeContext = createContext<
-  Readonly<{ tree: MarkdownBlockTree; fast: boolean; animate: boolean }>
->({ tree: null, fast: true, animate: false });
+const TreeContext = createContext<Readonly<{ tree: MarkdownBlockTree; fast: boolean }>>({
+  tree: null,
+  fast: true,
+});
+// 动画状态独立订阅，避免正文树增量更新穿透 memo，通知所有历史文本叶节点。
+const AnimationContext = createContext(false);
 const shellBlocks = () => [""];
 
 export function StreamingMarkdown({
@@ -31,7 +34,7 @@ export function StreamingMarkdown({
   enabled: boolean;
 }) {
   const animate = props.isAnimating === true;
-  const value = useMemo(() => ({ tree, fast, animate }), [tree, fast, animate]);
+  const value = useMemo(() => ({ tree, fast }), [tree, fast]);
   // 依赖全文的方向检测、动画和标签修复仍由 Streamdown 自己处理，避免改变调用方语义。
   if (
     !enabled ||
@@ -53,15 +56,17 @@ export function StreamingMarkdown({
   }
   return (
     <TreeContext.Provider value={value}>
-      {/* 固定外壳只负责 Streamdown 的插件和控件上下文，正文由共享树独立更新。 */}
-      <Streamdown
-        {...props}
-        mode="streaming"
-        BlockComponent={TreeBridge}
-        parseMarkdownIntoBlocksFn={shellBlocks}
-      >
-        {" "}
-      </Streamdown>
+      <AnimationContext.Provider value={animate}>
+        {/* 固定外壳只负责 Streamdown 的插件和控件上下文，正文由共享树独立更新。 */}
+        <Streamdown
+          {...props}
+          mode="streaming"
+          BlockComponent={TreeBridge}
+          parseMarkdownIntoBlocksFn={shellBlocks}
+        >
+          {" "}
+        </Streamdown>
+      </AnimationContext.Provider>
     </TreeContext.Provider>
   );
 }
@@ -108,7 +113,7 @@ const BlockTree = memo(function BlockTree({
 });
 
 function TextLeaf({ text, allowAnimation }: { text: string; allowAnimation: boolean }) {
-  const { animate } = useContext(TreeContext);
+  const animate = useContext(AnimationContext);
   const previous = useRef("");
   const shouldAnimate = animate && allowAnimation;
   const prefixLength =
