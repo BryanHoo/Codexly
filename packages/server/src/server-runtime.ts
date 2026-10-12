@@ -123,8 +123,36 @@ export function createModelCatalogLoader(
 ): () => Promise<AgentModelPage> {
   return async () => {
     const activeConnection = await provider.readProviderConnection();
-    // Codex 0.160 的显式目录具有权威性，空目录和错误都不能被持久化快照覆盖。
-    const providerModels = await provider.listModels();
+    let providerModels: AgentModelPage | undefined;
+    let loadError: Error | undefined;
+    try {
+      providerModels = await provider.listModels();
+    } catch (error) {
+      loadError = error instanceof Error ? error : new Error("Model catalog unavailable");
+    }
+    if (providerModels === undefined || providerModels.data.length === 0) {
+      if (activeConnection.mode !== "custom") {
+        throw (
+          loadError ??
+          new MutationHttpError("PROVIDER_ERROR", "No Agent models are available", 502, true)
+        );
+      }
+      // 第三层只复用当前自定义端点的非空快照；空结果不能覆盖最后一次成功目录。
+      const cached = await repository.readProviderConnection().catch(() => undefined);
+      if (
+        cached?.mode === "custom" &&
+        activeConnection.customBaseUrl?.replace(/\/+$/u, "") ===
+          cached.customBaseUrl?.replace(/\/+$/u, "") &&
+        cached.customModels !== null &&
+        cached.customModels.data.length > 0
+      ) {
+        return normalizeCustomModelReasoning(cached.customModels);
+      }
+      throw (
+        loadError ??
+        new MutationHttpError("PROVIDER_ERROR", "No Agent models are available", 502, true)
+      );
+    }
     const models =
       activeConnection.mode === "custom"
         ? normalizeCustomModelReasoning(providerModels)
@@ -133,13 +161,16 @@ export function createModelCatalogLoader(
     await repository
       .writeProviderConnection({
         customBaseUrl: activeConnection.customBaseUrl,
-        customModels: {
-          data: models.data.map((model) => ({
-            ...model,
-            supportedReasoningEfforts: [...model.supportedReasoningEfforts],
-          })),
-          nextCursor: models.nextCursor,
-        },
+        customModels:
+          activeConnection.mode === "custom"
+            ? {
+                data: models.data.map((model) => ({
+                  ...model,
+                  supportedReasoningEfforts: [...model.supportedReasoningEfforts],
+                })),
+                nextCursor: models.nextCursor,
+              }
+            : null,
         mode: activeConnection.mode,
         updatedAt: new Date().toISOString(),
       })

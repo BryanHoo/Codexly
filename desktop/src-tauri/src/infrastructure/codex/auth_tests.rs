@@ -71,7 +71,11 @@ async fn custom_provider_models_should_prefer_live_catalog_to_persisted_data() {
         })).as_bytes()).await.unwrap();
     });
 
-    let models = list_provider_models(&connection, &root).await.unwrap();
+    let models = list_provider_models(&connection, &root, &root, || async {
+        Ok(super::catalogs::list_models(&connection).await?)
+    })
+    .await
+    .unwrap();
     assert_eq!(models["data"][0]["id"], "online-a");
     assert_eq!(
         models["data"][0]["supportedReasoningEfforts"][0]["id"],
@@ -159,13 +163,17 @@ async fn empty_custom_provider_models_should_fall_back_to_codex_catalog() {
             .unwrap();
     });
 
-    let models = list_provider_models(&connection, &root).await.unwrap();
+    let models = list_provider_models(&connection, &root, &root, || async {
+        Ok(super::catalogs::list_models(&connection).await?)
+    })
+    .await
+    .unwrap();
     assert_eq!(models["data"][0]["id"], "gpt-test");
     server_task.await.unwrap();
 }
 
 #[tokio::test]
-async fn custom_provider_reconnect_should_clear_stale_models_when_omitted() {
+async fn custom_provider_reconnect_should_preserve_matching_cache_when_models_omitted() {
     let root = test_root();
     let stored_models = json!({
         "data": [{
@@ -255,13 +263,13 @@ async fn custom_provider_reconnect_should_clear_stale_models_when_omitted() {
     .await
     .unwrap();
 
-    assert_eq!(response["models"], json!({"data": [], "nextCursor": null}));
+    assert_eq!(response["models"], stored_models);
     server_task.await.unwrap();
     assert_eq!(
         read_provider_models(&root, "relay", "https://api.example/v1")
             .await
             .unwrap(),
-        Some(json!({"data": [], "nextCursor": null}))
+        Some(stored_models)
     );
     fs::remove_dir_all(root).unwrap();
 }

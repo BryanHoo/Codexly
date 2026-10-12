@@ -134,10 +134,12 @@ describe("Codex provider connection failures", () => {
       fetch: fetchMock,
       modelRequestTimeoutMs: 50,
     });
-    const requestResult = service.configureCustom({ baseUrl: "https://api.example.com/v1" }).then(
-      () => ({ status: "resolved" as const }),
-      (error: unknown) => ({ error, status: "rejected" as const }),
-    );
+    const requestResult = service
+      .configureCustom({ apiKey: "test-key", baseUrl: "https://api.example.com/v1" })
+      .then(
+        () => ({ status: "resolved" as const }),
+        (error: unknown) => ({ error, status: "rejected" as const }),
+      );
 
     try {
       await vi.advanceTimersByTimeAsync(50);
@@ -182,7 +184,7 @@ describe("Codex provider connection failures", () => {
     });
 
     await expect(
-      service.configureCustom({ baseUrl: "https://api.example.com/v1" }),
+      service.configureCustom({ apiKey: "test-key", baseUrl: "https://api.example.com/v1" }),
     ).rejects.toThrow("Custom model response exceeded the size limit");
     expect(client.requests).toEqual([]);
   });

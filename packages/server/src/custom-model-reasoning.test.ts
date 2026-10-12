@@ -71,18 +71,21 @@ describe("custom model reasoning fallback", () => {
     );
   });
 
-  it("does not revive a persisted custom catalog after a failed refresh", async () => {
+  it("uses a matching persisted custom catalog after a failed refresh", async () => {
     const repository = createRepository(createNoneOnlyPage());
     const load = createModelCatalogLoader(
       createProvider("custom", () => Promise.reject(new Error("unavailable"))),
       repository,
     );
 
-    await expect(load()).rejects.toThrow("unavailable");
-    expect(repository.readProviderConnection).not.toHaveBeenCalled();
+    await expect(load()).resolves.toMatchObject({
+      data: [{ id: "gpt-6-sol", defaultReasoningEffort: "medium" }],
+    });
+    expect(repository.readProviderConnection).toHaveBeenCalledOnce();
+    expect(repository.writeProviderConnection).not.toHaveBeenCalled();
   });
 
-  it("preserves an authoritative empty custom catalog", async () => {
+  it("uses matching cached models when both live sources return no models", async () => {
     const page = { data: [], nextCursor: null };
     const repository = createRepository(createNoneOnlyPage());
     const load = createModelCatalogLoader(
@@ -90,10 +93,31 @@ describe("custom model reasoning fallback", () => {
       repository,
     );
 
-    await expect(load()).resolves.toEqual(page);
-    expect(repository.writeProviderConnection).toHaveBeenCalledWith(
-      expect.objectContaining({ customModels: page }),
+    await expect(load()).resolves.toMatchObject({ data: [{ id: "gpt-6-sol" }] });
+    expect(repository.writeProviderConnection).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unavailable custom catalog without a usable cache", async () => {
+    const repository = createRepository();
+    const load = createModelCatalogLoader(
+      createProvider("custom", () => Promise.resolve({ data: [], nextCursor: null })),
+      repository,
     );
+    await expect(load()).rejects.toThrow("No Agent models are available");
+    expect(repository.writeProviderConnection).not.toHaveBeenCalled();
+  });
+
+  it("never uses models cached for another endpoint", async () => {
+    const repository = createRepository(createNoneOnlyPage());
+    const provider = createProvider("custom", () => Promise.reject(new Error("offline")));
+    provider.readProviderConnection.mockResolvedValue({
+      account: { type: "apiKey" },
+      customBaseUrl: "https://other.example/v1",
+      mode: "custom",
+      pendingLogin: null,
+      state: "connected",
+    });
+    await expect(createModelCatalogLoader(provider, repository)()).rejects.toThrow("offline");
   });
 
   it("preserves an official model that explicitly supports only none", async () => {

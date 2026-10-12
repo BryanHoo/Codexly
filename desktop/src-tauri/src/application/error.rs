@@ -7,6 +7,8 @@ use crate::infrastructure::{
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("No Agent models are available")]
+    ModelCatalogUnavailable,
     #[error("pending request is unavailable or its identity has changed")]
     PendingRequestUnavailable,
     #[error(transparent)]
@@ -92,6 +94,7 @@ impl Serialize for AppError {
             return payload.end();
         }
         let structured_error = match self {
+            Self::ModelCatalogUnavailable => Some(("MODEL_CATALOG_UNAVAILABLE", self.to_string())),
             Self::PendingRequestUnavailable => {
                 Some(("PENDING_REQUEST_UNAVAILABLE", self.to_string()))
             }

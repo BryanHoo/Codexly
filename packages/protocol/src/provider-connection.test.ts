@@ -25,6 +25,18 @@ const modelPage = {
 } as const;
 
 describe("Provider connection protocol", () => {
+  it("keeps optional model input capabilities in persistent catalogs", () => {
+    const record = {
+      customBaseUrl: "https://api.example/v1",
+      customModels: {
+        data: [{ ...modelPage.data[0], inputModalities: ["text"] }],
+        nextCursor: null,
+      },
+      mode: "custom",
+      updatedAt: "2026-10-12T00:00:00Z",
+    };
+    expect(Value.Check(AgentProviderConnectionRecordSchema, record)).toBe(true);
+  });
   it("enables fast mode only for a connected official ChatGPT account", () => {
     const officialChatGpt = {
       account: { email: "developer@example.com", planType: "plus", type: "chatgpt" as const },

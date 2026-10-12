@@ -10,7 +10,7 @@
 
 - 任务标题只能共用 Git 提交信息的模型设置，不能复用提交提示词或格式。辅助会话设置 `project_doc_max_bytes: 0`，并通过专用 `baseInstructions`、`developerInstructions` 约束全局指令，生成自然语言标题；禁用工具或设置 `ephemeral` 不等于隔离 `AGENTS.md`。两端共用 `packages/provider-codex/src/task-title-instructions.json`，验证标题生成的相邻测试与桌面 Rust `task_title` 测试。
 
-- 模型目录以当前 Codex App Server 为权威来源；刷新失败直接传播错误，空目录保持为空，不从旧进程或持久化快照恢复已失效模型。保留有界 TTL 缓存及并发请求合并，不增加轮询；回归覆盖空目录、刷新失败与缓存复用。
+- 自定义模型目录按“自定义 API → 当前配置的官方 Codex CLI model/list → 同端点持久化缓存”顺序读取；每层失败、空目录或无可用模型时继续下一层，三层均无模型才返回不可用。只有非空成功目录可以更新缓存，重新连接不清除同端点成功快照；切换端点不得复用旧端点的凭据或模型。保留有界 TTL 缓存、请求合并及响应大小/超时限制，不增加轮询；API 成功不启动额外目录进程。两端用 `packages/provider-codex/src/custom-model-catalog-fixtures.json` 验证 OpenAI/Codex 格式、推理能力与输入模态，回归覆盖优先级、失败/空目录、身份隔离和缓存持久化。
 
 - `plugin/reconcile` 仅合并同一 RPC 客户端的在途同步，完成或失败后释放；严格校验变化标记与失败列表，只投影公共字段，不增加周期性同步。
 
@@ -20,6 +20,6 @@
 - 历史搜索只在精确接口返回 `-32601` 时兼容分页消息匹配；每页十个回合、候选并发四个，续查游标绑定任务和查询，定位复用官方 inclusive 页锚点。其他 RPC 错误保持传播，不通过空结果掩盖错误；验证压缩前后真实可读取的消息 ID 与回合 ID。两端行为约定见 [全局搜索](../../../../desktop/docs/global-search.md)。
 
 - 用户界面的目标启动、编辑、暂停、恢复和清除必须发送 `origin: "user"`；自动生命周期不得冒充用户指令。升级时验证回合前的设置提交顺序，以及隔离 `CODEX_HOME` 的目标指令落盘，在根目录执行：`CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-codex/src/goals-runtime.test.ts`。
-- Codex API Key 模型发现已稳定并默认开启；启动参数不强制覆盖此开关，缺省配置不因发现功能而重复写入。模型默认值及推理档位由当前 `model/list` 提供，不增加逐模型请求。
+- Codex API Key 模型发现已稳定并默认开启；启动参数不强制覆盖此开关，缺省配置不因发现功能而重复写入。模型默认值及推理档位取自命中的 API 或 CLI 目录，保留自定义档位；不增加逐模型请求。
 
 - `0.162.0` 的 `modelProvider/capabilities/read` 只返回 `imageGeneration` 和 `webSearch`，不得再要求已移除的 `namespaceTools`。自定义 Provider 回归必须使用当前响应结构，继续验证失败回滚和有界模型发现。

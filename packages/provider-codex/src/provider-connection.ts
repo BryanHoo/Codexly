@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import type { AgentModelCatalogFallback } from "@codexly/core";
 
 import type {
   AgentProviderAccount,
@@ -18,6 +19,7 @@ import {
   type CustomModelDefinition,
 } from "./custom-model-catalog.js";
 import { CodexNativeStateSnapshot } from "./native-state-snapshot.js";
+import { readCustomModelHeaders } from "./custom-model-auth.js";
 import {
   createCustomProviderConfigUpdate,
   hasCurrentCustomModelCatalog,
@@ -42,6 +44,7 @@ type AccountState = Readonly<{
 }>;
 
 export interface CodexProviderConnectionServiceOptions {
+  codexHome?: string;
   fetch?: typeof globalThis.fetch;
   modelCountLimit?: number;
   modelRequestTimeoutMs?: number;
@@ -172,6 +175,7 @@ function readProviderCapabilities(response: unknown): void {
 }
 
 export class CodexProviderConnectionService {
+  readonly #codexHome: string | undefined;
   readonly #client: CodexRpcClient;
   readonly #fetch: typeof globalThis.fetch;
   readonly #modelCountLimit: number;
@@ -181,6 +185,7 @@ export class CodexProviderConnectionService {
   #pendingLogin: PendingLogin | null = null;
 
   public constructor(client: CodexRpcClient, options: CodexProviderConnectionServiceOptions = {}) {
+    this.#codexHome = options.codexHome;
     this.#client = client;
     this.#fetch = options.fetch ?? globalThis.fetch;
     this.#modelCountLimit = options.modelCountLimit ?? DEFAULT_MODEL_COUNT_LIMIT;
@@ -289,9 +294,22 @@ export class CodexProviderConnectionService {
     this.#nativeState.clear();
   }
 
+  public async discoverCurrentModels(): Promise<ConfigureCustomProviderResponse["models"] | null> {
+    const config = await this.#nativeState.readConfig();
+    const active = readActiveProvider(config);
+    if (active.mode !== "custom" || active.customBaseUrl === null) return null;
+    const headers = await readCustomModelHeaders(config, this.#codexHome);
+    const discovered = await this.#discoverModels(
+      normalizeBaseUrl(active.customBaseUrl),
+      undefined,
+      headers,
+    );
+    return mapCustomModels(discovered, this.#modelCountLimit);
+  }
+
   public async configureCustom(
     input: ConfigureCustomProviderRequest,
-    fallbackModels?: ConfigureCustomProviderResponse["models"],
+    fallbackModels?: AgentModelCatalogFallback,
   ): Promise<ConfigureCustomProviderResponse> {
     const baseUrl = normalizeBaseUrl(input.baseUrl);
     const apiKey = input.apiKey;
@@ -299,10 +317,20 @@ export class CodexProviderConnectionService {
       throw new CodexProviderConnectionError("Custom API key cannot be blank");
     }
     const manualModels = normalizeManualModels(input.models ?? [], this.#modelCountLimit);
+    this.#nativeState.clear();
     let models: ConfigureCustomProviderResponse["models"];
     try {
       // 每次重新配置都刷新上游目录，避免同一 baseUrl 长期复用过期快照。
-      const discoveredModels = await this.#discoverModels(baseUrl, apiKey);
+      let headers: Record<string, string> = {};
+      if (apiKey === undefined) {
+        const config = await this.#nativeState.readConfig();
+        const current = readActiveProvider(config);
+        // 只有同一端点才复用已有认证；切换端点不能把旧服务的 Key 发给新服务。
+        if (current.customBaseUrl !== null && normalizeBaseUrl(current.customBaseUrl) === baseUrl) {
+          headers = await readCustomModelHeaders(config, this.#codexHome);
+        }
+      }
+      const discoveredModels = await this.#discoverModels(baseUrl, apiKey, headers);
       // 手动条目位于后侧，同 ID 时覆盖远端缺省名称。
       models = mapCustomModels([...discoveredModels, ...manualModels], this.#modelCountLimit);
     } catch (error) {
@@ -310,19 +338,28 @@ export class CodexProviderConnectionService {
         // 部分兼容 API 不提供目录；显式模型仍可用于 Responses API Turn。
         models = mapCustomModels(manualModels, this.#modelCountLimit);
       } else if (fallbackModels !== undefined) {
-        // Server 按 CLI、持久化顺序提供回退目录，避免上游短暂故障导致配置不可用。
-        models = fallbackModels;
+        const fallback =
+          typeof fallbackModels === "function" ? await fallbackModels() : fallbackModels;
+        if (fallback === undefined || fallback.data.length === 0) {
+          throw new CodexProviderConnectionError("No Agent models are available");
+        }
+        models = {
+          data: fallback.data.map((model) => ({
+            ...model,
+            supportedReasoningEfforts: [...model.supportedReasoningEfforts],
+          })),
+          nextCursor: fallback.nextCursor,
+        };
       } else {
         throw error;
       }
     }
-    this.#nativeState.clear();
     const [configResponse, accountResponse] = await Promise.all([
-      this.#client.request("config/read", { includeLayers: false }),
-      this.#client.request("account/read", { refreshToken: false }),
+      this.#nativeState.readConfig(),
+      this.#nativeState.readAccount(),
     ]);
-    const previousConfig = readConfig(configResponse);
-    const previousAccountState = readAccountResponse(accountResponse);
+    const previousConfig = configResponse;
+    const previousAccountState = accountResponse;
     const configUpdate = createCustomProviderConfigUpdate(
       previousConfig,
       baseUrl,
@@ -390,6 +427,7 @@ export class CodexProviderConnectionService {
   async #discoverModels(
     baseUrl: string,
     apiKey: string | undefined,
+    configuredHeaders: Record<string, string> = {},
   ): Promise<CustomModelDefinition[]> {
     const controller = new AbortController();
     const timeout = setTimeout(() => {
@@ -398,7 +436,10 @@ export class CodexProviderConnectionService {
     timeout.unref();
     try {
       const response = await this.#fetch(`${baseUrl}/models`, {
-        headers: apiKey === undefined ? {} : { authorization: `Bearer ${apiKey}` },
+        headers: {
+          ...configuredHeaders,
+          ...(apiKey === undefined ? {} : { authorization: `Bearer ${apiKey}` }),
+        },
         redirect: "manual",
         signal: controller.signal,
       });

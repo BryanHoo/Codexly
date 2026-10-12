@@ -246,15 +246,15 @@ describe("server diagnostics and provider connection", () => {
     expect(configureCustomProvider).toHaveBeenNthCalledWith(
       1,
       { baseUrl: "https://api.example.com/v1" },
-      customModels,
+      expect.any(Function),
     );
     expect(configureCustomProvider).toHaveBeenNthCalledWith(
       2,
       { apiKey: "custom-secret", baseUrl: "https://api.example.com/v1" },
-      customModels,
+      expect.any(Function),
     );
-    // 三次自定义配置均先准备 CLI 目录，供上游 /models 请求失败时回退。
-    expect(listModels).toHaveBeenCalledTimes(3);
+    // API 成功的配置不能提前读取 CLI，第三层缓存通过回调按需取得。
+    expect(listModels).not.toHaveBeenCalled();
     expect(JSON.stringify(state.writeProviderConnection.mock.calls)).not.toContain("custom-secret");
     expect(officialResponse.statusCode, officialResponse.body).toBe(200);
     expect(repeatedOfficialResponse.json()).toEqual(officialResponse.json());

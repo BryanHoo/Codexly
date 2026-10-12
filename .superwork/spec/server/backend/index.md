@@ -17,7 +17,7 @@
 - Git `worktree list --porcelain` 返回的路径先通过 `node:path.resolve` 规范化，再传递给服务层或与文件系统路径比较；在 Windows 上用真实 Git worktree 测试覆盖斜杠差异。
 - 运行 `pnpm test`、`pnpm typecheck`、`pnpm lint:architecture`；完整门槛为 `pnpm check`。
 
-- 模型目录以当前 Codex App Server 为权威来源；刷新失败直接传播错误，空目录保持为空，不从旧进程或持久化快照恢复已失效模型。保留有界 TTL 缓存及并发请求合并，不增加轮询；回归覆盖空目录、刷新失败与缓存复用。
+- 自定义模型目录按“自定义 API → 当前配置的官方 Codex CLI model/list → 同端点持久化缓存”顺序读取；每层失败、空目录或无可用模型时继续下一层，三层均无模型才返回不可用。只有非空成功目录可以更新缓存，重新连接不清除同端点成功快照；切换端点不得复用旧端点的凭据或模型。保留有界 TTL 缓存、请求合并及响应大小/超时限制，不增加轮询；API 成功不启动额外目录进程。两端用 `packages/provider-codex/src/custom-model-catalog-fixtures.json` 验证 OpenAI/Codex 格式、推理能力与输入模态，回归覆盖优先级、失败/空目录、身份隔离和缓存持久化。
 
 - `POST /v1/history/compress` 接受空对象并要求幂等键，通过 Runtime Provider 的 `historyStorage` 提交维护请求；不可用返回 503，上游失败返回 502，不扫描或传输历史内容。
 

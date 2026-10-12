@@ -107,11 +107,9 @@ export const registerProviderConnectionRoutes: FastifyPluginCallback<ServerRoute
         request.headers["idempotency-key"],
         request.body,
         async () => {
-          const fallbackModels = await resolveReconnectModels(request.body, provider);
-          const result =
-            fallbackModels === undefined
-              ? await provider.configureCustomProvider(request.body)
-              : await provider.configureCustomProvider(request.body, fallbackModels);
+          const result = await provider.configureCustomProvider(request.body, () =>
+            resolveReconnectModels(request.body, providerConnectionRepository),
+          );
           await providerConnectionRepository.writeProviderConnection({
             customBaseUrl: result.status.customBaseUrl,
             customModels: result.models,

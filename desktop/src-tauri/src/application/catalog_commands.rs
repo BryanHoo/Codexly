@@ -12,20 +12,24 @@ fn provider_error(error: codex::ProviderError) -> AppError {
     match error {
         codex::ProviderError::Connection(error) => AppError::from(error),
         codex::ProviderError::Storage => AppError::FilesystemRequestFailed,
+        codex::ProviderError::Unavailable => AppError::ModelCatalogUnavailable,
     }
 }
 
 #[tauri::command]
 pub async fn list_models(app: AppHandle, state: State<'_, AppState>) -> Result<Value, AppError> {
-    state.codex_connection().await?;
+    let connection = state.codex_connection().await?;
+    let codex_home = state.codex_home().await?;
     let app_data = app_data_dir(&app)?;
-    // 主连接固定启动时的 Provider；目录连接按最新磁盘配置独立启动。
-    let catalog_process = codex::CodexProcess::start(&app_data)
-        .await
-        .map_err(|_| AppError::CodexRuntimeStartFailed)?;
-    codex::list_provider_models(&catalog_process.connection(), &app_data)
-        .await
-        .map_err(provider_error)
+    // API 可用时无需启动额外进程；第二层 CLI 按最新配置创建，第三层仍可兜底启动失败。
+    codex::list_provider_models(&connection, &app_data, &codex_home, || async {
+        let process = codex::CodexProcess::start(&app_data)
+            .await
+            .map_err(|_| codex::ProviderError::Unavailable)?;
+        Ok(codex::list_models(&process.connection()).await?)
+    })
+    .await
+    .map_err(provider_error)
 }
 
 #[tauri::command]

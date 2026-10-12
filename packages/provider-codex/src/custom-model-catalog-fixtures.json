@@ -1,0 +1,170 @@
+[
+  {
+    "name": "standard OpenAI directory",
+    "response": {
+      "data": [
+        {
+          "id": "test-model",
+          "name": "Standard Model"
+        }
+      ]
+    },
+    "expected": {
+      "data": [
+        {
+          "id": "test-model",
+          "displayName": "Standard Model",
+          "description": "",
+          "isDefault": true,
+          "defaultReasoningEffort": "medium",
+          "supportedReasoningEfforts": [
+            {
+              "id": "low",
+              "description": ""
+            },
+            {
+              "id": "medium",
+              "description": ""
+            },
+            {
+              "id": "high",
+              "description": ""
+            }
+          ]
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "name": "Codex reasoning metadata",
+    "response": {
+      "models": [
+        {
+          "slug": "test-model",
+          "display_name": "Rich Model",
+          "default_reasoning_level": "high",
+          "supported_reasoning_levels": [
+            {
+              "effort": "low",
+              "description": "Fast"
+            },
+            {
+              "effort": "high",
+              "description": "Deep"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "data": [
+        {
+          "id": "test-model",
+          "displayName": "Rich Model",
+          "description": "",
+          "isDefault": true,
+          "defaultReasoningEffort": "high",
+          "supportedReasoningEfforts": [
+            {
+              "id": "low",
+              "description": "Fast"
+            },
+            {
+              "id": "high",
+              "description": "Deep"
+            }
+          ]
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "name": "duplicate names retain reasoning metadata",
+    "response": {
+      "models": [
+        {
+          "slug": "test-model",
+          "display_name": "Rich Model",
+          "default_reasoning_level": "high",
+          "supported_reasoning_levels": [
+            {
+              "effort": "low",
+              "description": "Fast"
+            },
+            {
+              "effort": "high",
+              "description": "Deep"
+            }
+          ]
+        },
+        {
+          "slug": "test-model",
+          "display_name": "Renamed"
+        }
+      ]
+    },
+    "expected": {
+      "data": [
+        {
+          "id": "test-model",
+          "displayName": "Renamed",
+          "description": "",
+          "isDefault": true,
+          "defaultReasoningEffort": "high",
+          "supportedReasoningEfforts": [
+            {
+              "id": "low",
+              "description": "Fast"
+            },
+            {
+              "id": "high",
+              "description": "Deep"
+            }
+          ]
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "name": "Codex text-only input capability",
+    "response": {
+      "models": [
+        {
+          "slug": "test-model",
+          "display_name": "Text Only",
+          "input_modalities": ["text"]
+        }
+      ]
+    },
+    "expected": {
+      "data": [
+        {
+          "id": "test-model",
+          "displayName": "Text Only",
+          "description": "",
+          "isDefault": true,
+          "defaultReasoningEffort": "medium",
+          "supportedReasoningEfforts": [
+            {
+              "id": "low",
+              "description": ""
+            },
+            {
+              "id": "medium",
+              "description": ""
+            },
+            {
+              "id": "high",
+              "description": ""
+            }
+          ],
+          "inputModalities": ["text"]
+        }
+      ],
+      "nextCursor": null
+    }
+  }
+]

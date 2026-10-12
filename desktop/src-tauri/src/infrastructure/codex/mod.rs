@@ -9,6 +9,7 @@ mod connection;
 mod connection_diagnostics;
 mod connection_event_buffer;
 mod connection_message_channel;
+mod custom_model_catalog;
 pub mod history_storage;
 pub(crate) use connection_message_channel::ServerMessageReceiver;
 #[cfg(test)]
@@ -123,6 +124,7 @@ pub use auth::{
     ProviderError, cancel_provider_login, configure_custom_provider, get_provider_connection,
     list_provider_models, logout_provider, start_official_provider_login,
 };
+pub(crate) use catalogs::list_models;
 pub use catalogs::{
     list_configured_mcp_servers, list_installed_skills, list_mcp_servers, list_skills,
     reload_mcp_servers, set_mcp_server_enabled, set_skill_enabled,

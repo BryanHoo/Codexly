@@ -6,6 +6,7 @@ import type {
 import { CUSTOM_MODEL_REASONING_FALLBACK, normalizeCustomModelReasoning } from "@codexly/core";
 
 export type CustomModelDefinition = Readonly<{
+  inputModalities?: AgentModel["inputModalities"];
   defaultReasoningEffort?: string;
   id: string;
   name: string;
@@ -84,9 +85,21 @@ export function readDiscoveredModels(value: unknown, countLimit: number): Custom
     const id = item[idField].trim();
     if (id.length === 0 || id.length > 256) continue;
     const candidateName = typeof item[nameField] === "string" ? item[nameField].trim() : "";
+    const rawModalities = item["input_modalities"];
+    const inputModalities = Array.isArray(rawModalities)
+      ? [
+          ...new Set(
+            rawModalities.filter(
+              (modality): modality is "text" | "image" =>
+                modality === "text" || modality === "image",
+            ),
+          ),
+        ]
+      : [];
     models.push({
       id,
       name: candidateName.length > 0 && candidateName.length <= 256 ? candidateName : id,
+      ...(inputModalities.length === 0 ? {} : { inputModalities }),
       ...readReasoningMetadata(item),
     });
   }
@@ -160,6 +173,7 @@ export function mapCustomModels(
       displayName: model.name,
       id: model.id,
       isDefault: index === 0,
+      ...(model.inputModalities === undefined ? {} : { inputModalities: model.inputModalities }),
       supportedReasoningEfforts,
     };
   });

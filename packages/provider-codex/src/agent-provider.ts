@@ -1,5 +1,14 @@
 export { CodexAgentProvider } from "./agent-provider-runtime.js";
-export { CodexRuntimeProvider, createCodexRuntimeProvider } from "./runtime-provider.js";
+import { CodexRuntimeProvider } from "./runtime-provider.js";
+import type { CreateCodexRuntimeProviderOptions } from "./agent-provider-base.js";
+export { CodexRuntimeProvider };
+
+export function createCodexRuntimeProvider(
+  options: CreateCodexRuntimeProviderOptions,
+): CodexRuntimeProvider {
+  const { client, logger, ...runtimeOptions } = options;
+  return new CodexRuntimeProvider(client, logger, runtimeOptions);
+}
 export {
   type CodexRpcClient,
   type CreateCodexRuntimeProviderOptions,

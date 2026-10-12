@@ -290,6 +290,10 @@ export interface AgentProvider {
   updateGoal(taskId: string, input: UpdateAgentGoalRequest): Promise<AgentGoal>;
 }
 
+// 回退目录按需读取，避免自定义 API 成功时提前查询 CLI 或数据库。
+export type AgentModelCatalogFallback =
+  AgentModelPage | (() => Promise<AgentModelPage | undefined>);
+
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。
 export interface AgentRuntimeProvider {
   readonly historyStorage?: { compress(): Promise<HistoryCompressionResult> };
@@ -299,7 +303,7 @@ export interface AgentRuntimeProvider {
   cancelProviderLogin(loginId: string): Promise<AgentProviderConnectionMutationResponse>;
   configureCustomProvider(
     input: ConfigureCustomProviderRequest,
-    fallbackModels?: ConfigureCustomProviderResponse["models"],
+    fallbackModels?: AgentModelCatalogFallback,
   ): Promise<ConfigureCustomProviderResponse>;
   forProject(project: Project): AgentProvider;
   forTemporary(rootPath: string): AgentProvider;

@@ -1,13 +1,14 @@
-use std::{collections::HashSet, path::Path, time::Duration};
+use std::{collections::HashSet, future::Future, path::Path, time::Duration};
 
 use serde::Serialize;
 use serde_json::{Value, json};
 use thiserror::Error;
 
-use crate::infrastructure::provider_models::{ProviderModelsError, write_provider_models};
+use crate::infrastructure::provider_models::{
+    ProviderModelsError, read_provider_models, write_provider_models,
+};
 
 use super::{
-    catalogs::list_models,
     config::{edit, read_config, write_config},
     connection::{AppServerConnection, ConnectionError},
 };
@@ -21,6 +22,8 @@ pub enum ProviderError {
     Connection(#[from] ConnectionError),
     #[error("failed to access local provider models")]
     Storage,
+    #[error("No Agent models are available")]
+    Unavailable,
 }
 
 impl From<ProviderModelsError> for ProviderError {
@@ -50,22 +53,62 @@ struct LoginParams<'a> {
     app_brand: Option<&'a str>,
 }
 
-pub async fn list_provider_models(
+pub async fn list_provider_models<F, Fut>(
     connection: &AppServerConnection,
     app_data: &Path,
-) -> Result<Value, ProviderError> {
+    codex_home: &Path,
+    load_cli: F,
+) -> Result<Value, ProviderError>
+where
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = Result<Value, ProviderError>>,
+{
     let config = read_config(connection).await?;
     if provider_mode(&config) == "custom" {
         let provider_id = selected_provider_id(&config);
         if let Some(base_url) = configured_custom_base_url(&config) {
-            // Codex 0.160 的目录是权威来源；空结果和错误均不能恢复旧快照。
-            let mut models = list_models(connection).await?;
-            normalize_custom_reasoning(&mut models);
-            write_provider_models(app_data, provider_id, base_url, &models).await?;
-            return Ok(models);
+            // 严格按 API、CLI、同端点缓存顺序查询；只有非空成功结果才更新缓存。
+            let api =
+                super::custom_model_catalog::discover(&config, provider_id, base_url, codex_home)
+                    .await;
+            let live = if api.as_ref().is_ok_and(model_page_has_data) {
+                api
+            } else {
+                load_cli().await
+            };
+            let cli_error = match live {
+                Ok(mut models) if model_page_has_data(&models) => {
+                    normalize_custom_reasoning(&mut models);
+                    // 落盘失败不能把已经取得的在线模型变成不可用。
+                    let _ = write_provider_models(app_data, provider_id, base_url, &models).await;
+                    return Ok(models);
+                }
+                Ok(_) => None,
+                Err(error) => Some(error),
+            };
+            if let Ok(Some(mut cached)) =
+                read_provider_models(app_data, provider_id, base_url).await
+                && model_page_has_data(&cached)
+            {
+                normalize_custom_reasoning(&mut cached);
+                return Ok(cached);
+            }
+            return Err(cli_error.unwrap_or(ProviderError::Unavailable));
         }
     }
-    Ok(list_models(connection).await?)
+    let models = load_cli().await?;
+    if model_page_has_data(&models) {
+        Ok(models)
+    } else {
+        Err(ProviderError::Unavailable)
+    }
+}
+
+fn model_page_has_data(models: &Value) -> bool {
+    models
+        .get("data")
+        .and_then(Value::as_array)
+        .is_some_and(|data| !data.is_empty())
 }
 
 fn normalize_custom_reasoning(models: &mut Value) {
@@ -268,10 +311,17 @@ pub async fn configure_custom_provider(
     };
     let models = match input.get("models") {
         Some(models) => map_custom_models(Some(models))?,
-        None => empty_model_page(),
+        None => read_provider_models(app_data, provider_id, base_url)
+            .await
+            .ok()
+            .flatten()
+            .filter(model_page_has_data)
+            .unwrap_or_else(empty_model_page),
     };
-    // 重连只接受本次明确提交的模型；未提交时清空旧快照，等待当前目录刷新。
-    write_provider_models(app_data, provider_id, base_url, &models).await?;
+    // 重新连接不清除同端点的成功快照；在线刷新失败时仍保留第三层恢复能力。
+    if model_page_has_data(&models) {
+        write_provider_models(app_data, provider_id, base_url, &models).await?;
+    }
     let mut edits = {
         let provider_name = config
             .get("model_providers")

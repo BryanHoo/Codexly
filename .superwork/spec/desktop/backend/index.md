@@ -11,7 +11,7 @@
 - 在 `desktop/` 执行 `pnpm check:rust`；完整门槛为 `pnpm check`。环境要求见 `desktop/docs/development.md`。
 - 本地测试打包使用 `pnpm tauri:local`，通过配置覆盖关闭 `bundle.createUpdaterArtifacts` 并跳过代码签名。`--no-sign` 本身不能关闭更新签名；正式配置继续保留更新公钥与签名产物要求。打包脚本回归须验证两者独立，操作说明见 [源码开发与构建](../../../../desktop/docs/development.md)。
 
-- 模型目录以当前 Codex App Server 为权威来源；刷新失败直接传播错误，空目录保持为空，不从旧进程或持久化快照恢复已失效模型。保留有界 TTL 缓存及并发请求合并，不增加轮询；回归覆盖空目录、刷新失败与缓存复用。
+- 自定义模型目录按“自定义 API → 当前配置的官方 Codex CLI model/list → 同端点持久化缓存”顺序读取；每层失败、空目录或无可用模型时继续下一层，三层均无模型才返回不可用。只有非空成功目录可以更新缓存，重新连接不清除同端点成功快照；切换端点不得复用旧端点的凭据或模型。保留有界 TTL 缓存、请求合并及响应大小/超时限制，不增加轮询；API 成功不启动额外目录进程。两端用 `packages/provider-codex/src/custom-model-catalog-fixtures.json` 验证 OpenAI/Codex 格式、推理能力与输入模态，回归覆盖优先级、失败/空目录、身份隔离和缓存持久化。
 
 - 插件同步按 App Server 连接合并在途请求，弱引用避免连接与共享 Future 循环持有；请求完成、失败或取消后不复用结果。只向 WebView 传递协议字段，保留部分失败，Hooks 生命周期由 Codex 管理。
 
@@ -19,6 +19,6 @@
 - 历史搜索与 Web 后端保持相同兼容行为：精确接口返回 `-32601` 时分页匹配可见消息，复用官方 inclusive 页锚点定位，续查游标绑定任务和查询；其他错误正常传播。回归覆盖三十条命中后的同页续查、循环游标和 UTF-16 范围，见 [全局搜索](../../../../desktop/docs/global-search.md)。
 
 - 用户界面的目标启动、编辑、暂停、恢复和清除必须发送 `origin: "user"`；自动生命周期不得冒充用户指令。升级时验证回合前的设置提交顺序，以及隔离 `CODEX_HOME` 的目标指令落盘，在根目录执行：`CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-codex/src/goals-runtime.test.ts`。
-- Codex API Key 模型发现已稳定并默认开启；启动参数不强制覆盖此开关，缺省配置不因发现功能而重复写入。模型默认值及推理档位由当前 `model/list` 提供，不增加逐模型请求。
+- Codex API Key 模型发现已稳定并默认开启；启动参数不强制覆盖此开关，缺省配置不因发现功能而重复写入。模型默认值及推理档位取自命中的 API 或 CLI 目录，保留自定义档位；不增加逐模型请求。
 
 - 项目 Git 读取仅检查当前根目录的 `.git`（目录或 worktree gitfile），缺失时返回 `repositoryMode: "none"`，不扫描子目录、不执行 Git 命令、不回溯父仓库；拒绝通过 `repository` 参数选择子仓库。元数据 Watch 同样不得发现子目录仓库；回归覆盖含子仓库的普通目录、父仓库下的普通目录以及正常 worktree。

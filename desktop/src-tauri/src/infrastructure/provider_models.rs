@@ -6,8 +6,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
-#[cfg(test)]
 use tokio::fs;
+use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
 
 const PROVIDER_MODELS_VERSION: u8 = 1;
@@ -34,8 +34,7 @@ struct ProviderModelsFile {
     version: u8,
 }
 
-// 仅供回归测试核对落盘内容；运行时不再读取可能失效的目录快照。
-#[cfg(test)]
+// 在线 API 与 CLI 均不可用时，才恢复身份匹配的最后一次成功目录。
 pub async fn read_provider_models(
     app_data: &Path,
     provider_id: &str,
@@ -43,11 +42,16 @@ pub async fn read_provider_models(
 ) -> Result<Option<Value>, ProviderModelsError> {
     validate_identity(provider_id, base_url)?;
     let _guard = PROVIDER_MODELS_LOCK.lock().await;
-    let bytes = match fs::read(provider_models_path(app_data)).await {
-        Ok(bytes) => bytes,
+    let file = match fs::File::open(provider_models_path(app_data)).await {
+        Ok(file) => file,
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
         Err(error) => return Err(error.into()),
     };
+    // 恢复缓存时也限制实际读取字节，损坏或手动改写的大文件不能放大内存占用。
+    let mut bytes = Vec::new();
+    file.take(MAX_PROVIDER_MODELS_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .await?;
     if bytes.len() > MAX_PROVIDER_MODELS_BYTES {
         return Err(ProviderModelsError::InvalidData);
     }
@@ -84,7 +88,6 @@ pub async fn write_provider_models(
     Ok(())
 }
 
-#[cfg(test)]
 fn validate_file(stored: &ProviderModelsFile) -> Result<(), ProviderModelsError> {
     if stored.version != PROVIDER_MODELS_VERSION {
         return Err(ProviderModelsError::InvalidData);
@@ -106,7 +109,7 @@ fn validate_identity(provider_id: &str, base_url: &str) -> Result<(), ProviderMo
 }
 
 fn validate_models(models: &Value) -> Result<(), ProviderModelsError> {
-    // 空目录用于覆盖已失效快照，不能因为没有模型而拒绝持久化。
+    // 存储格式兼容空目录；在线查询只写入非空成功目录，保留最后一次可用快照。
     let data = models
         .get("data")
         .and_then(Value::as_array)

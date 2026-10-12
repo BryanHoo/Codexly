@@ -1,83 +1,73 @@
 import { describe, expect, it, vi } from "vitest";
-
-import type { AgentRuntimeProvider } from "@codexly/core";
-import type { AgentModelPage } from "@codexly/protocol";
-
+import type { AgentProviderConnectionRepository } from "@codexly/core";
+import type { ConfigureCustomProviderResponse } from "@codexly/protocol";
 import { resolveReconnectModels } from "./provider-reconnect-models.js";
 
-const cliModels: AgentModelPage = {
+const models: ConfigureCustomProviderResponse["models"] = {
   data: [
     {
-      defaultReasoningEffort: "medium",
+      id: "cached-model",
+      displayName: "Cached Model",
       description: "",
-      displayName: "CLI Model",
-      id: "cli-model",
       isDefault: true,
-      supportedReasoningEfforts: [{ description: "", id: "medium" }],
+      defaultReasoningEffort: "none",
+      supportedReasoningEfforts: [{ id: "none", description: "" }],
     },
   ],
   nextCursor: null,
 };
 
-function createProvider(listModels: () => Promise<AgentModelPage>) {
+function repository(
+  page: ConfigureCustomProviderResponse["models"] | null = models,
+  baseUrl = "https://api.example.com/v1",
+) {
   return {
-    listModels: vi.fn(listModels),
     readProviderConnection: vi.fn(() =>
       Promise.resolve({
-        account: { type: "apiKey" as const },
-        customBaseUrl: "https://api.example.com/v1",
         mode: "custom" as const,
-        pendingLogin: null,
-        state: "connected" as const,
+        customBaseUrl: baseUrl,
+        customModels: page,
+        updatedAt: "2026-10-12T00:00:00Z",
       }),
     ),
-  } satisfies Pick<AgentRuntimeProvider, "listModels" | "readProviderConnection">;
+  } satisfies Pick<AgentProviderConnectionRepository, "readProviderConnection">;
 }
 
 describe("resolveReconnectModels", () => {
-  it("uses the Codex CLI catalog as the first fallback for upstream discovery", async () => {
-    const provider = createProvider(() => Promise.resolve(cliModels));
-
+  it("provides the matching cache as the last fallback and normalizes reasoning", async () => {
     await expect(
-      resolveReconnectModels({ baseUrl: "https://api.example.com/v1" }, provider),
-    ).resolves.toEqual(cliModels);
-    expect(provider.listModels).toHaveBeenCalledOnce();
-  });
-
-  it("keeps reconnect possible without reviving a persisted catalog after failure", async () => {
-    const provider = createProvider(() => Promise.reject(new Error("CLI catalog unavailable")));
-
-    await expect(
-      resolveReconnectModels({ baseUrl: "https://api.example.com/v1" }, provider),
-    ).resolves.toEqual({ data: [], nextCursor: null });
-  });
-
-  it("normalizes the Codex CLI none placeholder before reconnecting", async () => {
-    const provider = createProvider(() =>
-      Promise.resolve({
-        data: [
-          {
-            defaultReasoningEffort: "none",
-            description: "",
-            displayName: "GPT-6 Sol",
-            id: "gpt-6-sol",
-            isDefault: true,
-            supportedReasoningEfforts: [{ description: "", id: "none" }],
-          },
-        ],
-        nextCursor: null,
-      }),
-    );
-
-    await expect(
-      resolveReconnectModels({ baseUrl: "https://api.example.com/v1" }, provider),
+      resolveReconnectModels({ baseUrl: "https://api.example.com/v1/" }, repository()),
     ).resolves.toMatchObject({
       data: [
         {
+          id: "cached-model",
           defaultReasoningEffort: "medium",
           supportedReasoningEfforts: [{ id: "low" }, { id: "medium" }, { id: "high" }],
         },
       ],
     });
+  });
+  it("does not use another endpoint's models", async () => {
+    await expect(
+      resolveReconnectModels({ baseUrl: "https://other.example/v1" }, repository()),
+    ).resolves.toBeUndefined();
+  });
+  it.each([null, { data: [], nextCursor: null }])(
+    "does not offer an empty or absent cache",
+    async (page) => {
+      await expect(
+        resolveReconnectModels({ baseUrl: "https://api.example.com/v1" }, repository(page)),
+      ).resolves.toBeUndefined();
+    },
+  );
+  it("does not read fallback storage for explicit manual models", async () => {
+    const store = repository();
+    await expect(
+      resolveReconnectModels(
+        { baseUrl: "https://api.example.com/v1", models: [{ id: "manual", name: "Manual" }] },
+        store,
+      ),
+    ).resolves.toBeUndefined();
+    expect(store.readProviderConnection).not.toHaveBeenCalled();
   });
 });

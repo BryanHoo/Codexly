@@ -208,6 +208,7 @@ export const AgentModelSchema = Type.Object(
     description: Type.String(),
     displayName: Type.String({ minLength: 1 }),
     id: Type.String({ minLength: 1 }),
+    inputModalities: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { maxItems: 16 })),
     isDefault: Type.Boolean(),
     supportedReasoningEfforts: Type.Array(AgentReasoningEffortOptionSchema, { minItems: 1 }),
   },

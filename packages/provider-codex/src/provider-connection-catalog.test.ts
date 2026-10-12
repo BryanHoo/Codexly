@@ -5,7 +5,7 @@ import { CodexProviderConnectionService } from "./provider-connection.js";
 import { FakeRpcClient } from "./provider-connection.test-support.js";
 
 describe("Codex provider model catalog configuration", () => {
-  it("falls back to an empty reconnect catalog when refreshing the remote endpoint fails", async () => {
+  it("reports unavailable when discovery and the fallback catalog are both empty", async () => {
     const client = new FakeRpcClient();
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
@@ -35,8 +35,46 @@ describe("Codex provider model catalog configuration", () => {
 
     await expect(
       service.configureCustom({ baseUrl: "https://api.example.com/v1" }, persistedModels),
-    ).resolves.toMatchObject({ models: persistedModels });
+    ).rejects.toThrow("No Agent models are available");
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("queries the fallback lazily only after the custom API fails", async () => {
+    const client = new FakeRpcClient();
+    client.enqueue("config/read", {
+      config: {
+        model_provider: "relay",
+        model_providers: {
+          relay: { base_url: "https://api.example.com/v1", requires_openai_auth: false },
+        },
+      },
+    });
+    client.enqueue("account/read", { account: null, requiresOpenaiAuth: false });
+    client.enqueue("config/batchWrite", {});
+    client.enqueue("modelProvider/capabilities/read", { imageGeneration: false, webSearch: false });
+    const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new Error("offline"));
+    const page: ConfigureCustomProviderResponse["models"] = {
+      data: [
+        {
+          id: "fallback",
+          displayName: "Fallback",
+          description: "",
+          isDefault: true,
+          defaultReasoningEffort: "medium",
+          supportedReasoningEfforts: [{ id: "medium", description: "" }],
+        },
+      ],
+      nextCursor: null,
+    };
+    const fallback = vi.fn(() => {
+      expect(fetchMock).toHaveBeenCalledOnce();
+      return Promise.resolve(page);
+    });
+    const service = new CodexProviderConnectionService(client, { fetch: fetchMock });
+    await expect(
+      service.configureCustom({ baseUrl: "https://api.example.com/v1" }, fallback),
+    ).resolves.toMatchObject({ models: page });
+    expect(fallback).toHaveBeenCalledOnce();
   });
 
   it("upgrades a legacy custom provider before startup model refresh", async () => {
