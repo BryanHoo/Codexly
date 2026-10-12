@@ -4,7 +4,7 @@
 
 - 评估日期：2026-09-11。
 - 旧基线：`rust-v0.153.4`，`3d2ee51ca2`。
-- 新基线：`rust-v0.154.0`，`6b9826e3aa`；本地 `/Users/bryanhu/Develop/person/codex` 已切换到该 tag，源码未修改。
+- 新基线：`rust-v0.154.0`，`6b9826e3aa`。
 - 本机 CLI：`codex-cli 0.154.0`。项目仍只启动应用私有运行时，不回退全局 CLI。
 - 官方说明：[App Server](https://developers.openai.com/codex/app-server/)、[更新日志](https://developers.openai.com/codex/changelog/)。官方文档会继续变化，精确协议以 tag 源码和对应 CLI 生成结果为准。
 - 源码依据：`codex-rs/app-server-protocol/src/protocol/v2/`、`codex-rs/app-server/src/request_processors/`、`codex-rs/app-server/src/bespoke_event_handling.rs`、`codex-rs/core/src/config/mod.rs`。
@@ -12,24 +12,24 @@
 
 ## 协议逐项结论
 
-| 上游变化 | 项目影响与处理 |
-| --- | --- |
-| `McpServerStatus.toolsError` | 工具发现失败可与 `runtimeStatus: connected` 同时存在。仅把可用/未知摘要修正为 `failed`，保留认证、禁用、启动等连接状态；不扩展 IPC。正常空目录仍为 `connected`。 |
-| `openai/userVerification` elicitation | 新结构包含 `title`、`description`、`challenge`，没有 `message`。复用已有不支持提示，以 `description` 显示原因；仅取消/拒绝，不传 challenge 或接受证明。 |
-| `userVerification/status/enroll/delete/verify` | 154 本地实现统一返回 `ProviderUnavailable`。不创建无法完成的设置或验证流程，不声明能力。 |
-| `Thread.originator/environments/daybreakEnabled` | Rust 原生任务/快照投影只读取已使用字段；新增元数据不增加 WebView 负载。环境列表是选择信息，不表示连接状态。 |
-| `ThreadListParams.originators` | 非空筛选仅托管后端支持，本地会拒绝；项目不发送。任务排序继续使用 `recency_at`。 |
-| `ThreadMetadataUpdateParams.daybreakEnabled` | 只是保存 Daybreak 选择，不授权模型访问；项目没有该产品入口，不发送。 |
-| Guardian command/applyPatch、permissions approval 路径 | 上游从 `AbsolutePathBuf` 改为 `LegacyAppPathString`，JSON 仍为字符串。项目沿用原始字符串映射，不增加本机路径规范化。 |
-| `GetAccountRateLimitsParams` | 新增 `supportsLunaReserve`、`excludeResetCreditDetails`；项目当前不轮询配额，也没有自动 Reserve fallback，不能声明支持或新增无用请求。 |
-| 配额响应 `ordinaryUsageAllowed`、`normalModelSlug` | 不从百分比或时间推断普通额度恢复；当前未接入配额产品，通知继续在初始化关闭。 |
-| `ConfigRequirements.application`、`BrowserUseRequirements.allowWebmcp` | 托管策略由 Codex 执行；不在应用设置中伪造权限或自动打开 WebMCP。 |
-| 原始 `ResponseItem.configuration_update`、`ConfigurationReasoning` | 不属于 UI `ThreadItem`。项目禁用原始响应通知，Composer 仍从现有 `thread/read` 恢复模型/思考强度。 |
-| detached review 弃用 | 现有 `review/start` 未传 `delivery`，使用 inline，不需要新线程或额外 RPC。 |
-| 线程恢复/分叉修复 | 继续由 Codex 恢复保存的 cwd/配置；现有 resume 不覆盖 cwd，resume/fork 均排除全历史。续聊按用户已选参数启动 turn。 |
-| 新模型与异步问答 TUI | 模型目录动态读取，无模型版本硬编码；现有 `agentMessage.questions`、普通消息回复、队列与高思考强度协议可继续使用。 |
-| 插件刷新、MCP OAuth、Guardian 修复 | 使用 154 运行时直接获得；应用不自动重放被拒绝的工具调用，也不重复实现服务端刷新逻辑。 |
-| Windows daemon、worktree、语音/TUI | 本项目使用独立 stdio app-server，不启用 daemon、远程传输、语音流或新 worktree UI；没有依赖已移除的 `codex mcp-server`。 |
+| 上游变化                                                               | 项目影响与处理                                                                                                                                                   |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `McpServerStatus.toolsError`                                           | 工具发现失败可与 `runtimeStatus: connected` 同时存在。仅把可用/未知摘要修正为 `failed`，保留认证、禁用、启动等连接状态；不扩展 IPC。正常空目录仍为 `connected`。 |
+| `openai/userVerification` elicitation                                  | 新结构包含 `title`、`description`、`challenge`，没有 `message`。复用已有不支持提示，以 `description` 显示原因；仅取消/拒绝，不传 challenge 或接受证明。          |
+| `userVerification/status/enroll/delete/verify`                         | 154 本地实现统一返回 `ProviderUnavailable`。不创建无法完成的设置或验证流程，不声明能力。                                                                         |
+| `Thread.originator/environments/daybreakEnabled`                       | Rust 原生任务/快照投影只读取已使用字段；新增元数据不增加 WebView 负载。环境列表是选择信息，不表示连接状态。                                                      |
+| `ThreadListParams.originators`                                         | 非空筛选仅托管后端支持，本地会拒绝；项目不发送。任务排序继续使用 `recency_at`。                                                                                  |
+| `ThreadMetadataUpdateParams.daybreakEnabled`                           | 只是保存 Daybreak 选择，不授权模型访问；项目没有该产品入口，不发送。                                                                                             |
+| Guardian command/applyPatch、permissions approval 路径                 | 上游从 `AbsolutePathBuf` 改为 `LegacyAppPathString`，JSON 仍为字符串。项目沿用原始字符串映射，不增加本机路径规范化。                                             |
+| `GetAccountRateLimitsParams`                                           | 新增 `supportsLunaReserve`、`excludeResetCreditDetails`；项目当前不轮询配额，也没有自动 Reserve fallback，不能声明支持或新增无用请求。                           |
+| 配额响应 `ordinaryUsageAllowed`、`normalModelSlug`                     | 不从百分比或时间推断普通额度恢复；当前未接入配额产品，通知继续在初始化关闭。                                                                                     |
+| `ConfigRequirements.application`、`BrowserUseRequirements.allowWebmcp` | 托管策略由 Codex 执行；不在应用设置中伪造权限或自动打开 WebMCP。                                                                                                 |
+| 原始 `ResponseItem.configuration_update`、`ConfigurationReasoning`     | 不属于 UI `ThreadItem`。项目禁用原始响应通知，Composer 仍从现有 `thread/read` 恢复模型/思考强度。                                                                |
+| detached review 弃用                                                   | 现有 `review/start` 未传 `delivery`，使用 inline，不需要新线程或额外 RPC。                                                                                       |
+| 线程恢复/分叉修复                                                      | 继续由 Codex 恢复保存的 cwd/配置；现有 resume 不覆盖 cwd，resume/fork 均排除全历史。续聊按用户已选参数启动 turn。                                                |
+| 新模型与异步问答 TUI                                                   | 模型目录动态读取，无模型版本硬编码；现有 `agentMessage.questions`、普通消息回复、队列与高思考强度协议可继续使用。                                                |
+| 插件刷新、MCP OAuth、Guardian 修复                                     | 使用 154 运行时直接获得；应用不自动重放被拒绝的工具调用，也不重复实现服务端刷新逻辑。                                                                            |
+| Windows daemon、worktree、语音/TUI                                     | 本项目使用独立 stdio app-server，不启用 daemon、远程传输、语音流或新 worktree UI；没有依赖已移除的 `codex mcp-server`。                                          |
 
 ## 分发与性能
 

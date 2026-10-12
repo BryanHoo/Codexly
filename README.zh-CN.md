@@ -11,7 +11,7 @@ Codexly 是本地 AI 编程工作台，提供桌面应用和 Web 版。它将编
 | 桌面版 | 原生工作台、集成终端、独立任务窗口、系统通知与托盘 | [下载 Windows、Ubuntu 或 macOS 安装包](https://github.com/BryanHoo/Codexly/releases)，按[桌面安装指南](desktop/docs/installation.md)安装 |
 | Web 版 | 本机浏览器工作台，或从可信局域网内的其他设备访问   | 安装 Node.js 24+，按[Web 版启动步骤](#启动-web-版)运行                                                                                   |
 
-桌面安装包支持 Windows 10/11 x64、Ubuntu 24.04+ x64、macOS 14.5+（Apple Silicon / Intel），并提供 macOS 12.4+ Intel 的 Legacy 版本。安装包尚无操作系统代码签名，下载后请先查看[安装与放行说明](desktop/docs/installation.md)。桌面版首次启动会自动安装并校验应用私有的 Codex 运行时。
+桌面安装包支持 Windows 10/11 x64、Ubuntu 24.04+ x64、macOS 14.5+（Apple Silicon / Intel），并提供 macOS 12.4+ Intel 的 Legacy 版本。安装步骤与各平台的系统提示见[安装指南](desktop/docs/installation.md)。桌面版首次启动会自动安装并校验应用私有的 Codex 运行时。
 
 ## 主要功能
 

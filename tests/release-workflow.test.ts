@@ -1,7 +1,43 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("release verification", () => {
+  it("blocks publication when any Apple signing or notarization credential is missing", () => {
+    const workflow = readFileSync(".github/workflows/release.yml", "utf8");
+    const prepare = workflow.split("\n  desktop-quality:")[0] ?? "";
+    const step = prepare.split("- name: Verify macOS signing and notarization credentials")[1];
+    expect(step, "Apple 凭据必须在 prepare 阶段校验，防止发布未公证的安装包").toBeDefined();
+    const script = /run: \|\n([\s\S]*?)(?:\n\n|$)/.exec(step ?? "")?.[1]?.replace(/^ {10}/gmu, "");
+    if (!script) throw new Error("Apple 凭据校验步骤缺少可执行的 run 脚本");
+    const names = [
+      "APPLE_CERTIFICATE",
+      "APPLE_CERTIFICATE_PASSWORD",
+      "APPLE_ID",
+      "APPLE_PASSWORD",
+      "APPLE_SIGNING_IDENTITY",
+      "APPLE_TEAM_ID",
+    ];
+    const credentials = Object.fromEntries(names.map((name) => [name, `test-secret-${name}`]));
+
+    // 执行实际发布门禁，逐项缺失都必须失败，且诊断不能泄露任何凭据值。
+    for (const missing of names) {
+      const result = spawnSync("bash", ["-eu", "-c", script], {
+        env: { ...process.env, ...credentials, [missing]: "" },
+        encoding: "utf8",
+      });
+      expect(result.status, missing).not.toBe(0);
+      expect(result.stderr).toContain(`${missing} is required`);
+      expect(result.stdout + result.stderr).not.toContain("test-secret-");
+    }
+    const result = spawnSync("bash", ["-eu", "-c", script], {
+      env: { ...process.env, ...credentials },
+      encoding: "utf8",
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout + result.stderr).not.toContain("test-secret-");
+  });
+
   it("offers desktop downloads and web startup in both user-facing READMEs", () => {
     for (const [readmePath, installationPath] of [
       ["README.md", "desktop/docs/installation.en.md"],

@@ -59,6 +59,21 @@ jobs:
         shell: bash
         run: |
           test -n "${TAURI_SIGNING_PRIVATE_KEY}" || { echo 'TAURI_SIGNING_PRIVATE_KEY is required' >&2; exit 1; }
+      - name: Verify macOS signing and notarization credentials
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          # 联合发布开始前检查签名与公证凭据，避免耗时构建后才发现 macOS 无法分发。
+          # 只输出缺失的变量名，禁止把证书、导出密码或 App 专用密码写入日志。
+          for credential in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_TEAM_ID; do
+            test -n "${!credential}" || { echo "${credential} is required" >&2; exit 1; }
+          done
 
   desktop-quality:
     name: Desktop quality gate
@@ -313,6 +328,14 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CODEAGENT_MACOS_PROFILE: ${{ matrix.macosProfile || 'modern' }}
           CARGO_TARGET_DIR: ${{ matrix.macosProfile == 'legacy' && format('{0}/desktop/src-tauri/target/legacy', github.workspace) || format('{0}/desktop/src-tauri/target', github.workspace) }}
+          # Tauri 原生导入 p12、使用 Developer ID 签名并公证、装订票据；三种 macOS 产物共用配置。
+          # Apple 凭据仅传给 macOS 构建，Windows 和 Linux 不接收这些密钥。
+          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
         with:
           projectPath: desktop
           tauriScript: pnpm tauri
@@ -327,6 +350,22 @@ jobs:
           workflowArtifactNamePattern: ${{ matrix.macosProfile == 'legacy' && '[platform]-[arch]-[bundle]-legacy' || '' }}
           releaseAssetNamePattern: ${{ matrix.releaseAssetNamePattern }}
           args: ${{ matrix.args }}
+      - name: Verify macOS signed and notarized app
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MACOS_TARGET: ${{ matrix.rustTargets }}
+          MACOS_PROFILE: ${{ matrix.macosProfile || 'modern' }}
+        run: |
+          # 验证实际产物；票据或 Gatekeeper 校验失败时，联合 Release 必须保持草稿。
+          bundle_root="desktop/src-tauri/target"
+          if [[ "${MACOS_PROFILE}" == 'legacy' ]]; then
+            bundle_root="${bundle_root}/legacy"
+          fi
+          app_path="${bundle_root}/${MACOS_TARGET}/release/bundle/macos/Codexly.app"
+          codesign --verify --deep --strict --verbose=2 "${app_path}"
+          xcrun stapler validate "${app_path}"
+          spctl --assess --type execute --verbose=4 "${app_path}"
       - name: Publish isolated Legacy updater metadata
         if: matrix.macosProfile == 'legacy'
         shell: bash

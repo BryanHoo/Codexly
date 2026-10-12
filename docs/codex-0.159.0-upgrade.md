@@ -3,7 +3,7 @@
 ## 版本与依据
 
 - `@openai/codex` 从 `0.158.0` 升至 npm `latest` 的 `0.159.0`；Web 外部 CLI 接受 `>=0.159.0,<0.160.0`，桌面私有运行时固定为 `0.159.0`。
-- 本地 `/Users/bryanhu/Develop/person/codex` 已切换至官方 [`rust-v0.159.0`](https://github.com/openai/codex/tree/rust-v0.159.0)，提交 `687a119f0f`。
+- 官方源码基线为 [`rust-v0.159.0`](https://github.com/openai/codex/tree/rust-v0.159.0)，提交 `687a119f0f`。
 - 根据 [App Server 官方文档](https://developers.openai.com/codex/app-server)，使用该版本的 `generate-ts`、`generate-json-schema` 和 `--experimental` 生成两端共用的协议基线。
 
 ## 协议适配

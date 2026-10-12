@@ -4,18 +4,18 @@
 2. Follow the platform-specific steps below to install and launch Codexly.
 3. Wait for the app to install and verify its private Codex runtime, then add a project and create a task.
 
-Current packages do not include operating-system code signing, so your system may display source or security warnings. Supported platforms are:
+Older macOS releases and Windows or Ubuntu packages may display source or security warnings. Follow the instructions for your platform below. Supported platforms are:
 
-| Platform | Architecture | Package |
-| --- | --- | --- |
-| Windows 10/11 | x86_64 | NSIS installer, portable EXE |
-| Ubuntu 24.04+ | x86_64 | DEB, AppImage |
-| macOS 14.5+ (Modern) | Apple Silicon, Intel x86_64 | app, DMG |
-| macOS 12.4+ (Legacy) | Intel x86_64 | app, DMG (`_legacy` filenames) |
+| Platform             | Architecture                | Package                        |
+| -------------------- | --------------------------- | ------------------------------ |
+| Windows 10/11        | x86_64                      | NSIS installer, portable EXE   |
+| Ubuntu 24.04+        | x86_64                      | DEB, AppImage                  |
+| macOS 14.5+ (Modern) | Apple Silicon, Intel x86_64 | app, DMG                       |
+| macOS 12.4+ (Legacy) | Intel x86_64                | app, DMG (`_legacy` filenames) |
 
 ## Install, Permissions, and Uninstall
 
-Current release packages do not have operating-system code signing. Download them only from this repository's [Releases](https://github.com/BryanHoo/Codexly/releases), and run the permission commands only after confirming the download source. These commands allow Codexly specifically and do not disable system-wide security checks.
+Download only from this repository's [Releases](https://github.com/BryanHoo/Codexly/releases). If your system displays a source or security warning, confirm the download source first. Keep system-wide security checks enabled.
 
 ### Windows 10/11
 
@@ -97,11 +97,10 @@ Choose Modern for macOS 14.5+ on Apple Silicon or Intel, or Legacy for Intel on 
 hdiutil attach "./Codexly.dmg"
 sudo ditto "/Volumes/Codexly/Codexly.app" "/Applications/Codexly.app"
 hdiutil detach "/Volumes/Codexly"
-sudo xattr -dr com.apple.quarantine "/Applications/Codexly.app"
 open "/Applications/Codexly.app"
 ```
 
-`xattr` removes only Codexly's quarantine marker and does not disable Gatekeeper. If the mounted volume is not named `Codexly`, replace `/Volumes/Codexly` with the volume name shown in Finder.
+New packages do not require removing the quarantine marker. For an older package blocked by Gatekeeper, verify its source and choose Open Anyway in System Settings > Privacy & Security, or upgrade to a new release. If the mounted volume is not named `Codexly`, replace `/Volumes/Codexly` with the volume name shown in Finder.
 
 Uninstall the app with:
 

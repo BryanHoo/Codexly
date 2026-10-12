@@ -27,7 +27,7 @@ Codexly keeps coding tasks, conversations, project files, and Git work in one pl
 | Desktop | A native workspace with an integrated terminal, task window, system notifications, and tray controls | [Download for Windows, Ubuntu, or macOS](https://github.com/BryanHoo/Codexly/releases) and follow the [desktop installation guide](desktop/docs/installation.en.md) |
 | Web     | A local browser workspace accessible from your computer or another device on a trusted LAN           | Install Node.js 24+ and [start the Web edition](#start-the-web-edition)                                                                                             |
 
-Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ (Apple Silicon or Intel), and a separate Legacy build for macOS 12.4+ Intel. The packages are not OS code-signed; review the [installation instructions](desktop/docs/installation.en.md) before opening a download. The desktop app installs and verifies its own private Codex runtime on first launch.
+Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ (Apple Silicon or Intel), and a separate Legacy build for macOS 12.4+ Intel. See the [installation instructions](desktop/docs/installation.en.md) for setup steps and system prompts on each platform. The desktop app installs and verifies its own private Codex runtime on first launch.
 
 ## Web Preview
 

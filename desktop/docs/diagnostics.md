@@ -8,26 +8,28 @@
 2. 在「设置 → 关于」导出诊断 ZIP。运行时启动失败时也可以导出。
 3. 查看 `manifest.json` 中的应用版本、Codex 版本、系统和架构，结合 `logs/` 下的 JSONL 日志和 `metrics/runtime.json` 中的队列指标分析。
 
+原始 ZIP 仅在本地保存。对外报告时，先检查并脱敏错误消息和截图中的账户、路径、任务内容及凭据，只提供复现所需的最小片段；漏洞材料通过[私密报告渠道](../../SECURITY.md)提交。
+
 应用日志单文件上限为 5 MiB，保留 5 个轮转文件；导出总量上限为 30 MiB。请尽早导出，轮转后的历史可能已被覆盖。日志不能保证在进程被强制终止或存储故障时完整落盘。
 
 ## 按关联字段还原过程
 
 每条记录都有 `sessionId`、`timestamp`、`source`、`level` 和 `event`。先按 `sessionId` 区分应用启动会话，再看 `context`：
 
-| 字段 | 用途 |
-| --- | --- |
-| `connectionSeq` | 区分同一次应用会话内的 Codex 连接；RPC、连接读写故障、Codex stderr 和任务事件使用同一编号 |
-| `operationSeq` | 关联一次逻辑 RPC 的开始和结束；过载重试不改变此编号 |
-| `requestSeq` | 最后一次 RPC 尝试的编号，包括编码或写入阶段失败的尝试；重试时递增，开始事件没有此字段 |
-| `rpcMethod` | 定位协议操作，例如 `turn/start`、`thread/read` |
-| `phase` | 判断故障发生在编码、写入排队、写入、刷新、等待响应、解码或重试退避阶段 |
-| `elapsedMs` / `timeoutMs` | 对比实际耗时与整个请求的超时预算；耗时使用单调时钟计算 |
-| `retryCount` | 实际发起的额外尝试次数，不包含仍在退避等待中的重试 |
-| `projectId` / `taskId` / `turnId` | 同一应用会话内的脱敏标识，用于关联任务开始、完成和 Provider 错误；无法跨应用重启直接关联 |
-| `eventSequence` | 已投影的任务事件序号，与该项目的事件流序号对应 |
-| `restartGeneration` / `restartAttempt` | 关联运行时状态转换与重启计划，辨别连续启动失败 |
-| `sourceFile` / `sourceLine` | Rust 警告、错误的记录位置；仅包含源文件名，不包含编译机器目录 |
-| `cause1` … `cause4` | 启动等显式保留错误链的位置，补充顶层错误背后的系统原因 |
+| 字段                                   | 用途                                                                                      |
+| -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `connectionSeq`                        | 区分同一次应用会话内的 Codex 连接；RPC、连接读写故障、Codex stderr 和任务事件使用同一编号 |
+| `operationSeq`                         | 关联一次逻辑 RPC 的开始和结束；过载重试不改变此编号                                       |
+| `requestSeq`                           | 最后一次 RPC 尝试的编号，包括编码或写入阶段失败的尝试；重试时递增，开始事件没有此字段     |
+| `rpcMethod`                            | 定位协议操作，例如 `turn/start`、`thread/read`                                            |
+| `phase`                                | 判断故障发生在编码、写入排队、写入、刷新、等待响应、解码或重试退避阶段                    |
+| `elapsedMs` / `timeoutMs`              | 对比实际耗时与整个请求的超时预算；耗时使用单调时钟计算                                    |
+| `retryCount`                           | 实际发起的额外尝试次数，不包含仍在退避等待中的重试                                        |
+| `projectId` / `taskId` / `turnId`      | 同一应用会话内的脱敏标识，用于关联任务开始、完成和 Provider 错误；无法跨应用重启直接关联  |
+| `eventSequence`                        | 已投影的任务事件序号，与该项目的事件流序号对应                                            |
+| `restartGeneration` / `restartAttempt` | 关联运行时状态转换与重启计划，辨别连续启动失败                                            |
+| `sourceFile` / `sourceLine`            | Rust 警告、错误的记录位置；仅包含源文件名，不包含编译机器目录                             |
+| `cause1` … `cause4`                    | 启动等显式保留错误链的位置，补充顶层错误背后的系统原因                                    |
 
 这些是本地诊断关联号，不是 W3C `TraceId`，也不构成跨 WebView、IPC 和外部服务的完整分布式追踪。
 
@@ -46,14 +48,14 @@
 
 超时的 `phase` 含义：
 
-| `phase` | 检查方向 |
-| --- | --- |
-| `encode` | 请求编码或登记阶段 |
-| `write_queue` | 其他请求是否长时间占用写入锁 |
-| `write` / `flush` | 子进程是否停止读取、管道是否受阻；检查 `codex_connection_write_aborted` |
-| `response` | 子进程是否已接收请求但迟迟未响应；检查同一 `connectionSeq` 的 stderr 和连接故障 |
-| `decode` | 响应结构或返回类型是否异常；服务端返回的 RPC 错误也在此阶段处理 |
-| `retry_backoff` | 过载退避是否耗尽总预算 |
+| `phase`           | 检查方向                                                                        |
+| ----------------- | ------------------------------------------------------------------------------- |
+| `encode`          | 请求编码或登记阶段                                                              |
+| `write_queue`     | 其他请求是否长时间占用写入锁                                                    |
+| `write` / `flush` | 子进程是否停止读取、管道是否受阻；检查 `codex_connection_write_aborted`         |
+| `response`        | 子进程是否已接收请求但迟迟未响应；检查同一 `connectionSeq` 的 stderr 和连接故障 |
+| `decode`          | 响应结构或返回类型是否异常；服务端返回的 RPC 错误也在此阶段处理                 |
+| `retry_backoff`   | 过载退避是否耗尽总预算                                                          |
 
 关键请求只有开始而没有结束时，结合 `app_stopped`、`previous_session_unclean`、日志轮转和日志丢失汇总判断，不能直接认定请求仍在执行。普通快速读取不记录开始或成功结果。
 

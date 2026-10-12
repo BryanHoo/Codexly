@@ -25,7 +25,7 @@ pnpm check
 pnpm tauri build
 ```
 
-macOS 架构选择与 Legacy 构建见 [macOS 分档构建](./macos-build-profiles.md)。版本管理、签名与发布流程见[发布指南](./releasing.md)。
+macOS 架构选择与 Legacy 构建见 [macOS 分档构建](./macos-build-profiles.md)。版本管理与发布流程见[发布指南](./releasing.md)。
 
 [返回 README](../README.md) · [English](./development.en.md)
 

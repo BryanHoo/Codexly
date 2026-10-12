@@ -3,7 +3,7 @@
 ## 版本与依据
 
 - 2026-10-08 核对 GitHub 最新稳定 release 与 npm `latest`，均为 `0.161.0`；发布时间为 `2026-10-07T15:58:45Z`。`0.162.0-alpha.*` 属于预发布版本。
-- 首先将 `/Users/bryanhu/Develop/person/codex` 切换至 `rust-v0.161.0`，提交 `979011409de0a60b52f179721948e65531d26144`，源码工作区无修改。
+- 官方源码基线为 `rust-v0.161.0`，提交 `979011409de0a60b52f179721948e65531d26144`。
 - Web 内置 `@openai/codex` 固定为 `0.161.0`，外部 CLI 要求 `>=0.161.0,<0.162.0`；桌面私有运行时仅接受精确版本 `0.161.0`。
 - 阅读 [App Server 官方文档](https://learn.chatgpt.com/docs/app-server)、[正式发布说明](https://github.com/openai/codex/releases/tag/rust-v0.161.0)、本地 tag 的 `codex-rs/app-server/README.md`，审查 `rust-v0.160.0..rust-v0.161.0` 协议、配置、目标、历史恢复和模型发现源码。
 - Schema 由校验官方 SHA-512 后的正式 CLI 生成，启用 `--experimental`；共 1,327 个文件，相比 `0.160.0` 新增 12 个、修改 39 个、删除 0 个。两端共用根目录基线。

@@ -1,4 +1,4 @@
-- Codex 源码位置：/Users/bryanhu/Develop/person/codex
+- Codex 本地源码位置读取根目录 Git 忽略的 `.local/project-paths.json` 中的 `codexSource`；未配置时使用官方源码仓库。
 - 项目实现必须保证高性能、运行低占用、低传输延迟、低渲染延迟
 - 项目分为两个子项目，web 端（包含移动端）和桌面端（支持 Mac、Windows、Ubuntu）
 - 所有功能、修复、优化等都要同时考虑 web 端和桌面端

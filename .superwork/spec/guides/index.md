@@ -23,6 +23,7 @@ Codexly 在同一仓库发布 Web CLI 与桌面应用。根目录 `pnpm-workspac
 - Web 与桌面共用版本号、标签及根目录 `CHANGELOG.md`；共用变化合并描述，Release 正文与桌面离线日志仅从此文件提取，不维护第二份桌面日志。发布流程见 `docs/releasing.md`。
 - 已推送发布标签保持不可变；代码、测试或工作流修复必须递增两端版本并创建新标签。失败版本尚未公开时，新版日志仍需覆盖上次正式发布以来的全部变化。
 - GitHub Release 的产品与版本标题仅由页面标题显示；正文直接展示合并变更，首行保留桌面更新检查所需的 `codeagent-version` 隐藏标记，并通过 `pnpm test:release` 防止重复标题回归。
+- 发布凭据、具体账户及证书标识不得明文进入源码或公开文档；CI 使用仓库 Secrets，本地配置保持 Git 忽略。公开文档仅保留安装、使用、开发和验证所需的信息；个人目录、账户标识、内部地址与任务记录不得进入公开证据，原始日志和截图保存在 Git 忽略的本地目录，性能证据中的进程标识需匿名化；发布门禁回归执行 `pnpm exec vitest run tests/release-workflow.test.ts`。
 
 - 依赖方向以 `dependency-cruiser.config.cjs` 和各包 `package.json` 为准；跨层改动参照[契约检查](./cross-layer-thinking-guide.md)。
 - Codex App Server Schema 只维护仓库根目录 `schemas/codex-app-server/<version>.schema-baseline.json`；Web 与桌面分别运行 `pnpm codex:schema:check` 和 `pnpm codex:protocol:check` 校验同一基线。

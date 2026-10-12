@@ -25,7 +25,7 @@ pnpm check
 pnpm tauri build
 ```
 
-For macOS profile selection and Legacy builds, see [macOS build profiles](./macos-build-profiles.md). For release requirements and signing, see [Releasing](./releasing.md).
+For macOS profile selection and Legacy builds, see [macOS build profiles](./macos-build-profiles.md). For version management and releases, see [Releasing](./releasing.md).
 
 [Back to README](../README.en.md) · [中文](./development.md)
 

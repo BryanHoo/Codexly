@@ -6,14 +6,14 @@
 
 ## 环境与测量口径
 
-| 项目 | 本次环境 |
-| --- | --- |
-| 硬件 | Apple M1 Pro，8 个逻辑核心，16 GiB 内存 |
-| 系统 | macOS 26.6.2，Darwin 25.6.0，arm64 |
-| WebView | 真实 WKWebView，WebDriver 报告版本 605.1.15 |
-| 构建 | Release，启用 `webview-tests` 与 `VITE_WEBVIEW_TEST=1` |
-| 依赖 | xterm 6.0.0，FitAddon 0.11.0，WebglAddon 0.19.0，portable-pty 0.9.0 |
-| shell | 系统默认 zsh，保留当前用户登录/交互 profile |
+| 项目       | 本次环境                                                                |
+| ---------- | ----------------------------------------------------------------------- |
+| 硬件       | Apple M1 Pro，8 个逻辑核心，16 GiB 内存                                 |
+| 系统       | macOS 26.6.2，Darwin 25.6.0，arm64                                      |
+| WebView    | 真实 WKWebView，WebDriver 报告版本 605.1.15                             |
+| 构建       | Release，启用 `webview-tests` 与 `VITE_WEBVIEW_TEST=1`                  |
+| 依赖       | xterm 6.0.0，FitAddon 0.11.0，WebglAddon 0.19.0，portable-pty 0.9.0     |
+| shell      | 系统默认 zsh，保留当前用户登录/交互 profile                             |
 | 项目根目录 | 测试 fixture 映射到系统临时目录；未使用真实项目查询作为本轮性能前置条件 |
 
 PTY、输入 IPC、二进制输出 Channel、xterm 解析和渲染均为真实实现。Provider、项目等非终端业务使用测试 fixture；本报告不能证明真实项目根目录授权路径的端到端行为。
@@ -36,14 +36,14 @@ pnpm exec cross-env CODEAGENT_WEBVIEW_RELEASE=1 wdio run wdio.conf.ts --spec tes
 
 保持 Mac 解锁。真实系统按键用 `CGEvent.postToPid` 定向发送到精确匹配构建路径的测试进程，需要给运行测试的应用授予 macOS 辅助功能权限。测试不修改系统权限，不向其他应用发送按键。窗口激活同样按精确二进制路径匹配。
 
-历史原始结果归档在 `docs/evidence/terminal/`；复测结果写入未跟踪的 `artifacts/terminal/`：
+历史脱敏测量结果归档在 `docs/evidence/terminal/`；复测结果写入未跟踪的 `artifacts/terminal/`：
 
 - `release-native-measurements.json`：逐次 CPU/RSS 样本、解析计数、队列占用和回收时间。
 - `release-render-latency.json`：200 次 UI 输入和 200 次标签切换的原始毫秒样本。
 - `release-system-key-latency.json`：200 次可信系统按键样本及输入到输出、输出到绘制的分段耗时。
 - `release-render-latency-raf.json`、`release-system-key-latency-raf.json`：保留修正观测时刻前、包含额外 rAF 等待的历史数据，不能与事件时间戳口径直接混用。
-- `native-terminal.png`：最近一次真实可见 WebView 截图（当前为 Windows WebView2），已检查终端、Composer 和底栏布局。
-- `native-terminal-failure.png`：历史失败诊断，不是通过证据。
+
+公开测量证据中的进程标识已匿名化，资源和延迟指标保持不变；截图与原始诊断材料仅在本地保留。
 
 这些测试由 runner 管理应用生命周期，不需要留下开发服务器。复测会覆盖 `artifacts/terminal/` 中的同名测量文件；比较不同版本前应另行保存相应样本。
 
@@ -51,14 +51,14 @@ pnpm exec cross-env CODEAGENT_WEBVIEW_RELEASE=1 wdio run wdio.conf.ts --spec tes
 
 ### 空闲与持续输出
 
-| 场景 | 时长 | 应用 CPU | shell CPU | 应用 RSS 首/末 KiB | shell RSS 首/末 KiB |
-| --- | --- | ---: | ---: | ---: | ---: |
-| 无终端基线 | 60s | 0.283% | 0% | 117008 / 101600 | 0 / 0 |
-| 1 个空闲终端 | 60s | 0.333% | 0% | 105360 / 94704 | 7152 / 6320 |
-| 12 个空闲终端，第 1 轮 | 60s | 0.450% | 0% | 96240 / 92864 | 84672 / 83040 |
-| 12 个空闲终端，第 2 轮 | 60s | 0.283% | 0% | 92864 / 93136 | 83040 / 83040 |
-| 12 个空闲终端，第 3 轮 | 60s | 0.217% | 0% | 93136 / 93152 | 83040 / 83040 |
-| 1 个会话持续输出，另 11 个空闲 | 65s 观测 | 2.953% | 0.092% | 93216 / 93616 | 83264 / 83248 |
+| 场景                           | 时长     | 应用 CPU | shell CPU | 应用 RSS 首/末 KiB | shell RSS 首/末 KiB |
+| ------------------------------ | -------- | -------: | --------: | -----------------: | ------------------: |
+| 无终端基线                     | 60s      |   0.283% |        0% |    117008 / 101600 |               0 / 0 |
+| 1 个空闲终端                   | 60s      |   0.333% |        0% |     105360 / 94704 |         7152 / 6320 |
+| 12 个空闲终端，第 1 轮         | 60s      |   0.450% |        0% |      96240 / 92864 |       84672 / 83040 |
+| 12 个空闲终端，第 2 轮         | 60s      |   0.283% |        0% |      92864 / 93136 |       83040 / 83040 |
+| 12 个空闲终端，第 3 轮         | 60s      |   0.217% |        0% |      93136 / 93152 |       83040 / 83040 |
+| 1 个会话持续输出，另 11 个空闲 | 65s 观测 |   2.953% |    0.092% |      93216 / 93616 |       83264 / 83248 |
 
 12 会话三轮期间，终端创建/写入/ACK/resize/关闭等 IPC 增量为 0。应用 CPU 相对无终端基线的最大差值约 0.167 个百分点，低于 1 个百分点目标；这是上述进程口径与可见性条件下的结果，不包含 WebContent 占用。
 
@@ -76,11 +76,11 @@ Release WKWebView 已验证：首次点击才创建真实 PTY、UI 粘贴可执�
 
 以下为保存在 `*-raf.json` 的历史观测，包含绘制完成后的额外 rAF 等待：
 
-| 观测路径 | 样本数 | P50 | P95 | 最大值 | 目标判断 |
-| --- | ---: | ---: | ---: | ---: | --- |
-| 单字符 UI paste → 真实 PTY 回显 → onRender 后 rAF 观测 | 200 | 33ms | 35ms | 49ms | 超过 30ms，未通过 |
-| 已有标签点击 → onRender 后 rAF 观测 | 200 | 39ms | 45ms | 64ms | 低于 50ms |
-| 可信系统 keydown → 真实 PTY 回显 → onRender 后 rAF 观测 | 200 | 32ms | 44ms | 174ms | 超过 30ms，未通过 |
+| 观测路径                                                | 样本数 |  P50 |  P95 | 最大值 | 目标判断          |
+| ------------------------------------------------------- | -----: | ---: | ---: | -----: | ----------------- |
+| 单字符 UI paste → 真实 PTY 回显 → onRender 后 rAF 观测  |    200 | 33ms | 35ms |   49ms | 超过 30ms，未通过 |
+| 已有标签点击 → onRender 后 rAF 观测                     |    200 | 39ms | 45ms |   64ms | 低于 50ms         |
+| 可信系统 keydown → 真实 PTY 回显 → onRender 后 rAF 观测 |    200 | 32ms | 44ms |  174ms | 超过 30ms，未通过 |
 
 标签切换期间创建调用总数保持 2，没有重新 spawn。系统按键全部满足 `event.isTrusted`，由定向 `CGEvent.postToPid` 产生；UI paste 与系统按键是不同输入路径。系统按键分段观测的输入到首个 native 输出 P95 为 13ms，输出到后续 rAF 观测 P95 为 33ms。结束观测包含额外 rAF 等待，也不是显示器实际呈现时间。功能测试通过不代表性能目标通过。
 
@@ -88,11 +88,11 @@ Release WKWebView 已验证：首次点击才创建真实 PTY、UI 粘贴可执�
 
 2026-09-07 21:51–21:52（Asia/Shanghai）的最终事件时间戳结果：
 
-| 输入或动作 → xterm onRender | 样本数 | P50 | P95 | 最大值 | 目标判断 |
-| --- | ---: | ---: | ---: | ---: | --- |
-| 单字符 UI paste → 真实 PTY 回显 | 200 | 17ms | 18ms | 34ms | P95 ≤30ms，通过 |
-| 已有标签切换 | 200 | 29ms | 31ms | 52ms | P95 ≤50ms，通过 |
-| 可信系统 keydown → 真实 PTY 回显 | 200 | 15ms | 28ms | 35ms | P95 ≤30ms，通过 |
+| 输入或动作 → xterm onRender      | 样本数 |  P50 |  P95 | 最大值 | 目标判断        |
+| -------------------------------- | -----: | ---: | ---: | -----: | --------------- |
+| 单字符 UI paste → 真实 PTY 回显  |    200 | 17ms | 18ms |   34ms | P95 ≤30ms，通过 |
+| 已有标签切换                     |    200 | 29ms | 31ms |   52ms | P95 ≤50ms，通过 |
+| 可信系统 keydown → 真实 PTY 回显 |    200 | 15ms | 28ms |   35ms | P95 ≤30ms，通过 |
 
 系统按键到首个 native 输出的 P95 为 13ms，输出到 onRender 的 P95 为 16ms。200 个系统事件全部通过 `event.isTrusted` 检查，全部样本有限且非负，标签切换不重复创建 PTY。
 

@@ -4,20 +4,20 @@
 2. 按照下方对应平台的步骤安装并启动 Codexly。
 3. 等待应用自动安装并校验私有 Codex 运行时，然后添加项目并创建任务。
 
-当前安装包尚未配置操作系统代码签名，系统可能显示来源或安全提示。支持平台如下：
+历史 macOS 版本及 Windows、Ubuntu 安装包可能显示来源或安全提示，请按下方对应平台说明安装。支持平台如下：
 
-| 平台 | 架构 | 安装包 |
-| --- | --- | --- |
-| Windows 10/11 | x86_64 | NSIS 安装器、EXE（免安装） |
-| Ubuntu 24.04+ | x86_64 | DEB、AppImage |
-| macOS 14.5+（Modern） | Apple Silicon、Intel x86_64 | app、DMG |
-| macOS 12.4+（Legacy） | Intel x86_64 | app、DMG（文件名含 `_legacy`） |
+| 平台                  | 架构                        | 安装包                         |
+| --------------------- | --------------------------- | ------------------------------ |
+| Windows 10/11         | x86_64                      | NSIS 安装器、EXE（免安装）     |
+| Ubuntu 24.04+         | x86_64                      | DEB、AppImage                  |
+| macOS 14.5+（Modern） | Apple Silicon、Intel x86_64 | app、DMG                       |
+| macOS 12.4+（Legacy） | Intel x86_64                | app、DMG（文件名含 `_legacy`） |
 
 Legacy 使用独立构建和更新清单，部分视觉效果与 Diff 高亮简化；最低系统的真机验收要求见 [macOS 分档构建](./macos-build-profiles.md)。
 
 ## 安装、放行与卸载
 
-所有发布包当前均未配置操作系统代码签名。只应从本仓库的 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载，并在确认下载来源后执行放行命令。以下命令只放行 Codexly，不会关闭系统级安全检查。
+只应从本仓库的 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载。出现来源或安全提示时，先确认下载来源。不要关闭系统级安全检查。
 
 ### Windows 10/11
 
@@ -99,11 +99,10 @@ rm -rf "$HOME/.cache/com.codexly.desktop"
 hdiutil attach "./Codexly.dmg"
 sudo ditto "/Volumes/Codexly/Codexly.app" "/Applications/Codexly.app"
 hdiutil detach "/Volumes/Codexly"
-sudo xattr -dr com.apple.quarantine "/Applications/Codexly.app"
 open "/Applications/Codexly.app"
 ```
 
-`xattr` 只移除 Codexly 的隔离标记，不会关闭 Gatekeeper。若 DMG 挂载后的卷名不是 `Codexly`，请将命令中的 `/Volumes/Codexly` 替换为 Finder 中显示的实际卷名。
+新版安装包无需移除隔离标记。历史版本若被 Gatekeeper 拦截，确认来源后可在“系统设置 > 隐私与安全性”中选择“仍要打开”，或升级到新版本。若 DMG 挂载后的卷名不是 `Codexly`，请将命令中的 `/Volumes/Codexly` 替换为 Finder 中显示的实际卷名。
 
 卸载应用：
 

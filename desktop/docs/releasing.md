@@ -2,17 +2,17 @@
 
 面向用户的安装、更新与卸载步骤见[安装指南](./installation.md)，本页面向维护发布的开发者。源码环境准备见[开发指南](./development.md)。
 
-当前发布不配置 Apple Developer ID、Windows Authenticode 代码签名证书或 Linux GPG 密钥。
+发布所需凭据由维护者通过仓库 Secrets 管理，本地配置不进入版本控制。
 自动更新产物使用独立的 Tauri updater 私钥签名，产物仅应从合仓后的 Codexly GitHub Releases 获取。
 
 ## 支持矩阵
 
-| 平台 | 目标 | 包格式 | 最低基线 |
-| --- | --- | --- | --- |
-| Windows | x86_64 | EXE（免安装）、NSIS | Windows 10/11，使用系统 WebView2 Runtime |
-| Ubuntu | x86_64 | DEB、AppImage | Ubuntu 24.04 LTS+ |
-| macOS Modern | Apple Silicon、Intel x86_64 | app、DMG | macOS 14.5+ |
-| macOS Legacy | Intel x86_64 | app、DMG（`_legacy`） | macOS 12.4+，需真机验收 |
+| 平台         | 目标                        | 包格式                | 最低基线                                 |
+| ------------ | --------------------------- | --------------------- | ---------------------------------------- |
+| Windows      | x86_64                      | EXE（免安装）、NSIS   | Windows 10/11，使用系统 WebView2 Runtime |
+| Ubuntu       | x86_64                      | DEB、AppImage         | Ubuntu 24.04 LTS+                        |
+| macOS Modern | Apple Silicon、Intel x86_64 | app、DMG              | macOS 14.5+                              |
+| macOS Legacy | Intel x86_64                | app、DMG（`_legacy`） | macOS 12.4+，需真机验收                  |
 
 Windows 同时发布两种产物：按 `tauri build --no-bundle --no-sign` 生成的 `portable.exe` 用于
 免安装运行，NSIS 安装器作为 Tauri updater 的 Windows 更新目标。两者都不包含 Authenticode
@@ -60,9 +60,8 @@ macOS Modern 构建生成 Tauri updater artifact、`.sig` 和 `latest.json`。ma
 3. 按根目录 [联合发布指南](../../docs/releasing.md)推送统一版本标签；桌面端不另推标签。
 4. 核对同一 Release 中桌面安装包、`latest.json`、`latest-legacy.json` 和签名。
 
-无签名应用会触发 Windows SmartScreen 和 macOS Gatekeeper 警告，Linux 包也没有可验证的发行者
-签名。这是当前阶段的明确限制，不应引导用户关闭系统安全机制。正式公开发布前必须补齐各平台
-签名、公证、真实品牌图标、许可证、Provider 运行时供应链校验和原生系统实机回归。
+安装时的系统提示和历史版本处理见[安装指南](./installation.md)。正式发布必须通过产物验证、
+Provider 运行时供应链校验和原生系统实机回归，不应引导用户关闭系统安全机制。
 
 ## Provider 运行时完整性
 

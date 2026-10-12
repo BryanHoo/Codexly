@@ -3,7 +3,7 @@
   "actions": [
     {
       "action": "request",
-      "processId": 8236,
+      "processId": "process-045",
       "ownedByMainWindow": true,
       "nativeClass": "#32770",
       "parentDisabled": true,
@@ -11,7 +11,7 @@
     },
     {
       "action": "cancel",
-      "processId": 8236,
+      "processId": "process-045",
       "ownedByMainWindow": true,
       "nativeClass": "#32770",
       "parentDisabled": true,
@@ -19,7 +19,7 @@
     },
     {
       "action": "request",
-      "processId": 8236,
+      "processId": "process-045",
       "ownedByMainWindow": true,
       "nativeClass": "#32770",
       "parentDisabled": true,
@@ -27,11 +27,12 @@
     },
     {
       "action": "confirm",
-      "processId": 8236,
+      "processId": "process-045",
       "ownedByMainWindow": true,
       "nativeClass": "#32770",
       "parentDisabled": true,
       "button": "结束并关闭"
     }
-  ]
+  ],
+  "redactions": ["process identifiers"]
 }

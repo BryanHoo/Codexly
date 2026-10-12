@@ -3,7 +3,7 @@
 ## 版本与依据
 
 - 内置 `@openai/codex` 从 `0.156.0` 升至 `0.157.1`；Web 端外部 CLI 接受稳定版 `>=0.157.1,<0.158.0`，桌面私有运行时只接受 `0.157.1`。
-- 官方源码固定为 [`rust-v0.157.1`](https://github.com/openai/codex/tree/rust-v0.157.1)，本地检出位于 `/Users/bryanhu/Develop/person/codex`。
+- 官方源码固定为 [`rust-v0.157.1`](https://github.com/openai/codex/tree/rust-v0.157.1)。
 - 按 [App Server 文档](https://developers.openai.com/codex/app-server) 使用版本对应的 `generate-ts`、`generate-json-schema` 和 `--experimental` 生成契约。
 
 ## 协议处理

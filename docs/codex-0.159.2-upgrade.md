@@ -3,7 +3,7 @@
 ## 版本与依据
 
 - 2026-09-30 核对 GitHub 最新正式 release 与 npm `latest`，均为 `0.159.2`；发布时间为 `2026-09-29T23:57:16Z`，北京时间 2026-09-30 07:57:16。
-- 本地 `/Users/bryanhu/Develop/person/codex` 从 `rust-v0.159.0` 切换至 [`rust-v0.159.2`](https://github.com/openai/codex/tree/rust-v0.159.2)，提交 `ff6aec9694`。
+- 官方源码基线从 `rust-v0.159.0` 升级至 [`rust-v0.159.2`](https://github.com/openai/codex/tree/rust-v0.159.2)，提交 `ff6aec9694`。
 - Web 内置 `@openai/codex` 固定为 `0.159.2`，外部 CLI 要求 `>=0.159.2,<0.160.0`；桌面私有运行时仅接受精确版本 `0.159.2`。
 - 阅读 [App Server 官方文档](https://developers.openai.com/codex/app-server)、该 tag 的 `codex-rs/app-server/README.md` 和 `0.159.0..0.159.2` 源码差异。版本特定契约以发布 CLI 的 Schema 为准，不将当前在线文档的新接口直接引入旧 tag。
 

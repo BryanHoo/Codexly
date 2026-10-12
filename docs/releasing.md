@@ -2,21 +2,9 @@
 
 根目录统一管理 Codexly Web 与 `desktop/` Tauri 应用的 pnpm workspace 和锁文件；桌面端保留自己的 `package.json` 与 Rust 工程。两边使用同一个版本号与 Git 标签。推送标签后，同一流水线发布 npm 包、GHCR 镜像和桌面安装包，并创建一个 GitHub Release。
 
-## 首次配置
+## 发布环境
 
-在 npm 的 `@bryanhu/codexly > Settings > Trusted Publisher` 中配置：
-
-| 配置项               | 值            |
-| -------------------- | ------------- |
-| Organization or user | `BryanHoo`    |
-| Repository           | `Codexly`     |
-| Workflow filename    | `release.yml` |
-| Environment name     | `npm`         |
-| Allowed actions      | `npm publish` |
-
-GitHub 仓库必须有名为 `npm` 的 Environment。工作流使用 OIDC 和 npm provenance，不需要长期 npm Token。
-
-另在本仓库配置 `TAURI_SIGNING_PRIVATE_KEY`（私钥设置密码时还需 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`）。桌面更新清单与签名产物只发布在本仓库；旧应用不会通过旧仓更新到新包。新桌面包使用 `com.codexly.desktop`，与旧应用的数据目录相互独立。
+发布环境与权限由维护者管理，凭据只在仓库受控环境中配置，本地配置不进入版本控制。桌面更新清单与签名产物只发布在本仓库；旧应用不会通过旧仓更新到新包。新桌面包使用 `com.codexly.desktop`，与旧应用的数据目录相互独立。
 
 ## 发布步骤
 
@@ -53,7 +41,7 @@ git push origin "v${RELEASE_VERSION}"
 - npm 已发布但 GHCR 镜像失败：重跑失败 Job；npm Job 会检测并跳过已发布版本。
 - 代码、测试或工作流需要修改：保留原标签的不可变提交，修复后同步递增两端版本、更新日志与部署示例，提交并创建新标签。即使原版本尚未公开，也不要移动已推送标签；新版本的日志应包含上次正式发布以来的全部变化。
 - 桌面构建失败：联合 Release 保持草稿；临时环境故障可重跑，需要修改仓库文件则按上一条发布新版本。已经发布的 npm 版本会跳过。
-- `ENEEDAUTH` 或 OIDC 失败：检查 Trusted Publisher、`release.yml`、`npm` Environment 和 `id-token: write` 是否一致。
+- 发布认证失败：由维护者核对发布环境与授权配置，不在公开 Issue 或日志中提交凭据与账户信息。
 - `EUNSUPPORTEDPROTOCOL`：确认发布对象来自 `pnpm pack`，并检查 `pnpm run package:check`。
 - 版本或标签错误：未发布时修正；版本已发布后必须提升版本号并创建新标签。
 

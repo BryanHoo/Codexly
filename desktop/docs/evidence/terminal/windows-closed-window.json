@@ -1,12 +1,13 @@
 {
-  "processId": 8236,
+  "processId": "process-045",
   "mainVisible": false,
   "action": "inspect",
   "children": [
-    "WRY_WEBVIEW:8236",
-    "Chrome_WidgetWin_0:8236",
-    "Chrome_WidgetWin_1:15344",
-    "Chrome_RenderWidgetHostHWND:15344",
-    "Intermediate D3D Window:16760"
-  ]
+    "WRY_WEBVIEW:process-045",
+    "Chrome_WidgetWin_0:process-045",
+    "Chrome_WidgetWin_1:process-046",
+    "Chrome_RenderWidgetHostHWND:process-046",
+    "Intermediate D3D Window:process-047"
+  ],
+  "redactions": ["process identifiers"]
 }
