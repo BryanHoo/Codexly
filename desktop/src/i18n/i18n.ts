@@ -1,5 +1,6 @@
 import i18next from "i18next";
 import { initReactI18next, I18nextProvider, Trans, useTranslation } from "react-i18next";
+import { createDeferredLanguageBackend, createDeferredLanguageLoader } from "@codexly/frontend-core/deferred-language";
 import { appPreferenceStorage } from "../platform/tauri/app-storage.js";
 
 import {
@@ -15,8 +16,14 @@ const initialLanguage = resolveInitialLanguage(
   appPreferenceStorage,
   typeof window === "undefined" || typeof navigator === "undefined" ? [] : navigator.languages,
 );
+const ensureLanguage = createDeferredLanguageLoader(
+  async () => (await import("./resources-en.js")).englishResources,
+  (language, namespace, values) => { i18next.addResourceBundle(language, namespace, values, true); },
+);
 
-void i18next.use(initReactI18next).init({
+void i18next.use(createDeferredLanguageBackend(ensureLanguage, (language, namespace) =>
+  i18next.getResourceBundle(language, namespace),
+)).use(initReactI18next).init({
   defaultNS: defaultNamespace,
   fallbackLng: "zh-CN",
   initAsync: false,
@@ -27,6 +34,7 @@ void i18next.use(initReactI18next).init({
   lng: initialLanguage,
   ns: namespaces,
   resources,
+  partialBundledLanguages: true,
   supportedLngs: ["zh-CN", "en"],
 });
 
@@ -54,6 +62,7 @@ export async function synchronizeLanguagePreference(): Promise<void> {
     appPreferenceStorage,
     typeof navigator === "undefined" ? [] : navigator.languages,
   );
+  // 原生偏好恢复后才确定语言，辅助窗口和主窗口共用同一延迟加载入口。
   if (typeof document !== "undefined") {
     applyLanguagePreference(language, document.documentElement);
   }

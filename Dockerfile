@@ -40,15 +40,14 @@ RUN pnpm run build:clean
 
 FROM dependencies AS production-dependencies
 
-RUN pnpm prune --prod
-
-FROM dependencies AS codex-runtime
-
-# npm 对大体积平台包的完整性校验更稳定，并在构建期验证二进制可执行。
+# 服务端已打包，运行时只需要 Codex 和 SQLite；不复制工作区前端依赖及 pnpm 构建存储。
+# npm 稳定安装当前平台 Codex 包，两个直接依赖的版本均读取已冻结安装的清单。
 RUN CODEX_VERSION="$(node -p "require('./node_modules/@openai/codex/package.json').version")" \
-    && npm install --prefix /opt/codex --omit=dev --ignore-scripts \
-      "@openai/codex@${CODEX_VERSION}" \
-    && /opt/codex/node_modules/.bin/codex --version \
+    && SQLITE_VERSION="$(node -p "require('./node_modules/better-sqlite3/package.json').version")" \
+    && npm install --prefix /opt/codexly --omit=dev --ignore-scripts \
+      "@openai/codex@${CODEX_VERSION}" "better-sqlite3@${SQLITE_VERSION}" \
+    && /opt/codexly/node_modules/.bin/codex --version \
+    && node -e 'const Database = require("/opt/codexly/node_modules/better-sqlite3"); const db = new Database(":memory:"); db.prepare("SELECT 1").get(); db.close();' \
     && npm cache clean --force
 
 FROM ${NODE_IMAGE} AS runtime
@@ -70,17 +69,16 @@ RUN apt-get update \
     && chown -R node:node /home/node/.codex /workspace
 
 ENV NODE_ENV=production \
-    PATH=/opt/codex/node_modules/.bin:/opt/codexly/node_modules/.bin:${PATH} \
+    PATH=/opt/codexly/node_modules/.bin:${PATH} \
     CODEX_HOME=/home/node/.codex \
     CODEXLY_PORT=3210 \
     CODEXLY_STARTUP_UPDATE_APPLIED=1
 
-# 复用构建阶段已锁定的生产依赖，避免最终镜像再次访问 npm registry。
+# 只复制独立生产安装，避免携带前端依赖、构建存储和另一份 Codex。
 COPY --from=build --chown=node:node /app/package.json /opt/codexly/package.json
 COPY --from=build --chown=node:node /app/dist /opt/codexly/dist
 COPY --from=production-dependencies --chown=node:node \
-    /app/node_modules /opt/codexly/node_modules
-COPY --from=codex-runtime --chown=node:node /opt/codex /opt/codex
+    /opt/codexly/node_modules /opt/codexly/node_modules
 
 WORKDIR /workspace
 USER node

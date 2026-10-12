@@ -14,6 +14,54 @@ import {
 } from "./app-update.js";
 
 describe("app update service", () => {
+  it("coalesces concurrent checks and caches release notes across the version TTL", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(0);
+    const fetchLatestVersion = vi.fn(() => Promise.resolve("1.4.0"));
+    const fetchChangelog = vi.fn(() => Promise.resolve("## [1.4.0]\n\n- 更新。\n"));
+    const service = createAppUpdateService({
+      appVersion: "1.3.0",
+      codexVersion: "0.162.0",
+      fetchLatestVersion,
+      fetchChangelog,
+    });
+    const results = await Promise.all([service.read(), service.read(), service.read()]);
+    expect(results.every((result) => result.releaseNotes === "- 更新。")).toBe(true);
+    expect(fetchLatestVersion).toHaveBeenCalledOnce();
+    expect(fetchChangelog).toHaveBeenCalledOnce();
+    now.mockReturnValue(5 * 60_000 - 1);
+    await service.read();
+    expect(fetchLatestVersion).toHaveBeenCalledOnce();
+    now.mockReturnValue(5 * 60_000);
+    await service.read();
+    expect(fetchLatestVersion).toHaveBeenCalledTimes(2);
+    expect(fetchChangelog).toHaveBeenCalledOnce();
+  });
+
+  it("retries failed version and release-note requests without caching their failures", async () => {
+    const fetchLatestVersion = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue("1.4.0");
+    const fetchChangelog = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue("## [1.4.0]\n\n- 恢复。\n");
+    const service = createAppUpdateService({
+      appVersion: "1.3.0",
+      codexVersion: "0.162.0",
+      fetchLatestVersion,
+      fetchChangelog,
+    });
+    await expect(service.read()).resolves.toMatchObject({ status: "check-failed" });
+    await expect(service.read()).resolves.toMatchObject({
+      releaseNotes: null,
+      status: "available",
+    });
+    await expect(service.read()).resolves.toMatchObject({ releaseNotes: "- 恢复。" });
+    expect(fetchLatestVersion).toHaveBeenCalledTimes(2);
+    expect(fetchChangelog).toHaveBeenCalledTimes(2);
+  });
+
   it("extracts only the requested version from the project changelog", () => {
     expect(
       extractVersionReleaseNotes(

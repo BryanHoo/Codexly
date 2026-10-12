@@ -15,7 +15,8 @@ export default defineConfig({
     "sqlite-state-worker": "packages/server/src/sqlite-state-worker.js",
   },
   bundle: true,
-  clean: false,
+  // Node 与 Web 共用 dist；清除旧 Node 哈希文件，但保留刚构建的前端及预压缩资源。
+  clean: ["!web/**"],
   dts: false,
   esbuildOptions(options) {
     // Fastify 插件仍包含 CommonJS 动态 require，ESM bundle 通过 Node 标准桥接加载内置模块。
@@ -31,7 +32,7 @@ export default defineConfig({
     };
   },
   format: ["esm"],
-  minify: false,
+  minify: true,
   outDir: "dist",
   platform: "node",
   sourcemap: false,

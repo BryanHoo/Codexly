@@ -26,6 +26,7 @@ import { filterProjectFileSearchMatches } from "../project-file-search.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { registerProjectFileMutationRoutes } from "./project-file-mutation-routes.js";
 import { createAttachmentContentDisposition } from "../project-file-download.js";
+import { sendPrivateAsset } from "../private-asset-response.js";
 import {
   ErrorResponseSchema,
   IdempotencyHeadersSchema,
@@ -257,11 +258,7 @@ export function registerProjectFileRoutes(app: FastifyInstance, context: ServerR
       if (root === undefined) return;
       try {
         const image = await readImageFile(root.path, request.query.path);
-        return await reply
-          .header("cache-control", "private, max-age=60")
-          .header("x-content-type-options", "nosniff")
-          .type(image.mediaType)
-          .send(image.content);
+        return await sendPrivateAsset(reply, image, 60, request.headers["if-none-match"]);
       } catch {
         // 路径不可读、文件超限和签名错误统一隐藏，不向页面泄露具体文件系统状态。
         return reply.code(404).send({

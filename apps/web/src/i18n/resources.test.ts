@@ -12,11 +12,16 @@ function collectKeys(value: unknown, prefix = ""): string[] {
 }
 
 describe("i18n resources", () => {
-  it("keeps English and Simplified Chinese namespace keys aligned", () => {
-    expect(Object.keys(resources.en).sort()).toEqual(Object.keys(resources["zh-CN"]).sort());
+  it("keeps only the fallback language in the synchronous startup resources", () => {
+    expect(Object.keys(resources)).toEqual(["zh-CN"]);
+  });
 
-    for (const namespace of Object.keys(resources.en) as (keyof typeof resources.en)[]) {
-      expect(collectKeys(resources.en[namespace]).sort()).toEqual(
+  it("keeps English and Simplified Chinese namespace keys aligned", async () => {
+    const { englishResources } = await import("./resources-en.js");
+    expect(Object.keys(englishResources).sort()).toEqual(Object.keys(resources["zh-CN"]).sort());
+
+    for (const namespace of Object.keys(englishResources) as (keyof typeof englishResources)[]) {
+      expect(collectKeys(englishResources[namespace]).sort()).toEqual(
         collectKeys(resources["zh-CN"][namespace]).sort(),
       );
     }

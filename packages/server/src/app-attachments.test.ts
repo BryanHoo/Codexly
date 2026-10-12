@@ -264,11 +264,21 @@ describe("server attachments and catalogs", () => {
     expect(response.statusCode).toBe(200);
     expect(response.rawPayload).toEqual(historicalImageContent);
     expect(response.headers["content-type"]).toBe("image/png");
-    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(response.headers["cache-control"]).toBe("private, max-age=300");
+    const etag = response.headers.etag;
+    expect(etag).toBeTypeOf("string");
+    const unchanged = await app.inject({
+      method: "GET",
+      url: "/v1/projects/codexly/tasks/task-1/attachments/history%2Fimage-1",
+      headers: { "if-none-match": String(etag) },
+    });
+    expect(unchanged.statusCode).toBe(304);
+    expect(unchanged.rawPayload.byteLength).toBe(0);
+    expect(missingAttachment.headers["cache-control"]).toBe("no-store");
     expect(response.headers["x-content-type-options"]).toBe("nosniff");
     expect(missingAttachment.statusCode).toBe(404);
     expect(missingProject.statusCode).toBe(404);
-    expect(readTaskAttachment).toHaveBeenCalledTimes(2);
+    expect(readTaskAttachment).toHaveBeenCalledTimes(3);
     expect(readTaskAttachment).toHaveBeenNthCalledWith(1, "task-1", "history/image-1");
   });
 

@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
 import { createAttachmentContentDisposition } from "../project-file-download.js";
+import { sendPrivateAsset } from "../private-asset-response.js";
 
 import {
   AgentMutationErrorSchema,
@@ -77,11 +78,12 @@ export function registerTaskAttachmentRoutes(
         );
       }
       // 随机 ID 已绑定 Project/Task；响应只交付已复验的附件正文，不暴露本地路径。
-      return reply
-        .header("cache-control", "private, max-age=300")
-        .header("x-content-type-options", "nosniff")
-        .type(pdf ? "application/pdf" : attachment.mediaType)
-        .send(content);
+      return sendPrivateAsset(
+        reply,
+        { content, mediaType: pdf ? "application/pdf" : attachment.mediaType },
+        300,
+        request.headers["if-none-match"],
+      );
     },
   );
 

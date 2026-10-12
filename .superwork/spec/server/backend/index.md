@@ -5,6 +5,7 @@
 - 入队与附件保留共用任务执行锁；入队完成后检查空闲并续发，覆盖入队晚于回合终态事件的竞态。续发属于同次幂等操作，重放不得消费下一项；入队已持久化后投递失败不得误报入队失败。自动续发不能 steer 运行中的回合。
 
 - HTTP 输入与错误边界由 `routes/`、`routes/schemas.ts` 维护；修改接口要同步客户端和协议。
+- 全局交付钩子保留成功资源路由明确声明的私有缓存，普通 API、鉴权失败和错误仍返回 `no-store`。图片和任务附件通过 `private-asset-response` 生成内容 ETag，匹配条件请求返回无正文的 304；条件请求仍须完成项目、任务与访问权限校验。使用 `app-attachments.test.ts`、`app-files.test.ts` 和 `app-security.test.ts` 验证缓存、正文与鉴权边界。
 - 全局任务搜索和历史匹配位置搜索必须将 `request.signal` 传入 Provider 与 RPC 等待层；取消后停止派发后续锚点查询，移除等待项、超时及重试计时器和取消监听器。迟到响应不得触发重试，也不得关闭共享 RPC 连接；用 `app-global-search.test.ts` 验证真实 HTTP 断连，用 `global-search.test.ts` 和 `jsonl-rpc-cancellation.test.ts` 验证并发锚点取消及资源清理。
 - 持久化变更检查 `sqlite-state-migrations.ts`、Worker、仓储测试和重启恢复场景。
 - 实时任务、队列与定时任务变更分别检查 `agent-event-stream.ts`、`persistent-task-queue.ts`、`scheduled-task-*` 及对应测试。

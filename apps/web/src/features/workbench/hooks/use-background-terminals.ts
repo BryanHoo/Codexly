@@ -1,4 +1,8 @@
 import type { AgentBackgroundTerminal } from "@codexly/protocol";
+import {
+  getBackgroundTerminalPollInterval,
+  shouldRefreshBackgroundTerminals,
+} from "@codexly/frontend-core/background-terminal-polling";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { v4 as createUuid } from "uuid";
@@ -6,23 +10,7 @@ import { v4 as createUuid } from "uuid";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import type { CodexlyBackgroundTerminalClient } from "../../projects/project-queries.js";
 
-const BACKGROUND_TERMINAL_POLL_INTERVAL_MS = 1_500;
-
-export function getBackgroundTerminalPollInterval(
-  isTaskRunning: boolean,
-  terminalCount: number,
-): number | false {
-  return isTaskRunning || terminalCount > 0 ? BACKGROUND_TERMINAL_POLL_INTERVAL_MS : false;
-}
-
-export function shouldRefreshBackgroundTerminals(
-  enabled: boolean,
-  previousTaskRunning: boolean,
-  isTaskRunning: boolean,
-  taskId: string | undefined,
-): boolean {
-  return enabled && taskId !== undefined && previousTaskRunning !== isTaskRunning;
-}
+export { getBackgroundTerminalPollInterval, shouldRefreshBackgroundTerminals };
 
 export type BackgroundTerminalView = Readonly<{
   error: Error | null;
@@ -56,6 +44,7 @@ export function useBackgroundTerminals(
       // Turn 已结束但终端仍存在时继续轮询，直到 Provider 确认进程退出。
       return getBackgroundTerminalPollInterval(isTaskRunning, query.state.data?.data.length ?? 0);
     },
+    refetchIntervalInBackground: false,
   });
   const terminateMutation = useMutation({
     mutationFn: async (terminalId: string) => {

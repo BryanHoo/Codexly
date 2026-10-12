@@ -10,9 +10,10 @@ describe("background terminal polling", () => {
     expect(getBackgroundTerminalPollInterval(false, 1)).toBe(1_500);
   });
 
-  it("stops polling only after both the turn and all terminals finish", () => {
-    expect(getBackgroundTerminalPollInterval(true, 0)).toBe(1_500);
+  it("uses a low-frequency discovery fallback when a running turn has no terminals", () => {
+    expect(getBackgroundTerminalPollInterval(true, 0)).toBe(10_000);
     expect(getBackgroundTerminalPollInterval(false, 0)).toBe(false);
+    expect(getBackgroundTerminalPollInterval(true, 1)).toBe(1_500);
   });
 
   it("does not bypass lazy loading when the context tab is inactive", () => {

@@ -5,6 +5,7 @@
 - 待发送提示使用共享 `frontend-core/prompt-delivery` 规则，在新用户消息或权威回合终态到达后清理；请求响应和返回任务时均检查当前 Store，不能等待已经错过的事件。
 
 - HTTP 和事件调用通过 `@codexly/client`，共享类型通过 `@codexly/protocol`；不要从服务端或 Codex Provider 引入运行时代码。
+- Mermaid 插件通过 `deferred-mermaid` 到实际图表渲染时才加载，普通 Markdown 不下载 Mermaid；并发图表共用加载，失败可重试，每个图表保留自身配置。英语基础文案独立拆包，首次挂载等待所选语言；中文启动不请求英语包。用插件回归、生产包预算及 Chrome CDP 验证中英文加载和真实 SVG 输出。
 - 异步问题与项目待办由 Provider 级单个工作区变更订阅失效对应 Query；后台只标记失效，恢复可见及连接重建后校准。保留运行态或待处理问题的较快兜底和空闲低频兜底，禁止恢复固定高频空闲轮询；通知遇到在途读取时合并一次结束后的补读，不取消共享请求。用 `workbench-query-sync.test.ts`、`use-async-questions.test.tsx` 和 `project-todo-store.test.ts` 验证作用域隔离、后台停读和竞态。
 - 任务实时状态集中在 `features/conversation/runtime/`；服务端查询交给 React Query，交互状态沿现有 feature 状态模块组织。
 - Provider 的 `runtime_warning` 保留在同一事件会话的任务上下文中，右栏按条默认折叠展示，流式时间线不渲染；其他 `task.notice` 保持原有可见行为。

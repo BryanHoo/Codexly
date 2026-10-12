@@ -31,6 +31,7 @@ const INITIAL_APP_VERSION = "0.1.0";
 const CHANGELOG_URL_PREFIX = "https://raw.githubusercontent.com/BryanHoo/Codexly/v";
 const REGISTRY_TIMEOUT_MS = 10_000;
 const MAX_RELEASE_NOTES_BYTES = 32 * 1024;
+const UPDATE_CHECK_CACHE_TTL_MS = 5 * 60_000;
 const SEMANTIC_VERSION_PATTERN =
   /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:(?:0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:(?:0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u;
 
@@ -357,8 +358,12 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
   const runNpmInstall = options.runNpmInstall ?? installGlobalPackage;
   let installedVersion: string | undefined;
   let updateProgress: AppUpdateProgress | null = null;
+  let latestCache: { version: string; expiresAt: number } | undefined;
+  let latestPending: Promise<string> | undefined;
+  let notesCache: { version: string; text: string | null } | undefined;
+  let notesPending: { version: string; promise: Promise<string | null> } | undefined;
 
-  const readLatest = async (): Promise<string> => {
+  const fetchValidatedLatest = async (): Promise<string> => {
     try {
       const latestVersion = await fetchLatestVersion();
       if (parseSemanticVersion(latestVersion) === undefined) throw new Error("Invalid version");
@@ -372,6 +377,42 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
     }
   };
 
+  const readLatest = async (fresh = false): Promise<string> => {
+    // 安装必须重新检查权威版本；先等旧检查结束，避免旧结果覆盖安装前的新检查。
+    if (fresh) {
+      await latestPending?.catch(() => undefined);
+      latestCache = undefined;
+    }
+    if (latestCache !== undefined && Date.now() < latestCache.expiresAt) return latestCache.version;
+    // 服务端跨设备合并在途请求，缓存仅保存成功结果，不把暂时断网缓存为最新版本。
+    latestPending ??= fetchValidatedLatest()
+      .then((version) => {
+        latestCache = { version, expiresAt: Date.now() + UPDATE_CHECK_CACHE_TTL_MS };
+        return version;
+      })
+      .finally(() => {
+        latestPending = undefined;
+      });
+    return latestPending;
+  };
+
+  const readReleaseNotes = (version: string): Promise<string | null> => {
+    if (notesCache?.version === version) return Promise.resolve(notesCache.text);
+    if (notesPending?.version === version) return notesPending.promise;
+    // 只保留一个版本的有界摘要，完整 CHANGELOG 解析后立即释放。
+    const promise = fetchChangelog(version)
+      .then((changelog) => {
+        const text = extractVersionReleaseNotes(changelog, version) ?? null;
+        if (notesPending?.promise === promise) notesCache = { version, text };
+        return text;
+      })
+      .finally(() => {
+        if (notesPending?.promise === promise) notesPending = undefined;
+      });
+    notesPending = { version, promise };
+    return promise;
+  };
+
   return {
     async install(version, onProgress) {
       const publishProgress = (progress: AppUpdateProgress): void => {
@@ -379,7 +420,7 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
         onProgress?.(progress);
       };
       publishProgress({ percent: 5, phase: "checking" });
-      const latestVersion = await readLatest();
+      const latestVersion = await readLatest(true);
       const requestedVersionIsAvailable =
         isNewerVersion(version, options.appVersion) && !isNewerVersion(version, latestVersion);
       if (!requestedVersionIsAvailable || !isNewerVersion(latestVersion, options.appVersion)) {
@@ -435,8 +476,7 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
       if (updateAvailable) {
         try {
           // 更新日志是辅助信息，读取失败不能掩盖已确认的可用更新。
-          releaseNotes =
-            extractVersionReleaseNotes(await fetchChangelog(latestVersion), latestVersion) ?? null;
+          releaseNotes = await readReleaseNotes(latestVersion);
         } catch {
           releaseNotes = null;
         }

@@ -3,7 +3,7 @@ import {
   MessageMarkdownImage,
   type ResolveMessageImage,
 } from "@codexly/ui/core/message-markdown-image";
-import { mermaid } from "@streamdown/mermaid";
+import { deferredMermaid as mermaid } from "./deferred-mermaid.js";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
 import { StreamingMarkdown, useStreamingMarkdownTree } from "@codexly/ui/agent/streaming-markdown";

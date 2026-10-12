@@ -169,7 +169,15 @@ export async function configureServerDelivery(
     if (request.url.startsWith("/v1/pets/assets/")) {
       reply.header("Cache-Control", "private, no-cache");
     } else if (request.url.startsWith("/v1/")) {
-      reply.header("Cache-Control", "no-store");
+      const cacheControl = reply.getHeader("cache-control");
+      // 仅保留成功资源路由显式声明的私有缓存；鉴权失败和普通 API 继续禁止缓存。
+      if (
+        reply.statusCode >= 400 ||
+        typeof cacheControl !== "string" ||
+        !cacheControl.startsWith("private,")
+      ) {
+        reply.header("Cache-Control", "no-store");
+      }
     }
     return payload;
   });
