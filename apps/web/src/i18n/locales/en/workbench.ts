@@ -56,6 +56,7 @@ export const workbench = {
     unstaged: "Unstaged",
   },
   diff: {
+    previewUnavailable: "Text differences cannot be previewed for this file",
     changedFiles: "Changed files",
     changedFilesNavigation: "Changed files navigation",
     close: "Close file Diff",

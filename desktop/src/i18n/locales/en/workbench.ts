@@ -27,6 +27,7 @@ export const workbench = {
   },
   commit: gitCommit,
   diff: {
+    previewUnavailable: "Text differences cannot be previewed for this file",
     reviewTitle: "Review",
     truncated: "Diff truncated; counts cover displayed content.",
     changedFiles: "Changed files",

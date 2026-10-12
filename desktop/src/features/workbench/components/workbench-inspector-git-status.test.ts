@@ -49,3 +49,23 @@ it("没有 Diff 正文也展示 numstat，分页汇总采用全仓总数", () =>
   expect(result.changeStats).toEqual({ additions: 3000, removals: 1500 });
   expect(result.fileChangesByPath.get("new.ts")?.stats).toEqual({ additions: 2, removals: 0 });
 });
+
+it("过滤暂存与工作区中的系统元数据", () => {
+  const visible = {path: "main.ts", kind: "update" as const, diff: "+code", stats: {additions: 1, removals: 0}};
+  const hidden = {path: "nested/.DS_Store", kind: "create" as const, diff: "+metadata", stats: {additions: 5, removals: 0}};
+  const status = {baseBranches: [], branch: "main", branches: [], repositoryMode: "root" as const, snapshot: "current", staged: [hidden], unstaged: [visible]};
+  for (const details of [undefined, status]) {
+    const result = deriveInspectorGitChangeState(status, details);
+    expect(result.displayChanges).toEqual([visible]);
+    expect(result.fileChangesByPath.has(hidden.path)).toBe(false);
+    expect(result.changeStats).toEqual({additions: 1, removals: 0});
+  }
+});
+
+it("分页全局行数扣除当前列表中的系统元数据", () => {
+  const status = {baseBranches: [], branch: "main", branches: [], repositoryMode: "root" as const, snapshot: "current", stats: {additions: 6, removals: 2}, staged: [], unstaged: [
+    {path: ".DS_Store", kind: "update" as const, diff: "", stats: {additions: 5, removals: 2}},
+    {path: "main.ts", kind: "update" as const, diff: "", stats: {additions: 1, removals: 0}},
+  ]};
+  expect(deriveInspectorGitChangeState(status, undefined).changeStats).toEqual({additions: 1, removals: 0});
+});

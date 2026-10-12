@@ -56,6 +56,7 @@ export const workbench = {
     unstaged: "未暂存",
   },
   diff: {
+    previewUnavailable: "此文件无法预览文本差异",
     changedFiles: "变更文件",
     changedFilesNavigation: "变更文件导航",
     close: "关闭文件 Diff",

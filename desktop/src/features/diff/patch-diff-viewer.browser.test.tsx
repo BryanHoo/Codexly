@@ -3,19 +3,20 @@ import { render } from "vitest-browser-react";
 import LegacyPatchDiffViewer from "../../compat/macos-legacy/patch-diff-viewer.js";
 import PatchDiffViewer from "./patch-diff-viewer.js";
 
-vi.mock("@pierre/diffs", () => ({
+vi.mock("@pierre/diffs", async () => ({
+  ...await vi.importActual<typeof import("@pierre/diffs")>("@pierre/diffs"),
   getFiletypeFromFileName: () => "text",
   preloadHighlighter: async () => undefined,
   setCustomExtension: () => undefined,
 }));
 vi.mock("@pierre/diffs/react", () => ({
-  PatchDiff: ({ patch }: { patch: string }) => <pre data-testid="native-patch">{patch}</pre>,
+  FileDiff: ({ fileDiff }: { fileDiff: { additionLines: string[] } }) => <pre data-testid="native-patch">{fileDiff.additionLines.join("")}</pre>,
 }));
 
-it("Modern 原样传递原生补丁，保留尾部空格和换行", async () => {
+it("Modern 解析原生补丁后保留正文尾部空格和换行", async () => {
   const diff = "--- /dev/null\n+++ b/sample.txt\n@@ -0,0 +1,1 @@\n+last  \n";
   await render(<PatchDiffViewer change={{ path: "sample.txt", kind: "create", diff, stats: { additions: 1, removals: 0 } }} />);
-  await expect.poll(() => document.querySelector('[data-testid="native-patch"]')?.textContent).toBe(diff);
+  await expect.poll(() => document.querySelector('[data-testid="native-patch"]')?.textContent).toBe("last  \n");
 });
 
 it("Legacy 直接渲染原生新增补丁，不把补丁头再次变成新增正文", async () => {

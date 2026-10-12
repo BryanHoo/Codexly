@@ -37,3 +37,9 @@ describe("原生统计汇总", () => {
     ])).toMatchObject({ additions: 3, removals: 2 });
   });
 });
+
+it("回复变更汇总不包含系统元数据", () => {
+  const visible = {path: ".gitignore", diff: "+*.log", kind: "create" as const, stats: {additions: 1, removals: 0}};
+  const hidden = {path: "nested/._main.ts", diff: "+metadata", kind: "create" as const, stats: {additions: 1, removals: 0}};
+  expect(summarizeFileChanges([hidden, visible])).toEqual({changes: [visible], additions: 1, removals: 0});
+});

@@ -121,3 +121,21 @@ describe("InspectorGitChangesSection", () => {
     expect(state.displayChanges[0]?.diff).toBe("");
   });
 });
+
+it("从轻量状态和详情中同时过滤系统元数据及其行数", () => {
+  const status = {
+    baseBranches: [],
+    branch: "main",
+    branches: [],
+    repositoryMode: "root" as const,
+    snapshot: "current",
+    staged: [{ path: "nested/.DS_Store", kind: "create" as const, diff: "+metadata" }],
+    unstaged: [appChange, { path: "Thumbs.db", kind: "create" as const, diff: "+metadata" }],
+  };
+  for (const details of [undefined, status]) {
+    const result = deriveInspectorGitChangeState(status, details);
+    expect(result.displayChanges).toEqual([appChange]);
+    expect([...result.fileChangesByPath.keys()]).toEqual([appChange.path]);
+    expect(result.changeStats).toEqual({ additions: 2, removals: 1 });
+  }
+});

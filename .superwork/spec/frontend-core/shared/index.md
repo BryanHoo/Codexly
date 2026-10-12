@@ -15,3 +15,5 @@
 - 用户消息快捷目录统一使用 `frontend-core/timeline-navigation` 遍历回合键索引、生成 Skill / 正文 / 附件预览；各端注入审查消息翻译，不重建完整任务快照。读取位置计算共用 `ui/core/timeline-navigation-anchor`，导航标记布局由各端保留。
 
 - 官方插件刷新共用 `plugin-reconcile`：显式刷新时同步后读取目录，仅合并在途请求，不轮询。上游变化并非累计游标，需比较新旧目录的安装、启用与版本字段补足后台同步；先取消受影响的旧读取，再失效详情、Skills 和任务 MCP 缓存。同步结果不代表运行时就绪，部分失败保留提示。
+
+- 项目文件可见性共用 `project-file-visibility`：Web 与桌面的文件树、Git 变更展示和回复变更汇总隐藏 `.DS_Store`、AppleDouble `._*`、Windows 缩略图缓存及系统元数据目录，兼容两种路径分隔符；保留 `.env`、`.gitignore` 等项目隐藏文件。过滤只控制展示，不改变 Git 提交或文件系统内容；过滤后的空目录须显示空状态。

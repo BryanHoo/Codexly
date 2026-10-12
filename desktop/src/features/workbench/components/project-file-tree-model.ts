@@ -1,3 +1,4 @@
+import { filterVisibleProjectFiles } from "@codexly/frontend-core/project-file-visibility";
 import type { ProjectFileTreeEntry } from "@/protocol/index.js";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -98,7 +99,8 @@ export function createProjectFileTreeDataLoader({
         const listing = await queryClient.fetchQuery(
           projectFileTreeQueryOptions(projectId, rootPath, directoryPath, client),
         );
-        if (listing.entries.length === 0) {
+        const visibleEntries = filterVisibleProjectFiles(listing.entries);
+        if (visibleEntries.length === 0) {
           const id = getStatusItemId(directoryPath, "empty");
           const data: ProjectFileTreeItem = {
             directoryPath,
@@ -111,7 +113,7 @@ export function createProjectFileTreeDataLoader({
           return [{ data, id }];
         }
 
-        return listing.entries.map((entry) => {
+        return visibleEntries.map((entry) => {
           const id = getProjectFileTreeItemId(entry);
           const data = createEntryItem(entry);
           items.set(id, data);

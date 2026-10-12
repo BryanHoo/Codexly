@@ -118,3 +118,28 @@ describe("project file tree model", () => {
     expect(getProjectFileTreeItemId({ path: "src/main.tsx", type: "file" })).toBe("src/main.tsx");
   });
 });
+
+it("过滤系统元数据，并把仅含元数据的目录显示为空", async () => {
+  for (const paths of [
+    ["src/main.ts", "src/.DS_Store", "src/._main.ts", "src/Thumbs.db", "src/desktop.ini"],
+    ["src/.DS_Store"],
+  ]) {
+    const loader = createProjectFileTreeDataLoader({
+      client: {
+        listProjectFiles: () =>
+          Promise.resolve({
+            entries: paths.map((path) => ({ path, type: "file" as const })),
+            path: "src",
+          }),
+      },
+      projectId: "p",
+      projectName: "项目",
+      rootPath: "/workspace",
+      queryClient: createQueryClient(),
+    });
+    const children = await loader.getChildrenWithData("src");
+    if (paths.length === 1)
+      expect(children).toMatchObject([{ data: { kind: "status", status: "empty" } }]);
+    else expect(children.map((child) => child.id)).toEqual(["src/main.ts"]);
+  }
+});

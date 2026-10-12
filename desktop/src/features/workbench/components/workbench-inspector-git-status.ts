@@ -1,3 +1,4 @@
+import { filterVisibleProjectFiles, isVisibleProjectPath } from "@codexly/frontend-core/project-file-visibility";
 import type { ProjectGitStatus } from "@/protocol/index.js";
 
 import { getFileChangeStats, type AgentFileChange } from "../../diff/file-change.js";
@@ -35,16 +36,23 @@ export function deriveInspectorGitChangeState(
   gitStatus: ProjectGitStatus | undefined,
   gitStatusDetails: ProjectGitStatus | undefined,
 ): InspectorGitChangeState {
-  const allChanges = [...(gitStatus?.unstaged ?? []), ...(gitStatus?.staged ?? [])];
+  const allChanges = filterVisibleProjectFiles([...(gitStatus?.unstaged ?? []), ...(gitStatus?.staged ?? [])]);
   // 详情必须属于当前轻量快照，避免刷新竞态把旧行数展示到新文件集合上。
   const statsStatus = gitStatusDetails?.snapshot === gitStatus?.snapshot ? gitStatusDetails ?? gitStatus : gitStatus;
   const statsChanges =
     gitStatusDetails !== undefined && gitStatusDetails.snapshot === gitStatus?.snapshot
-      ? [...gitStatusDetails.unstaged, ...gitStatusDetails.staged]
+      ? filterVisibleProjectFiles([...gitStatusDetails.unstaged, ...gitStatusDetails.staged])
       : gitStatus?.stats !== undefined || allChanges.every((change) => change.diff !== "")
         ? allChanges
         : undefined;
-  const changeStats = statsStatus?.stats ?? statsChanges?.reduce(
+  // 分页总统计仍由服务端负责；完整列表存在隐藏项时减去它们的统计。
+  const hiddenStats = [...(statsStatus?.unstaged ?? []), ...(statsStatus?.staged ?? [])]
+    .filter(change => !isVisibleProjectPath(change.path))
+    .reduce((total, change) => ({additions: total.additions + change.stats.additions, removals: total.removals + change.stats.removals}), {additions: 0, removals: 0});
+  const changeStats = statsStatus?.stats !== undefined ? {
+    additions: Math.max(0, statsStatus.stats.additions - hiddenStats.additions),
+    removals: Math.max(0, statsStatus.stats.removals - hiddenStats.removals),
+  } : statsChanges?.reduce(
     (total, change) => {
       const stats = getFileChangeStats(change);
       return {

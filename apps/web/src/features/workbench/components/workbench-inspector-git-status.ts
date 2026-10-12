@@ -1,3 +1,4 @@
+import { filterVisibleProjectFiles } from "@codexly/frontend-core/project-file-visibility";
 import type { ProjectGitStatus } from "@codexly/protocol";
 
 import { countFileChangeLines, type AgentFileChange } from "../../diff/file-change.js";
@@ -30,11 +31,14 @@ export function deriveInspectorGitChangeState(
   gitStatus: ProjectGitStatus | undefined,
   gitStatusDetails: ProjectGitStatus | undefined,
 ): InspectorGitChangeState {
-  const allChanges = [...(gitStatus?.unstaged ?? []), ...(gitStatus?.staged ?? [])];
+  const allChanges = filterVisibleProjectFiles([
+    ...(gitStatus?.unstaged ?? []),
+    ...(gitStatus?.staged ?? []),
+  ]);
   // 详情必须属于当前轻量快照，避免刷新竞态把旧行数展示到新文件集合上。
   const statsChanges =
     gitStatusDetails !== undefined && gitStatusDetails.snapshot === gitStatus?.snapshot
-      ? [...gitStatusDetails.unstaged, ...gitStatusDetails.staged]
+      ? filterVisibleProjectFiles([...gitStatusDetails.unstaged, ...gitStatusDetails.staged])
       : allChanges.every((change) => change.diff !== "")
         ? allChanges
         : undefined;

@@ -1,3 +1,4 @@
+import { useTranslation } from "../../i18n/i18n.js";
 import {
   PatchDiffViewer as SharedPatchDiffViewer,
   configureDiffLanguages,
@@ -13,5 +14,12 @@ import { normalizeFileChangePatch } from "./file-change.js";
 configureDiffLanguages(projectLanguageByExtension, projectLanguageByFileName);
 
 export default function PatchDiffViewer({ change }: Readonly<{ change: AgentFileChange }>) {
-  return <SharedPatchDiffViewer path={change.path} patch={normalizeFileChangePatch(change)} />;
+  const { t } = useTranslation("workbench");
+  return (
+    <SharedPatchDiffViewer
+      unavailableLabel={t("diff.previewUnavailable")}
+      path={change.path}
+      patch={normalizeFileChangePatch(change)}
+    />
+  );
 }

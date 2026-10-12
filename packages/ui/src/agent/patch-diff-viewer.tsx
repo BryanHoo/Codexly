@@ -1,7 +1,13 @@
-import { getFiletypeFromFileName, preloadHighlighter, setCustomExtension } from "@pierre/diffs";
-import { PatchDiff, type PatchDiffProps } from "@pierre/diffs/react";
-import type { WheelEvent } from "react";
-import { useEffect, useState } from "react";
+import {
+  getFiletypeFromFileName,
+  parsePatchFiles,
+  preloadHighlighter,
+  setCustomExtension,
+  type FileDiffMetadata,
+} from "@pierre/diffs";
+import { FileDiff, type FileDiffProps } from "@pierre/diffs/react";
+import type { ReactNode, WheelEvent } from "react";
+import { Component, useEffect, useMemo, useState } from "react";
 
 const diffOptions = {
   diffIndicators: "bars",
@@ -15,7 +21,7 @@ const diffOptions = {
   unsafeCSS: `
     pre { font-family: var(--ui-font-family-mono); font-size: var(--ui-font-size-body-small); }
   `,
-} satisfies NonNullable<PatchDiffProps<undefined>["options"]>;
+} satisfies NonNullable<FileDiffProps<undefined>["options"]>;
 
 export function configureDiffLanguages(
   byExtension: Readonly<Record<string, string>>,
@@ -64,22 +70,60 @@ type PatchDiffViewerProps = Readonly<{
   path: string;
   patch: string;
   preloadLanguage?: boolean;
+  unavailableLabel?: string;
 }>;
 
-function DiffContent({ patch }: Readonly<{ patch: string }>) {
+type ParsedDiffProps = Readonly<{ fileDiff: FileDiffMetadata }>;
+
+function DiffContent({ fileDiff }: ParsedDiffProps) {
   return (
     <div className="min-w-0" onWheel={handleDiffWheel}>
-      <PatchDiff
+      <FileDiff
         className="file-diff-renderer"
         disableWorkerPool
         options={diffOptions}
-        patch={patch}
+        fileDiff={fileDiff}
       />
     </div>
   );
 }
 
-function PreloadedDiff({ path, patch }: PatchDiffViewerProps) {
+// 错误只影响当前预览；解析结果变化时清除失败状态，切换到正常文件即可恢复。
+class DiffPreviewBoundary extends Component<
+  Readonly<{ children: ReactNode; fallback: ReactNode; fileDiff: FileDiffMetadata }>,
+  { failed: boolean; fileDiff: FileDiffMetadata }
+> {
+  override state = { failed: false, fileDiff: this.props.fileDiff };
+  static getDerivedStateFromProps(
+    props: { fileDiff: FileDiffMetadata },
+    state: { fileDiff: FileDiffMetadata },
+  ) {
+    return props.fileDiff === state.fileDiff ? null : { failed: false, fileDiff: props.fileDiff };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  override render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+function parsePreviewPatch(patch: string): FileDiffMetadata | undefined {
+  // 二进制说明和空补丁没有文本块，不能交给只接受单文件补丁的渲染入口。
+  if (patch.trim().length === 0 || /^(?:Binary files .* differ|GIT binary patch)\r?$/mu.test(patch))
+    return undefined;
+  try {
+    const patches = parsePatchFiles(patch, undefined, true);
+    const file =
+      patches.length === 1 && patches[0]?.files.length === 1 ? patches[0].files[0] : undefined;
+    return file !== undefined && file.hunks.length > 0 ? file : undefined;
+  } catch {
+    // Provider 返回的截断或异常补丁降级为局部提示，不向页面路由抛出解析错误。
+    return undefined;
+  }
+}
+
+function PreloadedDiff({ path, fileDiff }: ParsedDiffProps & Readonly<{ path: string }>) {
   const language = getFiletypeFromFileName(path);
   const [readyLanguage, setReadyLanguage] = useState<string | null>(null);
 
@@ -89,9 +133,13 @@ function PreloadedDiff({ path, patch }: PatchDiffViewerProps) {
     void preloadHighlighter({
       langs: [language],
       themes: ["github-dark", "github-light"],
-    }).finally(() => {
-      if (active) setReadyLanguage(language);
-    });
+    })
+      .catch(() => {
+        // 高亮不可用时仍允许渲染文本差异，并消费 Promise 拒绝，避免未处理异常。
+      })
+      .finally(() => {
+        if (active) setReadyLanguage(language);
+      });
     return () => {
       active = false;
     };
@@ -101,13 +149,33 @@ function PreloadedDiff({ path, patch }: PatchDiffViewerProps) {
     return <div className="min-h-24" role="status" />;
   }
 
-  return <DiffContent patch={patch} />;
+  return <DiffContent fileDiff={fileDiff} />;
 }
 
-export function PatchDiffViewer({ path, patch, preloadLanguage = false }: PatchDiffViewerProps) {
-  return preloadLanguage ? (
-    <PreloadedDiff path={path} patch={patch} />
-  ) : (
-    <DiffContent patch={patch} />
+export function PatchDiffViewer({
+  path,
+  patch,
+  preloadLanguage = false,
+  unavailableLabel = path,
+}: PatchDiffViewerProps) {
+  // 每次正文变化仅解析一次，直接传递解析结果，避免 PatchDiff 内部重复扫描全文。
+  const fileDiff = useMemo(() => parsePreviewPatch(patch), [patch]);
+  const fallback = (
+    <div
+      className="grid min-h-24 place-items-center text-body-small text-muted-foreground"
+      role="status"
+    >
+      {unavailableLabel}
+    </div>
+  );
+  if (fileDiff === undefined) return fallback;
+  return (
+    <DiffPreviewBoundary fileDiff={fileDiff} fallback={fallback}>
+      {preloadLanguage ? (
+        <PreloadedDiff path={path} fileDiff={fileDiff} />
+      ) : (
+        <DiffContent fileDiff={fileDiff} />
+      )}
+    </DiffPreviewBoundary>
   );
 }
