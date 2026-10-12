@@ -7,6 +7,7 @@ const agentFields = [
   "approvalPolicy",
   "approvalsReviewer",
   "model",
+  "modelContextWindow",
   "reasoningEffort",
   "sandboxMode",
   "fastMode",

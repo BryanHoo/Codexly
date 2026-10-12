@@ -30,6 +30,7 @@ export const globalSettings = {
   ...taskSettings,
   commitMessageModel: "gpt-5.6-sol",
   commitMessagePrompt: "",
+  modelContextWindow: null,
   defaultOpenAppId: "visual-studio-code" as const,
   fastMode: false,
   followUpBehavior: "queue" as const,

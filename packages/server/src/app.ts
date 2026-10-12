@@ -1,12 +1,12 @@
+import { resolveGlobalSettings } from "./global-settings-reader.js";
 import { registerHistoryStorageRoutes } from "./routes/history-storage-routes.js";
 import { WorkbenchChanges } from "./workbench-changes.js";
 import { registerWorkbenchEvents } from "./routes/resource-change-events.js";
-import {
-  DEFAULT_COMMIT_MESSAGE_MODEL,
-  type AgentGlobalSettings,
-  type AgentModel,
-  type AgentProjectDefaults,
-  type AgentTaskSettings,
+import type {
+  AgentGlobalSettings,
+  AgentModel,
+  AgentProjectDefaults,
+  AgentTaskSettings,
 } from "@codexly/protocol";
 import Fastify, { type FastifyInstance } from "fastify";
 import { AttachmentStore } from "./attachment-store.js";
@@ -282,35 +282,9 @@ export async function createCodexlyServer(
     const stored = await options.settingsRepository.readGlobalSettings();
     // Codex 是智能体默认值的来源；本地记录仅补齐未配置字段与应用专属偏好。
     const runtimeDefaults = await options.provider.readDefaultSettings();
-    const requestedDefaults = { ...stored, ...runtimeDefaults };
-    const effectiveModel = resolveProjectDefaults(
-      catalog,
-      requestedDefaults,
-      requestedDefaults.sandboxMode ?? "workspace-write",
-    );
-    const effectiveCommitModel = resolveProjectDefaults(
-      catalog,
-      {
-        model: stored?.commitMessageModel ?? DEFAULT_COMMIT_MESSAGE_MODEL,
-        sandboxMode: "read-only",
-      },
-      "read-only",
-    );
-    const approvalPolicy = requestedDefaults.approvalPolicy ?? "on-request";
-    const approvalsReviewer = requestedDefaults.approvalsReviewer ?? "user";
-    // 全局记录缺失时只返回运行时默认值；读取不能隐式创建用户配置。
-    return {
-      approvalPolicy,
-      approvalsReviewer,
-      commitMessageModel: effectiveCommitModel.model,
-      commitMessagePrompt: stored?.commitMessagePrompt ?? "",
-      defaultOpenAppId: stored?.defaultOpenAppId ?? null,
-      fastMode: runtimeDefaults.fastMode ?? stored?.fastMode ?? false,
-      followUpBehavior: stored?.followUpBehavior ?? "queue",
-      pet: stored?.pet ?? { enabled: false, selectedPetId: null },
-      ...effectiveModel,
-    };
+    return resolveGlobalSettings(catalog, stored, runtimeDefaults);
   };
+
   const readEffectiveProjectDefaults = async (
     projectId: string,
     models?: readonly AgentModel[],

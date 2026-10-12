@@ -52,6 +52,7 @@ export function createFallbackSettings(models: readonly AgentModel[]): AgentGlob
     commitMessagePrompt: "",
     defaultOpenAppId: null,
     fastMode: false,
+    modelContextWindow: null,
     followUpBehavior: "queue",
     webSearch: "cached",
     modelVerbosity: null,

@@ -2,6 +2,7 @@ import { Type, type Static } from "@sinclair/typebox";
 
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { WorkbenchPetSettingsSchema } from "./workbench-pets.js";
+import { AgentGlobalSettingsSchema as SharedGlobalSettingsSchema } from "@codexly/protocol";
 
 export const DEFAULT_COMMIT_MESSAGE_MODEL = "gpt-6-luna";
 
@@ -93,6 +94,8 @@ export const AgentCollaborationModeSchema = Type.Literal("plan");
 export type AgentCollaborationMode = Readonly<Static<typeof AgentCollaborationModeSchema>>;
 
 const AgentGlobalSettingProperties = {
+  // 复用公共边界，避免原生与 HTTP 客户端接受不同的窗口值。
+  modelContextWindow: SharedGlobalSettingsSchema.properties.modelContextWindow,
   commitMessageModel: Type.String({ minLength: 1 }),
   commitMessagePrompt: Type.String({ maxLength: 4_000 }),
   // 文件专用系统关联不能成为 Project 根目录的默认打开方式。

@@ -18,6 +18,13 @@ export const generalSettings = {
 } as const;
 
 export const agentSettings = {
+  contextWindow: {
+    label: "上下文窗口",
+    description: "填写 272–1000，留空自动。",
+    automatic: "自动",
+    invalid: "请输入 272–1000 的整数，或留空。",
+  },
+
   storage: {
     title: "历史文件存储",
     description: "由 Codex 在后台压缩本机超过 7 天未写入的历史文件，释放磁盘空间。",

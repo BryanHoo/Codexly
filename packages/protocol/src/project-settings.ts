@@ -93,6 +93,11 @@ export const AgentCollaborationModeSchema = Type.Literal("plan");
 export type AgentCollaborationMode = Readonly<Static<typeof AgentCollaborationModeSchema>>;
 
 const AgentGlobalSettingProperties = {
+  // null 表示继承 Codex 模型默认值；限制为 JS 安全整数，保证 HTTP 与原生传输一致。
+  modelContextWindow: Type.Union([
+    Type.Integer({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }),
+    Type.Null(),
+  ]),
   commitMessageModel: Type.String({ minLength: 1 }),
   commitMessagePrompt: Type.String({ maxLength: 4_000 }),
   // 文件专用系统关联不能成为 Project 根目录的默认打开方式。

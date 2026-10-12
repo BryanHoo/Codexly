@@ -49,7 +49,8 @@
     "tauri:constraints:test": "node --test scripts/app-icon.test.mjs scripts/changelog.test.mjs scripts/codex-protocol-contract.test.mjs scripts/history-storage.test.mjs scripts/official-plugin-acl.test.mjs scripts/project-terminal.test.mjs scripts/queue-command.test.mjs scripts/run-tauri.test.mjs scripts/task-window.test.mjs scripts/webview-bridge-readiness.test.mjs scripts/windows-subsystem.test.mjs",
     "typecheck": "tsc -b",
     "version:check": "node scripts/check-version.mjs",
-    "tauri": "node scripts/run-tauri.mjs"
+    "tauri": "node scripts/run-tauri.mjs",
+    "tauri:local": "node scripts/run-tauri.mjs build --no-sign --config src-tauri/tauri.local.conf.json"
   },
   "dependencies": {
     "@codexly/protocol": "workspace:*",

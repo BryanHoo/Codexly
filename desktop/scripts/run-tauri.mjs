@@ -19,6 +19,7 @@ try {
     profile,
   );
   const signingEnvFile = fileURLToPath(new URL("../.env.signing.local", import.meta.url));
+  // tauri:local 显式传入 --no-sign 和关闭更新产物的覆盖配置，因此不加载签名环境。
   if (
     process.platform === "darwin" &&
     ["build", "bundle"].includes(argumentsList[0]) &&

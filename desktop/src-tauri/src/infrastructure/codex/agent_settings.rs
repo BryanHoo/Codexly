@@ -10,11 +10,12 @@ use super::{
 };
 use crate::{domain::agent_configuration::AgentRuntimeSettings, infrastructure::local_settings};
 
-const AGENT_FIELDS: [(&str, &str); 8] = [
+const AGENT_FIELDS: [(&str, &str); 9] = [
     ("approvalPolicy", "approval_policy"),
     ("approvalsReviewer", "approvals_reviewer"),
     ("fastMode", "service_tier"),
     ("model", "model"),
+    ("modelContextWindow", "model_context_window"),
     ("modelVerbosity", "model_verbosity"),
     ("reasoningEffort", "model_reasoning_effort"),
     ("sandboxMode", "sandbox_mode"),
@@ -34,6 +35,9 @@ fn apply_agent_config(settings: &mut Value, config: &Value) {
     for (field, key) in AGENT_FIELDS {
         if field == "fastMode" {
             settings[field] = json!(matches!(config[key].as_str(), Some("fast" | "priority")));
+        } else if field == "modelContextWindow" {
+            // 键缺失或 null 均为自动模式，不能保留应用文件中的旧窗口副本。
+            settings[field] = config.get(key).cloned().unwrap_or(Value::Null);
         } else if let Some(value) = config.get(key).filter(|value| !value.is_null()) {
             settings[field] = value.clone();
         }

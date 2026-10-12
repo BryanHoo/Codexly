@@ -3,6 +3,41 @@ import { createCodexRuntimeProvider } from "./agent-provider.js";
 import { FakeRpcClient } from "./provider-connection.test-support.js";
 
 describe("Codex 用户全局默认设置", () => {
+  it("读取自定义上下文窗口，清空后恢复模型默认且刷新缓存", async () => {
+    const client = new FakeRpcClient();
+    client.enqueue("config/read", { config: { model_context_window: 400_000 } });
+    client.enqueue("config/read", { config: {} });
+    const runtime = createCodexRuntimeProvider({ client });
+    await expect(runtime.readDefaultSettings()).resolves.toMatchObject({
+      modelContextWindow: 400_000,
+    });
+    await runtime.updateDefaultSettings({ modelContextWindow: null });
+    expect(client.requests[1]).toEqual({
+      method: "config/batchWrite",
+      params: {
+        reloadUserConfig: true,
+        edits: [{ keyPath: "model_context_window", value: null, mergeStrategy: "replace" }],
+      },
+    });
+    await expect(runtime.readDefaultSettings()).resolves.toMatchObject({
+      modelContextWindow: null,
+    });
+  });
+
+  it("仅写入自定义窗口，不改动压缩阈值和模型", async () => {
+    const client = new FakeRpcClient();
+    const runtime = createCodexRuntimeProvider({ client });
+    await runtime.updateDefaultSettings({ modelContextWindow: 1_000_000 });
+    expect(client.requests).toEqual([
+      {
+        method: "config/batchWrite",
+        params: {
+          reloadUserConfig: true,
+          edits: [{ keyPath: "model_context_window", value: 1_000_000, mergeStrategy: "replace" }],
+        },
+      },
+    ]);
+  });
   it("通过官方 API 批量写入改动字段并立即刷新读取缓存", async () => {
     const client = new FakeRpcClient();
     client.enqueue("config/read", { config: { model: "old", service_tier: "priority" } });

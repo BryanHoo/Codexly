@@ -184,6 +184,24 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
   }>(
     "/v1/settings",
     {
+      preValidation: (request, _reply, done) => {
+        const value: unknown = (request.body as Record<string, unknown> | null)?.[
+          "modelContextWindow"
+        ];
+        // 在 AJV 类型转换前拒绝字符串、布尔值等，避免它们被转换成 tokens 或 null。
+        if (
+          value !== undefined &&
+          value !== null &&
+          (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1)
+        ) {
+          throw new MutationHttpError(
+            "INVALID_REQUEST",
+            "modelContextWindow must be a positive safe integer or null",
+            400,
+          );
+        }
+        done();
+      },
       schema: {
         body: AgentGlobalSettingsSchema,
         headers: IdempotencyHeadersSchema,

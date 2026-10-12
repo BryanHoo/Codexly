@@ -92,6 +92,7 @@ export function parseGlobalSettingsRequest(requestBody: string | null) {
   const value = parseRequestRecord(requestBody);
   const commitMessageModel = value["commitMessageModel"];
   const commitMessagePrompt = value["commitMessagePrompt"];
+  const modelContextWindow = value["modelContextWindow"];
   const defaultOpenAppId = value["defaultOpenAppId"];
   const fastMode = value["fastMode"];
   const followUpBehavior = value["followUpBehavior"];
@@ -99,6 +100,10 @@ export function parseGlobalSettingsRequest(requestBody: string | null) {
   if (
     typeof commitMessageModel !== "string" ||
     typeof commitMessagePrompt !== "string" ||
+    (modelContextWindow !== null &&
+      (typeof modelContextWindow !== "number" ||
+        !Number.isSafeInteger(modelContextWindow) ||
+        modelContextWindow < 1)) ||
     typeof fastMode !== "boolean" ||
     (followUpBehavior !== "queue" && followUpBehavior !== "steer") ||
     (defaultOpenAppId !== null && typeof defaultOpenAppId !== "string") ||
@@ -115,6 +120,7 @@ export function parseGlobalSettingsRequest(requestBody: string | null) {
     ...settings,
     commitMessageModel,
     commitMessagePrompt,
+    modelContextWindow,
     defaultOpenAppId,
     fastMode,
     followUpBehavior: normalizedFollowUpBehavior,

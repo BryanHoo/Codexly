@@ -13,6 +13,26 @@ void test("the project Tauri command should enforce platform build constraints",
   assert.equal(packageJson.scripts.tauri, "node scripts/run-tauri.mjs");
 });
 
+void test("local packaging should disable updater artifacts without changing release verification", async () => {
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
+  const command = packageJson.scripts["tauri:local"];
+  assert.equal(typeof command, "string", "local packaging must have a dedicated command");
+  assert.ok(command.includes("scripts/run-tauri.mjs build"));
+  assert.ok(command.includes("--no-sign"));
+  const configPath = command.match(/--config (\S+)/)?.[1];
+  assert.ok(configPath, "local packaging must supply an explicit config overlay");
+  const [release, local] = await Promise.all([
+    readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL(`../${configPath}`, import.meta.url), "utf8").then(JSON.parse),
+  ]);
+  assert.equal(local.bundle.createUpdaterArtifacts, false);
+  assert.equal(release.bundle.createUpdaterArtifacts, true);
+  // 本地覆盖只改变产物生成；正式更新的公钥和下载地址仍使用原配置。
+  assert.equal(local.plugins, undefined);
+  assert.ok(release.plugins.updater.pubkey);
+  assert.ok(release.plugins.updater.endpoints.length > 0);
+});
+
 void test("native test launchers should use the configured Tauri binary name", async () => {
   const config = JSON.parse(
     await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),

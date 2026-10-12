@@ -15,7 +15,7 @@ use super::settings_object::{Object, object};
 use types::{GlobalSettings, LocalPreferences, ProjectSettings};
 
 const SETTINGS_VERSION: u8 = 1;
-pub(crate) const GLOBAL_FIELDS: [&str; 13] = [
+pub(crate) const GLOBAL_FIELDS: [&str; 14] = [
     "approvalPolicy",
     "approvalsReviewer",
     "commitMessageModel",
@@ -24,6 +24,7 @@ pub(crate) const GLOBAL_FIELDS: [&str; 13] = [
     "fastMode",
     "followUpBehavior",
     "model",
+    "modelContextWindow",
     "modelVerbosity",
     "pet",
     "reasoningEffort",
@@ -205,6 +206,7 @@ pub(crate) fn default_global_settings() -> Value {
         "fastMode": false,
         "followUpBehavior": "queue",
         "model": "gpt-5.6-sol",
+        "modelContextWindow": null,
         "modelVerbosity": null,
         "pet": {"enabled": false, "selectedPetId": null},
         "reasoningEffort": "high",

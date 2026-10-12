@@ -103,6 +103,9 @@ pub(super) struct GlobalSettings {
     pub model: String,
     #[serde(deserialize_with = "Option::deserialize")]
     pub model_verbosity: Option<ModelVerbosity>,
+    // 旧客户端可省略此字段；null 通过官方配置 API 删除手动覆盖。
+    #[serde(default)]
+    pub model_context_window: Option<i64>,
     #[serde(deserialize_with = "object")]
     pub pet: PetSettings,
     pub reasoning_effort: String,
@@ -116,6 +119,9 @@ impl GlobalSettings {
             && non_empty(&self.reasoning_effort, 64)
             && non_empty(&self.commit_message_model, 256)
             && self.commit_message_prompt.len() <= 4_000
+            && self
+                .model_context_window
+                .is_none_or(|tokens| (1..=9_007_199_254_740_991).contains(&tokens))
             && !matches!(
                 self.approval_policy,
                 ApprovalPolicy::Mode(ApprovalMode::Untrusted)

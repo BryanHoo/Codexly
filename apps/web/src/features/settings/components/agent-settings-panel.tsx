@@ -1,4 +1,5 @@
 import { HistoryCompression } from "@codexly/ui/core/history-compression";
+import { ModelContextWindowInput } from "@codexly/ui/core/model-context-window-input";
 import { AgentPreferencesFields } from "./agent-preferences-fields.js";
 import type { SettingsClient } from "./global-settings-page-contracts.js";
 import type { AgentGlobalSettings, AgentModel } from "@codexly/protocol";
@@ -104,6 +105,22 @@ export function AgentSettingsPanel({
               value={settings.reasoningEffort}
               onChange={(reasoningEffort) => {
                 onChange({ ...settings, reasoningEffort });
+              }}
+            />
+          </SettingsField>
+          <SettingsField
+            label={t("agent.contextWindow.label")}
+            description={t("agent.contextWindow.description")}
+          >
+            <ModelContextWindowInput
+              value={settings.modelContextWindow}
+              onChange={(modelContextWindow) => {
+                onChange({ ...settings, modelContextWindow });
+              }}
+              labels={{
+                label: t("agent.contextWindow.label"),
+                automatic: t("agent.contextWindow.automatic"),
+                invalid: t("agent.contextWindow.invalid"),
               }}
             />
           </SettingsField>

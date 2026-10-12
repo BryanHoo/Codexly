@@ -1,5 +1,7 @@
 # 公共协议
 
+- 本机通用窗口使用全局 `modelContextWindow: number | null`，正整数上限为 `Number.MAX_SAFE_INTEGER`，不进入项目默认值或回合参数。Codex 配置为权威来源，`null` 通过官方 API 删除覆盖；不得从应用数据库恢复旧窗口。两端复用数字输入组件，显示 k tokens，UI 接受空值或 272–1000 的整数、提交时乘以 1000；不截断已有配置。失焦或 Enter 才提交。详见[上下文窗口契约](../../../../docs/model-context-window.md)。
+
 `packages/protocol/src/` 定义 Web、客户端、服务端共享的数据结构、事件和访问契约，公开出口为 `src/index.ts`。它不依赖其他工程包，见 `dependency-cruiser.config.cjs`。
 
 - 协议字段变化须追踪所有消费者、Schema 和契约测试；`CHANGELOG.md` 在发布流程更新，当前版本的 `Unreleased` 保持为空。不要把传输或持久化实现放入此包。

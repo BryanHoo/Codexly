@@ -2,6 +2,50 @@ use super::{AppServerConnection, agent_settings::*};
 use crate::infrastructure::local_settings;
 
 #[tokio::test]
+async fn context_window_should_round_trip_and_clear_without_local_persistence() {
+    let fixture = Fixture::new(json!({"model_context_window": 400_000}), false);
+    let mut settings = read_global_settings(&fixture.connection, &fixture.root)
+        .await
+        .unwrap();
+    assert_eq!(settings["modelContextWindow"], 400_000);
+    for value in [json!(1_000_000), Value::Null] {
+        settings["modelContextWindow"] = value.clone();
+        let update = update_global_settings(&fixture.connection, &fixture.root, settings.clone())
+            .await
+            .unwrap();
+        assert_eq!(update.settings["modelContextWindow"], value);
+        assert_eq!(update.changed_fields, ["modelContextWindow"]);
+    }
+    let requests = fixture.requests.lock().unwrap();
+    let writes = requests
+        .iter()
+        .filter(|request| request["method"] == "config/batchWrite")
+        .collect::<Vec<_>>();
+    assert_eq!(writes.len(), 2);
+    assert_eq!(
+        writes[1]["params"]["edits"],
+        json!([{"keyPath": "model_context_window", "value": null, "mergeStrategy": "replace"}])
+    );
+    // 仅变更窗口时无需创建应用偏好文件，窗口完全归 Codex 管理。
+    assert!(!fixture.root.join("agent-settings.json").exists());
+}
+
+#[test]
+fn context_window_should_reject_non_positive_or_unsafe_values() {
+    for value in [
+        json!(0),
+        json!(-1),
+        json!(1.5),
+        json!("400000"),
+        json!(9_007_199_254_740_992_i64),
+    ] {
+        let mut settings = local_settings::default_global_settings();
+        settings["modelContextWindow"] = value;
+        assert!(local_settings::validate_global_settings(&settings).is_err());
+    }
+}
+
+#[tokio::test]
 async fn fast_mode_should_recognize_codex_priority_value() {
     let fixture = Fixture::new(json!({"service_tier": "priority"}), false);
     assert_eq!(

@@ -52,6 +52,7 @@ export function createAppShellApiState(options: Readonly<{ providerConnected?: b
     approvalsReviewer: "user",
     commitMessageModel: "gpt-5.6-sol",
     commitMessagePrompt: "",
+    modelContextWindow: null as number | null,
     defaultOpenAppId: "zed" as string | null,
     fastMode: false,
     followUpBehavior: "queue" as "queue" | "steer",

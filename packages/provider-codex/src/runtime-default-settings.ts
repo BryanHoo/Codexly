@@ -5,6 +5,7 @@ const fields = {
   approvalPolicy: "approval_policy",
   approvalsReviewer: "approvals_reviewer",
   model: "model",
+  modelContextWindow: "model_context_window",
   reasoningEffort: "model_reasoning_effort",
   sandboxMode: "sandbox_mode",
   fastMode: "service_tier",
@@ -15,6 +16,7 @@ export async function writeRuntimeDefaultSettings(
   settings: AgentRuntimeDefaultSettings,
 ): Promise<void> {
   const edits = (Object.keys(fields) as (keyof typeof fields)[])
+    // undefined 为未改动；null 必须保留，让官方 API 删除窗口的手动覆盖。
     .filter((key) => settings[key] !== undefined)
     .map((key) => ({
       keyPath: fields[key],
@@ -29,6 +31,11 @@ export async function writeRuntimeDefaultSettings(
 
 export function optionalNonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+/** 缺省必须返回 null，避免应用偏好中的旧快照覆盖模型默认值。 */
+export function optionalModelContextWindow(value: unknown): number | null {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
 export function optionalApprovalPolicy(
@@ -82,4 +89,31 @@ export function optionalSandboxMode(value: unknown): AgentRuntimeDefaultSettings
   return value === "read-only" || value === "workspace-write" || value === "danger-full-access"
     ? value
     : undefined;
+}
+
+export function readRuntimeDefaultSettings(
+  config: Readonly<Record<string, unknown>>,
+): AgentRuntimeDefaultSettings {
+  const approvalsReviewer = config["approvals_reviewer"];
+  const approvalPolicy = optionalApprovalPolicy(config["approval_policy"]);
+
+  // 审批策略与审核方是独立配置；never 下审核方保留但不会收到交互请求。
+  const approvalDefaults: AgentRuntimeDefaultSettings = {
+    ...(approvalPolicy === undefined ? {} : { approvalPolicy }),
+    ...(approvalsReviewer === "user" || approvalsReviewer === "auto_review"
+      ? { approvalsReviewer }
+      : {}),
+  };
+  const model = optionalNonEmptyString(config["model"]);
+  const reasoningEffort = optionalNonEmptyString(config["model_reasoning_effort"]);
+  const sandboxMode = optionalSandboxMode(config["sandbox_mode"]);
+
+  return {
+    ...approvalDefaults,
+    modelContextWindow: optionalModelContextWindow(config["model_context_window"]),
+    fastMode: config["service_tier"] === "priority" || config["service_tier"] === "fast",
+    ...(model === undefined ? {} : { model }),
+    ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+    ...(sandboxMode === undefined ? {} : { sandboxMode }),
+  };
 }

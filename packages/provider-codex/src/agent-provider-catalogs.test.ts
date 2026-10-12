@@ -422,6 +422,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
 
     await expect(runtime.readDefaultSettings()).resolves.toEqual({
       fastMode: false,
+      modelContextWindow: null,
       approvalPolicy: "never",
       approvalsReviewer: "user",
       model: "gpt-5.6-sol",
@@ -431,6 +432,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     now += 60_000;
     await expect(runtime.readDefaultSettings()).resolves.toEqual({
       fastMode: false,
+      modelContextWindow: null,
       approvalPolicy: {
         granular: {
           mcp_elicitations: false,
@@ -445,6 +447,7 @@ describe("CodexAgentProvider model and skill catalogs", () => {
     now += 60_000;
     await expect(runtime.readDefaultSettings()).resolves.toEqual({
       fastMode: false,
+      modelContextWindow: null,
       approvalPolicy: "never",
       approvalsReviewer: "auto_review",
     });

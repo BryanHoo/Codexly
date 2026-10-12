@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { changeAppLanguage } from "../../../i18n/i18n.js";
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import { GlobalSettingsPage } from "./global-settings-page.js";
+import { AgentSettingsPanel } from "./agent-settings-panel.js";
 import { resolveGlobalSettingsModel } from "./global-settings-model.js";
 import { CodexlyClient } from "@codexly/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -56,6 +57,30 @@ describe("GlobalSettingsPage", () => {
     await changeAppLanguage("zh-CN");
   });
 
+  it("上下文以带单位的数字框展示千 tokens，空值清楚提示自动", async () => {
+    const renderAgent = (modelContextWindow: number | null) =>
+      renderSettingsDialog(
+        <AgentSettingsPanel
+          client={new CodexlyClient()}
+          settings={{ ...createFallbackSettings(models), modelContextWindow }}
+          models={models}
+          fastModeAvailable={false}
+          onChange={vi.fn()}
+        />,
+      );
+    const markup = await renderAgent(400_000);
+    expect(markup).toContain('type="number"');
+    expect(markup).toContain('min="272"');
+    expect(markup).toContain('max="1000"');
+    expect(markup).toContain('step="1"');
+    expect(markup).toContain('value="400"');
+    expect(markup).toContain("k tokens");
+    expect(markup).toContain("填写 272–1000，留空自动。");
+    const automatic = await renderAgent(null);
+    expect(automatic).toContain('placeholder="自动"');
+    expect(automatic).toContain('value=""');
+  });
+
   it("将自动审核作为审批下拉框中的互斥选项", () => {
     const settings = { ...createFallbackSettings(models), sandboxMode: "read-only" as const };
     const automatic = applyApprovalMode(settings, "auto-review");
@@ -94,6 +119,7 @@ describe("GlobalSettingsPage", () => {
           approvalsReviewer: "auto_review",
           commitMessageModel: "gpt-5.6-terra",
           commitMessagePrompt: "突出用户可见影响。",
+          modelContextWindow: null,
           defaultOpenAppId: "visual-studio-code",
           fastMode: true,
           followUpBehavior: "queue",
@@ -132,6 +158,7 @@ describe("GlobalSettingsPage", () => {
           approvalsReviewer: "user",
           commitMessageModel: "gpt-5.6-sol",
           commitMessagePrompt: "",
+          modelContextWindow: null,
           defaultOpenAppId: null,
           fastMode: false,
           followUpBehavior: "queue",
@@ -339,6 +366,7 @@ describe("GlobalSettingsPage", () => {
             approvalsReviewer: "user",
             commitMessageModel: "gpt-5.6-sol",
             commitMessagePrompt: "",
+            modelContextWindow: null,
             defaultOpenAppId: null,
             fastMode: false,
             followUpBehavior: "queue",

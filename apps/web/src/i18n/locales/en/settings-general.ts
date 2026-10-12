@@ -15,6 +15,13 @@ export const generalSettings = {
 } as const;
 
 export const agentSettings = {
+  contextWindow: {
+    label: "Context window",
+    description: "Enter 272–1000, or leave blank for auto.",
+    automatic: "Auto",
+    invalid: "Enter a whole number from 272 to 1000, or leave blank.",
+  },
+
   storage: {
     title: "History storage",
     description:

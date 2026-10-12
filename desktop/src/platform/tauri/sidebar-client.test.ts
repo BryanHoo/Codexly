@@ -448,6 +448,7 @@ describe("TauriSidebarClient", () => {
       approvalsReviewer: "user",
       commitMessageModel: "gpt-5.6-luna",
       commitMessagePrompt: "",
+      modelContextWindow: null,
       defaultOpenAppId: null,
       fastMode: false,
       followUpBehavior: "queue",

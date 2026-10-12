@@ -22,8 +22,12 @@ pnpm tauri dev
 pnpm check:web
 pnpm check:rust
 pnpm check
-pnpm tauri build
+pnpm tauri:local
 ```
+
+`pnpm tauri:local` 用于本地测试打包：跳过应用代码签名，并通过独立配置关闭自动更新产物生成，无需 `TAURI_SIGNING_PRIVATE_KEY`。macOS 生成 `.app` 和 `.dmg`，Windows 默认生成可直接运行的 EXE，Linux 沿用当前平台的打包目标。
+
+正式签名构建仍使用 `pnpm tauri build`，需要提供与项目更新公钥匹配的 `TAURI_SIGNING_PRIVATE_KEY`。`--no-sign` 只跳过代码签名，不会关闭自动更新签名；不要为本地测试替换正式更新公钥。两类签名的用途见 [Tauri CLI](https://v2.tauri.app/reference/cli/) 与[更新插件文档](https://v2.tauri.app/plugin/updater/)。
 
 macOS 架构选择与 Legacy 构建见 [macOS 分档构建](./macos-build-profiles.md)。版本管理与发布流程见[发布指南](./releasing.md)。
 

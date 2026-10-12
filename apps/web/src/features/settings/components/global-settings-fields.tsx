@@ -202,7 +202,7 @@ export function ReasoningSelect({
 
 export function SettingsSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <div className="relative min-w-40 max-w-full">
+    <div className="relative w-40 max-w-full">
       <PromptInputSelect
         className="h-8 w-full max-w-none !border !border-separator-strong !bg-control px-2.5 pr-8 text-body-small text-foreground"
         {...props}

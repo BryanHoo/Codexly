@@ -73,6 +73,7 @@ export class WorkbenchPetProviderError extends Error {
 }
 
 export type AgentRuntimeDefaultSettings = Readonly<{
+  modelContextWindow?: number | null;
   fastMode?: boolean;
   approvalPolicy?: AgentGlobalApprovalPolicy;
   approvalsReviewer?: AgentApprovalsReviewer;

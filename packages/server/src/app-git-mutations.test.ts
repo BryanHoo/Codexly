@@ -37,6 +37,7 @@ describe("server Git mutations", () => {
       approvalsReviewer: "user",
       commitMessageModel: "gpt-5.6-terra",
       commitMessagePrompt: "优先说明行为变化，不要罗列文件名。",
+      modelContextWindow: null,
       defaultOpenAppId: null,
       fastMode: false,
       followUpBehavior: "queue",

@@ -64,6 +64,8 @@ export function globalSettingsFromRow(row) {
     approvalsReviewer: row.approvals_reviewer,
     commitMessageModel: row.commit_message_model,
     commitMessagePrompt: row.commit_message_prompt,
+    // 此字段由 Codex config.toml 管理，本地仓储仅提供自动模式占位。
+    modelContextWindow: null,
     defaultOpenAppId: row.default_open_app_id,
     fastMode: row.fast_mode === 1,
     followUpBehavior: row.follow_up_behavior,

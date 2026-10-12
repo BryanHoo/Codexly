@@ -1,5 +1,6 @@
 import { nativeClient } from "../../projects/project-query-contracts.js";
 import { HistoryCompression } from "@codexly/ui/core/history-compression";
+import { ModelContextWindowInput } from "@codexly/ui/core/model-context-window-input";
 import type { AgentGlobalSettings, AgentModel } from "@/protocol/index.js";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -57,6 +58,11 @@ export function AgentSettingsPanel({ settings, models, fastModeAvailable, onChan
           </SettingsField>
           <SettingsField label={t("fields.reasoningEffort")}>
             <ReasoningSelect ariaLabel={t("fields.reasoningEffort")} disabled={selectedModel === undefined} model={selectedModel} value={settings.reasoningEffort} onChange={(reasoningEffort) => onChange({ ...settings, reasoningEffort })} />
+          </SettingsField>
+          <SettingsField label={t("agent.contextWindow.label")} description={t("agent.contextWindow.description")}>
+            <ModelContextWindowInput value={settings.modelContextWindow}
+              onChange={(modelContextWindow) => onChange({ ...settings, modelContextWindow })}
+              labels={{ label: t("agent.contextWindow.label"), automatic: t("agent.contextWindow.automatic"), invalid: t("agent.contextWindow.invalid") }} />
           </SettingsField>
         </SettingsGroup>
         <HistoryCompression client={nativeClient} labels={{

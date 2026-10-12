@@ -57,6 +57,7 @@ describe("server task mutations", () => {
       approvalsReviewer: "auto_review",
       commitMessageModel: "gpt-5.6-sol",
       commitMessagePrompt: "",
+      modelContextWindow: null,
       defaultOpenAppId: null,
       fastMode: true,
       followUpBehavior: "queue",

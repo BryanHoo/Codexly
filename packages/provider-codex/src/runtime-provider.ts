@@ -4,9 +4,7 @@ import { CodexTaskTitles } from "./task-titles.js";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import {
-  optionalNonEmptyString,
-  optionalApprovalPolicy,
-  optionalSandboxMode,
+  readRuntimeDefaultSettings,
   writeRuntimeDefaultSettings,
 } from "./runtime-default-settings.js";
 import type {
@@ -383,27 +381,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
 
   public async readDefaultSettings(): Promise<AgentRuntimeDefaultSettings> {
     const config = await this.#providerConnection.readConfig();
-    const approvalsReviewer = config["approvals_reviewer"];
-    const approvalPolicy = optionalApprovalPolicy(config["approval_policy"]);
-
-    // 审批策略与审核方是独立配置；never 下审核方保留但不会收到交互请求。
-    const approvalDefaults: AgentRuntimeDefaultSettings = {
-      ...(approvalPolicy === undefined ? {} : { approvalPolicy }),
-      ...(approvalsReviewer === "user" || approvalsReviewer === "auto_review"
-        ? { approvalsReviewer }
-        : {}),
-    };
-    const model = optionalNonEmptyString(config["model"]);
-    const reasoningEffort = optionalNonEmptyString(config["model_reasoning_effort"]);
-    const sandboxMode = optionalSandboxMode(config["sandbox_mode"]);
-
-    return {
-      ...approvalDefaults,
-      fastMode: config["service_tier"] === "priority" || config["service_tier"] === "fast",
-      ...(model === undefined ? {} : { model }),
-      ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
-      ...(sandboxMode === undefined ? {} : { sandboxMode }),
-    };
+    return readRuntimeDefaultSettings(config);
   }
 
   public readProviderConnection(): Promise<AgentProviderConnectionStatus> {

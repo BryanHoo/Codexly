@@ -18,6 +18,13 @@ export const generalSettings = {
 } as const;
 
 export const agentSettings = {
+  contextWindow: {
+    label: "Context window",
+    description: "Enter 272–1000, or leave blank for auto.",
+    automatic: "Auto",
+    invalid: "Enter a whole number from 272 to 1000, or leave blank.",
+  },
+
   storage: {
     title: "History storage",
     description: "Codex compresses local history files untouched for over 7 days in the background to free disk space.",

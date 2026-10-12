@@ -262,6 +262,7 @@ describe("project task snapshot protocol", () => {
       approvalsReviewer: "auto_review",
       commitMessageModel: "gpt-5.6-terra",
       commitMessagePrompt: "突出说明用户可见影响。",
+      modelContextWindow: null,
       defaultOpenAppId: "visual-studio-code",
       fastMode: false,
       followUpBehavior: "queue",
