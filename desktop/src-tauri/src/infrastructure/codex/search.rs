@@ -14,6 +14,9 @@ const SEARCH_PAGE_SIZE: usize = 30;
 const HISTORY_PAGE_SIZE: usize = 10;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
+#[path = "search_legacy.rs"]
+mod legacy;
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NativeSearchPage<T> {
@@ -79,13 +82,8 @@ pub async fn search_tasks(
     let data = stream::iter(results.into_iter().take(page_size))
         .map(|result| async move {
             let occurrence = if is_history {
-                let page: SearchOccurrencesPage = connection
-                    .request(
-                        "thread/searchOccurrences",
-                        &json!({"threadId":result.thread.id,"searchTerm":query,"limit":1}),
-                        REQUEST_TIMEOUT,
-                    )
-                    .await?;
+                let page =
+                    request_occurrences(connection, &result.thread.id, query, None, 1).await?;
                 let Some(first) = page.data.into_iter().next() else {
                     return Ok(None);
                 };
@@ -123,8 +121,33 @@ pub async fn search_task_occurrences(
     cursor: Option<&str>,
 ) -> Result<SearchOccurrencesPage, ConnectionError> {
     let query = validate_query(query)?;
-    let page = connection.request("thread/searchOccurrences", &json!({"threadId":task_id,"searchTerm":query,"cursor":cursor,"limit":SEARCH_PAGE_SIZE}), REQUEST_TIMEOUT).await?;
-    Ok(page)
+    request_occurrences(connection, task_id, query, cursor, SEARCH_PAGE_SIZE).await
+}
+
+async fn request_occurrences(
+    connection: &AppServerConnection,
+    task_id: &str,
+    query: &str,
+    cursor: Option<&str>,
+    limit: usize,
+) -> Result<SearchOccurrencesPage, ConnectionError> {
+    if legacy::is_legacy_cursor(cursor) {
+        return legacy::search_occurrences(connection, task_id, query, cursor, limit).await;
+    }
+    match connection
+        .request(
+            "thread/searchOccurrences",
+            &json!({"threadId":task_id,"searchTerm":query,"cursor":cursor,"limit":limit}),
+            REQUEST_TIMEOUT,
+        )
+        .await
+    {
+        // 只兼容旧 rollout 的方法缺失，其他错误保持原有语义，不能伪装成无匹配。
+        Err(ConnectionError::Request { code: -32601, .. }) => {
+            legacy::search_occurrences(connection, task_id, query, cursor, limit).await
+        }
+        result => result,
+    }
 }
 
 #[cfg(test)]

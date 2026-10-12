@@ -4,6 +4,7 @@ import { FakeRpcClient } from "./agent-provider.test-support.js";
 import { CodexGlobalSearchService } from "./global-search.js";
 import { decodeTaskTurnCursor } from "./task-history-pagination.js";
 import { createHarness } from "./jsonl-rpc-client.test-support.js";
+import { RpcResponseError } from "./jsonl-rpc-errors.js";
 
 const temporaryThread = {
   id: "task-1",
@@ -31,6 +32,77 @@ function decodeReturnedTurnCursor(value: string | undefined): string | undefined
 }
 
 describe("CodexGlobalSearchService", () => {
+  it("精确接口不支持时分页检索可见消息并保留定位与续页游标", async () => {
+    const client = new FakeRpcClient([
+      { data: [{ thread: temporaryThread }], nextCursor: "tasks-next" },
+      new RpcResponseError({
+        code: -32601,
+        data: null,
+        message: "thread/searchOccurrences is not supported yet",
+      }),
+      {
+        data: [
+          {
+            id: "turn-empty",
+            items: [{ id: "tool", type: "commandExecution", aggregatedOutput: "中文" }],
+          },
+        ],
+        backwardsCursor: "empty-anchor",
+        nextCursor: "older",
+      },
+      {
+        data: [
+          {
+            id: "turn-hit",
+            items: [
+              { id: "commentary", type: "agentMessage", phase: "commentary", text: "中文" },
+              {
+                id: "user-hit",
+                type: "userMessage",
+                content: [{ type: "text", text: "😀中文 中文" }],
+              },
+            ],
+          },
+        ],
+        backwardsCursor: "hit-anchor",
+        nextCursor: null,
+      },
+    ]);
+    const service = new CodexGlobalSearchService(client);
+    const page = await service.searchTasks({ archived: false, kind: "history", query: "中文" }, [
+      { id: "temporary", kind: "temporary" },
+    ]);
+    expect(page.nextCursor).toBe("tasks-next");
+    expect(page.data[0]?.occurrence).toMatchObject({
+      itemId: "user-hit",
+      turnId: "turn-hit",
+      snippet: "😀中文 中文",
+      snippetMatchRange: { start: 2, end: 4 },
+    });
+    expect(decodeReturnedTurnCursor(page.data[0]?.occurrence?.turnCursor)).toBe("hit-anchor");
+    expect(
+      client.calls.filter((call) => call.method === "thread/turns/list").map((call) => call.params),
+    ).toEqual([
+      { threadId: "task-1", itemsView: "full", limit: 10, sortDirection: "desc" },
+      { threadId: "task-1", itemsView: "full", limit: 10, sortDirection: "desc", cursor: "older" },
+    ]);
+  });
+
+  it("权限或其他 RPC 错误不进入兼容检索", async () => {
+    const error = new RpcResponseError({ code: -32602, data: null, message: "invalid thread" });
+    const client = new FakeRpcClient([{ thread: temporaryThread }, error]);
+    await expect(
+      new CodexGlobalSearchService(client).searchTaskOccurrences(
+        "task-1",
+        { query: "中文" },
+        { id: "temporary", kind: "temporary" },
+      ),
+    ).rejects.toBe(error);
+    expect(client.calls.map((call) => call.method)).toEqual([
+      "thread/read",
+      "thread/searchOccurrences",
+    ]);
+  });
   it.each(["tasks", "history"] as const)("取消的 %s 搜索不派发 RPC", async (kind) => {
     const client = new FakeRpcClient([{ data: [], nextCursor: null }]);
     const controller = new AbortController();

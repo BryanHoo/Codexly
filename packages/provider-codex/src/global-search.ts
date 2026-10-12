@@ -17,6 +17,8 @@ import {
 import { isProjectThread } from "./codex-task-mapping.js";
 import { encodeTaskTurnCursor } from "./task-history-pagination.js";
 import { throwIfRpcAborted } from "./rpc-cancellation.js";
+import { RpcResponseError } from "./jsonl-rpc-errors.js";
+import { searchLegacyOccurrences, isLegacySearchCursor } from "./legacy-search-occurrences.js";
 
 const SEARCH_PAGE_SIZE = 30;
 const HISTORY_PAGE_SIZE = 10;
@@ -188,8 +190,12 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
     signal: AgentCancellationSignal | undefined,
   ): Promise<SearchOccurrencesPage> {
     throwIfRpcAborted(signal);
-    const page = parsePage(
-      await this.client.request(
+    if (isLegacySearchCursor(cursor)) {
+      return searchLegacyOccurrences(this.client, taskId, query, cursor, limit, signal);
+    }
+    let response: unknown;
+    try {
+      response = await this.client.request(
         "thread/searchOccurrences",
         {
           ...(cursor === undefined ? {} : { cursor }),
@@ -199,9 +205,13 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
         },
         undefined,
         signal,
-      ),
-      "thread/searchOccurrences response",
-    );
+      );
+    } catch (error) {
+      // 旧版 rollout 不支持精确检索；只兼容方法缺失，权限、超时和取消仍向上传播。
+      if (!(error instanceof RpcResponseError) || error.code !== -32601) throw error;
+      return searchLegacyOccurrences(this.client, taskId, query, cursor, limit, signal);
+    }
+    const page = parsePage(response, "thread/searchOccurrences response");
     return { data: page.data.map(parseOccurrence), nextCursor: page.nextCursor };
   }
 }

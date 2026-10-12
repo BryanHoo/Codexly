@@ -7,7 +7,7 @@
 | 数据源 | 实现 | 点击结果 |
 | --- | --- | --- |
 | 任务标题 | Codex `thread/list`，传入 `searchTerm`，不设置项目或固定分区过滤 | 打开对应任务 |
-| 历史记录 | Codex `thread/search` 提供候选；展示前用 `thread/searchOccurrences(limit=1)` 校验并附带消息 ID、回合游标和 UTF-16 命中范围 | 默认定位首个命中；选中历史结果后可查看其他匹配位置 |
+| 历史记录 | Codex `thread/search` 提供候选；展示前验证可见消息锚点，优先使用 `thread/searchOccurrences(limit=1)`，接口不支持时由后端分页读取可见消息匹配 | 默认定位首个命中；选中历史结果后可查看其他匹配位置 |
 | 项目文件 | 复用 Rust `ProjectFileSearch`，搜索各项目根目录内的文件名和相对路径 | 文本/图片内部预览，其他格式或预览读取失败时使用系统默认应用 |
 
 文件检索不扫描源码正文。历史检索以 Codex 定义的可见用户消息和助手最终答复为准，不搜索内部推理或工具输出。精确历史定位使用 0.160.0 的分页历史协议；服务端拒绝定位或消息已删除时保留搜索结果并提示错误，不把任务首页伪装成命中位置。
@@ -16,7 +16,9 @@
 
 - 弹窗和历史定位视图按需加载，关闭时没有搜索轮询。关闭时保留当前窗口的搜索词、分类、分页、结果与滚动位置；再次打开聚焦并全选输入内容，不因缓存过期重新搜索。关闭期间取消请求，保留当前结果的 Query observer；不写入磁盘，重启窗口后清空。
 - 输入防抖 180ms，中文输入法组合期间不发送查询；查询词变化立即切换 Query key，使旧响应不能覆盖新结果。
-- 任务、历史、文件源独立加载与报错；任务每页 30 条；历史每页最多校验 30 个候选、并发上限 4，过滤后保留原始下一页游标，使用游标翻页，不全量展开任务或会话。
+- 任务、历史、文件源独立加载与报错；任务每页 30 条；历史每页最多校验 10 个候选、并发上限 4，过滤后保留原始下一页游标，使用游标翻页。
+- Codex 0.162.0 的旧 rollout 不支持 `thread/searchOccurrences`。两端仅在 RPC 返回 `-32601` 时使用兼容路径，每次读取 10 个回合，在后端匹配用户文本和助手答复，排除过程答复、推理和工具输出；未命中页继续沿官方游标读取，不向前端传输整段历史。兼容结果按最新回合优先返回；长旧会话可能需要多次读取，取消搜索后停止后续请求，不建立常驻索引。
+- 兼容续查游标绑定任务 ID 与查询词，记录页的 inclusive 锚点及已匹配数量；单页命中超过 30 条时从同页续查，避免重复或遗漏。定位页复用官方返回的 inclusive 页锚点，保持消息 ID、回合 ID 和 UTF-16 摘要范围；权限、超时等错误仍正常传播，循环分页游标立即报错。
 - 文件请求最多并发两个根目录，复用现有 Rust 索引缓存、扫描信号量和取消机制；前端最多保留 50 条文件结果并明确提示截断。
 - 原生任务请求接入 `AbortSignal` → `cancel_native_request`；文件请求使用独立 session ID，避免取消旧查询误伤新查询。客户端取消不承诺中断官方服务端已经开始的内部磁盘操作。
 - 历史跳转通过命中位置的 inclusive `turnCursor` 读取一页，用独立只读 Store 展示。禁止将这页覆盖进实时 Task Store，避免覆盖正在运行的回合或破坏最新历史分页游标。
@@ -25,7 +27,7 @@
 
 ## 定位一致性与视觉
 
-官方 `thread/search` 扫描 rollout 中的用户/助手文本，包含过程答复；`thread/searchOccurrences` 只搜索当前可见用户消息和回合最终答复。两者范围不同，不能把前者的每个候选直接视为可定位消息。本地真实协议抽查 10 个候选时，4 个没有 occurrence；其余 12 个抽查位置的回合和消息均存在。
+官方 `thread/search` 扫描 rollout 中的用户/助手文本，包含过程答复；精确检索只保留当前可见用户消息和助手答复。两者范围不同，不能把前者的每个候选直接视为可定位消息。协议中存在 `thread/searchOccurrences` 不代表当前历史存储支持它，必须验证实际调用结果。
 
 现在在后端用有界并发验证候选，丢弃无锚点结果，并使用 occurrence 的摘要替换 rollout 摘要。点击复用已验证锚点，不再二次检索。快照投影确实改变消息身份时，仅在同回合完整摘要唯一匹配时重新绑定，禁止只凭关键词误跳。
 
@@ -45,3 +47,4 @@
 - `pnpm check`：Web/Rust 类型、测试、构建与性能预算。
 - `pnpm exec vitest run --config vitest.browser.config.ts src/features/search src/features/workbench/components/project-sidebar-header.browser.test.tsx`：Chromium/WebKit 弹窗聚合、键盘入口、源错误隔离、精确历史定位及高亮。
 - `src-tauri/src/infrastructure/codex/search_tests.rs`：官方方法与参数、跨项目映射、查询边界、游标和 UTF-16 范围。
+- 在仓库根目录执行 `CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run packages/provider-codex/src/history-storage-runtime.test.ts`：使用隔离 `CODEX_HOME` 验证真实旧会话和压缩会话搜索、消息锚点读取，不修改用户历史。
