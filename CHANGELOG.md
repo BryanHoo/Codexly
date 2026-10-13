@@ -4,6 +4,35 @@
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-10-13
+
+### 新增
+
+- Web（含移动端）与桌面端共用 Git 操作入口，支持「提交」「提交并推送」和「推送已有提交」；无未提交变更时仍可推送本地提交，推送失败后保留已创建的提交并可单独重试。
+- Web CLI 支持 macOS、Windows 和 Ubuntu 当前用户登录自启动，提供启用、停用、状态、日志、凭据、重启与修复命令；桌面端在通用设置中提供「开机启动」开关。
+- 两端支持助手回复中的文件引用、代码审查评论、操作指令与后续建议，建议可填入输入框继续编辑；聊天 Markdown 图片可点击打开缩放预览。
+- 两端支持配置全局模型上下文窗口，填写 272–1000 千 tokens 或留空恢复自动模式，并直接读写 Codex 配置。
+- Web 支持多个实例共享同一 Codex Home 与启动目录，自动跳过占用端口，并协调定时任务避免重复启动。
+
+### 优化
+
+- 自定义 Provider 模型发现支持认证请求头及多级目录回退，提高模型服务暂时不可用时的可用性。
+- 两端按需加载语言资源与 Mermaid 图表，优化设置缓存更新及后台终端轮询，减少首屏加载和空闲资源开销。
+- 项目文件树隐藏系统元数据，增强差异预览与代码评论展示；旧版历史会话搜索支持精确定位。
+
+### 修复
+
+- 修复 Windows 登录自启动的执行路径引用，以及 Ubuntu 桌面启动项对空格、特殊字符和 AppImage 路径的处理。
+- 修复回合结束后运行提示与提交计时未及时清理的问题，并刷新提交后的 Git 状态。
+- 推送已有提交不创建新提交，也不改动暂存区与工作区；未配置上游分支时提供明确提示。
+
+### 工程
+
+- macOS 正式发布启用 Developer ID 签名、公证、票据装订与产物验证，Modern 和 Legacy 更新清单保持独立。
+- 补充 Git 提交、独立推送、自启动、共享运行时和助手回复解析回归覆盖，记录 Windows 与 Ubuntu 本机全量验证结果。
+- 隔离桌面存储测试的临时目录，避免系统时钟精度不足导致并发用例互相清理文件。
+- 同步两端中英文说明、Git 操作指南、联合发布步骤及 Docker 固定版本示例。
+
 ## [0.35.0] - 2026-10-11
 
 ### 新增
@@ -933,7 +962,11 @@
 
 - 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.33.2...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/BryanHoo/Codexly/compare/v0.35.0...v0.36.0
+[0.35.0]: https://github.com/BryanHoo/Codexly/compare/v0.34.1...v0.35.0
+[0.34.1]: https://github.com/BryanHoo/Codexly/compare/v0.34.0...v0.34.1
+[0.34.0]: https://github.com/BryanHoo/Codexly/compare/v0.33.2...v0.34.0
 [0.33.2]: https://github.com/BryanHoo/Codexly/compare/v0.32.0...v0.33.2
 [0.32.0]: https://github.com/BryanHoo/Codexly/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/BryanHoo/Codexly/compare/v0.30.0...v0.31.0

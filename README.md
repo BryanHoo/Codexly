@@ -43,13 +43,14 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 - Read streaming Markdown responses and copy their source text; zoom and pan message images, project images, and wallpapers, or view them at their original size.
 - Preview PDFs directly from chat attachments, file links, and the project file tree.
 - View task-local images embedded in Markdown responses and open them in the image preview.
-- Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task.
-- Create projects and directories, search tasks, message history, and project files; inspect changes, work with branches and worktrees, and commit or push selected files. Git actions require a repository at the project root; ordinary subdirectories do not use the parent repository.
+- Follow file citations, code review comments, and follow-up suggestions in assistant responses; selecting a suggestion fills the composer for further editing.
+- Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task, and configure the global [context window](docs/model-context-window.md).
+- Create projects and directories, search tasks, message history, and project files; inspect changes, work with branches and worktrees, commit selected files, commit and push, or push existing commits independently. See the [Git workflow guide](docs/git-workflow.md). Git actions require a repository at the project root; ordinary subdirectories do not use the parent repository.
 - Identify each task's project through labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks.
 - Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work. Refresh official plugins to synchronize their state and report partial failures.
 - Request background compression of history files untouched for over 7 days under Settings → Agent → History storage. Web compresses server history; desktop compresses local history. Other Codex clients sharing that directory must support compressed history.
 
-**Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and an app-private Codex installation. It supports Windows, Ubuntu, and macOS. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
+**Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and an app-private Codex installation. It supports Windows, Ubuntu, and macOS, with an option in general settings to launch at system login. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
 
 **Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, Docker deployment, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.162.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.162.0,<0.163.0`.
 
@@ -149,6 +150,8 @@ The image entrypoint accepts all normal CLI arguments, so orchestration platform
 ## Using the Web Edition
 
 Select **New task** for work that does not need a project. For repository work, add one or more host directories as ordered project roots, create a task, and submit your request with any required files, images, project references, or Skills. Archived tasks can be restored or permanently deleted from the project task list.
+
+The Git panel's main button commits; **More Git actions** offers **Commit and push** and **Push existing commits**. A failed push preserves the local commit and can be retried independently. Configure the branch upstream before pushing.
 
 Task controls set the model, reasoning, Fast mode, approval, and file access behavior. Notification preferences and the last complete project settings are saved for later tasks. The right inspector provides project files, sources, code changes, Git history, review, and commit actions. Project directories and files always come from the computer running Codexly, including when the UI is opened on another device.
 

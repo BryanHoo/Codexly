@@ -43,13 +43,15 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Create scheduled tasks with visual recurrence rules for weekdays, weekends, weekly, or monthly schedules, then preview upcoming runs
 - Request background compression of history not written for more than 7 days under Settings → Agent Configuration → History File Storage; other Codex clients sharing the history directory must support the compressed format
 - Automatically install and verify an app-private Codex `0.162.0` runtime without requiring a global Codex setup
-- Choose the model, reasoning effort, Fast mode, approval behavior, and file access for each task
+- Follow file citations, code review comments, and follow-up suggestions in assistant responses; selecting a suggestion fills the composer for editing
+- Choose the model, reasoning effort, Fast mode, approval behavior, and file access for each task, and configure the global model context window
 - Discover models from custom providers online and fall back to a local catalog when unavailable
 - Create projects and directories, manage multiple project roots, temporary tasks, and archived tasks, generate titles for new tasks, and fork new tasks from existing conversations
 - Identify tasks from different projects through project labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks
 - Search tasks, message history, and project files across projects, then jump to exact history matches
 - Browse and manage project files, switch between file previews and diffs in the inspector, review uncommitted changes and commit history, then copy messages as source-preserving Markdown
-- Create or switch Git branches and worktrees, start worktree tasks in the original project, then select files to commit or push; Git actions require a repository at the project root, and ordinary subdirectories do not use the parent repository
+- Create or switch Git branches and worktrees, start worktree tasks in the original project, then commit selected files, commit and push, or push existing commits independently; Git actions require a repository at the project root, and ordinary subdirectories do not use the parent repository
+- Enable launch at system login in Settings → General on Windows, Ubuntu, or macOS
 - Use Simplified Chinese or English, system notifications, minimize to tray, and workspace pets
 
 ## Quick Start
@@ -72,7 +74,7 @@ Drag a divider to resize adjacent panes. Navigation from notifications, search, 
 
 Open a project text file in the source preview to edit it; switch Markdown to source mode first. Changes save when the editor loses focus, you leave the file, or you switch windows; use `⌘/Ctrl+S` to save manually. UTF-8 files up to 2 MiB are editable, with line endings and BOM preserved; larger or unsupported files stay read-only. Save errors and conflicts keep your draft in the current window and show recovery actions. Closing a panel or exiting the app protects unsaved edits. Drafts are held in memory and are not guaranteed to survive a forced exit or crash.
 
-The workspace provides project files, code changes, Git history, branches, worktrees, reviews, commits, and push actions. Archived tasks can be restored or permanently deleted after confirmation.
+The workspace provides project files, code changes, Git history, branches, worktrees, reviews, commits, and push actions. The Git panel's main button commits; **More Git actions** offers **Commit and push** and **Push existing commits**. A failed push preserves the local commit and can be retried independently. Configure the upstream first; see the [Git workflow guide](../docs/git-workflow.md). Archived tasks can be restored or permanently deleted after confirmation.
 
 ## Documentation
 
@@ -82,6 +84,8 @@ The workspace provides project files, code changes, Git history, branches, workt
 - [Release guide](./docs/releasing.md)
 - [Changelog](../CHANGELOG.md)
 - [Conversation loading and performance](../docs/conversation-performance.md)
+- [Commit and push](../docs/git-workflow.md)
+- [Model context window](../docs/model-context-window.md)
 
 ## Help
 

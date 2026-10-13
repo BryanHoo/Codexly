@@ -11,11 +11,13 @@
 先检查自上次标签以来的实际变更，按兼容性决定版本：仅修复、依赖维护或文档更新升补丁号；新增兼容功能升次版本号；不兼容变更才升主版本号。当前处于 `0.x` 阶段，仍按实际影响判断，不能每次发布都升主版本号。Web 与桌面始终共用同一版本；其中一端新增功能也会提升联合版本的次版本号。
 
 1. 将根目录 `package.json` 与 `desktop/package.json`、`desktop/src-tauri/tauri.conf.json`、`desktop/src-tauri/Cargo.toml` 和 Cargo lock 更新为同一递增版本号。
-2. 仅在根目录 `CHANGELOG.md` 将两端的 `Unreleased` 内容合并到对应版本，并填写发布日期；共用功能写一次，平台专属变化注明适用端，不再维护桌面端独立日志。同步核对 `README.md`、`README.zh-CN.md`、`desktop/README.md` 和 `desktop/README.en.md` 的用户功能与安装说明。
+2. 仅在根目录 `CHANGELOG.md` 将两端的 `Unreleased` 内容合并到对应版本，并填写发布日期；若 `Unreleased` 为空，仍须核对上次正式标签以来的提交。共用功能写一次，平台专属变化注明适用端，不再维护桌面端独立日志。更新底部版本对比链接及 `Unreleased` 的起始标签，同步核对 `README.md`、`README.zh-CN.md`、`desktop/README.md` 和 `desktop/README.en.md` 的用户功能与安装说明，以及 `docs/docker-deployment.md` 的固定镜像版本示例；历史测试报告保留实际验证时的版本号。
 3. 运行发布校验：
 
 ```bash
 pnpm install --frozen-lockfile
+RELEASE_TAG=vx.y.z node tools/joint-release.mjs --check
+RELEASE_TAG=vx.y.z pnpm --dir desktop version:check
 pnpm check
 pnpm test:e2e
 cd desktop && pnpm check
@@ -32,7 +34,7 @@ git push origin "v${RELEASE_VERSION}"
 
 工作流先验证统一版本与根目录联合日志，并运行 Web E2E、桌面质量和真实 WebView 门禁；全部通过后按 Windows、Ubuntu、macOS 矩阵构建签名桌面更新产物到草稿 Release，随后发布 npm 包与多架构镜像，最后公开联合 Release。GitHub Release 页面标题统一为 `Codexly v<版本号>`；正文只提取根目录对应版本的合并更新内容，不再添加产品或版本标题，首行保留桌面更新检查所需的隐藏标记 `<!-- codeagent-version: <版本号> -->`。桌面应用离线日志也内置根目录同一文件。桌面发行物以 Codexly 命名。内部 Workspace 包仍保持私有。
 
-发布完成后确认 `Release` 工作流成功，检查 npm 版本、GHCR 的 `linux/amd64` 和 `linux/arm64` 标签，以及 GitHub Release 的 Windows、Ubuntu、macOS 安装包、`latest.json`、`latest-legacy.json` 和对应签名。
+发布完成后确认 `Release` 工作流成功，检查 npm 版本、GHCR 的 `linux/amd64` 和 `linux/arm64` 标签，以及 GitHub Release 的 Windows、Ubuntu、macOS 安装包、`latest.json`、`latest-legacy.json` 和对应签名。更新清单中的版本与下载地址必须指向本次发布；只有全部任务成功、联合 Release 已公开且产物齐全，才算发布完成。
 
 ## 失败恢复
 

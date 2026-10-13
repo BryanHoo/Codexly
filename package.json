@@ -1,6 +1,6 @@
 {
   "name": "@bryanhu/codexly",
-  "version": "0.35.0",
+  "version": "0.36.0",
   "description": "通过 Web 操作本地 Coding Agent 的应用",
   "type": "module",
   "author": "BryanHu",
@@ -31,6 +31,8 @@
     "dist",
     "README.md",
     "README.zh-CN.md",
+    "docs/git-workflow.md",
+    "docs/model-context-window.md",
     "docs/web-autostart.md",
     "docs/web-autostart.zh-CN.md",
     "CHANGELOG.md",

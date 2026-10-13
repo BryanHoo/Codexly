@@ -1,8 +1,8 @@
 # 会话加载与性能 / Conversation Loading and Performance
 
-本文说明 Codexly `0.35.0` 的会话加载与资源管理行为，适用于 Web（含移动端）和 Windows、Ubuntu、macOS 桌面应用。
+本文说明 Codexly `0.36.0` 的会话加载与资源管理行为，适用于 Web（含移动端）和 Windows、Ubuntu、macOS 桌面应用。
 
-This document describes conversation loading and resource management in Codexly `0.35.0`, covering Web (including mobile) and the Windows, Ubuntu, and macOS desktop apps.
+This document describes conversation loading and resource management in Codexly `0.36.0`, covering Web (including mobile) and the Windows, Ubuntu, and macOS desktop apps.
 
 ## 会话历史 / Conversation History
 

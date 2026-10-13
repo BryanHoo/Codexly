@@ -1,8 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    fs,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{collections::BTreeMap, fs};
 
 use super::app_storage::{
     CustomBackgroundInput, initialize_storage, list_custom_backgrounds, read_custom_background,
@@ -10,14 +6,13 @@ use super::app_storage::{
 };
 
 fn test_root() -> std::path::PathBuf {
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
+    // 系统时钟精度不足以区分并发用例；独占创建目录，避免测试互相写入或清理。
+    // 保留路径所有权，沿用各用例结束时的显式清理，覆盖原有目录内容断言。
+    tempfile::Builder::new()
+        .prefix("codeagent-app-storage-")
+        .tempdir()
         .unwrap()
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "codeagent-app-storage-{}-{nonce}",
-        std::process::id()
-    ))
+        .keep()
 }
 
 #[tokio::test]
