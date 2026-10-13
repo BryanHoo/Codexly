@@ -182,16 +182,20 @@ test("generates a message and commits only selected files", async ({ page }) => 
     "width",
     "16px",
   );
-  await panel.getByRole("button", { name: "选择提交方式" }).click();
+  await panel.getByRole("button", { name: "更多 Git 操作" }).click();
   await expect(page.getByRole("menuitem", { name: "提交并推送" }).locator("svg")).toHaveCSS(
     "width",
-    "14px",
+    "16px",
   );
   await page.getByRole("menuitem", { name: "提交并推送" }).click();
 
   await expect(panel.getByText("提交已完成，但推送失败")).toHaveCount(0);
   const pushErrorToast = page.locator('[data-sonner-toast][data-type="error"]');
   await expect(pushErrorToast).toHaveText("fatal: remote rejected");
+  // 部分提交后保留剩余文件与独立推送入口，结果区明确说明提交已保存。
+  await expect(panel.getByRole("status")).toContainText("提交已保存，推送未完成");
+  await expect(panel.getByRole("status")).toContainText("0123456");
+  await expect(messageInput).toBeVisible();
   expect(messageRequest).toEqual({ expectedSnapshot: snapshot, paths: ["package.json"] });
   expect(commitRequest).toEqual({
     action: "commit_and_push",

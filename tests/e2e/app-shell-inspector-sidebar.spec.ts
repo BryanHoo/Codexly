@@ -83,7 +83,7 @@ test("shows context only after a task has been created", async ({ page }) => {
   await expect(inspector.getByRole("tab", { name: "项目" })).toBeVisible();
 });
 
-test("shows Git tabs only for repositories and pending changes", async ({ page }) => {
+test("keeps Git tabs for clean repositories without loading detailed diffs", async ({ page }) => {
   let detailedStatusRequestCount = 0;
   let gitStatus: typeof projectGitStatus = {
     ...projectGitStatus,
@@ -106,7 +106,15 @@ test("shows Git tabs only for repositories and pending changes", async ({ page }
 
   gitStatus = { ...projectGitStatus, staged: [], unstaged: [] };
   await page.goto("/p/codexly/t/task-1");
-  await expect.poll(readTabs).toEqual(["项目", "上下文", "历史"]);
+  await expect.poll(readTabs).toEqual(["项目", "上下文", "变更", "历史"]);
+  await inspector.getByRole("tab", { name: "变更" }).click();
+  const panel = inspector.locator('[data-slot="commit-changes-panel"]');
+  // 干净根仓库仍允许推送已有提交，但不挂载提交输入、空文件树或读取详细 diff。
+  await expect(panel.getByText("暂无未提交变更", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "推送", exact: true })).toBeEnabled();
+  await expect(panel.getByRole("textbox", { name: "提交信息" })).toHaveCount(0);
+  await expect(panel.getByRole("tree")).toHaveCount(0);
+  expect(detailedStatusRequestCount).toBe(0);
 
   gitStatus = { ...projectGitStatus };
   await page.reload();

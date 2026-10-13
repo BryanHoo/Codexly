@@ -251,21 +251,26 @@ for (const scenario of [
   { actionName: "提交", pushStatus: "not_requested", toastMessage: "提交成功" },
   { actionName: "提交并推送", pushStatus: "pushed", toastMessage: "提交并推送成功" },
 ] as const) {
-  test(`${scenario.actionName}成功后隐藏变更标签并回到第一个标签`, async ({ page }) => {
+  test(`${scenario.actionName}成功后保留变更标签并显示推送状态`, async ({ page }) => {
+    let gitStatus = projectGitStatus;
+    let commitRequest: Record<string, unknown> | undefined;
+    const pushRequests: Record<string, unknown>[] = [];
     await page.route("**/v1/projects/codexly/git/status*", async (route) => {
-      await route.fulfill({ contentType: "application/json", json: projectGitStatus });
+      await route.fulfill({ contentType: "application/json", json: gitStatus });
     });
     await page.route("**/v1/projects/codexly/git/commits?*", async (route) => {
-      const request = parseRequestRecord(route.request().postData());
+      commitRequest = parseRequestRecord(route.request().postData());
+      // 模拟提交后的权威快照，后续状态读取也返回干净工作区，避免刷新恢复旧变更。
+      gitStatus = { ...projectGitStatus, snapshot: "d".repeat(64), staged: [], unstaged: [] };
       await route.fulfill({
         contentType: "application/json",
         json: {
           branch: "feat/review-targets",
           commitSha: "0123456789abcdef0123456789abcdef01234567",
-          message: request["message"],
+          message: commitRequest["message"],
           pushError: null,
           pushStatus: scenario.pushStatus,
-          status: { ...projectGitStatus, snapshot: "d".repeat(64), staged: [], unstaged: [] },
+          status: gitStatus,
           history: {
             branch: "feat/review-targets",
             commits: [],
@@ -278,6 +283,13 @@ for (const scenario of [
         status: 201,
       });
     });
+    await page.route("**/v1/projects/codexly/git/push?*", async (route) => {
+      pushRequests.push(parseRequestRecord(route.request().postData()));
+      await route.fulfill({
+        contentType: "application/json",
+        json: { branch: gitStatus.branch, pushStatus: "pushed", pushError: null },
+      });
+    });
     await page.goto("/p/codexly/t/task-1");
     await page.getByRole("tab", { name: "项目" }).click();
     await page.getByRole("button", { name: /提交 \d+ 个未提交变更/u }).click();
@@ -285,16 +297,28 @@ for (const scenario of [
     const panel = inspector.locator('[data-slot="commit-changes-panel"]');
     await panel.getByRole("textbox", { name: "提交信息" }).fill("fix(git): 验证提交成功反馈");
     if (scenario.actionName === "提交并推送") {
-      await panel.getByRole("button", { name: "选择提交方式" }).click();
+      await panel.getByRole("button", { name: "更多 Git 操作" }).click();
       await page.getByRole("menuitem", { name: "提交并推送" }).click();
     } else {
       await panel.getByRole("button", { name: scenario.actionName, exact: true }).click();
     }
 
-    await expect(inspector.getByRole("tab", { name: "变更" })).toHaveCount(0);
-    await expect(inspector.getByRole("tab").first()).toHaveAttribute("aria-selected", "true");
-    await expect(panel).toHaveCount(0);
-    await expect(inspector).not.toContainText("0123456");
+    await expect(inspector.getByRole("tab", { name: "变更" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText("暂无未提交变更", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("textbox", { name: "提交信息" })).toHaveCount(0);
+    await expect(panel.getByRole("tree")).toHaveCount(0);
+    await expect(panel.getByRole("status")).toContainText("0123456");
+    expect(commitRequest).toEqual({
+      action: scenario.actionName === "提交" ? "commit" : "commit_and_push",
+      expectedSnapshot: projectGitStatus.snapshot,
+      message: "fix(git): 验证提交成功反馈",
+      paths: ["package.json"],
+    });
+    expect(pushRequests).toEqual([]);
     await expect(page.locator('[data-slot="sheet-content"]')).toHaveCount(0);
     const toaster = page.locator("[data-sonner-toaster]");
     await expect(toaster).toHaveAttribute("data-x-position", "center");
@@ -304,5 +328,17 @@ for (const scenario of [
     await expect(successToast).toHaveText(scenario.toastMessage);
     await expect(successToast.getByRole("button", { name: "关闭通知" })).toHaveCount(0);
     await expect(successToast).not.toBeAttached({ timeout: 7_000 });
+
+    if (scenario.actionName === "提交") {
+      await expect(panel.getByRole("status")).toContainText("已保存到本地，尚未推送");
+      const pushButton = panel.getByRole("button", { name: "推送", exact: true });
+      await expect(pushButton).toBeEnabled();
+      // 提交后使用新快照单独推送，不再要求提交信息或文件选择。
+      await pushButton.click();
+      await expect(successToast).toHaveText("推送成功");
+      expect(pushRequests).toEqual([{ expectedSnapshot: gitStatus.snapshot }]);
+    }
+    await expect(panel.getByRole("status")).toContainText("已推送到远端");
+    await expect(panel.getByRole("button", { name: "已推送", exact: true })).toBeDisabled();
   });
 }
