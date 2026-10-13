@@ -70,7 +70,11 @@ describe("聊天生成图片", () => {
       "/v1/projects/better-day/files/image?path=outputs%2Fpreview.png&amp;rootPath=%2Fworktrees%2Ftask-a",
     );
   });
-  it.each(["static", "streaming"] as const)("在 %s 回复中读取任务图片而非网页相对地址", (mode) => {
+  it.each([
+    ["static", false],
+    ["streaming", false],
+    ["streaming", true],
+  ] as const)("在 %s 回复（动画 %s）中读取任务图片并提供放大入口", (mode, isAnimating) => {
     const source = "![新旧图标对比](./outputs/icon-designs/comparison.png)";
     const resolveImage = vi.fn(() => "/v1/projects/better-day/files/image?path=comparison.png");
     const imageProps = { resolveImage };
@@ -79,7 +83,7 @@ describe("聊天生成图片", () => {
         {...imageProps}
         mode={mode}
         {...(mode === "streaming"
-          ? { textSource: new AppendOnlyTextBuffer(source).getSnapshot(), isAnimating: false }
+          ? { textSource: new AppendOnlyTextBuffer(source).getSnapshot(), isAnimating }
           : {})}
       >
         {source}
@@ -88,5 +92,11 @@ describe("聊天生成图片", () => {
     expect(resolveImage).toHaveBeenCalledWith("outputs/icon-designs/comparison.png");
     expect(markup).toContain('src="/v1/projects/better-day/files/image?path=comparison.png"');
     expect(markup).not.toContain("/__codexly_relative__/");
+    expect(markup).toMatch(
+      /<button[^>]*aria-haspopup="dialog"[^>]*><img[^>]*alt="新旧图标对比"[^>]*\/><\/button>/,
+    );
+    expect(markup).toContain("cursor-zoom-in");
+    expect(markup).toContain("h-auto w-full");
+    expect(markup).not.toContain("data-message-image-preview");
   });
 });

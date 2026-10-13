@@ -4,7 +4,6 @@ import { getFileCitationPath } from "@codexly/frontend-core/codex-file-citation"
 import { MessageFileCitation } from "@codexly/ui/core/message-file-citation";
 import {
   MessageImageProvider,
-  MessageMarkdownImage,
   type ResolveMessageImage,
 } from "@codexly/ui/core/message-markdown-image";
 import { deferredMermaid as mermaid } from "./deferred-mermaid.js";
@@ -37,6 +36,7 @@ import {
   ContextMenuTrigger,
 } from "../core/context-menu.js";
 import { useTranslation } from "../../../i18n/i18n.js";
+import { MessageMarkdownImageAttachment } from "../../../features/workbench/components/message-image-attachment.js";
 import { CodeComments } from "./code-comments.js";
 import { useMessageFileDownload } from "./message-file-download.js";
 import type { MessageFileReference, MessageFileReferenceOpenMode } from "./message.js";
@@ -385,11 +385,6 @@ function MarkdownLink({ children, className = "", href, node, ...props }: Markdo
   );
 }
 
-function MarkdownImage(props: ComponentProps<"img"> & { node?: unknown }) {
-  const { t } = useTranslation("workbench");
-  return <MessageMarkdownImage {...props} unavailableLabel={t("composer.attachmentReadFailed")} />;
-}
-
 export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
   resolveImage?: ResolveMessageImage;
   textSource?: TextSnapshot;
@@ -434,7 +429,11 @@ function MessageResponseContent({
   const enabled = textSource !== undefined && parseMarkdownIntoBlocksFn === undefined;
   const blockTree = useStreamingMarkdownTree(parsedResponse, streaming, enabled);
   const markdownComponents: Components = useMemo(
-    () => ({ ...components, a: MarkdownLink, img: components?.img ?? MarkdownImage }),
+    () => ({
+      ...components,
+      a: MarkdownLink,
+      img: components?.img ?? MessageMarkdownImageAttachment,
+    }),
     [components],
   );
   const resolvedRemarkPlugins = useMemo(

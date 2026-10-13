@@ -10,15 +10,23 @@ describe("桌面聊天生成图片", () => {
     expect(markup).toContain("附件读取失败：本地预览");
     expect(markup).not.toContain("/__codeagent_relative__/");
   });
-  it.each(["static", "streaming"] as const)("在 %s 回复中还原真实任务图片路径", (mode) => {
+  it.each([
+    ["static", false],
+    ["streaming", false],
+    ["streaming", true],
+  ] as const)("在 %s 回复（动画 %s）中还原真实任务图片路径并提供放大入口", (mode, isAnimating) => {
     const source = "![新旧图标对比](./outputs/icon-designs/comparison.png)";
     const resolveImage = vi.fn(() => "asset://localhost/cached-comparison.png");
     const markup = renderToStaticMarkup(createElement(MessageResponse, {
       mode, resolveImage,
-      ...(mode === "streaming" ? { textSource: new AppendOnlyTextBuffer(source).getSnapshot(), isAnimating: false } : {}),
+      ...(mode === "streaming" ? { textSource: new AppendOnlyTextBuffer(source).getSnapshot(), isAnimating } : {}),
     }, source));
     expect(resolveImage).toHaveBeenCalledWith("outputs/icon-designs/comparison.png");
     expect(markup).toContain('src="asset://localhost/cached-comparison.png"');
     expect(markup).not.toContain("/__codeagent_relative__/");
+    expect(markup).toMatch(/<button[^>]*aria-haspopup="dialog"[^>]*><img[^>]*alt="新旧图标对比"[^>]*\/><\/button>/);
+    expect(markup).toContain("cursor-zoom-in");
+    expect(markup).toContain("h-auto w-full");
+    expect(markup).not.toContain("data-message-image-preview");
   });
 });

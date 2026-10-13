@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useId, useState, type ComponentProps, type ReactElement, type ReactNode } from "react";
+import { MessageMarkdownImage } from "@codexly/ui/core/message-markdown-image";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -96,5 +97,28 @@ export function MessageImageAttachment({
         </section>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function renderImagePreview(image: ReactElement, url: string, name: string) {
+  // 图片本身作为弹窗触发区；显式自适应宽高，避免基础按钮尺寸裁切或压缩正文图片。
+  return (
+    <MessageImageAttachment
+      name={name}
+      url={url}
+      triggerChildren={image}
+      triggerClassName="block h-auto w-full max-w-full cursor-zoom-in overflow-hidden rounded-surface p-0 hover:opacity-90 focus-visible:shadow-focus"
+    />
+  );
+}
+
+export function MessageMarkdownImageAttachment(props: ComponentProps<"img"> & { node?: unknown }) {
+  const { t } = useTranslation("workbench");
+  return (
+    <MessageMarkdownImage
+      {...props}
+      renderPreview={renderImagePreview}
+      unavailableLabel={t("composer.attachmentReadFailed")}
+    />
   );
 }
