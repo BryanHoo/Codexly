@@ -15,7 +15,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { classifyProjectFileReference } from "../project-file-reference.js";
 import { openProjectFileInNewWindow } from "../project-file-popup.js";
 
-import type { MessageFileReference } from "../../../shared/components/agent/message.js";
+import type {
+  MessageFileReference,
+  MessageFileReferenceOpenMode,
+} from "../../../shared/components/agent/message.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import { notifyActionError } from "../../notifications/action-notifications.js";
 import {
@@ -123,7 +126,7 @@ export function useWorkbenchShellController(
     [client, gitStatusQuery.data, projectId, queryClient, selectedRootPath, openInspectorDocument],
   );
   const openMessageFileReference = useCallback(
-    (reference: MessageFileReference, mode?: "containing-folder" | "popup") => {
+    (reference: MessageFileReference, mode?: MessageFileReferenceOpenMode) => {
       const openSystemDefault = (path: string) => {
         const mutation = projectPathOpenMutationRef.current;
         mutation.reset();
@@ -154,7 +157,7 @@ export function useWorkbenchShellController(
         return;
       }
       const kind = classifyProjectFileReference(reference.path);
-      if (kind === "system") {
+      if (mode === "system-default" || kind === "system") {
         openSystemDefault(reference.path);
         return;
       }

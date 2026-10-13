@@ -1,3 +1,4 @@
+import { createComposerFollowup } from "./workbench-composer-followup.js";
 import type { AgentTaskSettings } from "@/protocol/index.js";
 import { useEffect, useImperativeHandle, useState } from "react";
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -280,6 +281,7 @@ export function WorkbenchComposer({
   useImperativeHandle(composerRef, () => createComposerHandle({
     disabled: turnControlsDisabled,
     activeTurnId,
+    insertFollowup: createComposerFollowup(session),
     buildPlanPrompt: t("composer.buildPlanPrompt"),
     clearMode: () => setComposerModeState(undefined),
     referenceProjectPath,

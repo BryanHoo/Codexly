@@ -1,4 +1,14 @@
 export const common = {
+  assistantDirectives: {
+    followup: "Add to composer",
+    "git-stage": "Staging receipt",
+    "git-commit": "Commit receipt",
+    "git-create-branch": "Branch receipt",
+    "git-push": "Push receipt",
+    "git-create-pr": "PR receipt",
+    "git-create-pr-draft": "Draft PR receipt",
+  },
+
   imagePreview: {
     actualSize: "Original size",
     fit: "Fit to container",

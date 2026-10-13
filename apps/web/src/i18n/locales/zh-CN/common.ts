@@ -1,4 +1,14 @@
 export const common = {
+  assistantDirectives: {
+    followup: "填入输入框",
+    "git-stage": "暂存记录",
+    "git-commit": "提交记录",
+    "git-create-branch": "分支记录",
+    "git-push": "推送记录",
+    "git-create-pr": "PR 记录",
+    "git-create-pr-draft": "草稿 PR 记录",
+  },
+
   imagePreview: {
     actualSize: "原始尺寸",
     fit: "适应容器",

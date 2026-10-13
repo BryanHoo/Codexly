@@ -1,3 +1,4 @@
+import { MessageFollowupProvider } from "@codexly/ui/core/message-assistant-directive";
 import type {
   AgentCapabilities,
   AgentGlobalSettings,
@@ -13,7 +14,7 @@ import type {
   ProjectRoot,
 } from "@codexly/protocol";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { memo, useEffect, useState, type RefObject } from "react";
+import { memo, useCallback, useEffect, useState, type RefObject } from "react";
 
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import {
@@ -168,8 +169,12 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
     onTaskStarted(response.task);
   };
 
+  const selectFollowup = useCallback(
+    (prompt: string) => composerRef.current?.insertFollowup(prompt),
+    [composerRef],
+  );
   return (
-    <>
+    <MessageFollowupProvider onSelect={selectFollowup}>
       <TaskTimeline
         onBuildPlan={() => composerRef.current?.buildPlan() ?? Promise.resolve(false)}
         {...(capabilities?.tasks.fork === true ? { onForkTask: forkTask } : {})}
@@ -245,6 +250,6 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         skills={skills}
         taskId={taskId}
       />
-    </>
+    </MessageFollowupProvider>
   );
 });

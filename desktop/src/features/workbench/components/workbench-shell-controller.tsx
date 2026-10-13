@@ -181,7 +181,7 @@ export function useWorkbenchShellController(
         return;
       }
       const kind = classifyProjectFileReference(reference.path);
-      if (kind === "system") {
+      if (mode === "system-default" || kind === "system") {
         openExternalPath("system-default", reference.path);
         return;
       }

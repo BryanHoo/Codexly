@@ -6,6 +6,11 @@
 - Tooltip 不因获得或恢复焦点自动打开；共享 Trigger 保留业务焦点回调，仅阻止 Radix 的焦点打开行为，鼠标悬停仍展示。承载正文的自定义备注提示需支持点击及键盘主动查看。
 - Composer 权限与沙盒使用共享 `CompactSelector` 锚定下拉菜单；触发器与模型、思考量保持一致，支持窄屏标签截断和视口碰撞边界，不使用原生 select 弹层。
 - 文件打开、下载、Markdown 链接、通知和翻译由调用方提供。公共包不引入 Tauri API、Web 客户端或应用内 feature 代码。
+- Codex 的 `:codex-file-citation{path="..."}` 在静态消息和流式回复中共用文件卡片，点击通过平台回调交给宿主的系统默认应用；Web 的宿主是服务端所在机器。路径按文件系统字面值保存，兼容 Windows 盘符、UNC、中文、空格及 Markdown 特殊字符；不对代码示例和已有链接里的引用执行转换。只处理当前 Markdown 块，文件内容不因渲染卡片而读取或传输。回归见两端 `message-response-file-citations.test.ts` 与共享 `codex-file-citation.test.ts`、`message-file-citation.test.ts`。
+- Assistant Directive 语法在共享层解析：接受一至三个冒号、带嵌套方括号和行内代码的建议标签、单双引号、属性两侧空格及引号转义；拒绝重复属性。文件路径和隐藏 prompt 按字面内容保存，Markdown 粗体修复不能改写属性。代码、已有链接、原始 HTML 及未知指令的隐藏属性内不执行嵌套转换，流式未完成语法保留可读预览。解析候选共用有界扫描预算，禁止反复扫描完整历史正文。
+- `:codex-followup[label]{prompt="..."}` 显示后续建议；仅任务自己的工作台提供点选回调，追加到最新草稿并唤起所属分屏输入框，保留 Skill、文件引用和附件，实际发送由用户触发。只读任务和独立任务小窗保留标签。建议标签中的链接保留文字与排版，避免按钮嵌套另一个导航控件。
+- `::git-stage`、`::git-commit`、`::git-create-branch`、`::git-push`、`::git-create-pr` 显示操作回执与分支信息；PR 区分草稿，仅 HTTP(S) URL 提供网页入口，桌面复用系统浏览器导航。回执渲染不触发 Git 操作。`::codex-inline-vis{file="..."}` 和 `visualize{"path":"..."}` 提供可视化文件的系统打开入口；`::codex-realtime-inline{}` 作为呈现标记隐藏，后续正文保留。回归见两端 `message-response-directives.test.ts`，共享 `assistant-directives.test.ts`、`followup-draft.test.ts` 与 `message-assistant-directive.test.ts`。
+- `code-comment` 共用官方属性语法，保留同一行的后续回执，校准评论行号范围和 P0–P3 优先级；围栏代码示例不能被抽取成真实评论。原生 Codex 已移除记忆引用内部标记，并将计划模式的 `proposed_plan` 交由计划事件呈现，前端继续沿用既有事件处理。
 - 新建项目表单共用 `core/new-project-dialog.tsx`，父目录选择切换同一模态层并保留名称；目录创建与项目注册分开，注册失败只重试添加，同名目录须明确确认复用。Web 的文件系统操作面向服务器，须展示主机信息并验证移动端布局。
 - 两端 `globals.css` 从应用 `src` 扫描 Tailwind 类，保留 `packages/ui/src` 与第三方组件的显式扫描，并排除测试文件；不得仅扫描 `.tsx`，排版类也可能定义在 `.ts` 中。
 - Web 对外可读取的 `--color-brand` 与 `--color-control-hover` 通过 `@theme inline static` 保留，不能依赖测试源码使变量进入生产 CSS；用主题 E2E 校验浅色和深色的实际解析值。

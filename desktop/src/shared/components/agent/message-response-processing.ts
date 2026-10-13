@@ -1,3 +1,4 @@
+import { getCodeCommentRemainder } from "@codexly/frontend-core/code-comment-directive";
 import { MarkdownMessageResponseProcessor } from "@codexly/frontend-core/markdown-message-response";
 import type { ProcessedMessageResponse as SharedResponse } from "@codexly/frontend-core/incremental-message-response";
 import { normalizeMarkdownEmphasisBoundaries } from "@codexly/frontend-core/markdown-emphasis";
@@ -50,6 +51,6 @@ export function preprocessMessageResponse(markdown: string): ParsedCodeComments 
 export type ProcessedMessageResponse = SharedResponse<CodeComment>;
 export class IncrementalMessageResponseProcessor extends MarkdownMessageResponseProcessor<CodeComment> {
   constructor() {
-    super({ parseComment: parseCodeCommentDirective, normalizeReferences: normalizeMarkdownFileReferences });
+    super({ parseComment: parseCodeCommentDirective, commentRemainder: getCodeCommentRemainder, normalizeReferences: normalizeMarkdownFileReferences });
   }
 }

@@ -1,3 +1,4 @@
+import { MessageFollowupProvider } from "@codexly/ui/core/message-assistant-directive";
 import type {
   AgentCapabilities,
   AgentGlobalSettings,
@@ -184,8 +185,9 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
     onTaskStarted(response.task);
   };
 
+  const selectFollowup = useCallback((prompt: string) => composerRef.current?.insertFollowup(prompt), [composerRef]);
   return (
-    <>
+    <MessageFollowupProvider onSelect={writeBlocked ? null : selectFollowup}>
       <div className="flex min-h-0 flex-1 flex-col" inert={writeBlocked}>
       <AsyncQuestionProvider
         enabled={!writeBlocked && runtime.connectionState === "connected"}
@@ -272,6 +274,6 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         skills={skills}
         taskId={taskId}
       />
-    </>
+    </MessageFollowupProvider>
   );
 });

@@ -1,3 +1,7 @@
+import { assistantDirectiveRemarkPlugin } from "@codexly/frontend-core/assistant-directive-remark";
+import { renderAssistantDirectiveLink } from "@codexly/ui/core/message-assistant-directive";
+import { getFileCitationPath } from "@codexly/frontend-core/codex-file-citation";
+import { MessageFileCitation } from "@codexly/ui/core/message-file-citation";
 import { MessageImageProvider, MessageMarkdownImage, type ResolveMessageImage } from "@codexly/ui/core/message-markdown-image";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import { Copy, ExternalLink, FolderOpen } from "lucide-react";
@@ -240,9 +244,21 @@ function MarkdownLink({
 }: MarkdownLinkProps) {
   // Streamdown 注入的语法树节点不能透传给原生元素。
   void node;
-  const fileReference = getFileReferenceMetadata(href);
   const onOpenFileReference = useContext(MessageFileReferenceContext);
+  const { t } = useTranslation("workbench");
+  const directiveLink = renderAssistantDirectiveLink(href, children,
+    (key) => t(`assistantDirectives.${key}`, { ns: "common" }), openMarkdownLink);
+  if (directiveLink !== null) return directiveLink;
+  const citationPath = getFileCitationPath(href);
+  if (citationPath !== null) {
+    const reference = { lineNumber: null, path: citationPath };
+    const card = <MessageFileCitation path={citationPath} openLabel={t("openMenu.systemDefault")} onOpen={onOpenFileReference} />;
+    return onOpenFileReference === null ? card : (
+      <FileReferenceContextMenu onOpen={onOpenFileReference} reference={reference}>{card}</FileReferenceContextMenu>
+    );
+  }
 
+  const fileReference = getFileReferenceMetadata(href);
   if (fileReference !== null) {
     if (fileReference.prompt) {
       const classNames = `text-inherit ${className}`;
@@ -409,6 +425,7 @@ function MessageResponseContent({
     () => [
       // Streamdown 收到自定义插件后不再注入默认 GFM；必须显式保留表格等标准扩展。
       ...Object.values(defaultRemarkPlugins),
+      assistantDirectiveRemarkPlugin,
       unparsedStrongRemarkPlugin,
       rawMarkupRemarkPlugin,
       ...(promptFileReferences ? [promptFileReferenceRemarkPlugin] : []),

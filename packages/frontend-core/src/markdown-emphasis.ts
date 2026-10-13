@@ -1,3 +1,5 @@
+import { assistantDirectiveSpans } from "./assistant-directive-spans.js";
+
 const FENCE_PATTERN = /^(?: {0,3})(`{3,}|~{3,})/u;
 const INDENTED_CODE_PATTERN = /^(?: {4}|\t)/u;
 const INLINE_CODE_PATTERN = /(`+)[\s\S]*?\1/gu;
@@ -58,13 +60,22 @@ export class MarkdownEmphasisBoundaryNormalizer {
       return source;
     }
 
-    // 仅规范化普通文本片段，确保代码中的 Markdown 示例保持原样。
+    // 代码和特殊标记属性均为字面内容，不能通过排版修复改变文件路径或待发送 prompt。
     let cursor = 0;
     let normalized = "";
-    for (const match of source.matchAll(INLINE_CODE_PATTERN)) {
-      normalized += normalizePlainTextEmphasisBoundaries(source.slice(cursor, match.index));
-      normalized += match[0];
-      cursor = match.index + match[0].length;
+    const spans = [
+      ...assistantDirectiveSpans(source),
+      ...Array.from(source.matchAll(INLINE_CODE_PATTERN), (match) => ({
+        start: match.index,
+        end: match.index + match[0].length,
+      })),
+    ].sort((left, right) => left.start - right.start);
+    for (const span of spans) {
+      if (span.end <= cursor) continue;
+      if (span.start >= cursor)
+        normalized += normalizePlainTextEmphasisBoundaries(source.slice(cursor, span.start));
+      normalized += source.slice(Math.max(cursor, span.start), span.end);
+      cursor = span.end;
     }
     return normalized + normalizePlainTextEmphasisBoundaries(source.slice(cursor));
   }

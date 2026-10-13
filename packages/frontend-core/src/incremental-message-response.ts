@@ -1,3 +1,4 @@
+import { MarkdownFenceTracker } from "./markdown-fence-tracker.js";
 import type { TextSnapshot } from "./append-only-text.js";
 
 const WHITESPACE_OR_TEXT_PATTERN = /\s+|\S+/gu;
@@ -6,6 +7,7 @@ const EXCESSIVE_NEWLINES_PATTERN = /\n{3,}/g;
 
 export type MessageProcessorOptions<Comment> = Readonly<{
   parseComment: (source: string) => Comment | null;
+  commentRemainder?: (source: string) => string;
   normalizeReferences: (source: string) => string;
 }>;
 
@@ -73,10 +75,9 @@ function processLine<Comment>(
   const comment = options.parseComment(source);
   if (comment !== null) {
     state.comments.push(comment);
-    if (hasLineFeed) {
-      state.whitespace.append("\n");
-    }
-    return true;
+    const remainder = options.commentRemainder?.(source) ?? "";
+    state.whitespace.append(`${options.normalizeReferences(remainder)}${hasLineFeed ? "\n" : ""}`);
+    return remainder.trim().length === 0;
   }
 
   if (state.discardBlankLines && source.trim().length === 0) {
@@ -109,11 +110,26 @@ function pendingFileReferenceStart(line: string, previousLength: number): number
   return start >= 0 ? start : line.endsWith("]") ? length - 1 : length;
 }
 
+function mayBeCodeComment(source: string): boolean {
+  let cursor = 0;
+  while (cursor < 4 && source[cursor] === " ") cursor += 1;
+  if (cursor > 3) return false;
+  if (cursor === source.length) return true;
+  const colonStart = cursor;
+  while (source[cursor] === ":" && cursor - colonStart < 4) cursor += 1;
+  if (cursor === colonStart || cursor - colonStart > 3) return false;
+  const suffix = source.slice(cursor);
+  return "code-comment{".startsWith(suffix) || suffix.startsWith("code-comment{");
+}
+
 export class IncrementalMessageResponseProcessor<Comment> {
   private readonly options: MessageProcessorOptions<Comment>;
+  private readonly literalOptions: MessageProcessorOptions<Comment>;
+  private fenceTracker = new MarkdownFenceTracker();
 
   constructor(options: MessageProcessorOptions<Comment>) {
     this.options = options;
+    this.literalOptions = { ...options, parseComment: () => null };
   }
   private cachedResult: ProcessedMessageResponse<Comment> = {
     comments: [],
@@ -174,11 +190,8 @@ export class IncrementalMessageResponseProcessor<Comment> {
     }
 
     // 普通行无需等换行；只保留可能成为评论指令或文件链接目标的后缀。
-    const directive = "::code-comment{";
     const mayBeDirective =
-      previousReferenceLength === 0 &&
-      !this.lineStarted &&
-      (directive.startsWith(this.pendingLine) || this.pendingLine.startsWith(directive));
+      previousReferenceLength === 0 && !this.lineStarted && mayBeCodeComment(this.pendingLine);
     const mayBeDiscardedBlankLine =
       previousReferenceLength === 0 &&
       this.discardBlankLines &&
@@ -224,7 +237,7 @@ export class IncrementalMessageResponseProcessor<Comment> {
             discardBlankLines: this.discardBlankLines,
             whitespace: previewWhitespace,
           },
-          this.options,
+          this.commentOptions(),
         );
     }
     this.pendingReferencePreview = this.pendingReferenceLength > 0 ? previewWhitespace : undefined;
@@ -238,9 +251,14 @@ export class IncrementalMessageResponseProcessor<Comment> {
     return this.cachedResult;
   }
 
+  private commentOptions(): MessageProcessorOptions<Comment> {
+    return this.fenceTracker.isLiteral ? this.literalOptions : this.options;
+  }
+
   private commitLine(line: string, hasLineFeed: boolean): void {
     if (this.lineStarted) {
       this.whitespace.append(`${this.options.normalizeReferences(line)}${hasLineFeed ? "\n" : ""}`);
+      this.fenceTracker.append(line, hasLineFeed);
       return;
     }
     this.discardBlankLines = processLine(
@@ -251,13 +269,15 @@ export class IncrementalMessageResponseProcessor<Comment> {
         discardBlankLines: this.discardBlankLines,
         whitespace: this.whitespace,
       },
-      this.options,
+      this.commentOptions(),
     );
+    this.fenceTracker.append(line, hasLineFeed);
   }
 
   private reset(): void {
     this.cachedResult = { comments: [], markdown: "", replaceFrom: 0, replacement: "" };
     this.committedComments = [];
+    this.fenceTracker = new MarkdownFenceTracker();
     this.discardBlankLines = false;
     this.pendingLine = "";
     this.pendingReferenceLength = 0;

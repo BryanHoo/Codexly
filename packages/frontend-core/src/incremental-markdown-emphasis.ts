@@ -1,14 +1,16 @@
 import type { ProcessedMessageResponse } from "./incremental-message-response.js";
 import { MarkdownEmphasisBoundaryNormalizer } from "./markdown-emphasis.js";
+import { assistantDirectiveEnd } from "./assistant-directive-spans.js";
 
 const INLINE_CODE = /(`+)[\s\S]*?\1/gu;
 const COMPLETE_EMPHASIS = /(\*\*|__)(\S(?:(?!\1).)*?)\1./gu;
 const REPAIRED_EMPHASIS = /(\*\*|__)(\S(?:(?!\1).)*?)(\p{P})\1(?=[\p{L}\p{N}])/gu;
-const MARKER = /`|\*\*|__|[*_]$/gu;
+const MARKER = /`|\*\*|__|[*_]$|:/gu;
 const WORD_OR_ESCAPE = /[\p{L}\p{N}\\]$/u;
 
 function stableLength(source: string): number {
   let offset = 0;
+  const directiveBudget = { remaining: source.length * 4 };
   const spans: { start: number; end: number }[] = [];
   const boundary = (length: number) => {
     let result = Math.max(0, length);
@@ -37,6 +39,13 @@ function stableLength(source: string): number {
     MARKER.lastIndex = offset;
     const marker = MARKER.exec(source);
     if (marker === null) return boundary(source.length - 2);
+    if (marker[0] === ":") {
+      const end = assistantDirectiveEnd(source, marker.index, directiveBudget);
+      if (end === -1) return boundary(marker.index - 2);
+      offset = end ?? marker.index + 1;
+      if (end !== null) spans.push({ start: marker.index, end });
+      continue;
+    }
     const code = INLINE_CODE.exec(source);
     if (code?.index === marker.index) {
       let openingLength = 0;
@@ -133,7 +142,7 @@ class EmphasisLine {
         this.normalizer.isInsideFence();
     }
     const needsScan =
-      !appendOnly || /[*_`]/u.test(replacement) || /(?:\*\*|__|`)$/u.test(previousSuffix);
+      !appendOnly || /[:*_`]/u.test(replacement) || /(?:\*\*|__|`)$/u.test(previousSuffix);
     const normalized = this.unchanged
       ? this.pending
       : needsScan

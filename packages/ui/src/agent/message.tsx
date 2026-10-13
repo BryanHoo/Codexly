@@ -20,6 +20,8 @@ export type MessageFileReference = Readonly<{
   path: string;
 }>;
 
+export type MessageFileReferenceOpenMode = "containing-folder" | "popup" | "system-default";
+
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: "assistant" | "system" | "user";
 };

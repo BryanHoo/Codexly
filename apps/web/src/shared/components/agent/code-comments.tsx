@@ -1,3 +1,9 @@
+import {
+  parseCodeComment,
+  getCodeCommentRemainder,
+  type CodeCommentDirective,
+} from "@codexly/frontend-core/code-comment-directive";
+import { IncrementalMessageResponseProcessor as SharedMessageProcessor } from "@codexly/frontend-core/incremental-message-response";
 import { MessageSquareText } from "lucide-react";
 import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -5,23 +11,13 @@ import { Streamdown } from "streamdown";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 
-export type CodeComment = Readonly<{
-  body: string;
-  end: number | null;
-  file: string;
-  priority: number | null;
-  start: number | null;
-  title: string;
-}>;
+export type CodeComment = CodeCommentDirective;
 
 export type ParsedCodeComments = Readonly<{
   comments: CodeComment[];
   markdown: string;
 }>;
 
-const CODE_COMMENT_DIRECTIVE_PATTERN = /^::code-comment\{(.*)\}\s*$/gm;
-const CODE_COMMENT_DIRECTIVE_LINE_PATTERN = /^::code-comment\{(.*)\}\s*$/;
-const CODE_COMMENT_ATTRIBUTE_PATTERN = /([a-z]+)=(?:"((?:\\.|[^"\\])*)"|(\d+))/g;
 const PROJECT_RELATIVE_PATH_MARKERS = ["/apps/", "/packages/", "/src/", "/tests/", "/.superwork/"];
 const COMMENT_TOOLTIP_GAP = 8;
 const COMMENT_TOOLTIP_VIEWPORT_PADDING = 12;
@@ -31,75 +27,15 @@ type CommentTooltipPosition = Readonly<{
   top: number;
 }>;
 
-function decodeQuotedAttribute(value: string): string {
-  try {
-    return JSON.parse(`"${value}"`) as string;
-  } catch {
-    return value;
-  }
-}
-
-function parseCodeCommentAttributes(source: string): CodeComment | null {
-  const attributes = new Map<string, string>();
-
-  for (const match of source.matchAll(CODE_COMMENT_ATTRIBUTE_PATTERN)) {
-    const attributeName = match[1];
-    const quotedValue = match[2];
-    const numericValue = match[3];
-    if (attributeName !== undefined) {
-      attributes.set(
-        attributeName,
-        quotedValue === undefined ? (numericValue ?? "") : decodeQuotedAttribute(quotedValue),
-      );
-    }
-  }
-
-  const body = attributes.get("body");
-  const file = attributes.get("file");
-  const title = attributes.get("title");
-  if (body === undefined || file === undefined || title === undefined) {
-    return null;
-  }
-
-  const parseOptionalNumber = (name: string): number | null => {
-    const value = attributes.get(name);
-    return value === undefined ? null : Number.parseInt(value, 10);
-  };
-
-  return {
-    body,
-    end: parseOptionalNumber("end"),
-    file,
-    priority: parseOptionalNumber("priority"),
-    start: parseOptionalNumber("start"),
-    title,
-  };
-}
-
-export function parseCodeCommentDirective(source: string): CodeComment | null {
-  const attributes = CODE_COMMENT_DIRECTIVE_LINE_PATTERN.exec(source)?.[1];
-  return attributes === undefined ? null : parseCodeCommentAttributes(attributes);
-}
+export const parseCodeCommentDirective = parseCodeComment;
 
 export function parseCodeComments(markdown: string): ParsedCodeComments {
-  const comments: CodeComment[] = [];
-  const markdownWithoutDirectives = markdown.replace(
-    CODE_COMMENT_DIRECTIVE_PATTERN,
-    (directive, attributes: string) => {
-      const comment = parseCodeCommentAttributes(attributes);
-      if (comment === null) {
-        return directive;
-      }
-
-      comments.push(comment);
-      return "";
-    },
-  );
-
-  return {
-    comments,
-    markdown: markdownWithoutDirectives.replace(/\n{3,}/g, "\n\n").trim(),
-  };
+  const response = new SharedMessageProcessor({
+    parseComment: parseCodeComment,
+    commentRemainder: getCodeCommentRemainder,
+    normalizeReferences: (source) => source,
+  }).process(markdown);
+  return { comments: response.comments, markdown: response.markdown };
 }
 
 function getProjectRelativePath(file: string): string {

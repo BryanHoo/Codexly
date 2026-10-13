@@ -8,8 +8,6 @@ import {
 
 export * from "@codexly/ui/agent/message";
 
-export type MessageFileReferenceOpenMode = "containing-folder" | "popup";
-
 export function MessageBranchPrevious(props: MessageBranchPreviousProps) {
   const { t } = useTranslation("conversation");
   return <SharedMessageBranchPrevious aria-label={t("agentComponents.previousBranch")} {...props} />;
