@@ -156,6 +156,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
+            desktop-file-utils \
+            libglib2.0-bin \
             libappindicator3-dev \
             librsvg2-dev \
             libwebkit2gtk-4.1-dev \

@@ -51,6 +51,6 @@ export const config: Options.Testrunner = {
     ? ["./tests/webview/performance.spec.ts"]
     : realRuntimeEnabled
       ? ["./tests/webview/real-codex-runtime.spec.ts"]
-      : ["./tests/webview/critical-flows.spec.ts", "./tests/webview/clipboard.spec.ts"],
+      : ["./tests/webview/critical-flows.spec.ts", "./tests/webview/clipboard.spec.ts", ...(process.platform === "linux" ? ["./tests/webview/linux-autostart.spec.ts"] : [])],
   waitforTimeout: 10_000,
 };

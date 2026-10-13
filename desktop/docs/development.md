@@ -7,6 +7,7 @@
 - Rust >=1.97.0
 - Git
 - 对应平台的 [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
+- Linux 自启动回归还需要 `desktop-file-utils` 和 `libglib2.0-bin`，使用真实 `desktop-file-validate` 和 `gio launch` 检查启动文件及路径转义。
 
 ```bash
 git clone https://github.com/BryanHoo/Codexly.git

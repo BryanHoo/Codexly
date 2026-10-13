@@ -40,6 +40,7 @@ it("尾部在测量交付后更新时不被上一帧尺寸回滚", async () => {
     />;
   }
   const screen = await render(<Harness />);
+  await expect.element(screen.getByRole("log")).toBeInTheDocument();
   const container = screen.getByRole("log").element();
   await expect.element(screen.getByText("pending", { exact: true })).toBeVisible();
   await expect.poll(() => container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
@@ -82,6 +83,7 @@ it("仅尾部占位变化时在提交帧内同步真实高度与置底", async (
     />;
   }
   const screen = await render(<Harness />);
+  await expect.element(screen.getByRole("log")).toBeInTheDocument();
   const container = screen.getByRole("log").element();
   await expect.poll(() => container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
   await expect.poll(() => {
@@ -126,6 +128,7 @@ it("发送新消息时历史位置不反向跳动且待处理尾部保持挂载"
     );
   }
   const screen = await render(<Harness />);
+  await expect.element(screen.getByRole("log")).toBeInTheDocument();
   const container = screen.getByRole("log").element();
   await new Promise((resolve) => setTimeout(resolve, 250));
   const historyRow = Array.from(container.querySelectorAll<HTMLElement>("[data-conversation-turn]"))

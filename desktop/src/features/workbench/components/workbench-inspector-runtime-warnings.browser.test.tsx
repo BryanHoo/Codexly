@@ -7,6 +7,7 @@ import { createTaskStore } from "../../conversation/runtime/task-store.js";
 import { WorkbenchInspector } from "./workbench-inspector.js";
 
 test("context lists runtime warnings and expands their details", async () => {
+  await i18n.changeLanguage("zh-CN");
   const store = createTaskStore({ projectId: "project", taskId: "task" }, {
     checkpoint: { sequence: 0, sessionId: "session" },
     snapshot: {

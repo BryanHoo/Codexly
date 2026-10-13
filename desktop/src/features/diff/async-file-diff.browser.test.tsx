@@ -12,6 +12,7 @@ it("审核切换时只显示当前文件，忽略迟到的旧补丁", async () =
   const pending = new Promise<AgentFileChange>((resolve) => { resolveFirst = resolve; });
   const loadDiff = vi.fn((change: AgentFileChange) => change === first ? pending : Promise.resolve({ ...second, diff: "diff --git a/second.txt b/second.txt\n--- a/second.txt\n+++ b/second.txt\n@@ -1 +1 @@\n-old\n+new\n" }));
   const screen = await render(<TooltipProvider><AsyncFileDiff change={first} loadDiff={loadDiff} /></TooltipProvider>);
+  await expect.poll(() => loadDiff.mock.calls.map(([change]) => change.path)).toEqual(["first.txt"]);
   await screen.rerender(<TooltipProvider><AsyncFileDiff change={second} loadDiff={loadDiff} /></TooltipProvider>);
   await expect.element(screen.getByRole("region", { name: "second.txt", exact: true })).toBeVisible();
   resolveFirst(first);

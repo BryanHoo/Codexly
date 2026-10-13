@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -78,9 +78,34 @@ describe("native registration files", () => {
       linuxTarget: "graphical-session.target",
     });
     const text = await readFile(f.paths.registration, "utf8");
-    expect(text).toContain('WorkingDirectory="/home/$user"');
+    expect(text).toContain("WorkingDirectory=/home/$user");
     expect(text).toContain("PartOf=graphical-session.target");
     expect(text).not.toContain("After=graphical-session.target");
+  });
+  it.skipIf(process.platform !== "linux")(
+    "validates Linux login startup with the native systemd parser",
+    async () => {
+      const f = await fixture("linux");
+      const home = join(f.config.home, 'home space $%"\\ path');
+      await mkdir(home);
+      await f.adapter.install({ ...f.config, home });
+      await expect(
+        promisify(execFile)("systemd-analyze", ["--user", "verify", f.paths.registration]),
+      ).resolves.toMatchObject({ stderr: "" });
+    },
+  );
+  it("removes an inactive Linux registration even when its unit could not load", async () => {
+    const f = await fixture("linux");
+    await f.adapter.install(f.config);
+    f.execute.mockImplementation((_command: string, args: readonly string[]) =>
+      Promise.resolve({
+        code: args.includes("stop") ? 1 : 0,
+        stdout: args.includes("show") ? "inactive\n" : "",
+        stderr: args.includes("stop") ? "Unit codexly-web.service not loaded." : "",
+      }),
+    );
+    await f.adapter.remove();
+    await expect(readFile(f.paths.registration)).rejects.toMatchObject({ code: "ENOENT" });
   });
   it("enables macOS login startup without bootstrapping a running instance", async () => {
     const f = await fixture("darwin");

@@ -11,6 +11,7 @@ describe("MessageResponse file reference menu", () => {
     const screen = await render(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" />);
     buffer.append(". 第四项");
     await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="streaming" />);
+    await expect.element(screen.getByText("第四项", { exact: true })).toBeInTheDocument();
     const title = screen.getByText("功能与性能问题").element();
     expect(title.closest("p")?.textContent).toBe("功能与性能问题");
     expect(screen.container.querySelector('ol[start="4"] li')?.textContent).toBe("第四项");

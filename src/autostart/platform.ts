@@ -70,13 +70,13 @@ export function renderLaunchAgent(config: AutostartConfig, path: string): string
 <key>ProcessType</key><string>Background</string>
 </dict></plist>\n`;
 }
-function systemdQuote(text: string, environmentExpansion = true): string {
+function systemdQuote(text: string): string {
   // systemd 同时解释 specifier 与环境变量；即使参数加引号也需要转义 % 和 $。
   return `"${checkedText(text)
     .replace(/\\/gu, "\\\\")
     .replace(/"/gu, '\\"')
     .replace(/%/gu, "%%")
-    .replace(/\$/gu, () => (environmentExpansion ? "$$" : "$"))}"`;
+    .replace(/\$/gu, () => "$$")}"`;
 }
 export function renderSystemdUnit(config: AutostartConfig, path: string): string {
   const target = config.linuxTarget ?? "default.target";
@@ -90,7 +90,7 @@ Type=exec
 ExecStart=${args(config, path)
     .map((arg) => systemdQuote(arg))
     .join(" ")}
-WorkingDirectory=${systemdQuote(config.home, false)}
+WorkingDirectory=${checkedText(config.home).replace(/\\/gu, "\\\\").replace(/%/gu, "%%").replace(/ /gu, "\\x20")}
 Restart=on-failure
 RestartSec=30
 TimeoutStopSec=20
@@ -290,7 +290,17 @@ export function createPlatformAdapter(
           }
         }
       } else if (platform === "linux") {
-        if (await exists()) await checked("systemctl", ["--user", "stop", "codexly-web.service"]);
+        if (await exists()) {
+          const state = await checked("systemctl", [
+            "--user",
+            "show",
+            "codexly-web.service",
+            "--property=ActiveState",
+            "--value",
+          ]);
+          if (state.trim() !== "inactive")
+            await checked("systemctl", ["--user", "stop", "codexly-web.service"]);
+        }
       } else {
         // CLI 先通过认证的本地控制通道请求优雅退出，/End 仅负责收尾系统任务。
         const state = await windowsState();

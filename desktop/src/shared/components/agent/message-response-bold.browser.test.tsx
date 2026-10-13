@@ -10,7 +10,7 @@ describe("MessageResponse bold boundaries", () => {
   it.each(["static", "streaming"] as const)("renders Chinese labels in %s mode", async (mode) => {
     const screen = await render(<MessageResponse mode={mode}>{source}</MessageResponse>);
     // 共享修复将紧邻中文的标点移到粗体外，正文与标点仍完整保留。
-    expect(Array.from(screen.container.querySelectorAll('[data-streamdown="strong"]'), (node) => node.textContent)).toEqual(["持续对话：", "精确恢复"]);
+    await expect.poll(() => Array.from(screen.container.querySelectorAll('[data-streamdown="strong"]'), (node) => node.textContent)).toEqual(["持续对话：", "精确恢复"]);
     expect(screen.container.textContent).toContain("精确恢复：记录原生");
     expect(screen.container.textContent).not.toContain("**");
     expect(screen.container.querySelector("code")?.textContent).toBe("query()");

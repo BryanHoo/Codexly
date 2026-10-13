@@ -22,6 +22,7 @@ test.each([
     />,
   );
   expect(onOpenSourceFile).not.toHaveBeenCalled();
+  await expect.element(screen.getByText("查看图片", { exact: true })).toBeInTheDocument();
   screen.getByText("查看图片", { exact: true }).element().closest("summary")!.click();
   const trigger = screen.getByRole("button", { name: path, exact: true });
   await expect.element(trigger).toBeVisible();
@@ -41,6 +42,7 @@ test("普通活动详情不转换成图片打开按钮", async () => {
       turnStatus="completed"
     />,
   );
+  await expect.element(screen.getByText("等待", { exact: true })).toBeInTheDocument();
   screen.getByText("等待", { exact: true }).element().closest("summary")!.click();
   await expect.element(screen.getByText("100ms", { exact: true })).toBeVisible();
   expect(screen.getByRole("button").query()).toBeNull();

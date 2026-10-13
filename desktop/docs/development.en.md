@@ -6,6 +6,7 @@ Requirements:
 - pnpm >=11.0.0
 - Rust >=1.97.0
 - Git
+- Linux autostart tests also require `desktop-file-utils` and `libglib2.0-bin` for native desktop entry validation and `gio launch`.
 - The [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform
 
 ```bash

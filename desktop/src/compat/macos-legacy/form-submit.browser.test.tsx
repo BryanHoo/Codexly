@@ -17,7 +17,8 @@ describe("Legacy 表单提交", () => {
     const screen = await render(<PromptInput onSubmit={submit}>
       <PromptInputTextarea defaultValue="测试消息" />
     </PromptInput>);
-    const input = screen.container.querySelector("textarea")!;
+    await expect.element(screen.getByRole("textbox")).toBeInTheDocument();
+    const input = screen.getByRole("textbox").element();
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", isComposing: true, bubbles: true, cancelable: true }));
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 229, bubbles: true, cancelable: true }));
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true, cancelable: true }));
