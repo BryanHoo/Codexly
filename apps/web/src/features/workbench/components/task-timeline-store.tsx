@@ -1,4 +1,5 @@
 import { TimelineImageProvider } from "./timeline-image-provider.js";
+import { hasPromptTurnFinished } from "@codexly/frontend-core/prompt-delivery";
 import type { PendingRequest } from "@codexly/protocol";
 import { useMemo, useState } from "react";
 import { useStore } from "zustand";
@@ -359,6 +360,8 @@ export function TaskStoreTimeline({
     if (turn === undefined) {
       return "awaiting-turn";
     }
+    // 完成、失败或中断都结束本地运行占位，不能以助手 Item 尚未到达为由继续计时。
+    if (hasPromptTurnFinished(turn.status)) return "finished";
     const groups = groupStoredTurnTimelineItems(
       state.itemKeysByTurnId[submissionTurnId] ?? [],
       state.itemStoresByKey,
@@ -366,10 +369,7 @@ export function TaskStoreTimeline({
     if (groups.some((group) => group.type === "assistant")) {
       return "assistant-started";
     }
-    // completed Snapshot 可能先于 Assistant Item 落盘，只有失败或中断才能提前结束本地提交态。
-    return turn.status === "failed" || turn.status === "interrupted"
-      ? "finished"
-      : "awaiting-assistant";
+    return "awaiting-assistant";
   });
   const hasSubmittedUser = useStore(store, (state) =>
     submissionTurnId === undefined

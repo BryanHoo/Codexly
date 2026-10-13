@@ -3,6 +3,7 @@
 `apps/web/src/main.tsx` 启动 React，`app/router.tsx` 定义页面路由，`app/providers.tsx` 装配 Query、访问门禁、项目和草稿上下文。业务代码放 `features/`，通用 UI 放 `shared/components/`。
 
 - 待发送提示使用共享 `frontend-core/prompt-delivery` 规则，在新用户消息或权威回合终态到达后清理；请求响应和返回任务时均检查当前 Store，不能等待已经错过的事件。
+- 提交状态在请求开始与结束边界同步通知本地计时，不能依赖渲染副作用传递结束通知；React 合并提交状态时也必须清理占位。时间线收到已完成、失败或中断回合后立即撤销运行提示，缺少助手输出不能延长计时。
 
 - HTTP 和事件调用通过 `@codexly/client`，共享类型通过 `@codexly/protocol`；不要从服务端或 Codex Provider 引入运行时代码。
 - Mermaid 插件通过 `deferred-mermaid` 到实际图表渲染时才加载，普通 Markdown 不下载 Mermaid；并发图表共用加载，失败可重试，每个图表保留自身配置。英语基础文案独立拆包，首次挂载等待所选语言；中文启动不请求英语包。用插件回归、生产包预算及 Chrome CDP 验证中英文加载和真实 SVG 输出。

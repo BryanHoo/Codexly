@@ -127,7 +127,7 @@ describe("task timeline submission", () => {
     expect(markup.split(pendingPrompt.text)).toHaveLength(2);
   });
 
-  it("keeps the local submission timer when a completed Snapshot has no assistant item yet", () => {
+  it("stops the local submission timer when a completed Snapshot has no assistant item", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-24T00:01:05.000Z"));
     try {
@@ -176,8 +176,8 @@ describe("task timeline submission", () => {
         />,
       );
 
-      expect(markup).toContain("5s");
-      expect(markup.match(/aria-label="AI 回复正在运行"/gu)).toHaveLength(1);
+      expect(markup).not.toContain("5s");
+      expect(markup).not.toContain('aria-label="AI 回复正在运行"');
     } finally {
       vi.useRealTimers();
     }

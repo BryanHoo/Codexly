@@ -1,4 +1,5 @@
 import { TimelineImageProvider } from "./timeline-image-provider.js";
+import { hasPromptTurnFinished } from "@codexly/frontend-core/prompt-delivery";
 import { HistoryNavigation, type HistoryAnchor } from "../../search/history-navigation.js";
 import type { PendingRequest } from "@/protocol/index.js";
 import { memo, useMemo, useState } from "react";
@@ -243,7 +244,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
           />
         ),
       )}
-      {((turn.status === "running" && itemKeys.length > 0) || pendingSubmission) &&
+      {turn.status === "running" && (itemKeys.length > 0 || pendingSubmission) &&
       !hasAssistantItems ? (
         <Message from="assistant">
           <TurnProcessingTime completedAt={null} startedAt={turn.startedAt} />
@@ -359,6 +360,8 @@ export function TaskStoreTimeline({
       return "footer";
     }
     const turn = state.turnsById[submissionTurnId];
+    // 权威终态立即释放占位；空回合或迟到的本地提交状态也不能重新开启计时。
+    if (hasPromptTurnFinished(turn?.status)) return undefined;
     if (turn === undefined || (!state.itemKeysByTurnId[submissionTurnId]?.length && pendingPrompt === undefined)) {
       return "footer";
     }
@@ -366,11 +369,8 @@ export function TaskStoreTimeline({
       state.itemKeysByTurnId[submissionTurnId] ?? [],
       state.itemStoresByKey,
     );
-    // completed Snapshot 可能先于 Assistant Item 落盘，只有失败或中断才能提前结束本地提交态。
     return (groups.some((group) => group.type === "assistant") &&
-      (pendingPrompt === undefined || groups.some((group) => group.type === "user"))) ||
-      turn.status === "failed" ||
-      turn.status === "interrupted"
+      (pendingPrompt === undefined || groups.some((group) => group.type === "user")))
       ? undefined
       : "turn";
   });

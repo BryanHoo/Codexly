@@ -20,7 +20,7 @@ export function useWorkbenchComposerController(
   onSubmissionStateChange?: (submitting: boolean) => void,
   taskStore?: TaskStore,
 ) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmittingState] = useState(false);
   const [mutationError, setMutationErrorState] = useState<Error | null>(null);
   const [pendingTaskState, setPendingTaskState] = useState<{
     scope: string;
@@ -47,9 +47,11 @@ export function useWorkbenchComposerController(
     return createAsyncActionLock();
   }, [routeScope]);
 
-  useEffect(() => {
-    onSubmissionStateChange?.(isSubmitting);
-  }, [isSubmitting, onSubmissionStateChange]);
+  const setIsSubmitting = useCallback((submitting: boolean) => {
+    // 在请求边界同步通知计时占位；React 合并 true/false 渲染时也不能漏掉结束通知。
+    setIsSubmittingState(submitting);
+    onSubmissionStateChange?.(submitting);
+  }, [onSubmissionStateChange]);
 
   useEffect(
     () => () => {
@@ -91,7 +93,7 @@ export function useWorkbenchComposerController(
       uploadAttempts.current.clear();
       commandAttempts.current.clear();
     },
-    [setMutationError],
+    [setIsSubmitting, setMutationError],
   );
 
   return {
