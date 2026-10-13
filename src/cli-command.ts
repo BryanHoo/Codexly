@@ -1,3 +1,4 @@
+import type { ManagedStartContext } from "./autostart/runtime.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,7 +34,7 @@ import {
 import packageManifest from "../package.json" with { type: "json" };
 import { createAppUpdateService } from "./app-update.js";
 import {
-  applyStartEnvironmentDefaults,
+  parseStartOptions,
   CLI_COMMAND_HELP,
   CLI_HELP,
   parseCommandOptions,
@@ -221,28 +222,16 @@ async function runDoctor(
   return 0;
 }
 
-async function runStart(
+export async function runStart(
   args: readonly string[],
   dependencies: CliDependencies,
   signal: AbortSignal | undefined,
   output: TerminalOutput,
+  managed?: Pick<ManagedStartContext, "options" | "environment" | "background" | "onReady">,
 ): Promise<number> {
-  const options = applyStartEnvironmentDefaults(
-    parseCommandOptions(
-      args,
-      new Set([
-        "--allowed-host",
-        "--codex-bin",
-        "--codex-home",
-        "--lan-password",
-        "--port",
-        "--session-ttl",
-        "--workspace",
-      ]),
-      new Set(["--lan"]),
-    ),
-    process.env,
-  );
+  const environment = managed?.environment ?? process.env;
+  // 托管实例只使用已保存的参数，避免登录环境里的 CODEXLY_* 改变服务行为。
+  const options = managed?.options ?? parseStartOptions(args, environment);
   if (options.sessionTtl !== undefined && options.lan !== true) {
     throw new Error("--session-ttl 只能与 --lan 一起使用");
   }
@@ -263,7 +252,7 @@ async function runStart(
           ...(sessionTtlMs === undefined ? {} : { sessionTtlMs }),
         };
 
-  if (process.env[STARTUP_UPDATE_APPLIED_ENV] !== "1") {
+  if (!managed?.background && process.env[STARTUP_UPDATE_APPLIED_ENV] !== "1") {
     const update = await dependencies.checkAppUpdate();
     if (update.status === "check-failed") {
       output.warning("无法检查 Codexly 更新，将继续启动当前版本。");
@@ -299,7 +288,7 @@ async function runStart(
     // 启动位置不参与内部运行：多个 Web 实例共用 Codex Home，由端口和业务事务处理并发。
     const runtimeCwd = homedir();
     const env = {
-      ...process.env,
+      ...environment,
       ...(options.codexHome ? { CODEX_HOME: options.codexHome } : {}),
     };
     stateRepository = await dependencies.createStateRepository(
@@ -352,6 +341,8 @@ async function runStart(
       codexVersion: runtime.version.version,
     });
     server = await dependencies.createServer({
+      // 托管运行复用已有日志目的地，HTTP 与 Provider 诊断也进入脱敏且有上限的后台日志。
+      ...(managed?.background ? { logDestination: { write: output.plain } } : {}),
       ...(access === undefined ? {} : { access }),
       ...(allowedHosts === undefined ? {} : { allowedHosts }),
       projectRepository,
@@ -379,6 +370,7 @@ async function runStart(
     if (activePort !== port) {
       output.warning(`端口 ${String(port)} 已被占用，已自动切换到端口 ${String(activePort)}。`);
     }
+    await managed?.onReady({ host, port: activePort });
     output.success("Codexly 已启动");
 
     if (access !== undefined) {
@@ -399,12 +391,16 @@ async function runStart(
           ? "会话有效期: 永不过期（仅当前进程）"
           : `会话有效期: ${options.sessionTtl}（固定期限，不自动续期）`,
       );
-      output.info("重启 Codexly 后，当前配对码和所有局域网会话将失效。");
+      output.info(
+        options.lanPassword === undefined
+          ? "重启 Codexly 后，当前配对码和所有局域网会话将失效。"
+          : "重启 Codexly 后，所有局域网会话将失效；固定访问密码保持有效。",
+      );
     } else {
       output.info(`访问地址: http://127.0.0.1:${String(activePort)}`);
     }
 
-    if (options.lan !== true) {
+    if (!managed?.background && options.lan !== true && options.noOpen !== true) {
       try {
         await dependencies.openBrowser(`http://127.0.0.1:${String(activePort)}`);
       } catch (error) {
@@ -460,6 +456,12 @@ export async function runCli(
   const args = rawArgs[0] === "--" ? rawArgs.slice(1) : rawArgs;
 
   try {
+    if (command === "autostart") {
+      const { runAutostartCommand } = await import("./autostart/command.js");
+      return await runAutostartCommand(args, output, (context) =>
+        runStart([], dependencies, context.signal, context.output, context),
+      );
+    }
     // 全局标志只接受独立调用；子命令帮助必须位于命令之后。
     if (
       command === "--help" ||

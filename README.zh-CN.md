@@ -67,6 +67,30 @@ codexly
 
 安装命令使用 npm 默认源（未自行配置时为官方源），复用 npm 缓存并重新校验过期的包元数据。
 
+## Web 登录自启动
+
+全局安装后，通过 CLI 配置当前用户登录系统时自动运行。支持 macOS、Windows 和带 systemd 用户服务的 Ubuntu；本机与 LAN 模式均不自动打开浏览器。
+
+```bash
+# 本机模式；下次登录启动
+codexly autostart enable
+
+# LAN 模式；同时立即启动
+codexly autostart enable --lan --now
+
+codexly autostart status
+codexly autostart credentials
+codexly autostart logs
+codexly autostart restart
+codexly autostart disable
+```
+
+`enable` 保存本次提供的启动参数，默认本机模式和端口 3210；重复执行会更新同一个登录项。省略 `--now` 时，当前运行实例在重启或下次登录后应用新配置。端口占用会递增，请以 `status` 输出的实际地址为准。LAN 密码首次生成后保存复用，通过 `credentials` 显式查看；服务重启后需重新认证。
+
+需要稳定的全局 npm 安装，不能从 `npx` 临时缓存登记。Node/npm 安装路径变化后运行 `codexly autostart repair --now`；卸载 npm 包前运行 `codexly autostart disable`。普通前台启动可用 `codexly start --no-open` 禁止打开浏览器。
+
+配置位置、环境变量、Linux linger 限制和各系统故障排查见 [Web 登录自启动指南](docs/web-autostart.zh-CN.md)。
+
 ## Docker 部署
 
 下载用户版 Compose 配置并启动已发布镜像：
@@ -136,7 +160,7 @@ codexly start --lan
 | `--session-ttl <duration>`  | 设置固定会话期限，如 `12h`；省略时持续到 Server 重启 |
 | `--workspace <path>`        | 限制项目选择的绝对根目录；多个根目录可重复传入       |
 
-密码含 Shell 特殊字符时请使用引号。局域网模式使用未加密 HTTP，只能用于可信网络，禁止直接暴露到互联网。重启 Codexly 会使密码和全部会话失效。
+密码含 Shell 特殊字符时请使用引号。局域网模式使用未加密 HTTP，只能用于可信网络，禁止直接暴露到互联网。重启 Codexly 会使随机配对码和全部会话失效；显式设置的固定密码保持有效。
 
 ## Web 诊断与更新
 

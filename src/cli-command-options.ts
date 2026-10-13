@@ -3,6 +3,8 @@ export interface ParsedCommandOptions {
   codexBin?: string;
   codexHome?: string;
   lan?: boolean;
+  noOpen?: boolean;
+  now?: boolean;
   lanPassword?: string;
   port?: number;
   sessionTtl?: string;
@@ -12,11 +14,13 @@ export interface ParsedCommandOptions {
 export const CLI_HELP = `Usage: codexly [command] [options]
 
 Commands:
+  autostart Manage Web startup after user login (enable/status/logs/restart/disable/repair).
   start    Start the Codexly server and open the Web interface.
   doctor   Check whether the local Codexly runtime is ready.
   version  Print the installed Codexly version.
 
 Start options:
+  --no-open                  Do not open the browser.
   --port <port>              Start from the specified TCP port. Defaults to 3210.
                              Automatically increases the port when it is occupied.
   --lan                      Listen on all network interfaces for trusted LAN access.
@@ -60,6 +64,7 @@ export const CLI_COMMAND_HELP: Readonly<Record<string, string>> = {
 Start the Codexly server and open the Web interface.
 
 Options:
+  --no-open                  Do not open the browser.
   --port <port>              Start from this TCP port (default: 3210); skip occupied ports.
   --lan                      Listen on all interfaces; do not open the browser.
   --lan-password <password>  Set a 16-128 character LAN password (requires --lan).
@@ -106,6 +111,10 @@ export function parseCommandOptions(
     if (flagOptions.has(option)) {
       if (option === "--lan") {
         parsed.lan = true;
+      } else if (option === "--no-open") {
+        parsed.noOpen = true;
+      } else if (option === "--now") {
+        parsed.now = true;
       }
       continue;
     }
@@ -164,4 +173,25 @@ export function applyStartEnvironmentDefaults(
     new Set(["--allowed-host", "--lan-password", "--port", "--session-ttl", "--workspace"]),
   );
   return { ...defaults, ...options };
+}
+
+// 普通启动与自启动登记共用同一组参数，保证两种入口的校验与新增选项一致。
+export const START_VALUE_OPTIONS: ReadonlySet<string> = new Set([
+  "--allowed-host",
+  "--codex-bin",
+  "--codex-home",
+  "--lan-password",
+  "--port",
+  "--session-ttl",
+  "--workspace",
+]);
+
+export function parseStartOptions(
+  args: readonly string[],
+  environment: NodeJS.ProcessEnv,
+): ParsedCommandOptions {
+  return applyStartEnvironmentDefaults(
+    parseCommandOptions(args, START_VALUE_OPTIONS, new Set(["--lan", "--no-open"])),
+    environment,
+  );
 }

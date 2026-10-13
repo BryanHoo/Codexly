@@ -31,6 +31,8 @@
     "dist",
     "README.md",
     "README.zh-CN.md",
+    "docs/web-autostart.md",
+    "docs/web-autostart.zh-CN.md",
     "CHANGELOG.md",
     "LICENSE"
   ],

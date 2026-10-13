@@ -10,3 +10,8 @@
 - Node 与 Web 共用 `dist`，Node 构建必须清除旧哈希文件并保留 `web/**` 及其预压缩资源；生产 Node 产物启用压缩。Docker 只复制独立安装的 Codex 与 SQLite 生产依赖，版本读取冻结安装后的清单，使用 npm 保证 Codex 平台包完整；不复制工作区前端依赖或第二份运行时，安装后验证 Codex 和 SQLite 可执行。发布回归覆盖保留 Web、删除旧 Chunk、Worker 启动和实际 tarball。
 - 应用信息检查在服务端合并在途请求并缓存成功版本五分钟；更新摘要仅保存一个版本的有界内容，失败允许重试。安装前必须重新检查最新版本，不能使用展示缓存决定安装目标；使用 `src/app-update.test.ts` 验证并发、TTL、失败恢复与版本推进。
 - 根目录运行 `pnpm test`、`pnpm typecheck`；提交前运行 `pnpm check`。
+
+- Web 登录自启动由 `src/autostart/` 管理当前用户的单个原生服务：macOS LaunchAgent、Windows 交互式登录任务、Ubuntu systemd 用户服务。仅配置命令持有短期事务锁，不限制普通 Web 多实例。命令契约见[自启动指南](../../../../docs/web-autostart.zh-CN.md)。
+- 普通启动支持 `--no-open`；托管启动强制关闭浏览器并跳过启动前联网更新检查，复用同一启动和资源清理流程。参数与 PATH 在登记时冻结，LAN 密码持久化且仅由 `credentials` 显式输出。状态以认证的本地控制通道与实际监听端口为准，不能把系统任务运行状态当作 Web 已就绪。
+- 自启动只接受稳定的全局 npm 安装，禁止登记 npx 缓存路径；Node/CLI 路径变化由 `repair` 修复。Ubuntu 不开启 linger；已有 linger 时要求活动图形会话并绑定 `graphical-session.target`。Windows 不保存登录密码，取消任务执行时限和电池限制；禁用任务也必须能完整移除。
+- 修改登录项时验证失败回滚、凭据脱敏、私有文件权限、日志上限和各平台参数转义；运行 `src/autostart/*.test.ts`、CLI 回归及 `pnpm package:check`。发布校验必须从实际构建产物运行后台失败恢复测试，使用隔离目录，禁止向验证机器注册持久登录项。

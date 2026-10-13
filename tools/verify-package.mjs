@@ -1,11 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Worker } from "node:worker_threads";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 
@@ -41,6 +42,20 @@ if (packageManifest.bin?.["codexly"] !== "dist/cli.js") {
 if (cliResult.status !== 0 || !cliResult.stdout.includes("Usage: codexly [command] [options]")) {
   process.stderr.write(cliResult.stderr);
   throw new Error("Built CLI is not executable");
+}
+
+// 发布产物也必须暴露自启动帮助，防止动态导入的 CLI 模块在打包后缺失。
+for (const [args, expected] of [
+  [["autostart", "--help"], "credentials"],
+  [["autostart", "enable", "--help"], "--now"],
+  [["start", "--help"], "--no-open"],
+]) {
+  const result = spawnSync(process.execPath, ["dist/cli.js", ...args], {
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status !== 0 || !result.stdout.includes(expected))
+    throw new Error(`Built CLI help failed: ${args.join(" ")}`);
 }
 
 verifyNativeDependencyInstall("better-sqlite3");
@@ -83,6 +98,8 @@ try {
   const files = new Set(manifest.files.map(({ path }) => path));
   const requiredFiles = [
     "CHANGELOG.md",
+    "docs/web-autostart.md",
+    "docs/web-autostart.zh-CN.md",
     "dist/cli.js",
     "dist/codex-jsonl-frame-worker.js",
     "dist/historical-attachment-worker.js",
@@ -132,6 +149,56 @@ try {
     throw new Error(
       `Package contains unresolved dependency protocols: ${unresolvedDependencies.join(", ")}`,
     );
+  }
+
+  // 使用隔离配置启动真实 CLI：故意指定不存在的 Codex，验证后台失败可诊断、退出可回收且凭据不泄漏。
+  // 此测试只运行内部入口，不注册或修改宿主系统的登录项。
+  const autostartConfig = join(stateRoot, "config.json");
+  const testPassword = "Package-Smoke_Lan123456";
+  writeFileSync(
+    autostartConfig,
+    JSON.stringify({
+      version: 1,
+      node: process.execPath,
+      cli: fileURLToPath(new URL("../dist/cli.js", import.meta.url)),
+      home: stateRoot,
+      environment: {},
+      start: {
+        noOpen: true,
+        lan: true,
+        lanPassword: testPassword,
+        port: 3210,
+        codexHome: stateRoot,
+        codexBin: join(stateRoot, "missing-codex"),
+      },
+    }),
+    { mode: 0o600 },
+  );
+  const failedService = spawnSync(
+    process.execPath,
+    ["dist/cli.js", "autostart", "run", "--config", autostartConfig],
+    {
+      encoding: "utf8",
+      shell: false,
+      timeout: 20_000,
+    },
+  );
+  const failedState = JSON.parse(readFileSync(join(stateRoot, "runtime.json"), "utf8"));
+  const failedLog = readFileSync(join(stateRoot, "service.log"), "utf8");
+  if (
+    failedService.status !== 1 ||
+    failedState.phase !== "failed" ||
+    !failedState.error ||
+    !failedLog.includes("missing-codex")
+  ) {
+    throw new Error(`Built autostart failure recovery failed: ${failedService.stderr}`);
+  }
+  if (
+    [failedService.stdout, failedService.stderr, JSON.stringify(failedState), failedLog].some(
+      (text) => text.includes(testPassword),
+    )
+  ) {
+    throw new Error("Built autostart leaked the saved LAN password");
   }
 
   // 发布校验必须真实启动 Worker，单纯检查文件清单无法发现相对路径错误。

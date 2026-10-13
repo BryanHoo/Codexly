@@ -27,6 +27,7 @@ export interface CreateServerInput {
   projectRepository: ProjectRepository;
   provider: AgentRuntimeProvider;
   preloadModelCatalog?: boolean;
+  logDestination?: Readonly<{ write: (message: string) => void }>;
   petProvider: WorkbenchPetProvider;
   providerConnectionRepository: AgentProviderConnectionRepository;
   queueRepository: AgentQueueRepository;

@@ -87,6 +87,24 @@ codexly
 
 The installation command uses npm’s default registry (the official registry unless you have configured another), reuses the npm cache, and revalidates stale package metadata.
 
+## Web Startup at Login
+
+After a global npm installation, configure startup for the current user through the CLI. Supports macOS, Windows, and Ubuntu with a systemd user manager. Both local and LAN startup keep the browser closed.
+
+```bash
+codexly autostart enable             # Local mode, on the next login
+codexly autostart enable --lan --now  # LAN mode, also start now
+codexly autostart status
+codexly autostart credentials
+codexly autostart logs
+codexly autostart restart
+codexly autostart disable
+```
+
+Repeating `enable` updates the same entry with the supplied options. Without `--now`, a running instance applies changes on restart or the next login. Use `status` for actual URLs when a port is occupied. LAN startup saves and reuses its password; `credentials` reveals it explicitly. Sessions require authentication again after a restart.
+
+Temporary `npx` installations cannot register startup. Run `codexly autostart repair --now` after moving Node/npm, and disable before uninstalling the package. Use `codexly start --no-open` to suppress the browser during a foreground launch. See the [Web startup at login guide](docs/web-autostart.md) for configuration, environment handling, Linux linger restrictions, and troubleshooting.
+
 ## Docker
 
 Download the user-facing Compose file and start the published image:
@@ -156,7 +174,7 @@ The terminal prints the LAN address and a random access password. Common options
 | `--session-ttl <duration>`  | Set a fixed LAN session lifetime such as `12h`; omitted sessions last until server restart |
 | `--workspace <path>`        | Restrict project selection to this absolute root; repeat for multiple roots                |
 
-Quote passwords containing shell-special characters. LAN mode uses unencrypted HTTP, so use it only on a trusted network and never expose it directly to the internet. Restarting Codexly invalidates the password and all sessions.
+Quote passwords containing shell-special characters. LAN mode uses unencrypted HTTP, so use it only on a trusted network and never expose it directly to the internet. Restarting Codexly invalidates random pairing codes and all sessions; an explicitly configured fixed password remains valid.
 
 ## Web Diagnostics and Updates
 
