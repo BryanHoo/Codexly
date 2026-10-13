@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_COMMIT_MESSAGE_MODEL } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
@@ -73,7 +74,7 @@ describe("runCli startup", () => {
       appVersion: "1.2.3",
       binaryPath: "/custom/codex",
     });
-    expect(startOptions).not.toHaveProperty("cwd");
+    expect(startOptions?.cwd).toBe(homedir());
     expect(startOptions?.env?.["CODEX_HOME"]).toBe("/custom/home");
     expect(harness.dependencies.createRuntimeProvider).toHaveBeenCalledWith({
       client: harness.client,
@@ -98,7 +99,7 @@ describe("runCli startup", () => {
       preloadModelCatalog: true,
       settingsRepository: harness.stateRepository,
       staticRoot: "/package/dist/web",
-      standaloneCwd: process.cwd(),
+      standaloneCwd: homedir(),
     });
     expect(typeof serverOptions?.installAppUpdate).toBe("function");
     expect(typeof serverOptions?.readAppInfo).toBe("function");

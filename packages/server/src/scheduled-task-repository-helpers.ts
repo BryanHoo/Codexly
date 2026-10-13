@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import type {
   ScheduledTaskAttachmentRecord,
   ScheduledTaskAttachmentRepository,
@@ -61,6 +62,42 @@ export function parseScheduledTaskAttachment(value: unknown): ScheduledTaskAttac
 export abstract class SqliteScheduledTaskRepository
   implements ScheduledTaskRepository, ScheduledTaskAttachmentRepository
 {
+  #scheduledTaskMutation: Promise<void> = Promise.resolve();
+
+  public withScheduledTaskLock<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.#scheduledTaskMutation.then(async () => {
+      const deadline = Date.now() + 10_000;
+      // 锁只覆盖状态读写和领取；非阻塞退避让 Worker 仍可处理其他业务请求。
+      while (!(await this.callScheduledTaskWorker<boolean>("acquireScheduledTaskLock"))) {
+        if (Date.now() >= deadline) throw new Error("等待定时任务状态事务超时");
+        await delay(25);
+      }
+      try {
+        return await operation();
+      } finally {
+        await this.callScheduledTaskWorker("releaseScheduledTaskLock");
+      }
+    });
+    this.#scheduledTaskMutation = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
+  public listActiveScheduledTaskRunIds(): Promise<readonly string[]> {
+    return this.callScheduledTaskWorker("listActiveScheduledTaskRunIds");
+  }
+
+  public async claimScheduledTaskRun(runId: string): Promise<void> {
+    await this.callScheduledTaskWorker("claimScheduledTaskRun", {
+      runId,
+    });
+  }
+
+  public async releaseScheduledTaskRun(runId: string): Promise<void> {
+    await this.callScheduledTaskWorker("releaseScheduledTaskRun", { runId });
+  }
   protected abstract callScheduledTaskWorker<TResult>(
     operation: string,
     payload?: unknown,

@@ -41,7 +41,6 @@ import {
 } from "./cli-command-options.js";
 import { createProcessShutdownSignal, waitForAbort } from "./cli-shutdown.js";
 import { listenOnAvailablePort } from "./cli-server-listen.js";
-import { acquireRuntimeLock, type RuntimeInstanceLock } from "./runtime-instance-lock.js";
 import type { CreateServerInput } from "./cli-server-input.js";
 import type { CliManagedStateRepository } from "./cli-state-repository.js";
 import {
@@ -86,7 +85,6 @@ interface CreateRuntimeProviderInput {
 }
 
 export interface CliDependencies {
-  acquireRuntimeLock: typeof acquireRuntimeLock;
   appVersion: string;
   checkAppUpdate: () => Promise<StartupAppUpdateCheck>;
   checkCodexVersion: (binaryPath: string) => Promise<CodexVersionInfo>;
@@ -126,7 +124,6 @@ export interface RunCliOptions {
 const startupAppUpdate = createStartupAppUpdateOperations(packageManifest.version);
 
 const defaultDependencies: CliDependencies = {
-  acquireRuntimeLock,
   appVersion: packageManifest.version,
   checkAppUpdate: startupAppUpdate.check,
   checkCodexVersion,
@@ -296,11 +293,11 @@ async function runStart(
   let runtime: CliManagedRuntime | undefined;
   let server: CliManagedServer | undefined;
   let stateRepository: CliManagedStateRepository | undefined;
-  let instanceLock: RuntimeInstanceLock | undefined;
 
   try {
     const codexHome = resolveCodexHome(options);
-    instanceLock = await dependencies.acquireRuntimeLock(codexHome);
+    // 启动位置不参与内部运行：多个 Web 实例共用 Codex Home，由端口和业务事务处理并发。
+    const runtimeCwd = homedir();
     const env = {
       ...process.env,
       ...(options.codexHome ? { CODEX_HOME: options.codexHome } : {}),
@@ -308,11 +305,21 @@ async function runStart(
     stateRepository = await dependencies.createStateRepository(
       join(codexHome, "codexly", "state.sqlite3"),
     );
-    runtime = await dependencies.startCodexAppServer({
-      appVersion: dependencies.appVersion,
-      env,
-      ...(options.codexBin ? { binaryPath: options.codexBin } : {}),
-    });
+    const startupStateRepository = stateRepository;
+    const startRuntime = () => {
+      const initialize = () =>
+        dependencies.startCodexAppServer({
+          appVersion: dependencies.appVersion,
+          cwd: runtimeCwd,
+          env,
+          ...(options.codexBin ? { binaryPath: options.codexBin } : {}),
+        });
+      // 上游首次创建 SQLite 状态也存在竞争；只串行化握手，运行期间不持有目录锁。
+      return startupStateRepository.withScheduledTaskLock === undefined
+        ? initialize()
+        : startupStateRepository.withScheduledTaskLock(initialize);
+    };
+    runtime = await startRuntime();
     const projectRepository = dependencies.createProjectRepository({
       client: runtime.client,
       projection: stateRepository,
@@ -333,12 +340,7 @@ async function runStart(
     const provider = await dependencies.createRuntimeProvider({
       codexHome,
       client: runtime.client,
-      modelCatalogRuntimeFactory: () =>
-        dependencies.startCodexAppServer({
-          appVersion: dependencies.appVersion,
-          env,
-          ...(options.codexBin ? { binaryPath: options.codexBin } : {}),
-        }),
+      modelCatalogRuntimeFactory: startRuntime,
       // 标题与提交信息共用应用模型设置，按需读取最新值，不阻塞首次发送。
       readTaskTitleModel: async () =>
         (await titleSettingsRepository.readGlobalSettings())?.commitMessageModel ??
@@ -368,8 +370,8 @@ async function runStart(
       projectTodoRepository: stateRepository,
       settingsRepository: stateRepository,
       staticRoot: dependencies.webRoot,
-      // 受限部署让临时任务继承首个工作区，避免绕过项目目录边界。
-      standaloneCwd: options.workspaceRoots?.[0] ?? process.cwd(),
+      // 显式工作区仍控制临时任务边界；未配置时使用稳定的用户目录，不继承终端目录。
+      standaloneCwd: options.workspaceRoots?.[0] ?? runtimeCwd,
       ...(options.workspaceRoots === undefined ? {} : { workspaceRoots: options.workspaceRoots }),
     });
     const host = options.lan === true ? "0.0.0.0" : "127.0.0.1";
@@ -414,10 +416,7 @@ async function runStart(
     // 同时观察退出信号和子进程，避免 App Server 崩溃后 CLI 继续空等。
     const outcome = await Promise.race([
       runtime.waitForExit().then((exit) => ({ exit, type: "process-exit" as const })),
-      waitForAbort(AbortSignal.any([shutdownSignal, instanceLock.signal])).then(() => {
-        instanceLock?.signal.throwIfAborted();
-        return { type: "shutdown" as const };
-      }),
+      waitForAbort(shutdownSignal).then(() => ({ type: "shutdown" as const })),
     ]);
     if (outcome.type === "process-exit") {
       const reason = outcome.exit.signal
@@ -437,11 +436,7 @@ async function runStart(
         try {
           await runtime?.close();
         } finally {
-          try {
-            await instanceLock?.close();
-          } finally {
-            ownedShutdown?.cleanup();
-          }
+          ownedShutdown?.cleanup();
         }
       }
     }

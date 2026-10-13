@@ -50,6 +50,8 @@ export class ScheduledTaskService {
   readonly #repository: ScheduledTaskRepository;
   readonly #prepareTaskResources: ScheduledTaskServiceOptions["prepareTaskResources"];
   readonly #running = new Set<string>();
+  readonly #ownedRunIds = new Set<string>();
+  #activeRunIds = new Set<string>();
   readonly #completions = new Map<
     string,
     Readonly<{
@@ -76,11 +78,7 @@ export class ScheduledTaskService {
   public async start(): Promise<void> {
     await this.#mutate(async () => {
       const stored = await this.#repository.listScheduledTasks();
-      const recoverTask = this.#recoverTask;
-      const repaired =
-        recoverTask === undefined
-          ? repairInterruptedScheduledTasks(stored, this.#now())
-          : await Promise.all(stored.map(recoverTask));
+      const repaired = await this.#repairTasks(stored);
       this.#tasks = repaired;
       if (repaired.some((task, index) => task !== stored[index])) {
         await this.#repository.replaceScheduledTasks(repaired);
@@ -147,7 +145,10 @@ export class ScheduledTaskService {
   public delete(id: string): Promise<void> {
     return this.#mutate(async () => {
       const task = this.#find(id);
-      if (this.#running.has(id) || task.runs.some((run) => run.status === "cleanup_pending")) {
+      if (
+        this.#running.has(id) ||
+        task.runs.some((run) => run.status === "running" || run.status === "cleanup_pending")
+      ) {
         throw new ScheduledTaskServiceError("busy", "Scheduled task is running");
       }
       await this.#replace(this.#tasks.filter((task) => task.id !== id));
@@ -181,6 +182,8 @@ export class ScheduledTaskService {
         throw new ScheduledTaskServiceError("busy", "Scheduled task is already running");
       }
       await this.#replace(result.tasks);
+      await this.#repository.claimScheduledTaskRun?.(claim.runId);
+      this.#ownedRunIds.add(claim.runId);
       // mutation 已串行化；持久化成功后才占用运行锁，写入失败可直接重试。
       this.#running.add(id);
       this.#launch(claim);
@@ -194,6 +197,14 @@ export class ScheduledTaskService {
     if (this.#timer !== undefined) clearTimeout(this.#timer);
     await Promise.allSettled(this.#inFlight);
     await this.#mutation;
+    if (this.#ownedRunIds.size > 0 && this.#repository.withScheduledTaskLock !== undefined) {
+      await this.#repository.withScheduledTaskLock(async () => {
+        // 已等待本实例的 Provider 调用退出；失败收尾留给其他实例按持久阶段恢复。
+        for (const runId of this.#ownedRunIds)
+          await this.#repository.releaseScheduledTaskRun?.(runId);
+        this.#ownedRunIds.clear();
+      });
+    }
   }
 
   #find(id: string): ScheduledTask {
@@ -201,6 +212,23 @@ export class ScheduledTaskService {
     if (task === undefined)
       throw new ScheduledTaskServiceError("not_found", "Scheduled task not found");
     return task;
+  }
+
+  #hasActiveRun(task: ScheduledTask): boolean {
+    return task.runs.some((run) => this.#activeRunIds.has(run.id));
+  }
+
+  async #repairTasks(source: readonly ScheduledTask[]): Promise<readonly ScheduledTask[]> {
+    const recoverable = source.filter(
+      (task) => !this.#running.has(task.id) && !this.#hasActiveRun(task),
+    );
+    const recoverTask = this.#recoverTask;
+    const recovered =
+      recoverTask === undefined
+        ? repairInterruptedScheduledTasks(recoverable, this.#now())
+        : await Promise.all(recoverable.map(recoverTask));
+    const byId = new Map(recovered.map((task) => [task.id, task]));
+    return source.map((task) => byId.get(task.id) ?? task);
   }
 
   #assertResolved(task: ScheduledTask): void {
@@ -241,6 +269,8 @@ export class ScheduledTaskService {
           completion.result,
         ),
       );
+      await this.#repository.releaseScheduledTaskRun?.(completion.claim.runId);
+      this.#ownedRunIds.delete(completion.claim.runId);
       this.#completions.delete(id);
       this.#running.delete(id);
     }
@@ -274,12 +304,16 @@ export class ScheduledTaskService {
       task.runs.some((run) => run.status === "cleanup_pending"),
     );
     const delay = next === undefined ? 24 * 60 * 60 * 1_000 : Math.max(1, next - this.#now());
+    // 共用持久仓储时低频刷新其他实例的计划；本实例仍按最近截止时间精确唤醒。
+    const refreshInterval =
+      this.#repository.withScheduledTaskLock === undefined ? 2_147_483_647 : 5_000;
+    const maximumDelay = pendingCleanup || this.#completions.size > 0 ? 1_000 : refreshInterval;
     this.#timer = setTimeout(
       () =>
         void this.#tick().catch(() => {
           this.#scheduleRetry();
         }),
-      Math.min(delay, pendingCleanup || this.#completions.size > 0 ? 1_000 : 2_147_483_647),
+      Math.min(delay, maximumDelay),
     );
     this.#timer.unref();
   }
@@ -288,15 +322,38 @@ export class ScheduledTaskService {
     await this.#mutate(async () => {
       if (this.#closed) return;
       await this.#flushCompletions();
+      const interrupted = this.#tasks.filter(
+        (task) =>
+          !this.#running.has(task.id) &&
+          !this.#hasActiveRun(task) &&
+          task.runs.some((run) => run.status === "running"),
+      );
+      if (interrupted.length > 0) {
+        // 其他实例中途退出后也要收敛持久运行阶段，不能把未确认的旧运行再次投递。
+        const repaired = new Map(
+          (await this.#repairTasks(interrupted)).map((task) => [task.id, task]),
+        );
+        await this.#replace(this.#tasks.map((task) => repaired.get(task.id) ?? task));
+      }
       for (const task of this.#tasks) {
         const run = task.runs.find((item) => item.status === "cleanup_pending");
-        if (run === undefined || this.#running.has(task.id)) continue;
+        if (run === undefined || this.#running.has(task.id) || this.#hasActiveRun(task)) continue;
         // 复用原 runId 的持久提交，只补写结果和收尾，绝不创建新的执行记录。
         this.#running.add(task.id);
+        await this.#repository.claimScheduledTaskRun?.(run.id);
+        this.#ownedRunIds.add(run.id);
         this.#launch({ task, runId: run.id });
       }
-      const result = await claimScheduledTasks(this.#tasks, this.#running, this.#now());
+      const running = new Set([
+        ...this.#running,
+        ...this.#tasks.filter((task) => this.#hasActiveRun(task)).map((task) => task.id),
+      ]);
+      const result = await claimScheduledTasks(this.#tasks, running, this.#now());
       await this.#replace(result.tasks);
+      for (const claim of result.claims) {
+        await this.#repository.claimScheduledTaskRun?.(claim.runId);
+        this.#ownedRunIds.add(claim.runId);
+      }
       for (const claim of result.claims) this.#running.add(claim.task.id);
       for (const claim of result.claims) this.#launch(claim);
     });
@@ -331,7 +388,15 @@ export class ScheduledTaskService {
   }
 
   #mutate<T>(operation: () => Promise<T> | T): Promise<T> {
-    const result = this.#mutation.then(operation);
+    const result = this.#mutation.then(() => {
+      if (this.#repository.withScheduledTaskLock === undefined) return operation();
+      return this.#repository.withScheduledTaskLock(async () => {
+        // 读最新快照、判断运行归属和写入共用短期互斥，防止实例间丢更新或重复领取。
+        this.#tasks = await this.#repository.listScheduledTasks();
+        this.#activeRunIds = new Set(await this.#repository.listActiveScheduledTaskRunIds?.());
+        return operation();
+      });
+    });
     this.#mutation = result.then(
       () => undefined,
       () => undefined,

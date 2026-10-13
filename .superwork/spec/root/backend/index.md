@@ -1,6 +1,9 @@
 # CLI 与启动
 
-根目录 `src/cli.ts` 是 `codexly` 入口；`src/cli-command.ts` 处理命令，`src/cli-server-*` 处理服务启动与监听，`src/runtime-instance-lock.ts` 管理单实例约束。服务实现属于 `packages/server/`。
+根目录 `src/cli.ts` 是 `codexly` 入口；`src/cli-command.ts` 处理命令，`src/cli-server-*` 处理服务启动与监听。服务实现属于 `packages/server/`。
+
+- Web 允许同启动目录、同 Codex Home 的多个实例，端口冲突自动递增，不使用长驻实例锁。主运行时与按需模型目录子进程固定使用用户主目录；临时任务默认使用用户主目录，显式工作区使用首个根目录。启动目录不得隐式影响内部配置或任务范围，用 `cli-multi-instance.test.ts`、`cli-command-start.test.ts` 和端口回归验证。
+- 主运行时与按需模型目录子进程的初始化握手共用 SQLite 仓储的短期互斥，防止首次同时初始化空 Codex Home 时上游状态库建表竞争；握手后释放，不限制实例并行运行。
 
 - 命令参数、环境变量、启动和退出行为同时检查同目录 `*.test.ts` 与 `README.md`、`README.zh-CN.md`。
 - 变更打包入口时检查 `tsup.config.ts`、`tools/verify-package.mjs` 和 `pnpm package:check`。

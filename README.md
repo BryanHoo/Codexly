@@ -73,7 +73,7 @@ Codexly opens the browser automatically. If it does not, use the address printed
 
 Run `codexly --version` to check the installed version, or `codexly <command> --help` for command-specific options.
 
-Only one Codexly instance can use a data directory. The instance lock is released automatically on exit or crash. Use different `--codex-home <directory>` values for independent instances.
+Multiple Web instances can run from the same launch directory and share the same Codex Home; occupied ports are skipped automatically. The launch directory does not determine internal configuration or the temporary task directory. Temporary tasks use the user's home directory by default, or the first explicit `--workspace` root. Use different `--codex-home <directory>` values to isolate data.
 
 On first launch, sign in with ChatGPT or configure an OpenAI-compatible service that supports the Responses API and `GET /models`.
 Custom providers discover available models; basic reasoning levels remain selectable when model metadata omits them.

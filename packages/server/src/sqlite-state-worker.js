@@ -22,6 +22,7 @@ import { serializeApprovalPolicy } from "./approval-policy-persistence.js";
 import { createFeatureOperations } from "./sqlite-state-worker-features.js";
 
 import { serializeError } from "./sqlite-worker-error.js";
+import { createScheduledTaskCoordination } from "./sqlite-scheduled-task-coordination.js";
 function createOperations(database) {
   const statements =
     hasTable(database, "projects") && hasTable(database, "project_roots")
@@ -450,23 +451,28 @@ function createOperations(database) {
 }
 
 let database;
+let scheduledTaskCoordination;
 try {
   mkdirSync(resolve(workerData.databasePath, ".."), { recursive: true });
-  database = new Database(workerData.databasePath);
-  configureDatabase(database);
-  const previousMigrationVersion = readMigrationVersion(database);
-  runMigrations(database, workerData.migrations, (version) => {
-    if (version === 15) {
-      // 状态行与 v15 Schema 同事务提交，进程中断不会丢失灾后恢复标记。
-      initializeProjectSourceMigration(database, previousMigrationVersion);
-    }
+  scheduledTaskCoordination = createScheduledTaskCoordination(workerData.databasePath);
+  scheduledTaskCoordination.initialize(() => {
+    database = new Database(workerData.databasePath);
+    configureDatabase(database);
+    const previousMigrationVersion = readMigrationVersion(database);
+    runMigrations(database, workerData.migrations, (version) => {
+      if (version === 15) {
+        // 状态行与 v15 Schema 同事务提交，进程中断不会丢失灾后恢复标记。
+        initializeProjectSourceMigration(database, previousMigrationVersion);
+      }
+    });
+    initializeProjectSourceMigration(database, previousMigrationVersion);
+    ensureGlobalSettingsCompatibility(database);
   });
-  initializeProjectSourceMigration(database, previousMigrationVersion);
-  ensureGlobalSettingsCompatibility(database);
-  const operations = createOperations(database);
+  const operations = { ...createOperations(database), ...scheduledTaskCoordination.operations };
   parentPort.on("message", (message) => {
     try {
       if (message.operation === "close") {
+        scheduledTaskCoordination.close();
         database.close();
         parentPort.postMessage({ id: message.id, result: null, type: "response" });
         parentPort.close();
@@ -487,6 +493,7 @@ try {
   });
   parentPort.postMessage({ type: "ready" });
 } catch (error) {
+  scheduledTaskCoordination?.close();
   database?.close();
   parentPort.postMessage({ error: serializeError(error), type: "fatal" });
   parentPort.close();

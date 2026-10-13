@@ -48,6 +48,11 @@ export interface AgentQueueRepository {
 
 // 快照、附件替换和已删除任务的附件清理必须在同一事务中提交。
 export interface ScheduledTaskRepository {
+  // 持久仓储可提供跨实例短期互斥及运行归属；内存仓储继续使用服务内串行化。
+  withScheduledTaskLock?<T>(operation: () => Promise<T>): Promise<T>;
+  listActiveScheduledTaskRunIds?(): Promise<readonly string[]>;
+  claimScheduledTaskRun?(runId: string): Promise<void>;
+  releaseScheduledTaskRun?(runId: string): Promise<void>;
   listScheduledTasks(): Promise<readonly ScheduledTask[]>;
   replaceScheduledTasks(
     tasks: readonly ScheduledTask[],

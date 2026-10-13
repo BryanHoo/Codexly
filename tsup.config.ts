@@ -3,7 +3,6 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     cli: "src/cli.ts",
-    "runtime-instance-worker": "src/runtime-instance-worker.js",
     "scheduled-task-recurrence-worker": "packages/server/src/scheduled-task-recurrence-worker.js",
     "historical-attachment-worker": "packages/provider-codex/src/historical-attachment-worker.js",
     "codex-jsonl-frame-worker": "packages/provider-codex/src/codex-jsonl-frame-worker.js",

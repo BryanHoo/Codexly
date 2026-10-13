@@ -67,7 +67,7 @@ CODEXLY_CODEX_HOME=/home/example/.codex
 CODEXLY_WORKSPACE=/home/example/projects
 ```
 
-宿主目录必须允许容器内 `node` 用户读写。工作区在宿主和容器内使用相同绝对路径，因此 Codex Home 中已有的项目记录仍然有效。不要让两个 Codexly 实例同时使用同一个 Codex Home。
+宿主目录必须允许容器内 `node` 用户读写。工作区在宿主和容器内使用相同绝对路径，因此 Codex Home 中已有的项目记录仍然有效。多个实例可共享同一个 Codex Home；容器需要分别配置宿主端口映射。共享数据目录须位于支持 SQLite 文件锁的本地文件系统。
 
 ## 配置 Git 身份
 

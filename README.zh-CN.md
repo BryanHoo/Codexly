@@ -53,7 +53,7 @@ Codexly 会自动打开浏览器。若未打开，请访问终端输出的地址
 
 运行 `codexly --version` 查看安装版本，或使用 `codexly <command> --help` 查看命令专属选项。
 
-同一数据目录只能运行一个 Codexly 实例，重复启动会被拒绝；进程退出或崩溃后自动释放锁。需要独立实例时使用不同的 `--codex-home <目录>`。
+可以在同一启动目录或同一 Codex Home 下同时运行多个 Web 实例；端口占用时自动递增。启动目录不决定应用内部配置或临时任务目录：临时任务默认使用用户主目录，显式指定 `--workspace` 时使用首个工作区。使用不同的 `--codex-home <目录>` 可隔离数据。
 
 首次启动时，使用 ChatGPT 登录，或配置兼容 Responses API 和 `GET /models` 的 OpenAI-compatible 服务。
 自定义 Provider 会发现可用模型；模型未提供思考档位时可选择基础档位。
