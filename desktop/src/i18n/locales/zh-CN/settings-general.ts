@@ -1,4 +1,8 @@
 export const generalSettings = {
+    autostart: "开机启动",
+    autostartDescription: "登录系统后自动启动 Codexly。",
+    autostartLoadError: "无法读取开机启动状态。",
+    autostartSaveError: "无法更改开机启动设置，请重试。",
     temporaryFolder: "无项目任务文件夹",
     temporaryFolderDescription: "新任务按任务 ID 建立子文件夹，存放工作文件和附件；已有任务保留原位置。",
     changeFolder: "更改",

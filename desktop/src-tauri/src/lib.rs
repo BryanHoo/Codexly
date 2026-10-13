@@ -116,6 +116,11 @@ pub fn run() {
         tauri::http::HeaderValue::from_static(HTTP_USER_AGENT),
     );
     let result = builder
+        // 仅注册系统登录启动能力，由设置开关显式启用；LaunchAgent 兼容旧版 macOS。
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())

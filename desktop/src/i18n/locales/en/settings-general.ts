@@ -1,4 +1,8 @@
 export const generalSettings = {
+    autostart: "Launch at login",
+    autostartDescription: "Automatically start Codexly when you log in to your computer.",
+    autostartLoadError: "Unable to read launch at login status.",
+    autostartSaveError: "Unable to change launch at login. Please try again.",
     temporaryFolder: "Non-project task folder",
     temporaryFolderDescription: "New tasks store files and attachments in task ID subfolders. Existing tasks keep their original location.",
     changeFolder: "Change",
