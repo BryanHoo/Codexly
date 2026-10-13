@@ -9,7 +9,7 @@ import {
 } from "./workbench-inspector.test-support.js";
 
 describe("WorkbenchInspector Git tabs", () => {
-  it("hides changes for a clean worktree and returns to the first tab", () => {
+  it("keeps changes selected for a clean worktree so existing commits can be pushed", () => {
     const cleanGitStatus = { ...gitStatus, staged: [], unstaged: [] };
     const cleanMarkup = renderInspectorMarkup(
       <WorkbenchInspector
@@ -29,8 +29,8 @@ describe("WorkbenchInspector Git tabs", () => {
       />,
     );
 
-    expect(readInspectorTabLabels(cleanMarkup)).toEqual(["项目", "上下文", "历史"]);
-    expect(cleanMarkup).toMatch(/aria-selected="true"[^>]*>.*?<span[^>]*>项目<\/span>/su);
+    expect(readInspectorTabLabels(cleanMarkup)).toEqual(["项目", "上下文", "变更", "历史"]);
+    expect(cleanMarkup).toMatch(/aria-selected="true"[^>]*>.*?<span[^>]*>变更<\/span>/su);
     expect(readInspectorTabLabels(nonGitMarkup)).toEqual(["项目", "上下文"]);
   });
 

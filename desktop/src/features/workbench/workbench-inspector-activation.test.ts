@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  deriveWorkbenchInspectorActivation,
   deriveWorkbenchInspectorContextActivation,
   getAvailableWorkbenchInspectorTabs,
   getDefaultWorkbenchInspectorTab,
@@ -27,8 +28,13 @@ describe("workbench inspector activation", () => {
     expect(getAvailableWorkbenchInspectorTabs("task-1", gitStatus)).toEqual([
       "project",
       "context",
+      "changes",
       "history",
     ]);
+  });
+
+  it("keeps changes active for pushing after the working tree becomes clean", () => {
+    expect(deriveWorkbenchInspectorActivation({ gitStatus, inspectorOpen: true, requestedTab: "changes", taskId: "task-1" })).toMatchObject({ activeTab: "changes", changes: true, project: false });
   });
 
   it("keeps the project tab active when a regular task starts", () => {

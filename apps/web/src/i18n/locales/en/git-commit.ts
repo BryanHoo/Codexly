@@ -1,0 +1,32 @@
+import { gitActionsEnglish } from "@codexly/frontend-core/project-git-actions";
+import { gitPushEnglish } from "@codexly/frontend-core/project-git-push";
+
+export const gitCommit = {
+  ...gitPushEnglish,
+  ...gitActionsEnglish,
+  allFiles: "All files",
+  commit: "Commit",
+  commitActions: "Choose commit action",
+  commitAndPush: "Commit and push",
+  commitAndPushComplete: "Commit and push completed",
+  commitAndPushSucceeded: "Committed and pushed successfully",
+  commitComplete: "Commit completed",
+  commitCompletePushFailed: "Commit completed, but push failed",
+  commitCompleteUpstreamMissing: "Commit completed; the current branch has no upstream",
+  commitMessage: "Commit message",
+  commitSucceeded: "Committed successfully",
+  changes: "Changes",
+  generateMessage: "Generate message content",
+  messagePlaceholder: "Enter a commit message",
+  repository: "Git project",
+  repositoryLoading: "Loading Git project",
+  repositoryUnavailable: "No committable Git project was found",
+  selectAllFiles: "Select all files",
+  selectFiles: "Select files",
+  selectRepository: "Select Git project",
+  selectionLabel: "Select files, {{selected}} of {{total}} selected",
+  staged: "Staged",
+  totalFiles_one: "{{count}} total",
+  totalFiles_other: "{{count}} total",
+  unstaged: "Unstaged",
+} as const;

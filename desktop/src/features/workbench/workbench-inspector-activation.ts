@@ -72,7 +72,6 @@ export function getAvailableWorkbenchInspectorTabs(
   { contextOnly = false }: InspectorTabAvailability = {},
 ): WorkbenchInspectorTab[] {
   const isGitProject = isRootGitProject(gitStatus);
-  const hasGitChanges = isGitProject && gitStatus.staged.length + gitStatus.unstaged.length > 0;
   const tabs: WorkbenchInspectorTab[] = [];
 
   if (contextOnly) {
@@ -82,7 +81,8 @@ export function getAvailableWorkbenchInspectorTabs(
   // 项目浏览保持首位，能力消失时由激活策略统一回落到项目标签。
   tabs.push("project");
   if (taskId !== undefined) tabs.push("context");
-  if (hasGitChanges) tabs.push("changes");
+  // 干净工作区仍需推送已有提交，变更标签不应随文件数量消失。
+  if (isGitProject) tabs.push("changes");
   if (isGitProject) tabs.push("history");
   return tabs;
 }

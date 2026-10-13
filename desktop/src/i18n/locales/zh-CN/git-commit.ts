@@ -1,4 +1,8 @@
+import { gitActionsChinese } from "@codexly/frontend-core/project-git-actions";
+import { gitPushChinese } from "@codexly/frontend-core/project-git-push";
 export const gitCommit = {
+  ...gitPushChinese,
+  ...gitActionsChinese,
     loadedFiles: "已加载 {{loaded}}/{{total}} 项，仅勾选已加载文件",
     loadMore: "加载更多文件",
     commit: "提交",

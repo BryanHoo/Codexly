@@ -10,7 +10,7 @@ import type {
 } from "@codexly/protocol";
 import Fastify, { type FastifyInstance } from "fastify";
 import { AttachmentStore } from "./attachment-store.js";
-import { commitSelectedProjectChanges } from "./git-commit.js";
+import { commitSelectedProjectChanges, pushProjectCommits } from "./git-commit.js";
 import { readProjectGitCommitFileDiff, readProjectGitCommitFiles } from "./git-commit-review.js";
 import { buildCommitMessagePrompt } from "./git-commit-message.js";
 import * as gitBranch from "./git-branch.js";
@@ -388,6 +388,7 @@ export async function createCodexlyServer(
     buildCommitMessagePrompt,
     capabilities,
     commitProjectChanges,
+    pushProjectCommits: options.pushProjectCommits ?? pushProjectCommits,
     createProjectBranch: options.createProjectBranch ?? gitBranch.createProjectBranch,
     createProjectWorktree: options.createProjectWorktree ?? gitWorktree.createProjectWorktree,
     fingerprintPayload,

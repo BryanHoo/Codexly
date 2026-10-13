@@ -1,24 +1,19 @@
+import { createGitActionLabels } from "@codexly/frontend-core/project-git-actions";
+import { GitChangesActions } from "@codexly/ui/core/git-changes-actions";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
   CommitProjectChangesRequest,
   CommitProjectChangesResponse,
+  PushProjectCommitsResponse,
   GenerateCommitMessageRequest,
   ProjectGitStatus,
 } from "@codexly/protocol";
-import { Check, ChevronDown, List, ListTree, LoaderCircle, Sparkles, Upload } from "lucide-react";
+import { List, ListTree, LoaderCircle, Sparkles } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { PromptInputButton } from "../../../shared/components/agent/prompt-input-controls.js";
 import { Button } from "../../../shared/components/core/button.js";
-import { ButtonGroup } from "../../../shared/components/core/button-group.js";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../../../shared/components/core/dropdown-menu.js";
 import {
   InputGroup,
   InputGroupAddon,
@@ -45,11 +40,14 @@ type CommitChangesPanelProps = Readonly<{
   error?: Error | null;
   gitStatus: ProjectGitStatus;
   isCommitting?: boolean;
+  isPushing?: boolean;
   isGenerating?: boolean;
+  onPush: () => Promise<void>;
   onCommit: (request: CommitProjectChangesRequest) => Promise<void>;
   onGenerateMessage: (request: GenerateCommitMessageRequest) => Promise<string>;
   onOpenFileDiff: (change: AgentFileChange) => void;
   result?: CommitProjectChangesResponse | null;
+  pushResult?: PushProjectCommitsResponse | null;
 }>;
 
 export function collectCommitFileEntries(status: ProjectGitStatus): readonly CommitFileEntry[] {
@@ -80,11 +78,14 @@ export function CommitChangesPanel({
   error = null,
   gitStatus,
   isCommitting = false,
+  isPushing = false,
   isGenerating = false,
   onCommit,
+  onPush,
   onGenerateMessage,
   onOpenFileDiff,
   result = null,
+  pushResult = null,
 }: CommitChangesPanelProps) {
   const { t } = useTranslation("workbench");
   const [fileViewMode, setFileViewMode] = useFileNavigationViewPreference("changes");
@@ -94,6 +95,7 @@ export function CommitChangesPanel({
     createCommitContentState(contentIdentity, entries),
   );
   const commitActionLockRef = useRef(createAsyncActionLock());
+  const [commitAction, setCommitAction] = useState<CommitProjectChangesRequest["action"]>("commit");
   if (contentState.identity !== contentIdentity) {
     // 仓库或快照变化后重置选择和 message，避免提交过期状态。
     setContentState(createCommitContentState(contentIdentity, entries));
@@ -101,9 +103,10 @@ export function CommitChangesPanel({
   const { message, selectedPaths } = contentState;
   // 多行提交信息固定展示三行，更多内容继续由输入框内部滚动。
   const commitMessageRows = message.includes("\n") ? 3 : 1;
-  const isPending = isGenerating || isCommitting;
+  const isPending = isGenerating || isCommitting || isPushing;
   const repositoryReady = isRootGitProject(gitStatus);
-  const canGenerate = repositoryReady && selectedPaths.size > 0 && !isPending && result === null;
+  const hasChanges = entries.length > 0;
+  const canGenerate = repositoryReady && selectedPaths.size > 0 && !isPending;
   const canCommit = canGenerate && message.trim().length > 0;
 
   const generateMessage = () =>
@@ -116,14 +119,15 @@ export function CommitChangesPanel({
     });
 
   const commit = (action: CommitProjectChangesRequest["action"]) =>
-    commitActionLockRef.current.run(() =>
-      onCommit({
+    commitActionLockRef.current.run(async () => {
+      setCommitAction(action);
+      await onCommit({
         action,
         expectedSnapshot: gitStatus.snapshot,
         message,
         paths: [...selectedPaths],
-      }),
-    );
+      });
+    });
 
   if (!isRootGitProject(gitStatus)) return null;
 
@@ -138,166 +142,133 @@ export function CommitChangesPanel({
       {repositoryReady ? (
         <>
           <section className="shrink-0 px-3 py-2">
-            <InputGroup
-              className={cn(
-                "gap-1 rounded-surface border border-separator-strong bg-panel shadow-sm focus-within:border-brand focus-within:shadow-focus",
-                commitMessageRows === 1 ? "h-8" : "h-18 max-workbench:h-21",
-              )}
-            >
-              {/* 组合控件由外层绘制焦点态，避免 textarea 再叠加全局方形轮廓。 */}
-              <InputGroupTextarea
-                aria-label={t("commit.commitMessage")}
-                className="h-full min-h-0 overflow-y-auto px-2 py-1.5 text-label leading-5 focus-visible:!outline-none max-workbench:py-3"
-                disabled={isPending || result !== null}
-                id="commit-message"
-                onChange={(event) => {
-                  const nextMessage = event.currentTarget.value;
-                  setContentState((current) => ({ ...current, message: nextMessage }));
-                }}
-                placeholder={t("commit.messagePlaceholder")}
-                rows={commitMessageRows}
-                value={message}
-              />
-              <InputGroupAddon align="inline-end" className="ml-auto">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <PromptInputButton
-                      aria-label={t("commit.generateMessage")}
-                      className="size-7 shrink-0 justify-center p-0 [&_svg]:size-3.5"
-                      disabled={!canGenerate}
-                      onClick={() => {
-                        void generateMessage().catch(() => undefined);
-                      }}
-                      type="button"
-                    >
-                      {isGenerating ? (
-                        <LoaderCircle aria-hidden="true" className="animate-spin" />
-                      ) : (
-                        <Sparkles aria-hidden="true" />
-                      )}
-                    </PromptInputButton>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">{t("commit.generateMessage")}</TooltipContent>
-                </Tooltip>
-              </InputGroupAddon>
-            </InputGroup>
-
-            {result === null ? (
-              <ButtonGroup className="mt-2 w-full">
-                <Button
-                  className="flex-1 rounded-r-none"
-                  disabled={!canCommit}
-                  onClick={() => {
-                    void commit("commit").catch(() => undefined);
+            {hasChanges ? (
+              <InputGroup
+                className={cn(
+                  "gap-1 rounded-surface border border-separator-strong bg-panel shadow-sm focus-within:border-brand focus-within:shadow-focus",
+                  commitMessageRows === 1 ? "h-8" : "h-18 max-workbench:h-21",
+                )}
+              >
+                {/* 组合控件由外层绘制焦点态，避免 textarea 再叠加全局方形轮廓。 */}
+                <InputGroupTextarea
+                  aria-label={t("commit.commitMessage")}
+                  className="h-full min-h-0 overflow-y-auto px-2 py-1.5 text-label leading-5 focus-visible:!outline-none max-workbench:py-3"
+                  disabled={isPending}
+                  id="commit-message"
+                  onChange={(event) => {
+                    const nextMessage = event.currentTarget.value;
+                    setContentState((current) => ({ ...current, message: nextMessage }));
                   }}
-                  type="button"
-                >
-                  {isCommitting ? (
-                    <LoaderCircle aria-hidden="true" className="animate-spin" />
-                  ) : (
-                    <Check aria-hidden="true" />
-                  )}
-                  {t("commit.commit")}
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      aria-label={t("commit.commitActions")}
-                      className="w-10 rounded-l-none border-l border-brand-contrast/30 px-0"
-                      disabled={!canCommit}
-                      type="button"
-                    >
-                      <ChevronDown aria-hidden="true" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem
-                        onSelect={() => {
-                          void commit("commit").catch(() => undefined);
+                  placeholder={t("commit.messagePlaceholder")}
+                  rows={commitMessageRows}
+                  value={message}
+                />
+                <InputGroupAddon align="inline-end" className="ml-auto">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PromptInputButton
+                        aria-label={t("commit.generateMessage")}
+                        className="size-7 shrink-0 justify-center p-0 [&_svg]:size-3.5"
+                        disabled={!canGenerate}
+                        onClick={() => {
+                          void generateMessage().catch(() => undefined);
                         }}
+                        type="button"
                       >
-                        <Check aria-hidden="true" className="size-3.5" />
-                        {t("commit.commit")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() => {
-                          void commit("commit_and_push").catch(() => undefined);
-                        }}
-                      >
-                        <Upload aria-hidden="true" className="size-3.5" />
-                        {t("commit.commitAndPush")}
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </ButtonGroup>
-            ) : (
-              <p className="mt-2 font-mono text-caption text-muted-foreground" role="status">
-                {result.commitSha.slice(0, 7)}
-              </p>
-            )}
+                        {isGenerating ? (
+                          <LoaderCircle aria-hidden="true" className="animate-spin" />
+                        ) : (
+                          <Sparkles aria-hidden="true" />
+                        )}
+                      </PromptInputButton>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">{t("commit.generateMessage")}</TooltipContent>
+                  </Tooltip>
+                </InputGroupAddon>
+              </InputGroup>
+            ) : null}
+
+            <GitChangesActions
+              busyAction={
+                isPushing ? "push" : isCommitting ? commitAction : isGenerating ? "generate" : null
+              }
+              canCommit={canCommit}
+              commitSha={result?.commitSha}
+              hasChanges={hasChanges}
+              isPending={isPending}
+              labels={createGitActionLabels(t)}
+              onCommit={(action) => {
+                void commit(action).catch(() => undefined);
+              }}
+              onPush={() => {
+                // 菜单和主按钮共用即时锁，推送不需要文件选择或提交信息。
+                void commitActionLockRef.current.run(onPush).catch(() => undefined);
+              }}
+              pushStatus={pushResult?.pushStatus ?? result?.pushStatus ?? null}
+            />
           </section>
 
-          <div className="flex min-h-0 flex-1 flex-col border-t border-separator">
-            <div className="flex h-8 shrink-0 items-center gap-1 px-3 text-label font-semibold">
-              <span>{t("commit.changes")}</span>
-              <span className="ml-auto text-caption font-normal text-muted-foreground">
-                {t("commit.totalFiles", { count: entries.length })}
-              </span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    aria-label={t(
-                      fileViewMode === "tree" ? "diff.showFileList" : "diff.showFileTree",
-                    )}
-                    onClick={() => {
-                      setFileViewMode(fileViewMode === "tree" ? "list" : "tree");
-                    }}
-                    size="icon-sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    {fileViewMode === "tree" ? (
-                      <List aria-hidden="true" className="size-3.5" />
-                    ) : (
-                      <ListTree aria-hidden="true" className="size-3.5" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {t(fileViewMode === "tree" ? "diff.showFileList" : "diff.showFileTree")}
-                </TooltipContent>
-              </Tooltip>
+          {hasChanges ? (
+            <div className="flex min-h-0 flex-1 flex-col border-t border-separator">
+              <div className="flex h-8 shrink-0 items-center gap-1 px-3 text-label font-semibold">
+                <span>{t("commit.changes")}</span>
+                <span className="ml-auto text-caption font-normal text-muted-foreground">
+                  {t("commit.totalFiles", { count: entries.length })}
+                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label={t(
+                        fileViewMode === "tree" ? "diff.showFileList" : "diff.showFileTree",
+                      )}
+                      onClick={() => {
+                        setFileViewMode(fileViewMode === "tree" ? "list" : "tree");
+                      }}
+                      size="icon-sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      {fileViewMode === "tree" ? (
+                        <List aria-hidden="true" className="size-3.5" />
+                      ) : (
+                        <ListTree aria-hidden="true" className="size-3.5" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t(fileViewMode === "tree" ? "diff.showFileList" : "diff.showFileTree")}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-0.5"
+                data-slot="commit-changes-scroll"
+              >
+                <CommitChangesTreeSection
+                  changes={gitStatus.staged}
+                  disabled={isPending}
+                  label={t("commit.staged")}
+                  onOpenFileDiff={onOpenFileDiff}
+                  onSelectedPathsChange={(paths) => {
+                    setContentState((current) => ({ ...current, selectedPaths: paths }));
+                  }}
+                  selectedPaths={selectedPaths}
+                  viewMode={fileViewMode}
+                />
+                <CommitChangesTreeSection
+                  changes={gitStatus.unstaged}
+                  disabled={isPending}
+                  label={t("commit.unstaged")}
+                  onOpenFileDiff={onOpenFileDiff}
+                  onSelectedPathsChange={(paths) => {
+                    setContentState((current) => ({ ...current, selectedPaths: paths }));
+                  }}
+                  selectedPaths={selectedPaths}
+                  viewMode={fileViewMode}
+                />
+              </div>
             </div>
-            <div
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-0.5"
-              data-slot="commit-changes-scroll"
-            >
-              <CommitChangesTreeSection
-                changes={gitStatus.staged}
-                disabled={isPending || result !== null}
-                label={t("commit.staged")}
-                onOpenFileDiff={onOpenFileDiff}
-                onSelectedPathsChange={(paths) => {
-                  setContentState((current) => ({ ...current, selectedPaths: paths }));
-                }}
-                selectedPaths={selectedPaths}
-                viewMode={fileViewMode}
-              />
-              <CommitChangesTreeSection
-                changes={gitStatus.unstaged}
-                disabled={isPending || result !== null}
-                label={t("commit.unstaged")}
-                onOpenFileDiff={onOpenFileDiff}
-                onSelectedPathsChange={(paths) => {
-                  setContentState((current) => ({ ...current, selectedPaths: paths }));
-                }}
-                selectedPaths={selectedPaths}
-                viewMode={fileViewMode}
-              />
-            </div>
-          </div>
+          ) : null}
         </>
       ) : null}
     </div>

@@ -60,6 +60,29 @@ pub struct CommitMutationInput {
     repository: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PushMutationInput {
+    expected_snapshot: String,
+    repository: Option<String>,
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn push_project_commits(
+    project_id: String,
+    root_path: String,
+    input: PushMutationInput,
+    state: State<'_, AppState>,
+) -> Result<Value, AppError> {
+    // 与其他 Git 操作共用项目/worktree 归属校验，前端不能指定任意仓库目录。
+    let (_, root, _) = project_root(&state, &project_id, &root_path).await?;
+    let response =
+        workspace::push_commits(&root, input.repository.as_deref(), &input.expected_snapshot)
+            .await
+            .map_err(AppError::from)?;
+    serde_json::to_value(response).map_err(|_| AppError::FilesystemRequestFailed)
+}
+
 pub(super) async fn project_root(
     state: &State<'_, AppState>,
     project_id: &str,

@@ -31,6 +31,31 @@ pub struct CommitChangesResponse {
     pub push_status: &'static str,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PushCommitsResponse {
+    pub branch: Option<String>,
+    pub push_error: Option<String>,
+    pub push_status: &'static str,
+}
+
+/// 推送已有提交，复用提交并推送的远端选择和首次建立 upstream 逻辑。
+pub async fn push_commits(
+    root: &Path,
+    repository: Option<&str>,
+    expected_snapshot: &str,
+) -> Result<PushCommitsResponse, WorkspaceError> {
+    // 快照包含 HEAD 与分支；推送前拒绝过期预览，不读取 diff 或重新创建 commit。
+    let status = validate_snapshot(root, repository, expected_snapshot).await?;
+    let repo = repository_path(root, repository).await?;
+    let (push_status, push_error) = push_repository_branch(&repo, status.branch.as_deref()).await;
+    Ok(PushCommitsResponse {
+        branch: status.branch,
+        push_error,
+        push_status,
+    })
+}
+
 pub async fn switch_branch(
     root: &Path,
     repository: Option<&str>,
@@ -172,14 +197,7 @@ pub async fn commit_changes(
     let (push_status, push_error) = if action == "commit" {
         ("not_requested", None)
     } else {
-        match remote_names(&repo).await {
-            Err(error) => ("failed", Some(error.to_string())),
-            Ok(remotes) if remotes.is_empty() => (
-                "not_configured",
-                Some(WorkspaceError::NoUpstream.to_string()),
-            ),
-            Ok(remotes) => push_current_branch(&repo, branch.as_deref(), &remotes).await,
-        }
+        push_repository_branch(&repo, branch.as_deref()).await
     };
     Ok(CommitChangesResponse {
         branch,
@@ -189,6 +207,20 @@ pub async fn commit_changes(
         push_error,
         push_status,
     })
+}
+
+async fn push_repository_branch(
+    repo: &Path,
+    branch: Option<&str>,
+) -> (&'static str, Option<String>) {
+    match remote_names(repo).await {
+        Err(error) => ("failed", Some(error.to_string())),
+        Ok(remotes) if remotes.is_empty() => (
+            "not_configured",
+            Some(WorkspaceError::NoUpstream.to_string()),
+        ),
+        Ok(remotes) => push_current_branch(repo, branch, &remotes).await,
+    }
 }
 
 async fn push_current_branch(

@@ -53,7 +53,7 @@ pub use git_commit_context::prepare_commit_message;
 pub use git_read::{get_commit_diff, get_commit_files, get_git_file_status, get_git_history};
 pub use git_status_page::get_git_status_page;
 pub use git_worktree::{create_worktree, list_worktrees, switch_worktree};
-pub use git_write::{commit_changes, create_branch, switch_branch};
+pub use git_write::{commit_changes, create_branch, push_commits, switch_branch};
 pub use open::{open_path, platform_apps, reveal_path};
 pub use path_guard::{WorkspaceError, canonical_root, resolve_existing};
 pub use text_files::{SaveTextInput, read_text_file, read_text_file_revision, save_text_file};

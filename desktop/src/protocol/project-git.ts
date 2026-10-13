@@ -1,5 +1,9 @@
 import { Type, type Static } from "@sinclair/typebox";
 
+// 独立推送没有原生扩展字段，直接复用两端协议，避免重复定义。
+export { PushProjectCommitsRequestSchema, PushProjectCommitsResponseSchema,
+  type PushProjectCommitsRequest, type PushProjectCommitsResponse } from "@codexly/protocol";
+
 import {
   ProjectDirectoryPathSchema,
   ProjectFileReferencePathSchema,

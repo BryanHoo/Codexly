@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { commitSelectedProjectChanges } from "./git-commit.js";
+import { commitSelectedProjectChanges, pushProjectCommits } from "./git-commit.js";
 import type { GitCommitError } from "./git-commit.js";
 import { readGitWorkingTreeStatus } from "./git-working-tree.js";
 
@@ -40,6 +40,47 @@ afterEach(async () => {
 });
 
 describe("commitSelectedProjectChanges", () => {
+  it("pushes existing commits from a clean tree without creating another commit", async () => {
+    const root = await createRepository();
+    const remote = await mkdtemp(join(tmpdir(), "codexly-git-push-remote-"));
+    temporaryRoots.push(remote);
+    await runGit(remote, "init", "--bare");
+    await runGit(root, "remote", "add", "origin", remote);
+    await runGit(root, "push", "--set-upstream", "origin", "main");
+    await writeFile(join(root, "selected.txt"), "committed\n");
+    const before = await readGitWorkingTreeStatus(root);
+    await commitSelectedProjectChanges(root, {
+      action: "commit",
+      expectedSnapshot: before.snapshot,
+      paths: ["selected.txt"],
+      message: "fix(git): 保留推送入口",
+    });
+    const clean = await readGitWorkingTreeStatus(root);
+    const head = (await runGit(root, "rev-parse", "HEAD")).stdout;
+    expect(clean.staged.length + clean.unstaged.length).toBe(0);
+    expect(await pushProjectCommits(root, { expectedSnapshot: clean.snapshot })).toEqual({
+      branch: "main",
+      pushStatus: "pushed",
+      pushError: null,
+    });
+    expect((await runGit(remote, "rev-parse", "main")).stdout).toBe(head);
+    expect((await runGit(root, "rev-parse", "HEAD")).stdout).toBe(head);
+  });
+
+  it("rejects pushing an outdated snapshot before touching the remote", async () => {
+    const root = await createRepository();
+    await expect(
+      pushProjectCommits(root, { expectedSnapshot: "0".repeat(64) }),
+    ).rejects.toMatchObject({ code: "GIT_STATUS_CHANGED" });
+  });
+
+  it("returns a retryable push result when upstream is not configured", async () => {
+    const root = await createRepository();
+    const status = await readGitWorkingTreeStatus(root);
+    const result = await pushProjectCommits(root, { expectedSnapshot: status.snapshot });
+    expect(result.pushStatus).toBe("not_configured");
+    expect(result.pushError).toEqual(expect.any(String));
+  });
   it("keeps unborn repository snapshots stable across summary and detailed reads", async () => {
     const root = await mkdtemp(join(tmpdir(), "codexly-git-unborn-test-"));
     temporaryRoots.push(root);

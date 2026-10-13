@@ -11,6 +11,8 @@ import type {
 import type {
   AgentAttachmentUploadResponse,
   CommitProjectChangesRequest,
+  PushProjectCommitsRequest,
+  PushProjectCommitsResponse,
   CommitProjectChangesResponse,
   CreateProjectBranchRequest,
   CreateProjectWorktreeRequest,
@@ -205,6 +207,15 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     _options: MutationOptions = {},
   ): Promise<CommitProjectChangesResponse> {
     return this.call("commit_project_changes", { input, projectId, rootPath });
+  }
+
+  public async pushProjectCommits(
+    projectId: string,
+    rootPath: string,
+    input: PushProjectCommitsRequest,
+    _options: MutationOptions = {},
+  ): Promise<PushProjectCommitsResponse> {
+    return this.call("push_project_commits", { input, projectId, rootPath });
   }
 
   public async getProjectGitStatus(

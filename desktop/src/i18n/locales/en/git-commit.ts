@@ -1,4 +1,8 @@
+import { gitActionsEnglish } from "@codexly/frontend-core/project-git-actions";
+import { gitPushEnglish } from "@codexly/frontend-core/project-git-push";
 export const gitCommit = {
+  ...gitPushEnglish,
+  ...gitActionsEnglish,
     loadedFiles: "Loaded {{loaded}}/{{total}} changes. Selection covers loaded files.",
     loadMore: "Load more files",
     commit: "Commit",

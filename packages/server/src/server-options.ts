@@ -18,6 +18,8 @@ import type {
   AppInfoResponse,
   AppUpdateProgressResponse,
   CommitProjectChangesRequest,
+  PushProjectCommitsRequest,
+  PushProjectCommitsResponse,
   CommitProjectChangesResponse,
   DeleteProjectFileResponse,
   CreateProjectBranchRequest,
@@ -83,6 +85,10 @@ export interface CreateCodexlyServerOptions {
   skillMarketService?: SkillMarketService;
   standaloneCwd: string;
   workspaceRoots?: readonly string[];
+  pushProjectCommits?: (
+    projectRoot: string,
+    request: PushProjectCommitsRequest,
+  ) => Promise<PushProjectCommitsResponse>;
   commitProjectChanges?: (
     projectRoot: string,
     request: CommitProjectChangesRequest,

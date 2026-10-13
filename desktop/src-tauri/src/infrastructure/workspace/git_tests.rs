@@ -21,6 +21,36 @@ const WORKTREE_SPECIAL_SUFFIX: &str = "-line\nbreak";
 const WORKTREE_SPECIAL_SUFFIX: &str = "-功能 路径";
 
 #[tokio::test]
+async fn push_commits_should_push_clean_tree_without_creating_a_commit() {
+    let root = create_repository("codeagent-git-push");
+    let remote = create_repository("codeagent-git-push-remote");
+    // 只推送测试临时目录中的 bare 仓库，避免访问用户的真实远端。
+    run(&remote, &["config", "core.bare", "true"]);
+    fs::write(root.join("tracked.txt"), "committed\n").unwrap();
+    run(&root, &["add", "."]);
+    run(&root, &["commit", "-m", "fix(git): 保留推送入口"]);
+    run(
+        &root,
+        &["remote", "add", "origin", remote.to_str().unwrap()],
+    );
+    let root = fs::canonicalize(root).unwrap();
+    let status = get_git_status(&root, None, false).await.unwrap();
+    let head = output(&root, &["rev-parse", "HEAD"]);
+    let pushed = super::git_write::push_commits(&root, None, &status.snapshot)
+        .await
+        .unwrap();
+    assert_eq!(pushed.push_status, "pushed");
+    assert_eq!(output(&remote, &["rev-parse", "main"]), head);
+    assert_eq!(output(&root, &["rev-parse", "HEAD"]), head);
+    assert!(matches!(
+        super::git_write::push_commits(&root, None, &"0".repeat(64)).await,
+        Err(WorkspaceError::SnapshotMismatch)
+    ));
+    fs::remove_dir_all(root).unwrap();
+    fs::remove_dir_all(remote).unwrap();
+}
+
+#[tokio::test]
 async fn git_reads_should_map_repository_state_and_history() {
     let unique = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)

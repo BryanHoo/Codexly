@@ -25,6 +25,7 @@ export type CodexlyGitCommitReviewClient = Pick<
 export type CodexlyGitMutationClient = Pick<
   CodexlyClient,
   | "commitProjectChanges"
+  | "pushProjectCommits"
   | "createProjectBranch"
   | "createProjectWorktree"
   | "createTaskWorktree"

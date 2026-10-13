@@ -67,7 +67,7 @@ describe("deriveWorkbenchInspectorActivation", () => {
     });
   });
 
-  it("returns to the first tab after a commit clears the working tree", () => {
+  it("keeps changes active for pushing after a commit clears the working tree", () => {
     const clean = { ...gitStatus, staged: [] };
     expect(
       deriveWorkbenchInspectorActivation({
@@ -76,8 +76,11 @@ describe("deriveWorkbenchInspectorActivation", () => {
         requestedTab: "changes",
         taskId: "task-1",
       }),
-    ).toMatchObject({ activeTab: "project", changes: false, project: true });
-    expect(getAvailableWorkbenchInspectorTabs("task-1", clean)).not.toContain("changes");
+    ).toMatchObject({ activeTab: "changes", changes: true, project: false });
+    expect(getAvailableWorkbenchInspectorTabs("task-1", clean)).toContain("changes");
+    expect(
+      shouldEnableProjectGitDetails({ activePanel: true, gitStatus: clean, temporary: false }),
+    ).toBe(false);
   });
 
   it("activates context directly for temporary tasks", () => {

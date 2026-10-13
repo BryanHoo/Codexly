@@ -1,3 +1,4 @@
+import { registerProjectGitPushRoutes } from "./project-git-push-routes.js";
 import {
   CommitProjectChangesRequestSchema,
   CommitProjectChangesResponseSchema,
@@ -77,6 +78,8 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
       );
     }
   };
+
+  registerProjectGitPushRoutes(app, context, assertGitMutationAvailable);
 
   app.get<{ Params: { projectId: string }; Querystring: ProjectGitStatusQuery }>(
     "/v1/projects/:projectId/git/status",

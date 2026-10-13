@@ -4,6 +4,14 @@ import { NativeCommandError, type InvokeImplementation } from "./native-client.j
 import { TauriWorkspaceClient } from "./workspace-client.js";
 
 describe("TauriWorkspaceClient", () => {
+  it("pushes existing commits through the project-scoped native command", async () => {
+    const response = { branch: "main", pushStatus: "pushed", pushError: null };
+    const invoke = vi.fn(async () => response);
+    const client = new TauriWorkspaceClient({ ensureRuntime: vi.fn(async () => undefined), invoke: invoke as InvokeImplementation });
+    const input = { expectedSnapshot: "a".repeat(64) };
+    await expect(client.pushProjectCommits("project-a", "/work/a", input)).resolves.toEqual(response);
+    expect(invoke).toHaveBeenCalledExactlyOnceWith("push_project_commits", { input, projectId: "project-a", rootPath: "/work/a" });
+  });
   it("opens temporary task paths with task-scoped workspace validation", async () => {
     const invoke = vi.fn(async () => ({}));
     const client = new TauriWorkspaceClient({

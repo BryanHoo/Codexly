@@ -125,6 +125,7 @@ describe("关键操作组件", () => {
         <CommitChangesPanel
           gitStatus={gitStatus}
           onCommit={onCommit}
+          onPush={vi.fn().mockResolvedValue(undefined)}
           onGenerateMessage={vi.fn().mockResolvedValue("test(git): 生成提交")}
           onOpenFileDiff={() => undefined}
         />

@@ -3,6 +3,31 @@ import { buildProjectImageFileUrl, CodexlyClient } from "./http-client.js";
 import { projectRootPath, jsonResponse } from "./http-client.test-support.js";
 
 describe("CodexlyClient Git routes", () => {
+  it("pushes existing commits with a scoped idempotent request and validates the response", async () => {
+    const response = { branch: "main", pushStatus: "pushed", pushError: null };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(response));
+    const client = new CodexlyClient({ fetch: fetchMock });
+    const request = { expectedSnapshot: "a".repeat(64) };
+    await expect(
+      client.pushProjectCommits("project one", projectRootPath, request, {
+        idempotencyKey: "push-key",
+      }),
+    ).resolves.toEqual(response);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/v1/projects/project%20one/git/push?rootPath=%2Fworkspace%2FCodexly",
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      body: JSON.stringify(request),
+      method: "POST",
+    });
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("idempotency-key")).toBe(
+      "push-key",
+    );
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...response, pushStatus: "not_requested" }));
+    await expect(
+      client.pushProjectCommits("project one", projectRootPath, request),
+    ).rejects.toThrow("Codexly response does not match the protocol schema");
+  });
   it("reads and validates a project's staged and unstaged Git changes", async () => {
     const gitStatus = {
       baseBranches: ["origin/main", "main"],

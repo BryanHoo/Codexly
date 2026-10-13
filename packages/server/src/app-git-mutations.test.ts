@@ -12,6 +12,77 @@ import {
 } from "./app-all.test-support.js";
 
 describe("server Git mutations", () => {
+  it("pushes existing commits idempotently without invoking commit", async () => {
+    const { provider } = createProvider();
+    const result = { branch: "main", pushStatus: "pushed" as const, pushError: null };
+    const pushProjectCommits = vi.fn(() => Promise.resolve(result));
+    const commitProjectChanges = vi.fn();
+    const app = await createCodexlyServer(
+      createServerOptions(provider, { pushProjectCommits, commitProjectChanges }),
+    );
+    closeCallbacks.push(() => app.close());
+    const request = { expectedSnapshot: "a".repeat(64) };
+    const options = {
+      headers: { "idempotency-key": "push-existing" },
+      method: "POST" as const,
+      payload: request,
+      url: `/v1/projects/codexly/git/push?rootPath=${encodedProjectRootPath}`,
+    };
+    const first = await app.inject(options);
+    const repeated = await app.inject(options);
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toEqual(result);
+    expect(repeated.json()).toEqual(result);
+    expect(pushProjectCommits).toHaveBeenCalledExactlyOnceWith(projectRootPath, request);
+    expect(commitProjectChanges).not.toHaveBeenCalled();
+  });
+
+  it("rejects overlapping pushes and allows retry after a push failure", async () => {
+    const { provider } = createProvider();
+    let finish!: (result: { branch: string; pushStatus: "failed"; pushError: string }) => void;
+    const pushProjectCommits = vi.fn(
+      () =>
+        new Promise<{ branch: string; pushStatus: "failed"; pushError: string }>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const app = await createCodexlyServer(createServerOptions(provider, { pushProjectCommits }));
+    closeCallbacks.push(() => app.close());
+    const payload = { expectedSnapshot: "a".repeat(64) };
+    const url = `/v1/projects/codexly/git/push?rootPath=${encodedProjectRootPath}`;
+    const first = app.inject({
+      method: "POST",
+      payload,
+      url,
+      headers: { "idempotency-key": "push-1" },
+    });
+    await vi.waitFor(() => {
+      expect(pushProjectCommits).toHaveBeenCalledOnce();
+    });
+    const concurrent = await app.inject({
+      method: "POST",
+      payload,
+      url,
+      headers: { "idempotency-key": "push-2" },
+    });
+    expect(concurrent.statusCode).toBe(409);
+    expect(concurrent.json()).toMatchObject({ code: "GIT_MUTATION_IN_PROGRESS" });
+    finish({ branch: "main", pushStatus: "failed", pushError: "remote rejected" });
+    expect((await first).json()).toMatchObject({ pushStatus: "failed" });
+    pushProjectCommits.mockResolvedValue({
+      branch: "main",
+      pushStatus: "failed",
+      pushError: "remote rejected",
+    });
+    const retried = await app.inject({
+      method: "POST",
+      payload,
+      url,
+      headers: { "idempotency-key": "push-3" },
+    });
+    expect(retried.statusCode).toBe(200);
+    expect(pushProjectCommits).toHaveBeenCalledTimes(2);
+  });
   it("generates a selected-file commit message through an ephemeral read-only turn", async () => {
     const providerHarness = createProvider();
     const settings = createSettingsRepository();

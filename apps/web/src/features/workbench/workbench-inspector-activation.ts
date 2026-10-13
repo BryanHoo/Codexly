@@ -43,7 +43,6 @@ export function getAvailableWorkbenchInspectorTabs(
   { contextOnly = false }: InspectorTabAvailability = {},
 ): WorkbenchInspectorTab[] {
   const isGitProject = isRootGitProject(gitStatus);
-  const hasGitChanges = isGitProject && gitStatus.staged.length + gitStatus.unstaged.length > 0;
   const tabs: WorkbenchInspectorTab[] = [];
 
   if (contextOnly) {
@@ -53,8 +52,8 @@ export function getAvailableWorkbenchInspectorTabs(
   // 项目始终排在首位，当前标签不可用时由激活策略选择回退标签。
   tabs.push("project");
   if (taskId !== undefined) tabs.push("context");
-  // 工作区清空后移除变更标签，提交结果由 toast 反馈。
-  if (hasGitChanges) tabs.push("changes");
+  // 提交会清空文件变更，但仓库仍需推送；标签随 Git 能力保留，详细 diff 继续按需读取。
+  if (isGitProject) tabs.push("changes");
   if (isGitProject) tabs.push("history");
   // 文件标签只代表当前选择，不保留空面板或历史文件列表。
   return tabs;
@@ -77,9 +76,7 @@ export function deriveWorkbenchInspectorActivation({
       : "context"
     : (requestedTab.startsWith("document:") && fileOpen) || availableTabs.includes(requestedTab)
       ? requestedTab
-      : requestedTab === "changes" && isRootGitProject(gitStatus)
-        ? (availableTabs[0] ?? "project")
-        : "project";
+      : "project";
 
   // 只有当前可见标签获得激活权，所有标签专属 Query 和 Effect 都复用该结果。
   return {

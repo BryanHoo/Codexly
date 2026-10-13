@@ -324,6 +324,7 @@ export const AgentMutationErrorCodeSchema = Type.Union([
   Type.Literal("GIT_REPOSITORY_UNAVAILABLE"),
   Type.Literal("GIT_PATH_UNAVAILABLE"),
   Type.Literal("GIT_COMMIT_FAILED"),
+  Type.Literal("GIT_PUSH_FAILED"),
   Type.Literal("GIT_BRANCH_ALREADY_ACTIVE"),
   Type.Literal("GIT_BRANCH_ALREADY_EXISTS"),
   Type.Literal("GIT_BRANCH_CREATE_FAILED"),

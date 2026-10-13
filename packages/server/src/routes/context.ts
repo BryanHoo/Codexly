@@ -30,6 +30,8 @@ import type {
   AgentTask,
   AgentTaskSettings,
   CommitProjectChangesRequest,
+  PushProjectCommitsRequest,
+  PushProjectCommitsResponse,
   CommitProjectChangesResponse,
   DeleteProjectFileResponse,
   CreateProjectBranchRequest,
@@ -139,6 +141,10 @@ export interface ServerRouteContext {
     customPrompt: string,
   ) => string;
   readonly capabilities: AgentCapabilities;
+  readonly pushProjectCommits: (
+    projectRoot: string,
+    request: PushProjectCommitsRequest,
+  ) => Promise<PushProjectCommitsResponse>;
   readonly commitProjectChanges: (
     projectRoot: string,
     request: CommitProjectChangesRequest,

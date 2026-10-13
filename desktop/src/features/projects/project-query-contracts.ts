@@ -21,6 +21,7 @@ export type NativeGitCommitReviewClient = Pick<
 export type NativeGitMutationClient = Pick<
   NativeClient,
   | "commitProjectChanges"
+  | "pushProjectCommits"
   | "createProjectBranch"
   | "createTaskWorktree"
   | "startWorktreeTask"

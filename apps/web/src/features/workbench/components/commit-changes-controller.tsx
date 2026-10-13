@@ -1,5 +1,7 @@
+import { projectPushMutationOptions } from "@codexly/frontend-core/project-git-push";
 import type {
   CommitProjectChangesResponse,
+  PushProjectCommitsResponse,
   ProjectGitHistoryPage,
   ProjectGitStatus,
 } from "@codexly/protocol";
@@ -72,6 +74,11 @@ export function CommitChangesController({
     ...projectCommitChangesMutationOptions(projectId, rootPath, client),
     meta: { actionNotification: { successMessage: false } },
   });
+  const pushMutation = useMutation(projectPushMutationOptions(projectId, rootPath, client));
+  const [pushState, setPushState] = useState<{
+    result: PushProjectCommitsResponse;
+    snapshot: string;
+  }>();
   const [resultState, setResultState] = useState<{
     result: CommitProjectChangesResponse;
     snapshot: string;
@@ -83,9 +90,38 @@ export function CommitChangesController({
     <CommitChangesPanel
       error={detailsError}
       gitStatus={activeGitStatus}
+      pushResult={pushState?.snapshot === activeGitStatus.snapshot ? pushState.result : null}
+      isPushing={pushMutation.isPending}
+      onPush={async () => {
+        const snapshot = activeGitStatus.snapshot;
+        let response: PushProjectCommitsResponse;
+        try {
+          response = await pushMutation.mutateAsync({ expectedSnapshot: snapshot });
+        } catch (error) {
+          // 请求失败也保留重试入口；异常继续交给全局通知反馈具体原因。
+          setPushState({
+            result: { branch: activeGitStatus.branch, pushStatus: "failed", pushError: null },
+            snapshot,
+          });
+          throw error;
+        }
+        setPushState({ result: response, snapshot });
+        if (response.pushStatus === "pushed") {
+          notifyActionSuccess(t("commit.pushSucceeded"));
+        } else {
+          notifyActionError(
+            new Error(
+              response.pushStatus === "not_configured"
+                ? t("commit.pushUpstreamMissing")
+                : (response.pushError ?? t("commit.pushFailed")),
+            ),
+          );
+        }
+      }}
       isCommitting={commitMutation.isPending}
       isGenerating={messageMutation.isPending}
       onCommit={async (request) => {
+        setPushState(undefined);
         const response = await commitMutation.mutateAsync(request);
         // 返回的状态已包含提交后的快照，结果应随新快照保留，直到下一次工作区变化。
         setResultState({ result: response, snapshot: response.status.snapshot });

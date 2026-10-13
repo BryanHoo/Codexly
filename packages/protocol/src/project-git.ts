@@ -288,6 +288,27 @@ export type CommitProjectChangesRequest = Readonly<
   Static<typeof CommitProjectChangesRequestSchema>
 >;
 
+// 独立推送只需要当前仓库快照，不要求选择文件或填写提交信息。
+export const PushProjectCommitsRequestSchema = Type.Object(
+  { expectedSnapshot: GitSnapshotSchema, repository: Type.Optional(GitChildRepositorySchema) },
+  { additionalProperties: false },
+);
+export type PushProjectCommitsRequest = Readonly<Static<typeof PushProjectCommitsRequestSchema>>;
+
+export const PushProjectCommitsResponseSchema = Type.Object(
+  {
+    branch: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+    pushError: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+    pushStatus: Type.Union([
+      Type.Literal("pushed"),
+      Type.Literal("failed"),
+      Type.Literal("not_configured"),
+    ]),
+  },
+  { additionalProperties: false },
+);
+export type PushProjectCommitsResponse = Readonly<Static<typeof PushProjectCommitsResponseSchema>>;
+
 export const CommitProjectChangesResponseSchema = Type.Object(
   {
     branch: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),

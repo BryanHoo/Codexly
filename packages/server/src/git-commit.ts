@@ -6,6 +6,8 @@ import { join } from "node:path";
 import type {
   AgentMutationError,
   CommitProjectChangesRequest,
+  PushProjectCommitsRequest,
+  PushProjectCommitsResponse,
   CommitProjectChangesResponse,
 } from "@codexly/protocol";
 
@@ -236,28 +238,10 @@ export async function commitSelectedProjectChanges(
   }
 
   const commitSha = (await executeGit(repositoryRoot, ["rev-parse", "HEAD"])).stdout.trim();
-  let pushStatus: CommitProjectChangesResponse["pushStatus"] = "not_requested";
-  let pushError: string | null = null;
-  if (request.action === "commit_and_push") {
-    try {
-      await executeGit(repositoryRoot, [
-        "rev-parse",
-        "--abbrev-ref",
-        "--symbolic-full-name",
-        "@{upstream}",
-      ]);
-      try {
-        await executeGit(repositoryRoot, ["push"]);
-        pushStatus = "pushed";
-      } catch (error) {
-        pushStatus = "failed";
-        pushError = originalErrorMessage(error, "Git push failed");
-      }
-    } catch (error) {
-      pushStatus = "not_configured";
-      pushError = originalErrorMessage(error, "Git upstream is not configured");
-    }
-  }
+  const { pushStatus, pushError } =
+    request.action === "commit_and_push"
+      ? await pushConfiguredBranch(repositoryRoot)
+      : { pushStatus: "not_requested" as const, pushError: null };
 
   return {
     branch: status.branch,
@@ -266,4 +250,56 @@ export async function commitSelectedProjectChanges(
     pushError,
     pushStatus,
   };
+}
+
+/** 复用提交并推送的执行路径，失败结果保留为可重试状态。 */
+async function pushConfiguredBranch(
+  repositoryRoot: string,
+): Promise<Pick<PushProjectCommitsResponse, "pushStatus" | "pushError">> {
+  try {
+    await executeGit(repositoryRoot, [
+      "rev-parse",
+      "--abbrev-ref",
+      "--symbolic-full-name",
+      "@{upstream}",
+    ]);
+  } catch (error) {
+    return {
+      pushStatus: "not_configured",
+      pushError: originalErrorMessage(error, "Git upstream is not configured"),
+    };
+  }
+  try {
+    await executeGit(repositoryRoot, ["push"]);
+    return { pushStatus: "pushed", pushError: null };
+  } catch (error) {
+    return { pushStatus: "failed", pushError: originalErrorMessage(error, "Git push failed") };
+  }
+}
+
+export async function pushProjectCommits(
+  projectRoot: string,
+  request: PushProjectCommitsRequest,
+): Promise<PushProjectCommitsResponse> {
+  const repositoryRoot = await resolveProjectGitRepositoryRoot(
+    projectRoot,
+    request.repository,
+  ).catch((error: unknown) => {
+    throw new GitCommitError(
+      "GIT_REPOSITORY_UNAVAILABLE",
+      originalErrorMessage(error, "Git repository is unavailable"),
+    );
+  });
+  const status = await readGitWorkingTreeStatus(repositoryRoot);
+  if (status.repositoryMode !== "root") {
+    throw new GitCommitError(
+      "GIT_REPOSITORY_UNAVAILABLE",
+      "Git pushes require a selected repository",
+    );
+  }
+  // 快照包含 HEAD 与分支；拒绝在界面预览过期时推送另一个分支或新的提交。
+  if (status.snapshot !== request.expectedSnapshot) {
+    throw new GitCommitError("GIT_STATUS_CHANGED", "Git status changed before the push");
+  }
+  return { branch: status.branch, ...(await pushConfiguredBranch(repositoryRoot)) };
 }

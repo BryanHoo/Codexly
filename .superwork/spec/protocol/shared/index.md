@@ -20,3 +20,5 @@
 - 消息阶段共用 `AgentMessagePhaseSchema`，支持 `commentary`、`partial_answer`、`final_answer`；桌面直接引用公共定义。`partial_answer` 保留历史与实时正文，不能触发回合完成，也不能按过程旁白折叠；终态以 `turn/completed` 为准。升级时验证两端消息映射与时间线投影。
 
 - `AgentModel.inputModalities` 是可选目录元数据，API 发现与缓存保留输入能力；旧模型和旧快照没有该字段时保持兼容。回归验证 `provider-connection.test.ts` 的持久化目录 Schema。
+
+- 独立 Git 推送请求仅包含 `expectedSnapshot` 和可选仓库身份；返回 `branch`、`pushStatus`（`pushed` / `failed` / `not_configured`）及 `pushError`，不创建 commit。桌面直接复用共享推送协议，原生差异留在原有提交协议中。
