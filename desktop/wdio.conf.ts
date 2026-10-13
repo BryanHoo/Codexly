@@ -7,7 +7,9 @@ const executable = process.platform === "win32" ? "codexly.exe" : "codexly";
 const targetPath =
   process.platform === "darwin" ? ["target", "aarch64-apple-darwin"] : ["target"];
 const buildProfile = process.env.CODEAGENT_WEBVIEW_RELEASE === "1" ? "release" : "debug";
-const appBinaryPath = resolve("src-tauri", ...targetPath, buildProfile, executable);
+const appBinaryPath = process.env.CODEAGENT_WEBVIEW_APP_BINARY
+  ? resolve(process.env.CODEAGENT_WEBVIEW_APP_BINARY)
+  : resolve("src-tauri", ...targetPath, buildProfile, executable);
 const realRuntimeEnabled = process.env.CODEAGENT_REAL_RUNTIME_TEST === "1";
 const performanceEnabled = process.env.CODEAGENT_WEBVIEW_PERFORMANCE_TEST === "1";
 

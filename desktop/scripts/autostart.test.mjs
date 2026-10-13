@@ -14,6 +14,7 @@ void test("登录启动插件已注册，但不在启动时擅自启用", () => 
 void test("仅主窗口获准读取和修改登录启动项", () => {
   const main = JSON.parse(read("src-tauri/capabilities/default.json"));
   assert.deepEqual(main.windows, ["main"]);
+  assert.match(read("src-tauri/permissions/window-command-sets.toml"), /"allow-enable-autostart"/u);
   for (const command of ["enable", "disable", "is-enabled"]) {
     assert.ok(main.permissions.includes(`autostart:allow-${command}`));
   }

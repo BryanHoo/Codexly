@@ -11,6 +11,11 @@ import { createFallbackSettings } from "./global-settings-model.js";
 import { getNotificationPreference } from "../notification-preference.js";
 import "../../../shared/styles/globals.css";
 
+vi.mock("@/platform/tauri/autostart-client.js", () => ({
+  getAutostartEnabled: vi.fn(async () => false),
+  setAutostartEnabled: vi.fn(async (enabled: boolean) => enabled),
+}));
+
 const models = [{
   id: "gpt-5.4", displayName: "GPT-5.4", description: "", isDefault: true,
   inputModalities: ["text" as const], defaultReasoningEffort: "medium",
@@ -64,6 +69,7 @@ describe("GlobalSettingsPage", () => {
   });
   it("frames settings groups and keeps labels smaller than section headings", async () => {
     const { screen } = await renderSettings();
+    await expect.element(screen.getByRole("switch", { name: "开机启动", exact: true })).toBeEnabled();
     const heading = screen.getByRole("heading", { name: "通用", exact: true }).element();
     const group = heading.nextElementSibling as HTMLElement;
     const row = group.firstElementChild as HTMLElement;

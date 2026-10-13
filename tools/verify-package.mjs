@@ -169,7 +169,10 @@ try {
         lanPassword: testPassword,
         port: 3210,
         codexHome: stateRoot,
-        codexBin: join(stateRoot, "missing-codex"),
+        codexBin: join(
+          stateRoot,
+          process.platform === "win32" ? "missing-codex.exe" : "missing-codex",
+        ),
       },
     }),
     { mode: 0o600 },
@@ -191,7 +194,9 @@ try {
     !failedState.error ||
     !failedLog.includes("missing-codex")
   ) {
-    throw new Error(`Built autostart failure recovery failed: ${failedService.stderr}`);
+    throw new Error(
+      `Built autostart failure recovery failed: status=${String(failedService.status)}, phase=${failedState.phase}, error=${failedState.error ?? failedService.stderr}`,
+    );
   }
   if (
     [failedService.stdout, failedService.stderr, JSON.stringify(failedState), failedLog].some(

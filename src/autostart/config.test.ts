@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createConfig, readConfig, writePrivateJson, getAutostartPaths } from "./config.js";
 
@@ -30,8 +30,8 @@ describe("autostart configuration", () => {
       lan: true,
       noOpen: true,
       port: 4567,
-      codexHome: "/custom",
-      workspaceRoots: ["/work/项目"],
+      codexHome: resolve("/custom"),
+      workspaceRoots: [resolve("/work", "项目")],
     });
     expect(config.start.lanPassword).toMatch(/^[A-Za-z0-9_-]{20,}/);
     expect(config.environment).toEqual({ PATH: "/bin" });
@@ -63,10 +63,10 @@ describe("autostart configuration", () => {
   });
   it("keeps platform paths independent of CODEX_HOME", () => {
     expect(getAutostartPaths("linux", "/home/u", { XDG_CONFIG_HOME: "/settings" }).root).toBe(
-      "/settings/codexly/autostart",
+      join("/settings", "codexly", "autostart"),
     );
     expect(getAutostartPaths("darwin", "/Users/u", {}).root).toContain(
-      "Library/Application Support/Codexly/autostart",
+      join("Library", "Application Support", "Codexly", "autostart"),
     );
     expect(() => getAutostartPaths("freebsd", "/home/u", {})).toThrow(/不支持/);
   });

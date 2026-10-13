@@ -36,6 +36,29 @@ async function fixture(platform: "darwin" | "linux") {
   };
 }
 describe("native registration files", () => {
+  it("writes Windows task XML in BOM-prefixed UTF-16 for Task Scheduler", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codexly-windows-task-"));
+    roots.push(root);
+    const paths = getAutostartPaths("win32", root, { LOCALAPPDATA: root });
+    const config = createConfig(
+      {},
+      {
+        node: process.execPath,
+        cli: join(root, "中文 folder", "dist", "cli.js"),
+        home: root,
+        cwd: root,
+        environment: {},
+      },
+    );
+    const execute = vi.fn(() => Promise.resolve({ code: 0, stdout: "S-1-5-21-123", stderr: "" }));
+    await createPlatformAdapter("win32", paths, { execute }).install(config);
+    const bytes = await readFile(paths.registration);
+    expect([...bytes.subarray(0, 2)]).toEqual([0xff, 0xfe]);
+    const xml = bytes.subarray(2).toString("utf16le");
+    expect(xml).toContain('encoding="UTF-16"');
+    expect(xml).toContain("中文 folder");
+    expect(execute.mock.calls).toHaveLength(2);
+  });
   it("registers and unregisters Linux login startup without starting it", async () => {
     const f = await fixture("linux");
     await f.adapter.install(await f.adapter.prepare(f.config));

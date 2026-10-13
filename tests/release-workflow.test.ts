@@ -1,5 +1,6 @@
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("release verification", () => {
@@ -19,10 +20,19 @@ describe("release verification", () => {
       "APPLE_TEAM_ID",
     ];
     const credentials = Object.fromEntries(names.map((name) => [name, `test-secret-${name}`]));
+    // Windows' bash alias may launch WSL, which does not inherit these test variables.
+    const bash =
+      process.platform === "win32"
+        ? resolve(
+            execFileSync("git", ["--exec-path"], { encoding: "utf8" }).trim(),
+            "../../../bin/bash.exe",
+          )
+        : "bash";
 
     // 执行实际发布门禁，逐项缺失都必须失败，且诊断不能泄露任何凭据值。
     for (const missing of names) {
-      const result = spawnSync("bash", ["-eu", "-c", script], {
+      const result = spawnSync(bash, ["-eu"], {
+        input: script,
         env: { ...process.env, ...credentials, [missing]: "" },
         encoding: "utf8",
       });
@@ -30,7 +40,8 @@ describe("release verification", () => {
       expect(result.stderr).toContain(`${missing} is required`);
       expect(result.stdout + result.stderr).not.toContain("test-secret-");
     }
-    const result = spawnSync("bash", ["-eu", "-c", script], {
+    const result = spawnSync(bash, ["-eu"], {
+      input: script,
       env: { ...process.env, ...credentials },
       encoding: "utf8",
     });

@@ -107,7 +107,7 @@ function windowsQuote(text: string): string {
 }
 export function renderWindowsTask(config: AutostartConfig, path: string, sid: string): string {
   const argv = args(config, path);
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  return `<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
 <RegistrationInfo><Description>Codexly Web — current user login</Description></RegistrationInfo>
 <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>${xml(sid)}</UserId></LogonTrigger></Triggers>
@@ -260,7 +260,11 @@ export function createPlatformAdapter(
       } else {
         await writePrivateFile(
           paths.registration,
-          renderWindowsTask(config, paths.config, await userSid()),
+          // schtasks reads task files as UTF-16; the BOM also preserves non-ASCII paths.
+          Buffer.from(
+            `\uFEFF${renderWindowsTask(config, paths.config, await userSid())}`,
+            "utf16le",
+          ),
         );
         await checked("schtasks.exe", [
           "/Create",

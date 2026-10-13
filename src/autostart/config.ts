@@ -112,7 +112,7 @@ export async function ensurePrivateDirectory(path: string): Promise<void> {
   if (process.platform !== "win32") await chmod(path, 0o700);
 }
 
-export async function writePrivateFile(path: string, text: string): Promise<void> {
+export async function writePrivateFile(path: string, text: string | Uint8Array): Promise<void> {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   const temporary = `${path}.${randomBytes(8).toString("hex")}.tmp`;
   try {

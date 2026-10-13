@@ -7,6 +7,8 @@ use crate::infrastructure::{
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("failed to enable login startup")]
+    AutostartFailed,
     #[error("No Agent models are available")]
     ModelCatalogUnavailable,
     #[error("pending request is unavailable or its identity has changed")]

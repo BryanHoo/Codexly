@@ -18,6 +18,7 @@ use application::{
     attachment_commands::{
         cache_project_image, import_host_attachment, list_host_files, upload_attachment,
     },
+    autostart_commands::enable_autostart,
     background_commands::{
         download_workbench_background, get_workbench_background, list_workbench_backgrounds,
     },
@@ -162,6 +163,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            enable_autostart,
             open_task_window,
             connect_task_window,
             acknowledge_task_window,

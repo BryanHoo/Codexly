@@ -6,7 +6,7 @@ export function getAutostartEnabled(): Promise<boolean> {
 }
 
 export async function setAutostartEnabled(enabled: boolean): Promise<boolean> {
-  await invoke<void>(`plugin:autostart|${enabled ? "enable" : "disable"}`);
+  await invoke<void>(enabled ? "enable_autostart" : "plugin:autostart|disable");
   // 系统写入后再次确认；失败必须传回界面，不能仅凭用户点击显示已开启。
   const actual = await getAutostartEnabled();
   if (actual !== enabled) throw new Error("AUTOSTART_STATE_MISMATCH");

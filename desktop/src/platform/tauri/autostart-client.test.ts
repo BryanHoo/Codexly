@@ -16,7 +16,7 @@ test.each([true, false])("切换为 %s 后以系统回读结果为准", async (e
   nativeInvoke.mockResolvedValueOnce(undefined).mockResolvedValueOnce(enabled);
   await expect(setAutostartEnabled(enabled)).resolves.toBe(enabled);
   expect(nativeInvoke.mock.calls).toEqual([
-    [`plugin:autostart|${enabled ? "enable" : "disable"}`],
+    [enabled ? "enable_autostart" : "plugin:autostart|disable"],
     ["plugin:autostart|is_enabled"],
   ]);
 });
