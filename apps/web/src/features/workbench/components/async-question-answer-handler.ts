@@ -14,7 +14,7 @@ export function createAsyncQuestionAnswerHandler({
 }: Readonly<{
   controller: Pick<
     ReturnType<typeof useWorkbenchComposerController>,
-    "isCurrentScope" | "setSubmittedTurnState"
+    "isCurrentScope" | "setIsSubmitting" | "setSubmittedTurnState"
   >;
   requestScope: string;
   store: TaskStore | undefined;
@@ -45,6 +45,9 @@ export function createAsyncQuestionAnswerHandler({
           userMessageIds: previousIds.get(result.turnId) ?? [],
         });
       }
+      // 回答回执已完成提交；先让真实回合接管起点，再释放本地计时。
+      // 此路径不经过 submitPrompt 的 finally，否则终态清空 activeTurnId 后会重建尾部运行占位。
+      controller.setIsSubmitting(false);
     };
   };
 }
