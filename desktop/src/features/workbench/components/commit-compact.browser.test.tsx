@@ -38,8 +38,13 @@ it("软键盘压缩视口后，提交区域仍位于面板内且可滚动到主�
       </TooltipProvider>
     </div>,
   );
-  const footer = document.querySelector<HTMLElement>('[data-slot="git-commit-footer"]');
-  const panel = document.querySelector<HTMLElement>('[data-slot="commit-changes-panel"]');
+  // CI 默认使用英语；切换中文时初始英语资源仍可能在加载，React 会暂缓挂载。
+  // 等待实际节点出现后再测量，避免把 render 返回误当作异步初始化已经完成。
+  await expect
+    .poll(() => screen.container.querySelector('[data-slot="git-commit-footer"]'))
+    .not.toBeNull();
+  const footer = screen.container.querySelector<HTMLElement>('[data-slot="git-commit-footer"]');
+  const panel = screen.container.querySelector<HTMLElement>('[data-slot="commit-changes-panel"]');
   expect(footer).not.toBeNull();
   expect(panel).not.toBeNull();
   if (!footer || !panel) throw new Error("Git workspace did not mount");
