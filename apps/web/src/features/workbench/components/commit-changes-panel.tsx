@@ -1,3 +1,4 @@
+import type { GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import type { PushProjectCommitsRequest } from "@codexly/protocol";
 import { useMemo } from "react";
 import { GitCommitWorkspace } from "@codexly/ui/core/git-commit-workspace";
@@ -24,13 +25,16 @@ type CommitChangesPanelProps = Readonly<{
   isGenerating?: boolean;
   activeRemoteAction?: PushProjectCommitsRequest["action"] | null | undefined;
   onPush: () => Promise<void>;
-  onRemoteAction?: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => Promise<void>;
+  onRemoteAction?: (
+    request: Omit<PushProjectCommitsRequest, "expectedSnapshot">,
+    failureKind?: GitFailureKind,
+  ) => Promise<void>;
   remoteResult?: PushProjectCommitsResponse | undefined;
   isInspectingRemote?: boolean;
   onCommit: (request: CommitProjectChangesRequest) => Promise<void>;
   onGenerateMessage: (request: GenerateCommitMessageRequest) => Promise<string>;
   onOpenFileDiff: (change: AgentFileChange) => void;
-  onOpenProjectFile?: ((path: string) => void) | undefined;
+  onOpenHistory?: (() => void) | undefined;
   result?: CommitProjectChangesResponse | null;
   pushResult?: PushProjectCommitsResponse | null;
 }>;
@@ -52,7 +56,6 @@ export function CommitChangesPanel(props: CommitChangesPanelProps) {
       key={scope}
       {...props}
       draftScope={scope}
-      onOpenConflict={props.onOpenProjectFile}
       t={(key, values) => t(key, values ?? {})}
       viewMode={fileViewMode}
       onViewModeChange={setFileViewMode}

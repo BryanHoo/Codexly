@@ -362,7 +362,7 @@ export function WorkbenchInspector({
                   gitStatus={gitStatus}
                   gitStatusError={gitStatusError}
                   onOpenFileDiff={onOpenFileDiff}
-                  onOpenProjectFile={onOpenProjectFile}
+                  onOpenHistory={() => { onTabChange("history"); }}
                   projectId={projectId}
                   rootPath={projectPath}
                 />

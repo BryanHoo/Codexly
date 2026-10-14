@@ -157,6 +157,7 @@ export const conversation = {
     title: "运行环境",
   },
   gitHistory: {
+    unpushed: "未推送",
     branch: "当前分支：{{branch}}",
     branchLoading: "当前分支：读取中...",
     commits: "提交记录",

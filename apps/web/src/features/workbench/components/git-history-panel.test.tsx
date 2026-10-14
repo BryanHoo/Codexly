@@ -4,8 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ContextMenu } from "../../../shared/components/core/context-menu.js";
 import { GitHistoryPanel } from "./git-history-panel.js";
+import { i18n } from "../../../i18n/i18n.js";
 import {
   copyGitCommitText,
+  GitHistoryContent,
   getGitCommitCopyText,
   GitCommitContextMenuItems,
 } from "./git-history-list.js";
@@ -53,6 +55,50 @@ describe("GitCommitContextMenuItems", () => {
 });
 
 describe("GitHistoryPanel", () => {
+  it.each([
+    ["zh-CN", "未推送"],
+    ["en", "Unpushed"],
+  ])("marks only confirmed unpushed commits in %s", async (language, label) => {
+    await i18n.changeLanguage(language);
+    try {
+      const markup = renderToStaticMarkup(
+        <GitHistoryContent
+          active
+          compact
+          dateFormatter={new Intl.DateTimeFormat("en")}
+          panelId="test-history"
+          query={{
+            data: {
+              pages: [
+                {
+                  branch: "main",
+                  commits: [
+                    { ...commit, unpushed: true },
+                    { ...commit, sha: "b".repeat(40), unpushed: false },
+                    { ...commit, sha: "c".repeat(40) },
+                  ],
+                  nextCursor: null,
+                  repositories: [],
+                  repository: null,
+                  repositoryMode: "root",
+                },
+              ],
+            },
+            error: null,
+            fetchNextPage: () => undefined,
+            hasNextPage: false,
+            isFetchingNextPage: false,
+            isPending: false,
+            refetch: () => undefined,
+          }}
+        />,
+      );
+      expect(markup.match(/data-slot="git-unpushed-badge"/gu)).toHaveLength(1);
+      expect(markup).toContain(label);
+    } finally {
+      await i18n.changeLanguage("zh-CN");
+    }
+  });
   it("在右栏内容区展示仓库历史且不渲染 Sheet 外壳", () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     queryClient.setQueryData(["projects", "codexly", "/workspace/Codexly", "git-history", null], {

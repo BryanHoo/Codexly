@@ -61,7 +61,54 @@ pub async fn get_git_history(
     result.commits = parse_history(&output)?;
     result.next_cursor = (result.commits.len() > 20).then(|| offset.saturating_add(20).to_string());
     result.commits.truncate(20);
+    mark_unpushed(
+        &repo,
+        result.branch.as_deref(),
+        &head,
+        offset,
+        &mut result.commits,
+    )
+    .await;
     Ok(result)
+}
+
+async fn mark_unpushed(
+    repo: &Path,
+    branch: Option<&str>,
+    head: &str,
+    offset: usize,
+    commits: &mut [GitCommit],
+) {
+    if branch.is_none() || commits.is_empty() {
+        return;
+    }
+    let Ok(names) = git_lines(repo, &["remote"]).await else {
+        return;
+    };
+    let names = names.iter().map(String::as_str).collect::<Vec<_>>();
+    let (remote, target) = super::git_remote::push_target(repo, branch, &names).await;
+    let (Some(remote), Some(target)) = (remote, target) else {
+        return;
+    };
+    // 批量计算当前推送目标之外的提交；覆盖当前页以前的条目，分页与合并历史均按 SHA 判定。
+    // 日志与比较固定到同一 HEAD；本地引用不存在时保留未知，不隐式联网。
+    let maximum = format!("--max-count={}", offset.saturating_add(20));
+    let tracking = format!("refs/remotes/{remote}/{target}");
+    let Ok(output) = git_lines(
+        repo,
+        &["rev-list", &maximum, head, "--not", &tracking, "--"],
+    )
+    .await
+    else {
+        return;
+    };
+    let unpushed = output
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::HashSet<_>>();
+    for commit in commits {
+        commit.unpushed = Some(unpushed.contains(commit.sha.as_str()));
+    }
 }
 
 pub async fn get_commit_files(
@@ -165,6 +212,7 @@ fn parse_history(output: &[u8]) -> Result<Vec<GitCommit>, WorkspaceError> {
             author_email: field()?,
             authored_at: field()?,
             title: field()?,
+            unpushed: None,
         });
     }
     Ok(commits)

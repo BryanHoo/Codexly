@@ -1,6 +1,9 @@
 import { expect, it, vi } from "vitest";
 import type { PushProjectCommitsRequest, PushProjectCommitsResponse } from "@codexly/protocol";
-import { projectPushMutationOptions } from "./project-git-push.js";
+import {
+  projectPushMutationOptions,
+  shouldClearGitFailureAfterInspect,
+} from "./project-git-push.js";
 
 const checked: PushProjectCommitsResponse = {
   branch: "main",
@@ -19,6 +22,22 @@ const checked: PushProjectCommitsResponse = {
     conflicts: [],
   },
 };
+
+it("clears an explicitly refreshed state change without erasing an unverified connection failure", () => {
+  const remoteState = checked.remoteState;
+  if (!remoteState) throw new Error("Missing checked remote state fixture");
+  expect(shouldClearGitFailureAfterInspect("state_changed", checked)).toBe(true);
+  expect(shouldClearGitFailureAfterInspect("network", checked)).toBe(false);
+  expect(
+    shouldClearGitFailureAfterInspect("state_changed", { ...checked, pushStatus: "failed" }),
+  ).toBe(false);
+  expect(
+    shouldClearGitFailureAfterInspect("network", {
+      ...checked,
+      remoteState: { ...remoteState, ahead: 0, behind: 0 },
+    }),
+  ).toBe(true);
+});
 
 it.each(["push", "publish", "fetch"] as const)(
   "binds %s to freshly inspected HEAD instead of cached metadata",

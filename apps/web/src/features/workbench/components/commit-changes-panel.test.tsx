@@ -54,6 +54,32 @@ function renderPanel(overrides: Partial<ComponentProps<typeof CommitChangesPanel
 }
 
 describe("CommitChangesPanel", () => {
+  it.each([0, 2])("links a positive ahead count to history (ahead=%i)", (ahead) => {
+    const markup = renderPanel({
+      onOpenHistory: () => undefined,
+      remoteResult: {
+        branch: "feat/commit",
+        pushStatus: "checked",
+        pushError: null,
+        remoteState: {
+          head: "a".repeat(40),
+          upstream: "origin/feat/commit",
+          remote: "origin",
+          targetBranch: "feat/commit",
+          remotes: [{ name: "origin", url: "https://example.com/repo.git" }],
+          ahead,
+          behind: 0,
+          checkedAt: "2026-10-14T00:00:00Z",
+          operation: "none",
+          conflicts: [],
+        },
+      },
+    });
+    if (ahead > 0) {
+      expect(markup).toContain('data-slot="git-open-unpushed-history"');
+      expect(markup).toContain("待推送 2 个提交");
+    } else expect(markup).not.toContain('data-slot="git-open-unpushed-history"');
+  });
   it("shows branch context and a persistent push action even with pending changes", () => {
     const markup = renderPanel();
     expect(markup).toContain("feat/commit");
@@ -88,7 +114,34 @@ describe("CommitChangesPanel", () => {
     ["integrate", "整合更新中…"],
     ["publish", "发布分支中…"],
   ] as const)("labels pending %s by the actual operation", (activeRemoteAction, label) => {
-    const markup = renderPanel({ isPushing: true, activeRemoteAction });
+    const baseRemote = {
+      head: "a".repeat(40),
+      upstream: "origin/feat/commit",
+      remote: "origin",
+      targetBranch: "feat/commit",
+      remotes: [{ name: "origin", url: "https://example.com/repo.git" }],
+      ahead: ["fetch", "integrate"].includes(activeRemoteAction) ? 0 : 1,
+      behind: activeRemoteAction === "integrate" ? 1 : 0,
+      checkedAt: "2026-10-14T00:00:00Z",
+      operation: "none" as const,
+      conflicts: [],
+    };
+    const markup = renderPanel({
+      gitStatus: cleanGitStatus,
+      isPushing: true,
+      activeRemoteAction,
+      onRemoteAction: () => Promise.resolve(),
+      remoteResult: {
+        branch: "feat/commit",
+        pushStatus: "checked",
+        pushError: null,
+        remoteState: {
+          ...baseRemote,
+          ...(activeRemoteAction === "configure" ? { remotes: [] } : {}),
+          ...(activeRemoteAction === "publish" ? { upstream: null } : {}),
+        },
+      },
+    });
     expect(markup).toContain(`aria-label="${label}"`);
     expect(markup).not.toContain("推送中…");
     expect(markup).not.toContain("生成中…");
@@ -117,7 +170,7 @@ describe("CommitChangesPanel", () => {
   it("shows a local commit confirmation and makes push the next primary action", () => {
     const markup = renderPanel({ gitStatus: cleanGitStatus, result: commitResult });
     expect(markup).toContain("已保存到本地");
-    expect(markup).toContain("0123456");
+    expect(markup).not.toContain("0123456");
     expect(markup).toContain('aria-label="推送"');
     expect(markup).not.toContain('id="commit-message"');
   });
@@ -127,12 +180,13 @@ describe("CommitChangesPanel", () => {
       gitStatus: cleanGitStatus,
       result: { ...commitResult, pushStatus: "failed", pushError: "remote rejected" },
     });
-    expect(markup).toContain("提交已保存，推送未完成");
+    expect(markup).not.toContain("提交已保存到本地。");
+    expect(markup).toContain("查看详情");
     expect(markup).toContain('aria-label="重试推送"');
     expect(markup).not.toContain('id="commit-message"');
   });
 
-  it("shows one localized recovery notice with technical details for a stale push", () => {
+  it("shows one localized recovery notice and keeps technical details out of the toolbar", () => {
     const markup = renderPanel({
       gitStatus: cleanGitStatus,
       pushResult: {
@@ -144,9 +198,10 @@ describe("CommitChangesPanel", () => {
     });
     expect(markup.match(/role="alert"/gu)).toHaveLength(1);
     expect(markup).toContain("本地提交或分支已更新");
-    expect(markup).toContain("刷新状态并确认当前分支后重试");
+    expect(markup).not.toContain("刷新状态并确认当前分支后重试");
+    expect(markup).toContain("查看详情");
     expect(markup).not.toContain("text-danger");
-    expect(markup).toContain("Git status changed before the push");
+    expect(markup).not.toContain("Git status changed before the push");
   });
 
   it("uses English recovery guidance when the app language is English", async () => {
@@ -161,7 +216,8 @@ describe("CommitChangesPanel", () => {
         },
       });
       expect(markup).toContain("Local commits or branch have changed");
-      expect(markup).toContain("Refresh the status, confirm the current branch, and retry.");
+      expect(markup).not.toContain("Refresh the status, confirm the current branch, and retry.");
+      expect(markup).toContain("View details");
       expect(markup).not.toContain("本地提交或分支已更新");
       expect(markup.match(/role="alert"/gu)).toHaveLength(1);
     } finally {
@@ -176,9 +232,7 @@ describe("CommitChangesPanel", () => {
       pushResult: { branch: "feat/commit", pushStatus: "pushed", pushError: null },
     });
     expect(markup).toContain("已推送到远端");
-    expect(/<button[^>]*aria-label="已推送"[^>]*>/u.exec(markup)?.[0]).toMatch(
-      / disabled(?:=|\s|>)/u,
-    );
+    expect(markup).not.toContain('data-slot="git-remote-primary"');
     expect(markup).not.toContain("已保存到本地，尚未推送");
   });
 
@@ -263,10 +317,10 @@ describe("CommitChangesPanel", () => {
       },
     });
 
-    expect(markup).toContain("0123456");
+    expect(markup).not.toContain("0123456");
     expect(markup).toContain('aria-label="重试推送"');
     expect(markup).toContain("暂时无法连接远端");
     expect(markup).toContain("查看详情");
-    expect(markup).toContain("fatal: unable to access remote repository");
+    expect(markup).not.toContain("fatal: unable to access remote repository");
   });
 });

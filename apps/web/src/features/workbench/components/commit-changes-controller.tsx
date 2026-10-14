@@ -1,6 +1,8 @@
+import { classifyGitFailure, type GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import type { PushProjectCommitsRequest } from "@codexly/protocol";
 import {
   projectPushMutationOptions,
+  shouldClearGitFailureAfterInspect,
   projectGitRemoteQueryOptions,
 } from "@codexly/frontend-core/project-git-push";
 import type {
@@ -28,7 +30,7 @@ type CommitChangesControllerProps = Readonly<{
   detailsPending?: boolean;
   gitStatus: ProjectGitStatus;
   onOpenFileDiff: (change: AgentFileChange) => void;
-  onOpenProjectFile?: ((path: string) => void) | undefined;
+  onOpenHistory?: (() => void) | undefined;
   projectId: string;
   rootPath: string;
 }>;
@@ -64,7 +66,7 @@ export function CommitChangesController({
   detailsError = null,
   gitStatus,
   onOpenFileDiff,
-  onOpenProjectFile,
+  onOpenHistory,
   projectId,
   rootPath,
 }: CommitChangesControllerProps) {
@@ -103,7 +105,10 @@ export function CommitChangesController({
     ...remoteOptions,
     enabled: activeGitStatus.repositoryMode === "root",
   });
-  const operateRemote = async (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => {
+  const operateRemote = async (
+    request: Omit<PushProjectCommitsRequest, "expectedSnapshot">,
+    failureKind?: GitFailureKind,
+  ) => {
     const snapshot = activeGitStatus.snapshot;
     let response: PushProjectCommitsResponse;
     try {
@@ -128,35 +133,36 @@ export function CommitChangesController({
       throw error;
     }
     if (response.remoteState) queryClient.setQueryData(remoteOptions.queryKey, response);
-    // 检查未完成的推送不能抹去失败回执；远端已包含提交时才解除。
+    // 刷新已核对的状态变化后恢复正常操作；本地检查不能抹去仍未验证的连接失败。
     if (
       request.action !== "inspect" ||
-      (response.remoteState?.ahead === 0 && response.remoteState.behind === 0)
+      shouldClearGitFailureAfterInspect(
+        failureKind ??
+          classifyGitFailure(pushState?.scope === scope ? pushState.result.pushError : null),
+        response,
+      )
     ) {
       setPushState({ result: response, snapshot, scope });
     }
     if (response.pushStatus === "pushed") notifyActionSuccess(t("commit.pushSucceeded"));
-    if (
-      ["inspect", "integrate", "continue", "abort", "resolve", "branch"].includes(
-        request.action ?? "",
-      )
-    ) {
+    if (["inspect", "integrate", "branch"].includes(request.action ?? "")) {
       await queryClient.invalidateQueries({
         queryKey: ["projects", projectId, rootPath, "git-status"],
       });
-      void queryClient.invalidateQueries({
-        queryKey: ["projects", projectId, rootPath, "git-history"],
-      });
     }
+    // 推送、获取或配置都会改变比较目标；重新检查同样应刷新历史，及时移除旧标记。
+    void queryClient.invalidateQueries({
+      queryKey: ["projects", projectId, rootPath, "git-history"],
+    });
     if (response.pushStatus === "failed" || response.pushStatus === "not_configured")
       throw new Error(response.pushError ?? t("commit.pushFailed"));
   };
 
   return (
     <CommitChangesPanel
-      onOpenProjectFile={onOpenProjectFile}
+      onOpenHistory={onOpenHistory}
       draftScope={JSON.stringify([projectId, rootPath])}
-      error={detailsError}
+      error={detailsError ?? remoteQuery.error}
       gitStatus={activeGitStatus}
       pushResult={pushState?.scope === scope ? pushState.result : null}
       isPushing={pushMutation.isPending}

@@ -1,4 +1,18 @@
 import type { PushProjectCommitsRequest, PushProjectCommitsResponse } from "@codexly/protocol";
+import type { GitFailureKind } from "./git-recovery.js";
+
+/** 显式刷新可解除已重新核对的状态变化；本地检查不代表已修复网络或认证失败。 */
+export function shouldClearGitFailureAfterInspect(
+  previousKind: GitFailureKind,
+  response: PushProjectCommitsResponse,
+): boolean {
+  return (
+    response.pushStatus === "checked" &&
+    response.remoteState !== undefined &&
+    (previousKind === "state_changed" ||
+      (response.remoteState.ahead === 0 && response.remoteState.behind === 0))
+  );
+}
 
 export const gitPushChinese = {
   push: "推送",

@@ -30,4 +30,6 @@
 
 - `POST /v1/projects/:projectId/git/push?rootPath=…` 推送已有提交，执行前校验根目录归属与仓库快照，并与其他 Git 写操作共用项目/工作树作用域锁和幂等缓存；不执行 add、commit 或 reset。网络失败返回可重试的推送结果；工作区写操作及旧推送入口的过期快照返回冲突。inspect 不校验旧快照，但继续验证当前项目根仓库归属；使提交后的状态可读取，避免旧状态阻断后续推送。回归使用临时 bare 远端验证 HEAD 不变、幂等重放、并发拒绝与失败后的重试。
 
-- Git 远端 inspect 不访问网络，fetch 显式更新引用；publish 明确远端和分支，建立上游。远端变更动作沿用根目录权限、Git 写锁、幂等缓存及有界进程执行器。整合要求干净工作区，仅合并推送目标已获取引用；resolve 只暂存用户指定的当前冲突路径并检查残留标记，continue/abort 分别完成/取消合并。部分暂存文件的 AI 上下文必须与隔离 index 的实际版本相同。回归见 `git-remote.test.ts`、`git-commit.test.ts`、`git-commit-message.test.ts`。
+- Git 远端 inspect 不访问网络，fetch 显式更新引用；publish 明确远端和分支，建立上游。远端变更动作沿用根目录权限、Git 写锁、幂等缓存及有界进程执行器。拉取要求干净工作区，只允许快进推送目标引用，不创建合并与冲突。resolve/continue/abort 一律拒绝；未完成的 Git 操作和分叉历史交由外部工具处理，仅保留只读检测和提交/推送保护。部分暂存文件的 AI 上下文必须与隔离 index 的实际版本相同。回归见 `git-remote.test.ts`、`git-commit.test.ts`、`git-commit-message.test.ts`。
+
+- Git 历史未推送状态与实际推送共用目标解析，遵循 `branch.<name>.pushRemote`、`remote.pushDefault`、分支远端及单远端回退优先级；空覆盖值按未配置回退；`push.default=upstream` 使用配置目标分支。固定同一 HEAD，批量按提交 SHA 和祖先关系比较本地远端引用，不按领先数量或列表序号标记，不隐式联网。缺失目标/引用时历史仍可读且省略标记；空仓库保持可读。回归见 `git-history-unpushed.test.ts`（分页、合并历史、不同拉取/推送远端、推送后清除）。

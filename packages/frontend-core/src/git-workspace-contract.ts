@@ -5,5 +5,6 @@ export type {
   PushProjectCommitsResponse,
   PushProjectCommitsRequest,
   ProjectGitStatus,
+  ProjectGitCommit,
 } from "@codexly/protocol";
 export type { GitRemoteState } from "@codexly/protocol";

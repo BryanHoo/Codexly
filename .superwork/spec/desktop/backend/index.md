@@ -25,6 +25,8 @@
 
 - 项目 Git 读取仅检查当前根目录的 `.git`（目录或 worktree gitfile），缺失时返回 `repositoryMode: "none"`，不扫描子目录、不执行 Git 命令、不回溯父仓库；拒绝通过 `repository` 参数选择子仓库。元数据 Watch 同样不得发现子目录仓库；回归覆盖含子仓库的普通目录、父仓库下的普通目录以及正常 worktree。
 
-- 原生 Git 远端动作复用 `push_project_commits` IPC 与 shared schema，保留已有推送兼容入口。`git_remote` 执行检查/发布/获取/整合/冲突处理/功能分支创建；新 UI 先展示目的地，网络动作绑定 HEAD 与分支，工作文件新增不阻塞推送。部分暂存文件生成上下文只采用暂存版本。回归使用 `git_workflow_tests` 的本地临时远端，不推送用户真实仓库。
+- 原生 Git 远端动作复用 `push_project_commits` IPC 与 shared schema，保留已有推送兼容入口。`git_remote` 执行检查/发布/获取/仅快进拉取/功能分支创建；新 UI 先展示目的地，网络动作绑定 HEAD 与分支，工作文件新增不阻塞推送。不提供 resolve/continue/abort，IPC 不接受冲突路径；保留只读检测和提交/推送保护，分叉与未完成操作交由外部工具处理。部分暂存文件生成上下文只采用暂存版本。回归使用 `git_workflow_tests` 的本地临时远端，不推送用户真实仓库。
 
 - Git inspect 是只读恢复入口，项目根仓库检查通过后允许旧快照读取当前 HEAD/远端状态；push/publish/fetch 仍校验请求绑定的 HEAD 和分支，工作区写操作仍严格校验快照。回归覆盖旧快照的检查与保留工作区编辑的推送。
+
+- Git 历史与远端操作共用推送目标解析，空覆盖值按未配置回退；一次读取配置并批量比较固定 HEAD 的 SHA/祖先关系，分页与合并提交不得按序号推断未推送状态。只比较已获取的本地远端引用，不额外访问网络；未知目标/引用省略 `unpushed`，推送成功后清除标记。回归见 `git_workflow_tests.rs` 的 Git 历史分页与推送目标测试。

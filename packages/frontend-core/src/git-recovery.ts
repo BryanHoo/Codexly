@@ -46,7 +46,11 @@ export function classifyGitFailure(message: string | null | undefined): GitFailu
     return "authentication";
   if (/write access|permission.*denied|not permitted|403|access denied/u.test(text))
     return "permission";
-  if (/non-fast-forward|fetch first|tip of your current branch is behind/u.test(text))
+  if (
+    /non-fast-forward|not possible to fast-forward|cannot fast-forward|fetch first|tip of your current branch is behind/u.test(
+      text,
+    )
+  )
     return "remote_updates";
   if (
     /gh013|repository rule violations|pre-receive hook declined|hook declined|push declined/u.test(

@@ -1,28 +1,34 @@
-import { useState } from "react";
-import { GitBranch, LoaderCircle, RefreshCw, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowUp,
+  Check,
+  ChevronRight,
+  GitBranch,
+  LoaderCircle,
+  Upload,
+} from "lucide-react";
 import type {
   GitRemoteState,
   PushProjectCommitsRequest,
 } from "@codexly/frontend-core/git-workspace-contract";
-import { classifyGitFailure, type GitFailureKind } from "@codexly/frontend-core/git-recovery";
+import type { GitFailureKind } from "@codexly/frontend-core/git-recovery";
+import {
+  deriveGitRemotePresentation,
+  gitRemotePendingLabels,
+} from "@codexly/frontend-core/git-remote-presentation";
 import { Button } from "./button.js";
 import { GitRemoteConfigDialog } from "./git-remote-config-dialog.js";
+import { GitRemoteDialog, type GitRemoteDialogKind } from "./git-remote-dialog.js";
+import { GitRemoteMenu } from "./git-remote-menu.js";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.js";
 import type { GitWorkspaceTranslate } from "./git-commit-editor.js";
 
-// 远端动作共享同一请求通道，但必须分别展示进度，不能把获取、配置或合并误称为推送。
-const pendingLabels: Record<NonNullable<PushProjectCommitsRequest["action"]>, string> = {
-  push: "commit.pushing",
-  fetch: "commit.fetchingRemote",
-  inspect: "commit.inspectingRemote",
-  configure: "commit.configuringRemote",
-  publish: "commit.publishingBranch",
-  integrate: "commit.integratingRemote",
-  resolve: "commit.resolvingConflict",
-  continue: "commit.continuingMerge",
-  abort: "commit.abortingMerge",
-  branch: "commit.creatingFeatureBranch",
-};
+type RemoteRequest = Omit<PushProjectCommitsRequest, "expectedSnapshot">;
 
+/** 顶部只承载分支目标、同步摘要和下一步；详细信息与恢复表单不占用文件审查区域。 */
 export function GitRemoteStatus({
   branch,
   remote,
@@ -36,8 +42,9 @@ export function GitRemoteStatus({
   inspecting,
   onPush,
   onAction,
-  onOpenConflict,
+  onOpenHistory,
   savedFailureKind,
+  hasWorkingChanges = false,
   t,
 }: Readonly<{
   branch: string | null;
@@ -51,394 +58,328 @@ export function GitRemoteStatus({
   failureOperation?:
     NonNullable<PushProjectCommitsRequest["action"]> | "commit" | "generate" | "status" | undefined;
   inspecting: boolean;
-  onOpenConflict?: ((path: string) => void) | undefined;
+  hasWorkingChanges?: boolean;
+  onOpenHistory?: (() => void) | undefined;
   savedFailureKind?: GitFailureKind | undefined;
   onPush: () => void;
-  onAction?: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => Promise<boolean>;
+  onAction?: (request: RemoteRequest) => Promise<boolean>;
   t: GitWorkspaceTranslate;
 }>) {
-  const [form, setForm] = useState<"configure" | "publish" | null>(null);
-  const [remoteName, setRemoteName] = useState("");
-  const [featureForm, setFeatureForm] = useState(false);
-  const [featureName, setFeatureName] = useState("feature/recovery");
+  const primaryTrigger = useRef<HTMLButtonElement>(null);
+  const [dialog, setDialog] = useState<{
+    kind: GitRemoteDialogKind;
+    returnFocus: HTMLElement | null;
+  } | null>(null);
+  const view = deriveGitRemotePresentation({
+    branch,
+    remote,
+    pushStatus,
+    pushError,
+    commitSha,
+    actionError,
+    failureOperation,
+    inspecting,
+    savedFailureKind,
+    hasWorkingChanges,
+    hasActions: !!onAction,
+  });
+  const { primary } = view;
+  const defaultRemote = remote?.remote ?? remote?.remotes[0]?.name ?? "origin";
   const displayedError = actionError ?? pushError;
-  const failureKind = displayedError
-    ? classifyGitFailure(displayedError)
-    : (savedFailureKind ?? "unknown");
-  const remoteFailed = pushStatus === "failed" || pushStatus === "not_configured";
-  const failed = remoteFailed || actionError !== null;
-  const localFailure =
-    failureOperation === "commit" ||
-    failureOperation === "generate" ||
-    failureOperation === "status";
-  const merge = remote?.operation === "merge";
-  const noRemote = remote?.remotes.length === 0;
-  const unpublished = remote?.upstream === null;
-  const synced = remote?.ahead === 0 && remote.behind === 0;
-  const needsUpdate = (remote?.behind ?? 0) > 0;
-  const defaultRemote =
-    (remoteName || null) ?? remote?.remote ?? remote?.remotes[0]?.name ?? "origin";
-  const buttonLabel = activeAction
-    ? t(pendingLabels[activeAction])
-    : noRemote
-      ? t("commit.configureRemote")
-      : unpublished
-        ? t("commit.publishBranch")
-        : needsUpdate
-          ? t("commit.integrateRemote")
-          : synced
-            ? t("commit.synced")
-            : pushStatus === "pushed" && !remote
-              ? t("commit.pushed")
-              : remoteFailed
-                ? t("commit.pushAgain")
-                : t("commit.push");
-  const statusLabel = noRemote
-    ? t("commit.noRemote")
-    : unpublished
-      ? t("commit.unpublished")
-      : needsUpdate
-        ? (remote?.ahead ?? 0) > 0
-          ? t("commit.diverged")
-          : t("commit.behind", { count: remote?.behind ?? 0 })
-        : synced
-          ? t("commit.synced")
-          : (remote?.ahead ?? 0) > 0
-            ? t("commit.ahead", { count: remote?.ahead ?? 0 })
-            : inspecting
-              ? t("commit.awaitingCheck")
-              : t("commit.pushPreservesChanges");
-  const action = (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => {
-    void onAction?.(request);
+  const openDialog = (
+    kind: GitRemoteDialogKind,
+    returnFocus: HTMLElement | null = primaryTrigger.current,
+  ) => {
+    setDialog({ kind, returnFocus });
   };
+  const closeDialog = () => {
+    setDialog(null);
+  };
+  const operate = (request: RemoteRequest) => onAction?.(request) ?? Promise.resolve(false);
+  const initialInspection = inspecting && !remote;
+  const primaryPending = busy && activeAction === primary.action;
+  // 非主按钮发起的获取仍保留“推送”名称，在获取入口显示进度，避免动作语义跳变。
+  const primaryLabel = t(
+    initialInspection
+      ? "commit.inspectingRemote"
+      : primaryPending && activeAction
+        ? gitRemotePendingLabels[activeAction]
+        : primary.labelKey,
+  );
+  const showFetchShortcut = !!onAction && !!remote?.remotes.length && primary.action !== "fetch";
+  const fetchLabel = t(
+    activeAction === "fetch" && busy ? "commit.fetchingRemote" : "commit.fetchRemote",
+  );
+  const failure =
+    dialog && !["info", "error", "guidance"].includes(dialog.kind) ? null : view.failure;
+  const ahead = remote?.ahead ?? 0;
+  const behind = remote?.behind ?? 0;
+  const hasNotice = !!failure || !!primary.disabledReason || !!view.hintKey;
+  const compactCounts = hasNotice || (ahead > 0 && behind > 0);
+  const emphasizedAction = ["push", "publish", "integrate"].includes(primary.action ?? "");
+  // 视觉文案保持简短；完整操作名称仍用于可访问标签、进度和悬停说明。
+  const compactLabelKeys: Readonly<Record<string, string>> = {
+    "commit.fetchRemote": "commit.fetchShort",
+    "commit.refreshGitStatus": "commit.refreshShort",
+    "commit.checkConnection": "commit.checkConnectionShort",
+    "commit.createFeatureBranch": "commit.branchShort",
+  };
+  const visiblePrimaryLabel =
+    !primaryPending && !initialInspection && compactLabelKeys[primary.labelKey]
+      ? t(compactLabelKeys[primary.labelKey] ?? primary.labelKey)
+      : primaryLabel;
+  const counts = view.summaryKey !== "commit.mergePending" && (ahead > 0 || behind > 0);
+  const target =
+    remote?.remote && remote.targetBranch ? `${remote.remote}/${remote.targetBranch}` : null;
   return (
     <section
-      className="max-h-[45%] shrink-0 overflow-y-auto border-b border-separator px-3 py-2"
+      className="h-[72px] shrink-0 overflow-hidden border-b border-separator px-3 py-1.5"
       data-slot="git-remote-status"
       aria-label={t("commit.remoteStatus")}
     >
-      <div className="flex min-w-0 items-center gap-2">
-        <GitBranch className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate text-label font-semibold" title={branch ?? ""}>
-          {branch ?? t("commit.detachedHead")}
-        </span>
-        <Button
-          size="sm"
-          variant="outline"
-          type="button"
-          aria-label={buttonLabel}
-          disabled={
-            busy || merge || synced || (pushStatus === "pushed" && !remote) || branch === null
-          }
-          onClick={() => {
-            if (noRemote) setForm("configure");
-            else if (unpublished) setForm("publish");
-            else if (needsUpdate) action({ action: "integrate" });
-            else onPush();
-          }}
-        >
-          {busy ? (
-            <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
-          ) : (
-            <Upload className="size-3.5" aria-hidden="true" />
-          )}
-          {buttonLabel}
-        </Button>
-        {onAction ? (
+      <div className="flex h-7 min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <GitBranch className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span
+            className="min-w-0 truncate text-caption font-medium"
+            title={branch ?? t("commit.detachedHead")}
+          >
+            {branch ?? t("commit.detachedHead")}
+          </span>
+          {target ? (
+            <>
+              <ChevronRight className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span
+                className="min-w-0 max-w-[45%] truncate text-caption text-muted-foreground"
+                title={target}
+              >
+                {target}
+              </span>
+            </>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {showFetchShortcut ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon-toolbar"
+                  variant="ghost"
+                  type="button"
+                  aria-label={fetchLabel}
+                  disabled={busy || !branch}
+                  onClick={() => {
+                    void operate({ action: "fetch" });
+                  }}
+                >
+                  {activeAction === "fetch" && busy ? (
+                    <LoaderCircle
+                      className="size-3.5 animate-spin motion-reduce:animate-none"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ArrowDownToLine className="size-3.5" aria-hidden="true" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("commit.fetchRemoteHint")}</TooltipContent>
+            </Tooltip>
+          ) : null}
+          {onAction ? (
+            <GitRemoteMenu
+              busy={busy}
+              canPublish={!!remote?.remotes.length && remote.upstream === null}
+              dialogOpen={dialog !== null}
+              onInspect={() => {
+                void operate({ action: "inspect" });
+              }}
+              onOpen={openDialog}
+              t={t}
+            />
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-1.5 flex h-6 min-w-0 items-center gap-2" data-slot="git-remote-summary">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div
+            className={`flex min-w-0 items-center gap-1.5 text-caption ${hasNotice ? "max-w-[50%]" : "flex-1"}`}
+            role="status"
+          >
+            {counts ? (
+              <>
+                {ahead > 0 ? (
+                  onOpenHistory ? (
+                    <button
+                      className="inline-flex h-6 min-w-0 max-w-full touch-manipulation items-center gap-1.5 rounded-control bg-brand/10 px-1.5 text-brand-strong outline-none hover:bg-brand/15 focus-visible:shadow-focus"
+                      type="button"
+                      data-slot="git-open-unpushed-history"
+                      aria-label={t("commit.ahead", { count: ahead })}
+                      title={t("commit.ahead", { count: ahead })}
+                      onClick={onOpenHistory}
+                    >
+                      <ArrowUp className="size-3.5 shrink-0" aria-hidden="true" />
+                      <span className="min-w-0 truncate">
+                        {t(compactCounts ? "commit.aheadShort" : "commit.ahead", { count: ahead })}
+                      </span>
+                    </button>
+                  ) : (
+                    <span
+                      className="inline-flex h-6 min-w-0 items-center gap-1.5 rounded-control bg-brand/10 px-1.5 text-brand-strong"
+                      title={t("commit.ahead", { count: ahead })}
+                    >
+                      <ArrowUp className="size-3.5 shrink-0" aria-hidden="true" />
+                      <span className="truncate">
+                        {t(compactCounts ? "commit.aheadShort" : "commit.ahead", { count: ahead })}
+                      </span>
+                    </span>
+                  )
+                ) : null}
+                {behind > 0 ? (
+                  <span
+                    className="inline-flex h-6 min-w-0 items-center gap-1.5 rounded-control bg-control px-1.5 text-muted-foreground"
+                    title={t("commit.behind", { count: behind })}
+                  >
+                    <ArrowDown className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span className="truncate">
+                      {t(compactCounts ? "commit.behindShort" : "commit.behind", { count: behind })}
+                    </span>
+                  </span>
+                ) : null}
+              </>
+            ) : !hasNotice ? (
+              <span className="inline-flex h-6 min-w-0 items-center gap-1.5 rounded-control bg-control px-1.5 text-muted-foreground">
+                {view.summaryKey === "commit.synced" ||
+                view.summaryKey === "commit.pushedToRemote" ? (
+                  <Check className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                ) : null}
+                <span className="min-w-0 truncate">{t(view.summaryKey)}</span>
+              </span>
+            ) : null}
+          </div>
+          {/* 状态与短提示共用第二行，不额外预留空白；主按钮固定在状态行右侧，切换状态保持固定高度。 */}
+          {hasNotice ? (
+            <div className="flex h-6 min-w-0 flex-1 items-center text-caption">
+              {failure ? (
+                <div
+                  role="alert"
+                  className="flex h-full min-w-0 flex-1 items-center gap-1.5"
+                  data-slot="git-remote-notice"
+                >
+                  <AlertCircle className="size-3.5 shrink-0 text-warning" aria-hidden="true" />
+                  <p
+                    className="min-w-0 flex-1 truncate text-muted-foreground"
+                    title={t(failure.titleKey)}
+                  >
+                    {t(failure.titleKey)}
+                  </p>
+                  <button
+                    className="min-h-6 shrink-0 touch-manipulation rounded-sm text-muted-foreground underline underline-offset-2 outline-none hover:text-foreground focus-visible:shadow-focus"
+                    type="button"
+                    aria-label={t("commit.viewDetails")}
+                    onClick={(event) => {
+                      openDialog("error", event.currentTarget);
+                    }}
+                  >
+                    {t("commit.detailsShort")}
+                  </button>
+                </div>
+              ) : primary.disabledReason ? (
+                <p
+                  className="min-w-0 truncate text-muted-foreground"
+                  title={t(primary.disabledReason)}
+                >
+                  {t(primary.disabledReason)}
+                </p>
+              ) : view.hintKey ? (
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground">
+                  <p className="min-w-0 flex-1 truncate">{t("commit.externalGitRequired")}</p>
+                  <button
+                    className="min-h-6 shrink-0 touch-manipulation rounded-sm underline underline-offset-2 outline-none hover:text-foreground focus-visible:shadow-focus"
+                    type="button"
+                    aria-label={t("commit.viewDetails")}
+                    onClick={(event) => {
+                      openDialog("guidance", event.currentTarget);
+                    }}
+                  >
+                    {t("commit.detailsShort")}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        {primary.action ? (
           <Button
-            size="icon-sm"
-            variant="ghost"
+            ref={primaryTrigger}
+            size="toolbar"
+            variant={emphasizedAction ? "default" : "outline"}
+            className={emphasizedAction ? "text-[color:light-dark(#ffffff,#181818)]" : undefined}
             type="button"
-            aria-label={t("commit.inspectRemote")}
-            disabled={busy}
+            data-slot="git-remote-primary"
+            aria-label={primaryLabel}
+            title={primaryLabel}
+            disabled={
+              busy ||
+              initialInspection ||
+              !!primary.disabledReason ||
+              (primary.action !== "push" && !onAction)
+            }
             onClick={() => {
-              action({ action: "inspect" });
+              const action = primary.action;
+              if (action === "push") onPush();
+              else if (action === "configure" || action === "publish" || action === "branch")
+                openDialog(action);
+              else if (action) void operate({ action });
             }}
           >
-            <RefreshCw className="size-3.5" />
+            {primaryPending || initialInspection ? (
+              <LoaderCircle
+                className="size-3.5 animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
+            ) : primary.action === "push" || primary.action === "publish" ? (
+              <Upload className="size-3.5" aria-hidden="true" />
+            ) : null}
+            {visiblePrimaryLabel}
           </Button>
         ) : null}
       </div>
-      {remote?.remote && remote.targetBranch ? (
-        <p
-          className="mt-1 truncate font-mono text-caption text-muted-foreground"
-          title={`${remote.remote}/${remote.targetBranch}`}
-        >
-          {remote.remote}/{remote.targetBranch}
-        </p>
-      ) : null}
-      <p className="mt-1 text-caption text-muted-foreground" role="status">
-        {statusLabel}
-      </p>
-      {remote ? (
-        <details className="mt-1 text-caption text-muted-foreground">
-          <summary className="cursor-pointer">
-            {t("commit.lastChecked", { time: new Date(remote.checkedAt).toLocaleTimeString() })}
-          </summary>
-          {remote.remotes.map((item) => (
-            <p className="break-all" key={item.name}>
-              {item.name} · {item.url}
-            </p>
-          ))}
-          <div className="mt-1 flex flex-wrap gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy || noRemote}
-              onClick={() => {
-                action({ action: "fetch" });
-              }}
-              type="button"
-            >
-              {t("commit.fetchRemote")}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => {
-                setForm("configure");
-              }}
-              type="button"
-            >
-              {t("commit.configureRemote")}
-            </Button>
-          </div>
-        </details>
-      ) : null}
-      {commitSha ? (
-        <p className="mt-2 text-caption" role="status">
-          {remoteFailed
-            ? t("commit.savedButPushFailed")
-            : pushStatus === "pushed" || synced
-              ? t("commit.pushedToRemote")
-              : t("commit.savedLocally")}
-          <code className="ml-1.5 font-mono">{commitSha.slice(0, 7)}</code>
-        </p>
-      ) : pushStatus === "pushed" ? (
-        <p className="mt-2 text-caption" role="status">
-          {t("commit.pushedToRemote")}
-        </p>
-      ) : null}
-      {form === "configure" ? (
+      {dialog?.kind === "configure" ? (
         <GitRemoteConfigDialog
           initialName={defaultRemote}
           initialUrl={remote?.remotes.find((item) => item.name === defaultRemote)?.url ?? ""}
           busy={busy}
+          returnFocusElement={dialog.returnFocus}
           error={
-            actionError
+            failureOperation === "configure" && actionError
               ? t(
-                  failureKind === "invalid_remote"
+                  view.failure?.kind === "invalid_remote"
                     ? "commit.fix_invalid_remote"
                     : "commit.remoteSaveFailed",
                 )
               : null
           }
+          onSave={(name, url) => operate({ action: "configure", remote: name, url })}
+          onClose={closeDialog}
           t={t}
-          onClose={() => {
-            setForm(null);
-          }}
-          onSave={(name, url) =>
-            onAction?.({ action: "configure", remote: name, url }) ?? Promise.resolve(false)
-          }
         />
       ) : null}
-      {form === "publish" ? (
-        <form
-          className="mt-2 space-y-2 rounded-control border border-separator p-2 text-caption"
-          onSubmit={(event) => {
-            event.preventDefault();
-            action({ action: "publish", remote: defaultRemote });
-            setForm(null);
-          }}
-        >
-          <label className="block">
-            {t("commit.remoteName")}
-            <select
-              className="mt-1 h-8 w-full rounded-control border border-separator bg-panel px-2"
-              value={defaultRemote}
-              onChange={(event) => {
-                setRemoteName(event.currentTarget.value);
-              }}
-            >
-              {remote?.remotes.map((item) => (
-                <option key={item.name} value={item.name}>
-                  {item.name} · {item.url}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="break-words">
-            {defaultRemote}/{branch}
-          </p>
-          <div className="flex gap-2">
-            <Button size="sm" type="submit" disabled={busy}>
-              {t("commit.publishBranch")}
-            </Button>
-            <Button
-              size="sm"
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setForm(null);
-              }}
-            >
-              {t("commit.cancel")}
-            </Button>
-          </div>
-        </form>
-      ) : null}
-      {merge ? (
-        <div
-          className="mt-2 space-y-2 rounded-control border border-warning/30 bg-warning/5 p-2 text-caption"
-          role="alert"
-        >
-          <p>{t("commit.mergeConflicts")}</p>
-          {remote.conflicts.map((path) => (
-            <div key={path} className="space-y-1">
-              <p className="break-words font-mono">{path}</p>
-              <div className="flex flex-wrap gap-1">
-                {onOpenConflict ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    type="button"
-                    onClick={() => {
-                      onOpenConflict(path);
-                    }}
-                  >
-                    {t("commit.editConflict")}
-                  </Button>
-                ) : null}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    action({ action: "resolve", paths: [path] });
-                  }}
-                >
-                  {t("commit.markResolved")}
-                </Button>
-              </div>
-            </div>
-          ))}
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              type="button"
-              disabled={busy || remote.conflicts.length > 0}
-              onClick={() => {
-                action({ action: "continue" });
-              }}
-            >
-              {t("commit.continueMerge")}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                action({ action: "abort" });
-              }}
-            >
-              {t("commit.abortMerge")}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      {failed ? (
-        <div
-          role="alert"
-          className="mt-2 space-y-2 rounded-control border border-warning/30 bg-warning/5 p-2 text-caption"
-        >
-          <p className="font-semibold">
-            {localFailure
-              ? t(`commit.${failureOperation}Failed`)
-              : pushStatus === "not_configured"
-                ? t("commit.unpublished")
-                : t(`commit.failure_${failureKind}`)}
-          </p>
-          <p className="text-muted-foreground">
-            {localFailure && failureKind === "unknown"
-              ? t(`commit.${failureOperation}FailedHelp`)
-              : pushStatus === "not_configured"
-                ? t("commit.pushUpstreamMissing")
-                : t(`commit.fix_${failureKind}`)}
-          </p>
-          {onAction && !localFailure ? (
-            <Button
-              size="sm"
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={() => {
-                if (pushStatus === "not_configured") setForm("publish");
-                else if (failureKind === "protected_branch") setFeatureForm(true);
-                else
-                  action({
-                    action: [
-                      "remote_updates",
-                      "unknown_result",
-                      "authentication",
-                      "network",
-                    ].includes(failureKind)
-                      ? "fetch"
-                      : "inspect",
-                  });
-              }}
-            >
-              {t(
-                pushStatus === "not_configured"
-                  ? "commit.publishBranch"
-                  : failureKind === "remote_updates"
-                    ? "commit.fetchRemote"
-                    : failureKind === "protected_branch"
-                      ? "commit.createFeatureBranch"
-                      : ["unknown_result", "authentication", "network"].includes(failureKind)
-                        ? "commit.checkConnection"
-                        : failureKind === "state_changed"
-                          ? "commit.refreshGitStatus"
-                          : "commit.inspectRemote",
-              )}
-            </Button>
-          ) : null}
-          {featureForm ? (
-            <form
-              className="space-y-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                action({ action: "branch", branchName: featureName });
-                setFeatureForm(false);
-              }}
-            >
-              <label className="block">
-                {t("commit.branchName")}
-                <input
-                  className="mt-1 h-8 w-full rounded-control border border-separator bg-panel px-2"
-                  required
-                  value={featureName}
-                  onChange={(event) => {
-                    setFeatureName(event.currentTarget.value);
-                  }}
-                />
-              </label>
-              <Button size="sm" type="submit" disabled={busy}>
-                {t("commit.createFeatureBranch")}
-              </Button>
-            </form>
-          ) : null}
-          {displayedError ? (
-            <details>
-              <summary className="cursor-pointer">{t("commit.viewDetails")}</summary>
-              <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono">
-                {displayedError}
-              </pre>
-            </details>
-          ) : null}
-        </div>
+      {dialog && dialog.kind !== "configure" ? (
+        <GitRemoteDialog
+          kind={dialog.kind}
+          branch={branch}
+          remote={remote}
+          commitSha={commitSha}
+          defaultRemote={defaultRemote}
+          busy={busy}
+          error={displayedError}
+          failure={view.failure}
+          guidanceKey={view.hintKey}
+          returnFocus={dialog.returnFocus}
+          onAction={operate}
+          onClose={closeDialog}
+          t={t}
+        />
       ) : null}
     </section>
   );

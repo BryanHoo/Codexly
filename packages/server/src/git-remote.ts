@@ -3,12 +3,12 @@ import { resolve } from "node:path";
 import type { GitRemoteState, PushProjectCommitsResponse } from "@codexly/protocol";
 import { executeGit } from "./git-mutation-command.js";
 import { invalidateGitBranchCache } from "./git-working-tree.js";
+import { resolveGitPushTarget } from "./git-push-target.js";
 
 type RemoteOperation = Readonly<{
   action?: string;
   remote?: string;
   url?: string;
-  paths?: readonly string[];
   branchName?: string;
   expectedHead?: string;
   expectedBranch?: string;
@@ -22,7 +22,6 @@ const optional = async (root: string, args: readonly string[]) => {
     return null;
   }
 };
-const config = (root: string, name: string) => optional(root, ["config", "--get", name]);
 const redact = (value: string) => value.replace(/(https?:\/\/)[^/@\s]+@/giu, "$1***@");
 
 /** 仅检查本地远端配置和已获取的引用；检查状态不隐式访问网络。 */
@@ -47,17 +46,12 @@ export async function readGitRemoteState(root: string): Promise<GitRemoteState> 
         url: redact(await text(root, ["remote", "get-url", "--push", name])),
       })),
   );
-  const remote = branch
-    ? ((await config(root, `branch.${branch}.pushRemote`)) ??
-      (await config(root, "remote.pushDefault")) ??
-      (await config(root, `branch.${branch}.remote`)) ??
-      (remotes.length === 1 ? (remotes[0]?.name ?? null) : null))
-    : null;
-  const pushDefault = await config(root, "push.default");
-  const targetBranch =
-    branch && pushDefault === "upstream"
-      ? ((await config(root, `branch.${branch}.merge`))?.replace(/^refs\/heads\//u, "") ?? branch)
-      : branch;
+  const { remote, targetBranch } = await resolveGitPushTarget(
+    root,
+    branch,
+    remotes.map((item) => item.name),
+    text,
+  );
   const tracking = remote && targetBranch ? `refs/remotes/${remote}/${targetBranch}` : null;
   const counts =
     head && tracking
@@ -104,6 +98,10 @@ export async function operateGitRemote(
     if (remote !== null && (!/^[A-Za-z0-9_.-]+$/u.test(remote) || remote.startsWith("-")))
       throw new Error("Invalid remote name");
     const action = request.action ?? "push";
+    if (
+      !["push", "publish", "fetch", "integrate", "inspect", "configure", "branch"].includes(action)
+    )
+      throw new Error("Unsupported Git remote action");
     if (action === "configure") {
       const url = request.url;
       if (!remote || !url || url.startsWith("-") || /[\0\r\n]/u.test(url) || url.length > 4096)
@@ -124,28 +122,6 @@ export async function operateGitRemote(
       pushStatus = "updated";
     } else if (action === "inspect") {
       // 检查状态只读取本地引用，UI 标明最近检查时间。
-    } else if (action === "abort") {
-      if (before.operation !== "merge") throw new Error("No merge is in progress");
-      await executeGit(root, ["merge", "--abort"]);
-      pushStatus = "updated";
-    } else if (action === "continue") {
-      if (before.operation !== "merge" || before.conflicts.length)
-        throw new Error("Resolve and stage all merge conflicts first");
-      await executeGit(root, ["-c", "core.editor=true", "commit", "--no-edit"]);
-      pushStatus = "updated";
-    } else if (action === "resolve") {
-      const paths = request.paths;
-      if (
-        before.operation !== "merge" ||
-        !paths?.length ||
-        paths.some((path) => !before.conflicts.includes(path))
-      )
-        throw new Error("Choose a current merge conflict to mark resolved");
-      // 用户显式标记后仅暂存这些冲突文件；diff 检查阻止将残留冲突标记写进合并提交。
-      const literalPaths = paths.map((path) => `:(literal)${path}`);
-      await executeGit(root, ["diff", "--check", "--", ...literalPaths]);
-      await executeGit(root, ["add", "--", ...literalPaths]);
-      pushStatus = "updated";
     } else {
       if (!branch || !before.head) throw new Error("Create a branch and commit before publishing");
       if (!remote || !before.remotes.some((item) => item.name === remote))
@@ -186,10 +162,9 @@ export async function operateGitRemote(
         if (!before.upstream) throw new Error("Publish or configure a tracking branch first");
         await executeGit(root, ["fetch", "--", remote]);
         await executeGit(root, [
-          "-c",
-          "core.editor=true",
           "merge",
-          "--no-edit",
+          // 仅快进，不在应用内创建需要手动解决的合并；分叉历史交给外部 Git 工具。
+          "--ff-only",
           `refs/remotes/${remote}/${before.targetBranch ?? branch}`,
         ]);
         pushStatus = "updated";

@@ -77,6 +77,8 @@ export const ProjectGitCommitSchema = Type.Object(
     authorName: Type.String({ maxLength: 512, minLength: 1, pattern: "\\S" }),
     sha: Type.String({ maxLength: 64, minLength: 40, pattern: "^[a-f0-9]+$" }),
     title: Type.String({ maxLength: 10_000, minLength: 1, pattern: "\\S" }),
+    // 缺少推送目标或本地远端引用时不返回此字段，避免把未知状态误报为未推送。
+    unpushed: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -300,10 +302,7 @@ export const PushProjectCommitsRequestSchema = Type.Object(
         Type.Literal("publish"),
         Type.Literal("fetch"),
         Type.Literal("integrate"),
-        Type.Literal("continue"),
-        Type.Literal("abort"),
         Type.Literal("configure"),
-        Type.Literal("resolve"),
         Type.Literal("branch"),
       ]),
     ),
@@ -313,7 +312,6 @@ export const PushProjectCommitsRequestSchema = Type.Object(
     url: Type.Optional(
       Type.String({ minLength: 1, maxLength: 4096, pattern: "^(?!-)[^\\u0000\\r\\n]+$" }),
     ),
-    paths: Type.Optional(SelectedGitPathsSchema),
     branchName: Type.Optional(GitBranchNameSchema),
     expectedHead: Type.Optional(GitCommitShaSchema),
     expectedBranch: Type.Optional(GitBranchNameSchema),

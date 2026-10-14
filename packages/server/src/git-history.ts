@@ -8,6 +8,7 @@ import type {
 } from "@codexly/protocol";
 
 import { executeGit, type GitCommandExecutor } from "./git-command.js";
+import { resolveGitPushTarget } from "./git-push-target.js";
 
 const GIT_HISTORY_PAGE_SIZE = 20;
 const GIT_HISTORY_FIELD_COUNT = 5;
@@ -74,7 +75,9 @@ function parseGitHistory(output: string): ProjectGitCommit[] {
 
 function isEmptyRepositoryError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /does not have any commits|unknown revision|bad revision ['"]?HEAD/iu.test(message);
+  return /does not have any commits|unknown revision|bad revision ['"]?HEAD|needed a single revision/iu.test(
+    message,
+  );
 }
 
 async function readRepositoryPage(
@@ -88,20 +91,26 @@ async function readRepositoryPage(
     (output) => output.trim() || null,
   );
   try {
-    const [branch, output] = await Promise.all([
+    const [branch, head] = await Promise.all([
       branchPromise,
-      gitCommandExecutor(repositoryRoot, [
-        "log",
-        `--max-count=${String(GIT_HISTORY_PAGE_SIZE + 1)}`,
-        `--skip=${String(offset)}`,
-        "--format=%H%x00%an%x00%ae%x00%aI%x00%s%x00",
-        "HEAD",
-      ]),
+      gitCommandExecutor(repositoryRoot, ["rev-parse", "--verify", "HEAD"]).then((value) =>
+        value.trim(),
+      ),
+    ]);
+    // 日志和远端比较固定到同一个 HEAD，防止读取期间新增提交挤掉本页的未推送标记。
+    const output = await gitCommandExecutor(repositoryRoot, [
+      "log",
+      `--max-count=${String(GIT_HISTORY_PAGE_SIZE + 1)}`,
+      `--skip=${String(offset)}`,
+      "--format=%H%x00%an%x00%ae%x00%aI%x00%s%x00",
+      head,
     ]);
     const parsedCommits = parseGitHistory(output);
+    const commits = parsedCommits.slice(0, GIT_HISTORY_PAGE_SIZE);
+    await markUnpushedCommits(repositoryRoot, branch, head, offset, commits, gitCommandExecutor);
     return {
       branch,
-      commits: parsedCommits.slice(0, GIT_HISTORY_PAGE_SIZE),
+      commits,
       nextCursor:
         parsedCommits.length > GIT_HISTORY_PAGE_SIZE
           ? String(offset + GIT_HISTORY_PAGE_SIZE)
@@ -112,6 +121,38 @@ async function readRepositoryPage(
       return { branch: await branchPromise, commits: [], nextCursor: null };
     }
     throw error;
+  }
+}
+
+async function markUnpushedCommits(
+  root: string,
+  branch: string | null,
+  head: string,
+  offset: number,
+  commits: ProjectGitCommit[],
+  execute: GitCommandExecutor,
+): Promise<void> {
+  if (!branch || commits.length === 0) return;
+  try {
+    const names = (await execute(root, ["remote"])).trim().split("\n").filter(Boolean);
+    const { remote, targetBranch } = await resolveGitPushTarget(root, branch, names, execute);
+    if (!remote || !targetBranch) return;
+    // 一次批量计算提交集合；上限覆盖当前页之前的全部条目，合并历史与翻页都不按序号猜测。
+    // 仅比较本地已获取的引用，不额外联网；引用缺失时保留未知状态。
+    const output = await execute(root, [
+      "rev-list",
+      `--max-count=${String(offset + GIT_HISTORY_PAGE_SIZE)}`,
+      head,
+      "--not",
+      `refs/remotes/${remote}/${targetBranch}`,
+      "--",
+    ]);
+    const unpushed = new Set(output.trim().split("\n").filter(Boolean));
+    for (const [index, commit] of commits.entries()) {
+      commits[index] = { ...commit, unpushed: unpushed.has(commit.sha) };
+    }
+  } catch {
+    // 配置或引用暂不可读不应阻断历史，更不能展示未经确认的状态。
   }
 }
 

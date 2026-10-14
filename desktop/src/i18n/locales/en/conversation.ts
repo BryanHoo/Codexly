@@ -150,6 +150,7 @@ export const conversation = {
     title: "Runtime environment",
   },
   gitHistory: {
+    unpushed: "Unpushed",
     branch: "Current branch: {{branch}}",
     branchLoading: "Current branch: Loading...",
     commits: "Commit history",

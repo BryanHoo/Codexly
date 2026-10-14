@@ -1,3 +1,4 @@
+import type { GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import type { PushProjectCommitsRequest } from "@codexly/protocol";
 import { useMemo } from "react";
 import { GitCommitWorkspace } from "@codexly/ui/core/git-commit-workspace";
@@ -15,12 +16,12 @@ type CommitChangesPanelProps = Readonly<{
   isDiffLoading?: boolean; isLoadingMore?: boolean; onLoadMore?: () => void;
   activeRemoteAction?: PushProjectCommitsRequest["action"] | null | undefined;
   onPush: () => Promise<void>;
-  onRemoteAction?: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => Promise<void>;
+  onRemoteAction?: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">, failureKind?: GitFailureKind) => Promise<void>;
   remoteResult?: PushProjectCommitsResponse | undefined; isInspectingRemote?: boolean;
   onCommit: (request: CommitProjectChangesRequest) => Promise<void>;
   onGenerateMessage: (request: GenerateCommitMessageRequest) => Promise<string>;
   onOpenFileDiff: (change: AgentFileChange) => void;
-  onOpenProjectFile?: ((path: string) => void) | undefined;
+  onOpenHistory?: (() => void) | undefined;
   result?: CommitProjectChangesResponse | null; pushResult?: PushProjectCommitsResponse | null;
 }>;
 
@@ -35,7 +36,7 @@ export function CommitChangesPanel(props: CommitChangesPanelProps) {
     return [...byPath.values()];
   }, [gitStatus]);
   const scope = JSON.stringify([props.draftScope ?? "repository", gitStatus.branch]);
-  return <GitCommitWorkspace key={scope} {...props} draftScope={scope} onOpenConflict={props.onOpenProjectFile} t={(key, values) => t(key, values ?? {})} viewMode={fileViewMode} onViewModeChange={setFileViewMode} totalChanges={gitStatus.totalChanges} complete={!gitStatus.nextCursor} renderChanges={(selected, onChange, disabled, search) => {
+  return <GitCommitWorkspace key={scope} {...props} draftScope={scope} t={(key, values) => t(key, values ?? {})} viewMode={fileViewMode} onViewModeChange={setFileViewMode} totalChanges={gitStatus.totalChanges} complete={!gitStatus.nextCursor} renderChanges={(selected, onChange, disabled, search) => {
     const filtered = search ? changes.filter((change) => change.path.toLowerCase().includes(search.toLowerCase())) : changes;
     if (search && filtered.length === 0) return <p className="p-3 text-caption text-muted-foreground">{t("commit.noMatchingFiles")}</p>;
     return <CommitChangesTreeSection changes={filtered} statsAvailable={gitStatus.stats !== undefined} label={t("commit.changes")} disabled={disabled} onOpenFileDiff={onOpenFileDiff} onSelectedPathsChange={onChange} selectedPaths={selected} viewMode={fileViewMode} />;

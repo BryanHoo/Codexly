@@ -1,3 +1,4 @@
+import { GitCommitSummary } from "@codexly/ui/core/git-history-commit-summary";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
 import type { ProjectGitCommit, ProjectGitHistoryPage } from "@/protocol/index.js";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -35,51 +36,6 @@ type GitHistoryContentProps = Readonly<{
   onSelectCommit?: (commit: ProjectGitCommit) => void;
   query: GitHistoryQueryState;
 }>;
-
-function GitCommitSummary({
-  commit,
-  compact,
-  dateFormatter,
-}: Readonly<{
-  commit: ProjectGitCommit;
-  compact: boolean;
-  dateFormatter: Intl.DateTimeFormat;
-}>) {
-  const formattedDate = dateFormatter.format(new Date(commit.authoredAt));
-  return (
-    <span className="min-w-0">
-      <span
-        className={cn(
-          "block truncate font-medium text-foreground",
-          compact ? "text-label" : "text-body-small",
-        )}
-        title={commit.title}
-      >
-        {commit.title}
-      </span>
-      <span
-        className={cn(
-          "flex min-w-0 items-center gap-1.5 text-muted-foreground",
-          compact ? "text-meta" : "mt-0.5 text-caption",
-        )}
-      >
-        <code className="shrink-0">{commit.sha.slice(0, compact ? 7 : 12)}</code>
-        <span aria-hidden="true">·</span>
-        <span className="truncate" title={commit.authorEmail}>
-          {commit.authorName}
-        </span>
-        <span aria-hidden="true">·</span>
-        <time
-          className={cn(compact ? "min-w-0 truncate" : "shrink-0")}
-          dateTime={commit.authoredAt}
-          title={formattedDate}
-        >
-          {formattedDate}
-        </time>
-      </span>
-    </span>
-  );
-}
 
 type GitCommitCopyField = "author" | "hash" | "message";
 
@@ -152,7 +108,7 @@ function GitCommitListItem({
           </div>
           {onSelectCommit === undefined ? (
             <div className="min-w-0">
-              <GitCommitSummary commit={commit} compact={compact} dateFormatter={dateFormatter} />
+              <GitCommitSummary commit={commit} compact={compact} dateFormatter={dateFormatter} unpushedLabel={i18n.t("gitHistory.unpushed", { ns: "conversation" })} />
             </div>
           ) : (
             <Button
@@ -164,7 +120,7 @@ function GitCommitListItem({
               type="button"
               variant="ghost"
             >
-              <GitCommitSummary commit={commit} compact={compact} dateFormatter={dateFormatter} />
+              <GitCommitSummary commit={commit} compact={compact} dateFormatter={dateFormatter} unpushedLabel={i18n.t("gitHistory.unpushed", { ns: "conversation" })} />
             </Button>
           )}
         </li>

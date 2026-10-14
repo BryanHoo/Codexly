@@ -43,7 +43,15 @@ describe("readProjectGitHistory", () => {
     const projectRoot = await createTemporaryProject();
     await mkdir(join(projectRoot, ".git"));
     const executeGit = vi.fn<GitCommandExecutor>((_root, arguments_) =>
-      Promise.resolve(arguments_[0] === "branch" ? "feat/root-history\n" : serializeCommits(21)),
+      Promise.resolve(
+        arguments_[0] === "branch"
+          ? "feat/root-history\n"
+          : arguments_[0] === "rev-parse"
+            ? "f".repeat(40)
+            : arguments_[0] === "log"
+              ? serializeCommits(21)
+              : "",
+      ),
     );
 
     const firstPage = await readProjectGitHistory(projectRoot, {}, executeGit);
@@ -61,18 +69,16 @@ describe("readProjectGitHistory", () => {
     expect(firstPage.commits[0]).toMatchObject({ sha: "0".repeat(40), title: "Commit 0" });
     expect(secondPage.commits).toHaveLength(20);
     expect(executeGit).toHaveBeenCalledWith(resolvedProjectRoot, ["branch", "--show-current"]);
-    expect(executeGit).toHaveBeenNthCalledWith(
-      2,
+    expect(executeGit).toHaveBeenCalledWith(
       resolvedProjectRoot,
       expect.arrayContaining(["--max-count=21", "--skip=0"]),
     );
-    expect(executeGit).toHaveBeenNthCalledWith(
-      4,
+    expect(executeGit).toHaveBeenCalledWith(
       resolvedProjectRoot,
       expect.arrayContaining(["--max-count=21", "--skip=20"]),
     );
-    const firstPageArguments = executeGit.mock.calls[1]?.[1];
-    expect(firstPageArguments?.at(-1)).toBe("HEAD");
+    const firstPageArguments = executeGit.mock.calls.find((call) => call[1][0] === "log")?.[1];
+    expect(firstPageArguments?.at(-1)).toBe("f".repeat(40));
     expect(firstPageArguments).not.toContain("--all");
   });
 

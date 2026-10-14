@@ -85,41 +85,11 @@ async fn inspect(repo: &Path) -> Result<GitRemoteState, WorkspaceError> {
             url: redact_url(&text(repo, &["remote", "get-url", "--push", name]).await?),
         });
     }
-    let mut remote = None;
-    let mut target_branch = branch.clone();
-    if let Some(branch) = branch.as_deref() {
-        remote = optional(
-            repo,
-            &["config", "--get", &format!("branch.{branch}.pushRemote")],
-        )
-        .await;
-        if remote.is_none() {
-            remote = optional(repo, &["config", "--get", "remote.pushDefault"]).await;
-        }
-        if remote.is_none() {
-            remote = optional(
-                repo,
-                &["config", "--get", &format!("branch.{branch}.remote")],
-            )
-            .await;
-        }
-        if remote.is_none() && remotes.len() == 1 {
-            remote = remotes.first().map(|item| item.name.clone());
-        }
-        if optional(repo, &["config", "--get", "push.default"])
-            .await
-            .as_deref()
-            == Some("upstream")
-        {
-            target_branch = optional(
-                repo,
-                &["config", "--get", &format!("branch.{branch}.merge")],
-            )
-            .await
-            .map(|value| value.trim_start_matches("refs/heads/").to_owned())
-            .or(target_branch);
-        }
-    }
+    let remote_names = remotes
+        .iter()
+        .map(|remote| remote.name.as_str())
+        .collect::<Vec<_>>();
+    let (remote, target_branch) = push_target(repo, branch.as_deref(), &remote_names).await;
     let counts = if let (Some(remote), Some(branch), Some(_)) = (&remote, &target_branch, &head) {
         optional(
             repo,
@@ -160,6 +130,56 @@ async fn inspect(repo: &Path) -> Result<GitRemoteState, WorkspaceError> {
     })
 }
 
+/// 历史与推送共用目标解析；一次读取配置，避免每个历史条目重复启动 Git。
+pub(super) async fn push_target(
+    repo: &Path,
+    branch: Option<&str>,
+    remote_names: &[&str],
+) -> (Option<String>, Option<String>) {
+    let Some(branch) = branch else {
+        return (None, None);
+    };
+    let config = optional(
+        repo,
+        &[
+            "config",
+            "--null",
+            "--get-regexp",
+            r"^(branch\..*\.(pushremote|remote|merge)|remote\.pushdefault|push\.default)$",
+        ],
+    )
+    .await
+    .unwrap_or_default();
+    let values = config
+        .split('\0')
+        .filter_map(|record| record.split_once('\n'))
+        .collect::<std::collections::HashMap<_, _>>();
+    let config_value = |key: &str| {
+        values
+            .get(key)
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+    };
+    let remote = config_value(&format!("branch.{branch}.pushremote"))
+        .or_else(|| config_value("remote.pushdefault"))
+        .or_else(|| config_value(&format!("branch.{branch}.remote")))
+        .or_else(|| {
+            if remote_names.len() == 1 {
+                remote_names.first().copied()
+            } else {
+                None
+            }
+        })
+        .map(str::to_owned);
+    let target = if config_value("push.default") == Some("upstream") {
+        config_value(&format!("branch.{branch}.merge"))
+            .map_or(branch, |value| value.trim_start_matches("refs/heads/"))
+    } else {
+        branch
+    };
+    (remote, Some(target.to_owned()))
+}
+
 fn failure(message: &str) -> WorkspaceError {
     WorkspaceError::GitCommandFailed(message.to_owned())
 }
@@ -168,7 +188,6 @@ pub struct RemoteAction<'a> {
     pub action: &'a str,
     pub remote: Option<&'a str>,
     pub url: Option<&'a str>,
-    pub paths: Option<&'a [String]>,
     pub branch_name: Option<&'a str>,
     pub expected_head: Option<&'a str>,
     pub expected_branch: Option<&'a str>,
@@ -205,7 +224,6 @@ pub async fn operate_project_remote(
         request.action,
         request.remote,
         request.url,
-        request.paths,
         request.branch_name,
         request.expected_head,
     )
@@ -218,10 +236,9 @@ pub(super) async fn operate_remote(
     action: &str,
     selected_remote: Option<&str>,
     url: Option<&str>,
-    paths: Option<&[String]>,
     branch_name: Option<&str>,
 ) -> Result<PushCommitsResponse, WorkspaceError> {
-    operate_remote_with_head(repo, action, selected_remote, url, paths, branch_name, None).await
+    operate_remote_with_head(repo, action, selected_remote, url, branch_name, None).await
 }
 
 async fn operate_remote_with_head(
@@ -229,7 +246,6 @@ async fn operate_remote_with_head(
     action: &str,
     selected_remote: Option<&str>,
     url: Option<&str>,
-    paths: Option<&[String]>,
     branch_name: Option<&str>,
     expected_head: Option<&str>,
 ) -> Result<PushCommitsResponse, WorkspaceError> {
@@ -275,47 +291,6 @@ async fn operate_remote_with_head(
                     "add"
                 };
                 run_git(repo, &["remote", command, name, url], MAX_BYTES).await?;
-                Ok("updated")
-            }
-            "abort" => {
-                if before.operation != "merge" {
-                    return Err(failure("No merge is in progress"));
-                }
-                run_git(repo, &["merge", "--abort"], MAX_BYTES).await?;
-                Ok("updated")
-            }
-            "continue" => {
-                if before.operation != "merge" || !before.conflicts.is_empty() {
-                    return Err(failure("Resolve and stage all merge conflicts first"));
-                }
-                run_git(
-                    repo,
-                    &["-c", "core.editor=true", "commit", "--no-edit"],
-                    MAX_BYTES,
-                )
-                .await?;
-                Ok("updated")
-            }
-            "resolve" => {
-                let paths = paths
-                    .filter(|paths| !paths.is_empty())
-                    .ok_or_else(|| failure("Choose a current merge conflict to mark resolved"))?;
-                if before.operation != "merge"
-                    || paths.iter().any(|path| !before.conflicts.contains(path))
-                {
-                    return Err(failure("Choose a current merge conflict to mark resolved"));
-                }
-                // 只暂存用户明确标记的当前冲突，拒绝残留标记和任意路径。
-                let literal_paths: Vec<_> = paths
-                    .iter()
-                    .map(|path| super::git_protocol::literal_path(path))
-                    .collect();
-                let mut check = vec!["diff", "--check", "--"];
-                check.extend(literal_paths.iter().map(String::as_str));
-                run_git(repo, &check, MAX_BYTES).await?;
-                let mut add = vec!["add", "--"];
-                add.extend(literal_paths.iter().map(String::as_str));
-                run_git(repo, &add, MAX_BYTES).await?;
                 Ok("updated")
             }
             "publish" | "push" | "fetch" | "integrate" => {
@@ -385,10 +360,9 @@ async fn operate_remote_with_head(
                     run_git(
                         repo,
                         &[
-                            "-c",
-                            "core.editor=true",
                             "merge",
-                            "--no-edit",
+                            // 仅快进；本软件不承担分叉合并及冲突处理，失败时保持本地提交与工作区。
+                            "--ff-only",
                             &format!(
                                 "refs/remotes/{remote}/{}",
                                 before.target_branch.as_deref().unwrap_or(branch)

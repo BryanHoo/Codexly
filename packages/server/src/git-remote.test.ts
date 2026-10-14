@@ -98,7 +98,7 @@ it("moves existing commits to a feature branch before publishing a protected-bra
   expect(await git(root, "rev-parse", "HEAD")).toBe(head);
 });
 
-it("resolves a merge conflict explicitly, continues and pushes without repeating the original commit", async () => {
+it("refuses divergent integration without creating conflicts or changing the local commit", async () => {
   const root = await repo();
   const remote = await repo(true);
   const other = await repo();
@@ -112,18 +112,23 @@ it("resolves a merge conflict explicitly, continues and pushes without repeating
   await git(other, "push", "origin", "main");
   await writeFile(join(root, "a.txt"), "local\n");
   await git(root, "commit", "-am", "test(git): 修改本地");
-  const conflict = await operateGitRemote(root, { action: "integrate" });
-  expect(conflict.remoteState?.operation).toBe("merge");
-  expect(conflict.remoteState?.conflicts).toEqual(["a.txt"]);
-  expect((await operateGitRemote(root, { action: "resolve", paths: ["a.txt"] })).pushStatus).toBe(
-    "failed",
-  );
-  await writeFile(join(root, "a.txt"), "resolved\n");
-  expect(
-    (await operateGitRemote(root, { action: "resolve", paths: ["a.txt"] })).remoteState?.conflicts,
-  ).toEqual([]);
-  expect((await operateGitRemote(root, { action: "continue" })).remoteState?.operation).toBe(
-    "none",
-  );
-  expect((await operateGitRemote(root, { action: "push" })).remoteState?.ahead).toBe(0);
+  const before = await git(root, "rev-parse", "HEAD");
+  const refused = await operateGitRemote(root, { action: "integrate" });
+  expect(refused.pushStatus).toBe("failed");
+  expect(refused.remoteState?.operation).toBe("none");
+  expect(refused.remoteState?.conflicts).toEqual([]);
+  expect(await git(root, "rev-parse", "HEAD")).toBe(before);
+  expect(await git(root, "status", "--porcelain")).toBe("");
 });
+
+it.each(["resolve", "continue", "abort"])(
+  "rejects the removed %s operation without changing the repository",
+  async (action) => {
+    const root = await repo();
+    const before = await git(root, "rev-parse", "HEAD");
+    const refused = await operateGitRemote(root, { action });
+    expect(refused.pushStatus).toBe("failed");
+    expect(refused.pushError).toContain("Unsupported Git remote action");
+    expect(await git(root, "rev-parse", "HEAD")).toBe(before);
+  },
+);

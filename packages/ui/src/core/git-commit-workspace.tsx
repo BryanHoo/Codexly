@@ -7,7 +7,7 @@ import {
 } from "@codexly/frontend-core/git-commit-draft";
 import { createGitActionLabels } from "@codexly/frontend-core/project-git-actions";
 import { GitRemoteStatus } from "./git-remote-status.js";
-import { classifyGitFailure } from "@codexly/frontend-core/git-recovery";
+import { classifyGitFailure, type GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import { useGitOperationReceipt } from "./use-git-operation-receipt.js";
 import type {
   CommitProjectChangesRequest,
@@ -59,8 +59,11 @@ export type GitCommitWorkspaceProps = Readonly<{
   pushResult?: PushProjectCommitsResponse | null;
   remoteResult?: PushProjectCommitsResponse | undefined;
   isInspectingRemote?: boolean;
-  onOpenConflict?: ((path: string) => void) | undefined;
-  onRemoteAction?: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => Promise<void>;
+  onOpenHistory?: (() => void) | undefined;
+  onRemoteAction?: (
+    request: Omit<PushProjectCommitsRequest, "expectedSnapshot">,
+    failureKind?: GitFailureKind,
+  ) => Promise<void>;
   t: GitWorkspaceTranslate;
   viewMode: "tree" | "list";
   onViewModeChange: (mode: "tree" | "list") => void;
@@ -93,7 +96,7 @@ export function GitCommitWorkspace({
   remoteResult,
   isInspectingRemote = false,
   onRemoteAction,
-  onOpenConflict,
+  onOpenHistory,
   t,
   viewMode,
   onViewModeChange,
@@ -139,6 +142,7 @@ export function GitCommitWorkspace({
   const labels = createGitActionLabels((key) => t(key));
   const canCommit =
     remoteResult?.remoteState?.operation !== "merge" &&
+    (remoteResult?.remoteState?.conflicts.length ?? 0) === 0 &&
     !gitBusy &&
     draft.selectedPaths.size > 0 &&
     draft.message.trim() !== "";
@@ -206,6 +210,7 @@ export function GitCommitWorkspace({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden" data-slot="commit-changes-panel">
       <GitRemoteStatus
+        onOpenHistory={onOpenHistory}
         branch={gitStatus.branch}
         remote={remoteResult?.remoteState}
         pushStatus={pushStatus}
@@ -213,11 +218,11 @@ export function GitCommitWorkspace({
         commitSha={result?.commitSha ?? receipt?.commitSha ?? undefined}
         savedFailureKind={receipt?.failureKind}
         busy={gitBusy}
+        hasWorkingChanges={hasChanges}
         activeAction={isPushing ? (activeRemoteAction ?? "push") : null}
         actionError={operationError?.message ?? (pushError ? null : (error?.message ?? null))}
         failureOperation={operationError?.operation ?? (!pushError && error ? "status" : undefined)}
         inspecting={isInspectingRemote}
-        onOpenConflict={onOpenConflict}
         t={t}
         onPush={() => {
           void runGit(onPush);
@@ -225,7 +230,10 @@ export function GitCommitWorkspace({
         {...(onRemoteAction
           ? {
               onAction: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) =>
-                runGit(() => onRemoteAction(request), request.action ?? "push"),
+                runGit(
+                  () => onRemoteAction(request, receipt?.failureKind),
+                  request.action ?? "push",
+                ),
             }
           : {})}
       />

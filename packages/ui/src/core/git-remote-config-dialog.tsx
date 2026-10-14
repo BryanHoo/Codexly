@@ -12,6 +12,7 @@ export function GitRemoteConfigDialog({
   error,
   onSave,
   onClose,
+  returnFocusElement,
   t,
 }: Readonly<{
   initialName: string;
@@ -20,12 +21,13 @@ export function GitRemoteConfigDialog({
   error: string | null;
   onSave: (name: string, url: string) => Promise<boolean>;
   onClose: () => void;
+  returnFocusElement?: HTMLElement | null;
   t: GitWorkspaceTranslate;
 }>) {
   const [name, setName] = useState(initialName);
   const [url, setUrl] = useState(initialUrl);
-  const [returnFocus] = useState(() =>
-    typeof document === "undefined" ? null : document.activeElement,
+  const [returnFocus] = useState(
+    () => returnFocusElement ?? (typeof document === "undefined" ? null : document.activeElement),
   );
   return (
     <Dialog
@@ -95,7 +97,11 @@ export function GitRemoteConfigDialog({
             <Button variant="ghost" type="button" disabled={busy} onClick={onClose}>
               {t("commit.cancel")}
             </Button>
-            <Button type="submit" disabled={busy || !name.trim() || !url.trim()}>
+            <Button
+              type="submit"
+              className="text-[color:light-dark(#ffffff,#181818)]"
+              disabled={busy || !name.trim() || !url.trim()}
+            >
               {busy ? <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" /> : null}
               {t(busy ? "commit.configuringRemote" : "commit.saveRemote")}
             </Button>

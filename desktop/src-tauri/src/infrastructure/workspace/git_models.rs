@@ -50,6 +50,9 @@ pub struct GitCommit {
     pub author_name: String,
     pub sha: String,
     pub title: String,
+    // 目标引用未知时省略状态，兼容既有协议并避免误标已在远端的历史。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unpushed: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
+import { GitRemoteStatus } from "@codexly/ui/core/git-remote-status";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import type { PushProjectCommitsRequest } from "@codexly/protocol";
@@ -56,12 +57,10 @@ it("远端配置在弹窗编辑，失败保留表单，成功关闭并恢复入�
   await i18n.changeLanguage("zh-CN");
   const operate = vi.fn().mockRejectedValueOnce(new Error("配置保存失败")).mockResolvedValue(undefined);
   const screen = await render(<Workspace operate={operate} />);
-  const details = document.querySelector<HTMLDetailsElement>('[data-slot="git-remote-status"] details');
-  if (!details) throw new Error("Missing remote details");
-  details.open = true;
-  await screen.getByRole("button", { name: "配置远端", exact: true }).click();
+  await screen.getByRole("button", { name: "更多远端操作", exact: true }).click();
+  await screen.getByRole("menuitem", { name: "配置远端", exact: true }).click();
   await expect.element(screen.getByRole("dialog", { name: "配置远端" })).toBeVisible();
-  await expect.element(screen.getByRole("textbox", { name: "远端地址" })).toHaveValue(remoteState.remotes[0]!.url);
+  await expect.element(screen.getByRole("textbox", { name: "远端地址" })).toHaveValue(remoteState.remotes[0]?.url);
   expect(document.querySelector('[data-slot="git-remote-status"] > form')).toBeNull();
   await screen.getByRole("textbox", { name: "远端地址" }).fill("https://github.com/example/updated.git");
   await screen.getByRole("button", { name: "保存远端", exact: true }).click();
@@ -70,7 +69,7 @@ it("远端配置在弹窗编辑，失败保留表单，成功关闭并恢复入�
   await screen.getByRole("button", { name: "保存远端", exact: true }).click();
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   expect(operate).toHaveBeenLastCalledWith({ action: "configure", remote: "origin", url: "https://github.com/example/updated.git" });
-  await expect.element(screen.getByRole("button", { name: "配置远端", exact: true })).toHaveFocus();
+  await expect.element(screen.getByRole("button", { name: "更多远端操作", exact: true })).toHaveFocus();
 });
 
 it("AI 生成直接覆盖已填写信息，无需确认，并可撤销", async () => {
@@ -99,13 +98,59 @@ it("底部菜单只保留提交并推送，获取更新时准确显示进度", a
   // 关闭菜单后再获取，验证顶部和底部不会错误地显示推送或 AI 生成状态。
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
-  const details = document.querySelector<HTMLDetailsElement>('[data-slot="git-remote-status"] details');
-  if (!details) throw new Error("Missing remote details");
-  details.open = true;
   await screen.getByRole("button", { name: "获取远端更新", exact: true }).click();
   await expect.element(screen.getByRole("button", { name: "获取更新中…", exact: true })).toBeDisabled();
   await expect.element(screen.getByRole("button", { name: "提交", exact: true })).toBeDisabled();
   expect(document.querySelector('[data-slot="git-commit-footer"]')?.textContent).not.toContain("生成中");
   finish();
   await expect.element(screen.getByRole("button", { name: "推送", exact: true })).toBeEnabled();
+});
+
+
+it("顶部在不同语言、提示和同步状态之间保持固定高度", async () => {
+  type Props = ComponentProps<typeof GitRemoteStatus>;
+  const states: Partial<Props>[] = [
+    {},
+    { remote: { ...remoteState, ahead: 0 } },
+    { remote: { ...remoteState, remotes: [], upstream: null } },
+    { remote: { ...remoteState, upstream: null } },
+    { remote: { ...remoteState, behind: 1 } },
+    { remote: { ...remoteState, ahead: 0, behind: 1 }, hasWorkingChanges: true },
+    { remote: { ...remoteState, operation: "merge", conflicts: ["file.ts"] } },
+    { branch: "feature/".repeat(25), remote: { ...remoteState, targetBranch: "long/".repeat(25) } },
+    { pushStatus: "failed", pushError: "Git status changed before the push" },
+    { pushStatus: "failed", pushError: "Could not resolve host: example.com" },
+    { pushStatus: "failed", savedFailureKind: "protected_branch" },
+    { busy: true, activeAction: "fetch" },
+  ];
+  const toolbar = (props: Partial<Props>) => (
+    <div style={{ width: 320 }}>
+      <TooltipProvider>
+        <GitRemoteStatus
+          branch="feature/git" remote={remoteState} pushStatus="checked" pushError={null}
+          busy={false} activeAction={null} actionError={null} inspecting={false}
+          onPush={() => undefined} onAction={() => Promise.resolve(true)}
+          onOpenHistory={() => undefined} t={(key, values) => i18n.t(key, { ...values, ns: "workbench" })}
+          {...props}
+        />
+      </TooltipProvider>
+    </div>
+  );
+  const screen = await render(toolbar({}));
+  for (const language of ["zh-CN", "en"]) {
+    await i18n.changeLanguage(language);
+    for (const props of states) {
+      await screen.rerender(toolbar(props));
+      // 测量真实布局，验证长分支、长提示、双向计数及获取进度不会挤动文件审查区。
+      const element = document.querySelector<HTMLElement>('[data-slot="git-remote-status"]');
+      if (!element) throw new Error("Missing Git remote toolbar");
+      expect(element.getBoundingClientRect().height).toBe(72);
+      const primary = element.querySelector<HTMLElement>('[data-slot="git-remote-primary"]');
+      const row = element.querySelector<HTMLElement>('[data-slot="git-remote-summary"]');
+      expect(row?.contains(primary ?? null)).toBe(true);
+      expect(primary?.getBoundingClientRect().height).toBe(24);
+      expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth);
+    }
+  }
+  await i18n.changeLanguage("zh-CN");
 });
