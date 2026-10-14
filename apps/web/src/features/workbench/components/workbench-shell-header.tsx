@@ -1,5 +1,6 @@
 import { useContext, useId } from "react";
 import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
+import { SplitLayoutMenu } from "@codexly/ui/core/split-layout-menu";
 import { SplitPaneControls } from "@codexly/ui/core/split-pane-controls";
 import { WorkbenchNewTaskButton } from "@codexly/ui/core/workbench-new-task-button";
 import { PanelLeft, PanelRight, Pencil } from "lucide-react";
@@ -110,6 +111,22 @@ export function WorkbenchShellHeader({
               void (temporary
                 ? navigate({ to: "/temporary" })
                 : navigate({ params: { projectId }, to: "/p/$projectId" }));
+            }}
+          />
+          <SplitLayoutMenu
+            labels={{
+              chooseLayout: t("split.chooseLayout"),
+              twoPanes: t("split.twoPanes"),
+              threePanes: t("split.threePanes"),
+              fourPanes: t("split.fourPanes"),
+              auto: t("split.auto"),
+              horizontal: t("split.horizontal"),
+              vertical: t("split.vertical"),
+              "main-left": t("split.main-left"),
+              "main-top": t("split.main-top"),
+              grid: t("split.grid"),
+              presetHint: t("split.presetHint"),
+              autoHint: t("split.autoHint"),
             }}
           />
           <ProjectQuickOpenMenu

@@ -39,7 +39,12 @@ import {
   type SplitLayout,
 } from "@codexly/frontend-core/split-layout";
 import { subscribeSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
-import { SplitPaneMenu, SplitWorkspaceShortcuts } from "./split-workspace-actions.js";
+import {
+  SplitPaneMenu,
+  useSplitLayoutPreset,
+  SplitWorkspaceShortcuts,
+  type SplitWorkspaceActions as WorkspaceActions,
+} from "./split-workspace-actions.js";
 import { SplitWorkspaceResizers, splitPaneStyle } from "./split-workspace-resizers.js";
 
 const mobileQuery = "(max-width: 760px), (hover: none) and (pointer: coarse)";
@@ -57,17 +62,6 @@ type WorkspaceState = Readonly<{
   enabled: boolean;
   panes: readonly SplitPaneIdentity[];
   layout: SplitLayout | undefined;
-}>;
-type WorkspaceActions = Readonly<{
-  resize: (path: string, ratio: number) => void;
-  split: (pane: SplitPaneIdentity, direction: SplitDirection) => void;
-  add: (pane: SplitPaneIdentity) => void;
-  close: (pane: SplitPaneIdentity) => void;
-  dismiss: (pane: SplitPaneIdentity) => boolean;
-  focus: (pane: SplitPaneIdentity) => void;
-  select: (pane: SplitPaneIdentity) => boolean;
-  replace: (previous: SplitPaneIdentity, next: SplitPaneIdentity) => void;
-  solo: (pane: SplitPaneIdentity) => void;
 }>;
 type Workspace = WorkspaceState & WorkspaceActions & { readonly activeKey: string | undefined };
 const SplitWorkspaceStateContext = createContext<WorkspaceState | null>(null);
@@ -277,6 +271,7 @@ export function SplitWorkspaceProvider({
       return next === layout ? previous : { ...previous, layout: next };
     });
   }, []);
+  const applyPreset = useSplitLayoutPreset(enabled, setSelection, createSplitDraft);
   const state = useMemo(
     () => ({
       enabled,
@@ -287,6 +282,7 @@ export function SplitWorkspaceProvider({
   );
   const actions = useMemo(
     () => ({
+      applyPreset,
       resize,
       split,
       add,
@@ -297,7 +293,7 @@ export function SplitWorkspaceProvider({
       solo,
       replace,
     }),
-    [resize, split, add, close, dismiss, focus, select, solo, replace],
+    [applyPreset, resize, split, add, close, dismiss, focus, select, solo, replace],
   );
   const activePane = selection.panes.find((pane) => splitPaneKey(pane) === selection.activeKey);
   return (

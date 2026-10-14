@@ -1,4 +1,21 @@
-import { lazy, Suspense, useEffect, useEffectEvent, useState, type ReactNode } from "react";
+import {
+  createPresetSplitLayout,
+  type SplitLayoutPreset,
+  type SplitPaneCount,
+  type SplitWorkspaceSize,
+} from "@codexly/frontend-core/split-layout-presets";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+  type ReactNode,
+} from "react";
+import type { SplitWorkspaceSelection } from "@codexly/frontend-core/split-workspace-selection";
 import {
   MAX_SPLIT_PANES,
   splitPaneKey,
@@ -11,6 +28,46 @@ import {
 import { ContextMenu, ContextMenuTrigger } from "./context-menu.js";
 import { isSplitBlankPoint } from "./split-workspace-hit-test.js";
 import type SplitWorkspaceMenuContent from "./split-workspace-menu-content.js";
+
+export type SplitWorkspaceActions = Readonly<{
+  applyPreset: (count: SplitPaneCount, preset: SplitLayoutPreset, size: SplitWorkspaceSize) => void;
+  resize: (path: string, ratio: number) => void;
+  split: (pane: SplitPaneIdentity, direction: SplitDirection) => void;
+  add: (pane: SplitPaneIdentity) => void;
+  close: (pane: SplitPaneIdentity) => void;
+  dismiss: (pane: SplitPaneIdentity) => boolean;
+  focus: (pane: SplitPaneIdentity) => void;
+  select: (pane: SplitPaneIdentity) => boolean;
+  replace: (previous: SplitPaneIdentity, next: SplitPaneIdentity) => void;
+  solo: (pane: SplitPaneIdentity) => void;
+}>;
+export function useSplitLayoutPreset(
+  enabled: boolean,
+  setSelection: Dispatch<SetStateAction<SplitWorkspaceSelection>>,
+  createSplitDraft: (projectId: string) => SplitPaneIdentity,
+) {
+  return useCallback<SplitWorkspaceActions["applyPreset"]>(
+    (count, preset, size) => {
+      if (!enabled) return;
+      setSelection((previous) => {
+        const current = previous.panes[0];
+        // 仅单窗口可用，检查最新状态，避免菜单迟到事件覆盖已经打开的分屏及草稿。
+        if (current === undefined || previous.panes.length !== 1 || ![2, 3, 4].includes(count))
+          return previous;
+        const panes = [current];
+        while (panes.length < count) panes.push(createSplitDraft(current.projectId));
+        // 一次提交所有窗口和布局，保留当前会话身份、输入内容及活动焦点。
+        return {
+          ...previous,
+          panes,
+          activeKey: splitPaneKey(current),
+          layout: createPresetSplitLayout(panes.map(splitPaneKey), preset, size),
+        };
+      });
+    },
+    [enabled, setSelection, createSplitDraft],
+  );
+}
 
 type SplitActions = Readonly<{
   enabled: boolean;

@@ -63,6 +63,28 @@ describe("共享分屏操作", () => {
     state.selection = undefined;
   });
 
+  it.each([2, 3, 4] as const)("预设一次创建 %i 屏，保留当前会话与焦点，其余为独立草稿", (count) => {
+    const read = setup();
+    read().applyPreset(count, "horizontal", { width: 1200, height: 700 });
+    const workspace = read();
+    expect(workspace.panes).toHaveLength(count);
+    expect(workspace.panes[0]).toBe(original);
+    expect(workspace.activeKey).toBe(splitPaneKey(original));
+    expect(new Set(workspace.panes.map(splitPaneKey)).size).toBe(count);
+    workspace.panes.slice(1).forEach((pane) => {
+      expect(pane.projectId).toBe(original.projectId);
+      expect(pane.taskId).toBeUndefined();
+      expect(pane.draftId).toMatch(/^split-draft:/);
+    });
+    expect(
+      getSplitLayoutCells(defined(workspace.layout)).get(splitPaneKey(original))?.width,
+    ).toBeCloseTo(8 / count);
+    // 菜单卸载前的重复点击不得增加窗口或覆盖已经建立的布局。
+    workspace.applyPreset(4, "vertical", { width: 1200, height: 700 });
+    expect(read().panes).toBe(workspace.panes);
+    expect(read().layout).toBe(workspace.layout);
+  });
+
   it.each([{ projectId: "project", draftId: ROUTE_SPLIT_DRAFT_ID }, original])(
     "普通单窗口保留导航，进入分屏后只替换所属窗口：%j",
     (current) => {
