@@ -30,7 +30,7 @@ async function withSharingLock(
       else reject(new Error(`Lock helper exited: ${String(code)}`));
     });
   });
-  // Observe every helper failure immediately, including failures during cleanup.
+  // 立即观察辅助进程失败，清理期间的退出也不能产生未处理拒绝。
   void exited.catch(() => undefined);
   try {
     await new Promise<void>((resolve, reject) => {
@@ -59,6 +59,8 @@ it.runIf(process.platform === "win32")(
       expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ phase: "stopped" });
       expect(await readdir(root)).toEqual(["runtime.json"]);
     }),
+  // Windows CI 的 PowerShell 冷启动也计入测试耗时，重试上限由生产代码单独保证。
+  15_000,
 );
 
 it.runIf(process.platform === "win32")(
@@ -71,4 +73,5 @@ it.runIf(process.platform === "win32")(
       expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ phase: "ready" });
       expect(await readdir(root)).toEqual(["runtime.json"]);
     }),
+  15_000,
 );

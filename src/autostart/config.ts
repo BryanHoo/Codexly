@@ -124,10 +124,11 @@ export async function writePrivateFile(path: string, text: string | Uint8Array):
         await rename(temporary, path);
         break;
       } catch (error) {
-        // Windows readers may briefly deny replacement; keep the old file intact while retrying.
+        // Windows 读者或扫描器可能短暂阻止替换；保留旧文件，最多退避等待 3.175 秒。
+        // 原来的 775 毫秒窗口在繁忙机器上可能早于共享句柄释放，持续占用仍需报错。
         if (
           process.platform !== "win32" ||
-          attempt === 5 ||
+          attempt === 7 ||
           !["EPERM", "EACCES", "EBUSY"].includes((error as NodeJS.ErrnoException).code ?? "")
         )
           throw error;
