@@ -159,6 +159,8 @@ export function CommitChangesController({
       gitStatus={activeGitStatus}
       pushResult={pushState?.scope === scope ? pushState.result : null}
       isPushing={pushMutation.isPending}
+      // 共享请求承载多种远端动作，进度文案必须读取当前请求的真实动作。
+      activeRemoteAction={pushMutation.isPending ? (pushMutation.variables.action ?? "push") : null}
       onPush={() => operateRemote({ action: "push" })}
       onRemoteAction={operateRemote}
       remoteResult={remoteQuery.data}

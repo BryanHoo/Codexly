@@ -81,6 +81,29 @@ describe("CommitChangesPanel", () => {
     );
   });
 
+  it.each([
+    ["fetch", "获取更新中…"],
+    ["configure", "保存配置中…"],
+    ["integrate", "整合更新中…"],
+    ["publish", "发布分支中…"],
+  ] as const)("labels pending %s by the actual operation", (activeRemoteAction, label) => {
+    const markup = renderPanel({ isPushing: true, activeRemoteAction });
+    expect(markup).toContain(`aria-label="${label}"`);
+    expect(markup).not.toContain("推送中…");
+    expect(markup).not.toContain("生成中…");
+  });
+
+  it("keeps the footer focused on one message input and commit actions", () => {
+    const markup = renderPanel();
+    expect(markup.match(/<textarea\b/gu)).toHaveLength(1);
+    expect(markup).not.toContain("添加详细描述");
+    expect(markup).not.toContain("填写提交信息或使用 AI 生成");
+  });
+
+  it("defaults to all current files instead of only staged files", () => {
+    expect(renderPanel()).toContain("本次提交：已选择 2 / 2 个文件");
+  });
+
   it("keeps commit and a visible independent push action when files are changed", () => {
     const markup = renderPanel();
     expect(markup).toContain('aria-label="推送"');

@@ -105,23 +105,28 @@ test("reviews selected files, preserves AI drafts and recovers a failed push", a
   await all.uncheck();
   await tree.getByRole("checkbox", { name: "变更: package.json", exact: true }).check();
   await generate.click();
-  await expect(message).toHaveValue("feat(git): 生成选中文件提交");
-  const description = panel.getByRole("textbox", { name: "详细描述", exact: true });
-  await expect(description).toHaveValue("- 添加提交正文");
+  await expect(message).toHaveValue("feat(git): 生成选中文件提交\n\n- 添加提交正文");
+  await expect(panel.getByRole("textbox", { name: "详细描述", exact: true })).toHaveCount(0);
   await message.fill("feat(git): 保留手写信息");
   await generate.click();
-  await expect(panel.getByText("AI 建议", { exact: true })).toBeVisible();
+  await expect(message).toHaveValue("feat(git): 生成选中文件提交\n\n- 添加提交正文");
+  await expect(panel.getByRole("button", { name: "采用建议", exact: true })).toHaveCount(0);
+  await panel.getByRole("button", { name: "撤销生成", exact: true }).click();
   await expect(message).toHaveValue("feat(git): 保留手写信息");
-  await panel.getByRole("button", { name: "保留原文" }).click();
   await message.fill("feat(git): 提交选中文件");
-  await description.fill("");
   await page.getByRole("tab", { name: "项目", exact: true }).click();
   await changesTab.click();
   await expect(message).toHaveValue("feat(git): 提交选中文件");
   await expect(
     tree.getByRole("checkbox", { name: "变更: package.json", exact: true }),
   ).toBeChecked();
+  // 重新进入变更默认全选，提交信息保留；本次提交的范围可重新取消和选择。
+  await expect(all).toBeChecked();
+  await expect(panel.getByRole("button", { name: "已审查", exact: true })).toHaveCount(0);
+  await all.uncheck();
+  await tree.getByRole("checkbox", { name: "变更: package.json", exact: true }).check();
   await panel.getByRole("button", { name: "更多 Git 操作" }).click();
+  await expect(page.getByRole("menuitem", { name: /推送已有提交/u })).toHaveCount(0);
   await page.getByRole("menuitem", { name: "提交并推送" }).click();
   await expect(panel.getByText("提交已保存，推送未完成", { exact: false })).toBeVisible();
   await expect(panel.getByRole("alert")).toContainText("远端包含尚未整合的提交");

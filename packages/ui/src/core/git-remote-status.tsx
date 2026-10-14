@@ -6,7 +6,22 @@ import type {
 } from "@codexly/frontend-core/git-workspace-contract";
 import { classifyGitFailure, type GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import { Button } from "./button.js";
+import { GitRemoteConfigDialog } from "./git-remote-config-dialog.js";
 import type { GitWorkspaceTranslate } from "./git-commit-editor.js";
+
+// 远端动作共享同一请求通道，但必须分别展示进度，不能把获取、配置或合并误称为推送。
+const pendingLabels: Record<NonNullable<PushProjectCommitsRequest["action"]>, string> = {
+  push: "commit.pushing",
+  fetch: "commit.fetchingRemote",
+  inspect: "commit.inspectingRemote",
+  configure: "commit.configuringRemote",
+  publish: "commit.publishingBranch",
+  integrate: "commit.integratingRemote",
+  resolve: "commit.resolvingConflict",
+  continue: "commit.continuingMerge",
+  abort: "commit.abortingMerge",
+  branch: "commit.creatingFeatureBranch",
+};
 
 export function GitRemoteStatus({
   branch,
@@ -15,7 +30,8 @@ export function GitRemoteStatus({
   pushError,
   commitSha,
   busy,
-  pushing,
+  activeAction,
+  actionError,
   inspecting,
   onPush,
   onAction,
@@ -29,17 +45,17 @@ export function GitRemoteStatus({
   pushError: string | null;
   commitSha?: string | undefined;
   busy: boolean;
-  pushing: boolean;
+  activeAction: PushProjectCommitsRequest["action"] | null;
+  actionError: string | null;
   inspecting: boolean;
   onOpenConflict?: ((path: string) => void) | undefined;
   savedFailureKind?: GitFailureKind | undefined;
   onPush: () => void;
-  onAction?: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => void;
+  onAction?: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => Promise<boolean>;
   t: GitWorkspaceTranslate;
 }>) {
   const [form, setForm] = useState<"configure" | "publish" | null>(null);
   const [remoteName, setRemoteName] = useState("");
-  const [url, setUrl] = useState("");
   const [featureForm, setFeatureForm] = useState(false);
   const [featureName, setFeatureName] = useState("feature/recovery");
   const failureKind = pushError ? classifyGitFailure(pushError) : (savedFailureKind ?? "unknown");
@@ -51,8 +67,8 @@ export function GitRemoteStatus({
   const needsUpdate = (remote?.behind ?? 0) > 0;
   const defaultRemote =
     (remoteName || null) ?? remote?.remote ?? remote?.remotes[0]?.name ?? "origin";
-  const buttonLabel = pushing
-    ? t("commit.pushing")
+  const buttonLabel = activeAction
+    ? t(pendingLabels[activeAction])
     : noRemote
       ? t("commit.configureRemote")
       : unpublished
@@ -81,8 +97,9 @@ export function GitRemoteStatus({
             : inspecting
               ? t("commit.awaitingCheck")
               : t("commit.pushPreservesChanges");
-  const action = (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) =>
-    onAction?.(request);
+  const action = (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => {
+    void onAction?.(request);
+  };
   return (
     <section
       className="max-h-[45%] shrink-0 overflow-y-auto border-b border-separator px-3 py-2"
@@ -123,7 +140,9 @@ export function GitRemoteStatus({
             type="button"
             aria-label={t("commit.inspectRemote")}
             disabled={busy}
-            onClick={() => action({ action: "inspect" })}
+            onClick={() => {
+              action({ action: "inspect" });
+            }}
           >
             <RefreshCw className="size-3.5" />
           </Button>
@@ -155,7 +174,9 @@ export function GitRemoteStatus({
               size="sm"
               variant="ghost"
               disabled={busy || noRemote}
-              onClick={() => action({ action: "fetch" })}
+              onClick={() => {
+                action({ action: "fetch" });
+              }}
               type="button"
             >
               {t("commit.fetchRemote")}
@@ -188,68 +209,52 @@ export function GitRemoteStatus({
           {t("commit.pushedToRemote")}
         </p>
       ) : null}
-      {form ? (
+      {form === "configure" ? (
+        <GitRemoteConfigDialog
+          initialName={defaultRemote}
+          initialUrl={remote?.remotes.find((item) => item.name === defaultRemote)?.url ?? ""}
+          busy={busy}
+          error={actionError}
+          t={t}
+          onClose={() => {
+            setForm(null);
+          }}
+          onSave={(name, url) =>
+            onAction?.({ action: "configure", remote: name, url }) ?? Promise.resolve(false)
+          }
+        />
+      ) : null}
+      {form === "publish" ? (
         <form
           className="mt-2 space-y-2 rounded-control border border-separator p-2 text-caption"
           onSubmit={(event) => {
             event.preventDefault();
-            action({
-              action: form,
-              remote: defaultRemote,
-              ...(form === "configure" ? { url } : {}),
-            });
+            action({ action: "publish", remote: defaultRemote });
             setForm(null);
           }}
         >
           <label className="block">
             {t("commit.remoteName")}
-            {form === "publish" ? (
-              <select
-                className="mt-1 h-8 w-full rounded-control border border-separator bg-panel px-2"
-                value={defaultRemote}
-                onChange={(event) => {
-                  setRemoteName(event.currentTarget.value);
-                }}
-              >
-                {remote?.remotes.map((item) => (
-                  <option key={item.name} value={item.name}>
-                    {item.name} · {item.url}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                className="mt-1 h-8 w-full rounded-control border border-separator bg-panel px-2"
-                required
-                pattern="[A-Za-z0-9_.-]+"
-                value={defaultRemote}
-                onChange={(event) => {
-                  setRemoteName(event.currentTarget.value);
-                }}
-              />
-            )}
+            <select
+              className="mt-1 h-8 w-full rounded-control border border-separator bg-panel px-2"
+              value={defaultRemote}
+              onChange={(event) => {
+                setRemoteName(event.currentTarget.value);
+              }}
+            >
+              {remote?.remotes.map((item) => (
+                <option key={item.name} value={item.name}>
+                  {item.name} · {item.url}
+                </option>
+              ))}
+            </select>
           </label>
-          {form === "configure" ? (
-            <label className="block">
-              {t("commit.remoteUrl")}
-              <input
-                className="mt-1 h-8 w-full rounded-control border border-separator bg-panel px-2"
-                required
-                value={url}
-                placeholder="https://github.com/owner/repo.git"
-                onChange={(event) => {
-                  setUrl(event.currentTarget.value);
-                }}
-              />
-            </label>
-          ) : (
-            <p className="break-words">
-              {defaultRemote}/{branch}
-            </p>
-          )}
+          <p className="break-words">
+            {defaultRemote}/{branch}
+          </p>
           <div className="flex gap-2">
             <Button size="sm" type="submit" disabled={busy}>
-              {t(form === "configure" ? "commit.saveRemote" : "commit.publishBranch")}
+              {t("commit.publishBranch")}
             </Button>
             <Button
               size="sm"
@@ -291,7 +296,9 @@ export function GitRemoteStatus({
                   variant="ghost"
                   type="button"
                   disabled={busy}
-                  onClick={() => action({ action: "resolve", paths: [path] })}
+                  onClick={() => {
+                    action({ action: "resolve", paths: [path] });
+                  }}
                 >
                   {t("commit.markResolved")}
                 </Button>
@@ -303,7 +310,9 @@ export function GitRemoteStatus({
               size="sm"
               type="button"
               disabled={busy || remote.conflicts.length > 0}
-              onClick={() => action({ action: "continue" })}
+              onClick={() => {
+                action({ action: "continue" });
+              }}
             >
               {t("commit.continueMerge")}
             </Button>
@@ -312,7 +321,9 @@ export function GitRemoteStatus({
               variant="outline"
               type="button"
               disabled={busy}
-              onClick={() => action({ action: "abort" })}
+              onClick={() => {
+                action({ action: "abort" });
+              }}
             >
               {t("commit.abortMerge")}
             </Button>

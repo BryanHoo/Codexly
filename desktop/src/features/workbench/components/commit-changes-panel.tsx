@@ -13,6 +13,7 @@ type CommitChangesPanelProps = Readonly<{
   error?: Error | null; gitStatus: ProjectGitStatus; draftScope?: string;
   isCommitting?: boolean; isPushing?: boolean; isGenerating?: boolean;
   isDiffLoading?: boolean; isLoadingMore?: boolean; onLoadMore?: () => void;
+  activeRemoteAction?: PushProjectCommitsRequest["action"] | null | undefined;
   onPush: () => Promise<void>;
   onRemoteAction?: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => Promise<void>;
   remoteResult?: PushProjectCommitsResponse | undefined; isInspectingRemote?: boolean;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { List, ListTree, LoaderCircle } from "lucide-react";
 import {
   createCommitDraft,
-  receiveCommitSuggestion,
+  applyGeneratedCommitMessage,
   type CommitFileEntry,
 } from "@codexly/frontend-core/git-commit-draft";
 import { createGitActionLabels } from "@codexly/frontend-core/project-git-actions";
@@ -42,6 +42,7 @@ export type GitCommitWorkspaceProps = Readonly<{
   error?: Error | null;
   isCommitting?: boolean;
   isPushing?: boolean;
+  activeRemoteAction?: PushProjectCommitsRequest["action"] | null | undefined;
   isGenerating?: boolean;
   totalChanges?: number | undefined;
   complete?: boolean;
@@ -78,6 +79,7 @@ export function GitCommitWorkspace({
   error = null,
   isCommitting = false,
   isPushing = false,
+  activeRemoteAction,
   isGenerating = false,
   totalChanges,
   complete = true,
@@ -138,13 +140,15 @@ export function GitCommitWorkspace({
     draft.selectedPaths.size > 0 &&
     draft.message.trim() !== "";
   const runGit = async (operation: () => Promise<void>) => {
-    if (busy.current) return;
+    if (busy.current) return false;
     busy.current = true;
     setOperationError(null);
     try {
       await operation();
+      return true;
     } catch (cause) {
       setOperationError(cause instanceof Error ? cause.message : String(cause));
+      return false;
     } finally {
       busy.current = false;
     }
@@ -161,7 +165,7 @@ export function GitCommitWorkspace({
         paths: [...requested.selectedPaths],
       });
       if (generation.current === request)
-        update((current) => receiveCommitSuggestion(current, requested, message));
+        update((current) => applyGeneratedCommitMessage(current, requested, message));
     } catch (cause) {
       if (generation.current === request)
         setOperationError(cause instanceof Error ? cause.message : String(cause));
@@ -197,7 +201,8 @@ export function GitCommitWorkspace({
         commitSha={result?.commitSha ?? receipt?.commitSha ?? undefined}
         savedFailureKind={receipt?.failureKind}
         busy={gitBusy}
-        pushing={isPushing}
+        activeAction={isPushing ? (activeRemoteAction ?? "push") : null}
+        actionError={operationError}
         inspecting={isInspectingRemote}
         onOpenConflict={onOpenConflict}
         t={t}
@@ -206,9 +211,8 @@ export function GitCommitWorkspace({
         }}
         {...(onRemoteAction
           ? {
-              onAction: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => {
-                void runGit(() => onRemoteAction(request));
-              },
+              onAction: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) =>
+                runGit(() => onRemoteAction(request)),
             }
           : {})}
       />
@@ -223,7 +227,7 @@ export function GitCommitWorkspace({
       ) : null}
       {hasChanges ? (
         <>
-          <div className="shrink-0 space-y-2 px-3 py-2">
+          <div className="max-h-[25%] shrink-0 space-y-2 overflow-y-auto px-3 py-2">
             <div className="flex items-center gap-1">
               <p className="min-w-0 flex-1 text-caption font-semibold">
                 {t("commit.selectedFiles", {
@@ -259,21 +263,6 @@ export function GitCommitWorkspace({
             {entries.some((entry) => entry.staged && entry.unstaged) ? (
               <p className="text-caption text-muted-foreground">{t("commit.partialStaged")}</p>
             ) : null}
-            {draft.needsReview ? (
-              <div className="flex items-start gap-2 text-caption text-warning" role="status">
-                <p className="flex-1">{t("commit.rangeChanged")}</p>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  type="button"
-                  onClick={() => {
-                    update((current) => ({ ...current, needsReview: false }));
-                  }}
-                >
-                  {t("commit.reviewRange")}
-                </Button>
-              </div>
-            ) : null}
           </div>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {renderChanges(
@@ -282,8 +271,6 @@ export function GitCommitWorkspace({
                 update((current) => ({
                   ...current,
                   selectedPaths: paths,
-                  suggestion: null,
-                  needsReview: current.needsReview || current.message !== "",
                 }));
               },
               gitBusy,
@@ -306,7 +293,7 @@ export function GitCommitWorkspace({
             </div>
           ) : null}
           <section
-            className="max-h-[60%] shrink-0 space-y-2 overflow-y-auto border-t border-separator px-3 py-2"
+            className="max-h-[60%] min-h-0 shrink space-y-2 overflow-y-auto border-t border-separator px-3 py-2"
             data-slot="git-commit-footer"
           >
             <GitCommitEditor
@@ -323,25 +310,13 @@ export function GitCommitWorkspace({
             <GitChangesActions
               busyAction={isCommitting ? commitAction : null}
               canCommit={canCommit}
-              commitSha={undefined}
-              hasChanges
-              isPending={gitBusy}
+              isPending={isCommitting}
+              disabled={gitBusy}
               labels={labels}
               onCommit={(action) => {
                 void commit(action);
               }}
-              onPush={() => {
-                void runGit(onPush);
-              }}
-              pushStatus={null}
             />
-            <p className="text-caption text-muted-foreground">
-              {draft.selectedPaths.size === 0
-                ? t("commit.selectFilesHint")
-                : draft.message.trim() === ""
-                  ? t("commit.messageHint")
-                  : t("commit.localOnly")}
-            </p>
           </section>
         </>
       ) : (

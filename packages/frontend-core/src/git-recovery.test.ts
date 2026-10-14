@@ -7,6 +7,7 @@ describe("Git failure recovery", () => {
     ["Write access to repository not granted", "permission"],
     ["[rejected] main -> main (non-fast-forward)", "remote_updates"],
     ["GH006: Protected branch update failed", "protected_branch"],
+    ["GH013: Repository rule violations found. Commits must have verified signatures", "rules"],
     ["Could not resolve host: github.com", "network"],
     ["Host key verification failed", "host_key"],
     ["pre-receive hook declined", "rules"],

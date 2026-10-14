@@ -4,25 +4,21 @@ export type CommitDraft = Readonly<{
   message: string;
   selectedPaths: ReadonlySet<string>;
   knownPaths: ReadonlySet<string>;
-  needsReview: boolean;
-  suggestion: string | null;
   previousMessage: string | null;
 }>;
 
 export function createCommitDraft(
   snapshot: string,
   entries: readonly CommitFileEntry[],
+  stored?: Pick<CommitDraft, "message" | "previousMessage"> | null,
 ): CommitDraft {
-  const staged = entries.filter((entry) => entry.staged);
-  // 尊重用户已有的暂存范围；没有暂存时才选择首次看到的全部变更。
+  // 每次打开默认选择当前全部文件，只恢复文本和撤销内容，不恢复上次的排除选择。
   return {
     snapshot,
-    message: "",
-    selectedPaths: new Set((staged.length ? staged : entries).map((entry) => entry.path)),
+    message: stored?.message ?? "",
+    selectedPaths: new Set(entries.map((entry) => entry.path)),
     knownPaths: new Set(entries.map((entry) => entry.path)),
-    needsReview: false,
-    suggestion: null,
-    previousMessage: null,
+    previousMessage: stored?.previousMessage ?? null,
   };
 }
 
@@ -33,20 +29,23 @@ export function reconcileCommitDraft(
   complete = true,
 ): CommitDraft {
   const paths = new Set(entries.map((entry) => entry.path));
-  // 分页尚未完成时保留离页选择；新文件只记录，不静默加入本次提交。
-  const selectedPaths = complete
-    ? new Set([...draft.selectedPaths].filter((path) => paths.has(path)))
-    : draft.selectedPaths;
+  // 初始详情可能晚于面板打开，首批文件到达时补足默认全选；此后刷新保留手动排除。
+  // 分页尚未完成时保留离页选择，后续新文件或新页面不自动加入本次提交。
+  const selectedPaths =
+    draft.knownPaths.size === 0
+      ? paths
+      : complete
+        ? new Set([...draft.selectedPaths].filter((path) => paths.has(path)))
+        : draft.selectedPaths;
   return {
     ...draft,
     snapshot,
     selectedPaths,
     knownPaths: new Set([...draft.knownPaths, ...paths]),
-    needsReview: draft.needsReview || draft.snapshot !== snapshot,
   };
 }
 
-export function receiveCommitSuggestion(
+export function applyGeneratedCommitMessage(
   current: CommitDraft,
   requested: CommitDraft,
   message: string,
@@ -55,11 +54,9 @@ export function receiveCommitSuggestion(
     current.snapshot === requested.snapshot &&
     current.selectedPaths.size === requested.selectedPaths.size &&
     [...current.selectedPaths].every((path) => requested.selectedPaths.has(path));
-  // 迟到结果不能用于新的提交范围，也不能覆盖请求期间的用户输入。
-  if (!sameRange) return { ...current, needsReview: true };
-  if (current.message !== "" || current.message !== requested.message)
-    return { ...current, suggestion: message };
-  return { ...current, message, previousMessage: current.message, suggestion: null };
+  // 只应用相同提交范围的结果；用户点击生成即授权替换当前全文，替换前的内容保留用于撤销。
+  if (!sameRange) return current;
+  return { ...current, message, previousMessage: current.message };
 }
 
 export function serializeCommitDraft(draft: CommitDraft): string {
@@ -69,8 +66,6 @@ export function serializeCommitDraft(draft: CommitDraft): string {
     message: draft.message,
     selectedPaths: [...draft.selectedPaths],
     knownPaths: [...draft.knownPaths],
-    needsReview: draft.needsReview,
-    suggestion: draft.suggestion,
     previousMessage: draft.previousMessage,
   });
 }
@@ -92,8 +87,6 @@ export function parseCommitDraft(value: string | null): CommitDraft | null {
       parsed["message"].length > 10_000 ||
       !paths(parsed["selectedPaths"]) ||
       !paths(parsed["knownPaths"]) ||
-      typeof parsed["needsReview"] !== "boolean" ||
-      !optionalText(parsed["suggestion"]) ||
       !optionalText(parsed["previousMessage"])
     )
       return null;
@@ -102,8 +95,6 @@ export function parseCommitDraft(value: string | null): CommitDraft | null {
       message: parsed["message"],
       selectedPaths: new Set(parsed["selectedPaths"]),
       knownPaths: new Set(parsed["knownPaths"]),
-      needsReview: parsed["needsReview"],
-      suggestion: parsed["suggestion"] as string | null,
       previousMessage: parsed["previousMessage"] as string | null,
     };
   } catch {

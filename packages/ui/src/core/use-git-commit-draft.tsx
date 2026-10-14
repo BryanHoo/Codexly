@@ -8,18 +8,11 @@ import {
   type CommitFileEntry,
 } from "@codexly/frontend-core/git-commit-draft";
 
-function restore(
-  key: string,
-  snapshot: string,
-  entries: readonly CommitFileEntry[],
-  complete: boolean,
-) {
+function restore(key: string, snapshot: string, entries: readonly CommitFileEntry[]) {
   try {
     const stored =
       typeof window === "undefined" ? null : parseCommitDraft(window.localStorage.getItem(key));
-    return stored
-      ? reconcileCommitDraft(stored, snapshot, entries, complete)
-      : createCommitDraft(snapshot, entries);
+    return createCommitDraft(snapshot, entries, stored);
   } catch {
     return createCommitDraft(snapshot, entries);
   }
@@ -40,7 +33,7 @@ export function useGitCommitDraft(
   );
   const [state, setState] = useState(() => ({
     range,
-    draft: restore(key, snapshot, entries, complete),
+    draft: restore(key, snapshot, entries),
   }));
   if (state.range !== range)
     setState({ range, draft: reconcileCommitDraft(state.draft, snapshot, entries, complete) });

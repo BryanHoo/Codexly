@@ -13,7 +13,7 @@ export type GitFailureKind =
 export function classifyGitFailure(message: string | null | undefined): GitFailureKind {
   const text = message?.toLowerCase() ?? "";
   if (/host key verification|remote host identification has changed/u.test(text)) return "host_key";
-  if (/protected branch|gh006|gh013|repository rule violations/u.test(text))
+  if (/protected branch|gh006|changes must be made through a pull request/u.test(text))
     return "protected_branch";
   if (
     /authentication failed|publickey|invalid.*(?:token|password)|could not read username/u.test(
@@ -25,7 +25,12 @@ export function classifyGitFailure(message: string | null | undefined): GitFailu
     return "permission";
   if (/non-fast-forward|fetch first|tip of your current branch is behind/u.test(text))
     return "remote_updates";
-  if (/pre-receive hook declined|hook declined|push declined/u.test(text)) return "rules";
+  if (
+    /gh013|repository rule violations|pre-receive hook declined|hook declined|push declined/u.test(
+      text,
+    )
+  )
+    return "rules";
   if (/timed out|timeout|connection.*(?:reset|closed)|unexpected disconnect/u.test(text))
     return "unknown_result";
   if (

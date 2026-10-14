@@ -22,6 +22,7 @@ type CommitChangesPanelProps = Readonly<{
   isCommitting?: boolean;
   isPushing?: boolean;
   isGenerating?: boolean;
+  activeRemoteAction?: PushProjectCommitsRequest["action"] | null | undefined;
   onPush: () => Promise<void>;
   onRemoteAction?: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => Promise<void>;
   remoteResult?: PushProjectCommitsResponse | undefined;
