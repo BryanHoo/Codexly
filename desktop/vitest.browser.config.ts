@@ -14,6 +14,7 @@ export default defineConfig({
     alias: [{ find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) }],
   },
   test: {
+    setupFiles: ["./tests/browser/setup.ts"],
     // Keep both engines within desktop/WSL memory limits so layout checks get rendering time.
     maxWorkers: 2,
     browser: {
