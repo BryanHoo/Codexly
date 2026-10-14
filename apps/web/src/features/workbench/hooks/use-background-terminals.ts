@@ -40,6 +40,8 @@ export function useBackgroundTerminals(
       return client.listBackgroundTerminals(projectId, taskId, { signal });
     },
     queryKey: ["projects", projectId, "tasks", taskId, "background-terminals"] as const,
+    // 进程存活状态不能沿用全局 30 秒新鲜期；重新打开任务或上下文时校准缓存。
+    staleTime: 0,
     refetchInterval(query) {
       // Turn 已结束但终端仍存在时继续轮询，直到 Provider 确认进程退出。
       return getBackgroundTerminalPollInterval(isTaskRunning, query.state.data?.data.length ?? 0);
@@ -87,10 +89,12 @@ export function useBackgroundTerminals(
           await terminateTerminalMutation(terminalId);
           idempotencyKeysRef.current.delete(terminalId);
         } catch {
-          // 根级 MutationCache 已展示失败 toast，终端列表保持原状态供重试。
+          // 进程可能已自然退出；失败后重新读取权威列表，避免残留无法结束的命令。
+          // 根级 MutationCache 仍负责展示真实请求错误。
+          await refetchTerminals();
         }
       }),
-    [terminateTerminalMutation],
+    [refetchTerminals, terminateTerminalMutation],
   );
 
   return {

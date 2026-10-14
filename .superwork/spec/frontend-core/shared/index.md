@@ -4,6 +4,7 @@
 
 - 查询配置通过读取函数注入数据源；各端负责包装 React Query、传入客户端方法，并保留不同的完成任务查询契约。
 - 后台终端轮询共用 `background-terminal-polling`：已有终端每 1.5 秒校准，运行中空列表每 10 秒发现新终端，空闲且无终端时停止；回合边界立即读取，后台页面不轮询。各端保留自己的客户端与 Mutation 流程。
+- 后台终端存活查询不得继承全局 30 秒缓存新鲜期；重新打开任务或启用上下文时读取权威列表，结束失败后也立即校准。回合完成不能直接清空仍存活的后台终端；仅将 `-32600` 的 `thread not found:` 视为线程已释放，列表为空且结束操作幂等成功，其他错误继续传播。桌面收到 `terminated: false` 后须确认目标已从列表消失才视为成功。两端 `use-background-terminals-recovery` 与原生 `conversation_background_tests` 覆盖此约定。
 - 语言资源共用 `deferred-language` 加载与 i18next 后端适配：中文回退资源可同步使用，英语基础文案按需下载；并发加载只注册一次，失败允许重试。直接调用 i18next 切换语言、通知和辅助窗口同样必须等待资源，功能页的增量文案不得被覆盖。
 - 浏览器文本复制统一使用 `@codexly/frontend-core/clipboard` 的 `writeClipboardText`；必须处理 Clipboard API 缺失和写入被拒绝，降级复制后清理临时元素并恢复焦点、选区，失败不得误报成功。桌面已有原生剪贴板入口保持原生实现；Web 的部署限制与移动端交互由 `tests/e2e/app-shell-clipboard.spec.ts` 验证。
 - 时间线的 `interrupted` / `failed` 回合在下一次消息提交前保留输出，提交开始或已有后续回合时默认折叠全部输出（含部分最终答复与文件变更），保留用户输入及展开入口；`completed` 回合沿用各端既有规则。中断输出分类由共享层统一实现。

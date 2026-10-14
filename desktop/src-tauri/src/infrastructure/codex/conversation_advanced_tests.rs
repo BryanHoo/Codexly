@@ -8,7 +8,6 @@ use super::{
     conversation_advanced::{
         clear_goal, get_goal, set_goal_objective, update_goal, upload_feedback,
     },
-    conversation_background::{list_background_terminals, terminate_background_terminal},
     conversation_commands::{start_task, update_thread_settings},
     conversation_events::map_server_message,
     conversation_queue::{
@@ -169,70 +168,6 @@ async fn native_goal_commands_should_map_protocol_contract() {
         .await
         .expect("goal should clear");
     assert!(cleared.cleared);
-    server_task.await.unwrap();
-}
-
-#[tokio::test]
-async fn native_background_terminal_commands_should_map_protocol_contract() {
-    let (client, server) = duplex(16 * 1024);
-    let (client_reader, client_writer) = split(client);
-    let (server_reader, mut server_writer) = split(server);
-    let connection = AppServerConnection::new(client_reader, client_writer);
-
-    let server_task = tokio::spawn(async move {
-        let mut lines = BufReader::new(server_reader).lines();
-        let list_request: Value =
-            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
-        assert_eq!(list_request["method"], "thread/backgroundTerminals/list");
-        assert_eq!(list_request["params"]["threadId"], "thread-a");
-        server_writer
-            .write_all(
-                format!(
-                    "{}\n",
-                    json!({"id": list_request["id"].clone(), "result": {
-                        "data": [{
-                            "itemId": "item-a", "processId": "42", "command": "pnpm check",
-                            "cwd": "/work/a", "osPid": 42, "cpuPercent": 1.5, "rssKb": 1024
-                        }],
-                        "nextCursor": null
-                    }})
-                )
-                .as_bytes(),
-            )
-            .await
-            .unwrap();
-
-        let terminate_request: Value =
-            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
-        assert_eq!(
-            terminate_request["method"],
-            "thread/backgroundTerminals/terminate"
-        );
-        assert_eq!(terminate_request["params"]["processId"], "42");
-        server_writer
-            .write_all(
-                format!(
-                    "{}\n",
-                    json!({"id": terminate_request["id"].clone(), "result": {"terminated": true}})
-                )
-                .as_bytes(),
-            )
-            .await
-            .unwrap();
-    });
-
-    let page = list_background_terminals(&connection, "thread-a")
-        .await
-        .expect("terminals should map");
-    assert_eq!(page.data[0].id, "42");
-    assert_eq!(page.data[0].item_id, "item-a");
-    assert_eq!(page.data[0].cwd, "/work/a");
-
-    let response = terminate_background_terminal(&connection, "thread-a", "42")
-        .await
-        .expect("terminal should terminate");
-    assert_eq!(response.status, "terminated");
-    assert_eq!(response.terminal_id, "42");
     server_task.await.unwrap();
 }
 

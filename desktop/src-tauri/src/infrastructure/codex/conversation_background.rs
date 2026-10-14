@@ -58,6 +58,10 @@ struct NativeTerminateResponse {
     terminated: bool,
 }
 
+fn is_thread_missing_error(error: &ConnectionError) -> bool {
+    matches!(error, ConnectionError::Request { code: -32600, message } if message.starts_with("thread not found:"))
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminateBackgroundTerminalResponse {
@@ -73,7 +77,7 @@ pub async fn list_background_terminals(
     let mut seen_cursors = HashSet::new();
     let mut data = Vec::new();
     for _ in 0..MAX_PAGES {
-        let response: NativePage = connection
+        let response: NativePage = match connection
             .request(
                 "thread/backgroundTerminals/list",
                 &ListParams {
@@ -83,7 +87,15 @@ pub async fn list_background_terminals(
                 },
                 REQUEST_TIMEOUT,
             )
-            .await?;
+            .await
+        {
+            Ok(response) => response,
+            // 历史线程已释放时没有后台进程，不恢复线程，也不把陈旧列表继续显示为运行中。
+            Err(error) if is_thread_missing_error(&error) => {
+                return Ok(AgentBackgroundTerminalPage { data: Vec::new() });
+            }
+            Err(error) => return Err(error),
+        };
         for terminal in response.data {
             if terminal.process_id.is_empty()
                 || terminal.item_id.is_empty()
@@ -118,7 +130,7 @@ pub async fn terminate_background_terminal(
     if terminal_id.is_empty() {
         return Err(ConnectionError::InvalidMessage);
     }
-    let response: NativeTerminateResponse = connection
+    let response: NativeTerminateResponse = match connection
         .request(
             "thread/backgroundTerminals/terminate",
             &TerminateParams {
@@ -127,9 +139,25 @@ pub async fn terminate_background_terminal(
             },
             REQUEST_TIMEOUT,
         )
-        .await?;
+        .await
+    {
+        Ok(response) => response,
+        // 与 Web 保持一致：线程已释放等价于目标终端已退出，结束操作可以幂等成功。
+        Err(error) if is_thread_missing_error(&error) => {
+            NativeTerminateResponse { terminated: true }
+        }
+        Err(error) => return Err(error),
+    };
     if !response.terminated {
-        return Err(ConnectionError::InvalidMessage);
+        // false 既可能表示进程已退出，也可能表示终止失败；仅在权威列表仍包含它时报错。
+        let terminals = list_background_terminals(connection, task_id).await?;
+        if terminals
+            .data
+            .iter()
+            .any(|terminal| terminal.id == terminal_id)
+        {
+            return Err(ConnectionError::InvalidMessage);
+        }
     }
     Ok(TerminateBackgroundTerminalResponse {
         status: "terminated",

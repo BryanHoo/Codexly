@@ -94,6 +94,8 @@ mod conversation_advanced_tests;
 #[path = "conversation_approval_tests.rs"]
 mod conversation_approval_tests;
 #[cfg(test)]
+mod conversation_background_tests;
+#[cfg(test)]
 #[path = "conversation_command_tests.rs"]
 mod conversation_command_tests;
 #[cfg(test)]

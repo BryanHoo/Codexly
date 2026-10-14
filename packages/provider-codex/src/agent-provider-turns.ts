@@ -361,14 +361,20 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
 
   public async terminateBackgroundTerminal(taskId: string, terminalId: string): Promise<boolean> {
     this.assertKnownProjectTask(taskId);
-    const response = expectRecord(
-      await this.client.request("thread/backgroundTerminals/terminate", {
-        processId: terminalId,
-        threadId: taskId,
-      }),
-      "thread/backgroundTerminals/terminate response",
-    );
-    return expectBoolean(response["terminated"], "background terminal terminate result");
+    try {
+      const response = expectRecord(
+        await this.client.request("thread/backgroundTerminals/terminate", {
+          processId: terminalId,
+          threadId: taskId,
+        }),
+        "thread/backgroundTerminals/terminate response",
+      );
+      return expectBoolean(response["terminated"], "background terminal terminate result");
+    } catch (error) {
+      // 线程已从运行时释放时不存在可终止进程；与列表查询保持一致的幂等语义。
+      if (isBackgroundTerminalThreadMissingError(error)) return false;
+      throw error;
+    }
   }
 
   public async uploadFeedback(taskId: string, input: UploadAgentFeedbackRequest): Promise<void> {

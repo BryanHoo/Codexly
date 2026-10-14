@@ -354,6 +354,26 @@ describe("CodexAgentProvider goals and operations", () => {
     ]);
   });
 
+  it("treats termination of an unloaded thread as an already exited terminal", async () => {
+    const rpc = new FakeRpcClient([
+      { thread: nativeThread() },
+      new RpcResponseError({ code: -32600, data: null, message: "thread not found: task-1" }),
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    await provider.readTask("task-1");
+
+    await expect(provider.terminateBackgroundTerminal("task-1", "terminal-1")).resolves.toBe(false);
+  });
+
+  it("preserves actual background terminal termination errors", async () => {
+    const error = new RpcResponseError({ code: -32600, data: null, message: "permission denied" });
+    const rpc = new FakeRpcClient([{ thread: nativeThread() }, error]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    await provider.readTask("task-1");
+
+    await expect(provider.terminateBackgroundTerminal("task-1", "terminal-1")).rejects.toBe(error);
+  });
+
   it("unsubscribes an idle task and releases provider task state", async () => {
     const rpc = new FakeRpcClient([
       { thread: nativeThread({ turns: [] }) },
