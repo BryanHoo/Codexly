@@ -32,6 +32,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Install and manage Skills, official plugins, and third-party markets in the extension center, including MCP service controls and hot reload; refresh official plugins to synchronize their state and report partial failures
 - Answer asynchronous questions in a pinned panel, prevent concurrent interactions with cross-client task locks, and restore thread model and reasoning settings
 - Open up to four task panes with independent drafts and message queues; project files, Git panels, and the terminal follow the focused task
+- Choose two, three, or four panes from **Split layout** in the task title bar, with auto fit, columns, rows, main-pane, or grid presets; keep the current chat and open new-task pages in the other panes.
 - Resize panes by dragging dividers, create tasks from the title bar, and see the current model and reasoning effort while the composer is collapsed
 - Edit project text files directly in the source preview with undo, redo, manual saving, and automatic saving on blur
 - Follow streaming reasoning summaries and grouped operations, and inspect runtime warnings and live tool timing in the context panel and timeline
@@ -47,6 +48,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access for each task, and configure the global model context window
 - Discover models from custom providers online and fall back to a local catalog when unavailable
 - Create projects and directories, manage multiple project roots, temporary tasks, and archived tasks, generate titles for new tasks, and fork new tasks from existing conversations
+- Switch tasks from the sidebar’s **Pinned** and **Running** shortcuts, with pending approvals first; collapse previews or open the full list, even with projects collapsed.
 - Identify tasks from different projects through project labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks
 - Search tasks, message history, and project files across projects, then jump to exact history matches
 - Browse and manage project files, switch between file previews and diffs in the inspector, review uncommitted changes and commit history, then copy messages as source-preserving Markdown
@@ -74,7 +76,7 @@ Drag a divider to resize adjacent panes. Navigation from notifications, search, 
 
 Open a project text file in the source preview to edit it; switch Markdown to source mode first. Changes save when the editor loses focus, you leave the file, or you switch windows; use `⌘/Ctrl+S` to save manually. UTF-8 files up to 2 MiB are editable, with line endings and BOM preserved; larger or unsupported files stay read-only. Save errors and conflicts keep your draft in the current window and show recovery actions. Closing a panel or exiting the app protects unsaved edits. Drafts are held in memory and are not guaranteed to survive a forced exit or crash.
 
-The workspace provides project files, code changes, Git history, branches, worktrees, reviews, commits, and push actions. The Git panel's main button commits; **More Git actions** offers **Commit and push** and **Push existing commits**. A failed push preserves the local commit and can be retried independently. Configure the upstream first; see the [Git workflow guide](../docs/git-workflow.md). Archived tasks can be restored or permanently deleted after confirmation.
+The workspace provides project files, code changes, Git history, branches, worktrees, reviews, commits, and push actions. The Changes toolbar shows the branch, push destination, and incoming/outgoing counts, with remote configuration, branch publishing, fetch, fast-forward pull, and independent push actions. The footer edits the commit message; the main button commits and **More Git actions** offers **Commit and push**. Drafts persist on the current device by project, worktree, and branch; AI generation can be undone. A failed push preserves the local commit for retry. **Publish branch** establishes upstream tracking; see the [Git workflow guide](../docs/git-workflow.md). Archived tasks can be restored or permanently deleted after confirmation.
 
 ## Documentation
 

@@ -1,6 +1,6 @@
-# Git 提交与推送
+# Git 提交与远端同步
 
-本指南适用于 Codexly Web（含移动端）与桌面端。在工作台 Git 面板选择项目根目录和当前分支后，可分别保存变更或推送已有提交。项目根目录必须是 Git 仓库；普通子目录不会借用父目录的仓库。
+本指南适用于 Codexly Web（含移动端）与桌面端。在工作台 Git 面板选择项目根目录和当前分支后，可保存变更、配置远端、发布分支、获取或拉取更新，以及推送已有提交。项目根目录必须是 Git 仓库；普通子目录不会借用父目录的仓库。
 
 ## 选择操作
 
@@ -12,11 +12,11 @@
 
 变更工作区顶部显示当前分支、推送目标与待推送/待拉取数量，中间审查文件，底部编辑提交信息。顶部推送入口始终可见，未提交文件不影响推送已有提交。主按钮执行「提交」；从「更多 Git 操作」选择「提交并推送」，独立推送统一使用顶部入口。
 
-提交信息草稿按项目、工作树和分支保存在当前设备，刷新或重新打开后保留。每次打开「变更」默认全选当前文件，包含已暂存和未暂存文件；打开后可取消勾选，普通刷新保留本次选择。部分暂存文件只提交已暂存内容，差异预览和 AI 使用相同范围。桌面分页中的全选仅针对已加载文件，后续新增文件或继续加载不自动扩大提交范围。界面不显示变更范围审查提示。
+提交信息草稿按项目、工作树和分支保存在当前设备，刷新或重新打开后保留。每次打开「变更」默认全选当前文件，包含已暂存和未暂存文件；打开后可取消勾选，普通刷新保留本次选择。部分暂存文件只提交已暂存内容，差异预览和 AI 使用相同范围。桌面分页中的全选仅针对已加载文件，后续新增文件或继续加载不自动扩大提交范围。
 
 提交信息使用单一输入框，支持多行内容。点击「AI 生成」后，生成成功会直接替换当前提交信息，无需再次确认；可通过「撤销生成」恢复替换前的内容。生成期间改变范围的结果会被丢弃，草稿仍保留。成功提交后清除已使用的草稿；失败后可以继续编辑。
 
-顶部固定高度为 72px，仅包含分支信息行与状态操作行，不预留额外提示行。状态统一使用 24px 徽标，待推送保留蓝色可点击样式；下一步操作使用 24px 小按钮，固定在第二行右侧。正常状态不显示额外提示；失败仅显示简短原因与详情入口，完整建议放在弹窗中，切换状态不改变文件列表的位置。两行工具栏展示：当前分支与推送目标、待推送/待拉取数量和一个下一步主操作。同步后主操作为获取更新；获取进度只显示在获取入口，不改变推送按钮名称。配置、状态检查和远端信息位于更多菜单，发布分支与创建分支使用弹窗。未推送数量可点击打开历史；检查时间、地址和提交哈希只在信息弹窗中展示。
+顶部工具栏展示当前分支与推送目标、待推送/待拉取数量和下一步操作；状态切换不改变文件列表的位置。同步后主操作为获取更新；获取进度显示在获取入口。配置、状态检查和远端信息位于更多菜单，发布分支与创建分支使用弹窗。未推送数量可点击打开历史；检查时间、地址和提交哈希在信息弹窗中展示。失败时显示简短原因与详情入口，完整建议放在弹窗中。
 
 历史中的「未推送」标记表示该提交尚未包含在当前推送目标的本地远端引用中。点击变更顶部的「待推送 N 个提交」可打开当前项目历史；推送成功后标记自动更新。状态依据已获取的远端引用，需要最新远端信息时先获取更新；没有明确推送目标或对应引用时不猜测状态。
 
@@ -32,7 +32,7 @@
 
 「检查远端状态」只读取 Git 主机上的本地配置与已有远端引用，界面显示本地检查时间；点击「获取远端更新」才访问网络并更新引用。提交后的状态检查会等待 Git 写操作完成再执行；提前到达的新状态不会触发竞争检查，通常无需手动重试。推送前读取当前分支的最新提交，再绑定该 HEAD 和分支执行；新增工作区修改不阻塞推送，执行期间 HEAD 或分支变化则停止并提示刷新确认后重试。只读检查可在工作区快照过期后刷新状态。Git 操作发生在运行 Codexly 的电脑上；Web 从其他设备访问时也使用服务端电脑的 Git 身份和远端认证配置。
 
-## Commit and push
+## Commit and remote synchronization
 
 This guide applies to Web, including mobile, and desktop. Select a project root and branch in the Git panel. The project root must be a Git repository; ordinary subdirectories do not use a parent repository.
 
@@ -42,11 +42,11 @@ This guide applies to Web, including mobile, and desktop. Select a project root 
 | Commit and push       | Create a local commit, then push the current branch's local commits                |
 | Push existing commits | Push saved commits without creating a commit or changing the index or working tree |
 
-The workspace keeps remote actions at the top, file review in the middle and the commit editor at the bottom. Messages survive refreshes and reopening on the same device, scoped by project, worktree and branch. Each opening selects all current files by default; manual exclusions survive refreshes within that opening. No range review notice or acknowledgement is shown. Partially staged files include the staged version only, consistently across preview, AI and commit. Newly discovered or paged files are not silently selected.
+The workspace keeps remote actions at the top, file review in the middle and the commit editor at the bottom. Messages survive refreshes and reopening on the same device, scoped by project, worktree and branch. Each opening selects all current files by default; manual exclusions survive refreshes within that opening. Partially staged files include the staged version only, consistently across preview, AI and commit. Newly discovered or paged files are not silently selected.
 
 The footer uses one message field, including multiline content, and commit actions only. AI generation directly replaces the current message when it succeeds, without a confirmation step. Undo generation to restore the previous message. Responses for an outdated selection are discarded. Only a successful commit clears the draft. Push existing commits from the persistent remote toolbar, even with working changes.
 
-The toolbar stays 72px tall across all states with a branch row and a status/action row, without a reserved notice line. Status badges and the next-action button are 24px tall; outgoing commits keep their blue clickable badge, and the next action stays on the lower right. Normal states show no extra notice; failures show a short reason and a details link, with full guidance in a dialog. This keeps the file list from shifting. The two action rows show branch and destination context, incoming/outgoing counts and one next action. Fetch is the primary action after synchronization. Fetch progress stays on its own control. The more menu contains configuration, status checks and remote information; publishing and branch creation use dialogs. Addresses, check time and commit hashes stay in the information dialog.
+The toolbar shows branch and destination context, incoming/outgoing counts and the next action, keeping the file list in place when the status changes. Fetch is the primary action after synchronization, and its progress stays on its own control. The more menu contains configuration, status checks and remote information; publishing and branch creation use dialogs. Click the outgoing count to open history. Addresses, check time and commit hashes appear in the information dialog. Failures show a short reason and a details link, with full guidance in a dialog.
 
 History marks commits as **Unpushed** when they are not included in the cached reference for the current push destination. Click **N commits to push** in Changes to open the project history. Marks refresh after a successful push. Fetch to update cached remote references; no status is guessed when the destination or its reference is unknown.
 

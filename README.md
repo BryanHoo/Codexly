@@ -38,6 +38,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 - Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive, with file edit timing and completion summaries; keep follow-up messages in a persistent queue.
 - Load recent conversation history first and fetch older turns and items as needed; long code previews use shared rendering and bounded highlighting. See [conversation loading and performance](docs/conversation-performance.md).
 - Open up to four task panes in desktop browsers and the desktop app, each with its own draft and message queue. File and Git panels follow the focused task; mobile Web keeps a single-task view.
+- Choose two, three, or four panes from **Split layout** in the task title bar, with auto fit, columns, rows, main-pane, or grid presets; keep the current chat and open new-task pages in the other panes. Available in desktop views.
 - Resize task panes by dragging their dividers, create tasks from the title bar, and see the model and reasoning effort while the composer is collapsed.
 - Edit project text files directly in the source preview on desktop or mobile, with undo, redo, and automatic saving when leaving the editor or switching windows.
 - Read streaming Markdown responses and copy their source text; zoom and pan message images, project images, and wallpapers, or view them at their original size.
@@ -46,6 +47,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 - Follow file citations, code review comments, and follow-up suggestions in assistant responses; selecting a suggestion fills the composer for further editing.
 - Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task, and configure the global [context window](docs/model-context-window.md).
 - Create projects and directories, search tasks, message history, and project files; inspect changes, work with branches and worktrees, commit selected files, commit and push, or push existing commits independently. See the [Git workflow guide](docs/git-workflow.md). Git actions require a repository at the project root; ordinary subdirectories do not use the parent repository.
+- Switch tasks from the sidebar’s **Pinned** and **Running** shortcuts, with pending approvals first; collapse previews or open the full list, even with projects collapsed.
 - Identify each task's project through labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks.
 - Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work. Refresh official plugins to synchronize their state and report partial failures.
 - Request background compression of history files untouched for over 7 days under Settings → Agent → History storage. Web compresses server history; desktop compresses local history. Other Codex clients sharing that directory must support compressed history.
@@ -151,7 +153,7 @@ The image entrypoint accepts all normal CLI arguments, so orchestration platform
 
 Select **New task** for work that does not need a project. For repository work, add one or more host directories as ordered project roots, create a task, and submit your request with any required files, images, project references, or Skills. Archived tasks can be restored or permanently deleted from the project task list.
 
-The Git panel's main button commits; **More Git actions** offers **Commit and push** and **Push existing commits**. A failed push preserves the local commit and can be retried independently. Configure the branch upstream before pushing.
+The Changes toolbar shows the branch, push destination, and incoming/outgoing counts, with remote configuration, branch publishing, fetch, fast-forward pull, and independent push actions. The footer edits the commit message; the main button commits and **More Git actions** offers **Commit and push**. Drafts persist on the current device by project, worktree, and branch; AI generation can be undone. A failed push preserves the local commit for retry. **Publish branch** establishes upstream tracking, and history marks unpushed commits.
 
 Task controls set the model, reasoning, Fast mode, approval, and file access behavior. Notification preferences and the last complete project settings are saved for later tasks. The right inspector provides project files, sources, code changes, Git history, review, and commit actions. Project directories and files always come from the computer running Codexly, including when the UI is opened on another device.
 
