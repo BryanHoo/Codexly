@@ -37,3 +37,30 @@ export function projectPushMutationOptions(
     scope: { id: `project-git-mutation:${projectId}:${rootPath}` },
   };
 }
+
+/** 状态检查只读取 Git 主机的本地引用，复用远端接口但不触发 fetch/push。 */
+export function projectGitRemoteQueryOptions(
+  projectId: string,
+  rootPath: string,
+  branch: string | null,
+  snapshot: string,
+  client: {
+    pushProjectCommits(
+      projectId: string,
+      rootPath: string,
+      request: PushProjectCommitsRequest,
+    ): Promise<PushProjectCommitsResponse>;
+  },
+) {
+  return {
+    queryKey: ["projects", projectId, rootPath, "git-remote", branch] as const,
+    queryFn: () =>
+      client.pushProjectCommits(projectId, rootPath, {
+        action: "inspect",
+        expectedSnapshot: snapshot,
+      }),
+    staleTime: 15_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  };
+}

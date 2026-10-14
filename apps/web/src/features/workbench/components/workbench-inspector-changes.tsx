@@ -13,6 +13,7 @@ export function WorkbenchInspectorChanges({
   gitStatus,
   gitStatusError,
   onOpenFileDiff,
+  onOpenProjectFile,
   projectId,
   rootPath,
 }: Readonly<{
@@ -23,6 +24,7 @@ export function WorkbenchInspectorChanges({
   gitStatus: ProjectGitStatus | undefined;
   gitStatusError: Error | null;
   onOpenFileDiff: (change: AgentFileChange) => void;
+  onOpenProjectFile?: ((path: string) => void) | undefined;
   projectId: string | undefined;
   rootPath: string;
 }>) {
@@ -34,6 +36,7 @@ export function WorkbenchInspectorChanges({
         detailsPending={detailsPending}
         gitStatus={detailsStatus ?? gitStatus}
         onOpenFileDiff={onOpenFileDiff}
+        onOpenProjectFile={onOpenProjectFile}
         projectId={projectId}
         rootPath={rootPath}
       />

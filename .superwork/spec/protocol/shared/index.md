@@ -22,3 +22,5 @@
 - `AgentModel.inputModalities` 是可选目录元数据，API 发现与缓存保留输入能力；旧模型和旧快照没有该字段时保持兼容。回归验证 `provider-connection.test.ts` 的持久化目录 Schema。
 
 - 独立 Git 推送请求仅包含 `expectedSnapshot` 和可选仓库身份；返回 `branch`、`pushStatus`（`pushed` / `failed` / `not_configured`）及 `pushError`，不创建 commit。桌面直接复用共享推送协议，原生差异留在原有提交协议中。
+
+- Git 远端操作复用推送接口，`action` 区分 inspect/push/publish/fetch/integrate/continue/abort/configure/resolve/branch；不传 action 维持既有推送行为。响应的可选 `remoteState` 返回本地引用检查时间、实际推送目标、领先落后计数和合并冲突。网络操作可用 expectedHead/expectedBranch 绑定审阅提交，其他工作区写操作继续校验 expectedSnapshot；操作和状态字段须同步 Web 与 Rust IPC。

@@ -29,3 +29,5 @@
 - 文本编辑通过 `/v1/projects/:projectId/files/text` 完整有界读取及条件保存，限定根目录内 2 MiB UTF-8 文本，拒绝符号链接、`.git`、二进制及不一致换行。`/files/text/revision` 共用严格路径权限，只返回磁盘元数据修订标记，不读取正文；完整读取与保存回执绑定各自快照的修订标记。SHA-256 版本校验、同文件保存串行和同目录原子替换不可省略；以 `project-text-file.test.ts` 与路由测试覆盖冲突、路径边界和字节保留。详见 [文本文件编辑方案](../../../../docs/text-file-editing.md)。
 
 - `POST /v1/projects/:projectId/git/push?rootPath=…` 推送已有提交，执行前校验根目录归属与仓库快照，并与其他 Git 写操作共用项目/工作树作用域锁和幂等缓存；不执行 add、commit 或 reset。网络失败返回可重试的推送结果，过期快照返回冲突。回归使用临时 bare 远端验证 HEAD 不变、幂等重放、并发拒绝与失败后的重试。
+
+- Git 远端 inspect 不访问网络，fetch 显式更新引用；publish 明确远端和分支，建立上游。远端变更动作沿用根目录权限、Git 写锁、幂等缓存及有界进程执行器。整合要求干净工作区，仅合并推送目标已获取引用；resolve 只暂存用户指定的当前冲突路径并检查残留标记，continue/abort 分别完成/取消合并。部分暂存文件的 AI 上下文必须与隔离 index 的实际版本相同。回归见 `git-remote.test.ts`、`git-commit.test.ts`、`git-commit-message.test.ts`。

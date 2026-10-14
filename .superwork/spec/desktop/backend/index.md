@@ -24,3 +24,5 @@
 - Codex API Key 模型发现已稳定并默认开启；启动参数不强制覆盖此开关，缺省配置不因发现功能而重复写入。模型默认值及推理档位取自命中的 API 或 CLI 目录，保留自定义档位；不增加逐模型请求。
 
 - 项目 Git 读取仅检查当前根目录的 `.git`（目录或 worktree gitfile），缺失时返回 `repositoryMode: "none"`，不扫描子目录、不执行 Git 命令、不回溯父仓库；拒绝通过 `repository` 参数选择子仓库。元数据 Watch 同样不得发现子目录仓库；回归覆盖含子仓库的普通目录、父仓库下的普通目录以及正常 worktree。
+
+- 原生 Git 远端动作复用 `push_project_commits` IPC 与 shared schema，保留已有推送兼容入口。`git_remote` 执行检查/发布/获取/整合/冲突处理/功能分支创建；新 UI 先展示目的地，网络动作绑定 HEAD 与分支，工作文件新增不阻塞推送。部分暂存文件生成上下文只采用暂存版本。回归使用 `git_workflow_tests` 的本地临时远端，不推送用户真实仓库。

@@ -37,6 +37,8 @@ pub struct PushCommitsResponse {
     pub branch: Option<String>,
     pub push_error: Option<String>,
     pub push_status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_state: Option<super::git_remote::GitRemoteState>,
 }
 
 /// 推送已有提交，复用提交并推送的远端选择和首次建立 upstream 逻辑。
@@ -53,6 +55,7 @@ pub async fn push_commits(
         branch: status.branch,
         push_error,
         push_status,
+        remote_state: None,
     })
 }
 

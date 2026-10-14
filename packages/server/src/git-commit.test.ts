@@ -40,6 +40,25 @@ afterEach(async () => {
 });
 
 describe("commitSelectedProjectChanges", () => {
+  it("pushes the reviewed HEAD even when unrelated working changes arrive", async () => {
+    const root = await createRepository();
+    const remote = await mkdtemp(join(tmpdir(), "codexly-git-head-push-"));
+    temporaryRoots.push(remote);
+    await runGit(remote, "init", "--bare");
+    await runGit(root, "remote", "add", "origin", remote);
+    await runGit(root, "push", "--set-upstream", "origin", "main");
+    const before = await readGitWorkingTreeStatus(root);
+    const head = (await runGit(root, "rev-parse", "HEAD")).stdout.trim();
+    await writeFile(join(root, "selected.txt"), "new working edit\n");
+    const pushed = await pushProjectCommits(root, {
+      action: "push",
+      expectedSnapshot: before.snapshot,
+      expectedHead: head,
+      expectedBranch: "main",
+    });
+    expect(pushed.pushStatus).toBe("pushed");
+    expect((await runGit(root, "diff", "--", "selected.txt")).stdout).toContain("new working edit");
+  });
   it("pushes existing commits from a clean tree without creating another commit", async () => {
     const root = await createRepository();
     const remote = await mkdtemp(join(tmpdir(), "codexly-git-push-remote-"));

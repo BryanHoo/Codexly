@@ -65,6 +65,13 @@ pub struct CommitMutationInput {
 pub struct PushMutationInput {
     expected_snapshot: String,
     repository: Option<String>,
+    action: Option<String>,
+    remote: Option<String>,
+    url: Option<String>,
+    paths: Option<Vec<String>>,
+    branch_name: Option<String>,
+    expected_head: Option<String>,
+    expected_branch: Option<String>,
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -76,10 +83,26 @@ pub async fn push_project_commits(
 ) -> Result<Value, AppError> {
     // 与其他 Git 操作共用项目/worktree 归属校验，前端不能指定任意仓库目录。
     let (_, root, _) = project_root(&state, &project_id, &root_path).await?;
-    let response =
-        workspace::push_commits(&root, input.repository.as_deref(), &input.expected_snapshot)
-            .await
-            .map_err(AppError::from)?;
+    let response = if let Some(action) = input.action.as_deref() {
+        workspace::operate_project_remote(
+            &root,
+            input.repository.as_deref(),
+            &input.expected_snapshot,
+            workspace::RemoteAction {
+                action,
+                remote: input.remote.as_deref(),
+                url: input.url.as_deref(),
+                paths: input.paths.as_deref(),
+                branch_name: input.branch_name.as_deref(),
+                expected_head: input.expected_head.as_deref(),
+                expected_branch: input.expected_branch.as_deref(),
+            },
+        )
+        .await
+    } else {
+        workspace::push_commits(&root, input.repository.as_deref(), &input.expected_snapshot).await
+    }
+    .map_err(AppError::from)?;
     serde_json::to_value(response).map_err(|_| AppError::FilesystemRequestFailed)
 }
 

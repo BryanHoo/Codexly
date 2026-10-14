@@ -469,7 +469,7 @@ pub(super) fn run(root: &std::path::Path, args: &[&str]) {
     );
 }
 
-fn output(root: &std::path::Path, args: &[&str]) -> String {
+pub(super) fn output(root: &std::path::Path, args: &[&str]) -> String {
     String::from_utf8(
         Command::new("git")
             .args(args)

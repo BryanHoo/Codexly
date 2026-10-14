@@ -1,26 +1,37 @@
 import { expect, parseRequestRecord, projectGitStatus, test } from "./fixtures/app-shell.js";
 
-test("generates a message and commits only selected files", async ({ page }) => {
+test("reviews selected files, preserves AI drafts and recovers a failed push", async ({ page }) => {
   const snapshot = "c".repeat(64);
   const generatedMessage = "feat(git): 生成选中文件提交\n\n- 添加提交正文";
   const additionalChanges = Array.from({ length: 16 }, (_, index) => ({
     diff: `+export const generated${String(index + 1)} = true;`,
-    kind: "create",
+    kind: "create" as const,
     path: `apps/web/src/generated-${String(index + 1).padStart(2, "0")}.ts`,
   }));
+  let status = {
+    ...projectGitStatus,
+    snapshot,
+    unstaged: [...projectGitStatus.unstaged, ...additionalChanges],
+  };
+  let head = "f".repeat(40);
+  let pushed = false;
   let messageRequest: Record<string, unknown> | undefined;
   let commitRequest: Record<string, unknown> | undefined;
   let commitIdempotencyKey: string | undefined;
-  let historyRequestCount = 0;
+  const remoteState = () => ({
+    head,
+    upstream: "origin/feat/review-targets",
+    remote: "origin",
+    targetBranch: "feat/review-targets",
+    remotes: [{ name: "origin", url: "https://example.com/repo.git" }],
+    ahead: pushed ? 0 : 1,
+    behind: 0,
+    checkedAt: "2026-10-14T00:00:00Z",
+    operation: "none",
+    conflicts: [],
+  });
   await page.route("**/v1/projects/codexly/git/status*", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      json: {
-        ...projectGitStatus,
-        snapshot,
-        unstaged: [...projectGitStatus.unstaged, ...additionalChanges],
-      },
-    });
+    await route.fulfill({ contentType: "application/json", json: status });
   });
   await page.route("**/v1/projects/codexly/git/commit-message?*", async (route) => {
     messageRequest = parseRequestRecord(route.request().postData());
@@ -29,20 +40,36 @@ test("generates a message and commits only selected files", async ({ page }) => 
       json: { message: generatedMessage, snapshot },
     });
   });
-  await page.route("**/v1/projects/codexly/git/commits?*", async (route) => {
-    commitRequest = parseRequestRecord(route.request().postData());
-    commitIdempotencyKey = route.request().headers()["idempotency-key"];
+  await page.route("**/v1/projects/codexly/git/push?*", async (route) => {
+    const request = parseRequestRecord(route.request().postData());
+    if (request["action"] === "push") pushed = true;
     await route.fulfill({
       contentType: "application/json",
       json: {
-        branch: "feat/review-targets",
-        commitSha: "0123456789abcdef0123456789abcdef01234567",
+        branch: status.branch,
+        pushStatus: pushed ? "pushed" : "checked",
+        pushError: null,
+        remoteState: remoteState(),
+      },
+    });
+  });
+  await page.route("**/v1/projects/codexly/git/commits?*", async (route) => {
+    commitRequest = parseRequestRecord(route.request().postData());
+    commitIdempotencyKey = route.request().headers()["idempotency-key"];
+    head = "0123456789abcdef0123456789abcdef01234567";
+    status = { ...status, snapshot: "d".repeat(64), unstaged: additionalChanges };
+    await route.fulfill({
+      contentType: "application/json",
+      status: 201,
+      json: {
+        branch: status.branch,
+        commitSha: head,
         message: commitRequest["message"],
-        pushError: "fatal: remote rejected",
+        pushError: "[rejected] non-fast-forward",
         pushStatus: "failed",
-        status: { ...projectGitStatus, snapshot, unstaged: additionalChanges },
+        status,
         history: {
-          branch: "feat/review-targets",
+          branch: status.branch,
           commits: [],
           nextCursor: null,
           repositories: [],
@@ -50,152 +77,56 @@ test("generates a message and commits only selected files", async ({ page }) => 
           repositoryMode: "root",
         },
       },
-      status: 201,
     });
   });
-  await page.route("**/v1/projects/codexly/git/history*", async (route) => {
-    historyRequestCount += 1;
-    await route.fulfill({
-      contentType: "application/json",
-      json: {
-        branch: "feat/review-targets",
-        commits: [],
-        nextCursor: null,
-        repositories: [],
-        repository: null,
-        repositoryMode: "root",
-      },
-    });
-  });
-
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("tab", { name: "项目" }).click();
   await page.getByRole("button", { name: "提交 17 个未提交变更" }).click();
   const inspector = page.locator(".workbench-inspector");
-  const changesTab = inspector.getByRole("tab", { name: "变更" });
   const panel = inspector.locator('[data-slot="commit-changes-panel"]');
-  await expect(changesTab).toHaveAttribute("aria-selected", "true");
-  await expect(panel).toBeVisible();
-  await expect(page.locator('[data-slot="sheet-content"]')).toHaveCount(0);
-  const unstagedTree = panel.getByRole("tree", { name: "未暂存" });
-  const allFilesCheckbox = panel.getByRole("checkbox", { name: "未暂存", exact: true });
-  const generateMessageButton = panel.getByRole("button", { name: "生成 message 信息" });
-  await expect(allFilesCheckbox).toBeChecked();
-  await expect(generateMessageButton).toHaveCSS("height", "28px");
-  await expect(generateMessageButton).toHaveCSS("width", "28px");
-  await expect(generateMessageButton).toHaveText("");
-  const inputGroup = panel.locator('[data-slot="input-group"]');
-  const generateIcon = generateMessageButton.locator("svg");
-  const [inputGroupBox, generateButtonBox, generateIconBox] = await Promise.all([
-    inputGroup.boundingBox(),
-    generateMessageButton.boundingBox(),
-    generateIcon.boundingBox(),
-  ]);
-  expect(
-    Math.abs(
-      (inputGroupBox?.x ?? 0) +
-        (inputGroupBox?.width ?? 0) -
-        (generateButtonBox?.x ?? 0) -
-        (generateButtonBox?.width ?? 0),
-    ),
-  ).toBeLessThanOrEqual(1);
-  expect(
-    Math.abs(
-      (generateButtonBox?.x ?? 0) +
-        (generateButtonBox?.width ?? 0) / 2 -
-        (generateIconBox?.x ?? 0) -
-        (generateIconBox?.width ?? 0) / 2,
-    ),
-  ).toBeLessThanOrEqual(1);
-  await generateMessageButton.hover();
-  await expect(page.getByRole("tooltip")).toHaveText("生成 message 信息");
-  const messageInput = panel.getByRole("textbox", { name: "提交信息" });
-  await expect(messageInput).toHaveJSProperty("tagName", "TEXTAREA");
-  await expect(messageInput).toHaveAttribute("rows", "1");
-  const singleLineInputGroupHeight = (await inputGroup.boundingBox())?.height ?? 0;
-  const changesScroll = panel.locator('[data-slot="commit-changes-scroll"]');
-  const panelMetrics = await panel.evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    overflowY: getComputedStyle(element).overflowY,
-    scrollHeight: element.scrollHeight,
-  }));
-  await changesScroll.evaluate((element) => {
-    // 模拟超长变更列表，验证滚动被限制在面板文件区域。
-    const spacer = document.createElement("div");
-    spacer.setAttribute("aria-hidden", "true");
-    spacer.style.height = "1200px";
-    element.append(spacer);
-  });
-  const changesScrollMetrics = await changesScroll.evaluate((element) => {
-    element.scrollTop = element.scrollHeight;
-    return {
-      clientHeight: element.clientHeight,
-      overflowY: getComputedStyle(element).overflowY,
-      scrollHeight: element.scrollHeight,
-      scrollTop: element.scrollTop,
-    };
-  });
-  expect(panelMetrics.scrollHeight).toBeLessThanOrEqual(panelMetrics.clientHeight);
-  expect(panelMetrics.overflowY).toBe("hidden");
-  expect(changesScrollMetrics.scrollHeight).toBeGreaterThan(changesScrollMetrics.clientHeight);
-  expect(changesScrollMetrics.overflowY).toBe("auto");
-  expect(changesScrollMetrics.scrollTop).toBeGreaterThan(0);
-  expect(await panel.evaluate((element) => element.scrollTop)).toBe(0);
-  await expect(panel).not.toContainText("feat/review-targets");
-  await expect(panel.getByText("当前分支历史")).toHaveCount(0);
-  expect(historyRequestCount).toBe(0);
-
-  const packageFile = unstagedTree.getByRole("treeitem", { name: "package.json" });
-  await packageFile.click();
-  const fileDiffPanel = inspector.getByRole("region", { name: "package.json" });
+  const changesTab = inspector.getByRole("tab", { name: "变更" });
+  const tree = panel.getByRole("tree", { name: "变更" });
+  const all = tree.getByRole("checkbox", { name: "变更", exact: true });
+  const generate = panel.getByRole("button", { name: "AI 生成" });
+  const message = panel.getByRole("textbox", { name: "提交信息", exact: true });
+  await expect(panel).toContainText("feat/review-targets");
+  await expect(panel.getByRole("button", { name: "推送", exact: true })).toBeVisible();
+  await expect(generate).toHaveText("AI 生成");
+  await expect(all).toBeChecked();
+  // 文件点击仅打开差异；返回后选择仍在，底部草稿不会重新初始化。
+  await tree.getByRole("treeitem", { name: "package.json", exact: true }).click();
   await expect(inspector.getByRole("tab", { name: "Diff: package.json" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
-  await expect(fileDiffPanel.locator(".file-diff-renderer")).toContainText("pnpm run dev");
   await inspector.getByRole("button", { name: "关闭文件" }).click();
-  await expect(fileDiffPanel).not.toBeAttached();
   await changesTab.click();
-  await expect(allFilesCheckbox).toBeChecked();
-
-  await allFilesCheckbox.uncheck();
-  const packageCheckbox = unstagedTree.getByRole("checkbox", {
-    name: "未暂存: package.json",
-  });
-  await expect(packageCheckbox).not.toBeChecked();
-  await packageCheckbox.check();
-  await generateMessageButton.click();
-  await expect(messageInput).toHaveValue(generatedMessage);
-  await expect(messageInput).toHaveAttribute("rows", "3");
-  expect((await inputGroup.boundingBox())?.height ?? 0).toBeGreaterThan(singleLineInputGroupHeight);
-  await expect(page.locator('[data-sonner-toast][data-type="success"]')).toHaveCount(0);
-  await messageInput.fill("feat(git): 提交选中文件\n\n保留提交正文");
-  const messageMetrics = await messageInput.evaluate((element) => ({
-    clientHeight: element.clientHeight,
-    overflowY: getComputedStyle(element).overflowY,
-    scrollHeight: element.scrollHeight,
-  }));
-  expect(messageMetrics.scrollHeight).toBeGreaterThan(messageMetrics.clientHeight);
-  expect(messageMetrics.overflowY).toBe("auto");
-  await messageInput.fill("feat(git): 提交选中文件");
-  await expect(panel.getByRole("button", { name: "提交", exact: true }).locator("svg")).toHaveCSS(
-    "width",
-    "16px",
-  );
+  await expect(all).toBeChecked();
+  await all.uncheck();
+  await tree.getByRole("checkbox", { name: "变更: package.json", exact: true }).check();
+  await generate.click();
+  await expect(message).toHaveValue("feat(git): 生成选中文件提交");
+  const description = panel.getByRole("textbox", { name: "详细描述", exact: true });
+  await expect(description).toHaveValue("- 添加提交正文");
+  await message.fill("feat(git): 保留手写信息");
+  await generate.click();
+  await expect(panel.getByText("AI 建议", { exact: true })).toBeVisible();
+  await expect(message).toHaveValue("feat(git): 保留手写信息");
+  await panel.getByRole("button", { name: "保留原文" }).click();
+  await message.fill("feat(git): 提交选中文件");
+  await description.fill("");
+  await page.getByRole("tab", { name: "项目", exact: true }).click();
+  await changesTab.click();
+  await expect(message).toHaveValue("feat(git): 提交选中文件");
+  await expect(
+    tree.getByRole("checkbox", { name: "变更: package.json", exact: true }),
+  ).toBeChecked();
   await panel.getByRole("button", { name: "更多 Git 操作" }).click();
-  await expect(page.getByRole("menuitem", { name: "提交并推送" }).locator("svg")).toHaveCSS(
-    "width",
-    "16px",
-  );
   await page.getByRole("menuitem", { name: "提交并推送" }).click();
-
-  await expect(panel.getByText("提交已完成，但推送失败")).toHaveCount(0);
-  const pushErrorToast = page.locator('[data-sonner-toast][data-type="error"]');
-  await expect(pushErrorToast).toHaveText("fatal: remote rejected");
-  // 部分提交后保留剩余文件与独立推送入口，结果区明确说明提交已保存。
-  await expect(panel.getByRole("status")).toContainText("提交已保存，推送未完成");
-  await expect(panel.getByRole("status")).toContainText("0123456");
-  await expect(messageInput).toBeVisible();
+  await expect(panel.getByText("提交已保存，推送未完成", { exact: false })).toBeVisible();
+  await expect(panel.getByRole("alert")).toContainText("远端包含尚未整合的提交");
+  await expect(panel.getByRole("button", { name: "获取远端更新", exact: true })).toBeVisible();
+  await expect(message).toHaveValue("");
   expect(messageRequest).toEqual({ expectedSnapshot: snapshot, paths: ["package.json"] });
   expect(commitRequest).toEqual({
     action: "commit_and_push",
@@ -204,13 +135,11 @@ test("generates a message and commits only selected files", async ({ page }) => 
     paths: ["package.json"],
   });
   expect(commitIdempotencyKey).toBeTruthy();
-  expect(historyRequestCount).toBe(0);
-
+  await panel.getByRole("button", { name: "重试推送", exact: true }).click();
+  await expect(panel.getByRole("button", { name: "已同步", exact: true })).toBeDisabled();
+  await expect(panel.getByRole("alert")).toHaveCount(0);
   await page.setViewportSize({ width: 320, height: 568 });
   await page.getByRole("button", { name: "展开上下文面板" }).click();
-  const mobilePanel = page.locator('[data-slot="commit-changes-panel"]');
-  await expect(mobilePanel).toBeVisible();
-  expect(await mobilePanel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
-    true,
-  );
+  await expect(panel).toBeVisible();
+  expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });

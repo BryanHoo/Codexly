@@ -1,6 +1,7 @@
-import { projectPushMutationOptions } from "@codexly/frontend-core/project-git-push";
+import type { PushProjectCommitsRequest } from "@codexly/protocol";
+import { projectPushMutationOptions, projectGitRemoteQueryOptions } from "@codexly/frontend-core/project-git-push";
 import type { CommitProjectChangesResponse, PushProjectCommitsResponse, ProjectGitStatus } from "@/protocol/index.js";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import type { AgentFileChange } from "../../diff/file-change.js";
@@ -25,6 +26,7 @@ type CommitChangesControllerProps = Readonly<{
   detailsPending?: boolean;
   gitStatus: ProjectGitStatus;
   onOpenFileDiff: (change: AgentFileChange) => void;
+  onOpenProjectFile?: ((path: string) => void) | undefined;
   projectId: string;
   rootPath: string;
 }>;
@@ -41,6 +43,7 @@ export function CommitChangesController({
   detailsError = null,
   gitStatus,
   onOpenFileDiff,
+  onOpenProjectFile,
   projectId,
   rootPath,
 }: CommitChangesControllerProps) {
@@ -54,10 +57,11 @@ export function CommitChangesController({
     meta: { actionNotification: { successMessage: false } },
   });
   const pushMutation = useMutation(projectPushMutationOptions(projectId, rootPath, client));
-  const [pushState, setPushState] = useState<{ result: PushProjectCommitsResponse; snapshot: string }>();
+  const [pushState, setPushState] = useState<{ result: PushProjectCommitsResponse; snapshot: string; scope: string }>();
   const [resultState, setResultState] = useState<{
     result: CommitProjectChangesResponse;
     snapshot: string;
+    scope: string;
   }>();
   const [refreshingAfterCommit, setRefreshingAfterCommit] = useState(false);
   const [loadingDiff, setLoadingDiff] = useState(false);
@@ -65,7 +69,35 @@ export function CommitChangesController({
   useEffect(() => () => { previewRequest.current++; }, [projectId, rootPath]);
   const pages = useCommitStatusPages(client, projectId, rootPath, null, gitStatus);
   const activeGitStatus = pages.status;
-  const result = resultState?.snapshot === activeGitStatus.snapshot ? resultState.result : null;
+  const scope = JSON.stringify([projectId, rootPath, activeGitStatus.branch]);
+  const result = resultState?.scope === scope ? resultState.result : null;
+  const remoteOptions = projectGitRemoteQueryOptions(projectId, rootPath, activeGitStatus.branch, activeGitStatus.snapshot, client);
+  const remoteQuery = useQuery({ ...remoteOptions, enabled: activeGitStatus.repositoryMode === "root" });
+  const operateRemote = async (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) => {
+    const snapshot = activeGitStatus.snapshot;
+    let response: PushProjectCommitsResponse;
+    try {
+      const head = remoteQuery.data?.remoteState?.head;
+      response = await pushMutation.mutateAsync({ ...request, expectedSnapshot: snapshot,
+        ...(["push", "publish", "fetch"].includes(request.action ?? "") && head && activeGitStatus.branch ? { expectedHead: head, expectedBranch: activeGitStatus.branch } : {}),
+      });
+    } catch (error) {
+      setPushState({ result: { branch: activeGitStatus.branch, pushStatus: "failed", pushError: error instanceof Error ? error.message : String(error) }, snapshot, scope });
+      void queryClient.invalidateQueries({ queryKey: remoteOptions.queryKey });
+      throw error;
+    }
+    if (response.remoteState) queryClient.setQueryData(remoteOptions.queryKey, response);
+    // 检查未完成的推送不能抹去失败回执；远端已包含提交时才解除。
+    if (request.action !== "inspect" || (response.remoteState?.ahead === 0 && response.remoteState.behind === 0)) {
+      setPushState({ result: response, snapshot, scope });
+    }
+    if (response.pushStatus === "pushed") notifyActionSuccess(t("commit.pushSucceeded"));
+    if (["integrate", "continue", "abort", "resolve", "branch"].includes(request.action ?? "")) {
+      await queryClient.invalidateQueries({ queryKey: ["projects", projectId, rootPath, "git-status"] });
+      void queryClient.invalidateQueries({ queryKey: ["projects", projectId, rootPath, "git-history"] });
+    }
+  };
+
   const statusError = detailsError ?? pages.error;
 
   useEffect(() => {
@@ -76,29 +108,16 @@ export function CommitChangesController({
 
   return (
     <CommitChangesPanel
+      onOpenProjectFile={onOpenProjectFile}
+      draftScope={JSON.stringify([projectId, rootPath])}
       error={statusError}
       gitStatus={activeGitStatus}
-      pushResult={pushState?.snapshot === activeGitStatus.snapshot ? pushState.result : null}
+      pushResult={pushState?.scope === scope ? pushState.result : null}
       isPushing={pushMutation.isPending}
-      onPush={async () => {
-        const snapshot = activeGitStatus.snapshot;
-        let response: PushProjectCommitsResponse;
-        try {
-          response = await pushMutation.mutateAsync({ expectedSnapshot: snapshot });
-        } catch (error) {
-          // 请求失败也保留重试入口；异常继续交给全局通知反馈具体原因。
-          setPushState({ result: { branch: activeGitStatus.branch, pushStatus: "failed", pushError: null }, snapshot });
-          throw error;
-        }
-        setPushState({ result: response, snapshot });
-        if (response.pushStatus === "pushed") {
-          notifyActionSuccess(t("commit.pushSucceeded"));
-        } else {
-          notifyActionError(new Error(response.pushStatus === "not_configured"
-            ? t("commit.pushUpstreamMissing")
-            : response.pushError ?? t("commit.pushFailed")));
-        }
-      }}
+      onPush={() => operateRemote({ action: "push" })}
+      onRemoteAction={operateRemote}
+      remoteResult={remoteQuery.data}
+      isInspectingRemote={remoteQuery.isPending}
       isCommitting={commitMutation.isPending || refreshingAfterCommit}
       isGenerating={messageMutation.isPending}
       onCommit={async (request) => {
@@ -107,14 +126,14 @@ export function CommitChangesController({
         try {
           const submittedSnapshot = request.expectedSnapshot;
           const response = await commitMutation.mutateAsync(request);
-          setResultState({ result: response, snapshot: submittedSnapshot });
+          setResultState({ result: response, snapshot: submittedSnapshot, scope });
           await queryClient.invalidateQueries({
             queryKey: ["projects", projectId, rootPath, "git-status"],
           });
           // 提交成功信息绑定刷新后的权威快照；剩余文件可继续提交，干净工作区可继续推送。
           const refreshedStatus = queryClient.getQueryData<ProjectGitStatus>(["projects", projectId, rootPath, "git-status"]);
           if (refreshedStatus !== undefined) {
-            setResultState({ result: response, snapshot: refreshedStatus.snapshot });
+            setResultState({ result: response, snapshot: refreshedStatus.snapshot, scope });
           }
           void queryClient.invalidateQueries({
             queryKey: ["projects", projectId, rootPath, "git-history"],
@@ -123,6 +142,7 @@ export function CommitChangesController({
           if (response.indexSyncError !== null) {
             notifyActionError(new Error(t("commit.indexSyncFailed", { sha: response.commitSha.slice(0, 7) })));
           }
+        void queryClient.invalidateQueries({ queryKey: remoteOptions.queryKey });
           const successMessageKey = getCommitSuccessMessageKey(response);
           if (successMessageKey !== null) {
             if (response.indexSyncError === null) notifyActionSuccess(t(successMessageKey));

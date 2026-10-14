@@ -284,7 +284,8 @@ for (const scenario of [
       });
     });
     await page.route("**/v1/projects/codexly/git/push?*", async (route) => {
-      pushRequests.push(parseRequestRecord(route.request().postData()));
+      const request = parseRequestRecord(route.request().postData());
+      if (request["action"] !== "inspect") pushRequests.push(request);
       await route.fulfill({
         contentType: "application/json",
         json: { branch: gitStatus.branch, pushStatus: "pushed", pushError: null },
@@ -311,7 +312,7 @@ for (const scenario of [
     await expect(panel.getByText("暂无未提交变更", { exact: true })).toBeVisible();
     await expect(panel.getByRole("textbox", { name: "提交信息" })).toHaveCount(0);
     await expect(panel.getByRole("tree")).toHaveCount(0);
-    await expect(panel.getByRole("status")).toContainText("0123456");
+    await expect(panel.locator('[data-slot="git-remote-status"]')).toContainText("0123456");
     expect(commitRequest).toEqual({
       action: scenario.actionName === "提交" ? "commit" : "commit_and_push",
       expectedSnapshot: projectGitStatus.snapshot,
@@ -330,15 +331,17 @@ for (const scenario of [
     await expect(successToast).not.toBeAttached({ timeout: 7_000 });
 
     if (scenario.actionName === "提交") {
-      await expect(panel.getByRole("status")).toContainText("已保存到本地，尚未推送");
+      await expect(panel.locator('[data-slot="git-remote-status"]')).toContainText(
+        "已保存到本地，尚未推送",
+      );
       const pushButton = panel.getByRole("button", { name: "推送", exact: true });
       await expect(pushButton).toBeEnabled();
       // 提交后使用新快照单独推送，不再要求提交信息或文件选择。
       await pushButton.click();
       await expect(successToast).toHaveText("推送成功");
-      expect(pushRequests).toEqual([{ expectedSnapshot: gitStatus.snapshot }]);
+      expect(pushRequests).toEqual([{ action: "push", expectedSnapshot: gitStatus.snapshot }]);
     }
-    await expect(panel.getByRole("status")).toContainText("已推送到远端");
+    await expect(panel.locator('[data-slot="git-remote-status"]')).toContainText("已推送到远端");
     await expect(panel.getByRole("button", { name: "已推送", exact: true })).toBeDisabled();
   });
 }

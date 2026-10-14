@@ -24,10 +24,14 @@ pub async fn prepare_commit_message(
         .iter()
         .filter(|change| selected.contains(change.path.as_str()))
         .collect();
+    // 隔离索引提交优先采用暂存条目，AI 必须使用同一范围，不能描述 MM 文件的工作区版本。
+    let staged_paths: HashSet<_> = staged.iter().map(|change| change.path.as_str()).collect();
     let unstaged: Vec<_> = status
         .unstaged
         .iter()
-        .filter(|change| selected.contains(change.path.as_str()))
+        .filter(|change| {
+            selected.contains(change.path.as_str()) && !staged_paths.contains(change.path.as_str())
+        })
         .collect();
     if staged.is_empty() && unstaged.is_empty() {
         return Err(WorkspaceError::InvalidPath);

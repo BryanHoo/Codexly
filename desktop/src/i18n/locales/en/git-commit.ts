@@ -1,6 +1,8 @@
+import { gitWorkspaceEnglish } from "@codexly/frontend-core/git-workspace-copy";
 import { gitActionsEnglish } from "@codexly/frontend-core/project-git-actions";
 import { gitPushEnglish } from "@codexly/frontend-core/project-git-push";
 export const gitCommit = {
+  ...gitWorkspaceEnglish,
   ...gitPushEnglish,
   ...gitActionsEnglish,
     loadedFiles: "Loaded {{loaded}}/{{total}} changes. Selection covers loaded files.",

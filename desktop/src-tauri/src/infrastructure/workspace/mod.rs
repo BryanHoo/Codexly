@@ -12,6 +12,7 @@ mod git_patch;
 mod git_process;
 mod git_protocol;
 mod git_read;
+mod git_remote;
 mod git_repository;
 mod git_snapshot;
 mod git_stats;
@@ -43,6 +44,8 @@ mod git_scale_tests;
 mod git_stats_tests;
 #[cfg(test)]
 mod git_tests;
+#[cfg(test)]
+mod git_workflow_tests;
 
 pub use attachments::{
     import_attachment, store_attachment, validate_attachment, validate_generated_attachment,
@@ -51,6 +54,7 @@ pub use file_search::ProjectFileSearch;
 pub use files::{delete_project_file, list_project_files, read_source_file, rename_project_file};
 pub use git_commit_context::prepare_commit_message;
 pub use git_read::{get_commit_diff, get_commit_files, get_git_file_status, get_git_history};
+pub use git_remote::{RemoteAction, operate_project_remote};
 pub use git_status_page::get_git_status_page;
 pub use git_worktree::{create_worktree, list_worktrees, switch_worktree};
 pub use git_write::{commit_changes, create_branch, push_commits, switch_branch};

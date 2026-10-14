@@ -25,6 +25,19 @@ const request: GenerateCommitMessageRequest = {
 };
 
 describe("buildCommitMessagePrompt", () => {
+  it("only describes the staged version of a partially staged file", () => {
+    const prompt = buildCommitMessagePrompt(
+      {
+        ...status,
+        staged: [{ kind: "update", path: "src/app.ts", diff: "+INCLUDED_STAGED" }],
+        unstaged: [{ kind: "update", path: "src/app.ts", diff: "+EXCLUDED_WORKING" }],
+      },
+      request,
+      "",
+    );
+    expect(prompt).toContain("INCLUDED_STAGED");
+    expect(prompt).not.toContain("EXCLUDED_WORKING");
+  });
   it("does not impose commit style when no user preference is configured", () => {
     const prompt = buildCommitMessagePrompt(status, request, "");
 

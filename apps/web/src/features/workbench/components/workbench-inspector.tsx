@@ -351,6 +351,7 @@ export function WorkbenchInspector({
                   gitStatus={gitStatus}
                   gitStatusError={gitStatusError}
                   onOpenFileDiff={onOpenFileDiff}
+                  onOpenProjectFile={onOpenProjectFile}
                   projectId={projectId}
                   rootPath={projectPath}
                 />

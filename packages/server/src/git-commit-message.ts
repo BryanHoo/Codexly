@@ -23,7 +23,10 @@ function selectedCommitChanges(
     const unstaged = unstagedByPath.get(path);
     return [
       ...(staged === undefined ? [] : [{ change: staged, location: "staged" as const }]),
-      ...(unstaged === undefined ? [] : [{ change: unstaged, location: "unstaged" as const }]),
+      // 与隔离索引提交保持一致：部分暂存文件仅描述暂存版本。
+      ...(unstaged === undefined || staged !== undefined
+        ? []
+        : [{ change: unstaged, location: "unstaged" as const }]),
     ];
   });
 }

@@ -290,16 +290,66 @@ export type CommitProjectChangesRequest = Readonly<
 
 // 独立推送只需要当前仓库快照，不要求选择文件或填写提交信息。
 export const PushProjectCommitsRequestSchema = Type.Object(
-  { expectedSnapshot: GitSnapshotSchema, repository: Type.Optional(GitChildRepositorySchema) },
+  {
+    expectedSnapshot: GitSnapshotSchema,
+    repository: Type.Optional(GitChildRepositorySchema),
+    action: Type.Optional(
+      Type.Union([
+        Type.Literal("inspect"),
+        Type.Literal("push"),
+        Type.Literal("publish"),
+        Type.Literal("fetch"),
+        Type.Literal("integrate"),
+        Type.Literal("continue"),
+        Type.Literal("abort"),
+        Type.Literal("configure"),
+        Type.Literal("resolve"),
+        Type.Literal("branch"),
+      ]),
+    ),
+    remote: Type.Optional(
+      Type.String({ minLength: 1, maxLength: 256, pattern: "^(?!-)[A-Za-z0-9_.-]+$" }),
+    ),
+    url: Type.Optional(
+      Type.String({ minLength: 1, maxLength: 4096, pattern: "^(?!-)[^\\u0000\\r\\n]+$" }),
+    ),
+    paths: Type.Optional(SelectedGitPathsSchema),
+    branchName: Type.Optional(GitBranchNameSchema),
+    expectedHead: Type.Optional(GitCommitShaSchema),
+    expectedBranch: Type.Optional(GitBranchNameSchema),
+  },
   { additionalProperties: false },
 );
 export type PushProjectCommitsRequest = Readonly<Static<typeof PushProjectCommitsRequestSchema>>;
+
+export const GitRemoteStateSchema = Type.Object(
+  {
+    head: Type.Union([Type.String(), Type.Null()]),
+    upstream: Type.Union([Type.String(), Type.Null()]),
+    remote: Type.Union([Type.String(), Type.Null()]),
+    targetBranch: Type.Union([Type.String(), Type.Null()]),
+    remotes: Type.Array(
+      Type.Object({ name: Type.String(), url: Type.String() }, { additionalProperties: false }),
+      { maxItems: 64 },
+    ),
+    ahead: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
+    behind: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
+    checkedAt: Type.String(),
+    operation: Type.Union([Type.Literal("none"), Type.Literal("merge")]),
+    conflicts: Type.Array(Type.String()),
+  },
+  { additionalProperties: false },
+);
+export type GitRemoteState = Readonly<Static<typeof GitRemoteStateSchema>>;
 
 export const PushProjectCommitsResponseSchema = Type.Object(
   {
     branch: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
     pushError: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
+    remoteState: Type.Optional(GitRemoteStateSchema),
     pushStatus: Type.Union([
+      Type.Literal("checked"),
+      Type.Literal("updated"),
       Type.Literal("pushed"),
       Type.Literal("failed"),
       Type.Literal("not_configured"),

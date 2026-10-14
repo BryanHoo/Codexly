@@ -53,6 +53,16 @@ function renderPanel(overrides: Partial<ComponentProps<typeof CommitChangesPanel
 }
 
 describe("CommitChangesPanel", () => {
+  it("shows branch context and a persistent push action even with pending changes", () => {
+    const markup = renderPanel();
+    expect(markup).toContain("feat/commit");
+    expect(markup).toContain('data-slot="git-remote-status"');
+    expect(markup).toContain('aria-label="推送"');
+    expect(markup).toContain('aria-label="AI 生成"');
+    expect(markup.indexOf('data-slot="commit-changes-scroll"')).toBeLessThan(
+      markup.indexOf('id="commit-message"'),
+    );
+  });
   it("keeps an enabled push action with an empty working tree and no commit message", () => {
     const markup = renderPanel({ gitStatus: cleanGitStatus });
     expect(markup).toMatch(/<button[^>]*aria-label="推送"[^>]*>/u);
@@ -71,9 +81,9 @@ describe("CommitChangesPanel", () => {
     );
   });
 
-  it("keeps only commit and an available more-actions menu when files are changed", () => {
+  it("keeps commit and a visible independent push action when files are changed", () => {
     const markup = renderPanel();
-    expect(markup).not.toContain('aria-label="推送"');
+    expect(markup).toContain('aria-label="推送"');
     expect(markup).toContain('aria-label="更多 Git 操作"');
     expect(/<button[^>]*aria-label="更多 Git 操作"[^>]*>/u.exec(markup)?.[0]).not.toMatch(
       / disabled(?:=|\s|>)/u,
@@ -127,15 +137,12 @@ describe("CommitChangesPanel", () => {
     const markup = renderPanel();
 
     expect(markup).toContain('data-slot="commit-changes-panel"');
-    expect(markup).toContain('aria-label="已暂存"');
-    expect(markup).toContain('aria-label="未暂存"');
-    expect(markup.match(/data-ai-file-tree=""/gu)).toHaveLength(2);
-    expect(markup).toContain('aria-label="生成 message 信息"');
+    expect(markup).toContain('aria-label="变更"');
+    expect(markup).toContain('data-slot="commit-changes-tree"');
+    expect(markup).toContain('aria-label="AI 生成"');
     expect(markup).toContain('id="commit-message"');
-    const commitMessageClasses = /<textarea class="([^"]+)"[^>]*id="commit-message"/u.exec(
-      markup,
-    )?.[1];
-    expect(commitMessageClasses).toContain("focus-visible:!outline-none");
+    const commitMessageClasses = /<textarea[^>]*class="([^"]+)"/u.exec(markup)?.[1];
+    expect(commitMessageClasses).toContain("focus-visible:shadow-focus");
     expect(markup).toContain(">提交</button>");
     expect(markup).toContain('aria-label="更多 Git 操作"');
     expect(markup).toContain('data-slot="commit-changes-scroll"');
@@ -144,7 +151,7 @@ describe("CommitChangesPanel", () => {
     expect(markup).not.toContain('data-slot="commit-history-scroll"');
     expect(markup).not.toContain('data-slot="git-history-content"');
     expect(markup).not.toContain("当前分支历史");
-    expect(markup).not.toContain("feat/commit");
+    expect(markup).toContain("feat/commit");
   });
 
   it("renders a flat file list with full relative paths", () => {
@@ -163,9 +170,7 @@ describe("CommitChangesPanel", () => {
     expect(markup).toContain("src/app.ts");
     expect(markup).toContain("src/new.ts");
     expect(markup).toContain('aria-label="未暂存: src/app.ts"');
-    expect(markup).toContain(
-      'class="flex min-h-7 items-center gap-1.5 rounded-control px-2 hover:bg-control-hover"',
-    );
+    expect(markup).toContain('data-row-index="');
     expect(markup).not.toContain('data-ai-file-tree=""');
   });
 
@@ -199,6 +204,8 @@ describe("CommitChangesPanel", () => {
 
     expect(markup).toContain("0123456");
     expect(markup).toContain('aria-label="重试推送"');
-    expect(markup).not.toContain("fatal: unable to access remote repository");
+    expect(markup).toContain("暂时无法连接远端");
+    expect(markup).toContain("查看详情");
+    expect(markup).toContain("fatal: unable to access remote repository");
   });
 });

@@ -1,7 +1,9 @@
+import { gitWorkspaceChinese } from "@codexly/frontend-core/git-workspace-copy";
 import { gitActionsChinese } from "@codexly/frontend-core/project-git-actions";
 import { gitPushChinese } from "@codexly/frontend-core/project-git-push";
 
 export const gitCommit = {
+  ...gitWorkspaceChinese,
   ...gitPushChinese,
   ...gitActionsChinese,
   allFiles: "全选",
@@ -16,7 +18,7 @@ export const gitCommit = {
   commitMessage: "提交信息",
   commitSucceeded: "提交成功",
   changes: "变更",
-  generateMessage: "生成 message 信息",
+  generateMessage: "AI 生成",
   messagePlaceholder: "输入提交信息",
   repository: "Git 项目",
   repositoryLoading: "正在加载 Git 项目",
