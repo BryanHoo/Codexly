@@ -1,8 +1,8 @@
 import { classifyGitFailure, type GitFailureKind } from "@codexly/frontend-core/git-recovery";
 import type { PushProjectCommitsRequest } from "@codexly/protocol";
-import { shouldClearGitFailureAfterInspect, projectPushMutationOptions, projectGitRemoteQueryOptions } from "@codexly/frontend-core/project-git-push";
+import { shouldClearGitFailureAfterInspect, projectPushMutationOptions, projectGitRemoteQueryOptions, projectGitRemoteMutationCallbacks } from "@codexly/frontend-core/project-git-push";
 import type { CommitProjectChangesResponse, PushProjectCommitsResponse, ProjectGitStatus } from "@/protocol/index.js";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import type { AgentFileChange } from "../../diff/file-change.js";
@@ -55,6 +55,7 @@ export function CommitChangesController({
   );
   const commitMutation = useMutation({
     ...projectCommitChangesMutationOptions(projectId, rootPath, client),
+    ...projectGitRemoteMutationCallbacks(projectId, rootPath, queryClient),
     meta: { actionNotification: false },
   });
   const pushMutation = useMutation(projectPushMutationOptions(projectId, rootPath, client));
@@ -72,8 +73,10 @@ export function CommitChangesController({
   const activeGitStatus = pages.status;
   const scope = JSON.stringify([projectId, rootPath, activeGitStatus.branch]);
   const result = resultState?.scope === scope ? resultState.result : null;
-  const remoteOptions = projectGitRemoteQueryOptions(projectId, rootPath, activeGitStatus.branch, activeGitStatus.snapshot, client);
-  const remoteQuery = useQuery({ ...remoteOptions, enabled: activeGitStatus.repositoryMode === "root" });
+  // 同仓库任意窗口的 Git 写操作尚未完成时，暂停自动检查；原生提交收尾期间也保持暂停。
+  const writing = useIsMutating({ predicate: (mutation) => mutation.options.scope?.id === `project-git-mutation:${projectId}:${rootPath}` }) > 0 || refreshingAfterCommit;
+  const remoteOptions = projectGitRemoteQueryOptions(projectId, rootPath, activeGitStatus.branch, activeGitStatus.snapshot, client, writing);
+  const remoteQuery = useQuery({ ...remoteOptions, enabled: activeGitStatus.repositoryMode === "root" && remoteOptions.enabled });
   const operateRemote = async (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">, failureKind?: GitFailureKind) => {
     const snapshot = activeGitStatus.snapshot;
     let response: PushProjectCommitsResponse;
@@ -147,7 +150,6 @@ export function CommitChangesController({
           if (response.indexSyncError !== null) {
             notifyActionError(new Error(t("commit.indexSyncFailed", { sha: response.commitSha.slice(0, 7) })));
           }
-        void queryClient.invalidateQueries({ queryKey: remoteOptions.queryKey });
           const successMessageKey = getCommitSuccessMessageKey(response);
           if (successMessageKey !== null) {
             if (response.indexSyncError === null) notifyActionSuccess(t(successMessageKey));

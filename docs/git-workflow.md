@@ -30,7 +30,7 @@
 
 远端包含新提交时先「获取远端更新」，再「拉取更新」。拉取要求先提交当前变更，并且只允许快进更新，不创建合并或冲突。本地与远端历史分叉，或存在未完成的 Git 操作时，请在外部 Git 工具处理，然后回到应用「刷新状态」。本软件不提供冲突编辑、标记解决、完成或取消合并。分支保护拒绝推送时可创建功能分支，再发布并到远端发起 Pull Request。
 
-「检查远端状态」只读取 Git 主机上的本地配置与已有远端引用，界面显示本地检查时间；点击「获取远端更新」才访问网络并更新引用。推送前读取当前分支的最新提交，再绑定该 HEAD 和分支执行；新增工作区修改不阻塞推送，执行期间 HEAD 或分支变化则停止并提示刷新确认后重试。只读检查可在工作区快照过期后刷新状态。Git 操作发生在运行 Codexly 的电脑上；Web 从其他设备访问时也使用服务端电脑的 Git 身份和远端认证配置。
+「检查远端状态」只读取 Git 主机上的本地配置与已有远端引用，界面显示本地检查时间；点击「获取远端更新」才访问网络并更新引用。提交后的状态检查会等待 Git 写操作完成再执行；提前到达的新状态不会触发竞争检查，通常无需手动重试。推送前读取当前分支的最新提交，再绑定该 HEAD 和分支执行；新增工作区修改不阻塞推送，执行期间 HEAD 或分支变化则停止并提示刷新确认后重试。只读检查可在工作区快照过期后刷新状态。Git 操作发生在运行 Codexly 的电脑上；Web 从其他设备访问时也使用服务端电脑的 Git 身份和远端认证配置。
 
 ## Commit and push
 
@@ -56,4 +56,4 @@ Use the **Configure remote** dialog to edit the destination; failed saves keep y
 
 Fetch remote updates, then pull after committing working changes. Pulls allow fast-forward updates only and do not create a merge or conflicts. Handle diverged histories or unfinished Git operations in an external Git tool, then refresh the status. The app does not provide conflict editing, marking resolved, or completing or cancelling merges. Protected-branch failures offer feature branch creation; publish that branch and open a pull request on the remote host.
 
-Status checks read local configuration and cached remote references; fetch explicitly to update them. Pushes first read the current commit, then bind its HEAD and branch, so unrelated working edits do not block them. A concurrent commit or branch change stops the push; refresh, confirm the branch, and retry. Read-only checks can refresh an outdated worktree snapshot. Web uses the Git identity and credentials on the computer running its server, even when accessed from another device.
+Status checks read local configuration and cached remote references; fetch explicitly to update them. After a commit, automatic checks wait for Git writes to finish, so early metadata updates do not trigger competing reads or leave transient errors requiring manual retry. Pushes first read the current commit, then bind its HEAD and branch, so unrelated working edits do not block them. A concurrent commit or branch change stops the push; refresh, confirm the branch, and retry. Read-only checks can refresh an outdated worktree snapshot. Web uses the Git identity and credentials on the computer running its server, even when accessed from another device.

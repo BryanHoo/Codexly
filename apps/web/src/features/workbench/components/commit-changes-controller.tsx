@@ -4,6 +4,7 @@ import {
   projectPushMutationOptions,
   shouldClearGitFailureAfterInspect,
   projectGitRemoteQueryOptions,
+  projectGitRemoteMutationCallbacks,
 } from "@codexly/frontend-core/project-git-push";
 import type {
   CommitProjectChangesResponse,
@@ -11,7 +12,13 @@ import type {
   ProjectGitHistoryPage,
   ProjectGitStatus,
 } from "@codexly/protocol";
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useIsMutating,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { AgentFileChange } from "../../diff/file-change.js";
@@ -78,6 +85,7 @@ export function CommitChangesController({
   });
   const commitMutation = useMutation({
     ...projectCommitChangesMutationOptions(projectId, rootPath, client),
+    ...projectGitRemoteMutationCallbacks(projectId, rootPath, queryClient),
     meta: { actionNotification: false },
   });
   const pushMutation = useMutation(projectPushMutationOptions(projectId, rootPath, client));
@@ -94,16 +102,23 @@ export function CommitChangesController({
   const activeGitStatus = gitStatus;
   const scope = JSON.stringify([projectId, rootPath, activeGitStatus.branch]);
   const result = resultState?.scope === scope ? resultState.result : null;
+  // 同仓库任意窗口的 Git 写操作尚未完成时，暂停自动检查，避免把暂态读失败留在顶部。
+  const writing =
+    useIsMutating({
+      predicate: (mutation) =>
+        mutation.options.scope?.id === `project-git-mutation:${projectId}:${rootPath}`,
+    }) > 0;
   const remoteOptions = projectGitRemoteQueryOptions(
     projectId,
     rootPath,
     activeGitStatus.branch,
     activeGitStatus.snapshot,
     client,
+    writing,
   );
   const remoteQuery = useQuery({
     ...remoteOptions,
-    enabled: activeGitStatus.repositoryMode === "root",
+    enabled: activeGitStatus.repositoryMode === "root" && remoteOptions.enabled,
   });
   const operateRemote = async (
     request: Omit<PushProjectCommitsRequest, "expectedSnapshot">,
@@ -187,7 +202,6 @@ export function CommitChangesController({
           response.status,
           response.history,
         );
-        void queryClient.invalidateQueries({ queryKey: remoteOptions.queryKey });
         const successMessageKey = getCommitSuccessMessageKey(response);
         if (successMessageKey !== null) {
           notifyActionSuccess(t(successMessageKey));

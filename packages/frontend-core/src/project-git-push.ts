@@ -1,6 +1,26 @@
 import type { PushProjectCommitsRequest, PushProjectCommitsResponse } from "@codexly/protocol";
 import type { GitFailureKind } from "./git-recovery.js";
 
+/** 提交前撤销在途检查，结束时只标记元数据过期，由当前快照在写队列空闲后统一读取。 */
+export function projectGitRemoteMutationCallbacks(
+  projectId: string,
+  rootPath: string,
+  cache: {
+    cancelQueries(filters: { queryKey: readonly unknown[] }): Promise<void>;
+    invalidateQueries(filters: {
+      queryKey: readonly unknown[];
+      refetchType: "none";
+    }): Promise<void>;
+  },
+) {
+  const queryKey = ["projects", projectId, rootPath, "git-remote"] as const;
+  return {
+    onMutate: () => cache.cancelQueries({ queryKey }),
+    // 不捕获提交前的分支/快照键；写入期间提前到达的新快照也必须重新检查。
+    onSettled: () => cache.invalidateQueries({ queryKey, refetchType: "none" }),
+  };
+}
+
 /** 显式刷新可解除已重新核对的状态变化；本地检查不代表已修复网络或认证失败。 */
 export function shouldClearGitFailureAfterInspect(
   previousKind: GitFailureKind,
@@ -84,10 +104,13 @@ export function projectGitRemoteQueryOptions(
       request: PushProjectCommitsRequest,
     ): Promise<PushProjectCommitsResponse>;
   },
+  writing = false,
 ) {
   return {
     // 快照变化后不能复用旧 HEAD/同步状态；旧版本缓存短时回收，避免编辑过程中累积元数据。
     queryKey: ["projects", projectId, rootPath, "git-remote", branch, snapshot] as const,
+    // 自动检查不进入写队列，也不在 Git 正在提交时争用接口；恢复后读取当前快照。
+    enabled: !writing,
     queryFn: () =>
       client.pushProjectCommits(projectId, rootPath, {
         action: "inspect",
