@@ -329,10 +329,13 @@ test("keeps Projects fixed and manages task actions from the compact tree", asyn
   await projectGroup.getByRole("button", { name: "打开 优化输入框交互 的操作菜单" }).click();
   await page.getByRole("menuitem", { name: "固定" }).click();
   const pinnedSection = sidebar.getByRole("region", { name: "已固定", exact: true });
-  const pinnedInputTask = pinnedSection.getByRole("link", { name: /优化输入框交互/u });
+  // 快捷区按可用高度限制预览数量；新增固定任务应从完整列表验证，不依赖窗口高度或排序。
+  await pinnedSection.getByRole("button", { name: "已固定：查看全部 3 项", exact: true }).click();
+  const pinnedList = page.getByRole("dialog", { name: "已固定：查看全部 3 项", exact: true });
+  const pinnedInputTask = pinnedList.getByRole("link", { name: /优化输入框交互/u });
   await expect(pinnedInputTask).toBeVisible();
   await pinnedInputTask.hover();
-  const pinnedMenuTrigger = pinnedSection.getByRole("button", {
+  const pinnedMenuTrigger = pinnedList.getByRole("button", {
     name: "打开 优化输入框交互 的操作菜单",
   });
   await pinnedMenuTrigger.click();
