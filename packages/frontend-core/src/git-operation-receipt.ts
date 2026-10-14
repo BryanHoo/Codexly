@@ -15,6 +15,10 @@ export function readGitReceipt(value: string | null, head?: string | null): GitR
     const data = JSON.parse(value) as Record<string, unknown>;
     const optionalText = (value: unknown) => value === null || typeof value === "string";
     const kinds = [
+      "state_changed",
+      "working_changes",
+      "merge_conflicts",
+      "invalid_remote",
       "authentication",
       "permission",
       "remote_updates",

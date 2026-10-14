@@ -288,7 +288,11 @@ for (const scenario of [
       if (request["action"] !== "inspect") pushRequests.push(request);
       await route.fulfill({
         contentType: "application/json",
-        json: { branch: gitStatus.branch, pushStatus: "pushed", pushError: null },
+        json: {
+          branch: gitStatus.branch,
+          pushStatus: request["action"] === "inspect" ? "checked" : "pushed",
+          pushError: null,
+        },
       });
     });
     await page.goto("/p/codexly/t/task-1");
@@ -309,7 +313,7 @@ for (const scenario of [
       "true",
     );
     await expect(panel).toBeVisible();
-    await expect(panel.getByText("暂无未提交变更", { exact: true })).toBeVisible();
+    await expect(panel.getByText("暂无未提交变更", { exact: true })).toHaveCount(0);
     await expect(panel.getByRole("textbox", { name: "提交信息" })).toHaveCount(0);
     await expect(panel.getByRole("tree")).toHaveCount(0);
     await expect(panel.locator('[data-slot="git-remote-status"]')).toContainText("0123456");
@@ -339,7 +343,9 @@ for (const scenario of [
       // 提交后使用新快照单独推送，不再要求提交信息或文件选择。
       await pushButton.click();
       await expect(successToast).toHaveText("推送成功");
-      expect(pushRequests).toEqual([{ action: "push", expectedSnapshot: gitStatus.snapshot }]);
+      expect(pushRequests).toEqual([
+        { action: "push", expectedSnapshot: gitStatus.snapshot, expectedBranch: gitStatus.branch },
+      ]);
     }
     await expect(panel.locator('[data-slot="git-remote-status"]')).toContainText("已推送到远端");
     await expect(panel.getByRole("button", { name: "已推送", exact: true })).toBeDisabled();

@@ -190,6 +190,8 @@ export async function pushProjectCommits(
       "Git pushes require a selected repository",
     );
   }
+  // 只读检查必须能读取提交后的新状态；用旧快照阻止检查会让后续推送一直绑定旧 HEAD。
+  if (request.action === "inspect") return operateGitRemote(repositoryRoot, request);
   // 纯网络动作只校验将推送的 HEAD 和分支；工作区继续编辑不影响已有提交。
   const validatesHead =
     ["push", "publish", "fetch"].includes(request.action ?? "") &&

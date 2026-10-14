@@ -18,7 +18,7 @@
 
 ## 推送失败后继续
 
-「提交并推送」可能完成提交但未完成推送。看到「提交已保存，推送未完成」时，本地提交已经存在；排查远端连接或权限后使用「重试推送」，无需重新提交。只执行「提交」时，结果显示「已保存到本地，尚未推送」。
+「提交并推送」可能完成提交但未完成推送。看到「提交已保存，推送未完成」时，本地提交已经存在；排查远端连接或权限后使用「重试推送」，无需重新提交。只执行「提交」时，结果显示「已保存到本地，尚未推送」。推送失败仅在顶部提供一份按应用语言显示的原因和处理建议，技术原文放在可展开的详情；下方不重复显示红色错误，没有变更时留白。
 
 尚未配置远端时点击「配置远端」，在弹窗中填写名称和地址；保存失败保留输入以便重试。已有远端但当前分支没有上游时，点击「发布分支」，审阅远端和分支后发布。首次发布会建立跟踪关系。
 
@@ -26,7 +26,7 @@
 
 远端包含新提交时使用「获取远端更新」，然后「整合远端更新」。整合要求先处理未提交变更，保留仓库历史，不自动 stash、rebase 或强推。有冲突时可在原有文本编辑器打开冲突文件，保存后点击「标记已解决」，再「完成合并」；也可「取消合并」。分支保护拒绝推送时可创建功能分支，再发布并到远端发起 Pull Request。
 
-「检查远端状态」只读取 Git 主机上的本地配置与已有远端引用，界面显示本地检查时间；点击「获取远端更新」才访问网络并更新引用。推送绑定已审阅的 HEAD 和分支，不因新增工作区修改而阻塞。Git 操作发生在运行 Codexly 的电脑上；Web 从其他设备访问时也使用服务端电脑的 Git 身份和远端认证配置。
+「检查远端状态」只读取 Git 主机上的本地配置与已有远端引用，界面显示本地检查时间；点击「获取远端更新」才访问网络并更新引用。推送前读取当前分支的最新提交，再绑定该 HEAD 和分支执行；新增工作区修改不阻塞推送，执行期间 HEAD 或分支变化则停止并提示刷新确认后重试。只读检查可在工作区快照过期后刷新状态。Git 操作发生在运行 Codexly 的电脑上；Web 从其他设备访问时也使用服务端电脑的 Git 身份和远端认证配置。
 
 ## Commit and push
 
@@ -42,10 +42,10 @@ The workspace keeps remote actions at the top, file review in the middle and the
 
 The footer uses one message field, including multiline content, and commit actions only. AI generation directly replaces the current message when it succeeds, without a confirmation step. Undo generation to restore the previous message. Responses for an outdated selection are discarded. Only a successful commit clears the draft. Push existing commits from the persistent remote toolbar, even with working changes.
 
-If the result says **Commit saved, push incomplete**, the local commit already exists. Resolve the remote connection or authentication problem and use **Retry push**. A plain commit shows **Saved locally, not pushed yet**.
+If the result says **Commit saved, push incomplete**, the local commit already exists. Resolve the remote connection or authentication problem and use **Retry push**. A plain commit shows **Saved locally, not pushed yet**. Failures appear once in the remote toolbar with guidance in the app language; original technical errors are collapsed under details. The area below stays blank when there are no working changes.
 
 Use the **Configure remote** dialog to edit the destination; failed saves keep your inputs for retry. Use **Publish branch** to establish upstream tracking. Error cards provide recovery actions for connection, authentication, remote updates and repository rules; persisted receipts retain the failure category for the same HEAD, without storing raw logs.
 
 Fetch and integrate remote updates after addressing working changes. Open conflict files in the existing text editor, save, mark them resolved and complete the merge, or cancel it. Protected-branch failures offer feature branch creation; publish that branch and open a pull request on the remote host.
 
-Status checks read local configuration and cached remote references; fetch explicitly to update them. Pushes bind the reviewed HEAD and branch, so unrelated working edits do not block them. Web uses the Git identity and credentials on the computer running its server, even when accessed from another device.
+Status checks read local configuration and cached remote references; fetch explicitly to update them. Pushes first read the current commit, then bind its HEAD and branch, so unrelated working edits do not block them. A concurrent commit or branch change stops the push; refresh, confirm the branch, and retry. Read-only checks can refresh an outdated worktree snapshot. Web uses the Git identity and credentials on the computer running its server, even when accessed from another device.

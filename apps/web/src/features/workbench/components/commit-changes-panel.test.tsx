@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentProps } from "react";
 import { describe, expect, it } from "vitest";
+import { i18n } from "../../../i18n/i18n.js";
 
 import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import { CommitChangesPanel, collectCommitFileEntries } from "./commit-changes-panel.js";
@@ -71,7 +72,7 @@ describe("CommitChangesPanel", () => {
     );
     expect(markup).not.toContain('id="commit-message"');
     expect(markup).not.toContain('data-slot="commit-changes-scroll"');
-    expect(markup).toContain("暂无未提交变更");
+    expect(markup).not.toContain("暂无未提交变更");
   });
 
   it("disables push while a Git action is pending", () => {
@@ -129,6 +130,43 @@ describe("CommitChangesPanel", () => {
     expect(markup).toContain("提交已保存，推送未完成");
     expect(markup).toContain('aria-label="重试推送"');
     expect(markup).not.toContain('id="commit-message"');
+  });
+
+  it("shows one localized recovery notice with technical details for a stale push", () => {
+    const markup = renderPanel({
+      gitStatus: cleanGitStatus,
+      pushResult: {
+        branch: "feat/commit",
+        pushStatus: "failed",
+        pushError: "Git status changed before the push",
+      },
+      error: new Error("Git status changed before the push"),
+    });
+    expect(markup.match(/role="alert"/gu)).toHaveLength(1);
+    expect(markup).toContain("本地提交或分支已更新");
+    expect(markup).toContain("刷新状态并确认当前分支后重试");
+    expect(markup).not.toContain("text-danger");
+    expect(markup).toContain("Git status changed before the push");
+  });
+
+  it("uses English recovery guidance when the app language is English", async () => {
+    await i18n.changeLanguage("en");
+    try {
+      const markup = renderPanel({
+        gitStatus: cleanGitStatus,
+        pushResult: {
+          branch: "feat/commit",
+          pushStatus: "failed",
+          pushError: "Git status changed before the push",
+        },
+      });
+      expect(markup).toContain("Local commits or branch have changed");
+      expect(markup).toContain("Refresh the status, confirm the current branch, and retry.");
+      expect(markup).not.toContain("本地提交或分支已更新");
+      expect(markup.match(/role="alert"/gu)).toHaveLength(1);
+    } finally {
+      await i18n.changeLanguage("zh-CN");
+    }
   });
 
   it("shows the actual push result and disables another push for the same snapshot", () => {

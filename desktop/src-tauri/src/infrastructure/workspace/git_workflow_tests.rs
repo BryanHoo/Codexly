@@ -28,6 +28,26 @@ async fn remote_workflow_should_inspect_and_publish_an_explicit_remote() {
     assert_eq!(output(&root, &["rev-parse", "HEAD"]), head);
     let before_edit = get_git_status(&root, None, false).await.unwrap();
     fs::write(root.join("tracked.txt"), "unrelated working edit\n").unwrap();
+    let rechecked = super::operate_project_remote(
+        &root,
+        None,
+        &before_edit.snapshot,
+        super::RemoteAction {
+            action: "inspect",
+            remote: None,
+            url: None,
+            paths: None,
+            branch_name: None,
+            expected_head: None,
+            expected_branch: None,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        rechecked.remote_state.as_ref().unwrap().head.as_deref(),
+        Some(head.trim())
+    );
     let pushed = super::operate_project_remote(
         &root,
         None,

@@ -110,7 +110,7 @@ test("keeps Git tabs for clean repositories without loading detailed diffs", asy
   await inspector.getByRole("tab", { name: "变更" }).click();
   const panel = inspector.locator('[data-slot="commit-changes-panel"]');
   // 干净根仓库仍允许推送已有提交，但不挂载提交输入、空文件树或读取详细 diff。
-  await expect(panel.getByText("暂无未提交变更", { exact: true })).toBeVisible();
+  await expect(panel.getByText("暂无未提交变更", { exact: true })).toHaveCount(0);
   await expect(panel.getByRole("button", { name: "推送", exact: true })).toBeEnabled();
   await expect(panel.getByRole("textbox", { name: "提交信息" })).toHaveCount(0);
   await expect(panel.getByRole("tree")).toHaveCount(0);

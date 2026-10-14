@@ -102,7 +102,10 @@ export function GitCommitWorkspace({
   const entries = useMemo(() => collectCommitFileEntries(gitStatus), [gitStatus]);
   const [draft, update] = useGitCommitDraft(draftScope, gitStatus.snapshot, entries, complete);
   const [search, setSearch] = useState("");
-  const [operationError, setOperationError] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<{
+    message: string;
+    operation: "commit" | "generate" | NonNullable<PushProjectCommitsRequest["action"]>;
+  } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [commitAction, setCommitAction] = useState<CommitProjectChangesRequest["action"]>("commit");
   const busy = useRef(false);
@@ -139,7 +142,10 @@ export function GitCommitWorkspace({
     !gitBusy &&
     draft.selectedPaths.size > 0 &&
     draft.message.trim() !== "";
-  const runGit = async (operation: () => Promise<void>) => {
+  const runGit = async (
+    operation: () => Promise<void>,
+    action: "commit" | NonNullable<PushProjectCommitsRequest["action"]> = "push",
+  ) => {
     if (busy.current) return false;
     busy.current = true;
     setOperationError(null);
@@ -147,7 +153,10 @@ export function GitCommitWorkspace({
       await operation();
       return true;
     } catch (cause) {
-      setOperationError(cause instanceof Error ? cause.message : String(cause));
+      setOperationError({
+        message: cause instanceof Error ? cause.message : String(cause),
+        operation: action,
+      });
       return false;
     } finally {
       busy.current = false;
@@ -168,7 +177,10 @@ export function GitCommitWorkspace({
         update((current) => applyGeneratedCommitMessage(current, requested, message));
     } catch (cause) {
       if (generation.current === request)
-        setOperationError(cause instanceof Error ? cause.message : String(cause));
+        setOperationError({
+          message: cause instanceof Error ? cause.message : String(cause),
+          operation: "generate",
+        });
     } finally {
       if (generation.current === request) setGenerating(false);
     }
@@ -189,7 +201,7 @@ export function GitCommitWorkspace({
         ...createCommitDraft(current.snapshot, []),
         knownPaths: current.knownPaths,
       }));
-    });
+    }, "commit");
   if (gitStatus.repositoryMode !== "root") return null;
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden" data-slot="commit-changes-panel">
@@ -202,7 +214,8 @@ export function GitCommitWorkspace({
         savedFailureKind={receipt?.failureKind}
         busy={gitBusy}
         activeAction={isPushing ? (activeRemoteAction ?? "push") : null}
-        actionError={operationError}
+        actionError={operationError?.message ?? (pushError ? null : (error?.message ?? null))}
+        failureOperation={operationError?.operation ?? (!pushError && error ? "status" : undefined)}
         inspecting={isInspectingRemote}
         onOpenConflict={onOpenConflict}
         t={t}
@@ -212,19 +225,10 @@ export function GitCommitWorkspace({
         {...(onRemoteAction
           ? {
               onAction: (request: Omit<PushProjectCommitsRequest, "expectedSnapshot">) =>
-                runGit(() => onRemoteAction(request)),
+                runGit(() => onRemoteAction(request), request.action ?? "push"),
             }
           : {})}
       />
-      {error || operationError ? (
-        <div className="shrink-0 px-3 py-2 text-caption text-danger" role="alert">
-          <p>{t("commit.operationFailed")}</p>
-          <details>
-            <summary>{t("commit.viewDetails")}</summary>
-            <p className="break-words">{operationError ?? error?.message}</p>
-          </details>
-        </div>
-      ) : null}
       {hasChanges ? (
         <>
           <div className="max-h-[25%] shrink-0 space-y-2 overflow-y-auto px-3 py-2">
@@ -319,9 +323,7 @@ export function GitCommitWorkspace({
             />
           </section>
         </>
-      ) : (
-        <p className="p-3 text-label text-muted-foreground">{labels.emptyWorkingTree}</p>
-      )}
+      ) : null}
     </div>
   );
 }

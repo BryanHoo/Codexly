@@ -14,10 +14,7 @@ import { useState } from "react";
 
 import type { AgentFileChange } from "../../diff/file-change.js";
 import type { CodexlyWorkbenchClient } from "../../projects/project-queries.js";
-import {
-  notifyActionError,
-  notifyActionSuccess,
-} from "../../notifications/action-notifications.js";
+import { notifyActionSuccess } from "../../notifications/action-notifications.js";
 import {
   projectCommitChangesMutationOptions,
   projectCommitMessageMutationOptions,
@@ -73,12 +70,13 @@ export function CommitChangesController({
 }: CommitChangesControllerProps) {
   const { t } = useTranslation("workbench");
   const queryClient = useQueryClient();
-  const messageMutation = useMutation(
-    projectCommitMessageMutationOptions(projectId, rootPath, client),
-  );
+  const messageMutation = useMutation({
+    ...projectCommitMessageMutationOptions(projectId, rootPath, client),
+    meta: { actionNotification: false },
+  });
   const commitMutation = useMutation({
     ...projectCommitChangesMutationOptions(projectId, rootPath, client),
-    meta: { actionNotification: { successMessage: false } },
+    meta: { actionNotification: false },
   });
   const pushMutation = useMutation(projectPushMutationOptions(projectId, rootPath, client));
   const [pushState, setPushState] = useState<{
@@ -109,14 +107,11 @@ export function CommitChangesController({
     const snapshot = activeGitStatus.snapshot;
     let response: PushProjectCommitsResponse;
     try {
-      const head = remoteQuery.data?.remoteState?.head;
       response = await pushMutation.mutateAsync({
         ...request,
         expectedSnapshot: snapshot,
-        ...(["push", "publish", "fetch"].includes(request.action ?? "") &&
-        head &&
-        activeGitStatus.branch
-          ? { expectedHead: head, expectedBranch: activeGitStatus.branch }
+        ...(["push", "publish", "fetch"].includes(request.action ?? "") && activeGitStatus.branch
+          ? { expectedBranch: activeGitStatus.branch }
           : {}),
       });
     } catch (error) {
@@ -141,7 +136,11 @@ export function CommitChangesController({
       setPushState({ result: response, snapshot, scope });
     }
     if (response.pushStatus === "pushed") notifyActionSuccess(t("commit.pushSucceeded"));
-    if (["integrate", "continue", "abort", "resolve", "branch"].includes(request.action ?? "")) {
+    if (
+      ["inspect", "integrate", "continue", "abort", "resolve", "branch"].includes(
+        request.action ?? "",
+      )
+    ) {
       await queryClient.invalidateQueries({
         queryKey: ["projects", projectId, rootPath, "git-status"],
       });
@@ -149,6 +148,8 @@ export function CommitChangesController({
         queryKey: ["projects", projectId, rootPath, "git-history"],
       });
     }
+    if (response.pushStatus === "failed" || response.pushStatus === "not_configured")
+      throw new Error(response.pushError ?? t("commit.pushFailed"));
   };
 
   return (
@@ -186,7 +187,7 @@ export function CommitChangesController({
           notifyActionSuccess(t(successMessageKey));
           return;
         }
-        notifyActionError(new Error(response.pushError ?? t("commit.commitCompletePushFailed")));
+        // 提交已完成，推送失败由顶部远端卡片统一反馈，避免再次展示原始错误 toast。
       }}
       onGenerateMessage={async (request) => {
         const response = await messageMutation.mutateAsync(request);

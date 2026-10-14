@@ -196,7 +196,8 @@ pub async fn operate_project_remote(
         {
             return Err(WorkspaceError::SnapshotMismatch);
         }
-    } else {
+    } else if request.action != "inspect" {
+        // 只读检查允许旧快照，以便提交或工作文件变化后重新读取当前 HEAD；写操作仍校验快照。
         validate_snapshot(root, repository, expected_snapshot).await?;
     }
     operate_remote_with_head(

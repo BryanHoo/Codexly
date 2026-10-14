@@ -40,6 +40,45 @@ afterEach(async () => {
 });
 
 describe("commitSelectedProjectChanges", () => {
+  it("reads the current commit after commit with an outdated snapshot, then pushes that HEAD", async () => {
+    const root = await createRepository();
+    const remote = await mkdtemp(join(tmpdir(), "codexly-git-after-commit-"));
+    temporaryRoots.push(remote);
+    await runGit(remote, "init", "--bare");
+    await runGit(root, "remote", "add", "origin", remote);
+    await runGit(root, "push", "--set-upstream", "origin", "main");
+    await writeFile(join(root, "selected.txt"), "new commit\n");
+    const before = await readGitWorkingTreeStatus(root);
+    const committed = await commitSelectedProjectChanges(root, {
+      action: "commit",
+      expectedSnapshot: before.snapshot,
+      paths: ["selected.txt"],
+      message: "fix(git): 提交后继续推送",
+    });
+    const checked = await pushProjectCommits(root, {
+      action: "inspect",
+      expectedSnapshot: before.snapshot,
+    });
+    expect(checked.remoteState?.head).toBe(committed.commitSha);
+    await writeFile(join(root, "unselected.txt"), "unrelated edit\n");
+    const pushed = await pushProjectCommits(root, {
+      action: "push",
+      expectedSnapshot: before.snapshot,
+      expectedHead: checked.remoteState?.head ?? "",
+      expectedBranch: "main",
+    });
+    expect(pushed.pushStatus).toBe("pushed");
+    expect((await runGit(remote, "rev-parse", "main")).stdout.trim()).toBe(committed.commitSha);
+    expect((await runGit(root, "diff", "--", "unselected.txt")).stdout).toContain("unrelated edit");
+    await expect(
+      pushProjectCommits(root, {
+        action: "push",
+        expectedSnapshot: before.snapshot,
+        expectedHead: "0".repeat(40),
+        expectedBranch: "main",
+      }),
+    ).rejects.toMatchObject({ code: "GIT_STATUS_CHANGED" });
+  });
   it("pushes the reviewed HEAD even when unrelated working changes arrive", async () => {
     const root = await createRepository();
     const remote = await mkdtemp(join(tmpdir(), "codexly-git-head-push-"));

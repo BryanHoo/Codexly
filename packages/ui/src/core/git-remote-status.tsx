@@ -32,6 +32,7 @@ export function GitRemoteStatus({
   busy,
   activeAction,
   actionError,
+  failureOperation,
   inspecting,
   onPush,
   onAction,
@@ -47,6 +48,8 @@ export function GitRemoteStatus({
   busy: boolean;
   activeAction: PushProjectCommitsRequest["action"] | null;
   actionError: string | null;
+  failureOperation?:
+    NonNullable<PushProjectCommitsRequest["action"]> | "commit" | "generate" | "status" | undefined;
   inspecting: boolean;
   onOpenConflict?: ((path: string) => void) | undefined;
   savedFailureKind?: GitFailureKind | undefined;
@@ -58,8 +61,16 @@ export function GitRemoteStatus({
   const [remoteName, setRemoteName] = useState("");
   const [featureForm, setFeatureForm] = useState(false);
   const [featureName, setFeatureName] = useState("feature/recovery");
-  const failureKind = pushError ? classifyGitFailure(pushError) : (savedFailureKind ?? "unknown");
-  const failed = pushStatus === "failed" || pushStatus === "not_configured";
+  const displayedError = actionError ?? pushError;
+  const failureKind = displayedError
+    ? classifyGitFailure(displayedError)
+    : (savedFailureKind ?? "unknown");
+  const remoteFailed = pushStatus === "failed" || pushStatus === "not_configured";
+  const failed = remoteFailed || actionError !== null;
+  const localFailure =
+    failureOperation === "commit" ||
+    failureOperation === "generate" ||
+    failureOperation === "status";
   const merge = remote?.operation === "merge";
   const noRemote = remote?.remotes.length === 0;
   const unpublished = remote?.upstream === null;
@@ -79,7 +90,7 @@ export function GitRemoteStatus({
             ? t("commit.synced")
             : pushStatus === "pushed" && !remote
               ? t("commit.pushed")
-              : failed
+              : remoteFailed
                 ? t("commit.pushAgain")
                 : t("commit.push");
   const statusLabel = noRemote
@@ -197,7 +208,7 @@ export function GitRemoteStatus({
       ) : null}
       {commitSha ? (
         <p className="mt-2 text-caption" role="status">
-          {failed
+          {remoteFailed
             ? t("commit.savedButPushFailed")
             : pushStatus === "pushed" || synced
               ? t("commit.pushedToRemote")
@@ -214,7 +225,15 @@ export function GitRemoteStatus({
           initialName={defaultRemote}
           initialUrl={remote?.remotes.find((item) => item.name === defaultRemote)?.url ?? ""}
           busy={busy}
-          error={actionError}
+          error={
+            actionError
+              ? t(
+                  failureKind === "invalid_remote"
+                    ? "commit.fix_invalid_remote"
+                    : "commit.remoteSaveFailed",
+                )
+              : null
+          }
           t={t}
           onClose={() => {
             setForm(null);
@@ -336,16 +355,20 @@ export function GitRemoteStatus({
           className="mt-2 space-y-2 rounded-control border border-warning/30 bg-warning/5 p-2 text-caption"
         >
           <p className="font-semibold">
-            {pushStatus === "not_configured"
-              ? t("commit.unpublished")
-              : t(`commit.failure_${failureKind}`)}
+            {localFailure
+              ? t(`commit.${failureOperation}Failed`)
+              : pushStatus === "not_configured"
+                ? t("commit.unpublished")
+                : t(`commit.failure_${failureKind}`)}
           </p>
           <p className="text-muted-foreground">
-            {pushStatus === "not_configured"
-              ? t("commit.pushUpstreamMissing")
-              : t(`commit.fix_${failureKind}`)}
+            {localFailure && failureKind === "unknown"
+              ? t(`commit.${failureOperation}FailedHelp`)
+              : pushStatus === "not_configured"
+                ? t("commit.pushUpstreamMissing")
+                : t(`commit.fix_${failureKind}`)}
           </p>
-          {onAction ? (
+          {onAction && !localFailure ? (
             <Button
               size="sm"
               type="button"
@@ -376,7 +399,9 @@ export function GitRemoteStatus({
                       ? "commit.createFeatureBranch"
                       : ["unknown_result", "authentication", "network"].includes(failureKind)
                         ? "commit.checkConnection"
-                        : "commit.inspectRemote",
+                        : failureKind === "state_changed"
+                          ? "commit.refreshGitStatus"
+                          : "commit.inspectRemote",
               )}
             </Button>
           ) : null}
@@ -405,11 +430,11 @@ export function GitRemoteStatus({
               </Button>
             </form>
           ) : null}
-          {pushError ? (
+          {displayedError ? (
             <details>
               <summary className="cursor-pointer">{t("commit.viewDetails")}</summary>
               <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono">
-                {pushError}
+                {displayedError}
               </pre>
             </details>
           ) : null}

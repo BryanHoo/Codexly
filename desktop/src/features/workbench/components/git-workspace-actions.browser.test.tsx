@@ -65,7 +65,7 @@ it("远端配置在弹窗编辑，失败保留表单，成功关闭并恢复入�
   expect(document.querySelector('[data-slot="git-remote-status"] > form')).toBeNull();
   await screen.getByRole("textbox", { name: "远端地址" }).fill("https://github.com/example/updated.git");
   await screen.getByRole("button", { name: "保存远端", exact: true }).click();
-  await expect.element(screen.getByRole("dialog").getByText("配置保存失败")).toBeVisible();
+  await expect.element(screen.getByRole("dialog").getByText("未能保存远端配置，请检查名称和地址后重试。")).toBeVisible();
   await expect.element(screen.getByRole("textbox", { name: "远端地址" })).toHaveValue("https://github.com/example/updated.git");
   await screen.getByRole("button", { name: "保存远端", exact: true }).click();
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
