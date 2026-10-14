@@ -60,9 +60,13 @@ export function registerProjectGitPushRoutes(
         request.headers["idempotency-key"],
         { request: request.body, rootPath },
         async () => {
-          // 与提交、切分支共享写锁和幂等缓存，避免同一仓库的并发操作重复推送。
-          assertGitMutationAvailable(mutationScope);
-          activeGitMutations.add(mutationScope);
+          // inspect 只读取本地引用，不占用写锁；提交后的多次刷新可以安全重叠。
+          // 真正修改仓库的操作仍与提交、切分支共用写锁，防止重复推送和并发写入。
+          const writesRepository = request.body.action !== "inspect";
+          if (writesRepository) {
+            assertGitMutationAvailable(mutationScope);
+            activeGitMutations.add(mutationScope);
+          }
           try {
             return await pushProjectCommits(rootPath, request.body);
           } catch (error) {
@@ -73,7 +77,8 @@ export function registerProjectGitPushRoutes(
               502,
             );
           } finally {
-            activeGitMutations.delete(mutationScope);
+            // 只释放本次获取的写锁，避免只读请求完成时误删其他写操作的锁。
+            if (writesRepository) activeGitMutations.delete(mutationScope);
           }
         },
       );
