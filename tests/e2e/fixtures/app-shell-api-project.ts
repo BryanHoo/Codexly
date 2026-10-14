@@ -197,6 +197,29 @@ export async function handleAppShellProjectRoute(
       snapshot: "c".repeat(64),
     };
     body = state.routedProjectGitStatus;
+  } else if (
+    /^\/v1\/projects\/[^/]+\/git\/push$/u.test(url.pathname) &&
+    route.request().method() === "POST" &&
+    parseRequestRecord(route.request().postData())["action"] === "inspect"
+  ) {
+    const branch = state.routedProjectGitStatus.branch;
+    body = {
+      branch,
+      pushStatus: "checked",
+      pushError: null,
+      remoteState: {
+        head: "f".repeat(40),
+        upstream: `origin/${branch}`,
+        remote: "origin",
+        targetBranch: branch,
+        remotes: [{ name: "origin", url: "https://example.com/repo.git" }],
+        ahead: 1,
+        behind: 0,
+        checkedAt: "2026-10-14T00:00:00Z",
+        operation: "none",
+        conflicts: [],
+      },
+    };
   } else if (/^\/v1\/projects\/[^/]+\/git\/status$/u.test(url.pathname)) {
     body =
       url.searchParams.get("rootPath") === "/workspace/shared"

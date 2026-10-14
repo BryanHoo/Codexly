@@ -4,6 +4,7 @@
 
 - Codex 版本与协议基线以根目录 `package.json`、`schemas/codex-app-server/` 为准；升级时运行 `pnpm codex:schema:check`。
 - Provider 层不引入 Web、HTTP 客户端或服务端交付逻辑；用相邻测试及 `pnpm lint:architecture` 验证。
+- 协议错误触发的后台进程回收必须处理关闭 Promise 的拒绝，避免产生未处理异常；原始协议错误仍交付给请求方，显式 `close()` 继续返回缓存的关闭失败。回归 `app-server-process.test.ts` 使用拒绝退出的进程和虚拟计时器验证后台回收及显式错误，不能以吞掉所有关闭错误代替回收结果。
 
 - 历史附件正文的读取、校验、持久化不得在 Node 主线程执行同步文件操作或整块 SHA-256。使用异步流式 I/O，并将解码与摘要计算交给进程内共享、限制并发的 Worker；正文校验与原子发布完成后才登记授权元数据。普通附件仍支持 50 MiB，保留稳定 ID、跨会话授权隔离和损坏正文撤销行为。
 - 附件异步处理只能等待当前会话的后续通知，保持该会话事件顺序，其他会话继续处理；恢复请求需合并，删除会话需阻止在途写入重新登记授权。回归执行 `pnpm exec vitest run packages/provider-codex/src/persistent-historical-attachment-store.test.ts packages/provider-codex/src/historical-attachment-worker-pool.test.ts packages/provider-codex/src/agent-provider-thread-attachments.test.ts`；新增 Worker 必须纳入 `tsup.config.ts` 和 `pnpm package:check` 的文件清单与实际启动验证。

@@ -15,6 +15,7 @@ test("reviews selected files, preserves AI drafts and recovers a failed push", a
   };
   let head = "f".repeat(40);
   let pushed = false;
+  const remoteRequests: Record<string, unknown>[] = [];
   let messageRequest: Record<string, unknown> | undefined;
   let commitRequest: Record<string, unknown> | undefined;
   let commitIdempotencyKey: string | undefined;
@@ -41,7 +42,11 @@ test("reviews selected files, preserves AI drafts and recovers a failed push", a
     });
   });
   await page.route("**/v1/projects/codexly/git/push?*", async (route) => {
-    const request = parseRequestRecord(route.request().postData());
+    const request =
+      route.request().method() === "GET"
+        ? { action: "inspect" }
+        : parseRequestRecord(route.request().postData());
+    remoteRequests.push(request);
     if (request["action"] === "push") pushed = true;
     await route.fulfill({
       contentType: "application/json",
@@ -128,9 +133,13 @@ test("reviews selected files, preserves AI drafts and recovers a failed push", a
   await panel.getByRole("button", { name: "更多 Git 操作" }).click();
   await expect(page.getByRole("menuitem", { name: /推送已有提交/u })).toHaveCount(0);
   await page.getByRole("menuitem", { name: "提交并推送" }).click();
-  await expect(panel.getByText("提交已保存，推送未完成", { exact: false })).toBeVisible();
   await expect(panel.getByRole("alert")).toContainText("远端包含尚未整合的提交");
   await expect(panel.getByRole("button", { name: "获取远端更新", exact: true })).toBeVisible();
+  await panel.getByRole("button", { name: "查看详情", exact: true }).click();
+  const failureDetails = page.getByRole("dialog", { name: "远端包含尚未整合的提交" });
+  await expect(failureDetails).toContainText("提交已保存到本地。");
+  await expect(failureDetails).toContainText("[rejected] non-fast-forward");
+  await failureDetails.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(message).toHaveValue("");
   expect(messageRequest).toEqual({ expectedSnapshot: snapshot, paths: ["package.json"] });
   expect(commitRequest).toEqual({
@@ -140,9 +149,18 @@ test("reviews selected files, preserves AI drafts and recovers a failed push", a
     paths: ["package.json"],
   });
   expect(commitIdempotencyKey).toBeTruthy();
-  await panel.getByRole("button", { name: "重试推送", exact: true }).click();
-  await expect(panel.getByRole("button", { name: "已同步", exact: true })).toBeDisabled();
+  await panel.getByRole("button", { name: "获取远端更新", exact: true }).click();
+  await panel.getByRole("button", { name: "推送", exact: true }).click();
+  await expect(panel.getByRole("status")).toContainText("已同步");
   await expect(panel.getByRole("alert")).toHaveCount(0);
+  expect(remoteRequests.filter((request) => request["action"] === "push")).toEqual([
+    {
+      action: "push",
+      expectedSnapshot: status.snapshot,
+      expectedHead: head,
+      expectedBranch: status.branch,
+    },
+  ]);
   await page.setViewportSize({ width: 320, height: 568 });
   await page.getByRole("button", { name: "展开上下文面板" }).click();
   await expect(panel).toBeVisible();

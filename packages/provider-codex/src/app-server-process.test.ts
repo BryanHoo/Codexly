@@ -213,6 +213,33 @@ describe("CodexAppServerProcess", () => {
     expect(runtime.closed).toBe(true);
   });
 
+  it("observes failed background shutdown while preserving the error for explicit close", async () => {
+    vi.useFakeTimers();
+    try {
+      const { child, kill } = createUnresponsiveChild();
+      const runtime = new CodexAppServerProcess(
+        child,
+        { path: "/fake/codex", source: "explicit" },
+        { raw: "codex-cli 0.162.0", version: "0.162.0" },
+        { rpcTimeoutMs: 100, shutdownTimeoutMs: 5 },
+      );
+      const pending = expect(runtime.client.request("slow")).rejects.toBeInstanceOf(
+        RpcProtocolError,
+      );
+      child.stdout.emit("data", Buffer.from("invalid JSON\n"));
+      await pending;
+      await vi.advanceTimersByTimeAsync(20);
+      expect(kill).toHaveBeenNthCalledWith(1, "SIGTERM");
+      expect(kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+      await expect(runtime.close()).rejects.toMatchObject({
+        name: "CodexAppServerShutdownError",
+        timeoutMs: 5,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("rejects shutdown when the process does not exit after SIGKILL", async () => {
     vi.useFakeTimers();
     try {

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { chmod, lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import {
   applyStartEnvironmentDefaults,
   type ParsedCommandOptions,
@@ -118,7 +119,21 @@ export async function writePrivateFile(path: string, text: string | Uint8Array):
   try {
     // 先完整写入同目录临时文件再替换，避免进程中断留下半份配置；秘密文件始终为 0600。
     await writeFile(temporary, text, { mode: 0o600, flag: "wx" });
-    await rename(temporary, path);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await rename(temporary, path);
+        break;
+      } catch (error) {
+        // Windows readers may briefly deny replacement; keep the old file intact while retrying.
+        if (
+          process.platform !== "win32" ||
+          attempt === 5 ||
+          !["EPERM", "EACCES", "EBUSY"].includes((error as NodeJS.ErrnoException).code ?? "")
+        )
+          throw error;
+        await delay(25 * 2 ** attempt);
+      }
+    }
   } finally {
     await rm(temporary, { force: true });
   }

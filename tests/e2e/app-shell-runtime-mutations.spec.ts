@@ -10,7 +10,8 @@ test("allows a command approval and completes the turn", async ({ page }) => {
   await page.getByRole("button", { exact: true, name: "提交" }).click();
   await expect(page.getByRole("region", { name: "命令审批请求" })).toBeVisible();
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
-  await expect(sidebar.getByRole("status", { name: "任务等待审批" })).toBeVisible();
+  const projectTree = sidebar.getByTestId("project-tree-scroll");
+  await expect(projectTree.getByRole("status", { name: "任务等待审批" })).toBeVisible();
   const allow = page.getByRole("button", { exact: true, name: "允许" });
   await expect(allow).toBeFocused();
   await page.keyboard.press("Enter");

@@ -9,6 +9,8 @@
 - 数据存储、定时任务、诊断日志等修改检查相邻 Rust 测试；持续遵守 `desktop/AGENTS.md` 的性能约束。
 - 任务标题与 Web 端共用 `packages/provider-codex/src/task-title-instructions.json`，编译时嵌入。仅共用 Git 提交模型，不能共用提交提示词；辅助会话关闭项目文档加载，并使用专用基础指令与开发者指令防止全局 `AGENTS.md` 将标题变为提交格式。回归执行 Rust `task_title` 测试。
 - 在 `desktop/` 执行 `pnpm check:rust`；完整门槛为 `pnpm check`。环境要求见 `desktop/docs/development.md`。
+- Windows 原生键盘和关闭对话框测试与 WDIO 共用 `CODEAGENT_WEBVIEW_APP_BINARY`，指定独立 EXE 时必须按相同可执行路径定位测试进程；不能改用默认构建路径或按应用名称操作用户正在运行的实例。
+- Windows 进程树资源采样需校验子进程创建时间不早于当前父进程创建时间，再沿 `ParentProcessId` 展开；父 PID 被复用时，旧进程及其后代不能归入应用。回归 `scripts/windows-resources.test.mjs` 同时验证旧父 PID 排除和真实后代保留；CPU 按逻辑核心计数，工作集求和可能重复计算共享页。
 - 本地测试打包使用 `pnpm tauri:local`，通过配置覆盖关闭 `bundle.createUpdaterArtifacts` 并跳过代码签名。`--no-sign` 本身不能关闭更新签名；正式配置继续保留更新公钥与签名产物要求。打包脚本回归须验证两者独立，操作说明见 [源码开发与构建](../../../../desktop/docs/development.md)。
 - 登录自启动开关通过 `enable_autostart` 启用、官方插件禁用和回读；启用操作在后台线程执行，Windows 补齐注册表可执行路径的引号，保留插件处理系统启动项禁用状态的能力。新命令必须进入构建 ACL 清单且仅授权主窗口。实机回归 `tests/webview/windows-autostart.spec.ts` 使用真实 IPC 和注册表，支持 `CODEAGENT_WEBVIEW_APP_BINARY` 指向含空格及中文的测试路径，结束时精确恢复原启动项；系统启动动作不等同于已验证注销后重新登录。
 - Linux 登录项遵循 Desktop Entry 的字符串、Exec 引号和 `%` 字段转义；AppImage 使用原始 AppImage 路径。GLib 在字段展开前检查可执行文件，含 `%` 的路径通过 `/usr/bin/env --` 执行，不能直接将 `%%` 路径作为程序名。原生回归 `tests/webview/linux-autostart.spec.ts` 默认接入 Linux WDIO，精确恢复原登录文件；Rust 回归使用真实 `desktop-file-validate` 和 `gio launch`，依赖 `desktop-file-utils`、`libglib2.0-bin`。登录项登记和启动器执行不能替代完整桌面注销、重新登录验收。

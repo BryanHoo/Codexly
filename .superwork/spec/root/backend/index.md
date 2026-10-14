@@ -16,4 +16,5 @@
 - 自启动只接受稳定的全局 npm 安装，禁止登记 npx 缓存路径；Node/CLI 路径变化由 `repair` 修复。Ubuntu 不开启 linger；已有 linger 时要求活动图形会话并绑定 `graphical-session.target`。Windows 不保存登录密码，取消任务执行时限和电池限制；禁用任务也必须能完整移除。
 - 修改登录项时验证失败回滚、凭据脱敏、私有文件权限、日志上限和各平台参数转义；运行 `src/autostart/*.test.ts`、CLI 回归及 `pnpm package:check`。发布校验必须从实际构建产物运行后台失败恢复测试，使用隔离目录，禁止向验证机器注册持久登录项。
 - Windows 计划任务 XML 使用带 BOM 的 UTF-16，声明必须与字节编码一致；不能将 UTF-8 文件直接交给 `schtasks /XML`。回归检查文件字节和中文/空格路径，实机验证使用真实计划任务及认证就绪通道。缺失 Codex 的 Windows 发布回归路径仍须以 `.exe` 结尾，才能验证文件缺失而非可执行类型校验。
+- 私有配置和状态文件始终通过同目录临时文件原子替换；Windows 共享锁导致 `EPERM`、`EACCES` 或 `EBUSY` 时仅进行有界重试，不先删除旧文件。持续占用必须正常报错并清理临时文件；回归 `src/autostart/config-windows.test.ts` 使用真实 Windows 文件锁，覆盖短暂占用恢复和持续占用时旧状态保留。
 - systemd 的 `WorkingDirectory` 是标量路径，不能套用 `ExecStart` 的 argv 引号；空格、反斜杠和 `%` 分别按 unit 字符串与 specifier 规则转义，`$` 保持字面值。Linux 文件回归使用真实 `systemd-analyze --user verify`。禁用服务前读取实际 `ActiveState`，未加载或配置损坏的 inactive unit 仍须允许清理；管理器查询失败正常报错。

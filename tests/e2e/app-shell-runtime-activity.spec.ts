@@ -300,7 +300,9 @@ test("updates a running background task title and preserves blocking status", as
   await page.goto("/p/codexly/t/task-1");
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const backgroundTask = sidebar.getByRole("link", { name: /优化输入框交互/ });
-  const completedTask = sidebar.locator('a[href="/p/codexly/t/markdown"]');
+  const completedTask = sidebar
+    .getByTestId("project-tree-scroll")
+    .locator('a[href="/p/codexly/t/markdown"]');
   const failedTask = sidebar.getByRole("link", { name: /完善 Runtime 状态/ });
   await expect
     .poll(() =>

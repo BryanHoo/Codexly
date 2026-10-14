@@ -150,7 +150,7 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
 
   const newAgentBox = await newAgent.boundingBox();
   const pinnedBox = await sidebar.getByRole("heading", { name: "已固定" }).boundingBox();
-  const pinnedSection = sidebar.getByRole("heading", { name: "已固定" }).locator("xpath=..");
+  const pinnedSection = sidebar.getByRole("region", { name: "已固定", exact: true });
   const projectsBox = await sidebar.getByRole("heading", { name: "项目" }).boundingBox();
   const extensionCenterBox = await extensionCenter.boundingBox();
   const temporaryGroupBox = await sidebar.getByRole("region", { name: "聊天" }).boundingBox();

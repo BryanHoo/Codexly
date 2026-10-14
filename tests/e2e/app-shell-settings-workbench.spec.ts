@@ -287,7 +287,9 @@ test("keeps Projects fixed and manages task actions from the compact tree", asyn
       Number.parseFloat(await projectsHeading.evaluate((node) => getComputedStyle(node).fontSize)),
     )
     .toBeGreaterThan(
-      Number.parseFloat(await pinnedHeading.evaluate((node) => getComputedStyle(node).fontSize)),
+      Number.parseFloat(
+        await pinnedHeading.getByRole("button").evaluate((node) => getComputedStyle(node).fontSize),
+      ),
     );
   const headingY = (await projectsHeading.boundingBox())?.y;
   await projectTree.evaluate((element) => {
@@ -326,7 +328,7 @@ test("keeps Projects fixed and manages task actions from the compact tree", asyn
   await inputTask.hover();
   await projectGroup.getByRole("button", { name: "打开 优化输入框交互 的操作菜单" }).click();
   await page.getByRole("menuitem", { name: "固定" }).click();
-  const pinnedSection = pinnedHeading.locator("xpath=..");
+  const pinnedSection = sidebar.getByRole("region", { name: "已固定", exact: true });
   const pinnedInputTask = pinnedSection.getByRole("link", { name: /优化输入框交互/u });
   await expect(pinnedInputTask).toBeVisible();
   await pinnedInputTask.hover();

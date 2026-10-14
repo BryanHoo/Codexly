@@ -139,7 +139,8 @@ export class CodexAppServerProcess {
     this.client.onError(() => {
       // 让 Client 先用原始协议错误 Reject Pending，再异步回收损坏的进程。
       queueMicrotask(() => {
-        void this.close();
+        // 后台回收失败不产生未处理拒绝；显式 close 仍返回同一个失败 Promise。
+        void this.close().catch(() => undefined);
       });
     });
   }

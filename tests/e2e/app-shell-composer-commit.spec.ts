@@ -255,6 +255,8 @@ for (const scenario of [
     let gitStatus = projectGitStatus;
     let commitRequest: Record<string, unknown> | undefined;
     const pushRequests: Record<string, unknown>[] = [];
+    const commitSha = "0123456789abcdef0123456789abcdef01234567";
+    let pushed = false;
     await page.route("**/v1/projects/codexly/git/status*", async (route) => {
       await route.fulfill({ contentType: "application/json", json: gitStatus });
     });
@@ -262,11 +264,12 @@ for (const scenario of [
       commitRequest = parseRequestRecord(route.request().postData());
       // 模拟提交后的权威快照，后续状态读取也返回干净工作区，避免刷新恢复旧变更。
       gitStatus = { ...projectGitStatus, snapshot: "d".repeat(64), staged: [], unstaged: [] };
+      pushed = scenario.pushStatus === "pushed";
       await route.fulfill({
         contentType: "application/json",
         json: {
           branch: "feat/review-targets",
-          commitSha: "0123456789abcdef0123456789abcdef01234567",
+          commitSha,
           message: commitRequest["message"],
           pushError: null,
           pushStatus: scenario.pushStatus,
@@ -285,13 +288,28 @@ for (const scenario of [
     });
     await page.route("**/v1/projects/codexly/git/push?*", async (route) => {
       const request = parseRequestRecord(route.request().postData());
-      if (request["action"] !== "inspect") pushRequests.push(request);
+      if (request["action"] !== "inspect") {
+        pushRequests.push(request);
+        pushed = true;
+      }
       await route.fulfill({
         contentType: "application/json",
         json: {
           branch: gitStatus.branch,
           pushStatus: request["action"] === "inspect" ? "checked" : "pushed",
           pushError: null,
+          remoteState: {
+            head: gitStatus === projectGitStatus ? "f".repeat(40) : commitSha,
+            upstream: `origin/${gitStatus.branch}`,
+            remote: "origin",
+            targetBranch: gitStatus.branch,
+            remotes: [{ name: "origin", url: "https://example.com/repo.git" }],
+            ahead: pushed ? 0 : 1,
+            behind: 0,
+            checkedAt: "2026-10-14T00:00:00Z",
+            operation: "none",
+            conflicts: [],
+          },
         },
       });
     });
@@ -316,7 +334,7 @@ for (const scenario of [
     await expect(panel.getByText("暂无未提交变更", { exact: true })).toHaveCount(0);
     await expect(panel.getByRole("textbox", { name: "提交信息" })).toHaveCount(0);
     await expect(panel.getByRole("tree")).toHaveCount(0);
-    await expect(panel.locator('[data-slot="git-remote-status"]')).toContainText("0123456");
+    await expect(panel.locator('[data-slot="git-remote-status"]')).not.toContainText("0123456");
     expect(commitRequest).toEqual({
       action: scenario.actionName === "提交" ? "commit" : "commit_and_push",
       expectedSnapshot: projectGitStatus.snapshot,
@@ -335,19 +353,29 @@ for (const scenario of [
     await expect(successToast).not.toBeAttached({ timeout: 7_000 });
 
     if (scenario.actionName === "提交") {
-      await expect(panel.locator('[data-slot="git-remote-status"]')).toContainText(
-        "已保存到本地，尚未推送",
-      );
+      await expect(
+        panel.getByRole("button", { name: "待推送 1 个提交", exact: true }),
+      ).toBeVisible();
       const pushButton = panel.getByRole("button", { name: "推送", exact: true });
       await expect(pushButton).toBeEnabled();
       // 提交后使用新快照单独推送，不再要求提交信息或文件选择。
       await pushButton.click();
       await expect(successToast).toHaveText("推送成功");
       expect(pushRequests).toEqual([
-        { action: "push", expectedSnapshot: gitStatus.snapshot, expectedBranch: gitStatus.branch },
+        {
+          action: "push",
+          expectedSnapshot: gitStatus.snapshot,
+          expectedHead: commitSha,
+          expectedBranch: gitStatus.branch,
+        },
       ]);
     }
-    await expect(panel.locator('[data-slot="git-remote-status"]')).toContainText("已推送到远端");
-    await expect(panel.getByRole("button", { name: "已推送", exact: true })).toBeDisabled();
+    await expect(panel.getByRole("status")).toContainText("已同步");
+    await expect(panel.getByRole("button", { name: "获取远端更新", exact: true })).toBeEnabled();
+    await panel.getByRole("button", { name: "更多远端操作" }).click();
+    await page.getByRole("menuitem", { name: "远端信息", exact: true }).click();
+    const remoteInfo = page.getByRole("dialog", { name: "远端信息", exact: true });
+    await expect(remoteInfo).toContainText(commitSha);
+    await remoteInfo.getByRole("button", { name: "关闭", exact: true }).click();
   });
 }

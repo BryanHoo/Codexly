@@ -309,7 +309,9 @@ test("shows a newly submitted task from the launch checkpoint without reading it
   await expect(page).toHaveURL(/\/p\/codexly$/u);
   const main = page.getByRole("main", { name: "任务时间线" });
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
-  const runningTaskLink = sidebar.getByRole("link", { name: "新聊天" });
+  const runningTaskLink = sidebar
+    .getByTestId("project-tree-scroll")
+    .getByRole("link", { name: "新聊天" });
   await expect(runningTaskLink).toHaveCount(0);
 
   releaseTurnStartRequest();

@@ -36,8 +36,9 @@ it("keeps an empty repository readable before its first commit", async () => {
 
 it("marks local commits across pages and clears marks after a successful push", async () => {
   const root = await repository();
-  const remote = await repository();
-  await git(remote, "config", "core.bare", "true");
+  const remote = await mkdtemp(join(tmpdir(), "codexly-history-remote-"));
+  roots.push(remote);
+  await git(remote, "init", "--bare");
   await git(root, "remote", "add", "origin", remote);
   await git(root, "push", "-u", "origin", "main");
   for (let index = 0; index < 22; index++)

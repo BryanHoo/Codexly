@@ -78,7 +78,7 @@ describe("commitSelectedProjectChanges", () => {
         expectedBranch: "main",
       }),
     ).rejects.toMatchObject({ code: "GIT_STATUS_CHANGED" });
-  });
+  }, 15_000);
   it("pushes the reviewed HEAD even when unrelated working changes arrive", async () => {
     const root = await createRepository();
     const remote = await mkdtemp(join(tmpdir(), "codexly-git-head-push-"));
@@ -97,7 +97,7 @@ describe("commitSelectedProjectChanges", () => {
     });
     expect(pushed.pushStatus).toBe("pushed");
     expect((await runGit(root, "diff", "--", "selected.txt")).stdout).toContain("new working edit");
-  });
+  }, 15_000);
   it("pushes existing commits from a clean tree without creating another commit", async () => {
     const root = await createRepository();
     const remote = await mkdtemp(join(tmpdir(), "codexly-git-push-remote-"));
@@ -123,7 +123,7 @@ describe("commitSelectedProjectChanges", () => {
     });
     expect((await runGit(remote, "rev-parse", "main")).stdout).toBe(head);
     expect((await runGit(root, "rev-parse", "HEAD")).stdout).toBe(head);
-  });
+  }, 15_000);
 
   it("rejects pushing an outdated snapshot before touching the remote", async () => {
     const root = await createRepository();

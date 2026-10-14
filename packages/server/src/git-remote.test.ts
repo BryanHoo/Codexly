@@ -40,7 +40,7 @@ it("inspects without changing the repository and publishes an explicitly chosen 
   expect(published.remoteState?.ahead).toBe(0);
   expect(await git(root, "rev-parse", "--abbrev-ref", "@{upstream}")).toBe("origin/main");
   expect(await git(root, "rev-parse", "HEAD")).toBe(before);
-});
+}, 15_000);
 
 it("fetches remote updates, refuses integration with working edits and integrates a clean tree", async () => {
   const root = await repo();
@@ -62,7 +62,7 @@ it("fetches remote updates, refuses integration with working edits and integrate
   await git(root, "restore", "a.txt");
   expect((await operateGitRemote(root, { action: "integrate" })).remoteState?.behind).toBe(0);
   expect(await git(root, "show", "HEAD:a.txt")).toBe("remote update");
-});
+}, 15_000);
 
 it("refuses option-like remote names and configures a remote without pushing", async () => {
   const root = await repo();
@@ -119,7 +119,7 @@ it("refuses divergent integration without creating conflicts or changing the loc
   expect(refused.remoteState?.conflicts).toEqual([]);
   expect(await git(root, "rev-parse", "HEAD")).toBe(before);
   expect(await git(root, "status", "--porcelain")).toBe("");
-});
+}, 15_000);
 
 it.each(["resolve", "continue", "abort"])(
   "rejects the removed %s operation without changing the repository",

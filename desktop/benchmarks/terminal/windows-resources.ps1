@@ -5,11 +5,18 @@ $owned = New-Object 'System.Collections.Generic.HashSet[int]'
 $null = $owned.Add($AppProcessId)
 foreach ($terminalShellId in $shellIds) { $null = $owned.Add($terminalShellId) }
 # Only process identity/topology and numeric resource counters are collected.
-$topology = @(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId)
+$topology = @(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate)
+$creationDates = @{}
+foreach ($entry in $topology) { $creationDates[[int]$entry.ProcessId] = $entry.CreationDate }
 do {
     $before = $owned.Count
     foreach ($entry in $topology) {
-        if ($owned.Contains([int]$entry.ParentProcessId)) { $null = $owned.Add([int]$entry.ProcessId) }
+        $parentCreated = $creationDates[[int]$entry.ParentProcessId]
+        # Windows can recycle a terminated parent PID while its older children remain alive.
+        if ($owned.Contains([int]$entry.ParentProcessId) -and $null -ne $parentCreated -and
+            $null -ne $entry.CreationDate -and $entry.CreationDate -ge $parentCreated) {
+            $null = $owned.Add([int]$entry.ProcessId)
+        }
     }
 } while ($owned.Count -ne $before)
 $rows = @(foreach ($processId in $owned) {
