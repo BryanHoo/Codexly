@@ -1,3 +1,5 @@
+import { SidebarActiveTaskRow } from "@codexly/ui/core/sidebar-active-task-row";
+import type { SidebarActiveTask } from "@codexly/frontend-core/sidebar-task-shortcuts";
 import { SidebarTaskAnchor } from "@codexly/ui/core/sidebar-task-anchor";
 import { getSplitAction, useSplitWorkspace } from "@codexly/ui/core/split-workspace";
 import { splitPaneKey } from "@codexly/frontend-core/split-workspace";
@@ -38,6 +40,25 @@ export function getTaskRoute(projectId: string, taskId: string) {
   return projectId === TEMPORARY_TASK_SCOPE_ID
     ? { params: { taskId }, to: "/temporary/t/$taskId" as const }
     : { params: { projectId, taskId }, to: "/p/$projectId/t/$taskId" as const };
+}
+
+export function ActiveTaskLink({
+  task,
+  active,
+  projectName,
+}: Readonly<{ task: SidebarActiveTask; active: boolean; projectName: string }>) {
+  const { t } = useTranslation("workbench");
+  return (
+    <SidebarActiveTaskRow
+      task={task}
+      active={active}
+      projectName={projectName}
+      labels={{ approval: t("sidebar.taskApproval"), running: t("sidebar.taskRunning") }}
+      renderLink={(props) => (
+        <TaskRouteLink {...props} {...getTaskRoute(task.projectId, task.id)} />
+      )}
+    />
+  );
 }
 
 export function TaskLink({

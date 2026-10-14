@@ -377,8 +377,8 @@ export function ProjectSidebar({
           {...(projectId === undefined ? {} : { projectId })}
         />
       </nav>
-
       <ProjectSidebarTaskList
+        onTaskNavigate={closeOnMobile}
         archiveTask={archiveTask}
         client={client}
         deleteTask={taskDeletion.requestTaskDeletion}

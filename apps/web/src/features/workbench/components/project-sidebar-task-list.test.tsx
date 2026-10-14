@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import type * as RouterModule from "@tanstack/react-router";
 import type { Project } from "@codexly/protocol";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -7,6 +8,36 @@ import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import type { ProjectTaskListState } from "../../projects/project-context.js";
 import type { TaskActivityMap } from "../../conversation/runtime/task-activity.js";
 import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
+
+// 此处验证侧栏分组与状态聚合，路由和分屏选择由导航测试及 CDP 交互验证覆盖。
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+  const original = await importOriginal<typeof RouterModule>();
+  return {
+    ...original,
+    createLink:
+      () =>
+      ({
+        taskActive,
+        to,
+        params,
+        children,
+        ...props
+      }: {
+        taskActive: boolean;
+        to: string;
+        params: Record<string, string>;
+        children: React.ReactNode;
+      }) => (
+        <a
+          {...props}
+          href={to.replace(/\$([\w]+)/gu, (_, key: string) => params[key] ?? "")}
+          aria-current={taskActive ? "page" : undefined}
+        >
+          {children}
+        </a>
+      ),
+  };
+});
 
 const project: Project = {
   createdAt: "2026-08-17T00:00:00.000Z",
@@ -25,8 +56,9 @@ const pendingTaskState: ProjectTaskListState = {
 function renderProjectTaskList(
   expandedProjects: ReadonlySet<string> = new Set([project.id]),
   taskActivity: TaskActivityMap = new Map(),
+  includeShortcuts = false,
 ) {
-  return renderToStaticMarkup(
+  const markup = renderToStaticMarkup(
     <TooltipProvider>
       <ProjectSidebarTaskList
         archiveTask={vi.fn()}
@@ -69,6 +101,9 @@ function renderProjectTaskList(
       />
     </TooltipProvider>,
   );
+  return includeShortcuts
+    ? markup
+    : markup.slice(markup.indexOf('aria-labelledby="projects-title"'));
 }
 
 describe("ProjectSidebarTaskList", () => {
@@ -88,6 +123,22 @@ describe("ProjectSidebarTaskList", () => {
       ]),
     );
   }
+
+  it("shows unloaded active tasks above the project tree and excludes completed tasks", () => {
+    const markup = renderProjectTaskList(
+      new Set(),
+      activityFor(["running", "approval", "completed"]),
+      true,
+    );
+    expect(markup).toContain("运行中");
+    expect(markup).toContain("待确认 1");
+    expect(markup).toContain('href="/p/codexly/t/0"');
+    expect(markup).toContain('href="/p/codexly/t/1"');
+    expect(markup).not.toContain('href="/p/codexly/t/2"');
+    expect(markup.indexOf('data-sidebar-shortcut-group="active"')).toBeLessThan(
+      markup.indexOf('data-testid="project-tree-scroll"'),
+    );
+  });
 
   it("shows unread completion ahead of approval and running even without loaded tasks", () => {
     for (const states of [

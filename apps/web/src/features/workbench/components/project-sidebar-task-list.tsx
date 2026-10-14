@@ -1,3 +1,5 @@
+import { getSidebarActiveTasks } from "@codexly/frontend-core/sidebar-task-shortcuts";
+import { SidebarTaskShortcuts } from "@codexly/ui/core/sidebar-task-shortcuts";
 import { getProjectTaskStatuses } from "@codexly/frontend-core/project-task-status";
 import { ProjectStatusIndicator } from "@codexly/ui/core/project-status-indicator";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask, type Project } from "@codexly/protocol";
@@ -24,7 +26,7 @@ import { ProjectActions, ProjectPickerButton } from "./project-sidebar-actions.j
 import { ProjectSidebarWorktreeAction } from "./project-sidebar-worktree-action.js";
 import type { WorktreeTaskClient } from "./project-sidebar-worktree-task.js";
 import { getProjectTaskPaginationControl } from "./project-sidebar-state.js";
-import { TaskLink } from "./project-sidebar-task-row.js";
+import { ActiveTaskLink, TaskLink } from "./project-sidebar-task-row.js";
 import { TemporaryTasksHeading } from "./temporary-tasks-heading.js";
 import type { ArchivedTaskScope } from "./archived-tasks-dialog.js";
 
@@ -45,6 +47,7 @@ type ProjectSidebarTaskListProps = Readonly<{
   isProjectAddPending: boolean;
   normalizedQuery: string;
   onOpenTemporaryDraft: () => void;
+  onTaskNavigate?: () => void;
   onOpenProjectDraft: (projectId: string) => Promise<void>;
   onWorktreeTaskCreated: (projectId: string) => void;
   onOpenArchived: (project: ArchivedTaskScope) => void;
@@ -83,6 +86,7 @@ export function ProjectSidebarTaskList({
   isProjectAddPending,
   normalizedQuery,
   onOpenTemporaryDraft,
+  onTaskNavigate,
   onOpenProjectDraft: openProjectDraft,
   onWorktreeTaskCreated,
   onOpenArchived,
@@ -116,6 +120,18 @@ export function ProjectSidebarTaskList({
     () => new Map(orderedProjects.map((project) => [project.id, project])),
     [orderedProjects],
   );
+  const activeTasks = useMemo(
+    () =>
+      getSidebarActiveTasks(
+        taskActivity,
+        new Set([TEMPORARY_TASK_SCOPE_ID, ...projectsById.keys()]),
+      ),
+    [taskActivity, projectsById],
+  );
+  const projectNameFor = (id: string) =>
+    id === TEMPORARY_TASK_SCOPE_ID
+      ? t("sidebar.temporaryTasks")
+      : (projectsById.get(id)?.name ?? id);
   const projectStatuses = useMemo(() => getProjectTaskStatuses(taskActivity), [taskActivity]);
   const temporaryTasks = tasksByProjectId.get(TEMPORARY_TASK_SCOPE_ID) ?? EMPTY_PROJECT_TASKS;
   const temporaryTaskState = projectTaskStates.get(TEMPORARY_TASK_SCOPE_ID);
@@ -132,44 +148,47 @@ export function ProjectSidebarTaskList({
     <>
       {/* 限制项目区的固有宽度，长 Task 标题不能把右侧操作按钮推出 Sidebar。 */}
       <div className="flex min-h-0 min-w-0 flex-col overflow-hidden px-2 pt-2">
-        {pinnedTasks.length > 0 ? (
-          <section
-            className="mb-4 max-h-40 shrink-0 overflow-y-auto"
-            aria-labelledby="pinned-title"
-          >
-            <h2
-              className="px-2 pb-2 text-meta font-semibold text-muted-foreground"
-              id="pinned-title"
-            >
-              {t("sidebar.pinned")}
-            </h2>
-            <div className="space-y-0.5">
-              {pinnedTasks.map((task) => {
-                const activity = getTaskActivity(taskActivity, task.projectId, task.id);
-                return (
-                  <TaskLink
-                    active={task.projectId === projectId && task.id === taskId}
-                    attention={activity.attention}
-                    key={`${task.projectId}:${task.id}`}
-                    isActionPending={taskActionPending}
-                    isAwaitingApproval={activity.isAwaitingApproval}
-                    isRunning={activity.isRunning}
-                    onArchive={(task) => void archiveTask(task)}
-                    onDelete={(task) => void deleteTask(task)}
-                    onPin={(task) => void pinTask(task)}
-                    onRename={setRenamingTask}
-                    projectName={
-                      task.projectId === TEMPORARY_TASK_SCOPE_ID
-                        ? t("sidebar.temporaryTasks")
-                        : (projectsById.get(task.projectId)?.name ?? task.projectId)
-                    }
-                    task={task}
-                  />
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
+        <SidebarTaskShortcuts
+          pinnedTasks={pinnedTasks}
+          activeTasks={activeTasks.tasks}
+          runningCount={activeTasks.runningCount}
+          approvalCount={activeTasks.approvalCount}
+          storage={preferenceStorage}
+          mobileEnabled
+          onNavigate={onTaskNavigate}
+          labels={{
+            pinned: t("sidebar.pinned"),
+            active: t("sidebar.runningGroup"),
+            approval: (count) => t("sidebar.approvalCount", { count }),
+            showAll: (count) => t("sidebar.showAllTasks", { count }),
+            close: t("sidebar.closeTaskList"),
+          }}
+          renderPinned={(task) => {
+            const activity = getTaskActivity(taskActivity, task.projectId, task.id);
+            return (
+              <TaskLink
+                active={task.projectId === projectId && task.id === taskId}
+                attention={activity.attention}
+                isActionPending={taskActionPending}
+                isAwaitingApproval={activity.isAwaitingApproval}
+                isRunning={activity.isRunning}
+                onArchive={(task) => void archiveTask(task)}
+                onDelete={(task) => void deleteTask(task)}
+                onPin={(task) => void pinTask(task)}
+                onRename={setRenamingTask}
+                projectName={projectNameFor(task.projectId)}
+                task={task}
+              />
+            );
+          }}
+          renderActive={(task) => (
+            <ActiveTaskLink
+              task={task}
+              active={task.projectId === projectId && task.id === taskId}
+              projectName={projectNameFor(task.projectId)}
+            />
+          )}
+        />
 
         <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-labelledby="projects-title">
           <div className="flex h-8 min-w-0 w-full shrink-0 items-center justify-between pl-2">
