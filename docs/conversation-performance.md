@@ -6,9 +6,9 @@ This document describes conversation loading and resource management in Codexly 
 
 ## 会话历史 / Conversation History
 
-打开任务时优先读取最近的回合。分页历史每次最多读取 10 个回合，每个回合先取最近 100 个条目；顶部「加载更早历史」每次只读取一页更早回合，不加载回合内部的过程条目。展开某个回合的过程后独立读取执行条目，支持继续加载与失败重试，不改变问题与最终答复的顺序；保留审查结果和条目耗时，长过程内容限制在当前分屏内。旧格式历史继续使用回合分页。分页是读取方式，不会删除磁盘上的历史记录。
+打开任务时优先读取最近回合的问题与最终答复摘要，每页最多 10 个回合。顶部「加载更早历史」每次只读取一页更早回合，不加载回合内部的过程条目。展开某个回合的过程后独立读取执行条目，分页历史每次最多读取该回合的 100 个条目，支持继续加载与失败重试，不改变问题与最终答复的顺序；保留审查结果和条目耗时，长过程内容限制在当前分屏内。旧格式历史仍按回合读取完整过程，过程入口同样按需加载。分页是读取方式，不会删除磁盘上的历史记录。
 
-Opening a task loads recent turns first. Paginated history reads up to 10 turns at a time and initially fetches the latest 100 items per turn. The top history control loads one page of earlier turns without fetching their internal execution details. Expanding a turn’s process loads those details independently, with controls to load more or retry failures, while keeping questions and final answers in order. Review results and item timings are preserved, and long process content stays within the current pane. Legacy history continues to use turn pagination. Pagination changes how history is read; it does not delete history on disk.
+Opening a task loads summaries of recent questions and final answers, with up to 10 turns per page. The top history control loads one page of earlier turns without fetching their internal execution details. Expanding a turn’s process loads its details independently, with up to 100 items per page for paginated history and controls to load more or retry failures, while keeping questions and final answers in order. Review results and item timings are preserved, and long process content stays within the current pane. Legacy history reads the complete process by turn, also only when expanded. Pagination changes how history is read; it does not delete history on disk.
 
 ## 代码与 Markdown / Code and Markdown
 
