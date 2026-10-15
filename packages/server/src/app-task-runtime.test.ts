@@ -214,7 +214,7 @@ describe("server task runtime", () => {
     const { app, readTask } = await createHarness();
     const response = await app.inject({
       method: "GET",
-      url: "/v1/projects/codexly/tasks/task-1?cursor=older%2Fpage",
+      url: "/v1/projects/codexly/tasks/task-1?cursor=older%2Fpage&summary=true",
     });
     const body = response.json<{
       checkpoint: { sequence: number; sessionId: unknown };
@@ -228,7 +228,7 @@ describe("server task runtime", () => {
       ...snapshot,
       settings: { ...turnOptions, sandboxMode: "workspace-write" },
     });
-    expect(readTask).toHaveBeenCalledWith("task-1", { cursor: "older/page" });
+    expect(readTask).toHaveBeenCalledWith("task-1", { cursor: "older/page", summary: true });
   });
 
   it("rejects an empty task snapshot cursor", async () => {

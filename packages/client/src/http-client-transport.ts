@@ -66,7 +66,7 @@ export type ReadOptions = Readonly<{
   signal?: AbortSignal;
 }>;
 
-export type ReadTaskOptions = ReadOptions & Readonly<{ cursor?: string }>;
+export type ReadTaskOptions = ReadOptions & Readonly<{ cursor?: string; summary?: boolean }>;
 
 export type AgentAttachmentUploadInput = Readonly<{
   content: Blob;

@@ -32,3 +32,5 @@
 - Git inspect 是只读恢复入口，项目根仓库检查通过后允许旧快照读取当前 HEAD/远端状态；push/publish/fetch 仍校验请求绑定的 HEAD 和分支，工作区写操作仍严格校验快照。回归覆盖旧快照的检查与保留工作区编辑的推送。
 
 - Git 历史与远端操作共用推送目标解析，空覆盖值按未配置回退；一次读取配置并批量比较固定 HEAD 的 SHA/祖先关系，分页与合并提交不得按序号推断未推送状态。只比较已获取的本地远端引用，不额外访问网络；未知目标/引用省略 `unpushed`，推送成功后清除标记。回归见 `git_workflow_tests.rs` 的 Git 历史分页与推送目标测试。
+
+- `read_task` 的 `summary: true` 仅调用回合摘要接口，内部过程入口放入对应 `AgentTurn.processCursor`，不得混入顶部历史游标；展开过程才读取对应回合的 Item 页。旧格式使用原回合页延迟读取，校验任务归属，测试见 `conversation_pagination_tests.rs`。

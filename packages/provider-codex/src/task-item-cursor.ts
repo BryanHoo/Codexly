@@ -4,7 +4,7 @@ const PREFIX = "codexly-items-v1:";
 const MAX_CURSOR_BYTES = 8_192;
 
 export type PendingTurnItems = Readonly<{
-  cursor: string;
+  cursor: string | null;
   turn: Record<string, unknown>;
 }>;
 type ItemContinuation = Readonly<{
@@ -39,7 +39,8 @@ export function decodeItemContinuation(
       const record = expectRecord(entry, "Pending turn items");
       const turn = expectRecord(record["turn"], "Pending turn");
       const id = expectString(turn["id"], "Pending turn id");
-      const itemCursor = expectString(record["cursor"], "Pending item cursor");
+      const itemCursor =
+        record["cursor"] === null ? null : expectString(record["cursor"], "Pending item cursor");
       if (id === "" || itemCursor === "" || ids.has(id)) throw new Error("invalid pending turn");
       ids.add(id);
       // 游标仅携带固定大小的回合元数据，禁止回传 Item 正文或错误正文。

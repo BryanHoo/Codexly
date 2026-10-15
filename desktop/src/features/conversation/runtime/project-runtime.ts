@@ -188,7 +188,7 @@ export class ProjectRuntimeManager {
     await Promise.all(
       restoredActiveTasks.map(async ({ projectId, taskId }) => {
         try {
-          this.observeSnapshot(await this.client.readTask(projectId, taskId));
+          this.observeSnapshot(await this.client.readTask(projectId, taskId, { summary: true }));
         } catch (error) {
           recordInternalWarning("task_activity_restore_failed", error, { projectId, taskId });
         }
@@ -200,7 +200,7 @@ export class ProjectRuntimeManager {
     projectId: string,
     taskId: string,
   ): Promise<AgentTaskSnapshotResponse> {
-    const response = await this.client.readTask(projectId, taskId);
+    const response = await this.client.readTask(projectId, taskId, { summary: true });
     this.reconcileTaskSnapshot(response);
     return response;
   }

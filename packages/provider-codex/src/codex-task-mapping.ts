@@ -319,6 +319,7 @@ export function mapAgentTurn(
         : mergeExpandedSkillMessages(
             nativeItems.map((item) => mapAgentItem(item, subagentNicknames, mapImage, mapText)),
           ),
+    ...(typeof turn["processCursor"] === "string" ? { processCursor: turn["processCursor"] } : {}),
     startedAt: toNullableDateTime(turn["startedAt"], "Codex turn startedAt"),
     status: mapTurnStatus(turn["status"]),
   };

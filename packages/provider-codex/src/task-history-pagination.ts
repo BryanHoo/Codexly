@@ -193,7 +193,7 @@ async function hydratePaginatedTurnItems(
   threadId: string,
   turns: readonly Record<string, unknown>[],
   nextTurnCursor: string | null,
-  cursors: ReadonlyMap<string, string> = new Map(),
+  cursors: ReadonlyMap<string, string | null> = new Map(),
 ): Promise<NativeTaskTurnPage> {
   // 每次请求每个 Turn 只取最近一页；剩余游标交给前端显式续页，首屏不追读。
   const pages = await Promise.all(
@@ -246,11 +246,28 @@ export async function readNativeTaskTurnPage(
   threadId: string,
   historyMode: CodexThreadHistoryMode,
   turnCursor?: string,
+  summary = false,
 ): Promise<NativeTaskTurnPage> {
   const continuation = decodeItemContinuation(turnCursor, threadId);
   if (continuation !== undefined) {
-    if (historyMode !== "paginated")
-      throw new CodexProtocolMappingError("Task item pagination requires paginated history");
+    if (summary)
+      throw new CodexProtocolMappingError("A process cursor cannot paginate conversation history");
+    if (historyMode !== "paginated") {
+      // 旧格式不支持 Item RPC，展开时才按原回合页读取完整内容，且只交付目标回合。
+      if (continuation.pending.some((entry) => entry.cursor !== null))
+        throw new CodexProtocolMappingError("Task item pagination requires paginated history");
+      const page = await readNativeTaskTurnPage(
+        client,
+        threadId,
+        historyMode,
+        continuation.nextTurnCursor ?? undefined,
+      );
+      const ids = new Set(continuation.pending.map((entry) => entry.turn["id"]));
+      const turns = page.turns.filter((value) => ids.has(expectRecord(value, "Codex turn")["id"]));
+      if (turns.length !== ids.size)
+        throw new CodexProtocolMappingError("Process turn is no longer available");
+      return { turns, nextTurnCursor: null };
+    }
     return hydratePaginatedTurnItems(
       client,
       threadId,
@@ -267,7 +284,7 @@ export async function readNativeTaskTurnPage(
   const response = expectRecord(
     await client.request("thread/turns/list", {
       ...(turnCursor === undefined ? {} : { cursor: turnCursor }),
-      itemsView: historyMode === "paginated" ? "notLoaded" : "full",
+      itemsView: summary ? "summary" : historyMode === "paginated" ? "notLoaded" : "full",
       limit: TASK_TURN_PAGE_LIMIT,
       sortDirection: "desc",
       threadId,
@@ -292,6 +309,25 @@ export async function readNativeTaskTurnPage(
   }
   if (nativeTurns.length > TASK_TURN_PAGE_LIMIT)
     throw new CodexProtocolMappingError("thread/turns/list exceeded the page limit");
+  if (summary) {
+    // 历史仅推进回合游标；每个回合的过程入口单独绑定任务和回合，绝不挂到顶部游标。
+    return {
+      nextTurnCursor,
+      turns: nativeTurns
+        .map((turn) => ({
+          ...turn,
+          processCursor: encodeTaskTurnCursor(
+            encodeItemContinuation(
+              threadId,
+              historyMode === "legacy" ? (turnCursor ?? null) : null,
+              [{ cursor: null, turn }],
+            ),
+            undefined,
+          ),
+        }))
+        .reverse(),
+    };
+  }
   if (historyMode === "paginated")
     return hydratePaginatedTurnItems(client, threadId, nativeTurns, nextTurnCursor);
   return {

@@ -1,4 +1,5 @@
 import type { AgentTaskSnapshotResponse } from "@/protocol/index.js";
+import { loadTaskHistory } from "@codexly/frontend-core/task-history-page";
 import { type QueryClient, type QueryKey, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
@@ -63,6 +64,10 @@ export function useTaskRuntime(
     olderHistoryRequestRef.current = null;
     setIsLoadingOlderHistory(false);
     setOlderHistoryError(null);
+    return () => {
+      // 同步撤销旧任务的续页权限，卸载或切换后不再消费迟到历史。
+      olderHistoryRequestRef.current = null;
+    };
   }, [projectId, taskId]);
 
   useEffect(() => {
@@ -93,7 +98,7 @@ export function useTaskRuntime(
     const cachedResponse = consumeTaskSnapshotQuery(queryClient, queryKey);
     const initialSnapshot =
       cachedResponse === undefined
-        ? client.readTask(projectId, taskId, { signal: controller.signal })
+        ? client.readTask(projectId, taskId, { signal: controller.signal, summary: true })
         : Promise.resolve(cachedResponse);
     void initialSnapshot
       .then((response) => {
@@ -104,7 +109,7 @@ export function useTaskRuntime(
           queryClient.setQueryData(["projects", projectId, "task-workspace-paths", taskId], response.snapshot.workspacePath);
         }
         detachStore = projectRuntime.attachTaskStore(response, store, () =>
-          client.readTask(projectId, taskId),
+          client.readTask(projectId, taskId, { summary: true }),
         );
         // Store 接管完整历史后清除并发预热留下的 Query Payload。
         queryClient.removeQueries({ exact: true, queryKey });
@@ -140,9 +145,15 @@ export function useTaskRuntime(
     setIsLoadingOlderHistory(true);
     setOlderHistoryError(null);
     try {
-      const response = await client.readTask(projectId, taskId, { cursor: turnsNextCursor });
-      // 分页失败不覆盖实时 Store；成功页通过统一身份校验后再前插。
-      activeRuntime.getState().prependHistory(response);
+      await loadTaskHistory({
+        getState: activeRuntime.getState,
+        isCurrent: () => olderHistoryRequestRef.current === requestToken,
+        readPage: (cursor) => client.readTask(projectId, taskId, { cursor, summary: true }),
+        // 成功页逐页前插，后续失败也保留已加载内容和最新游标。
+        prependPage: (response) => {
+          activeRuntime.getState().prependHistory(response);
+        },
+      });
     } catch (error) {
       if (olderHistoryRequestRef.current === requestToken) {
         setOlderHistoryError(error instanceof Error ? error : new Error(String(error)));

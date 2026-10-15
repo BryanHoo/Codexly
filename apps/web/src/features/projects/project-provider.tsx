@@ -132,7 +132,7 @@ export function ProjectProvider({
             exact: true,
             queryKey: ["projects", projectId, "tasks", taskId],
           });
-          const response = await client.readTask(projectId, taskId);
+          const response = await client.readTask(projectId, taskId, { summary: true });
           projectRuntime.reconcileTaskSnapshot(response);
           if (reason === "turn_completed" && response.snapshot.status === "idle") {
             await cacheCompletedProjectTask(queryClient, response.snapshot);

@@ -128,6 +128,7 @@ export type StartAgentTaskOptions = Readonly<{
 
 export type ReadAgentTaskInput = Readonly<{
   cursor?: string;
+  summary?: boolean;
 }>;
 
 export type AgentProviderTurnInput = Readonly<{

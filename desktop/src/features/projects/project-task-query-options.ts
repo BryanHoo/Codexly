@@ -84,5 +84,5 @@ export function taskSnapshotQueryOptions(
   taskId: string,
   client: NativeSnapshotClient = nativeClient,
 ) {
-  return queryOptions(sharedTaskSnapshot(projectId, taskId, (signal) => client.readTask(projectId, taskId, { signal })));
+  return queryOptions(sharedTaskSnapshot(projectId, taskId, (signal) => client.readTask(projectId, taskId, { signal, summary: true })));
 }

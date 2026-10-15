@@ -123,7 +123,10 @@ export const TaskPageQuerySchema = {
 
 export const TaskSnapshotQuerySchema = {
   additionalProperties: false,
-  properties: { cursor: { maxLength: 8_192, minLength: 1, type: "string" } },
+  properties: {
+    cursor: { maxLength: 8_192, minLength: 1, type: "string" },
+    summary: { type: "boolean" },
+  },
   type: "object",
 } as const;
 

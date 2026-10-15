@@ -195,9 +195,9 @@ export class TaskHttpClient extends GlobalSearchHttpClient {
     taskId: string,
     options: ReadTaskOptions = {},
   ): Promise<AgentTaskSnapshotResponse> {
-    const { cursor, ...readOptions } = options;
+    const { cursor, summary, ...readOptions } = options;
     return this.read(
-      appendQuery(taskPath(projectId, taskId), { cursor }),
+      appendQuery(taskPath(projectId, taskId), { cursor, summary }),
       AgentTaskSnapshotResponseSchema,
       readOptions,
     );

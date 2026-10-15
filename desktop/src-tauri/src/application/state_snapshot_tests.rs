@@ -62,6 +62,7 @@ async fn native_snapshot_restores_non_retrying_error_for_the_matching_failed_tur
         .snapshot
         .turns
         .push(crate::domain::conversation::AgentTurn {
+            process_cursor: None,
             id: "turn-a".into(),
             item_timings: None,
             started_at: None,
@@ -136,6 +137,7 @@ async fn native_snapshot_restores_realtime_skill_merge_without_a_webview() {
         .snapshot
         .turns
         .push(crate::domain::conversation::AgentTurn {
+            process_cursor: None,
             id: "turn-a".into(),
             item_timings: None,
             started_at: None,

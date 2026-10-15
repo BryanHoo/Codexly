@@ -444,10 +444,10 @@ describe("CodexlyClient project routes", () => {
     const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(
-      client.readTask("project one", "task-1", { cursor: "older/page" }),
+      client.readTask("project one", "task-1", { cursor: "older/page", summary: true }),
     ).resolves.toEqual(response);
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      "/v1/projects/project%20one/tasks/task-1?cursor=older%2Fpage",
+      "/v1/projects/project%20one/tasks/task-1?cursor=older%2Fpage&summary=true",
     );
   });
 

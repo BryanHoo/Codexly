@@ -139,7 +139,7 @@ pub(crate) use connection::ConnectionError;
 pub use connection::{AppServerConnection, ServerMessage};
 pub(crate) use connection_event_buffer::EVENT_RETENTION_EXCEEDED_METHOD;
 pub(crate) use conversation::RUNTIME_SESSION_ID;
-pub use conversation::{read_task_preview, read_task_snapshot};
+pub use conversation::{read_task_preview, read_task_snapshot, read_task_summary_snapshot};
 pub use conversation_advanced::{
     clear_goal, compact_task, fork_task, set_goal_objective, start_review, update_goal,
     upload_feedback,

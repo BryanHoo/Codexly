@@ -410,7 +410,8 @@ export function applyAcceptedEvent(
             ? state.turnsById
             : {
                 ...state.turnsById,
-                [event.turnId]: retainTurnItemTimings(currentTurn, normalizedTurn),
+                // 终态通知不携带历史过程入口，保留恢复摘要时登记的独立游标。
+                [event.turnId]: retainTurnItemTimings(currentTurn, { ...currentTurn, ...normalizedTurn }),
               },
       };
     }

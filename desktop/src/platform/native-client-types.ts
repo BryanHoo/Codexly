@@ -21,7 +21,7 @@ export interface SubscribeAgentEventsOptions {
 
 export type ReadOptions = Readonly<{ signal?: AbortSignal }>;
 export type ProjectFileReadOptions = ReadOptions & Readonly<{ taskId?: string }>;
-export type ReadTaskOptions = ReadOptions & Readonly<{ cursor?: string }>;
+export type ReadTaskOptions = ReadOptions & Readonly<{ cursor?: string; summary?: boolean }>;
 export type MutationOptions = Readonly<{ idempotencyKey?: string; signal?: AbortSignal }>;
 export type ListTasksOptions = Readonly<{
   archived?: true;

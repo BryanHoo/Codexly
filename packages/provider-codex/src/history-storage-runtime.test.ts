@@ -6,7 +6,7 @@ import { startCodexAppServer } from "./app-server-process.js";
 import { createHistoryStorage } from "./history-storage.js";
 import { readCodexTranscriptTurnSkills } from "./codex-transcript.js";
 import { CodexGlobalSearchService } from "./global-search.js";
-import { decodeTaskTurnCursor } from "./task-history-pagination.js";
+import { decodeTaskTurnCursor, readNativeTaskTurnPage } from "./task-history-pagination.js";
 
 // 显式运行真实固定版本；隔离 CODEX_HOME，不读取或压缩用户历史，也不启动模型回合。
 it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
@@ -80,6 +80,21 @@ it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
     try {
       runtime = await startCodexAppServer({ cwd: home, env: { ...process.env, CODEX_HOME: home } });
       const client = runtime.client;
+      const verifySummaryAndProcess = async () => {
+        // 旧格式及压缩文件都要支持摘要/过程分离，测试只读取隔离的临时历史。
+        const page = await readNativeTaskTurnPage(client, thread, "legacy", undefined, true);
+        expect(JSON.stringify(page.turns)).toContain("compression-regression-marker");
+        const cursor = (page.turns[0] as { processCursor: string }).processCursor;
+        expect(typeof cursor).toBe("string");
+        const process = await readNativeTaskTurnPage(
+          client,
+          thread,
+          "legacy",
+          decodeTaskTurnCursor({ cursor }).turnCursor,
+        );
+        expect(process.nextTurnCursor).toBeNull();
+        expect(JSON.stringify(process.turns)).toContain("compression-regression-marker");
+      };
       const verifyApplicationSearch = async () => {
         const service = new CodexGlobalSearchService(client);
         const page = await service.searchTaskOccurrences(
@@ -118,6 +133,7 @@ it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
         "thread/searchOccurrences is not supported yet",
       );
       await verifyApplicationSearch();
+      await verifySummaryAndProcess();
       expect(await createHistoryStorage(client).compress()).toEqual({ status: "scheduled" });
       await expect
         .poll(async () => (await stat(path + ".zst").catch(() => null)) !== null, {
@@ -139,6 +155,7 @@ it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
       );
       // 原生精确接口仍不可用，应用兼容搜索必须在压缩前后都能生成可读取的真实锚点。
       await verifyApplicationSearch();
+      await verifySummaryAndProcess();
       const resumed = await client.request("thread/resume", { threadId: thread });
       expect(JSON.stringify(resumed)).toContain(thread);
       await expect.poll(async () => (await stat(path).catch(() => null)) !== null).toBe(true);

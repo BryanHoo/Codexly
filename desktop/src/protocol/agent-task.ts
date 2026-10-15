@@ -229,6 +229,7 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    processCursor: Type.Optional(Type.String({ minLength: 1, maxLength: 8_192 })),
     completedAt: NullableDateTimeSchema,
     error: Type.Union([Type.String(), Type.Null()]),
     id: Type.String({ minLength: 1 }),

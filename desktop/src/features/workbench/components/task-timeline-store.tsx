@@ -1,3 +1,4 @@
+import { TurnProcessHistory, EmptyTurnProcessHistory } from "./task-timeline-process-history.js";
 import { TimelineImageProvider } from "./timeline-image-provider.js";
 import { hasPromptTurnFinished } from "@codexly/frontend-core/prompt-delivery";
 import { HistoryNavigation, type HistoryAnchor } from "../../search/history-navigation.js";
@@ -76,7 +77,7 @@ export function StoredAssistantGroup({
   const assistantTextParts: string[] = [];
   const responseFileChanges: AgentFileChange[] = [];
   const visibleItemKeys =
-    turn.status === "running" || processExpanded
+    turn.status === "running" || (processExpanded && turn.processCursor === undefined)
       ? itemKeys
       : itemKeys.filter((itemKey) => !processItemKeys.has(itemKey));
   if (turn.status !== "running") {
@@ -100,6 +101,9 @@ export function StoredAssistantGroup({
             ? { expanded: processExpanded, onToggle: onToggleProcess }
             : {})}
         />
+      ) : null}
+      {showProcessingTime && turn.processCursor !== undefined && turn.status !== "running" ? (
+        <TurnProcessHistory expanded={processExpanded} initialCursor={turn.processCursor} projectId={projectId} taskId={taskId} turnId={turn.id} onOpenFileDiff={onOpenFileDiff} onOpenSourceFile={onOpenSourceFile} />
       ) : null}
       {visibleItemKeys.length > 0 || showRunningShimmer ? (
         <div className="w-full space-y-4">
@@ -195,7 +199,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
     itemStoresByKey,
     hiddenProcessItemKeys,
   );
-  const processToggleAvailable = processItemKeys.size > 0;
+  const processToggleAvailable = processItemKeys.size > 0 || (turn.processCursor !== undefined && turn.status !== "running");
   const firstAssistantGroupIndex = timelineGroups.findIndex((group) => group.type === "assistant");
   const hasAssistantItems = firstAssistantGroupIndex >= 0;
   const lastTurnItemKey = itemKeys.at(-1);
@@ -250,6 +254,9 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
           <TurnProcessingTime completedAt={null} startedAt={turn.startedAt} />
           <RunningReplyStatus />
         </Message>
+      ) : null}
+      {!hasAssistantItems && turn.status !== "running" && turn.processCursor !== undefined ? (
+        <EmptyTurnProcessHistory expanded={processExpanded} initialCursor={turn.processCursor} projectId={projectId} taskId={taskId} turnId={turn.id} startedAt={turn.startedAt} completedAt={turn.completedAt} onToggle={() => { setProcessExpanded((value) => !value); }} onOpenFileDiff={onOpenFileDiff} onOpenSourceFile={onOpenSourceFile} />
       ) : null}
       {turn.error === null ? null : (
         <div

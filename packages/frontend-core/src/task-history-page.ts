@@ -7,6 +7,26 @@ type HistoryIndex = Readonly<{
   turnsById: Readonly<Record<string, TurnMetadata>>;
 }>;
 
+type HistoryPage = Readonly<{ snapshot: Readonly<{ turnsNextCursor: string | null }> }>;
+
+/** 顶部一次操作只读取一页历史回合，不消费回合内部的过程游标。 */
+export async function loadTaskHistory<Page extends HistoryPage>({
+  getState,
+  isCurrent,
+  prependPage,
+  readPage,
+}: Readonly<{
+  getState: () => Readonly<{ turnsNextCursor: string | null }>;
+  isCurrent: () => boolean;
+  prependPage: (page: Page) => void;
+  readPage: (cursor: string) => Promise<Page>;
+}>): Promise<void> {
+  const cursor = getState().turnsNextCursor;
+  if (cursor === null || !isCurrent()) return;
+  const page = await readPage(cursor);
+  if (isCurrent()) prependPage(page);
+}
+
 /** 两端共用的历史前插：只接收新 Item，保留已有实时实体与回合状态。 */
 export function prependTaskHistoryPage(current: HistoryIndex, incoming: HistoryIndex) {
   const addedTurnIds = incoming.turnIds.filter((id) => current.turnsById[id] === undefined);

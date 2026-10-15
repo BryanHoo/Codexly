@@ -25,7 +25,7 @@ struct ItemContinuation {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct PendingTurnItems {
-    cursor: String,
+    cursor: Option<String>,
     turn: NativeTurn,
 }
 
@@ -37,9 +37,7 @@ pub(super) async fn read_turn_page(
     cursor: Option<&str>,
 ) -> Result<(Vec<NativeTurn>, Option<String>), ConnectionError> {
     if let Some(value) = cursor.and_then(|value| value.strip_prefix(CURSOR_PREFIX)) {
-        if value.len() + CURSOR_PREFIX.len() > MAX_CURSOR_BYTES
-            || !matches!(mode, NativeThreadHistoryMode::Paginated)
-        {
+        if value.len() + CURSOR_PREFIX.len() > MAX_CURSOR_BYTES {
             return Err(ConnectionError::InvalidMessage);
         }
         let continuation: ItemContinuation =
@@ -53,10 +51,48 @@ pub(super) async fn read_turn_page(
                 .as_deref()
                 .is_some_and(|value| value.is_empty() || value.starts_with(CURSOR_PREFIX))
             || continuation.pending.iter().any(|entry| {
-                entry.cursor.is_empty() || entry.turn.id.is_empty() || !ids.insert(&entry.turn.id)
+                entry.cursor.as_ref().is_some_and(String::is_empty)
+                    || entry.turn.id.is_empty()
+                    || !ids.insert(&entry.turn.id)
             })
         {
             return Err(ConnectionError::InvalidMessage);
+        }
+        if matches!(mode, NativeThreadHistoryMode::Legacy) {
+            if continuation
+                .pending
+                .iter()
+                .any(|entry| entry.cursor.is_some())
+            {
+                return Err(ConnectionError::InvalidMessage);
+            }
+            let page: ThreadTurnsListResponse = connection
+                .request(
+                    "thread/turns/list",
+                    &ThreadTurnsListParams {
+                        cursor: continuation.next_turn_cursor.as_deref(),
+                        items_view: "full",
+                        limit: TURN_PAGE_LIMIT,
+                        sort_direction: "desc",
+                        thread_id,
+                    },
+                    REQUEST_TIMEOUT,
+                )
+                .await?;
+            let ids = continuation
+                .pending
+                .into_iter()
+                .map(|entry| entry.turn.id)
+                .collect::<HashSet<_>>();
+            let turns = page
+                .data
+                .into_iter()
+                .filter(|turn| ids.contains(&turn.id))
+                .collect::<Vec<_>>();
+            if turns.len() != ids.len() {
+                return Err(ConnectionError::InvalidMessage);
+            }
+            return Ok((turns, None));
         }
         return hydrate_turn_page(
             connection,
@@ -64,7 +100,7 @@ pub(super) async fn read_turn_page(
             continuation
                 .pending
                 .into_iter()
-                .map(|entry| (entry.turn, Some(entry.cursor)))
+                .map(|entry| (entry.turn, entry.cursor))
                 .collect(),
             continuation.next_turn_cursor,
         )
@@ -108,6 +144,70 @@ pub(super) async fn read_turn_page(
     }
 }
 
+/// 顶部只读取原生摘要，内部过程游标按回合保存，不能占用历史的下一页。
+pub(super) async fn read_summary_turn_page(
+    connection: &AppServerConnection,
+    thread_id: &str,
+    mode: NativeThreadHistoryMode,
+    cursor: Option<&str>,
+) -> Result<(Vec<NativeTurn>, Option<String>), ConnectionError> {
+    // 摘要入口禁止接收过程游标，避免把工具页当成一页历史。
+    if cursor.is_some_and(|value| value.starts_with(CURSOR_PREFIX)) {
+        return Err(ConnectionError::InvalidMessage);
+    }
+    let page: ThreadTurnsListResponse = connection
+        .request(
+            "thread/turns/list",
+            &ThreadTurnsListParams {
+                cursor,
+                items_view: "summary",
+                limit: TURN_PAGE_LIMIT,
+                sort_direction: "desc",
+                thread_id,
+            },
+            REQUEST_TIMEOUT,
+        )
+        .await?;
+    validate_page_cursors(
+        cursor,
+        page.next_cursor.as_deref(),
+        page.backwards_cursor.as_deref(),
+    )?;
+    if page.data.len() > TURN_PAGE_LIMIT as usize {
+        return Err(ConnectionError::InvalidMessage);
+    }
+    let mut turns = page.data;
+    for turn in &mut turns {
+        let value = ItemContinuation {
+            thread_id: thread_id.to_owned(),
+            next_turn_cursor: if matches!(mode, NativeThreadHistoryMode::Legacy) {
+                cursor.map(str::to_owned)
+            } else {
+                None
+            },
+            pending: vec![PendingTurnItems {
+                cursor: None,
+                turn: NativeTurn {
+                    process_cursor: None,
+                    id: turn.id.clone(),
+                    status: turn.status.clone(),
+                    started_at: turn.started_at,
+                    completed_at: turn.completed_at,
+                    error: None,
+                    items: Vec::new(),
+                    item_timings: None,
+                },
+            }],
+        };
+        let encoded = serde_json::to_string(&value).map_err(|_| ConnectionError::InvalidMessage)?;
+        if encoded.len() + CURSOR_PREFIX.len() > MAX_CURSOR_BYTES {
+            return Err(ConnectionError::InvalidMessage);
+        }
+        turn.process_cursor = Some(format!("{CURSOR_PREFIX}{encoded}"));
+    }
+    Ok((turns, page.next_cursor))
+}
+
 async fn hydrate_turn_page(
     connection: &AppServerConnection,
     thread_id: &str,
@@ -123,9 +223,10 @@ async fn hydrate_turn_page(
         .iter()
         .filter_map(|(turn, cursor)| {
             cursor.as_ref().map(|cursor| PendingTurnItems {
-                cursor: cursor.clone(),
+                cursor: Some(cursor.clone()),
                 // 保留最小回合元数据，避免 Item 或错误正文随游标重复传输。
                 turn: NativeTurn {
+                    process_cursor: None,
                     id: turn.id.clone(),
                     status: turn.status.clone(),
                     started_at: turn.started_at,

@@ -259,6 +259,7 @@ export class TauriSidebarClient extends TauriRuntimeClient {
         projectId,
         taskId,
         cursor: options.cursor ?? null,
+        ...(options.summary === undefined ? {} : { summary: options.summary }),
       },
       options.signal,
     );

@@ -24,4 +24,10 @@ it("prepends item pages within an existing turn without reading or replacing liv
   store.getState().prependHistory(page);
   expect(store.getState().itemStoresByKey.size).toBe(2);
   expect(store.getState().retainedBytes).toBe(after);
+
+  // 恢复中的运行回合结束后仍能展开之前未读取的历史过程。
+  const restored = createTaskStore({ projectId: "project", taskId: "task" }, { ...response, snapshot: { ...response.snapshot, turns: [{ ...turn, processCursor: "deferred-process" }] } });
+  restored.getState().applyEvents([{ version: 2, provider: "codex", taskId: "task", turnId: "turn", sessionId: "session", sequence: 2, timestamp: response.snapshot.updatedAt, type: "turn.completed", payload: { turn: { ...turn, status: "completed" } } }]);
+  expect(restored.getState().turnsById["turn"]?.processCursor).toBe("deferred-process");
+
 });

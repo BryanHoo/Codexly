@@ -7,6 +7,7 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 fn user_snapshot() -> AgentTaskSnapshotResponse {
     let mut response = snapshot("project", "task");
     response.snapshot.turns.push(AgentTurn {
+        process_cursor: None,
         id: "turn".into(),
         item_timings: None,
         status: "running",

@@ -26,3 +26,5 @@
 - Git 远端操作复用推送接口，`action` 区分 inspect/push/publish/fetch/integrate/configure/branch；不传 action 维持既有推送行为。响应的可选 `remoteState` 返回本地引用检查时间、实际推送目标、领先落后计数与只读未完成操作检测。网络操作可用 expectedHead/expectedBranch 绑定审阅提交，其他工作区写操作继续校验 expectedSnapshot；操作和状态字段须同步 Web 与 Rust IPC。拒绝 resolve/continue/abort 及冲突路径请求，不提供应用内冲突处理。
 
 - `ProjectGitCommit.unpushed` 为可选布尔值：`true` 表示不在当前推送目标的本地远端引用历史中，`false` 表示已包含；缺失表示目标或引用未知，不能按未推送处理。该字段由 Web 服务端与桌面 Rust 同步返回，不改变历史每页 20 条的分页契约。
+
+- `AgentTurn.processCursor` 是可选的回合过程入口，不能放入任务的 `turnsNextCursor`；Web HTTP 与桌面 IPC 的任务读取支持 `summary: true`。摘要读取不下载工具或思考正文，过程展开使用单独请求和 Store。

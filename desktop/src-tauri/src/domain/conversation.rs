@@ -198,6 +198,8 @@ pub struct AgentGoal {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentTurn {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process_cursor: Option<String>,
     pub completed_at: Option<String>,
     pub error: Option<String>,
     pub id: String,

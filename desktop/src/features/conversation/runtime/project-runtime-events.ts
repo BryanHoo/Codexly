@@ -62,7 +62,7 @@ export class ProjectEventRuntime {
       maxEvents: options.maxEventHistoryEvents,
     });
     this.#activeTaskRecovery = new ActiveTaskSnapshotRecoveryController(
-      async (taskId) => this.#client.readTask(this.#projectId, taskId),
+      async (taskId) => this.#client.readTask(this.#projectId, taskId, { summary: true }),
       (_taskId, response) => {
         this.#callbacks.onSnapshot(response);
       },

@@ -24,3 +24,5 @@
 - Codex API Key 模型发现已稳定并默认开启；启动参数不强制覆盖此开关，缺省配置不因发现功能而重复写入。模型默认值及推理档位取自命中的 API 或 CLI 目录，保留自定义档位；不增加逐模型请求。
 
 - `0.162.0` 的 `modelProvider/capabilities/read` 只返回 `imageGeneration` 和 `webSearch`，不得再要求已移除的 `namespaceTools`。自定义 Provider 回归必须使用当前响应结构，继续验证失败回滚和有界模型发现。
+
+- UI 历史读取传入 `summary: true`，使用原生 `thread/turns/list` 的 `itemsView: "summary"` 并直接推进回合游标；为每个回合生成绑定任务的独立 `processCursor`。分页格式展开时每次最多读取 100 个 Item；旧格式展开时才读原回合页并仅交付目标回合。内部搜索和后台业务的既有完整读取契约保持原样。回归包含 `task-history-pagination.test.ts`、`agent-provider-history.test.ts` 和隔离环境的 `history-storage-runtime.test.ts`。

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeRpcClient } from "./agent-provider.test-support.js";
-import { readNativeTaskTurnPage } from "./task-history-pagination.js";
+import { decodeTaskTurnCursor, readNativeTaskTurnPage } from "./task-history-pagination.js";
 
 const turn = {
   id: "turn-a",
@@ -19,6 +19,81 @@ const entries = (start: number, count: number) =>
   })).reverse();
 
 describe("task item page boundary", () => {
+  it("keeps legacy process reads lazy and scoped to the original turn page", async () => {
+    const rpc = new FakeRpcClient([
+      { data: [{ ...turn, itemsView: "summary" }], nextCursor: "older-turns" },
+      {
+        data: [
+          { ...turn, itemsView: "full", items: [{ id: "tool", type: "plan", text: "内部过程" }] },
+        ],
+        nextCursor: "older-turns",
+      },
+    ]);
+    const summary = await readNativeTaskTurnPage(rpc, "task-1", "legacy", "original-page", true);
+    expect(rpc.calls).toHaveLength(1);
+    const cursor = (summary.turns[0] as { processCursor: string }).processCursor;
+    const process = await readNativeTaskTurnPage(
+      rpc,
+      "task-1",
+      "legacy",
+      decodeTaskTurnCursor({ cursor }).turnCursor,
+    );
+    expect(process.nextTurnCursor).toBeNull();
+    expect(process.turns).toMatchObject([{ id: turn.id, items: [{ id: "tool" }] }]);
+    expect(rpc.calls[1]?.params).toMatchObject({ itemsView: "full", cursor: "original-page" });
+  });
+
+  it("paginates conversation summaries without reading process items", async () => {
+    const summary = {
+      ...turn,
+      itemsView: "summary",
+      items: [
+        { id: "question", type: "userMessage", content: [] },
+        { id: "answer", type: "agentMessage", text: "答复" },
+      ],
+    };
+    const rpc = new FakeRpcClient([{ data: [summary], nextCursor: "older-turns" }]);
+    const page = await readNativeTaskTurnPage(rpc, "task-1", "paginated", undefined, true);
+    expect(page.nextTurnCursor).toBe("older-turns");
+    expect(page.turns).toMatchObject([{ items: summary.items }]);
+    expect(typeof (page.turns[0] as { processCursor: unknown }).processCursor).toBe("string");
+    expect(rpc.calls).toEqual([
+      {
+        method: "thread/turns/list",
+        params: { threadId: "task-1", itemsView: "summary", limit: 10, sortDirection: "desc" },
+      },
+    ]);
+  });
+
+  it("reads only the expanded turn using its independent process cursor", async () => {
+    const rpc = new FakeRpcClient([
+      { data: [{ ...turn, itemsView: "summary" }], nextCursor: "older-turns" },
+      { data: entries(100, 100), nextCursor: "older-items", backwardsCursor: null },
+      { data: entries(0, 100), nextCursor: null, backwardsCursor: null },
+    ]);
+    const summary = await readNativeTaskTurnPage(rpc, "task-1", "paginated", undefined, true);
+    const processCursor = (summary.turns[0] as { processCursor: string }).processCursor;
+    const process = await readNativeTaskTurnPage(
+      rpc,
+      "task-1",
+      "paginated",
+      decodeTaskTurnCursor({ cursor: processCursor }).turnCursor,
+    );
+    expect(process.turns).toMatchObject([{ id: turn.id }]);
+    const last = await readNativeTaskTurnPage(
+      rpc,
+      "task-1",
+      "paginated",
+      process.nextTurnCursor ?? undefined,
+    );
+    expect(last.nextTurnCursor).toBeNull();
+    expect(rpc.calls.slice(1).map((call) => call.method)).toEqual([
+      "thread/items/list",
+      "thread/items/list",
+    ]);
+    expect(rpc.calls[1]?.params).toMatchObject({ turnId: turn.id });
+  });
+
   it("rejects an item continuation from another task before issuing an RPC", async () => {
     const rpc = new FakeRpcClient([
       { data: [turn], nextCursor: null },

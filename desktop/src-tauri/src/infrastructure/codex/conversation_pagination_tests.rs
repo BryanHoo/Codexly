@@ -5,6 +5,52 @@ use super::{ConnectionError, NativeTurn, hydrate_paginated_turn, validate_page_c
 use crate::infrastructure::codex::AppServerConnection;
 
 #[tokio::test]
+async fn summary_history_should_not_fetch_process_items() {
+    let (client, server) = duplex(16 * 1024);
+    let (reader, writer) = split(client);
+    let (server_reader, mut server_writer) = split(server);
+    let connection = AppServerConnection::new(reader, writer);
+    let server_task = tokio::spawn(async move {
+        let mut lines = BufReader::new(server_reader).lines();
+        let request: Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(request["method"], "thread/turns/list");
+        assert_eq!(request["params"]["itemsView"], "summary");
+        let result = json!({"data": [{"id":"turn-a","status":"completed","startedAt":1,"completedAt":2,"error":null,"items":[{"id":"answer","type":"agentMessage","text":"答复"}]}],"nextCursor":"older-turns"});
+        server_writer
+            .write_all(format!("{}\n", json!({"id":request["id"],"result":result})).as_bytes())
+            .await
+            .unwrap();
+        let request: Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert_eq!(request["method"], "thread/items/list");
+        assert_eq!(request["params"]["turnId"], "turn-a");
+        server_writer
+            .write_all(
+                format!(
+                    "{}\n",
+                    json!({"id":request["id"],"result":{"data":[],"nextCursor":null}})
+                )
+                .as_bytes(),
+            )
+            .await
+            .unwrap();
+    });
+    let mode = super::NativeThreadHistoryMode::Paginated;
+    let (turns, cursor) =
+        super::item_pagination::read_summary_turn_page(&connection, "thread-a", mode, None)
+            .await
+            .unwrap();
+    assert_eq!(cursor.as_deref(), Some("older-turns"));
+    let process_cursor = turns[0].process_cursor.as_deref().unwrap();
+    let (_, next) = super::read_turn_page(&connection, "thread-a", mode, Some(process_cursor))
+        .await
+        .unwrap();
+    assert!(next.is_none());
+    server_task.await.unwrap();
+}
+
+#[tokio::test]
 async fn item_continuation_should_finish_current_turn_before_loading_older_turns() {
     let (client, server) = duplex(16 * 1024);
     let (client_reader, client_writer) = split(client);
@@ -109,6 +155,7 @@ async fn paginated_items_should_belong_to_requested_turn() {
             .unwrap();
     });
     let turn = NativeTurn {
+        process_cursor: None,
         completed_at: None,
         error: None,
         id: "turn-a".to_owned(),

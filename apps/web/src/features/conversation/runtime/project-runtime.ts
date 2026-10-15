@@ -180,7 +180,7 @@ export class ProjectRuntimeManager {
     projectId: string,
     taskId: string,
   ): Promise<AgentTaskSnapshotResponse> {
-    const response = await this.client.readTask(projectId, taskId);
+    const response = await this.client.readTask(projectId, taskId, { summary: true });
     this.reconcileTaskSnapshot(response);
     return response;
   }

@@ -109,7 +109,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
 
   app.get<{
     Params: { projectId: string; taskId: string };
-    Querystring: { cursor?: string };
+    Querystring: { cursor?: string; summary?: boolean };
   }>(
     "/v1/projects/:projectId/tasks/:taskId",
     {
@@ -126,6 +126,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
       }
       const providerTask = await projectContext.provider.readTask(request.params.taskId, {
         ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
+        ...(request.query.summary === undefined ? {} : { summary: request.query.summary }),
       });
       if (providerTask?.projectId !== projectContext.scope.id) {
         return reply.code(404).send({ code: "TASK_NOT_FOUND", message: "Task not found" });

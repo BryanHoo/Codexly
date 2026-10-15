@@ -22,7 +22,7 @@ const ITEM_PAGE_LIMIT: u32 = 100;
 mod item_pagination;
 #[cfg(test)]
 use item_pagination::hydrate_paginated_turn;
-use item_pagination::read_turn_page;
+use item_pagination::{read_summary_turn_page, read_turn_page};
 #[cfg(test)]
 #[path = "conversation_preview_tests.rs"]
 mod preview_tests;
@@ -122,6 +122,8 @@ struct NativeThreadStatus {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct NativeTurn {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    process_cursor: Option<String>,
     completed_at: Option<i64>,
     error: Option<NativeTurnError>,
     id: String,
@@ -144,6 +146,25 @@ pub async fn read_task_snapshot(
     task_id: String,
     cursor: Option<&str>,
 ) -> Result<AgentTaskSnapshotResponse, ConnectionError> {
+    read_task_snapshot_view(connection, project_id, task_id, cursor, false).await
+}
+
+pub async fn read_task_summary_snapshot(
+    connection: &AppServerConnection,
+    project_id: String,
+    task_id: String,
+    cursor: Option<&str>,
+) -> Result<AgentTaskSnapshotResponse, ConnectionError> {
+    read_task_snapshot_view(connection, project_id, task_id, cursor, true).await
+}
+
+async fn read_task_snapshot_view(
+    connection: &AppServerConnection,
+    project_id: String,
+    task_id: String,
+    cursor: Option<&str>,
+    summary: bool,
+) -> Result<AgentTaskSnapshotResponse, ConnectionError> {
     let response: NativeThreadResponse = connection
         .request(
             "thread/read",
@@ -157,8 +178,11 @@ pub async fn read_task_snapshot(
     let thread = response.thread;
     validate_thread(&thread, &project_id, &task_id)?;
 
-    let (native_turns, next_cursor) =
-        read_turn_page(connection, &task_id, thread.history_mode, cursor).await?;
+    let (native_turns, next_cursor) = if summary {
+        read_summary_turn_page(connection, &task_id, thread.history_mode, cursor).await?
+    } else {
+        read_turn_page(connection, &task_id, thread.history_mode, cursor).await?
+    };
     // app-server 倒序分页以最新回合优先返回，UI 时间线保持正序展示。
     let turns = native_turns
         .into_iter()
@@ -326,6 +350,7 @@ pub(super) fn map_turn(turn: NativeTurn) -> Result<AgentTurn, ConnectionError> {
         .collect::<Result<Vec<_>, _>>()?;
     crate::domain::conversation_skills::normalize_turn_skills(&mut items);
     Ok(AgentTurn {
+        process_cursor: turn.process_cursor,
         completed_at: turn.completed_at.map(unix_seconds_to_rfc3339),
         error: turn.error.map(|error| error.message),
         id: turn.id,

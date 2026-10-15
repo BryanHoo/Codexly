@@ -103,6 +103,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
                 taskId,
                 readThreadHistoryMode(thread),
                 cursor.turnCursor,
+                input.summary === true,
               );
       } catch (error) {
         const unmaterializedTask = this.runtime.unmaterializedTasks.get(taskId);

@@ -1,3 +1,6 @@
+import { StorePendingRequestList } from "./task-timeline-pending-requests.js";
+export { StorePendingRequestList } from "./task-timeline-pending-requests.js";
+import { TurnProcessHistory, EmptyTurnProcessHistory } from "./task-timeline-process-history.js";
 import { TimelineImageProvider } from "./timeline-image-provider.js";
 import { hasPromptTurnFinished } from "@codexly/frontend-core/prompt-delivery";
 import type { PendingRequest } from "@codexly/protocol";
@@ -15,7 +18,7 @@ import {
 import { Message, type MessageFileReference } from "../../../shared/components/agent/message.js";
 import type { NormalizedAgentTurn, TaskStore } from "../../conversation/runtime/task-store.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
-import { PendingRequestCard, type PendingRequestResolution } from "./pending-request.js";
+import type { PendingRequestResolution } from "./pending-request.js";
 
 import type { BuildPlanAction, ForkTaskAction } from "./task-timeline-contracts.js";
 import { ChangedFilesCard } from "./task-timeline-file-changes.js";
@@ -77,7 +80,7 @@ export function StoredAssistantGroup({
   const assistantTextParts: string[] = [];
   const responseFileChanges: AgentFileChange[] = [];
   const visibleItemKeys =
-    turn.status === "running" || processExpanded
+    turn.status === "running" || (processExpanded && turn.processCursor === undefined)
       ? itemKeys
       : itemKeys.filter((itemKey) => !processItemKeys.has(itemKey));
   if (turn.status !== "running") {
@@ -100,6 +103,17 @@ export function StoredAssistantGroup({
           {...(processToggleAvailable
             ? { expanded: processExpanded, onToggle: onToggleProcess }
             : {})}
+        />
+      ) : null}
+      {showProcessingTime && turn.processCursor !== undefined && turn.status !== "running" ? (
+        <TurnProcessHistory
+          expanded={processExpanded}
+          initialCursor={turn.processCursor}
+          projectId={projectId}
+          taskId={taskId}
+          turnId={turn.id}
+          onOpenFileDiff={onOpenFileDiff}
+          onOpenSourceFile={onOpenSourceFile}
         />
       ) : null}
       {visibleItemKeys.length > 0 || showRunningShimmer ? (
@@ -188,7 +202,8 @@ export function StoreTurnTimelineSection({
       processNativeItemIds.has(itemStoresByKey.get(itemKey)?.peek().id ?? ""),
     ),
   );
-  const processToggleAvailable = processItemKeys.size > 0;
+  const processToggleAvailable =
+    processItemKeys.size > 0 || (turn.processCursor !== undefined && turn.status !== "running");
   const firstAssistantGroupIndex = timelineGroups.findIndex((group) => group.type === "assistant");
   const hasAssistantItems = firstAssistantGroupIndex >= 0;
   const lastTurnItemKey = itemKeys.at(-1);
@@ -250,6 +265,22 @@ export function StoreTurnTimelineSection({
           </div>
         </Message>
       ) : null}
+      {!hasAssistantItems && turn.status !== "running" && turn.processCursor !== undefined ? (
+        <EmptyTurnProcessHistory
+          expanded={processExpanded}
+          initialCursor={turn.processCursor}
+          projectId={projectId}
+          taskId={taskId}
+          turnId={turn.id}
+          startedAt={turn.startedAt}
+          completedAt={turn.completedAt}
+          onToggle={() => {
+            setProcessExpanded((value) => !value);
+          }}
+          onOpenFileDiff={onOpenFileDiff}
+          onOpenSourceFile={onOpenSourceFile}
+        />
+      ) : null}
       {turn.error === null ? null : (
         <div
           className="rounded-surface bg-control px-3 py-2 text-label leading-5 text-danger"
@@ -260,39 +291,6 @@ export function StoreTurnTimelineSection({
       )}
     </section>
   );
-}
-
-export function StorePendingRequestList({
-  connected,
-  onResolvePendingRequest,
-  store,
-}: Readonly<{
-  connected: boolean;
-  onResolvePendingRequest: (
-    request: PendingRequest,
-    resolution: PendingRequestResolution,
-    idempotencyKey: string,
-  ) => Promise<void>;
-  store: TaskStore;
-}>) {
-  const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
-  const pendingRequestsById = useStore(store, (state) => state.pendingRequestsById);
-  const visiblePendingRequests = pendingRequestIds.flatMap((requestId) => {
-    const request = pendingRequestsById[requestId];
-    return request === undefined || request.status === "resolved" ? [] : [request];
-  });
-  const firstPendingIndex = visiblePendingRequests.findIndex(
-    (request) => request.status === "pending",
-  );
-
-  return visiblePendingRequests.map((request, index) => (
-    <PendingRequestCard
-      interactive={connected && request.status === "pending" && index === firstPendingIndex}
-      key={request.requestId}
-      onResolve={onResolvePendingRequest}
-      request={request}
-    />
-  ));
 }
 
 export function TaskStoreTimeline({

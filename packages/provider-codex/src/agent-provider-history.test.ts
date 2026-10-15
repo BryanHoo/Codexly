@@ -10,6 +10,40 @@ import {
 } from "./agent-provider.test-support.js";
 
 describe("CodexAgentProvider history", () => {
+  it("returns independent process cursors in conversation summaries without reading tool pages", async () => {
+    const rpc = new FakeRpcClient([
+      { thread: nativeThread({ historyMode: "paginated", turns: [] }) },
+      {
+        backwardsCursor: null,
+        data: [
+          {
+            id: "turn-summary",
+            status: "completed",
+            startedAt: 1,
+            completedAt: 2,
+            error: null,
+            itemsView: "summary",
+            items: [
+              {
+                id: "answer",
+                type: "agentMessage",
+                text: "历史答复",
+                questions: null,
+                delivery: null,
+              },
+            ],
+          },
+        ],
+        nextCursor: "older-turns",
+      },
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    const snapshot = await provider.readTask("task-1", { summary: true });
+    expect(snapshot?.turns[0]?.items).toMatchObject([{ text: "历史答复" }]);
+    expect(typeof snapshot?.turns[0]?.processCursor).toBe("string");
+    expect(rpc.calls.some((call) => call.method === "thread/items/list")).toBe(false);
+  });
+
   it("uses all aggregate project roots as runtime workspaces", async () => {
     const aggregateProject = {
       createdAt: project.createdAt,

@@ -258,23 +258,24 @@ export function TurnProcessingTime({
     };
   }, [completedAt, startedAt]);
 
-  if (startedAt === null) {
-    return null;
-  }
-  const startedAtMs = Date.parse(startedAt);
+  const startedAtMs = startedAt === null ? Number.NaN : Date.parse(startedAt);
   const endedAtMs = completedAt === null ? now : Date.parse(completedAt);
-  if (!Number.isFinite(startedAtMs) || !Number.isFinite(endedAtMs)) {
-    return null;
-  }
-  const totalSeconds = Math.max(0, Math.floor((endedAtMs - startedAtMs) / 1_000));
-  const duration = formatTurnProcessingDuration(totalSeconds);
-
-  const content = (
-    <>
-      <span>{i18n.t("timeline.processing", { ns: "conversation" })}&nbsp;</span>
-      <time dateTime={duration.dateTime}>{duration.label}</time>
-    </>
-  );
+  const hasDuration = Number.isFinite(startedAtMs) && Number.isFinite(endedAtMs);
+  if (!hasDuration && onToggle === undefined) return null;
+  const duration = hasDuration
+    ? formatTurnProcessingDuration(Math.max(0, Math.floor((endedAtMs - startedAtMs) / 1_000)))
+    : null;
+  const content =
+    duration === null ? (
+      i18n.t(expanded ? "timeline.collapseProcess" : "timeline.expandProcess", {
+        ns: "conversation",
+      })
+    ) : (
+      <>
+        <span>{i18n.t("timeline.processing", { ns: "conversation" })}&nbsp;</span>
+        <time dateTime={duration.dateTime}>{duration.label}</time>
+      </>
+    );
   const className =
     "mb-4 flex w-full items-center border-b border-separator pb-2.5 text-label font-medium text-muted-foreground";
 

@@ -96,7 +96,7 @@ export function taskSnapshotQueryOptions(
 ) {
   return queryOptions(
     sharedTaskSnapshot(projectId, taskId, (signal) =>
-      client.readTask(projectId, taskId, { signal }),
+      client.readTask(projectId, taskId, { signal, summary: true }),
     ),
   );
 }
