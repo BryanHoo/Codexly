@@ -55,6 +55,16 @@ describe("toPromptSubmissionError", () => {
 });
 
 describe("findUnsupportedInputModality", () => {
+  it("allows unknown capabilities while respecting explicitly empty capabilities", () => {
+    const attachments = [
+      { kind: "image", mediaType: "image/png", name: "diagram.png" },
+      { kind: "file", mediaType: "audio/mpeg", name: "recording.mp3" },
+    ];
+    expect(findUnsupportedInputModality(attachments, undefined)).toBeUndefined();
+    expect(findUnsupportedInputModality(attachments, [])).toBe("image");
+    expect(findUnsupportedInputModality(attachments.slice(1), [])).toBe("audio");
+  });
+
   it("uses model/list input modalities for structured media", () => {
     expect(
       findUnsupportedInputModality(
@@ -78,6 +88,65 @@ describe("findUnsupportedInputModality", () => {
 });
 
 describe("createComposerSubmission", () => {
+  it.each(["", "请分析这张图片"])("submits pasted images when a custom catalog omits input modalities (%s)", async (text) => {
+    const attachment = {
+      id: "/cache/image.png",
+      kind: "image" as const,
+      mediaType: "image/png",
+      name: "image.png",
+      size: 4,
+    };
+    const file = new File(["test"], attachment.name, { type: attachment.mediaType });
+    const uploadAttachment = vi.fn(async () => ({ attachment }));
+    const capture = vi.fn(async () => undefined);
+    const setMutationError = vi.fn();
+    const content = text === "" ? [] : [{ type: "text" as const, text }];
+    // 标准 /models 目录可以省略输入能力；测试保留缺省值，覆盖真实原生响应。
+    const { inputModalities: _inputModalities, ...customModel } = selectedModel;
+    const submit = createComposerSubmission({
+      activeSettings,
+      selectedModel: customModel,
+      selectedReasoningEffort: "high",
+      canSubmit: true,
+      canSteer: false,
+      state: "idle",
+      followUpBehavior: "queue",
+      projectId: "project-a",
+      routeScope: "project-a:task-a",
+      promptContent: content,
+      skillEditorRef: { current: null },
+      client: { uploadAttachment },
+      onCaptureSubmission: capture,
+      turnControlsDisabled: false,
+      fastMode: false,
+      controller: {
+        actionLock: { run: async (action: () => Promise<boolean>) => action() },
+        attachmentUploadPromises: { current: new Map() },
+        uploadedAttachments: { current: new Map() },
+        uploadAttempts: { current: new Map() },
+        isCurrentScope: () => true,
+        setIsSubmitting: vi.fn(),
+        setMutationError,
+      },
+    } as unknown as Parameters<typeof createComposerSubmission>[0]);
+
+    await expect(submit({
+      text,
+      files: [{ ...attachment, id: "pasted-image", file, previewUrl: "blob:image", source: "browser" }],
+    })).resolves.toBe(true);
+    expect(uploadAttachment).toHaveBeenCalledExactlyOnceWith(
+      "project-a",
+      { content: file, kind: "image", name: "image.png" },
+      { idempotencyKey: expect.any(String) },
+    );
+    expect(capture).toHaveBeenCalledExactlyOnceWith(
+      { attachments: [{ ...attachment, detail: "auto" }], skills: [], text, type: "prompt" },
+      expect.objectContaining({ model: customModel.id }),
+      [{ ...attachment, detail: "auto" }],
+    );
+    expect(setMutationError).toHaveBeenCalledExactlyOnceWith(null);
+  });
+
   it("clears an accepted prompt before native completion and restores it on rejection", async () => {
     let rejectSubmission: (error: Error) => void = () => {};
     const submitPrompt = vi.fn(() => new Promise<never>((_resolve, reject) => {

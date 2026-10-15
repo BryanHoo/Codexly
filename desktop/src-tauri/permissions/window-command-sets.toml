@@ -126,6 +126,8 @@ permissions = [
   "allow-start-worktree-task",
   "allow-generate-commit-message",
   "allow-commit-project-changes",
+  # Git 远端操作仅供主窗口使用，辅助窗口不继承此写权限。
+  "allow-push-project-commits",
   "allow-upload-attachment",
   "allow-import-host-attachment",
   "allow-cache-project-image",

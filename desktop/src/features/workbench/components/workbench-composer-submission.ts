@@ -96,8 +96,11 @@ type AttachmentModalityInput = Readonly<{
 
 export function findUnsupportedInputModality(
   attachments: readonly AttachmentModalityInput[],
-  inputModalities: readonly string[],
+  inputModalities: AgentModel["inputModalities"],
 ): "audio" | "image" | undefined {
+  // 自定义 /models 目录允许省略输入能力，缺省表示未知，交由供应商校验。
+  // 只有明确声明的能力列表才用于拦截，避免发送前抛出异常且没有任何界面反馈。
+  if (inputModalities === undefined) return undefined;
   for (const attachment of attachments) {
     if (attachment.kind === "image" && !inputModalities.includes("image")) {
       return "image";

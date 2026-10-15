@@ -1,6 +1,7 @@
 import { Value } from "@sinclair/typebox/value";
 import {
   AgentTaskBaseSchema,
+  AgentModelSchema as SharedModelSchema,
   AgentMessagePhaseSchema as SharedMessagePhaseSchema,
   AgentEventEnvelopeProperties,
   MessageDeltaEventSchema as SharedMessageDeltaEventSchema,
@@ -18,8 +19,23 @@ import {
 } from "./agent-event.js";
 import { ProjectSchema } from "./project-files.js";
 import { ProjectRootSchema } from "./project-root.js";
+import { AgentModelSchema } from "./project-settings.js";
 
 describe("共享契约与桌面扩展", () => {
+  it("模型目录接受缺省输入能力并与 Web 端共用契约", () => {
+    const model = {
+      id: "custom-model",
+      displayName: "Custom Model",
+      description: "",
+      isDefault: true,
+      defaultReasoningEffort: "medium",
+      supportedReasoningEfforts: [{ id: "medium", description: "" }],
+    };
+    expect(Value.Check(AgentModelSchema, model)).toBe(true);
+    expect(Value.Check(AgentModelSchema, { ...model, inputModalities: ["text"] })).toBe(true);
+    expect(AgentModelSchema).toBe(SharedModelSchema);
+  });
+
   it("两端共用消息阶段，并接受非终态的部分答案", () => {
     expect(AgentMessagePhaseSchema).toBe(SharedMessagePhaseSchema);
     expect(Value.Check(AgentMessagePhaseSchema, "partial_answer")).toBe(true);

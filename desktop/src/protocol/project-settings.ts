@@ -2,7 +2,10 @@ import { Type, type Static } from "@sinclair/typebox";
 
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { WorkbenchPetSettingsSchema } from "./workbench-pets.js";
-import { AgentGlobalSettingsSchema as SharedGlobalSettingsSchema } from "@codexly/protocol";
+import {
+  AgentGlobalSettingsSchema as SharedGlobalSettingsSchema,
+  AgentModelSchema as SharedModelSchema,
+} from "@codexly/protocol";
 
 export const DEFAULT_COMMIT_MESSAGE_MODEL = "gpt-6-luna";
 
@@ -198,18 +201,8 @@ export const AgentReasoningEffortOptionSchema = Type.Object(
 
 export type AgentReasoningEffortOption = Readonly<Static<typeof AgentReasoningEffortOptionSchema>>;
 
-export const AgentModelSchema = Type.Object(
-  {
-    defaultReasoningEffort: Type.String({ minLength: 1 }),
-    description: Type.String(),
-    displayName: Type.String({ minLength: 1 }),
-    id: Type.String({ minLength: 1 }),
-    inputModalities: Type.Array(Type.String({ minLength: 1 })),
-    isDefault: Type.Boolean(),
-    supportedReasoningEfforts: Type.Array(AgentReasoningEffortOptionSchema, { minItems: 1 }),
-  },
-  { additionalProperties: false },
-);
+// 模型目录共用跨端契约，避免桌面误将供应商可省略的输入能力声明为必填。
+export const AgentModelSchema = SharedModelSchema;
 
 export type AgentModel = Readonly<Static<typeof AgentModelSchema>>;
 
