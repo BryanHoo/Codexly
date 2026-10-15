@@ -44,6 +44,8 @@ export const settings = {
     releaseNotesTitle: "{{version}} release notes",
     releaseNotesUnavailable: "Release notes for this version are temporarily unavailable.",
     update: "Software update",
+    updateNow: "Update",
+    updateProgress: "Codexly update progress",
     updateTo: "Update to {{version}}",
     updating: "Updating",
   },

@@ -61,6 +61,7 @@ export function WorkbenchShellLayout({
     : undefined;
   const {
     appInfoQuery,
+    appUpdateMutation,
     beginNewChatSubmission,
     capabilities,
     client,
@@ -148,6 +149,8 @@ export function WorkbenchShellLayout({
       >
         {!embedded ? <>
         <ProjectSidebar
+          isUpdatePending={appUpdateMutation.isPending}
+          onUpdate={(version, onProgress) => appUpdateMutation.mutateAsync({ version, onProgress })}
           {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
           onClose={closeSidebar}
           onOpenFile={(file, kind) => {

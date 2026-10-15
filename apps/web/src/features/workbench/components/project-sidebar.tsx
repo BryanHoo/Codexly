@@ -1,13 +1,7 @@
 import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
-import type { AgentEventConnectionState } from "@codexly/client";
-import {
-  TEMPORARY_TASK_SCOPE_ID,
-  type AgentTask,
-  type AppInfoResponse,
-  type Project,
-} from "@codexly/protocol";
+import { TEMPORARY_TASK_SCOPE_ID, type AgentTask, type Project } from "@codexly/protocol";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Send } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -42,11 +36,11 @@ import { ProjectSidebarDialogs } from "./project-sidebar-dialogs.js";
 import { ArchivedTasksDialog, type ArchivedTaskScope } from "./archived-tasks-dialog.js";
 import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
 import { TaskDeleteDialog } from "./task-delete-dialog.js";
-import { SidebarSettingsButton, type SidebarSettingsSection } from "./project-sidebar-actions.js";
+import { SidebarSettingsButton } from "./project-sidebar-actions.js";
 import { groupTasksByProjectId } from "./project-sidebar-state.js";
 import { SidebarUtilityLinks } from "./sidebar-utility-links.js";
 import { ProjectSidebarHeader } from "./project-sidebar-header.js";
-import type { SearchFile } from "../../search/search-files.js";
+import type { ProjectSidebarProps } from "./project-sidebar-props.js";
 export { ProductBrand } from "./project-sidebar-header.js";
 export * from "./project-sidebar-actions.js";
 export * from "./project-sidebar-state.js";
@@ -59,18 +53,10 @@ const GlobalSearchDialog = lazy(() =>
 const primaryActionClassName =
   "flex h-8 w-full items-center gap-2.5 rounded-control px-2.5 text-body-small font-medium text-foreground transition-colors hover:bg-control-hover";
 const primaryActionIconClassName = "size-4 shrink-0 text-muted-foreground";
-type ProjectSidebarProps = Readonly<{
-  appInfo?: AppInfoResponse;
-  connectionState: AgentEventConnectionState;
-  onClose: () => void;
-  onOpenSettings: (section: SidebarSettingsSection) => void;
-  onOpenFile: (file: SearchFile, kind: "image" | "source" | "pdf") => void;
-  projectId?: string;
-  taskId?: string;
-}>;
 
 export function ProjectSidebar({
   appInfo,
+  appUpdate,
   connectionState,
   onClose,
   onOpenSettings,
@@ -477,6 +463,7 @@ export function ProjectSidebar({
 
       <div className="p-2">
         <SidebarSettingsButton
+          {...appUpdate}
           {...(appInfo === undefined ? {} : { appInfo })}
           connectionState={connectionState}
           onOpen={onOpenSettings}

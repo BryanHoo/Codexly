@@ -15,6 +15,9 @@ import {
   WifiOff,
 } from "lucide-react";
 
+import { lazy, Suspense, useState } from "react";
+
+import { LazyMessageResponse } from "../../../shared/components/agent/lazy-message-response.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
 import {
@@ -29,6 +32,12 @@ import {
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
 import { getProjectSidebarConnectionStatus } from "./project-sidebar-state.js";
+
+const AppUpdateDialog = lazy(() =>
+  import("@codexly/ui/core/app-update-dialog").then((module) => ({
+    default: module.AppUpdateDialog,
+  })),
+);
 
 export type SidebarSettingsSection = "about" | "appearance";
 
@@ -178,14 +187,23 @@ export function ProjectActionMenu({
 
 export function SidebarSettingsButton({
   appInfo,
+  isUpdatePending,
+  onUpdate,
+  updatePercentage,
   connectionState,
   onOpen,
 }: Readonly<{
   appInfo?: AppInfoResponse;
+  isUpdatePending?: boolean;
+  onUpdate: (version: string) => Promise<void>;
+  updatePercentage?: number;
   connectionState: AgentEventConnectionState;
   onOpen: (section: SidebarSettingsSection) => void;
 }>) {
   const { t } = useTranslation("workbench");
+  const { t: settingsT } = useTranslation("settings");
+  // 打开时固定本次展示的版本与日志，安装回执刷新缓存不会中断弹窗。
+  const [updateInfo, setUpdateInfo] = useState<AppInfoResponse | null>(null);
   const connectionStatus = getProjectSidebarConnectionStatus(connectionState);
   const connectionStatusLabel = t(connectionStatus.labelKey);
   const appVersion = appInfo?.appVersion ?? "…";
@@ -215,7 +233,11 @@ export function SidebarSettingsButton({
         className="h-full gap-1 rounded-l-none px-2.5 text-caption"
         id="global-settings-about-trigger"
         onClick={() => {
-          onOpen("about");
+          if (updateAvailable && appInfo.latestVersion) {
+            setUpdateInfo(appInfo);
+          } else {
+            onOpen("about");
+          }
         }}
         type="button"
         variant="ghost"
@@ -236,6 +258,41 @@ export function SidebarSettingsButton({
           </span>
         </span>
       </Button>
+      {updateInfo?.latestVersion ? (
+        <Suspense fallback={null}>
+          <AppUpdateDialog
+            {...(isUpdatePending === undefined ? {} : { isPending: isUpdatePending })}
+            {...(updatePercentage === undefined ? {} : { percentage: updatePercentage })}
+            labels={{
+              title: settingsT("about.releaseNotesTitle", { version: updateInfo.latestVersion }),
+              close: settingsT("actions.closeReleaseNotes"),
+              update: settingsT("about.updateNow"),
+              updating: settingsT("about.updating"),
+              completed: settingsT("about.restartRequired"),
+              failed: settingsT("errors.update"),
+              progress: settingsT("about.updateProgress"),
+            }}
+            onClose={() => {
+              setUpdateInfo(null);
+            }}
+            onUpdate={async () => {
+              const version = updateInfo.latestVersion;
+              if (version === null) return;
+              await onUpdate(version);
+            }}
+          >
+            {updateInfo.releaseNotes === null ? (
+              <p className="text-body-small text-muted-foreground">
+                {settingsT("about.releaseNotesUnavailable")}
+              </p>
+            ) : (
+              <LazyMessageResponse className="text-body-small" mode="static">
+                {updateInfo.releaseNotes}
+              </LazyMessageResponse>
+            )}
+          </AppUpdateDialog>
+        </Suspense>
+      ) : null}
     </div>
   );
 }

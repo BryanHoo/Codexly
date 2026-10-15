@@ -51,6 +51,9 @@ export function WorkbenchShellLayout({
   const navigate = useNavigate();
   const {
     appInfoQuery,
+    appUpdateMutation,
+    appUpdateProgressQuery,
+
     beginNewChatSubmission,
     capabilities,
     client,
@@ -137,6 +140,13 @@ export function WorkbenchShellLayout({
         {!embedded ? (
           <>
             <ProjectSidebar
+              appUpdate={{
+                isUpdatePending: appUpdateMutation.isPending,
+                onUpdate: (version) => appUpdateMutation.mutateAsync(version).then(() => undefined),
+                ...(appUpdateMutation.isPending && appUpdateProgressQuery.data?.progress
+                  ? { updatePercentage: appUpdateProgressQuery.data.progress.percent }
+                  : {}),
+              }}
               {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
               connectionState={sidebarConnectionState}
               onClose={closeSidebar}

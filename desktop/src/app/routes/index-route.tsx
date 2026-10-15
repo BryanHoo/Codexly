@@ -99,6 +99,8 @@ function IndexPage() {
           data-sidebar-open={sidebarOpen}
         >
           <ProjectSidebar
+            isUpdatePending={appUpdateMutation.isPending}
+            onUpdate={(version, onProgress) => appUpdateMutation.mutateAsync({ version, onProgress })}
             {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
             onClose={() => undefined}
             onOpenFile={() => undefined}

@@ -241,6 +241,7 @@ describe("SidebarSettingsButton", () => {
     for (const [connectionState, label] of cases) {
       const markup = renderToStaticMarkup(
         <SidebarSettingsButton
+          onUpdate={vi.fn()}
           appInfo={appInfo}
           connectionState={connectionState}
           onOpen={vi.fn()}
@@ -266,6 +267,7 @@ describe("SidebarSettingsButton", () => {
       for (const [connectionState, label] of cases) {
         const markup = renderToStaticMarkup(
           <SidebarSettingsButton
+            onUpdate={vi.fn()}
             appInfo={appInfo}
             connectionState={connectionState}
             onOpen={vi.fn()}
@@ -283,6 +285,7 @@ describe("SidebarSettingsButton", () => {
     await changeAppLanguage("zh-CN");
     const markup = renderToStaticMarkup(
       <SidebarSettingsButton
+        onUpdate={vi.fn()}
         appInfo={{
           ...appInfo,
           latestVersion: "1.4.0",

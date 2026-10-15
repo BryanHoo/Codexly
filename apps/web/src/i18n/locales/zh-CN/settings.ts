@@ -43,6 +43,8 @@ export const settings = {
     releaseNotesTitle: "{{version}} 更新日志",
     releaseNotesUnavailable: "暂时无法获取此版本的更新日志。",
     update: "软件更新",
+    updateNow: "更新",
+    updateProgress: "Codexly 更新进度",
     updateTo: "更新到 {{version}}",
     updating: "正在更新",
   },

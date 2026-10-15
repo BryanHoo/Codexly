@@ -6,6 +6,7 @@ import { useProjectActions, useProjectData } from "../../features/projects/proje
 import {
   appInfoQueryOptions,
   appUpdateMutationOptions,
+  appUpdateProgressQueryOptions,
   globalSettingsMutationOptions,
   globalSettingsQueryOptions,
   modelsQueryOptions,
@@ -50,6 +51,9 @@ function IndexPage() {
       queryClient.setQueryData(["app-info"], response);
     },
   });
+  const appUpdateProgressQuery = useQuery(
+    appUpdateProgressQueryOptions(client, appUpdateMutation.isPending),
+  );
   const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client));
   const modelsQuery = useQuery(modelsQueryOptions(client));
   const globalSettingsMutation = useMutation({
@@ -106,6 +110,13 @@ function IndexPage() {
         data-sidebar-open="true"
       >
         <ProjectSidebar
+          appUpdate={{
+            isUpdatePending: appUpdateMutation.isPending,
+            onUpdate: (version) => appUpdateMutation.mutateAsync(version).then(() => undefined),
+            ...(appUpdateMutation.isPending && appUpdateProgressQuery.data?.progress
+              ? { updatePercentage: appUpdateProgressQuery.data.progress.percent }
+              : {}),
+          }}
           {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
           connectionState="connected"
           onClose={() => undefined}

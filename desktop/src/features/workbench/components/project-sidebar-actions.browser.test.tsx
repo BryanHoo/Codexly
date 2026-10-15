@@ -19,14 +19,16 @@ const appInfo = {
 } satisfies AppInfoResponse;
 
 describe("SidebarSettingsButton", () => {
-  it("shows a compact upgrade hint next to the version and opens About", async () => {
+  it("opens release notes from the upgrade hint without navigating to About", async () => {
     await i18n.changeLanguage("zh-CN");
     const onOpen = vi.fn();
     const onOpenShortcuts = vi.fn();
+    const onUpdate = vi.fn().mockResolvedValue(undefined);
     const screen = await render(
       <I18nextProvider i18n={i18n}>
         <TooltipProvider>
           <SidebarSettingsButton
+            onUpdate={onUpdate}
             appInfo={appInfo}
             onOpen={onOpen}
             onOpenShortcuts={onOpenShortcuts}
@@ -38,7 +40,13 @@ describe("SidebarSettingsButton", () => {
     const aboutButton = screen.getByRole("button", { name: /Codexly v0\.1\.0/ });
     await expect.element(aboutButton).toHaveTextContent("v0.1.0 升级");
     await aboutButton.click();
-    expect(onOpen).toHaveBeenCalledWith("about");
+    expect(onOpen).not.toHaveBeenCalled();
+    await expect.element(screen.getByRole("dialog", { name: "0.2.0 更新日志" })).toBeVisible();
+    expect(onUpdate).not.toHaveBeenCalled();
+    await screen.getByRole("button", { name: "更新", exact: true }).click();
+    expect(onUpdate).toHaveBeenCalledExactlyOnceWith("0.2.0", expect.any(Function));
+    await expect.element(screen.getByRole("status")).toHaveTextContent("更新完成");
+    await screen.getByRole("button", { name: "关闭更新日志" }).click();
 
     const shortcutsButton = screen.getByRole("button", { name: "键盘快捷键" });
     await shortcutsButton.click();
@@ -51,6 +59,7 @@ describe("SidebarSettingsButton", () => {
       <I18nextProvider i18n={i18n}>
         <TooltipProvider>
           <SidebarSettingsButton
+            onUpdate={vi.fn()}
             appInfo={{
               ...appInfo,
               latestVersion: null,

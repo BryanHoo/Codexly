@@ -5,6 +5,7 @@ import {
   TEMPORARY_TASK_SCOPE_ID,
   type AgentTask,
   type AppInfoResponse,
+  type AppUpdateInstallProgress,
   type Project,
 } from "@/protocol/index.js";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -66,6 +67,11 @@ const primaryActionClassName =
 const primaryActionIconClassName = "size-4 shrink-0 text-muted-foreground";
 type ProjectSidebarProps = Readonly<{
   appInfo?: AppInfoResponse;
+  isUpdatePending?: boolean;
+  onUpdate: (
+    version: string,
+    onProgress: (progress: AppUpdateInstallProgress) => void,
+  ) => Promise<void>;
   onClose: () => void;
   onOpenSettings: (section: SidebarSettingsSection) => void;
   onOpenFile: (file: SearchFile, kind: "image" | "source" | "pdf") => void;
@@ -76,6 +82,8 @@ type ProjectSidebarProps = Readonly<{
 
 export function ProjectSidebar({
   appInfo,
+  isUpdatePending,
+  onUpdate,
   onClose,
   onOpenSettings,
   onOpenFile,
@@ -463,6 +471,8 @@ export function ProjectSidebar({
 
       <div className="p-2">
         <SidebarSettingsButton
+          {...(isUpdatePending === undefined ? {} : { isUpdatePending })}
+          onUpdate={onUpdate}
           {...(appInfo === undefined ? {} : { appInfo })}
           onOpen={onOpenSettings}
           onOpenShortcuts={() => setShortcutsOpen(true)}
