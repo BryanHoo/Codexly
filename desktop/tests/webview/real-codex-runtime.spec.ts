@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, toNamespacedPath } from "node:path";
 import { promisify } from "node:util";
 
 import { browser, expect } from "@wdio/globals";
@@ -168,7 +168,8 @@ describeRealRuntime("三平台真实 Codex 原生链路", () => {
     });
     projectId = added.project.id;
     const rootPath = added.project.roots[0]?.path;
-    expect(rootPath).toBe(workspaceRoot);
+    // Rust canonicalize 在 Windows 返回带 \\?\ 前缀的路径，预期值使用相同格式；其他平台保持原样。
+    expect(rootPath).toBe(toNamespacedPath(workspaceRoot));
     if (rootPath === undefined) throw new Error("Codex project root is unavailable");
 
     const files = await invokeNative<FileTree>("list_project_files", {
