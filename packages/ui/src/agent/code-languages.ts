@@ -7,7 +7,6 @@ export const projectLanguageModules = {
   csharp: () => import("shiki/langs/csharp.mjs"),
   css: () => import("shiki/langs/css.mjs"),
   diff: () => import("shiki/langs/diff.mjs"),
-  dockerfile: () => import("shiki/langs/dockerfile.mjs"),
   dotenv: () => import("shiki/langs/dotenv.mjs"),
   go: () => import("shiki/langs/go.mjs"),
   graphql: () => import("shiki/langs/graphql.mjs"),
@@ -95,7 +94,6 @@ export const projectLanguageByExtension: Readonly<Record<string, HighlightLangua
 
 export const projectLanguageByFileName: Readonly<Record<string, HighlightLanguage>> = {
   ".env": "dotenv",
-  dockerfile: "dockerfile",
   makefile: "makefile",
 };
 

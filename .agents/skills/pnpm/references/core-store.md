@@ -164,7 +164,7 @@ pnpm store status
 pnpm store prune
 ```
 
-### Hard link issues (network drives, Docker)
+### Hard link issues (network drives)
 ```yaml title="pnpm-workspace.yaml"
 # auto (default) tries clone -> hardlink -> copy
 packageImportMethod: copy

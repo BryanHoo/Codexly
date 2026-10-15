@@ -46,6 +46,7 @@ describe("createGitCommandExecutor", () => {
     const unsafeEnvironment = {
       GIT_ASKPASS: "malicious-askpass",
       GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_GLOBAL: "/tmp/untrusted.gitconfig",
       GIT_CONFIG_KEY_0: "core.editor",
       GIT_CONFIG_VALUE_0: "malicious-editor",
       GIT_CONFIG_PARAMETERS: "'core.editor=malicious-editor'",
@@ -73,20 +74,22 @@ describe("createGitCommandExecutor", () => {
     expect(JSON.parse(output.slice(0, -1))).toMatchObject({ optionalLocks: "0" });
   });
 
-  it("maps the configured global Git config into the Git subprocess environment", async () => {
-    vi.stubEnv("CODEXLY_GIT_CONFIG", "/workspace/user/.gitconfig");
+  it("reads the host user Git configuration while ignoring inherited overrides", async () => {
+    const { root } = await createFakeGitRoot();
+    // 隔离用户目录，以真实 Git 验证宿主配置可读且不会采用外部注入的路径。
+    vi.stubEnv("HOME", root);
+    vi.stubEnv("USERPROFILE", root);
+    vi.stubEnv("XDG_CONFIG_HOME", join(root, ".config"));
     vi.stubEnv("GIT_CONFIG_GLOBAL", "/tmp/untrusted.gitconfig");
+    await writeFile(join(root, ".gitconfig"), '[user]\n  name = "Codexly 测试用户"\n');
 
     const environment = createGitEnvironment();
-    expect(environment["CODEXLY_GIT_CONFIG"]).toBe("/workspace/user/.gitconfig");
-    expect(environment["GIT_CONFIG_GLOBAL"]).toBe("/workspace/user/.gitconfig");
+    expect(environment["GIT_CONFIG_GLOBAL"]).toBeUndefined();
 
-    const { root, scriptPath } = await createFakeGitRoot();
-    const executeGit = createGitCommandExecutor({ binary: [process.execPath, scriptPath] });
-    const output = await executeGit(root, ["inspect"]);
-    expect(JSON.parse(output.slice(0, -1))).toMatchObject({
-      configGlobal: "/workspace/user/.gitconfig",
-    });
+    const executeGit = createGitCommandExecutor();
+    await expect(executeGit(root, ["config", "--global", "user.name"])).resolves.toBe(
+      "Codexly 测试用户\n",
+    );
   });
 
   it("preserves argument boundaries, the Git read environment, and trailing NUL output", async () => {

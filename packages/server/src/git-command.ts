@@ -35,11 +35,6 @@ export function createGitEnvironment(): NodeJS.ProcessEnv {
       return !normalizedKey.startsWith("git_") && !UNSAFE_GIT_ENVIRONMENT_KEYS.has(normalizedKey);
     }),
   );
-  const globalConfig = process.env["CODEXLY_GIT_CONFIG"];
-  if (globalConfig !== undefined && globalConfig.length > 0) {
-    // 部署者通过专用变量选择配置文件，避免放开所有外部 Git 控制变量。
-    environment["GIT_CONFIG_GLOBAL"] = globalConfig;
-  }
   environment["GIT_OPTIONAL_LOCKS"] = "0";
   return environment;
 }
@@ -54,18 +49,16 @@ export function createGitCommandExecutor(
     const controller = new AbortController();
     const clientOptions: Partial<SimpleGitOptions> = {
       abort: controller.signal,
-      // simple-git 4 要求显式放行；这两个变量仅由 createGitEnvironment 受控设置。
-      allowEnvironment: ["GIT_CONFIG_GLOBAL", "GIT_OPTIONAL_LOCKS"],
+      // 仅放行内部设置的只读锁选项；Git 配置直接使用宿主用户的标准文件。
+      allowEnvironment: ["GIT_OPTIONAL_LOCKS"],
       baseDir: repositoryRoot,
       maxConcurrentProcesses: 1,
       trimmed: false,
-      // GIT_CONFIG_GLOBAL 仅能由 CODEXLY_GIT_CONFIG 映射，允许 simple-git 使用该受控路径。
-      unsafe: { allowUnsafeConfigPaths: true },
     };
     if (options.binary !== undefined) {
       clientOptions.binary = options.binary;
       // 仅由内部调用方注入的可执行文件路径允许空格和非 ASCII 字符；参数仍通过 spawn 数组传递。
-      clientOptions.unsafe = { allowUnsafeConfigPaths: true, allowUnsafeCustomBinary: true };
+      clientOptions.unsafe = { allowUnsafeCustomBinary: true };
     }
 
     const git = simpleGit(clientOptions);

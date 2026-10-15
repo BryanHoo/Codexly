@@ -65,7 +65,7 @@ void test("stable releases should publish signed updater artifacts after all gat
   const releaseWorkflow = await readWorkflow("release.yml");
 
   assert.match(releaseWorkflow, /releaseDraft:\s*true/);
-  assert.match(releaseWorkflow, /needs: \[prepare, publish-npm, publish-image, publish-desktop\]/);
+  assert.match(releaseWorkflow, /needs: \[prepare, publish-npm, publish-desktop\]/);
   assert.match(releaseWorkflow, /gh release edit .* --draft=false/);
   assert.ok(releaseWorkflow.includes("prerelease: ${{ contains(inputs.tag || github.ref_name, '-') }}"));
   assert.match(

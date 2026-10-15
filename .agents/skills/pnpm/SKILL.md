@@ -40,6 +40,6 @@ pnpm is a fast, disk space efficient package manager. It uses a content-addressa
 
 | Topic | Description | Reference |
 |-------|-------------|-----------|
-| CI/CD Setup | GitHub Actions, GitLab, Docker, pnpm ci, store caching, frozen lockfiles | [best-practices-ci](references/best-practices-ci.md) |
+| CI/CD Setup | GitHub Actions, GitLab, pnpm ci, store caching, frozen lockfiles | [best-practices-ci](references/best-practices-ci.md) |
 | Migration | npm/Yarn → pnpm, phantom deps, and pnpm v10 → v11 config migration | [best-practices-migration](references/best-practices-migration.md) |
 | Performance | Install optimizations, allowBuilds, global virtual store, workspace parallelization | [best-practices-performance](references/best-practices-performance.md) |

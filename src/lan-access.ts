@@ -12,7 +12,7 @@ const UNIT_MS = {
   s: 1_000,
 } as const;
 const VIRTUAL_INTERFACE_PATTERN =
-  /^(?:awdl|br|bridge|docker|ham|llw|lo|tap|tun|utun|vboxnet|veth|virbr|wg|zt)(?:\d|[-_.]|$)|(?:openvpn|tailscale|vethernet|virtualbox|vmnet|zerotier)/iu;
+  /^(?:awdl|br|bridge|ham|llw|lo|tap|tun|utun|vboxnet|veth|virbr|wg|zt)(?:\d|[-_.]|$)|(?:openvpn|tailscale|vethernet|virtualbox|vmnet|zerotier)/iu;
 
 export function parseSessionTtl(value: string): number {
   const match = /^(\d+)(ms|[smhd])$/u.exec(value);
@@ -63,7 +63,7 @@ function isPrivateIpv4(address: string): boolean {
 }
 
 function isVirtualNetworkInterface(name: string): boolean {
-  // Node.js 不暴露接口硬件类型，因此按各平台稳定命名排除隧道、虚拟网桥与容器接口。
+  // Node.js 不暴露接口硬件类型，因此按各平台稳定命名排除隧道与虚拟网桥接口。
   return VIRTUAL_INTERFACE_PATTERN.test(name);
 }
 

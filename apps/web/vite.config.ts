@@ -3,12 +3,13 @@ import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { projectLanguagePlugin } from "../../tools/project-language-plugin.mjs";
 
 // 最低版本同时覆盖 AbortSignal.any()、AbortSignal.timeout()、toSorted() 与 toSpliced()。
 export const supportedBrowserTargets = ["chrome116", "firefox124", "safari17.4"] as const;
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [projectLanguagePlugin(), react(), tailwindcss()],
   resolve: {
     alias: [
       { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },

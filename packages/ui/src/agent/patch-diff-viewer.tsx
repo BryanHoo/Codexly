@@ -33,7 +33,6 @@ export function configureDiffLanguages(
   for (const [fileName, language] of Object.entries(byFileName)) {
     setCustomExtension(fileName, language);
   }
-  setCustomExtension("Dockerfile", "dockerfile");
   setCustomExtension("Makefile", "makefile");
 }
 

@@ -11,7 +11,6 @@ const supportedLanguages = [
   "csharp",
   "css",
   "diff",
-  "dockerfile",
   "dotenv",
   "go",
   "graphql",

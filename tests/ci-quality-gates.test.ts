@@ -109,7 +109,7 @@ describe("CI 质量门禁", () => {
   it("使用 Trusted Publisher OIDC 发布 npm 包", () => {
     const workflow = readFileSync(join(process.cwd(), ".github/workflows/release.yml"), "utf8");
     const publishStart = workflow.indexOf("      - name: Publish with provenance\n");
-    const publishJobEnd = workflow.indexOf("\n  publish-image:\n", publishStart);
+    const publishJobEnd = workflow.indexOf("\n  publish-desktop:\n", publishStart);
 
     expect(publishStart).toBeGreaterThanOrEqual(0);
     expect(publishJobEnd).toBeGreaterThan(publishStart);

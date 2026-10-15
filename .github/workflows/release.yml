@@ -157,6 +157,7 @@ jobs:
           CI='' pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests packages/server
           CI='' pnpm exec vitest run --pool forks --maxWorkers 1 --no-file-parallelism --passWithNoTests "$PWD"/src/*.test.ts "$PWD"/tests/*.test.ts --exclude packages/protocol/src/app-update.test.ts
           pnpm run test:release
+          pnpm run test:highlight
           pnpm run test:performance
           pnpm run build:clean
           pnpm run bundle:check
@@ -177,57 +178,6 @@ jobs:
             pnpm pack --out "${package_tarball}"
             npm publish "${package_tarball}" --access public --provenance
           fi
-  publish-image:
-    name: Publish GHCR image
-    needs: [prepare, e2e, publish-npm]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      id-token: write
-      packages: write
-    env:
-      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ needs.prepare.outputs.sha }}
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v4.4.0
-      - name: Login to GHCR
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate image metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/bryanhoo/codexly
-          tags: |
-            type=semver,pattern={{version}},value=${{ env.RELEASE_TAG }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ env.RELEASE_TAG }}
-            type=raw,value=latest
-      - name: Build and publish image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          build-args: |
-            REVISION=${{ needs.prepare.outputs.sha }}
-            VERSION=${{ env.RELEASE_TAG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          context: .
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
-          provenance: mode=max
-          push: true
-          sbom: true
-          tags: ${{ steps.meta.outputs.tags }}
-
   publish-desktop:
     name: ${{ matrix.name }}
     needs: [prepare, e2e, desktop-quality, desktop-webview]
@@ -381,7 +331,7 @@ jobs:
 
   release:
     name: Publish joint GitHub release
-    needs: [prepare, publish-npm, publish-image, publish-desktop]
+    needs: [prepare, publish-npm, publish-desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: write

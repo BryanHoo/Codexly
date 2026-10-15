@@ -1,5 +1,7 @@
 # 共享 UI
 
+- 语言支持以 `agent/code-languages.ts` 为准。Web、桌面及 Legacy 构建共用 `tools/project-language-plugin.mjs`，在打包前裁剪依赖语言映射和 Markdown/MDX 未注册的内嵌规则，避免第三方完整语言表恢复已移除的支持；普通围栏保留纯文本回退。根目录 `pnpm test:highlight` 覆盖映射、规则引用与正则保留，联合发布必须执行。
+
 `@codexly/ui` 存放 Web 与桌面端视觉和交互一致的 React 控件。各端现有组件路径可用薄导出维持调用点，但组件实现只保留在 `packages/ui/src/`。
 
 - 左栏固定与运行中共用 `core/sidebar-task-shortcuts`，每组默认预览两条、合计最多 240px 且不超过任务导航区高度的三分之一；极小窗口保留标题计数入口。自动限高不能改写手动折叠偏好，完整列表由宽屏浮层或 Web 移动抽屉承载，不挤压项目树；大列表仅挂载可见虚拟行。未查看完成任务优先，其后依次为待确认、运行任务；分组计数显示全部成员总数，额外标示待确认数量，活动成员独立于历史分页；同类任务排序不能随流式正文重排。运行入口遵守已有分屏选择规则，后台完成且未查看的任务保留在分组并显示完成图标，计入分组总数；聚焦该任务后由现有 attention 清除流程移出分组，不关闭会话，聚焦其他任务不能消费提醒。移动端浮层导航（包括重复选择）须通过平台回调收起原侧栏，关闭浮层不能夺回任务焦点。回归见 `frontend-core/sidebar-task-shortcuts.test.ts`、Web 的 `sidebar-task-shortcuts.test.tsx`、`project-sidebar-task-list.test.tsx`、`project-runtime-events.test.ts` 与桌面 `project-runtime-restore.test.ts`；通过 Chrome CDP 检查宽窄屏、矮窗口、折叠恢复及完整列表导航。

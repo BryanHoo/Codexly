@@ -10,6 +10,7 @@
 - 数据存储、定时任务、诊断日志等修改检查相邻 Rust 测试；持续遵守 `desktop/AGENTS.md` 的性能约束。
 - 任务标题与 Web 端共用 `packages/provider-codex/src/task-title-instructions.json`，编译时嵌入。仅共用 Git 提交模型，不能共用提交提示词；辅助会话关闭项目文档加载，并使用专用基础指令与开发者指令防止全局 `AGENTS.md` 将标题变为提交格式。回归执行 Rust `task_title` 测试。
 - 在 `desktop/` 执行 `pnpm check:rust`；完整门槛为 `pnpm check`。环境要求见 `desktop/docs/development.md`。
+- 外链启动的 `is-wsl` 依赖通过 `native/is-wsl` 本地适配，仅在 Linux 读取内核标识并缓存结果；其他平台直接返回 false。保留公开 API，验证 `cargo test --manifest-path desktop/src-tauri/native/is-wsl/Cargo.toml` 与桌面锁文件构建。
 - Windows 原生键盘和关闭对话框测试与 WDIO 共用 `CODEAGENT_WEBVIEW_APP_BINARY`，指定独立 EXE 时必须按相同可执行路径定位测试进程；不能改用默认构建路径或按应用名称操作用户正在运行的实例。
 - Windows 进程树资源采样需校验子进程创建时间不早于当前父进程创建时间，再沿 `ParentProcessId` 展开；父 PID 被复用时，旧进程及其后代不能归入应用。回归 `scripts/windows-resources.test.mjs` 同时验证旧父 PID 排除和真实后代保留；CPU 按逻辑核心计数，工作集求和可能重复计算共享页。
 - 本地测试打包使用 `pnpm tauri:local`，通过配置覆盖关闭 `bundle.createUpdaterArtifacts` 并跳过代码签名。`--no-sign` 本身不能关闭更新签名；正式配置继续保留更新公钥与签名产物要求。打包脚本回归须验证两者独立，操作说明见 [源码开发与构建](../../../../desktop/docs/development.md)。

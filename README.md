@@ -54,7 +54,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 
 **Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and an app-private Codex installation. It supports Windows, Ubuntu, and macOS, with an option in general settings to launch at system login. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
 
-**Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, Docker deployment, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.162.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.162.0,<0.163.0`.
+**Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.162.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.162.0,<0.163.0`.
 
 Browsers and devices connected to the same Web server synchronize project todos and asynchronous questions. Reconnecting or returning to a visible page refreshes their state.
 
@@ -107,47 +107,6 @@ codexly autostart disable
 Repeating `enable` updates the same entry with the supplied options. Without `--now`, a running instance applies changes on restart or the next login. Use `status` for actual URLs when a port is occupied. LAN startup saves and reuses its password; `credentials` reveals it explicitly. Sessions require authentication again after a restart.
 
 Temporary `npx` installations cannot register startup. Run `codexly autostart repair --now` after moving Node/npm, and disable before uninstalling the package. Use `codexly start --no-open` to suppress the browser during a foreground launch. See the [Web startup at login guide](docs/web-autostart.md) for configuration, environment handling, Linux linger restrictions, and troubleshooting.
-
-## Docker
-
-Download the user-facing Compose file and start the published image:
-
-```bash
-mkdir codexly && cd codexly
-curl -fsSLO https://raw.githubusercontent.com/BryanHoo/Codexly/main/compose.yaml
-curl -fsSLo .env.example https://raw.githubusercontent.com/BryanHoo/Codexly/main/.env.example
-cp .env.example .env
-docker compose pull
-docker compose up --detach
-docker compose logs --tail=50 codexly
-```
-
-Open `http://127.0.0.1:3210` and use the random pairing code printed in the logs. The default named volume preserves Codex login data and Codexly's SQLite state. On Linux and macOS, the Compose file mounts the host root at `/workspace`, so every mounted disk is available to the project picker. Set `CODEXLY_WORKSPACE` to expose only one directory and preserve its absolute path inside the container:
-
-```bash
-CODEXLY_WORKSPACE=/path/to/projects docker compose up --detach
-```
-
-When binding the host `CODEXLY_CODEX_HOME`, also set `CODEXLY_WORKSPACE` to a common parent of the existing projects. Their absolute paths then remain identical on the host and in the container.
-
-The container does not automatically inherit the host Git identity. Set `CODEXLY_GIT_CONFIG` to a global Git config file visible inside the container. With an identity-mapped Linux or macOS workspace, use the absolute path to the host `~/.gitconfig` directly. For SSH remotes, set `CODEXLY_SSH_HOME` to the absolute path of the host `~/.ssh` directory.
-
-Docker can only access host paths shared with the Docker engine. On Windows, set `CODEXLY_WORKSPACE` to a shared drive such as `C:/` and set `CODEXLY_WORKSPACE_TARGET=/workspace`. Windows and Linux container paths use different absolute path formats, so a Codex Home containing host project records cannot be reused directly. Add extra bind mounts and repeat `--workspace` in `command` when multiple drives are required.
-
-| Variable                   | Purpose                                                                |
-| -------------------------- | ---------------------------------------------------------------------- |
-| `CODEXLY_VERSION`          | Select the GHCR image tag; defaults to `latest`                        |
-| `CODEXLY_PORT`             | Set both the host and container port; defaults to `3210`               |
-| `CODEXLY_WORKSPACE`        | Restrict the workspace and preserve its absolute path; defaults to `/` |
-| `CODEXLY_WORKSPACE_TARGET` | Override the container path; use `/workspace` on Windows               |
-| `CODEXLY_GIT_CONFIG`       | Select a container-visible global Git config file                      |
-| `CODEXLY_SSH_HOME`         | Mount host SSH config, keys, and `known_hosts` read-only               |
-| `CODEXLY_CODEX_HOME`       | Bind a host Codex home instead of the managed `codexly-data` volume    |
-| `CODEXLY_LAN_PASSWORD`     | Set a strong fixed access password instead of the logged random code   |
-| `CODEXLY_ALLOWED_HOSTS`    | Allow comma-separated exact reverse proxy domains                      |
-| `CODEXLY_SESSION_TTL`      | Set a fixed session lifetime such as `12h`                             |
-
-The image entrypoint accepts all normal CLI arguments, so orchestration platforms can replace `command` when needed. See the [complete Docker Compose deployment guide](docs/docker-deployment.md) for workspace, multiple-disk, Codex Home, update, backup, and troubleshooting instructions. Run `pnpm docker:build && pnpm docker:test` in a development checkout to build and smoke-test the local image.
 
 ## Using the Web Edition
 

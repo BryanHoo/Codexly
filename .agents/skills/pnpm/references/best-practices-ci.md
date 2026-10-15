@@ -128,72 +128,6 @@ build:
     - pnpm build
 ```
 
-## Docker
-
-> **PATH change (v11):** global pnpm binaries now live in `$PNPM_HOME/bin`. In Docker set `ENV PATH="$PNPM_HOME/bin:$PATH"` (not `$PNPM_HOME`). There is also an official image `ghcr.io/pnpm/pnpm:<version>` (Debian slim, pnpm only — choose Node yourself via `pnpm runtime set node <ver> -g` or `devEngines.runtime`).
-
-### Multi-Stage Build
-
-```dockerfile
-# Build stage
-FROM node:24-slim AS builder
-
-# Enable corepack for pnpm
-RUN corepack enable
-
-WORKDIR /app
-
-# Copy package files first for layer caching
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/*/package.json ./packages/
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Copy source and build
-COPY . .
-RUN pnpm build
-
-# Production stage
-FROM node:20-slim AS runner
-
-RUN corepack enable
-WORKDIR /app
-
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-lock.yaml ./
-
-# Production install
-RUN pnpm install --frozen-lockfile --prod
-
-CMD ["node", "dist/index.js"]
-```
-
-### Optimized for Monorepos
-
-```dockerfile
-FROM node:20-slim AS builder
-RUN corepack enable
-WORKDIR /app
-
-# Copy workspace config
-COPY pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# Copy all package.json files maintaining structure
-COPY packages/core/package.json ./packages/core/
-COPY packages/api/package.json ./packages/api/
-
-# Install all dependencies
-RUN pnpm install --frozen-lockfile
-
-# Copy source
-COPY . .
-
-# Build specific package
-RUN pnpm --filter @myorg/api build
-```
-
 ## Key CI Flags
 
 ### --frozen-lockfile
@@ -286,12 +220,10 @@ jobs:
 3. **Match the CI pnpm major** to the one that wrote the lockfile (CI fails on incompatible lockfiles)
 4. **Pin `packageManager`** (or `devEngines.packageManager`) in package.json
 5. **Use `--filter`** in monorepos to build only what changed
-6. **Multi-stage Docker builds**; set `PATH=$PNPM_HOME/bin:$PATH`
 
 <!--
 Source references:
 - https://pnpm.io/continuous-integration
-- https://pnpm.io/docker
 - https://pnpm.io/cli/ci
 - https://github.com/pnpm/action-setup
 -->

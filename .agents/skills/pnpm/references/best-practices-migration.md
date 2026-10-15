@@ -29,7 +29,7 @@ Manual follow-ups (not automatable):
 
 - Convert `CVE-…` IDs to `GHSA-…` in `auditConfig.ignoreGhsas`.
 - `ignorePatchFailures` removed — failed patches now always throw.
-- `npm_config_*` env vars → `pnpm_config_*` (CI, shell profiles, Docker).
+- `npm_config_*` env vars → `pnpm_config_*` (CI, shell profiles).
 - `pnpm link <name>` → use a path (`pnpm link ./foo`); `pnpm link --global` → `pnpm add -g .`.
 - `pnpm install -g` (no args) and `pnpm server` removed.
 - A `package.json` script named `clean`/`setup`/`deploy`/`rebuild` now shadows the built-in — use `pnpm pm <name>` for the built-in.

@@ -77,7 +77,6 @@ describe("LAN access helpers", () => {
       ],
       utun5: [ipv4("41.10.1.29")],
       bridge100: [ipv4("192.168.139.3")],
-      docker0: [ipv4("172.17.0.1")],
       invalid: [ipv4("not-an-ip")],
     });
 

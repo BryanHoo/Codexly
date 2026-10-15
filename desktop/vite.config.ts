@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import legacy from "@vitejs/plugin-legacy";
 import { defineConfig } from "vitest/config";
+import { projectLanguagePlugin } from "../tools/project-language-plugin.mjs";
 import { legacyCssPlugins } from "./scripts/legacy-css.mjs";
 import { legacyRegexpPlugin } from "./scripts/legacy-regexp.mjs";
 
@@ -12,6 +13,7 @@ const macosLegacy = process.env.VITE_MACOS_LEGACY === "true";
 
 export default defineConfig({
   plugins: [
+    projectLanguagePlugin(),
     react(), tailwindcss(),
     // Monterey 支持原生 ESM，只补充缺失的标准 API，避免额外的 SystemJS 加载器。
     ...(macosLegacy ? [legacyRegexpPlugin(), legacy({

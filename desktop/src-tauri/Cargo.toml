@@ -80,6 +80,10 @@ unsafe_code = "forbid"
 [lints.clippy]
 all = "warn"
 
+[patch.crates-io]
+# 外链插件的系统识别仅使用内核信息，复用本地无额外依赖的适配。
+is-wsl = { path = "native/is-wsl" }
+
 [profile.release]
 codegen-units = 1
 lto = "thin"

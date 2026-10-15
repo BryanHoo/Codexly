@@ -2,7 +2,7 @@
 name: deployment
 description: Production deployment for Fastify applications
 metadata:
-  tags: deployment, production, docker, kubernetes, scaling
+  tags: deployment, production, kubernetes, scaling
 ---
 
 # Production Deployment
@@ -105,83 +105,6 @@ app.get('/health/details', {
     nodeVersion: process.version,
   };
 });
-```
-
-## Docker Configuration
-
-Create an optimized Dockerfile:
-
-```dockerfile
-# Build stage
-FROM node:22-alpine AS builder
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-
-# Production stage
-FROM node:22-alpine
-
-WORKDIR /app
-
-# Run as non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
-# Copy from builder
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/src ./src
-COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
-
-USER nodejs
-
-EXPOSE 3000
-
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
-
-CMD ["node", "src/app.ts"]
-```
-
-```yaml
-# docker-compose.yml
-services:
-  api:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgres://user:pass@db:5432/app
-      - JWT_SECRET=${JWT_SECRET}
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=pass
-      - POSTGRES_DB=app
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d app"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  pgdata:
 ```
 
 ## Kubernetes Deployment
