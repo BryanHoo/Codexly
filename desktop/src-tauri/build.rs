@@ -46,6 +46,8 @@ fn main() {
         "start_runtime",
         "inspect_codex_runtime",
         "install_codex_runtime",
+        // 取消可中止的目录、任务和 Git 读取需要独立命令权限。
+        "cancel_native_request",
         "get_app_info",
         "install_app_update",
         "get_runtime_performance_metrics",
@@ -110,6 +112,7 @@ fn main() {
         "remove_project",
         "reorder_projects",
         "list_project_directories",
+        "create_project_directory",
         "list_completed_tasks",
         "list_tasks",
         "search_tasks",

@@ -5,6 +5,7 @@
 - 线程订阅释放前检查是否还有排队消息；终态后的短暂 idle 不代表队列已结束。有剩余队列则返回 busy，保留 Core 自动续发能力；检查只取首项并跳过正文、附件和技能映射。
 
 - 新命令核对前端调用及输入输出类型，沿现有 `application/*_commands.rs` 和 `tauri::generate_handler!` 注册路径扩展；同时登记 `build.rs` 的 ACL 命令清单并在对应窗口权限集中显式授权。Git 远端检查、连接和推送共用 `push_project_commits`，仅授权主窗口；回归运行 `scripts/git-remote-acl.test.mjs`，验证构建清单与辅助窗口隔离。
+- `scripts/tauri-acl.test.mjs` 全量对照命令处理函数、构建清单、手写权限、前端 IPC 调用与窗口授权；生产命令必须具备 ACL 定义和实际窗口授权，终端测试命令仅在 WebView 测试配置开放。目录创建和原生请求取消仅授权主窗口；独立文件窗口允许保存预览偏好、打开 HTTP/HTTPS 外链及关闭自身，不能继承 Git 写操作或任务控制权限。
 - worktree 创建只登记 Git 工作树，不新增 Project；启动任务同时保留 `projectId` 并将 `cwd`、`runtimeWorkspaceRoots` 指向工作树。任务列表与快照返回 `workspacePath`，文件、Git 和终端访问必须校验工作树归属。
 - 数据存储、定时任务、诊断日志等修改检查相邻 Rust 测试；持续遵守 `desktop/AGENTS.md` 的性能约束。
 - 任务标题与 Web 端共用 `packages/provider-codex/src/task-title-instructions.json`，编译时嵌入。仅共用 Git 提交模型，不能共用提交提示词；辅助会话关闭项目文档加载，并使用专用基础指令与开发者指令防止全局 `AGENTS.md` 将标题变为提交格式。回归执行 Rust `task_title` 测试。

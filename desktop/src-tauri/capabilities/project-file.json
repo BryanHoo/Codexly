@@ -3,5 +3,11 @@
   "identifier": "project-file",
   "description": "Minimum capability set for independent project file windows",
   "windows": ["project-file-*"],
-  "permissions": ["project-file-window-commands"]
+  "permissions": [
+    "project-file-window-commands",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "http://*" }, { "url": "https://*" }]
+    }
+  ]
 }

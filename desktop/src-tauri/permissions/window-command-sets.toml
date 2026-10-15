@@ -23,6 +23,7 @@ permissions = [
   "allow-start-runtime",
   "allow-inspect-codex-runtime",
   "allow-install-codex-runtime",
+  "allow-cancel-native-request",
   "allow-get-app-info",
   "allow-install-app-update",
   "allow-get-runtime-performance-metrics",
@@ -79,6 +80,7 @@ permissions = [
   "allow-remove-project",
   "allow-reorder-projects",
   "allow-list-project-directories",
+  "allow-create-project-directory",
   "allow-list-completed-tasks",
   "allow-list-tasks",
   "allow-search-tasks",
@@ -155,6 +157,8 @@ identifier = "project-file-window-commands"
 description = "Allows project file windows to preview and edit scoped project text files."
 permissions = [
   "allow-initialize-app-storage",
+  # 独立文件窗口的 Markdown 预览切换沿用共享偏好存储，需要允许持久化。
+  "allow-update-app-preferences",
   "allow-record-frontend-diagnostic",
   "allow-read-project-source-file",
   "allow-read-project-text-file",
