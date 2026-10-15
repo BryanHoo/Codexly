@@ -227,8 +227,7 @@
   font-size: var(--ui-font-size-body-small);
   outline: none;
 }
-.scheduled-task-fields input:focus,
-.scheduled-task-fields select:focus {
+.scheduled-task-fields input:focus {
   box-shadow: var(--ui-shadow-focus);
 }
 /* 控件按内容收窄，长项目名限制宽度。 */

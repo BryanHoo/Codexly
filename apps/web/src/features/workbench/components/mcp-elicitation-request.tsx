@@ -146,7 +146,7 @@ function McpFormField({
         </label>
         <FieldDescription field={field} />
         <select
-          className="mt-2 h-11 w-full rounded-control border border-separator-strong bg-raised px-2.5 text-label text-foreground outline-none focus-visible:border-brand focus-visible:shadow-focus workbench:h-8"
+          className="mt-2 h-11 w-full rounded-control border border-separator-strong bg-raised px-2.5 text-label text-foreground outline-none hover:bg-control-hover workbench:h-8"
           disabled={disabled}
           id={controlId}
           onChange={(event) => {

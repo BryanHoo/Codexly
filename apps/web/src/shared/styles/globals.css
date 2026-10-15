@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "streamdown/styles.css";
 @import "@codexly/ui/agent/streaming-markdown.css";
+@import "@codexly/ui/core/focus.css";
 @import "./touch-controls.css";
 /* 构建时扫描工作区共享控件中的 Tailwind 类。 */
 @source "../../../../../packages/ui/src";
@@ -356,21 +357,6 @@ body {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
-}
-
-:focus-visible {
-  outline: 2px solid var(--ui-color-focus);
-  outline-offset: 2px;
-}
-
-/* 配对表单由外层 focus-within 绘制焦点，输入框自身不叠加全局轮廓。 */
-.access-code-input:focus-visible {
-  outline: none;
-}
-
-/* Composer 以整体外框表达焦点，内部输入与工具控件不再重复绘制主色轮廓。 */
-[data-prompt-input] :focus-visible {
-  outline: none;
 }
 
 ::selection {

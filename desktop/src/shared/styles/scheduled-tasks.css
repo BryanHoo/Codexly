@@ -179,8 +179,7 @@
   font-size: var(--ui-font-size-body-small);
   outline: none;
 }
-.scheduled-task-fields input:focus,
-.scheduled-task-fields select:focus { box-shadow: var(--ui-shadow-focus); }
+.scheduled-task-fields input:focus { box-shadow: var(--ui-shadow-focus); }
 /* 控件按内容收窄，长项目名限制宽度。 */
 .scheduled-task-fields select {
   width: auto;
@@ -289,8 +288,7 @@
 
 .scheduled-task-date-time-picker__calendar .react-datepicker__month-select:focus,
 .scheduled-task-date-time-picker__calendar .react-datepicker__year-select:focus {
-  border-color: var(--ui-color-accent);
-  box-shadow: var(--ui-shadow-focus);
+  background-color: var(--ui-color-control-hover);
 }
 
 .scheduled-task-date-time-picker__calendar .react-datepicker__month-container {

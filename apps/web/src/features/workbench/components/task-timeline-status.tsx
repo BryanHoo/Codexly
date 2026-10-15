@@ -58,7 +58,7 @@ export function EmptyTimeline({
         />
         <h2 className="mt-5 flex flex-wrap items-center justify-center text-balance text-xl font-normal leading-tight text-foreground">
           {i18n.t("timeline.emptyBefore", { ns: "conversation" })}
-          <span className="group relative mx-1 inline-block max-w-full rounded-control focus-within:shadow-focus">
+          <span className="group relative mx-1 inline-block max-w-full rounded-control focus-within:bg-control-hover">
             {/* 三段标题由父级居中对齐；透明原生选择器覆盖名称，保留完整交互。 */}
             <span
               aria-hidden="true"

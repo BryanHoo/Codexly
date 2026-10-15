@@ -1,0 +1,44 @@
+/* 默认键盘焦点放在基础层，让组件的 outline-none 生效，避免与输入框自身的焦点外框叠加。 */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--ui-color-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* 菜单触发器可能通过 asChild 复用 Button，按语义统一去掉它继承的聚焦光圈。
+   排除可编辑的组合框，让搜索输入仍使用输入框自己的焦点样式。 */
+:is([aria-haspopup="menu"], [aria-haspopup="listbox"], select):not(
+    input,
+    textarea,
+    [contenteditable="true"]
+  ):focus {
+  outline: none;
+  box-shadow: none;
+}
+
+:is([aria-haspopup="menu"], [aria-haspopup="listbox"], select):not(
+    input,
+    textarea,
+    [contenteditable="true"]
+  ):focus-visible {
+  background-color: var(--ui-color-control-hover);
+}
+
+/* 弹层自身只保留浮层阴影，接收焦点时不再新增轮廓。 */
+:is([role="menu"], [role="listbox"]):focus {
+  outline: none;
+}
+
+/* Radix 悬停菜单项时也会转移焦点；指针与键盘导航统一用背景表达当前项。 */
+:is([role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"]):focus {
+  outline: none;
+  box-shadow: none;
+  background-color: var(--ui-color-control-hover);
+}
+
+/* 组合输入由外壳绘制焦点，内部编辑区和工具控件不再叠加全局轮廓。 */
+.access-code-input:focus-visible,
+[data-prompt-input] :focus-visible {
+  outline: none;
+}

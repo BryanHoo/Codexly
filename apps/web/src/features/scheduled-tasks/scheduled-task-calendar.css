@@ -96,8 +96,7 @@
 
 .scheduled-task-calendar .react-datepicker__month-select:focus,
 .scheduled-task-calendar .react-datepicker__year-select:focus {
-  border-color: var(--ui-color-accent);
-  box-shadow: var(--ui-shadow-focus);
+  background-color: var(--ui-color-control-hover);
 }
 
 .scheduled-task-calendar .react-datepicker__month-container {

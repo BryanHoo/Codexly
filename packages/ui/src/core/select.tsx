@@ -32,7 +32,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "flex w-fit items-center justify-between gap-2 whitespace-nowrap rounded-control border border-separator-strong bg-panel px-3 py-2 text-label outline-none transition-colors focus:border-brand focus:shadow-focus disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:text-muted-foreground [&_svg:not([class*='size-'])]:size-4",
+        "flex w-fit items-center justify-between gap-2 whitespace-nowrap rounded-control border border-separator-strong bg-panel px-3 py-2 text-label outline-none transition-colors hover:bg-control-hover disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:text-muted-foreground [&_svg:not([class*='size-'])]:size-4",
         // 紧凑工具栏同时约束触发器与全部内嵌图标，避免 Lucide 回退到默认 24px。
         size === "toolbar" && "h-6 gap-1 px-1 text-caption [&_svg:not([class*='size-'])]:size-3",
         className,
