@@ -75,6 +75,9 @@ pub async fn update_global_settings(
                 } else {
                     "default"
                 })
+            } else if *field == "reasoningEffort" && settings[*field] == "" {
+                // 目录没有声明能力时清除覆盖，不能把空字符串作为原生推理档位写入。
+                Value::Null
             } else {
                 settings[*field].clone()
             };

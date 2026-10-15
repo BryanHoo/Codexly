@@ -3,7 +3,7 @@ import type {
   ConfigureCustomProviderRequest,
   ConfigureCustomProviderResponse,
 } from "@codexly/protocol";
-import { CUSTOM_MODEL_REASONING_FALLBACK, normalizeCustomModelReasoning } from "@codexly/core";
+import { normalizeCustomModelReasoning } from "@codexly/core";
 
 export type CustomModelDefinition = Readonly<{
   inputModalities?: AgentModel["inputModalities"];
@@ -154,19 +154,14 @@ export function mapCustomModels(
   }
 
   const data: AgentModel[] = orderedModels.map((model, index) => {
-    const supportedReasoningEfforts =
-      model.supportedReasoningEfforts === undefined || model.supportedReasoningEfforts.length === 0
-        ? CUSTOM_MODEL_REASONING_FALLBACK.map((effort) => ({ ...effort }))
-        : model.supportedReasoningEfforts;
+    const supportedReasoningEfforts = model.supportedReasoningEfforts ?? [];
     const defaultReasoningEffort =
       model.defaultReasoningEffort !== undefined &&
       supportedReasoningEfforts.some((effort) => effort.id === model.defaultReasoningEffort)
         ? model.defaultReasoningEffort
         : (supportedReasoningEfforts.find((effort) => effort.id === "medium")?.id ??
-          supportedReasoningEfforts[0]?.id);
-    if (defaultReasoningEffort === undefined) {
-      throw new CodexProviderConnectionError("Custom model has no reasoning effort");
-    }
+          supportedReasoningEfforts[0]?.id ??
+          "");
     return {
       defaultReasoningEffort,
       description: "",

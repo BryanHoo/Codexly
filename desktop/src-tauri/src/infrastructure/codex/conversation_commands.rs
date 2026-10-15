@@ -129,7 +129,7 @@ struct TurnStartParams<'a> {
     approval_policy: &'a Value,
     approvals_reviewer: &'a str,
     collaboration_mode: Value,
-    effort: &'a str,
+    effort: Option<&'a str>,
     input: Vec<Value>,
     model: &'a str,
     sandbox_policy: Value,
@@ -144,7 +144,7 @@ struct ThreadSettingsUpdateParams<'a> {
     approval_policy: &'a Value,
     approvals_reviewer: &'a str,
     collaboration_mode: Value,
-    effort: &'a str,
+    effort: Option<&'a str>,
     model: &'a str,
     sandbox_policy: Value,
     service_tier: Option<Option<&'static str>>,
@@ -285,7 +285,7 @@ pub async fn start_turn(
                 approval_policy: &options.approval_policy,
                 approvals_reviewer: map_approvals_reviewer(&options.approvals_reviewer)?,
                 collaboration_mode: collaboration_mode(&options),
-                effort: &options.reasoning_effort,
+                effort: reasoning_effort(&options.reasoning_effort),
                 input: map_prompt_input(&input)?,
                 model: &options.model,
                 sandbox_policy: sandbox_policy(&options.sandbox_mode)?,
@@ -348,7 +348,7 @@ pub async fn update_thread_settings(
                 approval_policy: &options.approval_policy,
                 approvals_reviewer: map_approvals_reviewer(&options.approvals_reviewer)?,
                 collaboration_mode: collaboration_mode(options),
-                effort: &options.reasoning_effort,
+                effort: reasoning_effort(&options.reasoning_effort),
                 model: &options.model,
                 sandbox_policy: sandbox_policy(&options.sandbox_mode)?,
                 service_tier: Some(options.fast_mode.then_some("fast")),
@@ -448,7 +448,7 @@ fn collaboration_mode(options: &AgentTurnOptions) -> Value {
         "settings": {
             "developer_instructions": null,
             "model": options.model,
-            "reasoning_effort": options.reasoning_effort,
+            "reasoning_effort": reasoning_effort(&options.reasoning_effort),
         }
     })
 }
@@ -466,4 +466,9 @@ fn sandbox_policy(mode: &str) -> Result<Value, ConnectionError> {
         })),
         _ => Err(ConnectionError::InvalidMessage),
     }
+}
+
+/// 空字符串表示目录未声明推理能力；传递 null，交由原生 Provider 使用自身默认值。
+pub(super) fn reasoning_effort(value: &str) -> Option<&str> {
+    (!value.is_empty()).then_some(value)
 }

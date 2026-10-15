@@ -34,15 +34,15 @@ function repository(
 }
 
 describe("resolveReconnectModels", () => {
-  it("provides the matching cache as the last fallback and normalizes reasoning", async () => {
+  it("provides the matching cache as the last fallback and preserves reasoning", async () => {
     await expect(
       resolveReconnectModels({ baseUrl: "https://api.example.com/v1/" }, repository()),
     ).resolves.toMatchObject({
       data: [
         {
           id: "cached-model",
-          defaultReasoningEffort: "medium",
-          supportedReasoningEfforts: [{ id: "low" }, { id: "medium" }, { id: "high" }],
+          defaultReasoningEffort: "none",
+          supportedReasoningEfforts: [{ id: "none" }],
         },
       ],
     });

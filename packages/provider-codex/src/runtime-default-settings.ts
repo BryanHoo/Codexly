@@ -21,7 +21,14 @@ export async function writeRuntimeDefaultSettings(
     .map((key) => ({
       keyPath: fields[key],
       // default 显式关闭快速档位；不删除键，避免重新继承模型的默认档位。
-      value: key === "fastMode" ? (settings.fastMode ? "priority" : "default") : settings[key],
+      value:
+        key === "fastMode"
+          ? settings.fastMode
+            ? "priority"
+            : "default"
+          : key === "reasoningEffort" && settings.reasoningEffort === ""
+            ? null
+            : settings[key],
       mergeStrategy: "replace",
     }));
   if (edits.length === 0) return;

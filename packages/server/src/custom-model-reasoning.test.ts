@@ -53,7 +53,7 @@ function createProvider(mode: "custom" | "official", listModels: () => Promise<A
 }
 
 describe("custom model reasoning fallback", () => {
-  it("normalizes online custom models and persists the normalized catalog", async () => {
+  it("preserves online custom capabilities and persists them unchanged", async () => {
     const repository = createRepository();
     const load = createModelCatalogLoader(
       createProvider("custom", () => Promise.resolve(createNoneOnlyPage())),
@@ -63,8 +63,8 @@ describe("custom model reasoning fallback", () => {
     const result = await load();
 
     expect(result.data[0]).toMatchObject({
-      defaultReasoningEffort: "medium",
-      supportedReasoningEfforts: [{ id: "low" }, { id: "medium" }, { id: "high" }],
+      defaultReasoningEffort: "none",
+      supportedReasoningEfforts: [{ id: "none" }],
     });
     expect(repository.writeProviderConnection).toHaveBeenCalledWith(
       expect.objectContaining({ customModels: result }),
@@ -79,7 +79,7 @@ describe("custom model reasoning fallback", () => {
     );
 
     await expect(load()).resolves.toMatchObject({
-      data: [{ id: "gpt-6-sol", defaultReasoningEffort: "medium" }],
+      data: [{ id: "gpt-6-sol", defaultReasoningEffort: "none" }],
     });
     expect(repository.readProviderConnection).toHaveBeenCalledOnce();
     expect(repository.writeProviderConnection).not.toHaveBeenCalled();

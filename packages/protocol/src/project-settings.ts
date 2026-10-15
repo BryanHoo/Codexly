@@ -74,7 +74,8 @@ export type AgentSandboxMode = Readonly<Static<typeof AgentSandboxModeSchema>>;
 
 const AgentTaskSettingProperties = {
   model: Type.String({ minLength: 1 }),
-  reasoningEffort: Type.String({ minLength: 1 }),
+  // 空字符串表示沿用 Provider 默认值；显式 none 仍表示关闭推理。
+  reasoningEffort: Type.String(),
   sandboxMode: AgentSandboxModeSchema,
 };
 
@@ -204,13 +205,14 @@ export type AgentReasoningEffortOption = Readonly<Static<typeof AgentReasoningEf
 
 export const AgentModelSchema = Type.Object(
   {
-    defaultReasoningEffort: Type.String({ minLength: 1 }),
+    // 未声明能力时为空，supportedReasoningEfforts 同时为空数组。
+    defaultReasoningEffort: Type.String(),
     description: Type.String(),
     displayName: Type.String({ minLength: 1 }),
     id: Type.String({ minLength: 1 }),
     inputModalities: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { maxItems: 16 })),
     isDefault: Type.Boolean(),
-    supportedReasoningEfforts: Type.Array(AgentReasoningEffortOptionSchema, { minItems: 1 }),
+    supportedReasoningEfforts: Type.Array(AgentReasoningEffortOptionSchema),
   },
   { additionalProperties: false },
 );

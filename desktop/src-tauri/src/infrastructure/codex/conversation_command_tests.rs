@@ -314,3 +314,48 @@ fn native_task(id: &str) -> Value {
 fn native_turn(id: &str) -> Value {
     json!({"id": id, "status": "inProgress", "startedAt": 1735689600, "completedAt": null, "error": null, "items": []})
 }
+
+#[tokio::test]
+async fn unknown_reasoning_should_send_null_instead_of_an_invented_effort() {
+    let (client, server) = duplex(4096);
+    let (reader, writer) = split(client);
+    let connection = AppServerConnection::new(reader, writer);
+    let (reader, mut writer) = split(server);
+    let server_task = tokio::spawn(async move {
+        let mut lines = BufReader::new(reader).lines();
+        for method in ["thread/resume", "turn/start"] {
+            let request: Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert_eq!(request["method"], method);
+            let result = if method == "thread/resume" {
+                json!({"thread":{"id":"thread-a","projectId":"project-a"}})
+            } else {
+                assert_eq!(request["params"]["effort"], Value::Null);
+                assert_eq!(
+                    request["params"]["collaborationMode"]["settings"]["reasoning_effort"],
+                    Value::Null
+                );
+                json!({"turn":{"id":"turn-a","status":"inProgress","items":[],"error":null}})
+            };
+            writer
+                .write_all(format!("{}\n", json!({"id":request["id"],"result":result})).as_bytes())
+                .await
+                .unwrap();
+        }
+    });
+    let options = AgentTurnOptions {
+        reasoning_effort: String::new(),
+        ..AgentTurnOptions::default()
+    };
+    start_turn(
+        &connection,
+        "project-a".into(),
+        "thread-a".into(),
+        AgentPromptInput::text("测试"),
+        options,
+        &serde_json::from_value(json!({"webSearch": "live", "modelVerbosity": null})).unwrap(),
+    )
+    .await
+    .unwrap();
+    server_task.await.unwrap();
+}

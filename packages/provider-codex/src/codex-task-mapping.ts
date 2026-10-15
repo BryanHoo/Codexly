@@ -152,13 +152,13 @@ export function mapAgentModel(value: unknown): AgentModelPage["data"][number] | 
     "Codex model default reasoning effort",
   );
   if (
-    supportedReasoningEfforts.length === 0 ||
+    supportedReasoningEfforts.length > 0 &&
     !supportedReasoningEfforts.some((option) => option.id === defaultReasoningEffort)
   ) {
     throw new CodexProtocolMappingError("Codex model default reasoning effort is unsupported");
   }
   return {
-    defaultReasoningEffort,
+    defaultReasoningEffort: supportedReasoningEfforts.length === 0 ? "" : defaultReasoningEffort,
     description: expectString(model["description"], "Codex model description"),
     displayName: expectString(model["displayName"], "Codex model displayName"),
     id: expectString(model["model"], "Codex model model"),

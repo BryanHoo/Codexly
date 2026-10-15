@@ -18,7 +18,7 @@
 - Git `worktree list --porcelain` 返回的路径先通过 `node:path.resolve` 规范化，再传递给服务层或与文件系统路径比较；在 Windows 上用真实 Git worktree 测试覆盖斜杠差异。
 - 运行 `pnpm test`、`pnpm typecheck`、`pnpm lint:architecture`；完整门槛为 `pnpm check`。
 
-- 自定义模型目录按“自定义 API → 当前配置的官方 Codex CLI model/list → 同端点持久化缓存”顺序读取；每层失败、空目录或无可用模型时继续下一层，三层均无模型才返回不可用。只有非空成功目录可以更新缓存，重新连接不清除同端点成功快照；切换端点不得复用旧端点的凭据或模型。保留有界 TTL 缓存、请求合并及响应大小/超时限制，不增加轮询；API 成功不启动额外目录进程。两端用 `packages/provider-codex/src/custom-model-catalog-fixtures.json` 验证 OpenAI/Codex 格式、推理能力与输入模态，回归覆盖优先级、失败/空目录、身份隔离和缓存持久化。
+- 模型目录以当前配置的官方 Codex `model/list` 为能力来源，保留模型可见性、默认值与完整思考档位。官方账号只走原生目录；自定义 API 才允许按“原生目录 → 兼容 API → 同端点持久化缓存”回退，不能从旧官方账号或其他端点借用能力。保留独立 `model_catalog_url`，不要强制改写为推理地址的 `/models`。只有非空成功目录更新缓存；保留有界 TTL、请求合并、大小/超时限制，不增加轮询或逐模型请求。无元数据时档位为空、默认值为空字符串，执行时转换为 null；显式 `none` 与未来自定义档位原样保留。两端共用 `packages/provider-codex/src/custom-model-catalog-fixtures.json`，验证完整档位、缺失能力、账号隔离、目录地址与缓存回退；详见[模型与思考强度](../../../../docs/model-discovery.md)。
 
 - `POST /v1/history/compress` 接受空对象并要求幂等键，通过 Runtime Provider 的 `historyStorage` 提交维护请求；不可用返回 503，上游失败返回 502，不扫描或传输历史内容。
 

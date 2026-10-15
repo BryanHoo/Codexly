@@ -73,7 +73,7 @@ async fn all_layers_unavailable_should_reject_empty_corrupt_or_mismatched_cache(
 }
 
 #[tokio::test]
-async fn custom_http_catalog_should_be_used_before_cli() {
+async fn custom_http_catalog_should_be_used_after_empty_cli() {
     let root = tempfile::tempdir().unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base_url = format!("http://{}", listener.local_addr().unwrap());
@@ -126,8 +126,8 @@ async fn custom_http_catalog_should_be_used_before_cli() {
     .unwrap();
     assert_eq!(result["data"][0]["id"], "api-model");
     assert!(
-        !rpc_task.await.unwrap(),
-        "a successful API must not query the CLI"
+        rpc_task.await.unwrap(),
+        "the native catalog must be queried before the plain API"
     );
     api_task.await.unwrap();
 }

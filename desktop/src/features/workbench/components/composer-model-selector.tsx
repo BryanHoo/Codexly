@@ -149,7 +149,8 @@ export function ComposerModelSelector({
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
-      <DropdownMenu>
+      {/* 未声明推理能力时不显示空菜单，模型仍可正常发送。 */}
+      {selectedModel?.supportedReasoningEfforts.length ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <ComposerModelSelectorTrigger
             accessibleLabel={t("composer.reasonEffortSelectCurrent", { effort: effortLabel })}
@@ -168,7 +169,7 @@ export function ComposerModelSelector({
             onValueChange={selectReasoningEffort}
             {...(selectedReasoningEffort === undefined ? {} : { value: selectedReasoningEffort })}
           >
-            {selectedModel?.supportedReasoningEfforts.map((option) => (
+            {selectedModel.supportedReasoningEfforts.map((option) => (
               <DropdownMenuRadioItem indicator="check" key={option.id} value={option.id}>
                 <span className="min-w-0 truncate">
                   {t(`settings:effort.${option.id}`, { defaultValue: option.id })}
@@ -177,7 +178,7 @@ export function ComposerModelSelector({
             ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu> : null}
     </>
   );
 }

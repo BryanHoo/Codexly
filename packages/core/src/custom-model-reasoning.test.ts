@@ -20,20 +20,19 @@ function createModelPage(): AgentModelPage {
 }
 
 describe("normalizeCustomModelReasoning", () => {
-  it("replaces a missing custom reasoning catalog with low, medium, and high", () => {
-    expect(normalizeCustomModelReasoning(createModelPage())).toEqual({
-      data: [
-        expect.objectContaining({
-          defaultReasoningEffort: "medium",
-          id: "gpt-6-sol",
-          supportedReasoningEfforts: [
-            { description: "", id: "low" },
-            { description: "", id: "medium" },
-            { description: "", id: "high" },
-          ],
-        }),
-      ],
-      nextCursor: null,
+  it("preserves explicit none without inventing reasoning support", () => {
+    const page = createModelPage();
+    expect(normalizeCustomModelReasoning(page)).toBe(page);
+  });
+
+  it("clears the default when reasoning capabilities are unknown", () => {
+    const page = createModelPage();
+    const model = page.data[0];
+    if (model === undefined) throw new Error("Missing model fixture");
+    const unknown = { ...page, data: [{ ...model, supportedReasoningEfforts: [] }] };
+    expect(normalizeCustomModelReasoning(unknown).data[0]).toMatchObject({
+      defaultReasoningEffort: "",
+      supportedReasoningEfforts: [],
     });
   });
 

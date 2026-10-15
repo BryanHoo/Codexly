@@ -154,7 +154,7 @@ async fn current_custom_provider_should_suppress_existing_warning() {
                         "model_provider": "relay",
                         "model_providers": {"relay": {
                             "base_url": "https://relay.example/v1",
-                            "model_catalog_url": "https://relay.example/v1/models"
+                            "model_catalog_url": "https://relay.example/codex/catalog.json"
                         }},
                         "features": {}
                     }}})

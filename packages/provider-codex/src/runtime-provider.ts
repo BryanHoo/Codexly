@@ -48,6 +48,7 @@ import type { CodexRpcClient, CreateCodexRuntimeProviderOptions } from "./agent-
 import { DEFAULT_PROVIDER_LOGGER, type CodexProviderLogger } from "./agent-provider-logger.js";
 import { readReviewWorkerThread, readTaskId } from "./agent-provider-notifications.js";
 import { CodexProviderConnectionService } from "./provider-connection.js";
+import { configureRuntimeModelCatalog } from "./runtime-model-catalog.js";
 import { readActiveProvider } from "./provider-connection-config.js";
 import { CodexRuntimeProjectProvider } from "./runtime-project-provider.js";
 import { CodexFuzzyFileSearchService } from "./fuzzy-file-search.js";
@@ -206,23 +207,12 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     input: ConfigureCustomProviderRequest,
     fallbackModels?: AgentModelCatalogFallback,
   ): Promise<ConfigureCustomProviderResponse> {
-    return this.#providerConnection.configureCustom(input, async () => {
-      // 重新连接也保持 API → CLI → 缓存的顺序，后两层仅在前层不可用时执行。
-      try {
-        const current = readActiveProvider(await this.#providerConnection.readConfig());
-        const sameEndpoint =
-          current.mode === "official" ||
-          current.customBaseUrl?.trim().replace(/\/+$/u, "") ===
-            input.baseUrl.trim().replace(/\/+$/u, "");
-        if (sameEndpoint) {
-          const models = await this.#listCliModels();
-          if (models.data.length > 0) return models;
-        }
-      } catch {
-        /* CLI 不可用时继续第三层。 */
-      }
-      return typeof fallbackModels === "function" ? fallbackModels() : fallbackModels;
-    });
+    return configureRuntimeModelCatalog(
+      this.#providerConnection,
+      input,
+      () => this.#listCliModels(),
+      fallbackModels,
+    );
   }
 
   public forProject(project: Project): AgentProvider {
@@ -294,18 +284,21 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
   }
 
   public async listModels(): Promise<AgentModelPage> {
+    const config = await this.#providerConnection.readConfig();
+    // 原生目录负责账号权限、Provider 路由、隐藏模型和完整能力，不能被普通 /models 覆盖。
+    if (readActiveProvider(config).mode === "official") return this.#listCliModels();
     try {
-      // 首层直接读取自定义 API；成功后无需额外启动 App Server。
-      const discovered = await this.#providerConnection.discoverCurrentModels();
-      if (discovered !== null && discovered.data.length > 0) return discovered;
+      const models = await this.#listCliModels();
+      if (models.data.length > 0) return models;
     } catch {
-      // 网络失败、无权限、无效或空目录均继续尝试官方 CLI；认证值不能写入诊断。
       this.#logger.warn(
-        { diagnosticCode: "custom_model_discovery_fallback" },
-        "Custom model discovery unavailable; trying Codex CLI",
+        { diagnosticCode: "native_model_catalog_fallback" },
+        "Codex model catalog unavailable; trying custom API",
       );
     }
-    return this.#listCliModels();
+    const discovered = await this.#providerConnection.discoverCurrentModels();
+    if (discovered !== null && discovered.data.length > 0) return discovered;
+    throw new CodexProtocolMappingError("No Agent models are available");
   }
 
   async #listCliModels(): Promise<AgentModelPage> {
@@ -315,7 +308,7 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
       > | null = null;
       try {
         await this.#providerConnection.prepareModelCatalog();
-        // 第二层读取最新配置的 CLI 目录；失败由 Server 继续查同端点缓存。
+        // 使用最新配置创建目录管理器，失败后才尝试自定义 API 和同端点缓存。
         // 独立进程按磁盘上的最新 Provider 配置构建模型管理器，避免切换后复用旧端点。
         catalogRuntime = await this.#modelCatalogRuntimeFactory();
         return await this.#listModelsWithClient(catalogRuntime.client);

@@ -181,3 +181,22 @@ describe("Codex provider model catalog configuration", () => {
     expect(client.requests).toEqual([{ method: "config/read", params: { includeLayers: false } }]);
   });
 });
+
+it("preserves a separate native catalog URL during preparation and reconnect", async () => {
+  const config = {
+    model_provider: "relay",
+    suppress_unstable_features_warning: true,
+    model_providers: {
+      relay: {
+        base_url: "https://api.example.com/v1",
+        model_catalog_url: "https://api.example.com/codex/models.json",
+        requires_openai_auth: false,
+      },
+    },
+  };
+  const client = new FakeRpcClient();
+  client.enqueue("config/read", { config });
+  const service = new CodexProviderConnectionService(client);
+  await service.prepareModelCatalog();
+  expect(client.requests).toEqual([{ method: "config/read", params: { includeLayers: false } }]);
+});

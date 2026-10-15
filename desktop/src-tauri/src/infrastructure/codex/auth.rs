@@ -67,14 +67,13 @@ where
     if provider_mode(&config) == "custom" {
         let provider_id = selected_provider_id(&config);
         if let Some(base_url) = configured_custom_base_url(&config) {
-            // 严格按 API、CLI、同端点缓存顺序查询；只有非空成功结果才更新缓存。
-            let api =
-                super::custom_model_catalog::discover(&config, provider_id, base_url, codex_home)
-                    .await;
-            let live = if api.as_ref().is_ok_and(model_page_has_data) {
-                api
+            // 原生 model/list 解析当前账号与 Provider 的完整目录；普通 /models 只作为兼容回退。
+            let cli = load_cli().await;
+            let live = if cli.as_ref().is_ok_and(model_page_has_data) {
+                cli
             } else {
-                load_cli().await
+                super::custom_model_catalog::discover(&config, provider_id, base_url, codex_home)
+                    .await
             };
             let cli_error = match live {
                 Ok(mut models) if model_page_has_data(&models) => {
@@ -116,24 +115,14 @@ fn normalize_custom_reasoning(models: &mut Value) {
         return;
     };
     for model in data {
-        let has_reasoning = model
+        if model
             .get("supportedReasoningEfforts")
             .and_then(Value::as_array)
-            .is_some_and(|efforts| {
-                efforts.iter().any(|effort| {
-                    effort
-                        .get("id")
-                        .and_then(Value::as_str)
-                        .is_some_and(|id| id != "none")
-                })
-            });
-        if !has_reasoning {
-            model["defaultReasoningEffort"] = json!("medium");
-            model["supportedReasoningEfforts"] = json!([
-                {"description": "Low", "id": "low"},
-                {"description": "Medium", "id": "medium"},
-                {"description": "High", "id": "high"}
-            ]);
+            .is_none_or(Vec::is_empty)
+        {
+            // 能力缺失与显式 none 不同：不生成任何可选档位，发送时由原生端决定。
+            model["defaultReasoningEffort"] = json!("");
+            model["supportedReasoningEfforts"] = json!([]);
         }
     }
 }
@@ -161,7 +150,7 @@ pub async fn ensure_custom_model_discovery(
     } else if config
         .pointer(&format!("/model_providers/{provider_id}/model_catalog_url"))
         .and_then(Value::as_str)
-        != Some(catalog_url.as_str())
+        .is_none_or(|url| url.trim().is_empty())
     {
         edits.push(edit(
             &format!("model_providers.{provider_id}.model_catalog_url"),
@@ -330,7 +319,16 @@ pub async fn configure_custom_provider(
             .and_then(|provider| provider.get("name"))
             .and_then(non_empty_string)
             .unwrap_or(provider_id);
-        let provider = custom_provider_config(provider_name, base_url);
+        let mut provider = custom_provider_config(provider_name, base_url);
+        // 重连同一端点保留用户的独立目录；切换端点不沿用旧目录或其认证路由。
+        if configured_custom_base_url(&config).map(|url| url.trim_end_matches('/'))
+            == Some(base_url.trim_end_matches('/'))
+            && let Some(catalog_url) = config["model_providers"][provider_id]["model_catalog_url"]
+                .as_str()
+                .filter(|url| !url.trim().is_empty())
+        {
+            provider["model_catalog_url"] = json!(catalog_url);
+        }
         vec![edit(&format!("model_providers.{provider_id}"), provider)]
     };
     edits.push(edit("desktop.codeagent.provider", Value::Null));
@@ -402,13 +400,9 @@ fn map_custom_models(value: Option<&Value>) -> Result<Value, ConnectionError> {
             return Err(ConnectionError::InvalidMessage);
         }
         data.push(json!({
-            "defaultReasoningEffort": "medium", "description": "Custom provider model",
+            "defaultReasoningEffort": "", "description": "Custom provider model",
             "displayName": name, "id": id, "isDefault": index == 0,
-            "supportedReasoningEfforts": [
-                {"description": "Low", "id": "low"},
-                {"description": "Medium", "id": "medium"},
-                {"description": "High", "id": "high"}
-            ]
+            "supportedReasoningEfforts": []
         }));
     }
     Ok(json!({"data": data, "nextCursor": null}))

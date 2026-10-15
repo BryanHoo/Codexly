@@ -67,7 +67,7 @@ struct ThreadForkParams<'a> {
 struct ForkThreadConfig<'a> {
     #[serde(flatten)]
     base: ThreadConfig,
-    model_reasoning_effort: &'a str,
+    model_reasoning_effort: Option<&'a str>,
 }
 
 #[derive(Deserialize)]
@@ -377,7 +377,9 @@ pub async fn fork_task(
             &ThreadForkParams {
                 config: ForkThreadConfig {
                     base: thread_config(),
-                    model_reasoning_effort: &settings.reasoning_effort,
+                    model_reasoning_effort: super::conversation_commands::reasoning_effort(
+                        &settings.reasoning_effort,
+                    ),
                 },
                 model: &settings.model,
                 // 历史由分页接口加载，Fork 仅返回元数据，避免极限会话形成超大单帧。

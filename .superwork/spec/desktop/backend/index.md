@@ -17,7 +17,7 @@
 - 登录自启动开关通过 `enable_autostart` 启用、官方插件禁用和回读；启用操作在后台线程执行，Windows 补齐注册表可执行路径的引号，保留插件处理系统启动项禁用状态的能力。新命令必须进入构建 ACL 清单且仅授权主窗口。实机回归 `tests/webview/windows-autostart.spec.ts` 使用真实 IPC 和注册表，支持 `CODEAGENT_WEBVIEW_APP_BINARY` 指向含空格及中文的测试路径，结束时精确恢复原启动项；系统启动动作不等同于已验证注销后重新登录。
 - Linux 登录项遵循 Desktop Entry 的字符串、Exec 引号和 `%` 字段转义；AppImage 使用原始 AppImage 路径。GLib 在字段展开前检查可执行文件，含 `%` 的路径通过 `/usr/bin/env --` 执行，不能直接将 `%%` 路径作为程序名。原生回归 `tests/webview/linux-autostart.spec.ts` 默认接入 Linux WDIO，精确恢复原登录文件；Rust 回归使用真实 `desktop-file-validate` 和 `gio launch`，依赖 `desktop-file-utils`、`libglib2.0-bin`。登录项登记和启动器执行不能替代完整桌面注销、重新登录验收。
 
-- 自定义模型目录按“自定义 API → 当前配置的官方 Codex CLI model/list → 同端点持久化缓存”顺序读取；每层失败、空目录或无可用模型时继续下一层，三层均无模型才返回不可用。只有非空成功目录可以更新缓存，重新连接不清除同端点成功快照；切换端点不得复用旧端点的凭据或模型。保留有界 TTL 缓存、请求合并及响应大小/超时限制，不增加轮询；API 成功不启动额外目录进程。两端用 `packages/provider-codex/src/custom-model-catalog-fixtures.json` 验证 OpenAI/Codex 格式、推理能力与输入模态，回归覆盖优先级、失败/空目录、身份隔离和缓存持久化。
+- 模型目录以当前配置的官方 Codex `model/list` 为能力来源，保留模型可见性、默认值与完整思考档位。官方账号只走原生目录；自定义 API 才允许按“原生目录 → 兼容 API → 同端点持久化缓存”回退，不能从旧官方账号或其他端点借用能力。保留独立 `model_catalog_url`，不要强制改写为推理地址的 `/models`。只有非空成功目录更新缓存；保留有界 TTL、请求合并、大小/超时限制，不增加轮询或逐模型请求。无元数据时档位为空、默认值为空字符串，执行时转换为 null；显式 `none` 与未来自定义档位原样保留。两端共用 `packages/provider-codex/src/custom-model-catalog-fixtures.json`，验证完整档位、缺失能力、账号隔离、目录地址与缓存回退；详见[模型与思考强度](../../../../docs/model-discovery.md)。
 
 - 插件同步按 App Server 连接合并在途请求，弱引用避免连接与共享 Future 循环持有；请求完成、失败或取消后不复用结果。只向 WebView 传递协议字段，保留部分失败，Hooks 生命周期由 Codex 管理。
 

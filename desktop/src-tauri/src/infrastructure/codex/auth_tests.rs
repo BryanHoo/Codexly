@@ -79,14 +79,14 @@ async fn custom_provider_models_should_prefer_live_catalog_to_persisted_data() {
     assert_eq!(models["data"][0]["id"], "online-a");
     assert_eq!(
         models["data"][0]["supportedReasoningEfforts"][0]["id"],
-        "low"
+        "none"
     );
     assert_eq!(
         models["data"][0]["supportedReasoningEfforts"]
             .as_array()
             .unwrap()
             .len(),
-        3
+        1
     );
     assert_eq!(
         read_provider_models(&root, "relay", "https://relay.example/v1")

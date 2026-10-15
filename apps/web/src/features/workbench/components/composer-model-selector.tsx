@@ -143,35 +143,38 @@ export function ComposerModelSelector({
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <ComposerModelSelectorTrigger
-            accessibleLabel={t("composer.reasonEffortSelectCurrent", { effort: effortLabel })}
-            disabled={selectorDisabled || selectedReasoningEffort === undefined}
-            label={effortLabel}
-            slot="composer-reasoning-selector"
-          />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          aria-label={t("composer.reasonEffortSelect")}
-          className="w-28 min-w-0 max-w-[calc(100vw-1rem)]"
-          side="top"
-        >
-          <DropdownMenuRadioGroup
-            onValueChange={selectReasoningEffort}
-            {...(selectedReasoningEffort === undefined ? {} : { value: selectedReasoningEffort })}
+      {/* 未声明推理能力时不显示空菜单，模型仍可正常发送。 */}
+      {selectedModel?.supportedReasoningEfforts.length ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <ComposerModelSelectorTrigger
+              accessibleLabel={t("composer.reasonEffortSelectCurrent", { effort: effortLabel })}
+              disabled={selectorDisabled || selectedReasoningEffort === undefined}
+              label={effortLabel}
+              slot="composer-reasoning-selector"
+            />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            aria-label={t("composer.reasonEffortSelect")}
+            className="w-28 min-w-0 max-w-[calc(100vw-1rem)]"
+            side="top"
           >
-            {selectedModel?.supportedReasoningEfforts.map((option) => (
-              <DropdownMenuRadioItem indicator="check" key={option.id} value={option.id}>
-                <span className="min-w-0 truncate">
-                  {t(`settings:effort.${option.id}`, { defaultValue: option.id })}
-                </span>
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <DropdownMenuRadioGroup
+              onValueChange={selectReasoningEffort}
+              {...(selectedReasoningEffort === undefined ? {} : { value: selectedReasoningEffort })}
+            >
+              {selectedModel.supportedReasoningEfforts.map((option) => (
+                <DropdownMenuRadioItem indicator="check" key={option.id} value={option.id}>
+                  <span className="min-w-0 truncate">
+                    {t(`settings:effort.${option.id}`, { defaultValue: option.id })}
+                  </span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
     </>
   );
 }

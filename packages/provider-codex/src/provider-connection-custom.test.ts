@@ -406,26 +406,18 @@ describe("Codex custom provider connection", () => {
       models: {
         data: [
           {
-            defaultReasoningEffort: "medium",
+            defaultReasoningEffort: "",
             displayName: "Local Model Override",
             id: "local-model",
             isDefault: true,
-            supportedReasoningEfforts: [
-              { description: "", id: "low" },
-              { description: "", id: "medium" },
-              { description: "", id: "high" },
-            ],
+            supportedReasoningEfforts: [],
           },
           {
-            defaultReasoningEffort: "medium",
+            defaultReasoningEffort: "",
             displayName: "Other Model",
             id: "other-model",
             isDefault: false,
-            supportedReasoningEfforts: [
-              { description: "", id: "low" },
-              { description: "", id: "medium" },
-              { description: "", id: "high" },
-            ],
+            supportedReasoningEfforts: [],
           },
         ],
       },
@@ -433,7 +425,7 @@ describe("Codex custom provider connection", () => {
     });
   });
 
-  it("uses baseline reasoning levels for standard OpenAI model catalogs", async () => {
+  it("keeps missing reasoning metadata unknown in standard OpenAI catalogs", async () => {
     const client = new FakeRpcClient();
     client.enqueue("config/batchWrite", {});
     client.enqueue("modelProvider/capabilities/read", {
@@ -462,13 +454,9 @@ describe("Codex custom provider connection", () => {
       models: {
         data: [
           {
-            defaultReasoningEffort: "medium",
+            defaultReasoningEffort: "",
             id: "plain-model",
-            supportedReasoningEfforts: [
-              { description: "", id: "low" },
-              { description: "", id: "medium" },
-              { description: "", id: "high" },
-            ],
+            supportedReasoningEfforts: [],
           },
         ],
       },

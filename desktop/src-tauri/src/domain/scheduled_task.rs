@@ -126,7 +126,7 @@ impl AgentTaskSettingsView<'_> {
         approval_valid
             && matches!(self.approvals_reviewer, "user" | "auto_review")
             && !self.model.trim().is_empty()
-            && !self.reasoning_effort.trim().is_empty()
+            && (self.reasoning_effort.is_empty() || !self.reasoning_effort.trim().is_empty())
             && matches!(
                 self.sandbox_mode,
                 "read-only" | "workspace-write" | "danger-full-access"

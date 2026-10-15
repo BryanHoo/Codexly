@@ -11,23 +11,10 @@ describe("mapCustomModels", () => {
   it.each(fixtures)("maps the shared catalog contract: $name", ({ response, expected }) => {
     expect(mapCustomModels(readDiscoveredModels(response, 1000), 1000)).toEqual(expected);
   });
-  it("adds the default reasoning levels when a standard catalog omits metadata", () => {
-    expect(mapCustomModels([{ id: "gpt-6-sol", name: "GPT-6 Sol" }], 100)).toEqual({
-      data: [
-        {
-          defaultReasoningEffort: "medium",
-          description: "",
-          displayName: "GPT-6 Sol",
-          id: "gpt-6-sol",
-          isDefault: true,
-          supportedReasoningEfforts: [
-            { description: "", id: "low" },
-            { description: "", id: "medium" },
-            { description: "", id: "high" },
-          ],
-        },
-      ],
-      nextCursor: null,
+  it("does not invent reasoning capabilities for a plain model ID", () => {
+    expect(mapCustomModels([{ id: "custom-model", name: "Custom" }], 100).data[0]).toMatchObject({
+      defaultReasoningEffort: "",
+      supportedReasoningEfforts: [],
     });
   });
 });

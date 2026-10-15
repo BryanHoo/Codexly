@@ -15,7 +15,7 @@ const MAX_BYTES: usize = 1024 * 1024;
 const MAX_MODELS: usize = 1000;
 static CLIENT: OnceLock<Result<Client, reqwest::Error>> = OnceLock::new();
 
-/// 第一层直接查询自定义 API，兼容标准 OpenAI 目录和 Codex 元数据目录。
+/// 原生目录不可用时查询兼容 API；仅保留端点实际声明的模型能力。
 pub(super) async fn discover(
     config: &Value,
     provider_id: &str,
@@ -183,10 +183,6 @@ fn map_catalog(value: &Value) -> Result<Value, ProviderError> {
                 }
                 continue;
             }
-            efforts = ["low", "medium", "high"]
-                .iter()
-                .map(|id| json!({"id":id,"description":""}))
-                .collect();
         }
         let advertised_default = model["default_reasoning_level"]
             .as_str()
@@ -196,10 +192,11 @@ fn map_catalog(value: &Value) -> Result<Value, ProviderError> {
             .find(|value| value["id"] == advertised_default)
             .or_else(|| efforts.iter().find(|value| value["id"] == "medium"))
             .or_else(|| efforts.first())
-            .ok_or(ProviderError::Unavailable)?;
+            .and_then(|effort| effort["id"].as_str())
+            .unwrap_or_default();
         let mut mapped = json!({
             "id": id, "displayName": name, "description": "", "isDefault": false,
-            "defaultReasoningEffort": default["id"], "supportedReasoningEfforts": efforts,
+            "defaultReasoningEffort": default, "supportedReasoningEfforts": efforts,
         });
         if !modalities.is_empty() {
             mapped["inputModalities"] = json!(modalities);

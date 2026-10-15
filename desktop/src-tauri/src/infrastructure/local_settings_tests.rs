@@ -243,3 +243,10 @@ async fn stored_settings_should_reject_arrays_in_object_fields() {
     }
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn unknown_reasoning_should_allow_provider_defaults_in_saved_settings() {
+    let mut settings = default_global_settings();
+    settings["reasoningEffort"] = json!("");
+    assert!(super::local_settings::validate_global_settings(&settings).is_ok());
+}

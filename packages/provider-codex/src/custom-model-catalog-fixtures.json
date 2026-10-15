@@ -16,21 +16,8 @@
           "displayName": "Standard Model",
           "description": "",
           "isDefault": true,
-          "defaultReasoningEffort": "medium",
-          "supportedReasoningEfforts": [
-            {
-              "id": "low",
-              "description": ""
-            },
-            {
-              "id": "medium",
-              "description": ""
-            },
-            {
-              "id": "high",
-              "description": ""
-            }
-          ]
+          "defaultReasoningEffort": "",
+          "supportedReasoningEfforts": []
         }
       ],
       "nextCursor": null
@@ -146,22 +133,121 @@
           "displayName": "Text Only",
           "description": "",
           "isDefault": true,
-          "defaultReasoningEffort": "medium",
+          "defaultReasoningEffort": "",
+          "supportedReasoningEfforts": [],
+          "inputModalities": ["text"]
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "name": "explicit no reasoning",
+    "response": {
+      "models": [
+        {
+          "slug": "custom",
+          "display_name": "Custom",
+          "default_reasoning_level": "none",
+          "supported_reasoning_levels": [
+            {
+              "effort": "none",
+              "description": "none"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "data": [
+        {
+          "id": "custom",
+          "displayName": "Custom",
+          "description": "",
+          "isDefault": true,
+          "defaultReasoningEffort": "none",
+          "supportedReasoningEfforts": [
+            {
+              "id": "none",
+              "description": "none"
+            }
+          ]
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  {
+    "name": "complete provider reasoning",
+    "response": {
+      "models": [
+        {
+          "slug": "custom",
+          "display_name": "Custom",
+          "default_reasoning_level": "low",
+          "supported_reasoning_levels": [
+            {
+              "effort": "low",
+              "description": "low"
+            },
+            {
+              "effort": "medium",
+              "description": "medium"
+            },
+            {
+              "effort": "high",
+              "description": "high"
+            },
+            {
+              "effort": "xhigh",
+              "description": "xhigh"
+            },
+            {
+              "effort": "max",
+              "description": "max"
+            },
+            {
+              "effort": "ultra",
+              "description": "ultra"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "data": [
+        {
+          "id": "custom",
+          "displayName": "Custom",
+          "description": "",
+          "isDefault": true,
+          "defaultReasoningEffort": "low",
           "supportedReasoningEfforts": [
             {
               "id": "low",
-              "description": ""
+              "description": "low"
             },
             {
               "id": "medium",
-              "description": ""
+              "description": "medium"
             },
             {
               "id": "high",
-              "description": ""
+              "description": "high"
+            },
+            {
+              "id": "xhigh",
+              "description": "xhigh"
+            },
+            {
+              "id": "max",
+              "description": "max"
+            },
+            {
+              "id": "ultra",
+              "description": "ultra"
             }
-          ],
-          "inputModalities": ["text"]
+          ]
         }
       ],
       "nextCursor": null

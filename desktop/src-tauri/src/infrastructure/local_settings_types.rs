@@ -85,7 +85,8 @@ pub(super) struct ProjectSettings {
 
 impl ProjectSettings {
     pub fn is_valid(&self) -> bool {
-        non_empty(&self.model, 256) && non_empty(&self.reasoning_effort, 64)
+        non_empty(&self.model, 256)
+            && (self.reasoning_effort.is_empty() || non_empty(&self.reasoning_effort, 64))
     }
 }
 
@@ -116,7 +117,7 @@ pub(super) struct GlobalSettings {
 impl GlobalSettings {
     pub fn is_valid(&self) -> bool {
         non_empty(&self.model, 256)
-            && non_empty(&self.reasoning_effort, 64)
+            && (self.reasoning_effort.is_empty() || non_empty(&self.reasoning_effort, 64))
             && non_empty(&self.commit_message_model, 256)
             && self.commit_message_prompt.len() <= 4_000
             && self

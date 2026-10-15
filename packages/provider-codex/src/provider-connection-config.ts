@@ -49,10 +49,8 @@ export function hasCurrentCustomModelCatalog(config: Record<string, unknown>): b
   const configuredBaseUrl = optionalString(provider?.["base_url"], 2_048);
   const configuredCatalogUrl = optionalString(provider?.["model_catalog_url"], 2_048);
   if (configuredBaseUrl === null || configuredCatalogUrl === null) return false;
-  const baseUrl = configuredBaseUrl.replace(/\/+$/u, "");
-  const catalogUrl = configuredCatalogUrl.replace(/\/+$/u, "");
-  // 稳定版默认启用发现，缺省配置无需重复写入或重启 App Server。
-  return catalogUrl === `${baseUrl}/models` && features?.["api_key_model_discovery"] !== false;
+  // 原生目录可部署在独立 URL，不能用推理端点的 /models 覆盖用户配置。
+  return configuredCatalogUrl.trim().length > 0 && features?.["api_key_model_discovery"] !== false;
 }
 
 export function readActiveProvider(config: Record<string, unknown>): {
@@ -106,7 +104,11 @@ export function createCustomProviderConfigUpdate(
       mergeStrategy: "upsert",
       value: {
         base_url: baseUrl,
-        model_catalog_url: `${baseUrl}/models`,
+        model_catalog_url:
+          optionalString(previousProvider?.["base_url"], 2_048)?.replace(/\/+$/u, "") ===
+          baseUrl.replace(/\/+$/u, "")
+            ? (nonEmptyString(previousProvider?.["model_catalog_url"]) ?? `${baseUrl}/models`)
+            : `${baseUrl}/models`,
         name: configuredName ?? providerId,
         requires_openai_auth: requiresOpenaiAuth,
         wire_api: "responses",

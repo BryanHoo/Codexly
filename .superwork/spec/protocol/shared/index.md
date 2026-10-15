@@ -30,3 +30,5 @@
 - `AgentTurn.processCursor` 是可选的回合过程入口，不能放入任务的 `turnsNextCursor`；Web HTTP 与桌面 IPC 的任务读取支持 `summary: true`。摘要读取不下载工具或思考正文，过程展开使用单独请求和 Store。
 
 - 目录和任务元数据由应用本地仓储独占管理；Project 必须恰好一个根目录。上游列表仅用于一次性事务导入；执行适配器翻译应用任务 ID 与 provider/sessionId，禁止用引擎列表覆盖本地管理状态。两端共享 SQL 契约和单选规则，变更须覆盖离线管理、迁移回滚与身份隔离测试。详见[本地目录与任务](../../../../docs/local-catalog.md)。
+
+- 模型能力必须区分“未声明”和显式 `none`：未声明时 `supportedReasoningEfforts` 为 `[]`、`defaultReasoningEffort` 为 `""`；任务设置允许空思考强度，执行适配层将其转换为原生 `null`，不得生成低中高或把空字符串发送给 Codex。两端共享协议及模型目录样例，验证模型、回合和设置保存契约。
