@@ -25,7 +25,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 ## Features
 
 - Run project or temporary tasks and follow responses, commands, plans, approvals, and file changes in real time
-- Load recent conversation history first, then fetch older turns and items as needed; long code previews share bounded highlighting with the Web edition
+- Load recent conversation history first, fetch older turns from the top, and load execution details independently when expanding a process; long code previews share bounded highlighting with the Web edition
 - Follow task output in a separate transparent window without occupying the main workspace
 - Keep follow-up work in a persistent task queue, then withdraw messages for editing, reorder them, or cancel them before they run
 - Attach files, images, and audio, reference project files with `@` and Skills with `$` in the plain-text composer, and reliably restore attachments from the task queue
@@ -48,7 +48,7 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access for each task, and configure the global model context window
 - Discover models from custom providers online and fall back to a local catalog when unavailable
 - Create projects and directories, manage multiple project roots, temporary tasks, and archived tasks, generate titles for new tasks, and fork new tasks from existing conversations
-- Switch tasks from the sidebar’s **Pinned** and **Running** shortcuts, with pending approvals first; collapse previews or open the full list, even with projects collapsed.
+- Switch tasks from the sidebar’s **Pinned** and **Running** shortcuts, with unread completions first, followed by pending approvals and running tasks; unread completions remain in the group count until viewed. Collapse previews or open the full list, even with projects collapsed.
 - Identify tasks from different projects through project labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks
 - Search tasks, message history, and project files across projects, then jump to exact history matches
 - Browse and manage project files, switch between file previews and diffs in the inspector, review uncommitted changes and commit history, then copy messages as source-preserving Markdown

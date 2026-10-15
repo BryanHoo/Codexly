@@ -16,8 +16,10 @@ vi.mock("../../projects/project-context.js", () => ({
   useProjectData: () => ({ client: {} }),
 }));
 
-// 完成任务会渲染可导航的任务行；布局测试隔离路由，保留真实链接及状态布局。
-vi.mock("@tanstack/react-router", () => ({
+// 完成任务会渲染可导航的任务行；布局测试仅替换链接，保留真实链接及状态布局。
+// 保留其余路由导出，避免 worktree 等子组件在模块加载时因缺少 useNavigate 而失败。
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@tanstack/react-router")>(),
   createLink: (Component: ComponentType<ComponentProps<"a"> & { taskActive: boolean }>) =>
     ({ params: _params, to: _to, ...props }: ComponentProps<"a"> & {
       params?: unknown;
@@ -66,13 +68,16 @@ function view(expanded = false) {
 }
 
 describe("collapsed project status", () => {
+  // 完成任务也会出现在顶部快捷列表；将项目状态断言限定在项目树，避免匹配两个同名状态。
   beforeEach(async () => {
     await i18n.changeLanguage("zh-CN");
+    // 浏览器在测试文件间复用鼠标位置，先移出项目区，确保初始状态不受上个用例悬停影响。
+    await userEvent.unhover(document.body);
   });
   it("shares the rightmost action slot and restores hover actions without layout shift", async () => {
     await i18n.changeLanguage("zh-CN");
     const screen = await render(view());
-    const status = screen.getByRole("status", { name: "AI 回复已完成", includeHidden: true });
+    const status = screen.getByTestId("project-tree-scroll").getByRole("status", { name: "AI 回复已完成", includeHidden: true });
     const create = screen.getByRole("button", { name: "在 Codexly 中新建任务", exact: true });
     await expect.element(status).toBeVisible();
     const statusRect = status.element().getBoundingClientRect();
@@ -90,7 +95,7 @@ describe("collapsed project status", () => {
 
   it("hides the project summary when keyboard focus needs the action slot", async () => {
     const screen = await render(view());
-    const status = screen.getByRole("status", { name: "AI 回复已完成", includeHidden: true });
+    const status = screen.getByTestId("project-tree-scroll").getByRole("status", { name: "AI 回复已完成", includeHidden: true });
     screen.getByRole("button", { name: "在 Codexly 中新建任务", exact: true }).element().focus();
     await expect.element(status).not.toBeVisible();
   });
@@ -99,7 +104,7 @@ describe("collapsed project status", () => {
     await page.viewport(390, 844);
     try {
       const screen = await render(view());
-      await expect.element(screen.getByRole("status", { name: "AI 回复已完成", includeHidden: true })).toBeVisible();
+      await expect.element(screen.getByTestId("project-tree-scroll").getByRole("status", { name: "AI 回复已完成", includeHidden: true })).toBeVisible();
     } finally {
       await page.viewport(1440, 900);
     }

@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [0.37.1] - 2026-10-15
+
+### 修复
+
+- 修复 Web（含移动端）与桌面端历史回合和执行过程共用分页造成的加载混乱；顶部仅加载更早回合，展开过程后独立读取过程条目，保留问题与最终答复的顺序，并支持继续加载和失败重试。
+- 修复两端过程区域中长内容撑开布局的问题，保持内容在当前分屏内展示。
+- 修复两端侧栏任务完成后从快捷区消失的问题；未查看的完成任务保留并排在待审批、运行任务之前，计入分组总数，实际运行数量单独统计；查看任务后清除完成提醒。
+- 修复桌面端发送图片时的协议字段不一致与提交失败反馈，恢复图片附件发送。
+- 补齐桌面端 Git 远端操作、项目文件操作、终端与任务窗口等调用所需的 Tauri 权限，避免原生调用被权限检查拦截。
+
+### 工程
+
+- 为桌面端添加原生调用与权限声明的全量校验，补充会话分页、图片提交和侧栏完成状态的回归覆盖。
+- 修复 Web 浏览器测试中快照请求的拦截范围，放宽 Windows 测试与 CI 超时，降低环境竞争导致的失败。
+- 同步两端中英文功能说明、会话加载与性能文档及 Docker 固定版本示例。
+
 ## [0.37.0] - 2026-10-14
 
 ### 新增
@@ -987,7 +1003,8 @@
 
 - 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.37.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.37.1...HEAD
+[0.37.1]: https://github.com/BryanHoo/Codexly/compare/v0.37.0...v0.37.1
 [0.37.0]: https://github.com/BryanHoo/Codexly/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/BryanHoo/Codexly/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/BryanHoo/Codexly/compare/v0.34.1...v0.35.0

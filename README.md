@@ -36,7 +36,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 ## Features
 
 - Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive, with file edit timing and completion summaries; keep follow-up messages in a persistent queue.
-- Load recent conversation history first and fetch older turns and items as needed; long code previews use shared rendering and bounded highlighting. See [conversation loading and performance](docs/conversation-performance.md).
+- Load recent conversation history first, fetch older turns from the top, and load execution details independently when expanding a process; long code previews use shared rendering and bounded highlighting. See [conversation loading and performance](docs/conversation-performance.md).
 - Open up to four task panes in desktop browsers and the desktop app, each with its own draft and message queue. File and Git panels follow the focused task; mobile Web keeps a single-task view.
 - Choose two, three, or four panes from **Split layout** in the task title bar, with auto fit, columns, rows, main-pane, or grid presets; keep the current chat and open new-task pages in the other panes. Available in desktop views.
 - Resize task panes by dragging their dividers, create tasks from the title bar, and see the model and reasoning effort while the composer is collapsed.
@@ -47,7 +47,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 - Follow file citations, code review comments, and follow-up suggestions in assistant responses; selecting a suggestion fills the composer for further editing.
 - Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task, and configure the global [context window](docs/model-context-window.md).
 - Create projects and directories, search tasks, message history, and project files; inspect changes, work with branches and worktrees, commit selected files, commit and push, or push existing commits independently. See the [Git workflow guide](docs/git-workflow.md). Git actions require a repository at the project root; ordinary subdirectories do not use the parent repository.
-- Switch tasks from the sidebar’s **Pinned** and **Running** shortcuts, with pending approvals first; collapse previews or open the full list, even with projects collapsed.
+- Switch tasks from the sidebar’s **Pinned** and **Running** shortcuts, with unread completions first, followed by pending approvals and running tasks; unread completions remain in the group count until viewed. Collapse previews or open the full list, even with projects collapsed.
 - Identify each task's project through labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks.
 - Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work. Refresh official plugins to synchronize their state and report partial failures.
 - Request background compression of history files untouched for over 7 days under Settings → Agent → History storage. Web compresses server history; desktop compresses local history. Other Codex clients sharing that directory must support compressed history.
