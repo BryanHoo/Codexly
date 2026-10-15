@@ -48,9 +48,9 @@ thiserror = "2.0.20"
 time = { version = "0.3.47", features = ["formatting"] }
 tokio = { version = "1.50.0", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
 tokio-util = "0.7.18"
-tauri-plugin-updater = "=2.12.0"
-zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
-tauri-plugin-clipboard-manager = "=2.3.3"
+tauri-plugin-updater = "=2.13.3"
+zip = { version = "9.0.2", default-features = false, features = ["deflate"] }
+tauri-plugin-clipboard-manager = "=2.4.2"
 tauri-plugin-autostart = "2.5.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -72,7 +72,7 @@ windows-process-platform = { path = "native/windows-process-platform", version =
 winreg = "0.56.0"
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
-notify-rust = "=4.18.0"
+notify-rust = "=4.18.2"
 
 [lints.rust]
 unsafe_code = "forbid"
