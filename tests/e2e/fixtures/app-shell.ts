@@ -8,6 +8,7 @@ import { handleAppShellTaskRoute } from "./app-shell-api-task.js";
 
 export * from "./app-shell-data.js";
 export * from "./app-shell-request.js";
+export * from "./task-snapshot-route.js";
 
 export { expect };
 

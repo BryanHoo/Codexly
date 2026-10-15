@@ -1,4 +1,4 @@
-import { expect, taskSnapshot, test } from "./fixtures/app-shell.js";
+import { taskSnapshotRoute, expect, taskSnapshot, test } from "./fixtures/app-shell.js";
 
 const command = "pnpm terminal-scroll-test";
 const initialOutput = Array.from(
@@ -7,7 +7,7 @@ const initialOutput = Array.from(
 ).join("\n");
 
 test("pauses terminal auto-scroll while the user reads earlier output", async ({ page }) => {
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

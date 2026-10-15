@@ -1,4 +1,5 @@
 import {
+  taskSnapshotRoute,
   expect,
   parseRequestRecord,
   projectGitStatus,
@@ -107,7 +108,7 @@ test("creates a worktree task under its original project", async ({ page }) => {
     taskRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({ contentType: "application/json", json: { task } });
   });
-  await page.route("**/v1/projects/codexly/tasks/worktree-task-1", async (route) => {
+  await page.route(taskSnapshotRoute("worktree-task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: { ...taskSnapshotResponse, snapshot: { ...taskSnapshotResponse.snapshot, ...task } },

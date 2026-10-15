@@ -1,4 +1,5 @@
 import {
+  taskSnapshotRoute,
   enableLanAccess,
   expect,
   taskSnapshot,
@@ -16,7 +17,7 @@ test("downloads a streaming Markdown file reference from the same context menu",
     throw new Error("Expected the task fixture to contain a turn");
   }
   await enableLanAccess(page);
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -69,7 +70,7 @@ test("downloads a completed streaming file change from its LAN context menu", as
     throw new Error("Expected the task fixture to contain a turn");
   }
   await enableLanAccess(page);
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -130,7 +131,7 @@ test("keeps a streaming code block within the conversation and copies its code",
   }
 
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -191,7 +192,7 @@ test("renders a streaming Markdown table as a semantic table", async ({ page }) 
   ].join("\n");
   const secondTableChunk = "\n| P1 | `Value.Check()` | Ajv |";
 
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

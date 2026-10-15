@@ -1,5 +1,6 @@
 import { selectComposerSetting } from "./fixtures/composer-settings.js";
 import {
+  taskSnapshotRoute,
   enableLanAccess,
   expect,
   taskSnapshot,
@@ -194,7 +195,7 @@ test("recalls submitted prompt history with arrow keys and restores the draft", 
     startedAt: "2026-08-10T08:00:00.000Z",
     status: "completed" as const,
   };
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -308,7 +309,7 @@ test("shows processing state while an existing task turn is still starting", asy
 });
 
 test("toggles the completed execution process from the processing time", async ({ page }) => {
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -389,7 +390,7 @@ test("toggles the completed execution process from the processing time", async (
 });
 
 test("summarizes terminal operations after assistant text resumes", async ({ page }) => {
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

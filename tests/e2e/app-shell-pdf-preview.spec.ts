@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import type { Route } from "@playwright/test";
 import {
+  taskSnapshotRoute,
   enableLanAccess,
   expect,
   taskSnapshot,
@@ -34,7 +35,7 @@ function createPdf(): Buffer {
 test("previews generated chat PDFs, attachments and file-tree PDFs", async ({ page }) => {
   await enableLanAccess(page);
   let pdfRequests = 0;
-  await page.route("**/v1/projects/codexly/tasks/task-1", (route) =>
+  await page.route(taskSnapshotRoute("task-1"), (route) =>
     route.fulfill({
       json: {
         ...taskSnapshotResponse,
@@ -113,7 +114,7 @@ test("offers an explicit PDF open action on mobile without inline PDF support", 
   await page.addInitScript(() =>
     Object.defineProperty(navigator, "pdfViewerEnabled", { value: false }),
   );
-  await page.route("**/v1/projects/codexly/tasks/task-1", (route) =>
+  await page.route(taskSnapshotRoute("task-1"), (route) =>
     route.fulfill({
       json: {
         ...taskSnapshotResponse,

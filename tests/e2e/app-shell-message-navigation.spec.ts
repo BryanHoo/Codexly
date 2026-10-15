@@ -1,4 +1,4 @@
-import { expect, taskSnapshot, test } from "./fixtures/app-shell.js";
+import { taskSnapshotRoute, expect, taskSnapshot, test } from "./fixtures/app-shell.js";
 
 test("用户消息快捷导航保持显示并跳转到对应消息", async ({ page }) => {
   let turns = Array.from({ length: 12 }, (_, index) => ({
@@ -22,7 +22,7 @@ test("用户消息快捷导航保持显示并跳转到对应消息", async ({ pa
     startedAt: `2026-08-24T08:${String(index).padStart(2, "0")}:00.000Z`,
     status: "completed" as const,
   }));
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

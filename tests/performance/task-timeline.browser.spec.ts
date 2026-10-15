@@ -3,7 +3,13 @@ import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CDPSession, Page } from "@playwright/test";
 import type { StartAgentTurnResponse } from "@codexly/protocol";
-import { expect, taskSnapshot, taskSnapshotResponse, test } from "../e2e/fixtures/app-shell.js";
+import {
+  expect,
+  taskSnapshot,
+  taskSnapshotResponse,
+  taskSnapshotRoute,
+  test,
+} from "../e2e/fixtures/app-shell.js";
 import {
   measureBrowserWork,
   retainedBrowserState,
@@ -70,7 +76,7 @@ function createLongHistorySnapshot(): typeof taskSnapshot {
 test("reports long history browser diagnostics", async ({ page }) => {
   const errors = watchPageErrors(page);
   const snapshot = createLongHistorySnapshot();
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: { ...taskSnapshotResponse, snapshot },
@@ -113,7 +119,7 @@ test("reports 100 turn soak and next message paint", async ({ page }) => {
     title: "Browser performance soak",
     turns: taskSnapshot.turns.slice(0, 1),
   };
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: { ...taskSnapshotResponse, snapshot: soakSnapshot },

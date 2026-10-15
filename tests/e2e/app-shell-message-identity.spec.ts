@@ -1,5 +1,11 @@
 import type { WebSocketRoute } from "@playwright/test";
-import { expect, test, taskSnapshot, taskSnapshotResponse } from "./fixtures/app-shell.js";
+import {
+  taskSnapshotRoute,
+  expect,
+  test,
+  taskSnapshot,
+  taskSnapshotResponse,
+} from "./fixtures/app-shell.js";
 
 test("replaces an explicit message alias without duplicate bubbles @cross-browser", async ({
   page,
@@ -16,7 +22,7 @@ test("replaces an explicit message alias without duplicate bubbles @cross-browse
       }),
     );
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1", (route) =>
+  await page.route(taskSnapshotRoute("task-1"), (route) =>
     route.fulfill({
       json: {
         ...taskSnapshotResponse,

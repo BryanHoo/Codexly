@@ -1,5 +1,6 @@
 import { selectComposerSetting } from "./fixtures/composer-settings.js";
 import {
+  taskSnapshotRoute,
   expect,
   parseRequestRecord,
   taskSnapshot,
@@ -62,7 +63,7 @@ for (const viewport of [
         { title: "补充要求", options: null },
       ],
     };
-    await page.route("**/v1/projects/codexly/tasks/task-1", (route) =>
+    await page.route(taskSnapshotRoute("task-1"), (route) =>
       route.fulfill({
         json: {
           ...taskSnapshotResponse,
@@ -185,7 +186,7 @@ for (const viewport of [
       for (const id of body["ids"] as string[]) dismissed.add(id);
       return route.fulfill({ json: { data: groups() } });
     });
-    await page.route("**/v1/projects/codexly/tasks/task-1", (route) =>
+    await page.route(taskSnapshotRoute("task-1"), (route) =>
       route.fulfill({
         json: {
           ...taskSnapshotResponse,

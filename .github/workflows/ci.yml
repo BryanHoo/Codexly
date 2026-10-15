@@ -81,7 +81,8 @@ jobs:
   e2e:
     name: E2E (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # Windows 安装三个浏览器后仍需执行完整回归，为冷启动和失败重试保留时间。
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

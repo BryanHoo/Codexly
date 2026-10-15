@@ -1,4 +1,5 @@
 import {
+  taskSnapshotRoute,
   expect,
   parseRequestRecord,
   projectGitStatus,
@@ -12,7 +13,7 @@ test("defaults historical tasks to project and keeps user-controlled tab selecti
   page,
 }) => {
   let snapshotRequestCount = 0;
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     snapshotRequestCount += 1;
     await route.fulfill({
       contentType: "application/json",

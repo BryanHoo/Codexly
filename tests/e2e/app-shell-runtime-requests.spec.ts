@@ -1,4 +1,10 @@
-import { expect, taskSnapshot, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
+import {
+  taskSnapshotRoute,
+  expect,
+  taskSnapshot,
+  taskSnapshotResponse,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -32,7 +38,7 @@ test("restores network approvals from the task snapshot after refresh", async ({
       });
     },
   );
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -94,7 +100,7 @@ test("disables user input controls while an answer is being submitted", async ({
       });
     },
   );
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

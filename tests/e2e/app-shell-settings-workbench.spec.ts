@@ -1,5 +1,11 @@
 import { selectComposerSetting } from "./fixtures/composer-settings.js";
-import { expect, taskSnapshot, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
+import {
+  taskSnapshotRoute,
+  expect,
+  taskSnapshot,
+  taskSnapshotResponse,
+  test,
+} from "./fixtures/app-shell.js";
 import {
   expectComposerSelection,
   getComposerModelSelector,
@@ -112,7 +118,7 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
       json: { data: contextSkills, nextCursor: null },
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -202,7 +208,7 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
 });
 
 test("opens message images in a preview dialog @cross-browser", async ({ context, page }) => {
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

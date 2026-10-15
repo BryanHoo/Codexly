@@ -1,4 +1,5 @@
 import {
+  taskSnapshotRoute,
   expect,
   parseRequestRecord,
   projectGitStatus,
@@ -19,7 +20,7 @@ test("opens project review while showing Git stats in the Inspector project tree
     kind: "create" as const,
     path: "apps/web/src/review-list.tsx",
   };
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

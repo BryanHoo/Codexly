@@ -1,4 +1,10 @@
-import { expect, taskSnapshot, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
+import {
+  taskSnapshotRoute,
+  expect,
+  taskSnapshot,
+  taskSnapshotResponse,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -297,7 +303,7 @@ test("shows the latest raw Codex operation throughout a running turn", async ({ 
 test("does not show a tooltip for a truncated command title", async ({ page }) => {
   const command =
     "pnpm exec vitest run apps/web/src/features/workbench/components/task-timeline.test.tsx --testNamePattern tool-command-title-tooltip";
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -350,7 +356,7 @@ test("keeps long runtime activity details within the conversation", async ({ pag
       "effort-estimate.md": "有效输出路径与需求分析".repeat(300),
     }),
   );
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

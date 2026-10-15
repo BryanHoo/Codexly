@@ -1,9 +1,9 @@
-import { expect, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
+import { taskSnapshotRoute, expect, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
 test("shows a task error when the initial snapshot request fails", async ({ page }) => {
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: { code: "SNAPSHOT_FAILED", message: "Snapshot failed" },
@@ -18,7 +18,7 @@ test("shows a task error when the initial snapshot request fails", async ({ page
 
 test("keeps retrying Snapshot recovery and applies later realtime events", async ({ page }) => {
   let snapshotRequestCount = 0;
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     snapshotRequestCount += 1;
     if (snapshotRequestCount === 1) {
       await route.fulfill({ contentType: "application/json", json: taskSnapshotResponse });
@@ -148,7 +148,7 @@ test("keeps retrying Snapshot recovery and applies later realtime events", async
 
 test("refreshes the snapshot when the realtime delta buffer overflows", async ({ page }) => {
   let snapshotRequestCount = 0;
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     snapshotRequestCount += 1;
     await route.fulfill({
       contentType: "application/json",
@@ -253,7 +253,7 @@ test("clears transient realtime errors after the WebSocket reconnects @cross-bro
   page,
 }) => {
   let snapshotRequestCount = 0;
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     snapshotRequestCount += 1;
     if (snapshotRequestCount === 1) {
       await route.fulfill({ contentType: "application/json", json: taskSnapshotResponse });

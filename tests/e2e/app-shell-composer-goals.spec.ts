@@ -1,4 +1,5 @@
 import {
+  taskSnapshotRoute,
   chooseHostAttachment,
   enableLanAccess,
   expect,
@@ -85,7 +86,7 @@ test("shows persisted goal state and sends lifecycle controls", async ({ page })
     updatedAt: "2026-08-25T00:01:30.000Z",
   };
   const requests: { body: unknown; idempotencyKey: string | null; method: string }[] = [];
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -151,7 +152,7 @@ test("builds a completed plan as a normal development turn", async ({ page }) =>
       },
     ],
   };
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

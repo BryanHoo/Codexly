@@ -1,4 +1,11 @@
-import { expect, taskSnapshot, taskSnapshotResponse, tasks, test } from "./fixtures/app-shell.js";
+import {
+  taskSnapshotRoute,
+  expect,
+  taskSnapshot,
+  taskSnapshotResponse,
+  tasks,
+  test,
+} from "./fixtures/app-shell.js";
 
 test.describe.configure({ mode: "serial" });
 
@@ -8,7 +15,7 @@ test("opens a completed file change diff while the turn is still running", async
     kind: "update" as const,
     path: "src/live.ts",
   };
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -176,7 +183,7 @@ test("updates a running background task title and preserves blocking status", as
       json: { data: projectTasks, nextCursor: "5" },
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/markdown", async (route) => {
+  await page.route(taskSnapshotRoute("markdown"), async (route) => {
     backgroundSnapshotReadCount += 1;
     const hasFormalTitle = backgroundSnapshotReadCount > 1;
     await route.fulfill({
@@ -216,7 +223,7 @@ test("updates a running background task title and preserves blocking status", as
       },
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/input-design", async (route) => {
+  await page.route(taskSnapshotRoute("input-design"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

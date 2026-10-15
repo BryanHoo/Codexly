@@ -1,4 +1,10 @@
-import { expect, taskSnapshot, taskSnapshotResponse, test } from "./fixtures/app-shell.js";
+import {
+  taskSnapshotRoute,
+  expect,
+  taskSnapshot,
+  taskSnapshotResponse,
+  test,
+} from "./fixtures/app-shell.js";
 
 const originalText = "# Clipboard regression\n\n**original Markdown**\n\n  keep whitespace\n";
 
@@ -38,7 +44,7 @@ for (const mode of ["unavailable", "denied"] as const) {
         return success;
       };
     }, mode);
-    await page.route("**/v1/projects/codexly/tasks/task-1", (route) =>
+    await page.route(taskSnapshotRoute("task-1"), (route) =>
       route.fulfill({
         contentType: "application/json",
         json: {

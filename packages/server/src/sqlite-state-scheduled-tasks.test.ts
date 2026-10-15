@@ -8,7 +8,8 @@ import {
 } from "./sqlite-state-repository.test-support.js";
 
 describe("SQLite scheduled task state", () => {
-  it("atomically replaces and restores scheduled task snapshots", async () => {
+  // 用例会启动两次真实 SQLite Worker，为 Windows CI 的冷启动和磁盘 I/O 留出预算。
+  it("atomically replaces and restores scheduled task snapshots", { timeout: 15_000 }, async () => {
     const root = await createWorkspace();
     const repository = await openRepository(root);
     const task: ScheduledTask = {

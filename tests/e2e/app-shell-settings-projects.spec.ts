@@ -1,4 +1,5 @@
 import {
+  taskSnapshotRoute,
   expect,
   parseRequestRecord,
   taskSnapshot,
@@ -151,7 +152,7 @@ test("renders skills from a reopened task history", async ({ page }) => {
 });
 
 test("uses the available user message width before wrapping or truncating", async ({ page }) => {
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {

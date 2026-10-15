@@ -1,4 +1,5 @@
 import {
+  taskSnapshotRoute,
   chooseHostAttachment,
   enableLanAccess,
   expect,
@@ -38,7 +39,7 @@ test("disables composer mutations that the provider does not support", async ({ 
 
 test("stores composer drafts independently between task routes", async ({ page }) => {
   await enableLanAccess(page);
-  await page.route("**/v1/projects/codexly/tasks/input-design", async (route) => {
+  await page.route(taskSnapshotRoute("input-design"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -90,7 +91,7 @@ test("keeps the composer input mounted when switching task routes", async ({ pag
   const snapshotGate = new Promise<void>((resolve) => {
     releaseSnapshot = resolve;
   });
-  await page.route("**/v1/projects/codexly/tasks/input-design", async (route) => {
+  await page.route(taskSnapshotRoute("input-design"), async (route) => {
     markSnapshotRequested();
     await snapshotGate;
     await route.fulfill({
@@ -186,7 +187,7 @@ test("scrolls the conversation area to the bottom whenever the active task chang
     startedAt: `2026-07-22T08:${String(turnIndex).padStart(2, "0")}:00.000Z`,
     status: "completed",
   }));
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -195,7 +196,7 @@ test("scrolls the conversation area to the bottom whenever the active task chang
       },
     });
   });
-  await page.route("**/v1/projects/codexly/tasks/input-design", async (route) => {
+  await page.route(taskSnapshotRoute("input-design"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -281,7 +282,7 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
     startedAt: `2026-07-22T08:${String(turnIndex).padStart(2, "0")}:00.000Z`,
     status: "completed",
   }));
-  await page.route("**/v1/projects/codexly/tasks/task-1", async (route) => {
+  await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: {
