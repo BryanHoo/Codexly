@@ -366,7 +366,9 @@ test("automatically saves browser preferences", async ({ page }) => {
   await expect(page.locator("h1").filter({ hasText: "构建 macOS 工作台" })).toBeVisible();
 });
 
-test("opens About from the sidebar and installs an available update", async ({ page }) => {
+test("opens update notes from the sidebar and installs an available update from About", async ({
+  page,
+}) => {
   let appInfoRequests = 0;
   let updateRequest: Record<string, unknown> | undefined;
   await page.route("**/v1/app-info", async (route) => {
@@ -406,7 +408,13 @@ test("opens About from the sidebar and installs an available update", async ({ p
   await expect(settingsButton.locator(".lucide-circle-arrow-up")).toBeVisible();
   await settingsButton.click();
 
+  const sidebarNotes = page.getByRole("dialog", { name: "1.4.0 更新日志" });
+  await expect(sidebarNotes.getByText("添加更新日志查看入口。", { exact: true })).toBeVisible();
+  await expect(sidebarNotes.getByRole("button", { name: "更新", exact: true })).toBeEnabled();
+  await sidebarNotes.getByRole("button", { name: "关闭更新日志" }).click();
+  await page.getByRole("button", { name: "设置", exact: true }).click();
   const dialog = page.getByRole("region", { name: "全局设置" });
+  await dialog.getByRole("button", { name: "关于", exact: true }).click();
   await expect(dialog.getByRole("button", { name: "关于" })).toHaveAttribute(
     "aria-current",
     "page",

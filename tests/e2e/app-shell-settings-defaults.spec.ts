@@ -224,7 +224,7 @@ test("keeps the current task open when the product logo is clicked", async ({ pa
   await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
-  await sidebar.getByText("Codexly", { exact: true }).first().click();
+  await sidebar.getByRole("img", { name: "Codexly", exact: true }).click();
 
   await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/);
 });

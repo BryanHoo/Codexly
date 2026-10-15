@@ -410,11 +410,14 @@ test("renames the active task from the center title", async ({ page }) => {
   await dialog.getByRole("button", { name: "保存" }).click();
 
   await expect(main.getByRole("heading", { name: "重命名中栏任务" })).toBeVisible();
+  const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
+  await expect(sidebar.getByRole("link", { name: /重命名中栏任务/u }).first()).toBeVisible();
+  await sidebar.getByRole("button", { name: /^已固定：查看全部 /u }).click();
   await expect(
     page
-      .getByRole("complementary", { name: "项目侧栏" })
+      .getByRole("dialog", { name: /^已固定：查看全部 /u })
       .getByRole("link", { name: /重命名中栏任务/u }),
-  ).toHaveCount(2);
+  ).toBeVisible();
 });
 
 test("restores task settings after a page refresh", async ({ page }) => {

@@ -221,10 +221,7 @@ export async function handleAppShellProjectRoute(
       },
     };
   } else if (/^\/v1\/projects\/[^/]+\/git\/status$/u.test(url.pathname)) {
-    body =
-      url.searchParams.get("rootPath") === "/workspace/shared"
-        ? { ...state.routedProjectGitStatus, branch: "shared-main" }
-        : state.routedProjectGitStatus;
+    body = state.routedProjectGitStatus;
   } else if (combinedSettingsMatch !== null && route.request().method() === "PUT") {
     const projectId = combinedSettingsMatch[1] ?? "";
     const taskId = combinedSettingsMatch[2] ?? "";

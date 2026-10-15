@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Arc, Mutex, OnceLock, Weak},
 };
 mod operations;
 
@@ -12,7 +12,8 @@ pub struct LocalCatalog {
     inner: Arc<Mutex<Option<Connection>>>,
     path: PathBuf,
 }
-static STORES: OnceLock<Mutex<HashMap<PathBuf, LocalCatalog>>> = OnceLock::new();
+type SharedConnection = Mutex<Option<Connection>>;
+static STORES: OnceLock<Mutex<HashMap<PathBuf, Weak<SharedConnection>>>> = OnceLock::new();
 
 impl LocalCatalog {
     pub fn app_data(&self) -> Result<&Path, CatalogError> {
@@ -24,13 +25,14 @@ impl LocalCatalog {
             .get_or_init(Default::default)
             .lock()
             .map_err(|_| CatalogError::StateUnavailable)?;
-        Ok(stores
-            .entry(path.clone())
-            .or_insert_with(|| Self {
-                inner: Arc::new(Mutex::new(None)),
-                path,
-            })
-            .clone())
+        if let Some(inner) = stores.get(&path).and_then(Weak::upgrade) {
+            return Ok(Self { inner, path });
+        }
+        // The registry shares live stores without keeping SQLite files open after their users exit.
+        stores.retain(|_, store| store.strong_count() > 0);
+        let inner = Arc::new(Mutex::new(None));
+        stores.insert(path.clone(), Arc::downgrade(&inner));
+        Ok(Self { inner, path })
     }
     pub async fn call(&self, operation: &str, payload: Value) -> Result<Value, CatalogError> {
         let this = self.clone();
@@ -105,6 +107,36 @@ fn task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn catalog_should_release_database_after_last_user_and_reopen_persisted_data() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = LocalCatalog::at(dir.path()).unwrap();
+        let shared = LocalCatalog::at(dir.path()).unwrap();
+        assert!(Arc::ptr_eq(&store.inner, &shared.inner));
+        store
+            .execute(
+                "project.put",
+                &json!({"id":"p","name":"project","path":"/workspace","createdAt":"2026-10-15T00:00:00Z"}),
+            )
+            .unwrap();
+        let released = Arc::downgrade(&store.inner);
+        drop(store);
+        assert!(released.upgrade().is_some());
+        drop(shared);
+        assert!(released.upgrade().is_none());
+
+        let reopened = LocalCatalog::at(dir.path()).unwrap();
+        assert_eq!(
+            reopened
+                .execute("project.read", &json!({"id":"p"}))
+                .unwrap()["name"],
+            "project"
+        );
+        drop(reopened);
+        dir.close().unwrap();
+    }
+
     #[tokio::test]
     async fn persists_local_lifecycle_without_runtime() {
         let dir = tempfile::tempdir().unwrap();

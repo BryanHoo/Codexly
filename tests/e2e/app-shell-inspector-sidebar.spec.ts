@@ -350,11 +350,12 @@ test("adds a folder through the Web project directory picker", async ({ page }) 
 
   await picker.getByRole("checkbox", { name: "选择 AddedProject" }).click();
   await picker.getByRole("checkbox", { name: "选择 superwork" }).click();
-  await expect(picker.getByText("已选择 2 个项目目录")).toBeVisible();
-  await expect(picker.getByText("首个勾选的文件夹将作为主目录")).toBeVisible();
-  await expect(
-    picker.getByText("/workspace/AddedProject（主目录）、/workspace/superwork", { exact: true }),
-  ).toBeVisible();
+  await expect(picker.getByRole("checkbox", { name: "选择 AddedProject" })).not.toBeChecked();
+  await expect(picker.getByRole("checkbox", { name: "选择 superwork" })).toBeChecked();
+  await picker.getByRole("checkbox", { name: "选择 AddedProject" }).click();
+  await expect(picker.getByRole("checkbox", { name: "选择 superwork" })).not.toBeChecked();
+  await expect(picker.getByText("已选择 1 个项目目录")).toBeVisible();
+  await expect(picker.getByText("/workspace/AddedProject", { exact: true })).toBeVisible();
   await expect(
     picker.getByRole("button", { name: "将 /workspace/superwork 设为主目录" }),
   ).toHaveCount(0);
@@ -369,7 +370,7 @@ test("adds a folder through the Web project directory picker", async ({ page }) 
     await expect(picker).toBeHidden({ timeout: 500 });
     await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/);
     expect(addProjectRequestCount).toBe(1);
-    expect(addedRootPaths).toEqual(["/workspace/AddedProject", "/workspace/superwork"]);
+    expect(addedRootPaths).toEqual(["/workspace/AddedProject"]);
     await expect(
       page.getByRole("complementary", { name: "项目侧栏" }).getByText("AddedProject", {
         exact: true,
@@ -380,7 +381,7 @@ test("adds a folder through the Web project directory picker", async ({ page }) 
   }
 });
 
-test("switches every project view to the selected aggregate root", async ({ page }) => {
+test("scopes every project view to its single folder", async ({ page }) => {
   const scopedRequests: URL[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
@@ -396,57 +397,25 @@ test("switches every project view to the selected aggregate root", async ({ page
   await expect(page.locator("header").getByRole("combobox", { name: "选择项目目录" })).toHaveCount(
     0,
   );
-  await expect(rootSelector).toContainText("superwork");
+  await expect(rootSelector).toHaveCount(0);
   await expect(projectPath).toContainText("/workspace/superwork");
-  const [rootSelectorBox, projectPathBox] = await Promise.all([
-    rootSelector.boundingBox(),
-    projectPath.boundingBox(),
-  ]);
-  expect(rootSelectorBox).not.toBeNull();
-  expect(projectPathBox).not.toBeNull();
-  expect((rootSelectorBox?.x ?? 0) + (rootSelectorBox?.width ?? 0)).toBeLessThanOrEqual(
-    projectPathBox?.x ?? 0,
-  );
-  await expect
-    .poll(() =>
-      rootSelector.locator("svg").evaluateAll((icons) =>
-        icons.map((icon) => {
-          const style = getComputedStyle(icon);
-          return `${style.width}x${style.height}`;
-        }),
-      ),
-    )
-    .toEqual(["12pxx12px", "12pxx12px"]);
-
-  await rootSelector.click();
-  const selectedRootOption = page.getByRole("option", { name: /superwork/u });
-  await expect(selectedRootOption).toBeVisible();
-  await expect
-    .poll(() =>
-      selectedRootOption.locator("svg").evaluateAll((icons) =>
-        icons.map((icon) => {
-          const style = getComputedStyle(icon);
-          return `${style.width}x${style.height}`;
-        }),
-      ),
-    )
-    .toEqual(["14pxx14px"]);
-  await page.getByRole("option", { name: /shared/u }).click();
-
-  await expect(rootSelector).toContainText("shared");
-  await expect(projectPath).toContainText("/workspace/shared");
-  await expect(page.getByRole("button", { name: "切换分支，当前分支 shared-main" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "切换分支，当前分支 feat/review-targets" }),
+  ).toBeVisible();
   await expect
     .poll(() =>
       [
         ...new Set(
           scopedRequests
-            .filter((url) => url.searchParams.get("rootPath") === "/workspace/shared")
+            .filter((url) => url.searchParams.get("rootPath") === "/workspace/superwork")
             .map((url) => url.pathname),
         ),
       ].sort(),
     )
     .toEqual(["/v1/projects/superwork/files/tree", "/v1/projects/superwork/git/status"]);
+  expect(
+    scopedRequests.every((url) => url.searchParams.get("rootPath") === "/workspace/superwork"),
+  ).toBe(true);
 
   await page.setViewportSize({ height: 720, width: 320 });
   await expect(rootControls).toBeVisible();

@@ -12,10 +12,7 @@ export const projects = [
     createdAt: "2026-07-22T06:30:00.000Z",
     id: "superwork",
     name: "superwork",
-    roots: [
-      { id: "root-superwork", path: "/workspace/superwork" },
-      { id: "root-shared", path: "/workspace/shared" },
-    ],
+    roots: [{ id: "root-superwork", path: "/workspace/superwork" }],
   },
 ];
 

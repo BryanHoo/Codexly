@@ -63,7 +63,7 @@ test("项目文件夹操作支持重命名和删除且不修改磁盘目录", as
     .getByRole("menuitem", { name: "删除" })
     .click();
   const removeDialog = page.getByRole("dialog", { name: "移除项目" });
-  await expect(removeDialog).toContainText("不会删除磁盘上的文件夹及文件");
+  await expect(removeDialog).toContainText("磁盘上的文件夹和文件会保留");
   const removeRequestPromise = page.waitForRequest((request) =>
     request.url().endsWith("/v1/projects/codexly/remove"),
   );

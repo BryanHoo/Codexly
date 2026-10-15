@@ -120,5 +120,6 @@ async fn queued_image_snapshot_should_support_add_list_and_resubmission() {
         .is_err()
     );
     server_task.await.unwrap();
+    drop(connection);
     std::fs::remove_dir_all(root).unwrap();
 }

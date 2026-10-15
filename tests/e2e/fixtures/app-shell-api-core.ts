@@ -451,11 +451,9 @@ export async function handleAppShellCoreRoute(
     const roots = request["roots"];
     if (
       !Array.isArray(roots) ||
-      roots.length !== 2 ||
+      roots.length !== 1 ||
       !isRequestRecord(roots[0]) ||
-      !isRequestRecord(roots[1]) ||
-      roots[0]["path"] !== "/workspace/AddedProject" ||
-      roots[1]["path"] !== "/workspace/superwork"
+      roots[0]["path"] !== "/workspace/AddedProject"
     ) {
       throw new Error("Invalid add project request");
     }
@@ -463,10 +461,7 @@ export async function handleAppShellCoreRoute(
       createdAt: "2026-07-25T00:00:00.000Z",
       id: "added-project",
       name: "AddedProject",
-      roots: [
-        { id: "root-added-project", path: "/workspace/AddedProject" },
-        { id: "root-superwork", path: "/workspace/superwork" },
-      ],
+      roots: [{ id: "root-added-project", path: "/workspace/AddedProject" }],
     };
     state.routedProjects = [...state.routedProjects, addedProject];
     body = { project: addedProject, projects: { data: state.routedProjects, nextCursor: null } };
