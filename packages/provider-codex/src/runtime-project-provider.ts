@@ -72,6 +72,13 @@ export class CodexRuntimeProjectProvider implements AgentProvider {
     return this.#delegate.archiveTask(taskId);
   }
 
+  public async readTaskMetadata(taskId: string): Promise<AgentTask | undefined> {
+    if (!this.#delegate.hasLocalCatalog) return this.readTask(taskId);
+    const task = await this.#delegate.readTaskMetadata(taskId);
+    if (task !== undefined) this.#runtime.claimTask(this.#project, taskId);
+    return task;
+  }
+
   public compactTask(taskId: string): Promise<void> {
     this.#runtime.assertTaskOwner(this.#project, taskId);
     return this.#delegate.compactTask(taskId);
@@ -279,7 +286,7 @@ export class CodexRuntimeProjectProvider implements AgentProvider {
       return;
     }
     // Sidebar 可直接操作已释放的历史 Task，先重新读取并恢复 Project 归属。
-    if ((await this.readTask(taskId)) === undefined) {
+    if ((await this.readTaskMetadata(taskId)) === undefined) {
       throw new CodexProtocolMappingError("Codex thread does not belong to the active project");
     }
   }

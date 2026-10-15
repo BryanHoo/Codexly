@@ -42,7 +42,9 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
         config: CODEX_THREAD_CONFIG,
         historyMode: "paginated",
         ...(this.project.kind === "temporary"
-          ? {}
+          ? this.hasLocalCatalog
+            ? { cwd: this.project.rootPath }
+            : {}
           : {
               cwd: options.workspacePath ?? this.project.rootPath,
               projectId: this.project.id,
@@ -423,6 +425,11 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
     for (const task of nativeTasks) {
       if (task.workspacePath !== undefined)
         this.runtime.taskWorkspacePaths.set(task.id, task.workspacePath);
+    }
+    if (this.hasLocalCatalog) {
+      // 本地目录已包含未物化任务，不能再合并运行时缓存，否则会绕过置顶/搜索过滤。
+      for (const task of nativeTasks) this.runtime.projectTaskIds.add(task.id);
+      return { data: nativeTasks, nextCursor: nextCursor ?? null };
     }
     await restoreUnlistedForks(
       this.client,

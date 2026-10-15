@@ -30,12 +30,4 @@ export function resolveProjectRootFromSelections(
   );
 }
 
-/** 按 checkbox 的明确状态更新根目录，并保留首次勾选顺序。 */
-export function setProjectRootPathChecked(
-  paths: readonly string[],
-  path: string,
-  checked: boolean,
-): readonly string[] {
-  if (checked) return paths.includes(path) ? paths : [...paths, path];
-  return paths.filter((selectedPath) => selectedPath !== path);
-}
+export { setProjectRootPathChecked } from "@codexly/frontend-core";

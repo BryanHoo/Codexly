@@ -266,7 +266,7 @@ export const workbench = {
     name: "项目名称",
     previewMarkdown: "预览 Markdown",
     remove: "移除项目",
-    removeDescription: "将“{{name}}”从 Codexly 左栏移除，不会删除磁盘上的文件夹及文件。",
+    removeDescription: "将移除“{{name}}”及其中的 Codexly 任务记录。磁盘上的文件夹和文件会保留。",
     rename: "重命名项目",
     renameDescription: "只修改左栏显示名称，不会修改磁盘上的文件夹名称。",
     showDiff: "查看 Diff",
@@ -275,9 +275,9 @@ export const workbench = {
   },
   newProject,
   projectPicker: {
-    primaryRoot: "主目录",
-    primaryRootHint: "首个勾选的文件夹将作为主目录",
-    primaryRootSummary: "{{path}}（主目录）",
+    primaryRoot: "项目文件夹",
+    primaryRootHint: "每个目录只能关联一个磁盘文件夹",
+    primaryRootSummary: "{{path}}",
     rootSeparator: "、",
     selectedRoots: "已选择 {{count}} 个项目目录",
     selectRoot: "选择 {{name}}",
@@ -358,11 +358,12 @@ export const workbench = {
     delete: "永久删除",
     deleteAll: "全部删除",
     deleteAllDescription:
-      "“{{project}}”中的全部已归档任务及其关联历史将被永久删除，此操作无法撤销。",
+      "“{{project}}”中的全部已归档任务将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
     deleteAllTitle: "永久删除全部已归档任务",
     deleteAllPartialFailure:
       "已删除 {{deletedCount}} 个任务，{{failedCount}} 个任务未能删除，请刷新后重试。",
-    deleteDescription: "“{{task}}”及其关联历史将被永久删除，此操作无法撤销。",
+    deleteDescription:
+      "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
     deleteTask: "永久删除任务 {{task}}",
     deleteTitle: "永久删除任务",
     empty: "没有已归档任务",
@@ -398,7 +399,8 @@ export const workbench = {
     worktreeTaskDescription: "基于当前检出创建独立 worktree，并在其中开始任务",
     worktreeTaskTitle: "创建 worktree 任务",
     deletePermanently: "永久删除",
-    deleteTaskDescription: "“{{task}}”及其关联历史将被永久删除，此操作无法撤销。",
+    deleteTaskDescription:
+      "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
     deleteTaskTitle: "永久删除任务",
     errorAddProject: "无法添加项目",
     errorArchiveTask: "无法归档任务",

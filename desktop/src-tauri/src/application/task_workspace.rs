@@ -12,68 +12,50 @@ pub(crate) const TEMPORARY_PROJECT_ID: &str = "temporary";
 
 pub(crate) async fn start_task(
     app: &AppHandle,
-    connection: &codex::AppServerConnection,
     project_id: String,
 ) -> Result<AgentTaskMutationResponse, AppError> {
+    use crate::infrastructure::local_catalog::{LocalCatalog, sidebar::map_task};
+    use serde_json::json;
     let app_data = app_data_dir(app)?;
-    let settings = codex::read_agent_runtime_settings(connection)
-        .await
-        .map_err(AppError::from)?;
-    let temporary_cwd = if project_id == TEMPORARY_PROJECT_ID {
-        Some(
-            temporary_workspace::create(&app_data)
-                .await
-                .map_err(|_| AppError::FilesystemRequestFailed)?,
-        )
+    let catalog = LocalCatalog::at(&app_data)?;
+    let id = format!("task-{}", uuid::Uuid::new_v4());
+    let temporary = project_id == TEMPORARY_PROJECT_ID;
+    let cwd = if temporary {
+        let staging = temporary_workspace::create(&app_data)
+            .await
+            .map_err(|_| AppError::FilesystemRequestFailed)?;
+        match temporary_workspace::bind_task(&app_data, &staging, &id).await {
+            Ok(path) => path,
+            Err(_) => {
+                let _ = temporary_workspace::remove(&app_data, &staging).await;
+                return Err(AppError::FilesystemRequestFailed);
+            }
+        }
     } else {
-        None
+        let project = catalog
+            .call("project.read", json!({"id":project_id}))
+            .await?;
+        PathBuf::from(
+            project["path"]
+                .as_str()
+                .ok_or(AppError::FilesystemRequestFailed)?,
+        )
     };
-
-    match codex::start_task(connection, project_id, temporary_cwd.as_deref(), &settings).await {
-        Ok(response) => {
-            if let Some(cwd) = temporary_cwd {
-                let workspace = match temporary_workspace::bind_task(
-                    &app_data,
-                    &cwd,
-                    &response.task.id,
-                )
-                .await
-                {
-                    Ok(workspace) => workspace,
-                    Err(_) => {
-                        let _ = codex::delete_task(
-                            connection,
-                            TEMPORARY_PROJECT_ID.to_owned(),
-                            response.task.id,
-                        )
-                        .await;
-                        let _ = temporary_workspace::remove(&app_data, &cwd).await;
-                        return Err(AppError::FilesystemRequestFailed);
-                    }
-                };
-                if let Err(error) =
-                    codex::update_task_workspace(connection, &response.task.id, &workspace).await
-                {
-                    let _ = codex::delete_task(
-                        connection,
-                        TEMPORARY_PROJECT_ID.to_owned(),
-                        response.task.id,
-                    )
-                    .await;
-                    let _ = temporary_workspace::remove(&app_data, &workspace).await;
-                    return Err(AppError::from(error));
-                }
-                allow_attachment_assets(app, TEMPORARY_PROJECT_ID, &response.task.id).await?;
-            }
-            Ok(response)
+    let task = json!({"id":id,"projectId":if temporary {None}else{Some(&project_id)},"title":"","cwd":cwd,
+        "provider":"codex","sessionId":null,"updatedAt":chrono::Utc::now().timestamp_millis() as f64/1000.0,"pinned":false,"archived":false,"status":"notLoaded"});
+    // 先保存应用任务，首次发送再创建执行会话；创建目录不需要模型目录或 Codex 连接。
+    if let Err(error) = catalog.call("task.put", task.clone()).await {
+        if temporary {
+            let _ = temporary_workspace::remove(&app_data, &cwd).await;
         }
-        Err(error) => {
-            if let Some(cwd) = temporary_cwd {
-                let _ = temporary_workspace::remove(&app_data, &cwd).await;
-            }
-            Err(AppError::from(error))
-        }
+        return Err(error.into());
     }
+    if temporary {
+        allow_attachment_assets(app, &project_id, &id).await?;
+    }
+    Ok(AgentTaskMutationResponse {
+        task: map_task(&task)?,
+    })
 }
 
 pub(crate) async fn allow_attachment_assets(

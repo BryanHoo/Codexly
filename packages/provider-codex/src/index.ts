@@ -50,3 +50,5 @@ export {
   createCodexWorkbenchPetProvider,
   type CreateCodexWorkbenchPetProviderOptions,
 } from "./workbench-pets.js";
+export { createLocalCatalogClient } from "./local-catalog-client.js";
+export { importCodexCatalog } from "./local-catalog-migration.js";

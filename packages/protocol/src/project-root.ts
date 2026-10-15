@@ -26,10 +26,11 @@ export const ProjectRootSchema = Type.Object(
 
 export type ProjectRoot = Readonly<Static<typeof ProjectRootSchema>>;
 
-// roots 顺序有业务含义：首项始终是 Codex primary folder。
+// 保留 roots 的传输形状以减少两端联动成本，但领域上严格限定一个磁盘文件夹。
 export const ProjectRootsSchema = Type.Readonly(
   Type.Array(ProjectRootSchema, {
     minItems: 1,
+    maxItems: 1,
     uniqueItems: true,
   }),
 );
@@ -39,6 +40,7 @@ export type ProjectRoots = readonly ProjectRoot[];
 export const ProjectRootInputsSchema = Type.Readonly(
   Type.Array(ProjectRootInputSchema, {
     minItems: 1,
+    maxItems: 1,
     uniqueItems: true,
   }),
 );

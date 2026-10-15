@@ -33,3 +33,5 @@
 - Git 远端 inspect 不访问网络，fetch 显式更新引用；publish 明确远端和分支，建立上游。远端变更动作沿用根目录权限、Git 写锁、幂等缓存及有界进程执行器。拉取要求干净工作区，只允许快进推送目标引用，不创建合并与冲突。resolve/continue/abort 一律拒绝；未完成的 Git 操作和分叉历史交由外部工具处理，仅保留只读检测和提交/推送保护。部分暂存文件的 AI 上下文必须与隔离 index 的实际版本相同。回归见 `git-remote.test.ts`、`git-commit.test.ts`、`git-commit-message.test.ts`。
 
 - Git 历史未推送状态与实际推送共用目标解析，遵循 `branch.<name>.pushRemote`、`remote.pushDefault`、分支远端及单远端回退优先级；空覆盖值按未配置回退；`push.default=upstream` 使用配置目标分支。固定同一 HEAD，批量按提交 SHA 和祖先关系比较本地远端引用，不按领先数量或列表序号标记，不隐式联网。缺失目标/引用时历史仍可读且省略标记；空仓库保持可读。回归见 `git-history-unpushed.test.ts`（分页、合并历史、不同拉取/推送远端、推送后清除）。
+
+- 目录和任务元数据由应用本地仓储独占管理；Project 必须恰好一个根目录。上游列表仅用于一次性事务导入；执行适配器翻译应用任务 ID 与 provider/sessionId，禁止用引擎列表覆盖本地管理状态。两端共享 SQL 契约和单选规则，变更须覆盖离线管理、迁移回滚与身份隔离测试。详见[本地目录与任务](../../../../docs/local-catalog.md)。

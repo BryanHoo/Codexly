@@ -109,10 +109,7 @@ describe("CodexlyClient project routes", () => {
       createdAt: "2026-07-23T00:00:00.000Z",
       id: "codexly",
       name: "Codexly",
-      roots: [
-        { id: "root-codexly", path: primaryRootPath },
-        { id: "root-codexly-docs", path: "/Users/bryan/Develop/CodexlyDocs" },
-      ],
+      roots: [{ id: "root-codexly", path: primaryRootPath }],
     };
     const listing = {
       entries: [{ name: "Codexly", path: primaryRootPath }],

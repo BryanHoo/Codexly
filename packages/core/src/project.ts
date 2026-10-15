@@ -92,7 +92,7 @@ export type ProjectSourceMigration = Readonly<{
   recoverUnassigned: boolean;
 }>;
 
-// Project Projection 只保存 Codex 权威对象的本地可查询视图，不生成或解释项目身份。
+// 项目兼容视图供既有设置和排序逻辑查询；项目身份与生命周期以本地目录仓储为准。
 export interface ProjectProjectionStore {
   completeProjectSourceMigration(): Promise<void>;
   deleteProject(projectId: string): Promise<boolean>;

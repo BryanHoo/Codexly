@@ -234,7 +234,7 @@ async fn private_codex_should_install_and_complete_real_app_server_lifecycle() {
     let deleted = tasks::delete_task(&connection, "temporary".to_owned(), task.task.id)
         .await
         .expect("CodeAgent temporary task should be removable");
-    assert_eq!(deleted.response.status, "deleted");
+    assert_eq!(deleted.status, "deleted");
     // kill_on_drop 只发出终止请求；Windows 删除可执行文件前必须等待进程退出。
     process
         ._child

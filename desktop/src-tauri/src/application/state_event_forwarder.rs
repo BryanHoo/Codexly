@@ -35,6 +35,13 @@ pub(super) fn spawn_event_forwarder(
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         let mut batcher = DeltaBatcher::new();
+        let connection = runtime
+            .lock()
+            .await
+            .codex_process
+            .as_ref()
+            .map(|process| process.connection());
+
         loop {
             let message = if let Some(deadline) = batcher.deadline() {
                 tokio::select! {
@@ -53,6 +60,20 @@ pub(super) fn spawn_event_forwarder(
             };
             let Some(message) = message else {
                 break;
+            };
+
+            // 执行会话 ID 在进入应用事件投影前还原为本地任务 ID。
+            let message = if let Some(connection) = &connection {
+                match connection.translate_catalog_message(message).await {
+                    Ok(Some(message)) => message,
+                    Ok(None) => continue,
+                    Err(error) => {
+                        log::error!("本地任务事件映射失败: {error}");
+                        continue;
+                    }
+                }
+            } else {
+                message
             };
 
             if message.method == EVENT_RETENTION_EXCEEDED_METHOD {

@@ -1,3 +1,4 @@
+import { readLocalTaskCreationSettings } from "../task-creation-settings.js";
 import { PendingRequestResolutionError } from "@codexly/core";
 import {
   AgentMutationErrorSchema,
@@ -99,7 +100,10 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
             if (taskStartRecoveries.size >= idempotencyCacheSize) {
               throw new Error("Task creation recovery capacity is exhausted");
             }
-            const defaults = await readInheritedTaskSettings(request.params.projectId);
+            const defaults =
+              context.provider.readTaskMetadata === undefined
+                ? await readInheritedTaskSettings(request.params.projectId)
+                : await readLocalTaskCreationSettings(settingsRepository, request.params.projectId);
             let workspacePath: string | undefined;
             if (request.body.worktreePath !== undefined) {
               if (request.body.rootPath === undefined) {
@@ -130,18 +134,17 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
             // Provider 已创建 Task 后立即保留恢复状态，后续落库重试不能再次创建 Task。
             recovery = {
               fingerprint,
-              settings: {
-                ...defaults,
-              },
+              ...(defaults === undefined ? {} : { settings: defaults }),
               task,
             };
             taskStartRecoveries.set(recoveryKey, recovery);
           }
-          await settingsRepository.writeTaskSettings(
-            request.params.projectId,
-            recovery.task.id,
-            recovery.settings,
-          );
+          if (recovery.settings !== undefined)
+            await settingsRepository.writeTaskSettings(
+              request.params.projectId,
+              recovery.task.id,
+              recovery.settings,
+            );
           taskStartRecoveries.delete(recoveryKey);
           return recovery.task;
         },

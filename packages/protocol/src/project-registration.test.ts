@@ -74,15 +74,12 @@ describe("project registration protocol", () => {
     expect(TEMPORARY_TASK_API_PATH).toBe("/v1/temporary");
   });
 
-  it("requires ordered absolute roots when adding a project", () => {
+  it("requires a single absolute folder when adding a project", () => {
     const project = {
       createdAt: "2026-07-25T00:00:00.000Z",
       id: "codexly",
       name: "Codexly",
-      roots: [
-        { id: "root-codexly", path: "/workspace/Codexly" },
-        { id: "root-superwork", path: "/workspace/superwork" },
-      ],
+      roots: [{ id: "root-codexly", path: "/workspace/Codexly" }],
     };
 
     expect(

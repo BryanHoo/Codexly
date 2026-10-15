@@ -9,13 +9,14 @@ import {
 } from "./project-root.js";
 
 describe("project root protocol", () => {
-  it("accepts ordered absolute roots and rejects empty, relative, or duplicated roots", () => {
+  it("accepts one absolute root and rejects empty, relative, or duplicated roots", () => {
     const roots = [
       { id: "root-primary", path: "/workspace/primary" },
       { id: "root-secondary", path: "/workspace/secondary" },
     ];
 
-    expect(Value.Check(ProjectRootsSchema, roots)).toBe(true);
+    expect(Value.Check(ProjectRootsSchema, roots)).toBe(false);
+    expect(Value.Check(ProjectRootsSchema, roots.slice(0, 1))).toBe(true);
     expect(Value.Check(ProjectRootsSchema, [])).toBe(false);
     expect(
       Value.Check(ProjectRootsSchema, [{ id: "root-relative", path: "workspace/relative" }]),

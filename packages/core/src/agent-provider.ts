@@ -238,6 +238,7 @@ export class PendingRequestResolutionError extends Error {
 
 // Core 只声明 Provider 无关能力，具体 RPC、传输顺序与进程生命周期留在外层。
 export interface AgentProvider {
+  readTaskMetadata?(taskId: string): Promise<AgentTask | undefined>;
   readonly queue?: AgentProviderQueue;
   archiveTask(taskId: string): Promise<void>;
   compactTask(taskId: string): Promise<void>;

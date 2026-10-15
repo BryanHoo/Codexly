@@ -19,3 +19,4 @@ export {
   type SqliteMigration,
   type SqliteStateRepositoryOptions,
 } from "./sqlite-state-repository.js";
+export { LocalProjectRepository } from "./local-project-repository.js";

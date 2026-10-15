@@ -28,3 +28,5 @@
 - `ProjectGitCommit.unpushed` 为可选布尔值：`true` 表示不在当前推送目标的本地远端引用历史中，`false` 表示已包含；缺失表示目标或引用未知，不能按未推送处理。该字段由 Web 服务端与桌面 Rust 同步返回，不改变历史每页 20 条的分页契约。
 
 - `AgentTurn.processCursor` 是可选的回合过程入口，不能放入任务的 `turnsNextCursor`；Web HTTP 与桌面 IPC 的任务读取支持 `summary: true`。摘要读取不下载工具或思考正文，过程展开使用单独请求和 Store。
+
+- 目录和任务元数据由应用本地仓储独占管理；Project 必须恰好一个根目录。上游列表仅用于一次性事务导入；执行适配器翻译应用任务 ID 与 provider/sessionId，禁止用引擎列表覆盖本地管理状态。两端共享 SQL 契约和单选规则，变更须覆盖离线管理、迁移回滚与身份隔离测试。详见[本地目录与任务](../../../../docs/local-catalog.md)。

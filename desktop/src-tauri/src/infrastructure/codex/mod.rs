@@ -164,13 +164,8 @@ pub use plugins::{
 };
 pub use process::CodexProcess;
 pub use runtime_manager::{inspect_codex_runtime, install_codex_runtime};
-pub use sidebar::{
-    add_project, list_projects, read_project, remove_project, rename_project, reorder_projects,
-};
-pub use tasks::{
-    archive_task, delete_task, list_completed_tasks, list_tasks, pin_task, read_task, rename_task,
-    task_working_directory, unarchive_task, unsubscribe_task,
-};
+pub use sidebar::{list_projects, read_project};
+pub use tasks::{delete_task, read_task, task_working_directory, unsubscribe_task};
 mod conversation_access;
 mod model_cache;
 #[cfg(test)]
@@ -187,3 +182,9 @@ mod plugin_reconcile_tests;
 
 mod plugin_reconcile;
 pub use plugin_reconcile::{PluginReconcileResult, reconcile_official_plugins};
+
+mod local_catalog_bridge;
+mod local_catalog_migration;
+mod local_catalog_projects;
+
+mod local_catalog_settings;

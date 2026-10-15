@@ -1,3 +1,7 @@
+use crate::infrastructure::local_catalog::{
+    LocalCatalog,
+    sidebar::{map_project, map_task},
+};
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager, State};
 
@@ -21,38 +25,42 @@ use crate::{
 };
 
 #[tauri::command]
-pub async fn list_projects(state: State<'_, AppState>) -> Result<ProjectPage, AppError> {
-    let connection = state.codex_connection().await?;
-    let response = codex::list_projects(&connection)
-        .await
-        .map_err(AppError::from)?;
+pub async fn list_projects(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<ProjectPage, AppError> {
+    let response = local_catalog(&app)?.project_page().await?;
     state.remember_project_page(&response).await;
     Ok(response)
 }
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn add_project(
+    app: AppHandle,
     root_paths: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<ProjectMutationResponse, AppError> {
-    let connection = state.codex_connection().await?;
-    let response = codex::add_project(&connection, root_paths)
-        .await
-        .map_err(AppError::from)?;
+    let response = ProjectMutationResponse {
+        project: local_catalog(&app)?.add_project(root_paths).await?,
+    };
     state.remember_project(&response.project).await;
     Ok(response)
 }
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn rename_project(
+    app: AppHandle,
     project_id: String,
     name: String,
     state: State<'_, AppState>,
 ) -> Result<ProjectMutationResponse, AppError> {
-    let connection = state.codex_connection().await?;
-    let response = codex::rename_project(&connection, project_id, name)
-        .await
-        .map_err(AppError::from)?;
+    let response = ProjectMutationResponse {
+        project: map_project(
+            &local_catalog(&app)?
+                .call("project.rename", json!({"id":project_id,"name":name}))
+                .await?,
+        )?,
+    };
     state.remember_project(&response.project).await;
     Ok(response)
 }
@@ -63,10 +71,13 @@ pub async fn remove_project(
     project_id: String,
     state: State<'_, AppState>,
 ) -> Result<RemoveProjectResponse, AppError> {
-    let connection = state.codex_connection().await?;
-    let response = codex::remove_project(&connection, project_id.clone())
-        .await
-        .map_err(AppError::from)?;
+    local_catalog(&app)?
+        .call("project.remove", json!({"id":project_id}))
+        .await?;
+    let response = RemoveProjectResponse {
+        project_id: project_id.clone(),
+        status: "removed",
+    };
     // 项目删除已成功，必须先使终端失效并回收；后续 settings 失败不能留下运行中的 PTY。
     state.terminals.invalidate_project(&project_id);
     let terminals = state.terminals.clone();
@@ -84,30 +95,30 @@ pub async fn remove_project(
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn reorder_projects(
+    app: AppHandle,
     project_ids: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<ProjectPage, AppError> {
-    let connection = state.codex_connection().await?;
-    let response = codex::reorder_projects(&connection, project_ids)
-        .await
-        .map_err(AppError::from)?;
+    let catalog = local_catalog(&app)?;
+    catalog
+        .call("project.reorder", json!({"ids":project_ids}))
+        .await?;
+    let response = catalog.project_page().await?;
     state.remember_project_page(&response).await;
     Ok(response)
 }
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn list_tasks(
+    app: AppHandle,
     input: ListTasksInput,
     request_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<AgentTaskPage, AppError> {
     state
         .run_cancellable(request_id.as_deref(), async {
-            let connection = state.codex_connection().await?;
             let project_id = input.project_id.clone();
-            let response = codex::list_tasks(&connection, input)
-                .await
-                .map_err(AppError::from)?;
+            let response = local_catalog(&app)?.task_page(input).await?;
             state
                 .remember_task_metadata(
                     &project_id,
@@ -179,14 +190,15 @@ pub async fn start_task(
         .task_creations
         .run(&project_id, &idempotency_key, async move {
             let state = app.state::<AppState>();
-            let connection = state.codex_connection().await?;
-            let response =
-                task_workspace::start_task(&app, &connection, creation_project.clone()).await?;
+            let response = task_workspace::start_task(&app, creation_project.clone()).await?;
             state
                 .remember_task_metadata(
                     &creation_project,
                     [(response.task.id.as_str(), response.task.title.as_str())],
                 )
+                .await;
+            state
+                .publish_catalog_task_change(&app, &creation_project, &response.task.id, None)
                 .await;
             Ok(response)
         })
@@ -308,71 +320,107 @@ pub async fn compact_task(
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn rename_task(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     title: String,
     state: State<'_, AppState>,
 ) -> Result<AgentTaskMutationResponse, AppError> {
-    let connection = state.codex_connection().await?;
-    let response = codex::rename_task(&connection, project_id.clone(), task_id, title)
-        .await
-        .map_err(AppError::from)?;
+    let catalog = local_catalog(&app)?;
+    catalog.owned_task(&project_id, &task_id).await?;
+    let response = AgentTaskMutationResponse {
+        task: map_task(
+            &catalog
+                .call("task.patch", json!({"id":task_id,"title":title}))
+                .await?,
+        )?,
+    };
     state
         .remember_task_metadata(
             &project_id,
             [(response.task.id.as_str(), response.task.title.as_str())],
         )
+        .await;
+    state
+        .publish_catalog_task_change(&app, &project_id, &response.task.id, None)
         .await;
     Ok(response)
 }
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn pin_task(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     pinned: bool,
     state: State<'_, AppState>,
 ) -> Result<AgentTaskMutationResponse, AppError> {
-    let connection = state.codex_connection().await?;
-    let response = codex::pin_task(&connection, project_id.clone(), task_id, pinned)
-        .await
-        .map_err(AppError::from)?;
+    let catalog = local_catalog(&app)?;
+    catalog.owned_task(&project_id, &task_id).await?;
+    let response = AgentTaskMutationResponse {
+        task: map_task(
+            &catalog
+                .call("task.patch", json!({"id":task_id,"pinned":pinned}))
+                .await?,
+        )?,
+    };
     state
         .remember_task_metadata(
             &project_id,
             [(response.task.id.as_str(), response.task.title.as_str())],
         )
         .await;
+    state
+        .publish_catalog_task_change(&app, &project_id, &response.task.id, None)
+        .await;
     Ok(response)
 }
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn archive_task(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     state: State<'_, AppState>,
 ) -> Result<AgentTaskStatusResponse, AppError> {
-    let connection = state.codex_connection().await?;
-    codex::archive_task(&connection, project_id, task_id)
-        .await
-        .map_err(AppError::from)
+    let catalog = local_catalog(&app)?;
+    catalog.owned_task(&project_id, &task_id).await?;
+    catalog
+        .call("task.patch", json!({"id":task_id,"archived":true}))
+        .await?;
+    state
+        .publish_catalog_task_change(&app, &project_id, &task_id, Some("archived"))
+        .await;
+    Ok(AgentTaskStatusResponse {
+        status: "archived",
+        task_id,
+    })
 }
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn unarchive_task(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     state: State<'_, AppState>,
 ) -> Result<AgentTaskMutationResponse, AppError> {
-    let connection = state.codex_connection().await?;
-    let response = codex::unarchive_task(&connection, project_id.clone(), task_id)
-        .await
-        .map_err(AppError::from)?;
+    let catalog = local_catalog(&app)?;
+    catalog.owned_task(&project_id, &task_id).await?;
+    let response = AgentTaskMutationResponse {
+        task: map_task(
+            &catalog
+                .call("task.patch", json!({"id":task_id,"archived":false}))
+                .await?,
+        )?,
+    };
     state
         .remember_task_metadata(
             &project_id,
             [(response.task.id.as_str(), response.task.title.as_str())],
         )
+        .await;
+    state
+        .publish_catalog_task_change(&app, &project_id, &response.task.id, None)
         .await;
     Ok(response)
 }
@@ -384,25 +432,35 @@ pub async fn delete_task(
     task_id: String,
     state: State<'_, AppState>,
 ) -> Result<AgentTaskStatusResponse, AppError> {
-    let connection = state.codex_connection().await?;
-    let deleted = codex::delete_task(&connection, project_id.clone(), task_id.clone())
-        .await
-        .map_err(AppError::from)?;
+    let catalog = local_catalog(&app)?;
+    let task = catalog.owned_task(&project_id, &task_id).await?;
+    catalog.call("task.remove", json!({"id":task_id})).await?;
+    let working_directory = task["cwd"].as_str().map(std::path::PathBuf::from);
     task_workspace::remove_deleted_workspace(
         &app,
         &project_id,
         &task_id,
-        deleted.working_directory.as_deref(),
+        working_directory.as_deref(),
     )
     .await?;
     delete_task_settings(&app_data_dir(&app)?, &project_id, &task_id)
         .await
         .map_err(|_| AppError::FilesystemRequestFailed)?;
-    Ok(deleted.response)
+    state
+        .publish_catalog_task_change(&app, &project_id, &task_id, Some("deleted"))
+        .await;
+    Ok(AgentTaskStatusResponse {
+        status: "deleted",
+        task_id,
+    })
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
     app.path()
         .app_data_dir()
         .map_err(|_| AppError::FilesystemRequestFailed)
+}
+
+fn local_catalog(app: &AppHandle) -> Result<LocalCatalog, AppError> {
+    Ok(LocalCatalog::at(&app_data_dir(app)?)?)
 }

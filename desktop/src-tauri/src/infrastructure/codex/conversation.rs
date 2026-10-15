@@ -165,6 +165,9 @@ async fn read_task_snapshot_view(
     cursor: Option<&str>,
     summary: bool,
 ) -> Result<AgentTaskSnapshotResponse, ConnectionError> {
+    if let Some(catalog) = &connection.catalog {
+        catalog.owned_task(&project_id, &task_id).await?;
+    }
     let response: NativeThreadResponse = connection
         .request(
             "thread/read",
@@ -239,6 +242,9 @@ pub async fn read_task_preview(
     ),
     ConnectionError,
 > {
+    if let Some(catalog) = &connection.catalog {
+        catalog.owned_task(project_id, task_id).await?;
+    }
     let response: NativeThreadResponse = connection
         .request(
             "thread/read",

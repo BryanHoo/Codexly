@@ -284,7 +284,7 @@ export const workbench = {
     name: "Project name",
     previewMarkdown: "Preview Markdown",
     remove: "Remove project",
-    removeDescription: "Remove {{name}} from Codexly? Files on disk will not be deleted.",
+    removeDescription: "Remove {{name}} and its task records from Codexly? Files on disk will be retained.",
     rename: "Rename project",
     renameDescription: "This changes only the sidebar display name, not the folder name on disk.",
     showRawContent: "Show raw content",
@@ -294,9 +294,9 @@ export const workbench = {
   },
   newProject,
   projectPicker: {
-    primaryRoot: "Primary",
-    primaryRootHint: "The first selected folder becomes the primary folder",
-    primaryRootSummary: "{{path}} (Primary)",
+    primaryRoot: "Project folder",
+    primaryRootHint: "Each project uses exactly one folder",
+    primaryRootSummary: "{{path}}",
     rootSeparator: ", ",
     selectedRoots: "{{count}} project folders selected",
     selectRoot: "Select {{name}}",
@@ -377,10 +377,10 @@ export const workbench = {
     delete: "Delete permanently",
     deleteAll: "Delete all",
     deleteAllDescription:
-      'All archived tasks in "{{project}}" and their associated history will be permanently deleted. This cannot be undone.',
+      'All archived tasks in "{{project}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',
     deleteAllTitle: "Permanently delete all archived tasks",
     deleteDescription:
-      '"{{task}}" and its associated history will be permanently deleted. This cannot be undone.',
+      '"{{task}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',
     deleteTask: "Permanently delete task {{task}}",
     deleteTitle: "Permanently delete task",
     empty: "No archived tasks",
@@ -413,7 +413,7 @@ export const workbench = {
     createInProject: "Create a task in {{project}}",
     deletePermanently: "Delete permanently",
     deleteTaskDescription:
-      '"{{task}}" and its associated history will be permanently deleted. This cannot be undone.',
+      '"{{task}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',
     deleteTaskTitle: "Permanently delete task",
     errorAddProject: "Unable to add project",
     errorArchiveTask: "Unable to archive task",

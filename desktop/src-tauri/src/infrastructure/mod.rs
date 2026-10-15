@@ -38,3 +38,5 @@ mod provider_models_tests;
 #[path = "scheduled_tasks_tests.rs"]
 mod scheduled_tasks_tests;
 pub mod terminal;
+
+pub mod local_catalog;

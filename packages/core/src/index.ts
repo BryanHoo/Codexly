@@ -53,3 +53,4 @@ export * from "./archived-task-deletion.js";
 export * from "./task-catalog.js";
 export * from "./completed-task-query.js";
 export * from "./custom-model-reasoning.js";
+export type * from "./local-catalog.js";

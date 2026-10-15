@@ -16,7 +16,7 @@ describe("resolveProjectDirectoryAddPaths", () => {
     ).toEqual(["/workspace/project"]);
   });
 
-  it("keeps ordered checkbox selections separate from direct path input", () => {
+  it("restricts legacy selections to one folder", () => {
     expect(
       resolveProjectDirectoryAddPaths({
         draftPath: undefined,
@@ -26,7 +26,7 @@ describe("resolveProjectDirectoryAddPaths", () => {
         submittedPath: "/workspace/direct",
         validatedPath: "/workspace/direct",
       }),
-    ).toEqual(["/workspace/primary", "/workspace/secondary"]);
+    ).toEqual(["/workspace/primary"]);
   });
 
   it.each([

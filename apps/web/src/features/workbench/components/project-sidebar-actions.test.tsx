@@ -63,7 +63,8 @@ describe("TaskActionMenu", () => {
 
     expect(markup).toContain("永久删除任务");
     expect(markup).toContain("结构化历史");
-    expect(markup).toContain("此操作无法撤销");
+    expect(markup).toContain("无法恢复");
+    expect(markup).toContain("AI 引擎保存的原始会话历史会保留");
     expect(markup).toContain("取消");
   });
 });
@@ -136,7 +137,8 @@ describe("Project folder actions", () => {
     );
 
     expect(renameMarkup).toContain("不会修改磁盘上的文件夹名称");
-    expect(removeMarkup).toContain("不会删除磁盘上的文件夹及文件");
+    expect(removeMarkup).toContain("磁盘上的文件夹和文件会保留");
+    expect(removeMarkup).toContain("Codexly 任务记录");
   });
 });
 

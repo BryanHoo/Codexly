@@ -156,6 +156,7 @@ fn rpc_diagnostic(
             ConnectionError::InvalidMessage => "invalid_message",
             ConnectionError::Timeout => "timeout",
             ConnectionError::StateUnavailable => "state_unavailable",
+            ConnectionError::Catalog(_) => "local_catalog_unavailable",
         };
         context.insert("errorKind".to_owned(), json!(kind));
         let message = match error {

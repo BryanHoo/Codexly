@@ -46,14 +46,14 @@ describe("project root selection", () => {
     ).toBe("/workspace/secondary");
   });
 
-  it("builds an ordered root list from checkbox changes", () => {
+  it("replaces the selected folder when another folder is chosen", () => {
     const selected = setProjectRootPathChecked([], "/workspace/primary", true);
     const aggregated = setProjectRootPathChecked(selected, "/workspace/secondary", true);
 
-    expect(aggregated).toEqual(["/workspace/primary", "/workspace/secondary"]);
+    expect(aggregated).toEqual(["/workspace/secondary"]);
     expect(setProjectRootPathChecked(aggregated, "/workspace/primary", false)).toEqual([
       "/workspace/secondary",
     ]);
-    expect(setProjectRootPathChecked(aggregated, "/workspace/primary", true)).toBe(aggregated);
+    expect(setProjectRootPathChecked(aggregated, "/workspace/secondary", true)).toBe(aggregated);
   });
 });

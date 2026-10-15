@@ -93,7 +93,7 @@ export function assertValidProjectDefaults(
 }
 
 export function taskFromSnapshot(
-  snapshot: Awaited<ReturnType<AgentProvider["readTask"]>> & object,
+  snapshot: AgentTask,
   overrides: Partial<Pick<AgentTask, "title">> = {},
 ): AgentTask {
   return {

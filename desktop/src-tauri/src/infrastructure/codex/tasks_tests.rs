@@ -424,7 +424,6 @@ async fn task_mutations_should_complete_native_protocol_round_trips() {
         delete_task(&connection, "project-a".into(), "thread-a".into())
             .await
             .unwrap()
-            .response
             .status,
         "deleted"
     );

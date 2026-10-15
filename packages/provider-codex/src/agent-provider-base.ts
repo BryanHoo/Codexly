@@ -1,3 +1,4 @@
+import { pinCodexTask } from "./agent-provider-task-metadata.js";
 import type { CodexRpcClient } from "./codex-rpc-client.js";
 import type { CodexTaskTitles } from "./task-titles.js";
 import type {
@@ -36,7 +37,6 @@ import { releaseCodexProjectThreads } from "./thread-unsubscribe.js";
 import {
   CodexProtocolMappingError,
   CODEX_THREAD_CONFIG,
-  CODEX_PINNED_THREAD_SECTION_ID,
   type CodexSkill,
   expectRecord,
   expectString,
@@ -287,6 +287,12 @@ export abstract class CodexAgentProviderBase {
     await taskArchive.archiveCodexTask(this.client, taskId);
   }
 
+  public get hasLocalCatalog(): boolean {
+    return this.client.readLocalTask !== undefined;
+  }
+
+  public abstract readTaskMetadata(taskId: string): Promise<AgentTask | undefined>;
+
   public async deleteTask(taskId: string): Promise<void> {
     this.assertKnownProjectTask(taskId);
     await taskArchive.deleteCodexTask(this.client, taskId);
@@ -374,28 +380,9 @@ export abstract class CodexAgentProviderBase {
 
   public async pinTask(taskId: string, pinned: boolean): Promise<AgentTask> {
     this.assertKnownProjectTask(taskId);
-    expectRecord(
-      await this.client.request("thread/section/move", {
-        sectionId: pinned ? CODEX_PINNED_THREAD_SECTION_ID : null,
-        threadId: taskId,
-      }),
-      "thread/section/move response",
+    return pinCodexTask(this.client, this.project, taskId, pinned, () =>
+      this.readTaskMetadata(taskId),
     );
-    const response = expectRecord(
-      await this.client.request("thread/read", { includeTurns: false, threadId: taskId }),
-      "thread/read response",
-    );
-    const task = await mapAgentTask(
-      expectRecord(response["thread"], "thread/read thread"),
-      this.project,
-    );
-    if (task.id !== taskId) {
-      throw new CodexProtocolMappingError("thread/read returned a different thread");
-    }
-    if (task.pinned !== pinned) {
-      throw new CodexProtocolMappingError("thread/read returned a different pinned state");
-    }
-    return task;
   }
 
   public async listMcpServers(taskId: string): Promise<AgentMcpServerPage> {

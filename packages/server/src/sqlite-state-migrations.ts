@@ -5,6 +5,7 @@ import {
 import { PROVIDER_CONNECTION_MIGRATION } from "./provider-connection-persistence.js";
 import { PROJECT_TODO_MIGRATION } from "./project-todo-migration.js";
 import { ASYNC_QUESTION_MIGRATION } from "./async-question-migration.js";
+import { LOCAL_CATALOG_SQL } from "./local-catalog-schema.js";
 
 export type SqliteMigration = Readonly<{
   name: string;
@@ -480,4 +481,5 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
   },
   PROJECT_TODO_MIGRATION,
   ASYNC_QUESTION_MIGRATION,
+  { name: "own_project_task_catalog", version: 30, sql: LOCAL_CATALOG_SQL },
 ];

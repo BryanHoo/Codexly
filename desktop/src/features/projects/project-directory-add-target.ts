@@ -15,7 +15,7 @@ export function resolveProjectDirectoryAddPaths({
   submittedPath,
   validatedPath,
 }: ProjectDirectoryAddTargetState): readonly string[] {
-  if (selectedPaths.length > 0) return selectedPaths;
+  if (selectedPaths.length > 0) return selectedPaths.slice(0, 1);
 
   // 直接输入模式只接受当前已验证的一条路径，避免与目录树的多选结果混合。
   if (

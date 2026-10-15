@@ -1,20 +1,25 @@
+#[cfg(test)]
+use crate::domain::sidebar::{ProjectMutationResponse, RemoveProjectResponse};
+#[cfg(test)]
 use std::{
-    collections::{BTreeMap, HashSet, hash_map::DefaultHasher},
-    hash::{Hash, Hasher},
+    collections::BTreeMap,
     path::Path,
     sync::atomic::{AtomicU64, Ordering},
-    time::Duration,
     time::SystemTime,
+};
+use std::{
+    collections::{HashSet, hash_map::DefaultHasher},
+    hash::{Hash, Hasher},
+    time::Duration,
 };
 
 use serde::{Deserialize, Serialize};
 
 use super::connection::{AppServerConnection, ConnectionError};
-use crate::domain::sidebar::{
-    Project, ProjectMutationResponse, ProjectPage, ProjectRoot, RemoveProjectResponse,
-};
+use crate::domain::sidebar::{Project, ProjectPage, ProjectRoot};
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+#[cfg(test)]
 static IDEMPOTENCY_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Serialize)]
@@ -52,6 +57,7 @@ struct NativeProjectResponse {
     project: NativeProject,
 }
 
+#[cfg(test)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProjectCreateParams {
@@ -61,11 +67,13 @@ struct ProjectCreateParams {
     roots: Vec<NativeProjectRootParam>,
 }
 
+#[cfg(test)]
 #[derive(Serialize)]
 struct NativeProjectRootParam {
     path: String,
 }
 
+#[cfg(test)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProjectUpdateParams {
@@ -83,6 +91,14 @@ pub async fn read_project(
     connection: &AppServerConnection,
     project_id: &str,
 ) -> Result<Project, ConnectionError> {
+    if let Some(catalog) = &connection.catalog {
+        let project = catalog
+            .call("project.read", serde_json::json!({"id":project_id}))
+            .await?;
+        return Ok(crate::infrastructure::local_catalog::sidebar::map_project(
+            &project,
+        )?);
+    }
     let response: NativeProjectResponse = connection
         .request(
             "project/read",
@@ -98,6 +114,7 @@ pub async fn read_project(
     Ok(map_project(response.project))
 }
 
+#[cfg(test)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProjectMoveParams<'a> {
@@ -145,6 +162,7 @@ pub async fn list_projects(
     })
 }
 
+#[cfg(test)]
 pub async fn add_project(
     connection: &AppServerConnection,
     root_paths: Vec<String>,
@@ -181,6 +199,7 @@ pub async fn add_project(
     })
 }
 
+#[cfg(test)]
 pub async fn rename_project(
     connection: &AppServerConnection,
     project_id: String,
@@ -205,6 +224,7 @@ pub async fn rename_project(
     })
 }
 
+#[cfg(test)]
 pub async fn remove_project(
     connection: &AppServerConnection,
     project_id: String,
@@ -224,6 +244,7 @@ pub async fn remove_project(
     })
 }
 
+#[cfg(test)]
 pub async fn reorder_projects(
     connection: &AppServerConnection,
     project_ids: Vec<String>,
@@ -248,6 +269,7 @@ pub async fn reorder_projects(
     list_projects(connection).await
 }
 
+#[cfg(test)]
 fn next_idempotency_key() -> String {
     let nanos = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)

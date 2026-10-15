@@ -4,6 +4,7 @@
 
 - Web 允许同启动目录、同 Codex Home 的多个实例，端口冲突自动递增，不使用长驻实例锁。主运行时与按需模型目录子进程固定使用用户主目录；临时任务默认使用用户主目录，显式工作区使用首个根目录。启动目录不得隐式影响内部配置或任务范围，用 `cli-multi-instance.test.ts`、`cli-command-start.test.ts` 和端口回归验证。
 - 主运行时与按需模型目录子进程的初始化握手共用 SQLite 仓储的短期互斥，防止首次同时初始化空 Codex Home 时上游状态库建表竞争；握手后释放，不限制实例并行运行。
+- 业务 RPC 适配器只能注入仓储和 Provider，不得替换 App Server 进程持有的原始连接；进程退出仍需关闭 JSONL 传输。目录迁移接线回归须覆盖启用本地仓储后的正常退出。
 
 - 命令参数、环境变量、启动和退出行为同时检查同目录 `*.test.ts` 与 `README.md`、`README.zh-CN.md`。
 - 变更打包入口时检查 `tsup.config.ts`、`tools/verify-package.mjs` 和 `pnpm package:check`。

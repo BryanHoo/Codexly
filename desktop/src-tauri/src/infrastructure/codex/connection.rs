@@ -59,6 +59,8 @@ enum PendingError {
 
 #[derive(Debug, Error)]
 pub enum ConnectionError {
+    #[error(transparent)]
+    Catalog(#[from] crate::infrastructure::local_catalog::CatalogError),
     #[error("failed to process app-server JSON: {0}")]
     Json(#[from] serde_json::Error),
     #[error("failed to write app-server message: {0}")]
@@ -76,6 +78,9 @@ pub enum ConnectionError {
 }
 
 pub struct AppServerConnection {
+    pub(super) catalog: Option<crate::infrastructure::local_catalog::LocalCatalog>,
+    pub(super) catalog_ids: Mutex<HashMap<String, String>>,
+    pub(super) catalog_native_ids: Mutex<HashMap<String, String>>,
     pub(super) queued_media: Option<crate::infrastructure::queued_media::QueuedMediaStore>,
     diagnostic_seq: u64,
     pub(super) plugin_reconciler: super::plugin_reconcile::PluginReconciler,
@@ -137,6 +142,10 @@ impl AppServerConnection {
         ));
 
         Self {
+            catalog: app_data
+                .and_then(|path| crate::infrastructure::local_catalog::LocalCatalog::at(path).ok()),
+            catalog_ids: Mutex::new(HashMap::new()),
+            catalog_native_ids: Mutex::new(HashMap::new()),
             queued_media: app_data.map(crate::infrastructure::queued_media::QueuedMediaStore::new),
             diagnostic_seq,
             plugin_reconciler: Default::default(),
@@ -181,10 +190,28 @@ impl AppServerConnection {
         };
         let response = self.request("initialize", &params, request_timeout).await?;
         self.notify("initialized").await?;
+        self.initialize_catalog().await?;
         Ok(response)
     }
 
-    pub async fn request<P, R>(
+    pub async fn request<P: Serialize, R: DeserializeOwned>(
+        &self,
+        method: &str,
+        params: &P,
+        request_timeout: Duration,
+    ) -> Result<R, ConnectionError> {
+        if let Some(catalog) = &self.catalog {
+            let params =
+                serde_json::to_value(params).map_err(|_| ConnectionError::InvalidMessage)?;
+            let value = self
+                .catalog_request(catalog, method, params, request_timeout)
+                .await?;
+            return serde_json::from_value(value).map_err(|_| ConnectionError::InvalidMessage);
+        }
+        self.request_raw(method, params, request_timeout).await
+    }
+
+    pub(super) async fn request_raw<P, R>(
         &self,
         method: &str,
         params: &P,

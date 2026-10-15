@@ -1,3 +1,7 @@
+#[cfg(test)]
+use crate::domain::sidebar::{
+    AgentTaskMutationResponse, AgentTaskPage, ListCompletedTasksInput, ListTasksInput,
+};
 use std::{path::PathBuf, time::Duration};
 
 use serde::{Deserialize, Serialize};
@@ -7,17 +11,17 @@ use super::{
     conversation_background::list_background_terminals,
     sidebar::unix_seconds_to_rfc3339,
 };
-use crate::domain::sidebar::{
-    AgentTask, AgentTaskMutationResponse, AgentTaskPage, AgentTaskStatusResponse,
-    ListCompletedTasksInput, ListTasksInput,
-};
+use crate::domain::sidebar::{AgentTask, AgentTaskStatusResponse};
 
 const PINNED_SECTION_ID: &str = "01984de2-8f74-7c91-a3b2-5c5e937cf318";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const TEMPORARY_PROJECT_ID: &str = "temporary";
+#[cfg(test)]
 const COMPLETED_TASK_DEFAULT_LIMIT: u32 = 10;
+#[cfg(test)]
 const COMPLETED_TASK_MAX_LIMIT: u32 = 100;
 
+#[cfg(test)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ThreadListParams<'a> {
@@ -37,6 +41,7 @@ struct ThreadListParams<'a> {
     sort_key: &'static str,
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NativeThreadPage {
@@ -58,11 +63,6 @@ pub(super) struct NativeThread {
     section: Option<NativeThreadSection>,
     status: NativeThreadStatus,
     updated_at: i64,
-}
-
-pub struct DeletedTask {
-    pub response: AgentTaskStatusResponse,
-    pub working_directory: Option<PathBuf>,
 }
 
 #[derive(Deserialize)]
@@ -99,6 +99,7 @@ struct ThreadReadParams<'a> {
     thread_id: &'a str,
 }
 
+#[cfg(test)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ThreadSetNameParams<'a> {
@@ -106,6 +107,7 @@ struct ThreadSetNameParams<'a> {
     thread_id: &'a str,
 }
 
+#[cfg(test)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ThreadSectionMoveParams<'a> {
@@ -113,6 +115,7 @@ struct ThreadSectionMoveParams<'a> {
     thread_id: &'a str,
 }
 
+#[cfg(test)]
 pub async fn list_tasks(
     connection: &AppServerConnection,
     input: ListTasksInput,
@@ -129,7 +132,6 @@ pub async fn list_tasks(
                 archived: input.archived.unwrap_or(false),
                 cursor: input.cursor.as_deref(),
                 limit: input.limit,
-                // 空数组按 Codex 协议表示不过滤 Provider，切换 API 后历史仍可见。
                 model_providers: &[],
                 project_id: Some(project_filter),
                 search_term: input.search_term.as_deref(),
@@ -155,6 +157,7 @@ pub async fn list_tasks(
     })
 }
 
+#[cfg(test)]
 pub async fn list_completed_tasks(
     connection: &AppServerConnection,
     input: ListCompletedTasksInput,
@@ -242,6 +245,7 @@ pub async fn task_working_directory(
         .ok_or(ConnectionError::InvalidMessage)
 }
 
+#[cfg(test)]
 pub async fn rename_task(
     connection: &AppServerConnection,
     project_id: String,
@@ -268,6 +272,7 @@ pub async fn rename_task(
     })
 }
 
+#[cfg(test)]
 pub async fn pin_task(
     connection: &AppServerConnection,
     project_id: String,
@@ -289,6 +294,7 @@ pub async fn pin_task(
     })
 }
 
+#[cfg(test)]
 pub async fn archive_task(
     connection: &AppServerConnection,
     project_id: String,
@@ -309,6 +315,7 @@ pub async fn archive_task(
     })
 }
 
+#[cfg(test)]
 pub async fn unarchive_task(
     connection: &AppServerConnection,
     project_id: String,
@@ -334,11 +341,8 @@ pub async fn delete_task(
     connection: &AppServerConnection,
     project_id: String,
     task_id: String,
-) -> Result<DeletedTask, ConnectionError> {
-    let working_directory = read_native_task(connection, &project_id, &task_id)
-        .await?
-        .cwd
-        .map(PathBuf::from);
+) -> Result<AgentTaskStatusResponse, ConnectionError> {
+    read_native_task(connection, &project_id, &task_id).await?;
     request_empty(
         connection,
         "thread/delete",
@@ -348,12 +352,9 @@ pub async fn delete_task(
     )
     .await?;
     super::task_title::take_task_title_root(connection, &task_id);
-    Ok(DeletedTask {
-        response: AgentTaskStatusResponse {
-            status: "deleted",
-            task_id,
-        },
-        working_directory,
+    Ok(AgentTaskStatusResponse {
+        status: "deleted",
+        task_id,
     })
 }
 
@@ -429,7 +430,11 @@ pub(super) async fn read_native_task(
 ) -> Result<NativeThread, ConnectionError> {
     let mut response: NativeThreadResponse = connection
         .request(
-            "thread/read",
+            if connection.catalog.is_some() {
+                "catalog/task/read"
+            } else {
+                "thread/read"
+            },
             &ThreadReadParams {
                 include_turns: false,
                 thread_id: task_id,

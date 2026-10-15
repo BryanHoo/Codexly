@@ -26,3 +26,6 @@
 - `0.162.0` 的 `modelProvider/capabilities/read` 只返回 `imageGeneration` 和 `webSearch`，不得再要求已移除的 `namespaceTools`。自定义 Provider 回归必须使用当前响应结构，继续验证失败回滚和有界模型发现。
 
 - UI 历史读取传入 `summary: true`，使用原生 `thread/turns/list` 的 `itemsView: "summary"` 并直接推进回合游标；为每个回合生成绑定任务的独立 `processCursor`。分页格式展开时每次最多读取 100 个 Item；旧格式展开时才读原回合页并仅交付目标回合。内部搜索和后台业务的既有完整读取契约保持原样。回归包含 `task-history-pagination.test.ts`、`agent-provider-history.test.ts` 和隔离环境的 `history-storage-runtime.test.ts`。
+
+- 目录和任务元数据由应用本地仓储独占管理；Project 必须恰好一个根目录。上游列表仅用于一次性事务导入；执行适配器翻译应用任务 ID 与 provider/sessionId，禁止用引擎列表覆盖本地管理状态。两端共享 SQL 契约和单选规则，变更须覆盖离线管理、迁移回滚与身份隔离测试。详见[本地目录与任务](../../../../docs/local-catalog.md)。
+- 项目 ID 独立于磁盘路径；路径去重键不能写入目录仓储或公共协议。导入与修复测试必须验证真实路径、公共 ProjectPage 协议和既有 ID/元数据保持，不能只检查数据库行数。

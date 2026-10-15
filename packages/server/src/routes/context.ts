@@ -115,7 +115,7 @@ export type RunIdempotent = <T>(
 
 export type TaskStartRecovery = Readonly<{
   fingerprint: string;
-  settings: AgentTaskSettings;
+  settings?: AgentTaskSettings;
   task: AgentTask;
 }>;
 
@@ -276,7 +276,7 @@ export interface ServerRouteContext {
   readonly scheduledTaskService: ScheduledTaskService;
   readonly skillMarketService: SkillMarketService;
   readonly taskFromSnapshot: (
-    snapshot: Awaited<ReturnType<AgentProvider["readTask"]>> & object,
+    snapshot: AgentTask,
     overrides?: Partial<Pick<AgentTask, "title">>,
   ) => AgentTask;
   readonly taskStartRecoveries: Map<string, TaskStartRecovery>;

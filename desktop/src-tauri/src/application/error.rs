@@ -7,6 +7,8 @@ use crate::infrastructure::{
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error(transparent)]
+    LocalCatalog(#[from] crate::infrastructure::local_catalog::CatalogError),
     #[error("failed to enable login startup")]
     AutostartFailed,
     #[error("No Agent models are available")]

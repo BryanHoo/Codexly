@@ -1,6 +1,9 @@
 import type { AgentProvider } from "./agent-provider.js";
 
-type ArchivedTaskProvider = Pick<AgentProvider, "listTasks" | "readTask" | "deleteTask">;
+type ArchivedTaskProvider = Pick<
+  AgentProvider,
+  "listTasks" | "readTask" | "readTaskMetadata" | "deleteTask"
+>;
 
 /** 先固定目标集合，再执行删除，避免分页游标因本次删除而跳过任务。 */
 export async function deleteArchivedTasks(provider: ArchivedTaskProvider, scopeId: string) {
@@ -32,7 +35,7 @@ export async function deleteArchivedTasks(provider: ArchivedTaskProvider, scopeI
   for (let index = 0; index < tasks.length; index += 4) {
     const results = await Promise.allSettled(
       tasks.slice(index, index + 4).map(async (id) => {
-        const task = await provider.readTask(id);
+        const task = await (provider.readTaskMetadata?.(id) ?? provider.readTask(id));
         if (task?.projectId !== scopeId) throw new Error("Archived task is no longer in scope");
         await provider.deleteTask(id);
       }),

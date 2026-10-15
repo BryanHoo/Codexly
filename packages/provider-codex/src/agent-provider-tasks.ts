@@ -7,7 +7,7 @@ import type {
   ReadAgentTaskInput,
   ResolvePendingRequestInput,
 } from "@codexly/core";
-import type { PendingRequest } from "@codexly/protocol";
+import type { AgentTask, PendingRequest } from "@codexly/protocol";
 import { readCodexTranscriptTurnSkills } from "./codex-transcript.js";
 import {
   CodexProtocolMappingError,
@@ -37,10 +37,44 @@ import {
 import { unsubscribeCodexThread } from "./thread-unsubscribe.js";
 
 export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
+  public async readTaskMetadata(taskId: string): Promise<AgentTask | undefined> {
+    const local = await this.client.readLocalTask?.(taskId);
+    if (this.client.readLocalTask !== undefined) {
+      const projectId = this.project.kind === "temporary" ? null : this.project.id;
+      if (local == null || local.projectId !== projectId) return undefined;
+      this.runtime.projectTaskIds.add(taskId);
+      return {
+        id: local.id,
+        projectId: this.project.id,
+        title: local.title || "新聊天",
+        pinned: local.pinned,
+        updatedAt: new Date(local.updatedAt * 1000).toISOString(),
+        ...(local.cwd !== this.project.rootPath ? { workspacePath: local.cwd } : {}),
+      };
+    }
+    const response = expectRecord(
+      await this.client.request("thread/read", { threadId: taskId, includeTurns: false }),
+      "thread/read",
+    );
+    return mapAgentTask(expectRecord(response["thread"], "thread"), this.project);
+  }
+
   public async readTask(
     taskId: string,
     input: ReadAgentTaskInput = {},
   ): Promise<AgentProviderTaskSnapshot | undefined> {
+    if (this.client.readLocalTask !== undefined) {
+      const local = await this.client.readLocalTask(taskId);
+      if (
+        local === null ||
+        local.projectId !== (this.project.kind === "temporary" ? null : this.project.id)
+      )
+        return undefined;
+      if (local.sessionId === null) {
+        const task = await this.readTaskMetadata(taskId);
+        return task === undefined ? undefined : createUnmaterializedTaskSnapshot(task);
+      }
+    }
     this.runtime.pendingTaskReads.set(taskId, (this.runtime.pendingTaskReads.get(taskId) ?? 0) + 1);
     let projectOwnershipVerified = false;
     try {
@@ -121,7 +155,9 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         cursor.reviewItems === undefined
           ? await this.readReviewWorkerTurns(taskId, nativePage.turns, cursor.reviewCursor)
           : await this.readReviewItemPages(taskId, cursor.reviewItems, cursor.reviewCursor);
-      const transcriptSkillsByTurnId = await readCodexTranscriptTurnSkills(taskId);
+      const transcriptSkillsByTurnId = await readCodexTranscriptTurnSkills(
+        this.client.nativeTaskId?.(taskId) ?? taskId,
+      );
       // 先恢复 Thread 级元数据，再等待正文持久化后映射历史，确保跨进程仍使用相同授权 ID。
       await this.threadAttachments?.prepare(taskId);
       const turns = this.runtime.messageIdentities.snapshot(

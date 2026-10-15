@@ -1,9 +1,11 @@
+import { prepareLocalCatalog } from "./cli-local-catalog.js";
 import type { ManagedStartContext } from "./autostart/runtime.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
   AgentRuntimeProvider,
+  LocalCatalogStore,
   ProjectProjectionStore,
   ProjectRepository,
   WorkbenchPetProvider,
@@ -11,7 +13,6 @@ import type {
 import { DEFAULT_COMMIT_MESSAGE_MODEL, type AppUpdateProgress } from "@codexly/protocol";
 import {
   checkCodexVersion,
-  CodexProjectRepository,
   createCodexRuntimeProvider,
   createCodexWorkbenchPetProvider,
   locateCodexBinary,
@@ -28,6 +29,7 @@ import {
   createCodexlyServer,
   normalizeAllowedHost,
   SqliteStateRepository,
+  LocalProjectRepository,
   type SqliteDatabaseDiagnostics,
 } from "@codexly/server";
 
@@ -129,8 +131,11 @@ const defaultDependencies: CliDependencies = {
   checkAppUpdate: startupAppUpdate.check,
   checkCodexVersion,
   confirmAppUpdate: confirmTerminalAppUpdate,
-  createProjectRepository: ({ client, projection }) =>
-    new CodexProjectRepository(client, projection),
+  createProjectRepository: ({ projection }) =>
+    new LocalProjectRepository(
+      projection as CliManagedStateRepository & LocalCatalogStore,
+      projection,
+    ),
   createPetProvider: createCodexWorkbenchPetProvider,
   createStateRepository: (databasePath) => SqliteStateRepository.open(databasePath),
   createRuntimeProvider: createCodexRuntimeProvider,
@@ -309,30 +314,28 @@ export async function runStart(
         : startupStateRepository.withScheduledTaskLock(initialize);
     };
     runtime = await startRuntime();
+    const catalogClient = await prepareLocalCatalog(runtime.client, stateRepository);
     const projectRepository = dependencies.createProjectRepository({
-      client: runtime.client,
+      client: catalogClient,
       projection: stateRepository,
     });
     const projectSourceMigration = await stateRepository.readProjectSourceMigration();
     if (!projectSourceMigration.completed) {
-      // 首次权威同步前先把旧项目和 thread 归属写入 Codex，防止投影替换删除本地历史。
       await projectRepository.migrateLegacyProjects({
         recoverUnassigned: projectSourceMigration.recoverUnassigned,
       });
     }
     await projectRepository.synchronize();
     if (!projectSourceMigration.completed) {
-      // 仅在上游迁移和本地投影都成功后标记完成，失败重启时可依赖幂等键安全重试。
       await stateRepository.completeProjectSourceMigration();
     }
-    const titleSettingsRepository = stateRepository;
     const provider = await dependencies.createRuntimeProvider({
       codexHome,
-      client: runtime.client,
+      client: catalogClient,
       modelCatalogRuntimeFactory: startRuntime,
       // 标题与提交信息共用应用模型设置，按需读取最新值，不阻塞首次发送。
       readTaskTitleModel: async () =>
-        (await titleSettingsRepository.readGlobalSettings())?.commitMessageModel ??
+        (await startupStateRepository.readGlobalSettings())?.commitMessageModel ??
         DEFAULT_COMMIT_MESSAGE_MODEL,
     });
     const petProvider = dependencies.createPetProvider({ codexHome });

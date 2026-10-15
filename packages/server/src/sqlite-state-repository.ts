@@ -2,6 +2,7 @@ import { isAbsolute } from "node:path";
 import { Worker } from "node:worker_threads";
 
 import type {
+  CatalogOperations,
   AgentQueueRecord,
   AgentQueueRepository,
   AgentProviderConnectionRepository,
@@ -222,6 +223,13 @@ export class SqliteStateRepository
 
   public list(): Promise<readonly Project[]> {
     return this.#call("listProjects");
+  }
+
+  public catalog<K extends keyof CatalogOperations>(
+    operation: K,
+    payload: CatalogOperations[K][0],
+  ): Promise<CatalogOperations[K][1]> {
+    return this.#call("localCatalog", { operation, payload });
   }
 
   public completeProjectSourceMigration(): Promise<void> {

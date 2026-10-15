@@ -447,3 +447,6 @@ mod task_title_generation_tests;
 #[cfg(test)]
 #[path = "state_diagnostics_tests.rs"]
 mod diagnostics_tests;
+
+#[path = "state_catalog.rs"]
+mod catalog_state;

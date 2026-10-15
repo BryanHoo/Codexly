@@ -149,14 +149,9 @@ pub(crate) async fn start_scheduled_task_turn(
         .start_codex(app, &app_data)
         .await
         .map_err(|error| error.to_string())?;
-    let connection = state
-        .codex_connection()
+    let mut response = super::task_workspace::start_task(app, scheduled.project_id.clone())
         .await
         .map_err(|error| error.to_string())?;
-    let mut response =
-        super::task_workspace::start_task(app, &connection, scheduled.project_id.clone())
-            .await
-            .map_err(|error| error.to_string())?;
     let task_id = &response.task.id;
     state
         .remember_task_metadata(
