@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ComponentType } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectStatusIndicator } from "@codexly/ui/core/project-status-indicator";
@@ -14,6 +14,20 @@ import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
 
 vi.mock("../../projects/project-context.js", () => ({
   useProjectData: () => ({ client: {} }),
+}));
+
+// 完成任务会渲染可导航的任务行；布局测试隔离路由，保留真实链接及状态布局。
+vi.mock("@tanstack/react-router", () => ({
+  createLink: (Component: ComponentType<ComponentProps<"a"> & { taskActive: boolean }>) =>
+    ({ params: _params, to: _to, ...props }: ComponentProps<"a"> & {
+      params?: unknown;
+      taskActive: boolean;
+      to?: string;
+    }) => <Component {...props} />,
+  Link: ({ children, params: _params, to: _to, ...props }: ComponentProps<"a"> & {
+    params?: unknown;
+    to?: string;
+  }) => <a {...props}>{children}</a>,
 }));
 
 const project = {
