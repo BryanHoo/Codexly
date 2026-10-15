@@ -2,7 +2,7 @@ export type SidebarActiveTask = Readonly<{
   id: string;
   projectId: string;
   title: string;
-  status: "approval" | "running";
+  status: "approval" | "running" | "completed";
 }>;
 
 type ActivityRecord = Readonly<{
@@ -10,6 +10,7 @@ type ActivityRecord = Readonly<{
   projectId: string;
   taskName?: string;
   isRunning: boolean;
+  attention: "approval" | "completed" | "failed" | null;
   pendingApprovalRequestIds: ReadonlySet<string>;
 }>;
 
@@ -19,21 +20,30 @@ export function getSidebarActiveTasks(
 ) {
   const approval: SidebarActiveTask[] = [];
   const running: SidebarActiveTask[] = [];
+  const completed: SidebarActiveTask[] = [];
   // 活动记录独立于项目分页，收起项目或尚未加载历史时也不能漏掉运行任务。
-  // Map 插入顺序不随流式更新改变；只在审批状态改变时调整优先级。
+  // Map 插入顺序不随流式更新改变；未查看完成优先，其后为待审批、运行。
   for (const record of activity.values()) {
     if (!projectIds.has(record.projectId)) continue;
     const waiting = record.pendingApprovalRequestIds.size > 0;
-    if (!record.isRunning && !waiting) continue;
-    (waiting ? approval : running).push({
+    const status = waiting
+      ? "approval"
+      : record.isRunning
+        ? "running"
+        : record.attention === "completed"
+          ? "completed"
+          : null;
+    if (status === null) continue;
+    // 完成提醒由两端现有的任务聚焦流程清除；保留入口并参与分组总数，实际运行数独立统计。
+    (status === "approval" ? approval : status === "running" ? running : completed).push({
       id: record.taskId,
       projectId: record.projectId,
       title: record.taskName ?? record.taskId,
-      status: waiting ? "approval" : "running",
+      status,
     });
   }
   return {
-    tasks: [...approval, ...running],
+    tasks: [...completed, ...approval, ...running],
     approvalCount: approval.length,
     runningCount: running.length,
   };

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { getSidebarActiveTasks } from "@codexly/frontend-core/sidebar-task-shortcuts";
 import { getTaskActivity } from "./task-activity.js";
 import { createProjectRuntimeManager } from "./project-runtime.js";
 import { createTaskStore } from "./task-store.js";
@@ -15,6 +16,34 @@ import {
 } from "./project-runtime.test-support.js";
 
 describe("project runtime events", () => {
+  it("keeps a completed sidebar shortcut until that task is focused and includes later runs again", () => {
+    const harness = createClientHarness();
+    const manager = createProjectRuntimeManager(harness.client);
+    const shortcuts = () =>
+      getSidebarActiveTasks(manager.getTaskActivity(), new Set(["project-1"]));
+    try {
+      manager.observeSnapshot(createSnapshotResponse("task-1"));
+      harness.emit(createTurnCompletedEvent("task-1", 1));
+      expect(shortcuts().tasks).toEqual([
+        expect.objectContaining({ id: "task-1", status: "completed" }),
+      ]);
+      manager.viewTask("project-1", "task-2");
+      expect(shortcuts().tasks).toHaveLength(1);
+      manager.viewTask("project-1", "task-1");
+      expect(shortcuts().tasks).toEqual([]);
+      manager.viewTask("project-1", "task-2");
+      harness.emit(createTurnStartedEvent("task-1", 2));
+      expect(shortcuts().runningCount).toBe(1);
+      harness.emit(createTurnCompletedEvent("task-1", 3));
+      expect(shortcuts().tasks).toEqual([
+        expect.objectContaining({ id: "task-1", status: "completed" }),
+      ]);
+      expect(shortcuts().runningCount).toBe(0);
+    } finally {
+      manager.dispose();
+    }
+  });
+
   it("retries a busy task unsubscribe until Codex accepts the release", async () => {
     vi.useFakeTimers();
     try {

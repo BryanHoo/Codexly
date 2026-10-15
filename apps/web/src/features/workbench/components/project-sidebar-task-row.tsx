@@ -53,7 +53,11 @@ export function ActiveTaskLink({
       task={task}
       active={active}
       projectName={projectName}
-      labels={{ approval: t("sidebar.taskApproval"), running: t("sidebar.taskRunning") }}
+      labels={{
+        approval: t("sidebar.taskApproval"),
+        running: t("sidebar.taskRunning"),
+        completed: t("sidebar.taskComplete"),
+      }}
       renderLink={(props) => (
         <TaskRouteLink {...props} {...getTaskRoute(task.projectId, task.id)} />
       )}

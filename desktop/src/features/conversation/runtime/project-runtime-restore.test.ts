@@ -1,6 +1,7 @@
 import type { SubscribeAgentEventsOptions } from "@/platform/native-client-types.js";
 import type { AgentEvent, AgentTaskSnapshotResponse, TaskActivitySnapshot } from "@/protocol/index.js";
 import { describe, expect, it, vi } from "vitest";
+import { getSidebarActiveTasks } from "@codexly/frontend-core/sidebar-task-shortcuts";
 
 import type { NativeRuntimeClient } from "../../projects/project-queries.js";
 import { createProjectRuntimeManager } from "./project-runtime.js";
@@ -296,6 +297,13 @@ describe("ProjectRuntimeManager task activity restoration", () => {
     ]);
     expect(readTask).toHaveBeenCalledTimes(2);
     expect(subscribeEvents).toHaveBeenCalledTimes(1);
+    const shortcuts = () => getSidebarActiveTasks(runtime.getTaskActivity(), new Set(["project-1", "project-2"]));
+    expect(shortcuts().tasks).toContainEqual(expect.objectContaining({ id: "task-3", status: "completed" }));
+    expect(shortcuts()).toMatchObject({ runningCount: 2, approvalCount: 0 });
+    runtime.viewTask("project-1", "task-1");
+    expect(shortcuts().tasks).toHaveLength(3);
+    runtime.viewTask("project-2", "task-3");
+    expect(shortcuts().tasks.map(task => task.id)).toEqual(["task-1", "task-2"]);
     runtime.dispose();
   });
 

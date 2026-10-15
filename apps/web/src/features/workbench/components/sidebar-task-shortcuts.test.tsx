@@ -30,7 +30,6 @@ describe("SidebarTaskShortcuts", () => {
       <SidebarTaskShortcuts
         pinnedTasks={tasks}
         activeTasks={activeTasks}
-        runningCount={4}
         approvalCount={1}
         labels={labels}
         renderPinned={renderPinned}
@@ -40,10 +39,26 @@ describe("SidebarTaskShortcuts", () => {
     expect(renderPinned).toHaveBeenCalledTimes(2);
     expect(renderActive).toHaveBeenCalledTimes(2);
     expect(markup).toContain("待确认 1");
+    expect(markup).toContain("<span>5</span>");
     expect(markup).toContain("查看全部 5 项");
     expect(markup).not.toContain("固定任务2");
     expect(markup).not.toContain("运行任务2");
     expect(markup.indexOf("已固定")).toBeLessThan(markup.indexOf("运行中"));
+  });
+
+  it("counts completed tasks in the group total", () => {
+    const markup = renderToStaticMarkup(
+      <SidebarTaskShortcuts
+        pinnedTasks={[]}
+        activeTasks={[{ id: "finished", projectId: "p", title: "已完成任务", status: "completed" }]}
+        approvalCount={0}
+        labels={labels}
+        renderPinned={() => null}
+        renderActive={(task) => <a href="/task">{task.title}</a>}
+      />,
+    );
+    expect(markup).toContain("<span>1</span>");
+    expect(markup).not.toContain("<span>0</span>");
   });
 
   it("omits empty groups and hides previews without losing counters when manually collapsed", () => {
@@ -56,7 +71,6 @@ describe("SidebarTaskShortcuts", () => {
       <SidebarTaskShortcuts
         pinnedTasks={tasks}
         activeTasks={[]}
-        runningCount={0}
         approvalCount={0}
         labels={labels}
         storage={storage}

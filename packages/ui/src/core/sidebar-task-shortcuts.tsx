@@ -11,7 +11,6 @@ type PinnedIdentity = Readonly<{ id: string; projectId?: string }>;
 type ShortcutsProps<T extends PinnedIdentity> = Readonly<{
   pinnedTasks: readonly T[];
   activeTasks: readonly SidebarActiveTask[];
-  runningCount: number;
   approvalCount: number;
   renderPinned: (task: T) => ReactNode;
   renderActive: (task: SidebarActiveTask) => ReactNode;
@@ -31,7 +30,6 @@ const taskKey = (task: PinnedIdentity) => `${task.projectId ?? ""}\u0000${task.i
 export function SidebarTaskShortcuts<T extends PinnedIdentity>({
   pinnedTasks,
   activeTasks,
-  runningCount,
   approvalCount,
   renderPinned,
   renderActive,
@@ -116,7 +114,8 @@ export function SidebarTaskShortcuts<T extends PinnedIdentity>({
           title={labels.active}
           summary={
             <>
-              <span>{runningCount}</span>
+              {/* 分组总数涵盖未查看完成、待审批和运行任务，与完整列表入口保持一致。 */}
+              <span>{activeTasks.length}</span>
               {approvalCount > 0 ? (
                 <span className="text-task-waiting">· {labels.approval(approvalCount)}</span>
               ) : null}

@@ -138,7 +138,6 @@ export function ProjectSidebarTaskList({
         <SidebarTaskShortcuts
           pinnedTasks={pinnedTasks}
           activeTasks={activeTasks.tasks}
-          runningCount={activeTasks.runningCount}
           approvalCount={activeTasks.approvalCount}
           storage={preferenceStorage}
           labels={{
