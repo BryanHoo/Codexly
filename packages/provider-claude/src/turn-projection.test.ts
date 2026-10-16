@@ -2,6 +2,49 @@ import { describe, expect, it } from "vitest";
 import { ClaudeTurnProjection } from "./turn-projection.js";
 import type { AgentProviderEvent } from "@codexly/core";
 import type { ClaudeTaskMetadata } from "./history.js";
+import type { SDKLocalCommandOutputMessage } from "@anthropic-ai/claude-agent-sdk";
+
+it.each(["", "本地命令结果"])(
+  "renders local command output without relying on result text %s",
+  (result) => {
+    const events: AgentProviderEvent[] = [];
+    const turn = new ClaudeTurnProjection("task", "turn", "/usage", (event) => events.push(event));
+    const output: SDKLocalCommandOutputMessage = {
+      type: "system",
+      subtype: "local_command_output",
+      content: "本地命令结果",
+      uuid: "00000000-0000-0000-0000-000000000001",
+      session_id: "session",
+    };
+    turn.receive(output);
+    expect(turn.snapshot().status).toBe("running");
+    expect(events.filter((event) => event.type === "item.completed")).toHaveLength(1);
+    turn.receive(output);
+    turn.receive({ type: "result", subtype: "success", result });
+    expect(
+      turn.snapshot().items.filter((item) => item.type === "message" && item.role === "assistant"),
+    ).toEqual([expect.objectContaining({ text: "本地命令结果" })]);
+    expect(turn.status).toBe("completed");
+  },
+);
+
+it("keeps distinct local outputs bounded and ignores unrelated system messages", () => {
+  const turn = new ClaudeTurnProjection("task", "turn", "/usage", () => undefined);
+  turn.receive({ type: "system", subtype: "status", uuid: "status", content: "不可显示" });
+  for (const uuid of ["first", "second"])
+    turn.receive({
+      type: "system",
+      subtype: "local_command_output",
+      uuid,
+      content: "结果".repeat(200000),
+    });
+  const replies = turn
+    .snapshot()
+    .items.filter((item) => item.type === "message" && item.role === "assistant");
+  expect(replies).toHaveLength(2);
+  expect(JSON.stringify(replies)).toContain("省略");
+  expect(Buffer.byteLength(JSON.stringify(turn.snapshot()))).toBeLessThan(512 * 1024);
+});
 
 function taskTool(
   turn: ClaudeTurnProjection,

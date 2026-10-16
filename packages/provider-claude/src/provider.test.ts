@@ -140,6 +140,28 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"]) {
 }
 
 describe("Claude session recovery", () => {
+  it("persists local command output when the result contains no repeated text", async () => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, { ...prompt, text: "/usage" }, options);
+    h.send({
+      type: "system",
+      subtype: "local_command_output",
+      uuid: "local-output",
+      session_id: h.tasks.get(task.id)?.sessionId,
+      content: "本地命令输出",
+    });
+    h.send({ type: "result", subtype: "success", result: "" });
+    await vi.waitFor(async () => {
+      expect((await h.provider.readTask(task.id))?.status).toBe("idle");
+    });
+    await h.provider.stopSession(task.id);
+    const restored = await h.restart().readTask(task.id);
+    expect(restored?.turns.at(-1)?.items).toContainEqual(
+      expect.objectContaining({ type: "message", role: "assistant", text: "本地命令输出" }),
+    );
+  });
+
   it("explicitly enables task tracking tools for models without default task tools", async () => {
     const h = await harness();
     const task = await h.provider.startTask();

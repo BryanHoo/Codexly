@@ -16,7 +16,7 @@ import {
 import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
 import type { ClaudeTaskMetadata } from "./history.js";
-import { record, text, resultText } from "./sdk-values.js";
+import { record, text, resultText, displayClaudeMessage } from "./sdk-values.js";
 import { ClaudeTaskPlan } from "./task-plan.js";
 export { record } from "./sdk-values.js";
 /** 只持有当前回合的渲染投影；历史与恢复上下文仍由官方 SDK 的会话文件管理。 */
@@ -254,7 +254,7 @@ export class ClaudeTurnProjection {
 
   receive(value: unknown): void {
     if (this.#closed) return;
-    const message = record(value);
+    const message = displayClaudeMessage(value);
     // 以官方关联字段路由子代理消息，隔离主代理的正文、用量和流式块索引。
     const parentId = text(message["parent_tool_use_id"]),
       agentId = text(message["agent_id"]);

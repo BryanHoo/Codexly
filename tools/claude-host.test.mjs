@@ -344,10 +344,38 @@ test(
         "completed",
       );
       assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 4);
+      // 对当前 SDK 实际公开的命令验证输出；不假定不同命令采用同一种消息形态。
+      for (const name of ["usage", "context"]) {
+        assert.ok(profile.commands.some((command) => command.name === name));
+        const after = host.events.length,
+          callsBeforeCommand = calls;
+        await host.request(
+          "turn.start",
+          { taskId: "task", input: { ...input, text: `/${name}` }, options },
+          scope,
+        );
+        const completed = await waitEvent("turn.completed", after);
+        assert.equal(completed.payload.turn.status, "completed");
+        const replies = completed.payload.turn.items.filter(
+          (item) => item.type === "message" && item.role === "assistant",
+        );
+        assert.ok(
+          replies.some((item) => item.text.trim()),
+          `/${name} must display its local output`,
+        );
+        assert.equal(calls, callsBeforeCommand, `/${name} must not require a model response`);
+        assert.deepEqual(
+          (await host.request("task.read", { taskId: "task" }, scope)).turns.at(-1).items,
+          completed.payload.turn.items,
+        );
+      }
       assert.deepEqual(await host.request("session.stop", { taskId: "task" }, scope), {
         status: "accepted",
         taskId: "task",
       });
+      const commandHistory = (
+        await host.request("task.read", { taskId: "task" }, scope)
+      ).turns.slice(-2);
 
       // 隐藏临时目录中的原生历史并重启真实宿主；已有 UI 历史绝不能被当成模型上下文。
       await host.close();
@@ -366,7 +394,11 @@ test(
         host.events.some((event) => event.type === "turn.started"),
         false,
       );
-      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 4);
+      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 6);
+      assert.deepEqual(
+        (await host.request("task.read", { taskId: "task" }, scope)).turns.slice(-2),
+        commandHistory,
+      );
       await rename(`${nativeProjects}.saved`, nativeProjects);
 
       await host.request("configure", {
@@ -377,7 +409,7 @@ test(
       await host.request("disconnect");
       assert.equal((await host.request("profile")).connection.state, "disconnected");
       assert.equal((await host.request("settings.read")).instructions, "Always test");
-      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 4);
+      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 6);
     } finally {
       await host.close();
       api.closeAllConnections();
