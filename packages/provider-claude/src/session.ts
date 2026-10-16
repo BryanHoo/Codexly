@@ -1,10 +1,22 @@
-import type { Query, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  Options,
+  Query,
+  SDKUserMessage,
+  getSessionMessages,
+  getSessionInfo,
+} from "@anthropic-ai/claude-agent-sdk";
 import type { AgentProviderEventListener, LocalCatalogStore } from "@codexly/core";
 import type { AgentTurn } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
 import type { ClaudePermissions } from "./permissions.js";
 import { type ClaudeTurnProjection, record } from "./turn-projection.js";
 import { refreshClaudeContext } from "./observability.js";
+
+export interface ClaudeSdk {
+  query: (input: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
+  getSessionMessages: typeof getSessionMessages;
+  getSessionInfo?: typeof getSessionInfo;
+}
 
 export interface Running {
   sessionId: string;

@@ -66,6 +66,7 @@ async function harness() {
   });
   const query = vi.fn(
     ({ prompt, options }: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => {
+      closed = false;
       received.push(options);
       void (async () => {
         for await (const input of prompt) received.push(input);
@@ -187,6 +188,99 @@ describe("Claude provider execution boundary", () => {
     expect((await h.provider.readTask(task.id))?.turns.at(-1)?.status).toBe("interrupted");
   });
 });
+
+it.each(["idle", "settings", "stop"] as const)(
+  "replays exact session grants after %s query replacement without sharing them with another chat",
+  async (replacement) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    const firstOptions = h.query.mock.calls[0]?.[0].options;
+    assert(firstOptions?.canUseTool);
+    const permission = firstOptions.canUseTool(
+      "Bash",
+      { command: "git status --short" },
+      {
+        signal: new AbortController().signal,
+        toolUseID: "tool",
+        requestId: "session-grant",
+        suggestions: [
+          {
+            type: "addRules",
+            rules: [{ toolName: "Bash", ruleContent: "git status:*" }],
+            behavior: "allow",
+            destination: "userSettings",
+          },
+        ],
+      },
+    );
+    const request = (await h.provider.readTask(task.id))?.pendingRequests[0];
+    assert(request?.type === "tool_approval");
+    await h.provider.resolvePendingRequest({
+      ...request,
+      resolution: { decision: "allow_for_session" },
+    });
+    expect(await permission).toMatchObject({
+      updatedPermissions: [{ destination: "session" }],
+    });
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    if (replacement === "idle")
+      await vi.waitFor(() => {
+        expect(h.close).toHaveBeenCalledOnce();
+      });
+    else if (replacement === "stop") await h.provider.stopSession(task.id);
+    const second = await h.provider.startTurn(task.id, prompt, {
+      ...options,
+      ...(replacement === "settings" ? { model: "another-model" } : {}),
+    });
+    expect(h.query).toHaveBeenCalledTimes(2);
+    expect(h.query.mock.calls[1]?.[0].options.allowedTools).toEqual(["Bash(git status:*)"]);
+    await h.provider.interruptTurn(task.id, second.id);
+    const other = await h.provider.startTask();
+    await h.provider.startTurn(other.id, prompt, options);
+    expect(h.query.mock.calls[2]?.[0].options.allowedTools).toEqual([]);
+    // 授权只驻留在当前应用会话中，不能污染用户原生配置。
+    expect((await h.config.readSettings()).allowedTools).toEqual([]);
+  },
+);
+
+it.each(["allow", "deny"] as const)(
+  "does not replay a %s decision on the next query",
+  async (decision) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    const turn = await h.provider.startTurn(task.id, prompt, options);
+    const callback = h.query.mock.calls[0]?.[0].options.canUseTool;
+    assert(callback);
+    const result = callback(
+      "Bash",
+      { command: "pwd" },
+      {
+        signal: new AbortController().signal,
+        toolUseID: "tool",
+        requestId: "once",
+        suggestions: [
+          {
+            type: "addRules",
+            rules: [{ toolName: "Bash", ruleContent: "pwd" }],
+            behavior: "allow",
+            destination: "session",
+          },
+        ],
+      },
+    );
+    const request = (await h.provider.readTask(task.id))?.pendingRequests[0];
+    assert(request?.type === "tool_approval");
+    await h.provider.resolvePendingRequest({ ...request, resolution: { decision } });
+    await result;
+    await h.provider.interruptTurn(task.id, turn.id);
+    await h.provider.startTurn(task.id, prompt, options);
+    expect(h.query.mock.calls[1]?.[0].options.allowedTools).toEqual([]);
+  },
+);
 
 it("recovers an interrupted process checkpoint without claiming success or keeping the task locked", async () => {
   const h = await harness();

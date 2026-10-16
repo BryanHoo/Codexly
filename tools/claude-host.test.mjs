@@ -42,14 +42,17 @@ test(
           "user CLAUDE.md must apply even with project settings disabled",
         );
         calls++;
-        const useTool = calls === 1;
+        const useTool = [1, 3, 5].includes(calls);
         const content = useTool
           ? [
               {
                 type: "tool_use",
-                id: "write-proof",
+                id: `write-proof-${calls}`,
                 name: "Write",
-                input: { file_path: join(directory, "proof.txt"), content: proofContent },
+                input: {
+                  file_path: join(directory, "proof.txt"),
+                  content: `${proofContent}${calls}`,
+                },
               },
             ]
           : [{ type: "text", text: "host-contract-ok" }];
@@ -251,15 +254,30 @@ test(
       await host.request("turn.start", { taskId: "task", input, options }, scope);
       const pending = (await waitEvent("pending_request.created")).payload.request;
       assert.equal(pending.type, "tool_approval");
+      assert.ok(pending.availableDecisions.includes("allow_for_session"));
       await host.request(
         "request.resolve",
-        { ...pending, resolution: { decision: "allow" } },
+        { ...pending, resolution: { decision: "allow_for_session" } },
         scope,
       );
       assert.equal((await waitEvent("turn.completed")).payload.turn.status, "completed");
-      assert.equal(await readFile(join(directory, "proof.txt"), "utf8"), proofContent);
+      assert.equal(await readFile(join(directory, "proof.txt"), "utf8"), `${proofContent}1`);
       const sessionId = tasks.get("task").sessionId;
       assert.ok(sessionId);
+      // 强制结束 SDK 子进程，再启动同一聊天；精确授权须恢复，不能依赖进程仍在内存。
+      await host.request("session.stop", { taskId: "task" }, scope);
+      const afterFirstTurn = host.events.length;
+      await host.request("turn.start", { taskId: "task", input, options }, scope);
+      assert.equal(
+        (await waitEvent("turn.completed", afterFirstTurn)).payload.turn.status,
+        "completed",
+      );
+      assert.equal(
+        host.events.slice(afterFirstTurn).some((event) => event.type === "pending_request.created"),
+        false,
+      );
+      assert.equal(await readFile(join(directory, "proof.txt"), "utf8"), `${proofContent}3`);
+      assert.deepEqual((await host.request("settings.read")).allowedTools, []);
       await host.close();
       host = launch();
       assert.equal((await host.request("settings.read")).instructions, "Always test");
@@ -268,7 +286,7 @@ test(
       await writeFile(join(userDirectory, "settings.json"), JSON.stringify(native));
       assert.equal((await host.request("settings.read")).reasoningEffort, "high");
       const restored = await host.request("task.read", { taskId: "task" }, scope);
-      assert.equal(restored.turns.length, 1);
+      assert.equal(restored.turns.length, 2);
       assert.ok(restored.contextUsage.usedTokens > 0);
       assert.ok(restored.contextUsage.contextWindow > 0);
       assert.deepEqual(await host.request("mcp.list", { taskId: "task" }, scope), { data: [] });
@@ -277,9 +295,16 @@ test(
         { taskId: "task", input: { ...input, text: "Continue" }, options },
         scope,
       );
+      // 应用宿主重启后重新审批，证明 session 许可没有落入用户级永久规则。
+      const restartedPending = (await waitEvent("pending_request.created")).payload.request;
+      await host.request(
+        "request.resolve",
+        { ...restartedPending, resolution: { decision: "allow" } },
+        scope,
+      );
       assert.equal((await waitEvent("turn.completed")).payload.turn.status, "completed");
       assert.equal(tasks.get("task").sessionId, sessionId);
-      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 2);
+      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 3);
       // 同一宿主的开放输入必须承载后续回合，不能在首个 result 后关闭查询。
       const afterSecondTurn = host.events.length;
       await host.request(
@@ -291,7 +316,7 @@ test(
         (await waitEvent("turn.completed", afterSecondTurn)).payload.turn.status,
         "completed",
       );
-      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 3);
+      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 4);
       assert.deepEqual(await host.request("session.stop", { taskId: "task" }, scope), {
         status: "accepted",
         taskId: "task",
@@ -305,7 +330,7 @@ test(
       await host.request("disconnect");
       assert.equal((await host.request("profile")).connection.state, "disconnected");
       assert.equal((await host.request("settings.read")).instructions, "Always test");
-      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 3);
+      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 4);
     } finally {
       await host.close();
       api.closeAllConnections();

@@ -6,6 +6,7 @@ import {
 } from "@codexly/core";
 import type { PendingRequest } from "@codexly/protocol";
 import { record } from "./turn-projection.js";
+import { ClaudeSessionGrants, canReplaySessionGrants } from "./session-grants.js";
 
 type ToolOptions = Parameters<CanUseTool>[2];
 type ActiveRequest = PendingRequest & { status: "pending" };
@@ -28,6 +29,7 @@ export class ClaudePermissions {
     readonly taskId: string,
     readonly turnId: string,
     readonly emit: AgentProviderEventListener,
+    readonly sessionGrants = new ClaudeSessionGrants(),
   ) {}
 
   pending(): ActiveRequest[] {
@@ -84,7 +86,7 @@ export class ClaudePermissions {
         input,
         reason: options.decisionReason ?? options.description ?? null,
         availableDecisions:
-          options.suggestions?.length && !options.suppressAlwaysAllowRule
+          canReplaySessionGrants(options.suggestions ?? []) && !options.suppressAlwaysAllowRule
             ? ["allow", "allow_for_session", "deny"]
             : ["allow", "deny"],
       };
@@ -170,6 +172,9 @@ export class ClaudePermissions {
                 : {}),
             };
     } else throw new PendingRequestResolutionError("mismatch", "Unsupported permission response");
+    // 在解除审批等待前保存精确规则，保证下一次查询创建时已能恢复授权。
+    if (result.behavior === "allow" && result.updatedPermissions?.length)
+      this.sessionGrants.remember(result.updatedPermissions);
     this.#entries.delete(input.requestId);
     options.signal.removeEventListener("abort", entry.cancel);
     const resolved = { ...request, status: "resolved" as const };

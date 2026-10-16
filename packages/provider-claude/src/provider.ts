@@ -3,14 +3,7 @@ export { localTaskMetadata as claudeTask } from "@codexly/core";
 import { mapClaudeMcpServers, observe } from "./observability.js";
 import { isManagedClaudeCommand } from "./commands.js";
 import { randomUUID } from "node:crypto";
-import {
-  query,
-  getSessionMessages,
-  getSessionInfo,
-  type Options,
-  type Query,
-  type SDKUserMessage,
-} from "@anthropic-ai/claude-agent-sdk";
+import { query, getSessionMessages, getSessionInfo } from "@anthropic-ai/claude-agent-sdk";
 import type {
   AgentProviderEventListener,
   AgentProviderTurnInput,
@@ -31,6 +24,7 @@ import type {
 } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
 import { ClaudePermissions } from "./permissions.js";
+import { ClaudeSessionGrants } from "./session-grants.js";
 import * as session from "./session.js";
 import { createClaudePrompt } from "./turn-input.js";
 import { ClaudeTurnProjection } from "./turn-projection.js";
@@ -44,22 +38,19 @@ export const CLAUDE_CAPABILITIES: AgentCapabilities = {
   turns: { compact: false, interrupt: true, review: false, start: true, steer: false },
 };
 
-export interface ClaudeSdk {
-  query: (input: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
-  getSessionMessages: typeof getSessionMessages;
-  getSessionInfo?: typeof getSessionInfo;
-}
+export type { ClaudeSdk } from "./session.js";
 
 export class ClaudeAgentProvider {
   readonly #listeners = new Set<AgentProviderEventListener>();
   readonly #running = new Map<string, session.Running>();
   readonly #starting = new Set<string>();
   readonly #recent = new Map<string, AgentTurn>();
+  readonly #sessionGrants = new Map<string, ClaudeSessionGrants>();
   constructor(
     readonly scope: AgentTaskScope,
     readonly store: LocalCatalogStore,
     readonly config: ClaudeConfiguration,
-    readonly sdk: ClaudeSdk = { query, getSessionMessages, getSessionInfo },
+    readonly sdk: session.ClaudeSdk = { query, getSessionMessages, getSessionInfo },
     readonly discover?: () => Promise<AgentEngineProfile>,
     readonly idleTimeoutMs = 30_000,
   ) {}
@@ -143,6 +134,7 @@ export class ClaudeAgentProvider {
       throw new Error("Stop the running task before archiving");
     if (running) await this.stopSession(id);
     await this.store.catalog("task.patch", { id, archived: true });
+    this.#sessionGrants.delete(id);
     this.#emit({ type: "task.removed", taskId: id, payload: { reason: "archived" } });
   }
   async unarchiveTask(id: string) {
@@ -156,6 +148,7 @@ export class ClaudeAgentProvider {
       throw new Error("Stop the running task before deleting");
     if (running) await this.stopSession(id);
     await this.store.catalog("task.remove", { id });
+    this.#sessionGrants.delete(id);
     this.#recent.delete(id);
     this.#emit({ type: "task.removed", taskId: id, payload: { reason: "deleted" } });
   }
@@ -309,7 +302,10 @@ export class ClaudeAgentProvider {
         if (event.type !== "turn.completed") this.#emit(event);
       });
       projection.restoreMetadata(await this.config.history.metadata(id));
-      const permissions = new ClaudePermissions(this.scope.id, id, turnId, this.#emit);
+      const grants = this.#sessionGrants.get(id) ?? new ClaudeSessionGrants(permissionMode);
+      // 各回合共享同一授权集合，后台旧回合的迟到审批也只合并到当前聊天。
+      this.#sessionGrants.set(id, grants);
+      const permissions = new ClaudePermissions(this.scope.id, id, turnId, this.#emit, grants);
       const controller = new AbortController();
       const prompt = await createClaudePrompt(input, sessionId, turnId);
       const settingsKey = JSON.stringify({ options, defaults });
@@ -384,7 +380,7 @@ export class ClaudeAgentProvider {
             ).request(name, input, toolOptions);
           },
           settingSources: defaults.loadProjectSettings ? ["user", "project", "local"] : ["user"],
-          allowedTools: defaults.allowedTools,
+          ...grants.options(defaults.allowedTools, permissionMode),
           disallowedTools: defaults.disallowedTools,
           ...(["low", "medium", "high", "xhigh", "max"].includes(options.reasoningEffort)
             ? { effort: options.reasoningEffort as "low" | "medium" | "high" | "xhigh" | "max" }
@@ -495,6 +491,7 @@ export class ClaudeAgentProvider {
       session.stop(current);
     }
     this.#recent.clear();
+    this.#sessionGrants.clear();
     this.#listeners.clear();
   }
 }
