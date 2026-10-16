@@ -1185,3 +1185,35 @@ it("routes elicitation to the current turn of a reused query and cancels it on s
   await h.provider.stopSession(task.id);
   expect(await response).toEqual({ action: "cancel" });
 });
+
+it("persists SDK success after more than 64 completed subagent calls", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  await h.provider.startTurn(task.id, prompt, options);
+  for (let index = 0; index < 80; index++) {
+    const id = `child-${String(index)}`;
+    h.send({
+      type: "assistant",
+      message: {
+        id,
+        content: [{ type: "tool_use", name: "Agent", id, input: { prompt: "检查" } }],
+      },
+    });
+    h.send({
+      type: "user",
+      message: {
+        content: [{ type: "tool_result", tool_use_id: id, content: `实际结果 ${String(index)}` }],
+      },
+    });
+  }
+  h.send({ type: "result", subtype: "success", result: "全部完成" });
+  await vi.waitFor(() => {
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+  });
+  const snapshot = await h.provider.readTask(task.id);
+  expect(snapshot?.turns.at(-1)).toMatchObject({ status: "completed", error: null });
+  expect(JSON.stringify(snapshot)).toContain("实际结果 79");
+  expect(JSON.stringify(snapshot)).toContain("全部完成");
+});

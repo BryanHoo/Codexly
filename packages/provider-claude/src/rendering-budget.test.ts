@@ -218,3 +218,120 @@ it("counts only appended chunks on the normal streaming path", () => {
   }
   expect(scanned).toBeLessThan(65536);
 });
+
+it("recycles completed child previews beyond 64 sequential calls without changing real results", () => {
+  const events: AgentProviderEvent[] = [];
+  const projection = new ClaudeTurnProjection("task", "turn", "prompt", (event) =>
+    events.push(event),
+  );
+  for (let index = 0; index < 160; index++) {
+    const id = `sequential-${String(index)}`;
+    projection.receive({ type: "assistant", message: { id, content: [tool(id, "Agent")] } });
+    projection.receive({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: id,
+            content: `真实结果 ${String(index)}`,
+            is_error: index === 159,
+          },
+        ],
+      },
+    });
+    expect(projection.snapshot().items.find((item) => item.id === id)).toMatchObject({
+      status: index === 159 ? "failed" : "completed",
+      output: {
+        agents: [{ message: `真实结果 ${String(index)}` }],
+        turn: { status: index === 159 ? "failed" : "completed" },
+      },
+    });
+  }
+  projection.receive({ type: "result", subtype: "success", result: "父回合成功" });
+  expect(projection.status).toBe("completed");
+  expect(projection.hasBackgroundWork).toBe(false);
+  expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+  expect(Buffer.byteLength(JSON.stringify(projection.snapshot()))).toBeLessThan(384 * 1024);
+});
+
+it("keeps more than 64 active background agents until their actual terminal notifications", () => {
+  const projection = new ClaudeTurnProjection("task", "turn", "prompt", () => undefined);
+  for (let index = 0; index < 80; index++) {
+    const id = `parallel-${String(index)}`;
+    projection.receive({
+      type: "assistant",
+      message: { id, content: [{ ...tool(id, "Agent"), input: { run_in_background: true } }] },
+    });
+    projection.receive({
+      type: "system",
+      subtype: "task_started",
+      tool_use_id: id,
+      task_id: `native-${id}`,
+    });
+  }
+  projection.receive({ type: "result", subtype: "success" });
+  expect(projection.hasBackgroundWork).toBe(true);
+  for (let index = 0; index < 80; index++) {
+    const id = `parallel-${String(index)}`;
+    expect(projection.ownsMessage({ task_id: `native-${id}` })).toBe(true);
+    projection.receive({
+      type: "system",
+      subtype: "task_notification",
+      task_id: `native-${id}`,
+      status: index === 79 ? "stopped" : "completed",
+      summary: `完成 ${String(index)}`,
+    });
+  }
+  expect(projection.hasBackgroundWork).toBe(false);
+  expect(projection.status).toBe("completed");
+  expect(projection.snapshot().items.find((item) => item.id === "parallel-79")).toMatchObject({
+    status: "interrupted",
+    output: { agents: [{ status: "interrupted", message: "完成 79" }] },
+  });
+});
+
+it("retains a completed child with active descendants and ignores late output after retirement", () => {
+  const projection = new ClaudeTurnProjection("task", "turn", "prompt", () => undefined);
+  projection.receive({
+    type: "assistant",
+    message: { id: "root", content: [tool("outer", "Agent")] },
+  });
+  projection.receive({
+    type: "assistant",
+    parent_tool_use_id: "outer",
+    message: {
+      id: "nested",
+      content: [{ ...tool("inner", "Agent"), input: { run_in_background: true } }],
+    },
+  });
+  projection.receive({
+    type: "system",
+    subtype: "task_started",
+    tool_use_id: "inner",
+    task_id: "native-inner",
+  });
+  projection.receive({
+    type: "user",
+    message: { content: [{ type: "tool_result", tool_use_id: "outer", content: "外层已返回" }] },
+  });
+  projection.receive({ type: "result", subtype: "success" });
+  expect(projection.hasBackgroundWork).toBe(true);
+  expect(projection.ownsMessage({ task_id: "native-inner" })).toBe(true);
+  projection.receive({
+    type: "system",
+    subtype: "task_notification",
+    task_id: "native-inner",
+    status: "completed",
+    summary: "后代完成",
+  });
+  expect(projection.hasBackgroundWork).toBe(false);
+  const snapshot = projection.snapshot();
+  expect(JSON.stringify(snapshot)).toContain("后代完成");
+  projection.receive({
+    type: "assistant",
+    parent_tool_use_id: "outer",
+    message: { id: "late", content: [{ type: "text", text: "迟到正文不能污染父回合" }] },
+  });
+  expect(projection.snapshot()).toEqual(snapshot);
+});

@@ -1,3 +1,4 @@
+import { createClaudeAgentPreview } from "./subagent-preview.js";
 import {
   ClaudeRenderingBuffer,
   previewText,
@@ -109,7 +110,6 @@ export class ClaudeTurnProjection {
       items: this.#items.snapshot(),
     };
   }
-
   #item(item: AgentItem, completed: boolean): void {
     const exists = this.#items.has(item.id);
     item = this.#items.set(item);
@@ -122,7 +122,6 @@ export class ClaudeTurnProjection {
         payload: { item },
       });
   }
-
   #block(block: Record<string, unknown>, id: string, completed: boolean): void {
     if (block["type"] === "text")
       this.#item({ id, type: "message", role: "assistant", text: text(block["text"]) }, completed);
@@ -160,7 +159,6 @@ export class ClaudeTurnProjection {
       }
     }
   }
-
   /** 子代理仍属于父任务：有界投影随工具保存，不能伪造可独立执行的会话。 */
   #agent(id: string, status?: AgentTurn["status"], summary?: string): void {
     const item = this.#items.get(id);
@@ -168,7 +166,12 @@ export class ClaudeTurnProjection {
     const input = record(item.input);
     let child = this.#children.get(id);
     if (!child) {
-      if (this.#children.size >= 64) throw new Error("Claude subagent rendering capacity exceeded");
+      // 已回收的终态预览不因重复消息重新建立；活动代理数量不受展示预算限制。
+      if (item.status !== "running") return;
+      // 原生 ID 只为活动代理或仍可见的摘要保留，避免顺序调用累计关联记录。
+      for (const [nativeId, toolId] of this.#agentTools)
+        if (!this.#children.has(toolId) && !this.#items.has(toolId))
+          this.#agentTools.delete(nativeId);
       child = new ClaudeTurnProjection(
         this.#taskId,
         `${this.#id}:${id}`,
@@ -196,31 +199,22 @@ export class ClaudeTurnProjection {
         true,
       );
     if (status && status !== "running") child.finish(status, undefined, true);
-    const output = record(item.output),
-      agents = Array.isArray(output["agents"]) ? output["agents"] : [];
-    const previous = record(agents[0]);
     this.#item(
-      {
-        ...item,
-        status: status ?? item.status,
-        output: {
-          ...output,
-          parentTaskId: this.#taskId,
-          agents: [
-            {
-              ...previous,
-              taskId: id,
-              nativeTaskId: [...this.#agentTools].find(([, toolId]) => toolId === id)?.[0] ?? null,
-              nickname: text(input["description"]) || text(input["subagent_type"]) || "Agent",
-              status: status ?? previous["status"] ?? "running",
-              ...(summary ? { message: summary.slice(0, 8192) } : {}),
-            },
-          ],
-          turn: child.snapshot(),
-        },
-      },
+      createClaudeAgentPreview(
+        item,
+        child.snapshot(),
+        this.#taskId,
+        [...this.#agentTools].find(([, toolId]) => toolId === id)?.[0] ?? null,
+        status,
+        summary,
+      ),
       status !== undefined && status !== "running",
     );
+    // 已结束正文已进入有界工具快照；释放可变投影，但不能回收仍有后台后代的树。
+    if (child.status !== "running" && !child.hasBackgroundWork) {
+      this.#children.delete(id);
+      this.#backgroundAgents.delete(id);
+    }
   }
 
   updateContextUsage(usage: AgentContextUsage): void {
@@ -244,7 +238,13 @@ export class ClaudeTurnProjection {
   }
 
   #agentOwner(id: string): ClaudeTurnProjection | undefined {
-    if (this.#children.has(id) || this.#agentTools.has(id)) return this;
+    const item = this.#items.get(id);
+    if (
+      this.#children.has(id) ||
+      this.#agentTools.has(id) ||
+      (item?.type === "tool" && item.name === "agent/spawn")
+    )
+      return this;
     for (const child of this.#children.values()) {
       const owner = child.#agentOwner(id);
       if (owner) return owner;
