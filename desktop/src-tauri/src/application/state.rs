@@ -69,6 +69,7 @@ use runtime_supervisor::{
 
 #[derive(Default)]
 pub struct AppState {
+    pub claude: crate::application::claude_host::ClaudeHostManager,
     pub(super) queue_additions: super::turn_start::TurnStartRegistry,
     pub(super) pending_resolutions: super::turn_start::TurnStartRegistry,
     pub(super) pending_resolution_budget: super::prompt_submission::SubmissionBudget,

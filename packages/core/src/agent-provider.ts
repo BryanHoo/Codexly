@@ -1,6 +1,9 @@
 import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type {
   AgentGlobalApprovalPolicy,
+  AgentEngine,
+  AgentEngineProfile,
+  ClaudeSettings,
   AgentGoal,
   AgentApprovalsReviewer,
   AgentCapabilities,
@@ -122,6 +125,7 @@ export interface AgentProviderQueue {
 }
 
 export type StartAgentTaskOptions = Readonly<{
+  engine?: AgentEngine;
   ephemeral?: boolean;
   workspacePath?: string;
 }>;
@@ -164,7 +168,7 @@ type AgentEventTransportField = "provider" | "sequence" | "sessionId" | "timesta
 
 export type AgentProviderEvent = AgentEvent extends infer Event
   ? Event extends AgentEvent
-    ? Omit<Event, AgentEventTransportField>
+    ? Omit<Event, AgentEventTransportField> & { readonly provider?: string }
     : never
   : never;
 
@@ -244,12 +248,12 @@ export interface AgentProvider {
   compactTask(taskId: string): Promise<void>;
   deleteTask(taskId: string): Promise<void>;
   forkTask(taskId: string, lastTurnId?: string): Promise<AgentTask>;
-  getCapabilities(): Promise<AgentCapabilities>;
+  getCapabilities(engine?: AgentEngine): Promise<AgentCapabilities>;
   clearGoal(taskId: string): Promise<void>;
-  listModels(): Promise<AgentModelPage>;
+  listModels(engine?: AgentEngine): Promise<AgentModelPage>;
   listMcpServers(taskId: string): Promise<AgentMcpServerPage>;
   listBackgroundTerminals(taskId: string): Promise<AgentBackgroundTerminalPage>;
-  listSkills(): Promise<AgentSkillPage>;
+  listSkills(engine?: AgentEngine): Promise<AgentSkillPage>;
   listTasks(input?: ListAgentTasksInput): Promise<AgentTaskPage>;
   pinTask(taskId: string, pinned: boolean): Promise<AgentTask>;
   readSandboxMode(): Promise<AgentSandboxMode>;
@@ -298,6 +302,7 @@ export type AgentModelCatalogFallback =
 
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。
 export interface AgentRuntimeProvider {
+  readonly engines?: Partial<Record<AgentEngine, AgentEngineService>>;
   readonly historyStorage?: { compress(): Promise<HistoryCompressionResult> };
   readonly personalization?: PersonalizationProvider;
   readonly fileSearch?: AgentFileSearchProvider;
@@ -341,5 +346,13 @@ export interface AgentRuntimeProvider {
   setMcpServerEnabled(name: string, enabled: boolean): Promise<SetMcpServerEnabledResult>;
   setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResult>;
   startOfficialProviderLogin(): Promise<StartOfficialProviderLoginResponse>;
+}
+
+export interface AgentEngineService {
+  readSettings(): Promise<ClaudeSettings>;
+  writeSettings(settings: ClaudeSettings): Promise<ClaudeSettings>;
+  inspect(scope?: AgentTaskScope): Promise<AgentEngineProfile>;
+  configure(input: ConfigureCustomProviderRequest): Promise<ConfigureCustomProviderResponse>;
+  disconnect(): Promise<AgentProviderConnectionMutationResponse>;
 }
 import type { PersonalizationProvider } from "./personalization.js";

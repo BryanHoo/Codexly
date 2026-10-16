@@ -46,34 +46,42 @@ fn turn_start_identity_should_include_scope_input_and_options() {
     }
     for changed in [
         AgentTurnOptions {
+            engine_options: None,
             goal_mode: true,
             ..options.clone()
         },
         AgentTurnOptions {
+            engine_options: None,
             fast_mode: true,
             ..options.clone()
         },
         AgentTurnOptions {
+            engine_options: None,
             model: "other".into(),
             ..options.clone()
         },
         AgentTurnOptions {
+            engine_options: None,
             approval_policy: json!("never"),
             ..options.clone()
         },
         AgentTurnOptions {
+            engine_options: None,
             approvals_reviewer: "auto_review".into(),
             ..options.clone()
         },
         AgentTurnOptions {
+            engine_options: None,
             reasoning_effort: "low".into(),
             ..options.clone()
         },
         AgentTurnOptions {
+            engine_options: None,
             sandbox_mode: "read-only".into(),
             ..options.clone()
         },
         AgentTurnOptions {
+            engine_options: None,
             collaboration_mode: Some("plan".into()),
             ..options.clone()
         },

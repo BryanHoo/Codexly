@@ -369,12 +369,12 @@ export class TauriSidebarClient extends TauriRuntimeClient {
   }
 
   public async interruptTurn(
-    _projectId: string,
+    projectId: string,
     taskId: string,
     turnId: string,
     _options: MutationOptions = {},
   ): Promise<InterruptAgentTurnResponse> {
-    return this.call("interrupt_turn", { taskId, turnId });
+    return this.call("interrupt_turn", { projectId, taskId, turnId });
   }
 
   public async resolvePendingRequest<T extends PendingRequest>(

@@ -150,3 +150,7 @@ npm install --global @bryanhu/codexly@latest
 ## 许可证
 
 [MIT](LICENSE)
+
+### Claude Agent
+
+新聊天可选择 Codex 或 Claude Agent（Claude Code）。在设置页配置 Claude API、默认模型、权限和工具规则；历史聊天不能切换引擎，不提供 Claude 官方账号登录。架构、平台要求和能力边界见[双引擎说明](docs/agent-engines.md)。

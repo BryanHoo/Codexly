@@ -10,18 +10,7 @@ export * from "./app-update.js";
 export * from "./skill-market.js";
 export * from "./scheduled-task.js";
 export * from "./scheduled-task-wall-time.js";
-export {
-  AccessModeSchema,
-  AccessStatusResponseSchema,
-  LogoutAccessResponseSchema,
-  PairAccessRequestSchema,
-  PairAccessResponseSchema,
-  type AccessMode,
-  type AccessStatusResponse,
-  type LogoutAccessResponse,
-  type PairAccessRequest,
-  type PairAccessResponse,
-} from "./access.js";
+export * from "./access.js";
 export {
   AgentProviderAccountSchema,
   AgentProviderConnectionMutationResponseSchema,
@@ -178,6 +167,7 @@ export {
   AgentMessageItemSchema,
   AgentMessagePhaseSchema,
   AgentMessageSkillSchema,
+  ToolApprovalPendingRequestSchema,
   CommandApprovalPendingRequestSchema,
   FileChangeApprovalPendingRequestSchema,
   PermissionApprovalPendingRequestSchema,
@@ -498,3 +488,5 @@ export * from "./task-catalog.js";
 export * from "./completed-task-query.js";
 export * from "./project-text-file.js";
 export { WorkbenchChangeSchema, type WorkbenchChange } from "./workbench-change.js";
+export * from "./agent-engine.js";
+export * from "./engine-profile.js";

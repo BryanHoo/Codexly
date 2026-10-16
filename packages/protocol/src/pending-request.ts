@@ -68,6 +68,7 @@ export const PendingUserInputQuestionSchema = Type.Union([
       isOther: Type.Boolean(),
       options: Type.Array(PendingUserInputOptionSchema, { minItems: 1 }),
       type: Type.Literal("choice"),
+      multiSelect: Type.Optional(Type.Boolean()),
     },
     { additionalProperties: false },
   ),
@@ -77,6 +78,7 @@ export const PendingUserInputQuestionSchema = Type.Union([
       isOther: Type.Literal(true),
       options: Type.Array(PendingUserInputOptionSchema, { maxItems: 0 }),
       type: Type.Literal("choice"),
+      multiSelect: Type.Optional(Type.Boolean()),
     },
     { additionalProperties: false },
   ),
@@ -208,7 +210,7 @@ export const PermissionApprovalPendingRequestSchema = Type.Object(
 export const UserInputPendingRequestSchema = Type.Object(
   {
     ...PendingRequestIdentityProperties,
-    questions: Type.Array(PendingUserInputQuestionSchema, { minItems: 1, maxItems: 3 }),
+    questions: Type.Array(PendingUserInputQuestionSchema, { minItems: 1, maxItems: 4 }),
     type: Type.Literal("user_input"),
   },
   { additionalProperties: false },
@@ -253,7 +255,20 @@ export const McpElicitationPendingRequestSchema = Type.Union([
   McpUnsupportedElicitationPendingRequestSchema,
 ]);
 
+export const ToolApprovalPendingRequestSchema = Type.Object(
+  {
+    ...PendingRequestIdentityProperties,
+    availableDecisions: Type.Array(PendingApprovalDecisionSchema, { minItems: 1 }),
+    toolName: Type.String({ minLength: 1 }),
+    input: Type.Unknown(),
+    reason: Type.Union([Type.String(), Type.Null()]),
+    type: Type.Literal("tool_approval"),
+  },
+  { additionalProperties: false },
+);
+
 export const PendingRequestSchema = Type.Union([
+  ToolApprovalPendingRequestSchema,
   CommandApprovalPendingRequestSchema,
   FileChangeApprovalPendingRequestSchema,
   PermissionApprovalPendingRequestSchema,
@@ -265,6 +280,10 @@ function createPendingRequestStatusSchema<TStatus extends "expired" | "pending" 
   status: TStatus,
 ) {
   return Type.Union([
+    Type.Object(
+      { ...ToolApprovalPendingRequestSchema.properties, status: Type.Literal(status) },
+      { additionalProperties: false },
+    ),
     Type.Object(
       { ...CommandApprovalPendingRequestSchema.properties, status: Type.Literal(status) },
       { additionalProperties: false },
@@ -311,7 +330,7 @@ const UserInputResolutionSchema = Type.Object(
   {
     answers: Type.Record(
       Type.String(),
-      Type.Array(Type.String({ minLength: 1 }), { maxItems: 1, minItems: 1 }),
+      Type.Array(Type.String({ minLength: 1 }), { maxItems: 5, minItems: 1 }),
     ),
   },
   { additionalProperties: false },
@@ -328,6 +347,14 @@ const PermissionApprovalResolutionSchema = Type.Object(
 );
 
 export const ResolvePendingRequestRequestSchema = Type.Union([
+  Type.Object(
+    {
+      ...PendingRequestResolutionIdentityProperties,
+      resolution: ApprovalResolutionSchema,
+      type: Type.Literal("tool_approval"),
+    },
+    { additionalProperties: false },
+  ),
   Type.Object(
     {
       ...PendingRequestResolutionIdentityProperties,

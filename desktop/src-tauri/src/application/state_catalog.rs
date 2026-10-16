@@ -3,6 +3,23 @@ use serde_json::json;
 use tauri::AppHandle;
 
 impl AppState {
+    /// Claude 使用同一原生事件投递通道和序号预算，仅在入口转换两端历史协议差异。
+    pub async fn publish_claude_event(
+        &self,
+        app: &AppHandle,
+        _project: &str,
+        mut event: serde_json::Value,
+    ) {
+        crate::application::claude_host::normalize_event(&mut event);
+        event["provider"] = json!("claude");
+        event["version"] = json!(2);
+        event["sequence"] = json!(0);
+        event["sessionId"] = json!(crate::infrastructure::codex::RUNTIME_SESSION_ID);
+        event["timestamp"] = json!(chrono::Utc::now().to_rfc3339());
+        event["receivedAtUnixMs"] = json!(chrono::Utc::now().timestamp_millis());
+        super::event_publisher::publish_mapped_event(&self.runtime, event.into(), None, Some(app))
+            .await;
+    }
     /// 本地管理操作复用应用事件流，使其他窗口按同一 checkpoint 刷新侧栏。
     pub async fn publish_catalog_task_change(
         &self,

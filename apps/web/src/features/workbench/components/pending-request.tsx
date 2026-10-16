@@ -1,3 +1,4 @@
+import { MultipleQuestionOptions } from "@codexly/ui/core/multiple-question-options";
 import type { PendingApprovalDecision, PendingRequest } from "@codexly/protocol";
 import { useEffect, useRef, useState } from "react";
 
@@ -40,7 +41,7 @@ type PendingRequestCardProps = Readonly<{
 
 type ApprovalRequest = Extract<
   PendingRequest,
-  { type: "command_approval" | "file_change_approval" }
+  { type: "command_approval" | "file_change_approval" | "tool_approval" }
 >;
 type CommandApprovalRequest = Extract<PendingRequest, { type: "command_approval" }>;
 type UserInputRequest = Extract<PendingRequest, { type: "user_input" }>;
@@ -78,21 +79,26 @@ function ApprovalRequestCard({
   const resolutionLockRef = useRef(createAsyncActionLock());
   const networkAccess = request.type === "command_approval" ? request.networkAccess : null;
   const title =
-    networkAccess !== null
-      ? t("pending.networkApproval")
-      : request.type === "command_approval"
-        ? request.kind === "write_stdin"
-          ? t("pending.terminalInputApproval")
-          : t("pending.commandApproval")
-        : t("pending.fileChangeApproval");
+    request.type === "tool_approval"
+      ? `${t("pending.toolApproval")}: ${request.toolName}`
+      : networkAccess !== null
+        ? t("pending.networkApproval")
+        : request.type === "command_approval"
+          ? request.kind === "write_stdin"
+            ? t("pending.terminalInputApproval")
+            : t("pending.commandApproval")
+          : t("pending.fileChangeApproval");
   const detail =
-    networkAccess !== null
-      ? `${formatNetworkProtocol(networkAccess.protocol)}\n${networkAccess.host}`
-      : request.type === "command_approval"
-        ? [request.command, request.cwd].filter(Boolean).join("\n")
-        : (request.grantRoot ?? t("pending.fileChangeFallback"));
+    request.type === "tool_approval"
+      ? JSON.stringify(request.input, null, 2)
+      : networkAccess !== null
+        ? `${formatNetworkProtocol(networkAccess.protocol)}\n${networkAccess.host}`
+        : request.type === "command_approval"
+          ? [request.command, request.cwd].filter(Boolean).join("\n")
+          : (request.grantRoot ?? t("pending.fileChangeFallback"));
   const canSubmit = interactive && request.status === "pending" && !submitting;
-  const canFocusAllow = canSubmit && request.availableDecisions.includes("allow");
+  const canFocusAllow =
+    request.type !== "tool_approval" && canSubmit && request.availableDecisions.includes("allow");
 
   useEffect(() => {
     if (canFocusAllow) {
@@ -201,8 +207,11 @@ function UserInputRequestCard({
   const [submitting, setSubmitting] = useState(false);
   const [attempt, setAttempt] = useState<PendingRequestResolutionAttempt>();
   const resolutionLockRef = useRef(createAsyncActionLock());
-  const complete = request.questions.every(
-    (question) => (answers[question.id] ?? "").trim() !== "",
+  const [multipleAnswers, setMultipleAnswers] = useState<Record<string, string[]>>({});
+  const complete = request.questions.every((question) =>
+    question.type === "choice" && question.multiSelect
+      ? (multipleAnswers[question.id]?.length ?? 0) > 0
+      : (answers[question.id] ?? "").trim() !== "",
   );
   const canSubmit = interactive && request.status === "pending" && complete && !submitting;
   const controlsDisabled = !interactive || submitting;
@@ -212,7 +221,12 @@ function UserInputRequestCard({
       if (!canSubmit) return;
       setSubmitting(true);
       const mappedAnswers = Object.fromEntries(
-        request.questions.map((question) => [question.id, [(answers[question.id] ?? "").trim()]]),
+        request.questions.map((question) => [
+          question.id,
+          question.type === "choice" && question.multiSelect
+            ? (multipleAnswers[question.id] ?? [])
+            : [(answers[question.id] ?? "").trim()],
+        ]),
       );
       const resolution = { answers: mappedAnswers };
       const nextAttempt = resolvePendingRequestAttempt(attempt, resolution);
@@ -250,7 +264,17 @@ function UserInputRequestCard({
               {question.prompt}
             </legend>
             <p className="mt-0.5 text-meta text-muted-foreground">{question.header}</p>
-            {question.type === "choice" ? (
+            {question.type === "choice" && question.multiSelect ? (
+              <MultipleQuestionOptions
+                otherLabel={t("pending.otherAnswer", { header: question.header })}
+                options={question.options}
+                value={multipleAnswers[question.id] ?? []}
+                disabled={controlsDisabled}
+                onChange={(value) => {
+                  setMultipleAnswers((current) => ({ ...current, [question.id]: value }));
+                }}
+              />
+            ) : question.type === "choice" ? (
               <div className="mt-2 space-y-1.5">
                 {question.options.map((option, optionIndex) => (
                   <label

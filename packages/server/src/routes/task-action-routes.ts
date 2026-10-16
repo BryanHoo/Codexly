@@ -97,7 +97,9 @@ export function registerTaskActionRoutes(app: FastifyInstance, context: ServerRo
             throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
           }
           const settings = request.body;
-          assertValidProjectDefaults(await listModels(), settings);
+          if (settings.engineOptions && settings.engineOptions.engine !== (task.engine ?? "codex"))
+            throw new MutationHttpError("INVALID_REQUEST", "Options belong to another engine", 400);
+          assertValidProjectDefaults(await listModels(task.engine), settings);
           const activeTurn = task.turns.findLast((turn) => turn.status === "running");
           if (activeTurn !== undefined) {
             const previous = await readEffectiveTaskSettings(

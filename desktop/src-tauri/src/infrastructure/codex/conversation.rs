@@ -205,6 +205,7 @@ async fn read_task_snapshot_view(
             session_id: RUNTIME_SESSION_ID,
         },
         snapshot: AgentTaskSnapshot {
+            engine: None,
             workspace_path: thread.cwd,
             context_usage: None,
             goal,

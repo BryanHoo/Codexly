@@ -11,6 +11,8 @@ pub struct EventCheckpoint {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentTaskSettings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_options: Option<Value>,
     pub approval_policy: Value,
     pub approvals_reviewer: String,
     pub model: String,
@@ -56,6 +58,8 @@ impl AgentPromptInput {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentTurnOptions {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_options: Option<Value>,
     pub approval_policy: Value,
     pub approvals_reviewer: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -76,6 +80,7 @@ fn is_false(value: &bool) -> bool {
 impl Default for AgentTurnOptions {
     fn default() -> Self {
         Self {
+            engine_options: None,
             approval_policy: Value::String("on-request".to_owned()),
             approvals_reviewer: "user".to_owned(),
             collaboration_mode: None,
@@ -91,6 +96,7 @@ impl Default for AgentTurnOptions {
 impl Default for AgentTaskSettings {
     fn default() -> Self {
         Self {
+            engine_options: None,
             approval_policy: Value::String("on-request".to_owned()),
             approvals_reviewer: "user".to_owned(),
             model: "gpt-5.6-sol".to_owned(),
@@ -103,6 +109,7 @@ impl Default for AgentTaskSettings {
 impl From<&AgentTurnOptions> for AgentTaskSettings {
     fn from(options: &AgentTurnOptions) -> Self {
         Self {
+            engine_options: options.engine_options.clone(),
             approval_policy: options.approval_policy.clone(),
             approvals_reviewer: options.approvals_reviewer.clone(),
             model: options.model.clone(),
@@ -158,6 +165,8 @@ pub struct AgentTurnActionResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentTaskSnapshot {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub engine: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_path: Option<String>,
     pub context_usage: Option<Value>,

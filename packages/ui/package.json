@@ -79,7 +79,8 @@
     "streamdown": "catalog:",
     "tailwind-merge": "catalog:",
     "@tanstack/react-virtual": "catalog:",
-    "shiki": "catalog:"
+    "shiki": "catalog:",
+    "@codexly/protocol": "workspace:*"
   },
   "peerDependencies": {
     "react": "catalog:"

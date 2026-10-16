@@ -101,6 +101,16 @@ function createPendingRequestEvent(type: PendingRequest["type"]): AgentEvent {
         type,
       };
       break;
+    case "tool_approval":
+      request = {
+        ...common,
+        type,
+        toolName: "Read",
+        input: {},
+        reason: null,
+        availableDecisions: ["allow", "deny"],
+      };
+      break;
     case "permissions_approval":
       request = {
         ...common,

@@ -33,6 +33,8 @@ type CodexRuntimeGateProps = Readonly<{ children: ReactNode }>;
 
 export function CodexRuntimeGate({ children }: CodexRuntimeGateProps) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation("workbench");
+  const [useClaude, setUseClaude] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<CodexRuntimeInstallProgress | null>(null);
   const [startupProgress, setStartupProgress] = useState<CodexRuntimeInstallProgress | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
@@ -53,6 +55,7 @@ export function CodexRuntimeGate({ children }: CodexRuntimeGateProps) {
     },
   });
   const availability = availabilityQuery.data;
+  if (useClaude) return children;
   if (startupProgress !== null && (availabilityQuery.isPending || availabilityQuery.isFetching)) {
     return <RuntimeUpdating progress={startupProgress} />;
   }
@@ -63,6 +66,7 @@ export function CodexRuntimeGate({ children }: CodexRuntimeGateProps) {
     return isInspecting ? <RuntimeChecking /> : null;
   }
   return (
+    <>
     <RuntimeSetup
       availability={availability ?? undefined}
       detectionFailed={availabilityQuery.isError}
@@ -76,6 +80,8 @@ export function CodexRuntimeGate({ children }: CodexRuntimeGateProps) {
         installMutation.mutate();
       }}
     />
+    {import.meta.env.VITE_MACOS_LEGACY !== "true" ? <div className="fixed bottom-8 inset-x-0 flex justify-center"><Button variant="ghost" onClick={() => setUseClaude(true)}>{t("engine.continueClaude")}</Button></div> : null}
+    </>
   );
 }
 

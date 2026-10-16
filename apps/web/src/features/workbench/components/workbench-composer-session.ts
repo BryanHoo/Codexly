@@ -51,6 +51,7 @@ import type { ComposerMode, WorkbenchComposerProps } from "./workbench-composer-
 import { useComposerInputReset } from "./use-composer-input-reset.js";
 
 type ComposerSessionOptions = Readonly<{
+  engineCommands?: WorkbenchComposerProps["engineCommands"];
   capabilities: AgentCapabilities | undefined;
   composerDraftId: string | undefined;
   client: WorkbenchComposerProps["client"];
@@ -72,6 +73,7 @@ type ComposerSessionOptions = Readonly<{
 const emptyProjectFileSearchResults: readonly ProjectFileSearchEntry[] = [];
 
 export function useComposerSession({
+  engineCommands,
   capabilities,
   composerDraftId,
   client,
@@ -90,7 +92,7 @@ export function useComposerSession({
   taskId,
 }: ComposerSessionOptions) {
   // Git 与文件异步操作绑定当前根；切换根后旧请求不得更新新根的 Composer 状态。
-  const routeScope = `${projectId}:${composerDraftId ?? taskId ?? "draft"}:${projectPath}`;
+  const routeScope = `${projectId}:${composerDraftId ?? taskId ?? "draft"}:${projectPath}:${settings.engineOptions?.engine ?? "codex"}`;
   const composerDraftStore = useComposerDraftStore();
   const composerDraftBinding = useMemo(
     () =>
@@ -213,7 +215,10 @@ export function useComposerSession({
     commandQuery,
   );
   const filteredCommands = filterPromptCommandItems(
-    getPromptCommandItems({ projectToolsEnabled }),
+    getPromptCommandItems({
+      projectToolsEnabled,
+      ...(engineCommands === undefined ? {} : { engineCommands }),
+    }),
     commandQuery,
   );
   const baseBranches = gitStatus?.baseBranches ?? [];

@@ -1,4 +1,5 @@
 fn main() {
+    prepare_claude_embedded_assets();
     let windows_target = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows");
     if windows_target {
         // Keep every final Rust target on the same Common Controls activation context.
@@ -74,6 +75,7 @@ fn main() {
         "get_provider_connection",
         "start_official_provider_login",
         "cancel_provider_login",
+        "claude_engine_request",
         "configure_custom_provider",
         "logout_provider",
         "get_global_settings",
@@ -190,4 +192,29 @@ fn main() {
             .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest());
     }
     tauri_build::try_build(attributes).expect("failed to build Tauri application");
+}
+
+/// 无打包的 Windows 便携 EXE 也必须携带官方宿主；开发/纯 Rust 检查允许未生成资源。
+fn prepare_claude_embedded_assets() {
+    let root = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let resources = root.join("resources/claude");
+    let output =
+        std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("claude_embedded.rs");
+    println!("cargo:rerun-if-changed=resources/claude/manifest.json");
+    println!("cargo:rerun-if-changed=resources/claude/claude.gz");
+    println!("cargo:rerun-if-changed=resources/claude/claude-host.gz");
+    let ready = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
+        && resources.join("claude.gz").is_file()
+        && resources.join("claude-host.gz").is_file();
+    let source = if ready {
+        format!(
+            "pub const BINARY: &[u8] = include_bytes!({:?});\npub const HOST: &[u8] = include_bytes!({:?});\npub const MANIFEST: &str = include_str!({:?});",
+            resources.join("claude.gz"),
+            resources.join("claude-host.gz"),
+            resources.join("manifest.json")
+        )
+    } else {
+        r#"pub const BINARY: &[u8] = &[]; pub const HOST: &[u8] = &[]; pub const MANIFEST: &str = "";"#.to_owned()
+    };
+    std::fs::write(output, source).expect("write Claude runtime resource contract");
 }

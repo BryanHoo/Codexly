@@ -10,17 +10,14 @@ use super::{
     sidebar_task_settings::effective_task_settings, state::AppState, task_workspace,
 };
 use crate::{
-    domain::conversation::{
-        AgentPromptInput, AgentTaskSettings, AgentTaskSnapshotResponse, AgentTurnActionResponse,
-        AgentTurnOptions,
-    },
+    domain::conversation::{AgentPromptInput, AgentTurnActionResponse, AgentTurnOptions},
     domain::sidebar::{
         AgentTaskMutationResponse, AgentTaskPage, AgentTaskStatusResponse, ListTasksInput,
         ProjectMutationResponse, ProjectPage, RemoveProjectResponse,
     },
     infrastructure::{
         codex,
-        task_settings::{delete_project_task_settings, delete_task_settings, write_task_settings},
+        task_settings::{delete_project_task_settings, delete_task_settings},
     },
 };
 
@@ -142,9 +139,13 @@ pub async fn read_task(
     summary: Option<bool>,
     request_id: Option<String>,
     state: State<'_, AppState>,
-) -> Result<AgentTaskSnapshotResponse, AppError> {
+) -> Result<Value, AppError> {
     state
         .run_cancellable(request_id.as_deref(), async {
+            let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+            if task["provider"] == "claude" {
+                return super::claude_tasks::read(&app, &project_id, &task_id, &task, cursor).await;
+            }
             let connection = state.codex_connection().await?;
             state.remember_tasks(&project_id, [task_id.as_str()]).await;
             let baseline = state.task_snapshot_baseline(&project_id).await;
@@ -173,7 +174,7 @@ pub async fn read_task(
                 .complete_task_snapshot_at(&mut response, Some(baseline))
                 .await;
             state.remember_task_snapshot(&response.snapshot).await;
-            Ok(response)
+            serde_json::to_value(response).map_err(|_| AppError::CodexRequestFailed)
         })
         .await
 }
@@ -183,6 +184,7 @@ pub async fn start_task(
     app: AppHandle,
     project_id: String,
     idempotency_key: String,
+    engine: Option<String>,
     state: State<'_, AppState>,
 ) -> super::task_creation::CreationResult {
     let creation_project = project_id.clone();
@@ -190,7 +192,12 @@ pub async fn start_task(
         .task_creations
         .run(&project_id, &idempotency_key, async move {
             let state = app.state::<AppState>();
-            let response = task_workspace::start_task(&app, creation_project.clone()).await?;
+            let response = task_workspace::start_task_for_engine(
+                &app,
+                creation_project.clone(),
+                engine.as_deref().unwrap_or("codex"),
+            )
+            .await?;
             state
                 .remember_task_metadata(
                     &creation_project,
@@ -225,70 +232,33 @@ pub async fn start_turn(
         .await
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn get_task_settings(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    state: State<'_, AppState>,
-) -> Result<Value, AppError> {
-    let connection = state.codex_connection().await?;
-    codex::read_task(&connection, project_id.clone(), task_id.clone())
-        .await
-        .map_err(AppError::from)?;
-    Ok(json!({
-        "settings": effective_task_settings(&app, &project_id, &task_id).await?,
-    }))
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn update_task_settings(
-    app: AppHandle,
-    project_id: String,
-    task_id: String,
-    settings: AgentTaskSettings,
-    turn_id: Option<String>,
-    state: State<'_, AppState>,
-) -> Result<Value, AppError> {
-    if !settings.is_valid() {
-        return Err(AppError::CodexRequestFailed);
-    }
-    let connection = state.codex_connection().await?;
-    codex::read_task(&connection, project_id.clone(), task_id.clone())
-        .await
-        .map_err(AppError::from)?;
-    let reviewer_update = if let Some(turn_id) = turn_id
-        && effective_task_settings(&app, &project_id, &task_id)
-            .await?
-            .approvals_reviewer
-            != settings.approvals_reviewer
-    {
-        // 服务端拒绝时不落盘；回合已结束则只保存未来设置，明确返回未应用状态。
-        Some(
-            codex::update_live_reviewer(
-                &connection,
-                &task_id,
-                &turn_id,
-                &settings.approvals_reviewer,
-            )
-            .await
-            .map_err(AppError::from)?,
-        )
-    } else {
-        None
-    };
-    write_task_settings(&app_data_dir(&app)?, &project_id, &task_id, &settings)
-        .await
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
-    Ok(json!({"settings": settings, "reviewerUpdate": reviewer_update}))
-}
+pub use super::sidebar_task_settings::{get_task_settings, update_task_settings};
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn interrupt_turn(
+    app: AppHandle,
+    project_id: String,
     task_id: String,
     turn_id: String,
     state: State<'_, AppState>,
 ) -> Result<AgentTurnActionResponse, AppError> {
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+    if task["provider"] == "claude" {
+        state
+            .claude
+            .request(
+                &app,
+                "turn.interrupt",
+                Some(super::claude_tasks::scope(&task)),
+                json!({"taskId":task_id,"turnId":turn_id}),
+            )
+            .await?;
+        return Ok(AgentTurnActionResponse {
+            status: "accepted",
+            task_id,
+            turn_id,
+        });
+    }
     let connection = state.codex_connection().await?;
     codex::interrupt_turn(&connection, task_id, turn_id)
         .await

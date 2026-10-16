@@ -3,11 +3,13 @@ import { AgentReviewTargetSchema, AgentTaskSchema } from "./agent-attachments.js
 import { AgentPromptInputSchema, AgentTurnSchema } from "./agent-task.js";
 import { AgentTurnOptionsSchema } from "./project-settings.js";
 import { EventCheckpointSchema } from "./event-checkpoint.js";
+import { AgentEngineSchema } from "./agent-engine.js";
 
 export const SubmitTaskRequestSchema = Type.Union([
   Type.Object(
     {
       type: Type.Literal("prompt"),
+      engine: Type.Optional(AgentEngineSchema),
       taskId: Type.Optional(Type.String({ minLength: 1 })),
       input: AgentPromptInputSchema,
       options: AgentTurnOptionsSchema,

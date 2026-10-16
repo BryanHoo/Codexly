@@ -32,7 +32,6 @@ import {
   LocalProjectRepository,
   type SqliteDatabaseDiagnostics,
 } from "@codexly/server";
-
 import packageManifest from "../package.json" with { type: "json" };
 import { createAppUpdateService } from "./app-update.js";
 import {
@@ -62,7 +61,6 @@ import {
   parseSessionTtl,
   validateLanPassword,
 } from "./lan-access.js";
-
 interface CliManagedRuntime {
   client: CodexRpcClient;
   close: () => Promise<void>;
@@ -329,7 +327,7 @@ export async function runStart(
     if (!projectSourceMigration.completed) {
       await stateRepository.completeProjectSourceMigration();
     }
-    const provider = await dependencies.createRuntimeProvider({
+    const codexProvider = await dependencies.createRuntimeProvider({
       codexHome,
       client: catalogClient,
       modelCatalogRuntimeFactory: startRuntime,
@@ -338,6 +336,7 @@ export async function runStart(
         (await startupStateRepository.readGlobalSettings())?.commitMessageModel ??
         DEFAULT_COMMIT_MESSAGE_MODEL,
     });
+    const provider = enableClaudeRuntime(codexProvider, stateRepository, codexHome);
     const petProvider = dependencies.createPetProvider({ codexHome });
     const appUpdateService = createAppUpdateService({
       appVersion: dependencies.appVersion,
@@ -497,3 +496,4 @@ export async function runCli(
     return 1;
   }
 }
+import { enableClaudeRuntime } from "./cli-engine-runtime.js";

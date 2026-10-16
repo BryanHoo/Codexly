@@ -44,6 +44,7 @@ export type AgentPlan = Readonly<Static<typeof AgentPlanSchema>>;
 
 export const AgentTaskSnapshotSchema = Type.Object(
   {
+    engine: AgentTaskSchema.properties.engine,
     contextUsage: Type.Union([AgentContextUsageSchema, Type.Null()]),
     goal: Type.Union([AgentGoalSchema, Type.Null()]),
     id: Type.String({ minLength: 1 }),

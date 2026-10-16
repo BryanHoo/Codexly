@@ -98,3 +98,7 @@ $RECYCLE.BIN/
 # Linux 桌面环境
 .directory
 .Trash-*
+
+# Generated standalone Claude SDK runtime (rebuilt for each host platform).
+desktop/src-tauri/resources/claude/
+desktop/src-tauri/resources/claude-native-cache/

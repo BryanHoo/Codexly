@@ -168,3 +168,7 @@ Thanks to the [LinuxDO](https://linux.do/) community for their support
 ## License
 
 [MIT](LICENSE)
+
+### Claude Agent
+
+New conversations can select Codex or Claude Agent (Claude Code). Configure the Claude API, defaults, permissions and tool rules in Settings. Existing conversations keep their engine; Claude account login is not supported. See the [engine guide](docs/agent-engines.md) for architecture, platform requirements and capability boundaries.

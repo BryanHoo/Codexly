@@ -9,5 +9,10 @@
     "rootDir": "src",
     "tsBuildInfoFile": "../../.cache/types/ui.tsbuildinfo"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    {
+      "path": "../protocol"
+    }
+  ]
 }

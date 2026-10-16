@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import "../../../i18n/settings-provider.js";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -12,8 +12,10 @@ const ProviderConnectionPanel = lazy(() => import("./provider-connection-panel.j
 export function ProviderConnectionGate({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useTranslation("settings");
   const connection = useQuery(providerConnectionQueryOptions());
+  const [useClaude, setUseClaude] = useState(false);
+  const { t: workbench } = useTranslation("workbench");
 
-  if (connection.data?.state === "connected") {
+  if (useClaude || connection.data?.state === "connected") {
     return children;
   }
   if (connection.isPending) {
@@ -30,6 +32,7 @@ export function ProviderConnectionGate({ children }: Readonly<{ children: ReactN
           <h1 className="text-xl font-semibold text-foreground">Codexly</h1>
           <p className="mt-1 text-body-small text-muted-foreground">{t("provider.title")}</p>
         </header>
+        {import.meta.env.VITE_MACOS_LEGACY !== "true" ? <Button className="mb-6" variant="outline" onClick={() => { setUseClaude(true); }}>{workbench("engine.continueClaude")}</Button> : null}
         {connection.error === null ? (
           <Suspense fallback={<p role="status" className="text-body-small text-muted-foreground">{t("provider.loading")}</p>}>
             <ProviderConnectionPanel />

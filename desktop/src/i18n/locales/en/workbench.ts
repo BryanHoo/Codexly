@@ -1,3 +1,4 @@
+import { engineEnglish } from "@codexly/frontend-core/engine-labels";
 import { textFileEditorEnglish } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceEnglish } from "@codexly/frontend-core/split-workspace-labels";
 import { gitCommit } from "./git-commit.js";
@@ -5,6 +6,7 @@ import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
 import { taskWindow } from "./task-window-menu.js";
 export const workbench = {
+  engine: engineEnglish,
   textEditor: textFileEditorEnglish,
   split: splitWorkspaceEnglish,
   taskWindow,
@@ -222,6 +224,7 @@ export const workbench = {
     cancel: "Cancel",
     deny: "Deny",
     expired: "Request expired",
+    toolApproval: "Tool approval",
     fileChangeApproval: "File change approval",
     fileChangeFallback: "File change awaiting confirmation",
     inputRequired: "Your input is required",

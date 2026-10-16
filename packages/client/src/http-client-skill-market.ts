@@ -1,3 +1,4 @@
+import { EngineHttpClient } from "./http-client-engines.js";
 import { PluginReconcileResultSchema, type PluginReconcileResult } from "@codexly/protocol";
 import {
   AgentMutationErrorSchema,
@@ -28,14 +29,9 @@ import {
   type SkillInstallScope,
 } from "@codexly/protocol";
 
-import {
-  CodexlyTransport,
-  appendQuery,
-  type MutationOptions,
-  type ReadOptions,
-} from "./http-client-transport.js";
+import { appendQuery, type MutationOptions, type ReadOptions } from "./http-client-transport.js";
 
-export class SkillMarketHttpClient extends CodexlyTransport {
+export class SkillMarketHttpClient extends EngineHttpClient {
   public async reconcileOfficialPlugins(
     options: MutationOptions = {},
   ): Promise<PluginReconcileResult> {

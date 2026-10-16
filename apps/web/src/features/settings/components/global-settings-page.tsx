@@ -22,6 +22,9 @@ import { GlobalSettingsAccess } from "./global-settings-access.js";
 const AgentSettingsPanel = lazy(() =>
   import("./agent-settings-panel.js").then((module) => ({ default: module.AgentSettingsPanel })),
 );
+const ClaudeSettingsPanel = lazy(() =>
+  import("./claude-settings-panel.js").then((module) => ({ default: module.ClaudeSettingsPanel })),
+);
 const PersonalizationSettingsPanel = lazy(() =>
   import("./personalization-settings-panel.js").then((module) => ({
     default: module.PersonalizationSettingsPanel,
@@ -175,7 +178,9 @@ export function GlobalSettingsPage({
         </div>
       ) : null}
       <Suspense fallback={status}>
-        {activeSection === "about" ? (
+        {activeSection === "claude" ? (
+          <ClaudeSettingsPanel client={client} />
+        ) : activeSection === "about" ? (
           <GlobalSettingsAbout
             activeSection="about"
             {...(props.appInfo === undefined ? {} : { appInfo: props.appInfo })}

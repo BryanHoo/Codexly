@@ -9,6 +9,7 @@ export {
   type AgentProviderAttachment,
   type AgentProviderQueue,
   type AgentRuntimeProvider,
+  type AgentEngineService,
   type AgentSearchProvider,
   type AgentSearchScope,
   type AgentTaskUnsubscribeStatus,
@@ -54,3 +55,8 @@ export * from "./task-catalog.js";
 export * from "./completed-task-query.js";
 export * from "./custom-model-reasoning.js";
 export type * from "./local-catalog.js";
+export {
+  EngineProjectRouter,
+  localTaskMetadata,
+  type AgentExecutionAdapter,
+} from "./engine-router.js";

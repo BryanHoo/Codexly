@@ -192,6 +192,9 @@ export async function startPromptTurn(
     options.projectId,
     {
       type: "prompt",
+      ...(options.turnOptions.engineOptions?.engine === "claude"
+        ? { engine: "claude" as const }
+        : {}),
       ...(options.taskId === undefined ? {} : { taskId: options.taskId }),
       input: options.input,
       options: options.turnOptions,

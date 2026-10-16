@@ -47,6 +47,7 @@ export function taskSettingsFromRow(row) {
     return undefined;
   }
   return {
+    ...(row.engine_options == null ? {} : { engineOptions: JSON.parse(row.engine_options) }),
     approvalPolicy: deserializeApprovalPolicy(row.approval_policy, "turn"),
     approvalsReviewer: row.approvals_reviewer,
     model: row.model,

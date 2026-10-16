@@ -357,6 +357,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                 disabled={props.attachmentsDisabled}
                 onSelectKind={props.onSelectAttachmentKind}
               />
+              {props.engineControls}
               <ComposerApprovalControls
                 disabled={props.turnControlsDisabled}
                 onSettingsChange={props.onSettingsChange}

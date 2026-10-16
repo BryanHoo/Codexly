@@ -5,6 +5,7 @@ use crate::infrastructure::codex;
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn retain_task_subscription(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     state: State<'_, AppState>,
@@ -13,7 +14,11 @@ pub async fn retain_task_subscription(
     {
         return Err(AppError::CodexRequestFailed);
     }
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
     state.retain_task_subscription(&task_id).await;
+    if task["provider"] == "claude" {
+        return Ok(());
+    }
     let connection = state.codex_connection().await?;
     // 挂载时只恢复线程元数据以确认写入权；历史仍走分页，冲突交给前端只读展示。
     codex::retain_task_writer(&connection, &project_id, &task_id)
@@ -54,6 +59,15 @@ async fn run_task_subscription_release(
     task_id: String,
     generation: u64,
 ) {
+    if super::claude_tasks::task(&app, &project_id, &task_id)
+        .await
+        .is_ok_and(|task| task["provider"] == "claude")
+    {
+        app.state::<AppState>()
+            .complete_task_subscription_release(&task_id, generation)
+            .await;
+        return;
+    }
     let mut attempt = 0;
     loop {
         let state = app.state::<AppState>();

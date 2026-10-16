@@ -177,7 +177,9 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
     <MessageFollowupProvider onSelect={selectFollowup}>
       <TaskTimeline
         onBuildPlan={() => composerRef.current?.buildPlan() ?? Promise.resolve(false)}
-        {...(capabilities?.tasks.fork === true ? { onForkTask: forkTask } : {})}
+        {...(runtime.metadata?.engine !== "claude" && capabilities?.tasks.fork === true
+          ? { onForkTask: forkTask }
+          : {})}
         // Timeline 已携带 Diff 或受控文件引用，普通与临时 Task 共用同一套查看入口。
         onOpenFileDiff={onOpenFileDiff}
         onOpenSourceFile={onOpenSourceFile}

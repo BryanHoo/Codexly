@@ -56,6 +56,7 @@ async fn fork_should_inherit_each_available_source_field_and_preserve_local_fall
                 }
             });
             let mut settings = AgentTaskSettings {
+                engine_options: None,
                 model: "saved-model".into(),
                 reasoning_effort: "low".into(),
                 approval_policy: json!("never"),

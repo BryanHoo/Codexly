@@ -9,6 +9,7 @@ export default defineConfig({
     "client/index": "packages/client/src/index.ts",
     "core/index": "packages/core/src/index.ts",
     "protocol/index": "packages/protocol/src/index.ts",
+    "providers/claude/index": "packages/provider-claude/src/index.ts",
     "providers/codex/index": "packages/provider-codex/src/index.ts",
     "server/index": "packages/server/src/index.ts",
     "sqlite-state-worker": "packages/server/src/sqlite-state-worker.js",
@@ -26,6 +27,7 @@ export default defineConfig({
       ...options.alias,
       "@codexly/core": "./packages/core/src/index.ts",
       "@codexly/protocol": "./packages/protocol/src/index.ts",
+      "@codexly/provider-claude": "./packages/provider-claude/src/index.ts",
       "@codexly/provider-codex": "./packages/provider-codex/src/index.ts",
       "@codexly/server": "./packages/server/src/index.ts",
     };

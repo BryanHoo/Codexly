@@ -15,7 +15,8 @@ import type {
   ProjectFileSearchEntry,
   ProjectRoot,
 } from "@/protocol/index.js";
-import type { Ref } from "react";
+import type { Ref, ReactNode } from "react";
+import type { AgentCommand } from "@codexly/protocol";
 
 import { buildNativeAssetUrl } from "../../../platform/native-asset-url.js";
 import type {
@@ -59,6 +60,8 @@ export type WorkbenchComposerHandle = Readonly<{
 }>;
 
 export type WorkbenchComposerProps = Readonly<{
+  engineControls?: ReactNode;
+  engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
   client: NativeMutationClient &

@@ -42,15 +42,25 @@ export async function executeTaskSubmission(
   try {
     return await submitTask(repository, projectId, key, context.fingerprintPayload(input), input, {
       validate: async () => {
-        if (input.type === "prompt")
-          context.assertValidProjectDefaults(await context.listModels(), input.options);
+        let engine = input.type === "prompt" ? (input.engine ?? "codex") : "codex";
         if (input.taskId !== undefined) {
           const task = await runtime.provider.readTask(input.taskId);
           if (task?.projectId !== runtime.scope.id)
             throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
+          engine = task.engine ?? "codex";
+          if (input.type === "prompt" && input.engine !== undefined && input.engine !== engine)
+            throw new MutationHttpError("INVALID_REQUEST", "Task engine is immutable", 400);
+        }
+        if (input.type === "prompt") {
+          if (input.options.engineOptions && input.options.engineOptions.engine !== engine)
+            throw new MutationHttpError("INVALID_REQUEST", "Options belong to another engine", 400);
+          context.assertValidProjectDefaults(await context.listModels(engine), input.options);
         }
       },
-      createTask: () => runtime.provider.startTask(),
+      createTask: () =>
+        input.type === "prompt" && input.engine
+          ? runtime.provider.startTask({ engine: input.engine })
+          : runtime.provider.startTask(),
       prepare: async (taskId) => {
         const settings =
           input.type === "prompt"

@@ -17,7 +17,7 @@ import { PromptInputSelect } from "../../../shared/components/agent/prompt-input
 import { Checkbox } from "../../../shared/components/core/checkbox.js";
 
 export type SettingsSectionId =
-  "access" | "about" | "agent" | "appearance" | "pets" | "personalization" | "provider";
+  "claude" | "access" | "about" | "agent" | "appearance" | "pets" | "personalization" | "provider";
 
 export const settingsSections: readonly Readonly<{
   icon: LucideIcon;
@@ -26,6 +26,7 @@ export const settingsSections: readonly Readonly<{
   { icon: Settings, id: "appearance" },
   { icon: PawPrint, id: "pets" },
   { icon: ServerCog, id: "provider" },
+  { icon: Bot, id: "claude" },
   { icon: Bot, id: "agent" },
   { icon: SlidersHorizontal, id: "personalization" },
   { icon: Network, id: "access" },

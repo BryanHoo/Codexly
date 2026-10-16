@@ -78,6 +78,8 @@ pub struct HostFileListing {
 #[serde(rename_all = "camelCase")]
 pub struct AgentTask {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub engine: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_path: Option<String>,
     pub id: String,
     pub pinned: bool,

@@ -482,4 +482,9 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
   PROJECT_TODO_MIGRATION,
   ASYNC_QUESTION_MIGRATION,
   { name: "own_project_task_catalog", version: 30, sql: LOCAL_CATALOG_SQL },
+  {
+    name: "persist_task_engine_options",
+    version: 31,
+    sql: "ALTER TABLE task_settings ADD COLUMN engine_options TEXT;",
+  },
 ];

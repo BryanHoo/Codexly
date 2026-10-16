@@ -1,5 +1,6 @@
 export const settings = {
   sectionKeywords: {
+    claude: "Claude Anthropic API Key model permission instructions 工具 权限 指令",
     appearance: "颜色模式 语言 通知 编辑器 默认打开方式 跟进消息 背景 壁纸 Bing 自定义 模糊 遮罩",
     personalization:
       "Codex 说明 AGENTS.md 全局指令 记忆 MCP 网页搜索 Git 提交消息 提交模型 提示词 生成规则",
@@ -192,6 +193,7 @@ export const settings = {
     workspaceWrite: "工作区可写",
   },
   sections: {
+    claude: "Claude Agent",
     personalization: "个性化",
     about: "关于",
     access: "局域网访问",

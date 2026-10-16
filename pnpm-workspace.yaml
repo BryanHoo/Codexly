@@ -4,6 +4,8 @@ packages:
   - "desktop"
 
 allowBuilds:
+  # Bun 仅用于将官方 SDK 宿主编译为桌面独立程序，不作为项目包管理器。
+  bun: true
   # SQLite Adapter 通过独立 Worker 加载原生驱动。
   better-sqlite3: true
   # esbuild 是 Vite、Vitest 与 tsup 的构建器，只允许其安装本机二进制。
@@ -14,6 +16,8 @@ allowBuilds:
   geckodriver: false
 
 catalog:
+  bun: 1.4.2
+  "@anthropic-ai/claude-agent-sdk": 0.3.300
   "@fastify/cookie": 11.1.2
   "@fastify/multipart": 10.1.1
   "@fastify/static": 10.1.2

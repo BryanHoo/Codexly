@@ -10,6 +10,11 @@ pub mod attachment_commands;
 pub mod autostart_commands;
 pub mod background_commands;
 pub mod catalog_commands;
+pub mod claude_commands;
+#[cfg(any(target_os = "windows", test))]
+mod claude_embedded_assets;
+pub(crate) mod claude_host;
+pub(crate) mod claude_tasks;
 pub mod commands;
 pub mod desktop_pet_commands;
 #[cfg(target_os = "macos")]

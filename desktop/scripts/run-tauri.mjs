@@ -4,7 +4,7 @@ import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { cleanTauriTarget, resolveTauriTargetDirectory } from "./clean-tauri-target.mjs";
-import { resolveTauriArguments, resolveTauriEnvironment } from "./tauri-build-constraints.mjs";
+import { findTarget, resolveTauriArguments, resolveTauriEnvironment } from "./tauri-build-constraints.mjs";
 
 const tauriCli = fileURLToPath(
   new URL("../node_modules/@tauri-apps/cli/tauri.js", import.meta.url),
@@ -40,6 +40,7 @@ try {
 
 const environment = {
   ...process.env,
+  ...(findTarget(argumentsList) ? { CODEXLY_CLAUDE_TARGET: findTarget(argumentsList) } : {}),
   ...resolveTauriEnvironment(argumentsList, process.platform, profile),
   ...(process.platform === "darwin" && argumentsList[0] === "build"
     ? {

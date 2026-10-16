@@ -101,9 +101,14 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
               throw new Error("Task creation recovery capacity is exhausted");
             }
             const defaults =
-              context.provider.readTaskMetadata === undefined
-                ? await readInheritedTaskSettings(request.params.projectId)
-                : await readLocalTaskCreationSettings(settingsRepository, request.params.projectId);
+              request.body.engine === "claude"
+                ? undefined
+                : context.provider.readTaskMetadata === undefined
+                  ? await readInheritedTaskSettings(request.params.projectId)
+                  : await readLocalTaskCreationSettings(
+                      settingsRepository,
+                      request.params.projectId,
+                    );
             let workspacePath: string | undefined;
             if (request.body.worktreePath !== undefined) {
               if (request.body.rootPath === undefined) {
@@ -128,9 +133,12 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
             }
             // 原 Project 保留任务归属，worktree 只覆盖 Codex 线程 cwd。
             const task =
-              workspacePath === undefined
+              workspacePath === undefined && request.body.engine === undefined
                 ? await context.provider.startTask()
-                : await context.provider.startTask({ workspacePath });
+                : await context.provider.startTask({
+                    ...(workspacePath === undefined ? {} : { workspacePath }),
+                    ...(request.body.engine ? { engine: request.body.engine } : {}),
+                  });
             // Provider 已创建 Task 后立即保留恢复状态，后续落库重试不能再次创建 Task。
             recovery = {
               fingerprint,
@@ -195,7 +203,12 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
             request.params.taskId,
           );
           const turnOptions = request.body.options;
-          assertValidProjectDefaults(await listModels(), turnOptions);
+          if (
+            turnOptions.engineOptions &&
+            turnOptions.engineOptions.engine !== (task.engine ?? "codex")
+          )
+            throw new MutationHttpError("INVALID_REQUEST", "Options belong to another engine", 400);
+          assertValidProjectDefaults(await listModels(task.engine), turnOptions);
           // Turn 设置先落库，Provider 成功或进程退出后都能恢复用户最后一次完整选择。
           await settingsRepository.writeTaskSettings(
             request.params.projectId,

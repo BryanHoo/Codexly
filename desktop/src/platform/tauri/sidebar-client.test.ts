@@ -151,6 +151,7 @@ describe("TauriSidebarClient", () => {
       turnId: "turn-a",
     });
     expect(invoke).toHaveBeenNthCalledWith(4, "interrupt_turn", {
+      projectId: "project-a",
       taskId: "thread-a",
       turnId: "turn-a",
     });

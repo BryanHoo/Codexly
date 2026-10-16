@@ -32,6 +32,13 @@ pub(crate) async fn start_turn_for_task(
         &app_data, project_id, task_id, &mut input,
     )
     .await?;
+    let task = super::claude_tasks::task(app, project_id, task_id).await?;
+    if task["provider"] == "claude" {
+        return super::claude_tasks::start(app, project_id, task_id, &task, input, options).await;
+    }
+    if options.engine_options.is_some() {
+        return Err(AppError::Claude("Task engine options mismatch".into()));
+    }
     let connection = state.codex_connection().await?;
     // 在后端读取最新偏好，普通任务和计划任务共用，不增加 WebView 的逐轮传输字段。
     let settings = codex::read_agent_runtime_settings(&connection)

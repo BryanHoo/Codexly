@@ -16,7 +16,8 @@ import type {
   ProjectRoot,
 } from "@codexly/protocol";
 import { buildProjectAttachmentUrl, buildTaskAttachmentUrl } from "@codexly/client";
-import type { Ref } from "react";
+import type { Ref, ReactNode } from "react";
+import type { AgentCommand } from "@codexly/protocol";
 
 import type {
   BrowserPromptInputAttachment,
@@ -58,6 +59,8 @@ export type WorkbenchComposerHandle = Readonly<{
 }>;
 
 export type WorkbenchComposerProps = Readonly<{
+  engineControls?: ReactNode;
+  engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
   client: CodexlyMutationClient &

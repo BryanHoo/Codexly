@@ -1,3 +1,4 @@
+import { engineChinese } from "@codexly/frontend-core/engine-labels";
 import { textFileEditorChinese } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceChinese } from "@codexly/frontend-core/split-workspace-labels";
 import { gitCommit } from "./git-commit.js";
@@ -5,6 +6,7 @@ import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
 import { taskWindow } from "./task-window-menu.js";
 export const workbench = {
+  engine: engineChinese,
   textEditor: textFileEditorChinese,
   split: splitWorkspaceChinese,
   taskWindow,
@@ -220,6 +222,7 @@ export const workbench = {
     cancel: "取消",
     deny: "拒绝",
     expired: "请求已过期",
+    toolApproval: "工具审批",
     fileChangeApproval: "文件变更审批",
     fileChangeFallback: "待确认文件变更",
     inputRequired: "需要你的输入",

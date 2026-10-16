@@ -15,7 +15,7 @@ import { useTranslation } from "../../../i18n/i18n.js";
 import { PromptInputSelect } from "../../../shared/components/agent/prompt-input.js";
 import { Checkbox } from "../../../shared/components/core/checkbox.js";
 
-export type SettingsSectionId =
+export type SettingsSectionId = "claude"
   | "about"
   | "agent"
   | "appearance"
@@ -30,6 +30,7 @@ export const settingsSections: readonly Readonly<{
   { icon: Settings, id: "appearance" },
   { icon: PawPrint, id: "pets" },
   { icon: ServerCog, id: "provider" },
+  { icon: Bot, id: "claude" },
   { icon: Bot, id: "agent" },
   { icon: SlidersHorizontal, id: "personalization" },
   { icon: Info, id: "about" },

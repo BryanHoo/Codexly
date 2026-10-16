@@ -20,6 +20,16 @@ function task(row) {
     : null;
 }
 
+function assertImmutableBinding(current, candidate) {
+  if (!current) return;
+  // Worker 是实际持久化边界，不能只依赖 TypeScript 排除字段来保护身份。
+  for (const key of ["provider", "projectId", "sessionId"]) {
+    if (key === "sessionId" && current.sessionId === null) continue;
+    if (Object.hasOwn(candidate, key) && candidate[key] !== current[key])
+      throw new Error(`Task ${key} is immutable`);
+  }
+}
+
 export function createLocalCatalogOperations(db) {
   // 自定义迁移测试可能刻意只建部分表，此时不提前准备不存在的业务表。
   const readProject = (id) =>
@@ -47,6 +57,7 @@ export function createLocalCatalogOperations(db) {
     return readProject(p.id);
   });
   const putTask = (t) => {
+    assertImmutableBinding(readTask(t.id), t);
     db.prepare(
       `INSERT INTO managed_tasks VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO NOTHING`,
@@ -107,6 +118,7 @@ export function createLocalCatalogOperations(db) {
     "task.patch": ({ id, ...patch }) => {
       const current = readTask(id);
       if (!current) throw new Error("Task not found");
+      assertImmutableBinding(current, patch);
       if (patch.title !== undefined) {
         if (!patch.title.trim()) throw new Error("Task title is required");
         patch.title = patch.title.trim();
@@ -150,6 +162,8 @@ export function createLocalCatalogOperations(db) {
         values.push(input.projectId);
       }
       if (input.pinned === true) where.push("pinned = 1");
+      if (input.completed === true)
+        where.push("status IN ('idle', 'notLoaded') AND project_id IS NOT NULL");
       if (input.searchTerm) {
         where.push("instr(lower(title), lower(?)) > 0");
         values.push(input.searchTerm);

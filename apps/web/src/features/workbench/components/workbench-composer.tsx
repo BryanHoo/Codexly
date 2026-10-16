@@ -1,500 +1,100 @@
-import { createComposerFollowup } from "./workbench-composer-followup.js";
-import { useEffect, useImperativeHandle, useState } from "react";
-import { useAccess } from "../../access/access-context.js";
-import { useActionErrorToast } from "../../notifications/use-action-error-toast.js";
-import { AsyncQuestionComposer } from "./async-question-composer.js";
-import { createAsyncQuestionAnswerHandler } from "./async-question-answer-handler.js";
-import { ProjectTodoComposerGate } from "./project-todo-composer-gate.js";
-import { useComposerSettingsUpdate } from "./workbench-composer-settings.js";
-import { useComposerMenuDismissal } from "./workbench-composer-menus.js";
+import { useCallback, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { CodexlyClient } from "@codexly/client";
+import type { AgentEngine, AgentTaskSettings } from "@codexly/protocol";
+import { resolveClaudeComposerSettings } from "@codexly/frontend-core/engine-composer";
+import { AgentEngineSelector } from "@codexly/ui/core/agent-engine-controls";
+import { useEngineComposerState } from "@codexly/ui/core/engine-composer-state";
 import { useTranslation } from "../../../i18n/i18n.js";
-import { getTaskStoreUserMessageIds } from "../composer-queue-state.js";
-import {
-  interruptPromptTurn,
-  resolveComposerSubmitAction,
-  resolveIdempotencyAttempt,
-} from "../composer-state.js";
-import { isPromptSkillContentEmpty } from "./prompt-skill-editor.js";
-import { useWorkbenchBranchSwitch } from "../hooks/use-workbench-branch-switch.js";
-import { useComposerQueue } from "../hooks/use-composer-queue.js";
-import { useProjectTodoEditing } from "../hooks/use-project-todo-editing.js";
-import { createComposerCommands } from "./workbench-composer-commands.js";
-import { createProjectTodoComposerActions } from "./project-todo-composer-actions.js";
+import { providerConnectionQueryOptions } from "../../provider-connection/provider-connection-queries.js";
+import { WorkbenchComposerBase } from "./workbench-composer-base.js";
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
-import { useComposerSession } from "./workbench-composer-session.js";
-import { createComposerSubmission } from "./workbench-composer-submission.js";
-import { WorkbenchComposerAttachmentPicker } from "./workbench-composer-attachment-picker.js";
-import { WorkbenchComposerView } from "./workbench-composer-view.js";
 export * from "./workbench-composer-contracts.js";
 export * from "../composer-state.js";
-export function WorkbenchComposer({
-  composerRef,
-  capabilities,
-  captureSubmitVisible = true,
-  client,
-  composerDraftId,
-  fastModeAvailable,
-  fastModeDefault,
-  followUpBehavior,
-  footerVisible = true,
-  initialDraft,
-  initialTodoId,
-  models,
-  modelsError,
-  modelsPending,
-  onDirectSubmission,
-  onSubmissionFailed,
-  onCaptureSubmission,
-  onFastModeChange,
-  onInputStateChange,
-  onOpenProjectPath,
-  onProjectRootChange,
-  onRequestNotificationPermission,
-  onSettingsChange,
-  onSubmissionStateChange,
-  onTaskCreated,
-  onTaskStarted,
-  onTurnStarted,
-  projectId,
-  projectName,
-  projectPath,
-  projectPathOpenAvailable = true,
-  projectPathOpenDisabled,
-  projectRoots,
-  projectToolsEnabled = true,
-  selectedProjectRootId,
-  gitStatus,
-  runtime,
-  settings,
-  skills,
-  taskId,
-}: WorkbenchComposerProps) {
-  const { t } = useTranslation(["workbench", "settings"]);
-  useActionErrorToast(modelsError, t("composer.modelListFailed"));
-  const access = useAccess();
-  const todoEditing = useProjectTodoEditing(projectId, initialTodoId);
-  const { editingTodoId, projectTodos, todos } = todoEditing;
-  const session = useComposerSession({
-    capabilities,
-    composerDraftId,
-    client,
-    editingTodoId,
-    gitStatus,
-    models,
-    initialDraft,
-    onSubmissionStateChange,
-    projectId,
-    projectPath,
-    projectToolsEnabled,
-    projectTodos,
-    runtime,
-    settings,
-    skills,
-    taskId,
-  });
-  const {
-    activeCommandIndex,
-    activeCommandItemId,
-    activeSettings,
-    activeTaskId,
-    activeTurnId,
-    attachmentCount,
-    attachmentPickerKind,
-    attachments,
-    attachmentsDisabled,
-    baseBranches,
-    canInterrupt,
-    canSteer,
-    canSubmit,
-    clearComposerInput,
-    restoreComposerInput,
-    closeCommandMenu,
-    closeFileMenu,
-    commandMenuId,
-    commandMenuOpen,
-    commandSurfaceRef,
-    composerMode,
-    composerController,
-    composerScope,
-    contextUsage,
-    draftInputDisabled,
-    filteredCommands,
-    filteredSkills,
-    fileMenuOpen,
-    fileSearchError,
-    fileSearchPending,
-    fileSearchResults,
-    handleAttachmentsChange,
-    handlePromptChange,
-    isSubmitting,
-    menuItemCount,
-    navigatePromptHistory,
-    pendingTask,
-    promptContent,
-    promptSubmission,
-    referenceProjectPath,
-    reviewMenuMode,
-    routeScope,
-    selectedModel,
-    selectedReasoningEffort,
-    selectFileReference,
-    setActiveCommandIndex,
-    setAttachmentPickerKind,
-    setIsSubmitting,
-    setMutationError,
-    setComposerModeState,
-    setReviewMenuMode,
-    setSettingsOverride,
-    skillEditorRef,
-    state,
-    turnControlsDisabled,
-  } = session;
-  const [fastModeSelection, setFastModeSelection] = useState<{ enabled: boolean; scope: string }>();
-  const fastModeSelected =
-    fastModeSelection?.scope === composerScope ? fastModeSelection.enabled : fastModeDefault;
-  const fastModeEnabled = fastModeAvailable && fastModeSelected;
-  const {
-    actionLock: composerActionLock,
-    interruptAttempt,
-    isCurrentScope,
-    uploadAttempts,
-    uploadedAttachments,
-  } = composerController;
-  const updateSettings = useComposerSettingsUpdate({
-    routeScope,
-    fastModeSelected,
-    onSettingsChange,
-    isCurrentScope,
-    setSettingsOverride,
-    setMutationError,
-  });
-  const branchMutation = useWorkbenchBranchSwitch({
-    client,
-    gitStatus,
-    isCurrentScope,
-    projectId,
-    rootPath: projectPath,
-    routeScope,
-  });
-  useComposerMenuDismissal({
-    closeCommandMenu,
-    closeFileMenu,
-    commandMenuOpen,
-    commandSurfaceRef,
-    fileMenuOpen,
-    turnControlsDisabled,
-  });
-  const composerQueue = useComposerQueue({
-    client,
-    handleAttachmentsChange,
-    projectId,
-    replacePromptContent: session.replacePromptContent,
-    routeScope,
-    runtime,
-    skillEditorRef,
-    skills,
-    taskId,
-  });
-  useEffect(() => {
-    if (composerQueue.queueError !== null) {
-      setMutationError(composerQueue.queueError);
-    }
-  }, [composerQueue.queueError, setMutationError]);
-  const submitPrompt = createComposerSubmission({
-    activeUserMessageIds:
-      runtime?.store === undefined
-        ? []
-        : getTaskStoreUserMessageIds(runtime.store.getState(), activeTurnId),
-    activeSettings,
-    activeTaskId,
-    activeTurnId,
-    canSteer,
-    canSubmit,
-    clearComposerInput,
-    restoreComposerInput,
-    client,
-    controller: composerController,
-    composerMode,
-    editingQueuedSubmission: composerQueue.editingId !== undefined,
-    followUpBehavior,
-    fastMode: fastModeEnabled,
-    onDirectSubmission,
-    onSubmissionFailed,
-    onCaptureSubmission,
-    onGoalStarted: () => {
-      setComposerModeState(undefined);
+
+type EngineClient = Pick<
+  CodexlyClient,
+  "getEngineProfile" | "configureEngine" | "updateTaskSettings"
+>;
+const emptyModels = [] as const;
+
+export function WorkbenchComposer(props: WorkbenchComposerProps) {
+  const { t } = useTranslation("workbench");
+  const connection = useQuery(providerConnectionQueryOptions());
+  const client = props.client as WorkbenchComposerProps["client"] & Partial<EngineClient>;
+  const scope = JSON.stringify([
+    props.projectId,
+    props.onCaptureSubmission ? "capture" : (props.composerDraftId ?? props.taskId ?? "draft"),
+  ]);
+  const load = useCallback(
+    (engine: AgentEngine) => {
+      if (!client.getEngineProfile) return Promise.reject(new Error("Engine service unavailable"));
+      return client.getEngineProfile(engine, props.projectId);
     },
-    onSteerAccepted: composerQueue.onSteerAccepted,
-    onRequestNotificationPermission,
-    onTaskCreated,
-    onTaskStarted,
-    onTurnStarted,
-    pendingTask,
-    projectId,
-    promptContent,
-    routeScope,
-    selectedModel,
-    selectedReasoningEffort,
-    saveQueuedSubmission: composerQueue.saveQueuedSubmission,
-    skillEditorRef,
-    state,
-    taskId,
-    t,
-    turnControlsDisabled,
+    [client, props.projectId],
+  );
+  const state = useEngineComposerState({
+    scope,
+    taskId: props.taskId,
+    taskEngine: props.runtime?.metadata?.engine,
+    codexConfigured: connection.isPending ? undefined : connection.data?.state === "connected",
+    load,
   });
-  useImperativeHandle(composerRef, () => ({
-    insertFollowup: createComposerFollowup(session),
-    buildPlan: () => {
-      setComposerModeState(undefined); // 避免后续 Turn 再次请求生成计划。
-      return submitPrompt({ files: [], text: t("composer.buildPlanPrompt") }, [], {
-        composerMode: null,
-        forceAction: "start",
-      });
-    },
-    referenceProjectPath,
-    submitCurrent: () => submitPrompt({ files: attachments, text: promptSubmission.text }),
-  }));
-  const {
-    executePromptCommand,
-    executeReviewTarget,
-    getCommandAvailability,
-    selectActiveCommandItem,
-    selectSkill,
-  } = createComposerCommands({
-    capabilities,
-    client,
-    onRequestNotificationPermission,
-    onTaskCreated,
-    onTaskStarted,
-    projectId,
-    session,
-    submitPrompt,
-    t,
-    taskId,
-  });
-  const interruptTurn = async () => {
-    const requestScope = routeScope;
-    if (
-      !canInterrupt ||
-      activeTaskId === undefined ||
-      activeTurnId === undefined ||
-      turnControlsDisabled
-    ) {
-      return;
-    }
-    await composerActionLock.run(async () => {
-      const fingerprint = `${activeTaskId}:${activeTurnId}`;
-      setIsSubmitting(true);
-      setMutationError(null);
-      const attempt = resolveIdempotencyAttempt(interruptAttempt.current, fingerprint);
-      interruptAttempt.current = attempt;
-      try {
-        // `202` 仅确认请求已接收；后续显式重试继续复用同一幂等键。
-        await interruptPromptTurn(client, projectId, activeTaskId, activeTurnId, attempt.key);
-      } catch (error) {
-        if (isCurrentScope(requestScope)) {
-          setMutationError(error instanceof Error ? error : new Error("Turn interruption failed"));
-        }
-      } finally {
-        if (isCurrentScope(requestScope)) {
-          setIsSubmitting(false);
-        }
-      }
-    });
-  };
-  const hasComposerInput = !isPromptSkillContentEmpty(promptContent) || attachmentCount > 0;
-  useEffect(() => onInputStateChange?.(hasComposerInput), [hasComposerInput, onInputStateChange]);
-  const todoActions = createProjectTodoComposerActions({
-    actionLock: composerActionLock,
-    attachments,
-    clearComposerInput,
-    client,
-    editingTodoId,
-    fallbackError: t("composer.saveTodoFailed"),
-    hasComposerInput,
-    isCurrentScope,
-    isSubmitting,
-    onEditingComplete: todoEditing.complete,
-    projectId,
-    projectTodos,
-    promptContent,
-    routeScope,
-    setIsSubmitting,
-    setMutationError,
-    skillEditorRef,
-    submitPrompt,
-    uploadAttempts,
-    uploadedAttachments,
-  });
-  const submitAction =
-    composerQueue.editingId === undefined
-      ? resolveComposerSubmitAction(state, hasComposerInput, followUpBehavior, canSteer)
-      : "queue";
-  const composerView = (
-    <WorkbenchComposerView
-      asyncQuestions={
-        <AsyncQuestionComposer
-          key={composerScope}
-          projectId={projectId}
-          taskId={taskId}
-          enabled={!turnControlsDisabled}
-          isTaskRunning={state === "running" || state === "reconnecting"}
-          onAnswered={createAsyncQuestionAnswerHandler({
-            controller: composerController,
-            requestScope: routeScope,
-            store: runtime?.store,
-            onDirectSubmission,
-            onTurnStarted,
-            onSteerAccepted: composerQueue.onSteerAccepted,
-          })}
-        />
-      }
-      activeCommandIndex={activeCommandIndex}
-      activeCommandItemId={activeCommandItemId}
-      activeSettings={activeSettings}
-      activeTurnId={activeTurnId}
-      attachments={attachments}
-      attachmentsDisabled={attachmentsDisabled}
-      baseBranches={baseBranches}
-      canInterrupt={canInterrupt}
-      canSteer={canSteer}
-      canSubmit={canSubmit}
-      captureMode={onCaptureSubmission !== undefined}
-      captureSubmitVisible={captureSubmitVisible}
-      commandMenuId={commandMenuId}
-      commandMenuOpen={commandMenuOpen}
-      commandSurfaceRef={commandSurfaceRef}
-      composerMode={composerMode}
-      composerScope={composerScope}
-      contextUsage={contextUsage}
-      creatingBranch={branchMutation.creatingBranch}
-      draftInputDisabled={draftInputDisabled}
-      editingTodoId={editingTodoId}
-      filteredCommands={filteredCommands}
-      filteredSkills={filteredSkills}
-      fileMenuOpen={fileMenuOpen}
-      fileSearchError={fileSearchError}
-      fileSearchPending={fileSearchPending}
-      fileSearchResults={fileSearchResults}
-      fastModeAvailable={fastModeAvailable}
-      fastModeEnabled={fastModeEnabled}
-      footerVisible={footerVisible}
-      getCommandAvailability={getCommandAvailability}
-      gitStatus={gitStatus}
-      goal={runtime?.metadata?.goal}
-      hasComposerInput={hasComposerInput}
-      isSubmitting={isSubmitting}
-      menuItemCount={menuItemCount}
-      moveQueuedPrompt={(queuedPromptId, offset) => {
-        void composerQueue.moveQueuedPrompt(queuedPromptId, offset).catch(setMutationError);
-      }}
-      models={models}
-      modelsPending={modelsPending}
-      editQueuedPrompt={(queuedPrompt) => {
-        void composerQueue.editQueuedPrompt(queuedPrompt).catch(setMutationError);
-      }}
-      onComposerModeRemove={() => {
-        setComposerModeState(undefined);
-      }}
-      onProjectTodoDelete={(todoId) => {
-        void todoEditing.remove(todoId);
-      }}
-      onProjectTodoRestore={(todoId) => {
-        todoEditing.restore(todoId, clearComposerInput);
-      }}
-      onProjectTodoSave={() => {
-        void todoActions.save();
-      }}
-      onAttachmentsChange={(files) => {
-        handleAttachmentsChange(files);
-        todoEditing.discardIfEmpty(files.length > 0 || !isPromptSkillContentEmpty(promptContent));
-      }}
-      onBranchCreate={branchMutation.createBranch}
-      onBranchChange={(branch) => {
-        void branchMutation.switchBranch(branch);
-      }}
-      onExecuteCommand={(command) => {
-        void executePromptCommand(command);
-      }}
-      onExecuteReview={(target) => {
-        void executeReviewTarget(target);
-      }}
-      onFastModeChange={(enabled) => {
-        setFastModeSelection({ enabled, scope: composerScope });
-        void Promise.resolve(onFastModeChange(enabled, activeSettings)).catch(() => undefined);
-      }}
-      onInterrupt={() => {
-        void interruptTurn();
-      }}
-      onOpenProjectPath={onOpenProjectPath}
-      onProjectRootChange={onProjectRootChange}
-      onOpenReviewBranches={() => {
-        setActiveCommandIndex(0);
-        setReviewMenuMode("branches");
-      }}
-      onPromptChange={(content, text, cursorOffset) => {
-        handlePromptChange(content, text, cursorOffset);
-        todoEditing.discardIfEmpty(attachments.length > 0 || !isPromptSkillContentEmpty(content));
-      }}
-      onPromptHistoryNavigate={navigatePromptHistory}
-      onSelectActiveCommand={selectActiveCommandItem}
-      onSelectAttachmentKind={setAttachmentPickerKind}
-      onSelectFileReference={selectFileReference}
-      onSelectSkill={selectSkill}
-      onSettingsChange={updateSettings}
-      onSubmit={(message) => void todoActions.submit(message)}
-      onViewError={(error) => {
-        setMutationError(error);
-      }}
-      projectPath={projectPath}
-      projectPathOpenAvailable={projectPathOpenAvailable}
-      projectPathOpenDisabled={projectPathOpenDisabled}
-      projectRoots={projectRoots}
-      projectToolsEnabled={projectToolsEnabled}
-      projectName={projectName ?? projectId}
-      projectTodos={todos}
-      promptContent={promptContent}
-      promptSubmissionText={promptSubmission.text}
-      queuedPrompts={composerQueue.queuedPrompts}
-      removeQueuedPrompt={(queuedPromptId) => {
-        void composerQueue.removeQueuedPrompt(queuedPromptId).catch(setMutationError);
-      }}
-      reviewMenuMode={reviewMenuMode}
-      sandboxModeSelectable
-      selectedModel={selectedModel}
-      selectedReasoningEffort={selectedReasoningEffort}
-      selectedProjectRootId={selectedProjectRootId}
-      showDeploymentHostAttachments={access.status?.mode === "lan"}
-      setActiveCommandIndex={setActiveCommandIndex}
-      skills={skills}
-      skillEditorRef={skillEditorRef}
-      state={state}
-      steerQueuedPrompt={(queuedPrompt) => {
-        void composerQueue.sendQueuedPrompt(queuedPrompt).catch(setMutationError);
-      }}
-      submitAction={submitAction}
-      switchingBranch={branchMutation.switchingBranch}
-      taskId={taskId}
-      turnControlsDisabled={turnControlsDisabled}
-    />
+  const [override, setOverride] = useState<{ scope: string; settings: AgentTaskSettings }>();
+  const claude = state.engine === "claude";
+  const models = state.pending
+    ? emptyModels
+    : claude
+      ? (state.profile?.models.data ?? emptyModels)
+      : props.models;
+  const settings = claude
+    ? resolveClaudeComposerSettings(
+        override?.scope === scope ? override.settings : props.settings,
+        models,
+        state.profile?.settings,
+      )
+    : props.settings;
+  const controls = (
+    <>
+      <AgentEngineSelector
+        codexAvailable={state.codexConfigured}
+        claudeAvailable={state.claudeConfigured}
+        label={t("engine.select")}
+        value={state.engine}
+        locked={state.locked}
+        disabled={state.submitting || props.onCaptureSubmission !== undefined}
+        onChange={state.select}
+      />
+      {claude && state.profile?.connection.state === "disconnected" ? (
+        <span role="status" className="text-meta text-muted-foreground">
+          {t("engine.configureInSettings")}
+        </span>
+      ) : null}
+    </>
   );
   return (
-    <>
-      <ProjectTodoComposerGate active={initialTodoId !== undefined} query={todoEditing.query}>
-        {composerView}
-      </ProjectTodoComposerGate>
-      <WorkbenchComposerAttachmentPicker
-        active={isCurrentScope(routeScope)}
-        client={client}
-        kind={attachmentPickerKind}
-        onAdd={(attachment) => {
-          handleAttachmentsChange([...attachments, attachment]);
-        }}
-        onClose={() => {
-          setAttachmentPickerKind(undefined);
-        }}
-        projectId={projectId}
-      />
-    </>
+    <WorkbenchComposerBase
+      {...props}
+      engineControls={controls}
+      {...(claude ? { engineCommands: state.profile?.commands ?? [] } : {})}
+      models={models}
+      modelsPending={state.pending || (!claude && props.modelsPending)}
+      modelsError={claude ? (state.error ?? null) : props.modelsError}
+      capabilities={claude ? state.profile?.capabilities : props.capabilities}
+      settings={settings}
+      skills={claude ? [] : props.skills}
+      fastModeAvailable={!claude && props.fastModeAvailable}
+      followUpBehavior={claude ? "queue" : props.followUpBehavior}
+      onSubmissionStateChange={(submitting) => {
+        state.setSubmitting(submitting);
+        props.onSubmissionStateChange?.(submitting);
+      }}
+      onSettingsChange={async (next, field, fastMode) => {
+        if (!claude) return props.onSettingsChange(next, field, fastMode);
+        if (props.taskId && client.updateTaskSettings)
+          await client.updateTaskSettings(props.projectId, props.taskId, next);
+        setOverride({ scope, settings: next });
+      }}
+    />
   );
 }

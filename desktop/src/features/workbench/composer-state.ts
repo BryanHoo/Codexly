@@ -179,7 +179,7 @@ export async function startPromptTurn(
   client: Pick<NativeMutationClient, "submitPrompt">,
   options: StartPromptTurnOptions,
 ) {
-  return client.submitPrompt(options);
+  return client.submitPrompt({ ...options, ...(options.turnOptions.engineOptions?.engine === "claude" ? { engine: "claude" as const } : {}) });
 }
 
 type StartTaskReviewOptions = Readonly<{

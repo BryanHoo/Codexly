@@ -41,3 +41,5 @@
 - 本地目录仓储按数据库路径复用活动连接，全局注册表只保存弱引用；最后一个使用者释放后必须关闭 SQLite，避免 Windows 文件占用及连接常驻。回归覆盖并发使用者共享连接、释放后重开仍能读取持久化数据，以及释放连接后的排队图片目录清理。
 
 - Codex 0.163.0 升级边界见 [升级评估](../../../../docs/codex-0.163.0-upgrade.md)。原生实验已读状态不覆盖应用本地目录元数据，两端握手主动关闭 `thread/readState/changed`；不额外查询或轮询已读状态。桌面启动不得再传递上游已退役的 `shell_zsh_fork` 开关。
+
+- Claude 通过按需 stdio 宿主复用共享 SDK 适配包，Codex 保持 Rust App Server 链路。宿主 EOF 必须投影失败，不能遗留运行态；Windows 便携 EXE 内嵌压缩执行资源。交叉构建使用目标架构，运行 `pnpm test:claude-host`；详见[Claude 执行适配](../../provider-claude/backend/index.md)。

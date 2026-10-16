@@ -2,6 +2,7 @@ import { Type, type Static } from "@sinclair/typebox";
 
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { WorkbenchPetSettingsSchema } from "./workbench-pets.js";
+import { AgentEngineOptionsSchema } from "./agent-engine.js";
 
 export const DEFAULT_COMMIT_MESSAGE_MODEL = "gpt-6-luna";
 
@@ -81,6 +82,7 @@ const AgentTaskSettingProperties = {
 
 export const AgentTaskSettingsSchema = Type.Object(
   {
+    engineOptions: Type.Optional(AgentEngineOptionsSchema),
     approvalPolicy: AgentTurnApprovalPolicySchema,
     approvalsReviewer: AgentApprovalsReviewerSchema,
     ...AgentTaskSettingProperties,
@@ -176,6 +178,7 @@ export type UpdateTaskSettingsAndDefaultsResponse = Readonly<
 >;
 
 const AgentTurnOptionProperties = {
+  engineOptions: Type.Optional(AgentEngineOptionsSchema),
   collaborationMode: Type.Optional(AgentCollaborationModeSchema),
   fastMode: Type.Optional(Type.Literal(true)),
   goalMode: Type.Optional(Type.Literal(true)),

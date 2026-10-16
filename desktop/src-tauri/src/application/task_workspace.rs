@@ -14,6 +14,17 @@ pub(crate) async fn start_task(
     app: &AppHandle,
     project_id: String,
 ) -> Result<AgentTaskMutationResponse, AppError> {
+    start_task_for_engine(app, project_id, "codex").await
+}
+
+pub(crate) async fn start_task_for_engine(
+    app: &AppHandle,
+    project_id: String,
+    engine: &str,
+) -> Result<AgentTaskMutationResponse, AppError> {
+    if !matches!(engine, "codex" | "claude") {
+        return Err(AppError::Claude("Unknown engine".into()));
+    }
     use crate::infrastructure::local_catalog::{LocalCatalog, sidebar::map_task};
     use serde_json::json;
     let app_data = app_data_dir(app)?;
@@ -42,7 +53,7 @@ pub(crate) async fn start_task(
         )
     };
     let task = json!({"id":id,"projectId":if temporary {None}else{Some(&project_id)},"title":"","cwd":cwd,
-        "provider":"codex","sessionId":null,"updatedAt":chrono::Utc::now().timestamp_millis() as f64/1000.0,"pinned":false,"archived":false,"status":"notLoaded"});
+        "provider":engine,"sessionId":null,"updatedAt":chrono::Utc::now().timestamp_millis() as f64/1000.0,"pinned":false,"archived":false,"status":"notLoaded"});
     // 先保存应用任务，首次发送再创建执行会话；创建目录不需要模型目录或 Codex 连接。
     if let Err(error) = catalog.call("task.put", task.clone()).await {
         if temporary {

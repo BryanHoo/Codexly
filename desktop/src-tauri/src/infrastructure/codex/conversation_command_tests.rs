@@ -113,6 +113,7 @@ async fn conversation_commands_should_follow_codex_lifecycle() {
     assert!(super::task_title::take_task_title_root(&connection, "thread-a").is_none());
 
     let options = AgentTurnOptions {
+        engine_options: None,
         approvals_reviewer: "auto_review".to_owned(),
         ..AgentTurnOptions::default()
     };
@@ -344,6 +345,7 @@ async fn unknown_reasoning_should_send_null_instead_of_an_invented_effort() {
         }
     });
     let options = AgentTurnOptions {
+        engine_options: None,
         reasoning_effort: String::new(),
         ..AgentTurnOptions::default()
     };

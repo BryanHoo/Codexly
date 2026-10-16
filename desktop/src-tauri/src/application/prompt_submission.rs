@@ -44,6 +44,7 @@ impl SubmissionBudget {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SubmissionRequest {
+    engine: Option<String>,
     project_id: String,
     task_id: Option<String>,
     input: AgentPromptInput,
@@ -60,6 +61,28 @@ struct SubmissionKeys {
 
 impl SubmissionRequest {
     fn validate(&self) -> Result<usize, Value> {
+        if self
+            .engine
+            .as_deref()
+            .is_some_and(|engine| !matches!(engine, "codex" | "claude"))
+        {
+            return Err(serde_json::json!({"code":"INVALID_REQUEST","message":"Unknown engine"}));
+        }
+        let option_engine = self
+            .turn_options
+            .engine_options
+            .as_ref()
+            .and_then(|value| value["engine"].as_str())
+            .unwrap_or("codex");
+        if self
+            .engine
+            .as_deref()
+            .is_some_and(|engine| engine != option_engine)
+            || (self.task_id.is_none()
+                && self.engine.as_deref().unwrap_or("codex") != option_engine)
+        {
+            return Err(json!({"code":"INVALID_REQUEST","message":"Task engine options mismatch"}));
+        }
         let valid_key = |key: &str| !key.trim().is_empty() && key.len() <= 128;
         if !valid_key(&self.idempotency_keys.start_turn)
             || (self.task_id.is_none()
@@ -91,6 +114,16 @@ pub async fn submit_prompt(
     on_task_created: Channel<AgentTask>,
 ) -> Result<SubmissionResponse, Value> {
     let bytes = request.validate()?;
+    if let (Some(task_id), Some(engine)) = (&request.task_id, &request.engine) {
+        let task = super::claude_tasks::task(&app, &request.project_id, task_id)
+            .await
+            .map_err(|error| json!(error))?;
+        if task["provider"] != *engine {
+            return Err(
+                json!({"code":"INVALID_REQUEST","message":"Existing task engine cannot change"}),
+            );
+        }
+    }
     // 覆盖创建等待阶段，直到提交返回才释放；阶段内部另有各自的有界登记表。
     let _admission = app.state::<AppState>().submission_budget.reserve(bytes)?;
     let creation_app = app.clone();
@@ -103,6 +136,7 @@ pub async fn submit_prompt(
                 creation_app.clone(),
                 creation_project,
                 request.idempotency_keys.start_task.unwrap_or_default(),
+                request.engine,
                 state,
             )
             .await

@@ -57,6 +57,33 @@ async fn execute(
     resolution: Arc<Value>,
 ) -> Result<Value, AppError> {
     let state = app.state::<super::state::AppState>();
+    let task = super::claude_tasks::task(&app, &reference.project_id, &reference.task_id).await?;
+    if task["provider"] == "claude" {
+        let scope = Some(super::claude_tasks::scope(&task));
+        let snapshot = state
+            .claude
+            .request(
+                &app,
+                "task.read",
+                scope.clone(),
+                serde_json::json!({"taskId":reference.task_id}),
+            )
+            .await?;
+        let pending = snapshot["pendingRequests"]
+            .as_array()
+            .and_then(|requests| requests.iter().find(|request| reference.matches(request)))
+            .ok_or_else(|| AppError::Claude("Pending request expired or mismatched".into()))?;
+        let mut params =
+            serde_json::to_value(&reference).map_err(|_| AppError::CodexRequestFailed)?;
+        params.as_object_mut().unwrap().remove("createdAt");
+        params["type"] = pending["type"].clone();
+        params["resolution"] = (*resolution).clone();
+        let request = state
+            .claude
+            .request(&app, "request.resolve", scope, params)
+            .await?;
+        return Ok(serde_json::json!({"request":request}));
+    }
     // 同一临界区获取连接并核对请求身份，不能取走其他任务或新一代请求。
     let (connection, pending) = state.claim_pending_resolution(&reference).await?;
     let result = async {

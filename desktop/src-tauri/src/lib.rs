@@ -222,6 +222,7 @@ pub fn run() {
             get_provider_connection,
             start_official_provider_login,
             cancel_provider_login,
+            application::claude_commands::claude_engine_request,
             configure_custom_provider,
             logout_provider,
             get_global_settings,

@@ -1,5 +1,6 @@
 import { resolveGlobalSettings } from "./global-settings-reader.js";
 import { registerHistoryStorageRoutes } from "./routes/history-storage-routes.js";
+import { registerEngineRoutes } from "./routes/engine-routes.js";
 import { WorkbenchChanges } from "./workbench-changes.js";
 import { registerWorkbenchEvents } from "./routes/resource-change-events.js";
 import type {
@@ -273,8 +274,14 @@ export async function createCodexlyServer(
     },
     release: (projectId) => releaseProjectContext(projectId, true),
   });
-  const listModels = async (): Promise<readonly AgentModel[]> =>
-    (await modelCatalogCache.read()).data;
+  const listModels = async (
+    engine: "codex" | "claude" = "codex",
+  ): Promise<readonly AgentModel[]> => {
+    if (engine === "codex") return (await modelCatalogCache.read()).data;
+    const service = options.provider.engines?.[engine];
+    if (!service) throw new Error("Claude engine is unavailable");
+    return (await service.inspect()).models.data;
+  };
   const readEffectiveGlobalSettings = async (
     models?: readonly AgentModel[],
   ): Promise<AgentGlobalSettings> => {
@@ -322,8 +329,24 @@ export async function createCodexlyServer(
     taskId: string,
     models?: readonly AgentModel[],
   ): Promise<AgentTaskSettings> => {
-    const catalog = models ?? (await listModels());
     const stored = await options.settingsRepository.readTaskSettings(projectId, taskId);
+    const metadata = await (
+      await getProjectContext(projectId)
+    )?.provider.readTaskMetadata?.(taskId);
+    if (metadata?.engine === "claude") {
+      // Claude 设置只取自身会话或目录，绝不继承 Codex 全局模型、沙盒和 Guardian。
+      if (stored?.engineOptions?.engine === "claude") return stored;
+      const defaults = await options.provider.engines?.claude?.readSettings();
+      return {
+        model: defaults?.model ?? "default",
+        reasoningEffort: defaults?.reasoningEffort ?? "",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "user",
+        sandboxMode: "workspace-write",
+        engineOptions: { engine: "claude", permissionMode: defaults?.permissionMode ?? "default" },
+      };
+    }
+    const catalog = models ?? (await listModels());
     if (stored === undefined) {
       return readInheritedTaskSettings(projectId, catalog);
     }
@@ -453,6 +476,7 @@ export async function createCodexlyServer(
     ...(accessService === undefined ? {} : { service: accessService }),
   });
   await app.register(registerRuntimeRoutes, routeContext);
+  await app.register(registerEngineRoutes, routeContext);
   await app.register(registerPersonalizationRoutes, routeContext);
   await app.register(registerHistoryStorageRoutes, routeContext);
   await app.register(registerProviderConnectionRoutes, routeContext);

@@ -254,7 +254,7 @@ export class AgentEventStream {
     this.#sequence += 1;
     const published = {
       ...event,
-      provider: this.#provider,
+      provider: event.provider ?? this.#provider,
       sequence: this.#sequence,
       sessionId: this.#sessionId,
       timestamp: this.#now().toISOString(),

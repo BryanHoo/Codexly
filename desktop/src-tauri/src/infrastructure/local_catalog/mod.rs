@@ -109,6 +109,47 @@ mod tests {
     use super::*;
 
     #[test]
+    fn engine_binding_should_reject_replacement_and_allow_cross_engine_session_ids() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = LocalCatalog::at(dir.path()).unwrap();
+        let task = json!({"id":"claude-task","projectId":null,"title":"会话","cwd":"/workspace","provider":"claude","sessionId":null,"updatedAt":100,"pinned":false,"archived":false,"status":"idle"});
+        store.execute("task.put", &task).unwrap();
+        store
+            .execute(
+                "task.patch",
+                &json!({"id":"claude-task","sessionId":"native"}),
+            )
+            .unwrap();
+        store
+            .execute(
+                "task.patch",
+                &json!({"id":"claude-task","sessionId":"native"}),
+            )
+            .unwrap();
+        for patch in [
+            json!({"id":"claude-task","provider":"codex"}),
+            json!({"id":"claude-task","projectId":"other"}),
+            json!({"id":"claude-task","sessionId":"other"}),
+            json!({"id":"claude-task","sessionId":null}),
+        ] {
+            assert!(store.execute("task.patch", &patch).is_err());
+        }
+        let mut collision = task.clone();
+        collision["provider"] = json!("codex");
+        assert!(store.execute("task.put", &collision).is_err());
+        collision["id"] = json!("codex-task");
+        collision["sessionId"] = json!("native");
+        store.execute("task.put", &collision).unwrap();
+        drop(store);
+        let reopened = LocalCatalog::at(dir.path()).unwrap();
+        let actual = reopened
+            .execute("task.read", &json!({"id":"claude-task"}))
+            .unwrap();
+        assert_eq!(actual["provider"], "claude");
+        assert_eq!(actual["sessionId"], "native");
+    }
+
+    #[test]
     fn catalog_should_release_database_after_last_user_and_reopen_persisted_data() {
         let dir = tempfile::tempdir().unwrap();
         let store = LocalCatalog::at(dir.path()).unwrap();
@@ -170,6 +211,8 @@ pub mod sidebar;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CatalogError {
+    #[error("task execution binding is immutable")]
+    ImmutableBinding,
     #[error("stop the running task before removing it")]
     TaskRunning,
     #[error("invalid local catalog request or missing record")]

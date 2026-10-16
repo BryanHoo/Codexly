@@ -8,6 +8,7 @@ use std::sync::{
 
 fn task() -> AgentTask {
     AgentTask {
+        engine: None,
         workspace_path: None,
         id: "task-a".into(),
         project_id: "project-a".into(),
@@ -92,6 +93,7 @@ async fn prompt_submission_should_skip_creation_for_existing_task() {
 
 fn request(task_id: Option<&str>, task_key: Option<&str>, turn_key: &str) -> SubmissionRequest {
     SubmissionRequest {
+        engine: None,
         project_id: "project-a".into(),
         task_id: task_id.map(str::to_owned),
         input: AgentPromptInput::text("hello"),
@@ -207,4 +209,16 @@ async fn prompt_submission_should_reuse_both_native_registries_on_retry() {
     }
     assert_eq!(creates.load(Ordering::SeqCst), 1);
     assert_eq!(starts.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn rejects_engine_mismatch_before_creating_a_task() {
+    let mut request = request(None, Some("task"), "turn");
+    request.engine = Some("claude".to_owned());
+    assert!(request.validate().is_err());
+    request.turn_options.engine_options =
+        Some(serde_json::json!({"engine":"claude","permissionMode":"default"}));
+    assert!(request.validate().is_ok());
+    request.engine = Some("codex".to_owned());
+    assert!(request.validate().is_err());
 }

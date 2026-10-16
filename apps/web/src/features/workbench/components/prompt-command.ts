@@ -1,11 +1,13 @@
-import type { AgentCapabilities, AgentSkill } from "@codexly/protocol";
+import type { AgentCommand, AgentCapabilities, AgentSkill } from "@codexly/protocol";
 
 import { i18n } from "../../../i18n/i18n.js";
 
-export type PromptCommandAction = "compact" | "fork" | "goal" | "initialize" | "plan" | "review";
+export type PromptCommandAction =
+  "native" | "compact" | "fork" | "goal" | "initialize" | "plan" | "review";
 
 export type PromptCommandItem = Readonly<{
   action: PromptCommandAction;
+  command?: string;
   description: string;
   id: string;
   keywords: readonly string[];
@@ -14,7 +16,20 @@ export type PromptCommandItem = Readonly<{
 
 export function getPromptCommandItems({
   projectToolsEnabled = true,
-}: Readonly<{ projectToolsEnabled?: boolean }> = {}): readonly PromptCommandItem[] {
+  engineCommands,
+}: Readonly<{
+  projectToolsEnabled?: boolean;
+  engineCommands?: readonly AgentCommand[];
+}> = {}): readonly PromptCommandItem[] {
+  if (engineCommands !== undefined)
+    return engineCommands.map((command) => ({
+      action: "native",
+      command: command.name,
+      id: `native:${command.name}`,
+      label: `/${command.name}`,
+      description: command.description,
+      keywords: [command.name],
+    }));
   const translate = (key: string) => i18n.t(key, { ns: "workbench" });
   const items: readonly PromptCommandItem[] = [
     {
@@ -70,6 +85,7 @@ export function getPromptCommandAvailability(
   capabilities: AgentCapabilities | undefined,
   hasTask: boolean,
 ): Readonly<{ available: boolean; reason?: string }> {
+  if (item.action === "native") return { available: capabilities?.turns.start === true };
   if (capabilities === undefined) {
     return {
       available: false,

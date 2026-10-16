@@ -3,6 +3,7 @@ import { Type, type Static } from "@sinclair/typebox";
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { WorkbenchPetSettingsSchema } from "./workbench-pets.js";
 import {
+  AgentEngineOptionsSchema,
   AgentGlobalSettingsSchema as SharedGlobalSettingsSchema,
   AgentModelSchema as SharedModelSchema,
 } from "@codexly/protocol";
@@ -78,12 +79,13 @@ export type AgentSandboxMode = Readonly<Static<typeof AgentSandboxModeSchema>>;
 
 const AgentTaskSettingProperties = {
   model: Type.String({ minLength: 1 }),
-  reasoningEffort: Type.String({ minLength: 1 }),
+  reasoningEffort: Type.String(),
   sandboxMode: AgentSandboxModeSchema,
 };
 
 export const AgentTaskSettingsSchema = Type.Object(
   {
+    engineOptions: Type.Optional(AgentEngineOptionsSchema),
     approvalPolicy: AgentTurnApprovalPolicySchema,
     approvalsReviewer: AgentApprovalsReviewerSchema,
     ...AgentTaskSettingProperties,
@@ -183,6 +185,7 @@ const AgentTurnOptionProperties = {
 // Collaboration、Goal 与快速模式只控制当前 Turn，不得进入持久化 Task 设置。
 export const AgentTurnOptionsSchema = Type.Object(
   {
+    engineOptions: Type.Optional(AgentEngineOptionsSchema),
     approvalPolicy: AgentTurnApprovalPolicySchema,
     approvalsReviewer: AgentApprovalsReviewerSchema,
     ...AgentTurnOptionProperties,

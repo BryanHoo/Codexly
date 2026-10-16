@@ -411,6 +411,7 @@ pub async fn interrupt_turn(
 
 fn map_native_task(thread: NativeTask, project_id: String) -> AgentTask {
     AgentTask {
+        engine: None,
         workspace_path: thread.cwd,
         id: thread.id,
         pinned: thread

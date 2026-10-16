@@ -170,6 +170,7 @@ export const settings = {
     workspaceWrite: "Workspace write",
   },
   sections: {
+    claude: "Claude Agent",
     personalization: "Personalization",
     about: "About",
     agent: "Agent configuration",
@@ -179,6 +180,7 @@ export const settings = {
   },
   title: "Global settings",
   sectionKeywords: {
+    claude: "Claude Anthropic API Key model permission instructions 工具 权限 指令",
     appearance: "Color mode language notifications editor default open follow-up messages background wallpaper Bing custom blur overlay non-project temporary task folder storage location",
     personalization: "Codex instructions AGENTS.md global memory MCP web search Git commit messages model prompt generation rules",
     pets: "Enable pet selection",

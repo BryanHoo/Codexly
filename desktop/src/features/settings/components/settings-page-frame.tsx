@@ -8,12 +8,13 @@ import { settingsSections, type SettingsSectionId } from "./global-settings-fiel
 
 const sectionGroups = [
   { id: "personal", sections: ["appearance", "pets"] },
-  { id: "coding", sections: ["provider", "agent", "personalization"] },
+  { id: "coding", sections: ["provider", "agent", "personalization", "claude"] },
   { id: "app", sections: ["about"] },
 ] as const;
 
 // 搜索仅索引已有分类与字段文案，不为搜索挂载面板或请求额外配置数据。
 const sectionSearchKeys: Record<SettingsSectionId, readonly string[]> = {
+  claude: ["provider.apiKey", "provider.baseUrl", "fields.model", "fields.approvalPolicy"],
   personalization: ["personalization.instructions", "personalization.memories", "personalization.enabled", "personalization.external", "fields.commitModel", "fields.commitMessagePrompt", "fields.prompt"],
   appearance: ["appearance.colorMode", "appearance.language", "appearance.notifications", "fields.defaultOpenWith", "fields.followUpMessages", "general.editor", "general.taskNotifications", "background.label", "background.bing", "background.custom", "background.blurLabel", "background.overlayOpacityLabel"],
   pets: ["pets.enabled", "pets.selectionLabel"],

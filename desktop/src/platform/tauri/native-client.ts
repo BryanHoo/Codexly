@@ -1,4 +1,4 @@
-import { ensureCodexRuntime, subscribeAgentEvents } from "./runtime.js";
+import { connectCodexRuntime, ensureCodexRuntime, subscribeAgentEvents } from "./runtime.js";
 import { invoke, type NativeInvoke } from "./native-invoke.js";
 
 export type InvokeImplementation = NativeInvoke;
@@ -38,7 +38,11 @@ export function normalizeNativeError(error: unknown): unknown {
   return error;
 }
 
+// 本地目录及按任务分流的命令只需要事件通道，不能让缺失 Codex 阻断 Claude。
+const engineIndependentCommands = new Set(["list_projects", "add_project", "remove_project", "rename_project", "reorder_projects", "list_tasks", "list_completed_tasks", "read_task", "start_task", "start_turn", "submit_prompt", "interrupt_turn", "resolve_pending_request", "get_task_settings", "update_task_settings", "retain_task_subscription", "release_task_subscription", "rename_task", "pin_task", "archive_task", "unarchive_task", "delete_task"]);
+
 export class TauriNativeClient {
+  protected readonly connectRuntime: () => Promise<unknown>;
   protected readonly ensureRuntime: () => Promise<unknown>;
   protected readonly invokeNative: InvokeImplementation;
   protected readonly subscribeNativeEvents: typeof subscribeAgentEvents;
@@ -46,12 +50,13 @@ export class TauriNativeClient {
 
   public constructor(options: TauriClientOptions = {}) {
     this.ensureRuntime = options.ensureRuntime ?? ensureCodexRuntime;
+    this.connectRuntime = options.ensureRuntime ?? connectCodexRuntime;
     this.invokeNative = options.invoke ?? invoke;
     this.subscribeNativeEvents = options.subscribeAgentEvents ?? subscribeAgentEvents;
   }
 
   protected async call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-    await this.ensureRuntime();
+    await (engineIndependentCommands.has(command) ? this.connectRuntime() : this.ensureRuntime());
     return this.invokeCommand(command, args);
   }
 
@@ -76,7 +81,7 @@ export class TauriNativeClient {
     if (signal === undefined) return this.call(command, args);
 
     signal.throwIfAborted();
-    await this.ensureRuntime();
+    await (engineIndependentCommands.has(command) ? this.connectRuntime() : this.ensureRuntime());
     signal.throwIfAborted();
     const requestId = crypto.randomUUID();
     let rejectCancellation: ((reason?: unknown) => void) | undefined;

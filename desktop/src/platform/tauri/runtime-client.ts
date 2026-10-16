@@ -1,3 +1,4 @@
+import type { AgentEngine, AgentEngineProfile, ClaudeSettings, ConfigureCustomProviderRequest } from "@codexly/protocol";
 import type { MutationOptions, ReadOptions } from "@/platform/native-client-types.js";
 import type {
   AgentCapabilities,
@@ -25,6 +26,25 @@ export type AppUpdateInstallOptions = MutationOptions &
   Readonly<{ onProgress?: (progress: AppUpdateInstallProgress) => void }>;
 
 export class TauriRuntimeClient extends TauriCatalogClient {
+  public async getEngineProfile(engine: AgentEngine, projectId?: string): Promise<AgentEngineProfile> {
+    if (engine !== "claude") return { engine, capabilities: await this.getCapabilities(), models: { data: [...(await this.listModels()).data], nextCursor: null }, commands: [], connection: await this.getProviderConnection() };
+    return this.invokeCommand("claude_engine_request", { method: "profile", projectId, params: {} });
+  }
+  public async configureEngine(engine: AgentEngine, input: ConfigureCustomProviderRequest): Promise<unknown> {
+    if (engine !== "claude") throw new Error("Use Codex provider settings");
+    return this.invokeCommand("claude_engine_request", { method: "configure", params: input });
+  }
+  public async disconnectEngine(engine: AgentEngine): Promise<unknown> {
+    if (engine !== "claude") throw new Error("Use Codex provider settings");
+    return this.invokeCommand("claude_engine_request", { method: "disconnect", params: {} });
+  }
+  public async getClaudeSettings(): Promise<ClaudeSettings> {
+    return this.invokeCommand("claude_engine_request", { method: "settings.read", params: {} });
+  }
+  public async updateClaudeSettings(settings: ClaudeSettings): Promise<ClaudeSettings> {
+    return this.invokeCommand("claude_engine_request", { method: "settings.write", params: settings });
+  }
+
   public async exportDiagnostics(): Promise<ExportDiagnosticsResponse> {
     // 运行时故障正是导出日志的主要场景，因此该命令不等待 Codex 初始化。
     return this.invokeCommand("export_diagnostics");
