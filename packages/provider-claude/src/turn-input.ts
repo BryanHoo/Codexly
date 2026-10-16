@@ -1,5 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { AgentItem, AgentMessageAttachment } from "@codexly/protocol";
 import type { AgentProviderTurnInput } from "@codexly/core";
 
 /** 图片先校验大小再读取；展示预算不能裁剪交给官方 SDK 的实际输入。 */
@@ -38,4 +39,19 @@ export async function createClaudePrompt(
     message: { role: "user", content },
   };
   return prompt;
+}
+
+export type ClaudeUserInput = string | { text: string; attachments: AgentMessageAttachment[] };
+
+/** 用户消息只投影稳定引用；正文留在共享仓储，事件不能携带图片 Base64 或文本附件内容。 */
+export function createClaudeUserItem(id: string, input: ClaudeUserInput): AgentItem {
+  const { text, attachments } =
+    typeof input === "string" ? { text: input, attachments: [] } : input;
+  return {
+    id,
+    type: "message",
+    role: "user",
+    text,
+    ...(attachments.length ? { attachments } : {}),
+  };
 }

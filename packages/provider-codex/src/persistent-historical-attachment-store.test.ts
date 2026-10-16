@@ -167,3 +167,14 @@ test("validates staged images, removes staging files and rejects invalid inputs"
   await expect(store.addBase64Image("task", { encoded: "=" }, 0)).resolves.toBeUndefined();
   store.dispose();
 });
+
+test("does not restore later references after a task is cleared during recovery", async () => {
+  const { store } = await setup();
+  await store.addText("task", { name: "first.txt", text: "first" }, 0);
+  const second = await store.addText("task", { name: "second.txt", text: "second" }, 1);
+  const pending = store.restoreTask("task", store.pendingMetadata("task"));
+  store.clearTask("task");
+  await pending;
+  expect(await store.read("task", second?.id ?? "")).toBeUndefined();
+  store.dispose();
+});

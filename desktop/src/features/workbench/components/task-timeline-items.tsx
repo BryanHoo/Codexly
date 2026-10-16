@@ -1,5 +1,5 @@
 import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
-import { buildNativeAssetUrl } from "@/platform/native-asset-url.js";
+import { buildNativeTaskAttachmentUrl } from "@/platform/native-asset-url.js";
 import type { AgentItem, AgentTurn } from "@/protocol/index.js";
 import { FileText } from "lucide-react";
 
@@ -79,8 +79,8 @@ export function TimelineItemContent({
   onBuildPlan,
   onOpenFileDiff,
   onOpenSourceFile,
-  projectId: _projectId,
-  taskId: _taskId,
+  projectId,
+  taskId,
   turnStatus,
   textSource,
 }: Readonly<{
@@ -158,7 +158,7 @@ export function TimelineItemContent({
             aria-label={i18n.t("timeline.attachments", { ns: "conversation" })}
           >
             {attachments.map((attachment) => {
-              const attachmentUrl = buildNativeAssetUrl(attachment.id);
+              const attachmentUrl = buildNativeTaskAttachmentUrl(projectId, taskId, attachment.id);
               if (attachment.kind === "image") {
                 return (
                   <MessageImageAttachment

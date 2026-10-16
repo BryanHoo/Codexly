@@ -6,6 +6,18 @@ export const vitestAliases = {
   "@codexly/provider-claude": fileURLToPath(
     new URL("./packages/provider-claude/src/index.ts", import.meta.url),
   ),
+  "@codexly/core/persistent-historical-attachment-store": fileURLToPath(
+    new URL("./packages/core/src/persistent-historical-attachment-store.ts", import.meta.url),
+  ),
+  "@codexly/core/historical-attachment-worker-pool": fileURLToPath(
+    new URL("./packages/core/src/historical-attachment-worker-pool.ts", import.meta.url),
+  ),
+  "@codexly/core/historical-attachment-files": fileURLToPath(
+    new URL("./packages/core/src/historical-attachment-files.ts", import.meta.url),
+  ),
+  "@codexly/core/historical-image-media-type": fileURLToPath(
+    new URL("./packages/core/src/historical-image-media-type.js", import.meta.url),
+  ),
   "@codexly/core": fileURLToPath(new URL("./packages/core/src/index.ts", import.meta.url)),
   "@codexly/client": fileURLToPath(new URL("./packages/client/src/index.ts", import.meta.url)),
   "@codexly/protocol": fileURLToPath(new URL("./packages/protocol/src/index.ts", import.meta.url)),

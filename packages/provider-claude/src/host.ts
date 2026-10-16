@@ -1,3 +1,4 @@
+import { exportClaudeAttachment } from "./attachment-export.js";
 import { Value } from "@sinclair/typebox/value";
 import { AgentTurnOptionsSchema } from "@codexly/protocol";
 import { resolve } from "node:path";
@@ -89,6 +90,8 @@ if (process.argv.includes("--version")) {
         return provider.listMcpServers(id);
       case "mcp.reload":
         return provider.reloadMcpServers(id);
+      case "attachment.export":
+        return exportClaudeAttachment(provider, id, String(params["attachmentId"]));
       case "task.read":
         return provider.readTask(id, record(params["options"]));
       case "turn.start":

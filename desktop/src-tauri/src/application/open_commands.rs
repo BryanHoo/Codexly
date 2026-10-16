@@ -87,6 +87,18 @@ pub async fn open_task_attachment(
     attachment_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+    if task["provider"] == "claude" {
+        let exported =
+            super::claude_attachments::export(&app, &project_id, &task_id, &attachment_id).await?;
+        let path = exported["path"]
+            .as_str()
+            .ok_or(AppError::FilesystemRequestFailed)?;
+        workspace::open_path("system-default", Path::new(path))
+            .await
+            .map_err(|_| AppError::FilesystemRequestFailed)?;
+        return Ok(json!({"attachmentId":attachment_id,"status":"opened"}));
+    }
     let connection = state.codex_connection().await?;
     codex::read_task(&connection, project_id.clone(), task_id.clone())
         .await

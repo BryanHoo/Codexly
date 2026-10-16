@@ -30,8 +30,8 @@
           "$APPDATA/attachments/**"
         ]
       },
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; font-src 'self' data:; img-src 'self' asset: http://asset.localhost data: blob:; frame-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'",
-      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://localhost:1421; font-src 'self' data:; img-src 'self' asset: http://asset.localhost data: blob:; frame-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost task-attachment: http://task-attachment.localhost; font-src 'self' data:; img-src 'self' task-attachment: http://task-attachment.localhost asset: http://asset.localhost data: blob:; frame-src 'self' task-attachment: http://task-attachment.localhost asset: http://asset.localhost; style-src 'self' 'unsafe-inline'",
+      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost task-attachment: http://task-attachment.localhost ws://localhost:1421; font-src 'self' data:; img-src 'self' task-attachment: http://task-attachment.localhost asset: http://asset.localhost data: blob:; frame-src 'self' task-attachment: http://task-attachment.localhost asset: http://asset.localhost; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {

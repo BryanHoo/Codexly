@@ -8,6 +8,22 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./persistent-historical-attachment-store": {
+      "types": "./src/persistent-historical-attachment-store.ts",
+      "default": "./src/persistent-historical-attachment-store.ts"
+    },
+    "./historical-attachment-worker-pool": {
+      "types": "./src/historical-attachment-worker-pool.ts",
+      "default": "./src/historical-attachment-worker-pool.ts"
+    },
+    "./historical-attachment-files": {
+      "types": "./src/historical-attachment-files.ts",
+      "default": "./src/historical-attachment-files.ts"
+    },
+    "./historical-image-media-type": {
+      "types": "./src/historical-image-media-type.d.ts",
+      "default": "./src/historical-image-media-type.js"
     }
   },
   "dependencies": {

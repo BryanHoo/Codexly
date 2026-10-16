@@ -107,8 +107,9 @@ export class ClaudeAgentProvider {
   listBackgroundTerminals() {
     return Promise.resolve({ data: [], nextCursor: null });
   }
-  readTaskAttachment() {
-    return Promise.resolve(undefined);
+  async readTaskAttachment(id: string, attachmentId: string) {
+    await this.#task(id);
+    return this.config.attachments.read(id, attachmentId);
   }
   readGoal() {
     return Promise.resolve(null);
@@ -151,6 +152,7 @@ export class ClaudeAgentProvider {
       throw new Error("Stop the running task before deleting");
     if (running) await this.stopSession(id);
     await this.store.catalog("task.remove", { id });
+    await this.config.attachments.deleteTask(id);
     this.#sessionGrants.delete(id);
     this.#recent.delete(id);
     this.#emit({ type: "task.removed", taskId: id, payload: { reason: "deleted" } });
@@ -289,7 +291,10 @@ export class ClaudeAgentProvider {
       const permissionMode = options.engineOptions?.permissionMode ?? defaults.permissionMode;
       const sessionId = task.sessionId ?? randomUUID(),
         turnId = randomUUID();
-      const projection = new ClaudeTurnProjection(id, turnId, input.text, (event) => {
+      const prompt = await createClaudePrompt(input, sessionId, turnId);
+      const attachments = await this.config.attachments.prepare(id, input);
+      const userInput = { text: input.text, attachments };
+      const projection = new ClaudeTurnProjection(id, turnId, userInput, (event) => {
         // 完成事件由消费器在回合落盘之后发布，不能等待整个会话退出。
         if (event.type !== "turn.completed") this.#emit(event);
       });
@@ -300,7 +305,6 @@ export class ClaudeAgentProvider {
       this.#sessionGrants.set(id, grants);
       const permissions = new ClaudePermissions(this.scope.id, id, turnId, this.#emit, grants);
       const controller = new AbortController();
-      const prompt = await createClaudePrompt(input, sessionId, turnId);
       const settingsKey = JSON.stringify({ options, defaults });
       let existing = this.#running.get(id);
       if (existing?.closed) {

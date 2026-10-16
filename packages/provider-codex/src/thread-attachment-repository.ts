@@ -15,11 +15,8 @@ export const CODEXLY_THREAD_ATTACHMENT_TYPE = "codexly.history.v1";
 const THREAD_ATTACHMENT_PAGE_SIZE = 100;
 const BLOB_KEY_PATTERN = /^[a-f0-9]{64}$/u;
 
-export type CodexlyThreadAttachmentMetadata = Readonly<{
-  attachment: AgentMessageAttachment;
-  blobKey: string;
-  schemaVersion: 1;
-}>;
+import type { HistoricalAttachmentMetadata } from "@codexly/core/persistent-historical-attachment-store";
+export type CodexlyThreadAttachmentMetadata = HistoricalAttachmentMetadata;
 
 function readAttachment(value: unknown): AgentMessageAttachment {
   const attachment = expectRecord(value, "Codexly thread attachment payload attachment");

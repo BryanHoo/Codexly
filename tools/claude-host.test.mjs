@@ -261,11 +261,20 @@ test(
         sandboxMode: "workspace-write",
         engineOptions: { engine: "claude", permissionMode: "default" },
       };
+      const imagePath = join(directory, "upload.png");
+      const filePath = join(directory, "upload.pdf");
+      const imageBytes = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+        "base64",
+      );
+      const fileBytes = Buffer.from(`%PDF-1.7\n${"x".repeat(9 * 1024 * 1024)}`);
+      await writeFile(imagePath, imageBytes);
+      await writeFile(filePath, fileBytes);
       const input = {
         text: "Write proof then reply",
-        images: [],
-        files: [],
-        textAttachments: [],
+        images: [{ path: imagePath, mediaType: "image/png", detail: "auto" }],
+        files: [{ path: filePath, mediaType: "application/pdf", name: "large.pdf" }],
+        textAttachments: [{ name: "proof.txt", text: "host attachment proof" }],
         skills: [],
       };
       await host.request("turn.start", { taskId: "task", input, options }, scope);
@@ -282,6 +291,12 @@ test(
       assert.deepEqual((await host.request("task.read", { taskId: "task" }, scope)).plan?.steps, [
         { text: "验证宿主计划", status: "pending" },
       ]);
+      input.images = [];
+      input.files = [];
+      input.textAttachments = [];
+      await rm(imagePath);
+      await rm(filePath);
+      assert.equal(JSON.stringify(host.events).includes(imageBytes.toString("base64")), false);
       const sessionId = tasks.get("task").sessionId;
       assert.ok(sessionId);
       // 强制结束 SDK 子进程，再启动同一聊天；精确授权须恢复，不能依赖进程仍在内存。
@@ -310,6 +325,31 @@ test(
       assert.equal((await host.request("settings.read")).reasoningEffort, "high");
       const restored = await host.request("task.read", { taskId: "task" }, scope);
       assert.equal(restored.turns.length, 2);
+      const attachments = restored.turns[0].items.find((item) => item.role === "user").attachments;
+      const attachment = attachments.find((entry) => entry.kind === "text");
+      assert.equal(attachment.name, "proof.txt");
+      const exported = await host.request(
+        "attachment.export",
+        { taskId: "task", attachmentId: attachment.id },
+        scope,
+      );
+      assert.equal(await readFile(exported.path, "utf8"), "host attachment proof");
+      assert.equal(exported.mediaType, "text/plain");
+      assert.ok(exported.path.endsWith(".txt"));
+      for (const entry of attachments.filter((value) => value.kind !== "text")) {
+        const content = await host.request(
+          "attachment.export",
+          { taskId: "task", attachmentId: entry.id },
+          scope,
+        );
+        assert.deepEqual(
+          await readFile(content.path),
+          entry.kind === "image" ? imageBytes : fileBytes,
+        );
+      }
+      await assert.rejects(
+        host.request("attachment.export", { taskId: "task", attachmentId: "missing" }, scope),
+      );
       assert.deepEqual(restored.plan?.steps, [{ text: "验证宿主计划", status: "in_progress" }]);
       assert.ok(restored.contextUsage.usedTokens > 0);
       assert.ok(restored.contextUsage.contextWindow > 0);

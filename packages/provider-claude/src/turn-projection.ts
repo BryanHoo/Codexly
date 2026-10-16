@@ -15,6 +15,7 @@ import {
 } from "./observability.js";
 import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
+import { createClaudeUserItem, type ClaudeUserInput } from "./turn-input.js";
 import type { ClaudeTaskMetadata } from "./history.js";
 import { record, text, resultText, displayClaudeMessage } from "./sdk-values.js";
 import { ClaudeTaskPlan } from "./task-plan.js";
@@ -45,11 +46,10 @@ export class ClaudeTurnProjection {
   #status: AgentTurn["status"] = "running";
   #error: string | null = null;
   #completedAt: string | null = null;
-
   constructor(
     taskId: string,
     id: string,
-    prompt: string,
+    prompt: ClaudeUserInput,
     emit: AgentProviderEventListener,
     previewBytes = CLAUDE_TURN_PREVIEW_BYTES,
   ) {
@@ -57,7 +57,7 @@ export class ClaudeTurnProjection {
     this.#taskId = taskId;
     this.#id = id;
     this.#emit = emit;
-    this.#items.set({ id, type: "message", role: "user", text: prompt });
+    this.#items.set(createClaudeUserItem(id, prompt));
   }
   get status() {
     return this.#status;

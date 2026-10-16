@@ -1,5 +1,4 @@
 import type { ProjectTextFile, ProjectTextFileRevision, SaveProjectTextFileRequest, SaveProjectTextFileResponse } from "@codexly/protocol";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CreateTaskWorktreeResponse, StartAgentTaskResponse } from "@codexly/protocol";
 import type {
   AgentAttachmentUploadInput,
@@ -45,7 +44,7 @@ import type {
 } from "@/protocol/index.js";
 
 import { TauriNativeClient } from "./native-client.js";
-import { buildNativeAssetUrl } from "../native-asset-url.js";
+import { buildNativeAssetUrl, buildNativeTaskAttachmentUrl } from "../native-asset-url.js";
 
 export class TauriWorkspaceClient extends TauriNativeClient {
   public async createTaskWorktree(projectId: string, rootPath: string, input: CreateProjectWorktreeRequest): Promise<Pick<CreateTaskWorktreeResponse, "worktree">> {
@@ -123,13 +122,11 @@ export class TauriWorkspaceClient extends TauriNativeClient {
   }
 
   public getTaskAttachmentUrl(
-    _projectId: string,
-    _taskId: string,
+    projectId: string,
+    taskId: string,
     attachmentId: string,
   ): string {
-    return /^(?:blob:|data:|https?:)/u.test(attachmentId)
-      ? attachmentId
-      : convertFileSrc(attachmentId);
+    return buildNativeTaskAttachmentUrl(projectId, taskId, attachmentId);
   }
 
   public async openTaskAttachment(

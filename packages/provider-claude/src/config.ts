@@ -1,3 +1,4 @@
+import { ClaudeAttachments } from "./attachments.js";
 import { ClaudeHistory } from "./history.js";
 import { ClaudePersistence } from "./persistence.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -84,6 +85,7 @@ export class ClaudeConfiguration {
   readonly #directory: string;
   readonly userDirectory: string;
   readonly history: ClaudeHistory;
+  readonly attachments: ClaudeAttachments;
   readonly persistence: ClaudePersistence;
   #write: Promise<unknown> = Promise.resolve();
 
@@ -94,6 +96,7 @@ export class ClaudeConfiguration {
     this.#directory = directory;
     this.userDirectory = resolve(userDirectory);
     // 只有应用历史投影与项目加载偏好留在私有目录；原生配置始终以用户文件为准。
+    this.attachments = new ClaudeAttachments(join(directory, "attachments"));
     this.history = new ClaudeHistory(join(directory, "transcripts"));
     this.persistence = new ClaudePersistence(this.history);
   }

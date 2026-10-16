@@ -28,7 +28,12 @@ const result = spawnSync(
   [
     "build",
     "packages/provider-claude/src/host.ts",
+    "packages/core/src/historical-attachment-worker.js",
     "--compile",
+    "--root",
+    ".",
+    "--define",
+    'CODEXLY_COMPILED_ATTACHMENT_WORKER="./packages/core/src/historical-attachment-worker.js"',
     `--target=bun-${target.platform === "win32" ? "windows" : target.platform}-${target.arch}`,
     "--minify",
     "--outfile",

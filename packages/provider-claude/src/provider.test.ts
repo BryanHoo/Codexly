@@ -9,6 +9,7 @@ import type {
   LocalCatalogStore,
   LocalTask,
   AgentProviderEvent,
+  AgentProviderTurnInput,
 } from "@codexly/core";
 import type { AgentTurn, AgentTurnOptions } from "@codexly/protocol";
 import { ClaudeConfiguration } from "./config.js";
@@ -138,6 +139,93 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"]) {
     },
   };
 }
+
+describe("Claude attachment history", () => {
+  it("does not start the SDK or publish a turn when attachment persistence fails", async () => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    await writeFile(h.config.attachments.directory, "blocked");
+    await expect(
+      h.provider.startTurn(
+        task.id,
+        { ...prompt, textAttachments: [{ name: "proof.txt", text: "proof" }] },
+        options,
+      ),
+    ).rejects.toThrow("附件保存失败");
+    expect(h.query).not.toHaveBeenCalled();
+    expect(events).toEqual([]);
+    expect(await h.config.history.active(task.id)).toBeUndefined();
+  });
+
+  it("restores attachment references and bytes after restart without embedding bodies in events", async () => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    const root = h.config.history.directory;
+    const imagePath = join(root, "..", "proof.png");
+    const filePath = join(root, "..", "proof.pdf");
+    const image = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+      "base64",
+    );
+    await writeFile(imagePath, image);
+    await writeFile(filePath, "%PDF-1.7\nproof");
+    const input: AgentProviderTurnInput = {
+      ...prompt,
+      images: [{ path: imagePath, mediaType: "image/png", detail: "auto" }],
+      files: [{ path: filePath, name: "proof.pdf", mediaType: "application/pdf" }],
+      textAttachments: [{ name: "proof.txt", text: "附件完整正文" }],
+    };
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const turn = await h.provider.startTurn(task.id, input, options);
+    const user = turn.items.find((item) => item.type === "message" && item.role === "user");
+    assert(user?.type === "message");
+    expect(user.attachments?.map((attachment) => attachment.name).sort()).toEqual([
+      "proof.pdf",
+      "proof.png",
+      "proof.txt",
+    ]);
+    assert(user.attachments);
+    const attachments = user.attachments;
+    await vi.waitFor(() => {
+      expect(h.received.length).toBe(2);
+    });
+    expect(JSON.stringify(h.received[1])).toContain("附件完整正文");
+    // 在回合仍运行时重建配置，证明检查点及附件授权都来自磁盘。
+    const freshConfig = new ClaudeConfiguration(join(root, ".."), h.config.userDirectory);
+    const restored = h.restart(freshConfig);
+    expect((await restored.readTask(task.id))?.turns[0]?.items).toContainEqual(user);
+    await rm(imagePath);
+    await rm(filePath);
+    for (const attachment of attachments) {
+      const content = await restored.readTaskAttachment(task.id, attachment.id);
+      assert(content);
+      expect(content.name).toBe(attachment.name);
+      expect(Buffer.from(content.content)).toEqual(
+        attachment.kind === "image"
+          ? image
+          : Buffer.from(attachment.kind === "text" ? "附件完整正文" : "%PDF-1.7\nproof"),
+      );
+      const other = await restored.startTask();
+      expect(await restored.readTaskAttachment(other.id, attachment.id)).toBeUndefined();
+    }
+    h.send({ type: "result", subtype: "success", result: "done" });
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+    });
+    await h.provider.stopSession(task.id);
+    const afterRestart = h.restart(
+      new ClaudeConfiguration(join(root, ".."), h.config.userDirectory),
+    );
+    expect((await afterRestart.readTask(task.id))?.turns[0]?.items).toContainEqual(user);
+    for (const attachment of attachments)
+      expect(await afterRestart.readTaskAttachment(task.id, attachment.id)).toBeDefined();
+    expect(JSON.stringify(events)).not.toContain(image.toString("base64"));
+    expect(JSON.stringify(events)).not.toContain("附件完整正文");
+  });
+});
 
 describe("Claude session recovery", () => {
   it("persists local command output when the result contains no repeated text", async () => {
