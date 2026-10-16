@@ -19,6 +19,7 @@ test(
     const directory = await mkdtemp(join(tmpdir(), "codexly-host-"));
     const tasks = new Map();
     let calls = 0;
+    const proofContent = `approved${"x".repeat(400000)}`;
     const api = createServer((request, response) => {
       void (async () => {
         let raw = "";
@@ -48,7 +49,7 @@ test(
                 type: "tool_use",
                 id: "write-proof",
                 name: "Write",
-                input: { file_path: join(directory, "proof.txt"), content: "approved" },
+                input: { file_path: join(directory, "proof.txt"), content: proofContent },
               },
             ]
           : [{ type: "text", text: "host-contract-ok" }];
@@ -256,7 +257,7 @@ test(
         scope,
       );
       assert.equal((await waitEvent("turn.completed")).payload.turn.status, "completed");
-      assert.equal(await readFile(join(directory, "proof.txt"), "utf8"), "approved");
+      assert.equal(await readFile(join(directory, "proof.txt"), "utf8"), proofContent);
       const sessionId = tasks.get("task").sessionId;
       assert.ok(sessionId);
       await host.close();
@@ -266,7 +267,11 @@ test(
       native.effortLevel = "high";
       await writeFile(join(userDirectory, "settings.json"), JSON.stringify(native));
       assert.equal((await host.request("settings.read")).reasoningEffort, "high");
-      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 1);
+      const restored = await host.request("task.read", { taskId: "task" }, scope);
+      assert.equal(restored.turns.length, 1);
+      assert.ok(restored.contextUsage.usedTokens > 0);
+      assert.ok(restored.contextUsage.contextWindow > 0);
+      assert.deepEqual(await host.request("mcp.list", { taskId: "task" }, scope), { data: [] });
       await host.request(
         "turn.start",
         { taskId: "task", input: { ...input, text: "Continue" }, options },

@@ -2,7 +2,7 @@ import type { AgentTaskSnapshot, AgentTurn } from "@/protocol/index.js";
 import { shallow } from "zustand/shallow";
 import type { TaskStoreState } from "./task-store.js";
 
-export type InspectorTask = Pick<AgentTaskSnapshot, "goal" | "plan" | "turns">;
+export type InspectorTask = Pick<AgentTaskSnapshot, "goal" | "plan" | "turns" | "contextUsage">;
 
 export function selectTaskRuntimeMetadata(state: TaskStoreState) {
   const metadata = state.snapshotMetadata;
@@ -48,10 +48,10 @@ export function createInspectorTaskSelector() {
       });
       if (!shallow(turns, nextTurns)) turns = nextTurns;
     }
-    if (previous?.turns === turns && previous.goal === metadata.goal && previous.plan === metadata.plan) {
+    if (previous?.turns === turns && previous.goal === metadata.goal && previous.plan === metadata.plan && previous.contextUsage === metadata.contextUsage) {
       return previous;
     }
-    previous = { goal: metadata.goal, plan: metadata.plan, turns };
+    previous = { goal: metadata.goal, plan: metadata.plan, contextUsage: metadata.contextUsage, turns };
     return previous;
   };
 }

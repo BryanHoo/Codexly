@@ -1,34 +1,52 @@
+import {
+  ClaudeRenderingBuffer,
+  previewText,
+  CLAUDE_CHILD_PREVIEW_BYTES,
+  CLAUDE_PREVIEW_NOTICE,
+  CLAUDE_TURN_PREVIEW_BYTES,
+} from "./rendering-buffer.js";
+import { mapClaudeMcpServers, mapClaudeUsage } from "./observability.js";
 import type { AgentProviderEvent, AgentProviderEventListener } from "@codexly/core";
-import type { AgentItem, AgentTurn } from "@codexly/protocol";
+import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
+import type { ClaudeTaskMetadata } from "./history.js";
 
-export function record(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-const text = (value: unknown): string => (typeof value === "string" ? value : "");
+import { record, text, resultText } from "./sdk-values.js";
+export { record } from "./sdk-values.js";
 
 /** 只持有当前回合的渲染投影；历史与恢复上下文仍由官方 SDK 的会话文件管理。 */
 export class ClaudeTurnProjection {
   readonly #taskId: string;
   readonly #id: string;
   readonly #emit: AgentProviderEventListener;
-  readonly #items = new Map<string, AgentItem>();
+  readonly #items: ClaudeRenderingBuffer;
   readonly #startedAt = new Date().toISOString();
   readonly #blocks = new Map<number, string>();
+  readonly #inputs = new Map<number, { json: string; bytes: number }>();
+  readonly #children = new Map<string, ClaudeTurnProjection>();
+  readonly #agentTools = new Map<string, string>();
+  #lastBlockIndex = 0;
+  #model = "";
+  contextUsage: AgentContextUsage | null = null;
+  plan: AgentPlan | null = null;
+  mcpServers: ClaudeTaskMetadata["mcpServers"] = [];
+  #requestUsage: Record<string, unknown> = {};
   #messageId = "";
   #status: AgentTurn["status"] = "running";
   #error: string | null = null;
   #completedAt: string | null = null;
-  #textBytes = 0;
-  #itemBytes = 0;
-  readonly #sizes = new Map<string, number>();
 
-  constructor(taskId: string, id: string, prompt: string, emit: AgentProviderEventListener) {
+  constructor(
+    taskId: string,
+    id: string,
+    prompt: string,
+    emit: AgentProviderEventListener,
+    previewBytes = CLAUDE_TURN_PREVIEW_BYTES,
+  ) {
+    this.#items = new ClaudeRenderingBuffer(previewBytes, id);
     this.#taskId = taskId;
     this.#id = id;
     this.#emit = emit;
-    this.#items.set(id, { id, type: "message", role: "user", text: prompt });
+    this.#items.set({ id, type: "message", role: "user", text: prompt });
   }
 
   get status() {
@@ -36,6 +54,14 @@ export class ClaudeTurnProjection {
   }
   get id() {
     return this.#id;
+  }
+  metadata(): ClaudeTaskMetadata {
+    return {
+      contextUsage: this.contextUsage,
+      plan: this.plan,
+      model: this.#model || null,
+      mcpServers: this.mcpServers,
+    };
   }
 
   snapshot(): AgentTurn {
@@ -45,7 +71,7 @@ export class ClaudeTurnProjection {
       completedAt: this.#completedAt,
       status: this.#status,
       error: this.#error,
-      items: [...this.#items.values()],
+      items: this.#items.snapshot(),
     };
   }
 
@@ -53,16 +79,10 @@ export class ClaudeTurnProjection {
     this.#emit(event);
   }
 
-  #item(item: AgentItem, completed: boolean, checkBudget = true): void {
+  #item(item: AgentItem, completed: boolean): void {
     const exists = this.#items.has(item.id);
-    const bytes = Buffer.byteLength(JSON.stringify(item));
-    const total = this.#itemBytes - (this.#sizes.get(item.id) ?? 0) + bytes;
-    if (checkBudget && (total > 1024 * 1024 || this.#items.size > 2048 || bytes > 256 * 1024))
-      throw new Error("Claude item exceeds the rendering budget");
-    this.#itemBytes = total;
-    this.#sizes.set(item.id, bytes);
-    this.#items.set(item.id, item);
-    if (completed || !exists)
+    item = this.#items.set(item);
+    if (completed || !exists || item.type === "tool")
       this.#publish({
         type: completed ? "item.completed" : "item.started",
         taskId: this.#taskId,
@@ -82,53 +102,267 @@ export class ClaudeTurnProjection {
       );
     if (block["type"] === "tool_use") {
       const toolId = text(block["id"]);
-      if (toolId)
+      if (toolId) {
+        const name = text(block["name"]) || "Tool";
+        const previous = this.#items.get(toolId);
         this.#item(
           {
+            ...(previous?.type === "tool" ? previous : {}),
             id: toolId,
             type: "tool",
-            name: text(block["name"]) || "Tool",
+            name: name === "Agent" || name === "Task" ? "agent/spawn" : name,
             input: block["input"] ?? {},
-            status: "running",
+            status: previous?.type === "tool" ? previous.status : "running",
           },
           false,
         );
+        if (name === "Agent" || name === "Task") this.#agent(toolId);
+        if (name === "TodoWrite" && completed) {
+          const todos = record(block["input"])["todos"];
+          if (Array.isArray(todos)) {
+            this.plan = {
+              explanation: null,
+              steps: todos.flatMap((value) => {
+                const todo = record(value),
+                  status = todo["status"],
+                  content = text(todo["content"]);
+                return content &&
+                  (status === "pending" || status === "in_progress" || status === "completed")
+                  ? [{ text: content, status }]
+                  : [];
+              }),
+            };
+            this.#publish({
+              type: "plan.updated",
+              taskId: this.#taskId,
+              turnId: this.#id,
+              payload: { plan: this.plan },
+            });
+          }
+        }
+      }
     }
+  }
+
+  /** 子代理仍属于父任务：有界投影随工具保存，不能伪造可独立执行的会话。 */
+  #agent(id: string, status?: AgentTurn["status"], summary?: string): void {
+    const item = this.#items.get(id);
+    if (item?.type !== "tool" || item.name !== "agent/spawn") return;
+    const input = record(item.input);
+    let child = this.#children.get(id);
+    if (!child) {
+      if (this.#children.size >= 64) throw new Error("Claude subagent rendering capacity exceeded");
+      child = new ClaudeTurnProjection(
+        this.#taskId,
+        `${this.#id}:${id}`,
+        text(input["prompt"]),
+        (event) => {
+          // 块完成和任务进度同步正文；不在每个 token 到达时重发整段子代理历史。
+          if (
+            this.#status === "running" &&
+            (event.type === "item.completed" || event.type === "item.started")
+          )
+            this.#agent(id);
+        },
+        CLAUDE_CHILD_PREVIEW_BYTES,
+      );
+      this.#children.set(id, child);
+    }
+    const prompt = text(input["prompt"]);
+    child.#items.set({ id: child.#id, type: "message", role: "user", text: prompt });
+    if (
+      status &&
+      summary &&
+      ![...child.#items.values()].some(
+        (entry) => entry.type === "message" && entry.role === "assistant",
+      )
+    )
+      child.#item(
+        { id: `${child.#id}:result`, type: "message", role: "assistant", text: summary },
+        true,
+      );
+    if (status && status !== "running") child.finish(status);
+    const output = record(item.output),
+      agents = Array.isArray(output["agents"]) ? output["agents"] : [];
+    const previous = record(agents[0]);
+    this.#item(
+      {
+        ...item,
+        status: status ?? item.status,
+        output: {
+          ...output,
+          parentTaskId: this.#taskId,
+          agents: [
+            {
+              ...previous,
+              taskId: id,
+              nickname: text(input["description"]) || text(input["subagent_type"]) || "Agent",
+              status: status ?? previous["status"] ?? "running",
+              ...(summary ? { message: summary.slice(0, 8192) } : {}),
+            },
+          ],
+          turn: child.snapshot(),
+        },
+      },
+      status !== undefined && status !== "running",
+    );
+  }
+
+  updateContextUsage(usage: AgentContextUsage): void {
+    if (
+      this.contextUsage?.usedTokens === usage.usedTokens &&
+      this.contextUsage.contextWindow === usage.contextWindow
+    )
+      return;
+    this.contextUsage = usage;
+    this.#publish({
+      type: "usage.updated",
+      taskId: this.#taskId,
+      turnId: this.#id,
+      payload: { usage },
+    });
+  }
+
+  #usage(value: unknown): void {
+    const usage = mapClaudeUsage(value, this.contextUsage?.contextWindow ?? null);
+    if (usage) this.updateContextUsage(usage);
+  }
+
+  #agentOwner(id: string): ClaudeTurnProjection | undefined {
+    if (this.#children.has(id) || this.#agentTools.has(id)) return this;
+    for (const child of this.#children.values()) {
+      const owner = child.#agentOwner(id);
+      if (owner) return owner;
+    }
+    return undefined;
   }
 
   receive(value: unknown): void {
     if (this.#status !== "running") return;
     const message = record(value);
-    // 子 Agent 的文本属于它自己的工具结果，不能混入主回复或重复创建用户消息。
-    if (message["parent_tool_use_id"] || message["agent_id"]) return;
+    // 以官方关联字段路由子代理消息，隔离主代理的正文、用量和流式块索引。
+    const parentId = text(message["parent_tool_use_id"]),
+      agentId = text(message["agent_id"]);
+    if (parentId || agentId) {
+      const owner = this.#agentOwner(parentId || agentId);
+      const parent = parentId || (owner ? owner.#agentTools.get(agentId) : undefined);
+      const child = parent && owner ? owner.#children.get(parent) : undefined;
+      child?.receive({ ...message, parent_tool_use_id: null, agent_id: undefined });
+      return;
+    }
+    if (message["type"] === "system" && message["subtype"] === "init") {
+      this.#model = text(message["model"]) || this.#model;
+      this.mcpServers = mapClaudeMcpServers(message["mcp_servers"]);
+      for (const server of this.mcpServers) {
+        this.#publish({
+          type: "mcp_server.status_updated",
+          taskId: this.#taskId,
+          payload: {
+            name: server.name,
+            status:
+              server.status === "connected"
+                ? "ready"
+                : server.status === "starting"
+                  ? "starting"
+                  : "failed",
+            error: null,
+            failureReason:
+              server.status === "authenticationRequired" ? "reauthenticationRequired" : null,
+          },
+        });
+      }
+      return;
+    }
+    if (
+      message["type"] === "system" &&
+      ["task_started", "task_progress", "task_notification"].includes(text(message["subtype"]))
+    ) {
+      const nativeId = text(message["task_id"]),
+        id = text(message["tool_use_id"]) || this.#agentTools.get(nativeId);
+      const owner = this.#agentOwner(text(message["tool_use_id"]) || nativeId);
+      if (owner && owner !== this) {
+        owner.receive(message);
+        return;
+      }
+      if (!id || !this.#children.has(id)) return;
+      this.#agentTools.set(nativeId, id);
+      const status =
+        message["subtype"] === "task_notification"
+          ? message["status"] === "completed"
+            ? "completed"
+            : message["status"] === "stopped"
+              ? "interrupted"
+              : "failed"
+          : undefined;
+      this.#agent(id, status, text(message["summary"]) || text(message["description"]));
+      return;
+    }
     if (message["type"] === "stream_event") {
       const event = record(message["event"]);
       const index = typeof event["index"] === "number" ? event["index"] : 0;
       if (event["type"] === "message_start") {
         this.#messageId = text(record(event["message"])["id"]);
         this.#blocks.clear();
+        this.#inputs.clear();
+        this.#model = text(record(event["message"])["model"]) || this.#model;
+        this.#requestUsage = record(record(event["message"])["usage"]);
+        this.#usage(this.#requestUsage);
       } else if (event["type"] === "content_block_start" && this.#messageId) {
         const block = record(event["content_block"]);
         const id =
           block["type"] === "tool_use" ? text(block["id"]) : `${this.#messageId}:${String(index)}`;
         this.#blocks.set(index, id);
+        this.#lastBlockIndex = index;
         this.#block(block, id, false);
+      } else if (event["type"] === "message_delta") {
+        this.#requestUsage = { ...this.#requestUsage, ...record(event["usage"]) };
+        this.#usage(this.#requestUsage);
+      } else if (event["type"] === "content_block_stop") {
+        const input = this.#inputs.get(index),
+          id = this.#blocks.get(index),
+          item = id ? this.#items.get(id) : undefined;
+        if (input && item?.type === "tool") {
+          // JSON 片段尚未闭合时不解析；完整参数到达后立即刷新运行中的标题。
+          this.#item(
+            {
+              ...item,
+              input:
+                input.bytes > 256 * 1024
+                  ? { preview: CLAUDE_PREVIEW_NOTICE }
+                  : (JSON.parse(input.json) as unknown),
+            },
+            false,
+          );
+          if (item.name === "agent/spawn") this.#agent(item.id);
+        }
+        this.#inputs.delete(index);
       } else if (event["type"] === "content_block_delta") {
         const id = this.#blocks.get(index),
           delta = record(event["delta"]);
         const item = id ? this.#items.get(id) : undefined;
+        if (item?.type === "tool" && delta["type"] === "input_json_delta") {
+          const chunk = text(delta["partial_json"]),
+            input = this.#inputs.get(index) ?? { json: "", bytes: 0 };
+          input.bytes += Buffer.byteLength(chunk);
+          input.json = input.bytes > 256 * 1024 ? "" : input.json + chunk;
+          this.#inputs.set(index, input);
+          return;
+        }
         const addition = text(delta["text"] ?? delta["thinking"]);
         if (!id || !item || !addition || (item.type !== "message" && item.type !== "reasoning"))
           return;
-        this.#textBytes += Buffer.byteLength(addition);
-        if (this.#textBytes > 1024 * 1024)
-          throw new Error("Claude turn output exceeds the memory budget");
-        this.#items.set(
-          id,
-          item.type === "message"
-            ? { ...item, text: item.text + addition }
-            : { ...item, content: item.content + addition },
-        );
+        const update = this.#items.appendText(id, addition);
+        if (!update) return;
+        if (update.delta === null) {
+          this.#publish({
+            type: "item.started",
+            taskId: this.#taskId,
+            turnId: this.#id,
+            itemId: id,
+            payload: { item: update.item },
+          });
+          return;
+        }
         if (item.type === "message")
           this.#publish({
             type: "message.delta",
@@ -149,9 +383,14 @@ export class ClaudeTurnProjection {
     } else if (message["type"] === "assistant") {
       const body = record(message["message"]);
       const id = text(body["id"]) || text(message["uuid"]);
+      this.#model = text(body["model"]) || this.#model;
+      this.#usage(body["usage"]);
       if (!id || !Array.isArray(body["content"])) return;
-      body["content"].forEach((block, index) => {
-        this.#block(record(block), `${id}:${String(index)}`, true);
+      const content = body["content"];
+      content.forEach((block, index) => {
+        const blockIndex =
+          content.length === 1 && id === this.#messageId ? this.#lastBlockIndex : index;
+        this.#block(record(block), `${id}:${String(blockIndex)}`, true);
       });
     } else if (message["type"] === "user") {
       const content = record(message["message"])["content"];
@@ -160,7 +399,18 @@ export class ClaudeTurnProjection {
         const block = record(value),
           id = text(block["tool_use_id"]),
           item = this.#items.get(id);
-        if (block["type"] === "tool_result" && item?.type === "tool")
+        if (block["type"] === "tool_result" && item?.type === "tool") {
+          if (item.name === "agent/spawn") {
+            const result = record(message["tool_use_result"]);
+            // 后台启动的 tool_result 只代表已派发，真正终态由 task_notification 决定。
+            if (result["isAsync"] !== true && record(item.input)["run_in_background"] !== true)
+              this.#agent(
+                id,
+                block["is_error"] === true ? "failed" : "completed",
+                resultText(block["content"]) || undefined,
+              );
+            continue;
+          }
           this.#item(
             {
               ...item,
@@ -169,8 +419,17 @@ export class ClaudeTurnProjection {
             },
             true,
           );
+        }
       }
     } else if (message["type"] === "result") {
+      const window = record(record(message["modelUsage"])[this.#model])["contextWindow"];
+      if (
+        this.contextUsage &&
+        typeof window === "number" &&
+        Number.isSafeInteger(window) &&
+        window > 0
+      )
+        this.updateContextUsage({ ...this.contextUsage, contextWindow: window });
       const success = message["subtype"] === "success" && message["is_error"] !== true;
       // 某些命令只返回 result，没有 assistant；只在没有回复正文时补充，避免重复。
       const result = text(message["result"]);
@@ -197,17 +456,21 @@ export class ClaudeTurnProjection {
 
   finish(status: Exclude<AgentTurn["status"], "running">, error?: string): void {
     if (this.#status !== "running") return;
-    for (const item of this.#items.values()) {
+    // 先提交终态，阻断子代理收尾通知重入父级结束路径。
+    this.#status = status;
+    this.#error = error ? previewText(error, 8192) : null;
+    this.#completedAt = new Date().toISOString();
+    for (const item of [...this.#items.values()]) {
+      if (item.type === "tool" && item.name === "agent/spawn" && item.status === "running") {
+        this.#agent(item.id, status === "interrupted" ? "interrupted" : "failed");
+        continue;
+      }
       if (item.type === "tool" && item.status === "running")
         this.#item(
           { ...item, status: "failed", output: item.output ?? "Tool ended without a result" },
           true,
-          false,
         );
     }
-    this.#status = status;
-    this.#error = error ?? null;
-    this.#completedAt = new Date().toISOString();
     this.#publish({
       type: "turn.completed",
       taskId: this.#taskId,

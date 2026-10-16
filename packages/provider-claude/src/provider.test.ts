@@ -199,3 +199,152 @@ it("rejects oversized Claude images before allocating their base64 or binding a 
   expect(h.query).not.toHaveBeenCalled();
   expect(h.tasks.get(task.id)?.sessionId).toBeNull();
 });
+
+it("restores context, plan and MCP metadata after recreating the provider", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send({
+    type: "system",
+    subtype: "init",
+    model: "main",
+    mcp_servers: [{ name: "search", status: "connected" }],
+  });
+  h.send({
+    type: "assistant",
+    message: {
+      id: "msg",
+      model: "main",
+      usage: { input_tokens: 10, cache_read_input_tokens: 20, output_tokens: 5 },
+      content: [
+        {
+          type: "tool_use",
+          id: "todo",
+          name: "TodoWrite",
+          input: { todos: [{ content: "检查组件", status: "in_progress" }] },
+        },
+      ],
+    },
+  });
+  h.send({ type: "result", subtype: "success", modelUsage: { main: { contextWindow: 200000 } } });
+  await vi.waitFor(async () => {
+    expect((await h.provider.readTask(task.id))?.status).toBe("idle");
+  });
+  const restored = new ClaudeAgentProvider(
+    h.provider.scope,
+    h.provider.store,
+    h.config,
+    h.provider.sdk,
+  );
+  expect(await restored.readTask(task.id)).toMatchObject({
+    contextUsage: { contextWindow: 200000, usedTokens: 35 },
+    plan: { steps: [{ text: "检查组件", status: "in_progress" }] },
+    threadConfiguration: { model: "main" },
+  });
+  expect(await restored.listMcpServers(task.id)).toMatchObject({
+    data: [{ name: "search", status: "connected" }],
+  });
+});
+
+it("reads live MCP tools and reconnects failed servers without crossing engine boundaries", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  const stream = h.query.mock.results[0]?.value as Query | undefined;
+  if (!stream) throw new Error("Missing SDK query");
+  let connected = false;
+  stream.mcpServerStatus = vi.fn(() =>
+    Promise.resolve([
+      {
+        name: "search",
+        status: connected ? ("connected" as const) : ("failed" as const),
+        tools: connected ? [{ name: "query" }] : [],
+      },
+    ]),
+  );
+  const reconnect = vi.fn(() => {
+    connected = true;
+    return Promise.resolve();
+  });
+  stream.reconnectMcpServer = reconnect;
+  expect(await h.provider.reloadMcpServers(task.id)).toMatchObject({
+    data: [{ name: "search", status: "connected", toolCount: 1 }],
+  });
+  expect(reconnect).toHaveBeenCalledWith("search");
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalled();
+  });
+  expect(await h.config.history.metadata(task.id)).toMatchObject({
+    mcpServers: [{ name: "search", toolCount: 1 }],
+  });
+});
+
+it("uses local SDK context summaries and keeps successful execution successful if observation fails", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  const stream = h.query.mock.results[0]?.value as Query | undefined;
+  if (!stream) throw new Error("Missing SDK query");
+  const readContext = vi.fn(() => Promise.reject(new Error("observability unavailable")));
+  stream.getContextUsage = readContext;
+  h.send({
+    type: "assistant",
+    message: { id: "msg", model: "main", content: [], usage: { input_tokens: 10 } },
+  });
+  h.send({ type: "result", subtype: "success", modelUsage: { main: { contextWindow: 200000 } } });
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalled();
+  });
+  expect(readContext).toHaveBeenCalledWith({ detail: "summary" });
+  expect(await h.provider.readTask(task.id)).toMatchObject({
+    status: "idle",
+    contextUsage: { usedTokens: 10, contextWindow: 200000 },
+  });
+});
+
+it("completes and persists a large subagent run without leaving a busy task", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send({
+    type: "assistant",
+    message: {
+      id: "root",
+      content: [{ type: "tool_use", id: "spawn", name: "Agent", input: { prompt: "inspect" } }],
+    },
+  });
+  for (let index = 0; index < 48; index++) {
+    h.send({
+      type: "assistant",
+      parent_tool_use_id: "spawn",
+      message: {
+        id: `child-${String(index)}`,
+        content: [{ type: "text", text: "large subagent output ".repeat(1024) }],
+      },
+    });
+  }
+  h.send({
+    type: "system",
+    subtype: "task_notification",
+    tool_use_id: "spawn",
+    task_id: "child",
+    status: "completed",
+    summary: "检查完成",
+  });
+  h.send({ type: "result", subtype: "success", result: "done" });
+  await vi.waitFor(() => {
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+  });
+  expect(h.provider.isBusy).toBe(false);
+  expect((await h.provider.readTask(task.id))?.turns.at(-1)?.status).toBe("completed");
+  const restored = new ClaudeAgentProvider(
+    h.provider.scope,
+    h.provider.store,
+    h.config,
+    h.provider.sdk,
+  );
+  expect((await restored.readTask(task.id))?.turns.at(-1)?.status).toBe("completed");
+});

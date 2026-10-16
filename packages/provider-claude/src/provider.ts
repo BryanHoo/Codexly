@@ -1,3 +1,6 @@
+import { localTaskMetadata as claudeTask } from "@codexly/core";
+export { localTaskMetadata as claudeTask } from "@codexly/core";
+import { mapClaudeMcpServers, observe, refreshClaudeContext } from "./observability.js";
 import { isManagedClaudeCommand } from "./commands.js";
 import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
@@ -57,18 +60,6 @@ interface Running {
   timer?: ReturnType<typeof setInterval>;
 }
 
-export function claudeTask(task: LocalTask): AgentTask {
-  return {
-    id: task.id,
-    projectId: task.projectId ?? "temporary",
-    engine: "claude",
-    title: task.title || "新聊天",
-    pinned: task.pinned,
-    updatedAt: new Date(task.updatedAt * 1000).toISOString(),
-    workspacePath: task.cwd,
-  };
-}
-
 export class ClaudeAgentProvider {
   readonly #listeners = new Set<AgentProviderEventListener>();
   readonly #running = new Map<string, Running>();
@@ -93,9 +84,36 @@ export class ClaudeAgentProvider {
   listSkills() {
     return Promise.resolve({ data: [], nextCursor: null });
   }
-  listMcpServers() {
-    return Promise.resolve({ data: [], nextCursor: null });
+  async listMcpServers(id: string) {
+    await this.#task(id);
+    const running = this.#running.get(id);
+    if (running && typeof running.query.mcpServerStatus === "function") {
+      const servers = await observe(() => running.query.mcpServerStatus());
+      if (servers) running.projection.mcpServers = mapClaudeMcpServers(servers);
+    }
+    return {
+      data:
+        running?.projection.mcpServers ??
+        (await this.config.history.metadata(id))?.mcpServers ??
+        [],
+    };
   }
+  async reloadMcpServers(id: string) {
+    await this.#task(id);
+    const running = this.#running.get(id);
+    if (running) {
+      const { data } = await this.listMcpServers(id);
+      await Promise.all(
+        data
+          .filter(
+            (server) => server.status === "failed" || server.status === "authenticationRequired",
+          )
+          .map((server) => running.query.reconnectMcpServer(server.name)),
+      );
+    }
+    return this.listMcpServers(id);
+  }
+
   listBackgroundTerminals() {
     return Promise.resolve({ data: [], nextCursor: null });
   }
@@ -192,6 +210,7 @@ export class ClaudeAgentProvider {
     const page = await this.config.history.read(id, input.cursor);
     const turns = page.turns;
     const nextCursor = page.cursor;
+    const metadata = current?.projection.metadata() ?? (await this.config.history.metadata(id));
     if (!current && input.cursor === undefined) {
       const recovered = await this.config.history.active(id);
       if (recovered && !turns.some((turn) => turn.id === recovered.id))
@@ -214,16 +233,16 @@ export class ClaudeAgentProvider {
     }
     return {
       ...claudeTask(task),
-      contextUsage: null,
+      contextUsage: metadata?.contextUsage ?? null,
       goal: null,
-      plan: null,
+      plan: metadata?.plan ?? null,
       pendingRequests: current?.permissions.pending() ?? [],
       status: current
         ? "running"
         : last?.status === "failed" || task.status === "failed"
           ? "failed"
           : "idle",
-      threadConfiguration: { model: null, reasoningEffort: null },
+      threadConfiguration: { model: metadata?.model ?? null, reasoningEffort: null },
       turns,
       turnsNextCursor: nextCursor,
     };
@@ -255,6 +274,10 @@ export class ClaudeAgentProvider {
         if (event.type === "turn.completed") terminal = event;
         else this.#emit(event);
       });
+      const previousMetadata = await this.config.history.metadata(id);
+      projection.contextUsage = previousMetadata?.contextUsage ?? null;
+      projection.plan = previousMetadata?.plan ?? null;
+      projection.mcpServers = previousMetadata?.mcpServers ?? [];
       const permissions = new ClaudePermissions(this.scope.id, id, turnId, this.#emit);
       const controller = new AbortController(),
         gate = Promise.withResolvers<undefined>();
@@ -347,6 +370,7 @@ export class ClaudeAgentProvider {
         writing = true;
         void this.config.history
           .checkpoint(id, projection.snapshot())
+          .then(() => this.config.history.saveMetadata(id, projection.metadata()))
           .catch(() => {
             controller.abort();
           })
@@ -380,6 +404,11 @@ export class ClaudeAgentProvider {
         )
           throw new Error("Claude changed the bound session identity");
         running.projection.receive(message);
+        if (message.type === "system" && message.subtype === "init") {
+          void refreshClaudeContext(running.query, running.projection, true);
+        }
+        if (message.type === "result")
+          await refreshClaudeContext(running.query, running.projection);
         if (running.projection.status !== "running") break;
       }
       if (running.projection.status === "running")
@@ -410,6 +439,9 @@ export class ClaudeAgentProvider {
         if (oldest !== undefined) this.#recent.delete(oldest);
       }
       await this.config.history.complete(id, turn).catch(() => undefined);
+      await this.config.history
+        .saveMetadata(id, running.projection.metadata())
+        .catch(() => undefined);
       this.#running.delete(id);
       await this.store
         .catalog("task.patch", {

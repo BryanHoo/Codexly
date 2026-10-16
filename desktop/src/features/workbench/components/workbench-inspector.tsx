@@ -1,3 +1,4 @@
+import { ContextUsageSummary } from "@codexly/ui/core/context-usage-summary";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
   AgentBackgroundTerminal,
@@ -115,7 +116,7 @@ type WorkbenchInspectorProps = Readonly<{
   skills?: readonly AgentSkill[];
   subagents?: readonly SubagentContextEntry[];
   tab?: WorkbenchInspectorTab;
-  task?: Pick<AgentTaskSnapshot, "turns"> & Partial<Pick<AgentTaskSnapshot, "goal" | "plan">>;
+  task?: Pick<AgentTaskSnapshot, "turns"> & Partial<Pick<AgentTaskSnapshot, "goal" | "plan" | "contextUsage">>;
   taskId?: string;
   taskStore?: TaskStore;
   terminatingTerminalId?: string | null;
@@ -207,6 +208,7 @@ export function WorkbenchInspector({
       className="h-full space-y-5 overflow-y-auto p-2.5"
       key={`${projectId ?? projectName}:${taskId ?? "draft"}:context`}
     >
+      {task?.contextUsage ? <ContextUsageSummary usage={task.contextUsage} label={i18n.t("inspector.contextUsage", { ns: "conversation" })} unknownLabel={i18n.t("inspector.contextWindowUnknown", { ns: "conversation" })} /> : null}
       {task?.goal === null || task?.goal === undefined ? null : (
         <GoalSection goal={task.goal} onClear={onClearGoal} onStatusChange={onGoalStatusChange} />
       )}

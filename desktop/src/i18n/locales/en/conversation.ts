@@ -62,6 +62,8 @@ export const conversation = {
     stopTerminal: "Failed to stop terminal",
   },
   inspector: {
+    contextUsage: "Context usage",
+    contextWindowUnknown: "Unknown window",
     attachmentDetail: "Attachment",
     changeIndicator: "{{path}}, {{additions}} additions, {{removals}} deletions",
     changes: "Changes",

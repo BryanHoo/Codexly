@@ -1,3 +1,7 @@
+import { EmbeddedSubagentOutput } from "@codexly/ui/core/embedded-subagent-output";
+import { useStore } from "zustand";
+import { TimelineItemContent } from "./task-timeline-items.js";
+import type { TaskStore } from "../../conversation/runtime/task-store.js";
 import { X } from "lucide-react";
 
 import type { ProjectRuntimeManager } from "../../conversation/runtime/project-runtime.js";
@@ -6,7 +10,7 @@ import { Task, TaskTrigger } from "../../../shared/components/agent/task.js";
 import type { SubagentSelection } from "./subagent.js";
 import { toSubagentTaskStatus } from "./subagent.js";
 import { TaskTimeline } from "./task-timeline.js";
-import { useTranslation } from "../../../i18n/i18n.js";
+import { i18n, useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
 import { Dialog, DialogContent, DialogTitle } from "../../../shared/components/core/dialog.js";
 
@@ -57,7 +61,11 @@ function OpenSubagentOutputDialog({
   selection,
 }: Readonly<Omit<SubagentOutputDialogProps, "selection"> & { selection: SubagentSelection }>) {
   const { t } = useTranslation("workbench");
-  const runtime = useTaskRuntime(projectId, selection.taskId, projectRuntime);
+  const runtime = useTaskRuntime(
+    projectId,
+    selection.embedded?.parentTaskId ?? selection.taskId,
+    projectRuntime,
+  );
 
   const titleId = "subagent-output-dialog-title";
   let content;
@@ -65,6 +73,15 @@ function OpenSubagentOutputDialog({
     content = <SubagentOutputState message={t("subagentOutput.error")} role="alert" />;
   } else if (runtime.isPending || runtime.metadata === undefined) {
     content = <SubagentOutputState message={t("subagentOutput.loading")} role="status" />;
+  } else if (selection.embedded && runtime.store) {
+    content = (
+      <EmbeddedTimeline
+        store={runtime.store}
+        itemId={selection.embedded.itemId}
+        projectId={projectId}
+        taskId={selection.embedded.parentTaskId}
+      />
+    );
   } else {
     content = (
       <>
@@ -120,5 +137,35 @@ function OpenSubagentOutputDialog({
         </section>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function EmbeddedTimeline({
+  store,
+  itemId,
+  projectId,
+  taskId,
+}: Readonly<{ store: TaskStore; itemId: string; projectId: string; taskId: string }>) {
+  const itemStore = useStore(store, (state) =>
+    [...state.itemStoresByKey.values()].find((candidate) => candidate.peek().id === itemId),
+  );
+  if (!itemStore) return null;
+  return (
+    <EmbeddedSubagentOutput
+      key={itemId}
+      loadOlderLabel={i18n.t("timeline.loadOlder", { ns: "conversation" })}
+      store={itemStore}
+      renderItem={(item, turn, index) => (
+        <TimelineItemContent
+          item={item}
+          isLastTurnItem={index === turn.items.length - 1}
+          turnStatus={turn.status}
+          projectId={projectId}
+          taskId={taskId}
+          onOpenFileDiff={() => undefined}
+          onOpenSourceFile={() => undefined}
+        />
+      )}
+    />
   );
 }

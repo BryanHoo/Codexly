@@ -85,6 +85,10 @@ if (process.argv.includes("--version")) {
     }
     const id = typeof params["taskId"] === "string" ? params["taskId"] : "";
     switch (method) {
+      case "mcp.list":
+        return provider.listMcpServers(id);
+      case "mcp.reload":
+        return provider.reloadMcpServers(id);
       case "task.read":
         return provider.readTask(id, record(params["options"]));
       case "turn.start":

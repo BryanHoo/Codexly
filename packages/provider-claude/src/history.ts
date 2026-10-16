@@ -1,7 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import { appendFile, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentTurn } from "@codexly/protocol";
+import type { AgentContextUsage, AgentMcpServer, AgentPlan, AgentTurn } from "@codexly/protocol";
+
+export interface ClaudeTaskMetadata {
+  contextUsage: AgentContextUsage | null;
+  plan: AgentPlan | null;
+  model: string | null;
+  mcpServers: AgentMcpServer[];
+}
 
 const PAGE_BYTES = 4 * 1024 * 1024;
 export const MAX_TURN_BYTES = 2 * 1024 * 1024;
@@ -32,6 +39,32 @@ export class ClaudeHistory {
     if (Buffer.byteLength(encoded) > MAX_TURN_BYTES)
       throw new Error("Claude turn history exceeds the storage budget");
     return encoded;
+  }
+  saveMetadata(task: string, metadata: ClaudeTaskMetadata): Promise<void> {
+    return this.#write(task, async () => {
+      const encoded = JSON.stringify(metadata);
+      if (Buffer.byteLength(encoded) > 256 * 1024)
+        throw new Error("Claude metadata budget exceeded");
+      await mkdir(this.directory, { recursive: true, mode: 0o700 });
+      const temporary = `${this.#path(task)}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(temporary, encoded, { mode: 0o600 });
+        await rename(temporary, `${this.#path(task)}.metadata`);
+      } finally {
+        await rm(temporary, { force: true });
+      }
+    });
+  }
+  async metadata(task: string): Promise<ClaudeTaskMetadata | undefined> {
+    await this.#writes.get(task);
+    try {
+      return JSON.parse(
+        await readFile(`${this.#path(task)}.metadata`, "utf8"),
+      ) as ClaudeTaskMetadata;
+    } catch (error) {
+      if (missing(error)) return undefined;
+      throw error;
+    }
   }
   checkpoint(task: string, turn: AgentTurn): Promise<void> {
     return this.#write(task, async () => {

@@ -201,10 +201,24 @@ async fn validate_task(
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn list_mcp_servers(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+    if task["provider"] == "claude" {
+        // 按任务持久身份读取共用宿主，避免 Claude 上下文查询唤起 Codex。
+        return state
+            .claude
+            .request(
+                &app,
+                "mcp.list",
+                Some(super::claude_tasks::scope(&task)),
+                json!({"taskId": task_id}),
+            )
+            .await;
+    }
     let connection = state.codex_connection().await?;
     validate_task(&connection, &project_id, &task_id).await?;
     codex::list_mcp_servers(&connection, &task_id)
@@ -214,10 +228,23 @@ pub async fn list_mcp_servers(
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn retry_mcp_servers(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+    if task["provider"] == "claude" {
+        return state
+            .claude
+            .request(
+                &app,
+                "mcp.reload",
+                Some(super::claude_tasks::scope(&task)),
+                json!({"taskId": task_id}),
+            )
+            .await;
+    }
     let connection = state.codex_connection().await?;
     validate_task(&connection, &project_id, &task_id).await?;
     codex::reload_mcp_servers(&connection, &task_id)

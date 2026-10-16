@@ -1,3 +1,4 @@
+import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
 import { buildNativeAssetUrl } from "@/platform/native-asset-url.js";
 import type { AgentItem, AgentTurn } from "@/protocol/index.js";
 import { FileText } from "lucide-react";
@@ -326,7 +327,7 @@ export function TimelineItemContent({
           <ToolHeader
             duration={toolDuration}
             state={toToolState(item.status)}
-            title={item.progress === undefined ? item.name : `${item.name} · ${item.progress}`}
+            title={item.progress === undefined ? getToolTitle(item) : `${getToolTitle(item)} · ${item.progress}`}
           />
           <ToolContent>
             {item.progress === undefined ? null : (

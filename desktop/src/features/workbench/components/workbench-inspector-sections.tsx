@@ -122,6 +122,7 @@ export function SubagentSection({
             const metadata = [
               subagent.model === undefined ? undefined : formatSubagentModel(subagent.model),
               subagent.reasoningEffort,
+              subagent.message,
             ].filter((value): value is string => value !== undefined);
             return (
               <Button
@@ -134,7 +135,7 @@ export function SubagentSection({
                 className="w-full rounded-control px-2 text-left transition-colors hover:bg-control-hover focus-visible:shadow-focus focus-visible:outline-none"
                 key={subagent.taskId}
                 onClick={() => {
-                  onOpenSubagent({ status: subagent.status, taskId: subagent.taskId });
+                  onOpenSubagent({ status: subagent.status, taskId: subagent.taskId, ...(subagent.embedded ? { embedded: subagent.embedded } : {}) });
                 }}
                 type="button"
               >
@@ -142,7 +143,7 @@ export function SubagentSection({
                   <TaskTrigger title={subagent.nickname} />
                 </Task>
                 {metadata.length === 0 ? null : (
-                  <p className="pb-2 text-caption text-muted-foreground">{metadata.join(" · ")}</p>
+                  <p className="line-clamp-2 break-words pb-2 text-caption text-muted-foreground">{metadata.join(" · ")}</p>
                 )}
               </Button>
             );

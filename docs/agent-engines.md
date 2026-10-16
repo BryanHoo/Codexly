@@ -32,12 +32,13 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 
 ### 当前能力边界
 
-- 支持流式回答、工具调用与审批、最多四个问题及多选回答、中断、历史读取和按精确 session ID 恢复。
+- 支持流式回答、带描述/文件路径/命令的工具标题、工具审批、最多四个问题及多选回答、中断、历史读取和按精确 session ID 恢复。
+- Claude 子代理复用现有右栏及输出弹窗，展示任务状态、独立正文和工具记录；输出作为父任务的有界投影保存。上下文用量、TodoWrite 计划及 MCP 状态接入两端现有面板，刷新或重启宿主后恢复。上下文统计使用最近主模型请求及 SDK 的窗口声明，不把多模型累计计费用量视为当前占用。
 - 模型和命令从 SDK 获取；兼容网关可以显式覆盖模型目录。缺失推理元数据时不伪造档位。
 - Codex 的 Goal、Review、分叉、Guardian、沙盒和实时 steer 不映射成 Claude 功能。
 - Web 复用应用持久队列；桌面的 Claude 跟进消息暂不提供原生队列/steer，运行中保留中断能力。
 - 扩展中心原有安装管理仍属于 Codex。Claude 可以按设置加载项目配置；此次没有增加 Claude 扩展安装管理器。
-- 执行上下文保留在官方 SDK 会话中。界面历史另存有界的标准化投影，按字节游标从最新回合分页，运行中定期写检查点。检查点恢复不会把异常退出伪装成成功。
+- 执行上下文保留在官方 SDK 会话中。界面历史另存有界的标准化投影，按字节游标从最新回合分页，运行中定期写检查点。检查点恢复不会把异常退出伪装成成功。超出展示预算时，界面保留首尾预览和最近执行记录并提示省略；完整执行记录仍由官方 SDK 管理，预览不会裁剪实际工具参数或改变执行结果。
 
 ### 资源与分发
 
@@ -59,5 +60,6 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 
 - [Codex App Server](https://developers.openai.com/codex/app-server)：保留既有结构化执行协议。
 - [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview)、[流式输入](https://code.claude.com/docs/en/agent-sdk/streaming-input)、[审批](https://code.claude.com/docs/en/agent-sdk/user-input)、[会话管理](https://code.claude.com/docs/en/agent-sdk/sessions)：使用官方工具循环、权限回调及持久会话。
+- [流式工具参数](https://code.claude.com/docs/en/agent-sdk/streaming-output)、[子代理事件](https://code.claude.com/docs/en/agent-sdk/subagents)、[用量统计](https://code.claude.com/docs/en/agent-sdk/cost-tracking)：区分工具输入增量、子代理上下文与累计计费用量。
 - [Claude Code 系统要求](https://code.claude.com/docs/en/setup)、[Bun 独立可执行文件](https://bun.com/docs/bundler/executables)：运行平台及宿主分发约束。
 - [CloudCLI](https://github.com/siteboon/claudecodeui)、[Happy](https://github.com/slopus/happy)：社区多引擎客户端的第一手实现参考。本项目复用界面和应用身份，同时保留引擎运行边界，不复制其认证方案或代码。

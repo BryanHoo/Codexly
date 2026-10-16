@@ -62,6 +62,8 @@ export const conversation = {
     stopTerminal: "停止终端失败",
   },
   inspector: {
+    contextUsage: "上下文用量",
+    contextWindowUnknown: "窗口未知",
     attachmentDetail: "附件",
     changeIndicator: "{{path}}，新增 {{additions}} 行，删除 {{removals}} 行",
     changes: "变更",
