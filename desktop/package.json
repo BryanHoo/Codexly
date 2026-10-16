@@ -50,7 +50,9 @@
     "typecheck": "tsc -b",
     "version:check": "node scripts/check-version.mjs",
     "tauri": "node scripts/run-tauri.mjs",
-    "tauri:local": "node scripts/run-tauri.mjs build --no-sign --config src-tauri/tauri.local.conf.json"
+    "tauri:local": "node scripts/run-tauri.mjs build --no-sign --config src-tauri/tauri.local.conf.json --clean-target",
+    "tauri:clean": "node scripts/clean-tauri-target.mjs",
+    "test:tauri-cleanup": "node --test scripts/tauri-target-cleanup.test.mjs"
   },
   "dependencies": {
     "@codexly/protocol": "workspace:*",
