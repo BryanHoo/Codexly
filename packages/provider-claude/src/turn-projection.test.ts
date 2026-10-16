@@ -363,3 +363,53 @@ it("routes nested agents and retains a text-block result when no assistant trans
     "final agent proof",
   );
 });
+
+it("keeps background agents alive after the parent result and accepts their late completion", () => {
+  const events: AgentProviderEvent[] = [];
+  const projection = new ClaudeTurnProjection("task", "turn", "prompt", (event) =>
+    events.push(event),
+  );
+  projection.receive({
+    type: "assistant",
+    message: {
+      id: "root",
+      content: [
+        {
+          type: "tool_use",
+          id: "spawn",
+          name: "Agent",
+          input: { run_in_background: true, prompt: "inspect" },
+        },
+      ],
+    },
+  });
+  projection.receive({
+    type: "system",
+    subtype: "task_started",
+    task_id: "child",
+    tool_use_id: "spawn",
+  });
+  projection.receive({ type: "result", subtype: "success", result: "parent done" });
+  expect(projection.status).toBe("completed");
+  expect(projection.snapshot().items.find((item) => item.id === "spawn")).toMatchObject({
+    status: "running",
+  });
+  projection.receive({
+    type: "assistant",
+    parent_tool_use_id: "spawn",
+    message: { id: "late", content: [{ type: "text", text: "late proof" }] },
+  });
+  projection.receive({
+    type: "system",
+    subtype: "task_notification",
+    task_id: "child",
+    status: "completed",
+    summary: "child done",
+  });
+  expect(projection.snapshot().items.find((item) => item.id === "spawn")).toMatchObject({
+    status: "completed",
+    output: { turn: { status: "completed" } },
+  });
+  expect(JSON.stringify(projection.snapshot())).toContain("late proof");
+  expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+});

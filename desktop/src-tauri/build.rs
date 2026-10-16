@@ -125,6 +125,7 @@ fn main() {
         "submit_prompt",
         "steer_turn",
         "interrupt_turn",
+        "stop_task_session",
         "resolve_pending_request",
         "submit_review",
         "compact_task",

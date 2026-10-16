@@ -283,6 +283,21 @@ export type StartAgentQueuedSubmissionResponse = Readonly<
   Static<typeof StartAgentQueuedSubmissionResponseSchema>
 >;
 
+/** 独立于前台回合：省略后台 ID 时停止整个会话，提供时仅停止指定原生任务。 */
+export const StopAgentSessionRequestSchema = Type.Object(
+  {
+    taskId: Type.String({ minLength: 1 }),
+    backgroundTaskId: Type.Optional(Type.String({ minLength: 1 })),
+  },
+  { additionalProperties: false },
+);
+export const StopAgentSessionResponseSchema = Type.Object(
+  { status: Type.Literal("accepted"), taskId: Type.String({ minLength: 1 }) },
+  { additionalProperties: false },
+);
+export type StopAgentSessionRequest = Readonly<Static<typeof StopAgentSessionRequestSchema>>;
+export type StopAgentSessionResponse = Readonly<Static<typeof StopAgentSessionResponseSchema>>;
+
 export const InterruptAgentTurnRequestSchema = Type.Object(
   { taskId: Type.String({ minLength: 1 }) },
   { additionalProperties: false },

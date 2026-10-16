@@ -280,6 +280,7 @@ export interface AgentProvider {
   ): Promise<AgentTurn>;
   unarchiveTask(taskId: string): Promise<AgentTask>;
   steerTurn(taskId: string, turnId: string, input: AgentProviderTurnInput): Promise<void>;
+  stopSession?(taskId: string, backgroundTaskId?: string): Promise<void>;
   interruptTurn(taskId: string, turnId: string): Promise<void>;
   updateTurnApprovalsReviewer(
     taskId: string,

@@ -234,6 +234,32 @@ pub async fn start_turn(
 
 pub use super::sidebar_task_settings::{get_task_settings, update_task_settings};
 
+/// 父回合结束后仍可停止后台工作；只通过任务绑定的 Claude 宿主操作原生任务 ID。
+#[tauri::command(rename_all = "camelCase")]
+pub async fn stop_task_session(
+    app: AppHandle,
+    project_id: String,
+    task_id: String,
+    background_task_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Value, AppError> {
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+    if task["provider"] != "claude" {
+        return Err(AppError::Claude(
+            "Session control is unavailable for this engine".into(),
+        ));
+    }
+    state
+        .claude
+        .request(
+            &app,
+            "session.stop",
+            Some(super::claude_tasks::scope(&task)),
+            json!({"taskId":task_id,"backgroundTaskId":background_task_id}),
+        )
+        .await
+}
+
 #[tauri::command(rename_all = "camelCase")]
 pub async fn interrupt_turn(
     app: AppHandle,

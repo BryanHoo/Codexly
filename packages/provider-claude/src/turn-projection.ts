@@ -5,8 +5,14 @@ import {
   CLAUDE_PREVIEW_NOTICE,
   CLAUDE_TURN_PREVIEW_BYTES,
 } from "./rendering-buffer.js";
-import { mapClaudeMcpServers, mapClaudeUsage } from "./observability.js";
-import type { AgentProviderEvent, AgentProviderEventListener } from "@codexly/core";
+import {
+  mapClaudeMcpServers,
+  mapClaudeUsage,
+  mapClaudeResultUsage,
+  mapClaudePlan,
+  publishClaudeMcpServers,
+} from "./observability.js";
+import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
 import type { ClaudeTaskMetadata } from "./history.js";
 
@@ -24,6 +30,8 @@ export class ClaudeTurnProjection {
   readonly #inputs = new Map<number, { json: string; bytes: number }>();
   readonly #children = new Map<string, ClaudeTurnProjection>();
   readonly #agentTools = new Map<string, string>();
+  readonly #backgroundAgents = new Set<string>();
+  #closed = false;
   #lastBlockIndex = 0;
   #model = "";
   contextUsage: AgentContextUsage | null = null;
@@ -52,6 +60,30 @@ export class ClaudeTurnProjection {
   get status() {
     return this.#status;
   }
+  get hasBackgroundWork(): boolean {
+    return [...this.#children.entries()].some(
+      ([id, child]) =>
+        (this.#backgroundAgents.has(id) && child.status === "running") || child.hasBackgroundWork,
+    );
+  }
+
+  /** 会话可同时承载多个回合，关联消息必须回到创建工具的投影。 */
+  ownsMessage(value: unknown): boolean {
+    const message = record(value);
+    return ["parent_tool_use_id", "agent_id", "tool_use_id", "task_id"].some((key) => {
+      const id = text(message[key]);
+      return !!id && !!this.#agentOwner(id);
+    });
+  }
+
+  restoreMetadata(metadata: ClaudeTaskMetadata | undefined): void {
+    if (!metadata) return;
+    this.contextUsage = metadata.contextUsage;
+    this.plan = metadata.plan;
+    this.mcpServers = metadata.mcpServers;
+    this.#model = metadata.model ?? "";
+  }
+
   get id() {
     return this.#id;
   }
@@ -75,15 +107,11 @@ export class ClaudeTurnProjection {
     };
   }
 
-  #publish(event: AgentProviderEvent): void {
-    this.#emit(event);
-  }
-
   #item(item: AgentItem, completed: boolean): void {
     const exists = this.#items.has(item.id);
     item = this.#items.set(item);
     if (completed || !exists || item.type === "tool")
-      this.#publish({
+      this.#emit({
         type: completed ? "item.completed" : "item.started",
         taskId: this.#taskId,
         turnId: this.#id,
@@ -116,23 +144,16 @@ export class ClaudeTurnProjection {
           },
           false,
         );
-        if (name === "Agent" || name === "Task") this.#agent(toolId);
+        if (name === "Agent" || name === "Task") {
+          if (record(block["input"])["run_in_background"] === true)
+            this.#backgroundAgents.add(toolId);
+          this.#agent(toolId);
+        }
         if (name === "TodoWrite" && completed) {
-          const todos = record(block["input"])["todos"];
-          if (Array.isArray(todos)) {
-            this.plan = {
-              explanation: null,
-              steps: todos.flatMap((value) => {
-                const todo = record(value),
-                  status = todo["status"],
-                  content = text(todo["content"]);
-                return content &&
-                  (status === "pending" || status === "in_progress" || status === "completed")
-                  ? [{ text: content, status }]
-                  : [];
-              }),
-            };
-            this.#publish({
+          const plan = mapClaudePlan(block["input"]);
+          if (plan) {
+            this.plan = plan;
+            this.#emit({
               type: "plan.updated",
               taskId: this.#taskId,
               turnId: this.#id,
@@ -158,10 +179,7 @@ export class ClaudeTurnProjection {
         text(input["prompt"]),
         (event) => {
           // 块完成和任务进度同步正文；不在每个 token 到达时重发整段子代理历史。
-          if (
-            this.#status === "running" &&
-            (event.type === "item.completed" || event.type === "item.started")
-          )
+          if (!this.#closed && (event.type === "item.completed" || event.type === "item.started"))
             this.#agent(id);
         },
         CLAUDE_CHILD_PREVIEW_BYTES,
@@ -181,7 +199,7 @@ export class ClaudeTurnProjection {
         { id: `${child.#id}:result`, type: "message", role: "assistant", text: summary },
         true,
       );
-    if (status && status !== "running") child.finish(status);
+    if (status && status !== "running") child.finish(status, undefined, true);
     const output = record(item.output),
       agents = Array.isArray(output["agents"]) ? output["agents"] : [];
     const previous = record(agents[0]);
@@ -196,6 +214,7 @@ export class ClaudeTurnProjection {
             {
               ...previous,
               taskId: id,
+              nativeTaskId: [...this.#agentTools].find(([, toolId]) => toolId === id)?.[0] ?? null,
               nickname: text(input["description"]) || text(input["subagent_type"]) || "Agent",
               status: status ?? previous["status"] ?? "running",
               ...(summary ? { message: summary.slice(0, 8192) } : {}),
@@ -215,7 +234,7 @@ export class ClaudeTurnProjection {
     )
       return;
     this.contextUsage = usage;
-    this.#publish({
+    this.#emit({
       type: "usage.updated",
       taskId: this.#taskId,
       turnId: this.#id,
@@ -238,7 +257,7 @@ export class ClaudeTurnProjection {
   }
 
   receive(value: unknown): void {
-    if (this.#status !== "running") return;
+    if (this.#closed) return;
     const message = record(value);
     // 以官方关联字段路由子代理消息，隔离主代理的正文、用量和流式块索引。
     const parentId = text(message["parent_tool_use_id"]),
@@ -253,24 +272,7 @@ export class ClaudeTurnProjection {
     if (message["type"] === "system" && message["subtype"] === "init") {
       this.#model = text(message["model"]) || this.#model;
       this.mcpServers = mapClaudeMcpServers(message["mcp_servers"]);
-      for (const server of this.mcpServers) {
-        this.#publish({
-          type: "mcp_server.status_updated",
-          taskId: this.#taskId,
-          payload: {
-            name: server.name,
-            status:
-              server.status === "connected"
-                ? "ready"
-                : server.status === "starting"
-                  ? "starting"
-                  : "failed",
-            error: null,
-            failureReason:
-              server.status === "authenticationRequired" ? "reauthenticationRequired" : null,
-          },
-        });
-      }
+      publishClaudeMcpServers(this.#taskId, this.mcpServers, this.#emit);
       return;
     }
     if (
@@ -286,6 +288,8 @@ export class ClaudeTurnProjection {
       }
       if (!id || !this.#children.has(id)) return;
       this.#agentTools.set(nativeId, id);
+      if (message["subtype"] !== "task_notification" && message["is_backgrounded"] !== false)
+        this.#backgroundAgents.add(id);
       const status =
         message["subtype"] === "task_notification"
           ? message["status"] === "completed"
@@ -297,6 +301,7 @@ export class ClaudeTurnProjection {
       this.#agent(id, status, text(message["summary"]) || text(message["description"]));
       return;
     }
+    if (this.#status !== "running") return;
     if (message["type"] === "stream_event") {
       const event = record(message["event"]);
       const index = typeof event["index"] === "number" ? event["index"] : 0;
@@ -323,17 +328,13 @@ export class ClaudeTurnProjection {
           item = id ? this.#items.get(id) : undefined;
         if (input && item?.type === "tool") {
           // JSON 片段尚未闭合时不解析；完整参数到达后立即刷新运行中的标题。
-          this.#item(
-            {
-              ...item,
-              input:
-                input.bytes > 256 * 1024
-                  ? { preview: CLAUDE_PREVIEW_NOTICE }
-                  : (JSON.parse(input.json) as unknown),
-            },
-            false,
-          );
-          if (item.name === "agent/spawn") this.#agent(item.id);
+          const parsed: unknown =
+            input.bytes > 256 * 1024 ? { preview: CLAUDE_PREVIEW_NOTICE } : JSON.parse(input.json);
+          this.#item({ ...item, input: parsed }, false);
+          if (item.name === "agent/spawn") {
+            if (record(parsed)["run_in_background"] === true) this.#backgroundAgents.add(item.id);
+            this.#agent(item.id);
+          }
         }
         this.#inputs.delete(index);
       } else if (event["type"] === "content_block_delta") {
@@ -354,7 +355,7 @@ export class ClaudeTurnProjection {
         const update = this.#items.appendText(id, addition);
         if (!update) return;
         if (update.delta === null) {
-          this.#publish({
+          this.#emit({
             type: "item.started",
             taskId: this.#taskId,
             turnId: this.#id,
@@ -364,7 +365,7 @@ export class ClaudeTurnProjection {
           return;
         }
         if (item.type === "message")
-          this.#publish({
+          this.#emit({
             type: "message.delta",
             taskId: this.#taskId,
             turnId: this.#id,
@@ -372,7 +373,7 @@ export class ClaudeTurnProjection {
             payload: { delta: addition },
           });
         else
-          this.#publish({
+          this.#emit({
             type: "reasoning.delta",
             taskId: this.#taskId,
             turnId: this.#id,
@@ -402,6 +403,8 @@ export class ClaudeTurnProjection {
         if (block["type"] === "tool_result" && item?.type === "tool") {
           if (item.name === "agent/spawn") {
             const result = record(message["tool_use_result"]);
+            if (result["isAsync"] === true || record(item.input)["run_in_background"] === true)
+              this.#backgroundAgents.add(id);
             // 后台启动的 tool_result 只代表已派发，真正终态由 task_notification 决定。
             if (result["isAsync"] !== true && record(item.input)["run_in_background"] !== true)
               this.#agent(
@@ -422,14 +425,8 @@ export class ClaudeTurnProjection {
         }
       }
     } else if (message["type"] === "result") {
-      const window = record(record(message["modelUsage"])[this.#model])["contextWindow"];
-      if (
-        this.contextUsage &&
-        typeof window === "number" &&
-        Number.isSafeInteger(window) &&
-        window > 0
-      )
-        this.updateContextUsage({ ...this.contextUsage, contextWindow: window });
+      const usage = mapClaudeResultUsage(message, this.#model, this.contextUsage);
+      if (usage) this.updateContextUsage(usage);
       const success = message["subtype"] === "success" && message["is_error"] !== true;
       // 某些命令只返回 result，没有 assistant；只在没有回复正文时补充，避免重复。
       const result = text(message["result"]);
@@ -450,11 +447,27 @@ export class ClaudeTurnProjection {
       this.finish(
         success ? "completed" : "failed",
         success ? undefined : errors || result || "Claude execution failed",
+        true,
       );
     }
   }
 
-  finish(status: Exclude<AgentTurn["status"], "running">, error?: string): void {
+  /** 会话终止与父回合结束分开；已完成的父回合仍需清理尚在运行的后代。 */
+  close(status: "failed" | "interrupted", error?: string): void {
+    if (this.#closed) return;
+    this.finish(status, error);
+    this.#closed = true;
+    for (const [id, child] of this.#children) {
+      child.close(status, error);
+      this.#agent(id, child.status);
+    }
+  }
+
+  finish(
+    status: Exclude<AgentTurn["status"], "running">,
+    error?: string,
+    preserveBackground = false,
+  ): void {
     if (this.#status !== "running") return;
     // 先提交终态，阻断子代理收尾通知重入父级结束路径。
     this.#status = status;
@@ -462,6 +475,11 @@ export class ClaudeTurnProjection {
     this.#completedAt = new Date().toISOString();
     for (const item of [...this.#items.values()]) {
       if (item.type === "tool" && item.name === "agent/spawn" && item.status === "running") {
+        if (
+          preserveBackground &&
+          (this.#backgroundAgents.has(item.id) || this.#children.get(item.id)?.hasBackgroundWork)
+        )
+          continue;
         this.#agent(item.id, status === "interrupted" ? "interrupted" : "failed");
         continue;
       }
@@ -471,7 +489,7 @@ export class ClaudeTurnProjection {
           true,
         );
     }
-    this.#publish({
+    this.#emit({
       type: "turn.completed",
       taskId: this.#taskId,
       turnId: this.#id,

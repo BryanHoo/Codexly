@@ -39,7 +39,7 @@ export function normalizeNativeError(error: unknown): unknown {
 }
 
 // 本地目录及按任务分流的命令只需要事件通道，不能让缺失 Codex 阻断 Claude。
-const engineIndependentCommands = new Set(["list_projects", "add_project", "remove_project", "rename_project", "reorder_projects", "list_tasks", "list_completed_tasks", "read_task", "start_task", "start_turn", "submit_prompt", "interrupt_turn", "resolve_pending_request", "get_task_settings", "update_task_settings", "retain_task_subscription", "release_task_subscription", "rename_task", "pin_task", "archive_task", "unarchive_task", "delete_task"]);
+const engineIndependentCommands = new Set(["list_projects", "add_project", "remove_project", "rename_project", "reorder_projects", "list_tasks", "list_completed_tasks", "read_task", "start_task", "start_turn", "submit_prompt", "interrupt_turn", "stop_task_session", "resolve_pending_request", "get_task_settings", "update_task_settings", "retain_task_subscription", "release_task_subscription", "rename_task", "pin_task", "archive_task", "unarchive_task", "delete_task"]);
 
 export class TauriNativeClient {
   protected readonly connectRuntime: () => Promise<unknown>;

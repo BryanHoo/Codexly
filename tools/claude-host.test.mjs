@@ -280,6 +280,23 @@ test(
       assert.equal((await waitEvent("turn.completed")).payload.turn.status, "completed");
       assert.equal(tasks.get("task").sessionId, sessionId);
       assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 2);
+      // 同一宿主的开放输入必须承载后续回合，不能在首个 result 后关闭查询。
+      const afterSecondTurn = host.events.length;
+      await host.request(
+        "turn.start",
+        { taskId: "task", input: { ...input, text: "Continue again" }, options },
+        scope,
+      );
+      assert.equal(
+        (await waitEvent("turn.completed", afterSecondTurn)).payload.turn.status,
+        "completed",
+      );
+      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 3);
+      assert.deepEqual(await host.request("session.stop", { taskId: "task" }, scope), {
+        status: "accepted",
+        taskId: "task",
+      });
+
       await host.request("configure", {
         baseUrl: `http://127.0.0.1:${api.address().port}`,
         models: [],
@@ -288,7 +305,7 @@ test(
       await host.request("disconnect");
       assert.equal((await host.request("profile")).connection.state, "disconnected");
       assert.equal((await host.request("settings.read")).instructions, "Always test");
-      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 2);
+      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 3);
     } finally {
       await host.close();
       api.closeAllConnections();

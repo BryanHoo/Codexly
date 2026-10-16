@@ -15,7 +15,11 @@ import { ClaudeConfiguration } from "./config.js";
 import { ClaudeAgentProvider } from "./provider.js";
 
 const roots: string[] = [];
+const providers: ClaudeAgentProvider[] = [];
+const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
+  for (const action of cleanup.splice(0)) await action();
+  for (const provider of providers.splice(0)) provider.close();
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 const options: AgentTurnOptions = {
@@ -55,6 +59,7 @@ async function harness() {
   let next: ((value: IteratorResult<SDKMessage>) => void) | undefined;
   let closed = false;
   const messages: SDKMessage[] = [];
+  const stopTask = vi.fn(() => Promise.resolve());
   const close = vi.fn(() => {
     closed = true;
     next?.({ done: true, value: undefined });
@@ -81,6 +86,7 @@ async function harness() {
         },
         close,
         interrupt: vi.fn(() => Promise.resolve()),
+        stopTask,
       } as unknown as Query;
       return stream;
     },
@@ -98,8 +104,28 @@ async function harness() {
     store,
     config,
     { query, getSessionMessages: () => Promise.resolve([]) },
+    undefined,
+    40,
   );
-  return { provider, config, tasks, query, received, send, close };
+  providers.push(provider);
+  cleanup.push(async () => {
+    for (const id of tasks.keys()) await provider.stopSession(id);
+  });
+  return {
+    provider,
+    config,
+    tasks,
+    query,
+    received,
+    send,
+    close,
+    stopTask,
+    end: () => {
+      closed = true;
+      next?.({ done: true, value: undefined });
+      next = undefined;
+    },
+  };
 }
 
 describe("Claude provider execution boundary", () => {
@@ -347,4 +373,170 @@ it("completes and persists a large subagent run without leaving a busy task", as
     h.provider.sdk,
   );
   expect((await restored.readTask(task.id))?.turns.at(-1)?.status).toBe("completed");
+});
+
+const backgroundSpawn = {
+  type: "assistant",
+  message: {
+    id: "root",
+    content: [
+      {
+        type: "tool_use",
+        id: "spawn",
+        name: "Agent",
+        input: { prompt: "inspect", run_in_background: true },
+      },
+    ],
+  },
+};
+
+it("consumes late background completion across turns using the original query and turn identity", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  const first = await h.provider.startTurn(task.id, prompt, options);
+  h.send(backgroundSpawn);
+  h.send({
+    type: "system",
+    subtype: "task_started",
+    task_id: "child",
+    tool_use_id: "spawn",
+    is_backgrounded: true,
+  });
+  h.send({ type: "result", subtype: "success", result: "parent done" });
+  await vi.waitFor(() => {
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+  });
+  expect(h.close).not.toHaveBeenCalled();
+  expect(h.provider.isBusy).toBe(true);
+  const second = await h.provider.startTurn(task.id, { ...prompt, text: "continue" }, options);
+  expect(h.query).toHaveBeenCalledOnce();
+  h.send({
+    type: "system",
+    subtype: "task_notification",
+    task_id: "child",
+    status: "completed",
+    summary: "late proof",
+  });
+  h.send({ type: "result", subtype: "success", result: "second done" });
+  await vi.waitFor(() => {
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(2);
+  });
+  const snapshot = await h.provider.readTask(task.id);
+  expect(
+    snapshot?.turns.find((turn) => turn.id === first.id)?.items.find((item) => item.id === "spawn"),
+  ).toMatchObject({ status: "completed" });
+  expect(
+    snapshot?.turns
+      .find((turn) => turn.id === second.id)
+      ?.items.some((item) => item.id === "spawn"),
+  ).toBe(false);
+  expect(
+    events.some(
+      (event) =>
+        event.type === "item.completed" && event.turnId === first.id && event.itemId === "spawn",
+    ),
+  ).toBe(true);
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalledOnce();
+  });
+  const restored = new ClaudeAgentProvider(
+    h.provider.scope,
+    h.provider.store,
+    h.config,
+    h.provider.sdk,
+  );
+  expect(
+    (await restored.readTask(task.id))?.turns
+      .find((turn) => turn.id === first.id)
+      ?.items.find((item) => item.id === "spawn"),
+  ).toMatchObject({ status: "completed" });
+});
+
+it("stops a background task independently and keeps consuming its stopped notification", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send(backgroundSpawn);
+  h.send({
+    type: "system",
+    subtype: "task_started",
+    task_id: "child",
+    tool_use_id: "spawn",
+    is_backgrounded: true,
+  });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(async () => {
+    expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("completed");
+  });
+  await expect(h.provider.stopBackgroundTask(task.id, "other")).rejects.toThrow();
+  await h.provider.stopBackgroundTask(task.id, "child");
+  expect(h.stopTask).toHaveBeenCalledExactlyOnceWith("child");
+  expect(h.close).not.toHaveBeenCalled();
+  h.send({ type: "system", subtype: "task_notification", task_id: "child", status: "stopped" });
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalledOnce();
+  });
+  expect(
+    (await h.provider.readTask(task.id))?.turns[0]?.items.find((item) => item.id === "spawn"),
+  ).toMatchObject({ status: "interrupted" });
+});
+
+it("keeps non-agent background work alive until the authoritative task set becomes empty", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send({ type: "system", subtype: "background_tasks_changed", tasks: [{ task_id: "bash" }] });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(async () => {
+    expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("completed");
+  });
+  expect(h.provider.isBusy).toBe(true);
+  expect(h.close).not.toHaveBeenCalled();
+  h.send({ type: "system", subtype: "task_notification", task_id: "bash", status: "completed" });
+  h.send({ type: "system", subtype: "background_tasks_changed", tasks: [] });
+  // level 信号与边沿通知没有顺序保证；迟到的 started 不得复活已结束任务。
+  h.send({ type: "system", subtype: "task_started", task_id: "bash", is_backgrounded: true });
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalledOnce();
+  });
+  expect(h.provider.isBusy).toBe(false);
+});
+
+it.each(["ended", "stopped"] as const)(
+  "settles remaining children when a session is %s without changing the completed parent",
+  async (reason) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    h.send(backgroundSpawn);
+    h.send({ type: "system", subtype: "task_started", task_id: "child", tool_use_id: "spawn" });
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(async () => {
+      expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("completed");
+    });
+    if (reason === "ended") h.end();
+    else await h.provider.stopSession(task.id);
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    expect((await h.provider.readTask(task.id))?.turns[0]).toMatchObject({ status: "completed" });
+    expect(
+      (await h.provider.readTask(task.id))?.turns[0]?.items.find((item) => item.id === "spawn"),
+    ).toMatchObject({ status: reason === "ended" ? "failed" : "interrupted" });
+  },
+);
+
+it("releases an idle session when the authoritative background set is empty even if a bookend was missed", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send(backgroundSpawn);
+  h.send({ type: "system", subtype: "background_tasks_changed", tasks: [{ task_id: "child" }] });
+  h.send({ type: "result", subtype: "success" });
+  h.send({ type: "system", subtype: "background_tasks_changed", tasks: [] });
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalledOnce();
+  });
 });

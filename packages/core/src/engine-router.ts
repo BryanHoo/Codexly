@@ -151,6 +151,9 @@ export class EngineProjectRouter implements AgentProvider {
   async startTurn(...args: Parameters<AgentProvider["startTurn"]>) {
     return (await this.#method(args[0], "startTurn"))(...args);
   }
+  async stopSession(taskId: string, backgroundTaskId?: string) {
+    return (await this.#method(taskId, "stopSession"))(taskId, backgroundTaskId);
+  }
   async interruptTurn(...args: Parameters<AgentProvider["interruptTurn"]>) {
     return (await this.#method(args[0], "interruptTurn"))(...args);
   }

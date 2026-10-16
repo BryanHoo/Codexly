@@ -489,3 +489,10 @@ describe("TauriSidebarClient", () => {
   });
 
 });
+
+it("stops session background work without requiring a foreground turn", async () => {
+  const invoke = vi.fn(async () => ({ status: "accepted", taskId: "task" }));
+  const client = new TauriSidebarClient({ ensureRuntime: vi.fn(async () => undefined), invoke: invoke as InvokeImplementation });
+  await client.stopSession("project", "task", "child");
+  expect(invoke).toHaveBeenCalledExactlyOnceWith("stop_task_session", { projectId: "project", taskId: "task", backgroundTaskId: "child" });
+});

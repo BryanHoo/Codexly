@@ -13,7 +13,6 @@ import {
   CompactAgentTaskResponseSchema,
   DeleteAgentQueuedSubmissionResponseSchema,
   ForkAgentTaskResponseSchema,
-  InterruptAgentTurnResponseSchema,
   OpenAgentTaskAttachmentResponseSchema,
   PinAgentTaskResponseSchema,
   RenameAgentTaskResponseSchema,
@@ -44,7 +43,6 @@ import {
   type ForkAgentTaskRequest,
   type ForkAgentTaskResponse,
   type HostFileKind,
-  type InterruptAgentTurnResponse,
   type OpenAgentTaskAttachmentResponse,
   type PendingRequest,
   type PinAgentTaskResponse,
@@ -78,9 +76,9 @@ import {
   type ReadOptions,
   type ReadTaskOptions,
 } from "./http-client-transport.js";
-import { GlobalSearchHttpClient } from "./http-client-global-search.js";
+import { SessionHttpClient } from "./http-client-session.js";
 
-export class TaskHttpClient extends GlobalSearchHttpClient {
+export class TaskHttpClient extends SessionHttpClient {
   public submitTask(
     projectId: string,
     input: SubmitTaskRequest,
@@ -459,20 +457,6 @@ export class TaskHttpClient extends GlobalSearchHttpClient {
       `${taskPath(projectId, taskId)}/turns/${encodeURIComponent(turnId)}/steer`,
       { input, taskId },
       SteerAgentTurnResponseSchema,
-      options,
-    );
-  }
-
-  public async interruptTurn(
-    projectId: string,
-    taskId: string,
-    turnId: string,
-    options: MutationOptions = {},
-  ): Promise<InterruptAgentTurnResponse> {
-    return this.mutation(
-      `${taskPath(projectId, taskId)}/turns/${encodeURIComponent(turnId)}/interrupt`,
-      { taskId },
-      InterruptAgentTurnResponseSchema,
       options,
     );
   }

@@ -473,3 +473,23 @@ describe("server task mutations", () => {
     expect(unarchiveTask).toHaveBeenCalledWith("task-1");
   });
 });
+
+it("stops session work independently of a completed foreground turn and scopes idempotency", async () => {
+  const h = await createHarness();
+  const request = {
+    method: "POST" as const,
+    url: "/v1/projects/codexly/tasks/task-1/session/stop",
+    headers: { "idempotency-key": "stop-background" },
+    payload: { taskId: "task-1", backgroundTaskId: "child" },
+  };
+  const response = await h.app.inject(request);
+  expect(response.statusCode).toBe(202);
+  expect(h.stopSession).toHaveBeenCalledExactlyOnceWith("task-1", "child");
+  expect((await h.app.inject(request)).json()).toEqual(response.json());
+  const wrongTask = await h.app.inject({
+    ...request,
+    headers: { "idempotency-key": "wrong-task" },
+    payload: { taskId: "other" },
+  });
+  expect(wrongTask.statusCode).toBe(404);
+});

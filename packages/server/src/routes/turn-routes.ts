@@ -1,6 +1,9 @@
 import { readLocalTaskCreationSettings } from "../task-creation-settings.js";
 import { PendingRequestResolutionError } from "@codexly/core";
 import {
+  StopAgentSessionRequestSchema,
+  StopAgentSessionResponseSchema,
+  type StopAgentSessionRequest,
   AgentMutationErrorSchema,
   InterruptAgentTurnRequestSchema,
   InterruptAgentTurnResponseSchema,
@@ -50,6 +53,49 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
     taskStartRecoveries,
     toPendingRequestHttpError,
   } = context;
+
+  app.post<{
+    Body: StopAgentSessionRequest;
+    Headers: { "idempotency-key": string };
+    Params: { projectId: string; taskId: string };
+  }>(
+    "/v1/projects/:projectId/tasks/:taskId/session/stop",
+    {
+      schema: {
+        body: StopAgentSessionRequestSchema,
+        headers: IdempotencyHeadersSchema,
+        params: ProjectTaskParamsSchema,
+        response: {
+          202: StopAgentSessionResponseSchema,
+          404: AgentMutationErrorSchema,
+          409: AgentMutationErrorSchema,
+          503: AgentMutationErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const response = await runIdempotent(
+        ["stop-session", request.params.projectId, request.params.taskId],
+        request.headers["idempotency-key"],
+        request.body,
+        async () => {
+          if (request.body.taskId !== request.params.taskId)
+            throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
+          const project = await getProjectContext(request.params.projectId);
+          if (!project) throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
+          const task = await project.provider.readTask(request.params.taskId);
+          if (task?.projectId !== project.scope.id)
+            throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
+          if (!project.provider.stopSession)
+            throw new MutationHttpError("PROVIDER_ERROR", "Session control unavailable", 503);
+          // 父回合可以已经完成，不能复用要求 turn.running 的中断校验。
+          await project.provider.stopSession(request.params.taskId, request.body.backgroundTaskId);
+          return { status: "accepted" as const, taskId: request.params.taskId };
+        },
+      );
+      return reply.code(202).send(response);
+    },
+  );
 
   app.post<{
     Body: StartAgentTaskRequest;

@@ -1,9 +1,8 @@
 import { localTaskMetadata as claudeTask } from "@codexly/core";
 export { localTaskMetadata as claudeTask } from "@codexly/core";
-import { mapClaudeMcpServers, observe, refreshClaudeContext } from "./observability.js";
+import { mapClaudeMcpServers, observe } from "./observability.js";
 import { isManagedClaudeCommand } from "./commands.js";
 import { randomUUID } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
 import {
   query,
   getSessionMessages,
@@ -19,7 +18,6 @@ import type {
   AgentTaskScope,
   LocalCatalogStore,
   LocalTask,
-  AgentProviderEvent,
   ReadAgentTaskInput,
   ResolvePendingRequestInput,
   StartAgentTaskOptions,
@@ -33,7 +31,9 @@ import type {
 } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
 import { ClaudePermissions } from "./permissions.js";
-import { ClaudeTurnProjection, record } from "./turn-projection.js";
+import * as session from "./session.js";
+import { createClaudePrompt } from "./turn-input.js";
+import { ClaudeTurnProjection } from "./turn-projection.js";
 
 export const CLAUDE_CAPABILITIES: AgentCapabilities = {
   provider: "claude",
@@ -49,20 +49,10 @@ export interface ClaudeSdk {
   getSessionMessages: typeof getSessionMessages;
   getSessionInfo?: typeof getSessionInfo;
 }
-interface Running {
-  sessionId: string;
-  query: Query;
-  projection: ClaudeTurnProjection;
-  permissions: ClaudePermissions;
-  controller: AbortController;
-  release: () => void;
-  terminal?: AgentProviderEvent | undefined;
-  timer?: ReturnType<typeof setInterval>;
-}
 
 export class ClaudeAgentProvider {
   readonly #listeners = new Set<AgentProviderEventListener>();
-  readonly #running = new Map<string, Running>();
+  readonly #running = new Map<string, session.Running>();
   readonly #starting = new Set<string>();
   readonly #recent = new Map<string, AgentTurn>();
   constructor(
@@ -71,10 +61,16 @@ export class ClaudeAgentProvider {
     readonly config: ClaudeConfiguration,
     readonly sdk: ClaudeSdk = { query, getSessionMessages, getSessionInfo },
     readonly discover?: () => Promise<AgentEngineProfile>,
+    readonly idleTimeoutMs = 30_000,
   ) {}
 
   get isBusy() {
-    return this.#running.size > 0 || this.#starting.size > 0;
+    return (
+      this.#starting.size > 0 ||
+      [...this.#running.values()].some(
+        (running) => running.settling === true || session.hasWork(running),
+      )
+    );
   }
 
   async listModels() {
@@ -124,7 +120,12 @@ export class ClaudeAgentProvider {
     return Promise.resolve(null);
   }
   unsubscribeTask(id: string) {
-    return Promise.resolve(this.#running.has(id) ? ("busy" as const) : ("notLoaded" as const));
+    const running = this.#running.get(id);
+    return Promise.resolve(
+      running && (running.settling || session.hasWork(running))
+        ? ("busy" as const)
+        : ("notLoaded" as const),
+    );
   }
   async pinTask(id: string, pinned: boolean) {
     await this.#task(id);
@@ -137,7 +138,10 @@ export class ClaudeAgentProvider {
   }
   async archiveTask(id: string) {
     await this.#task(id);
-    if (this.#running.has(id)) throw new Error("Stop the running task before archiving");
+    const running = this.#running.get(id);
+    if (running && (running.settling || session.hasWork(running)))
+      throw new Error("Stop the running task before archiving");
+    if (running) await this.stopSession(id);
     await this.store.catalog("task.patch", { id, archived: true });
     this.#emit({ type: "task.removed", taskId: id, payload: { reason: "archived" } });
   }
@@ -147,7 +151,10 @@ export class ClaudeAgentProvider {
   }
   async deleteTask(id: string) {
     await this.#task(id);
-    if (this.#running.has(id)) throw new Error("Stop the running task before deleting");
+    const running = this.#running.get(id);
+    if (running && (running.settling || session.hasWork(running)))
+      throw new Error("Stop the running task before deleting");
+    if (running) await this.stopSession(id);
     await this.store.catalog("task.remove", { id });
     this.#recent.delete(id);
     this.#emit({ type: "task.removed", taskId: id, payload: { reason: "deleted" } });
@@ -210,6 +217,14 @@ export class ClaudeAgentProvider {
     const page = await this.config.history.read(id, input.cursor);
     const turns = page.turns;
     const nextCursor = page.cursor;
+    if (current && input.cursor === undefined) {
+      for (const projection of current.projections.values()) {
+        const turn = projection.snapshot();
+        const index = turns.findIndex((entry) => entry.id === turn.id);
+        if (index >= 0) turns[index] = turn;
+        else turns.push(turn);
+      }
+    }
     const metadata = current?.projection.metadata() ?? (await this.config.history.metadata(id));
     if (!current && input.cursor === undefined) {
       const recovered = await this.config.history.active(id);
@@ -236,12 +251,15 @@ export class ClaudeAgentProvider {
       contextUsage: metadata?.contextUsage ?? null,
       goal: null,
       plan: metadata?.plan ?? null,
-      pendingRequests: current?.permissions.pending() ?? [],
-      status: current
-        ? "running"
-        : last?.status === "failed" || task.status === "failed"
-          ? "failed"
-          : "idle",
+      pendingRequests: current
+        ? [...current.permissions.values()].flatMap((permissions) => permissions.pending())
+        : [],
+      status:
+        current?.projection.status === "running"
+          ? "running"
+          : last?.status === "failed" || task.status === "failed"
+            ? "failed"
+            : "idle",
       threadConfiguration: { model: metadata?.model ?? null, reasoningEffort: null },
       turns,
       turnsNextCursor: nextCursor,
@@ -253,11 +271,28 @@ export class ClaudeAgentProvider {
     input: AgentProviderTurnInput,
     options: AgentTurnOptions,
   ): Promise<AgentTurn> {
-    if (this.#starting.has(id) || this.#running.has(id))
+    if (
+      this.#starting.has(id) ||
+      this.#running.get(id)?.settling ||
+      this.#running.get(id)?.projection.status === "running"
+    )
       throw new Error("A Claude turn is already running");
-    if (this.#starting.size + this.#running.size >= 8)
-      throw new Error("Claude concurrent turn capacity exceeded");
+    if (!this.#running.has(id) && this.#starting.size + this.#running.size >= 8) {
+      const idle = [...this.#running].find(
+        ([taskId, candidate]) =>
+          !this.#starting.has(taskId) && !candidate.settling && !session.hasWork(candidate),
+      );
+      if (idle) {
+        session.stop(idle[1]);
+        await idle[1].done;
+      }
+      if (this.#starting.size + this.#running.size >= 8)
+        throw new Error("Claude concurrent turn capacity exceeded");
+    }
     this.#starting.add(id);
+    const current = this.#running.get(id);
+    clearTimeout(current?.idleTimer);
+    if (current) current.idleTimer = undefined;
     try {
       const task = await this.#task(id);
       const defaults = await this.config.readSettings();
@@ -269,47 +304,29 @@ export class ClaudeAgentProvider {
       const permissionMode = options.engineOptions?.permissionMode ?? defaults.permissionMode;
       const sessionId = task.sessionId ?? randomUUID(),
         turnId = randomUUID();
-      let terminal: AgentProviderEvent | undefined;
       const projection = new ClaudeTurnProjection(id, turnId, input.text, (event) => {
-        if (event.type === "turn.completed") terminal = event;
-        else this.#emit(event);
+        // 完成事件由消费器在回合落盘之后发布，不能等待整个会话退出。
+        if (event.type !== "turn.completed") this.#emit(event);
       });
-      const previousMetadata = await this.config.history.metadata(id);
-      projection.contextUsage = previousMetadata?.contextUsage ?? null;
-      projection.plan = previousMetadata?.plan ?? null;
-      projection.mcpServers = previousMetadata?.mcpServers ?? [];
+      projection.restoreMetadata(await this.config.history.metadata(id));
       const permissions = new ClaudePermissions(this.scope.id, id, turnId, this.#emit);
-      const controller = new AbortController(),
-        gate = Promise.withResolvers<undefined>();
-      const content: Exclude<SDKUserMessage["message"]["content"], string> = [
-        { type: "text", text: input.text || " " },
-      ];
-      for (const attachment of input.textAttachments)
-        content.push({ type: "text", text: `${attachment.name}\n${attachment.text}` });
-      for (const file of input.files)
-        content.push({ type: "text", text: `Attached file: ${file.path}` });
-      let imageBytes = 0;
-      for (const image of input.images) {
-        const size = (await stat(image.path)).size;
-        imageBytes += size;
-        if (size > 5 * 1024 * 1024 || imageBytes > 20 * 1024 * 1024)
-          throw new Error("Claude images are limited to 5 MiB each and 20 MiB per turn");
-        content.push({
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: image.mediaType,
-            data: (await readFile(image.path)).toString("base64"),
-          },
-        });
+      const controller = new AbortController();
+      const prompt = await createClaudePrompt(input, sessionId, turnId);
+      const settingsKey = JSON.stringify({ options, defaults });
+      let existing = this.#running.get(id);
+      if (existing?.closed) {
+        await existing.done;
+        existing = undefined;
       }
-      const prompt: SDKUserMessage = {
-        type: "user",
-        uuid: turnId,
-        session_id: sessionId,
-        parent_tool_use_id: null,
-        message: { role: "user", content },
-      };
+      if (existing && existing.settingsKey !== settingsKey) {
+        if (session.hasWork(existing))
+          throw new Error("Stop Claude background tasks before changing session options");
+        session.stop(existing);
+        await existing.done;
+        existing = undefined;
+      }
+      if (existing && existing.projections.size >= 64)
+        throw new Error("Claude background turn capacity exceeded");
       // 发送前持久绑定精确 UUID；进程重启或请求重试不能改绑到另一个会话。
       await this.store.catalog("task.patch", {
         id,
@@ -318,17 +335,32 @@ export class ClaudeAgentProvider {
         updatedAt: Date.now() / 1000,
         ...(!task.title ? { title: input.text.trim().slice(0, 80) || "新聊天" } : {}),
       });
+      if (existing) {
+        clearTimeout(existing.idleTimer);
+        existing.idleTimer = undefined;
+        projection.restoreMetadata(existing.projection.metadata());
+        await this.config.history.checkpoint(id, projection.snapshot());
+        existing.projection = projection;
+        existing.projections.set(turnId, projection);
+        existing.permissions.set(turnId, permissions);
+        this.#emit({
+          type: "turn.started",
+          taskId: id,
+          turnId,
+          payload: { turn: projection.snapshot() },
+        });
+        existing.input.send(prompt);
+        return projection.snapshot();
+      }
       const resumable =
         task.sessionId &&
         (this.sdk.getSessionInfo
           ? await this.sdk.getSessionInfo(task.sessionId, { dir: task.cwd })
           : true);
       await this.config.history.checkpoint(id, projection.snapshot());
+      const inputStream = session.createInput();
       const stream = this.sdk.query({
-        prompt: (async function* () {
-          yield prompt;
-          await gate.promise;
-        })(),
+        prompt: inputStream,
         options: {
           cwd: task.cwd,
           env: this.config.environment(),
@@ -339,7 +371,18 @@ export class ClaudeAgentProvider {
           includePartialMessages: true,
           persistSession: true,
           abortController: controller,
-          canUseTool: permissions.request,
+          canUseTool: (name, input, toolOptions) => {
+            const active = this.#running.get(id);
+            const owner = [...(active?.projections.values() ?? [])].find((candidate) =>
+              candidate.ownsMessage({
+                tool_use_id: toolOptions.toolUseID,
+                agent_id: toolOptions.agentID,
+              }),
+            );
+            return (
+              active?.permissions.get(owner?.id ?? active.projection.id) ?? permissions
+            ).request(name, input, toolOptions);
+          },
           settingSources: defaults.loadProjectSettings ? ["user", "project", "local"] : ["user"],
           allowedTools: defaults.allowedTools,
           disallowedTools: defaults.disallowedTools,
@@ -351,28 +394,27 @@ export class ClaudeAgentProvider {
           ...(resumable ? { resume: sessionId } : { sessionId }),
         },
       });
-      const running: Running = {
+      const running: session.Running = {
         sessionId,
         query: stream,
         projection,
-        permissions,
         controller,
-        release: () => {
-          gate.resolve(undefined);
-        },
-        get terminal() {
-          return terminal;
-        },
+        permissions: new Map([[turnId, permissions]]),
+        projections: new Map([[turnId, projection]]),
+        backgroundTasks: new Set(),
+        input: inputStream,
+        settingsKey,
+        done: Promise.resolve(),
+        idleTimeoutMs: this.idleTimeoutMs,
       };
       let writing = false;
       running.timer = setInterval(() => {
-        if (writing) return;
+        if (writing || !session.hasWork(running)) return;
         writing = true;
-        void this.config.history
-          .checkpoint(id, projection.snapshot())
-          .then(() => this.config.history.saveMetadata(id, projection.metadata()))
+        void session
+          .persist(id, running, this.config)
           .catch(() => {
-            controller.abort();
+            session.stop(running);
           })
           .finally(() => {
             writing = false;
@@ -386,79 +428,47 @@ export class ClaudeAgentProvider {
         turnId,
         payload: { turn: projection.snapshot() },
       });
-      void this.#consume(id, running);
+      inputStream.send(prompt);
+      running.done = session.consume(id, running, this.config, this.store, this.#emit, (turn) => {
+        this.#recent.delete(id);
+        this.#recent.set(id, turn);
+        // 缓存仅跨越终态与历史读取的窗口，不持有已结束查询或完整 SDK 历史。
+        while (this.#recent.size > 8) {
+          const oldest = this.#recent.keys().next().value;
+          if (oldest !== undefined) this.#recent.delete(oldest);
+        }
+        this.#running.delete(id);
+      });
       return projection.snapshot();
     } finally {
       this.#starting.delete(id);
+      const running = this.#running.get(id);
+      if (running) session.scheduleIdle(running, this.idleTimeoutMs);
     }
   }
 
-  async #consume(id: string, running: Running): Promise<void> {
-    try {
-      for await (const message of running.query) {
-        const actualSession = record(message)["session_id"];
-        if (
-          typeof actualSession === "string" &&
-          actualSession &&
-          actualSession !== running.sessionId
-        )
-          throw new Error("Claude changed the bound session identity");
-        running.projection.receive(message);
-        if (message.type === "system" && message.subtype === "init") {
-          void refreshClaudeContext(running.query, running.projection, true);
-        }
-        if (message.type === "result")
-          await refreshClaudeContext(running.query, running.projection);
-        if (running.projection.status !== "running") break;
-      }
-      if (running.projection.status === "running")
-        running.projection.finish(
-          running.controller.signal.aborted ? "interrupted" : "failed",
-          running.controller.signal.aborted ? undefined : "Claude stream ended without a result",
-        );
-    } catch (error) {
-      running.projection.finish(
-        running.controller.signal.aborted ? "interrupted" : "failed",
-        error instanceof Error ? error.message : "Claude execution failed",
-      );
-    } finally {
-      clearInterval(running.timer);
-      running.permissions.close();
-      running.release();
-      try {
-        running.query.close();
-      } catch {
-        /* 进程已关闭仍必须完成状态清理。 */
-      }
-      const turn = running.projection.snapshot();
-      this.#recent.delete(id);
-      this.#recent.set(id, turn);
-      // 仅缓存少量最近回合用于消除终态与落盘之间的窗口；长期历史由 SDK 按需读取。
-      while (this.#recent.size > 8) {
-        const oldest = this.#recent.keys().next().value;
-        if (oldest !== undefined) this.#recent.delete(oldest);
-      }
-      await this.config.history.complete(id, turn).catch(() => undefined);
-      await this.config.history
-        .saveMetadata(id, running.projection.metadata())
-        .catch(() => undefined);
-      this.#running.delete(id);
-      await this.store
-        .catalog("task.patch", {
-          id,
-          status: turn.status === "failed" ? "failed" : "idle",
-          updatedAt: Date.now() / 1000,
-        })
-        .catch(() => undefined);
-      // 先释放运行锁并落盘，再发布终态；排队发送可以立即启动下一回合。
-      if (running.terminal) this.#emit(running.terminal);
-    }
+  /** 原生 task_id 与本地聊天 ID 分离，停止单个后台任务不关闭会话。 */
+  async stopBackgroundTask(id: string, backgroundTaskId: string): Promise<void> {
+    await this.#task(id);
+    const running = this.#running.get(id);
+    if (!running?.backgroundTasks.has(backgroundTaskId))
+      throw new Error("Claude background task is no longer running");
+    await running.query.stopTask(backgroundTaskId);
+  }
+
+  async stopSession(id: string, backgroundTaskId?: string): Promise<void> {
+    if (backgroundTaskId) return this.stopBackgroundTask(id, backgroundTaskId);
+    await this.#task(id);
+    const running = this.#running.get(id);
+    if (!running) return;
+    session.stop(running);
+    await running.done;
   }
 
   async interruptTurn(id: string, turnId: string): Promise<void> {
     await this.#task(id);
     const current = this.#running.get(id);
-    if (!current || current.projection.id !== turnId)
+    if (!current || current.projection.id !== turnId || current.projection.status !== "running")
       throw new Error("Claude turn is no longer running");
     await Promise.race([
       current.query.interrupt(),
@@ -467,26 +477,22 @@ export class ClaudeAgentProvider {
         timer.unref();
       }),
     ]);
-    current.projection.finish("interrupted");
-    current.permissions.close();
-    current.controller.abort();
-    current.release();
-    current.query.close();
+    session.stop(current);
+    await current.done;
   }
 
   async resolvePendingRequest(input: ResolvePendingRequestInput) {
     await this.#task(input.taskId);
     const current = this.#running.get(input.taskId);
     if (!current) throw new Error("Claude turn is no longer running");
-    return current.permissions.resolve(input);
+    const permissions = current.permissions.get(input.turnId);
+    if (!permissions) throw new Error("Claude turn is no longer available");
+    return permissions.resolve(input);
   }
 
   close(): void {
     for (const current of this.#running.values()) {
-      current.controller.abort();
-      current.permissions.close();
-      current.release();
-      current.query.close();
+      session.stop(current);
     }
     this.#recent.clear();
     this.#listeners.clear();

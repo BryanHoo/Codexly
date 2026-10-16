@@ -1,3 +1,4 @@
+import type { StopAgentSessionResponse } from "@codexly/protocol";
 import type { TaskSearchInput } from "@/protocol/global-search.js";
 import type { CreateProjectDirectoryRequest, CreateProjectDirectoryResponse } from "@codexly/protocol";
 import {
@@ -366,6 +367,10 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     return this.call("steer_turn", { idempotencyKey: options.idempotencyKey, input, projectId, taskId, turnId,
       ...(options.queuedSubmissionId === undefined ? {} : { queuedSubmissionId: options.queuedSubmissionId }),
     });
+  }
+
+  public async stopSession(projectId: string, taskId: string, backgroundTaskId?: string): Promise<StopAgentSessionResponse> {
+    return this.call("stop_task_session", { projectId, taskId, backgroundTaskId: backgroundTaskId ?? null });
   }
 
   public async interruptTurn(

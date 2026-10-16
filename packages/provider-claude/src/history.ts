@@ -87,6 +87,26 @@ export class ClaudeHistory {
       await rm(`${this.#path(task)}.active`, { force: true });
     });
   }
+  #updatePath(task: string, turnId: string) {
+    return `${this.#path(task)}.${createHash("sha256").update(turnId).digest("hex")}.turn`;
+  }
+
+  /** 后台结果覆盖单个回合的有界快照，避免重写整份历史或追加重复分页记录。 */
+  update(task: string, turn: AgentTurn): Promise<void> {
+    return this.#write(task, async () => {
+      const encoded = this.#encode(turn);
+      await mkdir(this.directory, { recursive: true, mode: 0o700 });
+      const path = this.#updatePath(task, turn.id),
+        temporary = `${path}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(temporary, encoded, { mode: 0o600 });
+        await rename(temporary, path);
+      } finally {
+        await rm(temporary, { force: true });
+      }
+    });
+  }
+
   async active(task: string): Promise<AgentTurn | undefined> {
     await this.#writes.get(task);
     try {
@@ -132,7 +152,18 @@ export class ClaudeHistory {
       }
       const selected = rows.slice(-20);
       return {
-        turns: selected.map((row) => row.turn),
+        turns: await Promise.all(
+          selected.map(async ({ turn }) => {
+            try {
+              return JSON.parse(
+                await readFile(this.#updatePath(task, turn.id), "utf8"),
+              ) as AgentTurn;
+            } catch (error) {
+              if (missing(error)) return turn;
+              throw error;
+            }
+          }),
+        ),
         cursor: selected[0] && selected[0].offset > 0 ? String(selected[0].offset) : null,
       };
     } finally {

@@ -92,6 +92,7 @@ permissions = [
   "allow-start-turn",
   "allow-steer-turn",
   "allow-interrupt-turn",
+  "allow-stop-task-session",
   "allow-resolve-pending-request",
   "allow-submit-review",
   "allow-compact-task",

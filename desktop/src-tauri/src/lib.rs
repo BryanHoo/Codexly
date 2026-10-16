@@ -60,7 +60,7 @@ use application::{
         add_project, archive_task, compact_task, delete_task, get_task_settings, interrupt_turn,
         list_projects, list_tasks, pin_task, read_task, remove_project, rename_project,
         rename_task, reorder_projects, resolve_pending_request, start_task, start_turn,
-        unarchive_task, update_task_settings,
+        stop_task_session, unarchive_task, update_task_settings,
     },
     sidebar_directory_commands::{create_project_directory, list_project_directories},
     skills_market_commands::{
@@ -275,6 +275,7 @@ pub fn run() {
             submit_prompt,
             application::steer_submission::steer_turn,
             interrupt_turn,
+            stop_task_session,
             resolve_pending_request,
             application::review_submission::submit_review,
             compact_task,

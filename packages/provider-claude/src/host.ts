@@ -95,6 +95,12 @@ if (process.argv.includes("--version")) {
         if (!Value.Check(AgentTurnOptionsSchema, params["options"]))
           throw new Error("Invalid Claude turn options");
         return provider.startTurn(id, params["input"] as AgentProviderTurnInput, params["options"]);
+      case "session.stop":
+        await provider.stopSession(
+          id,
+          typeof params["backgroundTaskId"] === "string" ? params["backgroundTaskId"] : undefined,
+        );
+        return { status: "accepted", taskId: id };
       case "turn.interrupt":
         await provider.interruptTurn(id, String(params["turnId"]));
         return {};

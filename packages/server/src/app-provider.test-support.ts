@@ -174,6 +174,7 @@ export function createProvider() {
       return Promise.resolve(updated);
     }),
   };
+  const stopSession = vi.fn(() => Promise.resolve());
   const interruptTurn = vi.fn(() => Promise.resolve());
   const listBackgroundTerminals = vi.fn<() => Promise<AgentBackgroundTerminalPage>>(() =>
     Promise.resolve({ data: [] }),
@@ -202,6 +203,7 @@ export function createProvider() {
     forkTask,
     getCapabilities,
     interruptTurn,
+    stopSession,
     listBackgroundTerminals,
     listMcpServers,
     listModels,
@@ -249,6 +251,7 @@ export function createProvider() {
     listModels,
     listSkills,
     interruptTurn,
+    stopSession,
     listBackgroundTerminals,
     pinTask,
     provider,

@@ -1,5 +1,7 @@
+import type { AgentProviderEventListener } from "@codexly/core";
+import { record, text } from "./sdk-values.js";
 import type { Query } from "@anthropic-ai/claude-agent-sdk";
-import type { AgentContextUsage, AgentMcpServer } from "@codexly/protocol";
+import type { AgentContextUsage, AgentMcpServer, AgentPlan } from "@codexly/protocol";
 
 /** 控制查询有独立时限；观测失败不能阻塞消息消费或改变执行结果。 */
 export async function observe<T>(action: () => Promise<T>): Promise<T | undefined> {
@@ -101,4 +103,56 @@ export function mapClaudeUsage(
       count("cache_creation_input_tokens") +
       count("output_tokens"),
   };
+}
+
+export function mapClaudePlan(input: unknown): AgentPlan | undefined {
+  const todos = record(input)["todos"];
+  if (!Array.isArray(todos)) return undefined;
+  return {
+    explanation: null,
+    steps: todos.flatMap((value) => {
+      const todo = record(value),
+        status = todo["status"],
+        content = text(todo["content"]);
+      return content && (status === "pending" || status === "in_progress" || status === "completed")
+        ? [{ text: content, status }]
+        : [];
+    }),
+  };
+}
+
+export function publishClaudeMcpServers(
+  taskId: string,
+  servers: AgentMcpServer[],
+  emit: AgentProviderEventListener,
+): void {
+  for (const server of servers)
+    emit({
+      type: "mcp_server.status_updated",
+      taskId,
+      payload: {
+        name: server.name,
+        status:
+          server.status === "connected"
+            ? "ready"
+            : server.status === "starting"
+              ? "starting"
+              : "failed",
+        error: null,
+        failureReason:
+          server.status === "authenticationRequired" ? "reauthenticationRequired" : null,
+      },
+    });
+}
+
+/** result 只补齐主模型窗口，保留最近一次主请求的用量统计。 */
+export function mapClaudeResultUsage(
+  value: unknown,
+  model: string,
+  current: AgentContextUsage | null,
+): AgentContextUsage | null {
+  const window = record(record(record(value)["modelUsage"])[model])["contextWindow"];
+  return current && typeof window === "number" && Number.isSafeInteger(window) && window > 0
+    ? { ...current, contextWindow: window }
+    : current;
 }

@@ -36,3 +36,29 @@ it("paginates newest turns backwards without losing order or duplicating checkpo
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("updates late background output without appending duplicate turns or losing pagination", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-history-update-"));
+  try {
+    const history = new ClaudeHistory(root);
+    const turn: AgentTurn = {
+      id: "original",
+      status: "completed",
+      startedAt: null,
+      completedAt: null,
+      error: null,
+      items: [],
+    };
+    await history.complete("task", turn);
+    await history.complete("task", { ...turn, id: "next" });
+    await history.update("task", {
+      ...turn,
+      items: [{ id: "late", type: "message", role: "assistant", text: "late proof" }],
+    });
+    const page = await new ClaudeHistory(root).read("task");
+    expect(page.turns.map((entry) => entry.id)).toEqual(["original", "next"]);
+    expect(page.turns[0]?.items[0]).toMatchObject({ text: "late proof" });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
