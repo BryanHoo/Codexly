@@ -28,6 +28,44 @@ async function setup() {
 }
 
 describe("Claude native user configuration", () => {
+  it.each(["auto", "future-native-mode"])(
+    "preserves unsupported native mode %s when saving other settings",
+    async (mode) => {
+      const { user, config } = await setup();
+      const path = join(user, "settings.json");
+      await writeFile(path, JSON.stringify({ permissions: { defaultMode: mode } }));
+      const settings = await config.readSettings();
+      expect(settings.permissionMode).toBe("default");
+
+      await config.writeSettings({ ...settings, instructions: "请使用中文" });
+      expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+        permissions: { defaultMode: mode },
+      });
+      expect(await readFile(join(user, "CLAUDE.md"), "utf8")).toBe("请使用中文");
+
+      // 全量表单无法区分主动选择 default 与兼容投影；选择其他支持的模式才明确覆盖。
+      await config.writeSettings({ ...settings, permissionMode: "plan" });
+      expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+        permissions: { defaultMode: "plan" },
+      });
+      await config.writeSettings({ ...settings, permissionMode: "default" });
+      expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+        permissions: { defaultMode: "default" },
+      });
+    },
+  );
+
+  it("preserves an unsupported native mode introduced after the form was read", async () => {
+    const { user, config } = await setup();
+    const settings = await config.readSettings();
+    const path = join(user, "settings.json");
+    await writeFile(path, JSON.stringify({ permissions: { defaultMode: "auto" } }));
+    await config.writeSettings({ ...settings, instructions: "保留外部配置" });
+    expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+      permissions: { defaultMode: "auto" },
+    });
+  });
+
   it("reads native settings and instructions again after external edits", async () => {
     const { user, config } = await setup();
     await writeFile(

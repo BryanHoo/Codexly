@@ -135,7 +135,8 @@ export class ClaudeConfiguration {
       allowedTools: strings(permissions["allow"]),
       disallowedTools: strings(permissions["deny"]),
     };
-    // 原生文件还允许未来扩展值；公共表单只投影当前支持的枚举，不回写或删掉未知字段。
+    // 原生文件还允许未来扩展值；公共表单只投影当前支持的枚举。
+    // 权限的 default 可能只是兼容投影，保存时必须保留磁盘上的未支持模式。
     if (!Value.Check(ClaudeSettingsSchema.properties.reasoningEffort, settings.reasoningEffort))
       settings.reasoningEffort = "";
     if (!Value.Check(ClaudeSettingsSchema.properties.permissionMode, settings.permissionMode))
@@ -175,6 +176,13 @@ export class ClaudeConfiguration {
 
   #mergeSettings(native: JsonObject, snapshot: ClaudeSettings): void {
     const permissions = object(native["permissions"]);
+    // auto 等原生模式尚未暴露给表单，default 可能来自读取时的降级投影。
+    // 全量提交无法证明用户主动切换到了 default，因此保留最新原生值；
+    // 只有选择其他受支持模式时才覆盖，避免仅修改指令也悄悄重置权限。
+    const preserveNativeMode =
+      snapshot.permissionMode === "default" &&
+      "defaultMode" in permissions &&
+      !Value.Check(ClaudeSettingsSchema.properties.permissionMode, permissions["defaultMode"]);
     native["model"] = snapshot.model;
     // max 是单次执行档位，原生持久化只接受到 xhigh；用官方环境变量保存 max。
     if (snapshot.reasoningEffort && snapshot.reasoningEffort !== "max")
@@ -189,7 +197,7 @@ export class ClaudeConfiguration {
     if (Object.keys(env).length || "env" in native) native["env"] = env;
     native["permissions"] = {
       ...permissions,
-      defaultMode: snapshot.permissionMode,
+      defaultMode: preserveNativeMode ? permissions["defaultMode"] : snapshot.permissionMode,
       allow: snapshot.allowedTools,
       deny: snapshot.disallowedTools,
     };
