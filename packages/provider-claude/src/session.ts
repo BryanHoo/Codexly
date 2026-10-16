@@ -5,9 +5,10 @@ import type {
   getSessionMessages,
   getSessionInfo,
 } from "@anthropic-ai/claude-agent-sdk";
-import type { AgentProviderEventListener, LocalCatalogStore } from "@codexly/core";
+import type { AgentProviderEventListener, LocalCatalogStore, LocalTask } from "@codexly/core";
 import type { AgentTurn } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
+import type { ClaudeHistory, ClaudeTaskMetadata } from "./history.js";
 import type { ClaudePermissions } from "./permissions.js";
 import { type ClaudeTurnProjection, record } from "./turn-projection.js";
 import { refreshClaudeContext } from "./observability.js";
@@ -16,6 +17,28 @@ export interface ClaudeSdk {
   query: (input: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
   getSessionMessages: typeof getSessionMessages;
   getSessionInfo?: typeof getSessionInfo;
+}
+
+/** 绑定早于 SDK 启动；只有从未建立原生上下文的任务才允许按原 UUID 首次创建。 */
+export async function canResume(
+  task: LocalTask,
+  sdk: ClaudeSdk,
+  history: ClaudeHistory,
+  metadata: ClaudeTaskMetadata | undefined,
+): Promise<boolean> {
+  if (!task.sessionId) return false;
+  if (!sdk.getSessionInfo || (await sdk.getSessionInfo(task.sessionId, { dir: task.cwd })))
+    return true;
+  // 旧版缺少初始化标记时保守检查 UI 记录，绝不把展示历史误当成模型上下文。
+  const initialized =
+    metadata?.sessionInitialized ??
+    ((await history.read(task.id)).turns.length > 0 ||
+      (await history.active(task.id)) !== undefined);
+  if (initialized)
+    throw new Error(
+      "无法恢复 Claude 会话：原生历史不存在，原上下文无法恢复。请恢复会话文件或新建聊天。",
+    );
+  return false;
 }
 
 export interface Running {
@@ -124,6 +147,11 @@ export async function consume(
         actualSession = value["session_id"];
       if (typeof actualSession === "string" && actualSession && actualSession !== running.sessionId)
         throw new Error("Claude changed the bound session identity");
+      if (!running.projection.sessionInitialized) {
+        // 首条 SDK 消息即确认原生会话已运行；先持久化，再公开输出，崩溃后也不能静默重建。
+        running.projection.sessionInitialized = true;
+        await config.history.saveMetadata(id, running.projection.metadata());
+      }
       const projection =
         [...running.projections.values()].find((candidate) => candidate.ownsMessage(message)) ??
         running.projection;

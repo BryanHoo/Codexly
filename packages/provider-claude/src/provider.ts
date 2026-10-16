@@ -301,7 +301,8 @@ export class ClaudeAgentProvider {
         // 完成事件由消费器在回合落盘之后发布，不能等待整个会话退出。
         if (event.type !== "turn.completed") this.#emit(event);
       });
-      projection.restoreMetadata(await this.config.history.metadata(id));
+      const metadata = await this.config.history.metadata(id);
+      projection.restoreMetadata(metadata);
       const grants = this.#sessionGrants.get(id) ?? new ClaudeSessionGrants(permissionMode);
       // 各回合共享同一授权集合，后台旧回合的迟到审批也只合并到当前聊天。
       this.#sessionGrants.set(id, grants);
@@ -323,6 +324,8 @@ export class ClaudeAgentProvider {
       }
       if (existing && existing.projections.size >= 64)
         throw new Error("Claude background turn capacity exceeded");
+      const resumable =
+        !existing && (await session.canResume(task, this.sdk, this.config.history, metadata));
       // 发送前持久绑定精确 UUID；进程重启或请求重试不能改绑到另一个会话。
       await this.store.catalog("task.patch", {
         id,
@@ -348,11 +351,9 @@ export class ClaudeAgentProvider {
         existing.input.send(prompt);
         return projection.snapshot();
       }
-      const resumable =
-        task.sessionId &&
-        (this.sdk.getSessionInfo
-          ? await this.sdk.getSessionInfo(task.sessionId, { dir: task.cwd })
-          : true);
+      // 启动失败但未收到 SDK 消息时保留 false，允许下次仍以原 UUID 首次创建。
+      projection.sessionInitialized ||= resumable;
+      await this.config.history.saveMetadata(id, projection.metadata());
       await this.config.history.checkpoint(id, projection.snapshot());
       const inputStream = session.createInput();
       const stream = this.sdk.query({

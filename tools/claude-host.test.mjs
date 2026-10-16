@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -321,6 +321,26 @@ test(
         status: "accepted",
         taskId: "task",
       });
+
+      // 隐藏临时目录中的原生历史并重启真实宿主；已有 UI 历史绝不能被当成模型上下文。
+      await host.close();
+      const nativeProjects = join(userDirectory, "projects");
+      await rename(nativeProjects, `${nativeProjects}.saved`);
+      host = launch();
+      const beforeMissing = structuredClone(tasks.get("task"));
+      const callsBeforeMissing = calls;
+      await assert.rejects(
+        host.request("turn.start", { taskId: "task", input, options }, scope),
+        /恢复.*历史/,
+      );
+      assert.deepEqual(tasks.get("task"), beforeMissing);
+      assert.equal(calls, callsBeforeMissing);
+      assert.equal(
+        host.events.some((event) => event.type === "turn.started"),
+        false,
+      );
+      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 4);
+      await rename(`${nativeProjects}.saved`, nativeProjects);
 
       await host.request("configure", {
         baseUrl: `http://127.0.0.1:${api.address().port}`,

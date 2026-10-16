@@ -37,6 +37,7 @@ export class ClaudeTurnProjection {
   contextUsage: AgentContextUsage | null = null;
   plan: AgentPlan | null = null;
   mcpServers: ClaudeTaskMetadata["mcpServers"] = [];
+  sessionInitialized = false;
   #requestUsage: Record<string, unknown> = {};
   #messageId = "";
   #status: AgentTurn["status"] = "running";
@@ -78,24 +79,24 @@ export class ClaudeTurnProjection {
 
   restoreMetadata(metadata: ClaudeTaskMetadata | undefined): void {
     if (!metadata) return;
+    this.sessionInitialized = metadata.sessionInitialized === true;
     this.contextUsage = metadata.contextUsage;
     this.plan = metadata.plan;
     this.mcpServers = metadata.mcpServers;
     this.#model = metadata.model ?? "";
   }
-
   get id() {
     return this.#id;
   }
   metadata(): ClaudeTaskMetadata {
     return {
+      sessionInitialized: this.sessionInitialized,
       contextUsage: this.contextUsage,
       plan: this.plan,
       model: this.#model || null,
       mcpServers: this.mcpServers,
     };
   }
-
   snapshot(): AgentTurn {
     return {
       id: this.#id,

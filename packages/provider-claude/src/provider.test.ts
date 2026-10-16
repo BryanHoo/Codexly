@@ -10,9 +10,9 @@ import type {
   LocalTask,
   AgentProviderEvent,
 } from "@codexly/core";
-import type { AgentTurnOptions } from "@codexly/protocol";
+import type { AgentTurn, AgentTurnOptions } from "@codexly/protocol";
 import { ClaudeConfiguration } from "./config.js";
-import { ClaudeAgentProvider } from "./provider.js";
+import { ClaudeAgentProvider, type ClaudeSdk } from "./provider.js";
 
 const roots: string[] = [];
 const providers: ClaudeAgentProvider[] = [];
@@ -32,7 +32,7 @@ const options: AgentTurnOptions = {
 };
 const prompt = { text: "hello", files: [], images: [], skills: [], textAttachments: [] };
 
-async function harness() {
+async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"]) {
   const root = await mkdtemp(join(tmpdir(), "codexly-claude-provider-"));
   roots.push(root);
   const tasks = new Map<string, LocalTask>();
@@ -100,20 +100,29 @@ async function harness() {
       resolve({ value: message, done: false });
     } else messages.push(message);
   };
-  const provider = new ClaudeAgentProvider(
-    { id: "p", kind: "project", rootPath: root, runtimeWorkspaceRoots: [root] },
-    store,
-    config,
-    { query, getSessionMessages: () => Promise.resolve([]) },
-    undefined,
-    40,
-  );
-  providers.push(provider);
-  cleanup.push(async () => {
-    for (const id of tasks.keys()) await provider.stopSession(id);
-  });
+  const createProvider = () => {
+    const provider = new ClaudeAgentProvider(
+      { id: "p", kind: "project", rootPath: root, runtimeWorkspaceRoots: [root] },
+      store,
+      config,
+      {
+        query,
+        getSessionMessages: () => Promise.resolve([]),
+        ...(getSessionInfo ? { getSessionInfo } : {}),
+      },
+      undefined,
+      40,
+    );
+    providers.push(provider);
+    cleanup.push(async () => {
+      for (const id of tasks.keys()) await provider.stopSession(id);
+    });
+    return provider;
+  };
+  const provider = createProvider();
   return {
     provider,
+    restart: createProvider,
     config,
     tasks,
     query,
@@ -128,6 +137,138 @@ async function harness() {
     },
   };
 }
+
+describe("Claude session recovery", () => {
+  it("creates a prebound session without history, then resumes the exact ID once its native history exists", async () => {
+    const getSessionInfo = vi.fn<NonNullable<ClaudeSdk["getSessionInfo"]>>();
+    getSessionInfo.mockResolvedValue(undefined);
+    const h = await harness(getSessionInfo);
+    const task = await h.provider.startTask();
+    const original = h.tasks.get(task.id);
+    assert(original);
+    h.tasks.set(task.id, { ...original, sessionId: "prebound-session" });
+    await h.provider.startTurn(task.id, prompt, options);
+    expect(h.query.mock.calls[0]?.[0].options).toMatchObject({ sessionId: "prebound-session" });
+    expect(h.query.mock.calls[0]?.[0].options).not.toHaveProperty("resume");
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.close).toHaveBeenCalled();
+    });
+    getSessionInfo.mockResolvedValue({
+      sessionId: "prebound-session",
+      summary: "hello",
+      lastModified: 1,
+    });
+    await h.restart().startTurn(task.id, prompt, options);
+    expect(h.query.mock.calls[1]?.[0].options).toMatchObject({ resume: "prebound-session" });
+    expect(h.query.mock.calls[1]?.[0].options).not.toHaveProperty("sessionId");
+  });
+
+  it.each(["completed", "initialized"] as const)(
+    "rejects a missing %s native session after provider restart without changing history or status",
+    async (state) => {
+      const getSessionInfo = vi.fn(() => Promise.resolve(undefined));
+      const h = await harness(getSessionInfo);
+      const task = await h.provider.startTask();
+      await h.provider.startTurn(task.id, prompt, options);
+      h.send({ type: "system", subtype: "init", model: "test-model", mcp_servers: [] });
+      if (state === "completed") {
+        h.send({ type: "result", subtype: "success", result: "remember this" });
+        await vi.waitFor(() => {
+          expect(h.close).toHaveBeenCalled();
+        });
+      } else {
+        // 初始化后尚未产生正文也已建立原生上下文，不能当成首次启动失败。
+        await vi.waitFor(async () => {
+          expect((await h.provider.readTask(task.id))?.threadConfiguration?.model).toBe(
+            "test-model",
+          );
+        });
+        await h.provider.stopSession(task.id);
+      }
+      const bound = structuredClone(h.tasks.get(task.id));
+      const history = await h.config.history.read(task.id);
+      const restarted = h.restart();
+      const events: AgentProviderEvent[] = [];
+      restarted.subscribeEvents((event) => events.push(event));
+      await expect(restarted.startTurn(task.id, prompt, options)).rejects.toThrow(/恢复.*历史/);
+      expect(getSessionInfo).toHaveBeenCalledWith(bound?.sessionId, { dir: bound?.cwd });
+      expect(h.query).toHaveBeenCalledOnce();
+      expect(h.tasks.get(task.id)).toEqual(bound);
+      expect(await h.config.history.read(task.id)).toEqual(history);
+      expect(await h.config.history.active(task.id)).toBeUndefined();
+      expect(events).toEqual([]);
+      expect(restarted.isBusy).toBe(false);
+    },
+  );
+
+  it("retries creation with the same bound ID when the first SDK launch failed before initialization", async () => {
+    const h = await harness(() => Promise.resolve(undefined));
+    const task = await h.provider.startTask();
+    h.query.mockImplementationOnce(() => {
+      throw new Error("launch failed");
+    });
+    await expect(h.provider.startTurn(task.id, prompt, options)).rejects.toThrow("launch failed");
+    const sessionId = h.tasks.get(task.id)?.sessionId;
+    expect(sessionId).toBeTruthy();
+    await h.restart().startTurn(task.id, prompt, options);
+    expect(h.query.mock.calls[1]?.[0].options).toMatchObject({ sessionId });
+    expect(h.query.mock.calls[1]?.[0].options).not.toHaveProperty("resume");
+  });
+
+  it.each(["completed", "checkpoint"] as const)(
+    "rejects missing legacy sessions with only %s UI history",
+    async (state) => {
+      const h = await harness(() => Promise.resolve(undefined));
+      const task = await h.provider.startTask();
+      const original = h.tasks.get(task.id);
+      assert(original);
+      h.tasks.set(task.id, { ...original, sessionId: "legacy-session" });
+      const turn: AgentTurn = {
+        id: "legacy-turn",
+        startedAt: new Date().toISOString(),
+        completedAt: null,
+        status: state === "completed" ? "completed" : "running",
+        error: null,
+        items: [],
+      };
+      // 模拟旧版本只有 UI 投影，没有新增初始化标记的存量数据。
+      await h.config.history.saveMetadata(task.id, {
+        contextUsage: null,
+        plan: null,
+        model: null,
+        mcpServers: [],
+      });
+      if (state === "checkpoint") {
+        await h.config.history.checkpoint(task.id, turn);
+      } else await h.config.history.complete(task.id, turn);
+      await expect(h.restart().startTurn(task.id, prompt, options)).rejects.toThrow(/恢复.*历史/);
+      if (state === "checkpoint")
+        expect((await h.config.history.active(task.id))?.id).toBe(turn.id);
+      else
+        expect((await h.config.history.read(task.id)).turns.map((entry) => entry.id)).toEqual([
+          turn.id,
+        ]);
+      expect(h.query).not.toHaveBeenCalled();
+    },
+  );
+
+  it("propagates session lookup errors before writing a new checkpoint or changing task state", async () => {
+    const h = await harness(() => Promise.reject(new Error("session lookup failed")));
+    const task = await h.provider.startTask();
+    const original = h.tasks.get(task.id);
+    assert(original);
+    const bound = { ...original, sessionId: "unreadable-session" };
+    h.tasks.set(task.id, bound);
+    await expect(h.provider.startTurn(task.id, prompt, options)).rejects.toThrow(
+      "session lookup failed",
+    );
+    expect(h.query).not.toHaveBeenCalled();
+    expect(h.tasks.get(task.id)).toEqual(bound);
+    expect(await h.config.history.active(task.id)).toBeUndefined();
+    expect(h.provider.isBusy).toBe(false);
+  });
+});
 
 describe("Claude provider execution boundary", () => {
   it("creates locally and delegates native authentication to the SDK", async () => {

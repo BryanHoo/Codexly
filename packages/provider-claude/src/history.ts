@@ -4,6 +4,8 @@ import { join } from "node:path";
 import type { AgentContextUsage, AgentMcpServer, AgentPlan, AgentTurn } from "@codexly/protocol";
 
 export interface ClaudeTaskMetadata {
+  /** true 表示已观察到原生会话；false 表示首次启动尚未收到 SDK 消息，缺省为旧版未知状态。 */
+  sessionInitialized?: boolean;
   contextUsage: AgentContextUsage | null;
   plan: AgentPlan | null;
   model: string | null;
@@ -15,7 +17,7 @@ export const MAX_TURN_BYTES = 2 * 1024 * 1024;
 const missing = (error: unknown) =>
   error instanceof Error && "code" in error && error.code === "ENOENT";
 
-/** 仅保存 UI 投影，不参与模型恢复；官方 SDK 的 sessionId 仍是唯一执行上下文。 */
+/** 仅保存 UI 投影和启动证据，不承载模型上下文；恢复内容仍由官方 SDK 的 sessionId 决定。 */
 export class ClaudeHistory {
   readonly #writes = new Map<string, Promise<void>>();
   constructor(readonly directory: string) {}
