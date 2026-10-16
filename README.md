@@ -20,6 +20,8 @@ Codexly keeps coding tasks, conversations, project files, and Git work in one pl
   <a href="./LICENSE">License</a>
 </p>
 
+Directories and tasks are managed locally by Codexly, with one disk folder per directory. Existing data is imported on first launch; see [local directories and tasks](docs/local-catalog.md).
+
 ## Get Codexly
 
 | Edition | Best for                                                                                             | Get started                                                                                                                                                         |
@@ -79,7 +81,7 @@ Run `codexly --version` to check the installed version, or `codexly <command> --
 Multiple Web instances can run from the same launch directory and share the same Codex Home; occupied ports are skipped automatically. The launch directory does not determine internal configuration or the temporary task directory. Temporary tasks use the user's home directory by default, or the first explicit `--workspace` root. Use different `--codex-home <directory>` values to isolate data.
 
 On first launch, sign in with ChatGPT or configure an OpenAI-compatible service that supports the Responses API and `GET /models`.
-Custom providers discover available models; basic reasoning levels remain selectable when model metadata omits them.
+Custom providers discover available models and preserve declared capabilities and reasoning levels. The reasoning menu stays hidden when the catalog declares no reasoning support. See [models and reasoning effort](docs/model-discovery.md).
 
 For regular use, install Codexly globally:
 
@@ -110,7 +112,7 @@ Temporary `npx` installations cannot register startup. Run `codexly autostart re
 
 ## Using the Web Edition
 
-Select **New task** for work that does not need a project. For repository work, add one or more host directories as ordered project roots, create a task, and submit your request with any required files, images, project references, or Skills. Archived tasks can be restored or permanently deleted from the project task list.
+Select **New task** for work that does not need a project. For repository work, add one host folder as the project directory, create a task, and submit your request with any required files, images, project references, or Skills. Archived tasks can be restored or permanently deleted from the project task list.
 
 The Changes toolbar shows the branch, push destination, and incoming/outgoing counts, with remote configuration, branch publishing, fetch, fast-forward pull, and independent push actions. The footer edits the commit message; the main button commits and **More Git actions** offers **Commit and push**. Drafts persist on the current device by project, worktree, and branch; AI generation can be undone. A failed push preserves the local commit for retry. **Publish branch** establishes upstream tracking, and history marks unpushed commits.
 
@@ -144,7 +146,7 @@ Quote passwords containing shell-special characters. LAN mode uses unencrypted H
 
 Run `codexly doctor` when startup, Codex, or local data checks fail. Use `codexly --help` for all commands, `codexly start --help` or `codexly doctor --help` for command options, and `codexly --version` for the installed version.
 
-Interactive startup and **Settings > About** check for new releases. Built-in updates probe the official registry and a mirror in parallel, use the first source that responds successfully, and fall back to the other source on failure. Package downloads and dependency installation reuse the selection for that update and your npm cache. New releases may appear later if the selected mirror is still synchronizing. A global installation can also be updated with:
+Interactive startup and **Settings > About** check for new releases. When the sidebar shows an update, click the version to read its release notes and install it. Built-in updates probe the official registry and a mirror in parallel, use the first source that responds successfully, and fall back to the other source on failure. Package downloads and dependency installation reuse the selection for that update and your npm cache. New releases may appear later if the selected mirror is still synchronizing. A global installation can also be updated with:
 
 ```bash
 npm install --global @bryanhu/codexly@latest

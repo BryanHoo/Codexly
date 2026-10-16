@@ -22,6 +22,8 @@
 
 Codexly brings AI coding tasks, conversations, approvals, project files, and Git actions into one desktop workspace for sustained work on real projects without switching between multiple tools.
 
+Codexly manages directories and tasks in its local catalog, with one disk folder per directory. Existing data is imported on first launch, preserving task links and preferences. See [local directories and tasks](../docs/local-catalog.md).
+
 ## Features
 
 - Run project or temporary tasks and follow responses, commands, plans, approvals, and file changes in real time
@@ -46,8 +48,8 @@ Codexly brings AI coding tasks, conversations, approvals, project files, and Git
 - Automatically install and verify an app-private Codex `0.162.0` runtime without requiring a global Codex setup
 - Follow file citations, code review comments, and follow-up suggestions in assistant responses; selecting a suggestion fills the composer for editing
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access for each task, and configure the global model context window
-- Discover models from custom providers online and fall back to a local catalog when unavailable
-- Create projects and directories, manage multiple project roots, temporary tasks, and archived tasks, generate titles for new tasks, and fork new tasks from existing conversations
+- Discover custom-provider models and preserve native capabilities and reasoning levels; hide the reasoning menu when no reasoning support is declared. See [models and reasoning effort](../docs/model-discovery.md)
+- Create projects and directories, manage projects with one disk folder each, temporary tasks, and archived tasks, generate titles for new tasks, and fork new tasks from existing conversations
 - Switch tasks from the sidebar’s **Pinned** and **Running** shortcuts, with unread completions first, followed by pending approvals and running tasks; unread completions remain in the group count until viewed. Collapse previews or open the full list, even with projects collapsed.
 - Identify tasks from different projects through project labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks
 - Search tasks, message history, and project files across projects, then jump to exact history matches
@@ -66,7 +68,7 @@ Supports Windows, Ubuntu, and macOS. See the installation guide for architecture
 
 ## Usage
 
-For repository work, add one or more local directories as project roots, create a task, and submit your request. Create a temporary task when no project context is required. Messages can include files, images, project references, and Skills.
+For repository work, add one local folder as the project directory, create a task, and submit your request. Create a temporary task when no project context is required. Messages can include files, images, project references, and Skills.
 
 Open a task in another pane from its sidebar menu, or right-click a blank area in the chat to split up, down, left, or right, up to four panes. Use `⌘+⌥+Arrow` on macOS or `Ctrl+Alt+Arrow` on Windows / Ubuntu. Focus a pane to switch the project files, Git panels, and terminal to its task.
 
@@ -77,6 +79,8 @@ Drag a divider to resize adjacent panes. Navigation from notifications, search, 
 Open a project text file in the source preview to edit it; switch Markdown to source mode first. Changes save when the editor loses focus, you leave the file, or you switch windows; use `⌘/Ctrl+S` to save manually. UTF-8 files up to 2 MiB are editable, with line endings and BOM preserved; larger or unsupported files stay read-only. Save errors and conflicts keep your draft in the current window and show recovery actions. Closing a panel or exiting the app protects unsaved edits. Drafts are held in memory and are not guaranteed to survive a forced exit or crash.
 
 The workspace provides project files, code changes, Git history, branches, worktrees, reviews, commits, and push actions. The Changes toolbar shows the branch, push destination, and incoming/outgoing counts, with remote configuration, branch publishing, fetch, fast-forward pull, and independent push actions. The footer edits the commit message; the main button commits and **More Git actions** offers **Commit and push**. Drafts persist on the current device by project, worktree, and branch; AI generation can be undone. A failed push preserves the local commit for retry. **Publish branch** establishes upstream tracking; see the [Git workflow guide](../docs/git-workflow.md). Archived tasks can be restored or permanently deleted after confirmation.
+
+When the sidebar shows an update, click the version to read its release notes and install it with download progress. You can also check for updates in **Settings → About**.
 
 ## Documentation
 
