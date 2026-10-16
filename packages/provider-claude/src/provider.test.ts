@@ -444,6 +444,84 @@ it("recovers an interrupted process checkpoint without claiming success or keepi
   expect(h.query).not.toHaveBeenCalled();
 });
 
+it.each([true, false])(
+  "preserves a crashed turn after continuing and restarting (read before continuing: %s)",
+  async (readBeforeContinuing) => {
+    const h = await harness(() =>
+      Promise.resolve({ sessionId: "crashed-session", summary: "hello", lastModified: 1 }),
+    );
+    const task = await h.provider.startTask();
+    const crashed: AgentTurn = {
+      id: "crashed-turn",
+      status: "running",
+      startedAt: "2026-10-16T00:00:00Z",
+      completedAt: null,
+      error: null,
+      items: [{ id: "partial", type: "message", role: "assistant", text: "未完成的回复" }],
+    };
+    await h.config.history.checkpoint(task.id, crashed);
+    const record = h.tasks.get(task.id);
+    assert(record);
+    h.tasks.set(task.id, { ...record, sessionId: "crashed-session", status: "active" });
+    if (readBeforeContinuing) {
+      const snapshot = await h.provider.readTask(task.id);
+      expect(snapshot?.turns).toEqual([
+        { ...crashed, status: "failed", error: "Claude process ended before completing this turn" },
+      ]);
+    }
+
+    const next = await h.provider.startTurn(task.id, prompt, options);
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.close).toHaveBeenCalled();
+    });
+
+    const expected = [
+      { ...crashed, status: "failed", error: "Claude process ended before completing this turn" },
+      expect.objectContaining({ id: next.id, status: "completed" }),
+    ];
+    expect((await h.config.history.read(task.id)).turns).toEqual(expected);
+    expect((await h.provider.readTask(task.id))?.turns).toEqual(expected);
+    expect((await h.restart().readTask(task.id))?.turns).toEqual(expected);
+    expect(await h.config.history.active(task.id)).toBeUndefined();
+  },
+);
+
+it.each(["completed", "failed"] as const)(
+  "does not duplicate or overwrite an archived %s turn when its checkpoint survived cleanup",
+  async (status) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    const archived: AgentTurn = {
+      id: "archived-turn",
+      status,
+      startedAt: "2026-10-16T00:00:00Z",
+      completedAt: "2026-10-16T00:00:01Z",
+      error: status === "failed" ? "original failure" : null,
+      items: [{ id: "answer", type: "message", role: "assistant", text: "已归档的内容" }],
+    };
+    await h.config.history.complete(task.id, archived);
+    // 模拟完成历史已追加、旧检查点尚未清理时进程退出；重试不能再追加同一回合。
+    await h.config.history.checkpoint(task.id, {
+      ...archived,
+      status: "running",
+      completedAt: null,
+      error: null,
+      items: [],
+    });
+
+    const next = await h.provider.startTurn(task.id, prompt, options);
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.close).toHaveBeenCalled();
+    });
+    expect((await h.restart().readTask(task.id))?.turns).toEqual([
+      archived,
+      expect.objectContaining({ id: next.id, status: "completed" }),
+    ]);
+  },
+);
+
 it("rejects oversized Claude images before allocating their base64 or binding a session", async () => {
   const h = await harness();
   await h.config.configure({ baseUrl: "https://api.anthropic.com", apiKey: "private" });

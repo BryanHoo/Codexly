@@ -326,6 +326,8 @@ export class ClaudeAgentProvider {
         throw new Error("Claude background turn capacity exceeded");
       const resumable =
         !existing && (await session.canResume(task, this.sdk, this.config.history, metadata));
+      // 原生恢复校验通过后先幂等归档崩溃检查点，避免新回合覆盖后丢失界面历史。
+      if (!existing) await this.config.history.archiveActive(id);
       // 发送前持久绑定精确 UUID；进程重启或请求重试不能改绑到另一个会话。
       await this.store.catalog("task.patch", {
         id,

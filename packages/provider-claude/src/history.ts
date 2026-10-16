@@ -81,6 +81,34 @@ export class ClaudeHistory {
       }
     });
   }
+
+  /** 新会话写入检查点前归档遗留回合；写队列保证追加与清理之间不会插入新回合。 */
+  archiveActive(task: string): Promise<void> {
+    return this.#write(task, async () => {
+      let turn: AgentTurn;
+      try {
+        turn = JSON.parse(await readFile(`${this.#path(task)}.active`, "utf8")) as AgentTurn;
+      } catch (error) {
+        if (missing(error)) return;
+        throw error;
+      }
+      // 已追加但尚未清理就退出时，旧回合仍在最新页；保留已有终态并避免重试重复追加。
+      // 内部分页不等待当前写队列，避免在归档操作中等待自身；读取量始终有界。
+      const page = await this.#readPage(task);
+      if (!page.turns.some((entry) => entry.id === turn.id)) {
+        const encoded = this.#encode({
+          ...turn,
+          status: "failed",
+          error: "Claude process ended before completing this turn",
+          completedAt: null,
+        });
+        await appendFile(`${this.#path(task)}.jsonl`, `${encoded}\n`, { mode: 0o600 });
+      }
+      // 仅在归档成功后移除旧检查点；写入失败时保留恢复依据并阻止下一回合覆盖。
+      await rm(`${this.#path(task)}.active`, { force: true });
+    });
+  }
+
   complete(task: string, turn: AgentTurn): Promise<void> {
     return this.#write(task, async () => {
       const encoded = this.#encode(turn);
@@ -122,10 +150,17 @@ export class ClaudeHistory {
     task: string,
     cursor?: string,
   ): Promise<{ turns: AgentTurn[]; cursor: string | null }> {
+    await this.#writes.get(task);
+    return this.#readPage(task, cursor);
+  }
+
+  async #readPage(
+    task: string,
+    cursor?: string,
+  ): Promise<{ turns: AgentTurn[]; cursor: string | null }> {
     const offset = cursor === undefined ? undefined : Number(cursor);
     if (offset !== undefined && (!Number.isSafeInteger(offset) || offset < 0))
       throw new Error("Invalid Claude history cursor");
-    await this.#writes.get(task);
     let file;
     try {
       file = await open(`${this.#path(task)}.jsonl`, "r");
