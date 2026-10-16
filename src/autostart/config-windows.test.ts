@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { writePrivateJson } from "./config.js";
 
+// 为 Windows CI 的 PowerShell 冷启动预留时间；文件替换仍遵守生产代码的 3.175 秒重试上限。
+const SHARING_LOCK_TEST_TIMEOUT_MS = 30_000;
+
 async function withSharingLock(
   durationMs: number,
   check: (path: string, root: string) => Promise<void>,
@@ -59,8 +62,7 @@ it.runIf(process.platform === "win32")(
       expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ phase: "stopped" });
       expect(await readdir(root)).toEqual(["runtime.json"]);
     }),
-  // Windows CI 的 PowerShell 冷启动也计入测试耗时，重试上限由生产代码单独保证。
-  15_000,
+  SHARING_LOCK_TEST_TIMEOUT_MS,
 );
 
 it.runIf(process.platform === "win32")(
@@ -73,5 +75,5 @@ it.runIf(process.platform === "win32")(
       expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ phase: "ready" });
       expect(await readdir(root)).toEqual(["runtime.json"]);
     }),
-  15_000,
+  SHARING_LOCK_TEST_TIMEOUT_MS,
 );

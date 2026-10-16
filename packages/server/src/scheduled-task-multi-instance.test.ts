@@ -18,7 +18,9 @@ const input: ScheduledTaskInput = {
   turnOptions,
 };
 
-describe("scheduled tasks shared by Web instances", () => {
+// 用例包含真实子进程、多个 SQLite Worker 启动及磁盘事务；总预算需覆盖多次原生初始化。
+// 单次 Worker 请求和锁等待仍由生产代码各自的 10 秒时限约束。
+describe("scheduled tasks shared by Web instances", { timeout: 30_000 }, () => {
   it("releases short locks and discards run ownership when another process crashes", async () => {
     const root = await createWorkspace();
     const repository = await openRepository(root);
