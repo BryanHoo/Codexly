@@ -1,3 +1,3 @@
-- Codex 源码基线为官方 `rust-v0.162.0`；本地位置读取仓库根目录 Git 忽略的 `.local/project-paths.json` 中的 `codexSource`。
+- Codex 源码基线为官方 `rust-v0.163.0`；本地位置读取仓库根目录 Git 忽略的 `.local/project-paths.json` 中的 `codexSource`。
 - 项目实现必须保证高性能、运行低占用、低传输延迟、低渲染延迟
 - 项目不支持移动端，仅做桌面端

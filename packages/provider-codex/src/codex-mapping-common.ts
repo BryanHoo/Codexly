@@ -95,6 +95,8 @@ export const CODEX_IGNORED_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
   // 线程预测尚无产品入口；主动关闭通知，避免额外传输和解析。
   "thread/prediction/updated",
   "thread/project/updated",
+  // 任务元数据由应用本地目录管理，不订阅原生线程的实验已读回执。
+  "thread/readState/changed",
   "thread/realtime/closed",
   "thread/realtime/error",
   "thread/realtime/itemAdded",

@@ -80,6 +80,11 @@ async fn initialize_should_complete_required_handshake() {
             .expect("ignored notifications should be negotiated");
         assert!(opt_out.iter().any(|method| method == "turn/diff/updated"));
         assert!(
+            opt_out
+                .iter()
+                .any(|method| method == "thread/readState/changed")
+        );
+        assert!(
             !opt_out
                 .iter()
                 .any(|method| method == "thread/status/changed")

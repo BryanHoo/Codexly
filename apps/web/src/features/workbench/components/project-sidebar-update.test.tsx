@@ -19,7 +19,7 @@ vi.mock("../../../shared/components/core/button.js", async (original) => {
 
 const appInfo = {
   appVersion: "1.3.0",
-  codexVersion: "0.162.0",
+  codexVersion: "0.163.0",
   latestVersion: "1.4.0",
   releaseNotes: "### 新增\n\n- 支持更新日志弹窗。",
   status: "available" as const,

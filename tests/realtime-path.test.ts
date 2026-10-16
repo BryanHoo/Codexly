@@ -136,7 +136,7 @@ function createServerOptions(provider: ReturnType<typeof createCodexRuntimeProvi
     readAppInfo: () =>
       Promise.resolve({
         appVersion: "1.3.0",
-        codexVersion: "0.162.0",
+        codexVersion: "0.163.0",
         latestVersion: "1.3.0",
         releaseNotes: null,
         status: "current" as const,

@@ -18,7 +18,7 @@ use super::connection::{AppServerConnection, ConnectionError};
 use super::runtime_manager::{RuntimeDiscoveryError, find_compatible_codex_binary};
 use super::stderr::spawn_codex_stderr_tasks;
 
-pub const SUPPORTED_CODEX_VERSION: &str = "0.162.0";
+pub const SUPPORTED_CODEX_VERSION: &str = "0.163.0";
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 const VERSION_OUTPUT_LIMIT: usize = 4 * 1024;
@@ -35,7 +35,7 @@ pub enum ProcessError {
     VersionProbeTimeout,
     #[error("Codex version output exceeded the limit")]
     VersionOutputTooLarge,
-    #[error("unsupported Codex version; expected 0.162.0")]
+    #[error("unsupported Codex version; expected 0.163.0")]
     UnsupportedVersion,
     #[error(transparent)]
     RuntimeDiscovery(#[from] RuntimeDiscoveryError),
@@ -252,18 +252,9 @@ fn build_app_server_command(program: &OsStr, runtime_path: Option<&OsStr>) -> Co
         // Codex 0.152 会从自身环境复制 PATH，再用它解析 npx 等 stdio MCP 命令。
         command.env("PATH", runtime_path);
     }
-    #[cfg(target_os = "macos")]
-    configure_packaged_shell(&mut command, macos_panel_activation::macos_major_version());
+    // Codex 0.163 已移除补丁版 zsh，所有系统统一使用官方标准 shell 执行路径。
+    // 不再传递退役的 shell_zsh_fork 开关，避免旧 macOS 启动时产生迁移告警。
     command
-}
-
-#[cfg(any(target_os = "macos", test))]
-fn configure_packaged_shell(command: &mut Command, macos_major: isize) {
-    // 官方 0.162.0 内置 zsh 的 Mach-O 最低系统为 15.0；旧系统保留标准 shell 执行路径。
-    // 按宿主能力选择，而非按 Legacy 标志选择，让升级后的系统自动使用原生实现。
-    if macos_major < 15 {
-        command.args(["--disable", "shell_zsh_fork"]);
-    }
 }
 
 fn build_version_probe_command(program: &OsStr, runtime_path: Option<&OsStr>) -> Command {

@@ -10,19 +10,6 @@ use super::{
 use crate::infrastructure::codex::{catalogs, conversation_commands, tasks};
 
 #[test]
-fn packaged_shell_should_only_be_disabled_on_unsupported_macos() {
-    let mut old = tokio::process::Command::new("codex");
-    super::configure_packaged_shell(&mut old, 12);
-    assert_eq!(
-        old.as_std().get_args().collect::<Vec<_>>(),
-        ["--disable", "shell_zsh_fork"]
-    );
-    let mut modern = tokio::process::Command::new("codex");
-    super::configure_packaged_shell(&mut modern, 15);
-    assert_eq!(modern.as_std().get_args().count(), 0);
-}
-
-#[test]
 fn command_should_use_stdio_and_inherit_official_codex_home() {
     let runtime_path = OsStr::new("/shell/node/bin:/usr/bin:/bin");
     let command = build_app_server_command(OsStr::new("codex-test"), Some(runtime_path));
@@ -30,14 +17,6 @@ fn command_should_use_stdio_and_inherit_official_codex_home() {
 
     assert_eq!(command.get_program(), "codex-test");
     let expected = vec!["app-server", "--enable", "plugins", "--listen", "stdio://"];
-    #[cfg(target_os = "macos")]
-    let expected = {
-        let mut expected = expected;
-        if macos_panel_activation::macos_major_version() < 15 {
-            expected.extend(["--disable", "shell_zsh_fork"]);
-        }
-        expected
-    };
     assert_eq!(command.get_args().collect::<Vec<_>>(), expected);
     assert!(command.get_envs().all(|(key, _)| key != "CODEX_HOME"));
     assert_eq!(
@@ -64,7 +43,7 @@ fn windows_background_process_should_inherit_the_apps_hidden_console() {
 #[test]
 fn codex_version_should_require_the_verified_protocol_version() {
     assert_eq!(
-        parse_codex_version("codex-cli 0.162.0\n"),
+        parse_codex_version("codex-cli 0.163.0\n"),
         Some(SUPPORTED_CODEX_VERSION)
     );
     assert_eq!(parse_codex_version("codex-cli 0.152.3\n"), None);
@@ -81,19 +60,20 @@ fn codex_version_should_require_the_verified_protocol_version() {
     assert_eq!(parse_codex_version("codex-cli 0.160.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.160.1\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.161.0\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.163.0\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.162.0-beta.1\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.162.0+build\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.162.0\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.164.0\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.163.0-beta.1\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.163.0+build\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.151.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.152.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.153.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 1.0.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.152.0-beta.1\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.162.0 unexpected\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.163.0 unexpected\n"), None);
 }
 
 #[tokio::test]
-#[ignore = "downloads the private codex-cli 0.162.0 binary"]
+#[ignore = "downloads the private codex-cli 0.163.0 binary"]
 async fn private_codex_should_install_and_complete_real_app_server_lifecycle() {
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

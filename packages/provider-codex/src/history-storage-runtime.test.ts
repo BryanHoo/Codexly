@@ -26,7 +26,7 @@ it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
           timestamp,
           cwd: home,
           originator: "codex_cli_rs",
-          cli_version: "0.162.0",
+          cli_version: "0.163.0",
           source: "cli",
           model_provider: "openai",
         },
@@ -122,7 +122,7 @@ it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
         expect(results.data[0]?.occurrence).toBeDefined();
       };
       expect((await readCodexTranscriptTurnSkills(thread, home)).get("turn-1")).toEqual(["reader"]);
-      // 0.162.0 的本地 store 尚未实现精确命中接口；压缩前后都保留上游错误语义。
+      // 0.163.0 的本地 store 尚未实现精确命中接口；压缩前后都保留上游错误语义。
       const findOccurrences = () =>
         client.request("thread/searchOccurrences", {
           threadId: thread,

@@ -377,7 +377,7 @@ test("opens update notes from the sidebar and installs an available update from 
       contentType: "application/json",
       json: {
         appVersion: "1.3.0",
-        codexVersion: "0.162.0",
+        codexVersion: "0.163.0",
         latestVersion: "1.4.0",
         releaseNotes: "### 新增\n\n- 添加更新日志查看入口。",
         status: "available",
@@ -391,7 +391,7 @@ test("opens update notes from the sidebar and installs an available update from 
       contentType: "application/json",
       json: {
         appVersion: "1.3.0",
-        codexVersion: "0.162.0",
+        codexVersion: "0.163.0",
         latestVersion: "1.4.0",
         releaseNotes: null,
         status: "restart-required",
@@ -420,7 +420,7 @@ test("opens update notes from the sidebar and installs an available update from 
     "page",
   );
   await expect(dialog.getByText("1.3.0", { exact: true })).toBeVisible();
-  await expect(dialog.getByText("0.162.0", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("0.163.0", { exact: true })).toBeVisible();
   const githubLink = dialog.getByRole("link", { name: "BryanHoo/Codexly" });
   await expect(githubLink).toHaveAttribute("href", "https://github.com/BryanHoo/Codexly");
   await expect(githubLink).toHaveAttribute("target", "_blank");

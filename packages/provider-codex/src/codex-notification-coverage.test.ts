@@ -56,6 +56,10 @@ function resolveBundledCodexCli(): string {
 }
 
 describe("Codex notification coverage", () => {
+  it("opts out of native read receipts while local catalog owns task metadata", () => {
+    expect(CODEX_IGNORED_NOTIFICATION_METHODS.has("thread/readState/changed")).toBe(true);
+    expect(CODEX_OPT_OUT_NOTIFICATION_METHODS).toContain("thread/readState/changed");
+  });
   it("opts out of unused thread prediction notifications", () => {
     expect(CODEX_IGNORED_NOTIFICATION_METHODS.has("thread/prediction/updated")).toBe(true);
     expect(CODEX_OPT_OUT_NOTIFICATION_METHODS).toContain("thread/prediction/updated");
