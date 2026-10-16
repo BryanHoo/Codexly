@@ -34,7 +34,7 @@ const options: AgentTurnOptions = {
 };
 const prompt = { text: "hello", files: [], images: [], skills: [], textAttachments: [] };
 
-async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"]) {
+async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeoutMs = 40) {
   const root = await mkdtemp(join(tmpdir(), "codexly-claude-provider-"));
   roots.push(root);
   const tasks = new Map<string, LocalTask>();
@@ -113,7 +113,7 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"]) {
         ...(getSessionInfo ? { getSessionInfo } : {}),
       },
       undefined,
-      40,
+      idleTimeoutMs,
     );
     providers.push(provider);
     cleanup.push(async () => {
@@ -1113,4 +1113,75 @@ it("releases an idle session when the authoritative background set is empty even
   await vi.waitFor(() => {
     expect(h.close).toHaveBeenCalledOnce();
   });
+});
+
+it.each(["form", "url"] as const)(
+  "bridges MCP %s elicitation through pending requests",
+  async (mode) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    const callback = h.query.mock.calls[0]?.[0].options.onElicitation;
+    assert(callback, "SDK onElicitation must be registered");
+    const response = callback(
+      {
+        serverName: "test-mcp",
+        message: "请补充信息",
+        mode,
+        ...(mode === "url"
+          ? { url: "https://example.com/auth" }
+          : {
+              requestedSchema: {
+                type: "object",
+                properties: { count: { type: "integer", minimum: 1 } },
+                required: ["count"],
+              },
+            }),
+      },
+      { signal: new AbortController().signal, requestId: "elicit-1" },
+    );
+    const request = (await h.provider.readTask(task.id))?.pendingRequests[0];
+    assert(request?.type === "mcp_elicitation");
+    expect(request.mode).toBe(mode);
+    await expect(
+      h.provider.resolvePendingRequest({
+        ...request,
+        resolution: { action: "accept", content: { count: 0 } },
+      }),
+    ).rejects.toThrow();
+    const content = mode === "form" ? { count: 2 } : {};
+    await h.provider.resolvePendingRequest({
+      ...request,
+      resolution: { action: "accept", content },
+    });
+    expect(await response).toEqual(
+      mode === "form" ? { action: "accept", content } : { action: "accept" },
+    );
+    expect((await h.provider.readTask(task.id))?.pendingRequests).toEqual([]);
+  },
+);
+
+it("routes elicitation to the current turn of a reused query and cancels it on stop", async () => {
+  const h = await harness(undefined, 30_000);
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(h.provider.isBusy).toBe(false);
+  });
+  const turn = await h.provider.startTurn(task.id, prompt, options);
+  expect(h.query).toHaveBeenCalledTimes(1);
+  const settings = h.query.mock.calls[0]?.[0].options;
+  assert(settings);
+  // 原生配置继续由 SDK 加载，不安装覆盖 Elicitation 的应用 Hook。
+  expect(settings.settingSources).toContain("user");
+  expect(settings.hooks).toBeUndefined();
+  assert(settings.onElicitation);
+  const response = settings.onElicitation(
+    { serverName: "mcp", message: "登录", mode: "url", url: "https://example.com" },
+    { signal: new AbortController().signal, requestId: "late" },
+  );
+  expect((await h.provider.readTask(task.id))?.pendingRequests[0]?.turnId).toBe(turn.id);
+  await h.provider.stopSession(task.id);
+  expect(await response).toEqual({ action: "cancel" });
 });

@@ -8,6 +8,8 @@ import type { PendingRequest } from "@codexly/protocol";
 import { record } from "./turn-projection.js";
 import { ClaudeSessionGrants, canReplaySessionGrants } from "./session-grants.js";
 
+import { ClaudeElicitation } from "./elicitation.js";
+
 type ToolOptions = Parameters<CanUseTool>[2];
 type ActiveRequest = PendingRequest & { status: "pending" };
 interface Entry {
@@ -24,16 +26,21 @@ const asText = (value: unknown, fallback: string) =>
 
 export class ClaudePermissions {
   readonly #entries = new Map<string, Entry>();
+  readonly elicitation: ClaudeElicitation;
   constructor(
     readonly projectId: string,
     readonly taskId: string,
     readonly turnId: string,
     readonly emit: AgentProviderEventListener,
     readonly sessionGrants = new ClaudeSessionGrants(),
-  ) {}
+  ) {
+    this.elicitation = new ClaudeElicitation(projectId, taskId, turnId, emit);
+  }
 
   pending(): ActiveRequest[] {
-    return [...this.#entries.values()].map((entry) => entry.request);
+    return [...this.#entries.values()]
+      .map((entry) => entry.request)
+      .concat(this.elicitation.pending());
   }
 
   request: CanUseTool = (toolName, input, options) => {
@@ -124,6 +131,7 @@ export class ClaudePermissions {
   };
 
   resolve(input: ResolvePendingRequestInput): PendingRequest {
+    if (input.type === "mcp_elicitation") return this.elicitation.resolve(input);
     const entry = this.#entries.get(input.requestId);
     if (!entry)
       throw new PendingRequestResolutionError(
@@ -190,6 +198,7 @@ export class ClaudePermissions {
   }
 
   close(): void {
+    this.elicitation.close();
     for (const entry of this.#entries.values()) entry.cancel();
   }
 }

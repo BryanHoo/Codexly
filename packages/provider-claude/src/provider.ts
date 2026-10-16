@@ -56,7 +56,6 @@ export class ClaudeAgentProvider {
     readonly discover?: () => Promise<AgentEngineProfile>,
     readonly idleTimeoutMs = 30_000,
   ) {}
-
   get isBusy() {
     return (
       this.#starting.size > 0 ||
@@ -66,7 +65,6 @@ export class ClaudeAgentProvider {
       )
     );
   }
-
   async listModels() {
     if (!this.discover) throw new Error("Claude model discovery unavailable");
     return (await this.discover()).models;
@@ -103,7 +101,6 @@ export class ClaudeAgentProvider {
     }
     return this.listMcpServers(id);
   }
-
   listBackgroundTerminals() {
     return Promise.resolve({ data: [], nextCursor: null });
   }
@@ -157,24 +154,20 @@ export class ClaudeAgentProvider {
     this.#recent.delete(id);
     this.#emit({ type: "task.removed", taskId: id, payload: { reason: "deleted" } });
   }
-
   getCapabilities(): Promise<AgentCapabilities> {
     return Promise.resolve(CLAUDE_CAPABILITIES);
   }
-
   subscribeEvents(listener: AgentProviderEventListener): () => void {
     this.#listeners.add(listener);
     return () => {
       this.#listeners.delete(listener);
     };
   }
-
   readonly #emit: AgentProviderEventListener = (event) => {
     if (event.type === "turn.completed" && event.payload.turn.persistence)
       this.#markUnpersisted(event.taskId, event.payload.turn.persistence.error);
     for (const listener of this.#listeners) listener(event);
   };
-
   /** 两端复用运行警告展示；同一轮故障只提示一次，避免读取重试时反复刷屏。 */
   #markUnpersisted(id: string, error: string | null): void {
     if (this.#unpersisted.has(id)) return;
@@ -193,7 +186,6 @@ export class ClaudeAgentProvider {
       },
     });
   }
-
   async #task(id: string): Promise<LocalTask> {
     const task = await this.store.catalog("task.read", { id });
     if (!task || task.projectId !== (this.scope.kind === "temporary" ? null : this.scope.id))
@@ -367,6 +359,14 @@ export class ClaudeAgentProvider {
           includePartialMessages: true,
           persistSession: true,
           abortController: controller,
+          // SDK 先执行原生 Elicitation Hook，仅未处理的请求进入两端共用交互。
+          // 回调没有工具/代理身份，绑定调用时的当前回合，不能捕获首次启动的旧回合。
+          onElicitation: (request, elicitationOptions) => {
+            const active = this.#running.get(id);
+            return (
+              active?.permissions.get(active.projection.id) ?? permissions
+            ).elicitation.request(request, elicitationOptions);
+          },
           canUseTool: (name, input, toolOptions) => {
             const active = this.#running.get(id);
             const owner = [...(active?.projections.values() ?? [])].find((candidate) =>

@@ -60,3 +60,4 @@ export {
   localTaskMetadata,
   type AgentExecutionAdapter,
 } from "./engine-router.js";
+export * from "./mcp-elicitation.js";
