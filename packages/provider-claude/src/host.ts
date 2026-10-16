@@ -1,6 +1,6 @@
 import { Value } from "@sinclair/typebox/value";
 import { AgentTurnOptionsSchema } from "@codexly/protocol";
-import { resolve, join } from "node:path";
+import { resolve } from "node:path";
 import { query, getSessionMessages, getSessionInfo } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentTaskScope, CatalogOperations, LocalCatalogStore } from "@codexly/core";
 import type { AgentProviderTurnInput, ResolvePendingRequestInput } from "@codexly/core";
@@ -16,9 +16,7 @@ if (process.argv.includes("--version")) {
     executable = process.argv[3];
   if (!directory || !executable)
     throw new Error("Claude host requires private data and executable paths");
-  // 这是独立宿主进程的环境，SDK 历史读取与子进程写入使用同一应用私有目录。
-  const runtimeDirectory = join(resolve(directory), "runtime");
-  process.env["CLAUDE_CONFIG_DIR"] = runtimeDirectory;
+  // 保留用户 CLAUDE_CONFIG_DIR；SDK 配置、认证和会话历史与本机 CLI 共用。
   const catalogRequests = new Map<number, ReturnType<typeof Promise.withResolvers<unknown>>>();
   let nextCatalogId = 1;
   const send = (message: unknown) => {
@@ -60,7 +58,6 @@ if (process.argv.includes("--version")) {
         options: {
           ...input.options,
           pathToClaudeCodeExecutable: resolve(executable),
-          env: { ...input.options.env, CLAUDE_CONFIG_DIR: runtimeDirectory },
         },
       }),
   });

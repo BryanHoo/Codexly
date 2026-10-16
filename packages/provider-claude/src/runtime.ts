@@ -7,13 +7,16 @@ import type {
   ClaudeSettings,
   ConfigureCustomProviderRequest,
 } from "@codexly/protocol";
-import { ClaudeConfiguration, claudeEnvironment } from "./config.js";
+import { ClaudeConfiguration } from "./config.js";
 import { ClaudeAgentProvider, CLAUDE_CAPABILITIES, type ClaudeSdk } from "./provider.js";
 
 export class ClaudeRuntime implements AgentEngineService {
   readonly configuration: ClaudeConfiguration;
   readonly #providers = new Map<string, ClaudeAgentProvider>();
-  readonly #catalogs = new Map<string, { expires: number; value: Promise<AgentEngineProfile> }>();
+  readonly #catalogs = new Map<
+    string,
+    { expires: number; revision: string; value: Promise<AgentEngineProfile> }
+  >();
 
   constructor(
     directory: string,
@@ -55,24 +58,15 @@ export class ClaudeRuntime implements AgentEngineService {
   }
 
   async inspect(scope?: AgentTaskScope): Promise<AgentEngineProfile> {
-    const connection = await this.configuration.status();
-    if (connection.state !== "connected")
-      return {
-        engine: "claude",
-        connection,
-        capabilities: CLAUDE_CAPABILITIES,
-        models: { data: [], nextCursor: null },
-        commands: [],
-        settings: await this.readSettings(),
-      };
     const cwd = scope?.rootPath ?? homedir();
+    const revision = await this.configuration.revision(cwd);
     const cached = this.#catalogs.get(cwd);
-    if (cached && cached.expires > Date.now()) return cached.value;
+    if (cached?.revision === revision && cached.expires > Date.now()) return cached.value;
     const value = this.#discover(cwd).catch((error: unknown) => {
       if (this.#catalogs.get(cwd)?.value === value) this.#catalogs.delete(cwd);
       throw error;
     });
-    this.#catalogs.set(cwd, { expires: Date.now() + 60_000, value });
+    this.#catalogs.set(cwd, { expires: Date.now() + 60_000, revision, value });
     while (this.#catalogs.size > 16) {
       const oldest = this.#catalogs.keys().next().value;
       if (oldest !== undefined) this.#catalogs.delete(oldest);
@@ -92,11 +86,10 @@ export class ClaudeRuntime implements AgentEngineService {
       })(),
       options: {
         cwd,
-        env: claudeEnvironment(credentials),
+        env: this.configuration.environment(),
         abortController: controller,
         persistSession: false,
-        settingSources: defaults.loadProjectSettings ? ["project", "local"] : [],
-        settings: { apiKeyHelper: "", forceLoginMethod: "console" },
+        settingSources: defaults.loadProjectSettings ? ["user", "project", "local"] : ["user"],
       },
     });
     const expired = Promise.withResolvers<never>();
@@ -106,36 +99,45 @@ export class ClaudeRuntime implements AgentEngineService {
     }, 20_000);
     timeout.unref();
     try {
-      const [models, commands] = await Promise.race([
-        Promise.all([stream.supportedModels(), stream.supportedCommands()]),
+      const [models, commands, account] = await Promise.race([
+        Promise.all([stream.supportedModels(), stream.supportedCommands(), stream.accountInfo()]),
         expired.promise,
       ]);
-      const data = credentials.models?.length
-        ? credentials.models.map((model, index) => ({
-            id: model.id,
-            displayName: model.name,
-            description: "",
-            isDefault: index === 0,
-            defaultReasoningEffort: "",
-            supportedReasoningEfforts: [],
-          }))
-        : models.map((model, index) => ({
-            id: model.value,
-            displayName: model.displayName,
-            description: model.description,
-            isDefault: index === 0,
-            defaultReasoningEffort: "",
-            supportedReasoningEfforts: (model.supportedEffortLevels ?? []).map((id) => ({
-              id,
-              description: id,
-            })),
-          }));
+      const configured = credentials?.models ?? [];
+      const ids = configured.length
+        ? configured.map((model) => model.id)
+        : models.map((model) => model.value);
+      // 本机自定义模型可能不在 SDK 内建目录；保留它，同时复用 SDK 已声明的能力元数据。
+      if (!configured.length && defaults.model !== "default" && !ids.includes(defaults.model))
+        ids.unshift(defaults.model);
+      const data = ids.map((id, index) => {
+        const model = models.find((candidate) => candidate.value === id);
+        return {
+          id,
+          displayName:
+            model?.displayName ?? configured.find((candidate) => candidate.id === id)?.name ?? id,
+          description: model?.description ?? "",
+          isDefault: defaults.model === "default" ? index === 0 : id === defaults.model,
+          defaultReasoningEffort: "",
+          supportedReasoningEfforts: (model?.supportedEffortLevels ?? []).map((id) => ({
+            id,
+            description: id,
+          })),
+        };
+      });
+      const status = await this.configuration.status();
+      const authenticated =
+        [account.tokenSource, account.apiKeySource, account.email].some(
+          (value) => typeof value === "string" && value.length > 0 && value !== "none",
+        ) ||
+        (account.apiProvider !== undefined && account.apiProvider !== "firstParty");
+      const connection = authenticated ? { ...status, state: "connected" as const } : status;
       return {
         engine: "claude",
         capabilities: CLAUDE_CAPABILITIES,
-        connection: await this.configuration.status(),
+        connection,
         settings: await this.readSettings(),
-        configuredModels: credentials.models ?? [],
+        configuredModels: credentials?.models ?? [],
         models: { data, nextCursor: null },
         commands: commands
           .filter((command) => isSupportedClaudeCommand(command.name))
@@ -160,12 +162,12 @@ export class ClaudeRuntime implements AgentEngineService {
   }
 
   async disconnect() {
-    // 断开只修改 Claude 自身配置，不注销宿主机 CLI 的账号，也不影响 Codex。
+    // 清除用户原生 API 配置；SDK 仍可使用本机登录、环境变量或云认证。
     for (const provider of this.#providers.values()) provider.close();
     this.#providers.clear();
     this.#catalogs.clear();
     await this.configuration.clear();
-    return { status: await this.configuration.status() };
+    return { status: (await this.inspect()).connection };
   }
 
   release(projectId: string): void {

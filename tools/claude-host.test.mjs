@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -35,6 +35,11 @@ test(
         }
         assert.equal(request.headers["x-api-key"], "local-host-test");
         const body = JSON.parse(raw);
+        assert.equal(body.model, "claude-sonnet-4-6");
+        assert.ok(
+          JSON.stringify(body).includes("Always test"),
+          "user CLAUDE.md must apply even with project settings disabled",
+        );
         calls++;
         const useTool = calls === 1;
         const content = useTool
@@ -113,11 +118,37 @@ test(
       archived: false,
       status: "notLoaded",
     });
+    const userDirectory = join(directory, "native-claude");
+    await mkdir(userDirectory);
+    // 只在临时用户目录准备原生配置，验证宿主启动后无需再次手工配置连接。
+    await writeFile(
+      join(userDirectory, "settings.json"),
+      JSON.stringify({
+        model: "claude-sonnet-4-6",
+        availableModels: ["claude-sonnet-4-6"],
+        env: {
+          ANTHROPIC_API_KEY: "local-host-test",
+          ANTHROPIC_BASE_URL: `http://127.0.0.1:${api.address().port}`,
+        },
+      }),
+    );
     const launch = () => {
       const child = spawn(
         join(resources, `claude-host${suffix}`),
         [directory, join(resources, `claude${suffix}`)],
-        { stdio: ["pipe", "pipe", "pipe"] },
+        {
+          stdio: ["pipe", "pipe", "pipe"],
+          env: {
+            ...Object.fromEntries(
+              Object.entries(process.env).filter(
+                ([key]) => !/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$)/u.test(key),
+              ),
+            ),
+            HOME: directory,
+            USERPROFILE: directory,
+            CLAUDE_CONFIG_DIR: userDirectory,
+          },
+        },
       );
       const responses = new Map(),
         events = [];
@@ -190,21 +221,19 @@ test(
     try {
       const settings = await host.request("settings.read");
       assert.equal(settings.permissionMode, "default");
+      assert.equal(settings.model, "claude-sonnet-4-6");
       await host.request("settings.write", {
         ...settings,
         instructions: "Always test",
         loadProjectSettings: false,
       });
-      await host.request("configure", {
-        apiKey: "local-host-test",
-        baseUrl: `http://127.0.0.1:${api.address().port}`,
-        models: [{ id: "claude-sonnet-4-6", name: "Test" }],
-      });
       const profile = await host.request("profile");
       assert.equal(JSON.stringify(profile).includes("local-host-test"), false);
-      assert.deepEqual(profile.configuredModels, [{ id: "claude-sonnet-4-6", name: "Test" }]);
+      assert.deepEqual(profile.configuredModels, [
+        { id: "claude-sonnet-4-6", name: "claude-sonnet-4-6" },
+      ]);
       const options = {
-        model: "claude-sonnet-4-6",
+        model: "default",
         reasoningEffort: "",
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
@@ -233,6 +262,10 @@ test(
       await host.close();
       host = launch();
       assert.equal((await host.request("settings.read")).instructions, "Always test");
+      const native = JSON.parse(await readFile(join(userDirectory, "settings.json"), "utf8"));
+      native.effortLevel = "high";
+      await writeFile(join(userDirectory, "settings.json"), JSON.stringify(native));
+      assert.equal((await host.request("settings.read")).reasoningEffort, "high");
       assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 1);
       await host.request(
         "turn.start",

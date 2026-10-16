@@ -28,7 +28,7 @@ import type {
   AgentTurn,
   AgentTurnOptions,
 } from "@codexly/protocol";
-import { type ClaudeConfiguration, claudeEnvironment } from "./config.js";
+import type { ClaudeConfiguration } from "./config.js";
 import { ClaudePermissions } from "./permissions.js";
 import { ClaudeTurnProjection, record } from "./turn-projection.js";
 
@@ -240,8 +240,7 @@ export class ClaudeAgentProvider {
       throw new Error("Claude concurrent turn capacity exceeded");
     this.#starting.add(id);
     try {
-      const task = await this.#task(id),
-        credentials = await this.config.credentials();
+      const task = await this.#task(id);
       const defaults = await this.config.readSettings();
       if (task.archived) throw new Error("Cannot run an archived task");
       if (isManagedClaudeCommand(input.text))
@@ -309,22 +308,23 @@ export class ClaudeAgentProvider {
         })(),
         options: {
           cwd: task.cwd,
-          env: claudeEnvironment(credentials),
-          model: options.model,
+          env: this.config.environment(),
+          // default 保留 SDK 对本机及项目模型配置的解析，不传 CLI 的 --model 覆盖。
+          ...(options.model && options.model !== "default" ? { model: options.model } : {}),
           permissionMode,
           allowDangerouslySkipPermissions: permissionMode === "bypassPermissions",
           includePartialMessages: true,
           persistSession: true,
           abortController: controller,
           canUseTool: permissions.request,
-          settingSources: defaults.loadProjectSettings ? ["project", "local"] : [],
+          settingSources: defaults.loadProjectSettings ? ["user", "project", "local"] : ["user"],
           allowedTools: defaults.allowedTools,
           disallowedTools: defaults.disallowedTools,
           ...(["low", "medium", "high", "xhigh", "max"].includes(options.reasoningEffort)
             ? { effort: options.reasoningEffort as "low" | "medium" | "high" | "xhigh" | "max" }
             : {}),
-          settings: { apiKeyHelper: "", forceLoginMethod: "console" },
-          systemPrompt: { type: "preset", preset: "claude_code", append: defaults.instructions },
+          // 全局指令由 SDK 从用户 CLAUDE.md 加载，避免再 append 一次造成重复。
+          systemPrompt: { type: "preset", preset: "claude_code" },
           ...(resumable ? { resume: sessionId } : { sessionId }),
         },
       });

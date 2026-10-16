@@ -50,7 +50,7 @@ async function harness() {
       throw new Error(`Unexpected catalog operation ${operation}`);
     },
   } as LocalCatalogStore;
-  const config = new ClaudeConfiguration(root);
+  const config = new ClaudeConfiguration(root, join(root, "user"));
   const received: unknown[] = [];
   let next: ((value: IteratorResult<SDKMessage>) => void) | undefined;
   let closed = false;
@@ -103,13 +103,19 @@ async function harness() {
 }
 
 describe("Claude provider execution boundary", () => {
-  it("creates locally without credentials and refuses execution without an explicit key", async () => {
+  it("creates locally and delegates native authentication to the SDK", async () => {
     const h = await harness();
     const task = await h.provider.startTask();
     expect(task.engine).toBe("claude");
     expect(h.tasks.get(task.id)?.sessionId).toBeNull();
-    await expect(h.provider.startTurn(task.id, prompt, options)).rejects.toThrow(/API key/i);
-    expect(h.query).not.toHaveBeenCalled();
+    await h.provider.startTurn(task.id, prompt, options);
+    expect(h.query).toHaveBeenCalledOnce();
+    expect(h.received[0]).toMatchObject({ settingSources: ["user", "project", "local"] });
+    expect(h.received[0]).not.toHaveProperty("settings");
+    h.send({ type: "result", subtype: "success", result: "done", is_error: false });
+    await vi.waitFor(() => {
+      expect(h.close).toHaveBeenCalled();
+    });
   });
 
   it("binds the engine session before sending, rejects concurrent turns and emits a completed result", async () => {
@@ -123,7 +129,7 @@ describe("Claude provider execution boundary", () => {
     expect(h.received[0]).toMatchObject({
       cwd: h.tasks.get(task.id)?.cwd,
       permissionMode: "default",
-      env: { ANTHROPIC_API_KEY: "private" },
+      settingSources: ["user", "project", "local"],
       includePartialMessages: true,
     });
     await expect(h.provider.startTurn(task.id, prompt, options)).rejects.toThrow(/running/i);

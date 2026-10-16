@@ -42,6 +42,7 @@ export function ClaudeSettingsPanel({
 }>) {
   const id = useId();
   const lock = useRef(false);
+  const dirty = useRef({ connection: false, defaults: false });
   const [allowedTools, setAllowedTools] = useState("");
   const [disallowedTools, setDisallowedTools] = useState("");
   const [profile, setProfile] = useState<AgentEngineProfile>();
@@ -54,39 +55,63 @@ export function ClaudeSettingsPanel({
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let active = true;
-    void Promise.allSettled([client.getEngineProfile("claude"), client.getClaudeSettings()]).then(
-      ([profile, settings]) => {
-        if (!active) return;
-        if (profile.status === "fulfilled") {
-          setProfile(profile.value);
-          setCustomModel(
-            (profile.value.configuredModels ?? []).map((model) => model.id).join("\n"),
-          );
-          setBaseUrl(profile.value.connection.customBaseUrl ?? "https://api.anthropic.com");
-        } else
-          setError(profile.reason instanceof Error ? profile.reason.message : "Engine unavailable");
-        if (settings.status === "fulfilled") {
-          setSettings(settings.value);
-          setAllowedTools(settings.value.allowedTools.join("\n"));
-          setDisallowedTools(settings.value.disallowedTools.join("\n"));
-          setLoaded(true);
-        } else
-          setError(
-            settings.reason instanceof Error ? settings.reason.message : "Settings unavailable",
-          );
-      },
-    );
+    let loading = false;
+    const refresh = () => {
+      if (!active || loading || lock.current || dirty.current.connection || dirty.current.defaults)
+        return;
+      loading = true;
+      void Promise.allSettled([client.getEngineProfile("claude"), client.getClaudeSettings()])
+        .then(([profile, settings]) => {
+          if (!active || lock.current || dirty.current.connection || dirty.current.defaults) return;
+          setError(undefined);
+          if (profile.status === "fulfilled") {
+            setProfile(profile.value);
+            setCustomModel(
+              (profile.value.configuredModels ?? []).map((model) => model.id).join("\n"),
+            );
+            setBaseUrl(profile.value.connection.customBaseUrl ?? "https://api.anthropic.com");
+          } else
+            setError(
+              profile.reason instanceof Error ? profile.reason.message : "Engine unavailable",
+            );
+          if (settings.status === "fulfilled") {
+            setSettings(settings.value);
+            setAllowedTools(settings.value.allowedTools.join("\n"));
+            setDisallowedTools(settings.value.disallowedTools.join("\n"));
+            setLoaded(true);
+          } else
+            setError(
+              settings.reason instanceof Error ? settings.reason.message : "Settings unavailable",
+            );
+        })
+        .finally(() => {
+          loading = false;
+        });
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    // 回到设置页时按需读取本机变更，不轮询；表单有未保存内容时保留用户输入。
+    refresh();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [client]);
-  const perform = async (operation: () => Promise<void>) => {
+  const perform = async (
+    operation: () => Promise<void>,
+    form: "connection" | "defaults" = "connection",
+  ) => {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
     setError(undefined);
     try {
       await operation();
+      dirty.current[form] = false;
       window.dispatchEvent(new Event("codexly:engine-settings-changed"));
     } catch (error) {
       setError(error instanceof Error ? error.message : "Settings update failed");
@@ -107,6 +132,9 @@ export function ClaudeSettingsPanel({
     <section id="settings-panel-claude" className="space-y-6">
       <h1 className="mb-6 text-xl font-semibold">Claude Agent</h1>
       <form
+        onChangeCapture={() => {
+          dirty.current.connection = true;
+        }}
         onSubmit={(event) => {
           event.preventDefault();
           void perform(async () => {
@@ -152,7 +180,6 @@ export function ClaudeSettingsPanel({
                 setApiKey(event.target.value);
               }}
               placeholder={profile?.connection.state === "connected" ? labels.keepKey : ""}
-              required={profile?.connection.state !== "connected"}
               disabled={busy}
             />
           </Field>
@@ -169,7 +196,7 @@ export function ClaudeSettingsPanel({
             />
           </Field>
           <div className="flex justify-end gap-2 py-3">
-            {profile?.connection.state === "connected" ? (
+            {profile?.connection.mode === "custom" ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -193,6 +220,9 @@ export function ClaudeSettingsPanel({
       </form>
       <form
         className="space-y-6"
+        onChangeCapture={() => {
+          dirty.current.defaults = true;
+        }}
         onSubmit={(event) => {
           event.preventDefault();
           void perform(async () => {
@@ -203,7 +233,7 @@ export function ClaudeSettingsPanel({
                 disallowedTools: tools(disallowedTools),
               }),
             );
-          });
+          }, "defaults");
         }}
       >
         <Group title={labels.defaults}>
@@ -258,6 +288,7 @@ export function ClaudeSettingsPanel({
                 bypassPermissions: labels.permissionBypass,
               }}
               onChange={(permissionMode) => {
+                dirty.current.defaults = true;
                 setSettings({ ...settings, permissionMode });
               }}
             />
@@ -280,6 +311,7 @@ export function ClaudeSettingsPanel({
               aria-label={labels.projectSettings}
               checked={settings.loadProjectSettings}
               onCheckedChange={(value) => {
+                dirty.current.defaults = true;
                 setSettings({ ...settings, loadProjectSettings: value === true });
               }}
               disabled={busy || !loaded}
