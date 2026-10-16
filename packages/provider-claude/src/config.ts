@@ -1,4 +1,5 @@
 import { ClaudeHistory } from "./history.js";
+import { ClaudePersistence } from "./persistence.js";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -83,6 +84,7 @@ export class ClaudeConfiguration {
   readonly #directory: string;
   readonly userDirectory: string;
   readonly history: ClaudeHistory;
+  readonly persistence: ClaudePersistence;
   #write: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -93,6 +95,7 @@ export class ClaudeConfiguration {
     this.userDirectory = resolve(userDirectory);
     // 只有应用历史投影与项目加载偏好留在私有目录；原生配置始终以用户文件为准。
     this.history = new ClaudeHistory(join(directory, "transcripts"));
+    this.persistence = new ClaudePersistence(this.history);
   }
 
   #native() {

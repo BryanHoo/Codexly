@@ -1,10 +1,16 @@
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import * as fs from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { AgentTurn } from "@codexly/protocol";
 import { ClaudeHistory } from "./history.js";
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof fs>();
+  return { ...actual, appendFile: vi.fn(actual.appendFile) };
+});
 
 it("paginates newest turns backwards without losing order or duplicating checkpoints", async () => {
   const root = await mkdtemp(join(tmpdir(), "claude-history-"));
@@ -131,6 +137,67 @@ it("preserves the checkpoint when archival fails and allows recovery after stora
       { ...turn, status: "failed", error: "Claude process ended before completing this turn" },
     ]);
     expect(await history.active("task")).toBeUndefined();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("does not append a completed turn twice when checkpoint cleanup fails", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-history-cleanup-"));
+  try {
+    const history = new ClaudeHistory(root);
+    const turn: AgentTurn = {
+      id: "done",
+      status: "completed",
+      startedAt: null,
+      completedAt: null,
+      error: null,
+      items: [],
+    };
+    // 模拟追加成功但检查点无法删除；恢复重试必须幂等。
+    const active = join(root, `${createHash("sha256").update("task").digest("hex")}.active`);
+    await mkdir(active);
+    await expect(history.complete("task", turn)).rejects.toThrow();
+    await rm(active, { recursive: true });
+    await new ClaudeHistory(root).complete("task", turn);
+    expect((await history.read("task")).turns).toEqual([turn]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("rolls back a partially appended record after disk exhaustion so the terminal result can be retried", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-history-partial-"));
+  const append = (await vi.importActual<typeof fs>("node:fs/promises")).appendFile;
+  try {
+    const history = new ClaudeHistory(root);
+    const turn: AgentTurn = {
+      id: "done",
+      status: "completed",
+      startedAt: null,
+      completedAt: null,
+      error: null,
+      items: [],
+    };
+    await history.complete("task", { ...turn, id: "previous" });
+    const failure = vi
+      .spyOn(fs, "appendFile")
+      .mockImplementationOnce(async (path, data, options) => {
+        // ENOSPC 可以发生在部分字节已写入之后，不能留下破坏分页的半行 JSON。
+        if (typeof data !== "string") throw new Error("Expected an encoded history record");
+        await append(path, data.slice(0, 12), options);
+        throw Object.assign(new Error("disk full"), { code: "ENOSPC" });
+      });
+    try {
+      await expect(history.complete("task", turn)).rejects.toThrow("disk full");
+    } finally {
+      failure.mockRestore();
+    }
+    await history.complete("task", turn);
+    expect((await new ClaudeHistory(root).read("task")).turns.map((entry) => entry.id)).toEqual([
+      "previous",
+      "done",
+    ]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

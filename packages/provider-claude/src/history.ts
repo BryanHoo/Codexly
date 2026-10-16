@@ -12,6 +12,11 @@ export interface ClaudeTaskMetadata {
   mcpServers: AgentMcpServer[];
 }
 
+export interface ClaudeRecovery {
+  entries: { turn: AgentTurn; mode: "complete" | "update" }[];
+  metadata: ClaudeTaskMetadata;
+}
+
 const PAGE_BYTES = 4 * 1024 * 1024;
 export const MAX_TURN_BYTES = 2 * 1024 * 1024;
 const missing = (error: unknown) =>
@@ -41,6 +46,22 @@ export class ClaudeHistory {
     if (Buffer.byteLength(encoded) > MAX_TURN_BYTES)
       throw new Error("Claude turn history exceeds the storage budget");
     return encoded;
+  }
+  async #append(task: string, encoded: string): Promise<void> {
+    const path = `${this.#path(task)}.jsonl`;
+    const file = await open(path, "a", 0o600);
+    try {
+      const size = (await file.stat()).size;
+      try {
+        await appendFile(path, `${encoded}\n`, { mode: 0o600 });
+      } catch (error) {
+        // 磁盘满可能已写入半行；回滚本次追加，保留此前历史并允许恢复事务重试。
+        await file.truncate(size);
+        throw error;
+      }
+    } finally {
+      await file.close();
+    }
   }
   saveMetadata(task: string, metadata: ClaudeTaskMetadata): Promise<void> {
     return this.#write(task, async () => {
@@ -102,7 +123,7 @@ export class ClaudeHistory {
           error: "Claude process ended before completing this turn",
           completedAt: null,
         });
-        await appendFile(`${this.#path(task)}.jsonl`, `${encoded}\n`, { mode: 0o600 });
+        await this.#append(task, encoded);
       }
       // 仅在归档成功后移除旧检查点；写入失败时保留恢复依据并阻止下一回合覆盖。
       await rm(`${this.#path(task)}.active`, { force: true });
@@ -113,9 +134,41 @@ export class ClaudeHistory {
     return this.#write(task, async () => {
       const encoded = this.#encode(turn);
       await mkdir(this.directory, { recursive: true, mode: 0o700 });
-      await appendFile(`${this.#path(task)}.jsonl`, `${encoded}\n`, { mode: 0o600 });
+      // 恢复记录可能在追加成功、元数据或清理失败后重放；最新页去重保证重试幂等。
+      const page = await this.#readPage(task);
+      if (!page.turns.some((entry) => entry.id === turn.id)) await this.#append(task, encoded);
       await rm(`${this.#path(task)}.active`, { force: true });
     });
+  }
+  /** 先原子保存终态与元数据，再提交分页历史；两者未全部成功前保留恢复记录。 */
+  saveRecovery(task: string, recovery: ClaudeRecovery): Promise<void> {
+    return this.#write(task, async () => {
+      // 每条投影沿用回合预算，恢复队列最多包含会话允许的 64 个投影。
+      if (recovery.entries.length > 64) throw new Error("Claude recovery capacity exceeded");
+      for (const entry of recovery.entries) this.#encode(entry.turn);
+      if (Buffer.byteLength(JSON.stringify(recovery.metadata)) > 256 * 1024)
+        throw new Error("Claude metadata budget exceeded");
+      await mkdir(this.directory, { recursive: true, mode: 0o700 });
+      const temporary = `${this.#path(task)}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(temporary, JSON.stringify(recovery), { mode: 0o600 });
+        await rename(temporary, `${this.#path(task)}.recovery`);
+      } finally {
+        await rm(temporary, { force: true });
+      }
+    });
+  }
+  async recovery(task: string): Promise<ClaudeRecovery | undefined> {
+    await this.#writes.get(task);
+    try {
+      return JSON.parse(await readFile(`${this.#path(task)}.recovery`, "utf8")) as ClaudeRecovery;
+    } catch (error) {
+      if (missing(error)) return undefined;
+      throw error;
+    }
+  }
+  clearRecovery(task: string): Promise<void> {
+    return this.#write(task, () => rm(`${this.#path(task)}.recovery`, { force: true }));
   }
   #updatePath(task: string, turnId: string) {
     return `${this.#path(task)}.${createHash("sha256").update(turnId).digest("hex")}.turn`;

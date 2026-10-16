@@ -26,6 +26,7 @@ import type { ClaudeConfiguration } from "./config.js";
 import { ClaudePermissions } from "./permissions.js";
 import { ClaudeSessionGrants } from "./session-grants.js";
 import * as session from "./session.js";
+import { readClaudeTaskSnapshot } from "./task-snapshot.js";
 import { createClaudePrompt } from "./turn-input.js";
 import { ClaudeTurnProjection } from "./turn-projection.js";
 
@@ -45,6 +46,7 @@ export class ClaudeAgentProvider {
   readonly #running = new Map<string, session.Running>();
   readonly #starting = new Set<string>();
   readonly #recent = new Map<string, AgentTurn>();
+  readonly #unpersisted = new Set<string>();
   readonly #sessionGrants = new Map<string, ClaudeSessionGrants>();
   constructor(
     readonly scope: AgentTaskScope,
@@ -58,6 +60,7 @@ export class ClaudeAgentProvider {
   get isBusy() {
     return (
       this.#starting.size > 0 ||
+      this.#unpersisted.size > 0 ||
       [...this.#running.values()].some(
         (running) => running.settling === true || session.hasWork(running),
       )
@@ -165,8 +168,29 @@ export class ClaudeAgentProvider {
   }
 
   readonly #emit: AgentProviderEventListener = (event) => {
+    if (event.type === "turn.completed" && event.payload.turn.persistence)
+      this.#markUnpersisted(event.taskId, event.payload.turn.persistence.error);
     for (const listener of this.#listeners) listener(event);
   };
+
+  /** 两端复用运行警告展示；同一轮故障只提示一次，避免读取重试时反复刷屏。 */
+  #markUnpersisted(id: string, error: string | null): void {
+    if (this.#unpersisted.has(id)) return;
+    this.#unpersisted.add(id);
+    this.#emit({
+      type: "task.notice",
+      taskId: id,
+      payload: {
+        code: "runtime_warning",
+        level: "warning",
+        message:
+          `Claude 历史持久化失败，执行结果已保留；修复存储后读取或再次发送将重试。${error ?? ""}`.slice(
+            0,
+            8192,
+          ),
+      },
+    });
+  }
 
   async #task(id: string): Promise<LocalTask> {
     const task = await this.store.catalog("task.read", { id });
@@ -205,58 +229,20 @@ export class ClaudeAgentProvider {
     input: ReadAgentTaskInput = {},
   ): Promise<AgentProviderTaskSnapshot | undefined> {
     const task = await this.#task(id);
-    const current = this.#running.get(id),
-      last = current?.projection.snapshot() ?? this.#recent.get(id);
-    const page = await this.config.history.read(id, input.cursor);
-    const turns = page.turns;
-    const nextCursor = page.cursor;
-    if (current && input.cursor === undefined) {
-      for (const projection of current.projections.values()) {
-        const turn = projection.snapshot();
-        const index = turns.findIndex((entry) => entry.id === turn.id);
-        if (index >= 0) turns[index] = turn;
-        else turns.push(turn);
-      }
-    }
-    const metadata = current?.projection.metadata() ?? (await this.config.history.metadata(id));
-    if (!current && input.cursor === undefined) {
-      const recovered = await this.config.history.active(id);
-      if (recovered && !turns.some((turn) => turn.id === recovered.id))
-        turns.push({
-          ...recovered,
-          status: "failed",
-          error: "Claude process ended before completing this turn",
-          completedAt: null,
-        });
-    }
-    if (!current && !this.#starting.has(id) && task.status === "active") {
-      // 宿主异常退出后解除过期运行标记，保留检查点并允许重试或删除该任务。
-      task.status = turns.at(-1)?.status === "completed" ? "idle" : "failed";
-      await this.store.catalog("task.patch", { id, status: task.status });
-    }
-    if (last && input.cursor === undefined) {
-      const index = turns.findIndex((turn) => turn.id === last.id);
-      if (index >= 0) turns[index] = last;
-      else turns.push(last);
-    }
-    return {
-      ...claudeTask(task),
-      contextUsage: metadata?.contextUsage ?? null,
-      goal: null,
-      plan: metadata?.plan ?? null,
-      pendingRequests: current
-        ? [...current.permissions.values()].flatMap((permissions) => permissions.pending())
-        : [],
-      status:
-        current?.projection.status === "running"
-          ? "running"
-          : last?.status === "failed" || task.status === "failed"
-            ? "failed"
-            : "idle",
-      threadConfiguration: { model: metadata?.model ?? null, reasoningEffort: null },
-      turns,
-      turnsNextCursor: nextCursor,
-    };
+    // 显式读取也是恢复入口；即使旧查询已经退出，也不能让最近回合缓存掩盖写盘故障。
+    const recovery = await this.config.persistence.retry(id);
+    if (recovery?.pending) this.#markUnpersisted(id, recovery.turns[0]?.persistence?.error ?? null);
+    else this.#unpersisted.delete(id);
+    return readClaudeTaskSnapshot({
+      task,
+      input,
+      config: this.config,
+      store: this.store,
+      current: this.#running.get(id),
+      recent: this.#recent,
+      starting: this.#starting.has(id),
+      recovery,
+    });
   }
 
   async startTurn(
@@ -264,6 +250,9 @@ export class ClaudeAgentProvider {
     input: AgentProviderTurnInput,
     options: AgentTurnOptions,
   ): Promise<AgentTurn> {
+    // 失败终态不能像最近回合缓存一样淘汰；存储持续不可用时对新增会话施加有界背压。
+    if (this.config.persistence.pendingCount >= 8 && !this.config.persistence.hasPending(id))
+      throw new Error("Claude 历史持久化待恢复任务已达上限，请修复存储后重试");
     if (
       this.#starting.has(id) ||
       this.#running.get(id)?.settling ||
@@ -288,6 +277,9 @@ export class ClaudeAgentProvider {
     if (current) current.idleTimer = undefined;
     try {
       const task = await this.#task(id);
+      const recovery = await this.config.persistence.retry(id);
+      if (recovery?.pending) throw new Error("Claude 历史持久化尚未完成，请修复存储后重试");
+      this.#unpersisted.delete(id);
       const defaults = await this.config.readSettings();
       if (task.archived) throw new Error("Cannot run an archived task");
       if (isManagedClaudeCommand(input.text))
@@ -429,6 +421,9 @@ export class ClaudeAgentProvider {
       });
       inputStream.send(prompt);
       running.done = session.consume(id, running, this.config, this.store, this.#emit, (turn) => {
+        if (this.config.persistence.hasPending(id))
+          this.#markUnpersisted(id, turn.persistence?.error ?? null);
+        else this.#unpersisted.delete(id);
         this.#recent.delete(id);
         this.#recent.set(id, turn);
         // 缓存仅跨越终态与历史读取的窗口，不持有已结束查询或完整 SDK 历史。

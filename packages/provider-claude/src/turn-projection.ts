@@ -15,10 +15,8 @@ import {
 import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
 import type { ClaudeTaskMetadata } from "./history.js";
-
 import { record, text, resultText } from "./sdk-values.js";
 export { record } from "./sdk-values.js";
-
 /** 只持有当前回合的渲染投影；历史与恢复上下文仍由官方 SDK 的会话文件管理。 */
 export class ClaudeTurnProjection {
   readonly #taskId: string;
@@ -38,6 +36,7 @@ export class ClaudeTurnProjection {
   plan: AgentPlan | null = null;
   mcpServers: ClaudeTaskMetadata["mcpServers"] = [];
   sessionInitialized = false;
+  persistence: AgentTurn["persistence"];
   #requestUsage: Record<string, unknown> = {};
   #messageId = "";
   #status: AgentTurn["status"] = "running";
@@ -104,6 +103,7 @@ export class ClaudeTurnProjection {
       completedAt: this.#completedAt,
       status: this.#status,
       error: this.#error,
+      ...(this.persistence ? { persistence: this.persistence } : {}),
       items: this.#items.snapshot(),
     };
   }

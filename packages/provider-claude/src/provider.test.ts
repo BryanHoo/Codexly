@@ -12,6 +12,7 @@ import type {
 } from "@codexly/core";
 import type { AgentTurn, AgentTurnOptions } from "@codexly/protocol";
 import { ClaudeConfiguration } from "./config.js";
+import { ClaudeHistory } from "./history.js";
 import { ClaudeAgentProvider, type ClaudeSdk } from "./provider.js";
 
 const roots: string[] = [];
@@ -100,11 +101,11 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"]) {
       resolve({ value: message, done: false });
     } else messages.push(message);
   };
-  const createProvider = () => {
+  const createProvider = (configuration = config) => {
     const provider = new ClaudeAgentProvider(
       { id: "p", kind: "project", rootPath: root, runtimeWorkspaceRoots: [root] },
       store,
-      config,
+      configuration,
       {
         query,
         getSessionMessages: () => Promise.resolve([]),
@@ -139,6 +140,147 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"]) {
 }
 
 describe("Claude session recovery", () => {
+  it("preserves a success result delivered as the first SDK message when metadata storage fails", async () => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const turn = await h.provider.startTurn(task.id, prompt, options);
+    const failure = vi
+      .spyOn(h.config.history, "saveMetadata")
+      .mockRejectedValue(new Error("disk full"));
+    try {
+      h.send({ type: "result", subtype: "success", result: "真实成功结果" });
+      await vi.waitFor(() => {
+        expect(events.find((event) => event.type === "turn.completed")?.payload).toMatchObject({
+          turn: {
+            id: turn.id,
+            status: "completed",
+            error: null,
+            persistence: { status: "failed" },
+          },
+        });
+      });
+      await h.provider.stopSession(task.id);
+    } finally {
+      failure.mockRestore();
+    }
+  });
+
+  it.each(["completed", "failed", "interrupted"] as const)(
+    "retains the real %s result in memory when even the recovery journal cannot be written",
+    async (status) => {
+      const h = await harness();
+      const task = await h.provider.startTask();
+      const events: AgentProviderEvent[] = [];
+      h.provider.subscribeEvents((event) => events.push(event));
+      const turn = await h.provider.startTurn(task.id, prompt, options);
+      h.send({ type: "system", subtype: "init", model: "test-model", mcp_servers: [] });
+      await vi.waitFor(async () => {
+        expect((await h.config.history.metadata(task.id))?.sessionInitialized).toBe(true);
+      });
+      const failure = vi
+        .spyOn(h.config.history, "saveRecovery")
+        .mockRejectedValue(new Error("disk full"));
+      try {
+        if (status === "interrupted") await h.provider.interruptTurn(task.id, turn.id);
+        else
+          h.send(
+            status === "completed"
+              ? { type: "result", subtype: "success", result: "真实成功结果" }
+              : {
+                  type: "result",
+                  subtype: "error_during_execution",
+                  errors: ["模型执行失败"],
+                  is_error: true,
+                },
+          );
+        await vi.waitFor(() => {
+          expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+        });
+        await h.provider.stopSession(task.id);
+        const snapshot = await h.provider.readTask(task.id);
+        expect(snapshot?.turns.at(-1)).toMatchObject({
+          id: turn.id,
+          status,
+          persistence: { status: "failed", error: "disk full" },
+        });
+        expect(snapshot?.turns.at(-1)?.error).not.toBe("disk full");
+        expect(h.provider.isBusy).toBe(true);
+        expect(h.tasks.get(task.id)?.status).toBe("active");
+        await expect(h.provider.startTurn(task.id, prompt, options)).rejects.toThrow(/持久化/);
+        failure.mockRestore();
+        expect((await h.provider.readTask(task.id))?.turns.at(-1)).not.toHaveProperty(
+          "persistence",
+        );
+        expect(h.provider.isBusy).toBe(false);
+        expect((await h.restart().readTask(task.id))?.turns.at(-1)?.status).toBe(status);
+      } finally {
+        failure.mockRestore();
+      }
+    },
+  );
+
+  it.each(["complete", "saveMetadata"] as const)(
+    "preserves execution success and retries a failed %s after a fresh provider restart",
+    async (operation) => {
+      const h = await harness();
+      const task = await h.provider.startTask();
+      const events: AgentProviderEvent[] = [];
+      h.provider.subscribeEvents((event) => events.push(event));
+      const turn = await h.provider.startTurn(task.id, prompt, options);
+      h.send({ type: "system", subtype: "init", model: "test-model", mcp_servers: [] });
+      await vi.waitFor(async () => {
+        expect((await h.config.history.metadata(task.id))?.sessionInitialized).toBe(true);
+      });
+      const failure = vi
+        .spyOn(ClaudeHistory.prototype, operation)
+        .mockRejectedValue(new Error("disk full"));
+      try {
+        h.send({ type: "result", subtype: "success", result: "真实成功结果" });
+        await vi.waitFor(() => {
+          expect(events.find((event) => event.type === "turn.completed")?.payload).toMatchObject({
+            turn: {
+              id: turn.id,
+              status: "completed",
+              error: null,
+              persistence: { status: "failed", error: "disk full" },
+            },
+          });
+        });
+        await h.provider.stopSession(task.id);
+        expect(h.tasks.get(task.id)?.status).toBe("active");
+        expect(
+          events.some(
+            (event) => event.type === "task.notice" && event.payload.message.includes("持久化"),
+          ),
+        ).toBe(true);
+        // 新配置与新 Provider 都不共享旧实例的最近回合缓存或待写内存。
+        const config = new ClaudeConfiguration(join(h.config.history.directory, ".."));
+        const restarted = h.restart(config);
+        const snapshot = await restarted.readTask(task.id);
+        expect(snapshot?.status).toBe("idle");
+        expect(snapshot?.turns.at(-1)).toMatchObject({
+          id: turn.id,
+          status: "completed",
+          error: null,
+          persistence: { status: "failed" },
+        });
+        await expect(restarted.startTurn(task.id, prompt, options)).rejects.toThrow(/持久化/);
+        failure.mockRestore();
+        const recovered = await restarted.readTask(task.id);
+        expect(recovered?.turns.at(-1)).toMatchObject({ id: turn.id, status: "completed" });
+        expect(recovered?.turns.at(-1)).not.toHaveProperty("persistence");
+        expect(h.tasks.get(task.id)?.status).toBe("idle");
+        const durable = new ClaudeHistory(config.history.directory);
+        expect((await durable.read(task.id)).turns.map((entry) => entry.id)).toEqual([turn.id]);
+        expect(await durable.active(task.id)).toBeUndefined();
+      } finally {
+        failure.mockRestore();
+      }
+    },
+  );
+
   it("creates a prebound session without history, then resumes the exact ID once its native history exists", async () => {
     const getSessionInfo = vi.fn<NonNullable<ClaudeSdk["getSessionInfo"]>>();
     getSessionInfo.mockResolvedValue(undefined);
@@ -177,6 +319,8 @@ describe("Claude session recovery", () => {
         await vi.waitFor(() => {
           expect(h.close).toHaveBeenCalled();
         });
+        // 查询关闭早于退出落盘完成；重启断言必须等待旧消费器完整回收。
+        await h.provider.stopSession(task.id);
       } else {
         // 初始化后尚未产生正文也已建立原生上下文，不能当成首次启动失败。
         await vi.waitFor(async () => {

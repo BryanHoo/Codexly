@@ -8,7 +8,7 @@ import type {
 import type { AgentProviderEventListener, LocalCatalogStore, LocalTask } from "@codexly/core";
 import type { AgentTurn } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
-import type { ClaudeHistory, ClaudeTaskMetadata } from "./history.js";
+import type { ClaudeHistory, ClaudeTaskMetadata, ClaudeRecovery } from "./history.js";
 import type { ClaudePermissions } from "./permissions.js";
 import { type ClaudeTurnProjection, record } from "./turn-projection.js";
 import { refreshClaudeContext } from "./observability.js";
@@ -125,11 +125,37 @@ export async function persist(
   running: Running,
   config: ClaudeConfiguration,
 ): Promise<void> {
+  const entries: ClaudeRecovery["entries"] = [];
   for (const projection of running.projections.values()) {
     if (projection.status === "running") await config.history.checkpoint(id, projection.snapshot());
-    else await config.history.update(id, projection.snapshot());
+    else entries.push({ turn: projection.snapshot(), mode: "update" });
   }
-  await config.history.saveMetadata(id, running.projection.metadata());
+  if (entries.length) await persistTerminals(id, running, config, entries);
+  else await config.history.saveMetadata(id, running.projection.metadata());
+}
+
+/** 只更新独立的持久化状态，SDK 已给出的成功、失败或中断结果始终保持原样。 */
+async function persistTerminal(
+  id: string,
+  running: Running,
+  config: ClaudeConfiguration,
+  projection: ClaudeTurnProjection,
+  mode: "complete" | "update" = "complete",
+): Promise<void> {
+  await persistTerminals(id, running, config, [{ turn: projection.snapshot(), mode }]);
+}
+
+async function persistTerminals(
+  id: string,
+  running: Running,
+  config: ClaudeConfiguration,
+  entries: ClaudeRecovery["entries"],
+): Promise<void> {
+  const result = await config.persistence.settleAll(id, entries, running.projection.metadata());
+  for (const turn of result.turns) {
+    const candidate = running.projections.get(turn.id);
+    if (candidate) candidate.persistence = turn.persistence;
+  }
 }
 
 export async function consume(
@@ -150,7 +176,9 @@ export async function consume(
       if (!running.projection.sessionInitialized) {
         // 首条 SDK 消息即确认原生会话已运行；先持久化，再公开输出，崩溃后也不能静默重建。
         running.projection.sessionInitialized = true;
-        await config.history.saveMetadata(id, running.projection.metadata());
+        // 首条消息已是终态时，由下方恢复事务一并保存初始化证据，写盘失败不能遮蔽真实结果。
+        if (message.type !== "result")
+          await config.history.saveMetadata(id, running.projection.metadata());
       }
       const projection =
         [...running.projections.values()].find((candidate) => candidate.ownsMessage(message)) ??
@@ -186,11 +214,10 @@ export async function consume(
       if (wasRunning && completed) {
         running.settling = true;
         await refreshClaudeContext(running.query, projection);
-        await config.history.complete(id, projection.snapshot());
-        await config.history.saveMetadata(id, projection.metadata());
+        await persistTerminal(id, running, config, projection);
         await store.catalog("task.patch", {
           id,
-          status: hasWork(running) ? "active" : "idle",
+          status: hasWork(running) || config.persistence.hasPending(id) ? "active" : "idle",
           updatedAt: Date.now() / 1000,
         });
         // 前台完成即解锁下一回合，背景通知继续通过同一消费器交付。
@@ -208,7 +235,7 @@ export async function consume(
           (message.type === "system" && message.subtype === "task_notification"))
       ) {
         // Token 热路径只更新内存；终态立即落盘，中间过程由有界检查点合并保存。
-        await config.history.update(id, projection.snapshot());
+        await persistTerminal(id, running, config, projection, "update");
       }
       for (const [turnId, candidate] of running.projections) {
         if (
@@ -232,22 +259,25 @@ export async function consume(
     clearInterval(running.timer);
     stop(running);
     const status = failure ? "failed" : "interrupted";
-    let terminal: AgentTurn | undefined;
+    let terminal: ClaudeTurnProjection | undefined;
+    const entries: ClaudeRecovery["entries"] = [];
     for (const projection of running.projections.values()) {
       const wasRunning = projection.status === "running";
       projection.close(status, failure);
-      if (wasRunning) {
-        await config.history.complete(id, projection.snapshot()).catch(() => undefined);
-        terminal = projection.snapshot();
-      } else await config.history.update(id, projection.snapshot()).catch(() => undefined);
+      entries.push({ turn: projection.snapshot(), mode: wasRunning ? "complete" : "update" });
+      if (wasRunning) terminal = projection;
     }
+    await persistTerminals(id, running, config, entries);
     const turn = running.projection.snapshot();
-    await config.history.saveMetadata(id, running.projection.metadata()).catch(() => undefined);
     onClose(turn);
     await store
       .catalog("task.patch", {
         id,
-        status: failure || turn.status === "failed" ? "failed" : "idle",
+        status: config.persistence.hasPending(id)
+          ? "active"
+          : turn.status === "failed"
+            ? "failed"
+            : "idle",
         updatedAt: Date.now() / 1000,
       })
       .catch(() => undefined);
@@ -256,7 +286,7 @@ export async function consume(
         type: "turn.completed",
         taskId: id,
         turnId: terminal.id,
-        payload: { turn: terminal },
+        payload: { turn: terminal.snapshot() },
       });
   }
 }

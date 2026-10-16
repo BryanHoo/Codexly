@@ -208,6 +208,16 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    // 执行终态与落盘状态独立；缺省表示没有待恢复写入，不能用写盘错误覆盖模型结果。
+    persistence: Type.Optional(
+      Type.Object(
+        {
+          status: Type.Union([Type.Literal("pending"), Type.Literal("failed")]),
+          error: Type.Union([Type.String(), Type.Null()]),
+        },
+        { additionalProperties: false },
+      ),
+    ),
     processCursor: Type.Optional(Type.String({ minLength: 1, maxLength: 8_192 })),
     completedAt: NullableDateTimeSchema,
     error: Type.Union([Type.String(), Type.Null()]),
