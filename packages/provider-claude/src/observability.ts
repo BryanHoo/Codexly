@@ -121,6 +121,19 @@ export function mapClaudePlan(input: unknown): AgentPlan | undefined {
   };
 }
 
+/** 新旧任务工具共用同一计划事件；没有有效变更时保留现有投影。 */
+export function publishClaudePlan(
+  projection: { plan: AgentPlan | null },
+  plan: AgentPlan | undefined,
+  taskId: string,
+  turnId: string,
+  emit: AgentProviderEventListener,
+): void {
+  if (!plan) return;
+  projection.plan = plan;
+  emit({ type: "plan.updated", taskId, turnId, payload: { plan } });
+}
+
 export function publishClaudeMcpServers(
   taskId: string,
   servers: AgentMcpServer[],

@@ -10,12 +10,14 @@ import {
   mapClaudeUsage,
   mapClaudeResultUsage,
   mapClaudePlan,
+  publishClaudePlan,
   publishClaudeMcpServers,
 } from "./observability.js";
 import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
 import type { ClaudeTaskMetadata } from "./history.js";
 import { record, text, resultText } from "./sdk-values.js";
+import { ClaudeTaskPlan } from "./task-plan.js";
 export { record } from "./sdk-values.js";
 /** 只持有当前回合的渲染投影；历史与恢复上下文仍由官方 SDK 的会话文件管理。 */
 export class ClaudeTurnProjection {
@@ -29,6 +31,7 @@ export class ClaudeTurnProjection {
   readonly #children = new Map<string, ClaudeTurnProjection>();
   readonly #agentTools = new Map<string, string>();
   readonly #backgroundAgents = new Set<string>();
+  readonly #taskPlan = new ClaudeTaskPlan();
   #closed = false;
   #lastBlockIndex = 0;
   #model = "";
@@ -56,7 +59,6 @@ export class ClaudeTurnProjection {
     this.#emit = emit;
     this.#items.set({ id, type: "message", role: "user", text: prompt });
   }
-
   get status() {
     return this.#status;
   }
@@ -66,7 +68,6 @@ export class ClaudeTurnProjection {
         (this.#backgroundAgents.has(id) && child.status === "running") || child.hasBackgroundWork,
     );
   }
-
   /** 会话可同时承载多个回合，关联消息必须回到创建工具的投影。 */
   ownsMessage(value: unknown): boolean {
     const message = record(value);
@@ -75,12 +76,12 @@ export class ClaudeTurnProjection {
       return !!id && !!this.#agentOwner(id);
     });
   }
-
   restoreMetadata(metadata: ClaudeTaskMetadata | undefined): void {
     if (!metadata) return;
     this.sessionInitialized = metadata.sessionInitialized === true;
     this.contextUsage = metadata.contextUsage;
     this.plan = metadata.plan;
+    this.#taskPlan.restore(metadata.planTasks);
     this.mcpServers = metadata.mcpServers;
     this.#model = metadata.model ?? "";
   }
@@ -92,6 +93,7 @@ export class ClaudeTurnProjection {
       sessionInitialized: this.sessionInitialized,
       contextUsage: this.contextUsage,
       plan: this.plan,
+      planTasks: this.#taskPlan.snapshot(),
       model: this.#model || null,
       mcpServers: this.mcpServers,
     };
@@ -152,15 +154,8 @@ export class ClaudeTurnProjection {
         }
         if (name === "TodoWrite" && completed) {
           const plan = mapClaudePlan(block["input"]);
-          if (plan) {
-            this.plan = plan;
-            this.#emit({
-              type: "plan.updated",
-              taskId: this.#taskId,
-              turnId: this.#id,
-              payload: { plan: this.plan },
-            });
-          }
+          if (plan) this.#taskPlan.restore();
+          publishClaudePlan(this, plan, this.#taskId, this.#id, this.#emit);
         }
       }
     }
@@ -402,6 +397,11 @@ export class ClaudeTurnProjection {
           id = text(block["tool_use_id"]),
           item = this.#items.get(id);
         if (block["type"] === "tool_result" && item?.type === "tool") {
+          // 仅在工具成功返回后更新计划，按 tool_use_id 配对，避免失败/重复结果污染状态。
+          if (item.status === "running" && block["is_error"] !== true) {
+            const plan = this.#taskPlan.apply(item.name, item.input, message["tool_use_result"]);
+            publishClaudePlan(this, plan, this.#taskId, this.#id, this.#emit);
+          }
           if (item.name === "agent/spawn") {
             const result = record(message["tool_use_result"]);
             if (result["isAsync"] === true || record(item.input)["run_in_background"] === true)

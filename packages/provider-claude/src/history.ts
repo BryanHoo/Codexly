@@ -2,12 +2,15 @@ import { createHash, randomUUID } from "node:crypto";
 import { appendFile, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentContextUsage, AgentMcpServer, AgentPlan, AgentTurn } from "@codexly/protocol";
+import type { ClaudePlanTask } from "./task-plan.js";
 
 export interface ClaudeTaskMetadata {
   /** true 表示已观察到原生会话；false 表示首次启动尚未收到 SDK 消息，缺省为旧版未知状态。 */
   sessionInitialized?: boolean;
   contextUsage: AgentContextUsage | null;
   plan: AgentPlan | null;
+  /** 旧元数据无此字段；新任务工具需保留原生 ID，不能从展示文本推断关联。 */
+  planTasks?: ClaudePlanTask[];
   model: string | null;
   mcpServers: AgentMcpServer[];
 }

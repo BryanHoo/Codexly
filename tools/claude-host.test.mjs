@@ -56,6 +56,23 @@ test(
               },
             ]
           : [{ type: "text", text: "host-contract-ok" }];
+        // 真实 SDK 执行任务工具，验证结构化结果、跨进程恢复与计划投影的完整链路。
+        if (calls === 1) {
+          assert.ok(body.tools.some((tool) => tool.name === "TaskCreate"));
+          content.unshift({
+            type: "tool_use",
+            id: "create-plan",
+            name: "TaskCreate",
+            input: { subject: "验证宿主计划", description: "验证跨回合任务关联" },
+          });
+        } else if (calls === 3 || calls === 5) {
+          content.unshift({
+            type: "tool_use",
+            id: `update-plan-${calls}`,
+            name: "TaskUpdate",
+            input: { taskId: "1", status: calls === 3 ? "in_progress" : "completed" },
+          });
+        }
         const message = {
           id: `msg-${calls}`,
           type: "message",
@@ -262,6 +279,9 @@ test(
       );
       assert.equal((await waitEvent("turn.completed")).payload.turn.status, "completed");
       assert.equal(await readFile(join(directory, "proof.txt"), "utf8"), `${proofContent}1`);
+      assert.deepEqual((await host.request("task.read", { taskId: "task" }, scope)).plan?.steps, [
+        { text: "验证宿主计划", status: "pending" },
+      ]);
       const sessionId = tasks.get("task").sessionId;
       assert.ok(sessionId);
       // 强制结束 SDK 子进程，再启动同一聊天；精确授权须恢复，不能依赖进程仍在内存。
@@ -277,6 +297,9 @@ test(
         false,
       );
       assert.equal(await readFile(join(directory, "proof.txt"), "utf8"), `${proofContent}3`);
+      assert.deepEqual((await host.request("task.read", { taskId: "task" }, scope)).plan?.steps, [
+        { text: "验证宿主计划", status: "in_progress" },
+      ]);
       assert.deepEqual((await host.request("settings.read")).allowedTools, []);
       await host.close();
       host = launch();
@@ -287,6 +310,7 @@ test(
       assert.equal((await host.request("settings.read")).reasoningEffort, "high");
       const restored = await host.request("task.read", { taskId: "task" }, scope);
       assert.equal(restored.turns.length, 2);
+      assert.deepEqual(restored.plan?.steps, [{ text: "验证宿主计划", status: "in_progress" }]);
       assert.ok(restored.contextUsage.usedTokens > 0);
       assert.ok(restored.contextUsage.contextWindow > 0);
       assert.deepEqual(await host.request("mcp.list", { taskId: "task" }, scope), { data: [] });
@@ -305,6 +329,9 @@ test(
       assert.equal((await waitEvent("turn.completed")).payload.turn.status, "completed");
       assert.equal(tasks.get("task").sessionId, sessionId);
       assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 3);
+      assert.deepEqual((await host.request("task.read", { taskId: "task" }, scope)).plan?.steps, [
+        { text: "验证宿主计划", status: "completed" },
+      ]);
       // 同一宿主的开放输入必须承载后续回合，不能在首个 result 后关闭查询。
       const afterSecondTurn = host.events.length;
       await host.request(

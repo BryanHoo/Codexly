@@ -33,7 +33,7 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 ### 当前能力边界
 
 - 支持流式回答、带描述/文件路径/命令的工具标题、工具审批、最多四个问题及多选回答、中断、历史读取和按精确 session ID 恢复。
-- Claude 子代理复用现有右栏及输出弹窗，展示任务状态、独立正文和工具记录；输出作为父任务的有界投影保存。上下文用量、TodoWrite 计划及 MCP 状态接入两端现有面板，刷新或重启宿主后恢复。上下文统计使用最近主模型请求及 SDK 的窗口声明，不把多模型累计计费用量视为当前占用。
+- Claude 子代理复用现有右栏及输出弹窗，展示任务状态、独立正文和工具记录；输出作为父任务的有界投影保存。上下文用量、任务计划（TaskCreate、TaskUpdate、TaskGet、TaskList，兼容 TodoWrite）及 MCP 状态接入两端现有面板，刷新或重启宿主后恢复。上下文统计使用最近主模型请求及 SDK 的窗口声明，不把多模型累计计费用量视为当前占用。
 - 模型和命令从 SDK 获取；兼容网关可以显式覆盖模型目录。缺失推理元数据时不伪造档位。
 - Codex 的 Goal、Review、分叉、Guardian、沙盒和实时 steer 不映射成 Claude 功能。
 - Web 复用应用持久队列；桌面的 Claude 跟进消息暂不提供原生队列/steer，运行中保留中断能力。
@@ -65,3 +65,5 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 - [流式工具参数](https://code.claude.com/docs/en/agent-sdk/streaming-output)、[子代理事件](https://code.claude.com/docs/en/agent-sdk/subagents)、[用量统计](https://code.claude.com/docs/en/agent-sdk/cost-tracking)：区分工具输入增量、子代理上下文与累计计费用量。
 - [Claude Code 系统要求](https://code.claude.com/docs/en/setup)、[Bun 独立可执行文件](https://bun.com/docs/bundler/executables)：运行平台及宿主分发约束。
 - [CloudCLI](https://github.com/siteboon/claudecodeui)、[Happy](https://github.com/slopus/happy)：社区多引擎客户端的第一手实现参考。本项目复用界面和应用身份，同时保留引擎运行边界，不复制其认证方案或代码。
+
+任务计划通过官方结果中的原生任务 ID 关联，成功返回后更新，支持删除及跨回合恢复。执行会话显式设置 `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`，让默认未开放任务工具的模型也能使用；模型是否创建计划仍取决于任务需要。计划最多展示 128 条，长标题截断仅影响展示。

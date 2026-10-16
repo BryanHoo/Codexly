@@ -140,6 +140,13 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"]) {
 }
 
 describe("Claude session recovery", () => {
+  it("explicitly enables task tracking tools for models without default task tools", async () => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    expect((h.received[0] as Options).env?.["CLAUDE_CODE_ENABLE_TODO_TOOLS"]).toBe("1");
+  });
+
   it("preserves a success result delivered as the first SDK message when metadata storage fails", async () => {
     const h = await harness();
     const task = await h.provider.startTask();

@@ -23,3 +23,5 @@
 - “允许本会话”由共享适配器按聊天在当前宿主内存中保存 SDK 建议的具体规则、目录或 acceptEdits 许可；SDK 进程回收或重建后通过临时启动参数恢复，规则匹配仍交给 SDK。仅允许一次、拒绝、已取消请求不能生成可恢复许可；不得写入用户或项目配置。显式切换权限模式时清除旧模式许可，归档、删除聊天或关闭宿主时清理对应授权。真实宿主测试覆盖结束 SDK 进程后继续同一聊天免重复审批，以及宿主重启后重新审批。
 - `stopSession(taskId, backgroundTaskId?)` 提供独立停止契约：指定原生后台 ID 时调用 SDK stopTask 并继续消费 stopped 通知；省略时关闭任务会话。Web `POST .../tasks/:taskId/session/stop` 与桌面 `stop_task_session` 共用宿主 `session.stop`，校验项目与任务身份，不依赖父回合仍为 running。代理输出保留 `nativeTaskId`。
 - 后台迟到输出覆盖单回合快照，不追加重复分页记录或重写整份历史；Token 热路径只更新内存，定期检查点合并中间过程，后台终态立即持久化。回归覆盖父 result 先于子通知、跨回合消息归属、独立停止、意外流结束、非 Agent 后台集合与空闲回收；真实宿主覆盖连续输入和独立停止。
+
+- 任务计划通过 `tool_use_id` 关联成功结果；TaskCreate 原生 ID 取自 `tool_use_result.task.id`，TaskUpdate 支持状态、标题和删除，TaskGet/TaskList 可补齐或重建列表，兼容 TodoWrite。ID 随元数据保存，跨回合及宿主重启后继续关联；失败结果不得更新，子代理不得覆盖主计划。最多展示 128 项、标题最多 512 字节。执行会话显式设置 `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`，不修改用户权限规则；真实宿主测试覆盖官方工具结果和重启后更新。

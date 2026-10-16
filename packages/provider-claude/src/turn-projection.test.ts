@@ -1,6 +1,141 @@
 import { describe, expect, it } from "vitest";
 import { ClaudeTurnProjection } from "./turn-projection.js";
 import type { AgentProviderEvent } from "@codexly/core";
+import type { ClaudeTaskMetadata } from "./history.js";
+
+function taskTool(
+  turn: ClaudeTurnProjection,
+  id: string,
+  name: string,
+  input: unknown,
+  result: unknown,
+  failed = false,
+) {
+  turn.receive({
+    type: "assistant",
+    message: { id: `msg-${id}`, content: [{ type: "tool_use", id, name, input }] },
+  });
+  turn.receive({
+    type: "user",
+    tool_use_result: result,
+    message: {
+      content: [{ type: "tool_result", tool_use_id: id, is_error: failed, content: "ok" }],
+    },
+  });
+}
+
+it("correlates TaskCreate results and persists task identities across turns", () => {
+  const events: AgentProviderEvent[] = [];
+  const first = new ClaudeTurnProjection("task", "first", "prompt", (event) => events.push(event));
+  taskTool(
+    first,
+    "create",
+    "TaskCreate",
+    { subject: "检查组件" },
+    { task: { id: "42", subject: "检查组件" } },
+  );
+  expect(first.plan).toEqual({
+    explanation: null,
+    steps: [{ text: "检查组件", status: "pending" }],
+  });
+  expect(events.at(-2)).toMatchObject({ type: "plan.updated" });
+  const next = new ClaudeTurnProjection("task", "next", "continue", () => undefined);
+  next.restoreMetadata(JSON.parse(JSON.stringify(first.metadata())) as ClaudeTaskMetadata);
+  taskTool(
+    next,
+    "update",
+    "TaskUpdate",
+    { task_id: "42", status: "in_progress", subject: "检查共享组件" },
+    { success: true, taskId: "42" },
+  );
+  expect(next.plan?.steps).toEqual([{ text: "检查共享组件", status: "in_progress" }]);
+  taskTool(
+    next,
+    "done",
+    "TaskUpdate",
+    { id: "42", status: "completed" },
+    { success: true, taskId: "42" },
+  );
+  expect(next.plan?.steps[0]?.status).toBe("completed");
+  taskTool(
+    next,
+    "delete",
+    "TaskUpdate",
+    { taskId: "42", status: "deleted" },
+    { success: true, taskId: "42" },
+  );
+  expect(next.plan?.steps).toEqual([]);
+});
+
+it("ignores failed task operations and reconciles TaskList and TaskGet", () => {
+  const turn = new ClaudeTurnProjection("task", "turn", "prompt", () => undefined);
+  taskTool(turn, "failed", "TaskCreate", { subject: "失败" }, { task: { id: "bad" } }, true);
+  taskTool(turn, "missing", "TaskCreate", { subject: "缺少 ID" }, {});
+  expect(turn.plan).toBeNull();
+  taskTool(
+    turn,
+    "list",
+    "TaskList",
+    {},
+    { tasks: [{ id: "a", subject: "读取任务", status: "pending" }] },
+  );
+  taskTool(turn, "denied", "TaskUpdate", { taskId: "a", status: "completed" }, { success: false });
+  expect(turn.plan?.steps).toEqual([{ text: "读取任务", status: "pending" }]);
+  taskTool(
+    turn,
+    "get",
+    "TaskGet",
+    { taskId: "a" },
+    { task: { id: "a", subject: "读取任务", status: "completed" } },
+  );
+  expect(turn.plan?.steps[0]?.status).toBe("completed");
+  taskTool(turn, "empty", "TaskList", {}, { tasks: [] });
+  expect(turn.plan?.steps).toEqual([]);
+});
+
+it("keeps task projections bounded and isolates subagent task lists", () => {
+  const turn = new ClaudeTurnProjection("task", "turn", "prompt", () => undefined);
+  taskTool(
+    turn,
+    "list",
+    "TaskList",
+    {},
+    {
+      tasks: Array.from({ length: 200 }, (_, i) => ({
+        id: String(i),
+        subject: "任务".repeat(1000),
+        status: "pending",
+      })),
+    },
+  );
+  expect(turn.plan?.steps).toHaveLength(128);
+  expect(Buffer.byteLength(JSON.stringify(turn.metadata()))).toBeLessThan(256 * 1024);
+  const before = turn.plan;
+  turn.receive({
+    type: "assistant",
+    message: {
+      id: "spawn",
+      content: [{ type: "tool_use", id: "child", name: "Agent", input: { prompt: "检查子任务" } }],
+    },
+  });
+  turn.receive({
+    type: "assistant",
+    parent_tool_use_id: "child",
+    message: {
+      id: "child",
+      content: [
+        { type: "tool_use", id: "child-create", name: "TaskCreate", input: { subject: "子任务" } },
+      ],
+    },
+  });
+  turn.receive({
+    type: "user",
+    parent_tool_use_id: "child",
+    tool_use_result: { task: { id: "1", subject: "子任务" } },
+    message: { content: [{ type: "tool_result", tool_use_id: "child-create", content: "ok" }] },
+  });
+  expect(turn.plan).toBe(before);
+});
 
 describe("Claude streaming projection", () => {
   it("reconciles partial text with the final message and waits for result to complete", () => {

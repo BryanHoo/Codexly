@@ -354,7 +354,8 @@ export class ClaudeAgentProvider {
         prompt: inputStream,
         options: {
           cwd: task.cwd,
-          env: this.config.environment(),
+          // 两端都提供计划面板，显式启用任务工具；不改写用户配置或自动放行工具权限。
+          env: { ...this.config.environment(), CLAUDE_CODE_ENABLE_TODO_TOOLS: "1" },
           // default 保留 SDK 对本机及项目模型配置的解析，不传 CLI 的 --model 覆盖。
           ...(options.model && options.model !== "default" ? { model: options.model } : {}),
           permissionMode,
