@@ -28,11 +28,34 @@ export function localTaskMetadata(task: LocalTask): AgentTask {
 /** 应用身份负责路由，适配器只执行自己拥有的任务；全局当前选择不能影响历史任务。 */
 export class EngineProjectRouter implements AgentProvider {
   readonly #listeners = new Set<AgentProviderEventListener>();
+  readonly #subscriptions = new Map<
+    AgentEngine,
+    { adapter: AgentExecutionAdapter; dispose: () => void }
+  >();
   constructor(
     readonly scope: AgentTaskScope,
     readonly store: LocalCatalogStore,
-    readonly adapters: Readonly<Record<AgentEngine, AgentExecutionAdapter>>,
+    readonly adapters: Readonly<
+      Record<AgentEngine, AgentExecutionAdapter | (() => AgentExecutionAdapter)>
+    >,
   ) {}
+
+  #adapter(engine: AgentEngine): AgentExecutionAdapter {
+    const source = this.adapters[engine];
+    const adapter = typeof source === "function" ? source() : source;
+    const subscription = this.#subscriptions.get(engine);
+    if (this.#listeners.size && subscription?.adapter !== adapter) {
+      // 路由可比执行适配器存活更久；回收或断开后，先迁移订阅再调用新适配器。
+      subscription?.dispose();
+      this.#subscriptions.set(engine, {
+        adapter,
+        dispose: adapter.subscribeEvents((event) => {
+          for (const listener of this.#listeners) listener({ ...event, provider: engine });
+        }),
+      });
+    }
+    return adapter;
+  }
 
   async #task(id: string): Promise<LocalTask> {
     const task = await this.store.catalog("task.read", { id });
@@ -45,10 +68,13 @@ export class EngineProjectRouter implements AgentProvider {
     engine: AgentEngine,
     key: K,
   ): NonNullable<AgentProvider[K]> {
-    const adapter = this.adapters[engine],
-      method = adapter[key];
-    if (typeof method !== "function") throw new Error(`${engine} does not support ${key}`);
-    return method.bind(adapter) as NonNullable<AgentProvider[K]>;
+    return ((...args: unknown[]) => {
+      // 任务身份查询含异步边界；实际执行时再取适配器，避免等待期间被回收的旧引用。
+      const adapter = this.#adapter(engine),
+        method = adapter[key];
+      if (typeof method !== "function") throw new Error(`${engine} does not support ${key}`);
+      return Reflect.apply(method, adapter, args) as unknown;
+    }) as NonNullable<AgentProvider[K]>;
   }
 
   async #method<K extends keyof AgentProvider>(
@@ -99,17 +125,24 @@ export class EngineProjectRouter implements AgentProvider {
 
   subscribeEvents(listener: AgentProviderEventListener) {
     this.#listeners.add(listener);
-    const dispose = Object.entries(this.adapters).map(([provider, adapter]) =>
-      adapter.subscribeEvents((event) => {
-        listener({ ...event, provider });
-      }),
-    );
+    try {
+      this.#adapter("codex");
+      this.#adapter("claude");
+    } catch (error) {
+      this.#listeners.delete(listener);
+      this.#disposeSubscriptions();
+      throw error;
+    }
     return () => {
       this.#listeners.delete(listener);
-      dispose.forEach((unsubscribe) => {
-        unsubscribe();
-      });
+      this.#disposeSubscriptions();
     };
+  }
+
+  #disposeSubscriptions(): void {
+    if (this.#listeners.size) return;
+    for (const subscription of this.#subscriptions.values()) subscription.dispose();
+    this.#subscriptions.clear();
   }
 
   async readTask(...args: Parameters<AgentProvider["readTask"]>) {

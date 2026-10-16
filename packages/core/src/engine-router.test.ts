@@ -96,4 +96,68 @@ describe("application task engine routing", () => {
     unsubscribe();
     expect(listeners.size).toBe(0);
   });
+
+  it("moves all listeners before invoking a replacement adapter and releases the current subscriptions", async () => {
+    const h = setup();
+    let current = h.claude as unknown as AgentExecutionAdapter;
+    const router = new EngineProjectRouter(h.router.scope, h.router.store, {
+      codex: h.codex as unknown as AgentExecutionAdapter,
+      claude: () => current,
+    });
+    const first = vi.fn(),
+      second = vi.fn();
+    const unsubscribeFirst = router.subscribeEvents(first);
+    const unsubscribeSecond = router.subscribeEvents(second);
+    const emit = (listener: AgentProviderEventListener) => {
+      listener({ type: "task.metadata_changed", taskId: "claude", payload: {} });
+    };
+    const listeners = new Set<AgentProviderEventListener>();
+    const dispose = vi.fn();
+    const subscribe = vi.fn((listener: AgentProviderEventListener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+        dispose();
+      };
+    });
+    current = {
+      ...current,
+      subscribeEvents: subscribe,
+      readTask: vi.fn(() => {
+        // 同步发布也必须送达，不能等本次调用完成后才迁移订阅。
+        listeners.forEach(emit);
+        return Promise.resolve(undefined);
+      }),
+    };
+    await router.readTask("claude");
+    expect(subscribe).toHaveBeenCalledOnce();
+    expect(h.listeners.has("claude")).toBe(false);
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledWith({
+      type: "task.metadata_changed",
+      taskId: "claude",
+      payload: {},
+      provider: "claude",
+    });
+
+    unsubscribeFirst();
+    await router.readTask("claude");
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledTimes(2);
+    expect(subscribe).toHaveBeenCalledOnce();
+    expect(dispose).not.toHaveBeenCalled();
+    unsubscribeSecond();
+    expect(listeners.size).toBe(0);
+    expect(h.listeners.size).toBe(0);
+    expect(dispose).toHaveBeenCalledOnce();
+
+    // 全部取消后，再订阅仍能使用当前适配器，且不会重复派发事件。
+    const unsubscribeAgain = router.subscribeEvents(first);
+    await router.readTask("claude");
+    expect(first).toHaveBeenCalledTimes(2);
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    unsubscribeAgain();
+    expect(dispose).toHaveBeenCalledTimes(2);
+  });
 });

@@ -29,7 +29,8 @@ export function enableClaudeRuntime(
     if (existing) return existing.router;
     const router = new EngineProjectRouter(scope, catalog, {
       codex: provider,
-      claude: claude.forScope(scope),
+      // 项目路由长期缓存；执行与订阅必须按需解析，不能固定持有已回收的适配器。
+      claude: () => claude.forScope(scope),
     });
     projects.set(scope.id, { router, codex: provider });
     return router;
