@@ -41,6 +41,11 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
   done,
 ) => {
   registerScheduledTaskEvents(app, context);
+  // 在保存与附件持久化前按选中引擎校验，避免错误计划直到触发时才失败。
+  const validateOptions = async (input: ScheduledTaskInput) => {
+    const engine = input.turnOptions.engineOptions?.engine ?? "codex";
+    context.assertValidProjectDefaults(await context.listModels(engine), input.turnOptions);
+  };
   // 与其他写接口共享实例内幂等缓存；作用域区分操作和任务，缓存不跨 Server 重启。
   const run = <T>(
     scope: readonly string[],
@@ -107,7 +112,10 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
         ["create-scheduled-task"],
         request.headers["idempotency-key"],
         request.body,
-        async () => withTasks({ task: await context.scheduledTaskService.create(request.body) }),
+        async () => {
+          await validateOptions(request.body);
+          return withTasks({ task: await context.scheduledTaskService.create(request.body) });
+        },
       );
       return reply.code(201).send(result);
     },
@@ -127,10 +135,12 @@ export const registerScheduledTaskRoutes: FastifyPluginCallback<ServerRouteConte
         ["update-scheduled-task", request.params.taskId],
         request.headers["idempotency-key"],
         request.body,
-        async () =>
-          withTasks({
+        async () => {
+          await validateOptions(request.body);
+          return withTasks({
             task: await context.scheduledTaskService.update(request.params.taskId, request.body),
-          }),
+          });
+        },
       ),
   );
   app.delete<{ Params: { taskId: string }; Headers: MutationHeaders }>(

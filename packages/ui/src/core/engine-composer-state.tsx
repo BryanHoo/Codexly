@@ -18,6 +18,7 @@ export function useEngineComposerState(
     scope: string;
     taskId: string | undefined;
     taskEngine: AgentEngine | undefined;
+    initialEngine?: AgentEngine;
     codexConfigured: boolean | undefined;
     claudeSupported?: boolean;
     load: (engine: AgentEngine) => Promise<AgentEngineProfile>;
@@ -25,7 +26,7 @@ export function useEngineComposerState(
 ) {
   const [selection, setSelection] = useState(() => ({
     scope: input.scope,
-    engine: readDraftEngine(input.scope),
+    engine: input.initialEngine ?? readDraftEngine(input.scope),
   }));
   const [submitting, setSubmitting] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -44,7 +45,9 @@ export function useEngineComposerState(
     error?: Error;
   }>();
   const draftEngine =
-    selection.scope === input.scope ? selection.engine : readDraftEngine(input.scope);
+    selection.scope === input.scope
+      ? selection.engine
+      : (input.initialEngine ?? readDraftEngine(input.scope));
   const claudeSupported = input.claudeSupported !== false;
   const key = JSON.stringify([input.scope, claudeSupported, revision]);
   const profile = result?.key === key ? result.profile : undefined;
@@ -55,6 +58,7 @@ export function useEngineComposerState(
     input.taskEngine === undefined ? undefined : { engine: input.taskEngine },
     draftEngine,
     { codex: codexConfigured, claude: claudeConfigured },
+    input.initialEngine !== undefined,
   );
   useEffect(() => {
     if (!claudeSupported) return;

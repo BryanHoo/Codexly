@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { NativeClient } from "@/platform/native-client-contract.js";
 import type { AgentEngine, AgentTaskSettings } from "@codexly/protocol";
-import { resolveClaudeComposerSettings } from "@codexly/frontend-core/engine-composer";
+import { resolveClaudeComposerSettings, resolveCodexComposerSettings } from "@codexly/frontend-core/engine-composer";
 import { AgentEngineSelector } from "@codexly/ui/core/agent-engine-controls";
 import { useEngineComposerState } from "@codexly/ui/core/engine-composer-state";
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -19,19 +19,24 @@ export function WorkbenchComposer(props: WorkbenchComposerProps) {
   const { t } = useTranslation("workbench");
   const connection = useQuery(providerConnectionQueryOptions());
   const client = props.client as WorkbenchComposerProps["client"] & Partial<EngineClient>;
-  const scope = JSON.stringify([props.projectId, props.onCaptureSubmission ? "capture" : props.composerDraftId ?? props.taskId ?? "draft"]);
+  const scope = JSON.stringify([props.projectId, props.composerDraftId ?? props.taskId ?? (props.onCaptureSubmission ? "capture" : "draft")]);
   const load = useCallback((engine: AgentEngine) => {
     if (import.meta.env.VITE_MACOS_LEGACY === "true") return Promise.reject(new Error(t("engine.unsupportedLegacy")));
     if (!client.getEngineProfile) return Promise.reject(new Error("Engine service unavailable"));
     return client.getEngineProfile(engine, props.projectId);
   }, [client, props.projectId, t]);
-  const state = useEngineComposerState({ scope, taskId: props.taskId, taskEngine: props.runtime?.metadata?.engine, codexConfigured: connection.isPending ? undefined : connection.data?.state === "connected", claudeSupported: import.meta.env.VITE_MACOS_LEGACY !== "true", load });
-  const [override, setOverride] = useState<{ scope: string; settings: AgentTaskSettings }>();
+  const state = useEngineComposerState({ scope, taskId: props.taskId, taskEngine: props.runtime?.metadata?.engine,
+    ...(props.initialEngine === undefined ? {} : { initialEngine: props.initialEngine }), codexConfigured: connection.isPending ? undefined : connection.data?.state === "connected", claudeSupported: import.meta.env.VITE_MACOS_LEGACY !== "true", load });
+  const [override, setOverride] = useState<{ scope: string; settings: AgentTaskSettings } | undefined>(() =>
+    props.onCaptureSubmission && props.settings.engineOptions?.engine === "claude"
+      ? { scope, settings: props.settings }
+      : undefined,
+  );
   const claude = state.engine === "claude";
   const models = state.pending ? emptyModels : claude ? state.profile?.models.data ?? emptyModels : props.models;
-  const settings = claude ? resolveClaudeComposerSettings(override?.scope === scope ? override.settings : props.settings, models, state.profile?.settings) : props.settings;
+  const settings = claude ? resolveClaudeComposerSettings(override?.scope === scope ? override.settings : props.settings, models, state.profile?.settings) : resolveCodexComposerSettings(props.settings, props.models);
   const controls = <>
-    <AgentEngineSelector codexAvailable={state.codexConfigured} claudeAvailable={state.claudeConfigured} label={t("engine.select")} value={state.engine} locked={state.locked} disabled={state.submitting || props.onCaptureSubmission !== undefined} onChange={state.select} />
+    <AgentEngineSelector codexAvailable={state.codexConfigured} claudeAvailable={state.claudeConfigured} label={t("engine.select")} value={state.engine} locked={state.locked} disabled={state.submitting} onChange={state.select} />
   </>;
   return <WorkbenchComposerBase {...props}
     engineControls={controls}

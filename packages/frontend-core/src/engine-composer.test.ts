@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveComposerEngine, resolveClaudeComposerSettings } from "./engine-composer.js";
+import {
+  resolveComposerEngine,
+  resolveClaudeComposerSettings,
+  resolveCodexComposerSettings,
+} from "./engine-composer.js";
 
 describe("shared composer engine policy", () => {
   it("only lets empty drafts select engines and keeps legacy history on Codex", () => {
@@ -70,4 +74,38 @@ describe("shared composer engine policy", () => {
       ),
     ).toMatchObject({ model: "sonnet", engineOptions: { permissionMode: "plan" } });
   });
+});
+
+it("保留已保存计划的引擎，不随当前配置自动改写", () => {
+  expect(
+    resolveComposerEngine(undefined, undefined, "claude", { codex: true, claude: false }, true),
+  ).toBe("claude");
+  expect(
+    resolveComposerEngine(undefined, undefined, "codex", { codex: false, claude: true }, true),
+  ).toBe("codex");
+});
+it("从 Claude 切回 Codex 时清除引擎选项并选择 Codex 模型", () => {
+  const result = resolveCodexComposerSettings(
+    {
+      model: "sonnet",
+      reasoningEffort: "",
+      approvalPolicy: "on-request",
+      approvalsReviewer: "user",
+      sandboxMode: "workspace-write",
+      engineOptions: { engine: "claude", permissionMode: "plan" },
+    },
+    [
+      {
+        id: "gpt",
+        displayName: "GPT",
+        description: "",
+        isDefault: true,
+        defaultReasoningEffort: "high",
+        supportedReasoningEfforts: [{ id: "high", description: "" }],
+      },
+    ],
+  );
+  expect(result).toMatchObject({ model: "gpt", reasoningEffort: "high" });
+  expect(result.engineOptions).toBeUndefined();
+  expect(resolveCodexComposerSettings(result, [])).toBe(result);
 });

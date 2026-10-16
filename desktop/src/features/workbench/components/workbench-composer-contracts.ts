@@ -77,6 +77,7 @@ export type WorkbenchComposerProps = Readonly<{
   initialProjectDraftId?: string;
   initialDraft?: ComposerDraft;
   composerDraftId?: string;
+  initialEngine?: "codex" | "claude";
   captureSubmitVisible?: boolean;
   captureSubmitLabel?: string;
   footerVisible?: boolean;

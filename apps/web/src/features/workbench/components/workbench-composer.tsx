@@ -2,7 +2,10 @@ import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CodexlyClient } from "@codexly/client";
 import type { AgentEngine, AgentTaskSettings } from "@codexly/protocol";
-import { resolveClaudeComposerSettings } from "@codexly/frontend-core/engine-composer";
+import {
+  resolveClaudeComposerSettings,
+  resolveCodexComposerSettings,
+} from "@codexly/frontend-core/engine-composer";
 import { AgentEngineSelector } from "@codexly/ui/core/agent-engine-controls";
 import { useEngineComposerState } from "@codexly/ui/core/engine-composer-state";
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -24,7 +27,7 @@ export function WorkbenchComposer(props: WorkbenchComposerProps) {
   const client = props.client as WorkbenchComposerProps["client"] & Partial<EngineClient>;
   const scope = JSON.stringify([
     props.projectId,
-    props.onCaptureSubmission ? "capture" : (props.composerDraftId ?? props.taskId ?? "draft"),
+    props.composerDraftId ?? props.taskId ?? (props.onCaptureSubmission ? "capture" : "draft"),
   ]);
   const load = useCallback(
     (engine: AgentEngine) => {
@@ -37,10 +40,17 @@ export function WorkbenchComposer(props: WorkbenchComposerProps) {
     scope,
     taskId: props.taskId,
     taskEngine: props.runtime?.metadata?.engine,
+    ...(props.initialEngine === undefined ? {} : { initialEngine: props.initialEngine }),
     codexConfigured: connection.isPending ? undefined : connection.data?.state === "connected",
     load,
   });
-  const [override, setOverride] = useState<{ scope: string; settings: AgentTaskSettings }>();
+  const [override, setOverride] = useState<
+    { scope: string; settings: AgentTaskSettings } | undefined
+  >(() =>
+    props.onCaptureSubmission && props.settings.engineOptions?.engine === "claude"
+      ? { scope, settings: props.settings }
+      : undefined,
+  );
   const claude = state.engine === "claude";
   const models = state.pending
     ? emptyModels
@@ -53,7 +63,7 @@ export function WorkbenchComposer(props: WorkbenchComposerProps) {
         models,
         state.profile?.settings,
       )
-    : props.settings;
+    : resolveCodexComposerSettings(props.settings, props.models);
   const controls = (
     <>
       <AgentEngineSelector
@@ -62,7 +72,7 @@ export function WorkbenchComposer(props: WorkbenchComposerProps) {
         label={t("engine.select")}
         value={state.engine}
         locked={state.locked}
-        disabled={state.submitting || props.onCaptureSubmission !== undefined}
+        disabled={state.submitting}
         onChange={state.select}
       />
       {claude && state.profile?.connection.state === "disconnected" ? (

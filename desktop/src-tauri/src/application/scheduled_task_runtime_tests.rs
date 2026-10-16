@@ -291,3 +291,32 @@ async fn frontend_input_should_create_persist_and_complete_a_scheduled_task() {
         .await
         .expect("test directory should clean up");
 }
+
+#[test]
+fn scheduled_task_should_reject_unknown_engine_before_persistence() {
+    let mut request = input(ScheduledTaskSchedule::Once {
+        at_unix_ms: 2_000_000_000_000,
+    });
+    request.turn_options.engine_options =
+        Some(serde_json::json!({"engine":"unknown","permissionMode":"default"}));
+    assert!(build_task("invalid-engine".into(), request, 1_000).is_err());
+}
+
+#[test]
+fn scheduled_task_should_preserve_claude_settings_across_storage() {
+    let mut request = input(ScheduledTaskSchedule::Once {
+        at_unix_ms: 2_000_000_000_000,
+    });
+    request.turn_options.model = "claude-sonnet".into();
+    request.turn_options.reasoning_effort = "".into();
+    request.turn_options.engine_options =
+        Some(serde_json::json!({"engine":"claude","permissionMode":"plan"}));
+    let task = build_task("claude-schedule".into(), request, 1_000).unwrap();
+    let restored: crate::domain::scheduled_task::ScheduledTask =
+        serde_json::from_value(serde_json::to_value(task).unwrap()).unwrap();
+    assert_eq!(restored.turn_options.model, "claude-sonnet");
+    assert_eq!(
+        restored.turn_options.engine_options.unwrap()["permissionMode"],
+        "plan"
+    );
+}

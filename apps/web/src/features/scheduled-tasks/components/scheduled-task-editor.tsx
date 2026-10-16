@@ -236,6 +236,9 @@ export function ScheduledTaskEditor(props: EditorProps) {
             composerDraftId={`scheduled:${props.task?.id ?? "new"}`}
             footerVisible={false}
             initialDraft={initialDraft}
+            {...(props.task === undefined
+              ? {}
+              : { initialEngine: props.task.turnOptions.engineOptions?.engine ?? "codex" })}
             onCaptureSubmission={capture}
             onFastModeChange={props.composerProps.onFastModeChange}
             onInputStateChange={setHasPromptInput}

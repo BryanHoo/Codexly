@@ -3,7 +3,7 @@ import {
   type TaskSubmissionRecord,
   type TaskSubmissionRepository,
 } from "@codexly/core";
-import type { AgentModel, ScheduledTask, ScheduledTaskRun } from "@codexly/protocol";
+import type { ScheduledTask, ScheduledTaskRun } from "@codexly/protocol";
 import type { AttachmentStore } from "./attachment-store.js";
 import type { ScheduledTaskAttachmentManager } from "./scheduled-task-attachments.js";
 import type { CreateCodexlyServerOptions } from "./server-options.js";
@@ -17,7 +17,7 @@ export function createScheduledSubmission(
   attachmentStore: AttachmentStore,
   manager: ScheduledTaskAttachmentManager | undefined,
   getProjectContext: ProjectContextResolver,
-  listModels: () => Promise<readonly AgentModel[]>,
+  listModels: ServerRouteContext["listModels"],
   resolveInput: ServerRouteContext["resolveProviderTurnInput"],
 ) {
   // 已确认启动但数据库临时不可写时保留结果，重试只能落库与清理。
@@ -50,7 +50,11 @@ export function createScheduledSubmission(
       let prepared: Awaited<ReturnType<typeof resolveInput>> | undefined;
       const result = await submitTask(repository, scheduled.projectId, key, fingerprint, input, {
         validate: async () => {
-          assertValidProjectDefaults(await listModels(), scheduled.turnOptions);
+          // 校验目录与创建引擎必须使用已保存的同一份选项，旧计划默认 Codex。
+          assertValidProjectDefaults(
+            await listModels(scheduled.turnOptions.engineOptions?.engine ?? "codex"),
+            scheduled.turnOptions,
+          );
           // 附件恢复先于创建 Task，损坏的持久内容不会生成孤儿任务。
           restored =
             manager === undefined
@@ -58,7 +62,9 @@ export function createScheduledSubmission(
               : await manager.restorePrompt(scheduled);
         },
         createTask: async () => {
-          createdTask = await context.provider.startTask();
+          createdTask = await context.provider.startTask({
+            engine: scheduled.turnOptions.engineOptions?.engine ?? "codex",
+          });
           return createdTask;
         },
         prepare: async (taskId) => {

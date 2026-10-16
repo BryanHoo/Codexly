@@ -77,6 +77,7 @@ export type WorkbenchComposerProps = Readonly<{
   fastModeDefault: boolean;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];
   composerDraftId?: string;
+  initialEngine?: "codex" | "claude";
   initialDraft?: ComposerDraft;
   captureSubmitVisible?: boolean;
   footerVisible?: boolean;
