@@ -20,12 +20,14 @@ export function CustomModelEditor({
   disabled,
   models,
   onAdd,
+  onBlur,
   onChange,
   onRemove,
 }: Readonly<{
   disabled: boolean;
   models: readonly CustomModelDraft[];
   onAdd: () => void;
+  onBlur?: () => void;
   onChange: (key: string, field: "id" | "name", value: string) => void;
   onRemove: (key: string) => void;
 }>) {
@@ -77,6 +79,7 @@ export function CustomModelEditor({
           <label className="grid min-w-0 gap-1">
             <span className="sr-only">{t("provider.modelId")}</span>
             <Input
+              onBlur={onBlur}
               autoCapitalize="none"
               autoComplete="off"
               className="font-mono"
@@ -94,6 +97,7 @@ export function CustomModelEditor({
           <label className="grid min-w-0 gap-1">
             <span className="sr-only">{t("provider.modelName")}</span>
             <Input
+              onBlur={onBlur}
               autoComplete="off"
               disabled={disabled}
               maxLength={256}

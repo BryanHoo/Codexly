@@ -1,9 +1,11 @@
 export const settings = {
   sectionKeywords: {
-    claude: "Claude Anthropic API Key model permission instructions 工具 权限 指令",
+    git: "Git 提交消息 提交模型 提示词 生成规则",
+    "claude-provider": "Claude Anthropic API Key API 地址 连接 可用模型",
+    "claude-agent": "Claude 默认模型 默认思考强度 工具权限 按需确认 允许编辑 计划模式 完全访问",
+    "claude-personalization": "Claude CLAUDE.md 全局指令 项目配置 工具授权规则 自动允许 禁止使用",
     appearance: "颜色模式 语言 通知 编辑器 默认打开方式 跟进消息 背景 壁纸 Bing 自定义 模糊 遮罩",
-    personalization:
-      "Codex 说明 AGENTS.md 全局指令 记忆 MCP 网页搜索 Git 提交消息 提交模型 提示词 生成规则",
+    personalization: "Codex 说明 AGENTS.md 全局指令 记忆 MCP 网页搜索",
     pets: "启用 宠物 选择",
     provider: "API 密钥 Base URL 模型 官方 自定义",
     agent: "快速模式 模型 思考强度 审批 文件访问 沙箱 网页搜索 输出详细程度",
@@ -16,8 +18,9 @@ export const settings = {
     empty: "未找到相关设置",
   },
   groups: {
-    personal: "个人",
-    coding: "编码",
+    personal: "公共配置",
+    codex: "Codex",
+    claude: "Claude",
     app: "应用",
   },
   about: {
@@ -62,7 +65,8 @@ export const settings = {
     closeDialog: "关闭全局设置",
     closeReleaseNotes: "关闭更新日志",
     save: "保存",
-    saving: "正在保存",
+    saving: "保存中…",
+    saved: "已保存",
   },
   appearance: {
     automatic: "自动",
@@ -111,9 +115,9 @@ export const settings = {
   },
   errors: {
     appInfo: "无法加载版本信息",
-    load: "无法加载全局设置",
+    load: "加载失败，请重试",
     logout: "无法退出局域网访问",
-    save: "无法保存全局设置",
+    save: "保存失败，请重试",
     update: "更新失败，请重试",
     updateCheck: "无法检查更新",
   },
@@ -126,7 +130,7 @@ export const settings = {
     followUpMessages: "跟进消息",
     model: "模型",
     prompt: "提示词",
-    reasoningEffort: "思考量",
+    reasoningEffort: "思考强度",
     sandbox: "工作区",
   },
   followUp: {
@@ -140,15 +144,15 @@ export const settings = {
     en: "English",
     zhCN: "简体中文",
   },
-  loading: "正在加载全局设置",
+  loading: "加载中…",
   navigationLabel: "设置分类",
   notifications: {
     disabled: "关闭",
     enabled: "开启",
   },
   provider: {
-    apiKey: "API Key（可选）",
-    baseUrl: "API Base URL",
+    apiKey: "API 密钥（可选）",
+    baseUrl: "API 地址",
     cancelLogin: "取消登录",
     connect: "连接",
     connected: "已连接",
@@ -193,7 +197,10 @@ export const settings = {
     workspaceWrite: "工作区可写",
   },
   sections: {
-    claude: "Claude Agent",
+    git: "Git 提交",
+    "claude-provider": "模型服务",
+    "claude-agent": "智能体配置",
+    "claude-personalization": "个性化",
     personalization: "个性化",
     about: "关于",
     access: "局域网访问",

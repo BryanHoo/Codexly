@@ -1,3 +1,4 @@
+import { SettingsMutationStatus } from "@codexly/ui/core/settings-mutation-status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAutostartEnabled, setAutostartEnabled } from "@/platform/tauri/autostart-client.js";
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -25,7 +26,9 @@ export function AutostartSettingsField() {
     onSettled: () => client.invalidateQueries({ queryKey }),
   });
   const enabled = settings.data === true;
-  return <SettingsField label={t("general.autostart")} description={t("general.autostartDescription")}>
+  return <>
+    <SettingsMutationStatus mutation={change} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => change.mutate(change.variables ?? !enabled)} />
+    <SettingsField label={t("general.autostart")} description={t("general.autostartDescription")}>
     <div className="flex max-w-md flex-col items-end gap-1">
       <Button
         role="switch"
@@ -44,7 +47,8 @@ export function AutostartSettingsField() {
         {t("general.autostartLoadError")}
         <Button variant="ghost" type="button" disabled={settings.isFetching} onClick={() => void settings.refetch()}>{t("common:actions.retry")}</Button>
       </div> : null}
-      {change.isError ? <span role="alert" className="text-body-small text-danger">{t("general.autostartSaveError")}</span> : null}
+
     </div>
-  </SettingsField>;
+  </SettingsField>
+  </>;
 }

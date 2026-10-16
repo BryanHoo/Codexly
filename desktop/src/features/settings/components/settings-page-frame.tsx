@@ -1,3 +1,4 @@
+import { SettingsSaveFeedbackProvider } from "@codexly/ui/core/settings-save-status";
 import { ArrowLeft, Search, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 
@@ -6,22 +7,7 @@ import { Button } from "../../../shared/components/core/button.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../shared/components/core/tooltip.js";
 import { settingsSections, type SettingsSectionId } from "./global-settings-fields.js";
 
-const sectionGroups = [
-  { id: "personal", sections: ["appearance", "pets"] },
-  { id: "coding", sections: ["provider", "agent", "personalization", "claude"] },
-  { id: "app", sections: ["about"] },
-] as const;
-
-// 搜索仅索引已有分类与字段文案，不为搜索挂载面板或请求额外配置数据。
-const sectionSearchKeys: Record<SettingsSectionId, readonly string[]> = {
-  claude: ["provider.apiKey", "provider.baseUrl", "fields.model", "fields.approvalPolicy"],
-  personalization: ["personalization.instructions", "personalization.memories", "personalization.enabled", "personalization.external", "fields.commitModel", "fields.commitMessagePrompt", "fields.prompt"],
-  appearance: ["appearance.colorMode", "appearance.language", "appearance.notifications", "fields.defaultOpenWith", "fields.followUpMessages", "general.editor", "general.taskNotifications", "background.label", "background.bing", "background.custom", "background.blurLabel", "background.overlayOpacityLabel"],
-  pets: ["pets.enabled", "pets.selectionLabel"],
-  provider: ["provider.apiKey", "provider.baseUrl", "provider.models", "provider.official", "provider.custom"],
-  agent: ["fields.fastMode", "fields.model", "fields.reasoningEffort", "fields.approvalPolicy", "fields.sandbox", "agent.webSearch.label", "agent.modelVerbosity.label"],
-  about: ["about.codeagentVersion", "about.codexVersion", "about.update", "about.releaseNotes", "about.diagnostics"],
-};
+import { settingsSectionGroups as sectionGroups, settingsSectionSearchKeys as sectionSearchKeys } from "@codexly/frontend-core/settings-navigation";
 
 export function SettingsPageFrame({
   activeSection,
@@ -41,7 +27,9 @@ export function SettingsPageFrame({
   const contentRef = useRef<HTMLElement>(null);
   const query = search.trim().toLocaleLowerCase();
   const matches = settingsSections.filter(({ id }) =>
-    [t(`sections.${id}`), t(`sectionKeywords.${id}`), ...sectionSearchKeys[id].map((key) => t(key))]
+    [t(`sections.${id}`),
+        ...sectionGroups.filter((group) => group.sections.some((section) => section === id)).map((group) => t(`groups.${group.id}`)),
+        t(`sectionKeywords.${id}`), ...sectionSearchKeys[id].map((key) => t(key))]
       .some((label) => label.toLocaleLowerCase().includes(query)),
   );
 
@@ -57,7 +45,7 @@ export function SettingsPageFrame({
     if (modalOpen) return;
     event.preventDefault();
     if (search !== "") setSearch("");
-    else onBack();
+    else backRef.current?.click();
   });
   useEffect(() => {
     document.addEventListener("keydown", handleEscape);
@@ -65,13 +53,15 @@ export function SettingsPageFrame({
   }, []);
 
   return (
+    <SettingsSaveFeedbackProvider onBack={onBack}>
+      {(requestBack) => (
     <div
       className="grid h-full min-h-0 grid-cols-[var(--ui-layout-settings-sidebar-width)_minmax(0,1fr)] overflow-hidden bg-window text-foreground"
     >
       <aside className="flex min-h-0 min-w-0 flex-col bg-control px-3 pb-5 pt-6">
         <Button
           className="mb-5 h-9 w-full justify-start gap-2 px-2.5 text-body"
-          onClick={onBack}
+          onClick={requestBack}
           ref={backRef}
           type="button"
           variant="ghost"
@@ -116,7 +106,7 @@ export function SettingsPageFrame({
             const sections = matches.filter(({ id }) => group.sections.some((section) => section === id));
             if (sections.length === 0) return null;
             return (
-              <div key={group.id}>
+              <div key={group.id} role="group" aria-label={t(`groups.${group.id}`)}>
                 <p className="mb-2 px-2.5 text-label text-subtle-foreground">{t(`groups.${group.id}`)}</p>
                 <div className="space-y-1">
                   {sections.map(({ icon: Icon, id }) => (
@@ -146,5 +136,7 @@ export function SettingsPageFrame({
         <div className="mx-auto w-full max-w-content">{children}</div>
       </main>
     </div>
+    )}
+    </SettingsSaveFeedbackProvider>
   );
 }

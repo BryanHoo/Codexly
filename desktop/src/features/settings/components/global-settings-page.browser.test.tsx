@@ -22,7 +22,7 @@ const models = [{
   supportedReasoningEfforts: ["low", "medium", "high"].map((id) => ({ id, description: id })),
 }];
 
-async function renderSettings(initialSection: "appearance" | "personalization" = "appearance") {
+async function renderSettings(initialSection: "appearance" | "personalization" | "git" = "appearance") {
   await i18n.changeLanguage("zh-CN");
   const onClose = vi.fn();
   const onSave = vi.fn(async (_settings: AgentGlobalSettings) => undefined);
@@ -51,7 +51,7 @@ async function renderSettings(initialSection: "appearance" | "personalization" =
       </QueryClientProvider>
     </I18nextProvider>,
   );
-  await expect.element(screen.getByRole("heading", { name: initialSection === "appearance" ? "常规" : "个性化", exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: initialSection === "appearance" ? "常规" : initialSection === "git" ? "Git 提交" : "个性化", exact: true })).toBeVisible();
   return { onClose, onSave, screen };
 }
 
@@ -64,7 +64,7 @@ describe("GlobalSettingsPage", () => {
     expect(getComputedStyle(input).outlineStyle).toBe("none");
     expect(getComputedStyle(input).borderTopWidth).toBe("0px");
     expect(getComputedStyle(input.parentElement!).boxShadow).not.toBe("none");
-    await screen.getByRole("button", { name: "智能体配置", exact: true }).click();
+    await screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true }).click();
     await expect.element(screen.getByRole("heading", { name: "模型默认设置", exact: true })).toBeVisible();
   });
   it("frames settings groups and keeps labels smaller than section headings", async () => {
@@ -84,14 +84,14 @@ describe("GlobalSettingsPage", () => {
     expect(row.getBoundingClientRect().height).toBeLessThanOrEqual(66);
     expect(screen.getByRole("combobox", { name: "默认打开方式" }).element().getBoundingClientRect().height).toBeLessThanOrEqual(32);
     expect(screen.getByRole("button", { name: "提交消息", exact: true }).all()).toHaveLength(0);
-    await screen.getByRole("button", { name: "个性化", exact: true }).click();
+    await screen.getByRole("button", { name: "Git 提交", exact: true }).click();
     await expect.element(screen.getByRole("heading", { name: "提交消息", exact: true })).toBeVisible();
     const panel = document.querySelector("#personalization-commit-settings")!;
     expect(getComputedStyle(panel.lastElementChild!).borderLeftWidth).toBe("1px");
     const prompt = screen.getByRole("textbox", { name: "提交提示词" }).element();
     expect(prompt.getBoundingClientRect().width).toBeGreaterThan(panel.getBoundingClientRect().width * 0.85);
     await screen.getByRole("searchbox", { name: "搜索设置" }).fill("提交");
-    await expect.element(screen.getByRole("button", { name: "个性化", exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Git 提交", exact: true })).toBeVisible();
     await screen.getByRole("searchbox", { name: "搜索设置" }).fill("");
     await page.viewport(1440, 1100);
     await page.screenshot({ path: "../../../../test-results/settings-personalization-commit.png" });
@@ -100,7 +100,7 @@ describe("GlobalSettingsPage", () => {
   it("keeps permissions and runtime preferences in agent configuration", async () => {
     const { screen, onSave } = await renderSettings();
     expect(screen.getByRole("combobox", { name: "审批", exact: true }).all()).toHaveLength(0);
-    await screen.getByRole("button", { name: "智能体配置", exact: true }).click();
+    await screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true }).click();
     await screen.getByRole("combobox", { name: "审批", exact: true }).selectOptions("auto-review");
     await screen.getByRole("combobox", { name: "工作区", exact: true }).selectOptions("read-only");
     await screen.getByRole("combobox", { name: "网页搜索", exact: true }).selectOptions("live");
@@ -114,11 +114,11 @@ describe("GlobalSettingsPage", () => {
     await expect.poll(() => onSave.mock.calls.at(-1)?.[0]).toMatchObject({ modelVerbosity: null });
     for (const term of ["审批", "工作区", "网页搜索", "输出详细程度"]) {
       await screen.getByRole("searchbox", { name: "搜索设置" }).fill(term);
-      await expect.element(screen.getByRole("button", { name: "智能体配置", exact: true })).toBeVisible();
+      await expect.element(screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true })).toBeVisible();
       expect(screen.getByRole("button", { name: "常规", exact: true }).all()).toHaveLength(0);
     }
     await screen.getByRole("button", { name: "清除搜索" }).click();
-    await screen.getByRole("button", { name: "智能体配置", exact: true }).click();
+    await screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true }).click();
     for (const [width, height] of [[1280, 720], [1920, 1080]] as const) {
       await page.viewport(width, height);
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
@@ -140,7 +140,7 @@ describe("GlobalSettingsPage", () => {
     }
     await screen.getByRole("button", { name: "引导", exact: true }).click();
     await expect.poll(() => onSave.mock.calls.at(-1)?.[0]).toMatchObject({ followUpBehavior: "steer" });
-    await screen.getByRole("button", { name: "智能体配置", exact: true }).click();
+    await screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true }).click();
     await screen.getByRole("button", { name: "常规", exact: true }).click();
     await expect.element(screen.getByRole("button", { name: "引导", exact: true })).toHaveAttribute("aria-pressed", "true");
   });
@@ -149,9 +149,9 @@ describe("GlobalSettingsPage", () => {
     await expect.element(screen.getByRole("main", { name: "全局设置" })).toBeVisible();
     expect(screen.getByRole("dialog").all()).toHaveLength(0);
     await expect.element(screen.getByRole("button", { name: "返回应用" })).toBeVisible();
-    await screen.getByRole("button", { name: "智能体配置", exact: true }).click();
+    await screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true }).click();
     await expect.element(screen.getByRole("combobox", { name: "模型", exact: true })).toBeVisible();
-    expect(screen.getByRole("button", { name: "智能体配置", exact: true })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true })).toHaveAttribute("aria-current", "page");
     await screen.getByRole("button", { name: "常规", exact: true }).click();
 
     for (const [width, height] of [[1280, 720], [1920, 1080]] as const) {
@@ -180,57 +180,52 @@ describe("GlobalSettingsPage", () => {
   it("finds settings by field label and keeps navigation available after clearing search", async () => {
     const { screen } = await renderSettings();
     const search = screen.getByRole("searchbox", { name: "搜索设置" });
-    await search.fill("思考量");
-    await expect.element(screen.getByRole("button", { name: "智能体配置", exact: true })).toBeVisible();
+    await search.fill("思考强度");
+    await expect.element(screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true })).toBeVisible();
     expect(screen.getByRole("button", { name: "常规", exact: true }).all()).toHaveLength(0);
-    await screen.getByRole("button", { name: "智能体配置", exact: true }).click();
-    await expect.element(screen.getByRole("combobox", { name: "思考量", exact: true })).toBeVisible();
+    await screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "智能体配置", exact: true }).click();
+    await expect.element(screen.getByRole("combobox", { name: "思考强度", exact: true })).toBeVisible();
     await search.fill("no-matching-setting");
     await expect.element(screen.getByText("未找到相关设置")).toBeVisible();
     await screen.getByRole("button", { name: "清除搜索" }).click();
     await expect.element(screen.getByRole("button", { name: "常规", exact: true })).toBeVisible();
   });
 
-  it("saves generation rules only after clicking save", async () => {
-    const { screen, onSave } = await renderSettings("personalization");
+  it("automatically saves generation rules on blur", async () => {
+    const { screen, onSave } = await renderSettings("git");
     const editor = screen.getByRole("textbox", { name: "提交提示词" });
     await editor.fill("新的提交规则");
     editor.element().blur();
-    expect(onSave).not.toHaveBeenCalled();
-    const save = screen.getByRole("region", { name: "提交消息", exact: true }).getByRole("button", { name: "保存", exact: true });
-    await save.click();
     await expect.poll(() => onSave.mock.calls.at(-1)?.[0]).toMatchObject({ commitMessagePrompt: "新的提交规则" });
-    await expect.element(save).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存", exact: true }).all()).toHaveLength(0);
   });
 
   it("preserves generation rules after save failure and allows retry", async () => {
-    const { screen, onSave } = await renderSettings("personalization");
+    const { screen, onSave } = await renderSettings("git");
     onSave.mockRejectedValueOnce(new Error("disk unavailable"));
     const editor = screen.getByRole("textbox", { name: "提交提示词" });
     await editor.fill("保留规则草稿");
-    const panel = screen.getByRole("region", { name: "提交消息", exact: true });
-    const save = panel.getByRole("button", { name: "保存", exact: true });
-    await save.click();
-    await expect.element(panel.getByRole("alert")).toHaveTextContent("保存失败，草稿已保留。");
+    editor.element().blur();
+    await expect.element(screen.getByRole("alert")).toHaveTextContent("保存失败，请重试");
     await expect.element(editor).toHaveValue("保留规则草稿");
-    await save.click();
-    await expect.element(save).toBeDisabled();
+    await screen.getByRole("button", { name: "重试", exact: true }).click();
+    await expect.element(screen.getByRole("status")).toHaveTextContent("已保存");
     expect(onSave).toHaveBeenCalledTimes(2);
   });
 
-  it("does not save generation rule drafts when leaving settings", async () => {
-    const { screen, onClose, onSave } = await renderSettings("personalization");
-    await screen.getByRole("textbox", { name: "提交提示词" }).fill("未保存的规则");
+  it("flushes generation rules before leaving settings", async () => {
+    const { screen, onClose, onSave } = await renderSettings("git");
+    await screen.getByRole("textbox", { name: "提交提示词" }).fill("最新规则");
     await screen.getByRole("button", { name: "返回应用" }).click();
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(onSave).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ commitMessagePrompt: "最新规则" }));
   });
 
   it("clears search before returning with Escape and defers to nested dialogs", async () => {
     const { screen, onClose } = await renderSettings();
     const escape = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     const search = screen.getByRole("searchbox", { name: "搜索设置" });
-    await search.fill("思考量");
+    await search.fill("思考强度");
     escape();
     await expect.element(search).toHaveValue("");
     expect(onClose).not.toHaveBeenCalled();

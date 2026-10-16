@@ -1,6 +1,7 @@
 import type { AgentModel } from "@/protocol/index.js";
 import {
   Bot,
+  GitBranch,
   ChevronDown,
   Info,
   PawPrint,
@@ -15,13 +16,8 @@ import { useTranslation } from "../../../i18n/i18n.js";
 import { PromptInputSelect } from "../../../shared/components/agent/prompt-input.js";
 import { Checkbox } from "../../../shared/components/core/checkbox.js";
 
-export type SettingsSectionId = "claude"
-  | "about"
-  | "agent"
-  | "appearance"
-  | "pets"
-  | "personalization"
-  | "provider";
+import type { SettingsSectionId as SharedSettingsSectionId } from "@codexly/frontend-core/settings-navigation";
+export type SettingsSectionId = Exclude<SharedSettingsSectionId, "access">;
 
 export const settingsSections: readonly Readonly<{
   icon: LucideIcon;
@@ -29,8 +25,11 @@ export const settingsSections: readonly Readonly<{
 }>[] = [
   { icon: Settings, id: "appearance" },
   { icon: PawPrint, id: "pets" },
+  { icon: GitBranch, id: "git" },
   { icon: ServerCog, id: "provider" },
-  { icon: Bot, id: "claude" },
+  { icon: ServerCog, id: "claude-provider" },
+  { icon: Bot, id: "claude-agent" },
+  { icon: SlidersHorizontal, id: "claude-personalization" },
   { icon: Bot, id: "agent" },
   { icon: SlidersHorizontal, id: "personalization" },
   { icon: Info, id: "about" },

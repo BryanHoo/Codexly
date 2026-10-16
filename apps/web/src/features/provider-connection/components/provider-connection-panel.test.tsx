@@ -95,6 +95,23 @@ describe("ProviderConnectionPanelView", () => {
     expect(markup).toContain("已连接");
   });
 
+  it("设置中的 API 配置自动保存，不显示连接或保存按钮", () => {
+    const markup = renderWithTooltipProvider(
+      <ProviderConnectionPanelView
+        {...handlers}
+        autoSave
+        apiKey=""
+        baseUrl="https://api.example.com/v1"
+        error={null}
+        isBusy={false}
+        mode="custom"
+        models={[]}
+        status={undefined}
+      />,
+    );
+    expect(markup).not.toContain('type="submit"');
+  });
+
   it("builds structured models and rejects incomplete rows", () => {
     expect(
       createCustomProviderInput({

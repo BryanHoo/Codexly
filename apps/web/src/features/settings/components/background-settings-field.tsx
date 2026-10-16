@@ -3,12 +3,13 @@ import { useTranslation } from "../../../i18n/i18n.js";
 import { applyWorkbenchBackgroundPreference } from "../workbench-background-preference.js";
 import { useWorkbenchBackgroundDraft } from "./use-workbench-background-draft.js";
 import { WorkbenchBackgroundSettings } from "./workbench-background-settings.js";
-import { Button } from "../../../shared/components/core/button.js";
+import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
+import type { SettingsSaveStatus as SaveStatus } from "@codexly/frontend-core/settings-autosave";
 
 export function BackgroundSettingsField() {
   const { t } = useTranslation("settings");
   const draft = useWorkbenchBackgroundDraft();
-  const [error, setError] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [retry, setRetry] = useState(0);
   const dirty = useRef(false);
   const queue = useRef(Promise.resolve());
@@ -18,13 +19,16 @@ export function BackgroundSettingsField() {
     if (!dirty.current || customBackgroundMissing) return;
     queue.current = queue.current
       .catch(() => undefined)
-      .then(() => applyWorkbenchBackgroundPreference(background, backgroundMutation))
+      .then(() => {
+        setSaveStatus("saving");
+        return applyWorkbenchBackgroundPreference(background, backgroundMutation);
+      })
       .then(
         () => {
-          setError(false);
+          setSaveStatus("saved");
         },
         () => {
-          setError(true);
+          setSaveStatus("error");
         },
       );
   }, [background, backgroundMutation, customBackgroundMissing, retry]);
@@ -53,19 +57,18 @@ export function BackgroundSettingsField() {
           draft.setBackground(value);
         }}
       />
-      {error ? (
-        <div role="alert" className="text-body-small text-danger">
-          {t("personalization.saveError")}
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setRetry((value) => value + 1);
-            }}
-          >
-            {t("common:actions.retry")}
-          </Button>
-        </div>
-      ) : null}
+      <SettingsSaveStatus
+        status={saveStatus}
+        labels={{
+          saving: t("actions.saving"),
+          saved: t("actions.saved"),
+          saveError: t("errors.save"),
+          retry: t("common:actions.retry"),
+        }}
+        onRetry={() => {
+          setRetry((value) => value + 1);
+        }}
+      />
     </div>
   );
 }

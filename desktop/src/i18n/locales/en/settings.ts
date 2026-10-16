@@ -25,6 +25,8 @@ export const settings = {
     updating: "Preparing update",
   },
   actions: {
+    saving: "Saving…",
+    saved: "Saved",
     backToApp: "Back to app",
     closeReleaseNotes: "Close release notes",
   },
@@ -77,7 +79,7 @@ export const settings = {
   errors: {
     appInfo: "Unable to load version information",
     load: "Unable to load global settings",
-    save: "Unable to save global settings",
+    save: "Could not save. Try again.",
     update: "Update failed. Try again.",
     updateCheck: "Unable to check for updates",
     githubConnection: "Unable to connect to GitHub",
@@ -105,8 +107,9 @@ export const settings = {
   loading: "Loading global settings",
   navigationLabel: "Settings categories",
   groups: {
-    personal: "Personal",
-    coding: "Coding",
+    personal: "Shared",
+    codex: "Codex",
+    claude: "Claude",
     app: "Application",
   },
   search: {
@@ -121,7 +124,7 @@ export const settings = {
   },
   provider: {
     apiKey: "API key (optional)",
-    baseUrl: "API base URL",
+    baseUrl: "API URL",
     cancelLogin: "Cancel login",
     connect: "Connect",
     connected: "Connected",
@@ -170,7 +173,10 @@ export const settings = {
     workspaceWrite: "Workspace write",
   },
   sections: {
-    claude: "Claude Agent",
+    git: "Git commits",
+    "claude-provider": "Model service",
+    "claude-agent": "Agent configuration",
+    "claude-personalization": "Personalization",
     personalization: "Personalization",
     about: "About",
     agent: "Agent configuration",
@@ -180,9 +186,12 @@ export const settings = {
   },
   title: "Global settings",
   sectionKeywords: {
-    claude: "Claude Anthropic API Key model permission instructions 工具 权限 指令",
+    git: "Git commit message model prompt generation rules",
+    "claude-provider": "Claude Anthropic API key API URL endpoint connection available models",
+    "claude-agent": "Claude Default model Default reasoning effort Tool permissions Ask when needed Accept edits Plan mode Full access",
+    "claude-personalization": "Claude CLAUDE.md Global instructions Load project settings Tool permission rules Automatically allow Disallow",
     appearance: "Color mode language notifications editor default open follow-up messages background wallpaper Bing custom blur overlay non-project temporary task folder storage location",
-    personalization: "Codex instructions AGENTS.md global memory MCP web search Git commit messages model prompt generation rules",
+    personalization: "Codex instructions AGENTS.md global memory MCP web search",
     pets: "Enable pet selection",
     provider: "API key Base URL models official custom",
     agent: "Fast mode model reasoning approval file access sandbox web search output verbosity",

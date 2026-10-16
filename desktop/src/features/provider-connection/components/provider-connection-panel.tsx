@@ -1,8 +1,12 @@
 import type { ConfigureCustomProviderRequest } from "@/protocol/index.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
+import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
+import { useTranslation } from "../../../i18n/i18n.js";
+import { hasIncompleteCustomModels } from "./provider-connection-panel-view.js";
 
-import { notifyActionError, notifyActionSuccess } from "../../notifications/action-notifications.js";
+import { notifyActionError } from "../../notifications/action-notifications.js";
 import {
   cancelProviderLoginMutationOptions,
   configureCustomProvider,
@@ -33,7 +37,7 @@ export function createCustomProviderInput({
   };
 }
 
-export function ProviderConnectionPanel() {
+export function ProviderConnectionPanel({ autoSave = false }: Readonly<{ autoSave?: boolean }> = {}) {
   const queryClient = useQueryClient();
   const connectionQuery = useQuery(providerConnectionQueryOptions());
   const officialLogin = useMutation(startOfficialProviderLoginMutationOptions(queryClient));
@@ -44,21 +48,47 @@ export function ProviderConnectionPanel() {
   const [apiKey, setApiKey] = useState("");
   const [models, setModels] = useState<readonly CustomModelDraft[]>([]);
   const nextModelKey = useRef(1);
-  const [customPending, setCustomPending] = useState(false);
+  const { t } = useTranslation("settings");
+  const dirty = useRef(false);
+  const formRef = useRef({ apiKey, baseUrl, models });
+  formRef.current = { apiKey, baseUrl, models };
+  const autosave = useSettingsAutosave<typeof formRef.current>(async (value) => {
+    await configureCustomProvider(createCustomProviderInput(value), queryClient);
+    // 保存期间允许继续输入，较早响应只能清空其对应的密钥，失败保留输入供重试。
+    if (formRef.current.apiKey === value.apiKey) setApiKey("");
+    if (formRef.current.baseUrl === value.baseUrl && formRef.current.models === value.models) dirty.current = false;
+  });
+  const update = (patch: Partial<typeof formRef.current>, immediate = false) => {
+    const next = { ...formRef.current, ...patch };
+    formRef.current = next;
+    dirty.current = true;
+    setApiKey(next.apiKey);
+    setBaseUrl(next.baseUrl);
+    setModels(next.models);
+    let valid = false;
+    try { valid = ["http:", "https:"].includes(new URL(next.baseUrl).protocol); } catch { /* 未输入完整的地址暂不提交。 */ }
+    if (!valid || hasIncompleteCustomModels(next.models)) { autosave.queue.cancelScheduled(); return; }
+    if (!autoSave) return;
+    if (immediate) autosave.queue.save(next);
+    else autosave.queue.schedule(next);
+  };
   const status = connectionQuery.data;
 
   useEffect(() => {
-    if (status === undefined) return;
+    if (status === undefined || dirty.current) return;
     setMode(status.mode);
     if (status.customBaseUrl !== null) setBaseUrl(status.customBaseUrl);
   }, [status]);
 
   const isBusy =
-    officialLogin.isPending || cancelLogin.isPending || logout.isPending || customPending;
+    officialLogin.isPending || cancelLogin.isPending || logout.isPending || (!autoSave && autosave.status === "saving");
   const requestError = connectionQuery.error?.message ?? null;
 
   return (
+    <>
+    <SettingsSaveStatus beforeLeave={() => autosave.queue.flush()} status={autosave.status} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => { void autosave.queue.retry(); }} />
     <ProviderConnectionPanelView
+      autoSave={autoSave}
       apiKey={apiKey}
       baseUrl={baseUrl}
       error={requestError}
@@ -68,37 +98,20 @@ export function ProviderConnectionPanel() {
       onAddModel={() => {
         const key = `custom-model-${String(nextModelKey.current)}`;
         nextModelKey.current += 1;
-        setModels((current) => [...current, { id: "", key, name: "" }]);
+        update({ models: [...formRef.current.models, { id: "", key, name: "" }] });
       }}
-      onApiKeyChange={setApiKey}
-      onBaseUrlChange={setBaseUrl}
+      onApiKeyChange={(apiKey) => update({ apiKey })}
+      onBaseUrlChange={(baseUrl) => update({ baseUrl })}
       onCancelLogin={() => {
         const loginId = status?.pendingLogin?.loginId;
         if (loginId !== undefined) void cancelLogin.mutateAsync(loginId).catch(() => undefined);
       }}
-      onConfigureCustom={() => {
-        setCustomPending(true);
-        const input = createCustomProviderInput({ apiKey, baseUrl, models });
-        void configureCustomProvider(input, queryClient)
-          .then(() => {
-            setApiKey("");
-            notifyActionSuccess();
-          })
-          .catch((error: unknown) => {
-            notifyActionError(error);
-          })
-          .finally(() => {
-            setApiKey("");
-            setCustomPending(false);
-          });
-      }}
+      onConfigureCustom={() => { if (!autoSave) autosave.queue.save(formRef.current); void autosave.queue.flush(); }}
       onLogout={() => {
         void logout.mutateAsync().catch(() => undefined);
       }}
       onModelChange={(key, field, value) => {
-        setModels((current) =>
-          current.map((model) => (model.key === key ? { ...model, [field]: value } : model)),
-        );
+        update({ models: formRef.current.models.map((model) => model.key === key ? { ...model, [field]: value } : model) });
       }}
       onModeChange={(nextMode) => {
         setMode(nextMode);
@@ -107,7 +120,7 @@ export function ProviderConnectionPanel() {
         void connectionQuery.refetch();
       }}
       onRemoveModel={(key) => {
-        setModels((current) => current.filter((model) => model.key !== key));
+        update({ models: formRef.current.models.filter((model) => model.key !== key) }, true);
       }}
       onStartOfficialLogin={() => {
         void officialLogin
@@ -123,5 +136,6 @@ export function ProviderConnectionPanel() {
       }}
       status={status}
     />
+    </>
   );
 }

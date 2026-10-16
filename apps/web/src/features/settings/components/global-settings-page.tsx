@@ -1,3 +1,6 @@
+import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
+import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
+import { isClaudeSettingsSection } from "@codexly/frontend-core/settings-navigation";
 import type { AgentGlobalSettings } from "@codexly/protocol";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { changeAppLanguage, getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
@@ -68,30 +71,34 @@ export function GlobalSettingsPage({
   const [theme, setTheme] = useState(readInitialTheme);
   const [language, setLanguage] = useState(getCurrentLanguage);
   const [notificationsEnabled, setNotificationsEnabled] = useState(getNotificationPreference);
-  const [saveError, setSaveError] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const draftRef = useRef(draft);
   const changed = useRef(false);
-  const failed = useRef(false);
   const closing = useRef(false);
   const mounted = useRef(true);
+  const browserDraft = useRef({ theme, language, notificationsEnabled });
+  const browserSave = useSettingsAutosave<typeof browserDraft.current>(async (next) => {
+    if (readInitialTheme() !== next.theme) setThemePreference(next.theme);
+    if (getNotificationPreference() !== next.notificationsEnabled)
+      setNotificationPreference(next.notificationsEnabled);
+    if (getCurrentLanguage() !== next.language) await changeAppLanguage(next.language);
+  });
+  const updateBrowser = (patch: Partial<typeof browserDraft.current>) => {
+    browserDraft.current = { ...browserDraft.current, ...patch };
+    setTheme(browserDraft.current.theme);
+    setLanguage(browserDraft.current.language);
+    setNotificationsEnabled(browserDraft.current.notificationsEnabled);
+    browserSave.queue.save(browserDraft.current);
+  };
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
   const [queue] = useState(() =>
-    createGlobalSettingsSaveQueue(async (next) => {
-      if (mounted.current) setSaving(true);
-      try {
-        await onSaveRef.current(next);
-        failed.current = false;
-        if (mounted.current) setSaveError(false);
-      } catch (failure) {
-        failed.current = true;
-        if (mounted.current) setSaveError(true);
-        throw failure;
-      } finally {
-        if (mounted.current) setSaving(false);
-      }
-    }),
+    createGlobalSettingsSaveQueue(
+      (next) => onSaveRef.current(next),
+      (status) => {
+        if (mounted.current) setSaveStatus(status);
+      },
+    ),
   );
   useEffect(() => {
     if (settings && !changed.current) {
@@ -123,15 +130,14 @@ export function GlobalSettingsPage({
   );
   const close = () => {
     if (closing.current) return;
-    if (!changed.current) {
-      onClose();
-      return;
-    }
     closing.current = true;
-    // 返回前等待最新快照落盘；失败时留在设置页，保留草稿供重试。
-    void queue.flush(draftRef.current).then(() => {
+    // 返回前等待最新设置落盘；失败时保留当前页面，供用户重试。
+    void Promise.all([
+      queue.flush(changed.current ? draftRef.current : undefined),
+      browserSave.queue.flush(),
+    ]).then(([backendSaved, browserSaved]) => {
       closing.current = false;
-      if (!failed.current) onClose();
+      if (backendSaved && browserSaved) onClose();
     });
   };
   const failure = (
@@ -150,36 +156,40 @@ export function GlobalSettingsPage({
       onBack={close}
       onSectionChange={setActiveSection}
     >
-      {/* 保存提示脱离文档流，避免自动保存开始、结束或失败时改变内容高度与滚动位置。 */}
-      {saving && !saveError ? (
-        <p
-          role="status"
-          data-floating-surface
-          className="pointer-events-none fixed bottom-5 right-5 z-50 rounded-control border border-separator bg-panel px-3 py-2 text-body-small text-muted-foreground shadow-control"
-        >
-          {t("actions.saving")}
-        </p>
+      {activeSection === "appearance" ||
+      activeSection === "pets" ||
+      activeSection === "agent" ||
+      activeSection === "git" ? (
+        <SettingsSaveStatus
+          status={saveStatus}
+          labels={{
+            saving: t("actions.saving"),
+            saved: t("actions.saved"),
+            saveError: t("errors.save"),
+            retry: t("common:actions.retry"),
+          }}
+          onRetry={() => {
+            queue.save(draftRef.current);
+          }}
+        />
       ) : null}
-      {saveError ? (
-        <div
-          role="alert"
-          data-floating-surface
-          className="fixed bottom-5 right-5 z-50 max-w-[calc(100vw-2.5rem)] rounded-control border border-separator bg-panel px-3 py-2 text-body-small text-danger shadow-control"
-        >
-          {t("personalization.saveError")}
-          <Button
-            variant="ghost"
-            onClick={() => {
-              queue.save(draftRef.current);
-            }}
-          >
-            {t("common:actions.retry")}
-          </Button>
-        </div>
+      {activeSection === "appearance" ? (
+        <SettingsSaveStatus
+          status={browserSave.status}
+          labels={{
+            saving: t("actions.saving"),
+            saved: t("actions.saved"),
+            saveError: t("errors.save"),
+            retry: t("common:actions.retry"),
+          }}
+          onRetry={() => {
+            void browserSave.queue.retry();
+          }}
+        />
       ) : null}
       <Suspense fallback={status}>
-        {activeSection === "claude" ? (
-          <ClaudeSettingsPanel client={client} />
+        {isClaudeSettingsSection(activeSection) ? (
+          <ClaudeSettingsPanel client={client} section={activeSection} />
         ) : activeSection === "about" ? (
           <GlobalSettingsAbout
             activeSection="about"
@@ -196,7 +206,7 @@ export function GlobalSettingsPage({
         ) : activeSection === "provider" ? (
           <section>
             <h1 className="mb-6 text-xl font-semibold">{t("sections.provider")}</h1>
-            <ProviderConnectionPanel />
+            <ProviderConnectionPanel autoSave />
           </section>
         ) : activeSection === "access" && accessMode === "lan" ? (
           <GlobalSettingsAccess
@@ -204,25 +214,25 @@ export function GlobalSettingsPage({
             {...(props.onLogoutAccess === undefined ? {} : { onLogout: props.onLogoutAccess })}
           />
         ) : activeSection === "personalization" ? (
-          <PersonalizationSettingsPanel
-            client={client}
-            commitSettings={
-              ready ? (
-                <CommitSettingsPanel
-                  settings={draft}
-                  models={models}
-                  onChange={update}
-                  onFlush={() => {
-                    queue.save(draftRef.current);
-                  }}
-                />
-              ) : error ? (
-                failure
-              ) : (
-                status
-              )
-            }
-          />
+          <PersonalizationSettingsPanel client={client} />
+        ) : activeSection === "git" ? (
+          <section id="settings-panel-git" className="space-y-6">
+            <h1 className="text-xl font-semibold">{t("sections.git")}</h1>
+            {ready ? (
+              <CommitSettingsPanel
+                settings={draft}
+                models={models}
+                onChange={update}
+                onFlush={() => {
+                  queue.save(draftRef.current);
+                }}
+              />
+            ) : error ? (
+              failure
+            ) : (
+              status
+            )}
+          </section>
         ) : !ready ? (
           error ? (
             failure
@@ -244,16 +254,13 @@ export function GlobalSettingsPage({
               update((current) => ({ ...current, followUpBehavior }));
             }}
             onThemeChange={(value) => {
-              setTheme(value);
-              setThemePreference(value);
+              updateBrowser({ theme: value });
             }}
             onLanguageChange={(value) => {
-              setLanguage(value);
-              void changeAppLanguage(value);
+              updateBrowser({ language: value });
             }}
             onNotificationsChange={(value) => {
-              setNotificationsEnabled(value);
-              setNotificationPreference(value);
+              updateBrowser({ notificationsEnabled: value });
             }}
           />
         ) : activeSection === "pets" ? (

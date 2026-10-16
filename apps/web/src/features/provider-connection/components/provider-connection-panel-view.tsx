@@ -29,6 +29,7 @@ import { CustomModelEditor, type CustomModelDraft } from "./custom-model-editor.
 export type ConnectionMode = "custom" | "official";
 
 type ProviderConnectionPanelViewProps = Readonly<{
+  autoSave?: boolean;
   apiKey: string;
   baseUrl: string;
   error: string | null;
@@ -55,6 +56,7 @@ const modes = [
 ] as const;
 
 export function ProviderConnectionPanelView({
+  autoSave = false,
   apiKey,
   baseUrl,
   error,
@@ -76,6 +78,10 @@ export function ProviderConnectionPanelView({
 }: ProviderConnectionPanelViewProps) {
   const { t } = useTranslation("settings");
   const inputId = useId();
+  const flush = () => {
+    if (autoSave && baseUrl.trim() !== "" && !hasIncompleteCustomModels(models))
+      onConfigureCustom();
+  };
   const [keyVisible, setKeyVisible] = useState(false);
   const connected = status?.mode === mode && status.state === "connected";
   const pendingOfficial = status?.mode === "official" && status.state === "pending";
@@ -197,6 +203,7 @@ export function ProviderConnectionPanelView({
                   {t("provider.baseUrl")}
                 </label>
                 <Input
+                  onBlur={flush}
                   autoCapitalize="none"
                   autoComplete="url"
                   className="font-mono"
@@ -224,6 +231,7 @@ export function ProviderConnectionPanelView({
                     className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-subtle-foreground"
                   />
                   <Input
+                    onBlur={flush}
                     autoComplete="new-password"
                     className="pl-9 pr-10 font-mono"
                     disabled={isBusy}
@@ -267,32 +275,36 @@ export function ProviderConnectionPanelView({
             </div>
           </section>
           <CustomModelEditor
+            onBlur={flush}
             disabled={isBusy}
             models={models}
             onAdd={onAddModel}
             onChange={onModelChange}
             onRemove={onRemoveModel}
           />
-          <div className="flex justify-end border-t border-separator pt-4">
-            <Button
-              className="h-9 gap-2"
-              disabled={isBusy || baseUrl.trim() === "" || hasIncompleteCustomModels(models)}
-              type="submit"
-            >
-              {isBusy ? (
-                <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
-              ) : (
-                <Server aria-hidden="true" className="size-4" />
-              )}
-              {t(
-                isBusy
-                  ? "provider.connecting"
-                  : connected
-                    ? "provider.reconnect"
-                    : "provider.connect",
-              )}
-            </Button>
-          </div>
+
+          {!autoSave ? (
+            <div className="flex justify-end border-t border-separator pt-4">
+              <Button
+                className="h-9 gap-2"
+                disabled={isBusy || baseUrl.trim() === "" || hasIncompleteCustomModels(models)}
+                type="submit"
+              >
+                {isBusy ? (
+                  <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
+                ) : (
+                  <Server aria-hidden="true" className="size-4" />
+                )}
+                {t(
+                  isBusy
+                    ? "provider.connecting"
+                    : connected
+                      ? "provider.reconnect"
+                      : "provider.connect",
+                )}
+              </Button>
+            </div>
+          ) : null}
         </form>
       )}
       {error === null ? null : (

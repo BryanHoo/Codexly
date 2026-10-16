@@ -13,6 +13,7 @@ import { CustomModelEditor, type CustomModelDraft } from "./custom-model-editor.
 export type ConnectionMode = "custom" | "official";
 
 type ProviderConnectionPanelViewProps = Readonly<{
+  autoSave?: boolean;
   apiKey: string;
   baseUrl: string;
   error: string | null;
@@ -39,12 +40,16 @@ const modes = [
 ] as const;
 
 export function ProviderConnectionPanelView({
+  autoSave = false,
   apiKey, baseUrl, error, isBusy, mode, models, onAddModel, onApiKeyChange,
   onBaseUrlChange, onCancelLogin, onConfigureCustom, onLogout, onModelChange,
   onModeChange, onRetry, onRemoveModel, onStartOfficialLogin, status,
 }: ProviderConnectionPanelViewProps) {
   const { t } = useTranslation("settings");
   const inputId = useId();
+  const flush = () => {
+    if (autoSave && baseUrl.trim() !== "" && !hasIncompleteCustomModels(models)) onConfigureCustom();
+  };
   const [keyVisible, setKeyVisible] = useState(false);
   const connected = status?.mode === mode && status.state === "connected";
   const pendingOfficial = status?.mode === "official" && status.state === "pending";
@@ -123,6 +128,7 @@ export function ProviderConnectionPanelView({
               <div className="grid grid-cols-[minmax(9rem,1fr)_minmax(0,22rem)] items-center gap-4 py-4">
                 <label className="text-body-small font-medium" htmlFor={`${inputId}-url`}>{t("provider.baseUrl")}</label>
                 <Input
+                  onBlur={flush}
                   autoCapitalize="none" autoComplete="url" className="font-mono"
                   disabled={isBusy} id={`${inputId}-url`} inputMode="url" maxLength={2_048}
                   onChange={(event) => onBaseUrlChange(event.currentTarget.value)}
@@ -134,6 +140,7 @@ export function ProviderConnectionPanelView({
                 <div className="relative min-w-0">
                   <KeyRound aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-subtle-foreground" />
                   <Input
+                  onBlur={flush}
                     autoComplete="new-password" className="pl-9 pr-10 font-mono" disabled={isBusy}
                     id={`${inputId}-key`} maxLength={16_384} onChange={(event) => onApiKeyChange(event.currentTarget.value)}
                     spellCheck={false} type={keyVisible ? "text" : "password"} value={apiKey} variant="outline"
@@ -152,13 +159,14 @@ export function ProviderConnectionPanelView({
               </div>
             </div>
           </section>
-          <CustomModelEditor disabled={isBusy} models={models} onAdd={onAddModel} onChange={onModelChange} onRemove={onRemoveModel} />
-          <div className="flex justify-end border-t border-separator pt-4">
+          <CustomModelEditor onBlur={flush} disabled={isBusy} models={models} onAdd={onAddModel} onChange={onModelChange} onRemove={onRemoveModel} />
+
+          {!autoSave ? <div className="flex justify-end border-t border-separator pt-4">
             <Button className="h-9 gap-2" disabled={isBusy || baseUrl.trim() === "" || hasIncompleteCustomModels(models)} type="submit">
               {isBusy ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" /> : <Server aria-hidden="true" className="size-4" />}
               {t(isBusy ? "provider.connecting" : connected ? "provider.reconnect" : "provider.connect")}
             </Button>
-          </div>
+          </div> : null}
         </form>
       )}
       {error === null ? null : (

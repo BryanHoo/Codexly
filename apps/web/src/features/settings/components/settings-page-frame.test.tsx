@@ -23,4 +23,23 @@ describe("SettingsPageFrame", () => {
     expect(markup).toContain("局域网访问");
     expect(markup).toContain('aria-current="page"');
   });
+
+  it("将两种引擎放入独立菜单，并将 Git 配置归入公共菜单", async () => {
+    await changeAppLanguage("zh-CN");
+    const markup = renderToStaticMarkup(
+      <SettingsPageFrame activeSection="appearance" onBack={vi.fn()} onSectionChange={vi.fn()}>
+        <p>内容</p>
+      </SettingsPageFrame>,
+    );
+    expect(markup).toContain('aria-label="Codex"');
+    expect(markup).toContain('aria-label="Claude"');
+    expect(markup).toContain("Git 提交");
+    const claude = markup.slice(
+      markup.indexOf('role="group" aria-label="Claude"'),
+      markup.indexOf('role="group" aria-label="应用"'),
+    );
+    for (const label of ["模型服务", "智能体配置", "个性化"]) expect(claude).toContain(label);
+    expect(claude).not.toContain("Claude Agent");
+    expect(markup).not.toContain(">编码<");
+  });
 });

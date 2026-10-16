@@ -138,6 +138,8 @@ export function globalSettingsMutationOptions(client: CodexlySettingsClient = co
   return mutationOptions({
     mutationFn: (settings: AgentGlobalSettings) => client.updateGlobalSettings(settings),
     mutationKey: ["settings", "update"] as const,
+    // 设置页统一展示保存状态，避免重复出现通用操作通知。
+    meta: { actionNotification: false },
     scope: { id: "global-settings" },
   });
 }

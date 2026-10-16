@@ -1,3 +1,6 @@
+import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
+import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
+import { isClaudeSettingsSection } from "@codexly/frontend-core/settings-navigation";
 import type {
   AgentGlobalSettings,
   AgentModel,
@@ -74,13 +77,29 @@ export function GlobalSettingsPage({
   const [theme, setTheme] = useState<ThemePreference>(readInitialTheme);
   const [language, setLanguage] = useState(getCurrentLanguage);
   const [notificationsEnabled, setNotificationsEnabled] = useState(getNotificationPreference);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const mounted = useRef(true);
+  const closing = useRef(false);
+  const browserDraft = useRef({ theme, language, notificationsEnabled });
+  const browserSave = useSettingsAutosave<typeof browserDraft.current>(async (next) => {
+    await applyBrowserSettingsChanges(next);
+  });
+  const updateBrowser = (patch: Partial<typeof browserDraft.current>) => {
+    browserDraft.current = { ...browserDraft.current, ...patch };
+    setTheme(browserDraft.current.theme);
+    setLanguage(browserDraft.current.language);
+    setNotificationsEnabled(browserDraft.current.notificationsEnabled);
+    browserSave.queue.save(browserDraft.current);
+  };
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
   const draftRef = useRef(draft);
   const hasLocalChangesRef = useRef(false);
   const saveQueueRef = useRef<ReturnType<typeof createGlobalSettingsSaveQueue> | null>(null);
   if (saveQueueRef.current === null) {
-    saveQueueRef.current = createGlobalSettingsSaveQueue((next) => onSaveRef.current(next));
+    saveQueueRef.current = createGlobalSettingsSaveQueue((next) => onSaveRef.current(next), (status) => {
+      if (mounted.current) setSaveStatus(status);
+    });
     if (settings !== undefined) saveQueueRef.current.reset(settings);
   }
   const saveQueue = saveQueueRef.current;
@@ -107,9 +126,24 @@ export function GlobalSettingsPage({
     }
   };
 
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (hasLocalChangesRef.current) void saveQueue.flush(draftRef.current);
+    };
+  }, [saveQueue]);
   const close = () => {
-    void saveQueue.flush(draftRef.current);
-    onClose();
+    if (closing.current) return;
+    closing.current = true;
+    // 返回前等待最新设置落盘；失败时保留当前页面，供用户重试。
+    void Promise.all([
+      saveQueue.flush(hasLocalChangesRef.current ? draftRef.current : undefined),
+      browserSave.queue.flush(),
+    ]).then(([backendSaved, browserSaved]) => {
+      closing.current = false;
+      if (backendSaved && browserSaved) onClose();
+    });
   };
 
   return (
@@ -118,6 +152,8 @@ export function GlobalSettingsPage({
       onBack={close}
       onSectionChange={setActiveSection}
     >
+      {activeSection === "appearance" || activeSection === "pets" || activeSection === "agent" || activeSection === "git" ? <SettingsSaveStatus status={saveStatus} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => saveQueue.save(draftRef.current)} /> : null}
+      {activeSection === "appearance" ? <SettingsSaveStatus status={browserSave.status} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => { void browserSave.queue.retry(); }} /> : null}
       <Suspense fallback={<div className="grid min-h-40 place-items-center text-body-small text-muted-foreground" role="status">{t("loading")}</div>}>
       {activeSection === "about" ? <GlobalSettingsAbout
         activeSection={activeSection}
@@ -129,30 +165,24 @@ export function GlobalSettingsPage({
         onUpdate={onUpdate}
       /> : null}
 
-      {activeSection === "claude" ? <ClaudeSettingsPanel /> : activeSection === "provider" ? (
+      {isClaudeSettingsSection(activeSection) ? <ClaudeSettingsPanel section={activeSection} /> : activeSection === "provider" ? (
         <section id="settings-panel-provider">
           <h1 className="mb-6 text-xl font-semibold">{t("sections.provider")}</h1>
-          <ProviderConnectionPanel />
+          <ProviderConnectionPanel autoSave />
         </section>
       ) : activeSection === "personalization" ? (
-        <PersonalizationSettingsPanel commitSettings={
+        <PersonalizationSettingsPanel />
+      ) : activeSection === "git" ? (
+        <section id="settings-panel-git" className="space-y-6">
+          <h1 className="text-xl font-semibold">{t("sections.git")}</h1>
+          {
           error !== null ? <div role="alert" className="text-body-small text-danger">
             <p>{t("errors.load")}</p>
             <Button variant="ghost" onClick={() => void onRetry()}>{t("common:actions.retry")}</Button>
           </div> : isPending || settings === undefined ? <p role="status" className="text-body-small text-muted-foreground">{t("loading")}</p> : (
-            <CommitSettingsPanel settings={draft} models={models} onChange={updateDraft} onSaveRules={async (commitMessagePrompt) => {
-              // 先等待已有自动保存完成；成功后才更新全局快照，失败时由编辑器保留草稿。
-              await saveQueue.flush();
-              const next = { ...draftRef.current, commitMessagePrompt };
-              await onSaveRef.current(next);
-              saveQueue.reset(next);
-              draftRef.current = { ...draftRef.current, commitMessagePrompt };
-              hasLocalChangesRef.current = true;
-              setDraft(draftRef.current);
-            }} />
-          )
-        } />
-
+            <CommitSettingsPanel settings={draft} models={models} onChange={updateDraft} onFlush={() => { void saveQueue.flush(draftRef.current); }} />
+          )}
+        </section>
       ) : activeSection === "about" ? null : error !== null ? (
         <div
           className="flex min-h-40 flex-col items-center justify-center gap-3"
@@ -187,22 +217,9 @@ export function GlobalSettingsPage({
             onDefaultOpenAppChange={(defaultOpenAppId) => {
               updateDraft((current) => ({ ...current, defaultOpenAppId }));
             }}
-            onLanguageChange={(nextLanguage) => {
-              setLanguage(nextLanguage);
-              void applyBrowserSettingsChanges({ language: nextLanguage }).catch(
-                () => undefined,
-              );
-            }}
-            onNotificationsChange={(enabled) => {
-              setNotificationsEnabled(enabled);
-              void applyBrowserSettingsChanges({ notificationsEnabled: enabled }).catch(
-                () => undefined,
-              );
-            }}
-            onThemeChange={(nextTheme) => {
-              setTheme(nextTheme);
-              void applyBrowserSettingsChanges({ theme: nextTheme }).catch(() => undefined);
-            }}
+            onLanguageChange={(language) => updateBrowser({ language })}
+            onNotificationsChange={(notificationsEnabled) => updateBrowser({ notificationsEnabled })}
+            onThemeChange={(theme) => updateBrowser({ theme })}
             theme={theme}
           /> : null}
 

@@ -57,6 +57,58 @@ describe("GlobalSettingsPage", () => {
     await changeAppLanguage("zh-CN");
   });
 
+  it.each([
+    ["claude-provider", "API 地址", "默认模型"],
+    ["claude-agent", "模型", "全局指令"],
+    ["claude-personalization", "全局指令", "API 地址"],
+  ] as const)(
+    "Claude 子菜单 %s 在 Codex 设置加载失败时仍可独立打开",
+    async (initialSection, field, excluded) => {
+      const markup = await renderSettingsDialog(
+        <GlobalSettingsPage
+          client={new CodexlyClient()}
+          initialSection={initialSection}
+          apps={[]}
+          error={new Error("Codex unavailable")}
+          isPending={false}
+          models={models}
+          onClose={vi.fn()}
+          onRetry={vi.fn()}
+          onSave={vi.fn()}
+        />,
+      );
+      expect(markup).toContain(`id="settings-panel-${initialSection}"`);
+      expect(markup).toContain(`aria-label="${field}"`);
+      expect(markup).not.toContain(`aria-label="${excluded}"`);
+      expect(markup).not.toContain("Codex unavailable");
+    },
+  );
+
+  it("独立展示 Git 提交设置，不加载 Codex 指令和记忆", async () => {
+    const client = new CodexlyClient();
+    const instructions = vi.spyOn(client, "getGlobalInstructions");
+    const memories = vi.spyOn(client, "getMemorySettings");
+    const markup = await renderSettingsDialog(
+      <GlobalSettingsPage
+        client={client}
+        initialSection="git"
+        apps={[]}
+        error={null}
+        isPending={false}
+        models={models}
+        onClose={vi.fn()}
+        onRetry={vi.fn()}
+        onSave={vi.fn()}
+        settings={createFallbackSettings(models)}
+      />,
+    );
+    expect(markup).toContain('id="settings-panel-git"');
+    expect(markup).toContain('aria-label="提交提示词"');
+    expect(markup).not.toContain('id="codex-global-instructions"');
+    expect(instructions).not.toHaveBeenCalled();
+    expect(memories).not.toHaveBeenCalled();
+  });
+
   it("上下文以带单位的数字框展示千 tokens，空值清楚提示自动", async () => {
     const renderAgent = (modelContextWindow: number | null) =>
       renderSettingsDialog(
