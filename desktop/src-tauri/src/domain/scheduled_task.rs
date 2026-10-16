@@ -77,7 +77,8 @@ pub struct ScheduledTaskPage {
 
 impl ScheduledTask {
     pub fn is_valid(&self) -> bool {
-        !self.id.is_empty()
+        scheduled_task_engine(&self.turn_options).is_some()
+            && !self.id.is_empty()
             && self.id.len() <= 128
             && !self.name.trim().is_empty()
             && self.name.len() <= 120
@@ -131,5 +132,77 @@ impl AgentTaskSettingsView<'_> {
                 self.sandbox_mode,
                 "read-only" | "workspace-write" | "danger-full-access"
             )
+    }
+}
+
+/// 执行身份由已保存的引擎选项决定；缺省是旧版 Codex，非法选项不能静默回退。
+pub fn scheduled_task_engine(options: &AgentTurnOptions) -> Option<&'static str> {
+    match options.engine_options.as_ref() {
+        None => Some("codex"),
+        Some(value)
+            if value["engine"] == "claude"
+                && matches!(
+                    value["permissionMode"].as_str(),
+                    Some("default" | "acceptEdits" | "plan" | "dontAsk" | "bypassPermissions")
+                ) =>
+        {
+            Some("claude")
+        }
+        Some(_) => None,
+    }
+}
+
+/// 按所属引擎的目录校验模型与推理档位，空档位只适用于未声明档位的模型。
+pub fn scheduled_task_model_valid(options: &AgentTurnOptions, models: &serde_json::Value) -> bool {
+    let Some(model) = models["data"].as_array().and_then(|items| {
+        items
+            .iter()
+            .find(|item| item["id"].as_str() == Some(options.model.as_str()))
+    }) else {
+        return false;
+    };
+    let efforts = model["supportedReasoningEfforts"].as_array();
+    match efforts {
+        Some(items) if !items.is_empty() => items
+            .iter()
+            .any(|item| item["id"].as_str() == Some(options.reasoning_effort.as_str())),
+        _ => options.reasoning_effort.is_empty(),
+    }
+}
+
+#[cfg(test)]
+mod engine_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn scheduled_engine_should_select_claude_without_changing_legacy_codex() {
+        let mut options = AgentTurnOptions::default();
+        assert_eq!(scheduled_task_engine(&options), Some("codex"));
+        options.engine_options = Some(json!({"engine":"claude","permissionMode":"plan"}));
+        assert_eq!(scheduled_task_engine(&options), Some("claude"));
+        options.engine_options = Some(json!({"engine":"claude","permissionMode":"invalid"}));
+        assert_eq!(scheduled_task_engine(&options), None);
+    }
+
+    #[test]
+    fn scheduled_model_should_use_selected_catalog_and_declared_efforts() {
+        let mut options = AgentTurnOptions {
+            model: "sonnet".into(),
+            reasoning_effort: "".into(),
+            ..AgentTurnOptions::default()
+        };
+        let catalog = json!({"data":[{"id":"sonnet","supportedReasoningEfforts":[]}]});
+        assert!(scheduled_task_model_valid(&options, &catalog));
+        assert!(!scheduled_task_model_valid(
+            &options,
+            &json!({"data":[{"id":"gpt"}]})
+        ));
+        options.reasoning_effort = "high".into();
+        assert!(!scheduled_task_model_valid(&options, &catalog));
+        assert!(scheduled_task_model_valid(
+            &options,
+            &json!({"data":[{"id":"sonnet","supportedReasoningEfforts":[{"id":"high"}]}]})
+        ));
     }
 }

@@ -148,17 +148,15 @@ pub(crate) async fn start_scheduled_task_turn(
     crate::domain::goal_input::validate_turn_input(&scheduled.prompt, &scheduled.turn_options)
         .map_err(|error| error.to_string())?;
     let state = app.state::<AppState>();
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-    state
-        .start_codex(app, &app_data)
-        .await
-        .map_err(|error| error.to_string())?;
-    let mut response = super::task_workspace::start_task(app, scheduled.project_id.clone())
-        .await
-        .map_err(|error| error.to_string())?;
+    // 校验并启动所属引擎后再创建任务；Claude 计划不依赖 Codex 进程或配置。
+    let engine =
+        validate_scheduled_task_options(app, &scheduled.project_id, &scheduled.turn_options)
+            .await
+            .map_err(|error| error.to_string())?;
+    let mut response =
+        super::task_workspace::start_task_for_engine(app, scheduled.project_id.clone(), engine)
+            .await
+            .map_err(|error| error.to_string())?;
     let task_id = &response.task.id;
     state
         .remember_task_metadata(
@@ -185,4 +183,39 @@ pub(crate) async fn start_scheduled_task_turn(
     }
     result.map_err(|error| error.to_string())?;
     Ok(response.task.id)
+}
+
+/// 保存与执行共用同一条模型校验路径，避免调度触发后才发现引擎或模型不匹配。
+pub(crate) async fn validate_scheduled_task_options(
+    app: &AppHandle,
+    project_id: &str,
+    options: &AgentTurnOptions,
+) -> Result<&'static str, AppError> {
+    use crate::domain::scheduled_task::{scheduled_task_engine, scheduled_task_model_valid};
+    let engine = scheduled_task_engine(options).ok_or(AppError::ScheduledTaskInvalid)?;
+    let models = if engine == "claude" {
+        let profile = super::claude_commands::claude_engine_request(
+            app.clone(),
+            "profile".into(),
+            Some(project_id.into()),
+            json!({}),
+        )
+        .await?;
+        profile["models"].clone()
+    } else {
+        let state = app.state::<AppState>();
+        let app_data = app
+            .path()
+            .app_data_dir()
+            .map_err(|_| AppError::FilesystemRequestFailed)?;
+        state.start_codex(app, &app_data).await?;
+        let connection = state.codex_connection().await?;
+        codex::list_models(&connection)
+            .await
+            .map_err(AppError::from)?
+    };
+    if !scheduled_task_model_valid(options, &models) {
+        return Err(AppError::ScheduledTaskInvalid);
+    }
+    Ok(engine)
 }

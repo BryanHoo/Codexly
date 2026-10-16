@@ -56,6 +56,12 @@ pub async fn create_scheduled_task(
     input: ScheduledTaskInput,
     runtime: State<'_, ScheduledTaskRuntime>,
 ) -> Result<ScheduledTaskMutationResponse, AppError> {
+    super::scheduled_task_runner::validate_scheduled_task_options(
+        &app,
+        &input.project_id,
+        &input.turn_options,
+    )
+    .await?;
     Ok(ScheduledTaskMutationResponse {
         task: runtime.create(&app_data_dir(&app)?, input).await?,
     })
@@ -68,6 +74,12 @@ pub async fn update_scheduled_task(
     input: ScheduledTaskInput,
     runtime: State<'_, ScheduledTaskRuntime>,
 ) -> Result<ScheduledTaskMutationResponse, AppError> {
+    super::scheduled_task_runner::validate_scheduled_task_options(
+        &app,
+        &input.project_id,
+        &input.turn_options,
+    )
+    .await?;
     Ok(ScheduledTaskMutationResponse {
         task: runtime
             .update(&app_data_dir(&app)?, &task_id, input)

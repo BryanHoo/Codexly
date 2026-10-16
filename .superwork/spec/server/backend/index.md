@@ -8,6 +8,7 @@
 - 全局交付钩子保留成功资源路由明确声明的私有缓存，普通 API、鉴权失败和错误仍返回 `no-store`。图片和任务附件通过 `private-asset-response` 生成内容 ETag，匹配条件请求返回无正文的 304；条件请求仍须完成项目、任务与访问权限校验。使用 `app-attachments.test.ts`、`app-files.test.ts` 和 `app-security.test.ts` 验证缓存、正文与鉴权边界。
 - 全局任务搜索和历史匹配位置搜索必须将 `request.signal` 传入 Provider 与 RPC 等待层；取消后停止派发后续锚点查询，移除等待项、超时及重试计时器和取消监听器。迟到响应不得触发重试，也不得关闭共享 RPC 连接；用 `app-global-search.test.ts` 验证真实 HTTP 断连，用 `global-search.test.ts` 和 `jsonl-rpc-cancellation.test.ts` 验证并发锚点取消及资源清理。
 - 持久化变更检查 `sqlite-state-migrations.ts`、Worker、仓储测试和重启恢复场景。
+- 定时任务的引擎身份取自已保存的 `turnOptions.engineOptions.engine`，缺省为旧版 Codex；保存与触发均按对应模型目录校验，创建任务必须显式传入引擎。Web 与桌面保持一致，Claude 路径不得启动 Codex。编辑器按计划恢复引擎，不能被草稿或当前配置覆盖。验证见 `scheduled-task-engine.test.ts`、桌面 `scheduled_task` 测试及[双引擎说明](../../../../docs/agent-engines.md)。
 - 实时任务、队列与定时任务变更分别检查 `agent-event-stream.ts`、`persistent-task-queue.ts`、`scheduled-task-*` 及对应测试。
 - 多实例共用 SQLite 定时任务时，读取最新快照、状态修改和运行领取必须使用仓储的跨进程短期互斥，Provider 启动过程不得占锁。启动恢复和清理跳过存活实例拥有的运行；所有者退出后再按持久提交阶段恢复，不得盲目重新投递。数据库首次建表和迁移也通过同一短期互斥串行化；进程崩溃依靠操作系统释放锁。用 `scheduled-task-multi-instance.test.ts` 验证并发初始化、写入保留、存活运行、独立进程崩溃及锁释放。
 - WebSocket 事件发送同时限制单事件、批次 UTF-8 字节和 `bufferedAmount + 下一帧字节数`；预计缓冲超过 1 MiB 时在发送前用 1013 断开，超大内容用 1009 关闭，不计为慢客户端。默认事件保留预算必须与传输单事件上限一致，使重放转为快照恢复。用 `event-socket-sender.test.ts`、`app-events.test.ts` 验证多字节文本、封套开销、精确边界、部分发送和真实连接恢复；保持跨连接序列化缓存。

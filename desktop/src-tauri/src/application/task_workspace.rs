@@ -10,13 +10,6 @@ use crate::{
 
 pub(crate) const TEMPORARY_PROJECT_ID: &str = "temporary";
 
-pub(crate) async fn start_task(
-    app: &AppHandle,
-    project_id: String,
-) -> Result<AgentTaskMutationResponse, AppError> {
-    start_task_for_engine(app, project_id, "codex").await
-}
-
 pub(crate) async fn start_task_for_engine(
     app: &AppHandle,
     project_id: String,
