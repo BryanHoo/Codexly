@@ -17,6 +17,10 @@ export default defineConfig({
     alias: vitestAliases,
   },
   test: {
+    // 原生子进程、SQLite Worker 和多实例集成测试需容纳 Windows CI 的冷启动与磁盘抖动。
+    // 同时放宽清理钩子的预算；性能门槛仍由独立性能配置及用例断言约束。
+    testTimeout: 60_000,
+    hookTimeout: 60_000,
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],

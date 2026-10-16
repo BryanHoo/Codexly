@@ -6,7 +6,7 @@ import { expect, it } from "vitest";
 import { writePrivateJson } from "./config.js";
 
 // 为 Windows CI 的 PowerShell 冷启动预留时间；文件替换仍遵守生产代码的 3.175 秒重试上限。
-const SHARING_LOCK_TEST_TIMEOUT_MS = 30_000;
+const SHARING_LOCK_TEST_TIMEOUT_MS = 60_000;
 
 async function withSharingLock(
   durationMs: number,
