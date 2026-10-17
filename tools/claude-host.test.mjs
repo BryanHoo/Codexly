@@ -202,6 +202,8 @@ test(
           else if (operation === "task.patch") {
             result = { ...tasks.get(payload.id), ...payload };
             tasks.set(payload.id, result);
+          } else if (operation === "task.remove") {
+            result = tasks.delete(payload.id);
           } else throw new Error(`Unexpected catalog operation ${operation}`);
           send({ catalogId: message.catalogId, result });
         } else if (message.id) {
@@ -291,6 +293,16 @@ test(
       await host.request("turn.start", { taskId: "task", input, options }, scope);
       const pending = (await waitEvent("pending_request.created")).payload.request;
       assert.equal(pending.type, "tool_approval");
+      // 正在等待工具审批的会话仍持有工作目录，归档和删除必须由适配器拒绝。
+      const beforeRemoval = structuredClone(tasks.get("task"));
+      for (const method of ["task.archive", "task.delete"]) {
+        await assert.rejects(
+          host.request(method, { taskId: "task" }, scope),
+          /Stop the running task before/,
+        );
+        assert.deepEqual(tasks.get("task"), beforeRemoval);
+      }
+
       assert.ok(pending.availableDecisions.includes("allow_for_session"));
       await host.request(
         "request.resolve",
@@ -420,6 +432,16 @@ test(
           completed.payload.turn.items,
         );
       }
+      // 空闲查询仍保持进程存活；归档必须经共享适配器关闭查询后再改目录记录。
+      await host.request("task.archive", { taskId: "task" }, scope);
+      assert.equal(tasks.get("task").archived, true);
+      assert.ok(
+        host.events.some(
+          (event) => event.type === "task.removed" && event.payload.reason === "archived",
+        ),
+      );
+      // 模拟原生取消归档，供下方已有的历史恢复场景继续使用。
+      tasks.get("task").archived = false;
       assert.deepEqual(await host.request("session.stop", { taskId: "task" }, scope), {
         status: "accepted",
         taskId: "task",
@@ -465,6 +487,14 @@ test(
       assert.equal((await host.request("profile")).connection.state, "disconnected");
       assert.equal((await host.request("settings.read")).instructions, "Always test");
       assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 6);
+      await host.request("task.delete", { taskId: "task" }, scope);
+      assert.equal(tasks.has("task"), false);
+      assert.ok(
+        host.events.some(
+          (event) => event.type === "task.removed" && event.payload.reason === "deleted",
+        ),
+      );
+      await assert.rejects(readFile(exported.path), { code: "ENOENT" });
     } finally {
       await host.close();
       api.closeAllConnections();

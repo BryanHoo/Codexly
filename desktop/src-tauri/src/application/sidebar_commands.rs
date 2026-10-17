@@ -380,7 +380,24 @@ pub async fn archive_task(
     state: State<'_, AppState>,
 ) -> Result<AgentTaskStatusResponse, AppError> {
     let catalog = local_catalog(&app)?;
-    catalog.owned_task(&project_id, &task_id).await?;
+    let task = catalog.owned_task(&project_id, &task_id).await?;
+    if task["provider"] == "claude" {
+        // 共享适配器负责拒绝执行中的任务、关闭空闲会话并发布移除事件。
+        state.remember_tasks(&project_id, [task_id.as_str()]).await;
+        state
+            .claude
+            .request(
+                &app,
+                "task.archive",
+                Some(super::claude_tasks::scope(&task)),
+                json!({"taskId":task_id}),
+            )
+            .await?;
+        return Ok(AgentTaskStatusResponse {
+            status: "archived",
+            task_id,
+        });
+    }
     catalog
         .call("task.patch", json!({"id":task_id,"archived":true}))
         .await?;
@@ -430,7 +447,22 @@ pub async fn delete_task(
 ) -> Result<AgentTaskStatusResponse, AppError> {
     let catalog = local_catalog(&app)?;
     let task = catalog.owned_task(&project_id, &task_id).await?;
-    catalog.call("task.remove", json!({"id":task_id})).await?;
+    let is_claude = task["provider"] == "claude";
+    if is_claude {
+        // 必须等待共享适配器确认会话已释放；失败时保留任务及临时工作目录。
+        state.remember_tasks(&project_id, [task_id.as_str()]).await;
+        state
+            .claude
+            .request(
+                &app,
+                "task.delete",
+                Some(super::claude_tasks::scope(&task)),
+                json!({"taskId":task_id}),
+            )
+            .await?;
+    } else {
+        catalog.call("task.remove", json!({"id":task_id})).await?;
+    }
     let working_directory = task["cwd"].as_str().map(std::path::PathBuf::from);
     task_workspace::remove_deleted_workspace(
         &app,
@@ -442,9 +474,11 @@ pub async fn delete_task(
     delete_task_settings(&app_data_dir(&app)?, &project_id, &task_id)
         .await
         .map_err(|_| AppError::FilesystemRequestFailed)?;
-    state
-        .publish_catalog_task_change(&app, &project_id, &task_id, Some("deleted"))
-        .await;
+    if !is_claude {
+        state
+            .publish_catalog_task_change(&app, &project_id, &task_id, Some("deleted"))
+            .await;
+    }
     Ok(AgentTaskStatusResponse {
         status: "deleted",
         task_id,

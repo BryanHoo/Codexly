@@ -96,6 +96,11 @@ if (process.argv.includes("--version")) {
         return exportClaudeAttachment(provider, id, String(params["attachmentId"]));
       case "task.read":
         return provider.readTask(id, record(params["options"]));
+      // 与 Web 共用生命周期检查；成功响应前必须完成空闲会话关闭和目录记录更新。
+      case "task.archive":
+        return provider.archiveTask(id);
+      case "task.delete":
+        return provider.deleteTask(id);
       case "turn.start":
         if (!Value.Check(AgentTurnOptionsSchema, params["options"]))
           throw new Error("Invalid Claude turn options");

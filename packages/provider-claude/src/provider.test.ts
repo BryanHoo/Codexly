@@ -1224,6 +1224,27 @@ it("stops a background task independently and keeps consuming its stopped notifi
   ).toMatchObject({ status: "interrupted" });
 });
 
+// 父回合完成不代表 SDK 会话空闲；两端的移除入口必须保留仍有后台工作的任务。
+it.each(["archiveTask", "deleteTask"] as const)(
+  "%s rejects removal while background work survives the completed parent",
+  async (method) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    h.send({ type: "system", subtype: "background_tasks_changed", tasks: [{ task_id: "bash" }] });
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(async () => {
+      expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("completed");
+    });
+    const before = structuredClone(h.tasks.get(task.id));
+    const deleteAttachments = vi.spyOn(h.config.attachments, "deleteTask");
+    await expect(h.provider[method](task.id)).rejects.toThrow("Stop the running task before");
+    expect(h.tasks.get(task.id)).toEqual(before);
+    expect(h.close).not.toHaveBeenCalled();
+    expect(deleteAttachments).not.toHaveBeenCalled();
+  },
+);
+
 it("keeps non-agent background work alive until the authoritative task set becomes empty", async () => {
   const h = await harness();
   const task = await h.provider.startTask();
