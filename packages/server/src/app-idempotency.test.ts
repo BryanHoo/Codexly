@@ -348,9 +348,11 @@ describe("server pending requests and idempotency", () => {
         },
       ],
     };
-    const provider: AgentProvider = {
-      ...harness.provider,
-      readTask: vi.fn((taskId: string) => {
+    let emitted = false;
+    const readTask = vi.fn((taskId: string) => {
+      // 只在首次读取中产生变化；第二次读取应获得稳定快照与对应的 checkpoint。
+      if (!emitted) {
+        emitted = true;
         harness.emitEvent({
           itemId: "item-1",
           payload: { delta: "读取期间到达" },
@@ -358,9 +360,10 @@ describe("server pending requests and idempotency", () => {
           turnId: "turn-1",
           type: "message.delta",
         });
-        return Promise.resolve(snapshotDuringRead);
-      }),
-    };
+      }
+      return Promise.resolve(snapshotDuringRead);
+    });
+    const provider: AgentProvider = { ...harness.provider, readTask };
     const app = await createCodexlyServer(createServerOptions(provider));
     closeCallbacks.push(() => app.close());
 
@@ -369,6 +372,7 @@ describe("server pending requests and idempotency", () => {
       url: "/v1/projects/codexly/tasks/task-1",
     });
 
+    expect(readTask).toHaveBeenCalledTimes(2);
     expect(response.json()).toMatchObject({
       checkpoint: { sequence: 1 },
       snapshot: snapshotDuringRead,

@@ -145,7 +145,7 @@ export function StoredAssistantGroup({
       {turn.status !== "running" && assistantText.trim().length > 0 ? (
         <MessageMetadata
           lastTurnId={turn.id}
-          {...(onForkTask === undefined ? {} : { onForkTask })}
+          {...(onForkTask === undefined || turn.forkable === false ? {} : { onForkTask })}
           text={assistantText}
         />
       ) : null}

@@ -250,7 +250,14 @@ export function registerTaskActionRoutes(app: FastifyInstance, context: ServerRo
           if (task?.projectId !== context.scope.id) {
             throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
           }
-          await context.provider.compactTask(request.params.taskId);
+          if (task.engine === "claude") {
+            // 专用压缩与普通发送使用同一会话设置，避免默认值变化扩大历史会话的权限。
+            const settings = await readEffectiveTaskSettings(
+              request.params.projectId,
+              request.params.taskId,
+            );
+            await context.provider.compactTask(request.params.taskId, settings);
+          } else await context.provider.compactTask(request.params.taskId);
           return { status: "compacting" as const, taskId: request.params.taskId };
         },
       );
@@ -293,7 +300,27 @@ export function registerTaskActionRoutes(app: FastifyInstance, context: ServerRo
           if (task?.projectId !== context.scope.id) {
             throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
           }
-          return context.provider.forkTask(request.params.taskId, request.body.lastTurnId);
+          const fork = await context.provider.forkTask(
+            request.params.taskId,
+            request.body.lastTurnId,
+          );
+          if (task.engine === "claude") {
+            try {
+              const settings = await readEffectiveTaskSettings(
+                request.params.projectId,
+                request.params.taskId,
+              );
+              await settingsRepository.writeTaskSettings(
+                request.params.projectId,
+                fork.id,
+                settings,
+              );
+            } catch (error) {
+              await context.provider.deleteTask(fork.id);
+              throw error;
+            }
+          }
+          return fork;
         },
       );
       return reply.code(201).send({ task: forkedTask });

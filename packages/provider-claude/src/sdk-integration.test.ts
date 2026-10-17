@@ -7,6 +7,7 @@ import {
   getSessionInfo,
   getSessionMessages,
   deleteSession,
+  forkSession,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CatalogOperations, LocalCatalogStore, LocalTask } from "@codexly/core";
 import { expect, it, vi } from "vitest";
@@ -42,7 +43,7 @@ async function localApi() {
       }
       const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as { stream?: boolean };
       const message = {
-        id: "msg_contract",
+        id: `msg_contract_${String(requests.length)}`,
         type: "message",
         role: "assistant",
         model: "claude-sonnet-4-6",
@@ -265,6 +266,120 @@ it("switches the real SDK endpoint and credentials between turns while preservin
     runtime.close();
     vi.unstubAllEnvs();
     await Promise.all([a.close(), b.close()]);
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+it("forks a real native transcript at the clicked reply, re-forks remapped messages and compacts that session", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-session-actions-"));
+  const api = await localApi();
+  for (const key of Object.keys(process.env)) {
+    if (/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$)/u.test(key)) vi.stubEnv(key, undefined);
+  }
+  vi.stubEnv("CLAUDE_CONFIG_DIR", join(root, "native"));
+  const tasks = new Map<string, LocalTask>();
+  const store = {
+    catalog(operation: keyof CatalogOperations, payload: unknown) {
+      const value = payload as LocalTask;
+      if (operation === "task.read") return Promise.resolve(tasks.get(value.id) ?? null);
+      if (operation === "task.put" || operation === "task.patch") {
+        const task = { ...tasks.get(value.id), ...value };
+        tasks.set(value.id, task);
+        return Promise.resolve(task);
+      }
+      if (operation === "task.remove") return Promise.resolve(tasks.delete(value.id));
+      throw new Error(`Unexpected catalog operation: ${operation}`);
+    },
+  } as LocalCatalogStore;
+  const runtime = new ClaudeRuntime(root, store, {
+    query,
+    getSessionInfo,
+    getSessionMessages,
+    deleteSession,
+    forkSession,
+  });
+  const provider = runtime.forScope({
+    id: "p",
+    kind: "project",
+    rootPath: root,
+    runtimeWorkspaceRoots: [root],
+  });
+  const options = {
+    model: "claude-sonnet-4-6",
+    reasoningEffort: "",
+    approvalPolicy: "on-request",
+    approvalsReviewer: "user",
+    sandboxMode: "workspace-write",
+    engineOptions: { engine: "claude", permissionMode: "default" },
+  } as const;
+  const send = async (id: string, text: string) => {
+    const turn = await provider.startTurn(
+      id,
+      { text, files: [], images: [], skills: [], textAttachments: [] },
+      options,
+    );
+    await vi.waitFor(
+      () => {
+        expect(provider.isBusy).toBe(false);
+      },
+      { timeout: 15_000 },
+    );
+    expect((await provider.readTask(id))?.turns.find((entry) => entry.id === turn.id)?.status).toBe(
+      "completed",
+    );
+    return turn;
+  };
+  try {
+    await runtime.configure({
+      baseUrl: api.baseUrl,
+      apiKey: "isolated-action-key",
+      authType: "apiKey",
+    });
+    const task = await provider.startTask();
+    const first = await send(task.id, "before-fork-proof-42");
+    await send(task.id, "after-fork-proof-73");
+    const originalId = tasks.get(task.id)?.sessionId;
+    if (!originalId) throw new Error("Missing native source session");
+    const sourceMessages = await getSessionMessages(originalId, { dir: root });
+    const countBeforeFork = api.requests.length;
+    const fork = await provider.forkTask(task.id, first.id);
+    const forkId = tasks.get(fork.id)?.sessionId;
+    if (!forkId) throw new Error("Missing native fork session");
+    expect(forkId).not.toBe(originalId);
+    const forkMessages = await getSessionMessages(forkId, { dir: root });
+    expect(JSON.stringify(forkMessages)).toContain("before-fork-proof-42");
+    expect(JSON.stringify(forkMessages)).not.toContain("after-fork-proof-73");
+    expect(forkMessages[0]?.uuid).not.toBe(sourceMessages[0]?.uuid);
+    expect((await provider.readTask(fork.id))?.turns.map((turn) => turn.id)).toEqual([first.id]);
+    const nested = await provider.forkTask(fork.id, first.id);
+    expect(api.requests).toHaveLength(countBeforeFork);
+    await send(nested.id, "continue-nested-fork");
+    const latest = api.requests.findLast(
+      (request) => request.path.includes("/messages") && !request.path.includes("count_tokens"),
+    );
+    expect(latest?.body).toContain("before-fork-proof-42");
+    expect(latest?.body).not.toContain("after-fork-proof-73");
+    await provider.compactTask(nested.id, options);
+    await vi.waitFor(
+      () => {
+        expect(provider.isBusy).toBe(false);
+      },
+      { timeout: 15_000 },
+    );
+    const snapshot = await provider.readTask(nested.id);
+    expect(snapshot?.turns.at(-1)?.status).toBe("completed");
+    expect(snapshot?.turns.at(-1)?.items).toContainEqual(
+      expect.objectContaining({ role: "user", text: "/compact" }),
+    );
+    expect(tasks.get(nested.id)?.sessionId).not.toBe(originalId);
+    expect(JSON.stringify(await getSessionMessages(originalId, { dir: root }))).toContain(
+      "after-fork-proof-73",
+    );
+  } finally {
+    for (const id of tasks.keys()) await provider.stopSession(id);
+    runtime.close();
+    vi.unstubAllEnvs();
+    await api.close();
     await rm(root, { recursive: true, force: true });
   }
 }, 60_000);

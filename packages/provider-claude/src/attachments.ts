@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { copyClaudeStorage } from "./storage-copy.js";
 import type { AgentProviderTurnInput } from "@codexly/core";
 import type { AgentMessageAttachment } from "@codexly/protocol";
 import {
@@ -67,5 +68,27 @@ export class ClaudeAttachments {
       recursive: true,
       force: true,
     });
+  }
+  /** 只复制分叉点之前实际展示的附件；引用 ID 不变，正文及删除生命周期归新任务独立所有。 */
+  async forkAttachment(source: string, target: string, id: string): Promise<void> {
+    const metadata = JSON.parse(await readFile(this.#path(source, id), "utf8")) as Omit<
+      HistoricalAttachmentMetadata,
+      "schemaVersion"
+    > & { schemaVersion: unknown };
+    if (
+      metadata.schemaVersion !== 1 ||
+      metadata.attachment.id !== id ||
+      !/^[a-f0-9]{64}$/u.test(metadata.blobKey)
+    )
+      throw new Error("Claude 分叉附件记录无效");
+    const sourceHash = createHash("sha256").update(source).digest("hex");
+    const targetHash = createHash("sha256").update(target).digest("hex");
+    await mkdir(this.#directory(target), { recursive: true, mode: 0o700 });
+    await copyClaudeStorage(
+      join(this.directory, "blobs", sourceHash, metadata.blobKey),
+      join(this.directory, "blobs", targetHash, metadata.blobKey),
+      true,
+    );
+    await writeFile(this.#path(target, id), JSON.stringify(metadata), { mode: 0o600 });
   }
 }

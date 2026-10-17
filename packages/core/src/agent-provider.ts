@@ -246,7 +246,7 @@ export interface AgentProvider {
   readTaskMetadata?(taskId: string): Promise<AgentTask | undefined>;
   readonly queue?: AgentProviderQueue;
   archiveTask(taskId: string): Promise<void>;
-  compactTask(taskId: string): Promise<void>;
+  compactTask(taskId: string, options?: AgentTurnOptions): Promise<void>;
   deleteTask(taskId: string): Promise<void>;
   forkTask(taskId: string, lastTurnId?: string): Promise<AgentTask>;
   getCapabilities(engine?: AgentEngine): Promise<AgentCapabilities>;

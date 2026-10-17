@@ -728,3 +728,20 @@ it("preserves known context across empty stream statistics and summary observati
   projection.updateContextUsage({ usedTokens: 10000, contextWindow: 200000 });
   expect(projection.contextUsage?.usedTokens).toBe(10000);
 });
+
+it("marks only native assistant replies as supported message-position forks", () => {
+  const turn = new ClaudeTurnProjection("task", "turn", "prompt", () => undefined);
+  turn.receive({
+    type: "system",
+    subtype: "local_command_output",
+    uuid: "local",
+    content: "local reply",
+  });
+  expect(turn.snapshot().forkable).toBe(false);
+  turn.receive({
+    type: "assistant",
+    uuid: "native",
+    message: { id: "msg-native", content: [{ type: "text", text: "native reply" }] },
+  });
+  expect(turn.snapshot().forkable).toBe(true);
+});

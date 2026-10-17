@@ -5,6 +5,7 @@ import {
   getSessionMessages,
   getSessionInfo,
   deleteSession,
+  forkSession,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentEngineService, AgentTaskScope, LocalCatalogStore } from "@codexly/core";
 import type {
@@ -26,7 +27,13 @@ export class ClaudeRuntime implements AgentEngineService {
   constructor(
     directory: string,
     readonly store: LocalCatalogStore,
-    readonly sdk: ClaudeSdk = { query, getSessionMessages, getSessionInfo, deleteSession },
+    readonly sdk: ClaudeSdk = {
+      query,
+      getSessionMessages,
+      getSessionInfo,
+      deleteSession,
+      forkSession,
+    },
   ) {
     this.configuration = new ClaudeConfiguration(directory);
   }

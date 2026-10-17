@@ -33,6 +33,7 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   getSessionMessages: vi.fn(() => Promise.resolve([])),
   getSessionInfo: vi.fn(() => Promise.resolve(undefined)),
   deleteSession: vi.fn(() => Promise.resolve()),
+  forkSession: vi.fn(),
 }));
 
 it("starts real HTTP, reads Claude history and chats while Codex is unavailable", async () => {

@@ -71,6 +71,7 @@ export async function createHarness(
   closeCallbacks.push(() => app.close());
   return {
     app,
+    provider,
     archiveTask,
     clearGoal,
     compactTask,

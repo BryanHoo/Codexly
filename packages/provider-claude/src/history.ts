@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { createInterface } from "node:readline";
 import {
   appendFile,
   mkdir,
@@ -15,6 +17,7 @@ import { ClaudeItemHistory } from "./item-history.js";
 import { HistoryRevisions } from "./history-revisions.js";
 import type { AgentItem } from "@codexly/protocol";
 import type { ClaudePlanTask } from "./task-plan.js";
+import { copyClaudeStorage } from "./storage-copy.js";
 
 export interface ClaudeTaskMetadata {
   /** true 表示已观察到原生会话；false 表示首次启动尚未收到 SDK 消息，缺省为旧版未知状态。 */
@@ -50,6 +53,54 @@ export class ClaudeHistory {
   }
   constructor(readonly directory: string) {
     this.items = new ClaudeItemHistory(join(directory, "items"));
+  }
+  /** 按原时间顺序逐行复制展示回合；只读一条有界记录，历史长度不会放大内存占用。 */
+  forkTask(
+    source: string,
+    target: string,
+    lastTurnId: string | undefined,
+    copyAttachments: (turn: AgentTurn) => Promise<void>,
+  ): Promise<void> {
+    return this.#write(source, () =>
+      this.#write(target, async () => {
+        await mkdir(this.directory, { recursive: true, mode: 0o700 });
+        const input = createReadStream(`${this.#path(source)}.jsonl`, { encoding: "utf8" });
+        const lines = createInterface({ input, crlfDelay: Infinity });
+        const sourceItems = join(
+          this.items.directory,
+          createHash("sha256").update(source).digest("hex"),
+        );
+        const targetItems = join(
+          this.items.directory,
+          createHash("sha256").update(target).digest("hex"),
+        );
+        let found = lastTurnId === undefined;
+        try {
+          for await (const line of lines) {
+            let turn = JSON.parse(line) as AgentTurn;
+            try {
+              turn = JSON.parse(
+                await readFile(this.#updatePath(source, turn.id), "utf8"),
+              ) as AgentTurn;
+            } catch (error) {
+              if (!missing(error)) throw error;
+            }
+            const turnHash = createHash("sha256").update(turn.id).digest("hex");
+            await copyClaudeStorage(join(sourceItems, turnHash), join(targetItems, turnHash));
+            await this.#append(target, this.#encode(turn));
+            await copyAttachments(turn);
+            if (turn.id === lastTurnId) {
+              found = true;
+              break;
+            }
+          }
+          if (!found) throw new Error("Claude 分叉回合不存在");
+        } finally {
+          lines.close();
+          input.destroy();
+        }
+      }),
+    );
   }
   saveItems(task: string, turn: string, items: readonly AgentItem[]): Promise<void> {
     return this.#write(task, () => this.items.save(task, turn, items));

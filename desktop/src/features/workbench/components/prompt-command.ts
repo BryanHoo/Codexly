@@ -18,7 +18,6 @@ export function getPromptCommandItems({
   projectToolsEnabled = true,
   engineCommands,
 }: Readonly<{ projectToolsEnabled?: boolean; engineCommands?: readonly AgentCommand[] }> = {}): readonly PromptCommandItem[] {
-  if (engineCommands !== undefined) return engineCommands.map((command) => ({ action: "native", command: command.name, id: `native:${command.name}`, label: `/${command.name}`, description: command.description, keywords: [command.name] }));
   const translate = (key: string) => i18n.t(key, { ns: "workbench" });
   const items: readonly PromptCommandItem[] = [
     {
@@ -64,6 +63,20 @@ export function getPromptCommandItems({
       label: translate("promptCommand.goal.label"),
     },
   ];
+  if (engineCommands !== undefined) {
+    // 分叉和压缩走应用入口以保持身份、幂等与会话设置；其余命令仍由 SDK 原生执行。
+    return [
+      ...items.filter((item) => item.action === "fork" || item.action === "compact"),
+      ...engineCommands.filter((command) => !["fork", "compact"].includes(command.name)).map((command) => ({
+        action: "native" as const,
+        command: command.name,
+        id: `native:${command.name}`,
+        label: `/${command.name}`,
+        description: command.description,
+        keywords: [command.name],
+      })),
+    ];
+  }
   return projectToolsEnabled
     ? items
     : items.filter((item) => item.action !== "review" && item.action !== "initialize");

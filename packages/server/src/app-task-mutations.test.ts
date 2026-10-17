@@ -493,3 +493,35 @@ it("stops session work independently of a completed foreground turn and scopes i
   });
   expect(wrongTask.statusCode).toBe(404);
 });
+
+it("uses persisted Claude settings for compaction and inherits them for message-position forks", async () => {
+  const h = await createHarness();
+  const settings = {
+    ...turnOptions,
+    engineOptions: { engine: "claude" as const, permissionMode: "plan" as const },
+  };
+  h.readTask.mockResolvedValue({ ...snapshot, engine: "claude" });
+  h.provider.readTaskMetadata = () => Promise.resolve({ ...snapshot, engine: "claude" });
+  h.readTaskSettings.mockResolvedValue(settings);
+  const compactRequest = {
+    method: "POST" as const,
+    headers: { "idempotency-key": "claude-compact" },
+    payload: {},
+    url: "/v1/projects/codexly/tasks/task-1/compact",
+  };
+  const compact = await h.app.inject(compactRequest);
+  await h.app.inject(compactRequest);
+  expect(compact.statusCode, compact.body).toBe(202);
+  expect(h.compactTask).toHaveBeenCalledExactlyOnceWith("task-1", settings);
+  const request = {
+    method: "POST" as const,
+    headers: { "idempotency-key": "claude-fork" },
+    payload: { lastTurnId: "clicked-turn" },
+    url: "/v1/projects/codexly/tasks/task-1/fork",
+  };
+  const fork = await h.app.inject(request);
+  await h.app.inject(request);
+  expect(fork.statusCode, fork.body).toBe(201);
+  expect(h.forkTask).toHaveBeenCalledExactlyOnceWith("task-1", "clicked-turn");
+  expect(h.writeTaskSettings).toHaveBeenCalledWith("codexly", "task-2", settings);
+});

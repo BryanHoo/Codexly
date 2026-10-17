@@ -67,6 +67,8 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
   let closed = false;
   const messages: SDKMessage[] = [];
   const deleteSession = vi.fn(() => Promise.resolve());
+  const forkSession = vi.fn(() => Promise.resolve({ sessionId: "native-fork-session" }));
+  const getSessionMessages = vi.fn<ClaudeSdk["getSessionMessages"]>(() => Promise.resolve([]));
   const stopTask = vi.fn(() => Promise.resolve());
   const close = vi.fn(() => {
     closed = true;
@@ -116,7 +118,8 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
       {
         query,
         deleteSession,
-        getSessionMessages: () => Promise.resolve([]),
+        forkSession,
+        getSessionMessages,
         ...(getSessionInfo ? { getSessionInfo } : {}),
       },
       undefined,
@@ -140,6 +143,8 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
     close,
     stopTask,
     deleteSession,
+    forkSession,
+    getSessionMessages,
     end: () => {
       closed = true;
       next?.({ done: true, value: undefined });
@@ -2353,4 +2358,219 @@ it("persists the timestamp of an initial MCP probe and releases its process with
   expect(close).toHaveBeenCalledOnce();
   expect(await h.provider.listMcpServers(task.id)).toEqual({ ...response, statusSource: "cached" });
   expect((await h.config.history.read(task.id)).turns).toHaveLength(0);
+});
+
+// 分叉只复制已落盘的原生会话，展示回合 ID 不参与 Claude 消息截断。
+describe("native session actions", () => {
+  async function completed() {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const turn = await h.provider.startTurn(task.id, prompt, options);
+    h.send({
+      type: "assistant",
+      uuid: "native-message",
+      message: { id: "msg-first", content: [{ type: "text", text: "原会话回答" }] },
+    });
+    h.send({ type: "result", subtype: "success", result: "原会话回答" });
+    await vi.waitFor(async () => {
+      expect((await h.provider.readTask(task.id))?.turns.at(-1)?.status).toBe("completed");
+      expect(h.provider.isBusy).toBe(false);
+    });
+    return { ...h, task, turn };
+  }
+
+  it("forks the full native session with an independent application identity and resumable history", async () => {
+    const h = await completed();
+    const original = structuredClone(h.tasks.get(h.task.id));
+    const fork = await h.provider.forkTask(h.task.id);
+    expect(fork.id).not.toBe(h.task.id);
+    expect(fork.engine).toBe("claude");
+    expect(h.forkSession).toHaveBeenCalledWith(original?.sessionId, { dir: original?.cwd });
+    expect(h.tasks.get(h.task.id)).toEqual({
+      ...original,
+      updatedAt: expect.any(Number) as unknown,
+    });
+    expect(h.tasks.get(fork.id)?.sessionId).toBe("native-fork-session");
+    expect((await h.provider.readTask(fork.id))?.turns).toEqual(
+      (await h.provider.readTask(h.task.id))?.turns,
+    );
+    await h.provider.startTurn(fork.id, prompt, options);
+    expect(h.query.mock.calls.at(-1)?.[0].options).toMatchObject({ resume: "native-fork-session" });
+  });
+
+  it("rejects empty, busy and unknown-turn forks before calling the SDK", async () => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await expect(h.provider.forkTask(task.id)).rejects.toThrow();
+    await h.provider.startTurn(task.id, prompt, options);
+    await expect(h.provider.forkTask(task.id)).rejects.toThrow();
+    await expect(h.provider.forkTask(task.id, "local-turn")).rejects.toThrow();
+    expect(h.forkSession).not.toHaveBeenCalled();
+  });
+
+  it("resolves a clicked turn to a native UUID, truncates UI history and resolves remapped fork UUIDs", async () => {
+    const h = await completed();
+    await h.provider.startTurn(h.task.id, { ...prompt, text: "later prompt" }, options);
+    h.send({
+      type: "assistant",
+      uuid: "later-uuid",
+      message: { id: "msg-later", content: [{ type: "text", text: "later reply" }] },
+    });
+    h.send({ type: "result", subtype: "success", result: "later reply" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    h.getSessionMessages.mockResolvedValueOnce([
+      {
+        type: "assistant",
+        uuid: "native-message",
+        message: { id: "msg-first" },
+        session_id: "source",
+        parent_tool_use_id: null,
+        parent_agent_id: null,
+      },
+    ]);
+    const fork = await h.provider.forkTask(h.task.id, h.turn.id);
+    expect(h.forkSession).toHaveBeenLastCalledWith(h.tasks.get(h.task.id)?.sessionId, {
+      dir: h.task.workspacePath,
+      upToMessageId: "native-message",
+    });
+    expect((await h.provider.readTask(fork.id))?.turns.map((turn) => turn.id)).toEqual([h.turn.id]);
+    h.getSessionMessages.mockResolvedValueOnce([
+      {
+        type: "assistant",
+        uuid: "remapped-message",
+        message: { id: "msg-first" },
+        session_id: "native-fork-session",
+        parent_tool_use_id: null,
+        parent_agent_id: null,
+      },
+    ]);
+    h.forkSession.mockResolvedValueOnce({ sessionId: "second-fork-session" });
+    await h.provider.forkTask(fork.id, h.turn.id);
+    expect(h.forkSession).toHaveBeenLastCalledWith("native-fork-session", {
+      dir: h.task.workspacePath,
+      upToMessageId: "remapped-message",
+    });
+  });
+
+  it("rolls back a fork that cannot persist its independent UI history", async () => {
+    const h = await completed();
+    vi.spyOn(h.config.history, "forkTask").mockRejectedValueOnce(new Error("disk full"));
+    await expect(h.provider.forkTask(h.task.id)).rejects.toThrow("disk full");
+    expect(h.tasks.size).toBe(1);
+    expect(h.deleteSession).toHaveBeenCalledWith("native-fork-session", {
+      dir: h.task.workspacePath,
+    });
+  });
+
+  it("never falls back to a full fork when the selected native reply is unavailable", async () => {
+    const h = await completed();
+    await expect(h.provider.forkTask(h.task.id, h.turn.id)).rejects.toThrow("原生历史");
+    expect(h.forkSession).not.toHaveBeenCalled();
+    expect(h.tasks.size).toBe(1);
+  });
+
+  it("compacts the bound session through a normal SDK command and preserves a native no-op result", async () => {
+    const h = await completed();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    await h.provider.compactTask(h.task.id, options);
+    expect(h.query).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(h.received.at(-1)).toMatchObject({
+        session_id: h.tasks.get(h.task.id)?.sessionId,
+        message: { content: [{ type: "text", text: "/compact" }] },
+      });
+    });
+    h.send({ type: "result", subtype: "success", result: "Not enough messages to compact." });
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+    });
+    const snapshot = await h.provider.readTask(h.task.id);
+    expect(snapshot?.turns.at(-1)).toMatchObject({
+      status: "completed",
+      items: expect.arrayContaining([
+        expect.objectContaining({ text: "Not enough messages to compact." }),
+      ]) as unknown,
+    });
+    await h.provider.stopSession(h.task.id);
+    await h.provider.compactTask(h.task.id, options);
+    expect(h.query.mock.calls.at(-1)?.[0].options).toMatchObject({
+      resume: h.tasks.get(h.task.id)?.sessionId,
+      permissionMode: "default",
+    });
+  });
+
+  it("rejects compaction without native context or while background work remains", async () => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await expect(h.provider.compactTask(task.id, options)).rejects.toThrow();
+    await h.provider.startTurn(task.id, prompt, options);
+    await expect(h.provider.compactTask(task.id, options)).rejects.toThrow();
+    h.send({
+      type: "system",
+      subtype: "background_tasks_changed",
+      tasks: [{ task_id: "bg", task_type: "local_bash", status: "running" }],
+    });
+    h.send({ type: "result", subtype: "success", result: "done" });
+    await vi.waitFor(async () => {
+      expect((await h.provider.readTask(task.id))?.turns.at(-1)?.status).toBe("completed");
+    });
+    await expect(h.provider.compactTask(task.id, options)).rejects.toThrow();
+    expect(h.query).toHaveBeenCalledTimes(1);
+  });
+});
+
+it("keeps forked attachments readable independently after deleting their source", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  const turn = await h.provider.startTurn(
+    task.id,
+    {
+      ...prompt,
+      textAttachments: [
+        { name: "上下文", text: "分叉附件正文" },
+        { name: "副本", text: "分叉附件正文" },
+      ],
+    },
+    options,
+  );
+  h.send({
+    type: "assistant",
+    uuid: "native-attachment",
+    message: { id: "msg-attachment", content: [{ type: "text", text: "reply" }] },
+  });
+  h.send({ type: "result", subtype: "success", result: "reply" });
+  await vi.waitFor(() => {
+    expect(h.provider.isBusy).toBe(false);
+  });
+  const snapshot = await h.provider.readTask(task.id);
+  const user = snapshot?.turns[0]?.items.find(
+    (item) => item.type === "message" && item.role === "user",
+  );
+  assert.ok(user?.type === "message");
+  const attachment = user.attachments?.[0];
+  assert.ok(attachment);
+  h.getSessionMessages.mockResolvedValueOnce([
+    {
+      type: "assistant",
+      uuid: "native-attachment",
+      message: { id: "msg-attachment" },
+      session_id: "source",
+      parent_tool_use_id: null,
+      parent_agent_id: null,
+    },
+  ]);
+  const fork = await h.provider.forkTask(task.id, turn.id);
+  expect((await h.provider.readTaskAttachment(fork.id, attachment.id))?.content.toString()).toBe(
+    "分叉附件正文",
+  );
+  expect((await h.provider.readTaskAttachment(task.id, attachment.id))?.content.toString()).toBe(
+    "分叉附件正文",
+  );
+  await h.provider.deleteTask(task.id);
+  expect((await h.provider.readTaskAttachment(fork.id, attachment.id))?.content.toString()).toBe(
+    "分叉附件正文",
+  );
 });

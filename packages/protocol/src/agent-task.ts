@@ -208,6 +208,8 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    // 缺省沿用引擎能力；false 表示本回合没有可恢复的原生消息分叉点。
+    forkable: Type.Optional(Type.Boolean()),
     // 执行终态与落盘状态独立；缺省表示没有待恢复写入，不能用写盘错误覆盖模型结果。
     persistence: Type.Optional(
       Type.Object(

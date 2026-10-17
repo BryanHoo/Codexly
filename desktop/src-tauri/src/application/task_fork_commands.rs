@@ -3,7 +3,9 @@ use tauri::{AppHandle, Manager, State};
 use super::{error::AppError, sidebar_task_settings::effective_task_settings, state::AppState};
 use crate::{
     domain::sidebar::AgentTaskMutationResponse,
-    infrastructure::{codex, task_settings::write_task_settings, temporary_workspace},
+    infrastructure::{
+        codex, local_catalog::LocalCatalog, task_settings::write_task_settings, temporary_workspace,
+    },
 };
 
 #[tauri::command(rename_all = "camelCase")]
@@ -14,12 +16,50 @@ pub async fn fork_task(
     last_turn_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<AgentTaskMutationResponse, AppError> {
-    let connection = state.codex_connection().await?;
     let mut settings = effective_task_settings(&app, &project_id, &task_id).await?;
     let app_data = app
         .path()
         .app_data_dir()
         .map_err(|_| AppError::FilesystemRequestFailed)?;
+    let catalog = LocalCatalog::at(&app_data)?;
+    let task = catalog.owned_task(&project_id, &task_id).await?;
+    if task["provider"] == "claude" {
+        // Claude 只分叉会话历史；沿用原工作目录，不套用 Codex 的临时目录复制规则。
+        let response = state
+            .claude
+            .request(
+                &app,
+                "task.fork",
+                Some(super::claude_tasks::scope(&task)),
+                serde_json::json!({"taskId":task_id,"lastTurnId":last_turn_id}),
+            )
+            .await?;
+        let id = response["id"]
+            .as_str()
+            .ok_or_else(|| AppError::Claude("Claude fork identity is missing".into()))?;
+        if write_task_settings(&app_data, &project_id, id, &settings)
+            .await
+            .is_err()
+        {
+            state
+                .claude
+                .request(
+                    &app,
+                    "task.delete",
+                    Some(super::claude_tasks::scope(&task)),
+                    serde_json::json!({"taskId":id}),
+                )
+                .await?;
+            return Err(AppError::FilesystemRequestFailed);
+        }
+        let fork = catalog.owned_task(&project_id, id).await?;
+        let task = crate::infrastructure::local_catalog::sidebar::map_task(&fork)?;
+        state
+            .remember_task_metadata(&project_id, [(task.id.as_str(), task.title.as_str())])
+            .await;
+        return Ok(AgentTaskMutationResponse { task });
+    }
+    let connection = state.codex_connection().await?;
     let response = codex::fork_task(
         &connection,
         &project_id,

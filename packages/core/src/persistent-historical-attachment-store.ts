@@ -38,6 +38,10 @@ export type HistoricalAttachmentMetadata = Readonly<{
   schemaVersion: 1;
 }>;
 
+// 分支可以继承附件引用 ID；内存授权必须同时按任务隔离，不能由源任务占用或撤销分支授权。
+const attachmentKey = (taskId: string, attachmentId: string) =>
+  JSON.stringify([taskId, attachmentId]);
+
 type PersistentEntry = Readonly<{
   attachment: AgentMessageAttachment;
   blobKey: string;
@@ -223,7 +227,11 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     const path = this.#blobPath(taskId, record.blobKey);
     try {
       const stats = await stat(path);
-      if (!this.#isCurrent(taskId, epoch) || this.#entries.has(record.attachment.id)) return;
+      if (
+        !this.#isCurrent(taskId, epoch) ||
+        this.#entries.has(attachmentKey(taskId, record.attachment.id))
+      )
+        return;
       if (!stats.isFile() || stats.size !== record.attachment.size) return;
       this.#ensureCapacity(record.attachment.size);
       this.#register({ attachment: record.attachment, blobKey: record.blobKey, path, taskId });
@@ -246,7 +254,8 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     taskId: string,
     attachmentId: string,
   ): Promise<AgentProviderAttachment | undefined> {
-    const entry = this.#entries.get(attachmentId);
+    const key = attachmentKey(taskId, attachmentId);
+    const entry = this.#entries.get(key);
     if (entry?.taskId !== taskId) return undefined;
     try {
       // 下载正文也在 Worker 中流式复验哈希，最后转移 ArrayBuffer，主线程不再计算整块摘要。
@@ -259,16 +268,12 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
         size: entry.attachment.size,
         digest: entry.blobKey,
       });
-      if (this.#entries.get(attachmentId) !== entry || result.content === undefined)
-        return undefined;
+      if (this.#entries.get(key) !== entry || result.content === undefined) return undefined;
       this.#touch(entry);
       return { ...entry.attachment, content: Buffer.from(result.content) };
     } catch (error) {
-      if (
-        error instanceof InvalidHistoricalAttachmentError &&
-        this.#entries.get(attachmentId) === entry
-      ) {
-        this.#forget(attachmentId);
+      if (error instanceof InvalidHistoricalAttachmentError && this.#entries.get(key) === entry) {
+        this.#forget(key);
         await rm(entry.path, { force: true }).catch(() => {
           // 损坏附件必须撤销授权，外部文件系统清理失败不应恢复旧授权。
         });
@@ -345,7 +350,7 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
       const id = `history-${createHash("sha256")
         .update(JSON.stringify([taskId, kind, result.mediaType, name, result.size, result.blobKey]))
         .digest("hex")}`;
-      const existing = this.#entries.get(id);
+      const existing = this.#entries.get(attachmentKey(taskId, id));
       if (existing !== undefined) {
         this.#touch(existing);
         return existing.attachment;
@@ -393,13 +398,13 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
   }
 
   #register(entry: PersistentEntry): void {
-    this.#entries.set(entry.attachment.id, entry);
+    this.#entries.set(attachmentKey(entry.taskId, entry.attachment.id), entry);
     this.#totalBytes += entry.attachment.size;
   }
 
   #touch(entry: PersistentEntry): void {
-    this.#entries.delete(entry.attachment.id);
-    this.#entries.set(entry.attachment.id, entry);
+    this.#entries.delete(attachmentKey(entry.taskId, entry.attachment.id));
+    this.#entries.set(attachmentKey(entry.taskId, entry.attachment.id), entry);
   }
 
   #forget(attachmentId: string): void {

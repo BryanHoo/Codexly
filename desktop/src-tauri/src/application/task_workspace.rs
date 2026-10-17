@@ -96,6 +96,20 @@ pub(crate) async fn remove_deleted_workspace(
         return Ok(());
     };
     let app_data = app_data_dir(app)?;
+    // Claude 分支共享工作文件；最后一个引用删除前不得清理父会话的临时目录。
+    let bindings = crate::infrastructure::local_catalog::LocalCatalog::at(&app_data)?
+        .call("task.bindings", serde_json::Value::Null)
+        .await?;
+    if bindings.as_array().is_some_and(|tasks| {
+        tasks.iter().any(|task| {
+            task["id"].as_str() != Some(task_id)
+                && task["cwd"]
+                    .as_str()
+                    .is_some_and(|cwd| Path::new(cwd) == working_directory)
+        })
+    }) {
+        return Ok(());
+    }
     if let Some(owned) =
         crate::infrastructure::temporary_workspace_settings::task_workspace(&app_data, task_id)
             .await

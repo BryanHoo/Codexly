@@ -63,7 +63,10 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 - 支持流式回答、带描述/文件路径/命令的工具标题、工具审批、最多四个问题及多选回答、中断、历史读取和按精确 session ID 恢复。
 - Claude 子代理复用现有右栏及输出弹窗，展示任务状态、独立正文和工具记录；输出作为父任务的有界投影保存。上下文用量、任务计划（TaskCreate、TaskUpdate、TaskGet、TaskList，兼容 TodoWrite）及 MCP 状态接入两端现有面板，刷新或重启宿主后恢复。上下文用量只在中栏输入框底部展示，右栏上下文标签不重复展示。统计使用最近主模型请求及 SDK 的窗口声明，不把多模型累计计费用量视为当前占用；缺失或零值占位统计保留上次有效用量，真实压缩后的非零统计允许下降。子代理调用在时间线中使用默认折叠的工具展示，展开后才挂载输入和结果。界面引擎名称统一为 `Claude`。
 - 模型和命令从 SDK 获取；兼容网关可以显式覆盖模型目录。缺失推理元数据时不伪造档位。
-- Codex 的 Goal、Review、分叉、Guardian、沙盒和实时 steer 不映射成 Claude 功能。
+- Codex 的 Goal、Review、Guardian、沙盒和实时 steer 不映射成 Claude 功能。
+- Claude 支持从消息对应回合分叉：点击已完成回复下的分叉按钮，保留到该回复为止的原生上下文和展示历史；输入框命令菜单的“复制”则分叉完整会话。适配器从当前会话的原生历史解析消息 UUID，调用 SDK `forkSession(sessionId, { dir, upToMessageId })`，不会把应用 Task ID 或回合 ID 当成原生 ID。SDK 为分支创建独立会话并重建消息 UUID，因此分支再次分叉时重新解析。纯本地命令输出没有原生回复位置，不显示回合分叉按钮；旧位置已不在原生历史中时明确报错，不改成分叉最新会话。
+- 分叉继承当前会话的模型和权限设置，但不继承内存中的单次或会话工具授权。分叉只复制会话历史，不复制或回滚工作文件，原会话与分支共享工作目录；临时工作目录在最后一个聊天引用删除后才能清理。前台、后台或定时唤醒工作仍存活时，先停止再分叉或使用专用压缩入口。
+- 专用“压缩”入口在已绑定的原生会话中发送 `/compact`，复用普通回合的权限、流式事件、结果与持久化。受理状态“压缩中”不代表已完成压缩：只有 SDK 的 `compact_boundary` 表示实际发生压缩；消息不足时 SDK 可以成功返回未压缩原因，界面保留真实输出。允许的 `/compact [instructions]` 仍可直接发送，SDK 自动压缩行为保持原样；应用能力标志只描述专用入口，不描述引擎是否能够自动压缩。
 - Web 复用应用持久队列；桌面的 Claude 跟进消息暂不提供原生队列/steer，运行中保留中断能力。
 - 父回合 `result` 结束本轮回复，后台子代理仍可继续执行。后续回合复用存活的查询，后台结果更新创建它的原回合；没有前台或后台工作连续 30 秒后释放进程。实际 CLI 是否先返回父结果取决于任务类型与运行模式，不能由此推断所有后台任务的消息顺序。此生命周期遵循官方[流式输入](https://code.claude.com/docs/en/agent-sdk/streaming-vs-single-mode)与[子代理](https://code.claude.com/docs/en/agent-sdk/subagents)契约。
 - 独立停止接口：Web 使用 `POST /v1/projects/:projectId/tasks/:taskId/session/stop`（要求幂等键），桌面使用 `stop_task_session`。参数包含 `taskId`，可选 `backgroundTaskId`：指定时仅停止该原生后台任务，省略时停止整个会话；不要求父回合仍在运行。子代理工具输出中的 `nativeTaskId` 是原生后台 ID。后台工作存活时若要改变会话选项，先停止后台工作；不会为了应用新选项重建并终止后台进程。
@@ -99,6 +102,7 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 
 - [Codex App Server](https://developers.openai.com/codex/app-server)：保留既有结构化执行协议。
 - [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview)、[流式输入](https://code.claude.com/docs/en/agent-sdk/streaming-input)、[审批](https://code.claude.com/docs/en/agent-sdk/user-input)、[会话管理](https://code.claude.com/docs/en/agent-sdk/sessions)：使用官方工具循环、权限回调及持久会话。
+- [Claude SDK 命令与压缩](https://code.claude.com/docs/en/agent-sdk/slash-commands#compact-history-with-compact)、项目固定 SDK 随包 `sdk.d.ts` 的 `forkSession` / `ForkSessionOptions`：原生消息截断、UUID 重建与压缩结果语义。
 - [流式工具参数](https://code.claude.com/docs/en/agent-sdk/streaming-output)、[子代理事件](https://code.claude.com/docs/en/agent-sdk/subagents)、[用量统计](https://code.claude.com/docs/en/agent-sdk/cost-tracking)：区分工具输入增量、子代理上下文与累计计费用量。
 - [Claude Code 系统要求](https://code.claude.com/docs/en/setup)、[Bun 独立可执行文件](https://bun.com/docs/bundler/executables)：运行平台及宿主分发约束。
 - [CloudCLI](https://github.com/siteboon/claudecodeui)、[Happy](https://github.com/slopus/happy)：社区多引擎客户端的第一手实现参考。本项目复用界面和应用身份，同时保留引擎运行边界，不复制其认证方案或代码。

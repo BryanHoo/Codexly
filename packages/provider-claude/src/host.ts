@@ -7,6 +7,7 @@ import {
   getSessionMessages,
   getSessionInfo,
   deleteSession,
+  forkSession,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentTaskScope, CatalogOperations, LocalCatalogStore } from "@codexly/core";
 import { readTaskWithCheckpoint } from "@codexly/core";
@@ -76,6 +77,7 @@ if (process.argv.includes("--version")) {
     getSessionMessages,
     getSessionInfo,
     deleteSession,
+    forkSession,
     query: (input) =>
       query({
         ...input,
@@ -137,6 +139,18 @@ if (process.argv.includes("--version")) {
         return provider.archiveTask(id);
       case "task.delete":
         return provider.deleteTask(id);
+      case "task.fork":
+        if (params["lastTurnId"] != null && typeof params["lastTurnId"] !== "string")
+          throw new Error("Invalid Claude fork turn");
+        return provider.forkTask(
+          id,
+          typeof params["lastTurnId"] === "string" ? params["lastTurnId"] : undefined,
+        );
+      case "task.compact":
+        if (!Value.Check(AgentTurnOptionsSchema, params["options"]))
+          throw new Error("Invalid Claude compact options");
+        await provider.compactTask(id, params["options"]);
+        return { status: "compacting", taskId: id };
       case "turn.start":
         if (!Value.Check(AgentTurnOptionsSchema, params["options"]))
           throw new Error("Invalid Claude turn options");

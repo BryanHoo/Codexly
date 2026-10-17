@@ -1,15 +1,18 @@
+import { createClaudeQuery } from "./session-query.js";
 import { localTaskMetadata as claudeTask } from "@codexly/core";
 export { localTaskMetadata as claudeTask } from "@codexly/core";
 import type { ClaudeMcpAction } from "./mcp.js";
 import { ClaudeMcpManagement } from "./mcp-management.js";
 import { isManagedClaudeCommand } from "./commands.js";
 import { deleteClaudeTask } from "./task-deletion.js";
+import { forkClaudeTask } from "./task-fork.js";
 import { randomUUID } from "node:crypto";
 import {
   query,
   getSessionMessages,
   getSessionInfo,
   deleteSession,
+  forkSession,
 } from "@anthropic-ai/claude-agent-sdk";
 import type {
   AgentProviderEventListener,
@@ -40,8 +43,8 @@ export const CLAUDE_CAPABILITIES: AgentCapabilities = {
   feedback: { upload: false },
   goals: { clear: false, read: false, update: false },
   skills: { list: false, use: false },
-  tasks: { fork: false, list: true, read: true, start: true },
-  turns: { compact: false, interrupt: true, review: false, start: true, steer: false },
+  tasks: { fork: true, list: true, read: true, start: true },
+  turns: { compact: true, interrupt: true, review: false, start: true, steer: false },
 };
 export type { ClaudeSdk } from "./session.js";
 export class ClaudeAgentProvider {
@@ -56,7 +59,13 @@ export class ClaudeAgentProvider {
     readonly scope: AgentTaskScope,
     readonly store: LocalCatalogStore,
     readonly config: ClaudeConfiguration,
-    readonly sdk: session.ClaudeSdk = { query, getSessionMessages, getSessionInfo, deleteSession },
+    readonly sdk: session.ClaudeSdk = {
+      query,
+      getSessionMessages,
+      getSessionInfo,
+      deleteSession,
+      forkSession,
+    },
     readonly discover?: () => Promise<AgentEngineProfile>,
     readonly idleTimeoutMs = 30_000,
   ) {
@@ -220,6 +229,38 @@ export class ClaudeAgentProvider {
     input: AgentProviderTurnInput,
     options: AgentTurnOptions,
   ): Promise<AgentTurn> {
+    return this.#startTurn(id, input, options);
+  }
+  /** 专用压缩仍是原生命令回合；受理后由 SDK result 决定真实终态及未压缩原因。 */
+  async compactTask(id: string, options?: AgentTurnOptions): Promise<void> {
+    if (!options) throw new Error("Claude 压缩需要当前会话设置");
+    await this.#startTurn(
+      id,
+      { text: "/compact", files: [], images: [], skills: [], textAttachments: [] },
+      options,
+      true,
+    );
+  }
+  async forkTask(id: string, lastTurnId?: string): Promise<AgentTask> {
+    const running = this.#running.get(id);
+    if (this.#starting.has(id) || (running && (running.settling || session.hasWork(running))))
+      throw new Error("请先停止 Claude 的前台与后台工作再分叉");
+    // 与启动、删除共用占用标记；等待写盘和复制期间不能产生新的源会话消息。
+    this.#starting.add(id);
+    try {
+      const task = await this.#task(id);
+      if (running) await this.stopSession(id);
+      return claudeTask(await forkClaudeTask(task, lastTurnId, this.config, this.sdk, this.store));
+    } finally {
+      this.#starting.delete(id);
+    }
+  }
+  async #startTurn(
+    id: string,
+    input: AgentProviderTurnInput,
+    options: AgentTurnOptions,
+    compact = false,
+  ): Promise<AgentTurn> {
     // 失败终态不能像最近回合缓存一样淘汰；存储持续不可用时对新增会话施加有界背压。
     if (this.config.persistence.pendingCount >= 8 && !this.config.persistence.hasPending(id))
       throw new Error("Claude 历史持久化待恢复任务已达上限，请修复存储后重试");
@@ -247,6 +288,8 @@ export class ClaudeAgentProvider {
     if (current) current.idleTimer = undefined;
     try {
       const task = await this.#task(id);
+      if (compact && (!task.sessionId || (current && session.hasWork(current))))
+        throw new Error("Claude 压缩需要已有上下文且没有前台或后台工作");
       const recovery = await this.config.persistence.retry(id);
       if (recovery?.pending) throw new Error("Claude 历史持久化尚未完成，请修复存储后重试");
       this.#unpersisted.delete(id);
@@ -294,6 +337,7 @@ export class ClaudeAgentProvider {
         throw new Error("Claude background turn capacity exceeded");
       const resumable =
         !existing && (await session.canResume(task, this.sdk, this.config.history, metadata));
+      if (compact && !existing && !resumable) throw new Error("Claude 原生会话尚未建立，无法压缩");
       // 原生恢复校验通过后先幂等归档崩溃检查点，避免新回合覆盖后丢失界面历史。
       if (!existing) await this.config.history.archiveActive(id);
       // 发送前持久绑定精确 UUID；进程重启或请求重试不能改绑到另一个会话。
@@ -328,50 +372,20 @@ export class ClaudeAgentProvider {
       await this.config.history.saveMetadata(id, projection.metadata());
       await session.checkpoint(id, projection, this.config);
       const inputStream = session.createInput();
-      const stream = this.sdk.query({
-        prompt: inputStream,
-        options: {
-          cwd: task.cwd,
-          // 两端都提供计划面板，显式启用任务工具；不改写用户配置或自动放行工具权限。
-          env: { ...this.config.environment(), CLAUDE_CODE_ENABLE_TODO_TOOLS: "1" },
-          // default 保留 SDK 对本机及项目模型配置的解析，不传 CLI 的 --model 覆盖。
-          ...(options.model && options.model !== "default" ? { model: options.model } : {}),
-          permissionMode,
-          allowDangerouslySkipPermissions: permissionMode === "bypassPermissions",
-          hooks: session.wakeupHooks(() => this.#running.get(id)),
-          includePartialMessages: true,
-          persistSession: true,
-          abortController: controller,
-          // SDK 先执行原生 Elicitation Hook，仅未处理的请求进入两端共用交互。
-          // 回调没有工具/代理身份，绑定调用时的当前回合，不能捕获首次启动的旧回合。
-          onElicitation: (request, elicitationOptions) => {
-            const active = this.#running.get(id);
-            return (
-              active?.permissions.get(active.projection.id) ?? permissions
-            ).elicitation.request(request, elicitationOptions);
-          },
-          canUseTool: (name, input, toolOptions) => {
-            const active = this.#running.get(id);
-            const owner = [...(active?.projections.values() ?? [])].find((candidate) =>
-              candidate.ownsMessage({
-                tool_use_id: toolOptions.toolUseID,
-                agent_id: toolOptions.agentID,
-              }),
-            );
-            return (
-              active?.permissions.get(owner?.id ?? active.projection.id) ?? permissions
-            ).request(name, input, toolOptions);
-          },
-          settingSources: defaults.loadProjectSettings ? ["user", "project", "local"] : ["user"],
-          // 原生 allow/deny 由 settingSources 保留路径基准；SDK 参数仅重放当前聊天授权。
-          ...grants.options(permissionMode),
-          ...(["low", "medium", "high", "xhigh", "max"].includes(options.reasoningEffort)
-            ? { effort: options.reasoningEffort as "low" | "medium" | "high" | "xhigh" | "max" }
-            : {}),
-          // 全局指令由 SDK 从用户 CLAUDE.md 加载，避免再 append 一次造成重复。
-          systemPrompt: { type: "preset", preset: "claude_code" },
-          ...(resumable ? { resume: sessionId } : { sessionId }),
-        },
+      const stream = createClaudeQuery({
+        sdk: this.sdk,
+        config: this.config,
+        task,
+        options,
+        defaults,
+        permissionMode,
+        controller,
+        permissions,
+        grants,
+        sessionId,
+        resumable,
+        inputStream,
+        getRunning: () => this.#running.get(id),
       });
       const running: session.Running = {
         sessionId,

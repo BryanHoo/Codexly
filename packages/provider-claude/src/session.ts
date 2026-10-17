@@ -7,6 +7,7 @@ import type {
   getSessionMessages,
   getSessionInfo,
   deleteSession,
+  forkSession,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentProviderEventListener, LocalCatalogStore, LocalTask } from "@codexly/core";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
@@ -22,6 +23,7 @@ export interface ClaudeSdk {
   query: (input: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
   getSessionMessages: typeof getSessionMessages;
   deleteSession: typeof deleteSession;
+  forkSession?: typeof forkSession;
   getSessionInfo?: typeof getSessionInfo;
 }
 

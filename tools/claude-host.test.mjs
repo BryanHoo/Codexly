@@ -200,7 +200,7 @@ test(
           const { operation, payload } = message;
           let result;
           if (operation === "task.read") result = tasks.get(payload.id) ?? null;
-          else if (operation === "task.patch") {
+          else if (operation === "task.patch" || operation === "task.put") {
             result = { ...tasks.get(payload.id), ...payload };
             tasks.set(payload.id, result);
           } else if (operation === "task.remove") {
@@ -475,6 +475,38 @@ test(
           completed.payload.turn.items,
         );
       }
+      // 真实分发宿主按点击回复的原生 UUID 截断，并支持对重建 UUID 的分支再次分叉。
+      const firstTurn = (await host.request("task.read", { taskId: "task" }, scope)).turns[0];
+      const callsBeforeFork = calls;
+      const fork = await host.request(
+        "task.fork",
+        { taskId: "task", lastTurnId: firstTurn.id },
+        scope,
+      );
+      assert.equal(fork.engine, "claude");
+      assert.notEqual(tasks.get(fork.id).sessionId, sessionId);
+      const forkSnapshot = await host.request("task.read", { taskId: fork.id }, scope);
+      assert.deepEqual(
+        forkSnapshot.turns.map((turn) => turn.id),
+        [firstTurn.id],
+      );
+      const nested = await host.request(
+        "task.fork",
+        { taskId: fork.id, lastTurnId: firstTurn.id },
+        scope,
+      );
+      assert.equal(calls, callsBeforeFork, "forking transcripts must not call the model");
+      const beforeCompact = host.events.length;
+      assert.deepEqual(await host.request("task.compact", { taskId: nested.id, options }, scope), {
+        status: "compacting",
+        taskId: nested.id,
+      });
+      const compacted = await waitEvent("turn.completed", beforeCompact);
+      assert.equal(compacted.taskId, nested.id);
+      assert.equal(compacted.payload.turn.status, "completed");
+      assert.equal(tasks.get("task").sessionId, sessionId);
+      await host.request("task.delete", { taskId: fork.id }, scope);
+      await host.request("task.delete", { taskId: nested.id }, scope);
       // 空闲查询仍保持进程存活；归档必须经共享适配器关闭查询后再改目录记录。
       await host.request("task.archive", { taskId: "task" }, scope);
       assert.equal(tasks.get("task").archived, true);

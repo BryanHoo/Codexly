@@ -16,6 +16,7 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   getSessionMessages: vi.fn(),
   getSessionInfo: vi.fn(),
   deleteSession: vi.fn(),
+  forkSession: vi.fn(),
 }));
 
 it("stops writing host responses until stdout drains", async () => {

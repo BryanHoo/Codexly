@@ -301,18 +301,7 @@ pub async fn resolve_pending_request(
     super::pending_resolution::resolve(app, request, resolution, idempotency_key).await
 }
 
-#[tauri::command(rename_all = "camelCase")]
-pub async fn compact_task(
-    project_id: String,
-    task_id: String,
-    state: State<'_, AppState>,
-) -> Result<Value, AppError> {
-    let connection = state.codex_connection().await?;
-    let response = codex::compact_task(&connection, &project_id, &task_id)
-        .await
-        .map_err(AppError::from)?;
-    serde_json::to_value(response).map_err(|_| AppError::CodexRequestFailed)
-}
+pub use super::task_compact_commands::compact_task;
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn rename_task(

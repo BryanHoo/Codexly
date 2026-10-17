@@ -57,6 +57,7 @@ pub mod task_activity_commands;
 #[cfg(test)]
 mod task_activity_tests;
 pub mod task_board_commands;
+mod task_compact_commands;
 mod task_creation;
 pub mod task_fork_commands;
 mod task_subscription;

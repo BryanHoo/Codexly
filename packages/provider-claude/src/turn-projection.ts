@@ -26,7 +26,6 @@ import { ClaudeTaskPlan } from "./task-plan.js";
 /** 只持有当前回合的渲染投影；历史与恢复上下文仍由官方 SDK 的会话文件管理。 */
 export class ClaudeTurnProjection {
   readonly #taskId: string;
-  readonly #id: string;
   readonly #emit: AgentProviderEventListener;
   readonly #items: ClaudeRenderingBuffer;
   readonly #startedAt = new Date().toISOString();
@@ -35,6 +34,7 @@ export class ClaudeTurnProjection {
   readonly #children = new Map<string, ClaudeTurnProjection>();
   readonly #taskPlan = new ClaudeTaskPlan();
   #closed = false;
+  #forkable = false;
   readonly changes: ClaudeProjectionChanges;
   #lastBlockIndex = 0;
   #model = "";
@@ -51,7 +51,7 @@ export class ClaudeTurnProjection {
   #completedAt: string | null = null;
   constructor(
     taskId: string,
-    id: string,
+    readonly id: string,
     prompt: ClaudeUserInput | undefined,
     emit: AgentProviderEventListener,
     previewBytes = CLAUDE_TURN_PREVIEW_BYTES,
@@ -61,7 +61,6 @@ export class ClaudeTurnProjection {
     this.changes = new ClaudeProjectionChanges(paginated);
     this.#items = new ClaudeRenderingBuffer(previewBytes, id, paginated);
     this.#taskId = taskId;
-    this.#id = id;
     this.#emit = emit;
     if (prompt !== undefined) this.changes.touch(this.#items.set(createClaudeUserItem(id, prompt)));
   }
@@ -96,9 +95,6 @@ export class ClaudeTurnProjection {
     this.mcpObservedAt = metadata.mcpObservedAt ?? null;
     this.#model = metadata.model ?? "";
   }
-  get id() {
-    return this.#id;
-  }
   metadata(): ClaudeTaskMetadata {
     return {
       sessionInitialized: this.sessionInitialized,
@@ -112,7 +108,8 @@ export class ClaudeTurnProjection {
   }
   snapshot(): AgentTurn {
     return {
-      id: this.#id,
+      id: this.id,
+      forkable: this.#forkable,
       startedAt: this.#startedAt,
       completedAt: this.#completedAt,
       status: this.#status,
@@ -129,7 +126,7 @@ export class ClaudeTurnProjection {
       this.#emit({
         type: completed ? "item.completed" : "item.started",
         taskId: this.#taskId,
-        turnId: this.#id,
+        turnId: this.id,
         itemId: item.id,
         payload: { item },
       });
@@ -182,7 +179,7 @@ export class ClaudeTurnProjection {
       if (item.status !== "running") return;
       child = new ClaudeTurnProjection(
         this.#taskId,
-        `${this.#id}:${id}`,
+        `${this.id}:${id}`,
         text(input["prompt"]),
         (event) => {
           // 块完成和任务进度同步正文；不在每个 token 到达时重发整段子代理历史。
@@ -196,7 +193,7 @@ export class ClaudeTurnProjection {
       this.#children.set(id, child);
     }
     const prompt = text(input["prompt"]);
-    child.#items.set({ id: child.#id, type: "message", role: "user", text: prompt });
+    child.#items.set({ id: child.id, type: "message", role: "user", text: prompt });
     if (
       status &&
       summary &&
@@ -205,7 +202,7 @@ export class ClaudeTurnProjection {
       )
     )
       child.#item(
-        { id: `${child.#id}:result`, type: "message", role: "assistant", text: summary },
+        { id: `${child.id}:result`, type: "message", role: "assistant", text: summary },
         true,
       );
     if (status && status !== "running") child.finish(status, undefined, true);
@@ -238,7 +235,7 @@ export class ClaudeTurnProjection {
     this.#emit({
       type: "usage.updated",
       taskId: this.#taskId,
-      turnId: this.#id,
+      turnId: this.id,
       payload: { usage: changed },
     });
   }
@@ -354,7 +351,7 @@ export class ClaudeTurnProjection {
           this.#emit({
             type: "item.started",
             taskId: this.#taskId,
-            turnId: this.#id,
+            turnId: this.id,
             itemId: id,
             payload: { item: update.item },
           });
@@ -364,7 +361,7 @@ export class ClaudeTurnProjection {
           this.#emit({
             type: "message.delta",
             taskId: this.#taskId,
-            turnId: this.#id,
+            turnId: this.id,
             itemId: id,
             payload: { delta: addition },
           });
@@ -372,13 +369,16 @@ export class ClaudeTurnProjection {
           this.#emit({
             type: "reasoning.delta",
             taskId: this.#taskId,
-            turnId: this.#id,
+            turnId: this.id,
             itemId: id,
             payload: { delta: addition, field: "content" },
           });
       }
     } else if (message["type"] === "assistant") {
       const body = record(message["message"]);
+      // 本地命令输出经展示转换后也像 assistant，只有 SDK 真正的原生回复才可定位分叉。
+      if (record(value)["type"] === "assistant" && typeof body["id"] === "string")
+        this.#forkable = true;
       const id = text(body["id"]) || text(message["uuid"]);
       this.#model = text(body["model"]) || this.#model;
       this.#usage(body["usage"]);
@@ -400,7 +400,7 @@ export class ClaudeTurnProjection {
           // 仅在工具成功返回后更新计划，按 tool_use_id 配对，避免失败/重复结果污染状态。
           if (item.name === "TodoWrite" && item.status !== "running") continue;
           const plan = this.#taskPlan.apply(item, message["tool_use_result"], block);
-          publishClaudePlan(this, plan, this.#taskId, this.#id, this.#emit);
+          publishClaudePlan(this, plan, this.#taskId, this.id, this.#emit);
           if (item.name === "agent/spawn") {
             const result = record(message["tool_use_result"]);
             if (result["isAsync"] === true || record(item.input)["run_in_background"] === true)
@@ -438,7 +438,7 @@ export class ClaudeTurnProjection {
         )
       )
         this.#item(
-          { id: `${this.#id}:result`, type: "message", role: "assistant", text: result },
+          { id: `${this.id}:result`, type: "message", role: "assistant", text: result },
           true,
         );
       const errors = Array.isArray(message["errors"])
@@ -493,7 +493,7 @@ export class ClaudeTurnProjection {
     this.#emit({
       type: "turn.completed",
       taskId: this.#taskId,
-      turnId: this.#id,
+      turnId: this.id,
       payload: { turn: this.snapshot() },
     });
   }

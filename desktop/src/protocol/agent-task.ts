@@ -229,6 +229,8 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    // 与共享协议一致：无原生回复位置的命令回合不提供分叉。
+    forkable: Type.Optional(Type.Boolean()),
     processCursor: Type.Optional(Type.String({ minLength: 1, maxLength: 8_192 })),
     completedAt: NullableDateTimeSchema,
     error: Type.Union([Type.String(), Type.Null()]),
