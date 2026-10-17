@@ -322,6 +322,7 @@ export class ClaudeAgentProvider {
       if (existing) {
         clearTimeout(existing.idleTimer);
         existing.idleTimer = undefined;
+        projection.backgroundTasks = existing.backgroundTasks;
         projection.restoreMetadata(existing.projection.metadata());
         await this.config.history.checkpoint(id, projection.snapshot());
         existing.projection = projection;
@@ -395,7 +396,7 @@ export class ClaudeAgentProvider {
         permissions: new Map([[turnId, permissions]]),
         projections: new Map([[turnId, projection]]),
         itemChanges: new Map([[turnId, itemChanges]]),
-        backgroundTasks: new Set(),
+        backgroundTasks: projection.backgroundTasks,
         createPermissions: (nextTurnId) =>
           new ClaudePermissions(this.scope.id, id, nextTurnId, this.#emit, grants),
         input: inputStream,
@@ -445,7 +446,6 @@ export class ClaudeAgentProvider {
       if (running) session.scheduleIdle(running, this.idleTimeoutMs);
     }
   }
-
   /** 原生 task_id 与本地聊天 ID 分离，停止单个后台任务不关闭会话。 */
   async stopBackgroundTask(id: string, backgroundTaskId: string): Promise<void> {
     await this.#task(id);

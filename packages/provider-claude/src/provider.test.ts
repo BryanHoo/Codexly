@@ -1646,3 +1646,106 @@ it("does not delete native data for a task owned by another project", async () =
   expect(h.tasks.has(task.id)).toBe(true);
   record.projectId = "p";
 });
+
+// Web 与桌面宿主复用此 Provider；同时验证事件投影和落盘后重新读取的终态。
+it.each(["completed", "failed", "stopped"] as const)(
+  "replays foreground promotion and late %s after the level set removes the task",
+  async (outcome) => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const first = await h.provider.startTurn(task.id, prompt, options);
+    h.send({
+      ...backgroundSpawn,
+      message: {
+        id: "root",
+        content: [
+          { type: "tool_use", id: "spawn", name: "Agent", input: { run_in_background: false } },
+        ],
+      },
+    });
+    h.send({
+      type: "system",
+      subtype: "task_started",
+      task_id: "child",
+      tool_use_id: "spawn",
+      run_id: "002",
+      is_backgrounded: false,
+    });
+    h.send({
+      type: "system",
+      subtype: "task_updated",
+      task_id: "child",
+      run_id: "002",
+      patch: { is_backgrounded: true },
+    });
+    h.send({
+      type: "system",
+      subtype: "background_tasks_changed",
+      tasks: [{ task_id: "child", run_id: "002" }],
+    });
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    });
+    expect(
+      (await h.provider.readTask(task.id))?.turns[0]?.items.find((item) => item.id === "spawn"),
+    ).toMatchObject({ status: "running" });
+    expect(h.provider.isBusy).toBe(true);
+    const second = await h.provider.startTurn(task.id, prompt, options);
+    h.send({ type: "system", subtype: "background_tasks_changed", tasks: [] });
+    h.send({
+      type: "system",
+      subtype: "task_notification",
+      task_id: "child",
+      run_id: "001",
+      status: "failed",
+      summary: "obsolete",
+    });
+    h.send({
+      type: "system",
+      subtype: "task_updated",
+      task_id: "child",
+      run_id: "002",
+      patch: { status: outcome === "stopped" ? "killed" : outcome },
+    });
+    h.send({
+      type: "system",
+      subtype: "task_notification",
+      task_id: "child",
+      run_id: "002",
+      status: outcome,
+      summary: "late proof",
+    });
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(2);
+    });
+    const expected = outcome === "stopped" ? "interrupted" : outcome;
+    const restored = await h.restart().readTask(task.id);
+    expect(
+      restored?.turns
+        .find((turn) => turn.id === first.id)
+        ?.items.find((item) => item.id === "spawn"),
+    ).toMatchObject({ status: expected });
+    expect(JSON.stringify(restored)).toContain("late proof");
+    expect(JSON.stringify(restored)).not.toContain("obsolete");
+    expect(
+      events.some(
+        (event) =>
+          event.type === "item.completed" &&
+          event.turnId === first.id &&
+          event.payload.item.type === "tool" &&
+          event.payload.item.status === expected,
+      ),
+    ).toBe(true);
+    expect(
+      restored?.turns
+        .find((turn) => turn.id === second.id)
+        ?.items.some((item) => item.id === "spawn"),
+    ).toBe(false);
+    expect(h.query).toHaveBeenCalledOnce();
+    expect(h.provider.isBusy).toBe(false);
+  },
+);

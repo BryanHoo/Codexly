@@ -1,3 +1,4 @@
+import { ClaudeBackgroundTasks } from "./background-tasks.js";
 import { randomUUID } from "node:crypto";
 import type {
   Options,
@@ -51,6 +52,7 @@ export function createProjection(
   turnId: string,
   prompt: ClaudeUserInput | undefined,
   emit: AgentProviderEventListener,
+  backgroundTasks = new ClaudeBackgroundTasks(),
 ) {
   const itemChanges = new Map<string, AgentItem>();
   const projection = new ClaudeTurnProjection(
@@ -65,6 +67,7 @@ export function createProjection(
     },
     undefined,
     true,
+    backgroundTasks,
   );
   return { projection, itemChanges };
 }
@@ -76,7 +79,7 @@ export interface Running {
   permissions: Map<string, ClaudePermissions>;
   projections: Map<string, ClaudeTurnProjection>;
   itemChanges: Map<string, Map<string, AgentItem>>;
-  backgroundTasks: Set<string>;
+  backgroundTasks: ClaudeBackgroundTasks;
   controller: AbortController;
   input: ReturnType<typeof createInput>;
   settingsKey: string;
@@ -86,7 +89,6 @@ export interface Running {
   done: Promise<void>;
   closed?: boolean;
   settling?: boolean;
-  hasBackgroundSnapshot?: boolean;
   nativeRunning?: boolean;
   hasScheduledWakeup?: boolean;
   createPermissions: (turnId: string) => ClaudePermissions;
@@ -122,7 +124,7 @@ export function hasWork(running: Running): boolean {
     running.nativeRunning === true ||
     running.hasScheduledWakeup === true ||
     running.backgroundTasks.size > 0 ||
-    (!running.hasBackgroundSnapshot &&
+    (!running.backgroundTasks.hasSnapshot &&
       [...running.projections.values()].some((projection) => projection.hasBackgroundWork))
   );
 }
@@ -251,7 +253,13 @@ export async function consume(
             message.state === "running"));
       if (running.projection.status !== "running" && startsContinuation) {
         const turnId = randomUUID();
-        const { projection, itemChanges } = createProjection(id, turnId, undefined, emit);
+        const { projection, itemChanges } = createProjection(
+          id,
+          turnId,
+          undefined,
+          emit,
+          running.backgroundTasks,
+        );
         projection.restoreMetadata(running.projection.metadata());
         running.projection = projection;
         running.projections.set(turnId, projection);
@@ -268,39 +276,17 @@ export async function consume(
           payload: { turn: projection.snapshot() },
         });
       }
+      if (!running.backgroundTasks.receive(message)) continue;
       const projection =
         [...running.projections.values()].find((candidate) => candidate.ownsMessage(message)) ??
         running.projection;
       const wasRunning = projection.status === "running";
-      projection.receive(message);
+      projection.receive(message, true);
       // 仅落盘结构化块和工具状态，Token 增量不产生磁盘写入；消费器背压限制待写内存。
       const changes = running.itemChanges.get(projection.id);
       if (changes?.size) {
         await config.history.saveItems(id, projection.id, [...changes.values()]);
         changes.clear();
-      }
-      // 原生任务包括 Bash 等非 Agent 工具；不能仅凭可见子代理决定关闭进程。
-      if (message.type === "system") {
-        if (message.subtype === "background_tasks_changed") {
-          running.hasBackgroundSnapshot = true;
-          running.backgroundTasks = new Set(message.tasks.map((task) => task.task_id));
-        } else if (
-          message.subtype === "task_started" &&
-          !running.hasBackgroundSnapshot &&
-          message.is_backgrounded !== false
-        ) {
-          running.backgroundTasks.add(message.task_id);
-        } else if (message.subtype === "task_notification" && !running.hasBackgroundSnapshot) {
-          running.backgroundTasks.delete(message.task_id);
-        } else if (
-          message.subtype === "task_updated" &&
-          !running.hasBackgroundSnapshot &&
-          message.patch.is_backgrounded === true
-        ) {
-          running.backgroundTasks.add(message.task_id);
-        }
-        if (running.backgroundTasks.size > 512)
-          throw new Error("Claude background task capacity exceeded");
       }
       if (message.type === "system" && message.subtype === "init")
         void refreshClaudeContext(running.query, projection, true);
@@ -326,7 +312,8 @@ export async function consume(
         completed &&
         projection.ownsMessage(message) &&
         (message.type === "result" ||
-          (message.type === "system" && message.subtype === "task_notification"))
+          (message.type === "system" &&
+            ["task_notification", "task_updated"].includes(message.subtype)))
       ) {
         // Token 热路径只更新内存；终态立即落盘，中间过程由有界检查点合并保存。
         await persistTerminal(id, running, config, projection, "update");
@@ -335,7 +322,8 @@ export async function consume(
         if (
           candidate !== running.projection &&
           candidate.status !== "running" &&
-          !candidate.hasBackgroundWork
+          !candidate.hasBackgroundWork &&
+          !candidate.hasPendingTaskNotifications
         ) {
           running.projections.delete(turnId);
           running.itemChanges.delete(turnId);

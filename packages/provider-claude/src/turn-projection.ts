@@ -19,6 +19,7 @@ import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexl
 import { createClaudeUserItem, type ClaudeUserInput } from "./turn-input.js";
 import type { ClaudeTaskMetadata } from "./history.js";
 import { record, text, resultText, displayClaudeMessage } from "./sdk-values.js";
+import { ClaudeBackgroundTasks } from "./background-tasks.js";
 import { ClaudeTaskPlan } from "./task-plan.js";
 export { record } from "./sdk-values.js";
 /** 只持有当前回合的渲染投影；历史与恢复上下文仍由官方 SDK 的会话文件管理。 */
@@ -31,8 +32,6 @@ export class ClaudeTurnProjection {
   readonly #blocks = new Map<number, string>();
   readonly #inputs = new Map<number, { json: string; bytes: number }>();
   readonly #children = new Map<string, ClaudeTurnProjection>();
-  readonly #agentTools = new Map<string, string>();
-  readonly #backgroundAgents = new Set<string>();
   readonly #taskPlan = new ClaudeTaskPlan();
   #closed = false;
   #lastBlockIndex = 0;
@@ -54,6 +53,7 @@ export class ClaudeTurnProjection {
     emit: AgentProviderEventListener,
     previewBytes = CLAUDE_TURN_PREVIEW_BYTES,
     paginated = false,
+    public backgroundTasks = new ClaudeBackgroundTasks(),
   ) {
     this.#items = new ClaudeRenderingBuffer(previewBytes, id, paginated);
     this.#taskId = taskId;
@@ -67,17 +67,22 @@ export class ClaudeTurnProjection {
   get hasBackgroundWork(): boolean {
     return [...this.#children.entries()].some(
       ([id, child]) =>
-        (this.#backgroundAgents.has(id) && child.status === "running") || child.hasBackgroundWork,
+        (this.backgroundTasks.isBackground(id) && child.status === "running") ||
+        child.hasBackgroundWork,
+    );
+  }
+  /** 集合可先于终态通知移除任务；保留原回合归属，直到通知正文完成投影。 */
+  get hasPendingTaskNotifications(): boolean {
+    return [...this.#children].some(
+      ([id, child]) =>
+        this.backgroundTasks.awaitingNotification(id) || child.hasPendingTaskNotifications,
     );
   }
   /** 会话可同时承载多个回合，关联消息必须回到创建工具的投影。 */
   ownsMessage(value: unknown): boolean {
-    const message = record(value);
-    return ["parent_tool_use_id", "agent_id", "tool_use_id", "task_id"].some((key) => {
-      const id = text(message[key]);
-      return !!id && !!this.#agentOwner(id);
-    });
+    return this.backgroundTasks.ownsMessage(value, (id) => !!this.#agentOwner(id));
   }
+
   restoreMetadata(metadata: ClaudeTaskMetadata | undefined): void {
     if (!metadata) return;
     this.sessionInitialized = metadata.sessionInitialized === true;
@@ -149,7 +154,7 @@ export class ClaudeTurnProjection {
         );
         if (name === "Agent" || name === "Task") {
           if (record(block["input"])["run_in_background"] === true)
-            this.#backgroundAgents.add(toolId);
+            this.backgroundTasks.hint(toolId);
           this.#agent(toolId);
         }
         if (name === "TodoWrite" && completed) {
@@ -169,10 +174,6 @@ export class ClaudeTurnProjection {
     if (!child) {
       // 已回收的终态预览不因重复消息重新建立；活动代理数量不受展示预算限制。
       if (item.status !== "running") return;
-      // 原生 ID 只为活动代理或仍可见的摘要保留，避免顺序调用累计关联记录。
-      for (const [nativeId, toolId] of this.#agentTools)
-        if (!this.#children.has(toolId) && !this.#items.has(toolId))
-          this.#agentTools.delete(nativeId);
       child = new ClaudeTurnProjection(
         this.#taskId,
         `${this.#id}:${id}`,
@@ -183,6 +184,8 @@ export class ClaudeTurnProjection {
             this.#agent(id);
         },
         CLAUDE_CHILD_PREVIEW_BYTES,
+        false,
+        this.backgroundTasks,
       );
       this.#children.set(id, child);
     }
@@ -205,16 +208,21 @@ export class ClaudeTurnProjection {
         item,
         child.snapshot(),
         this.#taskId,
-        [...this.#agentTools].find(([, toolId]) => toolId === id)?.[0] ?? null,
+        this.backgroundTasks.nativeId(id) ?? null,
         status,
         summary,
       ),
       status !== undefined && status !== "running",
     );
     // 已结束正文已进入有界工具快照；释放可变投影，但不能回收仍有后台后代的树。
-    if (child.status !== "running" && !child.hasBackgroundWork) {
+    if (
+      child.status !== "running" &&
+      !child.hasBackgroundWork &&
+      !child.hasPendingTaskNotifications &&
+      !this.backgroundTasks.awaitingNotification(id)
+    ) {
       this.#children.delete(id);
-      this.#backgroundAgents.delete(id);
+      this.backgroundTasks.release(id, child.status);
     }
   }
   updateContextUsage(usage: AgentContextUsage): void {
@@ -240,12 +248,9 @@ export class ClaudeTurnProjection {
     if (usage) this.updateContextUsage(usage);
   }
   #agentOwner(id: string): ClaudeTurnProjection | undefined {
-    const item = this.#items.get(id);
-    if (
-      this.#children.has(id) ||
-      this.#agentTools.has(id) ||
-      (item?.type === "tool" && item.name === "agent/spawn")
-    )
+    const toolId = this.backgroundTasks.toolId(id) ?? id;
+    const item = this.#items.get(toolId);
+    if (this.#children.has(toolId) || (item?.type === "tool" && item.name === "agent/spawn"))
       return this;
     for (const child of this.#children.values()) {
       const owner = child.#agentOwner(id);
@@ -253,17 +258,18 @@ export class ClaudeTurnProjection {
     }
     return undefined;
   }
-  receive(value: unknown): void {
+  receive(value: unknown, taskStateReceived = false): void {
     if (this.#closed) return;
     const message = displayClaudeMessage(value);
+    if (!taskStateReceived && !this.backgroundTasks.receive(message)) return;
     // 以官方关联字段路由子代理消息，隔离主代理的正文、用量和流式块索引。
     const parentId = text(message["parent_tool_use_id"]),
       agentId = text(message["agent_id"]);
     if (parentId || agentId) {
       const owner = this.#agentOwner(parentId || agentId);
-      const parent = parentId || (owner ? owner.#agentTools.get(agentId) : undefined);
+      const parent = parentId || (owner ? owner.backgroundTasks.toolId(agentId) : undefined);
       const child = parent && owner ? owner.#children.get(parent) : undefined;
-      child?.receive({ ...message, parent_tool_use_id: null, agent_id: undefined });
+      child?.receive({ ...message, parent_tool_use_id: null, agent_id: undefined }, true);
       return;
     }
     if (message["type"] === "system" && message["subtype"] === "init") {
@@ -274,28 +280,20 @@ export class ClaudeTurnProjection {
     }
     if (
       message["type"] === "system" &&
-      ["task_started", "task_progress", "task_notification"].includes(text(message["subtype"]))
+      ["task_started", "task_updated", "task_progress", "task_notification"].includes(
+        text(message["subtype"]),
+      )
     ) {
       const nativeId = text(message["task_id"]),
-        id = text(message["tool_use_id"]) || this.#agentTools.get(nativeId);
-      const owner = this.#agentOwner(text(message["tool_use_id"]) || nativeId);
+        id = text(message["tool_use_id"]) || this.backgroundTasks.toolId(nativeId);
+      const owner = this.#agentOwner(id ?? nativeId);
       if (owner && owner !== this) {
-        owner.receive(message);
+        owner.receive(message, true);
         return;
       }
       if (!id || !this.#children.has(id)) return;
-      this.#agentTools.set(nativeId, id);
-      if (message["subtype"] !== "task_notification" && message["is_backgrounded"] !== false)
-        this.#backgroundAgents.add(id);
-      const status =
-        message["subtype"] === "task_notification"
-          ? message["status"] === "completed"
-            ? "completed"
-            : message["status"] === "stopped"
-              ? "interrupted"
-              : "failed"
-          : undefined;
-      this.#agent(id, status, text(message["summary"]) || text(message["description"]));
+      const { status, summary } = this.backgroundTasks.presentation(id, message);
+      this.#agent(id, status, summary);
       return;
     }
     if (this.#status !== "running") return;
@@ -330,7 +328,7 @@ export class ClaudeTurnProjection {
           if (parsed === undefined) return;
           this.#item({ ...item, input: parsed }, false);
           if (item.name === "agent/spawn") {
-            if (record(parsed)["run_in_background"] === true) this.#backgroundAgents.add(item.id);
+            if (record(parsed)["run_in_background"] === true) this.backgroundTasks.hint(item.id);
             this.#agent(item.id);
           }
         }
@@ -406,9 +404,9 @@ export class ClaudeTurnProjection {
           if (item.name === "agent/spawn") {
             const result = record(message["tool_use_result"]);
             if (result["isAsync"] === true || record(item.input)["run_in_background"] === true)
-              this.#backgroundAgents.add(id);
+              this.backgroundTasks.hint(id);
             // 后台启动的 tool_result 只代表已派发，真正终态由 task_notification 决定。
-            if (result["isAsync"] !== true && record(item.input)["run_in_background"] !== true)
+            if (!this.backgroundTasks.isBackground(id))
               this.#agent(
                 id,
                 block["is_error"] === true ? "failed" : "completed",
@@ -478,7 +476,8 @@ export class ClaudeTurnProjection {
       if (item.type === "tool" && item.name === "agent/spawn" && item.status === "running") {
         if (
           preserveBackground &&
-          (this.#backgroundAgents.has(item.id) || this.#children.get(item.id)?.hasBackgroundWork)
+          (this.backgroundTasks.isBackground(item.id) ||
+            this.#children.get(item.id)?.hasBackgroundWork)
         )
           continue;
         this.#agent(item.id, status === "interrupted" ? "interrupted" : "failed");

@@ -636,6 +636,65 @@ it("keeps background agents alive after the parent result and accepts their late
   expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
 });
 
+it.each(["completed", "failed", "stopped"])(
+  "preserves a foreground agent moved to background until %s",
+  (status) => {
+    const projection = new ClaudeTurnProjection("task", "turn", "prompt", () => {
+      /* 此用例验证最终快照，无需订阅事件。 */
+    });
+    projection.receive({
+      type: "assistant",
+      message: {
+        id: "root",
+        content: [
+          { type: "tool_use", id: "spawn", name: "Agent", input: { run_in_background: false } },
+        ],
+      },
+    });
+    projection.receive({
+      type: "system",
+      subtype: "task_started",
+      task_id: "child",
+      tool_use_id: "spawn",
+      run_id: "002",
+      is_backgrounded: false,
+    });
+    projection.receive({
+      type: "system",
+      subtype: "task_updated",
+      task_id: "child",
+      run_id: "002",
+      patch: { is_backgrounded: true },
+    });
+    projection.receive({ type: "result", subtype: "success" });
+    expect(projection.snapshot().items.find((item) => item.id === "spawn")).toMatchObject({
+      status: "running",
+    });
+    projection.receive({
+      type: "system",
+      subtype: "task_notification",
+      task_id: "child",
+      run_id: "001",
+      status: "failed",
+    });
+    expect(projection.snapshot().items.find((item) => item.id === "spawn")).toMatchObject({
+      status: "running",
+    });
+    projection.receive({
+      type: "system",
+      subtype: "task_notification",
+      task_id: "child",
+      run_id: "002",
+      status,
+      summary: "late proof",
+    });
+    expect(projection.snapshot().items.find((item) => item.id === "spawn")).toMatchObject({
+      status: status === "stopped" ? "interrupted" : status,
+    });
+    expect(JSON.stringify(projection.snapshot())).toContain("late proof");
+  },
+);
+
 it("preserves known context across empty stream statistics and summary observations", () => {
   const events: AgentProviderEvent[] = [];
   const projection = new ClaudeTurnProjection("task", "turn", "prompt", (event) =>
