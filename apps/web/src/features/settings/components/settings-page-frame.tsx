@@ -1,3 +1,5 @@
+import { EngineSettingsGate } from "./engine-settings-gate.js";
+import { settingsSectionEngine } from "@codexly/frontend-core/settings-navigation";
 import { SettingsSaveFeedbackProvider } from "@codexly/ui/core/settings-save-status";
 import { ArrowLeft, Search, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
@@ -34,6 +36,7 @@ export function SettingsPageFrame({
   const backRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLElement>(null);
+  const engine = settingsSectionEngine(activeSection);
   const query = search.trim().toLocaleLowerCase();
   const matches = settingsSections
     .filter(({ id }) => id !== "access" || accessMode === "lan")
@@ -172,7 +175,15 @@ export function SettingsPageFrame({
             className="min-h-0 min-w-0 overflow-y-auto px-5 py-6 sm:px-10 sm:py-12"
             ref={contentRef}
           >
-            <div className="mx-auto w-full max-w-content">{children}</div>
+            <div className="mx-auto w-full max-w-content">
+              {engine ? (
+                <EngineSettingsGate key={engine} engine={engine}>
+                  {children}
+                </EngineSettingsGate>
+              ) : (
+                children
+              )}
+            </div>
           </main>
         </div>
       )}

@@ -117,6 +117,10 @@ jobs:
         working-directory: .
         run: pnpm install --frozen-lockfile
 
+      - name: Check standalone Claude host and distribution contract
+        working-directory: .
+        run: pnpm test:claude-host
+
       - name: Check web
         run: pnpm check:web
 

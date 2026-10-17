@@ -9,7 +9,9 @@ import type { ClaudeSettings, ConfigureCustomProviderRequest } from "@codexly/pr
 import { ClaudeRuntime } from "./runtime.js";
 import { record } from "./turn-projection.js";
 
-const HOST_VERSION = "codexly-claude-host/1 sdk/0.3.300";
+// 构建时从已安装 SDK 注入版本，应用下载清单与宿主始终使用同一依赖版本。
+declare const CODEXLY_CLAUDE_SDK_VERSION: string;
+const HOST_VERSION = `codexly-claude-host/1 sdk/${CODEXLY_CLAUDE_SDK_VERSION}`;
 if (process.argv.includes("--version")) {
   process.stdout.write(`${HOST_VERSION}\n`);
 } else {

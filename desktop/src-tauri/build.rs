@@ -76,6 +76,7 @@ fn main() {
         "start_official_provider_login",
         "cancel_provider_login",
         "claude_engine_request",
+        "prepare_claude_runtime",
         "get_configured_engines",
         "configure_custom_provider",
         "logout_provider",
@@ -196,27 +197,14 @@ fn main() {
     tauri_build::try_build(attributes).expect("failed to build Tauri application");
 }
 
-/// 无打包的 Windows 便携 EXE 也必须携带官方宿主；开发/纯 Rust 检查允许未生成资源。
+/// 各平台只嵌入固定版本、下载地址和摘要，禁止把大型执行文件编入安装包。
 fn prepare_claude_embedded_assets() {
     let root = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let resources = root.join("resources/claude");
-    let output =
-        std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("claude_embedded.rs");
-    println!("cargo:rerun-if-changed=resources/claude/manifest.json");
-    println!("cargo:rerun-if-changed=resources/claude/claude.gz");
-    println!("cargo:rerun-if-changed=resources/claude/claude-host.gz");
-    let ready = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
-        && resources.join("claude.gz").is_file()
-        && resources.join("claude-host.gz").is_file();
-    let source = if ready {
-        format!(
-            "pub const BINARY: &[u8] = include_bytes!({:?});\npub const HOST: &[u8] = include_bytes!({:?});\npub const MANIFEST: &str = include_str!({:?});",
-            resources.join("claude.gz"),
-            resources.join("claude-host.gz"),
-            resources.join("manifest.json")
-        )
-    } else {
-        r#"pub const BINARY: &[u8] = &[]; pub const HOST: &[u8] = &[]; pub const MANIFEST: &str = "";"#.to_owned()
-    };
-    std::fs::write(output, source).expect("write Claude runtime resource contract");
+    let manifest = root.join("resources/claude/manifest.json");
+    let output = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap())
+        .join("claude_distribution.rs");
+    println!("cargo:rerun-if-changed={}", manifest.display());
+    let content = std::fs::read_to_string(manifest).unwrap_or_else(|_| "{}".to_owned());
+    std::fs::write(output, format!("pub const MANIFEST: &str = {content:?};"))
+        .expect("write Claude runtime download contract");
 }

@@ -72,7 +72,7 @@
     "typecheck": "tsc -b --pretty false",
     "prepublishOnly": "pnpm run check",
     "build:claude-host": "node tools/build-claude-host.mjs",
-    "test:claude-host": "pnpm build:claude-host && node --test tools/claude-host.test.mjs"
+    "test:claude-host": "pnpm build:claude-host && node --test tools/claude-host.test.mjs tools/claude-runtime-distribution.test.mjs tools/claude-build-target.test.mjs"
   },
   "dependencies": {
     "@openai/codex": "catalog:",

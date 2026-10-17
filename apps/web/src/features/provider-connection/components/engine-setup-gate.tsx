@@ -1,5 +1,6 @@
+import { EngineSelectionProvider } from "@codexly/ui/core/engine-selection-provider";
 import { lazy, Suspense, useState, type ReactNode } from "react";
-import { SelectedEnginesContext, browserSetupStorage } from "@codexly/ui/core/engine-selection";
+import { browserSetupStorage } from "@codexly/ui/core/engine-selection";
 import { ENGINE_SETUP_KEY, readEngineSetup } from "@codexly/frontend-core/engine-setup";
 const SharedEngineSetupGate = lazy(() =>
   import("@codexly/ui/core/engine-setup-gate").then((module) => ({
@@ -26,7 +27,11 @@ export function EngineSetupGate({ children }: Readonly<{ children: ReactNode }>)
   const [saved] = useState(() => readEngineSetup(browserSetupStorage.getItem(ENGINE_SETUP_KEY)));
   // 已完成向导的启动不加载配置界面，保持工作区首屏依赖与内存占用有界。
   if (saved?.complete)
-    return <SelectedEnginesContext value={saved.engines}>{children}</SelectedEnginesContext>;
+    return (
+      <EngineSelectionProvider engines={saved.engines} storage={browserSetupStorage}>
+        {children}
+      </EngineSelectionProvider>
+    );
   return (
     <Suspense fallback={<p role="status">{t("provider.loading")}</p>}>
       <SharedEngineSetupGate

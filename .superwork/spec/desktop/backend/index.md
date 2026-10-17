@@ -42,4 +42,4 @@
 
 - Codex 0.163.0 升级边界见 [升级评估](../../../../docs/codex-0.163.0-upgrade.md)。原生实验已读状态不覆盖应用本地目录元数据，两端握手主动关闭 `thread/readState/changed`；不额外查询或轮询已读状态。桌面启动不得再传递上游已退役的 `shell_zsh_fork` 开关。
 
-- Claude 通过按需 stdio 宿主复用共享 SDK 适配包，Codex 保持 Rust App Server 链路。宿主 EOF 必须投影失败，不能遗留运行态；Windows 便携 EXE 内嵌压缩执行资源。交叉构建使用目标架构，运行 `pnpm test:claude-host`；详见[Claude 执行适配](../../provider-claude/backend/index.md)。
+- Claude 通过按需 stdio 宿主复用共享 SDK 适配包，Codex 保持 Rust App Server 链路。宿主 EOF 必须投影失败，不能遗留运行态；所有桌面平台仅嵌入版本与摘要清单，首次使用按需下载原生 CLI 与独立宿主；共用 Codex 的下载、进度与校验机制，依赖按内容摘要分别缓存，应用更新只安装变化的依赖。交叉构建使用目标架构，运行 `pnpm test:claude-host`；详见[Claude 执行适配](../../provider-claude/backend/index.md)。

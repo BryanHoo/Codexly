@@ -63,6 +63,67 @@ where
     .await
 }
 
+/// Claude 与 Codex 共用流式下载、限流进度、大小限制和固定 SHA-512 校验。
+/// npm 依赖沿用双源探测；独立宿主只允许项目 GitHub Release 及其资产 CDN。
+pub(crate) async fn download_dependency<OnProgress>(
+    urls: [&str; 2],
+    github: bool,
+    integrity: &str,
+    archive_path: &Path,
+    progress: &mut DownloadProgressReporter<'_, OnProgress>,
+) -> Result<(), RuntimeInstallError>
+where
+    OnProgress: Fn(CodexRuntimeInstallProgress) + Send + Sync,
+{
+    let trusted = move |url: &Url| {
+        if !github {
+            return trusted_download_url(url);
+        }
+        url.scheme() == "https"
+            && url.port_or_known_default() == Some(443)
+            && url.username().is_empty()
+            && url.password().is_none()
+            && matches!(
+                url.host_str(),
+                Some(
+                    "github.com"
+                        | "release-assets.githubusercontent.com"
+                        | "objects.githubusercontent.com"
+                )
+            )
+    };
+    for url in urls {
+        if !Url::parse(url).is_ok_and(|url| trusted(&url)) {
+            return Err(RuntimeInstallError::Integrity);
+        }
+    }
+    let client = Client::builder()
+        .connect_timeout(Duration::from_secs(8))
+        .read_timeout(Duration::from_secs(15))
+        .redirect(Policy::custom(move |attempt| {
+            if attempt.previous().len() >= 3 || !trusted(attempt.url()) {
+                attempt.error("untrusted runtime download redirect")
+            } else {
+                attempt.follow()
+            }
+        }))
+        .user_agent(crate::HTTP_USER_AGENT)
+        .build()?;
+    if github {
+        download_source(
+            &client,
+            urls[0],
+            integrity,
+            archive_path,
+            progress,
+            OFFICIAL_TIMEOUT,
+        )
+        .await
+    } else {
+        download_from_sources(&client, urls, integrity, archive_path, progress).await
+    }
+}
+
 async fn download_from_sources<OnProgress>(
     client: &Client,
     urls: [&str; 2],

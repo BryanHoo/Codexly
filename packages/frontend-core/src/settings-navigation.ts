@@ -61,3 +61,11 @@ export const settingsSectionSearchKeys: Record<SettingsSectionId, readonly strin
   ],
   about: ["about.codexVersion", "about.update", "about.releaseNotes"],
 };
+
+/** 一个引擎的连接、模型和个性化设置共用启用边界，不能从其他子菜单绕过准备。 */
+export function settingsSectionEngine(section: SettingsSectionId): "codex" | "claude" | undefined {
+  if (isClaudeSettingsSection(section)) return "claude";
+  if (section === "provider" || section === "agent" || section === "personalization")
+    return "codex";
+  return undefined;
+}

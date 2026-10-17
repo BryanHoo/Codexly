@@ -1,10 +1,7 @@
 use crate::application::{error::AppError, state::AppState};
+use crate::infrastructure::claude_runtime::{ClaudeRuntimeManager, RuntimePaths};
 use crate::infrastructure::local_catalog::LocalCatalog;
 use serde_json::{Value, json};
-#[cfg(not(target_os = "windows"))]
-use sha2::{Digest, Sha256};
-#[cfg(not(target_os = "windows"))]
-use std::path::{Path, PathBuf};
 use std::{
     collections::HashMap,
     process::Stdio,
@@ -50,6 +47,7 @@ type Pending = Arc<Mutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
 #[derive(Default)]
 pub struct ClaudeHostManager {
     host: Mutex<Option<Arc<ClaudeHost>>>,
+    pub(crate) runtime: ClaudeRuntimeManager,
 }
 struct ClaudeHost {
     child: Mutex<Child>,
@@ -79,7 +77,13 @@ impl ClaudeHostManager {
                 false
             };
             if !alive {
-                *current = Some(Arc::new(ClaudeHost::start(app).await?));
+                let app_data = app.path().app_data_dir().map_err(failure)?;
+                let paths = self
+                    .runtime
+                    .prepare(&app_data, |_| {})
+                    .await
+                    .map_err(failure)?;
+                *current = Some(Arc::new(ClaudeHost::start(app, paths).await?));
             }
             Arc::clone(
                 current
@@ -109,25 +113,8 @@ fn failure(error: impl std::fmt::Display) -> AppError {
 }
 
 impl ClaudeHost {
-    async fn start(app: &AppHandle) -> Result<Self, AppError> {
+    async fn start(app: &AppHandle, (binary, host_path): RuntimePaths) -> Result<Self, AppError> {
         let app_data = app.path().app_data_dir().map_err(failure)?;
-        #[cfg(target_os = "windows")]
-        let (binary, host_path) = super::claude_embedded_assets::prepare(&app_data).await?;
-        #[cfg(not(target_os = "windows"))]
-        let (binary, host_path) = {
-            let resources = if cfg!(debug_assertions) {
-                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/claude")
-            } else {
-                app.path().resource_dir().map_err(failure)?.join("claude")
-            };
-            let binary = prepare_binary(&resources, &app_data).await?;
-            let host_path = resources.join(if cfg!(windows) {
-                "claude-host.exe"
-            } else {
-                "claude-host"
-            });
-            (binary, host_path)
-        };
         let mut command = Command::new(host_path);
         command
             .arg(app_data.join("engines/claude"))
@@ -276,80 +263,4 @@ async fn write_frame(writer: &Mutex<ChildStdin>, value: &Value) -> Result<(), Ap
     }
     bytes.push(b'\n');
     writer.lock().await.write_all(&bytes).await.map_err(failure)
-}
-
-#[cfg(not(target_os = "windows"))]
-async fn prepare_binary(resources: &Path, app_data: &Path) -> Result<PathBuf, AppError> {
-    let manifest: Value = serde_json::from_slice(
-        &tokio::fs::read(resources.join("manifest.json"))
-            .await
-            .map_err(failure)?,
-    )
-    .map_err(failure)?;
-    if manifest["sdkVersion"] != "0.3.300" {
-        return Err(failure("Incompatible Claude SDK runtime"));
-    }
-    let name = if cfg!(windows) {
-        "claude.exe"
-    } else {
-        "claude"
-    };
-    let target_dir = app_data.join("providers/claude/0.3.300");
-    tokio::fs::create_dir_all(&target_dir)
-        .await
-        .map_err(failure)?;
-    let target = target_dir.join(name);
-    let source = resources.join(name);
-    let expected = manifest["sha256"]
-        .as_str()
-        .ok_or_else(|| failure("Missing Claude runtime integrity"))?
-        .to_owned();
-    let output = target.clone();
-    tokio::task::spawn_blocking(move || -> Result<(), String> {
-        use std::io::{Read, Write};
-        let hash = |path: &Path| -> Result<String, std::io::Error> {
-            let mut file = std::fs::File::open(path)?;
-            let mut digest = Sha256::new();
-            let mut buffer = [0_u8; 64 * 1024];
-            loop {
-                let count = file.read(&mut buffer)?;
-                if count == 0 {
-                    break;
-                }
-                digest.update(&buffer[..count]);
-            }
-            Ok(digest
-                .finalize()
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect())
-        };
-        if hash(&target).ok().as_deref() == Some(&expected) {
-            return Ok(());
-        }
-        if hash(&source).map_err(|error| error.to_string())? != expected {
-            return Err("Claude runtime integrity mismatch".to_owned());
-        }
-        let mut temporary =
-            tempfile::NamedTempFile::new_in(&target_dir).map_err(|error| error.to_string())?;
-        let mut file = std::fs::File::open(source).map_err(|error| error.to_string())?;
-        std::io::copy(&mut file, &mut temporary).map_err(|error| error.to_string())?;
-        temporary.flush().map_err(|error| error.to_string())?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            temporary
-                .as_file()
-                .set_permissions(std::fs::Permissions::from_mode(0o755))
-                .map_err(|error| error.to_string())?;
-        }
-        temporary
-            .persist(&target)
-            .map_err(|error| error.to_string())?;
-        Ok(())
-    })
-    .await
-    .map_err(failure)?
-    .map_err(failure)?;
-    Ok(output)
 }

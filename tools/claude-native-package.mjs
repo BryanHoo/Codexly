@@ -5,7 +5,27 @@ import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 /** 交叉构建只下载目标原生包，校验锁文件摘要，避免安装全部平台的大体积依赖。 */
+export async function claudeNativeDistribution(root, sdkEntry, target) {
+  const { version } = JSON.parse(await readFile(new URL("./package.json", sdkEntry), "utf8"));
+  const name = `@anthropic-ai/claude-agent-sdk-${target.platform}-${target.arch}`;
+  const lock = await readFile(join(root, "pnpm-lock.yaml"), "utf8");
+  const start = lock.indexOf(`'${name}@${version}':`);
+  const integrity =
+    start < 0
+      ? undefined
+      : /integrity: sha512-([A-Za-z0-9+/=]+)/u.exec(lock.slice(start, start + 500))?.[1];
+  if (!integrity) throw new Error("Claude target package is missing from the verified lockfile");
+  const archive = `${name}/-/${name.split("/").at(-1)}-${version}.tgz`;
+  return {
+    version,
+    integrity,
+    url: `https://registry.npmjs.org/${archive}`,
+    fallbackUrl: `https://registry.npmmirror.com/${archive}`,
+  };
+}
+
 export async function resolveClaudeNativePackage(root, sdkEntry, target) {
+  const distribution = await claudeNativeDistribution(root, sdkEntry, target);
   const name = `@anthropic-ai/claude-agent-sdk-${target.platform}-${target.arch}`;
   try {
     return createRequire(sdkEntry).resolve(`${name}/package.json`);
@@ -15,16 +35,9 @@ export async function resolveClaudeNativePackage(root, sdkEntry, target) {
   const cache = join(
     root,
     "desktop/src-tauri/resources/claude-native-cache",
-    `${target.platform}-${target.arch}-0.3.300`,
+    `${target.platform}-${target.arch}-${distribution.version}`,
   );
-  const lock = await readFile(join(root, "pnpm-lock.yaml"), "utf8");
-  const marker = `'${name}@0.3.300':`;
-  const start = lock.indexOf(marker);
-  const integrity =
-    start < 0
-      ? undefined
-      : /integrity: (sha512-[A-Za-z0-9+/=]+)/u.exec(lock.slice(start, start + 500))?.[1];
-  if (!integrity) throw new Error("Claude target package is missing from the verified lockfile");
+  const integrity = `sha512-${distribution.integrity}`;
   await mkdir(cache, { recursive: true });
   const archive = join(cache, "package.tgz");
   const valid = (bytes) =>
@@ -36,11 +49,7 @@ export async function resolveClaudeNativePackage(root, sdkEntry, target) {
     /* 首次目标构建需要下载。 */
   }
   if (!bytes || !valid(bytes)) {
-    const packageName = name.split("/").at(-1);
-    const response = await fetch(
-      `https://registry.npmjs.org/${name}/-/${packageName}-0.3.300.tgz`,
-      { signal: AbortSignal.timeout(120_000) },
-    );
+    const response = await fetch(distribution.url, { signal: AbortSignal.timeout(120_000) });
     if (!response.ok) throw new Error(`Claude target download failed: ${response.status}`);
     bytes = Buffer.from(await response.arrayBuffer());
     if (!valid(bytes)) throw new Error("Claude target package integrity mismatch");

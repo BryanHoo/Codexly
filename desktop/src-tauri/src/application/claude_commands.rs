@@ -1,7 +1,8 @@
 use super::{error::AppError, state::AppState};
+use crate::domain::runtime::CodexRuntimeInstallProgress;
 use crate::infrastructure::local_catalog::LocalCatalog;
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, ipc::Channel};
 
 /// 设置命令独立于 Codex 初始化；只允许公开的配置操作，禁止调用任意宿主方法。
 #[tauri::command(rename_all = "camelCase")]
@@ -34,4 +35,25 @@ pub async fn claude_engine_request(
         .claude
         .request(&app, &method, scope, params)
         .await
+}
+
+/// 安装入口独立于宿主请求，确保首次下载也能通过 Channel 展示进度。
+#[tauri::command(rename_all = "camelCase")]
+pub async fn prepare_claude_runtime(
+    app: AppHandle,
+    on_progress: Channel<CodexRuntimeInstallProgress>,
+) -> Result<(), AppError> {
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| AppError::Claude(e.to_string()))?;
+    app.state::<AppState>()
+        .claude
+        .runtime
+        .prepare(&app_data, move |progress| {
+            let _ = on_progress.send(progress);
+        })
+        .await
+        .map_err(AppError::Claude)?;
+    Ok(())
 }

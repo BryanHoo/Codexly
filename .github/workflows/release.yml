@@ -300,6 +300,14 @@ jobs:
           workflowArtifactNamePattern: ${{ matrix.macosProfile == 'legacy' && '[platform]-[arch]-[bundle]-legacy' || '' }}
           releaseAssetNamePattern: ${{ matrix.releaseAssetNamePattern }}
           args: ${{ matrix.args }}
+      - name: Upload pinned Claude host dependency
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JOINT_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          # 应用清单固定宿主摘要；所有依赖附件上传完成后才允许发布联合 Release。
+          node tools/publish-claude-host.mjs "${JOINT_RELEASE_TAG}"
       - name: Verify macOS signed and notarized app
         if: runner.os == 'macOS'
         shell: bash

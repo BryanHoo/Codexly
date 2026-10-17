@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import type { EngineActivation } from "@codexly/frontend-core/engine-activation";
 import type { AgentEngine } from "@codexly/protocol";
 export const SelectedEnginesContext = createContext<readonly AgentEngine[] | undefined>(undefined);
 export const useSelectedEngines = () => useContext(SelectedEnginesContext);
@@ -19,3 +20,5 @@ export const browserSetupStorage: SetupStorage = {
     }
   },
 };
+
+export const EngineActivationContext = createContext<EngineActivation | undefined>(undefined);

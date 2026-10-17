@@ -1,3 +1,4 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import type { SplitRuntimeOptions } from "@codexly/frontend-core/split-workspace";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import { resolveDesktopTaskRoot } from "./workbench-task-root.js";
@@ -202,8 +203,9 @@ export function useWorkbenchShellRuntime({
   });
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation(appUpdateMutationOptions(client));
-  const modelsQuery = useQuery(modelsQueryOptions(client));
-  const providerConnectionQuery = useQuery(providerConnectionQueryOptions());
+  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
+  const modelsQuery = useQuery({ ...modelsQueryOptions(client), enabled: codexEnabled });
+  const providerConnectionQuery = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
   const mcpServersQuery = useQuery(
     mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
   );

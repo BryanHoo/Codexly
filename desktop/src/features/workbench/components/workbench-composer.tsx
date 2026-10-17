@@ -1,3 +1,4 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { NativeClient } from "@/platform/native-client-contract.js";
@@ -17,7 +18,8 @@ const emptyModels = [] as const;
 
 export function WorkbenchComposer(props: WorkbenchComposerProps) {
   const { t } = useTranslation("workbench");
-  const connection = useQuery(providerConnectionQueryOptions());
+  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
+  const connection = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
   const client = props.client as WorkbenchComposerProps["client"] & Partial<EngineClient>;
   const scope = JSON.stringify([props.projectId, props.composerDraftId ?? props.taskId ?? (props.onCaptureSubmission ? "capture" : "draft")]);
   const load = useCallback((engine: AgentEngine) => {

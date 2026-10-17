@@ -50,22 +50,32 @@ export function useEngineComposerState(
     selection.scope === input.scope
       ? selection.engine
       : (input.initialEngine ?? readDraftEngine(input.scope, preferredEngine));
-  const claudeSupported = input.claudeSupported !== false;
+  const claudeSupported =
+    input.claudeSupported !== false && (selectedEngines?.includes("claude") ?? true);
+  const codexEnabled = selectedEngines?.includes("codex") ?? true;
   const key = JSON.stringify([input.scope, claudeSupported, revision]);
   const profile = result?.key === key ? result.profile : undefined;
   const claudeConfigured = claudeSupported && profile?.connection.state === "connected";
-  const codexConfigured = input.codexConfigured === true;
-  const engine = resolveComposerEngine(
+  const codexConfigured = codexEnabled && input.codexConfigured === true;
+  const resolvedEngine = resolveComposerEngine(
     input.taskId,
     input.taskEngine === undefined ? undefined : { engine: input.taskEngine },
     draftEngine,
     { codex: codexConfigured, claude: claudeConfigured },
     input.initialEngine !== undefined,
   );
+  // 配置发现期间，新草稿仍使用已启用的引擎；历史任务和定时任务保留原引擎。
+  const engine =
+    input.taskId === undefined &&
+    input.initialEngine === undefined &&
+    selectedEngines &&
+    !selectedEngines.includes(resolvedEngine)
+      ? preferredEngine
+      : resolvedEngine;
   useEffect(() => {
     if (!claudeSupported) return;
     let active = true;
-    // 配置发现独立于当前选择，单独配置 Claude 时也能自动选中；切换引擎复用本次结果。
+    // 只探测明确启用的引擎；设置页启用成功后再发现配置，禁止后台探测触发隐式下载。
     void input.load("claude").then(
       (profile) => {
         if (active) setResult({ key, profile });
@@ -106,7 +116,7 @@ export function useEngineComposerState(
     error: result?.key === key ? result.error : undefined,
     // 新草稿在配置发现完成前不提供模型，防止首条消息误用默认 Codex。
     pending:
-      (input.taskId === undefined && input.codexConfigured === undefined) ||
+      (codexEnabled && input.taskId === undefined && input.codexConfigured === undefined) ||
       (claudeSupported &&
         result?.key !== key &&
         (input.taskId === undefined || engine === "claude")),

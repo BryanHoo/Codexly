@@ -1,3 +1,4 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import { createRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity, lazy, Suspense, useEffect, useState } from "react";
@@ -43,7 +44,8 @@ function IndexPage() {
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation(appUpdateMutationOptions(client));
   const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client));
-  const modelsQuery = useQuery(modelsQueryOptions(client));
+  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
+  const modelsQuery = useQuery({ ...modelsQueryOptions(client), enabled: codexEnabled });
   const globalSettingsMutation = useMutation({
     ...globalSettingsMutationOptions(client),
     onSuccess(response) {

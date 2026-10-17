@@ -2,7 +2,8 @@ use crate::domain::runtime::{CodexRuntimeInstallPhase, CodexRuntimeInstallProgre
 
 const UNKNOWN_TOTAL_REPORT_INTERVAL_BYTES: u64 = 1024 * 1024;
 
-pub(super) struct DownloadProgressReporter<'a, OnProgress> {
+pub(crate) struct DownloadProgressReporter<'a, OnProgress> {
+    target_version: &'static str,
     current_version: Option<String>,
     downloaded_bytes: u64,
     on_progress: &'a OnProgress,
@@ -14,8 +15,21 @@ impl<'a, OnProgress> DownloadProgressReporter<'a, OnProgress>
 where
     OnProgress: Fn(CodexRuntimeInstallProgress),
 {
-    pub(super) fn new(on_progress: &'a OnProgress, current_version: Option<String>) -> Self {
+    pub(crate) fn new(on_progress: &'a OnProgress, current_version: Option<String>) -> Self {
+        Self::for_version(
+            on_progress,
+            current_version,
+            super::process::SUPPORTED_CODEX_VERSION,
+        )
+    }
+
+    pub(crate) fn for_version(
+        on_progress: &'a OnProgress,
+        current_version: Option<String>,
+        target_version: &'static str,
+    ) -> Self {
         Self {
+            target_version,
             current_version,
             downloaded_bytes: 0,
             on_progress,
@@ -24,18 +38,18 @@ where
         }
     }
 
-    pub(super) fn start_download(&mut self, total_bytes: Option<u64>) {
+    pub(crate) fn start_download(&mut self, total_bytes: Option<u64>) {
         self.downloaded_bytes = 0;
         self.total_bytes = total_bytes;
         self.report(CodexRuntimeInstallPhase::Downloading);
     }
 
-    pub(super) fn report_download(&mut self, downloaded_bytes: u64) {
+    pub(crate) fn report_download(&mut self, downloaded_bytes: u64) {
         self.downloaded_bytes = downloaded_bytes;
         self.report(CodexRuntimeInstallPhase::Downloading);
     }
 
-    pub(super) fn report_phase(&mut self, phase: CodexRuntimeInstallPhase) {
+    pub(crate) fn report_phase(&mut self, phase: CodexRuntimeInstallPhase) {
         self.report(phase);
     }
 
@@ -46,20 +60,20 @@ where
             downloaded_bytes: self.downloaded_bytes,
             phase,
             sequence: self.sequence,
-            target_version: super::process::SUPPORTED_CODEX_VERSION,
+            target_version: self.target_version,
             total_bytes: self.total_bytes,
         });
     }
 }
 
-pub(super) struct DownloadProgressLimiter {
+pub(crate) struct DownloadProgressLimiter {
     last_downloaded_bytes: u64,
     last_percentage: Option<u64>,
     total_bytes: Option<u64>,
 }
 
 impl DownloadProgressLimiter {
-    pub(super) fn new(total_bytes: Option<u64>) -> Self {
+    pub(crate) fn new(total_bytes: Option<u64>) -> Self {
         Self {
             last_downloaded_bytes: 0,
             last_percentage: total_bytes.map(|_| 0),
@@ -67,7 +81,7 @@ impl DownloadProgressLimiter {
         }
     }
 
-    pub(super) fn advance(&mut self, downloaded_bytes: u64) -> bool {
+    pub(crate) fn advance(&mut self, downloaded_bytes: u64) -> bool {
         let percentage = self.total_bytes.map(|total_bytes| {
             (downloaded_bytes.saturating_mul(100) / total_bytes.max(1)).min(100)
         });
@@ -85,7 +99,7 @@ impl DownloadProgressLimiter {
         should_report
     }
 
-    pub(super) fn finish(&mut self, downloaded_bytes: u64) -> bool {
+    pub(crate) fn finish(&mut self, downloaded_bytes: u64) -> bool {
         if self.total_bytes.is_some() || downloaded_bytes == self.last_downloaded_bytes {
             return false;
         }

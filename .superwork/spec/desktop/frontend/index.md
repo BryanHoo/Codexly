@@ -46,3 +46,6 @@
 - 桌面 Git 面板仅适配分页状态和按需 Diff，提交编辑、AI 生成、持久回执与远端动作共用 `@codexly/ui`。已加载文件选择必须明确，分页补齐不得静默扩大范围；不提供冲突编辑、解决标记或合并完成/取消操作；未完成操作与分叉历史只提供外部工具说明和刷新入口。自动远端检查在共享 Git 写队列及原生提交收尾期间暂停，结束后自动读取当前快照；提前到达的元数据不得留下需要手动重试的暂态检查失败。回归见 `commit-changes-controller.browser.test.tsx`。保留原生索引收尾错误回执，提交成功与收尾失败分开报告。
 
 - 左栏有可用更新时直接打开更新日志弹窗，右下角“更新”按钮复用当前平台的安装 Mutation；设置中的检查、日志及更新流程保持独立。两端共用 `ui/core/app-update-dialog`，安装中展示进度并阻止重复提交，失败可重试；没有更新时版本入口仍打开“关于”。用 `project-sidebar-update.test.tsx`、`app-update-dialog.test.tsx` 及桌面 `project-sidebar-actions.browser.test.tsx` 回归，浏览器交互通过 Chrome CDP 验证。
+
+- 已完成引擎向导的用户启动时仍须检查所选引擎的依赖版本。Claude 复用 `prepare_claude_runtime` 的有序 Channel 进度，成功后放行工作区，失败显示重试；未选择 Claude 不调用安装器。宿主与 CLI 按独立摘要缓存，更新检查不得启动会话或发送推理请求；详见[引擎分发规则](../../../../docs/agent-engines.md)。
+- 设置中未启用的 Codex/Claude 必须先显式启用，准备成功后才持久化选择并挂载专属配置；安装状态跨菜单共享并合并重复请求，失败可重试。共用 `frontend-core/engine-activation` 和 `ui/core/engine-settings-gate`；聊天区不得探测未启用引擎，也不得在配置发现期间把新草稿回退到未启用引擎。历史和定时任务保持原引擎。

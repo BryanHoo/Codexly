@@ -47,9 +47,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {
-      "resources/claude/": "claude/"
-    }
+    "resources": {}
   },
   "plugins": {
     "updater": {

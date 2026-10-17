@@ -12,8 +12,6 @@ pub mod background_commands;
 pub mod catalog_commands;
 pub mod claude_attachments;
 pub mod claude_commands;
-#[cfg(any(target_os = "windows", test))]
-mod claude_embedded_assets;
 pub(crate) mod claude_host;
 pub(crate) mod claude_tasks;
 pub mod commands;

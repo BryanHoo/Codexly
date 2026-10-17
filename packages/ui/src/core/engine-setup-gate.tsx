@@ -1,12 +1,9 @@
+import { EngineSelectionProvider } from "./engine-selection-provider.js";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronLeft, LoaderCircle } from "lucide-react";
 import type { AgentEngine } from "@codexly/protocol";
 import { ENGINE_SETUP_KEY, readEngineSetup } from "@codexly/frontend-core/engine-setup";
-import {
-  SelectedEnginesContext,
-  browserSetupStorage,
-  type SetupStorage,
-} from "./engine-selection.js";
+import { browserSetupStorage, type SetupStorage } from "./engine-selection.js";
 import {
   recoverEngineSetup,
   prepareSelectedEngines,
@@ -161,9 +158,9 @@ export function EngineSetupGate({
   };
   if (phase === "complete")
     return (
-      <SelectedEnginesContext value={engines}>
+      <EngineSelectionProvider engines={engines} storage={storage}>
         {typeof children === "function" ? children(engines) : children}
-      </SelectedEnginesContext>
+      </EngineSelectionProvider>
     );
   const engine = engines[index] ?? "claude";
   const title =
