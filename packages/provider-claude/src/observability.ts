@@ -2,6 +2,8 @@ import type { AgentProviderEventListener } from "@codexly/core";
 import { record, text } from "./sdk-values.js";
 import type { Query } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentContextUsage, AgentMcpServer, AgentPlan } from "@codexly/protocol";
+import { CLAUDE_PLAN_MAX_TASKS, CLAUDE_PLAN_TITLE_BYTES } from "./task-plan.js";
+import { previewText } from "./rendering-buffer.js";
 
 /** 控制查询有独立时限；观测失败不能阻塞消息消费或改变执行结果。 */
 export async function observe<T>(action: () => Promise<T>): Promise<T | undefined> {
@@ -107,12 +109,12 @@ export function mapClaudePlan(input: unknown): AgentPlan | undefined {
   if (!Array.isArray(todos)) return undefined;
   return {
     explanation: null,
-    steps: todos.flatMap((value) => {
+    steps: todos.slice(0, CLAUDE_PLAN_MAX_TASKS).flatMap((value) => {
       const todo = record(value),
         status = todo["status"],
         content = text(todo["content"]);
       return content && (status === "pending" || status === "in_progress" || status === "completed")
-        ? [{ text: content, status }]
+        ? [{ text: previewText(content, CLAUDE_PLAN_TITLE_BYTES), status }]
         : [];
     }),
   };

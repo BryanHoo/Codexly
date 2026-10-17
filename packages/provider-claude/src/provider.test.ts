@@ -1131,6 +1131,10 @@ it("restores context, plan and MCP metadata after recreating the provider", asyn
       ],
     },
   });
+  h.send({
+    type: "user",
+    message: { content: [{ type: "tool_result", tool_use_id: "todo", content: "ok" }] },
+  });
   h.send({ type: "result", subtype: "success", modelUsage: { main: { contextWindow: 200000 } } });
   await vi.waitFor(async () => {
     expect((await h.provider.readTask(task.id))?.status).toBe("idle");
@@ -1150,6 +1154,76 @@ it("restores context, plan and MCP metadata after recreating the provider", asyn
     data: [{ name: "search", status: "connected" }],
   });
 });
+
+it.each([false, true])(
+  "persists bounded TodoWrite plans and preserves task identities on error=%s",
+  async (isError) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    h.send({
+      type: "assistant",
+      message: {
+        id: "create-message",
+        content: [
+          { type: "tool_use", id: "create", name: "TaskCreate", input: { subject: "已有任务" } },
+        ],
+      },
+    });
+    h.send({
+      type: "user",
+      tool_use_result: { task: { id: "42", subject: "已有任务" } },
+      message: { content: [{ type: "tool_result", tool_use_id: "create", content: "ok" }] },
+    });
+    h.send({
+      type: "assistant",
+      message: {
+        id: "todo-message",
+        content: [
+          {
+            type: "tool_use",
+            id: "todo",
+            name: "TodoWrite",
+            input: {
+              todos: Array.from({ length: 1000 }, () => ({
+                content: "任务😀\u0000".repeat(1000),
+                status: "completed",
+              })),
+            },
+          },
+        ],
+      },
+    });
+    h.send({
+      type: "user",
+      message: {
+        content: [{ type: "tool_result", tool_use_id: "todo", is_error: isError, content: "ok" }],
+      },
+    });
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(async () => {
+      expect((await h.provider.readTask(task.id))?.status).toBe("idle");
+    });
+    // 使用新的历史读取器重建 Provider，确保预算内的计划和任务索引确实成功落盘。
+    const restored = h.restart(
+      new ClaudeConfiguration(h.provider.scope.rootPath, h.config.userDirectory),
+    );
+    const detail = await restored.readTask(task.id);
+    const metadata = await restored.config.history.metadata(task.id);
+    expect(detail?.turns[0]).toMatchObject({ status: "completed" });
+    expect(detail?.turns[0]?.persistence?.status).not.toBe("failed");
+    if (isError) {
+      expect(detail?.plan?.steps).toEqual([{ text: "已有任务", status: "pending" }]);
+      expect(metadata?.planTasks?.[0]?.id).toBe("42");
+    } else {
+      expect(detail?.plan?.steps).toHaveLength(128);
+      for (const step of detail?.plan?.steps ?? [])
+        expect(Buffer.byteLength(JSON.stringify(step.text))).toBeLessThanOrEqual(512);
+      expect(metadata?.planTasks).toEqual([]);
+    }
+    expect(Buffer.byteLength(JSON.stringify(metadata))).toBeLessThan(256 * 1024);
+  },
+);
 
 it("reads live MCP tools and reconnects failed servers without crossing engine boundaries", async () => {
   const h = await harness();

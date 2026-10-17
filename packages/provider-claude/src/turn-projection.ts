@@ -141,6 +141,9 @@ export class ClaudeTurnProjection {
       if (toolId) {
         const name = text(block["name"]) || "Tool";
         const previous = this.#items.get(toolId);
+        // 已消费结果的 TodoWrite 不因完整 assistant 消息重放而重新提交或改写终态。
+        if (name === "TodoWrite" && previous?.type === "tool" && previous.status !== "running")
+          return;
         this.#item(
           {
             ...(previous?.type === "tool" ? previous : {}),
@@ -157,11 +160,8 @@ export class ClaudeTurnProjection {
             this.backgroundTasks.hint(toolId);
           this.#agent(toolId);
         }
-        if (name === "TodoWrite" && completed) {
-          const plan = mapClaudePlan(block["input"]);
-          if (plan) this.#taskPlan.restore();
-          publishClaudePlan(this, plan, this.#taskId, this.#id, this.#emit);
-        }
+        if (name === "TodoWrite" && completed)
+          this.#taskPlan.stage(toolId, mapClaudePlan(block["input"]));
       }
     }
   }
@@ -397,10 +397,9 @@ export class ClaudeTurnProjection {
           item = this.#items.get(id);
         if (block["type"] === "tool_result" && item?.type === "tool") {
           // 仅在工具成功返回后更新计划，按 tool_use_id 配对，避免失败/重复结果污染状态。
-          if (item.status === "running" && block["is_error"] !== true) {
-            const plan = this.#taskPlan.apply(item.name, item.input, message["tool_use_result"]);
-            publishClaudePlan(this, plan, this.#taskId, this.#id, this.#emit);
-          }
+          if (item.name === "TodoWrite" && item.status !== "running") continue;
+          const plan = this.#taskPlan.apply(item, message["tool_use_result"], block);
+          publishClaudePlan(this, plan, this.#taskId, this.#id, this.#emit);
           if (item.name === "agent/spawn") {
             const result = record(message["tool_use_result"]);
             if (result["isAsync"] === true || record(item.input)["run_in_background"] === true)
@@ -470,6 +469,7 @@ export class ClaudeTurnProjection {
     if (this.#status !== "running") return;
     // 先提交终态，阻断子代理收尾通知重入父级结束路径。
     this.#status = status;
+    this.#taskPlan.clearPending();
     this.#error = error ? previewText(error, 8192) : null;
     this.#completedAt = new Date().toISOString();
     for (const item of [...this.#items.values()]) {
