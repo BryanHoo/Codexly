@@ -28,7 +28,6 @@ import { ClaudeSessionGrants } from "./session-grants.js";
 import * as session from "./session.js";
 import { readClaudeTaskSnapshot } from "./task-snapshot.js";
 import { createClaudePrompt } from "./turn-input.js";
-import { ClaudeTurnProjection } from "./turn-projection.js";
 
 export const CLAUDE_CAPABILITIES: AgentCapabilities = {
   provider: "claude",
@@ -209,7 +208,6 @@ export class ClaudeAgentProvider {
     };
     return claudeTask(await this.store.catalog("task.put", task));
   }
-
   async readTaskMetadata(id: string): Promise<AgentTask | undefined> {
     const task = await this.store.catalog("task.read", { id });
     return task?.provider === "claude" &&
@@ -217,7 +215,6 @@ export class ClaudeAgentProvider {
       ? claudeTask(task)
       : undefined;
   }
-
   async readTask(
     id: string,
     input: ReadAgentTaskInput = {},
@@ -238,7 +235,6 @@ export class ClaudeAgentProvider {
       recovery,
     });
   }
-
   async startTurn(
     id: string,
     input: AgentProviderTurnInput,
@@ -286,10 +282,12 @@ export class ClaudeAgentProvider {
       const prompt = await createClaudePrompt(input, sessionId, turnId);
       const attachments = await this.config.attachments.prepare(id, input);
       const userInput = { text: input.text, attachments };
-      const projection = new ClaudeTurnProjection(id, turnId, userInput, (event) => {
-        // 完成事件由消费器在回合落盘之后发布，不能等待整个会话退出。
-        if (event.type !== "turn.completed") this.#emit(event);
-      });
+      const { projection, itemChanges } = session.createProjection(
+        id,
+        turnId,
+        userInput,
+        this.#emit,
+      );
       const metadata = await this.config.history.metadata(id);
       projection.restoreMetadata(metadata);
       const grants = this.#sessionGrants.get(id) ?? new ClaudeSessionGrants(permissionMode);
@@ -331,6 +329,7 @@ export class ClaudeAgentProvider {
         await this.config.history.checkpoint(id, projection.snapshot());
         existing.projection = projection;
         existing.projections.set(turnId, projection);
+        existing.itemChanges.set(turnId, itemChanges);
         existing.permissions.set(turnId, permissions);
         this.#emit({
           type: "turn.started",
@@ -397,6 +396,7 @@ export class ClaudeAgentProvider {
         controller,
         permissions: new Map([[turnId, permissions]]),
         projections: new Map([[turnId, projection]]),
+        itemChanges: new Map([[turnId, itemChanges]]),
         backgroundTasks: new Set(),
         input: inputStream,
         settingsKey,

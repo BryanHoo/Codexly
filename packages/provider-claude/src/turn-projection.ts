@@ -53,8 +53,9 @@ export class ClaudeTurnProjection {
     prompt: ClaudeUserInput,
     emit: AgentProviderEventListener,
     previewBytes = CLAUDE_TURN_PREVIEW_BYTES,
+    paginated = false,
   ) {
-    this.#items = new ClaudeRenderingBuffer(previewBytes, id);
+    this.#items = new ClaudeRenderingBuffer(previewBytes, id, paginated);
     this.#taskId = taskId;
     this.#id = id;
     this.#emit = emit;
@@ -452,7 +453,6 @@ export class ClaudeTurnProjection {
       );
     }
   }
-
   /** 会话终止与父回合结束分开；已完成的父回合仍需清理尚在运行的后代。 */
   close(status: "failed" | "interrupted", error?: string): void {
     if (this.#closed) return;

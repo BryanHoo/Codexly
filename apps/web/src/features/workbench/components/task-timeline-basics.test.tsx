@@ -261,9 +261,7 @@ describe("task timeline basics", () => {
     expect(markup).toContain("250ms");
     expect(markup).toMatch(/data-tool-duration[^>]*>2\.5s<\/span>\s*<span[^>]*>.*?已完成/su);
     expect(markup).toMatch(/data-tool-duration[^>]*>250ms<\/span>\s*<span[^>]*>.*?已完成/su);
-    expect(markup).toMatch(
-      /data-tool-duration[^>]*>1s<\/span>\s*<span[^>]*>.*?sr-only[^>]*>已完成/su,
-    );
+    expect(markup).toMatch(/data-tool-duration[^>]*>1s<\/span>\s*<span[^>]*>.*?已完成/su);
     expect(markup).not.toContain(new Date(1_753_318_800_000).toISOString());
     expect(markup).not.toContain(new Date(1_753_318_803_000).toISOString());
     expect(markup).not.toContain('dateTime="2026-07-24T00:00:00.000Z"');

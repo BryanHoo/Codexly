@@ -134,6 +134,7 @@ export class ClaudeRenderingBuffer {
   constructor(
     readonly budget = CLAUDE_TURN_PREVIEW_BYTES,
     readonly turnId = "turn",
+    readonly paginated = false,
   ) {}
   get(id: string) {
     return this.#items.get(id);
@@ -220,7 +221,7 @@ export class ClaudeRenderingBuffer {
   }
   snapshot(): AgentItem[] {
     const items = [...this.#items.values()];
-    if (this.#omitted)
+    if (this.#omitted && !this.paginated)
       items.unshift({
         id: `${this.turnId}:rendering-omitted`,
         type: "activity",

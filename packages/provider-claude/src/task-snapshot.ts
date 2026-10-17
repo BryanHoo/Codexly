@@ -8,6 +8,7 @@ import type {
 import type { AgentTurn } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
 import type { ClaudeRecoverySnapshot } from "./persistence.js";
+import { paginateClaudeTurns, readClaudeHistoryPage } from "./history-pagination.js";
 import type { Running } from "./session.js";
 
 /** 终态恢复优先于运行检查点和最近回合缓存，分页读取不混入其他页的恢复回合。 */
@@ -32,12 +33,14 @@ export async function readClaudeTaskSnapshot({
 }): Promise<AgentProviderTaskSnapshot> {
   const id = task.id;
   const last = current?.projection.snapshot() ?? recent.get(id);
-  const page = await config.history.read(id, input.cursor);
+  const continuation = await readClaudeHistoryPage(config.history, id, input.cursor);
+  const page = continuation ?? (await config.history.read(id, input.cursor));
   const turns = page.turns;
   const nextCursor = page.cursor;
   if (current && input.cursor === undefined) {
     for (const projection of current.projections.values()) {
       const turn = projection.snapshot();
+      await config.history.saveItems(id, turn.id, turn.items);
       const index = turns.findIndex((entry) => entry.id === turn.id);
       if (index >= 0) turns[index] = turn;
       else turns.push(turn);
@@ -87,6 +90,8 @@ export async function readClaudeTaskSnapshot({
       terminal?.status === "completed" || terminal?.status === "interrupted" ? "idle" : "failed";
     await store.catalog("task.patch", { id, status: task.status });
   }
+  const visible =
+    continuation ?? (await paginateClaudeTurns(config.history, id, turns, nextCursor));
   return {
     ...claudeTask(task),
     contextUsage: metadata?.contextUsage ?? null,
@@ -96,13 +101,13 @@ export async function readClaudeTaskSnapshot({
       ? [...current.permissions.values()].flatMap((permissions) => permissions.pending())
       : [],
     status:
-      current?.projection.status === "running"
+      current && (last?.status === "running" || current.settling)
         ? "running"
         : (terminal ? terminal.status === "failed" : task.status === "failed")
           ? "failed"
           : "idle",
     threadConfiguration: { model: metadata?.model ?? null, reasoningEffort: null },
-    turns,
-    turnsNextCursor: nextCursor,
+    turns: visible.turns,
+    turnsNextCursor: visible.cursor,
   };
 }

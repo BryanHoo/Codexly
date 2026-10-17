@@ -1217,3 +1217,49 @@ it("persists SDK success after more than 64 completed subagent calls", async () 
   expect(JSON.stringify(snapshot)).toContain("实际结果 79");
   expect(JSON.stringify(snapshot)).toContain("全部完成");
 });
+
+it("loads every record of a long Claude turn through bounded history pages after restart", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  await h.provider.startTurn(task.id, prompt, options);
+  for (let index = 0; index < 70; index++) {
+    h.send({
+      type: "assistant",
+      message: {
+        id: `history-${String(index)}`,
+        content: [{ type: "text", text: `记录-${String(index)} ` + "中文".repeat(3000) }],
+      },
+    });
+  }
+  h.send({ type: "result", subtype: "success", result: "done" });
+  await vi.waitFor(
+    () => {
+      expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+    },
+    { timeout: 10000 },
+  );
+  const completed = events.find((event) => event.type === "turn.completed");
+  expect(JSON.stringify(completed)).not.toContain("已省略较早执行记录");
+  await h.provider.stopSession(task.id);
+  const restored = h.restart();
+  let page = await restored.readTask(task.id, { summary: true });
+  assert.ok(page);
+  expect(page.turnsNextCursor).not.toBeNull();
+  const ids: string[] = [];
+  const cursors = new Set<string>();
+  for (;;) {
+    assert.ok(page);
+    expect(Buffer.byteLength(JSON.stringify(page))).toBeLessThan(512 * 1024);
+    ids.unshift(...page.turns.flatMap((turn) => turn.items.map((item) => item.id)));
+    if (!page.turnsNextCursor) break;
+    expect(cursors.has(page.turnsNextCursor)).toBe(false);
+    cursors.add(page.turnsNextCursor);
+    page = await restored.readTask(task.id, { cursor: page.turnsNextCursor, summary: true });
+  }
+  expect(ids.slice(1)).toEqual(
+    Array.from({ length: 70 }, (_, index) => `history-${String(index)}:0`),
+  );
+  expect(new Set(ids).size).toBe(ids.length);
+});

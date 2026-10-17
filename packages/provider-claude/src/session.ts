@@ -6,11 +6,12 @@ import type {
   getSessionInfo,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentProviderEventListener, LocalCatalogStore, LocalTask } from "@codexly/core";
-import type { AgentTurn } from "@codexly/protocol";
+import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
 import type { ClaudeHistory, ClaudeTaskMetadata, ClaudeRecovery } from "./history.js";
 import type { ClaudePermissions } from "./permissions.js";
-import { type ClaudeTurnProjection, record } from "./turn-projection.js";
+import { ClaudeTurnProjection, record } from "./turn-projection.js";
+import type { ClaudeUserInput } from "./turn-input.js";
 import { refreshClaudeContext } from "./observability.js";
 
 export interface ClaudeSdk {
@@ -41,12 +42,37 @@ export async function canResume(
   return false;
 }
 
+/** 两端共用记录捕获，不订阅 Token 增量；每条 SDK 消息之后批量落盘。 */
+export function createProjection(
+  id: string,
+  turnId: string,
+  prompt: ClaudeUserInput,
+  emit: AgentProviderEventListener,
+) {
+  const itemChanges = new Map<string, AgentItem>();
+  const projection = new ClaudeTurnProjection(
+    id,
+    turnId,
+    prompt,
+    (event) => {
+      if (event.type === "item.started" || event.type === "item.completed")
+        itemChanges.set(event.itemId, event.payload.item);
+      // 完成事件由消费器在回合落盘之后发布。
+      if (event.type !== "turn.completed") emit(event);
+    },
+    undefined,
+    true,
+  );
+  return { projection, itemChanges };
+}
+
 export interface Running {
   sessionId: string;
   query: Query;
   projection: ClaudeTurnProjection;
   permissions: Map<string, ClaudePermissions>;
   projections: Map<string, ClaudeTurnProjection>;
+  itemChanges: Map<string, Map<string, AgentItem>>;
   backgroundTasks: Set<string>;
   controller: AbortController;
   input: ReturnType<typeof createInput>;
@@ -185,6 +211,12 @@ export async function consume(
         running.projection;
       const wasRunning = projection.status === "running";
       projection.receive(message);
+      // 仅落盘结构化块和工具状态，Token 增量不产生磁盘写入；消费器背压限制待写内存。
+      const changes = running.itemChanges.get(projection.id);
+      if (changes?.size) {
+        await config.history.saveItems(id, projection.id, [...changes.values()]);
+        changes.clear();
+      }
       // 原生任务包括 Bash 等非 Agent 工具；不能仅凭可见子代理决定关闭进程。
       if (message.type === "system") {
         if (message.subtype === "background_tasks_changed") {
@@ -244,6 +276,7 @@ export async function consume(
           !candidate.hasBackgroundWork
         ) {
           running.projections.delete(turnId);
+          running.itemChanges.delete(turnId);
           running.permissions.get(turnId)?.close();
           running.permissions.delete(turnId);
         }

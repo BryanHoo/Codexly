@@ -2,6 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { appendFile, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentContextUsage, AgentMcpServer, AgentPlan, AgentTurn } from "@codexly/protocol";
+import { ClaudeItemHistory } from "./item-history.js";
+import type { AgentItem } from "@codexly/protocol";
 import type { ClaudePlanTask } from "./task-plan.js";
 
 export interface ClaudeTaskMetadata {
@@ -28,7 +30,20 @@ const missing = (error: unknown) =>
 /** 仅保存 UI 投影和启动证据，不承载模型上下文；恢复内容仍由官方 SDK 的 sessionId 决定。 */
 export class ClaudeHistory {
   readonly #writes = new Map<string, Promise<void>>();
-  constructor(readonly directory: string) {}
+  readonly items: ClaudeItemHistory;
+  constructor(readonly directory: string) {
+    this.items = new ClaudeItemHistory(join(directory, "items"));
+  }
+  saveItems(task: string, turn: string, items: readonly AgentItem[]): Promise<void> {
+    return this.#write(task, () => this.items.save(task, turn, items));
+  }
+  /** 旧版快照按需建立索引；恢复出的失败状态也必须应用到续页元数据。 */
+  prepareItemHistory(task: string, turn: AgentTurn): Promise<void> {
+    return this.#write(task, async () => {
+      if (await this.items.read(task, turn.id, 0)) await this.items.saveMetadata(task, turn);
+      else await this.items.saveTurn(task, turn);
+    });
+  }
   #path(task: string) {
     return join(this.directory, createHash("sha256").update(task).digest("hex"));
   }
@@ -95,6 +110,7 @@ export class ClaudeHistory {
   checkpoint(task: string, turn: AgentTurn): Promise<void> {
     return this.#write(task, async () => {
       const encoded = this.#encode(turn);
+      await this.items.saveTurn(task, turn);
       await mkdir(this.directory, { recursive: true, mode: 0o700 });
       const temporary = `${this.#path(task)}.${randomUUID()}.tmp`;
       try {
@@ -136,6 +152,7 @@ export class ClaudeHistory {
   complete(task: string, turn: AgentTurn): Promise<void> {
     return this.#write(task, async () => {
       const encoded = this.#encode(turn);
+      await this.items.saveTurn(task, turn);
       await mkdir(this.directory, { recursive: true, mode: 0o700 });
       // 恢复记录可能在追加成功、元数据或清理失败后重放；最新页去重保证重试幂等。
       const page = await this.#readPage(task);
@@ -181,6 +198,7 @@ export class ClaudeHistory {
   update(task: string, turn: AgentTurn): Promise<void> {
     return this.#write(task, async () => {
       const encoded = this.#encode(turn);
+      await this.items.saveTurn(task, turn);
       await mkdir(this.directory, { recursive: true, mode: 0o700 });
       const path = this.#updatePath(task, turn.id),
         temporary = `${path}.${randomUUID()}.tmp`;
