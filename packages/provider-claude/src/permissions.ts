@@ -5,7 +5,7 @@ import {
   type ResolvePendingRequestInput,
 } from "@codexly/core";
 import type { PendingRequest } from "@codexly/protocol";
-import { record } from "./turn-projection.js";
+import { record } from "./sdk-values.js";
 import { ClaudeSessionGrants, canReplaySessionGrants } from "./session-grants.js";
 
 import { ClaudeElicitation } from "./elicitation.js";

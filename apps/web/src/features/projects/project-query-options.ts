@@ -3,6 +3,7 @@ import type { CodexlyClient } from "@codexly/client";
 import type {
   AgentGlobalSettings,
   AgentMcpServerPage,
+  ReloadAgentMcpServersRequest,
   AgentProjectDefaults,
   AgentTaskSettings,
   CommitProjectChangesRequest,
@@ -193,11 +194,15 @@ export function mcpServersReloadMutationOptions(
   client: CodexlyMcpServersMutationClient = codexlyClient,
 ) {
   return mutationOptions({
-    mutationFn: async (): Promise<AgentMcpServerPage> => {
+    mutationFn: async (
+      action?: ReloadAgentMcpServersRequest["action"],
+    ): Promise<AgentMcpServerPage> => {
       if (taskId === undefined) {
         throw new Error("Cannot reload MCP servers without a task");
       }
-      return client.retryMcpServers(projectId, taskId);
+      return action
+        ? client.retryMcpServers(projectId, taskId, { action })
+        : client.retryMcpServers(projectId, taskId);
     },
     mutationKey: ["projects", projectId, "tasks", taskId ?? null, "mcp-servers", "reload"] as const,
     scope: { id: `task-mcp:${projectId}:${taskId ?? "none"}` },

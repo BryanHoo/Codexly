@@ -384,3 +384,21 @@ it("serves PDF attachments inline even when their stored MIME type is generic", 
   expect(response.headers["x-frame-options"]).toBe("SAMEORIGIN");
   expect(response.rawPayload).toEqual(content);
 });
+
+it.each(["refresh", "reconnect", "reload"] as const)(
+  "preserves the MCP %s action and observation metadata at the HTTP boundary",
+  async (action) => {
+    const { app, reloadMcpServers } = await createHarness();
+    const snapshot = { data: [], statusSource: "cached" as const, observedAt: null };
+    reloadMcpServers.mockResolvedValueOnce(snapshot);
+    const response = await app.inject({
+      headers: { "idempotency-key": `mcp-${action}` },
+      method: "POST",
+      payload: { action },
+      url: "/v1/projects/codexly/tasks/task-1/mcp-servers/retry",
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(snapshot);
+    expect(reloadMcpServers).toHaveBeenCalledWith("task-1", action);
+  },
+);

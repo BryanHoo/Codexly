@@ -3,6 +3,7 @@ import type { NativeClient } from "@/platform/native-client-contract.js";
 import type {
   AgentGlobalSettings,
   AgentMcpServerPage,
+  ReloadAgentMcpServersRequest,
   AgentProjectDefaults,
   AgentTaskSettings,
   CommitProjectChangesRequest,
@@ -52,9 +53,7 @@ export function taskPinMutationOptions(client: Pick<NativeClient, "pinTask"> = n
   });
 }
 
-export function taskRenameMutationOptions(
-  client: Pick<NativeClient, "renameTask"> = nativeClient,
-) {
+export function taskRenameMutationOptions(client: Pick<NativeClient, "renameTask"> = nativeClient) {
   return mutationOptions({
     mutationFn: ({ projectId, taskId, title }: TaskRenameMutationInput) =>
       client.renameTask(projectId, taskId, title),
@@ -82,9 +81,7 @@ export function taskUnarchiveMutationOptions(
   });
 }
 
-export function taskDeleteMutationOptions(
-  client: Pick<NativeClient, "deleteTask"> = nativeClient,
-) {
+export function taskDeleteMutationOptions(client: Pick<NativeClient, "deleteTask"> = nativeClient) {
   return mutationOptions({
     mutationFn: ({ projectId, taskId }: TaskArchiveMutationInput) =>
       client.deleteTask(projectId, taskId),
@@ -193,11 +190,15 @@ export function mcpServersReloadMutationOptions(
   client: NativeMcpServersMutationClient = nativeClient,
 ) {
   return mutationOptions({
-    mutationFn: async (): Promise<AgentMcpServerPage> => {
+    mutationFn: async (
+      action?: ReloadAgentMcpServersRequest["action"],
+    ): Promise<AgentMcpServerPage> => {
       if (taskId === undefined) {
         throw new Error("Cannot reload MCP servers without a task");
       }
-      return client.retryMcpServers(projectId, taskId);
+      return action
+        ? client.retryMcpServers(projectId, taskId, { action })
+        : client.retryMcpServers(projectId, taskId);
     },
     mutationKey: ["projects", projectId, "tasks", taskId ?? null, "mcp-servers", "reload"] as const,
     scope: { id: `task-mcp:${projectId}:${taskId ?? "none"}` },
@@ -271,7 +272,8 @@ export function projectGitStatusQueryOptions(
     queryFn: ({ signal }) => client.getProjectGitStatus(projectId, { rootPath }, { signal }),
     queryKey: ["projects", projectId, rootPath, "git-status"] as const,
     // 初次允许探测；确认非 Git 后仅显式刷新，避免挂载和窗口聚焦重复读取。
-    refetchOnMount: (query) => query.state.data === undefined || isRootGitProject(query.state.data) ? "always" : false,
+    refetchOnMount: (query) =>
+      query.state.data === undefined || isRootGitProject(query.state.data) ? "always" : false,
     refetchOnWindowFocus: (query) => isRootGitProject(query.state.data),
     retry: shouldRetryGitQuery,
   });
@@ -289,11 +291,7 @@ export function projectGitRepositoryStatusQueryOptions(
     queryFn: ({ signal }) =>
       repository === null
         ? Promise.reject(new Error("Git repository is not selected"))
-        : client.getProjectGitStatus(
-            projectId,
-            { repository, rootPath },
-            { signal },
-          ),
+        : client.getProjectGitStatus(projectId, { repository, rootPath }, { signal }),
     queryKey: ["projects", projectId, rootPath, "git-status", repository] as const,
     retry: shouldRetryGitQuery,
   });

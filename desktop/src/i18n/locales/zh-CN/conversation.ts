@@ -100,6 +100,12 @@ export const conversation = {
     history: "历史",
     loading: "正在读取...",
     mcpEnabled: "当前任务的 MCP 服务",
+    mcpCached: "缓存状态",
+    mcpLive: "最新观测",
+    mcpUnknownTime: "观测时间未知",
+    mcpRefresh: "刷新状态",
+    mcpReconnect: "重连失败服务",
+    mcpReloadConfig: "重新加载配置",
     mcpReload: "重新加载 MCP",
     mcpReloading: "正在重新加载 MCP",
     mcpStatus: {

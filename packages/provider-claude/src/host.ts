@@ -1,6 +1,6 @@
 import { exportClaudeAttachment } from "./attachment-export.js";
 import { Value } from "@sinclair/typebox/value";
-import { AgentTurnOptionsSchema } from "@codexly/protocol";
+import { AgentTurnOptionsSchema, ReloadAgentMcpServersRequestSchema } from "@codexly/protocol";
 import { resolve } from "node:path";
 import {
   query,
@@ -13,7 +13,7 @@ import { readTaskWithCheckpoint } from "@codexly/core";
 import type { AgentProviderTurnInput, ResolvePendingRequestInput } from "@codexly/core";
 import type { ClaudeSettings, ConfigureCustomProviderRequest } from "@codexly/protocol";
 import { ClaudeRuntime } from "./runtime.js";
-import { record } from "./turn-projection.js";
+import { record } from "./sdk-values.js";
 import { HostOutput } from "./host-output.js";
 
 // 构建时从已安装 SDK 注入版本，应用下载清单与宿主始终使用同一依赖版本。
@@ -112,8 +112,12 @@ if (process.argv.includes("--version")) {
     switch (method) {
       case "mcp.list":
         return provider.listMcpServers(id);
-      case "mcp.reload":
-        return provider.reloadMcpServers(id);
+      case "mcp.reload": {
+        const request = params["action"] == null ? {} : { action: params["action"] };
+        if (!Value.Check(ReloadAgentMcpServersRequestSchema, request))
+          throw new Error("Invalid MCP action");
+        return provider.reloadMcpServers(id, request.action);
+      }
       case "attachment.export":
         return exportClaudeAttachment(provider, id, String(params["attachmentId"]));
       case "task.read": {

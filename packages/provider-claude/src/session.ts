@@ -13,7 +13,8 @@ import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
 import type { ClaudeHistory, ClaudeTaskMetadata, ClaudeRecovery } from "./history.js";
 import type { ClaudePermissions } from "./permissions.js";
-import { ClaudeTurnProjection, record } from "./turn-projection.js";
+import { ClaudeTurnProjection } from "./turn-projection.js";
+import { record } from "./sdk-values.js";
 import type { ClaudeUserInput } from "./turn-input.js";
 import { refreshClaudeContext } from "./observability.js";
 

@@ -139,7 +139,14 @@ export const ForkAgentTaskResponseSchema = Type.Object(
 );
 export type ForkAgentTaskResponse = Readonly<Static<typeof ForkAgentTaskResponseSchema>>;
 
-export const ReloadAgentMcpServersRequestSchema = Type.Object({}, { additionalProperties: false });
+export const ReloadAgentMcpServersRequestSchema = Type.Object(
+  {
+    action: Type.Optional(
+      Type.Union([Type.Literal("refresh"), Type.Literal("reconnect"), Type.Literal("reload")]),
+    ),
+  },
+  { additionalProperties: false },
+);
 export type ReloadAgentMcpServersRequest = Readonly<
   Static<typeof ReloadAgentMcpServersRequestSchema>
 >;

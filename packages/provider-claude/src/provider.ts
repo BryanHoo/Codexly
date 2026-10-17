@@ -1,6 +1,7 @@
 import { localTaskMetadata as claudeTask } from "@codexly/core";
 export { localTaskMetadata as claudeTask } from "@codexly/core";
-import { mapClaudeMcpServers, observe } from "./observability.js";
+import type { ClaudeMcpAction } from "./mcp.js";
+import { ClaudeMcpManagement } from "./mcp-management.js";
 import { isManagedClaudeCommand } from "./commands.js";
 import { deleteClaudeTask } from "./task-deletion.js";
 import { randomUUID } from "node:crypto";
@@ -50,6 +51,7 @@ export class ClaudeAgentProvider {
   readonly #recent = new Map<string, AgentTurn>();
   readonly #unpersisted = new Set<string>();
   readonly #sessionGrants = new Map<string, ClaudeSessionGrants>();
+  readonly #mcp: ClaudeMcpManagement;
   constructor(
     readonly scope: AgentTaskScope,
     readonly store: LocalCatalogStore,
@@ -57,7 +59,11 @@ export class ClaudeAgentProvider {
     readonly sdk: session.ClaudeSdk = { query, getSessionMessages, getSessionInfo, deleteSession },
     readonly discover?: () => Promise<AgentEngineProfile>,
     readonly idleTimeoutMs = 30_000,
-  ) {}
+  ) {
+    this.#mcp = new ClaudeMcpManagement(config, sdk, this.#starting, this.#running, (id) =>
+      this.#task(id),
+    );
+  }
   get isBusy() {
     return (
       this.#starting.size > 0 ||
@@ -74,34 +80,11 @@ export class ClaudeAgentProvider {
   listSkills() {
     return Promise.resolve({ data: [], nextCursor: null });
   }
-  async listMcpServers(id: string) {
-    await this.#task(id);
-    const running = this.#running.get(id);
-    if (running && typeof running.query.mcpServerStatus === "function") {
-      const servers = await observe(() => running.query.mcpServerStatus());
-      if (servers) running.projection.mcpServers = mapClaudeMcpServers(servers);
-    }
-    return {
-      data:
-        running?.projection.mcpServers ??
-        (await this.config.history.metadata(id))?.mcpServers ??
-        [],
-    };
+  listMcpServers(id: string) {
+    return this.#mcp.listMcpServers(id);
   }
-  async reloadMcpServers(id: string) {
-    await this.#task(id);
-    const running = this.#running.get(id);
-    if (running) {
-      const { data } = await this.listMcpServers(id);
-      await Promise.all(
-        data
-          .filter(
-            (server) => server.status === "failed" || server.status === "authenticationRequired",
-          )
-          .map((server) => running.query.reconnectMcpServer(server.name)),
-      );
-    }
-    return this.listMcpServers(id);
+  reloadMcpServers(id: string, action?: ClaudeMcpAction) {
+    return this.#mcp.reloadMcpServers(id, action);
   }
   listBackgroundTerminals() {
     return Promise.resolve({ data: [], nextCursor: null });
@@ -490,6 +473,7 @@ export class ClaudeAgentProvider {
   }
 
   close(): void {
+    this.#mcp.close();
     for (const current of this.#running.values()) {
       session.stop(current);
     }

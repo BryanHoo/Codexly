@@ -25,6 +25,8 @@ export interface ClaudeTaskMetadata {
   planTasks?: ClaudePlanTask[];
   model: string | null;
   mcpServers: AgentMcpServer[];
+  /** 最后一次 SDK 实际观测时间；旧快照缺失时保持未知。 */
+  mcpObservedAt?: string | null;
 }
 
 export interface ClaudeRecovery {

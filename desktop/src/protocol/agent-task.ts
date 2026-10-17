@@ -342,12 +342,8 @@ export const AgentMcpServerSchema = Type.Object(
 
 export type AgentMcpServer = Readonly<Static<typeof AgentMcpServerSchema>>;
 
-export const AgentMcpServerPageSchema = Type.Object(
-  { data: Type.Array(AgentMcpServerSchema, { uniqueItems: true }) },
-  { additionalProperties: false },
-);
-
-export type AgentMcpServerPage = Readonly<Static<typeof AgentMcpServerPageSchema>>;
+// MCP 快照与操作协议由两端共享，避免缓存语义在桌面副本中漂移。
+export { AgentMcpServerPageSchema, type AgentMcpServerPage } from "@codexly/protocol";
 
 export const AgentSkillReferenceSchema = Type.Object(
   {

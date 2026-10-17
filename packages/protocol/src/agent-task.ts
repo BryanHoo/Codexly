@@ -331,7 +331,12 @@ export const AgentMcpServerSchema = Type.Object(
 export type AgentMcpServer = Readonly<Static<typeof AgentMcpServerSchema>>;
 
 export const AgentMcpServerPageSchema = Type.Object(
-  { data: Type.Array(AgentMcpServerSchema, { uniqueItems: true }) },
+  {
+    data: Type.Array(AgentMcpServerSchema, { uniqueItems: true }),
+    // 旧引擎可省略；历史快照必须显式标记，时间表示实际观测而非 HTTP 返回时间。
+    statusSource: Type.Optional(Type.Union([Type.Literal("live"), Type.Literal("cached")])),
+    observedAt: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  },
   { additionalProperties: false },
 );
 

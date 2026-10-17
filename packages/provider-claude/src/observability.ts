@@ -94,10 +94,22 @@ export function mapClaudeMcpServers(values: unknown): AgentMcpServer[] {
       return [];
     const server = value as Record<string, unknown>,
       status = server["status"];
+    // 仅展示地址来源；配置中的凭据、路径、查询参数和启动命令不得越过 Provider 边界。
+    const config = record(server["config"]);
+    let httpOrigin: string | undefined;
+    if (typeof config["url"] === "string") {
+      try {
+        const url = new URL(config["url"]);
+        if (url.protocol === "https:" || url.protocol === "http:") httpOrigin = url.origin;
+      } catch {
+        /* 无效地址交由 SDK 报告连接状态。 */
+      }
+    }
     return [
       {
         name: value.name,
         displayName: value.name,
+        ...(httpOrigin ? { httpOrigin } : {}),
         status:
           status === "connected" || status === "failed" || status === "disabled"
             ? status

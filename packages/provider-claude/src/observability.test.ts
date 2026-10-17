@@ -71,3 +71,26 @@ it("releases the context request slot after SDK rejection", async () => {
   expect(h.readContext).toHaveBeenCalledTimes(2);
   expect(h.projection.contextUsage).toEqual({ usedTokens: 123, contextWindow: 200000 });
 });
+
+it("exposes only the HTTP origin of native MCP configuration to both frontends", async () => {
+  const { mapClaudeMcpServers } = await import("./observability.js");
+  expect(
+    mapClaudeMcpServers([
+      {
+        name: "docs",
+        status: "connected",
+        config: { type: "http", url: "https://user:secret@new.example:8443/mcp?token=private" },
+      },
+      { name: "local", status: "connected", config: { type: "stdio", command: "secret-command" } },
+    ]),
+  ).toEqual([
+    {
+      name: "docs",
+      displayName: "docs",
+      status: "connected",
+      toolCount: 0,
+      httpOrigin: "https://new.example:8443",
+    },
+    { name: "local", displayName: "local", status: "connected", toolCount: 0 },
+  ]);
+});

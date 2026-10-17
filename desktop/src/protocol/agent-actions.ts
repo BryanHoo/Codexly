@@ -3,7 +3,6 @@ import { Type, type Static } from "@sinclair/typebox";
 import { AgentReviewTargetSchema, AgentTaskSchema } from "./agent-attachments.js";
 import { EventCheckpointSchema } from "./event-checkpoint.js";
 import {
-  AgentMcpServerPageSchema,
   AgentPromptInputSchema,
   AgentQueuedSubmissionSchema,
   AgentTurnSchema,
@@ -106,15 +105,12 @@ export const ForkAgentTaskResponseSchema = Type.Object(
 );
 export type ForkAgentTaskResponse = Readonly<Static<typeof ForkAgentTaskResponseSchema>>;
 
-export const ReloadAgentMcpServersRequestSchema = Type.Object({}, { additionalProperties: false });
-export type ReloadAgentMcpServersRequest = Readonly<
-  Static<typeof ReloadAgentMcpServersRequestSchema>
->;
-
-export const ReloadAgentMcpServersResponseSchema = AgentMcpServerPageSchema;
-export type ReloadAgentMcpServersResponse = Readonly<
-  Static<typeof ReloadAgentMcpServersResponseSchema>
->;
+export {
+  ReloadAgentMcpServersRequestSchema,
+  ReloadAgentMcpServersResponseSchema,
+  type ReloadAgentMcpServersRequest,
+  type ReloadAgentMcpServersResponse,
+} from "@codexly/protocol";
 
 export const UploadAgentFeedbackRequestSchema = Type.Object(
   {
@@ -230,7 +226,9 @@ export const StartAgentQueuedSubmissionRequestSchema = Type.Object(
     idempotencyKey: Type.String({ minLength: 1, maxLength: 128, pattern: "\\S" }),
     projectId: Type.String({ minLength: 1, maxLength: 1024 }),
     taskId: Type.String({ minLength: 1, maxLength: 1024 }),
-    queuedSubmissionId: Type.Optional(Type.Union([Type.String({ minLength: 1, maxLength: 1024 }), Type.Null()])),
+    queuedSubmissionId: Type.Optional(
+      Type.Union([Type.String({ minLength: 1, maxLength: 1024 }), Type.Null()]),
+    ),
   },
   { additionalProperties: false },
 );
@@ -238,17 +236,23 @@ export type StartAgentQueuedSubmissionRequest = Readonly<
   Static<typeof StartAgentQueuedSubmissionRequestSchema>
 >;
 
-export const StartAgentQueuedSubmissionResponseSchema = Type.Union([Type.Object(
-  {
-    taskId: Type.String({ minLength: 1 }),
-    turn: AgentTurnSchema,
-  },
-  { additionalProperties: false },
-), Type.Object({
-  cleanupOnly: Type.Literal(true),
-  queuedSubmissionId: Type.String({ minLength: 1 }),
-  taskId: Type.String({ minLength: 1 }),
-}, { additionalProperties: false })]);
+export const StartAgentQueuedSubmissionResponseSchema = Type.Union([
+  Type.Object(
+    {
+      taskId: Type.String({ minLength: 1 }),
+      turn: AgentTurnSchema,
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      cleanupOnly: Type.Literal(true),
+      queuedSubmissionId: Type.String({ minLength: 1 }),
+      taskId: Type.String({ minLength: 1 }),
+    },
+    { additionalProperties: false },
+  ),
+]);
 export type StartAgentQueuedSubmissionResponse = Readonly<
   Static<typeof StartAgentQueuedSubmissionResponseSchema>
 >;

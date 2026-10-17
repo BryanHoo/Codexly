@@ -1225,39 +1225,42 @@ it.each([false, true])(
   },
 );
 
-it("reads live MCP tools and reconnects failed servers without crossing engine boundaries", async () => {
-  const h = await harness();
-  const task = await h.provider.startTask();
-  await h.provider.startTurn(task.id, prompt, options);
-  const stream = h.query.mock.results[0]?.value as Query | undefined;
-  if (!stream) throw new Error("Missing SDK query");
-  let connected = false;
-  stream.mcpServerStatus = vi.fn(() =>
-    Promise.resolve([
-      {
-        name: "search",
-        status: connected ? ("connected" as const) : ("failed" as const),
-        tools: connected ? [{ name: "query" }] : [],
-      },
-    ]),
-  );
-  const reconnect = vi.fn(() => {
-    connected = true;
-    return Promise.resolve();
-  });
-  stream.reconnectMcpServer = reconnect;
-  expect(await h.provider.reloadMcpServers(task.id)).toMatchObject({
-    data: [{ name: "search", status: "connected", toolCount: 1 }],
-  });
-  expect(reconnect).toHaveBeenCalledWith("search");
-  h.send({ type: "result", subtype: "success" });
-  await vi.waitFor(() => {
-    expect(h.close).toHaveBeenCalled();
-  });
-  expect(await h.config.history.metadata(task.id)).toMatchObject({
-    mcpServers: [{ name: "search", toolCount: 1 }],
-  });
-});
+it.each(["failed", "needs-auth"] as const)(
+  "reads live MCP tools and reconnects %s servers without crossing engine boundaries",
+  async (failure) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    const stream = h.query.mock.results[0]?.value as Query | undefined;
+    if (!stream) throw new Error("Missing SDK query");
+    let connected = false;
+    stream.mcpServerStatus = vi.fn(() =>
+      Promise.resolve([
+        {
+          name: "search",
+          status: connected ? ("connected" as const) : failure,
+          tools: connected ? [{ name: "query" }] : [],
+        },
+      ]),
+    );
+    const reconnect = vi.fn(() => {
+      connected = true;
+      return Promise.resolve();
+    });
+    stream.reconnectMcpServer = reconnect;
+    expect(await h.provider.reloadMcpServers(task.id, "reconnect")).toMatchObject({
+      data: [{ name: "search", status: "connected", toolCount: 1 }],
+    });
+    expect(reconnect).toHaveBeenCalledWith("search");
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.close).toHaveBeenCalled();
+    });
+    expect(await h.config.history.metadata(task.id)).toMatchObject({
+      mcpServers: [{ name: "search", toolCount: 1 }],
+    });
+  },
+);
 
 it.each(["slow", "unresponsive"])(
   "completes, persists and accepts the next turn independently of %s context statistics",
@@ -2242,4 +2245,112 @@ it("keeps crashed-turn continuation metadata failed without resaving item bodies
   expect(older?.turns[0]?.status).toBe("failed");
   expect(older?.turns[0]?.items).toHaveLength(10);
   expect(save).not.toHaveBeenCalled();
+});
+
+it("marks MCP history as cached and preserves its observation time after idle disposal", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  const stream = h.query.mock.results[0]?.value as Query | undefined;
+  assert(stream);
+  stream.mcpServerStatus = vi.fn(() =>
+    Promise.resolve([{ name: "docs", status: "connected" as const }]),
+  );
+  const live = await h.provider.listMcpServers(task.id);
+  expect(live).toMatchObject({ statusSource: "live", observedAt: expect.any(String) as unknown });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalled();
+  });
+  expect(await h.provider.listMcpServers(task.id)).toMatchObject({
+    statusSource: "cached",
+    observedAt: live.observedAt,
+    data: live.data,
+  });
+});
+
+it.each(["add", "remove", "address", "idle"])(
+  "reloads native MCP configuration for %s without sending a prompt or changing session identity",
+  async (change) => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    const stream = h.query.mock.results[0]?.value as Query | undefined;
+    assert(stream);
+    stream.mcpServerStatus = vi.fn(() =>
+      Promise.resolve([{ name: "old", status: "connected" as const }]),
+    );
+    await h.provider.listMcpServers(task.id);
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    if (change === "idle") await h.provider.stopSession(task.id);
+    const sessionId = h.tasks.get(task.id)?.sessionId;
+    const replacement =
+      change === "remove"
+        ? []
+        : [{ name: change === "address" ? "old" : "new", status: "connected" as const }];
+    h.query.mockImplementationOnce(({ prompt: input }) => {
+      void (async () => {
+        for await (const message of input)
+          throw new Error(`Unexpected prompt ${JSON.stringify(message)}`);
+      })();
+      return {
+        mcpServerStatus: vi.fn(() => Promise.resolve(replacement)),
+        close: vi.fn(),
+      } as unknown as Query;
+    });
+    const response = await h.provider.reloadMcpServers(
+      task.id,
+      change === "idle" ? "refresh" : "reload",
+    );
+    expect(response).toMatchObject({
+      statusSource: "live",
+      data: replacement.map((s) => ({ name: s.name })),
+    });
+    expect(response.data).toHaveLength(replacement.length);
+    expect(h.query).toHaveBeenCalledTimes(2);
+    expect(h.query.mock.calls[1]?.[0].options).toMatchObject({ resume: sessionId });
+    expect(h.tasks.get(task.id)?.sessionId).toBe(sessionId);
+    expect((await h.config.history.read(task.id)).turns).toHaveLength(1);
+  },
+);
+
+it("refuses configuration reload during a turn and never treats a failed status read as live", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  const stream = h.query.mock.results[0]?.value as Query | undefined;
+  assert(stream);
+  stream.mcpServerStatus = vi.fn(() => Promise.reject(new Error("offline")));
+  expect(await h.provider.listMcpServers(task.id)).toMatchObject({
+    statusSource: "cached",
+    observedAt: null,
+  });
+  await expect(h.provider.reloadMcpServers(task.id)).rejects.toThrow(/MCP/);
+  expect(h.query).toHaveBeenCalledTimes(1);
+  expect(h.close).not.toHaveBeenCalled();
+});
+
+it("persists the timestamp of an initial MCP probe and releases its process without creating turns", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const close = vi.fn();
+  h.query.mockImplementationOnce(
+    () =>
+      ({
+        mcpServerStatus: vi.fn(() => Promise.resolve([])),
+        close,
+      }) as unknown as Query,
+  );
+  const response = await h.provider.reloadMcpServers(task.id, "refresh");
+  expect(response).toMatchObject({
+    data: [],
+    statusSource: "live",
+    observedAt: expect.any(String) as unknown,
+  });
+  expect(close).toHaveBeenCalledOnce();
+  expect(await h.provider.listMcpServers(task.id)).toEqual({ ...response, statusSource: "cached" });
+  expect((await h.config.history.read(task.id)).turns).toHaveLength(0);
 });

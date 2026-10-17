@@ -23,7 +23,6 @@ import { changedClaudeUsage } from "./projection-usage.js";
 import { ClaudeProjectionChanges } from "./projection-changes.js";
 import { ClaudeBackgroundTasks } from "./background-tasks.js";
 import { ClaudeTaskPlan } from "./task-plan.js";
-export { record } from "./sdk-values.js";
 /** 只持有当前回合的渲染投影；历史与恢复上下文仍由官方 SDK 的会话文件管理。 */
 export class ClaudeTurnProjection {
   readonly #taskId: string;
@@ -42,6 +41,7 @@ export class ClaudeTurnProjection {
   contextUsage: AgentContextUsage | null = null;
   plan: AgentPlan | null = null;
   mcpServers: ClaudeTaskMetadata["mcpServers"] = [];
+  mcpObservedAt: string | null = null;
   sessionInitialized = false;
   persistence: AgentTurn["persistence"];
   #requestUsage: Record<string, unknown> = {};
@@ -86,7 +86,6 @@ export class ClaudeTurnProjection {
   ownsMessage(value: unknown): boolean {
     return this.backgroundTasks.ownsMessage(value, (id) => !!this.#agentOwner(id));
   }
-
   restoreMetadata(metadata: ClaudeTaskMetadata | undefined): void {
     if (!metadata) return;
     this.sessionInitialized = metadata.sessionInitialized === true;
@@ -94,6 +93,7 @@ export class ClaudeTurnProjection {
     this.plan = metadata.plan;
     this.#taskPlan.restore(metadata.planTasks);
     this.mcpServers = metadata.mcpServers;
+    this.mcpObservedAt = metadata.mcpObservedAt ?? null;
     this.#model = metadata.model ?? "";
   }
   get id() {
@@ -107,6 +107,7 @@ export class ClaudeTurnProjection {
       planTasks: this.#taskPlan.snapshot(),
       model: this.#model || null,
       mcpServers: this.mcpServers,
+      mcpObservedAt: this.mcpObservedAt,
     };
   }
   snapshot(): AgentTurn {
@@ -273,6 +274,7 @@ export class ClaudeTurnProjection {
     if (message["type"] === "system" && message["subtype"] === "init") {
       this.#model = text(message["model"]) || this.#model;
       this.mcpServers = mapClaudeMcpServers(message["mcp_servers"]);
+      this.mcpObservedAt = new Date().toISOString();
       publishClaudeMcpServers(this.#taskId, this.mcpServers, this.#emit);
       return;
     }
@@ -459,7 +461,6 @@ export class ClaudeTurnProjection {
       this.#agent(id, child.status);
     }
   }
-
   finish(
     status: Exclude<AgentTurn["status"], "running">,
     error?: string,

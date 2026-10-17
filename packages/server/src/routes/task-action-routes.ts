@@ -162,7 +162,10 @@ export function registerTaskActionRoutes(app: FastifyInstance, context: ServerRo
             throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
           }
           try {
-            return await projectContext.provider.reloadMcpServers(request.params.taskId);
+            return await projectContext.provider.reloadMcpServers(
+              request.params.taskId,
+              ...(request.body.action ? ([request.body.action] as const) : []),
+            );
           } catch (error) {
             throw toMcpProviderHttpError(error);
           }

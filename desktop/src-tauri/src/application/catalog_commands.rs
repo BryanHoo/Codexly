@@ -231,6 +231,7 @@ pub async fn retry_mcp_servers(
     app: AppHandle,
     project_id: String,
     task_id: String,
+    action: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
     let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
@@ -241,7 +242,8 @@ pub async fn retry_mcp_servers(
                 &app,
                 "mcp.reload",
                 Some(super::claude_tasks::scope(&task)),
-                json!({"taskId": task_id}),
+                // 操作语义由共享宿主校验；状态刷新不再隐式等同于重连或配置重载。
+                json!({"taskId": task_id, "action": action}),
             )
             .await;
     }

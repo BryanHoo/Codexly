@@ -69,6 +69,7 @@ import {
   type RenameProjectFileRequest,
   type RenameProjectFileResponse,
   type ReloadAgentMcpServersResponse,
+  type ReloadAgentMcpServersRequest,
   type ReorderProjectsResponse,
 } from "@codexly/protocol";
 
@@ -103,15 +104,14 @@ export class ProjectHttpClient extends GitPushHttpClient {
       AgentMutationErrorSchema,
     );
   }
-
   public async retryMcpServers(
     projectId: string,
     taskId: string,
-    options: MutationOptions = {},
+    options: MutationOptions & ReloadAgentMcpServersRequest = {},
   ): Promise<ReloadAgentMcpServersResponse> {
     return this.mutation(
       `${taskPath(projectId, taskId)}/mcp-servers/retry`,
-      {},
+      options.action ? { action: options.action } : {},
       ReloadAgentMcpServersResponseSchema,
       options,
     );

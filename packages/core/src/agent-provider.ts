@@ -13,6 +13,7 @@ import type {
   AgentEvent,
   AgentImageMediaType,
   AgentMcpServerPage,
+  ReloadAgentMcpServersRequest,
   AgentModelPage,
   AgentProviderConnectionMutationResponse,
   AgentProviderConnectionStatus,
@@ -268,7 +269,10 @@ export interface AgentProvider {
     taskId: string,
     attachmentId: string,
   ): Promise<AgentProviderAttachment | undefined>;
-  reloadMcpServers(taskId: string): Promise<AgentMcpServerPage>;
+  reloadMcpServers(
+    taskId: string,
+    action?: ReloadAgentMcpServersRequest["action"],
+  ): Promise<AgentMcpServerPage>;
   renameTask(taskId: string, title: string): Promise<void>;
   resolvePendingRequest(input: ResolvePendingRequestInput): Promise<PendingRequest>;
   startReview(taskId: string, target: AgentReviewTarget): Promise<AgentTurn>;

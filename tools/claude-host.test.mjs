@@ -381,7 +381,45 @@ test(
       assert.deepEqual(restored.plan?.steps, [{ text: "验证宿主计划", status: "in_progress" }]);
       assert.ok(restored.contextUsage.usedTokens > 0);
       assert.ok(restored.contextUsage.contextWindow > 0);
-      assert.deepEqual(await host.request("mcp.list", { taskId: "task" }, scope), { data: [] });
+      const mcpSnapshot = await host.request("mcp.list", { taskId: "task" }, scope);
+      assert.deepEqual(mcpSnapshot.data, []);
+      assert.equal(mcpSnapshot.statusSource, "cached");
+      assert.ok(mcpSnapshot.observedAt);
+      // 真实 SDK 必须重读原生配置；整个探测过程不得调用模型或创建展示回合。
+      const beforeMcpCalls = calls;
+      const boundSession = tasks.get("task").sessionId;
+      const currentSettings = await host.request("settings.read");
+      await host.request("settings.write", { ...currentSettings, loadProjectSettings: true });
+      const mcpFile = join(directory, ".mcp.json");
+      const firstOrigin = `http://127.0.0.1:${api.address().port}`;
+      const secondOrigin = "http://127.0.0.1:1";
+      for (const [servers, action] of [
+        [{ docs: { type: "http", url: `${firstOrigin}/mcp` } }, "reload"],
+        [
+          {
+            docs: { type: "http", url: `${secondOrigin}/mcp` },
+            added: { type: "http", url: `${firstOrigin}/mcp` },
+          },
+          "reload",
+        ],
+        [{ added: { type: "http", url: `${firstOrigin}/mcp` } }, "reload"],
+        [{}, "refresh"],
+      ]) {
+        await writeFile(mcpFile, JSON.stringify({ mcpServers: servers }));
+        const status = await host.request("mcp.reload", { taskId: "task", action }, scope);
+        assert.equal(status.statusSource, "live");
+        assert.ok(status.observedAt);
+        assert.deepEqual(
+          status.data.map((server) => server.name).sort(),
+          Object.keys(servers).sort(),
+        );
+        for (const server of status.data)
+          assert.equal(server.httpOrigin, new URL(servers[server.name].url).origin);
+        assert.equal(tasks.get("task").sessionId, boundSession);
+      }
+      assert.equal(calls, beforeMcpCalls);
+      assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 2);
+      await host.request("settings.write", currentSettings);
       await host.request(
         "turn.start",
         { taskId: "task", input: { ...input, text: "Continue" }, options },
