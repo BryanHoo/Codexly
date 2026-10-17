@@ -50,7 +50,7 @@ export class ClaudeTurnProjection {
   constructor(
     taskId: string,
     id: string,
-    prompt: ClaudeUserInput,
+    prompt: ClaudeUserInput | undefined,
     emit: AgentProviderEventListener,
     previewBytes = CLAUDE_TURN_PREVIEW_BYTES,
     paginated = false,
@@ -59,7 +59,7 @@ export class ClaudeTurnProjection {
     this.#taskId = taskId;
     this.#id = id;
     this.#emit = emit;
-    this.#items.set(createClaudeUserItem(id, prompt));
+    if (prompt !== undefined) this.#items.set(createClaudeUserItem(id, prompt));
   }
   get status() {
     return this.#status;

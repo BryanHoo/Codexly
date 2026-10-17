@@ -1057,6 +1057,144 @@ it("consumes late background completion across turns using the original query an
   ).toMatchObject({ status: "completed" });
 });
 
+it.each(["completed", "failed", "stopped"])(
+  "projects native parent continuation after a %s background task",
+  async (status) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const first = await h.provider.startTurn(task.id, prompt, options);
+    h.send(backgroundSpawn);
+    h.send({ type: "system", subtype: "task_started", task_id: "child", tool_use_id: "spawn" });
+    h.send({ type: "result", subtype: "success", result: "waiting" });
+    await vi.waitFor(() => {
+      expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    });
+    h.send({ type: "system", subtype: "task_notification", task_id: "child", status });
+    h.send({ type: "system", subtype: "session_state_changed", state: "running" });
+    await vi.waitFor(() => {
+      expect(events.filter((event) => event.type === "turn.started")).toHaveLength(2);
+    });
+    // 后台集合已空，但主代理仍在请求模型，不能被空闲定时器回收。
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(h.close).not.toHaveBeenCalled();
+    h.send({
+      type: "assistant",
+      message: { id: "continued", content: [{ type: "text", text: "final summary" }] },
+    });
+    h.send({ type: "result", subtype: "success" });
+    h.send({ type: "system", subtype: "session_state_changed", state: "idle" });
+    await vi.waitFor(() => {
+      expect(h.close).toHaveBeenCalledOnce();
+    });
+    const snapshot = await h.provider.readTask(task.id);
+    expect(snapshot?.turns).toHaveLength(2);
+    expect(snapshot?.turns.find((turn) => turn.id === first.id)?.status).toBe("completed");
+    const continuation = snapshot?.turns.find((turn) => turn.id !== first.id);
+    expect(continuation?.items).toContainEqual(expect.objectContaining({ text: "final summary" }));
+    expect(
+      continuation?.items.some((item) => item.type === "message" && item.role === "user"),
+    ).toBe(false);
+    expect(h.query).toHaveBeenCalledOnce();
+  },
+);
+
+it("routes late child output separately and persists a streamed native continuation", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send(backgroundSpawn);
+  h.send({ type: "system", subtype: "task_started", task_id: "child", tool_use_id: "spawn" });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+  });
+  h.send({
+    type: "assistant",
+    parent_tool_use_id: "spawn",
+    message: { id: "late-child", content: [{ type: "text", text: "child output" }] },
+  });
+  h.send({ type: "system", subtype: "task_notification", task_id: "child", status: "completed" });
+  h.send({ type: "stream_event", event: { type: "message_start", message: { id: "streamed" } } });
+  h.send({
+    type: "stream_event",
+    event: { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
+  });
+  h.send({
+    type: "stream_event",
+    event: {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "text_delta", text: "streamed summary" },
+    },
+  });
+  h.send({ type: "stream_event", event: { type: "content_block_stop", index: 0 } });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalledOnce();
+  });
+  expect(events.filter((event) => event.type === "turn.started")).toHaveLength(2);
+  const restored = h.restart();
+  const snapshot = await restored.readTask(task.id);
+  expect(snapshot?.turns).toHaveLength(2);
+  expect(snapshot?.turns.flatMap((turn) => turn.items)).toContainEqual(
+    expect.objectContaining({ text: "streamed summary" }),
+  );
+});
+
+it("does not create a parent turn for a background permission state change", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send(backgroundSpawn);
+  h.send({ type: "system", subtype: "task_started", task_id: "child", tool_use_id: "spawn" });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+  });
+  // requires_action 也可能来自后台审批，仅代表会话需要保持开放，不是主代理新回合。
+  h.send({ type: "system", subtype: "session_state_changed", state: "requires_action" });
+  h.send({ type: "system", subtype: "task_notification", task_id: "child", status: "stopped" });
+  h.send({ type: "system", subtype: "session_state_changed", state: "idle" });
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalledOnce();
+  });
+  expect(events.filter((event) => event.type === "turn.started")).toHaveLength(1);
+  expect((await h.provider.readTask(task.id))?.turns).toHaveLength(1);
+});
+
+it("keeps scheduled wakeups alive and releases the session after the final stop", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  const hook = h.query.mock.calls[0]?.[0].options.hooks?.Stop?.[0]?.hooks[0];
+  assert(hook, "SDK Stop hook must be registered");
+  const signal = new AbortController().signal;
+  await hook({ hook_event_name: "Stop", session_crons: [{ id: "wake" }] } as never, undefined, {
+    signal,
+  });
+  h.send({ type: "result", subtype: "success" });
+  h.send({ type: "system", subtype: "session_state_changed", state: "idle" });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(h.close).not.toHaveBeenCalled();
+  h.send({
+    type: "assistant",
+    message: { id: "wake", content: [{ type: "text", text: "awake" }] },
+  });
+  await hook({ hook_event_name: "Stop", session_crons: [] } as never, undefined, { signal });
+  h.send({ type: "result", subtype: "success" });
+  h.send({ type: "system", subtype: "session_state_changed", state: "idle" });
+  await vi.waitFor(() => {
+    expect(h.close).toHaveBeenCalledOnce();
+  });
+  expect((await h.provider.readTask(task.id))?.turns).toHaveLength(2);
+});
+
 it("stops a background task independently and keeps consuming its stopped notification", async () => {
   const h = await harness();
   const task = await h.provider.startTask();
@@ -1204,7 +1342,8 @@ it("routes elicitation to the current turn of a reused query and cancels it on s
   assert(settings);
   // 原生配置继续由 SDK 加载，不安装覆盖 Elicitation 的应用 Hook。
   expect(settings.settingSources).toContain("user");
-  expect(settings.hooks).toBeUndefined();
+  expect(settings.hooks?.Elicitation).toBeUndefined();
+  expect(settings.hooks?.ElicitationResult).toBeUndefined();
   assert(settings.onElicitation);
   const response = settings.onElicitation(
     { serverName: "mcp", message: "登录", mode: "url", url: "https://example.com" },

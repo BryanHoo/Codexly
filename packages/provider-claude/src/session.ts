@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {
   Options,
   Query,
@@ -46,7 +47,7 @@ export async function canResume(
 export function createProjection(
   id: string,
   turnId: string,
-  prompt: ClaudeUserInput,
+  prompt: ClaudeUserInput | undefined,
   emit: AgentProviderEventListener,
 ) {
   const itemChanges = new Map<string, AgentItem>();
@@ -84,6 +85,9 @@ export interface Running {
   closed?: boolean;
   settling?: boolean;
   hasBackgroundSnapshot?: boolean;
+  nativeRunning?: boolean;
+  hasScheduledWakeup?: boolean;
+  createPermissions: (turnId: string) => ClaudePermissions;
 }
 
 /** 单个前台回合顺序入队；保持输入开放，父 result 不得结束 SDK 的 stdin。 */
@@ -113,6 +117,8 @@ export function createInput() {
 export function hasWork(running: Running): boolean {
   return (
     running.projection.status === "running" ||
+    running.nativeRunning === true ||
+    running.hasScheduledWakeup === true ||
     running.backgroundTasks.size > 0 ||
     (!running.hasBackgroundSnapshot &&
       [...running.projections.values()].some((projection) => projection.hasBackgroundWork))
@@ -144,6 +150,28 @@ export function scheduleIdle(running: Running, idleTimeoutMs: number): void {
     }, idleTimeoutMs);
     running.idleTimer.unref();
   }
+}
+
+/** Stop 快照包含 ScheduleWakeup；只观察待唤醒任务，不阻止 Stop 或重复发送提示词。 */
+export function wakeupHooks(getRunning: () => Running | undefined): NonNullable<Options["hooks"]> {
+  return {
+    Stop: [
+      {
+        hooks: [
+          (input) => {
+            if (input.hook_event_name === "Stop") {
+              const active = getRunning();
+              if (active) {
+                active.hasScheduledWakeup = (input.session_crons?.length ?? 0) > 0;
+                scheduleIdle(active, active.idleTimeoutMs);
+              }
+            }
+            return Promise.resolve({});
+          },
+        ],
+      },
+    ],
+  };
 }
 
 export async function persist(
@@ -205,6 +233,38 @@ export async function consume(
         // 首条消息已是终态时，由下方恢复事务一并保存初始化证据，写盘失败不能遮蔽真实结果。
         if (message.type !== "result")
           await config.history.saveMetadata(id, running.projection.metadata());
+      }
+      // SDK 自行消费后台通知或定时唤醒，不会再次经过 startTurn。
+      // 仅主线程活动创建新的展示回合，子代理迟到消息仍归属原回合，且不伪造用户输入。
+      const rootMessage = !value["parent_tool_use_id"] && !value["agent_id"];
+      if (rootMessage && message.type === "system" && message.subtype === "session_state_changed")
+        running.nativeRunning = message.state !== "idle";
+      // 后台工具的审批也会发 requires_action，只保活，不能创建永远等不到 result 的空回合。
+      const startsContinuation =
+        rootMessage &&
+        (message.type === "assistant" ||
+          (message.type === "stream_event" && message.event.type === "message_start") ||
+          (message.type === "system" &&
+            message.subtype === "session_state_changed" &&
+            message.state === "running"));
+      if (running.projection.status !== "running" && startsContinuation) {
+        const turnId = randomUUID();
+        const { projection, itemChanges } = createProjection(id, turnId, undefined, emit);
+        projection.restoreMetadata(running.projection.metadata());
+        running.projection = projection;
+        running.projections.set(turnId, projection);
+        running.itemChanges.set(turnId, itemChanges);
+        running.permissions.set(turnId, running.createPermissions(turnId));
+        clearTimeout(running.idleTimer);
+        running.idleTimer = undefined;
+        await config.history.checkpoint(id, projection.snapshot());
+        await store.catalog("task.patch", { id, status: "active", updatedAt: Date.now() / 1000 });
+        emit({
+          type: "turn.started",
+          taskId: id,
+          turnId,
+          payload: { turn: projection.snapshot() },
+        });
       }
       const projection =
         [...running.projections.values()].find((candidate) => candidate.ownsMessage(message)) ??

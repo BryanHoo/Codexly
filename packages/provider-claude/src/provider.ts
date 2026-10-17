@@ -37,9 +37,7 @@ export const CLAUDE_CAPABILITIES: AgentCapabilities = {
   tasks: { fork: false, list: true, read: true, start: true },
   turns: { compact: false, interrupt: true, review: false, start: true, steer: false },
 };
-
 export type { ClaudeSdk } from "./session.js";
-
 export class ClaudeAgentProvider {
   readonly #listeners = new Set<AgentProviderEventListener>();
   readonly #running = new Map<string, session.Running>();
@@ -192,7 +190,6 @@ export class ClaudeAgentProvider {
     if (task.provider !== "claude") throw new Error("Task belongs to another engine");
     return task;
   }
-
   async startTask(options: StartAgentTaskOptions = {}): Promise<AgentTask> {
     const task: LocalTask = {
       id: `task-${randomUUID()}`,
@@ -355,6 +352,7 @@ export class ClaudeAgentProvider {
           ...(options.model && options.model !== "default" ? { model: options.model } : {}),
           permissionMode,
           allowDangerouslySkipPermissions: permissionMode === "bypassPermissions",
+          hooks: session.wakeupHooks(() => this.#running.get(id)),
           includePartialMessages: true,
           persistSession: true,
           abortController: controller,
@@ -398,6 +396,8 @@ export class ClaudeAgentProvider {
         projections: new Map([[turnId, projection]]),
         itemChanges: new Map([[turnId, itemChanges]]),
         backgroundTasks: new Set(),
+        createPermissions: (nextTurnId) =>
+          new ClaudePermissions(this.scope.id, id, nextTurnId, this.#emit, grants),
         input: inputStream,
         settingsKey,
         done: Promise.resolve(),
