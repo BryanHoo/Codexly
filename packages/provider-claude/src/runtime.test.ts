@@ -46,6 +46,10 @@ it("loads native SDK authentication, merges discovery and refreshes externally c
     getSessionMessages: () => Promise.resolve([]),
   });
 
+  await writeFile(
+    join(user, "settings.json"),
+    JSON.stringify({ env: { ANTHROPIC_DEFAULT_SONNET_MODEL: "gateway-sonnet" } }),
+  );
   const [a, b] = await Promise.all([runtime.inspect(), runtime.inspect()]);
   expect(a).toEqual(b);
   expect(a.connection).toMatchObject({ mode: "official", state: "connected" });
@@ -60,6 +64,11 @@ it("loads native SDK authentication, merges discovery and refreshes externally c
       { id: "max", description: "max" },
     ],
   });
+  // 映射只改变别名目标与展示，不能绕过 SDK 返回的可用目录添加受限模型。
+  expect(a.models.data.map((model) => model.id)).toEqual(["sonnet"]);
+  expect(a.models.data.find((model) => model.id === "sonnet")?.displayName).toContain(
+    "gateway-sonnet",
+  );
   expect(a.commands[0]?.name).toBe("review-project");
   expect(query).toHaveBeenCalledOnce();
   expect(close).toHaveBeenCalledOnce();

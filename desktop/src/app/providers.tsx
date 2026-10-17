@@ -5,8 +5,7 @@ import { Toaster } from "sonner";
 import { ProjectProvider } from "../features/projects/project-context.js";
 import { TaskActivityRestore } from "../features/conversation/runtime/task-activity-restore.js";
 import { createActionMutationCache } from "../features/notifications/action-notifications.js";
-import { ProviderConnectionGate } from "../features/provider-connection/components/provider-connection-gate.js";
-import { CodexRuntimeGate } from "../features/runtime/components/codex-runtime-gate.js";
+import { EngineSetupGate } from "../features/runtime/components/engine-setup-gate.js";
 import { ComposerDraftProvider } from "../features/workbench/composer-draft-context.js";
 import { ProjectDraftProvider } from "../features/workbench/project-draft-context.js";
 import { I18nextProvider, i18n } from "../i18n/i18n.js";
@@ -65,16 +64,14 @@ function AppProviderContent({ children }: AppProvidersProps) {
   const { t } = useTranslation("common");
   return (
     <>
-      <CodexRuntimeGate>
-        <ProviderConnectionGate>
+      <EngineSetupGate>
           <ProjectProvider>
             <TaskActivityRestore />
             <ProjectDraftProvider>
               <ComposerDraftProvider>{children}</ComposerDraftProvider>
             </ProjectDraftProvider>
           </ProjectProvider>
-        </ProviderConnectionGate>
-      </CodexRuntimeGate>
+      </EngineSetupGate>
       <Toaster
         containerAriaLabel={t("app.notificationRegion")}
         duration={5_000}

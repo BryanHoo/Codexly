@@ -1,3 +1,4 @@
+import { PersonalizationInstructionsEditor } from "@codexly/ui/core/personalization-instructions-editor";
 import { SettingsMutationStatus } from "@codexly/ui/core/settings-mutation-status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -54,26 +55,39 @@ export function PersonalizationSettingsPanel({ client = nativeClient }: Readonly
     <section id="settings-panel-personalization" className="space-y-8">
       <h1 className="text-xl font-semibold">{t("sections.personalization")}</h1>
       <SettingsSaveStatus beforeLeave={() => autosave.queue.flush()} status={conflict ? "idle" : autosave.status} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => { void autosave.queue.retry(); }} />
-      <div className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <label className="text-body font-semibold" htmlFor="codex-global-instructions">{t("personalization.instructions")}</label>
-            <p className="mt-1 text-body-small text-muted-foreground">
-              {t("personalization.description")}
-              {instructions.data ? <span className="block break-all">{t("personalization.fileLocation", { path: instructions.data.path })}</span> : null}
-            </p>
-          </div>
-        </div>
-        {instructions.isError ? <p role="alert" className="text-body-small text-danger">{t("personalization.loadError")}</p> : null}
-        {instructions.isPending ? <p role="status">{t("loading")}</p> : null}
-        <textarea id="codex-global-instructions" onBlur={() => { void autosave.queue.flush(); }} className="min-h-56 w-full resize-y rounded-control border border-separator bg-panel p-3 text-body-small focus:shadow-focus focus:outline-none"
-          spellCheck={false} disabled={instructions.data === undefined || instructions.isFetching} value={content}
-          onChange={(event) => { setDraft(event.currentTarget.value); autosave.queue.schedule(event.currentTarget.value); save.reset(); }} />
+      <PersonalizationInstructionsEditor
+        id="codex-global-instructions"
+        label={t("personalization.instructions")}
+        description={
+          <>
+            {t("personalization.description")}
+            {instructions.data ? (
+              <span className="block break-all">
+                {t("personalization.fileLocation", { path: instructions.data.path })}
+              </span>
+            ) : null}
+          </>
+        }
+        beforeEditor={
+          <>
+            {instructions.isError ? <p role="alert" className="text-body-small text-danger">{t("personalization.loadError")}</p> : null}
+            {instructions.isPending ? <p role="status">{t("loading")}</p> : null}
+          </>
+        }
+        onBlur={() => { void autosave.queue.flush(); }}
+        disabled={instructions.data === undefined || instructions.isFetching}
+        value={content}
+        onChange={(event) => {
+          setDraft(event.currentTarget.value);
+          autosave.queue.schedule(event.currentTarget.value);
+          save.reset();
+        }}
+      >
         {instructions.data?.overrideActive ? <p className="text-body-small text-muted-foreground">{t("personalization.override")}</p> : null}
         {conflict ? <p role="alert" className="text-body-small text-danger">{t("personalization.conflict")}</p> : null}
         {instructions.isError || conflict ? <Button type="button" variant="ghost" disabled={instructions.isFetching || save.isPending} onClick={() => { void instructions.refetch().then((result) => { if (result.isSuccess) { autosave.queue.discard();
                   setDraft(null); savedContent.current = result.data.content; save.reset(); } }); }}>{t("personalization.reload")}</Button> : null}
-      </div>
+      </PersonalizationInstructionsEditor>
       <div className="space-y-3">
         <SettingsMutationStatus mutation={memoryUpdate} labels={{ saving: t("actions.saving"), saved: t("actions.saved"), saveError: t("errors.save"), retry: t("common:actions.retry") }} onRetry={() => { if (memoryUpdate.variables) memoryUpdate.mutate(memoryUpdate.variables); }} />
         <SettingsGroup title={t("personalization.memories")} description={t("personalization.memoryDescription")}>

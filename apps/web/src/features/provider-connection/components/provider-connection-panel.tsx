@@ -48,7 +48,22 @@ function openOfficialAuthUrl(authUrl: string): void {
 
 export function ProviderConnectionPanel({
   autoSave = false,
-}: Readonly<{ autoSave?: boolean }> = {}) {
+  onConnected,
+  continueLabel,
+}: Readonly<{
+  autoSave?: boolean;
+  onConnected?: (() => void) | undefined;
+  continueLabel?: string | undefined;
+}> = {}) {
+  const connectedRef = useRef(onConnected);
+  connectedRef.current = onConnected;
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
   const queryClient = useQueryClient();
   const connectionQuery = useQuery(providerConnectionQueryOptions());
   const officialLogin = useMutation(startOfficialProviderLoginMutationOptions(queryClient));
@@ -72,6 +87,7 @@ export function ProviderConnectionPanel({
     if (formRef.current.apiKey === value.apiKey) setApiKey("");
     if (formRef.current.baseUrl === value.baseUrl && formRef.current.models === value.models)
       dirty.current = false;
+    if (active.current) connectedRef.current?.();
   });
   const update = (patch: Partial<typeof formRef.current>, immediate = false) => {
     const next = { ...formRef.current, ...patch };
@@ -118,6 +134,11 @@ export function ProviderConnectionPanel({
     };
   }, [queryClient, status]);
 
+  useEffect(() => {
+    if (status?.state === "connected" && status.mode === mode && !dirty.current)
+      connectedRef.current?.();
+  }, [status, mode]);
+
   const isBusy =
     officialLogin.isPending ||
     cancelLogin.isPending ||
@@ -141,6 +162,8 @@ export function ProviderConnectionPanel({
         }}
       />
       <ProviderConnectionPanelView
+        setup={Boolean(onConnected)}
+        continueLabel={continueLabel}
         autoSave={autoSave}
         apiKey={apiKey}
         baseUrl={baseUrl}
@@ -164,6 +187,10 @@ export function ProviderConnectionPanel({
           if (loginId !== undefined) void cancelLogin.mutateAsync(loginId).catch(() => undefined);
         }}
         onConfigureCustom={() => {
+          if (onConnected && !dirty.current && status?.state === "connected") {
+            onConnected();
+            return;
+          }
           if (!autoSave) autosave.queue.save(formRef.current);
           void autosave.queue.flush();
         }}

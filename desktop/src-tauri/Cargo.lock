@@ -753,6 +753,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-util",
+ "toml 1.1.4+spec-1.1.0",
  "uuid",
  "windows-process-platform",
  "winreg 0.56.0",

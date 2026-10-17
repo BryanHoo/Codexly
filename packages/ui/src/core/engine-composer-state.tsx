@@ -1,14 +1,14 @@
+import { useSelectedEngines } from "./engine-selection.js";
 import { useCallback, useEffect, useState } from "react";
 import type { AgentEngine, AgentEngineProfile } from "@codexly/protocol";
 import { resolveComposerEngine } from "@codexly/frontend-core/engine-composer";
 
-function readDraftEngine(scope: string): AgentEngine {
+function readDraftEngine(scope: string, fallback: AgentEngine = "codex"): AgentEngine {
   try {
-    return localStorage.getItem(`codexly:engine-draft:v1:${scope}`) === "claude"
-      ? "claude"
-      : "codex";
+    const saved = localStorage.getItem(`codexly:engine-draft:v1:${scope}`);
+    return saved === "claude" || saved === "codex" ? saved : fallback;
   } catch {
-    return "codex";
+    return fallback;
   }
 }
 
@@ -24,9 +24,11 @@ export function useEngineComposerState(
     load: (engine: AgentEngine) => Promise<AgentEngineProfile>;
   }>,
 ) {
+  const selectedEngines = useSelectedEngines();
+  const preferredEngine = selectedEngines?.[0] ?? "codex";
   const [selection, setSelection] = useState(() => ({
     scope: input.scope,
-    engine: input.initialEngine ?? readDraftEngine(input.scope),
+    engine: input.initialEngine ?? readDraftEngine(input.scope, preferredEngine),
   }));
   const [submitting, setSubmitting] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -47,7 +49,7 @@ export function useEngineComposerState(
   const draftEngine =
     selection.scope === input.scope
       ? selection.engine
-      : (input.initialEngine ?? readDraftEngine(input.scope));
+      : (input.initialEngine ?? readDraftEngine(input.scope, preferredEngine));
   const claudeSupported = input.claudeSupported !== false;
   const key = JSON.stringify([input.scope, claudeSupported, revision]);
   const profile = result?.key === key ? result.profile : undefined;

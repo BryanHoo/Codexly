@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { TauriSidebarClient, type InvokeImplementation } from "./sidebar-client.js";
 
 describe("TauriSidebarClient runtime metadata", () => {
+  it("reads static capabilities without starting an unselected Codex runtime", async () => {
+    const ensureRuntime = vi.fn(async () => undefined);
+    const client = new TauriSidebarClient({ ensureRuntime, invoke: vi.fn() as InvokeImplementation });
+    await expect(client.getCapabilities()).resolves.toMatchObject({ provider: "codex" });
+    expect(ensureRuntime).not.toHaveBeenCalled();
+  });
   it("routes native Codex feedback and advertises the capability", async () => {
     const invoke = vi.fn(async () => ({ status: "sent", taskId: "thread-a" }));
     const client = new TauriSidebarClient({

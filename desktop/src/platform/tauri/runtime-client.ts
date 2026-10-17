@@ -59,7 +59,7 @@ export class TauriRuntimeClient extends TauriCatalogClient {
   }
 
   public async getCapabilities(_options: ReadOptions = {}): Promise<AgentCapabilities> {
-    await this.ensureRuntime();
+    // 静态能力声明不依赖进程；Claude 单引擎启动不能因工作区读取元数据而启动 Codex。
     return {
       feedback: { upload: true },
       goals: { clear: true, read: true, update: true },

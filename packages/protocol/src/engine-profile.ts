@@ -19,6 +19,7 @@ export type AgentCommand = Static<typeof AgentCommandSchema>;
 export const AgentEngineProfileSchema = Type.Object(
   {
     engine: AgentEngineSchema,
+    authType: ConfigureCustomProviderRequestSchema.properties.authType,
     configuredModels: ConfigureCustomProviderRequestSchema.properties.models,
     settings: Type.Optional(ClaudeSettingsSchema),
     capabilities: AgentCapabilitiesSchema,

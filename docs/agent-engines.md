@@ -4,13 +4,33 @@ Codexly 通过应用自己的任务目录保存聊天身份，新聊天可以选
 
 ## 配置与使用
 
-Claude 默认复用运行 Codexly 的本机用户 Claude Code 配置与认证，无需在应用中再次填写 API Key。用户配置目录优先使用 `CLAUDE_CONFIG_DIR`，否则使用 `~/.claude`（Windows 为 `%USERPROFILE%\.claude`）。Web 使用服务端所在机器的用户配置；桌面端使用运行应用的用户配置。SDK 自行读取已有登录、系统钥匙串、`apiKeyHelper`、环境变量及云服务商认证。
+首次进入应用先选择 **Claude**、**Codex** 或 **同时使用**，确认后才开始准备运行环境，再逐个配置所选引擎。桌面 Codex 复用已安装版本或下载缺少的运行时；Claude 使用应用内置资源。Web 使用服务端依赖中已安装的引擎，不在浏览器下载桌面二进制。准备失败可重试，已经准备成功的组件会复用；初始化只配置连接，模型映射和思考强度留在设置中；点击一个主按钮保存并继续，失败保留输入。已有连接会自动跳过初始化，完成标记不随更新失效。没有标记时先恢复原生配置，读取失败提供重试而不视为新用户；保存连接后意外退出也能恢复。桌面探测仅读本地配置，不安装或启动引擎。
 
-**设置 → Claude Agent** 的模型、思考强度、工具权限和允许/禁止规则直接合并保存到用户 `settings.json`；全局指令直接保存到用户 `CLAUDE.md`。其他原生设置（例如 hooks、插件、代理、`permissions.ask`）会保留。项目配置加载开关是 Codexly 自身的偏好，关闭后仍读取用户配置。外部修改文件后，下次读取配置或执行回合会使用新值；重新聚焦设置页时自动刷新，未保存的输入会保留。正在运行的回合不强制重启。
+Claude 仅提供 API 配置：填写服务地址和密钥。官方地址为 `https://api.anthropic.com`；兼容服务必须支持 Anthropic Messages 协议，保存时自动检测 API Key 或 Token 认证，无需手动选择；检测要求服务提供 `/v1/models` 接口。应用不提供 Claude 账号登录。
 
-可选的 API 地址和 API Key 同样写入原生 `settings.json` 的 `env`，可用模型列表写入 `availableModels`，留空则删除该列表覆盖并使用 SDK 目录及本机模型别名。兼容服务必须实现 Anthropic Messages API。密钥不回传到浏览器；同一地址留空保留已有密钥，更换地址必须提供密钥。移除 API 连接会清除用户文件中的 API 地址与密钥，但保留模型和其他配置，已有本机登录或环境认证仍然可用。宿主环境变量遵循 CLI 优先级，应用不会修改终端的环境变量。
+初始化点击“连接并开始使用”，设置页点击“保存连接”。输入和失焦不会保存密钥。普通模型与权限偏好自动保存。完成连接配置不能代替真实请求对密钥、额度及模型权限的验证。
 
-同一设置页还管理新会话默认模型、思考强度、权限模式、全局指令、项目配置加载，以及自动允许/禁止使用的工具规则。中栏只提供当前会话的模型和权限选择。默认值的变更作用于新会话，历史会话自己的模型/权限设置保留；全局指令和工具规则在后续执行时重新读取。
+Claude 默认读取运行 Codexly 的本机用户 Claude Code 配置；已有 API 凭据无需再次填写。用户配置目录优先使用 `CLAUDE_CONFIG_DIR`，否则使用 `~/.claude`（Windows 为 `%USERPROFILE%\.claude`）。Web 使用服务端所在机器的用户配置；桌面端使用运行应用的用户配置。SDK 兼容读取本机已有登录、系统钥匙串、`apiKeyHelper`、环境变量及云服务商认证。
+
+**设置 → Claude Agent** 的模型、思考强度和工具权限直接合并保存到用户 `settings.json`；全局指令直接保存到用户 `CLAUDE.md`。其他原生设置（例如 hooks、插件、代理、`permissions.ask`）会保留。项目配置加载开关是 Codexly 自身的偏好，关闭后仍读取用户配置。外部修改文件后，下次读取配置或执行回合会使用新值；重新聚焦设置页时自动刷新，未保存的输入会保留。正在运行的回合不强制重启。
+
+可选的 API 地址和 API Key 同样写入原生 `settings.json` 的 `env`，连接表单不编辑模型白名单或工具规则，原生文件中已有的 `availableModels` 和权限规则继续保留。兼容服务必须实现 Anthropic Messages API。密钥不回传到浏览器；同一地址留空保留已有密钥，更换地址必须提供新凭据。保存时先验证已有认证方式，认证拒绝后尝试另一种；网络或服务异常不会改写原配置。检测只读取模型列表，不发送生成请求，也不能确认模型调用额度和权限。移除 API 连接会清除用户文件中的 API 地址与密钥，但保留模型和其他配置，已有本机登录或环境认证仍然可用。宿主环境变量遵循 CLI 优先级，应用不会修改终端的环境变量。
+
+### 模型映射与思考强度
+
+“智能体配置”始终展示三个模型映射字段。官方服务通常留空，让 Claude Code 解析推荐版本；网关使用服务商给出的实际模型 ID，不猜测或硬编码版本。
+
+| 档位   | 常见用途                 | 保存位置                             |
+| ------ | ------------------------ | ------------------------------------ |
+| Opus   | 复杂推理与高难度任务     | `env.ANTHROPIC_DEFAULT_OPUS_MODEL`   |
+| Sonnet | 日常编程，平衡质量与速度 | `env.ANTHROPIC_DEFAULT_SONNET_MODEL` |
+| Haiku  | 快速响应与轻量任务       | `env.ANTHROPIC_DEFAULT_HAIKU_MODEL`  |
+
+例如网关提供 `my-coding-model`，可以把 Sonnet 映射为该 ID，再将默认模型选为 Sonnet。只有一个模型时也可以把三个档位映射为同一个 ID。清空映射恢复 Claude 的默认解析。原生 `availableModels` 白名单与映射不同，应用不在连接页面暴露该高级选项。
+
+思考强度是推理投入与响应延迟的取舍，不是固定 Token 数。默认使用模型自己的行为，仅展示 SDK 报告支持的档位；未知能力不会猜测。切换模型会清除不受支持的档位。宿主 `ANTHROPIC_*` 和 `CLAUDE_CODE_EFFORT_LEVEL` 环境变量可能覆盖保存值，界面只显示这些变量的名称，不回传秘密值；应在启动应用的电脑修改变量后重启。
+
+同一设置页还管理新会话默认模型、思考强度、权限模式、全局指令、项目配置加载。中栏只提供当前会话的模型和权限选择。默认值的变更作用于新会话，历史会话自己的模型/权限设置保留；全局指令和工具规则在后续执行时重新读取。
 
 | Claude 权限模式 | 行为                                   |
 | --------------- | -------------------------------------- |
@@ -66,6 +86,10 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 
 ## 调研依据
 
+- [Claude Code 模型配置](https://code.claude.com/docs/en/model-config)：模型别名、白名单、环境变量优先级和运行时支持的 effort。
+- [Claude 思考控制](https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost)：effort 与思考预算的区别、质量与延迟的取舍。
+- [Claude Code 网关](https://code.claude.com/docs/en/llm-gateway)：兼容协议与服务端连接边界。
+
 - [Codex App Server](https://developers.openai.com/codex/app-server)：保留既有结构化执行协议。
 - [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview)、[流式输入](https://code.claude.com/docs/en/agent-sdk/streaming-input)、[审批](https://code.claude.com/docs/en/agent-sdk/user-input)、[会话管理](https://code.claude.com/docs/en/agent-sdk/sessions)：使用官方工具循环、权限回调及持久会话。
 - [流式工具参数](https://code.claude.com/docs/en/agent-sdk/streaming-output)、[子代理事件](https://code.claude.com/docs/en/agent-sdk/subagents)、[用量统计](https://code.claude.com/docs/en/agent-sdk/cost-tracking)：区分工具输入增量、子代理上下文与累计计费用量。
@@ -73,3 +97,5 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 - [CloudCLI](https://github.com/siteboon/claudecodeui)、[Happy](https://github.com/slopus/happy)：社区多引擎客户端的第一手实现参考。本项目复用界面和应用身份，同时保留引擎运行边界，不复制其认证方案或代码。
 
 任务计划通过官方结果中的原生任务 ID 关联，成功返回后更新，支持删除及跨回合恢复。执行会话显式设置 `CLAUDE_CODE_ENABLE_TODO_TOOLS=1`，让默认未开放任务工具的模型也能使用；模型是否创建计划仍取决于任务需要。计划最多展示 128 条，长标题截断仅影响展示。
+
+首次使用界面遵循 [Apple Onboarding 指南](https://developer.apple.com/design/human-interface-guidelines/onboarding)，只要求开始使用所必需的输入；沿用应用的字体、面板、边框和品牌色。

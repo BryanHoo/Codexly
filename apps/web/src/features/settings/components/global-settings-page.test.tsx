@@ -78,7 +78,7 @@ describe("GlobalSettingsPage", () => {
         />,
       );
       expect(markup).toContain(`id="settings-panel-${initialSection}"`);
-      expect(markup).toContain(`aria-label="${field}"`);
+      expect(markup).toContain(field);
       expect(markup).not.toContain(`aria-label="${excluded}"`);
       expect(markup).not.toContain("Codex unavailable");
     },

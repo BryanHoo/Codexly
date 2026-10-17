@@ -1,3 +1,4 @@
+import { detectClaudeAuth } from "./auth-detection.js";
 import { ClaudeAttachments } from "./attachments.js";
 import { ClaudeHistory } from "./history.js";
 import { ClaudePersistence } from "./persistence.js";
@@ -129,7 +130,23 @@ export class ClaudeConfiguration {
     ]);
     const env = this.#environment(native),
       permissions = object(native["permissions"]);
+    const modelAliases = Object.fromEntries(
+      (["opus", "sonnet", "haiku"] as const).map((alias) => [
+        alias,
+        text(env[`ANTHROPIC_DEFAULT_${alias.toUpperCase()}_MODEL`]) ?? "",
+      ]),
+    );
+    // 只投影覆盖来源的名称，绝不把宿主环境中的认证值返回给浏览器。
+    const environmentOverrides = Object.keys(process.env).filter(
+      (key) =>
+        Boolean(process.env[key]) &&
+        /^(?:ANTHROPIC_(?:API_KEY|AUTH_TOKEN|BASE_URL|MODEL|DEFAULT_(?:OPUS|SONNET|HAIKU)_MODEL)|CLAUDE_CODE_EFFORT_LEVEL)$/.test(
+          key,
+        ),
+    );
     const settings = {
+      ...(environmentOverrides.length ? { environmentOverrides } : {}),
+      modelAliases,
       model: text(env["ANTHROPIC_MODEL"]) ?? text(native["model"]) ?? DEFAULT_CLAUDE_SETTINGS.model,
       reasoningEffort: text(env["CLAUDE_CODE_EFFORT_LEVEL"]) ?? text(native["effortLevel"]) ?? "",
       permissionMode: permissions["defaultMode"] ?? "default",
@@ -192,6 +209,15 @@ export class ClaudeConfiguration {
       native["effortLevel"] = snapshot.reasoningEffort;
     else delete native["effortLevel"];
     const env = { ...object(native["env"]) };
+    // 三个档位只写入官方别名变量，不再把映射目标误当成 availableModels 白名单。
+    if (snapshot.modelAliases) {
+      for (const alias of ["opus", "sonnet", "haiku"] as const) {
+        const key = `ANTHROPIC_DEFAULT_${alias.toUpperCase()}_MODEL`;
+        const value = snapshot.modelAliases[alias].trim();
+        if (value) env[key] = value;
+        else Reflect.deleteProperty(env, key);
+      }
+    }
     if ("ANTHROPIC_MODEL" in env) env["ANTHROPIC_MODEL"] = snapshot.model;
     if (snapshot.reasoningEffort === "max" || "CLAUDE_CODE_EFFORT_LEVEL" in env) {
       if (snapshot.reasoningEffort) env["CLAUDE_CODE_EFFORT_LEVEL"] = snapshot.reasoningEffort;
@@ -212,16 +238,6 @@ export class ClaudeConfiguration {
     const apiKey = text(env["ANTHROPIC_API_KEY"]),
       authToken = text(env["ANTHROPIC_AUTH_TOKEN"]);
     const models = strings(native["availableModels"]);
-    if (!models.length) {
-      for (const [key, value] of Object.entries(env)) {
-        if (
-          /^ANTHROPIC_(?:MODEL|DEFAULT_.*_MODEL)$/u.test(key) &&
-          typeof value === "string" &&
-          value.trim()
-        )
-          models.push(value);
-      }
-    }
     if (!apiKey && !authToken && !models.length && !text(env["ANTHROPIC_BASE_URL"]))
       return undefined;
     return {
@@ -298,16 +314,45 @@ export class ClaudeConfiguration {
       return Promise.reject(new Error("Invalid Claude connection configuration"));
     const snapshot = structuredClone(input);
     return this.#enqueue(async () => {
-      const baseUrl = normalizeEndpoint(snapshot.baseUrl),
-        native = await this.#native();
+      const baseUrl = normalizeEndpoint(snapshot.baseUrl);
       const previous = await this.credentials();
-      const apiKey =
+      // 切换地址或认证头必须重新提供凭据，避免把旧服务的密钥发给新服务。
+      const previousType = previous?.authToken && !previous.apiKey ? "authToken" : "apiKey";
+      const sameEndpoint = previous?.baseUrl.replace(/\/+$/u, "") === baseUrl;
+      const automatic = snapshot.authType === "auto";
+      let authType = automatic
+        ? sameEndpoint
+          ? previousType
+          : "apiKey"
+        : (snapshot.authType ?? previousType);
+      const secret =
         text(snapshot.apiKey?.trim()) ??
-        (previous?.baseUrl === baseUrl ? previous.apiKey : undefined);
-      const authToken =
-        !snapshot.apiKey?.trim() && previous?.baseUrl === baseUrl ? previous.authToken : undefined;
-      if (!apiKey && !authToken && baseUrl !== (previous?.baseUrl ?? "https://api.anthropic.com"))
-        throw new Error("An explicit Claude API key is required for this endpoint");
+        (sameEndpoint
+          ? authType === "authToken"
+            ? previous.authToken
+            : previous.apiKey
+          : undefined);
+      if (
+        !secret &&
+        (baseUrl !== (previous?.baseUrl ?? "https://api.anthropic.com") ||
+          (snapshot.authType && snapshot.authType !== previousType))
+      )
+        throw new Error(
+          "An explicit Claude credential is required when changing endpoint or authentication type",
+        );
+      if (automatic) {
+        if (!secret) throw new Error("Enter a Claude access credential.");
+        // 检测成功前不修改磁盘；失败时保留原连接以及所有原生配置。
+        authType = await detectClaudeAuth(
+          baseUrl,
+          secret,
+          authType === "authToken" ? "authToken" : "apiKey",
+        );
+      }
+      const apiKey = authType === "apiKey" ? secret : undefined;
+      const authToken = authType === "authToken" ? secret : undefined;
+      // 网络检测后重新合并原生文件，保留检测期间外部更新的非连接配置。
+      const native = await this.#native();
       const env = { ...object(native["env"]), ANTHROPIC_BASE_URL: baseUrl };
       delete (env as JsonObject)["ANTHROPIC_API_KEY"];
       delete (env as JsonObject)["ANTHROPIC_AUTH_TOKEN"];

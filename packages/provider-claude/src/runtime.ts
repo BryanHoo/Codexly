@@ -111,11 +111,18 @@ export class ClaudeRuntime implements AgentEngineService {
       if (!configured.length && defaults.model !== "default" && !ids.includes(defaults.model))
         ids.unshift(defaults.model);
       const data = ids.map((id, index) => {
-        const model = models.find((candidate) => candidate.value === id);
+        const mapped = defaults.modelAliases?.[id as "opus" | "sonnet" | "haiku"];
+        // 优先使用运行时报告的别名能力；自定义 ID 不根据名称猜测思考档位。
+        const model =
+          models.find((candidate) => candidate.value === id) ??
+          (mapped ? models.find((candidate) => candidate.value === mapped) : undefined);
         return {
           id,
-          displayName:
-            model?.displayName ?? configured.find((candidate) => candidate.id === id)?.name ?? id,
+          displayName: mapped
+            ? `${id.charAt(0).toUpperCase()}${id.slice(1)} → ${mapped}`
+            : (model?.displayName ??
+              configured.find((candidate) => candidate.id === id)?.name ??
+              id),
           description: model?.description ?? "",
           isDefault: defaults.model === "default" ? index === 0 : id === defaults.model,
           defaultReasoningEffort: "",
@@ -134,6 +141,7 @@ export class ClaudeRuntime implements AgentEngineService {
       const connection = authenticated ? { ...status, state: "connected" as const } : status;
       return {
         engine: "claude",
+        authType: credentials?.authToken && !credentials.apiKey ? "authToken" : "apiKey",
         capabilities: CLAUDE_CAPABILITIES,
         connection,
         settings: await this.readSettings(),

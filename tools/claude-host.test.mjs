@@ -24,6 +24,17 @@ test(
       void (async () => {
         let raw = "";
         for await (const chunk of request) raw += chunk;
+        // 真实宿主必须在认证拒绝后切换到 Bearer，并且只保存检测成功的凭据。
+        if (request.url.startsWith("/v1/models")) {
+          response.setHeader("content-type", "application/json");
+          if (request.headers.authorization !== "Bearer detected-token") {
+            response.writeHead(401);
+            response.end("{}");
+            return;
+          }
+          response.end(JSON.stringify({ data: [{ id: "claude-sonnet-4-6" }] }));
+          return;
+        }
         if (request.url.includes("count_tokens")) {
           response.setHeader("content-type", "application/json");
           response.end('{"input_tokens":10}');
@@ -444,8 +455,12 @@ test(
       await host.request("configure", {
         baseUrl: `http://127.0.0.1:${api.address().port}`,
         models: [],
+        authType: "auto",
+        apiKey: "detected-token",
       });
-      assert.deepEqual((await host.request("profile")).configuredModels, []);
+      const detectedProfile = await host.request("profile");
+      assert.deepEqual(detectedProfile.configuredModels, []);
+      assert.equal(detectedProfile.authType, "authToken");
       await host.request("disconnect");
       assert.equal((await host.request("profile")).connection.state, "disconnected");
       assert.equal((await host.request("settings.read")).instructions, "Always test");

@@ -28,6 +28,69 @@ async function setup() {
 }
 
 describe("Claude native user configuration", () => {
+  it("round trips the three model aliases without turning them into an allowlist", async () => {
+    const { user, config } = await setup();
+    const modelAliases = { opus: "gateway-opus", sonnet: "gateway-sonnet", haiku: "gateway-haiku" };
+    await config.writeSettings({ ...DEFAULT_CLAUDE_SETTINGS, modelAliases });
+    expect((await config.readSettings()).modelAliases).toEqual(modelAliases);
+    const native = JSON.parse(await readFile(join(user, "settings.json"), "utf8")) as {
+      env: Record<string, unknown>;
+      availableModels?: string[];
+    };
+    expect(native.env).toMatchObject({
+      ANTHROPIC_DEFAULT_OPUS_MODEL: "gateway-opus",
+      ANTHROPIC_DEFAULT_SONNET_MODEL: "gateway-sonnet",
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: "gateway-haiku",
+    });
+    expect(native.availableModels).toBeUndefined();
+    expect((await config.credentials())?.models ?? []).toEqual([]);
+    await config.writeSettings({
+      ...DEFAULT_CLAUDE_SETTINGS,
+      modelAliases: { opus: "", sonnet: "", haiku: "" },
+    });
+    expect(
+      (
+        JSON.parse(await readFile(join(user, "settings.json"), "utf8")) as {
+          env: Record<string, unknown>;
+        }
+      ).env,
+    ).not.toHaveProperty("ANTHROPIC_DEFAULT_OPUS_MODEL");
+  });
+
+  it("switches API key and bearer authentication without retaining the previous secret", async () => {
+    const { user, config } = await setup();
+    await config.configure({
+      baseUrl: "https://gateway.example",
+      apiKey: "first",
+      authType: "apiKey",
+    });
+    await expect(
+      config.configure({ baseUrl: "https://gateway.example", authType: "authToken" }),
+    ).rejects.toThrow();
+    await config.configure({
+      baseUrl: "https://gateway.example",
+      apiKey: "second",
+      authType: "authToken",
+    });
+    const native = JSON.parse(await readFile(join(user, "settings.json"), "utf8")) as {
+      env: Record<string, unknown>;
+      availableModels?: string[];
+    };
+    expect(native.env["ANTHROPIC_AUTH_TOKEN"]).toBe("second");
+    expect(native.env["ANTHROPIC_API_KEY"]).toBeUndefined();
+  });
+
+  it("reports host environment overrides by name without disclosing secrets", async () => {
+    const { config } = await setup();
+    vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "private-override-token");
+    vi.stubEnv("CLAUDE_CODE_EFFORT_LEVEL", "high");
+    const settings = await config.readSettings();
+    expect(settings.environmentOverrides).toEqual(
+      expect.arrayContaining(["ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_EFFORT_LEVEL"]),
+    );
+    expect(JSON.stringify(settings)).not.toContain("private-override-token");
+  });
+
   it.each(["auto", "future-native-mode"])(
     "preserves unsupported native mode %s when saving other settings",
     async (mode) => {

@@ -15,6 +15,19 @@ export type ClaudePermissionMode = Static<typeof ClaudePermissionModeSchema>;
 
 export const ClaudeSettingsSchema = Type.Object(
   {
+    environmentOverrides: Type.Optional(
+      Type.Array(Type.String({ maxLength: 128 }), { maxItems: 32 }),
+    ),
+    modelAliases: Type.Optional(
+      Type.Object(
+        {
+          opus: Type.String({ maxLength: 256 }),
+          sonnet: Type.String({ maxLength: 256 }),
+          haiku: Type.String({ maxLength: 256 }),
+        },
+        { additionalProperties: false },
+      ),
+    ),
     model: Type.String({ minLength: 1, maxLength: 256 }),
     reasoningEffort: Type.Union([
       Type.Literal(""),
@@ -40,6 +53,7 @@ export const ClaudeSettingsSchema = Type.Object(
 );
 export type ClaudeSettings = Static<typeof ClaudeSettingsSchema>;
 export const DEFAULT_CLAUDE_SETTINGS: ClaudeSettings = {
+  modelAliases: { opus: "", sonnet: "", haiku: "" },
   model: "default",
   reasoningEffort: "",
   permissionMode: "default",

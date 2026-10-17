@@ -76,6 +76,7 @@ fn main() {
         "start_official_provider_login",
         "cancel_provider_login",
         "claude_engine_request",
+        "get_configured_engines",
         "configure_custom_provider",
         "logout_provider",
         "get_global_settings",
