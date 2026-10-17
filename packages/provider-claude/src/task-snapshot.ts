@@ -33,6 +33,7 @@ export async function readClaudeTaskSnapshot({
 }): Promise<AgentProviderTaskSnapshot> {
   const id = task.id;
   const last = current?.projection.snapshot() ?? recent.get(id);
+  const live = new Map<string, AgentTurn>();
   const continuation = await readClaudeHistoryPage(config.history, id, input.cursor);
   const page = continuation ?? (await config.history.read(id, input.cursor));
   const turns = page.turns;
@@ -40,12 +41,15 @@ export async function readClaudeTaskSnapshot({
   if (current && input.cursor === undefined) {
     for (const projection of current.projections.values()) {
       const turn = projection.snapshot();
-      await config.history.saveItems(id, turn.id, turn.items);
+      live.set(turn.id, turn);
       const index = turns.findIndex((entry) => entry.id === turn.id);
       if (index >= 0) turns[index] = turn;
       else turns.push(turn);
     }
   }
+  // 先捕获投影，再等待这批结构化记录已提交的版本；不把读取挂入写队列。
+  // 后续 Token 和写入继续消费，快照覆盖边界由两端共用的事件 revision 校验。
+  await config.history.barrier(id);
   const metadata =
     recovery?.metadata ?? current?.projection.metadata() ?? (await config.history.metadata(id));
   if (!current && input.cursor === undefined) {
@@ -54,13 +58,16 @@ export async function readClaudeTaskSnapshot({
       recovered &&
       !recovery?.turns.some((turn) => turn.id === recovered.id) &&
       !turns.some((turn) => turn.id === recovered.id)
-    )
-      turns.push({
+    ) {
+      const failed: AgentTurn = {
         ...recovered,
         status: "failed",
         error: "Claude process ended before completing this turn",
         completedAt: null,
-      });
+      };
+      await config.history.recoverTurnMetadata(id, failed);
+      turns.push(failed);
+    }
   }
   if (last && input.cursor === undefined) {
     const index = turns.findIndex((turn) => turn.id === last.id);
@@ -91,7 +98,8 @@ export async function readClaudeTaskSnapshot({
     await store.catalog("task.patch", { id, status: task.status });
   }
   const visible =
-    continuation ?? (await paginateClaudeTurns(config.history, id, turns, nextCursor));
+    continuation ??
+    (await paginateClaudeTurns(config.history, id, turns, nextCursor, undefined, live));
   return {
     ...claudeTask(task),
     contextUsage: metadata?.contextUsage ?? null,

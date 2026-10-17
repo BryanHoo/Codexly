@@ -12,6 +12,7 @@ import {
 import { join } from "node:path";
 import type { AgentContextUsage, AgentMcpServer, AgentPlan, AgentTurn } from "@codexly/protocol";
 import { ClaudeItemHistory } from "./item-history.js";
+import { HistoryRevisions } from "./history-revisions.js";
 import type { AgentItem } from "@codexly/protocol";
 import type { ClaudePlanTask } from "./task-plan.js";
 
@@ -40,6 +41,11 @@ const missing = (error: unknown) =>
 export class ClaudeHistory {
   readonly #writes = new Map<string, Promise<void>>();
   readonly items: ClaudeItemHistory;
+  readonly #revisions = new HistoryRevisions<string>(512);
+  /** 读取仅等待调用瞬间已入队的版本，不加入写队列，也不追赶后续 SDK 写入。 */
+  barrier(task: string): Promise<void> {
+    return this.#writes.get(task) ?? Promise.resolve();
+  }
   constructor(readonly directory: string) {
     this.items = new ClaudeItemHistory(join(directory, "items"));
   }
@@ -49,6 +55,7 @@ export class ClaudeHistory {
   /** 排在已有写入之后清理全部任务文件，包含恢复记录、迟到回合覆盖与临时文件。 */
   deleteTask(task: string): Promise<void> {
     return this.#write(task, async () => {
+      this.#revisions.deletePrefix(`${this.#path(task)}.`);
       await this.items.deleteTask(task);
       let directory;
       try {
@@ -65,12 +72,20 @@ export class ClaudeHistory {
       }
     });
   }
-  /** 旧版快照按需建立索引；恢复出的失败状态也必须应用到续页元数据。 */
-  prepareItemHistory(task: string, turn: AgentTurn): Promise<void> {
-    return this.#write(task, async () => {
-      if (await this.items.read(task, turn.id, 0)) await this.items.saveMetadata(task, turn);
-      else await this.items.saveTurn(task, turn);
+  /** 旧版快照按需建立索引，新格式分页只探测就绪状态。 */
+  async prepareItemHistory(task: string, turn: AgentTurn): Promise<void> {
+    // 新格式探测是只读操作；仅索引或元数据缺失时进入写队列，入队后再检查以合并并发迁移。
+    if (await this.items.indexed(task, turn.id)) return;
+    await this.#write(task, async () => {
+      if (!(await this.items.indexed(task, turn.id))) {
+        this.items.invalidate(task, turn.id);
+        await this.items.saveTurn(task, turn);
+      }
     });
+  }
+  /** 无活动 SDK 的崩溃恢复只修正一次小元数据，不能再刷全部正文。 */
+  recoverTurnMetadata(task: string, turn: AgentTurn): Promise<void> {
+    return this.#write(task, () => this.items.saveMetadata(task, turn));
   }
   #path(task: string) {
     return join(this.directory, createHash("sha256").update(task).digest("hex"));
@@ -112,6 +127,9 @@ export class ClaudeHistory {
   saveMetadata(task: string, metadata: ClaudeTaskMetadata): Promise<void> {
     return this.#write(task, async () => {
       const encoded = JSON.stringify(metadata);
+      const key = `${this.#path(task)}.metadata`,
+        revision = createHash("sha256").update(encoded).digest("hex");
+      if (this.#revisions.get(key) === revision) return;
       if (Buffer.byteLength(encoded) > 256 * 1024)
         throw new Error("Claude metadata budget exceeded");
       await mkdir(this.directory, { recursive: true, mode: 0o700 });
@@ -119,6 +137,7 @@ export class ClaudeHistory {
       try {
         await writeFile(temporary, encoded, { mode: 0o600 });
         await rename(temporary, `${this.#path(task)}.metadata`);
+        this.#revisions.set(key, revision);
       } finally {
         await rm(temporary, { force: true });
       }
@@ -135,15 +154,22 @@ export class ClaudeHistory {
       throw error;
     }
   }
-  checkpoint(task: string, turn: AgentTurn): Promise<void> {
+  checkpoint(task: string, turn: AgentTurn, dirtyItems?: readonly AgentItem[]): Promise<void> {
     return this.#write(task, async () => {
       const encoded = this.#encode(turn);
-      await this.items.saveTurn(task, turn);
+      const key = `${this.#path(task)}.active`,
+        revision = createHash("sha256").update(encoded).digest("hex");
+      if (this.#revisions.get(key) === revision) return;
+      if (dirtyItems) {
+        if (dirtyItems.length) await this.items.save(task, turn.id, dirtyItems);
+        await this.items.saveMetadata(task, turn);
+      } else await this.items.saveTurn(task, turn);
       await mkdir(this.directory, { recursive: true, mode: 0o700 });
       const temporary = `${this.#path(task)}.${randomUUID()}.tmp`;
       try {
         await writeFile(temporary, encoded, { mode: 0o600 });
         await rename(temporary, `${this.#path(task)}.active`);
+        this.#revisions.set(key, revision);
       } finally {
         await rm(temporary, { force: true });
       }
@@ -163,17 +189,19 @@ export class ClaudeHistory {
       // 已追加但尚未清理就退出时，旧回合仍在最新页；保留已有终态并避免重试重复追加。
       // 内部分页不等待当前写队列，避免在归档操作中等待自身；读取量始终有界。
       const page = await this.#readPage(task);
-      if (!page.turns.some((entry) => entry.id === turn.id)) {
-        const encoded = this.#encode({
-          ...turn,
-          status: "failed",
-          error: "Claude process ended before completing this turn",
-          completedAt: null,
-        });
-        await this.#append(task, encoded);
-      }
+      const archived = page.turns.find((entry) => entry.id === turn.id);
+      const terminal: AgentTurn = archived ?? {
+        ...turn,
+        status: "failed",
+        error: "Claude process ended before completing this turn",
+        completedAt: null,
+      };
+      // 元数据先于追加提交；追加失败后的重试仍沿用同一个终态，续页不会退回 running。
+      await this.items.saveTurn(task, terminal);
+      if (!archived) await this.#append(task, this.#encode(terminal));
       // 仅在归档成功后移除旧检查点；写入失败时保留恢复依据并阻止下一回合覆盖。
       await rm(`${this.#path(task)}.active`, { force: true });
+      this.#revisions.deletePrefix(`${this.#path(task)}.active`);
     });
   }
 
@@ -186,6 +214,7 @@ export class ClaudeHistory {
       const page = await this.#readPage(task);
       if (!page.turns.some((entry) => entry.id === turn.id)) await this.#append(task, encoded);
       await rm(`${this.#path(task)}.active`, { force: true });
+      this.#revisions.deletePrefix(`${this.#path(task)}.active`);
     });
   }
   /** 先原子保存终态与元数据，再提交分页历史；两者未全部成功前保留恢复记录。 */

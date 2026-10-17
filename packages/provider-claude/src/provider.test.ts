@@ -148,7 +148,7 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
   };
 }
 
-it.each(["read", "saveItems", "prepareItemHistory", "itemPage"] as const)(
+it.each(["read", "barrier", "prepareItemHistory", "itemPage"] as const)(
   "captures completion and approvals consistently across the %s history boundary",
   async (boundary) => {
     const h = await harness(undefined, 60_000);
@@ -179,8 +179,8 @@ it.each(["read", "saveItems", "prepareItemHistory", "itemPage"] as const)(
       let paused = false;
       vi.spyOn(history.items, "read").mockImplementation(async (...args) => {
         const page = await original(...args);
-        // prepareItemHistory 的 before=0 是写队列内的索引探测，只挂起真正的分页读取。
-        if (args[2] === 0 || paused) return page;
+        // 索引就绪探测使用独立只读接口，这里仅挂起第一次真实分页。
+        if (paused) return page;
         paused = true;
         entered.resolve(undefined);
         await release.promise;
@@ -189,9 +189,9 @@ it.each(["read", "saveItems", "prepareItemHistory", "itemPage"] as const)(
     } else if (boundary === "read") {
       const original = history.read.bind(history);
       vi.spyOn(history, "read").mockImplementationOnce((...args) => pause(original(...args)));
-    } else if (boundary === "saveItems") {
-      const original = history.saveItems.bind(history);
-      vi.spyOn(history, "saveItems").mockImplementationOnce((...args) => pause(original(...args)));
+    } else if (boundary === "barrier") {
+      const original = history.barrier.bind(history);
+      vi.spyOn(history, "barrier").mockImplementationOnce((...args) => pause(original(...args)));
     } else {
       const original = history.prepareItemHistory.bind(history);
       vi.spyOn(history, "prepareItemHistory").mockImplementationOnce((...args) =>
@@ -2045,3 +2045,108 @@ it.each(["completed", "failed", "stopped"] as const)(
     expect(h.provider.isBusy).toBe(false);
   },
 );
+
+it("reads active tasks without saving the live projection again", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  const save = vi.spyOn(h.config.history, "saveItems");
+  const metadata = vi.spyOn(h.config.history.items, "saveMetadata");
+  for (let i = 0; i < 3; i++) {
+    const snapshot = await h.provider.readTask(task.id);
+    expect(snapshot?.turns.at(-1)?.items[0]).toMatchObject({ text: "hello" });
+  }
+  expect(save).not.toHaveBeenCalled();
+  expect(metadata).not.toHaveBeenCalled();
+});
+
+// 磁盘突发测量由专用脚本显式开启，避免常规并发回归的负载污染延迟分位数。
+it.skipIf(process.env["CODEXLY_MEASURE_CLAUDE_HISTORY_IO"] !== "1")(
+  "reports SDK receive-to-publication p95/p99 while active task reads run concurrently",
+  async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const active = await h.provider.startTurn(task.id, prompt, options);
+    // 一次结构化 SDK 消息填充稳定历史；等待消费器完成保存后再计量。
+    const times = new Map<string, number>(),
+      latencies: number[] = [];
+    let warm = false;
+    h.provider.subscribeEvents((event) => {
+      if (event.type !== "item.completed") return;
+      if (event.itemId === "ready:0") warm = true;
+      const received = times.get(event.itemId);
+      if (received !== undefined) latencies.push(performance.now() - received);
+    });
+    h.send({
+      type: "assistant",
+      message: {
+        id: "history",
+        content: Array.from({ length: 512 }, () => ({ type: "text", text: "x".repeat(200) })),
+      },
+    });
+    h.send({
+      type: "assistant",
+      message: { id: "ready", content: [{ type: "text", text: "ready" }] },
+    });
+    await vi.waitFor(
+      () => {
+        expect(warm).toBe(true);
+      },
+      { timeout: 20_000 },
+    );
+    // saveItems 队列屏障确保预写完成，避免把冷启动混入稳定态统计。
+    await h.config.history.barrier(task.id);
+    const reading = Promise.all(Array.from({ length: 4 }, () => h.provider.readTask(task.id)));
+    for (let i = 0; i < 128; i++) {
+      const id = `latency-${String(i)}`;
+      times.set(`${id}:0`, performance.now());
+      h.send({
+        type: "assistant",
+        message: { id, content: [{ type: "text", text: `new-${String(i)}` }] },
+      });
+    }
+    await reading;
+    await vi.waitFor(
+      () => {
+        expect(latencies).toHaveLength(128);
+      },
+      { timeout: 20_000 },
+    );
+    latencies.sort((a, b) => a - b);
+    const metrics = {
+      samples: latencies.length,
+      p95Ms: latencies[Math.ceil(latencies.length * 0.95) - 1],
+      p99Ms: latencies[Math.ceil(latencies.length * 0.99) - 1],
+    };
+    console.info("claude-sdk-publication", JSON.stringify(metrics));
+    expect(metrics.p99Ms).toBeLessThan(5_000);
+    await h.provider.interruptTurn(task.id, active.id);
+  },
+);
+
+it("keeps crashed-turn continuation metadata failed without resaving item bodies", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const value: AgentTurn = {
+    id: "crashed",
+    status: "running",
+    startedAt: null,
+    completedAt: null,
+    error: null,
+    items: Array.from({ length: 110 }, (_, i) => ({
+      id: `crashed-${String(i)}`,
+      type: "message",
+      role: "assistant",
+      text: "saved",
+    })),
+  };
+  await h.config.history.checkpoint(task.id, value);
+  const save = vi.spyOn(h.config.history.items, "save");
+  const first = await h.provider.readTask(task.id);
+  assert(first?.turnsNextCursor);
+  expect(first.turns[0]?.status).toBe("failed");
+  const older = await h.provider.readTask(task.id, { cursor: first.turnsNextCursor });
+  expect(older?.turns[0]?.status).toBe("failed");
+  expect(older?.turns[0]?.items).toHaveLength(10);
+  expect(save).not.toHaveBeenCalled();
+});

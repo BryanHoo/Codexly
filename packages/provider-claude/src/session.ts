@@ -178,18 +178,55 @@ export function wakeupHooks(getRunning: () => Running | undefined): NonNullable<
   };
 }
 
+// WeakMap 的生命周期跟随运行投影，避免历史回合版本在宿主中永久累积。
+const savedProjections = new WeakMap<ClaudeTurnProjection, number>();
+const savedMetadata = new WeakMap<Running, string>();
+
+/** 捕获调用时版本，写入成功后只确认该版本，不能吞掉 await 期间新到达的 Token。 */
+export async function checkpoint(
+  id: string,
+  projection: ClaudeTurnProjection,
+  config: ClaudeConfiguration,
+): Promise<void> {
+  const revision = projection.changes.revision;
+  if (savedProjections.get(projection) === revision) return;
+  const items = projection.changes.pendingItems();
+  await config.history.checkpoint(
+    id,
+    projection.snapshot(),
+    savedProjections.has(projection) ? items : undefined,
+  );
+  projection.changes.confirmItems(items);
+  savedProjections.set(projection, revision);
+}
+
 export async function persist(
   id: string,
   running: Running,
   config: ClaudeConfiguration,
 ): Promise<void> {
   const entries: ClaudeRecovery["entries"] = [];
+  const versions = new Map<ClaudeTurnProjection, number>();
   for (const projection of running.projections.values()) {
-    if (projection.status === "running") await config.history.checkpoint(id, projection.snapshot());
-    else entries.push({ turn: projection.snapshot(), mode: "update" });
+    if (savedProjections.get(projection) === projection.changes.revision) continue;
+    if (projection.status === "running") await checkpoint(id, projection, config);
+    else {
+      versions.set(projection, projection.changes.revision);
+      entries.push({ turn: projection.snapshot(), mode: "update" });
+    }
   }
-  if (entries.length) await persistTerminals(id, running, config, entries);
-  else await config.history.saveMetadata(id, running.projection.metadata());
+  const metadata = running.projection.metadata(),
+    encoded = JSON.stringify(metadata);
+  if (entries.length) {
+    await persistTerminals(id, running, config, entries);
+    if (!config.persistence.hasPending(id)) {
+      for (const [projection, revision] of versions) savedProjections.set(projection, revision);
+      savedMetadata.set(running, encoded);
+    }
+  } else if (savedMetadata.get(running) !== encoded) {
+    await config.history.saveMetadata(id, metadata);
+    savedMetadata.set(running, encoded);
+  }
 }
 
 /** 只更新独立的持久化状态，SDK 已给出的成功、失败或中断结果始终保持原样。 */
@@ -200,7 +237,9 @@ async function persistTerminal(
   projection: ClaudeTurnProjection,
   mode: "complete" | "update" = "complete",
 ): Promise<void> {
+  const revision = projection.changes.revision;
   await persistTerminals(id, running, config, [{ turn: projection.snapshot(), mode }]);
+  if (!config.persistence.hasPending(id)) savedProjections.set(projection, revision);
 }
 
 async function persistTerminals(
@@ -267,7 +306,7 @@ export async function consume(
         running.permissions.set(turnId, running.createPermissions(turnId));
         clearTimeout(running.idleTimer);
         running.idleTimer = undefined;
-        await config.history.checkpoint(id, projection.snapshot());
+        await checkpoint(id, projection, config);
         await store.catalog("task.patch", { id, status: "active", updatedAt: Date.now() / 1000 });
         emit({
           type: "turn.started",
@@ -285,8 +324,10 @@ export async function consume(
       // 仅落盘结构化块和工具状态，Token 增量不产生磁盘写入；消费器背压限制待写内存。
       const changes = running.itemChanges.get(projection.id);
       if (changes?.size) {
-        await config.history.saveItems(id, projection.id, [...changes.values()]);
-        changes.clear();
+        const batch = [...changes.values()];
+        await config.history.saveItems(id, projection.id, batch);
+        projection.changes.confirmItems(batch);
+        for (const item of batch) if (changes.get(item.id) === item) changes.delete(item.id);
       }
       if (message.type === "system" && message.subtype === "init")
         void refreshClaudeContext(running.query, projection, true);

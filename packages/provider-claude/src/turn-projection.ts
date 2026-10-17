@@ -19,6 +19,8 @@ import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexl
 import { createClaudeUserItem, type ClaudeUserInput } from "./turn-input.js";
 import type { ClaudeTaskMetadata } from "./history.js";
 import { record, text, resultText, displayClaudeMessage } from "./sdk-values.js";
+import { changedClaudeUsage } from "./projection-usage.js";
+import { ClaudeProjectionChanges } from "./projection-changes.js";
 import { ClaudeBackgroundTasks } from "./background-tasks.js";
 import { ClaudeTaskPlan } from "./task-plan.js";
 export { record } from "./sdk-values.js";
@@ -34,6 +36,7 @@ export class ClaudeTurnProjection {
   readonly #children = new Map<string, ClaudeTurnProjection>();
   readonly #taskPlan = new ClaudeTaskPlan();
   #closed = false;
+  readonly changes: ClaudeProjectionChanges;
   #lastBlockIndex = 0;
   #model = "";
   contextUsage: AgentContextUsage | null = null;
@@ -55,11 +58,12 @@ export class ClaudeTurnProjection {
     paginated = false,
     public backgroundTasks = new ClaudeBackgroundTasks(),
   ) {
+    this.changes = new ClaudeProjectionChanges(paginated);
     this.#items = new ClaudeRenderingBuffer(previewBytes, id, paginated);
     this.#taskId = taskId;
     this.#id = id;
     this.#emit = emit;
-    if (prompt !== undefined) this.#items.set(createClaudeUserItem(id, prompt));
+    if (prompt !== undefined) this.changes.touch(this.#items.set(createClaudeUserItem(id, prompt)));
   }
   get status() {
     return this.#status;
@@ -119,6 +123,7 @@ export class ClaudeTurnProjection {
   #item(item: AgentItem, completed: boolean): void {
     const exists = this.#items.has(item.id);
     item = this.#items.set(item);
+    this.changes.touch(item);
     if (completed || !exists || item.type === "tool")
       this.#emit({
         type: completed ? "item.completed" : "item.started",
@@ -226,21 +231,14 @@ export class ClaudeTurnProjection {
     }
   }
   updateContextUsage(usage: AgentContextUsage): void {
-    // SDK 暂无统计时可能返回零；保留上次有效用量，但仍接收窗口补全和压缩后的非零统计。
-    if (usage.usedTokens === 0 && this.contextUsage && this.contextUsage.usedTokens > 0) {
-      usage = { ...usage, usedTokens: this.contextUsage.usedTokens };
-    }
-    if (
-      this.contextUsage?.usedTokens === usage.usedTokens &&
-      this.contextUsage.contextWindow === usage.contextWindow
-    )
-      return;
-    this.contextUsage = usage;
+    const changed = changedClaudeUsage(this.contextUsage, usage);
+    if (!changed) return;
+    this.contextUsage = changed;
     this.#emit({
       type: "usage.updated",
       taskId: this.#taskId,
       turnId: this.#id,
-      payload: { usage },
+      payload: { usage: changed },
     });
   }
   #usage(value: unknown): void {
@@ -349,6 +347,7 @@ export class ClaudeTurnProjection {
           return;
         const update = this.#items.appendText(id, addition);
         if (!update) return;
+        this.changes.touch(update.item);
         if (update.delta === null) {
           this.#emit({
             type: "item.started",
@@ -469,6 +468,7 @@ export class ClaudeTurnProjection {
     if (this.#status !== "running") return;
     // 先提交终态，阻断子代理收尾通知重入父级结束路径。
     this.#status = status;
+    this.changes.touch();
     this.#taskPlan.clearPending();
     this.#error = error ? previewText(error, 8192) : null;
     this.#completedAt = new Date().toISOString();

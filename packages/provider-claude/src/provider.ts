@@ -326,7 +326,7 @@ export class ClaudeAgentProvider {
         existing.idleTimer = undefined;
         projection.backgroundTasks = existing.backgroundTasks;
         projection.restoreMetadata(existing.projection.metadata());
-        await this.config.history.checkpoint(id, projection.snapshot());
+        await session.checkpoint(id, projection, this.config);
         existing.projection = projection;
         existing.projections.set(turnId, projection);
         existing.itemChanges.set(turnId, itemChanges);
@@ -343,7 +343,7 @@ export class ClaudeAgentProvider {
       // 启动失败但未收到 SDK 消息时保留 false，允许下次仍以原 UUID 首次创建。
       projection.sessionInitialized ||= resumable;
       await this.config.history.saveMetadata(id, projection.metadata());
-      await this.config.history.checkpoint(id, projection.snapshot());
+      await session.checkpoint(id, projection, this.config);
       const inputStream = session.createInput();
       const stream = this.sdk.query({
         prompt: inputStream,

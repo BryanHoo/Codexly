@@ -2,6 +2,7 @@ import type { AgentTurn } from "@codexly/protocol";
 import type { ClaudeHistory } from "./history.js";
 import { record } from "./sdk-values.js";
 import { CLAUDE_HISTORY_PAGE_BYTES } from "./item-history.js";
+import { overlayClaudeItems } from "./history-overlay.js";
 
 const PREFIX = "claude-items:";
 interface Pending {
@@ -65,6 +66,7 @@ export async function paginateClaudeTurns(
   turns: AgentTurn[],
   older: string | null,
   pending?: Pending[],
+  live?: ReadonlyMap<string, AgentTurn>,
 ): Promise<ClaudeHistoryPage> {
   // 当前回合页里的旧快照也可能稍后才续读，先准备其索引与恢复状态，避免游标指向不存在的元数据。
   for (const turn of turns) await history.prepareItemHistory(task, turn);
@@ -77,8 +79,14 @@ export async function paginateClaudeTurns(
     const entry = remaining[index];
     if (!entry) break;
     const turn = byId.get(entry.turnId) ?? (await history.items.turn(task, entry.turnId));
-    const page = await history.items.read(task, turn.id, entry.before, budget, limit);
-    if (!page) throw new Error("Claude history items are unavailable");
+    const stored = await history.items.read(task, turn.id, entry.before, budget, limit);
+    if (!stored) throw new Error("Claude history items are unavailable");
+    const page = overlayClaudeItems(
+      stored,
+      entry.before === null ? live?.get(turn.id)?.items : undefined,
+      budget,
+      limit,
+    );
     const items = page.items;
     const cost = Buffer.byteLength(JSON.stringify({ ...turn, items }));
     if (items.length === 0 && page.before !== null) {

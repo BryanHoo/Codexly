@@ -240,7 +240,8 @@ it.each(["completed", "failed"] as const)(
       rootPath: root,
       runtimeWorkspaceRoots: [root],
     };
-    const provider = new ClaudeAgentProvider(scope, store, config, sdk, undefined, 100);
+    // SDK 自动续跑有独立调度窗口；并发测试下不能依赖历史写盘耗时撑过 100ms 回收期限。
+    const provider = new ClaudeAgentProvider(scope, store, config, sdk, undefined, 1_000);
     provider.subscribeEvents((event) => {
       events.push(event);
       // 模拟用户批准临时目录内的写入，保留真实 canUseTool 请求与回复通道。
@@ -310,9 +311,12 @@ it.each(["completed", "failed"] as const)(
           status: outcome,
         }),
       );
-      await vi.waitFor(() => {
-        expect(provider.isBusy).toBe(false);
-      });
+      await vi.waitFor(
+        () => {
+          expect(provider.isBusy).toBe(false);
+        },
+        { timeout: 5_000 },
+      );
       const restored = new ClaudeAgentProvider(scope, store, config, sdk);
       const snapshot = await restored.readTask(task.id);
       expect(

@@ -117,3 +117,77 @@ it("continues older legacy snapshots after the newest turn fills the first page"
   );
   expect(next?.cursor).toBeNull();
 });
+
+it("overlays live tokens and new records without saving or losing the disk continuation", async () => {
+  const store = await history();
+  const items = Array.from({ length: 120 }, (_, i) => message(`live-${String(i)}`));
+  const value = turn("live", items);
+  await store.checkpoint("task", value);
+  const live = { ...value, items: [...items.slice(-100), message("new-record")] };
+  live.items[live.items.length - 2] = {
+    ...message("live-119"),
+    type: "message",
+    role: "assistant",
+    text: "未落盘的 Token",
+  };
+  const page = await paginateClaudeTurns(
+    store,
+    "task",
+    [live],
+    null,
+    undefined,
+    new Map([[live.id, live]]),
+  );
+  expect(page.turns[0]?.items.map((item) => item.id)).toEqual([
+    ...items.slice(21).map((item) => item.id),
+    "new-record",
+  ]);
+  expect(page.turns[0]?.items.at(-2)).toMatchObject({ text: "未落盘的 Token" });
+  const older = await readClaudeHistoryPage(store, "task", page.cursor ?? undefined);
+  expect(older?.turns[0]?.items.map((item) => item.id)).toEqual(
+    items.slice(0, 21).map((item) => item.id),
+  );
+  expect((await store.items.read("task", "live"))?.items.at(-1)).toMatchObject({
+    id: "live-119",
+    text: "中文 live-119",
+  });
+});
+
+it("retries a legacy migration interrupted before turn metadata was committed", async () => {
+  const store = await history();
+  const value = turn("migration", [message("one")]);
+  // saveItems 已建立正文及索引，但尚未提交回合元数据，模拟迁移中途退出。
+  await store.saveItems("task", value.id, value.items);
+  const restored = new ClaudeHistory(store.directory);
+  const page = await paginateClaudeTurns(restored, "task", [value], null);
+  expect(page.turns).toEqual([value]);
+  expect(await restored.items.turn("task", value.id)).toEqual({ ...value, items: [] });
+});
+
+it("defers a live background turn when newer turns consume the remaining byte budget", async () => {
+  const store = await history();
+  const large = (id: string): AgentItem => ({
+    id,
+    type: "message",
+    role: "assistant",
+    text: "x".repeat(100 * 1024),
+  });
+  const older = turn("background", [large("old")]);
+  const newest = turn("foreground", [large("new-1"), large("new-2"), large("new-3")]);
+  await store.complete("task", older);
+  await store.complete("task", newest);
+  const first = await paginateClaudeTurns(
+    store,
+    "task",
+    [older, newest],
+    null,
+    undefined,
+    new Map([
+      [older.id, older],
+      [newest.id, newest],
+    ]),
+  );
+  expect(first.turns.map((entry) => entry.id)).toEqual(["foreground"]);
+  const next = await readClaudeHistoryPage(store, "task", first.cursor ?? undefined);
+  expect(next?.turns).toEqual([older]);
+});
