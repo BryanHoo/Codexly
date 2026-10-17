@@ -379,8 +379,8 @@ export class ClaudeAgentProvider {
             ).request(name, input, toolOptions);
           },
           settingSources: defaults.loadProjectSettings ? ["user", "project", "local"] : ["user"],
-          ...grants.options(defaults.allowedTools, permissionMode),
-          disallowedTools: defaults.disallowedTools,
+          // 原生 allow/deny 由 settingSources 保留路径基准；SDK 参数仅重放当前聊天授权。
+          ...grants.options(permissionMode),
           ...(["low", "medium", "high", "xhigh", "max"].includes(options.reasoningEffort)
             ? { effort: options.reasoningEffort as "low" | "medium" | "high" | "xhigh" | "max" }
             : {}),

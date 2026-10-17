@@ -45,7 +45,6 @@ export class ClaudeSessionGrants {
   }
 
   options(
-    allowedTools: string[],
     permissionMode = this.#requestedMode,
   ): Pick<Options, "allowedTools" | "additionalDirectories" | "permissionMode"> {
     // 显式切换权限模式优先，防止已保存的编辑许可覆盖用户后来选择的 plan/default。
@@ -55,7 +54,7 @@ export class ClaudeSessionGrants {
     }
     // --allowedTools/--add-dir 都只影响新建进程；不会把本次会话许可写成永久规则。
     return {
-      allowedTools: [...new Set([...allowedTools, ...this.#rules])],
+      allowedTools: [...this.#rules],
       ...(this.#directories.size ? { additionalDirectories: [...this.#directories] } : {}),
       ...(this.#mode ? { permissionMode: this.#mode } : {}),
     };

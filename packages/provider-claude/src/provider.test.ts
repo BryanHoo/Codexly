@@ -591,10 +591,39 @@ describe("Claude provider execution boundary", () => {
   });
 });
 
+it.each([true, false])(
+  "keeps native permission rules in their settings sources (project settings: %s)",
+  async (loadProjectSettings) => {
+    const h = await harness();
+    const settings = {
+      ...(await h.config.readSettings()),
+      loadProjectSettings,
+      allowedTools: ["Edit(/src/**)"],
+      disallowedTools: ["Read(/private/**)"],
+    };
+    await h.config.writeSettings(settings);
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    const sdkOptions = h.query.mock.calls[0]?.[0].options;
+    expect(sdkOptions?.settingSources).toEqual(
+      loadProjectSettings ? ["user", "project", "local"] : ["user"],
+    );
+    // 配置规则必须保留原生来源，不能以 SDK 参数再次解释其中的相对路径。
+    expect(sdkOptions?.allowedTools).toEqual([]);
+    expect(sdkOptions).not.toHaveProperty("disallowedTools");
+    expect(await h.config.readSettings()).toMatchObject(settings);
+  },
+);
+
 it.each(["idle", "settings", "stop"] as const)(
   "replays exact session grants after %s query replacement without sharing them with another chat",
   async (replacement) => {
     const h = await harness();
+    await h.config.writeSettings({
+      ...(await h.config.readSettings()),
+      allowedTools: ["Edit(/src/**)"],
+      disallowedTools: ["Read(/private/**)"],
+    });
     const task = await h.provider.startTask();
     await h.provider.startTurn(task.id, prompt, options);
     const firstOptions = h.query.mock.calls[0]?.[0].options;
@@ -645,7 +674,7 @@ it.each(["idle", "settings", "stop"] as const)(
     await h.provider.startTurn(other.id, prompt, options);
     expect(h.query.mock.calls[2]?.[0].options.allowedTools).toEqual([]);
     // 授权只驻留在当前应用会话中，不能污染用户原生配置。
-    expect((await h.config.readSettings()).allowedTools).toEqual([]);
+    expect((await h.config.readSettings()).allowedTools).toEqual(["Edit(/src/**)"]);
   },
 );
 

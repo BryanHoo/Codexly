@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ClaudeSessionGrants, canReplaySessionGrants } from "./session-grants.js";
 
 describe("Claude session grants", () => {
-  it("preserves SDK rule content and directories while merging configured rules without duplicates", () => {
+  it("preserves SDK session rule content and directories without duplicates", () => {
     const grants = new ClaudeSessionGrants();
     const updates = [
       {
@@ -23,8 +23,8 @@ describe("Claude session grants", () => {
     ];
     grants.remember(updates);
     grants.remember(updates);
-    expect(grants.options(["Read(/tmp/my project/**)", "Bash(pwd)"])).toEqual({
-      allowedTools: ["Read(/tmp/my project/**)", "Bash(pwd)", "Bash(git status:*)", "WebSearch"],
+    expect(grants.options()).toEqual({
+      allowedTools: ["Read(/tmp/my project/**)", "Bash(git status:*)", "WebSearch"],
       additionalDirectories: ["/tmp/my project"],
     });
     expect(updates[0]).toMatchObject({ destination: "session" });
@@ -54,17 +54,17 @@ describe("Claude session grants", () => {
         },
       ]);
     }).toThrow(/unsupported/i);
-    expect(grants.options([])).toEqual({ allowedTools: [] });
+    expect(grants.options()).toEqual({ allowedTools: [] });
   });
 
   it("restores SDK edit approval until the user explicitly changes permission mode", () => {
     const grants = new ClaudeSessionGrants("default");
     grants.remember([{ type: "setMode", mode: "acceptEdits", destination: "session" }]);
-    expect(grants.options([], "default")).toEqual({
+    expect(grants.options("default")).toEqual({
       allowedTools: [],
       permissionMode: "acceptEdits",
     });
-    expect(grants.options([], "plan")).toEqual({ allowedTools: [] });
-    expect(grants.options([], "default")).toEqual({ allowedTools: [] });
+    expect(grants.options("plan")).toEqual({ allowedTools: [] });
+    expect(grants.options("default")).toEqual({ allowedTools: [] });
   });
 });
