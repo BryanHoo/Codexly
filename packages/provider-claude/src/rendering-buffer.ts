@@ -97,6 +97,38 @@ function previewItem(item: AgentItem, budget: number): AgentItem {
       content: previewText(item.content, budget / 3),
       summary: previewText(item.summary, budget / 3),
     };
+  if (item.type === "command") {
+    const original = item.output ?? "",
+      output = previewText(original, Math.floor(budget / 2));
+    const retained = output === original ? output : output.replace(CLAUDE_PREVIEW_NOTICE, "");
+    const newlines = (value: string) => {
+      let count = 0;
+      for (let index = 0; index < value.length; index++)
+        if (value.charCodeAt(index) === 10) count++;
+      return count;
+    };
+    return {
+      ...item,
+      command: previewText(item.command, Math.floor(budget / 5)),
+      cwd: previewText(item.cwd, Math.floor(budget / 5)),
+      output,
+      outputOmitted: {
+        bytes: item.outputOmitted.bytes + Buffer.byteLength(original) - Buffer.byteLength(retained),
+        lines: item.outputOmitted.lines + newlines(original) - newlines(retained),
+      },
+    };
+  }
+  if (item.type === "file_change") {
+    // 补丁和命令同样受共享展示预算限制；保留显式省略标记，不能让结果突破传输帧上限。
+    const perChange = Math.floor((budget - 1024) / Math.max(1, item.changes.length));
+    return {
+      ...item,
+      changes: item.changes.map((change) => ({
+        ...change,
+        diff: previewText(change.diff, Math.max(256, perChange - size(change.path) - 128)),
+      })),
+    };
+  }
   if (item.type !== "tool") return item;
   const input = previewInput(item.input, Math.floor(budget / 5));
   const output = object(item.output),

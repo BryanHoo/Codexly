@@ -60,10 +60,12 @@ test(
               {
                 type: "tool_use",
                 id: `write-proof-${calls}`,
-                name: "Write",
+                name: calls === 3 ? "Edit" : "Write",
                 input: {
                   file_path: join(directory, "proof.txt"),
-                  content: `${proofContent}${calls}`,
+                  ...(calls === 3
+                    ? { old_string: "x1", new_string: "x3" }
+                    : { content: `${proofContent}${calls}` }),
                 },
               },
             ]
@@ -298,6 +300,12 @@ test(
       await host.request("turn.start", { taskId: "task", input, options }, scope);
       const pending = (await waitEvent("pending_request.created")).payload.request;
       assert.equal(pending.type, "tool_approval");
+      // 审批输入尚未落盘；两端均不能提前显示为已应用的文件变更。
+      assert.equal(
+        host.events.some((event) => event.payload?.item?.type === "file_change"),
+        false,
+      );
+      await assert.rejects(readFile(join(directory, "proof.txt")), { code: "ENOENT" });
       // 正在等待工具审批的会话仍持有工作目录，归档和删除必须由适配器拒绝。
       const beforeRemoval = structuredClone(tasks.get("task"));
       for (const method of ["task.archive", "task.delete"]) {
@@ -315,6 +323,12 @@ test(
         scope,
       );
       assert.equal((await waitEvent("turn.completed")).payload.turn.status, "completed");
+      const created = host.events.find(
+        (event) => event.type === "item.completed" && event.itemId === "write-proof-1",
+      ).payload.item;
+      assert.equal(created.type, "file_change");
+      assert.equal(created.changes[0].kind, "create");
+      assert.ok(created.changes[0].diff.includes("省略"));
       assert.equal(await readFile(join(directory, "proof.txt"), "utf8"), `${proofContent}1`);
       assert.deepEqual((await host.request("task.read", { taskId: "task" }, scope)).plan?.steps, [
         { text: "验证宿主计划", status: "pending" },
@@ -339,7 +353,15 @@ test(
         host.events.slice(afterFirstTurn).some((event) => event.type === "pending_request.created"),
         false,
       );
-      assert.equal(await readFile(join(directory, "proof.txt"), "utf8"), `${proofContent}3`);
+      const changed = host.events.find(
+        (event) => event.type === "item.completed" && event.itemId === "write-proof-3",
+      ).payload.item;
+      assert.equal(changed.type, "file_change");
+      const editedContent = await readFile(join(directory, "proof.txt"), "utf8");
+      assert.equal(editedContent.slice(-20), `${proofContent}3`.slice(-20));
+      assert.equal(editedContent, `${proofContent}3`);
+      assert.equal(changed.changes[0].kind, "update");
+
       assert.deepEqual((await host.request("task.read", { taskId: "task" }, scope)).plan?.steps, [
         { text: "验证宿主计划", status: "in_progress" },
       ]);
@@ -353,6 +375,14 @@ test(
       assert.equal((await host.request("settings.read")).reasoningEffort, "high");
       const restored = await host.request("task.read", { taskId: "task" }, scope);
       assert.equal(restored.turns.length, 2);
+      assert.deepEqual(
+        restored.turns[0].items.find((item) => item.id === created.id),
+        created,
+      );
+      assert.deepEqual(
+        restored.turns[1].items.find((item) => item.id === changed.id),
+        changed,
+      );
       const attachments = restored.turns[0].items.find((item) => item.role === "user").attachments;
       const attachment = attachments.find((entry) => entry.kind === "text");
       assert.equal(attachment.name, "proof.txt");

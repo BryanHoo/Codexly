@@ -18,11 +18,12 @@ import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
 import { createClaudeUserItem, type ClaudeUserInput } from "./turn-input.js";
 import type { ClaudeTaskMetadata } from "./history.js";
-import { record, text, resultText, displayClaudeMessage } from "./sdk-values.js";
+import { record, text, resultText, displayClaudeMessage, claudeResultError } from "./sdk-values.js";
 import { changedClaudeUsage } from "./projection-usage.js";
 import { ClaudeProjectionChanges } from "./projection-changes.js";
 import { ClaudeBackgroundTasks } from "./background-tasks.js";
 import { ClaudeTaskPlan } from "./task-plan.js";
+import { claudeStructuredResult, projectClaudeToolResult } from "./tool-projection.js";
 /** 只持有当前回合的渲染投影；历史与恢复上下文仍由官方 SDK 的会话文件管理。 */
 export class ClaudeTurnProjection {
   readonly #taskId: string;
@@ -57,6 +58,7 @@ export class ClaudeTurnProjection {
     previewBytes = CLAUDE_TURN_PREVIEW_BYTES,
     paginated = false,
     public backgroundTasks = new ClaudeBackgroundTasks(),
+    public cwd = "",
   ) {
     this.changes = new ClaudeProjectionChanges(paginated);
     this.#items = new ClaudeRenderingBuffer(previewBytes, id, paginated);
@@ -144,6 +146,8 @@ export class ClaudeTurnProjection {
       if (toolId) {
         const name = text(block["name"]) || "Tool";
         const previous = this.#items.get(toolId);
+        // 已由真实结果转成细分事件的记录，不能被完整 assistant 重放降级回工具输入。
+        if (previous?.type === "file_change" || previous?.type === "command") return;
         // 已消费结果的 TodoWrite 不因完整 assistant 消息重放而重新提交或改写终态。
         if (name === "TodoWrite" && previous?.type === "tool" && previous.status !== "running")
           return;
@@ -189,6 +193,7 @@ export class ClaudeTurnProjection {
         CLAUDE_CHILD_PREVIEW_BYTES,
         false,
         this.backgroundTasks,
+        this.cwd,
       );
       this.#children.set(id, child);
     }
@@ -270,6 +275,7 @@ export class ClaudeTurnProjection {
     }
     if (message["type"] === "system" && message["subtype"] === "init") {
       this.#model = text(message["model"]) || this.#model;
+      this.cwd = text(message["cwd"]) || this.cwd;
       this.mcpServers = mapClaudeMcpServers(message["mcp_servers"]);
       this.mcpObservedAt = new Date().toISOString();
       publishClaudeMcpServers(this.#taskId, this.mcpServers, this.#emit);
@@ -392,6 +398,7 @@ export class ClaudeTurnProjection {
     } else if (message["type"] === "user") {
       const content = record(message["message"])["content"];
       if (!Array.isArray(content)) return;
+      const structuredResult = claudeStructuredResult(content, message);
       for (const value of content) {
         const block = record(value),
           id = text(block["tool_use_id"]),
@@ -415,7 +422,7 @@ export class ClaudeTurnProjection {
             continue;
           }
           this.#item(
-            {
+            projectClaudeToolResult(item, structuredResult, block, this.cwd) ?? {
               ...item,
               output: block["content"],
               status: block["is_error"] === true ? "failed" : "completed",
@@ -441,14 +448,7 @@ export class ClaudeTurnProjection {
           { id: `${this.id}:result`, type: "message", role: "assistant", text: result },
           true,
         );
-      const errors = Array.isArray(message["errors"])
-        ? message["errors"].filter((error): error is string => typeof error === "string").join("\n")
-        : "";
-      this.finish(
-        success ? "completed" : "failed",
-        success ? undefined : errors || result || "Claude execution failed",
-        true,
-      );
+      this.finish(success ? "completed" : "failed", claudeResultError(message, success), true);
     }
   }
   /** 会话终止与父回合结束分开；已完成的父回合仍需清理尚在运行的后代。 */

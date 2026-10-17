@@ -22,6 +22,7 @@
 - SDK、原生 CLI、宿主构建工具固定版本。跨架构分发以目标而非宿主架构为准；Windows 便携 EXE 不得依赖安装包旁边未分发的资源。
 - 修改 SDK、宿主或审批恢复契约，必须运行 `pnpm test:claude-host` 的真实子进程测试；远端用本地模拟 API，不能使用用户真实凭据或额度。
 - 工具参数按 `input_json_delta` 有界拼接，在块结束时发布完整输入供两端生成描述标题；SDK 逐块发送的同 ID assistant 消息必须保留各块身份。子代理使用 `Agent/Task`、`parent_tool_use_id`、`agent_id` 与 `task_*` 关联，正文和用量不能混入父回复；输出随父工具投影保存，不登记虚假的独立任务。
+- Write/Edit 只在匹配 `tool_use_id` 的成功结构化结果到达后转为 `file_change`，使用结果路径、实际补丁或新建文件内容；禁止从审批输入构造已发生的变更。失败、`staged: true`、无效补丁及无法唯一关联的消息保留通用工具；已转换的记录不能被 assistant/结果重放降级或重复完成。空更新补丁不能当作新建文件，已知无变化不产生变更记录。前台 Bash 的真实结果转为 `command`，合并 stdout 与工具提示但不据 stderr 判断失败，不猜退出码；后台派发和图片仍保留工具。复用会话及自动续跑必须传递任务 cwd，子代理结果只写入子预览。新类型同样受展示预算约束，命令省略计数需保留；`tool-projection.test.ts`、真实 `sdk-integration.test.ts` 与 `pnpm test:claude-host` 覆盖审批前后、批量替换、重放、大结果、官方输出及宿主重启恢复。
 - 上下文按最近主模型请求统计输入、缓存读写和输出，不累计 `result.modelUsage` 的计费 Token；窗口取 SDK 声明或 `getContextUsage({ detail: "summary" })`，未知时保持 null。控制查询只在回合边界/显式读取执行并限时，禁止逐 Token 请求或额外计数 API。用量、计划和 MCP 状态须随检查点保存，刷新与宿主重启后恢复。
 - 两端上下文 MCP 读取/重连必须按任务引擎路由到同一宿主；初始化状态与 SDK 当前状态共用映射，不因查看 Claude 上下文启动 Codex。`turn-projection.test.ts`、`provider.test.ts` 和真实宿主测试覆盖这些边界。
 - 展示预算只控制 UI 投影：工具结果、长正文与子代理记录超限时保留有界首尾预览或最近过程，并明确提示省略，不能抛错终止官方 SDK 执行。主回合预览为 384 KiB、子代理为 64 KiB，终态事件连同信封必须低于 512 KiB；并发子代理优先缩短旧正文，保留代理身份和状态。流式热路径只统计新 Chunk，不重复序列化全文；完整参数仍交给 SDK，预览不能修改实际工具输入。

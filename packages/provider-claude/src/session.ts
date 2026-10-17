@@ -56,6 +56,7 @@ export function createProjection(
   prompt: ClaudeUserInput | undefined,
   emit: AgentProviderEventListener,
   backgroundTasks = new ClaudeBackgroundTasks(),
+  cwd = "",
 ) {
   const itemChanges = new Map<string, AgentItem>();
   const projection = new ClaudeTurnProjection(
@@ -71,6 +72,7 @@ export function createProjection(
     undefined,
     true,
     backgroundTasks,
+    cwd,
   );
   return { projection, itemChanges };
 }
@@ -320,6 +322,7 @@ export async function consume(
           undefined,
           emit,
           running.backgroundTasks,
+          running.projection.cwd,
         );
         projection.restoreMetadata(running.projection.metadata());
         running.projection = projection;

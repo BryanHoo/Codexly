@@ -310,6 +310,8 @@ export class ClaudeAgentProvider {
         turnId,
         userInput,
         this.#emit,
+        undefined,
+        task.cwd,
       );
       const metadata = await this.config.history.metadata(id);
       projection.restoreMetadata(metadata);

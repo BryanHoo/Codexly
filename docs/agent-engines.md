@@ -58,6 +58,10 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 
 公共层负责消息、工具、提问、错误、取消和任务身份；专属功能保留在引擎侧。中栏复用现有编辑器、附件入口、选择器、消息卡片和主题，配置表单由 `packages/ui` 两端共用。
 
+Claude 的 Write/Edit 成功返回后，使用实际结果中的文件路径和补丁进入统一差异审阅；等待审批、被拒绝或仅暂存待审阅的编辑不会显示为已发生的文件变更。新建文件的补丁取自实际写入内容，覆盖文件但缺少原始内容或补丁时保留文件变更记录，不猜测差异。缺少可验证结构化结果的编辑仍显示为普通工具。
+
+前台 Bash 返回后进入统一命令输出视图，保留真实输出和失败、中断状态；SDK 未提供退出码时不推断退出码。后台派发和图片结果保留普通工具展示。超大结果保留有界预览，省略部分会明确标记；Web、移动端和桌面使用同一投影，并随聊天历史恢复。
+
 ### 当前能力边界
 
 - 支持流式回答、带描述/文件路径/命令的工具标题、工具审批、最多四个问题及多选回答、中断、历史读取和按精确 session ID 恢复。
@@ -104,6 +108,7 @@ Claude 使用固定版本 `@anthropic-ai/claude-agent-sdk@0.3.300`。Web 直接�
 - [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview)、[流式输入](https://code.claude.com/docs/en/agent-sdk/streaming-input)、[审批](https://code.claude.com/docs/en/agent-sdk/user-input)、[会话管理](https://code.claude.com/docs/en/agent-sdk/sessions)：使用官方工具循环、权限回调及持久会话。
 - [Claude SDK 命令与压缩](https://code.claude.com/docs/en/agent-sdk/slash-commands#compact-history-with-compact)、项目固定 SDK 随包 `sdk.d.ts` 的 `forkSession` / `ForkSessionOptions`：原生消息截断、UUID 重建与压缩结果语义。
 - [流式工具参数](https://code.claude.com/docs/en/agent-sdk/streaming-output)、[子代理事件](https://code.claude.com/docs/en/agent-sdk/subagents)、[用量统计](https://code.claude.com/docs/en/agent-sdk/cost-tracking)：区分工具输入增量、子代理上下文与累计计费用量。
+- [Claude SDK 工具结果](https://code.claude.com/docs/en/agent-sdk/typescript#tool-output-types)、[Codex App Server](https://developers.openai.com/codex/app-server)：按工具 ID 关联实际结果，复用文件变更与命令记录；`staged` 以固定版本 SDK 的 `sdk-tools.d.ts` 声明为准。
 - [Claude Code 系统要求](https://code.claude.com/docs/en/setup)、[Bun 独立可执行文件](https://bun.com/docs/bundler/executables)：运行平台及宿主分发约束。
 - [CloudCLI](https://github.com/siteboon/claudecodeui)、[Happy](https://github.com/slopus/happy)：社区多引擎客户端的第一手实现参考。本项目复用界面和应用身份，同时保留引擎运行边界，不复制其认证方案或代码。
 

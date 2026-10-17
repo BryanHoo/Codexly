@@ -13,8 +13,9 @@ import type { CatalogOperations, LocalCatalogStore, LocalTask } from "@codexly/c
 import { expect, it, vi } from "vitest";
 import { claudeEnvironment } from "./config.js";
 import { ClaudeRuntime } from "./runtime.js";
+import { ClaudeTurnProjection } from "./turn-projection.js";
 
-async function localApi() {
+async function localApi(tool?: { name: string; input: Record<string, unknown> }) {
   const requests: {
     path: string;
     key: string | undefined;
@@ -41,14 +42,21 @@ async function localApi() {
         response.end("{}");
         return;
       }
-      const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as { stream?: boolean };
+      const raw = Buffer.concat(chunks).toString("utf8");
+      const body = JSON.parse(raw) as { stream?: boolean; tools?: { name: string }[] };
+      const useTool =
+        tool &&
+        body.tools?.some((entry) => entry.name === tool.name) &&
+        !raw.includes("native-tool");
       const message = {
         id: `msg_contract_${String(requests.length)}`,
         type: "message",
         role: "assistant",
         model: "claude-sonnet-4-6",
-        content: [{ type: "text", text: "local-contract-ok" }],
-        stop_reason: "end_turn",
+        content: useTool
+          ? [{ type: "tool_use", id: "native-tool", ...tool }]
+          : [{ type: "text", text: "local-contract-ok" }],
+        stop_reason: useTool ? "tool_use" : "end_turn",
         stop_sequence: null,
         usage: { input_tokens: 10, output_tokens: 5 },
       };
@@ -60,16 +68,24 @@ async function localApi() {
       response.writeHead(200, { "Content-Type": "text/event-stream" });
       for (const event of [
         { type: "message_start", message: { ...message, content: [], stop_reason: null } },
-        { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
+        {
+          type: "content_block_start",
+          index: 0,
+          content_block: useTool
+            ? { type: "tool_use", id: "native-tool", name: tool.name, input: {} }
+            : { type: "text", text: "" },
+        },
         {
           type: "content_block_delta",
           index: 0,
-          delta: { type: "text_delta", text: "local-contract-ok" },
+          delta: useTool
+            ? { type: "input_json_delta", partial_json: JSON.stringify(tool.input) }
+            : { type: "text_delta", text: "local-contract-ok" },
         },
         { type: "content_block_stop", index: 0 },
         {
           type: "message_delta",
-          delta: { stop_reason: "end_turn", stop_sequence: null },
+          delta: { stop_reason: message.stop_reason, stop_sequence: null },
           usage: { output_tokens: 5 },
         },
         { type: "message_stop" },
@@ -383,3 +399,53 @@ it("forks a real native transcript at the clicked reply, re-forks remapped messa
     await rm(root, { recursive: true, force: true });
   }
 }, 60_000);
+
+// 使用真实 Bash 工具结果验证字段语义；隔离本地 API 和工作目录，不依赖真实凭据。
+it("projects a real SDK Bash result into the shared command item", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-bash-projection-"));
+  const api = await localApi({ name: "Bash", input: { command: "printf native-command-proof" } });
+  const turn = new ClaudeTurnProjection("task", "turn", undefined, () => undefined);
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, 25_000);
+  const inherited = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$)/u.test(key)),
+  );
+  const stream = query({
+    prompt: "Run the command and report the result",
+    options: {
+      cwd: root,
+      env: {
+        ...claudeEnvironment({ apiKey: "isolated-test-key", baseUrl: api.baseUrl }, inherited),
+        CLAUDE_CONFIG_DIR: join(root, "native"),
+      },
+      abortController: controller,
+      model: "claude-sonnet-4-6",
+      settingSources: [],
+      tools: ["Bash"],
+      permissionMode: "bypassPermissions",
+      allowDangerouslySkipPermissions: true,
+      settings: { apiKeyHelper: "", forceLoginMethod: "console" },
+      includePartialMessages: true,
+    },
+  });
+  try {
+    for await (const message of stream) turn.receive(message);
+    expect(turn.status).toBe("completed");
+    const command = turn.snapshot().items.find((item) => item.id === "native-tool");
+    expect(command).toMatchObject({
+      type: "command",
+      command: "printf native-command-proof",
+      output: "native-command-proof",
+      status: "completed",
+    });
+    expect(command).not.toHaveProperty("exitCode");
+    if (command?.type === "command") expect(command.cwd.endsWith(root)).toBe(true);
+  } finally {
+    clearTimeout(timer);
+    stream.close();
+    await api.close();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 35_000);

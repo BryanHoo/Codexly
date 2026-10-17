@@ -5,6 +5,17 @@ export function record(value: unknown): Record<string, unknown> {
 }
 export const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
+export function claudeResultError(
+  message: Record<string, unknown>,
+  success: boolean,
+): string | undefined {
+  if (success) return;
+  const errors = Array.isArray(message["errors"])
+    ? message["errors"].filter((error): error is string => typeof error === "string").join("\n")
+    : "";
+  return errors || text(message["result"]) || "Claude execution failed";
+}
+
 /** SDK 本地命令正文属于助手展示消息；按类型转换，不能根据命令名猜测输出形态。 */
 export function displayClaudeMessage(value: unknown): Record<string, unknown> {
   const message = record(value);
