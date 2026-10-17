@@ -255,6 +255,25 @@ async function persistTerminals(
   }
 }
 
+/** 统计独立发布与保存元数据，不持有 settling，也不阻塞 SDK 继续消费后台或下一轮消息。 */
+function refreshContext(
+  id: string,
+  running: Running,
+  config: ClaudeConfiguration,
+  projection: ClaudeTurnProjection,
+  initial = false,
+): void {
+  const isCurrent = () => !running.closed && running.projection === projection;
+  void refreshClaudeContext(running.query, projection, initial, isCurrent)
+    .then(async (changed) => {
+      // 只保存通过回合与版本校验的统计；后续回合的元数据写入仍由历史队列按序提交。
+      if (changed && isCurrent()) await config.history.saveMetadata(id, projection.metadata());
+    })
+    .catch(() => {
+      // 观测及其可选元数据写入失败均不改变已经持久化的真实执行终态。
+    });
+}
+
 export async function consume(
   id: string,
   running: Running,
@@ -330,11 +349,10 @@ export async function consume(
         for (const item of batch) if (changes.get(item.id) === item) changes.delete(item.id);
       }
       if (message.type === "system" && message.subtype === "init")
-        void refreshClaudeContext(running.query, projection, true);
+        refreshContext(id, running, config, projection, true);
       const completed = projection.status !== "running";
       if (wasRunning && completed) {
         running.settling = true;
-        await refreshClaudeContext(running.query, projection);
         await persistTerminal(id, running, config, projection);
         await store.catalog("task.patch", {
           id,
@@ -349,6 +367,7 @@ export async function consume(
           turnId: projection.id,
           payload: { turn: projection.snapshot() },
         });
+        refreshContext(id, running, config, projection);
       } else if (
         completed &&
         projection.ownsMessage(message) &&

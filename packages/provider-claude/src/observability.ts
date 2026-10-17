@@ -5,7 +5,7 @@ import type { AgentContextUsage, AgentMcpServer, AgentPlan } from "@codexly/prot
 import { CLAUDE_PLAN_MAX_TASKS, CLAUDE_PLAN_TITLE_BYTES } from "./task-plan.js";
 import { previewText } from "./rendering-buffer.js";
 
-/** 控制查询有独立时限；观测失败不能阻塞消息消费或改变执行结果。 */
+/** 仅限制等待时间，不取消 SDK 请求；消息消费关键路径不得 await 此观测。 */
 export async function observe<T>(action: () => Promise<T>): Promise<T | undefined> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -25,19 +25,45 @@ export async function observe<T>(action: () => Promise<T>): Promise<T | undefine
   }
 }
 
+// SDK 未提供单请求取消接口；锁必须跟随底层 Promise，不能在观测超时时提前释放。
+const pendingContextQueries = new WeakSet<Query>();
+
 export async function refreshClaudeContext(
   query: Query,
   projection: {
     readonly status: string;
     readonly contextUsage: AgentContextUsage | null;
+    readonly changes: { readonly revision: number };
     updateContextUsage: (usage: AgentContextUsage) => void;
   },
   initial = false,
-): Promise<void> {
-  if (typeof query.getContextUsage !== "function") return;
+  isCurrent: () => boolean = () => true,
+): Promise<boolean> {
+  if (
+    !isCurrent() ||
+    typeof query.getContextUsage !== "function" ||
+    pendingContextQueries.has(query)
+  )
+    return false;
+  const revision = projection.changes.revision,
+    previousUsage = projection.contextUsage;
+  pendingContextQueries.add(query);
   // summary 复用最近响应统计及本地估计，不产生额外计数 API 调用。
-  const context = await observe(() => query.getContextUsage({ detail: "summary" }));
-  if (initial && projection.status !== "running") return;
+  const context = await observe(async () => {
+    try {
+      return await query.getContextUsage({ detail: "summary" });
+    } finally {
+      pendingContextQueries.delete(query);
+    }
+  });
+  // 回合身份、正文版本和最近主请求用量任一变化，迟到统计都不能覆盖当前上下文。
+  if (
+    !isCurrent() ||
+    projection.changes.revision !== revision ||
+    projection.contextUsage !== previousUsage ||
+    (initial && projection.status !== "running")
+  )
+    return false;
   if (
     !context ||
     !Number.isSafeInteger(context.totalTokens) ||
@@ -45,13 +71,14 @@ export async function refreshClaudeContext(
     !Number.isSafeInteger(context.rawMaxTokens) ||
     context.rawMaxTokens <= 0
   )
-    return;
+    return false;
   projection.updateContextUsage({
     usedTokens: initial
       ? (projection.contextUsage?.usedTokens ?? context.totalTokens)
       : context.totalTokens,
     contextWindow: context.rawMaxTokens,
   });
+  return projection.contextUsage !== previousUsage;
 }
 
 export function mapClaudeMcpServers(values: unknown): AgentMcpServer[] {

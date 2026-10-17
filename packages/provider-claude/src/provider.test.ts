@@ -1259,6 +1259,99 @@ it("reads live MCP tools and reconnects failed servers without crossing engine b
   });
 });
 
+it.each(["slow", "unresponsive"])(
+  "completes, persists and accepts the next turn independently of %s context statistics",
+  async (mode) => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const first = await h.provider.startTurn(task.id, prompt, options);
+    const stream = h.query.mock.results[0]?.value as Query;
+    const summary = Promise.withResolvers<Awaited<ReturnType<Query["getContextUsage"]>>>();
+    stream.getContextUsage = vi.fn(() => summary.promise);
+    try {
+      h.send({ type: "result", subtype: "success" });
+      // 统计仍挂起时即应完成必要落盘并解锁，不允许消耗原有 1500ms 超时预算。
+      await vi.waitFor(
+        () => {
+          expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+        },
+        { timeout: 750, interval: 10 },
+      );
+      expect(h.provider.isBusy).toBe(false);
+      expect((await h.config.history.read(task.id)).turns[0]).toMatchObject({
+        id: first.id,
+        status: "completed",
+      });
+      const second = await h.provider.startTurn(task.id, prompt, options);
+      h.send({
+        type: "assistant",
+        message: { id: "next-message", content: [], usage: { input_tokens: 42 } },
+      });
+      await vi.waitFor(
+        () => {
+          expect(
+            events.some((event) => event.type === "usage.updated" && event.turnId === second.id),
+          ).toBe(true);
+        },
+        { timeout: 750, interval: 10 },
+      );
+      if (mode === "slow") {
+        summary.resolve({ totalTokens: 999, rawMaxTokens: 200000 } as Awaited<
+          ReturnType<Query["getContextUsage"]>
+        >);
+        // 统计 Promise 的所有续体先排空，再检查旧回合结果没有发出全局用量事件。
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(
+          events.filter((event) => event.type === "usage.updated").map((event) => event.turnId),
+        ).toEqual([second.id]);
+        expect((await h.provider.readTask(task.id))?.contextUsage?.usedTokens).toBe(42);
+      }
+      expect(h.query).toHaveBeenCalledTimes(1);
+    } finally {
+      summary.reject(new Error("测试清理统计请求"));
+    }
+  },
+);
+
+it("publishes and persists a late context summary separately from turn completion", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  const turn = await h.provider.startTurn(task.id, prompt, options);
+  const stream = h.query.mock.results[0]?.value as Query;
+  const summary = Promise.withResolvers<Awaited<ReturnType<Query["getContextUsage"]>>>();
+  stream.getContextUsage = vi.fn(() => summary.promise);
+  try {
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(
+      () => {
+        expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+      },
+      { timeout: 750, interval: 10 },
+    );
+    summary.resolve({ totalTokens: 123, rawMaxTokens: 200000 } as Awaited<
+      ReturnType<Query["getContextUsage"]>
+    >);
+    await vi.waitFor(async () => {
+      expect((await h.config.history.metadata(task.id))?.contextUsage).toEqual({
+        usedTokens: 123,
+        contextWindow: 200000,
+      });
+    });
+    expect(
+      events
+        .filter((event) => ["turn.completed", "usage.updated"].includes(event.type))
+        .map((event) => event.type),
+    ).toEqual(["turn.completed", "usage.updated"]);
+    expect(events.find((event) => event.type === "usage.updated")?.turnId).toBe(turn.id);
+  } finally {
+    summary.reject(new Error("测试清理统计请求"));
+  }
+});
+
 it("uses local SDK context summaries and keeps successful execution successful if observation fails", async () => {
   const h = await harness();
   const task = await h.provider.startTask();
