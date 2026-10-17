@@ -22,8 +22,8 @@ import {
 } from "../../notifications/action-notifications.js";
 
 import { MessageAction, MessageActions } from "../../../shared/components/agent/message.js";
-import { Task, TaskTrigger, type TaskStatus } from "../../../shared/components/agent/task.js";
-import type { ToolState } from "../../../shared/components/agent/tool.js";
+import type { TaskStatus } from "../../../shared/components/agent/task.js";
+import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput, type ToolState } from "../../../shared/components/agent/tool.js";
 import type { ForkTaskAction } from "./task-timeline-contracts.js";
 import {
   formatSubagentOperationSummary,
@@ -162,16 +162,22 @@ export function SubagentToolItem({
   const summary = formatSubagentOperationSummary(item.status, operation.agents);
 
   return (
-    <Task collapsible={false} status={operationStatus}>
-      <TaskTrigger
-        statusPrefix={
+    <Tool>
+      <ToolHeader
+        state={operationStatus === "in_progress" ? "input-available" : operationStatus === "error" ? "output-error" : toToolState(item.status)}
+        duration={
           itemTiming === undefined ? undefined : (
             <ToolDuration status={item.status} timing={itemTiming} />
           )
         }
         title={`${getSubagentOperationTitle(operation.name)} · ${summary}`}
       />
-    </Task>
+      {/* 默认折叠，展开后才挂载输入与结果，避免子代理流式快照增加渲染负担。 */}
+      <ToolContent>
+        {item.input === undefined ? null : <ToolInput input={item.input} />}
+        <ToolOutput errorText={undefined} output={item.output} />
+      </ToolContent>
+    </Tool>
   );
 }
 

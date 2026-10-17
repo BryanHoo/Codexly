@@ -37,7 +37,8 @@ describe("scheduled engine composer", () => {
         onCaptureSubmission: vi.fn(), models: [], settings: { model: "sonnet", reasoningEffort: "", engineOptions: { engine: "claude", permissionMode: "plan" } },
       } as unknown as WorkbenchComposerProps),
     );
-    expect(markup).toContain("Claude Agent");
+    expect(markup).toContain("Claude");
+    expect(markup).not.toContain("Claude Agent");
     expect(markup).not.toContain('disabled=""');
     expect(useEngineComposerState).toHaveBeenLastCalledWith(
       expect.objectContaining({

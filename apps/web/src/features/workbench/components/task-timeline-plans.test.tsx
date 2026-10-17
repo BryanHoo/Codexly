@@ -134,7 +134,7 @@ describe("task timeline plans and activity", () => {
     expect(markup).toContain('data-status="pending"');
   });
 
-  it("keeps structured subagent calls as simple non-interactive timeline statuses", () => {
+  it("renders structured subagent calls as collapsible tools", () => {
     const subagentSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       turns: [
@@ -170,7 +170,7 @@ describe("task timeline plans and activity", () => {
 
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={subagentSnapshot} />);
 
-    expect(markup.match(/data-ai-task=""/g)).toHaveLength(1);
+    expect(markup).toContain("group/tool");
     expect(markup).toContain("启动子代理");
     expect(markup).toContain("1 个子代理已完成");
     expect(markup).not.toContain("子代理 child-frontend");

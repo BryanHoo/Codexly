@@ -591,3 +591,37 @@ it("keeps background agents alive after the parent result and accepts their late
   expect(JSON.stringify(projection.snapshot())).toContain("late proof");
   expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
 });
+
+it("preserves known context across empty stream statistics and summary observations", () => {
+  const events: AgentProviderEvent[] = [];
+  const projection = new ClaudeTurnProjection("task", "turn", "prompt", (event) =>
+    events.push(event),
+  );
+  projection.updateContextUsage({ usedTokens: 40000, contextWindow: 200000 });
+  projection.receive({
+    type: "stream_event",
+    event: {
+      type: "message_start",
+      message: { id: "next", usage: { input_tokens: 0, output_tokens: 0 } },
+    },
+  });
+  projection.receive({
+    type: "stream_event",
+    event: { type: "message_delta", usage: { output_tokens: 5 } },
+  });
+  projection.updateContextUsage({ usedTokens: 0, contextWindow: 200000 });
+  expect(projection.contextUsage).toEqual({ usedTokens: 40000, contextWindow: 200000 });
+  expect(events.filter((event) => event.type === "usage.updated")).toHaveLength(1);
+  projection.receive({
+    type: "assistant",
+    message: {
+      id: "next",
+      content: [],
+      usage: { input_tokens: 10, cache_read_input_tokens: 59990 },
+    },
+  });
+  expect(projection.contextUsage?.usedTokens).toBe(60000);
+  // 真实压缩后的非零统计仍应生效，不能用历史最大值掩盖上下文释放。
+  projection.updateContextUsage({ usedTokens: 10000, contextWindow: 200000 });
+  expect(projection.contextUsage?.usedTokens).toBe(10000);
+});

@@ -22,7 +22,7 @@ export function AgentEngineSelector(
       onValueChange={props.onChange}
       options={[
         { value: "codex", label: "Codex" },
-        { value: "claude", label: "Claude Agent" },
+        { value: "claude", label: "Claude" },
       ]}
     />
   );

@@ -216,8 +216,11 @@ export class ClaudeTurnProjection {
       this.#backgroundAgents.delete(id);
     }
   }
-
   updateContextUsage(usage: AgentContextUsage): void {
+    // SDK 暂无统计时可能返回零；保留上次有效用量，但仍接收窗口补全和压缩后的非零统计。
+    if (usage.usedTokens === 0 && this.contextUsage && this.contextUsage.usedTokens > 0) {
+      usage = { ...usage, usedTokens: this.contextUsage.usedTokens };
+    }
     if (
       this.contextUsage?.usedTokens === usage.usedTokens &&
       this.contextUsage.contextWindow === usage.contextWindow
@@ -231,12 +234,10 @@ export class ClaudeTurnProjection {
       payload: { usage },
     });
   }
-
   #usage(value: unknown): void {
     const usage = mapClaudeUsage(value, this.contextUsage?.contextWindow ?? null);
     if (usage) this.updateContextUsage(usage);
   }
-
   #agentOwner(id: string): ClaudeTurnProjection | undefined {
     const item = this.#items.get(id);
     if (
@@ -251,7 +252,6 @@ export class ClaudeTurnProjection {
     }
     return undefined;
   }
-
   receive(value: unknown): void {
     if (this.#closed) return;
     const message = displayClaudeMessage(value);

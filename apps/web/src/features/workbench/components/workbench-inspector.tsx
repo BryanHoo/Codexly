@@ -1,4 +1,3 @@
-import { ContextUsageSummary } from "@codexly/ui/core/context-usage-summary";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
   AgentBackgroundTerminal,
@@ -202,13 +201,6 @@ export function WorkbenchInspector({
   const projectRootName = projectPath.split(/[\\/]/u).filter(Boolean).at(-1) ?? projectName;
   const contextContent = (
     <div className="h-full space-y-5 overflow-y-auto p-2.5">
-      {task?.contextUsage ? (
-        <ContextUsageSummary
-          usage={task.contextUsage}
-          label={i18n.t("inspector.contextUsage", { ns: "conversation" })}
-          unknownLabel={i18n.t("inspector.contextWindowUnknown", { ns: "conversation" })}
-        />
-      ) : null}
       {task?.goal === null || task?.goal === undefined ? null : (
         <GoalSection goal={task.goal} onClear={onClearGoal} onStatusChange={onGoalStatusChange} />
       )}

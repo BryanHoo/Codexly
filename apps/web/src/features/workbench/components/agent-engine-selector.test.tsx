@@ -36,7 +36,8 @@ describe("执行引擎选择器", () => {
       />,
     );
     expect(markup).toContain('aria-label="执行引擎"');
-    expect(markup).toContain("Claude Agent");
+    expect(markup).toContain("Claude");
+    expect(markup).not.toContain("Claude Agent");
     expect(markup).toContain('disabled=""');
   });
 });

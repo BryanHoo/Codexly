@@ -95,14 +95,11 @@ export function mapClaudeUsage(
     typeof usage[key] === "number" && Number.isSafeInteger(usage[key]) && usage[key] >= 0
       ? usage[key]
       : 0;
-  return {
-    contextWindow,
-    usedTokens:
-      count("input_tokens") +
-      count("cache_read_input_tokens") +
-      count("cache_creation_input_tokens") +
-      count("output_tokens"),
-  };
+  const inputTokens =
+    count("input_tokens") + count("cache_read_input_tokens") + count("cache_creation_input_tokens");
+  // 流式请求尚未提供输入统计时，零值与仅有输出的增量都不代表上下文已清空。
+  if (inputTokens === 0) return undefined;
+  return { contextWindow, usedTokens: inputTokens + count("output_tokens") };
 }
 
 export function mapClaudePlan(input: unknown): AgentPlan | undefined {

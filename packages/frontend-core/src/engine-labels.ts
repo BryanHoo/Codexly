@@ -1,6 +1,6 @@
 export const engineChinese = {
-  continueClaude: "继续使用 Claude Agent",
-  unsupportedLegacy: "Claude Agent 需要 macOS 13 或更高版本，请使用现代版应用。",
+  continueClaude: "继续使用 Claude",
+  unsupportedLegacy: "Claude 需要 macOS 13 或更高版本，请使用现代版应用。",
   disconnect: "移除 API 连接",
   configureInSettings: "请先登录 Claude Code，或在设置 → Claude → 模型服务中配置 API。",
   connection: "连接配置",
@@ -26,7 +26,7 @@ export const engineChinese = {
   deniedTools: "禁止使用",
   saved: "已保存",
   select: "执行引擎",
-  configure: "配置 Claude Agent",
+  configure: "配置 Claude",
   description: "未设置 API 时，使用本机 Claude Code 的登录信息。",
   endpoint: "API 地址",
   apiKey: "API 密钥（可选）",
@@ -42,8 +42,8 @@ export const engineChinese = {
   permissionBypass: "完全访问",
 } as const;
 export const engineEnglish: Record<keyof typeof engineChinese, string> = {
-  continueClaude: "Continue with Claude Agent",
-  unsupportedLegacy: "Claude Agent requires macOS 13 or later. Use the modern application build.",
+  continueClaude: "Continue with Claude",
+  unsupportedLegacy: "Claude requires macOS 13 or later. Use the modern application build.",
   disconnect: "Remove API connection",
   configureInSettings:
     "Sign in to Claude Code or configure the API in Settings → Claude → Model service.",
@@ -70,7 +70,7 @@ export const engineEnglish: Record<keyof typeof engineChinese, string> = {
   deniedTools: "Disallow",
   saved: "Saved",
   select: "Agent engine",
-  configure: "Configure Claude Agent",
+  configure: "Configure Claude",
   description: "Uses your local Claude Code sign-in when no API is configured.",
   endpoint: "API URL",
   apiKey: "API key (optional)",
