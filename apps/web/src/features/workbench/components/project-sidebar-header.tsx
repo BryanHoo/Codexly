@@ -1,3 +1,4 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import { PanelLeftClose, Search } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -14,26 +15,29 @@ type ProjectSidebarHeaderProps = Readonly<{
 }>;
 
 export function ProjectSidebarHeader({ onClose, onSearch }: ProjectSidebarHeaderProps) {
+  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
   const { t } = useTranslation("workbench");
 
   return (
     <div className="flex h-workbench-header items-center gap-1.5 px-3">
       <ProductBrand />
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            aria-keyshortcuts="Meta+F Control+F"
-            aria-label={t("globalSearch.title")}
-            onClick={onSearch}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <Search className="size-3.5" aria-hidden="true" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{t("globalSearch.title")}</TooltipContent>
-      </Tooltip>
+      {codexEnabled ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              aria-keyshortcuts="Meta+F Control+F"
+              aria-label={t("globalSearch.title")}
+              onClick={onSearch}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <Search className="size-3.5" aria-hidden="true" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("globalSearch.title")}</TooltipContent>
+        </Tooltip>
+      ) : null}
 
       <Tooltip>
         <TooltipTrigger asChild>

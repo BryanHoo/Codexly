@@ -57,6 +57,7 @@ export function WorkbenchShellLayout({
     beginNewChatSubmission,
     capabilities,
     client,
+    codexEnabled,
     closeInspector,
     closeSidebar,
     draftSettings,
@@ -251,10 +252,11 @@ export function WorkbenchShellLayout({
               <TaskBoardContainer projectId={projectId} />
             ) : error !== null ||
               (projectTaskState?.error ?? null) !== null ||
-              modelsQuery.error !== null ||
-              skillsQuery.error !== null ||
-              (!temporary && projectDefaultsQuery.error !== null) ||
-              (taskId === undefined && globalSettingsQuery.error !== null) ? (
+              (codexEnabled &&
+                (modelsQuery.error !== null ||
+                  skillsQuery.error !== null ||
+                  (!temporary && projectDefaultsQuery.error !== null) ||
+                  (taskId === undefined && globalSettingsQuery.error !== null))) ? (
               <RuntimeUnavailable onRetry={() => void retry()} />
             ) : taskId === undefined ? (
               <>
@@ -282,9 +284,9 @@ export function WorkbenchShellLayout({
                   models={models}
                   modelsError={null}
                   modelsPending={
-                    modelsQuery.isPending ||
-                    (!temporary && projectDefaultsQuery.isPending) ||
-                    globalSettingsQuery.isPending
+                    modelsQuery.isLoading ||
+                    (!temporary && projectDefaultsQuery.isLoading) ||
+                    globalSettingsQuery.isLoading
                   }
                   onSettingsChange={updateDraftSettings}
                   onFastModeChange={(enabled, settings) =>
@@ -323,7 +325,7 @@ export function WorkbenchShellLayout({
                 fastModeDefault={fastModeDefault}
                 models={models}
                 modelsError={modelsQuery.error}
-                modelsPending={modelsQuery.isPending}
+                modelsPending={modelsQuery.isLoading}
                 onRequestNotificationPermission={requestNotificationPermission}
                 onProjectTaskDefaultsChange={updateProjectTaskDefaults}
                 onOpenProjectPath={openProjectFolder}

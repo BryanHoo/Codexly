@@ -44,3 +44,5 @@
 - 左栏有可用更新时直接打开更新日志弹窗，右下角“更新”按钮复用当前平台的安装 Mutation；设置中的检查、日志及更新流程保持独立。两端共用 `ui/core/app-update-dialog`，安装中展示进度并阻止重复提交，失败可重试；没有更新时版本入口仍打开“关于”。用 `project-sidebar-update.test.tsx`、`app-update-dialog.test.tsx` 及桌面 `project-sidebar-actions.browser.test.tsx` 回归，浏览器交互通过 Chrome CDP 验证。
 
 - 新聊天可选引擎，历史会话引擎固定；API 与全局默认值只在设置页修改。按会话引擎控制中栏和时间线能力，不能沿用全局 Codex 能力展示 Claude 不支持的操作。见[双引擎说明](../../../../docs/agent-engines.md)。
+
+- 已初始化的纯 Claude 工作区不得请求 Codex 模型、认证、技能和默认设置；按启用状态隐藏依赖 Codex 的搜索、文件提及搜索与扩展入口，快捷键也必须受同一开关控制。禁用查询的 pending 状态不能阻塞 Claude 草稿；启用 Codex 后查询与入口即时恢复，无需重挂载聊天。

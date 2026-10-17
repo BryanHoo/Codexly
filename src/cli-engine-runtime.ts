@@ -4,9 +4,43 @@ import {
   type AgentProvider,
   type AgentRuntimeProvider,
   type AgentTaskScope,
+  type AgentProviderEventListener,
   type LocalCatalogStore,
 } from "@codexly/core";
 import { ClaudeRuntime } from "@codexly/provider-claude";
+
+/** 项目事件订阅不创建 Codex Provider，避免其 Git watch 在 Claude 首屏启动进程。 */
+function deferCodexProject(create: () => AgentProvider) {
+  let current: AgentProvider | undefined;
+  const listeners = new Map<AgentProviderEventListener, () => void>();
+  const resolve = () => {
+    if (!current) {
+      current = create();
+      for (const listener of listeners.keys())
+        listeners.set(listener, current.subscribeEvents(listener));
+    }
+    return current;
+  };
+  const provider = new Proxy({} as AgentProvider, {
+    get(_target, key) {
+      if (key === "subscribeEvents")
+        return (listener: AgentProviderEventListener) => {
+          listeners.set(listener, current?.subscribeEvents(listener) ?? (() => undefined));
+          return () => {
+            listeners.get(listener)?.();
+            listeners.delete(listener);
+          };
+        };
+      return (...args: unknown[]) => {
+        const target = resolve();
+        const method: unknown = Reflect.get(target, key);
+        if (typeof method !== "function") throw new Error(`Codex does not support ${String(key)}`);
+        return Reflect.apply(method, target, args) as unknown;
+      };
+    },
+  });
+  return { provider, current: () => current };
+}
 
 /** 仅生产本地仓储启用双引擎；Codex 全局功能仍直接调用原运行时。 */
 export function enableClaudeRuntime(
@@ -23,16 +57,20 @@ export function enableClaudeRuntime(
     return codex;
   const catalog = store as LocalCatalogStore;
   const claude = new ClaudeRuntime(join(codexHome, "codexly", "engines", "claude"), catalog);
-  const projects = new Map<string, { router: EngineProjectRouter; codex: AgentProvider }>();
-  const create = (scope: AgentTaskScope, provider: AgentProvider) => {
+  const projects = new Map<
+    string,
+    { router: EngineProjectRouter; codex: ReturnType<typeof deferCodexProject> }
+  >();
+  const create = (scope: AgentTaskScope, factory: () => AgentProvider) => {
     const existing = projects.get(scope.id);
     if (existing) return existing.router;
+    const deferred = deferCodexProject(factory);
     const router = new EngineProjectRouter(scope, catalog, {
-      codex: provider,
+      codex: deferred.provider,
       // 项目路由长期缓存；执行与订阅必须按需解析，不能固定持有已回收的适配器。
       claude: () => claude.forScope(scope),
     });
-    projects.set(scope.id, { router, codex: provider });
+    projects.set(scope.id, { router, codex: deferred });
     return router;
   };
   const overrides: Partial<AgentRuntimeProvider> = {
@@ -49,17 +87,18 @@ export function enableClaudeRuntime(
             })(),
           runtimeWorkspaceRoots: project.roots.map((root) => root.path),
         },
-        codex.forProject(project),
+        () => codex.forProject(project),
       ),
     forTemporary: (rootPath) =>
       create(
         { id: "temporary", kind: "temporary", rootPath, runtimeWorkspaceRoots: [rootPath] },
-        codex.forTemporary(rootPath),
+        () => codex.forTemporary(rootPath),
       ),
     releaseProject: async (projectId, expected) => {
       const existing = projects.get(projectId);
       if (expected && existing?.router !== expected) return;
-      await codex.releaseProject(projectId, existing?.codex);
+      const current = existing?.codex.current();
+      if (current) await codex.releaseProject(projectId, current);
       claude.release(projectId);
       projects.delete(projectId);
     },

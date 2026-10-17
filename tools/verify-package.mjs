@@ -151,8 +151,11 @@ try {
     );
   }
 
-  // 使用隔离配置启动真实 CLI：故意指定不存在的 Codex，验证后台失败可诊断、退出可回收且凭据不泄漏。
+  // 使用隔离配置启动真实 CLI：故意阻断应用数据库目录，验证后台失败可诊断、退出可回收且凭据不泄漏。
+  // Codex 改为按需启动后，执行文件缺失已不再属于 Web 启动失败。
   // 此测试只运行内部入口，不注册或修改宿主系统的登录项。
+  const blockedHome = join(stateRoot, "blocked-home");
+  writeFileSync(blockedHome, "not a directory");
   const autostartConfig = join(stateRoot, "config.json");
   const testPassword = "Package-Smoke_Lan123456";
   writeFileSync(
@@ -168,7 +171,7 @@ try {
         lan: true,
         lanPassword: testPassword,
         port: 3210,
-        codexHome: stateRoot,
+        codexHome: blockedHome,
         codexBin: join(
           stateRoot,
           process.platform === "win32" ? "missing-codex.exe" : "missing-codex",
@@ -192,7 +195,7 @@ try {
     failedService.status !== 1 ||
     failedState.phase !== "failed" ||
     !failedState.error ||
-    !failedLog.includes("missing-codex")
+    !failedLog.includes("blocked-home")
   ) {
     throw new Error(
       `Built autostart failure recovery failed: status=${String(failedService.status)}, phase=${failedState.phase}, error=${failedState.error ?? failedService.stderr}`,

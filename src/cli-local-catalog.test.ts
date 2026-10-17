@@ -30,6 +30,9 @@ it("closes the owned RPC transport after serving through the local catalog adapt
     });
     const [options] = vi.mocked(harness.dependencies.createRuntimeProvider).mock.calls[0] ?? [];
     expect(typeof options?.client.readLocalTask).toBe("function");
+    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
+    vi.spyOn(transport, "request").mockResolvedValue({ config: {} });
+    await options?.client.request("config/read");
   } finally {
     controller.abort();
   }

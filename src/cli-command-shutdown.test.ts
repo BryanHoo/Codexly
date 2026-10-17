@@ -27,7 +27,7 @@ describe("runCli shutdown and help", () => {
     expect(errorHarness.stderr.join("")).toContain("\u001B[31m[错误]\u001B[0m");
   });
 
-  it("closes SQLite and Codex when HTTP Server creation fails", async () => {
+  it("closes SQLite without starting Codex when HTTP Server creation fails", async () => {
     const harness = createHarness({
       createServer: vi.fn(() => Promise.reject(new Error("server startup failed"))),
     });
@@ -35,13 +35,12 @@ describe("runCli shutdown and help", () => {
     await expect(runCli(["start"], harness.options)).resolves.toBe(1);
 
     expect(harness.databaseClose).toHaveBeenCalledOnce();
-    expect(harness.close).toHaveBeenCalledOnce();
+    expect(harness.close).not.toHaveBeenCalled();
     expect(harness.lifecycle).toEqual([
       "projects.create",
       "projects.synchronize",
       "provider.create",
       "database.close",
-      "runtime.close",
     ]);
     expect(harness.stderr.join("")).toContain("server startup failed");
   });
@@ -63,6 +62,9 @@ describe("runCli shutdown and help", () => {
     await vi.waitFor(() => {
       expect(harness.dependencies.openBrowser).toHaveBeenCalledOnce();
     });
+    await vi
+      .mocked(harness.dependencies.createRuntimeProvider)
+      .mock.calls[0]?.[0].client.request("config/read");
     controller.abort();
 
     await expect(run).resolves.toBe(1);

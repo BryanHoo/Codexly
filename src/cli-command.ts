@@ -1,4 +1,5 @@
-import { prepareLocalCatalog } from "./cli-local-catalog.js";
+import { importLocalCatalog, prepareLocalCatalog } from "./cli-local-catalog.js";
+import { createLazyCodexRuntime, type CliManagedRuntime } from "./cli-lazy-codex-client.js";
 import type { ManagedStartContext } from "./autostart/runtime.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -19,7 +20,6 @@ import {
   startCodexAppServer,
   type CreateCodexWorkbenchPetProviderOptions,
   type CodexBinary,
-  type CodexProcessExit,
   type CodexRpcClient,
   type CodexVersionInfo,
   type LocateCodexBinaryOptions,
@@ -61,13 +61,6 @@ import {
   parseSessionTtl,
   validateLanPassword,
 } from "./lan-access.js";
-interface CliManagedRuntime {
-  client: CodexRpcClient;
-  close: () => Promise<void>;
-  version: CodexVersionInfo;
-  waitForExit: () => Promise<CodexProcessExit>;
-}
-
 interface CliManagedServer {
   close: () => Promise<void>;
   listen: (options: { host: string; port: number }) => Promise<string>;
@@ -282,7 +275,7 @@ export async function runStart(
     throw new Error("Shutdown signal is unavailable");
   }
 
-  let runtime: CliManagedRuntime | undefined;
+  let runtime: ReturnType<typeof createLazyCodexRuntime> | undefined;
   let server: CliManagedServer | undefined;
   let stateRepository: CliManagedStateRepository | undefined;
 
@@ -311,7 +304,9 @@ export async function runStart(
         ? initialize()
         : startupStateRepository.withScheduledTaskLock(initialize);
     };
-    runtime = await startRuntime();
+    runtime = createLazyCodexRuntime(startRuntime, (client) =>
+      importLocalCatalog(client, startupStateRepository),
+    );
     const catalogClient = await prepareLocalCatalog(runtime.client, stateRepository);
     const projectRepository = dependencies.createProjectRepository({
       client: catalogClient,
@@ -340,7 +335,9 @@ export async function runStart(
     const petProvider = dependencies.createPetProvider({ codexHome });
     const appUpdateService = createAppUpdateService({
       appVersion: dependencies.appVersion,
-      codexVersion: runtime.version.version,
+      get codexVersion() {
+        return runtime?.version ?? "";
+      },
     });
     server = await dependencies.createServer({
       // 托管运行复用已有日志目的地，HTTP 与 Provider 诊断也进入脱敏且有上限的后台日志。
@@ -350,7 +347,7 @@ export async function runStart(
       projectRepository,
       providerConnectionRepository: stateRepository,
       provider,
-      preloadModelCatalog: true,
+      preloadModelCatalog: false,
       petProvider,
       installAppUpdate: appUpdateService.install,
       readAppInfo: appUpdateService.read,
@@ -429,10 +426,10 @@ export async function runStart(
       await server?.close();
     } finally {
       try {
-        await stateRepository?.close();
+        await runtime?.close();
       } finally {
         try {
-          await runtime?.close();
+          await stateRepository?.close();
         } finally {
           ownedShutdown?.cleanup();
         }

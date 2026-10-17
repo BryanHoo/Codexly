@@ -18,6 +18,7 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: vi.fn(),
   getSessionMessages: vi.fn(() => Promise.resolve([])),
   getSessionInfo: vi.fn(() => Promise.resolve(undefined)),
+  deleteSession: vi.fn(() => Promise.resolve()),
 }));
 
 const roots: string[] = [];
@@ -75,15 +76,12 @@ async function harness() {
   const codex = {
     subscribeEvents: vi.fn(() => () => undefined),
   } as unknown as AgentProvider;
-  const runtime = enableClaudeRuntime(
-    {
-      forProject: () => codex,
-      forTemporary: () => codex,
-      releaseProject: vi.fn(() => Promise.resolve()),
-    } as unknown as AgentRuntimeProvider,
-    store,
-    root,
-  );
+  const codexRuntime = {
+    forProject: vi.fn(() => codex),
+    forTemporary: vi.fn(() => codex),
+    releaseProject: vi.fn(() => Promise.resolve()),
+  };
+  const runtime = enableClaudeRuntime(codexRuntime as unknown as AgentRuntimeProvider, store, root);
   const project = (id: string): Project => ({
     id,
     name: id,
@@ -92,8 +90,22 @@ async function harness() {
   });
   const claude = runtime.engines?.claude;
   if (!claude) throw new Error("Missing Claude runtime");
-  return { runtime, project, tasks, root, claude };
+  return { runtime, project, tasks, root, claude, codexRuntime };
 }
+
+it("does not create a Codex project or its watchers for Claude events and tasks", async () => {
+  const { runtime, project, codexRuntime } = await harness();
+  const router = runtime.forProject(project("p0"));
+  const dispose = router.subscribeEvents(() => undefined);
+  try {
+    await router.startTask({ engine: "claude" });
+    expect(codexRuntime.forProject).not.toHaveBeenCalled();
+  } finally {
+    dispose();
+    await runtime.releaseProject("p0");
+  }
+  expect(codexRuntime.releaseProject).not.toHaveBeenCalled();
+});
 
 it.each([
   ["disconnect", "project"],

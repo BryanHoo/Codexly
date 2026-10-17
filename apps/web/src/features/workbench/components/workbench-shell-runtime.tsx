@@ -1,11 +1,7 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import type { SplitRuntimeOptions } from "@codexly/frontend-core/split-workspace";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
-import type {
-  AgentMessageAttachment,
-  AgentPromptInput,
-  AgentTurn,
-  ProjectOpenAppId,
-} from "@codexly/protocol";
+import type { ProjectOpenAppId } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -57,6 +53,7 @@ import {
 import { useWorkbenchPanelLayout } from "./workbench-panel-layout.js";
 import { useSubmissionStartedAt } from "./use-submission-started-at.js";
 import { resolveWorkbenchTaskRoot } from "./workbench-task-root.js";
+import type { WorkbenchShellProps } from "./workbench-shell-contracts.js";
 import {
   createTaskLaunchSnapshot,
   taskLaunchQueryKey,
@@ -64,25 +61,9 @@ import {
 } from "./workbench-task-launch.js";
 
 export { useSubmissionStartedAt } from "./use-submission-started-at.js";
+export type { WorkbenchShellProps, SubmittedPromptState } from "./workbench-shell-contracts.js";
 
 const emptyExpandedFileTreePaths = new Set<string>();
-
-export type SubmittedPromptState = Readonly<{
-  input: AgentPromptInput;
-  messageAttachments: readonly AgentMessageAttachment[];
-  submissionStartedAt?: string;
-  turn: AgentTurn;
-}>;
-
-export type WorkbenchShellProps = Readonly<{
-  board?: boolean;
-  extensionSection?: string;
-  projectId: string;
-  scheduled?: boolean;
-  taskId?: string;
-  temporary?: boolean;
-  todoId?: string;
-}>;
 
 export function useWorkbenchShellRuntime({
   projectId,
@@ -192,8 +173,13 @@ export function useWorkbenchShellRuntime({
   const appUpdateProgressQuery = useQuery(
     appUpdateProgressQueryOptions(client, appUpdateMutation.isPending),
   );
-  const modelsQuery = useQuery(modelsQueryOptions(client));
-  const providerConnectionQuery = useQuery(providerConnectionQueryOptions());
+  // 未启用的引擎不发起模型、认证和默认配置请求，避免隐藏功能唤醒 Codex。
+  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
+  const modelsQuery = useQuery({ ...modelsQueryOptions(client), enabled: codexEnabled });
+  const providerConnectionQuery = useQuery({
+    ...providerConnectionQueryOptions(),
+    enabled: codexEnabled,
+  });
   const mcpServersQuery = useQuery(
     mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
   );
@@ -206,7 +192,10 @@ export function useWorkbenchShellRuntime({
       );
     },
   });
-  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client));
+  const globalSettingsQuery = useQuery({
+    ...globalSettingsQueryOptions(client),
+    enabled: codexEnabled,
+  });
   const projectOpenCapabilitiesQuery = useQuery(
     projectOpenCapabilitiesQueryOptions(projectId, client, !temporary),
   );
@@ -246,9 +235,11 @@ export function useWorkbenchShellRuntime({
   }, [projectFileManagerApp, projectPathOpenLockRef, projectPathOpenMutationRef]);
   const skillsQuery = useQuery({
     ...skillsQueryOptions(projectId, client),
-    enabled: capabilities?.skills.list === true,
+    enabled: codexEnabled && capabilities?.skills.list === true,
   });
-  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, !temporary));
+  const projectDefaultsQuery = useQuery(
+    projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary),
+  );
   const projectDefaultsMutation = useMutation({
     ...projectDefaultsMutationOptions(projectId, client),
     onSuccess(response) {
@@ -418,6 +409,7 @@ export function useWorkbenchShellRuntime({
     beginNewChatSubmission,
     capabilities,
     client,
+    codexEnabled,
     error,
     expandedFileTreePaths,
     getNewChatSubmissionStartedAt,

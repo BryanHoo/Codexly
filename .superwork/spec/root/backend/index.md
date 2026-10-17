@@ -3,6 +3,7 @@
 根目录 `src/cli.ts` 是 `codexly` 入口；`src/cli-command.ts` 处理命令，`src/cli-server-*` 处理服务启动与监听。服务实现属于 `packages/server/`。
 
 - Web 允许同启动目录、同 Codex Home 的多个实例，端口冲突自动递增，不使用长驻实例锁。主运行时与按需模型目录子进程固定使用用户主目录；临时任务默认使用用户主目录，显式工作区使用首个根目录。启动目录不得隐式影响内部配置或任务范围，用 `cli-multi-instance.test.ts`、`cli-command-start.test.ts` 和端口回归验证。
+- Web 启动先建立应用仓储、项目目录和 HTTP 服务；Codex 在实际业务 RPC 时才握手，模型目录不在启动时预加载。事件订阅、Claude 历史/对话、项目管理不得创建 Codex 进程或其项目 Git watch。并发首请求共用握手，启动失败允许重试；退出须等待在途握手与导入完成，先关闭进程再释放仓储。回归见 `cli-claude-start.test.ts`、`cli-lazy-codex-client.test.ts` 和 `cli-engine-runtime.test.ts`。
 - 主运行时与按需模型目录子进程的初始化握手共用 SQLite 仓储的短期互斥，防止首次同时初始化空 Codex Home 时上游状态库建表竞争；握手后释放，不限制实例并行运行。
 - 业务 RPC 适配器只能注入仓储和 Provider，不得替换 App Server 进程持有的原始连接；进程退出仍需关闭 JSONL 传输。目录迁移接线回归须覆盖启用本地仓储后的正常退出。
 

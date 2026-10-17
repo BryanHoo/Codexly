@@ -1,3 +1,4 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import type {
   AgentCapabilities,
   AgentModel,
@@ -91,6 +92,7 @@ export function useComposerSession({
   skills,
   taskId,
 }: ComposerSessionOptions) {
+  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
   // Git 与文件异步操作绑定当前根；切换根后旧请求不得更新新根的 Composer 状态。
   const routeScope = `${projectId}:${composerDraftId ?? taskId ?? "draft"}:${projectPath}:${settings.engineOptions?.engine ?? "codex"}`;
   const composerDraftStore = useComposerDraftStore();
@@ -206,10 +208,9 @@ export function useComposerSession({
     projectId,
     projectPath,
     fileQuery,
-    fileMenuOpen && projectToolsEnabled && !turnControlsDisabled,
+    codexEnabled && fileMenuOpen && projectToolsEnabled && !turnControlsDisabled,
   );
   const fileSearchResults = fileSearch.data?.data ?? emptyProjectFileSearchResults;
-
   const filteredSkills = filterPromptSkills(
     capabilities?.skills.use === true ? skills : [],
     commandQuery,
@@ -338,6 +339,7 @@ export function useComposerSession({
       }));
       const nextFileMention = resolvePromptFileMention(serializedText, cursorOffset);
       if (
+        codexEnabled &&
         projectToolsEnabled &&
         nextFileMention !== null &&
         isPromptTextRange(nextContent, nextFileMention)
@@ -368,9 +370,8 @@ export function useComposerSession({
       setCommandQuery(slashCommand.query);
       setCommandSlashCommand(slashCommand);
     },
-    [closeFileMenu, composerDraftBinding, projectToolsEnabled],
+    [closeFileMenu, composerDraftBinding, codexEnabled, projectToolsEnabled],
   );
-
   const { clearComposerInput, restoreComposerInput } = useComposerInputReset({
     binding: composerDraftBinding,
     handleAttachmentsChange,
