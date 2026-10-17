@@ -1,10 +1,11 @@
 import { useId, useState } from "react";
-import { Eye, EyeOff, KeyRound, LoaderCircle, Server } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle, Server } from "lucide-react";
 import { Button } from "./button.js";
 import { Input } from "./input.js";
 
 /** 两种引擎共用字段排版与密钥控件。 */
 export function ApiConnectionFields({
+  hideHeading = false,
   setup = false,
   disabled,
   baseUrl,
@@ -16,6 +17,7 @@ export function ApiConnectionFields({
   onApiKeyChange,
   onBlur,
 }: Readonly<{
+  hideHeading?: boolean;
   setup?: boolean;
   disabled: boolean;
   baseUrl: string;
@@ -39,10 +41,10 @@ export function ApiConnectionFields({
   const visibilityLabel = keyVisible ? labels.hideKey : labels.showKey;
   return (
     <section
-      aria-label={setup ? labels.title : undefined}
-      aria-labelledby={setup ? undefined : `${id}-credentials`}
+      aria-label={setup || hideHeading ? labels.title : undefined}
+      aria-labelledby={setup || hideHeading ? undefined : `${id}-credentials`}
     >
-      {!setup ? (
+      {!setup && !hideHeading ? (
         <h2 className="mb-3 text-body font-semibold" id={`${id}-credentials`}>
           {labels.title}
         </h2>
@@ -78,14 +80,10 @@ export function ApiConnectionFields({
             </label>
           </div>
           <div className="relative min-w-0">
-            <KeyRound
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-subtle-foreground"
-            />
             <Input
               id={`${id}-key`}
               variant="outline"
-              className="pl-9 pr-10 font-mono"
+              className="pr-10 font-mono"
               type={keyVisible ? "text" : "password"}
               autoComplete="new-password"
               spellCheck={false}

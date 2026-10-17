@@ -32,30 +32,32 @@ export function ChatGptConnectionCard({
   return (
     <section
       aria-label={labels.account}
-      className="max-w-[30rem] rounded-surface border border-separator bg-panel p-5 sm:p-6"
+      className="flex flex-col items-start gap-4 border-y border-separator py-5 sm:flex-row sm:items-center sm:justify-between"
     >
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">ChatGPT</h2>
-        {connected ? (
-          <span
-            className="inline-flex items-center gap-1.5 text-label text-muted-foreground"
-            role="status"
-          >
-            <CheckCircle2 aria-hidden="true" className="size-3.5" />
-            {labels.connected}
-          </span>
-        ) : null}
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-body-small font-medium">{labels.account}</h2>
+          {connected ? (
+            <span
+              className="inline-flex items-center gap-1.5 text-label text-muted-foreground"
+              role="status"
+            >
+              <CheckCircle2 aria-hidden="true" className="size-3.5" />
+              {labels.connected}
+            </span>
+          ) : null}
+        </div>
+        <p
+          className="break-all text-body-small text-muted-foreground"
+          role={pending ? "status" : undefined}
+        >
+          {connected ? (email ?? labels.account) : pending ? labels.waiting : labels.hint}
+        </p>
       </div>
-      <p
-        className="mt-2 break-all text-body-small text-muted-foreground"
-        role={pending ? "status" : undefined}
-      >
-        {connected ? (email ?? labels.account) : pending ? labels.waiting : labels.hint}
-      </p>
       <Button
         type="button"
         variant={pending || connected ? "outline" : "inverse"}
-        className="mt-6 h-10 w-full gap-2 rounded-control"
+        className="gap-2"
         disabled={busy}
         onClick={pending ? onCancel : connected ? onLogout : onLogin}
       >

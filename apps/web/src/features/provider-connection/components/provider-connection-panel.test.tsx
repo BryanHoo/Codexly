@@ -87,7 +87,7 @@ describe("ProviderConnectionPanelView", () => {
     expect(markup).toContain('type="url"');
     expect(markup).toContain('type="password"');
     expect(markup).toContain('autoComplete="new-password"');
-    expect(markup).toContain("自定义模型（可选）");
+    expect(markup).toContain("自定义模型");
     expect(markup).toContain('value="manual-model"');
     expect(markup).toContain('value="Manual Model"');
     expect(markup).toContain('data-variant="outline"');
@@ -110,6 +110,8 @@ describe("ProviderConnectionPanelView", () => {
       />,
     );
     expect(markup).not.toContain('type="submit"');
+    expect(markup).not.toMatch(/<h2[^>]*>服务连接<\/h2>/);
+    expect(markup).not.toMatch(/<h2[^>]*>连接配置<\/h2>/);
   });
 
   it("builds structured models and rejects incomplete rows", () => {

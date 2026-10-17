@@ -77,3 +77,5 @@
 - Codex 与 Claude 的 API 地址、密钥输入及提交区共用 `core/api-connection-fields`。设置页采用同一分隔行、字段宽度与右对齐操作，初始化统一纵向布局和整行主按钮；引擎仅注入文案与保存回调；Claude 只展示 API 地址与访问凭据，保存时自动检测认证，不提供认证方式选项。Claude 不增加无实际功能的官方登录标签。共用排版不能改变显式提交或自动保存的既有边界。
 
 - Codex 与 Claude 个性化页面共用 `core/personalization-instructions-editor`：标题、说明和全宽可调整高度编辑框统一布局；页面继续各自处理读取、冲突提示和自动保存。Claude 的项目配置使用独立分组与开关，不占用指令编辑区，打开个性化不得触发模型探测。
+
+- Codex 模型服务页与模型编辑器共用 `core/provider-connection-panel`、`core/custom-model-editor`，平台层仅注入翻译和业务回调。接入选择与状态共用一行，API 字段省略重复分组标题，ChatGPT 使用账号设置行；空模型列表仅显示自动获取说明。Web 窄屏模型字段纵向排列，保留可访问标签及删除动作；用接入面板回归测试和 Chrome CDP 验证，保持初始化显式连接与设置自动保存边界。

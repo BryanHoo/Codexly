@@ -15,7 +15,7 @@ test("connects a custom API from the provider gate and reuses it in settings", a
   await page.goto("/");
 
   await expect(page.getByRole("heading", { exact: true, name: "Codexly" })).toBeVisible();
-  const officialModeButton = page.getByRole("button", { name: "官方登录" });
+  const officialModeButton = page.getByRole("button", { name: "ChatGPT", exact: true });
   const customModeButton = page.getByRole("button", { name: "自定义 API" });
   await expect(officialModeButton).toHaveCSS("align-items", "center");
   await expect(officialModeButton).toHaveCSS("justify-content", "center");
