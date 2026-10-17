@@ -140,6 +140,53 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
   };
 }
 
+it("keeps consuming the SDK session after truncated tool preview JSON", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  await h.provider.startTurn(task.id, prompt, options);
+  const stream = (event: unknown) => {
+    h.send({ type: "stream_event", event });
+  };
+  stream({ type: "message_start", message: { id: "truncated" } });
+  stream({
+    type: "content_block_start",
+    index: 0,
+    content_block: { type: "tool_use", id: "read", name: "Read", input: {} },
+  });
+  stream({
+    type: "content_block_delta",
+    index: 0,
+    delta: { type: "input_json_delta", partial_json: '{"file_path":' },
+  });
+  stream({ type: "content_block_stop", index: 0 });
+  stream({ type: "message_delta", delta: { stop_reason: "max_tokens" } });
+  // SDK 可以继续处理截断并发出后续消息；预览错误不能替它终止执行。
+  h.send({
+    type: "assistant",
+    message: {
+      id: "continued",
+      content: [{ type: "text", text: "continued after incomplete input" }],
+    },
+  });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(async () => {
+    const turn = (await h.provider.readTask(task.id))?.turns[0];
+    expect(turn?.status).toBe("completed");
+    expect(turn?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "message", text: "continued after incomplete input" }),
+      ]),
+    );
+  });
+  expect(h.close).not.toHaveBeenCalled();
+  expect(events.some((event) => event.type === "provider.error")).toBe(false);
+  await h.provider.startTurn(task.id, prompt, options);
+  expect(h.query).toHaveBeenCalledOnce();
+  h.send({ type: "result", subtype: "success" });
+});
+
 describe("Claude attachment history", () => {
   it("does not start the SDK or publish a turn when attachment persistence fails", async () => {
     const h = await harness();

@@ -313,6 +313,50 @@ it("publishes complete streamed tool arguments before the tool result", () => {
   });
 });
 
+it.each(['{"file_path":', '{"file_path":"truncated', "", "{invalid}"])(
+  "ignores invalid streamed preview JSON %j and accepts the next tool block",
+  (partialJson) => {
+    const projection = new ClaudeTurnProjection("task", "turn", "prompt", () => undefined);
+    const stream = (event: unknown) => {
+      projection.receive({ type: "stream_event", event });
+    };
+    stream({ type: "message_start", message: { id: "msg" } });
+    stream({
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "tool_use", id: "broken", name: "Read", input: {} },
+    });
+    stream({
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "input_json_delta", partial_json: partialJson },
+    });
+    expect(() => {
+      stream({ type: "content_block_stop", index: 0 });
+    }).not.toThrow();
+    expect(projection.snapshot().items.find((item) => item.id === "broken")).toMatchObject({
+      input: {},
+      status: "running",
+    });
+    // 复用索引验证坏片段已清理，不能污染后续合法参数。
+    stream({
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "tool_use", id: "valid", name: "Read", input: {} },
+    });
+    stream({
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "input_json_delta", partial_json: '{"file_path":"/project/README.md"}' },
+    });
+    stream({ type: "content_block_stop", index: 0 });
+    expect(projection.snapshot().items.find((item) => item.id === "valid")).toMatchObject({
+      input: { file_path: "/project/README.md" },
+      status: "running",
+    });
+  },
+);
+
 it("keeps separate content blocks when the SDK emits one assistant message per block", () => {
   const projection = new ClaudeTurnProjection("task", "turn", "prompt", () => undefined);
   for (const [index, content] of ["first", "second"].entries()) {

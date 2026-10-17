@@ -3,7 +3,7 @@ import {
   ClaudeRenderingBuffer,
   previewText,
   CLAUDE_CHILD_PREVIEW_BYTES,
-  CLAUDE_PREVIEW_NOTICE,
+  parseToolInputPreview,
   CLAUDE_TURN_PREVIEW_BYTES,
 } from "./rendering-buffer.js";
 import {
@@ -323,17 +323,17 @@ export class ClaudeTurnProjection {
         const input = this.#inputs.get(index),
           id = this.#blocks.get(index),
           item = id ? this.#items.get(id) : undefined;
+        // 块结束即释放片段，解析失败也不能让残留参数污染后续内容块。
+        this.#inputs.delete(index);
         if (input && item?.type === "tool") {
-          // JSON 片段尚未闭合时不解析；完整参数到达后立即刷新运行中的标题。
-          const parsed: unknown =
-            input.bytes > 256 * 1024 ? { preview: CLAUDE_PREVIEW_NOTICE } : JSON.parse(input.json);
+          const parsed = parseToolInputPreview(input);
+          if (parsed === undefined) return;
           this.#item({ ...item, input: parsed }, false);
           if (item.name === "agent/spawn") {
             if (record(parsed)["run_in_background"] === true) this.#backgroundAgents.add(item.id);
             this.#agent(item.id);
           }
         }
-        this.#inputs.delete(index);
       } else if (event["type"] === "content_block_delta") {
         const id = this.#blocks.get(index),
           delta = record(event["delta"]);
