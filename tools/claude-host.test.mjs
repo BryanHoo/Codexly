@@ -211,7 +211,11 @@ test(
           const deferred = responses.get(message.id);
           responses.delete(message.id);
           if (message.error) deferred?.reject(new Error(message.error));
-          else deferred?.resolve(message.result);
+          else {
+            // 真实独立宿主必须在有序响应帧标记快照边界，不能依赖请求发出时的序号。
+            if (message.result?.turns) assert.equal(message.snapshotProjectId, "p");
+            deferred?.resolve(message.result);
+          }
         } else if (message.event) events.push(message.event);
       });
       const exited = new Promise((resolve) => child.once("exit", resolve));

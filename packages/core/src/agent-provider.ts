@@ -258,7 +258,7 @@ export interface AgentProvider {
   pinTask(taskId: string, pinned: boolean): Promise<AgentTask>;
   readSandboxMode(): Promise<AgentSandboxMode>;
   readGoal(taskId: string): Promise<AgentGoal | null>;
-  // Promise 完成前须让 Snapshot 包含此前状态并同步交付对应通知，使 checkpoint 保持一致。
+  // 状态变更须同步交付通知；传输层用 readTaskWithCheckpoint 校验异步读取并捕获覆盖边界。
   readTask(
     taskId: string,
     input?: ReadAgentTaskInput,

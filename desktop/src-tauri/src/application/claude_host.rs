@@ -161,11 +161,23 @@ impl ClaudeHost {
                     break;
                 };
                 if let Some(id) = message["id"].as_u64() {
-                    if let Some(sender) = responses.lock().await.remove(&id) {
-                        let result = message["error"].as_str().map_or_else(
-                            || Ok(message["result"].clone()),
-                            |error| Err(error.to_owned()),
-                        );
+                    let sender = responses.lock().await.remove(&id);
+                    if let Some(sender) = sender {
+                        let result = if let Some(error) = message["error"].as_str() {
+                            Err(error.to_owned())
+                        } else {
+                            let result = message["result"].clone();
+                            Ok(
+                                if let Some(project) = message["snapshotProjectId"].as_str() {
+                                    // 同一读取循环先发布此前事件，再处理快照帧；后续事件尚未分配序号。
+                                    // 只短暂读取原生计数，并移动快照，避免重复复制历史正文。
+                                    snapshot_response(&app.state::<AppState>(), project, result)
+                                        .await
+                                } else {
+                                    result
+                                },
+                            )
+                        };
                         let _ = sender.send(result);
                     }
                 } else if let Some(id) = message["catalogId"].as_u64() {
@@ -254,6 +266,12 @@ impl ClaudeHost {
         self.pending.lock().await.remove(&id);
         result
     }
+}
+
+pub(super) async fn snapshot_response(state: &AppState, project: &str, snapshot: Value) -> Value {
+    let sequence = state.project_sequence(project).await;
+    json!({"snapshot":snapshot,"checkpoint":{"sequence":sequence,
+        "sessionId":crate::infrastructure::codex::RUNTIME_SESSION_ID}})
 }
 
 async fn write_frame(writer: &Mutex<ChildStdin>, value: &Value) -> Result<(), AppError> {

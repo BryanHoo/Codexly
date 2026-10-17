@@ -9,6 +9,7 @@ import {
   deleteSession,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentTaskScope, CatalogOperations, LocalCatalogStore } from "@codexly/core";
+import { readTaskWithCheckpoint } from "@codexly/core";
 import type { AgentProviderTurnInput, ResolvePendingRequestInput } from "@codexly/core";
 import type { ClaudeSettings, ConfigureCustomProviderRequest } from "@codexly/protocol";
 import { ClaudeRuntime } from "./runtime.js";
@@ -71,6 +72,7 @@ if (process.argv.includes("--version")) {
       }),
   });
   const subscribed = new WeakSet<ReturnType<ClaudeRuntime["forScope"]>>();
+  const snapshotResponseSent = Symbol("snapshotResponseSent");
   const execute = async (message: Record<string, unknown>) => {
     const params = record(message["params"]),
       method = message["method"];
@@ -100,8 +102,18 @@ if (process.argv.includes("--version")) {
         return provider.reloadMcpServers(id);
       case "attachment.export":
         return exportClaudeAttachment(provider, id, String(params["attachmentId"]));
-      case "task.read":
-        return provider.readTask(id, record(params["options"]));
+      case "task.read": {
+        // 校验通过即同步写入同一 stdout；原生层按事件/响应帧顺序捕获项目序号。
+        const read = await readTaskWithCheckpoint(
+          provider,
+          id,
+          record(params["options"]),
+          (snapshot) => {
+            send({ id: message["id"], result: snapshot, snapshotProjectId: scope.id });
+          },
+        );
+        return read === undefined ? undefined : snapshotResponseSent;
+      }
       // 与 Web 共用生命周期检查；成功响应前必须完成空闲会话关闭和目录记录更新。
       case "task.archive":
         return provider.archiveTask(id);
@@ -165,7 +177,7 @@ if (process.argv.includes("--version")) {
         void execute(message)
           .then(
             (result) => {
-              send({ id, result: result ?? null });
+              if (result !== snapshotResponseSent) send({ id, result: result ?? null });
             },
             (error: unknown) => {
               send({ id, error: error instanceof Error ? error.message : "Claude request failed" });

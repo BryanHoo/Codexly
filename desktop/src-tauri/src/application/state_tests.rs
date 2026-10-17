@@ -45,6 +45,30 @@ fn runtime_status_should_advance_monotonic_sequence() {
     assert_eq!(runtime.snapshot.last_seq, 2);
 }
 
+#[tokio::test]
+async fn claude_snapshot_should_cover_only_events_before_its_ordered_response_frame() {
+    let state = super::AppState::default();
+    state.remember_tasks("project-a", ["task-a"]).await;
+    let delta = |text: &str| {
+        json!({"type":"message.delta","taskId":"task-a",
+        "turnId":"turn-a","itemId":"message-a","payload":{"delta":text}})
+    };
+    // 模拟 stdout 读取循环：此前事件发布完成，才允许处理已校验的快照响应帧。
+    super::event_publisher::publish_mapped_event(&state.runtime, delta("前").into(), None, None)
+        .await;
+    let response = crate::application::claude_host::snapshot_response(
+        &state,
+        "project-a",
+        json!({"id":"task-a","text":"前"}),
+    )
+    .await;
+    super::event_publisher::publish_mapped_event(&state.runtime, delta("后").into(), None, None)
+        .await;
+    assert_eq!(response["checkpoint"]["sequence"], 1);
+    assert_eq!(state.project_sequence("project-a").await, 2);
+    assert_eq!(response["snapshot"]["text"], "前");
+}
+
 #[test]
 fn runtime_restart_should_use_bounded_backoff_and_reset_after_stable_uptime() {
     assert_eq!(

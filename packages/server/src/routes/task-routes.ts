@@ -22,7 +22,7 @@ import {
   type RenameAgentTaskRequest,
   type UnarchiveAgentTaskRequest,
 } from "@codexly/protocol";
-import { listTaskCatalog } from "@codexly/core";
+import { listTaskCatalog, readTaskWithCheckpoint } from "@codexly/core";
 import type { FastifyPluginCallback } from "fastify";
 import { restorePersistedAsyncQuestionAnswers } from "../async-question-snapshot.js";
 import { MutationHttpError, toMcpProviderHttpError, type ServerRouteContext } from "./context.js";
@@ -124,21 +124,26 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
       if (projectContext === undefined) {
         return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Project not found" });
       }
-      const providerTask = await projectContext.provider.readTask(request.params.taskId, {
-        ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
-        ...(request.query.summary === undefined ? {} : { summary: request.query.summary }),
-      });
-      if (providerTask?.projectId !== projectContext.scope.id) {
+      const read = await readTaskWithCheckpoint(
+        projectContext.provider,
+        request.params.taskId,
+        {
+          ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
+          ...(request.query.summary === undefined ? {} : { summary: request.query.summary }),
+        },
+        () => projectContext.eventStream.checkpoint,
+      );
+      if (read === undefined || read.snapshot.projectId !== projectContext.scope.id) {
         return reply.code(404).send({ code: "TASK_NOT_FOUND", message: "Task not found" });
       }
       const task = await restorePersistedAsyncQuestionAnswers(
         context,
         request.params.projectId,
         request.params.taskId,
-        providerTask,
+        read.snapshot,
       );
-      // Provider Promise 完成时已交付此前通知，此处 checkpoint 与返回 Snapshot 对齐。
-      const checkpoint = projectContext.eventStream.checkpoint;
+      // 后续持久化答案和设置读取不推进覆盖边界；期间事件仍由该 checkpoint 回放。
+      const checkpoint = read.checkpoint;
       const settings = await readEffectiveTaskSettings(
         request.params.projectId,
         request.params.taskId,

@@ -61,3 +61,4 @@ export {
   type AgentExecutionAdapter,
 } from "./engine-router.js";
 export * from "./mcp-elicitation.js";
+export * from "./task-snapshot-checkpoint.js";

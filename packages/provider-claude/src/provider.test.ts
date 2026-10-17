@@ -15,6 +15,7 @@ import type { AgentTurn, AgentTurnOptions } from "@codexly/protocol";
 import { ClaudeConfiguration } from "./config.js";
 import { ClaudeHistory } from "./history.js";
 import { ClaudeAgentProvider, type ClaudeSdk } from "./provider.js";
+import { readTaskWithCheckpoint } from "@codexly/core";
 
 const roots: string[] = [];
 const providers: ClaudeAgentProvider[] = [];
@@ -146,6 +147,177 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
     },
   };
 }
+
+it.each(["read", "saveItems", "prepareItemHistory", "itemPage"] as const)(
+  "captures completion and approvals consistently across the %s history boundary",
+  async (boundary) => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    await h.provider.startTurn(task.id, prompt, options);
+    const stream = (event: unknown) => {
+      h.send({ type: "stream_event", event });
+    };
+    stream({ type: "message_start", message: { id: "atomic" } });
+    stream({ type: "content_block_start", index: 0, content_block: { type: "text", text: "" } });
+    stream({ type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "初始" } });
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "message.delta")).toBe(true);
+    });
+    const entered = Promise.withResolvers<undefined>();
+    const release = Promise.withResolvers<undefined>();
+    const history = h.config.history;
+    const pause = async <T>(value: Promise<T>): Promise<T> => {
+      const result = await value;
+      entered.resolve(undefined);
+      await release.promise;
+      return result;
+    };
+    if (boundary === "itemPage") {
+      const original = history.items.read.bind(history.items);
+      let paused = false;
+      vi.spyOn(history.items, "read").mockImplementation(async (...args) => {
+        const page = await original(...args);
+        // prepareItemHistory 的 before=0 是写队列内的索引探测，只挂起真正的分页读取。
+        if (args[2] === 0 || paused) return page;
+        paused = true;
+        entered.resolve(undefined);
+        await release.promise;
+        return page;
+      });
+    } else if (boundary === "read") {
+      const original = history.read.bind(history);
+      vi.spyOn(history, "read").mockImplementationOnce((...args) => pause(original(...args)));
+    } else if (boundary === "saveItems") {
+      const original = history.saveItems.bind(history);
+      vi.spyOn(history, "saveItems").mockImplementationOnce((...args) => pause(original(...args)));
+    } else {
+      const original = history.prepareItemHistory.bind(history);
+      vi.spyOn(history, "prepareItemHistory").mockImplementationOnce((...args) =>
+        pause(original(...args)),
+      );
+    }
+    const reading = readTaskWithCheckpoint(h.provider, task.id, {}, () => events.length);
+    try {
+      await entered.promise;
+      // 磁盘读取挂起时仍必须消费 token、审批和终态，不能为快照锁住 SDK 消费器。
+      stream({
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "text_delta", text: "完整正文" },
+      });
+      await vi.waitFor(() => {
+        expect(events.filter((event) => event.type === "message.delta")).toHaveLength(2);
+      });
+      h.send({
+        type: "assistant",
+        message: { id: "atomic", content: [{ type: "text", text: "完整正文" }] },
+      });
+      const canUseTool = h.query.mock.calls[0]?.[0].options.canUseTool;
+      assert(canUseTool);
+      const permission = canUseTool(
+        "Bash",
+        { command: "pwd" },
+        {
+          signal: new AbortController().signal,
+          toolUseID: "approval-tool",
+          requestId: "atomic-approval",
+        },
+      );
+      const created = events.find((event) => event.type === "pending_request.created");
+      assert(created?.type === "pending_request.created");
+      assert(created.payload.request.type === "tool_approval");
+      await h.provider.resolvePendingRequest({
+        ...created.payload.request,
+        resolution: { decision: "allow" },
+      });
+      await permission;
+      h.send({ type: "result", subtype: "success" });
+      await vi.waitFor(() => {
+        expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+      });
+      release.resolve(undefined);
+      const response = await reading;
+      assert(response);
+      expect(response.snapshot.status).toBe("idle");
+      expect(response.snapshot.turns.at(-1)?.status).toBe("completed");
+      expect(
+        response.snapshot.turns
+          .flatMap((turn) => turn.items)
+          .filter((item) => item.type === "message" && item.role === "assistant"),
+      ).toEqual([expect.objectContaining({ text: "完整正文" })]);
+      expect(response.snapshot.pendingRequests).toEqual([]);
+      expect(events.slice(response.checkpoint)).toEqual([]);
+      const refreshed = await readTaskWithCheckpoint(h.provider, task.id, {}, () => events.length);
+      expect(refreshed?.snapshot.turns).toEqual(response.snapshot.turns);
+    } finally {
+      release.resolve(undefined);
+    }
+  },
+);
+
+it.each(["metadata", "active", "recovery", "catalog"] as const)(
+  "retries a session started during the %s snapshot boundary",
+  async (boundary) => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const entered = Promise.withResolvers<undefined>();
+    const release = Promise.withResolvers<undefined>();
+    const pause = async <T>(value: Promise<T>): Promise<T> => {
+      const result = await value;
+      entered.resolve(undefined);
+      await release.promise;
+      return result;
+    };
+    if (boundary === "metadata") {
+      const original = h.config.history.metadata.bind(h.config.history);
+      vi.spyOn(h.config.history, "metadata").mockImplementationOnce((...args) =>
+        pause(original(...args)),
+      );
+    } else if (boundary === "active") {
+      const original = h.config.history.active.bind(h.config.history);
+      vi.spyOn(h.config.history, "active").mockImplementationOnce((...args) =>
+        pause(original(...args)),
+      );
+    } else if (boundary === "recovery") {
+      const original = h.config.persistence.retry.bind(h.config.persistence);
+      vi.spyOn(h.config.persistence, "retry").mockImplementationOnce((...args) =>
+        pause(original(...args)),
+      );
+    } else {
+      const original = h.provider.store.catalog.bind(h.provider.store);
+      vi.spyOn(h.provider.store, "catalog").mockImplementationOnce((...args) =>
+        pause(original(...args)),
+      );
+    }
+    const reading = readTaskWithCheckpoint(h.provider, task.id, {}, () => events.length);
+    try {
+      await entered.promise;
+      await h.provider.startTurn(task.id, prompt, options);
+      h.send({
+        type: "assistant",
+        message: { id: "late", content: [{ type: "text", text: "新回合" }] },
+      });
+      h.send({ type: "result", subtype: "success" });
+      await vi.waitFor(() => {
+        expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+      });
+      release.resolve(undefined);
+      const response = await reading;
+      expect(response?.snapshot.status).toBe("idle");
+      expect(response?.snapshot.turns).toHaveLength(1);
+      expect(response?.snapshot.turns[0]?.status).toBe("completed");
+      expect(response?.snapshot.turns[0]?.items).toContainEqual(
+        expect.objectContaining({ text: "新回合" }),
+      );
+    } finally {
+      release.resolve(undefined);
+    }
+  },
+);
 
 it("keeps consuming the SDK session after truncated tool preview JSON", async () => {
   const h = await harness(undefined, 60_000);

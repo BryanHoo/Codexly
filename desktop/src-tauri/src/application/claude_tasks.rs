@@ -30,9 +30,8 @@ pub async fn read(
 ) -> Result<Value, AppError> {
     let state = app.state::<AppState>();
     state.remember_tasks(project, [id]).await;
-    // 先取基线，再读取快照；其后的事件由原有 checkpoint 重放逻辑合并。
-    let sequence = state.project_sequence(project).await;
-    let mut snapshot = state
+    // 宿主返回经版本校验的快照，原生读取循环在同一有序响应帧上绑定 checkpoint。
+    let mut response = state
         .claude
         .request(
             app,
@@ -41,6 +40,10 @@ pub async fn read(
             json!({"taskId":id,"options":cursor.map_or_else(|| json!({}), |cursor| json!({"cursor":cursor}))}),
         )
         .await?;
+    let snapshot = response
+        .get_mut("snapshot")
+        .filter(|snapshot| snapshot.is_object())
+        .ok_or_else(|| AppError::Claude("Claude snapshot boundary is missing".into()))?;
     if let Some(turns) = snapshot["turns"].as_array_mut() {
         for turn in turns {
             if let Some(items) = turn["items"].as_array_mut() {
@@ -54,9 +57,7 @@ pub async fn read(
         super::sidebar_task_settings::effective_task_settings(app, project, id).await?,
     )
     .map_err(|_| AppError::FilesystemRequestFailed)?;
-    Ok(
-        json!({"checkpoint":{"sequence":sequence,"sessionId":crate::infrastructure::codex::RUNTIME_SESSION_ID},"snapshot":snapshot}),
-    )
+    Ok(response)
 }
 
 pub async fn start(
