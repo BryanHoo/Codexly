@@ -1,0 +1,213 @@
+import assert from "node:assert/strict";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Options, Query, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  CatalogOperations,
+  LocalCatalogStore,
+  LocalTask,
+  AgentProviderEvent,
+  AgentProviderTurnInput,
+} from "@codexly/core";
+import type { AgentTurn, AgentTurnOptions } from "@codexly/protocol";
+import { ClaudeConfiguration } from "./config.js";
+import { ClaudeHistory } from "./history.js";
+import { ClaudeAgentProvider, type ClaudeSdk } from "./provider.js";
+
+const roots: string[] = [];
+const providers: ClaudeAgentProvider[] = [];
+const cleanup: (() => Promise<void>)[] = [];
+afterEach(async () => {
+  for (const action of cleanup.splice(0)) await action();
+  for (const provider of providers.splice(0)) provider.close();
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
+const options: AgentTurnOptions = {
+  model: "test-model",
+  reasoningEffort: "",
+  approvalPolicy: "on-request",
+  approvalsReviewer: "user",
+  sandboxMode: "workspace-write",
+  engineOptions: { engine: "claude", permissionMode: "default" },
+};
+const prompt = { text: "hello", files: [], images: [], skills: [], textAttachments: [] };
+
+async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeoutMs = 40) {
+  const root = await mkdtemp(join(tmpdir(), "codexly-claude-provider-"));
+  roots.push(root);
+  const tasks = new Map<string, LocalTask>();
+  const store = {
+    catalog(operation: keyof CatalogOperations, payload: unknown) {
+      const input = payload as LocalTask;
+      if (operation === "task.read") return Promise.resolve(tasks.get(input.id) ?? null);
+      if (operation === "task.put") {
+        tasks.set(input.id, structuredClone(input));
+        return Promise.resolve(input);
+      }
+      if (operation === "task.patch") {
+        const task = { ...tasks.get(input.id), ...input };
+        tasks.set(input.id, task);
+        return Promise.resolve(task);
+      }
+      if (operation === "task.remove") {
+        tasks.delete(input.id);
+        return Promise.resolve();
+      }
+      if (operation === "task.list")
+        return Promise.resolve({ data: [...tasks.values()], nextCursor: null });
+      throw new Error(`Unexpected catalog operation ${operation}`);
+    },
+  } as LocalCatalogStore;
+  const config = new ClaudeConfiguration(root, join(root, "user"));
+  const received: unknown[] = [];
+  let next: ((value: IteratorResult<SDKMessage>) => void) | undefined;
+  let closed = false;
+  const messages: SDKMessage[] = [];
+  const deleteSession = vi.fn(() => Promise.resolve());
+  const stopTask = vi.fn(() => Promise.resolve());
+  const close = vi.fn(() => {
+    closed = true;
+    next?.({ done: true, value: undefined });
+  });
+  const query = vi.fn(
+    ({ prompt, options }: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => {
+      closed = false;
+      received.push(options);
+      void (async () => {
+        for await (const input of prompt) received.push(input);
+      })();
+      const stream = {
+        [Symbol.asyncIterator]() {
+          return this;
+        },
+        next(): Promise<IteratorResult<SDKMessage>> {
+          const message = messages.shift();
+          return message
+            ? Promise.resolve({ value: message, done: false })
+            : closed
+              ? Promise.resolve({ value: undefined, done: true })
+              : new Promise((resolve) => {
+                  next = resolve;
+                });
+        },
+        close,
+        interrupt: vi.fn(() => Promise.resolve()),
+        stopTask,
+      } as unknown as Query;
+      return stream;
+    },
+  );
+  const send = (value: unknown) => {
+    const message = value as SDKMessage;
+    if (next) {
+      const resolve = next;
+      next = undefined;
+      resolve({ value: message, done: false });
+    } else messages.push(message);
+  };
+  const createProvider = (configuration = config) => {
+    const provider = new ClaudeAgentProvider(
+      { id: "p", kind: "project", rootPath: root, runtimeWorkspaceRoots: [root] },
+      store,
+      configuration,
+      {
+        query,
+        deleteSession,
+        getSessionMessages: () => Promise.resolve([]),
+        ...(getSessionInfo ? { getSessionInfo } : {}),
+      },
+      undefined,
+      idleTimeoutMs,
+    );
+    providers.push(provider);
+    cleanup.push(async () => {
+      for (const id of tasks.keys()) await provider.stopSession(id);
+    });
+    return provider;
+  };
+  const provider = createProvider();
+  return {
+    provider,
+    restart: createProvider,
+    config,
+    tasks,
+    query,
+    received,
+    send,
+    close,
+    stopTask,
+    deleteSession,
+    end: () => {
+      closed = true;
+      next?.({ done: true, value: undefined });
+      next = undefined;
+    },
+  };
+}
+
+
+import { ClaudeTurnProjection } from "./turn-projection.js";
+import { AgentEventStream } from "../../server/src/agent-event-stream.js";
+
+// 审查复现：仅使用伪 SDK 与临时目录，不访问真实账户或原生用户配置。
+it("audit: credential change reuses the old query", async () => {
+  const h = await harness(undefined, 60_000);
+  await h.config.configure({ baseUrl: "https://old.example.test", apiKey: "old-test-key", authType: "apiKey" });
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  const ended = new Promise<void>(resolve => h.provider.subscribeEvents(e => { if(e.type === "turn.completed") resolve(); }));
+  h.send({type:"result",subtype:"success"});
+  await ended;
+  await h.config.configure({ baseUrl: "https://new.example.test", apiKey: "new-test-key", authType: "apiKey" });
+  await h.provider.startTurn(task.id, prompt, options);
+  expect(h.query).toHaveBeenCalledTimes(1);
+  h.send({type:"result",subtype:"success"});
+});
+
+it("audit: denied TodoWrite changes the plan", () => {
+  const p = new ClaudeTurnProjection("task", "turn", "hello", () => {});
+  p.receive({type:"assistant",message:{id:"m",content:[{type:"tool_use",id:"todo",name:"TodoWrite",input:{todos:[{content:"should not apply",status:"completed"}]}}]}});
+  p.receive({type:"user",message:{content:[{type:"tool_result",tool_use_id:"todo",is_error:true,content:"User denied"}]}});
+  expect(p.plan?.steps).toEqual([{text:"should not apply",status:"completed"}]);
+});
+
+it("audit: snapshot can remain running after the completion checkpoint", async () => {
+  const h = await harness(undefined, 60_000);
+  const events = new AgentEventStream({provider:"claude",sessionId:"audit"});
+  h.provider.subscribeEvents(e=>events.publish(e));
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id,prompt,options);
+  const entered = Promise.withResolvers<void>();
+  const unblock = Promise.withResolvers<void>();
+  const original = h.config.history.items.read.bind(h.config.history.items);
+  // 卡在分页正文已经取到、但快照尚未返回的真实异步边界。
+  vi.spyOn(h.config.history.items,"read").mockImplementation(async (...args) => {
+    const value = await original(...args);
+    if(args[2] === null) { entered.resolve(); await unblock.promise; }
+    return value;
+  });
+  const reading = h.provider.readTask(task.id);
+  await entered.promise;
+  const completed = Promise.withResolvers<void>();
+  h.provider.subscribeEvents(e=> { if(e.type === "turn.completed") completed.resolve(); });
+  h.send({type:"result",subtype:"success"});
+  await completed.promise;
+  unblock.resolve();
+  const snapshot = await reading;
+  const checkpoint = events.checkpoint;
+  expect(snapshot?.turns.at(-1)?.status).toBe("running");
+  expect(events.replayAfter(checkpoint.sequence)).toEqual({type:"events",events:[]});
+  events.close();
+});
+
+it("audit: unchanged checkpoint still scans all items", async () => {
+  const h = await harness();
+  const items = Array.from({length:512},(_,i)=>({id:`item-${i}`,type:"message" as const,role:"assistant" as const,text:"a".repeat(200)}));
+  const turn: AgentTurn = { id:"t",status:"running",startedAt:new Date().toISOString(),completedAt:null,error:null,items };
+  await h.config.history.checkpoint("audit-task",turn);
+  const start=performance.now();
+  for(let i=0;i<3;i++) await h.config.history.checkpoint("audit-task",turn);
+  await writeFile(".artifacts/audit-checkpoint-metrics.json",JSON.stringify({items:512,repeats:3,averageMs:(performance.now()-start)/3}));
+});

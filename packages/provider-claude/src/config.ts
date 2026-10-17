@@ -248,6 +248,21 @@ export class ClaudeConfiguration {
     };
   }
 
+  async connectionRevision(): Promise<string> {
+    const credentials = await this.credentials();
+    // SDK 子进程固定使用启动时的连接配置；只保存有效地址与凭据的摘要，避免长期持有明文。
+    // 不使用目录缓存的 revision：原生登录元数据会自行更新，不应因此每轮重启 SDK。
+    return createHash("sha256")
+      .update(
+        JSON.stringify([
+          credentials?.baseUrl ?? "https://api.anthropic.com",
+          credentials?.apiKey ?? null,
+          credentials?.authToken ?? null,
+        ]),
+      )
+      .digest("hex");
+  }
+
   async status(): Promise<AgentProviderConnectionStatus> {
     const credentials = await this.credentials();
     const custom =

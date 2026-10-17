@@ -669,6 +669,56 @@ it.each([true, false])(
   },
 );
 
+it.each([
+  { baseUrl: "https://service-b.example", apiKey: "key-a", authType: "apiKey" },
+  { baseUrl: "https://service-a.example", apiKey: "rotated-key", authType: "apiKey" },
+  { baseUrl: "https://service-a.example", apiKey: "token-b", authType: "authToken" },
+] as const)(
+  "replaces an idle query after connection changes to $baseUrl ($authType)",
+  async (connection) => {
+    const h = await harness(undefined, 60_000);
+    await h.config.configure({ baseUrl: "https://service-a.example", apiKey: "key-a" });
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    const sessionId = h.tasks.get(task.id)?.sessionId;
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+
+    const defaults = await h.config.readSettings();
+    await h.config.configure(connection);
+    // 公开设置不含凭据，因此仅比较回合选项和公开设置无法发现连接已切换。
+    expect(await h.config.readSettings()).toEqual(defaults);
+    await h.provider.startTurn(task.id, prompt, options);
+    expect(h.close).toHaveBeenCalledOnce();
+    expect(h.query).toHaveBeenCalledTimes(2);
+    expect(h.query.mock.calls[1]?.[0].options).toMatchObject({ resume: sessionId });
+  },
+);
+
+it("rejects a new turn with changed credentials while background work survives", async () => {
+  const h = await harness(undefined, 60_000);
+  await h.config.configure({ baseUrl: "https://service-a.example", apiKey: "key-a" });
+  const task = await h.provider.startTask();
+  const completed = vi.fn();
+  h.provider.subscribeEvents((event) => {
+    if (event.type === "turn.completed") completed();
+  });
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send({ type: "system", subtype: "background_tasks_changed", tasks: [{ task_id: "bash" }] });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(completed).toHaveBeenCalledOnce();
+  });
+  await h.config.configure({ baseUrl: "https://service-b.example", apiKey: "key-b" });
+  await expect(h.provider.startTurn(task.id, prompt, options)).rejects.toThrow(
+    "Stop Claude background tasks before changing session options",
+  );
+  expect(h.close).not.toHaveBeenCalled();
+  expect(h.query).toHaveBeenCalledOnce();
+});
+
 it.each(["idle", "settings", "stop"] as const)(
   "replays exact session grants after %s query replacement without sharing them with another chat",
   async (replacement) => {

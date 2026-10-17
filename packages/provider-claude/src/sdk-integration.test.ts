@@ -1,15 +1,25 @@
 import { createServer } from "node:http";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { query } from "@anthropic-ai/claude-agent-sdk";
-import { expect, it } from "vitest";
+import {
+  query,
+  getSessionInfo,
+  getSessionMessages,
+  deleteSession,
+} from "@anthropic-ai/claude-agent-sdk";
+import type { CatalogOperations, LocalCatalogStore, LocalTask } from "@codexly/core";
+import { expect, it, vi } from "vitest";
 import { claudeEnvironment } from "./config.js";
+import { ClaudeRuntime } from "./runtime.js";
 
-// 真正启动官方 SDK 配套二进制；只替换远端 API，不使用真实密钥或消耗额度。
-it("runs the official Claude runtime against an isolated local Messages API", async () => {
-  const root = await mkdtemp(join(tmpdir(), "claude-sdk-contract-"));
-  const requests: { path: string; key: string | undefined }[] = [];
+async function localApi() {
+  const requests: {
+    path: string;
+    key: string | undefined;
+    authorization: string | undefined;
+    body: string;
+  }[] = [];
   const server = createServer((request, response) => {
     void (async () => {
       const chunks: Buffer[] = [];
@@ -17,6 +27,8 @@ it("runs the official Claude runtime against an isolated local Messages API", as
       requests.push({
         path: request.url ?? "",
         key: request.headers["x-api-key"] as string | undefined,
+        authorization: request.headers.authorization,
+        body: Buffer.concat(chunks).toString("utf8"),
       });
       if (request.url?.includes("count_tokens")) {
         response.writeHead(200, { "Content-Type": "application/json" });
@@ -70,6 +82,24 @@ it("runs the official Claude runtime against an isolated local Messages API", as
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("No test API address");
+  return {
+    requests,
+    baseUrl: `http://127.0.0.1:${String(address.port)}`,
+    async close() {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) =>
+        server.close(() => {
+          resolve();
+        }),
+      );
+    },
+  };
+}
+
+// 真正启动官方 SDK 配套二进制；只替换远端 API，不使用真实密钥或消耗额度。
+it("runs the official Claude runtime against an isolated local Messages API", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-sdk-contract-"));
+  const api = await localApi();
   const controller = new AbortController();
   const timer = setTimeout(() => {
     controller.abort();
@@ -81,7 +111,7 @@ it("runs the official Claude runtime against an isolated local Messages API", as
       env: {
         ...claudeEnvironment({
           apiKey: "isolated-test-key",
-          baseUrl: `http://127.0.0.1:${String(address.port)}`,
+          baseUrl: api.baseUrl,
         }),
         CLAUDE_CONFIG_DIR: join(root, "runtime"),
       },
@@ -100,18 +130,141 @@ it("runs the official Claude runtime against an isolated local Messages API", as
     expect(messages).toContainEqual(
       expect.objectContaining({ type: "result", subtype: "success", result: "local-contract-ok" }),
     );
-    expect(requests.filter((request) => request.path.includes("/messages"))).toContainEqual(
+    expect(api.requests.filter((request) => request.path.includes("/messages"))).toContainEqual(
       expect.objectContaining({ key: "isolated-test-key" }),
     );
   } finally {
     clearTimeout(timer);
     stream.close();
-    server.closeAllConnections();
-    await new Promise<void>((resolve) =>
-      server.close(() => {
-        resolve();
-      }),
-    );
+    await api.close();
     await rm(root, { recursive: true, force: true });
   }
 }, 35_000);
+
+it("switches the real SDK endpoint and credentials between turns while preserving native context", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-connection-contract-"));
+  const a = await localApi();
+  const b = await localApi();
+  // 只让 SDK 加载临时原生配置，防止开发机环境中的密钥或地址覆盖本地测试服务。
+  for (const key of Object.keys(process.env)) {
+    if (/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$)/u.test(key)) vi.stubEnv(key, undefined);
+  }
+  vi.stubEnv("CLAUDE_CONFIG_DIR", join(root, "native"));
+  const tasks = new Map<string, LocalTask>();
+  const store = {
+    catalog(operation: keyof CatalogOperations, payload: unknown) {
+      const value = payload as LocalTask;
+      if (operation === "task.read") return Promise.resolve(tasks.get(value.id) ?? null);
+      if (operation === "task.put" || operation === "task.patch") {
+        const task = { ...tasks.get(value.id), ...value };
+        tasks.set(value.id, task);
+        return Promise.resolve(task);
+      }
+      throw new Error(`Unexpected catalog operation: ${operation}`);
+    },
+  } as LocalCatalogStore;
+  const sdkQuery = vi.fn(query);
+  const runtime = new ClaudeRuntime(root, store, {
+    query: sdkQuery,
+    getSessionInfo,
+    getSessionMessages,
+    deleteSession,
+  });
+  const provider = runtime.forScope({
+    id: "p",
+    kind: "project",
+    rootPath: root,
+    runtimeWorkspaceRoots: [root],
+  });
+  const task = await provider.startTask();
+  const options = {
+    model: "claude-sonnet-4-6",
+    reasoningEffort: "",
+    approvalPolicy: "on-request",
+    approvalsReviewer: "user",
+    sandboxMode: "workspace-write",
+    engineOptions: { engine: "claude", permissionMode: "default" },
+  } as const;
+  const executionQueries = () =>
+    sdkQuery.mock.calls.filter(([input]) => input.options?.persistSession);
+  const send = async (text: string) => {
+    const turn = await provider.startTurn(
+      task.id,
+      {
+        text,
+        files: [],
+        images: [],
+        skills: [],
+        textAttachments: [],
+      },
+      options,
+    );
+    await vi.waitFor(
+      async () => {
+        expect(provider.isBusy).toBe(false);
+        expect(
+          (await provider.readTask(task.id))?.turns.find((item) => item.id === turn.id)?.status,
+        ).toBe("completed");
+      },
+      { timeout: 15_000 },
+    );
+  };
+  const messages = (api: Awaited<ReturnType<typeof localApi>>) =>
+    api.requests.filter(
+      (request) => request.path.includes("/messages") && !request.path.includes("count_tokens"),
+    );
+  try {
+    await runtime.configure({ baseUrl: a.baseUrl, apiKey: "isolated-key-a", authType: "apiKey" });
+    await send("Remember connection-context-proof-42");
+    const sessionId = tasks.get(task.id)?.sessionId;
+    // 相同配置保存不得重建查询，保证正常连续对话仍复用进程。
+    await runtime.configure({ baseUrl: a.baseUrl, apiKey: "isolated-key-a", authType: "apiKey" });
+    await send("Continue with the same connection");
+    expect(executionQueries()).toHaveLength(1);
+    expect(messages(a).map((request) => request.key)).toEqual(["isolated-key-a", "isolated-key-a"]);
+
+    await runtime.configure({ baseUrl: b.baseUrl, apiKey: "isolated-key-b", authType: "apiKey" });
+    await send("Continue after switching service");
+    expect(messages(a)).toHaveLength(2);
+    expect(messages(b).map((request) => request.key)).toEqual(["isolated-key-b"]);
+    expect(messages(b)[0]?.body).toContain("connection-context-proof-42");
+
+    // 外部编辑原生配置不会经过 runtime.configure，同样必须使旧连接失效。
+    const settingsPath = join(runtime.configuration.userDirectory, "settings.json");
+    const native = JSON.parse(await readFile(settingsPath, "utf8")) as {
+      env: Record<string, string>;
+    };
+    native.env["ANTHROPIC_API_KEY"] = "rotated-key-b";
+    await writeFile(settingsPath, JSON.stringify(native));
+    await send("Continue after rotating the key");
+    expect(messages(b).at(-1)?.key).toBe("rotated-key-b");
+
+    await runtime.configure({
+      baseUrl: b.baseUrl,
+      apiKey: "isolated-token-b",
+      authType: "authToken",
+    });
+    await send("Continue with bearer authentication");
+    expect(messages(b).at(-1)?.authorization).toBe("Bearer isolated-token-b");
+    expect(messages(b).at(-1)?.key).toBeUndefined();
+    await runtime.configure({
+      baseUrl: b.baseUrl,
+      apiKey: "rotated-token-b",
+      authType: "authToken",
+    });
+    await send("Continue after rotating the bearer token");
+    expect(messages(b).at(-1)?.authorization).toBe("Bearer rotated-token-b");
+    expect(messages(b).at(-1)?.key).toBeUndefined();
+    expect(messages(a)).toHaveLength(2);
+    expect(messages(b)).toHaveLength(4);
+    expect(executionQueries()).toHaveLength(5);
+    for (const [input] of executionQueries().slice(1))
+      expect(input.options?.resume).toBe(sessionId);
+  } finally {
+    await provider.stopSession(task.id);
+    runtime.close();
+    vi.unstubAllEnvs();
+    await Promise.all([a.close(), b.close()]);
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);

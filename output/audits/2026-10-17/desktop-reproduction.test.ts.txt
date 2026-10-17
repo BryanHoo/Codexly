@@ -1,0 +1,40 @@
+import type { AgentEvent, AgentTaskSnapshotResponse } from "@/protocol/index.js";
+import { describe, expect, it } from "vitest";
+
+import { createTaskStore } from "./task-store.js";
+
+const timestamp = "2026-09-23T00:00:00Z";
+const response: AgentTaskSnapshotResponse = {
+  checkpoint: { sequence: 0, sessionId: "session" },
+  snapshot: {
+    id: "task", projectId: "project", title: "Task", pinned: false,
+    updatedAt: timestamp, status: "running", pendingRequests: [],
+    turns: [{ id: "turn", status: "running", startedAt: timestamp, completedAt: null, error: null, items: [] }],
+    turnsNextCursor: null, contextUsage: null, goal: null, plan: null,
+    settings: { approvalPolicy: "on-request", approvalsReviewer: "user", model: "model",
+      reasoningEffort: "high", sandboxMode: "workspace-write" },
+  },
+};
+
+
+// 审查复现：重启后的权威快照已经删去旧消息，reconcile 仍会把旧实体带回。
+it("audit: old items survive a new runtime session", () => {
+  const old = structuredClone(response);
+  old.snapshot.turns[0]!.items=[{id:"old",type:"message",role:"assistant",text:"old content"}];
+  const store=createTaskStore({projectId:"project",taskId:"task"},old);
+  const fresh=structuredClone(response);
+  fresh.checkpoint.sessionId="next-session";
+  store.getState().reconcile(fresh);
+  expect(store.getState().reconstructSnapshot()?.turns[0]?.items).toEqual(old.snapshot.turns[0]!.items);
+});
+
+// 两条不同 ID 的消息可能具有相同前缀，前缀相似不能证明它们是同一实体。
+it("audit: distinct message identity is merged by matching text prefix", () => {
+  const old=structuredClone(response);
+  old.snapshot.turns[0]!.items=[{id:"old",type:"message",role:"assistant",text:"Hello"}];
+  const store=createTaskStore({projectId:"project",taskId:"task"},old);
+  const fresh=structuredClone(response);
+  fresh.snapshot.turns[0]!.items=[{id:"new",type:"message",role:"assistant",text:"Hello world"}];
+  store.getState().reconcile(fresh);
+  expect(store.getState().reconstructSnapshot()?.turns[0]?.items).toEqual([{id:"old",type:"message",role:"assistant",text:"Hello world"}]);
+});

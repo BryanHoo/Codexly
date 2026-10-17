@@ -292,7 +292,9 @@ export class ClaudeAgentProvider {
       this.#sessionGrants.set(id, grants);
       const permissions = new ClaudePermissions(this.scope.id, id, turnId, this.#emit, grants);
       const controller = new AbortController();
-      const settingsKey = JSON.stringify({ options, defaults });
+      // 每轮读取有效连接摘要，覆盖设置页保存和外部编辑；变更后沿用原生会话 ID 重建查询。
+      const connectionRevision = await this.config.connectionRevision();
+      const settingsKey = JSON.stringify({ options, defaults, connectionRevision });
       let existing = this.#running.get(id);
       if (existing?.closed) {
         await existing.done;
@@ -454,7 +456,6 @@ export class ClaudeAgentProvider {
       throw new Error("Claude background task is no longer running");
     await running.query.stopTask(backgroundTaskId);
   }
-
   async stopSession(id: string, backgroundTaskId?: string): Promise<void> {
     if (backgroundTaskId) return this.stopBackgroundTask(id, backgroundTaskId);
     await this.#task(id);
@@ -463,7 +464,6 @@ export class ClaudeAgentProvider {
     session.stop(running);
     await running.done;
   }
-
   async interruptTurn(id: string, turnId: string): Promise<void> {
     await this.#task(id);
     const current = this.#running.get(id);
