@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -487,7 +488,27 @@ test(
       assert.equal((await host.request("profile")).connection.state, "disconnected");
       assert.equal((await host.request("settings.read")).instructions, "Always test");
       assert.equal((await host.request("task.read", { taskId: "task" }, scope)).turns.length, 6);
+      // 真实 SDK 的会话及应用历史必须实际存在，防止空目录清理造成假阳性。
+      assert.ok(
+        (await readdir(nativeProjects, { recursive: true })).some((path) =>
+          path.endsWith(`${sessionId}.jsonl`),
+        ),
+      );
       await host.request("task.delete", { taskId: "task" }, scope);
+      const taskHash = createHash("sha256").update("task").digest("hex");
+      assert.equal(
+        (await readdir(join(directory, "transcripts"), { recursive: true })).some((path) =>
+          path.includes(taskHash),
+        ),
+        false,
+      );
+      assert.equal(
+        (await readdir(nativeProjects, { recursive: true })).some((path) =>
+          path.includes(sessionId),
+        ),
+        false,
+      );
+
       assert.equal(tasks.has("task"), false);
       assert.ok(
         host.events.some(

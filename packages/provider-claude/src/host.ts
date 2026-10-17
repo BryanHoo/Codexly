@@ -2,7 +2,12 @@ import { exportClaudeAttachment } from "./attachment-export.js";
 import { Value } from "@sinclair/typebox/value";
 import { AgentTurnOptionsSchema } from "@codexly/protocol";
 import { resolve } from "node:path";
-import { query, getSessionMessages, getSessionInfo } from "@anthropic-ai/claude-agent-sdk";
+import {
+  query,
+  getSessionMessages,
+  getSessionInfo,
+  deleteSession,
+} from "@anthropic-ai/claude-agent-sdk";
 import type { AgentTaskScope, CatalogOperations, LocalCatalogStore } from "@codexly/core";
 import type { AgentProviderTurnInput, ResolvePendingRequestInput } from "@codexly/core";
 import type { ClaudeSettings, ConfigureCustomProviderRequest } from "@codexly/protocol";
@@ -55,6 +60,7 @@ if (process.argv.includes("--version")) {
   const runtime = new ClaudeRuntime(resolve(directory), store, {
     getSessionMessages,
     getSessionInfo,
+    deleteSession,
     query: (input) =>
       query({
         ...input,

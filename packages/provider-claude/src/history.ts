@@ -1,5 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
-import { appendFile, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import {
+  appendFile,
+  mkdir,
+  open,
+  opendir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentContextUsage, AgentMcpServer, AgentPlan, AgentTurn } from "@codexly/protocol";
 import { ClaudeItemHistory } from "./item-history.js";
@@ -36,6 +45,25 @@ export class ClaudeHistory {
   }
   saveItems(task: string, turn: string, items: readonly AgentItem[]): Promise<void> {
     return this.#write(task, () => this.items.save(task, turn, items));
+  }
+  /** 排在已有写入之后清理全部任务文件，包含恢复记录、迟到回合覆盖与临时文件。 */
+  deleteTask(task: string): Promise<void> {
+    return this.#write(task, async () => {
+      await this.items.deleteTask(task);
+      let directory;
+      try {
+        directory = await opendir(this.directory);
+      } catch (error) {
+        if (missing(error)) return;
+        throw error;
+      }
+      const prefix = `${createHash("sha256").update(task).digest("hex")}.`;
+      // 逐项扫描保持内存有界，不加载历史正文；精确哈希前缀隔离其他任务。
+      for await (const entry of directory) {
+        if (entry.name.startsWith(prefix))
+          await rm(join(this.directory, entry.name), { force: true });
+      }
+    });
   }
   /** 旧版快照按需建立索引；恢复出的失败状态也必须应用到续页元数据。 */
   prepareItemHistory(task: string, turn: AgentTurn): Promise<void> {

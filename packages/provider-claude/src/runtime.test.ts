@@ -44,6 +44,7 @@ it("loads native SDK authentication, merges discovery and refreshes externally c
   const runtime = new ClaudeRuntime(root, {} as LocalCatalogStore, {
     query,
     getSessionMessages: () => Promise.resolve([]),
+    deleteSession: vi.fn(() => Promise.resolve()),
   });
 
   await writeFile(
@@ -98,6 +99,7 @@ it("does not treat the SDK none authentication source as a connected account", a
         close: vi.fn(),
       }) as unknown as Query,
     getSessionMessages: () => Promise.resolve([]),
+    deleteSession: vi.fn(() => Promise.resolve()),
   });
   expect((await runtime.inspect()).connection.state).toBe("disconnected");
   runtime.close();

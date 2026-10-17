@@ -5,6 +5,7 @@ import type {
   SDKUserMessage,
   getSessionMessages,
   getSessionInfo,
+  deleteSession,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentProviderEventListener, LocalCatalogStore, LocalTask } from "@codexly/core";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
@@ -18,6 +19,7 @@ import { refreshClaudeContext } from "./observability.js";
 export interface ClaudeSdk {
   query: (input: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
   getSessionMessages: typeof getSessionMessages;
+  deleteSession: typeof deleteSession;
   getSessionInfo?: typeof getSessionInfo;
 }
 

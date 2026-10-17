@@ -287,14 +287,17 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
   }
 
   public deleteTask(taskId: string): void {
+    void this.removeTask(taskId).catch(() => {
+      // 兼容原有授权撤销入口；需要确认磁盘清理的永久删除流程使用 removeTask。
+    });
+  }
+
+  public async removeTask(taskId: string): Promise<void> {
     this.clearTask(taskId);
     // 删除先撤销授权，再等待此前已提交的写入结束，防止晚到的任务重建已删除目录。
     const inflight = [...(this.#inflight.get(taskId) ?? [])];
-    void Promise.allSettled(inflight)
-      .then(() => rm(this.#taskDirectory(taskId), { force: true, recursive: true }))
-      .catch(() => {
-        // 文件清理失败不影响已经完成的授权状态变更。
-      });
+    await Promise.allSettled(inflight);
+    await rm(this.#taskDirectory(taskId), { force: true, recursive: true });
   }
 
   public dispose(): void {

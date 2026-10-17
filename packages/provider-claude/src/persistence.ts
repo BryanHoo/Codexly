@@ -19,6 +19,13 @@ export class ClaudePersistence {
   get pendingCount(): number {
     return this.#pending.size;
   }
+  /** 等待已有恢复事务完成，再删除磁盘和内存恢复记录，避免读取重试重建历史。 */
+  deleteTask(id: string): Promise<void> {
+    return this.#enqueue(id, async () => {
+      await this.history.deleteTask(id);
+      this.#pending.delete(id);
+    });
+  }
 
   #enqueue<T>(id: string, action: () => Promise<T>): Promise<T> {
     const result = (this.#operations.get(id) ?? Promise.resolve())

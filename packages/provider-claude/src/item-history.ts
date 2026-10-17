@@ -17,6 +17,9 @@ interface StoredItem {
 /** 磁盘索引只保存定长摘要，记录原位更新；内存和每次反向读取均与总历史长度无关。 */
 export class ClaudeItemHistory {
   constructor(readonly directory: string) {}
+  async deleteTask(task: string): Promise<void> {
+    await rm(join(this.directory, hash(task)), { recursive: true, force: true });
+  }
   #path(task: string, turn: string) {
     return join(this.directory, hash(task), hash(turn));
   }

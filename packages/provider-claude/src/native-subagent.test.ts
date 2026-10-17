@@ -180,6 +180,7 @@ it.each(["completed", "failed"] as const)(
     } as LocalCatalogStore;
     const sdk: ClaudeSdk = {
       getSessionMessages: () => Promise.resolve([]),
+      deleteSession: vi.fn(() => Promise.resolve()),
       query: vi.fn<ClaudeSdk["query"]>((input) => {
         const stream = query({
           prompt: (async function* () {

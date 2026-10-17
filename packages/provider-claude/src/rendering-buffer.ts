@@ -4,6 +4,18 @@ import type { AgentItem, AgentTurn } from "@codexly/protocol";
 export const CLAUDE_TURN_PREVIEW_BYTES = 384 * 1024;
 export const CLAUDE_CHILD_PREVIEW_BYTES = 64 * 1024;
 export const CLAUDE_PREVIEW_NOTICE = "\n[展示已省略部分内容，完整记录保留在 Claude 会话中]\n";
+
+/** 只解析有界展示参数；截断或非法 JSON 返回 undefined，交由 SDK 继续处理执行。 */
+export function parseToolInputPreview(input: { json: string; bytes: number }): unknown {
+  if (input.bytes > 256 * 1024) return { preview: CLAUDE_PREVIEW_NOTICE };
+  try {
+    return JSON.parse(input.json) as unknown;
+  } catch {
+    // content_block_stop 不保证 JSON 完整，max_tokens 可能截断任意参数。
+    return undefined;
+  }
+}
+
 const size = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
 const object = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value)

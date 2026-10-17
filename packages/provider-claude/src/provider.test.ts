@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -51,6 +51,10 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
         tasks.set(input.id, task);
         return Promise.resolve(task);
       }
+      if (operation === "task.remove") {
+        tasks.delete(input.id);
+        return Promise.resolve();
+      }
       if (operation === "task.list")
         return Promise.resolve({ data: [...tasks.values()], nextCursor: null });
       throw new Error(`Unexpected catalog operation ${operation}`);
@@ -61,6 +65,7 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
   let next: ((value: IteratorResult<SDKMessage>) => void) | undefined;
   let closed = false;
   const messages: SDKMessage[] = [];
+  const deleteSession = vi.fn(() => Promise.resolve());
   const stopTask = vi.fn(() => Promise.resolve());
   const close = vi.fn(() => {
     closed = true;
@@ -109,6 +114,7 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
       configuration,
       {
         query,
+        deleteSession,
         getSessionMessages: () => Promise.resolve([]),
         ...(getSessionInfo ? { getSessionInfo } : {}),
       },
@@ -132,6 +138,7 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
     send,
     close,
     stopTask,
+    deleteSession,
     end: () => {
       closed = true;
       next?.({ done: true, value: undefined });
@@ -1498,4 +1505,144 @@ it("loads every record of a long Claude turn through bounded history pages after
     Array.from({ length: 70 }, (_, index) => `history-${String(index)}:0`),
   );
   expect(new Set(ids).size).toBe(ids.length);
+});
+
+it("permanently deletes all task history and the bound native session without touching another task", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  const other = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(async () => {
+    expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("completed");
+  });
+  const nativeTask = structuredClone(h.tasks.get(task.id));
+  assert.ok(nativeTask);
+  const turn = (await h.config.history.read(task.id)).turns[0];
+  assert.ok(turn);
+  const metadata = await h.config.history.metadata(task.id);
+  assert.ok(metadata);
+  await h.config.history.complete(other.id, turn);
+  await h.config.history.update(task.id, turn);
+  await h.config.history.checkpoint(task.id, turn);
+  await h.config.history.saveRecovery(task.id, { entries: [{ turn, mode: "complete" }], metadata });
+  const attachments = await h.config.attachments.prepare(task.id, {
+    ...prompt,
+    textAttachments: [{ name: "secret.txt", text: "private content" }],
+  });
+  await h.provider.deleteTask(task.id);
+  expect(h.close).toHaveBeenCalledOnce();
+  expect(h.deleteSession).toHaveBeenCalledWith(nativeTask.sessionId, { dir: nativeTask.cwd });
+  expect(await h.config.history.read(task.id)).toEqual({ turns: [], cursor: null });
+  expect(await h.config.history.active(task.id)).toBeUndefined();
+  expect(await h.config.history.metadata(task.id)).toBeUndefined();
+  expect(await h.config.history.recovery(task.id)).toBeUndefined();
+  expect(await h.config.history.items.read(task.id, turn.id)).toBeUndefined();
+  expect(await h.config.attachments.read(task.id, attachments[0]?.id ?? "missing")).toBeUndefined();
+  expect(await readdir(join(h.config.attachments.directory, "blobs"))).toEqual([]);
+  expect((await h.config.history.read(other.id)).turns).toEqual([turn]);
+  expect(h.tasks.has(task.id)).toBe(false);
+  await expect(h.provider.readTask(task.id)).rejects.toThrow("Task not found");
+});
+
+it("retains the catalog entry after native deletion fails and permits retry", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const record = h.tasks.get(task.id);
+  assert.ok(record);
+  record.sessionId = "11111111-1111-4111-8111-111111111111";
+  h.deleteSession.mockRejectedValueOnce(new Error("native permission denied"));
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  await expect(h.provider.deleteTask(task.id)).rejects.toThrow("native permission denied");
+  expect(h.tasks.has(task.id)).toBe(true);
+  expect(events.some((event) => event.type === "task.removed")).toBe(false);
+  await h.provider.deleteTask(task.id);
+  expect(h.tasks.has(task.id)).toBe(false);
+});
+
+it("deletes a never-started task without requesting native session deletion", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.deleteTask(task.id);
+  expect(h.deleteSession).not.toHaveBeenCalled();
+  expect(h.tasks.has(task.id)).toBe(false);
+});
+
+it("discards pending persistence so a later retry cannot resurrect deleted history", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const turn: AgentTurn = {
+    id: "unpersisted",
+    status: "completed",
+    startedAt: null,
+    completedAt: null,
+    error: null,
+    items: [],
+  };
+  const complete = vi.spyOn(h.config.history, "complete").mockRejectedValue(new Error("disk full"));
+  await h.config.persistence.settleAll(task.id, [{ turn, mode: "complete" }], {
+    contextUsage: null,
+    plan: null,
+    model: null,
+    mcpServers: [],
+  });
+  expect(h.config.persistence.hasPending(task.id)).toBe(true);
+  complete.mockRestore();
+  await h.provider.deleteTask(task.id);
+  expect(h.config.persistence.hasPending(task.id)).toBe(false);
+  expect(await h.config.persistence.retry(task.id)).toBeUndefined();
+  expect(await h.config.history.read(task.id)).toEqual({ turns: [], cursor: null });
+});
+
+it("retains the task when attachment cleanup fails and retries an already deleted native session", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const record = h.tasks.get(task.id);
+  assert.ok(record);
+  record.sessionId = "11111111-1111-4111-8111-111111111111";
+  vi.spyOn(h.config.attachments.store, "removeTask").mockRejectedValueOnce(
+    new Error("attachment denied"),
+  );
+  await expect(h.provider.deleteTask(task.id)).rejects.toThrow("attachment denied");
+  expect(h.tasks.has(task.id)).toBe(true);
+  h.deleteSession.mockRejectedValueOnce(
+    new Error(`Session ${record.sessionId} not found in project directory for ${record.cwd}`),
+  );
+  await h.provider.deleteTask(task.id);
+  expect(h.tasks.has(task.id)).toBe(false);
+});
+
+it("blocks new turns while permanent deletion is in progress", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const record = h.tasks.get(task.id);
+  assert.ok(record);
+  record.sessionId = "11111111-1111-4111-8111-111111111111";
+  const gate = Promise.withResolvers<undefined>();
+  h.deleteSession.mockReturnValueOnce(gate.promise);
+  const deleting = h.provider.deleteTask(task.id);
+  await vi.waitFor(() => {
+    expect(h.deleteSession).toHaveBeenCalledOnce();
+  });
+  try {
+    await expect(h.provider.startTurn(task.id, prompt, options)).rejects.toThrow("already running");
+    await expect(h.provider.deleteTask(task.id)).rejects.toThrow("Stop the running task");
+    expect(h.query).not.toHaveBeenCalled();
+  } finally {
+    gate.resolve(undefined);
+    await deleting;
+  }
+});
+
+it("does not delete native data for a task owned by another project", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const record = h.tasks.get(task.id);
+  assert.ok(record);
+  record.projectId = "other-project";
+  await expect(h.provider.deleteTask(task.id)).rejects.toThrow("Task not found");
+  expect(h.deleteSession).not.toHaveBeenCalled();
+  expect(h.tasks.has(task.id)).toBe(true);
+  record.projectId = "p";
 });

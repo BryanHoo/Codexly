@@ -61,7 +61,7 @@ export class ClaudeAttachments {
     return this.store.read(taskId, id);
   }
   async deleteTask(taskId: string) {
-    this.store.deleteTask(taskId);
+    await this.store.removeTask(taskId);
     await rm(this.#directory(taskId), { recursive: true, force: true });
     await rm(join(this.directory, "exports", createHash("sha256").update(taskId).digest("hex")), {
       recursive: true,

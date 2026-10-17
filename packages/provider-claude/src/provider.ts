@@ -2,8 +2,14 @@ import { localTaskMetadata as claudeTask } from "@codexly/core";
 export { localTaskMetadata as claudeTask } from "@codexly/core";
 import { mapClaudeMcpServers, observe } from "./observability.js";
 import { isManagedClaudeCommand } from "./commands.js";
+import { deleteClaudeTask } from "./task-deletion.js";
 import { randomUUID } from "node:crypto";
-import { query, getSessionMessages, getSessionInfo } from "@anthropic-ai/claude-agent-sdk";
+import {
+  query,
+  getSessionMessages,
+  getSessionInfo,
+  deleteSession,
+} from "@anthropic-ai/claude-agent-sdk";
 import type {
   AgentProviderEventListener,
   AgentProviderTurnInput,
@@ -28,7 +34,6 @@ import { ClaudeSessionGrants } from "./session-grants.js";
 import * as session from "./session.js";
 import { readClaudeTaskSnapshot } from "./task-snapshot.js";
 import { createClaudePrompt } from "./turn-input.js";
-
 export const CLAUDE_CAPABILITIES: AgentCapabilities = {
   provider: "claude",
   feedback: { upload: false },
@@ -49,7 +54,7 @@ export class ClaudeAgentProvider {
     readonly scope: AgentTaskScope,
     readonly store: LocalCatalogStore,
     readonly config: ClaudeConfiguration,
-    readonly sdk: session.ClaudeSdk = { query, getSessionMessages, getSessionInfo },
+    readonly sdk: session.ClaudeSdk = { query, getSessionMessages, getSessionInfo, deleteSession },
     readonly discover?: () => Promise<AgentEngineProfile>,
     readonly idleTimeoutMs = 30_000,
   ) {}
@@ -140,15 +145,10 @@ export class ClaudeAgentProvider {
     return claudeTask(await this.store.catalog("task.patch", { id, archived: false }));
   }
   async deleteTask(id: string) {
-    await this.#task(id);
-    const running = this.#running.get(id);
-    if (running && (running.settling || session.hasWork(running)))
-      throw new Error("Stop the running task before deleting");
-    if (running) await this.stopSession(id);
-    await this.store.catalog("task.remove", { id });
-    await this.config.attachments.deleteTask(id);
+    await deleteClaudeTask(await this.#task(id), this, this.#starting, this.#running);
     this.#sessionGrants.delete(id);
     this.#recent.delete(id);
+    this.#unpersisted.delete(id);
     this.#emit({ type: "task.removed", taskId: id, payload: { reason: "deleted" } });
   }
   getCapabilities(): Promise<AgentCapabilities> {
