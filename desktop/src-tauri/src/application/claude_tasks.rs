@@ -99,6 +99,6 @@ pub async fn start(
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let turn = state.claude.request(app, "turn.start", Some(scope(task)), json!({"taskId":id,"input":{"text":input.text,"skills":input.skills,"images":images,"files":files,"textAttachments":text_attachments},"options":options})).await?;
     Ok(
-        json!({"checkpoint":{"sequence":state.project_sequence(project).await,"sessionId":crate::infrastructure::codex::RUNTIME_SESSION_ID},"taskId":id,"turn":turn}),
+        json!({"checkpoint":{"sequence":state.project_sequence(project).await,"sessionId":crate::infrastructure::codex::runtime_session_id()},"taskId":id,"turn":turn}),
     )
 }

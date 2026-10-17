@@ -70,6 +70,10 @@ fn skill_projection_should_keep_aliases_across_late_lifecycle_events() {
     );
     assert_eq!(completed["payload"]["item"]["text"], "修复代码");
     assert_eq!(
+        completed["payload"]["item"]["identityAliases"],
+        json!(["expanded"])
+    );
+    assert_eq!(
         completed["payload"]["item"]["skills"],
         json!([{"name":"rust"}])
     );
@@ -94,6 +98,10 @@ fn skill_projection_should_keep_aliases_across_late_lifecycle_events() {
         2
     );
     assert_eq!(terminal["payload"]["turn"]["items"][0]["text"], "修复代码");
+    assert_eq!(
+        terminal["payload"]["turn"]["items"][0]["identityAliases"],
+        json!(["expanded"])
+    );
 }
 
 #[test]

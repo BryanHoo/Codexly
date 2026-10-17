@@ -327,6 +327,12 @@ function getEventItemKeys(state: TaskStoreState, event: AgentEvent): readonly st
   }
   const itemKeys = [createTaskItemKey(event.turnId, event.itemId)];
   if (event.type === "item.started" || event.type === "item.completed") {
+    // 别名接管会释放旧 Item，差额统计必须同时覆盖被删除实体，避免虚占正文预算。
+    if (event.payload.item.type === "message") {
+      for (const alias of event.payload.item.identityAliases ?? []) {
+        itemKeys.push(createTaskItemKey(event.turnId, alias));
+      }
+    }
     itemKeys.push(createTaskItemKey(event.turnId, `submitted-user-${event.turnId}`));
   }
   return itemKeys;

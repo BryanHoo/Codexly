@@ -167,7 +167,7 @@ async fn assert_native_snapshot(item_cursor: Option<&'static str>) {
     assert_eq!(items[5]["name"], "docs/search");
     assert_eq!(
         value["checkpoint"],
-        json!({"sequence": 0, "sessionId": "codeagent-runtime"})
+        json!({"sequence": 0, "sessionId": super::conversation::runtime_session_id()})
     );
     server_task.await.unwrap();
 }
@@ -199,7 +199,7 @@ fn server_notifications_should_map_to_agent_events() {
             "payload": {"delta": "完成"},
             "provider": "codex",
             "sequence": 3,
-            "sessionId": "codeagent-runtime",
+            "sessionId": super::conversation::runtime_session_id(),
             "taskId": "thread-a",
             "timestamp": timestamp,
             "turnId": "turn-a",

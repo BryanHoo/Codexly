@@ -9,6 +9,8 @@ pub(crate) fn normalize_turn_skills(items: &mut Vec<AgentItem>) {
         let AgentItem::Message {
             role: "user",
             skill_expansion: true,
+            id: expanded_id,
+            identity_aliases: expanded_aliases,
             text,
             skills: Some(extra),
             attachments,
@@ -29,12 +31,24 @@ pub(crate) fn normalize_turn_skills(items: &mut Vec<AgentItem>) {
         }
         let AgentItem::Message {
             role: "user",
+            id,
+            identity_aliases,
             skills,
             ..
         } = previous
         else {
             return false;
         };
+        // 别名超出协议预算时保留独立实体，不能丢失后续事件的身份依据。
+        if identity_aliases.len() + expanded_aliases.len() + 1 > 256 {
+            return false;
+        }
+        if expanded_id != id && !identity_aliases.contains(expanded_id) {
+            identity_aliases.push(std::mem::take(expanded_id));
+        }
+        identity_aliases.append(expanded_aliases);
+        identity_aliases.sort_unstable();
+        identity_aliases.dedup();
         // 移动元数据而非克隆正文；整组归并后只做一次去重和前缀扫描。
         skills.get_or_insert_with(Vec::new).append(extra);
         true

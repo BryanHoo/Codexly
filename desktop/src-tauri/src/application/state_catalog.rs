@@ -14,7 +14,7 @@ impl AppState {
         event["provider"] = json!("claude");
         event["version"] = json!(2);
         event["sequence"] = json!(0);
-        event["sessionId"] = json!(crate::infrastructure::codex::RUNTIME_SESSION_ID);
+        event["sessionId"] = json!(crate::infrastructure::codex::runtime_session_id());
         event["timestamp"] = json!(chrono::Utc::now().to_rfc3339());
         event["receivedAtUnixMs"] = json!(chrono::Utc::now().timestamp_millis());
         super::event_publisher::publish_mapped_event(&self.runtime, event.into(), None, Some(app))
@@ -32,7 +32,7 @@ impl AppState {
         let event = json!({"type":if reason.is_some(){"task.removed"}else{"task.metadata_changed"},
             "taskId":task,"payload":reason.map_or_else(||json!({}),|reason|json!({"reason":reason})),
             "timestamp":chrono::Utc::now().to_rfc3339(),"sequence":0,"version":2,"provider":"codex",
-            "sessionId":crate::infrastructure::codex::RUNTIME_SESSION_ID});
+            "sessionId":crate::infrastructure::codex::runtime_session_id()});
         super::event_publisher::publish_mapped_event(&self.runtime, event.into(), None, Some(app))
             .await;
         if reason.is_some()

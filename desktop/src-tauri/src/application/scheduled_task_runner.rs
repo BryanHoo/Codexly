@@ -133,7 +133,7 @@ async fn start_goal_turn(
     Ok(json!({
         "checkpoint": {
             "sequence": state.project_sequence(project_id).await,
-            "sessionId": codex::RUNTIME_SESSION_ID,
+            "sessionId": codex::runtime_session_id(),
         },
         "taskId": task_id,
         "turn": turn,

@@ -233,6 +233,8 @@ pub struct AgentItemTiming {
 pub enum AgentItem {
     #[serde(rename = "message")]
     Message {
+        #[serde(rename = "identityAliases", skip_serializing_if = "Vec::is_empty")]
+        identity_aliases: Vec<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         attachments: Option<Vec<Value>>,
         id: String,

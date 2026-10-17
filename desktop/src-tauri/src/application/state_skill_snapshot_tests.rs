@@ -15,6 +15,7 @@ fn user_snapshot() -> AgentTaskSnapshotResponse {
         completed_at: None,
         error: None,
         items: vec![AgentItem::Message {
+            identity_aliases: Vec::new(),
             id: "user".into(),
             role: "user",
             text: "$rust 修复".into(),
@@ -60,6 +61,7 @@ async fn native_skill_snapshot_should_seed_only_a_current_read() {
     state.complete_task_snapshot(&mut restored).await;
     let item = serde_json::to_value(&restored.snapshot.turns[0].items[0]).unwrap();
     assert_eq!(item["text"], "修复");
+    assert_eq!(item["identityAliases"], json!(["expanded"]));
     assert_eq!(item["skills"], json!([{"name":"rust"}]));
 }
 

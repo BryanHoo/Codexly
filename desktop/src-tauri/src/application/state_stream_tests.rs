@@ -1,10 +1,11 @@
 use std::sync::{Arc, Mutex};
 
-use serde_json::{Value, json};
+use serde_json::{Value, json, value::to_raw_value};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
-use super::RuntimeSession;
+use super::{RuntimeSession, spawn_event_forwarder};
 use crate::domain::runtime::AppEvent;
+use crate::infrastructure::codex::{ServerMessage, server_message_channel};
 
 #[tokio::test]
 async fn slow_webview_should_bound_unacknowledged_bytes() {
@@ -212,4 +213,57 @@ async fn rpc_and_approval_should_progress_through_the_full_pipeline_without_webv
     );
     drop(server_writer);
     forwarder.await.unwrap();
+}
+
+#[tokio::test]
+async fn dropped_delta_signal_should_request_project_resync() {
+    let published = Arc::new(Mutex::new(Vec::new()));
+    let published_for_channel = Arc::clone(&published);
+    let channel = Channel::new(move |body| {
+        if let InvokeResponseBody::Json(value) = body {
+            published_for_channel.lock().unwrap().push(value);
+        }
+        Ok(())
+    });
+    let runtime = Arc::new(tokio::sync::Mutex::new(RuntimeSession::default()));
+    {
+        let mut session = runtime.lock().await;
+        session.set_event_channel(channel);
+        session
+            .task_projects
+            .insert("thread-a".to_owned(), "project-a".to_owned());
+        session.project_sequences.insert("project-a".to_owned(), 17);
+    }
+    let (sender, receiver) = server_message_channel(1);
+    let task = spawn_event_forwarder(Arc::clone(&runtime), receiver, None);
+    sender
+        .send(ServerMessage {
+            id: None,
+            method: "codeagent/eventRetentionExceeded".to_owned(),
+            params: to_raw_value(&json!({"threadId": "thread-a"})).unwrap(),
+        })
+        .await
+        .unwrap();
+    drop(sender);
+    task.await.expect("event forwarder should stop cleanly");
+
+    let events = published.lock().unwrap();
+    let resync = events
+        .iter()
+        .filter_map(|event| serde_json::from_str::<Value>(event).ok())
+        .find(|event| event.get("type").and_then(Value::as_str) == Some("resyncRequired"))
+        .expect("dropped delta should publish an explicit resync signal");
+    assert_eq!(resync["type"], "resyncRequired");
+    assert!(resync["enqueuedAtUnixMs"].is_u64());
+    assert_eq!(
+        resync["data"],
+        json!({
+            "latestSequence": 17,
+            "projectId": "project-a",
+            "reason": "event_retention_exceeded",
+            "sessionId": crate::infrastructure::codex::runtime_session_id(),
+            "type": "resync.required",
+            "version": 3
+        })
+    );
 }

@@ -354,7 +354,7 @@ impl AppState {
             "payload": {"request": request.clone()},
             "provider": "codex",
             "sequence": *sequence,
-            "sessionId": crate::infrastructure::codex::RUNTIME_SESSION_ID,
+            "sessionId": crate::infrastructure::codex::runtime_session_id(),
             "taskId": task_id,
             "timestamp": timestamp,
             "turnId": turn_id,

@@ -271,7 +271,7 @@ impl ClaudeHost {
 pub(super) async fn snapshot_response(state: &AppState, project: &str, snapshot: Value) -> Value {
     let sequence = state.project_sequence(project).await;
     json!({"snapshot":snapshot,"checkpoint":{"sequence":sequence,
-        "sessionId":crate::infrastructure::codex::RUNTIME_SESSION_ID}})
+        "sessionId":crate::infrastructure::codex::runtime_session_id()}})
 }
 
 async fn write_frame(writer: &Mutex<ChildStdin>, value: &Value) -> Result<(), AppError> {

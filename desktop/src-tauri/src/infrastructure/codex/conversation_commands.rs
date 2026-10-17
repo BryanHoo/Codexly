@@ -7,8 +7,8 @@ use super::{
     AppServerConnection,
     connection::ConnectionError,
     conversation::{
-        NativeThreadSection, NativeTurn, PINNED_SECTION_ID, RUNTIME_SESSION_ID, map_turn,
-        normalized_title,
+        NativeThreadSection, NativeTurn, PINNED_SECTION_ID, map_turn, normalized_title,
+        runtime_session_id,
     },
     conversation_prompt::map_prompt_input,
     sidebar::unix_seconds_to_rfc3339,
@@ -298,7 +298,7 @@ pub async fn start_turn(
     Ok(StartAgentTurnResponse {
         checkpoint: EventCheckpoint {
             sequence: 0,
-            session_id: RUNTIME_SESSION_ID,
+            session_id: runtime_session_id(),
         },
         task_id,
         turn: map_turn(response.turn)?,

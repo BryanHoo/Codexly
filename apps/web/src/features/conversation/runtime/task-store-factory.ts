@@ -327,6 +327,11 @@ function getEventItemKeys(state: TaskStoreState, event: AgentEvent): readonly st
   }
   const itemKeys = [createTaskItemKey(event.turnId, event.itemId)];
   if (event.type === "item.started" || event.type === "item.completed") {
+    if (event.payload.item.type === "message") {
+      for (const alias of event.payload.item.identityAliases ?? []) {
+        itemKeys.push(createTaskItemKey(event.turnId, alias));
+      }
+    }
     const currentItemKeys = state.itemKeysByTurnId[event.turnId] ?? [];
     const previousItemKey = currentItemKeys.at(-1);
     if (previousItemKey !== undefined) {

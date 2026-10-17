@@ -177,6 +177,7 @@ impl TaskSkillProjection {
                     return;
                 }
                 json["payload"]["item"]["text"] = message.text.clone().into();
+                apply_json_aliases(&record, &mut json["payload"]["item"]);
                 if !message.skills.is_empty() {
                     json["payload"]["item"]["skills"] = Value::Array(message.skills.clone());
                 }
@@ -226,10 +227,13 @@ impl TaskSkillProjection {
         else {
             return;
         };
-        let Some(AgentItem::Message {text, skills, ..}) = turn.items.iter_mut().find(|item| matches!(item, AgentItem::Message {id, role:"user", ..} if id == &record.message.id)) else { return };
+        let Some(AgentItem::Message {text, skills, identity_aliases, ..}) = turn.items.iter_mut().find(|item| matches!(item, AgentItem::Message {id, role:"user", ..} if id == &record.message.id)) else { return };
         let skills = skills.get_or_insert_with(Vec::new);
         skills.extend_from_slice(&record.message.skills);
         normalize_skill_fields(text, skills);
+        identity_aliases.extend(record.aliases.iter().cloned());
+        identity_aliases.sort_unstable();
+        identity_aliases.dedup();
         turn.items.retain(|item| !matches!(item, AgentItem::Message {id, skill_expansion:true, ..} if record.aliases.contains(id)));
         self.clock += 1;
         record.touched = self.clock;
@@ -308,6 +312,21 @@ impl TaskSkillProjection {
     }
 }
 
+// 只投递原生层已确认的展开关联；排序确保多次快照得到稳定的 IPC 字段。
+fn apply_json_aliases(record: &Record, item: &mut Value) {
+    if record.aliases.is_empty() {
+        return;
+    }
+    let mut aliases = item["identityAliases"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    aliases.extend(record.aliases.iter().cloned().map(Value::String));
+    aliases.sort_unstable_by(|left, right| left.as_str().cmp(&right.as_str()));
+    aliases.dedup();
+    item["identityAliases"] = aliases.into();
+}
+
 fn apply_json_turn(record: &Record, turn: &mut Value) {
     if record.message.skills.is_empty() {
         return;
@@ -328,6 +347,7 @@ fn apply_json_turn(record: &Record, turn: &mut Value) {
     skills.extend_from_slice(&record.message.skills);
     normalize_skill_fields(&mut text, &mut skills);
     item["text"] = text.into();
+    apply_json_aliases(record, item);
     if !skills.is_empty() {
         item["skills"] = skills.into();
     }

@@ -1,3 +1,6 @@
+import type { AgentTurn } from "@codexly/protocol";
+import { retainSnapshotTurnItems } from "./message-identity.js";
+
 interface SnapshotTurns<Turn> {
   turns: readonly Turn[];
   turnsNextCursor: string | null;
@@ -47,5 +50,54 @@ export function mergeSnapshotTurns<
     ],
     turnsNextCursor:
       older.length > 0 || retainedItemPage ? current.turnsNextCursor : incoming.turnsNextCursor,
+  };
+}
+
+export function mergeTurnItemTimings(
+  current: AgentTurn["itemTimings"],
+  incoming: AgentTurn["itemTimings"],
+): AgentTurn["itemTimings"] {
+  if (current === undefined) return incoming;
+  if (incoming === undefined) return current;
+  const merged = { ...current };
+  for (const [itemId, timing] of Object.entries(incoming)) {
+    merged[itemId] = { ...current[itemId], ...timing };
+  }
+  return merged;
+}
+
+interface ReconciledTurn {
+  id: string;
+  items: { id: string; type: string; role?: string; identityAliases?: readonly string[] }[];
+  itemTimings?: AgentTurn["itemTimings"];
+}
+
+export function reconcileTaskSnapshot<
+  Turn extends ReconciledTurn,
+  Response extends { checkpoint: { sessionId: string }; snapshot: SnapshotTurns<Turn> },
+>(
+  checkpoint: { sessionId: string } | null,
+  readCurrentSnapshot: () => SnapshotTurns<Turn> | undefined,
+  response: Response,
+): Response {
+  // 运行时重启后旧实体、过程时间和分页游标均失效；在读取旧正文前直接采用权威快照。
+  if (checkpoint !== null && checkpoint.sessionId !== response.checkpoint.sessionId)
+    return response;
+  const current = readCurrentSnapshot();
+  if (current === undefined) return response;
+  return {
+    ...response,
+    snapshot: mergeSnapshotTurns<Turn, Response["snapshot"]>(
+      current,
+      response.snapshot,
+      (currentTurn, incoming) => {
+        const itemTimings = mergeTurnItemTimings(currentTurn.itemTimings, incoming.itemTimings);
+        return {
+          ...incoming,
+          ...(itemTimings === undefined ? {} : { itemTimings }),
+          items: retainSnapshotTurnItems(currentTurn.items, incoming.items, currentTurn.id),
+        };
+      },
+    ),
   };
 }
