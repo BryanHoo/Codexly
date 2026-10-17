@@ -8,6 +8,30 @@ use crate::domain::runtime::AppEvent;
 use crate::infrastructure::codex::{ServerMessage, server_message_channel};
 
 #[tokio::test]
+async fn publication_boundary_should_confirm_only_after_native_delivery() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let delivered = Arc::new(AtomicBool::new(false));
+    let output = Arc::clone(&delivered);
+    let mut session = RuntimeSession::default();
+    session
+        .task_projects
+        .insert("task".to_owned(), "project".to_owned());
+    session.set_event_channel(Channel::new(move |_| {
+        output.store(true, Ordering::SeqCst);
+        Ok(())
+    }));
+    let runtime = Arc::new(tokio::sync::Mutex::new(session));
+    let confirmed = AtomicBool::new(false);
+    super::event_publisher::publish_mapped_event_at_boundary(&runtime,
+        json!({"type":"message.delta","taskId":"task","turnId":"turn","itemId":"item","payload":{"delta":"text"}}).into(),
+        None, None, || {
+            assert!(delivered.load(Ordering::SeqCst));
+            confirmed.store(true, Ordering::SeqCst);
+        }).await;
+    assert!(confirmed.load(Ordering::SeqCst));
+}
+
+#[tokio::test]
 async fn slow_webview_should_bound_unacknowledged_bytes() {
     let received = Arc::new(Mutex::new(Vec::new()));
     let output = Arc::clone(&received);

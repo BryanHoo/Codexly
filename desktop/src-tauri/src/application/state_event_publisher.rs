@@ -17,9 +17,20 @@ use tokio::sync::Mutex;
 
 pub(super) async fn publish_mapped_event(
     runtime: &Arc<Mutex<RuntimeSession>>,
+    event: AgentEvent,
+    pending: Option<PendingServerRequest>,
+    app: Option<&AppHandle>,
+) -> bool {
+    publish_mapped_event_at_boundary(runtime, event, pending, app, || {}).await
+}
+
+/// 在原生事实已投递、窗口及通知后处理尚未开始时确认边界，供宿主正确跟踪终态。
+pub(super) async fn publish_mapped_event_at_boundary(
+    runtime: &Arc<Mutex<RuntimeSession>>,
     mut event: AgentEvent,
     mut pending: Option<PendingServerRequest>,
     app: Option<&AppHandle>,
+    published: impl FnOnce(),
 ) -> bool {
     let Some(task_id) = event.task_id().map(str::to_owned) else {
         return true;
@@ -121,6 +132,7 @@ pub(super) async fn publish_mapped_event(
     drop(session);
     // 先完成有序投递并释放顺序锁，原生窗口和通知不得延迟 WebView 收到事件。
     delivery.send(AppEvent::AgentEvent { event }).await;
+    published();
     super::event_diagnostics::record_task_event(&pet_event, &project_id, diagnostic_connection);
     if let Some(app) = app {
         // 原生状态已完成投影；即使窗口已销毁，仍更新托盘、宠物和通知。

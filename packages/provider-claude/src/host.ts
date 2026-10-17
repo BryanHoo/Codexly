@@ -14,6 +14,7 @@ import type { AgentProviderTurnInput, ResolvePendingRequestInput } from "@codexl
 import type { ClaudeSettings, ConfigureCustomProviderRequest } from "@codexly/protocol";
 import { ClaudeRuntime } from "./runtime.js";
 import { record } from "./turn-projection.js";
+import { HostOutput } from "./host-output.js";
 
 // 构建时从已安装 SDK 注入版本，应用下载清单与宿主始终使用同一依赖版本。
 declare const CODEXLY_CLAUDE_SDK_VERSION: string;
@@ -28,29 +29,42 @@ if (process.argv.includes("--version")) {
   // 保留用户 CLAUDE_CONFIG_DIR；SDK 配置、认证和会话历史与本机 CLI 共用。
   const catalogRequests = new Map<number, ReturnType<typeof Promise.withResolvers<unknown>>>();
   let nextCatalogId = 1;
-  const send = (message: unknown) => {
-    const frame = `${JSON.stringify(message)}\n`;
-    if (
-      Buffer.byteLength(frame) > 8 * 1024 * 1024 ||
-      process.stdout.writableLength > 8 * 1024 * 1024
-    )
-      throw new Error("Claude host transport budget exceeded");
-    process.stdout.write(frame);
+  let closed = false;
+  const close = (reason: string, failed = true) => {
+    if (closed) return;
+    closed = true;
+    process.exitCode = failed ? 1 : 0;
+    // 先登记硬退出兜底，后续 SDK 清理异常也不能留下常驻后台宿主。
+    setTimeout(() => process.exit(failed ? 1 : 0), 1000).unref();
+    output.close();
+    // 只输出固定诊断码，不包含请求、SDK 消息、文件路径或认证信息。
+    if (failed) process.stderr.write(`Claude host transport: ${reason}\n`);
+    for (const request of catalogRequests.values()) request.reject(new Error("Claude host closed"));
+    catalogRequests.clear();
+    try {
+      runtime.close();
+    } finally {
+      process.stdin.destroy();
+    }
   };
+  const output = new HostOutput(process.stdout, close);
+  const send = (message: Record<string, unknown>) => output.send(message);
   const store: LocalCatalogStore = {
     async catalog<K extends keyof CatalogOperations>(
       operation: K,
       payload: CatalogOperations[K][0],
     ): Promise<CatalogOperations[K][1]> {
+      if (closed) throw new Error("Claude host closed");
       if (catalogRequests.size >= 64) throw new Error("Catalog request capacity exceeded");
       const id = nextCatalogId++,
         deferred = Promise.withResolvers<unknown>();
       catalogRequests.set(id, deferred);
-      send({ catalogId: id, operation, payload });
       const timeout = setTimeout(() => {
         deferred.reject(new Error("Catalog request timed out"));
       }, 30_000);
       try {
+        if (!send({ catalogId: id, operation, payload }))
+          deferred.reject(new Error("Claude host closed"));
         return (await deferred.promise) as CatalogOperations[K][1];
       } finally {
         clearTimeout(timeout);
@@ -103,7 +117,7 @@ if (process.argv.includes("--version")) {
       case "attachment.export":
         return exportClaudeAttachment(provider, id, String(params["attachmentId"]));
       case "task.read": {
-        // 校验通过即同步写入同一 stdout；原生层按事件/响应帧顺序捕获项目序号。
+        // 校验通过即同步进入同一写队列；原生层按事件/响应帧顺序捕获项目序号。
         const read = await readTaskWithCheckpoint(
           provider,
           id,
@@ -141,22 +155,22 @@ if (process.argv.includes("--version")) {
   let pending = Buffer.alloc(0),
     active = 0;
   process.stdin.on("data", (chunk: Buffer) => {
+    if (closed) return;
     pending = Buffer.concat([pending, chunk]);
-    if (pending.length > 8 * 1024 * 1024) {
-      runtime.close();
-      process.exitCode = 1;
-      process.stdin.destroy();
-      return;
-    }
     let end: number;
     while ((end = pending.indexOf(10)) >= 0) {
+      if (end + 1 > 8 * 1024 * 1024) {
+        close("stdin frame budget exceeded");
+        return;
+      }
       const line = pending.subarray(0, end);
       pending = pending.subarray(end + 1);
       let message: Record<string, unknown>;
       try {
         message = record(JSON.parse(line.toString("utf8")));
       } catch {
-        continue;
+        close("invalid stdin frame");
+        return;
       }
       if (typeof message["catalogId"] === "number") {
         const deferred = catalogRequests.get(message["catalogId"]);
@@ -183,14 +197,23 @@ if (process.argv.includes("--version")) {
               send({ id, error: error instanceof Error ? error.message : "Claude request failed" });
             },
           )
+          .catch(() => {
+            close("request delivery failed");
+          })
           .finally(() => {
             active--;
           });
+      } else {
+        close("invalid stdin envelope");
+        return;
       }
     }
+    if (pending.length >= 8 * 1024 * 1024) close("stdin frame budget exceeded");
+  });
+  process.stdin.on("error", () => {
+    close("stdin read failed");
   });
   process.stdin.on("end", () => {
-    runtime.close();
-    for (const request of catalogRequests.values()) request.reject(new Error("Claude host closed"));
+    close(pending.length ? "truncated stdin frame" : "stdin ended", pending.length > 0);
   });
 }

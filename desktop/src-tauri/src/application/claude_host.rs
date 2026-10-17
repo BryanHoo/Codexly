@@ -1,24 +1,25 @@
+mod process;
+#[cfg(test)]
+mod tests;
+mod transport;
+mod workers;
+
 use crate::application::{error::AppError, state::AppState};
 use crate::infrastructure::claude_runtime::{ClaudeRuntimeManager, RuntimePaths};
 use crate::infrastructure::local_catalog::LocalCatalog;
 use serde_json::{Value, json};
-use std::{
-    collections::HashMap,
-    process::Stdio,
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
-    time::Duration,
-};
+use std::{process::Stdio, sync::Arc, time::Duration};
 use tauri::{AppHandle, Manager};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    process::{Child, ChildStdin, Command},
-    sync::{Mutex, oneshot},
+    process::{Child, Command},
+    sync::{Mutex, mpsc},
+    task::JoinSet,
+    time::{Instant, timeout_at},
 };
+use tokio_util::sync::CancellationToken;
+use transport::{LANES, Transport};
 
-const MAX_FRAME: usize = 8 * 1024 * 1024;
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(45);
 pub fn normalize_item(item: &mut Value) {
     if item["type"] == "reasoning" {
         let text = item["content"].as_str().unwrap_or_default().to_owned();
@@ -42,7 +43,6 @@ pub fn normalize_event(event: &mut Value) {
         }
     }
 }
-type Pending = Arc<Mutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
 
 #[derive(Default)]
 pub struct ClaudeHostManager {
@@ -50,10 +50,9 @@ pub struct ClaudeHostManager {
     pub(crate) runtime: ClaudeRuntimeManager,
 }
 struct ClaudeHost {
-    child: Mutex<Child>,
-    writer: Arc<Mutex<ChildStdin>>,
-    pending: Pending,
-    next_id: AtomicU64,
+    child: Arc<Mutex<Child>>,
+    transport: Arc<Transport>,
+    finished: CancellationToken,
 }
 
 impl ClaudeHostManager {
@@ -64,46 +63,54 @@ impl ClaudeHostManager {
         scope: Option<Value>,
         params: Value,
     ) -> Result<Value, AppError> {
-        let host = {
-            let mut current = self.host.lock().await;
-            let alive = if let Some(host) = current.as_ref() {
-                host.child
-                    .lock()
-                    .await
-                    .try_wait()
-                    .map_err(failure)?
-                    .is_none()
-            } else {
-                false
+        // 从管理器排队开始计算同一个绝对时限；启动、写入和等待响应都不得重置计时。
+        let deadline = Instant::now() + REQUEST_TIMEOUT;
+        let operation = async {
+            let host = {
+                let mut current = self.host.lock().await;
+                let alive = if let Some(host) = current.as_ref() {
+                    !host.transport.stopped.is_cancelled()
+                        && host
+                            .child
+                            .lock()
+                            .await
+                            .try_wait()
+                            .map_err(failure)?
+                            .is_none()
+                } else {
+                    false
+                };
+                if !alive {
+                    if let Some(old) = current.take() {
+                        old.close().await;
+                    }
+                    let app_data = app.path().app_data_dir().map_err(failure)?;
+                    let paths = self
+                        .runtime
+                        .prepare(&app_data, |_| {})
+                        .await
+                        .map_err(failure)?;
+                    *current = Some(Arc::new(ClaudeHost::start(app, paths).await?));
+                }
+                Arc::clone(
+                    current
+                        .as_ref()
+                        .ok_or_else(|| failure("Claude host unavailable"))?,
+                )
             };
-            if !alive {
-                let app_data = app.path().app_data_dir().map_err(failure)?;
-                let paths = self
-                    .runtime
-                    .prepare(&app_data, |_| {})
-                    .await
-                    .map_err(failure)?;
-                *current = Some(Arc::new(ClaudeHost::start(app, paths).await?));
-            }
-            Arc::clone(
-                current
-                    .as_ref()
-                    .ok_or_else(|| failure("Claude host unavailable"))?,
-            )
+            host.transport
+                .request(method, scope, params, deadline)
+                .await
+                .map_err(failure)
         };
-        host.request(method, scope, params).await
+        timeout_at(deadline, operation)
+            .await
+            .map_err(|_| failure("Claude host request timed out"))?
     }
 
     pub async fn close(&self) {
         if let Some(host) = self.host.lock().await.take() {
-            let _ = host.writer.lock().await.shutdown().await;
-            let mut child = host.child.lock().await;
-            if tokio::time::timeout(Duration::from_secs(3), child.wait())
-                .await
-                .is_err()
-            {
-                let _ = child.kill().await;
-            }
+            host.close().await;
         }
     }
 }
@@ -115,156 +122,119 @@ fn failure(error: impl std::fmt::Display) -> AppError {
 impl ClaudeHost {
     async fn start(app: &AppHandle, (binary, host_path): RuntimePaths) -> Result<Self, AppError> {
         let app_data = app.path().app_data_dir().map_err(failure)?;
+        let catalog = LocalCatalog::at(&app_data)?;
         let mut command = Command::new(host_path);
         command
             .arg(app_data.join("engines/claude"))
             .arg(binary)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .kill_on_drop(true);
-        #[cfg(windows)]
-        command.creation_flags(0x0800_0000);
+        process::ProcessGuard::configure(&mut command);
         let mut child = command.spawn().map_err(failure)?;
-        let writer = Arc::new(Mutex::new(
-            child
-                .stdin
-                .take()
-                .ok_or_else(|| failure("Claude host stdin unavailable"))?,
-        ));
+        let process_guard = process::ProcessGuard::attach(&child).map_err(failure)?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| failure("Claude host stdin unavailable"))?;
         let stdout = child
             .stdout
             .take()
             .ok_or_else(|| failure("Claude host stdout unavailable"))?;
-        let pending: Pending = Arc::default();
-        let catalog = LocalCatalog::at(&app_data)?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| failure("Claude host stderr unavailable"))?;
+        let child = Arc::new(Mutex::new(child));
+        let (transport, writes) = Transport::new();
+        let (catalog_sender, catalog_receiver) = mpsc::channel(64);
+        let mut tasks = JoinSet::new();
+        tasks.spawn(transport::writer_loop(
+            stdin,
+            writes,
+            Arc::clone(&transport),
+        ));
+        tasks.spawn(workers::catalog_loop(
+            catalog_receiver,
+            catalog.clone(),
+            Arc::clone(&transport),
+        ));
+        let tail: workers::StderrTail = Arc::default();
+        tasks.spawn(workers::stderr_loop(stderr, Arc::clone(&tail)));
+        let mut lanes = Vec::with_capacity(LANES);
+        for _ in 0..LANES {
+            let (sender, receiver) = mpsc::channel(64);
+            lanes.push(sender);
+            tasks.spawn(workers::event_loop(
+                receiver,
+                app.clone(),
+                Arc::clone(&transport),
+            ));
+        }
+        tasks.spawn(transport::reader_loop(
+            stdout,
+            Arc::clone(&transport),
+            catalog_sender,
+            lanes,
+        ));
+        let finished = CancellationToken::new();
+        let host = Self {
+            child: Arc::clone(&child),
+            transport: Arc::clone(&transport),
+            finished: finished.clone(),
+        };
         let app = app.clone();
-        let response_writer = Arc::clone(&writer);
-        let responses = Arc::clone(&pending);
+        // 唯一监督任务拥有全部固定 worker。任何 worker 退出/崩溃都使宿主失效并回收进程。
         tokio::spawn(async move {
-            let mut reader = BufReader::new(stdout);
-            let mut line = Vec::new();
-            let mut active_turns: HashMap<String, (String, String)> = HashMap::new();
-            loop {
-                line.clear();
-                // 在分配正文前限制每帧，避免异常子进程输出导致原生层无界缓冲。
-                match (&mut reader)
-                    .take((MAX_FRAME + 1) as u64)
-                    .read_until(b'\n', &mut line)
-                    .await
-                {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) if line.len() > MAX_FRAME => break,
-                    Ok(_) => {}
-                }
-                let Ok(message) = serde_json::from_slice::<Value>(&line) else {
-                    break;
-                };
-                if let Some(id) = message["id"].as_u64() {
-                    let sender = responses.lock().await.remove(&id);
-                    if let Some(sender) = sender {
-                        let result = if let Some(error) = message["error"].as_str() {
-                            Err(error.to_owned())
-                        } else {
-                            let result = message["result"].clone();
-                            Ok(
-                                if let Some(project) = message["snapshotProjectId"].as_str() {
-                                    // 同一读取循环先发布此前事件，再处理快照帧；后续事件尚未分配序号。
-                                    // 只短暂读取原生计数，并移动快照，避免重复复制历史正文。
-                                    snapshot_response(&app.state::<AppState>(), project, result)
-                                        .await
-                                } else {
-                                    result
-                                },
-                            )
-                        };
-                        let _ = sender.send(result);
-                    }
-                } else if let Some(id) = message["catalogId"].as_u64() {
-                    let result = match message["operation"].as_str() {
-                        Some(
-                            operation @ ("task.read" | "task.put" | "task.patch" | "task.list"
-                            | "task.remove"),
-                        ) => catalog
-                            .call(operation, message["payload"].clone())
-                            .await
-                            .map_err(|error| error.to_string()),
-                        _ => Err("Unsupported Claude catalog operation".to_owned()),
-                    };
-                    let frame = match result {
-                        Ok(result) => json!({"catalogId":id,"result":result}),
-                        Err(error) => json!({"catalogId":id,"error":error}),
-                    };
-                    if write_frame(&response_writer, &frame).await.is_err() {
-                        break;
-                    }
-                } else if message["event"].is_object() {
-                    let project = message["projectId"].as_str().unwrap_or_default();
-                    let event = &message["event"];
-                    if let (Some(task), Some(turn)) =
-                        (event["taskId"].as_str(), event["turnId"].as_str())
-                    {
-                        if event["type"] == "turn.started" {
-                            active_turns
-                                .insert(task.to_owned(), (project.to_owned(), turn.to_owned()));
-                        }
-                        if event["type"] == "turn.completed" {
-                            active_turns.remove(task);
-                        }
-                    }
-                    app.state::<AppState>()
-                        .publish_claude_event(&app, project, message["event"].clone())
-                        .await;
-                }
+            tokio::select! {
+                biased;
+                _ = transport.stopped.cancelled() => {},
+                _ = tasks.join_next() => transport.fail("Claude host worker stopped"),
             }
-            for (task, (project, turn)) in active_turns {
-                app.state::<AppState>().publish_claude_event(&app, &project, json!({"type":"provider.error","taskId":task,"turnId":turn,"payload":{"message":"Claude host connection closed","willRetry":false}})).await;
-                let _ = catalog
-                    .call("task.patch", json!({"id":task,"status":"failed"}))
-                    .await;
+            tasks.abort_all();
+            while tasks.join_next().await.is_some() {}
+            process_guard.shutdown(&mut *child.lock().await).await;
+            let diagnostic = tail
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("; ");
+            if !diagnostic.is_empty() {
+                crate::infrastructure::diagnostics::record_error(
+                    "claude_host_stderr_tail",
+                    diagnostic,
+                );
             }
-            for (_, sender) in responses.lock().await.drain() {
-                let _ = sender.send(Err("Claude host connection closed".to_owned()));
+            // 清理旧连接投影后才允许重建；上限避免原生后处理拖住退出。
+            if tokio::time::timeout(
+                Duration::from_secs(3),
+                workers::fail_active_turns(&app, &catalog, &transport),
+            )
+            .await
+            .is_err()
+            {
+                crate::infrastructure::diagnostics::record_error(
+                    "claude_host_failure_cleanup_timed_out",
+                    "failure projection or catalog persistence timed out",
+                );
             }
+            finished.cancel();
         });
-        Ok(Self {
-            child: Mutex::new(child),
-            writer,
-            pending,
-            next_id: AtomicU64::new(1),
-        })
+        Ok(host)
     }
 
-    async fn request(
-        &self,
-        method: &str,
-        scope: Option<Value>,
-        params: Value,
-    ) -> Result<Value, AppError> {
-        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let (sender, receiver) = oneshot::channel();
-        {
-            let mut pending = self.pending.lock().await;
-            if pending.len() >= 32 {
-                return Err(failure("Claude request capacity exceeded"));
-            }
-            pending.insert(id, sender);
-        }
-        let result = async {
-            write_frame(
-                &self.writer,
-                &json!({"id":id,"method":method,"scope":scope,"params":params}),
-            )
-            .await?;
-            tokio::time::timeout(Duration::from_secs(45), receiver)
-                .await
-                .map_err(failure)?
-                .map_err(failure)?
-                .map_err(failure)
-        }
-        .await;
-        self.pending.lock().await.remove(&id);
-        result
+    async fn close(&self) {
+        self.transport.fail("Claude host closed");
+        self.finished.cancelled().await;
+    }
+}
+
+impl Drop for ClaudeHost {
+    fn drop(&mut self) {
+        self.transport.fail("Claude host released");
     }
 }
 
@@ -272,13 +242,4 @@ pub(super) async fn snapshot_response(state: &AppState, project: &str, snapshot:
     let sequence = state.project_sequence(project).await;
     json!({"snapshot":snapshot,"checkpoint":{"sequence":sequence,
         "sessionId":crate::infrastructure::codex::runtime_session_id()}})
-}
-
-async fn write_frame(writer: &Mutex<ChildStdin>, value: &Value) -> Result<(), AppError> {
-    let mut bytes = serde_json::to_vec(value).map_err(failure)?;
-    if bytes.len() > MAX_FRAME {
-        return Err(failure("Claude request exceeds transport budget"));
-    }
-    bytes.push(b'\n');
-    writer.lock().await.write_all(&bytes).await.map_err(failure)
 }
