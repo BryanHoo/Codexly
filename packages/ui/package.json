@@ -5,6 +5,10 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    "./agent/tool-duration": {
+      "types": "./src/agent/tool-duration.tsx",
+      "default": "./src/agent/tool-duration.tsx"
+    },
     "./agent/message": {
       "types": "./src/agent/message.tsx",
       "default": "./src/agent/message.tsx"

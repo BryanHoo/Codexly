@@ -1,3 +1,4 @@
+import { ToolDuration } from "@codexly/ui/agent/tool-duration";
 import {
   TEMPORARY_TASK_SCOPE_ID,
   type AgentItem,
@@ -34,6 +35,8 @@ import {
   resolveSubagentOperationStatus,
   type SubagentOperation,
 } from "./subagent.js";
+
+export { ToolDuration, formatToolDuration } from "@codexly/ui/agent/tool-duration";
 
 export function EmptyTimeline({
   onProjectChange,
@@ -191,50 +194,6 @@ export function SubagentToolItem({
 }
 
 const TURN_PROCESSING_TIMER_INTERVAL_MS = 1_000;
-
-export function formatToolDuration(
-  timing: NonNullable<AgentTurn["itemTimings"]>[string] | undefined,
-  nowMs?: number,
-): string | undefined {
-  if (timing?.startedAtMs === undefined) return undefined;
-  const completedAtMs = timing.completedAtMs ?? nowMs;
-  if (completedAtMs === undefined) return undefined;
-  const durationMs = completedAtMs - timing.startedAtMs;
-  if (!Number.isFinite(durationMs) || durationMs < 0) return undefined;
-  return durationMs < 1_000
-    ? `${String(durationMs)}ms`
-    : `${String(Math.round(durationMs / 100) / 10)}s`;
-}
-
-export function ToolDuration({
-  status,
-  timing,
-}: Readonly<{
-  status: AgentItemStatus;
-  timing: NonNullable<AgentTurn["itemTimings"]>[string];
-}>) {
-  const [nowMs, setNowMs] = useState(Date.now);
-  const isRunning = status === "running" && timing.completedAtMs === undefined;
-  useEffect(() => {
-    if (!isRunning || timing.startedAtMs === undefined) return;
-    // 只在运行中的工具上刷新计时；完成事件会冻结最终耗时。
-    const interval = window.setInterval(() => {
-      setNowMs(Date.now());
-    }, 100);
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [isRunning, timing.startedAtMs]);
-  const duration = formatToolDuration(timing, isRunning ? nowMs : undefined);
-  return duration === undefined ? null : (
-    <span
-      className="min-w-[6ch] shrink-0 text-right tabular-nums text-caption text-muted-foreground"
-      data-tool-duration=""
-    >
-      {duration}
-    </span>
-  );
-}
 
 export function formatTurnProcessingDuration(totalSeconds: number): Readonly<{
   dateTime: string;
