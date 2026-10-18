@@ -1,4 +1,4 @@
-import type { AgentEventConnectionState } from "@codexly/client";
+import { CodexlyEventError, type AgentEventConnectionState } from "@codexly/client";
 import type { AgentEvent, AgentTaskSnapshotResponse, EventCheckpoint } from "@codexly/protocol";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
 import type { CodexlyRuntimeClient } from "../../projects/project-queries.js";
@@ -45,6 +45,7 @@ export class ProjectEventRuntime {
   #latestSequence = 0;
   #sessionId: string | undefined;
   #snapshotRecoveryRequired = false;
+  #terminalConnectionError: Error | undefined;
 
   public constructor(
     projectId: string,
@@ -132,6 +133,7 @@ export class ProjectEventRuntime {
     this.#activeTaskRecovery.dispose();
     this.#taskUnsubscribe.dispose();
     this.#stopConnection();
+    this.#terminalConnectionError = undefined;
     for (const target of this.#targets.values()) {
       target.dispose();
     }
@@ -157,7 +159,9 @@ export class ProjectEventRuntime {
     this.#touch();
     this.#ensureConnection(response.checkpoint);
     for (const target of this.#targets.values()) {
-      if (target.sessionId !== response.checkpoint.sessionId) {
+      if (this.#terminalConnectionError !== undefined) {
+        target.failConnection(this.#terminalConnectionError);
+      } else if (target.sessionId !== response.checkpoint.sessionId) {
         target.requestRecovery();
       } else {
         target.setConnectionState(this.#connectionState);
@@ -214,6 +218,7 @@ export class ProjectEventRuntime {
       return;
     }
     this.#stopConnection();
+    this.#terminalConnectionError = undefined;
     this.#sessionId = checkpoint.sessionId;
     this.#latestSequence = checkpoint.sequence;
     this.#eventHistory.reset(checkpoint.sequence);
@@ -237,6 +242,18 @@ export class ProjectEventRuntime {
       },
       onError: (error) => {
         recordInternalWarning("event_connection_failed", error, { projectId: this.#projectId });
+        if (
+          error instanceof CodexlyEventError &&
+          (error.closeCode === 1008 || error.closeCode === 1002)
+        ) {
+          // 1008 只说明访问不可用，不能将项目删除误判为全局退出登录。
+          this.#terminalConnectionError = error;
+          this.#snapshotRecoveryRequired = false;
+          this.#activeTaskRecovery.cancelRecovery();
+          for (const target of this.#targets.values()) {
+            target.failConnection(error);
+          }
+        }
       },
       onEvent: (event) => {
         this.#latestSequence = event.sequence;
@@ -321,6 +338,7 @@ export class ProjectEventRuntime {
   }
 
   #replayEvents(checkpoint: EventCheckpoint, target: TaskEventTarget): void {
+    if (this.#terminalConnectionError !== undefined) return;
     if (checkpoint.sessionId !== this.#sessionId) {
       target.requestRecovery();
       return;
@@ -341,6 +359,7 @@ export class ProjectEventRuntime {
   }
 
   #requestSnapshotRecovery(): void {
+    if (this.#terminalConnectionError !== undefined) return;
     const visibleTaskIds = new Set<string>();
     for (const target of this.#targets.values()) {
       visibleTaskIds.add(target.taskId);

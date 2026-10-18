@@ -1,6 +1,7 @@
 import type { Static, TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import type { WebSocketFactory } from "./event-client.js";
+import { getWebSocketReconnectDelay, shouldReconnectWebSocket } from "./websocket-reconnect.js";
 
 export function subscribeResourceChanges<T extends TSchema>(
   baseUrl: string,
@@ -18,11 +19,7 @@ export function subscribeResourceChanges<T extends TSchema>(
   let detach: (() => void) | undefined;
   const retry = () => {
     if (!active) return;
-    // 断线指数退避并加入抖动，避免多客户端同时重连。
-    timer = setTimeout(
-      connect,
-      Math.min(30_000, 500 * 2 ** Math.min(attempt++, 6)) * (0.8 + Math.random() * 0.4),
-    );
+    timer = setTimeout(connect, getWebSocketReconnectDelay(attempt++, 500, 30_000));
   };
   const connect = () => {
     if (!active) return;
@@ -56,7 +53,7 @@ export function subscribeResourceChanges<T extends TSchema>(
       detach?.();
       socket = undefined;
       // 会话失效交给现有登录流程，不持续重试被拒绝的连接。
-      if (event.code !== 1008 && event.code !== 1002) retry();
+      if (shouldReconnectWebSocket(event.code)) retry();
     };
     const onError = () => {
       current.close();
