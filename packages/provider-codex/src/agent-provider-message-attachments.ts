@@ -11,23 +11,24 @@ export function mapCodexMessageImage(
   taskId: string,
   part: Record<string, unknown>,
   imageIndex: number,
+  signal?: AbortSignal,
 ): HistoricalAttachmentResult {
   const staged = readStagedImage(part);
   if (staged !== undefined) {
     const name = optionalString(part["name"]) ?? stagedImageName(part, imageIndex);
-    return store.addStagedImage(taskId, staged, imageIndex, name);
+    return store.addStagedImage(taskId, staged, imageIndex, name, signal);
   }
   if (part["type"] === "imageGeneration") {
     const savedPath = optionalString(part["savedPath"]);
     if (savedPath !== undefined) {
-      const savedAttachment = store.addLocalImage(taskId, savedPath, imageIndex);
+      const savedAttachment = store.addLocalImage(taskId, savedPath, imageIndex, signal);
       if (savedAttachment instanceof Promise) {
         return savedAttachment.then((attachment) => {
-          if (attachment !== undefined) return attachment;
+          if (signal?.aborted || attachment !== undefined) return attachment;
           const encoded = optionalString(part["result"]);
           return encoded === undefined
             ? undefined
-            : store.addBase64Image(taskId, { encoded }, imageIndex);
+            : store.addBase64Image(taskId, { encoded }, imageIndex, signal);
         });
       }
       if (savedAttachment !== undefined) return savedAttachment;
@@ -35,7 +36,7 @@ export function mapCodexMessageImage(
     const encoded = optionalString(part["result"]);
     return encoded === undefined
       ? undefined
-      : store.addBase64Image(taskId, { encoded }, imageIndex);
+      : store.addBase64Image(taskId, { encoded }, imageIndex, signal);
   }
   if (part["type"] === "image") {
     const url = optionalString(part["url"]);
@@ -44,10 +45,15 @@ export function mapCodexMessageImage(
       return undefined;
     }
     const name = optionalString(part["name"]);
-    return store.addDataUrl(taskId, { ...(name === undefined ? {} : { name }), url }, imageIndex);
+    return store.addDataUrl(
+      taskId,
+      { ...(name === undefined ? {} : { name }), url },
+      imageIndex,
+      signal,
+    );
   }
   const path = optionalString(part["path"]);
-  return path === undefined ? undefined : store.addLocalImage(taskId, path, imageIndex);
+  return path === undefined ? undefined : store.addLocalImage(taskId, path, imageIndex, signal);
 }
 
 export function mapCodexMessageText(
@@ -55,9 +61,10 @@ export function mapCodexMessageText(
   taskId: string,
   input: Readonly<{ name: string; text: string }>,
   textIndex: number,
+  signal?: AbortSignal,
 ): HistoricalAttachmentResult {
   const file = readCodexFileTextInput(input);
   return file === undefined
-    ? store.addText(taskId, input, textIndex)
-    : store.addLocalFile(taskId, file);
+    ? store.addText(taskId, input, textIndex, signal)
+    : store.addLocalFile(taskId, file, signal);
 }

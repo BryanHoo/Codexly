@@ -62,3 +62,4 @@ export {
 } from "./engine-router.js";
 export * from "./mcp-elicitation.js";
 export * from "./task-snapshot-checkpoint.js";
+export * from "./retained-work-budget.js";

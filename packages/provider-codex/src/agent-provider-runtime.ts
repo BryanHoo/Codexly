@@ -1,6 +1,6 @@
-import type { AgentProvider, AgentProviderEvent } from "@codexly/core";
+import { estimateRetainedBytes, type AgentProvider, type AgentProviderEvent } from "@codexly/core";
 import type { HistoricalAttachmentResult } from "./persistent-historical-attachment-store.js";
-import { TaskNotificationQueue } from "./task-notification-queue.js";
+import { deliverNotificationAttachment } from "./notification-attachment-delivery.js";
 import { resolveAttachmentMapping } from "./resolve-attachment-mapping.js";
 import type { RpcErrorPayload, RpcServerRequest } from "./jsonl-rpc-client.js";
 import {
@@ -16,6 +16,7 @@ import {
 import { CodexAgentProviderTaskResume } from "./agent-provider-task-resume.js";
 import {
   warnDroppedCodexNotification,
+  warnNotificationQueueRecovery,
   warnEventListenerFailure,
   warnServerRequestRejectionFailure,
 } from "./agent-provider-diagnostics.js";
@@ -49,21 +50,21 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTaskResume {
     });
     return true;
   }
-  readonly #notificationQueue = new TaskNotificationQueue();
 
   public receiveNotification(method: string, params: unknown): void {
     const nativeTaskId = readTaskId(params) ?? "";
     const taskId = this.runtime.reviewWorkerParentTaskIds.get(nativeTaskId) ?? nativeTaskId;
-    this.#notificationQueue.run(
+    this.notificationQueue.run(
       taskId,
-      () => this.#receiveNotification(method, params),
+      (signal) => this.#receiveNotification(method, params, signal),
       () => {
         this.warnDroppedNotification("invalid_notification", method, params);
       },
+      estimateRetainedBytes({ method, params }, 32 * 1024 * 1024),
     );
   }
 
-  #receiveNotification(method: string, params: unknown): void | Promise<void> {
+  #receiveNotification(method: string, params: unknown, signal: AbortSignal): void | Promise<void> {
     if (method === "thread/attachment/updated") {
       const taskId = readTaskId(params);
       if (taskId === undefined)
@@ -72,14 +73,30 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTaskResume {
       return;
     }
     if (this.handleProjectStateNotification(method, params)) return;
-    return this.handleNotification(method, params);
+    return this.handleNotification(method, params, signal);
   }
 
   public receiveServerRequest(request: RpcServerRequest): void {
-    this.handleServerRequest(request);
+    const nativeTaskId = readTaskId(request.params) ?? "";
+    const taskId = this.runtime.reviewWorkerParentTaskIds.get(nativeTaskId) ?? nativeTaskId;
+    // 审批与附件通知共用同一 FIFO，不能在附件未交付时越过此前事件。
+    this.notificationQueue.run(
+      taskId,
+      () => {
+        this.handleServerRequest(request);
+      },
+      () => {
+        this.rejectServerRequest(request, { code: -32603, data: null, message: "Request failed" });
+      },
+      estimateRetainedBytes(request, 32 * 1024 * 1024),
+    );
   }
 
-  protected handleNotification(method: string, params: unknown): void | Promise<void> {
+  protected handleNotification(
+    method: string,
+    params: unknown,
+    signal: AbortSignal,
+  ): void | Promise<void> {
     if (method === "mcpServer/startupStatus/updated") {
       try {
         const update = readMcpServerStartupStatus(params);
@@ -181,34 +198,47 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTaskResume {
       // 外层仍会代理结构化活动，只过滤内部 Prompt 和已由 worker 交付的重复终态。
       return;
     }
+    const map = (
+      image: Parameters<typeof mapCodexNotification>[2],
+      text: Parameters<typeof mapCodexNotification>[3],
+    ) =>
+      mapCodexNotification(
+        method,
+        params,
+        image,
+        text,
+        activeReviewTarget,
+        isReviewWorker ? reviewTurnId : undefined,
+        isReviewWorker,
+        hasReviewWorkerOutput && !isReviewWorker,
+        isReviewWorker ? taskId : undefined,
+      );
+    const omitAttachment = () => undefined;
+    const fallback = () => map(omitAttachment, omitAttachment);
     let mapped: AgentProviderEvent | undefined | Promise<AgentProviderEvent | undefined>;
     try {
-      mapped = resolveAttachmentMapping(
-        (image, text) =>
-          mapCodexNotification(
-            method,
-            params,
-            image,
-            text,
-            activeReviewTarget,
-            isReviewWorker ? reviewTurnId : undefined,
-            isReviewWorker,
-            hasReviewWorkerOutput && !isReviewWorker,
-            isReviewWorker ? taskId : undefined,
-          ),
-        this.mapMessageImage.bind(this),
-        this.mapMessageText.bind(this),
-      );
+      mapped = signal.aborted
+        ? fallback()
+        : resolveAttachmentMapping(
+            map,
+            (id, part, index) => this.mapMessageImage(id, part, index, signal),
+            (id, input, index) => this.mapMessageText(id, input, index, signal),
+          );
     } catch {
-      // 单个原生通知字段漂移不能中断 JSONL Client 或后续关键事件。
       this.warnDroppedNotification("invalid_notification", method, params);
       return;
     }
-    if (mapped instanceof Promise)
-      return mapped.then((event) => {
+    return deliverNotificationAttachment(
+      mapped,
+      fallback,
+      signal,
+      (event) => {
         this.#publishMappedNotification(event, method, params);
-      });
-    this.#publishMappedNotification(mapped, method, params);
+      },
+      () => {
+        warnNotificationQueueRecovery(this.logger, this.project.id, method, taskId);
+      },
+    );
   }
 
   #publishMappedNotification(
@@ -257,6 +287,7 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTaskResume {
   }
 
   protected clearTaskRuntimeState(taskId: string): void {
+    this.notificationQueue.clearTask(taskId);
     this.taskTitles?.forget(taskId);
     if (this.threadAttachments === undefined) this.historicalAttachments.clearTask(taskId);
     else this.threadAttachments.forget(taskId);
@@ -443,16 +474,18 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTaskResume {
     taskId: string,
     part: Record<string, unknown>,
     imageIndex: number,
+    signal?: AbortSignal,
   ): HistoricalAttachmentResult {
-    return mapCodexMessageImage(this.historicalAttachments, taskId, part, imageIndex);
+    return mapCodexMessageImage(this.historicalAttachments, taskId, part, imageIndex, signal);
   }
 
   protected mapMessageText(
     taskId: string,
     input: Readonly<{ name: string; text: string }>,
     textIndex: number,
+    signal?: AbortSignal,
   ): HistoricalAttachmentResult {
-    return mapCodexMessageText(this.historicalAttachments, taskId, input, textIndex);
+    return mapCodexMessageText(this.historicalAttachments, taskId, input, textIndex, signal);
   }
 
   protected assertKnownProjectTask(taskId: string): void {

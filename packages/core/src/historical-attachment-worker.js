@@ -54,7 +54,7 @@ async function processAttachment(job) {
   try {
     if (job.operation === "persist") {
       await mkdir(job.directory, { recursive: true });
-      temporaryPath = join(job.directory, `${randomUUID()}.tmp`);
+      temporaryPath = join(job.directory, job.temporaryName ?? `${randomUUID()}.tmp`);
     }
     // 文件流在 pipeline 安装错误监听前才创建，避免等待 mkdir 时源文件变化产生未捕获错误。
     if (job.source.type === "file")

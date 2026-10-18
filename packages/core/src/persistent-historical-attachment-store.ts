@@ -57,27 +57,37 @@ export interface HistoricalAttachmentStore {
     taskId: string,
     input: Readonly<{ encoded: string; name?: string }>,
     imageIndex: number,
+    signal?: AbortSignal,
   ): HistoricalAttachmentResult;
   addDataUrl(
     taskId: string,
     input: Readonly<{ name?: string; url: string }>,
     imageIndex: number,
+    signal?: AbortSignal,
   ): HistoricalAttachmentResult;
   addLocalFile(
     taskId: string,
     input: Readonly<{ mediaType: string; name: string; path: string }>,
+    signal?: AbortSignal,
   ): HistoricalAttachmentResult;
-  addLocalImage(taskId: string, path: string, imageIndex: number): HistoricalAttachmentResult;
+  addLocalImage(
+    taskId: string,
+    path: string,
+    imageIndex: number,
+    signal?: AbortSignal,
+  ): HistoricalAttachmentResult;
   addStagedImage(
     taskId: string,
     staged: StagedImageAttachment,
     imageIndex: number,
     inputName?: string,
+    signal?: AbortSignal,
   ): HistoricalAttachmentResult;
   addText(
     taskId: string,
     input: Readonly<{ name: string; text: string }>,
     textIndex: number,
+    signal?: AbortSignal,
   ): HistoricalAttachmentResult;
   clearTask(taskId: string): void;
   dispose(): void;
@@ -89,7 +99,7 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
   readonly #pending = new Map<string, Map<string, HistoricalAttachmentMetadata>>();
   #totalBytes = 0;
   #disposed = false;
-  readonly #taskEpochs = new Map<string, object>();
+  readonly #taskEpochs = new Map<string, AbortController>();
   readonly #inflight = new Map<string, Set<Promise<unknown>>>();
 
   public constructor(private readonly directory: string) {
@@ -100,6 +110,7 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     taskId: string,
     input: Readonly<{ name?: string; url: string }>,
     imageIndex: number,
+    signal?: AbortSignal,
   ): Promise<AgentMessageAttachment | undefined> {
     // 先用字符串长度拒绝超大输入，Base64 正则、解码和正文校验交给 Worker。
     if (input.url.length > Math.ceil((MAX_AGENT_IMAGE_BYTES * 4) / 3) + 64) return undefined;
@@ -113,6 +124,8 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
       match[1],
       normalizeAttachmentName(input.name, `图片-${String(imageIndex + 1)}`),
       { type: "base64", value: input.url.slice(separator + 1) },
+      undefined,
+      signal,
     );
   }
 
@@ -120,6 +133,7 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     taskId: string,
     input: Readonly<{ encoded: string; name?: string }>,
     imageIndex: number,
+    signal?: AbortSignal,
   ): Promise<AgentMessageAttachment | undefined> {
     if (input.encoded.length > Math.ceil((MAX_AGENT_IMAGE_BYTES * 4) / 3) + 4) return undefined;
     return this.#add(
@@ -132,6 +146,8 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
           `生成图片-${String(imageIndex + 1)}${imageExtensionsByMediaType[mediaType as AgentImageMediaType]}`,
         ),
       { type: "base64", value: input.encoded },
+      undefined,
+      signal,
     );
   }
 
@@ -140,6 +156,7 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     staged: StagedImageAttachment,
     imageIndex: number,
     inputName?: string,
+    signal?: AbortSignal,
   ): Promise<AgentMessageAttachment | undefined> {
     if (staged.size <= 0 || staged.size > MAX_AGENT_IMAGE_BYTES) return undefined;
     const attachment = await this.#add(
@@ -152,6 +169,7 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
       ),
       { type: "file", path: staged.path },
       staged,
+      signal,
     );
     if (attachment !== undefined)
       await rm(staged.path, { force: true }).catch(() => {
@@ -164,6 +182,7 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     taskId: string,
     path: string,
     imageIndex: number,
+    signal?: AbortSignal,
   ): Promise<AgentMessageAttachment | undefined> {
     if (!isAbsolute(path)) return undefined;
     return this.#add(
@@ -172,6 +191,8 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
       undefined,
       normalizeAttachmentName(basename(path), `图片-${String(imageIndex + 1)}`),
       { type: "file", path },
+      undefined,
+      signal,
     );
   }
 
@@ -179,6 +200,7 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     taskId: string,
     input: Readonly<{ name: string; text: string }>,
     textIndex: number,
+    signal?: AbortSignal,
   ): Promise<AgentMessageAttachment | undefined> {
     if (input.text.length > MAX_AGENT_TEXT_BYTES) return undefined;
     return this.#add(
@@ -187,12 +209,15 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
       "text/plain",
       normalizeAttachmentName(input.name, `Pasted text-${String(textIndex + 1)}.txt`),
       { type: "text", value: input.text },
+      undefined,
+      signal,
     );
   }
 
   public async addLocalFile(
     taskId: string,
     input: Readonly<{ mediaType: string; name: string; path: string }>,
+    signal?: AbortSignal,
   ): Promise<AgentMessageAttachment | undefined> {
     if (!isAbsolute(input.path)) return undefined;
     return this.#add(
@@ -201,6 +226,8 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
       input.mediaType,
       normalizeAttachmentName(input.name, "Attachment"),
       { type: "file", path: input.path },
+      undefined,
+      signal,
     );
   }
 
@@ -259,15 +286,18 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     if (entry?.taskId !== taskId) return undefined;
     try {
       // 下载正文也在 Worker 中流式复验哈希，最后转移 ArrayBuffer，主线程不再计算整块摘要。
-      const result = await historicalAttachmentWorkers.run({
-        operation: "read",
-        source: { type: "file", path: entry.path },
-        kind: entry.attachment.kind,
-        mediaType: entry.attachment.mediaType,
-        maxBytes: entry.attachment.size,
-        size: entry.attachment.size,
-        digest: entry.blobKey,
-      });
+      const result = await historicalAttachmentWorkers.run(
+        {
+          operation: "read",
+          source: { type: "file", path: entry.path },
+          kind: entry.attachment.kind,
+          mediaType: entry.attachment.mediaType,
+          maxBytes: entry.attachment.size,
+          size: entry.attachment.size,
+          digest: entry.blobKey,
+        },
+        { taskKey: this.#taskDirectory(taskId), signal: this.#epoch(taskId).signal },
+      );
       if (this.#entries.get(key) !== entry || result.content === undefined) return undefined;
       this.#touch(entry);
       return { ...entry.attachment, content: Buffer.from(result.content) };
@@ -284,6 +314,7 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
   }
 
   public clearTask(taskId: string): void {
+    this.#taskEpochs.get(taskId)?.abort();
     this.#taskEpochs.delete(taskId);
     for (const [attachmentId, entry] of this.#entries) {
       if (entry.taskId === taskId) this.#forget(attachmentId);
@@ -302,11 +333,13 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     // 删除先撤销授权，再等待此前已提交的写入结束，防止晚到的任务重建已删除目录。
     const inflight = [...(this.#inflight.get(taskId) ?? [])];
     await Promise.allSettled(inflight);
+    await historicalAttachmentWorkers.cancelTask(this.#taskDirectory(taskId));
     await rm(this.#taskDirectory(taskId), { force: true, recursive: true });
   }
 
   public dispose(): void {
     this.#disposed = true;
+    for (const controller of this.#taskEpochs.values()) controller.abort();
     this.#taskEpochs.clear();
     this.#entries.clear();
     this.#pending.clear();
@@ -320,8 +353,9 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     attachmentName: string | ((mediaType: string) => string),
     source: AttachmentWorkerJob["source"],
     staged?: StagedImageAttachment,
+    signal?: AbortSignal,
   ): Promise<AgentMessageAttachment | undefined> {
-    if (this.#disposed) return undefined;
+    if (this.#disposed || signal?.aborted) return undefined;
     const epoch = this.#epoch(taskId);
     const maxBytes =
       kind === "image"
@@ -329,21 +363,28 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
         : kind === "text"
           ? MAX_AGENT_TEXT_BYTES
           : MAX_AGENT_FILE_BYTES;
-    const job = historicalAttachmentWorkers.run({
-      operation: "persist",
-      source,
-      directory: this.#taskDirectory(taskId),
-      kind,
-      maxBytes,
-      ...(mediaType === undefined ? {} : { mediaType }),
-      ...(staged === undefined ? {} : { size: staged.size, digest: staged.contentDigest }),
-    });
+    const job = historicalAttachmentWorkers.run(
+      {
+        operation: "persist",
+        source,
+        directory: this.#taskDirectory(taskId),
+        kind,
+        maxBytes,
+        ...(mediaType === undefined ? {} : { mediaType }),
+        ...(staged === undefined ? {} : { size: staged.size, digest: staged.contentDigest }),
+      },
+      {
+        taskKey: this.#taskDirectory(taskId),
+        signal: signal === undefined ? epoch.signal : AbortSignal.any([epoch.signal, signal]),
+      },
+    );
     const inflight = this.#inflight.get(taskId) ?? new Set<Promise<unknown>>();
     inflight.add(job);
     this.#inflight.set(taskId, inflight);
     try {
       const result = await job;
-      if (!this.#isCurrent(taskId, epoch) || result.path === undefined) return undefined;
+      if (signal?.aborted || !this.#isCurrent(taskId, epoch) || result.path === undefined)
+        return undefined;
       const name =
         typeof attachmentName === "string" ? attachmentName : attachmentName(result.mediaType);
       // 仅对少量身份元数据同步哈希；大正文的 SHA-256 已由有界 Worker 完成。
@@ -383,8 +424,8 @@ export class PersistentHistoricalAttachmentStore implements HistoricalAttachment
     return !this.#disposed && this.#taskEpochs.get(taskId) === epoch;
   }
 
-  #epoch(taskId: string): object {
-    const epoch = this.#taskEpochs.get(taskId) ?? {};
+  #epoch(taskId: string): AbortController {
+    const epoch = this.#taskEpochs.get(taskId) ?? new AbortController();
     this.#taskEpochs.set(taskId, epoch);
     return epoch;
   }
