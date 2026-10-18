@@ -22,7 +22,7 @@ export function ComposerApprovalControls({
   settings,
 }: ComposerApprovalControlsProps) {
   const { t } = useTranslation(["workbench", "settings"]);
-  if (settings.engineOptions?.engine === "claude") return <ClaudePermissionSelector label={t("engine.permissions")} disabled={disabled} value={settings.engineOptions.permissionMode} labels={{ default: t("engine.permissionDefault"), acceptEdits: t("engine.permissionEdits"), plan: t("engine.permissionPlan"), dontAsk: t("engine.permissionDeny"), bypassPermissions: t("engine.permissionBypass") }} onChange={(permissionMode) => { void onSettingsChange({ ...settings, engineOptions: { engine: "claude", permissionMode } }, "engineOptions"); }} />;
+  if (settings.engineOptions?.engine === "claude") return <ClaudePermissionSelector label={t("engine.permissions")} disabled={disabled} value={settings.engineOptions.permissionMode} labels={{ default: t("engine.permissionDefault"), auto: t("engine.permissionAuto"), acceptEdits: t("engine.permissionEdits"), plan: t("engine.permissionPlan"), dontAsk: t("engine.permissionDeny"), bypassPermissions: t("engine.permissionBypass") }} onChange={(permissionMode) => { void onSettingsChange({ ...settings, engineOptions: { engine: "claude", permissionMode } }, "engineOptions"); }} />;
   return (
     <>
       <CompactSelector<ApprovalMode>

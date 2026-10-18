@@ -30,6 +30,7 @@ export function ComposerApprovalControls({
         value={settings.engineOptions.permissionMode}
         labels={{
           default: t("engine.permissionDefault"),
+          auto: t("engine.permissionAuto"),
           acceptEdits: t("engine.permissionEdits"),
           plan: t("engine.permissionPlan"),
           dontAsk: t("engine.permissionDeny"),

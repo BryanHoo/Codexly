@@ -136,6 +136,7 @@ impl AgentTaskSettingsView<'_> {
 }
 
 /// 执行身份由已保存的引擎选项决定；缺省是旧版 Codex，非法选项不能静默回退。
+/// auto 与共享协议保持一致，模型及服务商是否支持由实际执行的 Claude SDK 判断。
 pub fn scheduled_task_engine(options: &AgentTurnOptions) -> Option<&'static str> {
     match options.engine_options.as_ref() {
         None => Some("codex"),
@@ -143,7 +144,14 @@ pub fn scheduled_task_engine(options: &AgentTurnOptions) -> Option<&'static str>
             if value["engine"] == "claude"
                 && matches!(
                     value["permissionMode"].as_str(),
-                    Some("default" | "acceptEdits" | "plan" | "dontAsk" | "bypassPermissions")
+                    Some(
+                        "default"
+                            | "auto"
+                            | "acceptEdits"
+                            | "plan"
+                            | "dontAsk"
+                            | "bypassPermissions"
+                    )
                 ) =>
         {
             Some("claude")
@@ -180,6 +188,8 @@ mod engine_tests {
         let mut options = AgentTurnOptions::default();
         assert_eq!(scheduled_task_engine(&options), Some("codex"));
         options.engine_options = Some(json!({"engine":"claude","permissionMode":"plan"}));
+        assert_eq!(scheduled_task_engine(&options), Some("claude"));
+        options.engine_options = Some(json!({"engine":"claude","permissionMode":"auto"}));
         assert_eq!(scheduled_task_engine(&options), Some("claude"));
         options.engine_options = Some(json!({"engine":"claude","permissionMode":"invalid"}));
         assert_eq!(scheduled_task_engine(&options), None);

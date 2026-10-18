@@ -21,6 +21,8 @@ export const claudeSettingsChinese = {
   effortDefault: "默认",
   effortDescription: "",
   effortUnknown: "此模型使用默认强度",
+  permissionAutoDescription:
+    "由 Claude 自动评估工具操作；需要受支持的模型和服务商，实际可用性由 Claude 判断。",
   credentialPlaceholder: "输入服务商提供的 API Key 或 Token",
   connecting: "连接中…",
   connectionCheckFailed: "连接失败，请检查地址和凭据",
@@ -50,6 +52,8 @@ export const claudeSettingsEnglish: Record<keyof typeof claudeSettingsChinese, s
   effortDefault: "Default",
   effortDescription: "",
   effortUnknown: "This model uses default effort",
+  permissionAutoDescription:
+    "Claude reviews tool actions automatically. Requires a supported model and provider; Claude determines availability.",
   credentialPlaceholder: "Enter your provider’s API Key or Token",
   connecting: "Connecting…",
   connectionCheckFailed: "Connection failed. Check the address and credential.",

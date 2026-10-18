@@ -91,7 +91,25 @@ describe("Claude native user configuration", () => {
     expect(JSON.stringify(settings)).not.toContain("private-override-token");
   });
 
-  it.each(["auto", "future-native-mode"])(
+  it("原样读取和保存原生 auto，并允许显式切回 default", async () => {
+    const { user, config } = await setup();
+    const path = join(user, "settings.json");
+    await writeFile(path, JSON.stringify({ permissions: { defaultMode: "auto" } }));
+    const settings = await config.readSettings();
+    expect(settings.permissionMode).toBe("auto");
+    await config.writeSettings({ ...settings, instructions: "保留自动审批" });
+    expect((await config.readSettings()).permissionMode).toBe("auto");
+    expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+      permissions: { defaultMode: "auto" },
+    });
+    await config.writeSettings({ ...settings, permissionMode: "default" });
+    expect((await config.readSettings()).permissionMode).toBe("default");
+    expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+      permissions: { defaultMode: "default" },
+    });
+  });
+
+  it.each(["future-native-mode"])(
     "preserves unsupported native mode %s when saving other settings",
     async (mode) => {
       const { user, config } = await setup();
@@ -122,10 +140,10 @@ describe("Claude native user configuration", () => {
     const { user, config } = await setup();
     const settings = await config.readSettings();
     const path = join(user, "settings.json");
-    await writeFile(path, JSON.stringify({ permissions: { defaultMode: "auto" } }));
+    await writeFile(path, JSON.stringify({ permissions: { defaultMode: "future-native-mode" } }));
     await config.writeSettings({ ...settings, instructions: "保留外部配置" });
     expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
-      permissions: { defaultMode: "auto" },
+      permissions: { defaultMode: "future-native-mode" },
     });
   });
 

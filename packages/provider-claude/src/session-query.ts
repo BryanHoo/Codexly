@@ -44,6 +44,7 @@ export function createClaudeQuery({
       env: { ...config.environment(), CLAUDE_CODE_ENABLE_TODO_TOOLS: "1" },
       // default 保留 SDK 对本机及项目模型配置的解析，不传 CLI 的 --model 覆盖。
       ...(options.model && options.model !== "default" ? { model: options.model } : {}),
+      // 原样传递 auto 与会话显式选择；可用性限制交给 SDK，不在应用内静默降级。
       permissionMode,
       allowDangerouslySkipPermissions: permissionMode === "bypassPermissions",
       hooks: wakeupHooks(getRunning),

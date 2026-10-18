@@ -5,8 +5,24 @@ import { AgentTaskBaseSchema } from "./task-common.js";
 import { AgentTaskSnapshotSchema } from "./agent-runtime.js";
 import { PendingRequestSchema, ResolvePendingRequestRequestSchema } from "./pending-request.js";
 import { AgentTaskSettingsSchema } from "./project-settings.js";
+import { ClaudeSettingsSchema, DEFAULT_CLAUDE_SETTINGS } from "./agent-engine.js";
 
 describe("conversation engine identity", () => {
+  it("配置与会话协议均接受原生 auto 权限模式", () => {
+    expect(
+      Value.Check(ClaudeSettingsSchema, { ...DEFAULT_CLAUDE_SETTINGS, permissionMode: "auto" }),
+    ).toBe(true);
+    expect(
+      Value.Check(AgentTaskSettingsSchema, {
+        model: "sonnet",
+        reasoningEffort: "",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "user",
+        sandboxMode: "workspace-write",
+        engineOptions: { engine: "claude", permissionMode: "auto" },
+      }),
+    ).toBe(true);
+  });
   it("keeps Claude permission modes independent from Codex sandbox and accepts generic tool approvals", () => {
     const settings = {
       model: "sonnet",

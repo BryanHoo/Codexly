@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -799,6 +799,40 @@ describe("Claude session recovery", () => {
 });
 
 describe("Claude provider execution boundary", () => {
+  it.each([undefined, "default", "plan", "auto"] as const)(
+    "原生 auto 在会话覆盖为 %s 时按实际选择传递给 SDK，重建及压缩保持一致",
+    async (override) => {
+      const h = await harness();
+      await mkdir(h.config.userDirectory, { recursive: true });
+      await writeFile(
+        join(h.config.userDirectory, "settings.json"),
+        JSON.stringify({ permissions: { defaultMode: "auto" } }),
+      );
+      // 不提供会话覆盖时，必须使用真实原生值，不能把表单兼容投影传给 SDK。
+      const { engineOptions: _explicit, ...inherited } = options;
+      const turnOptions: AgentTurnOptions = override
+        ? { ...inherited, engineOptions: { engine: "claude", permissionMode: override } }
+        : inherited;
+      const task = await h.provider.startTask();
+      await h.provider.startTurn(task.id, prompt, turnOptions);
+      expect(h.query.mock.calls[0]?.[0].options).toMatchObject({
+        permissionMode: override ?? "auto",
+        allowDangerouslySkipPermissions: false,
+      });
+      h.send({ type: "result", subtype: "success" });
+      await vi.waitFor(() => {
+        expect(h.provider.isBusy).toBe(false);
+      });
+      await h.provider.stopSession(task.id);
+      await h.provider.compactTask(task.id, turnOptions);
+      expect(h.query.mock.calls.at(-1)?.[0].options).toMatchObject({
+        permissionMode: override ?? "auto",
+        allowDangerouslySkipPermissions: false,
+        resume: h.tasks.get(task.id)?.sessionId,
+      });
+    },
+  );
+
   it("creates locally and delegates native authentication to the SDK", async () => {
     const h = await harness();
     const task = await h.provider.startTask();

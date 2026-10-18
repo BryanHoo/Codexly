@@ -43,9 +43,9 @@ export function ClaudePermissionSelector(
       disabled={props.disabled}
       value={props.value}
       onValueChange={props.onChange}
-      options={(["default", "acceptEdits", "plan", "dontAsk", "bypassPermissions"] as const).map(
-        (value) => ({ value, label: props.labels[value] }),
-      )}
+      options={(
+        ["default", "auto", "acceptEdits", "plan", "dontAsk", "bypassPermissions"] as const
+      ).map((value) => ({ value, label: props.labels[value] }))}
     />
   );
 }

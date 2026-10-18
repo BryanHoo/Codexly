@@ -8,6 +8,25 @@ import { claudeSettingsChinese as engineChinese } from "@codexly/frontend-core/c
 import { SettingsField, SettingsGroup, SettingsSelect } from "./global-settings-fields.js";
 
 describe("Claude 设置控件", () => {
+  it("原生 auto 在共享设置中正确选中，并说明可用性限制", async () => {
+    const { ClaudeRuntimeSettingsFields } =
+      await import("@codexly/ui/core/claude-runtime-settings-fields");
+    const { DEFAULT_CLAUDE_SETTINGS } = await import("@codexly/protocol");
+    const markup = renderToStaticMarkup(
+      <ClaudeRuntimeSettingsFields
+        settings={{ ...DEFAULT_CLAUDE_SETTINGS, permissionMode: "auto" }}
+        models={[]}
+        disabled={false}
+        labels={engineChinese}
+        Group={SettingsGroup}
+        Field={SettingsField}
+        Select={SettingsSelect}
+        onChange={() => undefined}
+      />,
+    );
+    expect(markup).toContain('<option value="auto" selected="">');
+    expect(markup).toContain("模型和服务商");
+  });
   it("使用设置页选择器约束模型、思考强度与权限，加载期间禁止编辑连接", () => {
     const client: ClaudeSettingsClient = {
       getEngineProfile: vi.fn(),

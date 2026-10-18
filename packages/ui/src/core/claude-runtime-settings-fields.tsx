@@ -117,7 +117,12 @@ export function ClaudeRuntimeSettingsFields({
             ))}
           </Select>
         </Field>
-        <Field label={labels.permissions}>
+        <Field
+          label={labels.permissions}
+          {...(settings.permissionMode === "auto"
+            ? { description: labels.permissionAutoDescription }
+            : {})}
+        >
           <Select
             aria-label={labels.permissions}
             value={settings.permissionMode}
@@ -130,6 +135,7 @@ export function ClaudeRuntimeSettingsFields({
             }}
           >
             <option value="default">{labels.permissionDefault}</option>
+            <option value="auto">{labels.permissionAuto}</option>
             <option value="acceptEdits">{labels.permissionEdits}</option>
             <option value="plan">{labels.permissionPlan}</option>
             <option value="dontAsk">{labels.permissionDeny}</option>

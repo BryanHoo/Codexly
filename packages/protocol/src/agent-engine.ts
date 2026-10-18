@@ -6,6 +6,8 @@ export type AgentEngine = Static<typeof AgentEngineSchema>;
 
 export const ClaudePermissionModeSchema = Type.Union([
   Type.Literal("default"),
+  // auto 由官方 SDK 判断模型、服务商与策略是否支持，两端必须原样传递。
+  Type.Literal("auto"),
   Type.Literal("acceptEdits"),
   Type.Literal("plan"),
   Type.Literal("dontAsk"),

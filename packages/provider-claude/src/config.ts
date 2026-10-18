@@ -156,7 +156,7 @@ export class ClaudeConfiguration {
       disallowedTools: strings(permissions["deny"]),
     };
     // 原生文件还允许未来扩展值；公共表单只投影当前支持的枚举。
-    // 权限的 default 可能只是兼容投影，保存时必须保留磁盘上的未支持模式。
+    // auto 属于正式支持的值，读取后必须原样进入执行链路；未知扩展值保存时仍保留。
     if (!Value.Check(ClaudeSettingsSchema.properties.reasoningEffort, settings.reasoningEffort))
       settings.reasoningEffort = "";
     if (!Value.Check(ClaudeSettingsSchema.properties.permissionMode, settings.permissionMode))
@@ -196,7 +196,7 @@ export class ClaudeConfiguration {
 
   #mergeSettings(native: JsonObject, snapshot: ClaudeSettings): void {
     const permissions = object(native["permissions"]);
-    // auto 等原生模式尚未暴露给表单，default 可能来自读取时的降级投影。
+    // 未来扩展模式尚未暴露给表单，default 可能来自读取时的降级投影。
     // 全量提交无法证明用户主动切换到了 default，因此保留最新原生值；
     // 只有选择其他受支持模式时才覆盖，避免仅修改指令也悄悄重置权限。
     const preserveNativeMode =
