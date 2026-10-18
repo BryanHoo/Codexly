@@ -16,6 +16,23 @@ export function claudeResultError(
   return errors || text(message["result"]) || "Claude execution failed";
 }
 
+/** 中断后的 SDK result 也可能是 success；只将被中断的前台回合映射为 interrupted。 */
+export function claudeTurnResult(
+  message: Record<string, unknown>,
+  interrupted: boolean,
+): {
+  success: boolean;
+  status: "completed" | "failed" | "interrupted";
+  error: string | undefined;
+} {
+  const success = !interrupted && message["subtype"] === "success" && message["is_error"] !== true;
+  return {
+    success,
+    status: interrupted ? "interrupted" : success ? "completed" : "failed",
+    error: interrupted ? undefined : claudeResultError(message, success),
+  };
+}
+
 /** SDK 本地命令正文属于助手展示消息；按类型转换，不能根据命令名猜测输出形态。 */
 export function displayClaudeMessage(value: unknown): Record<string, unknown> {
   const message = record(value);

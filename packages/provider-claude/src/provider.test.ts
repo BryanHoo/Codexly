@@ -64,20 +64,27 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
   } as LocalCatalogStore;
   const config = new ClaudeConfiguration(root, join(root, "user"));
   const received: unknown[] = [];
-  let next: ((value: IteratorResult<SDKMessage>) => void) | undefined;
-  let closed = false;
-  const messages: SDKMessage[] = [];
+  interface StreamState {
+    next?: ((value: IteratorResult<SDKMessage>) => void) | undefined;
+    closed: boolean;
+    messages: SDKMessage[];
+  }
+  let active: StreamState = { closed: false, messages: [] };
   const deleteSession = vi.fn(() => Promise.resolve());
   const forkSession = vi.fn(() => Promise.resolve({ sessionId: "native-fork-session" }));
   const getSessionMessages = vi.fn<ClaudeSdk["getSessionMessages"]>(() => Promise.resolve([]));
   const stopTask = vi.fn(() => Promise.resolve());
-  const close = vi.fn(() => {
-    closed = true;
-    next?.({ done: true, value: undefined });
+  // 模拟 SDK 接受中断后仍通过开放的消息流交付当前回合 result。
+  const interrupt = vi.fn(() => {
+    send({ type: "result", subtype: "success" });
+    return Promise.resolve();
   });
+  const close = vi.fn();
   const query = vi.fn(
     ({ prompt, options }: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => {
-      closed = false;
+      // 中断后旧 Query 仍可存活；各会话必须独立持有迭代器，关闭时不能唤醒其他查询。
+      const state: StreamState = { closed: false, messages: [] };
+      active = state;
       received.push(options);
       void (async () => {
         for await (const input of prompt) received.push(input);
@@ -87,17 +94,22 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
           return this;
         },
         next(): Promise<IteratorResult<SDKMessage>> {
-          const message = messages.shift();
+          const message = state.messages.shift();
           return message
             ? Promise.resolve({ value: message, done: false })
-            : closed
+            : state.closed
               ? Promise.resolve({ value: undefined, done: true })
               : new Promise((resolve) => {
-                  next = resolve;
+                  state.next = resolve;
                 });
         },
-        close,
-        interrupt: vi.fn(() => Promise.resolve()),
+        close() {
+          close();
+          state.closed = true;
+          state.next?.({ done: true, value: undefined });
+          state.next = undefined;
+        },
+        interrupt,
         stopTask,
       } as unknown as Query;
       return stream;
@@ -105,11 +117,11 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
   );
   const send = (value: unknown) => {
     const message = value as SDKMessage;
-    if (next) {
-      const resolve = next;
-      next = undefined;
+    if (active.next) {
+      const resolve = active.next;
+      active.next = undefined;
       resolve({ value: message, done: false });
-    } else messages.push(message);
+    } else active.messages.push(message);
   };
   const createProvider = (configuration = config) => {
     const provider = new ClaudeAgentProvider(
@@ -143,13 +155,14 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
     send,
     close,
     stopTask,
+    interrupt,
     deleteSession,
     forkSession,
     getSessionMessages,
     end: () => {
-      closed = true;
-      next?.({ done: true, value: undefined });
-      next = undefined;
+      active.closed = true;
+      active.next?.({ done: true, value: undefined });
+      active.next = undefined;
     },
   };
 }
@@ -1059,6 +1072,7 @@ it.each(["allow", "deny"] as const)(
     await h.provider.resolvePendingRequest({ ...request, resolution: { decision } });
     await result;
     await h.provider.interruptTurn(task.id, turn.id);
+    await h.provider.stopSession(task.id);
     await h.provider.startTurn(task.id, prompt, options);
     expect(h.query.mock.calls[1]?.[0].options.allowedTools).toEqual([]);
   },
@@ -1743,6 +1757,127 @@ it("stops a background task independently and keeps consuming its stopped notifi
   expect(
     (await h.provider.readTask(task.id))?.turns[0]?.items.find((item) => item.id === "spawn"),
   ).toMatchObject({ status: "interrupted" });
+});
+
+it("declares per-task stopping for the interactive SDK session", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  expect(h.query.mock.calls[0]?.[0].options.perTaskStopAffordance).toBe(true);
+});
+
+it("interrupts only the foreground turn and keeps background output and the next turn alive", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  const first = await h.provider.startTurn(task.id, prompt, options);
+  h.send(backgroundSpawn);
+  h.send({ type: "system", subtype: "task_started", task_id: "child", tool_use_id: "spawn" });
+  await vi.waitFor(async () => {
+    expect((await h.provider.readTask(task.id))?.turns[0]?.items).toContainEqual(
+      expect.objectContaining({ id: "spawn", status: "running" }),
+    );
+  });
+  await h.provider.interruptTurn(task.id, first.id);
+  expect(h.interrupt).toHaveBeenCalledOnce();
+  expect(h.close).not.toHaveBeenCalled();
+  expect(h.stopTask).not.toHaveBeenCalled();
+  expect(h.query.mock.calls[0]?.[0].options.abortController?.signal.aborted).toBe(false);
+  const snapshot = await h.provider.readTask(task.id);
+  expect(snapshot?.turns[0]).toMatchObject({ id: first.id, status: "interrupted", error: null });
+  expect(snapshot?.turns[0]?.items).toContainEqual(
+    expect.objectContaining({ id: "spawn", status: "running" }),
+  );
+  expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+
+  const second = await h.provider.startTurn(task.id, prompt, options);
+  h.send({ type: "system", subtype: "task_notification", task_id: "child", status: "completed" });
+  h.send({ type: "result", subtype: "success", result: "next response" });
+  await vi.waitFor(async () => {
+    const saved = await h.provider.readTask(task.id);
+    expect(saved?.turns.find((turn) => turn.id === first.id)?.items).toContainEqual(
+      expect.objectContaining({ id: "spawn", status: "completed" }),
+    );
+    expect(saved?.turns.find((turn) => turn.id === second.id)?.status).toBe("completed");
+  });
+  expect(h.query).toHaveBeenCalledOnce();
+  expect(h.close).not.toHaveBeenCalled();
+  await h.provider.stopSession(task.id);
+  expect(h.close).toHaveBeenCalledOnce();
+});
+
+it("keeps the query usable when the SDK rejects a foreground interrupt", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  const turn = await h.provider.startTurn(task.id, prompt, options);
+  h.interrupt.mockRejectedValueOnce(new Error("interrupt rejected"));
+  await expect(h.provider.interruptTurn(task.id, turn.id)).rejects.toThrow("interrupt rejected");
+  expect(h.close).not.toHaveBeenCalled();
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(async () => {
+    expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("completed");
+  });
+});
+
+it.each(["acknowledgement", "result"])(
+  "reports a missing interrupt %s without destroying the query and accepts the late result",
+  async (missing) => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const turn = await h.provider.startTurn(task.id, prompt, options);
+    h.interrupt.mockImplementationOnce(() =>
+      missing === "acknowledgement"
+        ? Promise.withResolvers<undefined>().promise
+        : Promise.resolve(),
+    );
+    vi.useFakeTimers();
+    try {
+      const failed = expect(h.provider.interruptTurn(task.id, turn.id)).rejects.toThrow(/限时/);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await failed;
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(h.close).not.toHaveBeenCalled();
+    expect(h.query.mock.calls[0]?.[0].options.abortController?.signal.aborted).toBe(false);
+    expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("running");
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(async () => {
+      expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("interrupted");
+    });
+    await h.provider.startTurn(task.id, prompt, options);
+    expect(h.query).toHaveBeenCalledOnce();
+  },
+);
+
+it("does not let a late interrupt rejection clear the next turn's interrupt", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  const first = await h.provider.startTurn(task.id, prompt, options);
+  const receipt = Promise.withResolvers<undefined>();
+  h.interrupt.mockImplementationOnce(() => receipt.promise);
+  const firstInterrupt = expect(h.provider.interruptTurn(task.id, first.id)).rejects.toThrow(
+    "late rejection",
+  );
+  await vi.waitFor(() => {
+    expect(h.interrupt).toHaveBeenCalledOnce();
+  });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(h.provider.isBusy).toBe(false);
+  });
+  const second = await h.provider.startTurn(task.id, prompt, options);
+  h.interrupt.mockResolvedValueOnce(undefined);
+  const secondInterrupt = h.provider.interruptTurn(task.id, second.id);
+  await vi.waitFor(() => {
+    expect(h.interrupt).toHaveBeenCalledTimes(2);
+  });
+  receipt.reject(new Error("late rejection"));
+  await firstInterrupt;
+  h.send({ type: "result", subtype: "success" });
+  await secondInterrupt;
+  expect((await h.provider.readTask(task.id))?.turns.at(-1)?.status).toBe("interrupted");
 });
 
 // 父回合完成不代表 SDK 会话空闲；两端的移除入口必须保留仍有后台工作的任务。

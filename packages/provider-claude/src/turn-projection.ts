@@ -18,7 +18,7 @@ import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
 import { createClaudeUserItem, type ClaudeUserInput } from "./turn-input.js";
 import type { ClaudeTaskMetadata } from "./history.js";
-import { record, text, resultText, displayClaudeMessage, claudeResultError } from "./sdk-values.js";
+import { record, text, resultText, displayClaudeMessage, claudeTurnResult } from "./sdk-values.js";
 import { changedClaudeUsage } from "./projection-usage.js";
 import { ClaudeProjectionChanges } from "./projection-changes.js";
 import { ClaudeBackgroundTasks } from "./background-tasks.js";
@@ -259,7 +259,7 @@ export class ClaudeTurnProjection {
     }
     return undefined;
   }
-  receive(value: unknown, taskStateReceived = false): void {
+  receive(value: unknown, taskStateReceived = false, interrupted = false): void {
     if (this.#closed) return;
     const message = displayClaudeMessage(value);
     if (!taskStateReceived && !this.backgroundTasks.receive(message)) return;
@@ -434,7 +434,7 @@ export class ClaudeTurnProjection {
     } else if (message["type"] === "result") {
       const usage = mapClaudeResultUsage(message, this.#model, this.contextUsage);
       if (usage) this.updateContextUsage(usage);
-      const success = message["subtype"] === "success" && message["is_error"] !== true;
+      const { success, status, error } = claudeTurnResult(message, interrupted);
       // 某些命令只返回 result，没有 assistant；只在没有回复正文时补充，避免重复。
       const result = text(message["result"]);
       if (
@@ -448,7 +448,7 @@ export class ClaudeTurnProjection {
           { id: `${this.id}:result`, type: "message", role: "assistant", text: result },
           true,
         );
-      this.finish(success ? "completed" : "failed", claudeResultError(message, success), true);
+      this.finish(status, error, true);
     }
   }
   /** 会话终止与父回合结束分开；已完成的父回合仍需清理尚在运行的后代。 */

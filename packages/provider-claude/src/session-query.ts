@@ -50,6 +50,8 @@ export function createClaudeQuery({
       hooks: wakeupHooks(getRunning),
       includePartialMessages: true,
       persistSession: true,
+      // 两端均已接入单任务 stopTask；声明后前台中断才会保留后台代理与工作流。
+      perTaskStopAffordance: true,
       abortController: controller,
       // SDK 先执行原生 Elicitation Hook，仅未处理的请求进入两端共用交互。
       // 回调没有工具/代理身份，绑定调用时的当前回合，不能捕获首次启动的旧回合。

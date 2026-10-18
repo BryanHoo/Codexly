@@ -94,6 +94,8 @@ export interface Running {
   done: Promise<void>;
   closed?: boolean;
   settling?: boolean;
+  /** 仅标记被请求中断的前台回合；后台子代理不得继承该状态。 */
+  interruptedTurnId?: string | undefined;
   nativeRunning?: boolean;
   hasScheduledWakeup?: boolean;
   createPermissions: (turnId: string) => ClaudePermissions;
@@ -345,7 +347,7 @@ export async function consume(
         [...running.projections.values()].find((candidate) => candidate.ownsMessage(message)) ??
         running.projection;
       const wasRunning = projection.status === "running";
-      projection.receive(message, true);
+      projection.receive(message, true, running.interruptedTurnId === projection.id);
       // 仅落盘结构化块和工具状态，Token 增量不产生磁盘写入；消费器背压限制待写内存。
       const changes = running.itemChanges.get(projection.id);
       if (changes?.size) {

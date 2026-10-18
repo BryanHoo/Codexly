@@ -1,3 +1,4 @@
+import { interruptForeground } from "./session-interruption.js";
 import { createClaudeQuery } from "./session-query.js";
 import { localTaskMetadata as claudeTask } from "@codexly/core";
 export { localTaskMetadata as claudeTask } from "@codexly/core";
@@ -468,15 +469,7 @@ export class ClaudeAgentProvider {
     const current = this.#running.get(id);
     if (!current || current.projection.id !== turnId || current.projection.status !== "running")
       throw new Error("Claude turn is no longer running");
-    await Promise.race([
-      current.query.interrupt(),
-      new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, 2_000);
-        timer.unref();
-      }),
-    ]);
-    session.stop(current);
-    await current.done;
+    await interruptForeground(current, id, (listener) => this.subscribeEvents(listener));
   }
 
   async resolvePendingRequest(input: ResolvePendingRequestInput) {

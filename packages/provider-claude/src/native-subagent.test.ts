@@ -68,7 +68,7 @@ function reply(
   response.end();
 }
 
-it.each(["completed", "failed"] as const)(
+it.each(["completed", "failed", "foreground-interrupted"] as const)(
   "automatically delivers a real %s background subagent to its parent without another user send",
   async (outcome) => {
     const root = await mkdtemp(join(tmpdir(), "claude-native-subagent-"));
@@ -130,7 +130,11 @@ it.each(["completed", "failed"] as const)(
           const transcript = JSON.stringify(body.messages);
           notificationReceived ||=
             transcript.includes("<task-notification>") &&
-            transcript.includes(outcome === "completed" ? "child-proof-42" : "native-child-error");
+            transcript.includes(outcome === "failed" ? "native-child-error" : "child-proof-42");
+          if (outcome === "foreground-interrupted" && parentCalls === 2) {
+            // 挂起主代理的模型请求；子代理也暂不返回，让真实 interrupt 面对并行后台工作。
+            return;
+          }
           reply(
             response,
             parentCalls === 1
@@ -257,7 +261,7 @@ it.each(["completed", "failed"] as const)(
     });
     const task = await provider.startTask();
     try {
-      await provider.startTurn(
+      const first = await provider.startTurn(
         task.id,
         {
           text: "Delegate to worker then summarize",
@@ -275,6 +279,21 @@ it.each(["completed", "failed"] as const)(
           engineOptions: { engine: "claude", permissionMode: "default" },
         },
       );
+      if (outcome === "foreground-interrupted") {
+        await vi.waitFor(
+          () => {
+            expect(parentCalls).toBe(2);
+          },
+          { timeout: 20_000 },
+        );
+        await provider.interruptTurn(task.id, first.id);
+        const snapshot = await provider.readTask(task.id);
+        expect(snapshot?.turns.find((turn) => turn.id === first.id)?.status).toBe("interrupted");
+        expect(snapshot?.turns.flatMap((turn) => turn.items)).toContainEqual(
+          expect.objectContaining({ name: "agent/spawn", status: "running" }),
+        );
+        parentWaiting.resolve(undefined);
+      }
       await vi.waitFor(
         async () => {
           expect(errors).toEqual([]);
@@ -293,7 +312,7 @@ it.each(["completed", "failed"] as const)(
       expect(sdk.query).toHaveBeenCalledOnce();
       expect(userSends).toBe(1);
       expect(parentCalls).toBe(3);
-      if (outcome === "completed") {
+      if (outcome !== "failed") {
         expect(await readFile(join(root, "child-proof.txt"), "utf8")).toBe("child-proof-42");
         expect(
           events.some(
@@ -308,7 +327,7 @@ it.each(["completed", "failed"] as const)(
         expect.objectContaining({
           type: "system",
           subtype: "task_notification",
-          status: outcome,
+          status: outcome === "failed" ? "failed" : "completed",
         }),
       );
       await vi.waitFor(
@@ -325,7 +344,10 @@ it.each(["completed", "failed"] as const)(
           .filter((item) => item.type === "message" && item.role === "user"),
       ).toHaveLength(1);
       expect(snapshot?.turns.flatMap((turn) => turn.items)).toContainEqual(
-        expect.objectContaining({ name: "agent/spawn", status: outcome }),
+        expect.objectContaining({
+          name: "agent/spawn",
+          status: outcome === "failed" ? "failed" : "completed",
+        }),
       );
       expect(snapshot?.turns.flatMap((turn) => turn.items)).toContainEqual(
         expect.objectContaining({ role: "assistant", text: "parent-summary-42" }),
