@@ -135,13 +135,13 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     attachmentId: string,
     _options: MutationOptions = {},
   ): Promise<OpenAgentTaskAttachmentResponse> {
-    return this.call("open_task_attachment", { attachmentId, projectId, taskId });
+    return this.invokeCommand("open_task_attachment", { attachmentId, projectId, taskId });
   }
 
   public async getProjectOpenCapabilities(
     _options: ReadOptions = {},
   ): Promise<ProjectOpenCapabilitiesResponse> {
-    return this.call("get_project_open_capabilities");
+    return this.invokeCommand("get_project_open_capabilities");
   }
 
   public async openProject(
@@ -194,6 +194,8 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     input: GenerateCommitMessageRequest,
     _options: MutationOptions = {},
   ): Promise<GenerateCommitMessageResponse> {
+    // Claude 分支由原生宿主按需启动，不先初始化 Codex。
+    if (input.engine === "claude") return this.invokeCommand("generate_commit_message", { input, projectId, rootPath });
     return this.call("generate_commit_message", { input, projectId, rootPath });
   }
 
@@ -282,7 +284,6 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     sessionId: string,
     options: ReadOptions = {},
   ): Promise<ProjectFileSearchPage> {
-    await this.ensureRuntime();
     options.signal?.throwIfAborted();
     const stopSearch = () => {
       // 直接发送停止命令，避免取消路径再次等待运行时初始化。
@@ -328,16 +329,12 @@ export class TauriWorkspaceClient extends TauriNativeClient {
   public async readProjectTextFile(projectId: string, rootPath: string | undefined, path: string, options: ReadOptions = {}): Promise<ProjectTextFile> {
     // 未启动的 IPC 可以取消；已启动的原生读取由共享会话合并并复用其结果。
     options.signal?.throwIfAborted();
-    await this.ensureRuntime();
-    options.signal?.throwIfAborted();
     const result = await this.invokeCommand<ProjectTextFile>("read_project_text_file", {projectId, rootPath, path});
     options.signal?.throwIfAborted();
     return result;
   }
 
   public async readProjectTextFileRevision(projectId: string, rootPath: string | undefined, path: string, options: ReadOptions = {}): Promise<ProjectTextFileRevision> {
-    options.signal?.throwIfAborted();
-    await this.ensureRuntime();
     options.signal?.throwIfAborted();
     const result = await this.invokeCommand<ProjectTextFileRevision>("read_project_text_file_revision", {projectId, rootPath, path});
     options.signal?.throwIfAborted();

@@ -38,7 +38,7 @@ export function WorkbenchSettingsPage({
         appInfoError={appInfoQuery.error}
         apps={projectToolsEnabled ? (projectOpenCapabilitiesQuery.data?.apps ?? []) : []}
         error={globalSettingsQuery.error ?? modelsQuery.error ?? (projectToolsEnabled ? projectOpenCapabilitiesQuery.error : null)}
-        isPending={globalSettingsQuery.isPending || modelsQuery.isPending || (projectToolsEnabled && projectOpenCapabilitiesQuery.isPending)}
+        isPending={globalSettingsQuery.isPending || modelsQuery.isLoading || (projectToolsEnabled && projectOpenCapabilitiesQuery.isPending)}
         fastModeAvailable={fastModeAvailable}
         initialSection={globalSettingsSection}
         isAppInfoPending={appInfoQuery.isPending}

@@ -208,7 +208,7 @@ void test("native WebView CI should exercise private installation without global
   assert.ok(supportedVersion, "Rust must declare a supported Codex runtime version");
   assert.doesNotMatch(workflow, /npm install --global @openai\/codex/);
   assert.doesNotMatch(workflow, /run: codex --version/);
-  assert.match(workflow, /private_codex_should_install_and_complete_real_app_server_lifecycle/);
+  assert.match(workflow, /bundled_codex_should_complete_real_app_server_lifecycle/);
 });
 
 void test("non-macOS commands should remain unchanged", () => {

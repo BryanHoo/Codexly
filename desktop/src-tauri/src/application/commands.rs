@@ -48,12 +48,9 @@ pub async fn inspect_codex_runtime(
     on_progress: Channel<CodexRuntimeInstallProgress>,
     state: State<'_, AppState>,
 ) -> Result<CodexRuntimeAvailability, AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    let resources = crate::infrastructure::bundled_runtime::root(&app)?;
     Ok(state
-        .inspect_codex(&app_data, move |progress| {
+        .inspect_codex(&resources, move |progress| {
             let _ = on_progress.send(progress);
         })
         .await)
@@ -65,13 +62,10 @@ pub async fn install_codex_runtime(
     on_progress: Channel<CodexRuntimeInstallProgress>,
     state: State<'_, AppState>,
 ) -> Result<CodexRuntimeAvailability, AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    let resources = crate::infrastructure::bundled_runtime::root(&app)?;
     state
-        .install_codex(&app_data, move |progress| {
-            // 页面关闭不应中断已开始的本地安装，因此只忽略失效 Channel 的发送错误。
+        .install_codex(&resources, move |progress| {
+            // 兼容旧调用方的 Channel；内置资源检查不会发送下载进度。
             let _ = on_progress.send(progress);
         })
         .await
@@ -86,7 +80,7 @@ pub async fn get_app_info(app: AppHandle, state: State<'_, AppState>) -> Result<
     Ok(json!({
         "appVersion": app_version,
         "changelogUrl": CHANGELOG_URL,
-        "codexVersion": codex_version?,
+        "codexVersion": codex_version.unwrap_or_else(|_| crate::infrastructure::codex::SUPPORTED_CODEX_VERSION.to_owned()),
         "latestVersion": update.latest_version,
         "releaseNotes": update.release_notes,
         "releaseNotesVersion": update.release_notes_version,

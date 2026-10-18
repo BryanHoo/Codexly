@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::{error::AppError, state::AppState};
 use crate::infrastructure::{codex, local_settings};
@@ -23,9 +23,13 @@ pub async fn list_models(app: AppHandle, state: State<'_, AppState>) -> Result<V
     let app_data = app_data_dir(&app)?;
     // API 可用时无需启动额外进程；第二层 CLI 按最新配置创建，第三层仍可兜底启动失败。
     codex::list_provider_models(&connection, &app_data, &codex_home, || async {
-        let process = codex::CodexProcess::start(&app_data)
-            .await
-            .map_err(|_| codex::ProviderError::Unavailable)?;
+        let process = codex::CodexProcess::start(
+            &app_data,
+            &crate::infrastructure::bundled_runtime::root(&app)
+                .map_err(|_| codex::ProviderError::Unavailable)?,
+        )
+        .await
+        .map_err(|_| codex::ProviderError::Unavailable)?;
         Ok(codex::list_models(&process.connection()).await?)
     })
     .await
@@ -86,6 +90,7 @@ pub async fn configure_custom_provider(
         .await
         .map_err(provider_error)?;
     state.set_provider_login(None).await;
+    let _ = app.emit("engine-configuration-changed", ());
     Ok(response)
 }
 

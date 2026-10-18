@@ -1,10 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createGzip } from "node:zlib";
-import { pipeline } from "node:stream/promises";
 import { claudeBuildTarget } from "./claude-build-target.mjs";
 import { resolveClaudeNativePackage, claudeNativeDistribution } from "./claude-native-package.mjs";
-import { createReadStream, createWriteStream } from "node:fs";
+import { createReadStream } from "node:fs";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,18 +56,9 @@ for await (const chunk of createReadStream(join(destination, `claude-host${suffi
   hostHash.update(chunk);
 const hash = createHash("sha256");
 for await (const chunk of createReadStream(binary)) hash.update(chunk);
-// 宿主独立发布，安装包只携带下载清单；按内容摘要命名避免不同构建相互覆盖。
+// 构建清单只记录可复现的来源与摘要；运行时随安装包分发，无需单独压缩发布。
 const hostSha256 = hostHash.digest("hex");
 const binarySha256 = hash.digest("hex");
-const artifactName = `claude-host-${target.platform}-${target.arch}-${hostSha256}.gz`;
-const artifact = join(destination, artifactName);
-await pipeline(
-  createReadStream(join(destination, `claude-host${suffix}`)),
-  createGzip({ level: 9 }),
-  createWriteStream(artifact),
-);
-const compressedHash = createHash("sha512");
-for await (const chunk of createReadStream(artifact)) compressedHash.update(chunk);
 const { version: appVersion } = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
 await writeFile(
   join(destination, "manifest.json"),
@@ -85,8 +74,6 @@ await writeFile(
     host: {
       version: appVersion,
       sha256: hostSha256,
-      integrity: compressedHash.digest("base64"),
-      url: `https://github.com/BryanHoo/Codexly/releases/download/v${appVersion}/${artifactName}`,
     },
   }) + "\n",
 );

@@ -5,9 +5,9 @@
   "version": "0.38.0",
   "identifier": "com.codexly.desktop",
   "build": {
-    "beforeDevCommand": "pnpm --dir .. build:claude-host && pnpm dev",
+    "beforeDevCommand": "pnpm --dir .. build:desktop-runtime && pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm --dir .. build:claude-host && pnpm build",
+    "beforeBuildCommand": "pnpm --dir .. build:desktop-runtime && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -47,7 +47,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {}
+    "resources": {
+      "resources/runtime/": "runtime/"
+    },
+    "externalBin": [
+      "binaries/claude-host"
+    ]
   },
   "plugins": {
     "updater": {

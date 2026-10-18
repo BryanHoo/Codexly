@@ -80,7 +80,7 @@ export class TauriRuntimeClient extends TauriCatalogClient {
   }
 
   public async getAppInfo(_options: ReadOptions = {}): Promise<AppInfoResponse> {
-    return this.call("get_app_info");
+    return this.invokeCommand("get_app_info");
   }
 
   public async installAppUpdate(

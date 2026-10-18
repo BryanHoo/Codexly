@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use tokio::{
     sync::Mutex,
     task::JoinHandle,
@@ -85,6 +85,14 @@ pub(super) fn spawn_event_forwarder(
 
             // JSON 建树和协议映射可能随 delta 体积增长，必须在全局状态锁之外完成。
             observe_model_turn(&runtime, &message).await;
+            // 认证通知独立于设置面板生命周期，登录窗口返回时即时刷新启用状态。
+            if matches!(
+                message.method.as_str(),
+                "account/login/completed" | "account/updated"
+            ) && let Some(app) = app.as_ref()
+            {
+                let _ = app.emit("engine-configuration-changed", ());
+            }
             if handle_login_notification(&runtime, &message).await {
                 continue;
             }

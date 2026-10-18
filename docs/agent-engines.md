@@ -4,7 +4,9 @@ Codexly 通过应用自己的任务目录保存聊天身份，新聊天可以选
 
 ## 配置与使用
 
-首次进入应用先选择 **Claude**、**Codex** 或 **同时使用**，确认后才开始准备运行环境，再逐个配置所选引擎。桌面 Codex 与 Claude 都复用兼容缓存，按需下载缺失或版本变化的运行时。Web 使用服务端依赖中已安装的引擎，不在浏览器下载桌面二进制。准备失败可重试，已经准备成功的组件会复用；初始化只配置连接，模型映射和思考强度留在设置中；点击一个主按钮保存并继续，失败保留输入。已有连接会自动跳过初始化，完成标记不随更新失效。没有标记时先恢复原生配置，读取失败提供重试而不视为新用户；保存连接后意外退出也能恢复。桌面探测仅读本地配置，不安装或启动引擎。
+桌面安装包已包含当前平台的 Codex、Claude 和独立宿主，首次启动直接进入工作区，不显示引擎选择、下载或安装向导。在设置中保存 API 配置或完成受支持的登录后，对应引擎自动可用；只配置一个时不显示引擎选择器，未配置的引擎不会后台启动。启用状态每次从原生配置恢复，不再使用旧向导的选择记录；普通模型或钥匙串存储偏好不等于已配置连接。
+
+Web（含移动端）继续使用服务端依赖和原有初始化流程，浏览器不下载桌面执行文件。两端共用配置面板、模型能力、选择器和会话逻辑。
 
 Claude 仅提供 API 配置：填写服务地址和密钥。官方地址为 `https://api.anthropic.com`；兼容服务必须支持 Anthropic Messages 协议，保存时自动检测 API Key 或 Token 认证，无需手动选择；检测要求服务提供 `/v1/models` 接口。应用不提供 Claude 账号登录。
 
@@ -85,13 +87,17 @@ Claude 的 Write/Edit 成功返回后，使用实际结果中的文件路径和�
 
 ### 资源与分发
 
-首次只选择一个引擎后，可以在设置中明确启用另一个引擎。桌面点击“启用并下载”后准备对应组件，显示进度；完成前不开放连接、模型及专属配置，失败可重试，切换设置菜单不会重复安装或丢失进度。准备成功才保存启用状态，并即时同步聊天区；下次启动按已启用引擎检查应用要求的依赖版本。未启用的引擎不进行聊天区后台配置探测。Web 和移动端共用同一启用流程，但只检查服务端环境，不向浏览器下载二进制。
+桌面设置直接开放连接配置；保存成功后通过原生认证通知或配置变更事件刷新可用引擎，不需要重启，不重挂载现有聊天。无配置时仍可访问工作区与公共偏好。仅配置 Claude 时，关于页、模型目录、公共偏好、技能和项目默认值查询不得隐式启动 Codex。
 
 能力目录缓存一分钟并合并在途请求；用户或项目配置变化会使缓存失效。发现能力及本机认证时会按需启动 SDK 进程，但不发送推理请求。单项目最多保留八个 SDK 查询，容量紧张时优先回收空闲查询；单会话最多保留 64 个仍有关联后台工作的回合，最近回合缓存最多八项。历史读取和 stdio 帧有字节预算，完成事件在释放前台锁及写入历史后发出。
 
-桌面安装包只嵌入固定版本、目标平台、下载地址和摘要清单，不携带 Claude CLI 或宿主二进制。首次选择 Claude 时按需安装；已选择 Claude 的用户每次启动（含应用更新后）检查新应用要求的依赖，完成准备后才进入工作区。未选择 Claude 不触发下载。SDK/CLI 从官方 npm 包下载，并沿用 Codex 的镜像回退、限流进度、大小限制及 SHA-512 校验；宿主从同版本 GitHub Release 的内容摘要命名附件下载。两种依赖分别按 SHA-256 缓存在私有目录，因此只更新发生变化的依赖，兼容的旧内置版 CLI 也可复用。解压文件通过摘要校验后才原子发布，失败保留已有文件并允许重试；首次安装需要联网，已安装的匹配版本可直接复用，不需要 Node、Bun 或运行 npm 安装。
+`pnpm build:desktop-runtime` 在构建阶段按 Tauri 目标选择锁定版本的原生包。交叉目标的下载必须通过锁文件 SHA-512 校验；安装包仅包含目标平台的执行文件、必要辅助程序、资源与许可文件，不包含缓存、压缩副本或其他架构。Codex 保留官方 vendor 布局和签名；Claude CLI 保留官方签名，自建宿主使用 Tauri `externalBin`，交给 Tauri 签名及公证。macOS Legacy 不打包不受支持的 Claude。
 
-构建脚本从已安装 SDK 和锁文件生成依赖清单，跨架构构建以 Tauri 目标为准；宿主版本由构建时注入。发布工作流必须先上传清单引用的宿主附件，最后发布联合 Release。开发调试可复用本地构建资源，发行构建只使用私有缓存与清单中的下载来源；自定义本地 release 构建也需要先提供清单引用的宿主发布附件。Web 服务端继续使用 npm 安装的固定 SDK 依赖，随应用包升级更新对应版本，不下载桌面宿主；浏览器无需安装执行资源。
+发行版直接从只读安装目录运行，不复制到用户目录、不在每次启动时对大文件重算摘要。依赖随应用更新整体替换；缺失或损坏时提示修复安装，不尝试联网安装。开发模式使用同一构建产物。最终用户无需 Node、Bun 或 npm。Web 服务端继续使用自己的固定 npm SDK 依赖。
+
+Windows 便携版改为 ZIP，包含主程序、同级 Claude 宿主及 `runtime` 目录；用户完整解压后即可使用。发布流程不再上传无法独立工作的裸 EXE。
+
+实现依据：[Tauri 资源分发](https://v2.tauri.app/develop/resources/)、[Tauri sidecar](https://v2.tauri.app/develop/sidecar/)、[Codex App Server 认证通知](https://learn.chatgpt.com/docs/app-server)、[Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview)。Claude 第三方产品账号登录需要 Anthropic 预先许可，应用保留 API 配置和已有本机凭据兼容，不新增未获许可的账号登录入口。
 
 官方 Claude Code 和 Bun 要求 macOS 13+。本项目 macOS Legacy 版本继续提供 Codex，隐藏新建 Claude 入口并在设置中说明系统要求。Windows、Ubuntu 和 Intel macOS 的发布产物仍须在对应平台执行宿主测试及安装包验收，不能用本机编译代替实机认证。
 
@@ -99,8 +105,9 @@ Claude 的 Write/Edit 成功返回后，使用实际结果中的文件路径和�
 
 - `pnpm test`：协议、SQLite、路由、SDK 投影、权限、配置和既有回归。
 - `pnpm test:claude-host`：编译独立宿主，运行真实官方 CLI，通过本地模拟 API 验证工具审批、文件写入、配置持久化、进程重启和会话恢复；不使用真实账户或额度。
-- `node --test tools/claude-build-target.test.mjs tools/claude-runtime-distribution.test.mjs`：交叉目标选择及下载清单（先执行 `pnpm build:claude-host`）。
-- `cargo test --manifest-path desktop/src-tauri/Cargo.toml --lib claude_runtime --locked`：缓存复用、版本升级及原子校验。
+- `node --test tools/claude-build-target.test.mjs tools/claude-runtime-distribution.test.mjs`：交叉目标选择及构建来源清单（先执行 `pnpm build:claude-host`）。
+- `pnpm build:desktop-runtime && node --test tools/desktop-runtime-bundle.test.mjs`：实际产物布局、版本、辅助程序、排除缓存与重复宿主。
+- `cargo test --manifest-path desktop/src-tauri/Cargo.toml --lib claude_runtime --locked`：离线资源解析、缺失/损坏错误及修复后重试。
 - `pnpm check`、桌面 `pnpm check:web` / `pnpm check:rust`：类型、格式、架构、构建、性能及协议门禁。
 - 浏览器操作遵守项目要求，经 Chrome DevTools MCP/CDP 检查配置保存、引擎锁定、刷新继续对话和 390px 移动布局。
 

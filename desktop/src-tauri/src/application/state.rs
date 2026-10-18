@@ -152,18 +152,9 @@ impl AppState {
     where
         OnProgress: Fn(CodexRuntimeInstallProgress) + Send + Sync,
     {
-        // 启动检测和手动重试共用安装锁；首次运行与版本变化都自动修复。
-        let _install_guard = self.runtime_install.lock().await;
-        match install_codex_runtime(app_data, on_progress).await {
-            Ok(availability) => availability,
-            Err(error) => {
-                crate::infrastructure::diagnostics::record_error(
-                    "codex_runtime_automatic_install_failed",
-                    error,
-                );
-                inspect_codex_runtime(app_data).await
-            }
-        }
+        // 检查只读资源，不尝试安装或自动修复，不触发任何网络请求。
+        let _ = on_progress;
+        inspect_codex_runtime(app_data).await
     }
 
     pub async fn install_codex<OnProgress>(
@@ -174,7 +165,7 @@ impl AppState {
     where
         OnProgress: Fn(CodexRuntimeInstallProgress) + Send + Sync,
     {
-        // 串行化同一 Provider 的安装，避免双击触发重复下载和目录替换竞争。
+        // 合并兼容入口的重复检查；资源随应用升级，不在用户目录安装。
         let _install_guard = self.runtime_install.lock().await;
         install_codex_runtime(app_data, on_progress)
             .await

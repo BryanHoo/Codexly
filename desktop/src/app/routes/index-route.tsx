@@ -43,9 +43,11 @@ function IndexPage() {
   const queryClient = useQueryClient();
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation(appUpdateMutationOptions(client));
-  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
+  const engines = useSelectedEngines();
+  const codexEnabled = engines?.includes("codex") ?? true;
+  const engineEnabled = engines === undefined || engines.length > 0;
   const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"));
-  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
+  const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled });
   const globalSettingsMutation = useMutation({
     ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
     onSuccess(response) {
@@ -136,7 +138,7 @@ function IndexPage() {
             initialSection={globalSettingsSection}
             apps={[]}
             error={globalSettingsQuery.error ?? modelsQuery.error}
-            isPending={globalSettingsQuery.isPending || modelsQuery.isPending}
+            isPending={globalSettingsQuery.isPending || modelsQuery.isLoading}
             isAppInfoPending={appInfoQuery.isPending}
             models={modelsQuery.data?.data ?? []}
             onClose={() => {

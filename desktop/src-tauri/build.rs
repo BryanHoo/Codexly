@@ -1,5 +1,4 @@
 fn main() {
-    prepare_claude_embedded_assets();
     let windows_target = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows");
     if windows_target {
         // Keep every final Rust target on the same Common Controls activation context.
@@ -195,16 +194,4 @@ fn main() {
             .windows_attributes(tauri_build::WindowsAttributes::new_without_app_manifest());
     }
     tauri_build::try_build(attributes).expect("failed to build Tauri application");
-}
-
-/// 各平台只嵌入固定版本、下载地址和摘要，禁止把大型执行文件编入安装包。
-fn prepare_claude_embedded_assets() {
-    let root = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let manifest = root.join("resources/claude/manifest.json");
-    let output = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap())
-        .join("claude_distribution.rs");
-    println!("cargo:rerun-if-changed={}", manifest.display());
-    let content = std::fs::read_to_string(manifest).unwrap_or_else(|_| "{}".to_owned());
-    std::fs::write(output, format!("pub const MANIFEST: &str = {content:?};"))
-        .expect("write Claude runtime download contract");
 }

@@ -7,7 +7,7 @@ use std::{
 use tauri::{AppHandle, Manager};
 use tokio::{fs::File, io::AsyncReadExt};
 
-/// 只读取既有配置的存在性，不启动进程、不刷新凭据，也不把任何配置内容传给 WebView。
+/// 读取配置及登录状态，不启动常驻引擎、不刷新凭据，也不把配置内容传给 WebView。
 #[tauri::command]
 pub async fn get_configured_engines(app: AppHandle) -> Result<Vec<&'static str>, AppError> {
     let home = app
@@ -22,7 +22,10 @@ pub async fn get_configured_engines(app: AppHandle) -> Result<Vec<&'static str>,
     let codex = directory("CODEX_HOME", ".codex");
     let claude = directory("CLAUDE_CONFIG_DIR", ".claude");
     let mut engines = Vec::new();
-    if configured_at(&codex).await? || has_environment(&["OPENAI_API_KEY", "CODEX_API_KEY"]) {
+    if configured_at(&codex).await?
+        || has_environment(&["OPENAI_API_KEY", "CODEX_API_KEY"])
+        || keyring_login_configured(&app, &codex).await?
+    {
         engines.push("codex");
     }
     let account = read_optional(&directory("CLAUDE_CONFIG_DIR", "").join(".claude.json")).await?;
@@ -44,7 +47,6 @@ pub async fn get_configured_engines(app: AppHandle) -> Result<Vec<&'static str>,
             "ANTHROPIC_API_KEY",
             "ANTHROPIC_AUTH_TOKEN",
             "CLAUDE_CODE_OAUTH_TOKEN",
-            "ANTHROPIC_BASE_URL",
             "CLAUDE_CODE_USE_BEDROCK",
             "CLAUDE_CODE_USE_VERTEX",
             "CLAUDE_CODE_USE_FOUNDRY",
@@ -66,7 +68,7 @@ async fn read_optional(path: &Path) -> Result<Option<String>, AppError> {
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err(AppError::FilesystemRequestFailed),
     };
-    // 初始化检测限制单文件读取量；配置异常进入重试页，不能误判为全新安装。
+    // 限制配置读取量；异常交给界面提示和重试，不能误判成全新安装。
     let mut raw = String::new();
     file.take(1_048_577)
         .read_to_string(&mut raw)
@@ -105,7 +107,6 @@ async fn configured_at(directory: &Path) -> Result<bool, AppError> {
                     || [
                         "ANTHROPIC_API_KEY",
                         "ANTHROPIC_AUTH_TOKEN",
-                        "ANTHROPIC_BASE_URL",
                         "CLAUDE_CODE_USE_BEDROCK",
                         "CLAUDE_CODE_USE_VERTEX",
                         "CLAUDE_CODE_USE_FOUNDRY",
@@ -124,21 +125,57 @@ async fn configured_at(directory: &Path) -> Result<bool, AppError> {
         } else {
             let config: toml::Value =
                 toml::from_str(&raw).map_err(|_| AppError::FilesystemRequestFailed)?;
-            // 默认模型、项目信任等偏好不代表已连接。显式服务商或钥匙串存储可迁移旧配置。
+            // 只有实际服务商配置可代表连接，单独的存储偏好不等于已经登录。
             if config
                 .get("model_provider")
                 .and_then(toml::Value::as_str)
-                .is_some_and(|value| !value.is_empty() && value != "openai")
-                || config
-                    .get("cli_auth_credentials_store")
-                    .and_then(toml::Value::as_str)
-                    .is_some_and(|value| value == "keyring" || value == "auto")
+                .filter(|provider| *provider != "openai")
+                .and_then(|provider| config.get("model_providers")?.get(provider))
+                .and_then(|provider| provider.get("base_url"))
+                .and_then(toml::Value::as_str)
+                .is_some_and(|url| !url.trim().is_empty())
             {
                 return Ok(true);
             }
         }
     }
     Ok(false)
+}
+
+/// 凭据由 Codex 自己读取系统钥匙串；只在显式使用钥匙串时执行短命离线检查。
+/// 不启动 app-server、不读取或向 WebView 暴露钥匙串内容，退出登录后不会因偏好残留而启用。
+async fn keyring_login_configured(app: &AppHandle, codex: &Path) -> Result<bool, AppError> {
+    let Some(raw) = read_optional(&codex.join("config.toml")).await? else {
+        return Ok(false);
+    };
+    let config: toml::Value =
+        toml::from_str(&raw).map_err(|_| AppError::FilesystemRequestFailed)?;
+    if !matches!(
+        config
+            .get("cli_auth_credentials_store")
+            .and_then(toml::Value::as_str),
+        Some("keyring" | "auto")
+    ) {
+        return Ok(false);
+    }
+    let binary = crate::infrastructure::bundled_runtime::root(app)?
+        .join("codex/bin")
+        .join(format!("codex{}", std::env::consts::EXE_SUFFIX));
+    let mut command = tokio::process::Command::new(binary);
+    command
+        .args(["login", "status"])
+        .env("CODEX_HOME", codex)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true);
+    #[cfg(windows)]
+    command.creation_flags(0x0800_0000);
+    Ok(
+        tokio::time::timeout(std::time::Duration::from_secs(5), command.status())
+            .await
+            .is_ok_and(|result| result.is_ok_and(|status| status.success())),
+    )
 }
 
 #[cfg(test)]
@@ -151,11 +188,29 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         fs::write(
             root.path().join("config.toml"),
-            "model_provider = \"gateway\"\n",
+            "model_provider = \"gateway\"\n[model_providers.gateway]\nbase_url = \"http://localhost:1234/v1\"\n",
         )
         .await
         .unwrap();
         assert!(configured_at(root.path()).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn storage_preferences_and_incomplete_provider_do_not_enable_engines() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("config.toml"),
+            "cli_auth_credentials_store = \"keyring\"\nmodel_provider = \"gateway\"\n",
+        )
+        .await
+        .unwrap();
+        fs::write(
+            root.path().join("settings.json"),
+            r#"{"env":{"ANTHROPIC_BASE_URL":"https://api.anthropic.com"}}"#,
+        )
+        .await
+        .unwrap();
+        assert!(!configured_at(root.path()).await.unwrap());
     }
 
     #[tokio::test]

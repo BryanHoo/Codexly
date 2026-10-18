@@ -99,14 +99,16 @@ export class TauriCatalogClient extends TauriWorkspaceClient {
   }
 
   public async getGlobalSettings(options: ReadOptions & { engine?: "codex" | "claude" } = {}): Promise<AgentGlobalSettingsResponse> {
-    return options.engine === "claude" ? this.call("get_global_settings", {engine: "claude"}) : this.call("get_global_settings");
+    return options.engine === "claude" ? this.invokeCommand("get_global_settings", {engine: "claude"}) : this.call("get_global_settings");
   }
 
   public async updateGlobalSettings(
     settings: AgentGlobalSettings,
     options: MutationOptions & { engine?: "codex" | "claude" } = {},
   ): Promise<AgentGlobalSettingsResponse> {
-    return this.call("update_global_settings", { settings, ...(options.engine === "claude" ? {engine: "claude"} : {}) });
+    return options.engine === "claude"
+      ? this.invokeCommand("update_global_settings", { settings, engine: "claude" })
+      : this.call("update_global_settings", { settings });
   }
 
   public async getProjectDefaults(

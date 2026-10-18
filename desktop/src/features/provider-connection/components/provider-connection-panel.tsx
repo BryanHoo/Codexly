@@ -92,6 +92,12 @@ export function ProviderConnectionPanel({ autoSave = false, onConnected, continu
     if (status?.state === "connected" && status.mode === mode && !dirty.current) connectedRef.current?.();
   }, [status, mode]);
 
+  useEffect(() => {
+    if (status?.state === "connected" || status?.state === "disconnected") {
+      window.dispatchEvent(new Event("codexly:engine-settings-changed"));
+    }
+  }, [status?.state]);
+
   const isBusy =
     officialLogin.isPending || cancelLogin.isPending || logout.isPending || (!autoSave && autosave.status === "saving");
   const requestError = connectionQuery.error?.message ?? null;

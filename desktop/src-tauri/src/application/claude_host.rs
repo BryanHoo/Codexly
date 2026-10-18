@@ -84,10 +84,14 @@ impl ClaudeHostManager {
                     if let Some(old) = current.take() {
                         old.close().await;
                     }
-                    let app_data = app.path().app_data_dir().map_err(failure)?;
+                    let resources = crate::infrastructure::bundled_runtime::root(app)?;
                     let paths = self
                         .runtime
-                        .prepare(&app_data, |_| {})
+                        .prepare(
+                            &resources,
+                            crate::infrastructure::bundled_runtime::claude_host()?,
+                            |_| {},
+                        )
                         .await
                         .map_err(failure)?;
                     *current = Some(Arc::new(ClaudeHost::start(app, paths).await?));

@@ -42,11 +42,6 @@ mod plugin_assets;
 mod plugins;
 mod process;
 mod protocol;
-mod runtime_active;
-mod runtime_discovery;
-mod runtime_distributions;
-pub(crate) mod runtime_download;
-pub(crate) mod runtime_download_progress;
 mod runtime_manager;
 mod runtime_path;
 mod sidebar;
@@ -162,7 +157,7 @@ pub use conversation_turn_settings::update_live_reviewer;
 pub use plugins::{
     get_official_plugin, install_official_plugin, list_official_plugins, uninstall_official_plugin,
 };
-pub use process::CodexProcess;
+pub use process::{CodexProcess, SUPPORTED_CODEX_VERSION};
 pub use runtime_manager::{inspect_codex_runtime, install_codex_runtime};
 pub use sidebar::{list_projects, read_project};
 pub use tasks::{delete_task, read_task, task_working_directory, unsubscribe_task};

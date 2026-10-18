@@ -1,11 +1,15 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
-    "targets": ["app", "dmg"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "category": "DeveloperTool",
     "macOS": {
       "minimumSystemVersion": "14.5",
-      "hardenedRuntime": true
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.plist"
     }
   }
 }

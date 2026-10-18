@@ -190,7 +190,8 @@ jobs:
             platform: windows-latest
             args: --no-bundle --no-sign --ci
             rustTargets: ""
-            uploadPlainBinary: true
+            portable: true
+            uploadPlainBinary: false
             uploadUpdaterArtifacts: false
             releaseAssetNamePattern: "[name]_[version]_[arch]_portable[ext]"
           - name: Windows x64 NSIS
@@ -270,6 +271,7 @@ jobs:
         shell: bash
         run: RELEASE_TAG="v$(node --print "require('./package.json').version")" pnpm version:check
       - name: Build and upload desktop artifacts to draft
+        if: ${{ !matrix.portable }}
         id: build
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
         env:
@@ -300,14 +302,29 @@ jobs:
           workflowArtifactNamePattern: ${{ matrix.macosProfile == 'legacy' && '[platform]-[arch]-[bundle]-legacy' || '' }}
           releaseAssetNamePattern: ${{ matrix.releaseAssetNamePattern }}
           args: ${{ matrix.args }}
-      - name: Upload pinned Claude host dependency
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JOINT_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      - name: Build Windows portable application
+        if: matrix.portable
+        working-directory: desktop
+        run: pnpm tauri build --no-bundle --no-sign --ci
+      - name: Package Windows portable runtime
+        if: matrix.portable
+        shell: pwsh
         run: |
-          # 应用清单固定宿主摘要；所有依赖附件上传完成后才允许发布联合 Release。
-          node tools/publish-claude-host.mjs "${JOINT_RELEASE_TAG}"
+          # 便携版必须连同只读运行时分发，裸 exe 无法提供离线启动所需依赖。
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $portableRoot = Join-Path $env:RUNNER_TEMP 'codexly-portable'
+          New-Item -ItemType Directory -Path $portableRoot -Force | Out-Null
+          Copy-Item desktop/src-tauri/target/release/codexly.exe $portableRoot
+          Copy-Item desktop/src-tauri/binaries/claude-host-x86_64-pc-windows-msvc.exe (Join-Path $portableRoot 'claude-host.exe')
+          Copy-Item desktop/src-tauri/resources/runtime (Join-Path $portableRoot 'runtime') -Recurse
+          $archive = Join-Path $env:RUNNER_TEMP "Codexly_${version}_x64_portable.zip"
+          Compress-Archive -Path "$portableRoot/*" -DestinationPath $archive -CompressionLevel Optimal
+      - name: Preserve Windows portable archive
+        if: matrix.portable
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-x64-portable
+          path: ${{ runner.temp }}/Codexly_*_x64_portable.zip
       - name: Verify macOS signed and notarized app
         if: runner.os == 'macOS'
         shell: bash
@@ -356,6 +373,15 @@ jobs:
           release_notes="${RUNNER_TEMP}/release-notes.md"
           node ./tools/joint-release.mjs --notes "${release_notes}"
           echo "RELEASE_NOTES_PATH=${release_notes}" >> "${GITHUB_ENV}"
+      - name: Download Windows portable archive
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: windows-x64-portable
+          path: ${{ runner.temp }}/portable
+      - name: Upload complete Windows portable archive
+        run: gh release upload "${RELEASE_TAG}" "${RUNNER_TEMP}"/portable/Codexly_*_x64_portable.zip --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Publish draft release
         run: gh release edit "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_PATH}" --title "Codexly ${RELEASE_TAG}" --draft=false
         env:

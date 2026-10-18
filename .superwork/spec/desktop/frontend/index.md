@@ -47,5 +47,5 @@
 
 - 左栏有可用更新时直接打开更新日志弹窗，右下角“更新”按钮复用当前平台的安装 Mutation；设置中的检查、日志及更新流程保持独立。两端共用 `ui/core/app-update-dialog`，安装中展示进度并阻止重复提交，失败可重试；没有更新时版本入口仍打开“关于”。用 `project-sidebar-update.test.tsx`、`app-update-dialog.test.tsx` 及桌面 `project-sidebar-actions.browser.test.tsx` 回归，浏览器交互通过 Chrome CDP 验证。
 
-- 已完成引擎向导的用户启动时仍须检查所选引擎的依赖版本。Claude 复用 `prepare_claude_runtime` 的有序 Channel 进度，成功后放行工作区，失败显示重试；未选择 Claude 不调用安装器。宿主与 CLI 按独立摘要缓存，更新检查不得启动会话或发送推理请求；详见[引擎分发规则](../../../../docs/agent-engines.md)。
-- 设置中未启用的 Codex/Claude 必须先显式启用，准备成功后才持久化选择并挂载专属配置；安装状态跨菜单共享并合并重复请求，失败可重试。共用 `frontend-core/engine-activation` 和 `ui/core/engine-settings-gate`；聊天区不得探测未启用引擎，也不得在配置发现期间把新草稿回退到未启用引擎。历史和定时任务保持原引擎。
+- 桌面首次启动直接进入工作区，设置直接开放 API 配置。启用状态仅从原生配置和认证恢复，旧向导选择不再有效；配置及登录通知即时刷新，保持工作区子树身份。无配置不启动引擎，单引擎不显示选择器；公共偏好、关于页及外部应用能力查询必须绕过 Codex 启动。Web 初始化流程独立保留，共享配置面板和选择器；详见[引擎分发规则](../../../../docs/agent-engines.md)。
+- 设置中的 Codex/Claude 配置面板直接可用，不显示启用、下载或安装步骤；聊天区不得探测未配置引擎，也不得在配置发现期间把新草稿回退到未启用引擎。历史和定时任务保持原引擎。文件浏览、Git、附件及公共应用工具必须独立于引擎启动，使用 `sidebar-client-runtime.test.ts` 验证单引擎隔离。

@@ -264,7 +264,7 @@ export function WorkbenchShellLayout({
                 models={models}
                 modelsError={null}
                 modelsPending={
-                  modelsQuery.isPending ||
+                  modelsQuery.isLoading ||
                   (!temporary && projectDefaultsQuery.isPending) ||
                   globalSettingsQuery.isPending
                 }
@@ -305,7 +305,7 @@ export function WorkbenchShellLayout({
               fastModeDefault={fastModeDefault}
               models={models}
               modelsError={modelsQuery.error}
-              modelsPending={modelsQuery.isPending}
+              modelsPending={modelsQuery.isLoading}
               onProjectTaskDefaultsChange={updateProjectTaskDefaults}
               onOpenProjectPath={openProjectFolder}
               onProjectRootChange={setSelectedRootId}

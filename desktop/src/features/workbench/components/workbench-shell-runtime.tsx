@@ -203,8 +203,10 @@ export function useWorkbenchShellRuntime({
   });
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation(appUpdateMutationOptions(client));
-  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
-  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
+  const engines = useSelectedEngines();
+  const codexEnabled = engines?.includes("codex") ?? true;
+  const engineEnabled = engines === undefined || engines.length > 0;
+  const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled });
   const providerConnectionQuery = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
   const mcpServersQuery = useQuery(
     mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
@@ -249,9 +251,9 @@ export function useWorkbenchShellRuntime({
   }, [projectFileManagerApp, projectPathOpenLockRef, projectPathOpenMutationRef]);
   const skillsQuery = useQuery({
     ...skillsQueryOptions(projectId, client),
-    enabled: shouldEnableWorkbenchSkills(capabilities?.skills.list === true, temporary),
+    enabled: codexEnabled && shouldEnableWorkbenchSkills(capabilities?.skills.list === true, temporary),
   });
-  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, !temporary));
+  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary));
   const projectDefaultsMutation = useMutation({
     ...projectDefaultsMutationOptions(projectId, client),
     onSuccess(response) {

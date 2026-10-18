@@ -7,14 +7,14 @@ import { claudeNativeDistribution } from "./claude-native-package.mjs";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
-test("desktop ships a small download contract instead of Claude executables", async () => {
+test("desktop bundles only the staged target runtime resources", async () => {
   const config = JSON.parse(await readFile(new URL("desktop/src-tauri/tauri.conf.json", root)));
-  assert.deepEqual(config.bundle.resources, {});
-  const build = await readFile(new URL("desktop/src-tauri/build.rs", root), "utf8");
-  assert.equal(
-    build.slice(build.indexOf("fn prepare_claude_embedded_assets")).includes("include_bytes!"),
-    false,
+  assert.deepEqual(config.bundle.resources, { "resources/runtime/": "runtime/" });
+  assert.deepEqual(config.bundle.externalBin, ["binaries/claude-host"]);
+  const legacy = JSON.parse(
+    await readFile(new URL("desktop/src-tauri/tauri.macos-legacy.conf.json", root)),
   );
+  assert.deepEqual(legacy.bundle.externalBin, []);
 });
 test("generated distribution pins native and host dependencies independently", async () => {
   const manifest = JSON.parse(
@@ -24,11 +24,7 @@ test("generated distribution pins native and host dependencies independently", a
   assert.equal(manifest.native.version, manifest.sdkVersion);
   assert.match(manifest.native.integrity, /^[A-Za-z0-9+/]{86}==$/u);
   assert.match(manifest.native.url, /^https:\/\/registry.npmjs.org\//u);
-  assert.match(
-    manifest.host.url,
-    /^https:\/\/github.com\/BryanHoo\/Codexly\/releases\/download\/v[^/]+\/claude-host-/u,
-  );
-  assert.match(manifest.host.integrity, /^[A-Za-z0-9+/]{86}==$/u);
+  assert.equal(manifest.host.url, undefined);
   assert.match(manifest.host.sha256, /^[a-f0-9]{64}$/u);
 });
 
