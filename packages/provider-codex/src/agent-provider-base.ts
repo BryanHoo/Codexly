@@ -1,3 +1,4 @@
+import { TaskNotificationQueue } from "./task-notification-queue.js";
 import { pinCodexTask } from "./agent-provider-task-metadata.js";
 import type { CodexRpcClient } from "./codex-rpc-client.js";
 import type { CodexTaskTitles } from "./task-titles.js";
@@ -122,6 +123,7 @@ export abstract class CodexAgentProviderBase {
   protected readonly project: AgentTaskScope;
   protected readonly pendingLifecycle: PendingRequestLifecycle;
   protected readonly runtime = new TaskRuntimeState();
+  protected readonly notificationQueue = new TaskNotificationQueue();
   protected readonly skillsById = new Map<string, CodexSkill>();
 
   protected abstract assertKnownProjectTask(taskId: string): void;
@@ -259,6 +261,7 @@ export abstract class CodexAgentProviderBase {
   }
 
   public async releaseProject(): Promise<void> {
+    this.notificationQueue.dispose();
     await this.taskTitles?.releaseProject(this.project.id);
     await releaseCodexProjectThreads(this.client, this.logger, this.project.id, [
       ...this.runtime.projectTaskIds,

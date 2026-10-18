@@ -58,3 +58,21 @@ export function warnServerRequestRejectionFailure(
     "Codex server request rejection failed",
   );
 }
+
+export function warnNotificationQueueRecovery(
+  logger: CodexProviderLogger,
+  projectId: string,
+  method: string,
+  taskId: string,
+): void {
+  logger.warn(
+    {
+      codexVersion: SUPPORTED_CODEX_VERSION,
+      diagnosticCode: "notification_queue_recovery",
+      method,
+      taskId,
+      projectId,
+    },
+    "Codex attachment notification recovered without attachment body",
+  );
+}

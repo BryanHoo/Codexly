@@ -32,3 +32,5 @@
 - 项目 ID 独立于磁盘路径；路径去重键不能写入目录仓储或公共协议。导入与修复测试必须验证真实路径、公共 ProjectPage 协议和既有 ID/元数据保持，不能只检查数据库行数。
 
 - Codex 0.163.0 升级边界见 [升级评估](../../../../docs/codex-0.163.0-upgrade.md)。原生实验已读状态不覆盖应用本地目录元数据，两端握手主动关闭 `thread/readState/changed`；不额外查询或轮询已读状态。桌面启动不得再传递上游已退役的 `shell_zsh_fork` 开关。
+
+- 附件异步通知使用显式 FIFO，禁止通过 Promise 尾链隐式保留无界 params。通知及审批共用同任务顺序；等待与执行中合计每任务最多 256 项/32 MiB，所有 Project Provider 共用进程 2048 项/80 MiB，按 UTF-16 载荷与元数据估算，兼容合法 10 MiB 图片的 Base64。30 秒截止时间从准入开始；超限或超时同步取消阻塞附件，以占位结果按序交付已接收通知和审批，不丢弃完成事件，不在主线程处理附件正文，不发布迟到结果。删除任务及释放 Project 取消队列而不交付占位事件。验证 `task-notification-queue.test.ts` 的 4096 条独立载荷回归、`agent-provider-thread-attachments.test.ts` 的审批/完成顺序和晚到抑制，以及共享 Worker 池取消回归。
