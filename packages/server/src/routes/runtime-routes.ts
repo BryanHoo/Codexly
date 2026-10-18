@@ -1,4 +1,5 @@
 import { createGlobalSettingsWriter } from "../global-settings-writer.js";
+import { monitorEventLoopDelay } from "node:perf_hooks";
 import { Type } from "@sinclair/typebox";
 import {
   AgentCapabilitiesSchema,
@@ -36,6 +37,16 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
   context,
   done,
 ) => {
+  // 单服务实例一个低频原生采样器；关闭后停止，不能增加逐请求定时器。
+  const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
+  app.addHook("onReady", (done) => {
+    eventLoopDelay.enable();
+    done();
+  });
+  app.addHook("onClose", (_instance, done) => {
+    eventLoopDelay.disable();
+    done();
+  });
   const bingWallpaper = createBingWallpaperService();
   const bingCatalog = createBingWallpaperCatalog();
   app.get(
@@ -158,6 +169,11 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
     "/v1/metrics/events",
     { schema: { response: { 200: EventStreamMetricsResponseSchema } } },
     () => ({
+      eventLoopDelayMs: {
+        count: eventLoopDelay.count,
+        p95: eventLoopDelay.count === 0 ? 0 : eventLoopDelay.percentile(95) / 1_000_000,
+        p99: eventLoopDelay.count === 0 ? 0 : eventLoopDelay.percentile(99) / 1_000_000,
+      },
       projects: [...projectContexts.values()].map((context) => ({
         ...context.eventStream.metrics,
         activeClients: context.transportMetrics.activeClients,

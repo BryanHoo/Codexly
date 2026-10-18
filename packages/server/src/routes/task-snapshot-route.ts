@@ -1,6 +1,7 @@
 import { AgentMutationErrorSchema, AgentTaskSnapshotResponseSchema } from "@codexly/protocol";
 import { readTaskWithCheckpoint, TaskSnapshotBusyError } from "@codexly/core";
 import type { FastifyInstance } from "fastify";
+import { recordRequestError } from "../request-logging.js";
 import { restorePersistedAsyncQuestionAnswers } from "../async-question-snapshot.js";
 import type { ServerRouteContext } from "./context.js";
 import {
@@ -17,10 +18,11 @@ export function registerTaskSnapshotRoute(app: FastifyInstance, context: ServerR
   }>(
     "/v1/projects/:projectId/tasks/:taskId",
     {
-      errorHandler(error, _request, reply) {
+      errorHandler(error, request, reply) {
         // Fastify 先发送超时响应再协作取消；本路由统一交付可识别的暂时繁忙语义。
         if (error instanceof Error && "code" in error && error.code === "FST_ERR_HANDLER_TIMEOUT") {
           const busy = new TaskSnapshotBusyError();
+          recordRequestError(request, busy.code, error);
           reply.code(503).send({ code: busy.code, message: busy.message, retryable: true });
           return;
         }
@@ -41,6 +43,7 @@ export function registerTaskSnapshotRoute(app: FastifyInstance, context: ServerR
       if (projectContext === undefined) {
         return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Project not found" });
       }
+      let retries = 0;
       const read = await readTaskWithCheckpoint(
         projectContext.provider,
         request.params.taskId,
@@ -51,7 +54,15 @@ export function registerTaskSnapshotRoute(app: FastifyInstance, context: ServerR
           signal: request.signal,
         },
         () => projectContext.eventStream.checkpoint,
-      );
+        {
+          onRetry: () => {
+            retries += 1;
+          },
+        },
+      ).finally(() => {
+        // 成功、繁忙与取消都记录；观测不能引入额外重读或延长快照截止时间。
+        projectContext.eventStream.recordSnapshotRetries(retries);
+      });
       if (read === undefined || read.snapshot.projectId !== projectContext.scope.id) {
         return reply.code(404).send({ code: "TASK_NOT_FOUND", message: "Task not found" });
       }

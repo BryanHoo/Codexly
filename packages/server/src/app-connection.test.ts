@@ -67,6 +67,11 @@ describe("server diagnostics and provider connection", () => {
     expect(logLines).toHaveLength(1);
     expect(JSON.parse(logLines[0] ?? "{}")).toMatchObject({
       errorCode: "INTERNAL_ERROR",
+      errorClass: "Error",
+      component: "http",
+      phase: "handler",
+      causes: [{ errorClass: "Error" }],
+      errorFingerprint: expect.stringMatching(/^[a-f0-9]{24}$/) as string,
       statusCode: 500,
     });
     expect(logLines.join("\n")).not.toContain(secret);

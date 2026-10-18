@@ -82,10 +82,12 @@ it("bounds retries under continuous output and releases its listener without ack
     return Promise.resolve(h.snapshot);
   });
   const capture = vi.fn();
-  await expect(readTaskWithCheckpoint(h.provider, "task", {}, capture)).rejects.toThrow(
-    "Task snapshot is temporarily busy",
-  );
+  const onRetry = vi.fn();
+  await expect(
+    readTaskWithCheckpoint(h.provider, "task", {}, capture, { onRetry }),
+  ).rejects.toThrow("Task snapshot is temporarily busy");
   expect(h.provider.readTask).toHaveBeenCalledTimes(2);
+  expect(onRetry).toHaveBeenCalledExactlyOnceWith();
   expect(capture).not.toHaveBeenCalled();
   expect(h.listeners.size).toBe(0);
 });

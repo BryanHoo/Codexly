@@ -20,7 +20,7 @@ export async function readTaskWithCheckpoint<Checkpoint>(
   taskId: string,
   input: ReadAgentTaskInput,
   captureCheckpoint: (snapshot: AgentProviderTaskSnapshot) => Checkpoint,
-  options: Readonly<{ timeoutMs?: number }> = {},
+  options: Readonly<{ timeoutMs?: number; onRetry?: () => void }> = {},
 ): Promise<Readonly<{ snapshot: AgentProviderTaskSnapshot; checkpoint: Checkpoint }> | undefined> {
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
@@ -62,6 +62,8 @@ export async function readTaskWithCheckpoint<Checkpoint>(
     });
     for (let attempt = 0; attempt < 2; attempt++) {
       check();
+      // 只在实际开始第二次读取时通知宿主；取消或达到截止时间不计重试。
+      if (attempt > 0) options.onRetry?.();
       const before = revision;
       const structureBefore = structuralRevision;
       deltaItems.clear();

@@ -197,7 +197,7 @@ export async function configureServerDelivery(
   });
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof MutationHttpError || error instanceof TaskSnapshotBusyError) {
-      recordRequestError(request, error.code);
+      recordRequestError(request, error.code, error);
       return reply.code(error.statusCode).send({
         code: error.code,
         message: error.message,
@@ -213,6 +213,12 @@ export async function configureServerDelivery(
         !accessMutation &&
         (request.method === "POST" || request.method === "PUT") &&
         (key === undefined || key === "");
+      recordRequestError(
+        request,
+        missingKey ? "IDEMPOTENCY_KEY_REQUIRED" : "INVALID_REQUEST",
+        error,
+        "validation",
+      );
       return reply.code(400).send({
         code: missingKey ? "IDEMPOTENCY_KEY_REQUIRED" : "INVALID_REQUEST",
         message: missingKey ? "Idempotency-Key header is required" : "Request is invalid",
@@ -230,13 +236,14 @@ export async function configureServerDelivery(
         ? error.statusCode
         : 500;
     if (explicitStatusCode < 500) {
+      recordRequestError(request, "INVALID_REQUEST", error);
       return reply.code(explicitStatusCode).send({
         code: "INVALID_REQUEST",
         message: explicitStatusCode === 413 ? "Request is too large" : "Request is invalid",
         retryable: false,
       });
     }
-    recordRequestError(request, "INTERNAL_ERROR");
+    recordRequestError(request, "INTERNAL_ERROR", error);
     return reply.code(explicitStatusCode).send({
       code: "INTERNAL_ERROR",
       message: "Internal server error",

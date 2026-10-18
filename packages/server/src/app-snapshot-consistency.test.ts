@@ -1,5 +1,9 @@
 import { createCodexlyServer } from "./app.js";
-import type { AgentEvent, AgentTaskSnapshotResponse } from "@codexly/protocol";
+import type {
+  AgentEvent,
+  AgentTaskSnapshotResponse,
+  EventStreamMetricsResponse,
+} from "@codexly/protocol";
 import { expect, it, vi } from "vitest";
 import {
   createHarness,
@@ -54,6 +58,11 @@ it("does not acknowledge completion with a snapshot captured before history pagi
   });
   expect(h.readTask).toHaveBeenCalledTimes(2);
   expect(h.eventListeners.size).toBe(1);
+  const metrics = (await h.app.inject("/v1/metrics/events")).json<EventStreamMetricsResponse>();
+  expect(metrics.projects[0]).toMatchObject({
+    snapshotRetries: 1,
+    snapshotRetriesPerRead: { count: 1, p95: 1, p99: 1 },
+  });
 });
 
 it("replays events arriving during answer restoration instead of moving the snapshot boundary", async () => {
