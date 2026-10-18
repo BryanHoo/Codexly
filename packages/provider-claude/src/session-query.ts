@@ -1,5 +1,5 @@
 import type { Query } from "@anthropic-ai/claude-agent-sdk";
-import type { LocalTask } from "@codexly/core";
+import type { AgentProviderTurnInput, LocalTask } from "@codexly/core";
 import type { AgentTurnOptions, ClaudeSettings } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
 import type { ClaudePermissions } from "./permissions.js";
@@ -20,6 +20,7 @@ export function createClaudeQuery({
   sessionId,
   resumable,
   inputStream,
+  outputSchema,
   getRunning,
 }: {
   sdk: ClaudeSdk;
@@ -34,6 +35,7 @@ export function createClaudeQuery({
   sessionId: string;
   resumable: boolean;
   inputStream: ReturnType<typeof createInput>;
+  outputSchema: AgentProviderTurnInput["outputSchema"];
   getRunning: () => Running | undefined;
 }): Query {
   return sdk.query({
@@ -50,6 +52,10 @@ export function createClaudeQuery({
       hooks: wakeupHooks(getRunning),
       includePartialMessages: true,
       persistSession: true,
+      // 公共输入沿用 Codex 的字段名，在共享 SDK 边界转换为 Claude 原生结构化输出配置。
+      ...(outputSchema === undefined
+        ? {}
+        : { outputFormat: { type: "json_schema", schema: outputSchema } as const }),
       // 两端均已接入单任务 stopTask；声明后前台中断才会保留后台代理与工作流。
       perTaskStopAffordance: true,
       abortController: controller,

@@ -18,7 +18,14 @@ import type { AgentProviderEventListener } from "@codexly/core";
 import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
 import { createClaudeUserItem, type ClaudeUserInput } from "./turn-input.js";
 import type { ClaudeTaskMetadata } from "./history.js";
-import { record, text, resultText, displayClaudeMessage, claudeTurnResult } from "./sdk-values.js";
+import {
+  record,
+  text,
+  resultText,
+  displayClaudeMessage,
+  claudeTurnResult,
+  claudeResultMessage,
+} from "./sdk-values.js";
 import { changedClaudeUsage } from "./projection-usage.js";
 import { ClaudeProjectionChanges } from "./projection-changes.js";
 import { ClaudeBackgroundTasks } from "./background-tasks.js";
@@ -435,19 +442,11 @@ export class ClaudeTurnProjection {
       const usage = mapClaudeResultUsage(message, this.#model, this.contextUsage);
       if (usage) this.updateContextUsage(usage);
       const { success, status, error } = claudeTurnResult(message, interrupted);
-      // 某些命令只返回 result，没有 assistant；只在没有回复正文时补充，避免重复。
-      const result = text(message["result"]);
-      if (
-        success &&
-        result &&
-        ![...this.#items.values()].some(
-          (item) => item.type === "message" && item.role === "assistant",
-        )
-      )
-        this.#item(
-          { id: `${this.id}:result`, type: "message", role: "assistant", text: result },
-          true,
-        );
+      if (success) {
+        const result = claudeResultMessage(message, this.id, this.#items.values());
+        // 复用有界展示和历史记录；结构化终态也必须发布 item.completed。
+        if (result) this.#item(result, true);
+      }
       this.finish(status, error, true);
     }
   }

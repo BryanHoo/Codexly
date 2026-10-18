@@ -54,7 +54,7 @@ test(
           "user CLAUDE.md must apply even with project settings disabled",
         );
         calls++;
-        const useTool = [1, 3, 5].includes(calls);
+        let useTool = [1, 3, 5].includes(calls);
         const content = useTool
           ? [
               {
@@ -70,6 +70,18 @@ test(
               },
             ]
           : [{ type: "text", text: "host-contract-ok" }];
+        // 真实 CLI 通过终结工具生成 Schema 结果；仅模拟模型响应，仍由 SDK 完成校验和投影。
+        const structuredTool = body.tools?.find((tool) => tool.name === "StructuredOutput");
+        if (structuredTool) {
+          assert.deepEqual(structuredTool.input_schema.required, ["answer"]);
+          content.splice(0, content.length, {
+            type: "tool_use",
+            id: `structured-${calls}`,
+            name: structuredTool.name,
+            input: { answer: "共享宿主结构化答复" },
+          });
+          useTool = true;
+        }
         // 真实 SDK 执行任务工具，验证结构化结果、跨进程恢复与计划投影的完整链路。
         if (calls === 1) {
           assert.ok(body.tools.some((tool) => tool.name === "TaskCreate"));
@@ -562,6 +574,46 @@ test(
       assert.equal(compacted.taskId, nested.id);
       assert.equal(compacted.payload.turn.status, "completed");
       assert.equal(tasks.get("task").sessionId, sessionId);
+      // 桌面分发宿主与 Web 使用同一 Provider：普通回合必须接受 Schema 并持久保存结构化结果。
+      const beforeSchema = host.events.length;
+      await host.request(
+        "turn.start",
+        {
+          taskId: nested.id,
+          input: {
+            text: "Return a structured answer",
+            files: [],
+            images: [],
+            skills: [],
+            textAttachments: [],
+            outputSchema: {
+              type: "object",
+              properties: { answer: { type: "string" } },
+              required: ["answer"],
+              additionalProperties: false,
+            },
+          },
+          options,
+        },
+        scope,
+      );
+      const structured = await waitEvent("turn.completed", beforeSchema);
+      assert.equal(structured.payload.turn.status, "completed");
+      const structuredItem = structured.payload.turn.items.find(
+        (item) =>
+          item.type === "message" &&
+          item.role === "assistant" &&
+          item.text === '{"answer":"共享宿主结构化答复"}',
+      );
+      assert.ok(structuredItem, "structured output must reach the shared event stream");
+      await host.close();
+      host = launch();
+      const restoredSchema = await host.request("task.read", { taskId: nested.id }, scope);
+      assert.ok(
+        restoredSchema.turns
+          .at(-1)
+          .items.some((item) => item.id === structuredItem.id && item.text === structuredItem.text),
+      );
       await host.request("task.delete", { taskId: fork.id }, scope);
       await host.request("task.delete", { taskId: nested.id }, scope);
       // 空闲查询仍保持进程存活；归档必须经共享适配器关闭查询后再改目录记录。

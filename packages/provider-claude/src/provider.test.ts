@@ -167,6 +167,99 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
   };
 }
 
+describe("structured output in shared turns", () => {
+  const schema = {
+    type: "object",
+    properties: { answer: { type: "string" } },
+    required: ["answer"],
+    additionalProperties: false,
+  };
+
+  it("passes the schema to the SDK and persists its result across provider restarts", async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const turn = await h.provider.startTurn(task.id, { ...prompt, outputSchema: schema }, options);
+    expect(h.query.mock.calls[0]?.[0].options.outputFormat).toEqual({
+      type: "json_schema",
+      schema,
+    });
+    h.send({
+      type: "assistant",
+      message: { id: "analysis", content: [{ type: "text", text: "正在生成结果" }] },
+    });
+    h.send({
+      type: "result",
+      subtype: "success",
+      result: "unstructured fallback",
+      structured_output: { answer: "结构化答复" },
+    });
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+    });
+    const result = {
+      id: `${turn.id}:result`,
+      type: "message",
+      role: "assistant",
+      text: '{"answer":"结构化答复"}',
+    };
+    expect(
+      events.find((event) => event.type === "item.completed" && event.itemId === result.id)
+        ?.payload,
+    ).toMatchObject({ item: result });
+    await h.provider.stopSession(task.id);
+    const restored = h.restart();
+    const snapshot = await restored.readTask(task.id);
+    expect(snapshot?.turns.at(-1)?.items).toContainEqual(expect.objectContaining(result));
+  });
+
+  it("reuses equal schemas and rebuilds the query when a schema changes or is removed", async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const inputs = [schema, structuredClone(schema), { ...schema, required: [] }, undefined];
+    for (const [index, outputSchema] of inputs.entries()) {
+      await h.provider.startTurn(
+        task.id,
+        { ...prompt, ...(outputSchema ? { outputSchema } : {}) },
+        options,
+      );
+      expect(h.query).toHaveBeenCalledTimes(index === 0 ? 1 : index);
+      const sdkOptions = h.query.mock.calls.at(-1)?.[0].options;
+      if (outputSchema)
+        expect(sdkOptions?.outputFormat).toEqual({ type: "json_schema", schema: outputSchema });
+      else expect(sdkOptions).not.toHaveProperty("outputFormat");
+      h.send({ type: "result", subtype: "success", result: "done" });
+      await vi.waitFor(() => {
+        expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(index + 1);
+      });
+    }
+  });
+
+  it("keeps background work alive when a different output schema would require rebuilding", async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    await h.provider.startTurn(task.id, { ...prompt, outputSchema: schema }, options);
+    h.send(backgroundSpawn);
+    h.send({ type: "result", subtype: "success", structured_output: { answer: "done" } });
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+    });
+    await expect(h.provider.startTurn(task.id, prompt, options)).rejects.toThrow(
+      "Stop Claude background tasks",
+    );
+    expect(h.query).toHaveBeenCalledOnce();
+    expect(h.close).not.toHaveBeenCalled();
+    // 拒绝变更后，保持相同 Schema 仍可通过原 Query 继续输入。
+    await h.provider.startTurn(task.id, { ...prompt, outputSchema: schema }, options);
+    expect(h.query).toHaveBeenCalledOnce();
+  });
+});
+
 it.each(["read", "barrier", "prepareItemHistory", "itemPage"] as const)(
   "captures completion and approvals consistently across the %s history boundary",
   async (boundary) => {

@@ -1,3 +1,31 @@
+import type { AgentItem } from "@codexly/protocol";
+
+/** 结构化结果独立于过程正文；普通命令 result 只在没有助手正文时补齐，避免重复。 */
+export function claudeResultMessage(
+  message: Record<string, unknown>,
+  turnId: string,
+  items: Iterable<AgentItem>,
+): Extract<AgentItem, { type: "message" }> | undefined {
+  // 用 undefined 区分缺失字段，保留 false、0、空字符串及 null 等合法 JSON 值。
+  const structured = message["structured_output"] !== undefined;
+  if (
+    !structured &&
+    [...items].some((item) => item.type === "message" && item.role === "assistant")
+  )
+    return;
+  const result = structured
+    ? JSON.stringify(message["structured_output"])
+    : text(message["result"]);
+  if (!result) return;
+  return {
+    id: `${turnId}:result`,
+    type: "message",
+    role: "assistant",
+    text: result,
+    ...(structured ? { phase: "final_answer" as const } : {}),
+  };
+}
+
 export function record(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)

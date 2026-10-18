@@ -4,6 +4,34 @@ import type { AgentProviderEvent } from "@codexly/core";
 import type { ClaudeTaskMetadata } from "./history.js";
 import type { SDKLocalCommandOutputMessage } from "@anthropic-ai/claude-agent-sdk";
 
+it.each([{}, [], false, 0, "", null])("preserves structured JSON result %j", (value) => {
+  const turn = new ClaudeTurnProjection("task", "turn", "prompt", () => undefined);
+  turn.receive({ type: "result", subtype: "success", structured_output: value });
+  expect(turn.snapshot().items).toContainEqual(
+    expect.objectContaining({
+      id: "turn:result",
+      type: "message",
+      role: "assistant",
+      text: JSON.stringify(value),
+    }),
+  );
+});
+
+it("does not publish a structured result when execution fails", () => {
+  const turn = new ClaudeTurnProjection("task", "turn", "prompt", () => undefined);
+  turn.receive({
+    type: "result",
+    subtype: "error_max_structured_output_retries",
+    is_error: true,
+    structured_output: { answer: "invalid" },
+    errors: ["Schema validation failed"],
+  });
+  expect(turn.snapshot()).toMatchObject({ status: "failed", error: "Schema validation failed" });
+  expect(
+    turn.snapshot().items.filter((item) => item.type === "message" && item.role === "assistant"),
+  ).toEqual([]);
+});
+
 it.each(["", "本地命令结果"])(
   "renders local command output without relying on result text %s",
   (result) => {

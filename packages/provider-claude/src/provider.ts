@@ -298,7 +298,7 @@ export class ClaudeAgentProvider {
       if (task.archived) throw new Error("Cannot run an archived task");
       if (isManagedClaudeCommand(input.text))
         throw new Error("This command is unavailable in managed Claude conversations");
-      if (options.goalMode || options.fastMode || input.outputSchema || input.skills.length)
+      if (options.goalMode || options.fastMode || input.skills.length)
         throw new Error("This capability is not supported by the Claude adapter");
       const permissionMode = options.engineOptions?.permissionMode ?? defaults.permissionMode;
       const sessionId = task.sessionId ?? randomUUID(),
@@ -323,7 +323,13 @@ export class ClaudeAgentProvider {
       const controller = new AbortController();
       // 每轮读取有效连接摘要，覆盖设置页保存和外部编辑；变更后沿用原生会话 ID 重建查询。
       const connectionRevision = await this.config.connectionRevision();
-      const settingsKey = JSON.stringify({ options, defaults, connectionRevision });
+      // Schema 是 Query 级配置；变更或移除时按原生会话 ID 重建，避免后续回合沿用旧输出约束。
+      const settingsKey = JSON.stringify({
+        options,
+        defaults,
+        connectionRevision,
+        outputSchema: input.outputSchema,
+      });
       let existing = this.#running.get(id);
       if (existing?.closed) {
         await existing.done;
@@ -388,6 +394,7 @@ export class ClaudeAgentProvider {
         sessionId,
         resumable,
         inputStream,
+        outputSchema: input.outputSchema,
         getRunning: () => this.#running.get(id),
       });
       const running: session.Running = {

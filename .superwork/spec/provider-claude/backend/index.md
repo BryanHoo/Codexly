@@ -62,3 +62,5 @@
 - 验证覆盖 Provider 的历史截断、未知位置、分支再次分叉、存储失败回滚、附件重复正文与源任务删除隔离；`sdk-integration.test.ts` 和 `pnpm test:claude-host` 使用真实官方 SDK/CLI 与本地模拟 API 证明原生 UUID 重建、上下文截断及压缩命令链路，无真实账户或额度。
 
 - Git 辅助推理通过 `generateCommitMessage(prompt, model)` 在共享适配器执行，桌面宿主对应 `commit.generate`；禁止创建持久任务、开启工具或借用 Codex。使用用户设置源、显式模型、结构化 JSON 输出、30 秒截止时间及最多两个在途请求，关闭运行时时取消请求。验证 `commit-message.test.ts`、`pnpm test:claude-host` 和仅 Claude 的真实 API。
+
+- 普通回合接受公共输入 `outputSchema`，在共享 SDK 查询边界转换为 `outputFormat: { type: "json_schema", schema }`，由 SDK 执行约束与错误判定。Schema 纳入查询复用配置；变更或移除时沿用精确 sessionId 重建，无变化时继续复用，有后台工作则拒绝重建。成功 result 的 `structured_output` 以 JSON 正文及 `final_answer` 阶段进入现有有界投影、完成事件与持久历史，即使已有过程正文也不能遗漏；缺失字段与 null、false、0、空字符串须区分。失败或中断不能发布为成功结构化答复。`provider.test.ts`、`turn-projection.test.ts` 与 `pnpm test:claude-host` 覆盖透传、复用、后台保护、SDK 实际结构化输出及宿主重启恢复。
