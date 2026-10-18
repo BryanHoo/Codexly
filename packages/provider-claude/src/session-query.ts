@@ -4,7 +4,33 @@ import type { AgentTurnOptions, ClaudeSettings } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
 import type { ClaudePermissions } from "./permissions.js";
 import type { ClaudeSessionGrants } from "./session-grants.js";
-import { wakeupHooks, type ClaudeSdk, type Running, type createInput } from "./session.js";
+import {
+  wakeupHooks,
+  hasWork,
+  stop,
+  type ClaudeSdk,
+  type Running,
+  type createInput,
+} from "./session.js";
+
+/** 动态控制不影响查询身份；启动配置变更只允许回收已无工作的旧查询。 */
+export async function reuseClaudeQuery(
+  running: Running | undefined,
+  settingsKey: string,
+): Promise<Running | undefined> {
+  if (running?.closed) {
+    await running.done;
+    return undefined;
+  }
+  if (running && running.settingsKey !== settingsKey) {
+    if (hasWork(running))
+      throw new Error("Stop Claude background tasks before changing session options");
+    stop(running);
+    await running.done;
+    return undefined;
+  }
+  return running;
+}
 
 /** 新查询集中重放会话配置；普通消息与压缩命令使用完全相同的权限和恢复语义。 */
 export function createClaudeQuery({
@@ -48,7 +74,8 @@ export function createClaudeQuery({
       ...(options.model && options.model !== "default" ? { model: options.model } : {}),
       // 原样传递 auto 与会话显式选择；可用性限制交给 SDK，不在应用内静默降级。
       permissionMode,
-      allowDangerouslySkipPermissions: permissionMode === "bypassPermissions",
+      // 仅声明允许后续显式切换 bypass；当前权限仍由 permissionMode 与原生策略决定。
+      allowDangerouslySkipPermissions: true,
       hooks: wakeupHooks(getRunning),
       includePartialMessages: true,
       persistSession: true,

@@ -74,6 +74,9 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
   const forkSession = vi.fn(() => Promise.resolve({ sessionId: "native-fork-session" }));
   const getSessionMessages = vi.fn<ClaudeSdk["getSessionMessages"]>(() => Promise.resolve([]));
   const stopTask = vi.fn(() => Promise.resolve());
+  const setModel = vi.fn<Query["setModel"]>(() => Promise.resolve());
+  const setPermissionMode = vi.fn<Query["setPermissionMode"]>(() => Promise.resolve());
+  const applyFlagSettings = vi.fn<Query["applyFlagSettings"]>(() => Promise.resolve());
   // 模拟 SDK 接受中断后仍通过开放的消息流交付当前回合 result。
   const interrupt = vi.fn(() => {
     send({ type: "result", subtype: "success" });
@@ -111,6 +114,9 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
         },
         interrupt,
         stopTask,
+        setModel,
+        setPermissionMode,
+        applyFlagSettings,
       } as unknown as Query;
       return stream;
     },
@@ -155,6 +161,9 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
     send,
     close,
     stopTask,
+    setModel,
+    setPermissionMode,
+    applyFlagSettings,
     interrupt,
     deleteSession,
     forkSession,
@@ -166,6 +175,198 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
     },
   };
 }
+
+describe("dynamic session settings in shared turns", () => {
+  it.each([false, true])(
+    "preserves session grants correctly when a permission change is rejected: %s",
+    async (rejected) => {
+      const h = await harness(undefined, 60_000);
+      const task = await h.provider.startTask();
+      await h.provider.startTurn(task.id, prompt, options);
+      const callback = h.query.mock.calls[0]?.[0].options.canUseTool;
+      assert(callback);
+      const permission = callback(
+        "Edit",
+        { file_path: "/src/proof.ts" },
+        {
+          signal: new AbortController().signal,
+          toolUseID: "edit",
+          requestId: "session-edit-mode",
+          suggestions: [{ type: "setMode", mode: "acceptEdits", destination: "session" }],
+        },
+      );
+      const request = (await h.provider.readTask(task.id))?.pendingRequests[0];
+      assert(request?.type === "tool_approval");
+      await h.provider.resolvePendingRequest({
+        ...request,
+        resolution: { decision: "allow_for_session" },
+      });
+      expect(await permission).toMatchObject({ updatedPermissions: [{ mode: "acceptEdits" }] });
+      h.send({ type: "result", subtype: "success" });
+      await vi.waitFor(() => {
+        expect(h.provider.isBusy).toBe(false);
+      });
+      const plan: AgentTurnOptions = {
+        ...options,
+        engineOptions: { engine: "claude", permissionMode: "plan" },
+      };
+      if (rejected) {
+        h.setPermissionMode.mockRejectedValueOnce(new Error("mode rejected"));
+        await expect(h.provider.startTurn(task.id, prompt, plan)).rejects.toThrow("mode rejected");
+      } else {
+        await h.provider.startTurn(task.id, prompt, plan);
+        h.send({ type: "result", subtype: "success" });
+        await vi.waitFor(() => {
+          expect(h.provider.isBusy).toBe(false);
+        });
+      }
+      await h.provider.stopSession(task.id);
+      await h.provider.startTurn(task.id, prompt, rejected ? options : plan);
+      expect(h.query.mock.calls.at(-1)?.[0].options.permissionMode).toBe(
+        rejected ? "acceptEdits" : "plan",
+      );
+    },
+  );
+
+  it.each([false, true])(
+    "applies changed native defaults with explicit overrides: %s",
+    async (explicit) => {
+      const h = await harness(undefined, 60_000);
+      const task = await h.provider.startTask();
+      const turnOptions = {
+        ...options,
+        model: explicit ? "test-model" : "default",
+        reasoningEffort: explicit ? "low" : "",
+      };
+      await h.provider.startTurn(task.id, prompt, turnOptions);
+      h.send({ type: "result", subtype: "success" });
+      await vi.waitFor(() => {
+        expect(h.provider.isBusy).toBe(false);
+      });
+      await h.config.writeSettings({
+        ...(await h.config.readSettings()),
+        model: "native-model",
+        reasoningEffort: "high",
+      });
+      await h.provider.startTurn(task.id, prompt, turnOptions);
+      expect(h.query).toHaveBeenCalledOnce();
+      if (explicit) {
+        expect(h.setModel).not.toHaveBeenCalled();
+        expect(h.applyFlagSettings).not.toHaveBeenCalled();
+      } else {
+        expect(h.setModel).toHaveBeenCalledExactlyOnceWith("native-model");
+        expect(h.applyFlagSettings).toHaveBeenCalledExactlyOnceWith({ effortLevel: "high" });
+      }
+    },
+  );
+
+  it("switches between inherited and explicit permissions without rebuilding", async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const { engineOptions: _explicit, ...inherited } = options;
+    await h.provider.startTurn(task.id, prompt, inherited);
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    await h.provider.startTurn(task.id, prompt, options);
+    expect(h.query).toHaveBeenCalledOnce();
+    expect(h.setPermissionMode).not.toHaveBeenCalled();
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    await h.config.writeSettings({ ...(await h.config.readSettings()), permissionMode: "plan" });
+    await h.provider.startTurn(task.id, prompt, inherited);
+    expect(h.setPermissionMode).toHaveBeenCalledExactlyOnceWith("plan");
+    expect(h.query).toHaveBeenCalledOnce();
+  });
+
+  it.each(["default", "acceptEdits", "plan", "auto", "dontAsk", "bypassPermissions"] as const)(
+    "updates model, effort and %s permissions without stopping background work",
+    async (permissionMode) => {
+      const h = await harness(undefined, 60_000);
+      const task = await h.provider.startTask();
+      const events: AgentProviderEvent[] = [];
+      h.provider.subscribeEvents((event) => events.push(event));
+      await h.provider.startTurn(task.id, prompt, options);
+      h.send({ type: "system", subtype: "background_tasks_changed", tasks: [{ task_id: "bash" }] });
+      h.send({ type: "result", subtype: "success" });
+      await vi.waitFor(() => {
+        expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+      });
+      const changed: AgentTurnOptions = {
+        ...options,
+        model: "another-model",
+        reasoningEffort: "max",
+        engineOptions: { engine: "claude", permissionMode },
+      };
+      await h.provider.startTurn(task.id, prompt, changed);
+      expect(h.setModel).toHaveBeenCalledExactlyOnceWith("another-model");
+      expect(h.applyFlagSettings).toHaveBeenCalledExactlyOnceWith({ effortLevel: "max" });
+      if (permissionMode === "default") expect(h.setPermissionMode).not.toHaveBeenCalled();
+      else expect(h.setPermissionMode).toHaveBeenCalledExactlyOnceWith(permissionMode);
+      expect(h.query).toHaveBeenCalledOnce();
+      expect(h.close).not.toHaveBeenCalled();
+      expect(h.query.mock.calls[0]?.[0].options.allowDangerouslySkipPermissions).toBe(true);
+      await h.provider.stopBackgroundTask(task.id, "bash");
+      expect(h.stopTask).toHaveBeenCalledWith("bash");
+    },
+  );
+
+  it("clears model and effort overrides and skips unchanged control calls", async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, { ...options, reasoningEffort: "high" });
+    for (const model of ["default", "default", "test-model"]) {
+      h.send({ type: "result", subtype: "success" });
+      await vi.waitFor(() => {
+        expect(h.provider.isBusy).toBe(false);
+      });
+      await h.provider.startTurn(task.id, prompt, { ...options, model });
+    }
+    expect(h.setModel.mock.calls).toEqual([[undefined], ["test-model"]]);
+    expect(h.applyFlagSettings).toHaveBeenCalledExactlyOnceWith({ effortLevel: null });
+    expect(h.setPermissionMode).not.toHaveBeenCalled();
+    expect(h.query).toHaveBeenCalledOnce();
+    expect(h.close).not.toHaveBeenCalled();
+  });
+
+  it.each(["setModel", "setPermissionMode", "applyFlagSettings"] as const)(
+    "keeps the query alive and retries only unapplied settings after %s fails",
+    async (method) => {
+      const h = await harness(undefined, 60_000);
+      const task = await h.provider.startTask();
+      const events: AgentProviderEvent[] = [];
+      h.provider.subscribeEvents((event) => events.push(event));
+      await h.provider.startTurn(task.id, prompt, options);
+      h.send({ type: "result", subtype: "success" });
+      await vi.waitFor(() => {
+        expect(h.provider.isBusy).toBe(false);
+      });
+      const changed: AgentTurnOptions = {
+        ...options,
+        model: "another-model",
+        reasoningEffort: "high",
+        engineOptions: { engine: "claude", permissionMode: "plan" },
+      };
+      h[method].mockRejectedValueOnce(new Error("control rejected"));
+      await expect(h.provider.startTurn(task.id, prompt, changed)).rejects.toThrow(
+        "control rejected",
+      );
+      expect(events.filter((event) => event.type === "turn.started")).toHaveLength(1);
+      expect(
+        h.received.filter((entry) => (entry as { type?: string }).type === "user"),
+      ).toHaveLength(1);
+      await h.provider.startTurn(task.id, prompt, changed);
+      expect(h[method]).toHaveBeenCalledTimes(2);
+      for (const other of ["setModel", "setPermissionMode", "applyFlagSettings"] as const)
+        if (other !== method) expect(h[other]).toHaveBeenCalledOnce();
+      expect(h.query).toHaveBeenCalledOnce();
+      expect(h.close).not.toHaveBeenCalled();
+    },
+  );
+});
 
 describe("structured output in shared turns", () => {
   const schema = {
@@ -923,7 +1124,7 @@ describe("Claude provider execution boundary", () => {
       await h.provider.startTurn(task.id, prompt, turnOptions);
       expect(h.query.mock.calls[0]?.[0].options).toMatchObject({
         permissionMode: override ?? "auto",
-        allowDangerouslySkipPermissions: false,
+        allowDangerouslySkipPermissions: true,
       });
       h.send({ type: "result", subtype: "success" });
       await vi.waitFor(() => {
@@ -933,7 +1134,7 @@ describe("Claude provider execution boundary", () => {
       await h.provider.compactTask(task.id, turnOptions);
       expect(h.query.mock.calls.at(-1)?.[0].options).toMatchObject({
         permissionMode: override ?? "auto",
-        allowDangerouslySkipPermissions: false,
+        allowDangerouslySkipPermissions: true,
         resume: h.tasks.get(task.id)?.sessionId,
       });
     },
@@ -1120,10 +1321,12 @@ it.each(["idle", "settings", "stop"] as const)(
         expect(h.close).toHaveBeenCalledOnce();
       });
     else if (replacement === "stop") await h.provider.stopSession(task.id);
-    const second = await h.provider.startTurn(task.id, prompt, {
-      ...options,
-      ...(replacement === "settings" ? { model: "another-model" } : {}),
-    });
+    else
+      await h.config.writeSettings({
+        ...(await h.config.readSettings()),
+        loadProjectSettings: false,
+      });
+    const second = await h.provider.startTurn(task.id, prompt, options);
     expect(h.query).toHaveBeenCalledTimes(2);
     expect(h.query.mock.calls[1]?.[0].options.allowedTools).toEqual(["Bash(git status:*)"]);
     await h.provider.interruptTurn(task.id, second.id);

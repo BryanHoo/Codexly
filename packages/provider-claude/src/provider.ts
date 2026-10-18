@@ -1,5 +1,10 @@
 import { interruptForeground } from "./session-interruption.js";
-import { createClaudeQuery } from "./session-query.js";
+import { createClaudeQuery, reuseClaudeQuery } from "./session-query.js";
+import {
+  claudeQuerySettingsKey,
+  claudeSessionSettings,
+  updateClaudeSessionSettings,
+} from "./session-settings.js";
 import { localTaskMetadata as claudeTask } from "@codexly/core";
 export { localTaskMetadata as claudeTask } from "@codexly/core";
 import type { ClaudeMcpAction } from "./mcp.js";
@@ -323,27 +328,19 @@ export class ClaudeAgentProvider {
       const controller = new AbortController();
       // 每轮读取有效连接摘要，覆盖设置页保存和外部编辑；变更后沿用原生会话 ID 重建查询。
       const connectionRevision = await this.config.connectionRevision();
-      // Schema 是 Query 级配置；变更或移除时按原生会话 ID 重建，避免后续回合沿用旧输出约束。
-      const settingsKey = JSON.stringify({
+      const settings = claudeSessionSettings(options, permissionMode, defaults);
+      const settingsKey = claudeQuerySettingsKey(
         options,
         defaults,
         connectionRevision,
-        outputSchema: input.outputSchema,
-      });
-      let existing = this.#running.get(id);
-      if (existing?.closed) {
-        await existing.done;
-        existing = undefined;
-      }
-      if (existing && existing.settingsKey !== settingsKey) {
-        if (session.hasWork(existing))
-          throw new Error("Stop Claude background tasks before changing session options");
-        session.stop(existing);
-        await existing.done;
-        existing = undefined;
-      }
+        input.outputSchema,
+      );
+      const existing = await reuseClaudeQuery(this.#running.get(id), settingsKey);
       if (existing && existing.projections.size >= 64)
         throw new Error("Claude background turn capacity exceeded");
+      // 在持久化新回合、发布 started 和发送输入前等待控制确认；失败保持原查询及后台任务。
+      if (existing)
+        await updateClaudeSessionSettings(existing.query, existing.settings, settings, grants);
       const resumable =
         !existing && (await session.canResume(task, this.sdk, this.config.history, metadata));
       if (compact && !existing && !resumable) throw new Error("Claude 原生会话尚未建立，无法压缩");
@@ -410,6 +407,7 @@ export class ClaudeAgentProvider {
           new ClaudePermissions(this.scope.id, id, nextTurnId, this.#emit, grants),
         input: inputStream,
         settingsKey,
+        settings,
         done: Promise.resolve(),
         idleTimeoutMs: this.idleTimeoutMs,
       };

@@ -10,6 +10,7 @@ import {
   forkSession,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CatalogOperations, LocalCatalogStore, LocalTask } from "@codexly/core";
+import type { AgentTurnOptions } from "@codexly/protocol";
 import { expect, it, vi } from "vitest";
 import { claudeEnvironment } from "./config.js";
 import { ClaudeRuntime } from "./runtime.js";
@@ -204,7 +205,7 @@ it("switches the real SDK endpoint and credentials between turns while preservin
   } as const;
   const executionQueries = () =>
     sdkQuery.mock.calls.filter(([input]) => input.options?.persistSession);
-  const send = async (text: string) => {
+  const send = async (text: string, turnOptions: AgentTurnOptions = options) => {
     const turn = await provider.startTurn(
       task.id,
       {
@@ -214,7 +215,7 @@ it("switches the real SDK endpoint and credentials between turns while preservin
         skills: [],
         textAttachments: [],
       },
-      options,
+      turnOptions,
     );
     await vi.waitFor(
       async () => {
@@ -240,9 +241,29 @@ it("switches the real SDK endpoint and credentials between turns while preservin
     expect(executionQueries()).toHaveLength(1);
     expect(messages(a).map((request) => request.key)).toEqual(["isolated-key-a", "isolated-key-a"]);
 
+    // 使用真实 SDK 控制模型、强度和权限；模式切换不得重启进程或丢失前文。
+    await send("Continue with another model and plan permissions", {
+      ...options,
+      model: "claude-opus-4-6",
+      reasoningEffort: "high",
+      engineOptions: { engine: "claude", permissionMode: "plan" },
+    });
+    expect(JSON.parse(messages(a).at(-1)?.body ?? "{}")).toMatchObject({
+      model: "claude-opus-4-6",
+    });
+    expect(messages(a).at(-1)?.body).toContain("connection-context-proof-42");
+    await send("Continue with explicit bypass permissions", {
+      ...options,
+      engineOptions: { engine: "claude", permissionMode: "bypassPermissions" },
+    });
+    await send("Restore normal permissions", options);
+    expect(executionQueries()).toHaveLength(1);
+    // 运行时切换可能触发 SDK 自身的辅助请求；只锁住换址后旧服务不再接收请求。
+    const requestsBeforeSwitch = messages(a).length;
+
     await runtime.configure({ baseUrl: b.baseUrl, apiKey: "isolated-key-b", authType: "apiKey" });
     await send("Continue after switching service");
-    expect(messages(a)).toHaveLength(2);
+    expect(messages(a)).toHaveLength(requestsBeforeSwitch);
     expect(messages(b).map((request) => request.key)).toEqual(["isolated-key-b"]);
     expect(messages(b)[0]?.body).toContain("connection-context-proof-42");
 
@@ -272,7 +293,7 @@ it("switches the real SDK endpoint and credentials between turns while preservin
     await send("Continue after rotating the bearer token");
     expect(messages(b).at(-1)?.authorization).toBe("Bearer rotated-token-b");
     expect(messages(b).at(-1)?.key).toBeUndefined();
-    expect(messages(a)).toHaveLength(2);
+    expect(messages(a)).toHaveLength(requestsBeforeSwitch);
     expect(messages(b)).toHaveLength(4);
     expect(executionQueries()).toHaveLength(5);
     for (const [input] of executionQueries().slice(1))

@@ -18,6 +18,7 @@ import { ClaudeTurnProjection } from "./turn-projection.js";
 import { record } from "./sdk-values.js";
 import type { ClaudeUserInput } from "./turn-input.js";
 import { refreshClaudeContext } from "./observability.js";
+import type { ClaudeSessionSettings } from "./session-settings.js";
 
 export interface ClaudeSdk {
   query: (input: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
@@ -88,6 +89,7 @@ export interface Running {
   controller: AbortController;
   input: ReturnType<typeof createInput>;
   settingsKey: string;
+  settings: ClaudeSessionSettings;
   timer?: ReturnType<typeof setInterval>;
   idleTimer?: ReturnType<typeof setTimeout> | undefined;
   idleTimeoutMs: number;
