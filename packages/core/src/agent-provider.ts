@@ -134,6 +134,12 @@ export type StartAgentTaskOptions = Readonly<{
 export type ReadAgentTaskInput = Readonly<{
   cursor?: string;
   summary?: boolean;
+  signal?: AbortSignal;
+  // 仅用于同次快照读取：复用不受实时事件影响的准备结果，并同步交付已补齐增量的投影。
+  snapshotRead?: Readonly<{
+    prepare<T>(key: string, read: () => Promise<T>): Promise<T>;
+    capture(snapshot: AgentProviderTaskSnapshot): void;
+  }>;
 }>;
 
 export type AgentProviderTurnInput = Readonly<{
@@ -259,7 +265,7 @@ export interface AgentProvider {
   pinTask(taskId: string, pinned: boolean): Promise<AgentTask>;
   readSandboxMode(): Promise<AgentSandboxMode>;
   readGoal(taskId: string): Promise<AgentGoal | null>;
-  // 状态变更须同步交付通知；传输层用 readTaskWithCheckpoint 校验异步读取并捕获覆盖边界。
+  // 状态变更须同步交付通知；同步补齐实时文本后可调用 snapshotRead.capture，结构变化仍须校验。
   readTask(
     taskId: string,
     input?: ReadAgentTaskInput,

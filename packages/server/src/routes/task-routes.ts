@@ -7,7 +7,6 @@ import {
   DeleteAgentTaskResponseSchema,
   AgentMutationErrorSchema,
   AgentTaskPageSchema,
-  AgentTaskSnapshotResponseSchema,
   PinAgentTaskRequestSchema,
   PinAgentTaskResponseSchema,
   RenameAgentTaskRequestSchema,
@@ -22,9 +21,9 @@ import {
   type RenameAgentTaskRequest,
   type UnarchiveAgentTaskRequest,
 } from "@codexly/protocol";
-import { listTaskCatalog, readTaskWithCheckpoint } from "@codexly/core";
+import { listTaskCatalog } from "@codexly/core";
 import type { FastifyPluginCallback } from "fastify";
-import { restorePersistedAsyncQuestionAnswers } from "../async-question-snapshot.js";
+import { registerTaskSnapshotRoute } from "./task-snapshot-route.js";
 import { MutationHttpError, toMcpProviderHttpError, type ServerRouteContext } from "./context.js";
 import {
   ErrorResponseSchema,
@@ -33,7 +32,6 @@ import {
   ProjectTaskParamsSchema,
   ProjectTaskTerminalParamsSchema,
   TaskPageQuerySchema,
-  TaskSnapshotQuerySchema,
 } from "./schemas.js";
 
 import { registerTaskActionRoutes } from "./task-action-routes.js";
@@ -50,7 +48,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
   context,
   done,
 ) => {
-  const { getProjectContext, readEffectiveTaskSettings, runIdempotent, taskFromSnapshot } = context;
+  const { getProjectContext, runIdempotent, taskFromSnapshot } = context;
 
   app.get<{
     Params: { projectId: string };
@@ -107,50 +105,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
     },
   );
 
-  app.get<{
-    Params: { projectId: string; taskId: string };
-    Querystring: { cursor?: string; summary?: boolean };
-  }>(
-    "/v1/projects/:projectId/tasks/:taskId",
-    {
-      schema: {
-        params: ProjectTaskParamsSchema,
-        querystring: TaskSnapshotQuerySchema,
-        response: { 200: AgentTaskSnapshotResponseSchema, 404: ErrorResponseSchema },
-      },
-    },
-    async (request, reply) => {
-      const projectContext = await getProjectContext(request.params.projectId);
-      if (projectContext === undefined) {
-        return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Project not found" });
-      }
-      const read = await readTaskWithCheckpoint(
-        projectContext.provider,
-        request.params.taskId,
-        {
-          ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
-          ...(request.query.summary === undefined ? {} : { summary: request.query.summary }),
-        },
-        () => projectContext.eventStream.checkpoint,
-      );
-      if (read === undefined || read.snapshot.projectId !== projectContext.scope.id) {
-        return reply.code(404).send({ code: "TASK_NOT_FOUND", message: "Task not found" });
-      }
-      const task = await restorePersistedAsyncQuestionAnswers(
-        context,
-        request.params.projectId,
-        request.params.taskId,
-        read.snapshot,
-      );
-      // 后续持久化答案和设置读取不推进覆盖边界；期间事件仍由该 checkpoint 回放。
-      const checkpoint = read.checkpoint;
-      const settings = await readEffectiveTaskSettings(
-        request.params.projectId,
-        request.params.taskId,
-      );
-      return { checkpoint, snapshot: { ...task, settings } };
-    },
-  );
+  registerTaskSnapshotRoute(app, context);
 
   app.get<{ Params: { projectId: string; taskId: string } }>(
     "/v1/projects/:projectId/tasks/:taskId/mcp-servers",

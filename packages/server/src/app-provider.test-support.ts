@@ -85,7 +85,7 @@ export function createProvider() {
   const readTask = vi.fn<
     (
       taskId: string,
-      input?: Readonly<{ cursor?: string }>,
+      input?: Parameters<AgentProvider["readTask"]>[1],
     ) => Promise<AgentProviderTaskSnapshot | undefined>
   >((taskId) => Promise.resolve(taskId === task.id ? snapshot : undefined));
   const readTaskAttachment = vi.fn<AgentProvider["readTaskAttachment"]>((taskId, attachmentId) =>

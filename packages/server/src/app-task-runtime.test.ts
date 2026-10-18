@@ -228,7 +228,14 @@ describe("server task runtime", () => {
       ...snapshot,
       settings: { ...turnOptions, sandboxMode: "workspace-write" },
     });
-    expect(readTask).toHaveBeenCalledWith("task-1", { cursor: "older/page", summary: true });
+    expect(readTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({ cursor: "older/page", summary: true }),
+    );
+    const input = readTask.mock.calls[0]?.[1];
+    expect(input?.signal).toBeInstanceOf(AbortSignal);
+    expect(typeof input?.snapshotRead?.capture).toBe("function");
+    expect(typeof input?.snapshotRead?.prepare).toBe("function");
   });
 
   it("rejects an empty task snapshot cursor", async () => {

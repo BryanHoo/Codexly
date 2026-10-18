@@ -2,6 +2,7 @@ import { relative, sep } from "node:path";
 import { isIP } from "node:net";
 import { domainToASCII } from "node:url";
 
+import { TaskSnapshotBusyError } from "@codexly/core";
 import { MAX_AGENT_FILE_BYTES, TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import fastifyCookie from "@fastify/cookie";
 import fastifyMultipart from "@fastify/multipart";
@@ -195,7 +196,7 @@ export async function configureServerDelivery(
     limits: { fields: 0, files: 1, fileSize: MAX_AGENT_FILE_BYTES, parts: 1 },
   });
   app.setErrorHandler((error, request, reply) => {
-    if (error instanceof MutationHttpError) {
+    if (error instanceof MutationHttpError || error instanceof TaskSnapshotBusyError) {
       recordRequestError(request, error.code);
       return reply.code(error.statusCode).send({
         code: error.code,

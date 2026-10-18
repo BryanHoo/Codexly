@@ -183,9 +183,9 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
     return normalized;
   }
 
-  protected async readGoalResponse(taskId: string): Promise<AgentGoal | null> {
+  protected async readGoalResponse(taskId: string, rpc = this.client): Promise<AgentGoal | null> {
     const response = expectRecord(
-      await this.client.request("thread/goal/get", { threadId: taskId }),
+      await rpc.request("thread/goal/get", { threadId: taskId }),
       "thread/goal/get response",
     );
     const nativeGoal = response["goal"];

@@ -263,6 +263,41 @@ it.each(["read", "barrier", "prepareItemHistory", "itemPage"] as const)(
   },
 );
 
+it("captures continuously changing Claude text with one history preparation", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  const events: AgentProviderEvent[] = [];
+  h.provider.subscribeEvents((event) => events.push(event));
+  await h.provider.startTurn(task.id, prompt, options);
+  const stream = (event: unknown) => {
+    h.send({ type: "stream_event", event });
+  };
+  stream({ type: "message_start", message: { id: "streaming-snapshot" } });
+  stream({ type: "content_block_start", index: 0, content_block: { type: "text", text: "" } });
+  stream({ type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "初始" } });
+  await vi.waitFor(() => {
+    expect(events.some((event) => event.type === "message.delta")).toBe(true);
+  });
+  const read = vi.spyOn(h.config.history, "read");
+  const original = h.config.history.items.read.bind(h.config.history.items);
+  vi.spyOn(h.config.history.items, "read").mockImplementation(async (...args) => {
+    const page = await original(...args);
+    // 每次分页都推进真实 SDK 消费器，旧实现无法通过增加重试次数获得安静窗口。
+    const count = events.filter((event) => event.type === "message.delta").length;
+    stream({ type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "持续" } });
+    await vi.waitFor(() => {
+      expect(events.filter((event) => event.type === "message.delta")).toHaveLength(count + 1);
+    });
+    return page;
+  });
+  const response = await readTaskWithCheckpoint(h.provider, task.id, {}, () => events.length);
+  expect(response?.snapshot.turns.flatMap((turn) => turn.items)).toContainEqual(
+    expect.objectContaining({ type: "message", role: "assistant", text: "初始持续" }),
+  );
+  expect(response?.checkpoint).toBe(events.length);
+  expect(read).toHaveBeenCalledOnce();
+});
+
 it.each(["metadata", "active", "recovery", "catalog"] as const)(
   "retries a session started during the %s snapshot boundary",
   async (boundary) => {

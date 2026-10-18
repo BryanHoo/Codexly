@@ -17,7 +17,7 @@ import {
 import type {
   AgentProviderEventListener,
   AgentProviderTurnInput,
-  AgentProviderTaskSnapshot,
+  AgentProviderTaskSnapshot as TaskSnapshot,
   AgentTaskScope,
   LocalCatalogStore,
   LocalTask,
@@ -204,13 +204,13 @@ export class ClaudeAgentProvider {
       ? claudeTask(task)
       : undefined;
   }
-  async readTask(
-    id: string,
-    input: ReadAgentTaskInput = {},
-  ): Promise<AgentProviderTaskSnapshot | undefined> {
+  async readTask(id: string, input: ReadAgentTaskInput = {}): Promise<TaskSnapshot | undefined> {
+    input.signal?.throwIfAborted();
     const task = await this.#task(id);
+    input.signal?.throwIfAborted();
     // 显式读取也是恢复入口；即使旧查询已经退出，也不能让最近回合缓存掩盖写盘故障。
     const recovery = await this.config.persistence.retry(id);
+    input.signal?.throwIfAborted();
     if (recovery?.pending) this.#markUnpersisted(id, recovery.turns[0]?.persistence?.error ?? null);
     else this.#unpersisted.delete(id);
     return readClaudeTaskSnapshot({

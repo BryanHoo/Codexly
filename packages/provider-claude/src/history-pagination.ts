@@ -73,19 +73,26 @@ export async function paginateClaudeTurns(
   older: string | null,
   pending?: Pending[],
   live?: ReadonlyMap<string, AgentTurn>,
+  signal?: AbortSignal,
 ): Promise<ClaudeHistoryPage> {
   // 当前回合页里的旧快照也可能稍后才续读，先准备其索引与恢复状态，避免游标指向不存在的元数据。
-  for (const turn of turns) await history.prepareItemHistory(task, turn);
+  for (const turn of turns) {
+    signal?.throwIfAborted();
+    await history.prepareItemHistory(task, turn);
+  }
   const remaining = pending ?? turns.map((turn) => ({ turnId: turn.id, before: null })).reverse();
   const byId = new Map(turns.map((turn) => [turn.id, turn]));
   const result: AgentTurn[] = [];
   let budget = CLAUDE_HISTORY_PAGE_BYTES;
   let limit = 100;
   for (let index = 0; index < remaining.length; index++) {
+    signal?.throwIfAborted();
     const entry = remaining[index];
     if (!entry) break;
     const turn = byId.get(entry.turnId) ?? (await history.items.turn(task, entry.turnId));
+    signal?.throwIfAborted();
     const stored = await history.items.read(task, turn.id, entry.before, budget, limit);
+    signal?.throwIfAborted();
     if (!stored) throw new Error("Claude history items are unavailable");
     const page = overlayClaudeItems(
       stored,
@@ -126,7 +133,10 @@ export async function readClaudeHistoryPage(
   history: ClaudeHistory,
   task: string,
   cursor?: string,
+  signal?: AbortSignal,
 ): Promise<ClaudeHistoryPage | undefined> {
   const state = decode(task, cursor);
-  return state ? paginateClaudeTurns(history, task, [], state.older, state.pending) : undefined;
+  return state
+    ? paginateClaudeTurns(history, task, [], state.older, state.pending, undefined, signal)
+    : undefined;
 }

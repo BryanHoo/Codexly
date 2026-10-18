@@ -10,7 +10,7 @@ import {
   forkSession,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentTaskScope, CatalogOperations, LocalCatalogStore } from "@codexly/core";
-import { readTaskWithCheckpoint } from "@codexly/core";
+import { readTaskWithCheckpoint, TaskSnapshotBusyError } from "@codexly/core";
 import type { AgentProviderTurnInput, ResolvePendingRequestInput } from "@codexly/core";
 import type { ClaudeSettings, ConfigureCustomProviderRequest } from "@codexly/protocol";
 import { ClaudeRuntime } from "./runtime.js";
@@ -217,7 +217,18 @@ if (process.argv.includes("--version")) {
               if (result !== snapshotResponseSent) send({ id, result: result ?? null });
             },
             (error: unknown) => {
-              send({ id, error: error instanceof Error ? error.message : "Claude request failed" });
+              send({
+                id,
+                error:
+                  error instanceof TaskSnapshotBusyError
+                    ? `${error.code}: ${error.message}`
+                    : error instanceof Error
+                      ? error.message
+                      : "Claude request failed",
+                ...(error instanceof TaskSnapshotBusyError
+                  ? { code: error.code, retryable: true }
+                  : {}),
+              });
             },
           )
           .catch(() => {

@@ -335,6 +335,7 @@ export const AgentMutationErrorCodeSchema = Type.Union([
   Type.Literal("PROJECT_FILE_CONFLICT"),
   Type.Literal("PROJECT_FILE_MUTATION_FAILED"),
   Type.Literal("TASK_NOT_FOUND"),
+  Type.Literal("TASK_SNAPSHOT_BUSY"),
   Type.Literal("TURN_NOT_FOUND"),
   Type.Literal("TURN_NOT_RUNNING"),
   Type.Literal("ATTACHMENT_NOT_FOUND"),
