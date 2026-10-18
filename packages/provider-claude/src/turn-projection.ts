@@ -25,6 +25,8 @@ import {
   displayClaudeMessage,
   claudeTurnResult,
   claudeResultMessage,
+  claudeContentItem,
+  claudeFinalAnswerItems,
 } from "./sdk-values.js";
 import { changedClaudeUsage } from "./projection-usage.js";
 import { ClaudeProjectionChanges } from "./projection-changes.js";
@@ -141,13 +143,8 @@ export class ClaudeTurnProjection {
       });
   }
   #block(block: Record<string, unknown>, id: string, completed: boolean): void {
-    if (block["type"] === "text")
-      this.#item({ id, type: "message", role: "assistant", text: text(block["text"]) }, completed);
-    if (block["type"] === "thinking")
-      this.#item(
-        { id, type: "reasoning", content: text(block["thinking"]), summary: "" },
-        completed,
-      );
+    const content = claudeContentItem(block, id);
+    if (content) this.#item(content, completed);
     if (block["type"] === "tool_use") {
       const toolId = text(block["id"]);
       if (toolId) {
@@ -446,6 +443,9 @@ export class ClaudeTurnProjection {
         const result = claudeResultMessage(message, this.id, this.#items.values());
         // 复用有界展示和历史记录；结构化终态也必须发布 item.completed。
         if (result) this.#item(result, true);
+        // 终态快照会携带 phase，无需再次发送正文；增量持久化仍须保存新标记。
+        for (const item of claudeFinalAnswerItems(this.#items.values()))
+          this.changes.touch(this.#items.set(item));
       }
       this.finish(status, error, true);
     }

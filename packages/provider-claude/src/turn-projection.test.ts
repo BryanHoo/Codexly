@@ -231,7 +231,9 @@ describe("Claude streaming projection", () => {
     expect(turn.snapshot().status).toBe("running");
     expect(
       turn.snapshot().items.filter((item) => item.type === "message" && item.role === "assistant"),
-    ).toEqual([{ id: "msg:0", type: "message", role: "assistant", text: "回答" }]);
+    ).toEqual([
+      { id: "msg:0", type: "message", role: "assistant", phase: "commentary", text: "回答" },
+    ]);
     turn.receive({ type: "result", subtype: "success", result: "回答", is_error: false });
     expect(turn.snapshot().status).toBe("completed");
     expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);

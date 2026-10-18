@@ -1,5 +1,44 @@
 import type { AgentItem } from "@codexly/protocol";
 
+/** 正文执行中先归入过程；成功 result 才能确认最终答复，思考块保持原有独立投影。 */
+export function claudeContentItem(
+  block: Record<string, unknown>,
+  id: string,
+): AgentItem | undefined {
+  if (block["type"] === "text")
+    return {
+      id,
+      type: "message",
+      role: "assistant",
+      phase: "commentary",
+      text: text(block["text"]),
+    };
+  if (block["type"] === "thinking")
+    return { id, type: "reasoning", content: text(block["thinking"]), summary: "" };
+  return undefined;
+}
+
+/** 只扫描有界预览的末尾原生回复；一个回复的多个 text 块都属于最终结果。 */
+export function claudeFinalAnswerItems(values: Iterable<AgentItem>): AgentItem[] {
+  const items = [...values];
+  const last = items.at(-1);
+  if (last?.type !== "message" || last.role !== "assistant" || last.phase === "final_answer")
+    return [];
+  const messageId = last.id.slice(0, last.id.lastIndexOf(":"));
+  const answers: AgentItem[] = [];
+  for (let index = items.length - 1; index >= 0; index--) {
+    const item = items[index];
+    if (
+      item?.type !== "message" ||
+      item.role !== "assistant" ||
+      item.id.slice(0, item.id.lastIndexOf(":")) !== messageId
+    )
+      break;
+    if (item.text.trim()) answers.push({ ...item, phase: "final_answer" });
+  }
+  return answers;
+}
+
 /** 结构化结果独立于过程正文；普通命令 result 只在没有助手正文时补齐，避免重复。 */
 export function claudeResultMessage(
   message: Record<string, unknown>,
@@ -22,7 +61,7 @@ export function claudeResultMessage(
     type: "message",
     role: "assistant",
     text: result,
-    ...(structured ? { phase: "final_answer" as const } : {}),
+    phase: "final_answer",
   };
 }
 

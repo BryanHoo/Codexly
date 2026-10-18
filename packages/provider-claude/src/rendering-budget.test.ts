@@ -150,6 +150,7 @@ it("retains the user prompt and valid item structures after streaming and evicti
     id: "msg:0",
     type: "message",
     role: "assistant",
+    phase: "commentary",
     text: "partial",
   });
 });
