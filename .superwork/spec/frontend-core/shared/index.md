@@ -2,6 +2,8 @@
 
 `packages/frontend-core/src/` 保存 Web 与 Desktop 共用的任务状态保留、事件顺序、快照 Turn 合并、任务查询配置、命令输出缓冲、项目事件历史及文件搜索协调，不依赖任一平台客户端或 UI。
 
+- 工作台订阅共用 `task-view-selectors`：元数据只包含展示所需字段，活动时间戳不触发重绘；右栏按需订阅目标、计划、用量及来源/子代理投影，不以完整快照作为渲染依赖。正文 Delta 不扫描历史 Item 或物化正文，关闭面板释放投影，重新打开读取最新状态。共享选择器保留原生 Item 类型扩展；用 Web 的 `task-runtime-subscriptions.test.tsx` 与两端 `task-view-selectors.test.ts` 验证订阅稳定、计划独立更新、历史前插和快照替换。
+
 - 查询配置通过读取函数注入数据源；各端负责包装 React Query、传入客户端方法，并保留不同的完成任务查询契约。
 - 后台终端轮询共用 `background-terminal-polling`：已有终端每 1.5 秒校准，运行中空列表每 10 秒发现新终端，空闲且无终端时停止；回合边界立即读取，后台页面不轮询。各端保留自己的客户端与 Mutation 流程。
 - 后台终端存活查询不得继承全局 30 秒缓存新鲜期；重新打开任务或启用上下文时读取权威列表，结束失败后也立即校准。回合完成不能直接清空仍存活的后台终端；仅将 `-32600` 的 `thread not found:` 视为线程已释放，列表为空且结束操作幂等成功，其他错误继续传播。桌面收到 `terminated: false` 后须确认目标已从列表消失才视为成功。两端 `use-background-terminals-recovery` 与原生 `conversation_background_tests` 覆盖此约定。

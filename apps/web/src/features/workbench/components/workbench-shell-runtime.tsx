@@ -9,6 +9,7 @@ import { useTranslation } from "../../../i18n/i18n.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { useAccess } from "../../access/access-context.js";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
+import { useInspectorTask } from "./use-inspector-task.js";
 import { useTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
 import { providerConnectionQueryOptions } from "../../provider-connection/provider-connection-queries.js";
 import {
@@ -378,14 +379,11 @@ export function useWorkbenchShellRuntime({
     t("shell.newChat");
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
-  const inspectorTask = useMemo(() => {
-    // Inspector 是低频完整视图；关闭时不保留兼容 Snapshot。
-    void runtime.itemStructureRevision;
-    void runtime.metadata;
-    return inspectorOpen && paneActive && !workspaceOnly
-      ? (runtime.readSnapshot() ?? startingSnapshot)
-      : startingSnapshot;
-  }, [inspectorOpen, paneActive, workspaceOnly, runtime, startingSnapshot]);
+  const inspectorTask = useInspectorTask(
+    runtime.store,
+    inspectorOpen && paneActive && !workspaceOnly,
+    startingSnapshot,
+  );
   const subagents = useMemo(() => collectSubagents(inspectorTask), [inspectorTask]);
   const selectedSubagent =
     subagentDialogSelection?.projectId === projectId &&

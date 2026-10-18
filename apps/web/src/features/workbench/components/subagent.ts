@@ -117,7 +117,7 @@ export function parseSubagentOperation(
 }
 
 export function collectSubagents(
-  snapshot: RuntimeTaskSnapshot | undefined,
+  snapshot: Pick<RuntimeTaskSnapshot, "turns"> | undefined,
 ): readonly SubagentContextEntry[] {
   if (snapshot === undefined) {
     return [];
