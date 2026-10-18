@@ -8,6 +8,7 @@
 - 全局交付钩子保留成功资源路由明确声明的私有缓存，普通 API、鉴权失败和错误仍返回 `no-store`。图片和任务附件通过 `private-asset-response` 生成内容 ETag，匹配条件请求返回无正文的 304；条件请求仍须完成项目、任务与访问权限校验。使用 `app-attachments.test.ts`、`app-files.test.ts` 和 `app-security.test.ts` 验证缓存、正文与鉴权边界。
 - 全局任务搜索和历史匹配位置搜索必须将 `request.signal` 传入 Provider 与 RPC 等待层；取消后停止派发后续锚点查询，移除等待项、超时及重试计时器和取消监听器。迟到响应不得触发重试，也不得关闭共享 RPC 连接；用 `app-global-search.test.ts` 验证真实 HTTP 断连，用 `global-search.test.ts` 和 `jsonl-rpc-cancellation.test.ts` 验证并发锚点取消及资源清理。
 - 持久化变更检查 `sqlite-state-migrations.ts`、Worker、仓储测试和重启恢复场景。
+- SQLite Worker 连接恢复由仓库实例统一管理，所有并发等待者共享单次连接任务，任务无论成功失败都必须释放；瞬时启动失败仅在新请求到达且退避到期后重试。超时和 Worker `error/exit` 必须拒绝在途请求，结果未知的写入不得自动重放。跨线程保留 SQLite 错误码，`SQLITE_CORRUPT`（含扩展码）和 `SQLITE_NOTADB` 停止自动恢复，保留数据库供显式修复并重新打开仓库；关闭须阻止后续重建，等待或终止当前 Worker，所有并发关闭调用共享清理结果。用 `sqlite-state-recovery.test.ts` 和 `sqlite-state-lifecycle.test.ts` 覆盖失败恢复、并发等待、退避、写入不重放及关闭竞态。
 - 定时任务的引擎身份取自已保存的 `turnOptions.engineOptions.engine`，缺省为旧版 Codex；保存与触发均按对应模型目录校验，创建任务必须显式传入引擎。Web 与桌面保持一致，Claude 路径不得启动 Codex。编辑器按计划恢复引擎，不能被草稿或当前配置覆盖。验证见 `scheduled-task-engine.test.ts`、桌面 `scheduled_task` 测试及[双引擎说明](../../../../docs/agent-engines.md)。
 - 实时任务、队列与定时任务变更分别检查 `agent-event-stream.ts`、`persistent-task-queue.ts`、`scheduled-task-*` 及对应测试。
 - HTTP 任务快照遵循[共享快照与 checkpoint 契约](../../core/shared/index.md)，持久化答案及设置读取期间到达的事件仍从已捕获边界回放，不能把新序号附到旧快照。回归见 `app-snapshot-consistency.test.ts`。
