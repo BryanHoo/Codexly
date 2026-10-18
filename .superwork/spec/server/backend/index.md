@@ -43,3 +43,5 @@
 - 目录和任务元数据由应用本地仓储独占管理；Project 必须恰好一个根目录。上游列表仅用于一次性事务导入；执行适配器翻译应用任务 ID 与 provider/sessionId，禁止用引擎列表覆盖本地管理状态。两端共享 SQL 契约和单选规则，变更须覆盖离线管理、迁移回滚与身份隔离测试。详见[本地目录与任务](../../../../docs/local-catalog.md)。
 
 - 公共设置 `GET/PUT /v1/settings?engine=claude` 只使用 Claude 模型目录及应用偏好，不调用 Codex 原生默认设置；保存只更新应用字段，保留已存的 Codex 专属字段。省略引擎保留 Codex 行为，幂等身份包含引擎。Git 提交说明请求可选 `engine`，Claude 通过引擎服务执行无持久聊天的短请求；异步问题按原任务 `engine` 校验模型。`engine-independence.test.ts` 用不可用的 Codex 覆盖三条链路。
+
+- 全局搜索须按依赖向导启用的引擎集合筛选本地候选，再按任务持久 provider 身份检索正文；名称、排序与归档状态以应用目录为准。双引擎保留健康源命中并通过 unavailableEngines 报告失败源，游标绑定查询、类别、归档与引擎集合。Claude 复用共享摘要搜索和宿主，不启动 SDK 推理；文件搜索直接使用文件系统。详见[全局搜索契约](../../../../docs/global-search.md)。

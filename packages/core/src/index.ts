@@ -1,5 +1,12 @@
 // 领域模型、用例和 Provider 端口只能从此公开入口导出。
 export {
+  CatalogSearchService,
+  catalogSearchCursor,
+  checkSearchCancellation,
+  searchQuery,
+} from "./catalog-search.js";
+export { searchTextMatches, searchTextSnippet } from "./search-text.js";
+export {
   type AgentCancellationSignal,
   type AgentModelCatalogFallback,
   type AgentFileSearchInput,

@@ -205,6 +205,32 @@ mod tests {
         assert_eq!(page["data"][0]["title"], "本地名称");
         assert_eq!(page["data"][0]["sessionId"], "native");
     }
+
+    #[tokio::test]
+    async fn search_filters_selected_engines_before_pagination() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = LocalCatalog::at(dir.path()).unwrap();
+        for (id, provider, time) in [
+            ("new", "codex", 3),
+            ("match", "claude", 2),
+            ("older", "claude", 1),
+        ] {
+            store.call("task.put", json!({"id":id,"provider":provider,"updatedAt":time,"projectId":null,"title":"搜索","cwd":"/tmp","sessionId":null,"pinned":false,"archived":false,"status":"idle"})).await.unwrap();
+        }
+        let page = store
+            .call("task.list", json!({"providers":["claude"],"limit":1}))
+            .await
+            .unwrap();
+        assert_eq!(page["data"][0]["id"], "match");
+        let next = store
+            .call(
+                "task.list",
+                json!({"providers":["claude"],"limit":1,"cursor":page["nextCursor"]}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(next["data"][0]["id"], "older");
+    }
 }
 
 pub mod sidebar;

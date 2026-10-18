@@ -22,6 +22,7 @@
     "better-sqlite3": "catalog:",
     "fastify": "catalog:",
     "fflate": "catalog:",
+    "ignore": "catalog:",
     "p-limit": "catalog:",
     "rrule": "catalog:",
     "safe-stable-stringify": "catalog:",

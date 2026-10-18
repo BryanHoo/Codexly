@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import { query, type Query } from "@anthropic-ai/claude-agent-sdk";
+import type { TaskSearchPage, SearchOccurrencesPage } from "@codexly/protocol";
 import { createCodexRuntimeProvider } from "@codexly/provider-codex";
 import {
   createCodexlyServer,
@@ -119,6 +120,16 @@ it("starts real HTTP, reads Claude history and chats while Codex is unavailable"
       snapshot: { engine: "claude", turns: [expect.objectContaining({ status: "completed" })] },
     });
     await request(`/v1/projects/${project.id}/tasks`);
+    // 仅有 Claude 任务时，搜索标题、正文和精确命中均不得初始化 Codex。
+    const hits = (await request(
+      "/v1/search/tasks?query=hello&kind=history&archived=false",
+    )) as TaskSearchPage;
+    expect(hits.data[0]?.task).toMatchObject({ id: created.task.id, engine: "claude" });
+    expect(hits.data[0]?.occurrence?.itemId).toBeTypeOf("string");
+    const occurrences = (await request(
+      `${path}/search-occurrences?query=hello`,
+    )) as SearchOccurrencesPage;
+    expect(occurrences.data[0]?.turnId).toBeTypeOf("string");
     expect(query).toHaveBeenCalled();
     expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
 
@@ -210,7 +221,17 @@ it("starts real HTTP, reads Claude history and chats while Codex is unavailable"
     expect(await request(historyPath)).toMatchObject({
       snapshot: { engine: "claude", turns: [expect.objectContaining({ status: "completed" })] },
     });
+    expect(
+      await request("/v1/search/tasks?query=hello&kind=history&archived=false&engines=claude"),
+    ).toMatchObject({ data: [{ task: { engine: "claude" } }] });
     expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
+    // 两个引擎都启用时综合查询；Codex 离线只标记失败源，Claude 仍完整交付。
+    expect(
+      await request(
+        "/v1/search/tasks?query=hello&kind=history&archived=false&engines=codex,claude",
+      ),
+    ).toMatchObject({ data: [{ task: { engine: "claude" } }], unavailableEngines: ["codex"] });
+    expect(harness.dependencies.startCodexAppServer).toHaveBeenCalledOnce();
   } finally {
     restartedController.abort();
     await restarted;

@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import {
   EngineProjectRouter,
+  CatalogSearchService,
   type AgentProvider,
   type AgentRuntimeProvider,
   type AgentTaskScope,
@@ -42,7 +43,7 @@ function deferCodexProject(create: () => AgentProvider) {
   return { provider, current: () => current };
 }
 
-/** 仅生产本地仓储启用双引擎；Codex 全局功能仍直接调用原运行时。 */
+/** 仅生产本地仓储启用双引擎；搜索按任务持久身份选择依赖，不探测无关引擎。 */
 export function enableClaudeRuntime(
   codex: AgentRuntimeProvider,
   store: unknown,
@@ -75,6 +76,17 @@ export function enableClaudeRuntime(
   };
   const overrides: Partial<AgentRuntimeProvider> = {
     engines: { ...codex.engines, claude },
+    search: new CatalogSearchService(catalog, (task, input, signal, limit) => {
+      const scope =
+        task.projectId === null
+          ? { id: "temporary", kind: "temporary" as const }
+          : { id: task.projectId, kind: "project" as const };
+      if (task.provider === "claude")
+        return claude.searchTaskOccurrences(task.id, input, scope, signal, limit);
+      if (task.provider !== "codex" || !codex.search)
+        throw new Error("Task search engine is unavailable");
+      return codex.search.searchTaskOccurrences(task.id, input, scope, signal, limit);
+    }),
     forProject: (project) =>
       create(
         {

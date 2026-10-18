@@ -1,4 +1,3 @@
-import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -65,7 +64,6 @@ export function ProjectSidebar({
   projectId,
   taskId,
 }: ProjectSidebarProps) {
-  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
   const { t } = useTranslation("workbench");
   const { client, error, isPending, projects, projectTaskStates, tasks } = useProjectData();
   const {
@@ -190,7 +188,6 @@ export function ProjectSidebar({
   }, [expandedProjects, setExpandedProjectTaskIds]);
 
   useEffect(() => {
-    if (!codexEnabled) return;
     const openSearch = (event: KeyboardEvent) => {
       const hasVisibleDialog = Array.from(
         document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]'),
@@ -215,7 +212,7 @@ export function ProjectSidebar({
     return () => {
       document.removeEventListener("keydown", openSearch);
     };
-  }, [codexEnabled]);
+  }, []);
 
   const updateExpandedProjects = useCallback(
     (update: (current: ReadonlySet<string>) => ReadonlySet<string>) => {
@@ -472,7 +469,7 @@ export function ProjectSidebar({
           onOpen={onOpenSettings}
         />
       </div>
-      {!codexEnabled || searchState === "idle" ? null : (
+      {searchState === "idle" ? null : (
         <Suspense fallback={null}>
           <GlobalSearchDialog
             client={client}

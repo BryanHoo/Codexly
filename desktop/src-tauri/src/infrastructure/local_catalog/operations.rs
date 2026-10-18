@@ -240,6 +240,27 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
 fn list_tasks(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
     let mut clauses = vec!["archived = ?"];
     let mut values = vec![SqlValue::Integer(i64::from(p["archived"] == true))];
+    if let Some(providers) = p.get("providers") {
+        let providers = providers.as_array().ok_or(CatalogError::InvalidMessage)?;
+        if providers.len() > 2
+            || providers
+                .iter()
+                .any(|provider| !matches!(provider.as_str(), Some("codex" | "claude")))
+        {
+            return Err(CatalogError::InvalidMessage);
+        }
+        // 引擎过滤先于 LIMIT 和游标，避免未启用引擎挤占综合搜索的候选页。
+        clauses.push(match providers.len() {
+            0 => "0",
+            1 => "provider IN (?)",
+            _ => "provider IN (?,?)",
+        });
+        values.extend(
+            providers
+                .iter()
+                .map(|provider| SqlValue::Text(provider.as_str().unwrap_or_default().to_owned())),
+        );
+    }
     if let Some(project) = p.get("projectId") {
         clauses.push("project_id IS ?");
         values.push(

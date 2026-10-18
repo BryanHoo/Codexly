@@ -157,6 +157,16 @@ export function createLocalCatalogOperations(db) {
     "task.list": (input) => {
       const where = ["archived = ?"],
         values = [Number(input.archived === true)];
+      if (input.providers !== undefined) {
+        if (
+          !Array.isArray(input.providers) ||
+          input.providers.length > 2 ||
+          input.providers.some((provider) => provider !== "codex" && provider !== "claude")
+        )
+          throw new Error("Invalid task providers");
+        where.push(`provider IN (${input.providers.map(() => "?").join(",")})`);
+        values.push(...input.providers);
+      }
       if (Object.hasOwn(input, "projectId")) {
         where.push("project_id IS ?");
         values.push(input.projectId);

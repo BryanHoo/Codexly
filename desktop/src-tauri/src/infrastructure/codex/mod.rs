@@ -170,7 +170,7 @@ pub use conversation_access::{ensure_task_writer, retain_task_writer};
 mod model_cache_tests;
 
 mod search;
-pub use search::{search_task_occurrences, search_tasks};
+pub use search::{search_task_occurrences, search_task_occurrences_with_limit};
 
 #[cfg(test)]
 mod plugin_reconcile_tests;

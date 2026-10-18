@@ -222,6 +222,8 @@ export interface AgentSearchProvider {
     input: SearchOccurrencesQuery,
     scope: AgentSearchScope,
     signal?: AgentCancellationSignal,
+    // 全局候选只需要首个锚点，精确匹配列表使用默认页大小。
+    limit?: 1 | 30,
   ): Promise<SearchOccurrencesPage>;
   searchTasks(
     input: TaskSearchQuery,

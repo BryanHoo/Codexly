@@ -144,6 +144,9 @@ catalogs:
     i18next:
       specifier: 26.3.6
       version: 26.3.6
+    ignore:
+      specifier: 7.0.6
+      version: 7.0.6
     image-dimensions:
       specifier: 2.5.1
       version: 2.5.1
@@ -721,6 +724,9 @@ importers:
       fflate:
         specifier: 'catalog:'
         version: 0.8.3
+      ignore:
+        specifier: 'catalog:'
+        version: 7.0.6
       p-limit:
         specifier: 'catalog:'
         version: 7.3.1

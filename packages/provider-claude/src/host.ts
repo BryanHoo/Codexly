@@ -1,6 +1,10 @@
 import { exportClaudeAttachment } from "./attachment-export.js";
 import { Value } from "@sinclair/typebox/value";
-import { AgentTurnOptionsSchema, ReloadAgentMcpServersRequestSchema } from "@codexly/protocol";
+import {
+  AgentTurnOptionsSchema,
+  ReloadAgentMcpServersRequestSchema,
+  SearchOccurrencesQuerySchema,
+} from "@codexly/protocol";
 import { resolve } from "node:path";
 import {
   query,
@@ -29,6 +33,7 @@ if (process.argv.includes("--version")) {
     throw new Error("Claude host requires private data and executable paths");
   // 保留用户 CLAUDE_CONFIG_DIR；SDK 配置、认证和会话历史与本机 CLI 共用。
   const catalogRequests = new Map<number, ReturnType<typeof Promise.withResolvers<unknown>>>();
+  const searches = new Map<number, AbortController>();
   let nextCatalogId = 1;
   let closed = false;
   const close = (reason: string, failed = true) => {
@@ -42,6 +47,8 @@ if (process.argv.includes("--version")) {
     if (failed) process.stderr.write(`Claude host transport: ${reason}\n`);
     for (const request of catalogRequests.values()) request.reject(new Error("Claude host closed"));
     catalogRequests.clear();
+    for (const search of searches.values()) search.abort();
+    searches.clear();
     try {
       runtime.close();
     } finally {
@@ -104,6 +111,32 @@ if (process.argv.includes("--version")) {
     if (method === "settings.write") return runtime.writeSettings(params as ClaudeSettings);
     if (method === "disconnect") {
       return runtime.disconnect();
+    }
+    if (method === "search.occurrences") {
+      const scope = record(message["scope"]);
+      if (
+        typeof params["taskId"] !== "string" ||
+        !Value.Check(SearchOccurrencesQuerySchema, params["input"]) ||
+        typeof scope["id"] !== "string" ||
+        !["project", "temporary"].includes(String(scope["kind"]))
+      )
+        throw new Error("Invalid Claude search request");
+      const limit = params["limit"] ?? 30;
+      if (limit !== 1 && limit !== 30) throw new Error("Invalid Claude search limit");
+      const id = Number(message["id"]),
+        controller = new AbortController();
+      searches.set(id, controller);
+      try {
+        return await runtime.searchTaskOccurrences(
+          params["taskId"],
+          params["input"],
+          scope as { id: string; kind: "project" | "temporary" },
+          controller.signal,
+          limit,
+        );
+      } finally {
+        searches.delete(id);
+      }
     }
     const scope = message["scope"] as AgentTaskScope | undefined;
     if (!scope?.id || !scope.rootPath || !["project", "temporary"].includes(scope.kind))
@@ -195,7 +228,10 @@ if (process.argv.includes("--version")) {
         close("invalid stdin frame");
         return;
       }
-      if (typeof message["catalogId"] === "number") {
+      if (typeof message["cancelId"] === "number") {
+        // 取消仅影响只读搜索，不关闭同宿主内正在执行的 Claude 对话。
+        searches.get(message["cancelId"])?.abort();
+      } else if (typeof message["catalogId"] === "number") {
         const deferred = catalogRequests.get(message["catalogId"]);
         if (message["error"])
           deferred?.reject(

@@ -94,6 +94,7 @@ catalog:
   "@codemirror/lang-sql": 6.10.0
   "@codemirror/lang-xml": 6.1.0
   marked: 17.0.6
+  ignore: 7.0.6
 
 catalogMode: strict
 cleanupUnusedCatalogs: true

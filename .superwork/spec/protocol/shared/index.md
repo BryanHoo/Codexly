@@ -38,3 +38,5 @@
 - 模型能力必须区分“未声明”和显式 `none`：未声明时 `supportedReasoningEfforts` 为 `[]`、`defaultReasoningEffort` 为 `""`；任务设置允许空思考强度，执行适配层将其转换为原生 `null`，不得生成低中高或把空字符串发送给 Codex。两端共享协议及模型目录样例，验证模型、回合和设置保存契约。
 
 - MCP 页面可选 `statusSource`（`live`/`cached`）与 `observedAt`（ISO 观测时间或 null）；缺省兼容旧引擎。Claude MCP 控制请求以可选 `action` 区分 `refresh`、`reconnect`、`reload`，省略时执行配置重载，不能把失败重连称为配置重载。桌面 MCP 页面与操作直接复用公共 Schema；历史或失败读取不得伪造实时来源与新的观测时间。
+
+- 全局搜索须按依赖向导启用的引擎集合筛选本地候选，再按任务持久 provider 身份检索正文；名称、排序与归档状态以应用目录为准。双引擎保留健康源命中并通过 unavailableEngines 报告失败源，游标绑定查询、类别、归档与引擎集合。Claude 复用共享摘要搜索和宿主，不启动 SDK 推理；文件搜索直接使用文件系统。详见[全局搜索契约](../../../../docs/global-search.md)。

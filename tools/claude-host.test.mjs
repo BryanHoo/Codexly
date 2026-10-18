@@ -375,6 +375,33 @@ test(
       assert.equal((await host.request("settings.read")).reasoningEffort, "high");
       const restored = await host.request("task.read", { taskId: "task" }, scope);
       assert.equal(restored.turns.length, 2);
+      // 搜索只读既有摘要，真实独立宿主重启后仍能按同一消息身份定位，且不发送模型请求。
+      const callsBeforeSearch = calls;
+      const search = await host.request(
+        "search.occurrences",
+        { taskId: "task", input: { query: "host-contract-ok" } },
+        scope,
+      );
+      assert.equal(search.data.length, 2);
+      const hit = search.data[0];
+      const located = await host.request(
+        "task.read",
+        { taskId: "task", options: { summary: true, cursor: hit.turnCursor } },
+        scope,
+      );
+      assert.ok(
+        located.turns.some(
+          (turn) => turn.id === hit.turnId && turn.items.some((item) => item.id === hit.itemId),
+        ),
+      );
+      assert.equal(calls, callsBeforeSearch);
+      await assert.rejects(
+        host.request(
+          "search.occurrences",
+          { taskId: "task", input: { query: "host-contract-ok" } },
+          { ...scope, id: "other" },
+        ),
+      );
       assert.deepEqual(
         restored.turns[0].items.find((item) => item.id === created.id),
         created,

@@ -46,3 +46,5 @@
 - 桌面构建使用 `pnpm build:desktop-runtime` 内置目标平台的 Codex vendor 树、Claude CLI 与 Tauri sidecar 宿主。保留官方二进制签名，自建宿主由 Tauri 签名；运行时只读使用安装资源，禁止下载、解压或写入安装目录。依赖随应用更新，缺失或损坏直接报错；回归运行 `node --test tools/desktop-runtime-bundle.test.mjs` 和 Rust `runtime` 测试。详见[引擎分发规则](../../../../docs/agent-engines.md)。
 
 - 文件/Git 项目目录授权、相对文件预览和项目终端从 `LocalCatalog` 校验项目或任务归属，禁止先获取 Codex 连接。项目工作树仍须经 Git 登记校验，任务预览须校验 projectId。`workspace_project_root` 与 `preview_tests` 提供无需引擎的行为回归，`scripts/engine-independence.test.mjs` 进入原生约束门禁。公共设置传 Claude 范围时只访问应用偏好；Git 提交说明的 Claude 分支使用共享宿主 `commit.generate`，只有 Codex 分支才获取其连接。
+
+- 全局搜索须按依赖向导启用的引擎集合筛选本地候选，再按任务持久 provider 身份检索正文；名称、排序与归档状态以应用目录为准。双引擎保留健康源命中并通过 unavailableEngines 报告失败源，游标绑定查询、类别、归档与引擎集合。Claude 复用共享摘要搜索和宿主，不启动 SDK 推理；文件搜索直接使用文件系统。详见[全局搜索契约](../../../../docs/global-search.md)。

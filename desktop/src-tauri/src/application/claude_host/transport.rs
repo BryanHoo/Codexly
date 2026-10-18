@@ -145,6 +145,7 @@ impl Transport {
         let _registration = Registration {
             transport: self,
             id,
+            cancel_search: method == "search.occurrences",
         };
         let operation = async {
             self.write(
@@ -183,14 +184,32 @@ impl std::io::Write for FrameLength {
 struct Registration<'a> {
     transport: &'a Transport,
     id: u64,
+    cancel_search: bool,
 }
 impl Drop for Registration<'_> {
     fn drop(&mut self) {
-        self.transport
+        let pending = self
+            .transport
             .pending
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .remove(&self.id);
+            .remove(&self.id)
+            .is_some();
+        if pending && self.cancel_search && !self.transport.stopped.is_cancelled() {
+            // 只读搜索取消不触碰 SDK 会话。固定小帧尝试进入原有有界队列，不创建后台等待任务。
+            let bytes = format!("{{\"cancelId\":{}}}\n", self.id).into_bytes();
+            if let Ok(budget) =
+                Arc::clone(&self.transport.write_budget).try_acquire_many_owned(bytes.len() as u32)
+            {
+                let (written, _) = oneshot::channel();
+                let _ = self.transport.writer.try_send(Outbound {
+                    bytes,
+                    deadline: Instant::now() + std::time::Duration::from_secs(1),
+                    written,
+                    _budget: budget,
+                });
+            }
+        }
     }
 }
 

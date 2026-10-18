@@ -1,4 +1,5 @@
 import { resolveGlobalSettings } from "./global-settings-reader.js";
+import { LocalFileSearchService } from "./local-file-search.js";
 import { registerHistoryStorageRoutes } from "./routes/history-storage-routes.js";
 import { registerEngineRoutes } from "./routes/engine-routes.js";
 import { WorkbenchChanges } from "./workbench-changes.js";
@@ -126,23 +127,12 @@ export async function createCodexlyServer(
   const commitProjectChanges = options.commitProjectChanges ?? commitSelectedProjectChanges;
   const readFileTree = options.readProjectFileTree ?? readProjectFileTree;
   const readFileDownload = options.readProjectFileDownload ?? readProjectFileDownload;
-  const nativeFileSearch = options.provider.fileSearch;
+  const localFileSearch = new LocalFileSearchService();
   const searchProjectFiles =
-    options.searchProjectFiles ??
-    ((input) => {
-      if (nativeFileSearch === undefined) {
-        return Promise.reject(new Error("Provider file search is unavailable"));
-      }
-      return nativeFileSearch.search(input);
-    });
+    options.searchProjectFiles ?? ((input) => localFileSearch.search(input));
   const stopProjectFileSearch =
     options.stopProjectFileSearch ??
-    ((projectId, sessionId) => {
-      if (nativeFileSearch === undefined) {
-        return Promise.reject(new Error("Provider file search is unavailable"));
-      }
-      return nativeFileSearch.stop(projectId, sessionId);
-    });
+    ((projectId, sessionId) => localFileSearch.stop(projectId, sessionId));
   const readImageFile = options.readProjectImageFile ?? readProjectImageFile;
   const readSourceFile = options.readProjectSourceFile ?? readProjectSourceFile;
   // LAN 客户端与服务端可能不在同一宿主，禁止暴露或执行服务端桌面应用。

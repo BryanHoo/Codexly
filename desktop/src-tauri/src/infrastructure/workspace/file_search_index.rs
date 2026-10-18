@@ -62,6 +62,22 @@ pub(super) fn scan(
         .git_ignore(true)
         .git_exclude(true)
         .require_git(false)
+        .max_depth(Some(20))
+        .filter_entry(|entry| {
+            !matches!(
+                entry.file_name().to_str(),
+                Some(
+                    ".git"
+                        | ".next"
+                        | ".turbo"
+                        | "build"
+                        | "coverage"
+                        | "dist"
+                        | "node_modules"
+                        | ".DS_Store"
+                )
+            )
+        })
         .follow_links(false);
     let mut files = Vec::new();
     let mut matches: Vec<IndexedFile> = Vec::with_capacity(MAX_SEARCH_RESULTS);

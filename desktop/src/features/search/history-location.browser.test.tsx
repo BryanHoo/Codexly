@@ -119,6 +119,7 @@ describe("history search location", () => {
     expect(readTask).toHaveBeenCalledTimes(1);
     expect(readTask).toHaveBeenCalledWith("project", "task", {
       cursor: "inclusive-turn-2",
+      summary: true,
       signal: expect.any(AbortSignal),
     });
   });

@@ -2,10 +2,44 @@ use super::transport::*;
 use serde_json::json;
 use std::{sync::Arc, time::Duration};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     sync::mpsc,
     time::{Instant, timeout},
 };
+
+#[tokio::test]
+async fn cancelled_search_should_notify_host_without_closing_conversations() {
+    let (transport, writes) = Transport::new();
+    let (writer, reader) = tokio::io::duplex(1024);
+    let worker = tokio::spawn(writer_loop(writer, writes, Arc::clone(&transport)));
+    let pending = Arc::clone(&transport);
+    let request = tokio::spawn(async move {
+        pending
+            .request(
+                "search.occurrences",
+                None,
+                json!({}),
+                Instant::now() + Duration::from_secs(2),
+            )
+            .await
+    });
+    let mut lines = BufReader::new(reader).lines();
+    let sent: serde_json::Value =
+        serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+    request.abort();
+    let _ = request.await;
+    let cancel = timeout(Duration::from_secs(1), lines.next_line())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&cancel).unwrap()["cancelId"],
+        sent["id"]
+    );
+    assert!(!transport.stopped.is_cancelled());
+    worker.abort();
+}
 
 fn routes() -> (
     mpsc::Sender<Routed>,

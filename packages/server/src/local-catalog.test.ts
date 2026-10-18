@@ -2,6 +2,39 @@ import { describe, expect, it } from "vitest";
 import { createWorkspace, openRepository } from "./sqlite-state-repository.test-support.js";
 
 describe("application-owned catalog", () => {
+  it("filters selected search engines before pagination", async () => {
+    const root = await createWorkspace();
+    const repository = await openRepository(root);
+    for (const [id, provider, updatedAt] of [
+      ["new", "codex", 3],
+      ["match", "claude", 2],
+      ["older", "claude", 1],
+    ] as const) {
+      await repository.catalog("task.put", {
+        id,
+        provider,
+        updatedAt,
+        projectId: null,
+        title: "搜索",
+        cwd: root,
+        sessionId: null,
+        pinned: false,
+        archived: false,
+        status: "idle",
+      });
+    }
+    const page = await repository.catalog("task.list", { providers: ["claude"], limit: 1 });
+    expect(page.data.map((task) => task.id)).toEqual(["match"]);
+    expect(
+      (
+        await repository.catalog("task.list", {
+          providers: ["claude"],
+          limit: 1,
+          cursor: page.nextCursor,
+        })
+      ).data.map((task) => task.id),
+    ).toEqual(["older"]);
+  });
   it("persists independent project/task identities and local lifecycle without a provider", async () => {
     const root = await createWorkspace();
     const repository = await openRepository(root);

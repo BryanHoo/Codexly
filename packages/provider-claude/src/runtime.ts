@@ -16,6 +16,13 @@ import type {
 } from "@codexly/protocol";
 import { ClaudeConfiguration } from "./config.js";
 import { ClaudeAgentProvider, CLAUDE_CAPABILITIES, type ClaudeSdk } from "./provider.js";
+import { searchClaudeOccurrences } from "./global-search.js";
+import {
+  checkSearchCancellation,
+  type AgentSearchScope,
+  type AgentCancellationSignal,
+} from "@codexly/core";
+import type { SearchOccurrencesQuery } from "@codexly/protocol";
 
 export class ClaudeRuntime implements AgentEngineService {
   readonly configuration: ClaudeConfiguration;
@@ -42,6 +49,23 @@ export class ClaudeRuntime implements AgentEngineService {
 
   readSettings() {
     return this.configuration.readSettings();
+  }
+  async searchTaskOccurrences(
+    taskId: string,
+    input: SearchOccurrencesQuery,
+    scope: AgentSearchScope,
+    signal?: AgentCancellationSignal,
+    limit = 30,
+  ) {
+    checkSearchCancellation(signal);
+    const task = await this.store.catalog("task.read", { id: taskId });
+    checkSearchCancellation(signal);
+    if (
+      task?.provider !== "claude" ||
+      task.projectId !== (scope.kind === "temporary" ? null : scope.id)
+    )
+      throw new Error("Claude search task does not belong to the requested project");
+    return searchClaudeOccurrences(this.configuration.history, taskId, input, signal, limit);
   }
   generateCommitMessage(prompt: string, model: string): Promise<string> {
     // 辅助推理与聊天分开限流，防止多窗口同时生成说明造成 SDK 进程峰值。

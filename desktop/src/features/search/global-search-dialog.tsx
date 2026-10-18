@@ -1,3 +1,5 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
+import { searchEngineFilter } from "@codexly/frontend-core/search-engines";
 import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import "./global-search.css";
 import { useSearchOccurrences } from "./use-search-occurrences.js";
@@ -23,7 +25,13 @@ import { useHistoryLocation } from "./history-location.js";
 import { SearchOccurrences } from "./search-occurrences.js";
 import type { SearchFile } from "./search-files.js";
 
-export function GlobalSearchDialog({
+// 依赖集合变更时重置分页与历史定位，旧引擎的游标和结果不能进入新搜索范围。
+export function GlobalSearchDialog(props: Parameters<typeof GlobalSearchDialogContent>[0]) {
+  const engines = searchEngineFilter(useSelectedEngines());
+  return <GlobalSearchDialogContent key={engines ?? "all"} {...props} />;
+}
+
+function GlobalSearchDialogContent({
   open,
   client,
   projects,
