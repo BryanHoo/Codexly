@@ -1,6 +1,62 @@
 import { Writable } from "node:stream";
+import { finished } from "node:stream/promises";
+import * as fs from "node:fs";
 import { expect, it, vi } from "vitest";
-import { HostOutput } from "./host-output.js";
+import { createHostOutputStream, HostOutput } from "./host-output.js";
+
+vi.mock("node:fs", async (original) => ({
+  ...(await original<typeof fs>()),
+  write: vi.fn(),
+}));
+
+it("retries temporary pipe backpressure after a short write without losing or duplicating bytes", async () => {
+  const received: Buffer[] = [];
+  let calls = 0;
+  vi.mocked(fs.write).mockImplementation((...args: unknown[]) => {
+    const [, chunk, offset, length, , callback] = args as [
+      number,
+      Buffer,
+      number,
+      number,
+      null,
+      (error: NodeJS.ErrnoException | null, written: number) => void,
+    ];
+    calls++;
+    const code = calls === 2 ? "EAGAIN" : calls === 3 ? "EWOULDBLOCK" : undefined;
+    if (code) {
+      queueMicrotask(() => {
+        callback(Object.assign(new Error(code), { code }), 0);
+      });
+      return;
+    }
+    const bytes = Math.min(length, 7);
+    received.push(Buffer.from(chunk.subarray(offset, offset + bytes)));
+    queueMicrotask(() => {
+      callback(null, bytes);
+    });
+  });
+  const output = createHostOutputStream(1);
+  const input = Buffer.from(`${JSON.stringify({ result: "pipe pressure ".repeat(16) })}\n`);
+  const completed = finished(output);
+  output.end(input);
+  await completed;
+  expect(Buffer.concat(received)).toEqual(input);
+  expect(calls).toBeGreaterThan(3);
+});
+
+it("propagates a permanently broken output pipe", async () => {
+  const error = Object.assign(new Error("broken pipe"), { code: "EPIPE" });
+  vi.mocked(fs.write).mockImplementation((...args: unknown[]) => {
+    const callback = args[5] as (error: NodeJS.ErrnoException, written: number) => void;
+    queueMicrotask(() => {
+      callback(error, 0);
+    });
+  });
+  const output = createHostOutputStream(1);
+  const failed = new Promise<Error>((resolve) => output.once("error", resolve));
+  output.end("frame\n");
+  expect(await failed).toBe(error);
+});
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 function pausedOutput() {

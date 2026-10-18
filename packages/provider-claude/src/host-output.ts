@@ -8,6 +8,11 @@ export function createHostOutputStream(fd: number): Writable {
       let offset = 0;
       const next = () => {
         write(fd, chunk, offset, chunk.length - offset, null, (error, bytes) => {
+          // Linux nonblocking pipes report temporary backpressure as EAGAIN.
+          if (error?.code === "EAGAIN" || error?.code === "EWOULDBLOCK") {
+            setTimeout(next, 5);
+            return;
+          }
           if (error) {
             callback(error);
             return;

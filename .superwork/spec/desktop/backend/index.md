@@ -11,6 +11,7 @@
 - 数据存储、定时任务、诊断日志等修改检查相邻 Rust 测试；持续遵守 `desktop/AGENTS.md` 的性能约束。
 - 任务标题与 Web 端共用 `packages/provider-codex/src/task-title-instructions.json`，编译时嵌入。仅共用 Git 提交模型，不能共用提交提示词；辅助会话关闭项目文档加载，并使用专用基础指令与开发者指令防止全局 `AGENTS.md` 将标题变为提交格式。回归执行 Rust `task_title` 测试。
 - 在 `desktop/` 执行 `pnpm check:rust`；完整门槛为 `pnpm check`。环境要求见 `desktop/docs/development.md`。
+- ZIP 依赖须通过包含全部平台的 `cargo deny check advisories bans licenses sources`，不能只检查 Linux 编译图；更新插件的 Windows 可选依赖也在审计范围内。当前仅发布 Tauri v2 原生更新包，`tauri-plugin-updater` 关闭默认功能并显式保留 `rustls-tls`、`system-proxy`，不启用 Tauri v1 压缩更新兼容的 `zip` 功能。macOS `.app.tar.gz` 更新独立于该功能；升级 ZIP 后须验证技能安装的目录/符号链接约束与诊断归档读写。
 - Codex 资源根目录为文件或不可读取时返回 `Failed`，不能因 Windows 将子路径查询归类为 `NotFound` 而误报 `Missing`；仅在二进制未找到的分支补查资源根目录，正常启动不增加文件系统读取。`runtime_manager_tests::startup_should_report_filesystem_failure_without_installing` 在 Windows 验证此边界。
 - 外链启动的 `is-wsl` 依赖通过 `native/is-wsl` 本地适配，仅在 Linux 读取内核标识并缓存结果；其他平台直接返回 false。保留公开 API，验证 `cargo test --manifest-path desktop/src-tauri/native/is-wsl/Cargo.toml` 与桌面锁文件构建。
 - Windows 原生键盘和关闭对话框测试与 WDIO 共用 `CODEAGENT_WEBVIEW_APP_BINARY`，指定独立 EXE 时必须按相同可执行路径定位测试进程；不能改用默认构建路径或按应用名称操作用户正在运行的实例。
