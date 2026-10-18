@@ -4,6 +4,7 @@
 
 - Codex 版本与协议基线以根目录 `package.json`、`schemas/codex-app-server/` 为准；升级时运行 `pnpm codex:schema:check`。
 - Provider 层不引入 Web、HTTP 客户端或服务端交付逻辑；用相邻测试及 `pnpm lint:architecture` 验证。
+- Web Codex 的 stdin 必须由单一 JSONL 写入调度器交付请求、通知、服务端响应和过载重试；`write(false)` 后等待 `drain`，不能以写回调成功代替恢复信号。逻辑请求和未完成写入默认各最多 128 项，排队及写回调未完成帧共用 80 MiB 出站字节预算，包含 UTF-8 与换行；为 50 MiB 图片的 Base64 膨胀保留兼容空间。请求排队、编码、写入、响应和重试沿用同一绝对截止时间；取消或超时移除尚未交付的帧，已交付帧保留预算直至写回调完成。本地准入失败以 `RpcWriteQueueFullError` 拒绝当前调用；无返回值通知无法交付时显式关闭故障连接。验证 `pnpm exec vitest run packages/provider-codex/src/jsonl-rpc-output.test.ts packages/provider-codex/src/jsonl-rpc-cancellation.test.ts packages/provider-codex/src/jsonl-rpc-retry.test.ts`；不要把出站字节预算解释为进程 RSS 上限，也不要混入 Claude HostOutput 的协议合并逻辑。
 - 协议错误触发的后台进程回收必须处理关闭 Promise 的拒绝，避免产生未处理异常；原始协议错误仍交付给请求方，显式 `close()` 继续返回缓存的关闭失败。回归 `app-server-process.test.ts` 使用拒绝退出的进程和虚拟计时器验证后台回收及显式错误，不能以吞掉所有关闭错误代替回收结果。
 
 - 历史附件正文的读取、校验、持久化不得在 Node 主线程执行同步文件操作或整块 SHA-256。使用异步流式 I/O，并将解码与摘要计算交给进程内共享、限制并发的 Worker；正文校验与原子发布完成后才登记授权元数据。普通附件仍支持 50 MiB，保留稳定 ID、跨会话授权隔离和损坏正文撤销行为。

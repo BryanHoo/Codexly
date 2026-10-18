@@ -8,55 +8,43 @@ import {
   RpcProtocolError,
   RpcResponseError,
   RpcTimeoutError,
+  RpcWriteQueueFullError,
   type RpcErrorPayload,
 } from "./jsonl-rpc-errors.js";
-import { isRecord, isRequestId, parseRpcError, writeRpcMessage } from "./jsonl-rpc-helpers.js";
+import { getRpcFrameLimits, isRecord, isRequestId, parseRpcError } from "./jsonl-rpc-helpers.js";
 import {
   createRpcOverloadRetryPolicy,
   isExplicitlyUnqueuedOverload,
-  type RpcOverloadRetryOptions,
   type RpcOverloadRetryPolicy,
   validatePositiveSafeInteger,
 } from "./rpc-overload-retry.js";
 import { RpcPendingRequest } from "./rpc-pending-request.js";
 import { createRpcAbortError } from "./rpc-cancellation.js";
+import { RpcWriteScheduler } from "./rpc-write-scheduler.js";
+import type {
+  JsonlRpcClientOptions,
+  RpcNotification,
+  RpcRequestId,
+  RpcServerRequest,
+} from "./jsonl-rpc-types.js";
 
-// 单次上传最多 50 MiB 图片，Base64 后约 67 MiB；为文本和协议字段保留余量。
-const DEFAULT_MAX_JSONL_BYTES = 80 * 1_024 * 1_024;
-const DEFAULT_LARGE_FRAME_THRESHOLD_BYTES = 1 * 1_024 * 1_024;
+const DEFAULT_MAX_PENDING_REQUESTS = 128;
 
 export {
   RpcConnectionClosedError,
   RpcProtocolError,
   RpcResponseError,
   RpcTimeoutError,
+  RpcWriteQueueFullError,
 } from "./jsonl-rpc-errors.js";
 export type { RpcErrorPayload } from "./jsonl-rpc-errors.js";
 
-export interface JsonlRpcClientOptions {
-  input: Readable;
-  output: Writable;
-  defaultTimeoutMs?: number;
-  closeOnInputEnd?: boolean;
-  largeFrameThresholdBytes?: number;
-  maxFrameBytes?: number;
-  maxBufferBytes?: number;
-  overloadRetry?: RpcOverloadRetryOptions;
-  workerUrl?: URL;
-}
-
-export interface RpcNotification {
-  method: string;
-  params: unknown;
-}
-
-export type RpcRequestId = string | number;
-
-export interface RpcServerRequest {
-  id: RpcRequestId;
-  method: string;
-  params: unknown;
-}
+export type {
+  JsonlRpcClientOptions,
+  RpcNotification,
+  RpcRequestId,
+  RpcServerRequest,
+} from "./jsonl-rpc-types.js";
 
 type NotificationListener = (notification: RpcNotification) => void;
 type ErrorListener = (error: Error) => void;
@@ -70,12 +58,14 @@ export class JsonlRpcClient {
   readonly #largeFrameThresholdBytes: number;
   readonly #maxBufferBytes: number;
   readonly #maxFrameBytes: number;
+  readonly #maxPendingRequests: number;
   readonly #notificationListeners = new Set<NotificationListener>();
   readonly #output: Writable;
   readonly #overloadRetryPolicy: RpcOverloadRetryPolicy;
   readonly #pending = new Map<number, RpcPendingRequest>();
   readonly #serverRequestListeners = new Set<ServerRequestListener>();
   readonly #workerUrl: URL | undefined;
+  readonly #writer: RpcWriteScheduler;
   readonly #frameBuffer = new JsonlChunkBuffer();
   #closed = false;
   #frameProcessor: JsonlFrameProcessor | undefined;
@@ -89,25 +79,32 @@ export class JsonlRpcClient {
     this.#output = options.output;
     this.#defaultTimeoutMs = options.defaultTimeoutMs ?? 30_000;
     this.#closeOnInputEnd = options.closeOnInputEnd ?? true;
-    this.#largeFrameThresholdBytes = validatePositiveSafeInteger(
-      options.largeFrameThresholdBytes ?? DEFAULT_LARGE_FRAME_THRESHOLD_BYTES,
-      "largeFrameThresholdBytes",
-    );
-    this.#maxFrameBytes = validatePositiveSafeInteger(
-      options.maxFrameBytes ?? DEFAULT_MAX_JSONL_BYTES,
-      "maxFrameBytes",
-    );
-    this.#maxBufferBytes = validatePositiveSafeInteger(
-      options.maxBufferBytes ?? DEFAULT_MAX_JSONL_BYTES,
-      "maxBufferBytes",
-    );
+    const limits = getRpcFrameLimits(options);
+    this.#largeFrameThresholdBytes = limits.largeFrameThresholdBytes;
+    this.#maxFrameBytes = limits.maxFrameBytes;
+    this.#maxBufferBytes = limits.maxBufferBytes;
     this.#overloadRetryPolicy = createRpcOverloadRetryPolicy(options.overloadRetry);
     this.#workerUrl = options.workerUrl;
+    this.#maxPendingRequests = validatePositiveSafeInteger(
+      options.maxPendingRequests ?? DEFAULT_MAX_PENDING_REQUESTS,
+      "maxPendingRequests",
+    );
+    this.#writer = new RpcWriteScheduler({
+      output: this.#output,
+      maxBytes: options.maxWriteBufferBytes,
+      maxMessages: options.maxPendingWrites,
+      defaultTimeoutMs: this.#defaultTimeoutMs,
+      onFailure: (error) => {
+        this.#fail(error);
+      },
+    });
 
     this.#input.on("data", this.#handleData);
     this.#input.on("end", this.#handleInputEnd);
     this.#input.on("error", this.#handleStreamError);
     this.#output.on("error", this.#handleStreamError);
+    this.#output.on("close", this.#handleOutputEnd);
+    this.#output.on("finish", this.#handleOutputEnd);
   }
 
   public get closed(): boolean {
@@ -125,8 +122,13 @@ export class JsonlRpcClient {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
       throw new RangeError("RPC timeout must be a positive finite number");
     }
+    if (this.#pending.size >= this.#maxPendingRequests) {
+      return Promise.reject(new RpcWriteQueueFullError("RPC pending request limit exceeded"));
+    }
 
+    const deadline = Date.now() + timeoutMs;
     const id = this.#nextRequestId++;
+    const timeoutError = new RpcTimeoutError(id, method, timeoutMs);
     const request = params === undefined ? { id, method } : { id, method, params };
     return new Promise<unknown>((resolve, reject) => {
       const onAbort = () => {
@@ -135,30 +137,31 @@ export class JsonlRpcClient {
       };
       const pending = new RpcPendingRequest({
         cleanup: () => signal?.removeEventListener("abort", onAbort),
+        deadline,
         onTimeout: () => {
           if (this.#removePending(id, pending)) {
-            pending.reject(new RpcTimeoutError(id, method, timeoutMs));
+            pending.reject(timeoutError);
           }
         },
         reject,
         request,
         resolve,
-        timeoutMs,
+        timeoutError,
       });
       this.#pending.set(id, pending);
       signal?.addEventListener("abort", onAbort, { once: true });
 
-      try {
-        void this.#sendMessage(request).catch(() => undefined);
-      } catch {
-        // #sendMessage 已关闭连接并拒绝当前 Pending RPC。
-      }
+      this.#sendRequest(id, pending);
     });
   }
 
   public notify(method: string, params?: unknown): void {
+    this.#assertOpen();
     const notification = params === undefined ? { method } : { method, params };
-    void this.#sendMessage(notification).catch(() => undefined);
+    // 通知没有 Promise 返回值；无法交付时显式失败，避免静默丢弃握手等协议消息。
+    void this.#writer.send(notification).catch((error: unknown) => {
+      this.#fail(error instanceof Error ? error : new RpcConnectionClosedError());
+    });
   }
 
   public onNotification(listener: NotificationListener): () => void {
@@ -186,43 +189,44 @@ export class JsonlRpcClient {
     if (!isRequestId(id)) {
       throw new TypeError("RPC request id must be a string or finite number");
     }
-    return this.#sendMessage({ id, result });
+    this.#assertOpen();
+    return this.#writer.send({ id, result });
   }
 
   public rejectServerRequest(id: RpcRequestId, error: RpcErrorPayload): Promise<void> {
     if (!isRequestId(id)) {
       throw new TypeError("RPC request id must be a string or finite number");
     }
-    return this.#sendMessage({ error, id });
+    this.#assertOpen();
+    return this.#writer.send({ error, id });
   }
 
-  #sendMessage(message: unknown): Promise<void> {
-    this.#assertOpen();
-    let pendingWrite: Promise<void>;
-    try {
-      pendingWrite = writeRpcMessage(this.#output, message, this.#defaultTimeoutMs);
-    } catch (error) {
-      const connectionError = this.#toConnectionError(error);
-      this.#fail(connectionError);
-      throw connectionError;
-    }
-    return pendingWrite.catch((error: unknown) => {
-      const connectionError = this.#toConnectionError(error);
-      this.#fail(connectionError);
-      throw connectionError;
-    });
+  #sendRequest(id: number, pending: RpcPendingRequest): void {
+    void this.#writer
+      .send(
+        pending.request,
+        pending.deadline,
+        pending.timeoutError,
+        id,
+        () => this.#pending.get(id) === pending,
+      )
+      .catch((error: unknown) => {
+        if (this.#removePending(id, pending))
+          pending.reject(error instanceof Error ? error : new RpcConnectionClosedError());
+      });
   }
 
   public close(reason: Error = new RpcConnectionClosedError()): void {
-    if (this.#closed) {
-      return;
-    }
+    if (this.#closed) return;
     this.#closed = true;
+    this.#writer.close(reason);
 
     this.#input.off("data", this.#handleData);
     this.#input.off("end", this.#handleInputEnd);
     this.#input.off("error", this.#handleStreamError);
     this.#output.off("error", this.#handleStreamError);
+    this.#output.off("close", this.#handleOutputEnd);
+    this.#output.off("finish", this.#handleOutputEnd);
 
     for (const pending of this.#pending.values()) {
       pending.reject(reason);
@@ -305,6 +309,10 @@ export class JsonlRpcClient {
 
   readonly #handleStreamError = (error: Error): void => {
     this.#fail(new RpcConnectionClosedError(`RPC stream failed: ${error.message}`));
+  };
+
+  readonly #handleOutputEnd = (): void => {
+    this.#fail(new RpcConnectionClosedError("RPC output stream ended"));
   };
 
   #failOversizedFrame(frameBytes: number): void {
@@ -429,7 +437,10 @@ export class JsonlRpcClient {
 
   #handleResponse(id: number, message: Record<string, unknown>): void {
     const pending = this.#pending.get(id);
-    if (!pending) {
+    if (!pending) return;
+    if (Date.now() >= pending.deadline) {
+      this.#removePending(id, pending);
+      pending.reject(pending.timeoutError);
       return;
     }
 
@@ -444,11 +455,7 @@ export class JsonlRpcClient {
           if (this.#pending.get(id) !== pending) {
             return;
           }
-          try {
-            void this.#sendMessage(pending.request).catch(() => undefined);
-          } catch {
-            // #sendMessage 已关闭连接并拒绝当前 Pending RPC。
-          }
+          this.#sendRequest(id, pending);
         });
         if (scheduled) {
           return;
@@ -466,35 +473,22 @@ export class JsonlRpcClient {
   }
 
   #removePending(id: number, pending: RpcPendingRequest): boolean {
-    if (this.#pending.get(id) !== pending) {
-      return false;
-    }
+    if (this.#pending.get(id) !== pending) return false;
     this.#pending.delete(id);
     pending.clearTimers();
+    this.#writer.cancel(id, createRpcAbortError());
     return true;
   }
 
   #assertOpen(): void {
-    if (this.#closed) {
-      throw new RpcConnectionClosedError();
-    }
+    if (this.#closed) throw new RpcConnectionClosedError();
   }
 
   #fail(error: Error): void {
-    if (this.#closed) {
-      return;
-    }
+    if (this.#closed) return;
     for (const listener of this.#errorListeners) {
       listener(error);
     }
     this.close(error);
-  }
-
-  #toConnectionError(error: unknown): RpcConnectionClosedError {
-    if (error instanceof RpcConnectionClosedError) {
-      return error;
-    }
-    const reason = error instanceof Error ? error.message : String(error);
-    return new RpcConnectionClosedError(`RPC write failed: ${reason}`);
   }
 }
