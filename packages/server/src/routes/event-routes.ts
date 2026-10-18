@@ -1,40 +1,18 @@
 import { MAX_EVENT_BATCH_SIZE, type AgentEvent, type EventStreamMessage } from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
-import type { WebSocket } from "ws";
 import { sendEventStreamEvents, sendEventStreamMessage } from "../event-socket-sender.js";
+import { scheduleSessionExpiry } from "../websocket-lifecycle.js";
 
 import { ACCESS_SESSION_COOKIE } from "./access-routes.js";
 import type { ServerRouteContext } from "./context.js";
 import { EventQuerySchema, ProjectParamsSchema } from "./schemas.js";
-
-const MAX_TIMER_DELAY_MS = 2_147_483_647;
-
-export function scheduleSessionExpiry(socket: WebSocket, expiresAt: number): () => void {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const expire = () => {
-    const remainingMs = expiresAt - Date.now();
-    if (remainingMs <= 0) {
-      socket.close(1008, "Access session expired");
-      return;
-    }
-    // Node 定时器有 32 位延迟上限，长会话分段等待但仍使用固定绝对期限。
-    timer = setTimeout(expire, Math.min(remainingMs, MAX_TIMER_DELAY_MS));
-    timer.unref();
-  };
-  expire();
-  return () => {
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
-  };
-}
 
 export const registerEventRoutes: FastifyPluginCallback<ServerRouteContext> = (
   app,
   context,
   done,
 ) => {
-  const { accessService, getProjectContext, projectContexts } = context;
+  const { accessService, getProjectContext, projectContexts, websocketLifecycle } = context;
 
   app.get<{ Params: { projectId: string }; Querystring: { afterSequence: number } }>(
     "/v1/projects/:projectId/events",
@@ -71,19 +49,14 @@ export const registerEventRoutes: FastifyPluginCallback<ServerRouteContext> = (
         sessionExpiresAt === undefined || sessionExpiresAt === null
           ? () => undefined
           : scheduleSessionExpiry(socket, sessionExpiresAt);
-      const cleanup = () => {
-        if (cleanedUp) {
-          return;
-        }
+      const cleanup = websocketLifecycle.track(socket, () => {
         cleanedUp = true;
         liveEvents.length = 0;
         cancelSessionExpiry();
         cancelInvalidation();
         unsubscribe();
         context.transportMetrics.activeClients -= 1;
-      };
-      socket.once("close", cleanup);
-      socket.once("error", cleanup);
+      });
       cancelInvalidation =
         accessService?.onInvalidated(request.cookies[ACCESS_SESSION_COOKIE], () => {
           cleanup();

@@ -13,6 +13,7 @@ import { AccessSessionService, type CodexlyAccessOptions } from "./access-contro
 import { ACCESS_SESSION_COOKIE } from "./routes/access-routes.js";
 import { recordRequestError } from "./request-logging.js";
 import { MutationHttpError } from "./routes/context.js";
+import { WebSocketLifecycle } from "./websocket-lifecycle.js";
 
 function isInternalTemporaryProjectPath(pathname: string): boolean {
   const prefix = "/v1/projects/";
@@ -96,7 +97,16 @@ export interface ConfigureServerDeliveryOptions {
 export async function configureServerDelivery(
   app: FastifyInstance,
   options: ConfigureServerDeliveryOptions,
-): Promise<AccessSessionService | undefined> {
+): Promise<{
+  accessService: AccessSessionService | undefined;
+  websocketLifecycle: WebSocketLifecycle;
+}> {
+  const websocketLifecycle = new WebSocketLifecycle();
+  app.addHook("preClose", (done) => {
+    // 服务关闭时同步终止连接并释放订阅，避免等待半开连接完成关闭握手。
+    websocketLifecycle.close();
+    done();
+  });
   await app.register(fastifyWebsocket, { options: { maxPayload: 64 * 1024 } });
   await app.register(fastifyCookie);
   // 只构造精确域名集合，不读取代理头或提供通配回退。
@@ -265,5 +275,5 @@ export async function configureServerDelivery(
       return reply.code(404).send({ code: "NOT_FOUND", message: "Route not found" });
     });
   }
-  return accessService;
+  return { accessService, websocketLifecycle };
 }

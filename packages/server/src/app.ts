@@ -292,7 +292,6 @@ export async function createCodexlyServer(
     const runtimeDefaults = engine === "codex" ? await options.provider.readDefaultSettings() : {};
     return resolveGlobalSettings(catalog, stored, runtimeDefaults);
   };
-
   const readEffectiveProjectDefaults = async (
     projectId: string,
     models?: readonly AgentModel[],
@@ -377,7 +376,7 @@ export async function createCodexlyServer(
   const idempotencyCacheSize = options.idempotencyCacheSize ?? DEFAULT_IDEMPOTENCY_CACHE_SIZE;
   const idempotencyTtlMs = options.idempotencyTtlMs ?? DEFAULT_IDEMPOTENCY_TTL_MS;
   const idempotencyRunner = createIdempotencyRunner(idempotencyCacheSize, idempotencyTtlMs);
-  const accessService = await configureServerDelivery(app, {
+  const { accessService, websocketLifecycle } = await configureServerDelivery(app, {
     ...(options.access === undefined ? {} : { access: options.access }),
     ...(options.allowedHosts === undefined ? {} : { allowedHosts: options.allowedHosts }),
     releaseResources: async () => {
@@ -395,6 +394,7 @@ export async function createCodexlyServer(
     ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot }),
   });
   const routeContext: ServerRouteContext = {
+    websocketLifecycle,
     workbenchChanges,
     ...(options.asyncQuestionRepository === undefined
       ? {}

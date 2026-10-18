@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { WorkbenchChange } from "@codexly/protocol";
 import { ACCESS_SESSION_COOKIE } from "./access-routes.js";
 import type { ServerRouteContext } from "./context.js";
-import { scheduleSessionExpiry } from "./event-routes.js";
+import { scheduleSessionExpiry } from "../websocket-lifecycle.js";
 
 export function registerWorkbenchEvents(app: FastifyInstance, context: ServerRouteContext) {
   registerResourceChangeEvents<WorkbenchChange>(
@@ -16,7 +16,7 @@ export function registerWorkbenchEvents(app: FastifyInstance, context: ServerRou
 
 export function registerResourceChangeEvents<T>(
   app: FastifyInstance,
-  context: Pick<ServerRouteContext, "accessService">,
+  context: Pick<ServerRouteContext, "accessService" | "websocketLifecycle">,
   path: string,
   initial: T,
   subscribe: (listener: (change: T) => void) => () => void,
@@ -31,6 +31,21 @@ export function registerResourceChangeEvents<T>(
       expiresAt == null ? () => undefined : scheduleSessionExpiry(socket, expiresAt);
     const pending = new Set<string>();
     let closed = false;
+    let unsubscribe: () => void = () => undefined;
+    let cancelInvalidation: () => void = () => undefined;
+    const cleanup = context.websocketLifecycle.track(socket, () => {
+      closed = true;
+      unsubscribe();
+      pending.clear();
+      cancelExpiry();
+      cancelInvalidation();
+    });
+    cancelInvalidation =
+      context.accessService?.onInvalidated(request.cookies[ACCESS_SESSION_COOKIE], () => {
+        cleanup();
+        socket.close(1008, "Access session expired");
+      }) ?? (() => undefined);
+    if (socket.readyState !== socket.OPEN) return;
     const send = (frame: string) => {
       if (closed || socket.readyState !== 1) return;
       if (socket.bufferedAmount > 65_536) {
@@ -42,7 +57,7 @@ export function registerResourceChangeEvents<T>(
       });
     };
     // 多个同步变更合并为一个通知；只发送失效信号，不广播提示词和历史记录。
-    const unsubscribe = subscribe((change) => {
+    unsubscribe = subscribe((change) => {
       if (closed) return;
       const queued = pending.size > 0;
       pending.add(JSON.stringify(change));
@@ -57,36 +72,6 @@ export function registerResourceChangeEvents<T>(
         pending.clear();
       });
     });
-    let alive = true;
-    socket.on("pong", () => {
-      alive = true;
-    });
-    const heartbeat = setInterval(() => {
-      if (!alive) {
-        socket.terminate();
-        return;
-      }
-      alive = false;
-      socket.ping();
-    }, 30_000);
-    heartbeat.unref();
-    let cancelInvalidation: () => void = () => undefined;
-    const cleanup = () => {
-      if (closed) return;
-      closed = true;
-      unsubscribe();
-      pending.clear();
-      cancelExpiry();
-      cancelInvalidation();
-      clearInterval(heartbeat);
-    };
-    socket.once("close", cleanup);
-    socket.once("error", cleanup);
-    cancelInvalidation =
-      context.accessService?.onInvalidated(request.cookies[ACCESS_SESSION_COOKIE], () => {
-        cleanup();
-        socket.close(1008, "Access session expired");
-      }) ?? (() => undefined);
     // 首次连接和重连均校准，覆盖断线期间遗漏的执行。
     send(JSON.stringify(initial));
   });
