@@ -33,7 +33,15 @@ pub(super) fn bundled_codex_binary_path(resources: &Path) -> PathBuf {
 pub async fn inspect_codex_runtime(resources: &Path) -> CodexRuntimeAvailability {
     let binary = bundled_codex_binary_path(resources);
     let (status, detected_version) = match fs::symlink_metadata(&binary).await {
-        Err(error) if error.kind() == io::ErrorKind::NotFound => (Status::Missing, None),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            // Windows 对父路径为文件也返回 NotFound，不能将损坏的资源根目录报告为缺失。
+            let status = match fs::metadata(resources).await {
+                Ok(metadata) if !metadata.is_dir() => Status::Failed,
+                Err(error) if error.kind() != io::ErrorKind::NotFound => Status::Failed,
+                _ => Status::Missing,
+            };
+            (status, None)
+        }
         Err(_) => (Status::Failed, None),
         Ok(metadata) if !metadata.is_file() => (Status::Failed, None),
         Ok(_) => match probe_codex_version(&binary, None).await {

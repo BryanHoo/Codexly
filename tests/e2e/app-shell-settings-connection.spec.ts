@@ -14,7 +14,10 @@ test("connects a custom API from the provider gate and reuses it in settings", a
   await mockAppShellApi(page, { providerConnected: false });
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { exact: true, name: "Codexly" })).toBeVisible();
+  await expect(page.getByRole("heading", { exact: true, name: "选择编程助手" })).toBeVisible();
+  await page.getByRole("button", { name: "Codex OpenAI", exact: true }).click();
+  await page.getByRole("button", { name: "继续", exact: true }).click();
+  await expect(page.getByRole("heading", { exact: true, name: "连接 Codex" })).toBeVisible();
   const officialModeButton = page.getByRole("button", { name: "ChatGPT", exact: true });
   const customModeButton = page.getByRole("button", { name: "自定义 API" });
   await expect(officialModeButton).toHaveCSS("align-items", "center");
@@ -24,7 +27,7 @@ test("connects a custom API from the provider gate and reuses it in settings", a
   await customModeButton.click();
   await page.getByRole("textbox", { name: "API 地址" }).fill("https://api.example.com/v1/");
   await page.getByLabel("API 密钥（可选）").fill("e2e-secret");
-  await page.getByRole("button", { exact: true, name: "连接" }).click();
+  await page.getByRole("button", { exact: true, name: "连接并开始使用" }).click();
 
   await expect(page).toHaveURL(/\/p\/codexly$/u);
   await page.getByRole("button", { exact: true, name: "设置" }).click();
@@ -372,7 +375,10 @@ test("automatically saves browser preferences", async ({ page }) => {
     "aria-checked",
     "false",
   );
-  await page.getByRole("button", { name: "Agent configuration" }).click();
+  await page
+    .getByRole("group", { name: "Codex", exact: true })
+    .getByRole("button", { name: "Agent configuration" })
+    .click();
   await expect(page.getByRole("combobox", { name: "Reasoning effort" })).toBeVisible();
   await page.getByRole("button", { name: "Back to app" }).click();
   await expect(page.locator("h1").filter({ hasText: "构建 macOS 工作台" })).toBeVisible();

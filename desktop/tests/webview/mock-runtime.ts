@@ -114,6 +114,7 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
           updateAvailable: false,
         },
         get_global_settings: { settings },
+        get_configured_engines: ["codex"],
         get_project_defaults: { settings: projectDefaults },
         get_project_git_status: gitStatus,
         get_project_open_capabilities: {
@@ -161,6 +162,19 @@ export async function releaseApplicationStartup(): Promise<void> {
   await browser.execute(() => {
     window.__CODEAGENT_WEBVIEW_TEST_READY__ = true;
   });
+}
+
+export async function connectMockProvider(apiKey?: string): Promise<void> {
+  const settings = await $("aria/设置");
+  await settings.waitForClickable();
+  await settings.click();
+  const codex = await $('[role="group"][aria-label="Codex"]');
+  await codex.$("aria/模型服务").click();
+  await $("aria/自定义 API").click();
+  await $("aria/API 地址").setValue("https://gateway.test/v1");
+  if (apiKey) await $("aria/API 密钥（可选）").setValue(apiKey);
+  await $("aria/返回应用").click();
+  await settings.waitForClickable();
 }
 
 export async function passthroughNativeCommands(commands: readonly string[]): Promise<void> {

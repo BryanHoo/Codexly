@@ -99,6 +99,29 @@ export async function handleAppShellCoreRoute(
     };
   } else if (url.pathname === "/v1/provider-connection") {
     body = state.providerStatus;
+  } else if (url.pathname === "/v1/engines/claude") {
+    body = {
+      engine: "claude",
+      authType: "apiKey",
+      configuredModels: [],
+      capabilities: {
+        provider: "claude",
+        feedback: { upload: false },
+        goals: { clear: false, read: false, update: false },
+        skills: { list: false, use: false },
+        tasks: { fork: true, list: true, read: true, start: true },
+        turns: { compact: true, interrupt: true, review: false, start: true, steer: false },
+      },
+      models: { data: [], nextCursor: null },
+      commands: [],
+      connection: {
+        account: null,
+        customBaseUrl: null,
+        mode: "custom",
+        pendingLogin: null,
+        state: "disconnected",
+      },
+    };
   } else if (
     url.pathname === "/v1/provider-connection/custom" &&
     route.request().method() === "PUT"

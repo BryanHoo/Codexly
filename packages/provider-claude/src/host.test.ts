@@ -1,5 +1,12 @@
 import { EventEmitter } from "node:events";
 import { expect, it, vi } from "vitest";
+import { createHostOutputStream } from "./host-output.js";
+import type * as HostOutputModule from "./host-output.js";
+
+vi.mock("./host-output.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof HostOutputModule>()),
+  createHostOutputStream: vi.fn(),
+}));
 
 vi.mock("./runtime.js", () => ({
   ClaudeRuntime: class {
@@ -24,6 +31,7 @@ it("stops writing host responses until stdout drains", async () => {
   const output = new EventEmitter();
   const write = vi.fn(() => false);
   Object.assign(output, { write, writableLength: 0, destroyed: false });
+  vi.mocked(createHostOutputStream).mockReturnValue(output as typeof process.stdout);
   vi.spyOn(process, "stdin", "get").mockReturnValue(input as typeof process.stdin);
   vi.spyOn(process, "stdout", "get").mockReturnValue(output as typeof process.stdout);
   vi.spyOn(process, "argv", "get").mockReturnValue(["node", "host", "/tmp/data", "/tmp/claude"]);

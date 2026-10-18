@@ -1,7 +1,7 @@
 import { browser, expect } from "@wdio/globals";
 
 import { streamTaskResponse } from "./fixtures.js";
-import { installWebviewMocks } from "./mock-runtime.js";
+import { connectMockProvider, installWebviewMocks } from "./mock-runtime.js";
 
 const SAMPLE_COUNT = 10;
 const STARTUP_BUDGET_MS = Number(process.env.CODEAGENT_STARTUP_BUDGET_MS ?? "5000");
@@ -31,7 +31,7 @@ async function measureStartupToInteractive(): Promise<number> {
     const inspect = () => {
       const interactive = [...document.querySelectorAll("button")].some(
         (button) =>
-          button.textContent?.includes("自定义 API") === true &&
+          button.getAttribute("aria-label") === "设置" &&
           !button.disabled &&
           button.getClientRects().length > 0,
       );
@@ -154,11 +154,7 @@ describe("原生 WebView 性能基线", () => {
     );
     const startupToInteractiveMs = await measureStartupToInteractive();
 
-    const customMode = await $("aria/自定义 API");
-    await customMode.waitForClickable();
-    await customMode.click();
-    await $("aria/API Base URL").setValue("https://gateway.test/v1");
-    await $("aria/连接").click();
+    await connectMockProvider();
     await expect($("aria/切换项目 CodeAgent")).toBeDisplayed();
 
     await mocks.readTask.mockResolvedValue(streamTaskResponse);

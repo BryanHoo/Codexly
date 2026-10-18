@@ -222,7 +222,7 @@ test("uses subtle hairline separation across registered routes", async ({ page }
     {
       path: "/p/codexly",
       selector: "main header",
-      border: "borderBottomWidth",
+      border: "border-bottom-width",
       offset: "0px 1px 0px 0px",
     },
   ] as const;
@@ -232,17 +232,12 @@ test("uses subtle hairline separation across registered routes", async ({ page }
     await page.locator("html").evaluate((root) => {
       root.setAttribute("data-theme", "light");
     });
-    const styles = await page.locator(surface.selector).evaluate((element, border) => {
-      const computed = getComputedStyle(element);
-      return {
-        borderWidth: computed[border],
-        boxShadow: computed.boxShadow,
-      };
-    }, surface.border);
-
-    expect(styles.borderWidth).toBe("0px");
-    expect(styles.boxShadow).toContain("rgba(23, 23, 23, 0.06)");
-    expect(styles.boxShadow).toContain(surface.offset);
+    const header = page.locator(surface.selector);
+    await expect(header).toHaveCSS(surface.border, "0px");
+    await expect(header).toHaveCSS("box-shadow", /rgba\(23, 23, 23, 0\.06\)/u);
+    await expect
+      .poll(() => header.evaluate((element) => getComputedStyle(element).boxShadow))
+      .toContain(surface.offset);
   }
 });
 

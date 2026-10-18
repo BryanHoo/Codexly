@@ -19,7 +19,7 @@ import type { AgentProviderTurnInput, ResolvePendingRequestInput } from "@codexl
 import type { ClaudeSettings, ConfigureCustomProviderRequest } from "@codexly/protocol";
 import { ClaudeRuntime } from "./runtime.js";
 import { record } from "./sdk-values.js";
-import { HostOutput } from "./host-output.js";
+import { createHostOutputStream, HostOutput } from "./host-output.js";
 
 // 构建时从已安装 SDK 注入版本，应用下载清单与宿主始终使用同一依赖版本。
 declare const CODEXLY_CLAUDE_SDK_VERSION: string;
@@ -55,7 +55,7 @@ if (process.argv.includes("--version")) {
       process.stdin.destroy();
     }
   };
-  const output = new HostOutput(process.stdout, close);
+  const output = new HostOutput(createHostOutputStream(process.stdout.fd), close);
   const send = (message: Record<string, unknown>) => output.send(message);
   const store: LocalCatalogStore = {
     async catalog<K extends keyof CatalogOperations>(

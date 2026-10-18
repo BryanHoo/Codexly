@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { constants, createReadStream } from "node:fs";
 import { open, stat } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import type { AgentTurn } from "@codexly/protocol";
@@ -69,7 +69,11 @@ export class ClaudeSummaryHistory {
       bytes = 0;
       sourceEnd = 0;
     }
-    const index = await open(`${this.path(task)}.summary-index`, "a+", 0o600);
+    const index = await open(
+      `${this.path(task)}.summary-index`,
+      constants.O_CREAT | constants.O_RDWR,
+      0o600,
+    );
     try {
       await index.truncate(bytes);
       const input = createReadStream(`${this.path(task)}.jsonl`, {
@@ -85,7 +89,7 @@ export class ClaudeSummaryHistory {
           if (sourceEnd > size) throw new Error("Incomplete Claude history record");
           const entry = this.#entry(turn.id, sourceEnd);
           try {
-            if ((await index.write(entry)).bytesWritten !== ENTRY_BYTES)
+            if ((await index.write(entry, bytes)).bytesWritten !== ENTRY_BYTES)
               throw new Error("Incomplete Claude summary index write");
           } catch (error) {
             await index.truncate(bytes);
@@ -107,10 +111,14 @@ export class ClaudeSummaryHistory {
     );
   }
   async append(task: string, turn: string, sourceEnd: number): Promise<void> {
-    const file = await open(`${this.path(task)}.summary-index`, "a+", 0o600);
+    const file = await open(
+      `${this.path(task)}.summary-index`,
+      constants.O_CREAT | constants.O_RDWR,
+      0o600,
+    );
     const size = (await file.stat()).size;
     try {
-      if ((await file.write(this.#entry(turn, sourceEnd))).bytesWritten !== ENTRY_BYTES)
+      if ((await file.write(this.#entry(turn, sourceEnd), size)).bytesWritten !== ENTRY_BYTES)
         throw new Error("Incomplete Claude summary index write");
     } catch (error) {
       await file.truncate(size);

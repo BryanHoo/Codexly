@@ -1,4 +1,30 @@
-import type { Writable } from "node:stream";
+import { write } from "node:fs";
+import { Writable } from "node:stream";
+
+/** Bun 的 Windows stdout 同步写会阻塞事件循环，异步 fd 写入保留背压和退出截止时间。 */
+export function createHostOutputStream(fd: number): Writable {
+  return new Writable({
+    write(chunk: Buffer, _encoding, callback) {
+      let offset = 0;
+      const next = () => {
+        write(fd, chunk, offset, chunk.length - offset, null, (error, bytes) => {
+          if (error) {
+            callback(error);
+            return;
+          }
+          if (!bytes) {
+            callback(new Error("Claude host stdout write made no progress"));
+            return;
+          }
+          offset += bytes;
+          if (offset < chunk.length) next();
+          else callback();
+        });
+      };
+      next();
+    },
+  });
+}
 
 export const HOST_OUTPUT_BUDGET = 8 * 1024 * 1024;
 interface Frame {

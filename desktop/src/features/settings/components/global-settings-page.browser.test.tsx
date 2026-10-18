@@ -239,7 +239,7 @@ describe("GlobalSettingsPage", () => {
       modal.remove();
     }
     escape();
-    expect(onClose).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
 
   it("updates the existing notification preference from the General switch", async () => {

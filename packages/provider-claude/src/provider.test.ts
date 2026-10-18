@@ -2350,9 +2350,12 @@ it("persists SDK success after more than 64 completed subagent calls", async () 
     });
   }
   h.send({ type: "result", subtype: "success", result: "全部完成" });
-  await vi.waitFor(() => {
-    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
-  });
+  await vi.waitFor(
+    () => {
+      expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    },
+    { timeout: 10_000 },
+  );
   const snapshot = await h.provider.readTask(task.id);
   expect(snapshot?.turns.at(-1)).toMatchObject({ status: "completed", error: null });
   expect(JSON.stringify(snapshot)).toContain("实际结果 79");

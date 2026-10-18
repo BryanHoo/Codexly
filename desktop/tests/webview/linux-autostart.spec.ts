@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { browser, expect } from "@wdio/globals";
-import { installWebviewMocks, passthroughNativeCommands, releaseApplicationStartup } from "./mock-runtime.js";
+import { connectMockProvider, installWebviewMocks, passthroughNativeCommands, releaseApplicationStartup } from "./mock-runtime.js";
 
 const entryPath = join(homedir(), ".config", "autostart", "Codexly.desktop");
 let backupDirectory: string | undefined;
@@ -28,10 +28,7 @@ describeLinux("Linux native login startup", () => {
     await installWebviewMocks();
     await passthroughNativeCommands(["enable_autostart", "plugin:autostart|disable", "plugin:autostart|is_enabled"]);
     await releaseApplicationStartup();
-    await $("aria/自定义 API").waitForClickable();
-    await $("aria/自定义 API").click();
-    await $("aria/API Base URL").setValue("https://gateway.test/v1");
-    await $("aria/连接").click();
+    await connectMockProvider();
     await $("#global-settings-trigger").waitForClickable();
     await $("#global-settings-trigger").click();
   });

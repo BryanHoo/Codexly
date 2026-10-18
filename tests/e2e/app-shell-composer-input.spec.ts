@@ -368,7 +368,7 @@ test("toggles the completed execution process from the processing time", async (
 
   await expect(page.getByText("实现与检查已完成。", { exact: true })).toBeVisible();
   await expect(page.getByText("正在读取项目配置。", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("read_file", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("read_file · package.json", { exact: true })).toHaveCount(0);
   await expect(page.getByText("pnpm check", { exact: true })).toHaveCount(0);
   await expect(page.locator("[data-operation-group]")).toHaveCount(0);
 
@@ -377,7 +377,7 @@ test("toggles the completed execution process from the processing time", async (
   await expandProcess.click();
 
   await expect(page.getByText("正在读取项目配置。", { exact: true })).toBeVisible();
-  await expect(page.getByText("read_file", { exact: true })).toBeVisible();
+  await expect(page.getByText("read_file · package.json", { exact: true })).toBeVisible();
   await expect(page.getByText("pnpm check", { exact: true })).toBeVisible();
   await expect(page.locator("[data-operation-group]")).toHaveCount(0);
   const collapseProcess = page.getByRole("button", { name: "收起执行过程" });
@@ -385,7 +385,7 @@ test("toggles the completed execution process from the processing time", async (
   await collapseProcess.click();
 
   await expect(page.getByText("正在读取项目配置。", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("read_file", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("read_file · package.json", { exact: true })).toHaveCount(0);
   await expect(page.getByText("pnpm check", { exact: true })).toHaveCount(0);
 });
 
@@ -444,17 +444,17 @@ test("summarizes terminal operations after assistant text resumes", async ({ pag
   const operationSummary = page.locator("[data-operation-group] > summary");
   await expect(operationSummary).toContainText("操作完成：调用 1 个工具，执行 1 条命令");
   await expect(operationSummary).toHaveAttribute("aria-expanded", "false");
-  await expect(page.getByText("read_file", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("read_file · package.json", { exact: true })).toHaveCount(0);
   await expect(page.getByText("pnpm check", { exact: true })).toHaveCount(0);
 
   await operationSummary.click();
   await expect(operationSummary).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByText("read_file", { exact: true })).toBeVisible();
+  await expect(page.getByText("read_file · package.json", { exact: true })).toBeVisible();
   await expect(page.getByText("pnpm check", { exact: true })).toBeVisible();
   await expect(page.getByText(/TOOL_OUTPUT_VISIBLE/u)).toHaveCount(0);
 
-  await page.getByText("read_file", { exact: true }).click();
+  await page.getByText("read_file · package.json", { exact: true }).click();
   await expect(page.getByText(/TOOL_OUTPUT_VISIBLE/u)).toBeVisible();
   await operationSummary.click();
-  await expect(page.getByText("read_file", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("read_file · package.json", { exact: true })).toHaveCount(0);
 });

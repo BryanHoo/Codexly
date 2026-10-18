@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { constants } from "node:fs";
 import { access, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
@@ -81,7 +82,8 @@ export class ClaudeItemHistory {
       }
     }
     await mkdir(directory, { recursive: true, mode: 0o700 });
-    const index = await open(join(directory, "index"), "a+", 0o600);
+    // Windows 追加句柄不允许 truncate；写入位置由串行任务队列显式管理。
+    const index = await open(join(directory, "index"), constants.O_CREAT | constants.O_RDWR, 0o600);
     try {
       // 进程在追加索引中途退出时，截去不完整尾部；摘要落后于索引则重新确认引用。
       let end = Math.floor((await index.stat()).size / INDEX_ENTRY_BYTES) * INDEX_ENTRY_BYTES;
@@ -115,7 +117,7 @@ export class ClaudeItemHistory {
           await this.#atomic(path, { offset, item });
         if (offset === end) {
           try {
-            const written = await index.write(key);
+            const written = await index.write(key, end);
             if (written.bytesWritten !== INDEX_ENTRY_BYTES)
               throw new Error("Incomplete Claude item index write");
           } catch (error) {

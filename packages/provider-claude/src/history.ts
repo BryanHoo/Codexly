@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { constants, createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import {
   appendFile,
@@ -168,7 +168,7 @@ export class ClaudeHistory {
   async #append(task: string, encoded: string): Promise<void> {
     await this.#prepareSummaryIndex(task);
     const path = `${this.#path(task)}.jsonl`;
-    const file = await open(path, "a", 0o600);
+    const file = await open(path, constants.O_CREAT | constants.O_RDWR, 0o600);
     try {
       const size = (await file.stat()).size;
       try {

@@ -1,6 +1,4 @@
-use super::runtime_manager::{
-    bundled_codex_binary_path, inspect_codex_runtime, install_codex_runtime,
-};
+use super::runtime_manager::{inspect_codex_runtime, install_codex_runtime};
 use crate::domain::runtime::CodexRuntimeAvailabilityStatus as Status;
 
 #[tokio::test]
@@ -46,6 +44,7 @@ async fn old_user_installation_never_overrides_bundled_runtime() {
 #[cfg(unix)]
 #[tokio::test]
 async fn bundled_runtime_checks_version_and_rejects_corruption() {
+    use super::runtime_manager::bundled_codex_binary_path;
     use std::os::unix::fs::PermissionsExt;
     let directory = tempfile::tempdir().unwrap();
     let binary = bundled_codex_binary_path(directory.path());

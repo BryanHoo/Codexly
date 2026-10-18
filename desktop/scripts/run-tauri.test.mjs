@@ -143,8 +143,20 @@ void test("Windows releases should publish portable and updater NSIS artifacts",
 
   assert.match(
     workflow,
-    /- name: Windows x64 Portable[\s\S]*?args: --no-bundle --no-sign --ci[\s\S]*?uploadPlainBinary: true[\s\S]*?uploadUpdaterArtifacts: false/,
+    /- name: Windows x64 Portable[\s\S]*?args: --no-bundle --no-sign --ci[\s\S]*?portable: true[\s\S]*?uploadPlainBinary: false[\s\S]*?uploadUpdaterArtifacts: false/,
   );
+  assert.match(workflow, /- name: Build Windows portable application\s+if: matrix\.portable[\s\S]*?run: pnpm tauri build --no-bundle --no-sign --ci/);
+  const portablePackage = workflow.match(
+    /- name: Package Windows portable runtime\s+if: matrix\.portable[\s\S]*?(?=\n      - name:)/,
+  )?.[0];
+  assert.ok(portablePackage, "portable releases must package the application and its runtimes");
+  assert.ok(portablePackage.includes("Copy-Item desktop/src-tauri/target/release/codexly.exe $portableRoot"));
+  assert.ok(portablePackage.includes("Copy-Item desktop/src-tauri/binaries/claude-host-x86_64-pc-windows-msvc.exe (Join-Path $portableRoot 'claude-host.exe')"));
+  assert.ok(portablePackage.includes("Copy-Item desktop/src-tauri/resources/runtime (Join-Path $portableRoot 'runtime') -Recurse"));
+  assert.ok(portablePackage.includes('Compress-Archive -Path "$portableRoot/*"'));
+  assert.match(workflow, /- name: Preserve Windows portable archive\s+if: matrix\.portable[\s\S]*?name: windows-x64-portable[\s\S]*?path: \$\{\{ runner\.temp \}\}\/Codexly_\*_x64_portable\.zip/);
+  assert.match(workflow, /- name: Download Windows portable archive[\s\S]*?name: windows-x64-portable/);
+  assert.match(workflow, /- name: Upload complete Windows portable archive\s+run: gh release upload[^\n]*\/portable\/Codexly_\*_x64_portable\.zip --clobber/);
   assert.match(workflow, /releaseAssetNamePattern: "\[name\]_\[version\]_\[arch\]_portable\[ext\]"/);
   assert.match(
     workflow,
