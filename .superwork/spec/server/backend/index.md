@@ -37,3 +37,5 @@
 - Git 历史未推送状态与实际推送共用目标解析，遵循 `branch.<name>.pushRemote`、`remote.pushDefault`、分支远端及单远端回退优先级；空覆盖值按未配置回退；`push.default=upstream` 使用配置目标分支。固定同一 HEAD，批量按提交 SHA 和祖先关系比较本地远端引用，不按领先数量或列表序号标记，不隐式联网。缺失目标/引用时历史仍可读且省略标记；空仓库保持可读。回归见 `git-history-unpushed.test.ts`（分页、合并历史、不同拉取/推送远端、推送后清除）。
 
 - 目录和任务元数据由应用本地仓储独占管理；Project 必须恰好一个根目录。上游列表仅用于一次性事务导入；执行适配器翻译应用任务 ID 与 provider/sessionId，禁止用引擎列表覆盖本地管理状态。两端共享 SQL 契约和单选规则，变更须覆盖离线管理、迁移回滚与身份隔离测试。详见[本地目录与任务](../../../../docs/local-catalog.md)。
+
+- 公共设置 `GET/PUT /v1/settings?engine=claude` 只使用 Claude 模型目录及应用偏好，不调用 Codex 原生默认设置；保存只更新应用字段，保留已存的 Codex 专属字段。省略引擎保留 Codex 行为，幂等身份包含引擎。Git 提交说明请求可选 `engine`，Claude 通过引擎服务执行无持久聊天的短请求；异步问题按原任务 `engine` 校验模型。`engine-independence.test.ts` 用不可用的 Codex 覆盖三条链路。

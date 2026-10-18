@@ -1,4 +1,11 @@
 import {
+  engineSettingsPath,
+  type EngineSettingsScope,
+  type ReadOptions,
+  type MutationOptions,
+} from "./http-client-options.js";
+export type { ReadOptions, MutationOptions } from "./http-client-options.js";
+import {
   AccessStatusResponseSchema,
   AgentCapabilitiesSchema,
   AgentGlobalSettingsResponseSchema,
@@ -62,10 +69,6 @@ export type CodexlyRequestTimeouts = Readonly<{
   readMs: number;
 }>;
 
-export type ReadOptions = Readonly<{
-  signal?: AbortSignal;
-}>;
-
 export type ReadTaskOptions = ReadOptions & Readonly<{ cursor?: string; summary?: boolean }>;
 
 export type AgentAttachmentUploadInput = Readonly<{
@@ -81,11 +84,6 @@ export type ListTasksOptions = Readonly<{
   limit?: number;
   pinned?: true;
   searchTerm?: string;
-}>;
-
-export type MutationOptions = Readonly<{
-  idempotencyKey?: string;
-  signal?: AbortSignal;
 }>;
 
 export type UnauthorizedListener = () => void;
@@ -332,8 +330,10 @@ export class CodexlyTransport {
     );
   }
 
-  public async getGlobalSettings(options: ReadOptions = {}): Promise<AgentGlobalSettingsResponse> {
-    return this.read("/v1/settings", AgentGlobalSettingsResponseSchema, options);
+  public async getGlobalSettings(
+    options: ReadOptions & EngineSettingsScope = {},
+  ): Promise<AgentGlobalSettingsResponse> {
+    return this.read(engineSettingsPath(options), AgentGlobalSettingsResponseSchema, options);
   }
 
   public async listWorkbenchPets(options: ReadOptions = {}): Promise<WorkbenchPetCatalogResponse> {
@@ -354,10 +354,10 @@ export class CodexlyTransport {
 
   public async updateGlobalSettings(
     settings: AgentGlobalSettings,
-    options: MutationOptions = {},
+    options: MutationOptions & EngineSettingsScope = {},
   ): Promise<AgentGlobalSettingsResponse> {
     return this.mutation(
-      "/v1/settings",
+      engineSettingsPath(options),
       settings,
       AgentGlobalSettingsResponseSchema,
       options,

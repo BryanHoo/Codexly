@@ -204,7 +204,7 @@ export function useWorkbenchShellRuntime({
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation(appUpdateMutationOptions(client));
   const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
-  const modelsQuery = useQuery({ ...modelsQueryOptions(client), enabled: codexEnabled });
+  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
   const providerConnectionQuery = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
   const mcpServersQuery = useQuery(
     mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
@@ -218,7 +218,7 @@ export function useWorkbenchShellRuntime({
       );
     },
   });
-  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client));
+  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"));
   const projectOpenCapabilitiesQuery = useQuery(projectOpenCapabilitiesQueryOptions(client));
   const projectPathOpenMutation = useMutation({
     // 外部应用已经提供明确的成功反馈，仅保留失败 toast。
@@ -259,9 +259,9 @@ export function useWorkbenchShellRuntime({
     },
   });
   const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client),
+    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
     async onSuccess(response) {
-      queryClient.setQueryData(["settings"], response);
+      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
       if (!shouldRefreshTaskDefaults(response.changedFields)) {
         return;
       }

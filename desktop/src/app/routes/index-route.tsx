@@ -43,13 +43,13 @@ function IndexPage() {
   const queryClient = useQueryClient();
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation(appUpdateMutationOptions(client));
-  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client));
   const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
-  const modelsQuery = useQuery({ ...modelsQueryOptions(client), enabled: codexEnabled });
+  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"));
+  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
   const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client),
+    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
     onSuccess(response) {
-      queryClient.setQueryData(["settings"], response);
+      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
     },
   });
   const [globalSettingsSection, setGlobalSettingsSection] = useState<SidebarSettingsSection | null>(

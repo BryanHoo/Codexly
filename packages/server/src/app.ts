@@ -284,11 +284,12 @@ export async function createCodexlyServer(
   };
   const readEffectiveGlobalSettings = async (
     models?: readonly AgentModel[],
+    engine: "codex" | "claude" = "codex",
   ): Promise<AgentGlobalSettings> => {
-    const catalog = models ?? (await listModels());
+    const catalog = models ?? (await listModels(engine));
     const stored = await options.settingsRepository.readGlobalSettings();
     // Codex 是智能体默认值的来源；本地记录仅补齐未配置字段与应用专属偏好。
-    const runtimeDefaults = await options.provider.readDefaultSettings();
+    const runtimeDefaults = engine === "codex" ? await options.provider.readDefaultSettings() : {};
     return resolveGlobalSettings(catalog, stored, runtimeDefaults);
   };
 

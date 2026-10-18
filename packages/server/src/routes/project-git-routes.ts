@@ -57,6 +57,7 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
     getProjectContext,
     listModels,
     projectRepository,
+    provider: runtimeProvider,
     readEffectiveGlobalSettings,
     readProjectGitHistory,
     readProjectGitCommitFiles,
@@ -397,6 +398,19 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
             );
           });
           assertCommitSelection(status, request.body);
+          if (request.body.engine === "claude") {
+            const service = runtimeProvider.engines?.claude;
+            if (!service?.generateCommitMessage)
+              throw new MutationHttpError("PROVIDER_ERROR", "Claude engine is unavailable", 503);
+            const preferences = await readEffectiveGlobalSettings(undefined, "claude");
+            return {
+              message: await service.generateCommitMessage(
+                buildCommitMessagePrompt(status, request.body, preferences.commitMessagePrompt),
+                preferences.commitMessageModel,
+              ),
+              snapshot: status.snapshot,
+            };
+          }
           const models = await listModels();
           const globalSettings = await readEffectiveGlobalSettings(models);
           const commitSettings = resolveProjectDefaults(

@@ -5,6 +5,7 @@
 - Web 与桌面共用用户原生 Claude 配置：目录优先 `CLAUDE_CONFIG_DIR`，否则 `~/.claude`；不得重定向到应用私有运行目录。SDK 必须加载 `user`，按项目加载偏好追加 `project/local`；本机登录、钥匙串、环境变量、apiKeyHelper 和云认证交给 SDK，禁止强制覆盖认证方式。对外状态不得返回密钥。
 - 模型、思考强度、权限与工具规则合并保存到用户 `settings.json`；全局指令保存到用户 `CLAUDE.md`，不得重复 append。保留未知字段与未管理的权限规则；仅项目加载偏好和界面历史投影保留在私有目录。开发期直接使用用户原生配置，不迁移旧私有配置或 SDK 历史。
 - 配置读取以当前文件为准；用户/项目配置变更须使能力目录缓存失效。设置页聚焦时按需刷新，保留未保存的输入；无需轮询或重启正在执行的回合。SDK 的认证来源 `none` 不表示已连接。
+- 全局能力与认证探测只加载 SDK 的 `user` 设置源；不能因探测 cwd 为用户主目录而把 `~/.claude/settings.json` 再当作项目配置加载，绕过 `CLAUDE_CONFIG_DIR`。只有显式项目范围才按偏好追加 `project/local`，全局与项目范围即使 cwd 相同也不得共用能力缓存。`runtime.test.ts` 覆盖设置源与同路径缓存隔离；真实单 Codex 环境中的空 Claude 目录必须显示未连接。
 - 每轮发送前比较有效地址、API Key 与 Auth Token 的连接摘要，涵盖应用保存和外部编辑；变化后关闭空闲旧查询并按精确 sessionId 恢复原生上下文。有后台工作时拒绝发送新一轮，要求先停止后台任务。摘要不得保存明文凭据，也不得因原生登录元数据刷新而反复重启未变更的连接。`provider.test.ts` 与 `sdk-integration.test.ts` 使用本地 A/B 服务覆盖换址、换密钥、认证方式切换、Token 更新、上下文保留和未变更配置的查询复用。
 - 引擎是任务创建时确定的持久身份。适配器只能操作本项目、本引擎任务，恢复必须使用已经绑定的精确 sessionId。
 - 已绑定 UUID 不等于原生会话已建立：首次 SDK 启动尚未返回消息时可按原 ID 重试创建；已观察到原生会话后若 `getSessionInfo` 返回不存在，必须在写入新回合和运行状态前明确返回恢复失败，禁止静默退回 `sessionId` 创建。初始化证据须持久保存；旧版没有标记但已有 UI 历史或检查点时保守拒绝重建。`provider.test.ts` 和真实宿主测试覆盖原生历史丢失、宿主重启及首次启动重试。
@@ -57,3 +58,5 @@
 - 会话分叉与专用压缩由共享适配器实现，Web 与桌面宿主使用同一条执行链路。`forkTask(taskId, lastTurnId?)` 先占用源任务并关闭空闲 Query，从回合展示块的 Anthropic 响应 `message.id` 在当前原生会话中解析 transcript UUID，再调用 `forkSession(sessionId, { dir, upToMessageId })`；省略回合时分叉完整会话。禁止传本地回合 ID、猜测 UUID 或在目标缺失时退回最新位置。SDK 重建分支 UUID，因此每次分叉重新解析，包含从分支继承的旧回合。展示历史逐条复制到目标回合并保留磁盘索引，附件只复制目标之前的引用及独立正文；失败回滚原生分支和私有历史，全部成功后才写目录记录。`AgentTurn.forkable === false` 隐藏无原生回复位置的本地命令回合按钮；缺省保留已有引擎行为。
 - `compactTask(taskId, options?)` 的 Claude 调用必须携带此聊天设置；Web 读取有效任务设置，桌面经宿主 `task.compact` 传递。同一原生会话发送 `/compact` 并复用普通回合的事件和持久化。能力标志表示专用入口，不得由此推断自动压缩或允许的原生命令不可用。SDK success 可能只是消息不足而未压缩，保留真实结果，不伪造完成压缩事件。前台、后台、原生会话运行状态及定时唤醒仍存在时拒绝分叉和专用压缩，不自动终止工作。两端分叉继承任务设置，工作目录共享，临时目录保留到最后一个引用删除；工具会话授权不复制。
 - 验证覆盖 Provider 的历史截断、未知位置、分支再次分叉、存储失败回滚、附件重复正文与源任务删除隔离；`sdk-integration.test.ts` 和 `pnpm test:claude-host` 使用真实官方 SDK/CLI 与本地模拟 API 证明原生 UUID 重建、上下文截断及压缩命令链路，无真实账户或额度。
+
+- Git 辅助推理通过 `generateCommitMessage(prompt, model)` 在共享适配器执行，桌面宿主对应 `commit.generate`；禁止创建持久任务、开启工具或借用 Codex。使用用户设置源、显式模型、结构化 JSON 输出、30 秒截止时间及最多两个在途请求，关闭运行时时取消请求。验证 `commit-message.test.ts`、`pnpm test:claude-host` 和仅 Claude 的真实 API。

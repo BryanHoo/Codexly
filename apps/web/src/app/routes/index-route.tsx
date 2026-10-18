@@ -57,14 +57,13 @@ function IndexPage() {
   );
   const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
   const globalSettingsQuery = useQuery({
-    ...globalSettingsQueryOptions(client),
-    enabled: codexEnabled,
+    ...globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"),
   });
-  const modelsQuery = useQuery({ ...modelsQueryOptions(client), enabled: codexEnabled });
+  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
   const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client),
+    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
     onSuccess(response) {
-      queryClient.setQueryData(["settings"], response);
+      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
     },
   });
   const [globalSettingsSection, setGlobalSettingsSection] = useState<SidebarSettingsSection | null>(

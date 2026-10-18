@@ -1,4 +1,5 @@
 import { isSupportedClaudeCommand } from "./commands.js";
+import { generateClaudeCommitMessage } from "./commit-message.js";
 import { homedir } from "node:os";
 import {
   query,
@@ -19,6 +20,7 @@ import { ClaudeAgentProvider, CLAUDE_CAPABILITIES, type ClaudeSdk } from "./prov
 export class ClaudeRuntime implements AgentEngineService {
   readonly configuration: ClaudeConfiguration;
   readonly #providers = new Map<string, ClaudeAgentProvider>();
+  readonly #commitRequests = new Set<AbortController>();
   readonly #catalogs = new Map<
     string,
     { expires: number; revision: string; value: Promise<AgentEngineProfile> }
@@ -40,6 +42,20 @@ export class ClaudeRuntime implements AgentEngineService {
 
   readSettings() {
     return this.configuration.readSettings();
+  }
+  generateCommitMessage(prompt: string, model: string): Promise<string> {
+    // 辅助推理与聊天分开限流，防止多窗口同时生成说明造成 SDK 进程峰值。
+    if (this.#commitRequests.size >= 2)
+      return Promise.reject(new Error("Claude commit generation capacity exceeded"));
+    const controller = new AbortController();
+    this.#commitRequests.add(controller);
+    return generateClaudeCommitMessage(
+      this.configuration,
+      this.sdk,
+      prompt,
+      model,
+      controller,
+    ).finally(() => this.#commitRequests.delete(controller));
   }
   async writeSettings(settings: ClaudeSettings) {
     const saved = await this.configuration.writeSettings(settings);
@@ -71,14 +87,17 @@ export class ClaudeRuntime implements AgentEngineService {
 
   async inspect(scope?: AgentTaskScope): Promise<AgentEngineProfile> {
     const cwd = scope?.rootPath ?? homedir();
+    // 全局探测只读取用户配置，不能把主目录下的 .claude 误当成项目配置。
+    // 同一路径作为真实项目时仍允许项目设置，因此缓存身份也必须包含探测范围。
+    const key = `${scope ? "project" : "global"}\0${cwd}`;
     const revision = await this.configuration.revision(cwd);
-    const cached = this.#catalogs.get(cwd);
+    const cached = this.#catalogs.get(key);
     if (cached?.revision === revision && cached.expires > Date.now()) return cached.value;
-    const value = this.#discover(cwd).catch((error: unknown) => {
-      if (this.#catalogs.get(cwd)?.value === value) this.#catalogs.delete(cwd);
+    const value = this.#discover(cwd, scope !== undefined).catch((error: unknown) => {
+      if (this.#catalogs.get(key)?.value === value) this.#catalogs.delete(key);
       throw error;
     });
-    this.#catalogs.set(cwd, { expires: Date.now() + 60_000, revision, value });
+    this.#catalogs.set(key, { expires: Date.now() + 60_000, revision, value });
     while (this.#catalogs.size > 16) {
       const oldest = this.#catalogs.keys().next().value;
       if (oldest !== undefined) this.#catalogs.delete(oldest);
@@ -86,7 +105,7 @@ export class ClaudeRuntime implements AgentEngineService {
     return value;
   }
 
-  async #discover(cwd: string): Promise<AgentEngineProfile> {
+  async #discover(cwd: string, project: boolean): Promise<AgentEngineProfile> {
     const credentials = await this.configuration.credentials();
     const defaults = await this.readSettings();
     const gate = Promise.withResolvers<undefined>(),
@@ -101,7 +120,8 @@ export class ClaudeRuntime implements AgentEngineService {
         env: this.configuration.environment(),
         abortController: controller,
         persistSession: false,
-        settingSources: defaults.loadProjectSettings ? ["user", "project", "local"] : ["user"],
+        settingSources:
+          project && defaults.loadProjectSettings ? ["user", "project", "local"] : ["user"],
       },
     });
     const expired = Promise.withResolvers<never>();
@@ -195,6 +215,8 @@ export class ClaudeRuntime implements AgentEngineService {
     this.#providers.delete(projectId);
   }
   close(): void {
+    for (const controller of this.#commitRequests) controller.abort();
+    this.#commitRequests.clear();
     for (const provider of this.#providers.values()) provider.close();
     this.#providers.clear();
     this.#catalogs.clear();

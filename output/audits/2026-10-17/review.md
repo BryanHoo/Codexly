@@ -8,19 +8,19 @@
 
 P1：优先修复，可能让执行目标错误或界面丢失终态。P2：随后修复，包括一致性、长任务性能、异常恢复及共享架构。
 
-| 编号 | 优先级 | 问题 | 影响范围 | 证据 |
-| --- | --- | --- | --- | --- |
-| F01 | P1 | 切换 Claude 地址/凭据后，存活查询仍使用旧连接 | 两端 Claude | 真实 SDK + 隔离 Provider 复现 |
-| F02 | P1 | 快照内容与事件 checkpoint 不属于同一时刻 | 两端 Claude；Web 已复现 | 隔离并发复现 + 双端链路审查 |
-| F03 | P2 | 桌面快照按文本猜身份，跨会话仍保留旧实体 | 桌面两种引擎 | 两项隔离复现 |
-| F04 | P2 | TodoWrite 在工具成功前更新计划，被拒绝也不回滚 | 两端 Claude | 隔离投影复现 |
-| F05 | P2 | 检查点和快照读取反复扫描、序列化稳定历史 | 两端 Claude | 实现审查 + 本地微测量 |
-| F06 | P2 | 上下文统计查询阻塞完成通知，额外等待可达 1.5 秒 | 两端 Claude | 明确 await 和超时路径 |
-| F07 | P2 | 桌面宿主背压靠抛错，写管道未被请求超时覆盖 | 桌面 Claude | 传输与恢复链路审查 |
-| F08 | P2 | 进程预算仅分项目，发现查询也缺少全局并发限流 | 两端 Claude | 容量与缓存实现审查 |
-| F09 | P2 | MCP 的 reload 实际只重连失败服务，空闲时返回旧缓存 | 两端 Claude | 方法行为与 SDK 能力对照 |
-| F10 | P2 | Web 启动依旧强依赖并预热 Codex，纯 Claude 无法独立启动 | Web 服务端 | 启动链路审查 |
-| F11 | P2 | 两端会话状态机仍大段重复，已经出现实际行为分叉 | Web/桌面共用前端 | 文件比较 + F03 的回归证据 |
+| 编号 | 优先级 | 问题                                                   | 影响范围                | 证据                          |
+| ---- | ------ | ------------------------------------------------------ | ----------------------- | ----------------------------- |
+| F01  | P1     | 切换 Claude 地址/凭据后，存活查询仍使用旧连接          | 两端 Claude             | 真实 SDK + 隔离 Provider 复现 |
+| F02  | P1     | 快照内容与事件 checkpoint 不属于同一时刻               | 两端 Claude；Web 已复现 | 隔离并发复现 + 双端链路审查   |
+| F03  | P2     | 桌面快照按文本猜身份，跨会话仍保留旧实体               | 桌面两种引擎            | 两项隔离复现                  |
+| F04  | P2     | TodoWrite 在工具成功前更新计划，被拒绝也不回滚         | 两端 Claude             | 隔离投影复现                  |
+| F05  | P2     | 检查点和快照读取反复扫描、序列化稳定历史               | 两端 Claude             | 实现审查 + 本地微测量         |
+| F06  | P2     | 上下文统计查询阻塞完成通知，额外等待可达 1.5 秒        | 两端 Claude             | 明确 await 和超时路径         |
+| F07  | P2     | 桌面宿主背压靠抛错，写管道未被请求超时覆盖             | 桌面 Claude             | 传输与恢复链路审查            |
+| F08  | P2     | 进程预算仅分项目，发现查询也缺少全局并发限流           | 两端 Claude             | 容量与缓存实现审查            |
+| F09  | P2     | MCP 的 reload 实际只重连失败服务，空闲时返回旧缓存     | 两端 Claude             | 方法行为与 SDK 能力对照       |
+| F10  | P2     | Web 启动依旧强依赖并预热 Codex，纯 Claude 无法独立启动 | Web 服务端              | 启动链路审查                  |
+| F11  | P2     | 两端会话状态机仍大段重复，已经出现实际行为分叉         | Web/桌面共用前端        | 文件比较 + F03 的回归证据     |
 
 建议顺序：**F01/F02 → F03/F04 → F05/F06/F07 → F08/F09/F10 → 分阶段完成 F11**。F11 可以随前面的修复逐步抽取，不建议先做一次全仓重构。
 
@@ -121,15 +121,15 @@ P1：优先修复，可能让执行目标错误或界面丢失终态。P2：随�
 
 - 文件对比（仅归一化空白及协议 import 后的文本相似度，**不是语义等价证明**）：
 
-| 文件 | Web 行数 | 桌面行数 | 相似度 |
-| --- | ---: | ---: | ---: |
-| use-task-runtime.ts | 260 | 262 | 97.1% |
-| project-runtime-history.ts | 61 | 60 | 96.9% |
-| task-store-factory.ts | 363 | 358 | 94.8% |
-| project-runtime.ts | 382 | 391 | 93.2% |
-| task-store-events.ts | 446 | 468 | 89.6% |
-| project-runtime-events.ts | 374 | 418 | 85.7% |
-| project-runtime-recovery.ts | 375 | 469 | 84.7% |
+| 文件                        | Web 行数 | 桌面行数 | 相似度 |
+| --------------------------- | -------: | -------: | -----: |
+| use-task-runtime.ts         |      260 |      262 |  97.1% |
+| project-runtime-history.ts  |       61 |       60 |  96.9% |
+| task-store-factory.ts       |      363 |      358 |  94.8% |
+| project-runtime.ts          |      382 |      391 |  93.2% |
+| task-store-events.ts        |      446 |      468 |  89.6% |
+| project-runtime-events.ts   |      374 |      418 |  85.7% |
+| project-runtime-recovery.ts |      375 |      469 |  84.7% |
 
 - 路径均位于 `apps/web/src/features/conversation/runtime/` 与 `desktop/src/features/conversation/runtime/`。F03 已证明这种重复会使修复只落在一端。
 - 桌面还有独立协议模型；例如 Claude reasoning 需要在 [claude_host.rs:23](/Users/bryanhu/Develop/person/Codexly/desktop/src-tauri/src/application/claude_host.rs:23) 把公共协议的 content 转成桌面 text，增加转换与契约维护成本。

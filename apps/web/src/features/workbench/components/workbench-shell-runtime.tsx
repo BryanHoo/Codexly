@@ -175,7 +175,7 @@ export function useWorkbenchShellRuntime({
   );
   // 未启用的引擎不发起模型、认证和默认配置请求，避免隐藏功能唤醒 Codex。
   const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
-  const modelsQuery = useQuery({ ...modelsQueryOptions(client), enabled: codexEnabled });
+  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
   const providerConnectionQuery = useQuery({
     ...providerConnectionQueryOptions(),
     enabled: codexEnabled,
@@ -193,8 +193,7 @@ export function useWorkbenchShellRuntime({
     },
   });
   const globalSettingsQuery = useQuery({
-    ...globalSettingsQueryOptions(client),
-    enabled: codexEnabled,
+    ...globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"),
   });
   const projectOpenCapabilitiesQuery = useQuery(
     projectOpenCapabilitiesQueryOptions(projectId, client, !temporary),
@@ -247,9 +246,9 @@ export function useWorkbenchShellRuntime({
     },
   });
   const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client),
+    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
     async onSuccess(response) {
-      queryClient.setQueryData(["settings"], response);
+      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
       // 局部显式设置仍由 Server 保持优先；刷新只让未配置的当前上下文重新解析全局回退。
       await queryClient.invalidateQueries({
         exact: true,

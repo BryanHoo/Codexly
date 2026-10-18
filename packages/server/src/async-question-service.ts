@@ -159,7 +159,7 @@ export class AsyncQuestionService {
     const running = task.turns.findLast((turn) => turn.status === "running");
     const settings = await this.context.readEffectiveTaskSettings(projectId, taskId);
     if (running === undefined)
-      this.context.assertValidProjectDefaults(await this.context.listModels(), settings);
+      this.context.assertValidProjectDefaults(await this.context.listModels(task.engine), settings);
     const claimed = { group: { ...record.group, status: "answering" as const }, fingerprint };
     // 所有可重试的校验先完成，紧邻 Provider 调用前原子占用，跨请求和重启都不重复投递。
     if (!(await repository.updateAsyncQuestion(projectId, taskId, claimed, "pending")))

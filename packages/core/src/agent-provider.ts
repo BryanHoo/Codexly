@@ -354,6 +354,7 @@ export interface AgentRuntimeProvider {
 }
 
 export interface AgentEngineService {
+  generateCommitMessage?(prompt: string, model: string): Promise<string>;
   readSettings(): Promise<ClaudeSettings>;
   writeSettings(settings: ClaudeSettings): Promise<ClaudeSettings>;
   inspect(scope?: AgentTaskScope): Promise<AgentEngineProfile>;

@@ -1,1 +1,7 @@
-{"results":2,"seen":[{"server":"A","key":"audit-A"},{"server":"A","key":"audit-A"}]}
+{
+  "results": 2,
+  "seen": [
+    { "server": "A", "key": "audit-A" },
+    { "server": "A", "key": "audit-A" }
+  ]
+}

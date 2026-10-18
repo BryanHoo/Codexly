@@ -138,10 +138,14 @@ pub async fn cache_project_image(
     root_path: Option<String>,
     task_id: Option<String>,
     path: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
     let canonical_root = task_workspace::resolve_preview_root(
-        &state,
+        Some(
+            &app.path()
+                .app_data_dir()
+                .map_err(|_| AppError::FilesystemRequestFailed)?,
+        ),
         &project_id,
         task_id.as_deref(),
         root_path.as_deref(),

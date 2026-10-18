@@ -93,7 +93,16 @@ pub async fn configure_custom_provider(
 pub async fn get_global_settings(
     app: AppHandle,
     state: State<'_, AppState>,
+    engine: Option<String>,
 ) -> Result<Value, AppError> {
+    if engine.as_deref() == Some("claude") {
+        // 公共偏好只读取应用存储；Claude 用户不需要启动或配置 Codex。
+        let settings =
+            crate::infrastructure::local_settings::read_global_settings(&app_data_dir(&app)?)
+                .await
+                .map_err(|_| AppError::FilesystemRequestFailed)?;
+        return Ok(json!({"settings": settings}));
+    }
     let connection = state.codex_connection().await?;
     let settings = codex::read_global_settings(&connection, &app_data_dir(&app)?)
         .await
@@ -106,7 +115,17 @@ pub async fn update_global_settings(
     app: AppHandle,
     settings: Value,
     state: State<'_, AppState>,
+    engine: Option<String>,
 ) -> Result<Value, AppError> {
+    if engine.as_deref() == Some("claude") {
+        let update = crate::infrastructure::local_settings::update_global_settings(
+            &app_data_dir(&app)?,
+            settings,
+        )
+        .await
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+        return Ok(json!({"changedFields": update.changed_fields, "settings": update.settings}));
+    }
     let connection = state.codex_connection().await?;
     let update = codex::update_global_settings(&connection, &app_data_dir(&app)?, settings)
         .await

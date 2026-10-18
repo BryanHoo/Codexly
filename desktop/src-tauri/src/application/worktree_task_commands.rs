@@ -22,12 +22,13 @@ pub struct StartInput {
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn create_task_worktree(
+    app: AppHandle,
     project_id: String,
     root_path: String,
     input: CreateInput,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
-    let (_, root, _) = project_root(&state, &project_id, &root_path).await?;
+    let (root, _) = project_root(&app, &project_id, &root_path).await?;
     let worktree = workspace::create_worktree(&root, None, &input.branch, &input.expected_snapshot)
         .await
         .map_err(AppError::from)?;
@@ -50,11 +51,12 @@ pub async fn start_worktree_task(
         .run(&project_id, &key, async move {
             let state = app.state::<AppState>();
             let project_id = creation_project;
-            let (connection, root, _) = project_root(&state, &project_id, &input.root_path).await?;
+            let (root, _) = project_root(&app, &project_id, &input.root_path).await?;
             // 验证目标确为该仓库的工作树，禁止客户端将任意目录绑定到项目。
             let worktree = workspace::switch_worktree(&root, None, &input.worktree_path)
                 .await
                 .map_err(AppError::from)?;
+            let connection = state.codex_connection().await?;
             let settings = codex::read_agent_runtime_settings(&connection)
                 .await
                 .map_err(AppError::from)?;

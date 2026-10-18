@@ -175,6 +175,7 @@ export interface ServerRouteContext {
   readonly providerConnectionRepository: AgentProviderConnectionRepository;
   readonly readEffectiveGlobalSettings: (
     models?: readonly AgentModel[],
+    engine?: "codex" | "claude",
   ) => Promise<AgentGlobalSettings>;
   readonly readAppInfo: () => Promise<AppInfoResponse>;
   readonly readAppUpdateProgress: () => Promise<AppUpdateProgressResponse>;

@@ -1,7 +1,12 @@
+import {
+  engineModelsQuery,
+  engineSettingsQuery,
+  engineSettingsMutation,
+} from "@codexly/frontend-core/engine-settings-query";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { CodexlyClient } from "@codexly/client";
 import type {
-  AgentGlobalSettings,
+  AgentModelPage,
   AgentMcpServerPage,
   ReloadAgentMcpServersRequest,
   AgentProjectDefaults,
@@ -120,29 +125,27 @@ export function capabilitiesQueryOptions(client: CodexlyCapabilitiesClient = cod
   });
 }
 
-export function modelsQueryOptions(client: CodexlyModelsClient = codexlyClient) {
-  return queryOptions({
-    queryFn: ({ signal }) => client.listModels({ signal }),
-    queryKey: ["models"] as const,
-    staleTime: 5 * 60_000,
-  });
+export function modelsQueryOptions(
+  client: CodexlyModelsClient & {
+    getEngineProfile?: (engine: "claude") => Promise<{ models: AgentModelPage }>;
+  } = codexlyClient,
+  engine: "codex" | "claude" = "codex",
+) {
+  return queryOptions(engineModelsQuery(client, engine));
 }
 
-export function globalSettingsQueryOptions(client: CodexlySettingsClient = codexlyClient) {
-  return queryOptions({
-    queryFn: ({ signal }) => client.getGlobalSettings({ signal }),
-    queryKey: ["settings"] as const,
-  });
+export function globalSettingsQueryOptions(
+  client: CodexlySettingsClient = codexlyClient,
+  engine: "codex" | "claude" = "codex",
+) {
+  return queryOptions(engineSettingsQuery(client, engine));
 }
 
-export function globalSettingsMutationOptions(client: CodexlySettingsClient = codexlyClient) {
-  return mutationOptions({
-    mutationFn: (settings: AgentGlobalSettings) => client.updateGlobalSettings(settings),
-    mutationKey: ["settings", "update"] as const,
-    // 设置页统一展示保存状态，避免重复出现通用操作通知。
-    meta: { actionNotification: false },
-    scope: { id: "global-settings" },
-  });
+export function globalSettingsMutationOptions(
+  client: CodexlySettingsClient = codexlyClient,
+  engine: "codex" | "claude" = "codex",
+) {
+  return mutationOptions(engineSettingsMutation(client, engine));
 }
 
 export function projectOpenCapabilitiesQueryOptions(

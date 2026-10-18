@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ClaudeSdk } from "./provider.js";
 import { ClaudeRuntime } from "./runtime.js";
@@ -55,7 +55,7 @@ it("loads native SDK authentication, merges discovery and refreshes externally c
   expect(a).toEqual(b);
   expect(a.connection).toMatchObject({ mode: "official", state: "connected" });
   expect(query.mock.calls[0]?.[0]).toMatchObject({
-    options: { settingSources: ["user", "project", "local"] },
+    options: { settingSources: ["user"] },
   });
   expect(query.mock.calls[0]?.[0]?.options).not.toHaveProperty("settings");
   expect(a.models.data[0]).toMatchObject({
@@ -81,6 +81,17 @@ it("loads native SDK authentication, merges discovery and refreshes externally c
   expect(refreshed.settings?.model).toBe("custom-local");
   expect(refreshed.models.data[0]?.id).toBe("custom-local");
   expect(query).toHaveBeenCalledTimes(2);
+  // 全局探测与以主目录为根的项目不能共用目录缓存；只有后者允许读取项目配置。
+  await runtime.inspect({
+    id: "home-project",
+    kind: "project",
+    rootPath: homedir(),
+    runtimeWorkspaceRoots: [homedir()],
+  });
+  expect(query).toHaveBeenCalledTimes(3);
+  expect(query.mock.calls[2]?.[0]).toMatchObject({
+    options: { settingSources: ["user", "project", "local"] },
+  });
   runtime.close();
 });
 

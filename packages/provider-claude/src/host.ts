@@ -94,6 +94,11 @@ if (process.argv.includes("--version")) {
       method = message["method"];
     if (method === "profile")
       return runtime.inspect(message["scope"] as AgentTaskScope | undefined);
+    if (method === "commit.generate") {
+      if (typeof params["prompt"] !== "string" || typeof params["model"] !== "string")
+        throw new Error("Invalid commit request");
+      return runtime.generateCommitMessage(params["prompt"], params["model"]);
+    }
     if (method === "configure") return runtime.configure(params as ConfigureCustomProviderRequest);
     if (method === "settings.read") return runtime.readSettings();
     if (method === "settings.write") return runtime.writeSettings(params as ClaudeSettings);

@@ -18,6 +18,7 @@ export function createGlobalSettingsWriter(
     ServerRouteContext,
     "readEffectiveGlobalSettings" | "settingsRepository" | "provider"
   >,
+  engine: "codex" | "claude" = "codex",
 ) {
   let queue: Promise<unknown> = Promise.resolve();
   return (settings: AgentGlobalSettings): Promise<AgentGlobalSettings> => {
@@ -25,6 +26,23 @@ export function createGlobalSettingsWriter(
     const result = queue
       .catch(() => undefined)
       .then(async () => {
+        if (engine === "claude") {
+          // 公共偏好不写入另一引擎的原生配置，也不覆盖本地保存的 Codex 专属字段。
+          const stored = await context.settingsRepository.readGlobalSettings();
+          await context.settingsRepository.writeGlobalSettings({
+            ...(stored ?? settings),
+            ...Object.fromEntries(
+              [
+                "commitMessageModel",
+                "commitMessagePrompt",
+                "defaultOpenAppId",
+                "followUpBehavior",
+                "pet",
+              ].map((key) => [key, settings[key as keyof AgentGlobalSettings]]),
+            ),
+          });
+          return context.readEffectiveGlobalSettings(undefined, engine);
+        }
         const current = await context.readEffectiveGlobalSettings();
         const changed: AgentRuntimeDefaultSettings = Object.fromEntries(
           agentFields
