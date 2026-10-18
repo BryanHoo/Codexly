@@ -16,6 +16,7 @@ import { ClaudeConfiguration } from "./config.js";
 import { ClaudeHistory } from "./history.js";
 import { ClaudeAgentProvider, type ClaudeSdk } from "./provider.js";
 import { readTaskWithCheckpoint } from "@codexly/core";
+import { ClaudeTurnProjection } from "./turn-projection.js";
 
 const roots: string[] = [];
 const providers: ClaudeAgentProvider[] = [];
@@ -1858,6 +1859,110 @@ it("persists SDK success after more than 64 completed subagent calls", async () 
   expect(JSON.stringify(snapshot)).toContain("全部完成");
 });
 
+it.each(["completed", "running", "failed", "interrupted"] as const)(
+  "reads a long %s turn as a conversation summary and expands its process independently",
+  async (status) => {
+    const h = await harness();
+    const task = await h.provider.startTask();
+    const question = {
+      id: "question",
+      type: "message" as const,
+      role: "user" as const,
+      text: "用户问题",
+    };
+    const answer = {
+      id: "answer",
+      type: "message" as const,
+      role: "assistant" as const,
+      text: "最终答复",
+    };
+    const tools = Array.from({ length: 120 }, (_, i) => ({
+      id: `tool-${String(i)}`,
+      type: "tool" as const,
+      name: "Read",
+      status: "completed" as const,
+      output: "过程正文",
+    }));
+    const value: AgentTurn = {
+      id: "long",
+      status,
+      startedAt: null,
+      completedAt: null,
+      error: null,
+      items: [question, ...tools, ...(status === "completed" ? [answer] : [])],
+    };
+    if (status === "running") await h.config.history.checkpoint(task.id, value);
+    else await h.config.history.complete(task.id, value);
+    const restored = h.restart();
+    const rawRead = vi.spyOn(h.config.history, "read");
+    const itemRead = vi.spyOn(h.config.history.items, "read");
+    const page = await restored.readTask(task.id, { summary: true });
+    expect(page?.turnsNextCursor).toBeNull();
+    expect(page?.turns[0]?.items).toEqual(status === "completed" ? [question, answer] : [question]);
+    expect(rawRead).not.toHaveBeenCalled();
+    expect(itemRead).not.toHaveBeenCalled();
+    const processCursor = page?.turns[0]?.processCursor;
+    assert(processCursor);
+    await expect(
+      restored.readTask(task.id, { summary: true, cursor: processCursor }),
+    ).rejects.toThrow();
+    const first = await restored.readTask(task.id, { cursor: processCursor });
+    expect(first?.turns[0]?.items).toHaveLength(100);
+    assert(first?.turnsNextCursor);
+    const older = await restored.readTask(task.id, { cursor: first.turnsNextCursor });
+    expect([...(older?.turns[0]?.items ?? []), ...(first.turns[0]?.items ?? [])]).toEqual(
+      value.items,
+    );
+    expect(older?.turnsNextCursor).toBeNull();
+    expect(older?.turns[0]?.status).toBe(status === "running" ? "failed" : status);
+  },
+);
+
+it("restores the live question from its summary after the rendering preview drops it", async () => {
+  const h = await harness(undefined, 60_000);
+  const task = await h.provider.startTask();
+  const started = await h.provider.startTurn(task.id, prompt, options);
+  vi.spyOn(ClaudeTurnProjection.prototype, "snapshot").mockReturnValue({ ...started, items: [] });
+  const restored = await h.provider.readTask(task.id, { summary: true });
+  expect(restored?.turns[0]?.items).toEqual(started.items);
+  expect(restored?.turns[0]?.status).toBe("running");
+});
+
+it("defers whole older turns when a recovered question consumes the remaining summary budget", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const message = (id: string, role: "user" | "assistant", size: number) => ({
+    id,
+    type: "message" as const,
+    role,
+    text: "x".repeat(size * 1024),
+  });
+  for (let i = 0; i < 3; i++)
+    await h.config.history.complete(task.id, {
+      id: String(i),
+      status: "completed",
+      startedAt: null,
+      completedAt: null,
+      error: null,
+      items: [message(`q-${String(i)}`, "user", 80), message(`a-${String(i)}`, "assistant", 80)],
+    });
+  await h.config.history.checkpoint(task.id, {
+    id: "active",
+    status: "running",
+    startedAt: null,
+    completedAt: null,
+    error: null,
+    items: [message("active-question", "user", 110)],
+  });
+  const page = await h.provider.readTask(task.id, { summary: true });
+  expect(page?.turns.map((turn) => turn.id)).toEqual(["2", "active"]);
+  expect(Buffer.byteLength(JSON.stringify(page))).toBeLessThan(512 * 1024);
+  assert(page?.turnsNextCursor);
+  const older = await h.provider.readTask(task.id, { summary: true, cursor: page.turnsNextCursor });
+  expect(older?.turns.map((turn) => turn.id)).toEqual(["0", "1"]);
+  expect(older?.turnsNextCursor).toBeNull();
+});
+
 it("loads every record of a long Claude turn through bounded history pages after restart", async () => {
   const h = await harness();
   const task = await h.provider.startTask();
@@ -1884,7 +1989,7 @@ it("loads every record of a long Claude turn through bounded history pages after
   expect(JSON.stringify(completed)).not.toContain("已省略较早执行记录");
   await h.provider.stopSession(task.id);
   const restored = h.restart();
-  let page = await restored.readTask(task.id, { summary: true });
+  let page = await restored.readTask(task.id);
   assert.ok(page);
   expect(page.turnsNextCursor).not.toBeNull();
   const ids: string[] = [];
@@ -1896,7 +2001,7 @@ it("loads every record of a long Claude turn through bounded history pages after
     if (!page.turnsNextCursor) break;
     expect(cursors.has(page.turnsNextCursor)).toBe(false);
     cursors.add(page.turnsNextCursor);
-    page = await restored.readTask(task.id, { cursor: page.turnsNextCursor, summary: true });
+    page = await restored.readTask(task.id, { cursor: page.turnsNextCursor });
   }
   expect(ids.slice(1)).toEqual(
     Array.from({ length: 70 }, (_, index) => `history-${String(index)}:0`),

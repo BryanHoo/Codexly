@@ -18,6 +18,8 @@ import { HistoryRevisions } from "./history-revisions.js";
 import type { AgentItem } from "@codexly/protocol";
 import type { ClaudePlanTask } from "./task-plan.js";
 import { copyClaudeStorage } from "./storage-copy.js";
+import { ClaudeSummaryHistory } from "./summary-history.js";
+import type { ClaudeSummaryPage } from "./summary-history.js";
 
 export interface ClaudeTaskMetadata {
   /** true 表示已观察到原生会话；false 表示首次启动尚未收到 SDK 消息，缺省为旧版未知状态。 */
@@ -46,6 +48,7 @@ const missing = (error: unknown) =>
 export class ClaudeHistory {
   readonly #writes = new Map<string, Promise<void>>();
   readonly items: ClaudeItemHistory;
+  readonly #summaries: ClaudeSummaryHistory;
   readonly #revisions = new HistoryRevisions<string>(512);
   /** 读取仅等待调用瞬间已入队的版本，不加入写队列，也不追赶后续 SDK 写入。 */
   barrier(task: string): Promise<void> {
@@ -53,6 +56,7 @@ export class ClaudeHistory {
   }
   constructor(readonly directory: string) {
     this.items = new ClaudeItemHistory(join(directory, "items"));
+    this.#summaries = new ClaudeSummaryHistory(this.items, (task) => this.#path(task));
   }
   /** 按原时间顺序逐行复制展示回合；只读一条有界记录，历史长度不会放大内存占用。 */
   forkTask(
@@ -162,12 +166,18 @@ export class ClaudeHistory {
     return encoded;
   }
   async #append(task: string, encoded: string): Promise<void> {
+    await this.#prepareSummaryIndex(task);
     const path = `${this.#path(task)}.jsonl`;
     const file = await open(path, "a", 0o600);
     try {
       const size = (await file.stat()).size;
       try {
         await appendFile(path, `${encoded}\n`, { mode: 0o600 });
+        await this.#summaries.append(
+          task,
+          (JSON.parse(encoded) as AgentTurn).id,
+          size + Buffer.byteLength(encoded) + 1,
+        );
       } catch (error) {
         // 磁盘满可能已写入半行；回滚本次追加，保留此前历史并允许恢复事务重试。
         await file.truncate(size);
@@ -176,6 +186,41 @@ export class ClaudeHistory {
     } finally {
       await file.close();
     }
+  }
+  async #prepareSummaryIndex(task: string): Promise<void> {
+    await this.#summaries.prepare(task, async (original) => {
+      let turn = original;
+      try {
+        turn = JSON.parse(await readFile(this.#updatePath(task, turn.id), "utf8")) as AgentTurn;
+      } catch (error) {
+        if (!missing(error)) throw error;
+      }
+      await this.items.prepareSummary(task, turn);
+    });
+  }
+  /** 首屏仅访问回合索引及问题/答复文件；迁移按任务串行，普通读取不阻塞后续 Token。 */
+  async readSummary(task: string, cursor?: string): Promise<ClaudeSummaryPage> {
+    await this.barrier(task);
+    if (!(await this.#summaries.ready(task)))
+      await this.#write(task, () => this.#prepareSummaryIndex(task));
+    return this.#summaries.read(task, cursor);
+  }
+  async activeSummary(task: string): Promise<AgentTurn | undefined> {
+    await this.barrier(task);
+    try {
+      const id = await readFile(`${this.#path(task)}.active-id`, "utf8");
+      return await this.items.summary(task, id);
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
+    // 旧版检查点没有小型身份文件；仅首次读取有界快照并补建摘要，之后不再读取过程正文。
+    const turn = await this.active(task);
+    if (!turn) return undefined;
+    await this.#write(task, async () => {
+      await this.items.prepareSummary(task, turn);
+      await writeFile(`${this.#path(task)}.active-id`, turn.id, { mode: 0o600 });
+    });
+    return this.items.summary(task, turn.id);
   }
   saveMetadata(task: string, metadata: ClaudeTaskMetadata): Promise<void> {
     return this.#write(task, async () => {
@@ -222,6 +267,12 @@ export class ClaudeHistory {
       try {
         await writeFile(temporary, encoded, { mode: 0o600 });
         await rename(temporary, `${this.#path(task)}.active`);
+        // 身份未变时不重复写入；摘要恢复无需解析包含大量过程条目的检查点正文。
+        const identityKey = `${this.#path(task)}.active-id`;
+        if (this.#revisions.get(identityKey) !== turn.id) {
+          await writeFile(identityKey, turn.id, { mode: 0o600 });
+          this.#revisions.set(identityKey, turn.id);
+        }
         this.#revisions.set(key, revision);
       } finally {
         await rm(temporary, { force: true });
@@ -254,6 +305,7 @@ export class ClaudeHistory {
       if (!archived) await this.#append(task, this.#encode(terminal));
       // 仅在归档成功后移除旧检查点；写入失败时保留恢复依据并阻止下一回合覆盖。
       await rm(`${this.#path(task)}.active`, { force: true });
+      await rm(`${this.#path(task)}.active-id`, { force: true });
       this.#revisions.deletePrefix(`${this.#path(task)}.active`);
     });
   }
@@ -267,6 +319,7 @@ export class ClaudeHistory {
       const page = await this.#readPage(task);
       if (!page.turns.some((entry) => entry.id === turn.id)) await this.#append(task, encoded);
       await rm(`${this.#path(task)}.active`, { force: true });
+      await rm(`${this.#path(task)}.active-id`, { force: true });
       this.#revisions.deletePrefix(`${this.#path(task)}.active`);
     });
   }

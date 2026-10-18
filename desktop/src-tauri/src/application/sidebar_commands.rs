@@ -144,7 +144,15 @@ pub async fn read_task(
         .run_cancellable(request_id.as_deref(), async {
             let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
             if task["provider"] == "claude" {
-                return super::claude_tasks::read(&app, &project_id, &task_id, &task, cursor).await;
+                return super::claude_tasks::read(
+                    &app,
+                    &project_id,
+                    &task_id,
+                    &task,
+                    cursor,
+                    summary,
+                )
+                .await;
             }
             let connection = state.codex_connection().await?;
             state.remember_tasks(&project_id, [task_id.as_str()]).await;

@@ -14,22 +14,34 @@ interface StoredItem {
   offset: number;
   item: AgentItem;
 }
+interface SummaryEntry {
+  key: string;
+  offset: number;
+}
+interface SummaryIndex {
+  user?: SummaryEntry;
+  assistant?: SummaryEntry;
+  last: number;
+}
 
 /** 磁盘索引只保存定长摘要，记录原位更新；内存和每次反向读取均与总历史长度无关。 */
 export class ClaudeItemHistory {
   readonly #revisions = new HistoryRevisions<{ offset: number; revision: string }>(8192);
   readonly #metadata = new HistoryRevisions<string>(512);
+  readonly #summaries = new HistoryRevisions<SummaryIndex>(512);
   constructor(readonly directory: string) {}
   async deleteTask(task: string): Promise<void> {
     const prefix = join(this.directory, hash(task));
     this.#revisions.deletePrefix(prefix);
     this.#metadata.deletePrefix(prefix);
+    this.#summaries.deletePrefix(prefix);
     await rm(prefix, { recursive: true, force: true });
   }
   /** 仅迁移缺失索引时调用，避免已有进程内版本掩盖旧格式或外部删除。 */
   invalidate(task: string, turn: string): void {
     this.#revisions.deletePrefix(this.#path(task, turn));
     this.#metadata.deletePrefix(this.#path(task, turn));
+    this.#summaries.deletePrefix(this.#path(task, turn));
   }
   #path(task: string, turn: string) {
     return join(this.directory, hash(task), hash(turn));
@@ -58,10 +70,11 @@ export class ClaudeItemHistory {
       .filter(({ revision, cached }) => cached?.revision !== revision);
     if (!dirty.length) {
       // 空回合仍须建立索引，供分页和旧格式迁移判断使用。
-      if (items.length) return;
+      if (items.length && this.#summaries.get(join(directory, "summary"))) return;
       try {
         const file = await open(join(directory, "index"), "r");
         await file.close();
+        await access(join(directory, "summary"));
         return;
       } catch (error) {
         if (!missing(error)) throw error;
@@ -70,9 +83,21 @@ export class ClaudeItemHistory {
     await mkdir(directory, { recursive: true, mode: 0o700 });
     const index = await open(join(directory, "index"), "a+", 0o600);
     try {
-      // 进程在追加摘要中途退出时，截去不完整尾部，重放同一记录即可修复。
+      // 进程在追加索引中途退出时，截去不完整尾部；摘要落后于索引则重新确认引用。
       let end = Math.floor((await index.stat()).size / INDEX_ENTRY_BYTES) * INDEX_ENTRY_BYTES;
       await index.truncate(end);
+      const summaryPath = join(directory, "summary");
+      let summary = this.#summaries.get(summaryPath);
+      if (!summary) {
+        try {
+          summary = JSON.parse(await readFile(summaryPath, "utf8")) as SummaryIndex;
+        } catch (error) {
+          if (!missing(error)) throw error;
+        }
+      }
+      if (summary?.last !== (end ? end - INDEX_ENTRY_BYTES : -1)) summary = undefined;
+      const previousSummary = summary ? JSON.stringify(summary) : undefined;
+      summary = { ...(summary ?? (await this.#buildSummary(directory, index, end))) };
       for (const { item, key, path, revision, cached } of dirty) {
         let previous: StoredItem | undefined;
         if (!cached) {
@@ -101,10 +126,92 @@ export class ClaudeItemHistory {
         }
         // 原子记录及索引均提交后才推进版本；失败重试不能被缓存误判为已保存。
         this.#revisions.set(path, { offset, revision });
+        // 仅保存问题、最近助手正文的位置；工具更新沿用原偏移，不能把迟到结果误判为新过程。
+        summary.last = Math.max(summary.last, offset);
+        if (
+          item.type === "message" &&
+          item.role === "user" &&
+          (!summary.user || offset <= summary.user.offset)
+        )
+          summary.user = { key, offset };
+        if (
+          item.type === "message" &&
+          item.role === "assistant" &&
+          (!summary.assistant || offset >= summary.assistant.offset)
+        )
+          summary.assistant = { key, offset };
       }
+      if (JSON.stringify(summary) !== previousSummary) {
+        await this.#atomic(summaryPath, summary);
+      }
+      this.#summaries.set(summaryPath, summary);
+    } catch (error) {
+      // 摘要提交失败时清除版本缓存，重试必须重新确认正文及摘要都已持久化。
+      this.invalidate(task, turn);
+      throw error;
     } finally {
       await index.close();
     }
+  }
+  /** 仅旧格式或迁移中断时扫描一次已有索引，按小批次读取，避免全量正文驻留内存。 */
+  async #buildSummary(
+    directory: string,
+    index: Awaited<ReturnType<typeof open>>,
+    size: number,
+  ): Promise<SummaryIndex> {
+    const summary: SummaryIndex = { last: -1 };
+    for (let start = 0; start < size; start += ITEM_LIMIT * INDEX_ENTRY_BYTES) {
+      const keys = Buffer.alloc(Math.min(ITEM_LIMIT * INDEX_ENTRY_BYTES, size - start));
+      await index.read(keys, 0, keys.length, start);
+      for (let offset = 0; offset < keys.length; offset += INDEX_ENTRY_BYTES) {
+        const key = keys.subarray(offset, offset + INDEX_ENTRY_BYTES).toString("ascii");
+        if (!/^[a-f0-9]{64}$/u.test(key)) throw new Error("Invalid Claude item index");
+        const { item } = JSON.parse(await readFile(join(directory, key), "utf8")) as StoredItem;
+        const entry = { key, offset: start + offset };
+        summary.last = entry.offset;
+        if (item.type === "message" && item.role === "user" && !summary.user) summary.user = entry;
+        if (item.type === "message" && item.role === "assistant") summary.assistant = entry;
+      }
+    }
+    return summary;
+  }
+  async prepareSummary(task: string, turn: AgentTurn): Promise<void> {
+    if (!(await this.indexed(task, turn.id))) {
+      this.invalidate(task, turn.id);
+      await this.saveTurn(task, turn);
+    } else await this.save(task, turn.id, []);
+  }
+  /** 摘要只读取至多两条消息正文，不打开过程索引或扫描工具文件。 */
+  async summary(task: string, turn: string): Promise<AgentTurn> {
+    return this.summaryByKey(task, hash(turn));
+  }
+  async summaryByKey(task: string, key: string): Promise<AgentTurn> {
+    const directory = join(this.directory, hash(task), key);
+    const metadata = JSON.parse(await readFile(join(directory, "turn"), "utf8")) as Omit<
+      AgentTurn,
+      "items"
+    >;
+    const summary = JSON.parse(await readFile(join(directory, "summary"), "utf8")) as SummaryIndex;
+    const items: AgentItem[] = [];
+    if (summary.user)
+      items.push(
+        (JSON.parse(await readFile(join(directory, summary.user.key), "utf8")) as StoredItem).item,
+      );
+    // 没有明确 phase 的旧 Claude 消息仅在回合成功且正文位于过程之后时视为最终答复。
+    if (summary.assistant) {
+      const item = (
+        JSON.parse(await readFile(join(directory, summary.assistant.key), "utf8")) as StoredItem
+      ).item;
+      if (
+        item.type === "message" &&
+        (item.phase === "final_answer" ||
+          (metadata.status === "completed" &&
+            item.phase === undefined &&
+            summary.assistant.offset === summary.last))
+      )
+        items.push(item);
+    }
+    return { ...metadata, items };
   }
   async saveTurn(task: string, turn: AgentTurn): Promise<void> {
     await this.save(task, turn.id, turn.items);

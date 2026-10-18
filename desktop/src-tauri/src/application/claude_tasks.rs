@@ -27,6 +27,7 @@ pub async fn read(
     id: &str,
     task: &Value,
     cursor: Option<String>,
+    summary: Option<bool>,
 ) -> Result<Value, AppError> {
     let state = app.state::<AppState>();
     state.remember_tasks(project, [id]).await;
@@ -37,7 +38,8 @@ pub async fn read(
             app,
             "task.read",
             Some(scope(task)),
-            json!({"taskId":id,"options":cursor.map_or_else(|| json!({}), |cursor| json!({"cursor":cursor}))}),
+            // 与 Web 复用 Provider 的摘要契约，历史续页和过程展开各自保留读取模式。
+            json!({"taskId":id,"options":read_options(cursor, summary)}),
         )
         .await?;
     let snapshot = response
@@ -58,6 +60,17 @@ pub async fn read(
     )
     .map_err(|_| AppError::FilesystemRequestFailed)?;
     Ok(response)
+}
+
+fn read_options(cursor: Option<String>, summary: Option<bool>) -> Value {
+    let mut options = json!({});
+    if let Some(cursor) = cursor {
+        options["cursor"] = json!(cursor);
+    }
+    if let Some(summary) = summary {
+        options["summary"] = json!(summary);
+    }
+    options
 }
 
 pub async fn start(
@@ -101,4 +114,24 @@ pub async fn start(
     Ok(
         json!({"checkpoint":{"sequence":state.project_sequence(project).await,"sessionId":crate::infrastructure::codex::runtime_session_id()},"taskId":id,"turn":turn}),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_options;
+    use serde_json::json;
+
+    #[test]
+    fn claude_read_preserves_summary_and_process_options() {
+        assert_eq!(read_options(None, Some(true)), json!({"summary":true}));
+        assert_eq!(
+            read_options(Some("older".into()), Some(true)),
+            json!({"cursor":"older","summary":true})
+        );
+        assert_eq!(
+            read_options(Some("process".into()), Some(false)),
+            json!({"cursor":"process","summary":false})
+        );
+        assert_eq!(read_options(None, None), json!({}));
+    }
 }

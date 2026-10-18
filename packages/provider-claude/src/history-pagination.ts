@@ -25,6 +25,12 @@ function encode(cursor: Cursor): string | null {
   if (encoded.length > 8192) throw new Error("Claude history cursor exceeds budget");
   return encoded;
 }
+/** 过程入口仅绑定一个回合，耗尽后直接结束，绝不续读其他回合。 */
+export function claudeProcessCursor(task: string, turnId: string): string {
+  const cursor = encode({ task, pending: [{ turnId, before: null }], older: null });
+  if (!cursor) throw new Error("Claude process cursor is unavailable");
+  return cursor;
+}
 function decode(task: string, cursor?: string): Cursor | undefined {
   if (!cursor?.startsWith(PREFIX)) return undefined;
   if (cursor.length > 8192) throw new Error("Invalid Claude history cursor");
