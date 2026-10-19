@@ -22,12 +22,96 @@ async function setup() {
     "ANTHROPIC_BASE_URL",
     "ANTHROPIC_MODEL",
     "CLAUDE_CODE_EFFORT_LEVEL",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
   ])
     vi.stubEnv(key, "");
   return { root, user, config: new ClaudeConfiguration(root) };
 }
 
 describe("Claude native user configuration", () => {
+  it("读取既有窗口环境配置，分别保存和清空，并保留其他原生配置", async () => {
+    const { user, config } = await setup();
+    const path = join(user, "settings.json");
+    await writeFile(
+      path,
+      JSON.stringify({
+        hooks: {},
+        env: {
+          HTTPS_PROXY: "http://proxy",
+          CLAUDE_CODE_MAX_CONTEXT_TOKENS: "400000",
+          CLAUDE_CODE_AUTO_COMPACT_WINDOW: "300000",
+        },
+      }),
+    );
+    expect(await config.readSettings()).toMatchObject({
+      modelContextWindow: 400000,
+      autoCompactWindow: 300000,
+    });
+    await config.writeSettings({
+      ...(await config.readSettings()),
+      modelContextWindow: 1000000,
+      autoCompactWindow: 500000,
+    });
+    expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
+      hooks: {},
+      autoCompactWindow: 500000,
+      env: { HTTPS_PROXY: "http://proxy", CLAUDE_CODE_MAX_CONTEXT_TOKENS: "1000000" },
+    });
+    expect(await config.readSettings()).toMatchObject({
+      modelContextWindow: 1000000,
+      autoCompactWindow: 500000,
+    });
+    await config.writeSettings({ ...(await config.readSettings()), modelContextWindow: null });
+    expect(await config.readSettings()).toMatchObject({
+      modelContextWindow: null,
+      autoCompactWindow: 500000,
+    });
+    await config.writeSettings({ ...(await config.readSettings()), autoCompactWindow: null });
+    const cleared = JSON.parse(await readFile(path, "utf8")) as {
+      autoCompactWindow?: unknown;
+      env?: unknown;
+    };
+    expect(cleared.autoCompactWindow).toBeUndefined();
+    expect(cleared.env).toEqual({ HTTPS_PROXY: "http://proxy" });
+    expect(await config.readSettings()).toMatchObject({
+      modelContextWindow: null,
+      autoCompactWindow: null,
+    });
+  });
+
+  it("旧客户端省略窗口字段时保留配置，宿主环境覆盖原生值并报告来源", async () => {
+    const { user, config } = await setup();
+    const path = join(user, "settings.json");
+    await writeFile(
+      path,
+      JSON.stringify({
+        autoCompactWindow: 300000,
+        env: { CLAUDE_CODE_MAX_CONTEXT_TOKENS: "400000" },
+      }),
+    );
+    const {
+      modelContextWindow: _context,
+      autoCompactWindow: _compact,
+      ...legacy
+    } = await config.readSettings();
+    await config.writeSettings(legacy);
+    expect(await config.readSettings()).toMatchObject({
+      modelContextWindow: 400000,
+      autoCompactWindow: 300000,
+    });
+    vi.stubEnv("CLAUDE_CODE_MAX_CONTEXT_TOKENS", "1000000");
+    vi.stubEnv("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "700000");
+    const overridden = await config.readSettings();
+    expect(overridden).toMatchObject({
+      modelContextWindow: 1000000,
+      autoCompactWindow: 700000,
+    });
+    expect(overridden.environmentOverrides).toEqual(
+      expect.arrayContaining(["CLAUDE_CODE_MAX_CONTEXT_TOKENS", "CLAUDE_CODE_AUTO_COMPACT_WINDOW"]),
+    );
+  });
+
   it("round trips the three model aliases without turning them into an allowlist", async () => {
     const { user, config } = await setup();
     const modelAliases = { opus: "gateway-opus", sonnet: "gateway-sonnet", haiku: "gateway-haiku" };

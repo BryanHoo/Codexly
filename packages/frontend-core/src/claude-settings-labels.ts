@@ -21,6 +21,16 @@ export const claudeSettingsChinese = {
   effortDefault: "默认",
   effortDescription: "",
   effortUnknown: "此模型使用默认强度",
+  contextSettings: "上下文管理",
+  contextDescription: "留空恢复自动。保存后在下一轮对话生效，运行中的回合继续使用原配置。",
+  contextWindow: "上下文容量",
+  contextWindowDescription:
+    "为无法识别容量的自定义模型声明实际容量，不会扩大服务商支持的上限。已知 Claude 模型请使用原生长上下文选项。",
+  contextWindowInvalid: "请输入大于 0 的整数（k tokens）",
+  autoCompactWindow: "自动压缩窗口",
+  autoCompactWindowDescription:
+    "达到此窗口时由 Claude 自动压缩；有效值受模型容量限制，模型专属配置仍可覆盖此值。",
+  autoCompactWindowInvalid: "请输入 100–1000 的整数（k tokens）",
   permissionAutoDescription:
     "由 Claude 自动评估工具操作；需要受支持的模型和服务商，实际可用性由 Claude 判断。",
   credentialPlaceholder: "输入服务商提供的 API Key 或 Token",
@@ -52,6 +62,17 @@ export const claudeSettingsEnglish: Record<keyof typeof claudeSettingsChinese, s
   effortDefault: "Default",
   effortDescription: "",
   effortUnknown: "This model uses default effort",
+  contextSettings: "Context management",
+  contextDescription:
+    "Leave blank for automatic. Changes apply to the next turn; running turns keep their current settings.",
+  contextWindow: "Context capacity",
+  contextWindowDescription:
+    "Declare the actual capacity of an unrecognized custom model. This does not increase the provider’s limit. For known Claude models, use native extended context options.",
+  contextWindowInvalid: "Enter a positive integer (k tokens)",
+  autoCompactWindow: "Auto-compact window",
+  autoCompactWindowDescription:
+    "Claude compacts at this window, capped by model capacity. Model-specific settings can override this value.",
+  autoCompactWindowInvalid: "Enter an integer from 100 to 1000 (k tokens)",
   permissionAutoDescription:
     "Claude reviews tool actions automatically. Requires a supported model and provider; Claude determines availability.",
   credentialPlaceholder: "Enter your provider’s API Key or Token",

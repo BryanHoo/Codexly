@@ -8,6 +8,35 @@ import { claudeSettingsChinese as engineChinese } from "@codexly/frontend-core/c
 import { SettingsField, SettingsGroup, SettingsSelect } from "./global-settings-fields.js";
 
 describe("Claude 设置控件", () => {
+  it("共享窗口控件回显千 tokens，采用 Claude 独立边界并遵守宿主覆盖", async () => {
+    const { ClaudeRuntimeSettingsFields } =
+      await import("@codexly/ui/core/claude-runtime-settings-fields");
+    const { DEFAULT_CLAUDE_SETTINGS } = await import("@codexly/protocol");
+    const markup = renderToStaticMarkup(
+      <ClaudeRuntimeSettingsFields
+        settings={{
+          ...DEFAULT_CLAUDE_SETTINGS,
+          modelContextWindow: 400000,
+          autoCompactWindow: 300000,
+          environmentOverrides: ["CLAUDE_CODE_MAX_CONTEXT_TOKENS"],
+        }}
+        models={[]}
+        disabled={false}
+        labels={engineChinese}
+        Group={SettingsGroup}
+        Field={SettingsField}
+        Select={SettingsSelect}
+        onChange={() => undefined}
+      />,
+    );
+    expect(markup).toMatch(
+      /<input[^>]*min="1"[^>]*aria-label="上下文容量 \(k tokens\)"[^>]*value="400"/,
+    );
+    expect(markup).toMatch(/<input[^>]*disabled=""[^>]*aria-label="上下文容量 \(k tokens\)"/);
+    expect(markup).toMatch(
+      /<input[^>]*min="100"[^>]*max="1000"[^>]*aria-label="自动压缩窗口 \(k tokens\)"[^>]*value="300"/,
+    );
+  });
   it("原生 auto 在共享设置中正确选中，并说明可用性限制", async () => {
     const { ClaudeRuntimeSettingsFields } =
       await import("@codexly/ui/core/claude-runtime-settings-fields");

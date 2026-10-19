@@ -44,6 +44,17 @@ function strings(value: unknown): string[] {
       ]
     : [];
 }
+/** 原生环境变量使用十进制字符串；不把空串、指数或非法范围误读成容量。 */
+function contextTokens(value: unknown, min = 1, max = Number.MAX_SAFE_INTEGER): number | null {
+  if (typeof value === "string" && !/^\d+$/.test(value)) return null;
+  const tokens = typeof value === "string" ? Number(value) : value;
+  return typeof tokens === "number" &&
+    Number.isSafeInteger(tokens) &&
+    tokens >= min &&
+    tokens <= max
+    ? tokens
+    : null;
+}
 function missing(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
@@ -143,7 +154,7 @@ export class ClaudeConfiguration {
     const environmentOverrides = Object.keys(process.env).filter(
       (key) =>
         Boolean(process.env[key]) &&
-        /^(?:ANTHROPIC_(?:API_KEY|AUTH_TOKEN|BASE_URL|MODEL|DEFAULT_(?:OPUS|SONNET|HAIKU)_MODEL)|CLAUDE_CODE_EFFORT_LEVEL)$/.test(
+        /^(?:ANTHROPIC_(?:API_KEY|AUTH_TOKEN|BASE_URL|MODEL|DEFAULT_(?:OPUS|SONNET|HAIKU)_MODEL)|CLAUDE_CODE_(?:EFFORT_LEVEL|MAX_CONTEXT_TOKENS|AUTO_COMPACT_WINDOW|DISABLE_1M_CONTEXT))$/.test(
           key,
         ),
     );
@@ -151,6 +162,13 @@ export class ClaudeConfiguration {
       ...(environmentOverrides.length ? { environmentOverrides } : {}),
       modelAliases,
       model: text(env["ANTHROPIC_MODEL"]) ?? text(native["model"]) ?? DEFAULT_CLAUDE_SETTINGS.model,
+      modelContextWindow: contextTokens(env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"]),
+      // 环境变量优先于原生设置；兼容用户在 CLI 中已有的压缩窗口配置。
+      autoCompactWindow: contextTokens(
+        env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] ?? native["autoCompactWindow"],
+        100000,
+        1000000,
+      ),
       reasoningEffort: text(env["CLAUDE_CODE_EFFORT_LEVEL"]) ?? text(native["effortLevel"]) ?? "",
       permissionMode: permissions["defaultMode"] ?? "default",
       instructions,
@@ -212,6 +230,17 @@ export class ClaudeConfiguration {
       native["effortLevel"] = snapshot.reasoningEffort;
     else delete native["effortLevel"];
     const env = { ...object(native["env"]) };
+    // 只处理显式提供的字段，旧客户端保存其他设置不能删除新窗口配置。
+    if (snapshot.modelContextWindow !== undefined) {
+      if (snapshot.modelContextWindow === null) delete env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"];
+      else env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] = String(snapshot.modelContextWindow);
+    }
+    if (snapshot.autoCompactWindow !== undefined) {
+      // 使用官方设置键持久化，移除用户文件中会遮蔽该值的旧环境覆盖；宿主环境仍优先。
+      delete env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"];
+      if (snapshot.autoCompactWindow === null) delete native["autoCompactWindow"];
+      else native["autoCompactWindow"] = snapshot.autoCompactWindow;
+    }
     // 三个档位只写入官方别名变量，不再把映射目标误当成 availableModels 白名单。
     if (snapshot.modelAliases) {
       for (const alias of ["opus", "sonnet", "haiku"] as const) {

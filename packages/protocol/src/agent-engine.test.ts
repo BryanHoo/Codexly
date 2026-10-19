@@ -8,6 +8,27 @@ import { AgentTaskSettingsSchema } from "./project-settings.js";
 import { ClaudeSettingsSchema, DEFAULT_CLAUDE_SETTINGS } from "./agent-engine.js";
 
 describe("conversation engine identity", () => {
+  it("窗口配置兼容省略和自动值，拒绝非法容量与自动压缩范围", () => {
+    for (const fields of [
+      {},
+      { modelContextWindow: null, autoCompactWindow: null },
+      { modelContextWindow: 400000, autoCompactWindow: 300000 },
+    ])
+      expect(Value.Check(ClaudeSettingsSchema, { ...DEFAULT_CLAUDE_SETTINGS, ...fields })).toBe(
+        true,
+      );
+    for (const value of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, "400000"])
+      expect(
+        Value.Check(ClaudeSettingsSchema, {
+          ...DEFAULT_CLAUDE_SETTINGS,
+          modelContextWindow: value,
+        }),
+      ).toBe(false);
+    for (const value of [0, 99999, 1000001, 100000.5, "300000"])
+      expect(
+        Value.Check(ClaudeSettingsSchema, { ...DEFAULT_CLAUDE_SETTINGS, autoCompactWindow: value }),
+      ).toBe(false);
+  });
   it("配置与会话协议均接受原生 auto 权限模式", () => {
     expect(
       Value.Check(ClaudeSettingsSchema, { ...DEFAULT_CLAUDE_SETTINGS, permissionMode: "auto" }),

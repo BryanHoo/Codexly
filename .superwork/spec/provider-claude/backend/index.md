@@ -2,6 +2,8 @@
 
 `packages/provider-claude` 是 Web 和桌面宿主共用的官方 SDK 边界。架构和使用说明见[双引擎说明](../../../../docs/agent-engines.md)。
 
+- Claude 上下文容量和自动压缩窗口在两端共用设置中编辑，原生配置为唯一权威来源：容量使用 `env.CLAUDE_CODE_MAX_CONTEXT_TOKENS`，压缩兼容旧环境变量，保存到 `autoCompactWindow` 并清除文件中的旧压缩环境覆盖。`null` 删除，省略保留；宿主环境优先且界面禁用对应输入。配置变化仅在下一轮以原 sessionId 重建查询，不中断当前回合或自动终止后台工作；不设置 `DISABLE_COMPACT` 绕过已知模型限制。验证配置往返、旧客户端、环境覆盖、恢复与真实 SDK 本地 summary，详见[上下文窗口](../../../../docs/model-context-window.md#claude-上下文管理)。
+
 - 首次成功发送后由共享 Provider 异步调用 `haiku` 生成短标题，沿用原生认证与 Haiku 别名；不阻塞主回合。与 Codex 复用 `core/task-title` 的最多 1024 字符正文、单行和最多 36 字符标题规则。辅助请求禁用工具、MCP、Hooks 和会话持久化，不携带附件正文；60 秒超时、模型失败或无效输出回退截取短正文。手动名称优先，归档、删除及宿主关闭取消迟到写入；每个 Provider 最多并发八个标题查询，超额直接回退。验证 `task-titles.test.ts`、`provider.test.ts` 与 `pnpm test:claude-host` 的真实 Haiku 别名和结构化输出。
 
 - Web 与桌面共用用户原生 Claude 配置：目录优先 `CLAUDE_CONFIG_DIR`，否则 `~/.claude`；不得重定向到应用私有运行目录。SDK 必须加载 `user`，按项目加载偏好追加 `project/local`；本机登录、钥匙串、环境变量、apiKeyHelper 和云认证交给 SDK，禁止强制覆盖认证方式。对外状态不得返回密钥。

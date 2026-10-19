@@ -12,7 +12,7 @@ import {
 import type { CatalogOperations, LocalCatalogStore, LocalTask } from "@codexly/core";
 import type { AgentTurnOptions } from "@codexly/protocol";
 import { expect, it, vi } from "vitest";
-import { claudeEnvironment } from "./config.js";
+import { ClaudeConfiguration, claudeEnvironment } from "./config.js";
 import { ClaudeRuntime } from "./runtime.js";
 import { ClaudeTurnProjection } from "./turn-projection.js";
 
@@ -113,6 +113,66 @@ async function localApi(tool?: { name: string; input: Record<string, unknown> })
     },
   };
 }
+
+it.each([
+  { modelContextWindow: 400000, autoCompactWindow: 300000, expected: 300000 },
+  { modelContextWindow: 500000, autoCompactWindow: null, expected: 500000 },
+  { modelContextWindow: null, autoCompactWindow: null, expected: 200000 },
+])(
+  "真实 SDK 从原生配置读取自定义模型窗口：$expected",
+  async ({ expected, ...windows }) => {
+    const root = await mkdtemp(join(tmpdir(), "claude-context-contract-"));
+    const api = await localApi();
+    const config = new ClaudeConfiguration(root, join(root, "native"));
+    await config.writeSettings({
+      ...(await config.readSettings()),
+      ...windows,
+      modelAliases: { opus: "", sonnet: "gpt-6.1-sol", haiku: "" },
+    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, 25000);
+    const gate = Promise.withResolvers<undefined>();
+    // 只读取 SDK 本地 summary，不发送提示词或付费推理，也不读取开发机配置。
+    const inherited = Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([key]) => !/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$)/u.test(key),
+      ),
+    );
+    const stream = query({
+      prompt: (async function* () {
+        await gate.promise;
+        yield* [];
+      })(),
+      options: {
+        cwd: root,
+        model: "sonnet",
+        tools: [],
+        persistSession: false,
+        settingSources: ["user"],
+        abortController: controller,
+        settings: { apiKeyHelper: "", forceLoginMethod: "console" },
+        env: {
+          ...claudeEnvironment({ apiKey: "isolated-context-key", baseUrl: api.baseUrl }, inherited),
+          CLAUDE_CONFIG_DIR: config.userDirectory,
+        },
+      },
+    });
+    try {
+      const usage = await stream.getContextUsage({ detail: "summary" });
+      expect(usage.rawMaxTokens).toBe(expected);
+      expect(api.requests.filter((request) => request.path.includes("/messages"))).toHaveLength(0);
+    } finally {
+      clearTimeout(timer);
+      gate.resolve(undefined);
+      stream.close();
+      await api.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  35000,
+);
 
 // 真正启动官方 SDK 配套二进制；只替换远端 API，不使用真实密钥或消耗额度。
 it("runs the official Claude runtime against an isolated local Messages API", async () => {

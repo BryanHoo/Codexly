@@ -1,4 +1,5 @@
 import { Input } from "./input.js";
+import { ModelContextWindowInput } from "./model-context-window-input.js";
 import type { ComponentType, ReactNode, SelectHTMLAttributes } from "react";
 import type { AgentModel, ClaudeSettings } from "@codexly/protocol";
 import { CLAUDE_MODEL_OPTIONS } from "@codexly/protocol";
@@ -129,6 +130,46 @@ export function ClaudeRuntimeSettingsFields({
             <option value="dontAsk">{labels.permissionDeny}</option>
             <option value="bypassPermissions">{labels.permissionBypass}</option>
           </Select>
+        </Field>
+      </Group>
+      <Group title={labels.contextSettings} description={labels.contextDescription}>
+        <Field label={labels.contextWindow} description={labels.contextWindowDescription}>
+          <ModelContextWindowInput
+            value={settings.modelContextWindow ?? null}
+            minK={1}
+            maxK={Math.floor(Number.MAX_SAFE_INTEGER / 1000)}
+            disabled={
+              disabled ||
+              Boolean(settings.environmentOverrides?.includes("CLAUDE_CODE_MAX_CONTEXT_TOKENS"))
+            }
+            labels={{
+              label: labels.contextWindow,
+              automatic: labels.automatic,
+              invalid: labels.contextWindowInvalid,
+            }}
+            onChange={(modelContextWindow) => {
+              onChange({ ...settings, modelContextWindow });
+            }}
+          />
+        </Field>
+        <Field label={labels.autoCompactWindow} description={labels.autoCompactWindowDescription}>
+          <ModelContextWindowInput
+            value={settings.autoCompactWindow ?? null}
+            minK={100}
+            maxK={1000}
+            disabled={
+              disabled ||
+              Boolean(settings.environmentOverrides?.includes("CLAUDE_CODE_AUTO_COMPACT_WINDOW"))
+            }
+            labels={{
+              label: labels.autoCompactWindow,
+              automatic: labels.automatic,
+              invalid: labels.autoCompactWindowInvalid,
+            }}
+            onChange={(autoCompactWindow) => {
+              onChange({ ...settings, autoCompactWindow });
+            }}
+          />
         </Field>
       </Group>
       <Group title={labels.mappings} description={labels.mappingsDescription}>

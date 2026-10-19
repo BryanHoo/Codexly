@@ -38,6 +38,13 @@ export const ClaudeSettingsSchema = Type.Object(
       ),
     ),
     model: Type.String({ minLength: 1, maxLength: 256 }),
+    // 可选以兼容旧客户端；null 删除原生覆盖，省略则保留现有配置。
+    modelContextWindow: Type.Optional(
+      Type.Union([Type.Integer({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }), Type.Null()]),
+    ),
+    autoCompactWindow: Type.Optional(
+      Type.Union([Type.Integer({ minimum: 100000, maximum: 1000000 }), Type.Null()]),
+    ),
     reasoningEffort: Type.Union([
       Type.Literal(""),
       Type.Literal("low"),
@@ -62,6 +69,8 @@ export const ClaudeSettingsSchema = Type.Object(
 );
 export type ClaudeSettings = Static<typeof ClaudeSettingsSchema>;
 export const DEFAULT_CLAUDE_SETTINGS: ClaudeSettings = {
+  modelContextWindow: null,
+  autoCompactWindow: null,
   modelAliases: { opus: "", sonnet: "", haiku: "" },
   model: "default",
   reasoningEffort: "",

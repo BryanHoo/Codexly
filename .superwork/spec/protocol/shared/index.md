@@ -1,5 +1,7 @@
 # 公共协议
 
+- Claude 全局设置可选 `modelContextWindow`（正安全整数或 null）与 `autoCompactWindow`（100,000–1,000,000 的整数或 null），省略保留原生配置，null 清除覆盖。两端使用共享 Schema、设置表单与输入解析；宿主环境覆盖值和来源只读展示，不传递认证信息。详见[Claude 上下文管理](../../../../docs/model-context-window.md#claude-上下文管理)。
+
 - 快照暂时无法生成一致覆盖时，HTTP 错误使用 `TASK_SNAPSHOT_BUSY`、503 和 `retryable: true`；客户端读取路径须经共享错误 Schema 校验后保留错误码与重试标记。Claude 宿主的字符串错误包含该错误码，保持现有原生字符串消费兼容。
 
 - 本机通用窗口使用全局 `modelContextWindow: number | null`，正整数上限为 `Number.MAX_SAFE_INTEGER`，不进入项目默认值或回合参数。Codex 配置为权威来源，`null` 通过官方 API 删除覆盖；不得从应用数据库恢复旧窗口。两端复用数字输入组件，显示 k tokens，UI 接受空值或 272–1000 的整数、提交时乘以 1000；不截断已有配置。失焦或 Enter 才提交。详见[上下文窗口契约](../../../../docs/model-context-window.md)。

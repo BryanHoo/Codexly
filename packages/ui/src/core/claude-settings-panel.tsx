@@ -308,6 +308,12 @@ export function ClaudeSettingsPanel({
                     model: next.model,
                     reasoningEffort: next.reasoningEffort,
                     permissionMode: next.permissionMode,
+                    ...(next.modelContextWindow !== undefined
+                      ? { modelContextWindow: next.modelContextWindow }
+                      : {}),
+                    ...(next.autoCompactWindow !== undefined
+                      ? { autoCompactWindow: next.autoCompactWindow }
+                      : {}),
                     ...(next.modelAliases ? { modelAliases: next.modelAliases } : {}),
                   },
                   next.modelAliases !== settings.modelAliases,

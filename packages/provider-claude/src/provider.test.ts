@@ -1363,6 +1363,35 @@ it.each([
   },
 );
 
+it("窗口变化后沿原 sessionId 恢复查询，相同配置继续复用", async () => {
+  const h = await harness(undefined, 60000);
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  const sessionId = h.query.mock.calls[0]?.[0].options.sessionId;
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(h.provider.isBusy).toBe(false);
+  });
+  await h.config.writeSettings({
+    ...(await h.config.readSettings()),
+    modelContextWindow: 400000,
+    autoCompactWindow: 300000,
+  });
+  await h.provider.startTurn(task.id, prompt, options);
+  expect(h.close).toHaveBeenCalledOnce();
+  expect(h.query).toHaveBeenCalledTimes(2);
+  expect(h.query.mock.calls[1]?.[0].options).toMatchObject({
+    resume: sessionId,
+    settingSources: ["user", "project", "local"],
+  });
+  h.send({ type: "result", subtype: "success" });
+  await vi.waitFor(() => {
+    expect(h.provider.isBusy).toBe(false);
+  });
+  await h.provider.startTurn(task.id, prompt, options);
+  expect(h.query).toHaveBeenCalledTimes(2);
+});
+
 it("rejects a new turn with changed credentials while background work survives", async () => {
   const h = await harness(undefined, 60_000);
   await h.config.configure({ baseUrl: "https://service-a.example", apiKey: "key-a" });
