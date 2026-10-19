@@ -38,6 +38,24 @@ async function setup() {
   return new ClaudeHistory(root);
 }
 
+it("keeps live steering messages in a completed turn summary after restart", async () => {
+  const history = await setup();
+  const items = [
+    message("question", "user"),
+    tool("read"),
+    message("steer-a", "user"),
+    message("steer-b", "user"),
+    message("answer"),
+  ];
+  await history.complete("task", turn("steered", items));
+  expect((await new ClaudeHistory(history.directory).readSummary("task")).turns[0]?.items).toEqual([
+    items[0],
+    items[2],
+    items[3],
+    items[4],
+  ]);
+});
+
 it("paginates whole turn summaries with stable task-bound cursors across restarts and arrivals", async () => {
   const history = await setup();
   for (let i = 0; i < 25; i++)

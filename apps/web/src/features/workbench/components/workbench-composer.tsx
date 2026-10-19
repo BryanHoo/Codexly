@@ -96,7 +96,7 @@ export function WorkbenchComposer(props: WorkbenchComposerProps) {
       settings={settings}
       skills={claude ? [] : props.skills}
       fastModeAvailable={!claude && props.fastModeAvailable}
-      followUpBehavior={claude ? "queue" : props.followUpBehavior}
+      followUpBehavior={props.followUpBehavior}
       onSubmissionStateChange={(submitting) => {
         state.setSubmitting(submitting);
         props.onSubmissionStateChange?.(submitting);

@@ -47,7 +47,7 @@ export function WorkbenchComposer(props: WorkbenchComposerProps) {
     capabilities={claude ? state.profile?.capabilities : props.capabilities}
     settings={settings} skills={claude ? [] : props.skills}
     fastModeAvailable={!claude && props.fastModeAvailable}
-    followUpBehavior={claude ? "steer" : props.followUpBehavior}
+    followUpBehavior={props.followUpBehavior}
     onSubmissionStateChange={(submitting) => { state.setSubmitting(submitting); props.onSubmissionStateChange?.(submitting); }}
     onSettingsChange={async (next, field, fastMode) => {
       if (!claude) return props.onSettingsChange(next, field, fastMode);

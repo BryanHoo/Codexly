@@ -75,3 +75,5 @@
 - Git 辅助推理通过 `generateCommitMessage(prompt, model)` 在共享适配器执行，桌面宿主对应 `commit.generate`；禁止创建持久任务、开启工具或借用 Codex。使用用户设置源、显式模型、结构化 JSON 输出、30 秒截止时间及最多两个在途请求，关闭运行时时取消请求。验证 `commit-message.test.ts`、`pnpm test:claude-host` 和仅 Claude 的真实 API。
 
 - 普通回合接受公共输入 `outputSchema`，在共享 SDK 查询边界转换为 `outputFormat: { type: "json_schema", schema }`，由 SDK 执行约束与错误判定。Schema 纳入查询复用配置；变更或移除时沿用精确 sessionId 重建，无变化时继续复用，有后台工作则拒绝重建。成功 result 的 `structured_output` 以 JSON 正文及 `final_answer` 阶段进入现有有界投影、完成事件与持久历史，即使已有过程正文也不能遗漏；缺失字段与 null、false、0、空字符串须区分。失败或中断不能发布为成功结构化答复。`provider.test.ts`、`turn-projection.test.ts` 与 `pnpm test:claude-host` 覆盖透传、复用、后台保护、SDK 实际结构化输出及宿主重启恢复。
+
+- Claude 全端跟进共用 SDK 流式输入：普通回合 priority=later，运行中引导 priority=next，不通过 interrupt 模拟引导。投递前后校验任务和目标回合，连续输入不得共用单次 Promise resolve；保持有界队列及独立消息 UUID。引导及附件进入原回合历史，首屏用户摘要受条数和字节预算限制，完整记录保留过程分页。桌面宿主复用 core/persistent-task-queue，排队转引导也保存 starting/started 标记，未知结果不能重发；元数据列表不得读取附件正文。验证 provider.test.ts、host-queue.test.ts、summary-history.test.ts 与 pnpm test:claude-host。

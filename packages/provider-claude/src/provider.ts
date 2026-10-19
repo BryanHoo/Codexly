@@ -1,3 +1,5 @@
+import { DEFAULT_CLAUDE_SDK } from "./sdk-defaults.js";
+import { ClaudeTurnSteering } from "./turn-steering.js";
 import { interruptForeground } from "./session-interruption.js";
 import { createClaudeQuery, reuseClaudeQuery } from "./session-query.js";
 import {
@@ -16,13 +18,7 @@ import { ClaudeTaskTitles } from "./task-titles.js";
 import { CLAUDE_CAPABILITIES } from "./capabilities.js";
 export { CLAUDE_CAPABILITIES } from "./capabilities.js";
 import { randomUUID } from "node:crypto";
-import {
-  query,
-  getSessionMessages,
-  getSessionInfo,
-  deleteSession,
-  forkSession,
-} from "@anthropic-ai/claude-agent-sdk";
+
 import type {
   AgentProviderEventListener,
   AgentProviderTurnInput,
@@ -52,6 +48,7 @@ export class ClaudeAgentProvider {
   readonly #listeners = new Set<AgentProviderEventListener>();
   readonly #running = new Map<string, session.Running>();
   readonly #starting = new Set<string>();
+  readonly #steering: ClaudeTurnSteering;
   readonly #recent = new Map<string, AgentTurn>();
   readonly #unpersisted = new Set<string>();
   readonly #sessionGrants = new Map<string, ClaudeSessionGrants>();
@@ -61,16 +58,11 @@ export class ClaudeAgentProvider {
     readonly scope: AgentTaskScope,
     readonly store: LocalCatalogStore,
     readonly config: ClaudeConfiguration,
-    readonly sdk: session.ClaudeSdk = {
-      query,
-      getSessionMessages,
-      getSessionInfo,
-      deleteSession,
-      forkSession,
-    },
+    readonly sdk: session.ClaudeSdk = DEFAULT_CLAUDE_SDK,
     readonly discover?: () => Promise<AgentEngineProfile>,
     readonly idleTimeoutMs = 30_000,
   ) {
+    this.#steering = new ClaudeTurnSteering((id) => this.#running.get(id), config);
     this.#titles = new ClaudeTaskTitles(sdk, config, store, this.#emit);
     this.#mcp = new ClaudeMcpManagement(config, sdk, this.#starting, this.#running, (id) =>
       this.#task(id),
@@ -238,6 +230,9 @@ export class ClaudeAgentProvider {
     options: AgentTurnOptions,
   ): Promise<AgentTurn> {
     return this.#startTurn(id, input, options);
+  }
+  steerTurn(id: string, turnId: string, input: AgentProviderTurnInput): Promise<void> {
+    return this.#steering.send(id, turnId, input);
   }
   /** 专用压缩仍是原生命令回合；受理后由 SDK result 决定真实终态及未压缩原因。 */
   async compactTask(id: string, options?: AgentTurnOptions): Promise<void> {

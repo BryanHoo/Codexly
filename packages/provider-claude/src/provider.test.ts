@@ -36,6 +36,89 @@ const options: AgentTurnOptions = {
 };
 const prompt = { text: "hello", files: [], images: [], skills: [], textAttachments: [] };
 
+describe("Claude live steering", () => {
+  it("delivers consecutive steers in the same turn and persists their user messages", async () => {
+    const h = await harness(undefined, 60_000);
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const task = await h.provider.startTask();
+    const turn = await h.provider.startTurn(task.id, prompt, options);
+    await Promise.all(
+      ["先检查类型", "保留现有接口"].map((text) =>
+        h.provider.steerTurn(task.id, turn.id, { ...prompt, text }),
+      ),
+    );
+    await vi.waitFor(() => {
+      expect(
+        h.received.filter((entry) => (entry as { type?: string }).type === "user"),
+      ).toHaveLength(3);
+    });
+    const inputs = h.received.filter(
+      (entry) => (entry as { type?: string }).type === "user",
+    ) as SDKUserMessage[];
+    expect(inputs.slice(1)).toMatchObject([{ priority: "next" }, { priority: "next" }]);
+    expect(new Set(inputs.map((entry) => entry.uuid)).size).toBe(3);
+    expect(h.interrupt).not.toHaveBeenCalled();
+    expect(h.query).toHaveBeenCalledOnce();
+    expect(events.filter((event) => event.type === "turn.started")).toHaveLength(1);
+    h.send({ type: "result", subtype: "success", result: "完成" });
+    await vi.waitFor(() => {
+      expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    });
+    const snapshot = await h.provider.readTask(task.id);
+    expect(
+      snapshot?.turns[0]?.items.flatMap((item) =>
+        item.type === "message" && item.role === "user" ? [item.text] : [],
+      ),
+    ).toEqual(["hello", "先检查类型", "保留现有接口"]);
+    expect((await h.provider.getCapabilities()).turns.steer).toBe(true);
+  });
+
+  it("rejects stale turns and unsupported inputs without sending or interrupting", async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const turn = await h.provider.startTurn(task.id, prompt, options);
+    await expect(h.provider.steerTurn(task.id, "old-turn", prompt)).rejects.toThrow();
+    await expect(
+      h.provider.steerTurn(task.id, turn.id, { ...prompt, text: "/compact" }),
+    ).rejects.toThrow();
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    await expect(h.provider.steerTurn(task.id, turn.id, prompt)).rejects.toThrow();
+    expect(h.interrupt).not.toHaveBeenCalled();
+    expect(h.received.filter((entry) => (entry as { type?: string }).type === "user")).toHaveLength(
+      1,
+    );
+  });
+
+  it("rechecks the target after attachment preparation without delivering to a completed turn", async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    const turn = await h.provider.startTurn(task.id, prompt, options);
+    const gate = Promise.withResolvers<undefined>();
+    const entered = Promise.withResolvers<undefined>();
+    vi.spyOn(h.config.attachments, "prepare").mockImplementationOnce(async () => {
+      entered.resolve(undefined);
+      await gate.promise;
+      return [];
+    });
+    const steering = h.provider.steerTurn(task.id, turn.id, { ...prompt, text: "late steer" });
+    const rejected = expect(steering).rejects.toThrow("目标回合已结束");
+    await entered.promise;
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    gate.resolve(undefined);
+    await rejected;
+    expect(h.received.filter((entry) => (entry as { type?: string }).type === "user")).toHaveLength(
+      1,
+    );
+  });
+});
+
 async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeoutMs = 40) {
   const root = await mkdtemp(join(tmpdir(), "codexly-claude-provider-"));
   roots.push(root);

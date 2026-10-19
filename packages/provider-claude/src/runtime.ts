@@ -4,13 +4,7 @@ import { isSupportedClaudeCommand } from "./commands.js";
 import { generateClaudeCommitMessage } from "./commit-message.js";
 import { generateTitle } from "./task-titles.js";
 import { homedir } from "node:os";
-import {
-  query,
-  getSessionMessages,
-  getSessionInfo,
-  deleteSession,
-  forkSession,
-} from "@anthropic-ai/claude-agent-sdk";
+import { DEFAULT_CLAUDE_SDK } from "./sdk-defaults.js";
 import type { AgentEngineService, AgentTaskScope, LocalCatalogStore } from "@codexly/core";
 import type {
   AgentEngineProfile,
@@ -69,13 +63,7 @@ export class ClaudeRuntime implements AgentEngineService {
   constructor(
     directory: string,
     readonly store: LocalCatalogStore,
-    readonly sdk: ClaudeSdk = {
-      query,
-      getSessionMessages,
-      getSessionInfo,
-      deleteSession,
-      forkSession,
-    },
+    readonly sdk: ClaudeSdk = DEFAULT_CLAUDE_SDK,
   ) {
     this.configuration = new ClaudeConfiguration(directory);
   }

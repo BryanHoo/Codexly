@@ -32,5 +32,9 @@ export async function exportClaudeAttachment(
   } finally {
     await rm(temporary, { force: true });
   }
-  return { path, mediaType: attachment.mediaType };
+  return {
+    path,
+    mediaType: attachment.mediaType,
+    attachment: await provider.config.attachments.metadata(taskId, attachmentId),
+  };
 }

@@ -17,3 +17,5 @@
 - 附件 Worker 的执行并发和排队预算分别约束，不能用最多两个线程替代等待队列上限。共享池按任务目录隔离，等待和执行中合计每任务最多 64 项/64 MiB，进程内所有池最多 256 项/128 MiB；字节估算 UTF-16 正文与元数据引用，不是 RSS 上限，也不把排队文件引用视为已读入的完整文件。30 秒截止时间从准入开始，支持 AbortSignal 和任务清理取消；退出中的 Worker 继续占槽及预算，逻辑超时立即拒绝，永久删除须等待实际退出后再删除目录。超限、超时保留已有授权，正文映射返回占位，后续历史读取或下载可重试；哈希与解码始终留在 Worker。验证 `historical-attachment-worker-pool.test.ts` 与 `persistent-historical-attachment-store.test.ts`。
 
 - 全局搜索须按依赖向导启用的引擎集合筛选本地候选，再按任务持久 provider 身份检索正文；名称、排序与归档状态以应用目录为准。双引擎保留健康源命中并通过 unavailableEngines 报告失败源，游标绑定查询、类别、归档与引擎集合。Claude 复用共享摘要搜索和宿主，不启动 SDK 推理；文件搜索直接使用文件系统。详见[全局搜索契约](../../../../docs/global-search.md)。
+
+- persistent-task-queue 是 Web 服务与桌面 Claude 宿主共用的任务串行调度器；平台仅适配仓储、附件和设置。自动续发只在任务空闲时 start，不自动 steer；手动引导可绑定 expectedTurnId。排序读取和交换在同一任务锁内完成，已受理记录通过持久 starting/started 标记恢复清理，未知结果禁止再次投递。

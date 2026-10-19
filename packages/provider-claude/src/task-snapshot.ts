@@ -1,3 +1,4 @@
+import { ClaudeSummaryUsers } from "./summary-users.js";
 import { localTaskMetadata as claudeTask } from "@codexly/core";
 import type {
   AgentProviderTaskSnapshot,
@@ -206,9 +207,11 @@ export async function readClaudeTaskSnapshot({
 
 /** 活动投影可能已裁剪早期正文，保留磁盘摘要中的问题，仅叠加当前稳定答复。 */
 function summarize(turn: AgentTurn, stored?: AgentTurn): AgentTurn {
-  const user =
-    turn.items.find((item) => item.type === "message" && item.role === "user") ??
-    stored?.items.find((item) => item.type === "message" && item.role === "user");
+  const users = new Map<string, AgentTurn["items"][number]>();
+  for (const item of [...(stored?.items ?? []), ...turn.items])
+    if (item.type === "message" && item.role === "user") users.set(item.id, item);
+  const visibleUsers = new ClaudeSummaryUsers(CLAUDE_HISTORY_PAGE_BYTES / 2);
+  for (const user of users.values()) visibleUsers.add(user);
   const last = turn.items.at(-1);
   const answer =
     turn.items.findLast(
@@ -221,5 +224,5 @@ function summarize(turn: AgentTurn, stored?: AgentTurn): AgentTurn {
     last.phase === undefined
       ? last
       : undefined);
-  return { ...turn, items: [...(user ? [user] : []), ...(answer ? [answer] : [])] };
+  return { ...turn, items: [...visibleUsers.items, ...(answer ? [answer] : [])] };
 }

@@ -1,3 +1,4 @@
+import { ClaudeHostQueue } from "./host-queue.js";
 import { exportClaudeAttachment } from "./attachment-export.js";
 import { Value } from "@sinclair/typebox/value";
 import {
@@ -16,7 +17,11 @@ import {
 import type { AgentTaskScope, CatalogOperations, LocalCatalogStore } from "@codexly/core";
 import { readTaskWithCheckpoint, TaskSnapshotBusyError } from "@codexly/core";
 import type { AgentProviderTurnInput, ResolvePendingRequestInput } from "@codexly/core";
-import type { ClaudeSettings, ConfigureCustomProviderRequest } from "@codexly/protocol";
+import type {
+  AgentTaskSettings,
+  ClaudeSettings,
+  ConfigureCustomProviderRequest,
+} from "@codexly/protocol";
 import { ClaudeRuntime } from "./runtime.js";
 import { record } from "./sdk-values.js";
 import { createHostOutputStream, HostOutput } from "./host-output.js";
@@ -57,29 +62,50 @@ if (process.argv.includes("--version")) {
   };
   const output = new HostOutput(createHostOutputStream(process.stdout.fd), close);
   const send = (message: Record<string, unknown>) => output.send(message);
-  const store: LocalCatalogStore = {
-    async catalog<K extends keyof CatalogOperations>(
-      operation: K,
-      payload: CatalogOperations[K][0],
-    ): Promise<CatalogOperations[K][1]> {
-      if (closed) throw new Error("Claude host closed");
-      if (catalogRequests.size >= 64) throw new Error("Catalog request capacity exceeded");
-      const id = nextCatalogId++,
-        deferred = Promise.withResolvers<unknown>();
-      catalogRequests.set(id, deferred);
-      const timeout = setTimeout(() => {
-        deferred.reject(new Error("Catalog request timed out"));
-      }, 30_000);
-      try {
-        if (!send({ catalogId: id, operation, payload }))
-          deferred.reject(new Error("Claude host closed"));
-        return (await deferred.promise) as CatalogOperations[K][1];
-      } finally {
-        clearTimeout(timeout);
-        catalogRequests.delete(id);
-      }
-    },
+  const nativeRequest = async (operation: string, payload: unknown): Promise<unknown> => {
+    if (closed) throw new Error("Claude host closed");
+    if (catalogRequests.size >= 64) throw new Error("Catalog request capacity exceeded");
+    const id = nextCatalogId++,
+      deferred = Promise.withResolvers<unknown>();
+    catalogRequests.set(id, deferred);
+    const timeout = setTimeout(() => {
+      deferred.reject(new Error("Catalog request timed out"));
+    }, 30_000);
+    try {
+      if (!send({ catalogId: id, operation, payload }))
+        deferred.reject(new Error("Claude host closed"));
+      return await deferred.promise;
+    } finally {
+      clearTimeout(timeout);
+      catalogRequests.delete(id);
+    }
   };
+  const store: LocalCatalogStore = {
+    catalog: <K extends keyof CatalogOperations>(operation: K, payload: CatalogOperations[K][0]) =>
+      nativeRequest(operation, payload) as Promise<CatalogOperations[K][1]>,
+  };
+  const taskQueue = new ClaudeHostQueue(
+    resolve(directory),
+    async (projectId, taskId) => {
+      const saved = (await nativeRequest("task.settings", {
+        projectId,
+        taskId,
+      })) as AgentTaskSettings | null;
+      if (saved) return saved;
+      const defaults = await runtime.readSettings();
+      return {
+        model: defaults.model,
+        reasoningEffort: defaults.reasoningEffort,
+        approvalPolicy: "on-request",
+        approvalsReviewer: "user",
+        sandboxMode: "workspace-write",
+        engineOptions: { engine: "claude", permissionMode: defaults.permissionMode },
+      };
+    },
+    (event, projectId) => {
+      send({ event, projectId });
+    },
+  );
   const runtime = new ClaudeRuntime(resolve(directory), store, {
     getSessionMessages,
     getSessionInfo,
@@ -184,6 +210,9 @@ if (process.argv.includes("--version")) {
     if (!scope?.id || !scope.rootPath || !["project", "temporary"].includes(scope.kind))
       throw new Error("Invalid Claude task scope");
     const provider = runtime.forScope(scope);
+    taskQueue.subscribe(provider);
+    if (typeof method === "string" && method.startsWith("queue."))
+      return taskQueue.execute(provider, method, params);
     if (!subscribed.has(provider)) {
       subscribed.add(provider);
       provider.subscribeEvents((event) => {
@@ -235,6 +264,18 @@ if (process.argv.includes("--version")) {
         if (!Value.Check(AgentTurnOptionsSchema, params["options"]))
           throw new Error("Invalid Claude turn options");
         return provider.startTurn(id, params["input"] as AgentProviderTurnInput, params["options"]);
+      case "turn.steer":
+        if (typeof params["queuedSubmissionId"] === "string") {
+          // 排队转引导也走持久执行标记；宿主重启后只能补清理，不能重复向 SDK 发送。
+          const result = await taskQueue.execute(provider, "queue.steer", params);
+          return { status: "accepted", taskId: id, turnId: result.turn?.id };
+        }
+        await provider.steerTurn(
+          id,
+          String(params["turnId"]),
+          params["input"] as AgentProviderTurnInput,
+        );
+        return { status: "accepted", taskId: id, turnId: params["turnId"] };
       case "session.stop":
         await provider.stopSession(
           id,

@@ -6,5 +6,5 @@ export const CLAUDE_CAPABILITIES: AgentCapabilities = {
   goals: { clear: false, read: false, update: false },
   skills: { list: false, use: false },
   tasks: { fork: true, list: true, read: true, start: true },
-  turns: { compact: true, interrupt: true, review: false, start: true, steer: false },
+  turns: { compact: true, interrupt: true, review: false, start: true, steer: true },
 };

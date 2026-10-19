@@ -1,3 +1,6 @@
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
+import { ClaudeQueueRepository } from "./queue-repository.js";
 import type { LocalCatalogStore, LocalTask } from "@codexly/core";
 import type { ClaudeConfiguration } from "./config.js";
 import { hasWork, type ClaudeSdk, type Running } from "./session.js";
@@ -35,6 +38,12 @@ export async function deleteClaudeTask(
           throw error;
       }
     }
+    await rm(
+      new ClaudeQueueRepository(join(provider.config.attachments.directory, "..", "queues")).path(
+        task.id,
+      ),
+      { force: true },
+    );
     await provider.config.persistence.deleteTask(task.id);
     await provider.config.attachments.deleteTask(task.id);
     await provider.store.catalog("task.remove", { id: task.id });

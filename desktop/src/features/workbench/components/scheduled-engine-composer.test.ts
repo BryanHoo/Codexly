@@ -56,3 +56,12 @@ describe("scheduled engine composer", () => {
     );
   });
 });
+
+// 两端必须尊重同一跟进偏好，不能按引擎固定成排队或引导。
+it.each(["queue", "steer"] as const)("preserves Claude follow-up preference: %s", (followUpBehavior) => {
+  renderToStaticMarkup(createElement(WorkbenchComposer, {
+    projectId: "project", client: {}, models: [], followUpBehavior,
+    settings: { model: "default", reasoningEffort: "", engineOptions: { engine: "claude", permissionMode: "default" } },
+  } as unknown as WorkbenchComposerProps));
+  expect(captured).toHaveBeenLastCalledWith(expect.objectContaining({ followUpBehavior }));
+});

@@ -89,6 +89,64 @@ pub async fn start(
     {
         return Err(AppError::Claude("Task engine options mismatch".into()));
     }
+    let provider_input = provider_input(app, project, id, input).await?;
+    state.remember_tasks(project, [id]).await;
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    write_task_settings(&app_data, project, id, &AgentTaskSettings::from(&options))
+        .await
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    let turn = state
+        .claude
+        .request(
+            app,
+            "turn.start",
+            Some(scope(task)),
+            json!({"taskId":id,"input":provider_input,"options":options}),
+        )
+        .await?;
+    Ok(
+        json!({"checkpoint":{"sequence":state.project_sequence(project).await,"sessionId":crate::infrastructure::codex::runtime_session_id()},"taskId":id,"turn":turn}),
+    )
+}
+
+/// 原始上传先经路径授权；历史/排队附件由宿主按任务复验，不信任前端传回的路径及元数据。
+pub async fn provider_input(
+    app: &AppHandle,
+    project: &str,
+    task: &str,
+    mut input: AgentPromptInput,
+) -> Result<Value, AppError> {
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    let mut references = Vec::new();
+    let mut uploaded = Vec::new();
+    for attachment in std::mem::take(&mut input.attachments) {
+        let id = attachment["id"]
+            .as_str()
+            .ok_or(AppError::FilesystemRequestFailed)?;
+        if std::path::Path::new(id).is_absolute() {
+            uploaded.push(attachment);
+        } else {
+            references.push(id.to_owned());
+        }
+    }
+    input.attachments = uploaded;
+    super::attachment_commands::resolve_prompt_attachments(&app_data, project, task, &mut input)
+        .await?;
+    for id in references {
+        let exported = super::claude_attachments::export(app, project, task, &id).await?;
+        let mut attachment = exported["attachment"].clone();
+        let path = exported["path"]
+            .as_str()
+            .ok_or(AppError::FilesystemRequestFailed)?;
+        attachment["id"] = json!(path);
+        input.attachments.push(attachment);
+    }
     let mut images = Vec::new();
     let mut files = Vec::new();
     let mut text_attachments = Vec::new();
@@ -102,18 +160,30 @@ pub async fn start(
             _ => files.push(json!({"path":path,"mediaType":attachment["mediaType"],"name":attachment["name"]})),
         }
     }
-    state.remember_tasks(project, [id]).await;
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
-    write_task_settings(&app_data, project, id, &AgentTaskSettings::from(&options))
-        .await
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
-    let turn = state.claude.request(app, "turn.start", Some(scope(task)), json!({"taskId":id,"input":{"text":input.text,"skills":input.skills,"images":images,"files":files,"textAttachments":text_attachments},"options":options})).await?;
     Ok(
-        json!({"checkpoint":{"sequence":state.project_sequence(project).await,"sessionId":crate::infrastructure::codex::runtime_session_id()},"taskId":id,"turn":turn}),
+        json!({"text":input.text,"skills":input.skills,"images":images,"files":files,"textAttachments":text_attachments}),
     )
+}
+
+/// 队列按任务持久引擎路由，Claude 分支不要求 Codex 在线。
+pub async fn queue_request(
+    app: &AppHandle,
+    project: &str,
+    task_id: &str,
+    method: &str,
+    mut params: Value,
+) -> Result<Option<Value>, AppError> {
+    let task = task(app, project, task_id).await?;
+    if task["provider"] != "claude" {
+        return Ok(None);
+    }
+    params["taskId"] = json!(task_id);
+    let response = app
+        .state::<AppState>()
+        .claude
+        .request(app, method, Some(scope(&task)), params)
+        .await?;
+    Ok(Some(response))
 }
 
 #[cfg(test)]

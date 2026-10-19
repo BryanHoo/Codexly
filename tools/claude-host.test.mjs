@@ -21,6 +21,7 @@ test(
     const tasks = new Map();
     let calls = 0;
     let titleCalls = 0;
+    const messageBodies = [];
     const proofContent = `approved${"x".repeat(400000)}`;
     const api = createServer((request, response) => {
       void (async () => {
@@ -47,6 +48,7 @@ test(
           response.end("{}");
           return;
         }
+        messageBodies.push(raw);
         assert.equal(request.headers["x-api-key"], "local-host-test");
         const body = JSON.parse(raw);
         const isTitle = body.model === "gateway-haiku";
@@ -225,7 +227,8 @@ test(
         if (message.catalogId) {
           const { operation, payload } = message;
           let result;
-          if (operation === "task.read") result = tasks.get(payload.id) ?? null;
+          if (operation === "task.settings") result = null;
+          else if (operation === "task.read") result = tasks.get(payload.id) ?? null;
           else if (operation === "task.patch" || operation === "task.put") {
             result = { ...tasks.get(payload.id), ...payload };
             tasks.set(payload.id, result);
@@ -322,12 +325,75 @@ test(
         textAttachments: [{ name: "proof.txt", text: "host attachment proof" }],
         skills: [],
       };
-      await host.request("turn.start", { taskId: "task", input, options }, scope);
+      const initialTurn = await host.request(
+        "turn.start",
+        { taskId: "task", input, options },
+        scope,
+      );
       await waitEvent("task.metadata_changed");
       assert.equal(tasks.get("task").title, "编写验证文件");
       assert.ok(titleCalls > 0);
       const pending = (await waitEvent("pending_request.created")).payload.request;
       assert.equal(pending.type, "tool_approval");
+      // 真实分发宿主在同一原生回合内接收引导；排队项仍支持读取、排序和取消。
+      const emptyInput = { text: "", images: [], files: [], skills: [], textAttachments: [] };
+      const queuedA = await host.request(
+        "queue.add",
+        {
+          taskId: "task",
+          input: { ...emptyInput, text: "host-queue-cancel-proof" },
+          clientUserMessageId: "host-queue-a",
+        },
+        scope,
+      );
+      const queuedB = await host.request(
+        "queue.add",
+        {
+          taskId: "task",
+          input: { ...emptyInput, text: "host-queued-steer-proof" },
+          clientUserMessageId: "host-queue-b",
+        },
+        scope,
+      );
+      await host.request(
+        "queue.move",
+        { taskId: "task", queuedSubmissionId: queuedB.queuedSubmission.id, offset: -1 },
+        scope,
+      );
+      assert.deepEqual(
+        (await host.request("queue.list", { taskId: "task" }, scope)).data.map(
+          (entry) => entry.text,
+        ),
+        ["host-queued-steer-proof", "host-queue-cancel-proof"],
+      );
+      await host.request(
+        "queue.delete",
+        { taskId: "task", queuedSubmissionId: queuedA.queuedSubmission.id },
+        scope,
+      );
+      const queuedSteer = await host.request(
+        "turn.steer",
+        {
+          taskId: "task",
+          turnId: initialTurn.id,
+          queuedSubmissionId: queuedB.queuedSubmission.id,
+          input: { ...emptyInput, text: "host-queued-steer-proof" },
+        },
+        scope,
+      );
+      assert.equal(queuedSteer.turnId, initialTurn.id);
+      const liveSteer = await host.request(
+        "turn.steer",
+        {
+          taskId: "task",
+          turnId: initialTurn.id,
+          input: { ...emptyInput, text: "host-live-steer-proof" },
+        },
+        scope,
+      );
+      assert.equal(liveSteer.status, "accepted");
+      assert.deepEqual((await host.request("queue.list", { taskId: "task" }, scope)).data, []);
+
       // 审批输入尚未落盘；两端均不能提前显示为已应用的文件变更。
       assert.equal(
         host.events.some((event) => event.payload?.item?.type === "file_change"),
@@ -371,6 +437,10 @@ test(
       assert.ok(sessionId);
       // 强制结束 SDK 子进程，再启动同一聊天；精确授权须恢复，不能依赖进程仍在内存。
       await host.request("session.stop", { taskId: "task" }, scope);
+      assert.ok(messageBodies.some((body) => body.includes("host-live-steer-proof")));
+      assert.ok(messageBodies.some((body) => body.includes("host-queued-steer-proof")));
+      assert.ok(!messageBodies.some((body) => body.includes("host-queue-cancel-proof")));
+      assert.equal(host.events.filter((event) => event.type === "turn.started").length, 1);
       const afterFirstTurn = host.events.length;
       await host.request("turn.start", { taskId: "task", input, options }, scope);
       assert.equal(

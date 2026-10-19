@@ -50,3 +50,5 @@
 - 文件/Git 项目目录授权、相对文件预览和项目终端从 `LocalCatalog` 校验项目或任务归属，禁止先获取 Codex 连接。项目工作树仍须经 Git 登记校验，任务预览须校验 projectId。`workspace_project_root` 与 `preview_tests` 提供无需引擎的行为回归，`scripts/engine-independence.test.mjs` 进入原生约束门禁。公共设置传 Claude 范围时只访问应用偏好；Git 提交说明的 Claude 分支使用共享宿主 `commit.generate`，只有 Codex 分支才获取其连接。
 
 - 全局搜索须按依赖向导启用的引擎集合筛选本地候选，再按任务持久 provider 身份检索正文；名称、排序与归档状态以应用目录为准。双引擎保留健康源命中并通过 unavailableEngines 报告失败源，游标绑定查询、类别、归档与引擎集合。Claude 复用共享摘要搜索和宿主，不启动 SDK 推理；文件搜索直接使用文件系统。详见[全局搜索契约](../../../../docs/global-search.md)。
+
+- Claude 的排队、列表、相邻移动、取消、立即发送及 steer 必须先按 LocalCatalog 中的任务 provider 路由到共享宿主，禁止先取 Codex 连接。历史队列附件由宿主复验并导出，原始上传仍经过路径/大小授权。自动续发读取 task.settings 仅访问本地任务偏好；缺省值在宿主中补齐，不在 catalog worker 中反向调用 Claude。

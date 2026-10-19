@@ -33,7 +33,6 @@ import { ClaudeProjectionChanges } from "./projection-changes.js";
 import { ClaudeBackgroundTasks } from "./background-tasks.js";
 import { ClaudeTaskPlan } from "./task-plan.js";
 import { claudeStructuredResult, projectClaudeToolResult } from "./tool-projection.js";
-/** 只持有当前回合的渲染投影；历史与恢复上下文仍由官方 SDK 的会话文件管理。 */
 export class ClaudeTurnProjection {
   readonly #taskId: string;
   readonly #emit: AgentProviderEventListener;
@@ -78,6 +77,10 @@ export class ClaudeTurnProjection {
   get status() {
     return this.#status;
   }
+  /** 引导沿用当前回合和独立消息身份，附件只发布稳定引用，避免重复渲染原始输入。 */
+  addUserInput(id: string, input: ClaudeUserInput): void {
+    this.#item(createClaudeUserItem(id, input), true);
+  }
   get hasBackgroundWork(): boolean {
     return [...this.#children.entries()].some(
       ([id, child]) =>
@@ -92,7 +95,6 @@ export class ClaudeTurnProjection {
         this.backgroundTasks.awaitingNotification(id) || child.hasPendingTaskNotifications,
     );
   }
-  /** 会话可同时承载多个回合，关联消息必须回到创建工具的投影。 */
   ownsMessage(value: unknown): boolean {
     return this.backgroundTasks.ownsMessage(value, (id) => !!this.#agentOwner(id));
   }
@@ -176,7 +178,6 @@ export class ClaudeTurnProjection {
       }
     }
   }
-  /** 子代理仍属于父任务：有界投影随工具保存，不能伪造可独立执行的会话。 */
   #agent(id: string, status?: AgentTurn["status"], summary?: string): void {
     const item = this.#items.get(id);
     if (item?.type !== "tool" || item.name !== "agent/spawn") return;

@@ -106,22 +106,30 @@ export interface Running {
 /** 单个前台回合顺序入队；保持输入开放，父 result 不得结束 SDK 的 stdin。 */
 export function createInput() {
   let ended = false;
-  let pending = Promise.withResolvers<SDKUserMessage | undefined>();
+  const messages: SDKUserMessage[] = [];
+  let pending = Promise.withResolvers<undefined>();
   return {
     send(message: SDKUserMessage) {
-      pending.resolve(message);
+      if (ended) throw new Error("Claude 输入流已关闭");
+      // 连续引导不能共用单次 resolve，否则 SDK 尚未拉取时会静默丢失后续输入。
+      if (messages.length >= 64) throw new Error("Claude 待发送消息已达上限");
+      messages.push(message);
+      pending.resolve(undefined);
     },
     close() {
       ended = true;
+      messages.length = 0;
       pending.resolve(undefined);
     },
     async *[Symbol.asyncIterator]() {
       for (;;) {
         if (ended) return;
-        const message = await pending.promise;
-        pending = Promise.withResolvers<SDKUserMessage | undefined>();
-        if (!message) return;
-        yield message;
+        const message = messages.shift();
+        if (message) yield message;
+        else {
+          pending = Promise.withResolvers<undefined>();
+          await pending.promise;
+        }
       }
     },
   };

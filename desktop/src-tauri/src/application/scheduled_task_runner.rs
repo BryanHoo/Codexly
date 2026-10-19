@@ -28,14 +28,14 @@ pub(crate) async fn start_turn_for_task(
         .path()
         .app_data_dir()
         .map_err(|_| AppError::FilesystemRequestFailed)?;
-    super::attachment_commands::resolve_prompt_attachments(
-        &app_data, project_id, task_id, &mut input,
-    )
-    .await?;
     let task = super::claude_tasks::task(app, project_id, task_id).await?;
     if task["provider"] == "claude" {
         return super::claude_tasks::start(app, project_id, task_id, &task, input, options).await;
     }
+    super::attachment_commands::resolve_prompt_attachments(
+        &app_data, project_id, task_id, &mut input,
+    )
+    .await?;
     if options.engine_options.is_some() {
         return Err(AppError::Claude("Task engine options mismatch".into()));
     }

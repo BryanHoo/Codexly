@@ -33,6 +33,8 @@ export async function createClaudePrompt(
   }
   const prompt: SDKUserMessage = {
     type: "user",
+    // 普通发送等待上一原生回合结束；只有显式引导才覆盖为 next。
+    priority: "later",
     uuid: turnId,
     session_id: sessionId,
     parent_tool_use_id: null,

@@ -60,6 +60,34 @@ pub(super) async fn catalog_loop(
             }
         }
         let result = match message["operation"].as_str() {
+            Some("task.settings") => {
+                // 自动续发只读取应用偏好，不连接 Codex；归属必须先经过本地目录校验。
+                if let (Some(app), Some(project), Some(task)) = (
+                    app.as_ref(),
+                    message["payload"]["projectId"].as_str(),
+                    message["payload"]["taskId"].as_str(),
+                ) {
+                    async {
+                        catalog
+                            .owned_task(project, task)
+                            .await
+                            .map_err(|error| error.to_string())?;
+                        let app_data = app
+                            .path()
+                            .app_data_dir()
+                            .map_err(|error| error.to_string())?;
+                        let settings = crate::infrastructure::task_settings::read_task_settings(
+                            &app_data, project, task,
+                        )
+                        .await
+                        .map_err(|error| error.to_string())?;
+                        serde_json::to_value(settings).map_err(|error| error.to_string())
+                    }
+                    .await
+                } else {
+                    Err("Invalid Claude task settings request".to_owned())
+                }
+            }
             Some(
                 operation @ ("task.read" | "task.put" | "task.patch" | "task.list" | "task.remove"),
             ) => catalog

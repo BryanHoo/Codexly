@@ -48,3 +48,5 @@
 - 新聊天可选引擎，历史会话引擎固定；API 与全局默认值只在设置页修改。按会话引擎控制中栏和时间线能力，不能沿用全局 Codex 能力展示 Claude 不支持的操作。见[双引擎说明](../../../../docs/agent-engines.md)。
 
 - 已初始化的纯 Claude 工作区不得请求 Codex 模型、认证、技能和默认设置；按启用状态隐藏依赖 Codex 的搜索、文件提及搜索与扩展入口，快捷键也必须受同一开关控制。禁用查询的 pending 状态不能阻塞 Claude 草稿；启用 Codex 后查询与入口即时恢复，无需重挂载聊天。
+
+- Claude 与 Codex 共用跟进偏好和队列交互；WorkbenchComposer 不得按引擎强制覆盖 followUpBehavior，移动端遵循同一行为。scheduled-engine-composer.test.tsx 覆盖两种跟进偏好。

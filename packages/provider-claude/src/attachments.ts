@@ -62,6 +62,16 @@ export class ClaudeAttachments {
     await this.store.restoreAttachment(taskId, { ...metadata, schemaVersion: 1 });
     return this.store.read(taskId, id);
   }
+  /** 队列列表只取小型元数据，不读取图片或文件正文。 */
+  async metadata(taskId: string, id: string): Promise<AgentMessageAttachment> {
+    const metadata = JSON.parse(await readFile(this.#path(taskId, id), "utf8")) as Omit<
+      HistoricalAttachmentMetadata,
+      "schemaVersion"
+    > & { schemaVersion: unknown };
+    if (metadata.schemaVersion !== 1 || metadata.attachment.id !== id)
+      throw new Error("Claude 附件引用无效");
+    return metadata.attachment;
+  }
   async deleteTask(taskId: string) {
     await this.store.removeTask(taskId);
     await rm(this.#directory(taskId), { recursive: true, force: true });

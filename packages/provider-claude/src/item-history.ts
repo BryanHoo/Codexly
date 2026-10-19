@@ -1,3 +1,4 @@
+import { ClaudeSummaryUsers } from "./summary-users.js";
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { access, mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
@@ -22,6 +23,7 @@ interface SummaryEntry {
 }
 interface SummaryIndex {
   user?: SummaryEntry;
+  users?: SummaryEntry[];
   assistant?: SummaryEntry;
   last: number;
 }
@@ -131,12 +133,7 @@ export class ClaudeItemHistory {
         this.#revisions.set(path, { offset, revision });
         // 仅保存问题、最近助手正文的位置；工具更新沿用原偏移，不能把迟到结果误判为新过程。
         summary.last = Math.max(summary.last, offset);
-        if (
-          item.type === "message" &&
-          item.role === "user" &&
-          (!summary.user || offset <= summary.user.offset)
-        )
-          summary.user = { key, offset };
+        if (item.type === "message" && item.role === "user") this.#user(summary, { key, offset });
         if (
           item.type === "message" &&
           item.role === "assistant" &&
@@ -156,6 +153,16 @@ export class ClaudeItemHistory {
       await index.close();
     }
   }
+  /** 摘要引用严格有界；保留最初问题和最近 63 条引导，不扫描工具过程。 */
+  #user(summary: SummaryIndex, entry: SummaryEntry): void {
+    const users = summary.users ?? (summary.user ? [summary.user] : []);
+    if (!users.some((user) => user.key === entry.key)) users.push(entry);
+    users.sort((a, b) => a.offset - b.offset);
+    const first = users[0];
+    if (first) summary.user = first;
+    if (first && users.length > 1)
+      summary.users = users.length <= 64 ? users : [first, ...users.slice(-63)];
+  }
   /** 仅旧格式或迁移中断时扫描一次已有索引，按小批次读取，避免全量正文驻留内存。 */
   async #buildSummary(
     directory: string,
@@ -172,7 +179,7 @@ export class ClaudeItemHistory {
         const { item } = JSON.parse(await readFile(join(directory, key), "utf8")) as StoredItem;
         const entry = { key, offset: start + offset };
         summary.last = entry.offset;
-        if (item.type === "message" && item.role === "user" && !summary.user) summary.user = entry;
+        if (item.type === "message" && item.role === "user") this.#user(summary, entry);
         if (item.type === "message" && item.role === "assistant") summary.assistant = entry;
       }
     }
@@ -184,7 +191,7 @@ export class ClaudeItemHistory {
       await this.saveTurn(task, turn);
     } else await this.save(task, turn.id, []);
   }
-  /** 摘要只读取至多两条消息正文，不打开过程索引或扫描工具文件。 */
+  /** 摘要只读取有界用户消息及最终答复，不打开过程索引或扫描工具文件。 */
   async summary(task: string, turn: string): Promise<AgentTurn> {
     return this.summaryByKey(task, hash(turn));
   }
@@ -196,10 +203,12 @@ export class ClaudeItemHistory {
     >;
     const summary = JSON.parse(await readFile(join(directory, "summary"), "utf8")) as SummaryIndex;
     const items: AgentItem[] = [];
-    if (summary.user)
-      items.push(
-        (JSON.parse(await readFile(join(directory, summary.user.key), "utf8")) as StoredItem).item,
+    const users = new ClaudeSummaryUsers(CLAUDE_HISTORY_PAGE_BYTES / 2);
+    for (const entry of summary.users ?? (summary.user ? [summary.user] : []))
+      users.add(
+        (JSON.parse(await readFile(join(directory, entry.key), "utf8")) as StoredItem).item,
       );
+    items.push(...users.items);
     // 没有明确 phase 的旧 Claude 消息仅在回合成功且正文位于过程之后时视为最终答复。
     if (summary.assistant) {
       const item = (

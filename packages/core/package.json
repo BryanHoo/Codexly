@@ -24,6 +24,10 @@
     "./historical-image-media-type": {
       "types": "./src/historical-image-media-type.d.ts",
       "default": "./src/historical-image-media-type.js"
+    },
+    "./persistent-task-queue": {
+      "types": "./src/persistent-task-queue.ts",
+      "default": "./src/persistent-task-queue.ts"
     }
   },
   "dependencies": {
