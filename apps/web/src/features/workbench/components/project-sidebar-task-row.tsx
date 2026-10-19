@@ -5,7 +5,7 @@ import { getSplitAction, useSplitWorkspace } from "@codexly/ui/core/split-worksp
 import { splitPaneKey } from "@codexly/frontend-core/split-workspace";
 import { PanelsTopLeft } from "lucide-react";
 import { SidebarTaskLabel } from "@codexly/ui/core/sidebar-task-label";
-import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@codexly/protocol";
+import { taskEngine, TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@codexly/protocol";
 import { Archive, CircleCheck, CircleX, Clock3, Ellipsis, Pencil, Pin, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { createLink } from "@tanstack/react-router";
@@ -108,7 +108,7 @@ export function TaskLink({
         }}
         {...taskRoute}
       >
-        <SidebarTaskLabel projectName={projectName} title={task.title} />
+        <SidebarTaskLabel engine={taskEngine(task)} projectName={projectName} title={task.title} />
         <TaskStatusIndicator
           attention={attention}
           isAwaitingApproval={isAwaitingApproval}

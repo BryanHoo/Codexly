@@ -1,4 +1,10 @@
-import type { AgentEvent, AgentTaskSnapshot, PendingRequest } from "@codexly/protocol";
+import {
+  taskEngine,
+  type AgentEngine,
+  type AgentEvent,
+  type AgentTaskSnapshot,
+  type PendingRequest,
+} from "@codexly/protocol";
 
 export type TaskAttention = "approval" | "completed" | "failed" | null;
 
@@ -9,6 +15,7 @@ export type TaskActivity = Readonly<{
 }>;
 
 type TaskActivityRecord = Readonly<{
+  engine?: AgentEngine | undefined;
   attention: TaskAttention;
   isRunning: boolean;
   pendingApprovalRequestIds: ReadonlySet<string>;
@@ -79,6 +86,8 @@ function replaceTaskActivity(
   const currentRecord = activity.get(key);
   if (
     currentRecord?.attention === nextRecord.attention &&
+    // 引擎元数据晚于活动到达时也要更新；真正无变化时仍复用原 Map。
+    currentRecord.engine === nextRecord.engine &&
     currentRecord.isRunning === nextRecord.isRunning &&
     currentRecord.startedAt === nextRecord.startedAt &&
     currentRecord.taskName === nextRecord.taskName &&
@@ -99,6 +108,7 @@ export function recordRunningTaskActivity(
   const currentRecord = activity.get(createTaskActivityKey(projectId, taskId));
   return replaceTaskActivity(activity, projectId, taskId, {
     attention: null,
+    engine: currentRecord?.engine,
     isRunning: true,
     pendingApprovalRequestIds: currentRecord?.pendingApprovalRequestIds ?? new Set(),
     projectId,
@@ -210,6 +220,8 @@ export function recordTaskActivitySnapshot(
           : null;
   return replaceTaskActivity(activity, snapshot.projectId, snapshot.id, {
     attention,
+    // 只有完整任务快照缺少引擎时，才按旧任务兼容规则回退为 Codex。
+    engine: taskEngine(snapshot),
     isRunning: snapshot.status === "running",
     pendingApprovalRequestIds,
     projectId: snapshot.projectId,
@@ -230,7 +242,7 @@ export function reduceTaskActivityEvent(
   isViewed = false,
 ): TaskActivityMap {
   const key = createTaskActivityKey(projectId, event.taskId);
-  const currentRecord = activity.get(key) ?? {
+  const currentRecord: TaskActivityRecord = activity.get(key) ?? {
     attention: null,
     isRunning: false,
     pendingApprovalRequestIds: new Set<string>(),
@@ -294,6 +306,8 @@ export function reduceTaskActivityEvent(
 
   return replaceTaskActivity(activity, projectId, event.taskId, {
     attention,
+    // 事件不含完整任务，保留已知引擎；首次只有事件时维持未知，不从 provider 猜测。
+    engine: currentRecord.engine,
     isRunning,
     pendingApprovalRequestIds,
     projectId,

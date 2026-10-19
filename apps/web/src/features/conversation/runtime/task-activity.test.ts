@@ -5,6 +5,7 @@ import {
   clearTaskAttention,
   getTaskActivity,
   listActiveTaskActivities,
+  recordRunningTaskActivity,
   recordTaskActivitySnapshot,
   reduceTaskActivityEvent,
   type TaskActivityMap,
@@ -139,6 +140,58 @@ function createPermissionRequest(requestId: string): AgentTaskSnapshot["pendingR
 }
 
 describe("task activity registry", () => {
+  it("propagates Claude snapshots and preserves the engine through event and status updates", () => {
+    let activity = recordTaskActivitySnapshot(new Map(), {
+      ...createSnapshot("task-a", "running"),
+      engine: "claude",
+    });
+    const engine = () => activity.get("codexly\u0000task-a")?.engine;
+    expect(engine()).toBe("claude");
+    activity = recordRunningTaskActivity(activity, "codexly", "task-a");
+    expect(engine()).toBe("claude");
+    for (const event of [
+      createTurnEvent("task-a", "turn.started"),
+      {
+        ...createTurnEvent("task-a", "turn.started"),
+        type: "task.status_updated",
+        payload: { status: "idle" },
+      } as const,
+      createTurnEvent("task-a", "turn.completed"),
+    ]) {
+      activity = reduceTaskActivityEvent(activity, "codexly", event);
+      expect(engine()).toBe("claude");
+    }
+    activity = clearTaskAttention(activity, "codexly", "task-a");
+    expect(engine()).toBe("claude");
+  });
+
+  it("defaults only complete legacy snapshots to Codex and reuses unchanged maps", () => {
+    const snapshot = createSnapshot("task-a", "running");
+    const activity = recordTaskActivitySnapshot(new Map(), snapshot);
+    expect(activity.get("codexly\u0000task-a")?.engine).toBe("codex");
+    expect(recordTaskActivitySnapshot(activity, snapshot)).toBe(activity);
+  });
+
+  it("keeps event-first tasks unknown and updates the map when only engine metadata arrives", () => {
+    const event = createTurnEvent("task-a", "turn.started");
+    const activity = reduceTaskActivityEvent(new Map(), "codexly", event);
+    expect(activity.get("codexly\u0000task-a")?.engine).toBeUndefined();
+    expect(reduceTaskActivityEvent(activity, "codexly", event)).toBe(activity);
+    expect(recordRunningTaskActivity(activity, "codexly", "task-a")).toBe(activity);
+    expect(
+      recordRunningTaskActivity(new Map(), "codexly", "task-a").get("codexly\u0000task-a")?.engine,
+    ).toBeUndefined();
+
+    const snapshot = { ...createSnapshot("task-a", "running"), engine: "claude" as const };
+    const updated = recordTaskActivitySnapshot(activity, snapshot);
+    expect(updated).not.toBe(activity);
+    expect(updated.get("codexly\u0000task-a")).toEqual({
+      ...activity.get("codexly\u0000task-a"),
+      engine: "claude",
+    });
+    expect(recordTaskActivitySnapshot(updated, snapshot)).toBe(updated);
+  });
+
   it("projects active tasks with stable board metadata", () => {
     let activity: TaskActivityMap = new Map();
     activity = recordTaskActivitySnapshot(activity, {

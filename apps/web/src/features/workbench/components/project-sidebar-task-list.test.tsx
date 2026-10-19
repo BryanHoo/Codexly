@@ -144,6 +144,20 @@ describe("ProjectSidebarTaskList", () => {
     );
   });
 
+  it("shows the actual engine for active tasks without loading project history", () => {
+    const activity = new Map(
+      [...activityFor(["running", "approval"])].map(([key, record], index) => [
+        key,
+        { ...record, engine: index === 0 ? ("claude" as const) : ("codex" as const) },
+      ]),
+    );
+    const markup = renderProjectTaskList(new Set(), activity, true);
+    expect(markup).toContain('aria-label="Claude"');
+    expect(markup).toContain('aria-label="Codex"');
+    expect(markup).toContain('aria-label="任务运行中"');
+    expect(markup).toContain('aria-label="任务等待审批"');
+  });
+
   it("keeps an unread completed task in the shortcut group with a completion indicator", () => {
     const markup = renderProjectTaskList(new Set([project.id]), activityFor(["completed"]), true);
     expect(markup).toContain('href="/p/codexly/t/0"');

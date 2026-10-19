@@ -45,7 +45,7 @@ export function SidebarActiveTaskRow({
     },
     children: (
       <>
-        <SidebarTaskLabel projectName={projectName} title={task.title} />
+        <SidebarTaskLabel engine={task.engine} projectName={projectName} title={task.title} />
         <span
           role="status"
           aria-label={labels[task.status]}
