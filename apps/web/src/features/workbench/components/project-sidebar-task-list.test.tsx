@@ -245,10 +245,7 @@ describe("ProjectSidebarTaskList", () => {
       "utf8",
     );
 
-    for (const label of [
-      "打开 Codexly 的项目操作菜单",
-      "在 Codexly 中新建任务",
-    ]) {
+    for (const label of ["打开 Codexly 的项目操作菜单", "在 Codexly 中新建任务"]) {
       expect(markup).toMatch(
         new RegExp(`class="[^"]*project-hover-action[^"]*"[^>]*aria-label="${label}"`, "u"),
       );

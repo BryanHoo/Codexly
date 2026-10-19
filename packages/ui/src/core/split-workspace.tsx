@@ -444,11 +444,8 @@ export function useNavigateSplitTask() {
   const activePane = useSplitActivePane(pane === null);
   const actions = useSplitWorkspaceActions();
   const identity =
-    (pane !== null &&
-    (pane.multiple ||
-      (pane.pane.draftId !== undefined && pane.pane.draftId !== ROUTE_SPLIT_DRAFT_ID))
-      ? pane.pane
-      : undefined) ?? (workspace?.enabled && workspace.panes.length > 1 ? activePane : undefined);
+    (pane?.multiple ? pane.pane : undefined) ??
+    (workspace?.enabled && workspace.panes.length > 1 ? activePane : undefined);
   const replace = actions?.replace;
   return useCallback(
     (projectId: string, taskId: string) => {

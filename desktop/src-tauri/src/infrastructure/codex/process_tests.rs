@@ -223,5 +223,7 @@ async fn bundled_codex_should_complete_real_app_server_lifecycle() {
         .await
         .expect("primary client should exit before removing its runtime");
     drop(process);
+    // The retained connection also owns the local catalog's SQLite file handles.
+    drop(connection);
     std::fs::remove_dir_all(app_data).expect("remove the isolated runtime fixture");
 }

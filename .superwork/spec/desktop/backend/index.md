@@ -9,6 +9,7 @@
 - worktree 创建只登记 Git 工作树，不新增 Project；启动任务同时保留 `projectId` 并将 `cwd`、`runtimeWorkspaceRoots` 指向工作树。任务列表与快照返回 `workspacePath`，文件、Git 和终端访问必须校验工作树归属。
 - 原生 `runtime_session_id()` 在进程内稳定、跨进程重启变化，Codex、Claude、快照、事件和 resync 控制包必须使用同一个标识。消息 `identityAliases` 只透出原生层已确认的关联（包括 Skill 展开归并），不得用正文或图片元数据推断普通消息身份；历史映射、完成事件、终态回合与应用快照保持一致。回归包含真实子进程身份测试 `runtime_session_tests` 和两端共享 `task-store-identity-contract.test.ts`。
 - 数据存储、定时任务、诊断日志等修改检查相邻 Rust 测试；持续遵守 `desktop/AGENTS.md` 的性能约束。
+- Windows 可信按键测试在发送前确认前台 PID；后台助手无法激活窗口时，仅点击已核验归属的可见测试窗口标题栏，并恢复临时置顶状态和光标位置。不得通过向其他窗口发送辅助按键来获取焦点，逐键校验仍须保留。回归使用 `tests/webview/terminal-ui.spec.ts` 的真实系统输入与原生关闭流程。
 - 任务标题与 Web 端共用 `packages/provider-codex/src/task-title-instructions.json`，编译时嵌入。仅共用 Git 提交模型，不能共用提交提示词；辅助会话关闭项目文档加载，并使用专用基础指令与开发者指令防止全局 `AGENTS.md` 将标题变为提交格式。回归执行 Rust `task_title` 测试。
 - 在 `desktop/` 执行 `pnpm check:rust`；完整门槛为 `pnpm check`。环境要求见 `desktop/docs/development.md`。
 - ZIP 依赖须通过包含全部平台的 `cargo deny check advisories bans licenses sources`，不能只检查 Linux 编译图；更新插件的 Windows 可选依赖也在审计范围内。当前仅发布 Tauri v2 原生更新包，`tauri-plugin-updater` 关闭默认功能并显式保留 `rustls-tls`、`system-proxy`，不启用 Tauri v1 压缩更新兼容的 `zip` 功能。macOS `.app.tar.gz` 更新独立于该功能；升级 ZIP 后须验证技能安装的目录/符号链接约束与诊断归档读写。
@@ -41,7 +42,7 @@
 - `read_task` 的 `summary: true` 仅调用回合摘要接口，内部过程入口放入对应 `AgentTurn.processCursor`，不得混入顶部历史游标；展开过程才读取对应回合的 Item 页。旧格式使用原回合页延迟读取，校验任务归属，测试见 `conversation_pagination_tests.rs`。
 
 - 目录和任务元数据由应用本地仓储独占管理；Project 必须恰好一个根目录。上游列表仅用于一次性事务导入；执行适配器翻译应用任务 ID 与 provider/sessionId，禁止用引擎列表覆盖本地管理状态。两端共享 SQL 契约和单选规则，变更须覆盖离线管理、迁移回滚与身份隔离测试。详见[本地目录与任务](../../../../docs/local-catalog.md)。
-- 本地目录仓储按数据库路径复用活动连接，全局注册表只保存弱引用；最后一个使用者释放后必须关闭 SQLite，避免 Windows 文件占用及连接常驻。回归覆盖并发使用者共享连接、释放后重开仍能读取持久化数据，以及释放连接后的排队图片目录清理。
+- 本地目录仓储按数据库路径复用活动连接，全局注册表只保存弱引用；最后一个使用者释放后必须关闭 SQLite，避免 Windows 文件占用及连接常驻。真实生命周期测试清理临时目录前，既要等待子进程退出，也要释放保留的 AppServerConnection，不能只 drop 进程句柄。回归覆盖并发使用者共享连接、释放后重开仍能读取持久化数据，以及释放连接后的排队图片目录清理。
 
 - Codex 0.163.0 升级边界见 [升级评估](../../../../docs/codex-0.163.0-upgrade.md)。原生实验已读状态不覆盖应用本地目录元数据，两端握手主动关闭 `thread/readState/changed`；不额外查询或轮询已读状态。桌面启动不得再传递上游已退役的 `shell_zsh_fork` 开关。
 

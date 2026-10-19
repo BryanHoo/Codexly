@@ -26,6 +26,15 @@ public static class TerminalNative {
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window, int command);
     [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr window, uint command);
+    [StructLayout(LayoutKind.Sequential)] public struct Point { public int x, y; }
+    [StructLayout(LayoutKind.Sequential)] public struct Rect { public int left, top, right, bottom; }
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr window, out Rect rect);
+    [DllImport("user32.dll")] public static extern bool GetCursorPos(out Point point);
+    [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Point point);
+    [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr window, uint flags);
+    [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr window, int index);
+    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
     [StructLayout(LayoutKind.Sequential)] public struct KeyInput { public ushort key, scan; public uint flags, time; public UIntPtr extra; }
     [StructLayout(LayoutKind.Sequential)] public struct MouseInput { public int x, y; public uint data, flags, time; public UIntPtr extra; }
     [StructLayout(LayoutKind.Explicit)] public struct InputUnion { [FieldOffset(0)] public KeyInput keyboard; [FieldOffset(0)] public MouseInput mouse; }
@@ -53,6 +62,25 @@ public static class TerminalNative {
         ShowWindow(window, 9);
         SetForegroundWindow(window);
         for (int attempt = 0; attempt < 50 && Process(GetForegroundWindow()) != process; attempt++) System.Threading.Thread.Sleep(20);
+        if (Process(GetForegroundWindow()) != process) {
+            // A background helper may not steal focus. Click only the verified test title bar.
+            Rect rect; Point cursor;
+            if (Process(window) != process || !GetWindowRect(window, out rect) || !GetCursorPos(out cursor)) throw new InvalidOperationException("Could not locate the test window");
+            bool wasTopmost = (GetWindowLong(window, -20) & 8) != 0;
+            try {
+                if (!SetWindowPos(window, new IntPtr(-1), 0, 0, 0, 0, 0x13)) throw new InvalidOperationException("Could not expose the test title bar");
+                var point = new Point { x = rect.left + (rect.right - rect.left) / 2, y = rect.top + 16 };
+                if (!SetCursorPos(point.x, point.y) || GetAncestor(WindowFromPoint(point), 2) != window) throw new InvalidOperationException("Test title bar is obscured; input aborted");
+                var click = new Input[2];
+                click[0].data.mouse.flags = 2;
+                click[1].data.mouse.flags = 4;
+                if (SendInput(2, click, Marshal.SizeOf(typeof(Input))) != 2) throw new InvalidOperationException("Could not click the test title bar");
+            } finally {
+                if (!wasTopmost) SetWindowPos(window, new IntPtr(-2), 0, 0, 0, 0, 0x13);
+                SetCursorPos(cursor.x, cursor.y);
+            }
+            for (int attempt = 0; attempt < 50 && Process(GetForegroundWindow()) != process; attempt++) System.Threading.Thread.Sleep(20);
+        }
         if (Process(GetForegroundWindow()) != process) throw new InvalidOperationException("Could not foreground the test window");
     }
     public static void Key(ushort character, bool unicode, uint process) {

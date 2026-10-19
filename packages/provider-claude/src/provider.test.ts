@@ -2822,10 +2822,14 @@ it("permanently deletes all task history and the bound native session without to
   const task = await h.provider.startTask();
   const other = await h.provider.startTask();
   await h.provider.startTurn(task.id, prompt, options);
-  h.send({ type: "result", subtype: "success" });
-  await vi.waitFor(async () => {
-    expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("completed");
+  const completed = Promise.withResolvers<undefined>();
+  const unsubscribe = h.provider.subscribeEvents((event) => {
+    if (event.type === "turn.completed" && event.taskId === task.id) completed.resolve(undefined);
   });
+  h.send({ type: "result", subtype: "success" });
+  await completed.promise;
+  unsubscribe();
+  expect((await h.provider.readTask(task.id))?.turns[0]?.status).toBe("completed");
   const nativeTask = structuredClone(h.tasks.get(task.id));
   assert.ok(nativeTask);
   const turn = (await h.config.history.read(task.id)).turns[0];
