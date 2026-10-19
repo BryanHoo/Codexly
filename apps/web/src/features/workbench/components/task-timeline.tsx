@@ -1,3 +1,4 @@
+import { ReconnectingNotice } from "@codexly/ui/core/reconnecting-notice";
 import type { PendingRequest, Project } from "@codexly/protocol";
 import { lazy, Suspense, useMemo } from "react";
 import { useHistoryLocation } from "../../search/history-location.js";
@@ -234,14 +235,11 @@ function ActiveTaskTimeline({
   }
   return (
     <>
-      {runtime.connectionState === "reconnecting" ? (
-        <div
-          className="bg-control px-3 py-1.5 text-center text-label text-muted-foreground"
-          role="status"
-        >
-          {i18n.t("timeline.reconnecting", { ns: "conversation" })}
-        </div>
-      ) : null}
+      <ReconnectingNotice
+        key={runtime.metadata.id}
+        message={i18n.t("timeline.reconnecting", { ns: "conversation" })}
+        reconnecting={runtime.connectionState === "reconnecting"}
+      />
       <TaskStoreTimeline
         connected={runtime.connectionState === "connected"}
         hasOlderHistory={runtime.hasOlderHistory}

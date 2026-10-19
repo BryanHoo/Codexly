@@ -1,6 +1,6 @@
 import { setImmediate } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { WebSocket } from "ws";
+import { WebSocket } from "ws";
 
 import { AgentEventStream } from "./agent-event-stream.js";
 import { createCodexlyServer } from "./app.js";
@@ -14,6 +14,47 @@ afterEach(() => {
 });
 
 describe("event WebSocket heartbeat", () => {
+  it("keeps real TCP connections alive after successful heartbeat writes", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const { provider } = createProvider();
+    const app = await createCodexlyServer(createServerOptions(provider));
+    const address = await app.listen({ host: "127.0.0.1", port: 0 });
+    const clients: WebSocket[] = [];
+    try {
+      for (const path of [chatPath, "/v1/workbench/events", "/v1/scheduled-tasks/events"]) {
+        const client = new WebSocket(`${address.replace("http:", "ws:")}${path}`, {
+          headers: { origin: address },
+        });
+        clients.push(client);
+        await new Promise<void>((resolve, reject) => {
+          client.once("open", resolve);
+          client.once("error", reject);
+        });
+      }
+      const serverSockets = [...app.websocketServer.clients];
+      expect(serverSockets).toHaveLength(3);
+      // injectWS 的内存传输无法覆盖真实 TCP 写入成功回调返回 null 的情况。
+      // 同时监听 pong 与关闭，确保误杀正常连接时能立即给出明确失败。
+      const outcomes = serverSockets.map(
+        (socket) =>
+          new Promise<string>((resolve) => {
+            socket.once("pong", () => {
+              resolve("pong");
+            });
+            socket.once("close", () => {
+              resolve("closed");
+            });
+          }),
+      );
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(await Promise.all(outcomes)).toEqual(["pong", "pong", "pong"]);
+      expect(serverSockets.every((socket) => socket.readyState === socket.OPEN)).toBe(true);
+    } finally {
+      for (const client of clients) client.terminate();
+      await app.close();
+    }
+  });
+
   it.each([chatPath, "/v1/workbench/events", "/v1/scheduled-tasks/events"])(
     "terminates an unresponsive connection on %s",
     async (path) => {

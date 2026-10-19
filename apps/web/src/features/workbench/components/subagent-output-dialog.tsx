@@ -83,19 +83,7 @@ function OpenSubagentOutputDialog({
       />
     );
   } else {
-    content = (
-      <>
-        {runtime.connectionState === "reconnecting" ? (
-          <div
-            className="bg-control px-3 py-1.5 text-center text-label text-muted-foreground"
-            role="status"
-          >
-            {t("subagentOutput.reconnecting")}
-          </div>
-        ) : null}
-        <TaskTimeline projectId={projectId} runtime={runtime} taskId={selection.taskId} />
-      </>
-    );
+    content = <TaskTimeline projectId={projectId} runtime={runtime} taskId={selection.taskId} />;
   }
 
   return (

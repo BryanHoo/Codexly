@@ -54,8 +54,9 @@ export class WebSocketLifecycle {
           }
           state.alive = false;
           try {
-            client.ping(undefined, undefined, (error?: Error) => {
-              if (error !== undefined) state.terminate();
+            client.ping(undefined, undefined, (error?: Error | null) => {
+              // 真实 TCP 写入成功时 Node.js 回调可能返回 null，只有实际错误才断开连接。
+              if (error != null) state.terminate();
             });
           } catch {
             // 写入失败只终止当前连接，不能打断同一轮其他连接的心跳检测。

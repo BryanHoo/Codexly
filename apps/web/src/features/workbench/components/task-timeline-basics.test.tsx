@@ -16,6 +16,28 @@ import {
 } from "./task-timeline.test-support.js";
 
 describe("task timeline basics", () => {
+  it("keeps brief connection recovery silent while retaining the conversation", () => {
+    const store = createTaskStore(
+      { projectId: snapshot.projectId, taskId: snapshot.id },
+      { checkpoint: { sequence: 0, sessionId: "test-session" }, snapshot },
+    );
+    const markup = renderToStaticMarkup(
+      <TaskTimeline
+        projectId={snapshot.projectId}
+        runtime={{
+          ...unpaginatedRuntime,
+          connectionState: "reconnecting",
+          error: null,
+          isPending: false,
+          store,
+        }}
+        taskId={snapshot.id}
+      />,
+    );
+    expect(markup).not.toContain("实时连接恢复中");
+    expect(markup).toContain("Turn 1");
+  });
+
   it("lets a temporary new chat switch to a project", () => {
     const markup = renderToStaticMarkup(
       <TaskTimeline
