@@ -30,9 +30,10 @@ const settings = {
   approvalsReviewer: "user", sandboxMode: "workspace-write",
 } as const;
 
+// 用例覆盖多轮真实点击、输入与逐帧采样，为 CI WebKit 冷启动预留总预算；帧位移断言保持独立。
 test.each([1280, 1920].flatMap((width) =>
   ["before-events", "before-user", "after-user", "assistant-before-user"].map((responseOrder) => ({ width, responseOrder })),
-))("满屏历史通过真实 Composer 再次发送时不闪烁 ($width / $responseOrder)", async ({ width, responseOrder }) => {
+))("满屏历史通过真实 Composer 再次发送时不闪烁 ($width / $responseOrder)", { timeout: 30_000 }, async ({ width, responseOrder }) => {
   await page.viewport(width, 720);
   await i18n.changeLanguage("zh-CN");
   const snapshot: AgentTaskSnapshot = {
