@@ -45,6 +45,30 @@ fn runtime_status_should_advance_monotonic_sequence() {
     assert_eq!(runtime.snapshot.last_seq, 2);
 }
 
+#[tokio::test]
+async fn claude_snapshot_should_cover_only_events_before_its_ordered_response_frame() {
+    let state = super::AppState::default();
+    state.remember_tasks("project-a", ["task-a"]).await;
+    let delta = |text: &str| {
+        json!({"type":"message.delta","taskId":"task-a",
+        "turnId":"turn-a","itemId":"message-a","payload":{"delta":text}})
+    };
+    // 模拟 stdout 读取循环：此前事件发布完成，才允许处理已校验的快照响应帧。
+    super::event_publisher::publish_mapped_event(&state.runtime, delta("前").into(), None, None)
+        .await;
+    let response = crate::application::claude_host::snapshot_response(
+        &state,
+        "project-a",
+        json!({"id":"task-a","text":"前"}),
+    )
+    .await;
+    super::event_publisher::publish_mapped_event(&state.runtime, delta("后").into(), None, None)
+        .await;
+    assert_eq!(response["checkpoint"]["sequence"], 1);
+    assert_eq!(state.project_sequence("project-a").await, 2);
+    assert_eq!(response["snapshot"]["text"], "前");
+}
+
 #[test]
 fn runtime_restart_should_use_bounded_backoff_and_reset_after_stable_uptime() {
     assert_eq!(
@@ -138,62 +162,6 @@ async fn task_scoped_mcp_status_should_be_forwarded() {
         })
         .expect("task-scoped MCP status should be published");
     assert_eq!(agent_event["data"]["event"]["taskId"], "thread-a");
-}
-
-#[tokio::test]
-async fn dropped_delta_signal_should_request_project_resync() {
-    let published = Arc::new(StdMutex::new(Vec::new()));
-    let published_for_channel = Arc::clone(&published);
-    let channel = Channel::new(move |body| {
-        if let InvokeResponseBody::Json(value) = body {
-            published_for_channel
-                .lock()
-                .unwrap()
-                .push(strip_transport_metadata(value));
-        }
-        Ok(())
-    });
-    let runtime = Arc::new(Mutex::new(RuntimeSession::default()));
-    {
-        let mut session = runtime.lock().await;
-        session.set_event_channel(channel);
-        session
-            .task_projects
-            .insert("thread-a".to_owned(), "project-a".to_owned());
-        session.project_sequences.insert("project-a".to_owned(), 17);
-    }
-    let (sender, receiver) = server_message_channel(1);
-    let task = spawn_event_forwarder(Arc::clone(&runtime), receiver, None);
-    sender
-        .send(ServerMessage {
-            id: None,
-            method: "codeagent/eventRetentionExceeded".to_owned(),
-            params: to_raw_value(&json!({"threadId": "thread-a"})).unwrap(),
-        })
-        .await
-        .unwrap();
-    drop(sender);
-    task.await.expect("event forwarder should stop cleanly");
-
-    let events = published.lock().unwrap();
-    let resync = events
-        .iter()
-        .filter_map(|event| serde_json::from_str::<Value>(event).ok())
-        .find(|event| event.get("type").and_then(Value::as_str) == Some("resyncRequired"))
-        .expect("dropped delta should publish an explicit resync signal");
-    assert_eq!(resync["type"], "resyncRequired");
-    assert!(resync["enqueuedAtUnixMs"].is_u64());
-    assert_eq!(
-        resync["data"],
-        json!({
-            "latestSequence": 17,
-            "projectId": "project-a",
-            "reason": "event_retention_exceeded",
-            "sessionId": "codeagent-runtime",
-            "type": "resync.required",
-            "version": 3
-        })
-    );
 }
 
 #[tokio::test]

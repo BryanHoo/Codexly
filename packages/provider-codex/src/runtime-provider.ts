@@ -1,3 +1,5 @@
+import { generateRuntimeTaskTitle } from "./task-title-generation.js";
+import type { TaskTitleGenerator } from "@codexly/core";
 import { createHistoryStorage } from "./history-storage.js";
 import { reconcileCodexPlugins } from "./plugin-reconcile.js";
 import { CodexTaskTitles } from "./task-titles.js";
@@ -66,6 +68,12 @@ import {
 } from "./skill-market-provider.js";
 
 export class CodexRuntimeProvider implements AgentRuntimeProvider {
+  public setTaskTitleGenerator(generate: TaskTitleGenerator): void {
+    if (this.#taskTitles) this.#taskTitles.generate = generate;
+  }
+
+  public generateTaskTitle: NonNullable<AgentRuntimeProvider["generateTaskTitle"]> = (...args) =>
+    generateRuntimeTaskTitle(this.#client, ...args);
   public readonly personalization;
   public readonly historyStorage;
   public readonly fileSearch: CodexFuzzyFileSearchService;

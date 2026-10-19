@@ -44,6 +44,10 @@ describe("CLI managed startup", () => {
         expect(f.dependencies.checkAppUpdate).not.toHaveBeenCalled();
         expect(f.dependencies.confirmAppUpdate).not.toHaveBeenCalled();
         expect(f.dependencies.openBrowser).not.toHaveBeenCalled();
+        expect(f.dependencies.startCodexAppServer).not.toHaveBeenCalled();
+        await vi
+          .mocked(f.dependencies.createRuntimeProvider)
+          .mock.calls[0]?.[0].client.request("config/read");
         expect(f.dependencies.startCodexAppServer).toHaveBeenCalledWith(
           expect.objectContaining({ env: { PATH: "/frozen/bin", CODEX_HOME: "/persisted/home" } }),
         );

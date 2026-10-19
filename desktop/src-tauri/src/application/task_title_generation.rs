@@ -30,14 +30,19 @@ pub(super) fn spawn_task_title(
                 .path()
                 .app_data_dir()
                 .map_err(|_| AppError::FilesystemRequestFailed)?;
-            generate_title(
-                &app.state::<AppState>(),
-                &connection,
-                &root,
-                &app_data,
-                &prompt,
-            )
-            .await
+            let preferences = super::generation_settings::read(&app).await?;
+            if preferences["defaultAgent"] == "claude" {
+                generate_application_title(&app, &root, &prompt).await
+            } else {
+                generate_title(
+                    &app.state::<AppState>(),
+                    &connection,
+                    &root,
+                    &app_data,
+                    &prompt,
+                )
+                .await
+            }
         }
         .await;
         let result = match result {
@@ -56,6 +61,42 @@ pub(super) fn spawn_task_title(
     });
 }
 
+/// 公共生成入口只选择辅助请求的引擎，不改变原任务的执行身份。
+pub(crate) fn generate_application_title<'a>(
+    app: &'a AppHandle,
+    root: &'a str,
+    text: &'a str,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, AppError>> + Send + 'a>> {
+    // 原生生成可能回调 Claude 宿主，显式擦除异步类型以切断启动链的递归 Future。
+    Box::pin(async move {
+        let app_data = app
+            .path()
+            .app_data_dir()
+            .map_err(|_| AppError::FilesystemRequestFailed)?;
+        let preferences = super::generation_settings::read(app).await?;
+        let settings = resolve_commit_message_settings(&preferences);
+        let state = app.state::<AppState>();
+        if preferences["defaultAgent"] == "claude" {
+            let result = state
+                .claude
+                .request(
+                    app,
+                    "title.generate",
+                    None,
+                    serde_json::json!({"cwd": root, "text": text, "model": settings.model, "instructions": preferences["taskTitlePrompt"].as_str().unwrap_or_default()}),
+                )
+                .await?;
+            return result
+                .as_str()
+                .filter(|title| !title.trim().is_empty())
+                .map(str::to_owned)
+                .ok_or(AppError::CodexRequestFailed);
+        }
+        let connection = state.codex_connection().await?;
+        generate_title(&state, &connection, root, &app_data, text).await
+    })
+}
+
 pub(super) async fn generate_title(
     state: &AppState,
     connection: &AppServerConnection,
@@ -68,15 +109,32 @@ pub(super) async fn generate_title(
         .await
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let settings = resolve_commit_message_settings(&global_settings);
-    let thread_id = task_title::start_title_thread(connection, root, &settings.model)
+    let instructions = global_settings["taskTitlePrompt"]
+        .as_str()
+        .unwrap_or_default();
+    let prompt = if instructions.trim().is_empty() {
+        task_title::title_prompt(prompt)
+    } else {
+        task_title::title_prompt_with_instructions(prompt, instructions)
+    };
+    let started = if instructions.trim().is_empty() {
+        task_title::start_title_thread(connection, root, &settings.model).await
+    } else {
+        task_title::start_title_thread_with_instructions(
+            connection,
+            root,
+            &settings.model,
+            instructions,
+        )
         .await
-        .map_err(AppError::from)?;
+    };
+    let thread_id = started.map_err(AppError::from)?;
     // 先登记再发 turn/start，防止很快返回的模型输出丢失。
     let completed = state.register_model_turn(&thread_id).await;
     let mut active_turn = None;
     let result = timeout(Duration::from_secs(60), async {
         active_turn = Some(
-            task_title::start_title_turn(connection, &thread_id, prompt)
+            task_title::start_title_turn(connection, &thread_id, &prompt)
                 .await
                 .map_err(AppError::from)?,
         );

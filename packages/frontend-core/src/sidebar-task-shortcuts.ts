@@ -1,4 +1,7 @@
+import type { AgentEngine } from "@codexly/protocol";
+
 export type SidebarActiveTask = Readonly<{
+  engine?: AgentEngine | undefined;
   id: string;
   projectId: string;
   title: string;
@@ -6,6 +9,7 @@ export type SidebarActiveTask = Readonly<{
 }>;
 
 type ActivityRecord = Readonly<{
+  engine?: AgentEngine | undefined;
   taskId: string;
   projectId: string;
   taskName?: string;
@@ -36,6 +40,8 @@ export function getSidebarActiveTasks(
     if (status === null) continue;
     // 完成提醒由两端现有的任务聚焦流程清除；保留入口并参与分组总数，实际运行数独立统计。
     (status === "approval" ? approval : status === "running" ? running : completed).push({
+      // 活动可能先于完整快照到达；原样传递未知引擎，不能误标成 Codex。
+      engine: record.engine,
       id: record.taskId,
       projectId: record.projectId,
       title: record.taskName ?? record.taskId,

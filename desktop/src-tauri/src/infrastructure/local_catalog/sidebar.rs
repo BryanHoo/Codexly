@@ -19,6 +19,7 @@ pub fn map_task(value: &Value) -> Result<AgentTask, CatalogError> {
         .as_f64()
         .ok_or(CatalogError::InvalidMessage)?;
     Ok(AgentTask {
+        engine: (value["provider"] == "claude").then(|| "claude".to_owned()),
         id: string(value, "id")?.to_owned(),
         project_id: value["projectId"]
             .as_str()

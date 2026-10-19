@@ -7,6 +7,28 @@ import {
 } from "./sidebar-task-shortcuts.js";
 
 describe("sidebar task shortcuts", () => {
+  it.each(["running", "approval", "completed"] as const)(
+    "preserves known and unknown engines for %s shortcuts",
+    (status) => {
+      const activity = new Map(
+        (["claude", "codex", undefined] as const).map((engine, index) => [
+          String(index),
+          {
+            engine,
+            taskId: String(index),
+            projectId: "a",
+            isRunning: status === "running",
+            attention: status === "completed" ? ("completed" as const) : null,
+            pendingApprovalRequestIds: new Set(status === "approval" ? ["request"] : []),
+          },
+        ]),
+      );
+      const result = getSidebarActiveTasks(activity, new Set(["a"]));
+      expect(result.tasks.map((task) => task.engine)).toEqual(["claude", "codex", undefined]);
+      expect(result.tasks.map((task) => task.status)).toEqual([status, status, status]);
+    },
+  );
+
   it("puts unread completed tasks before approvals and running tasks with stable order within each group", () => {
     const record = (taskId: string, status: "running" | "approval" | "completed") => ({
       taskId,

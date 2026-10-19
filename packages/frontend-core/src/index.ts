@@ -6,6 +6,6 @@ export * from "./task-snapshot.js";
 export * from "./task-history-page.js";
 export * from "./task-state.js";
 export * from "./turn-process.js";
-export { createWorktreeTask } from "./worktree-task.js";
 export { resolveWorkbenchTaskRoot } from "./workbench-task-root.js";
 export { setProjectRootPathChecked } from "./single-project-folder.js";
+export * from "./message-identity.js";

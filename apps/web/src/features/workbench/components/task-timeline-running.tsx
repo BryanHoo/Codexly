@@ -1,3 +1,4 @@
+import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { SquareTerminal } from "lucide-react";
 
@@ -50,7 +51,7 @@ export function resolveRunningOperation(
     return { label: getCommandLabel(runningItem.command), type: "command" };
   }
   if (runningItem?.type === "tool") {
-    return { label: runningItem.name, type: "operation" };
+    return { label: getToolTitle(runningItem), type: "operation" };
   }
   if (runningItem?.type === "activity") {
     return { label: runningItem.label, type: "operation" };
@@ -86,7 +87,7 @@ export function resolveRunningOperation(
     return { label: getCommandLabel(recentItem.command), type: "command" };
   }
   if (recentItem?.type === "tool") {
-    return { label: recentItem.name, type: "operation" };
+    return { label: getToolTitle(recentItem), type: "operation" };
   }
   if (recentItem?.type === "activity") {
     return { label: recentItem.label, type: "operation" };

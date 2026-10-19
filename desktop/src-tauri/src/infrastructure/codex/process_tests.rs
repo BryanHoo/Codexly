@@ -73,15 +73,16 @@ fn codex_version_should_require_the_verified_protocol_version() {
 }
 
 #[tokio::test]
-#[ignore = "downloads the private codex-cli 0.163.0 binary"]
-async fn private_codex_should_install_and_complete_real_app_server_lifecycle() {
+#[ignore = "requires built bundled Codex and a configured account"]
+async fn bundled_codex_should_complete_real_app_server_lifecycle() {
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let app_data = std::env::temp_dir().join(format!("codeagent-real-install-{unique}"));
+    let resources = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/runtime");
     let state = crate::application::state::AppState::default();
-    let installed = super::super::runtime_manager::install_codex_runtime(&app_data, |progress| {
+    let installed = super::super::runtime_manager::install_codex_runtime(&resources, |progress| {
         if progress.phase != crate::domain::runtime::CodexRuntimeInstallPhase::Downloading {
             eprintln!("private runtime phase: {:?}", progress.phase);
         }
@@ -94,13 +95,13 @@ async fn private_codex_should_install_and_complete_real_app_server_lifecycle() {
     );
     // 第二次进入不产生安装事件，证明已安装版本可直接复用。
     state
-        .inspect_codex(&app_data, |_| panic!("must reuse the private runtime"))
+        .inspect_codex(&resources, |_| panic!("must reuse the private runtime"))
         .await;
-    let mut process = CodexProcess::start(&app_data)
+    let mut process = CodexProcess::start(&app_data, &resources)
         .await
         .expect("installed Codex app-server should start");
     assert_eq!(process.version(), SUPPORTED_CODEX_VERSION);
-    assert!(process.binary_path().starts_with(&app_data));
+    assert!(process.binary_path().starts_with(&resources));
     let connection = process.connection();
 
     let models: Value = connection
@@ -194,7 +195,7 @@ async fn private_codex_should_install_and_complete_real_app_server_lifecycle() {
             Duration::from_secs(10),
         )
         .await;
-    let mut other_process = CodexProcess::start(&app_data)
+    let mut other_process = CodexProcess::start(&app_data, &resources)
         .await
         .expect("second client should start");
     let conflict =
@@ -222,5 +223,7 @@ async fn private_codex_should_install_and_complete_real_app_server_lifecycle() {
         .await
         .expect("primary client should exit before removing its runtime");
     drop(process);
+    // The retained connection also owns the local catalog's SQLite file handles.
+    drop(connection);
     std::fs::remove_dir_all(app_data).expect("remove the isolated runtime fixture");
 }

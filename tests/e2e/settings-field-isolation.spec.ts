@@ -19,7 +19,10 @@ test("智能体选项独立更新，排队保存不会覆盖另一项", async ({
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { name: "设置", exact: true }).click();
   const region = page.getByRole("region", { name: "全局设置" });
-  await region.getByRole("button", { name: "智能体配置", exact: true }).click();
+  await region
+    .getByRole("group", { name: "Codex", exact: true })
+    .getByRole("button", { name: "智能体配置", exact: true })
+    .click();
   const search = region.getByRole("combobox", { name: "网页搜索", exact: true });
   const verbosity = region.getByRole("combobox", { name: "输出详细程度", exact: true });
   await expect(search).toBeEnabled();
@@ -66,7 +69,10 @@ test("记忆开关保存期间不改变其他开关和删除按钮，失败仅�
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { name: "设置", exact: true }).click();
   const region = page.getByRole("region", { name: "全局设置" });
-  await region.getByRole("button", { name: "个性化", exact: true }).click();
+  await region
+    .getByRole("group", { name: "Codex", exact: true })
+    .getByRole("button", { name: "个性化", exact: true })
+    .click();
   const enabled = region.getByRole("switch", { name: "启用本地记忆", exact: true });
   const external = region.getByRole("switch").nth(1);
   const remove = region.getByRole("button", { name: "删除本地记忆", exact: true });

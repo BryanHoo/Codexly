@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   deriveComposerState,
+  startPromptTurn,
   resolveComposerSubmitAction,
   resolveIdempotencyAttempt,
 } from "./composer-state.js";
@@ -33,3 +34,39 @@ describe("Composer state", () => {
     expect(createKey).toHaveBeenCalledTimes(1);
   });
 });
+
+it.each(["codex", "claude"] as const)(
+  "submits a new draft in its chosen worktree with %s settings",
+  async (engine) => {
+    const submitTask = vi
+      .fn()
+      .mockResolvedValue({ taskId: "task", turn: { id: "turn" }, checkpoint: { sequence: 1 } });
+    const options = {
+      approvalPolicy: "on-request" as const,
+      approvalsReviewer: "user" as const,
+      sandboxMode: "workspace-write" as const,
+      model: "chosen-model",
+      reasoningEffort: "high",
+      ...(engine === "claude"
+        ? { engineOptions: { engine, permissionMode: "default" as const } }
+        : {}),
+    };
+    await startPromptTurn(
+      { submitTask },
+      {
+        projectId: "project",
+        workspacePath: "/repo/.worktree/topic",
+        input: { type: "prompt", text: "hello", attachments: [], skills: [] },
+        turnOptions: options,
+        idempotencyKey: "submit",
+      },
+    );
+    expect(submitTask.mock.calls[0]?.[1]).toEqual({
+      type: "prompt",
+      workspacePath: "/repo/.worktree/topic",
+      input: { type: "prompt", text: "hello", attachments: [], skills: [] },
+      options,
+      ...(engine === "claude" ? { engine } : {}),
+    });
+  },
+);

@@ -17,7 +17,10 @@ type ComposerModelSelectorProps = Readonly<{
   disabled: boolean;
   models: readonly AgentModel[];
   modelsPending: boolean;
-  onSettingsChange: (settings: AgentTaskSettings, field: keyof AgentTaskSettings) => void;
+  onSettingsChange: (
+    settings: AgentTaskSettings,
+    field: keyof AgentTaskSettings,
+  ) => Promise<void> | void;
   selectedModel: AgentModel | undefined;
   selectedReasoningEffort: string | undefined;
 }>;
@@ -97,7 +100,7 @@ export function ComposerModelSelector({
   const selectModel = (modelId: string) => {
     const settings = resolveComposerModelSelection(models, activeSettings, modelId);
     if (settings !== undefined) {
-      onSettingsChange(settings, "model");
+      void onSettingsChange(settings, "model");
     }
   };
 
@@ -108,7 +111,7 @@ export function ComposerModelSelector({
       reasoningEffort,
     );
     if (settings !== undefined) {
-      onSettingsChange(settings, "reasoningEffort");
+      void onSettingsChange(settings, "reasoningEffort");
     }
   };
 

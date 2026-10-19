@@ -1,3 +1,5 @@
+import { McpSnapshotControls } from "@codexly/ui/core/mcp-snapshot-controls";
+import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
 import type { AgentBackgroundTerminal, AgentMcpServer } from "@codexly/protocol";
 import {
   Bot,
@@ -136,6 +138,7 @@ export function SubagentSection({
             const metadata = [
               subagent.model === undefined ? undefined : formatSubagentModel(subagent.model),
               subagent.reasoningEffort,
+              subagent.message,
             ].filter((value): value is string => value !== undefined);
             return (
               <Button
@@ -148,7 +151,11 @@ export function SubagentSection({
                 className="w-full rounded-control px-2 text-left transition-colors hover:bg-control-hover focus-visible:shadow-focus focus-visible:outline-none"
                 key={subagent.taskId}
                 onClick={() => {
-                  onOpenSubagent({ status: subagent.status, taskId: subagent.taskId });
+                  onOpenSubagent({
+                    status: subagent.status,
+                    taskId: subagent.taskId,
+                    ...(subagent.embedded ? { embedded: subagent.embedded } : {}),
+                  });
                 }}
                 type="button"
               >
@@ -156,7 +163,9 @@ export function SubagentSection({
                   <TaskTrigger title={subagent.nickname} />
                 </Task>
                 {metadata.length === 0 ? null : (
-                  <p className="pb-2 text-caption text-muted-foreground">{metadata.join(" · ")}</p>
+                  <p className="line-clamp-2 break-words pb-2 text-caption text-muted-foreground">
+                    {metadata.join(" · ")}
+                  </p>
                 )}
               </Button>
             );
@@ -173,14 +182,18 @@ export function McpServerSection({
   isRetrying,
   onRetry,
   servers,
+  statusSource,
+  observedAt,
 }: Readonly<{
   canRetry: boolean;
   isRefreshing: boolean;
   isRetrying: boolean;
-  onRetry: () => void;
+  onRetry: (action?: ReloadAgentMcpServersRequest["action"]) => void;
+  statusSource?: AgentMcpServerPage["statusSource"];
+  observedAt?: string | null | undefined;
   servers: readonly AgentMcpServer[];
 }>) {
-  if (servers.length === 0) return null;
+  if (servers.length === 0 && !statusSource) return null;
 
   const reloadLabel = i18n.t(isRetrying ? "inspector.mcpReloading" : "inspector.mcpReload", {
     ns: "conversation",
@@ -188,13 +201,15 @@ export function McpServerSection({
   return (
     <InspectorSection
       action={
-        canRetry ? (
+        canRetry && !statusSource ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 aria-label={reloadLabel}
                 disabled={isRefreshing || isRetrying}
-                onClick={onRetry}
+                onClick={() => {
+                  onRetry();
+                }}
                 size="icon-sm"
                 type="button"
                 variant="ghost"
@@ -212,6 +227,22 @@ export function McpServerSection({
       icon={<Plug className="size-3.5" />}
       title="MCP"
     >
+      {statusSource ? (
+        <McpSnapshotControls
+          statusSource={statusSource}
+          observedAt={observedAt}
+          disabled={!canRetry || isRefreshing || isRetrying}
+          onAction={onRetry}
+          labels={{
+            cached: i18n.t("inspector.mcpCached", { ns: "conversation" }),
+            live: i18n.t("inspector.mcpLive", { ns: "conversation" }),
+            unknownTime: i18n.t("inspector.mcpUnknownTime", { ns: "conversation" }),
+            refresh: i18n.t("inspector.mcpRefresh", { ns: "conversation" }),
+            reconnect: i18n.t("inspector.mcpReconnect", { ns: "conversation" }),
+            reload: i18n.t("inspector.mcpReloadConfig", { ns: "conversation" }),
+          }}
+        />
+      ) : null}
       <WorkbenchInspectorIncrementalList
         ariaLabel={i18n.t("inspector.mcpEnabled", { ns: "conversation" })}
         getKey={(server) => server.name}

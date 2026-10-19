@@ -14,31 +14,40 @@ test("connects a custom API from the provider gate and reuses it in settings", a
   await mockAppShellApi(page, { providerConnected: false });
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { exact: true, name: "Codexly" })).toBeVisible();
-  const officialModeButton = page.getByRole("button", { name: "官方登录" });
+  await expect(page.getByRole("heading", { exact: true, name: "选择编程助手" })).toBeVisible();
+  await page.getByRole("button", { name: "Codex OpenAI", exact: true }).click();
+  await page.getByRole("button", { name: "继续", exact: true }).click();
+  await expect(page.getByRole("heading", { exact: true, name: "连接 Codex" })).toBeVisible();
+  const officialModeButton = page.getByRole("button", { name: "ChatGPT", exact: true });
   const customModeButton = page.getByRole("button", { name: "自定义 API" });
   await expect(officialModeButton).toHaveCSS("align-items", "center");
   await expect(officialModeButton).toHaveCSS("justify-content", "center");
   await expect(customModeButton).toHaveCSS("align-items", "center");
   await expect(customModeButton).toHaveCSS("justify-content", "center");
   await customModeButton.click();
-  await page.getByRole("textbox", { name: "API Base URL" }).fill("https://api.example.com/v1/");
-  await page.getByLabel("API Key（可选）").fill("e2e-secret");
-  await page.getByRole("button", { exact: true, name: "连接" }).click();
+  await page.getByRole("textbox", { name: "API 地址" }).fill("https://api.example.com/v1/");
+  await page.getByLabel("API 密钥（可选）").fill("e2e-secret");
+  await page.getByRole("button", { exact: true, name: "连接并开始使用" }).click();
 
   await expect(page).toHaveURL(/\/p\/codexly$/u);
   await page.getByRole("button", { exact: true, name: "设置" }).click();
   const dialog = page.getByRole("region", { name: "全局设置" });
-  await dialog.getByRole("button", { name: "模型服务" }).click();
-  await expect(dialog.getByRole("textbox", { name: "API Base URL" })).toHaveValue(
+  await dialog
+    .getByRole("group", { name: "Codex", exact: true })
+    .getByRole("button", { name: "模型服务" })
+    .click();
+  await expect(dialog.getByRole("textbox", { name: "API 地址" })).toHaveValue(
     "https://api.example.com/v1",
   );
-  await expect(dialog.getByLabel("API Key（可选）")).toHaveValue("");
+  await expect(dialog.getByLabel("API 密钥（可选）")).toHaveValue("");
   await expect(dialog.getByText("已连接", { exact: true })).toBeVisible();
 
-  await dialog.getByRole("button", { name: "智能体配置" }).click();
+  await dialog
+    .getByRole("group", { name: "Codex", exact: true })
+    .getByRole("button", { name: "智能体配置" })
+    .click();
   await dialog.getByRole("combobox", { name: "模型" }).selectOption("custom-coder");
-  const reasoningSelect = dialog.getByRole("combobox", { name: "思考量" });
+  const reasoningSelect = dialog.getByRole("combobox", { name: "思考强度" });
   await expect(reasoningSelect.locator("option")).toHaveText(["最低", "低", "中", "高", "极高"]);
   await reasoningSelect.selectOption("high");
   await expect(reasoningSelect).toHaveValue("high");
@@ -289,15 +298,18 @@ test("edits global defaults on a page without overriding task settings", async (
   await dialog.getByRole("button", { name: "深色模式" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await dialog.getByRole("button", { name: "引导", exact: true }).click();
-  await dialog.getByRole("button", { name: "智能体配置" }).click();
+  await dialog
+    .getByRole("group", { name: "Codex", exact: true })
+    .getByRole("button", { name: "智能体配置" })
+    .click();
   await dialog.getByRole("combobox", { name: "审批" }).selectOption("never");
   await dialog.getByRole("combobox", { name: "工作区" }).selectOption("danger-full-access");
   await dialog.getByRole("combobox", { name: "模型" }).selectOption("gpt-5.6-terra");
   await expect(dialog.getByRole("combobox", { name: "思考" })).toHaveValue("medium");
-  await dialog.getByRole("button", { name: "个性化" }).click();
-  await dialog.getByRole("combobox", { name: "提交模型" }).selectOption("gpt-5.6-terra");
-  await expect(dialog.getByRole("combobox", { name: "提交思考量" })).toHaveCount(0);
-  await dialog.getByRole("textbox", { name: "提交提示词" }).fill("突出用户可见影响。");
+  await dialog.getByRole("button", { name: "辅助生成" }).click();
+  await dialog.getByRole("combobox", { name: "默认模型" }).selectOption("gpt-5.6-terra");
+  await expect(dialog.getByRole("combobox", { name: "提交思考强度" })).toHaveCount(0);
+  await dialog.getByRole("textbox", { name: "Git message 提示词" }).fill("突出用户可见影响。");
   await dialog.getByRole("button", { name: "常规" }).click();
   await dialog.getByRole("combobox", { name: "默认打开方式" }).selectOption("finder");
   await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
@@ -315,18 +327,21 @@ test("edits global defaults on a page without overriding task settings", async (
     "aria-pressed",
     "true",
   );
-  await reopenedDialog.getByRole("button", { name: "智能体配置" }).click();
+  await reopenedDialog
+    .getByRole("group", { name: "Codex", exact: true })
+    .getByRole("button", { name: "智能体配置" })
+    .click();
   await expect(reopenedDialog.getByRole("combobox", { name: "审批" })).toHaveValue("never");
   await expect(reopenedDialog.getByRole("combobox", { name: "工作区" })).toHaveValue(
     "danger-full-access",
   );
   await expect(reopenedDialog.getByRole("combobox", { name: "模型" })).toHaveValue("gpt-5.6-terra");
-  await reopenedDialog.getByRole("button", { name: "个性化" }).click();
-  await expect(reopenedDialog.getByRole("combobox", { name: "提交模型" })).toHaveValue(
+  await reopenedDialog.getByRole("button", { name: "辅助生成" }).click();
+  await expect(reopenedDialog.getByRole("combobox", { name: "默认模型" })).toHaveValue(
     "gpt-5.6-terra",
   );
-  await expect(reopenedDialog.getByRole("combobox", { name: "提交思考量" })).toHaveCount(0);
-  await expect(reopenedDialog.getByRole("textbox", { name: "提交提示词" })).toHaveValue(
+  await expect(reopenedDialog.getByRole("combobox", { name: "提交思考强度" })).toHaveCount(0);
+  await expect(reopenedDialog.getByRole("textbox", { name: "Git message 提示词" })).toHaveValue(
     "突出用户可见影响。",
   );
   await reopenedDialog.getByRole("button", { name: "常规" }).click();
@@ -360,7 +375,10 @@ test("automatically saves browser preferences", async ({ page }) => {
     "aria-checked",
     "false",
   );
-  await page.getByRole("button", { name: "Agent configuration" }).click();
+  await page
+    .getByRole("group", { name: "Codex", exact: true })
+    .getByRole("button", { name: "Agent configuration" })
+    .click();
   await expect(page.getByRole("combobox", { name: "Reasoning effort" })).toBeVisible();
   await page.getByRole("button", { name: "Back to app" }).click();
   await expect(page.locator("h1").filter({ hasText: "构建 macOS 工作台" })).toBeVisible();

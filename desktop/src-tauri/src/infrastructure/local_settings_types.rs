@@ -93,10 +93,14 @@ impl ProjectSettings {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct GlobalSettings {
+    #[serde(default = "default_agent")]
+    pub default_agent: String,
     pub approval_policy: ApprovalPolicy,
     pub approvals_reviewer: ApprovalsReviewer,
-    pub commit_message_model: String,
+    pub default_model: String,
     pub commit_message_prompt: String,
+    #[serde(default)]
+    pub task_title_prompt: String,
     #[serde(deserialize_with = "Option::deserialize")]
     pub default_open_app_id: Option<String>,
     pub fast_mode: bool,
@@ -116,10 +120,12 @@ pub(super) struct GlobalSettings {
 
 impl GlobalSettings {
     pub fn is_valid(&self) -> bool {
-        non_empty(&self.model, 256)
+        matches!(self.default_agent.as_str(), "codex" | "claude")
+            && non_empty(&self.model, 256)
             && (self.reasoning_effort.is_empty() || non_empty(&self.reasoning_effort, 64))
-            && non_empty(&self.commit_message_model, 256)
+            && non_empty(&self.default_model, 256)
             && self.commit_message_prompt.len() <= 4_000
+            && self.task_title_prompt.len() <= 4_000
             && self
                 .model_context_window
                 .is_none_or(|tokens| (1..=9_007_199_254_740_991).contains(&tokens))
@@ -130,10 +136,12 @@ impl GlobalSettings {
     }
 
     pub fn into_local(self) -> LocalPreferences {
-        // 智能体配置由 Codex 管理，仅投影应用自身拥有的五个字段落盘。
+        // 智能体配置由 Codex 管理，仅将应用自身拥有的偏好落盘。
         LocalPreferences {
-            commit_message_model: self.commit_message_model,
+            default_agent: self.default_agent,
+            default_model: self.default_model,
             commit_message_prompt: self.commit_message_prompt,
+            task_title_prompt: self.task_title_prompt,
             default_open_app_id: self.default_open_app_id,
             follow_up_behavior: self.follow_up_behavior,
             pet: self.pet,
@@ -144,8 +152,12 @@ impl GlobalSettings {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", default)]
 pub(super) struct LocalPreferences {
-    pub commit_message_model: String,
+    pub default_agent: String,
+    // 旧提交模型无损迁移为公共生成模型。
+    #[serde(alias = "commitMessageModel")]
+    pub default_model: String,
     pub commit_message_prompt: String,
+    pub task_title_prompt: String,
     pub default_open_app_id: Option<String>,
     pub follow_up_behavior: FollowUpBehavior,
     #[serde(deserialize_with = "object")]
@@ -155,8 +167,10 @@ pub(super) struct LocalPreferences {
 impl Default for LocalPreferences {
     fn default() -> Self {
         Self {
-            commit_message_model: "gpt-6-luna".into(),
+            default_agent: default_agent(),
+            default_model: "gpt-6-luna".into(),
             commit_message_prompt: String::new(),
+            task_title_prompt: String::new(),
             default_open_app_id: None,
             follow_up_behavior: FollowUpBehavior::Queue,
             pet: PetSettings::default(),
@@ -166,8 +180,15 @@ impl Default for LocalPreferences {
 
 impl LocalPreferences {
     pub fn is_valid(&self) -> bool {
-        non_empty(&self.commit_message_model, 256) && self.commit_message_prompt.len() <= 4_000
+        matches!(self.default_agent.as_str(), "codex" | "claude")
+            && non_empty(&self.default_model, 256)
+            && self.commit_message_prompt.len() <= 4_000
+            && self.task_title_prompt.len() <= 4_000
     }
+}
+
+fn default_agent() -> String {
+    "codex".to_owned()
 }
 
 fn non_empty(value: &str, max: usize) -> bool {

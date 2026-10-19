@@ -124,6 +124,7 @@ pub(crate) fn handle_run_event(app: &AppHandle, event: RunEvent) {
         }
         let app = app.clone();
         tauri::async_runtime::spawn(async move {
+            app.state::<super::state::AppState>().claude.close().await;
             match app
                 .state::<super::app_storage_runtime::AppStorageRuntime>()
                 .shutdown()

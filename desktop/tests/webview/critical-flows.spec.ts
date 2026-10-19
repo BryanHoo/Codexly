@@ -9,6 +9,7 @@ import {
 } from "./fixtures.js";
 import {
   emitAgentEvent,
+  connectMockProvider,
   installWebviewMocks,
   releaseApplicationStartup,
   type WebviewMocks,
@@ -58,12 +59,7 @@ describe("桌面原生 WebView 关键流程", () => {
   });
 
   it("连接自定义 Provider 后进入工作台", async () => {
-    const customMode = await $("aria/自定义 API");
-    await customMode.waitForClickable();
-    await customMode.click();
-    await $("aria/API Base URL").setValue("https://gateway.test/v1");
-    await $("aria/API Key（可选）").setValue("sk-webview-test");
-    await $("aria/连接").click();
+    await connectMockProvider("sk-webview-test");
 
     await expect($('[aria-label="切换项目 CodeAgent"]')).toBeDisplayed();
   });

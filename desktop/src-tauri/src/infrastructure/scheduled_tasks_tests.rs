@@ -212,6 +212,7 @@ fn task_with_runs(run_count: usize) -> ScheduledTask {
             .collect(),
         schedule: recurring_schedule(),
         turn_options: AgentTurnOptions {
+            engine_options: None,
             approval_policy: json!("never"),
             ..AgentTurnOptions::default()
         },

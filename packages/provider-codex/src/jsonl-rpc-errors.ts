@@ -18,6 +18,14 @@ export class RpcProtocolError extends Error {
   }
 }
 
+/** 本地准入失败表示帧尚未交付，可由调用方稍后重试，不等同于连接故障。 */
+export class RpcWriteQueueFullError extends Error {
+  public constructor(message = "RPC outbound queue budget exceeded") {
+    super(message);
+    this.name = "RpcWriteQueueFullError";
+  }
+}
+
 export class RpcResponseError extends Error {
   public readonly code: number;
   public readonly data: unknown;

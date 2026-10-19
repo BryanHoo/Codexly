@@ -60,7 +60,7 @@ use application::{
         add_project, archive_task, compact_task, delete_task, get_task_settings, interrupt_turn,
         list_projects, list_tasks, pin_task, read_task, remove_project, rename_project,
         rename_task, reorder_projects, resolve_pending_request, start_task, start_turn,
-        unarchive_task, update_task_settings,
+        stop_task_session, unarchive_task, update_task_settings,
     },
     sidebar_directory_commands::{create_project_directory, list_project_directories},
     skills_market_commands::{
@@ -162,6 +162,16 @@ pub fn run() {
                 });
             }
         })
+        .register_asynchronous_uri_scheme_protocol(
+            "task-attachment",
+            |context, request, responder| {
+                let app = context.app_handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    responder
+                        .respond(application::claude_attachments::respond(&app, request).await);
+                });
+            },
+        )
         .invoke_handler(tauri::generate_handler![
             enable_autostart,
             open_task_window,
@@ -222,6 +232,9 @@ pub fn run() {
             get_provider_connection,
             start_official_provider_login,
             cancel_provider_login,
+            application::claude_commands::claude_engine_request,
+            application::claude_commands::prepare_claude_runtime,
+            application::engine_setup::get_configured_engines,
             configure_custom_provider,
             logout_provider,
             get_global_settings,
@@ -274,6 +287,7 @@ pub fn run() {
             submit_prompt,
             application::steer_submission::steer_turn,
             interrupt_turn,
+            stop_task_session,
             resolve_pending_request,
             application::review_submission::submit_review,
             compact_task,

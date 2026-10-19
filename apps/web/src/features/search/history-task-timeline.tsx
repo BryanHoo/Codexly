@@ -38,6 +38,7 @@ export function HistoryTaskTimeline({
     queryFn: ({ signal }) =>
       client.readTask(location.projectId, location.taskId, {
         cursor: location.turnCursor,
+        summary: true,
         signal,
       }),
     queryKey: ["search-history-location", location.projectId, location.taskId, location.turnCursor],

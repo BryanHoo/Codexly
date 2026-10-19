@@ -1,11 +1,13 @@
+import type { AgentCommand } from "@codexly/protocol";
 import type { AgentCapabilities, AgentSkill } from "@/protocol/index.js";
 
 import { i18n } from "../../../i18n/i18n.js";
 
-export type PromptCommandAction = "compact" | "fork" | "goal" | "initialize" | "plan" | "review";
+export type PromptCommandAction = "native" | "compact" | "fork" | "goal" | "initialize" | "plan" | "review";
 
 export type PromptCommandItem = Readonly<{
   action: PromptCommandAction;
+  command?: string;
   description: string;
   id: string;
   keywords: readonly string[];
@@ -14,7 +16,8 @@ export type PromptCommandItem = Readonly<{
 
 export function getPromptCommandItems({
   projectToolsEnabled = true,
-}: Readonly<{ projectToolsEnabled?: boolean }> = {}): readonly PromptCommandItem[] {
+  engineCommands,
+}: Readonly<{ projectToolsEnabled?: boolean; engineCommands?: readonly AgentCommand[] }> = {}): readonly PromptCommandItem[] {
   const translate = (key: string) => i18n.t(key, { ns: "workbench" });
   const items: readonly PromptCommandItem[] = [
     {
@@ -60,6 +63,20 @@ export function getPromptCommandItems({
       label: translate("promptCommand.goal.label"),
     },
   ];
+  if (engineCommands !== undefined) {
+    // 分叉和压缩走应用入口以保持身份、幂等与会话设置；其余命令仍由 SDK 原生执行。
+    return [
+      ...items.filter((item) => item.action === "fork" || item.action === "compact"),
+      ...engineCommands.filter((command) => !["fork", "compact"].includes(command.name)).map((command) => ({
+        action: "native" as const,
+        command: command.name,
+        id: `native:${command.name}`,
+        label: `/${command.name}`,
+        description: command.description,
+        keywords: [command.name],
+      })),
+    ];
+  }
   return projectToolsEnabled
     ? items
     : items.filter((item) => item.action !== "review" && item.action !== "initialize");
@@ -70,6 +87,7 @@ export function getPromptCommandAvailability(
   capabilities: AgentCapabilities | undefined,
   hasTask: boolean,
 ): Readonly<{ available: boolean; reason?: string }> {
+  if (item.action === "native") return { available: capabilities?.turns.start === true };
   if (capabilities === undefined) {
     return {
       available: false,

@@ -1,19 +1,9 @@
-import type { AgentEvent, AgentTurn } from "@codexly/protocol";
+import type { AgentEvent } from "@codexly/protocol";
 
 import type { NormalizedAgentTurn } from "./task-store-core.js";
 
-export function mergeTurnItemTimings(
-  current: AgentTurn["itemTimings"],
-  incoming: AgentTurn["itemTimings"],
-): AgentTurn["itemTimings"] {
-  if (current === undefined) return incoming;
-  if (incoming === undefined) return current;
-  const merged = { ...current };
-  for (const [itemId, timing] of Object.entries(incoming)) {
-    merged[itemId] = { ...current[itemId], ...timing };
-  }
-  return merged;
-}
+import { mergeTurnItemTimings } from "@codexly/frontend-core";
+export { mergeTurnItemTimings };
 
 export function retainTurnItemTimings(
   current: NormalizedAgentTurn | undefined,

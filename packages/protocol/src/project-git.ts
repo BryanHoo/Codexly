@@ -258,6 +258,7 @@ export type CreateTaskWorktreeResponse = Readonly<Static<typeof CreateTaskWorktr
 
 export const GenerateCommitMessageRequestSchema = Type.Object(
   {
+    engine: Type.Optional(Type.Union([Type.Literal("codex"), Type.Literal("claude")])),
     expectedSnapshot: GitSnapshotSchema,
     paths: SelectedGitPathsSchema,
     repository: Type.Optional(GitChildRepositorySchema),

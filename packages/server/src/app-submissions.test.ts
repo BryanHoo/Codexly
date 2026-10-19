@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { createHarness, turnRequest } from "./app-all.test-support.js";
+import { describe, expect, it, vi } from "vitest";
+import { createHarness, turnRequest, projectRootPath } from "./app-all.test-support.js";
 import { createWorkspace, openRepository } from "./sqlite-state-repository.test-support.js";
 
 describe("task submission use case", () => {
@@ -10,7 +10,57 @@ describe("task submission use case", () => {
     payload: { type: "prompt", ...turnRequest("实现需求") },
   };
 
+  it.each(["submissions", "turns"])(
+    "keeps an existing task subscribed while %s prepares input",
+    async (endpoint) => {
+      const { app, writeTaskSettings, unsubscribeTask, startTurn } = await createHarness();
+      const gate = Promise.withResolvers<undefined>();
+      writeTaskSettings.mockImplementationOnce(async (_projectId, _taskId, settings) => {
+        await gate.promise;
+        return settings;
+      });
+      const sending = app
+        .inject({
+          ...request,
+          url: endpoint === "submissions" ? request.url : "/v1/projects/codexly/tasks/task-1/turns",
+          payload:
+            endpoint === "submissions"
+              ? { ...request.payload, taskId: "task-1" }
+              : turnRequest("实现需求"),
+        })
+        .then((response) => response);
+      await vi.waitFor(() => {
+        expect(writeTaskSettings).toHaveBeenCalled();
+      });
+      const released = await app.inject({
+        method: "POST",
+        url: "/v1/projects/codexly/tasks/task-1/unsubscribe",
+      });
+      gate.resolve(undefined);
+      const sent = await sending;
+      expect(released.json()).toMatchObject({ status: "busy" });
+      expect(unsubscribeTask).not.toHaveBeenCalled();
+      expect(sent.statusCode, sent.body).toBe(201);
+      expect(startTurn).toHaveBeenCalledOnce();
+    },
+  );
+
   // 重启用例会多次创建真实服务或 SQLite Worker，为 Windows CI 的启动与磁盘 I/O 留出预算。
+  it("releases submission protection after preparation fails", async () => {
+    const { app, writeTaskSettings, unsubscribeTask } = await createHarness();
+    writeTaskSettings.mockRejectedValueOnce(new Error("settings unavailable"));
+    expect(
+      (await app.inject({ ...request, payload: { ...request.payload, taskId: "task-1" } }))
+        .statusCode,
+    ).toBe(502);
+    const released = await app.inject({
+      method: "POST",
+      url: "/v1/projects/codexly/tasks/task-1/unsubscribe",
+    });
+    expect(released.json()).toMatchObject({ status: "unsubscribed" });
+    expect(unsubscribeTask).toHaveBeenCalledOnce();
+  });
+
   it(
     "resumes a prepared task and replays its result across server restarts",
     { timeout: 15_000 },
@@ -36,6 +86,27 @@ describe("task submission use case", () => {
       expect(third.startTurn).not.toHaveBeenCalled();
     },
   );
+
+  it("uses the selected workspace when first submitting", async () => {
+    const engine = "codex";
+    const { app, startTask } = await createHarness();
+    const response = await app.inject({
+      ...request,
+      payload: { ...request.payload, engine, workspacePath: projectRootPath },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    expect(startTask).toHaveBeenCalledWith({ engine, workspacePath: projectRootPath });
+  });
+
+  it("rejects a workspace outside the project before creating a task", async () => {
+    const { app, startTask } = await createHarness();
+    const response = await app.inject({
+      ...request,
+      payload: { ...request.payload, workspacePath: "/unrelated/project" },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(startTask).not.toHaveBeenCalled();
+  });
 
   it("creates and starts a task in one idempotent request", async () => {
     const { app, startTask, startTurn } = await createHarness();

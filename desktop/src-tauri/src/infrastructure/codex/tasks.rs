@@ -1,17 +1,15 @@
-#[cfg(test)]
-use crate::domain::sidebar::{
-    AgentTaskMutationResponse, AgentTaskPage, ListCompletedTasksInput, ListTasksInput,
-};
-use std::{path::PathBuf, time::Duration};
-
-use serde::{Deserialize, Serialize};
-
 use super::{
     connection::{AppServerConnection, ConnectionError},
     conversation_background::list_background_terminals,
     sidebar::unix_seconds_to_rfc3339,
 };
 use crate::domain::sidebar::{AgentTask, AgentTaskStatusResponse};
+#[cfg(test)]
+use crate::domain::sidebar::{
+    AgentTaskMutationResponse, AgentTaskPage, ListCompletedTasksInput, ListTasksInput,
+};
+use serde::{Deserialize, Serialize};
+use std::{path::PathBuf, time::Duration};
 
 const PINNED_SECTION_ID: &str = "01984de2-8f74-7c91-a3b2-5c5e937cf318";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -484,6 +482,7 @@ pub(super) fn map_task(thread: NativeThread, project_id: &str) -> AgentTask {
         .unwrap_or("新聊天")
         .to_owned();
     AgentTask {
+        engine: None,
         workspace_path: thread.cwd,
         id: thread.id,
         pinned: thread

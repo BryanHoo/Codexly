@@ -232,7 +232,7 @@ describe("project pending request protocol", () => {
         turnId: inputRequest.turnId,
         type: inputRequest.type,
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       Value.Check(ResolvePendingRequestRequestSchema, {
         itemId: inputRequest.itemId,

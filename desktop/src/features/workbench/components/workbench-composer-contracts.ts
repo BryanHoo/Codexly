@@ -1,3 +1,4 @@
+import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type {
   AgentAttachment,
   AgentCapabilities,
@@ -15,7 +16,8 @@ import type {
   ProjectFileSearchEntry,
   ProjectRoot,
 } from "@/protocol/index.js";
-import type { Ref } from "react";
+import type { Ref, ReactNode } from "react";
+import type { AgentCommand } from "@codexly/protocol";
 
 import { buildNativeAssetUrl } from "../../../platform/native-asset-url.js";
 import type {
@@ -59,6 +61,8 @@ export type WorkbenchComposerHandle = Readonly<{
 }>;
 
 export type WorkbenchComposerProps = Readonly<{
+  engineControls?: ReactNode;
+  engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
   client: NativeMutationClient &
@@ -67,13 +71,14 @@ export type WorkbenchComposerProps = Readonly<{
       | "createProjectBranch"
       | "switchProjectBranch"
     > &
-    NativeProjectFileSearchClient;
+    NativeProjectFileSearchClient & ComposerWorkspace["client"];
   fastModeAvailable: boolean;
   fastModeDefault: boolean;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];
   initialProjectDraftId?: string;
   initialDraft?: ComposerDraft;
   composerDraftId?: string;
+  initialEngine?: "codex" | "claude";
   captureSubmitVisible?: boolean;
   captureSubmitLabel?: string;
   footerVisible?: boolean;
@@ -88,6 +93,7 @@ export type WorkbenchComposerProps = Readonly<{
   onFastModeChange: (enabled: boolean, settings: AgentTaskSettings) => Promise<void> | void;
   onOpenProjectPath: () => void;
   onProjectRootChange: (rootId: string) => void;
+  workspace?: ComposerWorkspace;
   onDirectSubmission?: (prompt?: PendingPrompt) => void;
   onSubmissionFailed?: () => void;
   onCaptureSubmission?: (

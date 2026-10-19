@@ -1,3 +1,4 @@
+import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
 import { buildTaskAttachmentUrl } from "@codexly/client";
 import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
@@ -338,7 +339,11 @@ export function TimelineItemContent({
           <ToolHeader
             duration={toolDuration}
             state={toToolState(item.status)}
-            title={item.progress === undefined ? item.name : `${item.name} · ${item.progress}`}
+            title={
+              item.progress === undefined
+                ? getToolTitle(item)
+                : `${getToolTitle(item)} · ${item.progress}`
+            }
           />
           <ToolContent>
             {item.progress === undefined ? null : (

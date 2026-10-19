@@ -1,3 +1,5 @@
+import { composerGitEnglish } from "@codexly/frontend-core/composer-git-labels";
+import { engineEnglish } from "@codexly/frontend-core/engine-labels";
 import { textFileEditorEnglish } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceEnglish } from "@codexly/frontend-core/split-workspace-labels";
 import { gitCommit } from "./git-commit.js";
@@ -5,6 +7,7 @@ import { skillsMarket } from "./skills-market.js";
 import { newProject } from "./new-project.js";
 import { taskWindow } from "./task-window-menu.js";
 export const workbench = {
+  engine: engineEnglish,
   textEditor: textFileEditorEnglish,
   split: splitWorkspaceEnglish,
   taskWindow,
@@ -47,7 +50,8 @@ export const workbench = {
   composer: {
     addedAttachments: "Added attachments",
     applyDraft: "Apply todo",
-    applyDraftDescription: "Applying this todo will replace the current composer content. Continue?",
+    applyDraftDescription:
+      "Applying this todo will replace the current composer content. Continue?",
     applyDraftTitle: "Replace current input?",
     approvalMode: "Approval policy",
     attachmentCount_one: "{{count}} attachment",
@@ -86,8 +90,16 @@ export const workbench = {
     branchSwitcherMenu: "Switch branch",
     branchSwitchFailed: "Unable to create or switch branches. Try again.",
     branchName: "Branch name",
+    ...composerGitEnglish,
+    worktrees: "Worktrees",
+    createWorktree: "Create worktree",
+    createWorktreeDescription:
+      "Create a new branch in a separate folder for parallel work. Choose your engine and model afterward.",
+    createWorktreeConfirm: "Create and select worktree",
+    worktreeLoading: "Loading working directories…",
     createBranch: "New branch",
-    createBranchDescription: "Create from the current branch and switch immediately",
+    createBranchDescription:
+      "Create a branch from the current branch and switch to it in this working directory.",
     createAndSwitchBranch: "Create and switch",
     goalMode: "Goal",
     goalStatus: {
@@ -222,6 +234,7 @@ export const workbench = {
     cancel: "Cancel",
     deny: "Deny",
     expired: "Request expired",
+    toolApproval: "Tool approval",
     fileChangeApproval: "File change approval",
     fileChangeFallback: "File change awaiting confirmation",
     inputRequired: "Your input is required",
@@ -284,7 +297,8 @@ export const workbench = {
     name: "Project name",
     previewMarkdown: "Preview Markdown",
     remove: "Remove project",
-    removeDescription: "Remove {{name}} and its task records from Codexly? Files on disk will be retained.",
+    removeDescription:
+      "Remove {{name}} and its task records from Codexly? Files on disk will be retained.",
     rename: "Rename project",
     renameDescription: "This changes only the sidebar display name, not the folder name on disk.",
     showRawContent: "Show raw content",
@@ -396,11 +410,6 @@ export const workbench = {
     updatedAt: "Updated {{date}}",
   },
   sidebar: {
-    createWorktreeTask: "Create a worktree task in {{project}}",
-    createWorktreeTaskConfirm: "Create worktree and task",
-    worktreeTaskDescription:
-      "Create an isolated worktree from the current checkout and start a task in it",
-    worktreeTaskTitle: "Create worktree task",
     addProject: "Add project",
     agentNavigation: "Agent navigation",
     archive: "Archive",

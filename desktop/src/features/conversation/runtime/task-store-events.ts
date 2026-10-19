@@ -1,5 +1,5 @@
 import type { AgentEvent, AgentItem } from "@/protocol/index.js";
-import { touchedCommandOutputItemKeys as getTouchedCommandOutputItemKeys } from "@codexly/frontend-core";
+import { applyMessageAliases, resolveMessageAliases, touchedCommandOutputItemKeys as getTouchedCommandOutputItemKeys } from "@codexly/frontend-core";
 
 import {
   MAX_RETAINED_TASK_NOTICES,
@@ -81,27 +81,12 @@ function mergeTerminalTurnItems(
   turnId: string,
   terminalItems: readonly AgentItem[],
 ): readonly AgentItem[] {
-  const submittedUserItemId = `submitted-user-${turnId}`;
-  const terminalUserItem = terminalItems.find(
-    (item) => item.type === "message" && item.role === "user",
+  const currentItems = resolveMessageAliases(
+    (state.itemKeysByTurnId[turnId] ?? []).flatMap((key) => {
+      const item = readTaskItem(state, key);
+      return item === undefined ? [] : [item];
+    }), terminalItems, turnId,
   );
-  const currentItems: AgentItem[] = [];
-  const seenCurrentItemIds = new Set<string>();
-  for (const itemKey of state.itemKeysByTurnId[turnId] ?? []) {
-    const currentItem = readTaskItem(state, itemKey);
-    if (currentItem === undefined) {
-      continue;
-    }
-    // 启动响应可能缺少用户 Item；终态到达后由真实实体接管本地提交占位符。
-    const resolvedItem =
-      currentItem.id === submittedUserItemId && terminalUserItem !== undefined
-        ? terminalUserItem
-        : currentItem;
-    if (!seenCurrentItemIds.has(resolvedItem.id)) {
-      seenCurrentItemIds.add(resolvedItem.id);
-      currentItems.push(resolvedItem);
-    }
-  }
 
   const currentItemIds = new Set(currentItems.map((item) => item.id));
   const terminalItemsById = new Map(terminalItems.map((item) => [item.id, item]));
@@ -317,8 +302,19 @@ export function applyAcceptedEvent(
           updatedAt: event.timestamp,
         },
       };
-    case "skills.changed":
     case "task.metadata_changed":
+      return event.payload.permissionMode === undefined ? { checkpoint } : {
+        checkpoint,
+        snapshotMetadata: {
+          ...snapshotMetadata,
+          threadConfiguration: {
+            model: snapshotMetadata.threadConfiguration?.model ?? null,
+            reasoningEffort: snapshotMetadata.threadConfiguration?.reasoningEffort ?? null,
+            permissionMode: event.payload.permissionMode,
+          },
+        },
+      };
+    case "skills.changed":
     case "task.removed":
       // Project 级缓存由 Runtime 回调同步，Task Store 只推进 checkpoint。
       return { checkpoint };
@@ -333,8 +329,8 @@ export function applyAcceptedEvent(
       }
       const itemKey = createTaskItemKey(event.turnId, event.itemId);
       const currentItemStore = state.itemStoresByKey.get(itemKey);
-      const itemAlreadyExists = currentItemStore !== undefined;
-      const currentItemIds = state.itemKeysByTurnId[event.turnId] ?? [];
+      const currentItemIds = applyMessageAliases(state, event.turnId, event.payload.item);
+      const itemAlreadyExists = currentItemIds.includes(itemKey);
       const submittedUserItemId = `submitted-user-${event.turnId}`;
       const submittedUserItemKey = createTaskItemKey(event.turnId, submittedUserItemId);
       const replacesSubmittedUserItem =
@@ -366,7 +362,7 @@ export function applyAcceptedEvent(
       return {
         checkpoint,
         itemKeysByTurnId:
-          nextItemIds === currentItemIds
+          nextItemIds === state.itemKeysByTurnId[event.turnId]
             ? state.itemKeysByTurnId
             : { ...state.itemKeysByTurnId, [event.turnId]: nextItemIds },
         itemStructureRevision: state.itemStructureRevision + 1,

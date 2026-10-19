@@ -13,7 +13,7 @@ function Tool({ label, children, disabled = false, onClick }: { label: string; c
   return <Tooltip><TooltipTrigger asChild><Button aria-label={label} title={label} disabled={disabled} type="button" variant="ghost" size="icon-sm" className="size-7 shrink-0" onClick={onClick}>{children}</Button></TooltipTrigger><TooltipContent>{label}</TooltipContent></Tooltip>;
 }
 
-export function TerminalPanel({ projectId, rootId }: { projectId: string; rootId: string | undefined }) {
+export function TerminalPanel({ projectId, rootId, rootPath }: { projectId: string; rootId: string | undefined; rootPath?: string }) {
   const state = useSyncExternalStore(useCallback((listener) => terminalStore.subscribe(projectId, listener), [projectId]), useCallback(() => terminalStore.get(projectId), [projectId]));
   const { t } = useTranslation("workbench");
   const viewport = useRef<HTMLDivElement>(null);
@@ -55,7 +55,7 @@ export function TerminalPanel({ projectId, rootId }: { projectId: string; rootId
           <TerminalSquare aria-hidden="true" className="size-3 shrink-0" /><span className="truncate">{terminal.title}</span>
         </button>)}
       </div>
-      <Tool label={t("terminal.new")} disabled={state.creating || rootId === undefined || terminalStore.liveCount(projectId) >= 4} onClick={() => void createTerminal(projectId, rootId)}>{state.creating ? <LoaderCircle className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}</Tool>
+      <Tool label={t("terminal.new")} disabled={state.creating || rootId === undefined || terminalStore.liveCount(projectId) >= 4} onClick={() => void createTerminal(projectId, rootId, rootPath)}>{state.creating ? <LoaderCircle className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}</Tool>
       <Tool label={t("terminal.stop")} disabled={selected === undefined || selected.state === "closing"} onClick={() => { if (selected !== undefined) void closeTerminal(selected); }}><Square className="size-3" /></Tool>
       <Tool label={t("terminal.hide")} onClick={() => { terminalStore.update(projectId, { visible: false }); persistTerminalLayout(projectId); }}><ChevronDown className="size-3.5" /></Tool>
     </div>

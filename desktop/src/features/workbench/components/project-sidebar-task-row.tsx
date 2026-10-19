@@ -6,6 +6,7 @@ import { splitPaneKey } from "@codexly/frontend-core/split-workspace";
 import { PanelsTopLeft } from "lucide-react";
 import { SidebarTaskLabel } from "@codexly/ui/core/sidebar-task-label";
 import { writeClipboardText } from "@codexly/frontend-core/clipboard";
+import { taskEngine } from "@codexly/protocol";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask } from "@/protocol/index.js";
 import {
   Archive,
@@ -107,7 +108,7 @@ export function TaskLink({
         }}
         {...taskRoute}
       >
-        <SidebarTaskLabel projectName={projectName} title={task.title} />
+        <SidebarTaskLabel engine={taskEngine(task)} projectName={projectName} title={task.title} />
         <TaskStatusIndicator
           attention={attention}
           isAwaitingApproval={isAwaitingApproval}

@@ -25,13 +25,13 @@ test("switches branches from the composer footer", async ({ page }) => {
   });
   await expect(trigger).toBeVisible();
   await trigger.click();
-  const branchMenu = page.getByRole("menu", {
-    name: "切换分支，当前分支 feat/review-targets",
-  });
-  await expect(branchMenu.getByRole("menuitemradio", { name: "feat/review-targets" })).toHaveCount(
-    0,
-  );
-  const mainBranch = branchMenu.getByRole("menuitemradio", { name: "main", exact: true });
+  const branchMenu = page.getByRole("dialog", { name: "选择工作树或分支" });
+  await expect(branchMenu.getByRole("tab").first()).toHaveText(/分支/u);
+  await expect(branchMenu.getByRole("tab").first()).toHaveAttribute("aria-selected", "true");
+  await expect(
+    branchMenu.getByRole("option", { name: "feat/review-targets", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  const mainBranch = branchMenu.getByRole("option", { name: "main", exact: true });
   await expect(mainBranch).toBeEnabled();
   await mainBranch.click();
 
@@ -60,12 +60,12 @@ test("creates and switches to a branch from the composer footer", async ({ page 
   await page.goto("/p/codexly/t/task-1");
 
   await page.getByRole("button", { name: "切换分支，当前分支 feat/review-targets" }).click();
-  const createBranchItem = page.getByRole("menuitem", { name: "新建分支" });
-  await expect(createBranchItem.locator("svg")).toHaveClass(/size-3\.5/u);
+  await page.getByRole("tab", { name: /^分支/u }).click();
+  const createBranchItem = page.getByRole("button", { name: "新建分支", exact: true });
   await createBranchItem.click();
   const dialog = page.getByRole("dialog", { name: "新建分支" });
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText("基于当前分支创建并立即切换");
+  await expect(dialog).toContainText("从当前分支创建新分支，并在当前工作目录切换到它。");
   await dialog.getByRole("textbox", { name: "分支名称" }).fill("feat/composer-create");
   await dialog.getByRole("button", { name: "创建并切换" }).click();
 
@@ -79,54 +79,78 @@ test("creates and switches to a branch from the composer footer", async ({ page 
   });
 });
 
-test("keeps worktree task creation in the project sidebar", async ({ page }) => {
+test("manages worktrees in the composer footer without a sidebar task action", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
-
+  await expect(page.getByRole("button", { name: "在 Codexly 中创建 worktree 任务" })).toHaveCount(
+    0,
+  );
   await page.getByRole("button", { name: "切换分支，当前分支 feat/review-targets" }).click();
-  await expect(page.getByRole("menuitem", { name: /worktree/u })).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "在 Codexly 中创建 worktree 任务" }).click();
-  const dialog = page.getByRole("dialog", { name: "创建 worktree 任务" });
+  await page.getByRole("tab", { name: /^工作树/u }).click();
+  await page.getByRole("button", { name: "创建 worktree", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "创建 worktree", exact: true });
   await expect(dialog.getByRole("textbox", { name: "分支名称" })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "创建 worktree 和任务" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "执行引擎" })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "创建并选择 worktree" })).toBeDisabled();
 });
 
-test("creates a worktree task under its original project", async ({ page }) => {
-  const worktreePath = "/workspace/Codexly-composer-worktree";
-  const task = { ...tasks[0], id: "worktree-task-1", title: "新任务" };
+test("creates a worktree independently and uses it only when the first message is sent", async ({
+  page,
+}) => {
+  const worktreePath = "/workspace/Codexly/.worktree/composer-worktree";
+  const task = { ...tasks[0], id: "worktree-task-1", title: "新任务", workspacePath: worktreePath };
   let worktreeRequest: Record<string, unknown> | undefined;
   let taskRequest: Record<string, unknown> | undefined;
   await page.route("**/v1/projects/codexly/git/task-worktrees?*", async (route) => {
     worktreeRequest = parseRequestRecord(route.request().postData());
     await route.fulfill({
       contentType: "application/json",
-      json: { worktree: { branch: "feat/sidebar-worktree", current: false, path: worktreePath } },
+      json: { worktree: { branch: "feat/composer-worktree", current: false, path: worktreePath } },
     });
   });
-  await page.route("**/v1/projects/codexly/tasks", async (route) => {
-    if (route.request().method() !== "POST") return route.fallback();
+  await page.route("**/v1/projects/codexly/submissions", async (route) => {
     taskRequest = parseRequestRecord(route.request().postData());
-    await route.fulfill({ contentType: "application/json", json: { task } });
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        createdTask: task,
+        taskId: task.id,
+        checkpoint: { sequence: 0, sessionId: "worktree-session" },
+        turn: {
+          id: "worktree-turn",
+          items: [],
+          status: "running",
+          startedAt: "2026-07-29T00:00:00.000Z",
+          completedAt: null,
+          error: null,
+        },
+      },
+    });
   });
-  await page.route(taskSnapshotRoute("worktree-task-1"), async (route) => {
+  await page.route(taskSnapshotRoute(task.id), async (route) => {
     await route.fulfill({
       contentType: "application/json",
       json: { ...taskSnapshotResponse, snapshot: { ...taskSnapshotResponse.snapshot, ...task } },
     });
   });
   await page.goto("/p/codexly/t/task-1");
-
-  await page.getByRole("button", { name: "在 Codexly 中创建 worktree 任务" }).click();
-  const dialog = page.getByRole("dialog", { name: "创建 worktree 任务" });
-  await dialog.getByRole("textbox", { name: "分支名称" }).fill("feat/sidebar-worktree");
-  await dialog.getByRole("button", { name: "创建 worktree 和任务" }).click();
-
-  await expect(page).toHaveURL(/\/p\/codexly\/t\/worktree-task-1$/u);
+  await page.getByRole("button", { name: "切换分支，当前分支 feat/review-targets" }).click();
+  await page.getByRole("tab", { name: /^工作树/u }).click();
+  await page.getByRole("button", { name: "创建 worktree", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "创建 worktree", exact: true });
+  await dialog.getByRole("textbox", { name: "分支名称" }).fill("feat/composer-worktree");
+  await dialog.getByRole("button", { name: "创建并选择 worktree" }).click();
+  await expect(dialog).toBeHidden();
   expect(worktreeRequest).toEqual({
-    branch: "feat/sidebar-worktree",
+    branch: "feat/composer-worktree",
     expectedSnapshot: projectGitStatus.snapshot,
   });
-  expect(taskRequest).toEqual({ rootPath: "/workspace/Codexly", worktreePath });
+  expect(taskRequest).toBeUndefined();
+  // 创建检出只打开新草稿，用户仍可调整输入框配置，首次发送才创建任务。
+  await page.getByRole("textbox", { name: "任务输入" }).fill("在选择的工作树中处理需求");
+  await page.getByRole("button", { name: "提交", exact: true }).click();
+  await expect(page).toHaveURL(/\/p\/codexly\/t\/worktree-task-1$/u);
+  expect(taskRequest).toMatchObject({ type: "prompt", workspacePath: worktreePath });
+  expect(taskRequest?.["taskId"]).toBeUndefined();
 });
 
 test("opens current-branch Git history from the inspector tab", async ({ page }) => {

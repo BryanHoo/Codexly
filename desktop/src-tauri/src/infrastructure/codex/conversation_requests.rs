@@ -11,7 +11,7 @@ mod permission_resolution;
 
 use super::{
     connection::{ConnectionError, ServerMessage},
-    conversation::RUNTIME_SESSION_ID,
+    conversation::runtime_session_id,
     conversation_plugin_install::{map_plugin_install_suggestion, response_for_plugin_suggestion},
     conversation_request_fields::{map_mcp_fields, map_permission_profile},
     sidebar::unix_seconds_to_rfc3339,
@@ -461,7 +461,7 @@ fn required_string<'a>(
 }
 
 fn envelope(sequence: u64, timestamp: &str, task_id: &str, fields: Value) -> Value {
-    let mut event = json!({"provider": "codex", "sequence": sequence, "sessionId": RUNTIME_SESSION_ID, "taskId": task_id, "timestamp": timestamp, "version": 2});
+    let mut event = json!({"provider": "codex", "sequence": sequence, "sessionId": runtime_session_id(), "taskId": task_id, "timestamp": timestamp, "version": 2});
     event
         .as_object_mut()
         .unwrap()

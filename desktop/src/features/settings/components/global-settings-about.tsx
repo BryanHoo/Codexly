@@ -82,6 +82,12 @@ export function GlobalSettingsAbout({
               {appInfo.codexVersion}
             </span>
           </SettingsField>
+          <SettingsField label={t("about.claudeVersion")}>
+            <span className="font-mono text-body-small text-foreground">
+              {/* 兼容旧服务端未返回版本及运行时版本未知的情况。 */}
+              {appInfo.claudeVersion ?? t("about.unknownVersion")}
+            </span>
+          </SettingsField>
           <SettingsField label={t("about.github")}>
             <Button asChild className="justify-self-start" size="sm" variant="link">
               <a

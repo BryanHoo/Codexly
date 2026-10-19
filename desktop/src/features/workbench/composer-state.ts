@@ -1,3 +1,4 @@
+import { resolveActualClaudePermission } from "@codexly/frontend-core/engine-composer";
 import type {
   AgentCapabilities,
   AgentGlobalSettings,
@@ -64,13 +65,16 @@ export function resolveReasoningEffort(
 export function resolveThreadComposerSettings(
   settings: AgentTaskSettings,
   configuration: AgentTaskSnapshot["threadConfiguration"],
+  override?: AgentTaskSettings,
 ): AgentTaskSettings {
-  // 续聊沿用线程已保存的模型配置，只补全模型与思考强度，不恢复历史权限。
+  if (override) return resolveActualClaudePermission(override, configuration);
+  // 模型独立回退；Claude 权限始终使用已确认状态，避免历史本地选择遮蔽原生模式。
   const model = configuration?.model ?? settings.model;
   const reasoningEffort = configuration?.reasoningEffort ?? settings.reasoningEffort;
-  return model === settings.model && reasoningEffort === settings.reasoningEffort
-    ? settings
-    : { ...settings, model, reasoningEffort };
+  return resolveActualClaudePermission(
+    model === settings.model && reasoningEffort === settings.reasoningEffort ? settings : { ...settings, model, reasoningEffort },
+    configuration,
+  );
 }
 
 export function deriveApprovalMode(
@@ -172,6 +176,7 @@ type StartPromptTurnOptions = Readonly<{
   onTaskCreated?: (task: AgentTask) => void;
   projectId: string;
   taskId?: string;
+  workspacePath?: string;
   turnOptions: AgentTurnOptions;
 }>;
 
@@ -179,7 +184,7 @@ export async function startPromptTurn(
   client: Pick<NativeMutationClient, "submitPrompt">,
   options: StartPromptTurnOptions,
 ) {
-  return client.submitPrompt(options);
+  return client.submitPrompt({ ...options, ...(options.turnOptions.engineOptions?.engine === "claude" ? { engine: "claude" as const } : {}) });
 }
 
 type StartTaskReviewOptions = Readonly<{

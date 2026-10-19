@@ -95,6 +95,11 @@ export type CodexlySkillMarketClient = Pick<
 export type CodexlySettingsClient = Pick<
   CodexlyClient,
   | "listWorkbenchBackgrounds"
+  | "getEngineProfile"
+  | "configureEngine"
+  | "disconnectEngine"
+  | "getClaudeSettings"
+  | "updateClaudeSettings"
   | "getGlobalInstructions"
   | "saveGlobalInstructions"
   | "getMemorySettings"

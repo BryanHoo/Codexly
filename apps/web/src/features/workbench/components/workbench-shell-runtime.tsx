@@ -1,11 +1,8 @@
+import { useComposerWorkspaceSelection } from "@codexly/ui/core/composer-workspace";
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import type { SplitRuntimeOptions } from "@codexly/frontend-core/split-workspace";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
-import type {
-  AgentMessageAttachment,
-  AgentPromptInput,
-  AgentTurn,
-  ProjectOpenAppId,
-} from "@codexly/protocol";
+import type { ProjectOpenAppId } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +10,7 @@ import { useTranslation } from "../../../i18n/i18n.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { useAccess } from "../../access/access-context.js";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
+import { useInspectorTask } from "./use-inspector-task.js";
 import { useTaskRuntime } from "../../conversation/runtime/use-task-runtime.js";
 import { providerConnectionQueryOptions } from "../../provider-connection/provider-connection-queries.js";
 import {
@@ -57,6 +55,7 @@ import {
 import { useWorkbenchPanelLayout } from "./workbench-panel-layout.js";
 import { useSubmissionStartedAt } from "./use-submission-started-at.js";
 import { resolveWorkbenchTaskRoot } from "./workbench-task-root.js";
+import type { WorkbenchShellProps } from "./workbench-shell-contracts.js";
 import {
   createTaskLaunchSnapshot,
   taskLaunchQueryKey,
@@ -64,25 +63,9 @@ import {
 } from "./workbench-task-launch.js";
 
 export { useSubmissionStartedAt } from "./use-submission-started-at.js";
+export type { WorkbenchShellProps, SubmittedPromptState } from "./workbench-shell-contracts.js";
 
 const emptyExpandedFileTreePaths = new Set<string>();
-
-export type SubmittedPromptState = Readonly<{
-  input: AgentPromptInput;
-  messageAttachments: readonly AgentMessageAttachment[];
-  submissionStartedAt?: string;
-  turn: AgentTurn;
-}>;
-
-export type WorkbenchShellProps = Readonly<{
-  board?: boolean;
-  extensionSection?: string;
-  projectId: string;
-  scheduled?: boolean;
-  taskId?: string;
-  temporary?: boolean;
-  todoId?: string;
-}>;
 
 export function useWorkbenchShellRuntime({
   projectId,
@@ -114,10 +97,11 @@ export function useWorkbenchShellRuntime({
       : undefined);
   const { selectedRootIds, setSelectedProjectRoot } = useProjectRootSelection();
   const selectedRoot = resolveProjectRootFromSelections(project, selectedRootIds);
+  const draftWorkspace = useComposerWorkspaceSelection(projectId, taskId);
   const { activeRootId, projectRoots, selectedRootPath } = resolveWorkbenchTaskRoot({
     metadataTaskId: runtime.metadata?.id,
     projectRoots: project?.roots ?? [],
-    reportedWorkspacePath,
+    reportedWorkspacePath: draftWorkspace.path ?? reportedWorkspacePath,
     selectedRoot,
     taskId,
     taskKnown: activeTask !== undefined,
@@ -192,8 +176,13 @@ export function useWorkbenchShellRuntime({
   const appUpdateProgressQuery = useQuery(
     appUpdateProgressQueryOptions(client, appUpdateMutation.isPending),
   );
-  const modelsQuery = useQuery(modelsQueryOptions(client));
-  const providerConnectionQuery = useQuery(providerConnectionQueryOptions());
+  // 未启用的引擎不发起模型、认证和默认配置请求，避免隐藏功能唤醒 Codex。
+  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
+  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
+  const providerConnectionQuery = useQuery({
+    ...providerConnectionQueryOptions(),
+    enabled: codexEnabled,
+  });
   const mcpServersQuery = useQuery(
     mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
   );
@@ -206,7 +195,9 @@ export function useWorkbenchShellRuntime({
       );
     },
   });
-  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client));
+  const globalSettingsQuery = useQuery({
+    ...globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"),
+  });
   const projectOpenCapabilitiesQuery = useQuery(
     projectOpenCapabilitiesQueryOptions(projectId, client, !temporary),
   );
@@ -246,9 +237,11 @@ export function useWorkbenchShellRuntime({
   }, [projectFileManagerApp, projectPathOpenLockRef, projectPathOpenMutationRef]);
   const skillsQuery = useQuery({
     ...skillsQueryOptions(projectId, client),
-    enabled: capabilities?.skills.list === true,
+    enabled: codexEnabled && capabilities?.skills.list === true,
   });
-  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, !temporary));
+  const projectDefaultsQuery = useQuery(
+    projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary),
+  );
   const projectDefaultsMutation = useMutation({
     ...projectDefaultsMutationOptions(projectId, client),
     onSuccess(response) {
@@ -256,9 +249,9 @@ export function useWorkbenchShellRuntime({
     },
   });
   const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client),
+    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
     async onSuccess(response) {
-      queryClient.setQueryData(["settings"], response);
+      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
       // 局部显式设置仍由 Server 保持优先；刷新只让未配置的当前上下文重新解析全局回退。
       await queryClient.invalidateQueries({
         exact: true,
@@ -388,14 +381,11 @@ export function useWorkbenchShellRuntime({
     t("shell.newChat");
   const renameMutation = useMutation(taskRenameMutationOptions(client));
   const activeTaskRenameLockRef = useRef(createAsyncActionLock());
-  const inspectorTask = useMemo(() => {
-    // Inspector 是低频完整视图；关闭时不保留兼容 Snapshot。
-    void runtime.itemStructureRevision;
-    void runtime.metadata;
-    return inspectorOpen && paneActive && !workspaceOnly
-      ? (runtime.readSnapshot() ?? startingSnapshot)
-      : startingSnapshot;
-  }, [inspectorOpen, paneActive, workspaceOnly, runtime, startingSnapshot]);
+  const inspectorTask = useInspectorTask(
+    runtime.store,
+    inspectorOpen && paneActive && !workspaceOnly,
+    startingSnapshot,
+  );
   const subagents = useMemo(() => collectSubagents(inspectorTask), [inspectorTask]);
   const selectedSubagent =
     subagentDialogSelection?.projectId === projectId &&
@@ -418,6 +408,7 @@ export function useWorkbenchShellRuntime({
     beginNewChatSubmission,
     capabilities,
     client,
+    codexEnabled,
     error,
     expandedFileTreePaths,
     getNewChatSubmissionStartedAt,
@@ -479,6 +470,7 @@ export function useWorkbenchShellRuntime({
     setSidebarOpen,
     setSidebarWidth,
     setSelectedRootId,
+    selectWorkspace: draftWorkspace.select,
     setSubagentDialogSelection,
     setTaskRenameOpen,
     sidebarConnectionState,

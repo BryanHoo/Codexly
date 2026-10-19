@@ -70,6 +70,7 @@ import type { PersistentTaskQueue } from "../persistent-task-queue.js";
 import type { SkillMarketService } from "../skill-market-service.js";
 import type { ScheduledTaskService } from "../scheduled-task-service.js";
 import type { WorkbenchChanges } from "../workbench-changes.js";
+import type { WebSocketLifecycle } from "../websocket-lifecycle.js";
 
 export class MutationHttpError extends Error {
   public constructor(
@@ -120,6 +121,7 @@ export type TaskStartRecovery = Readonly<{
 }>;
 
 export interface ServerRouteContext {
+  readonly websocketLifecycle: WebSocketLifecycle;
   readonly workbenchChanges: WorkbenchChanges;
   readonly projectTodoRepository?: ProjectTodoRepository;
   readonly submissionRepository: TaskSubmissionRepository;
@@ -158,7 +160,7 @@ export interface ServerRouteContext {
   readonly fingerprintPayload: (payload: unknown) => string;
   readonly idempotencyCacheSize: number;
   readonly installAppUpdate: (version: string) => Promise<InstallAppUpdateResponse>;
-  readonly listModels: () => Promise<readonly AgentModel[]>;
+  readonly listModels: (engine?: "codex" | "claude") => Promise<readonly AgentModel[]>;
   readonly maximumAttachmentBytes: (kind: AgentAttachmentKind) => number;
   readonly modelCatalogCache: Readonly<{
     clear: () => void;
@@ -175,6 +177,7 @@ export interface ServerRouteContext {
   readonly providerConnectionRepository: AgentProviderConnectionRepository;
   readonly readEffectiveGlobalSettings: (
     models?: readonly AgentModel[],
+    engine?: "codex" | "claude",
   ) => Promise<AgentGlobalSettings>;
   readonly readAppInfo: () => Promise<AppInfoResponse>;
   readonly readAppUpdateProgress: () => Promise<AppUpdateProgressResponse>;

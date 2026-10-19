@@ -4,11 +4,12 @@ export default defineConfig({
   entry: {
     cli: "src/cli.ts",
     "scheduled-task-recurrence-worker": "packages/server/src/scheduled-task-recurrence-worker.js",
-    "historical-attachment-worker": "packages/provider-codex/src/historical-attachment-worker.js",
+    "historical-attachment-worker": "packages/core/src/historical-attachment-worker.js",
     "codex-jsonl-frame-worker": "packages/provider-codex/src/codex-jsonl-frame-worker.js",
     "client/index": "packages/client/src/index.ts",
     "core/index": "packages/core/src/index.ts",
     "protocol/index": "packages/protocol/src/index.ts",
+    "providers/claude/index": "packages/provider-claude/src/index.ts",
     "providers/codex/index": "packages/provider-codex/src/index.ts",
     "server/index": "packages/server/src/index.ts",
     "sqlite-state-worker": "packages/server/src/sqlite-state-worker.js",
@@ -24,8 +25,16 @@ export default defineConfig({
     };
     options.alias = {
       ...options.alias,
+      "@codexly/core/persistent-historical-attachment-store":
+        "./packages/core/src/persistent-historical-attachment-store.ts",
+      "@codexly/core/historical-attachment-worker-pool":
+        "./packages/core/src/historical-attachment-worker-pool.ts",
+      "@codexly/core/historical-attachment-files":
+        "./packages/core/src/historical-attachment-files.ts",
+      "@codexly/core/persistent-task-queue": "./packages/core/src/persistent-task-queue.ts",
       "@codexly/core": "./packages/core/src/index.ts",
       "@codexly/protocol": "./packages/protocol/src/index.ts",
+      "@codexly/provider-claude": "./packages/provider-claude/src/index.ts",
       "@codexly/provider-codex": "./packages/provider-codex/src/index.ts",
       "@codexly/server": "./packages/server/src/index.ts",
     };

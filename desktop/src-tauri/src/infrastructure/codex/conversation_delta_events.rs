@@ -6,7 +6,7 @@ use crate::domain::runtime::{AgentDeltaEvent, AgentDeltaPayload, AgentDeltaType,
 
 use super::{
     connection::{ConnectionError, ServerMessage},
-    conversation::RUNTIME_SESSION_ID,
+    conversation::runtime_session_id,
 };
 
 #[derive(Deserialize)]
@@ -44,7 +44,7 @@ pub(super) fn map_delta_message(
         provider: ProviderKind::Codex,
         received_at_unix_ms,
         sequence,
-        session_id: RUNTIME_SESSION_ID,
+        session_id: runtime_session_id(),
         task_id: params.thread_id.to_owned(),
         timestamp: timestamp.to_owned(),
         turn_id: params.turn_id.to_owned(),

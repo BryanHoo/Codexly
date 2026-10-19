@@ -7,6 +7,8 @@ use crate::infrastructure::{
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("{0}")]
+    Claude(String),
     #[error(transparent)]
     LocalCatalog(#[from] crate::infrastructure::local_catalog::CatalogError),
     #[error("failed to enable login startup")]
@@ -98,6 +100,7 @@ impl Serialize for AppError {
             return payload.end();
         }
         let structured_error = match self {
+            Self::Claude(message) => Some(("CLAUDE_ERROR", message.clone())),
             Self::ModelCatalogUnavailable => Some(("MODEL_CATALOG_UNAVAILABLE", self.to_string())),
             Self::PendingRequestUnavailable => {
                 Some(("PENDING_REQUEST_UNAVAILABLE", self.to_string()))

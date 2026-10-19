@@ -108,6 +108,8 @@ describe("SQLite provider state", () => {
     });
 
     await expect(repository.close()).rejects.toThrow(/close.*timed out/u);
+    // close 的并发调用共享结果；此实例已完成强制清理，无需在 afterEach 再次关闭。
+    repositories.splice(repositories.indexOf(repository), 1);
   });
 
   it("waits for a responsive worker to finish cleanup and exit naturally", async () => {

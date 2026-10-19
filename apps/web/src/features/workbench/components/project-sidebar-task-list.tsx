@@ -23,8 +23,6 @@ import {
   writeTemporaryTasksExpanded,
 } from "../project-sidebar-preferences.js";
 import { ProjectActions, ProjectPickerButton } from "./project-sidebar-actions.js";
-import { ProjectSidebarWorktreeAction } from "./project-sidebar-worktree-action.js";
-import type { WorktreeTaskClient } from "./project-sidebar-worktree-task.js";
 import { getProjectTaskPaginationControl } from "./project-sidebar-state.js";
 import { ActiveTaskLink, TaskLink } from "./project-sidebar-task-row.js";
 import { TemporaryTasksHeading } from "./temporary-tasks-heading.js";
@@ -33,7 +31,6 @@ import type { ArchivedTaskScope } from "./archived-tasks-dialog.js";
 const EMPTY_PROJECT_TASKS: readonly AgentTask[] = [];
 
 type ProjectSidebarTaskListProps = Readonly<{
-  client: WorktreeTaskClient;
   archiveTask: (task: AgentTask) => unknown;
   deleteTask: (task: AgentTask) => unknown;
   error: Error | null;
@@ -49,7 +46,6 @@ type ProjectSidebarTaskListProps = Readonly<{
   onOpenTemporaryDraft: () => void;
   onTaskNavigate?: () => void;
   onOpenProjectDraft: (projectId: string) => Promise<void>;
-  onWorktreeTaskCreated: (projectId: string) => void;
   onOpenArchived: (project: ArchivedTaskScope) => void;
   onOpenProjectPicker: (mode: "existing" | "create") => void;
   onRemoveProject: (project: Project) => void;
@@ -72,7 +68,6 @@ type ProjectSidebarTaskListProps = Readonly<{
 }>;
 
 export function ProjectSidebarTaskList({
-  client,
   archiveTask,
   deleteTask,
   error,
@@ -88,7 +83,6 @@ export function ProjectSidebarTaskList({
   onOpenTemporaryDraft,
   onTaskNavigate,
   onOpenProjectDraft: openProjectDraft,
-  onWorktreeTaskCreated,
   onOpenArchived,
   onOpenProjectPicker,
   onRemoveProject,
@@ -378,11 +372,6 @@ export function ProjectSidebarTaskList({
                       onRename={(targetProject) => {
                         onRenameProject(targetProject);
                       }}
-                      project={project}
-                    />
-                    <ProjectSidebarWorktreeAction
-                      client={client}
-                      onCreated={onWorktreeTaskCreated}
                       project={project}
                     />
                     <Tooltip>

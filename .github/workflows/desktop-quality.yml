@@ -12,6 +12,9 @@ on:
       - "package.json"
       - "schemas/codex-app-server/**"
       - "tools/verify-codex-schema.mjs"
+      - "tools/*runtime*"
+      - "tools/*claude*"
+      - "tools/runtime-licenses/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
   pull_request:
@@ -23,6 +26,9 @@ on:
       - "package.json"
       - "schemas/codex-app-server/**"
       - "tools/verify-codex-schema.mjs"
+      - "tools/*runtime*"
+      - "tools/*claude*"
+      - "tools/runtime-licenses/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
 
@@ -117,6 +123,10 @@ jobs:
         working-directory: .
         run: pnpm install --frozen-lockfile
 
+      - name: Check standalone Claude host and distribution contract
+        working-directory: .
+        run: pnpm test:claude-host
+
       - name: Check web
         run: pnpm check:web
 
@@ -168,6 +178,14 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: "./desktop/src-tauri -> target"
+
+      - name: Install dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare bundled desktop runtimes
+        working-directory: .
+        run: pnpm build:desktop-runtime && node --test tools/desktop-runtime-bundle.test.mjs
 
       - name: Check Rust
         run: pnpm check:rust

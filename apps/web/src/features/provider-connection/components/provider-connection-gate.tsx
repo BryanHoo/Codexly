@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -9,8 +9,10 @@ import { providerConnectionQueryOptions } from "../provider-connection-queries.j
 export function ProviderConnectionGate({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useTranslation("settings");
   const connection = useQuery(providerConnectionQueryOptions());
+  const [useClaude, setUseClaude] = useState(false);
+  const { t: workbench } = useTranslation("workbench");
 
-  if (connection.data?.state === "connected") {
+  if (useClaude || connection.data?.state === "connected") {
     return children;
   }
   if (connection.isPending) {
@@ -27,6 +29,15 @@ export function ProviderConnectionGate({ children }: Readonly<{ children: ReactN
           <h1 className="text-xl font-semibold text-foreground">Codexly</h1>
           <p className="mt-1 text-body-small text-muted-foreground">{t("provider.title")}</p>
         </header>
+        <Button
+          className="mb-6"
+          variant="outline"
+          onClick={() => {
+            setUseClaude(true);
+          }}
+        >
+          {workbench("engine.continueClaude")}
+        </Button>
         {connection.error === null ? (
           <ProviderConnectionPanel />
         ) : (

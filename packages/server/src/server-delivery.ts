@@ -2,6 +2,7 @@ import { relative, sep } from "node:path";
 import { isIP } from "node:net";
 import { domainToASCII } from "node:url";
 
+import { TaskSnapshotBusyError } from "@codexly/core";
 import { MAX_AGENT_FILE_BYTES, TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import fastifyCookie from "@fastify/cookie";
 import fastifyMultipart from "@fastify/multipart";
@@ -13,6 +14,7 @@ import { AccessSessionService, type CodexlyAccessOptions } from "./access-contro
 import { ACCESS_SESSION_COOKIE } from "./routes/access-routes.js";
 import { recordRequestError } from "./request-logging.js";
 import { MutationHttpError } from "./routes/context.js";
+import { WebSocketLifecycle } from "./websocket-lifecycle.js";
 
 function isInternalTemporaryProjectPath(pathname: string): boolean {
   const prefix = "/v1/projects/";
@@ -96,7 +98,16 @@ export interface ConfigureServerDeliveryOptions {
 export async function configureServerDelivery(
   app: FastifyInstance,
   options: ConfigureServerDeliveryOptions,
-): Promise<AccessSessionService | undefined> {
+): Promise<{
+  accessService: AccessSessionService | undefined;
+  websocketLifecycle: WebSocketLifecycle;
+}> {
+  const websocketLifecycle = new WebSocketLifecycle();
+  app.addHook("preClose", (done) => {
+    // 服务关闭时同步终止连接并释放订阅，避免等待半开连接完成关闭握手。
+    websocketLifecycle.close();
+    done();
+  });
   await app.register(fastifyWebsocket, { options: { maxPayload: 64 * 1024 } });
   await app.register(fastifyCookie);
   // 只构造精确域名集合，不读取代理头或提供通配回退。
@@ -185,8 +196,8 @@ export async function configureServerDelivery(
     limits: { fields: 0, files: 1, fileSize: MAX_AGENT_FILE_BYTES, parts: 1 },
   });
   app.setErrorHandler((error, request, reply) => {
-    if (error instanceof MutationHttpError) {
-      recordRequestError(request, error.code);
+    if (error instanceof MutationHttpError || error instanceof TaskSnapshotBusyError) {
+      recordRequestError(request, error.code, error);
       return reply.code(error.statusCode).send({
         code: error.code,
         message: error.message,
@@ -202,6 +213,12 @@ export async function configureServerDelivery(
         !accessMutation &&
         (request.method === "POST" || request.method === "PUT") &&
         (key === undefined || key === "");
+      recordRequestError(
+        request,
+        missingKey ? "IDEMPOTENCY_KEY_REQUIRED" : "INVALID_REQUEST",
+        error,
+        "validation",
+      );
       return reply.code(400).send({
         code: missingKey ? "IDEMPOTENCY_KEY_REQUIRED" : "INVALID_REQUEST",
         message: missingKey ? "Idempotency-Key header is required" : "Request is invalid",
@@ -219,13 +236,14 @@ export async function configureServerDelivery(
         ? error.statusCode
         : 500;
     if (explicitStatusCode < 500) {
+      recordRequestError(request, "INVALID_REQUEST", error);
       return reply.code(explicitStatusCode).send({
         code: "INVALID_REQUEST",
         message: explicitStatusCode === 413 ? "Request is too large" : "Request is invalid",
         retryable: false,
       });
     }
-    recordRequestError(request, "INTERNAL_ERROR");
+    recordRequestError(request, "INTERNAL_ERROR", error);
     return reply.code(explicitStatusCode).send({
       code: "INTERNAL_ERROR",
       message: "Internal server error",
@@ -265,5 +283,5 @@ export async function configureServerDelivery(
       return reply.code(404).send({ code: "NOT_FOUND", message: "Route not found" });
     });
   }
-  return accessService;
+  return { accessService, websocketLifecycle };
 }

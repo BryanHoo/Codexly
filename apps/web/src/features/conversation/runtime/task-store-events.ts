@@ -302,8 +302,21 @@ export function applyAcceptedEvent(
           updatedAt: event.timestamp,
         },
       };
-    case "skills.changed":
     case "task.metadata_changed":
+      return event.payload.permissionMode === undefined
+        ? { checkpoint }
+        : {
+            checkpoint,
+            snapshotMetadata: {
+              ...snapshotMetadata,
+              threadConfiguration: {
+                model: snapshotMetadata.threadConfiguration?.model ?? null,
+                reasoningEffort: snapshotMetadata.threadConfiguration?.reasoningEffort ?? null,
+                permissionMode: event.payload.permissionMode,
+              },
+            },
+          };
+    case "skills.changed":
     case "task.removed":
       // Project 级缓存由 Runtime 回调同步，Task Store 只推进 checkpoint。
       return { checkpoint };

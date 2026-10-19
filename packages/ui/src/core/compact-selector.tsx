@@ -26,12 +26,14 @@ export function CompactSelectorTrigger({ children, ...props }: ComponentProps<ty
 }
 
 export function CompactSelector<T extends string>({
+  busy,
   disabled,
   label,
   onValueChange,
   options,
   value,
 }: Readonly<{
+  busy?: boolean;
   disabled: boolean;
   label: string;
   onValueChange: (value: T) => void;
@@ -41,7 +43,12 @@ export function CompactSelector<T extends string>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <CompactSelectorTrigger aria-label={label} disabled={disabled} value={value}>
+        <CompactSelectorTrigger
+          aria-label={label}
+          aria-busy={busy}
+          disabled={disabled}
+          value={value}
+        >
           {options.find((option) => option.value === value)?.label}
         </CompactSelectorTrigger>
       </DropdownMenuTrigger>

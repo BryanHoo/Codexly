@@ -49,6 +49,20 @@ function setup(name: string | null = null, projectId: string | null = projectTas
 }
 
 describe("automatic task titles", () => {
+  it("uses the application generator independently from the task engine", async () => {
+    const { titles, request } = setup();
+    const generate = vi.fn(() => Promise.resolve("公共模型标题"));
+    titles.generate = generate;
+    titles.start("task", input);
+    await vi.waitFor(() => {
+      expect(request).toHaveBeenCalledWith("thread/name/set", {
+        threadId: "task",
+        name: "公共模型标题",
+      });
+    });
+    expect(generate).toHaveBeenCalledWith("/work", "生成标题", expect.any(AbortSignal));
+    expect(request.mock.calls.some(([method]) => method === "thread/start")).toBe(false);
+  });
   it("claims a new task once, reads its model in the background and persists the result", async () => {
     const { titles, request, readModel, release } = setup();
     titles.start("task", input);

@@ -8,6 +8,7 @@ import {
   type ResyncRequired,
 } from "@codexly/protocol";
 import { Value } from "@sinclair/typebox/value";
+import { getWebSocketReconnectDelay, shouldReconnectWebSocket } from "./websocket-reconnect.js";
 
 export type AgentEventConnectionState = "closed" | "connected" | "connecting" | "reconnecting";
 
@@ -30,9 +31,12 @@ interface StartAgentEventSubscriptionOptions extends SubscribeAgentEventsOptions
 }
 
 export class CodexlyEventError extends Error {
-  public constructor(message: string, options?: ErrorOptions) {
+  public readonly closeCode: number | undefined;
+
+  public constructor(message: string, options?: ErrorOptions & { closeCode?: number }) {
     super(message, options);
     this.name = "CodexlyEventError";
+    this.closeCode = options?.closeCode;
   }
 }
 
@@ -112,20 +116,46 @@ export function startAgentEventSubscription(
 
   const failProtocol = (message: string, cause?: unknown) => {
     allowReconnect = false;
-    options.onError?.(new CodexlyEventError(message, cause === undefined ? undefined : { cause }));
-    closeSocket(1002, "Invalid Agent Event frame");
+    // 浏览器只允许主动发送 1000 或应用关闭码；协议原因通过错误对象交付上层。
+    closeSocket(1000, "Invalid Agent Event frame");
+    options.onError?.(new CodexlyEventError(message, { cause, closeCode: 1002 }));
     setState("closed");
   };
 
+  const reportConnectionError = (cause?: unknown) => {
+    options.onError?.(new CodexlyEventError("Codexly event connection failed", { cause }));
+  };
+
+  const canReconnect = () => active && allowReconnect;
+
+  const retry = () => {
+    if (!canReconnect()) return;
+    setState("reconnecting");
+    // 状态回调可能同步取消订阅，取消后不得再登记重试定时器。
+    if (!canReconnect()) return;
+    retryTimer = setTimeout(
+      connect,
+      getWebSocketReconnectDelay(reconnectAttempt++, reconnectDelayMs, 5_000),
+    );
+  };
+
   const connect = () => {
-    if (!active) {
+    if (!active || !allowReconnect) {
       return;
     }
     retryTimer = undefined;
     let connectionReady = false;
-    const currentSocket = options.webSocketFactory(
-      createEventUrl(options.baseUrl, options.projectId, lastSequence),
-    );
+    let currentSocket: WebSocket;
+    try {
+      currentSocket = options.webSocketFactory(
+        createEventUrl(options.baseUrl, options.projectId, lastSequence),
+      );
+    } catch (cause) {
+      // 工厂同步失败与异步网络错误共用错误出口，仍可退避和取消。
+      reportConnectionError(cause);
+      retry();
+      return;
+    }
     socket = currentSocket;
     const isCurrentConnection = () => active && socket === currentSocket;
 
@@ -207,7 +237,7 @@ export function startAgentEventSubscription(
       if (!active || socket !== currentSocket) {
         return;
       }
-      options.onError?.(new CodexlyEventError("Codexly event connection failed"));
+      reportConnectionError();
     };
 
     const onClose = (event: CloseEvent) => {
@@ -227,14 +257,25 @@ export function startAgentEventSubscription(
       if (!active) {
         return;
       }
+      if (!shouldReconnectWebSocket(event.code)) {
+        // 1008 无法区分认证失效与项目不可用，交付访问错误并停止本订阅，避免误判为网络恢复。
+        allowReconnect = false;
+        options.onError?.(
+          new CodexlyEventError(
+            event.code === 1008
+              ? "Codexly event access is unavailable; sign in again or reopen an available project"
+              : "Codexly event connection was rejected by the protocol",
+            { closeCode: event.code },
+          ),
+        );
+        setState("closed");
+        return;
+      }
       if (!allowReconnect) {
         setState("closed");
         return;
       }
-      setState("reconnecting");
-      const delay = Math.min(reconnectDelayMs * 2 ** reconnectAttempt, 5_000);
-      reconnectAttempt += 1;
-      retryTimer = setTimeout(connect, delay);
+      retry();
     };
 
     // 保存处理器引用，确保取消或替换连接后不会交付迟到事件。

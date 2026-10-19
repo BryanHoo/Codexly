@@ -26,7 +26,12 @@ use item_pagination::{read_summary_turn_page, read_turn_page};
 #[cfg(test)]
 #[path = "conversation_preview_tests.rs"]
 mod preview_tests;
-pub(crate) const RUNTIME_SESSION_ID: &str = "codeagent-runtime";
+/// 进程内只初始化一次，所有引擎、快照和事件共用；重启后拒绝旧进程的序号与实体。
+pub(crate) fn runtime_session_id() -> &'static str {
+    static SESSION: std::sync::LazyLock<String> =
+        std::sync::LazyLock::new(|| uuid::Uuid::new_v4().to_string());
+    SESSION.as_str()
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -202,9 +207,10 @@ async fn read_task_snapshot_view(
     Ok(AgentTaskSnapshotResponse {
         checkpoint: EventCheckpoint {
             sequence: 0,
-            session_id: RUNTIME_SESSION_ID,
+            session_id: runtime_session_id(),
         },
         snapshot: AgentTaskSnapshot {
+            engine: None,
             workspace_path: thread.cwd,
             context_usage: None,
             goal,
@@ -370,3 +376,7 @@ pub(super) fn map_turn(turn: NativeTurn) -> Result<AgentTurn, ConnectionError> {
 #[cfg(test)]
 #[path = "conversation_pagination_tests.rs"]
 mod pagination_tests;
+
+#[cfg(test)]
+#[path = "runtime_session_tests.rs"]
+mod runtime_session_tests;

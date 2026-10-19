@@ -229,6 +229,8 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    // 与共享协议一致：无原生回复位置的命令回合不提供分叉。
+    forkable: Type.Optional(Type.Boolean()),
     processCursor: Type.Optional(Type.String({ minLength: 1, maxLength: 8_192 })),
     completedAt: NullableDateTimeSchema,
     error: Type.Union([Type.String(), Type.Null()]),
@@ -342,12 +344,8 @@ export const AgentMcpServerSchema = Type.Object(
 
 export type AgentMcpServer = Readonly<Static<typeof AgentMcpServerSchema>>;
 
-export const AgentMcpServerPageSchema = Type.Object(
-  { data: Type.Array(AgentMcpServerSchema, { uniqueItems: true }) },
-  { additionalProperties: false },
-);
-
-export type AgentMcpServerPage = Readonly<Static<typeof AgentMcpServerPageSchema>>;
+// MCP 快照与操作协议由两端共享，避免缓存语义在桌面副本中漂移。
+export { AgentMcpServerPageSchema, type AgentMcpServerPage } from "@codexly/protocol";
 
 export const AgentSkillReferenceSchema = Type.Object(
   {

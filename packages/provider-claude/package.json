@@ -1,0 +1,19 @@
+{
+  "name": "@codexly/provider-claude",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
+    "@codexly/core": "workspace:*",
+    "@codexly/protocol": "workspace:*",
+    "@sinclair/typebox": "catalog:"
+  }
+}

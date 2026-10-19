@@ -1,3 +1,4 @@
+import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type {
   AgentBackgroundTerminal,
@@ -76,6 +77,8 @@ type WorkbenchInspectorProps = Readonly<{
   gitStatusRefreshing?: boolean;
   gitClient?: CodexlyWorkbenchClient;
   mcpServers?: readonly AgentMcpServer[];
+  mcpStatusSource?: AgentMcpServerPage["statusSource"];
+  mcpObservedAt?: string | null | undefined;
   mcpServersRetryAvailable?: boolean;
   mcpServersRefreshing?: boolean;
   mcpServersRetrying?: boolean;
@@ -88,7 +91,7 @@ type WorkbenchInspectorProps = Readonly<{
   onOpenProjectFile?: (path: string, change?: AgentFileChange) => void;
   onReferenceProjectPath?: (entry: ProjectFileSearchEntry) => void;
   onOpenSubagent?: (selection: SubagentSelection) => void;
-  onReloadMcpServers?: () => void;
+  onReloadMcpServers?: (action?: ReloadAgentMcpServersRequest["action"]) => void;
   onRefreshGitStatus?: () => void;
   onRefreshProject?: () => unknown;
   onCommitChanges?: () => void;
@@ -110,7 +113,8 @@ type WorkbenchInspectorProps = Readonly<{
   skills?: readonly AgentSkill[];
   subagents?: readonly SubagentContextEntry[];
   tab?: WorkbenchInspectorTab;
-  task?: Pick<AgentTaskSnapshot, "turns"> & Partial<Pick<AgentTaskSnapshot, "goal" | "plan">>;
+  task?: Pick<AgentTaskSnapshot, "turns"> &
+    Partial<Pick<AgentTaskSnapshot, "goal" | "plan" | "contextUsage">>;
   taskId?: string;
   taskStore?: TaskStore;
   terminatingTerminalId?: string | null;
@@ -134,6 +138,8 @@ export function WorkbenchInspector({
   gitStatusRefreshing = false,
   gitClient,
   mcpServers = [],
+  mcpStatusSource,
+  mcpObservedAt,
   mcpServersRetryAvailable = true,
   mcpServersRefreshing = false,
   mcpServersRetrying = false,
@@ -224,6 +230,8 @@ export function WorkbenchInspector({
         isRetrying={mcpServersRetrying}
         onRetry={onReloadMcpServers}
         servers={mcpServers}
+        statusSource={mcpStatusSource}
+        observedAt={mcpObservedAt}
       />
       <InspectorSources
         onOpenAttachment={onOpenTaskAttachment}

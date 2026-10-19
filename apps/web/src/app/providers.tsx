@@ -14,7 +14,7 @@ import { PairingGate } from "../features/access/pairing-gate.js";
 import { codexlyClient } from "../features/projects/project-queries.js";
 import { createBrowserTaskNotifier } from "../features/notifications/browser-task-notifier.js";
 import { createActionMutationCache } from "../features/notifications/action-notifications.js";
-import { ProviderConnectionGate } from "../features/provider-connection/components/provider-connection-gate.js";
+import { EngineSetupGate } from "../features/provider-connection/components/engine-setup-gate.js";
 import { ComposerDraftProvider } from "../features/workbench/composer-draft-context.js";
 import { ProjectTodoProvider } from "../features/workbench/project-todo-context.js";
 import { getNotificationPreference } from "../features/settings/notification-preference.js";
@@ -86,13 +86,13 @@ function AppProviderContent({ children }: AppProvidersProps) {
   return (
     <>
       <AccessControlledContent access={access}>
-        <ProviderConnectionGate>
+        <EngineSetupGate>
           <ProjectProvider taskNotifier={taskNotifier}>
             <ProjectTodoProvider>
               <ComposerDraftProvider>{children}</ComposerDraftProvider>
             </ProjectTodoProvider>
           </ProjectProvider>
-        </ProviderConnectionGate>
+        </EngineSetupGate>
       </AccessControlledContent>
       <Toaster
         containerAriaLabel={t("app.notificationRegion")}

@@ -7,10 +7,9 @@ use crate::domain::runtime::AgentEvent;
 
 use super::{
     connection::{ConnectionError, ServerMessage},
-    conversation::{NativeTurn, RUNTIME_SESSION_ID, map_item, map_turn},
+    conversation::{NativeTurn, map_item, map_turn, runtime_session_id},
     conversation_advanced::{NativeGoal, map_native_goal},
     conversation_delta_events::map_delta_message,
-    conversation_items::apply_transient_item_lifecycle,
     conversation_runtime_events::map_runtime_notification,
     sidebar::unix_seconds_to_rfc3339,
 };
@@ -439,7 +438,7 @@ pub(super) fn envelope(sequence: u64, timestamp: &str, task_id: &str, fields: Va
     let mut event = json!({
         "provider": "codex",
         "sequence": sequence,
-        "sessionId": RUNTIME_SESSION_ID,
+        "sessionId": runtime_session_id(),
         "taskId": task_id,
         "timestamp": timestamp,
         "version": 2,
@@ -465,4 +464,19 @@ pub(super) fn required_u64(object: &Map<String, Value>, key: &str) -> Result<u64
         .get(key)
         .and_then(Value::as_u64)
         .ok_or(ConnectionError::InvalidMessage)
+}
+
+fn apply_transient_item_lifecycle(
+    item: &mut crate::domain::conversation::AgentItem,
+    started: bool,
+) {
+    // 瞬时 Item 只在实时生命周期内可见，历史快照不保留运行状态。
+    if let crate::domain::conversation::AgentItem::Activity {
+        status,
+        transient: Some(true),
+        ..
+    } = item
+    {
+        *status = Some(if started { "running" } else { "completed" });
+    }
 }

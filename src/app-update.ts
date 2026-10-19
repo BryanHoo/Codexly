@@ -4,6 +4,7 @@ import { basename, dirname, join, parse, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CODEXLY_USER_AGENT } from "@codexly/protocol";
+export { readClaudeCodeVersion } from "./claude-version.js";
 
 import {
   requiresElevatedNpmInstall,
@@ -59,6 +60,7 @@ export interface AppUpdateService {
 export interface CreateAppUpdateServiceOptions {
   appVersion: string;
   codexVersion: string;
+  claudeVersion?: string | null;
   fetchChangelog?: (version: string) => Promise<string>;
   fetchLatestVersion?: () => Promise<string>;
   runNpmInstall?: (
@@ -438,6 +440,7 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
       return {
         appVersion: options.appVersion,
         codexVersion: options.codexVersion,
+        claudeVersion: options.claudeVersion ?? null,
         latestVersion,
         releaseNotes: null,
         status: "restart-required",
@@ -455,6 +458,7 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
         return {
           appVersion: options.appVersion,
           codexVersion: options.codexVersion,
+          claudeVersion: options.claudeVersion ?? null,
           latestVersion: null,
           releaseNotes: null,
           status: "check-failed",
@@ -465,6 +469,7 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
         return {
           appVersion: options.appVersion,
           codexVersion: options.codexVersion,
+          claudeVersion: options.claudeVersion ?? null,
           latestVersion,
           releaseNotes: null,
           status: "restart-required",
@@ -484,6 +489,7 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
       return {
         appVersion: options.appVersion,
         codexVersion: options.codexVersion,
+        claudeVersion: options.claudeVersion ?? null,
         latestVersion,
         releaseNotes,
         status: updateAvailable ? "available" : "current",

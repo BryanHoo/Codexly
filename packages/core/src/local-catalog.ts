@@ -20,8 +20,10 @@ export interface LocalTask {
 }
 
 export interface LocalTaskQuery {
+  providers?: readonly ("codex" | "claude")[];
   projectId?: string | null;
   archived?: boolean;
+  completed?: boolean;
   pinned?: boolean;
   searchTerm?: string;
   cursor?: string | null;

@@ -1,9 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { parentPort, workerData } from "node:worker_threads";
-
 import Database from "better-sqlite3";
-
 import {
   configureDatabase,
   ensureGlobalSettingsCompatibility,
@@ -20,7 +18,6 @@ import {
 } from "./sqlite-state-worker-bootstrap.js";
 import { serializeApprovalPolicy } from "./approval-policy-persistence.js";
 import { createFeatureOperations } from "./sqlite-state-worker-features.js";
-
 import { serializeError } from "./sqlite-worker-error.js";
 import { createScheduledTaskCoordination } from "./sqlite-scheduled-task-coordination.js";
 function createOperations(database) {
@@ -90,9 +87,9 @@ function createOperations(database) {
           copyTaskSettings: database.prepare(
             `INSERT INTO task_settings
              (project_id, task_id, approval_policy, model, reasoning_effort, updated_at,
-              sandbox_mode, approvals_reviewer)
+              sandbox_mode, approvals_reviewer, engine_options)
            SELECT ?, task_id, approval_policy, model, reasoning_effort, updated_at,
-                  sandbox_mode, approvals_reviewer
+                  sandbox_mode, approvals_reviewer, engine_options
            FROM task_settings WHERE project_id = ?
            ON CONFLICT(project_id, task_id) DO UPDATE SET
              approval_policy = excluded.approval_policy,
@@ -100,7 +97,8 @@ function createOperations(database) {
              reasoning_effort = excluded.reasoning_effort,
              updated_at = excluded.updated_at,
              sandbox_mode = excluded.sandbox_mode,
-             approvals_reviewer = excluded.approvals_reviewer`,
+             approvals_reviewer = excluded.approvals_reviewer,
+             engine_options = excluded.engine_options`,
           ),
           writeProjectSortOrder: database.prepare(
             "UPDATE projects SET sort_order = ? WHERE id = ? AND kind = 'user'",
@@ -111,7 +109,7 @@ function createOperations(database) {
              FROM project_defaults WHERE project_id = ?`,
           ),
           readGlobalSettings: database.prepare(
-            `SELECT approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt,
+            `SELECT task_title_prompt, default_agent, approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt,
                   model, reasoning_effort, sandbox_mode, default_open_app_id, fast_mode, follow_up_behavior, pet_enabled, pet_id
            FROM global_settings WHERE id = 1`,
           ),
@@ -120,7 +118,7 @@ function createOperations(database) {
            FROM provider_connection WHERE id = 1`,
           ),
           readTaskSettings: database.prepare(
-            "SELECT approval_policy, approvals_reviewer, model, reasoning_effort, sandbox_mode FROM task_settings WHERE project_id = ? AND task_id = ?",
+            "SELECT approval_policy, approvals_reviewer, model, reasoning_effort, sandbox_mode, engine_options FROM task_settings WHERE project_id = ? AND task_id = ?",
           ),
           writeProjectDefaults: database.prepare(`
       INSERT INTO project_defaults (
@@ -138,10 +136,12 @@ function createOperations(database) {
     `),
           writeGlobalSettings: database.prepare(`
       INSERT INTO global_settings (
-        id, approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt, model,
+        id, task_title_prompt, default_agent, approval_policy, approvals_reviewer, commit_message_model, commit_message_prompt, model,
         reasoning_effort, sandbox_mode, default_open_app_id, fast_mode, follow_up_behavior, pet_enabled, pet_id, updated_at
-      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
+        task_title_prompt = excluded.task_title_prompt,
+        default_agent = excluded.default_agent,
         approval_policy = excluded.approval_policy,
         approvals_reviewer = excluded.approvals_reviewer,
         commit_message_model = excluded.commit_message_model,
@@ -167,9 +167,10 @@ function createOperations(database) {
     `),
           writeTaskSettings: database.prepare(`
       INSERT INTO task_settings (
-        project_id, task_id, approval_policy, approvals_reviewer, model, reasoning_effort, sandbox_mode, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        project_id, task_id, approval_policy, approvals_reviewer, model, reasoning_effort, sandbox_mode, updated_at, engine_options
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(project_id, task_id) DO UPDATE SET
+        engine_options = excluded.engine_options,
         approval_policy = excluded.approval_policy,
         approvals_reviewer = excluded.approvals_reviewer,
         model = excluded.model,
@@ -199,7 +200,6 @@ function createOperations(database) {
       stateStatements.listProjectRoots.all(),
     );
   }
-
   function replaceStoredRoots(project) {
     const stateStatements = requireStatements();
     if (!Array.isArray(project.roots) || project.roots.length === 0) {
@@ -224,7 +224,6 @@ function createOperations(database) {
       stateStatements.writeProjectRoot.run(project.id, position, rootIds[position], path);
     });
   }
-
   const reorderProjects = database.transaction((projectIds) => {
     const stateStatements = requireStatements();
     const storedProjectIds = stateStatements.listProjectIds.all().map((row) => row.id);
@@ -236,14 +235,12 @@ function createOperations(database) {
     if (!containsCompleteProjectSet) {
       throw new Error("Project order must contain every project exactly once");
     }
-
     // 完整顺序在同一事务内替换，读取方不会观察到部分重排。
     projectIds.forEach((projectId, sortOrder) => {
       stateStatements.writeProjectSortOrder.run(sortOrder, projectId);
     });
     return readStoredProjects();
   });
-
   const replaceProjects = database.transaction((projects) => {
     const stateStatements = requireStatements();
     const projectIds = new Set(projects.map((project) => project.id));
@@ -266,7 +263,6 @@ function createOperations(database) {
     });
     return readStoredProjects();
   });
-
   const migrateProject = database.transaction((legacyProjectId, project) => {
     const stateStatements = requireStatements();
     const legacy = stateStatements.readProjectWithOrder.get(legacyProjectId);
@@ -408,9 +404,11 @@ function createOperations(database) {
     writeGlobalSettings(payload) {
       const settings = payload.settings;
       requireStatements().writeGlobalSettings.run(
+        settings.taskTitlePrompt ?? "",
+        settings.defaultAgent ?? null,
         serializeApprovalPolicy(settings.approvalPolicy),
         settings.approvalsReviewer,
-        settings.commitMessageModel,
+        settings.defaultModel,
         settings.commitMessagePrompt,
         settings.model,
         settings.reasoningEffort,
@@ -444,6 +442,7 @@ function createOperations(database) {
         settings.reasoningEffort,
         settings.sandboxMode,
         payload.updatedAt,
+        settings.engineOptions === undefined ? null : JSON.stringify(settings.engineOptions),
       );
       return settings;
     },

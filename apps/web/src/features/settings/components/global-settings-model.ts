@@ -1,5 +1,5 @@
 import {
-  DEFAULT_COMMIT_MESSAGE_MODEL,
+  DEFAULT_GENERATION_MODEL,
   type AgentGlobalSettings,
   type AgentModel,
   type AgentProjectDefaults,
@@ -48,7 +48,8 @@ export function createFallbackSettings(models: readonly AgentModel[]): AgentGlob
   return {
     approvalPolicy: "on-request",
     approvalsReviewer: "user",
-    commitMessageModel: DEFAULT_COMMIT_MESSAGE_MODEL,
+    defaultAgent: "codex",
+    defaultModel: DEFAULT_GENERATION_MODEL,
     commitMessagePrompt: "",
     defaultOpenAppId: null,
     fastMode: false,

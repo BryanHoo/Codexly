@@ -5,6 +5,9 @@ const SemanticVersionSchema = Type.String({
     "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?:(?:0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:(?:0|[1-9][0-9]*)|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
 });
 
+/** 两端统一显示 Claude Code 引擎版本；无法读取本地元数据时允许为空。 */
+export const ClaudeVersionSchema = Type.Union([SemanticVersionSchema, Type.Null()]);
+
 export const AppUpdateStatusSchema = Type.Union([
   Type.Literal("current"),
   Type.Literal("available"),
@@ -42,6 +45,7 @@ export const AppInfoResponseSchema = Type.Object(
   {
     appVersion: SemanticVersionSchema,
     codexVersion: SemanticVersionSchema,
+    claudeVersion: Type.Optional(ClaudeVersionSchema),
     latestVersion: Type.Union([SemanticVersionSchema, Type.Null()]),
     releaseNotes: Type.Union([Type.String({ maxLength: 32_768 }), Type.Null()]),
     status: AppUpdateStatusSchema,
@@ -61,6 +65,7 @@ export const InstallAppUpdateResponseSchema = Type.Object(
   {
     appVersion: SemanticVersionSchema,
     codexVersion: SemanticVersionSchema,
+    claudeVersion: Type.Optional(ClaudeVersionSchema),
     latestVersion: SemanticVersionSchema,
     releaseNotes: Type.Null(),
     status: Type.Literal("restart-required"),

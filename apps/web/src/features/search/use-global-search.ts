@@ -1,3 +1,5 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
+import { searchEngineFilter } from "@codexly/frontend-core/search-engines";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { Project } from "@codexly/protocol";
@@ -18,6 +20,7 @@ export function useGlobalSearch(
   historyCursor?: string,
   active = true,
 ) {
+  const engines = searchEngineFilter(useSelectedEngines());
   const [settled, setSettled] = useState("");
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -41,13 +44,14 @@ export function useGlobalSearch(
       client.searchTasks(
         {
           archived,
+          ...(engines === undefined ? {} : { engines }),
           ...(taskCursor === undefined ? {} : { cursor: taskCursor }),
           kind: "tasks",
           query,
         },
         { signal },
       ),
-    queryKey: ["global-search", "tasks", query, archived, taskCursor],
+    queryKey: ["global-search", "tasks", query, archived, engines, taskCursor],
   });
   const history = useQuery({
     ...common,
@@ -56,13 +60,14 @@ export function useGlobalSearch(
       client.searchTasks(
         {
           archived,
+          ...(engines === undefined ? {} : { engines }),
           ...(historyCursor === undefined ? {} : { cursor: historyCursor }),
           kind: "history",
           query,
         },
         { signal },
       ),
-    queryKey: ["global-search", "history", query, archived, historyCursor],
+    queryKey: ["global-search", "history", query, archived, engines, historyCursor],
   });
   const files = useQuery({
     ...common,

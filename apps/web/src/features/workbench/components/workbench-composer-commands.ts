@@ -4,7 +4,13 @@ import type { CodexlyMutationClient } from "../../projects/project-queries.js";
 import { notifyActionSuccess } from "../../notifications/action-notifications.js";
 import { resolveIdempotencyAttempt, startTaskReview } from "../composer-state.js";
 import { getPromptCommandAvailability, type PromptCommandItem } from "./prompt-command.js";
-import { insertPromptSkill, removePromptSlashCommand } from "./prompt-skill-editor.js";
+import {
+  createPromptSkillContent,
+  splitPromptSkillContent,
+  normalizePromptSkillContent,
+  insertPromptSkill,
+  removePromptSlashCommand,
+} from "./prompt-skill-editor.js";
 import type { WorkbenchComposerProps } from "./workbench-composer-contracts.js";
 import type { useComposerSession } from "./workbench-composer-session.js";
 import type { createComposerSubmission } from "./workbench-composer-submission.js";
@@ -85,6 +91,23 @@ export function createComposerCommands({
   const executePromptCommand = async (command: PromptCommandItem) => {
     const requestScope = routeScope;
     if (!getCommandAvailability(command).available) {
+      return;
+    }
+    if (command.action === "native" && command.command) {
+      const content = skillEditorRef.current?.getContent() ?? promptContent;
+      const range = commandSlashCommand;
+      if (!range) return;
+      const [before] = splitPromptSkillContent(content, range.start);
+      const [, after] = splitPromptSkillContent(content, range.end);
+      replacePromptContent(
+        normalizePromptSkillContent([
+          ...before,
+          ...createPromptSkillContent(`/${command.command} `),
+          ...after,
+        ]),
+      );
+      closeCommandMenu();
+      focusEditor();
       return;
     }
     if (command.action === "plan" || command.action === "goal") {

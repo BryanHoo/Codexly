@@ -29,7 +29,7 @@ describe("settings lazy loading", () => {
     await expect.element(screen.getByRole("heading", { name: "常规", exact: true })).toBeVisible();
     expect(backgroundRead).not.toHaveBeenCalled();
     await screen.getByRole("searchbox", { name: "搜索设置" }).fill("记忆");
-    await expect.element(screen.getByRole("button", { name: "个性化", exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("group", { name: "Codex", exact: true }).getByRole("button", { name: "个性化", exact: true })).toBeVisible();
     expect(backgroundRead).not.toHaveBeenCalled();
     await screen.getByRole("searchbox", { name: "搜索设置" }).fill("");
     await screen.getByRole("button", { name: "自定义工作台背景", exact: true }).click();

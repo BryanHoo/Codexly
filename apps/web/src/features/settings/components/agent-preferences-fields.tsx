@@ -1,3 +1,4 @@
+import { SettingsMutationStatus } from "@codexly/ui/core/settings-mutation-status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CodexlyClient } from "@codexly/client";
 import type { AgentPreferences } from "@codexly/protocol";
@@ -53,26 +54,40 @@ function AgentPreferenceField({
       return client.updateAgentPreferences({ ...current, [key]: value });
     },
     onSuccess: (data) => cache.setQueryData(queryKey, data),
-    meta: { actionNotification: { successMessage: false } },
+    meta: { actionNotification: false },
   });
   // 每个字段独立持有提交状态，兄弟控件不因它的保存而禁用或改变显示值。
   const value = mutation.isPending ? mutation.variables : settings?.[key];
   return (
-    <SettingsField label={t(`agent.${key}.label`)} description={t(`agent.${key}.description`)}>
-      <SettingsSelect
-        aria-label={t(`agent.${key}.label`)}
-        disabled={!settings || mutation.isPending}
-        value={value ?? ""}
-        onChange={(event) => {
-          mutation.mutate((event.currentTarget.value || null) as AgentPreferences[typeof key]);
+    <>
+      <SettingsMutationStatus
+        mutation={mutation}
+        labels={{
+          saving: t("actions.saving"),
+          saved: t("actions.saved"),
+          saveError: t("errors.save"),
+          retry: t("common:actions.retry"),
         }}
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {t(`agent.${key}.${option || "default"}`)}
-          </option>
-        ))}
-      </SettingsSelect>
-    </SettingsField>
+        onRetry={() => {
+          if (mutation.variables !== undefined) mutation.mutate(mutation.variables);
+        }}
+      />
+      <SettingsField label={t(`agent.${key}.label`)} description={t(`agent.${key}.description`)}>
+        <SettingsSelect
+          aria-label={t(`agent.${key}.label`)}
+          disabled={!settings || mutation.isPending}
+          value={value ?? ""}
+          onChange={(event) => {
+            mutation.mutate((event.currentTarget.value || null) as AgentPreferences[typeof key]);
+          }}
+        >
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {t(`agent.${key}.${option || "default"}`)}
+            </option>
+          ))}
+        </SettingsSelect>
+      </SettingsField>
+    </>
   );
 }

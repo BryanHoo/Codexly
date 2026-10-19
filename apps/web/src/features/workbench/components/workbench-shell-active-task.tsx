@@ -1,3 +1,4 @@
+import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import { MessageFollowupProvider } from "@codexly/ui/core/message-assistant-directive";
 import type {
   AgentCapabilities,
@@ -45,6 +46,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   onProjectTaskDefaultsChange,
   onOpenProjectPath,
   onProjectRootChange,
+  workspace,
   onTaskStarted,
   projectId,
   projectPath,
@@ -77,6 +79,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   onProjectTaskDefaultsChange: (settings: AgentTaskSettings, fastMode: boolean) => Promise<void>;
   onOpenProjectPath: () => void;
   onProjectRootChange: (rootId: string) => void;
+  workspace?: ComposerWorkspace;
   onTaskStarted: (
     task: AgentTask,
     turn?: AgentTurn,
@@ -218,6 +221,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         }}
         onOpenProjectPath={onOpenProjectPath}
         onProjectRootChange={onProjectRootChange}
+        {...(workspace === undefined ? {} : { workspace })}
         onRequestNotificationPermission={onRequestNotificationPermission}
         onFastModeChange={(enabled, settings) => onProjectTaskDefaultsChange(settings, enabled)}
         onSettingsChange={(settings, _field, fastMode) =>

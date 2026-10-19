@@ -125,3 +125,23 @@ describe("CodexlyClient transport errors", () => {
     unsubscribe();
   });
 });
+
+it("exposes retryable snapshot busy errors through the read client", async () => {
+  const client = new CodexlyClient({
+    fetch: vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse(
+        {
+          code: "TASK_SNAPSHOT_BUSY",
+          message: "Task snapshot is temporarily busy",
+          retryable: true,
+        },
+        { status: 503, statusText: "Service Unavailable" },
+      ),
+    ),
+  });
+  await expect(client.readTask("codexly", "task-1")).rejects.toMatchObject({
+    code: "TASK_SNAPSHOT_BUSY",
+    status: 503,
+    retryable: true,
+  });
+});

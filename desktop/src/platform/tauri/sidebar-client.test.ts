@@ -151,6 +151,7 @@ describe("TauriSidebarClient", () => {
       turnId: "turn-a",
     });
     expect(invoke).toHaveBeenNthCalledWith(4, "interrupt_turn", {
+      projectId: "project-a",
       taskId: "thread-a",
       turnId: "turn-a",
     });
@@ -446,7 +447,8 @@ describe("TauriSidebarClient", () => {
     const settings = {
       approvalPolicy: "on-request",
       approvalsReviewer: "user",
-      commitMessageModel: "gpt-5.6-luna",
+      defaultAgent: "codex" as const,
+      defaultModel: "gpt-5.6-luna",
       commitMessagePrompt: "",
       modelContextWindow: null,
       defaultOpenAppId: null,
@@ -487,4 +489,11 @@ describe("TauriSidebarClient", () => {
     ]);
   });
 
+});
+
+it("stops session background work without requiring a foreground turn", async () => {
+  const invoke = vi.fn(async () => ({ status: "accepted", taskId: "task" }));
+  const client = new TauriSidebarClient({ ensureRuntime: vi.fn(async () => undefined), invoke: invoke as InvokeImplementation });
+  await client.stopSession("project", "task", "child");
+  expect(invoke).toHaveBeenCalledExactlyOnceWith("stop_task_session", { projectId: "project", taskId: "task", backgroundTaskId: "child" });
 });

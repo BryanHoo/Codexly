@@ -1,5 +1,5 @@
+import type { AgentEngine } from "@codexly/protocol";
 import type { ProjectTextFile, ProjectTextFileRevision, SaveProjectTextFileRequest, SaveProjectTextFileResponse } from "@codexly/protocol";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import type { CreateTaskWorktreeResponse, StartAgentTaskResponse } from "@codexly/protocol";
 import type {
   AgentAttachmentUploadInput,
@@ -45,14 +45,14 @@ import type {
 } from "@/protocol/index.js";
 
 import { TauriNativeClient } from "./native-client.js";
-import { buildNativeAssetUrl } from "../native-asset-url.js";
+import { buildNativeAssetUrl, buildNativeTaskAttachmentUrl } from "../native-asset-url.js";
 
 export class TauriWorkspaceClient extends TauriNativeClient {
   public async createTaskWorktree(projectId: string, rootPath: string, input: CreateProjectWorktreeRequest): Promise<Pick<CreateTaskWorktreeResponse, "worktree">> {
     return this.call("create_task_worktree", { projectId, rootPath, input });
   }
 
-  public async startWorktreeTask(projectId: string, input: { rootPath: string; worktreePath: string }): Promise<StartAgentTaskResponse> {
+  public async startWorktreeTask(projectId: string, input: { rootPath: string; worktreePath: string; engine?: AgentEngine }): Promise<StartAgentTaskResponse> {
     const response = await this.call<StartAgentTaskResponse>("start_worktree_task", { projectId, input });
     this.taskProjects.set(response.task.id, projectId);
     return response;
@@ -123,13 +123,11 @@ export class TauriWorkspaceClient extends TauriNativeClient {
   }
 
   public getTaskAttachmentUrl(
-    _projectId: string,
-    _taskId: string,
+    projectId: string,
+    taskId: string,
     attachmentId: string,
   ): string {
-    return /^(?:blob:|data:|https?:)/u.test(attachmentId)
-      ? attachmentId
-      : convertFileSrc(attachmentId);
+    return buildNativeTaskAttachmentUrl(projectId, taskId, attachmentId);
   }
 
   public async openTaskAttachment(
@@ -138,13 +136,13 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     attachmentId: string,
     _options: MutationOptions = {},
   ): Promise<OpenAgentTaskAttachmentResponse> {
-    return this.call("open_task_attachment", { attachmentId, projectId, taskId });
+    return this.invokeCommand("open_task_attachment", { attachmentId, projectId, taskId });
   }
 
   public async getProjectOpenCapabilities(
     _options: ReadOptions = {},
   ): Promise<ProjectOpenCapabilitiesResponse> {
-    return this.call("get_project_open_capabilities");
+    return this.invokeCommand("get_project_open_capabilities");
   }
 
   public async openProject(
@@ -197,6 +195,8 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     input: GenerateCommitMessageRequest,
     _options: MutationOptions = {},
   ): Promise<GenerateCommitMessageResponse> {
+    // Claude 分支由原生宿主按需启动，不先初始化 Codex。
+    if (input.engine === "claude") return this.invokeCommand("generate_commit_message", { input, projectId, rootPath });
     return this.call("generate_commit_message", { input, projectId, rootPath });
   }
 
@@ -285,7 +285,6 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     sessionId: string,
     options: ReadOptions = {},
   ): Promise<ProjectFileSearchPage> {
-    await this.ensureRuntime();
     options.signal?.throwIfAborted();
     const stopSearch = () => {
       // 直接发送停止命令，避免取消路径再次等待运行时初始化。
@@ -331,16 +330,12 @@ export class TauriWorkspaceClient extends TauriNativeClient {
   public async readProjectTextFile(projectId: string, rootPath: string | undefined, path: string, options: ReadOptions = {}): Promise<ProjectTextFile> {
     // 未启动的 IPC 可以取消；已启动的原生读取由共享会话合并并复用其结果。
     options.signal?.throwIfAborted();
-    await this.ensureRuntime();
-    options.signal?.throwIfAborted();
     const result = await this.invokeCommand<ProjectTextFile>("read_project_text_file", {projectId, rootPath, path});
     options.signal?.throwIfAborted();
     return result;
   }
 
   public async readProjectTextFileRevision(projectId: string, rootPath: string | undefined, path: string, options: ReadOptions = {}): Promise<ProjectTextFileRevision> {
-    options.signal?.throwIfAborted();
-    await this.ensureRuntime();
     options.signal?.throwIfAborted();
     const result = await this.invokeCommand<ProjectTextFileRevision>("read_project_text_file_revision", {projectId, rootPath, path});
     options.signal?.throwIfAborted();

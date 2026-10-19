@@ -29,6 +29,7 @@ fn put_project(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
     read(db, "managed_projects", string(p, "id")?)
 }
 fn put_task(db: &Connection, t: &Value) -> Result<Value, CatalogError> {
+    assert_immutable_binding(&read(db, "managed_tasks", string(t, "id")?)?, t)?;
     db.execute(
         "INSERT INTO managed_tasks VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
         params![
@@ -48,6 +49,24 @@ fn put_task(db: &Connection, t: &Value) -> Result<Value, CatalogError> {
     )
     .map_err(db_error)?;
     read(db, "managed_tasks", string(t, "id")?)
+}
+
+fn assert_immutable_binding(current: &Value, candidate: &Value) -> Result<(), CatalogError> {
+    if current.is_null() {
+        return Ok(());
+    }
+    // 与 Web Worker 保持一致：首次绑定允许写入，同值重放允许，改绑必须显式失败。
+    for key in ["provider", "projectId", "sessionId"] {
+        if key == "sessionId" && current[key].is_null() {
+            continue;
+        }
+        if let Some(value) = candidate.get(key)
+            && value != &current[key]
+        {
+            return Err(CatalogError::ImmutableBinding);
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
@@ -135,6 +154,10 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
             if next.is_null() {
                 return Err(CatalogError::InvalidMessage);
             }
+            assert_immutable_binding(&next, p)?;
+            if next["provider"] == "claude" && next["status"] == "active" && p["archived"] == true {
+                return Err(CatalogError::TaskRunning);
+            }
             for key in [
                 "title",
                 "cwd",
@@ -217,6 +240,27 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
 fn list_tasks(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
     let mut clauses = vec!["archived = ?"];
     let mut values = vec![SqlValue::Integer(i64::from(p["archived"] == true))];
+    if let Some(providers) = p.get("providers") {
+        let providers = providers.as_array().ok_or(CatalogError::InvalidMessage)?;
+        if providers.len() > 2
+            || providers
+                .iter()
+                .any(|provider| !matches!(provider.as_str(), Some("codex" | "claude")))
+        {
+            return Err(CatalogError::InvalidMessage);
+        }
+        // 引擎过滤先于 LIMIT 和游标，避免未启用引擎挤占综合搜索的候选页。
+        clauses.push(match providers.len() {
+            0 => "0",
+            1 => "provider IN (?)",
+            _ => "provider IN (?,?)",
+        });
+        values.extend(
+            providers
+                .iter()
+                .map(|provider| SqlValue::Text(provider.as_str().unwrap_or_default().to_owned())),
+        );
+    }
     if let Some(project) = p.get("projectId") {
         clauses.push("project_id IS ?");
         values.push(

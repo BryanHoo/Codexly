@@ -28,7 +28,8 @@ export const projectDefaults = {
 
 export const globalSettings = {
   ...taskSettings,
-  commitMessageModel: "gpt-5.6-sol",
+  defaultAgent: "codex" as const,
+  defaultModel: "gpt-5.6-sol",
   commitMessagePrompt: "",
   modelContextWindow: null,
   defaultOpenAppId: "visual-studio-code" as const,

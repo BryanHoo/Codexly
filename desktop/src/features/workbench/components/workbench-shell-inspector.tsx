@@ -62,6 +62,8 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
             gitStatusRefreshing={gitStatusQuery.isFetching}
             gitClient={client}
             mcpServers={mcpServersQuery.data?.data ?? []}
+            mcpStatusSource={mcpServersQuery.data?.statusSource}
+            mcpObservedAt={mcpServersQuery.data?.observedAt}
             mcpServersRetryAvailable={taskId !== undefined}
             mcpServersRefreshing={mcpServersQuery.isFetching && !mcpServersQuery.isPending}
             mcpServersRetrying={mcpServersReloadMutation.isPending}
@@ -95,8 +97,8 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
                 ? Promise.resolve()
                 : client.updateTaskGoal(projectId, taskId, { status }).then(() => undefined)
             }
-            onReloadMcpServers={() => {
-              mcpServersReloadMutation.mutate();
+            onReloadMcpServers={(action) => {
+              mcpServersReloadMutation.mutate(action);
             }}
             onOpenFileDiff={openProjectFileDiff}
             onOpenProjectPath={(appId, path) => {

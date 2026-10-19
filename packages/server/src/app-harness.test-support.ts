@@ -31,6 +31,7 @@ export async function createHarness(
     eventListeners,
     forkTask,
     interruptTurn,
+    stopSession,
     listBackgroundTerminals,
     listTasks,
     listMcpServers,
@@ -70,6 +71,7 @@ export async function createHarness(
   closeCallbacks.push(() => app.close());
   return {
     app,
+    provider,
     archiveTask,
     clearGoal,
     compactTask,
@@ -78,6 +80,7 @@ export async function createHarness(
     eventListeners,
     forkTask,
     interruptTurn,
+    stopSession,
     listBackgroundTerminals,
     listTasks,
     listMcpServers,

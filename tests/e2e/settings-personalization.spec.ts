@@ -26,10 +26,12 @@ test("设置控件沿卡片右边缘对齐并保持参考页面间距", async ({
     ["智能体配置", "agent"],
     ["关于", "about"],
   ] as const) {
-    await page
-      .getByRole("region", { name: "全局设置" })
-      .getByRole("button", { name, exact: true })
-      .click();
+    const settings = page.getByRole("region", { name: "全局设置" });
+    const navigation =
+      file === "provider" || file === "agent"
+        ? settings.getByRole("group", { name: "Codex", exact: true })
+        : settings;
+    await navigation.getByRole("button", { name, exact: true }).click();
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
     await page.screenshot({ path: `.artifacts/settings-${file}-desktop.png` });
   }
@@ -63,12 +65,15 @@ test("搜索设置、保存个性化，并在删除记忆前确认 @smoke", asyn
   await expect(page.getByRole("main", { name: "任务时间线" })).toBeHidden();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("searchbox", { name: "搜索设置" }).fill("AGENTS.md");
-  await settings.getByRole("button", { name: "个性化", exact: true }).click();
+  await settings
+    .getByRole("group", { name: "Codex", exact: true })
+    .getByRole("button", { name: "个性化", exact: true })
+    .click();
   await expect(settings.getByRole("button", { name: "常规", exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(settings).toBeVisible();
-  await settings.getByRole("textbox", { name: "Codex 说明" }).fill("# 新说明\n保留格式。\n");
-  await settings.getByRole("button", { name: "保存", exact: true }).click();
+  await settings.getByRole("textbox", { name: "全局指令" }).fill("# 新说明\n保留格式。\n");
+  await settings.getByRole("textbox", { name: "全局指令" }).blur();
   await expect.poll(() => content).toBe("# 新说明\n保留格式。\n");
   await settings.getByRole("switch", { name: "启用本地记忆", exact: true }).click();
   await expect.poll(() => memory.enabled).toBe(true);
@@ -115,7 +120,8 @@ test("全局设置保存失败时保留草稿，重试后再返回", async ({ pa
   await page.getByRole("button", { name: "设置", exact: true }).click();
   const settings = page.getByRole("region", { name: "全局设置" });
   await settings.getByRole("button", { name: "引导", exact: true }).click();
-  await expect(settings.getByRole("alert")).toContainText("草稿已保留");
+  const saveError = page.getByRole("alert").filter({ hasText: "保存失败，请重试" });
+  await expect(saveError).toBeVisible();
   await settings.getByRole("button", { name: "返回应用" }).click();
   await expect(settings).toBeVisible();
   await expect(settings.getByRole("button", { name: "引导", exact: true })).toHaveAttribute(
@@ -123,8 +129,8 @@ test("全局设置保存失败时保留草稿，重试后再返回", async ({ pa
     "true",
   );
   fail = false;
-  await settings.getByRole("button", { name: "重试", exact: true }).click();
-  await expect(settings.getByRole("alert")).toHaveCount(0);
+  await saveError.getByRole("button", { name: "重试", exact: true }).click();
+  await expect(saveError).toHaveCount(0);
   await settings.getByRole("button", { name: "返回应用" }).click();
   await expect(page.getByRole("main", { name: "任务时间线" })).toBeVisible();
 });

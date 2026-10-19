@@ -60,6 +60,7 @@ type ComposerSubmissionOptions = Readonly<{
   onGoalStarted: () => void;
   onSteerAccepted: (prompt: AcceptedSteerPrompt) => void;
   projectId: string;
+  workspacePath?: string | undefined;
   promptContent: PromptSkillContent;
   routeScope: string;
   saveQueuedSubmission: (input: AgentPromptInput, clientUserMessageId: string) => Promise<boolean>;
@@ -98,6 +99,7 @@ export function createComposerSubmission({
   onGoalStarted,
   onSteerAccepted,
   projectId,
+  workspacePath,
   promptContent,
   routeScope,
   saveQueuedSubmission,
@@ -341,7 +343,13 @@ export function createComposerSubmission({
 
     const turnAttempt = resolveIdempotencyAttempt(
       startTurnAttempt.current,
-      JSON.stringify({ projectId, taskId: activeTaskId, input, options: turnOptions }),
+      JSON.stringify({
+        projectId,
+        workspacePath,
+        taskId: activeTaskId,
+        input,
+        options: turnOptions,
+      }),
     );
     startTurnAttempt.current = turnAttempt;
     try {
@@ -358,6 +366,7 @@ export function createComposerSubmission({
         projectId,
         ...(activeTaskId === undefined ? {} : { taskId: activeTaskId }),
         turnOptions,
+        ...(activeTaskId === undefined && workspacePath ? { workspacePath } : {}),
       });
       if (isCurrentScope(requestScope)) {
         if (turnOptions.goalMode === true) {

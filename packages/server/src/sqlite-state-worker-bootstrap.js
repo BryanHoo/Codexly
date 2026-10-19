@@ -47,6 +47,7 @@ export function taskSettingsFromRow(row) {
     return undefined;
   }
   return {
+    ...(row.engine_options == null ? {} : { engineOptions: JSON.parse(row.engine_options) }),
     approvalPolicy: deserializeApprovalPolicy(row.approval_policy, "turn"),
     approvalsReviewer: row.approvals_reviewer,
     model: row.model,
@@ -62,8 +63,10 @@ export function globalSettingsFromRow(row) {
   return {
     approvalPolicy: deserializeApprovalPolicy(row.approval_policy, "global"),
     approvalsReviewer: row.approvals_reviewer,
-    commitMessageModel: row.commit_message_model,
+    defaultModel: row.commit_message_model,
+    ...(row.default_agent == null ? {} : { defaultAgent: row.default_agent }),
     commitMessagePrompt: row.commit_message_prompt,
+    ...(row.task_title_prompt ? { taskTitlePrompt: row.task_title_prompt } : {}),
     // 此字段由 Codex config.toml 管理，本地仓储仅提供自动模式占位。
     modelContextWindow: null,
     defaultOpenAppId: row.default_open_app_id,

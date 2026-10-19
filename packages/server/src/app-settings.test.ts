@@ -1,5 +1,5 @@
 import type { AgentProviderTaskSnapshot } from "@codexly/core";
-import type { AgentTaskSettings } from "@codexly/protocol";
+import { DEFAULT_CLAUDE_SETTINGS, type AgentTaskSettings } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { createCodexlyServer } from "./app.js";
 import {
@@ -199,7 +199,8 @@ describe("server task settings", () => {
     const globalSettings = {
       approvalPolicy: granularApprovalPolicy,
       approvalsReviewer: "auto_review" as const,
-      commitMessageModel: "gpt-5.6-sol",
+      defaultAgent: "codex" as const,
+      defaultModel: "gpt-5.6-sol",
       commitMessagePrompt: "",
       modelContextWindow: null,
       defaultOpenAppId: "visual-studio-code" as const,
@@ -311,7 +312,8 @@ describe("server task settings", () => {
       settings: {
         approvalPolicy: "never",
         approvalsReviewer: "user",
-        commitMessageModel: "gpt-6-luna",
+        defaultAgent: "codex" as const,
+        defaultModel: "gpt-6-luna",
         commitMessagePrompt: "",
         modelContextWindow: null,
         defaultOpenAppId: null,
@@ -354,3 +356,87 @@ describe("server task settings", () => {
     expect(readDefaultSettings).toHaveBeenCalledOnce();
   });
 });
+
+it.each(["settings", "settings-and-defaults"])(
+  "waits for Claude runtime permission confirmation before saving %s and preserves storage on rejection",
+  async (route) => {
+    const { provider, readTask } = createProvider();
+    readTask.mockResolvedValue({ ...snapshot, engine: "claude" });
+    const gate = Promise.withResolvers<undefined>();
+    const updateTaskPermissionMode = vi.fn(() => gate.promise);
+    provider.updateTaskPermissionMode = updateTaskPermissionMode;
+    const settings = createSettingsRepository();
+    const base = createServerOptions(provider, { settingsRepository: settings.repository });
+    const profile = {
+      engine: "claude" as const,
+      capabilities: await provider.getCapabilities(),
+      models: { ...modelPage, data: [...modelPage.data] },
+      commands: [],
+      connection: {
+        state: "connected" as const,
+        mode: "custom" as const,
+        account: null,
+        customBaseUrl: null,
+        pendingLogin: null,
+      },
+    };
+    const app = await createCodexlyServer({
+      ...base,
+      provider: {
+        ...base.provider,
+        engines: {
+          claude: {
+            inspect: () => Promise.resolve(profile),
+            readSettings: () => Promise.resolve(DEFAULT_CLAUDE_SETTINGS),
+            writeSettings: (value) => Promise.resolve(value),
+            configure: () =>
+              Promise.resolve({ status: profile.connection, models: profile.models }),
+            disconnect: () => Promise.resolve({ status: profile.connection }),
+          },
+        },
+      },
+    });
+    closeCallbacks.push(() => app.close());
+    const next: AgentTaskSettings = {
+      model: "gpt-5.6-sol",
+      reasoningEffort: "high",
+      approvalPolicy: "on-request",
+      approvalsReviewer: "user",
+      sandboxMode: "workspace-write",
+      engineOptions: { engine: "claude", permissionMode: "plan" },
+    };
+    const pending = app.inject({
+      method: "PUT",
+      url: `/v1/projects/codexly/tasks/task-1/${route}`,
+      headers: { "idempotency-key": "live-claude-plan" },
+      payload: route === "settings" ? next : { settings: next, fastMode: false },
+    });
+    // Fastify inject 是惰性 thenable；提前启动请求，才能观察原生确认之前的存储边界。
+    const response = Promise.resolve(pending);
+    await vi.waitFor(() => {
+      expect(updateTaskPermissionMode).toHaveBeenCalledWith("task-1", "plan");
+    });
+    expect(settings.writeTaskSettings).not.toHaveBeenCalled();
+    gate.resolve(undefined);
+    expect((await response).statusCode).toBe(200);
+    expect(settings.writeTaskSettings).toHaveBeenCalledOnce();
+    updateTaskPermissionMode.mockRejectedValueOnce(new Error("mode rejected"));
+    const rejected = await app.inject({
+      method: "PUT",
+      url: `/v1/projects/codexly/tasks/task-1/${route}`,
+      headers: { "idempotency-key": "live-claude-denied" },
+      payload:
+        route === "settings"
+          ? { ...next, engineOptions: { engine: "claude", permissionMode: "bypassPermissions" } }
+          : {
+              settings: {
+                ...next,
+                engineOptions: { engine: "claude", permissionMode: "bypassPermissions" },
+              },
+              fastMode: false,
+            },
+    });
+    expect(rejected.statusCode).toBeGreaterThanOrEqual(400);
+    expect(settings.writeTaskSettings).toHaveBeenCalledOnce();
+  },
+);

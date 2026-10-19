@@ -300,6 +300,7 @@ function measureEventEntityBytes(state: TaskStoreState, event: AgentEvent): numb
     event.type === "plan.updated" ||
     event.type === "provider.error" ||
     event.type === "task.status_updated" ||
+    event.type === "task.metadata_changed" ||
     event.type === "turn.started" ||
     event.type === "turn.completed" ||
     event.type === "usage.updated"
@@ -327,6 +328,11 @@ function getEventItemKeys(state: TaskStoreState, event: AgentEvent): readonly st
   }
   const itemKeys = [createTaskItemKey(event.turnId, event.itemId)];
   if (event.type === "item.started" || event.type === "item.completed") {
+    if (event.payload.item.type === "message") {
+      for (const alias of event.payload.item.identityAliases ?? []) {
+        itemKeys.push(createTaskItemKey(event.turnId, alias));
+      }
+    }
     const currentItemKeys = state.itemKeysByTurnId[event.turnId] ?? [];
     const previousItemKey = currentItemKeys.at(-1);
     if (previousItemKey !== undefined) {

@@ -3,6 +3,7 @@ import { AgentTaskSchema } from "./agent-attachments.js";
 
 export type TaskSearchInput = Readonly<{
   query: string;
+  engines?: "codex" | "claude" | "codex,claude";
   archived: boolean;
   kind?: "tasks" | "history";
   cursor?: string;
@@ -26,6 +27,7 @@ export type SearchOccurrencesPage = Static<typeof SearchOccurrencesPageSchema>;
 export type SearchOccurrence = SearchOccurrencesPage["data"][number];
 
 export const TaskSearchPageSchema = Type.Object({
+  unavailableEngines: Type.Optional(Type.Array(Type.Union([Type.Literal("codex"), Type.Literal("claude")]))),
   data: Type.Array(
     Type.Object({ task: AgentTaskSchema, snippet: Type.String(), occurrence: Type.Optional(SearchOccurrencesPageSchema.properties.data.items) }),
   ),

@@ -1,3 +1,4 @@
+import { useCurrentView } from "@codexly/ui/core/use-current-view";
 import { useNavigateSplitTask, useOpenSplitDraft } from "@codexly/ui/core/split-workspace";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -67,6 +68,7 @@ export function useWorkbenchShellController(
   shell: ReturnType<typeof useWorkbenchShellRuntime>,
   { projectId, taskId, temporary = false }: WorkbenchShellControllerOptions,
 ) {
+  const isCurrentView = useCurrentView(JSON.stringify([projectId, taskId, temporary]));
   const navigateSplitTask = useNavigateSplitTask();
   const openSplitDraft = useOpenSplitDraft();
   const {
@@ -239,9 +241,10 @@ export function useWorkbenchShellController(
     (startedTask: AgentTask) => {
       // 真实 taskId 返回后立即展示并选中，但保持 Project Composer 以支持失败重试。
       cacheProjectTask(startedTask);
+      if (!isCurrentView()) return;
       setPendingTaskSelection({ projectId: startedTask.projectId, taskId: startedTask.id });
     },
-    [cacheProjectTask, setPendingTaskSelection],
+    [cacheProjectTask, isCurrentView, setPendingTaskSelection],
   );
   const handleTaskStarted = useCallback(
     (
@@ -283,6 +286,8 @@ export function useWorkbenchShellController(
         // 首轮 Turn 已确认运行，导航前写入 Sidebar 活动态，Review 不需要伪造用户消息。
         markTaskRunning(projectId, startedTask.id);
       }
+      // 缓存和运行状态始终接收结果；用户已经切走时，迟到响应不能抢回页面。
+      if (!isCurrentView()) return;
       setPendingTaskSelection(undefined);
       // 分屏中的继续执行与 Fork 只更新所属窗口，不能触发整页导航清空其他聊天。
       if (navigateSplitTask(startedTask.projectId, startedTask.id)) return;
@@ -299,6 +304,7 @@ export function useWorkbenchShellController(
       cacheProjectTask,
       client,
       getNewChatSubmissionStartedAt,
+      isCurrentView,
       markTaskRunning,
       navigate,
       projectId,

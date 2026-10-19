@@ -16,7 +16,7 @@ test("uses global defaults throughout a new task composer", async ({ page }) => 
         settings: {
           approvalPolicy: "never",
           approvalsReviewer: "user",
-          commitMessageModel: "gpt-5.6-sol",
+          defaultModel: "gpt-5.6-sol",
           commitMessagePrompt: "",
           modelContextWindow: null,
           defaultOpenAppId: "finder",

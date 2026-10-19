@@ -115,3 +115,10 @@ describe("runtime warning lifetime", () => {
     expect(store.getState().retainedBytes).toBe(baseline.getState().retainedBytes);
   });
 });
+
+it("applies Claude permission mode metadata without clearing existing warnings or model configuration", () => {
+  const store = createTaskStore({ projectId: "project", taskId: "task" }, { ...response, snapshot: { ...response.snapshot, engine: "claude", threadConfiguration: { model: "sonnet", reasoningEffort: "high", permissionMode: "bypassPermissions" } } });
+  store.getState().applyEvents([warning(1, "runtime_warning"), { ...eventBase, sequence: 2, type: "task.metadata_changed", payload: { permissionMode: "plan" } }]);
+  expect(store.getState().snapshotMetadata?.threadConfiguration).toEqual({ model: "sonnet", reasoningEffort: "high", permissionMode: "plan" });
+  expect(store.getState().notices).toHaveLength(1);
+});

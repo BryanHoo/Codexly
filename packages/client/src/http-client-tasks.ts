@@ -1,3 +1,4 @@
+import type { AgentEngine } from "@codexly/protocol";
 import {
   SubmitTaskResponseSchema,
   type SubmitTaskRequest,
@@ -13,7 +14,6 @@ import {
   CompactAgentTaskResponseSchema,
   DeleteAgentQueuedSubmissionResponseSchema,
   ForkAgentTaskResponseSchema,
-  InterruptAgentTurnResponseSchema,
   OpenAgentTaskAttachmentResponseSchema,
   PinAgentTaskResponseSchema,
   RenameAgentTaskResponseSchema,
@@ -44,7 +44,6 @@ import {
   type ForkAgentTaskRequest,
   type ForkAgentTaskResponse,
   type HostFileKind,
-  type InterruptAgentTurnResponse,
   type OpenAgentTaskAttachmentResponse,
   type PendingRequest,
   type PinAgentTaskResponse,
@@ -78,9 +77,9 @@ import {
   type ReadOptions,
   type ReadTaskOptions,
 } from "./http-client-transport.js";
-import { GlobalSearchHttpClient } from "./http-client-global-search.js";
+import { SessionHttpClient } from "./http-client-session.js";
 
-export class TaskHttpClient extends GlobalSearchHttpClient {
+export class TaskHttpClient extends SessionHttpClient {
   public submitTask(
     projectId: string,
     input: SubmitTaskRequest,
@@ -288,7 +287,7 @@ export class TaskHttpClient extends GlobalSearchHttpClient {
 
   public async startWorktreeTask(
     projectId: string,
-    request: { rootPath: string; worktreePath: string },
+    request: { rootPath: string; worktreePath: string; engine?: AgentEngine },
     options: MutationOptions = {},
   ): Promise<StartAgentTaskResponse> {
     return this.mutation(
@@ -459,20 +458,6 @@ export class TaskHttpClient extends GlobalSearchHttpClient {
       `${taskPath(projectId, taskId)}/turns/${encodeURIComponent(turnId)}/steer`,
       { input, taskId },
       SteerAgentTurnResponseSchema,
-      options,
-    );
-  }
-
-  public async interruptTurn(
-    projectId: string,
-    taskId: string,
-    turnId: string,
-    options: MutationOptions = {},
-  ): Promise<InterruptAgentTurnResponse> {
-    return this.mutation(
-      `${taskPath(projectId, taskId)}/turns/${encodeURIComponent(turnId)}/interrupt`,
-      { taskId },
-      InterruptAgentTurnResponseSchema,
       options,
     );
   }

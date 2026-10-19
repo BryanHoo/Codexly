@@ -206,7 +206,12 @@ impl StreamState {
         while self.channel.is_some() {
             if self.needs_resync && !self.resync_in_flight {
                 let reset = QueuedEvent {
-                    json: r#"{"type":"resyncRequired","data":{"latestSequence":0,"projectId":"*","reason":"event_retention_exceeded","sessionId":"codeagent-runtime","type":"resync.required","version":3}}"#.to_owned(),
+                    json: serde_json::json!({"type":"resyncRequired","data":{
+                        "latestSequence":0,"projectId":"*","reason":"event_retention_exceeded",
+                        "sessionId":crate::infrastructure::codex::runtime_session_id(),
+                        "type":"resync.required","version":3
+                    }})
+                    .to_string(),
                     control: true,
                     enqueued_at_unix_ms: unix_time_ms(),
                 };

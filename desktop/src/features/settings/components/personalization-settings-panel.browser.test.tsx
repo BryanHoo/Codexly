@@ -23,19 +23,18 @@ async function setup(client = clientFixture()) {
 }
 
 describe("personalization", () => {
-  it("loads existing instructions and explicitly saves the untrimmed draft", async () => {
+  it("loads existing instructions and automatically saves the untrimmed draft", async () => {
     const success = vi.spyOn(toast, "success");
     const { screen, client } = await setup();
-    const editor = screen.getByRole("textbox", { name: "Codex 说明" });
+    const editor = screen.getByRole("textbox", { name: "全局指令" });
     await expect.element(editor).toHaveValue("# 原有说明\n");
     expect(document.querySelector('label[for="codex-global-instructions"]')?.parentElement).toHaveTextContent("/custom/AGENTS.md");
-    await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "保存", exact: true }).all()).toHaveLength(0);
     await editor.fill("  新说明\n");
     expect(client.saveGlobalInstructions).not.toHaveBeenCalled();
-    await screen.getByRole("button", { name: "保存", exact: true }).click();
+    editor.element().blur();
     await vi.waitFor(() => expect(client.saveGlobalInstructions).toHaveBeenCalledWith("  新说明\n", "# 原有说明\n"));
-    await expect.element(screen.getByRole("button", { name: "保存", exact: true })).toBeDisabled();
-    expect(success).toHaveBeenCalledWith("已保存");
+    await expect.element(screen.getByRole("status")).toHaveTextContent("已保存");
     success.mockRestore();
   });
 
@@ -58,10 +57,10 @@ describe("personalization", () => {
     const client = clientFixture();
     client.saveGlobalInstructions.mockRejectedValue(new Error("disk unavailable"));
     const { screen } = await setup(client);
-    const editor = screen.getByRole("textbox", { name: "Codex 说明" });
+    const editor = screen.getByRole("textbox", { name: "全局指令" });
     await expect.element(editor).toHaveValue("# 原有说明\n");
     await editor.fill("保留草稿");
-    await screen.getByRole("button", { name: "保存", exact: true }).click();
+    editor.element().blur();
     await expect.element(screen.getByRole("alert")).toBeVisible();
     await expect.element(editor).toHaveValue("保留草稿");
   });

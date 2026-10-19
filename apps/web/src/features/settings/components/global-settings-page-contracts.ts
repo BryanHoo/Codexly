@@ -33,6 +33,11 @@ export type GlobalSettingsPageProps = Readonly<{
 import type { CodexlyClient } from "@codexly/client";
 export type SettingsClient = Pick<
   CodexlyClient,
+  | "getEngineProfile"
+  | "configureEngine"
+  | "disconnectEngine"
+  | "getClaudeSettings"
+  | "updateClaudeSettings"
   | "getGlobalInstructions"
   | "saveGlobalInstructions"
   | "getMemorySettings"

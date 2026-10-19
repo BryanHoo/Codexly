@@ -1,6 +1,6 @@
 import { Type, type Static } from "@sinclair/typebox";
 import { AgentTaskBaseSchema } from "@codexly/protocol/task-common";
-import { AgentMessagePhaseSchema } from "@codexly/protocol";
+import { AgentMessagePhaseSchema, AgentMessageItemSchema as SharedAgentMessageItemSchema } from "@codexly/protocol";
 export { AgentMessagePhaseSchema, type AgentMessagePhase } from "@codexly/protocol";
 
 export const AgentTaskSchema = Type.Object(
@@ -181,6 +181,8 @@ export type AgentAsyncQuestion = Readonly<Static<typeof AgentAsyncQuestionSchema
 
 export const AgentMessageItemSchema = Type.Object(
   {
+    // 原生层明确声明的历史身份，前端不得按正文或图片元数据推断。
+    identityAliases: SharedAgentMessageItemSchema.properties.identityAliases,
     attachments: Type.Optional(
       Type.Array(AgentMessageAttachmentSchema, { maxItems: MAX_AGENT_HISTORY_IMAGES }),
     ),

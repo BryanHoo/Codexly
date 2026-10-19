@@ -33,8 +33,14 @@ export class ActiveTaskSnapshotRecoveryController<T> {
 
   public dispose(): void {
     this.#disposed = true;
+    this.cancelRecovery();
+  }
+
+  public cancelRecovery(): void {
+    // 清除待恢复身份，保证在途请求返回后也无法发布失效会话的快照。
     this.#pendingTaskIds.clear();
     this.#clearRetryTimer();
+    this.#recoveryAttempt = 0;
   }
 
   public forgetTask(taskId: string): void {
@@ -352,6 +358,13 @@ export class TaskEventTarget {
     this.#clearScheduledFlush();
     this.#buffer.drain();
     this.#recovery.requestRecovery();
+  }
+
+  public failConnection(error: Error): void {
+    // 终态访问错误优先于快照恢复；重置代次并撤销重试，丢弃迟到响应与缓冲增量。
+    this.resetForSnapshot();
+    this.#store.getState().setError(error);
+    this.#store.getState().setConnectionState("closed");
   }
 
   public setConnectionState(state: AgentEventConnectionState): void {

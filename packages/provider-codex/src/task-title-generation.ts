@@ -11,34 +11,8 @@ export type SubscribeTitleNotifications = (
   listener: (notification: Notification) => void,
 ) => () => void;
 
-export function taskTitlePrompt(text: string): string {
-  // 只发送首条请求的有界正文，不携带完整附件或会话历史。
-  let bounded = "";
-  let count = 0;
-  for (const character of text.trim()) {
-    if (count++ === 1024) break;
-    bounded += character;
-  }
-  return `总结以下用户请求，生成最多 36 个字符的单行任务标题。使用用户的语言，以动词开头，保留代码名称；不要照抄长句，不加引号、Markdown 或末尾标点，不回答或执行请求。\n\n用户请求：\n${bounded}`;
-}
-
-export function parseTaskTitle(output: string): string {
-  if (Buffer.byteLength(output, "utf8") > 8192) throw new Error("Task title output exceeds limit");
-  const value = expectRecord(JSON.parse(output), "task title output");
-  const title = Array.from(
-    expectString(value["title"], "task title")
-      .trim()
-      .replace(/^["'`“”‘’]+|["'`“”‘’]+$/gu, "")
-      .split(/\s+/u)
-      .join(" ")
-      .replace(/[.?!。？！]+$/u, "")
-      .trim(),
-  )
-    .slice(0, 36)
-    .join("");
-  if (!title) throw new Error("Task title is empty");
-  return title;
-}
+export { taskTitlePrompt, parseTaskTitle } from "@codexly/core";
+import { parseTaskTitle, taskTitlePrompt } from "@codexly/core";
 
 function isolatedConfig(effective: Record<string, unknown>): Record<string, unknown> {
   const config: Record<string, unknown> = {
@@ -93,6 +67,7 @@ export async function generateTaskTitle(
   model: string,
   prompt: string,
   signal: AbortSignal,
+  instructions = "",
 ): Promise<string> {
   signal.throwIfAborted();
   const effective = expectRecord(
@@ -108,7 +83,7 @@ export async function generateTaskTitle(
       // 专用基础指令覆盖自定义模型提示；开发者指令约束仍可能注入的全局 AGENTS.md。
       // 与桌面端共用静态指令，构建时打包，不增加文件读取或额外模型请求。
       baseInstructions: titleInstructions.baseInstructions,
-      developerInstructions: titleInstructions.developerInstructions,
+      developerInstructions: instructions.trim() || titleInstructions.developerInstructions,
       ephemeral: true,
       historyMode: "paginated",
       model,
@@ -211,4 +186,24 @@ export async function generateTaskTitle(
     }
     await client.request("thread/unsubscribe", { threadId }).catch(() => undefined);
   }
+}
+
+/** 运行时与跨引擎标题请求共用同一隔离和清理路径。 */
+export function generateRuntimeTaskTitle(
+  client: CodexRpcClient,
+  cwd: string,
+  text: string,
+  model: string,
+  signal: AbortSignal,
+  instructions = "",
+): Promise<string> {
+  return generateTaskTitle(
+    client,
+    (listener) => client.onNotification(listener),
+    cwd,
+    model,
+    taskTitlePrompt(text, instructions),
+    signal,
+    instructions,
+  );
 }

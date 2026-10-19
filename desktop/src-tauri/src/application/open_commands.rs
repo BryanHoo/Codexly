@@ -24,10 +24,11 @@ pub async fn get_project_open_capabilities() -> Result<Value, AppError> {
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn open_project(
+    app: AppHandle,
     project_id: String,
     root_path: Option<String>,
     input: OpenProjectInput,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
     let OpenProjectInput {
         app_id,
@@ -37,7 +38,11 @@ pub async fn open_project(
     } = input;
     // 绝对路径不依赖项目；相对路径由当前目录或任务 cwd 定位。
     let root = task_workspace::resolve_preview_root(
-        &state,
+        Some(
+            &app.path()
+                .app_data_dir()
+                .map_err(|_| AppError::FilesystemRequestFailed)?,
+        ),
         &project_id,
         task_id.as_deref(),
         root_path.as_deref(),
@@ -87,6 +92,18 @@ pub async fn open_task_attachment(
     attachment_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+    if task["provider"] == "claude" {
+        let exported =
+            super::claude_attachments::export(&app, &project_id, &task_id, &attachment_id).await?;
+        let path = exported["path"]
+            .as_str()
+            .ok_or(AppError::FilesystemRequestFailed)?;
+        workspace::open_path("system-default", Path::new(path))
+            .await
+            .map_err(|_| AppError::FilesystemRequestFailed)?;
+        return Ok(json!({"attachmentId":attachment_id,"status":"opened"}));
+    }
     let connection = state.codex_connection().await?;
     codex::read_task(&connection, project_id.clone(), task_id.clone())
         .await

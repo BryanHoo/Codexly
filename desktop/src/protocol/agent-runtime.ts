@@ -1,5 +1,6 @@
 import { Type, type Static, type TSchema } from "@sinclair/typebox";
 
+import { AgentThreadConfigurationSchema } from "@codexly/protocol";
 import { AgentTaskSchema, type AgentTask } from "./agent-attachments.js";
 import { DateTimeSchema, ProjectSchema, type Project } from "./project-files.js";
 import { ActivePendingRequestSchema } from "./pending-request.js";
@@ -44,6 +45,7 @@ export type AgentPlan = Readonly<Static<typeof AgentPlanSchema>>;
 
 export const AgentTaskSnapshotSchema = Type.Object(
   {
+    engine: AgentTaskSchema.properties.engine,
     contextUsage: Type.Union([AgentContextUsageSchema, Type.Null()]),
     goal: Type.Union([AgentGoalSchema, Type.Null()]),
     id: Type.String({ minLength: 1 }),
@@ -54,15 +56,7 @@ export const AgentTaskSnapshotSchema = Type.Object(
     workspacePath: Type.Optional(Type.String({ minLength: 1 })),
     settings: AgentTaskSettingsSchema,
     // 仅原生读取快照携带；新建任务的乐观快照没有权威线程配置。
-    threadConfiguration: Type.Optional(
-      Type.Object(
-        {
-          model: Type.Union([Type.String(), Type.Null()]),
-          reasoningEffort: Type.Union([Type.String(), Type.Null()]),
-        },
-        { additionalProperties: false },
-      ),
-    ),
+    threadConfiguration: Type.Optional(AgentThreadConfigurationSchema),
     status: Type.Union([Type.Literal("idle"), Type.Literal("running"), Type.Literal("failed")]),
     title: Type.String({ minLength: 1 }),
     turns: Type.Array(AgentTurnSchema),

@@ -1,11 +1,17 @@
 import { LogController, type FastifyReply, type FastifyRequest } from "fastify";
+import { errorDiagnostics } from "./error-diagnostics.js";
 
-const requestErrorCodes = new WeakMap<FastifyRequest, string>();
+const requestErrors = new WeakMap<FastifyRequest, Record<string, unknown>>();
 const SLOW_REQUEST_MS = 3_000;
 
-export function recordRequestError(request: FastifyRequest, code: string): void {
-  // 只接收交付层生成的错误码，不读取上游异常的 message、cause 或 data。
-  requestErrorCodes.set(request, code);
+export function recordRequestError(
+  request: FastifyRequest,
+  code: string,
+  error?: unknown,
+  phase: "handler" | "validation" | "response" = "handler",
+): void {
+  // 原始异常不驻留请求上下文，只保存有界的脱敏诊断投影。
+  requestErrors.set(request, { errorCode: code, ...errorDiagnostics(error, phase) });
 }
 
 export class CodexlyLogController extends LogController {
@@ -23,12 +29,14 @@ export class CodexlyLogController extends LogController {
     reply: FastifyReply,
   ): void {
     const route = request.routeOptions.url;
-    const errorCode = requestErrorCodes.get(request) ?? (error ? "REQUEST_FAILED" : undefined);
-    requestErrorCodes.delete(request);
+    const diagnostic =
+      requestErrors.get(request) ??
+      (error ? { errorCode: "REQUEST_FAILED", ...errorDiagnostics(error, "response") } : {});
+    requestErrors.delete(request);
     const params = request.params as Record<string, unknown> | undefined;
     const fields = {
       durationMs: reply.elapsedTime,
-      ...(errorCode === undefined ? {} : { errorCode }),
+      ...diagnostic,
       method: request.method,
       requestId: request.id,
       route,

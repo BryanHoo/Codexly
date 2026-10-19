@@ -30,6 +30,11 @@ pub(super) async fn add(app: AppHandle, request: QueueAddRequest) -> Result<Valu
         move |mut input| async move {
             let state = worker_app.state::<AppState>();
             // 未取得连接时可安全原键重试；取得连接后任何未知结果都不得再次入队。
+            let task_binding = super::claude_tasks::task(&worker_app, &project, &task).await?;
+            if task_binding["provider"] == "claude" {
+                let provider_input = super::claude_tasks::provider_input(&worker_app, &project, &task, input).await?;
+                return state.claude.request(&worker_app, "queue.add", Some(super::claude_tasks::scope(&task_binding)), json!({"taskId":task,"input":provider_input,"clientUserMessageId":message_id})).await;
+            }
             let connection = state.codex_connection().await?;
             codex::read_task(&connection, project.clone(), task.clone())
                 .await

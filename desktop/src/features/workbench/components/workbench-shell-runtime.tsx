@@ -1,3 +1,5 @@
+import { useComposerWorkspaceSelection } from "@codexly/ui/core/composer-workspace";
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import type { SplitRuntimeOptions } from "@codexly/frontend-core/split-workspace";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import { resolveDesktopTaskRoot } from "./workbench-task-root.js";
@@ -73,7 +75,6 @@ const emptyExpandedFileTreePaths = new Set<string>();
 export function taskLaunchQueryKey(projectId: string, taskId: string) {
   return ["projects", projectId, "tasks", taskId, "launch"] as const;
 }
-
 export type TaskLaunchState = Readonly<{
   checkpoint: EventCheckpoint;
   input: AgentPromptInput;
@@ -83,7 +84,6 @@ export type TaskLaunchState = Readonly<{
   task: AgentTask;
   turn: AgentTurn;
 }>;
-
 export function createTaskLaunchSnapshot(taskLaunchState: TaskLaunchState): AgentTaskSnapshot {
   const snapshot = mergeSubmittedPromptIntoSnapshot(
     {
@@ -102,14 +102,12 @@ export function createTaskLaunchSnapshot(taskLaunchState: TaskLaunchState): Agen
   );
   return { ...snapshot, pendingRequests: [] };
 }
-
 export type SubmittedPromptState = Readonly<{
   input: AgentPromptInput;
   messageAttachments: readonly AgentMessageAttachment[];
   submissionStartedAt?: string;
   turn: AgentTurn;
 }>;
-
 export type WorkbenchShellProps = Readonly<{
   board?: boolean;
   draftId?: string;
@@ -134,6 +132,7 @@ export function useWorkbenchShellRuntime({
   const project = projects.find((item) => item.id === projectId);
   const { selectedRootIds, setSelectedProjectRoot } = useProjectRootSelection();
   const selectedRoot = resolveProjectRootFromSelections(project, selectedRootIds);
+  const draftWorkspace = useComposerWorkspaceSelection(projectId, taskId);
   const { markTaskRunning, projectRuntime, refreshProjectGitStatus, retry, viewTask } =
     useProjectActions();
   const runtime = useTaskRuntime(projectId, workspaceOnly ? undefined : taskId, projectRuntime);
@@ -141,7 +140,7 @@ export function useWorkbenchShellRuntime({
   const { activeRootId, projectRoots, selectedRootPath } = resolveDesktopTaskRoot({
     metadataTaskId: runtime.metadata?.id,
     projectRoots: project?.roots ?? [],
-    reportedWorkspacePath: activeTask?.workspacePath ?? (runtime.metadata?.id === taskId ? runtime.metadata?.workspacePath : undefined),
+    reportedWorkspacePath: draftWorkspace.path ?? activeTask?.workspacePath ?? (runtime.metadata?.id === taskId ? runtime.metadata?.workspacePath : undefined),
     selectedRoot, taskId, taskKnown: activeTask !== undefined, temporary,
   });
   const navigate = useNavigate();
@@ -202,8 +201,11 @@ export function useWorkbenchShellRuntime({
   });
   const appInfoQuery = useQuery(appInfoQueryOptions(client));
   const appUpdateMutation = useMutation(appUpdateMutationOptions(client));
-  const modelsQuery = useQuery(modelsQueryOptions(client));
-  const providerConnectionQuery = useQuery(providerConnectionQueryOptions());
+  const engines = useSelectedEngines();
+  const codexEnabled = engines?.includes("codex") ?? true;
+  const engineEnabled = engines === undefined || engines.length > 0;
+  const modelsQuery = useQuery({ ...modelsQueryOptions(client, codexEnabled ? "codex" : "claude"), enabled: engineEnabled });
+  const providerConnectionQuery = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
   const mcpServersQuery = useQuery(
     mcpServersQueryOptions(projectId, taskId, client, inspectorActivation.context),
   );
@@ -216,7 +218,7 @@ export function useWorkbenchShellRuntime({
       );
     },
   });
-  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client));
+  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"));
   const projectOpenCapabilitiesQuery = useQuery(projectOpenCapabilitiesQueryOptions(client));
   const projectPathOpenMutation = useMutation({
     // 外部应用已经提供明确的成功反馈，仅保留失败 toast。
@@ -247,9 +249,9 @@ export function useWorkbenchShellRuntime({
   }, [projectFileManagerApp, projectPathOpenLockRef, projectPathOpenMutationRef]);
   const skillsQuery = useQuery({
     ...skillsQueryOptions(projectId, client),
-    enabled: shouldEnableWorkbenchSkills(capabilities?.skills.list === true, temporary),
+    enabled: codexEnabled && shouldEnableWorkbenchSkills(capabilities?.skills.list === true, temporary),
   });
-  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, !temporary));
+  const projectDefaultsQuery = useQuery(projectDefaultsQueryOptions(projectId, client, codexEnabled && !temporary));
   const projectDefaultsMutation = useMutation({
     ...projectDefaultsMutationOptions(projectId, client),
     onSuccess(response) {
@@ -257,9 +259,9 @@ export function useWorkbenchShellRuntime({
     },
   });
   const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client),
+    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
     async onSuccess(response) {
-      queryClient.setQueryData(["settings"], response);
+      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
       if (!shouldRefreshTaskDefaults(response.changedFields)) {
         return;
       }
@@ -477,6 +479,7 @@ export function useWorkbenchShellRuntime({
     setSidebarOpen,
     setSidebarWidth,
     setSelectedRootId,
+    selectWorkspace: draftWorkspace.select,
     setSubagentDialogSelection,
     setTaskRenameOpen,
     sidebarOpen,

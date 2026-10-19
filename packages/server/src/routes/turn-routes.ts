@@ -1,6 +1,10 @@
+import { retainTaskExecution } from "../task-execution-lifecycle.js";
 import { readLocalTaskCreationSettings } from "../task-creation-settings.js";
 import { PendingRequestResolutionError } from "@codexly/core";
 import {
+  StopAgentSessionRequestSchema,
+  StopAgentSessionResponseSchema,
+  type StopAgentSessionRequest,
   AgentMutationErrorSchema,
   InterruptAgentTurnRequestSchema,
   InterruptAgentTurnResponseSchema,
@@ -52,6 +56,49 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
   } = context;
 
   app.post<{
+    Body: StopAgentSessionRequest;
+    Headers: { "idempotency-key": string };
+    Params: { projectId: string; taskId: string };
+  }>(
+    "/v1/projects/:projectId/tasks/:taskId/session/stop",
+    {
+      schema: {
+        body: StopAgentSessionRequestSchema,
+        headers: IdempotencyHeadersSchema,
+        params: ProjectTaskParamsSchema,
+        response: {
+          202: StopAgentSessionResponseSchema,
+          404: AgentMutationErrorSchema,
+          409: AgentMutationErrorSchema,
+          503: AgentMutationErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const response = await runIdempotent(
+        ["stop-session", request.params.projectId, request.params.taskId],
+        request.headers["idempotency-key"],
+        request.body,
+        async () => {
+          if (request.body.taskId !== request.params.taskId)
+            throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
+          const project = await getProjectContext(request.params.projectId);
+          if (!project) throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
+          const task = await project.provider.readTask(request.params.taskId);
+          if (task?.projectId !== project.scope.id)
+            throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
+          if (!project.provider.stopSession)
+            throw new MutationHttpError("PROVIDER_ERROR", "Session control unavailable", 503);
+          // 父回合可以已经完成，不能复用要求 turn.running 的中断校验。
+          await project.provider.stopSession(request.params.taskId, request.body.backgroundTaskId);
+          return { status: "accepted" as const, taskId: request.params.taskId };
+        },
+      );
+      return reply.code(202).send(response);
+    },
+  );
+
+  app.post<{
     Body: StartAgentTaskRequest;
     Headers: { "idempotency-key": string };
     Params: { projectId: string };
@@ -101,9 +148,14 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
               throw new Error("Task creation recovery capacity is exhausted");
             }
             const defaults =
-              context.provider.readTaskMetadata === undefined
-                ? await readInheritedTaskSettings(request.params.projectId)
-                : await readLocalTaskCreationSettings(settingsRepository, request.params.projectId);
+              request.body.engine === "claude"
+                ? undefined
+                : context.provider.readTaskMetadata === undefined
+                  ? await readInheritedTaskSettings(request.params.projectId)
+                  : await readLocalTaskCreationSettings(
+                      settingsRepository,
+                      request.params.projectId,
+                    );
             let workspacePath: string | undefined;
             if (request.body.worktreePath !== undefined) {
               if (request.body.rootPath === undefined) {
@@ -126,11 +178,14 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
             } else if (request.body.rootPath !== undefined) {
               throw new MutationHttpError("INVALID_REQUEST", "Git worktree path is required", 400);
             }
-            // 原 Project 保留任务归属，worktree 只覆盖 Codex 线程 cwd。
+            // 原 Project 保留任务归属，worktree 只覆盖所选引擎的任务 cwd。
             const task =
-              workspacePath === undefined
+              workspacePath === undefined && request.body.engine === undefined
                 ? await context.provider.startTask()
-                : await context.provider.startTask({ workspacePath });
+                : await context.provider.startTask({
+                    ...(workspacePath === undefined ? {} : { workspacePath }),
+                    ...(request.body.engine ? { engine: request.body.engine } : {}),
+                  });
             // Provider 已创建 Task 后立即保留恢复状态，后续落库重试不能再次创建 Task。
             recovery = {
               fingerprint,
@@ -184,38 +239,52 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
           if (context === undefined) {
             throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
           }
-          const task = await context.provider.readTask(request.params.taskId);
-          if (task?.projectId !== context.scope.id) {
-            throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
+          const release = await retainTaskExecution(context, request.params.taskId);
+          try {
+            const task = await context.provider.readTask(request.params.taskId);
+            if (task?.projectId !== context.scope.id) {
+              throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
+            }
+            const { attachmentIds, providerInput } = await resolveProviderTurnInput(
+              request.params.projectId,
+              request.body.input,
+              context.provider,
+              request.params.taskId,
+            );
+            const turnOptions = request.body.options;
+            if (
+              turnOptions.engineOptions &&
+              turnOptions.engineOptions.engine !== (task.engine ?? "codex")
+            )
+              throw new MutationHttpError(
+                "INVALID_REQUEST",
+                "Options belong to another engine",
+                400,
+              );
+            assertValidProjectDefaults(await listModels(task.engine), turnOptions);
+            // Turn 设置先落库，Provider 成功或进程退出后都能恢复用户最后一次完整选择。
+            await settingsRepository.writeTaskSettings(
+              request.params.projectId,
+              request.params.taskId,
+              turnOptions,
+            );
+            // 先固定事件起点，首轮启动期间产生的事件由前端从该位置完整回放。
+            const checkpoint = context.eventStream.checkpoint;
+            const turn = await context.provider.startTurn(
+              request.params.taskId,
+              providerInput,
+              turnOptions,
+            );
+            // 只有 Provider 确认启动成功后才消费附件，网络失败仍允许原请求重试。
+            await attachmentStore.consume(
+              request.params.projectId,
+              attachmentIds,
+              turn.status === "running" ? turn.id : undefined,
+            );
+            return { checkpoint, turn };
+          } finally {
+            release();
           }
-          const { attachmentIds, providerInput } = await resolveProviderTurnInput(
-            request.params.projectId,
-            request.body.input,
-            context.provider,
-            request.params.taskId,
-          );
-          const turnOptions = request.body.options;
-          assertValidProjectDefaults(await listModels(), turnOptions);
-          // Turn 设置先落库，Provider 成功或进程退出后都能恢复用户最后一次完整选择。
-          await settingsRepository.writeTaskSettings(
-            request.params.projectId,
-            request.params.taskId,
-            turnOptions,
-          );
-          // 先固定事件起点，首轮启动期间产生的事件由前端从该位置完整回放。
-          const checkpoint = context.eventStream.checkpoint;
-          const turn = await context.provider.startTurn(
-            request.params.taskId,
-            providerInput,
-            turnOptions,
-          );
-          // 只有 Provider 确认启动成功后才消费附件，网络失败仍允许原请求重试。
-          await attachmentStore.consume(
-            request.params.projectId,
-            attachmentIds,
-            turn.status === "running" ? turn.id : undefined,
-          );
-          return { checkpoint, turn };
         },
       );
       return reply.code(201).send({

@@ -3,11 +3,12 @@ import { Type, type Static } from "@sinclair/typebox";
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { WorkbenchPetSettingsSchema } from "./workbench-pets.js";
 import {
+  AgentEngineOptionsSchema,
   AgentGlobalSettingsSchema as SharedGlobalSettingsSchema,
   AgentModelSchema as SharedModelSchema,
 } from "@codexly/protocol";
 
-export const DEFAULT_COMMIT_MESSAGE_MODEL = "gpt-6-luna";
+export const DEFAULT_GENERATION_MODEL = "gpt-6-luna";
 
 export const AgentGranularApprovalConfigSchema = Type.Object(
   {
@@ -78,12 +79,13 @@ export type AgentSandboxMode = Readonly<Static<typeof AgentSandboxModeSchema>>;
 
 const AgentTaskSettingProperties = {
   model: Type.String({ minLength: 1 }),
-  reasoningEffort: Type.String({ minLength: 1 }),
+  reasoningEffort: Type.String(),
   sandboxMode: AgentSandboxModeSchema,
 };
 
 export const AgentTaskSettingsSchema = Type.Object(
   {
+    engineOptions: Type.Optional(AgentEngineOptionsSchema),
     approvalPolicy: AgentTurnApprovalPolicySchema,
     approvalsReviewer: AgentApprovalsReviewerSchema,
     ...AgentTaskSettingProperties,
@@ -97,10 +99,12 @@ export const AgentCollaborationModeSchema = Type.Literal("plan");
 export type AgentCollaborationMode = Readonly<Static<typeof AgentCollaborationModeSchema>>;
 
 const AgentGlobalSettingProperties = {
+  defaultAgent: SharedGlobalSettingsSchema.properties.defaultAgent,
   // 复用公共边界，避免原生与 HTTP 客户端接受不同的窗口值。
   modelContextWindow: SharedGlobalSettingsSchema.properties.modelContextWindow,
-  commitMessageModel: Type.String({ minLength: 1 }),
+  defaultModel: Type.String({ minLength: 1 }),
   commitMessagePrompt: Type.String({ maxLength: 4_000 }),
+  taskTitlePrompt: SharedGlobalSettingsSchema.properties.taskTitlePrompt,
   // 文件专用系统关联不能成为 Project 根目录的默认打开方式。
   defaultOpenAppId: Type.Union([
     Type.Exclude(ProjectOpenAppIdSchema, Type.Literal("system-default")),
@@ -183,6 +187,7 @@ const AgentTurnOptionProperties = {
 // Collaboration、Goal 与快速模式只控制当前 Turn，不得进入持久化 Task 设置。
 export const AgentTurnOptionsSchema = Type.Object(
   {
+    engineOptions: Type.Optional(AgentEngineOptionsSchema),
     approvalPolicy: AgentTurnApprovalPolicySchema,
     approvalsReviewer: AgentApprovalsReviewerSchema,
     ...AgentTurnOptionProperties,

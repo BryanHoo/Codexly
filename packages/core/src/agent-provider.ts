@@ -1,6 +1,11 @@
 import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type {
   AgentGlobalApprovalPolicy,
+  AgentGlobalSettings,
+  AgentEngine,
+  AgentEngineProfile,
+  ClaudeSettings,
+  ClaudePermissionMode,
   AgentGoal,
   AgentApprovalsReviewer,
   AgentCapabilities,
@@ -10,6 +15,7 @@ import type {
   AgentEvent,
   AgentImageMediaType,
   AgentMcpServerPage,
+  ReloadAgentMcpServersRequest,
   AgentModelPage,
   AgentProviderConnectionMutationResponse,
   AgentProviderConnectionStatus,
@@ -122,6 +128,7 @@ export interface AgentProviderQueue {
 }
 
 export type StartAgentTaskOptions = Readonly<{
+  engine?: AgentEngine;
   ephemeral?: boolean;
   workspacePath?: string;
 }>;
@@ -129,6 +136,12 @@ export type StartAgentTaskOptions = Readonly<{
 export type ReadAgentTaskInput = Readonly<{
   cursor?: string;
   summary?: boolean;
+  signal?: AbortSignal;
+  // 仅用于同次快照读取：复用不受实时事件影响的准备结果，并同步交付已补齐增量的投影。
+  snapshotRead?: Readonly<{
+    prepare<T>(key: string, read: () => Promise<T>): Promise<T>;
+    capture(snapshot: AgentProviderTaskSnapshot): void;
+  }>;
 }>;
 
 export type AgentProviderTurnInput = Readonly<{
@@ -164,7 +177,7 @@ type AgentEventTransportField = "provider" | "sequence" | "sessionId" | "timesta
 
 export type AgentProviderEvent = AgentEvent extends infer Event
   ? Event extends AgentEvent
-    ? Omit<Event, AgentEventTransportField>
+    ? Omit<Event, AgentEventTransportField> & { readonly provider?: string }
     : never
   : never;
 
@@ -211,6 +224,8 @@ export interface AgentSearchProvider {
     input: SearchOccurrencesQuery,
     scope: AgentSearchScope,
     signal?: AgentCancellationSignal,
+    // 全局候选只需要首个锚点，精确匹配列表使用默认页大小。
+    limit?: 1 | 30,
   ): Promise<SearchOccurrencesPage>;
   searchTasks(
     input: TaskSearchQuery,
@@ -238,23 +253,25 @@ export class PendingRequestResolutionError extends Error {
 
 // Core 只声明 Provider 无关能力，具体 RPC、传输顺序与进程生命周期留在外层。
 export interface AgentProvider {
+  /** 切换存活会话权限并等待原生确认；无会话时只更新下次运行的任务状态。 */
+  updateTaskPermissionMode?(taskId: string, mode: ClaudePermissionMode): Promise<void>;
   readTaskMetadata?(taskId: string): Promise<AgentTask | undefined>;
   readonly queue?: AgentProviderQueue;
   archiveTask(taskId: string): Promise<void>;
-  compactTask(taskId: string): Promise<void>;
+  compactTask(taskId: string, options?: AgentTurnOptions): Promise<void>;
   deleteTask(taskId: string): Promise<void>;
   forkTask(taskId: string, lastTurnId?: string): Promise<AgentTask>;
-  getCapabilities(): Promise<AgentCapabilities>;
+  getCapabilities(engine?: AgentEngine): Promise<AgentCapabilities>;
   clearGoal(taskId: string): Promise<void>;
-  listModels(): Promise<AgentModelPage>;
+  listModels(engine?: AgentEngine): Promise<AgentModelPage>;
   listMcpServers(taskId: string): Promise<AgentMcpServerPage>;
   listBackgroundTerminals(taskId: string): Promise<AgentBackgroundTerminalPage>;
-  listSkills(): Promise<AgentSkillPage>;
+  listSkills(engine?: AgentEngine): Promise<AgentSkillPage>;
   listTasks(input?: ListAgentTasksInput): Promise<AgentTaskPage>;
   pinTask(taskId: string, pinned: boolean): Promise<AgentTask>;
   readSandboxMode(): Promise<AgentSandboxMode>;
   readGoal(taskId: string): Promise<AgentGoal | null>;
-  // Promise 完成前须让 Snapshot 包含此前状态并同步交付对应通知，使 checkpoint 保持一致。
+  // 状态变更须同步交付通知；同步补齐实时文本后可调用 snapshotRead.capture，结构变化仍须校验。
   readTask(
     taskId: string,
     input?: ReadAgentTaskInput,
@@ -264,7 +281,10 @@ export interface AgentProvider {
     taskId: string,
     attachmentId: string,
   ): Promise<AgentProviderAttachment | undefined>;
-  reloadMcpServers(taskId: string): Promise<AgentMcpServerPage>;
+  reloadMcpServers(
+    taskId: string,
+    action?: ReloadAgentMcpServersRequest["action"],
+  ): Promise<AgentMcpServerPage>;
   renameTask(taskId: string, title: string): Promise<void>;
   resolvePendingRequest(input: ResolvePendingRequestInput): Promise<PendingRequest>;
   startReview(taskId: string, target: AgentReviewTarget): Promise<AgentTurn>;
@@ -276,6 +296,7 @@ export interface AgentProvider {
   ): Promise<AgentTurn>;
   unarchiveTask(taskId: string): Promise<AgentTask>;
   steerTurn(taskId: string, turnId: string, input: AgentProviderTurnInput): Promise<void>;
+  stopSession?(taskId: string, backgroundTaskId?: string): Promise<void>;
   interruptTurn(taskId: string, turnId: string): Promise<void>;
   updateTurnApprovalsReviewer(
     taskId: string,
@@ -298,6 +319,19 @@ export type AgentModelCatalogFallback =
 
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。
 export interface AgentRuntimeProvider {
+  readGenerationDefaults?(
+    stored: Pick<AgentGlobalSettings, "defaultAgent" | "defaultModel"> | undefined,
+  ): Promise<{ defaultAgent: AgentEngine; defaultModel: string }>;
+  // 辅助生成可跨引擎，任务的持久执行身份保持独立。
+  setTaskTitleGenerator?(generate: TaskTitleGenerator): void;
+  generateTaskTitle?(
+    cwd: string,
+    text: string,
+    model: string,
+    signal: AbortSignal,
+    instructions?: string,
+  ): Promise<string>;
+  readonly engines?: Partial<Record<AgentEngine, AgentEngineService>>;
   readonly historyStorage?: { compress(): Promise<HistoryCompressionResult> };
   readonly personalization?: PersonalizationProvider;
   readonly fileSearch?: AgentFileSearchProvider;
@@ -342,4 +376,26 @@ export interface AgentRuntimeProvider {
   setSkillEnabled(path: string, enabled: boolean): Promise<SetSkillEnabledResult>;
   startOfficialProviderLogin(): Promise<StartOfficialProviderLoginResponse>;
 }
+
+export interface AgentEngineService {
+  generateTaskTitle?(
+    cwd: string,
+    text: string,
+    model: string,
+    signal: AbortSignal,
+    instructions?: string,
+  ): Promise<string>;
+  generateCommitMessage?(prompt: string, model: string): Promise<string>;
+  readSettings(): Promise<ClaudeSettings>;
+  writeSettings(settings: ClaudeSettings): Promise<ClaudeSettings>;
+  inspect(scope?: AgentTaskScope): Promise<AgentEngineProfile>;
+  configure(input: ConfigureCustomProviderRequest): Promise<ConfigureCustomProviderResponse>;
+  disconnect(): Promise<AgentProviderConnectionMutationResponse>;
+}
+
+export type TaskTitleGenerator = (
+  cwd: string,
+  text: string,
+  signal: AbortSignal,
+) => Promise<string>;
 import type { PersonalizationProvider } from "./personalization.js";

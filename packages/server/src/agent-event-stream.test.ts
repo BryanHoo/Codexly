@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { performance } from "node:perf_hooks";
 
 import type { AgentEvent } from "@codexly/protocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -35,6 +36,48 @@ afterEach(() => {
 });
 
 describe("AgentEventStream", () => {
+  it("reports queued UTF-8 bytes and queue wait percentiles without flushing metrics reads", () => {
+    vi.useFakeTimers();
+    const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+    const stream = new AgentEventStream({ provider: "codex", sessionId: "runtime-1" });
+    stream.publish(deltaEvent);
+    stream.publish(deltaEvent);
+    expect(stream.metrics).toMatchObject({
+      pendingDeltas: 1,
+      queueBytes: expect.any(Number) as number,
+    });
+    expect(stream.metrics.queueBytes).toBeGreaterThan(Buffer.byteLength("实时"));
+    clock.mockReturnValue(16);
+    vi.advanceTimersByTime(16);
+    expect(stream.metrics).toMatchObject({
+      queueBytes: 0,
+      queueWaitMs: {
+        count: 1,
+        p95: expect.any(Number) as number,
+        p99: expect.any(Number) as number,
+      },
+    });
+    expect(stream.metrics.queueWaitMs.p95).toBeGreaterThanOrEqual(15);
+    expect(stream.metrics.queueWaitMs.p99).toBeLessThan(17);
+    expect(stream.metrics.queueBytesPerBatch.count).toBe(1);
+    expect(stream.metrics.queueBytesPerBatch.p95).toBeGreaterThan(Buffer.byteLength("实时"));
+    expect(stream.metrics.queueBytesPerBatch.p99).toBe(stream.metrics.queueBytesPerBatch.p95);
+    stream.close();
+  });
+  it("releases connection queue readers on cleanup and stream shutdown", () => {
+    const stream = new AgentEventStream({ provider: "codex", sessionId: "runtime-1" });
+    let socketBytes = 20;
+    const untrack = stream.trackQueue(() => socketBytes);
+    expect(stream.metrics.queueBytes).toBe(20);
+    socketBytes = 30;
+    expect(stream.metrics.queueBytes).toBe(30);
+    untrack();
+    untrack();
+    expect(stream.metrics.queueBytes).toBe(0);
+    stream.trackQueue(() => 40);
+    stream.close();
+    expect(stream.metrics.queueBytes).toBe(0);
+  });
   it("reuses the serialized event size retained by the stream", () => {
     const stream = new AgentEventStream({ provider: "codex", sessionId: "runtime-1" });
     const stringify = vi.spyOn(JSON, "stringify");
@@ -90,7 +133,7 @@ describe("AgentEventStream", () => {
         version: 2,
       },
     ]);
-    expect(stream.metrics).toEqual({
+    expect(stream.metrics).toMatchObject({
       backpressureSignals: 0,
       coalescedEvents: 1,
       pendingDeltas: 0,

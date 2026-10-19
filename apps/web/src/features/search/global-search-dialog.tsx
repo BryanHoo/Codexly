@@ -1,3 +1,5 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
+import { searchEngineFilter } from "@codexly/frontend-core/search-engines";
 import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import "./global-search.css";
 
@@ -24,7 +26,13 @@ import { useGlobalSearch, type SearchCategory } from "./use-global-search.js";
 import { useSearchOccurrences } from "./use-search-occurrences.js";
 import { useSearchVisibility } from "./use-search-visibility.js";
 
-export function GlobalSearchDialog({
+// 依赖集合变更时重置分页与历史定位，旧引擎的游标和结果不能进入新搜索范围。
+export function GlobalSearchDialog(props: Parameters<typeof GlobalSearchDialogContent>[0]) {
+  const engines = searchEngineFilter(useSelectedEngines());
+  return <GlobalSearchDialogContent key={engines ?? "all"} {...props} />;
+}
+
+function GlobalSearchDialogContent({
   client,
   onClose,
   onOpenFile,
@@ -105,7 +113,12 @@ export function GlobalSearchDialog({
   const loading =
     normalized.length > 0 &&
     (results.waiting || visibleQueries.some((result) => result.isFetching));
-  const failed = visibleQueries.some((result) => result.isError);
+  const failed =
+    visibleQueries.some((result) => result.isError) ||
+    ((category === "all" || category === "tasks") &&
+      Boolean(results.tasks.data?.unavailableEngines?.length)) ||
+    ((category === "all" || category === "history") &&
+      Boolean(results.history.data?.unavailableEngines?.length));
 
   useEffect(() => {
     listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });

@@ -10,18 +10,7 @@ export * from "./app-update.js";
 export * from "./skill-market.js";
 export * from "./scheduled-task.js";
 export * from "./scheduled-task-wall-time.js";
-export {
-  AccessModeSchema,
-  AccessStatusResponseSchema,
-  LogoutAccessResponseSchema,
-  PairAccessRequestSchema,
-  PairAccessResponseSchema,
-  type AccessMode,
-  type AccessStatusResponse,
-  type LogoutAccessResponse,
-  type PairAccessRequest,
-  type PairAccessResponse,
-} from "./access.js";
+export * from "./access.js";
 export {
   AgentProviderAccountSchema,
   AgentProviderConnectionMutationResponseSchema,
@@ -147,7 +136,7 @@ export {
   ForkAgentTaskRequestSchema,
   ForkAgentTaskResponseSchema,
   AgentContextUsageSchema,
-  DEFAULT_COMMIT_MESSAGE_MODEL,
+  DEFAULT_GENERATION_MODEL,
   AgentModelPageSchema,
   AgentModelSchema,
   AgentReasoningEffortOptionSchema,
@@ -178,6 +167,7 @@ export {
   AgentMessageItemSchema,
   AgentMessagePhaseSchema,
   AgentMessageSkillSchema,
+  ToolApprovalPendingRequestSchema,
   CommandApprovalPendingRequestSchema,
   FileChangeApprovalPendingRequestSchema,
   PermissionApprovalPendingRequestSchema,
@@ -201,6 +191,8 @@ export {
   ImportHostAttachmentRequestSchema,
   GenerateCommitMessageRequestSchema,
   GenerateCommitMessageResponseSchema,
+  StopAgentSessionRequestSchema,
+  StopAgentSessionResponseSchema,
   InterruptAgentTurnRequestSchema,
   InterruptAgentTurnResponseSchema,
   PendingApprovalDecisionSchema,
@@ -388,6 +380,8 @@ export {
   type ImportHostAttachmentRequest,
   type GenerateCommitMessageRequest,
   type GenerateCommitMessageResponse,
+  type StopAgentSessionRequest,
+  type StopAgentSessionResponse,
   type InterruptAgentTurnRequest,
   type InterruptAgentTurnResponse,
   type PendingApprovalDecision,
@@ -498,3 +492,7 @@ export * from "./task-catalog.js";
 export * from "./completed-task-query.js";
 export * from "./project-text-file.js";
 export { WorkbenchChangeSchema, type WorkbenchChange } from "./workbench-change.js";
+export * from "./agent-engine.js";
+export * from "./engine-profile.js";
+
+export { AgentThreadConfigurationSchema } from "./agent-attachments.js";

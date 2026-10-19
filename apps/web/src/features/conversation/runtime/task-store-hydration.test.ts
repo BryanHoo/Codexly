@@ -527,3 +527,33 @@ describe("task store hydration", () => {
     expect(store.getState().checkpoint?.sequence).toBe(12);
   });
 });
+
+it("applies confirmed Claude permission metadata without replacing model configuration or message stores", () => {
+  const store = createTaskStore(
+    { projectId: "project-1", taskId: "task-1" },
+    createResponse({
+      engine: "claude",
+      threadConfiguration: {
+        model: "sonnet",
+        reasoningEffort: "high",
+        permissionMode: "bypassPermissions",
+      },
+    }),
+  );
+  const items = store.getState().itemStoresByKey;
+  store
+    .getState()
+    .applyEvents([
+      { ...eventEnvelope(11), type: "task.metadata_changed", payload: { permissionMode: "plan" } },
+    ]);
+  expect(store.getState().snapshotMetadata?.threadConfiguration).toEqual({
+    model: "sonnet",
+    reasoningEffort: "high",
+    permissionMode: "plan",
+  });
+  expect(store.getState().itemStoresByKey).toBe(items);
+  store
+    .getState()
+    .applyEvents([{ ...eventEnvelope(12), type: "task.metadata_changed", payload: {} }]);
+  expect(store.getState().snapshotMetadata?.threadConfiguration?.permissionMode).toBe("plan");
+});

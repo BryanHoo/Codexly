@@ -14,10 +14,16 @@ export function ModelContextWindowInput({
   value,
   onChange,
   labels,
+  disabled = false,
+  minK = MODEL_CONTEXT_WINDOW_MIN_K,
+  maxK = MODEL_CONTEXT_WINDOW_MAX_K,
 }: Readonly<{
   value: number | null;
   onChange: (value: number | null) => void;
   labels: Readonly<{ label: string; automatic: string; invalid: string }>;
+  disabled?: boolean;
+  minK?: number;
+  maxK?: number;
 }>) {
   const errorId = useId();
   const [text, setText] = useState(() => formatContextWindow(value));
@@ -30,7 +36,9 @@ export function ModelContextWindowInput({
   const commit = (input: HTMLInputElement) => {
     if (!dirty.current) return;
     // 数字框中未完成的负号、指数等也可能返回空字符串，必须区分非法输入与主动清空。
-    const next = input.validity.badInput ? undefined : parseModelContextWindow(text);
+    const next = input.validity.badInput
+      ? undefined
+      : parseModelContextWindow(text, { minK, maxK });
     if (next === undefined) {
       setInvalid(true);
       return;
@@ -38,7 +46,7 @@ export function ModelContextWindowInput({
     dirty.current = false;
     setInvalid(false);
     setText(formatContextWindow(next));
-    // 失焦或 Enter 才提交，避免每个键击写文件并重载 Codex 配置。
+    // 失焦或 Enter 才提交，避免每个键击写文件并重载引擎配置。
     if (next !== value) onChange(next);
   };
   return (
@@ -50,8 +58,9 @@ export function ModelContextWindowInput({
           className="h-full w-full px-2.5 text-body-small tabular-nums focus-visible:!outline-none"
           type="number"
           inputMode="numeric"
-          min={MODEL_CONTEXT_WINDOW_MIN_K}
-          max={MODEL_CONTEXT_WINDOW_MAX_K}
+          disabled={disabled}
+          min={minK}
+          max={maxK}
           step={1}
           autoComplete="off"
           aria-label={`${labels.label} (k tokens)`}

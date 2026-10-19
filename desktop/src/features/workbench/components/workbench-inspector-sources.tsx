@@ -1,5 +1,5 @@
 import { PdfAttachment } from "@codexly/ui/core/pdf-attachment";
-import { buildNativeAssetUrl } from "@/platform/native-asset-url.js";
+import { buildNativeTaskAttachmentUrl } from "@/platform/native-asset-url.js";
 import type { AgentMessageAttachment, AgentSkill, AgentTurn } from "@/protocol/index.js";
 import { Files, Paperclip, Sparkles } from "lucide-react";
 import { useMemo } from "react";
@@ -223,7 +223,7 @@ export function InspectorSources({
             <InspectorSourceRow
               {...(source.kind === "attachment" && projectId !== undefined && taskId !== undefined
                 ? {
-                    attachmentUrl: buildNativeAssetUrl(source.attachment.id),
+                    attachmentUrl: buildNativeTaskAttachmentUrl(projectId, taskId, source.attachment.id),
                   }
                 : {})}
               onOpenAttachment={onOpenAttachment}

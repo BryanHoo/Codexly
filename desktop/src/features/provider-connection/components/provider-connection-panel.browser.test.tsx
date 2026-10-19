@@ -73,12 +73,12 @@ describe("ProviderConnectionPanelView", () => {
     const screen = await render(<ProviderConnectionHarness onConfigure={onConfigure} />);
 
     await screen.getByRole("button", { name: "自定义 API" }).click();
-    await screen.getByRole("textbox", { name: "API Base URL" }).fill("https://gateway.test/v1");
-    await screen.getByLabelText("API Key（可选）").fill("sk-browser-test");
+    await screen.getByRole("textbox", { name: "API 地址" }).fill("https://gateway.test/v1");
+    await screen.getByLabelText("API 密钥（可选）").fill("sk-browser-test");
     await screen.getByRole("button", { name: "显示密钥" }).click();
-    await expect.element(screen.getByLabelText("API Key（可选）")).toHaveAttribute("type", "text");
+    await expect.element(screen.getByLabelText("API 密钥（可选）")).toHaveAttribute("type", "text");
     await screen.getByRole("button", { name: "隐藏密钥" }).click();
-    await expect.element(screen.getByLabelText("API Key（可选）")).toHaveAttribute("type", "password");
+    await expect.element(screen.getByLabelText("API 密钥（可选）")).toHaveAttribute("type", "password");
     await screen.getByRole("button", { name: "连接" }).click();
 
     expect(onConfigure).toHaveBeenCalledWith({

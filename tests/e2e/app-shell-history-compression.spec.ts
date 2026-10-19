@@ -16,7 +16,10 @@ for (const mobile of [false, true]) {
     if (mobile) await page.getByRole("button", { name: "展开项目侧栏" }).click();
     await page.getByRole("button", { name: "设置", exact: true }).click();
     const settings = page.getByRole("region", { name: "全局设置" });
-    await settings.getByRole("button", { name: "智能体配置", exact: true }).click();
+    await settings
+      .getByRole("group", { name: "Codex", exact: true })
+      .getByRole("button", { name: "智能体配置", exact: true })
+      .click();
     const action = settings.getByRole("button", { name: "压缩历史文件" });
     await action.scrollIntoViewIfNeeded();
     await expect(action).toBeVisible();

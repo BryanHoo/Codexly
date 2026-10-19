@@ -7,7 +7,6 @@ import {
   DeleteAgentTaskResponseSchema,
   AgentMutationErrorSchema,
   AgentTaskPageSchema,
-  AgentTaskSnapshotResponseSchema,
   PinAgentTaskRequestSchema,
   PinAgentTaskResponseSchema,
   RenameAgentTaskRequestSchema,
@@ -24,7 +23,8 @@ import {
 } from "@codexly/protocol";
 import { listTaskCatalog } from "@codexly/core";
 import type { FastifyPluginCallback } from "fastify";
-import { restorePersistedAsyncQuestionAnswers } from "../async-question-snapshot.js";
+import { registerTaskSnapshotRoute } from "./task-snapshot-route.js";
+import { unsubscribeIdleTask } from "../task-execution-lifecycle.js";
 import { MutationHttpError, toMcpProviderHttpError, type ServerRouteContext } from "./context.js";
 import {
   ErrorResponseSchema,
@@ -33,7 +33,6 @@ import {
   ProjectTaskParamsSchema,
   ProjectTaskTerminalParamsSchema,
   TaskPageQuerySchema,
-  TaskSnapshotQuerySchema,
 } from "./schemas.js";
 
 import { registerTaskActionRoutes } from "./task-action-routes.js";
@@ -50,7 +49,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
   context,
   done,
 ) => {
-  const { getProjectContext, readEffectiveTaskSettings, runIdempotent, taskFromSnapshot } = context;
+  const { getProjectContext, runIdempotent, taskFromSnapshot } = context;
 
   app.get<{
     Params: { projectId: string };
@@ -102,50 +101,12 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
         return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Project not found" });
       }
       // Provider 内部再次确认运行 Turn、Pending Request、后台终端和恢复 Promise。
-      const status = await context.provider.unsubscribeTask(request.params.taskId);
+      const status = await unsubscribeIdleTask(context, request.params.taskId);
       return { status, taskId: request.params.taskId };
     },
   );
 
-  app.get<{
-    Params: { projectId: string; taskId: string };
-    Querystring: { cursor?: string; summary?: boolean };
-  }>(
-    "/v1/projects/:projectId/tasks/:taskId",
-    {
-      schema: {
-        params: ProjectTaskParamsSchema,
-        querystring: TaskSnapshotQuerySchema,
-        response: { 200: AgentTaskSnapshotResponseSchema, 404: ErrorResponseSchema },
-      },
-    },
-    async (request, reply) => {
-      const projectContext = await getProjectContext(request.params.projectId);
-      if (projectContext === undefined) {
-        return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Project not found" });
-      }
-      const providerTask = await projectContext.provider.readTask(request.params.taskId, {
-        ...(request.query.cursor === undefined ? {} : { cursor: request.query.cursor }),
-        ...(request.query.summary === undefined ? {} : { summary: request.query.summary }),
-      });
-      if (providerTask?.projectId !== projectContext.scope.id) {
-        return reply.code(404).send({ code: "TASK_NOT_FOUND", message: "Task not found" });
-      }
-      const task = await restorePersistedAsyncQuestionAnswers(
-        context,
-        request.params.projectId,
-        request.params.taskId,
-        providerTask,
-      );
-      // Provider Promise 完成时已交付此前通知，此处 checkpoint 与返回 Snapshot 对齐。
-      const checkpoint = projectContext.eventStream.checkpoint;
-      const settings = await readEffectiveTaskSettings(
-        request.params.projectId,
-        request.params.taskId,
-      );
-      return { checkpoint, snapshot: { ...task, settings } };
-    },
-  );
+  registerTaskSnapshotRoute(app, context);
 
   app.get<{ Params: { projectId: string; taskId: string } }>(
     "/v1/projects/:projectId/tasks/:taskId/mcp-servers",

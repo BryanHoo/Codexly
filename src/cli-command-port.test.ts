@@ -101,13 +101,19 @@ describe("runCli ports", () => {
       ),
     });
     const controller = new AbortController();
-    queueMicrotask(() => {
+    const run = runCli(["start"], { ...harness.options, signal: controller.signal });
+    try {
+      await vi.waitFor(() => {
+        expect(harness.serverListen).toHaveBeenCalledOnce();
+      });
+      await vi
+        .mocked(harness.dependencies.createRuntimeProvider)
+        .mock.calls[0]?.[0].client.request("config/read");
+      await expect(run).resolves.toBe(1);
+    } finally {
       controller.abort();
-    });
-
-    await expect(
-      runCli(["start"], { ...harness.options, signal: controller.signal }),
-    ).resolves.toBe(1);
+      await run;
+    }
     expect(harness.stderr.join("")).toContain(
       "Codex App Server 在 Codexly 关闭前意外退出，退出码 23",
     );

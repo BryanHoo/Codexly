@@ -4,6 +4,7 @@ import type {
   AgentGlobalSettings,
   AgentGlobalSettingsResponse,
   AgentMcpServerPage,
+  ReloadAgentMcpServersRequest,
   AgentModelPage,
   AgentProjectDefaults,
   AgentProjectDefaultsResponse,
@@ -37,9 +38,14 @@ export class TauriCatalogClient extends TauriWorkspaceClient {
     return parseInstructions(await this.call("get_global_instructions"));
   }
 
-  public async saveGlobalInstructions(content: string, expectedContent: string): Promise<GlobalInstructions> {
+  public async saveGlobalInstructions(
+    content: string,
+    expectedContent: string,
+  ): Promise<GlobalInstructions> {
     const { parseInstructions } = await import("./personalization-response.js");
-    return parseInstructions(await this.call("save_global_instructions", { content, expectedContent }));
+    return parseInstructions(
+      await this.call("save_global_instructions", { content, expectedContent }),
+    );
   }
 
   public async getMemorySettings(): Promise<MemorySettings> {
@@ -92,17 +98,17 @@ export class TauriCatalogClient extends TauriWorkspaceClient {
     return this.call("logout_provider");
   }
 
-  public async getGlobalSettings(
-    _options: ReadOptions = {},
-  ): Promise<AgentGlobalSettingsResponse> {
-    return this.call("get_global_settings");
+  public async getGlobalSettings(options: ReadOptions & { engine?: "codex" | "claude" } = {}): Promise<AgentGlobalSettingsResponse> {
+    return options.engine === "claude" ? this.invokeCommand("get_global_settings", {engine: "claude"}) : this.call("get_global_settings");
   }
 
   public async updateGlobalSettings(
     settings: AgentGlobalSettings,
-    _options: MutationOptions = {},
+    options: MutationOptions & { engine?: "codex" | "claude" } = {},
   ): Promise<AgentGlobalSettingsResponse> {
-    return this.call("update_global_settings", { settings });
+    return options.engine === "claude"
+      ? this.invokeCommand("update_global_settings", { settings, engine: "claude" })
+      : this.call("update_global_settings", { settings });
   }
 
   public async getProjectDefaults(
@@ -120,16 +126,11 @@ export class TauriCatalogClient extends TauriWorkspaceClient {
     return this.call("update_project_defaults", { projectId, settings });
   }
 
-  public async listSkills(
-    projectId: string,
-    _options: ReadOptions = {},
-  ): Promise<AgentSkillPage> {
+  public async listSkills(projectId: string, _options: ReadOptions = {}): Promise<AgentSkillPage> {
     return this.call("list_skills", { forceReload: false, projectId });
   }
 
-  public async listInstalledSkills(
-    _options: ReadOptions = {},
-  ): Promise<InstalledSkillPage> {
+  public async listInstalledSkills(_options: ReadOptions = {}): Promise<InstalledSkillPage> {
     return this.call("list_installed_skills", { forceReload: false });
   }
 
@@ -243,8 +244,12 @@ export class TauriCatalogClient extends TauriWorkspaceClient {
   public async retryMcpServers(
     projectId: string,
     taskId: string,
-    _options: MutationOptions = {},
+    options: MutationOptions & ReloadAgentMcpServersRequest = {},
   ): Promise<AgentMcpServerPage> {
-    return this.call("retry_mcp_servers", { projectId, taskId });
+    return this.call("retry_mcp_servers", {
+      projectId,
+      taskId,
+      ...(options.action ? { action: options.action } : {}),
+    });
   }
 }

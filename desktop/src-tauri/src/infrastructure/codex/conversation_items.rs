@@ -39,6 +39,7 @@ pub(super) fn map_item_without_skill_normalization(
         "userMessage" => {
             let (text, attachments, skills) = map_user_message(item)?;
             Ok(AgentItem::Message {
+                identity_aliases: Vec::new(),
                 // 在正文规范化前识别纯展开项，不能把清理后变空的普通输入误分类。
                 skill_expansion: text.is_empty() && attachments.is_empty() && !skills.is_empty(),
                 attachments: (!attachments.is_empty()).then_some(attachments),
@@ -51,6 +52,7 @@ pub(super) fn map_item_without_skill_normalization(
             })
         }
         "agentMessage" => Ok(AgentItem::Message {
+            identity_aliases: Vec::new(),
             attachments: None,
             id,
             phase: optional_string(item, "phase")?.map(str::to_owned),
@@ -137,6 +139,7 @@ pub(super) fn map_item_without_skill_normalization(
         "imageGeneration" => {
             if let Some(attachment) = generated_image_attachment(item)? {
                 Ok(AgentItem::Message {
+                    identity_aliases: Vec::new(),
                     attachments: Some(vec![attachment]),
                     id,
                     phase: None,
@@ -208,6 +211,7 @@ pub(super) fn map_item_without_skill_normalization(
             target: map_review_target(required_string(item, "review")?),
         }),
         "exitedReviewMode" => Ok(AgentItem::Message {
+            identity_aliases: Vec::new(),
             attachments: None,
             id,
             phase: None,
@@ -225,18 +229,6 @@ pub(super) fn map_item_without_skill_normalization(
             status: None,
             transient: None,
         }),
-    }
-}
-
-pub(super) fn apply_transient_item_lifecycle(item: &mut AgentItem, started: bool) {
-    // 瞬时 Item 只在实时生命周期内可见，历史快照不保留运行状态。
-    if let AgentItem::Activity {
-        status,
-        transient: Some(true),
-        ..
-    } = item
-    {
-        *status = Some(if started { "running" } else { "completed" });
     }
 }
 

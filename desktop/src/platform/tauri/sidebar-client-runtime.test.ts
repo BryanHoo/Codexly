@@ -3,6 +3,35 @@ import { describe, expect, it, vi } from "vitest";
 import { TauriSidebarClient, type InvokeImplementation } from "./sidebar-client.js";
 
 describe("TauriSidebarClient runtime metadata", () => {
+  it("reads static capabilities without starting an unselected Codex runtime", async () => {
+    const ensureRuntime = vi.fn(async () => undefined);
+    const client = new TauriSidebarClient({ ensureRuntime, invoke: vi.fn() as InvokeImplementation });
+    await expect(client.getCapabilities()).resolves.toMatchObject({ provider: "codex" });
+    expect(ensureRuntime).not.toHaveBeenCalled();
+  });
+  it("reads app metadata and shared preferences without activating Codex", async () => {
+    const ensureRuntime = vi.fn(async () => undefined);
+    const invoke = vi.fn(async () => ({})) as InvokeImplementation;
+    const client = new TauriSidebarClient({ ensureRuntime, invoke });
+    await client.getAppInfo();
+    await client.getProjectOpenCapabilities();
+    await client.getGlobalSettings({ engine: "claude" });
+    expect(ensureRuntime).not.toHaveBeenCalled();
+  });
+  it("browses files, reads Git and uploads attachments without activating Codex", async () => {
+    const ensureRuntime = vi.fn(async () => undefined);
+    const invoke = vi.fn(async () => ({})) as InvokeImplementation;
+    const client = new TauriSidebarClient({ ensureRuntime, invoke });
+    const signal = new AbortController().signal;
+    await client.listProjectFiles("project", "/workspace", null, { signal });
+    await client.getProjectGitStatus("project", { rootPath: "/workspace" }, { signal });
+    await client.searchProjectFiles("project", "/workspace", "readme", "search", { signal });
+    await client.readProjectTextFile("project", "/workspace", "README.md");
+    await client.readProjectTextFileRevision("project", "/workspace", "README.md");
+    await client.uploadAttachment("project", { kind: "file", name: "readme.txt", content: new Blob(["test"]) });
+    expect(invoke).toHaveBeenCalledTimes(6);
+    expect(ensureRuntime).not.toHaveBeenCalled();
+  });
   it("routes native Codex feedback and advertises the capability", async () => {
     const invoke = vi.fn(async () => ({ status: "sent", taskId: "thread-a" }));
     const client = new TauriSidebarClient({

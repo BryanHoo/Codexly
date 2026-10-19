@@ -1,3 +1,5 @@
+import { resolveTurnProcessingTime, type TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
+import { ToolDuration } from "@codexly/ui/agent/tool-duration";
 import {
   TEMPORARY_TASK_SCOPE_ID,
   type AgentItem,
@@ -22,8 +24,8 @@ import {
 } from "../../notifications/action-notifications.js";
 
 import { MessageAction, MessageActions } from "../../../shared/components/agent/message.js";
-import { Task, TaskTrigger, type TaskStatus } from "../../../shared/components/agent/task.js";
-import type { ToolState } from "../../../shared/components/agent/tool.js";
+import type { TaskStatus } from "../../../shared/components/agent/task.js";
+import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput, type ToolState } from "../../../shared/components/agent/tool.js";
 import type { ForkTaskAction } from "./task-timeline-contracts.js";
 import {
   formatSubagentOperationSummary,
@@ -31,6 +33,8 @@ import {
   resolveSubagentOperationStatus,
   type SubagentOperation,
 } from "./subagent.js";
+
+export { ToolDuration, formatToolDuration } from "@codexly/ui/agent/tool-duration";
 
 export function EmptyTimeline({
   onProjectChange,
@@ -162,64 +166,26 @@ export function SubagentToolItem({
   const summary = formatSubagentOperationSummary(item.status, operation.agents);
 
   return (
-    <Task collapsible={false} status={operationStatus}>
-      <TaskTrigger
-        statusPrefix={
+    <Tool>
+      <ToolHeader
+        state={operationStatus === "in_progress" ? "input-available" : operationStatus === "error" ? "output-error" : toToolState(item.status)}
+        duration={
           itemTiming === undefined ? undefined : (
             <ToolDuration status={item.status} timing={itemTiming} />
           )
         }
         title={`${getSubagentOperationTitle(operation.name)} · ${summary}`}
       />
-    </Task>
+      {/* 默认折叠，展开后才挂载输入与结果，避免子代理流式快照增加渲染负担。 */}
+      <ToolContent>
+        {item.input === undefined ? null : <ToolInput input={item.input} />}
+        <ToolOutput errorText={undefined} output={item.output} />
+      </ToolContent>
+    </Tool>
   );
 }
 
 const TURN_PROCESSING_TIMER_INTERVAL_MS = 1_000;
-
-export function formatToolDuration(
-  timing: NonNullable<AgentTurn["itemTimings"]>[string] | undefined,
-  nowMs?: number,
-): string | undefined {
-  if (timing?.startedAtMs === undefined) return undefined;
-  const completedAtMs = timing.completedAtMs ?? nowMs;
-  if (completedAtMs === undefined) return undefined;
-  const durationMs = completedAtMs - timing.startedAtMs;
-  if (!Number.isFinite(durationMs) || durationMs < 0) return undefined;
-  return durationMs < 1_000
-    ? `${String(durationMs)}ms`
-    : `${String(Math.round(durationMs / 100) / 10)}s`;
-}
-
-export function ToolDuration({
-  status,
-  timing,
-}: Readonly<{
-  status: AgentItemStatus;
-  timing: NonNullable<AgentTurn["itemTimings"]>[string];
-}>) {
-  const [nowMs, setNowMs] = useState(Date.now);
-  const isRunning = status === "running" && timing.completedAtMs === undefined;
-  useEffect(() => {
-    if (!isRunning || timing.startedAtMs === undefined) return;
-    // 只在运行中的工具上刷新计时；完成事件会冻结最终耗时。
-    const interval = window.setInterval(() => {
-      setNowMs(Date.now());
-    }, 100);
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [isRunning, timing.startedAtMs]);
-  const duration = formatToolDuration(timing, isRunning ? nowMs : undefined);
-  return duration === undefined ? null : (
-    <span
-      className="min-w-[6ch] shrink-0 text-right tabular-nums text-caption text-muted-foreground"
-      data-tool-duration=""
-    >
-      {duration}
-    </span>
-  );
-}
 
 export function formatTurnProcessingDuration(totalSeconds: number): Readonly<{
   dateTime: string;
@@ -244,12 +210,14 @@ export function TurnProcessingTime({
   expanded,
   onToggle,
   startedAt,
-}: Pick<AgentTurn, "completedAt" | "startedAt"> &
+  status,
+}: TurnProcessingTiming &
   Readonly<{ expanded?: boolean; onToggle?: () => void }>) {
   const [now, setNow] = useState(() => Date.now());
+  const { isRunning, totalSeconds } = resolveTurnProcessingTime({ status, startedAt, completedAt }, now);
 
   useEffect(() => {
-    if (startedAt === null || completedAt !== null) {
+    if (!isRunning) {
       return;
     }
 
@@ -259,13 +227,10 @@ export function TurnProcessingTime({
       () => setNow(Date.now()),
       TURN_PROCESSING_TIMER_INTERVAL_MS,
     );
-  }, [completedAt, startedAt]);
+  }, [isRunning, startedAt]);
 
-  const startedAtMs = startedAt === null ? Number.NaN : Date.parse(startedAt);
-  const endedAtMs = completedAt === null ? now : Date.parse(completedAt);
-  const hasDuration = Number.isFinite(startedAtMs) && Number.isFinite(endedAtMs);
-  if (!hasDuration && onToggle === undefined) return null;
-  const duration = hasDuration ? formatTurnProcessingDuration(Math.max(0, Math.floor((endedAtMs - startedAtMs) / 1_000))) : null;
+  if (totalSeconds === null && onToggle === undefined) return null;
+  const duration = totalSeconds === null ? null : formatTurnProcessingDuration(totalSeconds);
   const content = duration === null ? i18n.t(expanded ? "timeline.collapseProcess" : "timeline.expandProcess", { ns: "conversation" }) : (
     <><span>{i18n.t("timeline.processing", { ns: "conversation" })}&nbsp;</span><time dateTime={duration.dateTime}>{duration.label}</time></>
   );

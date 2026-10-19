@@ -57,3 +57,13 @@ Use the **Configure remote** dialog to edit the destination; failed saves keep y
 Fetch remote updates, then pull after committing working changes. Pulls allow fast-forward updates only and do not create a merge or conflicts. Handle diverged histories or unfinished Git operations in an external Git tool, then refresh the status. The app does not provide conflict editing, marking resolved, or completing or cancelling merges. Protected-branch failures offer feature branch creation; publish that branch and open a pull request on the remote host.
 
 Status checks read local configuration and cached remote references; fetch explicitly to update them. After a commit, automatic checks wait for Git writes to finish, so early metadata updates do not trigger competing reads or leave transient errors requiring manual retry. Pushes first read the current commit, then bind its HEAD and branch, so unrelated working edits do not block them. A concurrent commit or branch change stops the push; refresh, confirm the branch, and retry. Read-only checks can refresh an outdated worktree snapshot. Web uses the Git identity and credentials on the computer running its server, even when accessed from another device.
+
+## Worktrees and new tasks
+
+Open the branch menu below the composer to select an existing worktree or create a new one. These Git operations do not create a task or choose an engine. The selected directory also drives files, Git tools, and desktop terminal creation. Choose Codex or Claude, a model, and other settings in the composer; the first message creates the task in that directory under the original project.
+
+Selecting a worktree from an existing conversation opens a new draft in that directory. The original conversation keeps its saved directory. Split panes retain their own draft directory and settings. The project sidebar only opens ordinary drafts.
+
+New checkouts live at `<main-project>/.worktree/<branch-slug>`, including when creation starts from a linked worktree. Slashes in branch names become hyphens; occupied paths receive `-2`, `-3`, and so on. A local `.worktree/.gitignore` excludes the container contents without changing tracked project files. Existing tasks keep their saved paths. Dependencies and ignored environment files are not copied automatically.
+
+Codexly creates and validates the checkout with Git, then passes its path as the engine's working directory on first submission. This follows the official [Git worktree model](https://git-scm.com/docs/git-worktree), [Claude manual worktree workflow](https://code.claude.com/docs/en/worktrees#manage-worktrees-manually), and [Codex app-server working-directory contract](https://developers.openai.com/codex/app-server#start-a-thread).

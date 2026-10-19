@@ -133,13 +133,31 @@ describe("server event delivery", () => {
 
     const metricsResponse = await app.inject({ method: "GET", url: "/v1/metrics/events" });
     expect(metricsResponse.statusCode).toBe(200);
-    expect(metricsResponse.json()).toEqual({
+    expect(metricsResponse.json()).toMatchObject({
+      eventLoopDelayMs: {
+        count: expect.any(Number) as number,
+        p95: expect.any(Number) as number,
+        p99: expect.any(Number) as number,
+      },
       projects: [
         {
           activeClients: 1,
           backpressureSignals: 0,
           coalescedEvents: 0,
           pendingDeltas: 0,
+          queueBytes: expect.any(Number) as number,
+          queueBytesPerBatch: {
+            count: expect.any(Number) as number,
+            p95: expect.any(Number) as number,
+            p99: expect.any(Number) as number,
+          },
+          queueWaitMs: {
+            count: expect.any(Number) as number,
+            p95: expect.any(Number) as number,
+            p99: expect.any(Number) as number,
+          },
+          snapshotRetries: 0,
+          snapshotRetriesPerRead: { count: 0, p95: 0, p99: 0 },
           projectId: "codexly",
           providerEventsReceived: 3,
           publishedEvents: 3,

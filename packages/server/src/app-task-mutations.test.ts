@@ -55,7 +55,8 @@ describe("server task mutations", () => {
     readGlobalSettings.mockResolvedValue({
       approvalPolicy: "on-request",
       approvalsReviewer: "auto_review",
-      commitMessageModel: "gpt-5.6-sol",
+      defaultAgent: "codex" as const,
+      defaultModel: "gpt-5.6-sol",
       commitMessagePrompt: "",
       modelContextWindow: null,
       defaultOpenAppId: null,
@@ -472,4 +473,56 @@ describe("server task mutations", () => {
     expect(readTask).not.toHaveBeenCalled();
     expect(unarchiveTask).toHaveBeenCalledWith("task-1");
   });
+});
+
+it("stops session work independently of a completed foreground turn and scopes idempotency", async () => {
+  const h = await createHarness();
+  const request = {
+    method: "POST" as const,
+    url: "/v1/projects/codexly/tasks/task-1/session/stop",
+    headers: { "idempotency-key": "stop-background" },
+    payload: { taskId: "task-1", backgroundTaskId: "child" },
+  };
+  const response = await h.app.inject(request);
+  expect(response.statusCode).toBe(202);
+  expect(h.stopSession).toHaveBeenCalledExactlyOnceWith("task-1", "child");
+  expect((await h.app.inject(request)).json()).toEqual(response.json());
+  const wrongTask = await h.app.inject({
+    ...request,
+    headers: { "idempotency-key": "wrong-task" },
+    payload: { taskId: "other" },
+  });
+  expect(wrongTask.statusCode).toBe(404);
+});
+
+it("uses persisted Claude settings for compaction and inherits them for message-position forks", async () => {
+  const h = await createHarness();
+  const settings = {
+    ...turnOptions,
+    engineOptions: { engine: "claude" as const, permissionMode: "plan" as const },
+  };
+  h.readTask.mockResolvedValue({ ...snapshot, engine: "claude" });
+  h.provider.readTaskMetadata = () => Promise.resolve({ ...snapshot, engine: "claude" });
+  h.readTaskSettings.mockResolvedValue(settings);
+  const compactRequest = {
+    method: "POST" as const,
+    headers: { "idempotency-key": "claude-compact" },
+    payload: {},
+    url: "/v1/projects/codexly/tasks/task-1/compact",
+  };
+  const compact = await h.app.inject(compactRequest);
+  await h.app.inject(compactRequest);
+  expect(compact.statusCode, compact.body).toBe(202);
+  expect(h.compactTask).toHaveBeenCalledExactlyOnceWith("task-1", settings);
+  const request = {
+    method: "POST" as const,
+    headers: { "idempotency-key": "claude-fork" },
+    payload: { lastTurnId: "clicked-turn" },
+    url: "/v1/projects/codexly/tasks/task-1/fork",
+  };
+  const fork = await h.app.inject(request);
+  await h.app.inject(request);
+  expect(fork.statusCode, fork.body).toBe(201);
+  expect(h.forkTask).toHaveBeenCalledExactlyOnceWith("task-1", "clicked-turn");
+  expect(h.writeTaskSettings).toHaveBeenCalledWith("codexly", "task-2", settings);
 });

@@ -1,0 +1,125 @@
+import { afterEach, expect, it, vi } from "vitest";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
+import type { ClaudeSdk } from "./provider.js";
+import { ClaudeRuntime } from "./runtime.js";
+import type { Query } from "@anthropic-ai/claude-agent-sdk";
+import type { LocalCatalogStore } from "@codexly/core";
+
+const roots: string[] = [];
+afterEach(async () => {
+  vi.unstubAllEnvs();
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
+it("loads native SDK authentication, merges discovery and refreshes externally changed models", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-runtime-"));
+  roots.push(root);
+  const user = join(root, "user");
+  await mkdir(user);
+  vi.stubEnv("CLAUDE_CONFIG_DIR", user);
+  const close = vi.fn();
+  const query = vi.fn(
+    (_input: Parameters<ClaudeSdk["query"]>[0]) =>
+      ({
+        supportedModels: () =>
+          Promise.resolve([
+            {
+              value: "sonnet",
+              displayName: "Sonnet → gateway-sonnet",
+              description: "Test",
+              supportedEffortLevels: ["high", "max"],
+            },
+            { value: "default", displayName: "Default", description: "" },
+            { value: "claude-sonnet-4-6", displayName: "Sonnet 4.6", description: "" },
+            { value: "sonnet[1m]", displayName: "Sonnet 1M", description: "" },
+            { value: "haiku", displayName: "Haiku 4.5", description: "" },
+            { value: "opus", displayName: "Opus 4.6", description: "" },
+          ]),
+        supportedCommands: () =>
+          Promise.resolve([
+            { name: "review-project", description: "Review", argumentHint: "<path>" },
+          ]),
+        accountInfo: vi
+          .fn()
+          .mockResolvedValue({ tokenSource: "keychain", email: "user@example.test" }),
+        close,
+      }) as unknown as Query,
+  );
+  const runtime = new ClaudeRuntime(root, {} as LocalCatalogStore, {
+    query,
+    getSessionMessages: () => Promise.resolve([]),
+    deleteSession: vi.fn(() => Promise.resolve()),
+  });
+
+  await writeFile(
+    join(user, "settings.json"),
+    JSON.stringify({ env: { ANTHROPIC_DEFAULT_SONNET_MODEL: "gateway-sonnet" } }),
+  );
+  const [a, b] = await Promise.all([runtime.inspect(), runtime.inspect()]);
+  expect(a).toEqual(b);
+  expect(a.connection).toMatchObject({ mode: "official", state: "connected" });
+  expect(query.mock.calls[0]?.[0]).toMatchObject({
+    options: { settingSources: ["user"] },
+  });
+  expect(query.mock.calls[0]?.[0]?.options).not.toHaveProperty("settings");
+  expect(a.models.data[0]).toMatchObject({
+    id: "sonnet",
+    supportedReasoningEfforts: [
+      { id: "high", description: "high" },
+      { id: "max", description: "max" },
+    ],
+  });
+  // 目录只开放三档别名；具体版本、自动项和扩展别名不能进入两端模型选择器。
+  expect(a.models.data.map(({ id, displayName }) => ({ id, displayName }))).toEqual([
+    { id: "sonnet", displayName: "Sonnet" },
+    { id: "haiku", displayName: "Haiku" },
+    { id: "opus", displayName: "Opus" },
+  ]);
+  expect(a.models.data.find((model) => model.id === "sonnet")?.displayName).toBe("Sonnet");
+  expect(a.commands[0]?.name).toBe("review-project");
+  expect(query).toHaveBeenCalledOnce();
+  expect(close).toHaveBeenCalledOnce();
+  await writeFile(
+    join(user, "settings.json"),
+    JSON.stringify({ model: "custom-local", availableModels: ["custom-local"] }),
+  );
+  const refreshed = await runtime.inspect();
+  expect(refreshed.settings?.model).toBe("custom-local");
+  // 仅配置自定义 ID 的白名单不能让应用伪造未开放的别名。
+  expect(refreshed.models.data).toEqual([]);
+  expect(query).toHaveBeenCalledTimes(2);
+  // 全局探测与以主目录为根的项目不能共用目录缓存；只有后者允许读取项目配置。
+  await runtime.inspect({
+    id: "home-project",
+    kind: "project",
+    rootPath: homedir(),
+    runtimeWorkspaceRoots: [homedir()],
+  });
+  expect(query).toHaveBeenCalledTimes(3);
+  expect(query.mock.calls[2]?.[0]).toMatchObject({
+    options: { settingSources: ["user", "project", "local"] },
+  });
+  runtime.close();
+});
+
+it("does not treat the SDK none authentication source as a connected account", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-no-auth-"));
+  roots.push(root);
+  vi.stubEnv("CLAUDE_CONFIG_DIR", root);
+  for (const key of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL"])
+    vi.stubEnv(key, "");
+  const runtime = new ClaudeRuntime(root, {} as LocalCatalogStore, {
+    query: () =>
+      ({
+        supportedModels: () => Promise.resolve([]),
+        supportedCommands: () => Promise.resolve([]),
+        accountInfo: () => Promise.resolve({ tokenSource: "none", apiProvider: "firstParty" }),
+        close: vi.fn(),
+      }) as unknown as Query,
+    getSessionMessages: () => Promise.resolve([]),
+    deleteSession: vi.fn(() => Promise.resolve()),
+  });
+  expect((await runtime.inspect()).connection.state).toBe("disconnected");
+  runtime.close();
+});

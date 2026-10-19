@@ -1,3 +1,4 @@
+import { ReconnectingNotice } from "@codexly/ui/core/reconnecting-notice";
 import { useHistoryLocation } from "../../search/history-location.js";
 import type { PendingRequest, Project } from "@/protocol/index.js";
 import { lazy, Suspense, useMemo } from "react";
@@ -90,7 +91,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
         >
           <ConversationContent className="gap-6">
             {props.pendingPrompt === undefined ? <Message from="assistant">
-              <TurnProcessingTime completedAt={null} startedAt={props.submissionStartedAt} />
+              <TurnProcessingTime status="running" completedAt={null} startedAt={props.submissionStartedAt} />
               <RunningReplyStatus />
             </Message> : <PendingPromptDisplay prompt={props.pendingPrompt} startedAt={props.submissionStartedAt} />}
           </ConversationContent>
@@ -194,14 +195,11 @@ function ActiveTaskTimeline({
   }
   return (
     <>
-      {runtime.connectionState === "reconnecting" ? (
-        <div
-          className="bg-control px-3 py-1.5 text-center text-label text-muted-foreground"
-          role="status"
-        >
-          {i18n.t("timeline.reconnecting", { ns: "conversation" })}
-        </div>
-      ) : null}
+      <ReconnectingNotice
+        key={runtime.metadata.id}
+        message={i18n.t("timeline.reconnecting", { ns: "conversation" })}
+        reconnecting={runtime.connectionState === "reconnecting"}
+      />
       <TaskStoreTimeline
         // 等待任务写入权确认后再启用审批，确保 inert 解除时重新触发主操作聚焦。
         connected={runtime.connectionState === "connected"

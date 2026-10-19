@@ -1,4 +1,6 @@
-use std::{path::Path, time::Duration};
+#[cfg(test)]
+use std::path::Path;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -6,12 +8,8 @@ use serde_json::{Value, json};
 use super::{
     AppServerConnection,
     connection::ConnectionError,
-    conversation::{
-        NativeThreadSection, NativeTurn, PINNED_SECTION_ID, RUNTIME_SESSION_ID, map_turn,
-        normalized_title,
-    },
+    conversation::{NativeTurn, map_turn, runtime_session_id},
     conversation_prompt::map_prompt_input,
-    sidebar::unix_seconds_to_rfc3339,
 };
 use crate::domain::{
     agent_configuration::{AgentRuntimeSettings, ModelVerbosity, WebSearchMode},
@@ -19,34 +17,46 @@ use crate::domain::{
         AgentPromptInput, AgentTurnActionResponse, AgentTurnOptions, EventCheckpoint,
         StartAgentTurnResponse,
     },
-    sidebar::{AgentTask, AgentTaskMutationResponse},
 };
+
+#[cfg(test)]
+use super::{
+    conversation::{NativeThreadSection, PINNED_SECTION_ID, normalized_title},
+    sidebar::unix_seconds_to_rfc3339,
+};
+#[cfg(test)]
+use crate::domain::sidebar::{AgentTask, AgentTaskMutationResponse};
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const TEMPORARY_PROJECT_ID: &str = "temporary";
 
+#[cfg(test)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProjectReadParams<'a> {
     project_id: &'a str,
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 struct NativeProjectResponse {
     project: NativeProject,
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 struct NativeProject {
     id: String,
     roots: Vec<NativeProjectRoot>,
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 struct NativeProjectRoot {
     path: String,
 }
 
+#[cfg(test)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ThreadStartParams<'a> {
@@ -57,11 +67,13 @@ struct ThreadStartParams<'a> {
     runtime_workspace_roots: Option<&'a [String]>,
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 struct NativeTaskResponse {
     thread: NativeTask,
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NativeTask {
@@ -177,6 +189,8 @@ struct TurnInterruptParams<'a> {
     turn_id: &'a str,
 }
 
+// 应用任务延迟创建会话；保留原生 thread/start 适配器，仅用于上游协议契约测试。
+#[cfg(test)]
 pub async fn start_task(
     connection: &AppServerConnection,
     project_id: String,
@@ -298,7 +312,7 @@ pub async fn start_turn(
     Ok(StartAgentTurnResponse {
         checkpoint: EventCheckpoint {
             sequence: 0,
-            session_id: RUNTIME_SESSION_ID,
+            session_id: runtime_session_id(),
         },
         task_id,
         turn: map_turn(response.turn)?,
@@ -409,8 +423,10 @@ pub async fn interrupt_turn(
     })
 }
 
+#[cfg(test)]
 fn map_native_task(thread: NativeTask, project_id: String) -> AgentTask {
     AgentTask {
+        engine: None,
         workspace_path: thread.cwd,
         id: thread.id,
         pinned: thread

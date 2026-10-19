@@ -36,6 +36,28 @@ const baseEvent = {
   version: 2,
 } as const;
 
+it("carries persistence failures independently of the completed execution result", () => {
+  const event = {
+    ...baseEvent,
+    provider: "claude",
+    type: "turn.completed",
+    turnId: completedTurn.id,
+    payload: { turn: { ...completedTurn, persistence: { status: "failed", error: "disk full" } } },
+  };
+  expect(Value.Check(AgentEventSchema, event)).toBe(true);
+  expect(
+    Value.Check(AgentEventSchema, {
+      ...event,
+      payload: {
+        turn: {
+          ...event.payload.turn,
+          persistence: { status: "completed", error: null },
+        },
+      },
+    }),
+  ).toBe(false);
+});
+
 it("accepts Guardian denial limits in the shared provider error contract", () => {
   expect(
     Value.Check(AgentEventSchema, {

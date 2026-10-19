@@ -1,4 +1,11 @@
 import {
+  engineSettingsPath,
+  type EngineSettingsScope,
+  type ReadOptions,
+  type MutationOptions,
+} from "./http-client-options.js";
+export type { ReadOptions, MutationOptions } from "./http-client-options.js";
+import {
   AccessStatusResponseSchema,
   AgentCapabilitiesSchema,
   AgentGlobalSettingsResponseSchema,
@@ -47,6 +54,17 @@ import {
   type WebSocketFactory,
 } from "./event-client.js";
 
+import {
+  CodexlyHttpError,
+  CodexlyMutationError,
+  CodexlyResponseError,
+} from "./http-client-errors.js";
+export {
+  CodexlyHttpError,
+  CodexlyMutationError,
+  CodexlyResponseError,
+} from "./http-client-errors.js";
+
 const APP_UPDATE_REQUEST_TIMEOUT_MS = 150_000;
 
 export interface CodexlyClientOptions {
@@ -60,10 +78,6 @@ export type CodexlyRequestTimeouts = Readonly<{
   mutationMs: number;
   queryMs: number;
   readMs: number;
-}>;
-
-export type ReadOptions = Readonly<{
-  signal?: AbortSignal;
 }>;
 
 export type ReadTaskOptions = ReadOptions & Readonly<{ cursor?: string; summary?: boolean }>;
@@ -83,46 +97,12 @@ export type ListTasksOptions = Readonly<{
   searchTerm?: string;
 }>;
 
-export type MutationOptions = Readonly<{
-  idempotencyKey?: string;
-  signal?: AbortSignal;
-}>;
-
 export type UnauthorizedListener = () => void;
 
 export type PendingRequestResolution<T extends PendingRequest> = Extract<
   ResolvePendingRequestRequest,
   { type: T["type"] }
 >["resolution"];
-
-export class CodexlyHttpError extends Error {
-  public readonly status: number;
-
-  public constructor(status: number, statusText: string, message?: string) {
-    super(message ?? `Codexly request failed with ${String(status)} ${statusText}`.trim());
-    this.name = "CodexlyHttpError";
-    this.status = status;
-  }
-}
-
-export class CodexlyMutationError extends CodexlyHttpError {
-  public readonly code: AgentMutationError["code"];
-  public readonly retryable: boolean;
-
-  public constructor(status: number, statusText: string, error: AgentMutationError) {
-    super(status, statusText, error.message);
-    this.name = "CodexlyMutationError";
-    this.code = error.code;
-    this.retryable = error.retryable;
-  }
-}
-
-export class CodexlyResponseError extends Error {
-  public constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "CodexlyResponseError";
-  }
-}
 
 export function appendQuery(
   path: string,
@@ -332,8 +312,10 @@ export class CodexlyTransport {
     );
   }
 
-  public async getGlobalSettings(options: ReadOptions = {}): Promise<AgentGlobalSettingsResponse> {
-    return this.read("/v1/settings", AgentGlobalSettingsResponseSchema, options);
+  public async getGlobalSettings(
+    options: ReadOptions & EngineSettingsScope = {},
+  ): Promise<AgentGlobalSettingsResponse> {
+    return this.read(engineSettingsPath(options), AgentGlobalSettingsResponseSchema, options);
   }
 
   public async listWorkbenchPets(options: ReadOptions = {}): Promise<WorkbenchPetCatalogResponse> {
@@ -354,10 +336,10 @@ export class CodexlyTransport {
 
   public async updateGlobalSettings(
     settings: AgentGlobalSettings,
-    options: MutationOptions = {},
+    options: MutationOptions & EngineSettingsScope = {},
   ): Promise<AgentGlobalSettingsResponse> {
     return this.mutation(
-      "/v1/settings",
+      engineSettingsPath(options),
       settings,
       AgentGlobalSettingsResponseSchema,
       options,
@@ -468,6 +450,10 @@ export class CodexlyTransport {
       }
       try {
         const errorBody: unknown = await response.json();
+        // 读取也可能返回暂时繁忙等结构化错误，校验后保留错误码和可重试标记。
+        if (Value.Check(AgentMutationErrorSchema, errorBody)) {
+          throw new CodexlyMutationError(response.status, response.statusText, errorBody);
+        }
         if (
           typeof errorBody === "object" &&
           errorBody !== null &&

@@ -1,6 +1,6 @@
 const MACOS_TARGETS = { arm64: "aarch64-apple-darwin", x64: "x86_64-apple-darwin" };
 
-function findTarget(argumentsList) {
+export function findTarget(argumentsList) {
   for (let index = 1; index < argumentsList.length; index += 1) {
     const argument = argumentsList[index];
     if (argument === "--target" || argument === "-t") {

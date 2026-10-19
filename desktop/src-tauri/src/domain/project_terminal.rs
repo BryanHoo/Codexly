@@ -112,6 +112,7 @@ pub struct TerminalSnapshot {
 pub struct CreateTerminalRequest {
     pub project_id: String,
     pub root_id: String,
+    pub root_path: Option<String>,
     pub request_id: String,
     pub generation: String,
     pub cols: u16,

@@ -1,5 +1,8 @@
+import { PersonalizationInstructionsEditor } from "@codexly/ui/core/personalization-instructions-editor";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useRef, useState } from "react";
+import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
+import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
 import type { CodexlyClient } from "@codexly/client";
 import { MemorySettingField, memoriesKey, memoryMutationScope } from "./memory-setting-field.js";
 import "../../../i18n/settings-personalization.js";
@@ -28,12 +31,12 @@ const instructionsKey = ["personalization", "instructions"] as const;
 
 export function PersonalizationSettingsPanel({
   client,
-  commitSettings,
-}: Readonly<{ client: PersonalizationClient; commitSettings?: ReactNode }>) {
+}: Readonly<{ client: PersonalizationClient }>) {
   const { t } = useTranslation("settings");
   const cache = useQueryClient();
   const [draft, setDraft] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const savedContent = useRef<string | undefined>(undefined);
   // 面板挂载时才读取；编辑期间不自动刷新，避免原文基线被外部更新替换。
   const instructions = useQuery({
     queryKey: instructionsKey,
@@ -46,8 +49,7 @@ export function PersonalizationSettingsPanel({
       client.saveGlobalInstructions(content, expectedContent),
     onSuccess: (result) => {
       cache.setQueryData(instructionsKey, result);
-      setDraft(null);
-      notifyActionSuccess(t("personalization.saved"));
+      savedContent.current = result.content;
     },
     meta: { actionNotification: false },
   });
@@ -60,6 +62,12 @@ export function PersonalizationSettingsPanel({
     },
     meta: { actionNotification: false },
   });
+  const autosave = useSettingsAutosave<string>(async (content) => {
+    const expectedContent = savedContent.current ?? instructions.data?.content;
+    if (expectedContent === undefined || content === expectedContent) return;
+    // 串行请求使用上次保存结果作为基线，继续输入时不会误触发文件冲突。
+    await save.mutateAsync({ content, expectedContent });
+  });
   const content = draft ?? instructions.data?.content ?? "";
   const conflict =
     save.error !== null &&
@@ -68,73 +76,72 @@ export function PersonalizationSettingsPanel({
   return (
     <section id="settings-panel-personalization" className="space-y-8">
       <h1 className="text-xl font-semibold">{t("sections.personalization")}</h1>
-      <div className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <label className="text-body font-semibold" htmlFor="codex-global-instructions">
-              {t("personalization.instructions")}
-            </label>
-            <p className="mt-1 text-body-small text-muted-foreground">
-              {t("personalization.description")}
-              {instructions.data ? (
-                <span className="block break-all">
-                  {t("personalization.fileLocation", { path: instructions.data.path })}
-                </span>
-              ) : null}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            className="shrink-0"
-            disabled={
-              instructions.data === undefined ||
-              instructions.isFetching ||
-              save.isPending ||
-              content === instructions.data.content
-            }
-            onClick={() => {
-              if (instructions.data)
-                save.mutate({ content, expectedContent: instructions.data.content });
-            }}
-          >
-            {t(save.isPending ? "personalization.saving" : "personalization.save")}
-          </Button>
-        </div>
-        {instructions.isError ? (
-          <p role="alert" className="text-body-small text-danger">
-            {t("personalization.loadError")}
-          </p>
-        ) : null}
-        {instructions.isPending ? <p role="status">{t("loading")}</p> : null}
-        <textarea
-          id="codex-global-instructions"
-          className="min-h-56 w-full resize-y rounded-control border border-separator bg-panel p-3 text-body-small focus:shadow-focus focus:outline-none"
-          spellCheck={false}
-          disabled={instructions.data === undefined || save.isPending || instructions.isFetching}
-          value={content}
-          onChange={(event) => {
-            setDraft(event.currentTarget.value);
-            save.reset();
-          }}
-        />
+      <SettingsSaveStatus
+        beforeLeave={() => autosave.queue.flush()}
+        status={conflict ? "idle" : autosave.status}
+        labels={{
+          saving: t("actions.saving"),
+          saved: t("actions.saved"),
+          saveError: t("errors.save"),
+          retry: t("common:actions.retry"),
+        }}
+        onRetry={() => {
+          void autosave.queue.retry();
+        }}
+      />
+      <PersonalizationInstructionsEditor
+        id="codex-global-instructions"
+        label={t("personalization.instructions")}
+        description={
+          <>
+            {t("personalization.description")}
+            {instructions.data ? (
+              <span className="block break-all">
+                {t("personalization.fileLocation", { path: instructions.data.path })}
+              </span>
+            ) : null}
+          </>
+        }
+        beforeEditor={
+          <>
+            {instructions.isError ? (
+              <p role="alert" className="text-body-small text-danger">
+                {t("personalization.loadError")}
+              </p>
+            ) : null}
+            {instructions.isPending ? <p role="status">{t("loading")}</p> : null}
+          </>
+        }
+        onBlur={() => {
+          void autosave.queue.flush();
+        }}
+        disabled={instructions.data === undefined || instructions.isFetching}
+        value={content}
+        onChange={(event) => {
+          setDraft(event.currentTarget.value);
+          autosave.queue.schedule(event.currentTarget.value);
+          save.reset();
+        }}
+      >
         {instructions.data?.overrideActive ? (
           <p className="text-body-small text-muted-foreground">{t("personalization.override")}</p>
         ) : null}
-        {save.isError ? (
+        {conflict ? (
           <p role="alert" className="text-body-small text-danger">
-            {t(conflict ? "personalization.conflict" : "personalization.saveError")}
+            {t("personalization.conflict")}
           </p>
         ) : null}
         {instructions.isError || conflict ? (
           <Button
             type="button"
             variant="ghost"
-            disabled={instructions.isFetching}
+            disabled={instructions.isFetching || save.isPending}
             onClick={() => {
               void instructions.refetch().then((result) => {
                 if (result.isSuccess) {
+                  autosave.queue.discard();
                   setDraft(null);
+                  savedContent.current = result.data.content;
                   save.reset();
                 }
               });
@@ -143,8 +150,7 @@ export function PersonalizationSettingsPanel({
             {t("personalization.reload")}
           </Button>
         ) : null}
-      </div>
-      {commitSettings}
+      </PersonalizationInstructionsEditor>
       <div className="space-y-3">
         <SettingsGroup
           title={t("personalization.memories")}

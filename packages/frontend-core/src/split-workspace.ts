@@ -4,7 +4,8 @@ export const ROUTE_SPLIT_DRAFT_ID = "route-draft";
 
 export type SplitPaneIdentity = Readonly<
   { projectId: string } & (
-    { taskId: string; draftId?: never } | { taskId?: never; draftId: string }
+    | { taskId: string; draftId?: never; workspacePath?: never }
+    | { taskId?: never; draftId: string; workspacePath?: string }
   )
 >;
 

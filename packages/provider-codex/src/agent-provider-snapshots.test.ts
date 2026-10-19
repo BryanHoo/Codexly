@@ -1,7 +1,8 @@
+import { readTaskWithCheckpoint } from "@codexly/core";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   FakeRpcClient,
   project,
@@ -415,4 +416,54 @@ describe("CodexAgentProvider snapshots", () => {
       rmSync(temporaryDirectory, { force: true, recursive: true });
     }
   });
+});
+
+it("reads a Codex summary once while process message deltas keep arriving", async () => {
+  const rpc = new FakeRpcClient([
+    { thread: nativeThread({ turns: [{ id: "turn-1", status: "inProgress", items: [] }] }) },
+  ]);
+  const provider = createCodexAgentProvider({ client: rpc, project });
+  const original = rpc.request.bind(rpc);
+  let sequence = 0;
+  provider.subscribeEvents(() => sequence++);
+  vi.spyOn(rpc, "request").mockImplementation(async (method, params) => {
+    const response = await original(method, params);
+    if (method === "thread/turns/list")
+      rpc.emitNotification("item/agentMessage/delta", {
+        threadId: "task-1",
+        turnId: "turn-1",
+        itemId: "stream",
+        delta: "持续",
+      });
+    return response;
+  });
+  const response = await readTaskWithCheckpoint(
+    provider,
+    "task-1",
+    { summary: true },
+    () => sequence,
+  );
+  expect(response?.snapshot.turns).toHaveLength(1);
+  expect(response?.checkpoint).toBeGreaterThan(0);
+  expect(rpc.calls.filter((call) => call.method === "thread/read")).toHaveLength(1);
+  expect(rpc.calls.filter((call) => call.method === "thread/turns/list")).toHaveLength(1);
+});
+
+it("passes cancellation to the active Codex snapshot RPC and dispatches no following RPC", async () => {
+  const rpc = new FakeRpcClient([]);
+  const provider = createCodexAgentProvider({ client: rpc, project });
+  const controller = new AbortController();
+  const pending = Promise.withResolvers<unknown>();
+  const request = vi.spyOn(rpc, "request").mockImplementation(() => pending.promise);
+  const reading = provider.readTask("task-1", { signal: controller.signal });
+  expect(request).toHaveBeenCalledWith(
+    "thread/read",
+    expect.any(Object),
+    undefined,
+    controller.signal,
+  );
+  controller.abort();
+  pending.resolve({ thread: nativeThread() });
+  await expect(reading).rejects.toMatchObject({ name: "AbortError" });
+  expect(request).toHaveBeenCalledOnce();
 });

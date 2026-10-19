@@ -68,6 +68,8 @@ export const conversation = {
     stopTerminal: "停止终端失败",
   },
   inspector: {
+    contextUsage: "上下文用量",
+    contextWindowUnknown: "窗口未知",
     attachmentDetail: "附件",
     changeIndicator: "{{path}}，新增 {{additions}} 行，删除 {{removals}} 行",
     changes: "变更",
@@ -103,6 +105,12 @@ export const conversation = {
     history: "历史",
     loading: "正在读取...",
     mcpEnabled: "当前任务的 MCP 服务",
+    mcpCached: "缓存状态",
+    mcpLive: "最新观测",
+    mcpUnknownTime: "观测时间未知",
+    mcpRefresh: "刷新状态",
+    mcpReconnect: "重连失败服务",
+    mcpReloadConfig: "重新加载配置",
     mcpReload: "重新加载 MCP",
     mcpReloading: "正在重新加载 MCP",
     mcpStatus: {

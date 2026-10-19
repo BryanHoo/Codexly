@@ -443,13 +443,9 @@ export function useNavigateSplitTask() {
   const workspace = useSplitWorkspaceState(pane === null);
   const activePane = useSplitActivePane(pane === null);
   const actions = useSplitWorkspaceActions();
-  // 左栏异步创建任务也绑定发起时的窗口，避免等待期间的焦点变化覆盖其他聊天。
   const identity =
-    (pane !== null &&
-    (pane.multiple ||
-      (pane.pane.draftId !== undefined && pane.pane.draftId !== ROUTE_SPLIT_DRAFT_ID))
-      ? pane.pane
-      : undefined) ?? (workspace?.enabled && workspace.panes.length > 1 ? activePane : undefined);
+    (pane?.multiple ? pane.pane : undefined) ??
+    (workspace?.enabled && workspace.panes.length > 1 ? activePane : undefined);
   const replace = actions?.replace;
   return useCallback(
     (projectId: string, taskId: string) => {
@@ -466,18 +462,23 @@ export function useOpenSplitDraft() {
   const workspace = useSplitWorkspaceState(pane === null);
   const actions = useSplitWorkspaceActions();
   return useCallback(
-    (projectId: string) => {
+    (projectId: string, workspacePath?: string) => {
       if (
         actions === null ||
-        (pane !== null &&
+        (workspacePath === undefined &&
+          pane !== null &&
           !pane.multiple &&
           (pane.pane.draftId === undefined || pane.pane.draftId === ROUTE_SPLIT_DRAFT_ID)) ||
-        (pane === null && (!workspace?.enabled || workspace.panes.length < 2))
+        (workspacePath === undefined &&
+          pane === null &&
+          (!workspace?.enabled || workspace.panes.length < 2))
       )
         return false;
       // 每次新建都分配独立草稿身份；同项目多窗不会串写，也不会接收旧草稿的迟到结果。
-      // getRandomValues 在 HTTP 部署中也可用，随机身份避免多标签页写入相同持久化草稿。
-      const draft = createSplitDraft(projectId);
+      const draft = {
+        ...createSplitDraft(projectId),
+        ...(workspacePath === undefined ? {} : { workspacePath }),
+      };
       if (pane === null) return actions.select(draft);
       // 窗口内切换草稿范围只替换所属窗口，恢复单窗后仍可继续创建任务。
       actions.replace(pane.pane, draft);
@@ -487,7 +488,7 @@ export function useOpenSplitDraft() {
   );
 }
 
-function createSplitDraft(projectId: string): SplitPaneIdentity {
+function createSplitDraft(projectId: string): Extract<SplitPaneIdentity, { draftId: string }> {
   const id = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) =>
     value.toString(16).padStart(8, "0"),
   ).join("");

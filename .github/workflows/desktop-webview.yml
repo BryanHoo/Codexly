@@ -105,10 +105,14 @@ jobs:
         working-directory: .
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare bundled desktop runtimes
+        working-directory: .
+        run: pnpm build:desktop-runtime
+
       # Windows 上的 Tauri 测试进程存在装载器问题，真实应用链路在后续步骤覆盖相同行为。
       - name: Run real Codex lifecycle test
         if: matrix.platform != 'windows-latest'
-        run: cargo test --manifest-path src-tauri/Cargo.toml --all-features --locked private_codex_should_install_and_complete_real_app_server_lifecycle -- --ignored --nocapture
+        run: cargo test --manifest-path src-tauri/Cargo.toml --all-features --locked bundled_codex_should_complete_real_app_server_lifecycle -- --ignored --nocapture
 
       # Linux Cargo 集成测试会写入同一个 debug 二进制，最后重建以保留 WebView 测试配置。
       - name: Build native WebView test application

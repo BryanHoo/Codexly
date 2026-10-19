@@ -1,0 +1,457 @@
+import { detectClaudeAuth } from "./auth-detection.js";
+import type { TaskTitleGenerator } from "@codexly/core";
+import { ClaudeAttachments } from "./attachments.js";
+import { ClaudeHistory } from "./history.js";
+import { ClaudePersistence } from "./persistence.js";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { renameStorageFile } from "./storage-rename.js";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import type {
+  AgentProviderConnectionStatus,
+  ConfigureCustomProviderRequest,
+} from "@codexly/protocol";
+import {
+  ClaudeSettingsSchema,
+  ConfigureCustomProviderRequestSchema,
+  DEFAULT_CLAUDE_SETTINGS,
+  type ClaudeSettings,
+} from "@codexly/protocol";
+import { Value } from "@sinclair/typebox/value";
+
+export type ClaudeCredentials = Readonly<{
+  apiKey?: string;
+  authToken?: string;
+  baseUrl: string;
+  models?: ConfigureCustomProviderRequest["models"];
+}>;
+
+type JsonObject = Record<string, unknown>;
+function object(value: unknown): JsonObject {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as JsonObject)
+    : {};
+}
+function text(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+function strings(value: unknown): string[] {
+  return Array.isArray(value)
+    ? [
+        ...new Set(
+          value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())),
+        ),
+      ]
+    : [];
+}
+/** 原生环境变量使用十进制字符串；不把空串、指数或非法范围误读成容量。 */
+function contextTokens(value: unknown, min = 1, max = Number.MAX_SAFE_INTEGER): number | null {
+  if (typeof value === "string" && !/^\d+$/.test(value)) return null;
+  const tokens = typeof value === "string" ? Number(value) : value;
+  return typeof tokens === "number" &&
+    Number.isSafeInteger(tokens) &&
+    tokens >= min &&
+    tokens <= max
+    ? tokens
+    : null;
+}
+function missing(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+async function readText(path: string): Promise<string> {
+  try {
+    return await readFile(path, "utf8");
+  } catch (error) {
+    if (missing(error)) return "";
+    throw error;
+  }
+}
+async function readObject(path: string): Promise<JsonObject> {
+  let raw: string;
+  try {
+    raw = await readFile(path, "utf8");
+  } catch (error) {
+    if (missing(error)) return {};
+    throw error;
+  }
+  const value: unknown = JSON.parse(raw);
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Invalid Claude user settings");
+  return value as JsonObject;
+}
+function normalizeEndpoint(value: string): string {
+  const url = new URL(value);
+  if (
+    !["https:", "http:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  )
+    throw new Error(
+      "Claude endpoint must be an HTTP(S) URL without credentials, query or fragment",
+    );
+  return url.href.replace(/\/+$/u, "");
+}
+
+export class ClaudeConfiguration {
+  // 仅驻内存的应用辅助生成入口，不写入 Claude 原生配置。
+  public taskTitleGenerator: TaskTitleGenerator | undefined;
+  readonly #directory: string;
+  readonly userDirectory: string;
+  readonly history: ClaudeHistory;
+  readonly attachments: ClaudeAttachments;
+  readonly persistence: ClaudePersistence;
+  #write: Promise<unknown> = Promise.resolve();
+
+  constructor(
+    directory: string,
+    userDirectory = text(process.env["CLAUDE_CONFIG_DIR"]) ?? join(homedir(), ".claude"),
+  ) {
+    this.#directory = directory;
+    this.userDirectory = resolve(userDirectory);
+    // 只有应用历史投影与项目加载偏好留在私有目录；原生配置始终以用户文件为准。
+    this.attachments = new ClaudeAttachments(join(directory, "attachments"));
+    this.history = new ClaudeHistory(join(directory, "transcripts"));
+    this.persistence = new ClaudePersistence(this.history);
+  }
+
+  #native() {
+    return readObject(join(this.userDirectory, "settings.json"));
+  }
+
+  #environment(native: JsonObject): Record<string, string | undefined> {
+    const env = Object.fromEntries(
+      Object.entries(object(native["env"])).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
+    // 与 CLI 一样保留宿主环境优先级，不清除代理、模型别名或第三方后端认证。
+    return {
+      ...env,
+      ...Object.fromEntries(Object.entries(process.env).filter(([, value]) => Boolean(value))),
+    };
+  }
+  environment(): Record<string, string | undefined> {
+    return { ...claudeEnvironment(), CLAUDE_CONFIG_DIR: this.userDirectory };
+  }
+
+  async readSettings(): Promise<ClaudeSettings> {
+    const [native, preferences, instructions] = await Promise.all([
+      this.#native(),
+      readObject(join(this.#directory, "preferences.json")),
+      readText(join(this.userDirectory, "CLAUDE.md")),
+    ]);
+    const env = this.#environment(native),
+      permissions = object(native["permissions"]);
+    const modelAliases = Object.fromEntries(
+      (["opus", "sonnet", "haiku"] as const).map((alias) => [
+        alias,
+        text(env[`ANTHROPIC_DEFAULT_${alias.toUpperCase()}_MODEL`]) ?? "",
+      ]),
+    );
+    // 只投影覆盖来源的名称，绝不把宿主环境中的认证值返回给浏览器。
+    const environmentOverrides = Object.keys(process.env).filter(
+      (key) =>
+        Boolean(process.env[key]) &&
+        /^(?:ANTHROPIC_(?:API_KEY|AUTH_TOKEN|BASE_URL|MODEL|DEFAULT_(?:OPUS|SONNET|HAIKU)_MODEL)|CLAUDE_CODE_(?:EFFORT_LEVEL|MAX_CONTEXT_TOKENS|AUTO_COMPACT_WINDOW|DISABLE_1M_CONTEXT))$/.test(
+          key,
+        ),
+    );
+    const settings = {
+      ...(environmentOverrides.length ? { environmentOverrides } : {}),
+      modelAliases,
+      model: text(env["ANTHROPIC_MODEL"]) ?? text(native["model"]) ?? DEFAULT_CLAUDE_SETTINGS.model,
+      modelContextWindow: contextTokens(env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"]),
+      // 环境变量优先于原生设置；兼容用户在 CLI 中已有的压缩窗口配置。
+      autoCompactWindow: contextTokens(
+        env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] ?? native["autoCompactWindow"],
+        100000,
+        1000000,
+      ),
+      reasoningEffort: text(env["CLAUDE_CODE_EFFORT_LEVEL"]) ?? text(native["effortLevel"]) ?? "",
+      permissionMode: permissions["defaultMode"] ?? "default",
+      instructions,
+      loadProjectSettings: preferences["loadProjectSettings"] !== false,
+      allowedTools: strings(permissions["allow"]),
+      disallowedTools: strings(permissions["deny"]),
+    };
+    // 原生文件还允许未来扩展值；公共表单只投影当前支持的枚举。
+    // auto 属于正式支持的值，读取后必须原样进入执行链路；未知扩展值保存时仍保留。
+    if (!Value.Check(ClaudeSettingsSchema.properties.reasoningEffort, settings.reasoningEffort))
+      settings.reasoningEffort = "";
+    if (!Value.Check(ClaudeSettingsSchema.properties.permissionMode, settings.permissionMode))
+      settings.permissionMode = "default";
+    return settings as ClaudeSettings;
+  }
+
+  #enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.#write.then(operation);
+    this.#write = result.catch(() => undefined);
+    return result;
+  }
+
+  writeSettings(settings: ClaudeSettings): Promise<ClaudeSettings> {
+    if (!Value.Check(ClaudeSettingsSchema, settings))
+      return Promise.reject(new Error("Invalid Claude settings"));
+    const snapshot = structuredClone(settings);
+    return this.#enqueue(async () => {
+      const native = await this.#native();
+      this.#mergeSettings(native, snapshot);
+      // 每次从磁盘合并最新内容，只修改表单负责的键，保留 hooks、插件、ask 等原生设置。
+      await this.#persist(
+        join(this.userDirectory, "settings.json"),
+        JSON.stringify(native, null, 2) + "\n",
+      );
+      await this.#persist(join(this.userDirectory, "CLAUDE.md"), snapshot.instructions);
+      await this.#persist(
+        join(this.#directory, "preferences.json"),
+        JSON.stringify({
+          ...(await readObject(join(this.#directory, "preferences.json"))),
+          loadProjectSettings: snapshot.loadProjectSettings,
+        }),
+      );
+      return this.readSettings();
+    });
+  }
+
+  #mergeSettings(native: JsonObject, snapshot: ClaudeSettings): void {
+    const permissions = object(native["permissions"]);
+    // 未来扩展模式尚未暴露给表单，default 可能来自读取时的降级投影。
+    // 全量提交无法证明用户主动切换到了 default，因此保留最新原生值；
+    // 只有选择其他受支持模式时才覆盖，避免仅修改指令也悄悄重置权限。
+    const preserveNativeMode =
+      snapshot.permissionMode === "default" &&
+      "defaultMode" in permissions &&
+      !Value.Check(ClaudeSettingsSchema.properties.permissionMode, permissions["defaultMode"]);
+    native["model"] = snapshot.model;
+    // max 是单次执行档位，原生持久化只接受到 xhigh；用官方环境变量保存 max。
+    if (snapshot.reasoningEffort && snapshot.reasoningEffort !== "max")
+      native["effortLevel"] = snapshot.reasoningEffort;
+    else delete native["effortLevel"];
+    const env = { ...object(native["env"]) };
+    // 只处理显式提供的字段，旧客户端保存其他设置不能删除新窗口配置。
+    if (snapshot.modelContextWindow !== undefined) {
+      if (snapshot.modelContextWindow === null) delete env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"];
+      else env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] = String(snapshot.modelContextWindow);
+    }
+    if (snapshot.autoCompactWindow !== undefined) {
+      // 使用官方设置键持久化，移除用户文件中会遮蔽该值的旧环境覆盖；宿主环境仍优先。
+      delete env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"];
+      if (snapshot.autoCompactWindow === null) delete native["autoCompactWindow"];
+      else native["autoCompactWindow"] = snapshot.autoCompactWindow;
+    }
+    // 三个档位只写入官方别名变量，不再把映射目标误当成 availableModels 白名单。
+    if (snapshot.modelAliases) {
+      for (const alias of ["opus", "sonnet", "haiku"] as const) {
+        const key = `ANTHROPIC_DEFAULT_${alias.toUpperCase()}_MODEL`;
+        const value = snapshot.modelAliases[alias].trim();
+        if (value) env[key] = value;
+        else Reflect.deleteProperty(env, key);
+      }
+    }
+    if ("ANTHROPIC_MODEL" in env) env["ANTHROPIC_MODEL"] = snapshot.model;
+    if (snapshot.reasoningEffort === "max" || "CLAUDE_CODE_EFFORT_LEVEL" in env) {
+      if (snapshot.reasoningEffort) env["CLAUDE_CODE_EFFORT_LEVEL"] = snapshot.reasoningEffort;
+      else delete env["CLAUDE_CODE_EFFORT_LEVEL"];
+    }
+    if (Object.keys(env).length || "env" in native) native["env"] = env;
+    native["permissions"] = {
+      ...permissions,
+      defaultMode: preserveNativeMode ? permissions["defaultMode"] : snapshot.permissionMode,
+      allow: snapshot.allowedTools,
+      deny: snapshot.disallowedTools,
+    };
+  }
+
+  async credentials(): Promise<ClaudeCredentials | undefined> {
+    const native = await this.#native(),
+      env = this.#environment(native);
+    const apiKey = text(env["ANTHROPIC_API_KEY"]),
+      authToken = text(env["ANTHROPIC_AUTH_TOKEN"]);
+    const models = strings(native["availableModels"]);
+    if (!apiKey && !authToken && !models.length && !text(env["ANTHROPIC_BASE_URL"]))
+      return undefined;
+    return {
+      ...(apiKey ? { apiKey } : {}),
+      ...(authToken ? { authToken } : {}),
+      baseUrl: text(env["ANTHROPIC_BASE_URL"]) ?? "https://api.anthropic.com",
+      models: [...new Set(models)].map((id) => ({ id, name: id })),
+    };
+  }
+
+  async connectionRevision(): Promise<string> {
+    const credentials = await this.credentials();
+    // SDK 子进程固定使用启动时的连接配置；只保存有效地址与凭据的摘要，避免长期持有明文。
+    // 不使用目录缓存的 revision：原生登录元数据会自行更新，不应因此每轮重启 SDK。
+    return createHash("sha256")
+      .update(
+        JSON.stringify([
+          credentials?.baseUrl ?? "https://api.anthropic.com",
+          credentials?.apiKey ?? null,
+          credentials?.authToken ?? null,
+        ]),
+      )
+      .digest("hex");
+  }
+
+  async status(): Promise<AgentProviderConnectionStatus> {
+    const credentials = await this.credentials();
+    const custom =
+      Boolean(credentials?.apiKey) ||
+      Boolean(credentials?.authToken) ||
+      (credentials?.baseUrl !== undefined && credentials.baseUrl !== "https://api.anthropic.com");
+    // 本机 OAuth、钥匙串、apiKeyHelper 和云认证交给 SDK；对外绝不返回密钥。
+    return {
+      mode: custom ? "custom" : "official",
+      state:
+        Boolean(credentials?.apiKey) || Boolean(credentials?.authToken)
+          ? "connected"
+          : "disconnected",
+      account:
+        Boolean(credentials?.apiKey) || Boolean(credentials?.authToken) ? { type: "apiKey" } : null,
+      customBaseUrl: custom ? (credentials?.baseUrl ?? null) : null,
+      pendingLogin: null,
+    };
+  }
+
+  async revision(cwd: string): Promise<string> {
+    // 内容摘要保证同一时钟粒度内的外部配置编辑也能使目录缓存失效；不保存明文凭据。
+    const files = [
+      join(this.userDirectory, "settings.json"),
+      join(this.userDirectory, "CLAUDE.md"),
+      join(this.#directory, "preferences.json"),
+    ];
+    const contents = await Promise.all(files.map(readText));
+    const metadata = await Promise.all(
+      [
+        join(this.userDirectory, ".credentials.json"),
+        join(this.userDirectory, ".claude.json"),
+        join(homedir(), ".claude.json"),
+        join(cwd, ".claude", "settings.json"),
+        join(cwd, ".claude", "settings.local.json"),
+      ].map(async (path) => {
+        try {
+          const info = await stat(path);
+          return [info.mtimeMs, info.ctimeMs, info.size];
+        } catch (error) {
+          if (missing(error)) return null;
+          throw error;
+        }
+      }),
+    );
+    return createHash("sha256")
+      .update(JSON.stringify([contents, metadata, process.env]))
+      .digest("hex");
+  }
+
+  async #persist(path: string, content: string): Promise<void> {
+    await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+    const temporary = `${path}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, content, { mode: 0o600, flag: "wx" });
+      await renameStorageFile(temporary, path);
+    } finally {
+      await rm(temporary, { force: true });
+    }
+  }
+
+  configure(input: ConfigureCustomProviderRequest): Promise<void> {
+    if (!Value.Check(ConfigureCustomProviderRequestSchema, input))
+      return Promise.reject(new Error("Invalid Claude connection configuration"));
+    const snapshot = structuredClone(input);
+    return this.#enqueue(async () => {
+      const baseUrl = normalizeEndpoint(snapshot.baseUrl);
+      const previous = await this.credentials();
+      // 切换地址或认证头必须重新提供凭据，避免把旧服务的密钥发给新服务。
+      const previousType = previous?.authToken && !previous.apiKey ? "authToken" : "apiKey";
+      const sameEndpoint = previous?.baseUrl.replace(/\/+$/u, "") === baseUrl;
+      const automatic = snapshot.authType === "auto";
+      let authType = automatic
+        ? sameEndpoint
+          ? previousType
+          : "apiKey"
+        : (snapshot.authType ?? previousType);
+      const secret =
+        text(snapshot.apiKey?.trim()) ??
+        (sameEndpoint
+          ? authType === "authToken"
+            ? previous.authToken
+            : previous.apiKey
+          : undefined);
+      if (
+        !secret &&
+        (baseUrl !== (previous?.baseUrl ?? "https://api.anthropic.com") ||
+          (snapshot.authType && snapshot.authType !== previousType))
+      )
+        throw new Error(
+          "An explicit Claude credential is required when changing endpoint or authentication type",
+        );
+      if (automatic) {
+        if (!secret) throw new Error("Enter a Claude access credential.");
+        // 检测成功前不修改磁盘；失败时保留原连接以及所有原生配置。
+        authType = await detectClaudeAuth(
+          baseUrl,
+          secret,
+          authType === "authToken" ? "authToken" : "apiKey",
+        );
+      }
+      const apiKey = authType === "apiKey" ? secret : undefined;
+      const authToken = authType === "authToken" ? secret : undefined;
+      // 网络检测后重新合并原生文件，保留检测期间外部更新的非连接配置。
+      const native = await this.#native();
+      const env = { ...object(native["env"]), ANTHROPIC_BASE_URL: baseUrl };
+      delete (env as JsonObject)["ANTHROPIC_API_KEY"];
+      delete (env as JsonObject)["ANTHROPIC_AUTH_TOKEN"];
+      native["env"] = {
+        ...env,
+        ...(apiKey
+          ? { ANTHROPIC_API_KEY: apiKey }
+          : authToken
+            ? { ANTHROPIC_AUTH_TOKEN: authToken }
+            : {}),
+      };
+      if (snapshot.models !== undefined) {
+        if (snapshot.models.length)
+          native["availableModels"] = snapshot.models.map((model) => model.id);
+        else delete native["availableModels"];
+      }
+      await this.#persist(
+        join(this.userDirectory, "settings.json"),
+        JSON.stringify(native, null, 2) + "\n",
+      );
+    });
+  }
+
+  clear(): Promise<void> {
+    return this.#enqueue(async () => {
+      const native = await this.#native(),
+        env = { ...object(native["env"]) };
+      delete env["ANTHROPIC_API_KEY"];
+      delete env["ANTHROPIC_AUTH_TOKEN"];
+      delete env["ANTHROPIC_BASE_URL"];
+      native["env"] = env;
+      await this.#persist(
+        join(this.userDirectory, "settings.json"),
+        JSON.stringify(native, null, 2) + "\n",
+      );
+    });
+  }
+}
+
+export function claudeEnvironment(
+  credentials?: ClaudeCredentials,
+  inherited: Readonly<Record<string, string | undefined>> = process.env,
+): Record<string, string | undefined> {
+  // 只移除嵌套 CLI 检测标志；保留用户的认证、模型、云服务商与代理配置交给官方 SDK。
+  const { CLAUDECODE: _nested, ...environment } = inherited;
+  return {
+    ...environment,
+    ...(credentials?.apiKey ? { ANTHROPIC_API_KEY: credentials.apiKey } : {}),
+    ...(credentials?.authToken ? { ANTHROPIC_AUTH_TOKEN: credentials.authToken } : {}),
+    ...(credentials ? { ANTHROPIC_BASE_URL: credentials.baseUrl } : {}),
+    CLAUDE_AGENT_SDK_CLIENT_APP: "codexly",
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
+  };
+}

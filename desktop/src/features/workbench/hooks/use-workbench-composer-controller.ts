@@ -1,5 +1,5 @@
 import type { AgentAttachment, AgentTask } from "@/protocol/index.js";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
 import { notifyActionError } from "../../notifications/action-notifications.js";
@@ -53,12 +53,16 @@ export function useWorkbenchComposerController(
     onSubmissionStateChange?.(submitting);
   }, [onSubmissionStateChange]);
 
-  useEffect(
-    () => () => {
-      onSubmissionStateChange?.(false);
-    },
-    [onSubmissionStateChange],
-  );
+  const notifySubmissionUnmount = useEffectEvent(() => {
+    onSubmissionStateChange?.(false);
+  });
+  useEffect(() => {
+    // 回调随双引擎 Composer 重渲染而变化；仅真正卸载时清理，避免发送途中撤掉消息占位。
+    // Effect Event 读取最新回调，卸载时仍通知当前任务与窗口。
+    return () => {
+      notifySubmissionUnmount();
+    };
+  }, []);
 
   const isCurrentScope = useCallback(
     (requestScope: string) => isComposerControllerScopeCurrent(routeScopeRef.current, requestScope),

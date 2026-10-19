@@ -1,4 +1,5 @@
-import { prepareLocalCatalog } from "./cli-local-catalog.js";
+import { importLocalCatalog, prepareLocalCatalog } from "./cli-local-catalog.js";
+import { createLazyCodexRuntime, type CliManagedRuntime } from "./cli-lazy-codex-client.js";
 import type { ManagedStartContext } from "./autostart/runtime.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -10,16 +11,16 @@ import type {
   ProjectRepository,
   WorkbenchPetProvider,
 } from "@codexly/core";
-import { DEFAULT_COMMIT_MESSAGE_MODEL, type AppUpdateProgress } from "@codexly/protocol";
+import { DEFAULT_GENERATION_MODEL, type AppUpdateProgress } from "@codexly/protocol";
 import {
   checkCodexVersion,
   createCodexRuntimeProvider,
   createCodexWorkbenchPetProvider,
   locateCodexBinary,
   startCodexAppServer,
+  SUPPORTED_CODEX_VERSION,
   type CreateCodexWorkbenchPetProviderOptions,
   type CodexBinary,
-  type CodexProcessExit,
   type CodexRpcClient,
   type CodexVersionInfo,
   type LocateCodexBinaryOptions,
@@ -32,9 +33,8 @@ import {
   LocalProjectRepository,
   type SqliteDatabaseDiagnostics,
 } from "@codexly/server";
-
 import packageManifest from "../package.json" with { type: "json" };
-import { createAppUpdateService } from "./app-update.js";
+import { createAppUpdateService, readClaudeCodeVersion } from "./app-update.js";
 import {
   parseStartOptions,
   CLI_COMMAND_HELP,
@@ -62,14 +62,6 @@ import {
   parseSessionTtl,
   validateLanPassword,
 } from "./lan-access.js";
-
-interface CliManagedRuntime {
-  client: CodexRpcClient;
-  close: () => Promise<void>;
-  version: CodexVersionInfo;
-  waitForExit: () => Promise<CodexProcessExit>;
-}
-
 interface CliManagedServer {
   close: () => Promise<void>;
   listen: (options: { host: string; port: number }) => Promise<string>;
@@ -79,7 +71,6 @@ interface CliManagedProjectRepository extends ProjectRepository {
   migrateLegacyProjects(options: { recoverUnassigned: boolean }): Promise<void>;
   synchronize(): ReturnType<ProjectRepository["list"]>;
 }
-
 interface CreateRuntimeProviderInput {
   readTaskTitleModel: () => Promise<string>;
   codexHome?: string;
@@ -284,7 +275,7 @@ export async function runStart(
     throw new Error("Shutdown signal is unavailable");
   }
 
-  let runtime: CliManagedRuntime | undefined;
+  let runtime: ReturnType<typeof createLazyCodexRuntime> | undefined;
   let server: CliManagedServer | undefined;
   let stateRepository: CliManagedStateRepository | undefined;
 
@@ -313,7 +304,9 @@ export async function runStart(
         ? initialize()
         : startupStateRepository.withScheduledTaskLock(initialize);
     };
-    runtime = await startRuntime();
+    runtime = createLazyCodexRuntime(startRuntime, (client) =>
+      importLocalCatalog(client, startupStateRepository),
+    );
     const catalogClient = await prepareLocalCatalog(runtime.client, stateRepository);
     const projectRepository = dependencies.createProjectRepository({
       client: catalogClient,
@@ -329,19 +322,26 @@ export async function runStart(
     if (!projectSourceMigration.completed) {
       await stateRepository.completeProjectSourceMigration();
     }
-    const provider = await dependencies.createRuntimeProvider({
+    const codexProvider = await dependencies.createRuntimeProvider({
       codexHome,
       client: catalogClient,
       modelCatalogRuntimeFactory: startRuntime,
       // 标题与提交信息共用应用模型设置，按需读取最新值，不阻塞首次发送。
       readTaskTitleModel: async () =>
-        (await startupStateRepository.readGlobalSettings())?.commitMessageModel ??
-        DEFAULT_COMMIT_MESSAGE_MODEL,
+        (await startupStateRepository.readGlobalSettings())?.defaultModel ??
+        DEFAULT_GENERATION_MODEL,
     });
+    const provider = enableClaudeRuntime(codexProvider, stateRepository, codexHome);
     const petProvider = dependencies.createPetProvider({ codexHome });
     const appUpdateService = createAppUpdateService({
       appVersion: dependencies.appVersion,
-      codexVersion: runtime.version.version,
+      // 启动时只读一次小型清单，后续关于页请求复用当前进程实际使用的版本。
+      claudeVersion: await readClaudeCodeVersion(),
+      get codexVersion() {
+        // 冷启动时沿用桌面端的支持版本回退，避免空字符串导致整个版本响应校验失败。
+        const version = runtime?.version ?? SUPPORTED_CODEX_VERSION;
+        return version === "" ? SUPPORTED_CODEX_VERSION : version;
+      },
     });
     server = await dependencies.createServer({
       // 托管运行复用已有日志目的地，HTTP 与 Provider 诊断也进入脱敏且有上限的后台日志。
@@ -351,7 +351,7 @@ export async function runStart(
       projectRepository,
       providerConnectionRepository: stateRepository,
       provider,
-      preloadModelCatalog: true,
+      preloadModelCatalog: false,
       petProvider,
       installAppUpdate: appUpdateService.install,
       readAppInfo: appUpdateService.read,
@@ -430,10 +430,10 @@ export async function runStart(
       await server?.close();
     } finally {
       try {
-        await stateRepository?.close();
+        await runtime?.close();
       } finally {
         try {
-          await runtime?.close();
+          await stateRepository?.close();
         } finally {
           ownedShutdown?.cleanup();
         }
@@ -497,3 +497,4 @@ export async function runCli(
     return 1;
   }
 }
+import { enableClaudeRuntime } from "./cli-engine-runtime.js";

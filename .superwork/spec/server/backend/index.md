@@ -1,19 +1,27 @@
 # Fastify 服务端
 
+- 任务提交的订阅保护必须覆盖归属校验、模型校验、设置保存、附件准备和启动请求的完整区间；前台切走不能释放正在准备发送的任务。若退订已先开始，提交应等待其结束后重新校验归属。保护按任务隔离并在成功/失败后释放，空闲条目立即删除；回归覆盖 `app-submissions.test.ts` 和 `task-execution-lifecycle.test.ts`。
+
 `packages/server/src/app.ts` 创建服务并注册 `routes/`；`server-delivery.ts` 配置交付层，`project-runtime-context.ts` 组织项目运行时。SQLite 仓储和 Worker 在 `sqlite-*` 文件中，Codex Provider 通过 `CreateCodexlyServerOptions` 注入。
 
 - 入队与附件保留共用任务执行锁；入队完成后检查空闲并续发，覆盖入队晚于回合终态事件的竞态。续发属于同次幂等操作，重放不得消费下一项；入队已持久化后投递失败不得误报入队失败。自动续发不能 steer 运行中的回合。
 
 - HTTP 输入与错误边界由 `routes/`、`routes/schemas.ts` 维护；修改接口要同步客户端和协议。
+- 请求异常只记录白名单类型/系统码、组件、阶段、代码位置指纹及最多三层 cause 分类；禁止记录原始 message、堆栈、任意 name/code/data、凭据和请求/响应正文。指纹不包含 message，cause 访问不执行 getter；完成日志仍只输出一次。客户端保留安全错误描述，不返回诊断详情。用 `error-diagnostics.test.ts`、`request-logging.test.ts` 和 `app-connection.test.ts` 验证敏感标记、指纹稳定性及异常链边界。
+- `/v1/metrics/events` 增加队列字节、批次排队时长、快照重试及事件循环延迟诊断。`queueBytes` 是合并队列与各连接待发送事件及 socket 缓冲的即时字节总和；应用队列按事件 JSON 的 UTF-8 大小估算、不额外加入批次封套，socket 使用实际 bufferedAmount；`queueBytesPerBatch` 和 `queueWaitMs` 分别采样合并批次、连接实时批次交付前的队列字节和最老事件等待时间，不代表 TCP 确认延迟。排队字节采样复用事件序列化缓存。字节/等待/每次快照重试分位保留最近 1024 个样本，count 与 snapshotRetries 为项目运行时累计值；事件循环延迟由每实例一个 20ms 原生采样器统计服务启动以来的毫秒分位，关闭时禁用。快照重试只统计通过取消/截止检查后真正开始的第二次读取；成功与失败都计入每次读取分布。指标不得保存或输出正文，连接释放须注销队列观测。验证 `agent-event-stream.test.ts`、`metric-distribution.test.ts`、`app-events.test.ts`、`app-snapshot-consistency.test.ts` 和服务端性能套件。
 - 全局交付钩子保留成功资源路由明确声明的私有缓存，普通 API、鉴权失败和错误仍返回 `no-store`。图片和任务附件通过 `private-asset-response` 生成内容 ETag，匹配条件请求返回无正文的 304；条件请求仍须完成项目、任务与访问权限校验。使用 `app-attachments.test.ts`、`app-files.test.ts` 和 `app-security.test.ts` 验证缓存、正文与鉴权边界。
 - 全局任务搜索和历史匹配位置搜索必须将 `request.signal` 传入 Provider 与 RPC 等待层；取消后停止派发后续锚点查询，移除等待项、超时及重试计时器和取消监听器。迟到响应不得触发重试，也不得关闭共享 RPC 连接；用 `app-global-search.test.ts` 验证真实 HTTP 断连，用 `global-search.test.ts` 和 `jsonl-rpc-cancellation.test.ts` 验证并发锚点取消及资源清理。
 - 持久化变更检查 `sqlite-state-migrations.ts`、Worker、仓储测试和重启恢复场景。
+- SQLite Worker 连接恢复由仓库实例统一管理，所有并发等待者共享单次连接任务，任务无论成功失败都必须释放；瞬时启动失败仅在新请求到达且退避到期后重试。超时和 Worker `error/exit` 必须拒绝在途请求，结果未知的写入不得自动重放。跨线程保留 SQLite 错误码，`SQLITE_CORRUPT`（含扩展码）和 `SQLITE_NOTADB` 停止自动恢复，保留数据库供显式修复并重新打开仓库；关闭须阻止后续重建，等待或终止当前 Worker，所有并发关闭调用共享清理结果。用 `sqlite-state-recovery.test.ts` 和 `sqlite-state-lifecycle.test.ts` 覆盖失败恢复、并发等待、退避、写入不重放及关闭竞态。
+- 定时任务的引擎身份取自已保存的 `turnOptions.engineOptions.engine`，缺省为旧版 Codex；保存与触发均按对应模型目录校验，创建任务必须显式传入引擎。Web 与桌面保持一致，Claude 路径不得启动 Codex。编辑器按计划恢复引擎，不能被草稿或当前配置覆盖。验证见 `scheduled-task-engine.test.ts`、桌面 `scheduled_task` 测试及[双引擎说明](../../../../docs/agent-engines.md)。
 - 实时任务、队列与定时任务变更分别检查 `agent-event-stream.ts`、`persistent-task-queue.ts`、`scheduled-task-*` 及对应测试。
+- HTTP 任务快照遵循[共享快照与 checkpoint 契约](../../core/shared/index.md)，持久化答案及设置读取期间到达的事件仍从已捕获边界回放，不能把新序号附到旧快照。快照路由必须传递 `request.signal`，handler 超时与一致性冲突统一返回可重试的 `TASK_SNAPSHOT_BUSY`；取消后不得继续重读或读取后续答案/设置。回归见 `app-snapshot-consistency.test.ts`。
 - 多实例共用 SQLite 定时任务时，读取最新快照、状态修改和运行领取必须使用仓储的跨进程短期互斥，Provider 启动过程不得占锁。启动恢复和清理跳过存活实例拥有的运行；所有者退出后再按持久提交阶段恢复，不得盲目重新投递。数据库首次建表和迁移也通过同一短期互斥串行化；进程崩溃依靠操作系统释放锁。用 `scheduled-task-multi-instance.test.ts` 验证并发初始化、写入保留、存活运行、独立进程崩溃及锁释放。
 - WebSocket 事件发送同时限制单事件、批次 UTF-8 字节和 `bufferedAmount + 下一帧字节数`；预计缓冲超过 1 MiB 时在发送前用 1013 断开，超大内容用 1009 关闭，不计为慢客户端。默认事件保留预算必须与传输单事件上限一致，使重放转为快照恢复。用 `event-socket-sender.test.ts`、`app-events.test.ts` 验证多字节文本、封套开销、精确边界、部分发送和真实连接恢复；保持跨连接序列化缓存。
 - 工作区异步问题和待办的变更流只发送资源身份及校准信号，不广播正文、答案或附件。待办成功落盘及问题占用、解决、关闭后广播，幂等重放和失败写入不重复通知；问题消息成型及回合边界触发校准，逐 token 增量不得广播。共用资源通知连接的会话清理、心跳与背压规则，用 `app-workbench-events.test.ts`、`app-async-questions.test.ts` 和 `app-session-revocation.test.ts` 验证跨设备同步及注销清理。
 - Session 注销、容量淘汰和过期清理必须同步停止关联事件订阅并关闭全部 WebSocket；项目事件流与定时任务事件流都要覆盖，并验证其他会话仍可接收消息。连接关闭或出错时必须解除会话监听。
-- 新建 Git worktree 的工作文件放在主 worktree 同级，以分支名生成目录；`.git/worktrees` 仅存 Git 管理信息。路径撞名时顺延编号，已有任务继续使用保存的原路径。
+- 项目聊天、工作区和定时任务事件流共用服务实例级 WebSocket 生命周期管理与单个心跳定时器；每 30 秒发送协议层 ping，下一轮未收到 pong 则同步清理订阅、会话监听和 `activeClients`，并 terminate 失联连接，不等待 TCP 报告 close。清理必须幂等；最后一条连接清理及服务关闭时释放心跳定时器。心跳写入成功回调的 `null` 与 `undefined` 都表示成功，不能据此终止连接；必须用真实 TCP 连接覆盖成功回调及三类事件流，不能仅依赖 injectWS 内存传输。用 `websocket-lifecycle.test.ts` 和 `app-event-heartbeat.test.ts` 验证心跳写入失败隔离、正常 pong 保活、半开连接资源释放与项目空闲回收；模拟回归不等同于浏览器断网复现。
+- 新建 Git worktree 的工作文件统一放在主项目 `.worktree/<分支目录名>`，从 linked worktree 创建也以主检出为基准；`.git/worktrees` 仅存 Git 管理信息。容器内 `.gitignore` 忽略全部内容及自身，不修改已跟踪文件。路径撞名时顺延编号，已有任务继续使用保存的原路径。工作树创建不生成任务；首次 `/submissions` 请求可携带 `workspacePath`，必须先通过项目根或 Git worktree 归属校验，再按所选引擎创建任务。既有任务不得携带新目录。验证 `git-worktree.test.ts`、`app-worktree-task.test.ts` 与 `app-submissions.test.ts`。
 - Git 子进程继承环境必须过滤全部 `GIT_` 前缀及 `EDITOR`、`VISUAL` 等执行控制变量；`simple-git` 的 `allowEnvironment` 仅放行内部设置的 `GIT_OPTIONAL_LOCKS`，全局配置使用宿主用户的标准 Git 配置文件。用 `git-command.test.ts` 验证恶意环境隔离、宿主配置读取及正常命令执行。
 - Git `worktree list --porcelain` 返回的路径先通过 `node:path.resolve` 规范化，再传递给服务层或与文件系统路径比较；在 Windows 上用真实 Git worktree 测试覆盖斜杠差异。
 - 运行 `pnpm test`、`pnpm typecheck`、`pnpm lint:architecture`；完整门槛为 `pnpm check`。
@@ -35,3 +43,11 @@
 - Git 历史未推送状态与实际推送共用目标解析，遵循 `branch.<name>.pushRemote`、`remote.pushDefault`、分支远端及单远端回退优先级；空覆盖值按未配置回退；`push.default=upstream` 使用配置目标分支。固定同一 HEAD，批量按提交 SHA 和祖先关系比较本地远端引用，不按领先数量或列表序号标记，不隐式联网。缺失目标/引用时历史仍可读且省略标记；空仓库保持可读。回归见 `git-history-unpushed.test.ts`（分页、合并历史、不同拉取/推送远端、推送后清除）。
 
 - 目录和任务元数据由应用本地仓储独占管理；Project 必须恰好一个根目录。上游列表仅用于一次性事务导入；执行适配器翻译应用任务 ID 与 provider/sessionId，禁止用引擎列表覆盖本地管理状态。两端共享 SQL 契约和单选规则，变更须覆盖离线管理、迁移回滚与身份隔离测试。详见[本地目录与任务](../../../../docs/local-catalog.md)。
+
+- 公共设置 `GET/PUT /v1/settings?engine=claude` 只使用 Claude 模型目录及应用偏好，不调用 Codex 原生默认设置；保存只更新应用字段，保留已存的 Codex 专属字段。省略引擎保留 Codex 行为，幂等身份包含引擎。Git 提交说明请求可选 `engine`，Claude 通过引擎服务执行无持久聊天的短请求；异步问题按原任务 `engine` 校验模型。`engine-independence.test.ts` 用不可用的 Codex 覆盖三条链路。
+
+- 全局搜索须按依赖向导启用的引擎集合筛选本地候选，再按任务持久 provider 身份检索正文；名称、排序与归档状态以应用目录为准。双引擎保留健康源命中并通过 unavailableEngines 报告失败源，游标绑定查询、类别、归档与引擎集合。Claude 复用共享摘要搜索和宿主，不启动 SDK 推理；文件搜索直接使用文件系统。详见[全局搜索契约](../../../../docs/global-search.md)。
+
+- 公共生成偏好使用 `defaultAgent` / `defaultModel`，统一控制任务标题和 Git message；请求中的聊天引擎不能覆盖它。旧提交模型迁移为公共模型。Claude 单独配置时的默认值探测不得启动 Codex；使用本地连接配置判断，验证 `global-generation-settings.test.ts`、`engine-independence.test.ts` 与 `cli-claude-start.test.ts`。
+
+- 辅助生成菜单集中维护默认 Agent、默认模型、`commitMessagePrompt` 与 `taskTitlePrompt`。两种提示词互相独立，空白回退各自内置规则；标题规则须传入 Codex / Claude 实际请求，不能只保存到表单。延迟适配器必须保留 `includeEphemeral` 订阅选项，验证 `cli-engine-runtime.test.ts` 与 `CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run src/cli-commit-generation-runtime.test.ts`（隔离本地模型，不消耗额度）。

@@ -8,6 +8,9 @@ export type GlobalSearchKind = Static<typeof GlobalSearchKindSchema>;
 export const TaskSearchQuerySchema = Type.Object(
   {
     archived: Type.Boolean(),
+    engines: Type.Optional(
+      Type.Union([Type.Literal("codex"), Type.Literal("claude"), Type.Literal("codex,claude")]),
+    ),
     cursor: Type.Optional(Type.String({ maxLength: 8_192, minLength: 1 })),
     kind: GlobalSearchKindSchema,
     query: Type.String({ maxLength: 1_024, minLength: 1 }),
@@ -56,6 +59,12 @@ export type SearchOccurrencesPage = Readonly<Static<typeof SearchOccurrencesPage
 
 export const TaskSearchPageSchema = Type.Object(
   {
+    unavailableEngines: Type.Optional(
+      Type.Array(Type.Union([Type.Literal("codex"), Type.Literal("claude")]), {
+        maxItems: 2,
+        uniqueItems: true,
+      }),
+    ),
     data: Type.Array(
       Type.Object(
         {

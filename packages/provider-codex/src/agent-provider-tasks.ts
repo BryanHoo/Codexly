@@ -34,6 +34,7 @@ import {
   type PendingReviewItems,
   readThreadHistoryMode,
 } from "./task-history-pagination.js";
+import type { CodexRpcClient } from "./codex-rpc-client.js";
 import { unsubscribeCodexThread } from "./thread-unsubscribe.js";
 
 export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
@@ -63,8 +64,25 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
     taskId: string,
     input: ReadAgentTaskInput = {},
   ): Promise<AgentProviderTaskSnapshot | undefined> {
+    const activityVersion = this.runtime.taskActivityVersions.get(taskId);
+    input.signal?.throwIfAborted();
+    // 为本次读取派生 RPC 视图；历史分页、审查子会话和目标 RPC 共用同一取消信号。
+    const client: CodexRpcClient = {
+      notify: this.client.notify.bind(this.client),
+      onNotification: this.client.onNotification.bind(this.client),
+      onServerRequest: this.client.onServerRequest.bind(this.client),
+      rejectServerRequest: this.client.rejectServerRequest.bind(this.client),
+      respondToServerRequest: this.client.respondToServerRequest.bind(this.client),
+      request: async (method, params, timeout) => {
+        input.signal?.throwIfAborted();
+        const result = await this.client.request(method, params, timeout, input.signal);
+        input.signal?.throwIfAborted();
+        return result;
+      },
+    };
     if (this.client.readLocalTask !== undefined) {
       const local = await this.client.readLocalTask(taskId);
+      input.signal?.throwIfAborted();
       if (
         local === null ||
         local.projectId !== (this.project.kind === "temporary" ? null : this.project.id)
@@ -81,7 +99,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       const cursor = decodeTaskTurnCursor(input);
       let nativeResponse: unknown;
       try {
-        nativeResponse = await this.client.request("thread/read", {
+        nativeResponse = await client.request("thread/read", {
           includeTurns: false,
           threadId: taskId,
         });
@@ -122,7 +140,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       if (task.workspacePath !== undefined)
         this.runtime.taskWorkspacePaths.set(task.id, task.workspacePath);
       this.runtime.goals.delete(taskId);
-      const requestedGoal = await this.readGoalResponse(taskId);
+      const requestedGoal = await this.readGoalResponse(taskId, client);
       // goal/get 期间到达的通知时序更新，必须优先于可能已经过期的 RPC 响应。
       const goal = this.runtime.goals.has(taskId)
         ? (this.runtime.goals.get(taskId) ?? null)
@@ -133,7 +151,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
           cursor.reviewItems !== undefined
             ? { turns: [], nextTurnCursor: cursor.turnCursor ?? null }
             : await readNativeTaskTurnPage(
-                this.client,
+                client,
                 taskId,
                 readThreadHistoryMode(thread),
                 cursor.turnCursor,
@@ -153,13 +171,20 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       }
       const reviewPage =
         cursor.reviewItems === undefined
-          ? await this.readReviewWorkerTurns(taskId, nativePage.turns, cursor.reviewCursor)
-          : await this.readReviewItemPages(taskId, cursor.reviewItems, cursor.reviewCursor);
-      const transcriptSkillsByTurnId = await readCodexTranscriptTurnSkills(
-        this.client.nativeTaskId?.(taskId) ?? taskId,
-      );
+          ? await this.readReviewWorkerTurns(taskId, nativePage.turns, cursor.reviewCursor, client)
+          : await this.readReviewItemPages(taskId, cursor.reviewItems, cursor.reviewCursor, client);
+      const readTranscript = () =>
+        readCodexTranscriptTurnSkills(this.client.nativeTaskId?.(taskId) ?? taskId);
+      // 磁盘技能身份准备与 token 无关，结构冲突重试复用本请求的结果，不重复扫描历史目录。
+      input.signal?.throwIfAborted();
+      const transcriptSkillsByTurnId = await (input.snapshotRead?.prepare(
+        `codex.transcript:${JSON.stringify(reviewPage.turns.map((turn) => expectRecord(turn, "Codex turn")["id"]))}`,
+        readTranscript,
+      ) ?? readTranscript());
+      input.signal?.throwIfAborted();
       // 先恢复 Thread 级元数据，再等待正文持久化后映射历史，确保跨进程仍使用相同授权 ID。
       await this.threadAttachments?.prepare(taskId);
+      input.signal?.throwIfAborted();
       const turns = this.runtime.messageIdentities.snapshot(
         taskId,
         (
@@ -168,7 +193,9 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
           )
         ).map((turn) => attachTranscriptSkills(turn, transcriptSkillsByTurnId.get(turn.id) ?? [])),
       );
+      input.signal?.throwIfAborted();
       await this.threadAttachments?.flush(taskId);
+      input.signal?.throwIfAborted();
       const status = turns.some((turn) => turn.status === "running")
         ? "running"
         : mapThreadStatus(thread["status"]);
@@ -183,10 +210,8 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         this.runtime.activeReviewTurnIds.set(taskId, runningReviewTurn.id);
         this.runtime.activeReviewWorkerTaskIds.add(taskId);
       }
-      if (status === "running") {
-        this.runtime.runningTaskIds.add(taskId);
-      } else {
-        this.runtime.runningTaskIds.delete(taskId);
+      if (this.runtime.taskActivityVersions.get(taskId) === activityVersion) {
+        this.runtime.recordTaskRunning(taskId, status === "running");
       }
       const snapshot: AgentProviderTaskSnapshot = {
         ...task,
@@ -212,6 +237,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
     taskId: string,
     parentTurns: readonly unknown[],
     reviewCursor: string | null | undefined,
+    client: CodexRpcClient = this.client,
   ): Promise<
     Readonly<{
       nextReviewCursor: string | null | undefined;
@@ -237,7 +263,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
 
     // 主历史与 reviewer 都按 newest-first 使用各自 Cursor，同一页只读取需要配对的 worker。
     const listResponse = expectRecord(
-      await this.client.request("thread/list", {
+      await client.request("thread/list", {
         ...(typeof reviewCursor === "string" ? { cursor: reviewCursor } : {}),
         limit: reviewTurnIndexes.length,
         parentThreadId: taskId,
@@ -273,7 +299,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         const workerThread = expectRecord(workerThreadValue, "Codex review worker thread");
         const workerTaskId = expectString(workerThread["id"], "Codex review worker thread id");
         const workerPage = await readNativeTaskTurnPage(
-          this.client,
+          client,
           workerTaskId,
           readThreadHistoryMode(workerThread),
         );
@@ -338,6 +364,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
     taskId: string,
     pending: readonly PendingReviewItems[],
     reviewCursor: string | null | undefined,
+    client: CodexRpcClient = this.client,
   ): Promise<
     Readonly<{
       nextReviewCursor: string | null | undefined;
@@ -349,7 +376,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
     const pages = await Promise.all(
       pending.map(async (entry) => {
         const response = expectRecord(
-          await this.client.request("thread/read", {
+          await client.request("thread/read", {
             includeTurns: false,
             threadId: entry.workerTaskId,
           }),
@@ -364,7 +391,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
           throw new CodexProtocolMappingError("Review worker does not belong to the active task");
         }
         const page = await readNativeTaskTurnPage(
-          this.client,
+          client,
           entry.workerTaskId,
           readThreadHistoryMode(worker),
           entry.cursor,

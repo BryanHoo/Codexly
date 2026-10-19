@@ -120,8 +120,10 @@ describe("SQLite settings state", () => {
     const settings = {
       approvalPolicy: "on-request" as const,
       approvalsReviewer: "auto_review" as const,
-      commitMessageModel: "gpt-5.6-terra",
+      defaultAgent: "codex" as const,
+      defaultModel: "gpt-5.6-terra",
       commitMessagePrompt: "突出说明用户可见影响。",
+      taskTitlePrompt: "使用简短中文概括任务目标。",
       modelContextWindow: null,
       defaultOpenAppId: "visual-studio-code" as const,
       fastMode: true,
@@ -156,7 +158,8 @@ describe("SQLite settings state", () => {
     const globalSettings = {
       approvalPolicy,
       approvalsReviewer: "user" as const,
-      commitMessageModel: "gpt-5.6-terra",
+      defaultAgent: "codex" as const,
+      defaultModel: "gpt-5.6-terra",
       commitMessagePrompt: "",
       modelContextWindow: null,
       defaultOpenAppId: null,

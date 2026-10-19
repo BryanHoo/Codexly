@@ -1,3 +1,4 @@
+import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import { createRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useState } from "react";
@@ -54,12 +55,15 @@ function IndexPage() {
   const appUpdateProgressQuery = useQuery(
     appUpdateProgressQueryOptions(client, appUpdateMutation.isPending),
   );
-  const globalSettingsQuery = useQuery(globalSettingsQueryOptions(client));
-  const modelsQuery = useQuery(modelsQueryOptions(client));
+  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
+  const globalSettingsQuery = useQuery({
+    ...globalSettingsQueryOptions(client, codexEnabled ? "codex" : "claude"),
+  });
+  const modelsQuery = useQuery(modelsQueryOptions(client, codexEnabled ? "codex" : "claude"));
   const globalSettingsMutation = useMutation({
-    ...globalSettingsMutationOptions(client),
+    ...globalSettingsMutationOptions(client, codexEnabled ? "codex" : "claude"),
     onSuccess(response) {
-      queryClient.setQueryData(["settings"], response);
+      queryClient.setQueryData(codexEnabled ? ["settings"] : ["settings", "claude"], response);
     },
   });
   const [globalSettingsSection, setGlobalSettingsSection] = useState<SidebarSettingsSection | null>(
@@ -139,7 +143,7 @@ function IndexPage() {
             initialSection={globalSettingsSection}
             apps={[]}
             error={globalSettingsQuery.error ?? modelsQuery.error}
-            isPending={globalSettingsQuery.isPending || modelsQuery.isPending}
+            isPending={globalSettingsQuery.isLoading || modelsQuery.isLoading}
             isAppInfoPending={appInfoQuery.isPending}
             isAppUpdatePending={appUpdateMutation.isPending}
             models={modelsQuery.data?.data ?? []}

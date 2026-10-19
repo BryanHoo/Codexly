@@ -62,7 +62,6 @@ function renderProjectTaskList(
     <TooltipProvider>
       <ProjectSidebarTaskList
         archiveTask={vi.fn()}
-        client={{} as React.ComponentProps<typeof ProjectSidebarTaskList>["client"]}
         deleteTask={vi.fn()}
         error={null}
         expandedProjects={expandedProjects}
@@ -79,7 +78,6 @@ function renderProjectTaskList(
         isProjectAddPending={false}
         normalizedQuery=""
         onOpenProjectDraft={vi.fn(() => Promise.resolve())}
-        onWorktreeTaskCreated={vi.fn()}
         onOpenArchived={vi.fn()}
         onOpenProjectPicker={vi.fn()}
         onOpenTemporaryDraft={vi.fn()}
@@ -142,6 +140,20 @@ describe("ProjectSidebarTaskList", () => {
     expect(markup.indexOf('data-sidebar-shortcut-group="active"')).toBeLessThan(
       markup.indexOf('data-testid="project-tree-scroll"'),
     );
+  });
+
+  it("shows the actual engine for active tasks without loading project history", () => {
+    const activity = new Map(
+      [...activityFor(["running", "approval"])].map(([key, record], index) => [
+        key,
+        { ...record, engine: index === 0 ? ("claude" as const) : ("codex" as const) },
+      ]),
+    );
+    const markup = renderProjectTaskList(new Set(), activity, true);
+    expect(markup).toContain('aria-label="Claude"');
+    expect(markup).toContain('aria-label="Codex"');
+    expect(markup).toContain('aria-label="任务运行中"');
+    expect(markup).toContain('aria-label="任务等待审批"');
   });
 
   it("keeps an unread completed task in the shortcut group with a completion indicator", () => {
@@ -223,10 +235,7 @@ describe("ProjectSidebarTaskList", () => {
     expect(markup).toMatch(
       /class="[^"]*opacity-0[^"]*focus-visible:opacity-100[^"]*group-hover\/project:opacity-100[^"]*"[^>]*aria-label="在 Codexly 中新建任务"/u,
     );
-    const worktreeAction = markup.indexOf('aria-label="在 Codexly 中创建 worktree 任务"');
-    const regularAction = markup.indexOf('aria-label="在 Codexly 中新建任务"');
-    expect(worktreeAction).toBeGreaterThan(0);
-    expect(worktreeAction).toBeLessThan(regularAction);
+    expect(markup).not.toContain('aria-label="在 Codexly 中创建 worktree 任务"');
   });
 
   it("keeps project actions visible on touch devices", () => {
@@ -236,11 +245,7 @@ describe("ProjectSidebarTaskList", () => {
       "utf8",
     );
 
-    for (const label of [
-      "打开 Codexly 的项目操作菜单",
-      "在 Codexly 中创建 worktree 任务",
-      "在 Codexly 中新建任务",
-    ]) {
+    for (const label of ["打开 Codexly 的项目操作菜单", "在 Codexly 中新建任务"]) {
       expect(markup).toMatch(
         new RegExp(`class="[^"]*project-hover-action[^"]*"[^>]*aria-label="${label}"`, "u"),
       );

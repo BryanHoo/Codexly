@@ -208,6 +208,18 @@ export const AgentTurnStatusSchema = Type.Union([
 
 export const AgentTurnSchema = Type.Object(
   {
+    // 缺省沿用引擎能力；false 表示本回合没有可恢复的原生消息分叉点。
+    forkable: Type.Optional(Type.Boolean()),
+    // 执行终态与落盘状态独立；缺省表示没有待恢复写入，不能用写盘错误覆盖模型结果。
+    persistence: Type.Optional(
+      Type.Object(
+        {
+          status: Type.Union([Type.Literal("pending"), Type.Literal("failed")]),
+          error: Type.Union([Type.String(), Type.Null()]),
+        },
+        { additionalProperties: false },
+      ),
+    ),
     processCursor: Type.Optional(Type.String({ minLength: 1, maxLength: 8_192 })),
     completedAt: NullableDateTimeSchema,
     error: Type.Union([Type.String(), Type.Null()]),
@@ -321,7 +333,12 @@ export const AgentMcpServerSchema = Type.Object(
 export type AgentMcpServer = Readonly<Static<typeof AgentMcpServerSchema>>;
 
 export const AgentMcpServerPageSchema = Type.Object(
-  { data: Type.Array(AgentMcpServerSchema, { uniqueItems: true }) },
+  {
+    data: Type.Array(AgentMcpServerSchema, { uniqueItems: true }),
+    // 旧引擎可省略；历史快照必须显式标记，时间表示实际观测而非 HTTP 返回时间。
+    statusSource: Type.Optional(Type.Union([Type.Literal("live"), Type.Literal("cached")])),
+    observedAt: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+  },
   { additionalProperties: false },
 );
 

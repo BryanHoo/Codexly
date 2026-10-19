@@ -1,6 +1,9 @@
 import type { AgentProviderEvent } from "@codexly/core";
+import { Buffer } from "node:buffer";
+import { performance } from "node:perf_hooks";
 import { MAX_AGENT_EVENT_BYTES, type AgentEvent, type EventCheckpoint } from "@codexly/protocol";
 import { getSerializedAgentEventByteLength } from "./event-socket-sender.js";
+import { MetricDistribution } from "./metric-distribution.js";
 
 type AgentEventListener = (event: AgentEvent) => void;
 type AppendEventType = "command.output_delta" | "message.delta" | "plan.delta" | "reasoning.delta";
@@ -25,6 +28,11 @@ export interface AgentEventStreamMetrics {
   publishedEvents: number;
   retainedEvents: number;
   retentionEvictions: number;
+  queueBytes: number;
+  queueBytesPerBatch: Readonly<{ count: number; p95: number; p99: number }>;
+  queueWaitMs: Readonly<{ count: number; p95: number; p99: number }>;
+  snapshotRetries: number;
+  snapshotRetriesPerRead: Readonly<{ count: number; p95: number; p99: number }>;
 }
 
 export interface AgentEventStreamOptions {
@@ -90,6 +98,12 @@ export class AgentEventStream {
   readonly #maxRetainedBytes: number;
   readonly #now: () => Date;
   readonly #pendingDeltas: CoalescedProviderEvent[] = [];
+  readonly #queueReaders = new Set<() => number>();
+  readonly #queueWait = new MetricDistribution();
+  readonly #queueBytesPerBatch = new MetricDistribution();
+  readonly #snapshotRetriesPerRead = new MetricDistribution();
+  #pendingSince: number | undefined;
+  #snapshotRetries = 0;
   readonly #pressureCoalescingWindowMs: number;
   readonly #provider: string;
   readonly #sessionId: string;
@@ -160,7 +174,38 @@ export class AgentEventStream {
       publishedEvents: this.#publishedEvents,
       retainedEvents: this.#eventCount,
       retentionEvictions: this.#retentionEvictions,
+      // 统计合并队列的 UTF-8 序列化字节，以及各连接待发送事件和 socket 缓冲。
+      // 只在诊断请求时计算合并队列大小，避免逐 token 重复序列化增长中的正文。
+      queueBytes:
+        this.#pendingDeltas.reduce(
+          (total, event) => total + Buffer.byteLength(JSON.stringify(event)),
+          0,
+        ) + [...this.#queueReaders].reduce((total, read) => total + read(), 0),
+      queueWaitMs: this.#queueWait.metrics,
+      queueBytesPerBatch: this.#queueBytesPerBatch.metrics,
+      snapshotRetries: this.#snapshotRetries,
+      snapshotRetriesPerRead: this.#snapshotRetriesPerRead.metrics,
     };
+  }
+
+  public trackQueue(readBytes: () => number): () => void {
+    this.#queueReaders.add(readBytes);
+    return () => {
+      this.#queueReaders.delete(readBytes);
+    };
+  }
+
+  public recordQueueWait(durationMs: number): void {
+    this.#queueWait.record(durationMs);
+  }
+
+  public recordQueueBytes(bytes: number): void {
+    this.#queueBytesPerBatch.record(bytes);
+  }
+
+  public recordSnapshotRetries(retries: number): void {
+    this.#snapshotRetries += retries;
+    this.#snapshotRetriesPerRead.record(retries);
   }
 
   public publish(event: AgentProviderEvent): void {
@@ -185,6 +230,7 @@ export class AgentEventStream {
     const previousIndex = this.#pendingDeltas.length - 1;
     const previous = this.#pendingDeltas[previousIndex];
     if (previous === undefined || coalescingKey(previous) !== coalescingKey(event)) {
+      this.#pendingSince ??= performance.now();
       this.#pendingDeltas.push(event);
     } else {
       // 只合并队尾的同 Key Delta，保留 A-B-A 交错事件的原始顺序。
@@ -234,6 +280,7 @@ export class AgentEventStream {
     this.#flush();
     this.#closed = true;
     this.#listeners.clear();
+    this.#queueReaders.clear();
   }
 
   #flush(): void {
@@ -245,16 +292,22 @@ export class AgentEventStream {
       return;
     }
     const pending = this.#pendingDeltas.splice(0);
+    // 一次样本表示整个合并批次的最老排队时间；不受墙上时钟校准影响。
+    this.recordQueueWait(performance.now() - (this.#pendingSince ?? performance.now()));
+    this.#pendingSince = undefined;
+    let batchBytes = 0;
     for (const event of pending) {
-      this.#publishNow(event);
+      // 发布过程已经缓存序列化结果，复用字节数避免为观测再次遍历正文。
+      batchBytes += getSerializedAgentEventByteLength(this.#publishNow(event));
     }
+    this.recordQueueBytes(batchBytes);
   }
 
-  #publishNow(event: AgentProviderEvent): void {
+  #publishNow(event: AgentProviderEvent): AgentEvent {
     this.#sequence += 1;
     const published = {
       ...event,
-      provider: this.#provider,
+      provider: event.provider ?? this.#provider,
       sequence: this.#sequence,
       sessionId: this.#sessionId,
       timestamp: this.#now().toISOString(),
@@ -265,6 +318,7 @@ export class AgentEventStream {
     for (const listener of this.#listeners) {
       listener(published);
     }
+    return published;
   }
 
   #retain(event: AgentEvent): void {

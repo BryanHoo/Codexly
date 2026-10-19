@@ -33,7 +33,7 @@ export function PendingPromptDisplay({
       </Message>
       {startedAt === undefined ? null : (
         <Message from="assistant">
-          <TurnProcessingTime completedAt={null} startedAt={startedAt} />
+          <TurnProcessingTime status="running" completedAt={null} startedAt={startedAt} />
           <RunningReplyStatus />
         </Message>
       )}

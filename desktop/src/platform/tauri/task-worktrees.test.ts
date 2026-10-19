@@ -26,3 +26,14 @@ it("creates and starts a worktree task without adding or switching projects", as
     input: { rootPath: "/repo", worktreePath: "/repo-topic" },
   });
 });
+
+
+it("starts Claude worktree tasks without initializing a Codex runtime", async () => {
+  const ensureRuntime = vi.fn(() => Promise.reject(new Error("Codex unavailable")));
+  const invoke = vi.fn(async () => ({ task: { id: "claude-task", projectId: "project", provider: "claude" } }));
+  const client = new TauriSidebarClient({ ensureRuntime, invoke: invoke as InvokeImplementation });
+  const input = { rootPath: "/repo", worktreePath: "/repo/.worktree/topic", engine: "claude" as const };
+  await expect(client.startWorktreeTask("project", input)).resolves.toMatchObject({ task: { provider: "claude" } });
+  expect(ensureRuntime).not.toHaveBeenCalled();
+  expect(invoke).toHaveBeenCalledWith("start_worktree_task", { projectId: "project", input });
+});

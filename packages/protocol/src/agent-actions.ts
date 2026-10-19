@@ -13,9 +13,11 @@ import {
 import { AgentTurnOptionsSchema } from "./project-settings.js";
 import { AgentTaskCatalogSchema } from "./task-catalog.js";
 import { ProjectRootPathSchema } from "./project-root.js";
+import { AgentEngineSchema } from "./agent-engine.js";
 
 export const StartAgentTaskRequestSchema = Type.Object(
   {
+    engine: Type.Optional(AgentEngineSchema),
     rootPath: Type.Optional(ProjectRootPathSchema),
     worktreePath: Type.Optional(ProjectRootPathSchema),
   },
@@ -137,7 +139,14 @@ export const ForkAgentTaskResponseSchema = Type.Object(
 );
 export type ForkAgentTaskResponse = Readonly<Static<typeof ForkAgentTaskResponseSchema>>;
 
-export const ReloadAgentMcpServersRequestSchema = Type.Object({}, { additionalProperties: false });
+export const ReloadAgentMcpServersRequestSchema = Type.Object(
+  {
+    action: Type.Optional(
+      Type.Union([Type.Literal("refresh"), Type.Literal("reconnect"), Type.Literal("reload")]),
+    ),
+  },
+  { additionalProperties: false },
+);
 export type ReloadAgentMcpServersRequest = Readonly<
   Static<typeof ReloadAgentMcpServersRequestSchema>
 >;
@@ -281,6 +290,21 @@ export type StartAgentQueuedSubmissionResponse = Readonly<
   Static<typeof StartAgentQueuedSubmissionResponseSchema>
 >;
 
+/** 独立于前台回合：省略后台 ID 时停止整个会话，提供时仅停止指定原生任务。 */
+export const StopAgentSessionRequestSchema = Type.Object(
+  {
+    taskId: Type.String({ minLength: 1 }),
+    backgroundTaskId: Type.Optional(Type.String({ minLength: 1 })),
+  },
+  { additionalProperties: false },
+);
+export const StopAgentSessionResponseSchema = Type.Object(
+  { status: Type.Literal("accepted"), taskId: Type.String({ minLength: 1 }) },
+  { additionalProperties: false },
+);
+export type StopAgentSessionRequest = Readonly<Static<typeof StopAgentSessionRequestSchema>>;
+export type StopAgentSessionResponse = Readonly<Static<typeof StopAgentSessionResponseSchema>>;
+
 export const InterruptAgentTurnRequestSchema = Type.Object(
   { taskId: Type.String({ minLength: 1 }) },
   { additionalProperties: false },
@@ -311,6 +335,7 @@ export const AgentMutationErrorCodeSchema = Type.Union([
   Type.Literal("PROJECT_FILE_CONFLICT"),
   Type.Literal("PROJECT_FILE_MUTATION_FAILED"),
   Type.Literal("TASK_NOT_FOUND"),
+  Type.Literal("TASK_SNAPSHOT_BUSY"),
   Type.Literal("TURN_NOT_FOUND"),
   Type.Literal("TURN_NOT_RUNNING"),
   Type.Literal("ATTACHMENT_NOT_FOUND"),

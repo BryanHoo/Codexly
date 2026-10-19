@@ -42,11 +42,6 @@ mod plugin_assets;
 mod plugins;
 mod process;
 mod protocol;
-mod runtime_active;
-mod runtime_discovery;
-mod runtime_distributions;
-mod runtime_download;
-mod runtime_download_progress;
 mod runtime_manager;
 mod runtime_path;
 mod sidebar;
@@ -138,16 +133,14 @@ pub use commit_message::{
 pub(crate) use connection::ConnectionError;
 pub use connection::{AppServerConnection, ServerMessage};
 pub(crate) use connection_event_buffer::EVENT_RETENTION_EXCEEDED_METHOD;
-pub(crate) use conversation::RUNTIME_SESSION_ID;
+pub(crate) use conversation::runtime_session_id;
 pub use conversation::{read_task_preview, read_task_snapshot, read_task_summary_snapshot};
 pub use conversation_advanced::{
     clear_goal, compact_task, fork_task, set_goal_objective, start_review, update_goal,
     upload_feedback,
 };
 pub use conversation_background::{list_background_terminals, terminate_background_terminal};
-pub use conversation_commands::{
-    interrupt_turn, start_task, start_turn, steer_turn, update_thread_settings,
-};
+pub use conversation_commands::{interrupt_turn, start_turn, steer_turn, update_thread_settings};
 pub use conversation_events::map_server_event_now;
 pub use conversation_queue::{
     add_queued_submission, delete_queued_submission, start_queued_submission,
@@ -162,7 +155,7 @@ pub use conversation_turn_settings::update_live_reviewer;
 pub use plugins::{
     get_official_plugin, install_official_plugin, list_official_plugins, uninstall_official_plugin,
 };
-pub use process::CodexProcess;
+pub use process::{CodexProcess, SUPPORTED_CODEX_VERSION};
 pub use runtime_manager::{inspect_codex_runtime, install_codex_runtime};
 pub use sidebar::{list_projects, read_project};
 pub use tasks::{delete_task, read_task, task_working_directory, unsubscribe_task};
@@ -175,7 +168,7 @@ pub use conversation_access::{ensure_task_writer, retain_task_writer};
 mod model_cache_tests;
 
 mod search;
-pub use search::{search_task_occurrences, search_tasks};
+pub use search::{search_task_occurrences, search_task_occurrences_with_limit};
 
 #[cfg(test)]
 mod plugin_reconcile_tests;

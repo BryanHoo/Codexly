@@ -1,5 +1,7 @@
 import { resolveGlobalSettings } from "./global-settings-reader.js";
+import { LocalFileSearchService } from "./local-file-search.js";
 import { registerHistoryStorageRoutes } from "./routes/history-storage-routes.js";
+import { registerEngineRoutes } from "./routes/engine-routes.js";
 import { WorkbenchChanges } from "./workbench-changes.js";
 import { registerWorkbenchEvents } from "./routes/resource-change-events.js";
 import type {
@@ -125,23 +127,12 @@ export async function createCodexlyServer(
   const commitProjectChanges = options.commitProjectChanges ?? commitSelectedProjectChanges;
   const readFileTree = options.readProjectFileTree ?? readProjectFileTree;
   const readFileDownload = options.readProjectFileDownload ?? readProjectFileDownload;
-  const nativeFileSearch = options.provider.fileSearch;
+  const localFileSearch = new LocalFileSearchService();
   const searchProjectFiles =
-    options.searchProjectFiles ??
-    ((input) => {
-      if (nativeFileSearch === undefined) {
-        return Promise.reject(new Error("Provider file search is unavailable"));
-      }
-      return nativeFileSearch.search(input);
-    });
+    options.searchProjectFiles ?? ((input) => localFileSearch.search(input));
   const stopProjectFileSearch =
     options.stopProjectFileSearch ??
-    ((projectId, sessionId) => {
-      if (nativeFileSearch === undefined) {
-        return Promise.reject(new Error("Provider file search is unavailable"));
-      }
-      return nativeFileSearch.stop(projectId, sessionId);
-    });
+    ((projectId, sessionId) => localFileSearch.stop(projectId, sessionId));
   const readImageFile = options.readProjectImageFile ?? readProjectImageFile;
   const readSourceFile = options.readProjectSourceFile ?? readProjectSourceFile;
   // LAN 客户端与服务端可能不在同一宿主，禁止暴露或执行服务端桌面应用。
@@ -273,18 +264,33 @@ export async function createCodexlyServer(
     },
     release: (projectId) => releaseProjectContext(projectId, true),
   });
-  const listModels = async (): Promise<readonly AgentModel[]> =>
-    (await modelCatalogCache.read()).data;
+  const listModels = async (
+    engine: "codex" | "claude" = "codex",
+  ): Promise<readonly AgentModel[]> => {
+    if (engine === "codex") return (await modelCatalogCache.read()).data;
+    const service = options.provider.engines?.[engine];
+    if (!service) throw new Error("Claude engine is unavailable");
+    return (await service.inspect()).models.data;
+  };
   const readEffectiveGlobalSettings = async (
     models?: readonly AgentModel[],
+    engine: "codex" | "claude" = "codex",
   ): Promise<AgentGlobalSettings> => {
-    const catalog = models ?? (await listModels());
+    const catalog = models ?? (await listModels(engine));
     const stored = await options.settingsRepository.readGlobalSettings();
     // Codex 是智能体默认值的来源；本地记录仅补齐未配置字段与应用专属偏好。
-    const runtimeDefaults = await options.provider.readDefaultSettings();
-    return resolveGlobalSettings(catalog, stored, runtimeDefaults);
+    const runtimeDefaults = engine === "codex" ? await options.provider.readDefaultSettings() : {};
+    const generation = await options.provider.readGenerationDefaults?.(stored);
+    return {
+      ...resolveGlobalSettings(
+        catalog,
+        stored,
+        runtimeDefaults,
+        engine === "claude" && !stored?.defaultAgent ? ["claude"] : ["codex", "claude"],
+      ),
+      ...generation,
+    };
   };
-
   const readEffectiveProjectDefaults = async (
     projectId: string,
     models?: readonly AgentModel[],
@@ -322,8 +328,24 @@ export async function createCodexlyServer(
     taskId: string,
     models?: readonly AgentModel[],
   ): Promise<AgentTaskSettings> => {
-    const catalog = models ?? (await listModels());
     const stored = await options.settingsRepository.readTaskSettings(projectId, taskId);
+    const metadata = await (
+      await getProjectContext(projectId)
+    )?.provider.readTaskMetadata?.(taskId);
+    if (metadata?.engine === "claude") {
+      // Claude 设置只取自身会话或目录，绝不继承 Codex 全局模型、沙盒和 Guardian。
+      if (stored?.engineOptions?.engine === "claude") return stored;
+      const defaults = await options.provider.engines?.claude?.readSettings();
+      return {
+        model: defaults?.model ?? "default",
+        reasoningEffort: defaults?.reasoningEffort ?? "",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "user",
+        sandboxMode: "workspace-write",
+        engineOptions: { engine: "claude", permissionMode: defaults?.permissionMode ?? "default" },
+      };
+    }
+    const catalog = models ?? (await listModels());
     if (stored === undefined) {
       return readInheritedTaskSettings(projectId, catalog);
     }
@@ -353,7 +375,7 @@ export async function createCodexlyServer(
   const idempotencyCacheSize = options.idempotencyCacheSize ?? DEFAULT_IDEMPOTENCY_CACHE_SIZE;
   const idempotencyTtlMs = options.idempotencyTtlMs ?? DEFAULT_IDEMPOTENCY_TTL_MS;
   const idempotencyRunner = createIdempotencyRunner(idempotencyCacheSize, idempotencyTtlMs);
-  const accessService = await configureServerDelivery(app, {
+  const { accessService, websocketLifecycle } = await configureServerDelivery(app, {
     ...(options.access === undefined ? {} : { access: options.access }),
     ...(options.allowedHosts === undefined ? {} : { allowedHosts: options.allowedHosts }),
     releaseResources: async () => {
@@ -371,6 +393,7 @@ export async function createCodexlyServer(
     ...(options.staticRoot === undefined ? {} : { staticRoot: options.staticRoot }),
   });
   const routeContext: ServerRouteContext = {
+    websocketLifecycle,
     workbenchChanges,
     ...(options.asyncQuestionRepository === undefined
       ? {}
@@ -453,6 +476,7 @@ export async function createCodexlyServer(
     ...(accessService === undefined ? {} : { service: accessService }),
   });
   await app.register(registerRuntimeRoutes, routeContext);
+  await app.register(registerEngineRoutes, routeContext);
   await app.register(registerPersonalizationRoutes, routeContext);
   await app.register(registerHistoryStorageRoutes, routeContext);
   await app.register(registerProviderConnectionRoutes, routeContext);

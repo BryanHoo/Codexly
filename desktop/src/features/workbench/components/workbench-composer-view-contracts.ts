@@ -1,3 +1,5 @@
+import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
+import type { ReactNode } from "react";
 import type {
   AgentContextUsage,
   AgentGoal,
@@ -26,6 +28,7 @@ import type { ComposerMode } from "./workbench-composer-contracts.js";
 export type CommandAvailability = Readonly<{ available: boolean; reason?: string }>;
 
 export type WorkbenchComposerViewProps = Readonly<{
+  engineControls?: ReactNode;
   writeAccess?: import("../../conversation/runtime/use-task-runtime.js").TaskRuntimeView["writeAccess"];
   activeCommandIndex: number;
   activeCommandItemId: string | undefined;
@@ -47,6 +50,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   composerScope: string;
   contextUsage: AgentContextUsage | null | undefined;
   creatingBranch: string | undefined;
+  workspace?: ComposerWorkspace;
   draftInputDisabled: boolean;
   editingProjectDraftId: string | undefined;
   editQueuedPrompt: (queuedPrompt: QueuedComposerPrompt) => void;
@@ -93,7 +97,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   onSelectAttachmentKind: (kind: PromptInputAttachmentKind) => void;
   onSelectFileReference: (file: ProjectFileSearchEntry) => void;
   onSelectSkill: (skill: AgentSkill) => void;
-  onSettingsChange: (settings: AgentTaskSettings, field: keyof AgentTaskSettings) => void;
+  onSettingsChange: (settings: AgentTaskSettings, field: keyof AgentTaskSettings) => Promise<void> | void;
   onSubmit: (message: PromptInputMessage) => void;
   onViewError: (error: Error) => void;
   projectPath: string;

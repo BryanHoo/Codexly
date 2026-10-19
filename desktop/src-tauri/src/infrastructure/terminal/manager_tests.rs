@@ -5,6 +5,7 @@ fn request(project: &str, id: &str, generation: &str) -> CreateTerminalRequest {
     CreateTerminalRequest {
         project_id: project.into(),
         root_id: "r".into(),
+        root_path: None,
         request_id: id.into(),
         generation: generation.into(),
         cols: 80,

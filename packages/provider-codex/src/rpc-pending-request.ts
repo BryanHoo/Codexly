@@ -6,11 +6,14 @@ interface RpcPendingRequestOptions {
   readonly reject: (error: Error) => void;
   readonly request: unknown;
   readonly resolve: (result: unknown) => void;
-  readonly timeoutMs: number;
+  readonly deadline: number;
+  readonly timeoutError: Error;
 }
 
 export class RpcPendingRequest {
   public readonly request: unknown;
+  public readonly deadline: number;
+  public readonly timeoutError: Error;
 
   readonly #reject: (error: Error) => void;
   readonly #resolve: (result: unknown) => void;
@@ -22,10 +25,12 @@ export class RpcPendingRequest {
 
   public constructor(options: RpcPendingRequestOptions) {
     this.request = options.request;
+    this.deadline = options.deadline;
+    this.timeoutError = options.timeoutError;
     this.#cleanup = options.cleanup;
     this.#reject = options.reject;
     this.#resolve = options.resolve;
-    this.#timeoutTimer = setTimeout(options.onTimeout, options.timeoutMs);
+    this.#timeoutTimer = setTimeout(options.onTimeout, Math.max(0, options.deadline - Date.now()));
     this.#timeoutTimer.unref();
   }
 

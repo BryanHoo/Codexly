@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use tokio::{
     sync::Mutex,
     task::JoinHandle,
@@ -23,8 +23,8 @@ use super::{
 use crate::{
     domain::runtime::{AgentEvent, AppEvent, ProviderKind, RuntimeStatus},
     infrastructure::codex::{
-        EVENT_RETENTION_EXCEEDED_METHOD, MappedServerRequest, PendingServerRequest,
-        RUNTIME_SESSION_ID, ServerMessage, ServerMessageReceiver,
+        EVENT_RETENTION_EXCEEDED_METHOD, MappedServerRequest, PendingServerRequest, ServerMessage,
+        ServerMessageReceiver, runtime_session_id,
     },
 };
 
@@ -85,6 +85,14 @@ pub(super) fn spawn_event_forwarder(
 
             // JSON 建树和协议映射可能随 delta 体积增长，必须在全局状态锁之外完成。
             observe_model_turn(&runtime, &message).await;
+            // 认证通知独立于设置面板生命周期，登录窗口返回时即时刷新启用状态。
+            if matches!(
+                message.method.as_str(),
+                "account/login/completed" | "account/updated"
+            ) && let Some(app) = app.as_ref()
+            {
+                let _ = app.emit("engine-configuration-changed", ());
+            }
             if handle_login_notification(&runtime, &message).await {
                 continue;
             }
@@ -160,7 +168,7 @@ async fn publish_resync_required(
             latest_sequence,
             project_id,
             reason: "event_retention_exceeded",
-            session_id: RUNTIME_SESSION_ID,
+            session_id: runtime_session_id(),
             message_type: "resync.required",
             version: 3,
         }
@@ -336,7 +344,7 @@ fn map_terminal_request(
         "payload": {"request": request},
         "provider": "codex",
         "sequence": 0,
-        "sessionId": crate::infrastructure::codex::RUNTIME_SESSION_ID,
+        "sessionId": crate::infrastructure::codex::runtime_session_id(),
         "taskId": required_event_string(&request, "taskId")?,
         "timestamp": required_event_string(&request, "createdAt")?,
         "turnId": required_event_string(&request, "turnId")?,

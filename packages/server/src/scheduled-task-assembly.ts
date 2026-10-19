@@ -1,4 +1,3 @@
-import type { AgentModel } from "@codexly/protocol";
 import type { AttachmentStore } from "./attachment-store.js";
 import type { CreateCodexlyServerOptions } from "./server-options.js";
 import type { ProjectContextResolver, ServerRouteContext } from "./routes/context.js";
@@ -15,7 +14,7 @@ export async function createScheduledTasks(
   options: CreateCodexlyServerOptions,
   attachmentStore: AttachmentStore,
   getProjectContext: ProjectContextResolver,
-  listModels: () => Promise<readonly AgentModel[]>,
+  listModels: ServerRouteContext["listModels"],
   resolveProviderTurnInput: ServerRouteContext["resolveProviderTurnInput"],
 ) {
   const scheduledTaskAttachmentManager =

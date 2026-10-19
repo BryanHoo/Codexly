@@ -24,7 +24,28 @@ pub async fn steer_turn(
     let worker_project = project_id.clone();
     let worker_task = task_id.clone();
     let worker_turn = turn_id.clone();
+    let worker_submission = queued_submission_id.clone();
     let execute = move |mut input| async move {
+        let task = super::claude_tasks::task(&worker_app, &worker_project, &worker_task).await?;
+        if task["provider"] == "claude" {
+            let input = super::claude_tasks::provider_input(
+                &worker_app,
+                &worker_project,
+                &worker_task,
+                input,
+            )
+            .await?;
+            return worker_app
+                .state::<AppState>()
+                .claude
+                .request(
+                    &worker_app,
+                    "turn.steer",
+                    Some(super::claude_tasks::scope(&task)),
+                    serde_json::json!({"taskId":worker_task,"turnId":worker_turn,"input":input,"queuedSubmissionId":worker_submission}),
+                )
+                .await;
+        }
         let app_data = worker_app
             .path()
             .app_data_dir()
@@ -64,6 +85,7 @@ pub async fn steer_turn(
             execute,
             move || async move {
                 super::workflow_commands::delete_queued_submission(
+                    cleanup_app.clone(),
                     cleanup_project,
                     cleanup_task,
                     cleanup_id,

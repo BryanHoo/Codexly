@@ -16,6 +16,24 @@ import {
 } from "./project-runtime.test-support.js";
 
 describe("project runtime events", () => {
+  it("applies permission notifications without requesting unrelated task metadata refreshes", () => {
+    const harness = createClientHarness();
+    const onTaskMetadataChanged = vi.fn();
+    const manager = createProjectRuntimeManager(harness.client, { onTaskMetadataChanged });
+    manager.observeSnapshot(createSnapshotResponse("task-1"));
+    harness.emit({
+      provider: "claude",
+      sessionId: "runtime-1",
+      timestamp: "2026-07-28T00:00:01.000Z",
+      version: 2,
+      sequence: 1,
+      taskId: "task-1",
+      type: "task.metadata_changed",
+      payload: { permissionMode: "plan" },
+    });
+    expect(onTaskMetadataChanged).not.toHaveBeenCalled();
+    manager.dispose();
+  });
   it("keeps a completed sidebar shortcut until that task is focused and includes later runs again", () => {
     const harness = createClientHarness();
     const manager = createProjectRuntimeManager(harness.client);

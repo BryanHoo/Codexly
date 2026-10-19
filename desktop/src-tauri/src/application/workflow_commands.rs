@@ -100,10 +100,22 @@ pub async fn terminate_background_terminal(
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn list_queued_submissions(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    if let Some(response) = super::claude_tasks::queue_request(
+        &app,
+        &project_id,
+        &task_id,
+        "queue.list",
+        serde_json::json!({}),
+    )
+    .await?
+    {
+        return Ok(response);
+    }
     let connection = validate_task(&state, project_id, &task_id).await?;
     let response = codex::read_queued_submissions(&connection, &task_id)
         .await
@@ -135,11 +147,23 @@ pub async fn add_queued_submission(
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn delete_queued_submission(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     queued_submission_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    if let Some(response) = super::claude_tasks::queue_request(
+        &app,
+        &project_id,
+        &task_id,
+        "queue.delete",
+        serde_json::json!({"queuedSubmissionId":queued_submission_id}),
+    )
+    .await?
+    {
+        return Ok(response);
+    }
     let connection = validate_task(&state, project_id, &task_id).await?;
     let response = codex::delete_queued_submission(&connection, &task_id, &queued_submission_id)
         .await
@@ -149,12 +173,24 @@ pub async fn delete_queued_submission(
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn move_queued_submission(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     queued_submission_id: String,
     offset: i8,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    if let Some(response) = super::claude_tasks::queue_request(
+        &app,
+        &project_id,
+        &task_id,
+        "queue.move",
+        serde_json::json!({"queuedSubmissionId":queued_submission_id,"offset":offset}),
+    )
+    .await?
+    {
+        return Ok(response);
+    }
     let connection = validate_task(&state, project_id, &task_id).await?;
     let moved = codex::move_queued_submission(&connection, &task_id, &queued_submission_id, offset)
         .await

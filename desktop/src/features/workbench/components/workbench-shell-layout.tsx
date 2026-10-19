@@ -193,6 +193,7 @@ export function WorkbenchShellLayout({
           enabled={!utilityView && !temporary && projectRoots.length > 0}
           projectId={projectId}
           rootId={selectedRootId}
+          rootPath={projectPath}
           taskId={taskId}
         >
           <WorkbenchShellHeader
@@ -264,7 +265,7 @@ export function WorkbenchShellLayout({
                 models={models}
                 modelsError={null}
                 modelsPending={
-                  modelsQuery.isPending ||
+                  modelsQuery.isLoading ||
                   (!temporary && projectDefaultsQuery.isPending) ||
                   globalSettingsQuery.isPending
                 }
@@ -274,6 +275,7 @@ export function WorkbenchShellLayout({
                 }
                 onOpenProjectPath={openProjectFolder}
                 onProjectRootChange={setSelectedRootId}
+                  workspace={{ projectId, rootPath: projectPath, select: context.selectWorkspace, client }}
                 onDirectSubmission={(prompt) => {
                   beginNewChatSubmission();
                   setNewChatPromptState({ prompt, scope: newChatScope });
@@ -305,10 +307,11 @@ export function WorkbenchShellLayout({
               fastModeDefault={fastModeDefault}
               models={models}
               modelsError={modelsQuery.error}
-              modelsPending={modelsQuery.isPending}
+              modelsPending={modelsQuery.isLoading}
               onProjectTaskDefaultsChange={updateProjectTaskDefaults}
               onOpenProjectPath={openProjectFolder}
               onProjectRootChange={setSelectedRootId}
+                  workspace={{ projectId, rootPath: projectPath, select: context.selectWorkspace, client }}
               onTaskStarted={handleTaskStarted}
               projectId={projectId}
               projectName={projectName}

@@ -54,8 +54,9 @@ impl AppState {
         app: &AppHandle,
         app_data: &Path,
     ) -> Result<RuntimeSnapshot, AppError> {
-        // 安装由启动门禁负责，进程重启不得重复下载或触发无进度的自动更新。
-        match CodexProcess::start(app_data).await {
+        // 从只读安装资源启动，用户数据目录只用于会话与缓存。
+        let resources = crate::infrastructure::bundled_runtime::root(app)?;
+        match CodexProcess::start(app_data, &resources).await {
             Ok(process) => {
                 let messages = match process.connection().take_server_messages().await {
                     Ok(messages) => messages,

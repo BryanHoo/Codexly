@@ -59,15 +59,8 @@ export function resolveProjectDefaults(
   const reasoningEffort =
     orderedEfforts.find((item) => item.id === requested?.reasoningEffort)?.id ??
     orderedEfforts.find((item) => item.id === model.defaultReasoningEffort)?.id ??
-    orderedEfforts[0]?.id;
-  if (reasoningEffort === undefined) {
-    throw new MutationHttpError(
-      "PROVIDER_ERROR",
-      "The selected Agent model has no reasoning effort",
-      502,
-      true,
-    );
-  }
+    orderedEfforts[0]?.id ??
+    "";
   return {
     model: model.id,
     reasoningEffort,
@@ -97,6 +90,7 @@ export function taskFromSnapshot(
   overrides: Partial<Pick<AgentTask, "title">> = {},
 ): AgentTask {
   return {
+    ...(snapshot.engine === undefined ? {} : { engine: snapshot.engine }),
     id: snapshot.id,
     pinned: snapshot.pinned,
     projectId: snapshot.projectId,

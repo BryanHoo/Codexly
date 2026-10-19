@@ -116,6 +116,10 @@ fn skill_turn_mapping_should_merge_adjacent_expansions_without_moving_messages()
     let mapped = to_value(map_turn(serde_json::from_value(raw).unwrap()).unwrap()).unwrap();
     assert_eq!(mapped["items"].as_array().unwrap().len(), 2);
     assert_eq!(mapped["items"][0]["id"], "user");
+    assert_eq!(
+        mapped["items"][0]["identityAliases"],
+        json!(["expanded-a", "expanded-b"])
+    );
     assert_eq!(mapped["items"][0]["text"], "修复代码");
     assert_eq!(
         mapped["items"][0]["skills"],

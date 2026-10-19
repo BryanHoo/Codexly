@@ -1,3 +1,4 @@
+import type { StopAgentSessionResponse } from "@codexly/protocol";
 import type { TaskSearchInput } from "@/protocol/global-search.js";
 import type { CreateProjectDirectoryRequest, CreateProjectDirectoryResponse } from "@codexly/protocol";
 import {
@@ -368,13 +369,17 @@ export class TauriSidebarClient extends TauriRuntimeClient {
     });
   }
 
+  public async stopSession(projectId: string, taskId: string, backgroundTaskId?: string): Promise<StopAgentSessionResponse> {
+    return this.call("stop_task_session", { projectId, taskId, backgroundTaskId: backgroundTaskId ?? null });
+  }
+
   public async interruptTurn(
-    _projectId: string,
+    projectId: string,
     taskId: string,
     turnId: string,
     _options: MutationOptions = {},
   ): Promise<InterruptAgentTurnResponse> {
-    return this.call("interrupt_turn", { taskId, turnId });
+    return this.call("interrupt_turn", { projectId, taskId, turnId });
   }
 
   public async resolvePendingRequest<T extends PendingRequest>(

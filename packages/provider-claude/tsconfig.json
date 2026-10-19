@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "outDir": "../../.cache/types/provider-claude",
+    "rootDir": "src",
+    "tsBuildInfoFile": "../../.cache/types/provider-claude.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.json"],
+  "references": [{ "path": "../protocol" }, { "path": "../core" }]
+}

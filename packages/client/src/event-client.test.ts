@@ -3,6 +3,7 @@ import type * as TypeBoxValue from "@sinclair/typebox/value";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CodexlyClient } from "./http-client.js";
+import { CodexlyEventError } from "./event-client.js";
 
 const { checkSpy, decodeSpy } = vi.hoisted(() => ({
   checkSpy: vi.fn(),
@@ -27,10 +28,11 @@ vi.mock("@sinclair/typebox/value", async (importOriginal) => {
   };
 });
 
-function createCloseEvent(code: number): Event {
+function createCloseEvent(code: number, reason = ""): Event {
   const event = new Event("close");
   // Node 22 没有浏览器的 CloseEvent，全量测试仅需保留真实关闭事件的 code 语义。
   Object.defineProperty(event, "code", { enumerable: true, value: code });
+  Object.defineProperty(event, "reason", { enumerable: true, value: reason });
   return event;
 }
 
@@ -60,9 +62,9 @@ class FakeWebSocket extends EventTarget {
     this.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(message) }));
   }
 
-  public serverClose(code = 1006): void {
+  public serverClose(code = 1006, reason = ""): void {
     this.readyState = WebSocket.CLOSED;
-    this.dispatchEvent(createCloseEvent(code));
+    this.dispatchEvent(createCloseEvent(code, reason));
   }
 }
 
@@ -112,6 +114,133 @@ afterEach(() => {
 });
 
 describe("CodexlyClient realtime events", () => {
+  it.each([
+    ["session expiry", 1008, "Access session expired"],
+    ["session revocation", 1008, "Access session expired"],
+    ["project deletion", 1008, "Project not found"],
+    ["policy rejection without a reason", 1008, ""],
+    ["protocol rejection", 1002, "Invalid frame"],
+  ])("stops %s before and after connection.ready", async (_scenario, code, reason) => {
+    vi.useFakeTimers();
+    for (const connected of [false, true]) {
+      const { client, sockets } = createHarness();
+      const onError = vi.fn();
+      const onConnectionState = vi.fn();
+      const onResyncRequired = vi.fn();
+      const onEvent = vi.fn();
+      const unsubscribe = client.subscribeEvents({
+        afterSequence: 3,
+        projectId: "codexly",
+        sessionId: "runtime-1",
+        onError,
+        onConnectionState,
+        onEvent,
+        onResyncRequired,
+      });
+      if (connected) sockets[0]?.receive(ready);
+      sockets[0]?.serverClose(code, reason);
+      expect(onConnectionState).toHaveBeenLastCalledWith("closed");
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "CodexlyEventError", closeCode: code }),
+      );
+      expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(CodexlyEventError);
+      expect(onResyncRequired).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+      await vi.advanceTimersByTimeAsync(250);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(sockets).toHaveLength(1);
+      sockets[0]?.receive(ready);
+      sockets[0]?.receive(eventBatch(messageEvent(4)));
+      sockets[0]?.serverClose();
+      expect(onEvent).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+      unsubscribe();
+    }
+  });
+
+  it("handles synchronous factory failures through the retry path and allows cancellation", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const cause = new Error("WebSocket construction failed");
+    const socket = new FakeWebSocket("ws://host.test");
+    const factory = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw cause;
+      })
+      .mockReturnValue(socket);
+    const client = new CodexlyClient({ baseUrl: "http://host.test", webSocketFactory: factory });
+    const onError = vi.fn();
+    const onConnectionState = vi.fn();
+    const unsubscribe = client.subscribeEvents({
+      afterSequence: 3,
+      projectId: "codexly",
+      sessionId: "runtime-1",
+      onEvent: vi.fn(),
+      onResyncRequired: vi.fn(),
+      onError,
+      onConnectionState,
+    });
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ cause }));
+    expect(onConnectionState).toHaveBeenLastCalledWith("reconnecting");
+    await vi.advanceTimersByTimeAsync(250);
+    expect(factory).toHaveBeenCalledTimes(2);
+    socket.receive(ready);
+    expect(onConnectionState).toHaveBeenLastCalledWith("connected");
+    socket.serverClose();
+    unsubscribe();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(factory).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("spreads retries across tabs, caps backoff and resets it only after connection.ready", async () => {
+    vi.useFakeTimers();
+    const random = vi
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(1)
+      .mockReturnValue(0.5);
+    const tabs = [createHarness(), createHarness()] as const;
+    const unsubscribes = tabs.map(({ client }) =>
+      client.subscribeEvents({
+        afterSequence: 3,
+        projectId: "codexly",
+        sessionId: "runtime-1",
+        onEvent: vi.fn(),
+        onResyncRequired: vi.fn(),
+      }),
+    );
+    tabs.forEach(({ sockets }) => sockets[0]?.serverClose());
+    await vi.advanceTimersByTimeAsync(200);
+    expect(tabs.map(({ sockets }) => sockets.length)).toEqual([2, 1]);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(tabs.map(({ sockets }) => sockets.length)).toEqual([2, 2]);
+    const sockets = tabs[0].sockets;
+    for (const delay of [500, 1_000, 2_000, 4_000, 5_000, 5_000]) {
+      const count = sockets.length;
+      sockets.at(-1)?.open();
+      sockets.at(-1)?.serverClose();
+      await vi.advanceTimersByTimeAsync(delay - 1);
+      expect(sockets).toHaveLength(count);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sockets).toHaveLength(count + 1);
+    }
+    sockets.at(-1)?.receive(ready);
+    sockets.at(-1)?.serverClose(1008);
+    tabs[1].sockets.at(-1)?.receive(ready);
+    tabs[1].sockets.at(-1)?.serverClose();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(tabs[1].sockets).toHaveLength(3);
+    tabs[1].sockets.at(-1)?.serverClose(1008);
+    expect(vi.getTimerCount()).toBe(0);
+    unsubscribes.forEach((unsubscribe) => {
+      unsubscribe();
+    });
+    random.mockRestore();
+  });
+
   it.each(["x", "中", "😀"])("rejects oversized UTF-8 frames before parsing (%j)", (character) => {
     vi.useFakeTimers();
     const { client, sockets } = createHarness();
@@ -326,6 +455,7 @@ describe("CodexlyClient realtime events", () => {
 
   it("reconnects from the latest sequence and cancellation clears pending retries", async () => {
     vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
     const { client, sockets } = createHarness();
     const states: string[] = [];
     const unsubscribe = client.subscribeEvents({

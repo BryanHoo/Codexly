@@ -87,12 +87,31 @@ describe("ProviderConnectionPanelView", () => {
     expect(markup).toContain('type="url"');
     expect(markup).toContain('type="password"');
     expect(markup).toContain('autoComplete="new-password"');
-    expect(markup).toContain("自定义模型（可选）");
+    expect(markup).toContain("自定义模型");
     expect(markup).toContain('value="manual-model"');
     expect(markup).toContain('value="Manual Model"');
     expect(markup).toContain('data-variant="outline"');
     expect(markup).toContain("重新连接");
     expect(markup).toContain("已连接");
+  });
+
+  it("设置中的 API 配置自动保存，不显示连接或保存按钮", () => {
+    const markup = renderWithTooltipProvider(
+      <ProviderConnectionPanelView
+        {...handlers}
+        autoSave
+        apiKey=""
+        baseUrl="https://api.example.com/v1"
+        error={null}
+        isBusy={false}
+        mode="custom"
+        models={[]}
+        status={undefined}
+      />,
+    );
+    expect(markup).not.toContain('type="submit"');
+    expect(markup).not.toMatch(/<h2[^>]*>服务连接<\/h2>/);
+    expect(markup).not.toMatch(/<h2[^>]*>连接配置<\/h2>/);
   });
 
   it("builds structured models and rejects incomplete rows", () => {

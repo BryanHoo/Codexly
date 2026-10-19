@@ -382,6 +382,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                 onSelectKind={props.onSelectAttachmentKind}
                 showDeploymentHost={props.showDeploymentHostAttachments}
               />
+              {props.engineControls}
               <ComposerApprovalControls
                 disabled={props.turnControlsDisabled}
                 onSettingsChange={props.onSettingsChange}

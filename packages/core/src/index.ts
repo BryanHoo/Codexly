@@ -1,5 +1,12 @@
 // 领域模型、用例和 Provider 端口只能从此公开入口导出。
 export {
+  CatalogSearchService,
+  catalogSearchCursor,
+  checkSearchCancellation,
+  searchQuery,
+} from "./catalog-search.js";
+export { searchTextMatches, searchTextSnippet } from "./search-text.js";
+export {
   type AgentCancellationSignal,
   type AgentModelCatalogFallback,
   type AgentFileSearchInput,
@@ -9,6 +16,7 @@ export {
   type AgentProviderAttachment,
   type AgentProviderQueue,
   type AgentRuntimeProvider,
+  type AgentEngineService,
   type AgentSearchProvider,
   type AgentSearchScope,
   type AgentTaskUnsubscribeStatus,
@@ -54,3 +62,14 @@ export * from "./task-catalog.js";
 export * from "./completed-task-query.js";
 export * from "./custom-model-reasoning.js";
 export type * from "./local-catalog.js";
+export {
+  EngineProjectRouter,
+  localTaskMetadata,
+  type AgentExecutionAdapter,
+} from "./engine-router.js";
+export * from "./mcp-elicitation.js";
+export * from "./task-snapshot-checkpoint.js";
+export * from "./retained-work-budget.js";
+export { boundTaskTitleInput, taskTitlePrompt, parseTaskTitle } from "./task-title.js";
+export { readGenerationDefaults } from "./generation-defaults.js";
+export type { TaskTitleGenerator } from "./agent-provider.js";

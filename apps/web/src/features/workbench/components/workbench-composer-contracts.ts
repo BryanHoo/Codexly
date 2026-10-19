@@ -1,3 +1,4 @@
+import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type {
   AgentAttachment,
   AgentCapabilities,
@@ -16,7 +17,8 @@ import type {
   ProjectRoot,
 } from "@codexly/protocol";
 import { buildProjectAttachmentUrl, buildTaskAttachmentUrl } from "@codexly/client";
-import type { Ref } from "react";
+import type { Ref, ReactNode } from "react";
+import type { AgentCommand } from "@codexly/protocol";
 
 import type {
   BrowserPromptInputAttachment,
@@ -58,6 +60,8 @@ export type WorkbenchComposerHandle = Readonly<{
 }>;
 
 export type WorkbenchComposerProps = Readonly<{
+  engineControls?: ReactNode;
+  engineCommands?: readonly AgentCommand[];
   composerRef?: Ref<WorkbenchComposerHandle>;
   capabilities: AgentCapabilities | undefined;
   client: CodexlyMutationClient &
@@ -65,15 +69,18 @@ export type WorkbenchComposerProps = Readonly<{
       CodexlyGitMutationClient,
       | "createProjectBranch"
       | "createProjectWorktree"
+      | "createTaskWorktree"
       | "listProjectWorktrees"
       | "switchProjectBranch"
       | "switchProjectWorktree"
     > &
-    CodexlyProjectFileSearchClient;
+    CodexlyProjectFileSearchClient &
+    ComposerWorkspace["client"];
   fastModeAvailable: boolean;
   fastModeDefault: boolean;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];
   composerDraftId?: string;
+  initialEngine?: "codex" | "claude";
   initialDraft?: ComposerDraft;
   captureSubmitVisible?: boolean;
   footerVisible?: boolean;
@@ -90,6 +97,7 @@ export type WorkbenchComposerProps = Readonly<{
   onRequestNotificationPermission: () => void;
   onOpenProjectPath: () => void;
   onProjectRootChange: (rootId: string) => void;
+  workspace?: ComposerWorkspace;
   onDirectSubmission?: (prompt?: PendingPrompt) => void;
   onSubmissionFailed?: () => void;
   onCaptureSubmission?: (

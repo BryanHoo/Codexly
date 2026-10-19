@@ -1,9 +1,10 @@
 use super::sidebar::AgentTask;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskSearchInput {
+    pub engines: Option<String>,
     pub query: String,
     pub archived: bool,
     pub kind: Option<String>,
@@ -13,6 +14,8 @@ pub struct TaskSearchInput {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskSearchPage {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unavailable_engines: Option<Vec<String>>,
     pub data: Vec<TaskSearchResult>,
     pub next_cursor: Option<String>,
 }

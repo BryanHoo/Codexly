@@ -10,14 +10,20 @@ pub mod attachment_commands;
 pub mod autostart_commands;
 pub mod background_commands;
 pub mod catalog_commands;
+pub mod claude_attachments;
+pub mod claude_commands;
+pub(crate) mod claude_host;
+pub(crate) mod claude_tasks;
 pub mod commands;
 pub mod desktop_pet_commands;
 #[cfg(target_os = "macos")]
 mod desktop_pet_panel;
 mod desktop_pet_window;
 pub mod diagnostic_commands;
+pub mod engine_setup;
 pub mod error;
 pub mod extension_commands;
+pub(crate) mod generation_settings;
 pub mod history_storage_commands;
 mod model_turn_waiters;
 pub mod notification_commands;
@@ -52,6 +58,7 @@ pub mod task_activity_commands;
 #[cfg(test)]
 mod task_activity_tests;
 pub mod task_board_commands;
+mod task_compact_commands;
 mod task_creation;
 pub mod task_fork_commands;
 mod task_subscription;

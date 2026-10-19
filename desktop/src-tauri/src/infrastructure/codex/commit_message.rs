@@ -70,10 +70,14 @@ struct GeneratedMessage {
 
 pub fn resolve_commit_message_settings(settings: &Value) -> CommitMessageSettings {
     let model = settings
-        .get("commitMessageModel")
+        .get("defaultModel")
         .and_then(Value::as_str)
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or("gpt-6-luna")
+        .unwrap_or(if settings["defaultAgent"] == "claude" {
+            "haiku"
+        } else {
+            "gpt-6-luna"
+        })
         .to_owned();
     let prompt = settings
         .get("commitMessagePrompt")
@@ -167,6 +171,14 @@ mod tests {
     };
 
     #[test]
+    fn claude_generation_should_default_to_haiku() {
+        assert_eq!(
+            resolve_commit_message_settings(&json!({"defaultAgent":"claude"})).model,
+            "haiku"
+        );
+    }
+
+    #[test]
     fn missing_model_should_default_to_gpt_6_luna() {
         assert_eq!(
             resolve_commit_message_settings(&json!({})).model,
@@ -234,7 +246,7 @@ mod tests {
         });
 
         let settings = resolve_commit_message_settings(&json!({
-            "commitMessageModel": "gpt-commit",
+            "defaultModel": "gpt-commit",
             "commitMessagePrompt": "生成中文提交信息"
         }));
         let thread_id =

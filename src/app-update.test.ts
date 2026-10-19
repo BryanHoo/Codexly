@@ -1,6 +1,7 @@
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { describe, expect, it, vi } from "vitest";
 import type { AppUpdateProgress } from "@codexly/protocol";
@@ -12,8 +13,54 @@ import {
   isNewerVersion,
   resolveNpmInstallInvocation,
 } from "./app-update.js";
+import { readClaudeCodeVersion } from "./claude-version.js";
+
+describe("Claude Code version metadata", () => {
+  it("reads the engine version rather than the SDK version next to its public entry", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codexly-claude-version-"));
+    try {
+      await writeFile(
+        join(root, "package.json"),
+        JSON.stringify({ version: "0.3.300", claudeCodeVersion: "2.1.300" }),
+      );
+      // 不创建 SDK 入口或可执行文件，确认版本展示只需要小型清单。
+      await expect(readClaudeCodeVersion(pathToFileURL(join(root, "sdk.mjs")).href)).resolves.toBe(
+        "2.1.300",
+      );
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it.each([
+    null,
+    "not-json",
+    "null",
+    JSON.stringify({ version: "0.3.300" }),
+    JSON.stringify({ claudeCodeVersion: 300 }),
+    JSON.stringify({ claudeCodeVersion: "2.1.300-beta.01" }),
+  ])("ignores missing or malformed metadata %s", async (manifest) => {
+    const root = await mkdtemp(join(tmpdir(), "codexly-claude-version-"));
+    try {
+      if (manifest !== null) await writeFile(join(root, "package.json"), manifest);
+      await expect(
+        readClaudeCodeVersion(pathToFileURL(join(root, "sdk.mjs")).href),
+      ).resolves.toBeNull();
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+});
 
 describe("app update service", () => {
+  it("keeps unknown Claude metadata from breaking application information", async () => {
+    const service = createAppUpdateService({
+      appVersion: "1.3.0",
+      codexVersion: "0.163.0",
+      fetchLatestVersion: () => Promise.resolve("1.3.0"),
+    });
+    await expect(service.read()).resolves.toMatchObject({ claudeVersion: null, status: "current" });
+  });
   it("coalesces concurrent checks and caches release notes across the version TTL", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(0);
     const fetchLatestVersion = vi.fn(() => Promise.resolve("1.4.0"));
@@ -21,6 +68,7 @@ describe("app update service", () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       fetchLatestVersion,
       fetchChangelog,
     });
@@ -49,6 +97,7 @@ describe("app update service", () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       fetchLatestVersion,
       fetchChangelog,
     });
@@ -182,6 +231,7 @@ describe("app update service", () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       fetchLatestVersion: vi.fn(() => Promise.resolve("1.4.0")),
       runNpmInstall,
     });
@@ -211,6 +261,7 @@ describe("app update service", () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       fetchLatestVersion,
       fetchChangelog,
       runNpmInstall,
@@ -219,6 +270,7 @@ describe("app update service", () => {
     await expect(service.read()).resolves.toEqual({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       latestVersion: "1.4.0",
       releaseNotes: "### 新增\n\n- 添加在线更新。",
       status: "available",
@@ -232,6 +284,7 @@ describe("app update service", () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       fetchLatestVersion: vi.fn(() => Promise.reject(new Error("offline"))),
       runNpmInstall: vi.fn(),
     });
@@ -239,6 +292,7 @@ describe("app update service", () => {
     await expect(service.read()).resolves.toEqual({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       latestVersion: null,
       releaseNotes: null,
       status: "check-failed",
@@ -253,12 +307,14 @@ describe("app update service", () => {
       const service = createAppUpdateService({
         appVersion: "0.1.0",
         codexVersion: "0.163.0",
+        claudeVersion: "2.1.300",
         runNpmInstall: vi.fn(),
       });
 
       await expect(service.read()).resolves.toEqual({
         appVersion: "0.1.0",
         codexVersion: "0.163.0",
+        claudeVersion: "2.1.300",
         latestVersion: "0.1.0",
         releaseNotes: null,
         status: "current",
@@ -271,6 +327,7 @@ describe("app update service", () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       fetchChangelog: vi.fn(() => Promise.reject(new Error("offline"))),
       fetchLatestVersion: vi.fn(() => Promise.resolve("1.4.0")),
       runNpmInstall: vi.fn(),
@@ -279,6 +336,7 @@ describe("app update service", () => {
     await expect(service.read()).resolves.toEqual({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       latestVersion: "1.4.0",
       releaseNotes: null,
       status: "available",
@@ -291,6 +349,7 @@ describe("app update service", () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       fetchLatestVersion: vi.fn(() => Promise.resolve("1.4.0")),
       runNpmInstall,
     });
@@ -298,12 +357,17 @@ describe("app update service", () => {
     await expect(service.install("1.4.0")).resolves.toEqual({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       latestVersion: "1.4.0",
       releaseNotes: null,
       status: "restart-required",
       updateAvailable: false,
     });
     expect(runNpmInstall).toHaveBeenCalledWith("1.4.0", expect.any(Function));
+    await expect(service.read()).resolves.toMatchObject({
+      claudeVersion: "2.1.300",
+      status: "restart-required",
+    });
 
     await expect(service.install("1.5.0")).rejects.toMatchObject({
       code: "UPDATE_NOT_AVAILABLE",
@@ -319,6 +383,7 @@ describe("app update service", () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       fetchChangelog: vi.fn(() => Promise.resolve("")),
       fetchLatestVersion,
       runNpmInstall,

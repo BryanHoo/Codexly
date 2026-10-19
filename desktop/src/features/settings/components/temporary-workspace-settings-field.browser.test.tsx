@@ -34,7 +34,7 @@ describe("TemporaryWorkspaceSettingsField", () => {
     expect(toast.success).not.toHaveBeenCalled();
     await screen.getByRole("button", { name: "更改" }).click();
     await expect.element(screen.getByText("/tasks/selected")).toBeVisible();
-    expect(toast.success).toHaveBeenCalledTimes(1);
+    await expect.element(screen.getByRole("status")).toHaveTextContent("已保存");
   });
 
   it("keeps the saved path and permits retry after a write failure", async () => {

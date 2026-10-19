@@ -1,0 +1,499 @@
+import { createClaudeAgentPreview } from "./subagent-preview.js";
+import {
+  ClaudeRenderingBuffer,
+  previewText,
+  CLAUDE_CHILD_PREVIEW_BYTES,
+  parseToolInputPreview,
+  CLAUDE_TURN_PREVIEW_BYTES,
+} from "./rendering-buffer.js";
+import {
+  mapClaudeMcpServers,
+  mapClaudeUsage,
+  mapClaudeResultUsage,
+  mapClaudePlan,
+  publishClaudePlan,
+  publishClaudeUsage,
+  publishClaudeMcpServers,
+} from "./observability.js";
+import type { AgentProviderEventListener } from "@codexly/core";
+import type { AgentContextUsage, AgentItem, AgentPlan, AgentTurn } from "@codexly/protocol";
+import { createClaudeUserItem, type ClaudeUserInput } from "./turn-input.js";
+import type { ClaudeTaskMetadata } from "./history.js";
+import {
+  record,
+  text,
+  resultText,
+  displayClaudeMessage,
+  claudeTurnResult,
+  claudeResultMessage,
+  claudeContentItem,
+  claudeFinalAnswerItems,
+} from "./sdk-values.js";
+import { changedClaudeUsage } from "./projection-usage.js";
+import { ClaudeProjectionChanges } from "./projection-changes.js";
+import { ClaudeBackgroundTasks } from "./background-tasks.js";
+import { ClaudeTaskPlan } from "./task-plan.js";
+import { claudeStructuredResult, projectClaudeToolResult } from "./tool-projection.js";
+export class ClaudeTurnProjection {
+  readonly #taskId: string;
+  readonly #emit: AgentProviderEventListener;
+  readonly #items: ClaudeRenderingBuffer;
+  readonly #startedAt = new Date().toISOString();
+  readonly #blocks = new Map<number, string>();
+  readonly #inputs = new Map<number, { json: string; bytes: number }>();
+  readonly #children = new Map<string, ClaudeTurnProjection>();
+  readonly #taskPlan = new ClaudeTaskPlan();
+  #closed = false;
+  #forkable = false;
+  readonly changes: ClaudeProjectionChanges;
+  #lastBlockIndex = 0;
+  #model = "";
+  contextUsage: AgentContextUsage | null = null;
+  plan: AgentPlan | null = null;
+  mcpServers: ClaudeTaskMetadata["mcpServers"] = [];
+  mcpObservedAt: string | null = null;
+  sessionInitialized = false;
+  permissionMode: ClaudeTaskMetadata["permissionMode"];
+  persistence: AgentTurn["persistence"];
+  #requestUsage: Record<string, unknown> = {};
+  #messageId = "";
+  #status: AgentTurn["status"] = "running";
+  #error: string | null = null;
+  #completedAt: string | null = null;
+  constructor(
+    taskId: string,
+    readonly id: string,
+    prompt: ClaudeUserInput | undefined,
+    emit: AgentProviderEventListener,
+    previewBytes = CLAUDE_TURN_PREVIEW_BYTES,
+    paginated = false,
+    public backgroundTasks = new ClaudeBackgroundTasks(),
+    public cwd = "",
+  ) {
+    this.changes = new ClaudeProjectionChanges(paginated);
+    this.#items = new ClaudeRenderingBuffer(previewBytes, id, paginated);
+    this.#taskId = taskId;
+    this.#emit = emit;
+    if (prompt !== undefined) this.changes.touch(this.#items.set(createClaudeUserItem(id, prompt)));
+  }
+  get status() {
+    return this.#status;
+  }
+  /** 引导沿用当前回合和独立消息身份，附件只发布稳定引用，避免重复渲染原始输入。 */
+  addUserInput(id: string, input: ClaudeUserInput): void {
+    this.#item(createClaudeUserItem(id, input), true);
+  }
+  get hasBackgroundWork(): boolean {
+    return [...this.#children.entries()].some(
+      ([id, child]) =>
+        (this.backgroundTasks.isBackground(id) && child.status === "running") ||
+        child.hasBackgroundWork,
+    );
+  }
+  /** 集合可先于终态通知移除任务；保留原回合归属，直到通知正文完成投影。 */
+  get hasPendingTaskNotifications(): boolean {
+    return [...this.#children].some(
+      ([id, child]) =>
+        this.backgroundTasks.awaitingNotification(id) || child.hasPendingTaskNotifications,
+    );
+  }
+  ownsMessage(value: unknown): boolean {
+    return this.backgroundTasks.ownsMessage(value, (id) => !!this.#agentOwner(id));
+  }
+  restoreMetadata(metadata: ClaudeTaskMetadata | undefined): void {
+    if (!metadata) return;
+    this.sessionInitialized = metadata.sessionInitialized === true;
+    this.permissionMode = metadata.permissionMode;
+    this.contextUsage = metadata.contextUsage;
+    this.plan = metadata.plan;
+    this.#taskPlan.restore(metadata.planTasks);
+    this.mcpServers = metadata.mcpServers;
+    this.mcpObservedAt = metadata.mcpObservedAt ?? null;
+    this.#model = metadata.model ?? "";
+  }
+  metadata(): ClaudeTaskMetadata {
+    return {
+      sessionInitialized: this.sessionInitialized,
+      ...(this.permissionMode === undefined ? {} : { permissionMode: this.permissionMode }),
+      contextUsage: this.contextUsage,
+      plan: this.plan,
+      planTasks: this.#taskPlan.snapshot(),
+      model: this.#model || null,
+      mcpServers: this.mcpServers,
+      mcpObservedAt: this.mcpObservedAt,
+    };
+  }
+  snapshot(): AgentTurn {
+    return {
+      id: this.id,
+      forkable: this.#forkable,
+      startedAt: this.#startedAt,
+      completedAt: this.#completedAt,
+      status: this.#status,
+      error: this.#error,
+      ...(this.persistence ? { persistence: this.persistence } : {}),
+      items: this.#items.snapshot(),
+    };
+  }
+  #item(item: AgentItem, completed: boolean): void {
+    const exists = this.#items.has(item.id);
+    item = this.#items.set(item);
+    this.changes.touch(item);
+    if (completed || !exists || item.type === "tool")
+      this.#emit({
+        type: completed ? "item.completed" : "item.started",
+        taskId: this.#taskId,
+        turnId: this.id,
+        itemId: item.id,
+        payload: { item },
+      });
+  }
+  #block(block: Record<string, unknown>, id: string, completed: boolean): void {
+    const content = claudeContentItem(block, id);
+    if (content) this.#item(content, completed);
+    if (block["type"] === "tool_use") {
+      const toolId = text(block["id"]);
+      if (toolId) {
+        const name = text(block["name"]) || "Tool";
+        const previous = this.#items.get(toolId);
+        // 已由真实结果转成细分事件的记录，不能被完整 assistant 重放降级回工具输入。
+        if (previous?.type === "file_change" || previous?.type === "command") return;
+        // 已消费结果的 TodoWrite 不因完整 assistant 消息重放而重新提交或改写终态。
+        if (name === "TodoWrite" && previous?.type === "tool" && previous.status !== "running")
+          return;
+        this.#item(
+          {
+            ...(previous?.type === "tool" ? previous : {}),
+            id: toolId,
+            type: "tool",
+            name: name === "Agent" || name === "Task" ? "agent/spawn" : name,
+            input: block["input"] ?? {},
+            status: previous?.type === "tool" ? previous.status : "running",
+          },
+          false,
+        );
+        if (name === "Agent" || name === "Task") {
+          if (record(block["input"])["run_in_background"] === true)
+            this.backgroundTasks.hint(toolId);
+          this.#agent(toolId);
+        }
+        if (name === "TodoWrite" && completed)
+          this.#taskPlan.stage(toolId, mapClaudePlan(block["input"]));
+      }
+    }
+  }
+  #agent(id: string, status?: AgentTurn["status"], summary?: string): void {
+    const item = this.#items.get(id);
+    if (item?.type !== "tool" || item.name !== "agent/spawn") return;
+    const input = record(item.input);
+    let child = this.#children.get(id);
+    if (!child) {
+      // 已回收的终态预览不因重复消息重新建立；活动代理数量不受展示预算限制。
+      if (item.status !== "running") return;
+      child = new ClaudeTurnProjection(
+        this.#taskId,
+        `${this.id}:${id}`,
+        text(input["prompt"]),
+        (event) => {
+          // 块完成和任务进度同步正文；不在每个 token 到达时重发整段子代理历史。
+          if (!this.#closed && (event.type === "item.completed" || event.type === "item.started"))
+            this.#agent(id);
+        },
+        CLAUDE_CHILD_PREVIEW_BYTES,
+        false,
+        this.backgroundTasks,
+        this.cwd,
+      );
+      this.#children.set(id, child);
+    }
+    const prompt = text(input["prompt"]);
+    child.#items.set({ id: child.id, type: "message", role: "user", text: prompt });
+    if (
+      status &&
+      summary &&
+      ![...child.#items.values()].some(
+        (entry) => entry.type === "message" && entry.role === "assistant",
+      )
+    )
+      child.#item(
+        { id: `${child.id}:result`, type: "message", role: "assistant", text: summary },
+        true,
+      );
+    if (status && status !== "running") child.finish(status, undefined, true);
+    this.#item(
+      createClaudeAgentPreview(
+        item,
+        child.snapshot(),
+        this.#taskId,
+        this.backgroundTasks.nativeId(id) ?? null,
+        status,
+        summary,
+      ),
+      status !== undefined && status !== "running",
+    );
+    // 已结束正文已进入有界工具快照；释放可变投影，但不能回收仍有后台后代的树。
+    if (
+      child.status !== "running" &&
+      !child.hasBackgroundWork &&
+      !child.hasPendingTaskNotifications &&
+      !this.backgroundTasks.awaitingNotification(id)
+    ) {
+      this.#children.delete(id);
+      this.backgroundTasks.release(id, child.status);
+    }
+  }
+  updateContextUsage(usage: AgentContextUsage): void {
+    const changed = changedClaudeUsage(this.contextUsage, usage);
+    if (!changed) return;
+    this.contextUsage = changed;
+    publishClaudeUsage(this.#taskId, this.id, changed, this.#emit);
+  }
+  #usage(value: unknown): void {
+    const usage = mapClaudeUsage(value, this.contextUsage?.contextWindow ?? null);
+    if (usage) this.updateContextUsage(usage);
+  }
+  #agentOwner(id: string): ClaudeTurnProjection | undefined {
+    const toolId = this.backgroundTasks.toolId(id) ?? id;
+    const item = this.#items.get(toolId);
+    if (this.#children.has(toolId) || (item?.type === "tool" && item.name === "agent/spawn"))
+      return this;
+    for (const child of this.#children.values()) {
+      const owner = child.#agentOwner(id);
+      if (owner) return owner;
+    }
+    return undefined;
+  }
+  receive(value: unknown, taskStateReceived = false, interrupted = false): void {
+    if (this.#closed) return;
+    const message = displayClaudeMessage(value);
+    if (!taskStateReceived && !this.backgroundTasks.receive(message)) return;
+    // 以官方关联字段路由子代理消息，隔离主代理的正文、用量和流式块索引。
+    const parentId = text(message["parent_tool_use_id"]),
+      agentId = text(message["agent_id"]);
+    if (parentId || agentId) {
+      const owner = this.#agentOwner(parentId || agentId);
+      const parent = parentId || (owner ? owner.backgroundTasks.toolId(agentId) : undefined);
+      const child = parent && owner ? owner.#children.get(parent) : undefined;
+      child?.receive({ ...message, parent_tool_use_id: null, agent_id: undefined }, true);
+      return;
+    }
+    if (message["type"] === "system" && message["subtype"] === "init") {
+      this.#model = text(message["model"]) || this.#model;
+      this.cwd = text(message["cwd"]) || this.cwd;
+      this.mcpServers = mapClaudeMcpServers(message["mcp_servers"]);
+      this.mcpObservedAt = new Date().toISOString();
+      publishClaudeMcpServers(this.#taskId, this.mcpServers, this.#emit);
+      return;
+    }
+    if (
+      message["type"] === "system" &&
+      ["task_started", "task_updated", "task_progress", "task_notification"].includes(
+        text(message["subtype"]),
+      )
+    ) {
+      const nativeId = text(message["task_id"]),
+        id = text(message["tool_use_id"]) || this.backgroundTasks.toolId(nativeId);
+      const owner = this.#agentOwner(id ?? nativeId);
+      if (owner && owner !== this) {
+        owner.receive(message, true);
+        return;
+      }
+      if (!id || !this.#children.has(id)) return;
+      const { status, summary } = this.backgroundTasks.presentation(id, message);
+      this.#agent(id, status, summary);
+      return;
+    }
+    if (this.#status !== "running") return;
+    if (message["type"] === "stream_event") {
+      const event = record(message["event"]);
+      const index = typeof event["index"] === "number" ? event["index"] : 0;
+      if (event["type"] === "message_start") {
+        this.#messageId = text(record(event["message"])["id"]);
+        this.#blocks.clear();
+        this.#inputs.clear();
+        this.#model = text(record(event["message"])["model"]) || this.#model;
+        this.#requestUsage = record(record(event["message"])["usage"]);
+        this.#usage(this.#requestUsage);
+      } else if (event["type"] === "content_block_start" && this.#messageId) {
+        const block = record(event["content_block"]);
+        const id =
+          block["type"] === "tool_use" ? text(block["id"]) : `${this.#messageId}:${String(index)}`;
+        this.#blocks.set(index, id);
+        this.#lastBlockIndex = index;
+        this.#block(block, id, false);
+      } else if (event["type"] === "message_delta") {
+        this.#requestUsage = { ...this.#requestUsage, ...record(event["usage"]) };
+        this.#usage(this.#requestUsage);
+      } else if (event["type"] === "content_block_stop") {
+        const input = this.#inputs.get(index),
+          id = this.#blocks.get(index),
+          item = id ? this.#items.get(id) : undefined;
+        // 块结束即释放片段，解析失败也不能让残留参数污染后续内容块。
+        this.#inputs.delete(index);
+        if (input && item?.type === "tool") {
+          const parsed = parseToolInputPreview(input);
+          if (parsed === undefined) return;
+          this.#item({ ...item, input: parsed }, false);
+          if (item.name === "agent/spawn") {
+            if (record(parsed)["run_in_background"] === true) this.backgroundTasks.hint(item.id);
+            this.#agent(item.id);
+          }
+        }
+      } else if (event["type"] === "content_block_delta") {
+        const id = this.#blocks.get(index),
+          delta = record(event["delta"]);
+        const item = id ? this.#items.get(id) : undefined;
+        if (item?.type === "tool" && delta["type"] === "input_json_delta") {
+          const chunk = text(delta["partial_json"]),
+            input = this.#inputs.get(index) ?? { json: "", bytes: 0 };
+          input.bytes += Buffer.byteLength(chunk);
+          input.json = input.bytes > 256 * 1024 ? "" : input.json + chunk;
+          this.#inputs.set(index, input);
+          return;
+        }
+        const addition = text(delta["text"] ?? delta["thinking"]);
+        if (!id || !item || !addition || (item.type !== "message" && item.type !== "reasoning"))
+          return;
+        const update = this.#items.appendText(id, addition);
+        if (!update) return;
+        this.changes.touch(update.item);
+        if (update.delta === null) {
+          this.#emit({
+            type: "item.started",
+            taskId: this.#taskId,
+            turnId: this.id,
+            itemId: id,
+            payload: { item: update.item },
+          });
+          return;
+        }
+        if (item.type === "message")
+          this.#emit({
+            type: "message.delta",
+            taskId: this.#taskId,
+            turnId: this.id,
+            itemId: id,
+            payload: { delta: addition },
+          });
+        else
+          this.#emit({
+            type: "reasoning.delta",
+            taskId: this.#taskId,
+            turnId: this.id,
+            itemId: id,
+            payload: { delta: addition, field: "content" },
+          });
+      }
+    } else if (message["type"] === "assistant") {
+      const body = record(message["message"]);
+      // 本地命令输出经展示转换后也像 assistant，只有 SDK 真正的原生回复才可定位分叉。
+      if (record(value)["type"] === "assistant" && typeof body["id"] === "string")
+        this.#forkable = true;
+      const id = text(body["id"]) || text(message["uuid"]);
+      this.#model = text(body["model"]) || this.#model;
+      this.#usage(body["usage"]);
+      if (!id || !Array.isArray(body["content"])) return;
+      const content = body["content"];
+      content.forEach((block, index) => {
+        const blockIndex =
+          content.length === 1 && id === this.#messageId ? this.#lastBlockIndex : index;
+        this.#block(record(block), `${id}:${String(blockIndex)}`, true);
+      });
+    } else if (message["type"] === "user") {
+      const content = record(message["message"])["content"];
+      if (!Array.isArray(content)) return;
+      const structuredResult = claudeStructuredResult(content, message);
+      for (const value of content) {
+        const block = record(value),
+          id = text(block["tool_use_id"]),
+          item = this.#items.get(id);
+        if (block["type"] === "tool_result" && item?.type === "tool") {
+          // 仅在工具成功返回后更新计划，按 tool_use_id 配对，避免失败/重复结果污染状态。
+          if (item.name === "TodoWrite" && item.status !== "running") continue;
+          const plan = this.#taskPlan.apply(item, message["tool_use_result"], block);
+          publishClaudePlan(this, plan, this.#taskId, this.id, this.#emit);
+          if (item.name === "agent/spawn") {
+            const result = record(message["tool_use_result"]);
+            if (result["isAsync"] === true || record(item.input)["run_in_background"] === true)
+              this.backgroundTasks.hint(id);
+            // 后台启动的 tool_result 只代表已派发，真正终态由 task_notification 决定。
+            if (!this.backgroundTasks.isBackground(id))
+              this.#agent(
+                id,
+                block["is_error"] === true ? "failed" : "completed",
+                resultText(block["content"]) || undefined,
+              );
+            continue;
+          }
+          this.#item(
+            projectClaudeToolResult(item, structuredResult, block, this.cwd) ?? {
+              ...item,
+              output: block["content"],
+              status: block["is_error"] === true ? "failed" : "completed",
+            },
+            true,
+          );
+        }
+      }
+    } else if (message["type"] === "result") {
+      const usage = mapClaudeResultUsage(message, this.#model, this.contextUsage);
+      if (usage) this.updateContextUsage(usage);
+      const { success, status, error } = claudeTurnResult(message, interrupted);
+      if (success) {
+        const result = claudeResultMessage(message, this.id, this.#items.values());
+        // 复用有界展示和历史记录；结构化终态也必须发布 item.completed。
+        if (result) this.#item(result, true);
+        // 终态快照会携带 phase，无需再次发送正文；增量持久化仍须保存新标记。
+        for (const item of claudeFinalAnswerItems(this.#items.values()))
+          this.changes.touch(this.#items.set(item));
+      }
+      this.finish(status, error, true);
+    }
+  }
+  /** 会话终止与父回合结束分开；已完成的父回合仍需清理尚在运行的后代。 */
+  close(status: "failed" | "interrupted", error?: string): void {
+    if (this.#closed) return;
+    this.finish(status, error);
+    this.#closed = true;
+    for (const [id, child] of this.#children) {
+      child.close(status, error);
+      this.#agent(id, child.status);
+    }
+  }
+  finish(
+    status: Exclude<AgentTurn["status"], "running">,
+    error?: string,
+    preserveBackground = false,
+  ): void {
+    if (this.#status !== "running") return;
+    // 先提交终态，阻断子代理收尾通知重入父级结束路径。
+    this.#status = status;
+    this.changes.touch();
+    this.#taskPlan.clearPending();
+    this.#error = error ? previewText(error, 8192) : null;
+    this.#completedAt = new Date().toISOString();
+    for (const item of [...this.#items.values()]) {
+      if (item.type === "tool" && item.name === "agent/spawn" && item.status === "running") {
+        if (
+          preserveBackground &&
+          (this.backgroundTasks.isBackground(item.id) ||
+            this.#children.get(item.id)?.hasBackgroundWork)
+        )
+          continue;
+        this.#agent(item.id, status === "interrupted" ? "interrupted" : "failed");
+        continue;
+      }
+      if (item.type === "tool" && item.status === "running")
+        this.#item(
+          { ...item, status: "failed", output: item.output ?? "Tool ended without a result" },
+          true,
+        );
+    }
+    this.#emit({
+      type: "turn.completed",
+      taskId: this.#taskId,
+      turnId: this.id,
+      payload: { turn: this.snapshot() },
+    });
+  }
+}

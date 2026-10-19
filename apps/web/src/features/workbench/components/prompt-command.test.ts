@@ -175,3 +175,20 @@ describe("prompt slash command", () => {
     ).toEqual({ available: false, reason: "当前运行时不支持此命令" });
   });
 });
+
+it("offers managed Claude fork and compact actions alongside native commands without duplicates", () => {
+  const commands = getPromptCommandItems({
+    engineCommands: [
+      { name: "compact", description: "native compact", argumentHint: "" },
+      { name: "context", description: "native context", argumentHint: "" },
+    ],
+  });
+  expect(commands.filter((command) => command.action === "fork")).toHaveLength(1);
+  expect(commands.filter((command) => command.action === "compact")).toHaveLength(1);
+  expect(
+    commands.some((command) => command.action === "native" && command.command === "compact"),
+  ).toBe(false);
+  expect(
+    commands.some((command) => command.action === "native" && command.command === "context"),
+  ).toBe(true);
+});

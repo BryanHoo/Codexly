@@ -163,6 +163,7 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
     input: SearchOccurrencesQuery,
     scope: AgentSearchScope,
     signal?: AgentCancellationSignal,
+    limit: 1 | 30 = SEARCH_PAGE_SIZE,
   ): Promise<SearchOccurrencesPage> {
     throwIfRpcAborted(signal);
     const query = validateQuery(input.query);
@@ -179,7 +180,7 @@ export class CodexGlobalSearchService implements AgentSearchProvider {
     if (!isProjectThread(thread, scope)) {
       throw new CodexProtocolMappingError("Search task does not belong to the requested project");
     }
-    return this.requestOccurrences(taskId, query, input.cursor, SEARCH_PAGE_SIZE, signal);
+    return this.requestOccurrences(taskId, query, input.cursor, limit, signal);
   }
 
   private async requestOccurrences(

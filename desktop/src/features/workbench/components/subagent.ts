@@ -1,3 +1,4 @@
+import { getEmbeddedSubagentReference, type EmbeddedSubagentReference } from "@codexly/frontend-core/tool-presentation";
 import type { AgentItem, AgentItemStatus } from "@/protocol/index.js";
 
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
@@ -31,6 +32,8 @@ export type SubagentOperationAgent = Readonly<{
 }>;
 
 export type SubagentContextEntry = Readonly<{
+  message?: string;
+  embedded?: EmbeddedSubagentReference;
   model?: string;
   nickname: string;
   reasoningEffort?: string;
@@ -39,6 +42,7 @@ export type SubagentContextEntry = Readonly<{
 }>;
 
 export type SubagentSelection = Readonly<{
+  embedded?: EmbeddedSubagentReference;
   status: AgentItemStatus;
   taskId: string;
 }>;
@@ -148,10 +152,13 @@ export function collectSubagents(
         }
         continue;
       }
+      const embedded = getEmbeddedSubagentReference(item);
       for (const agent of operation.agents) {
         const existingEntry = entriesByTaskId.get(agent.taskId);
         // 后续 wait/resume 只刷新状态，不丢失 spawn 阶段提供的任务元数据。
         entriesByTaskId.set(agent.taskId, {
+          ...(embedded ? { embedded } : {}),
+          ...(agent.message ? { message: agent.message } : {}),
           ...(existingEntry?.model === undefined ? {} : { model: existingEntry.model }),
           ...(existingEntry?.reasoningEffort === undefined
             ? {}

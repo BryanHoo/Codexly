@@ -106,7 +106,8 @@ describe("server Git mutations", () => {
     settings.readGlobalSettings.mockResolvedValue({
       approvalPolicy: "on-request",
       approvalsReviewer: "user",
-      commitMessageModel: "gpt-5.6-terra",
+      defaultAgent: "codex" as const,
+      defaultModel: "gpt-5.6-terra",
       commitMessagePrompt: "优先说明行为变化，不要罗列文件名。",
       modelContextWindow: null,
       defaultOpenAppId: null,
@@ -147,6 +148,7 @@ describe("server Git mutations", () => {
       headers: { "idempotency-key": "generate-message" },
       method: "POST",
       payload: {
+        engine: "claude",
         expectedSnapshot: snapshot,
         paths: ["src/app.ts"],
         repository: "frontend",
@@ -217,7 +219,7 @@ describe("server Git mutations", () => {
       approvalPolicy: "never",
       approvalsReviewer: "user",
       model: "gpt-5.6-terra",
-      reasoningEffort: "medium",
+      reasoningEffort: "",
       sandboxMode: "read-only",
     });
     expect(providerHarness.archiveTask).not.toHaveBeenCalled();

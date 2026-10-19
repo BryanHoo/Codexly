@@ -9,6 +9,7 @@ static TEST_ID: AtomicU64 = AtomicU64::new(1);
 
 fn settings(model: &str) -> AgentTaskSettings {
     AgentTaskSettings {
+        engine_options: None,
         approval_policy: json!("on-request"),
         approvals_reviewer: "user".to_owned(),
         model: model.to_owned(),

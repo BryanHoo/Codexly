@@ -1,6 +1,6 @@
 import { browser, expect } from "@wdio/globals";
 import { taskResponse } from "./fixtures.js";
-import { installWebviewMocks, releaseApplicationStartup } from "./mock-runtime.js";
+import { connectMockProvider, installWebviewMocks, releaseApplicationStartup } from "./mock-runtime.js";
 
 const markdown = '# 原始 Markdown\n\n**保留标记**\n\n- 列表\n\n```ts\nconst text = "<原文>";\n```';
 
@@ -49,9 +49,7 @@ describe("原生 Markdown 剪贴板", () => {
       },
     });
     await releaseApplicationStartup();
-    await $("aria/自定义 API").click();
-    await $("aria/API Base URL").setValue("https://gateway.test/v1");
-    await $("aria/连接").click();
+    await connectMockProvider();
     await $('//a[.//span[normalize-space(.)="提交 Git 变更"]]').click();
     await $("aria/复制 Markdown").waitForDisplayed();
   });

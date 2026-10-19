@@ -57,6 +57,62 @@ describe("GlobalSettingsPage", () => {
     await changeAppLanguage("zh-CN");
   });
 
+  it.each([
+    ["claude-provider", "API 地址", "默认模型"],
+    ["claude-agent", "模型", "全局指令"],
+    ["claude-personalization", "全局指令", "API 地址"],
+  ] as const)(
+    "Claude 子菜单 %s 在 Codex 设置加载失败时仍可独立打开",
+    async (initialSection, field, excluded) => {
+      const markup = await renderSettingsDialog(
+        <GlobalSettingsPage
+          client={new CodexlyClient()}
+          initialSection={initialSection}
+          apps={[]}
+          error={new Error("Codex unavailable")}
+          isPending={false}
+          models={models}
+          onClose={vi.fn()}
+          onRetry={vi.fn()}
+          onSave={vi.fn()}
+        />,
+      );
+      expect(markup).toContain(`id="settings-panel-${initialSection}"`);
+      expect(markup).toContain(field);
+      expect(markup).not.toContain(`aria-label="${excluded}"`);
+      expect(markup).not.toContain("Codex unavailable");
+    },
+  );
+
+  it("独立展示 Git 提交设置，不加载 Codex 指令和记忆", async () => {
+    const client = new CodexlyClient();
+    const instructions = vi.spyOn(client, "getGlobalInstructions");
+    const memories = vi.spyOn(client, "getMemorySettings");
+    const markup = await renderSettingsDialog(
+      <GlobalSettingsPage
+        client={client}
+        initialSection="git"
+        apps={[]}
+        error={null}
+        isPending={false}
+        models={models}
+        onClose={vi.fn()}
+        onRetry={vi.fn()}
+        onSave={vi.fn()}
+        settings={createFallbackSettings(models)}
+      />,
+    );
+    expect(markup).toContain('id="settings-panel-git"');
+    expect(markup).toContain('aria-label="Git message 提示词"');
+    expect(markup).toContain('aria-label="任务标题提示词"');
+    expect(markup).toContain('aria-label="默认模型"');
+    expect(markup).toContain("辅助生成");
+    expect(markup).toContain("留空时使用应用内置提示词");
+    expect(markup).not.toContain('id="codex-global-instructions"');
+    expect(instructions).not.toHaveBeenCalled();
+    expect(memories).not.toHaveBeenCalled();
+  });
+
   it("上下文以带单位的数字框展示千 tokens，空值清楚提示自动", async () => {
     const renderAgent = (modelContextWindow: number | null) =>
       renderSettingsDialog(
@@ -117,7 +173,8 @@ describe("GlobalSettingsPage", () => {
         settings={{
           approvalPolicy: "on-request",
           approvalsReviewer: "auto_review",
-          commitMessageModel: "gpt-5.6-terra",
+          defaultAgent: "codex" as const,
+          defaultModel: "gpt-5.6-terra",
           commitMessagePrompt: "突出用户可见影响。",
           modelContextWindow: null,
           defaultOpenAppId: "visual-studio-code",
@@ -156,7 +213,8 @@ describe("GlobalSettingsPage", () => {
         settings={{
           approvalPolicy: "on-request",
           approvalsReviewer: "user",
-          commitMessageModel: "gpt-5.6-sol",
+          defaultAgent: "codex" as const,
+          defaultModel: "gpt-5.6-sol",
           commitMessagePrompt: "",
           modelContextWindow: null,
           defaultOpenAppId: null,
@@ -193,10 +251,11 @@ describe("GlobalSettingsPage", () => {
     expect(markup).not.toContain('aria-label="默认打开方式"');
   });
 
-  it("shows Codexly and Codex versions with an available update", async () => {
+  it("shows Codexly, Codex, and Claude versions with an available update", async () => {
     const appInfo: AppInfoResponse = {
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "0.2.110",
       latestVersion: "1.4.0",
       releaseNotes: "### 新增\n\n- 添加在线更新。",
       status: "available" as const,
@@ -218,6 +277,12 @@ describe("GlobalSettingsPage", () => {
     expect(markup).toContain("1.3.0");
     expect(markup).toContain("Codex 版本");
     expect(markup).toContain("0.163.0");
+    expect(markup).toContain("Claude 版本");
+    expect(markup).toContain(
+      '<span class="font-mono text-body-small text-foreground">0.2.110</span>',
+    );
+    expect(markup.indexOf("Claude 版本")).toBeGreaterThan(markup.indexOf("Codex 版本"));
+    expect(markup.indexOf("Claude 版本")).toBeLessThan(markup.indexOf("项目 GitHub"));
     expect(markup).toContain("发现新版本 1.4.0");
     expect(markup).toContain("检查更新");
     expect(markup).toContain("更新日志");
@@ -233,6 +298,40 @@ describe("GlobalSettingsPage", () => {
     expect(markup).toContain("justify-self-start");
     expect(markup).toContain('<section id="settings-panel-about">');
   });
+
+  it.each(["zh-CN", "en"] as const)(
+    "localizes the Claude version and missing/null placeholders in %s",
+    async (language) => {
+      await changeAppLanguage(language);
+      const label = language === "en" ? "Claude version" : "Claude 版本";
+      const unknown = language === "en" ? "Unknown" : "未知";
+      // 分别覆盖正常版本、旧服务端省略字段和显式 null，避免两端协议升级时出现空白行。
+      for (const versionFields of [{ claudeVersion: "0.2.110" }, {}, { claudeVersion: null }]) {
+        const markup = await renderSettingsDialog(
+          <GlobalSettingsAbout
+            activeSection="about"
+            appInfo={{
+              appVersion: "1.3.0",
+              codexVersion: "0.163.0",
+              latestVersion: null,
+              releaseNotes: "",
+              status: "current",
+              updateAvailable: false,
+              ...versionFields,
+            }}
+            error={null}
+            isPending={false}
+            onRetry={vi.fn()}
+            onUpdate={vi.fn()}
+          />,
+        );
+        expect(markup).toContain(label);
+        expect(markup).toContain(
+          `<span class="font-mono text-body-small text-foreground">${versionFields.claudeVersion ?? unknown}</span>`,
+        );
+      }
+    },
+  );
 
   it("keeps About available when global settings fail to load", async () => {
     const markup = await renderSettingsDialog(
@@ -345,7 +444,7 @@ describe("GlobalSettingsPage", () => {
   });
 
   it("uses GPT-6 Luna as the fallback commit message model", () => {
-    expect(createFallbackSettings(models).commitMessageModel).toBe("gpt-6-luna");
+    expect(createFallbackSettings(models).defaultModel).toBe("gpt-6-luna");
   });
 
   it("renders official Codex terminology in English without rewriting model data", async () => {
@@ -364,7 +463,8 @@ describe("GlobalSettingsPage", () => {
           settings={{
             approvalPolicy: "on-request",
             approvalsReviewer: "user",
-            commitMessageModel: "gpt-5.6-sol",
+            defaultAgent: "codex" as const,
+            defaultModel: "gpt-5.6-sol",
             commitMessagePrompt: "",
             modelContextWindow: null,
             defaultOpenAppId: null,

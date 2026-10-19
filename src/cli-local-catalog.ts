@@ -12,6 +12,18 @@ export async function prepareLocalCatalog(
 ): Promise<CodexRpcClient> {
   if (!("catalog" in projection) || typeof projection.catalog !== "function") return client;
   const store = projection as ProjectProjectionStore & LocalCatalogStore;
-  await importCodexCatalog(client, store, await projection.list());
   return createLocalCatalogClient(client, store);
+}
+
+/** 引擎目录导入与本地客户端构造分开，懒启动时不创建重复订阅或绑定表。 */
+export async function importLocalCatalog(
+  client: CodexRpcClient,
+  projection: ProjectProjectionStore,
+) {
+  if (!("catalog" in projection) || typeof projection.catalog !== "function") return;
+  await importCodexCatalog(
+    client,
+    projection as ProjectProjectionStore & LocalCatalogStore,
+    await projection.list(),
+  );
 }

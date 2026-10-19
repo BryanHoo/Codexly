@@ -13,10 +13,14 @@ pub async fn get_project_pdf_file(
     root_path: Option<String>,
     task_id: Option<String>,
     path: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<String, AppError> {
     let root = task_workspace::resolve_preview_root(
-        &state,
+        Some(
+            &app.path()
+                .app_data_dir()
+                .map_err(|_| AppError::FilesystemRequestFailed)?,
+        ),
         &project_id,
         task_id.as_deref(),
         root_path.as_deref(),

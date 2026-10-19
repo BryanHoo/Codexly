@@ -1,6 +1,8 @@
 pub mod app_storage;
 pub(crate) mod atomic_file;
 pub mod bing_wallpaper;
+pub(crate) mod bundled_runtime;
+pub(crate) mod claude_runtime;
 pub mod codex;
 pub mod diagnostics;
 pub mod filesystem;

@@ -283,7 +283,7 @@ test("shows the latest raw Codex operation throughout a running turn", async ({ 
     startTime: Number(node.getAnimations()[0]?.startTime ?? 0),
   }));
 
-  await expect(page.getByText("正在运行 context7/query-docs", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^正在运行 context7\/query-docs/u)).toBeVisible();
   const retainedShimmer = await runningShimmer.evaluate(
     (node, initialNode) => node === initialNode,
     initialShimmer,

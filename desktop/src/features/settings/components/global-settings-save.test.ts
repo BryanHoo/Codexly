@@ -10,7 +10,8 @@ import {
 const globalSettings: AgentGlobalSettings = {
   approvalPolicy: "on-request",
   approvalsReviewer: "user",
-  commitMessageModel: "gpt-5.6-luna",
+  defaultAgent: "codex" as const,
+  defaultModel: "gpt-5.6-luna",
   commitMessagePrompt: "",
   modelContextWindow: null,
   defaultOpenAppId: null,

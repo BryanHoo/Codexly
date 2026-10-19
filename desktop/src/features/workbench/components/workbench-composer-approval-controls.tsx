@@ -1,3 +1,4 @@
+import { ClaudePermissionSelector } from "@codexly/ui/core/agent-engine-controls";
 import type { AgentSandboxMode, AgentTaskSettings } from "@/protocol/index.js";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -21,6 +22,7 @@ export function ComposerApprovalControls({
   settings,
 }: ComposerApprovalControlsProps) {
   const { t } = useTranslation(["workbench", "settings"]);
+  if (settings.engineOptions?.engine === "claude") return <ClaudePermissionSelector label={t("engine.permissions")} disabled={disabled} value={settings.engineOptions.permissionMode} labels={{ default: t("engine.permissionDefault"), auto: t("engine.permissionAuto"), acceptEdits: t("engine.permissionEdits"), plan: t("engine.permissionPlan"), dontAsk: t("engine.permissionDeny"), bypassPermissions: t("engine.permissionBypass") }} onChange={(permissionMode) => { return onSettingsChange({ ...settings, engineOptions: { engine: "claude", permissionMode } }, "engineOptions"); }} />;
   return (
     <>
       <CompactSelector<ApprovalMode>

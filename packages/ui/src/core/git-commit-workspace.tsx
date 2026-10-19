@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { List, ListTree, LoaderCircle } from "lucide-react";
+import { useSelectedEngines } from "./engine-selection.js";
 import {
   createCommitDraft,
   applyGeneratedCommitMessage,
@@ -103,6 +104,7 @@ export function GitCommitWorkspace({
   renderChanges,
 }: GitCommitWorkspaceProps) {
   const entries = useMemo(() => collectCommitFileEntries(gitStatus), [gitStatus]);
+  const selectedEngines = useSelectedEngines();
   const [draft, update] = useGitCommitDraft(draftScope, gitStatus.snapshot, entries, complete);
   const [search, setSearch] = useState("");
   const [operationError, setOperationError] = useState<{
@@ -174,6 +176,10 @@ export function GitCommitWorkspace({
     setOperationError(null);
     try {
       const message = await onGenerateMessage({
+        // 单 Claude 用户的 Git 辅助请求同样走 Claude，不能隐式唤醒 Codex。
+        ...(selectedEngines?.length === 1 && selectedEngines[0] === "claude"
+          ? { engine: "claude" as const }
+          : {}),
         expectedSnapshot: requested.snapshot,
         paths: [...requested.selectedPaths],
       });

@@ -63,6 +63,9 @@ export const StartOfficialProviderLoginResponseSchema = Type.Object(
 
 export const ConfigureCustomProviderRequestSchema = Type.Object(
   {
+    authType: Type.Optional(
+      Type.Union([Type.Literal("apiKey"), Type.Literal("authToken"), Type.Literal("auto")]),
+    ),
     apiKey: Type.Optional(Type.String({ maxLength: 16_384, minLength: 1 })),
     baseUrl: Type.String({ maxLength: 2_048, minLength: 1 }),
     models: Type.Optional(

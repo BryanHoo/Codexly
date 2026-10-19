@@ -49,7 +49,16 @@ export function registerTaskSettingsDefaultsRoutes(
           const { settings, fastMode } = request.body;
           const defaults = { ...settings, fastMode };
           // 在任何持久化前完成整份意图校验，避免无效默认值造成 Task 单边写入。
-          context.assertValidProjectDefaults(await context.listModels(), defaults);
+          context.assertValidProjectDefaults(await context.listModels(task.engine), defaults);
+          // 先等待 SDK 切换成功，拒绝或失败时不能保存一个尚未生效的权限值。
+          if (task.engine === "claude" && settings.engineOptions?.engine === "claude") {
+            if (!project.provider.updateTaskPermissionMode)
+              throw new Error("Claude runtime permission control unavailable");
+            await project.provider.updateTaskPermissionMode(
+              request.params.taskId,
+              settings.engineOptions.permissionMode,
+            );
+          }
           const activeTurn = task.turns.findLast((turn) => turn.status === "running");
           if (activeTurn !== undefined) {
             const previous = await context.readEffectiveTaskSettings(

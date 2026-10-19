@@ -35,6 +35,9 @@ pub async fn start_queued_submission(
         },
         async move {
             let state = worker_app.state::<AppState>();
+            if let Some(response) = super::claude_tasks::queue_request(&worker_app, &worker_project, &worker_task, "queue.start", serde_json::json!({"queuedSubmissionId":worker_submission})).await? {
+                return Ok(response);
+            }
             let connection = state.codex_connection().await?;
             crate::infrastructure::codex::read_task(
                 &connection,

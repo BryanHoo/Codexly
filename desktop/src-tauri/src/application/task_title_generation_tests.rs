@@ -19,8 +19,9 @@ async fn task_title_should_collect_early_output_and_release_hidden_thread_on_suc
         let mut settings = crate::infrastructure::local_settings::read_global_settings(&app_data)
             .await
             .unwrap();
-        settings["commitMessageModel"] = json!("git-message-model");
+        settings["defaultModel"] = json!("git-message-model");
         settings["commitMessagePrompt"] = json!("只生成 fix(git): 提交信息");
+        settings["taskTitlePrompt"] = json!("用自然中文概括用户目标");
         crate::infrastructure::local_settings::update_global_settings(&app_data, settings)
             .await
             .unwrap();
@@ -50,6 +51,10 @@ async fn task_title_should_collect_early_output_and_release_hidden_thread_on_suc
                 assert_eq!(request["method"], method);
                 if method == "thread/start" {
                     assert_eq!(request["params"]["model"], "git-message-model");
+                    assert_eq!(
+                        request["params"]["developerInstructions"],
+                        "用自然中文概括用户目标"
+                    );
                 }
                 if method == "turn/start" {
                     assert!(

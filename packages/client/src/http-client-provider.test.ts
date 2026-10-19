@@ -9,6 +9,28 @@ import {
 } from "./http-client.test-support.js";
 
 describe("CodexlyClient provider routes", () => {
+  it("addresses engine configuration separately from Codex authentication", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        models: modelPage,
+        status: {
+          mode: "custom",
+          state: "connected",
+          account: { type: "apiKey" },
+          pendingLogin: null,
+          customBaseUrl: "https://gateway.example",
+        },
+      }),
+    );
+    const client = new CodexlyClient({ fetch: fetchMock });
+    await client.configureEngine(
+      "claude",
+      { apiKey: "secret", baseUrl: "https://gateway.example" },
+      { idempotencyKey: "claude-key" },
+    );
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/engines/claude/connection");
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("PUT");
+  });
   it("reads the provider model catalog", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     fetchMock.mockResolvedValue(jsonResponse(modelPage));
@@ -144,3 +166,14 @@ describe("CodexlyClient provider routes", () => {
     expect(new Headers(request?.headers).get("idempotency-key")).toBe("mcp-retry-1");
   });
 });
+
+it.each(["refresh", "reconnect", "reload"] as const)(
+  "transports the explicit MCP %s action and snapshot freshness",
+  async (action) => {
+    const snapshot = { data: [], statusSource: "cached", observedAt: "2026-10-17T08:00:00.000Z" };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(snapshot));
+    const client = new CodexlyClient({ fetch: fetchMock });
+    expect(await client.retryMcpServers("p", "t", { action })).toEqual(snapshot);
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ action }));
+  },
+);

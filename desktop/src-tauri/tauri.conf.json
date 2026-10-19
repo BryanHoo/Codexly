@@ -5,9 +5,9 @@
   "version": "0.38.0",
   "identifier": "com.codexly.desktop",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm --dir .. build:desktop-runtime && pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm --dir .. build:desktop-runtime && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -26,10 +26,12 @@
     "security": {
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/attachments/**"]
+        "scope": [
+          "$APPDATA/attachments/**"
+        ]
       },
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; font-src 'self' data:; img-src 'self' asset: http://asset.localhost data: blob:; frame-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'",
-      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost ws://localhost:1421; font-src 'self' data:; img-src 'self' asset: http://asset.localhost data: blob:; frame-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost task-attachment: http://task-attachment.localhost; font-src 'self' data:; img-src 'self' task-attachment: http://task-attachment.localhost asset: http://asset.localhost data: blob:; frame-src 'self' task-attachment: http://task-attachment.localhost asset: http://asset.localhost; style-src 'self' 'unsafe-inline'",
+      "devCsp": "default-src 'self'; connect-src ipc: http://ipc.localhost task-attachment: http://task-attachment.localhost ws://localhost:1421; font-src 'self' data:; img-src 'self' task-attachment: http://task-attachment.localhost asset: http://asset.localhost data: blob:; frame-src 'self' task-attachment: http://task-attachment.localhost asset: http://asset.localhost; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {
@@ -44,11 +46,19 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "resources": {
+      "resources/runtime/": "runtime/"
+    },
+    "externalBin": [
+      "binaries/claude-host"
     ]
   },
   "plugins": {
     "updater": {
-      "endpoints": ["https://github.com/BryanHoo/Codexly/releases/latest/download/latest.json"],
+      "endpoints": [
+        "https://github.com/BryanHoo/Codexly/releases/latest/download/latest.json"
+      ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM2NUNCRUY0RDA0NDkxMTkKUldRWmtVVFE5TDVjeHJ3Z1RReUFPZVhJN2dpUUl5cUQwYWcwamFJWG4xc3RRMmNFR2treko4enIK",
       "windows": {
         "installMode": "passive"

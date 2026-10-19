@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::{error::AppError, state::AppState};
 use crate::infrastructure::{codex, local_settings};
@@ -23,9 +23,13 @@ pub async fn list_models(app: AppHandle, state: State<'_, AppState>) -> Result<V
     let app_data = app_data_dir(&app)?;
     // API 可用时无需启动额外进程；第二层 CLI 按最新配置创建，第三层仍可兜底启动失败。
     codex::list_provider_models(&connection, &app_data, &codex_home, || async {
-        let process = codex::CodexProcess::start(&app_data)
-            .await
-            .map_err(|_| codex::ProviderError::Unavailable)?;
+        let process = codex::CodexProcess::start(
+            &app_data,
+            &crate::infrastructure::bundled_runtime::root(&app)
+                .map_err(|_| codex::ProviderError::Unavailable)?,
+        )
+        .await
+        .map_err(|_| codex::ProviderError::Unavailable)?;
         Ok(codex::list_models(&process.connection()).await?)
     })
     .await
@@ -86,6 +90,7 @@ pub async fn configure_custom_provider(
         .await
         .map_err(provider_error)?;
     state.set_provider_login(None).await;
+    let _ = app.emit("engine-configuration-changed", ());
     Ok(response)
 }
 
@@ -93,7 +98,13 @@ pub async fn configure_custom_provider(
 pub async fn get_global_settings(
     app: AppHandle,
     state: State<'_, AppState>,
+    engine: Option<String>,
 ) -> Result<Value, AppError> {
+    if engine.as_deref() == Some("claude") {
+        // 公共偏好只读取应用存储；Claude 用户不需要启动或配置 Codex。
+        let settings = super::generation_settings::read(&app).await?;
+        return Ok(json!({"settings": settings}));
+    }
     let connection = state.codex_connection().await?;
     let settings = codex::read_global_settings(&connection, &app_data_dir(&app)?)
         .await
@@ -106,7 +117,17 @@ pub async fn update_global_settings(
     app: AppHandle,
     settings: Value,
     state: State<'_, AppState>,
+    engine: Option<String>,
 ) -> Result<Value, AppError> {
+    if engine.as_deref() == Some("claude") {
+        let update = crate::infrastructure::local_settings::update_global_settings(
+            &app_data_dir(&app)?,
+            settings,
+        )
+        .await
+        .map_err(|_| AppError::FilesystemRequestFailed)?;
+        return Ok(json!({"changedFields": update.changed_fields, "settings": update.settings}));
+    }
     let connection = state.codex_connection().await?;
     let update = codex::update_global_settings(&connection, &app_data_dir(&app)?, settings)
         .await
@@ -201,10 +222,24 @@ async fn validate_task(
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn list_mcp_servers(
+    app: AppHandle,
     project_id: String,
     task_id: String,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+    if task["provider"] == "claude" {
+        // 按任务持久身份读取共用宿主，避免 Claude 上下文查询唤起 Codex。
+        return state
+            .claude
+            .request(
+                &app,
+                "mcp.list",
+                Some(super::claude_tasks::scope(&task)),
+                json!({"taskId": task_id}),
+            )
+            .await;
+    }
     let connection = state.codex_connection().await?;
     validate_task(&connection, &project_id, &task_id).await?;
     codex::list_mcp_servers(&connection, &task_id)
@@ -214,10 +249,25 @@ pub async fn list_mcp_servers(
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn retry_mcp_servers(
+    app: AppHandle,
     project_id: String,
     task_id: String,
+    action: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
+    let task = super::claude_tasks::task(&app, &project_id, &task_id).await?;
+    if task["provider"] == "claude" {
+        return state
+            .claude
+            .request(
+                &app,
+                "mcp.reload",
+                Some(super::claude_tasks::scope(&task)),
+                // 操作语义由共享宿主校验；状态刷新不再隐式等同于重连或配置重载。
+                json!({"taskId": task_id, "action": action}),
+            )
+            .await;
+    }
     let connection = state.codex_connection().await?;
     validate_task(&connection, &project_id, &task_id).await?;
     codex::reload_mcp_servers(&connection, &task_id)

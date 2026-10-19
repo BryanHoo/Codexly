@@ -17,16 +17,12 @@ it("checks native metadata revisions without reading full text", async () => {
   expect(invoke).toHaveBeenCalledWith("read_project_text_file_revision", {projectId:"p",rootPath:"/root",path:"a.md"});
 });
 
-it("does not start a native text read if aborted while waiting for runtime readiness", async () => {
-  const invoke = vi.fn();
-  let resolve!: () => void;
-  const client = new TauriWorkspaceClient({invoke, ensureRuntime:()=>new Promise<void>(done=>{resolve=done;})});
-  const controller = new AbortController();
-  const reading = client.readProjectTextFile("p", "/root", "a.md", {signal:controller.signal});
-  controller.abort();
-  resolve();
-  await expect(reading).rejects.toMatchObject({name:"AbortError"});
-  expect(invoke).not.toHaveBeenCalled();
+it("does not wait for an unconfigured engine before reading a local file", async () => {
+  const invoke = vi.fn().mockResolvedValue({content: "local text"});
+  const ensureRuntime = vi.fn(async () => { throw new Error("engine unavailable"); });
+  const client = new TauriWorkspaceClient({invoke, ensureRuntime});
+  await expect(client.readProjectTextFile("p", "/root", "a.md")).resolves.toEqual({content: "local text"});
+  expect(ensureRuntime).not.toHaveBeenCalled();
 });
 
 it("rejects already aborted reads and ignores an aborted in-flight result", async () => {

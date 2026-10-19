@@ -260,7 +260,8 @@ describe("project task snapshot protocol", () => {
     const settings = {
       approvalPolicy: "on-request",
       approvalsReviewer: "auto_review",
-      commitMessageModel: "gpt-5.6-terra",
+      defaultAgent: "codex" as const,
+      defaultModel: "gpt-5.6-terra",
       commitMessagePrompt: "突出说明用户可见影响。",
       modelContextWindow: null,
       defaultOpenAppId: "visual-studio-code",
@@ -324,9 +325,9 @@ describe("project task snapshot protocol", () => {
       }),
     ).toBe(true);
     expect(Value.Check(AgentGlobalSettingsResponseSchema, { settings, legacy: true })).toBe(false);
-    expect(
-      Value.Check(AgentGlobalSettingsSchema, { ...settings, commitMessageModel: undefined }),
-    ).toBe(false);
+    expect(Value.Check(AgentGlobalSettingsSchema, { ...settings, defaultModel: undefined })).toBe(
+      false,
+    );
     expect(
       Value.Check(AgentGlobalSettingsSchema, {
         ...settings,

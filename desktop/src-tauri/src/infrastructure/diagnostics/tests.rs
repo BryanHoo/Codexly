@@ -155,7 +155,14 @@ fn diagnostic_archive_contains_only_allowlisted_artifacts() {
     let file = fs::File::open(&destination).unwrap();
     let mut archive = zip::ZipArchive::new(file).unwrap();
     let names = (0..archive.len())
-        .map(|index| archive.by_index(index).unwrap().name().to_owned())
+        .map(|index| {
+            archive
+                .by_index(index)
+                .unwrap()
+                .name()
+                .unwrap()
+                .into_owned()
+        })
         .collect::<Vec<_>>();
     assert_eq!(
         names,

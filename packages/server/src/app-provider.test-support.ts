@@ -85,7 +85,7 @@ export function createProvider() {
   const readTask = vi.fn<
     (
       taskId: string,
-      input?: Readonly<{ cursor?: string }>,
+      input?: Parameters<AgentProvider["readTask"]>[1],
     ) => Promise<AgentProviderTaskSnapshot | undefined>
   >((taskId) => Promise.resolve(taskId === task.id ? snapshot : undefined));
   const readTaskAttachment = vi.fn<AgentProvider["readTaskAttachment"]>((taskId, attachmentId) =>
@@ -174,6 +174,7 @@ export function createProvider() {
       return Promise.resolve(updated);
     }),
   };
+  const stopSession = vi.fn(() => Promise.resolve());
   const interruptTurn = vi.fn(() => Promise.resolve());
   const listBackgroundTerminals = vi.fn<() => Promise<AgentBackgroundTerminalPage>>(() =>
     Promise.resolve({ data: [] }),
@@ -202,6 +203,7 @@ export function createProvider() {
     forkTask,
     getCapabilities,
     interruptTurn,
+    stopSession,
     listBackgroundTerminals,
     listMcpServers,
     listModels,
@@ -249,6 +251,7 @@ export function createProvider() {
     listModels,
     listSkills,
     interruptTurn,
+    stopSession,
     listBackgroundTerminals,
     pinTask,
     provider,

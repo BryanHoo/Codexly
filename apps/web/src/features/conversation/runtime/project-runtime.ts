@@ -227,7 +227,9 @@ export class ProjectRuntimeManager {
           } else if (event.type === "queue.changed") {
             this.#onQueueChanged(eventProjectId, event.taskId);
           } else if (event.type === "task.metadata_changed") {
-            this.#onTaskMetadataChanged(eventProjectId, event.taskId, "native_notification");
+            // 权限模式已在 Task Store 原位更新，无需为每次切换重读列表或任务快照。
+            if (event.payload.permissionMode === undefined)
+              this.#onTaskMetadataChanged(eventProjectId, event.taskId, "native_notification");
           } else if (event.type === "task.removed") {
             this.#onTaskRemoved(eventProjectId, event.taskId);
             this.forgetTask(eventProjectId, event.taskId);

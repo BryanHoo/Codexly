@@ -61,7 +61,7 @@ describe("parseGitWorktreeList", () => {
 });
 
 describe("createProjectWorktree", () => {
-  it("creates a real Git worktree beside the main worktree", async () => {
+  it("creates a real Git worktree inside the main worktree .worktree directory", async () => {
     const container = await realpath(await mkdtemp(join(tmpdir(), "codexly-real-worktree-")));
     temporaryRoots.push(container);
     const mainRoot = join(container, "main");
@@ -84,17 +84,21 @@ describe("createProjectWorktree", () => {
       expectedSnapshot: status.snapshot,
     });
 
-    expect(created.path).toBe(join(container, "feature"));
+    expect(created.path).toBe(join(mainRoot, ".worktree", "feature"));
     const worktreeList = (
       await promisify(execFile)("git", ["-C", mainRoot, "worktree", "list", "--porcelain", "-z"])
     ).stdout;
     expect(parseGitWorktreeList(worktreeList, mainRoot)).toContainEqual(created);
+    // 项目内工作树不能污染主检出的 Git 变更，也不能产生已跟踪的忽略配置修改。
+    expect(
+      (await promisify(execFile)("git", ["-C", mainRoot, "status", "--porcelain"])).stdout,
+    ).toBe("");
   });
 
-  it("creates an existing branch in a unique sibling directory", async () => {
+  it("creates an existing branch in a unique project-local directory", async () => {
     const projectRoot = await createRepositoryRoot();
-    const defaultTarget = join(dirname(projectRoot), "feat-review");
-    await mkdir(defaultTarget);
+    const defaultTarget = join(projectRoot, ".worktree", "feat-review");
+    await mkdir(defaultTarget, { recursive: true });
     const executeGit = vi.fn((_root: string, arguments_: readonly string[]) => {
       if (arguments_[0] === "check-ref-format") return Promise.resolve("feat/review\n");
       if (arguments_[0] === "worktree" && arguments_[1] === "list") {
@@ -175,7 +179,7 @@ describe("createProjectWorktree", () => {
       "-b",
       "feat/new",
       "--",
-      join(dirname(projectRoot), "feat-new"),
+      join(projectRoot, ".worktree", "feat-new"),
       "HEAD",
     ]);
 
@@ -191,7 +195,7 @@ describe("createProjectWorktree", () => {
     }
   });
 
-  it("places new worktrees beside the main worktree when started from a linked worktree", async () => {
+  it("places new worktrees inside the main worktree .worktree directory when started from a linked worktree", async () => {
     const mainRoot = await createRepositoryRoot();
     const linkedRoot = join(dirname(mainRoot), "nested", "linked");
     await mkdir(linkedRoot, { recursive: true });
@@ -228,7 +232,7 @@ describe("createProjectWorktree", () => {
       () => Promise.resolve(status),
     );
 
-    expect(created.path).toBe(join(dirname(mainRoot), "feat-next"));
+    expect(created.path).toBe(join(mainRoot, ".worktree", "feat-next"));
     expect(executeGit).toHaveBeenCalledWith(linkedRoot, ["worktree", "list", "--porcelain", "-z"]);
   });
 

@@ -3,16 +3,17 @@ use crate::domain::conversation::{
     AgentTaskSettings, AgentTaskSnapshot, AgentTaskSnapshotResponse, AgentThreadConfiguration,
     EventCheckpoint,
 };
-use crate::infrastructure::codex::{RUNTIME_SESSION_ID, ServerMessage, map_server_request_now};
+use crate::infrastructure::codex::{ServerMessage, map_server_request_now, runtime_session_id};
 use serde_json::{Value, json, value::to_raw_value};
 
 pub(super) fn snapshot(project: &str, task: &str) -> AgentTaskSnapshotResponse {
     AgentTaskSnapshotResponse {
         checkpoint: EventCheckpoint {
             sequence: 0,
-            session_id: RUNTIME_SESSION_ID,
+            session_id: runtime_session_id(),
         },
         snapshot: AgentTaskSnapshot {
+            engine: None,
             workspace_path: None,
             context_usage: None,
             goal: None,
@@ -100,7 +101,7 @@ async fn publish(state: &AppState, task: &str, kind: &str, payload: Value) {
             &state.runtime,
             json!({
                 "taskId": task, "turnId": "turn-a", "type": kind, "payload": payload,
-                "timestamp": "2026-09-12T00:00:00Z", "sessionId": RUNTIME_SESSION_ID,
+                "timestamp": "2026-09-12T00:00:00Z", "sessionId": runtime_session_id(),
                 "provider": "codex", "version": 2,
             })
             .into(),
@@ -124,7 +125,7 @@ async fn native_snapshot_restores_realtime_skill_merge_without_a_webview() {
             json!({
             "type":"item.started", "taskId":"task-a", "turnId":"turn-a", "itemId":item["id"],
                 "payload":{"item":item}, "timestamp":"2026-09-12T00:00:00Z", "sequence":0,
-                "provider":"codex", "sessionId":RUNTIME_SESSION_ID, "version":2,
+                "provider":"codex", "sessionId":runtime_session_id(), "version":2,
             })
             .into(),
             None,
@@ -145,6 +146,7 @@ async fn native_snapshot_restores_realtime_skill_merge_without_a_webview() {
             error: None,
             status: "running",
             items: vec![crate::domain::conversation::AgentItem::Message {
+                identity_aliases: Vec::new(),
                 id: "user".into(),
                 role: "user",
                 text: "$rust 修复代码".into(),
@@ -287,7 +289,7 @@ async fn native_snapshot_survives_webview_reconnection_but_not_provider_restart(
         );
         assert_eq!(
             encoded["checkpoint"],
-            json!({"sequence":1,"sessionId":RUNTIME_SESSION_ID})
+            json!({"sequence":1,"sessionId":runtime_session_id()})
         );
     }
     state

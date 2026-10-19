@@ -4,6 +4,9 @@
 identifier = "main-window-commands"
 description = "Allows the main window to call the application commands used by the workbench."
 permissions = [
+  "allow-claude-engine-request",
+  "allow-prepare-claude-runtime",
+  "allow-get-configured-engines",
   "allow-enable-autostart",
   "allow-open-task-window",
   "allow-connect-project-terminals",
@@ -91,6 +94,7 @@ permissions = [
   "allow-start-turn",
   "allow-steer-turn",
   "allow-interrupt-turn",
+  "allow-stop-task-session",
   "allow-resolve-pending-request",
   "allow-submit-review",
   "allow-compact-task",
