@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-## [0.39.0] - 2026-10-19
+## [0.39.1] - 2026-10-19
 
 ### 新增
 
@@ -31,8 +31,15 @@
 ### 工程
 
 - 升级内置 Codex CLI 至 `0.163.0` 并更新共享协议基线；固定 Claude Agent SDK `0.3.300`，共用适配器与桌面独立宿主。
+- 统一真实 SDK 回归的临时目录真实路径，避免 Windows runner 的 8.3 短名造成会话索引错配和额外工作目录提示；为多轮流式输入浏览器回归预留冷启动总预算。
 - Windows 便携版改为包含主程序、Claude 宿主和运行时目录的完整 ZIP；补充跨平台构建、运行时分发、宿主通信与引擎隔离校验，保留签名和公证门禁。
 - 同步两端中英文使用与安装说明、运行时分发、模型上下文及联合发布文档，并补充 Windows、Ubuntu 验证记录。
+
+## [0.39.0] - 2026-10-19
+
+### 发布状态
+
+- 联合发布在公开前取消；修复 Windows 原生 SDK 回归的临时目录路径后，完整变更合并至 `0.39.1`，保留原标签。
 
 ## [0.38.0] - 2026-10-16
 
@@ -1045,7 +1052,8 @@
 
 - 添加最小化 Tauri 权限、依赖供应链审计与 Provider 运行时完整性校验。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.39.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.39.1...HEAD
+[0.39.1]: https://github.com/BryanHoo/Codexly/compare/v0.38.0...v0.39.1
 [0.39.0]: https://github.com/BryanHoo/Codexly/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/BryanHoo/Codexly/compare/v0.37.1...v0.38.0
 [0.37.1]: https://github.com/BryanHoo/Codexly/compare/v0.37.0...v0.37.1
