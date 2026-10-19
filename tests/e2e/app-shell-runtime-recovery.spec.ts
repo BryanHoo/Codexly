@@ -139,7 +139,8 @@ test("keeps retrying Snapshot recovery and applies later realtime events", async
 
   await expect.poll(() => snapshotRequestCount).toBeGreaterThanOrEqual(3);
   await expect(page.getByText("工作台界面已按统一的 项目 Agent 组件 结构重新组织。")).toBeVisible();
-  await expect(page.getByText("实时连接恢复中")).toBeVisible();
+  // Brief recovery stays silent during the shared ten-second grace period.
+  await expect(page.getByText("实时连接恢复中")).toHaveCount(0);
 
   await expect.poll(() => snapshotRequestCount).toBeGreaterThanOrEqual(4);
   await expect(page.getByText("恢复失败后收到的实时消息")).toBeVisible();

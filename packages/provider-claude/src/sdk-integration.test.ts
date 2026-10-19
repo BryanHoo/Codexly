@@ -167,6 +167,8 @@ it.each([
       clearTimeout(timer);
       gate.resolve(undefined);
       stream.close();
+      // Windows keeps the working directory locked until the SDK child exits.
+      await stream.return();
       await api.close();
       await rm(root, { recursive: true, force: true });
     }

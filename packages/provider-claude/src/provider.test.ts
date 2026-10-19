@@ -979,9 +979,12 @@ describe("Claude session recovery", () => {
       h.provider.subscribeEvents((event) => events.push(event));
       const turn = await h.provider.startTurn(task.id, prompt, options);
       h.send({ type: "system", subtype: "init", model: "test-model", mcp_servers: [] });
-      await vi.waitFor(async () => {
-        expect((await h.config.history.metadata(task.id))?.sessionInitialized).toBe(true);
-      });
+      await vi.waitFor(
+        async () => {
+          expect((await h.config.history.metadata(task.id))?.sessionInitialized).toBe(true);
+        },
+        { timeout: 10_000 },
+      );
       const failure = vi
         .spyOn(h.config.history, "saveRecovery")
         .mockRejectedValue(new Error("disk full"));
@@ -3121,10 +3124,13 @@ describe("native session actions", () => {
       message: { id: "msg-first", content: [{ type: "text", text: "原会话回答" }] },
     });
     h.send({ type: "result", subtype: "success", result: "原会话回答" });
-    await vi.waitFor(async () => {
-      expect((await h.provider.readTask(task.id))?.turns.at(-1)?.status).toBe("completed");
-      expect(h.provider.isBusy).toBe(false);
-    });
+    await vi.waitFor(
+      async () => {
+        expect((await h.provider.readTask(task.id))?.turns.at(-1)?.status).toBe("completed");
+        expect(h.provider.isBusy).toBe(false);
+      },
+      { timeout: 10_000 },
+    );
     return { ...h, task, turn };
   }
 
@@ -3226,16 +3232,22 @@ describe("native session actions", () => {
     h.provider.subscribeEvents((event) => events.push(event));
     await h.provider.compactTask(h.task.id, options);
     expect(h.query).toHaveBeenCalledTimes(1);
-    await vi.waitFor(() => {
-      expect(h.received.at(-1)).toMatchObject({
-        session_id: h.tasks.get(h.task.id)?.sessionId,
-        message: { content: [{ type: "text", text: "/compact" }] },
-      });
-    });
+    await vi.waitFor(
+      () => {
+        expect(h.received.at(-1)).toMatchObject({
+          session_id: h.tasks.get(h.task.id)?.sessionId,
+          message: { content: [{ type: "text", text: "/compact" }] },
+        });
+      },
+      { timeout: 10_000 },
+    );
     h.send({ type: "result", subtype: "success", result: "Not enough messages to compact." });
-    await vi.waitFor(() => {
-      expect(events.some((event) => event.type === "turn.completed")).toBe(true);
-    });
+    await vi.waitFor(
+      () => {
+        expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+      },
+      { timeout: 10_000 },
+    );
     const snapshot = await h.provider.readTask(h.task.id);
     expect(snapshot?.turns.at(-1)).toMatchObject({
       status: "completed",

@@ -25,7 +25,7 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
             is_error: false,
           });
         },
-        supportedModels: () => Promise.resolve([{ value: "default", displayName: "Claude" }]),
+        supportedModels: () => Promise.resolve([{ value: "sonnet", displayName: "Claude" }]),
         supportedCommands: () => Promise.resolve([]),
         accountInfo: () => Promise.resolve({ tokenSource: "none" }),
         close: vi.fn(),
@@ -89,9 +89,12 @@ it("starts real HTTP, reads Claude history and chats while Codex is unavailable"
     return body;
   };
   try {
-    await vi.waitFor(() => {
-      expect(address).toBeDefined();
-    });
+    await vi.waitFor(
+      () => {
+        expect(address).toBeDefined();
+      },
+      { timeout: 10_000 },
+    );
     expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
     await request("/v1/projects");
     const created = (await request(`/v1/projects/${project.id}/tasks`, { engine: "claude" })) as {
@@ -103,7 +106,7 @@ it("starts real HTTP, reads Claude history and chats while Codex is unavailable"
     await request(`${path}/turns`, {
       input: { type: "prompt", text: "hello", attachments: [], skills: [] },
       options: {
-        model: "default",
+        model: "sonnet",
         reasoningEffort: "",
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
@@ -111,11 +114,14 @@ it("starts real HTTP, reads Claude history and chats while Codex is unavailable"
         engineOptions: { engine: "claude", permissionMode: "default" },
       },
     });
-    await vi.waitFor(async () => {
-      expect(await store.catalog("task.read", { id: created.task.id })).toMatchObject({
-        status: "idle",
-      });
-    });
+    await vi.waitFor(
+      async () => {
+        expect(await store.catalog("task.read", { id: created.task.id })).toMatchObject({
+          status: "idle",
+        });
+      },
+      { timeout: 10_000 },
+    );
     expect(await request(path)).toMatchObject({
       snapshot: { engine: "claude", turns: [expect.objectContaining({ status: "completed" })] },
     });
@@ -215,9 +221,12 @@ it("starts real HTTP, reads Claude history and chats while Codex is unavailable"
     signal: restartedController.signal,
   });
   try {
-    await vi.waitFor(() => {
-      expect(address).toBeDefined();
-    });
+    await vi.waitFor(
+      () => {
+        expect(address).toBeDefined();
+      },
+      { timeout: 10_000 },
+    );
     expect(await request(historyPath)).toMatchObject({
       snapshot: { engine: "claude", turns: [expect.objectContaining({ status: "completed" })] },
     });

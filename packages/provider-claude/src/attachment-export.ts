@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { renameStorageFile } from "./storage-rename.js";
 import { extname, join } from "node:path";
 import type { ClaudeAgentProvider } from "./provider.js";
 
@@ -27,7 +28,7 @@ export async function exportClaudeAttachment(
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
     await writeFile(temporary, attachment.content, { mode: 0o600 });
-    await rename(temporary, path);
+    await renameStorageFile(temporary, path);
   } finally {
     await rm(temporary, { force: true });
   }

@@ -4,7 +4,8 @@ import { ClaudeAttachments } from "./attachments.js";
 import { ClaudeHistory } from "./history.js";
 import { ClaudePersistence } from "./persistence.js";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { renameStorageFile } from "./storage-rename.js";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import type {
@@ -350,7 +351,7 @@ export class ClaudeConfiguration {
     const temporary = `${path}.${randomUUID()}.tmp`;
     try {
       await writeFile(temporary, content, { mode: 0o600, flag: "wx" });
-      await rename(temporary, path);
+      await renameStorageFile(temporary, path);
     } finally {
       await rm(temporary, { force: true });
     }

@@ -2,6 +2,8 @@
 
 `packages/provider-claude` 是 Web 和桌面宿主共用的官方 SDK 边界。架构和使用说明见[双引擎说明](../../../../docs/agent-engines.md)。
 
+- 配置、历史、检查点、恢复记录和附件的原子替换共用 `storage-rename`：仅 Windows 的 `EPERM`、`EACCES`、`EBUSY` 进行有界异步退避，最多等待 3.175 秒；正常写入不额外等待，不先删除目标文件，持续锁定仍上报原错误并清理临时文件。`storage-rename.test.ts` 使用逻辑时钟和真实历史文件验证短暂锁恢复、旧记录保留及平台边界。真实 SDK 的无提示词探测测试须在 `close()` 后等待 Query 的 `return()`，再删除工作目录，避免 Windows 子进程退出尚未完成时出现 `EBUSY`。
+
 - Claude 上下文容量和自动压缩窗口在两端共用设置中编辑，原生配置为唯一权威来源：容量使用 `env.CLAUDE_CODE_MAX_CONTEXT_TOKENS`，压缩兼容旧环境变量，保存到 `autoCompactWindow` 并清除文件中的旧压缩环境覆盖。`null` 删除，省略保留；宿主环境优先且界面禁用对应输入。配置变化仅在下一轮以原 sessionId 重建查询，不中断当前回合或自动终止后台工作；不设置 `DISABLE_COMPACT` 绕过已知模型限制。验证配置往返、旧客户端、环境覆盖、恢复与真实 SDK 本地 summary，详见[上下文窗口](../../../../docs/model-context-window.md#claude-上下文管理)。
 
 - 首次成功发送后由共享 Provider 异步调用 `haiku` 生成短标题，沿用原生认证与 Haiku 别名；不阻塞主回合。与 Codex 复用 `core/task-title` 的最多 1024 字符正文、单行和最多 36 字符标题规则。辅助请求禁用工具、MCP、Hooks 和会话持久化，不携带附件正文；60 秒超时、模型失败或无效输出回退截取短正文。手动名称优先，归档、删除及宿主关闭取消迟到写入；每个 Provider 最多并发八个标题查询，超额直接回退。验证 `task-titles.test.ts`、`provider.test.ts` 与 `pnpm test:claude-host` 的真实 Haiku 别名和结构化输出。

@@ -1,16 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants, createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
-import {
-  appendFile,
-  mkdir,
-  open,
-  opendir,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { appendFile, mkdir, open, opendir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentContextUsage, AgentMcpServer, AgentPlan, AgentTurn } from "@codexly/protocol";
 import { ClaudeItemHistory } from "./item-history.js";
@@ -18,6 +9,7 @@ import { HistoryRevisions } from "./history-revisions.js";
 import type { AgentItem } from "@codexly/protocol";
 import type { ClaudePlanTask } from "./task-plan.js";
 import { copyClaudeStorage } from "./storage-copy.js";
+import { renameStorageFile } from "./storage-rename.js";
 import { ClaudeSummaryHistory } from "./summary-history.js";
 import type { ClaudeSummaryPage } from "./summary-history.js";
 
@@ -234,7 +226,7 @@ export class ClaudeHistory {
       const temporary = `${this.#path(task)}.${randomUUID()}.tmp`;
       try {
         await writeFile(temporary, encoded, { mode: 0o600 });
-        await rename(temporary, `${this.#path(task)}.metadata`);
+        await renameStorageFile(temporary, `${this.#path(task)}.metadata`);
         this.#revisions.set(key, revision);
       } finally {
         await rm(temporary, { force: true });
@@ -266,7 +258,7 @@ export class ClaudeHistory {
       const temporary = `${this.#path(task)}.${randomUUID()}.tmp`;
       try {
         await writeFile(temporary, encoded, { mode: 0o600 });
-        await rename(temporary, `${this.#path(task)}.active`);
+        await renameStorageFile(temporary, `${this.#path(task)}.active`);
         // 身份未变时不重复写入；摘要恢复无需解析包含大量过程条目的检查点正文。
         const identityKey = `${this.#path(task)}.active-id`;
         if (this.#revisions.get(identityKey) !== turn.id) {
@@ -335,7 +327,7 @@ export class ClaudeHistory {
       const temporary = `${this.#path(task)}.${randomUUID()}.tmp`;
       try {
         await writeFile(temporary, JSON.stringify(recovery), { mode: 0o600 });
-        await rename(temporary, `${this.#path(task)}.recovery`);
+        await renameStorageFile(temporary, `${this.#path(task)}.recovery`);
       } finally {
         await rm(temporary, { force: true });
       }
@@ -367,7 +359,7 @@ export class ClaudeHistory {
         temporary = `${path}.${randomUUID()}.tmp`;
       try {
         await writeFile(temporary, encoded, { mode: 0o600 });
-        await rename(temporary, path);
+        await renameStorageFile(temporary, path);
       } finally {
         await rm(temporary, { force: true });
       }
