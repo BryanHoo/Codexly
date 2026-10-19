@@ -61,8 +61,19 @@ describe("Claude 设置控件", () => {
     const { DEFAULT_CLAUDE_SETTINGS } = await import("@codexly/protocol");
     const markup = renderToStaticMarkup(
       <ClaudeRuntimeSettingsFields
-        settings={DEFAULT_CLAUDE_SETTINGS}
-        models={[]}
+        settings={{
+          ...DEFAULT_CLAUDE_SETTINGS,
+          model: "legacy-model",
+          modelAliases: { opus: "gateway-opus", sonnet: "gateway-sonnet", haiku: "gateway-haiku" },
+        }}
+        models={["opus", "sonnet", "haiku", "legacy-model", "sonnet[1m]"].map((id) => ({
+          id,
+          displayName: `${id} → gateway-model`,
+          description: "",
+          isDefault: false,
+          defaultReasoningEffort: "",
+          supportedReasoningEfforts: [],
+        }))}
         disabled={false}
         labels={engineChinese}
         Group={SettingsGroup}
@@ -74,6 +85,11 @@ describe("Claude 设置控件", () => {
     for (const name of ["Opus", "Sonnet", "Haiku"]) expect(markup).toContain(`aria-label="${name}`);
     expect(markup).toContain("模型映射");
     expect(markup).toContain('value="" selected=""');
+    // 映射输入保留真实 ID，但下拉选项只能包含自动与三个简短别名。
+    const options = /<select[^>]*>[\s\S]*?<\/select>/.exec(markup)?.[0] ?? "";
+    expect(options.match(/<option\b/g)).toHaveLength(4);
+    for (const name of ["Opus", "Sonnet", "Haiku"]) expect(options).toContain(`>${name}</option>`);
+    expect(options).not.toMatch(/gateway|legacy-model|sonnet\[1m\]|→/);
   });
   it.each([
     ["claude-provider", "API 地址", ["模型", "全局指令", "自动允许"]],

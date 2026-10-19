@@ -26,10 +26,15 @@ it("loads native SDK authentication, merges discovery and refreshes externally c
           Promise.resolve([
             {
               value: "sonnet",
-              displayName: "Sonnet",
+              displayName: "Sonnet → gateway-sonnet",
               description: "Test",
               supportedEffortLevels: ["high", "max"],
             },
+            { value: "default", displayName: "Default", description: "" },
+            { value: "claude-sonnet-4-6", displayName: "Sonnet 4.6", description: "" },
+            { value: "sonnet[1m]", displayName: "Sonnet 1M", description: "" },
+            { value: "haiku", displayName: "Haiku 4.5", description: "" },
+            { value: "opus", displayName: "Opus 4.6", description: "" },
           ]),
         supportedCommands: () =>
           Promise.resolve([
@@ -65,8 +70,12 @@ it("loads native SDK authentication, merges discovery and refreshes externally c
       { id: "max", description: "max" },
     ],
   });
-  // 映射只改变别名目标，展示保留简短名称，也不能绕过 SDK 目录添加受限模型。
-  expect(a.models.data.map((model) => model.id)).toEqual(["sonnet"]);
+  // 目录只开放三档别名；具体版本、自动项和扩展别名不能进入两端模型选择器。
+  expect(a.models.data.map(({ id, displayName }) => ({ id, displayName }))).toEqual([
+    { id: "sonnet", displayName: "Sonnet" },
+    { id: "haiku", displayName: "Haiku" },
+    { id: "opus", displayName: "Opus" },
+  ]);
   expect(a.models.data.find((model) => model.id === "sonnet")?.displayName).toBe("Sonnet");
   expect(a.commands[0]?.name).toBe("review-project");
   expect(query).toHaveBeenCalledOnce();
@@ -77,7 +86,8 @@ it("loads native SDK authentication, merges discovery and refreshes externally c
   );
   const refreshed = await runtime.inspect();
   expect(refreshed.settings?.model).toBe("custom-local");
-  expect(refreshed.models.data[0]?.id).toBe("custom-local");
+  // 仅配置自定义 ID 的白名单不能让应用伪造未开放的别名。
+  expect(refreshed.models.data).toEqual([]);
   expect(query).toHaveBeenCalledTimes(2);
   // 全局探测与以主目录为根的项目不能共用目录缓存；只有后者允许读取项目配置。
   await runtime.inspect({

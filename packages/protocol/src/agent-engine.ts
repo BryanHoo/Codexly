@@ -4,6 +4,13 @@ import { Type, type Static } from "@sinclair/typebox";
 export const AgentEngineSchema = Type.Union([Type.Literal("codex"), Type.Literal("claude")]);
 export type AgentEngine = Static<typeof AgentEngineSchema>;
 
+/** Claude 只开放已支持映射的三档别名；两端与运行层共用固定名称，避免泄露映射后缀。 */
+export const CLAUDE_MODEL_OPTIONS = [
+  { id: "opus", displayName: "Opus" },
+  { id: "sonnet", displayName: "Sonnet" },
+  { id: "haiku", displayName: "Haiku" },
+] as const;
+
 export const ClaudePermissionModeSchema = Type.Union([
   Type.Literal("default"),
   // auto 由官方 SDK 判断模型、服务商与策略是否支持，两端必须原样传递。

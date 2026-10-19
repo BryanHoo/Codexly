@@ -1,6 +1,7 @@
 import { Input } from "./input.js";
 import type { ComponentType, ReactNode, SelectHTMLAttributes } from "react";
 import type { AgentModel, ClaudeSettings } from "@codexly/protocol";
+import { CLAUDE_MODEL_OPTIONS } from "@codexly/protocol";
 import type { claudeSettingsChinese as engineChinese } from "@codexly/frontend-core/claude-settings-labels";
 
 export type ClaudeSettingsControls = Readonly<{
@@ -33,6 +34,10 @@ export function ClaudeRuntimeSettingsFields({
     settings.model === "default"
       ? (models.find((model) => model.isDefault) ?? models[0])
       : models.find((model) => model.id === settings.model);
+  // 探测不可用时仍能配置三档别名；已有目录只展示其中可用的别名，不补入历史自定义 ID。
+  const choices = CLAUDE_MODEL_OPTIONS.filter(
+    (option) => models.length === 0 || models.some((model) => model.id === option.id),
+  );
   // 只展示引擎报告的思考档位；外部配置的旧值保留显示，切换模型时才校准。
   const efforts =
     selectedModel?.supportedReasoningEfforts.filter((effort) =>
@@ -44,7 +49,9 @@ export function ClaudeRuntimeSettingsFields({
         <Field label={labels.model}>
           <Select
             aria-label={labels.model}
-            value={settings.model}
+            value={
+              choices.some((option) => option.id === settings.model) ? settings.model : "default"
+            }
             disabled={disabled}
             onChange={(event) => {
               const model = event.currentTarget.value;
@@ -64,30 +71,11 @@ export function ClaudeRuntimeSettingsFields({
             }}
           >
             <option value="default">{labels.automatic}</option>
-            {(models.length === 0 ? (["opus", "sonnet", "haiku"] as const) : [])
-              .filter((alias) => !models.some((entry) => entry.id === alias))
-              .map((alias) => (
-                <option key={alias} value={alias}>
-                  {alias.charAt(0).toUpperCase() + alias.slice(1)}
-                  {settings.modelAliases?.[alias] ? ` → ${settings.modelAliases[alias]}` : ""}
-                </option>
-              ))}
-            {settings.model !== "default" &&
-            (models.length > 0 || !["opus", "sonnet", "haiku"].includes(settings.model)) &&
-            !models.some((model) => model.id === settings.model) ? (
-              <option value={settings.model}>{settings.model}</option>
-            ) : null}
-            {models
-              .filter((model) => model.id !== "default")
-              .map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.displayName}
-                  {!model.displayName.includes(" → ") &&
-                  settings.modelAliases?.[model.id as "opus" | "sonnet" | "haiku"]
-                    ? ` → ${settings.modelAliases[model.id as "opus" | "sonnet" | "haiku"]}`
-                    : ""}
-                </option>
-              ))}
+            {choices.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.displayName}
+              </option>
+            ))}
           </Select>
         </Field>
         <Field

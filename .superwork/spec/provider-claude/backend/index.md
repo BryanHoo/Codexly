@@ -48,6 +48,7 @@
 - 桌面通过 `task-attachment` 原生协议按项目、任务、附件 ID 读取；宿主 `attachment.export` 只返回已校验正文的导出路径及媒体类型，避免大文件突破 stdio 帧预算。宿主构建必须嵌入附件 Worker 并固定其编译入口；`pnpm test:claude-host` 覆盖真实独立宿主重启、临时源清理后图片/文本/超过 8 MiB 文件读取。Provider 回归同时覆盖检查点、终态、任务隔离、正文损坏及存储失败。
 
 - 三档模型映射使用 `ClaudeSettings.modelAliases`，只合并到原生 `ANTHROPIC_DEFAULT_OPUS_MODEL` / `SONNET` / `HAIKU` 变量；不得把映射目标当成 `availableModels` 白名单。清空某档只移除对应变量。思考能力继续取 SDK 元数据，不根据网关模型名称猜测。宿主变量覆盖来源只返回名称，禁止返回认证值。
+- 两端模型目录只返回 `haiku`、`sonnet`、`opus` 三档别名，名称共用协议 `CLAUDE_MODEL_OPTIONS`，固定显示 Haiku、Sonnet、Opus，不拼映射目标或 SDK 版本文案。不补入外部默认模型、具体版本或扩展别名；保留原生模型白名单与 SDK 能力匹配。Claude 智能体默认设置额外保留自动项，辅助生成默认模型仅开放三档，旧自定义辅助模型回落 Haiku。验证 `runtime.test.ts`、`claude-settings-panel.test.tsx` 与 `default-generation-settings.test.tsx`。
 - Claude 连接的 `authType` 区分 API Key 与 Bearer Token，复用 `apiKey` 请求字段提交秘密；地址或认证类型变化必须提供新凭据，不能转用另一服务或另一认证头中的旧值。配置表单只在用户明确保存时提交，未保存或保存失败不得完成首次配置。
 - 首次启动由共享引擎向导按选择、准备、配置推进。选择前不得挂载自动安装或连接表单；只准备已选择的引擎，命中兼容缓存时不联网或模拟下载。Web 复用服务端固定版本依赖，桌面通过受管安装器按需下载 Claude 与 Codex。验证覆盖 `engine-setup.test.ts`、Claude 配置及运行时测试、两端 UI 和真实宿主回归。
 

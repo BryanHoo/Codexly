@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AgentEngine, AgentGlobalSettings, AgentModel } from "@codexly/protocol";
+import { CLAUDE_MODEL_OPTIONS } from "@codexly/protocol";
 import { useSelectedEngines } from "./engine-selection.js";
 
 const defaults = { codex: "gpt-6-luna", claude: "haiku" } as const;
@@ -21,8 +22,13 @@ export function DefaultGenerationSettings({
   const engine = engines.includes(settings.defaultAgent ?? "codex")
     ? (settings.defaultAgent ?? "codex")
     : (engines[0] ?? "codex");
-  const model =
+  const configuredModel =
     (settings.defaultAgent ?? "codex") === engine ? settings.defaultModel : defaults[engine];
+  // Claude 的旧自定义值回落 Haiku，防止辅助生成的选择器重新补回已过滤的模型。
+  const model =
+    engine === "claude" && !CLAUDE_MODEL_OPTIONS.some((option) => option.id === configuredModel)
+      ? defaults.claude
+      : configuredModel;
   const [catalog, setCatalog] = useState<{ engine: AgentEngine; models: readonly AgentModel[] }>();
   useEffect(() => {
     let active = true;
@@ -44,9 +50,14 @@ export function DefaultGenerationSettings({
   }, [engine, model, settings.defaultAgent, settings.defaultModel, onChange]);
   const zh = language.startsWith("zh");
   const models = catalog?.engine === engine ? catalog.models : [];
-  const choices = models.some((item) => item.id === model)
-    ? models
-    : [{ id: model, displayName: model }, ...models];
+  const choices =
+    engine === "claude"
+      ? CLAUDE_MODEL_OPTIONS.filter(
+          (option) => models.length === 0 || models.some((entry) => entry.id === option.id),
+        )
+      : models.some((item) => item.id === model)
+        ? models
+        : [{ id: model, displayName: model }, ...models];
   const selectClass =
     "h-8 w-48 max-w-full rounded-control border border-separator-strong bg-panel px-2 text-body-small";
   return (

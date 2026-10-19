@@ -24,5 +24,9 @@ it("shows the agent selector only when both agents are enabled", () => {
     expect(html).not.toContain('aria-label="默认 Agent"');
     expect(html).toContain('aria-label="默认模型"');
     expect(html).toContain(engine === "codex" ? "gpt-6-luna" : "haiku");
+    if (engine === "claude") {
+      expect(html.match(/<option\b/g)).toHaveLength(3);
+      for (const name of ["Haiku", "Sonnet", "Opus"]) expect(html).toContain(`>${name}</option>`);
+    }
   }
 });

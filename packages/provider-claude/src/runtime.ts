@@ -1,4 +1,5 @@
 import type { TaskTitleGenerator } from "@codexly/core";
+import { CLAUDE_MODEL_OPTIONS } from "@codexly/protocol";
 import { isSupportedClaudeCommand } from "./commands.js";
 import { generateClaudeCommitMessage } from "./commit-message.js";
 import { generateTitle } from "./task-titles.js";
@@ -192,26 +193,24 @@ export class ClaudeRuntime implements AgentEngineService {
         expired.promise,
       ]);
       const configured = credentials?.models ?? [];
-      const ids = configured.length
+      const sourceIds = configured.length
         ? configured.map((model) => model.id)
         : models.map((model) => model.value);
-      // 本机自定义模型可能不在 SDK 内建目录；保留它，同时复用 SDK 已声明的能力元数据。
-      if (!configured.length && defaults.model !== "default" && !ids.includes(defaults.model))
-        ids.unshift(defaults.model);
-      const data = ids.map((id, index) => {
-        const mapped = defaults.modelAliases?.[id as "opus" | "sonnet" | "haiku"];
+      // 两端只允许选择三档映射别名；不把具体版本、自定义默认值或扩展别名补回目录。
+      const options = sourceIds.flatMap((id) => {
+        const option = CLAUDE_MODEL_OPTIONS.find((option) => option.id === id);
+        return option ? [option] : [];
+      });
+      const data = options.map(({ id, displayName }, index) => {
+        const mapped = defaults.modelAliases?.[id];
         // 优先使用运行时报告的别名能力；自定义 ID 不根据名称猜测思考档位。
         const model =
           models.find((candidate) => candidate.value === id) ??
           (mapped ? models.find((candidate) => candidate.value === mapped) : undefined);
         return {
           id,
-          // 两端统一只展示别名名称；映射目标仍用于匹配 SDK 能力，不拼入显示名称。
-          displayName: mapped
-            ? `${id.charAt(0).toUpperCase()}${id.slice(1)}`
-            : (model?.displayName ??
-              configured.find((candidate) => candidate.id === id)?.name ??
-              id),
+          // 不复用 SDK 或网关的展示文案，映射目标只用于匹配真实能力元数据。
+          displayName,
           description: model?.description ?? "",
           isDefault: defaults.model === "default" ? index === 0 : id === defaults.model,
           defaultReasoningEffort: "",
