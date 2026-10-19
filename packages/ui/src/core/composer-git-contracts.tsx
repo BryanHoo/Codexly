@@ -1,0 +1,40 @@
+import type { ProjectGitStatus } from "@codexly/protocol";
+import type { ComposerWorkspace } from "./composer-workspace.js";
+
+export type ComposerGitLabels = Readonly<{
+  switchLabel: string;
+  missing: string;
+  branches: string;
+  worktrees: string;
+  createBranch: string;
+  branchDescription: string;
+  createBranchConfirm: string;
+  createWorktree: string;
+  worktreeDescription: string;
+  createWorktreeConfirm: string;
+  branchName: string;
+  cancel: string;
+  loading: string;
+  pickerTitle: string;
+  current: string;
+  mainWorktree: string;
+  worktreeHint: string;
+  branchHint: string;
+  searchWorktrees: string;
+  searchBranches: string;
+  noResults: string;
+  occupied: string;
+  retry: string;
+  loadError: string;
+  baseBranch: string;
+  location: string;
+}>;
+export type ComposerBranchSwitcherProps = Readonly<{
+  creatingBranch: string | undefined;
+  disabled?: boolean;
+  gitStatus: ProjectGitStatus | undefined;
+  onBranchChange: (branch: string) => void;
+  onBranchCreate: (branch: string) => Promise<boolean>;
+  switchingBranch: string | undefined;
+  workspace?: ComposerWorkspace;
+}>;

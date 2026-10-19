@@ -1,3 +1,4 @@
+import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type {
   AgentAttachment,
   AgentCapabilities,
@@ -70,7 +71,7 @@ export type WorkbenchComposerProps = Readonly<{
       | "createProjectBranch"
       | "switchProjectBranch"
     > &
-    NativeProjectFileSearchClient;
+    NativeProjectFileSearchClient & ComposerWorkspace["client"];
   fastModeAvailable: boolean;
   fastModeDefault: boolean;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];
@@ -92,6 +93,7 @@ export type WorkbenchComposerProps = Readonly<{
   onFastModeChange: (enabled: boolean, settings: AgentTaskSettings) => Promise<void> | void;
   onOpenProjectPath: () => void;
   onProjectRootChange: (rootId: string) => void;
+  workspace?: ComposerWorkspace;
   onDirectSubmission?: (prompt?: PendingPrompt) => void;
   onSubmissionFailed?: () => void;
   onCaptureSubmission?: (

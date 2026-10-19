@@ -8,7 +8,7 @@ import { TerminalContext } from "./terminal-context.js";
 
 const TerminalPanel = lazy(() => import("./terminal-panel.js").then((module) => ({ default: module.TerminalPanel })));
 
-export function TerminalWorkbench({ children, enabled, projectId, rootId, taskId, label }: { children: ReactNode; enabled: boolean; projectId: string; rootId: string | undefined; taskId?: string | undefined; label: string }) {
+export function TerminalWorkbench({ children, enabled, projectId, rootId, rootPath, taskId, label }: { children: ReactNode; enabled: boolean; projectId: string; rootId: string | undefined; rootPath?: string; taskId?: string | undefined; label: string }) {
   const active = useContext(SplitPaneContext)?.active ?? true;
   const state = useSyncExternalStore(useCallback((listener) => enabled ? terminalStore.subscribe(projectId, listener) : () => undefined, [enabled, projectId]), useCallback(() => terminalStore.get(projectId), [projectId]));
   const previousFocus = useRef<HTMLElement | null>(null);
@@ -22,8 +22,8 @@ export function TerminalWorkbench({ children, enabled, projectId, rootId, taskId
   }, [projectId]);
   const toggle = useCallback(() => {
     if (previousFocus.current === null) captureFocus();
-    void import("../terminal-actions.js").then(({ toggleTerminal }) => toggleTerminal(projectId, rootId)).catch((error: unknown) => terminalActionError(projectId, error));
-  }, [captureFocus, projectId, rootId]);
+    void import("../terminal-actions.js").then(({ toggleTerminal }) => toggleTerminal(projectId, rootId, rootPath)).catch((error: unknown) => terminalActionError(projectId, error));
+  }, [captureFocus, projectId, rootId, rootPath]);
 
   useLayoutEffect(() => {
     if (!enabled || !active) return;
@@ -71,7 +71,7 @@ export function TerminalWorkbench({ children, enabled, projectId, rootId, taskId
       <div data-terminal-footer="" className="shrink-0 bg-content px-1 pb-2 sm:px-5" ref={setFooter} />
       {active && state.visible ? <div className="shrink-0 bg-window pb-2">
         {/* 工作台底色留白用于收住终端底边，避免内容贴住窗口边缘。 */}
-        <Suspense fallback={null}><TerminalPanel projectId={projectId} rootId={rootId} /></Suspense>
+        <Suspense fallback={null}><TerminalPanel projectId={projectId} rootId={rootId} {...(rootPath === undefined ? {} : { rootPath })} /></Suspense>
       </div> : null}
     </TerminalContext.Provider>
   </main>;

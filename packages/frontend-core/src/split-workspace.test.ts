@@ -98,3 +98,16 @@ describe("split workspace selection", () => {
     expect(replaceSplitPane(replaced, firstDraft, task("late"))).toBe(replaced);
   });
 });
+
+it("carries the chosen worktree into a new draft without changing sibling panes", () => {
+  const first = task("one");
+  const second = task("two");
+  const draft = {
+    projectId: "project",
+    draftId: "draft-new",
+    workspacePath: "/repo/.worktree/topic",
+  };
+  const next = replaceSplitPane([first, second], first, draft);
+  expect(next[0]).toEqual(draft);
+  expect(next[1]).toBe(second);
+});

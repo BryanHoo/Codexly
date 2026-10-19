@@ -1,3 +1,4 @@
+import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type {
   AgentAttachment,
   AgentCapabilities,
@@ -68,11 +69,13 @@ export type WorkbenchComposerProps = Readonly<{
       CodexlyGitMutationClient,
       | "createProjectBranch"
       | "createProjectWorktree"
+      | "createTaskWorktree"
       | "listProjectWorktrees"
       | "switchProjectBranch"
       | "switchProjectWorktree"
     > &
-    CodexlyProjectFileSearchClient;
+    CodexlyProjectFileSearchClient &
+    ComposerWorkspace["client"];
   fastModeAvailable: boolean;
   fastModeDefault: boolean;
   followUpBehavior: AgentGlobalSettings["followUpBehavior"];
@@ -94,6 +97,7 @@ export type WorkbenchComposerProps = Readonly<{
   onRequestNotificationPermission: () => void;
   onOpenProjectPath: () => void;
   onProjectRootChange: (rootId: string) => void;
+  workspace?: ComposerWorkspace;
   onDirectSubmission?: (prompt?: PendingPrompt) => void;
   onSubmissionFailed?: () => void;
   onCaptureSubmission?: (

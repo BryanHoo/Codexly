@@ -16,3 +16,10 @@ void test('native file previews and terminal creation use application ownership'
   const terminal = await readFile(new URL('../src-tauri/src/application/terminal_commands.rs', import.meta.url), 'utf8');
   assert.doesNotMatch(terminal.split('pub async fn create_project_terminal(')[1].split('#[tauri::command]')[0], /codex_connection\(|codex::/);
 });
+
+// 工作树任务与普通任务共用应用目录创建流程，不能绕过双引擎分流直接建立 Codex 会话。
+void test('worktree task creation uses the engine-independent task catalog', async () => {
+  const source = await readFile(new URL('../src-tauri/src/application/worktree_task_commands.rs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /codex_connection\(|codex::/);
+  assert.match(source, /task_workspace::start_task_for_engine/);
+});

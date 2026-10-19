@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createHarness, turnRequest } from "./app-all.test-support.js";
+import { createHarness, turnRequest, projectRootPath } from "./app-all.test-support.js";
 import { createWorkspace, openRepository } from "./sqlite-state-repository.test-support.js";
 
 describe("task submission use case", () => {
@@ -36,6 +36,27 @@ describe("task submission use case", () => {
       expect(third.startTurn).not.toHaveBeenCalled();
     },
   );
+
+  it("uses the selected workspace when first submitting", async () => {
+    const engine = "codex";
+    const { app, startTask } = await createHarness();
+    const response = await app.inject({
+      ...request,
+      payload: { ...request.payload, engine, workspacePath: projectRootPath },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    expect(startTask).toHaveBeenCalledWith({ engine, workspacePath: projectRootPath });
+  });
+
+  it("rejects a workspace outside the project before creating a task", async () => {
+    const { app, startTask } = await createHarness();
+    const response = await app.inject({
+      ...request,
+      payload: { ...request.payload, workspacePath: "/unrelated/project" },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(startTask).not.toHaveBeenCalled();
+  });
 
   it("creates and starts a task in one idempotent request", async () => {
     const { app, startTask, startTurn } = await createHarness();

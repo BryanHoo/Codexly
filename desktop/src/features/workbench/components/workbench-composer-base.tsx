@@ -48,6 +48,7 @@ export function WorkbenchComposerBase({
   onInputStateChange,
   onOpenProjectPath,
   onProjectRootChange,
+  workspace,
   onSettingsChange,
   onSubmissionStateChange,
   onTaskCreated,
@@ -224,6 +225,7 @@ export function WorkbenchComposerBase({
     clearComposerInput,
     restoreComposerInput,
     client,
+    workspacePath: selectedProjectRootId.startsWith("worktree") ? projectPath : undefined,
     controller: composerController,
     composerMode,
     followUpBehavior,
@@ -365,6 +367,7 @@ export function WorkbenchComposerBase({
       composerMode={composerMode}
       composerScope={composerScope}
       contextUsage={contextUsage}
+      {...(workspace === undefined ? {} : { workspace })}
       creatingBranch={branchMutation.creatingBranch}
       draftInputDisabled={draftInputDisabled}
       filteredCommands={filteredCommands}
@@ -410,9 +413,7 @@ export function WorkbenchComposerBase({
       }}
       onAttachmentsChange={projectDraftActions.changeAttachments}
       onBranchCreate={branchMutation.createBranch}
-      onBranchChange={(branch) => {
-        void branchMutation.switchBranch(branch);
-      }}
+      onBranchChange={branchMutation.switchBranch}
       onExecuteCommand={(command) => {
         void executePromptCommand(command);
       }}

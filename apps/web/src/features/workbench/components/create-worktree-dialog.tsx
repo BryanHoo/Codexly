@@ -1,103 +1,22 @@
-/* oxlint-disable jsx-a11y/no-autofocus -- Dialog 由用户显式打开，分支名输入框是唯一首要操作。 */
-import { useRef, useState } from "react";
-
+import type { ComponentProps } from "react";
+import { CreateWorktreeDialog as SharedCreateWorktreeDialog } from "@codexly/ui/core/create-worktree-dialog";
 import { useTranslation } from "../../../i18n/i18n.js";
-import { Button } from "../../../shared/components/core/button.js";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../../../shared/components/core/dialog.js";
-import { Input } from "../../../shared/components/core/input.js";
 
-type CreateWorktreeDialogProps = Readonly<{
-  branchLocked?: boolean;
-  isPending: boolean;
-  onClose: () => void;
-  onCreate: (branch: string) => Promise<boolean>;
-}>;
-
-export function CreateWorktreeDialog({
-  branchLocked = false,
-  isPending,
-  onClose,
-  onCreate,
-}: CreateWorktreeDialogProps) {
+/** 两端共用目录创建表单与提交锁，宿主仅提供本地化文案。 */
+export function CreateWorktreeDialog(
+  props: Omit<ComponentProps<typeof SharedCreateWorktreeDialog>, "labels">,
+) {
   const { t } = useTranslation("workbench");
-  const [branch, setBranch] = useState("");
-  const submissionRef = useRef(false);
-  const normalizedBranch = branch.trim();
-
   return (
-    <Dialog
-      onOpenChange={(open) => {
-        if (!open && !isPending && !submissionRef.current) onClose();
+    <SharedCreateWorktreeDialog
+      {...props}
+      labels={{
+        title: t("composer.createWorktree"),
+        description: t("composer.createWorktreeDescription"),
+        branch: t("composer.branchName"),
+        cancel: t("actions.cancel"),
+        create: t("composer.createWorktreeConfirm"),
       }}
-      open
-    >
-      <DialogContent
-        aria-labelledby="create-worktree-title"
-        className="max-w-96 p-4"
-        onEscapeKeyDown={(event) => {
-          if (isPending || submissionRef.current) event.preventDefault();
-        }}
-        onInteractOutside={(event) => {
-          if (isPending || submissionRef.current) event.preventDefault();
-        }}
-      >
-        <form
-          className="grid gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (normalizedBranch.length === 0 || submissionRef.current) return;
-            // Ref 在事件入口同步单飞，避免 React 状态提交前重复创建目录。
-            submissionRef.current = true;
-            void onCreate(normalizedBranch).then((created) => {
-              submissionRef.current = false;
-              if (created) onClose();
-            });
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle id="create-worktree-title">{t("sidebar.worktreeTaskTitle")}</DialogTitle>
-            <DialogDescription>{t("sidebar.worktreeTaskDescription")}</DialogDescription>
-          </DialogHeader>
-          <label
-            className="grid gap-1.5 text-label font-medium text-foreground"
-            htmlFor="create-worktree-branch"
-          >
-            {t("composer.branchName")}
-            <Input
-              autoCapitalize="none"
-              autoComplete="off"
-              autoCorrect="off"
-              autoFocus
-              disabled={isPending || branchLocked}
-              id="create-worktree-branch"
-              maxLength={1_024}
-              name="branch"
-              onChange={(event) => {
-                setBranch(event.currentTarget.value);
-              }}
-              placeholder="feat/my-feature"
-              spellCheck={false}
-              value={branch}
-              variant="outline"
-            />
-          </label>
-          <DialogFooter>
-            <Button disabled={isPending} onClick={onClose} type="button" variant="ghost">
-              {t("actions.cancel")}
-            </Button>
-            <Button disabled={isPending || normalizedBranch.length === 0} type="submit">
-              {t("sidebar.createWorktreeTaskConfirm")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    />
   );
 }

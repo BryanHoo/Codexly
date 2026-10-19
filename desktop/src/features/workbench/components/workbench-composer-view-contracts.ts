@@ -1,3 +1,4 @@
+import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import type { ReactNode } from "react";
 import type {
   AgentContextUsage,
@@ -49,6 +50,7 @@ export type WorkbenchComposerViewProps = Readonly<{
   composerScope: string;
   contextUsage: AgentContextUsage | null | undefined;
   creatingBranch: string | undefined;
+  workspace?: ComposerWorkspace;
   draftInputDisabled: boolean;
   editingProjectDraftId: string | undefined;
   editQueuedPrompt: (queuedPrompt: QueuedComposerPrompt) => void;

@@ -28,8 +28,16 @@ fn create_input(body: &InvokeBody) -> Result<CreateTerminalRequest, TerminalErro
         .cloned()
         .ok_or(TerminalError::StreamInvalid)?;
     input.remove("onOutput");
-    serde_json::from_value(serde_json::Value::Object(input))
-        .map_err(|_| TerminalError::StreamInvalid)
+    let request: CreateTerminalRequest = serde_json::from_value(serde_json::Value::Object(input))
+        .map_err(|_| TerminalError::StreamInvalid)?;
+    if request
+        .root_path
+        .as_ref()
+        .is_some_and(|path| path.len() > 32_768 || path.contains(['\0', '\r', '\n']))
+    {
+        return Err(TerminalError::RootInvalid);
+    }
+    Ok(request)
 }
 
 #[tauri::command]
@@ -81,6 +89,17 @@ pub async fn create_project_terminal(
         // WebDriver 可在隐藏的原生窗口执行脚本；交互验收必须先真实显示并聚焦窗口。
         window.show().map_err(|_| TerminalError::SpawnFailed)?;
         window.set_focus().map_err(|_| TerminalError::SpawnFailed)?;
+        return tauri::async_runtime::spawn_blocking(move || {
+            reservation.spawn_root(&root, on_output)
+        })
+        .await
+        .map_err(|_| TerminalError::SpawnFailed)?
+        .map_err(Into::into);
+    }
+    if let Some(path) = input.root_path.as_deref() {
+        // 草稿尚无 taskId，直接沿项目/worktree 归属校验选择目录，不依赖执行引擎。
+        let (root, _) =
+            super::workspace_commands::project_root(&app, &input.project_id, path).await?;
         return tauri::async_runtime::spawn_blocking(move || {
             reservation.spawn_root(&root, on_output)
         })

@@ -45,6 +45,7 @@ impl SubmissionBudget {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SubmissionRequest {
     engine: Option<String>,
+    workspace_path: Option<String>,
     project_id: String,
     task_id: Option<String>,
     input: AgentPromptInput,
@@ -61,6 +62,14 @@ struct SubmissionKeys {
 
 impl SubmissionRequest {
     fn validate(&self) -> Result<usize, Value> {
+        if let Some(path) = self.workspace_path.as_deref()
+            && (self.task_id.is_some()
+                || path.len() > 32_768
+                || !std::path::Path::new(path).is_absolute()
+                || path.contains(['\0', '\r', '\n']))
+        {
+            return Err(json!({"code":"INVALID_REQUEST","message":"Project workspace is invalid"}));
+        }
         if self
             .engine
             .as_deref()
@@ -103,7 +112,7 @@ impl SubmissionRequest {
             &self.input,
             &self.turn_options,
         )?;
-        Ok(identity.encoded_bytes())
+        Ok(identity.encoded_bytes() + self.workspace_path.as_ref().map_or(0, String::len))
     }
 }
 
@@ -137,6 +146,7 @@ pub async fn submit_prompt(
                 creation_project,
                 request.idempotency_keys.start_task.unwrap_or_default(),
                 request.engine,
+                request.workspace_path,
                 state,
             )
             .await

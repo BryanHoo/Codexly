@@ -389,11 +389,8 @@ async fn create_worktree_should_preserve_unicode_and_probe_a_numeric_suffix() {
     run(&root, &["add", "."]);
     run(&root, &["commit", "-m", "initial commit"]);
     let root = fs::canonicalize(root).unwrap();
-    let base_target = root.with_file_name(format!(
-        "{}-功能-测试",
-        root.file_name().unwrap().to_string_lossy()
-    ));
-    fs::create_dir(&base_target).unwrap();
+    let base_target = root.join(".worktree").join("功能-测试");
+    fs::create_dir_all(&base_target).unwrap();
     let status = get_git_status(&root, None, false).await.unwrap();
 
     let worktree = create_worktree(&root, None, "功能/测试", &status.snapshot)
@@ -407,6 +404,14 @@ async fn create_worktree_should_preserve_unicode_and_probe_a_numeric_suffix() {
             base_target.file_name().unwrap().to_string_lossy()
         ))
     );
+    assert!(output(&root, &["status", "--porcelain"]).is_empty());
+    // 从 linked worktree 创建时，仍以主项目为基准，不能递归嵌套 .worktree。
+    let linked = Path::new(&worktree.path);
+    let linked_status = get_git_status(linked, None, false).await.unwrap();
+    let next = create_worktree(linked, None, "next", &linked_status.snapshot)
+        .await
+        .unwrap();
+    assert_eq!(Path::new(&next.path), root.join(".worktree").join("next"));
     fs::remove_dir_all(&worktree.path).unwrap();
     fs::remove_dir_all(base_target).unwrap();
     fs::remove_dir_all(root).unwrap();

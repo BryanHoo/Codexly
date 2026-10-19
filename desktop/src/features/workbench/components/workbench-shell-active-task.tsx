@@ -1,3 +1,4 @@
+import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import { MessageFollowupProvider } from "@codexly/ui/core/message-assistant-directive";
 import type {
   AgentCapabilities,
@@ -50,6 +51,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   onProjectTaskDefaultsChange,
   onOpenProjectPath,
   onProjectRootChange,
+  workspace,
   onTaskStarted,
   projectId,
   projectName,
@@ -81,6 +83,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   onProjectTaskDefaultsChange: (settings: AgentTaskSettings, fastMode: boolean) => Promise<void>;
   onOpenProjectPath: () => void;
   onProjectRootChange: (rootId: string) => void;
+  workspace?: ComposerWorkspace;
   onTaskStarted: (
     task: AgentTask,
     turn?: AgentTurn,
@@ -237,6 +240,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
         onSubmissionFailed={() => setPendingPrompt(undefined)}
         onOpenProjectPath={onOpenProjectPath}
         onProjectRootChange={onProjectRootChange}
+        {...(workspace === undefined ? {} : { workspace })}
         onFastModeChange={(enabled, settings) => onProjectTaskDefaultsChange(settings, enabled)}
         onSettingsChange={async (settings, field, fastMode) => {
           // 点击时捕获精确回合；串行排队期间不得把旧操作重定向到新回合。

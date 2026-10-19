@@ -14,7 +14,7 @@ describe("CreateBranchDialog", () => {
     );
 
     expect(markup).toContain('aria-labelledby="create-branch-title"');
-    expect(markup).toContain("基于当前分支创建并立即切换");
+    expect(markup).toContain("从当前分支创建新分支，并在当前工作目录切换到它。");
     expect(markup).toContain('for="create-branch-name"');
     expect(markup).toContain('name="branch"');
     expect(markup).toContain('placeholder="feat/my-feature"');

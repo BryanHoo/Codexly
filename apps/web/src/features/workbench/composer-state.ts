@@ -174,6 +174,7 @@ type StartPromptTurnOptions = Readonly<{
   onTaskCreated?: (task: AgentTask) => void;
   projectId: string;
   taskId?: string;
+  workspacePath?: string;
   turnOptions: AgentTurnOptions;
 }>;
 
@@ -192,6 +193,7 @@ export async function startPromptTurn(
     options.projectId,
     {
       type: "prompt",
+      ...(options.workspacePath === undefined ? {} : { workspacePath: options.workspacePath }),
       ...(options.turnOptions.engineOptions?.engine === "claude"
         ? { engine: "claude" as const }
         : {}),

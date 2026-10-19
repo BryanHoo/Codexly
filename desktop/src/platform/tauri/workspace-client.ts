@@ -1,3 +1,4 @@
+import type { AgentEngine } from "@codexly/protocol";
 import type { ProjectTextFile, ProjectTextFileRevision, SaveProjectTextFileRequest, SaveProjectTextFileResponse } from "@codexly/protocol";
 import type { CreateTaskWorktreeResponse, StartAgentTaskResponse } from "@codexly/protocol";
 import type {
@@ -51,7 +52,7 @@ export class TauriWorkspaceClient extends TauriNativeClient {
     return this.call("create_task_worktree", { projectId, rootPath, input });
   }
 
-  public async startWorktreeTask(projectId: string, input: { rootPath: string; worktreePath: string }): Promise<StartAgentTaskResponse> {
+  public async startWorktreeTask(projectId: string, input: { rootPath: string; worktreePath: string; engine?: AgentEngine }): Promise<StartAgentTaskResponse> {
     const response = await this.call<StartAgentTaskResponse>("start_worktree_task", { projectId, input });
     this.taskProjects.set(response.task.id, projectId);
     return response;

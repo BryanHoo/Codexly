@@ -27,6 +27,8 @@ export function WorkbenchComposerFooter({
         <>
           <div className="flex min-w-0 shrink items-center gap-0.5">
             <ComposerBranchSwitcher
+              disabled={props.isSubmitting}
+              {...(props.workspace === undefined ? {} : { workspace: props.workspace })}
               creatingBranch={props.creatingBranch}
               gitStatus={props.gitStatus}
               onBranchChange={props.onBranchChange}

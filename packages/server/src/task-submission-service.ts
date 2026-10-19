@@ -5,6 +5,7 @@ import {
   type TaskSubmissionRecord,
 } from "@codexly/core";
 import type { SubmitTaskRequest } from "@codexly/protocol";
+import { ProjectRootScopeError, resolveProjectRoot } from "./project-root-scope.js";
 import { MutationHttpError, type ServerRouteContext } from "./routes/context.js";
 
 export function createMemorySubmissionRepository(capacity: number): TaskSubmissionRepository {
@@ -38,10 +39,31 @@ export async function executeTaskSubmission(
   const runtime = await context.getProjectContext(projectId);
   if (runtime === undefined)
     throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
+  let workspacePath: string | undefined;
   let prepared: Awaited<ReturnType<ServerRouteContext["resolveProviderTurnInput"]>> | undefined;
   try {
     return await submitTask(repository, projectId, key, context.fingerprintPayload(input), input, {
       validate: async () => {
+        if (input.type === "prompt" && input.workspacePath !== undefined) {
+          if (input.taskId !== undefined)
+            throw new MutationHttpError(
+              "INVALID_REQUEST",
+              "Existing task workspace cannot change",
+              400,
+            );
+          try {
+            // 只接受项目根或 Git 已登记的工作树，禁止客户端为新任务指定任意目录。
+            workspacePath = await resolveProjectRoot(
+              context.projectRepository,
+              projectId,
+              input.workspacePath,
+            );
+          } catch (error) {
+            if (error instanceof ProjectRootScopeError)
+              throw new MutationHttpError("INVALID_REQUEST", "Project workspace is invalid", 400);
+            throw error;
+          }
+        }
         let engine = input.type === "prompt" ? (input.engine ?? "codex") : "codex";
         if (input.taskId !== undefined) {
           const task = await runtime.provider.readTask(input.taskId);
@@ -58,8 +80,11 @@ export async function executeTaskSubmission(
         }
       },
       createTask: () =>
-        input.type === "prompt" && input.engine
-          ? runtime.provider.startTask({ engine: input.engine })
+        input.type === "prompt" && (input.engine || workspacePath !== undefined)
+          ? runtime.provider.startTask({
+              ...(input.engine ? { engine: input.engine } : {}),
+              ...(workspacePath === undefined ? {} : { workspacePath }),
+            })
           : runtime.provider.startTask(),
       prepare: async (taskId) => {
         const settings =

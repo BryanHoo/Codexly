@@ -75,3 +75,11 @@ test("rejects invalid native payload and ignores late notifications", async () =
   channel?.onmessage(task);
   expect(onTaskCreated).not.toHaveBeenCalled();
 });
+
+
+test.each(["codex", "claude"] as const)("keeps the selected worktree and %s options in the normal first submission", async (engine) => {
+  const call = vi.fn(async () => ({ createdTask: task, outcome: { type: "started", result } }));
+  const request = { ...options, engine, workspacePath: "/repo/.worktree/topic" };
+  await submitPrompt(call, request);
+  expect(call).toHaveBeenCalledWith("submit_prompt", expect.objectContaining({ request }));
+});

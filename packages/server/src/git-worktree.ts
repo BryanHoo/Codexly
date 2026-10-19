@@ -1,5 +1,5 @@
-import { lstat, realpath } from "node:fs/promises";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { appendFile, lstat, mkdir, readFile, realpath } from "node:fs/promises";
+import { isAbsolute, join, resolve } from "node:path";
 
 import type {
   CreateProjectWorktreeRequest,
@@ -115,7 +115,25 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 async function resolveAvailableWorktreePath(mainWorktreeRoot: string, branch: string) {
-  const basePath = join(dirname(mainWorktreeRoot), worktreeDirectorySlug(branch));
+  const container = join(mainWorktreeRoot, ".worktree");
+  await mkdir(container, { recursive: true });
+  // 不跟随预先放置的符号链接，保证实际工作文件始终位于主项目内。
+  if ((await lstat(container)).isSymbolicLink()) {
+    throw new GitWorktreeError(
+      "CREATE_FAILED",
+      "Git worktree directory must not be a symbolic link",
+    );
+  }
+  const ignorePath = join(container, ".gitignore");
+  const ignored = await readFile(ignorePath, "utf8").catch((error: unknown) => {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return "";
+    throw error;
+  });
+  // 容器内的忽略规则也忽略自身，无须改动项目已跟踪文件，主检出保持干净。
+  if (ignored.trimEnd().split(/\r?\n/u).at(-1) !== "*") {
+    await appendFile(ignorePath, "\n# Codexly：忽略本地任务工作树及此文件。\n*\n");
+  }
+  const basePath = join(container, worktreeDirectorySlug(branch));
   for (let suffix = 1; suffix <= MAX_PROJECT_WORKTREES; suffix += 1) {
     const candidate = suffix === 1 ? basePath : `${basePath}-${String(suffix)}`;
     if (!(await pathExists(candidate))) return candidate;

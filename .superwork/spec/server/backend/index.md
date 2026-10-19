@@ -19,7 +19,7 @@
 - 工作区异步问题和待办的变更流只发送资源身份及校准信号，不广播正文、答案或附件。待办成功落盘及问题占用、解决、关闭后广播，幂等重放和失败写入不重复通知；问题消息成型及回合边界触发校准，逐 token 增量不得广播。共用资源通知连接的会话清理、心跳与背压规则，用 `app-workbench-events.test.ts`、`app-async-questions.test.ts` 和 `app-session-revocation.test.ts` 验证跨设备同步及注销清理。
 - Session 注销、容量淘汰和过期清理必须同步停止关联事件订阅并关闭全部 WebSocket；项目事件流与定时任务事件流都要覆盖，并验证其他会话仍可接收消息。连接关闭或出错时必须解除会话监听。
 - 项目聊天、工作区和定时任务事件流共用服务实例级 WebSocket 生命周期管理与单个心跳定时器；每 30 秒发送协议层 ping，下一轮未收到 pong 则同步清理订阅、会话监听和 `activeClients`，并 terminate 失联连接，不等待 TCP 报告 close。清理必须幂等；最后一条连接清理及服务关闭时释放心跳定时器。心跳写入成功回调的 `null` 与 `undefined` 都表示成功，不能据此终止连接；必须用真实 TCP 连接覆盖成功回调及三类事件流，不能仅依赖 injectWS 内存传输。用 `websocket-lifecycle.test.ts` 和 `app-event-heartbeat.test.ts` 验证心跳写入失败隔离、正常 pong 保活、半开连接资源释放与项目空闲回收；模拟回归不等同于浏览器断网复现。
-- 新建 Git worktree 的工作文件放在主 worktree 同级，以分支名生成目录；`.git/worktrees` 仅存 Git 管理信息。路径撞名时顺延编号，已有任务继续使用保存的原路径。
+- 新建 Git worktree 的工作文件统一放在主项目 `.worktree/<分支目录名>`，从 linked worktree 创建也以主检出为基准；`.git/worktrees` 仅存 Git 管理信息。容器内 `.gitignore` 忽略全部内容及自身，不修改已跟踪文件。路径撞名时顺延编号，已有任务继续使用保存的原路径。工作树创建不生成任务；首次 `/submissions` 请求可携带 `workspacePath`，必须先通过项目根或 Git worktree 归属校验，再按所选引擎创建任务。既有任务不得携带新目录。验证 `git-worktree.test.ts`、`app-worktree-task.test.ts` 与 `app-submissions.test.ts`。
 - Git 子进程继承环境必须过滤全部 `GIT_` 前缀及 `EDITOR`、`VISUAL` 等执行控制变量；`simple-git` 的 `allowEnvironment` 仅放行内部设置的 `GIT_OPTIONAL_LOCKS`，全局配置使用宿主用户的标准 Git 配置文件。用 `git-command.test.ts` 验证恶意环境隔离、宿主配置读取及正常命令执行。
 - Git `worktree list --porcelain` 返回的路径先通过 `node:path.resolve` 规范化，再传递给服务层或与文件系统路径比较；在 Windows 上用真实 Git worktree 测试覆盖斜杠差异。
 - 运行 `pnpm test`、`pnpm typecheck`、`pnpm lint:architecture`；完整门槛为 `pnpm check`。

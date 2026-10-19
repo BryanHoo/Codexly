@@ -140,9 +140,7 @@ pub use conversation_advanced::{
     upload_feedback,
 };
 pub use conversation_background::{list_background_terminals, terminate_background_terminal};
-pub use conversation_commands::{
-    interrupt_turn, start_task, start_turn, steer_turn, update_thread_settings,
-};
+pub use conversation_commands::{interrupt_turn, start_turn, steer_turn, update_thread_settings};
 pub use conversation_events::map_server_event_now;
 pub use conversation_queue::{
     add_queued_submission, delete_queued_submission, start_queued_submission,

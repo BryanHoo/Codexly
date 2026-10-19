@@ -14,12 +14,24 @@ pub(crate) async fn start_task_for_engine(
     app: &AppHandle,
     project_id: String,
     engine: &str,
+    workspace_path: Option<&Path>,
 ) -> Result<AgentTaskMutationResponse, AppError> {
     if !matches!(engine, "codex" | "claude") {
         return Err(AppError::Claude("Unknown engine".into()));
     }
     use crate::infrastructure::local_catalog::{LocalCatalog, sidebar::map_task};
     use serde_json::json;
+    // 所有任务创建入口共用项目/worktree 授权，客户端不能指定任意目录。
+    let workspace_path = if let Some(path) = workspace_path {
+        let path = path.to_str().ok_or(AppError::FilesystemRequestFailed)?;
+        Some(
+            super::workspace_commands::project_root(app, &project_id, path)
+                .await?
+                .0,
+        )
+    } else {
+        None
+    };
     let app_data = app_data_dir(app)?;
     let catalog = LocalCatalog::at(&app_data)?;
     let id = format!("task-{}", uuid::Uuid::new_v4());
@@ -35,6 +47,9 @@ pub(crate) async fn start_task_for_engine(
                 return Err(AppError::FilesystemRequestFailed);
             }
         }
+    } else if let Some(path) = workspace_path {
+        // 只覆盖 cwd，任务仍保存到原项目；创建时尚不启动执行引擎。
+        path
     } else {
         let project = catalog
             .call("project.read", json!({"id":project_id}))

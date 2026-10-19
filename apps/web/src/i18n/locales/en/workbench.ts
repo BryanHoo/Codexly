@@ -1,3 +1,4 @@
+import { composerGitEnglish } from "@codexly/frontend-core/composer-git-labels";
 import { engineEnglish } from "@codexly/frontend-core/engine-labels";
 import { gitCommit } from "./git-commit.js";
 import { textFileEditorEnglish } from "@codexly/frontend-core/text-file-editor";
@@ -85,8 +86,16 @@ export const workbench = {
     branchSwitcherMenu: "Switch branch",
     branchSwitchFailed: "Unable to create or switch branches. Try again.",
     branchName: "Branch name",
+    ...composerGitEnglish,
+    worktrees: "Worktrees",
+    createWorktree: "Create worktree",
+    createWorktreeDescription:
+      "Create a new branch in a separate folder for parallel work. Choose your engine and model afterward.",
+    createWorktreeConfirm: "Create and select worktree",
+    worktreeLoading: "Loading working directories…",
     createBranch: "New branch",
-    createBranchDescription: "Create from the current branch and switch immediately",
+    createBranchDescription:
+      "Create a branch from the current branch and switch to it in this working directory.",
     createAndSwitchBranch: "Create and switch",
     goalMode: "Goal",
     goalStatus: {
@@ -401,11 +410,6 @@ export const workbench = {
     },
     aboutStatus: "About, Codexly {{version}}{{update}}, terminal connection status: {{status}}",
     createInProject: "Create a task in {{project}}",
-    createWorktreeTask: "Create a worktree task in {{project}}",
-    createWorktreeTaskConfirm: "Create worktree and task",
-    worktreeTaskDescription:
-      "Create an isolated worktree from the current checkout and start a task in it",
-    worktreeTaskTitle: "Create worktree task",
     deletePermanently: "Delete permanently",
     deleteTaskDescription:
       '"{{task}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',

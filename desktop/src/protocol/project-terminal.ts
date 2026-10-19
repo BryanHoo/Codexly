@@ -43,7 +43,7 @@ export type TerminalControlEvent = Static<typeof TerminalControlEventSchema>;
 export const TerminalSnapshotSchema = Type.Object({ generation: id, sequence: offsetSchema, terminals: Type.Array(TerminalMetadataSchema, { maxItems: 24 }) });
 export type TerminalSnapshot = Static<typeof TerminalSnapshotSchema>;
 export type CreateTerminalRequest = {
-  projectId: string; rootId: string; requestId: string; generation: string; cols: number; rows: number;
+  projectId: string; rootId: string; rootPath?: string; requestId: string; generation: string; cols: number; rows: number;
 };
 export const TERMINAL_ERROR_CODES = [
   "TERMINAL_PROJECT_NOT_FOUND", "TERMINAL_ROOT_INVALID", "TERMINAL_LIMIT_REACHED",

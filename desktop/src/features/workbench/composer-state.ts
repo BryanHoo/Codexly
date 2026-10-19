@@ -172,6 +172,7 @@ type StartPromptTurnOptions = Readonly<{
   onTaskCreated?: (task: AgentTask) => void;
   projectId: string;
   taskId?: string;
+  workspacePath?: string;
   turnOptions: AgentTurnOptions;
 }>;
 

@@ -157,10 +157,14 @@ pub(crate) async fn start_scheduled_task_turn(
         validate_scheduled_task_options(app, &scheduled.project_id, &scheduled.turn_options)
             .await
             .map_err(|error| error.to_string())?;
-    let mut response =
-        super::task_workspace::start_task_for_engine(app, scheduled.project_id.clone(), engine)
-            .await
-            .map_err(|error| error.to_string())?;
+    let mut response = super::task_workspace::start_task_for_engine(
+        app,
+        scheduled.project_id.clone(),
+        engine,
+        None,
+    )
+    .await
+    .map_err(|error| error.to_string())?;
     let task_id = &response.task.id;
     state
         .remember_task_metadata(

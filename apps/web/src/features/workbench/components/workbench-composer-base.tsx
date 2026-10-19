@@ -49,6 +49,7 @@ export function WorkbenchComposerBase({
   onInputStateChange,
   onOpenProjectPath,
   onProjectRootChange,
+  workspace,
   onRequestNotificationPermission,
   onSettingsChange,
   onSubmissionStateChange,
@@ -214,6 +215,7 @@ export function WorkbenchComposerBase({
     clearComposerInput,
     restoreComposerInput,
     client,
+    workspacePath: selectedProjectRootId.startsWith("worktree") ? projectPath : undefined,
     controller: composerController,
     composerMode,
     editingQueuedSubmission: composerQueue.editingId !== undefined,
@@ -290,7 +292,6 @@ export function WorkbenchComposerBase({
       const attempt = resolveIdempotencyAttempt(interruptAttempt.current, fingerprint);
       interruptAttempt.current = attempt;
       try {
-        // `202` 仅确认请求已接收；后续显式重试继续复用同一幂等键。
         await interruptPromptTurn(client, projectId, activeTaskId, activeTurnId, attempt.key);
       } catch (error) {
         if (isCurrentScope(requestScope)) {
@@ -369,6 +370,7 @@ export function WorkbenchComposerBase({
       composerMode={composerMode}
       composerScope={composerScope}
       contextUsage={contextUsage}
+      {...(workspace === undefined ? {} : { workspace })}
       creatingBranch={branchMutation.creatingBranch}
       draftInputDisabled={draftInputDisabled}
       editingTodoId={editingTodoId}
@@ -412,9 +414,7 @@ export function WorkbenchComposerBase({
         todoEditing.discardIfEmpty(files.length > 0 || !isPromptSkillContentEmpty(promptContent));
       }}
       onBranchCreate={branchMutation.createBranch}
-      onBranchChange={(branch) => {
-        void branchMutation.switchBranch(branch);
-      }}
+      onBranchChange={branchMutation.switchBranch}
       onExecuteCommand={(command) => {
         void executePromptCommand(command);
       }}

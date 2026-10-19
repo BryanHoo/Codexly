@@ -83,3 +83,7 @@
 - Codex 与 Claude 个性化页面共用 `core/personalization-instructions-editor`：标题、说明和全宽可调整高度编辑框统一布局；页面继续各自处理读取、冲突提示和自动保存。Claude 的项目配置使用独立分组与开关，不占用指令编辑区，打开个性化不得触发模型探测。
 
 - Codex 模型服务页与模型编辑器共用 `core/provider-connection-panel`、`core/custom-model-editor`，平台层仅注入翻译和业务回调。接入选择与状态共用一行，API 字段省略重复分组标题，ChatGPT 使用账号设置行；空模型列表仅显示自动获取说明。Web 窄屏模型字段纵向排列，保留可访问标签及删除动作；用接入面板回归测试和 Chrome CDP 验证，保持初始化显式连接与设置自动保存边界。
+
+- worktree 管理放在输入框底部分支菜单，左栏只打开普通草稿。`core/composer-branch-switcher` / `composer-git-menu` / `create-worktree-dialog` 供两端共用；只在菜单展开时读取工作树，不轮询、不读取引擎配置。创建或选择 worktree 只更新草稿目录，首次发送才按输入框配置创建任务。从已有会话选择目录应打开新草稿，原会话保留 cwd；分屏草稿通过自己的 `workspacePath` 保留所选目录，不能影响其他窗口。验证 `composer-state.test.ts`、`split-workspace.test.ts`、`app-submissions.test.ts` 以及 Chrome CDP 菜单交互。
+
+- Composer 的工作树/分支使用共享锚定选择面板，按视图区分“切换独立目录”和“在当前目录切换分支”，创建入口固定在各视图底部。当前项置顶，主目录标记来自 Git worktree 列表的首项，缩短路径仅影响展示；搜索匹配分支或完整路径。其他工作树占用的分支展示原因并禁用，方向键只移动焦点，Enter/空格才执行切换。创建表单显示起点分支与工作树容器目录，从选择面板打开表单不能抢回输入焦点，取消后返回原入口。回归见 `frontend-core/composer-git-picker.test.ts`、两端 Composer 测试及 Chrome CDP 宽窄屏验证。

@@ -21,7 +21,7 @@ describe("terminal runtime", () => {
     const release = vi.fn();
     const client = {
       connect: vi.fn(async (snapshot, receive) => { event = receive; snapshot({ generation: "g", sequence: "0", terminals: [] }); return vi.fn(); }),
-      create: vi.fn(async () => { if (mode === "early exit") event(exited); return { metadata, dispose: release }; }),
+      create: vi.fn(async (_request: unknown) => { if (mode === "early exit") event(exited); return { metadata, dispose: release }; }),
       write: vi.fn(async () => undefined), ack: vi.fn(async () => undefined), resize: vi.fn(async () => undefined),
       close: vi.fn(async () => { event(exited); }), remove: vi.fn(async () => undefined),
     };
@@ -29,7 +29,8 @@ describe("terminal runtime", () => {
     const store = new TerminalStore();
     store.update("p", { visible: true });
     const runtime = new TerminalRuntime({ client, store, factory: async () => emulator });
-    await runtime.create("p", "r");
+    await runtime.create("p", "r", "/repo/.worktree/topic");
+    expect(client.create.mock.calls[0]?.[0]).toMatchObject({ rootPath: "/repo/.worktree/topic" });
     if (mode === "stop") await runtime.close(metadata);
     else if (mode === "exit") event(exited);
     expect(store.get("p")).toMatchObject({ terminals: [], selectedId: null, visible: false });

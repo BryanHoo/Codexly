@@ -1,3 +1,4 @@
+import { useComposerWorkspaceSelection } from "@codexly/ui/core/composer-workspace";
 import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import type { SplitRuntimeOptions } from "@codexly/frontend-core/split-workspace";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
@@ -96,10 +97,11 @@ export function useWorkbenchShellRuntime({
       : undefined);
   const { selectedRootIds, setSelectedProjectRoot } = useProjectRootSelection();
   const selectedRoot = resolveProjectRootFromSelections(project, selectedRootIds);
+  const draftWorkspace = useComposerWorkspaceSelection(projectId, taskId);
   const { activeRootId, projectRoots, selectedRootPath } = resolveWorkbenchTaskRoot({
     metadataTaskId: runtime.metadata?.id,
     projectRoots: project?.roots ?? [],
-    reportedWorkspacePath,
+    reportedWorkspacePath: draftWorkspace.path ?? reportedWorkspacePath,
     selectedRoot,
     taskId,
     taskKnown: activeTask !== undefined,
@@ -468,6 +470,7 @@ export function useWorkbenchShellRuntime({
     setSidebarOpen,
     setSidebarWidth,
     setSelectedRootId,
+    selectWorkspace: draftWorkspace.select,
     setSubagentDialogSelection,
     setTaskRenameOpen,
     sidebarConnectionState,

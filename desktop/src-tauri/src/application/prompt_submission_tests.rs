@@ -94,6 +94,7 @@ async fn prompt_submission_should_skip_creation_for_existing_task() {
 fn request(task_id: Option<&str>, task_key: Option<&str>, turn_key: &str) -> SubmissionRequest {
     SubmissionRequest {
         engine: None,
+        workspace_path: None,
         project_id: "project-a".into(),
         task_id: task_id.map(str::to_owned),
         input: AgentPromptInput::text("hello"),
@@ -221,4 +222,21 @@ fn rejects_engine_mismatch_before_creating_a_task() {
     assert!(request.validate().is_ok());
     request.engine = Some("codex".to_owned());
     assert!(request.validate().is_err());
+}
+
+#[test]
+fn prompt_submission_should_accept_a_workspace_without_precreating_a_task() {
+    let payload = json!({
+        "projectId": "project-a", "workspacePath": "/repo/.worktree/topic",
+        "input": AgentPromptInput::text("hello"), "turnOptions": AgentTurnOptions::default(),
+        "idempotencyKeys": {"startTask": "task-key", "startTurn": "turn-key"}
+    });
+    assert!(serde_json::from_value::<SubmissionRequest>(payload).is_ok());
+}
+
+#[test]
+fn prompt_submission_should_reject_workspace_changes_for_existing_tasks() {
+    let mut input = request(Some("existing"), None, "turn");
+    input.workspace_path = Some(std::env::temp_dir().to_string_lossy().into_owned());
+    assert_eq!(input.validate().unwrap_err()["code"], "INVALID_REQUEST");
 }

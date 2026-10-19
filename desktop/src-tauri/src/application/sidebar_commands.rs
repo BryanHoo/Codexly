@@ -193,6 +193,7 @@ pub async fn start_task(
     project_id: String,
     idempotency_key: String,
     engine: Option<String>,
+    workspace_path: Option<String>,
     state: State<'_, AppState>,
 ) -> super::task_creation::CreationResult {
     let creation_project = project_id.clone();
@@ -204,6 +205,7 @@ pub async fn start_task(
                 &app,
                 creation_project.clone(),
                 engine.as_deref().unwrap_or("codex"),
+                workspace_path.as_deref().map(std::path::Path::new),
             )
             .await?;
             state

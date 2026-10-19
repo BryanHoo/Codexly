@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
+use tokio::io::AsyncWriteExt;
 
 use super::{
     git_process::{git_path_argument, run_git},
@@ -63,7 +64,14 @@ pub async fn create_worktree(
     let status = validate_snapshot(root, repository, expected_snapshot).await?;
     validate_branch(root, repository, branch).await?;
     let repo = repository_path(root, repository).await?;
-    let target = available_worktree_path(&repo, branch).await?;
+    // Git 列表首项是主检出；从 linked worktree 发起时仍使用同一个项目容器。
+    let main_root = list_worktrees(&repo, None)
+        .await?
+        .worktrees
+        .into_iter()
+        .next()
+        .ok_or(WorkspaceError::InvalidPath)?;
+    let target = available_worktree_path(Path::new(&main_root.path), branch).await?;
     let target_string = git_path_argument(&target);
     let args = if status.branches.iter().any(|value| value == branch) {
         vec!["worktree", "add", "--", target_string.as_str(), branch]
@@ -133,12 +141,33 @@ async fn append_worktree(
 }
 
 async fn available_worktree_path(repo: &Path, branch: &str) -> Result<PathBuf, WorkspaceError> {
-    let parent = repo.parent().ok_or(WorkspaceError::InvalidPath)?;
-    let base = repo
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or(WorkspaceError::InvalidPath)?;
-    let base_path = parent.join(format!("{base}-{}", worktree_slug(branch)));
+    let container = repo.join(".worktree");
+    tokio::fs::create_dir_all(&container).await?;
+    // 拒绝符号链接，避免任务工作文件绕过项目内存储约定。
+    if tokio::fs::symlink_metadata(&container)
+        .await?
+        .file_type()
+        .is_symlink()
+    {
+        return Err(WorkspaceError::InvalidPath);
+    }
+    let ignore_path = container.join(".gitignore");
+    let ignored = match tokio::fs::read_to_string(&ignore_path).await {
+        Ok(value) => value,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => return Err(error.into()),
+    };
+    // 规则同时忽略自身，既不污染主检出，也不修改用户已跟踪的 .gitignore。
+    if ignored.trim_end().lines().last() != Some("*") {
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(ignore_path)
+            .await?;
+        file.write_all("\n# Codexly：忽略本地任务工作树及此文件。\n*\n".as_bytes())
+            .await?;
+    }
+    let base_path = container.join(worktree_slug(branch));
     let base_name = base_path
         .file_name()
         .and_then(|value| value.to_str())
@@ -150,8 +179,11 @@ async fn available_worktree_path(repo: &Path, branch: &str) -> Result<PathBuf, W
         } else {
             base_path.with_file_name(format!("{base_name}-{suffix}"))
         };
-        if !tokio::fs::try_exists(&candidate).await? {
-            return Ok(candidate);
+        // symlink_metadata 将悬空链接也视为已占用路径，避免错误复用目录名。
+        match tokio::fs::symlink_metadata(&candidate).await {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(candidate),
+            Err(error) => return Err(error.into()),
+            Ok(_) => {}
         }
     }
     Err(WorkspaceError::InvalidPath)

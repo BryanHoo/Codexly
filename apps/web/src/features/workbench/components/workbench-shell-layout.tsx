@@ -294,6 +294,12 @@ export function WorkbenchShellLayout({
                   }
                   onOpenProjectPath={openProjectFolder}
                   onProjectRootChange={setSelectedRootId}
+                  workspace={{
+                    projectId,
+                    rootPath: projectPath,
+                    select: context.selectWorkspace,
+                    client,
+                  }}
                   onRequestNotificationPermission={requestNotificationPermission}
                   onDirectSubmission={newChatSubmission.onDirectSubmission}
                   onSubmissionFailed={newChatSubmission.onSubmissionFailed}
@@ -330,6 +336,12 @@ export function WorkbenchShellLayout({
                 onProjectTaskDefaultsChange={updateProjectTaskDefaults}
                 onOpenProjectPath={openProjectFolder}
                 onProjectRootChange={setSelectedRootId}
+                workspace={{
+                  projectId,
+                  rootPath: projectPath,
+                  select: context.selectWorkspace,
+                  client,
+                }}
                 onTaskStarted={handleTaskStarted}
                 projectId={projectId}
                 projectPath={projectPath}

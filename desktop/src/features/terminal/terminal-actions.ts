@@ -16,18 +16,18 @@ export function loadTerminalRuntime(): Promise<TerminalRuntime> {
   return loading;
 }
 
-export async function createTerminal(projectId: string, rootId: string | undefined): Promise<void> {
+export async function createTerminal(projectId: string, rootId: string | undefined, rootPath?: string): Promise<void> {
   if (rootId === undefined) { terminalActionError(projectId, new Error("TERMINAL_ROOT_INVALID")); return; }
-  try { await (await loadTerminalRuntime()).create(projectId, rootId); persistTerminalLayout(projectId); }
+  try { await (await loadTerminalRuntime()).create(projectId, rootId, rootPath); persistTerminalLayout(projectId); }
   catch (error) { terminalActionError(projectId, error); }
 }
 
-export async function toggleTerminal(projectId: string, rootId: string | undefined): Promise<void> {
+export async function toggleTerminal(projectId: string, rootId: string | undefined, rootPath?: string): Promise<void> {
   await initializeTerminalLayout(projectId);
   const state = terminalStore.get(projectId);
   terminalStore.update(projectId, { visible: !state.visible });
   persistTerminalLayout(projectId);
-  if (!state.visible && state.terminals.length === 0) await createTerminal(projectId, rootId);
+  if (!state.visible && state.terminals.length === 0) await createTerminal(projectId, rootId, rootPath);
 }
 
 export async function closeTerminal(scope: TerminalScope): Promise<void> {

@@ -50,7 +50,7 @@ const localCommands = new Set([
   "get_project_git_commit_files", "get_project_git_commit_file_diff", "switch_project_branch",
   "create_project_branch", "list_project_worktrees", "create_task_worktree", "commit_project_changes",
   "push_project_commits", "get_runtime_performance_metrics", "install_app_update",
-  "list_workbench_pets", "download_workbench_pet",
+  "list_workbench_pets", "download_workbench_pet", "start_worktree_task",
 ]);
 
 export class TauriNativeClient {

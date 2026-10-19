@@ -1,3 +1,4 @@
+import { composerGitChinese } from "@codexly/frontend-core/composer-git-labels";
 import { engineChinese } from "@codexly/frontend-core/engine-labels";
 import { textFileEditorChinese } from "@codexly/frontend-core/text-file-editor";
 import { splitWorkspaceChinese } from "@codexly/frontend-core/split-workspace-labels";
@@ -88,8 +89,14 @@ export const workbench = {
     branchSwitcherMenu: "切换分支",
     branchSwitchFailed: "无法创建或切换分支，请重试",
     branchName: "分支名称",
+    ...composerGitChinese,
+    worktrees: "工作树",
+    createWorktree: "创建 worktree",
+    createWorktreeDescription: "创建新分支和独立目录，方便并行开发。创建后仍可自由选择引擎和模型。",
+    createWorktreeConfirm: "创建并选择 worktree",
+    worktreeLoading: "正在读取工作目录…",
     createBranch: "新建分支",
-    createBranchDescription: "基于当前分支创建并立即切换",
+    createBranchDescription: "从当前分支创建新分支，并在当前工作目录切换到它。",
     createAndSwitchBranch: "创建并切换",
     goalMode: "目标",
     goalStatus: {
@@ -381,7 +388,8 @@ export const workbench = {
     deleteAllDescription:
       "“{{project}}”中的全部已归档任务将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
     deleteAllTitle: "永久删除全部已归档任务",
-    deleteDescription: "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
+    deleteDescription:
+      "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
     deleteTask: "永久删除任务 {{task}}",
     deleteTitle: "永久删除任务",
     empty: "没有已归档任务",
@@ -397,10 +405,6 @@ export const workbench = {
     updatedAt: "更新于 {{date}}",
   },
   sidebar: {
-    createWorktreeTask: "在 {{project}} 中创建 worktree 任务",
-    createWorktreeTaskConfirm: "创建 worktree 和任务",
-    worktreeTaskDescription: "基于当前检出创建独立 worktree，并在其中开始任务",
-    worktreeTaskTitle: "创建 worktree 任务",
     addProject: "添加项目",
     agentNavigation: "Agent 导航",
     archive: "归档",
@@ -412,7 +416,8 @@ export const workbench = {
     aboutStatus: "关于，Codexly v{{version}}{{update}}",
     createInProject: "在 {{project}} 中新建任务",
     deletePermanently: "永久删除",
-    deleteTaskDescription: "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
+    deleteTaskDescription:
+      "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
     deleteTaskTitle: "永久删除任务",
     errorAddProject: "无法添加项目",
     errorArchiveTask: "无法归档任务",

@@ -1,3 +1,4 @@
+import type { AgentEngine } from "@codexly/protocol";
 import {
   SubmitTaskResponseSchema,
   type SubmitTaskRequest,
@@ -286,7 +287,7 @@ export class TaskHttpClient extends SessionHttpClient {
 
   public async startWorktreeTask(
     projectId: string,
-    request: { rootPath: string; worktreePath: string },
+    request: { rootPath: string; worktreePath: string; engine?: AgentEngine },
     options: MutationOptions = {},
   ): Promise<StartAgentTaskResponse> {
     return this.mutation(

@@ -1,3 +1,4 @@
+import { useComposerWorkspaceSelection } from "@codexly/ui/core/composer-workspace";
 import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import type { SplitRuntimeOptions } from "@codexly/frontend-core/split-workspace";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
@@ -74,7 +75,6 @@ const emptyExpandedFileTreePaths = new Set<string>();
 export function taskLaunchQueryKey(projectId: string, taskId: string) {
   return ["projects", projectId, "tasks", taskId, "launch"] as const;
 }
-
 export type TaskLaunchState = Readonly<{
   checkpoint: EventCheckpoint;
   input: AgentPromptInput;
@@ -84,7 +84,6 @@ export type TaskLaunchState = Readonly<{
   task: AgentTask;
   turn: AgentTurn;
 }>;
-
 export function createTaskLaunchSnapshot(taskLaunchState: TaskLaunchState): AgentTaskSnapshot {
   const snapshot = mergeSubmittedPromptIntoSnapshot(
     {
@@ -103,14 +102,12 @@ export function createTaskLaunchSnapshot(taskLaunchState: TaskLaunchState): Agen
   );
   return { ...snapshot, pendingRequests: [] };
 }
-
 export type SubmittedPromptState = Readonly<{
   input: AgentPromptInput;
   messageAttachments: readonly AgentMessageAttachment[];
   submissionStartedAt?: string;
   turn: AgentTurn;
 }>;
-
 export type WorkbenchShellProps = Readonly<{
   board?: boolean;
   draftId?: string;
@@ -135,6 +132,7 @@ export function useWorkbenchShellRuntime({
   const project = projects.find((item) => item.id === projectId);
   const { selectedRootIds, setSelectedProjectRoot } = useProjectRootSelection();
   const selectedRoot = resolveProjectRootFromSelections(project, selectedRootIds);
+  const draftWorkspace = useComposerWorkspaceSelection(projectId, taskId);
   const { markTaskRunning, projectRuntime, refreshProjectGitStatus, retry, viewTask } =
     useProjectActions();
   const runtime = useTaskRuntime(projectId, workspaceOnly ? undefined : taskId, projectRuntime);
@@ -142,7 +140,7 @@ export function useWorkbenchShellRuntime({
   const { activeRootId, projectRoots, selectedRootPath } = resolveDesktopTaskRoot({
     metadataTaskId: runtime.metadata?.id,
     projectRoots: project?.roots ?? [],
-    reportedWorkspacePath: activeTask?.workspacePath ?? (runtime.metadata?.id === taskId ? runtime.metadata?.workspacePath : undefined),
+    reportedWorkspacePath: draftWorkspace.path ?? activeTask?.workspacePath ?? (runtime.metadata?.id === taskId ? runtime.metadata?.workspacePath : undefined),
     selectedRoot, taskId, taskKnown: activeTask !== undefined, temporary,
   });
   const navigate = useNavigate();
@@ -481,6 +479,7 @@ export function useWorkbenchShellRuntime({
     setSidebarOpen,
     setSidebarWidth,
     setSelectedRootId,
+    selectWorkspace: draftWorkspace.select,
     setSubagentDialogSelection,
     setTaskRenameOpen,
     sidebarOpen,

@@ -31,13 +31,13 @@ export class TerminalRuntime {
     this.factory = options.factory ?? createTerminalEmulator;
   }
 
-  create(projectId: string, rootId: string): Promise<void> {
+  create(projectId: string, rootId: string, rootPath?: string): Promise<void> {
     const pending = this.creating.get(projectId);
     if (pending !== undefined) return pending;
     if (this.disposed) return Promise.reject(new Error("TERMINAL_OWNER_CLOSING"));
     const live = [...this.records.values()].filter(({ metadata }) => metadata.state === "running" || metadata.state === "closing");
     if (this.creating.size + live.length >= 12 || this.store.liveCount(projectId) >= 4) return Promise.reject(new Error("TERMINAL_LIMIT_REACHED"));
-    const creation = this.createInner(projectId, rootId).finally(() => { this.creating.delete(projectId); this.store.update(projectId, { creating: false }); });
+    const creation = this.createInner(projectId, rootId, rootPath).finally(() => { this.creating.delete(projectId); this.store.update(projectId, { creating: false }); });
     this.creating.set(projectId, creation);
     return creation;
   }
@@ -91,7 +91,7 @@ export class TerminalRuntime {
     try { await this.connecting; } catch (error) { this.connecting = undefined; throw error; }
   }
 
-  private async createInner(projectId: string, rootId: string): Promise<void> {
+  private async createInner(projectId: string, rootId: string, rootPath?: string): Promise<void> {
     this.store.update(projectId, { creating: true, error: null });
     await this.connect();
     if (this.disposed) throw new Error("TERMINAL_OWNER_CLOSING");
@@ -117,7 +117,7 @@ export class TerminalRuntime {
     input = new TerminalInput(async (sequence, bytes) => { const target = await ready; if (target !== undefined) await this.client.write(target, sequence, bytes); }, fail);
     const stream = new TerminalStream({ write: (bytes, parsed) => emulator.write(bytes, parsed), ack: async (offset) => { const target = await ready; if (target !== undefined) await this.client.ack(target, offset); }, fail });
     try {
-      const created = await this.client.create({ projectId, rootId, generation, requestId: crypto.randomUUID(), cols: 80, rows: 24 }, (buffer) => stream.accept(buffer));
+      const created = await this.client.create({ projectId, rootId, ...(rootPath === undefined ? {} : { rootPath }), generation, requestId: crypto.randomUUID(), cols: 80, rows: 24 }, (buffer) => stream.accept(buffer));
       scope = created.metadata;
       resolveScope(scope);
       record = { emulator, stream, input, metadata: scope, release: created.dispose, resizing: false, resize: undefined };

@@ -50,6 +50,7 @@ fn managed_close_releases_listening_port_workers_and_quota() {
             CreateTerminalRequest {
                 project_id: "closing-test".into(),
                 root_id: "r".into(),
+                root_path: None,
                 request_id: "q".into(),
                 generation: manager.generation(),
                 cols: 80,

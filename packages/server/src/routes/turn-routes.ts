@@ -177,7 +177,7 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
             } else if (request.body.rootPath !== undefined) {
               throw new MutationHttpError("INVALID_REQUEST", "Git worktree path is required", 400);
             }
-            // 原 Project 保留任务归属，worktree 只覆盖 Codex 线程 cwd。
+            // 原 Project 保留任务归属，worktree 只覆盖所选引擎的任务 cwd。
             const task =
               workspacePath === undefined && request.body.engine === undefined
                 ? await context.provider.startTask()

@@ -16,8 +16,8 @@
 - Provider 的 `runtime_warning` 保留在同一事件会话的任务上下文中，右栏按条默认折叠展示，流式时间线不渲染；其他 `task.notice` 保持原有可见行为。
 - 时间线按 `item.started` / `item.completed` 展示命令和工具耗时；文件编辑完成后不渲染“已编辑 N 个文件”任务行，回合运行中保留可打开的文件修改，终态仅由回复末尾汇总。思考项没有可靠起点，不估算耗时。
 - 流式及静态消息中的文件引用右键提供复制绝对路径、打开所在文件夹和独立窗口打开；文件夹动作通过 Project 的 `file-manager` 能力打开宿主路径，web 端已有的下载入口保留。
-- 侧栏创建 worktree 任务时，任务仍归属原 Project，Codex 线程保存 worktree `cwd`；任务启动失败时保留路径供重试，文件、Git 与外部终端以该路径为根。
-- Project 行的新增任务、worktree 与项目菜单入口在 `hover: none` 设备上常显；鼠标端仍可仅在悬停或聚焦时显示。
+- worktree 管理位于中栏底部分支菜单；创建或选择只更新草稿工作目录，不立即创建任务。首次发送保留输入框的 Codex/Claude 与模型配置，并将 `workspacePath` 交给后端校验。已有会话选择其他目录时打开独立草稿；回归 `app-shell-composer-git.spec.ts`，菜单及表单交互通过 Chrome CDP 验证。
+- Project 行的新增任务与项目菜单入口在 `hover: none` 设备上常显；鼠标端仍可仅在悬停或聚焦时显示。
 - 收起的 Project 在未悬停、未聚焦时于最右侧显示任务状态，优先级为未查看完成、等待审批、运行；展开和移动触屏隐藏，悬停操作及布局保持原样。聚合完整活动记录，不依赖任务分页或搜索结果；两端共用 `frontend-core/project-task-status` 与 `ui/core/project-status-indicator`，浏览器回归覆盖 Chromium、WebKit、悬停和窄屏。
 - 移动端工具栏保持单行，通过紧凑尺寸、间距和长标签截断适配窄屏，不统一强制 44px；发送按钮保持正方形。触屏操作不能依赖 hover，纯详情提示需支持点击查看。
 - 仅覆盖式移动侧栏在任务导航后自动收起，重复选择当前任务或新建草稿也必须生效；预取和加载完成事件不能触发关闭。使用 `tests/e2e/app-shell-mobile-controls.spec.ts` 验证真实 touch 操作。

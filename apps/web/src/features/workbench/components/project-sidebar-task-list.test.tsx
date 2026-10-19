@@ -62,7 +62,6 @@ function renderProjectTaskList(
     <TooltipProvider>
       <ProjectSidebarTaskList
         archiveTask={vi.fn()}
-        client={{} as React.ComponentProps<typeof ProjectSidebarTaskList>["client"]}
         deleteTask={vi.fn()}
         error={null}
         expandedProjects={expandedProjects}
@@ -79,7 +78,6 @@ function renderProjectTaskList(
         isProjectAddPending={false}
         normalizedQuery=""
         onOpenProjectDraft={vi.fn(() => Promise.resolve())}
-        onWorktreeTaskCreated={vi.fn()}
         onOpenArchived={vi.fn()}
         onOpenProjectPicker={vi.fn()}
         onOpenTemporaryDraft={vi.fn()}
@@ -237,10 +235,7 @@ describe("ProjectSidebarTaskList", () => {
     expect(markup).toMatch(
       /class="[^"]*opacity-0[^"]*focus-visible:opacity-100[^"]*group-hover\/project:opacity-100[^"]*"[^>]*aria-label="在 Codexly 中新建任务"/u,
     );
-    const worktreeAction = markup.indexOf('aria-label="在 Codexly 中创建 worktree 任务"');
-    const regularAction = markup.indexOf('aria-label="在 Codexly 中新建任务"');
-    expect(worktreeAction).toBeGreaterThan(0);
-    expect(worktreeAction).toBeLessThan(regularAction);
+    expect(markup).not.toContain('aria-label="在 Codexly 中创建 worktree 任务"');
   });
 
   it("keeps project actions visible on touch devices", () => {
@@ -252,7 +247,6 @@ describe("ProjectSidebarTaskList", () => {
 
     for (const label of [
       "打开 Codexly 的项目操作菜单",
-      "在 Codexly 中创建 worktree 任务",
       "在 Codexly 中新建任务",
     ]) {
       expect(markup).toMatch(

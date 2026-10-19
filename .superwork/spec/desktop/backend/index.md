@@ -52,3 +52,5 @@
 - 全局搜索须按依赖向导启用的引擎集合筛选本地候选，再按任务持久 provider 身份检索正文；名称、排序与归档状态以应用目录为准。双引擎保留健康源命中并通过 unavailableEngines 报告失败源，游标绑定查询、类别、归档与引擎集合。Claude 复用共享摘要搜索和宿主，不启动 SDK 推理；文件搜索直接使用文件系统。详见[全局搜索契约](../../../../docs/global-search.md)。
 
 - Claude 的排队、列表、相邻移动、取消、立即发送及 steer 必须先按 LocalCatalog 中的任务 provider 路由到共享宿主，禁止先取 Codex 连接。历史队列附件由宿主复验并导出，原始上传仍经过路径/大小授权。自动续发读取 task.settings 仅访问本地任务偏好；缺省值在宿主中补齐，不在 catalog worker 中反向调用 Claude。
+
+- worktree 创建不生成任务；普通首次 `submit_prompt` 可传 `workspacePath`，`start_task_for_engine` 统一校验项目/worktree 归属并持久化所选引擎与 cwd，首次发送才启动执行会话。已有任务禁止覆盖目录。终端创建可传经过相同归属校验的 `rootPath`，支持尚无 taskId 的 worktree 草稿。新检出统一位于主项目 `.worktree/`；验证 Rust `prompt_submission` / `worktree` / `terminal` 测试、桌面提交与终端运行时测试。

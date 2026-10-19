@@ -4,6 +4,6 @@ export function resolveDesktopTaskRoot(input: Parameters<typeof resolveWorkbench
   const result = resolveWorkbenchTaskRoot(input);
   if (result.activeRootId !== "worktree" || result.selectedRootPath === undefined) return result;
   // 原生终端以 rootId 隔离会话；使用任务 ID，避免长路径超出 IPC 标识长度限制。
-  const id = `worktree:${input.taskId}`;
+  const id = `worktree:${input.taskId ?? "draft"}`;
   return { ...result, activeRootId: id, projectRoots: [{ id, path: result.selectedRootPath }] };
 }

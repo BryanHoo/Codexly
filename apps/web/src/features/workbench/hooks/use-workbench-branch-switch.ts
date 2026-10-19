@@ -156,7 +156,9 @@ export function useWorkbenchBranchSwitch({
   return {
     createBranch,
     creatingBranch,
-    switchBranch,
+    switchBranch: (branch: string) => {
+      void switchBranch(branch);
+    },
     switchingBranch,
   } as const;
 }

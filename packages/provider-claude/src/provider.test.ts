@@ -249,6 +249,7 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
   };
   const provider = createProvider();
   return {
+    root,
     provider,
     restart: createProvider,
     config,
@@ -3417,4 +3418,21 @@ it("keeps forked attachments readable independently after deleting their source"
   expect((await h.provider.readTaskAttachment(fork.id, attachment.id))?.content.toString()).toBe(
     "分叉附件正文",
   );
+});
+
+it("persists the worktree cwd and uses it for the first Claude SDK session", async () => {
+  const h = await harness(undefined, 60_000);
+  const worktreePath = join(h.root, ".worktree", "topic");
+  await mkdir(worktreePath, { recursive: true });
+  const task = await h.provider.startTask({ engine: "claude", workspacePath: worktreePath });
+  expect(h.tasks.get(task.id)).toMatchObject({
+    provider: "claude",
+    cwd: worktreePath,
+    projectId: "p",
+    sessionId: null,
+  });
+  expect(h.query).not.toHaveBeenCalled();
+  await h.provider.startTurn(task.id, prompt, options);
+  expect(h.query.mock.calls[0]?.[0].options.cwd).toBe(worktreePath);
+  h.send({ type: "result", subtype: "success", result: "done" });
 });
