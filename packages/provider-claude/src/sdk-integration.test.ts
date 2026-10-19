@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -15,6 +15,11 @@ import { expect, it, vi } from "vitest";
 import { ClaudeConfiguration, claudeEnvironment } from "./config.js";
 import { ClaudeRuntime } from "./runtime.js";
 import { ClaudeTurnProjection } from "./turn-projection.js";
+
+/** Windows runner 的 TEMP 可能包含 8.3 短名；统一真实路径，避免 CLI 与 SDK 索引使用不同目录键。 */
+async function nativeTestDirectory(prefix: string): Promise<string> {
+  return realpath(await mkdtemp(join(tmpdir(), prefix)));
+}
 
 async function localApi(tool?: { name: string; input: Record<string, unknown> }) {
   const requests: {
@@ -121,7 +126,7 @@ it.each([
 ])(
   "真实 SDK 从原生配置读取自定义模型窗口：$expected",
   async ({ expected, ...windows }) => {
-    const root = await mkdtemp(join(tmpdir(), "claude-context-contract-"));
+    const root = await nativeTestDirectory("claude-context-contract-");
     const api = await localApi();
     const config = new ClaudeConfiguration(root, join(root, "native"));
     await config.writeSettings({
@@ -178,7 +183,7 @@ it.each([
 
 // 真正启动官方 SDK 配套二进制；只替换远端 API，不使用真实密钥或消耗额度。
 it("runs the official Claude runtime against an isolated local Messages API", async () => {
-  const root = await mkdtemp(join(tmpdir(), "claude-sdk-contract-"));
+  const root = await nativeTestDirectory("claude-sdk-contract-");
   const api = await localApi();
   const controller = new AbortController();
   const timer = setTimeout(() => {
@@ -222,7 +227,7 @@ it("runs the official Claude runtime against an isolated local Messages API", as
 }, 35_000);
 
 it("switches the real SDK endpoint and credentials between turns while preserving native context", async () => {
-  const root = await mkdtemp(join(tmpdir(), "claude-connection-contract-"));
+  const root = await nativeTestDirectory("claude-connection-contract-");
   const a = await localApi();
   const b = await localApi();
   // 只让 SDK 加载临时原生配置，防止开发机环境中的密钥或地址覆盖本地测试服务。
@@ -372,7 +377,7 @@ it("switches the real SDK endpoint and credentials between turns while preservin
 }, 60_000);
 
 it("forks a real native transcript at the clicked reply, re-forks remapped messages and compacts that session", async () => {
-  const root = await mkdtemp(join(tmpdir(), "claude-session-actions-"));
+  const root = await nativeTestDirectory("claude-session-actions-");
   const api = await localApi();
   for (const key of Object.keys(process.env)) {
     if (/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$)/u.test(key)) vi.stubEnv(key, undefined);
@@ -487,7 +492,7 @@ it("forks a real native transcript at the clicked reply, re-forks remapped messa
 
 // 使用真实 Bash 工具结果验证字段语义；隔离本地 API 和工作目录，不依赖真实凭据。
 it("projects a real SDK Bash result into the shared command item", async () => {
-  const root = await mkdtemp(join(tmpdir(), "claude-bash-projection-"));
+  const root = await nativeTestDirectory("claude-bash-projection-");
   const api = await localApi({ name: "Bash", input: { command: "printf native-command-proof" } });
   const turn = new ClaudeTurnProjection("task", "turn", undefined, () => undefined);
   const controller = new AbortController();
@@ -536,7 +541,7 @@ it("projects a real SDK Bash result into the shared command item", async () => {
 }, 35_000);
 
 it("observes real SDK autonomous plan entry from bypass mode and awaits a live mode change", async () => {
-  const root = await mkdtemp(join(tmpdir(), "claude-permission-contract-"));
+  const root = await nativeTestDirectory("claude-permission-contract-");
   const api = await localApi({ name: "EnterPlanMode", input: {} });
   const controller = new AbortController();
   const timer = setTimeout(() => {
