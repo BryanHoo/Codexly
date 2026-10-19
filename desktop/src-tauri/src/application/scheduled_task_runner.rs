@@ -59,11 +59,15 @@ pub(crate) async fn start_turn_for_task(
     )
     .await
     .map_err(|_| AppError::FilesystemRequestFailed)?;
-    let title_prompt = codex::task_title::title_prompt(if input.text.trim().is_empty() {
+    // 保存有界正文，在后台读取最新标题提示词后再组装请求，避免重复嵌套内置指令。
+    let title_prompt: String = (if input.text.trim().is_empty() {
         prompt_task_title(&input).unwrap_or("新任务")
     } else {
         &input.text
-    });
+    })
+    .chars()
+    .take(1024)
+    .collect();
     if options.goal_mode {
         codex::ensure_task_writer(&connection, project_id, task_id, &settings)
             .await

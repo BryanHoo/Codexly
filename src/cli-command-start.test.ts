@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { DEFAULT_COMMIT_MESSAGE_MODEL } from "@codexly/protocol";
+import { DEFAULT_GENERATION_MODEL } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { runCli } from "./cli-command.js";
 import { createHarness } from "./cli-command.test-support.js";
@@ -109,7 +109,7 @@ describe("runCli startup", () => {
     const [runtimeOptions] =
       vi.mocked(harness.dependencies.createRuntimeProvider).mock.calls[0] ?? [];
     expect(readSettings).not.toHaveBeenCalled();
-    await expect(runtimeOptions?.readTaskTitleModel()).resolves.toBe(DEFAULT_COMMIT_MESSAGE_MODEL);
+    await expect(runtimeOptions?.readTaskTitleModel()).resolves.toBe(DEFAULT_GENERATION_MODEL);
     expect(harness.dependencies.createProjectRepository).toHaveBeenCalledWith({
       client: runtimeInput?.client,
       projection: harness.stateRepository,

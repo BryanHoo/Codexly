@@ -13,6 +13,7 @@ import type {
 } from "@codexly/core";
 import type { AgentTurnOptions, Project } from "@codexly/protocol";
 import { enableClaudeRuntime } from "./cli-engine-runtime.js";
+import { generateCommitMessageWithCodex } from "../packages/server/src/server-runtime.js";
 
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: vi.fn(),
@@ -108,6 +109,98 @@ it("does not create a Codex project or its watchers for Claude events and tasks"
   expect(codexRuntime.releaseProject).not.toHaveBeenCalled();
 });
 
+it("preserves ephemeral event subscriptions when lazily creating the Codex adapter", async () => {
+  const { runtime, project, codexRuntime } = await harness();
+  const p = project("helper");
+  const underlying = codexRuntime.forProject();
+  const subscribe = vi.fn<AgentProvider["subscribeEvents"]>(() => () => undefined);
+  underlying.subscribeEvents = subscribe;
+  underlying.getCapabilities = vi.fn(() => Promise.resolve({} as never));
+  const router = runtime.forProject(p);
+  const dispose = router.subscribeEvents(() => undefined, { includeEphemeral: true });
+  try {
+    await router.getCapabilities();
+    expect(subscribe).toHaveBeenCalledWith(expect.any(Function), { includeEphemeral: true });
+  } finally {
+    dispose();
+    await runtime.releaseProject(p.id);
+  }
+});
+
+it("returns generated Git messages through the lazy router without waiting for the timeout", async () => {
+  const { runtime, project, codexRuntime } = await harness();
+  const underlying = codexRuntime.forProject();
+  const subscriptions: { listener: (event: AgentProviderEvent) => void; ephemeral: boolean }[] = [];
+  underlying.subscribeEvents = (listener, subscription) => {
+    const entry = { listener, ephemeral: subscription?.includeEphemeral === true };
+    subscriptions.push(entry);
+    return () => {
+      subscriptions.splice(subscriptions.indexOf(entry), 1);
+    };
+  };
+  const task = {
+    id: "helper",
+    projectId: "p",
+    title: "",
+    pinned: false,
+    updatedAt: "2026-10-19T00:00:00Z",
+  };
+  const turn = {
+    id: "helper-turn",
+    status: "running" as const,
+    startedAt: task.updatedAt,
+    completedAt: null,
+    error: null,
+    items: [],
+  };
+  underlying.startTask = vi.fn(() => Promise.resolve(task));
+  const startTurn = vi.fn(() => Promise.resolve(turn));
+  underlying.startTurn = startTurn;
+  const unsubscribe = vi.fn(() => Promise.resolve("unsubscribed" as const));
+  underlying.unsubscribeTask = unsubscribe;
+  const router = runtime.forProject(project("p"));
+  const visible = vi.fn();
+  const dispose = router.subscribeEvents(visible);
+  vi.useFakeTimers();
+  try {
+    const response = generateCommitMessageWithCodex(router, "Generate a message", options);
+    void response.catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(startTurn).toHaveBeenCalledOnce();
+    for (const subscription of subscriptions) {
+      if (!subscription.ephemeral) continue;
+      subscription.listener({
+        type: "item.completed",
+        taskId: task.id,
+        turnId: turn.id,
+        itemId: "output",
+        payload: {
+          item: {
+            id: "output",
+            type: "message",
+            role: "assistant",
+            text: JSON.stringify({ message: "fix(git): 修复消息生成" }),
+          },
+        },
+      });
+      subscription.listener({
+        type: "turn.completed",
+        taskId: task.id,
+        turnId: turn.id,
+        payload: { turn: { ...turn, status: "completed" } },
+      });
+    }
+    await vi.advanceTimersByTimeAsync(55_000);
+    await expect(response).resolves.toBe("fix(git): 修复消息生成");
+    expect(visible).not.toHaveBeenCalled();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+  } finally {
+    vi.useRealTimers();
+    dispose();
+    await runtime.releaseProject("p");
+  }
+});
+
 it.each([
   ["disconnect", "project"],
   ["eviction", "project"],
@@ -138,9 +231,12 @@ it.each([
         }
       }
       expect(current()).toBe(router);
-      const calls = vi.mocked(query).mock.calls.length;
+      // 标题查询独立于主会话；路由重建仍须只启动一个执行查询。
+      const executionCalls = () =>
+        vi.mocked(query).mock.calls.filter(([call]) => call.options?.persistSession).length;
+      const calls = executionCalls();
       const turn = await router.startTurn(task.id, input, options);
-      expect(query).toHaveBeenCalledTimes(calls + 1);
+      expect(executionCalls()).toBe(calls + 1);
       // 等待消费与历史落盘结束，即使事件断言失败也不会与临时目录清理竞争。
       await vi.waitFor(() => {
         expect(tasks.get(task.id)?.status).toBe("idle");

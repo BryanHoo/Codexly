@@ -90,7 +90,9 @@ export function parseTaskSettingsRequest(requestBody: string | null) {
 export function parseGlobalSettingsRequest(requestBody: string | null) {
   const settings = parseTaskSettingsRequest(requestBody);
   const value = parseRequestRecord(requestBody);
-  const commitMessageModel = value["commitMessageModel"];
+  const defaultModel = value["defaultModel"];
+  const defaultAgent = value["defaultAgent"];
+  const taskTitlePrompt = value["taskTitlePrompt"];
   const commitMessagePrompt = value["commitMessagePrompt"];
   const modelContextWindow = value["modelContextWindow"];
   const defaultOpenAppId = value["defaultOpenAppId"];
@@ -98,7 +100,9 @@ export function parseGlobalSettingsRequest(requestBody: string | null) {
   const followUpBehavior = value["followUpBehavior"];
   const pet = value["pet"];
   if (
-    typeof commitMessageModel !== "string" ||
+    typeof defaultModel !== "string" ||
+    (defaultAgent !== undefined && defaultAgent !== "codex" && defaultAgent !== "claude") ||
+    (taskTitlePrompt !== undefined && typeof taskTitlePrompt !== "string") ||
     typeof commitMessagePrompt !== "string" ||
     (modelContextWindow !== null &&
       (typeof modelContextWindow !== "number" ||
@@ -118,7 +122,9 @@ export function parseGlobalSettingsRequest(requestBody: string | null) {
     followUpBehavior === "queue" ? "queue" : "steer";
   return {
     ...settings,
-    commitMessageModel,
+    defaultModel,
+    ...(defaultAgent === "codex" || defaultAgent === "claude" ? { defaultAgent } : {}),
+    ...(typeof taskTitlePrompt === "string" ? { taskTitlePrompt } : {}),
     commitMessagePrompt,
     modelContextWindow,
     defaultOpenAppId,

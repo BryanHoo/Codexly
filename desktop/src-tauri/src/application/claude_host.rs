@@ -129,6 +129,7 @@ impl ClaudeHost {
         let catalog = LocalCatalog::at(&app_data)?;
         let mut command = Command::new(host_path);
         command
+            .env("CODEXLY_APPLICATION_GENERATION", "1")
             .arg(app_data.join("engines/claude"))
             .arg(binary)
             .stdin(Stdio::piped())
@@ -163,6 +164,7 @@ impl ClaudeHost {
             catalog_receiver,
             catalog.clone(),
             Arc::clone(&transport),
+            Some(app.clone()),
         ));
         let tail: workers::StderrTail = Arc::default();
         tasks.spawn(workers::stderr_loop(stderr, Arc::clone(&tail)));

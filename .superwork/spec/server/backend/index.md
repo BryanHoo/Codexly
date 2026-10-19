@@ -45,3 +45,7 @@
 - 公共设置 `GET/PUT /v1/settings?engine=claude` 只使用 Claude 模型目录及应用偏好，不调用 Codex 原生默认设置；保存只更新应用字段，保留已存的 Codex 专属字段。省略引擎保留 Codex 行为，幂等身份包含引擎。Git 提交说明请求可选 `engine`，Claude 通过引擎服务执行无持久聊天的短请求；异步问题按原任务 `engine` 校验模型。`engine-independence.test.ts` 用不可用的 Codex 覆盖三条链路。
 
 - 全局搜索须按依赖向导启用的引擎集合筛选本地候选，再按任务持久 provider 身份检索正文；名称、排序与归档状态以应用目录为准。双引擎保留健康源命中并通过 unavailableEngines 报告失败源，游标绑定查询、类别、归档与引擎集合。Claude 复用共享摘要搜索和宿主，不启动 SDK 推理；文件搜索直接使用文件系统。详见[全局搜索契约](../../../../docs/global-search.md)。
+
+- 公共生成偏好使用 `defaultAgent` / `defaultModel`，统一控制任务标题和 Git message；请求中的聊天引擎不能覆盖它。旧提交模型迁移为公共模型。Claude 单独配置时的默认值探测不得启动 Codex；使用本地连接配置判断，验证 `global-generation-settings.test.ts`、`engine-independence.test.ts` 与 `cli-claude-start.test.ts`。
+
+- 辅助生成菜单集中维护默认 Agent、默认模型、`commitMessagePrompt` 与 `taskTitlePrompt`。两种提示词互相独立，空白回退各自内置规则；标题规则须传入 Codex / Claude 实际请求，不能只保存到表单。延迟适配器必须保留 `includeEphemeral` 订阅选项，验证 `cli-engine-runtime.test.ts` 与 `CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run src/cli-commit-generation-runtime.test.ts`（隔离本地模型，不消耗额度）。

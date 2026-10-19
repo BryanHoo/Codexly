@@ -66,6 +66,21 @@ describe("application task engine routing", () => {
     expect(claude.readTask).toHaveBeenCalledWith("claude", undefined);
   });
 
+  it("routes ephemeral generation without a catalog row and hides its events from normal listeners", async () => {
+    const { router, codex, listeners, tasks } = setup();
+    const visible = vi.fn(),
+      helper = vi.fn();
+    router.subscribeEvents(visible);
+    router.subscribeEvents(helper, { includeEphemeral: true });
+    const task = await router.startTask({ ephemeral: true });
+    expect(tasks.has(task.id)).toBe(false);
+    await router.startTurn(task.id, {} as never, {} as never);
+    expect(codex.startTurn).toHaveBeenCalledOnce();
+    listeners.get("codex")?.({ type: "task.metadata_changed", taskId: task.id, payload: {} });
+    expect(visible).not.toHaveBeenCalled();
+    expect(helper).toHaveBeenCalledOnce();
+  });
+
   it("keeps offline mixed-engine lists and rejects cross-project task access", async () => {
     const { router, tasks } = setup();
     expect((await router.listTasks()).data.map((task) => task.engine)).toEqual(["codex", "claude"]);

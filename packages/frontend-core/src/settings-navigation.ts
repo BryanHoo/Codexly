@@ -21,7 +21,12 @@ export const settingsSectionSearchKeys: Record<SettingsSectionId, readonly strin
   "claude-agent": [],
   "claude-personalization": [],
   access: ["access.logout"],
-  git: ["fields.commitModel", "fields.commitMessagePrompt", "personalization.commitRules"],
+  git: [
+    "fields.defaultAgent",
+    "fields.defaultModel",
+    "fields.commitMessagePrompt",
+    "fields.taskTitlePrompt",
+  ],
   personalization: [
     "personalization.instructions",
     "personalization.memories",

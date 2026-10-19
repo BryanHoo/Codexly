@@ -1,8 +1,9 @@
+import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
 import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
 import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
 import { isClaudeSettingsSection } from "@codexly/frontend-core/settings-navigation";
 import type { AgentGlobalSettings } from "@codexly/protocol";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { changeAppLanguage, getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import "../../../i18n/settings-personalization.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -66,6 +67,11 @@ export function GlobalSettingsPage({
   ...props
 }: GlobalSettingsPageProps & Readonly<{ client: SettingsClient }>) {
   const { t } = useTranslation("settings");
+  const getGenerationModels = useCallback(
+    async (engine: "codex" | "claude") =>
+      engine === "codex" ? models : (await client.getEngineProfile(engine)).models.data,
+    [models, client],
+  );
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
   const [draft, setDraft] = useState(() => settings ?? createFallbackSettings(models));
   const [theme, setTheme] = useState(readInitialTheme);
@@ -219,14 +225,23 @@ export function GlobalSettingsPage({
           <section id="settings-panel-git" className="space-y-6">
             <h1 className="text-xl font-semibold">{t("sections.git")}</h1>
             {ready ? (
-              <CommitSettingsPanel
-                settings={draft}
-                models={models}
-                onChange={update}
-                onFlush={() => {
-                  queue.save(draftRef.current);
-                }}
-              />
+              <>
+                <DefaultGenerationSettings
+                  settings={draft}
+                  language={language}
+                  getModels={getGenerationModels}
+                  onChange={(patch) => {
+                    update((current) => ({ ...current, ...patch }));
+                  }}
+                />
+                <CommitSettingsPanel
+                  settings={draft}
+                  onChange={update}
+                  onFlush={() => {
+                    queue.save(draftRef.current);
+                  }}
+                />
+              </>
             ) : error ? (
               failure
             ) : (

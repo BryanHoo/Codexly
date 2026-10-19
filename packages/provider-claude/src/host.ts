@@ -94,6 +94,33 @@ if (process.argv.includes("--version")) {
         },
       }),
   });
+  if (process.env["CODEXLY_APPLICATION_GENERATION"] === "1") {
+    // 原生应用持有公共偏好与 Codex 连接；复用已有反向 RPC 通道，不新增常驻进程。
+    runtime.setTaskTitleGenerator(async (cwd, text, signal) => {
+      signal.throwIfAborted();
+      const id = nextCatalogId++,
+        deferred = Promise.withResolvers<unknown>();
+      catalogRequests.set(id, deferred);
+      const abort = () => {
+        deferred.reject(new Error("Task title generation cancelled"));
+      };
+      signal.addEventListener("abort", abort, { once: true });
+      const timer = setTimeout(() => {
+        deferred.reject(new Error("Task title generation timed out"));
+      }, 60_000);
+      try {
+        if (!send({ catalogId: id, operation: "generation.title", payload: { cwd, text } }))
+          throw new Error("Claude host closed");
+        const title = await deferred.promise;
+        if (typeof title !== "string") throw new Error("Invalid title");
+        return title;
+      } finally {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", abort);
+        catalogRequests.delete(id);
+      }
+    });
+  }
   const subscribed = new WeakSet<ReturnType<ClaudeRuntime["forScope"]>>();
   const snapshotResponseSent = Symbol("snapshotResponseSent");
   const execute = async (message: Record<string, unknown>) => {
@@ -105,6 +132,21 @@ if (process.argv.includes("--version")) {
       if (typeof params["prompt"] !== "string" || typeof params["model"] !== "string")
         throw new Error("Invalid commit request");
       return runtime.generateCommitMessage(params["prompt"], params["model"]);
+    }
+    if (method === "title.generate") {
+      if (
+        typeof params["cwd"] !== "string" ||
+        typeof params["text"] !== "string" ||
+        typeof params["model"] !== "string"
+      )
+        throw new Error("Invalid title request");
+      return runtime.generateTaskTitle(
+        params["cwd"],
+        params["text"],
+        params["model"],
+        new AbortController().signal,
+        typeof params["instructions"] === "string" ? params["instructions"] : "",
+      );
     }
     if (method === "configure") return runtime.configure(params as ConfigureCustomProviderRequest);
     if (method === "settings.read") return runtime.readSettings();

@@ -1,3 +1,5 @@
+import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
+import { nativeClient } from "../../projects/project-queries.js";
 import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
 import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
 import { isClaudeSettingsSection } from "@codexly/frontend-core/settings-navigation";
@@ -9,7 +11,7 @@ import type {
   ExportDiagnosticsResponse,
   ProjectOpenApp,
 } from "@/protocol/index.js";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "../../../shared/components/core/button.js";
 import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
@@ -51,6 +53,8 @@ type GlobalSettingsPageProps = Readonly<{
   settings?: AgentGlobalSettings;
 }>;
 
+
+
 export function GlobalSettingsPage({
   appInfo,
   appInfoError = null,
@@ -70,6 +74,8 @@ export function GlobalSettingsPage({
   settings,
 }: GlobalSettingsPageProps) {
   const { t } = useTranslation("settings");
+  const getGenerationModels = useCallback(async (engine: "codex" | "claude") =>
+    engine === "codex" ? models : (await nativeClient.getEngineProfile(engine)).models.data, [models]);
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
   const [draft, setDraft] = useState<AgentGlobalSettings>(
     () => settings ?? createFallbackSettings(models),
@@ -180,7 +186,10 @@ export function GlobalSettingsPage({
             <p>{t("errors.load")}</p>
             <Button variant="ghost" onClick={() => void onRetry()}>{t("common:actions.retry")}</Button>
           </div> : isPending || settings === undefined ? <p role="status" className="text-body-small text-muted-foreground">{t("loading")}</p> : (
-            <CommitSettingsPanel settings={draft} models={models} onChange={updateDraft} onFlush={() => { void saveQueue.flush(draftRef.current); }} />
+            <>
+<DefaultGenerationSettings settings={draft} language={language} getModels={getGenerationModels} onChange={(patch) => updateDraft((current) => ({ ...current, ...patch }))} />
+<CommitSettingsPanel settings={draft} onChange={updateDraft} onFlush={() => { void saveQueue.flush(draftRef.current); }} />
+</>
           )}
         </section>
       ) : activeSection === "about" ? null : error !== null ? (
@@ -208,6 +217,7 @@ export function GlobalSettingsPage({
       ) : (
         <>
           {activeSection === "appearance" ? <GeneralSettingsPanel
+
             activeSection={activeSection}
             apps={apps}
             settings={draft}

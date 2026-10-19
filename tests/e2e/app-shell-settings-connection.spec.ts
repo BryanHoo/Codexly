@@ -306,10 +306,10 @@ test("edits global defaults on a page without overriding task settings", async (
   await dialog.getByRole("combobox", { name: "工作区" }).selectOption("danger-full-access");
   await dialog.getByRole("combobox", { name: "模型" }).selectOption("gpt-5.6-terra");
   await expect(dialog.getByRole("combobox", { name: "思考" })).toHaveValue("medium");
-  await dialog.getByRole("button", { name: "Git 提交" }).click();
-  await dialog.getByRole("combobox", { name: "提交模型" }).selectOption("gpt-5.6-terra");
+  await dialog.getByRole("button", { name: "辅助生成" }).click();
+  await dialog.getByRole("combobox", { name: "默认模型" }).selectOption("gpt-5.6-terra");
   await expect(dialog.getByRole("combobox", { name: "提交思考强度" })).toHaveCount(0);
-  await dialog.getByRole("textbox", { name: "提交提示词" }).fill("突出用户可见影响。");
+  await dialog.getByRole("textbox", { name: "Git message 提示词" }).fill("突出用户可见影响。");
   await dialog.getByRole("button", { name: "常规" }).click();
   await dialog.getByRole("combobox", { name: "默认打开方式" }).selectOption("finder");
   await dialog.getByRole("button", { exact: true, name: "返回应用" }).click();
@@ -336,12 +336,12 @@ test("edits global defaults on a page without overriding task settings", async (
     "danger-full-access",
   );
   await expect(reopenedDialog.getByRole("combobox", { name: "模型" })).toHaveValue("gpt-5.6-terra");
-  await reopenedDialog.getByRole("button", { name: "Git 提交" }).click();
-  await expect(reopenedDialog.getByRole("combobox", { name: "提交模型" })).toHaveValue(
+  await reopenedDialog.getByRole("button", { name: "辅助生成" }).click();
+  await expect(reopenedDialog.getByRole("combobox", { name: "默认模型" })).toHaveValue(
     "gpt-5.6-terra",
   );
   await expect(reopenedDialog.getByRole("combobox", { name: "提交思考强度" })).toHaveCount(0);
-  await expect(reopenedDialog.getByRole("textbox", { name: "提交提示词" })).toHaveValue(
+  await expect(reopenedDialog.getByRole("textbox", { name: "Git message 提示词" })).toHaveValue(
     "突出用户可见影响。",
   );
   await reopenedDialog.getByRole("button", { name: "常规" }).click();

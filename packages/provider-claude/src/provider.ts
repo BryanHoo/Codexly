@@ -12,6 +12,9 @@ import { ClaudeMcpManagement } from "./mcp-management.js";
 import { isManagedClaudeCommand } from "./commands.js";
 import { deleteClaudeTask } from "./task-deletion.js";
 import { forkClaudeTask } from "./task-fork.js";
+import { ClaudeTaskTitles } from "./task-titles.js";
+import { CLAUDE_CAPABILITIES } from "./capabilities.js";
+export { CLAUDE_CAPABILITIES } from "./capabilities.js";
 import { randomUUID } from "node:crypto";
 import {
   query,
@@ -44,14 +47,6 @@ import { ClaudeSessionGrants } from "./session-grants.js";
 import * as session from "./session.js";
 import { readClaudeTaskSnapshot } from "./task-snapshot.js";
 import { createClaudePrompt } from "./turn-input.js";
-export const CLAUDE_CAPABILITIES: AgentCapabilities = {
-  provider: "claude",
-  feedback: { upload: false },
-  goals: { clear: false, read: false, update: false },
-  skills: { list: false, use: false },
-  tasks: { fork: true, list: true, read: true, start: true },
-  turns: { compact: true, interrupt: true, review: false, start: true, steer: false },
-};
 export type { ClaudeSdk } from "./session.js";
 export class ClaudeAgentProvider {
   readonly #listeners = new Set<AgentProviderEventListener>();
@@ -61,6 +56,7 @@ export class ClaudeAgentProvider {
   readonly #unpersisted = new Set<string>();
   readonly #sessionGrants = new Map<string, ClaudeSessionGrants>();
   readonly #mcp: ClaudeMcpManagement;
+  readonly #titles: ClaudeTaskTitles;
   constructor(
     readonly scope: AgentTaskScope,
     readonly store: LocalCatalogStore,
@@ -75,6 +71,7 @@ export class ClaudeAgentProvider {
     readonly discover?: () => Promise<AgentEngineProfile>,
     readonly idleTimeoutMs = 30_000,
   ) {
+    this.#titles = new ClaudeTaskTitles(sdk, config, store, this.#emit);
     this.#mcp = new ClaudeMcpManagement(config, sdk, this.#starting, this.#running, (id) =>
       this.#task(id),
     );
@@ -82,6 +79,7 @@ export class ClaudeAgentProvider {
   get isBusy() {
     return (
       this.#starting.size > 0 ||
+      this.#titles.isBusy ||
       this.#unpersisted.size > 0 ||
       [...this.#running.values()].some(
         (running) => running.settling === true || session.hasWork(running),
@@ -125,8 +123,7 @@ export class ClaudeAgentProvider {
   }
   async renameTask(id: string, title: string) {
     await this.#task(id);
-    await this.store.catalog("task.patch", { id, title });
-    this.#emit({ type: "task.metadata_changed", taskId: id, payload: {} });
+    await this.#titles.rename(id, title);
   }
   async archiveTask(id: string) {
     await this.#task(id);
@@ -134,6 +131,7 @@ export class ClaudeAgentProvider {
     if (running && (running.settling || session.hasWork(running)))
       throw new Error("Stop the running task before archiving");
     if (running) await this.stopSession(id);
+    this.#titles.forget(id);
     await this.store.catalog("task.patch", { id, archived: true });
     this.#sessionGrants.delete(id);
     this.#emit({ type: "task.removed", taskId: id, payload: { reason: "archived" } });
@@ -143,11 +141,15 @@ export class ClaudeAgentProvider {
     return claudeTask(await this.store.catalog("task.patch", { id, archived: false }));
   }
   async deleteTask(id: string) {
-    await deleteClaudeTask(await this.#task(id), this, this.#starting, this.#running);
-    this.#sessionGrants.delete(id);
-    this.#recent.delete(id);
-    this.#unpersisted.delete(id);
-    this.#emit({ type: "task.removed", taskId: id, payload: { reason: "deleted" } });
+    if (this.#starting.has(id)) throw new Error("Stop the running task before deleting");
+    await this.#titles.mutate(id, async () => {
+      await deleteClaudeTask(await this.#task(id), this, this.#starting, this.#running);
+      this.#titles.forget(id);
+      this.#sessionGrants.delete(id);
+      this.#recent.delete(id);
+      this.#unpersisted.delete(id);
+      this.#emit({ type: "task.removed", taskId: id, payload: { reason: "deleted" } });
+    });
   }
   getCapabilities(): Promise<AgentCapabilities> {
     return Promise.resolve(CLAUDE_CAPABILITIES);
@@ -352,7 +354,6 @@ export class ClaudeAgentProvider {
         sessionId,
         status: "active",
         updatedAt: Date.now() / 1000,
-        ...(!task.title ? { title: input.text.trim().slice(0, 80) || "新聊天" } : {}),
       });
       if (existing) {
         clearTimeout(existing.idleTimer);
@@ -371,6 +372,7 @@ export class ClaudeAgentProvider {
           payload: { turn: projection.snapshot() },
         });
         existing.input.send(prompt);
+        this.#titles.start(task, input);
         return projection.snapshot();
       }
       // 启动失败但未收到 SDK 消息时保留 false，允许下次仍以原 UUID 首次创建。
@@ -433,6 +435,7 @@ export class ClaudeAgentProvider {
         payload: { turn: projection.snapshot() },
       });
       inputStream.send(prompt);
+      this.#titles.start(task, input);
       running.done = session.consume(id, running, this.config, this.store, this.#emit, (turn) => {
         if (this.config.persistence.hasPending(id))
           this.#markUnpersisted(id, turn.persistence?.error ?? null);
@@ -476,7 +479,6 @@ export class ClaudeAgentProvider {
       throw new Error("Claude turn is no longer running");
     await interruptForeground(current, id, (listener) => this.subscribeEvents(listener));
   }
-
   async resolvePendingRequest(input: ResolvePendingRequestInput) {
     await this.#task(input.taskId);
     const current = this.#running.get(input.taskId);
@@ -485,8 +487,8 @@ export class ClaudeAgentProvider {
     if (!permissions) throw new Error("Claude turn is no longer available");
     return permissions.resolve(input);
   }
-
   close(): void {
+    this.#titles.close();
     this.#mcp.close();
     for (const current of this.#running.values()) {
       session.stop(current);

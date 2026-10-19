@@ -27,7 +27,8 @@ export function localTaskMetadata(task: LocalTask): AgentTask {
 
 /** 应用身份负责路由，适配器只执行自己拥有的任务；全局当前选择不能影响历史任务。 */
 export class EngineProjectRouter implements AgentProvider {
-  readonly #listeners = new Set<AgentProviderEventListener>();
+  readonly #ephemeral = new Map<string, AgentEngine>();
+  readonly #listeners = new Map<AgentProviderEventListener, boolean>();
   readonly #subscriptions = new Map<
     AgentEngine,
     { adapter: AgentExecutionAdapter; dispose: () => void }
@@ -49,9 +50,15 @@ export class EngineProjectRouter implements AgentProvider {
       subscription?.dispose();
       this.#subscriptions.set(engine, {
         adapter,
-        dispose: adapter.subscribeEvents((event) => {
-          for (const listener of this.#listeners) listener({ ...event, provider: engine });
-        }),
+        dispose: adapter.subscribeEvents(
+          (event) => {
+            for (const [listener, includeEphemeral] of this.#listeners) {
+              if (!this.#ephemeral.has(event.taskId) || includeEphemeral)
+                listener({ ...event, provider: engine });
+            }
+          },
+          { includeEphemeral: true },
+        ),
       });
     }
     return adapter;
@@ -81,14 +88,20 @@ export class EngineProjectRouter implements AgentProvider {
     id: string,
     key: K,
   ): Promise<NonNullable<AgentProvider[K]>> {
+    const ephemeral = this.#ephemeral.get(id);
+    if (ephemeral) return this.#engineMethod(ephemeral, key);
     const task = await this.#task(id);
     if (task.provider !== "codex" && task.provider !== "claude")
       throw new Error("Unsupported task engine");
     return this.#engineMethod(task.provider, key);
   }
 
-  startTask(options: StartAgentTaskOptions = {}) {
-    return this.#engineMethod(options.engine ?? "codex", "startTask")(options);
+  async startTask(options: StartAgentTaskOptions = {}) {
+    const engine = options.engine ?? "codex";
+    const task = await this.#engineMethod(engine, "startTask")(options);
+    // 辅助任务没有持久目录记录，执行路由只保留到退订，不能放宽普通任务校验。
+    if (options.ephemeral) this.#ephemeral.set(task.id, engine);
+    return task;
   }
   getCapabilities(engine: AgentEngine = "codex") {
     return this.#engineMethod(engine, "getCapabilities")();
@@ -123,8 +136,11 @@ export class EngineProjectRouter implements AgentProvider {
     return { ...page, data: page.data.map(localTaskMetadata) };
   }
 
-  subscribeEvents(listener: AgentProviderEventListener) {
-    this.#listeners.add(listener);
+  subscribeEvents(
+    listener: AgentProviderEventListener,
+    options?: Parameters<AgentProvider["subscribeEvents"]>[1],
+  ) {
+    this.#listeners.set(listener, options?.includeEphemeral === true);
     try {
       this.#adapter("codex");
       this.#adapter("claude");
@@ -219,7 +235,13 @@ export class EngineProjectRouter implements AgentProvider {
     return (await this.#method(args[0], "terminateBackgroundTerminal"))(...args);
   }
   async unsubscribeTask(...args: Parameters<AgentProvider["unsubscribeTask"]>) {
-    return (await this.#method(args[0], "unsubscribeTask"))(...args);
+    try {
+      return await (
+        await this.#method(args[0], "unsubscribeTask")
+      )(...args);
+    } finally {
+      this.#ephemeral.delete(args[0]);
+    }
   }
   async uploadFeedback(...args: Parameters<AgentProvider["uploadFeedback"]>) {
     return (await this.#method(args[0], "uploadFeedback"))(...args);

@@ -30,3 +30,9 @@ export const WORKBENCH_PET_SETTINGS_MIGRATION = {
   `,
   version: 23,
 } as const;
+
+export const TASK_TITLE_PROMPT_MIGRATION = {
+  name: "persist_task_title_prompt",
+  version: 33,
+  sql: "ALTER TABLE global_settings ADD COLUMN task_title_prompt TEXT NOT NULL DEFAULT '';",
+} as const;

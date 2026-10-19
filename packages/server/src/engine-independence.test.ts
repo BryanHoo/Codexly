@@ -47,7 +47,7 @@ async function setup() {
           commands: [],
           connection: {
             mode: "official" as const,
-            state: "disconnected" as const,
+            state: "connected" as const,
             account: null,
             pendingLogin: null,
             customBaseUrl: null,
@@ -153,4 +153,23 @@ it("generates Git commit messages with Claude while Codex is unavailable", async
   expect(generateCommitMessage).toHaveBeenCalledOnce();
   expect(harness.listModels).not.toHaveBeenCalled();
   expect(harness.startTask).not.toHaveBeenCalled();
+});
+
+it("uses the configured application agent and model instead of the request engine", async () => {
+  const { app, harness, repository, generateCommitMessage } = await setup();
+  const loaded = await app.inject({ method: "GET", url: "/v1/settings?engine=claude" });
+  await repository.writeGlobalSettings({
+    ...loaded.json<AgentGlobalSettingsResponse>().settings,
+    defaultAgent: "claude",
+    defaultModel: "custom-haiku",
+  });
+  const response = await app.inject({
+    method: "POST",
+    url: `/v1/projects/codexly/git/commit-message?rootPath=${encodedProjectRootPath}`,
+    headers: { "idempotency-key": "application-claude-commit" },
+    payload: { engine: "codex", expectedSnapshot: "a".repeat(64), paths: ["proof.txt"] },
+  });
+  expect(response.statusCode, response.body).toBe(200);
+  expect(generateCommitMessage).toHaveBeenCalledWith(expect.any(String), "custom-haiku");
+  expect(harness.listModels).not.toHaveBeenCalled();
 });

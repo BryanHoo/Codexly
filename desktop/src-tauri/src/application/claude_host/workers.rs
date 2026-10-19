@@ -20,9 +20,45 @@ pub(super) async fn catalog_loop(
     mut receiver: mpsc::Receiver<Routed>,
     catalog: LocalCatalog,
     transport: Arc<Transport>,
+    app: Option<AppHandle>,
 ) {
+    let mut generation = tokio::task::JoinSet::new();
     while let Some(frame) = receiver.recv().await {
         let message = frame.message;
+        if message["operation"] == "generation.title" {
+            // 辅助推理单独限流，不能阻塞目录读写或主回合事件处理。
+            while generation.try_join_next().is_some() {}
+            if let Some(app) = app.clone().filter(|_| generation.len() < 2) {
+                let transport = Arc::clone(&transport);
+                generation.spawn(async move {
+                    let result = if let (Some(cwd), Some(text)) = (
+                        message["payload"]["cwd"].as_str(),
+                        message["payload"]["text"].as_str(),
+                    ) {
+                        crate::application::task_title_generation::generate_application_title(
+                            &app, cwd, text,
+                        )
+                        .await
+                        .map(serde_json::Value::String)
+                        .map_err(|error| error.to_string())
+                    } else {
+                        Err("Invalid title request".to_owned())
+                    };
+                    let response = match result {
+                        Ok(result) => json!({"catalogId":message["catalogId"],"result":result}),
+                        Err(error) => json!({"catalogId":message["catalogId"],"error":error}),
+                    };
+                    if transport
+                        .write(&response, Instant::now() + Duration::from_secs(30))
+                        .await
+                        .is_err()
+                    {
+                        transport.fail("Claude title reply delivery failed");
+                    }
+                });
+                continue;
+            }
+        }
         let result = match message["operation"].as_str() {
             Some(
                 operation @ ("task.read" | "task.put" | "task.patch" | "task.list" | "task.remove"),

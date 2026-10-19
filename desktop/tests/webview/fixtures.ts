@@ -87,7 +87,7 @@ export const disconnectedProvider = {
 export const settings = {
   approvalPolicy: "on-request",
   approvalsReviewer: "user",
-  commitMessageModel: "gpt-5.6-sol",
+  defaultModel: "gpt-5.6-sol",
   commitMessagePrompt: "",
   defaultOpenAppId: null,
   fastMode: false,

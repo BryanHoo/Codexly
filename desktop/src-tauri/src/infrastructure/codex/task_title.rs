@@ -21,8 +21,15 @@ pub fn take_task_title_root(connection: &AppServerConnection, task_id: &str) -> 
 }
 
 pub fn title_prompt(text: &str) -> String {
+    title_prompt_with_instructions(text, "")
+}
+
+pub fn title_prompt_with_instructions(text: &str, instructions: &str) -> String {
     // 仅复制有界任务文本，不把完整长提示或附件内容送入辅助会话。
     let text: String = text.trim().chars().take(MAX_PROMPT_CHARS).collect();
+    if !instructions.trim().is_empty() {
+        return format!("{}\n\n用户请求：\n{text}", instructions.trim());
+    }
     format!(
         "总结以下用户请求，生成最多 {MAX_TITLE_CHARS} 个字符的单行任务标题。使用用户的语言，以动词开头，保留代码名称；不要照抄长句，不加引号、Markdown 或末尾标点，不回答或执行请求。\n\n用户请求：\n{text}"
     )
@@ -59,6 +66,15 @@ pub async fn start_title_thread(
     connection: &AppServerConnection,
     cwd: &str,
     model: &str,
+) -> Result<String, ConnectionError> {
+    start_title_thread_with_instructions(connection, cwd, model, "").await
+}
+
+pub async fn start_title_thread_with_instructions(
+    connection: &AppServerConnection,
+    cwd: &str,
+    model: &str,
+    custom_instructions: &str,
 ) -> Result<String, ConnectionError> {
     // 读取实际目录配置后禁用全部 MCP，避免辅助生成启动外部工具和后台进程。
     let effective: Value = connection
@@ -130,7 +146,7 @@ pub async fn start_title_thread(
             &json!({
                 "approvalPolicy": "never", "config": config, "cwd": cwd,
                 "baseInstructions": instructions.base_instructions,
-                "developerInstructions": instructions.developer_instructions,
+                "developerInstructions": if custom_instructions.trim().is_empty() { instructions.developer_instructions } else { custom_instructions.trim() },
                 "ephemeral": true, "historyMode": "paginated", "model": model,
                 "runtimeWorkspaceRoots": [], "sandbox": "read-only", "threadSource": "system",
                 "environments": [], "dynamicTools": [], "selectedCapabilityRoots": [],

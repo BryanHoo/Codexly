@@ -33,8 +33,10 @@ export function createGlobalSettingsWriter(
             ...(stored ?? settings),
             ...Object.fromEntries(
               [
-                "commitMessageModel",
+                "defaultAgent",
+                "defaultModel",
                 "commitMessagePrompt",
+                "taskTitlePrompt",
                 "defaultOpenAppId",
                 "followUpBehavior",
                 "pet",

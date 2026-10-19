@@ -83,6 +83,18 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
     return Promise.resolve();
   });
   const close = vi.fn();
+  const titleQuery = vi.fn<ClaudeSdk["query"]>(() => {
+    return {
+      async *[Symbol.asyncIterator]() {
+        yield await Promise.resolve({
+          type: "result",
+          subtype: "success",
+          result: '{"title":"修复登录验证"}',
+        });
+      },
+      close: vi.fn(),
+    } as unknown as Query;
+  });
   const query = vi.fn(
     ({ prompt, options }: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => {
       // 中断后旧 Query 仍可存活；各会话必须独立持有迭代器，关闭时不能唤醒其他查询。
@@ -135,7 +147,9 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
       store,
       configuration,
       {
-        query,
+        // 标题查询独立模拟，避免改变主会话控制与消息顺序的断言。
+        query: (input) =>
+          input.options.persistSession === false ? titleQuery(input) : query(input),
         deleteSession,
         forkSession,
         getSessionMessages,
@@ -157,6 +171,7 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
     config,
     tasks,
     query,
+    titleQuery,
     received,
     send,
     close,
@@ -175,6 +190,103 @@ async function harness(getSessionInfo?: ClaudeSdk["getSessionInfo"], idleTimeout
     },
   };
 }
+
+describe("automatic Claude task titles", () => {
+  it("starts an isolated Haiku request after sending and publishes the generated title", async () => {
+    const h = await harness();
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(
+      task.id,
+      { ...prompt, text: "请帮我修复登录验证中的各种问题" },
+      options,
+    );
+    await vi.waitFor(() => {
+      expect(h.tasks.get(task.id)?.title).toBe("修复登录验证");
+    });
+    expect(h.titleQuery).toHaveBeenCalledOnce();
+    expect(h.titleQuery.mock.calls[0]?.[0].options).toMatchObject({
+      model: "haiku",
+      persistSession: false,
+      tools: [],
+      strictMcpConfig: true,
+      mcpServers: {},
+      settingSources: ["user"],
+      settings: { disableAllHooks: true },
+    });
+    expect(events.some((event) => event.type === "task.metadata_changed")).toBe(true);
+    expect((await h.provider.readTask(task.id))?.turns).toHaveLength(1);
+  });
+
+  it("falls back to a short single-line Unicode body when Haiku fails", async () => {
+    const h = await harness();
+    h.titleQuery.mockImplementation(() => {
+      throw new Error("model unavailable");
+    });
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(
+      task.id,
+      { ...prompt, text: "  修复\n验证  " + "😀".repeat(80) },
+      options,
+    );
+    await vi.waitFor(() => {
+      expect(h.titleQuery).toHaveBeenCalledOnce();
+    });
+    await vi.waitFor(() => {
+      expect(h.tasks.get(task.id)?.title).toBe("修复 验证 " + "😀".repeat(30));
+    });
+  });
+
+  it("does not block sending or overwrite a manual rename while generation is pending", async () => {
+    const h = await harness();
+    const result = Promise.withResolvers<IteratorResult<SDKMessage>>();
+    const close = vi.fn(() => {
+      result.resolve({ done: true, value: undefined });
+    });
+    h.titleQuery.mockReturnValue({
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+      next: () => result.promise,
+      close,
+    } as unknown as Query);
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    await vi.waitFor(() => {
+      expect(h.titleQuery).toHaveBeenCalledOnce();
+    });
+    expect(h.tasks.get(task.id)?.title).toBe("");
+    await h.provider.renameTask(task.id, "手动名称");
+    await vi.waitFor(() => {
+      expect(close).toHaveBeenCalledOnce();
+    });
+    expect(h.tasks.get(task.id)?.title).toBe("手动名称");
+  });
+
+  it("generates once and skips already named tasks and failed sends", async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    await expect(
+      h.provider.startTurn(task.id, prompt, { ...options, fastMode: true }),
+    ).rejects.toThrow();
+    expect(h.titleQuery).not.toHaveBeenCalled();
+    await h.provider.startTurn(task.id, prompt, options);
+    await vi.waitFor(() => {
+      expect(h.tasks.get(task.id)?.title).toBe("修复登录验证");
+    });
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    await h.provider.startTurn(task.id, { ...prompt, text: "下一轮" }, options);
+    const named = await h.provider.startTask();
+    await h.provider.renameTask(named.id, "预设名称");
+    await h.provider.startTurn(named.id, prompt, options);
+    expect(h.titleQuery).toHaveBeenCalledOnce();
+    expect(h.tasks.get(named.id)?.title).toBe("预设名称");
+  });
+});
 
 describe("dynamic session settings in shared turns", () => {
   it.each([false, true])(

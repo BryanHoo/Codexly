@@ -2,6 +2,23 @@ import { expect, it, vi } from "vitest";
 import { createLocalCatalogClient } from "../../provider-codex/src/local-catalog-client.js";
 import { createWorkspace, openRepository } from "./sqlite-state-repository.test-support.js";
 
+it("preserves project identity for ephemeral helper threads without persisting them", async () => {
+  const store = await openRepository(await createWorkspace());
+  const raw = {
+    request: vi.fn(() => Promise.resolve({ thread: { id: "helper", projectId: null } })),
+    notify: vi.fn(),
+    onNotification: vi.fn(() => () => undefined),
+    onServerRequest: vi.fn(() => () => undefined),
+    rejectServerRequest: vi.fn(),
+    respondToServerRequest: vi.fn(),
+  };
+  const client = await createLocalCatalogClient(raw, store);
+  expect(await client.request("thread/start", { projectId: "p", ephemeral: true })).toMatchObject({
+    thread: { projectId: "p" },
+  });
+  expect(await store.catalog("task.read", { id: "helper" })).toBeNull();
+});
+
 it("keeps metadata local and maps execution IDs in both directions", async () => {
   const root = await createWorkspace();
   const store = await openRepository(root);

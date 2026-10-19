@@ -2,6 +2,8 @@
 
 `packages/provider-claude` 是 Web 和桌面宿主共用的官方 SDK 边界。架构和使用说明见[双引擎说明](../../../../docs/agent-engines.md)。
 
+- 首次成功发送后由共享 Provider 异步调用 `haiku` 生成短标题，沿用原生认证与 Haiku 别名；不阻塞主回合。与 Codex 复用 `core/task-title` 的最多 1024 字符正文、单行和最多 36 字符标题规则。辅助请求禁用工具、MCP、Hooks 和会话持久化，不携带附件正文；60 秒超时、模型失败或无效输出回退截取短正文。手动名称优先，归档、删除及宿主关闭取消迟到写入；每个 Provider 最多并发八个标题查询，超额直接回退。验证 `task-titles.test.ts`、`provider.test.ts` 与 `pnpm test:claude-host` 的真实 Haiku 别名和结构化输出。
+
 - Web 与桌面共用用户原生 Claude 配置：目录优先 `CLAUDE_CONFIG_DIR`，否则 `~/.claude`；不得重定向到应用私有运行目录。SDK 必须加载 `user`，按项目加载偏好追加 `project/local`；本机登录、钥匙串、环境变量、apiKeyHelper 和云认证交给 SDK，禁止强制覆盖认证方式。对外状态不得返回密钥。
 - 模型、思考强度、权限与工具规则合并保存到用户 `settings.json`；全局指令保存到用户 `CLAUDE.md`，不得重复 append。保留未知字段与未管理的权限规则；仅项目加载偏好和界面历史投影保留在私有目录。开发期直接使用用户原生配置，不迁移旧私有配置或 SDK 历史。
 - 配置读取以当前文件为准；用户/项目配置变更须使能力目录缓存失效。设置页聚焦时按需刷新，保留未保存的输入；无需轮询或重启正在执行的回合。SDK 的认证来源 `none` 不表示已连接。

@@ -6,7 +6,7 @@ describe("shouldRefreshTaskDefaults", () => {
   it("should ignore global fields unrelated to task defaults", () => {
     expect(
       shouldRefreshTaskDefaults([
-        "commitMessageModel",
+        "defaultModel",
         "commitMessagePrompt",
         "defaultOpenAppId",
         "followUpBehavior",

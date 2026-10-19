@@ -11,7 +11,7 @@ import type {
   ProjectRepository,
   WorkbenchPetProvider,
 } from "@codexly/core";
-import { DEFAULT_COMMIT_MESSAGE_MODEL, type AppUpdateProgress } from "@codexly/protocol";
+import { DEFAULT_GENERATION_MODEL, type AppUpdateProgress } from "@codexly/protocol";
 import {
   checkCodexVersion,
   createCodexRuntimeProvider,
@@ -328,8 +328,8 @@ export async function runStart(
       modelCatalogRuntimeFactory: startRuntime,
       // 标题与提交信息共用应用模型设置，按需读取最新值，不阻塞首次发送。
       readTaskTitleModel: async () =>
-        (await startupStateRepository.readGlobalSettings())?.commitMessageModel ??
-        DEFAULT_COMMIT_MESSAGE_MODEL,
+        (await startupStateRepository.readGlobalSettings())?.defaultModel ??
+        DEFAULT_GENERATION_MODEL,
     });
     const provider = enableClaudeRuntime(codexProvider, stateRepository, codexHome);
     const petProvider = dependencies.createPetProvider({ codexHome });

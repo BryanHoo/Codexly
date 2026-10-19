@@ -1,7 +1,7 @@
 import type { AgentModel } from "@/protocol/index.js";
 import {
   Bot,
-  GitBranch,
+  Sparkles,
   ChevronDown,
   Info,
   PawPrint,
@@ -25,7 +25,7 @@ export const settingsSections: readonly Readonly<{
 }>[] = [
   { icon: Settings, id: "appearance" },
   { icon: PawPrint, id: "pets" },
-  { icon: GitBranch, id: "git" },
+  { icon: Sparkles, id: "git" },
   { icon: ServerCog, id: "provider" },
   { icon: ServerCog, id: "claude-provider" },
   { icon: Bot, id: "claude-agent" },

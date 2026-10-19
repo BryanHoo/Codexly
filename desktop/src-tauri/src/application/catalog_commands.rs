@@ -102,10 +102,7 @@ pub async fn get_global_settings(
 ) -> Result<Value, AppError> {
     if engine.as_deref() == Some("claude") {
         // 公共偏好只读取应用存储；Claude 用户不需要启动或配置 Codex。
-        let settings =
-            crate::infrastructure::local_settings::read_global_settings(&app_data_dir(&app)?)
-                .await
-                .map_err(|_| AppError::FilesystemRequestFailed)?;
+        let settings = super::generation_settings::read(&app).await?;
         return Ok(json!({"settings": settings}));
     }
     let connection = state.codex_connection().await?;

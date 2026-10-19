@@ -1,6 +1,7 @@
 import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type {
   AgentGlobalApprovalPolicy,
+  AgentGlobalSettings,
   AgentEngine,
   AgentEngineProfile,
   ClaudeSettings,
@@ -315,6 +316,18 @@ export type AgentModelCatalogFallback =
 
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。
 export interface AgentRuntimeProvider {
+  readGenerationDefaults?(
+    stored: Pick<AgentGlobalSettings, "defaultAgent" | "defaultModel"> | undefined,
+  ): Promise<{ defaultAgent: AgentEngine; defaultModel: string }>;
+  // 辅助生成可跨引擎，任务的持久执行身份保持独立。
+  setTaskTitleGenerator?(generate: TaskTitleGenerator): void;
+  generateTaskTitle?(
+    cwd: string,
+    text: string,
+    model: string,
+    signal: AbortSignal,
+    instructions?: string,
+  ): Promise<string>;
   readonly engines?: Partial<Record<AgentEngine, AgentEngineService>>;
   readonly historyStorage?: { compress(): Promise<HistoryCompressionResult> };
   readonly personalization?: PersonalizationProvider;
@@ -362,6 +375,13 @@ export interface AgentRuntimeProvider {
 }
 
 export interface AgentEngineService {
+  generateTaskTitle?(
+    cwd: string,
+    text: string,
+    model: string,
+    signal: AbortSignal,
+    instructions?: string,
+  ): Promise<string>;
   generateCommitMessage?(prompt: string, model: string): Promise<string>;
   readSettings(): Promise<ClaudeSettings>;
   writeSettings(settings: ClaudeSettings): Promise<ClaudeSettings>;
@@ -369,4 +389,10 @@ export interface AgentEngineService {
   configure(input: ConfigureCustomProviderRequest): Promise<ConfigureCustomProviderResponse>;
   disconnect(): Promise<AgentProviderConnectionMutationResponse>;
 }
+
+export type TaskTitleGenerator = (
+  cwd: string,
+  text: string,
+  signal: AbortSignal,
+) => Promise<string>;
 import type { PersonalizationProvider } from "./personalization.js";

@@ -1,4 +1,5 @@
 import { registerProjectGitPushRoutes } from "./project-git-push-routes.js";
+import { readGenerationDefaults } from "@codexly/core";
 import {
   CommitProjectChangesRequestSchema,
   CommitProjectChangesResponseSchema,
@@ -33,7 +34,6 @@ import { GitHistoryError } from "../git-history.js";
 import { GitCommitReviewError } from "../git-commit-review.js";
 import { GitRepositorySelectionError } from "../git-working-tree.js";
 import { originalErrorMessage } from "../error-message.js";
-import { resolveProjectDefaults } from "../server-runtime.js";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
 import { ErrorResponseSchema, IdempotencyHeadersSchema, ProjectParamsSchema } from "./schemas.js";
 import { registerProjectGitWorktreeRoutes } from "./project-git-worktree-routes.js";
@@ -55,15 +55,14 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
     createProjectBranch,
     generateCommitMessageWithCodex,
     getProjectContext,
-    listModels,
     projectRepository,
     provider: runtimeProvider,
-    readEffectiveGlobalSettings,
     readProjectGitHistory,
     readProjectGitCommitFiles,
     readProjectGitCommitFileDiff,
     readProjectGitStatus,
     runIdempotent,
+    settingsRepository,
     switchProjectBranch,
     toGitCommitHttpError,
   } = context;
@@ -398,34 +397,32 @@ export function registerProjectGitRoutes(app: FastifyInstance, context: ServerRo
             );
           });
           assertCommitSelection(status, request.body);
-          if (request.body.engine === "claude") {
+          const stored = await settingsRepository.readGlobalSettings();
+          // 生成使用公共偏好，独立于当前聊天及请求中的引擎。
+          const generation = await readGenerationDefaults(runtimeProvider, stored);
+          if (generation.defaultAgent === "claude") {
             const service = runtimeProvider.engines?.claude;
             if (!service?.generateCommitMessage)
               throw new MutationHttpError("PROVIDER_ERROR", "Claude engine is unavailable", 503);
-            const preferences = await readEffectiveGlobalSettings(undefined, "claude");
             return {
               message: await service.generateCommitMessage(
-                buildCommitMessagePrompt(status, request.body, preferences.commitMessagePrompt),
-                preferences.commitMessageModel,
+                buildCommitMessagePrompt(status, request.body, stored?.commitMessagePrompt ?? ""),
+                generation.defaultModel,
               ),
               snapshot: status.snapshot,
             };
           }
-          const models = await listModels();
-          const globalSettings = await readEffectiveGlobalSettings(models);
-          const commitSettings = resolveProjectDefaults(
-            models,
-            { model: globalSettings.commitMessageModel, sandboxMode: "read-only" },
-            "read-only",
-          );
           const settings: AgentTaskSettings = {
             approvalPolicy: "never",
             approvalsReviewer: "user",
-            ...commitSettings,
+            model: generation.defaultModel,
+            // 沿用所选模型默认推理档位，辅助生成不额外加载聊天模型目录。
+            reasoningEffort: "",
+            sandboxMode: "read-only" as const,
           };
           const message = await generateCommitMessageWithCodex(
             context.provider,
-            buildCommitMessagePrompt(status, request.body, globalSettings.commitMessagePrompt),
+            buildCommitMessagePrompt(status, request.body, stored?.commitMessagePrompt ?? ""),
             settings,
           );
           return { message, snapshot: status.snapshot };

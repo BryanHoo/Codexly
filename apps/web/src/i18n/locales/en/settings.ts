@@ -1,6 +1,6 @@
 export const settings = {
   sectionKeywords: {
-    git: "Git commit message model prompt generation rules",
+    git: "AI generation default agent model Git commit message task title prompt rules",
     "claude-provider": "Claude Anthropic API key API URL endpoint connection available models",
     "claude-agent":
       "Claude Default model Default reasoning effort Tool permissions Ask when needed Accept edits Plan mode Full access",
@@ -127,6 +127,9 @@ export const settings = {
   fields: {
     approvalPolicy: "Approval policy",
     commitMessagePrompt: "Commit message prompt",
+    defaultAgent: "Default agent",
+    defaultModel: "Default model",
+    taskTitlePrompt: "Task title prompt",
     commitModel: "Commit model",
     defaultOpenWith: "Default open with",
     fastMode: "Fast mode",
@@ -200,7 +203,7 @@ export const settings = {
     workspaceWrite: "Workspace write",
   },
   sections: {
-    git: "Git commits",
+    git: "AI generation",
     "claude-provider": "Model service",
     "claude-agent": "Agent configuration",
     "claude-personalization": "Personalization",

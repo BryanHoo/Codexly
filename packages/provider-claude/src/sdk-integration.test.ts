@@ -195,6 +195,8 @@ it("switches the real SDK endpoint and credentials between turns while preservin
     runtimeWorkspaceRoots: [root],
   });
   const task = await provider.startTask();
+  // 隔离连接切换的请求计数，避免把独立 Haiku 标题请求计入主会话。
+  await provider.renameTask(task.id, "验证连接切换");
   const options = {
     model: "claude-sonnet-4-6",
     reasoningEffort: "",

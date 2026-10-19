@@ -70,3 +70,6 @@ export {
 export * from "./mcp-elicitation.js";
 export * from "./task-snapshot-checkpoint.js";
 export * from "./retained-work-budget.js";
+export { boundTaskTitleInput, taskTitlePrompt, parseTaskTitle } from "./task-title.js";
+export { readGenerationDefaults } from "./generation-defaults.js";
+export type { TaskTitleGenerator } from "./agent-provider.js";

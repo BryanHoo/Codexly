@@ -73,6 +73,8 @@ export async function createLocalCatalogClient(
 ): Promise<CodexRpcClient> {
   const toNative = new Map<string, string>(),
     toLocal = new Map<string, string>();
+  // 临时辅助线程不入目录，仅在本客户端保留项目身份，退订后立即释放。
+  const ephemeralProjects = new Map<string, unknown>();
   const remember = (task: LocalTask) => {
     if (task.provider === "codex" && task.sessionId !== null) {
       toNative.set(task.id, task.sessionId);
@@ -169,6 +171,8 @@ export async function createLocalCatalogClient(
         };
       }
       const id = typeof p["threadId"] === "string" ? p["threadId"] : undefined;
+      // 退订即释放本地辅助身份，RPC 失败也不能无限保留临时线程映射。
+      if (method === "thread/unsubscribe" && id) ephemeralProjects.delete(id);
       let task = id === undefined ? null : await store.catalog("task.read", { id });
       if (task) {
         if (task.provider !== "codex")
@@ -275,6 +279,16 @@ export async function createLocalCatalogClient(
         nativeResponse = await raw.request(method, nativeParams, timeout, signal);
       }
       const response = expectRecord(nativeResponse, `${method} response`);
+      if (method === "thread/start" && p["ephemeral"] === true) {
+        const thread = expectRecord(response["thread"], "ephemeral thread");
+        const id = expectString(thread["id"], "ephemeral thread id");
+        ephemeralProjects.set(id, p["projectId"] ?? null);
+        thread["projectId"] = p["projectId"] ?? null;
+      }
+      if (id && ephemeralProjects.has(id) && response["thread"]) {
+        expectRecord(response["thread"], "ephemeral thread")["projectId"] =
+          ephemeralProjects.get(id);
+      }
       if (task && method === "thread/settings/update" && typeof p["cwd"] === "string") {
         task = await store.catalog("task.patch", { id: task.id, cwd: p["cwd"] });
       }

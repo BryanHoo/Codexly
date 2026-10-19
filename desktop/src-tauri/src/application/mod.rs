@@ -23,6 +23,7 @@ pub mod diagnostic_commands;
 pub mod engine_setup;
 pub mod error;
 pub mod extension_commands;
+pub(crate) mod generation_settings;
 pub mod history_storage_commands;
 mod model_turn_waiters;
 pub mod notification_commands;

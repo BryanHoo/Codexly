@@ -18,10 +18,7 @@ fn test_root() -> PathBuf {
 
 #[test]
 fn commit_message_should_default_to_gpt_6_luna() {
-    assert_eq!(
-        default_global_settings()["commitMessageModel"],
-        "gpt-6-luna"
-    );
+    assert_eq!(default_global_settings()["defaultModel"], "gpt-6-luna");
 }
 
 #[tokio::test]
@@ -175,7 +172,7 @@ fn typed_settings_should_enforce_fields_nullability_and_bounds() {
         ("approvalPolicy", json!({"granular": true})),
         ("model", json!(" ")),
         ("reasoningEffort", json!("x".repeat(65))),
-        ("commitMessageModel", json!("x".repeat(257))),
+        ("defaultModel", json!("x".repeat(257))),
         ("commitMessagePrompt", json!("x".repeat(4001))),
         ("pet", json!({"enabled":false})),
     ] {

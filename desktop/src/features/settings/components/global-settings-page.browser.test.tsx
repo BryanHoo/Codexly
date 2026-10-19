@@ -51,7 +51,7 @@ async function renderSettings(initialSection: "appearance" | "personalization" |
       </QueryClientProvider>
     </I18nextProvider>,
   );
-  await expect.element(screen.getByRole("heading", { name: initialSection === "appearance" ? "常规" : initialSection === "git" ? "Git 提交" : "个性化", exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: initialSection === "appearance" ? "常规" : initialSection === "git" ? "辅助生成" : "个性化", exact: true })).toBeVisible();
   return { onClose, onSave, screen };
 }
 
@@ -84,14 +84,14 @@ describe("GlobalSettingsPage", () => {
     expect(row.getBoundingClientRect().height).toBeLessThanOrEqual(66);
     expect(screen.getByRole("combobox", { name: "默认打开方式" }).element().getBoundingClientRect().height).toBeLessThanOrEqual(32);
     expect(screen.getByRole("button", { name: "提交消息", exact: true }).all()).toHaveLength(0);
-    await screen.getByRole("button", { name: "Git 提交", exact: true }).click();
-    await expect.element(screen.getByRole("heading", { name: "提交消息", exact: true })).toBeVisible();
-    const panel = document.querySelector("#personalization-commit-settings")!;
-    expect(getComputedStyle(panel.lastElementChild!).borderLeftWidth).toBe("1px");
-    const prompt = screen.getByRole("textbox", { name: "提交提示词" }).element();
+    await screen.getByRole("button", { name: "辅助生成", exact: true }).click();
+    await expect.element(screen.getByRole("heading", { name: "辅助生成", exact: true })).toBeVisible();
+    const panel = document.querySelector("#commitMessagePrompt")!.closest("section")!;
+    expect(getComputedStyle(panel).borderLeftWidth).toBe("1px");
+    const prompt = screen.getByRole("textbox", { name: "Git message 提示词" }).element();
     expect(prompt.getBoundingClientRect().width).toBeGreaterThan(panel.getBoundingClientRect().width * 0.85);
     await screen.getByRole("searchbox", { name: "搜索设置" }).fill("提交");
-    await expect.element(screen.getByRole("button", { name: "Git 提交", exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "辅助生成", exact: true })).toBeVisible();
     await screen.getByRole("searchbox", { name: "搜索设置" }).fill("");
     await page.viewport(1440, 1100);
     await page.screenshot({ path: "../../../../test-results/settings-personalization-commit.png" });
@@ -193,7 +193,7 @@ describe("GlobalSettingsPage", () => {
 
   it("automatically saves generation rules on blur", async () => {
     const { screen, onSave } = await renderSettings("git");
-    const editor = screen.getByRole("textbox", { name: "提交提示词" });
+    const editor = screen.getByRole("textbox", { name: "Git message 提示词" });
     await editor.fill("新的提交规则");
     editor.element().blur();
     await expect.poll(() => onSave.mock.calls.at(-1)?.[0]).toMatchObject({ commitMessagePrompt: "新的提交规则" });
@@ -203,7 +203,7 @@ describe("GlobalSettingsPage", () => {
   it("preserves generation rules after save failure and allows retry", async () => {
     const { screen, onSave } = await renderSettings("git");
     onSave.mockRejectedValueOnce(new Error("disk unavailable"));
-    const editor = screen.getByRole("textbox", { name: "提交提示词" });
+    const editor = screen.getByRole("textbox", { name: "Git message 提示词" });
     await editor.fill("保留规则草稿");
     editor.element().blur();
     await expect.element(screen.getByRole("alert")).toHaveTextContent("保存失败，请重试");
@@ -215,7 +215,7 @@ describe("GlobalSettingsPage", () => {
 
   it("flushes generation rules before leaving settings", async () => {
     const { screen, onClose, onSave } = await renderSettings("git");
-    await screen.getByRole("textbox", { name: "提交提示词" }).fill("最新规则");
+    await screen.getByRole("textbox", { name: "Git message 提示词" }).fill("最新规则");
     await screen.getByRole("button", { name: "返回应用" }).click();
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ commitMessagePrompt: "最新规则" }));

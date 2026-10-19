@@ -20,7 +20,8 @@ const themeOptions = [
 ] as const;
 
 export function GeneralSettingsPanel({
-  activeSection, apps, settings, language, notificationsEnabled, theme,
+  activeSection,
+  apps, settings, language, notificationsEnabled, theme,
   onFollowUpChange, onDefaultOpenAppChange,
   onLanguageChange, onNotificationsChange, onThemeChange,
 }: Readonly<{

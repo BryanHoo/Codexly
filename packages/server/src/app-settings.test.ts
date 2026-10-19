@@ -199,7 +199,8 @@ describe("server task settings", () => {
     const globalSettings = {
       approvalPolicy: granularApprovalPolicy,
       approvalsReviewer: "auto_review" as const,
-      commitMessageModel: "gpt-5.6-sol",
+      defaultAgent: "codex" as const,
+      defaultModel: "gpt-5.6-sol",
       commitMessagePrompt: "",
       modelContextWindow: null,
       defaultOpenAppId: "visual-studio-code" as const,
@@ -311,7 +312,8 @@ describe("server task settings", () => {
       settings: {
         approvalPolicy: "never",
         approvalsReviewer: "user",
-        commitMessageModel: "gpt-6-luna",
+        defaultAgent: "codex" as const,
+        defaultModel: "gpt-6-luna",
         commitMessagePrompt: "",
         modelContextWindow: null,
         defaultOpenAppId: null,

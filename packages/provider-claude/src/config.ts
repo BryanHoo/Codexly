@@ -1,4 +1,5 @@
 import { detectClaudeAuth } from "./auth-detection.js";
+import type { TaskTitleGenerator } from "@codexly/core";
 import { ClaudeAttachments } from "./attachments.js";
 import { ClaudeHistory } from "./history.js";
 import { ClaudePersistence } from "./persistence.js";
@@ -83,6 +84,8 @@ function normalizeEndpoint(value: string): string {
 }
 
 export class ClaudeConfiguration {
+  // 仅驻内存的应用辅助生成入口，不写入 Claude 原生配置。
+  public taskTitleGenerator: TaskTitleGenerator | undefined;
   readonly #directory: string;
   readonly userDirectory: string;
   readonly history: ClaudeHistory;

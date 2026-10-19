@@ -20,6 +20,7 @@ test(
     const directory = await mkdtemp(join(tmpdir(), "codexly-host-"));
     const tasks = new Map();
     let calls = 0;
+    let titleCalls = 0;
     const proofContent = `approved${"x".repeat(400000)}`;
     const api = createServer((request, response) => {
       void (async () => {
@@ -48,13 +49,23 @@ test(
         }
         assert.equal(request.headers["x-api-key"], "local-host-test");
         const body = JSON.parse(raw);
-        assert.equal(body.model, "claude-sonnet-4-6");
-        assert.ok(
-          JSON.stringify(body).includes("Always test"),
-          "user CLAUDE.md must apply even with project settings disabled",
-        );
-        calls++;
-        let useTool = [1, 3, 5].includes(calls);
+        const isTitle = body.model === "gateway-haiku";
+        if (isTitle) {
+          titleCalls++;
+          assert.ok(
+            !body.tools?.some((tool) => ["Read", "Write", "Bash", "Agent"].includes(tool.name)),
+          );
+          assert.ok(JSON.stringify(body.messages).includes("Write proof then reply"));
+          assert.ok(!JSON.stringify(body.messages).includes("host attachment proof"));
+        } else {
+          assert.equal(body.model, "claude-sonnet-4-6");
+          assert.ok(
+            JSON.stringify(body).includes("Always test"),
+            "user CLAUDE.md must apply even with project settings disabled",
+          );
+          calls++;
+        }
+        let useTool = !isTitle && [1, 3, 5].includes(calls);
         const content = useTool
           ? [
               {
@@ -69,21 +80,21 @@ test(
                 },
               },
             ]
-          : [{ type: "text", text: "host-contract-ok" }];
+          : [{ type: "text", text: isTitle ? '{"title":"编写验证文件"}' : "host-contract-ok" }];
         // 真实 CLI 通过终结工具生成 Schema 结果；仅模拟模型响应，仍由 SDK 完成校验和投影。
         const structuredTool = body.tools?.find((tool) => tool.name === "StructuredOutput");
         if (structuredTool) {
-          assert.deepEqual(structuredTool.input_schema.required, ["answer"]);
+          assert.deepEqual(structuredTool.input_schema.required, [isTitle ? "title" : "answer"]);
           content.splice(0, content.length, {
             type: "tool_use",
             id: `structured-${calls}`,
             name: structuredTool.name,
-            input: { answer: "共享宿主结构化答复" },
+            input: isTitle ? { title: "编写验证文件" } : { answer: "共享宿主结构化答复" },
           });
           useTool = true;
         }
         // 真实 SDK 执行任务工具，验证结构化结果、跨进程恢复与计划投影的完整链路。
-        if (calls === 1) {
+        if (!isTitle && calls === 1) {
           assert.ok(body.tools.some((tool) => tool.name === "TaskCreate"));
           content.unshift({
             type: "tool_use",
@@ -91,7 +102,7 @@ test(
             name: "TaskCreate",
             input: { subject: "验证宿主计划", description: "验证跨回合任务关联" },
           });
-        } else if (calls === 3 || calls === 5) {
+        } else if (!isTitle && (calls === 3 || calls === 5)) {
           content.unshift({
             type: "tool_use",
             id: `update-plan-${calls}`,
@@ -103,7 +114,7 @@ test(
           id: `msg-${calls}`,
           type: "message",
           role: "assistant",
-          model: "claude-sonnet-4-6",
+          model: body.model,
           content,
           stop_reason: useTool ? "tool_use" : "end_turn",
           stop_sequence: null,
@@ -172,10 +183,11 @@ test(
       join(userDirectory, "settings.json"),
       JSON.stringify({
         model: "claude-sonnet-4-6",
-        availableModels: ["claude-sonnet-4-6"],
+        availableModels: ["claude-sonnet-4-6", "gateway-haiku"],
         env: {
           ANTHROPIC_API_KEY: "local-host-test",
           ANTHROPIC_BASE_URL: `http://127.0.0.1:${api.address().port}`,
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: "gateway-haiku",
         },
       }),
     );
@@ -284,6 +296,7 @@ test(
       assert.equal(JSON.stringify(profile).includes("local-host-test"), false);
       assert.deepEqual(profile.configuredModels, [
         { id: "claude-sonnet-4-6", name: "claude-sonnet-4-6" },
+        { id: "gateway-haiku", name: "gateway-haiku" },
       ]);
       const options = {
         model: "default",
@@ -310,6 +323,9 @@ test(
         skills: [],
       };
       await host.request("turn.start", { taskId: "task", input, options }, scope);
+      await waitEvent("task.metadata_changed");
+      assert.equal(tasks.get("task").title, "编写验证文件");
+      assert.ok(titleCalls > 0);
       const pending = (await waitEvent("pending_request.created")).payload.request;
       assert.equal(pending.type, "tool_approval");
       // 审批输入尚未落盘；两端均不能提前显示为已应用的文件变更。

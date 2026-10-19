@@ -1,5 +1,6 @@
 import {
   GLOBAL_SETTINGS_MIGRATIONS,
+  TASK_TITLE_PROMPT_MIGRATION,
   WORKBENCH_PET_SETTINGS_MIGRATION,
 } from "./global-settings-persistence.js";
 import { PROVIDER_CONNECTION_MIGRATION } from "./provider-connection-persistence.js";
@@ -487,4 +488,11 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
     version: 31,
     sql: "ALTER TABLE task_settings ADD COLUMN engine_options TEXT;",
   },
+  {
+    name: "unify_application_generation_defaults",
+    version: 32,
+    // 旧提交模型自动成为公共生成模型，保持已有用户选择。
+    sql: "ALTER TABLE global_settings ADD COLUMN default_agent TEXT;",
+  },
+  TASK_TITLE_PROMPT_MIGRATION,
 ];

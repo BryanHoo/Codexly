@@ -367,6 +367,7 @@ async fn real_slow_catalog_write_should_not_delay_response_delivery() {
         catalog_receiver,
         catalog,
         Arc::clone(&transport),
+        None,
     ));
     let (lane, _events) = mpsc::channel(64);
     let (reader, mut output) = tokio::io::duplex(4096);

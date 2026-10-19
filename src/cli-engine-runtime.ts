@@ -1,11 +1,14 @@
 import { join } from "node:path";
+import { readLocalGenerationConnection } from "./cli-generation-defaults.js";
 import {
   EngineProjectRouter,
+  readGenerationDefaults,
   CatalogSearchService,
   type AgentProvider,
   type AgentRuntimeProvider,
   type AgentTaskScope,
   type AgentProviderEventListener,
+  type AgentProviderEventSubscriptionOptions,
   type LocalCatalogStore,
 } from "@codexly/core";
 import { ClaudeRuntime } from "@codexly/provider-claude";
@@ -13,22 +16,35 @@ import { ClaudeRuntime } from "@codexly/provider-claude";
 /** 项目事件订阅不创建 Codex Provider，避免其 Git watch 在 Claude 首屏启动进程。 */
 function deferCodexProject(create: () => AgentProvider) {
   let current: AgentProvider | undefined;
-  const listeners = new Map<AgentProviderEventListener, () => void>();
+  const listeners = new Map<
+    AgentProviderEventListener,
+    {
+      dispose: () => void;
+      options: AgentProviderEventSubscriptionOptions | undefined;
+    }
+  >();
   const resolve = () => {
     if (!current) {
       current = create();
-      for (const listener of listeners.keys())
-        listeners.set(listener, current.subscribeEvents(listener));
+      for (const [listener, subscription] of listeners)
+        subscription.dispose = current.subscribeEvents(listener, subscription.options);
     }
     return current;
   };
   const provider = new Proxy({} as AgentProvider, {
     get(_target, key) {
       if (key === "subscribeEvents")
-        return (listener: AgentProviderEventListener) => {
-          listeners.set(listener, current?.subscribeEvents(listener) ?? (() => undefined));
+        return (
+          listener: AgentProviderEventListener,
+          options?: AgentProviderEventSubscriptionOptions,
+        ) => {
+          // 延迟创建适配器时仍必须保留辅助事件选项，否则临时线程完成后生成请求只能超时。
+          listeners.set(listener, {
+            options,
+            dispose: current?.subscribeEvents(listener, options) ?? (() => undefined),
+          });
           return () => {
-            listeners.get(listener)?.();
+            listeners.get(listener)?.dispose();
             listeners.delete(listener);
           };
         };
@@ -58,6 +74,35 @@ export function enableClaudeRuntime(
     return codex;
   const catalog = store as LocalCatalogStore;
   const claude = new ClaudeRuntime(join(codexHome, "codexly", "engines", "claude"), catalog);
+  const generation = async (cwd: string, text: string, signal: AbortSignal) => {
+    const preferences =
+      "readGlobalSettings" in store && typeof store.readGlobalSettings === "function"
+        ? await (
+            store.readGlobalSettings as () => Promise<
+              | {
+                  defaultAgent?: "codex" | "claude";
+                  defaultModel: string;
+                  taskTitlePrompt?: string;
+                }
+              | undefined
+            >
+          )()
+        : undefined;
+    const { defaultAgent: engine, defaultModel: model } = await readGenerationDefaults(
+      {
+        readProviderConnection: () => readLocalGenerationConnection(codexHome),
+        engines: { claude },
+      },
+      preferences,
+    );
+    signal.throwIfAborted();
+    if (engine === "claude")
+      return claude.generateTaskTitle(cwd, text, model, signal, preferences?.taskTitlePrompt);
+    if (!codex.generateTaskTitle) throw new Error("Codex title generation unavailable");
+    return codex.generateTaskTitle(cwd, text, model, signal, preferences?.taskTitlePrompt);
+  };
+  codex.setTaskTitleGenerator?.(generation);
+  claude.setTaskTitleGenerator(generation);
   const projects = new Map<
     string,
     { router: EngineProjectRouter; codex: ReturnType<typeof deferCodexProject> }
@@ -75,6 +120,14 @@ export function enableClaudeRuntime(
     return router;
   };
   const overrides: Partial<AgentRuntimeProvider> = {
+    readGenerationDefaults: (stored) =>
+      readGenerationDefaults(
+        {
+          readProviderConnection: () => readLocalGenerationConnection(codexHome),
+          engines: { claude },
+        },
+        stored,
+      ),
     engines: { ...codex.engines, claude },
     search: new CatalogSearchService(catalog, (task, input, signal, limit) => {
       const scope =

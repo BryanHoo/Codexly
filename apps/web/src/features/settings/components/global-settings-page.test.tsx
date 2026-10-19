@@ -103,7 +103,11 @@ describe("GlobalSettingsPage", () => {
       />,
     );
     expect(markup).toContain('id="settings-panel-git"');
-    expect(markup).toContain('aria-label="提交提示词"');
+    expect(markup).toContain('aria-label="Git message 提示词"');
+    expect(markup).toContain('aria-label="任务标题提示词"');
+    expect(markup).toContain('aria-label="默认模型"');
+    expect(markup).toContain("辅助生成");
+    expect(markup).toContain("留空时使用应用内置提示词");
     expect(markup).not.toContain('id="codex-global-instructions"');
     expect(instructions).not.toHaveBeenCalled();
     expect(memories).not.toHaveBeenCalled();
@@ -169,7 +173,8 @@ describe("GlobalSettingsPage", () => {
         settings={{
           approvalPolicy: "on-request",
           approvalsReviewer: "auto_review",
-          commitMessageModel: "gpt-5.6-terra",
+          defaultAgent: "codex" as const,
+          defaultModel: "gpt-5.6-terra",
           commitMessagePrompt: "突出用户可见影响。",
           modelContextWindow: null,
           defaultOpenAppId: "visual-studio-code",
@@ -208,7 +213,8 @@ describe("GlobalSettingsPage", () => {
         settings={{
           approvalPolicy: "on-request",
           approvalsReviewer: "user",
-          commitMessageModel: "gpt-5.6-sol",
+          defaultAgent: "codex" as const,
+          defaultModel: "gpt-5.6-sol",
           commitMessagePrompt: "",
           modelContextWindow: null,
           defaultOpenAppId: null,
@@ -397,7 +403,7 @@ describe("GlobalSettingsPage", () => {
   });
 
   it("uses GPT-6 Luna as the fallback commit message model", () => {
-    expect(createFallbackSettings(models).commitMessageModel).toBe("gpt-6-luna");
+    expect(createFallbackSettings(models).defaultModel).toBe("gpt-6-luna");
   });
 
   it("renders official Codex terminology in English without rewriting model data", async () => {
@@ -416,7 +422,8 @@ describe("GlobalSettingsPage", () => {
           settings={{
             approvalPolicy: "on-request",
             approvalsReviewer: "user",
-            commitMessageModel: "gpt-5.6-sol",
+            defaultAgent: "codex" as const,
+            defaultModel: "gpt-5.6-sol",
             commitMessagePrompt: "",
             modelContextWindow: null,
             defaultOpenAppId: null,

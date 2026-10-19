@@ -144,7 +144,7 @@ export {
   AgentContextUsageSchema,
   AgentGlobalSettingsResponseSchema,
   AgentGlobalSettingsSchema,
-  DEFAULT_COMMIT_MESSAGE_MODEL,
+  DEFAULT_GENERATION_MODEL,
   AgentModelPageSchema,
   AgentModelSchema,
   AgentReasoningEffortOptionSchema,

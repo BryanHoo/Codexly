@@ -3,6 +3,12 @@ import { FakeRpcClient } from "./agent-provider.test-support.js";
 import { generateTaskTitle, parseTaskTitle, taskTitlePrompt } from "./task-title-generation.js";
 
 describe("task title generation", () => {
+  it("uses configured title instructions and falls back to built-in instructions when blank", () => {
+    expect(taskTitlePrompt("修复缓存", "请使用英文动词短语")).toBe(
+      "请使用英文动词短语\n\n用户请求：\n修复缓存",
+    );
+    expect(taskTitlePrompt("修复缓存", "  ")).toBe(taskTitlePrompt("修复缓存"));
+  });
   it("normalizes structured Unicode titles and bounds the prompt", () => {
     expect(parseTaskTitle('{"title":"  “修复任务\\n标题。”  "}')).toBe("修复任务 标题");
     expect(Array.from(parseTaskTitle(JSON.stringify({ title: "😀".repeat(100) })))).toHaveLength(

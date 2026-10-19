@@ -6,7 +6,7 @@ use tauri::{AppHandle, Manager, State};
 use tokio::time::timeout;
 
 use super::{error::AppError, state::AppState, task_workspace};
-use crate::infrastructure::{codex, local_settings, workspace};
+use crate::infrastructure::{codex, workspace};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,7 +53,6 @@ pub struct BranchMutationInput {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitMutationInput {
-    engine: Option<String>,
     action: Option<String>,
     expected_snapshot: String,
     message: Option<String>,
@@ -397,15 +396,9 @@ pub async fn generate_commit_message(
     )
     .await
     .map_err(AppError::from)?;
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
-    let global_settings = local_settings::read_global_settings(&app_data)
-        .await
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
+    let global_settings = super::generation_settings::read(&app).await?;
     let settings = codex::resolve_commit_message_settings(&global_settings);
-    if input.engine.as_deref() == Some("claude") {
+    if global_settings["defaultAgent"] == "claude" {
         // 只读取本地项目目录并复用 Claude 宿主的无工具请求，不启动 Codex 推理。
         let prompt = format!(
             "{}\n\n以下是选中的 Git 变更：\n{}",

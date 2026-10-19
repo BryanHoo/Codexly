@@ -1,3 +1,4 @@
+import type { TaskTitleGenerator } from "@codexly/core";
 import type { AgentProviderTurnInput, AgentTaskScope } from "@codexly/core";
 import type { CodexRpcClient } from "./codex-rpc-client.js";
 import type { CodexProviderLogger } from "./agent-provider-logger.js";
@@ -15,6 +16,7 @@ interface PendingTitle {
 type ActiveTitle = PendingTitle & { controller: AbortController; done: Promise<void> };
 
 export class CodexTaskTitles {
+  public generate: TaskTitleGenerator | undefined;
   readonly #pending = new Map<string, PendingTitle>();
   readonly #active = new Map<string, ActiveTitle>();
   readonly #mutations = new Map<string, Promise<unknown>>();
@@ -52,21 +54,23 @@ export class CodexTaskTitles {
     // 设置读取也延后执行，主 Turn 返回不等待模型目录、数据库或辅助请求。
     active.done = Promise.resolve()
       .then(async () => {
-        const model = await this.readModel();
+        const model = this.generate ? "" : await this.readModel();
         controller.signal.throwIfAborted();
-        const title = await generateTaskTitle(
-          this.client,
-          (listener) => {
-            this.#listeners.add(listener);
-            return () => {
-              this.#listeners.delete(listener);
-            };
-          },
-          pending.cwd,
-          model,
-          prompt,
-          controller.signal,
-        );
+        const title = this.generate
+          ? await this.generate(pending.cwd, input.text.trim() || fallback, controller.signal)
+          : await generateTaskTitle(
+              this.client,
+              (listener) => {
+                this.#listeners.add(listener);
+                return () => {
+                  this.#listeners.delete(listener);
+                };
+              },
+              pending.cwd,
+              model,
+              prompt,
+              controller.signal,
+            );
         await this.mutate(taskId, async () => {
           controller.signal.throwIfAborted();
           const response = expectRecord(

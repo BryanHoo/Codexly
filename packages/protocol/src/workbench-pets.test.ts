@@ -38,7 +38,8 @@ describe("workbench pet protocol", () => {
       Value.Check(AgentGlobalSettingsSchema, {
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
-        commitMessageModel: "gpt-5.6-luna",
+        defaultAgent: "codex" as const,
+        defaultModel: "gpt-5.6-luna",
         commitMessagePrompt: "",
         modelContextWindow: null,
         defaultOpenAppId: null,

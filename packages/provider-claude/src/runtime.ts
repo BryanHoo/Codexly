@@ -1,5 +1,7 @@
+import type { TaskTitleGenerator } from "@codexly/core";
 import { isSupportedClaudeCommand } from "./commands.js";
 import { generateClaudeCommitMessage } from "./commit-message.js";
+import { generateTitle } from "./task-titles.js";
 import { homedir } from "node:os";
 import {
   query,
@@ -25,6 +27,36 @@ import {
 import type { SearchOccurrencesQuery } from "@codexly/protocol";
 
 export class ClaudeRuntime implements AgentEngineService {
+  setTaskTitleGenerator(generate: TaskTitleGenerator): void {
+    this.configuration.taskTitleGenerator = generate;
+  }
+  async generateTaskTitle(
+    cwd: string,
+    text: string,
+    model: string,
+    signal: AbortSignal,
+    instructions = "",
+  ): Promise<string> {
+    signal.throwIfAborted();
+    const controller = new AbortController();
+    const abort = () => {
+      controller.abort();
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    try {
+      return await generateTitle(
+        this.sdk,
+        this.configuration,
+        { cwd },
+        text,
+        controller,
+        model,
+        instructions,
+      );
+    } finally {
+      signal.removeEventListener("abort", abort);
+    }
+  }
   readonly configuration: ClaudeConfiguration;
   readonly #providers = new Map<string, ClaudeAgentProvider>();
   readonly #commitRequests = new Set<AbortController>();

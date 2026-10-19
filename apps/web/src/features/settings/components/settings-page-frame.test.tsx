@@ -33,7 +33,7 @@ describe("SettingsPageFrame", () => {
     );
     expect(markup).toContain('aria-label="Codex"');
     expect(markup).toContain('aria-label="Claude"');
-    expect(markup).toContain("Git 提交");
+    expect(markup).toContain("辅助生成");
     const claude = markup.slice(
       markup.indexOf('role="group" aria-label="Claude"'),
       markup.indexOf('role="group" aria-label="应用"'),

@@ -87,6 +87,9 @@ export const settings = {
   fields: {
     approvalPolicy: "审批",
     commitMessagePrompt: "提交提示词",
+    defaultAgent: "默认 Agent",
+    defaultModel: "默认模型",
+    taskTitlePrompt: "任务标题提示词",
     commitModel: "提交模型",
     defaultOpenWith: "默认打开方式",
     fastMode: "快速模式",
@@ -173,7 +176,7 @@ export const settings = {
     workspaceWrite: "工作区可写",
   },
   sections: {
-    git: "Git 提交",
+    git: "辅助生成",
     "claude-provider": "模型服务",
     "claude-agent": "智能体配置",
     "claude-personalization": "个性化",
@@ -186,7 +189,7 @@ export const settings = {
   },
   title: "全局设置",
   sectionKeywords: {
-    git: "Git 提交消息 提交模型 提示词 生成规则",
+    git: "辅助生成 默认 Agent 默认模型 Git 提交信息 任务标题 提示词 生成规则",
     "claude-provider": "Claude Anthropic API Key API 地址 连接 可用模型",
     "claude-agent": "Claude 默认模型 默认思考强度 工具权限 按需确认 允许编辑 计划模式 完全访问",
     "claude-personalization": "Claude CLAUDE.md 全局指令 项目配置 工具授权规则 自动允许 禁止使用",

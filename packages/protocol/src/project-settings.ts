@@ -2,9 +2,9 @@ import { Type, type Static } from "@sinclair/typebox";
 
 import { ProjectOpenAppIdSchema } from "./project-files.js";
 import { WorkbenchPetSettingsSchema } from "./workbench-pets.js";
-import { AgentEngineOptionsSchema } from "./agent-engine.js";
+import { AgentEngineOptionsSchema, AgentEngineSchema } from "./agent-engine.js";
 
-export const DEFAULT_COMMIT_MESSAGE_MODEL = "gpt-6-luna";
+export const DEFAULT_GENERATION_MODEL = "gpt-6-luna";
 
 export const AgentGranularApprovalConfigSchema = Type.Object(
   {
@@ -96,13 +96,17 @@ export const AgentCollaborationModeSchema = Type.Literal("plan");
 export type AgentCollaborationMode = Readonly<Static<typeof AgentCollaborationModeSchema>>;
 
 const AgentGlobalSettingProperties = {
+  // 应用辅助生成共用默认引擎；旧记录省略时优先 Codex。
+  defaultAgent: Type.Optional(AgentEngineSchema),
   // null 表示继承 Codex 模型默认值；限制为 JS 安全整数，保证 HTTP 与原生传输一致。
   modelContextWindow: Type.Union([
     Type.Integer({ minimum: 1, maximum: Number.MAX_SAFE_INTEGER }),
     Type.Null(),
   ]),
-  commitMessageModel: Type.String({ minLength: 1 }),
+  defaultModel: Type.String({ minLength: 1 }),
   commitMessagePrompt: Type.String({ maxLength: 4_000 }),
+  // 留空或省略时沿用内置标题指令，兼容升级前的应用偏好。
+  taskTitlePrompt: Type.Optional(Type.String({ maxLength: 4_000 })),
   // 文件专用系统关联不能成为 Project 根目录的默认打开方式。
   defaultOpenAppId: Type.Union([
     Type.Exclude(ProjectOpenAppIdSchema, Type.Literal("system-default")),

@@ -15,10 +15,12 @@ use super::settings_object::{Object, object};
 use types::{GlobalSettings, LocalPreferences, ProjectSettings};
 
 const SETTINGS_VERSION: u8 = 1;
-pub(crate) const GLOBAL_FIELDS: [&str; 14] = [
+pub(crate) const GLOBAL_FIELDS: [&str; 16] = [
+    "taskTitlePrompt",
+    "defaultAgent",
     "approvalPolicy",
     "approvalsReviewer",
-    "commitMessageModel",
+    "defaultModel",
     "commitMessagePrompt",
     "defaultOpenAppId",
     "fastMode",
@@ -31,8 +33,10 @@ pub(crate) const GLOBAL_FIELDS: [&str; 14] = [
     "sandboxMode",
     "webSearch",
 ];
-const LOCAL_FIELDS: [&str; 5] = [
-    "commitMessageModel",
+const LOCAL_FIELDS: [&str; 7] = [
+    "taskTitlePrompt",
+    "defaultAgent",
+    "defaultModel",
     "commitMessagePrompt",
     "defaultOpenAppId",
     "followUpBehavior",
@@ -200,8 +204,10 @@ pub(crate) fn default_global_settings() -> Value {
     json!({
         "approvalPolicy": "on-request",
         "approvalsReviewer": "user",
-        "commitMessageModel": "gpt-6-luna",
+        "defaultAgent": "codex",
+        "defaultModel": "gpt-6-luna",
         "commitMessagePrompt": "",
+        "taskTitlePrompt": "",
         "defaultOpenAppId": null,
         "fastMode": false,
         "followUpBehavior": "queue",

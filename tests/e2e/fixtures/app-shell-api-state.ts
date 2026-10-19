@@ -50,7 +50,7 @@ export function createAppShellApiState(options: Readonly<{ providerConnected?: b
   const globalSettings = {
     approvalPolicy: "on-request",
     approvalsReviewer: "user",
-    commitMessageModel: "gpt-5.6-sol",
+    defaultModel: "gpt-5.6-sol",
     commitMessagePrompt: "",
     modelContextWindow: null as number | null,
     defaultOpenAppId: "zed" as string | null,

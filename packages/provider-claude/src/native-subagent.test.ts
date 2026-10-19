@@ -260,6 +260,8 @@ it.each(["completed", "failed", "foreground-interrupted"] as const)(
           });
     });
     const task = await provider.startTask();
+    // 此用例锁住主会话的后台续跑查询数；标题生成由独立宿主契约覆盖。
+    await provider.renameTask(task.id, "验证后台代理续跑");
     try {
       const first = await provider.startTurn(
         task.id,

@@ -55,7 +55,8 @@ describe("server task mutations", () => {
     readGlobalSettings.mockResolvedValue({
       approvalPolicy: "on-request",
       approvalsReviewer: "auto_review",
-      commitMessageModel: "gpt-5.6-sol",
+      defaultAgent: "codex" as const,
+      defaultModel: "gpt-5.6-sol",
       commitMessagePrompt: "",
       modelContextWindow: null,
       defaultOpenAppId: null,
