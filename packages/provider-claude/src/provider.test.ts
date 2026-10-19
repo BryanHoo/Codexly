@@ -36,6 +36,83 @@ const options: AgentTurnOptions = {
 };
 const prompt = { text: "hello", files: [], images: [], skills: [], textAttachments: [] };
 
+describe("Claude actual permission mode", () => {
+  it("reports native mode changes, ignores subagents, and restores the actual mode", async () => {
+    const h = await harness(undefined, 60_000);
+    const events: AgentProviderEvent[] = [];
+    h.provider.subscribeEvents((event) => events.push(event));
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, {
+      ...options,
+      engineOptions: { engine: "claude", permissionMode: "bypassPermissions" },
+    });
+    h.send({ type: "system", subtype: "init", permissionMode: "bypassPermissions" });
+    h.send({ type: "system", subtype: "status", status: null, permissionMode: "plan" });
+    await vi.waitFor(async () => {
+      expect((await h.provider.readTask(task.id))?.threadConfiguration).toMatchObject({
+        permissionMode: "plan",
+      });
+    });
+    h.send({
+      type: "system",
+      subtype: "status",
+      status: null,
+      permissionMode: "default",
+      parent_tool_use_id: "child",
+    });
+    h.send({ type: "system", subtype: "status", status: null, permissionMode: "future-mode" });
+    h.send({ type: "result", subtype: "success" });
+    await vi.waitFor(() => {
+      expect(h.provider.isBusy).toBe(false);
+    });
+    await h.provider.stopSession(task.id);
+    expect((await h.provider.readTask(task.id))?.threadConfiguration).toMatchObject({
+      permissionMode: "plan",
+    });
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "task.metadata_changed",
+        payload: { permissionMode: "plan" },
+      }),
+    );
+    expect(h.setPermissionMode).not.toHaveBeenCalled();
+  });
+
+  it("awaits live mode confirmation and leaves the actual mode unchanged on rejection", async () => {
+    const h = await harness(undefined, 60_000);
+    const task = await h.provider.startTask();
+    await h.provider.startTurn(task.id, prompt, options);
+    h.send({ type: "system", subtype: "init", permissionMode: "default" });
+    await vi.waitFor(async () => {
+      expect((await h.provider.readTask(task.id))?.threadConfiguration).toMatchObject({
+        permissionMode: "default",
+      });
+    });
+    const gate = Promise.withResolvers<undefined>();
+    h.setPermissionMode.mockReturnValueOnce(gate.promise);
+    const change = h.provider.updateTaskPermissionMode(task.id, "plan");
+    await vi.waitFor(() => {
+      expect(h.setPermissionMode).toHaveBeenCalledWith("plan");
+    });
+    expect((await h.provider.readTask(task.id))?.threadConfiguration).toMatchObject({
+      permissionMode: "default",
+    });
+    gate.resolve(undefined);
+    await change;
+    expect((await h.provider.readTask(task.id))?.threadConfiguration).toMatchObject({
+      permissionMode: "plan",
+    });
+    h.setPermissionMode.mockRejectedValueOnce(new Error("mode rejected"));
+    await expect(h.provider.updateTaskPermissionMode(task.id, "bypassPermissions")).rejects.toThrow(
+      "mode rejected",
+    );
+    expect((await h.provider.readTask(task.id))?.threadConfiguration).toMatchObject({
+      permissionMode: "plan",
+    });
+    expect(h.query).toHaveBeenCalledOnce();
+  });
+});
+
 describe("Claude live steering", () => {
   it("delivers consecutive steers in the same turn and persists their user messages", async () => {
     const h = await harness(undefined, 60_000);

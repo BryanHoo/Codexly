@@ -1,5 +1,6 @@
 import { Type, type Static, type TProperties, type TSchema } from "@sinclair/typebox";
 
+import { ClaudePermissionModeSchema } from "./agent-engine.js";
 import { EventCheckpointSchema } from "./event-checkpoint.js";
 export { EventCheckpointSchema, type EventCheckpoint } from "./event-checkpoint.js";
 import {
@@ -113,7 +114,10 @@ export const McpServerStatusUpdatedEventSchema = createEventSchema({
 });
 
 export const TaskMetadataChangedEventSchema = createEventSchema({
-  payload: Type.Object({}, { additionalProperties: false }),
+  payload: Type.Object(
+    { permissionMode: Type.Optional(ClaudePermissionModeSchema) },
+    { additionalProperties: false },
+  ),
   type: Type.Literal("task.metadata_changed"),
 });
 

@@ -1,4 +1,10 @@
-import type { AgentEngine, AgentModel, AgentTaskSettings, ClaudeSettings } from "@codexly/protocol";
+import type {
+  AgentEngine,
+  AgentModel,
+  ClaudePermissionMode,
+  AgentTaskSettings,
+  ClaudeSettings,
+} from "@codexly/protocol";
 
 export function resolveComposerEngine(
   taskId: string | undefined,
@@ -50,4 +56,19 @@ export function resolveCodexComposerSettings(
     approvalsReviewer: "user",
     sandboxMode: "workspace-write",
   };
+}
+
+/** 两端统一以已确认的原生权限覆盖本地选择，防止旧 override 遮蔽自主计划模式切换。 */
+export function resolveActualClaudePermission(
+  settings: AgentTaskSettings,
+  configuration: Readonly<{ permissionMode?: ClaudePermissionMode }> | undefined,
+): AgentTaskSettings {
+  const mode = configuration?.permissionMode;
+  if (
+    settings.engineOptions?.engine !== "claude" ||
+    mode === undefined ||
+    settings.engineOptions.permissionMode === mode
+  )
+    return settings;
+  return { ...settings, engineOptions: { engine: "claude", permissionMode: mode } };
 }

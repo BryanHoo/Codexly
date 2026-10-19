@@ -1,3 +1,6 @@
+import { createClaudeTask } from "./task-creation.js";
+import { observePermissionMode, updatePermissionMode } from "./session-permission-mode.js";
+import type { ClaudePermissionMode } from "@codexly/protocol";
 import { DEFAULT_CLAUDE_SDK } from "./sdk-defaults.js";
 import { ClaudeTurnSteering } from "./turn-steering.js";
 import { interruptForeground } from "./session-interruption.js";
@@ -18,7 +21,6 @@ import { ClaudeTaskTitles } from "./task-titles.js";
 import { CLAUDE_CAPABILITIES } from "./capabilities.js";
 export { CLAUDE_CAPABILITIES } from "./capabilities.js";
 import { randomUUID } from "node:crypto";
-
 import type {
   AgentProviderEventListener,
   AgentProviderTurnInput,
@@ -183,18 +185,7 @@ export class ClaudeAgentProvider {
     return task;
   }
   async startTask(options: StartAgentTaskOptions = {}): Promise<AgentTask> {
-    const task: LocalTask = {
-      id: `task-${randomUUID()}`,
-      provider: "claude",
-      sessionId: null,
-      projectId: this.scope.kind === "temporary" ? null : this.scope.id,
-      cwd: options.workspacePath ?? this.scope.rootPath,
-      title: "",
-      updatedAt: Date.now() / 1000,
-      pinned: false,
-      archived: false,
-      status: "notLoaded",
-    };
+    const task = createClaudeTask(this.scope, options.workspacePath);
     return claudeTask(await this.store.catalog("task.put", task));
   }
   async readTaskMetadata(id: string): Promise<AgentTask | undefined> {
@@ -222,6 +213,16 @@ export class ClaudeAgentProvider {
       recent: this.#recent,
       starting: this.#starting.has(id),
       recovery,
+    });
+  }
+  updateTaskPermissionMode(id: string, mode: ClaudePermissionMode): Promise<void> {
+    return updatePermissionMode(id, mode, {
+      starting: this.#starting,
+      running: this.#running.get(id),
+      grants: this.#sessionGrants.get(id),
+      config: this.config,
+      validate: () => this.#task(id),
+      emit: this.#emit,
     });
   }
   async startTurn(
@@ -336,8 +337,10 @@ export class ClaudeAgentProvider {
       if (existing && existing.projections.size >= 64)
         throw new Error("Claude background turn capacity exceeded");
       // 在持久化新回合、发布 started 和发送输入前等待控制确认；失败保持原查询及后台任务。
-      if (existing)
+      if (existing) {
         await updateClaudeSessionSettings(existing.query, existing.settings, settings, grants);
+        observePermissionMode(id, existing, existing.settings.permissionMode, this.#emit);
+      }
       const resumable =
         !existing && (await session.canResume(task, this.sdk, this.config.history, metadata));
       if (compact && !existing && !resumable) throw new Error("Claude 原生会话尚未建立，无法压缩");
@@ -405,6 +408,7 @@ export class ClaudeAgentProvider {
         input: inputStream,
         settingsKey,
         settings,
+        grants,
         done: Promise.resolve(),
         idleTimeoutMs: this.idleTimeoutMs,
       };

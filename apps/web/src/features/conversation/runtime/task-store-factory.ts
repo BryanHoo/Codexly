@@ -300,6 +300,7 @@ function measureEventEntityBytes(state: TaskStoreState, event: AgentEvent): numb
     event.type === "plan.updated" ||
     event.type === "provider.error" ||
     event.type === "task.status_updated" ||
+    event.type === "task.metadata_changed" ||
     event.type === "turn.started" ||
     event.type === "turn.completed" ||
     event.type === "usage.updated"

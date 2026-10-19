@@ -100,6 +100,15 @@ export function registerTaskActionRoutes(app: FastifyInstance, context: ServerRo
           if (settings.engineOptions && settings.engineOptions.engine !== (task.engine ?? "codex"))
             throw new MutationHttpError("INVALID_REQUEST", "Options belong to another engine", 400);
           assertValidProjectDefaults(await listModels(task.engine), settings);
+          // 先等待 SDK 切换成功，拒绝或失败时不能保存一个尚未生效的权限值。
+          if (task.engine === "claude" && settings.engineOptions?.engine === "claude") {
+            if (!context.provider.updateTaskPermissionMode)
+              throw new Error("Claude runtime permission control unavailable");
+            await context.provider.updateTaskPermissionMode(
+              request.params.taskId,
+              settings.engineOptions.permissionMode,
+            );
+          }
           const activeTurn = task.turns.findLast((turn) => turn.status === "running");
           if (activeTurn !== undefined) {
             const previous = await readEffectiveTaskSettings(

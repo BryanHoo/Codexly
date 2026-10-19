@@ -207,3 +207,13 @@ export function mapClaudeResultUsage(
     ? { ...current, contextWindow: window }
     : current;
 }
+
+/** 统计更新只发布小型领域事件，不让 Token 路径复制整个回合。 */
+export function publishClaudeUsage(
+  taskId: string,
+  turnId: string,
+  usage: AgentContextUsage,
+  emit: AgentProviderEventListener,
+): void {
+  emit({ type: "usage.updated", taskId, turnId, payload: { usage } });
+}

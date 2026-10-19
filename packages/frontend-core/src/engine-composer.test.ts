@@ -3,9 +3,29 @@ import {
   resolveComposerEngine,
   resolveClaudeComposerSettings,
   resolveCodexComposerSettings,
+  resolveActualClaudePermission,
 } from "./engine-composer.js";
 
 describe("shared composer engine policy", () => {
+  it("lets the confirmed runtime mode replace saved and local permission selections", () => {
+    const settings = resolveClaudeComposerSettings(
+      {
+        model: "default",
+        reasoningEffort: "",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "user",
+        sandboxMode: "workspace-write",
+      },
+      [],
+    );
+    expect(
+      resolveActualClaudePermission(settings, { permissionMode: "plan" }).engineOptions
+        ?.permissionMode,
+    ).toBe("plan");
+    expect(resolveActualClaudePermission(settings, undefined)).toBe(settings);
+    const codex = resolveCodexComposerSettings(settings, []);
+    expect(resolveActualClaudePermission(codex, { permissionMode: "plan" })).toBe(codex);
+  });
   it("only lets empty drafts select engines and keeps legacy history on Codex", () => {
     expect(resolveComposerEngine(undefined, undefined, "claude")).toBe("claude");
     expect(resolveComposerEngine("history", {}, "claude")).toBe("codex");

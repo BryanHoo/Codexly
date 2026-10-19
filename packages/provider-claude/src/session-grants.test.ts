@@ -2,6 +2,21 @@ import { describe, expect, it } from "vitest";
 import { ClaudeSessionGrants, canReplaySessionGrants } from "./session-grants.js";
 
 describe("Claude session grants", () => {
+  it("preserves native edit grants on observation and clears them on an explicit default selection", () => {
+    const grants = new ClaudeSessionGrants("default");
+    grants.remember([{ type: "setMode", mode: "acceptEdits", destination: "session" }]);
+    grants.observeMode("acceptEdits");
+    expect(grants.options("default").permissionMode).toBe("acceptEdits");
+    grants.confirmMode("default");
+    expect(grants.options("default").permissionMode).toBeUndefined();
+  });
+
+  it("discards edit replay when the native session enters plan mode", () => {
+    const grants = new ClaudeSessionGrants("default");
+    grants.remember([{ type: "setMode", mode: "acceptEdits", destination: "session" }]);
+    grants.observeMode("plan");
+    expect(grants.options("default").permissionMode).toBeUndefined();
+  });
   it("preserves SDK session rule content and directories without duplicates", () => {
     const grants = new ClaudeSessionGrants();
     const updates = [

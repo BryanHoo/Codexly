@@ -5,6 +5,7 @@ import type {
   AgentEngine,
   AgentEngineProfile,
   ClaudeSettings,
+  ClaudePermissionMode,
   AgentGoal,
   AgentApprovalsReviewer,
   AgentCapabilities,
@@ -252,6 +253,8 @@ export class PendingRequestResolutionError extends Error {
 
 // Core 只声明 Provider 无关能力，具体 RPC、传输顺序与进程生命周期留在外层。
 export interface AgentProvider {
+  /** 切换存活会话权限并等待原生确认；无会话时只更新下次运行的任务状态。 */
+  updateTaskPermissionMode?(taskId: string, mode: ClaudePermissionMode): Promise<void>;
   readTaskMetadata?(taskId: string): Promise<AgentTask | undefined>;
   readonly queue?: AgentProviderQueue;
   archiveTask(taskId: string): Promise<void>;

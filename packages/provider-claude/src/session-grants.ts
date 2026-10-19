@@ -24,6 +24,17 @@ export class ClaudeSessionGrants {
     this.#requestedMode = permissionMode;
   }
 
+  /** 原生状态只淘汰已失效的编辑许可，不能改写用户请求基线而丢失会话授权。 */
+  observeMode(mode: Options["permissionMode"]): void {
+    if (mode !== "acceptEdits") this.#mode = undefined;
+  }
+
+  /** 显式控制确认后即替换旧模式，即使用户选择的仍是最初的 default。 */
+  confirmMode(mode: Options["permissionMode"]): void {
+    this.#mode = undefined;
+    this.#requestedMode = mode;
+  }
+
   remember(updates: PermissionUpdate[]): void {
     if (!canReplaySessionGrants(updates)) throw new Error("Unsupported session permission update");
     for (const update of updates) {

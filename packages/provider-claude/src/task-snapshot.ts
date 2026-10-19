@@ -180,7 +180,13 @@ export async function readClaudeTaskSnapshot({
         : (terminal ? terminal.status === "failed" : task.status === "failed")
           ? "failed"
           : "idle",
-    threadConfiguration: { model: metadata?.model ?? null, reasoningEffort: null },
+    threadConfiguration: {
+      model: metadata?.model ?? null,
+      reasoningEffort: null,
+      ...(metadata?.permissionMode === undefined
+        ? {}
+        : { permissionMode: metadata.permissionMode }),
+    },
     turns: visible.turns,
     turnsNextCursor: visible.cursor,
   };

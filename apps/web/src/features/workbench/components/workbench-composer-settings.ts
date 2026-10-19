@@ -20,18 +20,20 @@ export function useComposerSettingsUpdate({
   const revision = useRef(0);
   return (settings: AgentTaskSettings, field: keyof AgentTaskSettings) => {
     const currentRevision = ++revision.current;
-    setSettingsOverride({ scope: routeScope, settings });
+    const permissionChange =
+      field === "engineOptions" && settings.engineOptions?.engine === "claude";
+    if (!permissionChange) setSettingsOverride({ scope: routeScope, settings });
     setMutationError(null);
     // 只回退最新一次失败的选择，较早请求的错误不能覆盖用户后续修改。
-    void Promise.resolve(onSettingsChange(settings, field, fastModeSelected)).catch(
-      (error: unknown) => {
+    return Promise.resolve()
+      .then(() => onSettingsChange(settings, field, fastModeSelected))
+      .catch((error: unknown) => {
         if (isCurrentScope(routeScope) && revision.current === currentRevision) {
           setSettingsOverride(undefined);
           setMutationError(
             error instanceof Error ? error : new Error("Task settings update failed"),
           );
         }
-      },
-    );
+      });
   };
 }

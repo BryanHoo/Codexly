@@ -1,11 +1,13 @@
 import { Type, type Static } from "@sinclair/typebox";
 
+import { ClaudePermissionModeSchema } from "./agent-engine.js";
 import { ProjectRootPathSchema } from "./project-root.js";
 import { AgentTaskBaseSchema } from "./task-common.js";
 export { AgentTaskBaseSchema } from "./task-common.js";
 
 export const AgentThreadConfigurationSchema = Type.Object(
   {
+    permissionMode: Type.Optional(ClaudePermissionModeSchema),
     model: Type.Union([Type.String(), Type.Null()]),
     reasoningEffort: Type.Union([Type.String(), Type.Null()]),
   },

@@ -1,4 +1,4 @@
-import type { AgentEngine, AgentTask } from "@codexly/protocol";
+import type { AgentEngine, AgentTask, ClaudePermissionMode } from "@codexly/protocol";
 import type {
   AgentProvider,
   AgentProviderEventListener,
@@ -161,6 +161,9 @@ export class EngineProjectRouter implements AgentProvider {
     this.#subscriptions.clear();
   }
 
+  async updateTaskPermissionMode(id: string, mode: ClaudePermissionMode) {
+    return (await this.#method(id, "updateTaskPermissionMode"))(id, mode);
+  }
   async readTask(...args: Parameters<AgentProvider["readTask"]>) {
     return (await this.#method(args[0], "readTask"))(args[0], args[1]);
   }

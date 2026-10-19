@@ -1,3 +1,5 @@
+import { observePermissionMode } from "./permission-mode-observer.js";
+import type { ClaudeSessionGrants } from "./session-grants.js";
 import { ClaudeBackgroundTasks } from "./background-tasks.js";
 import { randomUUID } from "node:crypto";
 import type {
@@ -90,6 +92,7 @@ export interface Running {
   input: ReturnType<typeof createInput>;
   settingsKey: string;
   settings: ClaudeSessionSettings;
+  grants: ClaudeSessionGrants;
   timer?: ReturnType<typeof setInterval>;
   idleTimer?: ReturnType<typeof setTimeout> | undefined;
   idleTimeoutMs: number;
@@ -316,6 +319,15 @@ export async function consume(
       // SDK 自行消费后台通知或定时唤醒，不会再次经过 startTurn。
       // 仅主线程活动创建新的展示回合，子代理迟到消息仍归属原回合，且不伪造用户输入。
       const rootMessage = !value["parent_tool_use_id"] && !value["agent_id"];
+      // 原生 init/status 是主会话的权威模式；子代理模式不能覆盖聊天权限。
+      if (
+        rootMessage &&
+        message.type === "system" &&
+        (message.subtype === "init" || message.subtype === "status")
+      ) {
+        if (observePermissionMode(id, running, value["permissionMode"], emit))
+          await config.history.saveMetadata(id, running.projection.metadata());
+      }
       if (rootMessage && message.type === "system" && message.subtype === "session_state_changed")
         running.nativeRunning = message.state !== "idle";
       // 后台工具的审批也会发 requires_action，只保活，不能创建永远等不到 result 的空回合。

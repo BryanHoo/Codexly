@@ -180,9 +180,8 @@ export function useComposerSession({
   const promptSubmission = toPromptSkillSubmission(promptContent);
   const threadConfiguration = runtime?.metadata?.threadConfiguration;
   const activeSettings = useMemo(
-    () => settingsOverride?.scope === routeScope
-      ? settingsOverride.settings
-      : resolveThreadComposerSettings(settings, threadConfiguration),
+    () => resolveThreadComposerSettings(settings, threadConfiguration,
+      settingsOverride?.scope === routeScope ? settingsOverride.settings : undefined),
     [routeScope, settings, settingsOverride, threadConfiguration],
   );
   const composerMode = composerModeState?.scope === routeScope ? composerModeState.mode : undefined;

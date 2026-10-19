@@ -3,6 +3,7 @@ import { exportClaudeAttachment } from "./attachment-export.js";
 import { Value } from "@sinclair/typebox/value";
 import {
   AgentTurnOptionsSchema,
+  ClaudePermissionModeSchema,
   ReloadAgentMcpServersRequestSchema,
   SearchOccurrencesQuerySchema,
 } from "@codexly/protocol";
@@ -231,6 +232,11 @@ if (process.argv.includes("--version")) {
       }
       case "attachment.export":
         return exportClaudeAttachment(provider, id, String(params["attachmentId"]));
+      case "task.permissionMode":
+        if (!Value.Check(ClaudePermissionModeSchema, params["permissionMode"]))
+          throw new Error("Invalid Claude permission mode");
+        await provider.updateTaskPermissionMode(id, params["permissionMode"]);
+        return {};
       case "task.read": {
         // 校验通过即同步进入同一写队列；原生层按事件/响应帧顺序捕获项目序号。
         const read = await readTaskWithCheckpoint(

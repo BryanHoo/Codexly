@@ -1,3 +1,4 @@
+import { resolveActualClaudePermission } from "@codexly/frontend-core/engine-composer";
 import type {
   AgentCapabilities,
   AgentGlobalSettings,
@@ -27,13 +28,18 @@ export type ApprovalMode = SharedApprovalMode;
 export function resolveThreadComposerSettings(
   settings: AgentTaskSettings,
   configuration: AgentTaskSnapshot["threadConfiguration"],
+  override?: AgentTaskSettings,
 ): AgentTaskSettings {
-  // 续聊沿用原生线程模型；权限仍由应用设置决定，空字段独立回退。
+  if (override) return resolveActualClaudePermission(override, configuration);
+  // 模型独立回退；Claude 权限始终使用已确认状态，避免历史本地选择遮蔽原生模式。
   const model = configuration?.model ?? settings.model;
   const reasoningEffort = configuration?.reasoningEffort ?? settings.reasoningEffort;
-  return model === settings.model && reasoningEffort === settings.reasoningEffort
-    ? settings
-    : { ...settings, model, reasoningEffort };
+  return resolveActualClaudePermission(
+    model === settings.model && reasoningEffort === settings.reasoningEffort
+      ? settings
+      : { ...settings, model, reasoningEffort },
+    configuration,
+  );
 }
 
 export const LARGE_PASTE_CHARACTER_THRESHOLD = 1_000;

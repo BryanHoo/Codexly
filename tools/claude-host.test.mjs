@@ -276,9 +276,11 @@ test(
       };
     };
     let host = launch();
-    const waitEvent = async (type, after = 0) => {
+    const waitEvent = async (type, after = 0, matches = () => true) => {
       for (let i = 0; i < 400; i++) {
-        const event = host.events.slice(after).find((event) => event.type === type);
+        const event = host.events
+          .slice(after)
+          .find((event) => event.type === type && matches(event));
         if (event) return event;
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
@@ -330,7 +332,11 @@ test(
         { taskId: "task", input, options },
         scope,
       );
-      await waitEvent("task.metadata_changed");
+      await waitEvent(
+        "task.metadata_changed",
+        0,
+        (event) => event.payload.permissionMode === undefined,
+      );
       assert.equal(tasks.get("task").title, "编写验证文件");
       assert.ok(titleCalls > 0);
       const pending = (await waitEvent("pending_request.created")).payload.request;
@@ -630,6 +636,31 @@ test(
           completed.payload.turn.items,
         );
       }
+      // 桌面设置命令与真实 SDK Query 共用权限控制；确认后快照立即展示实际模式。
+      await host.request("task.permissionMode", { taskId: "task", permissionMode: "plan" }, scope);
+      assert.equal(
+        (await host.request("task.read", { taskId: "task" }, scope)).threadConfiguration
+          .permissionMode,
+        "plan",
+      );
+      await host.request(
+        "task.permissionMode",
+        { taskId: "task", permissionMode: "default" },
+        scope,
+      );
+      assert.equal(
+        (await host.request("task.read", { taskId: "task" }, scope)).threadConfiguration
+          .permissionMode,
+        "default",
+      );
+      await assert.rejects(
+        host.request(
+          "task.permissionMode",
+          { taskId: "task", permissionMode: "unknown-mode" },
+          scope,
+        ),
+        /Invalid Claude permission mode/,
+      );
       // 真实分发宿主按点击回复的原生 UUID 截断，并支持对重建 UUID 的分支再次分叉。
       const firstTurn = (await host.request("task.read", { taskId: "task" }, scope)).turns[0];
       const callsBeforeFork = calls;

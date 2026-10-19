@@ -37,7 +37,7 @@ export function ComposerApprovalControls({
           bypassPermissions: t("engine.permissionBypass"),
         }}
         onChange={(permissionMode) => {
-          void onSettingsChange(
+          return onSettingsChange(
             { ...settings, engineOptions: { engine: "claude", permissionMode } },
             "engineOptions",
           );

@@ -534,3 +534,71 @@ it("projects a real SDK Bash result into the shared command item", async () => {
     await rm(root, { recursive: true, force: true });
   }
 }, 35_000);
+
+it("observes real SDK autonomous plan entry from bypass mode and awaits a live mode change", async () => {
+  const root = await mkdtemp(join(tmpdir(), "claude-permission-contract-"));
+  const api = await localApi({ name: "EnterPlanMode", input: {} });
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, 25_000);
+  const inherited = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !/^(ANTHROPIC_|CLAUDE_|CLAUDECODE$)/u.test(key)),
+  );
+  const { createInput } = await import("./session.js");
+  const input = createInput();
+  const stream = query({
+    prompt: input,
+    options: {
+      cwd: root,
+      env: {
+        ...claudeEnvironment({ apiKey: "isolated-test-key", baseUrl: api.baseUrl }, inherited),
+        CLAUDE_CONFIG_DIR: join(root, "native"),
+      },
+      abortController: controller,
+      model: "claude-sonnet-4-6",
+      settingSources: [],
+      tools: ["EnterPlanMode"],
+      permissionMode: "bypassPermissions",
+      allowDangerouslySkipPermissions: true,
+      // EnterPlanMode 是交互工具；完全访问模式仍需宿主提供原生确认回调。
+      canUseTool: (_name, toolInput) =>
+        Promise.resolve({ behavior: "allow", updatedInput: toolInput }),
+      settings: { apiKeyHelper: "", forceLoginMethod: "console" },
+    },
+  });
+  input.send({
+    type: "user",
+    session_id: "",
+    parent_tool_use_id: null,
+    message: { role: "user", content: "Enter plan mode" },
+  });
+  const modes: string[] = [];
+  let changed = false;
+  try {
+    for await (const message of stream) {
+      if (
+        message.type === "system" &&
+        (message.subtype === "init" || message.subtype === "status") &&
+        message.permissionMode
+      ) {
+        modes.push(message.permissionMode);
+        if (message.permissionMode === "plan" && !changed) {
+          await stream.setPermissionMode("bypassPermissions");
+          changed = true;
+        }
+      }
+      if (message.type === "result") break;
+    }
+    expect(modes).toContain("bypassPermissions");
+    expect(modes).toContain("plan");
+    expect(changed).toBe(true);
+  } finally {
+    clearTimeout(timer);
+    input.close();
+    stream.close();
+    await stream.return();
+    await api.close();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 35_000);

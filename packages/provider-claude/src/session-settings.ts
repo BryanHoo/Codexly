@@ -63,7 +63,7 @@ export async function updateClaudeSessionSettings(
     await query.setPermissionMode(next.permissionMode);
     applied.permissionMode = next.permissionMode;
     // 只有 SDK 接受显式模式后才清除旧 acceptEdits 许可，避免恢复时重放失效授权。
-    grants.options(next.permissionMode);
+    grants.confirmMode(next.permissionMode);
   }
   if (
     applied.model !== next.model ||

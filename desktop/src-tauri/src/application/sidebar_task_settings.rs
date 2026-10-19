@@ -104,6 +104,13 @@ pub async fn update_task_settings(
         {
             return Err(AppError::Claude("Task engine options mismatch".into()));
         }
+        // 与 Web 共用宿主控制链路；SDK 拒绝时直接返回，不能先保存后等下一轮生效。
+        state.claude.request(
+            &app,
+            "task.permissionMode",
+            Some(super::claude_tasks::scope(&task)),
+            json!({"taskId": task_id, "permissionMode": settings.engine_options.as_ref().and_then(|value| value.get("permissionMode"))}),
+        ).await?;
         write_task_settings(
             &app.path()
                 .app_data_dir()

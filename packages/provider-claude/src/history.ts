@@ -3,7 +3,13 @@ import { constants, createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 import { appendFile, mkdir, open, opendir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentContextUsage, AgentMcpServer, AgentPlan, AgentTurn } from "@codexly/protocol";
+import type {
+  AgentContextUsage,
+  AgentMcpServer,
+  ClaudePermissionMode,
+  AgentPlan,
+  AgentTurn,
+} from "@codexly/protocol";
 import { ClaudeItemHistory } from "./item-history.js";
 import { HistoryRevisions } from "./history-revisions.js";
 import type { AgentItem } from "@codexly/protocol";
@@ -16,6 +22,8 @@ import type { ClaudeSummaryPage } from "./summary-history.js";
 export interface ClaudeTaskMetadata {
   /** true 表示已观察到原生会话；false 表示首次启动尚未收到 SDK 消息，缺省为旧版未知状态。 */
   sessionInitialized?: boolean;
+  /** 最后一次 SDK 确认的主会话权限，供断线及重新打开聊天恢复展示。 */
+  permissionMode?: ClaudePermissionMode;
   contextUsage: AgentContextUsage | null;
   plan: AgentPlan | null;
   /** 旧元数据无此字段；新任务工具需保留原生 ID，不能从展示文本推断关联。 */

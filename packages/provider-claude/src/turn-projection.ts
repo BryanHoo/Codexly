@@ -12,6 +12,7 @@ import {
   mapClaudeResultUsage,
   mapClaudePlan,
   publishClaudePlan,
+  publishClaudeUsage,
   publishClaudeMcpServers,
 } from "./observability.js";
 import type { AgentProviderEventListener } from "@codexly/core";
@@ -52,6 +53,7 @@ export class ClaudeTurnProjection {
   mcpServers: ClaudeTaskMetadata["mcpServers"] = [];
   mcpObservedAt: string | null = null;
   sessionInitialized = false;
+  permissionMode: ClaudeTaskMetadata["permissionMode"];
   persistence: AgentTurn["persistence"];
   #requestUsage: Record<string, unknown> = {};
   #messageId = "";
@@ -101,6 +103,7 @@ export class ClaudeTurnProjection {
   restoreMetadata(metadata: ClaudeTaskMetadata | undefined): void {
     if (!metadata) return;
     this.sessionInitialized = metadata.sessionInitialized === true;
+    this.permissionMode = metadata.permissionMode;
     this.contextUsage = metadata.contextUsage;
     this.plan = metadata.plan;
     this.#taskPlan.restore(metadata.planTasks);
@@ -111,6 +114,7 @@ export class ClaudeTurnProjection {
   metadata(): ClaudeTaskMetadata {
     return {
       sessionInitialized: this.sessionInitialized,
+      ...(this.permissionMode === undefined ? {} : { permissionMode: this.permissionMode }),
       contextUsage: this.contextUsage,
       plan: this.plan,
       planTasks: this.#taskPlan.snapshot(),
@@ -242,12 +246,7 @@ export class ClaudeTurnProjection {
     const changed = changedClaudeUsage(this.contextUsage, usage);
     if (!changed) return;
     this.contextUsage = changed;
-    this.#emit({
-      type: "usage.updated",
-      taskId: this.#taskId,
-      turnId: this.id,
-      payload: { usage: changed },
-    });
+    publishClaudeUsage(this.#taskId, this.id, changed, this.#emit);
   }
   #usage(value: unknown): void {
     const usage = mapClaudeUsage(value, this.contextUsage?.contextWindow ?? null);

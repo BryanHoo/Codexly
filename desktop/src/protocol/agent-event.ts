@@ -1,4 +1,5 @@
 import { Type, type Static, type TObject, type TProperties, type TSchema } from "@sinclair/typebox";
+import { ClaudePermissionModeSchema } from "@codexly/protocol";
 import {
   AgentEventEnvelopeProperties,
   CommandOutputDeltaEventSchema as SharedCommandOutputDeltaEventSchema,
@@ -129,7 +130,7 @@ export const TaskStatusUpdatedEventSchema = extendSharedEventSchema(
 
 export const TaskMetadataChangedEventSchema = createEventSchema({
   payload: Type.Object(
-    { title: Type.Optional(Type.String({ maxLength: 512, minLength: 1 })) },
+    { title: Type.Optional(Type.String({ maxLength: 512, minLength: 1 })), permissionMode: Type.Optional(ClaudePermissionModeSchema) },
     { additionalProperties: false },
   ),
   type: Type.Literal("task.metadata_changed"),
