@@ -206,8 +206,9 @@ export class ClaudeRuntime implements AgentEngineService {
           (mapped ? models.find((candidate) => candidate.value === mapped) : undefined);
         return {
           id,
+          // 两端统一只展示别名名称；映射目标仍用于匹配 SDK 能力，不拼入显示名称。
           displayName: mapped
-            ? `${id.charAt(0).toUpperCase()}${id.slice(1)} → ${mapped}`
+            ? `${id.charAt(0).toUpperCase()}${id.slice(1)}`
             : (model?.displayName ??
               configured.find((candidate) => candidate.id === id)?.name ??
               id),

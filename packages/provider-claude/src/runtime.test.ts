@@ -65,11 +65,9 @@ it("loads native SDK authentication, merges discovery and refreshes externally c
       { id: "max", description: "max" },
     ],
   });
-  // 映射只改变别名目标与展示，不能绕过 SDK 返回的可用目录添加受限模型。
+  // 映射只改变别名目标，展示保留简短名称，也不能绕过 SDK 目录添加受限模型。
   expect(a.models.data.map((model) => model.id)).toEqual(["sonnet"]);
-  expect(a.models.data.find((model) => model.id === "sonnet")?.displayName).toContain(
-    "gateway-sonnet",
-  );
+  expect(a.models.data.find((model) => model.id === "sonnet")?.displayName).toBe("Sonnet");
   expect(a.commands[0]?.name).toBe("review-project");
   expect(query).toHaveBeenCalledOnce();
   expect(close).toHaveBeenCalledOnce();
