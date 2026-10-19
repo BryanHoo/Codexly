@@ -1,6 +1,33 @@
 use crate::domain::runtime::CodexRuntimeInstallProgress;
 use std::path::{Path, PathBuf};
-use tokio::sync::Mutex;
+use tokio::{io::AsyncReadExt, sync::Mutex};
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ClaudeVersionManifest {
+    claude_code_version: String,
+}
+
+/// 关于页仅异步读取小清单；旧安装包或 legacy macOS 缺少资源时正常降级。
+pub(crate) async fn bundled_claude_version(resources: &Path) -> Option<String> {
+    // 不调用 prepare、不启动 Claude，也不读取或哈希大型二进制；损坏清单同样限制读取量。
+    const MAX_MANIFEST_BYTES: u64 = 16 * 1024;
+    let file = tokio::fs::File::open(resources.join("claude/manifest.json"))
+        .await
+        .ok()?;
+    let mut bytes = Vec::new();
+    file.take(MAX_MANIFEST_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .await
+        .ok()?;
+    if bytes.len() as u64 > MAX_MANIFEST_BYTES {
+        return None;
+    }
+    let manifest: ClaudeVersionManifest = serde_json::from_slice(&bytes).ok()?;
+    // 只接受完整的严格语义版本，不把 SDK 的 0.3.x 版本误作 CLI 版本回退。
+    semver::Version::parse(&manifest.claude_code_version).ok()?;
+    Some(manifest.claude_code_version)
+}
 
 pub(crate) type RuntimePaths = (PathBuf, PathBuf);
 #[derive(Default)]

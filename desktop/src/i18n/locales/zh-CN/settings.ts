@@ -5,6 +5,8 @@ export const settings = {
     checking: "正在检查",
     codeagentVersion: "Codexly 版本",
     codexVersion: "Codex 版本",
+    claudeVersion: "Claude 版本",
+    unknownVersion: "未知",
     current: "已是最新版本",
     diagnostics: "诊断日志",
     diagnosticsExported: "诊断日志已导出为 {{fileName}}",

@@ -143,6 +143,7 @@ describe("CodexlyClient settings and app routes", () => {
     const available = {
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "2.1.300",
       latestVersion: "1.4.0",
       releaseNotes: "### 新增\n\n- 添加在线更新。",
       status: "available" as const,
@@ -151,6 +152,7 @@ describe("CodexlyClient settings and app routes", () => {
     const installed = {
       appVersion: available.appVersion,
       codexVersion: available.codexVersion,
+      claudeVersion: available.claudeVersion,
       latestVersion: available.latestVersion,
       releaseNotes: null,
       status: "restart-required" as const,
@@ -190,6 +192,7 @@ describe("CodexlyClient settings and app routes", () => {
       jsonResponse({
         appVersion: "1.3.0",
         codexVersion: "0.163.0",
+        claudeVersion: "2.1.300",
         latestVersion: "latest",
         releaseNotes: null,
         status: "available",

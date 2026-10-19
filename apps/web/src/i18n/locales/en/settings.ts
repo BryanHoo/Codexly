@@ -32,6 +32,8 @@ export const settings = {
     checking: "Checking",
     codexlyVersion: "Codexly version",
     codexVersion: "Codex version",
+    claudeVersion: "Claude version",
+    unknownVersion: "Unknown",
     current: "Codexly is up to date",
     github: "Project GitHub",
     loading: "Checking for updates",

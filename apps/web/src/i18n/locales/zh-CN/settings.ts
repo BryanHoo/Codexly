@@ -29,6 +29,8 @@ export const settings = {
     checking: "正在检查",
     codexlyVersion: "Codexly 版本",
     codexVersion: "Codex 版本",
+    claudeVersion: "Claude 版本",
+    unknownVersion: "未知",
     current: "已是最新版本",
     github: "项目 GitHub",
     loading: "正在检查更新",

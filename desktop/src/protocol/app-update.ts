@@ -1,3 +1,4 @@
+import { ClaudeVersionSchema } from "@codexly/protocol";
 import { Type, type Static } from "@sinclair/typebox";
 
 const SemanticVersionSchema = Type.String({
@@ -18,6 +19,7 @@ export const AppInfoResponseSchema = Type.Object(
     appVersion: SemanticVersionSchema,
     changelogUrl: Type.String({ maxLength: 256, pattern: "^https://github\\.com/" }),
     codexVersion: SemanticVersionSchema,
+    claudeVersion: Type.Optional(ClaudeVersionSchema),
     latestVersion: Type.Union([SemanticVersionSchema, Type.Null()]),
     releaseNotes: Type.String({ maxLength: 32_768 }),
     releaseNotesVersion: SemanticVersionSchema,

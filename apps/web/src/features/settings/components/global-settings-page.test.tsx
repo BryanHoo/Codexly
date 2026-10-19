@@ -251,10 +251,11 @@ describe("GlobalSettingsPage", () => {
     expect(markup).not.toContain('aria-label="默认打开方式"');
   });
 
-  it("shows Codexly and Codex versions with an available update", async () => {
+  it("shows Codexly, Codex, and Claude versions with an available update", async () => {
     const appInfo: AppInfoResponse = {
       appVersion: "1.3.0",
       codexVersion: "0.163.0",
+      claudeVersion: "0.2.110",
       latestVersion: "1.4.0",
       releaseNotes: "### 新增\n\n- 添加在线更新。",
       status: "available" as const,
@@ -276,6 +277,12 @@ describe("GlobalSettingsPage", () => {
     expect(markup).toContain("1.3.0");
     expect(markup).toContain("Codex 版本");
     expect(markup).toContain("0.163.0");
+    expect(markup).toContain("Claude 版本");
+    expect(markup).toContain(
+      '<span class="font-mono text-body-small text-foreground">0.2.110</span>',
+    );
+    expect(markup.indexOf("Claude 版本")).toBeGreaterThan(markup.indexOf("Codex 版本"));
+    expect(markup.indexOf("Claude 版本")).toBeLessThan(markup.indexOf("项目 GitHub"));
     expect(markup).toContain("发现新版本 1.4.0");
     expect(markup).toContain("检查更新");
     expect(markup).toContain("更新日志");
@@ -291,6 +298,40 @@ describe("GlobalSettingsPage", () => {
     expect(markup).toContain("justify-self-start");
     expect(markup).toContain('<section id="settings-panel-about">');
   });
+
+  it.each(["zh-CN", "en"] as const)(
+    "localizes the Claude version and missing/null placeholders in %s",
+    async (language) => {
+      await changeAppLanguage(language);
+      const label = language === "en" ? "Claude version" : "Claude 版本";
+      const unknown = language === "en" ? "Unknown" : "未知";
+      // 分别覆盖正常版本、旧服务端省略字段和显式 null，避免两端协议升级时出现空白行。
+      for (const versionFields of [{ claudeVersion: "0.2.110" }, {}, { claudeVersion: null }]) {
+        const markup = await renderSettingsDialog(
+          <GlobalSettingsAbout
+            activeSection="about"
+            appInfo={{
+              appVersion: "1.3.0",
+              codexVersion: "0.163.0",
+              latestVersion: null,
+              releaseNotes: "",
+              status: "current",
+              updateAvailable: false,
+              ...versionFields,
+            }}
+            error={null}
+            isPending={false}
+            onRetry={vi.fn()}
+            onUpdate={vi.fn()}
+          />,
+        );
+        expect(markup).toContain(label);
+        expect(markup).toContain(
+          `<span class="font-mono text-body-small text-foreground">${versionFields.claudeVersion ?? unknown}</span>`,
+        );
+      }
+    },
+  );
 
   it("keeps About available when global settings fail to load", async () => {
     const markup = await renderSettingsDialog(

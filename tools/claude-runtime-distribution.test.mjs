@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { claudeNativeDistribution } from "./claude-native-package.mjs";
+import { readClaudeCodeVersion } from "./build-claude-host.mjs";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
@@ -21,11 +22,48 @@ test("generated distribution pins native and host dependencies independently", a
     await readFile(new URL("desktop/src-tauri/resources/claude/manifest.json", root)),
   );
   assert.equal(manifest.schemaVersion, 1);
+  assert.equal(
+    manifest.claudeCodeVersion,
+    await readClaudeCodeVersion(import.meta.resolve("@anthropic-ai/claude-agent-sdk")),
+  );
   assert.equal(manifest.native.version, manifest.sdkVersion);
   assert.match(manifest.native.integrity, /^[A-Za-z0-9+/]{86}==$/u);
   assert.match(manifest.native.url, /^https:\/\/registry.npmjs.org\//u);
   assert.equal(manifest.host.url, undefined);
   assert.match(manifest.host.sha256, /^[a-f0-9]{64}$/u);
+});
+
+test("Claude Code version comes from SDK metadata rather than the native package version", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "claude-code-version-"));
+  try {
+    const sdkEntry = pathToFileURL(join(directory, "sdk.mjs")).href;
+    await writeFile(
+      join(directory, "package.json"),
+      JSON.stringify({ version: "0.3.300", claudeCodeVersion: "2.1.300" }),
+    );
+    assert.equal(await readClaudeCodeVersion(sdkEntry), "2.1.300");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("Claude Code version reader rejects missing or damaged SDK metadata without falling back", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "claude-code-version-"));
+  try {
+    const sdkEntry = pathToFileURL(join(directory, "sdk.mjs")).href;
+    await assert.rejects(readClaudeCodeVersion(sdkEntry), { code: "ENOENT" });
+    for (const metadata of [
+      JSON.stringify({ version: "0.3.300" }),
+      JSON.stringify({ version: "0.3.300", claudeCodeVersion: null }),
+      JSON.stringify({ version: "0.3.300", claudeCodeVersion: "" }),
+      "{broken",
+    ]) {
+      await writeFile(join(directory, "package.json"), metadata);
+      await assert.rejects(readClaudeCodeVersion(sdkEntry));
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("SDK upgrades derive matching platform packages from the verified lockfile", async () => {

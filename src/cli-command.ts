@@ -18,6 +18,7 @@ import {
   createCodexWorkbenchPetProvider,
   locateCodexBinary,
   startCodexAppServer,
+  SUPPORTED_CODEX_VERSION,
   type CreateCodexWorkbenchPetProviderOptions,
   type CodexBinary,
   type CodexRpcClient,
@@ -33,7 +34,7 @@ import {
   type SqliteDatabaseDiagnostics,
 } from "@codexly/server";
 import packageManifest from "../package.json" with { type: "json" };
-import { createAppUpdateService } from "./app-update.js";
+import { createAppUpdateService, readClaudeCodeVersion } from "./app-update.js";
 import {
   parseStartOptions,
   CLI_COMMAND_HELP,
@@ -70,7 +71,6 @@ interface CliManagedProjectRepository extends ProjectRepository {
   migrateLegacyProjects(options: { recoverUnassigned: boolean }): Promise<void>;
   synchronize(): ReturnType<ProjectRepository["list"]>;
 }
-
 interface CreateRuntimeProviderInput {
   readTaskTitleModel: () => Promise<string>;
   codexHome?: string;
@@ -335,8 +335,12 @@ export async function runStart(
     const petProvider = dependencies.createPetProvider({ codexHome });
     const appUpdateService = createAppUpdateService({
       appVersion: dependencies.appVersion,
+      // 启动时只读一次小型清单，后续关于页请求复用当前进程实际使用的版本。
+      claudeVersion: await readClaudeCodeVersion(),
       get codexVersion() {
-        return runtime?.version ?? "";
+        // 冷启动时沿用桌面端的支持版本回退，避免空字符串导致整个版本响应校验失败。
+        const version = runtime?.version ?? SUPPORTED_CODEX_VERSION;
+        return version === "" ? SUPPORTED_CODEX_VERSION : version;
       },
     });
     server = await dependencies.createServer({

@@ -5,6 +5,8 @@ export const settings = {
     checking: "Checking",
     codeagentVersion: "Codexly version",
     codexVersion: "Codex version",
+    claudeVersion: "Claude version",
+    unknownVersion: "Unknown",
     current: "Codexly is up to date",
     diagnostics: "Diagnostics",
     diagnosticsExported: "Diagnostics exported as {{fileName}}",

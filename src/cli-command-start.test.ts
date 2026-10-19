@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { DEFAULT_GENERATION_MODEL } from "@codexly/protocol";
+import { AppInfoResponseSchema, DEFAULT_GENERATION_MODEL } from "@codexly/protocol";
+import { readFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
 import { runCli } from "./cli-command.js";
 import { createHarness } from "./cli-command.test-support.js";
@@ -16,6 +17,24 @@ describe("runCli startup", () => {
       await vi.waitFor(() => {
         expect(harness.serverListen).toHaveBeenCalledOnce();
       });
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 503 }));
+      const appInfo = await vi
+        .mocked(harness.dependencies.createServer)
+        .mock.calls[0]?.[0].readAppInfo?.();
+      const sdkManifest = JSON.parse(
+        await readFile(
+          new URL("./package.json", import.meta.resolve("@anthropic-ai/claude-agent-sdk")),
+          "utf8",
+        ),
+      ) as { claudeCodeVersion: string };
+      expect(appInfo).toMatchObject({
+        codexVersion: "0.163.0",
+        claudeVersion: sdkManifest.claudeCodeVersion,
+        status: "check-failed",
+      });
+      expect(appInfo?.codexVersion).toMatch(
+        new RegExp(AppInfoResponseSchema.properties.codexVersion.pattern ?? "(?!)"),
+      );
       expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
       expect(harness.dependencies.locateCodexBinary).not.toHaveBeenCalled();
       expect(

@@ -75,11 +75,20 @@ pub async fn install_codex_runtime(
 pub async fn get_app_info(app: AppHandle, state: State<'_, AppState>) -> Result<Value, AppError> {
     let app_version = env!("CARGO_PKG_VERSION");
     // 远程检查与本地运行时读取彼此独立，并发执行可避免叠加关于页等待时间。
-    let (update, codex_version) =
-        tokio::join!(check_for_update(app_version, &app), state.codex_version(),);
+    let claude_version = async {
+        // 清单读取是可选信息；资源路径不可用或旧包没有 Claude 时不影响关于页。
+        let resources = crate::infrastructure::bundled_runtime::root(&app).ok()?;
+        crate::infrastructure::claude_runtime::bundled_claude_version(&resources).await
+    };
+    let (update, codex_version, claude_version) = tokio::join!(
+        check_for_update(app_version, &app),
+        state.codex_version(),
+        claude_version,
+    );
     Ok(json!({
         "appVersion": app_version,
         "changelogUrl": CHANGELOG_URL,
+        "claudeVersion": claude_version,
         "codexVersion": codex_version.unwrap_or_else(|_| crate::infrastructure::codex::SUPPORTED_CODEX_VERSION.to_owned()),
         "latestVersion": update.latest_version,
         "releaseNotes": update.release_notes,

@@ -64,7 +64,7 @@ export const settingsSectionSearchKeys: Record<SettingsSectionId, readonly strin
     "agent.webSearch.label",
     "agent.modelVerbosity.label",
   ],
-  about: ["about.codexVersion", "about.update", "about.releaseNotes"],
+  about: ["about.codexVersion", "about.claudeVersion", "about.update", "about.releaseNotes"],
 };
 
 /** 一个引擎的连接、模型和个性化设置共用启用边界，不能从其他子菜单绕过准备。 */

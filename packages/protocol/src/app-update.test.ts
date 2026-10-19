@@ -71,6 +71,42 @@ describe("app update protocol", () => {
     ).toBe(false);
   });
 
+  it.each([undefined, null, "2.1.300", "2.1.300-beta.1+build.2"])(
+    "accepts Claude version %s in information and installation responses",
+    (claudeVersion) => {
+      const versions = {
+        appVersion: "1.3.0",
+        codexVersion: "0.163.0",
+        ...(claudeVersion === undefined ? {} : { claudeVersion }),
+        latestVersion: "1.4.0",
+        releaseNotes: null,
+        updateAvailable: false,
+      };
+      expect(Value.Check(AppInfoResponseSchema, { ...versions, status: "current" })).toBe(true);
+      expect(
+        Value.Check(InstallAppUpdateResponseSchema, { ...versions, status: "restart-required" }),
+      ).toBe(true);
+    },
+  );
+
+  it.each(["", "latest", "0.3", "2.1.300-beta.01", 300])(
+    "rejects malformed Claude version %s in both responses",
+    (claudeVersion) => {
+      const versions = {
+        appVersion: "1.3.0",
+        codexVersion: "0.163.0",
+        claudeVersion,
+        latestVersion: "1.4.0",
+        releaseNotes: null,
+        updateAvailable: false,
+      };
+      expect(Value.Check(AppInfoResponseSchema, { ...versions, status: "current" })).toBe(false);
+      expect(
+        Value.Check(InstallAppUpdateResponseSchema, { ...versions, status: "restart-required" }),
+      ).toBe(false);
+    },
+  );
+
   it("accepts only strict semantic versions for update installation", () => {
     expect(Value.Check(InstallAppUpdateRequestSchema, { version: "1.4.0" })).toBe(true);
     expect(Value.Check(InstallAppUpdateRequestSchema, { version: "latest" })).toBe(false);
