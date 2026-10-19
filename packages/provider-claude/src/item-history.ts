@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { access, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { HistoryRevisions } from "./history-revisions.js";
+import { renameStorageFile } from "./storage-rename.js";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const missing = (error: unknown) =>
@@ -51,7 +52,7 @@ export class ClaudeItemHistory {
     const temporary = `${path}.${randomUUID()}.tmp`;
     try {
       await writeFile(temporary, JSON.stringify(value), { mode: 0o600 });
-      await rename(temporary, path);
+      await renameStorageFile(temporary, path);
     } finally {
       await rm(temporary, { force: true });
     }

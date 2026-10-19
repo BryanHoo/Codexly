@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { renameStorageFile } from "./storage-rename.js";
 import { join } from "node:path";
 import { copyClaudeStorage } from "./storage-copy.js";
 import type { AgentProviderTurnInput } from "@codexly/core";
@@ -39,7 +40,7 @@ export class ClaudeAttachments {
       const temporary = `${path}.${randomUUID()}.tmp`;
       try {
         await writeFile(temporary, JSON.stringify(metadata), { mode: 0o600 });
-        await rename(temporary, path);
+        await renameStorageFile(temporary, path);
         this.store.markPersisted(taskId, metadata.attachment.id);
       } finally {
         await rm(temporary, { force: true });
