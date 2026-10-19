@@ -178,8 +178,7 @@ export abstract class CodexAgentProviderBase {
         return true;
       }
       if (event.type === "task.status_updated") {
-        if (event.payload.status === "running") this.runtime.runningTaskIds.add(event.taskId);
-        else this.runtime.runningTaskIds.delete(event.taskId);
+        this.runtime.recordTaskRunning(event.taskId, event.payload.status === "running");
       }
       this.routeEvent(event);
       if (event.type === "task.removed") {

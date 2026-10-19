@@ -84,105 +84,105 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
     }
     return task;
   }
-
   public async startTurn(
     taskId: string,
     input: AgentProviderTurnInput,
     options: AgentTurnOptions,
   ): Promise<AgentTurn> {
-    this.assertKnownProjectTask(taskId);
-    await this.resumeTask(taskId);
-    if (options.goalMode === true) {
-      if (
-        input.files.length > 0 ||
-        input.images.length > 0 ||
-        input.skills.length > 0 ||
-        input.textAttachments.length > 0
-      ) {
-        // thread/goal/set 只接受目标文本，禁止把结构化输入无提示地丢弃。
-        throw new CodexProtocolMappingError(
-          "Codex goals do not support structured attachments or skills",
-        );
-      }
-      const objective = input.text.trim();
-      if (objective.length === 0 || objective.length > 4_000) {
-        throw new CodexProtocolMappingError(
-          "Codex goal objective must contain between 1 and 4000 characters",
-        );
-      }
-      let resolveStartedTurn: (turn: AgentTurn) => void = () => undefined;
-      const startedTurn = new Promise<AgentTurn>((resolve) => {
-        resolveStartedTurn = resolve;
-      });
-      const listener: AgentProviderEventListener = (event) => {
-        if (event.taskId === taskId && event.type === "turn.started") {
-          resolveStartedTurn(event.payload.turn);
+    return this.runtime.withTaskStart(taskId, async () => {
+      this.assertKnownProjectTask(taskId);
+      await this.resumeTask(taskId);
+      if (options.goalMode === true) {
+        if (
+          input.files.length > 0 ||
+          input.images.length > 0 ||
+          input.skills.length > 0 ||
+          input.textAttachments.length > 0
+        ) {
+          // thread/goal/set 只接受目标文本，禁止把结构化输入无提示地丢弃。
+          throw new CodexProtocolMappingError(
+            "Codex goals do not support structured attachments or skills",
+          );
         }
-      };
-      this.eventListeners.add(listener);
-      let timeout: ReturnType<typeof setTimeout> | undefined;
-      try {
-        expectRecord(
-          await this.client.request("thread/settings/update", {
-            ...mapCodexTurnSettings(options),
-            threadId: taskId,
-          }),
-          "thread/settings/update response",
-        );
-        const goalResponse = expectRecord(
-          await this.client.request("thread/goal/set", {
-            objective,
-            // 显式标记用户目标操作，让 Codex 在恢复执行前持久化用户指令。
-            origin: "user",
-            status: "active",
-            threadId: taskId,
-          }),
-          "thread/goal/set response",
-        );
-        const goal = mapCodexGoal(goalResponse["goal"], taskId);
-        // Goal 会自动启动首个 Turn；校验持久目标后等待对应的启动通知。
-        if (goal.objective !== objective) {
-          throw new CodexProtocolMappingError("thread/goal/set returned an unexpected goal");
+        const objective = input.text.trim();
+        if (objective.length === 0 || objective.length > 4_000) {
+          throw new CodexProtocolMappingError(
+            "Codex goal objective must contain between 1 and 4000 characters",
+          );
         }
-        const timeoutTurn = new Promise<never>((_, reject) => {
-          timeout = setTimeout(() => {
-            reject(new CodexProtocolMappingError("thread/goal/set did not start a turn"));
-          }, 30_000);
-          timeout.unref();
+        let resolveStartedTurn: (turn: AgentTurn) => void = () => undefined;
+        const startedTurn = new Promise<AgentTurn>((resolve) => {
+          resolveStartedTurn = resolve;
         });
-        const turn = await Promise.race([startedTurn, timeoutTurn]);
-        this.taskTitles?.start(taskId, input);
-        return turn;
-      } finally {
-        this.eventListeners.delete(listener);
-        if (timeout !== undefined) {
-          clearTimeout(timeout);
+        const listener: AgentProviderEventListener = (event) => {
+          if (event.taskId === taskId && event.type === "turn.started") {
+            resolveStartedTurn(event.payload.turn);
+          }
+        };
+        this.eventListeners.add(listener);
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+          expectRecord(
+            await this.client.request("thread/settings/update", {
+              ...mapCodexTurnSettings(options),
+              threadId: taskId,
+            }),
+            "thread/settings/update response",
+          );
+          const goalResponse = expectRecord(
+            await this.client.request("thread/goal/set", {
+              objective,
+              // 显式标记用户目标操作，让 Codex 在恢复执行前持久化用户指令。
+              origin: "user",
+              status: "active",
+              threadId: taskId,
+            }),
+            "thread/goal/set response",
+          );
+          const goal = mapCodexGoal(goalResponse["goal"], taskId);
+          // Goal 会自动启动首个 Turn；校验持久目标后等待对应的启动通知。
+          if (goal.objective !== objective) {
+            throw new CodexProtocolMappingError("thread/goal/set returned an unexpected goal");
+          }
+          const timeoutTurn = new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => {
+              reject(new CodexProtocolMappingError("thread/goal/set did not start a turn"));
+            }, 30_000);
+            timeout.unref();
+          });
+          const turn = await Promise.race([startedTurn, timeoutTurn]);
+          this.taskTitles?.start(taskId, input);
+          return turn;
+        } finally {
+          this.eventListeners.delete(listener);
+          if (timeout !== undefined) {
+            clearTimeout(timeout);
+          }
         }
       }
-    }
-    const codexInput = await this.mapTurnInput(input);
-    const response = expectRecord(
-      await this.client.request("turn/start", {
-        // Codex collaboration mode 会粘附到 Thread；普通 Turn 必须显式恢复默认执行模式。
-        ...mapCodexTurnSettings(options),
-        input: codexInput,
-        ...(input.outputSchema === undefined ? {} : { outputSchema: input.outputSchema }),
-        threadId: taskId,
-      }),
-      "turn/start response",
-    );
-    const turn = await this.mapTaskAttachments(taskId, (image, text) =>
-      mapAgentTurn(response["turn"], image, text),
-    );
-    if (turn.status === "running") {
-      this.runtime.runningTaskIds.add(taskId);
-    }
-    const normalized = this.runtime.messageIdentities.snapshot(taskId, [turn])[0] ?? turn;
-    this.runtime.skillMessages.seed(taskId, [normalized]);
-    this.taskTitles?.start(taskId, input);
-    return normalized;
+      const codexInput = await this.mapTurnInput(input);
+      const response = expectRecord(
+        await this.client.request("turn/start", {
+          // Codex collaboration mode 会粘附到 Thread；普通 Turn 必须显式恢复默认执行模式。
+          ...mapCodexTurnSettings(options),
+          input: codexInput,
+          ...(input.outputSchema === undefined ? {} : { outputSchema: input.outputSchema }),
+          threadId: taskId,
+        }),
+        "turn/start response",
+      );
+      const turn = await this.mapTaskAttachments(taskId, (image, text) =>
+        mapAgentTurn(response["turn"], image, text),
+      );
+      if (turn.status === "running") {
+        this.runtime.recordTaskRunning(taskId, true);
+      }
+      const normalized = this.runtime.messageIdentities.snapshot(taskId, [turn])[0] ?? turn;
+      this.runtime.skillMessages.seed(taskId, [normalized]);
+      this.taskTitles?.start(taskId, input);
+      return normalized;
+    });
   }
-
   protected async readGoalResponse(taskId: string, rpc = this.client): Promise<AgentGoal | null> {
     const response = expectRecord(
       await rpc.request("thread/goal/get", { threadId: taskId }),

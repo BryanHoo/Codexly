@@ -33,6 +33,8 @@ export class TaskRuntimeState {
   public readonly resumedTaskIds = new Set<string>();
   public readonly resumePromises = new Map<string, Promise<void>>();
   public readonly runningTaskIds = new Set<string>();
+  public readonly pendingTaskStarts = new Map<string, number>();
+  public readonly taskActivityVersions = new Map<string, number>();
   public readonly unmaterializedTasks = new Map<string, AgentTask>();
   public readonly taskWorkspacePaths = new Map<string, string>();
 
@@ -64,11 +66,31 @@ export class TaskRuntimeState {
   public hasLifecycleObligations(taskId: string, hasPendingRequest: boolean): boolean {
     return (
       this.runningTaskIds.has(taskId) ||
+      this.pendingTaskStarts.has(taskId) ||
       this.pendingTaskReads.has(taskId) ||
       this.resumePromises.has(taskId) ||
       (this.pendingTaskServerRequests.get(taskId)?.length ?? 0) > 0 ||
       hasPendingRequest
     );
+  }
+
+  public recordTaskRunning(taskId: string, running: boolean): void {
+    // 实时状态的版本独立于历史读取，旧读取完成时不得撤销较新的执行/审批订阅。
+    this.taskActivityVersions.set(taskId, (this.taskActivityVersions.get(taskId) ?? 0) + 1);
+    if (running) this.runningTaskIds.add(taskId);
+    else this.runningTaskIds.delete(taskId);
+  }
+
+  public async withTaskStart<T>(taskId: string, start: () => Promise<T>): Promise<T> {
+    // 启动包含恢复、附件解析和 RPC 等待；整个区间都属于任务执行生命周期。
+    this.pendingTaskStarts.set(taskId, (this.pendingTaskStarts.get(taskId) ?? 0) + 1);
+    try {
+      return await start();
+    } finally {
+      const remaining = (this.pendingTaskStarts.get(taskId) ?? 1) - 1;
+      if (remaining > 0) this.pendingTaskStarts.set(taskId, remaining);
+      else this.pendingTaskStarts.delete(taskId);
+    }
   }
 
   public clearTask(taskId: string): void {
@@ -97,6 +119,8 @@ export class TaskRuntimeState {
     this.resumedTaskIds.delete(taskId);
     this.resumePromises.delete(taskId);
     this.runningTaskIds.delete(taskId);
+    this.pendingTaskStarts.delete(taskId);
+    this.taskActivityVersions.delete(taskId);
     this.unmaterializedTasks.delete(taskId);
     this.taskWorkspacePaths.delete(taskId);
   }
@@ -122,6 +146,8 @@ export class TaskRuntimeState {
     this.resumedTaskIds.clear();
     this.resumePromises.clear();
     this.runningTaskIds.clear();
+    this.pendingTaskStarts.clear();
+    this.taskActivityVersions.clear();
     this.unmaterializedTasks.clear();
     this.taskWorkspacePaths.clear();
   }

@@ -254,10 +254,10 @@ export class CodexAgentProviderEvents extends CodexAgentProviderTaskResume {
     }
     this.runtime.retainSnapshotEvent(event);
     if (event.type === "turn.started") {
-      this.runtime.runningTaskIds.add(event.taskId);
+      this.runtime.recordTaskRunning(event.taskId, true);
     }
     if (event.type === "turn.completed") {
-      this.runtime.runningTaskIds.delete(event.taskId);
+      this.runtime.recordTaskRunning(event.taskId, false);
       this.runtime.activeReviewTargets.delete(event.taskId);
       this.runtime.activeReviewTurnIds.delete(event.taskId);
       this.runtime.activeReviewWorkerTaskIds.delete(event.taskId);

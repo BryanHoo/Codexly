@@ -1,5 +1,7 @@
 # 共享 UI
 
+- 两端异步任务启动响应始终更新原任务缓存与运行状态，但选中任务和导航必须受 `core/use-current-view` 的视图身份约束。切换、卸载或离开后返回同一路由，都不能让旧请求抢回当前页面；通过 Chrome CDP 验证新任务发送后立即切走、响应返回后页面不变且任务在后台继续运行。
+
 - 语言支持以 `agent/code-languages.ts` 为准。Web、桌面及 Legacy 构建共用 `tools/project-language-plugin.mjs`，在打包前裁剪依赖语言映射和 Markdown/MDX 未注册的内嵌规则，避免第三方完整语言表恢复已移除的支持；普通围栏保留纯文本回退。根目录 `pnpm test:highlight` 覆盖映射、规则引用与正则保留，联合发布必须执行。
 
 `@codexly/ui` 存放 Web 与桌面端视觉和交互一致的 React 控件。各端现有组件路径可用薄导出维持调用点，但组件实现只保留在 `packages/ui/src/`。

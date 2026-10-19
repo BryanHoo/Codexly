@@ -64,6 +64,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
     taskId: string,
     input: ReadAgentTaskInput = {},
   ): Promise<AgentProviderTaskSnapshot | undefined> {
+    const activityVersion = this.runtime.taskActivityVersions.get(taskId);
     input.signal?.throwIfAborted();
     // 为本次读取派生 RPC 视图；历史分页、审查子会话和目标 RPC 共用同一取消信号。
     const client: CodexRpcClient = {
@@ -209,10 +210,8 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
         this.runtime.activeReviewTurnIds.set(taskId, runningReviewTurn.id);
         this.runtime.activeReviewWorkerTaskIds.add(taskId);
       }
-      if (status === "running") {
-        this.runtime.runningTaskIds.add(taskId);
-      } else {
-        this.runtime.runningTaskIds.delete(taskId);
+      if (this.runtime.taskActivityVersions.get(taskId) === activityVersion) {
+        this.runtime.recordTaskRunning(taskId, status === "running");
       }
       const snapshot: AgentProviderTaskSnapshot = {
         ...task,

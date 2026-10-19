@@ -1,5 +1,7 @@
 # Fastify 服务端
 
+- 任务提交的订阅保护必须覆盖归属校验、模型校验、设置保存、附件准备和启动请求的完整区间；前台切走不能释放正在准备发送的任务。若退订已先开始，提交应等待其结束后重新校验归属。保护按任务隔离并在成功/失败后释放，空闲条目立即删除；回归覆盖 `app-submissions.test.ts` 和 `task-execution-lifecycle.test.ts`。
+
 `packages/server/src/app.ts` 创建服务并注册 `routes/`；`server-delivery.ts` 配置交付层，`project-runtime-context.ts` 组织项目运行时。SQLite 仓储和 Worker 在 `sqlite-*` 文件中，Codex Provider 通过 `CreateCodexlyServerOptions` 注入。
 
 - 入队与附件保留共用任务执行锁；入队完成后检查空闲并续发，覆盖入队晚于回合终态事件的竞态。续发属于同次幂等操作，重放不得消费下一项；入队已持久化后投递失败不得误报入队失败。自动续发不能 steer 运行中的回合。

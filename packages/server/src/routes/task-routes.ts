@@ -24,6 +24,7 @@ import {
 import { listTaskCatalog } from "@codexly/core";
 import type { FastifyPluginCallback } from "fastify";
 import { registerTaskSnapshotRoute } from "./task-snapshot-route.js";
+import { unsubscribeIdleTask } from "../task-execution-lifecycle.js";
 import { MutationHttpError, toMcpProviderHttpError, type ServerRouteContext } from "./context.js";
 import {
   ErrorResponseSchema,
@@ -100,7 +101,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
         return reply.code(404).send({ code: "PROJECT_NOT_FOUND", message: "Project not found" });
       }
       // Provider 内部再次确认运行 Turn、Pending Request、后台终端和恢复 Promise。
-      const status = await context.provider.unsubscribeTask(request.params.taskId);
+      const status = await unsubscribeIdleTask(context, request.params.taskId);
       return { status, taskId: request.params.taskId };
     },
   );

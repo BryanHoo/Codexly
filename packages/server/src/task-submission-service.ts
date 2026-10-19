@@ -7,6 +7,7 @@ import {
 import type { SubmitTaskRequest } from "@codexly/protocol";
 import { ProjectRootScopeError, resolveProjectRoot } from "./project-root-scope.js";
 import { MutationHttpError, type ServerRouteContext } from "./routes/context.js";
+import { retainTaskExecution } from "./task-execution-lifecycle.js";
 
 export function createMemorySubmissionRepository(capacity: number): TaskSubmissionRepository {
   const records = new Map<string, TaskSubmissionRecord>();
@@ -41,6 +42,8 @@ export async function executeTaskSubmission(
     throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
   let workspacePath: string | undefined;
   let prepared: Awaited<ReturnType<ServerRouteContext["resolveProviderTurnInput"]>> | undefined;
+  let release =
+    input.taskId === undefined ? undefined : await retainTaskExecution(runtime, input.taskId);
   try {
     return await submitTask(repository, projectId, key, context.fingerprintPayload(input), input, {
       validate: async () => {
@@ -87,6 +90,8 @@ export async function executeTaskSubmission(
             })
           : runtime.provider.startTask(),
       prepare: async (taskId) => {
+        // 新任务或失败恢复直到这里才拿到 ID，也必须覆盖设置和附件准备阶段。
+        release ??= await retainTaskExecution(runtime, taskId);
         const settings =
           input.type === "prompt"
             ? input.options
@@ -128,5 +133,7 @@ export async function executeTaskSubmission(
     if (error instanceof TaskSubmissionError)
       throw new MutationHttpError(error.code, error.message, 409);
     throw error;
+  } finally {
+    release?.();
   }
 }

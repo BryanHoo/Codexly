@@ -1,5 +1,7 @@
 # Codex 集成
 
+- Turn 启动期间（包括恢复与 RPC 等待）属于订阅生命周期，不能因视图切换退订；历史读取只能在运行状态版本未改变时更新活动标记，不能覆盖读取期间到达的实时开始/结束事件。回归用延迟启动响应、延迟历史读取和后台审批交付覆盖 `agent-provider-background-lifecycle.test.ts`。
+
 `packages/provider-codex/src/` 实现 `packages/core/src/agent-provider.ts` 所定义的 Provider 能力，并使用公共协议向服务端交付事件与结果。
 
 - Codex 版本与协议基线以根目录 `package.json`、`schemas/codex-app-server/` 为准；升级时运行 `pnpm codex:schema:check`。

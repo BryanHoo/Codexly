@@ -1,3 +1,4 @@
+import { retainTaskExecution } from "../task-execution-lifecycle.js";
 import { readLocalTaskCreationSettings } from "../task-creation-settings.js";
 import { PendingRequestResolutionError } from "@codexly/core";
 import {
@@ -238,43 +239,52 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
           if (context === undefined) {
             throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
           }
-          const task = await context.provider.readTask(request.params.taskId);
-          if (task?.projectId !== context.scope.id) {
-            throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
+          const release = await retainTaskExecution(context, request.params.taskId);
+          try {
+            const task = await context.provider.readTask(request.params.taskId);
+            if (task?.projectId !== context.scope.id) {
+              throw new MutationHttpError("TASK_NOT_FOUND", "Task not found", 404);
+            }
+            const { attachmentIds, providerInput } = await resolveProviderTurnInput(
+              request.params.projectId,
+              request.body.input,
+              context.provider,
+              request.params.taskId,
+            );
+            const turnOptions = request.body.options;
+            if (
+              turnOptions.engineOptions &&
+              turnOptions.engineOptions.engine !== (task.engine ?? "codex")
+            )
+              throw new MutationHttpError(
+                "INVALID_REQUEST",
+                "Options belong to another engine",
+                400,
+              );
+            assertValidProjectDefaults(await listModels(task.engine), turnOptions);
+            // Turn 设置先落库，Provider 成功或进程退出后都能恢复用户最后一次完整选择。
+            await settingsRepository.writeTaskSettings(
+              request.params.projectId,
+              request.params.taskId,
+              turnOptions,
+            );
+            // 先固定事件起点，首轮启动期间产生的事件由前端从该位置完整回放。
+            const checkpoint = context.eventStream.checkpoint;
+            const turn = await context.provider.startTurn(
+              request.params.taskId,
+              providerInput,
+              turnOptions,
+            );
+            // 只有 Provider 确认启动成功后才消费附件，网络失败仍允许原请求重试。
+            await attachmentStore.consume(
+              request.params.projectId,
+              attachmentIds,
+              turn.status === "running" ? turn.id : undefined,
+            );
+            return { checkpoint, turn };
+          } finally {
+            release();
           }
-          const { attachmentIds, providerInput } = await resolveProviderTurnInput(
-            request.params.projectId,
-            request.body.input,
-            context.provider,
-            request.params.taskId,
-          );
-          const turnOptions = request.body.options;
-          if (
-            turnOptions.engineOptions &&
-            turnOptions.engineOptions.engine !== (task.engine ?? "codex")
-          )
-            throw new MutationHttpError("INVALID_REQUEST", "Options belong to another engine", 400);
-          assertValidProjectDefaults(await listModels(task.engine), turnOptions);
-          // Turn 设置先落库，Provider 成功或进程退出后都能恢复用户最后一次完整选择。
-          await settingsRepository.writeTaskSettings(
-            request.params.projectId,
-            request.params.taskId,
-            turnOptions,
-          );
-          // 先固定事件起点，首轮启动期间产生的事件由前端从该位置完整回放。
-          const checkpoint = context.eventStream.checkpoint;
-          const turn = await context.provider.startTurn(
-            request.params.taskId,
-            providerInput,
-            turnOptions,
-          );
-          // 只有 Provider 确认启动成功后才消费附件，网络失败仍允许原请求重试。
-          await attachmentStore.consume(
-            request.params.projectId,
-            attachmentIds,
-            turn.status === "running" ? turn.id : undefined,
-          );
-          return { checkpoint, turn };
         },
       );
       return reply.code(201).send({
