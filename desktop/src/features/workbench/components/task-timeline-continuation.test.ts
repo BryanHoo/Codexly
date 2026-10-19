@@ -99,3 +99,38 @@ describe("Claude automatic continuation replies", () => {
     expect(render("codex").match(/data-turn-processing-time/g)).toHaveLength(3);
   });
 });
+
+// 异常退出只能恢复终态，可能没有真实结束时间；重新进入和发送“继续”都不能让旧回合重新计时。
+describe.each(["codex", "claude"] as const)("%s recovered turn processing time", (engine) => {
+  it.each(["completed", "failed", "interrupted"] as const)(
+    "does not invent elapsed time for a %s turn without a completion timestamp",
+    (status) => {
+      const recovered: AgentTurn = { ...turns[0]!, status, completedAt: null };
+      const restored = render(engine, [recovered]);
+      expect(restored).not.toContain("<time ");
+      expect(restored).toContain('aria-label="展开执行过程"');
+
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-10-19T00:01:05Z"));
+        const next: AgentTurn = {
+          ...turns[0]!,
+          id: "continue-turn",
+          status: "running",
+          startedAt: "2026-10-19T00:01:00Z",
+          completedAt: null,
+          items: [
+            { id: "continue-input", type: "message", role: "user", text: "继续" },
+            { id: "continue-answer", type: "message", role: "assistant", text: "继续执行" },
+          ],
+        };
+        const resumed = render(engine, [recovered, next]);
+        expect(resumed.match(/<time /g)).toHaveLength(1);
+        expect(resumed).toContain('dateTime="PT5S"');
+        expect(resumed).toContain('aria-label="展开执行过程"');
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+});

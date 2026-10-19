@@ -72,6 +72,7 @@ export function StoredAssistantGroup({
     <Message from="assistant">
       {showProcessingTime ? (
         <TurnProcessingTime
+          status={turn.status}
           completedAt={turn.completedAt}
           startedAt={turn.startedAt}
           {...(processToggleAvailable

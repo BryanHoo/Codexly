@@ -1,3 +1,4 @@
+import type { TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
 import { HistoryProcess } from "@codexly/ui/core/history-process";
 import type { AgentTaskSnapshotResponse } from "@/protocol/index.js";
 import { useCallback, useState } from "react";
@@ -39,6 +40,6 @@ function ProcessItems({ store, projectId, taskId, turnId, onOpenFileDiff, onOpen
   return <StoredAssistantTimelineItems itemKeys={itemKeys} itemTimings={turn?.itemTimings} lastTurnItemKey={keys?.at(-1)} onOpenFileDiff={onOpenFileDiff} onOpenSourceFile={onOpenSourceFile} projectId={projectId} taskId={taskId} store={store} turnStatus="completed" />;
 }
 
-export function EmptyTurnProcessHistory(props: Parameters<typeof TurnProcessHistory>[0] & Readonly<{ startedAt: string | null; completedAt: string | null; onToggle: () => void }>) {
-  return <Message from="assistant"><TurnProcessingTime startedAt={props.startedAt} completedAt={props.completedAt} expanded={props.expanded} onToggle={props.onToggle} /><TurnProcessHistory {...props} /></Message>;
+export function EmptyTurnProcessHistory(props: Parameters<typeof TurnProcessHistory>[0] & TurnProcessingTiming & Readonly<{ onToggle: () => void }>) {
+  return <Message from="assistant"><TurnProcessingTime status={props.status} startedAt={props.startedAt} completedAt={props.completedAt} expanded={props.expanded} onToggle={props.onToggle} /><TurnProcessHistory {...props} /></Message>;
 }

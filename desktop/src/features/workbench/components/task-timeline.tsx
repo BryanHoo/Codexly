@@ -91,7 +91,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
         >
           <ConversationContent className="gap-6">
             {props.pendingPrompt === undefined ? <Message from="assistant">
-              <TurnProcessingTime completedAt={null} startedAt={props.submissionStartedAt} />
+              <TurnProcessingTime status="running" completedAt={null} startedAt={props.submissionStartedAt} />
               <RunningReplyStatus />
             </Message> : <PendingPromptDisplay prompt={props.pendingPrompt} startedAt={props.submissionStartedAt} />}
           </ConversationContent>

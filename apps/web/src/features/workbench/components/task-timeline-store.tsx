@@ -165,7 +165,11 @@ export function StoreTurnTimelineSection({
       )}
       {turn.status === "running" && !hasAssistantItems && !suppressEmptyRunningStatus ? (
         <Message from="assistant">
-          <TurnProcessingTime completedAt={turn.completedAt} startedAt={turn.startedAt} />
+          <TurnProcessingTime
+            status={turn.status}
+            completedAt={turn.completedAt}
+            startedAt={turn.startedAt}
+          />
           <div className="w-full space-y-4">
             <RunningReplyStatus />
           </div>
@@ -174,6 +178,7 @@ export function StoreTurnTimelineSection({
       {!hasAssistantItems && turn.status !== "running" && processTurns.length > 0 ? (
         <Message from="assistant">
           <TurnProcessingTime
+            status={turn.status}
             startedAt={turn.startedAt}
             completedAt={turn.completedAt}
             expanded={processExpanded}
@@ -360,7 +365,11 @@ export function TaskStoreTimeline({
                         />
                       ) : (
                         <Message from="assistant">
-                          <TurnProcessingTime completedAt={null} startedAt={submissionStartedAt} />
+                          <TurnProcessingTime
+                            status="running"
+                            completedAt={null}
+                            startedAt={submissionStartedAt}
+                          />
                           <RunningReplyStatus />
                         </Message>
                       )

@@ -1,3 +1,4 @@
+import { resolveTurnProcessingTime, type TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
 import { ToolDuration } from "@codexly/ui/agent/tool-duration";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -209,12 +210,14 @@ export function TurnProcessingTime({
   expanded,
   onToggle,
   startedAt,
-}: Pick<AgentTurn, "completedAt" | "startedAt"> &
+  status,
+}: TurnProcessingTiming &
   Readonly<{ expanded?: boolean; onToggle?: () => void }>) {
   const [now, setNow] = useState(() => Date.now());
+  const { isRunning, totalSeconds } = resolveTurnProcessingTime({ status, startedAt, completedAt }, now);
 
   useEffect(() => {
-    if (startedAt === null || completedAt !== null) {
+    if (!isRunning) {
       return;
     }
 
@@ -224,13 +227,10 @@ export function TurnProcessingTime({
       () => setNow(Date.now()),
       TURN_PROCESSING_TIMER_INTERVAL_MS,
     );
-  }, [completedAt, startedAt]);
+  }, [isRunning, startedAt]);
 
-  const startedAtMs = startedAt === null ? Number.NaN : Date.parse(startedAt);
-  const endedAtMs = completedAt === null ? now : Date.parse(completedAt);
-  const hasDuration = Number.isFinite(startedAtMs) && Number.isFinite(endedAtMs);
-  if (!hasDuration && onToggle === undefined) return null;
-  const duration = hasDuration ? formatTurnProcessingDuration(Math.max(0, Math.floor((endedAtMs - startedAtMs) / 1_000))) : null;
+  if (totalSeconds === null && onToggle === undefined) return null;
+  const duration = totalSeconds === null ? null : formatTurnProcessingDuration(totalSeconds);
   const content = duration === null ? i18n.t(expanded ? "timeline.collapseProcess" : "timeline.expandProcess", { ns: "conversation" }) : (
     <><span>{i18n.t("timeline.processing", { ns: "conversation" })}&nbsp;</span><time dateTime={duration.dateTime}>{duration.label}</time></>
   );

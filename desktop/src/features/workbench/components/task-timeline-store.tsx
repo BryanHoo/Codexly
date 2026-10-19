@@ -157,13 +157,13 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
       {turn.status === "running" && (itemKeys.length > 0 || pendingSubmission) &&
       !hasAssistantItems ? (
         <Message from="assistant">
-          <TurnProcessingTime completedAt={null} startedAt={turn.startedAt} />
+          <TurnProcessingTime status={turn.status} completedAt={turn.completedAt} startedAt={turn.startedAt} />
           <RunningReplyStatus />
         </Message>
       ) : null}
       {!hasAssistantItems && turn.status !== "running" && processTurns.length > 0 ? (
         <Message from="assistant">
-          <TurnProcessingTime startedAt={turn.startedAt} completedAt={turn.completedAt}
+          <TurnProcessingTime status={turn.status} startedAt={turn.startedAt} completedAt={turn.completedAt}
             expanded={processExpanded} onToggle={() => { setProcessExpanded((value) => !value); }} />
           {processTurns.map((source) => <TurnProcessHistory key={source.id} expanded={processExpanded}
             initialCursor={source.processCursor ?? ""} projectId={projectId} taskId={taskId} turnId={source.id}
@@ -340,7 +340,7 @@ export function TaskStoreTimeline({
                 ) : null}
                 {showPendingFooter ? (
                   pendingPrompt === undefined ? <Message from="assistant">
-                    <TurnProcessingTime completedAt={null} startedAt={submissionStartedAt} />
+                    <TurnProcessingTime status="running" completedAt={null} startedAt={submissionStartedAt} />
                     <RunningReplyStatus />
                   </Message> : <PendingPromptDisplay prompt={pendingPrompt} startedAt={submissionStartedAt} />
                 ) : null}
