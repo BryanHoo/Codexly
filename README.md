@@ -8,7 +8,7 @@
   A local AI coding workspace for desktop and browser.
 </p>
 
-Codexly keeps coding tasks, conversations, project files, and Git work in one place. Choose the desktop app for a self-contained workspace or run the Web edition locally and open it from a browser, including on a mobile device on your trusted network. Your projects and Codex runtime stay on the computer running Codexly.
+Codexly keeps coding tasks, conversations, project files, and Git work in one place. Choose the desktop app for a self-contained workspace or run the Web edition locally and open it from a browser, including on a mobile device on your trusted network. Your projects and agent runtimes stay on the computer running Codexly.
 
 <p align="center">
   <a href="#get-codexly">Get Codexly</a>
@@ -29,13 +29,15 @@ Directories and tasks are managed locally by Codexly, with one disk folder per d
 | Desktop | A native workspace with an integrated terminal, task window, system notifications, and tray controls | [Download for Windows, Ubuntu, or macOS](https://github.com/BryanHoo/Codexly/releases) and follow the [desktop installation guide](desktop/docs/installation.en.md) |
 | Web     | A local browser workspace accessible from your computer or another device on a trusted LAN           | Install Node.js 24+ and [start the Web edition](#start-the-web-edition)                                                                                             |
 
-Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ (Apple Silicon or Intel), and a separate Legacy build for macOS 12.4+ Intel. See the [installation instructions](desktop/docs/installation.en.md) for setup steps and system prompts on each platform. The desktop app installs and verifies its own private Codex runtime on first launch.
+Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ (Apple Silicon or Intel), and a separate Legacy build for macOS 12.4+ Intel. See the [installation instructions](desktop/docs/installation.en.md) for setup steps and system prompts on each platform. Desktop packages include the target platform’s Codex and Claude runtimes, with no separate Node or Bun installation or first-launch runtime download. macOS Legacy provides Codex only.
 
 ## Web Preview
 
 ![Codexly preview](docs/images/codexly-preview.png)
 
 ## Features
+
+- Choose Codex or Claude for each task and enable either engine independently, with shared chat, tool approvals, attachments, plans, subagents, message queues, and scheduled tasks. Claude also supports live steering, session forks, and compaction. See [agent engines and connections](docs/agent-engines.md).
 
 - Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive, with file edit timing and completion summaries; keep follow-up messages in a persistent queue.
 - Load recent conversation history first, fetch older turns from the top, and load execution details independently when expanding a process; long code previews use shared rendering and bounded highlighting. See [conversation loading and performance](docs/conversation-performance.md).
@@ -54,7 +56,7 @@ Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 1
 - Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work. Refresh official plugins to synchronize their state and report partial failures.
 - Request background compression of history files untouched for over 7 days under Settings → Agent → History storage. Web compresses server history; desktop compresses local history. Other Codex clients sharing that directory must support compressed history.
 
-**Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and an app-private Codex installation. It supports Windows, Ubuntu, and macOS, with an option in general settings to launch at system login. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
+**Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and bundled agent runtimes. It supports Windows, Ubuntu, and macOS, with an option in general settings to launch at system login. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
 
 **Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.163.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.163.0,<0.164.0`.
 
@@ -80,7 +82,7 @@ Run `codexly --version` to check the installed version, or `codexly <command> --
 
 Multiple Web instances can run from the same launch directory and share the same Codex Home; occupied ports are skipped automatically. The launch directory does not determine internal configuration or the temporary task directory. Temporary tasks use the user's home directory by default, or the first explicit `--workspace` root. Use different `--codex-home <directory>` values to isolate data.
 
-On first launch, sign in with ChatGPT or configure an OpenAI-compatible service that supports the Responses API and `GET /models`.
+On first launch, enable Codex, Claude, or both. For Codex, sign in with ChatGPT or configure an OpenAI-compatible service supporting the Responses API and `GET /models`. Claude can reuse existing local credentials or connect to an Anthropic Messages-compatible API using its URL and key; the app does not offer Claude account login. Claude-only setups do not require Codex configuration.
 Custom providers discover available models and preserve declared capabilities and reasoning levels. The reasoning menu stays hidden when the catalog declares no reasoning support. See [models and reasoning effort](docs/model-discovery.md).
 
 For regular use, install Codexly globally:

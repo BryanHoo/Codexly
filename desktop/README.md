@@ -26,6 +26,8 @@ Codexly 将 AI 编程任务、对话、审批、项目文件和 Git 操作集中
 
 ## 主要功能
 
+- 按任务选择 Codex 或 Claude，可单独启用任一引擎；Claude 支持本机配置与 API 连接、审批、子代理、历史恢复、运行中引导、分叉和压缩，详见[智能体引擎与连接](../docs/agent-engines.md)
+
 - 运行项目任务或临时任务，实时查看回复、命令、计划、审批和文件变更
 - 优先加载最近的会话历史，顶部按需读取更早回合，展开过程后独立加载执行条目；长代码预览使用与 Web 共用的有界高亮
 - 在独立透明小窗中持续查看任务输出，不占用主工作台空间
@@ -45,7 +47,7 @@ Codexly 将 AI 编程任务、对话、审批、项目文件和 Git 操作集中
 - 使用全局快捷键快速创建任务、切换区域和执行常用工作台操作
 - 使用可视化重复规则创建定时任务，按工作日、周末、星期或月份配置计划，并预览后续执行时间
 - 在「设置 → 智能体配置 → 历史文件存储」请求后台压缩超过 7 天未写入的历史；共用历史目录的其他 Codex 客户端需支持压缩格式
-- 自动安装并校验应用私有 Codex `0.163.0` 运行时，无需配置全局 Codex
+- 随安装包内置 Codex `0.163.0` 与 Claude 运行时，按需启动，无需另装 Node、Bun 或下载运行时；macOS Legacy 仅提供 Codex
 - 使用助手回复中的文件引用、代码审查评论与后续建议，点击建议后可在输入框继续编辑
 - 为每个任务选择模型、思考量、快速模式、审批方式和文件访问范围，并配置全局模型上下文窗口
 - 为自定义 Provider 在线发现模型并保留原生能力与思考档位；未声明推理能力时隐藏思考强度菜单，详见[模型与思考强度](../docs/model-discovery.md)
@@ -61,10 +63,10 @@ Codexly 将 AI 编程任务、对话、审批、项目文件和 Git 操作集中
 ## 快速开始
 
 1. 从 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载发布包，按[安装指南](./docs/installation.md)安装。
-2. 启动 Codexly，等待应用自动安装并校验私有 Codex 运行时。
+2. 启动 Codexly，选择启用 Codex、Claude 或两者并完成连接配置；已有本机 Claude 认证可直接复用。
 3. 添加项目或创建临时任务，开始使用。
 
-支持 Windows、Ubuntu 和 macOS；架构、最低系统版本及 Modern / Legacy 选择见安装指南。
+支持 Windows、Ubuntu 和 macOS；Windows 便携版为 ZIP，须完整解压并保留宿主与运行时目录。架构、最低系统版本及 Modern / Legacy 选择见安装指南。
 
 ## 使用方式
 
@@ -93,6 +95,7 @@ Codexly 将 AI 编程任务、对话、审批、项目文件和 Git 操作集中
 - [会话加载与性能](../docs/conversation-performance.md)
 - [Git 提交与推送](../docs/git-workflow.md)
 - [模型上下文窗口](../docs/model-context-window.md)
+- [智能体引擎与连接](../docs/agent-engines.md)
 
 ## 获取帮助
 

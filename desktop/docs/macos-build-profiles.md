@@ -2,10 +2,10 @@
 
 同一业务代码生成两档独立产物。Modern 的优化不以 Legacy 的最低能力为上限，CPU 架构与系统能力分别处理。
 
-| 档位 | 最低系统 / WebKit | 架构 | 前端目录 | 更新清单 |
-| --- | --- | --- | --- | --- |
-| Modern | macOS 14.5 / Safari 17.5 | Apple Silicon、Intel | `dist` | `latest.json` |
-| Legacy | macOS 12.4 / Safari 15.5 | Intel | `dist-legacy` | `latest-legacy.json` |
+| 档位   | 最低系统 / WebKit        | 架构                 | 前端目录      | 更新清单             |
+| ------ | ------------------------ | -------------------- | ------------- | -------------------- |
+| Modern | macOS 14.5 / Safari 17.5 | Apple Silicon、Intel | `dist`        | `latest.json`        |
+| Legacy | macOS 12.4 / Safari 15.5 | Intel                | `dist-legacy` | `latest-legacy.json` |
 
 最低系统是构建目标，不代表已经完成该版本的真机验收。当前自动检查能证明编译目标、产物隔离、主题切换与 API 补丁加载，不能把当前 Playwright WebKit 当作 Safari 15.5。
 
@@ -54,7 +54,7 @@ pnpm tauri:legacy --debug --no-bundle --no-sign --ci
 xcrun vtool -show-build src-tauri/target/legacy/x86_64-apple-darwin/debug/codexly
 ```
 
-发布前还需在 Intel macOS 12.4 真机验证：安装与首次启动、运行时安装、真实任务和 shell 命令、终端输入/缩放、浅色/深色主题、文件 Diff、大文件滚动、辅助窗口和桌面宠物，以及连续两个已签名版本之间的 Legacy 更新。Modern 在 Intel 和 Apple Silicon 上验证相同核心流程。构建成功或改变 User-Agent 都不能替代真机验证。
+发布前还需在 Intel macOS 12.4 真机验证：安装与首次启动、随包运行时解析及 Legacy 的 Codex 限制、真实任务和 shell 命令、终端输入/缩放、浅色/深色主题、文件 Diff、大文件滚动、辅助窗口和桌面宠物，以及连续两个已签名版本之间的 Legacy 更新。Modern 在 Intel 和 Apple Silicon 上验证相同核心流程。构建成功或改变 User-Agent 都不能替代真机验证。
 
 ## 依据
 

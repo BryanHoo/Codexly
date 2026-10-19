@@ -2,13 +2,13 @@
 
 1. Download the release artifact for your platform from [Releases](https://github.com/BryanHoo/Codexly/releases).
 2. Follow the platform-specific steps below to install and launch Codexly.
-3. Wait for the app to install and verify its private Codex runtime, then add a project and create a task.
+3. Enable Codex, Claude, or both and configure their connections, then add a project and create a task. Runtimes are bundled: no separate Node or Bun installation or first-launch download is needed. macOS Legacy supports Codex only. See [agent engines](../../docs/agent-engines.md).
 
 Older macOS releases and Windows or Ubuntu packages may display source or security warnings. Follow the instructions for your platform below. Supported platforms are:
 
 | Platform             | Architecture                | Package                        |
 | -------------------- | --------------------------- | ------------------------------ |
-| Windows 10/11        | x86_64                      | NSIS installer, portable EXE   |
+| Windows 10/11        | x86_64                      | NSIS installer, portable ZIP   |
 | Ubuntu 24.04+        | x86_64                      | DEB, AppImage                  |
 | macOS 14.5+ (Modern) | Apple Silicon, Intel x86_64 | app, DMG                       |
 | macOS 12.4+ (Legacy) | Intel x86_64                | app, DMG (`_legacy` filenames) |
@@ -19,22 +19,23 @@ Download only from this repository's [Releases](https://github.com/BryanHoo/Code
 
 ### Windows 10/11
 
-Windows offers an NSIS installer and a portable EXE. Choose the installer for automatic updates, run the downloaded `setup.exe`, and follow the prompts. Uninstall it through Windows Settings > Apps. The portable build requires manual EXE replacement for updates.
+Windows offers an NSIS installer and a portable ZIP. Choose the installer for automatic updates, run the downloaded `setup.exe`, and follow the prompts. Uninstall it through Windows Settings > Apps. To update a portable build, close the app and replace the complete extracted directory with the new version.
 
-For the portable build, rename the file to `Codexly.exe` and open PowerShell in the same directory:
+For the portable build, rename the ZIP to `Codexly.zip` and open PowerShell in the download directory. Unblock the archive before extracting it completely; keep `codexly.exe`, its sibling `claude-host.exe`, and the `runtime` directory together:
 
 ```powershell
-Unblock-File -Path ".\Codexly.exe"
-Start-Process -FilePath ".\Codexly.exe"
+Unblock-File -Path ".\Codexly.zip"
+Expand-Archive -Path ".\Codexly.zip" -DestinationPath ".\Codexly"
+Start-Process -FilePath ".\Codexly\codexly.exe"
 ```
 
 `Unblock-File` removes only this file's download marker. If SmartScreen still blocks it, verify the app name and download source in the system prompt, then select **More info > Run anyway**. Do not disable SmartScreen globally.
 
-To uninstall, close the app and delete the EXE:
+To uninstall the portable build, close the app and delete the complete extracted directory:
 
 ```powershell
 Stop-Process -Name "codexly" -Force -ErrorAction SilentlyContinue
-Remove-Item -Force ".\Codexly.exe"
+Remove-Item -Recurse -Force ".\Codexly"
 ```
 
 To also remove settings, attachments, and caches, run the following commands. This cannot be undone:

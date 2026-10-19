@@ -26,7 +26,9 @@ pnpm check
 pnpm tauri:local
 ```
 
-`pnpm tauri:local` 用于本地测试打包：跳过应用代码签名，并通过独立配置关闭自动更新产物生成，无需 `TAURI_SIGNING_PRIVATE_KEY`。macOS 生成 `.app` 和 `.dmg`，Windows 默认生成可直接运行的 EXE，Linux 沿用当前平台的打包目标。
+`pnpm tauri:local` 用于本地测试打包：跳过应用代码签名，并通过独立配置关闭自动更新产物生成，无需 `TAURI_SIGNING_PRIVATE_KEY`。macOS 生成 `.app` 和 `.dmg`，Windows 生成主程序，Linux 沿用当前平台的打包目标。Windows 免安装运行时须将主程序、同级 Claude 宿主与完整 `runtime` 资源目录一起分发，不能只复制 EXE。
+
+开发和打包前置命令会在仓库根目录运行 `pnpm build:desktop-runtime`，准备当前目标的 Codex、Claude 和独立宿主；首次构建需要获取锁定依赖。最终安装包直接使用内置运行时，终端用户无需 Node 或 Bun。资源布局及验证见[运行时分发](./provider-runtime-management.md)。
 
 正式签名构建仍使用 `pnpm tauri build`，需要提供与项目更新公钥匹配的 `TAURI_SIGNING_PRIVATE_KEY`。`--no-sign` 只跳过代码签名，不会关闭自动更新签名；不要为本地测试替换正式更新公钥。两类签名的用途见 [Tauri CLI](https://v2.tauri.app/reference/cli/) 与[更新插件文档](https://v2.tauri.app/plugin/updater/)。
 

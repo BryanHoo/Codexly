@@ -2,13 +2,13 @@
 
 1. 从 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载适合当前平台的发布包。
 2. 按照下方对应平台的步骤安装并启动 Codexly。
-3. 等待应用自动安装并校验私有 Codex 运行时，然后添加项目并创建任务。
+3. 选择启用 Codex、Claude 或两者并配置连接，然后添加项目并创建任务。安装包已内置运行时，无需另装 Node、Bun 或首次下载；macOS Legacy 仅支持 Codex。连接方式见[智能体引擎](../../docs/agent-engines.md)。
 
 历史 macOS 版本及 Windows、Ubuntu 安装包可能显示来源或安全提示，请按下方对应平台说明安装。支持平台如下：
 
 | 平台                  | 架构                        | 安装包                         |
 | --------------------- | --------------------------- | ------------------------------ |
-| Windows 10/11         | x86_64                      | NSIS 安装器、EXE（免安装）     |
+| Windows 10/11         | x86_64                      | NSIS 安装器、ZIP（免安装）     |
 | Ubuntu 24.04+         | x86_64                      | DEB、AppImage                  |
 | macOS 14.5+（Modern） | Apple Silicon、Intel x86_64 | app、DMG                       |
 | macOS 12.4+（Legacy） | Intel x86_64                | app、DMG（文件名含 `_legacy`） |
@@ -21,22 +21,23 @@ Legacy 使用独立构建和更新清单，部分视觉效果与 Diff 高亮简�
 
 ### Windows 10/11
 
-Windows 提供 NSIS 安装器和免安装 EXE。需要自动更新时选择安装器，运行下载的 `setup.exe` 并按提示安装；卸载时使用 Windows“设置 > 应用”。免安装版本不参与自动更新，升级时手动替换 EXE。
+Windows 提供 NSIS 安装器和免安装 ZIP。需要自动更新时选择安装器，运行下载的 `setup.exe` 并按提示安装；卸载时使用 Windows“设置 > 应用”。免安装版本不参与自动更新，升级时关闭应用并用新版完整解压目录替换旧目录。
 
-使用免安装版本时，下载后将文件重命名为 `Codexly.exe`，在文件所在目录打开 PowerShell：
+使用免安装版本时，将下载的 ZIP 重命名为 `Codexly.zip`，在下载目录打开 PowerShell。先解除压缩包的下载标记，再完整解压；保留 `codexly.exe`、同级 `claude-host.exe` 与 `runtime` 目录：
 
 ```powershell
-Unblock-File -Path ".\Codexly.exe"
-Start-Process -FilePath ".\Codexly.exe"
+Unblock-File -Path ".\Codexly.zip"
+Expand-Archive -Path ".\Codexly.zip" -DestinationPath ".\Codexly"
+Start-Process -FilePath ".\Codexly\codexly.exe"
 ```
 
 `Unblock-File` 只移除该文件的下载标记。如果 SmartScreen 仍然拦截，请在系统提示中检查应用名称与下载来源，然后选择“更多信息 > 仍要运行”；不要全局关闭 SmartScreen。
 
-卸载时关闭应用并删除 EXE：
+卸载便携版时，关闭应用并删除完整解压目录：
 
 ```powershell
 Stop-Process -Name "codexly" -Force -ErrorAction SilentlyContinue
-Remove-Item -Force ".\Codexly.exe"
+Remove-Item -Recurse -Force ".\Codexly"
 ```
 
 如需同时删除设置、附件和缓存，可继续执行以下命令。此操作不可恢复：

@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-Codexly 是本地 AI 编程工作台，提供桌面应用和 Web 版。它将编程任务、对话、项目文件与 Git 操作集中在一处。桌面版适合在本机持续工作；Web 版在本地运行，可通过浏览器从电脑或可信局域网中的移动设备访问。项目文件和 Codex 运行时始终留在运行 Codexly 的电脑上。
+Codexly 是本地 AI 编程工作台，提供桌面应用和 Web 版。它将编程任务、对话、项目文件与 Git 操作集中在一处。桌面版适合在本机持续工作；Web 版在本地运行，可通过浏览器从电脑或可信局域网中的移动设备访问。项目文件和智能体运行时始终留在运行 Codexly 的电脑上。
 
 目录和任务由 Codexly 自行管理，每个目录对应一个磁盘文件夹；旧数据首次启动时自动导入，详见[本地目录与任务](docs/local-catalog.md)。
 
@@ -13,9 +13,11 @@ Codexly 是本地 AI 编程工作台，提供桌面应用和 Web 版。它将编
 | 桌面版 | 原生工作台、集成终端、独立任务窗口、系统通知与托盘 | [下载 Windows、Ubuntu 或 macOS 安装包](https://github.com/BryanHoo/Codexly/releases)，按[桌面安装指南](desktop/docs/installation.md)安装 |
 | Web 版 | 本机浏览器工作台，或从可信局域网内的其他设备访问   | 安装 Node.js 24+，按[Web 版启动步骤](#启动-web-版)运行                                                                                   |
 
-桌面安装包支持 Windows 10/11 x64、Ubuntu 24.04+ x64、macOS 14.5+（Apple Silicon / Intel），并提供 macOS 12.4+ Intel 的 Legacy 版本。安装步骤与各平台的系统提示见[安装指南](desktop/docs/installation.md)。桌面版首次启动会自动安装并校验应用私有的 Codex 运行时。
+桌面安装包支持 Windows 10/11 x64、Ubuntu 24.04+ x64、macOS 14.5+（Apple Silicon / Intel），并提供 macOS 12.4+ Intel 的 Legacy 版本。安装步骤与各平台的系统提示见[安装指南](desktop/docs/installation.md)。桌面安装包已内置目标平台的 Codex 与 Claude 运行时，无需另装 Node、Bun 或首次启动下载；macOS Legacy 仅提供 Codex。
 
 ## 主要功能
+
+- 选择 Codex 或 Claude 处理任务，可单独启用任一引擎；共用聊天、工具审批、附件、任务计划、子代理、消息队列和定时任务。Claude 还支持运行中引导、会话分叉与压缩，详见[智能体引擎与连接](docs/agent-engines.md)。
 
 - 实时查看任务回复、命令、审批、推理摘要和文件变更，查看文件编辑耗时与完成汇总，并用持久化队列安排后续消息。
 - 优先加载最近的会话历史，顶部按需读取更早回合，展开过程后独立加载执行条目；长代码预览共用渲染与有界高亮。详见[会话加载与性能](docs/conversation-performance.md)。
@@ -34,7 +36,7 @@ Codexly 是本地 AI 编程工作台，提供桌面应用和 Web 版。它将编
 - 管理 Skills、插件、MCP 服务、项目、归档任务、通知与定时工作；刷新官方插件可同步状态，并提示部分失败。
 - 在「设置 → 智能体配置 → 历史文件存储」手动请求后台压缩超过 7 天未写入的历史；Web 作用于服务端，桌面端作用于本机。共用历史目录的其他 Codex 客户端需支持压缩格式。
 
-**桌面版**提供原生项目终端、全局快捷键、独立任务窗口、托盘集成和应用私有 Codex 安装。支持 Windows、Ubuntu 和 macOS；在通用设置中可启用登录系统后自动启动。完整功能与更新方式见[桌面版指南](desktop/README.md)。
+**桌面版**提供原生项目终端、全局快捷键、独立任务窗口、托盘集成和随包内置的智能体运行时。支持 Windows、Ubuntu 和 macOS；在通用设置中可启用登录系统后自动启动。完整功能与更新方式见[桌面版指南](desktop/README.md)。
 
 **Web 版**在本机运行服务并由浏览器访问，支持手机等设备从可信局域网接入、任务看板、Mermaid 图表和自定义工作台背景。Web 版通过 `@openai/codex` 自带 Codex CLI `0.163.0`；使用 `--codex-bin <path>` 或 `CODEXLY_CODEX_BIN` 指定外部版本时，版本必须满足 `>=0.163.0,<0.164.0`。
 
@@ -60,7 +62,7 @@ Codexly 会自动打开浏览器。若未打开，请访问终端输出的地址
 
 可以在同一启动目录或同一 Codex Home 下同时运行多个 Web 实例；端口占用时自动递增。启动目录不决定应用内部配置或临时任务目录：临时任务默认使用用户主目录，显式指定 `--workspace` 时使用首个工作区。使用不同的 `--codex-home <目录>` 可隔离数据。
 
-首次启动时，使用 ChatGPT 登录，或配置兼容 Responses API 和 `GET /models` 的 OpenAI-compatible 服务。
+首次启动时，选择启用 Codex、Claude 或两者。Codex 可使用 ChatGPT 登录，或配置兼容 Responses API 和 `GET /models` 的 OpenAI-compatible 服务；Claude 可复用本机已有认证，或填写兼容 Anthropic Messages API 的地址与密钥，不提供应用内 Claude 账号登录。仅启用 Claude 时无需配置 Codex。
 自定义 Provider 会发现可用模型，保留目录声明的能力与思考档位；未声明推理能力时隐藏思考强度菜单。详见[模型与思考强度](docs/model-discovery.md)。
 
 经常使用时可以全局安装：

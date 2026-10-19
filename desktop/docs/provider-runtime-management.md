@@ -1,69 +1,48 @@
-# Provider Runtime Manager
+# 智能体运行时分发
 
-## Codex 使用策略
+## 使用策略
 
-Codexly 只运行应用数据目录中的私有 Codex，不将二进制打包为 Tauri Sidecar。
-首次打开应用时自动检查；缺失、损坏或版本不符时自动下载安装当前应用要求的精确版本。
-正常启动不联网检查最新版本，版本由应用的 Provider 协议适配器固定为 `0.160.0`。
+从 `0.39.0` 起，桌面安装包内置目标平台的 Codex 与 Claude 运行时，直接从只读安装目录执行。首次启动不下载运行时，不要求用户安装 Node、Bun 或全局 CLI。Codex 固定为 `0.163.0`；Claude 使用锁定的 Agent SDK 与对应官方 CLI。macOS Legacy 仅包含 Codex，隐藏新建 Claude 入口。
 
-不扫描系统 `PATH`、官方安装目录、Node 版本管理器或全局包管理器，
-不接受 `CODEAGENT_CODEX_BIN` 覆盖，也不回退到全局 Codex。
-界面不提供全局安装命令或外部安装后的重新检测入口。
+首次配置可单独启用 Codex、Claude 或两者。应用按需启动所选引擎；仅启用 Claude 时，公共设置、项目文件、Git 和终端不启动 Codex。连接配置的行为见[智能体引擎与连接](../../docs/agent-engines.md)。
 
-## 私有目录
+运行时文件与用户数据分开。Codex 继续使用 `CODEX_HOME`，未配置时使用 `~/.codex`；Claude 使用 `CLAUDE_CONFIG_DIR`，未配置时使用 `~/.claude`。更新应用替换整套运行时，不覆盖用户认证与配置。
+
+## 构建与目录
+
+根目录 `pnpm build:desktop-runtime` 根据 Tauri 目标平台准备资源；`beforeDevCommand` 与 `beforeBuildCommand` 均调用该命令。构建只复制目标架构、运行所需辅助文件与许可证；交叉目标下载必须通过锁文件 SHA-512 校验。构建使用暂存目录后替换资源目录，避免混入上个目标的文件、缓存或压缩副本。
 
 ```text
-appData/providers/codex/
-├── bin/
-│   └── 0.160.0/
-│       └── bin/codex[.exe]
-└── active.json
+desktop/src-tauri/
+├── resources/runtime/
+│   ├── manifest.json
+│   ├── codex/              # 官方 vendor 布局、辅助文件和许可证
+│   └── claude/             # 官方 CLI、来源清单和许可证；Legacy 不包含
+└── binaries/
+    └── claude-host-<target>[.exe]
 ```
 
-应用启动程序的唯一入口是固定版本目录内的原生二进制。
-`active.json` 仅记录上次安装信息，用于展示更新前版本，不决定程序启动路径。
-正常检测不重写清单，也不要求清单存在。
+Codex 与 Claude 官方可执行文件保留原厂签名。自建 Claude 宿主由 Tauri `externalBin` 分发，参与桌面应用签名及 macOS 公证；同一适配器服务于 Web 与桌面宿主。
 
-私有隔离仅针对可执行文件。Codex 仍继承 `CODEX_HOME`，未配置时使用官方默认
-`~/.codex`，因此继续共享认证、项目、会话和配置。
+Windows 便携 ZIP 将 `codexly.exe`、`claude-host.exe` 与 `runtime/` 放在同级目录，必须完整解压使用。NSIS、DEB、AppImage、macOS app 与 DMG 使用各自的资源布局，由应用解析实际路径。安装步骤见[安装指南](./installation.md)。
 
-## 自动安装与更新
+## 启动、故障与性能
 
-1. 后端异步检查固定路径，使用有超时和输出上限的版本命令校验精确版本。
-2. 已安装版本正确时立即返回，不产生下载事件，也不访问下载源。
-3. 其余状态自动安装固定平台与架构的包，通过 Channel 推送准备、下载、校验安装和完成阶段。
-4. 下载前并行对官方源与镜像源的目标归档发送 HEAD 探测，优先使用最先成功响应的源；网络、大小或校验失败时切换一次备用源。探测均失败时按官方源优先尝试真实下载。
-5. 两个下载源都校验同一份固定官方 SHA-512 integrity，限制下载与解压总量，拒绝路径越界和非普通归档文件。
-6. 在同一文件系统的临时目录中解压、探测版本，再原子替换目标目录并更新清单。首次安装探测限时 10 秒，日常探测仍限时 3 秒；错误保留探测失败原因。
-7. 安装返回已验证的结果，前端直接进入工作台，无需额外 IPC 复检。
-8. 真正启动 app-server 时再次检查固定文件并完成协议握手。
-
-应用升级后按新适配器要求自动安装版本，不修改系统安装。
-失败时清理本次临时文件，原子目录切换失败时恢复原目录；不运行不兼容的旧版本。
-页面保留重试入口，下次打开应用也会自动重试。安装任务不会因进度 Channel 关闭而取消。
-
-## 下载边界
-
-- 只允许 HTTPS 标准端口的 `registry.npmmirror.com`、`cdn.npmmirror.com` 和 `registry.npmjs.org`。
-- 禁止 URL 凭据，最多允许三次重定向。
-- 并行探测总等待上限 3 秒，选源后取消未完成的探测，不下载探测响应体；仅在需要安装时探测，不增加日常启动联网。
-- 连接超时 8 秒，读取停滞超时 15 秒，镜像总超时 90 秒，官方源总超时 15 分钟。
-- 本地写入失败直接报错，不切源重复下载。
-- 切源时清空临时文件和下载字节数，事件序号继续递增。
-
-## 性能与界面
-
-- 同一 Provider 的启动安装与手动重试共用互斥锁，等待者复检私有文件后复用成功结果。
-- 后台进程已就绪时，窗口恢复只重连事件通道，跳过检测与安装。
-- Codex 检测不启动登录 shell；真正启动 app-server 时才恢复 MCP 和命令执行所需的工具 `PATH`。
-- 下载流式落盘并计算摘要；已知总量按整数百分比限流，未知总量按 MiB 限流。
-- 解压在阻塞线程池执行，避免占用异步运行时。
-- 首次安装和更新显示不同标题，展示实际进度；失败后阻止工作台进入并提供重试。
-- 不授予 WebView 通用 shell 权限，不接受前端传入可执行路径、下载源或安装参数。
+- 发行版只解析受控安装路径，不扫描系统 `PATH`，不回退到全局程序，也不接受前端传入执行文件路径。
+- 已就绪进程复用现有连接；只在实际使用引擎时启动其进程，不在每次启动时复制运行时或重算大文件摘要。
+- 文件缺失、损坏或资源目录不完整时提示修复安装，不尝试联网自动安装；重新安装完整发布包后可重试。
+- Claude 历史读取、stdio 帧、输出队列和会话缓存均有预算；空闲查询按生命周期回收，后台任务仍存活时保留其会话。
+- Web 继续通过 npm 包自己的固定 SDK 依赖运行；桌面资源不改变 Web 的 Node.js 环境要求。
 
 ## 验证
 
-运行 `pnpm check` 和运行时门禁的浏览器测试。
-网络集成测试 `private_codex_should_install_and_complete_real_app_server_lifecycle`
-在独立临时应用目录中验证首次自动下载、复用、私有进程启动和真实协议生命周期，
-需显式使用 `--ignored` 执行。
+在仓库根目录执行：
+
+```bash
+pnpm test:claude-host
+pnpm build:desktop-runtime
+node --test tools/desktop-runtime-bundle.test.mjs
+cargo test --manifest-path desktop/src-tauri/Cargo.toml --lib claude_runtime --locked
+```
+
+宿主测试通过本地模拟 API 验证真实 CLI 的审批、写入、重启与恢复，不使用真实账户额度。布局测试校验当前平台的实际产物、版本与排除项；跨平台构建与真实启动仍须通过联合发布的质量及原生 WebView 门禁。完整步骤见[联合发布指南](../../docs/releasing.md)。

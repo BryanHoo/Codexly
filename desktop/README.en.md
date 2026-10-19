@@ -26,6 +26,8 @@ Codexly manages directories and tasks in its local catalog, with one disk folder
 
 ## Features
 
+- Choose Codex or Claude per task and enable either independently; Claude supports local configuration and API connections, approvals, subagents, history recovery, live steering, forks, and compaction. See [agent engines and connections](../docs/agent-engines.md)
+
 - Run project or temporary tasks and follow responses, commands, plans, approvals, and file changes in real time
 - Load recent conversation history first, fetch older turns from the top, and load execution details independently when expanding a process; long code previews share bounded highlighting with the Web edition
 - Follow task output in a separate transparent window without occupying the main workspace
@@ -45,7 +47,7 @@ Codexly manages directories and tasks in its local catalog, with one disk folder
 - Use global shortcuts to create tasks, switch workspace areas, and perform common actions
 - Create scheduled tasks with visual recurrence rules for weekdays, weekends, weekly, or monthly schedules, then preview upcoming runs
 - Request background compression of history not written for more than 7 days under Settings → Agent Configuration → History File Storage; other Codex clients sharing the history directory must support the compressed format
-- Automatically install and verify an app-private Codex `0.163.0` runtime without requiring a global Codex setup
+- Use bundled Codex `0.163.0` and Claude runtimes on demand, without installing Node or Bun or downloading runtimes at startup; macOS Legacy provides Codex only
 - Follow file citations, code review comments, and follow-up suggestions in assistant responses; selecting a suggestion fills the composer for editing
 - Choose the model, reasoning effort, Fast mode, approval behavior, and file access for each task, and configure the global model context window
 - Discover custom-provider models and preserve native capabilities and reasoning levels; hide the reasoning menu when no reasoning support is declared. See [models and reasoning effort](../docs/model-discovery.md)
@@ -61,10 +63,10 @@ Codexly manages directories and tasks in its local catalog, with one disk folder
 ## Quick Start
 
 1. Download a package from [Releases](https://github.com/BryanHoo/Codexly/releases) and follow the [installation guide](./docs/installation.en.md).
-2. Launch Codexly and let it install and verify its private Codex runtime.
+2. Launch Codexly, enable Codex, Claude, or both, and configure their connections. Existing local Claude credentials can be reused.
 3. Add a project or create a temporary task to begin.
 
-Supports Windows, Ubuntu, and macOS. See the installation guide for architecture, minimum system versions, and Modern / Legacy package selection.
+Supports Windows, Ubuntu, and macOS. Extract the entire Windows portable ZIP and keep its host and runtime directories. See the installation guide for architecture, minimum system versions, and Modern / Legacy package selection.
 
 ## Usage
 
@@ -92,6 +94,7 @@ When the sidebar shows an update, click the version to read its release notes an
 - [Conversation loading and performance](../docs/conversation-performance.md)
 - [Commit and push](../docs/git-workflow.md)
 - [Model context window](../docs/model-context-window.md)
+- [Agent engines and connections](../docs/agent-engines.md)
 
 ## Help
 

@@ -9,15 +9,16 @@
 
 | 平台         | 目标                        | 包格式                | 最低基线                                 |
 | ------------ | --------------------------- | --------------------- | ---------------------------------------- |
-| Windows      | x86_64                      | EXE（免安装）、NSIS   | Windows 10/11，使用系统 WebView2 Runtime |
+| Windows      | x86_64                      | ZIP（免安装）、NSIS   | Windows 10/11，使用系统 WebView2 Runtime |
 | Ubuntu       | x86_64                      | DEB、AppImage         | Ubuntu 24.04 LTS+                        |
 | macOS Modern | Apple Silicon、Intel x86_64 | app、DMG              | macOS 14.5+                              |
 | macOS Legacy | Intel x86_64                | app、DMG（`_legacy`） | macOS 12.4+，需真机验收                  |
 
-Windows 同时发布两种产物：按 `tauri build --no-bundle --no-sign` 生成的 `portable.exe` 用于
-免安装运行，NSIS 安装器作为 Tauri updater 的 Windows 更新目标。两者都不包含 Authenticode
-代码签名；NSIS updater artifact 仍必须通过 Tauri updater 私钥签名。portable 产物不参与自动
-更新，仍使用 Windows 10/11 自带并维护的 WebView2 Runtime，应用数据也写入系统应用数据目录。
+Windows 同时发布两种产物：按 `tauri build --no-bundle --no-sign` 构建主程序，再与 Claude
+宿主及完整 `runtime` 目录一起压缩为 `Codexly_<version>_x64_portable.zip`；NSIS 安装器作为
+Tauri updater 的 Windows 更新目标。两者都不包含 Authenticode 代码签名；NSIS updater
+artifact 仍必须通过 Tauri updater 私钥签名。portable ZIP 不参与自动更新，不发布无法独立
+运行的裸 EXE；仍使用系统 WebView2 Runtime，应用数据写入系统应用数据目录。
 Linux 和 macOS 的平台覆盖配置分别位于 `src-tauri/tauri.linux.conf.json` 和
 `src-tauri/tauri.macos.conf.json`。
 Legacy 在此基础上合并 `src-tauri/tauri.macos-legacy.conf.json`，构建与真机验收要求见 [macOS 分档构建](./macos-build-profiles.md)。
@@ -65,13 +66,13 @@ Provider 运行时供应链校验和原生系统实机回归，不应引导用�
 
 ## Provider 运行时完整性
 
-Codexly 发布包不得包含 Codex、Claude Code 等 Provider 可执行文件。正式发布前必须验证：
+Codexly 桌面发布包内置目标平台的 Codex 和 Claude 运行时。正式发布前必须验证：
 
-- 每个平台只使用应用私有 Codex，首次打开自动安装，正确版本直接复用，错误或损坏版本自动修复。
-- 自动安装使用固定官方包与允许的镜像源，不调用全局包管理器或修改系统 `PATH`。
-- 下载产物的平台、架构、版本及固定官方 SHA-512 integrity 全部通过校验。
-- 安装使用临时目录和原子切换，中断或失败不会破坏现有可用版本。
-- 应用升级后自动安装要求的精确版本；失败时提供重试，不启动不兼容旧版本或全局 Codex。
+- 构建使用锁定的官方包；交叉目标下载通过锁文件 SHA-512 校验，只打包目标架构、必要辅助文件与许可证。
+- Codex 保留官方 vendor 布局与签名；Claude CLI 保留原厂签名，自建宿主作为 Tauri sidecar 参与签名及公证。
+- 发行版直接运行只读安装目录中的文件，不复制到用户目录，不在每次启动时重算大文件摘要，也不联网安装运行时。
+- 运行时缺失或损坏时提示修复安装，不回退到全局程序；只启用 Claude 时公共功能不隐式启动 Codex。
+- macOS Legacy 只打包 Codex；Windows ZIP 必须同时包含主程序、Claude 宿主和 `runtime`，并在对应平台验证真实启动。
 
 完整流程见 [Provider Runtime Manager](./provider-runtime-management.md)。
 

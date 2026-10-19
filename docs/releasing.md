@@ -1,6 +1,6 @@
 # Codexly 联合发布
 
-根目录统一管理 Codexly Web 与 `desktop/` Tauri 应用的 pnpm workspace 和锁文件；桌面端保留自己的 `package.json` 与 Rust 工程。两边使用同一个版本号与 Git 标签。推送标签后，同一流水线发布 npm 包和桌面安装包，并创建一个 GitHub Release。
+根目录统一管理 Codexly Web 与 `desktop/` Tauri 应用的 pnpm workspace 和锁文件；桌面端保留自己的 `package.json` 与 Rust 工程。两边使用同一个版本号与 Git 标签。推送标签后，同一流水线发布 npm 包和桌面安装包，并创建一个 GitHub Release。桌面包内置目标平台运行时；Windows 便携版发布完整 ZIP，macOS Legacy 仅提供 Codex。
 
 ## 发布环境
 
@@ -12,18 +12,21 @@
 
 1. 将根目录 `package.json` 与 `desktop/package.json`、`desktop/src-tauri/tauri.conf.json`、`desktop/src-tauri/Cargo.toml` 和 Cargo lock 更新为同一递增版本号。
 2. 仅在根目录 `CHANGELOG.md` 将两端的 `Unreleased` 内容合并到对应版本，并填写发布日期；若 `Unreleased` 为空，仍须核对上次正式标签以来的提交。共用功能写一次，平台专属变化注明适用端，不再维护桌面端独立日志。更新底部版本对比链接及 `Unreleased` 的起始标签，同步核对 `README.md`、`README.zh-CN.md`、`desktop/README.md` 和 `desktop/README.en.md` 的用户功能与安装说明；历史测试报告保留实际验证时的版本号。
-3. 运行发布校验：
+3. 运行发布校验（包含 Claude 宿主与实际桌面运行时布局）：
 
 ```bash
 pnpm install --frozen-lockfile
 RELEASE_TAG=vx.y.z node tools/joint-release.mjs --check
 RELEASE_TAG=vx.y.z pnpm --dir desktop version:check
 pnpm check
+pnpm test:claude-host
+pnpm build:desktop-runtime
+node --test tools/desktop-runtime-bundle.test.mjs
 pnpm test:e2e
 cd desktop && pnpm check
 ```
 
-4. 提交发布准备后，创建并推送与根目录 `package.json` 版本一致的标签：
+4. 将功能分支合并到最新 `main` 并提交发布准备后，创建并推送与根目录 `package.json` 版本一致的标签；主分支与标签应指向同一发布提交：
 
 ```bash
 RELEASE_VERSION=x.y.z
