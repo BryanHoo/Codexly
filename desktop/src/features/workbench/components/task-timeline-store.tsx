@@ -1,22 +1,23 @@
-import { TurnProcessHistory, EmptyTurnProcessHistory } from "./task-timeline-process-history.js";
+import { TurnProcessHistory } from "./task-timeline-lazy-process.js";
 import { TimelineImageProvider } from "./timeline-image-provider.js";
 import { hasPromptTurnFinished } from "@codexly/frontend-core/prompt-delivery";
 import { HistoryNavigation, type HistoryAnchor } from "../../search/history-navigation.js";
 import type { PendingRequest } from "@/protocol/index.js";
 import { memo, useMemo, useState } from "react";
 import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+import { groupTimelineTurns, mergeTimelineTurns } from "@codexly/frontend-core/timeline-turn-groups";
+import { StoredAssistantGroup } from "./task-timeline-store-assistant.js";
 import { i18n } from "../../../i18n/i18n.js";
 import { ConversationList } from "../../../shared/components/agent/conversation.js";
 import { Message, type MessageFileReference } from "../../../shared/components/agent/message.js";
 import type {
-  NormalizedAgentTurn,
   TaskStore,
 } from "../../conversation/runtime/task-store.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import { PendingRequestCard, type PendingRequestResolution } from "./pending-request.js";
 import type { BuildPlanAction, ForkTaskAction } from "./task-timeline-contracts.js";
 import { useTurnSizeEstimate } from "./task-timeline-estimate.js";
-import { ChangedFilesCard } from "./task-timeline-file-changes.js";
 import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
 import { TaskTimelinePagination } from "./task-timeline-pagination.js";
 import {
@@ -27,121 +28,12 @@ import { RunningReplyStatus } from "./task-timeline-running.js";
 import { PendingPromptDisplay, type PendingPrompt } from "./pending-prompt.js";
 import { getTimelineNotices, StoreTaskInfoNotices } from "./task-timeline-notices.js";
 export { getTimelineNotices } from "./task-timeline-notices.js";
-import { StoredAssistantTimelineItems } from "./task-timeline-store-operation-groups.js";
 import {
-  StoredRunningReplyStatus,
   StoredUserMessage,
   groupStoredTurnTimelineItems,
 } from "./task-timeline-store-items.js";
-import { MessageMetadata, TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
+import { TimelineState, TurnProcessingTime } from "./task-timeline-status.js";
 const getTurnIdKey = (turnId: string) => turnId;
-export function StoredAssistantGroup({
-  itemKeys,
-  lastTurnItemKey,
-  onOpenFileDiff,
-  onForkTask,
-  onBuildPlan,
-  onOpenSourceFile,
-  onReviewFileChanges,
-  onToggleProcess,
-  processExpanded,
-  processItemKeys,
-  processToggleAvailable,
-  projectId,
-  showProcessingTime,
-  showRunningShimmer,
-  store,
-  taskId,
-  turn,
-}: Readonly<{
-  itemKeys: readonly string[];
-  lastTurnItemKey: string | undefined;
-  onOpenFileDiff: (change: AgentFileChange) => void;
-  onForkTask?: ForkTaskAction;
-  onBuildPlan?: BuildPlanAction;
-  onOpenSourceFile: (reference: MessageFileReference) => void;
-  onReviewFileChanges: (changes: readonly AgentFileChange[]) => void;
-  onToggleProcess: () => void;
-  processExpanded: boolean;
-  processItemKeys: ReadonlySet<string>;
-  processToggleAvailable: boolean;
-  projectId: string;
-  showProcessingTime: boolean;
-  showRunningShimmer: boolean;
-  store: TaskStore;
-  taskId: string;
-  turn: NormalizedAgentTurn;
-}>) {
-  // 完成态聚合只在 Turn 终态或 Item 顺序变化时执行，不参与文本 Delta。
-  const itemStoresByKey = store.getState().itemStoresByKey;
-  const assistantTextParts: string[] = [];
-  const responseFileChanges: AgentFileChange[] = [];
-  const visibleItemKeys =
-    turn.status === "running" || (processExpanded && turn.processCursor === undefined)
-      ? itemKeys
-      : itemKeys.filter((itemKey) => !processItemKeys.has(itemKey));
-  if (turn.status !== "running") {
-    for (const itemKey of visibleItemKeys) {
-      const item = itemStoresByKey.get(itemKey)?.read();
-      if (item?.type === "message" && item.role === "assistant") {
-        assistantTextParts.push(item.text);
-      } else if (item?.type === "file_change" && item.status === "completed") {
-        responseFileChanges.push(...item.changes);
-      }
-    }
-  }
-  const assistantText = assistantTextParts.join("\n\n");
-  return (
-    <Message from="assistant">
-      {showProcessingTime ? (
-        <TurnProcessingTime
-          completedAt={turn.completedAt}
-          startedAt={turn.startedAt}
-          {...(processToggleAvailable
-            ? { expanded: processExpanded, onToggle: onToggleProcess }
-            : {})}
-        />
-      ) : null}
-      {showProcessingTime && turn.processCursor !== undefined && turn.status !== "running" ? (
-        <TurnProcessHistory expanded={processExpanded} initialCursor={turn.processCursor} projectId={projectId} taskId={taskId} turnId={turn.id} onOpenFileDiff={onOpenFileDiff} onOpenSourceFile={onOpenSourceFile} />
-      ) : null}
-      {visibleItemKeys.length > 0 || showRunningShimmer ? (
-        <div className="w-full space-y-4">
-          <StoredAssistantTimelineItems
-            itemKeys={visibleItemKeys}
-            itemTimings={turn.itemTimings}
-            lastTurnItemKey={lastTurnItemKey}
-            {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
-            onOpenFileDiff={onOpenFileDiff}
-            onOpenSourceFile={onOpenSourceFile}
-            projectId={projectId}
-            store={store}
-            taskId={taskId}
-            turnStatus={turn.status}
-          />
-          {showRunningShimmer ? (
-            <StoredRunningReplyStatus itemKeys={itemKeys} store={store} />
-          ) : null}
-        </div>
-      ) : null}
-      {turn.status !== "running" && responseFileChanges.length > 0 ? (
-        <ChangedFilesCard
-          changes={responseFileChanges}
-          onOpenFileDiff={onOpenFileDiff}
-          onReviewFileChanges={onReviewFileChanges}
-        />
-      ) : null}
-      {turn.status !== "running" && assistantText.trim().length > 0 ? (
-        <MessageMetadata
-          lastTurnId={turn.id}
-          {...(onForkTask === undefined || turn.forkable === false ? {} : { onForkTask })}
-          text={assistantText}
-        />
-      ) : null}
-    </Message>
-  );
-}
-
 export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   onBuildPlan,
   onForkTask,
@@ -153,6 +45,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   taskId,
   turnId,
   turnIndex,
+  groupedTurnIds,
   pendingSubmission,
   pendingPrompt,
   hasNextSubmission = false,
@@ -167,29 +60,40 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
   taskId: string;
   turnId: string;
   turnIndex: number;
+  groupedTurnIds?: readonly string[] | undefined;
   pendingSubmission: boolean;
   pendingPrompt?: PendingPrompt;
   hasNextSubmission?: boolean;
 }>) {
-  const turn = useStore(store, (state) => state.turnsById[turnId]);
-  const itemKeys = useStore(store, (state) => state.itemKeysByTurnId[turnId] ?? []);
+  const sourceIds = useMemo(() => groupedTurnIds ?? [turnId], [groupedTurnIds, turnId]);
+  const sourceTurns = useStore(store, useShallow((state) => sourceIds.flatMap((id) => state.turnsById[id] ?? [])));
+  // 只订阅每个阶段的键数组引用；Token 事件不得反复展开全部历史 Item 键。
+  const sourceItemKeys = useStore(store, useShallow((state) =>
+    sourceIds.map((id) => state.itemKeysByTurnId[id]),
+  ));
+  const itemKeys = useMemo(() => sourceItemKeys.flatMap((keys) => keys ?? []), [sourceItemKeys]);
+  const turn = useMemo(() => mergeTimelineTurns(sourceTurns), [sourceTurns]);
   const [processExpanded, setProcessExpanded] = useState(false);
-  if (turn === undefined) {
-    return null;
-  }
+  if (turn === undefined) return null;
   const itemStoresByKey = store.getState().itemStoresByKey;
-  const processNativeItemIds = new Set(
-    resolveCompletedTurnProcessItemIds(
-      itemKeys.flatMap((itemKey) => itemStoresByKey.get(itemKey)?.peek() ?? []),
-      turn.status,
-      hasNextSubmission,
-    ),
-  );
-  const processItemKeys = new Set(
-    itemKeys.filter((itemKey) =>
-      processNativeItemIds.has(itemStoresByKey.get(itemKey)?.peek().id ?? ""),
-    ),
-  );
+  const processTurns = sourceTurns.filter((source) => source.processCursor !== undefined && source.status !== "running");
+  // 每个阶段独立分类执行记录，避免把较早阶段的最终答复误折叠进最后一段过程。
+  const processItemKeys = new Set<string>();
+  const paginatedProcessItemKeys = new Set<string>();
+  sourceTurns.forEach((source, index) => {
+    const keys = store.getState().itemKeysByTurnId[source.id] ?? [];
+    const processIds = new Set(resolveCompletedTurnProcessItemIds(
+      keys.flatMap((key) => itemStoresByKey.get(key)?.peek() ?? []),
+      source.status,
+      hasNextSubmission || index < sourceTurns.length - 1,
+    ));
+    for (const key of keys) {
+      if (!processIds.has(itemStoresByKey.get(key)?.peek().id ?? "")) continue;
+      processItemKeys.add(key);
+      // 已分页的过程由独立历史 Store 展示，展开时不能再把内存中的同一记录显示一遍。
+      if (source.processCursor !== undefined) paginatedProcessItemKeys.add(key);
+    }
+  });
   // 折叠项必须在分组前移除，否则隐藏的引导仍会切断最终答复与文件审核卡片。
   // 中断回合没有保留的最终答复，需保留 Assistant 分组来承载展开入口。
   const hiddenProcessItemKeys =
@@ -199,7 +103,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
     itemStoresByKey,
     hiddenProcessItemKeys,
   );
-  const processToggleAvailable = processItemKeys.size > 0 || (turn.processCursor !== undefined && turn.status !== "running");
+  const processToggleAvailable = processItemKeys.size > 0 || processTurns.length > 0;
   const firstAssistantGroupIndex = timelineGroups.findIndex((group) => group.type === "assistant");
   const hasAssistantItems = firstAssistantGroupIndex >= 0;
   const lastTurnItemKey = itemKeys.at(-1);
@@ -213,7 +117,7 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
           <StoredUserMessage
             itemKey={group.itemKey}
             // 首条输入从本地占位切换为权威 ID 时保留气泡节点，避免重新挂载 Markdown。
-            key={groupIndex === 0 ? turn.id : group.itemKey}
+            key={groupIndex === 0 ? turnId : group.itemKey}
             onOpenFileDiff={onOpenFileDiff}
             onOpenSourceFile={onOpenSourceFile}
             projectId={projectId}
@@ -236,7 +140,9 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
             onReviewFileChanges={onReviewFileChanges}
             projectId={projectId}
             processExpanded={processExpanded}
+            processTurns={processTurns}
             processItemKeys={processItemKeys}
+            paginatedProcessItemKeys={paginatedProcessItemKeys}
             processToggleAvailable={processToggleAvailable}
             showProcessingTime={groupIndex === firstAssistantGroupIndex}
             showRunningShimmer={
@@ -255,8 +161,14 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
           <RunningReplyStatus />
         </Message>
       ) : null}
-      {!hasAssistantItems && turn.status !== "running" && turn.processCursor !== undefined ? (
-        <EmptyTurnProcessHistory expanded={processExpanded} initialCursor={turn.processCursor} projectId={projectId} taskId={taskId} turnId={turn.id} startedAt={turn.startedAt} completedAt={turn.completedAt} onToggle={() => { setProcessExpanded((value) => !value); }} onOpenFileDiff={onOpenFileDiff} onOpenSourceFile={onOpenSourceFile} />
+      {!hasAssistantItems && turn.status !== "running" && processTurns.length > 0 ? (
+        <Message from="assistant">
+          <TurnProcessingTime startedAt={turn.startedAt} completedAt={turn.completedAt}
+            expanded={processExpanded} onToggle={() => { setProcessExpanded((value) => !value); }} />
+          {processTurns.map((source) => <TurnProcessHistory key={source.id} expanded={processExpanded}
+            initialCursor={source.processCursor ?? ""} projectId={projectId} taskId={taskId} turnId={source.id}
+            onOpenFileDiff={onOpenFileDiff} onOpenSourceFile={onOpenSourceFile} />)}
+        </Message>
       ) : null}
       {turn.error === null ? null : (
         <div
@@ -350,6 +262,16 @@ export function TaskStoreTimeline({
   const imageRootPath = useStore(store, (state) => state.snapshotMetadata?.workspacePath);
   const turnIds = useStore(store, (state) => state.turnIds);
   const itemStructureRevision = useStore(store, (state) => state.itemStructureRevision);
+  const engine = useStore(store, (state) => state.snapshotMetadata?.engine);
+  const turnGroups = useMemo(() => {
+    void itemStructureRevision;
+    void turnIds;
+    return groupTimelineTurns(store.getState(), engine);
+  }, [engine, itemStructureRevision, store, turnIds]);
+  const displayTurnIds = useMemo(() => turnGroups.map((group) => group.id), [turnGroups]);
+  const groupById = useMemo(() => new Map(turnGroups.map((group) => [group.id, group])), [turnGroups]);
+  const displayIndexByTurnId = useMemo(() => new Map(turnGroups.flatMap((group, index) =>
+    group.turnIds.map((id) => [id, index] as const))), [turnGroups]);
   const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
   const pendingRequestsById = useStore(store, (state) => state.pendingRequestsById);
   const notices = useStore(store, (state) => state.notices);
@@ -403,7 +325,7 @@ export function TaskStoreTimeline({
     <ConversationList
       aria-label={i18n.t("timeline.conversation", { ns: "conversation" })}
       conversationId={`${projectId}:${taskId}`}
-      estimateItemSize={estimateTurnSize}
+      estimateItemSize={(id) => (groupById.get(id)?.turnIds ?? [id]).reduce((total, sourceId) => total + estimateTurnSize(sourceId), 0)}
       {...(hasVisiblePendingRequest || showPendingFooter || hasNotices
         ? {
             footer: (
@@ -438,14 +360,14 @@ export function TaskStoreTimeline({
             ),
           }
         : {})}
-      items={turnIds}
+      items={displayTurnIds}
       renderNavigation={(navigateToItem, scrollbarWidth, scrollContainerRef) => (
         <>
           {searchTarget === undefined ? null : (
             <HistoryNavigation
               target={searchTarget}
               turnIds={turnIds}
-              navigate={navigateToItem}
+              navigate={(index, anchorId) => navigateToItem(displayIndexByTurnId.get(turnIds[index] ?? "") ?? index, anchorId)}
               containerRef={scrollContainerRef}
             />
           )}
@@ -454,14 +376,14 @@ export function TaskStoreTimeline({
             scrollContainerRef={scrollContainerRef}
             scrollbarWidth={scrollbarWidth}
             onNavigate={(item) => {
-              navigateToItem(item.turnIndex, item.anchorId);
+              navigateToItem(displayIndexByTurnId.get(turnIds[item.turnIndex] ?? "") ?? item.turnIndex, item.anchorId);
             }}
           />
         </>
       )}
       renderItem={(turnId, turnIndex) => (
         <StoreTurnTimelineSection
-          {...(connected && turnId === turnIds.at(-1) && onBuildPlan !== undefined
+          {...(connected && turnId === displayTurnIds.at(-1) && onBuildPlan !== undefined
             ? { onBuildPlan }
             : {})}
           {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
@@ -473,11 +395,12 @@ export function TaskStoreTimeline({
           taskId={taskId}
           turnId={turnId}
           turnIndex={turnIndex}
-          hasNextSubmission={turnIndex < turnIds.length - 1 || (showPendingSubmission && turnId !== submissionTurnId)}
+          groupedTurnIds={groupById.get(turnId)?.turnIds}
+          hasNextSubmission={turnIndex < displayTurnIds.length - 1 || (showPendingSubmission && !groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? ""))}
           pendingSubmission={
-            !showPendingFooter && showPendingSubmission && turnId === submissionTurnId
+            !showPendingFooter && showPendingSubmission && (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
           }
-          {...(turnId === submissionTurnId && showPendingSubmission && pendingPrompt !== undefined
+          {...(groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") && showPendingSubmission && pendingPrompt !== undefined
             ? { pendingPrompt }
             : {})}
         />

@@ -1,5 +1,7 @@
 # 桌面前端
 
+- Claude 回复按[共享续跑分组规则](../../frontend-core/shared/index.md)展示一次“已处理”；执行过程仍按原生回合懒加载，虚拟行高度须累计组内阶段，搜索与目录导航保留原生消息锚点。
+
 代码位于 `desktop/src/`。路由与全局 Provider 在 `app/`，业务页面和运行时状态在 `features/`，通用组件在 `shared/`。`features/conversation/runtime/` 管理任务流与恢复。
 
 - 左栏固定/运行中分组遵守[共享 UI 规则](../../ui/shared/index.md)，使用原生活动记录恢复完整运行列表；窄桌面窗口仍使用浮层，禁止按 Web 移动断点切换为抽屉。
