@@ -156,6 +156,29 @@ void test("Windows local builds should still default to an unpackaged executable
   ]);
 });
 
+void test("platform and local bundle configurations should preserve bundled runtime resources", async () => {
+  const base = JSON.parse(
+    await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
+  );
+  for (const name of ["windows", "macos", "linux", "macos-legacy", "local"]) {
+    const overlay = await readFile(
+      new URL(`../src-tauri/tauri.${name}.conf.json`, import.meta.url),
+      "utf8",
+    )
+      .then(JSON.parse)
+      .catch((error) => {
+        if (error.code === "ENOENT") return {};
+        throw error;
+      });
+    const resources = overlay.bundle?.resources ?? base.bundle.resources;
+    assert.equal(
+      resources["resources/runtime/"],
+      "runtime/",
+      `${name} bundles must install the runtime tree used by bundled_runtime::root`,
+    );
+  }
+});
+
 void test("Windows releases should publish portable and updater NSIS artifacts", async () => {
   const workflow = await readFile(
     new URL("../../.github/workflows/release.yml", import.meta.url),
