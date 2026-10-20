@@ -23,10 +23,15 @@ it("shows the agent selector only when both agents are enabled", () => {
     const html = render([engine]);
     expect(html).not.toContain('aria-label="默认 Agent"');
     expect(html).toContain('aria-label="默认模型"');
-    expect(html).toContain(engine === "codex" ? "gpt-6-luna" : "haiku");
-    if (engine === "claude") {
-      expect(html.match(/<option\b/g)).toHaveLength(3);
-      for (const name of ["Haiku", "Sonnet", "Opus"]) expect(html).toContain(`>${name}</option>`);
-    }
+    expect(html).toContain(engine === "codex" ? "gpt-6-luna" : "Haiku");
+    expect(html.match(/data-slot="select-trigger"/g)).toHaveLength(1);
   }
+});
+
+it("uses shared select triggers for both generation settings", () => {
+  const html = render(["codex", "claude"]);
+  expect(html.match(/data-slot="select-trigger"/g)).toHaveLength(2);
+  expect(html.match(/role="combobox"/g)).toHaveLength(2);
+  expect(html).toContain('aria-label="默认 Agent"');
+  expect(html).toContain('aria-label="默认模型"');
 });

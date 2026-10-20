@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { AgentEngine, AgentGlobalSettings, AgentModel } from "@codexly/protocol";
 import { CLAUDE_MODEL_OPTIONS } from "@codexly/protocol";
 import { useSelectedEngines } from "./engine-selection.js";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select.js";
 
 const defaults = { codex: "gpt-6-luna", claude: "haiku" } as const;
 const fallbackEngines: readonly AgentEngine[] = ["codex"];
@@ -58,31 +59,38 @@ export function DefaultGenerationSettings({
       : models.some((item) => item.id === model)
         ? models
         : [{ id: model, displayName: model }, ...models];
-  const selectClass =
-    "h-8 w-48 max-w-full rounded-control border border-separator-strong bg-panel px-2 text-body-small";
+  // 两端复用项目 Select 的触发器、弹层和键盘交互，仅在此约束设置项的宽度。
+  const selectClass = "w-48 max-w-full text-body-small";
   return (
     <div className="divide-y divide-separator rounded-surface border border-separator bg-panel px-4">
       {engines.length > 1 ? (
-        <label className="flex items-center justify-between gap-4 py-3">
+        <div className="flex items-center justify-between gap-4 py-3">
           <span className="text-body-small font-medium">{zh ? "默认 Agent" : "Default agent"}</span>
-          <select
-            className={selectClass}
-            aria-label={zh ? "默认 Agent" : "Default agent"}
+          <Select
             value={engine}
-            onChange={(event) => {
-              const defaultAgent = event.currentTarget.value as AgentEngine;
+            onValueChange={(value) => {
+              const defaultAgent = value as AgentEngine;
               onChange({ defaultAgent, defaultModel: defaults[defaultAgent] });
             }}
           >
-            {engines.map((value) => (
-              <option key={value} value={value}>
-                {value === "codex" ? "Codex" : "Claude"}
-              </option>
-            ))}
-          </select>
-        </label>
+            <SelectTrigger
+              className={selectClass}
+              size="sm"
+              aria-label={zh ? "默认 Agent" : "Default agent"}
+            >
+              <SelectValue>{engine === "codex" ? "Codex" : "Claude"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {engines.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value === "codex" ? "Codex" : "Claude"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       ) : null}
-      <label className="flex items-center justify-between gap-4 py-3">
+      <div className="flex items-center justify-between gap-4 py-3">
         <span>
           <span className="text-body-small font-medium">{zh ? "默认模型" : "Default model"}</span>
           <span className="mt-1 block text-label text-muted-foreground">
@@ -91,21 +99,30 @@ export function DefaultGenerationSettings({
               : "Used by this app to generate task titles and Git commit messages."}
           </span>
         </span>
-        <select
-          className={selectClass}
-          aria-label={zh ? "默认模型" : "Default model"}
+        <Select
           value={model}
-          onChange={(event) => {
-            onChange({ defaultAgent: engine, defaultModel: event.currentTarget.value });
+          onValueChange={(value) => {
+            onChange({ defaultAgent: engine, defaultModel: value });
           }}
         >
-          {choices.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.displayName}
-            </option>
-          ))}
-        </select>
-      </label>
+          <SelectTrigger
+            className={selectClass}
+            size="sm"
+            aria-label={zh ? "默认模型" : "Default model"}
+          >
+            <SelectValue>
+              {choices.find((item) => item.id === model)?.displayName ?? model}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {choices.map((item) => (
+              <SelectItem key={item.id} value={item.id}>
+                {item.displayName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }
