@@ -11,6 +11,7 @@ export default defineConfig({
   use: {
     // baseURL 由 worker fixture 注入，确保每个 worker 使用独立 Fake Server。
     locale: "zh-CN",
+    screenshot: "only-on-failure",
     trace: "on-first-retry",
   },
   projects: [

@@ -190,6 +190,25 @@ describe("CI 质量门禁", () => {
     expect(playwrightConfig).toContain('process.env["CI"] ? { workers: 2 } : {}');
   });
 
+  it("保留并上传 CI 与 Release 浏览器测试的失败现场", () => {
+    const playwrightConfig = readFileSync(join(process.cwd(), "playwright.config.ts"), "utf8");
+    expect(playwrightConfig).toContain('screenshot: "only-on-failure"');
+    expect(playwrightConfig).toContain('trace: "on-first-retry"');
+
+    for (const workflowPath of [".github/workflows/ci.yml", ".github/workflows/release.yml"]) {
+      const workflow = readFileSync(join(process.cwd(), workflowPath), "utf8");
+      const e2eJob = workflow.split("\n  e2e:\n")[1]?.split(/\n {2}[\w-]+:\n/u)[0];
+      expect(e2eJob, workflowPath).toBeDefined();
+      const uploadStep = e2eJob?.split("- name: Upload browser test failure artifacts\n")[1];
+      expect(uploadStep, workflowPath).toBeDefined();
+      expect(uploadStep).toContain("if: failure()");
+      expect(uploadStep).toMatch(/uses: actions\/upload-artifact@[a-f0-9]{40}/u);
+      expect(uploadStep).toContain("name: e2e-failure-${{ matrix.os }}");
+      expect(uploadStep).toContain("path: test-results/");
+      expect(uploadStep).toContain("retention-days: 7");
+    }
+  });
+
   it("仅在 Linux quality job 中执行覆盖率阈值检查", () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {
       scripts: Record<string, string>;
