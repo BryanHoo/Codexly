@@ -11,7 +11,11 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { PdfPreview } from "@codexly/ui/core/pdf-preview";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { buildProjectPdfFileUrl, buildProjectImageFileUrl } from "@codexly/client";
+import {
+  buildProjectPdfFileUrl,
+  buildProjectImageFileUrl,
+  buildProjectFileDownloadUrl,
+} from "@codexly/client";
 import type { ProjectSourceFile } from "@codexly/protocol";
 import { Code2, Eye } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from "react";
@@ -34,6 +38,7 @@ import {
   TooltipTrigger,
 } from "../../../shared/components/core/tooltip.js";
 import { useTranslation } from "../../../i18n/i18n.js";
+import { useIsLanAccess } from "../../access/access-context.js";
 
 export { getCodeLanguage } from "../../../shared/components/agent/code-languages.js";
 
@@ -93,6 +98,7 @@ export function ProjectSourcePanel({
   rootPath,
 }: ProjectSourcePanelProps) {
   const { t } = useTranslation("workbench");
+  const isLanAccess = useIsLanAccess();
   const queryClient = useQueryClient();
   const router = useRouter({ warn: false }) as { history: TextEditorNavigation } | undefined;
   const contentRef = useRef<HTMLElement>(null);
@@ -319,12 +325,31 @@ export function ProjectSourcePanel({
         ) : !editor.ready && sourceData === undefined && sourceQuery.error !== null ? (
           <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)]">
             <SourceHeader {...headerProps} />
-            <div
-              className="grid min-h-48 place-items-center text-body-small text-danger"
-              role="alert"
-            >
-              {t("projectDialog.loadSourceError")}
-            </div>
+            {isLanAccess ? (
+              // 未知扩展名仍可尝试文本预览；实际不可预览时提供下载，不把格式限制当作错误。
+              <div
+                className="flex min-h-48 flex-col items-center justify-center gap-3 px-4 text-center text-body-small text-muted-foreground"
+                role="status"
+              >
+                <p>{t("openMenu.remoteFileTitle")}</p>
+                <p className="max-w-md">{t("openMenu.remoteFileDescription")}</p>
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    download={fileName}
+                    href={buildProjectFileDownloadUrl("", projectId, reference.path, rootPath)}
+                  >
+                    {t("openMenu.download")}
+                  </a>
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="grid min-h-48 place-items-center text-body-small text-danger"
+                role="alert"
+              >
+                {t("projectDialog.loadSourceError")}
+              </div>
+            )}
           </div>
         ) : showRenderedMarkdown ? (
           <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-content">

@@ -168,6 +168,9 @@ export const workbench = {
     detect: "Detecting available apps",
     delete: "Delete",
     download: "Download file",
+    remoteFileTitle: "Download to open with a system app",
+    remoteFileDescription:
+      "This file cannot be previewed here, and the browser cannot directly launch an app on your device. Download the file, then open it from your downloads list.",
     moreActions: "More actions",
     none: "No apps available",
     open: "Open",

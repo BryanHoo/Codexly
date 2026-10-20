@@ -15,6 +15,7 @@ import { Checkbox } from "../../shared/components/core/checkbox.js";
 import { Dialog, DialogContent, DialogTitle } from "../../shared/components/core/dialog.js";
 import { Input } from "../../shared/components/core/input.js";
 import { notifyActionError } from "../notifications/action-notifications.js";
+import { useIsLanAccess } from "../access/access-context.js";
 import type { CodexlyWorkbenchClient } from "../projects/project-query-contracts.js";
 import { useHistoryLocation } from "./history-location.js";
 import { prepareSearchFile } from "./open-search-file.js";
@@ -46,6 +47,7 @@ function GlobalSearchDialogContent({
   projects: readonly Project[];
 }>) {
   const { t } = useTranslation("workbench");
+  const isLanAccess = useIsLanAccess();
   const navigate = useNavigate();
   const cache = useQueryClient();
   const [query, setQuery] = useState("");
@@ -156,7 +158,13 @@ function GlobalSearchDialogContent({
         if (row.occurrence === undefined) setHistoryTask(row.task);
         else await openTask(row.task, row.occurrence);
       } else if (row.file !== undefined) {
-        const kind = await prepareSearchFile(client, cache, row.file, controller.signal);
+        const kind = await prepareSearchFile(
+          client,
+          cache,
+          row.file,
+          controller.signal,
+          isLanAccess,
+        );
         if (kind !== null) {
           onOpenFile(row.file, kind);
           onClose();

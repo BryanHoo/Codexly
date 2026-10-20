@@ -37,6 +37,7 @@ import {
   taskRenameMutationOptions,
 } from "../../projects/project-queries.js";
 import { useBackgroundTerminals } from "../hooks/use-background-terminals.js";
+import { openProjectPath } from "../open-project-path.js";
 import { useProjectGitStatusRefresh } from "../hooks/use-project-git-status-refresh.js";
 import type { SidebarSettingsSection } from "./project-sidebar-actions.js";
 import { deriveProjectSidebarConnectionState } from "./project-sidebar.js";
@@ -208,11 +209,12 @@ export function useWorkbenchShellRuntime({
       appId,
       path,
     }: Readonly<{ appId: ProjectOpenAppId; path: string | undefined }>) =>
-      client.openProject(
+      openProjectPath(client, {
+        isLanAccess: access.status?.mode === "lan",
         projectId,
-        selectedRootPath,
-        path === undefined ? { appId } : { appId, path },
-      ),
+        ...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath }),
+        request: path === undefined ? { appId } : { appId, path },
+      }),
   });
   const taskAttachmentOpenMutation = useMutation({
     meta: { actionNotification: { successMessage: false } },

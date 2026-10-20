@@ -164,6 +164,9 @@ export const workbench = {
     detect: "正在检测打开方式",
     delete: "删除",
     download: "下载文件",
+    remoteFileTitle: "请下载后使用系统应用打开",
+    remoteFileDescription:
+      "此文件无法在项目内预览，浏览器无法直接打开当前设备的系统应用。请下载文件后，在下载列表中打开。",
     moreActions: "更多操作",
     none: "没有可用的打开方式",
     open: "打开",

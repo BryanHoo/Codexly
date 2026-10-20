@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import type { CodexlyWorkbenchClient } from "../projects/project-query-contracts.js";
 import { classifyProjectFileReference } from "../workbench/project-file-reference.js";
+import { openProjectPath } from "../workbench/open-project-path.js";
 import type { SearchFile } from "./search-files.js";
 
 export async function prepareSearchFile(
@@ -9,6 +10,7 @@ export async function prepareSearchFile(
   cache: QueryClient,
   file: SearchFile,
   signal?: AbortSignal,
+  isLanAccess = false,
 ): Promise<"source" | "image" | "pdf" | null> {
   signal?.throwIfAborted();
   const kind = classifyProjectFileReference(file.path);
@@ -33,11 +35,12 @@ export async function prepareSearchFile(
       signal?.throwIfAborted();
     }
   }
-  await client.openProject(
-    file.projectId,
-    file.rootPath,
-    { appId: "system-default", path: file.path },
-    signal === undefined ? {} : { signal },
-  );
+  await openProjectPath(client, {
+    isLanAccess,
+    projectId: file.projectId,
+    rootPath: file.rootPath,
+    request: { appId: "system-default", path: file.path },
+    ...(signal === undefined ? {} : { signal }),
+  });
   return null;
 }
