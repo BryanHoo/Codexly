@@ -6,9 +6,7 @@ use tauri::{AppHandle, Manager};
 
 /// 只读取连接配置来选择辅助生成默认值，Claude 单独使用时不能启动 Codex。
 pub(crate) async fn read(app: &AppHandle) -> Result<Value, AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let mut settings = local_settings::read_global_settings(&app_data)
         .await

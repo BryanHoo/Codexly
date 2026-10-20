@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use super::{error::AppError, state::AppState, task_workspace};
 use crate::infrastructure::{codex, workspace};
@@ -39,8 +39,7 @@ pub async fn open_project(
     // 绝对路径不依赖项目；相对路径由当前目录或任务 cwd 定位。
     let root = task_workspace::resolve_preview_root(
         Some(
-            &app.path()
-                .app_data_dir()
+            &crate::infrastructure::app_data::directory(&app)
                 .map_err(|_| AppError::FilesystemRequestFailed)?,
         ),
         &project_id,
@@ -108,9 +107,7 @@ pub async fn open_task_attachment(
     codex::read_task(&connection, project_id.clone(), task_id.clone())
         .await
         .map_err(AppError::from)?;
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let path = match crate::infrastructure::temporary_task_storage::validate_attachment(
         &app_data,

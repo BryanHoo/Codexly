@@ -4,6 +4,12 @@ import { test } from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
+void test("attachment assets use the shared application directory on every platform", () => {
+  const config = JSON.parse(read("src-tauri/tauri.conf.json"));
+  // 新附件只写共享目录；旧原生历史里的绝对 asset URL 仍能只读访问保留的旧附件。
+  assert.deepEqual(config.app.security.assetProtocol.scope, ["$HOME/.codexly/attachments/**", "$APPDATA/attachments/**"]);
+});
+
 void test("history compression is registered in the application ACL manifest", () => {
   // 仅注册处理函数无法通过 Tauri ACL；同时锁定构建命令清单，避免按钮调用被提前拒绝。
   assert.ok(read("src-tauri/src/lib.rs").includes("history_storage_commands::compress_history"));

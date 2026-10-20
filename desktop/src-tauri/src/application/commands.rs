@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, State, ipc::Channel};
+use tauri::{AppHandle, State, ipc::Channel};
 
 use super::app_update::{
     AppUpdateInstallProgress, CHANGELOG_URL, REPOSITORY_URL, check_for_update, install_update,
@@ -35,9 +35,7 @@ pub async fn start_runtime(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<RuntimeSnapshot, AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     state.start_codex(&app, &app_data).await
 }

@@ -39,9 +39,7 @@ pub(super) async fn add(app: AppHandle, request: QueueAddRequest) -> Result<Valu
             codex::read_task(&connection, project.clone(), task.clone())
                 .await
                 .map_err(AppError::from)?;
-            let app_data = worker_app
-                .path()
-                .app_data_dir()
+            let app_data = crate::infrastructure::app_data::directory(&worker_app)
                 .map_err(|_| AppError::FilesystemRequestFailed)?;
             super::attachment_commands::resolve_prompt_attachments(
                 &app_data, &project, &task, &mut input,

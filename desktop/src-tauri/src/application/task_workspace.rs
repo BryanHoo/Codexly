@@ -219,9 +219,7 @@ pub(crate) fn relative_preview_path(root: &Path, path: &str) -> Result<String, A
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, AppError> {
-    app.path()
-        .app_data_dir()
-        .map_err(|_| AppError::FilesystemRequestFailed)
+    crate::infrastructure::app_data::directory(app).map_err(|_| AppError::FilesystemRequestFailed)
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+pub mod app_data;
 pub mod app_storage;
 pub(crate) mod atomic_file;
 pub mod bing_wallpaper;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCodexRuntimeProvider } from "./agent-provider.js";
+import { createCodexRuntimeProvider } from "./runtime-provider.test-support.js";
 import { FakeRpcClient } from "./provider-connection.test-support.js";
 
 describe("Codex 用户全局默认设置", () => {

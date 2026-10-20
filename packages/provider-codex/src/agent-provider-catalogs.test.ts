@@ -1,5 +1,5 @@
+import { createCodexRuntimeProvider } from "./runtime-provider.test-support.js";
 import { describe, expect, it, vi } from "vitest";
-import { createCodexRuntimeProvider } from "./agent-provider.js";
 import {
   FakeRpcClient,
   projectRootPath,

@@ -1,3 +1,4 @@
+import { appStorageDirectory } from "@codexly/core/app-storage-paths";
 import { join } from "node:path";
 import { readLocalGenerationConnection } from "./cli-generation-defaults.js";
 import {
@@ -64,6 +65,7 @@ export function enableClaudeRuntime(
   codex: AgentRuntimeProvider,
   store: unknown,
   codexHome: string,
+  appDataDirectory = appStorageDirectory(),
 ): AgentRuntimeProvider {
   if (
     !store ||
@@ -73,7 +75,7 @@ export function enableClaudeRuntime(
   )
     return codex;
   const catalog = store as LocalCatalogStore;
-  const claude = new ClaudeRuntime(join(codexHome, "codexly", "engines", "claude"), catalog);
+  const claude = new ClaudeRuntime(join(appDataDirectory, "engines", "claude"), catalog);
   const generation = async (cwd: string, text: string, signal: AbortSignal) => {
     const preferences =
       "readGlobalSettings" in store && typeof store.readGlobalSettings === "function"

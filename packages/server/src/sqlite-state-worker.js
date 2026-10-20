@@ -1,5 +1,4 @@
-import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { prepareAppStorage } from "./app-storage-migration.js";
 import { parentPort, workerData } from "node:worker_threads";
 import Database from "better-sqlite3";
 import {
@@ -452,7 +451,7 @@ function createOperations(database) {
 let database;
 let scheduledTaskCoordination;
 try {
-  mkdirSync(resolve(workerData.databasePath, ".."), { recursive: true });
+  prepareAppStorage(workerData.databasePath, workerData.legacyDirectories);
   scheduledTaskCoordination = createScheduledTaskCoordination(workerData.databasePath);
   scheduledTaskCoordination.initialize(() => {
     database = new Database(workerData.databasePath);

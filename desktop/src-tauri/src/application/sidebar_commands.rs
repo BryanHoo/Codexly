@@ -485,9 +485,7 @@ pub async fn delete_task(
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
-    app.path()
-        .app_data_dir()
-        .map_err(|_| AppError::FilesystemRequestFailed)
+    crate::infrastructure::app_data::directory(app).map_err(|_| AppError::FilesystemRequestFailed)
 }
 
 fn local_catalog(app: &AppHandle) -> Result<LocalCatalog, AppError> {

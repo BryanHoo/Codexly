@@ -8,7 +8,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use tokio::sync::{Mutex, Notify};
 
 use crate::{

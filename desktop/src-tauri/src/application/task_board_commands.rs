@@ -4,7 +4,7 @@ use crate::{
     infrastructure::local_catalog::{LocalCatalog, sidebar::map_task},
 };
 use serde_json::json;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn list_completed_tasks(
@@ -16,8 +16,7 @@ pub async fn list_completed_tasks(
     state
         .run_cancellable(request_id.as_deref(), async {
             let catalog = LocalCatalog::at(
-                &app.path()
-                    .app_data_dir()
+                &crate::infrastructure::app_data::directory(&app)
                     .map_err(|_| AppError::FilesystemRequestFailed)?,
             )?;
             let mut query =

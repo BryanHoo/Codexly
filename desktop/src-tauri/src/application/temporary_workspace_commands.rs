@@ -9,9 +9,7 @@ use crate::infrastructure::temporary_workspace_settings::{self, TemporaryWorkspa
 pub async fn get_temporary_workspace_settings(
     app: AppHandle,
 ) -> Result<TemporaryWorkspaceSettings, AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let root_path = temporary_workspace_settings::read_root(&app_data)
         .await
@@ -23,9 +21,7 @@ pub async fn get_temporary_workspace_settings(
 pub async fn choose_temporary_workspace_root(
     app: AppHandle,
 ) -> Result<Option<TemporaryWorkspaceSettings>, AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let root = temporary_workspace_settings::read_root(&app_data)
         .await

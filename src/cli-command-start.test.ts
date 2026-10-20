@@ -70,7 +70,8 @@ describe("runCli startup", () => {
     expect(harness.stdout.join("")).toContain("[成功] Node.js 24.19.0");
     expect(harness.stdout.join("")).toContain("[成功] Codex 0.163.0 (/fake/codex)");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
-      join("/custom/home", "codexly", "state.sqlite3"),
+      join(homedir(), ".codexly", "state.sqlite3"),
+      "/custom/home",
     );
     expect(harness.stdout.join("")).toContain("[成功] SQLite 可写");
     expect(harness.stdout.join("")).toContain("[成功] SQLite migration 4");
@@ -147,7 +148,8 @@ describe("runCli startup", () => {
     expect(typeof serverOptions?.installAppUpdate).toBe("function");
     expect(typeof serverOptions?.readAppInfo).toBe("function");
     expect(harness.dependencies.createStateRepository).toHaveBeenCalledWith(
-      join("/custom/home", "codexly", "state.sqlite3"),
+      join(homedir(), ".codexly", "state.sqlite3"),
+      "/custom/home",
     );
     expect(harness.serverListen).toHaveBeenCalledWith({ host: "127.0.0.1", port: 3210 });
     expect(harness.dependencies.openBrowser).toHaveBeenCalledWith("http://127.0.0.1:3210");

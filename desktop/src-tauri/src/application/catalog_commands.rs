@@ -1,5 +1,5 @@
 use serde_json::{Value, json};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, State};
 
 use super::{error::AppError, state::AppState};
 use crate::infrastructure::{codex, local_settings};
@@ -187,9 +187,7 @@ pub async fn update_project_defaults(
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
-    app.path()
-        .app_data_dir()
-        .map_err(|_| AppError::FilesystemRequestFailed)
+    crate::infrastructure::app_data::directory(app).map_err(|_| AppError::FilesystemRequestFailed)
 }
 
 #[tauri::command(rename_all = "camelCase")]

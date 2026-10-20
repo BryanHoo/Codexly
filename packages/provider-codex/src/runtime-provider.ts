@@ -1,10 +1,10 @@
+import { appStorageDirectory, defaultCodexHome } from "@codexly/core/app-storage-paths";
 import { generateRuntimeTaskTitle } from "./task-title-generation.js";
 import type { TaskTitleGenerator } from "@codexly/core";
 import { createHistoryStorage } from "./history-storage.js";
 import { reconcileCodexPlugins } from "./plugin-reconcile.js";
 import { CodexTaskTitles } from "./task-titles.js";
 import { join, resolve } from "node:path";
-import { homedir } from "node:os";
 import {
   readRuntimeDefaultSettings,
   writeRuntimeDefaultSettings,
@@ -102,10 +102,10 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
   ) {
     this.#client = client;
     this.historyStorage = createHistoryStorage(client);
-    const codexHome =
-      options.codexHome ?? process.env["CODEX_HOME"] ?? resolve(homedir(), ".codex");
-    this.#attachmentDirectory = join(codexHome, "codexly", "thread-attachments");
-    this.#forkTaskDirectory = join(codexHome, "codexly", "fork-tasks");
+    const codexHome = options.codexHome ?? defaultCodexHome();
+    const applicationDirectory = options.appDataDirectory ?? appStorageDirectory();
+    this.#attachmentDirectory = join(applicationDirectory, "thread-attachments");
+    this.#forkTaskDirectory = join(applicationDirectory, "fork-tasks");
     this.#taskTitles =
       options.readTaskTitleModel === undefined
         ? undefined

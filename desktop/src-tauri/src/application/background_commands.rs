@@ -118,7 +118,7 @@ async fn cached_wallpaper(
 }
 
 async fn pinned_day(app: &AppHandle) -> Option<String> {
-    let root = app.path().app_data_dir().ok()?;
+    let root = crate::infrastructure::app_data::directory(app).ok()?;
     let preferences = app_storage::read_preferences(&root).await.ok()?;
     let value: serde_json::Value =
         serde_json::from_str(preferences.get("codeagent.workbench-background-preference")?).ok()?;

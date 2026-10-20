@@ -28,6 +28,10 @@
     "./persistent-task-queue": {
       "types": "./src/persistent-task-queue.ts",
       "default": "./src/persistent-task-queue.ts"
+    },
+    "./app-storage-paths": {
+      "types": "./src/app-storage-paths.ts",
+      "default": "./src/app-storage-paths.ts"
     }
   },
   "dependencies": {

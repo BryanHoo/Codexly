@@ -22,6 +22,8 @@ Codexly keeps coding tasks, conversations, project files, and Git work in one pl
 
 Directories and tasks are managed locally by Codexly, with one disk folder per directory. Existing data is imported on first launch; see [local directories and tasks](docs/local-catalog.md).
 
+Application data lives in `~/.codexly`. Web and desktop share projects and history for the same user on the same computer. The first upgraded launch imports legacy application data while retaining the originals; see [local directories and tasks](docs/local-catalog.md).
+
 ## Get Codexly
 
 | Edition | Best for                                                                                             | Get started                                                                                                                                                         |

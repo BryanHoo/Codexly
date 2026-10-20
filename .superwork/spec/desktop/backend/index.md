@@ -55,3 +55,5 @@
 - Claude 的排队、列表、相邻移动、取消、立即发送及 steer 必须先按 LocalCatalog 中的任务 provider 路由到共享宿主，禁止先取 Codex 连接。历史队列附件由宿主复验并导出，原始上传仍经过路径/大小授权。自动续发读取 task.settings 仅访问本地任务偏好；缺省值在宿主中补齐，不在 catalog worker 中反向调用 Claude。
 
 - worktree 创建不生成任务；普通首次 `submit_prompt` 可传 `workspacePath`，`start_task_for_engine` 统一校验项目/worktree 归属并持久化所选引擎与 cwd，首次发送才启动执行会话。已有任务禁止覆盖目录。终端创建可传经过相同归属校验的 `rootPath`，支持尚无 taskId 的 worktree 草稿。新检出统一位于主项目 `.worktree/`；验证 Rust `prompt_submission` / `worktree` / `terminal` 测试、桌面提交与终端运行时测试。
+
+- 应用业务数据统一位于用户主目录 `~/.codexly`，Web 与桌面共用 `state.sqlite3` 及 Claude 历史目录；禁止从 `CODEX_HOME` 或 Tauri 系统应用目录派生新的业务存储。迁移必须用 SQLite 一致快照、禁止覆盖发布及事务完成标记，保留旧源并覆盖 WAL、并发启动、删除不复活、Windows 扩展路径和项目 ID 关联文件复制。详见[本地目录与任务](../../../../docs/local-catalog.md)，验证 `app-storage-migration.test.ts`、Rust `app_data` / `local_catalog` 测试。

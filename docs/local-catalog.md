@@ -18,7 +18,29 @@ Codexly 是目录、任务及其管理状态的唯一数据源。Web 和桌面�
 | 对话正文与执行上下文 | 对应引擎                    | 通过适配器按需读取、恢复和分叉                           |
 | 导入标记             | managed_catalog_migration   | 与全部导入记录在同一事务提交                             |
 
-Web 使用现有的 `CODEX_HOME/codexly/state.sqlite3`，保持现有安装与隔离参数兼容；桌面端使用应用数据目录中的 `catalog.sqlite3`。两者共用 `packages/protocol/src/local-catalog-schema.json` 的表定义。Web 数据库操作在 SQLite Worker 执行，桌面端在阻塞池执行，流式通知不读取完整任务目录。
+Web 与桌面端在同一台电脑、同一系统用户下共用 `~/.codexly/state.sqlite3`，同时共用 `engines/claude` 历史投影目录。`CODEX_HOME` 和 `--codex-home` 仅决定 Codex 引擎的原生配置、会话位置及旧数据发现，不再决定应用数据位置。Codex、Claude 自身的配置与认证仍由官方引擎维护。
+
+| 平台    | 应用数据目录             |
+| ------- | ------------------------ |
+| macOS   | `/Users/<用户>/.codexly` |
+| Ubuntu  | `/home/<用户>/.codexly`  |
+| Windows | `%USERPROFILE%\.codexly` |
+
+Node 使用 [os.homedir()](https://nodejs.org/api/os.html#oshomedir)，桌面端使用 [Tauri homeDir](https://v2.tauri.app/reference/javascript/api/namespacepath/#homedir) 对应的原生接口，禁止拼接启动目录或通过系统应用数据目录创建第二份业务数据。引擎安装资源、操作系统登录服务登记、平台日志与可再生缓存仍遵循对应平台的专用目录。
+
+两端共用 `packages/protocol/src/local-catalog-schema.json` 的表定义及 `app-storage-migration.json` 的导入 SQL。Web 数据库操作在 SQLite Worker 执行，桌面端在阻塞池执行；WAL、外键、5 秒 busy timeout 和短事务支持同机多进程访问，不增加后台同步轮询。切回窗口时，两端共用的恢复逻辑只使项目、任务、归档和置顶列表失效，后台不读取聊天正文。
+
+## 应用目录升级
+
+升级前退出旧版本的 Web 服务和桌面应用，再分别启动新版本。首次启动发现 `CODEX_HOME/codexly`、默认 `~/.codex/codexly` 和旧 Tauri 应用目录（macOS Application Support、Ubuntu XDG 数据目录、Windows Roaming AppData）。已经迁移的目录以目标数据库内的标记判断；不再反复导入旧记录。
+
+- 若目标数据库尚不存在，使用 SQLite 的 [VACUUM INTO](https://www.sqlite.org/backup.html) 创建旧 Web 数据库的一致快照，包含 WAL 中已提交的数据。通过同目录临时文件和不覆盖目标的原子发布，避免并发启动替换已打开的数据库。
+- 在共享事务内合并旧桌面目录与任务，并提交对应源目录的完成标记。保留目标目录中已有的管理状态；按规范化路径合并项目，同 provider/sessionId 的会话不重复创建。Windows 扩展路径前缀统一为普通路径；保留实际大小写与路径分隔符。
+- 项目 ID 合并时复制对应附件、任务偏好及项目默认值到合并后的身份；已存在的目标文件优先。Claude 历史和其索引复制到共同的引擎目录。旧数据库、旧文件及已过时缓存保留在原位置，方便恢复；不复制活动 SQLite 的 db/wal/shm 文件组合。
+- 文件复制或数据库约束失败时不标记该源完成，下次启动可重试。完成标记与导入记录在同一事务内；迁移后删除的任务不会在后续重启时复活。
+- Web v34 通过数据库触发器维护旧设置、队列等业务表的外键投影。因此桌面端直接创建或删除目录时，Web 的关联写入仍有效。
+
+这属于同机共享存储。远程浏览器使用 Web 服务所在电脑的数据，不在浏览器设备上建立第二份数据库。
 
 公共 Project 暂时保留 `roots` 数组的传输形状，但输入、输出协议均要求恰好一项。两端选择器共用单选函数，选择新文件夹会替换旧选择。Git worktree 仍是任务的执行工作区，不增加项目根目录。
 

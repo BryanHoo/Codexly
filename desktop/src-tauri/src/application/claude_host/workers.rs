@@ -72,9 +72,7 @@ pub(super) async fn catalog_loop(
                             .owned_task(project, task)
                             .await
                             .map_err(|error| error.to_string())?;
-                        let app_data = app
-                            .path()
-                            .app_data_dir()
+                        let app_data = crate::infrastructure::app_data::directory(app)
                             .map_err(|error| error.to_string())?;
                         let settings = crate::infrastructure::task_settings::read_task_settings(
                             &app_data, project, task,

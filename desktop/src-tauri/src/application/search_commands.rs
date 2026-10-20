@@ -4,7 +4,7 @@ use crate::{
     infrastructure::{codex, local_catalog::LocalCatalog},
 };
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 #[path = "catalog_search.rs"]
 mod catalog;
@@ -19,8 +19,7 @@ pub async fn search_tasks(
     state
         .run_cancellable(request_id.as_deref(), async {
             let catalog = LocalCatalog::at(
-                &app.path()
-                    .app_data_dir()
+                &crate::infrastructure::app_data::directory(&app)
                     .map_err(|_| AppError::FilesystemRequestFailed)?,
             )?;
             catalog::search(&catalog, input, |task, query| {
@@ -43,8 +42,7 @@ pub async fn search_task_occurrences(
     state
         .run_cancellable(request_id.as_deref(), async {
             let catalog = LocalCatalog::at(
-                &app.path()
-                    .app_data_dir()
+                &crate::infrastructure::app_data::directory(&app)
                     .map_err(|_| AppError::FilesystemRequestFailed)?,
             )?;
             let task = catalog.call("task.read", json!({"id":task_id})).await?;

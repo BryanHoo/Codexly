@@ -53,3 +53,5 @@
 - 设置中的 Codex/Claude 配置面板直接可用，不显示启用、下载或安装步骤；聊天区不得探测未配置引擎，也不得在配置发现期间把新草稿回退到未启用引擎。历史和定时任务保持原引擎。文件浏览、Git、附件及公共应用工具必须独立于引擎启动，使用 `sidebar-client-runtime.test.ts` 验证单引擎隔离。
 
 - Claude 与 Codex 共用跟进偏好和队列交互；WorkbenchComposer 不得按引擎强制覆盖 followUpBehavior，是否可引导由当前引擎能力与运行回合决定。scheduled-engine-composer.test.ts 覆盖两种跟进偏好。
+
+- 切回可见窗口时，通过共享 `installCatalogFocusRefresh` 使目录与历史列表失效，以读取同机另一端的提交；合并同轮 focus/visibility 事件，释放监听，不新增后台轮询或刷新聊天正文。回归见共享 `catalog-focus-refresh.test.ts`。

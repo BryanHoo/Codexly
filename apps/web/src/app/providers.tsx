@@ -1,7 +1,11 @@
+import {
+  installCatalogFocusRefresh,
+  isCatalogListQuery,
+} from "@codexly/frontend-core/catalog-focus-refresh";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { Toaster } from "sonner";
 
 import { ProjectProvider } from "../features/projects/project-context.js";
@@ -80,6 +84,24 @@ export function AccessControlledContent({
   );
 }
 
+function CatalogFocusRefresh() {
+  useEffect(
+    () =>
+      installCatalogFocusRefresh(
+        () => {
+          void queryClient.invalidateQueries(
+            { predicate: (query) => isCatalogListQuery(query.queryKey), refetchType: "active" },
+            { cancelRefetch: false },
+          );
+        },
+        window,
+        document,
+      ),
+    [],
+  );
+  return null;
+}
+
 function AppProviderContent({ children }: AppProvidersProps) {
   const access = useAccess();
   const { t } = useTranslation("common");
@@ -111,6 +133,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     <I18nextProvider i18n={i18n}>
       <TooltipProvider>
         <QueryClientProvider client={queryClient}>
+          <CatalogFocusRefresh />
           <AccessProvider client={codexlyClient} queryClient={queryClient}>
             <AppProviderContent>{children}</AppProviderContent>
           </AccessProvider>

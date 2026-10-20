@@ -2,7 +2,7 @@ use std::{path::PathBuf, time::Duration};
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tokio::time::timeout;
 
 use super::{error::AppError, state::AppState, task_workspace};
@@ -113,9 +113,7 @@ pub(super) async fn project_root(
     project_id: &str,
     root_path: &str,
 ) -> Result<(PathBuf, String), AppError> {
-    let directory = app
-        .path()
-        .app_data_dir()
+    let directory = crate::infrastructure::app_data::directory(app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let catalog = crate::infrastructure::local_catalog::LocalCatalog::at(&directory)?;
     workspace_project_root::resolve(&catalog, project_id, root_path).await
@@ -217,8 +215,7 @@ pub async fn read_project_source_file(
 ) -> Result<Value, AppError> {
     let root = task_workspace::resolve_preview_root(
         Some(
-            &app.path()
-                .app_data_dir()
+            &crate::infrastructure::app_data::directory(&app)
                 .map_err(|_| AppError::FilesystemRequestFailed)?,
         ),
         &project_id,

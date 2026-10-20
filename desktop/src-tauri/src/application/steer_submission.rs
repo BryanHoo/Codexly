@@ -46,9 +46,7 @@ pub async fn steer_turn(
                 )
                 .await;
         }
-        let app_data = worker_app
-            .path()
-            .app_data_dir()
+        let app_data = crate::infrastructure::app_data::directory(&worker_app)
             .map_err(|_| AppError::FilesystemRequestFailed)?;
         // 只在登记后的首次执行中解析附件；重复请求不再次访问文件或发送指令。
         super::attachment_commands::resolve_prompt_attachments(

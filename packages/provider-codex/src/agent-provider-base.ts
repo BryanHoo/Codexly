@@ -58,6 +58,8 @@ export type { CodexRpcClient } from "./codex-rpc-client.js";
 export { canonicalPathIdentity, isSameCanonicalPath } from "./canonical-path-identity.js";
 
 export interface CreateCodexRuntimeProviderOptions {
+  /** 宿主注入或测试隔离目录；生产默认与桌面共用 ~/.codexly。 */
+  appDataDirectory?: string;
   codexHome?: string;
   client: CodexRpcClient;
   fetch?: typeof globalThis.fetch;

@@ -38,7 +38,8 @@ Start options:
 
 Doctor options:
   --codex-bin <path>         Check the Codex executable at the specified path.
-  --codex-home <path>        Check the state database in the specified Codex home.
+  --codex-home <path>        Use a custom Codex home for engine checks and legacy data import.
+                             Application data is always stored in ~/.codexly.
 
 Global options:
   -h, --help                 Display all commands, options, and usage details.

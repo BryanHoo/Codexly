@@ -120,9 +120,7 @@ pub async fn create_project_terminal(
         .map_err(|_| TerminalError::SpawnFailed)?
         .map_err(Into::into);
     }
-    let directory = app
-        .path()
-        .app_data_dir()
+    let directory = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| TerminalError::ProjectNotFound)?;
     let catalog = crate::infrastructure::local_catalog::LocalCatalog::at(&directory)?;
     let project = crate::infrastructure::local_catalog::sidebar::map_project(

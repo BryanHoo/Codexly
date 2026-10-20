@@ -36,7 +36,7 @@ impl ScheduledTaskRuntime {
     }
 
     pub(super) async fn run(self, app: AppHandle) {
-        let app_data = match app.path().app_data_dir() {
+        let app_data = match crate::infrastructure::app_data::directory(&app) {
             Ok(path) => path,
             Err(error) => {
                 crate::infrastructure::diagnostics::record_error(

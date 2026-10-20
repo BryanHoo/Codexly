@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use super::{error::AppError, sidebar_task_settings::effective_task_settings, state::AppState};
 use crate::{
@@ -17,9 +17,7 @@ pub async fn fork_task(
     state: State<'_, AppState>,
 ) -> Result<AgentTaskMutationResponse, AppError> {
     let mut settings = effective_task_settings(&app, &project_id, &task_id).await?;
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let catalog = LocalCatalog::at(&app_data)?;
     let task = catalog.owned_task(&project_id, &task_id).await?;

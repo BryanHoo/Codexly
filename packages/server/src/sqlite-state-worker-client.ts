@@ -9,6 +9,7 @@ import {
 import { SQLITE_MIGRATIONS, type SqliteMigration } from "./sqlite-state-migrations.js";
 
 export interface SqliteStateWorkerOptions {
+  legacyDirectories?: readonly string[];
   migrations?: readonly SqliteMigration[];
   requestTimeoutMs?: number;
   workerUrl?: URL;
@@ -69,6 +70,7 @@ export class SqliteStateWorkerClient {
       {
         workerData: {
           databasePath: this.#databasePath,
+          legacyDirectories: this.#options.legacyDirectories,
           migrations: this.#options.migrations ?? SQLITE_MIGRATIONS,
         },
       },
@@ -87,13 +89,18 @@ export class SqliteStateWorkerClient {
     });
     return new Promise<void>((resolveReady, rejectReady) => {
       let readySettled = false;
+      // 升级可能复制大量附件；只放宽首次初始化，业务 RPC 仍保留原有超时预算。
+      const initializationTimeoutMs =
+        this.#options.requestTimeoutMs === undefined && this.#options.legacyDirectories?.length
+          ? 300_000
+          : this.#requestTimeoutMs;
       const readyTimeout = setTimeout(() => {
         settleReadyError(
           new Error(
-            `SQLite worker initialization timed out after ${String(this.#requestTimeoutMs)}ms`,
+            `SQLite worker initialization timed out after ${String(initializationTimeoutMs)}ms`,
           ),
         );
-      }, this.#requestTimeoutMs);
+      }, initializationTimeoutMs);
       const settleReady = (): void => {
         if (readySettled) {
           return;

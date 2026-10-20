@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentProviderEvent } from "@codexly/core";
-import { createCodexRuntimeProvider } from "./agent-provider.js";
+import { createCodexRuntimeProvider } from "./runtime-provider.test-support.js";
 import {
   FakeRpcClient,
   projectRootPath,

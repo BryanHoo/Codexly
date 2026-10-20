@@ -50,3 +50,5 @@
 - 已初始化的纯 Claude 工作区不得请求 Codex 模型、认证、技能和默认设置；按启用状态隐藏依赖 Codex 的搜索、文件提及搜索与扩展入口，快捷键也必须受同一开关控制。禁用查询的 pending 状态不能阻塞 Claude 草稿；启用 Codex 后查询与入口即时恢复，无需重挂载聊天。
 
 - Claude 与 Codex 共用跟进偏好和队列交互；WorkbenchComposer 不得按引擎强制覆盖 followUpBehavior，移动端遵循同一行为。scheduled-engine-composer.test.tsx 覆盖两种跟进偏好。
+
+- 切回可见窗口时，通过共享 `installCatalogFocusRefresh` 使目录与历史列表失效，以读取同机另一端的提交；合并同轮 focus/visibility 事件，释放监听，不新增后台轮询或刷新聊天正文。回归见共享 `catalog-focus-refresh.test.ts`。

@@ -51,3 +51,5 @@
 - 公共生成偏好使用 `defaultAgent` / `defaultModel`，统一控制任务标题和 Git message；请求中的聊天引擎不能覆盖它。旧提交模型迁移为公共模型。Claude 单独配置时的默认值探测不得启动 Codex；使用本地连接配置判断，验证 `global-generation-settings.test.ts`、`engine-independence.test.ts` 与 `cli-claude-start.test.ts`。
 
 - 辅助生成菜单集中维护默认 Agent、默认模型、`commitMessagePrompt` 与 `taskTitlePrompt`。两种提示词互相独立，空白回退各自内置规则；标题规则须传入 Codex / Claude 实际请求，不能只保存到表单。延迟适配器必须保留 `includeEphemeral` 订阅选项，验证 `cli-engine-runtime.test.ts` 与 `CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run src/cli-commit-generation-runtime.test.ts`（隔离本地模型，不消耗额度）。
+
+- 应用业务数据统一位于用户主目录 `~/.codexly`，Web 与桌面共用 `state.sqlite3` 及 Claude 历史目录；禁止从 `CODEX_HOME` 或 Tauri 系统应用目录派生新的业务存储。迁移必须用 SQLite 一致快照、禁止覆盖发布及事务完成标记，保留旧源并覆盖 WAL、并发启动、删除不复活、Windows 扩展路径和项目 ID 关联文件复制。详见[本地目录与任务](../../../../docs/local-catalog.md)，验证 `app-storage-migration.test.ts`、Rust `app_data` / `local_catalog` 测试。

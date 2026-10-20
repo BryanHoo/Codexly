@@ -14,9 +14,7 @@ pub(super) async fn effective_task_settings(
     project_id: &str,
     task_id: &str,
 ) -> Result<AgentTaskSettings, AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     if let Some(settings) = read_task_settings(&app_data, project_id, task_id)
         .await
@@ -112,8 +110,7 @@ pub async fn update_task_settings(
             json!({"taskId": task_id, "permissionMode": settings.engine_options.as_ref().and_then(|value| value.get("permissionMode"))}),
         ).await?;
         write_task_settings(
-            &app.path()
-                .app_data_dir()
+            &crate::infrastructure::app_data::directory(&app)
                 .map_err(|_| AppError::FilesystemRequestFailed)?,
             &project_id,
             &task_id,
@@ -148,8 +145,7 @@ pub async fn update_task_settings(
         None
     };
     write_task_settings(
-        &app.path()
-            .app_data_dir()
+        &crate::infrastructure::app_data::directory(&app)
             .map_err(|_| AppError::FilesystemRequestFailed)?,
         &project_id,
         &task_id,

@@ -54,7 +54,7 @@ pub async fn request(
             {
                 return Err(ConnectionError::InvalidMessage);
             }
-            let path = path.to_string_lossy().into_owned();
+            let path = crate::infrastructure::local_catalog::project_path(&path);
             let projects = catalog.call("project.list", Value::Null).await?;
             if let Some(project) = projects
                 .as_array()

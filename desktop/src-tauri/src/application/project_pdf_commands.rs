@@ -17,8 +17,7 @@ pub async fn get_project_pdf_file(
 ) -> Result<String, AppError> {
     let root = task_workspace::resolve_preview_root(
         Some(
-            &app.path()
-                .app_data_dir()
+            &crate::infrastructure::app_data::directory(&app)
                 .map_err(|_| AppError::FilesystemRequestFailed)?,
         ),
         &project_id,

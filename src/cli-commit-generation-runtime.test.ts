@@ -75,8 +75,9 @@ it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
       });
       const client = await createLocalCatalogClient(codexProcess.client, store);
       runtime = enableClaudeRuntime(
-        createCodexRuntimeProvider({ client, codexHome: root }),
+        createCodexRuntimeProvider({ client, codexHome: root, appDataDirectory: root }),
         store,
+        root,
         root,
       );
       const provider = runtime.forProject({

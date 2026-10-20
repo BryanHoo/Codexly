@@ -60,7 +60,7 @@ impl AppServerConnection {
                     // 不存在的历史目录仍须保留，以便用户迁回磁盘或删除目录记录。
                     let path = tokio::fs::canonicalize(original).await.map_or_else(
                         |_| original.to_owned(),
-                        |p| p.to_string_lossy().into_owned(),
+                        |p| crate::infrastructure::local_catalog::project_path(&p),
                     );
                     let mapped = by_path
                         .entry(path.clone())
@@ -109,9 +109,10 @@ impl AppServerConnection {
                     let cwd = native["cwd"]
                         .as_str()
                         .ok_or(ConnectionError::InvalidMessage)?;
-                    let path = tokio::fs::canonicalize(cwd)
-                        .await
-                        .map_or_else(|_| cwd.to_owned(), |p| p.to_string_lossy().into_owned());
+                    let path = tokio::fs::canonicalize(cwd).await.map_or_else(
+                        |_| cwd.to_owned(),
+                        |p| crate::infrastructure::local_catalog::project_path(&p),
+                    );
                     let candidates = native["projectId"]
                         .as_str()
                         .and_then(|id| by_source.get(id));

@@ -67,7 +67,7 @@ pub(super) fn schedule_runtime_restart(app: AppHandle, generation: u64, delay: D
                 return;
             }
         }
-        let app_data = match app.path().app_data_dir() {
+        let app_data = match crate::infrastructure::app_data::directory(&app) {
             Ok(app_data) => app_data,
             Err(error) => {
                 crate::infrastructure::diagnostics::record_error(

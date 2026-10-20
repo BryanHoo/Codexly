@@ -26,9 +26,7 @@ pub(super) fn spawn_task_title(
     // 只在主请求成功后领取一次；辅助模型请求不延长发送链路，也不增加前端事件订阅。
     tauri::async_runtime::spawn(async move {
         let result = async {
-            let app_data = app
-                .path()
-                .app_data_dir()
+            let app_data = crate::infrastructure::app_data::directory(&app)
                 .map_err(|_| AppError::FilesystemRequestFailed)?;
             let preferences = super::generation_settings::read(&app).await?;
             if preferences["defaultAgent"] == "claude" {
@@ -69,9 +67,7 @@ pub(crate) fn generate_application_title<'a>(
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, AppError>> + Send + 'a>> {
     // 原生生成可能回调 Claude 宿主，显式擦除异步类型以切断启动链的递归 Future。
     Box::pin(async move {
-        let app_data = app
-            .path()
-            .app_data_dir()
+        let app_data = crate::infrastructure::app_data::directory(app)
             .map_err(|_| AppError::FilesystemRequestFailed)?;
         let preferences = super::generation_settings::read(app).await?;
         let settings = resolve_commit_message_settings(&preferences);

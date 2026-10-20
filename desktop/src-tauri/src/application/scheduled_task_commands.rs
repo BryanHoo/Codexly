@@ -1,5 +1,5 @@
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use crate::domain::scheduled_task::{
     ScheduledTask, ScheduledTaskInput, ScheduledTaskPage, ScheduledTaskSchedule,
@@ -128,7 +128,5 @@ pub async fn run_scheduled_task_now(
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
-    app.path()
-        .app_data_dir()
-        .map_err(|_| AppError::FilesystemRequestFailed)
+    crate::infrastructure::app_data::directory(app).map_err(|_| AppError::FilesystemRequestFailed)
 }

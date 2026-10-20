@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(not(target_os = "macos"))]
 use tauri::Emitter;
 use tauri::{
-    AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
+    AppHandle, LogicalSize, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
 
@@ -313,9 +313,7 @@ pub(super) fn layout_desktop_pet_window(
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<std::path::PathBuf, AppError> {
-    app.path()
-        .app_data_dir()
-        .map_err(|_| AppError::FilesystemRequestFailed)
+    crate::infrastructure::app_data::directory(app).map_err(|_| AppError::FilesystemRequestFailed)
 }
 
 async fn read_stored_position(app: &AppHandle) -> Result<Option<PhysicalPosition<i32>>, AppError> {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createCodexRuntimeProvider } from "./agent-provider.js";
+import { createCodexRuntimeProvider } from "./runtime-provider.test-support.js";
 import { FakeRpcClient } from "./agent-provider.test-support.js";
 
 function modelListResponse(model: string) {

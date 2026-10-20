@@ -9,7 +9,7 @@ use crate::infrastructure::claude_runtime::{ClaudeRuntimeManager, RuntimePaths};
 use crate::infrastructure::local_catalog::LocalCatalog;
 use serde_json::{Value, json};
 use std::{process::Stdio, sync::Arc, time::Duration};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use tokio::{
     process::{Child, Command},
     sync::{Mutex, mpsc},
@@ -125,7 +125,7 @@ fn failure(error: impl std::fmt::Display) -> AppError {
 
 impl ClaudeHost {
     async fn start(app: &AppHandle, (binary, host_path): RuntimePaths) -> Result<Self, AppError> {
-        let app_data = app.path().app_data_dir().map_err(failure)?;
+        let app_data = crate::infrastructure::app_data::directory(app).map_err(failure)?;
         let catalog = LocalCatalog::at(&app_data)?;
         let mut command = Command::new(host_path);
         command

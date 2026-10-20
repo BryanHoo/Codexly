@@ -83,7 +83,12 @@ async function harness() {
     forTemporary: vi.fn(() => codex),
     releaseProject: vi.fn(() => Promise.resolve()),
   };
-  const runtime = enableClaudeRuntime(codexRuntime as unknown as AgentRuntimeProvider, store, root);
+  const runtime = enableClaudeRuntime(
+    codexRuntime as unknown as AgentRuntimeProvider,
+    store,
+    root,
+    root,
+  );
   const project = (id: string): Project => ({
     id,
     name: id,

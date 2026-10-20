@@ -6,6 +6,7 @@ import {
 import { PROVIDER_CONNECTION_MIGRATION } from "./provider-connection-persistence.js";
 import { PROJECT_TODO_MIGRATION } from "./project-todo-migration.js";
 import { ASYNC_QUESTION_MIGRATION } from "./async-question-migration.js";
+import { SHARED_CATALOG_PROJECTION_SQL } from "./shared-catalog-projection.js";
 import { LOCAL_CATALOG_SQL } from "./local-catalog-schema.js";
 
 export type SqliteMigration = Readonly<{
@@ -495,4 +496,5 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
     sql: "ALTER TABLE global_settings ADD COLUMN default_agent TEXT;",
   },
   TASK_TITLE_PROMPT_MIGRATION,
+  { name: "share_desktop_catalog_projection", version: 34, sql: SHARED_CATALOG_PROJECTION_SQL },
 ];

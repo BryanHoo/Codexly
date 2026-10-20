@@ -157,7 +157,7 @@ fn send_clickable_notification(app: &AppHandle, notification: TaskNotification) 
 }
 
 async fn read_preferences(app: &AppHandle) -> BTreeMap<String, String> {
-    let Ok(app_data) = app.path().app_data_dir() else {
+    let Ok(app_data) = crate::infrastructure::app_data::directory(app) else {
         return BTreeMap::new();
     };
     app_storage::read_preferences(&app_data)

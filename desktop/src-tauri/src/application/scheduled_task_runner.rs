@@ -24,9 +24,7 @@ pub(crate) async fn start_turn_for_task(
 ) -> Result<Value, AppError> {
     // 计划任务直接进入此处；校验必须先于附件解析、设置写入及任何启动副作用。
     crate::domain::goal_input::validate_turn_input(&input, &options)?;
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let task = super::claude_tasks::task(app, project_id, task_id).await?;
     if task["provider"] == "claude" {
@@ -212,9 +210,7 @@ pub(crate) async fn validate_scheduled_task_options(
         profile["models"].clone()
     } else {
         let state = app.state::<AppState>();
-        let app_data = app
-            .path()
-            .app_data_dir()
+        let app_data = crate::infrastructure::app_data::directory(app)
             .map_err(|_| AppError::FilesystemRequestFailed)?;
         state.start_codex(app, &app_data).await?;
         let connection = state.codex_connection().await?;

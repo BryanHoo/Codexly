@@ -15,12 +15,22 @@ pub struct LocalCatalog {
 type SharedConnection = Mutex<Option<Connection>>;
 static STORES: OnceLock<Mutex<HashMap<PathBuf, Weak<SharedConnection>>>> = OnceLock::new();
 
+/// Windows 原生 canonicalize 返回扩展路径，移除前缀以与 Node realpath 的项目身份一致。
+pub fn project_path(path: &Path) -> String {
+    let path = path.to_string_lossy();
+    if let Some(unc) = path.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{unc}")
+    } else {
+        path.strip_prefix(r"\\?\").unwrap_or(&path).to_owned()
+    }
+}
+
 impl LocalCatalog {
     pub fn app_data(&self) -> Result<&Path, CatalogError> {
         self.path.parent().ok_or(CatalogError::StateUnavailable)
     }
     pub fn at(app_data: &Path) -> Result<Self, CatalogError> {
-        let path = app_data.join("catalog.sqlite3");
+        let path = app_data.join("state.sqlite3");
         let mut stores = STORES
             .get_or_init(Default::default)
             .lock()
@@ -107,6 +117,41 @@ fn task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_web_history_and_observes_external_commits() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Connection::open(dir.path().join("state.sqlite3")).unwrap();
+        let schema: Value = serde_json::from_str(include_str!(
+            "../../../../../packages/protocol/src/local-catalog-schema.json"
+        ))
+        .unwrap();
+        db.execute_batch(schema["sql"].as_str().unwrap()).unwrap();
+        let store = LocalCatalog::at(dir.path()).unwrap();
+        assert_eq!(
+            store.execute("task.bindings", &Value::Null).unwrap(),
+            json!([])
+        );
+        db.execute("INSERT INTO managed_tasks VALUES ('web-task',NULL,'Web 历史','/workspace','claude','session',1,0,0,'idle')", []).unwrap();
+        assert_eq!(
+            store
+                .execute("task.read", &json!({"id":"web-task"}))
+                .unwrap()["title"],
+            "Web 历史"
+        );
+        store
+            .execute("task.patch", &json!({"id":"web-task","title":"桌面修改"}))
+            .unwrap();
+        assert_eq!(
+            db.query_row(
+                "SELECT title FROM managed_tasks WHERE id='web-task'",
+                [],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+            "桌面修改"
+        );
+    }
 
     #[test]
     fn engine_binding_should_reject_replacement_and_allow_cross_engine_session_ids() {

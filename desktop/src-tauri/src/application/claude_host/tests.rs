@@ -343,7 +343,7 @@ async fn real_slow_catalog_write_should_not_delay_response_delivery() {
         )
         .await
         .unwrap();
-    let database = rusqlite::Connection::open(directory.path().join("catalog.sqlite3")).unwrap();
+    let database = rusqlite::Connection::open(directory.path().join("state.sqlite3")).unwrap();
     database.execute_batch("BEGIN IMMEDIATE").unwrap();
     let (transport, writes) = Transport::new();
     let (writer, mut peer) = tokio::io::duplex(4096);

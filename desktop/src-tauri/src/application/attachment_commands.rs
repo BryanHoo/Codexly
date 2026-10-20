@@ -76,9 +76,7 @@ pub async fn upload_attachment(app: AppHandle, request: Request<'_>) -> Result<V
         .ok()
         .and_then(|value| String::from_utf8(value).ok())
         .ok_or(AppError::FilesystemRequestFailed)?;
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     store_attachment_without_codex(&app_data, project_id, kind, &name, bytes).await
 }
@@ -99,9 +97,7 @@ pub async fn import_host_attachment(
     kind: String,
     path: String,
 ) -> Result<Value, AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(&app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     import_attachment_without_codex(&app_data, &project_id, &kind, &path).await
 }
@@ -142,8 +138,7 @@ pub async fn cache_project_image(
 ) -> Result<Value, AppError> {
     let canonical_root = task_workspace::resolve_preview_root(
         Some(
-            &app.path()
-                .app_data_dir()
+            &crate::infrastructure::app_data::directory(&app)
                 .map_err(|_| AppError::FilesystemRequestFailed)?,
         ),
         &project_id,
@@ -160,8 +155,7 @@ pub async fn cache_project_image(
         return Err(AppError::FilesystemRequestFailed);
     }
     let response = workspace::import_attachment(
-        &app.path()
-            .app_data_dir()
+        &crate::infrastructure::app_data::directory(&app)
             .map_err(|_| AppError::FilesystemRequestFailed)?,
         &project_id,
         "image",

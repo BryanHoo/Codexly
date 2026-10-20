@@ -1,6 +1,7 @@
 import { importLocalCatalog, prepareLocalCatalog } from "./cli-local-catalog.js";
 import { createLazyCodexRuntime, type CliManagedRuntime } from "./cli-lazy-codex-client.js";
 import type { ManagedStartContext } from "./autostart/runtime.js";
+import { appStorageDirectory, legacyStorageDirectories } from "@codexly/core/app-storage-paths";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,7 +32,6 @@ import {
   normalizeAllowedHost,
   SqliteStateRepository,
   LocalProjectRepository,
-  type SqliteDatabaseDiagnostics,
 } from "@codexly/server";
 import packageManifest from "../package.json" with { type: "json" };
 import { createAppUpdateService, readClaudeCodeVersion } from "./app-update.js";
@@ -44,8 +44,11 @@ import {
 } from "./cli-command-options.js";
 import { createProcessShutdownSignal, waitForAbort } from "./cli-shutdown.js";
 import { listenOnAvailablePort } from "./cli-server-listen.js";
-import type { CreateServerInput } from "./cli-server-input.js";
-import type { CliManagedStateRepository } from "./cli-state-repository.js";
+import type { CreateServerInput, CreateRuntimeProviderInput } from "./cli-server-input.js";
+import {
+  assertDatabaseDiagnostics,
+  type CliManagedStateRepository,
+} from "./cli-state-repository.js";
 import {
   confirmTerminalAppUpdate,
   createStartupAppUpdateOperations,
@@ -71,14 +74,10 @@ interface CliManagedProjectRepository extends ProjectRepository {
   migrateLegacyProjects(options: { recoverUnassigned: boolean }): Promise<void>;
   synchronize(): ReturnType<ProjectRepository["list"]>;
 }
-interface CreateRuntimeProviderInput {
-  readTaskTitleModel: () => Promise<string>;
-  codexHome?: string;
-  client: CodexRpcClient;
-  modelCatalogRuntimeFactory?: () => Promise<CliManagedRuntime>;
-}
 
 export interface CliDependencies {
+  /** 宿主和回归测试可注入隔离目录，生产默认始终使用用户 ~/.codexly。 */
+  appDataDirectory?: string;
   appVersion: string;
   checkAppUpdate: () => Promise<StartupAppUpdateCheck>;
   checkCodexVersion: (binaryPath: string) => Promise<CodexVersionInfo>;
@@ -88,7 +87,10 @@ export interface CliDependencies {
     projection: ProjectProjectionStore;
   }) => CliManagedProjectRepository;
   createPetProvider: (input: CreateCodexWorkbenchPetProviderOptions) => WorkbenchPetProvider;
-  createStateRepository: (databasePath: string) => Promise<CliManagedStateRepository>;
+  createStateRepository: (
+    databasePath: string,
+    codexHome?: string,
+  ) => Promise<CliManagedStateRepository>;
   createRuntimeProvider: (
     input: CreateRuntimeProviderInput,
   ) => AgentRuntimeProvider | Promise<AgentRuntimeProvider>;
@@ -128,7 +130,10 @@ const defaultDependencies: CliDependencies = {
       projection,
     ),
   createPetProvider: createCodexWorkbenchPetProvider,
-  createStateRepository: (databasePath) => SqliteStateRepository.open(databasePath),
+  createStateRepository: (databasePath, codexHome) =>
+    SqliteStateRepository.open(databasePath, {
+      legacyDirectories: legacyStorageDirectories(codexHome ?? resolveCodexHome({})),
+    }),
   createRuntimeProvider: createCodexRuntimeProvider,
   createServer: async (input) => {
     const server = await createCodexlyServer({
@@ -162,28 +167,6 @@ function resolveCodexHome(options: ParsedCommandOptions): string {
   return options.codexHome ?? process.env["CODEX_HOME"] ?? join(homedir(), ".codex");
 }
 
-function assertDatabaseDiagnostics(diagnostics: SqliteDatabaseDiagnostics): void {
-  if (!diagnostics.writable) {
-    throw new Error("SQLite database is not writable");
-  }
-  if (diagnostics.migrationVersion < 1) {
-    throw new Error("SQLite migrations are not applied");
-  }
-  if (diagnostics.integrityCheck !== "ok") {
-    throw new Error(`SQLite integrity_check failed: ${diagnostics.integrityCheck}`);
-  }
-  if (diagnostics.journalMode.toLocaleLowerCase() !== "wal") {
-    throw new Error(`SQLite journal_mode must be WAL; found ${diagnostics.journalMode}`);
-  }
-  if (
-    !diagnostics.foreignKeys ||
-    diagnostics.synchronous !== "normal" ||
-    diagnostics.busyTimeout !== 5_000
-  ) {
-    throw new Error("SQLite PRAGMA configuration is invalid");
-  }
-}
-
 async function runDoctor(
   args: readonly string[],
   dependencies: CliDependencies,
@@ -199,13 +182,15 @@ async function runDoctor(
   const version = await dependencies.checkCodexVersion(binary.path);
   output.success(`Codex ${version.version} (${binary.path})`);
   const codexHome = resolveCodexHome(options);
+  const applicationDirectory = dependencies.appDataDirectory ?? appStorageDirectory();
   const stateRepository = await dependencies.createStateRepository(
-    join(codexHome, "codexly", "state.sqlite3"),
+    join(applicationDirectory, "state.sqlite3"),
+    codexHome,
   );
   try {
     const diagnostics = await stateRepository.diagnose();
     assertDatabaseDiagnostics(diagnostics);
-    output.success(`SQLite 可写 (${join(codexHome, "codexly", "state.sqlite3")})`);
+    output.success(`SQLite 可写 (${join(applicationDirectory, "state.sqlite3")})`);
     output.success(`SQLite migration ${String(diagnostics.migrationVersion)}`);
     output.success(`SQLite integrity_check ${diagnostics.integrityCheck}`);
     output.success(`SQLite journal_mode ${diagnostics.journalMode}`);
@@ -281,14 +266,16 @@ export async function runStart(
 
   try {
     const codexHome = resolveCodexHome(options);
-    // 启动位置不参与内部运行：多个 Web 实例共用 Codex Home，由端口和业务事务处理并发。
+    const applicationDirectory = dependencies.appDataDirectory ?? appStorageDirectory();
+    // 启动位置不参与内部运行：多个 Web 实例共用应用数据目录，由端口和业务事务处理并发。
     const runtimeCwd = homedir();
     const env = {
       ...environment,
       ...(options.codexHome ? { CODEX_HOME: options.codexHome } : {}),
     };
     stateRepository = await dependencies.createStateRepository(
-      join(codexHome, "codexly", "state.sqlite3"),
+      join(applicationDirectory, "state.sqlite3"),
+      codexHome,
     );
     const startupStateRepository = stateRepository;
     const startRuntime = () => {
@@ -323,6 +310,9 @@ export async function runStart(
       await stateRepository.completeProjectSourceMigration();
     }
     const codexProvider = await dependencies.createRuntimeProvider({
+      ...(dependencies.appDataDirectory === undefined
+        ? {}
+        : { appDataDirectory: applicationDirectory }),
       codexHome,
       client: catalogClient,
       modelCatalogRuntimeFactory: startRuntime,
@@ -331,7 +321,12 @@ export async function runStart(
         (await startupStateRepository.readGlobalSettings())?.defaultModel ??
         DEFAULT_GENERATION_MODEL,
     });
-    const provider = enableClaudeRuntime(codexProvider, stateRepository, codexHome);
+    const provider = enableClaudeRuntime(
+      codexProvider,
+      stateRepository,
+      codexHome,
+      applicationDirectory,
+    );
     const petProvider = dependencies.createPetProvider({ codexHome });
     const appUpdateService = createAppUpdateService({
       appVersion: dependencies.appVersion,

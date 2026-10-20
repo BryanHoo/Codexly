@@ -54,6 +54,7 @@ it("starts real HTTP, reads Claude history and chats while Codex is unavailable"
   const harness = createHarness({
     createStateRepository: () => Promise.resolve(store),
     createProjectRepository: () => projects,
+    appDataDirectory: root,
     createRuntimeProvider: createCodexRuntimeProvider,
     startCodexAppServer: vi.fn(() => Promise.reject(new Error("Codex executable unavailable"))),
     createServer: async (input) => {

@@ -13,9 +13,7 @@ fn preference_key(project_id: &str) -> String {
 }
 
 pub(super) async fn remove_preferences(app: &AppHandle, project_id: &str) -> Result<(), AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     // 删除也通过同一 Rust actor 排序，不绕过已有存储写入队列。
     app.state::<AppStorageRuntime>()

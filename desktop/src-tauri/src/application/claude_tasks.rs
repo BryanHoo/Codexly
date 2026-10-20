@@ -8,8 +8,7 @@ use tauri::{AppHandle, Manager};
 
 pub async fn task(app: &AppHandle, project: &str, id: &str) -> Result<Value, AppError> {
     LocalCatalog::at(
-        &app.path()
-            .app_data_dir()
+        &crate::infrastructure::app_data::directory(app)
             .map_err(|_| AppError::FilesystemRequestFailed)?,
     )?
     .owned_task(project, id)
@@ -91,9 +90,7 @@ pub async fn start(
     }
     let provider_input = provider_input(app, project, id, input).await?;
     state.remember_tasks(project, [id]).await;
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     write_task_settings(&app_data, project, id, &AgentTaskSettings::from(&options))
         .await
@@ -119,9 +116,7 @@ pub async fn provider_input(
     task: &str,
     mut input: AgentPromptInput,
 ) -> Result<Value, AppError> {
-    let app_data = app
-        .path()
-        .app_data_dir()
+    let app_data = crate::infrastructure::app_data::directory(app)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
     let mut references = Vec::new();
     let mut uploaded = Vec::new();

@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Worker } from "node:worker_threads";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const require = createRequire(import.meta.url);
 
@@ -156,6 +156,13 @@ try {
   // 此测试只运行内部入口，不注册或修改宿主系统的登录项。
   const blockedHome = join(stateRoot, "blocked-home");
   writeFileSync(blockedHome, "not a directory");
+  // 应用数据不再跟随 CODEX_HOME；仅在冒烟子进程中替换 os.homedir，禁止触碰用户真实目录。
+  const isolatedHomeLoader = join(stateRoot, "isolated-home.mjs");
+  writeFileSync(
+    isolatedHomeLoader,
+    `import os from 'node:os'; import { syncBuiltinESMExports } from 'node:module'; os.homedir = () => ${JSON.stringify(stateRoot)}; syncBuiltinESMExports();`,
+  );
+  writeFileSync(join(stateRoot, ".codexly"), "not a directory");
   const autostartConfig = join(stateRoot, "config.json");
   const testPassword = "Package-Smoke_Lan123456";
   writeFileSync(
@@ -182,7 +189,15 @@ try {
   );
   const failedService = spawnSync(
     process.execPath,
-    ["dist/cli.js", "autostart", "run", "--config", autostartConfig],
+    [
+      "--import",
+      pathToFileURL(isolatedHomeLoader).href,
+      "dist/cli.js",
+      "autostart",
+      "run",
+      "--config",
+      autostartConfig,
+    ],
     {
       encoding: "utf8",
       shell: false,
@@ -195,7 +210,7 @@ try {
     failedService.status !== 1 ||
     failedState.phase !== "failed" ||
     !failedState.error ||
-    !failedLog.includes("blocked-home")
+    !failedLog.includes(".codexly")
   ) {
     throw new Error(
       `Built autostart failure recovery failed: status=${String(failedService.status)}, phase=${failedState.phase}, error=${failedState.error ?? failedService.stderr}`,

@@ -1,3 +1,4 @@
+import { installCatalogFocusRefresh, isCatalogListQuery } from "@codexly/frontend-core/catalog-focus-refresh";
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useEffect } from "react";
 import { Toaster } from "sonner";
@@ -60,6 +61,13 @@ function ApplicationSuspensionEffects() {
   return null;
 }
 
+function CatalogFocusRefresh() {
+  useEffect(() => installCatalogFocusRefresh(() => {
+    void queryClient.invalidateQueries({ predicate: (query) => isCatalogListQuery(query.queryKey), refetchType: "active" }, { cancelRefetch: false });
+  }, window, document), []);
+  return null;
+}
+
 function AppProviderContent({ children }: AppProvidersProps) {
   const { t } = useTranslation("common");
   return (
@@ -89,6 +97,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     <I18nextProvider i18n={i18n}>
       <TooltipProvider>
         <QueryClientProvider client={queryClient}>
+          <CatalogFocusRefresh />
           <ApplicationSuspensionEffects />
           <AppProviderContent>{children}</AppProviderContent>
         </QueryClientProvider>

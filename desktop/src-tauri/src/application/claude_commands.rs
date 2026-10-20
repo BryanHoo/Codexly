@@ -22,8 +22,7 @@ pub async fn claude_engine_request(
     }
     let scope = if let Some(id) = project_id.filter(|id| id != "temporary") {
         let catalog = LocalCatalog::at(
-            &app.path()
-                .app_data_dir()
+            &crate::infrastructure::app_data::directory(&app)
                 .map_err(|_| AppError::FilesystemRequestFailed)?,
         )?;
         let project = catalog.call("project.read", json!({"id":id})).await?;

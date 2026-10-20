@@ -6,6 +6,7 @@
     "noEmit": true,
     "paths": {
       "@codexly/client": ["../packages/client/src/index.ts"],
+      "@codexly/core/app-storage-paths": ["../packages/core/src/app-storage-paths.ts"],
       "@codexly/core": ["../packages/core/src/index.ts"],
       "@codexly/protocol": ["../packages/protocol/src/index.ts"],
       "@codexly/provider-codex": ["../packages/provider-codex/src/index.ts"],

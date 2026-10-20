@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createCodexRuntimeProvider } from "./agent-provider.js";
+import { createCodexRuntimeProvider } from "./runtime-provider.test-support.js";
 import { CodexProviderConnectionService } from "./provider-connection.js";
 import { FakeRpcClient } from "./provider-connection.test-support.js";
 

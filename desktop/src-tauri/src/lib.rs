@@ -139,6 +139,11 @@ pub fn run() {
         .manage(MainWindowLifecycle::default())
         .manage(application::terminal_lifecycle::TerminalLifecycle::default())
         .setup(|app| {
+            // 业务入口开放前在阻塞池执行一次迁移；运行阶段不扫描旧目录、不持有迁移锁。
+            let storage_app = app.handle().clone();
+            tauri::async_runtime::block_on(tauri::async_runtime::spawn_blocking(move || {
+                infrastructure::app_data::initialize(&storage_app)
+            }))??;
             diagnostics::initialize(app.handle())?;
             setup_tray(app.handle())?;
             if let Some(window) = app.get_webview_window("main") {

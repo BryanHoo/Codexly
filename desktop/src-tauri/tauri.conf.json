@@ -27,6 +27,7 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
+          "$HOME/.codexly/attachments/**",
           "$APPDATA/attachments/**"
         ]
       },
