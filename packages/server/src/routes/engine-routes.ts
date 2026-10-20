@@ -6,6 +6,11 @@ import {
   AgentProviderConnectionMutationResponseSchema,
   ConfigureCustomProviderRequestSchema,
   ConfigureCustomProviderResponseSchema,
+  ClaudeExtensionKindSchema,
+  ClaudeExtensionMutationSchema,
+  ClaudeExtensionPageSchema,
+  type ClaudeExtensionKind,
+  type ClaudeExtensionMutation,
   type AgentEngine,
   type ClaudeSettings,
   type ConfigureCustomProviderRequest,
@@ -26,6 +31,73 @@ export const registerEngineRoutes: FastifyPluginCallback<ServerRouteContext> = (
     if (!value) throw new MutationHttpError("PROVIDER_ERROR", "Engine is unavailable", 503);
     return value;
   };
+  const projectQuery = Type.Object(
+    { projectId: Type.Optional(Type.String({ minLength: 1 })) },
+    { additionalProperties: false },
+  );
+  const extensionScope = async (projectId?: string) => {
+    if (!projectId) return undefined;
+    const project = await context.getProjectContext(projectId);
+    if (!project) throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
+    return project.scope;
+  };
+  app.get<{ Querystring: { kind: ClaudeExtensionKind; projectId?: string } }>(
+    "/v1/engines/claude/extensions",
+    {
+      schema: {
+        querystring: Type.Object(
+          { ...projectQuery.properties, kind: ClaudeExtensionKindSchema },
+          { additionalProperties: false },
+        ),
+        response: { 200: ClaudeExtensionPageSchema },
+      },
+    },
+    async (request) => {
+      const engine = service("claude");
+      if (!engine.listExtensions)
+        throw new MutationHttpError(
+          "PROVIDER_ERROR",
+          "Claude extension management is unavailable",
+          503,
+        );
+      return engine.listExtensions(
+        request.query.kind,
+        await extensionScope(request.query.projectId),
+      );
+    },
+  );
+  app.post<{
+    Querystring: { projectId?: string };
+    Body: ClaudeExtensionMutation;
+    Headers: { "idempotency-key": string };
+  }>(
+    "/v1/engines/claude/extensions",
+    {
+      schema: {
+        querystring: projectQuery,
+        body: ClaudeExtensionMutationSchema,
+        headers: IdempotencyHeadersSchema,
+        response: { 200: ClaudeExtensionPageSchema },
+      },
+    },
+    async (request) => {
+      const engine = service("claude"),
+        scope = await extensionScope(request.query.projectId);
+      const mutateExtension = engine.mutateExtension?.bind(engine);
+      if (!mutateExtension)
+        throw new MutationHttpError(
+          "PROVIDER_ERROR",
+          "Claude extension management is unavailable",
+          503,
+        );
+      return context.runIdempotent(
+        ["claude-extension", scope?.id ?? "user"],
+        request.headers["idempotency-key"],
+        request.body,
+        () => mutateExtension(request.body, scope),
+      );
+    },
+  );
   app.get<{ Params: { engine: AgentEngine } }>(
     "/v1/engines/:engine/settings",
     { schema: { params: Params, response: { 200: ClaudeSettingsSchema } } },

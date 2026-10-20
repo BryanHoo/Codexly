@@ -16,6 +16,7 @@ import { Channel } from "@tauri-apps/api/core";
 import type { BingWallpaper, DownloadWorkbenchBackgroundResponse, WorkbenchBackgroundResponse } from "@/protocol/workbench-background.js";
 
 import { TauriCatalogClient } from "./catalog-client.js";
+import type { ClaudeExtensionPage, ClaudeExtensionKind, ClaudeExtensionMutation } from "@codexly/protocol";
 import {
   mapNativePet,
   type NativePetCatalogResponse,
@@ -26,6 +27,12 @@ export type AppUpdateInstallOptions = MutationOptions &
   Readonly<{ onProgress?: (progress: AppUpdateInstallProgress) => void }>;
 
 export class TauriRuntimeClient extends TauriCatalogClient {
+  public listClaudeExtensions(kind: ClaudeExtensionKind, projectId?: string): Promise<ClaudeExtensionPage> {
+    return this.invokeCommand("claude_engine_request", { method: "extensions.list", projectId, params: { kind } });
+  }
+  public mutateClaudeExtension(input: ClaudeExtensionMutation, projectId?: string): Promise<ClaudeExtensionPage> {
+    return this.invokeCommand("claude_engine_request", { method: "extensions.mutate", projectId, params: input });
+  }
   public async getEngineProfile(engine: AgentEngine, projectId?: string): Promise<AgentEngineProfile> {
     if (engine !== "claude") return { engine, capabilities: await this.getCapabilities(), models: { data: [...(await this.listModels()).data], nextCursor: null }, commands: [], connection: await this.getProviderConnection() };
     return this.invokeCommand("claude_engine_request", { method: "profile", projectId, params: {} });

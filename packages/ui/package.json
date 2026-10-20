@@ -55,7 +55,8 @@
     "./agent/code-token-cache": {
       "types": "./src/agent/code-token-cache.ts",
       "default": "./src/agent/code-token-cache.ts"
-    }
+    },
+    "./core/extension-center.css": "./src/core/extension-center.css"
   },
   "dependencies": {
     "@codemirror/commands": "catalog:",
@@ -83,6 +84,7 @@
     "streamdown": "catalog:",
     "tailwind-merge": "catalog:",
     "@tanstack/react-virtual": "catalog:",
+    "@tanstack/react-query": "catalog:",
     "shiki": "catalog:",
     "@codexly/protocol": "workspace:*"
   },

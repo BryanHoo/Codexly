@@ -167,7 +167,8 @@ test("renders task-readable MCP servers and sources in inspector", async ({ page
     (element) => getComputedStyle(element).backgroundColor,
   );
   await firstMcpRow.hover();
-  await expect(firstMcpRow).toContainText("已连接 · 2 个工具");
+  await expect(firstMcpRow.getByText("已连接", { exact: true })).toBeVisible();
+  await expect(firstMcpRow.getByText("2 个工具", { exact: true })).toBeVisible();
   await expect(mcp.getByText("search_code", { exact: true })).toHaveCount(0);
   await expect
     .poll(() => firstMcpRow.evaluate((element) => getComputedStyle(element).backgroundColor))

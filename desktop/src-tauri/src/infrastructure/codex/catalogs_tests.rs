@@ -282,7 +282,7 @@ async fn configured_mcp_servers_should_only_expose_name_and_enabled_state() {
         )
         .unwrap();
         assert_eq!(request["method"], "config/read");
-        assert_eq!(request["params"], json!({"includeLayers": false}));
+        assert_eq!(request["params"], json!({"includeLayers": true}));
         server_writer
             .write_all(
                 format!(
@@ -305,7 +305,9 @@ async fn configured_mcp_servers_should_only_expose_name_and_enabled_state() {
             .unwrap();
     });
 
-    let response = list_configured_mcp_servers(&connection).await.unwrap();
+    let response = list_configured_mcp_servers(&connection, None)
+        .await
+        .unwrap();
     assert_eq!(
         response,
         json!({"data": [
@@ -363,5 +365,47 @@ async fn mcp_toggle_should_write_quoted_name_and_reload_runtime() {
         .await
         .unwrap();
     assert_eq!(response, json!({"enabled": false}));
+    server_task.await.unwrap();
+}
+
+#[tokio::test]
+async fn project_mcp_should_exclude_inherited_servers_and_be_read_only() {
+    let (client, server) = duplex(8 * 1024);
+    let (client_reader, client_writer) = split(client);
+    let (server_reader, mut server_writer) = split(server);
+    let connection = AppServerConnection::new(client_reader, client_writer);
+    let server_task = tokio::spawn(async move {
+        let request: Value = serde_json::from_str(
+            &BufReader::new(server_reader)
+                .lines()
+                .next_line()
+                .await
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            request["params"],
+            json!({"includeLayers": true, "cwd": "/work"})
+        );
+        let result = json!({
+            "config": {"mcp_servers": {"global": {}, "local": {"enabled": false}}},
+            "layers": [
+                {"name": {"type": "project"}, "config": {"mcp_servers": {"local": {"enabled": false}}}},
+                {"name": {"type": "user"}, "config": {"mcp_servers": {"global": {}}}}
+            ]
+        });
+        server_writer
+            .write_all(format!("{}\n", json!({"id": request["id"], "result": result})).as_bytes())
+            .await
+            .unwrap();
+    });
+    let response = list_configured_mcp_servers(&connection, Some("/work"))
+        .await
+        .unwrap();
+    assert_eq!(
+        response,
+        json!({"data": [{"name": "local", "enabled": false, "mutable": false}]})
+    );
     server_task.await.unwrap();
 }

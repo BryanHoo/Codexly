@@ -307,7 +307,9 @@ test("edits global defaults on a page without overriding task settings", async (
   await dialog.getByRole("combobox", { name: "模型" }).selectOption("gpt-5.6-terra");
   await expect(dialog.getByRole("combobox", { name: "思考" })).toHaveValue("medium");
   await dialog.getByRole("button", { name: "辅助生成" }).click();
-  await dialog.getByRole("combobox", { name: "默认模型" }).selectOption("gpt-5.6-terra");
+  // 共享辅助生成设置使用 Radix Select，按可访问角色完成真实选择。
+  await dialog.getByRole("combobox", { name: "默认模型" }).click();
+  await page.getByRole("option", { name: "GPT-5.6 Terra", exact: true }).click();
   await expect(dialog.getByRole("combobox", { name: "提交思考强度" })).toHaveCount(0);
   await dialog.getByRole("textbox", { name: "Git message 提示词" }).fill("突出用户可见影响。");
   await dialog.getByRole("button", { name: "常规" }).click();
@@ -337,8 +339,8 @@ test("edits global defaults on a page without overriding task settings", async (
   );
   await expect(reopenedDialog.getByRole("combobox", { name: "模型" })).toHaveValue("gpt-5.6-terra");
   await reopenedDialog.getByRole("button", { name: "辅助生成" }).click();
-  await expect(reopenedDialog.getByRole("combobox", { name: "默认模型" })).toHaveValue(
-    "gpt-5.6-terra",
+  await expect(reopenedDialog.getByRole("combobox", { name: "默认模型" })).toHaveText(
+    "GPT-5.6 Terra",
   );
   await expect(reopenedDialog.getByRole("combobox", { name: "提交思考强度" })).toHaveCount(0);
   await expect(reopenedDialog.getByRole("textbox", { name: "Git message 提示词" })).toHaveValue(

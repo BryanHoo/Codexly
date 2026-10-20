@@ -794,6 +794,9 @@ importers:
       '@pierre/diffs':
         specifier: 'catalog:'
         version: 1.2.12(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/react-query':
+        specifier: 'catalog:'
+        version: 5.101.4(react@19.2.8)
       '@tanstack/react-virtual':
         specifier: 'catalog:'
         version: 3.14.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

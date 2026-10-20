@@ -95,10 +95,30 @@ pub async fn list_installed_skills(
     discover_installed_skills(&state, force_reload).await
 }
 
-#[tauri::command]
-pub async fn list_configured_mcp_servers(state: State<'_, AppState>) -> Result<Value, AppError> {
+#[tauri::command(rename_all = "camelCase")]
+pub async fn list_configured_mcp_servers(
+    project_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Value, AppError> {
     let connection = state.codex_connection().await?;
-    codex::list_configured_mcp_servers(&connection)
+    let root = if let Some(id) = project_id {
+        // 路径由本地项目目录解析，不信任 WebView 传入任意 cwd。
+        let projects = codex::list_projects(&connection)
+            .await
+            .map_err(AppError::from)?;
+        Some(
+            projects
+                .data
+                .into_iter()
+                .find(|project| project.id == id)
+                .and_then(|project| project.roots.into_iter().next())
+                .ok_or(AppError::FilesystemRequestFailed)?
+                .path,
+        )
+    } else {
+        None
+    };
+    codex::list_configured_mcp_servers(&connection, root.as_deref())
         .await
         .map_err(AppError::from)
 }

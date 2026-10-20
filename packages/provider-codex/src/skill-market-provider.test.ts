@@ -282,7 +282,7 @@ describe("CodexRuntimeProvider skill market", () => {
         { enabled: false, name: "linear" },
       ],
     });
-    expect(client.calls).toEqual([{ method: "config/read", params: { includeLayers: false } }]);
+    expect(client.calls).toEqual([{ method: "config/read", params: { includeLayers: true } }]);
   });
 
   it("quotes an MCP name before updating and reloading runtime configuration", async () => {
@@ -308,5 +308,29 @@ describe("CodexRuntimeProvider skill market", () => {
       },
       { method: "config/mcpServer/reload", params: undefined },
     ]);
+  });
+  it("lists project-owned MCP only without exposing global configuration", async () => {
+    const response = {
+      config: { mcp_servers: { global: { command: "private" }, local: { enabled: false } } },
+      layers: [
+        {
+          name: { type: "user", file: "/home/me/.codex/config.toml" },
+          config: { mcp_servers: { global: {} } },
+        },
+        {
+          name: { type: "project", dotCodexFolder: "/work/.codex" },
+          config: { mcp_servers: { local: { enabled: false } } },
+        },
+      ],
+    };
+    const client = new FakeRpcClient([response]);
+    const runtime = new CodexRuntimeProvider(client);
+    await expect(runtime.listConfiguredMcpServers("/work")).resolves.toEqual({
+      data: [{ name: "local", enabled: false, mutable: false }],
+    });
+    expect(client.calls[0]).toEqual({
+      method: "config/read",
+      params: { includeLayers: true, cwd: "/work" },
+    });
   });
 });

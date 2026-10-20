@@ -25,6 +25,27 @@ describe("Skills market routes", () => {
     });
     expect(response.statusCode).toBe(404);
   });
+  it("resolves MCP scope from a registered project and rejects unknown projects", async () => {
+    const { provider } = createProvider();
+    const options = createServerOptions(provider);
+    const list = vi.spyOn(options.provider, "listConfiguredMcpServers");
+    const app = await createCodexlyServer(options);
+    closeCallbacks.push(() => app.close());
+    const projects = await options.projectRepository.list();
+    const project = projects[0];
+    if (!project) throw new Error("Missing test project");
+    const scoped = await app.inject({
+      method: "GET",
+      url: `/v1/mcp-servers/configured?projectId=${project.id}`,
+    });
+    expect(scoped.statusCode).toBe(200);
+    expect(list).toHaveBeenCalledWith(project.roots[0]?.path);
+    const missing = await app.inject({
+      method: "GET",
+      url: "/v1/mcp-servers/configured?projectId=missing",
+    });
+    expect(missing.statusCode).toBe(404);
+  });
   it("delivers installed Skills, official plugins, open, toggle, and MCP operations", async () => {
     const service = {
       getOfficialPlugin: vi.fn(() =>

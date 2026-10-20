@@ -27,6 +27,7 @@ export type InstalledSkillPage = Readonly<Static<typeof InstalledSkillPageSchema
 export const ConfiguredMcpServerSchema = Type.Object(
   {
     enabled: Type.Boolean(),
+    mutable: Type.Optional(Type.Boolean()),
     name: Type.String({ minLength: 1 }),
   },
   { additionalProperties: false },

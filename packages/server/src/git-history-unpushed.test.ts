@@ -52,7 +52,7 @@ it("marks local commits across pages and clears marks after a successful push", 
   expect(
     (await readProjectGitHistory(root)).commits.every((commit) => commit.unpushed === false),
   ).toBe(true);
-}, 15_000);
+});
 
 it("compares merge ancestry with the configured push remote rather than the upstream", async () => {
   const root = await repository();

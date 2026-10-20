@@ -30,6 +30,8 @@ describe("engine HTTP boundary", () => {
     const configure = vi.fn(() =>
       Promise.resolve({ status: profile.connection, models: profile.models }),
     );
+    const listExtensions = vi.fn(() => Promise.resolve({ data: [] }));
+    const mutateExtension = vi.fn(() => Promise.resolve({ data: [] }));
     const app = await createCodexlyServer({
       ...base,
       provider: {
@@ -40,6 +42,8 @@ describe("engine HTTP boundary", () => {
             writeSettings: (settings) => Promise.resolve(settings),
             inspect,
             configure,
+            listExtensions,
+            mutateExtension,
             disconnect: () => Promise.resolve({ status: profile.connection }),
           },
         },
@@ -53,6 +57,39 @@ describe("engine HTTP boundary", () => {
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual(profile);
     expect(inspect).toHaveBeenCalledWith(expect.objectContaining({ id: "codexly" }));
+    const extensions = await app.inject({
+      method: "GET",
+      url: "/v1/engines/claude/extensions?kind=mcp&projectId=codexly",
+    });
+    expect(extensions.statusCode, extensions.body).toBe(200);
+    expect(listExtensions).toHaveBeenCalledWith("mcp", expect.objectContaining({ id: "codexly" }));
+    const mutation = { kind: "skills", action: "disable", id: "review", scope: "local" };
+    for (let index = 0; index < 2; index++) {
+      const updated = await app.inject({
+        method: "POST",
+        url: "/v1/engines/claude/extensions?projectId=codexly",
+        headers: { "idempotency-key": "extension-once" },
+        payload: mutation,
+      });
+      expect(updated.statusCode, updated.body).toBe(200);
+    }
+    expect(mutateExtension).toHaveBeenCalledTimes(1);
+    expect(mutateExtension).toHaveBeenCalledWith(
+      mutation,
+      expect.objectContaining({ id: "codexly" }),
+    );
+    expect(
+      (await app.inject({ method: "GET", url: "/v1/engines/claude/extensions?kind=invalid" }))
+        .statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: "/v1/engines/claude/extensions?kind=skills&projectId=missing",
+        })
+      ).statusCode,
+    ).toBe(404);
     const configured = await app.inject({
       method: "PUT",
       url: "/v1/engines/claude/connection",

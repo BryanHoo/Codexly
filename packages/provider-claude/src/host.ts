@@ -1,4 +1,5 @@
 import { ClaudeHostQueue } from "./host-queue.js";
+import { claudeExtensionCommand } from "./extensions-cli.js";
 import { exportClaudeAttachment } from "./attachment-export.js";
 import { Value } from "@sinclair/typebox/value";
 import {
@@ -6,6 +7,8 @@ import {
   ClaudePermissionModeSchema,
   ReloadAgentMcpServersRequestSchema,
   SearchOccurrencesQuerySchema,
+  ClaudeExtensionKindSchema,
+  ClaudeExtensionMutationSchema,
 } from "@codexly/protocol";
 import { resolve } from "node:path";
 import {
@@ -107,20 +110,25 @@ if (process.argv.includes("--version")) {
       send({ event, projectId });
     },
   );
-  const runtime = new ClaudeRuntime(resolve(directory), store, {
-    getSessionMessages,
-    getSessionInfo,
-    deleteSession,
-    forkSession,
-    query: (input) =>
-      query({
-        ...input,
-        options: {
-          ...input.options,
-          pathToClaudeCodeExecutable: resolve(executable),
-        },
-      }),
-  });
+  const runtime = new ClaudeRuntime(
+    resolve(directory),
+    store,
+    {
+      getSessionMessages,
+      getSessionInfo,
+      deleteSession,
+      forkSession,
+      query: (input) =>
+        query({
+          ...input,
+          options: {
+            ...input.options,
+            pathToClaudeCodeExecutable: resolve(executable),
+          },
+        }),
+    },
+    claudeExtensionCommand(resolve(executable)),
+  );
   if (process.env["CODEXLY_APPLICATION_GENERATION"] === "1") {
     // 原生应用持有公共偏好与 Codex 连接；复用已有反向 RPC 通道，不新增常驻进程。
     runtime.setTaskTitleGenerator(async (cwd, text, signal) => {
@@ -177,6 +185,16 @@ if (process.argv.includes("--version")) {
     }
     if (method === "configure") return runtime.configure(params as ConfigureCustomProviderRequest);
     if (method === "settings.read") return runtime.readSettings();
+    if (method === "extensions.list") {
+      if (!Value.Check(ClaudeExtensionKindSchema, params["kind"]))
+        throw new Error("Invalid extension kind");
+      return runtime.listExtensions(params["kind"], message["scope"] as AgentTaskScope | undefined);
+    }
+    if (method === "extensions.mutate") {
+      if (!Value.Check(ClaudeExtensionMutationSchema, params))
+        throw new Error("Invalid extension operation");
+      return runtime.mutateExtension(params, message["scope"] as AgentTaskScope | undefined);
+    }
     if (method === "settings.write") return runtime.writeSettings(params as ClaudeSettings);
     if (method === "disconnect") {
       return runtime.disconnect();

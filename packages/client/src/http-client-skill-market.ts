@@ -119,9 +119,13 @@ export class SkillMarketHttpClient extends EngineHttpClient {
   }
 
   public async listConfiguredMcpServers(
-    options: ReadOptions = {},
+    options: ReadOptions & { projectId?: string } = {},
   ): Promise<ConfiguredMcpServerPage> {
-    return this.read("/v1/mcp-servers/configured", ConfiguredMcpServerPageSchema, options);
+    return this.read(
+      appendQuery("/v1/mcp-servers/configured", { projectId: options.projectId }),
+      ConfiguredMcpServerPageSchema,
+      options,
+    );
   }
 
   public async setMcpServerEnabled(
