@@ -47,9 +47,9 @@ tokio = { version = "1.50.0", features = ["fs", "io-util", "macros", "process", 
 tokio-util = "0.7.18"
 toml = { version = "1.1.4", default-features = false, features = ["parse", "serde"] }
 # Tauri v2 releases use native installers; omit the legacy v1 ZIP extractor.
-tauri-plugin-updater = { version = "=2.12.0", default-features = false, features = ["rustls-tls", "system-proxy"] }
+tauri-plugin-updater = { version = "=2.14.0", default-features = false, features = ["rustls-tls", "system-proxy"] }
 zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
-tauri-plugin-clipboard-manager = "=2.3.3"
+tauri-plugin-clipboard-manager = "=2.5.0"
 tauri-plugin-autostart = "2.5.1"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 uuid = { version = "1.28.0", features = ["v4"] }
@@ -73,7 +73,7 @@ windows-process-platform = { path = "native/windows-process-platform", version =
 winreg = "0.56.0"
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
-notify-rust = "=4.18.0"
+notify-rust = "=4.18.2"
 
 [lints.rust]
 unsafe_code = "forbid"
