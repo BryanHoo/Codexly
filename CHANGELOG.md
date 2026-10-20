@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-10-20
+
+### 新增
+
+- 扩展中心支持管理 Claude Skills、MCP 与官方插件，按全局或项目范围查看与操作。
+- 局域网访问无法预览的项目文件时，可按提示下载到当前设备后打开。
+
+### 优化
+
+- 统一两端扩展列表、搜索与筛选，移除第三方技能市场入口。
+- Web 与桌面统一应用数据目录，升级时自动导入旧项目、任务与历史。
+
+### 修复
+
+- 修复 Windows 安装包缺少运行时资源，以及 Web 登录自启动弹出控制台的问题。
+- 修复空白推理摘要、回复流式更新异常，以及桌面任务标题通知和失效工作区处理。
+
 ## [0.39.1] - 2026-10-19
 
 ### 新增
@@ -793,7 +810,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.39.1...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.40.0...HEAD
+[0.40.0]: https://github.com/BryanHoo/Codexly/compare/v0.39.1...v0.40.0
 [0.39.1]: https://github.com/BryanHoo/Codexly/compare/v0.38.0...v0.39.1
 [0.39.0]: https://github.com/BryanHoo/Codexly/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/BryanHoo/Codexly/compare/v0.37.1...v0.38.0

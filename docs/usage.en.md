@@ -30,6 +30,8 @@ Mobile keeps a single-task view. Switch projects and tasks through the sidebar a
 
 Browse source, Markdown, images, and PDFs. Images support zoom and pan. Chat attachments, file links, and task-local images open in their corresponding previews.
 
+On a phone or another LAN device, download files that cannot be previewed and open them with an app on that device. Choosing the system default from the file tree, chat file links, or search results first shows a download prompt; transfer starts when you select Download. Local Web access and desktop can still open files with applications on the host.
+
 Edit text in source mode; switch Markdown to source first. UTF-8 files up to 2 MiB are editable, preserving line endings and BOM. Other files remain read-only. Edits save on blur, file navigation, or window switching; use `⌘/Ctrl+S` to save manually, with undo and redo available.
 
 Failed saves or external conflicts keep your draft in the current window and offer recovery actions. Drafts are held in memory and may not survive refreshes, forced exits, or crashes. Confirm save status before leaving.
@@ -51,6 +53,8 @@ The host must remain awake with the desktop app or Web server running. An unknow
 ## Extensions and settings
 
 Select Codex or Claude in the extension center and manage Skills, MCP, and official plugins within their global or project scope. Available operations differ by engine. Claude can list, enable, disable, and remove existing MCP definitions; add new definitions through native configuration. Start a new conversation after extension changes for complete loading.
+
+Search and filter extensions, then choose global or current-project scope before making changes. Claude supports installing, enabling, disabling, updating, and uninstalling plugins from the official catalog. Its project Skills and MCP lists show that project's configuration only. Codex project MCP entries are read-only. Third-party Skills marketplace entry points have been removed; local Skills remain manageable. MCP toggles show configuration, not live connection status.
 
 Models, reasoning, permissions, and context settings are engine-specific. Defaults apply to new tasks; existing conversations retain their choices. Declaring a context window does not increase a provider's actual capacity. Claude permissions do not provide Codex's OS sandbox, and extension configuration is not copied across engines.
 

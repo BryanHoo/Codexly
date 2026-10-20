@@ -35,9 +35,9 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 - **Follow execution**: see streaming replies, commands, tools, plans, and file changes. Respond to approvals and questions, steer running work, or queue follow-up messages persistently.
 - **Organize projects and tasks**: add local folders, search tasks and history, pin, archive, or restore conversations, and organize work with the task board and scheduled tasks.
 - **Work in parallel**: open up to four task panes in the desktop app or a computer browser, each with its own draft and queue. Mobile uses a single-task view.
-- **Read and edit project files**: browse code, Markdown, images, and PDFs, edit supported text files, attach files and images, and reference project files and Skills.
+- **Read and edit project files**: browse code, Markdown, images, and PDFs, edit supported text files, attach files and images, and reference project files and Skills. LAN devices can download files that cannot be previewed through an explicit prompt.
 - **Complete Git work**: review diffs and history, manage branches and worktrees, commit selected files, commit and push, or push existing commits.
-- **Manage agent capabilities**: manage Skills, MCP, and official plugins by engine, and configure models, reasoning effort, permissions, and context settings.
+- **Manage agent capabilities**: search, filter, and manage Skills, MCP, and official plugins by engine and global or project scope, with per-item operation status. Configure models, reasoning effort, permissions, and context settings.
 
 Each engine retains its own models, permissions, and extension capabilities. Claude supports history recovery, live steering, forks, and compaction. Codex-specific sandbox and Review features do not map to Claude permission modes. Available actions follow the selected engine; see [agent setup](docs/getting-started.en.md).
 
