@@ -2,6 +2,67 @@ use super::*;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, duplex, split};
 
 #[tokio::test]
+async fn generated_task_title_should_publish_persisted_metadata_without_native_rpc() {
+    let dir = tempfile::tempdir().unwrap();
+    let (client, _server) = duplex(8192);
+    let (reader, writer) = split(client);
+    let connection = AppServerConnection::with_image_store(reader, writer, dir.path());
+    let catalog = connection.catalog.as_ref().unwrap();
+    catalog.call("task.put", json!({"id":"task-local","projectId":null,"title":"","cwd":"/work","provider":"codex","sessionId":null,"updatedAt":100,"pinned":false,"archived":false,"status":"notLoaded"})).await.unwrap();
+    let mut messages = connection.take_server_messages().await.unwrap();
+
+    super::super::task_title::apply_title(&connection, "temporary", "task-local", "修复左栏标题")
+        .await
+        .unwrap();
+    // 本地名称已经落盘后，左栏必须通过既有事实流立即收到更新，无需刷新或轮询。
+    let message = tokio::time::timeout(Duration::from_millis(200), messages.recv())
+        .await
+        .expect("生成标题落盘后必须发布元数据事件")
+        .unwrap();
+    let message = connection
+        .translate_catalog_message(message)
+        .await
+        .unwrap()
+        .unwrap();
+    let event = super::super::map_server_event_now(message, 0)
+        .unwrap()
+        .unwrap();
+    let event = serde_json::to_value(event).unwrap();
+    assert_eq!(event["type"], "task.metadata_changed");
+    assert_eq!(event["taskId"], "task-local");
+    assert_eq!(event["payload"]["title"], "修复左栏标题");
+    assert_eq!(
+        catalog
+            .call("task.read", json!({"id":"task-local"}))
+            .await
+            .unwrap()["title"],
+        "修复左栏标题"
+    );
+
+    // 已有名称优先；再次应用自动摘要不能写入或发出覆盖事件。
+    super::super::task_title::apply_title(&connection, "temporary", "task-local", "覆盖标题")
+        .await
+        .unwrap();
+    assert!(messages.try_recv().is_err());
+    // 原生执行端的名称不能覆盖应用目录权威状态。
+    let native = super::super::ServerMessage {
+        id: None,
+        method: "thread/name/updated".into(),
+        params: serde_json::value::to_raw_value(
+            &json!({"threadId":"native","threadName":"原生名称"}),
+        )
+        .unwrap(),
+    };
+    assert!(
+        connection
+            .translate_catalog_message(native)
+            .await
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[tokio::test]
 async fn manages_empty_tasks_without_sending_any_rpc() {
     let dir = tempfile::tempdir().unwrap();
     let (client, _server) = duplex(8192);

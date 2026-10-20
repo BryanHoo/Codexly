@@ -60,11 +60,18 @@ it("keeps metadata local and maps execution IDs in both directions", async () =>
     respondToServerRequest: vi.fn(),
   };
   const client = await createLocalCatalogClient(raw, store);
+  const notifications = vi.fn();
+  client.onNotification(notifications);
   const created = (await client.request("thread/start", { projectId: "p", cwd: root })) as {
     thread: { id: string };
   };
   expect(created.thread.id).not.toBe("native");
   await client.request("thread/name/set", { threadId: created.thread.id, name: "本地名称" });
+  // 两端本地名称写入后都必须交付更新通知，左栏才能及时替换用户消息预览。
+  expect(notifications).toHaveBeenCalledWith({
+    method: "thread/name/updated",
+    params: { threadId: created.thread.id, threadName: "本地名称" },
+  });
   await client.request("thread/section/move", { threadId: created.thread.id, sectionId: "pinned" });
   await client.request("thread/archive", { threadId: created.thread.id });
   expect(await client.request("thread/list", { projectId: "p", archived: true })).toMatchObject({

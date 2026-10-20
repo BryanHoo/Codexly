@@ -131,7 +131,13 @@ async fn append_worktree(
                 .map_err(|_| WorkspaceError::InvalidPath)
         })
         .transpose()?;
-    let canonical = tokio::fs::canonicalize(path).await?;
+    let canonical = match tokio::fs::canonicalize(path).await {
+        Ok(canonical) => canonical,
+        // 临时目录清理后 Git 仍可能保留登记；跳过已消失的检出，避免阻断正常工作树。
+        // 仅忽略不存在的路径，真实权限和其他 I/O 错误继续交付；读取不执行 prune。
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
     worktrees.push(Worktree {
         branch,
         current: canonical == current,
@@ -208,3 +214,7 @@ fn worktree_slug(branch: &str) -> String {
         slug.to_owned()
     }
 }
+
+#[cfg(test)]
+#[path = "git_worktree_tests.rs"]
+mod tests;

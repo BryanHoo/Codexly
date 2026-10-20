@@ -113,7 +113,7 @@ void test("independent file windows can persist Markdown preview preferences and
 
 void test("window entry points retain their required app and plugin permissions", () => {
   const required = {
-    main: ["open_task_window", "configure_desktop_pet", "connect_runtime", "push_project_commits"],
+    main: ["open_task_window", "configure_desktop_pet", "connect_runtime", "push_project_commits", "list_project_worktrees", "create_task_worktree", "start_worktree_task"],
     "project-file-test": ["initialize_app_storage", "read_project_source_file", "read_project_text_file", "read_project_text_file_revision", "save_project_text_file", "cache_project_image", "get_project_pdf_file", "open_project", "record_frontend_diagnostic"],
     "task-window-test": ["connect_task_window", "acknowledge_task_window", "close_task_window", "restore_task_window", "drag_task_window", "record_frontend_diagnostic"],
     "desktop-pet": ["get_desktop_pet_state", "get_desktop_pet_drag_strategy", "get_desktop_pet_position", "show_desktop_pet", "set_desktop_pet_drag_position", "start_desktop_pet_native_drag", "move_desktop_pet", "layout_desktop_pet", "open_desktop_pet_task", "list_workbench_pets", "record_frontend_diagnostic"],

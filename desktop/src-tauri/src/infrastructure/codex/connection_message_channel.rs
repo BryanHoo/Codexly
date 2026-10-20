@@ -13,6 +13,11 @@ pub(crate) struct ServerMessageSender {
     bytes: Arc<Semaphore>,
 }
 
+pub(crate) struct WeakServerMessageSender {
+    sender: mpsc::WeakSender<QueuedMessage>,
+    bytes: Arc<Semaphore>,
+}
+
 pub struct ServerMessageReceiver(mpsc::Receiver<QueuedMessage>);
 
 pub(crate) struct ServerMessagePermit {
@@ -38,6 +43,13 @@ pub(super) fn message_bytes(message: &ServerMessage) -> usize {
 }
 
 impl ServerMessageSender {
+    pub(crate) fn downgrade(&self) -> WeakServerMessageSender {
+        WeakServerMessageSender {
+            sender: self.sender.downgrade(),
+            bytes: Arc::clone(&self.bytes),
+        }
+    }
+
     pub(crate) fn try_send(
         &self,
         message: ServerMessage,
@@ -85,6 +97,17 @@ impl ServerMessageSender {
     }
 }
 
+impl WeakServerMessageSender {
+    pub(crate) async fn send(&self, message: ServerMessage) -> Result<(), ()> {
+        // 本地事件复用有界通道，但不持有发送端；原生进程退出后仍须正常关闭事件流。
+        let sender = ServerMessageSender {
+            sender: self.sender.upgrade().ok_or(())?,
+            bytes: Arc::clone(&self.bytes),
+        };
+        sender.send(message).await
+    }
+}
+
 impl ServerMessagePermit {
     pub(crate) fn send(self, message: ServerMessage) {
         self.slot.send((message, self.bytes));
@@ -105,6 +128,25 @@ impl ServerMessageReceiver {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn local_event_sender_should_not_keep_closed_runtime_alive() {
+        let (sender, mut receiver) = server_message_channel(1);
+        let local = sender.downgrade();
+        drop(sender);
+        // 本地目录仍被连接持有时，原生读取端退出也必须唤醒接收方执行恢复流程。
+        assert!(receiver.recv().await.is_none());
+        assert!(
+            local
+                .send(ServerMessage {
+                    id: None,
+                    method: "test/event".into(),
+                    params: serde_json::value::to_raw_value(&()).unwrap(),
+                })
+                .await
+                .is_err()
+        );
+    }
 
     #[tokio::test]
     async fn byte_budget_should_stop_large_messages_before_count_capacity_and_recover_on_drop() {

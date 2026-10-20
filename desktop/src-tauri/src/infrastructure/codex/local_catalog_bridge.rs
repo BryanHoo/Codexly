@@ -3,6 +3,8 @@ use crate::infrastructure::local_catalog::LocalCatalog;
 use serde_json::{Value, json};
 use std::{collections::HashMap, time::Duration};
 
+const LOCAL_TITLE_UPDATED_METHOD: &str = "codeagent/taskTitleUpdated";
+
 pub(super) fn thread(task: &Value, mut native: Value) -> Value {
     if !native.is_object() {
         native = json!({});
@@ -89,6 +91,11 @@ impl AppServerConnection {
         if self.catalog.is_none() {
             return Ok(Some(message));
         }
+        // 本地落盘事件已使用应用任务 ID，直接进入公共映射；上游管理事件仍须屏蔽。
+        if message.method == LOCAL_TITLE_UPDATED_METHOD {
+            message.method = "thread/name/updated".to_owned();
+            return Ok(Some(message));
+        }
         if matches!(
             message.method.as_str(),
             "thread/name/updated" | "thread/archived" | "thread/unarchived" | "thread/deleted"
@@ -169,9 +176,21 @@ impl AppServerConnection {
             match method {
                 "catalog/task/read" => return Ok(json!({"thread":thread(&task,Value::Null)})),
                 "thread/name/set" => {
-                    catalog
+                    let updated = catalog
                         .call("task.patch", json!({"id":id,"title":params["name"]}))
                         .await?;
+                    // 与 Web 适配器一致：仅在持久化成功后通知左栏，使用规范化后的实际名称。
+                    // 复用事实流的字节预算与背压，不新增前端订阅、轮询或引擎请求。
+                    self.catalog_messages
+                        .send(super::ServerMessage {
+                            id: None,
+                            method: LOCAL_TITLE_UPDATED_METHOD.to_owned(),
+                            params: serde_json::value::to_raw_value(&json!({
+                                "threadId": updated["id"], "threadName": updated["title"],
+                            }))?,
+                        })
+                        .await
+                        .map_err(|_| ConnectionError::ConnectionClosed)?;
                     return Ok(json!({}));
                 }
                 "thread/section/move" => {

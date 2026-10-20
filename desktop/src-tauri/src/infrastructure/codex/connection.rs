@@ -23,7 +23,7 @@ use crate::infrastructure::diagnostics;
 
 use super::connection_event_buffer::NotificationBuffer;
 use super::connection_message_channel::{
-    ServerMessageReceiver, ServerMessageSender, server_message_channel,
+    ServerMessageReceiver, ServerMessageSender, WeakServerMessageSender, server_message_channel,
 };
 use super::generated_image_store::GeneratedImageStore;
 use super::model_cache::ModelCatalogCache;
@@ -93,6 +93,7 @@ pub struct AppServerConnection {
     writer: AsyncMutex<Option<AsyncWriter>>,
     pending: PendingRequests,
     server_messages: AsyncMutex<Option<ServerMessageReceiver>>,
+    pub(super) catalog_messages: WeakServerMessageSender,
     next_id: AtomicU64,
     reader_task: JoinHandle<()>,
 }
@@ -131,6 +132,7 @@ impl AppServerConnection {
         let pending = Arc::new(Mutex::new(HashMap::new()));
         let reader_pending = Arc::clone(&pending);
         let (message_sender, message_receiver) = server_message_channel(256);
+        let catalog_messages = message_sender.downgrade();
         let model_catalog = Arc::new(ModelCatalogCache::default());
         let reader_task = tokio::spawn(read_responses(
             reader,
@@ -156,6 +158,7 @@ impl AppServerConnection {
             writer: AsyncMutex::new(Some(Box::pin(writer))),
             pending,
             server_messages: AsyncMutex::new(Some(message_receiver)),
+            catalog_messages,
             next_id: AtomicU64::new(1),
             reader_task,
         }
