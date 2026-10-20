@@ -127,6 +127,27 @@ void test("Windows builds should preserve an explicit updater bundle", () => {
   ]);
 });
 
+void test("Windows installers and updates should include the bundled runtime directory", async () => {
+  const [base, windows] = await Promise.all([
+    readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../src-tauri/tauri.windows.conf.json", import.meta.url), "utf8")
+      .then(JSON.parse)
+      .catch((error) => {
+        if (error.code === "ENOENT") return {};
+        throw error;
+      }),
+  ]);
+
+  // Windows 平台覆盖中的空数组会替换共用资源对象；构建目录里有运行时不代表安装包会携带它。
+  // 安装版和自动更新共用 NSIS，必须将完整运行时安装到主程序旁的 runtime 目录。
+  const bundle = { ...base.bundle, ...windows.bundle };
+  assert.equal(
+    bundle.resources?.["resources/runtime/"],
+    "runtime/",
+    "Windows installer must preserve the bundled Codex and Claude runtime mapping",
+  );
+});
+
 void test("Windows local builds should still default to an unpackaged executable", () => {
   assert.deepEqual(resolveTauriArguments(["build", "--no-sign"], "win32"), [
     "build",

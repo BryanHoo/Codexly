@@ -41,7 +41,8 @@ it("discovers scoped MCP without exposing credentials and persists per-project t
     JSON.stringify({ mcpServers: { team: { command: "npx" } } }),
   );
   const page = await service.list("mcp", project);
-  expect(page.data.map((item) => item.name).sort()).toEqual(["global", "local", "team"]);
+  expect(page.data.map((item) => item.name).sort()).toEqual(["local", "team"]);
+  expect((await service.list("mcp")).data.map((item) => item.name)).toEqual(["global"]);
   expect(JSON.stringify(page)).not.toContain("private-token");
   await service.mutate({ kind: "mcp", action: "disable", id: "team", scope: "project" }, project);
   const saved = JSON.parse(await readFile(config, "utf8")) as {
@@ -56,8 +57,8 @@ it("discovers scoped MCP without exposing credentials and persists per-project t
 });
 
 it("uses skillOverrides without changing SKILL.md and prevents path traversal", async () => {
-  const { service, project, user } = await setup();
-  const directory = join(user, "skills", "review");
+  const { service, project } = await setup();
+  const directory = join(project, ".claude", "skills", "review");
   await mkdir(directory, { recursive: true });
   const path = join(directory, "SKILL.md"),
     content = "---\nname: review\ndescription: Review changes\n---\nReview carefully.";
@@ -81,6 +82,31 @@ it("uses skillOverrides without changing SKILL.md and prevents path traversal", 
       project,
     ),
   ).rejects.toThrow();
+});
+
+it("lists only skills owned by the selected scope, including same-name skills", async () => {
+  const { service, user, project } = await setup();
+  for (const [root, name, description] of [
+    [join(user, "skills"), "review", "Global review"],
+    [join(user, "skills"), "global-only", "Global skill"],
+    [join(project, ".claude", "skills"), "review", "Project review"],
+    [join(project, ".claude", "skills"), "project-only", "Project skill"],
+  ] as const) {
+    const directory = join(root, name);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "SKILL.md"),
+      `---\nname: ${name}\ndescription: ${description}\n---\nInstructions.\n`,
+    );
+  }
+  const global = await service.list("skills");
+  expect(global.data.map((item) => item.name).sort()).toEqual(["global-only", "review"]);
+  expect(global.data.find((item) => item.name === "review")?.description).toBe("Global review");
+  expect(global.data.every((item) => item.scope === "user")).toBe(true);
+  const scoped = await service.list("skills", project);
+  expect(scoped.data.map((item) => item.name).sort()).toEqual(["project-only", "review"]);
+  expect(scoped.data.find((item) => item.name === "review")?.description).toBe("Project review");
+  expect(scoped.data.every((item) => item.scope === "project")).toBe(true);
 });
 
 it("uses official CLI lifecycle with explicit scopes and rejects unofficial plugins", async () => {

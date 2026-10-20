@@ -348,7 +348,7 @@ export interface AgentRuntimeProvider {
   forTemporary(rootPath: string): AgentProvider;
   getCapabilities(): Promise<AgentCapabilities>;
   listModels(): Promise<AgentModelPage>;
-  listConfiguredMcpServers(): Promise<ConfiguredMcpServerPage>;
+  listConfiguredMcpServers(cwd?: string): Promise<ConfiguredMcpServerPage>;
   listInstalledSkills(
     projects: readonly Project[],
     forceReload: boolean,

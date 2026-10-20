@@ -296,24 +296,38 @@ export async function setCodexSkillEnabled(
 
 export async function listCodexConfiguredMcpServers(
   client: SkillMarketRpcClient,
+  cwd?: string,
 ): Promise<ConfiguredMcpServerPage> {
   const response = expectRecord(
-    await client.request("config/read", { includeLayers: false }),
+    await client.request("config/read", { includeLayers: true, ...(cwd ? { cwd } : {}) }),
     "config/read response",
   );
   const config = expectRecord(response["config"], "config/read config");
   const rawServers = config["mcp_servers"];
   if (rawServers === undefined) return { data: [] };
   const servers = expectRecord(rawServers, "config/read mcp_servers");
+  // 官方配置层标明所有权。项目视图只展示项目层声明的服务，不展示继承的全局服务。
+  const owned = new Set<string>();
+  for (const raw of Array.isArray(response["layers"]) ? response["layers"] : []) {
+    const layer = expectRecord(raw, "config layer");
+    const source = expectRecord(layer["name"], "config layer source");
+    if (layer["disabledReason"] || (source["type"] === "project") !== Boolean(cwd)) continue;
+    const entries = expectRecord(layer["config"], "config layer values")["mcp_servers"];
+    if (entries)
+      for (const name of Object.keys(expectRecord(entries, "layer MCP servers"))) owned.add(name);
+  }
   return {
     data: Object.entries(servers)
-      .map(([name, value]) => {
+      .filter(([name]) => (response["layers"] === undefined ? !cwd : owned.has(name)))
+      .flatMap(([name, value]) => {
         const server = expectRecord(value, `config/read mcp_servers.${name}`);
+        // 插件资产保留在官方插件页，不能按独立 MCP 修改。
+        if (server["pluginId"]) return [];
         const configuredEnabled = server["enabled"];
         if (configuredEnabled !== undefined && typeof configuredEnabled !== "boolean") {
           throw new CodexProtocolMappingError(`config/read mcp_servers.${name}.enabled is invalid`);
         }
-        return { enabled: configuredEnabled ?? true, name };
+        return [{ enabled: configuredEnabled ?? true, name, ...(cwd ? { mutable: false } : {}) }];
       })
       .toSorted((left, right) => left.name.localeCompare(right.name)),
   };

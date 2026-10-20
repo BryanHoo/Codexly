@@ -179,15 +179,16 @@ describe("SkillsMarketContainer", () => {
     const screen = await renderMarket();
     await expect.element(screen.getByRole("heading", { name: "扩展中心" })).toBeVisible();
     expect(screen.container.querySelector(".extension-center__mark")).toBeNull();
+    await expect.element(screen.getByText("Global Helper")).toBeVisible();
+    await expect.element(screen.getByText("Local Review")).not.toBeInTheDocument();
+    await screen.getByRole("combobox", {name: "作用范围"}).click();
+    await page.getByRole("option", {name: "Project A", exact: true}).click();
     await expect.element(screen.getByText("Local Review")).toBeVisible();
-    await expect.element(screen.getByText("Project Lint")).toBeVisible();
+    await expect.element(screen.getByText("Project Lint")).not.toBeInTheDocument();
     expect([...screen.container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent))
       .toEqual(["Skills 管理", "MCP 管理", "官方插件"]);
-    const groupHeadings = [...screen.container.querySelectorAll(".skills-installed-group h3")]
-      .map((heading) => heading.textContent);
-    expect(groupHeadings).toEqual(["系统", "全局", "Project A", "Project B"]);
-    expect(getComputedStyle(screen.container.querySelector(".extension-center__header")!).position)
-      .toBe("sticky");
+    expect(screen.container.querySelectorAll(".extension-item")).toHaveLength(1);
+    expect(getComputedStyle(screen.container.querySelector(".extension-center__controls")!).position).toBe("sticky");
     await screen.getByRole("button", { name: /Local Review/ }).click();
     expect(mocks.openSkillDirectory).toHaveBeenCalledWith(
       "/work/.agents/skills/review/SKILL.md",
@@ -206,7 +207,7 @@ describe("SkillsMarketContainer", () => {
     await screen.getByRole("tab", { name: "MCP 管理" }).click();
     await expect.element(screen.getByText("docs", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("linear", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("2 个 MCP 服务")).toBeVisible();
+    await expect.element(screen.getByText("2 个扩展")).toBeVisible();
     const tabs = screen.container.querySelector(".skills-market-tabs")!;
     expect(tabs.scrollWidth).toBeLessThanOrEqual(tabs.clientWidth);
     await screen.getByRole("switch", { name: "启用或停止 docs" }).click();
@@ -220,16 +221,13 @@ describe("SkillsMarketContainer", () => {
     const screen = await renderMarket();
 
     await screen.getByRole("tab", { name: "官方插件" }).click();
-    await expect.element(screen.getByRole("heading", { name: "已安装" })).toBeVisible();
-    const groupHeadings = [...screen.container.querySelectorAll(".official-plugin-group h3")]
-      .map((heading) => heading.textContent);
-    expect(groupHeadings).toEqual(["已安装", "未安装"]);
-    const cards = [...screen.container.querySelectorAll(".official-plugin-card")];
-    expect(cards.map((card) => card.textContent)).toEqual([
-      expect.stringContaining("Figma"),
-      expect.stringContaining("GitHub"),
-    ]);
-    expect(cards.every((card) => card.getBoundingClientRect().height <= 120)).toBe(true);
+    await expect.element(screen.getByText("GitHub", {exact: true})).toBeVisible();
+    const rows = [...screen.container.querySelectorAll(".extension-item")];
+    expect(rows).toHaveLength(2);
+    expect(screen.container.querySelector(".official-plugin-card")).toBeNull();
+    await screen.getByRole("combobox", {name: "筛选插件"}).click();
+    await page.getByRole("option", {name: "未安装", exact: true}).click();
+    await expect.element(screen.getByText("Figma", {exact: true})).not.toBeInTheDocument();
     await screen.getByText("GitHub", { exact: true }).click();
     await expect.element(screen.getByRole("dialog")).toBeVisible();
     await expect.element(screen.getByText("github-search")).toBeVisible();
@@ -247,7 +245,7 @@ describe("SkillsMarketContainer", () => {
     mocks.installOfficialPlugin.mockImplementationOnce(() => new Promise((resolve) => {
       finishInstall = () => resolve({ appsNeedingAuth: [], authPolicy: "ON_INSTALL" });
     }));
-    const installButton = screen.getByRole("button", { name: "安装插件" });
+    const installButton = page.getByRole("dialog").getByRole("button", { name: "安装插件" });
     await installButton.click();
     await vi.waitFor(() => {
       expect(mocks.installOfficialPlugin).toHaveBeenCalledWith(
@@ -261,7 +259,7 @@ describe("SkillsMarketContainer", () => {
     });
     finishInstall?.();
     await expect.element(
-      screen.getByText("插件已安装。请新建会话以加载插件能力。"),
+      screen.getByText("配置已保存。请新建会话以完整加载扩展变更。"),
     ).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "卸载插件" })).toBeVisible();
   });

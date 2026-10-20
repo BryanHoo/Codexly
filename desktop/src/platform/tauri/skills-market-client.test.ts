@@ -13,6 +13,7 @@ describe("TauriCatalogClient extension center", () => {
 
     await client.listInstalledSkills();
     await client.listConfiguredMcpServers();
+    await client.listConfiguredMcpServers({projectId: "project-a"});
     await client.openSkillDirectory("/skills/review/SKILL.md");
     await client.setSkillEnabled("/skills/review/SKILL.md", false);
     await client.setMcpServerEnabled("docs", false);
@@ -37,6 +38,7 @@ describe("TauriCatalogClient extension center", () => {
         { forceReload: false },
       ],
       ["list_configured_mcp_servers"],
+      ["list_configured_mcp_servers", {projectId: "project-a"}],
       ["open_skill_directory", { path: "/skills/review/SKILL.md" }],
       ["set_skill_enabled", { enabled: false, path: "/skills/review/SKILL.md" }],
       ["set_mcp_server_enabled", { enabled: false, name: "docs" }],

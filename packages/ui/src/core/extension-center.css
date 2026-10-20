@@ -9,6 +9,13 @@
   --extension-width: 1040px;
   container-type: inline-size;
 }
+/* 引擎、作用范围和分类作为同一固定区域，列表滚动时始终可操作。 */
+.extension-center__controls {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--ui-color-content);
+}
 .extension-center__header,
 .extension-center__navigation {
   display: flex;
@@ -568,7 +575,7 @@
     justify-content: space-between;
     gap: 12px;
   }
-  .claude-extensions .skills-market-toolbar {
+  .extension-center .skills-market-toolbar {
     flex-wrap: wrap;
   }
   .extension-search {

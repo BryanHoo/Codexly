@@ -29,7 +29,7 @@ export interface SkillMarketService {
     pluginName: string,
     installAttemptId: string,
   ): Promise<OfficialPluginInstallResult>;
-  listConfiguredMcpServers(): Promise<ConfiguredMcpServerPage>;
+  listConfiguredMcpServers(cwd?: string): Promise<ConfiguredMcpServerPage>;
   listInstalledSkills(forceReload: boolean): Promise<InstalledSkillPage>;
   listOfficialPlugins(forceRefetch: boolean): Promise<OfficialPluginPage>;
   openSkillDirectory(path: string): Promise<OpenSkillDirectoryResponse>;
@@ -69,7 +69,7 @@ export function createSkillMarketService(
         pluginName,
         installAttemptId,
       ),
-    listConfiguredMcpServers: () => options.provider.listConfiguredMcpServers(),
+    listConfiguredMcpServers: (cwd) => options.provider.listConfiguredMcpServers(cwd),
     async listInstalledSkills(forceReload) {
       const { page } = await discover(forceReload);
       // 直接使用运行时发现结果，避免为每个 Skill 额外读取市场元数据。

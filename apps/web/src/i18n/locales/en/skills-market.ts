@@ -1,6 +1,13 @@
 export const skillsMarket = {
+  pluginDetails: "View {{name}} details",
+  pluginUnavailable: "This plugin is currently unavailable",
+  pluginCatalogHint: "Sync the official catalog to discover plugins.",
+  resourceEmptyHint: "Extensions configured in this scope will appear here.",
+
+  projectMcpReadOnly:
+    "The Codex API only supports editing global MCP configuration; project configuration is read-only",
   center: {
-    selectProject: "Select a project to enable or disable servers",
+    selectProject: "Claude records MCP enablement separately for each project",
     engine: "Extension engine",
     documentation: "Documentation",
     scope: "Scope",

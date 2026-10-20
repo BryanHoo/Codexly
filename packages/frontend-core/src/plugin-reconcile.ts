@@ -119,6 +119,26 @@ interface QueryCache {
   invalidateQueries(filter: QueryFilter): Promise<unknown>;
 }
 
+function mergeCatalogAfterConcurrentChanges(
+  baseline: OfficialPluginPage | undefined,
+  current: OfficialPluginPage | undefined,
+  incoming: OfficialPluginPage,
+): OfficialPluginPage {
+  if (!current || current === baseline) return incoming;
+  // 同步期间其他插件仍可安装、移除；保留期间已确认的结果，避免旧目录使状态回退。
+  const before = new Map((baseline?.data ?? []).map((plugin) => [plugin.id, plugin]));
+  const now = new Map(current.data.map((plugin) => [plugin.id, plugin]));
+  const changed = new Set(
+    [...before.keys(), ...now.keys()].filter((id) => before.get(id) !== now.get(id)),
+  );
+  return {
+    data: [
+      ...incoming.data.filter((plugin) => !changed.has(plugin.id)),
+      ...current.data.filter((plugin) => changed.has(plugin.id)),
+    ],
+  };
+}
+
 export async function refreshPluginQueries(
   client: Client,
   cache: QueryCache,
@@ -136,8 +156,10 @@ export async function refreshPluginQueries(
   };
   return refreshOfficialPlugins(client, {
     onCatalog: async (catalog, result) => {
-      cache.setQueryData(officialPluginsQueryKey, catalog);
-      await invalidate(getPluginCatalogChanges(previous, catalog, result));
+      const current = cache.getQueryData(officialPluginsQueryKey) as OfficialPluginPage | undefined;
+      const merged = mergeCatalogAfterConcurrentChanges(previous, current, catalog);
+      cache.setQueryData(officialPluginsQueryKey, merged);
+      await invalidate(getPluginCatalogChanges(previous, merged, result));
     },
     onReconciled: async (result) => {
       onReconciled(result);

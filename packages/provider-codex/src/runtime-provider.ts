@@ -363,8 +363,8 @@ export class CodexRuntimeProvider implements AgentRuntimeProvider {
     }).listModels();
   }
 
-  public listConfiguredMcpServers(): Promise<ConfiguredMcpServerPage> {
-    return listCodexConfiguredMcpServers(this.#client);
+  public listConfiguredMcpServers(cwd?: string): Promise<ConfiguredMcpServerPage> {
+    return listCodexConfiguredMcpServers(this.#client, cwd);
   }
 
   public listInstalledSkills(

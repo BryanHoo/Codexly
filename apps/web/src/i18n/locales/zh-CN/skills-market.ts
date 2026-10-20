@@ -1,6 +1,12 @@
 export const skillsMarket = {
+  pluginDetails: "查看 {{name}} 详情",
+  pluginUnavailable: "此插件当前不可安装",
+  pluginCatalogHint: "同步官方目录，然后选择需要的插件。",
+  resourceEmptyHint: "在当前作用范围配置的扩展将显示在这里。",
+
+  projectMcpReadOnly: "Codex 官方接口仅支持修改全局 MCP，项目配置为只读",
   center: {
-    selectProject: "选择项目后可控制启停",
+    selectProject: "Claude 的 MCP 启停按项目保存",
     engine: "选择扩展引擎",
     documentation: "查看文档",
     scope: "作用范围",

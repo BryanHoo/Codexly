@@ -92,4 +92,12 @@
 
 - Composer 的工作树/分支使用共享锚定选择面板，按视图区分“切换独立目录”和“在当前目录切换分支”，创建入口固定在各视图底部。当前项置顶，主目录标记来自 Git worktree 列表的首项，缩短路径仅影响展示；搜索匹配分支或完整路径。其他工作树占用的分支展示原因并禁用，方向键只移动焦点，Enter/空格才执行切换。创建表单显示起点分支与工作树容器目录，从选择面板打开表单不能抢回输入焦点，取消后返回原入口。回归见 `frontend-core/composer-git-picker.test.ts`、两端 Composer 测试及 Chrome CDP 宽窄屏验证。
 
-- 两端扩展中心共用 core/extension-center、Claude 扩展列表及同一份 CSS；保持引擎切换、分类、列表的精简层级，禁止重复页面标题与装饰性介绍。范围选择和筛选必须复用公共 Select，搜索复用 Input，操作复用 Button 与 Dialog；图标操作、禁用原因与截断路径使用公共 Tooltip，不能仅使用原生 title。只挂载当前引擎和分类；Claude-only 用户默认打开 Claude，不得先挂载 Codex 列表或隐藏扩展入口。切换项目后丢弃旧异步结果；页面只显示配置启用状态，变更提示用户在新会话加载。MCP 暂不提供新增。验证共享组件渲染、两端构建、独立引擎客户端测试及 Chrome CDP 宽窄屏交互。
+- 两端扩展中心共用 core/extension-center、Claude 扩展列表及同一份 CSS；保持引擎切换、分类、列表的精简层级，禁止重复页面标题与装饰性介绍；引擎、范围和分类统一放入固定顶部区域，列表滚动时不移动。Skills、MCP 按所选归属显示，禁止把全局项混入项目列表。范围选择和筛选必须复用公共 Select，搜索复用 Input，操作复用 Button 与 Dialog；图标操作、禁用原因与截断路径使用公共 Tooltip，不能仅使用原生 title；asChild 必须只有一个 React 元素，显式空格也算额外子节点，用 tests/extension-tooltip-contract.test.ts 防止回归。只挂载当前引擎和分类；Claude-only 用户默认打开 Claude，不得先挂载 Codex 列表或隐藏扩展入口。切换项目后丢弃旧异步结果；页面只显示配置启用状态，变更提示用户在新会话加载。MCP 暂不提供新增。验证共享组件渲染、两端构建、独立引擎客户端测试及 Chrome CDP 宽窄屏交互。
+
+- Claude 扩展仅在进入对应栏目时查询，缓存按引擎、分类和项目隔离；短期重复进入应复用缓存与在途请求，不因窗口聚焦重读目录。刷新显式重读，写入后更新当前范围并使相关扩展缓存失效；插件可能提供 Skills 和 MCP，失效项在下次进入时读取。大目录使用共享 `core/extension-list` 虚拟列表，支持可变行高和移动端尺寸，挂载数量随视口变化，不能一次初始化全部 Tooltip、开关。
+- Codex 与 Claude 共用右上角范围选择。Codex Skills 从发现结果按 `scope` 与 `projectId` 过滤；MCP 按登记项目解析 cwd，使用官方 `config/read` 的项目层区分自有服务与继承服务。官方写入接口只允许用户配置，因此项目 MCP 只读并说明原因，不得借项目开关写入全局配置。回归包括 `extension-center.test.tsx`、两端 Skills/MCP 客户端、Codex provider 与原生 catalogs 测试，以及 Chrome CDP 缓存、虚拟滚动和项目隔离验证。
+
+- Claude 扩展操作按插件 ID 与当前分类、项目记录进行中状态，安装仅禁用对应插件并显示转圈及 `aria-busy`；其他插件、搜索、筛选和刷新继续可用。同一插件重复点击不得重复请求，多个插件同时进行时，各自完成或失败才释放自己的状态。完整目录响应只合并本次操作的插件，防止乱序响应覆盖其他已确认结果；同步目录也需保留同步期间完成的变更。使用 `claude-plugin-pending.test.tsx`、`frontend-core/claude-extension-cache.test.ts` 及 Chrome CDP 验证并行安装、失败恢复和重复点击。
+
+- Codex、Claude 的 Skills、MCP、官方插件必须复用 `core/extension-catalog` 的工具栏、列表行、开关和移除确认，以及 `core/extension-list` 的虚拟列表；禁止恢复引擎专用卡片墙或按安装状态分栏。搜索、筛选、范围徽标、图标操作和禁用原因的视觉与键盘交互保持一致；具体能力由原生接口决定，不能为 Codex 增加无官方接口支撑的插件启停或更新按钮。
+- Codex 的平台面板仅适配客户端与翻译；资源列表和插件状态由共享面板管理。插件直接行内安装并逐项显示 loading，点击名称才延迟读取详情；需要授权时显示该插件的授权入口，详情内捆绑 Skills/MCP 只读。移除统一确认，独立插件操作可同时进行；目录同步不可覆盖期间已确认的安装结果。回归包含 `official-plugin-catalog.test.tsx`、`plugin-reconcile.test.ts`、Tooltip Slot 合约，以及 Chrome CDP 的两种引擎、三个栏目、宽窄屏、安装授权和项目隔离。

@@ -44,10 +44,10 @@ it("matches native MCP configuration locations and plugin JSON in an isolated co
       project,
     );
     const service = new ClaudeExtensions(config, run);
-    expect((await service.list("mcp", project)).data.map((item) => item.name).sort()).toEqual([
-      "test-global",
+    expect((await service.list("mcp", project)).data.map((item) => item.name)).toEqual([
       "test-local",
     ]);
+    expect((await service.list("mcp")).data.map((item) => item.name)).toEqual(["test-global"]);
     expect(await service.list("plugins", project)).toEqual({ data: [] });
   } finally {
     vi.unstubAllEnvs();

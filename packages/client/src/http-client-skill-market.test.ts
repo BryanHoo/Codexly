@@ -52,7 +52,7 @@ describe("CodexlyClient skill market", () => {
           installedSkills: { data: [], nextCursor: null },
         };
       else if (url.endsWith("/enabled")) response = { enabled: false, servers: { data: [] } };
-      else if (url.endsWith("/mcp-servers/configured")) response = { data: [] };
+      else if (url.includes("/mcp-servers/configured")) response = { data: [] };
       return Promise.resolve(
         new Response(JSON.stringify(response), {
           headers: { "content-type": "application/json" },
@@ -66,6 +66,7 @@ describe("CodexlyClient skill market", () => {
     await client.openSkillDirectory("/skills/review/SKILL.md");
     await client.setSkillEnabled("/skills/review/SKILL.md", false);
     await client.listConfiguredMcpServers();
+    await client.listConfiguredMcpServers({ projectId: "project/a" });
     await client.setMcpServerEnabled("docs/search", false);
     await client.listOfficialPlugins(true);
     await client.getOfficialPlugin("openai-curated", null, "github");
@@ -77,6 +78,7 @@ describe("CodexlyClient skill market", () => {
       { method: "POST", url: "http://localhost/v1/skills/open" },
       { method: "PUT", url: "http://localhost/v1/skills/enabled" },
       { method: "GET", url: "http://localhost/v1/mcp-servers/configured" },
+      { method: "GET", url: "http://localhost/v1/mcp-servers/configured?projectId=project%2Fa" },
       { method: "PUT", url: "http://localhost/v1/mcp-servers/configured/docs%2Fsearch/enabled" },
       { method: "GET", url: "http://localhost/v1/plugins/official?forceRefetch=true" },
       { method: "GET", url: "http://localhost/v1/plugins/official/openai-curated/github" },

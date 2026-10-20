@@ -42,8 +42,10 @@ struct McpParams {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ConfigReadParams {
+struct ConfigReadParams<'a> {
     include_layers: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cwd: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -127,31 +129,64 @@ pub async fn set_skill_enabled(
 
 pub async fn list_configured_mcp_servers(
     connection: &AppServerConnection,
+    cwd: Option<&str>,
 ) -> Result<Value, ConnectionError> {
     let response: Value = connection
         .request(
             "config/read",
             &ConfigReadParams {
-                include_layers: false,
+                include_layers: true,
+                cwd,
             },
             REQUEST_TIMEOUT,
         )
         .await?;
+    // 配置层按优先级从高到低返回，只收集当前范围声明且未被禁用的服务。
+    let owned = response
+        .get("layers")
+        .and_then(Value::as_array)
+        .map(|layers| {
+            layers
+                .iter()
+                .filter(|layer| {
+                    layer.get("disabledReason").is_none_or(Value::is_null)
+                        && (layer.pointer("/name/type").and_then(Value::as_str) == Some("project"))
+                            == cwd.is_some()
+                })
+                .flat_map(|layer| {
+                    layer
+                        .pointer("/config/mcp_servers")
+                        .and_then(Value::as_object)
+                        .into_iter()
+                        .flatten()
+                        .map(|(name, _)| name.clone())
+                })
+                .collect::<HashSet<_>>()
+        });
     let mut servers = response
         .pointer("/config/mcp_servers")
         .and_then(Value::as_object)
         .into_iter()
         .flatten()
+        .filter(|(name, _)| {
+            owned
+                .as_ref()
+                .map_or(cwd.is_none(), |names| names.contains(*name))
+        })
         .filter_map(|(name, config)| {
             config.as_object().and_then(|config| {
                 // 插件自带 MCP 由官方插件页统一管理，避免与用户配置重复展示和切换。
                 if config.get("pluginId").is_some_and(|value| !value.is_null()) {
                     return None;
                 }
-                Some(json!({
+                let mut server = json!({
                     "enabled": config.get("enabled").and_then(Value::as_bool).unwrap_or(true),
                     "name": name,
-                }))
+                });
+                if cwd.is_some() {
+                    server["mutable"] = json!(false);
+                }
+                Some(server)
             })
         })
         .collect::<Vec<_>>();

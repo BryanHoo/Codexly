@@ -66,12 +66,14 @@ export class ClaudeExtensions {
       const disabled = strings(context["disabledMcpServers"]);
       const projectMcp = cwd ? await read(join(cwd, ".mcp.json")) : {};
       const merged = new Map<string, ClaudeExtension>();
-      // 与官方优先级保持一致：local 覆盖 project，project 覆盖 user。
-      for (const [scope, config] of [
-        ["user", native],
-        ["project", projectMcp],
-        ["local", context],
-      ] as const) {
+      // 列表严格按配置归属分区；同一项目中，私有定义覆盖同名共享定义。
+      const configurations = cwd
+        ? ([
+            ["project", projectMcp],
+            ["local", context],
+          ] as const)
+        : ([["user", native]] as const);
+      for (const [scope, config] of configurations) {
         for (const [name, value] of Object.entries(object(config["mcpServers"]))) {
           const server = object(value);
           merged.set(name, {
@@ -92,10 +94,10 @@ export class ClaudeExtensions {
       ...object(object(project)["skillOverrides"]),
       ...object(object(local)["skillOverrides"]),
     };
-    const roots = [
-      { scope: "user", path: join(this.userDirectory, "skills") },
-      ...(cwd ? [{ scope: "project", path: join(cwd, ".claude", "skills") }] : []),
-    ];
+    // 项目视图只读取项目目录，不把继承的全局 Skills 混入管理列表。
+    const roots = cwd
+      ? [{ scope: "project", path: join(cwd, ".claude", "skills") }]
+      : [{ scope: "user", path: join(this.userDirectory, "skills") }];
     const merged = new Map<string, ClaudeExtension>();
     for (const root of roots) {
       let entries;

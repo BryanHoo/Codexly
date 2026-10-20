@@ -182,10 +182,25 @@ export const registerSkillMarketRoutes: FastifyPluginCallback<ServerRouteContext
         },
       ),
   );
-  app.get(
+  app.get<{ Querystring: { projectId?: string } }>(
     "/v1/mcp-servers/configured",
-    { schema: { response: { 200: ConfiguredMcpServerPageSchema } } },
-    () => skillMarketService.listConfiguredMcpServers(),
+    {
+      schema: {
+        querystring: Type.Object(
+          { projectId: Type.Optional(Type.String({ minLength: 1 })) },
+          { additionalProperties: false },
+        ),
+        response: { 200: ConfiguredMcpServerPageSchema, ...mutationErrors },
+      },
+    },
+    async (request) => {
+      if (!request.query.projectId) return skillMarketService.listConfiguredMcpServers();
+      // 只接受已登记的项目 ID，不接受浏览器提供的任意磁盘路径。
+      const project = await context.projectRepository.read(request.query.projectId);
+      const root = project?.roots[0]?.path;
+      if (!root) throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
+      return skillMarketService.listConfiguredMcpServers(root);
+    },
   );
   app.post<{
     Body: { path: string };

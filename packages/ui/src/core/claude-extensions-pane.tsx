@@ -1,16 +1,23 @@
-import { useEffect, useRef, useState, useDeferredValue } from "react";
+import { useState, useDeferredValue, useRef } from "react";
+import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
+import { reconcileClaudeExtensionMutation } from "@codexly/frontend-core/claude-extension-cache";
+import {
+  ExtensionCatalogToolbar,
+  ExtensionItem,
+  ExtensionToggle,
+  ExtensionRemoveDialog,
+} from "./extension-catalog.js";
+import { ExtensionList } from "./extension-list.js";
 import {
   Blocks,
   Server,
   BadgeCheck,
-  Search,
-  RefreshCw,
   Download,
   Trash2,
   ArrowUpCircle,
   Info,
+  LoaderCircle,
 } from "lucide-react";
-import { Switch } from "radix-ui";
 import type {
   ClaudeExtension,
   ClaudeExtensionClient,
@@ -21,9 +28,6 @@ import type {
 } from "@codexly/protocol";
 import { Button } from "./button.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.js";
-import { Input } from "./input.js";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./select.js";
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from "./dialog.js";
 import type { ExtensionTranslate } from "./extension-center-types.js";
 
 const icons = { skills: Blocks, mcp: Server, plugins: BadgeCheck };
@@ -39,60 +43,80 @@ export function ClaudeExtensionsPane({
   projectId?: string | undefined;
   t: ExtensionTranslate;
 }>) {
-  const [page, setPage] = useState<ClaudeExtensionPage>();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
+  const queryClient = useQueryClient();
+  const queryKey = ["extensions", "claude", kind, projectId ?? "global"];
+  // 只查询当前栏目与范围；短期缓存和在途去重避免来回切换时反复启动官方 CLI。
+  const result = useQuery({
+    queryKey,
+    queryFn: () => client.listClaudeExtensions(kind, projectId),
+    staleTime: 60_000,
+    gcTime: 300_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+  const page = result.data;
+  const loading = result.isFetching;
   const [notice, setNotice] = useState(false);
   const [search, setSearch] = useState("");
   const query = useDeferredValue(search.trim().toLowerCase());
   const [dialog, setDialog] = useState<ClaudeExtension | null>(null);
   const [filter, setFilter] = useState("all");
-  const generation = useRef(0);
-  const active = useRef(true);
-  const refresh = async () => {
-    const request = ++generation.current;
-    setLoading(true);
-    setError("");
-    try {
-      const result = await client.listClaudeExtensions(kind, projectId);
-      if (active.current && generation.current === request) setPage(result);
-    } catch (cause) {
-      if (active.current && generation.current === request)
-        setError(cause instanceof Error ? cause.message : t("skillsMarket.center.operationError"));
-    } finally {
-      if (active.current && generation.current === request) setLoading(false);
-    }
+  const mutationKey = [...queryKey, "mutation"];
+  const operations = useMutationState({
+    filters: { mutationKey, status: "pending", exact: true },
+    select: (operation) => operation.state.variables as ClaudeExtensionMutation | undefined,
+  });
+  const pendingIds = new Set(operations.map((operation) => operation?.id));
+  // 同步登记可拦住同一帧的重复点击；不同插件仍可各自发起操作。
+  const inFlight = useRef(new Set<string>());
+  const [operationError, setOperationError] = useState<Error | null>(null);
+  const mutation = useMutation({
+    mutationKey,
+    onMutate: () => {
+      setOperationError(null);
+      return queryClient.getQueryData<ClaudeExtensionPage>(queryKey);
+    },
+    onError: (error) => {
+      setOperationError(error);
+    },
+    mutationFn: async (input: ClaudeExtensionMutation) => {
+      // 先阻止旧读取回填缓存；写入结果始终归属发起操作时的范围。
+      await queryClient.cancelQueries({ queryKey });
+      return client.mutateClaudeExtension(input, projectId);
+    },
+    onSuccess: async (page, input, baseline) => {
+      await queryClient.cancelQueries({ queryKey });
+      // 插件可能同时提供 Skills、MCP；相关缓存失效后，进入栏目才重新读取。
+      void queryClient.invalidateQueries({
+        queryKey: ["extensions", "claude"],
+        refetchType: "none",
+      });
+      queryClient.setQueryData<ClaudeExtensionPage>(queryKey, (previous) =>
+        reconcileClaudeExtensionMutation(previous, page, input, baseline),
+      );
+      setNotice(true);
+      setDialog((current) => (current?.id === input.id ? null : current));
+    },
+  });
+  const cause = operationError ?? result.error;
+  const error = cause
+    ? cause instanceof Error
+      ? cause.message
+      : t("skillsMarket.center.operationError")
+    : "";
+  const refresh = () => {
+    setOperationError(null);
+    return result.refetch();
   };
-  useEffect(() => {
-    active.current = true;
-    void refresh();
-    return () => {
-      active.current = false;
-      generation.current++;
-    };
-  }, [client, kind, projectId]);
   const mutate = async (input: ClaudeExtensionMutation) => {
-    if (pending) return;
-    // 使先前的读取失效；旧范围的异步结果不得覆盖当前项目。
-    generation.current++;
-    setPending(true);
-    setError("");
+    if (inFlight.current.has(input.id) || pendingIds.has(input.id)) return;
+    inFlight.current.add(input.id);
     try {
-      const result = await client.mutateClaudeExtension(input, projectId);
-      if (active.current) {
-        setPage(result);
-        setNotice(true);
-        setDialog(null);
-      }
-    } catch (cause) {
-      if (active.current)
-        setError(cause instanceof Error ? cause.message : t("skillsMarket.center.operationError"));
+      await mutation.mutateAsync(input);
+    } catch {
+      // 错误由 onError 展示，点击处理器不再产生未处理的 Promise 拒绝。
     } finally {
-      if (active.current) {
-        setPending(false);
-        setLoading(false);
-      }
+      inFlight.current.delete(input.id);
     }
   };
   const Icon = icons[kind];
@@ -111,75 +135,29 @@ export function ClaudeExtensionsPane({
         ? (item.scope as ClaudeExtensionScope)
         : "user";
   return (
-    <div className="skills-market-pane claude-extensions" aria-busy={loading || pending}>
-      <div className="skills-market-toolbar">
-        <label className="extension-search">
-          <Search aria-hidden="true" />
-          <Input
-            variant="embedded"
-            aria-label={t("skillsMarket.center.search")}
-            placeholder={t("skillsMarket.center.search")}
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-            }}
-          />
-        </label>
-        <div className="extension-center__actions">
-          {kind === "plugins" ? (
-            <Button
-              variant="outline"
-              disabled={pending || loading}
-              onClick={() =>
-                void mutate({ kind, action: "sync", id: "claude-plugins-official", scope: "user" })
-              }
-            >
-              <Download />
-              {t("skillsMarket.center.syncCatalog")}
-            </Button>
-          ) : null}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                aria-label={t("skillsMarket.center.refresh")}
-
-                size="icon"
-                variant="ghost"
-                disabled={pending || loading}
-                onClick={() => void refresh()}
-              >
-                <RefreshCw className={loading ? "animate-spin" : ""} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t("skillsMarket.center.refresh")}</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="extension-center__list-meta">
-        <span>{t("skillsMarket.center.count", { count: page?.data.length ?? 0 })}</span>
-        {kind === "plugins" ? (
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger size="sm" aria-label={t("skillsMarket.center.filter")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent position="popper" align="end">
-              <SelectItem value="all">{t("skillsMarket.center.all")}</SelectItem>
-              <SelectItem value="installed">{t("skillsMarket.installedPlugins")}</SelectItem>
-              <SelectItem value="available">{t("skillsMarket.availablePlugins")}</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : null}
-      </div>
+    <div className="skills-market-pane claude-extensions" aria-busy={loading}>
+      <ExtensionCatalogToolbar
+        search={search}
+        onSearch={setSearch}
+        count={page?.data.length ?? 0}
+        loading={loading}
+        onRefresh={() => void refresh()}
+        t={t}
+        {...(kind === "plugins"
+          ? {
+              filter,
+              onFilter: setFilter,
+              syncing: pendingIds.has("claude-plugins-official"),
+              onSync: () =>
+                void mutate({ kind, action: "sync", id: "claude-plugins-official", scope: "user" }),
+            }
+          : {})}
+      />
       {error ? (
         <div className="extension-center__message" role="alert">
           <Info aria-hidden="true" />
           <span>{error}</span>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={pending || loading}
-            onClick={() => void refresh()}
-          >
+          <Button size="sm" variant="ghost" disabled={loading} onClick={() => void refresh()}>
             {t("skillsMarket.center.retry")}
           </Button>
         </div>
@@ -195,137 +173,118 @@ export function ClaudeExtensionsPane({
           {t("skillsMarket.loadingExtension")}
         </div>
       ) : rows.length ? (
-        <ul className="extension-list">
-          {rows.map((item) => (
-            <li key={`${item.id}:${item.scope}`} className="extension-item">
-              <span className="skills-market-glyph" data-tone={kind}>
-                <Icon aria-hidden="true" />
-              </span>
-              <div className="extension-item__body">
-                <div className="extension-item__title">
-                  <strong>{item.name}</strong>
-                  <span className="extension-badge">
-                    {t(
-                      `skillsMarket.center.${item.scope === "user" ? "global" : item.scope === "project" ? "project" : item.scope === "local" ? "local" : "managed"}`,
-                    )}
-                  </span>
-                </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    {" "}
-                    <p>
-                      {item.description ||
-                        (kind === "plugins"
-                          ? t("skillsMarket.center.officialCatalog")
-                          : (item.path ?? "MCP"))}
-                    </p>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {item.path ?? (item.description || t("skillsMarket.center.officialCatalog"))}
-                  </TooltipContent>
-                </Tooltip>
-                {item.version ? (
-                  <div className="extension-item__version">v{item.version}</div>
-                ) : null}
-              </div>
-              <div className="extension-item__actions">
-                {kind === "plugins" && !item.installed ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={pending}
-                    onClick={() =>
-                      void mutate({
-                        kind,
-                        action: "install",
-                        id: item.id,
-                        scope: projectId ? "project" : "user",
-                      })
-                    }
-                  >
-                    <Download />
-                    {t("skillsMarket.installPlugin")}
-                  </Button>
-                ) : null}
-                {item.installed && item.mutable ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex">
-                        <Switch.Root
-                          className="skills-switch"
-                          aria-label={t("skillsMarket.toggle", { name: item.name })}
-                          checked={item.enabled}
-                          disabled={pending || (kind === "mcp" && !projectId)}
-                          onCheckedChange={(enabled) =>
-                            void mutate({
-                              kind,
-                              action: enabled ? "enable" : "disable",
-                              id: item.id,
-                              scope: actionScope(item),
-                            })
-                          }
-                        >
-                          <Switch.Thumb className="skills-switch__thumb" />
-                        </Switch.Root>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {t(
+        <ExtensionList
+          items={rows}
+          renderItem={(item) => (
+            <ExtensionItem
+              key={`${item.id}:${item.scope}`}
+              kind={kind}
+              name={item.name}
+              description={
+                item.description ||
+                (kind === "plugins"
+                  ? t("skillsMarket.center.officialCatalog")
+                  : (item.path ?? "MCP"))
+              }
+              hint={item.path ?? (item.description || t("skillsMarket.center.officialCatalog"))}
+              scopeLabel={t(
+                `skillsMarket.center.${item.scope === "user" ? "global" : item.scope === "project" ? "project" : item.scope === "local" ? "local" : "managed"}`,
+              )}
+              version={item.version}
+              actions={
+                <>
+                  {kind === "plugins" && !item.installed ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pendingIds.has(item.id)}
+                      aria-busy={pendingIds.has(item.id)}
+                      onClick={() =>
+                        void mutate({
+                          kind,
+                          action: "install",
+                          id: item.id,
+                          scope: projectId ? "project" : "user",
+                        })
+                      }
+                    >
+                      {pendingIds.has(item.id) ? (
+                        <LoaderCircle className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Download aria-hidden="true" />
+                      )}
+                      {t("skillsMarket.installPlugin")}
+                    </Button>
+                  ) : null}
+                  {item.installed && item.mutable ? (
+                    <ExtensionToggle
+                      checked={item.enabled}
+                      disabled={pendingIds.has(item.id) || (kind === "mcp" && !projectId)}
+                      label={t("skillsMarket.toggle", { name: item.name })}
+                      hint={t(
                         kind === "mcp" && !projectId
                           ? "skillsMarket.center.selectProject"
                           : "skillsMarket.toggle",
                         { name: item.name },
                       )}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : null}
-                {kind === "plugins" && item.installed && item.mutable ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
+                      onChange={(enabled) =>
+                        void mutate({
+                          kind,
+                          action: enabled ? "enable" : "disable",
+                          id: item.id,
+                          scope: actionScope(item),
+                        })
+                      }
+                    />
+                  ) : null}
+                  {kind === "plugins" && item.installed && item.mutable ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
 
-                        aria-label={`${t("skillsMarket.center.update")} ${item.name}`}
-                        disabled={pending}
-                        onClick={() =>
-                          void mutate({
-                            kind,
-                            action: "update",
-                            id: item.id,
-                            scope: actionScope(item),
-                          })
-                        }
-                      >
-                        <ArrowUpCircle />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("skillsMarket.center.update")}</TooltipContent>
-                  </Tooltip>
-                ) : null}
-                {item.installed && item.mutable && kind !== "skills" ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
+                          aria-label={`${t("skillsMarket.center.update")} ${item.name}`}
+                          disabled={pendingIds.has(item.id)}
+                          onClick={() =>
+                            void mutate({
+                              kind,
+                              action: "update",
+                              id: item.id,
+                              scope: actionScope(item),
+                            })
+                          }
+                        >
+                          <ArrowUpCircle />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("skillsMarket.center.update")}</TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                  {item.installed && item.mutable && kind !== "skills" ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
 
-                        aria-label={`${t("skillsMarket.center.remove")} ${item.name}`}
-                        disabled={pending}
-                        onClick={() => {
-                          setDialog(item);
-                        }}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t("skillsMarket.center.remove")}</TooltipContent>
-                  </Tooltip>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
+                          aria-label={`${t("skillsMarket.center.remove")} ${item.name}`}
+                          disabled={pendingIds.has(item.id)}
+                          onClick={() => {
+                            setDialog(item);
+                          }}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("skillsMarket.center.remove")}</TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                </>
+              }
+            />
+          )}
+        />
       ) : !loading && !error ? (
         <div className="extension-empty">
           <Icon aria-hidden="true" />
@@ -340,7 +299,7 @@ export function ClaudeExtensionsPane({
           {kind === "plugins" ? (
             <Button
               variant="outline"
-              disabled={pending}
+              disabled={pendingIds.has("claude-plugins-official")}
               onClick={() =>
                 void mutate({ kind, action: "sync", id: "claude-plugins-official", scope: "user" })
               }
@@ -351,45 +310,23 @@ export function ClaudeExtensionsPane({
         </div>
       ) : null}
       {dialog ? (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open && !pending) setDialog(null);
+        <ExtensionRemoveDialog
+          name={dialog.name}
+          pending={pendingIds.has(dialog.id)}
+          error={error}
+          onClose={() => {
+            setDialog(null);
           }}
-        >
-          <DialogContent>
-            <DialogTitle>
-              {t("skillsMarket.center.confirmRemove", { name: dialog.name })}
-            </DialogTitle>
-            <DialogDescription>{t("skillsMarket.center.removeHint")}</DialogDescription>
-            {error ? <p role="alert">{error}</p> : null}
-            <DialogFooter>
-              <Button
-                variant="ghost"
-                disabled={pending}
-                onClick={() => {
-                  setDialog(null);
-                }}
-              >
-                {t("skillsMarket.center.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={pending}
-                onClick={() =>
-                  void mutate({
-                    kind,
-                    action: kind === "plugins" ? "uninstall" : "remove",
-                    id: dialog.id,
-                    scope: actionScope(dialog),
-                  })
-                }
-              >
-                {t("skillsMarket.center.remove")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onConfirm={() =>
+            void mutate({
+              kind,
+              action: kind === "plugins" ? "uninstall" : "remove",
+              id: dialog.id,
+              scope: actionScope(dialog),
+            })
+          }
+          t={t}
+        />
       ) : null}
     </div>
   );

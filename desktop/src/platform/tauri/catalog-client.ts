@@ -131,9 +131,11 @@ export class TauriCatalogClient extends TauriWorkspaceClient {
   }
 
   public async listConfiguredMcpServers(
-    _options: ReadOptions = {},
+    options: ReadOptions & { projectId?: string } = {},
   ): Promise<ConfiguredMcpServerPage> {
-    return this.call("list_configured_mcp_servers");
+    return options.projectId
+      ? this.call("list_configured_mcp_servers", {projectId: options.projectId})
+      : this.call("list_configured_mcp_servers");
   }
 
   public async openSkillDirectory(

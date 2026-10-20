@@ -4,6 +4,7 @@ import {
   createPluginQueryInvalidator,
   getPluginCatalogChanges,
   refreshOfficialPlugins,
+  refreshPluginQueries,
 } from "./plugin-reconcile.js";
 
 const empty = {
@@ -111,4 +112,33 @@ it("detects catalog state changes already consumed by a background reconciliatio
   ]);
   expect(getPluginCatalogChanges(previous, { data: [] }).changedPlugins).toHaveLength(1);
   expect(getPluginCatalogChanges(undefined, next).changedPlugins).toEqual([]);
+});
+
+it("keeps a plugin installed during an in-flight catalog sync", async () => {
+  const plugin = { id: "alpha", installed: false, enabled: false } as OfficialPluginSummary;
+  let current: OfficialPluginPage = { data: [plugin] };
+  let finish: ((page: OfficialPluginPage) => void) | undefined;
+  const listing = new Promise<OfficialPluginPage>((resolve) => {
+    finish = resolve;
+  });
+  const client = {
+    reconcileOfficialPlugins: vi.fn(() => Promise.resolve(empty)),
+    listOfficialPlugins: vi.fn(() => listing),
+  };
+  const cache = {
+    getQueryData: () => current,
+    setQueryData: (_key: readonly unknown[], page: OfficialPluginPage) => {
+      current = page;
+    },
+    cancelQueries: () => Promise.resolve(),
+    invalidateQueries: () => Promise.resolve(),
+  };
+  const request = refreshPluginQueries(client, cache, () => undefined);
+  await vi.waitFor(() => {
+    expect(client.listOfficialPlugins).toHaveBeenCalledOnce();
+  });
+  current = { data: [{ ...plugin, installed: true, enabled: true }] };
+  finish?.({ data: [plugin] });
+  await request;
+  expect(current.data[0]?.installed).toBe(true);
 });
