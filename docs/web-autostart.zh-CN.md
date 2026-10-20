@@ -75,9 +75,9 @@ macOS 系统设置可能显示或允许禁用相关后台项目；被禁用后�
 
 计划任务仅在当前用户登录时触发，使用 `InteractiveToken` 和普通权限，不保存 Windows 密码，不配置开机触发器。任务取消默认执行时限与电池供电限制，重复登录不启动第二份实例，异常退出最多重试五次，间隔一分钟。
 
-CLI 使用 Windows 自带的 PowerShell、Task Scheduler 和 `icacls`。企业策略禁止创建用户任务时命令会明确失败，不自动提升权限。需要更多系统诊断时，在任务计划程序中查看 `Codexly Web <SID>` 的历史和最后运行结果；`status` 也显示任务状态和结果数字。
+CLI 使用 Windows 自带的 PowerShell、Task Scheduler、Windows Script Host（JScript）和 `icacls`。企业策略禁止创建用户任务时命令会明确失败，不自动提升权限。需要更多系统诊断时，在任务计划程序中查看 `Codexly Web <SID>` 的历史和最后运行结果；`status` 也显示任务状态和结果数字。
 
-本功能保证不打开浏览器；计划任务的控制台呈现由 Windows 决定，不把 Task Scheduler 的 `Hidden` 属性当作隐藏控制台的保证。
+登录后静默后台启动，不打开浏览器或可见的命令行窗口。计划任务通过图形脚本宿主以隐藏控制台方式启动 Node，等待其退出并回传退出码，保留异常重试能力。日志通过 `autostart logs` 查看，停止服务使用 `autostart disable`。已有登录项在更新后需要执行 `codexly autostart repair --now`，才能应用静默启动器。
 
 ### Ubuntu
 

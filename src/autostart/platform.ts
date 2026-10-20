@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { access, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import {
@@ -102,18 +103,34 @@ WantedBy=${target}
 `;
 }
 function windowsQuote(text: string): string {
-  // Task Scheduler 直接调用进程，遵循 Windows argv 转义规则，不经过 cmd.exe。
+  // 遵循 Windows argv 转义规则，不经过 cmd.exe。
   return `"${text.replace(/(\\*)"/gu, '$1$1\\"').replace(/(\\+)$/u, "$1$1")}"`;
 }
+function windowsLauncherPath(configPath: string): string {
+  return join(dirname(configPath), "launch.js");
+}
+function renderWindowsLauncher(config: AutostartConfig, path: string): string {
+  const command = JSON.stringify(args(config, path).map(windowsQuote).join(" "))
+    .replace(/\u2028/gu, "\\u2028")
+    .replace(/\u2029/gu, "\\u2029");
+  // GUI 脚本宿主隐藏 Node 控制台，等待退出并把退出码交回计划任务。
+  // Run 会展开环境变量；单次展开整个命令，保留路径里的字面量 %NAME%。
+  return `var shell = new ActiveXObject("WScript.Shell");
+var environment = shell.Environment("Process");
+environment("CODEXLY_AUTOSTART_COMMAND") = ${command};
+WScript.Quit(shell.Run("%CODEXLY_AUTOSTART_COMMAND%", 0, true));
+`;
+}
 export function renderWindowsTask(config: AutostartConfig, path: string, sid: string): string {
-  const argv = args(config, path);
+  args(config, path);
+  const host = join(process.env["SystemRoot"] ?? "C:\\Windows", "System32", "wscript.exe");
   return `<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
 <RegistrationInfo><Description>Codexly Web — current user login</Description></RegistrationInfo>
 <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>${xml(sid)}</UserId></LogonTrigger></Triggers>
 <Principals><Principal id="CurrentUser"><UserId>${xml(sid)}</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
 <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><AllowHardTerminate>true</AllowHardTerminate><StartWhenAvailable>false</StartWhenAvailable><RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable><Enabled>true</Enabled><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><Priority>7</Priority><RestartOnFailure><Interval>PT1M</Interval><Count>5</Count></RestartOnFailure></Settings>
-<Actions Context="CurrentUser"><Exec><Command>${xml(config.node)}</Command><Arguments>${xml(argv.slice(1).map(windowsQuote).join(" "))}</Arguments><WorkingDirectory>${xml(config.home)}</WorkingDirectory></Exec></Actions>
+<Actions Context="CurrentUser"><Exec><Command>${xml(host)}</Command><Arguments>//B //Nologo //E:JScript ${xml(windowsQuote(windowsLauncherPath(path)))}</Arguments><WorkingDirectory>${xml(config.home)}</WorkingDirectory></Exec></Actions>
 </Task>\n`;
 }
 
@@ -259,6 +276,10 @@ export function createPlatformAdapter(
         await checked("systemctl", ["--user", "enable", "codexly-web.service"]);
       } else {
         await writePrivateFile(
+          windowsLauncherPath(paths.config),
+          Buffer.from(`\uFEFF${renderWindowsLauncher(config, paths.config)}`, "utf16le"),
+        );
+        await writePrivateFile(
           paths.registration,
           // schtasks reads task files as UTF-16; the BOM also preserves non-ASCII paths.
           Buffer.from(
@@ -326,6 +347,7 @@ export function createPlatformAdapter(
         await checked("systemctl", ["--user", "disable", "codexly-web.service"]);
       if (platform === "win32" && (await windowsState()).registered)
         await checked("schtasks.exe", ["/Delete", "/TN", await taskName(), "/F"]);
+      if (platform === "win32") await rm(windowsLauncherPath(paths.config), { force: true });
       await rm(paths.registration, { force: true });
       if (platform === "linux") await checked("systemctl", ["--user", "daemon-reload"]);
     },

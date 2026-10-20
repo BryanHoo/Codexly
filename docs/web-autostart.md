@@ -75,9 +75,9 @@ macOS may expose controls for background items. Run `enable` again if the item h
 
 Uses a current-user logon trigger, `InteractiveToken`, and least privilege. No Windows password is saved and no boot trigger is registered. The task removes the default execution time and battery restrictions, ignores duplicate starts, and retries failures up to five times at one-minute intervals.
 
-The CLI uses built-in PowerShell, Task Scheduler, and `icacls`. Policies that prohibit user tasks produce an error without automatic elevation. Inspect the named task's history and last result in Task Scheduler; `status` also reports numeric task state and last result.
+The CLI uses built-in PowerShell, Task Scheduler, Windows Script Host (JScript), and `icacls`. Policies that prohibit user tasks produce an error without automatic elevation. Inspect the named task's history and last result in Task Scheduler; `status` also reports numeric task state and last result.
 
-Browser suppression is guaranteed by the application. Windows determines how the task's console is presented; Task Scheduler's `Hidden` setting is not treated as a console-hiding guarantee.
+Login startup runs silently without opening a browser or a visible command window. The task uses a GUI script host to start Node with its console hidden, waits for Node to exit, and returns its exit code so failure retries still work. Logs remain available through `autostart logs`; stop the service with `autostart disable`. Existing registrations need `codexly autostart repair --now` after updating to apply the silent launcher.
 
 ### Ubuntu
 

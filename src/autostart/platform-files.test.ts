@@ -56,7 +56,14 @@ describe("native registration files", () => {
     expect([...bytes.subarray(0, 2)]).toEqual([0xff, 0xfe]);
     const xml = bytes.subarray(2).toString("utf16le");
     expect(xml).toContain('encoding="UTF-16"');
-    expect(xml).toContain("中文 folder");
+    expect(xml).toContain("wscript.exe</Command>");
+    expect(xml).toContain("//B //Nologo //E:JScript");
+    const launcher = (await readFile(join(paths.root, "launch.js")))
+      .subarray(2)
+      .toString("utf16le");
+    expect(launcher).toContain("中文 folder");
+    expect(launcher).toContain('shell.Run("%CODEXLY_AUTOSTART_COMMAND%", 0, true)');
+    expect(launcher).not.toContain("cmd.exe");
     expect(execute.mock.calls).toHaveLength(2);
   });
   it("registers and unregisters Linux login startup without starting it", async () => {
