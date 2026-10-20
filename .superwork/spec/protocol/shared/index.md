@@ -42,3 +42,5 @@
 - MCP 页面可选 `statusSource`（`live`/`cached`）与 `observedAt`（ISO 观测时间或 null）；缺省兼容旧引擎。Claude MCP 控制请求以可选 `action` 区分 `refresh`、`reconnect`、`reload`，省略时执行配置重载，不能把失败重连称为配置重载。桌面 MCP 页面与操作直接复用公共 Schema；历史或失败读取不得伪造实时来源与新的观测时间。
 
 - 全局搜索须按依赖向导启用的引擎集合筛选本地候选，再按任务持久 provider 身份检索正文；名称、排序与归档状态以应用目录为准。双引擎保留健康源命中并通过 unavailableEngines 报告失败源，游标绑定查询、类别、归档与引擎集合。Claude 复用共享摘要搜索和宿主，不启动 SDK 推理；文件搜索直接使用文件系统。详见[全局搜索契约](../../../../docs/global-search.md)。
+
+- 扩展中心仅支持本地 Skills、MCP 和官方插件；Web 与桌面均不再支持第三方市场。旧 `marketplace` 分区回退到 Skills；`/v1/skills/market` 列表、详情及安装接口必须返回 404，桌面不得注册或授权远端市场 IPC。已安装技能仅使用运行时本地发现结果，`source` 固定为 `local`，不读取或返回市场来源元数据。回归覆盖导航、HTTP 接口退出和本地技能操作。

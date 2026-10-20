@@ -33,7 +33,7 @@ Codexly manages directories and tasks in its local catalog, with one disk folder
 - Follow task output in a separate transparent window without occupying the main workspace
 - Keep follow-up work in a persistent task queue, then withdraw messages for editing, reorder them, or cancel them before they run
 - Attach files, images, and audio, reference project files with `@` and Skills with `$` in the plain-text composer, and reliably restore attachments from the task queue
-- Install and manage Skills, official plugins, and third-party markets in the extension center, including MCP service controls and hot reload; refresh official plugins to synchronize their state and report partial failures
+- Manage local Skills and install and manage official plugins in the extension center, including MCP service controls and hot reload; refresh official plugins to synchronize their state and report partial failures
 - Answer asynchronous questions in a pinned panel, prevent concurrent interactions with cross-client task locks, and restore thread model and reasoning settings
 - Open up to four task panes with independent drafts and message queues; project files, Git panels, and the terminal follow the focused task
 - Choose two, three, or four panes from **Split layout** in the task title bar, with auto fit, columns, rows, main-pane, or grid presets; keep the current chat and open new-task pages in the other panes.

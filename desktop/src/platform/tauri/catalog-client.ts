@@ -14,15 +14,11 @@ import type {
   ConfigureCustomProviderRequest,
   ConfigureCustomProviderResponse,
   StartOfficialProviderLoginResponse,
-  ClawhubSkillDetail,
-  ClawhubSkillPage,
   ConfiguredMcpServerPage,
   InstalledSkillPage,
   OfficialPluginDetail,
   OfficialPluginInstallResult,
   OfficialPluginPage,
-  SkillInstallResult,
-  SkillInstallScope,
 } from "@/protocol/index.js";
 
 import { TauriWorkspaceClient } from "./workspace-client.js";
@@ -161,34 +157,6 @@ export class TauriCatalogClient extends TauriWorkspaceClient {
     _options: MutationOptions = {},
   ): Promise<Readonly<{ enabled: boolean }>> {
     return this.call("set_mcp_server_enabled", { enabled, name });
-  }
-
-  public async listClawhubSkills(
-    query: string,
-    cursor: string | null,
-    sort: string,
-    _options: ReadOptions = {},
-  ): Promise<ClawhubSkillPage> {
-    return this.call("list_clawhub_skills", { cursor, query, sort });
-  }
-
-  public async getClawhubSkill(
-    owner: string,
-    slug: string,
-    _options: ReadOptions = {},
-  ): Promise<ClawhubSkillDetail> {
-    return this.call("get_clawhub_skill", { owner, slug });
-  }
-
-  public async installClawhubSkill(
-    owner: string,
-    slug: string,
-    scope: SkillInstallScope,
-    projectId?: string,
-    rootPath?: string,
-    _options: MutationOptions = {},
-  ): Promise<SkillInstallResult> {
-    return this.call("install_clawhub_skill", { owner, projectId, rootPath, scope, slug });
   }
 
   public async reconcileOfficialPlugins(): Promise<PluginReconcileResult> {

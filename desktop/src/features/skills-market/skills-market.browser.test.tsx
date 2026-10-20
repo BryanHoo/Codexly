@@ -11,9 +11,6 @@ import { createActionMutationCache } from "../notifications/action-notifications
 import { SkillsMarketContainer } from "./skills-market-container.js";
 
 const mocks = vi.hoisted(() => ({
-  getClawhubSkill: vi.fn(),
-  installClawhubSkill: vi.fn(),
-  listClawhubSkills: vi.fn(),
   listConfiguredMcpServers: vi.fn(),
   listInstalledSkills: vi.fn(),
   listOfficialPlugins: vi.fn(),
@@ -40,21 +37,6 @@ vi.mock("../projects/project-context.js", () => ({
     ],
   }),
 }));
-
-const summary = {
-  canonicalUrl: "https://clawhub.ai/codex/skills/review",
-  displayName: "Code Review",
-  downloads: 1200,
-  id: "codex/review",
-  latestVersion: "1.2.0",
-  owner: "codex",
-  slug: "review",
-  stars: 18,
-  summary: "Review changes before merging.",
-  topics: ["review"],
-  updatedAt: 1_788_000_000_000,
-  versionCount: 3,
-} as const;
 
 const officialPlugin = {
   authPolicy: "ON_INSTALL",
@@ -94,7 +76,7 @@ function renderMarket() {
   return render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
-        <SkillsMarketContainer projectId="project-a" rootPath="/work" />
+        <SkillsMarketContainer />
       </QueryClientProvider>
     </I18nextProvider>,
   );
@@ -111,14 +93,13 @@ describe("SkillsMarketContainer", () => {
           displayName: "Local Review",
           enabled: true,
           id: "/work/.agents/skills/review/SKILL.md",
-          marketplace: { installedVersion: "1.0.0", owner: "codex", slug: "review" },
           name: "review",
           path: "/work/.agents/skills/review/SKILL.md",
           projectId: "project-a",
           projectName: "Project A",
           rootPath: "/work",
           scope: "repo",
-          source: "clawhub",
+          source: "local",
         },
         {
           description: "Lint another project.",
@@ -190,28 +171,17 @@ describe("SkillsMarketContainer", () => {
       authPolicy: "ON_INSTALL",
     });
     mocks.openSkillDirectory.mockResolvedValue({ status: "opened" });
-    mocks.listClawhubSkills.mockResolvedValue({ items: [summary], nextCursor: null });
-    mocks.getClawhubSkill.mockResolvedValue({
-      ...summary,
-      changelog: "Improve review.",
-      hasWarnings: false,
-      readme: "---\nname: review\ndescription: Review changes.\n---\n",
-      scanStatus: "clean",
-      versions: [{ changelog: "Initial", createdAt: 1, version: "1.2.0" }],
-    });
-    mocks.installClawhubSkill.mockResolvedValue({
-      path: "/work/.agents/skills/review",
-      status: "updated",
-      version: "1.2.0",
-    });
+
   });
 
-  it("opens installed skills and installs into a selected sidebar project", async () => {
+  it("opens and toggles installed skills without a third-party market", async () => {
     const screen = await renderMarket();
     await expect.element(screen.getByRole("heading", { name: "扩展中心" })).toBeVisible();
     expect(screen.container.querySelector(".extension-center__mark")).toBeNull();
     await expect.element(screen.getByText("Local Review")).toBeVisible();
     await expect.element(screen.getByText("Project Lint")).toBeVisible();
+    expect([...screen.container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent))
+      .toEqual(["Skills 管理", "MCP 管理", "官方插件"]);
     const groupHeadings = [...screen.container.querySelectorAll(".skills-installed-group h3")]
       .map((heading) => heading.textContent);
     expect(groupHeadings).toEqual(["系统", "全局", "Project A", "Project B"]);
@@ -226,68 +196,7 @@ describe("SkillsMarketContainer", () => {
       "/work/.agents/skills/review/SKILL.md",
       false,
     );
-    mocks.toastSuccess.mockClear();
 
-    await screen.getByRole("tab", { name: "三方市场" }).click();
-    await screen.getByRole("button", { name: /Code Review/ }).click();
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
-    expect(document.querySelector("[data-slot='sheet-content'].third-party-skill-sheet"))
-      .not.toBeNull();
-    expect(document.querySelector("[data-slot='dialog-content']")).toBeNull();
-    await page.screenshot({ path: "../../../test-results/extension-center-third-party-sheet.png" });
-    const projectSelect = screen.getByRole("combobox", { name: "安装项目" });
-    const projectSelectElement = projectSelect.element();
-    await projectSelect.click();
-    await screen.getByRole("option", { name: "Project B" }).click();
-    const projectInstallButton = screen.getByRole("button", { name: "安装到项目" });
-    const globalInstallButton = screen.getByRole("button", { name: "安装到全局" });
-    await expect.element(projectInstallButton).toBeVisible();
-    const projectInstallElement = projectInstallButton.element() as HTMLButtonElement;
-    const globalInstallElement = globalInstallButton.element() as HTMLButtonElement;
-    const installControls = [...document.querySelectorAll(
-      ".skills-market-detail__footer [data-slot='select-trigger'], .skills-market-detail__footer [data-slot='button']",
-    )].slice(-3);
-    expect(installControls).toEqual([
-      projectSelectElement,
-      projectInstallElement,
-      globalInstallElement,
-    ]);
-    expect(projectSelectElement.getBoundingClientRect().height)
-      .toBe(projectInstallElement.getBoundingClientRect().height);
-    expect(projectSelectElement.getBoundingClientRect().height)
-      .toBe(globalInstallElement.getBoundingClientRect().height);
-    expect(projectInstallElement.dataset.variant).toBe("outline");
-    expect(globalInstallElement.dataset.variant).toBe("default");
-    let finishInstall: (() => void) | undefined;
-    mocks.installClawhubSkill.mockImplementationOnce(() => new Promise((resolve) => {
-      finishInstall = () => resolve({
-        path: "/work/.agents/skills/review",
-        status: "updated",
-        version: "1.2.0",
-      });
-    }));
-    await screen.getByRole("button", { name: "安装到项目" }).click();
-    expect(mocks.installClawhubSkill).toHaveBeenCalledWith(
-      "codex",
-      "review",
-      "project",
-      "project-b",
-      "/other",
-    );
-    await vi.waitFor(() => {
-      expect(projectInstallElement.disabled).toBe(true);
-      expect(projectInstallElement.querySelector('[data-icon="loading"]')).not.toBeNull();
-      expect(globalInstallElement.disabled).toBe(true);
-      expect(globalInstallElement.querySelector('[data-icon="loading"]')).toBeNull();
-    });
-    finishInstall?.();
-    await vi.waitFor(() => {
-      expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
-      expect(mocks.toastSuccess).toHaveBeenCalledWith("Skill 安装完成");
-    });
-    await vi.waitFor(() => {
-      expect(document.querySelector('[role="dialog"]')).toBeNull();
-    });
   });
 
   it("lists configured MCP servers and stops the selected server", async () => {

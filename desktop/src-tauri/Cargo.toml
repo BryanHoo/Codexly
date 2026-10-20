@@ -32,7 +32,6 @@ rrule = "0.14.0"
 semver = "1.0.28"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["raw_value"] }
-serde_yaml = "0.9.34"
 sha2 = "0.11.0"
 shlex = "2.0.1"
 tauri = { version = "2.11.5", features = ["macos-private-api", "protocol-asset", "tray-icon"] }

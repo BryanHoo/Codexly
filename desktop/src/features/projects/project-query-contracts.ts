@@ -67,9 +67,6 @@ export type NativeMcpServersClient = Pick<NativeClient, "listMcpServers">;
 export type NativeMcpServersMutationClient = Pick<NativeClient, "retryMcpServers">;
 export type NativeSkillsClient = Pick<
   NativeClient,
-  | "getClawhubSkill"
-  | "installClawhubSkill"
-  | "listClawhubSkills"
   | "listConfiguredMcpServers"
   | "listInstalledSkills"
   | "listOfficialPlugins"

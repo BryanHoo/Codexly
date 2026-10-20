@@ -2,8 +2,6 @@ import { EngineHttpClient } from "./http-client-engines.js";
 import { PluginReconcileResultSchema, type PluginReconcileResult } from "@codexly/protocol";
 import {
   AgentMutationErrorSchema,
-  ClawhubSkillDetailSchema,
-  ClawhubSkillPageSchema,
   ConfiguredMcpServerPageSchema,
   InstalledSkillPageSchema,
   OpenSkillDirectoryResponseSchema,
@@ -13,9 +11,6 @@ import {
   OfficialPluginUninstallResponseSchema,
   SetMcpServerEnabledResponseSchema,
   SetSkillEnabledResponseSchema,
-  SkillInstallResponseSchema,
-  type ClawhubSkillDetail,
-  type ClawhubSkillPage,
   type ConfiguredMcpServerPage,
   type InstalledSkillPage,
   type OpenSkillDirectoryResponse,
@@ -25,8 +20,6 @@ import {
   type OfficialPluginUninstallResponse,
   type SetMcpServerEnabledResponse,
   type SetSkillEnabledResponse,
-  type SkillInstallResponse,
-  type SkillInstallScope,
 } from "@codexly/protocol";
 
 import { appendQuery, type MutationOptions, type ReadOptions } from "./http-client-transport.js";
@@ -102,53 +95,6 @@ export class SkillMarketHttpClient extends EngineHttpClient {
 
   public async listInstalledSkills(options: ReadOptions = {}): Promise<InstalledSkillPage> {
     return this.read("/v1/skills/installed", InstalledSkillPageSchema, options);
-  }
-
-  public async listClawhubSkills(
-    query: string,
-    cursor: string | null,
-    sort: string,
-    options: ReadOptions = {},
-  ): Promise<ClawhubSkillPage> {
-    return this.read(
-      appendQuery("/v1/skills/market", {
-        cursor: cursor ?? undefined,
-        query: query.length === 0 ? undefined : query,
-        sort,
-      }),
-      ClawhubSkillPageSchema,
-      options,
-      AgentMutationErrorSchema,
-    );
-  }
-
-  public async getClawhubSkill(
-    owner: string,
-    slug: string,
-    options: ReadOptions = {},
-  ): Promise<ClawhubSkillDetail> {
-    return this.read(
-      `/v1/skills/market/${encodeURIComponent(owner)}/${encodeURIComponent(slug)}`,
-      ClawhubSkillDetailSchema,
-      options,
-      AgentMutationErrorSchema,
-    );
-  }
-
-  public async installClawhubSkill(
-    owner: string,
-    slug: string,
-    scope: SkillInstallScope,
-    projectId?: string,
-    rootPath?: string,
-    options: MutationOptions = {},
-  ): Promise<SkillInstallResponse> {
-    return this.mutation(
-      `/v1/skills/market/${encodeURIComponent(owner)}/${encodeURIComponent(slug)}/install`,
-      { projectId, rootPath, scope },
-      SkillInstallResponseSchema,
-      options,
-    );
   }
 
   public async openSkillDirectory(

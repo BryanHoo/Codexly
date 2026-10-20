@@ -1,9 +1,7 @@
 use serde::{Serialize, ser::SerializeStruct, ser::Serializer};
 use thiserror::Error;
 
-use crate::infrastructure::{
-    codex::ConnectionError, skills_market::SkillsMarketError, workspace::WorkspaceError,
-};
+use crate::infrastructure::{codex::ConnectionError, workspace::WorkspaceError};
 
 #[derive(Debug, Error)]
 pub enum AppError {
@@ -69,8 +67,6 @@ pub enum AppError {
     ScheduledTaskBusy,
     #[error(transparent)]
     Workspace(#[from] WorkspaceError),
-    #[error(transparent)]
-    SkillsMarket(#[from] SkillsMarketError),
     #[error("failed to resolve user home directory")]
     HomeDirectoryUnavailable,
     #[error("workbench pet asset is unavailable")]
@@ -129,7 +125,6 @@ impl Serialize for AppError {
             Self::ScheduledTaskNotFound => Some(("SCHEDULED_TASK_NOT_FOUND", self.to_string())),
             Self::ScheduledTaskBusy => Some(("SCHEDULED_TASK_BUSY", self.to_string())),
             Self::Workspace(error) => Some((error.code(), error.to_string())),
-            Self::SkillsMarket(error) => Some((error.code(), error.to_string())),
             _ => None,
         };
         if let Some((code, message)) = structured_error {

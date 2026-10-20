@@ -66,9 +66,6 @@ permissions = [
   "allow-open-skill-directory",
   "allow-set-skill-enabled",
   "allow-set-mcp-server-enabled",
-  "allow-list-clawhub-skills",
-  "allow-get-clawhub-skill",
-  "allow-install-clawhub-skill",
   "allow-list-official-plugins",
   # 仅主窗口的扩展中心可同步官方插件，辅助窗口不授予此权限。
   "allow-reconcile-official-plugins",

@@ -28,7 +28,6 @@ import { readProjectImageFile } from "./project-image-file.js";
 import { readProjectSourceFile } from "./project-source-file.js";
 import { createProviderTurnInputResolver } from "./provider-turn-input-resolver.js";
 import { createDisabledProjectOpenService, createProjectOpenService } from "./project-open.js";
-import { createClawhubClient } from "./skill-market-client.js";
 import { createSkillMarketService } from "./skill-market-service.js";
 import { createProjectRuntimeContext } from "./project-runtime-context.js";
 import {
@@ -152,7 +151,6 @@ export async function createCodexlyServer(
   const skillMarketService =
     options.skillMarketService ??
     createSkillMarketService({
-      catalog: createClawhubClient(),
       projectOpenService,
       projectRepository: options.projectRepository,
       provider: options.provider,

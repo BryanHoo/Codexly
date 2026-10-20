@@ -8,9 +8,7 @@ const LazySkillsMarketContainer = lazy(() =>
 
 export function SkillsMarketView(
   props: Readonly<{
-    onSectionChange?: (section: "marketplace" | "mcp" | "plugins" | "skills") => void;
-    projectId?: string;
-    rootPath?: string;
+    onSectionChange?: (section: "mcp" | "plugins" | "skills") => void;
     section?: string;
   }>,
 ) {

@@ -99,7 +99,6 @@ export function WorkbenchShellLayout({
     projects,
     retry,
     runtime,
-    selectedRootPath,
     selectedRootId,
     openInspectorDocument,
     setGlobalSettingsSection,
@@ -227,8 +226,6 @@ export function WorkbenchShellLayout({
                         },
                   );
                 }}
-                {...(temporary ? {} : { projectId })}
-                {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
               />
             </Suspense>
           ) : error !== null ||

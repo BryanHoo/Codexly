@@ -10,6 +10,7 @@ describe("ExtensionCenterNav", () => {
     expect(normalizeExtensionSection(undefined)).toBe("skills");
     expect(normalizeExtensionSection("plugins")).toBe("plugins");
     expect(normalizeExtensionSection("unknown")).toBe("skills");
+    expect(normalizeExtensionSection("marketplace")).toBe("skills");
 
     const markup = renderToStaticMarkup(
       <I18nextProvider i18n={i18n}>
@@ -19,7 +20,8 @@ describe("ExtensionCenterNav", () => {
     expect(markup).toContain("Skills 管理");
     expect(markup).toContain("MCP 管理");
     expect(markup).toContain("官方插件");
-    expect(markup).toContain("三方市场");
+    expect(markup).not.toContain("三方市场");
+    expect(markup.match(/role="tab"/gu)).toHaveLength(3);
     expect(markup).toContain('role="tablist"');
   });
 });

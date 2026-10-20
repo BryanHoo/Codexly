@@ -93,7 +93,6 @@ export function WorkbenchShellLayout({
     requestNotificationPermission,
     retry,
     runtime,
-    selectedRootPath,
     selectedRootId,
     openInspectorDocument,
     setGlobalSettingsSection,
@@ -245,8 +244,6 @@ export function WorkbenchShellLayout({
                         },
                   );
                 }}
-                {...(temporary ? {} : { projectId })}
-                {...(selectedRootPath === undefined ? {} : { rootPath: selectedRootPath })}
               />
             ) : board ? (
               <TaskBoardContainer projectId={projectId} />

@@ -78,11 +78,8 @@ export type CodexlyMcpServersMutationClient = Pick<CodexlyClient, "retryMcpServe
 export type CodexlySkillsClient = Pick<CodexlyClient, "listSkills">;
 export type CodexlySkillMarketClient = Pick<
   CodexlyClient,
-  | "getClawhubSkill"
   | "getOfficialPlugin"
-  | "installClawhubSkill"
   | "installOfficialPlugin"
-  | "listClawhubSkills"
   | "listConfiguredMcpServers"
   | "listInstalledSkills"
   | "listOfficialPlugins"

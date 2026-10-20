@@ -6,16 +6,6 @@ export const InstalledSkillSchema = Type.Object(
     displayName: Type.String({ minLength: 1 }),
     enabled: Type.Boolean(),
     id: Type.String({ minLength: 1 }),
-    marketplace: Type.Optional(
-      Type.Object(
-        {
-          installedVersion: Type.String({ minLength: 1 }),
-          owner: Type.String({ minLength: 1 }),
-          slug: Type.String({ minLength: 1 }),
-        },
-        { additionalProperties: false },
-      ),
-    ),
     name: Type.String({ minLength: 1 }),
     path: Type.String({ minLength: 1 }),
     projectId: Type.Optional(Type.String({ minLength: 1 })),
@@ -27,7 +17,7 @@ export const InstalledSkillSchema = Type.Object(
       Type.Literal("system"),
       Type.Literal("admin"),
     ]),
-    source: Type.Union([Type.Literal("clawhub"), Type.Literal("local")]),
+    source: Type.Literal("local"),
   },
   { additionalProperties: false },
 );
@@ -50,74 +40,6 @@ export const ConfiguredMcpServerPageSchema = Type.Object(
   { additionalProperties: false },
 );
 export type ConfiguredMcpServerPage = Readonly<Static<typeof ConfiguredMcpServerPageSchema>>;
-
-export const ClawhubSkillSummarySchema = Type.Object(
-  {
-    canonicalUrl: Type.String({ minLength: 1 }),
-    displayName: Type.String({ minLength: 1 }),
-    downloads: Type.Integer({ minimum: 0 }),
-    id: Type.String({ minLength: 1 }),
-    latestVersion: Type.String({ minLength: 1 }),
-    owner: Type.String({ minLength: 1 }),
-    slug: Type.String({ minLength: 1 }),
-    stars: Type.Integer({ minimum: 0 }),
-    summary: Type.String(),
-    topics: Type.Array(Type.String()),
-    updatedAt: Type.Integer(),
-    versionCount: Type.Integer({ minimum: 0 }),
-  },
-  { additionalProperties: false },
-);
-export type ClawhubSkillSummary = Readonly<Static<typeof ClawhubSkillSummarySchema>>;
-
-export const ClawhubSkillPageSchema = Type.Object(
-  {
-    items: Type.Array(ClawhubSkillSummarySchema),
-    nextCursor: Type.Union([Type.String(), Type.Null()]),
-  },
-  { additionalProperties: false },
-);
-export type ClawhubSkillPage = Readonly<Static<typeof ClawhubSkillPageSchema>>;
-
-export const ClawhubSkillVersionSchema = Type.Object(
-  {
-    changelog: Type.String(),
-    createdAt: Type.Integer(),
-    version: Type.String({ minLength: 1 }),
-  },
-  { additionalProperties: false },
-);
-
-export const ClawhubSkillDetailSchema = Type.Object(
-  {
-    ...ClawhubSkillSummarySchema.properties,
-    changelog: Type.String(),
-    hasWarnings: Type.Boolean(),
-    readme: Type.String(),
-    scanStatus: Type.String({ minLength: 1 }),
-    versions: Type.Array(ClawhubSkillVersionSchema),
-  },
-  { additionalProperties: false },
-);
-export type ClawhubSkillDetail = Readonly<Static<typeof ClawhubSkillDetailSchema>>;
-
-export const SkillInstallScopeSchema = Type.Union([Type.Literal("project"), Type.Literal("user")]);
-export type SkillInstallScope = Static<typeof SkillInstallScopeSchema>;
-
-const SkillInstallResultProperties = {
-  path: Type.String({ minLength: 1 }),
-  status: Type.Union([Type.Literal("current"), Type.Literal("installed"), Type.Literal("updated")]),
-  version: Type.String({ minLength: 1 }),
-};
-export const SkillInstallResultSchema = Type.Object(SkillInstallResultProperties, {
-  additionalProperties: false,
-});
-export type SkillInstallResult = Readonly<Static<typeof SkillInstallResultSchema>>;
-export const SkillInstallResponseSchema = Type.Object(
-  { ...SkillInstallResultProperties, installedSkills: InstalledSkillPageSchema },
-  { additionalProperties: false },
-);
-export type SkillInstallResponse = Readonly<Static<typeof SkillInstallResponseSchema>>;
 
 const SetSkillEnabledResultProperties = { effectiveEnabled: Type.Boolean() };
 export const SetSkillEnabledResultSchema = Type.Object(SetSkillEnabledResultProperties, {

@@ -17,21 +17,12 @@ const McpManagementPane = lazy(() =>
 const OfficialPluginsPane = lazy(() =>
   import("./official-plugins-pane.js").then((module) => ({ default: module.OfficialPluginsPane })),
 );
-const ThirdPartyMarketplacePane = lazy(() =>
-  import("./third-party-marketplace-pane.js").then((module) => ({
-    default: module.ThirdPartyMarketplacePane,
-  })),
-);
 
 export function SkillsMarketContainer({
   onSectionChange,
-  projectId,
-  rootPath,
   section,
 }: Readonly<{
   onSectionChange?: (section: ExtensionSection) => void;
-  projectId?: string;
-  rootPath?: string;
   section?: string;
 }>) {
   const { t } = useTranslation("workbench");
@@ -63,12 +54,6 @@ export function SkillsMarketContainer({
         {activeSection === "skills" ? <InstalledSkillsPane /> : null}
         {activeSection === "mcp" ? <McpManagementPane /> : null}
         {activeSection === "plugins" ? <OfficialPluginsPane /> : null}
-        {activeSection === "marketplace" ? (
-          <ThirdPartyMarketplacePane
-            {...(projectId === undefined ? {} : { projectId })}
-            {...(rootPath === undefined ? {} : { rootPath })}
-          />
-        ) : null}
       </Suspense>
     </section>
   );

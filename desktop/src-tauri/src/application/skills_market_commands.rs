@@ -1,83 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
+use std::collections::{HashMap, HashSet};
 
-use futures_util::{StreamExt, stream};
-use serde::Deserialize;
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, State};
+use tauri::State;
 
 use super::{error::AppError, state::AppState};
-use crate::infrastructure::{codex, skills_market, workspace};
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct InstalledOrigin {
-    owner_handle: String,
-    slug: String,
-    installed_version: String,
-}
-
-async fn add_marketplace_origin(mut skill: Value) -> Value {
-    let Some(path) = skill.get("path").and_then(Value::as_str) else {
-        return skill;
-    };
-    let Some(origin_path) = PathBuf::from(path)
-        .parent()
-        .map(|root| root.join(".clawhub/origin.json"))
-    else {
-        return skill;
-    };
-    let Ok(metadata) = tokio::fs::metadata(&origin_path).await else {
-        return skill;
-    };
-    if metadata.len() > 64 * 1024 {
-        return skill;
-    }
-    let Some(origin) = tokio::fs::read(origin_path)
-        .await
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<InstalledOrigin>(&bytes).ok())
-    else {
-        return skill;
-    };
-    if let Some(object) = skill.as_object_mut() {
-        object.insert("source".to_owned(), json!("clawhub"));
-        object.insert(
-            "marketplace".to_owned(),
-            json!({
-                "installedVersion": origin.installed_version,
-                "owner": origin.owner_handle,
-                "slug": origin.slug,
-            }),
-        );
-    }
-    skill
-}
-
-async fn project_root(
-    state: &State<'_, AppState>,
-    project_id: Option<&str>,
-    root_path: Option<&str>,
-) -> Result<(std::sync::Arc<codex::AppServerConnection>, Option<PathBuf>), AppError> {
-    let connection = state.codex_connection().await?;
-    let Some(project_id) = project_id else {
-        return Ok((connection, None));
-    };
-    let project = codex::read_project(&connection, project_id).await?;
-    let path = project
-        .roots
-        .iter()
-        .find(|root| root_path.is_none_or(|expected| root.path == expected))
-        .ok_or(AppError::FilesystemRequestFailed)?
-        .path
-        .as_str();
-    let root = workspace::canonical_root(path)
-        .await
-        .map_err(|_| AppError::FilesystemRequestFailed)?;
-    Ok((connection, Some(root)))
-}
+use crate::infrastructure::{codex, workspace};
 
 #[derive(Clone)]
 struct InstalledSkillRoot {
@@ -164,18 +91,8 @@ pub async fn list_installed_skills(
     force_reload: bool,
     state: State<'_, AppState>,
 ) -> Result<Value, AppError> {
-    let mut response = discover_installed_skills(&state, force_reload).await?;
-    let items = response
-        .get_mut("data")
-        .and_then(Value::as_array_mut)
-        .map(std::mem::take)
-        .unwrap_or_default();
-    let enriched = stream::iter(items.into_iter().map(add_marketplace_origin))
-        .buffered(32)
-        .collect::<Vec<_>>()
-        .await;
-    response["data"] = json!(enriched);
-    Ok(response)
+    // 直接返回本地发现结果，避免逐项读取市场来源文件造成额外磁盘开销。
+    discover_installed_skills(&state, force_reload).await
 }
 
 #[tauri::command]
@@ -235,68 +152,6 @@ pub async fn set_mcp_server_enabled(
     codex::set_mcp_server_enabled(&connection, &name, enabled)
         .await
         .map_err(AppError::from)
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn list_clawhub_skills(
-    query: String,
-    cursor: Option<String>,
-    sort: String,
-) -> Result<Value, AppError> {
-    serde_json::to_value(
-        skills_market::list_clawhub_skills(&query, cursor.as_deref(), &sort).await?,
-    )
-    .map_err(|_| AppError::SkillsMarket(skills_market::SkillsMarketError::InvalidResponse))
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn get_clawhub_skill(owner: String, slug: String) -> Result<Value, AppError> {
-    serde_json::to_value(skills_market::get_clawhub_skill(&owner, &slug).await?)
-        .map_err(|_| AppError::SkillsMarket(skills_market::SkillsMarketError::InvalidResponse))
-}
-
-#[tauri::command(rename_all = "camelCase")]
-pub async fn install_clawhub_skill(
-    app: AppHandle,
-    owner: String,
-    slug: String,
-    scope: String,
-    project_id: Option<String>,
-    root_path: Option<String>,
-    state: State<'_, AppState>,
-) -> Result<Value, AppError> {
-    let (connection, project) =
-        project_root(&state, project_id.as_deref(), root_path.as_deref()).await?;
-    let skills_root = match scope.as_str() {
-        "project" => project
-            .as_ref()
-            .ok_or(AppError::FilesystemRequestFailed)?
-            .join(".agents/skills"),
-        "user" => app
-            .path()
-            .home_dir()
-            .map_err(|_| AppError::HomeDirectoryUnavailable)?
-            .join(".agents/skills"),
-        _ => return Err(AppError::FilesystemRequestFailed),
-    };
-    let detail = skills_market::get_clawhub_skill(&owner, &slug).await?;
-    if detail.scan_status != "clean" {
-        return Err(AppError::SkillsMarket(
-            skills_market::SkillsMarketError::Unsafe,
-        ));
-    }
-    let version = detail.summary.latest_version;
-    let archive = skills_market::download_skill_archive(&owner, &slug, &version).await?;
-    let result: skills_market::InstallResult =
-        skills_market::install_clawhub_archive(archive, skills_root, owner, slug, version).await?;
-    // 安装发生在 app-server 外部，强制刷新发现缓存，保证列表立即可见。
-    let refresh_cwds = project
-        .as_deref()
-        .and_then(|path| path.to_str())
-        .into_iter()
-        .collect::<Vec<_>>();
-    let _ = codex::list_installed_skills(&connection, &refresh_cwds, true).await;
-    Ok(json!(result))
 }
 
 #[cfg(test)]

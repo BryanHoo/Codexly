@@ -1,20 +1,5 @@
 import { expect, test } from "./fixtures/app-shell.js";
 
-const summary = {
-  canonicalUrl: "https://clawhub.ai/codex/skills/review",
-  displayName: "Code Review",
-  downloads: 1_200,
-  id: "codex/review",
-  latestVersion: "1.2.0",
-  owner: "codex",
-  slug: "review",
-  stars: 18,
-  summary: "Review changes before merging.",
-  topics: ["review"],
-  updatedAt: 1_788_000_000_000,
-  versionCount: 3,
-};
-
 const officialPlugin = {
   authPolicy: "ON_INSTALL",
   availability: "AVAILABLE",
@@ -35,7 +20,7 @@ const officialPlugin = {
   version: "1.0.0",
 };
 
-test("manages installed Skills, ClawHub installs, and MCP servers", async ({ page }) => {
+test("manages installed Skills, official plugins, and MCP servers", async ({ page }) => {
   const mutations: { body: unknown; method: string; path: string }[] = [];
   let installedSkills = {
     data: [
@@ -73,24 +58,8 @@ test("manages installed Skills, ClawHub installs, and MCP servers", async ({ pag
       json = { effectiveEnabled: false, installedSkills };
     } else if (url.pathname === "/v1/skills/open") {
       json = { status: "opened" };
-    } else if (url.pathname === "/v1/skills/market") {
-      json = { items: [summary], nextCursor: null };
-    } else if (url.pathname === "/v1/skills/market/codex/review/install") {
-      json = {
-        path: "/workspace/Codexly/.agents/skills/review",
-        status: "installed",
-        installedSkills,
-        version: "1.2.0",
-      };
     } else {
-      json = {
-        ...summary,
-        changelog: "Improve review.",
-        hasWarnings: false,
-        readme: "---\nname: review\ndescription: Review changes.\n---\n",
-        scanStatus: "clean",
-        versions: [{ changelog: "Initial", createdAt: 1, version: "1.2.0" }],
-      };
+      throw new Error(`Unexpected skill request: ${request.method()} ${url.pathname}`);
     }
     await route.fulfill({ contentType: "application/json", json });
   });
@@ -185,14 +154,7 @@ test("manages installed Skills, ClawHub installs, and MCP servers", async ({ pag
 
   await page.getByRole("switch", { name: "启用或停用 Local Review" }).click();
   await page.getByRole("button", { name: "在文件管理器中显示 Local Review" }).click();
-  await page.getByRole("tab", { name: "三方市场" }).click();
-  await expect(page).toHaveURL(/\/p\/codexly\/extensions\/marketplace$/u);
-  await page.getByRole("button", { name: /Code Review/u }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("Review changes.");
-  await dialog.getByRole("button", { name: "安装到项目" }).click();
-  await expect(dialog).toHaveCount(0);
-
+  await expect(page.getByRole("tab")).toHaveText(["Skills 管理", "MCP 管理", "官方插件"]);
   await page.getByRole("tab", { name: "官方插件" }).click();
   await expect(page).toHaveURL(/\/p\/codexly\/extensions\/plugins$/u);
   await page.getByRole("button", { name: "刷新官方插件" }).click();
@@ -219,11 +181,6 @@ test("manages installed Skills, ClawHub installs, and MCP servers", async ({ pag
         body: { path: "/workspace/Codexly/.agents/skills/review/SKILL.md" },
         method: "POST",
         path: "/v1/skills/open",
-      }),
-      expect.objectContaining({
-        body: { projectId: "codexly", rootPath: "/workspace/Codexly", scope: "project" },
-        method: "POST",
-        path: "/v1/skills/market/codex/review/install",
       }),
       expect.objectContaining({
         body: { enabled: false },

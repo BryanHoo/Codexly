@@ -138,9 +138,6 @@ catalogs:
     fastify:
       specifier: 5.12.5
       version: 5.12.5
-    fflate:
-      specifier: 0.8.3
-      version: 0.8.3
     i18next:
       specifier: 26.3.6
       version: 26.3.6
@@ -234,9 +231,6 @@ catalogs:
     ws:
       specifier: 8.21.1
       version: 8.21.1
-    yaml:
-      specifier: 2.9.0
-      version: 2.9.0
     zustand:
       specifier: 5.0.14
       version: 5.0.14
@@ -721,9 +715,6 @@ importers:
       fastify:
         specifier: 'catalog:'
         version: 5.12.5
-      fflate:
-        specifier: 'catalog:'
-        version: 0.8.3
       ignore:
         specifier: 'catalog:'
         version: 7.0.6
@@ -742,9 +733,6 @@ importers:
       ws:
         specifier: 'catalog:'
         version: 8.21.1
-      yaml:
-        specifier: 'catalog:'
-        version: 2.9.0
     devDependencies:
       '@types/better-sqlite3':
         specifier: 'catalog:'
@@ -5672,9 +5660,6 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
-
-  fflate@0.8.3:
-    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   figures@6.1.0:
     resolution: {integrity: sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg==}
@@ -13491,8 +13476,6 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.5):
     optionalDependencies:
       picomatch: 4.0.5
-
-  fflate@0.8.3: {}
 
   figures@6.1.0:
     dependencies:

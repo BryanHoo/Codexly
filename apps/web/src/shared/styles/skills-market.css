@@ -222,18 +222,6 @@
 .skills-market-glyph[data-tone="plugins"] {
   color: #0f766e;
 }
-.skills-market-glyph[data-tone="marketplace"] {
-  color: #b45309;
-}
-
-.skills-version {
-  border-radius: var(--ui-radius-pill);
-  background: var(--ui-color-control);
-  padding: 3px 8px;
-  color: var(--ui-color-text-muted);
-  font-family: var(--ui-font-family-mono);
-  font-size: var(--ui-font-size-caption);
-}
 
 .skills-switch {
   position: relative;
@@ -339,127 +327,12 @@
   height: 12px;
 }
 
-.third-party-skill-sheet .skills-market-detail__header {
-  padding-right: 48px;
-}
-
-.third-party-skill-sheet .third-party-skill-sheet__body {
-  min-height: 0;
-  max-height: none;
-  flex: 1;
-}
-
-.third-party-skill-sheet .third-party-skill-sheet__footer {
-  align-items: stretch;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.third-party-skill-sheet__market-link {
-  align-self: flex-start;
-}
-
-.third-party-skill-sheet__actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(120px, 1fr);
-  gap: 8px;
-}
-
-.third-party-skill-sheet__actions > button {
-  width: 100%;
-}
-
-.third-party-skill-sheet__actions .skills-market-project-target {
-  min-width: 0;
-}
-
-.third-party-skill-sheet__actions .skills-market-project-target > button {
-  min-width: 0;
-  flex: 1;
-}
-
 .skills-market-state {
   display: grid;
   min-height: 260px;
   place-items: center;
   color: var(--ui-color-text-muted);
   font-size: var(--ui-font-size-body-small);
-}
-
-.skills-market-detail__header {
-  display: flex;
-  min-height: 88px;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid var(--ui-color-separator);
-  padding: 18px 20px;
-}
-
-.skills-market-detail__mark {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border-radius: var(--ui-radius-control);
-  background: var(--ui-color-accent-soft);
-  color: var(--ui-color-accent);
-}
-
-.skills-market-scan {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--ui-color-task-completed);
-  font-size: var(--ui-font-size-label);
-}
-
-.skills-market-detail__facts {
-  display: flex;
-  min-height: 36px;
-  align-items: center;
-  gap: 18px;
-  border-bottom: 1px solid var(--ui-color-separator);
-  padding: 0 20px;
-  color: var(--ui-color-text-muted);
-  font-family: var(--ui-font-family-mono);
-  font-size: var(--ui-font-size-caption);
-}
-
-.skills-market-detail__body {
-  min-height: 320px;
-  max-height: min(58vh, 620px);
-  overflow: auto;
-  padding: 20px;
-}
-
-.skills-market-readme {
-  margin: 0;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  font-family: var(--ui-font-family-mono);
-  font-size: var(--ui-font-size-label);
-  line-height: var(--ui-line-height-relaxed);
-}
-
-.skills-market-detail__footer {
-  align-items: center;
-  border-top: 1px solid var(--ui-color-separator);
-  padding: 14px 20px;
-}
-
-.skills-market-project-target {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.skills-market-project-target [role="combobox"] {
-  width: 120px;
-  min-width: 0;
-  border-color: var(--ui-color-separator);
-  background: var(--ui-color-control);
-  cursor: pointer;
 }
 
 @media (max-width: 960px) {
