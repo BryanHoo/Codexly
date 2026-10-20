@@ -56,7 +56,7 @@ test("synchronizes official plugin state on mobile @cross-browser", async ({ pag
   await page.goto("/p/codexly/extensions/plugins");
   await expect(page.getByRole("button", { name: /GitHub/u })).toBeVisible();
   expect(syncCount).toBe(0);
-  await page.getByRole("button", { name: "刷新官方插件" }).click();
+  await page.getByRole("button", { name: "同步官方目录" }).click();
   await expect(page.getByRole("button", { name: /GitHub/u })).toContainText("已安装");
   expect(syncCount).toBe(1);
   await expect(page.getByRole("alert")).toHaveCount(0);

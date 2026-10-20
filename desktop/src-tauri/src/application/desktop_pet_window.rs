@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-#[cfg(not(target_os = "macos"))]
-use tauri::Emitter;
 use tauri::{
     AppHandle, LogicalSize, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
+#[cfg(not(target_os = "macos"))]
+// Windows 和 Linux 的窗口事件同时使用状态管理与窗口查询扩展方法。
+use tauri::{Emitter, Manager};
 
 #[cfg(not(target_os = "macos"))]
 use super::desktop_pet_commands::{DesktopPetPosition, DesktopPetRuntime};

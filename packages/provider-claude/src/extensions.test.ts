@@ -1,14 +1,43 @@
 import { mkdtemp, mkdir, readFile, writeFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
+import * as fs from "node:fs/promises";
 import { ClaudeExtensions } from "./extensions.js";
 
 const directories: string[] = [];
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof fs>();
+  return { ...actual, realpath: vi.fn(actual.realpath) };
+});
 afterEach(async () => {
+  vi.mocked(fs.realpath).mockReset();
   await Promise.all(
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
   );
+});
+
+it("reads and updates the native CLI project key for Windows paths", async () => {
+  const { service, config } = await setup();
+  const project = "C:\\Users\\runner\\project";
+  const key = "C:/Users/runner/project";
+  vi.mocked(fs.realpath).mockResolvedValueOnce(project);
+  await writeFile(
+    config,
+    JSON.stringify({
+      projects: {
+        [key]: { mcpServers: { local: { command: "node" } }, trusted: true },
+      },
+    }),
+  );
+  expect((await service.list("mcp", project)).data.map((item) => item.name)).toEqual(["local"]);
+  vi.mocked(fs.realpath).mockResolvedValueOnce(project).mockResolvedValueOnce(project);
+  await service.mutate({ kind: "mcp", action: "disable", id: "local", scope: "local" }, project);
+  const saved = JSON.parse(await readFile(config, "utf8")) as { projects: Record<string, unknown> };
+  expect(saved.projects[key]).toMatchObject({ trusted: true, disabledMcpServers: ["local"] });
+  expect(saved.projects[project]).toBeUndefined();
+  vi.mocked(fs.realpath).mockResolvedValueOnce(project);
+  expect((await service.list("mcp", project)).data[0]?.enabled).toBe(false);
 });
 async function setup() {
   const root = await realpath(await mkdtemp(join(tmpdir(), "claude-extensions-")));
@@ -24,13 +53,15 @@ async function setup() {
 
 it("discovers scoped MCP without exposing credentials and persists per-project toggles", async () => {
   const { service, project, config } = await setup();
+  // 原生 CLI 在三个平台均使用正斜杠作为 JSON 项目键。
+  const key = project.split(sep).join("/");
   await writeFile(
     config,
     JSON.stringify({
       secret: "preserved",
       mcpServers: { global: { command: "node", env: { TOKEN: "private-token" } } },
       projects: {
-        [project]: {
+        [key]: {
           mcpServers: { local: { type: "http", url: "https://example.com?token=private-token" } },
         },
       },
@@ -50,7 +81,7 @@ it("discovers scoped MCP without exposing credentials and persists per-project t
     projects: Record<string, { disabledMcpServers: string[] }>;
   };
   expect(saved.secret).toBe("preserved");
-  expect(saved.projects[project]?.disabledMcpServers).toEqual(["team"]);
+  expect(saved.projects[key]?.disabledMcpServers).toEqual(["team"]);
   expect(
     (await service.list("mcp", project)).data.find((item) => item.name === "team")?.enabled,
   ).toBe(false);

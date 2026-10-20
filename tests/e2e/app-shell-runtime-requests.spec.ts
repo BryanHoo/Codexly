@@ -198,7 +198,7 @@ test("shows MCP connection states and manually retries the current task", async 
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("tab", { name: "上下文" }).click();
   const mcp = page.getByRole("region", { name: "MCP" });
-  const reloadIcon = mcp.getByRole("button", { name: "重新加载 MCP" }).locator("svg");
+  const reloadIcon = mcp.getByRole("button", { name: "刷新状态" }).locator("svg");
   await expect
     .poll(() => reloadIcon.evaluate((icon) => icon.getBoundingClientRect().width))
     .toBeLessThanOrEqual(16);
@@ -206,7 +206,7 @@ test("shows MCP connection states and manually retries the current task", async 
   await expect(mcp.getByText("已连接", { exact: false })).toBeVisible();
   await expect(mcp.getByText("Provider-only MCP description", { exact: true })).toHaveCount(0);
   await expect(mcp.getByRole("button", { name: "查看错误日志" })).toHaveCount(0);
-  await mcp.getByRole("button", { name: "重新加载 MCP" }).click();
+  await mcp.getByRole("button", { name: "刷新状态" }).click();
   await expect.poll(() => retries).toBe(1);
   await expect(mcp.getByText("正在启动", { exact: false })).toBeVisible();
 });

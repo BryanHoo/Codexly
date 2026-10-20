@@ -8,7 +8,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   optimizeDeps: {
-    include: ["@tauri-apps/api/mocks", "@tanstack/react-virtual", "radix-ui/popover", "zustand/react/shallow", "@xterm/xterm", "@xterm/addon-fit", "@xterm/addon-webgl", "marked", "remend", "@codexly/ui > react-zoom-pan-pinch"],
+    // 提前打包懒加载面板的 Tabs，避免测试中途重新优化依赖、重载页面并重复加载 React。
+    include: ["@tauri-apps/api/mocks", "@tanstack/react-virtual", "radix-ui/popover", "radix-ui/tabs", "zustand/react/shallow", "@xterm/xterm", "@xterm/addon-fit", "@xterm/addon-webgl", "marked", "remend", "@codexly/ui > react-zoom-pan-pinch"],
   },
   resolve: {
     alias: [{ find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) }],

@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@codexly/ui/core/tooltip";
 import { beforeEach, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -21,7 +22,7 @@ it("synchronizes on refresh, disables repeated clicks, and shows partial failure
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   cache.setQueryData(["projects", "p", "skills"], { data: [] });
   cache.setQueryData(["projects", "p", "tasks", "t", "mcp-servers"], { data: [] });
-  await render(<I18nextProvider i18n={i18n}><QueryClientProvider client={cache}><OfficialPluginsPane /></QueryClientProvider></I18nextProvider>);
+  await render(<I18nextProvider i18n={i18n}><QueryClientProvider client={cache}><TooltipProvider><OfficialPluginsPane /></TooltipProvider></QueryClientProvider></I18nextProvider>);
   const refresh = page.getByRole("button", { name: "同步官方目录" });
   await expect.element(refresh).toBeEnabled();
   expect(client.reconcileOfficialPlugins).not.toHaveBeenCalled();
@@ -39,7 +40,7 @@ it("synchronizes on refresh, disables repeated clicks, and shows partial failure
 it("reports transport failure and allows a subsequent retry", async () => {
   client.reconcileOfficialPlugins.mockRejectedValueOnce(new Error("offline")).mockResolvedValue({ changedPlugins: [], failedRemotePluginIds: [], failedMaterializationRemotePluginIds: [] });
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  await render(<I18nextProvider i18n={i18n}><QueryClientProvider client={cache}><OfficialPluginsPane /></QueryClientProvider></I18nextProvider>);
+  await render(<I18nextProvider i18n={i18n}><QueryClientProvider client={cache}><TooltipProvider><OfficialPluginsPane /></TooltipProvider></QueryClientProvider></I18nextProvider>);
   const refresh = page.getByRole("button", { name: "同步官方目录" });
   await expect.element(refresh).toBeEnabled();
   await refresh.click();

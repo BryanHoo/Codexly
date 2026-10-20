@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile, rm, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, win32 } from "node:path";
 import { Value } from "@sinclair/typebox/value";
 import {
   ClaudeExtensionMutationSchema,
@@ -19,6 +19,9 @@ const object = (value: unknown): Json =>
 const strings = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 const text = (value: unknown) => (typeof value === "string" ? value : "");
+// 官方 CLI 用正斜杠保存 Windows 项目键；文件访问仍保留 realpath 的原生路径。
+const projectKey = (cwd: string) =>
+  win32.isAbsolute(cwd) && !cwd.startsWith("/") ? cwd.replaceAll("\\", "/") : cwd;
 async function read(path: string): Promise<Json> {
   try {
     return object(JSON.parse(await readFile(path, "utf8")));
@@ -62,7 +65,7 @@ export class ClaudeExtensions {
       cwd ? read(join(cwd, ".claude", "settings.local.json")) : {},
     ]);
     if (kind === "mcp") {
-      const context = object(object(native["projects"])[cwd ?? ""]);
+      const context = object(object(native["projects"])[cwd ? projectKey(cwd) : ""]);
       const disabled = strings(context["disabledMcpServers"]);
       const projectMcp = cwd ? await read(join(cwd, ".mcp.json")) : {};
       const merged = new Map<string, ClaudeExtension>();
@@ -189,12 +192,13 @@ export class ClaudeExtensions {
         throw new Error("MCP 启停按项目保存，请先选择项目");
       const native = await read(this.configPath),
         projects = object(native["projects"]),
-        project = object(projects[cwd]);
+        key = projectKey(cwd),
+        project = object(projects[key]);
       const disabled = strings(project["disabledMcpServers"]).filter((name) => name !== id);
       if (action === "disable") disabled.push(id);
       await persist(this.configPath, {
         ...native,
-        projects: { ...projects, [cwd]: { ...project, disabledMcpServers: disabled } },
+        projects: { ...projects, [key]: { ...project, disabledMcpServers: disabled } },
       });
       return;
     }
