@@ -2,6 +2,8 @@
 
 `packages/frontend-core/src/` 保存 Web 与 Desktop 共用的任务状态保留、事件顺序、快照 Turn 合并、任务查询配置、命令输出缓冲、项目事件历史及文件搜索协调，不依赖任一平台客户端或 UI。
 
+- 推理摘要使用共享 `reasoning-summary` 判定可见性：空字符串或纯空白不创建折叠条目、锚点或操作分组；保留 Store 占位，后续摘要增量含文字时恢复显示。分组容器只订阅摘要可见性的变化，不读取无关正文或命令输出；用桌面 `reasoning-item.test.ts` 与 Web `task-timeline-operation-groups.test.tsx` 验证。
+
 - 工作台订阅共用 `task-view-selectors`：元数据只包含展示所需字段，活动时间戳不触发重绘；右栏按需订阅目标、计划、用量及来源/子代理投影，不以完整快照作为渲染依赖。正文 Delta 不扫描历史 Item 或物化正文，关闭面板释放投影，重新打开读取最新状态。共享选择器保留原生 Item 类型扩展；用 Web 的 `task-runtime-subscriptions.test.tsx` 与两端 `task-view-selectors.test.ts` 验证订阅稳定、计划独立更新、历史前插和快照替换。
 
 - 查询配置通过读取函数注入数据源；各端负责包装 React Query、传入客户端方法，并保留不同的完成任务查询契约。

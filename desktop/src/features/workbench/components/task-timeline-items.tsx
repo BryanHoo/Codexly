@@ -50,6 +50,7 @@ import { SkillToken } from "./skill-token.js";
 import { AsyncQuestionHistory } from "./async-question-history.js";
 import { parseSubagentOperation } from "./subagent.js";
 import { reasoningTitle } from "./reasoning-title.js";
+import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
 import { BuildPlanButton } from "./task-timeline-build-plan-button.js";
@@ -209,6 +210,7 @@ export function TimelineItemContent({
     case "approval_review":
       return <ApprovalReviewItem item={item} />;
     case "reasoning": {
+      if (!hasReasoningSummary(item.text)) return null;
       const fallback = i18n.t("timeline.reasoning", { ns: "conversation" });
       return (
         <Tool>

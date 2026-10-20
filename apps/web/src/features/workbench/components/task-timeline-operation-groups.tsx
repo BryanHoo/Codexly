@@ -1,4 +1,5 @@
 import type { AgentItem } from "@codexly/protocol";
+import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 import { CheckCircle, ChevronRight, CircleX, ListChecks } from "lucide-react";
 import {
   Fragment,
@@ -39,7 +40,7 @@ export function filterRenderableTimelineItemKeys(
     if (itemStore?.peek().type !== "reasoning") {
       return true;
     }
-    return (itemStore.readReasoningSummary()?.trim().length ?? 0) > 0;
+    return hasReasoningSummary(itemStore.readReasoningSummary());
   });
 }
 

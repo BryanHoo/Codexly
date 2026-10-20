@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useMemo, useSyncExternalStore } from "react";
+import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import type { NormalizedAgentTurn, TaskStore } from "../../conversation/runtime/task-store.js";
@@ -61,9 +62,7 @@ export function StoredAssistantTimelineItems({
   const getReasoningVisibilitySnapshot = useCallback(
     () =>
       reasoningItemStores
-        .map((itemStore) =>
-          (itemStore.readReasoningSummary()?.trim().length ?? 0) > 0 ? "1" : "0",
-        )
+        .map((itemStore) => (hasReasoningSummary(itemStore.readReasoningSummary()) ? "1" : "0"))
         .join(","),
     [reasoningItemStores],
   );

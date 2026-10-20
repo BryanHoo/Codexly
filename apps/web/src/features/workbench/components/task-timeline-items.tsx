@@ -1,6 +1,7 @@
 import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
 import { buildTaskAttachmentUrl } from "@codexly/client";
 import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
+import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { BrainCircuit, FileText } from "lucide-react";
 import { getReasoningTitle } from "./reasoning-markdown-title.js";
@@ -209,9 +210,7 @@ export function TimelineItemContent({
         </MessageContent>
       );
     case "reasoning": {
-      if (item.summary.trim().length === 0) {
-        return null;
-      }
+      if (!hasReasoningSummary(item.summary)) return null;
       // 标题直接展示摘要，详情按工具容器的展开状态按需渲染。
       const isStreamingReasoning = turnStatus === "running" && isLastTurnItem;
       return (

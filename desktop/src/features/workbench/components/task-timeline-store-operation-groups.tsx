@@ -1,10 +1,12 @@
-import { Fragment } from "react";
+import { Fragment, useCallback, useMemo, useSyncExternalStore } from "react";
+import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
 import type { NormalizedAgentTurn, TaskStore } from "../../conversation/runtime/task-store.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
 import {
+  filterRenderableTimelineItemKeys,
   groupConsecutiveTimelineOperations,
   TimelineOperationGroupDisclosure,
 } from "./task-timeline-operation-groups.js";
@@ -34,7 +36,41 @@ export function StoredAssistantTimelineItems({
   turnStatus: NormalizedAgentTurn["status"];
 }>) {
   const itemStoresByKey = store.getState().itemStoresByKey;
-  const visibleGroups = groupConsecutiveTimelineOperations(itemKeys, (itemKey) =>
+  const reasoningItemStores = useMemo(
+    () =>
+      turnStatus === "running"
+        ? itemKeys.flatMap((itemKey) => {
+            const itemStore = itemStoresByKey.get(itemKey);
+            return itemStore?.peek().type === "reasoning" ? [itemStore] : [];
+          })
+        : [],
+    [itemKeys, itemStoresByKey, turnStatus],
+  );
+  const subscribeReasoningVisibility = useCallback(
+    (onStoreChange: () => void) => {
+      const unsubscribes = reasoningItemStores.map((itemStore) => itemStore.subscribe(onStoreChange));
+      return () => {
+        for (const unsubscribe of unsubscribes) unsubscribe();
+      };
+    },
+    [reasoningItemStores],
+  );
+  const getReasoningVisibilitySnapshot = useCallback(
+    () => reasoningItemStores.map((itemStore) => {
+      const item = itemStore.read();
+      return item.type === "reasoning" && hasReasoningSummary(item.text) ? "1" : "0";
+    }).join(","),
+    [reasoningItemStores],
+  );
+
+  // 仅摘要从空变为有文字（或被清空）时重建分组，逐字增量由原有 Item 订阅更新。
+  useSyncExternalStore(
+    subscribeReasoningVisibility,
+    getReasoningVisibilitySnapshot,
+    getReasoningVisibilitySnapshot,
+  );
+  const renderableItemKeys = filterRenderableTimelineItemKeys(itemKeys, itemStoresByKey);
+  const visibleGroups = groupConsecutiveTimelineOperations(renderableItemKeys, (itemKey) =>
     itemStoresByKey.get(itemKey)?.peek(),
   );
 
@@ -73,8 +109,8 @@ export function StoredAssistantTimelineItems({
       return <Fragment key={group.key}>{content}</Fragment>;
     }
 
-    const groupEndIndex = itemKeys.indexOf(group.itemKeys.at(-1) ?? group.key);
-    const collapseAfterItemKey = itemKeys.slice(groupEndIndex + 1).find((itemKey) => {
+    const groupEndIndex = renderableItemKeys.indexOf(group.itemKeys.at(-1) ?? group.key);
+    const collapseAfterItemKey = renderableItemKeys.slice(groupEndIndex + 1).find((itemKey) => {
       const item = itemStoresByKey.get(itemKey)?.peek();
       return item?.type === "message" && item.role === "assistant";
     });

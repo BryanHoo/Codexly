@@ -1,4 +1,5 @@
 import type { AgentItem } from "@/protocol/index.js";
+import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 import { CheckCircle, ChevronRight, CircleX, ListChecks } from "lucide-react";
 import {
   Fragment,
@@ -10,7 +11,7 @@ import {
 } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
-import type { TaskStore } from "../../conversation/runtime/task-store.js";
+import type { TaskItemStore, TaskStore } from "../../conversation/runtime/task-store.js";
 
 type TimelineOperationItem = Extract<
   AgentItem,
@@ -20,6 +21,19 @@ type TimelineOperationItem = Extract<
 export type TimelineOperationGroup =
   | Readonly<{ itemKey: string; type: "item" }>
   | Readonly<{ itemKeys: readonly string[]; key: string; type: "operation_group" }>;
+
+export function filterRenderableTimelineItemKeys(
+  itemKeys: readonly string[],
+  itemStoresByKey: ReadonlyMap<string, TaskItemStore>,
+): string[] {
+  return itemKeys.filter((itemKey) => {
+    const itemStore = itemStoresByKey.get(itemKey);
+    if (itemStore?.peek().type !== "reasoning") return true;
+    // 仅物化推理摘要以读取尚未写回基础 Item 的增量，不读取消息正文或命令输出。
+    const item = itemStore.read();
+    return item.type !== "reasoning" || hasReasoningSummary(item.text);
+  });
+}
 
 function isTimelineOperation(item: AgentItem | undefined): item is TimelineOperationItem {
   return item?.type === "command" || item?.type === "file_change" ||
