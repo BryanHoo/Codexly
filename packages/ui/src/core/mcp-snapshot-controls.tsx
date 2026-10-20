@@ -1,50 +1,86 @@
-import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
+import type { ReloadAgentMcpServersRequest } from "@codexly/protocol";
+import { MoreHorizontal, RefreshCw, RotateCcw, Unplug } from "lucide-react";
 import { Button } from "./button.js";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./dropdown-menu.js";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.js";
 
-/** 两端共用快照语义；时间只来自后端真实观测，不使用请求完成时间伪造新鲜度。 */
+/** 高频刷新常显，重连与配置重载按需展开，避免窄侧栏被操作按钮挤占。 */
 export function McpSnapshotControls({
-  statusSource,
-  observedAt,
+  busy,
   disabled,
+  showAdvanced,
   labels,
   onAction,
 }: Readonly<{
-  statusSource: AgentMcpServerPage["statusSource"];
-  observedAt?: string | null | undefined;
+  busy: boolean;
   disabled: boolean;
-  labels: Readonly<
-    Record<"cached" | "live" | "unknownTime" | "refresh" | "reconnect" | "reload", string>
-  >;
-  onAction: (action: NonNullable<ReloadAgentMcpServersRequest["action"]>) => void;
+  showAdvanced: boolean;
+  labels: Readonly<Record<"refresh" | "reconnect" | "reload" | "more", string>>;
+  onAction: (action?: ReloadAgentMcpServersRequest["action"]) => void;
 }>) {
-  const date = observedAt ? new Date(observedAt) : null;
   return (
-    <div className="space-y-1 px-2 py-1 text-caption text-muted-foreground">
-      <p>
-        {statusSource === "live" ? labels.live : labels.cached}
-        {" · "}
-        {date && Number.isFinite(date.getTime()) ? (
-          <time dateTime={observedAt ?? undefined}>{date.toLocaleString()}</time>
-        ) : (
-          labels.unknownTime
-        )}
-      </p>
-      <div className="flex flex-wrap gap-1">
-        {(["refresh", "reconnect", "reload"] as const).map((action) => (
+    <div className="flex shrink-0 items-center gap-0.5">
+      <Tooltip>
+        <TooltipTrigger asChild>
           <Button
-            key={action}
+            aria-label={labels.refresh}
             disabled={disabled}
             onClick={() => {
-              onAction(action);
+              // 未提供快照语义的旧引擎保留默认重载调用，避免改变原有后端行为。
+              onAction(showAdvanced ? "refresh" : undefined);
             }}
-            size="sm"
+            size="icon-sm"
             type="button"
             variant="ghost"
           >
-            {labels[action]}
+            <RefreshCw
+              aria-hidden="true"
+              className={busy ? "animate-spin motion-reduce:animate-none" : undefined}
+            />
           </Button>
-        ))}
-      </div>
+        </TooltipTrigger>
+        <TooltipContent>{labels.refresh}</TooltipContent>
+      </Tooltip>
+      {showAdvanced ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={labels.more}
+              disabled={disabled}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <MoreHorizontal aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              disabled={disabled}
+              onSelect={() => {
+                onAction("reconnect");
+              }}
+            >
+              <Unplug aria-hidden="true" className="size-3.5" />
+              {labels.reconnect}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={disabled}
+              onSelect={() => {
+                onAction("reload");
+              }}
+            >
+              <RotateCcw aria-hidden="true" className="size-3.5" />
+              {labels.reload}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
     </div>
   );
 }

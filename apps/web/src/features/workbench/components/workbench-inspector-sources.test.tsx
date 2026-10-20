@@ -149,7 +149,7 @@ describe("WorkbenchInspector sources", () => {
     expect(markup).not.toContain("OAuth");
     expect(markup).not.toContain("认证状态未知");
     expect(markup).not.toContain("版本 1.2.0");
-    expect(markup).toContain('aria-label="重新加载 MCP"');
+    expect(markup).toContain('aria-label="刷新状态"');
     expect(markup).not.toContain("gpt-5.6-sol");
     expect(markup).not.toContain("自动审批");
     expect(markup).not.toContain("工作区可写");

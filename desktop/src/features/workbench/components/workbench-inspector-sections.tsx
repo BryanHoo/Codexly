@@ -1,14 +1,9 @@
-import { McpSnapshotControls } from "@codexly/ui/core/mcp-snapshot-controls";
+import { McpServerPanel } from "@codexly/ui/core/mcp-server-panel";
 import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
 import type { AgentBackgroundTerminal, AgentMcpServer } from "@/protocol/index.js";
 import {
   Bot,
-  CheckCircle2,
-  CircleOff,
-  CircleX,
   LoaderCircle,
-  Plug,
-  RefreshCw,
   Square,
   SquareTerminal,
 } from "lucide-react";
@@ -28,7 +23,6 @@ import {
   type SubagentContextEntry,
   type SubagentSelection,
 } from "./subagent.js";
-import { WorkbenchInspectorIncrementalList } from "./workbench-inspector-incremental-list.js";
 export function BackgroundTerminalSection({
   onTerminate,
   terminals,
@@ -169,7 +163,6 @@ export function McpServerSection({
   onRetry,
   servers,
   statusSource,
-  observedAt,
 }: Readonly<{
   canRetry: boolean;
   isRefreshing: boolean;
@@ -179,102 +172,27 @@ export function McpServerSection({
   observedAt?: string | null | undefined;
   servers: readonly AgentMcpServer[];
 }>) {
-  if (servers.length === 0 && !statusSource) return null;
-
-  const reloadLabel = i18n.t(isRetrying ? "inspector.mcpReloading" : "inspector.mcpReload", {
-    ns: "conversation",
-  });
   return (
-    <InspectorSection
-      action={
-        canRetry && !statusSource ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                aria-label={reloadLabel}
-                disabled={isRefreshing || isRetrying}
-                onClick={() => {
-                  onRetry();
-                }}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <RefreshCw
-                  aria-hidden="true"
-                  className={isRefreshing || isRetrying ? "animate-spin" : undefined}
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{reloadLabel}</TooltipContent>
-          </Tooltip>
-        ) : null
-      }
-      icon={<Plug className="size-3.5" />}
-      title="MCP"
-    >
-      {statusSource ? (
-        <McpSnapshotControls
-          statusSource={statusSource}
-          observedAt={observedAt}
-          disabled={!canRetry || isRefreshing || isRetrying}
-          onAction={onRetry}
-          labels={{
-            cached: i18n.t("inspector.mcpCached", { ns: "conversation" }),
-            live: i18n.t("inspector.mcpLive", { ns: "conversation" }),
-            unknownTime: i18n.t("inspector.mcpUnknownTime", { ns: "conversation" }),
-            refresh: i18n.t("inspector.mcpRefresh", { ns: "conversation" }),
-            reconnect: i18n.t("inspector.mcpReconnect", { ns: "conversation" }),
-            reload: i18n.t("inspector.mcpReloadConfig", { ns: "conversation" }),
-          }}
-        />
-      ) : null}
-      <WorkbenchInspectorIncrementalList
-        ariaLabel={i18n.t("inspector.mcpEnabled", { ns: "conversation" })}
-        getKey={(server) => server.name}
-        items={servers}
-        renderItem={(server) => <McpServerRow server={server} />}
-      />
-    </InspectorSection>
-  );
-}
-
-function McpServerRow({ server }: Readonly<{ server: AgentMcpServer }>) {
-  const metadata = [
-    i18n.t(`inspector.mcpStatus.${server.status}`, { ns: "conversation" }),
-    i18n.t("inspector.mcpToolCount", { count: server.toolCount, ns: "conversation" }),
-  ];
-  const statusIcon =
-    server.status === "connected" ? (
-      <CheckCircle2 aria-hidden="true" className="size-3.5 text-brand" />
-    ) : server.status === "starting" ? (
-      <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin text-muted-foreground" />
-    ) : server.status === "failed" ? (
-      <CircleX aria-hidden="true" className="size-3.5 text-danger" />
-    ) : server.status === "authenticationRequired" ? (
-      <CircleOff aria-hidden="true" className="size-3.5 text-warning" />
-    ) : (
-      <CircleOff aria-hidden="true" className="size-3.5 text-muted-foreground" />
-    );
-
-  return (
-    <div
-      aria-label={server.name}
-      className="flex min-h-10 items-start gap-2 rounded-control px-2 py-1.5 transition-colors hover:bg-control-hover"
-      data-mcp-server-row=""
-      data-mcp-status={server.status}
-    >
-      <span className="mt-0.5 shrink-0">{statusIcon}</span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-label font-medium text-foreground">{server.displayName}</p>
-        <p className="text-caption text-muted-foreground">{metadata.join(" · ")}</p>
-        {server.httpOrigin === undefined ? null : (
-          <p className="truncate text-caption text-muted-foreground" title={server.httpOrigin}>
-            {server.httpOrigin}
-          </p>
-        )}
-      </div>
-    </div>
+    <McpServerPanel
+      canRetry={canRetry}
+      isRefreshing={isRefreshing}
+      isRetrying={isRetrying}
+      onRetry={onRetry}
+      servers={servers}
+      statusSource={statusSource}
+      labels={{
+        servers: i18n.t("inspector.mcpEnabled", { ns: "conversation" }),
+        refresh: i18n.t("inspector.mcpRefresh", { ns: "conversation" }),
+        reconnect: i18n.t("inspector.mcpReconnect", { ns: "conversation" }),
+        reload: i18n.t("inspector.mcpReloadConfig", { ns: "conversation" }),
+        more: i18n.t("inspector.mcpMore", { ns: "conversation" }),
+        empty: i18n.t("inspector.mcpEmpty", { ns: "conversation" }),
+        showMore: i18n.t("inspector.showMore", { ns: "conversation" }),
+        showLess: i18n.t("inspector.mcpShowLess", { ns: "conversation" }),
+      }}
+      statusLabel={(status) => i18n.t(`inspector.mcpStatus.${status}`, { ns: "conversation" })}
+      toolCountLabel={(count) => i18n.t("inspector.mcpToolCount", { count, ns: "conversation" })}
+    />
   );
 }
 

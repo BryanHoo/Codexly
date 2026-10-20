@@ -6,6 +6,8 @@
 
 `@codexly/ui` 存放 Web 与桌面端视觉和交互一致的 React 控件。各端现有组件路径可用薄导出维持调用点，但组件实现只保留在 `packages/ui/src/`。
 
+- 任务上下文的 MCP 列表共用 `core/mcp-server-panel`，Claude 与 Codex 使用相同的服务行和标题栏刷新入口；重连、重载配置按需放入更多菜单，未提供快照语义的旧引擎保留默认操作调用。底部不展示缓存状态或观测时间。默认最多挂载五行，支持展开与收起；两端回归需覆盖状态、空快照、只读和忙碌状态，并通过 Chrome CDP 检查窄屏、主题与菜单操作。
+
 - 左栏固定与运行中共用 `core/sidebar-task-shortcuts`，每组默认预览两条、合计最多 240px 且不超过任务导航区高度的三分之一；极小窗口保留标题计数入口。自动限高不能改写手动折叠偏好，完整列表由宽屏浮层或 Web 移动抽屉承载，不挤压项目树；大列表仅挂载可见虚拟行。未查看完成任务优先，其后依次为待确认、运行任务；分组计数显示全部成员总数，额外标示待确认数量，活动成员独立于历史分页；同类任务排序不能随流式正文重排。运行入口遵守已有分屏选择规则，后台完成且未查看的任务保留在分组并显示完成图标，计入分组总数；聚焦该任务后由现有 attention 清除流程移出分组，不关闭会话，聚焦其他任务不能消费提醒。移动端浮层导航（包括重复选择）须通过平台回调收起原侧栏，关闭浮层不能夺回任务焦点。回归见 `frontend-core/sidebar-task-shortcuts.test.ts`、Web 的 `sidebar-task-shortcuts.test.tsx`、`project-sidebar-task-list.test.tsx`、`project-runtime-events.test.ts` 与桌面 `project-runtime-restore.test.ts`；通过 Chrome CDP 检查宽窄屏、矮窗口、折叠恢复及完整列表导航。
 
 - 工具耗时共用 `@codexly/ui/agent/tool-duration`：保留 100ms 刷新与现有显示精度，每个页面仅运行一个共享时钟和一个视口观察器；仅运行且处于视口内的工具参与更新，文档隐藏立即暂停，恢复可见按绝对时间校准，完成后使用服务端终态时间并退订。最后一个活动工具卸载或完成后释放定时器、观察器及可见性监听；旧 WebView 无观察器时保留文档可见性控制。回归见 `packages/ui/src/agent/tool-duration-clock.test.ts` 及两端时间线耗时测试。
