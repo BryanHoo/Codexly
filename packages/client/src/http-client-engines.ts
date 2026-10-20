@@ -3,6 +3,11 @@ import {
   ClaudeSettingsSchema,
   ConfigureCustomProviderResponseSchema,
   AgentProviderConnectionMutationResponseSchema,
+  AgentMutationErrorSchema,
+  ClaudeExtensionPageSchema,
+  type ClaudeExtensionPage,
+  type ClaudeExtensionKind,
+  type ClaudeExtensionMutation,
   type ClaudeSettings,
   type AgentEngine,
   type AgentEngineProfile,
@@ -14,6 +19,33 @@ import { CodexlyTransport } from "./http-client-transport.js";
 import type { ReadOptions, MutationOptions } from "./http-client-transport.js";
 
 export class EngineHttpClient extends CodexlyTransport {
+  public listClaudeExtensions(
+    kind: ClaudeExtensionKind,
+    projectId?: string,
+  ): Promise<ClaudeExtensionPage> {
+    const query = new URLSearchParams({ kind, ...(projectId ? { projectId } : {}) });
+    return this.request(
+      `/v1/engines/claude/extensions?${query}`,
+      ClaudeExtensionPageSchema,
+      {},
+      AgentMutationErrorSchema,
+      { timeoutMs: 45_000 },
+    );
+  }
+  public mutateClaudeExtension(
+    input: ClaudeExtensionMutation,
+    projectId?: string,
+  ): Promise<ClaudeExtensionPage> {
+    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+    return this.mutation(
+      `/v1/engines/claude/extensions${query}`,
+      input,
+      ClaudeExtensionPageSchema,
+      {},
+      "POST",
+      120_000,
+    );
+  }
   public getClaudeSettings(options: ReadOptions = {}): Promise<ClaudeSettings> {
     return this.read("/v1/engines/claude/settings", ClaudeSettingsSchema, options);
   }

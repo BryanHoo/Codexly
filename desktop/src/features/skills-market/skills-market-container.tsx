@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, useEffect, useState } from "react";
+import { ExtensionCenter } from "@codexly/ui/core/extension-center";
+import { useProjectData } from "../projects/project-context.js";
 import "../../shared/styles/skills-market.css";
 
 import { useTranslation } from "../../i18n/i18n.js";
 import {
-  ExtensionCenterNav,
   normalizeExtensionSection,
   type ExtensionSection,
 } from "./extension-center-nav.js";
@@ -26,6 +27,7 @@ export function SkillsMarketContainer({
   section?: string;
 }>) {
   const { t } = useTranslation("workbench");
+  const { client, projects } = useProjectData();
   const [activeSection, setActiveSection] = useState(() => normalizeExtensionSection(section));
   useEffect(() => setActiveSection(normalizeExtensionSection(section)), [section]);
   const selectSection = (next: ExtensionSection) => {
@@ -34,27 +36,17 @@ export function SkillsMarketContainer({
   };
 
   return (
-    <section aria-label={t("skillsMarket.title")} className="skills-market extension-center">
-      <header className="extension-center__header">
-        <div className="extension-center__identity">
-          <div>
-            <span className="skills-market-eyebrow">CODEX EXTENSIONS</span>
-            <h2>{t("skillsMarket.title")}</h2>
-          </div>
-        </div>
-        <ExtensionCenterNav active={activeSection} onSelect={selectSection} />
-      </header>
-      <Suspense
-        fallback={
-          <div className="skills-market-state" role="status">
-            {t("skillsMarket.loadingExtension")}
-          </div>
-        }
-      >
+    <ExtensionCenter
+      client={client}
+      projects={projects}
+      section={activeSection}
+      onSectionChange={selectSection}
+      t={(key, options) => t(key, options ?? {})}
+      codexContent={<>
         {activeSection === "skills" ? <InstalledSkillsPane /> : null}
         {activeSection === "mcp" ? <McpManagementPane /> : null}
         {activeSection === "plugins" ? <OfficialPluginsPane /> : null}
-      </Suspense>
-    </section>
+      </>}
+    />
   );
 }

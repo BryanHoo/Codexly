@@ -91,3 +91,5 @@
 - worktree 管理放在输入框底部分支菜单，左栏只打开普通草稿。`core/composer-branch-switcher` / `composer-git-menu` / `create-worktree-dialog` 供两端共用；只在菜单展开时读取工作树，不轮询、不读取引擎配置。创建或选择 worktree 只更新草稿目录，首次发送才按输入框配置创建任务。从已有会话选择目录应打开新草稿，原会话保留 cwd；分屏草稿通过自己的 `workspacePath` 保留所选目录，不能影响其他窗口。验证 `composer-state.test.ts`、`split-workspace.test.ts`、`app-submissions.test.ts` 以及 Chrome CDP 菜单交互。
 
 - Composer 的工作树/分支使用共享锚定选择面板，按视图区分“切换独立目录”和“在当前目录切换分支”，创建入口固定在各视图底部。当前项置顶，主目录标记来自 Git worktree 列表的首项，缩短路径仅影响展示；搜索匹配分支或完整路径。其他工作树占用的分支展示原因并禁用，方向键只移动焦点，Enter/空格才执行切换。创建表单显示起点分支与工作树容器目录，从选择面板打开表单不能抢回输入焦点，取消后返回原入口。回归见 `frontend-core/composer-git-picker.test.ts`、两端 Composer 测试及 Chrome CDP 宽窄屏验证。
+
+- 两端扩展中心共用 core/extension-center、Claude 扩展列表及同一份 CSS；保持引擎切换、分类、列表的精简层级，禁止重复页面标题与装饰性介绍。范围选择和筛选必须复用公共 Select，搜索复用 Input，操作复用 Button 与 Dialog；图标操作、禁用原因与截断路径使用公共 Tooltip，不能仅使用原生 title。只挂载当前引擎和分类；Claude-only 用户默认打开 Claude，不得先挂载 Codex 列表或隐藏扩展入口。切换项目后丢弃旧异步结果；页面只显示配置启用状态，变更提示用户在新会话加载。MCP 暂不提供新增。验证共享组件渲染、两端构建、独立引擎客户端测试及 Chrome CDP 宽窄屏交互。

@@ -14,7 +14,13 @@ pub async fn claude_engine_request(
 ) -> Result<Value, AppError> {
     if !matches!(
         method.as_str(),
-        "profile" | "configure" | "disconnect" | "settings.read" | "settings.write"
+        "profile"
+            | "configure"
+            | "disconnect"
+            | "settings.read"
+            | "settings.write"
+            | "extensions.list"
+            | "extensions.mutate"
     ) {
         return Err(AppError::Claude(
             "Unsupported engine settings operation".into(),

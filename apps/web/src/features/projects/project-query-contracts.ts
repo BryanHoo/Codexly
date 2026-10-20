@@ -164,7 +164,7 @@ export type CodexlyScheduledTaskClient = Pick<
 >;
 export type CodexlyWorkbenchClient = Pick<
   CodexlyClient,
-  "listTaskCatalog" | "queryCompletedTasks"
+  "listTaskCatalog" | "queryCompletedTasks" | "listClaudeExtensions" | "mutateClaudeExtension"
 > &
   CodexlyReadClient &
   CodexlyBackgroundTerminalClient &

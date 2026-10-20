@@ -5,6 +5,9 @@ import type {
   AgentEngine,
   AgentEngineProfile,
   ClaudeSettings,
+  ClaudeExtensionKind,
+  ClaudeExtensionPage,
+  ClaudeExtensionMutation,
   ClaudePermissionMode,
   AgentGoal,
   AgentApprovalsReviewer,
@@ -378,6 +381,11 @@ export interface AgentRuntimeProvider {
 }
 
 export interface AgentEngineService {
+  listExtensions?(kind: ClaudeExtensionKind, scope?: AgentTaskScope): Promise<ClaudeExtensionPage>;
+  mutateExtension?(
+    input: ClaudeExtensionMutation,
+    scope?: AgentTaskScope,
+  ): Promise<ClaudeExtensionPage>;
   generateTaskTitle?(
     cwd: string,
     text: string,

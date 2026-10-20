@@ -4,6 +4,9 @@ import { isSupportedClaudeCommand } from "./commands.js";
 import { generateClaudeCommitMessage } from "./commit-message.js";
 import { generateTitle } from "./task-titles.js";
 import { homedir } from "node:os";
+import { ClaudeExtensions } from "./extensions.js";
+import type { ClaudeExtensionCommand } from "./extensions-cli.js";
+import type { ClaudeExtensionKind, ClaudeExtensionMutation } from "@codexly/protocol";
 import { DEFAULT_CLAUDE_SDK } from "./sdk-defaults.js";
 import type { AgentEngineService, AgentTaskScope, LocalCatalogStore } from "@codexly/core";
 import type {
@@ -53,6 +56,7 @@ export class ClaudeRuntime implements AgentEngineService {
     }
   }
   readonly configuration: ClaudeConfiguration;
+  readonly extensions: ClaudeExtensions;
   readonly #providers = new Map<string, ClaudeAgentProvider>();
   readonly #commitRequests = new Set<AbortController>();
   readonly #catalogs = new Map<
@@ -64,8 +68,19 @@ export class ClaudeRuntime implements AgentEngineService {
     directory: string,
     readonly store: LocalCatalogStore,
     readonly sdk: ClaudeSdk = DEFAULT_CLAUDE_SDK,
+    extensionCommand?: ClaudeExtensionCommand,
   ) {
     this.configuration = new ClaudeConfiguration(directory);
+    this.extensions = new ClaudeExtensions(this.configuration.userDirectory, extensionCommand);
+  }
+
+  listExtensions(kind: ClaudeExtensionKind, scope?: AgentTaskScope) {
+    return this.extensions.list(kind, scope?.rootPath);
+  }
+  async mutateExtension(input: ClaudeExtensionMutation, scope?: AgentTaskScope) {
+    await this.extensions.mutate(input, scope?.rootPath);
+    this.#catalogs.clear();
+    return this.listExtensions(input.kind, scope);
   }
 
   readSettings() {

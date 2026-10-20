@@ -53,7 +53,19 @@ Web 与桌面端的 Claude 模型选择仅显示 `Haiku`、`Sonnet`、`Opus`，�
 
 权限模式是 Claude 的工具授权策略，不等于 Codex 的操作系统沙盒。会话级授权只能采用 SDK 返回的具体授权建议，不能把批准一个命令扩大成批准整类工具。当前会话的权限模式可在运行时切换，复用存活查询；SDK 主动退出计划模式等权限变更会同步到两端界面，失败时保留已确认状态并显示错误。
 
-Web 服务先启动本地目录与 HTTP，首次使用 Codex 功能时才启动其执行进程和读取模型目录。已初始化且仅启用 Claude 的用户，即使 Codex 执行文件不可用，也能启动 Web、查看历史并对话。未启用 Codex 时隐藏依赖它的搜索和扩展入口；在设置中启用后恢复。
+Web 服务先启动本地目录与 HTTP，首次使用 Codex 功能时才启动其执行进程和读取模型目录。已初始化且仅启用 Claude 的用户，即使 Codex 执行文件不可用，也能启动 Web、查看历史并对话。未启用 Codex 时隐藏依赖它的搜索入口；扩展中心仍可进入并默认显示 Claude。
+
+### 扩展中心
+
+Web 与桌面端共用精简的扩展列表，分别管理 Codex 和 Claude，切换分类不会切换引擎。Claude 的范围选择包含全局与当前项目；全局扩展仍在项目列表中显示，并标明来源范围。
+
+- **MCP**：读取已有的用户、项目共享和项目私有配置；支持按项目启停及按来源范围移除。本次不提供新增 MCP。开关表示配置是否启用，不代表实时连接状态。配置列表不回传地址中的凭据或环境变量值。
+- **Skills**：发现用户 `skills/` 和项目 `.claude/skills/`；开关通过官方 `skillOverrides` 保存可见性，不修改原始 `SKILL.md`。在项目中操作时写入项目私有设置。插件中的 Skills 通过所属插件管理。
+- **官方插件**：同步 `anthropics/claude-plugins-official`，通过同版本官方 CLI 安装、启停、更新和卸载。插件的下载、依赖和缓存由 Claude Code 管理，不直接改写安装登记文件。列表中的“官方”指官方维护的目录。
+
+配置变更后，新建会话以完整加载扩展。管理页面按需读取数据，不启动推理会话或主动连接所有 MCP 服务；Web 的配置位于服务所在的电脑。
+
+官方依据：[MCP 作用域与启停](https://code.claude.com/docs/en/mcp)、[Skills 可见性设置](https://code.claude.com/docs/en/skills#override-skill-visibility-from-settings)、[插件 CLI](https://code.claude.com/docs/en/plugins/cli-reference)。
 
 ## 定时任务
 
