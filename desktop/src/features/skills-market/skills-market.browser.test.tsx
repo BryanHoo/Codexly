@@ -1,3 +1,4 @@
+import { TooltipProvider } from "@codexly/ui/core/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
@@ -76,7 +77,7 @@ function renderMarket() {
   return render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
-        <SkillsMarketContainer />
+        <TooltipProvider><SkillsMarketContainer /></TooltipProvider>
       </QueryClientProvider>
     </I18nextProvider>,
   );

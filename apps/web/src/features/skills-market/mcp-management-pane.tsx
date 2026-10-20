@@ -4,6 +4,7 @@ import { RefreshCw, Server } from "lucide-react";
 import { Switch } from "radix-ui";
 
 import { useTranslation } from "../../i18n/i18n.js";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@codexly/ui/core/tooltip";
 import { Button } from "../../shared/components/core/button.js";
 import { useProjectData } from "../projects/project-context.js";
 
@@ -26,17 +27,22 @@ export function McpManagementPane() {
         <span className="text-body-small text-muted-foreground">
           {t("skillsMarket.mcpCount", { count: servers.data?.data.length ?? 0 })}
         </span>
-        <Button
-          aria-label={t("skillsMarket.refreshMcp")}
-          disabled={servers.isFetching}
-          onClick={() => void servers.refetch()}
-          size="icon-sm"
-          title={t("skillsMarket.refreshMcp")}
-          type="button"
-          variant="ghost"
-        >
-          <RefreshCw aria-hidden="true" className={servers.isFetching ? "animate-spin" : ""} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              aria-label={t("skillsMarket.refreshMcp")}
+              disabled={servers.isFetching}
+              onClick={() => void servers.refetch()}
+              size="icon-sm"
+
+              type="button"
+              variant="ghost"
+            >
+              <RefreshCw aria-hidden="true" className={servers.isFetching ? "animate-spin" : ""} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("skillsMarket.refreshMcp")}</TooltipContent>
+        </Tooltip>
       </div>
       {servers.isPending ? (
         <div className="skills-market-state" role="status">

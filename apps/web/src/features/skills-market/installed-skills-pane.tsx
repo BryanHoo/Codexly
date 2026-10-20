@@ -5,6 +5,7 @@ import { Switch } from "radix-ui";
 import { useMemo } from "react";
 
 import { useTranslation } from "../../i18n/i18n.js";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@codexly/ui/core/tooltip";
 import { Button } from "../../shared/components/core/button.js";
 import { useProjectData } from "../projects/project-context.js";
 
@@ -35,9 +36,14 @@ function InstalledRow({
         </span>
         <span className="min-w-0 flex-1">
           <strong className="block truncate text-body-small">{skill.displayName}</strong>
-          <span className="block truncate text-label text-muted-foreground" title={skill.path}>
-            {skill.description || skill.path}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="block truncate text-label text-muted-foreground">
+                {skill.description || skill.path}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{skill.path}</TooltipContent>
+          </Tooltip>
         </span>
         <FolderOpen aria-hidden="true" className="skills-installed-row__folder" />
       </button>
@@ -95,17 +101,25 @@ export function InstalledSkillsPane() {
         <span className="text-body-small text-muted-foreground">
           {t("skillsMarket.installedCount", { count: installed.data?.data.length ?? 0 })}
         </span>
-        <Button
-          aria-label={t("skillsMarket.refresh")}
-          disabled={installed.isFetching}
-          onClick={() => void installed.refetch()}
-          size="icon-sm"
-          title={t("skillsMarket.refresh")}
-          type="button"
-          variant="ghost"
-        >
-          <RefreshCw aria-hidden="true" className={installed.isFetching ? "animate-spin" : ""} />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              aria-label={t("skillsMarket.refresh")}
+              disabled={installed.isFetching}
+              onClick={() => void installed.refetch()}
+              size="icon-sm"
+
+              type="button"
+              variant="ghost"
+            >
+              <RefreshCw
+                aria-hidden="true"
+                className={installed.isFetching ? "animate-spin" : ""}
+              />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("skillsMarket.refresh")}</TooltipContent>
+        </Tooltip>
       </div>
       {installed.isPending ? (
         <div className="skills-market-state" role="status">
