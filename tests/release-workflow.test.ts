@@ -50,9 +50,10 @@ describe("release verification", () => {
   });
 
   it("offers desktop downloads and web startup in both user-facing READMEs", () => {
+    // 中文首页与英文正文分别校验对应安装指南，旧中文文件只保留兼容导航。
     for (const [readmePath, installationPath] of [
-      ["README.md", "desktop/docs/installation.en.md"],
-      ["README.zh-CN.md", "desktop/docs/installation.md"],
+      ["README.md", "desktop/docs/installation.md"],
+      ["README.en.md", "desktop/docs/installation.en.md"],
     ] as const) {
       const readme = readFileSync(readmePath, "utf8");
 
@@ -62,9 +63,21 @@ describe("release verification", () => {
     }
   });
 
+  it("keeps the legacy Chinese README linked to the canonical language pages", () => {
+    const legacyReadme = readFileSync("README.zh-CN.md", "utf8");
+    const chineseReadme = readFileSync("README.md", "utf8");
+    const englishReadme = readFileSync("README.en.md", "utf8");
+
+    expect(legacyReadme).toMatch(/\[[^\]]+\]\(README\.md\)/u);
+    expect(legacyReadme).toMatch(/\[[^\]]+\]\(README\.en\.md\)/u);
+    expect(chineseReadme).toContain('href="./README.en.md"');
+    expect(englishReadme).toContain('href="./README.md"');
+  });
+
   it("documents npm installation and updates without overriding the default registry", () => {
-    for (const readmePath of ["README.md", "README.zh-CN.md"]) {
-      const readme = readFileSync(readmePath, "utf8");
+    // 安装入口在两种语言的首页，详细更新步骤在各自 Web 指南中；兼容页无需重复。
+    for (const documentPath of ["README.md", "README.en.md", "docs/web.md", "docs/web.en.md"]) {
+      const readme = readFileSync(documentPath, "utf8");
 
       expect(readme).not.toContain("--prefer-offline");
       expect(readme).toContain("npm install --global @bryanhu/codexly@latest");
