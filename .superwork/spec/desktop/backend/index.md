@@ -46,7 +46,7 @@
 
 - Codex 0.163.0 升级边界见 [升级评估](../../../../docs/codex-0.163.0-upgrade.md)。原生实验已读状态不覆盖应用本地目录元数据，两端握手主动关闭 `thread/readState/changed`；不额外查询或轮询已读状态。桌面启动不得再传递上游已退役的 `shell_zsh_fork` 开关。
 
-- 桌面构建使用 `pnpm build:desktop-runtime` 内置目标平台的 Codex vendor 树、Claude CLI 与 Tauri sidecar 宿主。保留官方二进制签名，自建宿主由 Tauri 签名；运行时只读使用安装资源，禁止下载、解压或写入安装目录。依赖随应用更新，缺失或损坏直接报错；回归运行 `node --test tools/desktop-runtime-bundle.test.mjs` 和 Rust `runtime` 测试。详见[引擎分发规则](../../../../docs/agent-engines.md)。
+- 桌面构建使用 `pnpm build:desktop-runtime` 内置目标平台的 Codex vendor 树、Claude CLI 与 Tauri sidecar 宿主。保留官方二进制签名，自建宿主由 Tauri 签名；运行时只读使用安装资源，禁止下载、解压或写入安装目录。依赖随应用更新，缺失或损坏直接报错；回归运行 `node --test tools/desktop-runtime-bundle.test.mjs` 和 Rust `runtime` 测试。平台及本地覆盖配置必须保留基础配置的 `resources/runtime/` → `runtime/` 映射，禁止以空资源列表覆盖。Windows 安装包须检查实际 NSIS/MSI 载荷，并从安装包还原的目录启动正式程序，通过原生 IPC 确认 Codex 就绪及 Claude 宿主可用；开发模式或手工复制 runtime 的 EXE 验证不能代替安装包验收。配置回归执行 `node --test desktop/scripts/run-tauri.test.mjs`。详见[引擎分发规则](../../../../docs/agent-engines.md)。
 
 - 文件/Git 项目目录授权、相对文件预览和项目终端从 `LocalCatalog` 校验项目或任务归属，禁止先获取 Codex 连接。项目工作树仍须经 Git 登记校验，任务预览须校验 projectId。`workspace_project_root` 与 `preview_tests` 提供无需引擎的行为回归，`scripts/engine-independence.test.mjs` 进入原生约束门禁。公共设置传 Claude 范围时只访问应用偏好；Git 提交说明的 Claude 分支使用共享宿主 `commit.generate`，只有 Codex 分支才获取其连接。
 
