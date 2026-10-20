@@ -177,9 +177,9 @@ describe("SkillsMarketContainer", () => {
 
   it("opens and toggles installed skills without a third-party market", async () => {
     const screen = await renderMarket();
-    await expect.element(screen.getByRole("heading", { name: "扩展中心" })).toBeVisible();
+    await expect.element(screen.getByRole("region", { name: "扩展中心" })).toBeVisible();
     expect(screen.container.querySelector(".extension-center__mark")).toBeNull();
-    await expect.element(screen.getByText("Global Helper")).toBeVisible();
+    await expect.element(screen.getByText("Global Helper", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Local Review")).not.toBeInTheDocument();
     await screen.getByRole("combobox", {name: "作用范围"}).click();
     await page.getByRole("option", {name: "Project A", exact: true}).click();

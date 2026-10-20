@@ -54,10 +54,13 @@ test("synchronizes official plugin state on mobile @cross-browser", async ({ pag
     });
   });
   await page.goto("/p/codexly/extensions/plugins");
-  await expect(page.getByRole("button", { name: /GitHub/u })).toBeVisible();
+  const plugin = page.getByRole("listitem").filter({
+    has: page.getByRole("button", { name: "查看 GitHub 详情", exact: true }),
+  });
+  await expect(plugin).toBeVisible();
   expect(syncCount).toBe(0);
-  await page.getByRole("button", { name: "刷新官方插件" }).click();
-  await expect(page.getByRole("button", { name: /GitHub/u })).toContainText("已安装");
+  await page.getByRole("button", { name: "同步官方目录" }).click();
+  await expect(plugin.getByRole("button", { name: "移除 GitHub", exact: true })).toBeVisible();
   expect(syncCount).toBe(1);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });

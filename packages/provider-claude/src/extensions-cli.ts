@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 
@@ -6,8 +7,10 @@ export type ClaudeExtensionCommand = (args: readonly string[], cwd: string) => P
 
 /** 直接运行同版本官方 CLI，不经过 shell；桌面端注入随应用分发的执行文件。 */
 export function claudeExtensionCommand(executable?: string): ClaudeExtensionCommand {
-  return (args, cwd) =>
-    new Promise((resolve, reject) => {
+  return async (args, cwd) => {
+    // Windows 临时目录可能是 RUNNER~1 等短路径；先展开，确保 CLI 保存的项目键与服务读取一致。
+    const canonicalCwd = await realpath(cwd);
+    return new Promise((resolve, reject) => {
       const cli = executable ?? resolveNativeCli();
       const script = cli.endsWith(".js");
       const { CLAUDECODE: _nested, ...inherited } = process.env;
@@ -20,7 +23,7 @@ export function claudeExtensionCommand(executable?: string): ClaudeExtensionComm
         script ? process.execPath : cli,
         script ? [cli, ...args] : [...args],
         {
-          cwd,
+          cwd: canonicalCwd,
           env,
           timeout: 35_000,
           maxBuffer: 4 * 1024 * 1024,
@@ -40,6 +43,7 @@ export function claudeExtensionCommand(executable?: string): ClaudeExtensionComm
       // 管理命令没有交互终端；关闭输入，遇到交互要求时由 CLI 明确失败。
       child.stdin?.end();
     });
+  };
 }
 
 /** 独立桌面宿主不需要 node_modules；只有 Web 默认驱动才解析 SDK 的平台包。 */

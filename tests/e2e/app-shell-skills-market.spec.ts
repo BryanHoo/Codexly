@@ -149,7 +149,10 @@ test("manages installed Skills, official plugins, and MCP servers", async ({ pag
   await expect(sidebarLinks).toHaveText(["新建任务", "定时任务", "任务看板", "扩展中心"]);
   await page.getByRole("link", { name: "扩展中心" }).click();
   await expect(page).toHaveURL(/\/p\/codexly\/extensions\/skills$/u);
-  await expect(page.getByRole("heading", { level: 2, name: "扩展中心" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "扩展中心" })).toBeVisible();
+  // 扩展中心默认展示全局配置；项目资源须显式选择归属项目。
+  await page.getByRole("combobox", { name: "作用范围" }).click();
+  await page.getByRole("option", { name: "Codexly", exact: true }).click();
   await expect(page.getByText("Local Review", { exact: true })).toBeVisible();
 
   await page.getByRole("switch", { name: "启用或停用 Local Review" }).click();
@@ -157,7 +160,7 @@ test("manages installed Skills, official plugins, and MCP servers", async ({ pag
   await expect(page.getByRole("tab")).toHaveText(["Skills 管理", "MCP 管理", "官方插件"]);
   await page.getByRole("tab", { name: "官方插件" }).click();
   await expect(page).toHaveURL(/\/p\/codexly\/extensions\/plugins$/u);
-  await page.getByRole("button", { name: "刷新官方插件" }).click();
+  await page.getByRole("button", { name: "同步官方目录" }).click();
   await expect(page.getByRole("alert")).toContainText("部分插件同步失败，请重试");
   await page.getByRole("button", { name: /GitHub/u }).click();
   const pluginSheet = page.getByRole("dialog");

@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { homedir } from "node:os";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { vi } from "vitest";
@@ -44,9 +44,19 @@ it("matches native MCP configuration locations and plugin JSON in an isolated co
       project,
     );
     const service = new ClaudeExtensions(config, run);
-    expect((await service.list("mcp", project)).data.map((item) => item.name)).toEqual([
-      "test-local",
-    ]);
+    const native = JSON.parse(await readFile(join(config, ".claude.json"), "utf8")) as {
+      projects?: Record<string, unknown>;
+    };
+    // 失败时只展示项目键，禁止输出包含 MCP 地址或凭据的完整原生配置。
+    const paths = JSON.stringify({
+      cwd: project,
+      resolved: await realpath(project),
+      keys: Object.keys(native.projects ?? {}),
+    });
+    expect(
+      (await service.list("mcp", project)).data.map((item) => item.name),
+      paths,
+    ).toEqual(["test-local"]);
     expect((await service.list("mcp")).data.map((item) => item.name)).toEqual(["test-global"]);
     expect(await service.list("plugins", project)).toEqual({ data: [] });
   } finally {
