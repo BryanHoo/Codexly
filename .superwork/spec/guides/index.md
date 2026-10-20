@@ -31,3 +31,4 @@ Codexly 在同一仓库发布 Web CLI 与桌面应用。根目录 `pnpm-workspac
 - Web/CLI 提交门槛为根目录 `pnpm check`；浏览器流程使用 `pnpm test:e2e`。桌面工程在 `desktop/` 运行 `pnpm check`；细分为 `pnpm check:web`、`pnpm check:rust`。
 - 根目录普通 Vitest 测试及生命周期钩子默认各预留 60 秒，覆盖 Windows 原生进程、SQLite Worker 冷启动和多实例磁盘操作；集成用例的显式超时不得意外缩短此预算。生产请求与重试时限独立维护，性能验收继续使用 `vitest.performance.config.ts` 及性能断言，不能随普通测试预算一起放宽。
 - 改动公共协议时同步 Schema、契约测试与 `CHANGELOG.md`；用户文档 `README.md` 为中文 GitHub 首页，与 `README.en.md` 保持功能、命令和限制同步；`README.zh-CN.md` 仅作为旧链接入口。`docs/README.md` 统一导航三端和双引擎的使用说明，见 `CONTRIBUTING.md`。
+- 更新日志面向产品使用者，通常每版 3–6 条、每条一句，合并同类变化，保留重要限制与历史事实；写法和验证见 `docs/releasing.md`。
