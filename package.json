@@ -1,7 +1,7 @@
 {
   "name": "@bryanhu/codexly",
   "version": "0.39.1",
-  "description": "通过 Web 操作本地 Coding Agent 的应用",
+  "description": "支持 Codex 与 Claude 的本地 AI 编程工作台，覆盖桌面、Web 与移动浏览器",
   "type": "module",
   "author": "BryanHu",
   "homepage": "https://github.com/BryanHoo/Codexly#readme",
@@ -15,9 +15,12 @@
   "keywords": [
     "ai",
     "codex",
+    "claude",
     "coding-agent",
     "developer-tools",
-    "web"
+    "desktop",
+    "web",
+    "mobile"
   ],
   "packageManager": "pnpm@11.22.0",
   "engines": {
@@ -39,7 +42,21 @@
     "docs/web-autostart.zh-CN.md",
     "CHANGELOG.md",
     "LICENSE",
-    "docs/agent-engines.md"
+    "docs/agent-engines.md",
+    "README.en.md",
+    "docs/README.md",
+    "docs/getting-started.md",
+    "docs/getting-started.en.md",
+    "docs/usage.md",
+    "docs/usage.en.md",
+    "docs/web.md",
+    "docs/web.en.md",
+    "docs/faq.md",
+    "docs/text-file-editing.md",
+    "docs/global-search.md",
+    "docs/conversation-performance.md",
+    "docs/scheduled-task-idempotency.md",
+    "docs/images/codexly-preview.png"
   ],
   "publishConfig": {
     "access": "public"

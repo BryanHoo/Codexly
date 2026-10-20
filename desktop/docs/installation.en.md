@@ -2,7 +2,9 @@
 
 1. Download the release artifact for your platform from [Releases](https://github.com/BryanHoo/Codexly/releases).
 2. Follow the platform-specific steps below to install and launch Codexly.
-3. Enable Codex, Claude, or both and configure their connections, then add a project and create a task. Runtimes are bundled: no separate Node or Bun installation or first-launch download is needed. macOS Legacy supports Codex only. See [agent engines](../../docs/agent-engines.md).
+3. The app opens directly into the workspace. Configure Codex, Claude, or both in Settings, then add a project and create a task. Supported existing local configurations can be reused. Runtimes are bundled: no separate Node.js or Bun installation or first-launch download is needed. macOS Legacy supports Codex only. See [getting started](../../docs/getting-started.en.md).
+
+This guide covers desktop installation. For computer and mobile browsers, see [Web and mobile](../../docs/web.en.md).
 
 Older macOS releases and Windows or Ubuntu packages may display source or security warnings. Follow the instructions for your platform below. Supported platforms are:
 
@@ -116,6 +118,12 @@ To also remove settings, attachments, and caches, run the following commands. Th
 rm -rf "$HOME/Library/Application Support/com.codexly.desktop"
 rm -rf "$HOME/Library/Caches/com.codexly.desktop"
 ```
+
+## Application data and complete removal
+
+The system-directory cleanup above removes desktop logs, caches, and legacy data. Projects, tasks, attachments, and history projections live in the current user's `~/.codexly` (`%USERPROFILE%\.codexly` on Windows), shared with Web on the same host. Uninstalling does not delete it.
+
+Delete that directory manually only if you intend to clear data for all local Codexly clients, after quitting desktop, stopping every Web server, and making a backup. Project folders and native Codex / Claude configuration and session directories are separate and are not removed with it. See the [storage reference (中文)](../../docs/local-catalog.md).
 
 ## Updates
 

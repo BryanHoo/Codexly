@@ -2,7 +2,9 @@
 
 1. 从 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载适合当前平台的发布包。
 2. 按照下方对应平台的步骤安装并启动 Codexly。
-3. 选择启用 Codex、Claude 或两者并配置连接，然后添加项目并创建任务。安装包已内置运行时，无需另装 Node、Bun 或首次下载；macOS Legacy 仅支持 Codex。连接方式见[智能体引擎](../../docs/agent-engines.md)。
+3. 应用直接进入工作台，在设置中配置 Codex、Claude 或两者，再添加项目并创建任务；已有受支持的本机配置可直接复用。安装包内置运行时，无需另装 Node.js、Bun 或首次下载；macOS Legacy 仅支持 Codex。详见[首次使用](../../docs/getting-started.md)。
+
+本文仅介绍桌面安装。电脑浏览器与手机访问请阅读 [Web 与移动端指南](../../docs/web.md)。
 
 历史 macOS 版本及 Windows、Ubuntu 安装包可能显示来源或安全提示，请按下方对应平台说明安装。支持平台如下：
 
@@ -119,9 +121,15 @@ rm -rf "$HOME/Library/Application Support/com.codexly.desktop"
 rm -rf "$HOME/Library/Caches/com.codexly.desktop"
 ```
 
+## 应用数据与完整清理
+
+上述系统目录清理主要移除桌面平台日志、缓存及旧版数据；项目、任务、附件与历史投影统一保存在当前系统用户的 `~/.codexly`（Windows 为 `%USERPROFILE%\.codexly`）。它与同机 Web 共用，卸载应用不会自动删除。
+
+只有希望同时清空所有同机 Codexly 使用端的数据时，才在退出桌面、停止全部 Web 服务并备份后手动删除该目录。项目文件夹以及 Codex / Claude 原生配置与会话目录独立存在，不因删除该目录而一并清理。详见[数据与备份](../../docs/faq.md)。
+
 ## 更新
 
-通过应用内更新入口检查新版本；Windows 免安装版本需要手动替换 EXE。macOS Modern 与 Legacy 使用独立更新清单，升级系统不会自动切换档位。需要切换到 Modern 时，手动安装对应版本即可，两档共用本地数据目录。
+通过应用内更新入口检查新版本；Windows 免安装版本需要关闭应用后用新版 ZIP 的完整解压目录替换旧目录，保留主程序、Claude 宿主与 `runtime`，不能只替换 EXE。macOS Modern 与 Legacy 使用独立更新清单，升级系统不会自动切换档位。需要切换到 Modern 时，手动安装对应版本即可，两档共用本地数据目录。
 
 自动更新签名用于校验更新包，不等同于操作系统代码签名或 macOS 公证。下载入口统一使用[官方 Releases](https://github.com/BryanHoo/Codexly/releases)。
 

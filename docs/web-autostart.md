@@ -1,5 +1,9 @@
 # Web startup at login
 
+[Documentation](README.md) · [Web and mobile](web.en.md) · [简体中文](web-autostart.zh-CN.md)
+
+For the desktop app, use **Settings → General → Launch at login**. This guide manages the Web server used by computer and mobile browsers; agents execute on its host.
+
 The Web npm package provides `codexly autostart` to run Codexly after the current user logs in. Both local and LAN modes keep the browser closed. Managed startup skips the initial update check and interactive prompts and uses the installed version.
 
 ## Configure and manage

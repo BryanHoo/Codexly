@@ -1,4 +1,10 @@
-# 本机通用上下文窗口
+# 模型上下文窗口
+
+桌面、Web 与移动端按引擎分别配置上下文。Web 与移动端操作服务所在电脑，桌面端操作本机；两种引擎的数值范围和压缩设置不同。窗口声明不会扩大模型或服务商的真实容量。
+
+[文档导航](README.md) · [Claude 上下文管理](#claude-上下文管理)
+
+## Codex 上下文窗口
 
 在「设置 → 智能体配置 → 模型默认设置」中编辑「上下文窗口」。数字框以 **k tokens（千 tokens）** 为单位，填写 **272–1000 的整数**，例如 `400` 表示 400k，`1000` 表示 1M。失焦或按 Enter 保存；留空恢复模型默认值，Escape 取消当前输入。输入框与上方选择框统一为 160px 宽、32px 高，并靠右对齐；窄屏宽度受容器限制。
 
@@ -10,7 +16,7 @@
 
 Codexly 不联动写入 `model_auto_compact_token_limit`：该字段有独立的默认值与限制，由 Codex 处理。如果已经在其他客户端配置过自动压缩阈值，它仍按 Codex 的配置规则生效。
 
-## 实现契约
+### 实现契约
 
 - 全局协议字段 `modelContextWindow` 为 `null` 或 `1..Number.MAX_SAFE_INTEGER` 的整数，两端共用相同 Schema 边界。
 - 两端 UI 只接受空值或 272–1000 的整数，提交前乘以 1000；协议保留官方配置的整数兼容范围。
@@ -19,11 +25,11 @@ Codexly 不联动写入 `model_auto_compact_token_limit`：该字段有独立的
 - Codex 配置是权威来源；窗口不在 SQLite 或桌面应用偏好文件中维护第二份配置，也不进入项目默认值或回合参数。
 - 两端共用 `ModelContextWindowInput` 和输入解析函数；编辑期间只维护组件草稿，提交合法值后复用全局设置保存队列。
 
-## 验证
+### 验证
 
 `runtime-default-settings.test.ts` 和 `global-default-settings.test.ts` 验证 HTTP 端的保存、清空、缓存刷新及非法值拒绝；`model-context-window.test.ts` 验证输入边界；桌面 `context_window_should_*` 验证原生配置往返和应用偏好文件隔离。
 
-## 官方依据
+### 官方依据
 
 - [配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)：`model_context_window` 与自动压缩阈值定义。
 - [配置基础](https://learn.chatgpt.com/docs/config-file/config-basic)：用户配置目录与配置优先级。

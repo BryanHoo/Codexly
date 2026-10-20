@@ -4,175 +4,104 @@
 
 <h1 align="center">Codexly</h1>
 
-<p align="center">
-  A local AI coding workspace for desktop and browser.
-</p>
-
-Codexly keeps coding tasks, conversations, project files, and Git work in one place. Choose the desktop app for a self-contained workspace or run the Web edition locally and open it from a browser, including on a mobile device on your trusted network. Your projects and agent runtimes stay on the computer running Codexly.
+<p align="center">支持 Codex 与 Claude 的本地 AI 编程工作台，在桌面、Web 和手机浏览器中处理项目。</p>
 
 <p align="center">
-  <a href="#get-codexly">Get Codexly</a>
-  ·
-  <a href="#features">Features</a>
-  ·
-  <a href="./README.zh-CN.md">简体中文</a>
-  ·
-  <a href="./LICENSE">License</a>
+  <a href="https://github.com/BryanHoo/Codexly/releases">下载桌面版</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="./docs/README.md">使用文档</a> ·
+  <a href="./README.en.md">English</a>
 </p>
 
-Directories and tasks are managed locally by Codexly, with one disk folder per directory. Existing data is imported on first launch; see [local directories and tasks](docs/local-catalog.md).
+Codexly 将 AI 对话、编程任务、项目文件、代码变更与 Git 操作集中在一个工作台。你可以在电脑上持续开发，也可以从同一可信局域网中的手机或平板查看进度、回答问题和继续任务。
 
-Application data lives in `~/.codexly`. Web and desktop share projects and history for the same user on the same computer. The first upgraded launch imports legacy application data while retaining the originals; see [local directories and tasks](docs/local-catalog.md).
+项目文件与智能体在运行 Codexly 的电脑上处理；手机无需安装编程环境。使用模型时，相关请求与上下文仍会发送给你配置的模型服务。
 
-## Get Codexly
+![Codexly 工作台：项目列表、任务输入与项目文件面板](docs/images/codexly-preview.png)
 
-| Edition | Best for                                                                                             | Get started                                                                                                                                                         |
-| ------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Desktop | A native workspace with an integrated terminal, task window, system notifications, and tray controls | [Download for Windows, Ubuntu, or macOS](https://github.com/BryanHoo/Codexly/releases) and follow the [desktop installation guide](desktop/docs/installation.en.md) |
-| Web     | A local browser workspace accessible from your computer or another device on a trusted LAN           | Install Node.js 24+ and [start the Web edition](#start-the-web-edition)                                                                                             |
+## 选择你的使用方式
 
-Desktop packages are available for Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ (Apple Silicon or Intel), and a separate Legacy build for macOS 12.4+ Intel. See the [installation instructions](desktop/docs/installation.en.md) for setup steps and system prompts on each platform. Desktop packages include the target platform’s Codex and Claude runtimes, with no separate Node or Bun installation or first-launch runtime download. macOS Legacy provides Codex only.
+| 使用端 | 适合的场景                                                       | 开始方式                                                                                                                    |
+| ------ | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 桌面端 | 在本机长期开发，使用集成终端、全局快捷键、独立任务窗口与系统托盘 | [下载 macOS、Windows 或 Ubuntu 版](https://github.com/BryanHoo/Codexly/releases) · [安装指南](desktop/docs/installation.md) |
+| Web 端 | 在电脑浏览器中使用，或让一台电脑提供局域网工作台                 | 安装 Node.js 24+ 后[启动 Web 服务](#web-端)                                                                                 |
+| 移动端 | 在手机、平板浏览器中跟进任务、审批工具操作、查看文件与变更       | 连接已开启局域网访问的 Web 服务，见[移动端连接](#移动端)                                                                    |
 
-## Web Preview
+桌面版支持 Windows 10/11 x64、Ubuntu 24.04+ x64、macOS 14.5+（Apple Silicon / Intel），另有 macOS 12.4+ Intel Legacy 版。安装包内置智能体运行时，无需另装 Node.js 或 Bun；Legacy 仅支持 Codex。移动端使用适配小屏和触屏的 Web 界面，无需单独安装 App。
 
-![Codexly preview](docs/images/codexly-preview.png)
+## 你可以用它做什么
 
-## Features
+- **用 Codex 或 Claude 处理项目**：独立配置任一引擎，也可同时配置并在新任务中选择；已有任务保留原引擎。
+- **跟进执行过程**：实时查看回复、命令、工具调用、计划与文件变更，在需要时处理审批和提问；为运行中的任务补充要求，或将后续消息加入持久队列。
+- **组织多项目任务**：添加本机目录，搜索任务与历史，置顶、归档或恢复对话；通过任务看板与定时任务安排工作。
+- **并行推进工作**：桌面应用和电脑浏览器支持最多四个任务分屏，各自保留草稿与消息队列；移动端使用单任务视图。
+- **查看与修改项目文件**：浏览文件树、预览代码、Markdown、图片与 PDF，直接编辑支持的文本文件；给对话附加文件或图片，引用项目文件与 Skills。
+- **完成 Git 工作流**：审阅差异与提交历史，管理分支和 worktree，选择文件提交、提交并推送，或独立推送已有提交。
+- **管理智能体能力**：在扩展中心按引擎管理 Skills、MCP 与官方插件，在设置中调整模型、思考强度、权限及上下文。
 
-- Choose Codex or Claude for each task and enable either engine independently, with shared chat, tool approvals, attachments, plans, subagents, message queues, and scheduled tasks. Claude also supports live steering, session forks, and compaction. See [agent engines and connections](docs/agent-engines.md).
+两种引擎保留各自的模型、权限和扩展能力，具体可用操作以界面为准。Claude 支持历史恢复、运行中引导、会话分叉与压缩；Codex 的沙盒、Review 等专属能力不等同于 Claude 权限模式。详见[智能体连接与配置](docs/getting-started.md#连接-codex-或-claude)。
 
-- Follow task responses, commands, approvals, reasoning summaries, and file changes as they arrive, with file edit timing and completion summaries; keep follow-up messages in a persistent queue.
-- Load recent conversation history first, fetch older turns from the top, and load execution details independently when expanding a process; long code previews use shared rendering and bounded highlighting. See [conversation loading and performance](docs/conversation-performance.md).
-- Open up to four task panes in desktop browsers and the desktop app, each with its own draft and message queue. File and Git panels follow the focused task; mobile Web keeps a single-task view.
-- Choose two, three, or four panes from **Split layout** in the task title bar, with auto fit, columns, rows, main-pane, or grid presets; keep the current chat and open new-task pages in the other panes. Available in desktop views.
-- Resize task panes by dragging their dividers, create tasks from the title bar, and see the model and reasoning effort while the composer is collapsed.
-- Edit project text files directly in the source preview on desktop or mobile, with undo, redo, and automatic saving when leaving the editor or switching windows.
-- Read streaming Markdown responses and copy their source text; zoom and pan message images, project images, and wallpapers, or view them at their original size.
-- Preview PDFs directly from chat attachments, file links, and the project file tree.
-- View task-local images embedded in Markdown responses and open them in the image preview.
-- Follow file citations, code review comments, and follow-up suggestions in assistant responses; selecting a suggestion fills the composer for further editing.
-- Choose a model, reasoning effort, Fast mode, approval policy, and file access level for each task, and configure the global [context window](docs/model-context-window.md).
-- Create projects and directories, search tasks, message history, and project files; inspect changes, work with branches and worktrees, commit selected files, commit and push, or push existing commits independently. See the [Git workflow guide](docs/git-workflow.md). Git actions require a repository at the project root; ordinary subdirectories do not use the parent repository.
-- Switch tasks from the sidebar’s **Pinned** and **Running** shortcuts, with unread completions first, followed by pending approvals and running tasks; unread completions remain in the group count until viewed. Collapse previews or open the full list, even with projects collapsed.
-- Identify each task's project through labels in the sidebar; collapsed projects still show unread completions, pending approvals, or running tasks.
-- Manage Skills, plugins, MCP services, projects, archived tasks, notifications, and scheduled work. Refresh official plugins to synchronize their state and report partial failures.
-- Request background compression of history files untouched for over 7 days under Settings → Agent → History storage. Web compresses server history; desktop compresses local history. Other Codex clients sharing that directory must support compressed history.
+## 快速开始
 
-**Desktop** adds a native project terminal, global shortcuts, a separate task window, tray integration, and bundled agent runtimes. It supports Windows, Ubuntu, and macOS, with an option in general settings to launch at system login. See the [desktop guide](desktop/README.en.md) for its full feature set and update behavior.
+### 桌面端
 
-**Web** runs a local server and opens in your browser. It supports trusted LAN access from phones and other devices, task boards, Mermaid diagrams, and customizable workspace backgrounds. The Web edition includes Codex CLI `0.163.0` through `@openai/codex`; external binaries supplied through `--codex-bin <path>` or `CODEXLY_CODEX_BIN` must satisfy `>=0.163.0,<0.164.0`.
+1. 从 [Releases](https://github.com/BryanHoo/Codexly/releases) 下载对应系统和架构的安装包。
+2. 安装并打开 Codexly，在设置中配置 Codex、Claude 或两者；已有的受支持本机配置可直接复用。
+3. 添加项目文件夹，新建任务并发送需求。
 
-Browsers and devices connected to the same Web server synchronize project todos and asynchronous questions. Reconnecting or returning to a visible page refreshes their state.
+Windows 便携版请完整解压 ZIP，保留程序、Claude 宿主和 `runtime` 目录。各平台安装、更新与卸载步骤见[桌面安装指南](desktop/docs/installation.md)。
 
-In workspaces that support split view, open a task in another pane from its sidebar menu or right-click a blank area in the chat to split up, down, left, or right. Use `⌘+⌥+Arrow` on macOS or `Ctrl+Alt+Arrow` on Windows / Linux, up to four panes.
+### Web 端
 
-Drag a divider to resize adjacent panes; navigation from notifications, search, or the task board preserves the split layout.
-
-## Start the Web Edition
-
-Requires Node.js >=24.0.0 and Chrome/Chromium 116+, Firefox 124+, or Safari 17.4+.
-
-Run the latest version without installing it:
+在安装了 **Node.js 24+** 的电脑上运行：
 
 ```bash
 npx --package @bryanhu/codexly@latest codexly start
 ```
 
-Codexly opens the browser automatically. If it does not, use the address printed in the terminal; the default is `http://127.0.0.1:3210`. Keep the terminal running and press `Ctrl+C` to stop.
+浏览器会自动打开。若未打开，请使用终端显示的地址，默认是 `http://127.0.0.1:3210`。保持终端运行，按 `Ctrl+C` 停止服务。首次使用时完成智能体连接，再添加项目。
 
-Run `codexly --version` to check the installed version, or `codexly <command> --help` for command-specific options.
-
-Multiple Web instances can run from the same launch directory and share the same Codex Home; occupied ports are skipped automatically. The launch directory does not determine internal configuration or the temporary task directory. Temporary tasks use the user's home directory by default, or the first explicit `--workspace` root. Use different `--codex-home <directory>` values to isolate data.
-
-On first launch, enable Codex, Claude, or both. For Codex, sign in with ChatGPT or configure an OpenAI-compatible service supporting the Responses API and `GET /models`. Claude can reuse existing local credentials or connect to an Anthropic Messages-compatible API using its URL and key; the app does not offer Claude account login. Claude-only setups do not require Codex configuration.
-Custom providers discover available models and preserve declared capabilities and reasoning levels. The reasoning menu stays hidden when the catalog declares no reasoning support. See [models and reasoning effort](docs/model-discovery.md).
-
-For regular use, install Codexly globally:
+经常使用时可全局安装：
 
 ```bash
 npm install --global @bryanhu/codexly@latest
 codexly
 ```
 
-The installation command uses npm’s default registry (the official registry unless you have configured another), reuses the npm cache, and revalidates stale package metadata.
+更多启动参数、后台运行和更新方法见 [Web 使用指南](docs/web.md)。
 
-## Web Startup at Login
+### 移动端
 
-After a global npm installation, configure startup for the current user through the CLI. Supports macOS, Windows, and Ubuntu with a systemd user manager. Both local and LAN startup keep the browser closed.
-
-```bash
-codexly autostart enable             # Local mode, on the next login
-codexly autostart enable --lan --now  # LAN mode, also start now
-codexly autostart status
-codexly autostart credentials
-codexly autostart logs
-codexly autostart restart
-codexly autostart disable
-```
-
-Repeating `enable` updates the same entry with the supplied options. Without `--now`, a running instance applies changes on restart or the next login. Use `status` for actual URLs when a port is occupied. LAN startup saves and reuses its password; `credentials` reveals it explicitly. Sessions require authentication again after a restart.
-
-Temporary `npx` installations cannot register startup. Run `codexly autostart repair --now` after moving Node/npm, and disable before uninstalling the package. Use `codexly start --no-open` to suppress the browser during a foreground launch. See the [Web startup at login guide](docs/web-autostart.md) for configuration, environment handling, Linux linger restrictions, and troubleshooting.
-
-## Using the Web Edition
-
-Select **New task** for work that does not need a project. For repository work, add one host folder as the project directory, create a task, and submit your request with any required files, images, project references, or Skills. Archived tasks can be restored or permanently deleted from the project task list.
-
-The Changes toolbar shows the branch, push destination, and incoming/outgoing counts, with remote configuration, branch publishing, fetch, fast-forward pull, and independent push actions. The footer edits the commit message; the main button commits and **More Git actions** offers **Commit and push**. Drafts persist on the current device by project, worktree, and branch; AI generation can be undone. A failed push preserves the local commit for retry. **Publish branch** establishes upstream tracking, and history marks unpushed commits.
-
-Task controls set the model, reasoning, Fast mode, approval, and file access behavior. Notification preferences and the last complete project settings are saved for later tasks. The right inspector provides project files, sources, code changes, Git history, review, and commit actions. Project directories and files always come from the computer running Codexly, including when the UI is opened on another device.
-
-Scheduled tasks with an unknown outcome pause further runs. Inspect the linked conversation before deleting and recreating the schedule. Tasks marked as finishing cleanup retry cleanup automatically without another launch.
-
-Open a project text file in the source preview to edit it; switch Markdown to source mode first. Changes save when the editor loses focus, you leave the file, or you switch windows; use `⌘/Ctrl+S` to save manually. UTF-8 files up to 2 MiB are editable, with their line endings and BOM preserved. Larger or unsupported files remain read-only. Save errors and conflicts keep your draft in the current window and show recovery actions. Drafts are held in memory and are not guaranteed to survive a refresh, forced exit, or crash.
-
-## Web Local Network Access
-
-Start trusted LAN access with:
+在提供项目的电脑上启动局域网服务：
 
 ```bash
-codexly start --lan
+npx --package @bryanhu/codexly@latest codexly start --lan
 ```
 
-The terminal prints the LAN address and a random access password. Common options are:
+让手机或平板与电脑连接同一可信局域网，在浏览器中打开终端显示的局域网地址并输入访问密码。项目、Git 身份和智能体配置均来自这台电脑；使用期间电脑须保持开机、唤醒且服务运行。
 
-| Option                      | Purpose                                                                                    |
-| --------------------------- | ------------------------------------------------------------------------------------------ |
-| `--port <port>`             | Choose the starting port; occupied ports are skipped automatically                         |
-| `--lan-password <password>` | Set a 16-128 character password containing uppercase, lowercase, and number                |
-| `--allowed-host <domain>`   | Allow an exact reverse proxy domain; repeat the option for multiple domains                |
-| `--session-ttl <duration>`  | Set a fixed LAN session lifetime such as `12h`; omitted sessions last until server restart |
-| `--workspace <path>`        | Restrict project selection to this absolute root; repeat for multiple roots                |
+局域网模式使用 HTTP，仅用于可信网络，不要直接暴露到公网。桌面应用本身不提供手机连接入口；需要移动访问时启动 Web 服务。详见[移动端与局域网访问](docs/web.md#移动端与局域网访问)。
 
-Quote passwords containing shell-special characters. LAN mode uses unencrypted HTTP, so use it only on a trusted network and never expose it directly to the internet. Restarting Codexly invalidates random pairing codes and all sessions; an explicitly configured fixed password remains valid.
+## 连接 Codex 与 Claude
 
-## Web Diagnostics and Updates
+| 智能体 | 连接方式                                                                                                                            |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Codex  | 使用 ChatGPT 登录，或配置支持 Responses API 与模型列表的 OpenAI 兼容服务                                                            |
+| Claude | 复用受支持的本机 Claude Code 凭据，或填写支持 Anthropic Messages API 与 `/v1/models` 的服务地址和密钥；应用内不提供 Claude 账号登录 |
 
-Run `codexly doctor` when startup, Codex, or local data checks fail. Use `codexly --help` for all commands, `codexly start --help` or `codexly doctor --help` for command options, and `codexly --version` for the installed version.
+只使用 Claude 时无需配置 Codex。模型可用性、额度与费用由所用账号或服务决定，Codexly 不包含模型服务额度。桌面端在本机配置，Web 和移动端在 Web 服务所在电脑配置。
 
-Interactive startup and **Settings > About** check for new releases. When the sidebar shows an update, click the version to read its release notes and install it. Built-in updates probe the official registry and a mirror in parallel, use the first source that responds successfully, and fall back to the other source on failure. Package downloads and dependency installation reuse the selection for that update and your npm cache. New releases may appear later if the selected mirror is still synchronizing. A global installation can also be updated with:
+## 文档与帮助
 
-```bash
-npm install --global @bryanhu/codexly@latest
-```
+- [文档导航](docs/README.md)：按安装、日常使用、配置与排障查找说明。
+- [首次使用](docs/getting-started.md)：连接智能体并完成第一个任务。
+- [工作台使用](docs/usage.md)：对话、分屏、文件、Git、扩展与定时任务。
+- [常见问题](docs/faq.md)：数据保存、跨端使用、连接与更新。
+- [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/BryanHoo/Codexly/issues) · [安全策略](SECURITY.md)
+- [参与贡献](CONTRIBUTING.md)：源码开发、验证与发布入口。
 
-If an older Linux release was installed into a system directory with `sudo npm install --global`, manually run the command above with `sudo` once to reach a release that supports elevated updates. Later built-in updates request `sudo` access when needed.
+感谢 [LinuxDO](https://linux.do/) 社区的支持。
 
-## Help
-
-- [Report an issue](https://github.com/BryanHoo/Codexly/issues)
-- [Contributing guide](CONTRIBUTING.md)
-- [Security policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
-
-## Community
-
-Thanks to the [LinuxDO](https://linux.do/) community for their support
-
-## License
+## 许可证
 
 [MIT](LICENSE)
-
-### Claude Agent
-
-New conversations can select Codex or Claude Agent (Claude Code). Configure the Claude API, defaults, permissions and tool rules in Settings. Existing conversations keep their engine; Claude account login is not supported. See the [engine guide](docs/agent-engines.md) for architecture, platform requirements and capability boundaries.

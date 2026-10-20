@@ -4,7 +4,7 @@
 
 从 `0.39.1` 起，桌面安装包内置目标平台的 Codex 与 Claude 运行时，直接从只读安装目录执行。首次启动不下载运行时，不要求用户安装 Node、Bun 或全局 CLI。Codex 固定为 `0.163.0`；Claude 使用锁定的 Agent SDK 与对应官方 CLI。macOS Legacy 仅包含 Codex，隐藏新建 Claude 入口。
 
-首次配置可单独启用 Codex、Claude 或两者。应用按需启动所选引擎；仅启用 Claude 时，公共设置、项目文件、Git 和终端不启动 Codex。连接配置的行为见[智能体引擎与连接](../../docs/agent-engines.md)。
+应用直接进入工作台，从原生配置识别已连接的引擎，可在设置中独立配置 Codex、Claude 或两者，不提供首次下载向导。应用按需启动所选引擎；仅启用 Claude 时，公共设置、项目文件、Git 和终端不启动 Codex。连接配置的行为见[智能体引擎与连接](../../docs/agent-engines.md)。
 
 运行时文件与用户数据分开。Codex 继续使用 `CODEX_HOME`，未配置时使用 `~/.codex`；Claude 使用 `CLAUDE_CONFIG_DIR`，未配置时使用 `~/.claude`。更新应用替换整套运行时，不覆盖用户认证与配置。
 
