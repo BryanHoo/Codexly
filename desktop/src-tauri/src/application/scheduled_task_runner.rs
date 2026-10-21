@@ -45,6 +45,13 @@ pub(crate) async fn start_turn_for_task(
     // App Server 可能先推送 turn/started，再返回响应，必须提前建立事件归属。
     state.remember_tasks(project_id, [task_id]).await;
     if let Some(task_title) = prompt_task_title(&input) {
+        // 预览独立于正式名称，先落盘再启动执行；模型失败或应用退出后仍可直接恢复左栏。
+        if task["title"] == "" && task["preview"].as_str().is_none_or(str::is_empty) {
+            let preview: String = task_title.chars().take(1024).collect();
+            super::sidebar_commands::local_catalog(app)?
+                .call("task.preview", json!({"id":task_id,"preview":preview}))
+                .await?;
+        }
         state
             .promote_task_title(project_id, task_id, task_title)
             .await;

@@ -19,7 +19,11 @@ pub(super) fn thread(task: &Value, mut native: Value) -> Value {
     } else {
         task["title"].clone()
     };
-    native["preview"] = task["title"].clone();
+    native["preview"] = if task["title"] == "" {
+        json!(task["preview"].as_str().unwrap_or_default())
+    } else {
+        task["title"].clone()
+    };
     if native.get("status").is_none() {
         native["status"] = json!({"type":task["status"]});
     }

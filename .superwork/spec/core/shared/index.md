@@ -2,6 +2,8 @@
 
 `packages/core/src/` 保存任务、项目、提交和 Provider 抽象等与传输无关的领域规则；只依赖 `@codexly/protocol`。
 
+- Codex 首条输入预览必须在启动执行前独立持久化，后续输入不得改写；展示按正式名称、持久预览、新聊天回退。预览不得填入原生 `name` 或阻止自动生成，正式名称与手动改名优先级保持原样。回归覆盖辅助生成成功、失败、取消和仓储重开，见 [本地目录与任务](../../../../docs/local-catalog.md)。
+
 - 领域行为与不变量放在本包，Fastify 路由、Codex 进程和 React 状态留在各自层。
 - 对行为变更运行同目录测试、`pnpm lint:architecture` 与 `pnpm typecheck`。
 

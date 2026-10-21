@@ -57,7 +57,7 @@ export function localTaskThread(
     projectId: task.projectId,
     cwd: task.cwd,
     name: task.title || null,
-    preview: task.title,
+    preview: task.title || (task.preview ?? ""),
     updatedAt: Math.floor(task.updatedAt),
     createdAt: native["createdAt"] ?? Math.floor(task.updatedAt),
     status: native["status"] ?? { type: task.status },

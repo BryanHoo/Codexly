@@ -18,7 +18,7 @@ export function localTaskMetadata(task: LocalTask): AgentTask {
     engine: task.provider,
     id: task.id,
     projectId: task.projectId ?? "temporary",
-    title: task.title || "新聊天",
+    title: task.title || (task.preview ?? "新聊天"),
     pinned: task.pinned,
     updatedAt: new Date(task.updatedAt * 1000).toISOString(),
     workspacePath: task.cwd,
@@ -168,7 +168,23 @@ export class EngineProjectRouter implements AgentProvider {
     return (await this.#method(args[0], "readTask"))(args[0], args[1]);
   }
   async startTurn(...args: Parameters<AgentProvider["startTurn"]>) {
-    return (await this.#method(args[0], "startTurn"))(...args);
+    if (this.#ephemeral.has(args[0])) return (await this.#method(args[0], "startTurn"))(...args);
+    const task = await this.#task(args[0]);
+    if (task.provider !== "codex" && task.provider !== "claude")
+      throw new Error("Unsupported task engine");
+    if (task.provider === "codex" && !task.title && !task.preview) {
+      const input = args[1];
+      const preview =
+        input.text.trim() ||
+        ([...input.skills, ...input.files, ...input.textAttachments]
+          .map((item) => item.name.trim())
+          .find(Boolean) ??
+          (input.images.length ? "图片任务" : ""));
+      // 先落盘再启动执行；辅助生成失败、取消或应用退出都不能丢失已经展示的用户输入。
+      if (preview)
+        await this.store.catalog("task.preview", { id: task.id, preview: preview.slice(0, 2048) });
+    }
+    return this.#engineMethod(task.provider, "startTurn")(...args);
   }
   async stopSession(taskId: string, backgroundTaskId?: string) {
     return (await this.#method(taskId, "stopSession"))(taskId, backgroundTaskId);

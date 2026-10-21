@@ -6,6 +6,9 @@ use std::{
     sync::{Arc, Mutex, OnceLock, Weak},
 };
 mod operations;
+#[cfg(test)]
+mod preview_tests;
+mod previews;
 
 #[derive(Clone)]
 pub struct LocalCatalog {
@@ -87,6 +90,16 @@ impl LocalCatalog {
                     .map_err(db_error)?;
                 transaction.commit().map_err(db_error)?;
             }
+            let schema: Value = serde_json::from_str(include_str!(
+                "../../../../../packages/protocol/src/local-catalog-schema.json"
+            ))
+            .map_err(|_| CatalogError::InvalidMessage)?;
+            // 两端共享幂等增量表；桌面先升级时也能与既有 Web 表列顺序兼容。
+            db.execute_batch(string(&schema, "previewSql")?)
+                .map_err(db_error)?;
+            if let Some(source) = previews::default_source() {
+                previews::recover(&mut db, &source)?;
+            }
             *guard = Some(db);
         }
         operations::execute(
@@ -109,10 +122,15 @@ fn project(row: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
     )
 }
 fn task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
-    Ok(
-        json!({"id":row.get::<_,String>(0)?,"projectId":row.get::<_,Option<String>>(1)?,"title":row.get::<_,String>(2)?,"cwd":row.get::<_,String>(3)?,
-        "provider":row.get::<_,String>(4)?,"sessionId":row.get::<_,Option<String>>(5)?,"updatedAt":row.get::<_,f64>(6)?,"pinned":row.get::<_,bool>(7)?,"archived":row.get::<_,bool>(8)?,"status":row.get::<_,String>(9)?}),
-    )
+    let mut value = json!({"id":row.get::<_,String>(0)?,"projectId":row.get::<_,Option<String>>(1)?,"title":row.get::<_,String>(2)?,"cwd":row.get::<_,String>(3)?,
+        "provider":row.get::<_,String>(4)?,"sessionId":row.get::<_,Option<String>>(5)?,"updatedAt":row.get::<_,f64>(6)?,"pinned":row.get::<_,bool>(7)?,"archived":row.get::<_,bool>(8)?,"status":row.get::<_,String>(9)?});
+    if let Some(preview) = row
+        .get::<_, Option<String>>(10)?
+        .filter(|value| !value.is_empty())
+    {
+        value["preview"] = json!(preview);
+    }
+    Ok(value)
 }
 #[cfg(test)]
 mod tests {

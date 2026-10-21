@@ -1,5 +1,7 @@
 # Fastify 服务端
 
+- 仓储打开时仅为既有空名称且缺少预览的 Codex 绑定恢复首条预览；只读、有界查询原生索引，不导入任务或覆盖管理状态。索引缺失、占用或不兼容不阻塞离线目录，后续启动可重试；正常列表不增加引擎 RPC 或轮询。验证 `local-catalog-preview.test.ts` 与 `local-catalog-title-restart.test.ts`，跨端规则见 [本地目录与任务](../../../../docs/local-catalog.md)。
+
 - 任务提交的订阅保护必须覆盖归属校验、模型校验、设置保存、附件准备和启动请求的完整区间；前台切走不能释放正在准备发送的任务。若退订已先开始，提交应等待其结束后重新校验归属。保护按任务隔离并在成功/失败后释放，空闲条目立即删除；回归覆盖 `app-submissions.test.ts` 和 `task-execution-lifecycle.test.ts`。
 
 `packages/server/src/app.ts` 创建服务并注册 `routes/`；`server-delivery.ts` 配置交付层，`project-runtime-context.ts` 组织项目运行时。SQLite 仓储和 Worker 在 `sqlite-*` 文件中，Codex Provider 通过 `CreateCodexlyServerOptions` 注入。

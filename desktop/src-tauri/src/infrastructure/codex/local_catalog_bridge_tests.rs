@@ -11,6 +11,25 @@ async fn generated_task_title_should_publish_persisted_metadata_without_native_r
     catalog.call("task.put", json!({"id":"task-local","projectId":null,"title":"","cwd":"/work","provider":"codex","sessionId":null,"updatedAt":100,"pinned":false,"archived":false,"status":"notLoaded"})).await.unwrap();
     let mut messages = connection.take_server_messages().await.unwrap();
 
+    // 持久预览不能冒充正式名称，否则辅助生成会误判为用户已经命名。
+    catalog
+        .call(
+            "task.preview",
+            json!({"id":"task-local","preview":"首条请求预览"}),
+        )
+        .await
+        .unwrap();
+    let preview: Value = connection
+        .request(
+            "thread/read",
+            &json!({"threadId":"task-local","includeTurns":false}),
+            Duration::from_millis(200),
+        )
+        .await
+        .unwrap();
+    assert!(preview["thread"]["name"].is_null());
+    assert_eq!(preview["thread"]["preview"], "首条请求预览");
+
     super::super::task_title::apply_title(&connection, "temporary", "task-local", "修复左栏标题")
         .await
         .unwrap();

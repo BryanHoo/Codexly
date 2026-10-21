@@ -48,3 +48,45 @@ async fn task_window_preview_reads_only_one_turn_and_one_bounded_item_page() {
     assert_eq!(items.len(), 1);
     server_task.await.unwrap();
 }
+
+#[tokio::test]
+async fn read_task_summary_should_request_goal_and_history_concurrently() {
+    let (client, server) = duplex(32 * 1024);
+    let (client_reader, client_writer) = split(client);
+    let (server_reader, mut writer) = split(server);
+    let connection = AppServerConnection::new(client_reader, client_writer);
+    let server_task = tokio::spawn(async move {
+        let mut lines = BufReader::new(server_reader).lines();
+        let request: Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        writer.write_all(format!("{}\n", json!({"id": request["id"], "result": {"thread": {
+            "id": "thread-a", "name": "历史", "preview": "", "projectId": "project-a",
+            "historyMode": "paginated", "updatedAt": 1735689600, "status": {"type": "idle"}
+        }}})).as_bytes()).await.unwrap();
+        // 两个读取都必须在任一响应返回前发出，消除固定的串行往返。
+        let first: Value =
+            serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        let second =
+            tokio::time::timeout(std::time::Duration::from_millis(500), lines.next_line()).await;
+        assert!(second.is_ok(), "历史与 Goal 读取不能相互等待");
+        let second: Value = serde_json::from_str(&second.unwrap().unwrap().unwrap()).unwrap();
+        assert_ne!(first["method"], second["method"]);
+        for request in [first, second] {
+            let result = match request["method"].as_str().unwrap() {
+                "thread/turns/list" => json!({"data": [], "nextCursor": null}),
+                "thread/goal/get" => json!({"goal": null}),
+                other => panic!("unexpected request: {other}"),
+            };
+            writer
+                .write_all(
+                    format!("{}\n", json!({"id": request["id"], "result": result})).as_bytes(),
+                )
+                .await
+                .unwrap();
+        }
+    });
+    let snapshot =
+        read_task_summary_snapshot(&connection, "project-a".into(), "thread-a".into(), None).await;
+    server_task.await.unwrap();
+    assert!(snapshot.is_ok());
+}

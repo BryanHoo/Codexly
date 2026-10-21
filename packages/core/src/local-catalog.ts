@@ -10,6 +10,8 @@ export interface LocalTask {
   id: string;
   projectId: string | null;
   title: string;
+  /** 首条输入的持久预览；与正式名称分离，不能阻止后续自动生成。 */
+  preview?: string;
   cwd: string;
   provider: string;
   sessionId: string | null;
@@ -39,8 +41,13 @@ export interface CatalogOperations {
   "project.reorder": [{ ids: readonly string[] }, LocalProject[]];
   "task.put": [LocalTask, LocalTask];
   "task.read": [{ id: string }, LocalTask | null];
+  "task.preview": [{ id: string; preview: string }, LocalTask];
+  "task.recoverPreviews": [{ databasePath: string }, number];
   "task.bindings": [undefined, LocalTask[]];
-  "task.patch": [Partial<Omit<LocalTask, "provider" | "projectId">> & { id: string }, LocalTask];
+  "task.patch": [
+    Partial<Omit<LocalTask, "provider" | "projectId" | "preview">> & { id: string },
+    LocalTask,
+  ];
   "task.remove": [{ id: string }, boolean];
   "task.list": [LocalTaskQuery, { data: LocalTask[]; nextCursor: string | null }];
   "migration.done": [undefined, boolean];

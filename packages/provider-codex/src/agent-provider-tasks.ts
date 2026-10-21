@@ -47,7 +47,7 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       return {
         id: local.id,
         projectId: this.project.id,
-        title: local.title || "新聊天",
+        title: local.title || (local.preview ?? "新聊天"),
         pinned: local.pinned,
         updatedAt: new Date(local.updatedAt * 1000).toISOString(),
         ...(local.cwd !== this.project.rootPath ? { workspacePath: local.cwd } : {}),

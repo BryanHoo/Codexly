@@ -7,7 +7,12 @@ fn read(db: &Connection, table: &str, id: &str) -> Result<Value, CatalogError> {
     } else {
         task
     };
-    db.query_row(&format!("SELECT * FROM {table} WHERE id=?"), [id], mapper)
+    let select = if table == "managed_projects" {
+        "SELECT * FROM managed_projects"
+    } else {
+        previews::SELECT
+    };
+    db.query_row(&format!("{select} WHERE id=?"), [id], mapper)
         .optional()
         .map(|v| v.unwrap_or(Value::Null))
         .map_err(db_error)
@@ -137,10 +142,20 @@ pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value,
         }
         "task.put" => put_task(db, p),
         "task.read" => read(db, "managed_tasks", string(p, "id")?),
+        "task.preview" => {
+            let id = string(p, "id")?;
+            if read(db, "managed_tasks", id)?.is_null() {
+                return Err(CatalogError::InvalidMessage);
+            }
+            previews::write(db, id, string(p, "preview")?)?;
+            read(db, "managed_tasks", id)
+        }
+        "task.recoverPreviews" => Ok(json!(previews::recover(
+            db,
+            Path::new(string(p, "databasePath")?)
+        )?)),
         "task.bindings" => {
-            let mut statement = db
-                .prepare_cached("SELECT * FROM managed_tasks")
-                .map_err(db_error)?;
+            let mut statement = db.prepare_cached(previews::SELECT).map_err(db_error)?;
             Ok(json!(
                 statement
                     .query_map([], task)
@@ -276,7 +291,7 @@ fn list_tasks(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
         clauses.push("pinned = 1");
     }
     if let Some(search) = p["searchTerm"].as_str() {
-        clauses.push("instr(lower(title),lower(?)) > 0");
+        clauses.push("instr(lower(COALESCE(NULLIF(title,''),preview,'')),lower(?)) > 0");
         values.push(SqlValue::Text(search.to_owned()));
     }
     if let Some(cursor) = p["cursor"].as_str() {
@@ -289,7 +304,8 @@ fn list_tasks(db: &Connection, p: &Value) -> Result<Value, CatalogError> {
     values.push(SqlValue::Integer((limit + 1) as i64));
     let mut statement = db
         .prepare_cached(&format!(
-            "SELECT * FROM managed_tasks WHERE {} ORDER BY updated_at DESC,id DESC LIMIT ?",
+            "{} WHERE {} ORDER BY updated_at DESC,id DESC LIMIT ?",
+            previews::SELECT,
             clauses.join(" AND ")
         ))
         .map_err(db_error)?;

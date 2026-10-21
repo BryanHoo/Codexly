@@ -1,5 +1,7 @@
 # 公共协议
 
+- 本地目录的首条输入预览使用共享 SQL 契约的独立增量表，与正式名称分离；不能改变原任务表的列顺序或把预览声明为已命名状态。两端列表、详情与搜索遵守同一回退规则，删除任务同时清理预览。详见 [本地目录与任务](../../../../docs/local-catalog.md)。
+
 - Claude 全局设置可选 `modelContextWindow`（正安全整数或 null）与 `autoCompactWindow`（100,000–1,000,000 的整数或 null），省略保留原生配置，null 清除覆盖。两端使用共享 Schema、设置表单与输入解析；宿主环境覆盖值和来源只读展示，不传递认证信息。详见[Claude 上下文管理](../../../../docs/model-context-window.md#claude-上下文管理)。
 
 - 快照暂时无法生成一致覆盖时，HTTP 错误使用 `TASK_SNAPSHOT_BUSY`、503 和 `retryable: true`；客户端读取路径须经共享错误 Schema 校验后保留错误码与重试标记。Claude 宿主的字符串错误包含该错误码，保持现有原生字符串消费兼容。

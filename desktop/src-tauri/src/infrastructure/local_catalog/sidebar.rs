@@ -26,7 +26,11 @@ pub fn map_task(value: &Value) -> Result<AgentTask, CatalogError> {
             .unwrap_or("temporary")
             .to_owned(),
         title: match string(value, "title")? {
-            "" => "新聊天".to_owned(),
+            "" => value["preview"]
+                .as_str()
+                .filter(|value| !value.is_empty())
+                .unwrap_or("新聊天")
+                .to_owned(),
             title => title.to_owned(),
         },
         pinned: value["pinned"] == true,

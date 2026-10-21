@@ -1,4 +1,11 @@
 import { createHash } from "node:crypto";
+import schema from "../../protocol/src/local-catalog-schema.json" with { type: "json" };
+import {
+  TASK_PREVIEW_SELECT,
+  writeTaskPreview,
+  recoverTaskPreviews,
+  defaultCodexStateDatabase,
+} from "./local-catalog-previews.js";
 
 function project(row) {
   return row ? { id: row.id, name: row.name, path: row.path, createdAt: row.created_at } : null;
@@ -9,6 +16,7 @@ function task(row) {
         id: row.id,
         projectId: row.project_id,
         title: row.title,
+        ...(row.preview ? { preview: row.preview } : {}),
         cwd: row.cwd,
         provider: row.provider,
         sessionId: row.session_id,
@@ -31,10 +39,15 @@ function assertImmutableBinding(current, candidate) {
 }
 
 export function createLocalCatalogOperations(db) {
+  if (db.prepare("SELECT 1 FROM sqlite_master WHERE name='managed_tasks'").get()) {
+    // 幂等增量建表兼容 Web 与桌面先后升级，不修改原领域表的列顺序或迁移版本。
+    db.exec(schema.previewSql);
+    recoverTaskPreviews(db, defaultCodexStateDatabase());
+  }
   // 自定义迁移测试可能刻意只建部分表，此时不提前准备不存在的业务表。
   const readProject = (id) =>
     project(db.prepare("SELECT * FROM managed_projects WHERE id = ?").get(id));
-  const readTask = (id) => task(db.prepare("SELECT * FROM managed_tasks WHERE id = ?").get(id));
+  const readTask = (id) => task(db.prepare(`${TASK_PREVIEW_SELECT} WHERE id = ?`).get(id));
   const listProjects = () =>
     db.prepare("SELECT * FROM managed_projects ORDER BY position, id").all().map(project);
   const putProject = db.transaction((p) => {
@@ -114,7 +127,13 @@ export function createLocalCatalogOperations(db) {
     }),
     "task.put": putTask,
     "task.read": ({ id }) => readTask(id),
-    "task.bindings": () => db.prepare("SELECT * FROM managed_tasks").all().map(task),
+    "task.preview": ({ id, preview }) => {
+      if (!readTask(id)) throw new Error("Task not found");
+      writeTaskPreview(db, id, preview);
+      return readTask(id);
+    },
+    "task.recoverPreviews": ({ databasePath }) => recoverTaskPreviews(db, databasePath),
+    "task.bindings": () => db.prepare(TASK_PREVIEW_SELECT).all().map(task),
     "task.patch": ({ id, ...patch }) => {
       const current = readTask(id);
       if (!current) throw new Error("Task not found");
@@ -175,7 +194,7 @@ export function createLocalCatalogOperations(db) {
       if (input.completed === true)
         where.push("status IN ('idle', 'notLoaded') AND project_id IS NOT NULL");
       if (input.searchTerm) {
-        where.push("instr(lower(title), lower(?)) > 0");
+        where.push("instr(lower(COALESCE(NULLIF(title,''), preview, '')), lower(?)) > 0");
         values.push(input.searchTerm);
       }
       if (input.cursor) {
@@ -193,7 +212,7 @@ export function createLocalCatalogOperations(db) {
       const limit = Math.min(100, Math.max(1, input.limit ?? 50));
       const rows = db
         .prepare(
-          `SELECT * FROM managed_tasks WHERE ${where.join(" AND ")} ORDER BY updated_at DESC,id DESC LIMIT ?`,
+          `${TASK_PREVIEW_SELECT} WHERE ${where.join(" AND ")} ORDER BY updated_at DESC,id DESC LIMIT ?`,
         )
         .all(...values, limit + 1);
       const data = rows.slice(0, limit).map(task),
