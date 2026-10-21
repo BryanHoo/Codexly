@@ -38,7 +38,9 @@ import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
 import { TaskDeleteDialog } from "./task-delete-dialog.js";
 import { SidebarSettingsButton } from "./project-sidebar-actions.js";
 import { groupTasksByProjectId } from "./project-sidebar-state.js";
-import { SidebarUtilityLinks } from "./sidebar-utility-links.js";
+import { SidebarScheduledTasksLink } from "./sidebar-scheduled-tasks-link.js";
+import { SidebarTaskBoardLink } from "./sidebar-task-board-link.js";
+import { SidebarSkillsMarketLink } from "./sidebar-skills-market-link.js";
 import { ProjectSidebarHeader } from "./project-sidebar-header.js";
 import type { ProjectSidebarProps } from "./project-sidebar-props.js";
 export { ProductBrand } from "./project-sidebar-header.js";
@@ -350,14 +352,17 @@ export function ProjectSidebar({
         onSearch={() => {
           setSearchState("open");
         }}
-      />
+      >
+        <SidebarTaskBoardLink {...(projectId === undefined ? {} : { projectId })} />
+        <SidebarSkillsMarketLink {...(projectId === undefined ? {} : { projectId })} />
+      </ProjectSidebarHeader>
 
       <nav className="space-y-0.5 px-2" aria-label={t("sidebar.agentNavigation")}>
         <Link className={primaryActionClassName} to="/temporary" onClick={onNewTaskClick}>
           <Send className={primaryActionIconClassName} aria-hidden="true" />
           {t("sidebar.newTask")}
         </Link>
-        <SidebarUtilityLinks
+        <SidebarScheduledTasksLink
           className={primaryActionClassName}
           iconClassName={primaryActionIconClassName}
           {...(projectId === undefined ? {} : { projectId })}

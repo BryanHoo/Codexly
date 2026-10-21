@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { PanelLeftClose, Search } from "lucide-react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -8,13 +9,16 @@ import {
 } from "../../../shared/components/core/tooltip.js";
 
 export function ProjectSidebarHeader({
+  children,
   onClose,
   onSearch,
-}: Readonly<{ onClose: () => void; onSearch: () => void }>) {
+}: Readonly<{ children?: ReactNode; onClose: () => void; onSearch: () => void }>) {
   const { t } = useTranslation("workbench");
   return (
     <div className="flex h-workbench-header items-center gap-1.5 px-3">
       <ProductBrand />
+      {/* 功能图标固定在搜索左侧，导航链接由调用方保留原有项目上下文。 */}
+      {children}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button

@@ -354,7 +354,10 @@ export function ProjectSidebar({
         onToggleInspector={() => onPanelShortcut("inspector")}
         onToggleSidebar={() => onPanelShortcut("sidebar")}
       />
-      <ProjectSidebarHeader onClose={onClose} onSearch={() => setSearchState("open")} />
+      <ProjectSidebarHeader onClose={onClose} onSearch={() => setSearchState("open")}>
+        <SidebarTaskBoardLink {...(projectId === undefined ? {} : { projectId })} />
+        <SidebarExtensionCenterLink {...(projectId === undefined ? {} : { projectId })} />
+      </ProjectSidebarHeader>
 
       <nav className="space-y-0.5 px-2" aria-label={t("sidebar.agentNavigation")}>
         <Link className={primaryActionClassName} to="/temporary" onClick={onNewTaskClick}>
@@ -362,16 +365,6 @@ export function ProjectSidebar({
           {t("sidebar.newTask")}
         </Link>
         <SidebarScheduledTasksLink
-          className={primaryActionClassName}
-          iconClassName={primaryActionIconClassName}
-          {...(projectId === undefined ? {} : { projectId })}
-        />
-        <SidebarTaskBoardLink
-          className={primaryActionClassName}
-          iconClassName={primaryActionIconClassName}
-          {...(projectId === undefined ? {} : { projectId })}
-        />
-        <SidebarExtensionCenterLink
           className={primaryActionClassName}
           iconClassName={primaryActionIconClassName}
           {...(projectId === undefined ? {} : { projectId })}

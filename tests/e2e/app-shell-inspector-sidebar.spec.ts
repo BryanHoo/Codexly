@@ -131,10 +131,11 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const newAgent = sidebar.getByRole("link", { name: "新建任务" });
+  const taskBoard = sidebar.getByRole("link", { name: "任务看板" });
   const extensionCenter = sidebar.getByRole("link", { name: "扩展中心" });
   const searchButton = sidebar.getByRole("button", { name: "全局搜索" });
   const search = page.getByRole("combobox", { name: "全局搜索" });
-  const productBrand = sidebar.getByText("Codexly", { exact: true }).first();
+  const productBrand = sidebar.getByRole("img", { name: "Codexly" });
   await expect(productBrand).toBeVisible();
   await expect(searchButton).toBeVisible();
   await expect(search).toHaveCount(0);
@@ -154,6 +155,8 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
   const pinnedSection = sidebar.getByRole("region", { name: "已固定", exact: true });
   const projectsBox = await sidebar.getByRole("heading", { name: "项目" }).boundingBox();
   const extensionCenterBox = await extensionCenter.boundingBox();
+  const taskBoardBox = await taskBoard.boundingBox();
+  const searchButtonBox = await searchButton.boundingBox();
   const temporaryGroupBox = await sidebar.getByRole("region", { name: "聊天" }).boundingBox();
   const firstProjectBox = await sidebar
     .getByRole("button", { name: "切换项目 Codexly" })
@@ -169,6 +172,8 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
     pinnedBox === null ||
     projectsBox === null ||
     extensionCenterBox === null ||
+    taskBoardBox === null ||
+    searchButtonBox === null ||
     temporaryGroupBox === null ||
     firstProjectBox === null
   ) {
@@ -176,12 +181,32 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
   }
   expect(newAgentBox.height).toBe(32);
   expect(extensionCenterBox.y + extensionCenterBox.height).toBeLessThanOrEqual(pinnedBox.y);
-  expect(pinnedBox.y - (extensionCenterBox.y + extensionCenterBox.height)).toBeLessThanOrEqual(12);
-  expect(newAgentBox.y).toBeLessThan(extensionCenterBox.y);
+  // 任务看板与扩展中心改为头部图标，顺序固定在搜索左侧，保留项目作用域。
+  expect(taskBoardBox.x + taskBoardBox.width).toBeLessThanOrEqual(extensionCenterBox.x);
+  expect(extensionCenterBox.x + extensionCenterBox.width).toBeLessThanOrEqual(searchButtonBox.x);
+  expect(taskBoardBox.y).toBe(searchButtonBox.y);
+  expect(extensionCenterBox.y).toBe(searchButtonBox.y);
+  await expect(taskBoard).toHaveAttribute("href", "/p/codexly/board");
+  await expect(extensionCenter).toHaveAttribute("href", "/p/codexly/extensions/skills");
+  await expect(taskBoard).toHaveText("");
+  await expect(extensionCenter).toHaveText("");
+  expect(extensionCenterBox.y).toBeLessThan(newAgentBox.y);
   expect(extensionCenterBox.y).toBeLessThan(pinnedBox.y);
   expect(pinnedBox.y).toBeLessThan(projectsBox.y);
   expect(firstProjectBox.y - (temporaryGroupBox.y + temporaryGroupBox.height)).toBe(0);
   await expect(pinnedSection.getByRole("link", { name: /补充 Protocol 契约/u })).toBeVisible();
+
+  const inactiveBackground = await taskBoard.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+  await taskBoard.click();
+  await expect(page).toHaveURL(/\/p\/codexly\/board$/u);
+  await expect(taskBoard).toHaveAttribute("aria-current", "page");
+  await expect
+    .poll(() => taskBoard.evaluate((element) => getComputedStyle(element).backgroundColor))
+    .not.toBe(inactiveBackground);
+  await extensionCenter.click();
+  await expect(page).toHaveURL(/\/p\/codexly\/extensions\/skills$/u);
 });
 
 test("preserves the original sidebar control typography and dimensions", async ({ page }) => {

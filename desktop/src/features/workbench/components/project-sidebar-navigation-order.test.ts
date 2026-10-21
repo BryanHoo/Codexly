@@ -7,14 +7,16 @@ import projectSidebarTaskListSource from "./project-sidebar-task-list.tsx?raw";
 describe("ProjectSidebar navigation", () => {
   it("orders primary actions by task workflow", () => {
     const primaryActionPositions = [
-      projectSidebarSource.lastIndexOf('t("sidebar.newTask")'),
-      projectSidebarSource.lastIndexOf("<SidebarScheduledTasksLink"),
       projectSidebarSource.lastIndexOf("<SidebarTaskBoardLink"),
       projectSidebarSource.lastIndexOf("<SidebarExtensionCenterLink"),
+      projectSidebarSource.lastIndexOf('t("sidebar.newTask")'),
+      projectSidebarSource.lastIndexOf("<SidebarScheduledTasksLink"),
     ];
 
     expect(primaryActionPositions).not.toContain(-1);
-    expect(primaryActionPositions).toEqual(primaryActionPositions.toSorted((left, right) => left - right));
+    expect(primaryActionPositions).toEqual(
+      primaryActionPositions.toSorted((left, right) => left - right),
+    );
   });
 
   it("keeps primary navigation and the project section compact", () => {
