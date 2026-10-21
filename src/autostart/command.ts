@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { normalizeAllowedHost } from "@codexly/server";
+import { resolveNpmCommandInvocation } from "../app-update-command.js";
 import { parseCommandOptions, START_VALUE_OPTIONS } from "../cli-command-options.js";
 import { listLanAccessUrls } from "../lan-access.js";
 import type { TerminalOutput } from "../terminal-output.js";
@@ -76,15 +77,14 @@ export async function validateGlobalInstallation(runtime: ConfigRuntime): Promis
   if (Number(process.versions.node.split(".")[0]) < 24)
     throw new Error("自启动需要 Node.js 24 或更高版本");
   if (/(?:^|[/\\])(?:_npx|_pnpx|dlx)(?:[/\\]|$)/u.test(runtime.cli)) throw new Error(instruction);
-  const result =
-    process.platform === "win32"
-      ? await execute("powershell.exe", [
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          "& npm.cmd root --global; exit $LASTEXITCODE",
-        ])
-      : await execute("npm", ["root", "--global"]);
+  // 全局入口可能固定使用 Homebrew 等独立 Node，而终端 PATH 已被 fnm/nvm 切换。
+  // 与更新流程共用 npm 解析，使用运行时自带的 npm 查询目录，避免把有效全局安装误判为本地安装。
+  const invocation = resolveNpmCommandInvocation(
+    ["root", "--global"],
+    process.platform,
+    runtime.node,
+  );
+  const result = await execute(invocation.command, invocation.args);
   if (result.code !== 0) throw new Error(`${instruction}（无法读取 npm 全局目录）`);
   const globalRoot = result.stdout.trim();
   try {
