@@ -497,3 +497,4 @@ export * from "./engine-profile.js";
 export * from "./claude-extensions.js";
 
 export { AgentThreadConfigurationSchema } from "./agent-attachments.js";
+export * from "./task-activity.js";

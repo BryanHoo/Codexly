@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import type { TaskActivitySnapshot } from "../../protocol/index.js";
 import { invoke } from "./native-invoke.js";
 
@@ -7,4 +8,8 @@ export async function getTaskActivities(): Promise<readonly TaskActivitySnapshot
 
 export async function acknowledgeTaskActivity(projectId: string, taskId: string): Promise<void> {
   await invoke("acknowledge_task_activity", { projectId, taskId });
+}
+
+export function listenTaskActivityChanged(listener: () => void): Promise<() => void> {
+  return listen("task-activity://changed", listener);
 }

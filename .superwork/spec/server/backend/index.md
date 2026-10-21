@@ -53,3 +53,5 @@
 - 辅助生成菜单集中维护默认 Agent、默认模型、`commitMessagePrompt` 与 `taskTitlePrompt`。两种提示词互相独立，空白回退各自内置规则；标题规则须传入 Codex / Claude 实际请求，不能只保存到表单。延迟适配器必须保留 `includeEphemeral` 订阅选项，验证 `cli-engine-runtime.test.ts` 与 `CODEXLY_REAL_RUNTIME_TEST=1 pnpm exec vitest run src/cli-commit-generation-runtime.test.ts`（隔离本地模型，不消耗额度）。
 
 - 应用业务数据统一位于用户主目录 `~/.codexly`，Web 与桌面共用 `state.sqlite3` 及 Claude 历史目录；禁止从 `CODEX_HOME` 或 Tauri 系统应用目录派生新的业务存储。迁移必须用 SQLite 一致快照、禁止覆盖发布及事务完成标记，保留旧源并覆盖 WAL、并发启动、删除不复活、Windows 扩展路径和项目 ID 关联文件复制。详见[本地目录与任务](../../../../docs/local-catalog.md)，验证 `app-storage-migration.test.ts`、Rust `app_data` / `local_catalog` 测试。
+
+- `/v1/tasks/activity` 读取独立于项目运行时缓存和事件保留窗口的轻量活动索引；全局工作区连接只在状态边界发送 `task-activity.changed`。逐 token 事件不得截取 checkpoint、刷新活动列表或增加传输。详情读取可按原 checkpoint 补种遗漏状态；完成/失败保留至版本匹配的确认或任务删除，普通运行时空闲回收不得清除提醒。运行和等待审批的项目不得因没有项目事件连接而回收；活动数查询使用项目计数索引。验证 `app-task-activity.test.ts`、`project-runtime-idle-reaper.test.ts` 与事件合并回归。

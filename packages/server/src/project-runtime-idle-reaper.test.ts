@@ -117,3 +117,30 @@ describe("ProjectRuntimeIdleReaper", () => {
     clearIntervalSpy.mockRestore();
   });
 });
+
+it("keeps a running background task alive without a project event socket", async () => {
+  vi.useFakeTimers();
+  const contexts = new Map([["background", createContext()]]);
+  let now = 0,
+    active = true;
+  const release = vi.fn(() => {
+    contexts.delete("background");
+    return Promise.resolve();
+  });
+  const reaper = new ProjectRuntimeIdleReaper({
+    cleanupIntervalMs: 10,
+    idleTtlMs: 50,
+    clock: () => now,
+    contexts,
+    release,
+    hasActiveTasks: () => active,
+  });
+  reaper.touch("background");
+  now = 100;
+  await vi.advanceTimersByTimeAsync(10);
+  expect(release).not.toHaveBeenCalled();
+  active = false;
+  await vi.advanceTimersByTimeAsync(10);
+  expect(release).toHaveBeenCalledOnce();
+  await reaper.close();
+});

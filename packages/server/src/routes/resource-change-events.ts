@@ -1,10 +1,40 @@
 import type { FastifyInstance } from "fastify";
-import type { WorkbenchChange } from "@codexly/protocol";
+import { TaskActivityPageSchema, type WorkbenchChange } from "@codexly/protocol";
+import { Type } from "@sinclair/typebox";
 import { ACCESS_SESSION_COOKIE } from "./access-routes.js";
 import type { ServerRouteContext } from "./context.js";
 import { scheduleSessionExpiry } from "../websocket-lifecycle.js";
 
 export function registerWorkbenchEvents(app: FastifyInstance, context: ServerRouteContext) {
+  app.get("/v1/tasks/activity", { schema: { response: { 200: TaskActivityPageSchema } } }, () => ({
+    data: context.workbenchChanges.taskActivities.snapshot(),
+  }));
+  app.post<{ Body: { projectId: string; taskId: string; version: number } }>(
+    "/v1/tasks/activity/acknowledge",
+    {
+      schema: {
+        body: Type.Object(
+          {
+            projectId: Type.String({ minLength: 1 }),
+            taskId: Type.String({ minLength: 1 }),
+            version: Type.Integer({ minimum: 1 }),
+          },
+          { additionalProperties: false },
+        ),
+        response: { 200: Type.Object({ acknowledged: Type.Boolean() }) },
+      },
+    },
+    (request) => {
+      const { projectId, taskId, version } = request.body;
+      const acknowledged = context.workbenchChanges.taskActivities.acknowledge(
+        projectId,
+        taskId,
+        version,
+      );
+      if (acknowledged) context.workbenchChanges.publish({ type: "task-activity.changed" });
+      return { acknowledged };
+    },
+  );
   registerResourceChangeEvents<WorkbenchChange>(
     app,
     context,

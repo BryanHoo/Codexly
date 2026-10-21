@@ -53,6 +53,16 @@ impl AppState {
         }
     }
 
+    pub(crate) async fn task_activity_read_snapshot(&self) -> Vec<serde_json::Value> {
+        let runtime = self.runtime.lock().await;
+        runtime.task_activity.snapshot().into_iter().map(|snapshot| {
+            let sequence = runtime.project_sequences.get(&snapshot.project_id).copied().unwrap_or_default();
+            let mut value = serde_json::json!(&snapshot);
+            value["checkpoint"] = serde_json::json!({ "sequence": sequence, "sessionId": crate::infrastructure::codex::runtime_session_id() });
+            value
+        }).collect()
+    }
+
     pub(crate) async fn task_activity_snapshot(&self) -> Vec<TaskActivitySnapshot> {
         self.runtime.lock().await.task_activity.snapshot()
     }

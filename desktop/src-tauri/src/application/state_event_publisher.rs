@@ -12,7 +12,7 @@ use crate::{
 };
 use serde_json::{Value, json};
 use std::sync::Arc;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
 
 pub(super) async fn publish_mapped_event(
@@ -137,6 +137,13 @@ pub(super) async fn publish_mapped_event_at_boundary(
     if let Some(app) = app {
         // 原生状态已完成投影；即使窗口已销毁，仍更新托盘、宠物和通知。
         if let Some(task_activities) = task_activities.as_deref() {
+            // 全局状态变更独立于项目事件订阅；窗口重新加载后通过轻量快照补齐。
+            if let Err(error) = app.emit("task-activity://changed", ()) {
+                crate::infrastructure::diagnostics::record_error(
+                    "task_activity_notify_failed",
+                    error,
+                );
+            }
             if let Err(error) = render_tray_task_activities(app, task_activities) {
                 crate::infrastructure::diagnostics::record_error(
                     "runtime_event_tray_update_failed",

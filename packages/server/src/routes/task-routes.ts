@@ -49,6 +49,7 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
   context,
   done,
 ) => {
+  const contextForActivity = context;
   const { getProjectContext, runIdempotent, taskFromSnapshot } = context;
 
   app.get<{
@@ -83,7 +84,10 @@ export const registerTaskRoutes: FastifyPluginCallback<ServerRouteContext> = (
         ...(request.query.pinned === true ? { pinnedOnly: true as const } : {}),
         ...(request.query.searchTerm === undefined ? {} : { searchTerm: request.query.searchTerm }),
       };
-      return context.provider.listTasks(input);
+      const page = await context.provider.listTasks(input);
+      // 仅补标题元数据，不从分页列表猜测运行状态。
+      contextForActivity.workbenchChanges.taskActivities.remember(page.data);
+      return page;
     },
   );
 

@@ -1,3 +1,4 @@
+import { projectTaskActivitySnapshot } from "@codexly/frontend-core/task-activity-sync";
 import { taskEngine, type AgentEngine } from "@codexly/protocol";
 import type {
   AgentEvent,
@@ -125,25 +126,11 @@ export function recordNativeTaskActivity(
   snapshot: TaskActivitySnapshot,
 ): TaskActivityMap {
   const currentRecord = activity.get(createTaskActivityKey(snapshot.projectId, snapshot.taskId));
-  const waiting = snapshot.status === "waiting";
-  const requiresApproval = waiting && snapshot.requiresApproval;
   return replaceTaskActivity(activity, snapshot.projectId, snapshot.taskId, {
-    attention:
-      snapshot.status === "completed"
-        ? "completed"
-        : snapshot.status === "failed"
-          ? "failed"
-          : requiresApproval
-            ? "approval"
-            : null,
-    // 原生活动快照没有引擎字段，只保留已有归属；不能套用完整旧任务的 Codex 默认值。
+    ...projectTaskActivitySnapshot(snapshot),
+    // 活动快照不猜测引擎，保留完整任务或既有记录已确认的归属。
     engine: currentRecord?.engine,
-    isRunning: snapshot.status === "running" || waiting,
-    pendingApprovalRequestIds: requiresApproval ? new Set(["native"]) : new Set(),
-    projectId: snapshot.projectId,
     startedAt: snapshot.startedAt,
-    taskId: snapshot.taskId,
-    taskName: snapshot.taskName,
   });
 }
 

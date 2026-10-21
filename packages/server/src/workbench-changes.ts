@@ -1,8 +1,16 @@
-import type { WorkbenchChange } from "@codexly/protocol";
+import type { EventCheckpoint, WorkbenchChange } from "@codexly/protocol";
 import type { AgentProviderEvent } from "@codexly/core";
 
+import { TaskActivityIndex } from "./task-activity-index.js";
+
 export class WorkbenchChanges {
+  readonly taskActivities = new TaskActivityIndex();
   readonly #listeners = new Set<(change: WorkbenchChange) => void>();
+
+  forgetProject(projectId: string): void {
+    this.taskActivities.forgetProject(projectId);
+    this.publish({ type: "task-activity.changed" });
+  }
 
   subscribe(listener: (change: WorkbenchChange) => void): () => void {
     this.#listeners.add(listener);
@@ -16,7 +24,13 @@ export class WorkbenchChanges {
     for (const listener of this.#listeners) listener(change);
   }
 
-  publishAgentEvent(projectId: string, event: AgentProviderEvent): void {
+  publishAgentEvent(
+    projectId: string,
+    event: AgentProviderEvent,
+    checkpoint?: () => EventCheckpoint,
+  ): void {
+    if (this.taskActivities.observe(projectId, event, checkpoint))
+      this.publish({ type: "task-activity.changed" });
     // 只在问题消息成型和回合边界校准，逐 token 的消息增量不触发 HTTP 请求。
     if (
       event.type === "turn.started" ||

@@ -1,3 +1,4 @@
+import { useProjectTaskActivitySync } from "./use-project-task-activity-sync.js";
 import { patchTaskTitleCaches } from "@codexly/ui/core/task-title-cache";
 import { TEMPORARY_TASK_SCOPE_ID, type Project, type ProjectPage } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,9 +37,7 @@ import {
 import type { ProjectProviderProps } from "./project-provider-types.js";
 import type { ProjectTaskInfiniteData } from "./project-query-contracts.js";
 import { ProjectProviderView } from "./project-provider-view.js";
-
 const emptyProjects: readonly Project[] = [];
-
 export function ProjectProvider({
   children,
   client = codexlyClient,
@@ -164,6 +163,7 @@ export function ProjectProvider({
   const [projectTaskResults, setProjectTaskResults] = useState<
     ReadonlyMap<string, ProjectTaskQueryResult>
   >(() => new Map());
+  useProjectTaskActivitySync(client, projectRuntime);
   const [activeProjectId, setActiveProjectId] = useState<string>();
   const [expandedProjectTaskIds, setExpandedProjectTaskIdsState] = useState<ReadonlySet<string>>(
     () => new Set(),

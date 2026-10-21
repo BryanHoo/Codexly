@@ -34,6 +34,7 @@ export function installWorkbenchQuerySync(
     });
   });
   const refresh = (change: WorkbenchChange) => {
+    if (change.type === "task-activity.changed") return;
     const predicate = ({ queryKey: key }: Query) => {
       const questions = key[0] === "async-questions";
       const todos = key[0] === "projects" && key[2] === "todos";

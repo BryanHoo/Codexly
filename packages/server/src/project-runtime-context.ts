@@ -34,6 +34,7 @@ export function createProjectRuntimeContext(
     provider: options.eventProvider,
     sessionId: options.eventSessionId ?? randomUUID(),
   });
+  const readCheckpoint = () => eventStream.checkpoint;
   const { attachmentStore, onAttachmentReleaseError, provider, scope } = options;
   return {
     eventStream,
@@ -62,7 +63,7 @@ export function createProjectRuntimeContext(
         invalidateProjectGitBranchCache(event.payload.rootPath);
       }
       eventStream.publish(event);
-      options.workbenchChanges?.publishAgentEvent(scope.id, event);
+      options.workbenchChanges?.publishAgentEvent(scope.id, event, readCheckpoint);
     }),
   };
 }

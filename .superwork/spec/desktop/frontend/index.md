@@ -57,3 +57,5 @@
 - 切回可见窗口时，通过共享 `installCatalogFocusRefresh` 使目录与历史列表失效，以读取同机另一端的提交；合并同轮 focus/visibility 事件，释放监听，不新增后台轮询或刷新聊天正文。回归见共享 `catalog-focus-refresh.test.ts`。
 
 - 设置 → 常用提示词与输入框的 `/` 插入遵循[共享 UI 规则](../../ui/shared/index.md)，两端只适配语言、项目上下文和设置路由；本机存储不要求引擎就绪。验证新增、搜索、编辑、删除、存储失败、光标中间插入、项目范围隔离、项目筛选、删除项目时清理关联提示词及最多 12 项的排名菜单。
+
+- 桌面任务状态恢复遵循[共享活动快照契约](../../frontend-core/shared/index.md)，使用 `get_task_activities` 和全局 `task-activity://changed`，不依赖已打开的项目订阅；原生读取在同一锁内截取活动状态与项目 checkpoint。不得以容量预算淘汰运行中、待处理或未查看终态；确认、归档与删除负责清理。验证原生 `task_activity` 容量回归及 `task-activity-restore.browser.test.tsx`。

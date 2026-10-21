@@ -8,6 +8,7 @@ type ProjectRuntimeIdleReaperOptions = Readonly<{
   clock?: () => number;
   contexts: ReadonlyMap<string, ProjectRuntimeContext>;
   idleTtlMs: number;
+  hasActiveTasks?: (projectId: string) => boolean;
   onReleaseError?: (error: unknown, projectId: string) => void;
   release: (projectId: string) => Promise<void>;
 }>;
@@ -18,6 +19,7 @@ export class ProjectRuntimeIdleReaper {
   readonly #clock: () => number;
   readonly #contexts: ReadonlyMap<string, ProjectRuntimeContext>;
   readonly #idleTtlMs: number;
+  readonly #hasActiveTasks: (projectId: string) => boolean;
   readonly #onReleaseError: (error: unknown, projectId: string) => void;
   readonly #release: (projectId: string) => Promise<void>;
   #closed = false;
@@ -35,6 +37,7 @@ export class ProjectRuntimeIdleReaper {
     this.#clock = options.clock ?? Date.now;
     this.#contexts = options.contexts;
     this.#idleTtlMs = options.idleTtlMs;
+    this.#hasActiveTasks = options.hasActiveTasks ?? (() => false);
     this.#onReleaseError = options.onReleaseError ?? (() => undefined);
     this.#release = options.release;
     this.#cleanupTimer = setInterval(() => {
@@ -82,6 +85,7 @@ export class ProjectRuntimeIdleReaper {
       }
       if (
         context.transportMetrics.activeClients > 0 ||
+        this.#hasActiveTasks(projectId) ||
         lastActiveAt + this.#idleTtlMs > now ||
         this.#contexts.get(projectId) !== context
       ) {

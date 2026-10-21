@@ -9,6 +9,7 @@ import {
   clearTaskAttention,
   getTaskActivity,
   recordRunningTaskActivity,
+  recordNativeTaskActivity,
   recordTaskActivitySnapshot,
   reduceTaskActivityEvent,
   removeTaskActivity,
@@ -30,7 +31,14 @@ import {
 
 import { ProjectEventRuntime } from "./project-runtime-events.js";
 
+import { reconcileActivitySnapshots } from "@codexly/frontend-core/task-activity-sync";
+import type { TaskActivitySnapshot as ActivitySnapshot } from "@codexly/protocol";
+
 export class ProjectRuntimeManager {
+  readonly #synchronizedActivityKeys = new Set<string>();
+  readonly #activityVersions = new Map<string, number>();
+  public onTaskActivityViewed:
+    ((projectId: string, taskId: string, version: number) => void) | undefined;
   readonly #activityListeners = new Set<ActivityListener>();
   readonly #idleTimeoutMs: number;
   readonly #maxEventHistoryBytes: number;
@@ -104,12 +112,14 @@ export class ProjectRuntimeManager {
     }
     this.#projects.clear();
     this.#activityListeners.clear();
+    this.#synchronizedActivityKeys.clear();
     this.#taskActivityCheckpoints.clear();
     this.#taskTitles.clear();
     this.#titleRefreshedRunningTurns.clear();
   }
 
   public forgetTask(projectId: string, taskId: string): void {
+    this.#synchronizedActivityKeys.delete(createProjectTaskKey(projectId, taskId));
     this.#updateTaskActivity(removeTaskActivity(this.#taskActivity, projectId, taskId));
     this.#taskActivityCheckpoints.delete(createProjectTaskKey(projectId, taskId));
     this.#taskTitles.delete(createProjectTaskKey(projectId, taskId));
@@ -148,6 +158,52 @@ export class ProjectRuntimeManager {
     if (this.#viewedTask?.projectId === projectId) {
       this.#viewedTask = undefined;
     }
+  }
+
+  public reconcileTaskActivities(
+    tasks: readonly ActivitySnapshot[],
+    baseline: TaskActivityMap,
+  ): void {
+    const next = reconcileActivitySnapshots(
+      this.#taskActivity,
+      baseline,
+      tasks,
+      this.#synchronizedActivityKeys,
+      (task, previous) => {
+        const key = createProjectTaskKey(task.projectId, task.taskId);
+        const currentCheckpoint = this.#taskActivityCheckpoints.get(key);
+        if (
+          previous !== undefined &&
+          task.checkpoint !== undefined &&
+          currentCheckpoint?.sessionId === task.checkpoint.sessionId &&
+          currentCheckpoint.sequence > task.checkpoint.sequence
+        )
+          return previous;
+        // 活动快照也推进权威水位，较早开始的聊天详情请求不能反向覆盖侧栏。
+        if (task.checkpoint !== undefined) this.#taskActivityCheckpoints.set(key, task.checkpoint);
+        this.#rememberTaskTitle({
+          id: task.taskId,
+          projectId: task.projectId,
+          title: task.taskName,
+        });
+        const singleton: TaskActivityMap =
+          previous === undefined ? new Map() : new Map([[key, previous]]);
+        const updated = recordNativeTaskActivity(singleton, task);
+        if (task.version !== undefined) this.#activityVersions.set(key, task.version);
+        const viewed = this.#isTaskViewed(task.projectId, task.taskId);
+        if (
+          viewed &&
+          task.version !== undefined &&
+          (task.status === "completed" || task.status === "failed")
+        )
+          this.onTaskActivityViewed?.(task.projectId, task.taskId, task.version);
+        const result = viewed ? clearTaskAttention(updated, task.projectId, task.taskId) : updated;
+        const record = result.get(key);
+        if (record === undefined) throw new Error("Activity snapshot identity is missing");
+        return record;
+      },
+    );
+    this.#updateTaskActivity(next);
   }
 
   public getTaskActivity(): TaskActivityMap {
@@ -196,6 +252,8 @@ export class ProjectRuntimeManager {
   public viewTask(projectId: string, taskId?: string): void {
     this.#viewedTask = taskId === undefined ? undefined : { projectId, taskId };
     if (taskId !== undefined) {
+      const version = this.#activityVersions.get(createProjectTaskKey(projectId, taskId));
+      if (version !== undefined) this.onTaskActivityViewed?.(projectId, taskId, version);
       this.#updateTaskActivity(clearTaskAttention(this.#taskActivity, projectId, taskId));
     }
     this.#projects.get(projectId)?.markAccess();

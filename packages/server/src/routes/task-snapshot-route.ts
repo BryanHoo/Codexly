@@ -67,6 +67,8 @@ export function registerTaskSnapshotRoute(app: FastifyInstance, context: ServerR
         return reply.code(404).send({ code: "TASK_NOT_FOUND", message: "Task not found" });
       }
       request.signal.throwIfAborted();
+      if (context.workbenchChanges.taskActivities.observeSnapshot(read.snapshot, read.checkpoint))
+        context.workbenchChanges.publish({ type: "task-activity.changed" });
       const task = await restorePersistedAsyncQuestionAnswers(
         context,
         request.params.projectId,

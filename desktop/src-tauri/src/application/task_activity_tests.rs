@@ -315,3 +315,47 @@ fn terminal_failures_and_task_removal_are_reduced_in_rust() {
     );
     assert!(state.snapshot().is_empty());
 }
+
+#[test]
+fn activity_capacity_never_evicts_running_or_unread_tasks() {
+    let mut state = TaskActivityState::default();
+    for index in 0..300 {
+        state.apply_event("p", &event(json!({
+            "taskId": format!("task-{index}"), "type": "turn.started", "payload": {"turn": {"status": "running"}}
+        })));
+    }
+    assert_eq!(
+        state.snapshot().len(),
+        300,
+        "运行任务不能因容量上限失去标识"
+    );
+    for index in 0..300 {
+        state.apply_event("p", &event(json!({
+            "taskId": format!("task-{index}"), "type": "turn.completed", "payload": {"turn": {"status": "completed"}}
+        })));
+    }
+    assert_eq!(state.snapshot().len(), 300, "未查看完成任务必须保留到确认");
+}
+
+#[test]
+fn authoritative_idle_settles_active_tasks_without_overwriting_failures() {
+    let mut state = TaskActivityState::default();
+    for status in ["running", "idle"] {
+        state.apply_event(
+            "p",
+            &event(
+                json!({"taskId":"t", "type":"task.status_updated", "payload":{"status":status}}),
+            ),
+        );
+    }
+    assert_eq!(state.snapshot()[0].status, TaskActivityStatus::Completed);
+    for status in ["failed", "idle"] {
+        state.apply_event(
+            "p",
+            &event(
+                json!({"taskId":"t", "type":"task.status_updated", "payload":{"status":status}}),
+            ),
+        );
+    }
+    assert_eq!(state.snapshot()[0].status, TaskActivityStatus::Failed);
+}

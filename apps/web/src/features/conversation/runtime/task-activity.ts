@@ -1,9 +1,11 @@
+import { projectTaskActivitySnapshot } from "@codexly/frontend-core/task-activity-sync";
 import {
   taskEngine,
   type AgentEngine,
   type AgentEvent,
   type AgentTaskSnapshot,
   type PendingRequest,
+  type TaskActivitySnapshot,
 } from "@codexly/protocol";
 
 export type TaskAttention = "approval" | "completed" | "failed" | null;
@@ -117,6 +119,18 @@ export function recordRunningTaskActivity(
       : { startedAt: currentRecord.startedAt }),
     taskId,
     taskName: currentRecord?.taskName ?? taskId,
+  });
+}
+
+export function recordNativeTaskActivity(
+  activity: TaskActivityMap,
+  snapshot: TaskActivitySnapshot,
+): TaskActivityMap {
+  const currentRecord = activity.get(createTaskActivityKey(snapshot.projectId, snapshot.taskId));
+  return replaceTaskActivity(activity, snapshot.projectId, snapshot.taskId, {
+    ...projectTaskActivitySnapshot(snapshot),
+    // 活动快照不猜测引擎，保留完整任务或既有记录已确认的归属。
+    engine: currentRecord?.engine,
   });
 }
 

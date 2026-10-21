@@ -235,6 +235,7 @@ export async function createCodexlyServer(
   const releaseProjectContext = async (projectId: string, preserveQueuedAttachments = false) =>
     projectRuntimeLifecycleLock.run(projectId, async () => {
       projectRuntimeIdleReaper.forget(projectId);
+      if (!preserveQueuedAttachments) workbenchChanges.forgetProject(projectId);
       const context = projectContexts.get(projectId);
       if (context !== undefined) {
         // 在锁内摘除并完整释放旧代次，禁止同 ID Runtime 提前重建。
@@ -253,6 +254,8 @@ export async function createCodexlyServer(
     cleanupIntervalMs:
       options.projectRuntimeCleanupIntervalMs ?? DEFAULT_PROJECT_RUNTIME_CLEANUP_INTERVAL_MS,
     contexts: projectContexts,
+    // 后台运行和等待审批不能因没有打开项目页面而被空闲回收。
+    hasActiveTasks: (projectId) => workbenchChanges.taskActivities.hasActiveProject(projectId),
     idleTtlMs: options.projectRuntimeIdleTtlMs ?? DEFAULT_PROJECT_RUNTIME_IDLE_TTL_MS,
     onReleaseError: (_error, projectId) => {
       app.log.warn(

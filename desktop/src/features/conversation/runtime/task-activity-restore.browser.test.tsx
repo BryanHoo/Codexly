@@ -6,10 +6,11 @@ import { render } from "vitest-browser-react";
 const mocks = vi.hoisted(() => ({
   listen: vi.fn(),
   refreshTaskSnapshot: vi.fn(async () => undefined),
-  restoreTaskActivities: vi.fn(async () => undefined),
+  getTaskActivity: vi.fn(() => new Map()),
+  reconcileTaskActivities: vi.fn(),
 }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: mocks.listen }));
-vi.mock("../../../platform/tauri/task-activity-client.js", () => ({ getTaskActivities: async () => [] }));
+vi.mock("../../../platform/tauri/task-activity-client.js", () => ({ getTaskActivities: async () => [], listenTaskActivityChanged: async () => () => {} }));
 vi.mock("../../projects/project-context.js", () => ({ useProjectActions: () => ({ projectRuntime: mocks }) }));
 
 import { TaskActivityRestore } from "./task-activity-restore.js";

@@ -4,7 +4,6 @@ use serde::Serialize;
 
 use crate::domain::runtime::AgentEvent;
 
-const MAX_TASK_ACTIVITIES: usize = 256;
 const MAX_TASK_METADATA: usize = 2_048;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -197,6 +196,18 @@ impl TaskActivityState {
                     changed
                 }
                 Some("failed") => self.set_terminal_status(project_id, task_id, true),
+                Some("idle") => {
+                    // 权威空闲可以补齐遗漏的回合终态；已有失败提醒不能降级为完成。
+                    let active = self
+                        .activity_index(project_id, task_id)
+                        .is_some_and(|index| {
+                            matches!(
+                                self.activities[index].snapshot.status,
+                                TaskActivityStatus::Running | TaskActivityStatus::Waiting
+                            )
+                        });
+                    active && self.set_terminal_status(project_id, task_id, false)
+                }
                 _ => false,
             },
             _ => false,
@@ -210,7 +221,10 @@ impl TaskActivityState {
         task_is_viewed: bool,
     ) -> bool {
         let changed = self.apply_event(project_id, event);
-        if !task_is_viewed || event.event_type() != Some("turn.completed") {
+        let terminal_event = event.event_type() == Some("turn.completed")
+            || (event.event_type() == Some("task.status_updated")
+                && event_text(event, "/payload/status") == Some("idle"));
+        if !task_is_viewed || !terminal_event {
             return changed;
         }
         let acknowledged = event
@@ -377,19 +391,7 @@ impl TaskActivityState {
         if let Some(index) = self.activity_index(project_id, task_id) {
             return &mut self.activities[index];
         }
-        if self.activities.len() >= MAX_TASK_ACTIVITIES {
-            let terminal_index = self
-                .activities
-                .iter()
-                .position(|record| {
-                    matches!(
-                        record.snapshot.status,
-                        TaskActivityStatus::Completed | TaskActivityStatus::Failed
-                    )
-                })
-                .unwrap_or(0);
-            self.activities.remove(terminal_index);
-        }
+        // 运行与未查看终态是权威状态，不能按缓存容量淘汰；查看、归档和删除负责释放。
         let metadata = self.metadata.get(task_id);
         self.activities.push(TaskActivityRecord {
             approval_request_ids: HashSet::new(),

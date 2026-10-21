@@ -52,3 +52,22 @@ test("workbench subscription stops retrying expired sessions", async () => {
   expect(factory).toHaveBeenCalledOnce();
   unsubscribe();
 });
+
+test("shares one global connection across activity and workbench consumers", () => {
+  const socket = new Socket();
+  const factory = vi.fn(() => socket as unknown as WebSocket);
+  const client = new CodexlyClient({ baseUrl: "http://host.test", webSocketFactory: factory });
+  const first = vi.fn(),
+    second = vi.fn();
+  const stopFirst = client.subscribeWorkbenchChanges(first);
+  const stopSecond = client.subscribeWorkbenchChanges(second);
+  expect(factory).toHaveBeenCalledOnce();
+  socket.message({ type: "task-activity.changed" });
+  expect(first).toHaveBeenCalledWith({ type: "task-activity.changed" });
+  expect(second).toHaveBeenCalledWith({ type: "task-activity.changed" });
+  stopFirst();
+  socket.message({ type: "task-activity.changed" });
+  expect(first).toHaveBeenCalledTimes(1);
+  expect(second).toHaveBeenCalledTimes(2);
+  stopSecond();
+});

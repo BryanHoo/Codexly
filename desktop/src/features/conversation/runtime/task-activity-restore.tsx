@@ -1,7 +1,8 @@
+import { installTaskActivitySync } from "@codexly/frontend-core/task-activity-sync";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { getTaskActivities } from "../../../platform/tauri/task-activity-client.js";
+import { getTaskActivities, listenTaskActivityChanged } from "../../../platform/tauri/task-activity-client.js";
 import { listenScheduledTaskStarted } from "../../../platform/tauri/scheduled-task-events.js";
 import { cacheCreatedProjectTask } from "../../projects/project-query-cache.js";
 import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
@@ -36,17 +37,14 @@ export function TaskActivityRestore() {
     };
   }, [projectRuntime, queryClient]);
 
-  useEffect(() => {
-    let active = true;
-    void getTaskActivities()
-      .then((tasks) => (active ? projectRuntime.restoreTaskActivities(tasks) : undefined))
-      .catch((error: unknown) => {
-        recordInternalWarning("task_activity_restore_failed", error);
-      });
-    return () => {
-      active = false;
-    };
-  }, [projectRuntime]);
+  useEffect(() => installTaskActivitySync({
+    read: getTaskActivities,
+    capture: () => projectRuntime.getTaskActivity(),
+    apply: (tasks, baseline) => projectRuntime.reconcileTaskActivities(tasks, baseline),
+    subscribe: listenTaskActivityChanged,
+    onError: (error) => recordInternalWarning("task_activity_restore_failed", error),
+    target: document, window,
+  }), [projectRuntime]);
 
   return null;
 }
