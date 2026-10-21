@@ -37,3 +37,5 @@
 - 两端通过 `engine-settings-query.ts` 共用模型、公共偏好的引擎路由和查询键；仅 Claude 时必须传递 Claude 范围。缓存键区分引擎；默认 Codex 路径保留原请求形态。泛型保留两端响应及设置扩展，不能截断桌面 `changedFields` 或桌面专属打开方式。共享 Git 提交面板在仅 Claude 时显式发送 `engine: "claude"`。
 
 - 常用提示词数据和项目可见范围共用 `saved-prompts`：无 `projectId` 表示全局，指定后仅对应项目可用；快捷词在范围内唯一，项目版本覆盖同名全局版本。项目删除按 ID 清理并持久化，写失败不能发布新快照。候选排名共用 `prompt-suggestions`，仅维护最多 12 项最佳结果，禁止全量排序和正文匹配；平台不能独立实现范围过滤。回归见 `saved-prompts.test.ts`、`prompt-suggestions.test.ts`。
+
+- 引擎配置发现按引擎和项目缓存，草稿 ID 不参与缓存身份；新草稿与分屏复用在途请求及近期配置；正在使用的配置保留缓存订阅，不能因空闲 GC 而在长聊天结束后重新阻塞控件。设置变更显式失效，并撤销旧在途响应的缓存写入资格，防止旧配置重新成为新草稿默认值。模型控件仅等待所属引擎的配置，不能因另一引擎发现而清空已就绪的模型与思考选项。回归使用 `engine-profile-cache.test.ts`、`engine-composer-activation.test.tsx` 与桌面浏览器共享 Hook 用例。

@@ -35,6 +35,7 @@ export type ProjectRuntimeManagerOptions = Readonly<{
     reason: "file_changed" | "turn_completed" | "turn_started",
   ) => void;
   onProjectGitMetadataChanged?: (projectId: string, rootPath: string) => void;
+  onTaskTitleChanged?: (projectId: string, taskId: string, title: string) => void;
   onTaskMetadataChanged?: (
     projectId: string,
     taskId: string,

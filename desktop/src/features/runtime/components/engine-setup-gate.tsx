@@ -1,3 +1,4 @@
+import { useEngineProfileInvalidation } from "@codexly/ui/core/engine-profile-invalidation";
 import { listen } from "@tauri-apps/api/event";
 import type { AgentEngine } from "@codexly/protocol";
 import { useEffect, type ReactNode } from "react";
@@ -11,6 +12,7 @@ const noEngines: readonly AgentEngine[] = [];
 
 /** 配置是启用状态的唯一来源；旧向导选择不再启动未配置引擎，也不阻塞首次进入设置。 */
 export function EngineSetupGate({ children }: Readonly<{ children: ReactNode }>) {
+  useEngineProfileInvalidation();
   const client = useQueryClient();
   const configured = useQuery({
     queryKey: configuredEnginesKey,
@@ -27,7 +29,10 @@ export function EngineSetupGate({ children }: Readonly<{ children: ReactNode }>)
     window.addEventListener("codexly:engine-settings-changed", refresh);
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    void listen("engine-configuration-changed", refresh).then((stop) => {
+    // 原生跨窗口变更也走同一失效事件，使聊天配置与设置页同步刷新。
+    void listen("engine-configuration-changed", () => {
+      window.dispatchEvent(new Event("codexly:engine-settings-changed"));
+    }).then((stop) => {
       if (disposed) stop(); else unlisten = stop;
     }).catch(() => { /* 桥接尚未就绪时仍可通过窗口聚焦和设置事件恢复。 */ });
     return () => {

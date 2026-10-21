@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentProviderEvent } from "@codexly/core";
 import type { Project } from "@codexly/protocol";
 import { createCodexRuntimeProvider } from "./runtime-provider.test-support.js";
@@ -446,4 +446,28 @@ describe("CodexAgentProvider history", () => {
       },
     });
   });
+});
+
+it("starts history paging while the independent goal read is still pending", async () => {
+  const rpc = new FakeRpcClient([{ thread: nativeThread() }]);
+  const request = rpc.request.bind(rpc);
+  let finishGoal!: (value: unknown) => void;
+  const goal = new Promise<unknown>((resolve) => {
+    finishGoal = resolve;
+  });
+  rpc.request = (method, params) => (method === "thread/goal/get" ? goal : request(method, params));
+  const reading = createCodexAgentProvider({ client: rpc, project }).readTask("task-1", {
+    summary: true,
+  });
+  try {
+    await vi.waitFor(
+      () => {
+        expect(rpc.calls.some((call) => call.method === "thread/turns/list")).toBe(true);
+      },
+      { timeout: 200 },
+    );
+  } finally {
+    finishGoal({ goal: null });
+    await reading;
+  }
 });

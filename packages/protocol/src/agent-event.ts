@@ -115,7 +115,10 @@ export const McpServerStatusUpdatedEventSchema = createEventSchema({
 
 export const TaskMetadataChangedEventSchema = createEventSchema({
   payload: Type.Object(
-    { permissionMode: Type.Optional(ClaudePermissionModeSchema) },
+    {
+      title: Type.Optional(Type.String({ minLength: 1, maxLength: 512 })),
+      permissionMode: Type.Optional(ClaudePermissionModeSchema),
+    },
     { additionalProperties: false },
   ),
   type: Type.Literal("task.metadata_changed"),

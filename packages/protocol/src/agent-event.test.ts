@@ -519,3 +519,25 @@ describe("Agent Event v2 protocol", () => {
     ).toBe(false);
   });
 });
+
+it("accepts title patches and legacy metadata notifications with bounded title length", () => {
+  const event = {
+    provider: "codex",
+    version: 2,
+    sequence: 1,
+    sessionId: "runtime-1",
+    timestamp: "2026-07-23T00:00:01.000Z",
+    taskId: "task-1",
+    type: "task.metadata_changed",
+  };
+  for (const payload of [
+    {},
+    { title: "生成的标题" },
+    { title: "新标题", permissionMode: "plan" },
+  ]) {
+    expect(Value.Check(AgentEventSchema, { ...event, payload })).toBe(true);
+  }
+  for (const title of ["", "x".repeat(513)]) {
+    expect(Value.Check(AgentEventSchema, { ...event, payload: { title } })).toBe(false);
+  }
+});

@@ -255,6 +255,14 @@ export function reduceTaskActivityEvent(
   let pendingApprovalRequestIds = currentRecord.pendingApprovalRequestIds;
 
   switch (event.type) {
+    case "task.metadata_changed":
+      // 运行中分组使用独立活动记录；标题事件必须同步更新，不能等待下一次快照。
+      return event.payload.title === undefined
+        ? activity
+        : replaceTaskActivity(activity, projectId, event.taskId, {
+            ...currentRecord,
+            taskName: event.payload.title,
+          });
     case "turn.started":
       attention = null;
       isRunning = true;

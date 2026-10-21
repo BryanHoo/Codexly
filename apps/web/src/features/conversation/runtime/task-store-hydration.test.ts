@@ -557,3 +557,17 @@ it("applies confirmed Claude permission metadata without replacing model configu
     .applyEvents([{ ...eventEnvelope(12), type: "task.metadata_changed", payload: {} }]);
   expect(store.getState().snapshotMetadata?.threadConfiguration?.permissionMode).toBe("plan");
 });
+
+it("updates a generated title in place without reloading message stores", () => {
+  const store = createTaskStore({ projectId: "project-1", taskId: "task-1" }, createResponse());
+  const items = store.getState().itemStoresByKey;
+  store.getState().applyEvents([
+    {
+      ...eventEnvelope(11),
+      type: "task.metadata_changed",
+      payload: { title: "生成的标题" },
+    },
+  ]);
+  expect(store.getState().snapshotMetadata?.title).toBe("生成的标题");
+  expect(store.getState().itemStoresByKey).toBe(items);
+});

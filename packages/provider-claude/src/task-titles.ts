@@ -156,7 +156,7 @@ export class ClaudeTaskTitles {
           )
             return;
           await this.store.catalog("task.patch", { id: task.id, title });
-          this.emit({ type: "task.metadata_changed", taskId: task.id, payload: {} });
+          this.emit({ type: "task.metadata_changed", taskId: task.id, payload: { title } });
         });
       })
       // 标题存储失败不能影响主回合，也不能产生未处理拒绝。
@@ -181,7 +181,7 @@ export class ClaudeTaskTitles {
     this.forget(id);
     await this.mutate(id, async () => {
       await this.store.catalog("task.patch", { id, title });
-      this.emit({ type: "task.metadata_changed", taskId: id, payload: {} });
+      this.emit({ type: "task.metadata_changed", taskId: id, payload: { title } });
     });
   }
 

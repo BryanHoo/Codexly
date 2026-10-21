@@ -109,7 +109,8 @@ export function mapCodexProjectStateNotification(
     };
   }
   if (method === "thread/name/updated") {
-    return { payload: {}, taskId, type: "task.metadata_changed" };
+    const title = typeof params["threadName"] === "string" ? params["threadName"].trim() : "";
+    return { payload: title ? { title } : {}, taskId, type: "task.metadata_changed" };
   }
   if (method === "thread/queue/changed") {
     return { payload: {}, taskId, type: "queue.changed" };

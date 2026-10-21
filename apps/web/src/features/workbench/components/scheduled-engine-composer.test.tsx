@@ -19,6 +19,11 @@ const { useEngineComposerState, captured } = vi.hoisted(() => ({
 vi.mock("@codexly/ui/core/engine-composer-state", () => ({ useEngineComposerState }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: { state: "connected" } }),
+  useQueryClient: () => ({
+    getQueryData: vi.fn(),
+    fetchQuery: vi.fn(),
+    invalidateQueries: vi.fn(),
+  }),
   queryOptions: (value: unknown) => value,
 }));
 vi.mock("../../../i18n/i18n.js", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));

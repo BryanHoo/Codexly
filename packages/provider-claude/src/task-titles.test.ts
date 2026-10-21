@@ -96,7 +96,11 @@ it.each(
   });
   expect(h.tasks.get("task")?.title).toBe("修复登录异常");
   expect(h.close).toHaveBeenCalledOnce();
-  expect(h.emit).toHaveBeenCalledOnce();
+  expect(h.emit).toHaveBeenCalledWith({
+    type: "task.metadata_changed",
+    taskId: "task",
+    payload: { title: "修复登录异常" },
+  });
 });
 
 it("times out an unresponsive query and publishes the fallback", async () => {

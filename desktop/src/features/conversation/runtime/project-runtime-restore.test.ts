@@ -45,6 +45,31 @@ function createSnapshot(projectId: string, taskId: string): AgentTaskSnapshotRes
   };
 }
 
+it("synchronizes a generated title to the running shortcut and visible task without reading history", () => {
+  let onEvent: SubscribeAgentEventsOptions["onEvent"] = () => undefined;
+  const client = {
+    readTask: vi.fn(async () => createSnapshot("project-1", "task-1")),
+    releaseTaskSubscription: vi.fn(async () => undefined),
+    retainTaskSubscription: vi.fn(async () => undefined),
+    subscribeEvents: vi.fn((options: SubscribeAgentEventsOptions) => {
+      onEvent = options.onEvent;
+      return () => undefined;
+    }),
+  } as unknown as NativeRuntimeClient;
+  const onTaskTitleChanged = vi.fn();
+  const runtime = createProjectRuntimeManager(client, { onTaskTitleChanged });
+  const store = createTaskStore({ projectId: "project-1", taskId: "task-1" });
+  const detach = runtime.attachTaskStore(createSnapshot("project-1", "task-1"), store, async () => undefined);
+  onEvent({ provider: "codex", sessionId: "session-1", sequence: 5, version: 2,
+    timestamp: "2026-09-03T08:00:00.000Z", taskId: "task-1", type: "task.metadata_changed", payload: { title: "新的标题" } });
+  expect(store.getState().snapshotMetadata?.title).toBe("新的标题");
+  expect(getSidebarActiveTasks(runtime.getTaskActivity(), new Set(["project-1"])).tasks[0]?.title).toBe("新的标题");
+  expect(onTaskTitleChanged).toHaveBeenCalledWith("project-1", "task-1", "新的标题");
+  expect(client.readTask).not.toHaveBeenCalled();
+  detach();
+  runtime.dispose();
+});
+
 describe("ProjectRuntimeManager task activity restoration", () => {
   it.each(["recover", "recover-last", "external", "exhaust", "detach", "dispose"] as const)("bounds cold ownership retries and respects task lifetime (%s)", async (outcome) => {
     vi.useFakeTimers();

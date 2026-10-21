@@ -186,11 +186,21 @@ async fn read_task_snapshot_view(
     let thread = response.thread;
     validate_thread(&thread, &project_id, &task_id)?;
 
-    let (native_turns, next_cursor) = if summary {
-        read_summary_turn_page(connection, &task_id, thread.history_mode, cursor).await?
+    let (native_page, prefetched_goal) = if summary {
+        // 正文摘要与 Goal 互不依赖；优先发出历史请求，并行等待，减少首次打开的串行往返。
+        let (page, goal) = tokio::try_join!(
+            biased;
+            read_summary_turn_page(connection, &task_id, thread.history_mode, cursor),
+            get_goal(connection, &task_id),
+        )?;
+        (page, Some(goal))
     } else {
-        read_turn_page(connection, &task_id, thread.history_mode, cursor).await?
+        (
+            read_turn_page(connection, &task_id, thread.history_mode, cursor).await?,
+            None,
+        )
     };
+    let (native_turns, next_cursor) = native_page;
     // app-server 倒序分页以最新回合优先返回，UI 时间线保持正序展示。
     let turns = native_turns
         .into_iter()
@@ -202,7 +212,10 @@ async fn read_task_snapshot_view(
     } else {
         map_thread_status(&thread.status)?
     };
-    let goal = get_goal(connection, &task_id).await?;
+    let goal = match prefetched_goal {
+        Some(goal) => goal,
+        None => get_goal(connection, &task_id).await?,
+    };
 
     Ok(AgentTaskSnapshotResponse {
         checkpoint: EventCheckpoint {

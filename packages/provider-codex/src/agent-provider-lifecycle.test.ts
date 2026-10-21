@@ -296,7 +296,7 @@ describe("CodexAgentProvider task lifecycle", () => {
 
     expect(events).toEqual([
       { payload: { status: "running" }, taskId: "task-1", type: "task.status_updated" },
-      { payload: {}, taskId: "task-1", type: "task.metadata_changed" },
+      { payload: { title: "Renamed" }, taskId: "task-1", type: "task.metadata_changed" },
       { payload: {}, taskId: project.id, type: "skills.changed" },
       { payload: { reason: "archived" }, taskId: "task-1", type: "task.removed" },
     ]);

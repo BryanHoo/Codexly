@@ -1,3 +1,4 @@
+import { patchTaskTitleCaches } from "@codexly/ui/core/task-title-cache";
 import { TEMPORARY_TASK_SCOPE_ID, type Project, type ProjectPage } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -107,6 +108,9 @@ export function ProjectProvider({
           exact: true,
           queryKey: ["projects", projectId, "tasks", taskId],
         });
+      },
+      onTaskTitleChanged(projectId, taskId, title) {
+        patchTaskTitleCaches(queryClient, projectId, taskId, title);
       },
       onTaskMetadataChanged(projectId, taskId, reason) {
         const syncTaskMetadata = async () => {

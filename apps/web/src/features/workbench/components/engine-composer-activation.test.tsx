@@ -84,3 +84,95 @@ it("does not silently switch a Claude-only draft to an unenabled Codex while dis
   );
   expect(markup).toContain("claude");
 });
+
+it("keeps a configured Codex draft ready while Claude discovery is still pending", () => {
+  function Composer() {
+    const state = useEngineComposerState({
+      scope: "p",
+      taskId: undefined,
+      taskEngine: undefined,
+      codexConfigured: true,
+      load: () => Promise.withResolvers<AgentEngineProfile>().promise,
+    });
+    return (
+      <span>
+        {state.engine}:{String(state.pending)}
+      </span>
+    );
+  }
+  expect(
+    renderToStaticMarkup(
+      <SelectedEnginesContext value={["codex", "claude"]}>
+        <Composer />
+      </SelectedEnginesContext>,
+    ),
+  ).toContain("codex:false");
+});
+
+it("restores a cached Claude profile synchronously when mounting a new draft", () => {
+  function Composer() {
+    const state = useEngineComposerState({
+      scope: "new-draft",
+      profileScope: "p",
+      taskId: undefined,
+      taskEngine: undefined,
+      initialEngine: "claude",
+      codexConfigured: true,
+      cachedProfile: { engine: "claude", connection: { state: "connected" } } as AgentEngineProfile,
+      load: vi.fn(),
+    });
+    return (
+      <span>
+        {state.engine}:{String(state.pending)}
+      </span>
+    );
+  }
+  expect(
+    renderToStaticMarkup(
+      <SelectedEnginesContext value={["codex", "claude"]}>
+        <Composer />
+      </SelectedEnginesContext>,
+    ),
+  ).toContain("claude:false");
+});
+
+it("waits for discovery when Codex is disconnected and Claude may be the available engine", () => {
+  function Composer() {
+    const state = useEngineComposerState({
+      scope: "disconnected",
+      taskId: undefined,
+      taskEngine: undefined,
+      codexConfigured: false,
+      load: () => Promise.withResolvers<AgentEngineProfile>().promise,
+    });
+    return <span>{String(state.pending)}</span>;
+  }
+  expect(
+    renderToStaticMarkup(
+      <SelectedEnginesContext value={["codex", "claude"]}>
+        <Composer />
+      </SelectedEnginesContext>,
+    ),
+  ).toContain("true");
+});
+
+it("does not unlock a draft before Codex discovery confirms whether engine fallback is necessary", () => {
+  function Composer() {
+    const state = useEngineComposerState({
+      scope: "await-connection",
+      taskId: undefined,
+      taskEngine: undefined,
+      codexConfigured: undefined,
+      cachedProfile: { engine: "claude", connection: { state: "connected" } } as AgentEngineProfile,
+      load: vi.fn(),
+    });
+    return <span>{String(state.pending)}</span>;
+  }
+  expect(
+    renderToStaticMarkup(
+      <SelectedEnginesContext value={["codex", "claude"]}>
+        <Composer />
+      </SelectedEnginesContext>,
+    ),
+  ).toContain("true");
+});

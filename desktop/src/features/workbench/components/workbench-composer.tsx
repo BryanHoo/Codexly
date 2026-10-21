@@ -1,6 +1,7 @@
+import { engineProfileQuery } from "@codexly/frontend-core/engine-settings-query";
 import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import { useCallback, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { NativeClient } from "@/platform/native-client-contract.js";
 import type { AgentEngine, AgentTaskSettings } from "@codexly/protocol";
 import { resolveClaudeComposerSettings, resolveCodexComposerSettings } from "@codexly/frontend-core/engine-composer";
@@ -18,16 +19,32 @@ const emptyModels = [] as const;
 
 export function WorkbenchComposer(props: WorkbenchComposerProps) {
   const { t } = useTranslation("workbench");
+  const queryClient = useQueryClient();
   const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
   const connection = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
   const client = props.client as WorkbenchComposerProps["client"] & Partial<EngineClient>;
   const scope = JSON.stringify([props.projectId, props.composerDraftId ?? props.taskId ?? (props.onCaptureSubmission ? "capture" : "draft")]);
-  const load = useCallback((engine: AgentEngine) => {
-    if (import.meta.env.VITE_MACOS_LEGACY === "true") return Promise.reject(new Error(t("engine.unsupportedLegacy")));
-    if (!client.getEngineProfile) return Promise.reject(new Error("Engine service unavailable"));
-    return client.getEngineProfile(engine, props.projectId);
-  }, [client, props.projectId, t]);
-  const state = useEngineComposerState({ scope, taskId: props.taskId, taskEngine: props.runtime?.metadata?.engine,
+  const profileQueryKey = ["engine-profile", "claude", props.projectId] as const;
+  const readProfile = useCallback(
+    (engine: AgentEngine) => {
+      if (import.meta.env.VITE_MACOS_LEGACY === "true") return Promise.reject(new Error(t("engine.unsupportedLegacy")));
+      const getProfile = client.getEngineProfile?.bind(client);
+      if (!getProfile) return Promise.reject(new Error("Engine service unavailable"));
+      return getProfile(engine, props.projectId);
+    },
+    [client, props.projectId, t],
+  );
+  const load = useCallback(
+    (engine: AgentEngine) => queryClient.fetchQuery(engineProfileQuery(readProfile, engine, props.projectId)),
+    [props.projectId, queryClient, readProfile],
+  );
+  // 只订阅缓存，发现请求仍由共享状态触发；会话正在使用的配置不能被空闲 GC 回收。
+  useQuery({ ...engineProfileQuery(readProfile, "claude", props.projectId), enabled: false });
+  const invalidateProfile = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["engine-profile"], refetchType: "none" });
+  }, [queryClient]);
+  const state = useEngineComposerState({ scope, profileScope: props.projectId,
+    cachedProfile: queryClient.getQueryData(profileQueryKey), invalidateProfile, taskId: props.taskId, taskEngine: props.runtime?.metadata?.engine,
     ...(props.initialEngine === undefined ? {} : { initialEngine: props.initialEngine }), codexConfigured: connection.isPending ? undefined : connection.data?.state === "connected", claudeSupported: import.meta.env.VITE_MACOS_LEGACY !== "true", load });
   const [override, setOverride] = useState<{ scope: string; settings: AgentTaskSettings } | undefined>(() =>
     props.onCaptureSubmission && props.settings.engineOptions?.engine === "claude"

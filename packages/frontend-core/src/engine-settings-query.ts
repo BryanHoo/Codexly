@@ -1,4 +1,4 @@
-import type { AgentEngine, AgentModelPage } from "@codexly/protocol";
+import type { AgentEngine, AgentEngineProfile, AgentModelPage } from "@codexly/protocol";
 
 interface ReadSettingsOptions {
   signal?: AbortSignal;
@@ -50,5 +50,18 @@ export function engineSettingsMutation<TSettings, TResponse>(
     mutationKey: ["settings", "update"] as const,
     meta: { actionNotification: false },
     scope: { id: "global-settings" },
+  };
+}
+
+/** 配置按引擎与项目缓存，草稿和分屏共享发现结果；配置变更显式失效。 */
+export function engineProfileQuery(
+  load: (engine: AgentEngine) => Promise<AgentEngineProfile>,
+  engine: AgentEngine,
+  projectId: string,
+) {
+  return {
+    queryKey: ["engine-profile", engine, projectId] as const,
+    queryFn: () => load(engine),
+    staleTime: 5 * 60_000,
   };
 }

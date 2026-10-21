@@ -140,35 +140,43 @@ export abstract class CodexAgentProviderTasks extends CodexAgentProviderTurns {
       if (task.workspacePath !== undefined)
         this.runtime.taskWorkspacePaths.set(task.id, task.workspacePath);
       this.runtime.goals.delete(taskId);
-      const requestedGoal = await this.readGoalResponse(taskId, client);
-      // goal/get 期间到达的通知时序更新，必须优先于可能已经过期的 RPC 响应。
+      // Goal 与回合分页互不依赖；同时发出 RPC，避免元数据往返阻塞首屏正文。
+      const [requestedGoal, pageResult] = await Promise.all([
+        this.readGoalResponse(taskId, client),
+        (async () => {
+          let nativePage: Awaited<ReturnType<typeof readNativeTaskTurnPage>>;
+          try {
+            nativePage =
+              cursor.reviewItems !== undefined
+                ? { turns: [], nextTurnCursor: cursor.turnCursor ?? null }
+                : await readNativeTaskTurnPage(
+                    client,
+                    taskId,
+                    readThreadHistoryMode(thread),
+                    cursor.turnCursor,
+                    input.summary === true,
+                  );
+          } catch (error) {
+            const unmaterializedTask = this.runtime.unmaterializedTasks.get(taskId);
+            if (
+              cursor.turnCursor === undefined &&
+              unmaterializedTask !== undefined &&
+              isThreadNotMaterializedError(error)
+            ) {
+              // Codex 首条消息前允许读取元数据，但分页历史尚不可用。
+              return createUnmaterializedTaskSnapshot(unmaterializedTask);
+            }
+            throw error;
+          }
+          return nativePage;
+        })(),
+      ]);
+      if ("id" in pageResult) return pageResult;
+      const nativePage = pageResult;
+      // 读取期间到达的 Goal 通知优先于较早发出的响应。
       const goal = this.runtime.goals.has(taskId)
         ? (this.runtime.goals.get(taskId) ?? null)
         : requestedGoal;
-      let nativePage: Awaited<ReturnType<typeof readNativeTaskTurnPage>>;
-      try {
-        nativePage =
-          cursor.reviewItems !== undefined
-            ? { turns: [], nextTurnCursor: cursor.turnCursor ?? null }
-            : await readNativeTaskTurnPage(
-                client,
-                taskId,
-                readThreadHistoryMode(thread),
-                cursor.turnCursor,
-                input.summary === true,
-              );
-      } catch (error) {
-        const unmaterializedTask = this.runtime.unmaterializedTasks.get(taskId);
-        if (
-          cursor.turnCursor === undefined &&
-          unmaterializedTask !== undefined &&
-          isThreadNotMaterializedError(error)
-        ) {
-          // Codex 首条消息前允许读取元数据，但分页历史尚不可用。
-          return createUnmaterializedTaskSnapshot(unmaterializedTask);
-        }
-        throw error;
-      }
       const reviewPage =
         cursor.reviewItems === undefined
           ? await this.readReviewWorkerTurns(taskId, nativePage.turns, cursor.reviewCursor, client)

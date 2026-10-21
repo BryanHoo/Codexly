@@ -303,19 +303,23 @@ export function applyAcceptedEvent(
         },
       };
     case "task.metadata_changed":
-      return event.payload.permissionMode === undefined
-        ? { checkpoint }
-        : {
-            checkpoint,
-            snapshotMetadata: {
-              ...snapshotMetadata,
-              threadConfiguration: {
-                model: snapshotMetadata.threadConfiguration?.model ?? null,
-                reasoningEffort: snapshotMetadata.threadConfiguration?.reasoningEffort ?? null,
-                permissionMode: event.payload.permissionMode,
-              },
-            },
-          };
+      // 标题与权限都是元数据补丁，直接更新展示，不重新水合聊天正文。
+      return {
+        checkpoint,
+        snapshotMetadata: {
+          ...snapshotMetadata,
+          ...(event.payload.title === undefined ? {} : { title: event.payload.title }),
+          ...(event.payload.permissionMode === undefined
+            ? {}
+            : {
+                threadConfiguration: {
+                  model: snapshotMetadata.threadConfiguration?.model ?? null,
+                  reasoningEffort: snapshotMetadata.threadConfiguration?.reasoningEffort ?? null,
+                  permissionMode: event.payload.permissionMode,
+                },
+              }),
+        },
+      };
     case "skills.changed":
     case "task.removed":
       // Project 级缓存由 Runtime 回调同步，Task Store 只推进 checkpoint。

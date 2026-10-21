@@ -440,3 +440,30 @@ describe("project runtime events", () => {
     manager.dispose();
   });
 });
+
+it("publishes generated titles directly without a snapshot metadata refresh", () => {
+  const harness = createClientHarness();
+  const onTaskMetadataChanged = vi.fn();
+  const onTaskTitleChanged = vi.fn();
+  const manager = createProjectRuntimeManager(harness.client, {
+    onTaskMetadataChanged,
+    onTaskTitleChanged,
+  });
+  manager.observeSnapshot(createSnapshotResponse("task-1"));
+  harness.emit({
+    provider: "codex",
+    sessionId: "runtime-1",
+    timestamp: "2026-07-28T00:00:01.000Z",
+    version: 2,
+    sequence: 1,
+    taskId: "task-1",
+    type: "task.metadata_changed",
+    payload: { title: "生成的标题" },
+  });
+  expect(onTaskTitleChanged).toHaveBeenCalledWith("project-1", "task-1", "生成的标题");
+  expect(onTaskMetadataChanged).not.toHaveBeenCalled();
+  expect(
+    getSidebarActiveTasks(manager.getTaskActivity(), new Set(["project-1"])).tasks[0]?.title,
+  ).toBe("生成的标题");
+  manager.dispose();
+});

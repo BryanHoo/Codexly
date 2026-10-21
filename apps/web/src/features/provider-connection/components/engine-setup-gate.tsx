@@ -1,3 +1,4 @@
+import { useEngineProfileInvalidation } from "@codexly/ui/core/engine-profile-invalidation";
 import { EngineSelectionProvider } from "@codexly/ui/core/engine-selection-provider";
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { browserSetupStorage } from "@codexly/ui/core/engine-selection";
@@ -22,6 +23,7 @@ const ClaudeSettingsPanel = lazy(() =>
 );
 
 export function EngineSetupGate({ children }: Readonly<{ children: ReactNode }>) {
+  useEngineProfileInvalidation();
   const { t } = useTranslation("settings");
   const language = getCurrentLanguage();
   const [saved] = useState(() => readEngineSetup(browserSetupStorage.getItem(ENGINE_SETUP_KEY)));

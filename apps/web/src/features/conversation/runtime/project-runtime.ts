@@ -45,6 +45,7 @@ export class ProjectRuntimeManager {
   readonly #onQueueChanged: NonNullable<ProjectRuntimeManagerOptions["onQueueChanged"]>;
   readonly #onSkillsChanged: NonNullable<ProjectRuntimeManagerOptions["onSkillsChanged"]>;
   readonly #onTaskRemoved: NonNullable<ProjectRuntimeManagerOptions["onTaskRemoved"]>;
+  readonly #onTaskTitleChanged: NonNullable<ProjectRuntimeManagerOptions["onTaskTitleChanged"]>;
   readonly #onTaskMetadataChanged: NonNullable<
     ProjectRuntimeManagerOptions["onTaskMetadataChanged"]
   >;
@@ -69,6 +70,7 @@ export class ProjectRuntimeManager {
     this.#onQueueChanged = options.onQueueChanged ?? (() => undefined);
     this.#onSkillsChanged = options.onSkillsChanged ?? (() => undefined);
     this.#onTaskRemoved = options.onTaskRemoved ?? (() => undefined);
+    this.#onTaskTitleChanged = options.onTaskTitleChanged ?? (() => undefined);
     this.#onTaskMetadataChanged = options.onTaskMetadataChanged ?? (() => undefined);
     this.#taskNotifier = options.taskNotifier ?? createBrowserTaskNotifier();
     if (!Number.isSafeInteger(this.#idleTimeoutMs) || this.#idleTimeoutMs < 0) {
@@ -228,8 +230,16 @@ export class ProjectRuntimeManager {
             this.#onQueueChanged(eventProjectId, event.taskId);
           } else if (event.type === "task.metadata_changed") {
             // 权限模式已在 Task Store 原位更新，无需为每次切换重读列表或任务快照。
-            if (event.payload.permissionMode === undefined)
+            if (event.payload.title !== undefined) {
+              this.#rememberTaskTitle({
+                projectId: eventProjectId,
+                id: event.taskId,
+                title: event.payload.title,
+              });
+              this.#onTaskTitleChanged(eventProjectId, event.taskId, event.payload.title);
+            } else if (event.payload.permissionMode === undefined) {
               this.#onTaskMetadataChanged(eventProjectId, event.taskId, "native_notification");
+            }
           } else if (event.type === "task.removed") {
             this.#onTaskRemoved(eventProjectId, event.taskId);
             this.forgetTask(eventProjectId, event.taskId);
