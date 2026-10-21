@@ -1,5 +1,6 @@
 import type { AgentModel } from "@codexly/protocol";
 import {
+  Bookmark,
   Bot,
   Sparkles,
   ChevronDown,
@@ -25,6 +26,7 @@ export const settingsSections: readonly Readonly<{
   id: SettingsSectionId;
 }>[] = [
   { icon: Settings, id: "appearance" },
+  { icon: Bookmark, id: "prompts" },
   { icon: PawPrint, id: "pets" },
   { icon: Sparkles, id: "git" },
   { icon: ServerCog, id: "provider" },

@@ -1,5 +1,6 @@
 export const settings = {
   sectionKeywords: {
+    prompts: "常用提示词 快捷词 斜杠命令 本地存储 新建 编辑 删除",
     git: "辅助生成 默认 Agent 默认模型 Git 提交信息 任务标题 提示词 生成规则",
     "claude-provider": "Claude Anthropic API Key API 地址 连接 可用模型",
     "claude-agent": "Claude 默认模型 默认思考强度 工具权限 按需确认 允许编辑 计划模式 完全访问",
@@ -202,6 +203,7 @@ export const settings = {
     workspaceWrite: "工作区可写",
   },
   sections: {
+    prompts: "常用提示词",
     git: "辅助生成",
     "claude-provider": "模型服务",
     "claude-agent": "智能体配置",

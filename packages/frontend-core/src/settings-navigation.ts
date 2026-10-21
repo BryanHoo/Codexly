@@ -1,6 +1,6 @@
 /** 设置归属由两端共用；平台只过滤自身不支持的入口，不挂载面板来建立搜索索引。 */
 export const settingsSectionGroups = [
-  { id: "personal", sections: ["appearance", "pets", "git"] },
+  { id: "personal", sections: ["appearance", "prompts", "pets", "git"] },
   { id: "codex", sections: ["provider", "agent", "personalization"] },
   { id: "claude", sections: ["claude-provider", "claude-agent", "claude-personalization"] },
   { id: "app", sections: ["access", "about"] },
@@ -21,6 +21,7 @@ export const settingsSectionSearchKeys: Record<SettingsSectionId, readonly strin
   "claude-agent": [],
   "claude-personalization": [],
   access: ["access.logout"],
+  prompts: ["sections.prompts", "sectionKeywords.prompts"],
   git: [
     "fields.defaultAgent",
     "fields.defaultModel",

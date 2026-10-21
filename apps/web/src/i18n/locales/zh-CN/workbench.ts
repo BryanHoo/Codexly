@@ -71,6 +71,8 @@ export const workbench = {
     editingQueued: "编辑中",
     disableFastMode: "关闭快速模式",
     enableFastMode: "开启快速模式",
+    commandLimitHint: "最多显示 12 项，继续输入可精准匹配",
+    savedPromptGroup: "常用提示词",
     commandGroup: "命令",
     commandInput: "输入命令",
     commandNoMatch: "没有匹配的 Skill 或命令",
@@ -279,7 +281,8 @@ export const workbench = {
     name: "项目名称",
     previewMarkdown: "预览 Markdown",
     remove: "移除项目",
-    removeDescription: "将移除“{{name}}”及其中的 Codexly 任务记录。磁盘上的文件夹和文件会保留。",
+    removeDescription:
+      "将移除“{{name}}”及其中的 Codexly 任务记录，同时删除此设备上绑定该项目的全部常用提示词。磁盘上的文件夹和文件会保留。",
     rename: "重命名项目",
     renameDescription: "只修改左栏显示名称，不会修改磁盘上的文件夹名称。",
     showDiff: "查看 Diff",

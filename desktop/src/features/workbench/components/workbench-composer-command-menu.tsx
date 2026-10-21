@@ -68,31 +68,41 @@ export function ComposerCommandMenu({ props }: Readonly<{ props: WorkbenchCompos
           </PromptInputCommandGroup>
         ) : (
           <>
-            <PromptInputCommandGroup label={t("composer.commandGroup")}>
-              {props.filteredCommands.map((command, index) => {
-                const availability = props.getCommandAvailability(command);
-                return (
-                  <PromptInputCommandItem
-                    active={index === props.activeCommandIndex}
-                    aria-description={availability.reason}
-                    disabled={!availability.available}
-                    id={`${props.commandMenuId}-item-${String(index)}`}
-                    key={command.id}
-                    onClick={() => {
-                      props.onExecuteCommand(command);
-                    }}
-                  >
-                    <PromptCommandIcon action={command.action} />
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="font-medium">{command.label}</span>
-                      <span className="text-caption text-muted-foreground">
-                        {availability.reason ?? command.description}
-                      </span>
-                    </span>
-                  </PromptInputCommandItem>
-                );
-              })}
-            </PromptInputCommandGroup>
+            {[true, false].map((saved) =>
+              props.filteredCommands.some(
+                (command) => (command.action === "saved-prompt") === saved,
+              ) ? (
+                <PromptInputCommandGroup
+                  key={String(saved)}
+                  label={t(saved ? "composer.savedPromptGroup" : "composer.commandGroup")}
+                >
+                  {props.filteredCommands.map((command, index) => {
+                    if ((command.action === "saved-prompt") !== saved) return null;
+                    const availability = props.getCommandAvailability(command);
+                    return (
+                      <PromptInputCommandItem
+                        active={index === props.activeCommandIndex}
+                        aria-description={availability.reason}
+                        disabled={!availability.available}
+                        id={`${props.commandMenuId}-item-${String(index)}`}
+                        key={command.id}
+                        onClick={() => {
+                          props.onExecuteCommand(command);
+                        }}
+                      >
+                        <PromptCommandIcon action={command.action} />
+                        <span className="flex min-w-0 flex-1 flex-col">
+                          <span className="font-medium">{command.label}</span>
+                          <span className="truncate text-caption text-muted-foreground">
+                            {availability.reason ?? command.description}
+                          </span>
+                        </span>
+                      </PromptInputCommandItem>
+                    );
+                  })}
+                </PromptInputCommandGroup>
+              ) : null,
+            )}
             {props.filteredSkills.length === 0 ? null : (
               <PromptInputCommandGroup label="Skills">
                 {props.filteredSkills.map((skill, index) => {
@@ -124,6 +134,11 @@ export function ComposerCommandMenu({ props }: Readonly<{ props: WorkbenchCompos
           </>
         )}
       </PromptInputCommandList>
+      {props.reviewMenuMode === null ? (
+        <p className="border-t border-separator px-3 py-2 text-caption text-muted-foreground">
+          {t("composer.commandLimitHint")}
+        </p>
+      ) : null}
     </PromptInputCommand>
   );
 }

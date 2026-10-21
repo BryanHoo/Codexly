@@ -71,6 +71,8 @@ export const workbench = {
     editingQueued: "Editing",
     disableFastMode: "Disable fast mode",
     enableFastMode: "Enable fast mode",
+    commandLimitHint: "Showing up to 12 items. Keep typing to narrow results.",
+    savedPromptGroup: "Saved prompts",
     commandGroup: "Commands",
     commandInput: "Command input",
     commandNoMatch: "No matching Skill or command",
@@ -285,7 +287,7 @@ export const workbench = {
     previewMarkdown: "Preview Markdown",
     remove: "Remove project",
     removeDescription:
-      "Remove {{name}} and its task records from Codexly? Files on disk will be retained.",
+      "Remove {{name}}, its task records and all saved prompts bound to this project on this device? Files on disk will be retained.",
     rename: "Rename project",
     renameDescription: "This changes only the sidebar display name, not the folder name on disk.",
     showDiff: "View Diff",

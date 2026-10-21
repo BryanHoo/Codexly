@@ -53,3 +53,5 @@
 - Claude 与 Codex 共用跟进偏好和队列交互；WorkbenchComposer 不得按引擎强制覆盖 followUpBehavior，移动端遵循同一行为。scheduled-engine-composer.test.tsx 覆盖两种跟进偏好。
 
 - 切回可见窗口时，通过共享 `installCatalogFocusRefresh` 使目录与历史列表失效，以读取同机另一端的提交；合并同轮 focus/visibility 事件，释放监听，不新增后台轮询或刷新聊天正文。回归见共享 `catalog-focus-refresh.test.ts`。
+
+- 设置 → 常用提示词与输入框的 `/` 插入遵循[共享 UI 规则](../../ui/shared/index.md)，两端只适配语言、项目上下文和设置路由；本机存储不要求引擎就绪。验证新增、搜索、编辑、删除、存储失败、光标中间插入、项目范围隔离、项目筛选、删除项目时清理关联提示词及最多 12 项的排名菜单。

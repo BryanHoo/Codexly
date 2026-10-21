@@ -1,5 +1,5 @@
 import type { AgentGoal } from "@/protocol/index.js";
-import { Bug, CircleGauge, FilePlus2, GitFork, Lightbulb, Target, X, Zap } from "lucide-react";
+import { Bookmark, Bug, CircleGauge, FilePlus2, GitFork, Lightbulb, Target, X, Zap } from "lucide-react";
 import type { PromptCommandAction } from "./prompt-command.js";
 import type { ComposerMode } from "./workbench-composer-contracts.js";
 
@@ -25,6 +25,8 @@ import {
 export function PromptCommandIcon({ action }: Readonly<{ action: PromptCommandAction }>) {
   const className = "size-4 shrink-0 text-brand";
   switch (action) {
+    case "saved-prompt":
+      return <Bookmark aria-hidden="true" className={className} />;
     case "review":
       return <Bug aria-hidden="true" className={className} />;
     case "initialize":

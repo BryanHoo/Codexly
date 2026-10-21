@@ -1,3 +1,4 @@
+import { usePromptSuggestions } from "@codexly/ui/core/saved-prompts-store";
 import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import type {
   AgentCapabilities,
@@ -25,8 +26,6 @@ import {
 import { useWorkbenchComposerController } from "../hooks/use-workbench-composer-controller.js";
 import { useProjectFileSearch } from "../hooks/use-project-file-search.js";
 import {
-  filterPromptCommandItems,
-  filterPromptSkills,
   getPromptCommandItems,
   resolvePromptFileMention,
   resolvePromptSlashCommand,
@@ -212,16 +211,14 @@ export function useComposerSession({
     codexEnabled && fileMenuOpen && projectToolsEnabled && !turnControlsDisabled,
   );
   const fileSearchResults = fileSearch.data?.data ?? emptyProjectFileSearchResults;
-  const filteredSkills = filterPromptSkills(
-    capabilities?.skills.use === true ? skills : [],
-    commandQuery,
-  );
-  const filteredCommands = filterPromptCommandItems(
+  const { filteredCommands, filteredSkills } = usePromptSuggestions(
     getPromptCommandItems({
       projectToolsEnabled,
       ...(engineCommands === undefined ? {} : { engineCommands }),
     }),
+    capabilities?.skills.use === true ? skills : [],
     commandQuery,
+    projectId,
   );
   const baseBranches = gitStatus?.baseBranches ?? [];
   const menuItemCount = fileMenuOpen

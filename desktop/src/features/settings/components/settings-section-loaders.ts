@@ -10,3 +10,5 @@ export const ProviderConnectionPanel = lazy(() => import("../../provider-connect
 export const PersonalizationSettingsPanel = lazy(() => import("./personalization-settings-panel.js").then((module) => ({ default: module.PersonalizationSettingsPanel })));
 
 export const ClaudeSettingsPanel = lazy(() => import("./claude-settings-panel.js").then((module) => ({ default: module.ClaudeSettingsPanel })));
+
+export const SavedPromptsSettings = lazy(() => import("@codexly/ui/core/saved-prompts-settings").then((module) => ({ default: module.SavedPromptsSettings })));

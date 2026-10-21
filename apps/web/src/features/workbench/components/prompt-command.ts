@@ -3,11 +3,12 @@ import type { AgentCommand, AgentCapabilities, AgentSkill } from "@codexly/proto
 import { i18n } from "../../../i18n/i18n.js";
 
 export type PromptCommandAction =
-  "native" | "compact" | "fork" | "goal" | "initialize" | "plan" | "review";
+  "saved-prompt" | "native" | "compact" | "fork" | "goal" | "initialize" | "plan" | "review";
 
 export type PromptCommandItem = Readonly<{
   action: PromptCommandAction;
   command?: string;
+  content?: string;
   description: string;
   id: string;
   keywords: readonly string[];
@@ -92,6 +93,7 @@ export function getPromptCommandAvailability(
   capabilities: AgentCapabilities | undefined,
   hasTask: boolean,
 ): Readonly<{ available: boolean; reason?: string }> {
+  if (item.action === "saved-prompt") return { available: true };
   if (item.action === "native") return { available: capabilities?.turns.start === true };
   if (capabilities === undefined) {
     return {

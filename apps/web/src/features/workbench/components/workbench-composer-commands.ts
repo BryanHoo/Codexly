@@ -77,6 +77,7 @@ export function createComposerCommands({
     skillEditorRef.current?.focus(cursorPosition);
   };
   const getCommandAvailability = (command: PromptCommandItem) => {
+    if (command.action === "saved-prompt") return { available: true } as const;
     const availability = getPromptCommandAvailability(
       command,
       capabilities,
@@ -93,21 +94,22 @@ export function createComposerCommands({
     if (!getCommandAvailability(command).available) {
       return;
     }
-    if (command.action === "native" && command.command) {
+    if (command.action === "saved-prompt" || (command.action === "native" && command.command)) {
       const content = skillEditorRef.current?.getContent() ?? promptContent;
       const range = commandSlashCommand;
       if (!range) return;
+      // 只替换光标前的快捷词，保留前后正文以及 Skill、文件引用；插入不提交任务。
+      const text =
+        command.action === "saved-prompt" ? (command.content ?? "") : `/${command.command ?? ""} `;
+      const cursor = range.start + text.length;
       const [before] = splitPromptSkillContent(content, range.start);
       const [, after] = splitPromptSkillContent(content, range.end);
       replacePromptContent(
-        normalizePromptSkillContent([
-          ...before,
-          ...createPromptSkillContent(`/${command.command} `),
-          ...after,
-        ]),
+        normalizePromptSkillContent([...before, ...createPromptSkillContent(text), ...after]),
+        cursor,
       );
       closeCommandMenu();
-      focusEditor();
+      focusEditor(cursor);
       return;
     }
     if (command.action === "plan" || command.action === "goal") {

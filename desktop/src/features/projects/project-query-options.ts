@@ -1,3 +1,4 @@
+import { savedPromptsStore } from "@codexly/ui/core/saved-prompts-store";
 import { engineModelsQuery, engineSettingsQuery, engineSettingsMutation } from "@codexly/frontend-core/engine-settings-query";
 import { isRootGitProject } from "@codexly/frontend-core/project-git-availability";
 import type { NativeClient } from "@/platform/native-client-contract.js";
@@ -105,7 +106,13 @@ export function projectRemoveMutationOptions(
   client: Pick<NativeClient, "removeProject"> = nativeClient,
 ) {
   return mutationOptions({
-    mutationFn: (projectId: string) => client.removeProject(projectId),
+    mutationFn: async (projectId: string) => {
+      savedPromptsStore.assertProjectRemovalWritable(projectId);
+      const response = await client.removeProject(projectId);
+      // 远端确认删除成功后清理本机数据；请求失败时保留原提示词。
+      savedPromptsStore.removeProject(projectId);
+      return response;
+    },
     mutationKey: ["projects", "remove"] as const,
     scope: { id: "projects:actions" },
   });

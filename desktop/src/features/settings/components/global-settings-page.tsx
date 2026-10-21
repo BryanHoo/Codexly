@@ -1,3 +1,4 @@
+import { ProjectDataContext } from "../../projects/project-context-state.js";
 import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
 import { nativeClient } from "../../projects/project-queries.js";
 import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
@@ -11,7 +12,7 @@ import type {
   ExportDiagnosticsResponse,
   ProjectOpenApp,
 } from "@/protocol/index.js";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { Button } from "../../../shared/components/core/button.js";
 import { getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
@@ -26,7 +27,7 @@ import {
   createGlobalSettingsSaveQueue,
   SETTINGS_INPUT_DEBOUNCE_MS,
 } from "./global-settings-save.js";
-import { ClaudeSettingsPanel, GlobalSettingsAbout, ProviderConnectionPanel, GlobalSettingsPets, AgentSettingsPanel, GeneralSettingsPanel, PersonalizationSettingsPanel, CommitSettingsPanel } from "./settings-section-loaders.js";
+import { SavedPromptsSettings, ClaudeSettingsPanel, GlobalSettingsAbout, ProviderConnectionPanel, GlobalSettingsPets, AgentSettingsPanel, GeneralSettingsPanel, PersonalizationSettingsPanel, CommitSettingsPanel } from "./settings-section-loaders.js";
 import { applyBrowserSettingsChanges } from "./browser-settings-apply.js";
 import { SettingsPageFrame } from "./settings-page-frame.js";
 export { resolveGlobalSettingsModel } from "./global-settings-model.js";
@@ -74,6 +75,7 @@ export function GlobalSettingsPage({
   settings,
 }: GlobalSettingsPageProps) {
   const { t } = useTranslation("settings");
+  const projectData = useContext(ProjectDataContext);
   const getGenerationModels = useCallback(async (engine: "codex" | "claude") =>
     engine === "codex" ? models : (await nativeClient.getEngineProfile(engine)).models.data, [models]);
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection);
@@ -171,7 +173,7 @@ export function GlobalSettingsPage({
         onUpdate={onUpdate}
       /> : null}
 
-      {isClaudeSettingsSection(activeSection) ? <ClaudeSettingsPanel section={activeSection} /> : activeSection === "provider" ? (
+      {activeSection === "prompts" ? <SavedPromptsSettings language={language} projects={projectData?.projects} projectsUnavailable={!projectData || projectData.isPending || !!projectData.error} /> : isClaudeSettingsSection(activeSection) ? <ClaudeSettingsPanel section={activeSection} /> : activeSection === "provider" ? (
         <section id="settings-panel-provider">
           <h1 className="mb-6 text-xl font-semibold">{t("sections.provider")}</h1>
           <ProviderConnectionPanel autoSave />

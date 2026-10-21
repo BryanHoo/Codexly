@@ -1,9 +1,10 @@
+import { ProjectDataContext } from "../../projects/project-context-state.js";
 import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
 import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
 import { SettingsSaveStatus } from "@codexly/ui/core/settings-save-status";
 import { isClaudeSettingsSection } from "@codexly/frontend-core/settings-navigation";
 import type { AgentGlobalSettings } from "@codexly/protocol";
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { changeAppLanguage, getCurrentLanguage, useTranslation } from "../../../i18n/i18n.js";
 import "../../../i18n/settings-personalization.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -23,6 +24,11 @@ import type { SettingsSectionId } from "./global-settings-fields.js";
 import { GeneralSettingsPanel } from "./general-settings-panel.js";
 import { GlobalSettingsAccess } from "./global-settings-access.js";
 
+const SavedPromptsSettings = lazy(() =>
+  import("@codexly/ui/core/saved-prompts-settings").then((module) => ({
+    default: module.SavedPromptsSettings,
+  })),
+);
 const AgentSettingsPanel = lazy(() =>
   import("./agent-settings-panel.js").then((module) => ({ default: module.AgentSettingsPanel })),
 );
@@ -67,6 +73,7 @@ export function GlobalSettingsPage({
   ...props
 }: GlobalSettingsPageProps & Readonly<{ client: SettingsClient }>) {
   const { t } = useTranslation("settings");
+  const projectData = useContext(ProjectDataContext);
   const getGenerationModels = useCallback(
     async (engine: "codex" | "claude") =>
       engine === "codex" ? models : (await client.getEngineProfile(engine)).models.data,
@@ -194,7 +201,13 @@ export function GlobalSettingsPage({
         />
       ) : null}
       <Suspense fallback={status}>
-        {isClaudeSettingsSection(activeSection) ? (
+        {activeSection === "prompts" ? (
+          <SavedPromptsSettings
+            language={language}
+            projects={projectData?.projects}
+            projectsUnavailable={!projectData || projectData.isPending || !!projectData.error}
+          />
+        ) : isClaudeSettingsSection(activeSection) ? (
           <ClaudeSettingsPanel client={client} section={activeSection} />
         ) : activeSection === "about" ? (
           <GlobalSettingsAbout
