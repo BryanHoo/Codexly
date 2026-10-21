@@ -35,6 +35,18 @@ export class ProjectEventHistory<Event extends SequencedEvent> {
     return this.#floorSequence;
   }
 
+  public canReplay(
+    checkpoint: Readonly<{ sessionId: string; sequence: number }>,
+    sessionId: string | undefined,
+    latestSequence: number,
+  ): boolean {
+    // 只有同一运行时且所需事件仍完整保留时，才能用增量替代快照恢复。
+    return (
+      checkpoint.sessionId === sessionId &&
+      !(checkpoint.sequence < this.#floorSequence && checkpoint.sequence < latestSequence)
+    );
+  }
+
   public append(event: Event): void {
     const retainedBytes = this.#estimateBytes(event);
     if (retainedBytes > this.#maxBytes || this.#maxEvents === 0) {

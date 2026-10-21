@@ -1,3 +1,4 @@
+import { bindTaskRuntime } from "@codexly/frontend-core/task-runtime-binding";
 import type { AgentTaskSnapshotResponse } from "@codexly/protocol";
 import { loadTaskHistory } from "@codexly/frontend-core/task-history-page";
 import { type QueryClient, type QueryKey, useQueryClient } from "@tanstack/react-query";
@@ -88,48 +89,42 @@ export function useTaskRuntime(
     if (storeIdentity.projectId !== projectId || storeIdentity.taskId !== taskId) {
       return;
     }
-    const controller = new AbortController();
     const queryKey = taskSnapshotQueryOptions(projectId, taskId, client).queryKey;
-    let detachStore: (() => void) | undefined;
-    let disposed = false;
     setTaskQueryState({ error: null, isPending: true, scope: taskScope });
-    const cachedResponse = consumeTaskSnapshotQuery(queryClient, queryKey);
-    const initialSnapshot =
-      cachedResponse === undefined
-        ? client.readTask(projectId, taskId, { signal: controller.signal, summary: true })
-        : Promise.resolve(cachedResponse);
-    void initialSnapshot
-      .then((response) => {
-        if (disposed) {
-          return;
+    return bindTaskRuntime({
+      cachedResponse: consumeTaskSnapshotQuery(queryClient, queryKey),
+      read: (signal) => client.readTask(projectId, taskId, { signal, summary: true }),
+      resume: (recover) => {
+        const detach = projectRuntime.resumeTaskStore(store, recover);
+        if (detach === undefined && storeIdentity.snapshotMetadata !== null) {
+          // 缓存缺口仍需快照校准，明确展示恢复中，避免沿用旧的已连接状态。
+          storeIdentity.setConnectionState("reconnecting");
         }
+        return detach;
+      },
+      attach: (response, recover) => projectRuntime.attachTaskStore(response, store, recover),
+      reconcile: (response) => {
+        projectRuntime.reconcileTaskSnapshot(response);
+      },
+      onSnapshot: (response) => {
         if (response.snapshot.workspacePath !== undefined) {
           queryClient.setQueryData(
             ["projects", projectId, "task-workspace-paths", taskId],
             response.snapshot.workspacePath,
           );
         }
-        detachStore = projectRuntime.attachTaskStore(response, store, () =>
-          client.readTask(projectId, taskId, { summary: true }),
-        );
         // Store 接管完整历史后清除并发预热留下的 Query Payload。
         queryClient.removeQueries({ exact: true, queryKey });
         setTaskQueryState({ error: null, isPending: false, scope: taskScope });
-      })
-      .catch((error: unknown) => {
-        if (!disposed && !controller.signal.aborted) {
-          setTaskQueryState({
-            error: error instanceof Error ? error : new Error(String(error)),
-            isPending: false,
-            scope: taskScope,
-          });
-        }
-      });
-    return () => {
-      disposed = true;
-      controller.abort();
-      detachStore?.();
-    };
+      },
+      onError: (error) => {
+        setTaskQueryState({
+          error: error instanceof Error ? error : new Error(String(error)),
+          isPending: false,
+          scope: taskScope,
+        });
+      },
+    });
   }, [client, projectId, projectRuntime, queryClient, store, taskId, taskScope]);
 
   const activeRuntime =

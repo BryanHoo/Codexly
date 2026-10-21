@@ -80,8 +80,37 @@ export class ProjectEventRuntime {
       throw new Error("Task store identity does not match the Project Runtime snapshot");
     }
 
-    this.#touch();
     storeState.reconcile(response);
+    return this.#attachTaskStore(response.checkpoint, store, recoverSnapshot, response);
+  }
+
+  public resumeTaskStore(
+    store: TaskStore,
+    recoverSnapshot: RecoverTaskSnapshot,
+  ): (() => void) | undefined {
+    const { checkpoint, projectId, snapshotMetadata } = store.getState();
+    if (
+      this.#disposed ||
+      projectId !== this.#projectId ||
+      snapshotMetadata === null ||
+      checkpoint === null ||
+      this.#connectionState !== "connected" ||
+      this.#snapshotRecoveryRequired ||
+      !this.#eventHistory.canReplay(checkpoint, this.#sessionId, this.#latestSequence)
+    ) {
+      return undefined;
+    }
+    // 保留规范化实体，直接回放后台事件；最新进度不再等待整份快照传输和水合。
+    return this.#attachTaskStore(checkpoint, store, recoverSnapshot);
+  }
+
+  #attachTaskStore(
+    checkpoint: EventCheckpoint,
+    store: TaskStore,
+    recoverSnapshot: RecoverTaskSnapshot,
+    response?: AgentTaskSnapshotResponse,
+  ): () => void {
+    this.#touch();
     let target = this.#targets.get(store);
     if (target === undefined) {
       target = new TaskEventTarget(store, recoverSnapshot, (recoveredResponse, recoveredTarget) => {
@@ -96,8 +125,8 @@ export class ProjectEventRuntime {
     target.setConnectionState(
       this.#connectionState === "closed" ? "connecting" : this.#connectionState,
     );
-    this.observeSnapshot(response);
-    this.#replayEvents(response.checkpoint, target);
+    if (response !== undefined) this.observeSnapshot(response);
+    this.#replayEvents(checkpoint, target);
 
     let attached = true;
     return () => {
@@ -365,14 +394,7 @@ export class ProjectEventRuntime {
   }
 
   #replayEvents(checkpoint: EventCheckpoint, target: TaskEventTarget): void {
-    if (checkpoint.sessionId !== this.#sessionId) {
-      target.requestRecovery();
-      return;
-    }
-    if (
-      checkpoint.sequence < this.#eventHistory.floorSequence &&
-      checkpoint.sequence < this.#latestSequence
-    ) {
+    if (!this.#eventHistory.canReplay(checkpoint, this.#sessionId, this.#latestSequence)) {
       // Snapshot checkpoint 早于客户端保留窗口时禁止猜测缺失事件，直接请求权威快照。
       target.requestRecovery();
       return;

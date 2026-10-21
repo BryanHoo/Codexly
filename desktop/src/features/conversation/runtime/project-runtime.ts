@@ -103,6 +103,14 @@ export class ProjectRuntimeManager {
     );
   }
 
+  public resumeTaskStore(
+    store: TaskStore,
+    recoverSnapshot: RecoverTaskSnapshot,
+  ): (() => void) | undefined {
+    // 只复用仍存活的项目连接；冷启动和已释放的项目继续读取权威快照。
+    return this.#projects.get(store.getState().projectId)?.resumeTaskStore(store, recoverSnapshot);
+  }
+
   public dispose(): void {
     for (const project of this.#projects.values()) {
       project.dispose();
