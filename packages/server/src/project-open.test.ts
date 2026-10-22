@@ -7,6 +7,27 @@ import { describe, expect, it, vi } from "vitest";
 import { createDisabledProjectOpenService, createProjectOpenService } from "./project-open.js";
 
 describe("createProjectOpenService", () => {
+  it("opens CMD in a visible detached console without interpreting the directory as a command", async () => {
+    const executable = "C:\\Windows\\System32\\cmd.exe";
+    const root = "C:\\workspace\\CMD space & \u6587\u4ef6";
+    const spawnDetached = vi.fn(() => Promise.resolve());
+    const service = createProjectOpenService({
+      environment: { SystemRoot: "C:\\Windows" },
+      pathExists: (path) => Promise.resolve(path === executable),
+      platform: "win32",
+      spawnDetached,
+    });
+
+    await service.open(root, "command-prompt");
+
+    expect(spawnDetached).toHaveBeenCalledWith(executable, ["/d", "/k"], {
+      cwd: root,
+      observeEarlyExit: true,
+      shell: false,
+      windowsHide: false,
+    });
+  });
+
   it("disables host application capabilities for LAN access", async () => {
     const service = createDisabledProjectOpenService("darwin");
 

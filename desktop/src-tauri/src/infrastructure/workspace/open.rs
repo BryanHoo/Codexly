@@ -12,6 +12,10 @@ mod catalog;
 #[path = "open/tests.rs"]
 mod cross_platform_tests;
 
+#[cfg(all(test, target_os = "windows"))]
+#[path = "open/windows_launch_tests.rs"]
+mod windows_launch_tests;
+
 #[cfg(test)]
 mod completion_tests {
     use super::should_wait_for_exit;
@@ -23,6 +27,11 @@ mod completion_tests {
         assert!(should_wait_for_exit("windows", "windows-terminal"));
         assert!(should_wait_for_exit("windows", "visual-studio-code"));
         assert!(should_wait_for_exit("macos", "system-default"));
+    }
+
+    #[test]
+    fn interactive_command_prompt_should_not_wait_for_exit() {
+        assert!(!should_wait_for_exit("windows", "command-prompt"));
     }
 }
 
@@ -170,7 +179,7 @@ pub async fn open_path(app_id: &str, path: &Path) -> Result<(), WorkspaceError> 
     }
     let mut command = platform_command(app_id, path)?;
     if !should_wait_for_exit(std::env::consts::OS, app_id) {
-        // Explorer 会把请求转交给现有 shell，进程退出码不能表示窗口是否打开。
+        // Brokers and interactive shells finish this request when the process is created.
         command.spawn()?;
         return Ok(());
     }
@@ -220,7 +229,7 @@ fn reveal_command(path: &Path) -> Result<Command, WorkspaceError> {
 }
 
 fn should_wait_for_exit(platform: &str, app_id: &str) -> bool {
-    platform != "windows" || !matches!(app_id, "system-default" | "explorer")
+    platform != "windows" || !matches!(app_id, "system-default" | "explorer" | "command-prompt")
 }
 
 #[cfg(target_os = "macos")]
@@ -299,7 +308,17 @@ fn platform_command(app_id: &str, path: &Path) -> Result<Command, WorkspaceError
             command.arg("-d").arg(path);
         }
         "command-prompt" => {
-            command.args(["/K", "cd", "/D"]).arg(path);
+            const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+            let directory = if path.is_dir() {
+                path
+            } else {
+                path.parent().ok_or(WorkspaceError::InvalidPath)?
+            };
+            // The app owns a hidden console; CMD needs its own interactive console.
+            command
+                .creation_flags(CREATE_NEW_CONSOLE)
+                .args(["/D", "/K"])
+                .current_dir(directory);
         }
         _ => {
             command.arg(path);

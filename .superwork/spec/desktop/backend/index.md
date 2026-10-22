@@ -1,5 +1,7 @@
 # 桌面原生层
 
+Windows 快捷打开 CMD 使用 `CREATE_NEW_CONSOLE` 和独立工作目录，不把路径拼接进 shell 命令；文件目标使用父目录。`cmd /K` 的 IPC 在进程创建后完成，不能等待交互会话退出。回归 Rust `workspace::open::` 的真实控制台探针，验证控制台隔离和带空格、中文、`&` 的目录；Web 对应 `project-open.test.ts`，保持有界启动确认。
+
 项目根目录授权先匹配原始路径；不匹配时以文件系统 canonical 路径确认是否仍为已登记根目录，再验证 Git worktree。Windows 普通路径、斜杠、大小写和扩展路径前缀差异不得让非 Git 项目误入 worktree 分支；等价目录保留原 root ID，子目录和无关目录仍拒绝。回归运行 Rust `workspace_project_root` 测试，Web 对应 `project-root-scope.test.ts`。
 
 `desktop/src-tauri/src/lib.rs` 注册 Tauri 命令与应用状态；`application/` 处理 IPC 与用例，`domain/` 放领域规则，`infrastructure/` 放持久化、Codex 和系统集成。
