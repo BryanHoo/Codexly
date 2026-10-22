@@ -1,3 +1,4 @@
+import { getTaskRoute } from "./project-sidebar-task-row.js";
 import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -344,7 +345,6 @@ export function ProjectSidebar({
     }
     setRemovingProject(null);
   };
-
   return (
     <aside
       aria-label={t("sidebar.landmark")}
@@ -473,6 +473,11 @@ export function ProjectSidebar({
           {...appUpdate}
           {...(appInfo === undefined ? {} : { appInfo })}
           connectionState={connectionState}
+          onTaskNavigate={(projectId, taskId) => {
+            if (!workspaceActions?.select({ projectId, taskId }))
+              void navigate(getTaskRoute(projectId, taskId)).then(closeOnMobile);
+            else closeOnMobile();
+          }}
           onOpen={onOpenSettings}
         />
       </div>

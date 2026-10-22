@@ -422,9 +422,10 @@ test("opens update notes from the sidebar and installs an available update from 
   await page.goto("/p/codexly/t/task-1");
 
   const settingsButton = page.getByRole("button", {
-    name: /关于，Codexly 1\.3\.0，有可用更新，终端连接状态：在线/u,
+    name: "升级",
+    exact: true,
   });
-  await expect(settingsButton.locator(".text-warning")).toContainText("v1.3.0");
+  await expect(page.locator("#global-settings-about-trigger")).toHaveText("v1.3.0");
   await expect(settingsButton.locator(".lucide-circle-arrow-up")).toBeVisible();
   await settingsButton.click();
 

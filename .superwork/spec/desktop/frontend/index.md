@@ -47,7 +47,7 @@
 
 - 桌面 Git 面板仅适配分页状态和按需 Diff，提交编辑、AI 生成、持久回执与远端动作共用 `@codexly/ui`。已加载文件选择必须明确，分页补齐不得静默扩大范围；不提供冲突编辑、解决标记或合并完成/取消操作；未完成操作与分叉历史只提供外部工具说明和刷新入口。自动远端检查在共享 Git 写队列及原生提交收尾期间暂停，结束后自动读取当前快照；提前到达的元数据不得留下需要手动重试的暂态检查失败。回归见 `commit-changes-controller.browser.test.tsx`。保留原生索引收尾错误回执，提交成功与收尾失败分开报告。
 
-- 左栏有可用更新时直接打开更新日志弹窗，右下角“更新”按钮复用当前平台的安装 Mutation；设置中的检查、日志及更新流程保持独立。两端共用 `ui/core/app-update-dialog`，安装中展示进度并阻止重复提交，失败可重试；没有更新时版本入口仍打开“关于”。用 `project-sidebar-update.test.tsx`、`app-update-dialog.test.tsx` 及桌面 `project-sidebar-actions.browser.test.tsx` 回归，浏览器交互通过 Chrome CDP 验证。
+- 左栏版本按钮始终打开“关于”，独立升级按钮在有可用更新时打开更新日志弹窗，右下角“更新”按钮复用当前平台的安装 Mutation；设置中的检查、日志及更新流程保持独立。两端共用 `ui/core/app-update-dialog`，安装中展示进度并阻止重复提交，失败可重试；底栏设置、通知、帮助只显示图标，入口之间的空白不可点击。通知与帮助使用无蒙层的非模态 Popover；通知数据和面板遵循[共享 UI 规则](../../ui/shared/index.md)。用 `project-sidebar-update.test.tsx`、`app-update-dialog.test.tsx` 及桌面 `project-sidebar-actions.browser.test.tsx` 回归，浏览器交互通过 Chrome CDP 验证。
 
 - 桌面首次启动直接进入工作区，设置直接开放 API 配置。启用状态仅从原生配置和认证恢复，旧向导选择不再有效；配置及登录通知即时刷新，保持工作区子树身份。无配置不启动引擎，单引擎不显示选择器；公共偏好、关于页及外部应用能力查询必须绕过 Codex 启动。Web 初始化流程独立保留，共享配置面板和选择器；详见[引擎分发规则](../../../../docs/agent-engines.md)。
 - 设置中的 Codex/Claude 配置面板直接可用，不显示启用、下载或安装步骤；聊天区不得探测未配置引擎，也不得在配置发现期间把新草稿回退到未启用引擎。历史和定时任务保持原引擎。文件浏览、Git、附件及公共应用工具必须独立于引擎启动，使用 `sidebar-client-runtime.test.ts` 验证单引擎隔离。

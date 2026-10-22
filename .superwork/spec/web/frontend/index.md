@@ -44,7 +44,7 @@
 
 - 变更页使用共享 Git 工作区，草稿范围包含项目、工作树和分支。远端状态只在工作区激活时按需检查，禁止增加轮询或隐式 fetch；成功提交后在共享 Git 写队列空闲时刷新当前引用状态；提前到达的新快照不得在提交期间发起竞争检查，不能仅失效旧快照查询。不提供应用内冲突处理，仅提示在外部 Git 工具处理后刷新；移动端保留底部提交区，错误原文放在详情弹窗且主动作可见。行为与使用说明见 [Git 工作流](../../../../docs/git-workflow.md)。
 
-- 左栏有可用更新时直接打开更新日志弹窗，右下角“更新”按钮复用当前平台的安装 Mutation；设置中的检查、日志及更新流程保持独立。两端共用 `ui/core/app-update-dialog`，安装中展示进度并阻止重复提交，失败可重试；没有更新时版本入口仍打开“关于”。用 `project-sidebar-update.test.tsx`、`app-update-dialog.test.tsx` 及桌面 `project-sidebar-actions.browser.test.tsx` 回归，浏览器交互通过 Chrome CDP 验证。
+- 左栏版本按钮始终打开“关于”，独立升级按钮在有可用更新时打开更新日志弹窗，右下角“更新”按钮复用当前平台的安装 Mutation；设置中的检查、日志及更新流程保持独立。两端共用 `ui/core/app-update-dialog`，安装中展示进度并阻止重复提交，失败可重试；底栏设置、通知、帮助只显示图标，入口之间的空白不可点击。通知与帮助使用无蒙层的非模态 Popover；通知数据和面板遵循[共享 UI 规则](../../ui/shared/index.md)。用 `project-sidebar-update.test.tsx`、`app-update-dialog.test.tsx` 及桌面 `project-sidebar-actions.browser.test.tsx` 回归，浏览器交互通过 Chrome CDP 验证。
 
 - 新聊天可选引擎，历史会话引擎固定；API 与全局默认值只在设置页修改。按会话引擎控制中栏和时间线能力，不能沿用全局 Codex 能力展示 Claude 不支持的操作。见[双引擎说明](../../../../docs/agent-engines.md)。
 

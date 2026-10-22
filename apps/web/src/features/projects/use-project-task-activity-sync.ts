@@ -1,3 +1,4 @@
+import { getTaskNotificationStore } from "@codexly/frontend-core/task-notification-store";
 import { useEffect } from "react";
 import { installTaskActivitySync } from "@codexly/frontend-core/task-activity-sync";
 import type { ProjectRuntimeManager } from "../conversation/runtime/project-runtime.js";
@@ -22,6 +23,8 @@ export function useProjectTaskActivitySync(
       read: async () => (await client.getTaskActivities()).data,
       capture: () => projectRuntime.getTaskActivity(),
       apply: (tasks, baseline) => {
+        // 在运行态消除当前任务的提醒前留存通知，且不受聊天流式水位影响。
+        getTaskNotificationStore().recordActivities(tasks);
         projectRuntime.reconcileTaskActivities(tasks, baseline);
       },
       subscribe: (refresh) =>

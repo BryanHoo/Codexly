@@ -1,3 +1,4 @@
+import { getTaskNotificationStore, isTaskNotificationEvent } from "@codexly/frontend-core/task-notification-store";
 import type {
   AgentTask,
   AgentTaskSnapshotResponse,
@@ -326,6 +327,11 @@ export class ProjectRuntimeManager {
             this.#onProjectGitActivity(eventProjectId, event.taskId, "turn_completed");
             // 标题由 Provider 在 Turn 结束时生成，后台 Task 也必须通知列表读取最新元数据。
             this.#onTaskMetadataChanged(eventProjectId, event.taskId, "turn_completed");
+          }
+          // 当前任务可能被原生端立即确认；直接留存事件，再与全局活动快照去重。
+          if (isTaskNotificationEvent(event)) {
+            getTaskNotificationStore().recordEvent(eventProjectId, event,
+              this.#taskTitles.get(createProjectTaskKey(eventProjectId, event.taskId)) ?? event.taskId);
           }
           if (event.type !== "task.removed") {
             // 所有 Task 实时事件都推进 Activity 水位，避免流式期间到达的旧 Snapshot 回滚侧栏状态。

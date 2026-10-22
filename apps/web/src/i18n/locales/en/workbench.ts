@@ -1,3 +1,4 @@
+import { sidebarFooterEnglish } from "@codexly/frontend-core/sidebar-footer-labels";
 import { sidebarTimelineEnglish } from "@codexly/frontend-core/sidebar-task-view";
 import { composerGitEnglish } from "@codexly/frontend-core/composer-git-labels";
 import { engineEnglish } from "@codexly/frontend-core/engine-labels";
@@ -10,6 +11,7 @@ import { scheduledTasks } from "./scheduled-tasks.js";
 import { globalSearch } from "./global-search.js";
 
 export const workbench = {
+  sidebarFooter: sidebarFooterEnglish,
   engine: engineEnglish,
   textEditor: textFileEditorEnglish,
   split: splitWorkspaceEnglish,

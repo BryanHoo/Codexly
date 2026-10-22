@@ -240,16 +240,18 @@ describe("SidebarSettingsButton", () => {
 
     for (const [connectionState, label] of cases) {
       const markup = renderToStaticMarkup(
-        <SidebarSettingsButton
-          onUpdate={vi.fn()}
-          appInfo={appInfo}
-          connectionState={connectionState}
-          onOpen={vi.fn()}
-        />,
+        <TooltipProvider>
+          <SidebarSettingsButton
+            onUpdate={vi.fn()}
+            appInfo={appInfo}
+            connectionState={connectionState}
+            onOpen={vi.fn()}
+          />
+        </TooltipProvider>,
       );
-      expect(markup).toContain(`Codexly 1.3.0，终端连接状态：${label}`);
+      expect(markup).toContain(`Codexly v1.3.0，终端连接状态：${label}`);
       expect(markup).toContain("v1.3.0");
-      expect(markup).toContain(`>${label}</span>`);
+      expect(markup).toContain(`aria-label="关于，Codexly v1.3.0，终端连接状态：${label}"`);
       expect(markup).not.toContain("href=");
     }
   });
@@ -266,15 +268,19 @@ describe("SidebarSettingsButton", () => {
 
       for (const [connectionState, label] of cases) {
         const markup = renderToStaticMarkup(
-          <SidebarSettingsButton
-            onUpdate={vi.fn()}
-            appInfo={appInfo}
-            connectionState={connectionState}
-            onOpen={vi.fn()}
-          />,
+          <TooltipProvider>
+            <SidebarSettingsButton
+              onUpdate={vi.fn()}
+              appInfo={appInfo}
+              connectionState={connectionState}
+              onOpen={vi.fn()}
+            />
+          </TooltipProvider>,
         );
-        expect(markup).toContain(`Codexly 1.3.0, terminal connection status: ${label}`);
-        expect(markup).toContain(`>${label}</span>`);
+        expect(markup).toContain(`Codexly v1.3.0，Terminal connection status: ${label}`);
+        expect(markup).toContain(
+          `aria-label="About Codexly v1.3.0，Terminal connection status: ${label}"`,
+        );
       }
     } finally {
       await changeAppLanguage("zh-CN");
@@ -284,22 +290,25 @@ describe("SidebarSettingsButton", () => {
   it("uses a distinct version state when an update is available", async () => {
     await changeAppLanguage("zh-CN");
     const markup = renderToStaticMarkup(
-      <SidebarSettingsButton
-        onUpdate={vi.fn()}
-        appInfo={{
-          ...appInfo,
-          latestVersion: "1.4.0",
-          releaseNotes: "### 新增\n\n- 添加更新日志。",
-          status: "available",
-          updateAvailable: true,
-        }}
-        connectionState="connected"
-        onOpen={vi.fn()}
-      />,
+      <TooltipProvider>
+        <SidebarSettingsButton
+          onUpdate={vi.fn()}
+          appInfo={{
+            ...appInfo,
+            latestVersion: "1.4.0",
+            releaseNotes: "### 新增\n\n- 添加更新日志。",
+            status: "available",
+            updateAvailable: true,
+          }}
+          connectionState="connected"
+          onOpen={vi.fn()}
+        />
+      </TooltipProvider>,
     );
 
-    expect(markup).toContain("Codexly 1.3.0，有可用更新，终端连接状态：在线");
+    expect(markup).toContain('id="app-update-trigger"');
+    expect(markup).toContain('aria-label="升级"');
     expect(markup).toContain("lucide-circle-arrow-up");
-    expect(markup).toContain('class="text-warning"');
+    expect(markup).toContain("text-warning");
   });
 });

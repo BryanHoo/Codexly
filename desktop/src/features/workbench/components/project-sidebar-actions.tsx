@@ -1,14 +1,13 @@
+import { SidebarFooter } from "@codexly/ui/core/sidebar-footer";
+import { translateSidebarFooterLabels } from "@codexly/frontend-core/sidebar-footer-labels";
 import type { AppInfoResponse, AppUpdateInstallProgress, Project } from "@/protocol/index.js";
 import {
-  CircleArrowUp,
-  CircleHelp,
   Archive,
   Ellipsis,
   Pencil,
   Plus,
   FolderOpen,
   FolderPlus,
-  Settings,
   Trash2,
 } from "lucide-react";
 
@@ -170,7 +169,9 @@ export function SidebarSettingsButton({
   onUpdate,
   onOpen,
   onOpenShortcuts,
+  onTaskNavigate,
 }: Readonly<{
+  onTaskNavigate?: (projectId: string, taskId: string) => void;
   appInfo?: AppInfoResponse;
   isUpdatePending?: boolean;
   onUpdate: (
@@ -180,85 +181,30 @@ export function SidebarSettingsButton({
   onOpen: (section: SidebarSettingsSection) => void;
   onOpenShortcuts: () => void;
 }>) {
-  const { t } = useTranslation("workbench");
+  const { t, i18n: translationInstance } = useTranslation("workbench");
+  const locale = translationInstance.resolvedLanguage ?? "zh-CN";
   const { t: settingsT } = useTranslation("settings");
   // 打开时固定本次展示的版本与日志，安装回执刷新缓存不会中断弹窗。
   const [updateInfo, setUpdateInfo] = useState<AppInfoResponse | null>(null);
-  const { t: shortcutsT } = useTranslation("shortcuts");
   const appVersion = appInfo?.appVersion ?? "…";
   const updateAvailable = appInfo?.updateAvailable === true;
   return (
-    <div className="flex h-9 w-full items-stretch text-body-small text-muted-foreground">
-      <Button
-        aria-label={t("sidebar.settings")}
-        className="h-full min-w-0 flex-1 gap-2.5 rounded-r-none px-2.5"
-        contentAlign="start"
-        id="global-settings-trigger"
-        onClick={() => {
-          onOpen("appearance");
-        }}
-        type="button"
-        variant="ghost"
-      >
-        <Settings className="size-4" aria-hidden="true" />
-        {t("sidebar.settings")}
-      </Button>
-      <Button
-        aria-label={t("sidebar.aboutStatus", {
-          update: updateAvailable ? t("sidebar.updateAvailableLabel") : "",
-          version: appVersion,
-        })}
-        className="h-full gap-1 rounded-none px-2.5 text-caption"
-        id="global-settings-about-trigger"
-        onClick={() => {
-          if (updateAvailable && appInfo?.latestVersion) {
-            setUpdateInfo(appInfo);
-          } else {
-            onOpen("about");
-          }
-        }}
-        type="button"
-        variant="ghost"
-      >
-        <span
-          aria-live="polite"
-          className={
-            updateAvailable
-              ? "whitespace-nowrap text-warning"
-              : "whitespace-nowrap text-muted-foreground"
-          }
-        >
-          {updateAvailable ? (
-            <CircleArrowUp aria-hidden="true" className="mr-1 inline size-3" />
-          ) : null}
-          v{appVersion}
-          {updateAvailable ? (
-            <>
-              {" "}
-              <span className="font-medium">{t("sidebar.updateAvailableHint")}</span>
-            </>
-          ) : null}
-        </span>
-      </Button>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            aria-keyshortcuts="Meta+/ Control+/"
-            aria-label={shortcutsT("title")}
-            className="h-full rounded-l-none px-2"
-            id="keyboard-shortcuts-trigger"
-            onClick={onOpenShortcuts}
-            type="button"
-            variant="ghost"
-          >
-            <CircleHelp aria-hidden="true" className="size-3.5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{shortcutsT("title")}</TooltipContent>
-      </Tooltip>
+    <>
+      <SidebarFooter
+        labels={translateSidebarFooterLabels((key) => t(`sidebarFooter.${key}`, { version: appVersion }))}
+        locale={locale}
+        version={appVersion}
+        updateAvailable={updateAvailable}
+        onSettings={() => { onOpen("appearance"); }}
+        onAbout={() => { onOpen("about"); }}
+        onUpdate={() => { if (appInfo?.latestVersion) setUpdateInfo(appInfo); }}
+        {...(onTaskNavigate === undefined ? {} : { onTaskNavigate })}
+        onShortcuts={onOpenShortcuts}
+      />
       {updateInfo?.latestVersion ? (
         <Suspense fallback={null}>
           <AppUpdateDialog
+            modal={false}
             {...(isUpdatePending === undefined ? {} : { isPending: isUpdatePending })}
             labels={{
               title: settingsT("about.releaseNotesTitle", { version: updateInfo.latestVersion }),
@@ -291,6 +237,6 @@ export function SidebarSettingsButton({
           </AppUpdateDialog>
         </Suspense>
       ) : null}
-    </div>
+    </>
   );
 }

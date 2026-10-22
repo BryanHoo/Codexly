@@ -1,3 +1,4 @@
+import { getTaskRoute } from "./project-sidebar-task-row.js";
 import { useSplitWorkspaceActions } from "@codexly/ui/core/split-workspace";
 import { useSidebarDraftNavigation } from "@codexly/ui/core/split-draft-navigation";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -471,6 +472,10 @@ export function ProjectSidebar({
           {...(isUpdatePending === undefined ? {} : { isUpdatePending })}
           onUpdate={onUpdate}
           {...(appInfo === undefined ? {} : { appInfo })}
+          onTaskNavigate={(projectId, taskId) => {
+            if (!workspaceActions?.select({ projectId, taskId }))
+              void navigate(getTaskRoute(projectId, taskId));
+          }}
           onOpen={onOpenSettings}
           onOpenShortcuts={() => setShortcutsOpen(true)}
         />

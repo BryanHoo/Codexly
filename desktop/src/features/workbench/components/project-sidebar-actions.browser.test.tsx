@@ -38,16 +38,18 @@ describe("SidebarSettingsButton", () => {
     );
 
     const aboutButton = screen.getByRole("button", { name: /Codexly v0\.1\.0/ });
-    await expect.element(aboutButton).toHaveTextContent("v0.1.0 升级");
-    await aboutButton.click();
+    await expect.element(aboutButton).toHaveTextContent("v0.1.0");
+    await screen.getByRole("button", { name: "升级", exact: true }).click();
     expect(onOpen).not.toHaveBeenCalled();
     await expect.element(screen.getByRole("dialog", { name: "0.2.0 更新日志" })).toBeVisible();
+    expect(document.querySelector('[data-slot="dialog-overlay"]')).toBeNull();
     expect(onUpdate).not.toHaveBeenCalled();
     await screen.getByRole("button", { name: "更新", exact: true }).click();
     expect(onUpdate).toHaveBeenCalledExactlyOnceWith("0.2.0", expect.any(Function));
     await expect.element(screen.getByRole("status")).toHaveTextContent("更新完成");
     await screen.getByRole("button", { name: "关闭更新日志" }).click();
 
+    await screen.getByRole("button", { name: "帮助", exact: true }).click();
     const shortcutsButton = screen.getByRole("button", { name: "键盘快捷键" });
     await shortcutsButton.click();
     expect(onOpenShortcuts).toHaveBeenCalledOnce();

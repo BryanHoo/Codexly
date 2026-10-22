@@ -12,6 +12,7 @@ type AppUpdateDialogLabels = Readonly<
 export function AppUpdateDialog({
   children,
   isPending = false,
+  modal = true,
   labels,
   onClose,
   onUpdate,
@@ -19,6 +20,7 @@ export function AppUpdateDialog({
 }: Readonly<{
   children: ReactNode;
   isPending?: boolean;
+  modal?: boolean;
   labels: AppUpdateDialogLabels;
   onClose: () => void;
   onUpdate: (onProgress: (percentage: number | null) => void) => Promise<void>;
@@ -52,6 +54,7 @@ export function AppUpdateDialog({
 
   return (
     <Dialog
+      modal={modal}
       open
       onOpenChange={(open) => {
         if (!open) close();
@@ -60,10 +63,12 @@ export function AppUpdateDialog({
       <DialogContent
         aria-describedby={undefined}
         aria-labelledby={titleId}
-        className="max-h-[min(80dvh,40rem)] max-w-2xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden p-0"
+        className={`grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden p-0 ${modal ? "max-h-[min(80dvh,40rem)] max-w-2xl" : "max-h-[min(65dvh,32rem)] max-w-lg border border-separator-strong"}`}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
-          document.getElementById("global-settings-about-trigger")?.focus();
+          document
+            .getElementById(modal ? "global-settings-about-trigger" : "app-update-trigger")
+            ?.focus();
         }}
       >
         <header className="flex items-center gap-3 px-5 pt-5">

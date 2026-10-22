@@ -4,10 +4,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { changeAppLanguage } from "../../../i18n/i18n.js";
+import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 import { SidebarSettingsButton } from "./project-sidebar-actions.js";
 
 const buttons = vi.hoisted(() => new Map<string, () => void>());
-vi.mock("../../../shared/components/core/button.js", async (original) => {
+vi.mock("@codexly/ui/core/button", async (original) => {
   const { Button } = await original<typeof ButtonModule>();
   return {
     Button: (props: ComponentProps<typeof Button>) => {
@@ -16,6 +17,14 @@ vi.mock("../../../shared/components/core/button.js", async (original) => {
     },
   };
 });
+
+// 此处仅验证业务回调；Radix 的真实点击与焦点行为由浏览器回归覆盖。
+vi.mock("@codexly/ui/core/tooltip", () => ({
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => children,
+  Tooltip: ({ children }: { children: React.ReactNode }) => children,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => children,
+  TooltipContent: () => null,
+}));
 
 const appInfo = {
   appVersion: "1.3.0",
@@ -36,29 +45,33 @@ describe("左栏更新入口", () => {
     const onOpen = vi.fn();
     const onUpdate = vi.fn();
     renderToStaticMarkup(
-      <SidebarSettingsButton
-        appInfo={appInfo}
-        connectionState="connected"
-        onOpen={onOpen}
-        onUpdate={onUpdate}
-      />,
+      <TooltipProvider>
+        <SidebarSettingsButton
+          appInfo={appInfo}
+          connectionState="connected"
+          onOpen={onOpen}
+          onUpdate={onUpdate}
+        />
+      </TooltipProvider>,
     );
-    const openUpdate = buttons.get("global-settings-about-trigger");
+    const openUpdate = buttons.get("app-update-trigger");
     expect(openUpdate).toBeTypeOf("function");
     openUpdate?.();
     expect(onOpen).not.toHaveBeenCalled();
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
-  it("没有更新时版本入口仍打开关于，设置入口仍打开外观", () => {
+  it("版本始终打开关于，设置入口打开外观", () => {
     const onOpen = vi.fn();
     renderToStaticMarkup(
-      <SidebarSettingsButton
-        appInfo={{ ...appInfo, updateAvailable: false, status: "current" }}
-        connectionState="connected"
-        onOpen={onOpen}
-        onUpdate={vi.fn()}
-      />,
+      <TooltipProvider>
+        <SidebarSettingsButton
+          appInfo={{ ...appInfo, updateAvailable: false, status: "current" }}
+          connectionState="connected"
+          onOpen={onOpen}
+          onUpdate={vi.fn()}
+        />
+      </TooltipProvider>,
     );
     buttons.get("global-settings-about-trigger")?.();
     buttons.get("global-settings-trigger")?.();

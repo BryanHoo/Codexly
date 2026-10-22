@@ -1,3 +1,4 @@
+import { sidebarFooterChinese } from "@codexly/frontend-core/sidebar-footer-labels";
 import { common as zhCommon } from "./locales/zh-CN/common.js";
 import { conversation as zhConversation } from "./locales/zh-CN/conversation.js";
 import { settings as zhSettings } from "./locales/zh-CN/settings.js";
@@ -14,6 +15,6 @@ export const resources = {
     conversation: zhConversation,
     settings: zhSettings,
     shortcuts: zhShortcuts,
-    workbench: { ...zhWorkbench, terminal: zhTerminal },
+    workbench: { ...zhWorkbench, terminal: zhTerminal, sidebarFooter: sidebarFooterChinese },
   },
 } as const;
