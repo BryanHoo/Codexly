@@ -1,3 +1,4 @@
+import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
 import { useSplitInspectorBridge } from "@codexly/ui/core/split-inspector";
 import { WorkbenchSettingsPage } from "./workbench-settings-page.js";
 import { useNavigate } from "@tanstack/react-router";
@@ -151,6 +152,7 @@ export function WorkbenchShellLayout({
               connectionState={sidebarConnectionState}
               onClose={closeSidebar}
               onOpenFile={(file, kind) => {
+                if (window.matchMedia("(max-width: 760px)").matches) closeSidebar();
                 openSidebarDocument({
                   id: fileDocumentId(kind, `${file.projectId}:${file.rootPath}:${file.path}`),
                   kind,
@@ -229,66 +231,115 @@ export function WorkbenchShellLayout({
               temporary={temporary}
               {...(taskId === undefined ? {} : { taskId })}
             />
-            {scheduled ? (
-              <ScheduledTasksView context={context} projectId={projectId} temporary={temporary} />
-            ) : extensions ? (
-              <SkillsMarketView
-                section={extensionSection}
-                onSectionChange={(nextSection) => {
-                  void navigate(
-                    temporary
-                      ? { params: { section: nextSection }, to: "/temporary/extensions/$section" }
-                      : {
-                          params: { projectId, section: nextSection },
-                          to: "/p/$projectId/extensions/$section",
-                        },
-                  );
-                }}
-              />
-            ) : board ? (
-              <TaskBoardContainer projectId={projectId} />
-            ) : error !== null ||
-              (projectTaskState?.error ?? null) !== null ||
-              (codexEnabled &&
-                (modelsQuery.error !== null ||
-                  skillsQuery.error !== null ||
-                  (!temporary && projectDefaultsQuery.error !== null) ||
-                  (taskId === undefined && globalSettingsQuery.error !== null))) ? (
-              <RuntimeUnavailable onRetry={() => void retry()} />
-            ) : taskId === undefined ? (
-              <>
-                <TaskTimeline
-                  onProjectChange={handleNewTaskProjectChange}
-                  projectId={projectId}
-                  projects={projects}
-                  pendingPrompt={newChatSubmission.pendingPrompt}
-                  {...(temporary
-                    ? { scopeName: t("shell.temporaryTask"), temporary: true as const }
-                    : {})}
-                  {...(newChatSubmissionStartedAt === undefined
-                    ? {}
-                    : { submissionStartedAt: newChatSubmissionStartedAt })}
+            <WorkbenchDocumentWorkspace
+              context={context}
+              projectId={projectId}
+              enabled={!utilityView}
+            >
+              {scheduled ? (
+                <ScheduledTasksView context={context} projectId={projectId} temporary={temporary} />
+              ) : extensions ? (
+                <SkillsMarketView
+                  section={extensionSection}
+                  onSectionChange={(nextSection) => {
+                    void navigate(
+                      temporary
+                        ? { params: { section: nextSection }, to: "/temporary/extensions/$section" }
+                        : {
+                            params: { projectId, section: nextSection },
+                            to: "/p/$projectId/extensions/$section",
+                          },
+                    );
+                  }}
                 />
-                <WorkbenchComposer
-                  {...(composerDraftId === undefined ? {} : { composerDraftId })}
+              ) : board ? (
+                <TaskBoardContainer projectId={projectId} />
+              ) : error !== null ||
+                (projectTaskState?.error ?? null) !== null ||
+                (codexEnabled &&
+                  (modelsQuery.error !== null ||
+                    skillsQuery.error !== null ||
+                    (!temporary && projectDefaultsQuery.error !== null) ||
+                    (taskId === undefined && globalSettingsQuery.error !== null))) ? (
+                <RuntimeUnavailable onRetry={() => void retry()} />
+              ) : taskId === undefined ? (
+                <>
+                  <TaskTimeline
+                    onProjectChange={handleNewTaskProjectChange}
+                    projectId={projectId}
+                    projects={projects}
+                    pendingPrompt={newChatSubmission.pendingPrompt}
+                    {...(temporary
+                      ? { scopeName: t("shell.temporaryTask"), temporary: true as const }
+                      : {})}
+                    {...(newChatSubmissionStartedAt === undefined
+                      ? {}
+                      : { submissionStartedAt: newChatSubmissionStartedAt })}
+                  />
+                  <WorkbenchComposer
+                    {...(composerDraftId === undefined ? {} : { composerDraftId })}
+                    capabilities={capabilities}
+                    client={client}
+                    composerRef={composerRef}
+                    followUpBehavior={globalSettings?.followUpBehavior ?? "queue"}
+                    fastModeAvailable={fastModeAvailable}
+                    fastModeDefault={fastModeDefault}
+                    {...(todoId === undefined ? {} : { initialTodoId: todoId })}
+                    models={models}
+                    modelsError={null}
+                    modelsPending={
+                      modelsQuery.isLoading ||
+                      (!temporary && projectDefaultsQuery.isLoading) ||
+                      globalSettingsQuery.isLoading
+                    }
+                    onSettingsChange={updateDraftSettings}
+                    onFastModeChange={(enabled, settings) =>
+                      updateProjectTaskDefaults(settings, enabled)
+                    }
+                    onOpenProjectPath={openProjectFolder}
+                    onProjectRootChange={setSelectedRootId}
+                    workspace={{
+                      projectId,
+                      rootPath: projectPath,
+                      select: context.selectWorkspace,
+                      client,
+                    }}
+                    onRequestNotificationPermission={requestNotificationPermission}
+                    onDirectSubmission={newChatSubmission.onDirectSubmission}
+                    onSubmissionFailed={newChatSubmission.onSubmissionFailed}
+                    onSubmissionStateChange={handleNewChatSubmissionStateChange}
+                    onTaskCreated={handleTaskCreated}
+                    onTaskStarted={handleTaskStarted}
+                    projectId={projectId}
+                    projectName={projectName}
+                    projectPath={projectPath}
+                    projectPathOpenAvailable={projectFolderOpenAvailable}
+                    projectPathOpenDisabled={projectFolderOpenDisabled}
+                    projectRoots={projectRoots}
+                    // 新建临时任务也必须禁用依赖 Project 根目录的命令。
+                    projectToolsEnabled={!temporary}
+                    selectedProjectRootId={selectedRootId ?? ""}
+                    {...(gitStatusQuery.data === undefined
+                      ? {}
+                      : { gitStatus: gitStatusQuery.data })}
+                    settings={draftSettings}
+                    skills={skillsQuery.data?.data ?? []}
+                  />
+                </>
+              ) : (
+                <ActiveTaskWorkbench
                   capabilities={capabilities}
                   client={client}
                   composerRef={composerRef}
+                  fallbackSettings={draftSettings}
                   followUpBehavior={globalSettings?.followUpBehavior ?? "queue"}
                   fastModeAvailable={fastModeAvailable}
                   fastModeDefault={fastModeDefault}
-                  {...(todoId === undefined ? {} : { initialTodoId: todoId })}
                   models={models}
-                  modelsError={null}
-                  modelsPending={
-                    modelsQuery.isLoading ||
-                    (!temporary && projectDefaultsQuery.isLoading) ||
-                    globalSettingsQuery.isLoading
-                  }
-                  onSettingsChange={updateDraftSettings}
-                  onFastModeChange={(enabled, settings) =>
-                    updateProjectTaskDefaults(settings, enabled)
-                  }
+                  modelsError={modelsQuery.error}
+                  modelsPending={modelsQuery.isLoading}
+                  onRequestNotificationPermission={requestNotificationPermission}
+                  onProjectTaskDefaultsChange={updateProjectTaskDefaults}
                   onOpenProjectPath={openProjectFolder}
                   onProjectRootChange={setSelectedRootId}
                   workspace={{
@@ -297,67 +348,26 @@ export function WorkbenchShellLayout({
                     select: context.selectWorkspace,
                     client,
                   }}
-                  onRequestNotificationPermission={requestNotificationPermission}
-                  onDirectSubmission={newChatSubmission.onDirectSubmission}
-                  onSubmissionFailed={newChatSubmission.onSubmissionFailed}
-                  onSubmissionStateChange={handleNewChatSubmissionStateChange}
-                  onTaskCreated={handleTaskCreated}
                   onTaskStarted={handleTaskStarted}
                   projectId={projectId}
-                  projectName={projectName}
                   projectPath={projectPath}
                   projectPathOpenAvailable={projectFolderOpenAvailable}
                   projectPathOpenDisabled={projectFolderOpenDisabled}
                   projectRoots={projectRoots}
-                  // 新建临时任务也必须禁用依赖 Project 根目录的命令。
                   projectToolsEnabled={!temporary}
                   selectedProjectRootId={selectedRootId ?? ""}
                   {...(gitStatusQuery.data === undefined ? {} : { gitStatus: gitStatusQuery.data })}
-                  settings={draftSettings}
+                  runtime={runtime}
                   skills={skillsQuery.data?.data ?? []}
+                  startingSnapshot={startingSnapshot}
+                  startingPrompt={taskLaunchState}
+                  taskId={taskId}
+                  onOpenFileDiff={openFileDiff}
+                  onOpenSourceFile={openMessageFileReference}
+                  onReviewFileChanges={openFileReview}
                 />
-              </>
-            ) : (
-              <ActiveTaskWorkbench
-                capabilities={capabilities}
-                client={client}
-                composerRef={composerRef}
-                fallbackSettings={draftSettings}
-                followUpBehavior={globalSettings?.followUpBehavior ?? "queue"}
-                fastModeAvailable={fastModeAvailable}
-                fastModeDefault={fastModeDefault}
-                models={models}
-                modelsError={modelsQuery.error}
-                modelsPending={modelsQuery.isLoading}
-                onRequestNotificationPermission={requestNotificationPermission}
-                onProjectTaskDefaultsChange={updateProjectTaskDefaults}
-                onOpenProjectPath={openProjectFolder}
-                onProjectRootChange={setSelectedRootId}
-                workspace={{
-                  projectId,
-                  rootPath: projectPath,
-                  select: context.selectWorkspace,
-                  client,
-                }}
-                onTaskStarted={handleTaskStarted}
-                projectId={projectId}
-                projectPath={projectPath}
-                projectPathOpenAvailable={projectFolderOpenAvailable}
-                projectPathOpenDisabled={projectFolderOpenDisabled}
-                projectRoots={projectRoots}
-                projectToolsEnabled={!temporary}
-                selectedProjectRootId={selectedRootId ?? ""}
-                {...(gitStatusQuery.data === undefined ? {} : { gitStatus: gitStatusQuery.data })}
-                runtime={runtime}
-                skills={skillsQuery.data?.data ?? []}
-                startingSnapshot={startingSnapshot}
-                startingPrompt={taskLaunchState}
-                taskId={taskId}
-                onOpenFileDiff={openFileDiff}
-                onOpenSourceFile={openMessageFileReference}
-                onReviewFileChanges={openFileReview}
-              />
-            )}
+              )}
+            </WorkbenchDocumentWorkspace>
           </main>
         )}
 

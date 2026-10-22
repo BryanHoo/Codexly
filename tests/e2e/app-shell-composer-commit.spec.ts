@@ -79,17 +79,20 @@ test("opens project review while showing Git stats in the Inspector project tree
     "16px",
   );
   await page.getByRole("button", { name: /已编辑 package\.json.*打开 Diff/ }).click();
-  const timelineDiffPanel = inspector.getByRole("region", { name: "package.json" });
-  await expect(inspector.getByRole("tab", { name: "Diff: package.json" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  const timelineDiffPanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "package.json" });
+  await expect(
+    page.locator("[data-document-workspace]").getByRole("tab", { name: "Diff: package.json" }),
+  ).toHaveAttribute("aria-selected", "true");
   await expect(timelineDiffPanel.locator(".file-diff-renderer")).toContainText("pnpm run dev");
   await expect(timelineDiffPanel.locator(".file-diff-renderer")).toContainText(
     "node ./dist/cli.js",
   );
   await expect(page.getByRole("dialog", { name: "package.json" })).toHaveCount(0);
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await contextTab.click();
 
   await expect(inspector.getByRole("region", { name: "未提交变更" })).toHaveCount(0);
@@ -125,7 +128,9 @@ test("opens project review while showing Git stats in the Inspector project tree
   expect(countBox?.x).toBeLessThan(commitBox?.x ?? 0);
   expect(statsBox?.x).toBeLessThan(commitBox?.x ?? 0);
   await reviewButton.click();
-  const reviewPanel = inspector.getByRole("tabpanel", { name: "文件审核" });
+  const reviewPanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("tabpanel", { name: "文件审核" });
   const reviewContent = reviewPanel.getByRole("region", { name: "审核文件内容" });
   const reviewNavigation = reviewPanel.getByRole("complementary", { name: "变更文件导航" });
   await reviewPanel.getByRole("button", { name: "展开变更文件导航" }).click();

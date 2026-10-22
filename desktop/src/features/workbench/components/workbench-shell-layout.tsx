@@ -1,3 +1,4 @@
+import { WorkbenchDocumentWorkspace } from "./workbench-document-workspace.js";
 import { useSplitInspectorBridge } from "@codexly/ui/core/split-inspector";
 import type { ReactNode } from "react";
 import { TerminalWorkbench } from "../../terminal/components/terminal-workbench.js";
@@ -153,6 +154,7 @@ export function WorkbenchShellLayout({
           {...(appInfoQuery.data === undefined ? {} : { appInfo: appInfoQuery.data })}
           onClose={closeSidebar}
           onOpenFile={(file, kind) => {
+                if (window.matchMedia("(max-width: 760px)").matches) closeSidebar();
             openSidebarDocument({
               id: fileDocumentId(kind, `${file.projectId}:${file.rootPath}:${file.path}`),
               kind,
@@ -204,6 +206,7 @@ export function WorkbenchShellLayout({
             utilityView={utilityView}
             viewTitle={viewTitle}
           />
+          <WorkbenchDocumentWorkspace context={context} projectId={projectId} enabled={!utilityView} {...(taskId === undefined ? {} : { taskId })}>
           {scheduledTasks ? (
             <Suspense fallback={<div aria-busy="true" style={{ flex: 1 }} />}>
               <LazyScheduledTasksContainer
@@ -328,6 +331,7 @@ export function WorkbenchShellLayout({
               onReviewFileChanges={openFileReview}
             />
           )}
+          </WorkbenchDocumentWorkspace>
         </TerminalWorkbench>
         )}
 

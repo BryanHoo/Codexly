@@ -1,3 +1,5 @@
+import { documentResourceId } from "@codexly/frontend-core/document-presentation";
+import { useDocumentWorkspace } from "@codexly/ui/core/use-document-workspace";
 import { useComposerWorkspaceSelection } from "@codexly/ui/core/composer-workspace";
 import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import type { SplitRuntimeOptions } from "@codexly/frontend-core/split-workspace";
@@ -44,11 +46,7 @@ import { deriveProjectSidebarConnectionState } from "./project-sidebar.js";
 import { getProjectFileManagerApp } from "./project-open-menu.js";
 import { collectSubagents, type SubagentSelection } from "./subagent.js";
 import type { WorkbenchInspectorTab } from "./workbench-inspector.js";
-import {
-  closeInspectorDocument,
-  documentTabId,
-  type InspectorDocument,
-} from "./workbench-inspector-documents.js";
+import type { InspectorDocument } from "./workbench-inspector-documents.js";
 import {
   deriveWorkbenchInspectorActivation,
   shouldEnableProjectGitDetails,
@@ -132,12 +130,8 @@ export function useWorkbenchShellRuntime({
     tab: WorkbenchInspectorTab;
   }>({ scopeKey: inspectorScopeKey, tab: defaultInspectorTab });
   const documentsScopeKey = `${projectId}:${selectedRootPath ?? ""}`;
-  const [inspectorDocumentsState, setInspectorDocumentsState] = useState<{
-    scopeKey: string;
-    documents: InspectorDocument[];
-  }>({ scopeKey: documentsScopeKey, documents: [] });
-  const inspectorDocuments =
-    inspectorDocumentsState.scopeKey === documentsScopeKey ? inspectorDocumentsState.documents : [];
+  const documentWorkspace = useDocumentWorkspace<InspectorDocument>(documentsScopeKey);
+  const inspectorDocuments = documentWorkspace.documents;
   // 标签选择绑定当前路由身份；新打开的草稿与历史任务都从项目开始。
   const inspectorTab =
     inspectorTabState.scopeKey === inspectorScopeKey ? inspectorTabState.tab : defaultInspectorTab;
@@ -158,7 +152,7 @@ export function useWorkbenchShellRuntime({
   });
   const inspectorActivation = deriveWorkbenchInspectorActivation({
     contextOnly: temporary,
-    fileOpen: inspectorDocuments.some((document) => documentTabId(document.id) === inspectorTab),
+    fileOpen: false,
     gitStatus: gitStatusQuery.data,
     inspectorOpen: inspectorOpen && !workspaceOnly && paneActive,
     requestedTab: inspectorTab,
@@ -344,32 +338,29 @@ export function useWorkbenchShellRuntime({
     },
     [inspectorScopeKey],
   );
+  const openDocument = documentWorkspace.open;
   const openInspectorDocument = useCallback(
     (document: InspectorDocument) => {
-      // 同一路径复用标签；内容仅存描述数据，未激活的预览不会挂载或发起读取。
-      setInspectorDocumentsState((previous) => {
-        const documents = previous.scopeKey === documentsScopeKey ? previous.documents : [];
-        const index = documents.findIndex((item) => item.id === document.id);
-        const next = [...documents];
-        if (index === -1) next.push(document);
-        else next[index] = document;
-        return { scopeKey: documentsScopeKey, documents: next };
-      });
-      setInspectorTab(documentTabId(document.id));
-      setInspectorOpen(true);
+      // 文件内容进入中栏，右栏保持文件树/变更列表；覆盖层关闭后让出移动端阅读空间。
+      void openDocument(
+        "reference" in document
+          ? {
+              ...document,
+              id: documentResourceId(
+                document.kind,
+                document.reference.path,
+                document.projectId ?? projectId,
+                document.rootPath ?? selectedRootPath,
+              ),
+            }
+          : document,
+      );
+      if (window.matchMedia("(max-width: 1100px)").matches) setInspectorOpen(false);
+      if (window.matchMedia("(max-width: 760px)").matches) setSidebarOpen(false);
     },
-    [documentsScopeKey, setInspectorOpen, setInspectorTab],
+    [openDocument, projectId, selectedRootPath, setInspectorOpen, setSidebarOpen],
   );
-  const removeInspectorDocument = useCallback(
-    (id: string) => {
-      setInspectorDocumentsState((previous) => ({
-        ...previous,
-        documents: closeInspectorDocument(previous.documents, id),
-      }));
-      if (inspectorTab === documentTabId(id)) setInspectorTab(defaultInspectorTab);
-    },
-    [defaultInspectorTab, inspectorTab, setInspectorTab],
-  );
+  const removeInspectorDocument = documentWorkspace.close;
 
   useLayoutEffect(() => {
     // 路由提交后、页面绘制前消费提醒，避免实时终态与被动 Effect 形成竞态。
@@ -457,6 +448,7 @@ export function useWorkbenchShellRuntime({
     requestNotificationPermission,
     retry,
     runtime,
+    documentWorkspace,
     inspectorDocuments,
     openInspectorDocument,
     removeInspectorDocument,

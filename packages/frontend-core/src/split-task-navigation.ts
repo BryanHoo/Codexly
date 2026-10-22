@@ -1,7 +1,25 @@
-import type { SplitPaneIdentity } from "./split-workspace.js";
+import { splitPaneKey, type SplitPaneIdentity } from "./split-workspace.js";
 
 const SPLIT_TASK_NAVIGATION_EVENT = "codexly:split-task-navigation";
+const TASK_CHAT_NAVIGATION_EVENT = "codexly:task-chat-navigation";
 type TaskPane = SplitPaneIdentity & { taskId: string };
+
+export function revealTaskChat(pane: SplitPaneIdentity): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent<string>(TASK_CHAT_NAVIGATION_EVENT, { detail: splitPaneKey(pane) }),
+  );
+}
+
+export function subscribeTaskChatNavigation(key: string, reveal: () => void): () => void {
+  const listener = (event: Event) => {
+    if ((event as CustomEvent<string>).detail === key) reveal();
+  };
+  window.addEventListener(TASK_CHAT_NAVIGATION_EVENT, listener);
+  return () => {
+    window.removeEventListener(TASK_CHAT_NAVIGATION_EVENT, listener);
+  };
+}
 
 export function requestSplitTaskNavigation(pane: TaskPane): boolean {
   if (typeof window === "undefined") return false;

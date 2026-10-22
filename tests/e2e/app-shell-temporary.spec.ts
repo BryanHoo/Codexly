@@ -93,24 +93,31 @@ test("creates and restores a temporary task without exposing its internal projec
   const changedFiles = page.getByRole("region", { name: "本次修改了 1 个文件" });
   await changedFiles.getByRole("button", { name: "审核", exact: true }).click();
   const inspector = page.getByRole("complementary", { name: "运行环境" });
-  const reviewPanel = inspector.getByRole("tabpanel", { name: "文件审核" });
+  const reviewPanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("tabpanel", { name: "文件审核" });
   await expect(reviewPanel.getByRole("heading", { name: "temporary-change.ts" })).toBeVisible();
   await reviewPanel.getByRole("button", { name: "关闭文件审核" }).click();
   await changedFiles
     .getByRole("button", { name: "已编辑 temporary-change.ts，新增 1 行，删除 1 行" })
     .click();
-  const diffPanel = inspector.getByRole("region", { name: "/tmp/temporary-change.ts" });
+  const diffPanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "/tmp/temporary-change.ts" });
   await expect(diffPanel.locator(".file-diff-renderer")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "temporary-change.ts" })).toHaveCount(0);
-  await inspector.getByRole("button", { name: "关闭文件" }).last().click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await page.getByRole("button", { name: "temporary-note.md" }).click();
-  const sourcePanel = inspector.getByRole("region", { name: "/tmp/temporary-note.md" });
+  const sourcePanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "/tmp/temporary-note.md" });
   await expect(sourcePanel).toContainText("允许从临时任务打开");
-  await expect(inspector.getByRole("tab", { name: "temporary-note.md" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  const inspectorLayout = await inspector.evaluate((element) => {
+  await expect(
+    page.locator("[data-document-workspace]").getByRole("tab", { name: "temporary-note.md" }),
+  ).toHaveAttribute("aria-selected", "true");
+  const inspectorLayout = await page.locator("[data-document-workspace]").evaluate((element) => {
     const tabList = element.querySelector('[role="tablist"]');
     const header = tabList?.parentElement;
     const tabPanel = header?.nextElementSibling;
@@ -127,7 +134,7 @@ test("creates and restores a temporary task without exposing its internal projec
     const headerRect = header.getBoundingClientRect();
     const panelRect = tabPanel.getBoundingClientRect();
     return {
-      expectedHeaderHeight: workbenchHeader.getBoundingClientRect().height,
+      expectedHeaderHeight: 28,
       headerBottom: headerRect.bottom,
       headerHeight: headerRect.height,
       panelTop: panelRect.top,
@@ -136,34 +143,43 @@ test("creates and restores a temporary task without exposing its internal projec
   expect(inspectorLayout).not.toBeNull();
   expect(inspectorLayout?.headerHeight).toBe(inspectorLayout?.expectedHeaderHeight);
   expect(inspectorLayout?.panelTop).toBe(inspectorLayout?.headerBottom);
+  await page.getByRole("tab", { name: "聊天", exact: true }).click();
   await page.getByRole("button", { name: "temporary-preview.png" }).click();
-  const imagePanel = inspector.getByRole("region", { name: "/tmp/temporary-preview.png" });
+  const imagePanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "/tmp/temporary-preview.png" });
   await expect(sourcePanel).not.toBeAttached();
   await expect(imagePanel.getByRole("img", { name: "temporary-preview.png" })).toHaveAttribute(
     "src",
     "/v1/temporary/files/image?path=%2Ftmp%2Ftemporary-preview.png",
   );
-  await expect(inspector.getByRole("tab", { name: "temporary-preview.png" })).toHaveCount(1);
-  await inspector.getByRole("button", { name: "关闭文件" }).last().click();
+  await expect(
+    page.locator("[data-document-workspace]").getByRole("tab", { name: "temporary-preview.png" }),
+  ).toHaveCount(1);
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await expect(imagePanel).not.toBeAttached();
+  await page.getByRole("tab", { name: "聊天", exact: true }).click();
   await page.getByRole("button", { name: "temporary-report.pdf" }).click();
-  const pdfPanel = inspector.getByRole("region", { name: "/tmp/temporary-report.pdf" });
+  const pdfPanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "/tmp/temporary-report.pdf" });
   await expect(pdfPanel.getByRole("link", { name: "打开 PDF" })).toHaveAttribute(
     "href",
     "/v1/temporary/files/pdf?path=%2Ftmp%2Ftemporary-report.pdf",
   );
   expect(requestedPaths.filter((path) => path === "/v1/temporary/open")).toHaveLength(0);
-  await inspector.getByRole("button", { name: "关闭文件" }).last().click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await expect(pdfPanel).not.toBeAttached();
-  await inspector.getByRole("tab", { name: "上下文" }).click();
+  await page.getByRole("tab", { name: "聊天", exact: true }).click();
+  await page.getByRole("button", { name: "展开上下文面板" }).click();
   await expect(approvalSelect).toHaveAttribute("value", "auto-review");
   expect(temporaryTurnOptions?.["sandboxMode"]).toBe("workspace-write");
   await expect(inspector).toBeVisible();
   await expect(inspector.getByRole("tab", { name: "项目" })).toHaveCount(0);
-  await expect(inspector.getByRole("tab", { name: "上下文" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
   await expect(inspector.getByRole("region", { name: "MCP" })).toContainText("context7");
   await expect(page.getByText("temporary-workspace")).toHaveCount(0);
 

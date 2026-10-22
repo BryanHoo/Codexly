@@ -28,7 +28,9 @@ Mobile keeps a single-task view. Switch projects and tasks through the sidebar a
 
 ## Files and previews
 
-Browse source, Markdown, images, and PDFs. Images support zoom and pan. Chat attachments, file links, and task-local images open in their corresponding previews.
+Open source, Markdown, images, and PDFs in center tabs while the project tree stays visible on the right. Diffs, file reviews, and commit details also use center tabs. Select **Chat** to return to the conversation. Images support zoom and pan; attachments keep their dedicated previews.
+
+Use the file toolbar to compare with chat side by side or above, drag the divider to resize, and click the selected comparison button again to focus on the document. The tab bar is hidden when only chat is open. Task navigation returns to chat while keeping open file tabs. Each task pane owns its tabs. Mobile uses a single tab group and closes overlay sidebars when opening a file.
 
 On a phone or another LAN device, download files that cannot be previewed and open them with an app on that device. Choosing the system default from the file tree, chat file links, or search results first shows a download prompt; transfer starts when you select Download. Local Web access and desktop can still open files with applications on the host.
 

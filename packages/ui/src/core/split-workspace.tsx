@@ -38,7 +38,10 @@ import {
   type SplitDirection,
   type SplitLayout,
 } from "@codexly/frontend-core/split-layout";
-import { subscribeSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
+import {
+  revealTaskChat,
+  subscribeSplitTaskNavigation,
+} from "@codexly/frontend-core/split-task-navigation";
 import {
   createSplitDraft,
   SplitPaneMenu,
@@ -49,7 +52,6 @@ import {
 } from "./split-workspace-actions.js";
 import { SplitWorkspaceResizers, splitPaneStyle } from "./split-workspace-resizers.js";
 import { useSplitWorkspaceDrag } from "./split-workspace-drag.js";
-
 const mobileQuery = "(max-width: 760px), (hover: none) and (pointer: coarse)";
 function subscribeMobile(listener: () => void) {
   const query = window.matchMedia(mobileQuery);
@@ -60,7 +62,6 @@ function subscribeMobile(listener: () => void) {
 }
 const getMobile = () => window.matchMedia(mobileQuery).matches;
 const getServerMobile = () => false;
-
 type WorkspaceState = Readonly<{
   enabled: boolean;
   panes: readonly SplitPaneIdentity[];
@@ -94,7 +95,6 @@ export function useSplitWorkspace(): Workspace | null {
     [state, actions, activePane],
   );
 }
-
 export function SplitWorkspaceProvider({
   children,
   current,
@@ -197,6 +197,8 @@ export function SplitWorkspaceProvider({
       const alreadyOpen = panes.some((item) => splitPaneKey(item) === splitPaneKey(pane));
       // 单窗口和移动端继续走普通路由；真正分屏时由工作区接管左栏任务切换。
       if (!alreadyOpen && (!enabled || panes.length < 2)) return false;
+      // 显式任务导航回到聊天；普通鼠标聚焦仍保留文档，避免对照时误切换。
+      revealTaskChat(pane);
       setSelection((previous) => {
         const next = selectSplitTask(previous, pane);
         return next.panes === previous.panes
@@ -309,9 +311,7 @@ export function SplitWorkspaceProvider({
     </SplitWorkspaceActionsContext>
   );
 }
-
 export { getSplitAction } from "@codexly/frontend-core/split-workspace";
-
 export const SplitPaneContext = createContext<Readonly<{
   pane: SplitPaneIdentity;
   active: boolean;
@@ -319,7 +319,6 @@ export const SplitPaneContext = createContext<Readonly<{
   toggleSidebar: () => void;
   sidebarOpen: boolean;
 }> | null>(null);
-
 function SplitPaneProvider({
   children,
   ...props

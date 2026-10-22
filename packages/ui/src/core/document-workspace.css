@@ -1,0 +1,186 @@
+.document-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--ui-color-content);
+}
+.document-workspace-toolbar {
+  /* 标签只占剩余空间，操作列独立保留宽度，不能被溢出标签带出窗口。 */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  align-items: center;
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 6px;
+  gap: 4px;
+}
+.document-workspace-tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  /* 与右栏保持一致：保留原生触摸滚动，不让滚动条挤占标签点击区域。 */
+  scrollbar-width: none;
+}
+.document-workspace-tabs::-webkit-scrollbar {
+  display: none;
+}
+.document-workspace-tab {
+  display: flex;
+  position: relative;
+  align-items: center;
+  flex-shrink: 0;
+  max-width: 220px;
+  height: 24px;
+  margin: 2px 0;
+  border-radius: 6px;
+  color: var(--ui-color-text-muted);
+}
+.document-workspace-tab[data-active="true"] {
+  color: var(--ui-color-text);
+  background: var(--ui-color-control-hover);
+}
+.document-workspace-tab > [role="tab"] {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 400;
+}
+.document-workspace-tab > [role="tab"] > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.document-workspace-toolbar svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.document-workspace-tab-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 2px;
+  border-radius: 4px;
+}
+.document-workspace-actions {
+  display: flex;
+  justify-self: end;
+  min-width: max-content;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.document-workspace-actions > button {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  color: var(--ui-color-text-muted);
+}
+.document-workspace-actions > button[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: default;
+}
+.document-workspace-actions > button[aria-pressed="true"] {
+  color: var(--ui-color-accent);
+  background: var(--ui-color-accent-soft);
+}
+.document-workspace-toolbar button:hover {
+  background: var(--ui-color-control-hover);
+}
+.document-workspace-toolbar button:focus-visible {
+  outline: 2px solid var(--ui-color-focus);
+  outline-offset: -2px;
+  border-radius: 5px;
+}
+.document-workspace-body {
+  position: relative;
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+.document-workspace-chat,
+.document-workspace-document {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.document-workspace-body[data-direction="right"] {
+  grid-template-columns: minmax(0, var(--document-split-ratio, 50%)) minmax(0, 1fr);
+}
+.document-workspace-body[data-direction="down"] {
+  grid-template-rows: minmax(0, var(--document-split-ratio, 50%)) minmax(0, 1fr);
+}
+.document-workspace-body[data-direction="right"] > .document-workspace-document {
+  border-left: 1px solid var(--ui-color-separator-strong);
+}
+.document-workspace-body[data-direction="down"] > .document-workspace-document {
+  border-top: 1px solid var(--ui-color-separator-strong);
+}
+.document-workspace-resizer {
+  position: absolute;
+  z-index: 8;
+  touch-action: none;
+  user-select: none;
+}
+.document-workspace-body[data-direction="right"] > .document-workspace-resizer {
+  top: 0;
+  bottom: 0;
+  left: var(--document-split-ratio, 50%);
+  width: 8px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+}
+.document-workspace-body[data-direction="down"] > .document-workspace-resizer {
+  left: 0;
+  right: 0;
+  top: var(--document-split-ratio, 50%);
+  height: 8px;
+  transform: translateY(-50%);
+  cursor: row-resize;
+}
+.document-workspace-resizer:hover,
+.document-workspace-resizer:focus-visible {
+  background: var(--ui-color-accent-soft);
+  outline: 1px solid var(--ui-color-focus);
+  outline-offset: -3px;
+}
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .document-workspace-toolbar {
+    height: 36px;
+  }
+  .document-workspace-tab-close {
+    width: 30px;
+    height: 32px;
+  }
+  .document-workspace-tab {
+    max-width: 190px;
+    height: 32px;
+  }
+}

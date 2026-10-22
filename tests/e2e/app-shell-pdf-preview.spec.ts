@@ -95,12 +95,19 @@ test("previews generated chat PDFs, attachments and file-tree PDFs", async ({ pa
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByText("生成的报告", { exact: true }).click();
   const inspector = page.getByRole("complementary", { name: "运行环境" });
-  await expect(inspector.locator("iframe")).toHaveAttribute("src", /files\/pdf\?/u);
+  await expect(page.locator("[data-document-workspace] iframe")).toHaveAttribute(
+    "src",
+    /files\/pdf\?/u,
+  );
   await expect.poll(() => pdfRequests).toBe(2);
   await inspector.getByRole("tab", { name: "项目", exact: true }).click();
   await inspector.getByRole("treeitem", { name: "报告.PDF", exact: true }).click();
-  await expect(inspector.locator("iframe")).toHaveAttribute("src", /path=%E6%8A%A5%E5%91%8A.PDF/u);
+  await expect(page.locator("[data-document-workspace] iframe")).toHaveAttribute(
+    "src",
+    /path=%E6%8A%A5%E5%91%8A.PDF/u,
+  );
   await expect.poll(() => pdfRequests).toBe(3);
+  await page.getByRole("tab", { name: "聊天", exact: true }).click();
   await page.getByRole("button", { name: "附件.pdf", exact: true }).click({ button: "right" });
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("menuitem", { name: "下载文件" }).click();

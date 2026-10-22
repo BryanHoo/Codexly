@@ -20,6 +20,19 @@ export async function handleAppShellProjectRoute(
   state: AppShellApiState,
 ): Promise<boolean> {
   const url = new URL(route.request().url());
+  if (url.pathname.endsWith("/files/text")) {
+    // 传统预览用例使用分页假数据；显式声明只读回退，避免无关 404 通知遮挡中栏工具栏。
+    await route.fulfill({
+      status: 415,
+      contentType: "application/json",
+      json: {
+        code: "TEXT_FILE_UNSUPPORTED",
+        message: "Fixture uses paged source preview",
+        retryable: false,
+      },
+    });
+    return true;
+  }
   const defaultsMatch = /^\/v1\/projects\/([^/]+)\/defaults$/u.exec(url.pathname);
   const settingsMatch = /^\/v1\/projects\/([^/]+)\/tasks\/([^/]+)\/settings$/u.exec(url.pathname);
   const combinedSettingsMatch =

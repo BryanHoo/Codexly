@@ -100,11 +100,12 @@ test("reviews selected files, preserves AI drafts and recovers a failed push", a
   await expect(all).toBeChecked();
   // 文件点击仅打开差异；返回后选择仍在，底部草稿不会重新初始化。
   await tree.getByRole("treeitem", { name: "package.json", exact: true }).click();
-  await expect(inspector.getByRole("tab", { name: "Diff: package.json" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await expect(
+    page.locator("[data-document-workspace]").getByRole("tab", { name: "Diff: package.json" }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await changesTab.click();
   await expect(all).toBeChecked();
   await all.uncheck();

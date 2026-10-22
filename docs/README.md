@@ -17,6 +17,7 @@ Codexly 支持 Codex 与 Claude，提供桌面应用、电脑 Web 和移动浏�
 
 - [工作台使用](usage.md) · [Workspace guide](usage.en.md)：项目、任务、队列、分屏、文件、扩展与定时任务。
 - [Git 操作](git-workflow.md)：差异审阅、提交、远端同步、分支与 worktree，含英文说明。
+- [聊天与文件工作区](document-workspace.md)：中栏标签、聊天对照、移动视图与设计依据。
 - [文本编辑](text-file-editing.md)：保存、文件限制与冲突处理。
 - [全局搜索](global-search.md)：项目、任务、消息与文件搜索。
 - [常见问题](faq.md)：本地数据、跨端使用、连接失败与更新。

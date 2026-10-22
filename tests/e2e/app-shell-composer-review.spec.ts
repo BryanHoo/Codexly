@@ -138,12 +138,12 @@ test("loads long source files while scrolling", async ({ context, page }) => {
   });
   await sourceReference.click();
 
-  const inspector = page.getByRole("complementary", { name: "运行环境" });
-  const filePanel = inspector.getByRole("region", { name: "docs/architecture-design.md" });
-  await expect(inspector.getByRole("tab", { name: "architecture-design.md" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  const filePanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "docs/architecture-design.md" });
+  await expect(
+    page.locator("[data-document-workspace]").getByRole("tab", { name: "architecture-design.md" }),
+  ).toHaveAttribute("aria-selected", "true");
   await expect(filePanel).toBeVisible();
   const sourcePathLabel = filePanel.getByText("docs/architecture-design.md", { exact: true });
   await expect(sourcePathLabel).toHaveCSS("overflow", "hidden");
@@ -172,7 +172,9 @@ test("loads long source files while scrolling", async ({ context, page }) => {
   await expect(filePanel.getByRole("heading", { name: "11.7 外部登录边界" })).toBeVisible();
   await expect(filePanel.locator('[data-language="markdown"]')).not.toBeAttached();
 
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await sourceReference.click();
   await expect(filePanel.getByRole("heading", { name: "11.7 外部登录边界" })).toBeVisible();
 
@@ -191,9 +193,13 @@ test("loads long source files while scrolling", async ({ context, page }) => {
     )
     .toBe(architectureSourcePreview);
 
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await expect(filePanel).not.toBeAttached();
-  await expect(inspector.getByRole("tab", { name: "architecture-design.md" })).toHaveCount(0);
+  await expect(
+    page.locator("[data-document-workspace]").getByRole("tab", { name: "architecture-design.md" }),
+  ).toHaveCount(0);
 });
 
 test("routes assistant links, images, and system files by Markdown file rules", async ({
@@ -216,8 +222,7 @@ test("routes assistant links, images, and system files by Markdown file rules", 
   await expect(externalLink).toHaveAttribute("rel", "noopener noreferrer");
 
   await page.getByRole("button", { name: "result.png" }).click();
-  const inspector = page.getByRole("complementary", { name: "运行环境" });
-  const imagePanel = inspector.getByRole("region", {
+  const imagePanel = page.locator("[data-document-workspace]").getByRole("region", {
     name: "/workspace/Codexly/design/result.png",
   });
   await expect(imagePanel).toBeVisible();
@@ -226,15 +231,22 @@ test("routes assistant links, images, and system files by Markdown file rules", 
     "/v1/projects/codexly/files/image?path=%2Fworkspace%2FCodexly%2Fdesign%2Fresult.png&rootPath=%2Fworkspace%2FCodexly",
   );
 
+  await page.getByRole("tab", { name: "聊天", exact: true }).click();
   await page.getByRole("button", { name: /architecture-design\.md\s+\(line 100\)/u }).click();
   await expect(imagePanel).not.toBeAttached();
   await expect(
-    inspector.getByRole("region", { name: "docs/architecture-design.md" }),
+    page
+      .locator("[data-document-workspace]")
+      .getByRole("region", { name: "docs/architecture-design.md" }),
   ).toBeVisible();
-  const fileTab = inspector.getByRole("tab", { name: "architecture-design.md" });
-  const closeFileButton = inspector.getByRole("button", { name: "关闭文件" }).last();
+  const fileTab = page
+    .locator("[data-document-workspace]")
+    .getByRole("tab", { name: "architecture-design.md" });
+  const closeFileButton = page.locator(
+    ".document-workspace-tab[data-active=true] .document-workspace-tab-close",
+  );
   await expect(fileTab).toHaveCount(1);
-  const fileTabBox = await fileTab.boundingBox();
+  const fileTabBox = await fileTab.locator("..").boundingBox();
   const closeFileButtonBox = await closeFileButton.boundingBox();
   // 关闭入口必须完整落在文件标签表面内，防止再次退回标签外的并列布局。
   expect(fileTabBox).not.toBeNull();
@@ -243,16 +255,19 @@ test("routes assistant links, images, and system files by Markdown file rules", 
     throw new Error("File tab geometry is unavailable");
   }
   expect(closeFileButtonBox.x).toBeGreaterThanOrEqual(fileTabBox.x);
-  expect(closeFileButtonBox.width).toBeLessThanOrEqual(16);
+  expect(closeFileButtonBox.width).toBeGreaterThanOrEqual(24);
   expect(closeFileButtonBox.x + closeFileButtonBox.width).toBeLessThanOrEqual(
     fileTabBox.x + fileTabBox.width,
   );
   await closeFileButton.click();
 
+  await page.getByRole("tab", { name: "聊天", exact: true }).click();
   await page.getByRole("button", { exact: true, name: "后续工作交接.pptx" }).click();
   await systemOpenRequest;
   await expect(page.getByRole("dialog", { name: "后续工作交接.pptx" })).toHaveCount(0);
-  await expect(inspector.getByRole("tab", { name: "architecture-design.md" })).toHaveCount(0);
+  await expect(
+    page.locator("[data-document-workspace]").getByRole("tab", { name: "architecture-design.md" }),
+  ).toHaveCount(0);
 });
 
 test("project file tree opens changed, source, image, and system files by shared rules", async ({
@@ -269,19 +284,31 @@ test("project file tree opens changed, source, image, and system files by shared
   const packageFile = fileTree.getByRole("treeitem", { name: /package\.json/u });
   await expect(packageFile).toHaveCSS("cursor", "default");
   await packageFile.click();
-  const sourcePanel = inspector.getByRole("region", { name: "package.json" });
+  const sourcePanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "package.json" });
   await expect(sourcePanel).toBeVisible();
   await expect(sourcePanel.locator(".file-diff-renderer")).toHaveCount(0);
   await sourcePanel.getByRole("button", { name: "查看 Diff" }).click();
-  const diffPanel = inspector.getByRole("region", { name: "package.json" }).filter({
-    has: page.locator(".file-diff-renderer"),
-  });
+  const diffPanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "package.json" })
+    .filter({
+      has: page.locator(".file-diff-renderer"),
+    });
   await expect(diffPanel.locator(".file-diff-renderer")).toContainText("pnpm run dev");
-  await inspector.getByRole("button", { name: "关闭文件" }).last().click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await expect(diffPanel).not.toBeAttached();
-  await inspector.getByRole("tab", { name: "package.json" }).click();
+  await page
+    .locator("[data-document-workspace]")
+    .getByRole("tab", { name: "package.json" })
+    .click();
   await expect(sourcePanel).toBeVisible();
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await expect(sourcePanel).not.toBeAttached();
 
   const docsRequest = page.waitForRequest((request) => {
@@ -295,9 +322,13 @@ test("project file tree opens changed, source, image, and system files by shared
   await docsDirectory.click();
   await docsRequest;
   await fileTree.getByRole("treeitem", { name: "architecture-design.md" }).click();
-  const architecturePanel = inspector.getByRole("region", { name: "docs/architecture-design.md" });
+  const architecturePanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "docs/architecture-design.md" });
   await expect(architecturePanel).toBeVisible();
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await expect(architecturePanel).not.toBeAttached();
 
   const imageRequest = page.waitForRequest((request) => {
@@ -310,9 +341,13 @@ test("project file tree opens changed, source, image, and system files by shared
   await fileTree.getByRole("button", { name: "展开文件夹 design" }).click();
   await fileTree.getByRole("treeitem", { name: "result.png" }).click();
   await imageRequest;
-  const imagePanel = inspector.getByRole("region", { name: "design/result.png" });
+  const imagePanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "design/result.png" });
   await expect(imagePanel.getByRole("img", { name: "result.png" })).toBeVisible();
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
   await expect(imagePanel).not.toBeAttached();
 
   const systemOpenRequest = page.waitForRequest((request) => {

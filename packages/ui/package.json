@@ -62,7 +62,8 @@
       "types": "./src/core/usage-statistics.tsx",
       "default": "./src/core/usage-statistics.tsx"
     },
-    "./core/usage-statistics.css": "./src/core/usage-statistics.css"
+    "./core/usage-statistics.css": "./src/core/usage-statistics.css",
+    "./core/document-workspace.css": "./src/core/document-workspace.css"
   },
   "dependencies": {
     "@codemirror/commands": "catalog:",

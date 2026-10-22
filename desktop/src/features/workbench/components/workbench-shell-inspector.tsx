@@ -41,9 +41,7 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
     runtime,
     selectedRootPath,
     selectedRootId,
-    inspectorDocuments,
     openInspectorDocument,
-    removeInspectorDocument,
     setFileTreeExpansion,
     setInspectorTab,
     setSubagentDialogSelection,
@@ -69,9 +67,7 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
             mcpServersRetrying={mcpServersReloadMutation.isPending}
             key={getWorkbenchInspectorMountKey({ projectId, taskId })}
             onClose={closeInspector}
-            documents={inspectorDocuments}
-            onCloseDocument={removeInspectorDocument}
-            loadProjectFileDiff={loadProjectFileDiff}
+                        loadProjectFileDiff={loadProjectFileDiff}
             onOpenLoadedDiff={openFileDiff}
             onOpenCommit={(commit, repository) => {
               openInspectorDocument({
@@ -114,7 +110,10 @@ export function WorkbenchShellInspector({ context, composerRef, projectId, taskI
               }
             }}
             onReferenceProjectPath={(entry) => {
-              composerRef.current?.referenceProjectPath(entry);
+              // 文件标签隐藏聊天时先恢复输入框；保存失败时仍留在文件，避免丢失修改。
+        void Promise.resolve(context.documentWorkspace.select(null)).then((selected) => {
+          if (selected) requestAnimationFrame(() => composerRef.current?.referenceProjectPath(entry));
+        });
             }}
             onRefreshGitStatus={() => {
               if (selectedRootPath !== undefined) {

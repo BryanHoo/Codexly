@@ -1,3 +1,4 @@
+@import "@codexly/ui/core/document-workspace.css";
 @import "@codexly/ui/core/toaster.css";
 @import "tailwindcss" source("../../");
 @import "tw-animate-css";

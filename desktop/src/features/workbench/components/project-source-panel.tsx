@@ -1,3 +1,4 @@
+import { useDocumentSaveGuard } from "@codexly/ui/core/document-navigation";
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { SourceHeader, getFileName, type SourceHeaderProps } from "./project-source-header.js";
 import { useRouter } from "@tanstack/react-router";
@@ -140,6 +141,7 @@ export function ProjectSourcePanel({
     },
   });
   // 可编辑文件只使用共享会话的全文；确认不能编辑或读取失败后才启用分页预览。
+  useDocumentSaveGuard(editor);
   const usePagedSource = previewKind === "source" && (!editorEnabled || editor.fallback);
   const sourceQuery = useInfiniteQuery({
     enabled: usePagedSource,

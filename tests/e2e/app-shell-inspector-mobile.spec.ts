@@ -130,26 +130,28 @@ test("keeps the mobile Diff preview and review dialog inside the viewport", asyn
     .getByRole("button", { name: /打开 Diff/u })
     .first()
     .click();
-  const inspector = page.getByRole("complementary", { name: "运行环境" });
-  const diffSurface = inspector
+  const diffSurface = page
+    .locator("[data-document-workspace]")
     .getByRole("region")
     .filter({ has: page.locator(".file-diff-renderer") });
-  await expect(inspector.getByRole("tab", { name: "Diff: package.json" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(
+    page.locator("[data-document-workspace]").getByRole("tab", { name: "Diff: package.json" }),
+  ).toHaveAttribute("aria-selected", "true");
   await expect(diffSurface.locator(".file-diff-renderer")).toBeVisible();
   expect(await diffSurface.evaluate((surface) => surface.scrollWidth <= surface.clientWidth)).toBe(
     true,
   );
-  await inspector.getByRole("button", { name: "关闭文件" }).click();
-  await inspector.getByRole("button", { name: "关闭上下文面板" }).click();
+  await page
+    .locator(".document-workspace-tab[data-active=true] .document-workspace-tab-close")
+    .click();
 
   await page
     .getByRole("region", { name: /本次修改了 \d+ 个文件/u })
     .getByRole("button", { name: "审核", exact: true })
     .click();
-  const reviewPanel = inspector.getByRole("tabpanel", { name: "文件审核" });
+  const reviewPanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("tabpanel", { name: "文件审核" });
   const reviewContent = reviewPanel.getByRole("region", { name: "审核文件内容" });
   const reviewNavigation = reviewPanel.getByRole("complementary", { name: "变更文件导航" });
   await expect(reviewPanel.locator(".file-diff-renderer")).toBeVisible();

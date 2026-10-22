@@ -235,7 +235,9 @@ test("opens current-branch Git history from the inspector tab", async ({ page })
   expect(historyRequests).toEqual([`?rootPath=${encodedRootPath}`]);
 
   await inspector.getByRole("button", { name: /^root commit 1 /u }).click();
-  const reviewPanel = inspector.getByRole("tabpanel", { name: "root commit 1" });
+  const reviewPanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("tabpanel", { name: "root commit 1" });
   await expect(reviewPanel).toBeVisible();
   await expect(reviewPanel.getByText("Diff 过长，仅展示前 512 KiB")).toBeVisible();
   await expect(reviewPanel.locator(".file-diff-renderer")).toContainText("new");

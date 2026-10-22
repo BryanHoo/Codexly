@@ -140,12 +140,12 @@ test("opens a completed file change diff while the turn is still running", async
   await expect(fileButton).toBeVisible();
   await fileButton.click();
 
-  const inspector = page.getByRole("complementary", { name: "运行环境" });
-  await expect(inspector.getByRole("tab", { name: "Diff: live.ts" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  const diffPanel = inspector.getByRole("region", { name: "src/live.ts" });
+  await expect(
+    page.locator("[data-document-workspace]").getByRole("tab", { name: "Diff: live.ts" }),
+  ).toHaveAttribute("aria-selected", "true");
+  const diffPanel = page
+    .locator("[data-document-workspace]")
+    .getByRole("region", { name: "src/live.ts" });
   await expect(diffPanel.locator(".file-diff-renderer")).toContainText("export const live = true;");
   await expect(page.getByRole("dialog", { name: "live.ts" })).toHaveCount(0);
 });
