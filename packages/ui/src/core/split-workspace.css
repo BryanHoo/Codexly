@@ -167,3 +167,87 @@
   max-height: 50%;
   z-index: 5;
 }
+
+.split-workspace-drag-handle {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.split-workspace[data-reordering] {
+  user-select: none;
+}
+
+/* 只覆盖手势期间的内容区，防止 iframe 抢走捕获；点击交换同样可以直接选择目标窗口。 */
+.split-workspace[data-reordering]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  cursor: grabbing;
+}
+
+.split-workspace[data-reordering="select"]::before {
+  cursor: crosshair;
+}
+
+.split-workspace-pane[data-split-drag-source]::before,
+.split-workspace-pane[data-split-drop-target]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  border: 2px dashed var(--ui-color-accent);
+}
+
+.split-workspace-pane[data-split-drop-target]::before {
+  border-style: solid;
+  border-width: 3px;
+  background: var(--ui-color-accent-soft);
+}
+
+.split-workspace-drag-handle[aria-pressed="true"] {
+  color: var(--ui-color-accent);
+  background: var(--ui-color-accent-soft);
+  cursor: grabbing;
+}
+
+/* 独立的小型拖移反馈只合成自身图层，指针位于原窗口或分栏外时也有明确状态。 */
+.split-workspace-drag-preview {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 192px;
+  max-width: calc(100vw - 16px);
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--ui-color-accent);
+  border-radius: 8px;
+  background: var(--ui-color-content);
+  color: var(--ui-color-accent);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+}
+
+.split-workspace-drag-preview > svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.split-workspace-drag-preview > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

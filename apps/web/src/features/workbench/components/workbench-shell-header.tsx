@@ -166,7 +166,14 @@ export function WorkbenchShellHeader({
               {inspectorOpen ? t("shell.collapseInspector") : t("shell.expandInspector")}
             </TooltipContent>
           </Tooltip>
-          <SplitPaneControls closeLabel={t("split.close")} soloLabel={t("split.solo")} />
+          <SplitPaneControls
+            closeLabel={t("split.close")}
+            soloLabel={t("split.solo")}
+            dragLabel={t("split.drag")}
+            dragHint={t("split.dragHint")}
+            draggingLabel={t("split.dragging")}
+            dropLabel={t("split.drop")}
+          />
         </div>
       )}
     </header>

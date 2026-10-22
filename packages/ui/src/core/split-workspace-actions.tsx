@@ -22,7 +22,9 @@ import {
   type SplitPaneIdentity,
 } from "@codexly/frontend-core/split-workspace";
 import {
+  createSplitLayout,
   getSplitShortcutDirection,
+  remapSplitLayout,
   type SplitDirection,
 } from "@codexly/frontend-core/split-layout";
 import { ContextMenu, ContextMenuTrigger } from "./context-menu.js";
@@ -32,6 +34,7 @@ import type SplitWorkspaceMenuContent from "./split-workspace-menu-content.js";
 export type SplitWorkspaceActions = Readonly<{
   applyPreset: (count: SplitPaneCount, preset: SplitLayoutPreset, size: SplitWorkspaceSize) => void;
   resize: (path: string, ratio: number) => void;
+  swap: (source: string, target: string) => void;
   split: (pane: SplitPaneIdentity, direction: SplitDirection) => void;
   add: (pane: SplitPaneIdentity) => void;
   close: (pane: SplitPaneIdentity) => void;
@@ -41,6 +44,39 @@ export type SplitWorkspaceActions = Readonly<{
   replace: (previous: SplitPaneIdentity, next: SplitPaneIdentity) => void;
   solo: (pane: SplitPaneIdentity) => void;
 }>;
+
+export function createSplitDraft(
+  projectId: string,
+): Extract<SplitPaneIdentity, { draftId: string }> {
+  const id = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) =>
+    value.toString(16).padStart(8, "0"),
+  ).join("");
+  return { projectId, draftId: `split-draft:${id}` };
+}
+
+export function useSplitPaneSwap(
+  enabled: boolean,
+  setSelection: Dispatch<SetStateAction<SplitWorkspaceSelection>>,
+) {
+  return useCallback<SplitWorkspaceActions["swap"]>(
+    (source, target) => {
+      if (!enabled || source === target) return;
+      setSelection((previous) => {
+        const keys = previous.panes.map(splitPaneKey);
+        if (!keys.includes(source) || !keys.includes(target)) return previous;
+        // 仅交换布局树的叶子身份，保留切分比例、窗口顺序、输入框挂载及活动任务。
+        return {
+          ...previous,
+          layout: remapSplitLayout(previous.layout ?? createSplitLayout(keys), (key) =>
+            key === source ? target : key === target ? source : key,
+          ),
+        };
+      });
+    },
+    [enabled, setSelection],
+  );
+}
+
 export function useSplitLayoutPreset(
   enabled: boolean,
   setSelection: Dispatch<SetStateAction<SplitWorkspaceSelection>>,

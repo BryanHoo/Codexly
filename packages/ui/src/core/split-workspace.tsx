@@ -40,12 +40,15 @@ import {
 } from "@codexly/frontend-core/split-layout";
 import { subscribeSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import {
+  createSplitDraft,
   SplitPaneMenu,
   useSplitLayoutPreset,
+  useSplitPaneSwap,
   SplitWorkspaceShortcuts,
   type SplitWorkspaceActions as WorkspaceActions,
 } from "./split-workspace-actions.js";
 import { SplitWorkspaceResizers, splitPaneStyle } from "./split-workspace-resizers.js";
+import { useSplitWorkspaceDrag } from "./split-workspace-drag.js";
 
 const mobileQuery = "(max-width: 760px), (hover: none) and (pointer: coarse)";
 function subscribeMobile(listener: () => void) {
@@ -272,6 +275,7 @@ export function SplitWorkspaceProvider({
     });
   }, []);
   const applyPreset = useSplitLayoutPreset(enabled, setSelection, createSplitDraft);
+  const swap = useSplitPaneSwap(enabled, setSelection);
   const state = useMemo(
     () => ({
       enabled,
@@ -284,6 +288,7 @@ export function SplitWorkspaceProvider({
     () => ({
       applyPreset,
       resize,
+      swap,
       split,
       add,
       close,
@@ -293,7 +298,7 @@ export function SplitWorkspaceProvider({
       solo,
       replace,
     }),
-    [applyPreset, resize, split, add, close, dismiss, focus, select, solo, replace],
+    [applyPreset, resize, swap, split, add, close, dismiss, focus, select, solo, replace],
   );
   const activePane = selection.panes.find((pane) => splitPaneKey(pane) === selection.activeKey);
   return (
@@ -377,8 +382,14 @@ export function SplitWorkspaceGrid({
     () => (layout === undefined ? undefined : getSplitLayoutCells(layout)),
     [layout],
   );
+  const dragHandlers = useSplitWorkspaceDrag(
+    containerRef,
+    multiple ? layout : undefined,
+    workspace.swap,
+  );
   return (
     <div
+      {...dragHandlers}
       ref={containerRef}
       className="split-workspace"
       data-multiple={multiple}
@@ -486,11 +497,4 @@ export function useOpenSplitDraft() {
     },
     [pane, workspace, actions],
   );
-}
-
-function createSplitDraft(projectId: string): Extract<SplitPaneIdentity, { draftId: string }> {
-  const id = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) =>
-    value.toString(16).padStart(8, "0"),
-  ).join("");
-  return { projectId, draftId: `split-draft:${id}` };
 }

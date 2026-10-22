@@ -59,7 +59,9 @@ export function WorkbenchShellHeader({
             <Button
               aria-label={sidebarOpen ? t("shell.collapseSidebar") : t("shell.expandSidebar")}
               id={!pane?.multiple ? "workbench-sidebar-toggle" : `${id}-sidebar-toggle`}
-              onClick={() => pane === null ? setSidebarOpen((open) => !open) : pane.toggleSidebar()}
+              onClick={() =>
+                pane === null ? setSidebarOpen((open) => !open) : pane.toggleSidebar()
+              }
               size="icon-sm"
               type="button"
               variant="ghost"
@@ -152,7 +154,14 @@ export function WorkbenchShellHeader({
             onToggle={() => setInspectorOpen((open) => !open)}
           />
         )}
-          <SplitPaneControls closeLabel={t("split.close")} soloLabel={t("split.solo")} />
+        <SplitPaneControls
+          closeLabel={t("split.close")}
+          soloLabel={t("split.solo")}
+          dragLabel={t("split.drag")}
+          dragHint={t("split.dragHint")}
+          draggingLabel={t("split.dragging")}
+          dropLabel={t("split.drop")}
+        />
       </div>
     </header>
   );

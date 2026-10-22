@@ -1,7 +1,11 @@
 import type * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getSplitLayoutCells } from "@codexly/frontend-core/split-layout";
+import {
+  createSplitLayout,
+  getSplitLayoutCells,
+  getSplitLayoutDividers,
+} from "@codexly/frontend-core/split-layout";
 import { ROUTE_SPLIT_DRAFT_ID, splitPaneKey } from "@codexly/frontend-core/split-workspace";
 import {
   SplitPaneContext,
@@ -61,6 +65,47 @@ function setup() {
 describe("共享分屏操作", () => {
   beforeEach(() => {
     state.selection = undefined;
+  });
+
+  it.each([false, true])(
+    "交换窗口位置保留比例、挂载顺序与活动身份（自定义布局=%s）",
+    (directed) => {
+      const read = setup();
+      const other = { projectId: "other-project", taskId: "other" };
+      read().add(other);
+      if (directed) {
+        read().split(other, "down");
+        read().resize("", 0.65);
+        read().resize("1", 0.3);
+      }
+      const before = read();
+      const first = splitPaneKey(original);
+      const second = splitPaneKey(other);
+      const layout = defined(before.layout ?? createSplitLayout(before.panes.map(splitPaneKey)));
+      const cells = getSplitLayoutCells(layout);
+      before.swap(first, second);
+      const after = read();
+      expect(after.panes).toBe(before.panes);
+      expect(after.activeKey).toBe(before.activeKey);
+      expect(getSplitLayoutCells(defined(after.layout)).get(first)).toEqual(cells.get(second));
+      expect(getSplitLayoutCells(defined(after.layout)).get(second)).toEqual(cells.get(first));
+      expect(getSplitLayoutDividers(defined(after.layout))).toEqual(getSplitLayoutDividers(layout));
+      after.swap(first, second);
+      expect(read().layout).toEqual(layout);
+    },
+  );
+
+  it("交换自身、已关闭窗口及未知身份时不提交状态", () => {
+    const read = setup();
+    read().split(original, "right");
+    const source = splitPaneKey(original);
+    const closed = defined(read().panes[1]);
+    read().close(closed);
+    const before = state.selection;
+    read().swap(source, source);
+    read().swap(source, splitPaneKey(closed));
+    read().swap("missing", source);
+    expect(state.selection).toBe(before);
   });
 
   it.each([2, 3, 4] as const)("预设一次创建 %i 屏，保留当前会话与焦点，其余为独立草稿", (count) => {
