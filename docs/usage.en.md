@@ -10,9 +10,13 @@ Add a disk folder as a project, or create a temporary task without project conte
 
 Pin, archive, restore, or permanently delete tasks. Sidebar shortcuts help you move between projects and show unread completions, pending approvals, and running tasks. Use the task board to review work centrally. Search can find projects, tasks, messages, and files; some entry points depend on the enabled engine.
 
+Switch the sidebar between projects and a timeline grouped by Today, Yesterday, the last seven days, and Earlier. Groups can be collapsed. The task board and extensions are in the sidebar header, with schedules in the icon area; settings, notifications, and help are at the bottom. The notification center separates unread and read alerts, supports marking all as read, and opens the linked task when selected.
+
 ## Conversations and queues
 
 Choose a model and the permission and reasoning options offered by that engine. Attach files or images, reference project files with `@`, and Skills with `$`. Existing tasks keep their original engine.
+
+Save a name, shortcut, and instructions in **Settings → Saved prompts**, choosing global or project scope. Type `/` in chat to select a prompt: it inserts at the cursor, preserves existing text, and does not send automatically. Project prompts override global prompts with the same shortcut. Prompts stay in the current browser or desktop client and do not synchronize with host task data. When space is limited, composer options such as model selection move into a menu.
 
 Follow streaming replies, commands, tools, plans, subagents, and file changes. Respond to approvals and questions in the task. Steer running work or queue follow-ups; queued messages can be reordered, withdrawn for editing, or cancelled before execution. Claude foreground interruption and background-task stopping are separate controls.
 
@@ -23,6 +27,8 @@ Recent history loads first. Load older turns from the top, and expand execution 
 Desktop and computer browsers support up to four task panes. Use **Split layout** in the task header, a task's sidebar menu, or the blank-chat context menu. Shortcuts are `⌘+⌥+Arrow` on macOS and `Ctrl+Alt+Arrow` on Windows / Ubuntu.
 
 Drag dividers to resize panes. Drafts and queues are independent; files, Git, and the desktop terminal follow the focused task. Navigation from notifications, search, or the task board preserves the layout.
+
+Use the drag handle in a task pane header to move it onto another pane to swap their positions; drop feedback identifies the target.
 
 Mobile keeps a single-task view. Switch projects and tasks through the sidebar and open files, changes, or settings as needed. Native desktop terminals and global shortcuts are unavailable. See [mobile connections](web.en.md#mobile-and-lan-access).
 
@@ -59,6 +65,10 @@ Select Codex or Claude in the extension center and manage Skills, MCP, and offic
 Search and filter extensions, then choose global or current-project scope before making changes. Claude supports installing, enabling, disabling, updating, and uninstalling plugins from the official catalog. Its project Skills and MCP lists show that project's configuration only. Codex project MCP entries are read-only. Third-party Skills marketplace entry points have been removed; local Skills remain manageable. MCP toggles show configuration, not live connection status.
 
 Models, reasoning, permissions, and context settings are engine-specific. Defaults apply to new tasks; existing conversations retain their choices. Declaring a context window does not increase a provider's actual capacity. Claude permissions do not provide Codex's OS sandbox, and extension configuration is not copied across engines.
+
+## Usage statistics
+
+Open **Settings → Usage statistics** to filter token totals, active days, trends, and a yearly heatmap by year and engine. Select a date for its top 50 tasks by usage. Dates use UTC; the heatmap scrolls horizontally on mobile. Statistics record newly observed usage without backfilling earlier history and do not represent remaining credits, costs, or official billing. Desktop and Web on the same host share these records.
 
 ## Data across clients
 

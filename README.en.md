@@ -33,9 +33,10 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 
 - **Work with Codex or Claude**: configure either independently, or configure both and choose an engine for each new task. Existing tasks keep their engine.
 - **Follow execution**: see streaming replies, commands, tools, plans, and file changes. Respond to approvals and questions, steer running work, or queue follow-up messages persistently.
-- **Organize projects and tasks**: add local folders, search tasks and history, pin, archive, or restore conversations, and organize work with the task board and scheduled tasks.
-- **Work in parallel**: open up to four task panes in the desktop app or a computer browser, each with its own draft and queue. Mobile uses a single-task view.
+- **Organize projects and tasks**: browse by project or timeline, pin, archive, or restore conversations, and handle unread alerts in the notification center. Open the task board, extensions, and schedules from the sidebar.
+- **Work in parallel**: open up to four task panes in the desktop app or a computer browser, drag to swap their positions, and keep independent drafts and queues. Mobile uses a single-task view.
 - **Read and edit project files**: browse code, Markdown, images, and PDFs, edit supported text files, attach files and images, and reference project files and Skills. LAN devices can download files that cannot be previewed through an explicit prompt.
+- **Reuse instructions and track usage**: save global or project prompts and insert them with `/`. View token statistics for both engines, a yearly heatmap, and daily task details in Settings.
 - **Complete Git work**: review diffs and history, manage branches and worktrees, commit selected files, commit and push, or push existing commits.
 - **Manage agent capabilities**: search, filter, and manage Skills, MCP, and official plugins by engine and global or project scope, with per-item operation status. Configure models, reasoning effort, permissions, and context settings.
 

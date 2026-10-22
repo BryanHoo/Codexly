@@ -24,6 +24,8 @@ Desktop shares conversations, approvals, queues, files, Git, extensions, and sch
 
 Open up to four task panes with independent drafts and queues. Files, Git, and the terminal follow the focused task. See [first use](../docs/getting-started.en.md) and the [workspace guide](../docs/usage.en.md).
 
+Switch the sidebar between projects and a timeline, or open the notification center for unread alerts. Center file tabs support horizontal or vertical comparison with chat. Settings includes global or project saved prompts and token statistics for both engines; saved prompts stay in the current client.
+
 The extension center manages local Skills, MCP, and official plugins for Codex or Claude, with search, filters, and global or project scope. Available operations follow each engine's capabilities. Start a new conversation after configuration changes for complete loading.
 
 Desktop and Web under the same OS user on the same computer share projects, tasks, and history in `~/.codexly`. Mobile access needs a separate Web server with LAN enabled; the desktop app does not host it. See [Web and mobile](../docs/web.en.md).

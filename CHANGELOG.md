@@ -4,6 +4,24 @@
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-10-22
+
+### 新增
+
+- 新增 Codex 与 Claude 用量统计、年度热力图和每日任务明细。
+- 新增常用提示词管理，支持全局与项目范围，在输入框用 `/` 快速插入。
+- 侧栏新增任务时间线与通知中心，可按时间浏览任务、查看未读提醒并跳转处理。
+
+### 优化
+
+- 统一中栏文件标签，支持与聊天左右或上下对照、拖动交换任务分屏，并自适应收起输入工具栏选项。
+- 改善后台任务恢复、标题同步和设置保存反馈，加快引擎配置加载。
+
+### 修复
+
+- 修复首次启动数据库并发锁定、自定义 Codex 目录未创建及 Web 自启动安装校验异常。
+- 修复 Windows 非 Git 项目路径授权、独立文件预览窗口死锁和 CMD 快捷打开持续等待的问题。
+
 ## [0.40.0] - 2026-10-20
 
 ### 新增
@@ -810,7 +828,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.40.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.41.0...HEAD
+[0.41.0]: https://github.com/BryanHoo/Codexly/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/BryanHoo/Codexly/compare/v0.39.1...v0.40.0
 [0.39.1]: https://github.com/BryanHoo/Codexly/compare/v0.38.0...v0.39.1
 [0.39.0]: https://github.com/BryanHoo/Codexly/compare/v0.38.0...v0.39.0
