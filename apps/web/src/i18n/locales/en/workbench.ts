@@ -1,3 +1,4 @@
+import { sidebarTimelineEnglish } from "@codexly/frontend-core/sidebar-task-view";
 import { composerGitEnglish } from "@codexly/frontend-core/composer-git-labels";
 import { engineEnglish } from "@codexly/frontend-core/engine-labels";
 import { gitCommit } from "./git-commit.js";
@@ -400,6 +401,7 @@ export const workbench = {
     updatedAt: "Updated {{date}}",
   },
   sidebar: {
+    timeline: sidebarTimelineEnglish,
     addProject: "Add project",
     agentNavigation: "Agent navigation",
     archive: "Archive",

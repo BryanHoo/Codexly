@@ -39,7 +39,7 @@ import {
 } from "../project-sidebar-preferences.js";
 
 import { ProjectSidebarDialogs } from "./project-sidebar-dialogs.js";
-import { ArchivedTasksDialog, type ArchivedTaskScope } from "./archived-tasks-dialog.js";
+import type { ArchivedTaskScope } from "./archived-tasks-dialog.js";
 import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
 import { SidebarTaskBoardLink } from "./sidebar-task-board-link.js";
 import { SidebarExtensionCenterLink } from "./sidebar-extension-center-link.js";
@@ -56,6 +56,8 @@ export * from "./project-sidebar-actions.js";
 export * from "./project-sidebar-state.js";
 export * from "./project-sidebar-task-row.js";
 
+// 归档管理仅在打开时读取代码，普通任务导航保持轻量。
+const ArchivedTasksDialog = lazy(() => import("./archived-tasks-dialog.js").then(module => ({ default: module.ArchivedTasksDialog })));
 const GlobalSearchDialog = lazy(() =>
   import("../../search/global-search-dialog.js").then((module) => ({
     default: module.GlobalSearchDialog,
@@ -414,7 +416,8 @@ export function ProjectSidebar({
         toggleProject={toggleProject}
       />
 
-      {archivedProject === null ? null : (
+      <Suspense fallback={null}>
+{archivedProject === null ? null : (
         <ArchivedTasksDialog
           client={client}
           onClose={() => {
@@ -423,6 +426,7 @@ export function ProjectSidebar({
           project={archivedProject}
         />
       )}
+</Suspense>
 
       {taskDeletion.deletingTask === null ? null : (
         <TaskDeleteDialog

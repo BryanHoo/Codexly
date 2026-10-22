@@ -1,4 +1,5 @@
 import { useCurrentView } from "@codexly/ui/core/use-current-view";
+import { upsertSidebarTaskCatalog } from "@codexly/ui/core/sidebar-task-catalog-cache";
 import { useNavigateSplitTask, useOpenSplitDraft } from "@codexly/ui/core/split-workspace";
 import {
   TEMPORARY_TASK_SCOPE_ID,
@@ -23,7 +24,6 @@ import type {
 import type { AgentFileChange } from "../../diff/file-change.js";
 import { notifyActionError } from "../../notifications/action-notifications.js";
 import {
-  PROJECT_TASK_SEARCH_SOURCE_KEY,
   cacheRenamedProjectTask,
   updateNewTaskTitleFromSnapshotInInfiniteData,
   upsertProjectTaskInInfiniteData,
@@ -227,13 +227,7 @@ export function useWorkbenchShellController(
         ["projects", startedTask.projectId, "tasks"],
         (currentData) => upsertProjectTaskInInfiniteData(currentData, startedTask),
       );
-      queryClient.setQueryData<readonly AgentTask[]>(
-        ["projects", startedTask.projectId, "tasks", PROJECT_TASK_SEARCH_SOURCE_KEY],
-        (currentTasks) =>
-          currentTasks === undefined
-            ? undefined
-            : [startedTask, ...currentTasks.filter((task) => task.id !== startedTask.id)],
-      );
+      upsertSidebarTaskCatalog(queryClient, startedTask);
     },
     [queryClient],
   );

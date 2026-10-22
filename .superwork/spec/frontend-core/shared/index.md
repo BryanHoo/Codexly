@@ -1,5 +1,7 @@
 # 前端共享逻辑
 
+- 左栏任务时间线的排序、去重和分组共用 `sidebar-task-timeline`：按最新 `updatedAt` 降序，相同时间按项目与任务身份稳定排序；重复身份保留最新版本，无效时间归入“更早”。分组使用本地自然日的“今天、昨天、近 7 天、更早”，“近 7 天”指含今天在内的七个自然日扣除前两组，日历运算必须支持夏令时。视图偏好和翻译由轻量 `sidebar-task-view` 单独承载，不把排序代码带入项目视图；偏好采用版本化存储，损坏或不可读时回退项目分组，写入失败不能阻断切换。时间组折叠偏好损坏或缺失时只默认收起“更早”；近期分页共用 `sidebar-timeline-recent`，按更新时间降序读到日历边界即停止，重复游标必须报错。回归见 `sidebar-task-timeline.test.ts` 与 `sidebar-timeline-recent.test.ts`。
+
 `packages/frontend-core/src/` 保存 Web 与 Desktop 共用的任务状态保留、事件顺序、快照 Turn 合并、任务查询配置、命令输出缓冲、项目事件历史及文件搜索协调，不依赖任一平台客户端或 UI。
 
 - 推理摘要使用共享 `reasoning-summary` 判定可见性：空字符串或纯空白不创建折叠条目、锚点或操作分组；保留 Store 占位，后续摘要增量含文字时恢复显示。分组容器只订阅摘要可见性的变化，不读取无关正文或命令输出；用桌面 `reasoning-item.test.ts` 与 Web `task-timeline-operation-groups.test.tsx` 验证。

@@ -4,6 +4,10 @@ import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { i18n } from "../../i18n/i18n.js";
 import {
+  invalidateSidebarTimelineRecent,
+  patchSidebarTaskCatalog,
+} from "@codexly/ui/core/sidebar-task-catalog-cache";
+import {
   PROJECT_PINNED_TASKS_KEY,
   PROJECT_TASK_SEARCH_SOURCE_KEY,
   TASK_BOARD_COMPLETED_TASKS_QUERY_KEY,
@@ -143,6 +147,12 @@ export function cacheRenamedProjectTask(
   task: AgentTask,
   taskCatalog: readonly AgentTask[],
 ): void {
+  invalidateSidebarTimelineRecent(queryClient, task.projectId);
+  // 返回完整权威目录时先撤销旧读取，避免迟到响应恢复旧标题。
+  void queryClient.cancelQueries({
+    exact: true,
+    queryKey: ["projects", task.projectId, "tasks", PROJECT_TASK_SEARCH_SOURCE_KEY],
+  });
   // 重命名不改变活动页和固定页顺序，仅替换同一 Task 的展示字段。
   queryClient.setQueryData<ProjectTaskInfiniteData>(
     ["projects", task.projectId, "tasks"],
@@ -169,10 +179,8 @@ export function cachePinnedProjectTask(
     replaceProjectTaskInInfiniteData(currentData, task),
   );
   queryClient.setQueryData([...projectTaskQueryKey, PROJECT_PINNED_TASKS_KEY], pinnedTasks);
-  queryClient.setQueryData<readonly AgentTask[]>(
-    [...projectTaskQueryKey, PROJECT_TASK_SEARCH_SOURCE_KEY],
-    (currentTasks) =>
-      currentTasks?.map((currentTask) => (currentTask.id === task.id ? task : currentTask)),
+  patchSidebarTaskCatalog(queryClient, task.projectId, (tasks) =>
+    tasks.map((current) => (current.id === task.id ? task : current)),
   );
 }
 
@@ -260,19 +268,22 @@ export function updateTaskTitleInProjectListCaches(
   snapshot: TaskTitleSnapshot,
   options: TaskTitleUpdateOptions,
 ) {
+  patchSidebarTaskCatalog(queryClient, snapshot.projectId, (tasks) =>
+    updateNewTaskTitleFromSnapshotInTasks(tasks, snapshot, options).map((task) =>
+      task.id === snapshot.id ? { ...task, updatedAt: snapshot.updatedAt } : task,
+    ),
+  );
   queryClient.setQueryData<ProjectTaskInfiniteData>(
     ["projects", snapshot.projectId, "tasks"],
     (currentData) => updateNewTaskTitleFromSnapshotInInfiniteData(currentData, snapshot, options),
   );
-  for (const sourceKey of [PROJECT_PINNED_TASKS_KEY, PROJECT_TASK_SEARCH_SOURCE_KEY]) {
-    queryClient.setQueryData<readonly AgentTask[]>(
-      ["projects", snapshot.projectId, "tasks", sourceKey],
-      (currentTasks) =>
-        currentTasks === undefined
-          ? undefined
-          : updateNewTaskTitleFromSnapshotInTasks(currentTasks, snapshot, options),
-    );
-  }
+  queryClient.setQueryData<readonly AgentTask[]>(
+    ["projects", snapshot.projectId, "tasks", PROJECT_PINNED_TASKS_KEY],
+    (currentTasks) =>
+      currentTasks === undefined
+        ? undefined
+        : updateNewTaskTitleFromSnapshotInTasks(currentTasks, snapshot, options),
+  );
 }
 
 export function removeProjectTaskFromInfiniteData(
@@ -349,16 +360,15 @@ export async function removeArchivedProjectTaskAndRefill(
   projectId: string,
   taskId: string,
 ): Promise<void> {
+  patchSidebarTaskCatalog(queryClient, projectId, (tasks) =>
+    tasks.filter((task) => task.id !== taskId),
+  );
   const projectTaskQueryKey = ["projects", projectId, "tasks"] as const;
   queryClient.setQueryData<ProjectTaskInfiniteData>(projectTaskQueryKey, (currentData) =>
     removeProjectTaskFromInfiniteData(currentData, taskId),
   );
   queryClient.setQueryData<readonly AgentTask[]>(
     [...projectTaskQueryKey, PROJECT_PINNED_TASKS_KEY],
-    (currentTasks) => currentTasks?.filter((task) => task.id !== taskId),
-  );
-  queryClient.setQueryData<readonly AgentTask[]>(
-    [...projectTaskQueryKey, PROJECT_TASK_SEARCH_SOURCE_KEY],
     (currentTasks) => currentTasks?.filter((task) => task.id !== taskId),
   );
 
@@ -372,6 +382,9 @@ export function cacheRemovedProjectTask(
   taskId: string,
   tasks: ProjectTaskInfiniteData["pages"][number],
 ): void {
+  patchSidebarTaskCatalog(queryClient, projectId, (tasks) =>
+    tasks.filter((task) => task.id !== taskId),
+  );
   const projectTaskQueryKey = ["projects", projectId, "tasks"] as const;
   queryClient.setQueryData<ProjectTaskInfiniteData>(projectTaskQueryKey, {
     pageParams: [undefined],
@@ -379,10 +392,6 @@ export function cacheRemovedProjectTask(
   });
   queryClient.setQueryData<readonly AgentTask[]>(
     [...projectTaskQueryKey, PROJECT_PINNED_TASKS_KEY],
-    (currentTasks) => currentTasks?.filter((task) => task.id !== taskId),
-  );
-  queryClient.setQueryData<readonly AgentTask[]>(
-    [...projectTaskQueryKey, PROJECT_TASK_SEARCH_SOURCE_KEY],
     (currentTasks) => currentTasks?.filter((task) => task.id !== taskId),
   );
 }

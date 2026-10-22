@@ -1,5 +1,6 @@
 import { useProjectTaskActivitySync } from "./use-project-task-activity-sync.js";
 import { patchTaskTitleCaches } from "@codexly/ui/core/task-title-cache";
+import { invalidateSidebarTimelineRecent } from "@codexly/ui/core/sidebar-task-catalog-cache";
 import { TEMPORARY_TASK_SCOPE_ID, type Project, type ProjectPage } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -110,6 +111,7 @@ export function ProjectProvider({
       },
       onTaskTitleChanged(projectId, taskId, title) {
         patchTaskTitleCaches(queryClient, projectId, taskId, title);
+        invalidateSidebarTimelineRecent(queryClient, projectId);
       },
       onTaskMetadataChanged(projectId, taskId, reason) {
         const syncTaskMetadata = async () => {
@@ -318,7 +320,6 @@ export function ProjectProvider({
           );
           return false;
         }
-
         // 拖动释放后立即更新列表；服务端失败时恢复提交前的完整快照。
         queryClient.setQueryData<ProjectPage>(["projects"], optimisticPage);
         try {
@@ -397,7 +398,6 @@ export function ProjectProvider({
   const retry = useCallback(async () => {
     await queryClient.invalidateQueries();
   }, [queryClient]);
-
   useEffect(
     () => () => {
       projectRuntime.dispose();

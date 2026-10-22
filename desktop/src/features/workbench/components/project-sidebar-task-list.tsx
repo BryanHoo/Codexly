@@ -1,10 +1,11 @@
+import { SidebarTaskViewHeader, useSidebarTaskView } from "@codexly/ui/core/sidebar-task-view-toggle";
 import { getSidebarActiveTasks } from "@codexly/frontend-core/sidebar-task-shortcuts";
 import { SidebarTaskShortcuts } from "@codexly/ui/core/sidebar-task-shortcuts";
 import { getProjectTaskStatuses } from "@codexly/frontend-core/project-task-status";
 import { ProjectStatusIndicator } from "@codexly/ui/core/project-status-indicator";
 import { TEMPORARY_TASK_SCOPE_ID, type AgentTask, type Project } from "@/protocol/index.js";
 import { Folder, Plus } from "lucide-react";
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { lazy, Suspense, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
@@ -27,6 +28,9 @@ import { getProjectTaskPaginationControl } from "./project-sidebar-state.js";
 import { ActiveTaskLink, TaskLink } from "./project-sidebar-task-row.js";
 import { TemporaryTasksHeading } from "./temporary-tasks-heading.js";
 import type { ArchivedTaskScope } from "./archived-tasks-dialog.js";
+
+// 时间线仅在用户选择后加载，项目分组首屏不承担额外面板代码。
+const ProjectSidebarTimeline = lazy(() => import("./project-sidebar-timeline.js").then(module => ({ default: module.ProjectSidebarTimeline })));
 
 const EMPTY_PROJECT_TASKS: readonly AgentTask[] = [];
 
@@ -104,6 +108,7 @@ export function ProjectSidebarTaskList({
   const { t } = useTranslation("workbench");
   // 临时任务与 Project 文件夹保持一致：标题控制列表可见性，“+”独立创建任务。
   const [preferenceStorage] = useState(getProjectSidebarPreferenceStorage);
+  const [taskView, setTaskView] = useSidebarTaskView(preferenceStorage);
   const [temporaryTasksExpanded, setTemporaryTasksExpanded] = useState(() =>
     readTemporaryTasksExpanded(preferenceStorage),
   );
@@ -117,6 +122,17 @@ export function ProjectSidebarTaskList({
   ), [taskActivity, projectsById]);
   const projectNameFor = (id: string) => id === TEMPORARY_TASK_SCOPE_ID
     ? t("sidebar.temporaryTasks") : (projectsById.get(id)?.name ?? id);
+  // 项目分组、固定入口与时间线共用同一任务行，状态、操作及分屏选中规则保持一致。
+  const renderTask = (task: AgentTask, showProjectName = false) => {
+    const activity = getTaskActivity(taskActivity, task.projectId, task.id);
+    return <TaskLink key={JSON.stringify([task.projectId, task.id])}
+      active={task.projectId === projectId && task.id === taskId}
+      attention={activity.attention} isActionPending={taskActionPending}
+      isAwaitingApproval={activity.isAwaitingApproval} isRunning={activity.isRunning}
+      onArchive={task => void archiveTask(task)} onDelete={task => void deleteTask(task)}
+      onPin={task => void pinTask(task)} onRename={setRenamingTask}
+      {...(showProjectName ? { projectName: projectNameFor(task.projectId) } : {})} task={task} />;
+  };
   const projectStatuses = useMemo(() => getProjectTaskStatuses(taskActivity), [taskActivity]);
   const temporaryTasks = tasksByProjectId.get(TEMPORARY_TASK_SCOPE_ID) ?? EMPTY_PROJECT_TASKS;
   const temporaryTaskState = projectTaskStates.get(TEMPORARY_TASK_SCOPE_ID);
@@ -144,32 +160,18 @@ export function ProjectSidebarTaskList({
             showAll: count => t("sidebar.showAllTasks", { count }),
             close: t("sidebar.closeTaskList"),
           }}
-          renderPinned={task => {
-            const activity = getTaskActivity(taskActivity, task.projectId, task.id);
-            return <TaskLink
-              active={task.projectId === projectId && task.id === taskId}
-              attention={activity.attention} isActionPending={taskActionPending}
-              isAwaitingApproval={activity.isAwaitingApproval} isRunning={activity.isRunning}
-              onArchive={task => void archiveTask(task)} onDelete={task => void deleteTask(task)}
-              onPin={task => void pinTask(task)} onRename={setRenamingTask}
-              projectName={projectNameFor(task.projectId)} task={task}
-            />;
-          }}
+          renderPinned={task => renderTask(task, true)}
           renderActive={task => <ActiveTaskLink task={task}
             active={task.projectId === projectId && task.id === taskId}
             projectName={projectNameFor(task.projectId)} />}
         />
 
         <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-labelledby="projects-title">
-          <div className="flex h-8 min-w-0 w-full shrink-0 items-center justify-between pl-2">
-            <h2 className="text-body-small font-semibold text-foreground" id="projects-title">
-              {t("sidebar.projects")}
-            </h2>
-            <ProjectPickerButton
-              disabled={isProjectAddPending}
-              onOpen={onOpenProjectPicker}
-            />
-          </div>
+          <SidebarTaskViewHeader title={taskView === "timeline" ? t("sidebar.timeline.title") : t("sidebar.projects")}
+            view={taskView} onChange={setTaskView}
+            labels={{ timeline: t("sidebar.timeline.showTimeline"), projects: t("sidebar.timeline.showProjects") }}>
+            <ProjectPickerButton disabled={isProjectAddPending} onOpen={onOpenProjectPicker} />
+          </SidebarTaskViewHeader>
 
           {isPending ? (
             <p className="px-2 py-1.5 text-meta text-subtle-foreground">
@@ -179,7 +181,7 @@ export function ProjectSidebarTaskList({
           {taskSearch.isPending ? (
             <p className="px-2 py-1.5 text-meta text-subtle-foreground">{t("sidebar.searchAll")}</p>
           ) : null}
-          {error === null && !hasTaskError ? null : (
+          {error === null && (taskView === "timeline" || !hasTaskError) ? null : (
             <p className="px-2 py-1.5 text-meta leading-5 text-danger" role="alert">
               {t("sidebar.errorLoadTasks")}
             </p>
@@ -193,6 +195,9 @@ export function ProjectSidebarTaskList({
             {projectOrderAnnouncement}
           </p>
 
+          {taskView === "timeline" ? <Suspense fallback={<p className="px-2 py-1.5 text-meta text-subtle-foreground">{t("sidebar.taskLoading")}</p>}>
+<ProjectSidebarTimeline storage={preferenceStorage} renderTask={task => renderTask(task, true)} />
+</Suspense> : (
           <div
             className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-3"
             data-testid="project-tree-scroll"
@@ -212,24 +217,7 @@ export function ProjectSidebarTaskList({
               />
               {temporaryTasksExpanded ? (
                 <div className="min-w-0 space-y-0.5 pl-5" id="temporary-tasks-content">
-                  {temporaryTaskPreview.tasks.map((task) => {
-                    const activity = getTaskActivity(taskActivity, task.projectId, task.id);
-                    return (
-                      <TaskLink
-                        active={projectId === TEMPORARY_TASK_SCOPE_ID && task.id === taskId}
-                        attention={activity.attention}
-                        isActionPending={taskActionPending}
-                        isAwaitingApproval={activity.isAwaitingApproval}
-                        isRunning={activity.isRunning}
-                        key={`${task.projectId}:${task.id}`}
-                        onArchive={(task) => void archiveTask(task)}
-                        onDelete={(task) => void deleteTask(task)}
-                        onPin={(task) => void pinTask(task)}
-                        onRename={setRenamingTask}
-                        task={task}
-                      />
-                    );
-                  })}
+                  {temporaryTaskPreview.tasks.map(task => renderTask(task))}
                   {temporaryTaskState?.isPending === true ? (
                     <p className="px-2 py-1.5 text-meta text-subtle-foreground">
                       {t("sidebar.taskLoading")}
@@ -376,24 +364,7 @@ export function ProjectSidebarTaskList({
 
                   {expanded ? (
                     <div className="mt-0.5 min-w-0 space-y-0.5 pl-5">
-                      {taskPreview.tasks.map((task) => {
-                        const activity = getTaskActivity(taskActivity, task.projectId, task.id);
-                        return (
-                          <TaskLink
-                            active={project.id === projectId && task.id === taskId}
-                            attention={activity.attention}
-                            isActionPending={taskActionPending}
-                            isAwaitingApproval={activity.isAwaitingApproval}
-                            isRunning={activity.isRunning}
-                            key={`${task.projectId}:${task.id}`}
-                            onArchive={(task) => void archiveTask(task)}
-                            onDelete={(task) => void deleteTask(task)}
-                            onPin={(task) => void pinTask(task)}
-                            onRename={setRenamingTask}
-                            task={task}
-                          />
-                        );
-                      })}
+                      {taskPreview.tasks.map(task => renderTask(task))}
                       {/* 只在所属文件夹内反馈加载，避免请求状态改变整棵目录树的位置。 */}
                       {projectTaskState?.isPending === true ? (
                         <p className="px-2 py-1.5 text-meta text-subtle-foreground">
@@ -457,6 +428,7 @@ export function ProjectSidebarTaskList({
               );
             })}
           </div>
+          )}
         </section>
       </div>
     </>

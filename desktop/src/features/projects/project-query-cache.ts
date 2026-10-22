@@ -3,6 +3,7 @@ import type { AgentTask, Project, ProjectPage } from "@/protocol/index.js";
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { i18n } from "../../i18n/i18n.js";
+import { patchSidebarTaskCatalog as patchProjectTimelineCache, upsertSidebarTaskCatalog as upsertProjectTimelineTask } from "@codexly/ui/core/sidebar-task-catalog-cache";
 import {
   PROJECT_PINNED_TASKS_KEY,
   PROJECT_PINNED_TASK_PAGE_SIZE,
@@ -87,6 +88,7 @@ export function upsertProjectTaskInInfiniteData(
 }
 
 export async function cacheCreatedProjectTask(queryClient: QueryClient, task: AgentTask) {
+  upsertProjectTimelineTask(queryClient, task);
   const projectTasksQueryKey = ["projects", task.projectId, "tasks"] as const;
 
   // 先终止创建前发出的旧列表请求，避免其响应覆盖刚写入的新 Task。
@@ -117,6 +119,7 @@ export async function refreshStartedProjectTask(
   taskId: string,
   updatedAt: string,
 ): Promise<void> {
+  patchProjectTimelineCache(queryClient, projectId, tasks => promoteStartedTaskInTasks(tasks, taskId, updatedAt) ?? tasks);
   const projectTasksQueryKey = ["projects", projectId, "tasks"] as const;
   await queryClient.cancelQueries({ exact: true, queryKey: projectTasksQueryKey });
   const startedTask = flattenProjectTaskPages(
@@ -193,6 +196,7 @@ export function replaceProjectTaskInInfiniteData(
 }
 
 export function replaceProjectTaskInQueryCaches(queryClient: QueryClient, task: AgentTask) {
+  upsertProjectTimelineTask(queryClient, task);
   // 重命名和固定操作同步普通分页与固定列表，并使聚合搜索缓存失效。
   queryClient.setQueryData<ProjectTaskInfiniteData>(
     ["projects", task.projectId, "tasks"],
@@ -294,6 +298,8 @@ export function updateTaskTitleInProjectListCaches(
   snapshot: TaskTitleSnapshot,
   options: TaskTitleUpdateOptions,
 ) {
+  patchProjectTimelineCache(queryClient, snapshot.projectId, tasks => updateNewTaskTitleFromSnapshotInTasks(tasks, snapshot, options)
+    .map(task => task.id === snapshot.id ? { ...task, updatedAt: snapshot.updatedAt } : task));
   queryClient.setQueryData<ProjectTaskInfiniteData>(
     ["projects", snapshot.projectId, "tasks"],
     (currentData) => updateNewTaskTitleFromSnapshotInInfiniteData(currentData, snapshot, options),
@@ -367,6 +373,11 @@ export function listPinnedProjectTasks(
   return listAllProjectTasks(projectId, client, { pinned: true }, signal);
 }
 
+/** 时间线仅读取任务元数据，沿用原生分页和取消信号，不加载聊天正文。 */
+export function listProjectTasksForTimeline(projectId: string, client: Pick<NativeClient, "listTasks">, signal?: AbortSignal) {
+  return listAllProjectTasks(projectId, client, {}, signal);
+}
+
 export function projectPinnedTasksQueryOptions(
   projectId: string,
   client: Pick<NativeClient, "listTasks"> = nativeClient,
@@ -384,6 +395,7 @@ export async function removeArchivedProjectTaskAndRefill(
   projectId: string,
   taskId: string,
 ): Promise<void> {
+  patchProjectTimelineCache(queryClient, projectId, tasks => tasks.filter(task => task.id !== taskId));
   const projectTaskQueryKey = ["projects", projectId, "tasks"] as const;
   queryClient.setQueryData<ProjectTaskInfiniteData>(projectTaskQueryKey, (currentData) =>
     removeProjectTaskFromInfiniteData(currentData, taskId),

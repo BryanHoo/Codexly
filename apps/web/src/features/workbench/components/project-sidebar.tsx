@@ -33,7 +33,7 @@ import {
   writeExpandedProjectIds,
 } from "../project-sidebar-preferences.js";
 import { ProjectSidebarDialogs } from "./project-sidebar-dialogs.js";
-import { ArchivedTasksDialog, type ArchivedTaskScope } from "./archived-tasks-dialog.js";
+import type { ArchivedTaskScope } from "./archived-tasks-dialog.js";
 import { ProjectSidebarTaskList } from "./project-sidebar-task-list.js";
 import { TaskDeleteDialog } from "./task-delete-dialog.js";
 import { SidebarSettingsButton } from "./project-sidebar-actions.js";
@@ -47,6 +47,10 @@ export { ProductBrand } from "./project-sidebar-header.js";
 export * from "./project-sidebar-actions.js";
 export * from "./project-sidebar-state.js";
 export * from "./project-sidebar-task-row.js";
+// 归档管理仅在打开时读取代码，普通任务导航保持轻量。
+const ArchivedTasksDialog = lazy(() =>
+  import("./archived-tasks-dialog.js").then((module) => ({ default: module.ArchivedTasksDialog })),
+);
 const GlobalSearchDialog = lazy(() =>
   import("../../search/global-search-dialog.js").then((module) => ({
     default: module.GlobalSearchDialog,
@@ -412,15 +416,17 @@ export function ProjectSidebar({
         toggleProject={toggleProject}
       />
 
-      {archivedProject === null ? null : (
-        <ArchivedTasksDialog
-          client={client}
-          onClose={() => {
-            closeProjectDialog(archivedProject.id);
-          }}
-          project={archivedProject}
-        />
-      )}
+      <Suspense fallback={null}>
+        {archivedProject === null ? null : (
+          <ArchivedTasksDialog
+            client={client}
+            onClose={() => {
+              closeProjectDialog(archivedProject.id);
+            }}
+            project={archivedProject}
+          />
+        )}
+      </Suspense>
 
       {taskDeletion.deletingTask === null ? null : (
         <TaskDeleteDialog

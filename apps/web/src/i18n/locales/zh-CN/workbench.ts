@@ -1,3 +1,4 @@
+import { sidebarTimelineChinese } from "@codexly/frontend-core/sidebar-task-view";
 import { composerGitChinese } from "@codexly/frontend-core/composer-git-labels";
 import { engineChinese } from "@codexly/frontend-core/engine-labels";
 import { gitCommit } from "./git-commit.js";
@@ -395,6 +396,7 @@ export const workbench = {
     updatedAt: "更新于 {{date}}",
   },
   sidebar: {
+    timeline: sidebarTimelineChinese,
     addProject: "添加项目",
     agentNavigation: "Agent 导航",
     archive: "归档",

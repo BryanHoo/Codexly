@@ -1,3 +1,4 @@
+import { sidebarTimelineEnglish } from "@codexly/frontend-core/sidebar-task-view";
 import { composerGitEnglish } from "@codexly/frontend-core/composer-git-labels";
 import { engineEnglish } from "@codexly/frontend-core/engine-labels";
 import { textFileEditorEnglish } from "@codexly/frontend-core/text-file-editor";
@@ -411,7 +412,7 @@ export const workbench = {
     title: "Archived tasks for {{project}}",
     updatedAt: "Updated {{date}}",
   },
-  sidebar: {
+  sidebar: { timeline: sidebarTimelineEnglish,
     addProject: "Add project",
     agentNavigation: "Agent navigation",
     archive: "Archive",

@@ -4,7 +4,11 @@ export function isCatalogListQuery(key: readonly unknown[]): boolean {
   if (key[0] !== "projects") return false;
   if (key.length === 1 || key[2] === "archived-tasks") return true;
   return (
-    key[2] === "tasks" && (key.length === 3 || key[3] === "pinned" || key[3] === "search-source")
+    key[2] === "tasks" &&
+    (key.length === 3 ||
+      key[3] === "pinned" ||
+      key[3] === "search-source" ||
+      key[3] === "timeline-recent")
   );
 }
 

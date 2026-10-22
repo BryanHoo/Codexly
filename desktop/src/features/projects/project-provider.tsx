@@ -1,4 +1,5 @@
 import { patchTaskTitleCaches } from "@codexly/ui/core/task-title-cache";
+import { invalidateSidebarTimelineRecent } from "@codexly/ui/core/sidebar-task-catalog-cache";
 import { TEMPORARY_TASK_SCOPE_ID, type Project, type ProjectPage } from "@/protocol/index.js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -37,7 +38,6 @@ import {
 } from "./project-queries.js";
 import type { ProjectProviderProps } from "./project-provider-types.js";
 import { ProjectProviderView } from "./project-provider-view.js";
-
 const emptyProjects: readonly Project[] = [];
 export function ProjectProvider({
   children,
@@ -91,6 +91,7 @@ export function ProjectProvider({
       },
       onTaskTitleChanged(projectId, taskId, title) {
         patchTaskTitleCaches(queryClient, projectId, taskId, title);
+        invalidateSidebarTimelineRecent(queryClient, projectId);
       },
       onTaskMetadataChanged(projectId, taskId, reason, updatedAt) {
         const syncTaskMetadata = async () => {
@@ -111,6 +112,10 @@ export function ProjectProvider({
               queryClient.invalidateQueries({
                 exact: true,
                 queryKey: ["projects", projectId, "tasks", PROJECT_PINNED_TASKS_KEY],
+              }),
+              queryClient.invalidateQueries({
+                exact: true,
+                queryKey: ["projects", projectId, "tasks", "search-source"],
               }),
               queryClient.invalidateQueries({
                 queryKey: TASK_BOARD_COMPLETED_TASKS_QUERY_KEY,
@@ -321,7 +326,6 @@ export function ProjectProvider({
           );
           return false;
         }
-
         // 拖动释放后立即更新列表；服务端失败时恢复提交前的完整快照。
         queryClient.setQueryData<ProjectPage>(["projects"], optimisticPage);
         try {
