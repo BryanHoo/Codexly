@@ -1,4 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import {
   checkCodexVersion,
@@ -208,6 +210,10 @@ export async function startCodexAppServer(
     ...(options.binaryPath ? { explicitPath: options.binaryPath } : {}),
   });
   const version = await checkCodexVersion(binary.path);
+  const codexHome = env["CODEX_HOME"];
+  if (codexHome) {
+    await mkdir(resolve(options.cwd ?? process.cwd(), codexHome), { recursive: true, mode: 0o700 });
+  }
   const child = spawn(binary.path, [...APP_SERVER_ARGUMENTS], {
     cwd: options.cwd,
     env: { ...env },

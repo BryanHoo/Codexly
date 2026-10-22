@@ -1,5 +1,7 @@
 # 桌面原生层
 
+- SQLite 首次启用 WAL 时，锁升级可能绕过 `busy_timeout`。迁移和本地目录连接共用 `sqlite_journal::enable_wal`，仅在后台初始化阶段对 `DatabaseBusy` 休眠重试，使用 5 秒总截止时间；恢复普通事务的 busy timeout，其他错误立即返回。Web 使用相同策略；回归覆盖持锁后提交、并发首次启动、超时和只读错误。
+
 Windows 快捷打开 CMD 使用 `CREATE_NEW_CONSOLE` 和独立工作目录，不把路径拼接进 shell 命令；文件目标使用父目录。`cmd /K` 的 IPC 在进程创建后完成，不能等待交互会话退出。回归 Rust `workspace::open::` 的真实控制台探针，验证控制台隔离和带空格、中文、`&` 的目录；Web 对应 `project-open.test.ts`，保持有界启动确认。
 
 项目根目录授权先匹配原始路径；不匹配时以文件系统 canonical 路径确认是否仍为已登记根目录，再验证 Git worktree。Windows 普通路径、斜杠、大小写和扩展路径前缀差异不得让非 Git 项目误入 worktree 分支；等价目录保留原 root ID，子目录和无关目录仍拒绝。回归运行 Rust `workspace_project_root` 测试，Web 对应 `project-root-scope.test.ts`。

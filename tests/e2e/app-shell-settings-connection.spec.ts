@@ -217,7 +217,7 @@ test("applies and restores a custom workbench background", async ({ page }) => {
     .getByRole("button", { exact: true, name: "审核" })
     .click();
   const reviewPanel = page
-    .getByRole("complementary", { name: "运行环境" })
+    .locator("[data-document-workspace]")
     .getByRole("tabpanel", { name: "文件审核" });
   const reviewBackgroundAlpha = parseCssAlpha(
     await reviewPanel

@@ -1,4 +1,5 @@
 import { deserializeApprovalPolicy } from "./approval-policy-persistence.js";
+import { enableWal } from "./sqlite-journal.js";
 
 export function projectFromRows(row, rootRows) {
   if (row === undefined) {
@@ -100,10 +101,9 @@ export function hasTable(database, tableName) {
 }
 
 export function configureDatabase(database) {
-  database.pragma("journal_mode = WAL");
+  enableWal(database);
   database.pragma("foreign_keys = ON");
   database.pragma("synchronous = NORMAL");
-  database.pragma("busy_timeout = 5000");
 }
 
 export function readMigrationVersion(database) {

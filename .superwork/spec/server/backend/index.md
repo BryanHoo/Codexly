@@ -1,5 +1,7 @@
 # Fastify 服务端
 
+- SQLite 首次启用 WAL 时，锁升级可能绕过 `busy_timeout`。迁移和普通 Worker 启动共用 `sqlite-journal.js`，仅在 Worker 初始化阶段对 `SQLITE_BUSY` 类错误休眠重试，使用 5 秒总截止时间；恢复普通事务的 busy timeout，其他错误立即返回。桌面使用相同策略；回归 `app-storage-migration.test.ts` 和 `sqlite-journal.test.ts` 的持锁、超时及只读场景。
+
 项目根目录授权保留原始路径匹配的快速流程；不匹配时先用 `realpath` 确认是否为已登记目录，再验证 Git worktree。等价路径保留原 root ID 和路径，非 Git 项目不依赖 Git；不能按父子路径或不区分大小写的字符串比较扩大授权。回归 `project-root-scope.test.ts` 覆盖 Windows 路径写法、非 Git 根目录和无关目录拒绝，桌面对应 Rust `workspace_project_root`。
 
 - 仓储打开时仅为既有空名称且缺少预览的 Codex 绑定恢复首条预览；只读、有界查询原生索引，不导入任务或覆盖管理状态。索引缺失、占用或不兼容不阻塞离线目录，后续启动可重试；正常列表不增加引擎 RPC 或轮询。验证 `local-catalog-preview.test.ts` 与 `local-catalog-title-restart.test.ts`，跨端规则见 [本地目录与任务](../../../../docs/local-catalog.md)。

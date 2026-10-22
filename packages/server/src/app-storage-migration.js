@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import schema from "../../protocol/src/local-catalog-schema.json" with { type: "json" };
 import migration from "../../protocol/src/app-storage-migration.json" with { type: "json" };
+import { enableWal } from "./sqlite-journal.js";
 
 function publish(temporary, target) {
   try {
@@ -129,8 +130,7 @@ export function prepareAppStorage(databasePath, legacyDirectories = []) {
   }
   const db = new Database(databasePath);
   try {
-    db.pragma("busy_timeout = 5000");
-    db.pragma("journal_mode = WAL");
+    enableWal(db);
     db.pragma("foreign_keys = ON");
     db.transaction(() => {
       db.exec(schema.sql);

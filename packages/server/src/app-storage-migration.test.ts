@@ -11,6 +11,49 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
+it.each([false, true])(
+  "waits for an existing writer before enabling WAL (migration: %s)",
+  async (migrate) => {
+    const root = await mkdtemp(join(tmpdir(), "codexly-migration-writer-"));
+    roots.push(root);
+    const path = join(root, "state.sqlite3");
+    const writer = new Database(path);
+    writer.exec("CREATE TABLE probe (id INTEGER); BEGIN IMMEDIATE; INSERT INTO probe VALUES (1)");
+    let repository: SqliteStateRepository | undefined;
+    let failure: unknown;
+    let settled = false;
+    const pending = SqliteStateRepository.open(
+      path,
+      migrate ? { legacyDirectories: [join(root, "legacy")] } : {},
+    )
+      .then(
+        (opened) => {
+          repository = opened;
+        },
+        (error: unknown) => {
+          failure = error;
+        },
+      )
+      .finally(() => {
+        settled = true;
+      });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(settled).toBe(false);
+      writer.exec("COMMIT");
+      await pending;
+      expect(failure).toBeUndefined();
+      expect(repository).toBeDefined();
+      expect(writer.prepare("SELECT COUNT(*) AS count FROM probe").get()).toEqual({ count: 1 });
+    } finally {
+      if (writer.inTransaction) writer.exec("ROLLBACK");
+      await pending;
+      await repository?.close();
+      writer.close();
+    }
+  },
+);
+
 it("merges Windows extended paths with the corresponding Web project", async () => {
   const root = await mkdtemp(join(tmpdir(), "codexly-windows-path-"));
   roots.push(root);

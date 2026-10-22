@@ -14,6 +14,7 @@ pub mod provider_models;
 pub(crate) mod queued_media;
 pub mod scheduled_tasks;
 mod settings_object;
+mod sqlite_journal;
 pub mod task_settings;
 pub mod temporary_task_storage;
 pub mod temporary_workspace;

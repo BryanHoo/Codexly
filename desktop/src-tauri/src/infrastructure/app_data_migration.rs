@@ -101,8 +101,8 @@ pub(super) fn prepare(root: &Path, sources: &[PathBuf]) -> io::Result<()> {
         }
     }
     let mut db = Connection::open(target).map_err(sql_error)?;
-    db.busy_timeout(Duration::from_secs(5)).map_err(sql_error)?;
-    db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;")
+    super::super::sqlite_journal::enable_wal(&db).map_err(sql_error)?;
+    db.execute_batch("PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;")
         .map_err(sql_error)?;
     let schema: Value = serde_json::from_str(include_str!(
         "../../../../packages/protocol/src/local-catalog-schema.json"

@@ -73,12 +73,9 @@ impl LocalCatalog {
                 std::fs::create_dir_all(parent).map_err(|_| CatalogError::StateUnavailable)?;
             }
             let mut db = Connection::open(&self.path).map_err(db_error)?;
-            db.busy_timeout(std::time::Duration::from_secs(5))
+            super::sqlite_journal::enable_wal(&db).map_err(db_error)?;
+            db.execute_batch("PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;")
                 .map_err(db_error)?;
-            db.execute_batch(
-                "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;",
-            )
-            .map_err(db_error)?;
             let exists: Option<i64> = db
                 .query_row(
                     "SELECT 1 FROM sqlite_master WHERE name='managed_projects'",

@@ -100,6 +100,39 @@ fn migrates_both_wal_sources_and_does_not_resurrect_deleted_tasks() {
 }
 
 #[test]
+fn first_launch_waits_for_a_writer_before_enabling_wal() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("state.sqlite3");
+    let writer = Connection::open(&path).unwrap();
+    writer
+        .execute_batch(
+            "CREATE TABLE probe (id INTEGER); BEGIN IMMEDIATE; INSERT INTO probe VALUES (1);",
+        )
+        .unwrap();
+    std::thread::scope(|scope| {
+        let (sent, received) = std::sync::mpsc::channel();
+        let root = dir.path();
+        scope.spawn(move || sent.send(prepare(root, &[])).unwrap());
+        let early = received.recv_timeout(Duration::from_millis(100));
+        writer.execute_batch("COMMIT").unwrap();
+        assert!(
+            matches!(early, Err(std::sync::mpsc::RecvTimeoutError::Timeout)),
+            "migration must wait for the writer: {early:?}"
+        );
+        received
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
+    });
+    assert_eq!(
+        writer
+            .query_row("SELECT COUNT(*) FROM probe", [], |row| row.get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+}
+
+#[test]
 fn concurrent_first_launches_publish_one_database_without_losing_commits() {
     let dir = tempfile::tempdir().unwrap();
     let web = dir.path().join("web");
