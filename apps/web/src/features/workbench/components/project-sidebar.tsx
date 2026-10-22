@@ -353,7 +353,7 @@ export function ProjectSidebar({
           setSearchState("open");
         }}
       >
-        <SidebarTaskBoardLink {...(projectId === undefined ? {} : { projectId })} />
+        <SidebarScheduledTasksLink {...(projectId === undefined ? {} : { projectId })} />
         <SidebarSkillsMarketLink {...(projectId === undefined ? {} : { projectId })} />
       </ProjectSidebarHeader>
 
@@ -362,7 +362,7 @@ export function ProjectSidebar({
           <Send className={primaryActionIconClassName} aria-hidden="true" />
           {t("sidebar.newTask")}
         </Link>
-        <SidebarScheduledTasksLink
+        <SidebarTaskBoardLink
           className={primaryActionClassName}
           iconClassName={primaryActionIconClassName}
           {...(projectId === undefined ? {} : { projectId })}

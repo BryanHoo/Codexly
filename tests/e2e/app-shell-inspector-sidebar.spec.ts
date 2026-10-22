@@ -131,6 +131,7 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
   const newAgent = sidebar.getByRole("link", { name: "新建任务" });
+  const scheduledTasks = sidebar.getByRole("link", { name: "定时任务" });
   const taskBoard = sidebar.getByRole("link", { name: "任务看板" });
   const extensionCenter = sidebar.getByRole("link", { name: "扩展中心" });
   const searchButton = sidebar.getByRole("button", { name: "全局搜索" });
@@ -155,6 +156,7 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
   const pinnedSection = sidebar.getByRole("region", { name: "已固定", exact: true });
   const projectsBox = await sidebar.getByRole("heading", { name: "项目" }).boundingBox();
   const extensionCenterBox = await extensionCenter.boundingBox();
+  const scheduledTasksBox = await scheduledTasks.boundingBox();
   const taskBoardBox = await taskBoard.boundingBox();
   const searchButtonBox = await searchButton.boundingBox();
   const temporaryGroupBox = await sidebar.getByRole("region", { name: "聊天" }).boundingBox();
@@ -172,6 +174,7 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
     pinnedBox === null ||
     projectsBox === null ||
     extensionCenterBox === null ||
+    scheduledTasksBox === null ||
     taskBoardBox === null ||
     searchButtonBox === null ||
     temporaryGroupBox === null ||
@@ -181,14 +184,18 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
   }
   expect(newAgentBox.height).toBe(32);
   expect(extensionCenterBox.y + extensionCenterBox.height).toBeLessThanOrEqual(pinnedBox.y);
-  // 任务看板与扩展中心改为头部图标，顺序固定在搜索左侧，保留项目作用域。
-  expect(taskBoardBox.x + taskBoardBox.width).toBeLessThanOrEqual(extensionCenterBox.x);
+  // 定时任务与扩展中心位于搜索左侧，任务看板保留在新建任务下方。
+  expect(scheduledTasksBox.x + scheduledTasksBox.width).toBeLessThanOrEqual(extensionCenterBox.x);
   expect(extensionCenterBox.x + extensionCenterBox.width).toBeLessThanOrEqual(searchButtonBox.x);
-  expect(taskBoardBox.y).toBe(searchButtonBox.y);
+  expect(scheduledTasksBox.y).toBe(searchButtonBox.y);
+  expect(taskBoardBox.y).toBeGreaterThanOrEqual(newAgentBox.y + newAgentBox.height);
+  expect(taskBoardBox.height).toBe(32);
   expect(extensionCenterBox.y).toBe(searchButtonBox.y);
   await expect(taskBoard).toHaveAttribute("href", "/p/codexly/board");
   await expect(extensionCenter).toHaveAttribute("href", "/p/codexly/extensions/skills");
-  await expect(taskBoard).toHaveText("");
+  await expect(scheduledTasks).toHaveAttribute("href", "/p/codexly/scheduled");
+  await expect(scheduledTasks).toHaveText("");
+  await expect(taskBoard).toHaveText("任务看板");
   await expect(extensionCenter).toHaveText("");
   expect(extensionCenterBox.y).toBeLessThan(newAgentBox.y);
   expect(extensionCenterBox.y).toBeLessThan(pinnedBox.y);
@@ -196,15 +203,17 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
   expect(firstProjectBox.y - (temporaryGroupBox.y + temporaryGroupBox.height)).toBe(0);
   await expect(pinnedSection.getByRole("link", { name: /补充 Protocol 契约/u })).toBeVisible();
 
-  const inactiveBackground = await taskBoard.evaluate(
+  const inactiveBackground = await scheduledTasks.evaluate(
     (element) => getComputedStyle(element).backgroundColor,
   );
+  await scheduledTasks.click();
+  await expect(page).toHaveURL(/\/p\/codexly\/scheduled$/u);
+  await expect(scheduledTasks).toHaveAttribute("aria-current", "page");
+  await expect
+    .poll(() => scheduledTasks.evaluate((element) => getComputedStyle(element).backgroundColor))
+    .not.toBe(inactiveBackground);
   await taskBoard.click();
   await expect(page).toHaveURL(/\/p\/codexly\/board$/u);
-  await expect(taskBoard).toHaveAttribute("aria-current", "page");
-  await expect
-    .poll(() => taskBoard.evaluate((element) => getComputedStyle(element).backgroundColor))
-    .not.toBe(inactiveBackground);
   await extensionCenter.click();
   await expect(page).toHaveURL(/\/p\/codexly\/extensions\/skills$/u);
 });

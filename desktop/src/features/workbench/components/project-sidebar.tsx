@@ -355,7 +355,7 @@ export function ProjectSidebar({
         onToggleSidebar={() => onPanelShortcut("sidebar")}
       />
       <ProjectSidebarHeader onClose={onClose} onSearch={() => setSearchState("open")}>
-        <SidebarTaskBoardLink {...(projectId === undefined ? {} : { projectId })} />
+        <SidebarScheduledTasksLink {...(projectId === undefined ? {} : { projectId })} />
         <SidebarExtensionCenterLink {...(projectId === undefined ? {} : { projectId })} />
       </ProjectSidebarHeader>
 
@@ -364,7 +364,7 @@ export function ProjectSidebar({
           <Send className={primaryActionIconClassName} aria-hidden="true" />
           {t("sidebar.newTask")}
         </Link>
-        <SidebarScheduledTasksLink
+        <SidebarTaskBoardLink
           className={primaryActionClassName}
           iconClassName={primaryActionIconClassName}
           {...(projectId === undefined ? {} : { projectId })}
