@@ -28,6 +28,7 @@ export const common = {
     pairingTitle: "连接可信局域网会话",
   },
   actions: {
+    close: "关闭通知",
     backToWorkbench: "返回工作台",
     retry: "重试",
   },

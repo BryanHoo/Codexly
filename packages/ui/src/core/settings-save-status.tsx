@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { SettingsSaveStatus as SaveStatus } from "@codexly/frontend-core/settings-autosave";
-import { Button } from "./button.js";
+import { toast } from "./notifications.js";
 
 type Feedback = Readonly<{
   status: SaveStatus;
@@ -19,7 +19,7 @@ type Feedback = Readonly<{
 }>;
 const FeedbackContext = createContext<((id: string, value?: Feedback) => void) | null>(null);
 
-/** 页面只显示一个保存提示；失败优先，其次在途保存，防止独立字段的提示相互遮挡。 */
+/** 汇总保存状态并保留离页保护；视觉反馈统一交给全局通知容器。 */
 export function SettingsSaveFeedbackProvider({
   children,
   onBack,
@@ -48,14 +48,24 @@ export function SettingsSaveFeedbackProvider({
   const requestBack = () => {
     if (leaving.current) return;
     leaving.current = true;
+    const pendingSources = [...sources.current.values()];
     // 返回动作等待当前表单补存；失败仍留在原页，让重试入口和草稿保持可用。
     void Promise.all(
-      [...sources.current.values()].map(
+      pendingSources.map(
         (source) => source.beforeLeave?.() ?? Promise.resolve(source.status !== "error"),
       ),
     )
       .then((results) => {
         if (results.every(Boolean)) onBack?.();
+        else {
+          // 错误通知可以按时消失，但返回被阻止时必须重新给出原因和可用的重试入口。
+          const failed = pendingSources[results.findIndex((saved) => !saved)];
+          if (failed)
+            toast.error(failed.labels.saveError, {
+              id: "settings-save",
+              action: { label: failed.labels.retry, onClick: failed.onRetry },
+            });
+        }
       })
       .finally(() => {
         leaving.current = false;
@@ -108,22 +118,83 @@ export function SettingsSaveStatus(props: Feedback) {
   );
   return report ? null : <SaveStatusView {...props} />;
 }
-function SaveStatusView({ status, labels, onRetry }: Feedback) {
-  if (status === "idle") return null;
+function isEditingText() {
+  const element = document.activeElement;
   return (
-    <div
-      role={status === "error" ? "alert" : "status"}
-      data-floating-surface
-      className={`fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2.5rem)] items-center gap-3 rounded-control border border-separator bg-panel px-3 py-2 text-body-small shadow-control ${status === "error" ? "text-danger" : "text-muted-foreground"}`}
-    >
-      <span>
-        {status === "error" ? labels.saveError : status === "saving" ? labels.saving : labels.saved}
-      </span>
-      {status === "error" ? (
-        <Button type="button" variant="ghost" className="h-8 px-3" onClick={onRetry}>
-          {labels.retry}
-        </Button>
-      ) : null}
-    </div>
+    element instanceof HTMLElement &&
+    (element.isContentEditable ||
+      element instanceof HTMLTextAreaElement ||
+      (element instanceof HTMLInputElement &&
+        !["button", "submit", "reset", "checkbox", "radio", "range", "color", "file"].includes(
+          element.type,
+        )))
   );
+}
+
+function SaveStatusView({ status, labels, onRetry }: Feedback) {
+  const [editing, setEditing] = useState(false);
+  const retry = useRef(onRetry);
+  retry.current = onRetry;
+  const previous = useRef<SaveStatus>("idle");
+  const deferred = useRef(false);
+  useEffect(() => {
+    const update = () => {
+      setEditing(isEditingText());
+    };
+    const input = () => {
+      if (!isEditingText()) return;
+      if (
+        document.activeElement instanceof HTMLInputElement &&
+        document.activeElement.type === "search"
+      )
+        return;
+      // 开始新一轮输入立即撤下旧回执；保存仍照常进行，结果留到编辑器失焦后再通知。
+      toast.dismiss("settings-save");
+      deferred.current = true;
+      setEditing(true);
+    };
+    document.addEventListener("focusin", update);
+    document.addEventListener("focusout", update);
+    document.addEventListener("input", input);
+    update();
+    return () => {
+      document.removeEventListener("focusin", update);
+      document.removeEventListener("focusout", update);
+      document.removeEventListener("input", input);
+    };
+  }, []);
+  useEffect(() => {
+    if (status === "idle" || status === "saving") {
+      previous.current = status;
+      if (status === "saving" && !editing && !isEditingText()) {
+        // 快速保存无需展示中间态；较慢的请求只更新同一个通知，不叠加“保存中”。
+        const timer = setTimeout(() => toast.info(labels.saving, { id: "settings-save" }), 700);
+        return () => {
+          clearTimeout(timer);
+        };
+      }
+      return;
+    }
+    if (editing || isEditingText()) {
+      if (previous.current !== status) deferred.current = true;
+      return;
+    }
+    if (previous.current === status && !deferred.current) return;
+    previous.current = status;
+    deferred.current = false;
+    if (status === "error") {
+      toast.error(labels.saveError, {
+        id: "settings-save",
+        action: {
+          label: labels.retry,
+          onClick: () => {
+            retry.current();
+          },
+        },
+      });
+    } else {
+      toast.success(labels.saved, { id: "settings-save" });
+    }
+  }, [status, editing, labels.saving, labels.saved, labels.saveError, labels.retry]);
+  return null;
 }

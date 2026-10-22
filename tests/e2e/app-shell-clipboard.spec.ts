@@ -72,7 +72,7 @@ for (const mode of ["unavailable", "denied"] as const) {
     const copy = page.getByRole("button", { name: "复制消息", exact: true }).last();
     await expect(copy).toBeVisible();
     await copy.click();
-    await expect(page.locator('[data-sonner-toast][data-type="error"]')).toHaveCount(0);
+    await expect(page.locator('[data-toast][data-type="error"]')).toHaveCount(0);
     const copied = await page.evaluate(
       () => (window as unknown as { __copiedText: string }).__copiedText,
     );
@@ -98,6 +98,6 @@ test("copies messages on mobile without Clipboard API", async ({ page }) => {
   );
   await page.goto("/p/codexly/t/task-1");
   await page.getByRole("button", { name: "复制消息", exact: true }).last().click();
-  await expect(page.locator('[data-sonner-toast][data-type="error"]')).toHaveCount(0);
+  await expect(page.locator('[data-toast][data-type="error"]')).toHaveCount(0);
   await expect(page.locator('textarea[aria-hidden="true"]')).toHaveCount(0);
 });

@@ -18,6 +18,7 @@ export const common = {
     zoomOut: "缩小图片",
   },
   actions: {
+    close: "关闭通知",
     backToWorkbench: "返回工作台",
     retry: "重试",
   },

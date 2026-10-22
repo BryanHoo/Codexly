@@ -18,6 +18,7 @@ export const common = {
     zoomOut: "Zoom out",
   },
   actions: {
+    close: "Close notification",
     backToWorkbench: "Back to workbench",
     retry: "Retry",
   },

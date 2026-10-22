@@ -1,3 +1,4 @@
+import { Toaster } from "@codexly/ui/core/toaster";
 import type { AgentGlobalSettings } from "@/protocol/index.js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
@@ -35,6 +36,7 @@ async function renderSettings(initialSection: "appearance" | "personalization" |
       <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <div style={{ height: "100dvh" }}>
+          <Toaster />
           <GlobalSettingsPage
             apps={[]}
             error={null}

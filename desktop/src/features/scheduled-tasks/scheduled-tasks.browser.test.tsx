@@ -1,6 +1,6 @@
 import type { ScheduledTask } from "@/protocol/index.js";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "sonner";
+import { Toaster } from "@codexly/ui/core/toaster";
 import { describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -490,6 +490,6 @@ describe("ScheduledTaskList", () => {
     await screen.getByRole("button", { name: "填写测试提示词" }).click();
     await screen.getByRole("button", { name: "保存任务" }).click();
     await expect.element(screen.getByText(nativeMessage)).toBeVisible();
-    expect(screen.container.querySelectorAll("[data-sonner-toast]")).toHaveLength(1);
+    expect(screen.container.querySelectorAll("[data-toast]")).toHaveLength(1);
   });
 });

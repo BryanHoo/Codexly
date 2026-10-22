@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({
+vi.mock("@codexly/ui/core/notifications", () => ({
   toast: { error: mocks.toastError, success: mocks.toastSuccess },
 }));
 

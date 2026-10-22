@@ -33,7 +33,7 @@ describe("工作台背景浮层", () => {
     expect(workbenchCss).toContain('[data-slot="dropdown-menu-content"]');
     expect(workbenchCss).toContain('[data-slot="context-menu-content"]');
     expect(workbenchCss).toContain('[data-slot="select-content"]');
-    expect(workbenchCss).toContain("[data-sonner-toast]");
+    expect(workbenchCss).toContain("[data-toast]");
     expect(workbenchCss).toContain(".workbench-pet-bubble-button");
     expect(workbenchCss).toContain("background: var(--ui-color-floating-surface) !important;");
     expect(codeCommentsSource).toContain("data-floating-surface");

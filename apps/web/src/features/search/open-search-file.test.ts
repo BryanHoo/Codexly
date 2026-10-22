@@ -1,10 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 
 import { prepareSearchFile } from "./open-search-file.js";
 
-vi.mock("sonner", () => ({ toast: { info: vi.fn() } }));
+vi.mock("@codexly/ui/core/notifications", () => ({ toast: { info: vi.fn() } }));
 
 describe("远程文件打开", () => {
   afterEach(() => vi.clearAllMocks());
@@ -37,8 +37,7 @@ describe("远程文件打开", () => {
       expect(title).toBe("请下载后使用系统应用打开");
       expect(options?.description).toContain("浏览器无法直接打开当前设备的系统应用");
       const action = options?.action;
-      if (typeof action !== "object" || action === null || !("onClick" in action))
-        throw new Error("缺少下载动作");
+      if (!action) throw new Error("缺少下载动作");
       expect(action.label).toBe("下载文件");
       expect(typeof action.onClick).toBe("function");
     },

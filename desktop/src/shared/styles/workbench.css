@@ -74,7 +74,7 @@ body:has(.workbench-background[data-has-image="true"])
     [data-slot="context-menu-sub-content"],
     [data-slot="select-content"],
     [data-floating-surface],
-    [data-sonner-toast]
+    [data-toast]
   ) {
   background: var(--ui-color-floating-surface) !important;
 }

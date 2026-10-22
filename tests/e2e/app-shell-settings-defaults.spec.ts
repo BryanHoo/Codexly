@@ -75,7 +75,7 @@ test("opens the project from the center toolbar quick action", async ({ page }) 
   await expect(quickOpenMenuButton).toHaveCSS("width", "24px");
   await quickOpenButton.click();
   await expect.poll(() => openRequests).toEqual([{ appId: "zed" }]);
-  await expect(page.locator('[data-sonner-toast][data-type="success"]')).toHaveCount(0);
+  await expect(page.locator('[data-toast][data-type="success"]')).toHaveCount(0);
 
   await quickOpenMenuButton.click();
   const openMenu = page.getByRole("menu", { name: "选择打开方式" });
@@ -85,7 +85,7 @@ test("opens the project from the center toolbar quick action", async ({ page }) 
   await expect(finderMenuItem.locator("svg")).toHaveCSS("height", "16px");
   await finderMenuItem.click();
   await expect.poll(() => openRequests).toEqual([{ appId: "zed" }, { appId: "finder" }]);
-  await expect(page.locator('[data-sonner-toast][data-type="success"]')).toHaveCount(0);
+  await expect(page.locator('[data-toast][data-type="success"]')).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(quickOpenButton).toBeHidden();

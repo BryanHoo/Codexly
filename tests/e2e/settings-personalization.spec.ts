@@ -73,8 +73,12 @@ test("搜索设置、保存个性化，并在删除记忆前确认 @smoke", asyn
   await page.keyboard.press("Escape");
   await expect(settings).toBeVisible();
   await settings.getByRole("textbox", { name: "全局指令" }).fill("# 新说明\n保留格式。\n");
-  await settings.getByRole("textbox", { name: "全局指令" }).blur();
   await expect.poll(() => content).toBe("# 新说明\n保留格式。\n");
+  await expect(page.locator("[data-toast]")).toHaveCount(0);
+  await settings.getByRole("textbox", { name: "全局指令" }).blur();
+  const savedToast = page.locator('[data-toast][data-type="success"]');
+  await expect(savedToast).toHaveText("已保存");
+  await expect(savedToast).toHaveCount(0, { timeout: 3000 });
   await settings.getByRole("switch", { name: "启用本地记忆", exact: true }).click();
   await expect.poll(() => memory.enabled).toBe(true);
   await settings.getByRole("button", { name: "删除本地记忆", exact: true }).click();

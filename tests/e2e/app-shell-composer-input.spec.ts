@@ -75,7 +75,7 @@ test("switches composer task settings without success toasts", async ({ page }) 
       settingsWrites.push(new URL(request.url()).pathname);
   });
   await page.goto("/p/codexly/t/task-1");
-  const successToast = page.locator('[data-sonner-toast][data-type="success"]');
+  const successToast = page.locator('[data-toast][data-type="success"]');
   const waitForSettingsUpdate = () =>
     page.waitForResponse(
       (response) => response.url().endsWith("/tasks/task-1/settings-and-defaults") && response.ok(),

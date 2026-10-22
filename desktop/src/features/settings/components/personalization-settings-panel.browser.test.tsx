@@ -1,7 +1,8 @@
+import { Toaster } from "@codexly/ui/core/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 import { i18n } from "../../../i18n/i18n.js";
 import { PersonalizationSettingsPanel } from "./personalization-settings-panel.js";
 
@@ -18,7 +19,7 @@ function clientFixture() {
 async function setup(client = clientFixture()) {
   await i18n.changeLanguage("zh-CN");
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  const screen = await render(<QueryClientProvider client={queryClient}><PersonalizationSettingsPanel client={client} /></QueryClientProvider>);
+  const screen = await render(<QueryClientProvider client={queryClient}><Toaster /><PersonalizationSettingsPanel client={client} /></QueryClientProvider>);
   return { screen, client };
 }
 

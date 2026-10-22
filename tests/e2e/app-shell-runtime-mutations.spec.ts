@@ -122,7 +122,7 @@ test("preserves the prompt draft when submission fails", async ({ page }) => {
   await prompt.fill("失败后保留这段草稿");
   await page.getByRole("button", { exact: true, name: "提交" }).click();
 
-  await expect(page.locator('[data-sonner-toast][data-type="error"]')).toHaveText(
+  await expect(page.locator('[data-toast][data-type="error"]')).toHaveText(
     "Agent provider request failed",
   );
   await expect(prompt).toHaveAttribute("data-serialized-value", "失败后保留这段草稿");

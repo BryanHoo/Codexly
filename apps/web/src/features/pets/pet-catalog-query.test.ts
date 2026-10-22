@@ -7,7 +7,7 @@ const toast = vi.hoisted(() => ({
   success: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({ toast }));
+vi.mock("@codexly/ui/core/notifications", () => ({ toast }));
 
 import { createActionMutationCache } from "../notifications/action-notifications.js";
 import { downloadWorkbenchPetMutationOptions, petCatalogQueryKey } from "./pet-catalog-query.js";

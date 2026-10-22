@@ -20,7 +20,7 @@ import {
   Pin,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 import type { ReactNode } from "react";
 import { createLink } from "@tanstack/react-router";
 const TaskRouteLink = createLink(SidebarTaskAnchor);

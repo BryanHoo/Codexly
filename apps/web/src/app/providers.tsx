@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 import { type ReactNode, useEffect } from "react";
-import { Toaster } from "sonner";
+import { Toaster } from "@codexly/ui/core/toaster";
 
 import { ProjectProvider } from "../features/projects/project-context.js";
 import {
@@ -118,10 +118,7 @@ function AppProviderContent({ children }: AppProvidersProps) {
       </AccessControlledContent>
       <Toaster
         containerAriaLabel={t("app.notificationRegion")}
-        duration={5_000}
-        position="top-center"
-        richColors
-        theme="system"
+        closeButtonAriaLabel={t("actions.close")}
       />
     </>
   );

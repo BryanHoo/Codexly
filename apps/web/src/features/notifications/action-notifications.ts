@@ -1,6 +1,6 @@
 import { isForkHistoryDeletionError } from "@codexly/frontend-core/task-deletion-error";
 import { MutationCache } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 
 import { i18n } from "../../i18n/i18n.js";
 

@@ -1,3 +1,4 @@
+import { Toaster } from "@codexly/ui/core/toaster";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { DEFAULT_CLAUDE_SETTINGS } from "@codexly/protocol";
@@ -32,6 +33,7 @@ it("个性化独立读取，不探测模型；返回不提交未修改的设置"
     <SettingsSaveFeedbackProvider onBack={onBack}>
       {(back) => (
         <>
+          <Toaster />
           <button onClick={back}>返回</button>
           <ClaudeSettingsPanel
             client={client}
@@ -84,7 +86,7 @@ it.each(["rejected", "pending"])(
         : {}),
     };
     const screen = await render(
-      <ClaudeSettingsPanel
+      <><Toaster /><ClaudeSettingsPanel
         client={client}
         section="claude-agent"
         title="智能体配置"
@@ -92,7 +94,7 @@ it.each(["rejected", "pending"])(
         Field={Field}
         Group={Group}
         Select={Select}
-      />,
+      /></>,
     );
     const mapping = screen.getByRole("textbox", { name: "Opus 模型映射" });
     await expect.element(mapping).toBeEnabled();
@@ -102,6 +104,8 @@ it.each(["rejected", "pending"])(
         expect.objectContaining({ modelAliases: { opus: "gateway-opus", sonnet: "", haiku: "" } }),
       ),
     );
+    await expect.element(screen.getByText("已保存", { exact: true })).not.toBeInTheDocument();
+    mapping.element().blur();
     await expect.element(screen.getByText("已保存", { exact: true })).toBeVisible();
     await expect
       .element(screen.getByText("保存失败，请重试", { exact: true }))

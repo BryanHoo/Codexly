@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "sonner";
+import { Toaster } from "@codexly/ui/core/toaster";
 import { expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { I18nextProvider, i18n } from "../../i18n/i18n.js";
@@ -37,7 +37,7 @@ it.each(["deleted", "archived", "available"])("checks a %s run before navigating
   await expect.poll(() => client.listScheduledTasks.mock.calls.length).toBe(1);
   await screen.getByRole("button", { name: "选择任务" }).click();
   await screen.getByRole("button", { name: "查看执行" }).click();
-  await expect.poll(() => navigate.mock.calls.length + screen.container.querySelectorAll("[data-sonner-toast]").length).toBe(1);
+  await expect.poll(() => navigate.mock.calls.length + screen.container.querySelectorAll("[data-toast]").length).toBe(1);
   expect(navigate.mock.calls.length).toBe(state === "available" ? 1 : 0);
   expect(queryClient.getQueryData(["projects", "project-a", "tasks", "run-a"])).toEqual(state === "available" ? response : undefined);
   expect(screen.container.textContent?.includes("任务已删除、归档或不可用。")).toBe(state !== "available");

@@ -8,7 +8,7 @@ import {
 import type { TextFileEditorLabels } from "@codexly/frontend-core/text-file-editor";
 import { useInlineTextFile } from "@codexly/ui/core/inline-text-file";
 import { TextEditorNotice } from "@codexly/ui/core/text-editor-notice";
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { PdfPreview } from "@codexly/ui/core/pdf-preview";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -131,11 +131,7 @@ export function ProjectSourcePanel({
                   ? labels.capacity
                   : labels.saveError;
       // 仅显示文件名，与提示使用同一段文字，只有宽度不足时才换行，长文件名也不会撑破提示。
-      const text = (
-        <span className="whitespace-normal [overflow-wrap:anywhere]">
-          {getFileName(reference.path)} {message}
-        </span>
-      );
+      const text = `${getFileName(reference.path)} ${message}`;
       if (result === "saved") toast.success(text);
       else toast.error(text);
     },

@@ -27,6 +27,7 @@
       "default": "./src/core/*.tsx"
     },
     "./core/split-workspace.css": "./src/core/split-workspace.css",
+    "./core/toaster.css": "./src/core/toaster.css",
     "./core/focus.css": "./src/core/focus.css",
     "./agent/code-block-content": {
       "types": "./src/agent/code-block-content.tsx",

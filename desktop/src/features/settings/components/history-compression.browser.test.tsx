@@ -1,3 +1,4 @@
+import { Toaster } from "@codexly/ui/core/toaster";
 import { expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -8,7 +9,7 @@ it("only submits on demand, prevents double submission and reports scheduling", 
   let resolve!: (value: { status: "scheduled" }) => void;
   const pending = { promise: new Promise<{ status: "scheduled" }>((done) => { resolve = done; }), resolve: (value: { status: "scheduled" }) => resolve(value) };
   const compressHistory = vi.fn(() => pending.promise);
-  await render(<HistoryCompression client={{ compressHistory }} labels={labels} />);
+  await render(<><Toaster /><HistoryCompression client={{ compressHistory }} labels={labels} /></>);
   expect(compressHistory).not.toHaveBeenCalled();
   await page.getByRole("button", { name: labels.action }).click();
   await expect.element(page.getByRole("button", { name: labels.pending })).toBeDisabled();
@@ -19,7 +20,7 @@ it("only submits on demand, prevents double submission and reports scheduling", 
 });
 it("shows failure and permits retry", async () => {
   const compressHistory = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue({ status: "scheduled" });
-  await render(<HistoryCompression client={{ compressHistory }} labels={labels} />);
+  await render(<><Toaster /><HistoryCompression client={{ compressHistory }} labels={labels} /></>);
   await page.getByRole("button", { name: labels.action }).click();
   await expect.element(page.getByRole("alert")).toHaveTextContent(labels.failed);
   await page.getByRole("button", { name: labels.action }).click();

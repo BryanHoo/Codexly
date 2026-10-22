@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 import { i18n } from "../../i18n/i18n.js";
 import { taskWindow as chinese } from "../../i18n/locales/zh-CN/task-window.js";
 import { taskWindow as english } from "../../i18n/locales/en/task-window.js";

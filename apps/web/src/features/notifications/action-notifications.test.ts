@@ -7,7 +7,7 @@ const toast = vi.hoisted(() => ({
   success: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({ toast }));
+vi.mock("@codexly/ui/core/notifications", () => ({ toast }));
 
 import {
   ACTION_NOTIFICATION_META_KEY,

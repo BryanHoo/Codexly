@@ -1,3 +1,4 @@
+import { toast } from "./notifications.js";
 import { Bookmark, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import {
@@ -49,7 +50,6 @@ export function SavedPromptsSettings({
   const [deleting, setDeleting] = useState<SavedPrompt>();
   const [discarding, setDiscarding] = useState(false);
   const [error, setError] = useState<keyof typeof copy.errors>();
-  const [message, setMessage] = useState("");
   const id = useId();
   const query = search.trim().toLocaleLowerCase();
   const filtered = useMemo(
@@ -94,7 +94,7 @@ export function SavedPromptsSettings({
     try {
       savedPromptsStore.save(draft, editor?.id);
       setEditor(undefined);
-      setMessage(copy.saved);
+      toast.success(copy.saved);
     } catch (cause) {
       setError(cause instanceof Error && cause.message === "duplicate" ? "duplicate" : "storage");
     }
@@ -244,9 +244,6 @@ export function SavedPromptsSettings({
           ) : null}
         </div>
       )}
-      <p role="status" className="text-label text-muted-foreground">
-        {message}
-      </p>
 
       <Dialog
         open={editor !== undefined}
@@ -438,7 +435,7 @@ export function SavedPromptsSettings({
                 try {
                   savedPromptsStore.remove(deleting.id);
                   setDeleting(undefined);
-                  setMessage(copy.deleted);
+                  toast.success(copy.deleted);
                 } catch {
                   setError("storage");
                 }

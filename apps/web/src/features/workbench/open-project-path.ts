@@ -1,6 +1,6 @@
 import { buildProjectFileDownloadUrl } from "@codexly/client";
 import type { OpenProjectRequest } from "@codexly/protocol";
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 
 import { i18n } from "../../i18n/i18n.js";
 import type { CodexlyWorkbenchClient } from "../projects/project-query-contracts.js";
@@ -24,7 +24,6 @@ export async function openProjectPath(
     toast.info(i18n.t("openMenu.remoteFileTitle", { ns: "workbench" }), {
       id: JSON.stringify(["remote-file-open", projectId, rootPath, path]),
       description: i18n.t("openMenu.remoteFileDescription", { ns: "workbench" }),
-      duration: 12_000,
       action: {
         label: i18n.t("openMenu.download", { ns: "workbench" }),
         onClick: () => {

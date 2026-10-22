@@ -105,9 +105,7 @@ test("keeps the Web directory picker open after add failure", async ({ page }) =
   await picker.getByRole("checkbox", { name: "选择 AddedProject" }).click();
   await picker.getByRole("button", { name: "添加此文件夹" }).click();
 
-  await expect(page.locator('[data-sonner-toast][data-type="error"]')).toHaveText(
-    "Project picker failed",
-  );
+  await expect(page.locator('[data-toast][data-type="error"]')).toHaveText("Project picker failed");
   await expect(picker.getByRole("alert")).toHaveCount(0);
   await expect(picker).toBeVisible();
   expect(pageErrors).toEqual([]);

@@ -1,7 +1,7 @@
 import { installCatalogFocusRefresh, isCatalogListQuery } from "@codexly/frontend-core/catalog-focus-refresh";
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useEffect } from "react";
-import { Toaster } from "sonner";
+import { Toaster } from "@codexly/ui/core/toaster";
 
 import { ProjectProvider } from "../features/projects/project-context.js";
 import { TaskActivityRestore } from "../features/conversation/runtime/task-activity-restore.js";
@@ -82,10 +82,7 @@ function AppProviderContent({ children }: AppProvidersProps) {
       </EngineSetupGate>
       <Toaster
         containerAriaLabel={t("app.notificationRegion")}
-        duration={5_000}
-        position="top-center"
-        richColors
-        theme="system"
+        closeButtonAriaLabel={t("actions.close")}
       />
     </>
   );

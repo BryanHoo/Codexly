@@ -16,7 +16,7 @@ import type {
 } from "@/protocol/index.js";
 import { useMutation } from "@tanstack/react-query";
 import { memo, useCallback, useEffect, useState, type RefObject } from "react";
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 
 import { i18n } from "../../../i18n/i18n.js";
 import { NativeCommandError } from "../../../platform/tauri/native-client.js";

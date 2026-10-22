@@ -1,3 +1,4 @@
+import { toast } from "./notifications.js";
 import { useId, useRef, useState } from "react";
 import { Button } from "./button.js";
 
@@ -27,8 +28,10 @@ export function HistoryCompression({
       await client.compressHistory();
       // 回执不包含完成进度；只显示已提交，不启动定时查询或失效全部会话缓存。
       setStatus("scheduled");
+      toast.success(labels.scheduled);
     } catch {
       setStatus("failed");
+      toast.error(labels.failed);
     } finally {
       busy.current = false;
     }
@@ -60,16 +63,6 @@ export function HistoryCompression({
             {status === "pending" ? labels.pending : labels.action}
           </Button>
         </div>
-        {status === "scheduled" ? (
-          <p role="status" className="mt-3 text-body-small text-muted-foreground">
-            {labels.scheduled}
-          </p>
-        ) : null}
-        {status === "failed" ? (
-          <p role="alert" className="mt-3 text-body-small text-danger">
-            {labels.failed}
-          </p>
-        ) : null}
       </div>
     </section>
   );

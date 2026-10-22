@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 import { buildProjectFileDownloadUrl } from "@codexly/client";
 
 import { openProjectPath } from "./open-project-path.js";
 
-vi.mock("sonner", () => ({ toast: { info: vi.fn() } }));
+vi.mock("@codexly/ui/core/notifications", () => ({ toast: { info: vi.fn() } }));
 
 describe("文件打开与下载边界", () => {
   afterEach(() => {
@@ -30,9 +30,8 @@ describe("文件打开与下载边界", () => {
     expect(client.openProject).not.toHaveBeenCalled();
     expect(link.click).not.toHaveBeenCalled();
     const action = vi.mocked(toast.info).mock.calls[0]?.[1]?.action;
-    if (typeof action !== "object" || action === null || !("onClick" in action))
-      throw new Error("缺少下载动作");
-    action.onClick({} as never);
+    if (!action) throw new Error("缺少下载动作");
+    action.onClick();
 
     expect(link.href).toBe(buildProjectFileDownloadUrl("", projectId, path, rootPath));
     expect(link.download).toBe(path.split(/[\\/]/u).at(-1));

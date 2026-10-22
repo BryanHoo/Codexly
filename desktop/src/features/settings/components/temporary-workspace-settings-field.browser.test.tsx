@@ -1,3 +1,4 @@
+import { Toaster } from "@codexly/ui/core/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
@@ -5,22 +6,24 @@ import { i18n } from "../../../i18n/i18n.js";
 import "../../../i18n/settings-general.js";
 import { TemporaryWorkspaceSettingsField } from "./temporary-workspace-settings-field.js";
 import { createActionMutationCache } from "../../notifications/action-notifications.js";
-import { toast } from "sonner";
+import { toast } from "@codexly/ui/core/notifications";
 
 const commands = vi.hoisted(() => ({ get: vi.fn(), choose: vi.fn() }));
 vi.mock("@/platform/tauri/temporary-workspace-client.js", () => ({ getTemporaryWorkspaceSettings: commands.get, chooseTemporaryWorkspaceRoot: commands.choose }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
 
 describe("TemporaryWorkspaceSettingsField", () => {
   beforeEach(async () => {
     vi.resetAllMocks();
+    toast.dismiss();
+    vi.spyOn(toast, "success");
     await i18n.changeLanguage("zh-CN");
     commands.get.mockResolvedValue({ rootPath: "/tasks/original" });
   });
 
   async function mount() {
     const client = new QueryClient({ mutationCache: createActionMutationCache(), defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-    const screen = await render(<QueryClientProvider client={client}><TemporaryWorkspaceSettingsField /></QueryClientProvider>);
+    const screen = await render(<QueryClientProvider client={client}><Toaster /><TemporaryWorkspaceSettingsField /></QueryClientProvider>);
     await expect.element(screen.getByText("/tasks/original")).toBeVisible();
     return screen;
   }

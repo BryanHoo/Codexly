@@ -28,6 +28,7 @@ export const common = {
     pairingTitle: "Connect to a trusted LAN session",
   },
   actions: {
+    close: "Close notification",
     backToWorkbench: "Back to workbench",
     retry: "Retry",
   },
