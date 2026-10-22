@@ -6,6 +6,7 @@ import { CompactSelector } from "@codexly/ui/core/compact-selector";
 import { applyApprovalMode, deriveApprovalMode, type ApprovalMode } from "../composer-state.js";
 
 type ComposerApprovalControlsProps = Readonly<{
+  control?: "approval" | "sandbox";
   disabled: boolean;
   onSettingsChange: (
     settings: AgentTaskSettings,
@@ -16,6 +17,7 @@ type ComposerApprovalControlsProps = Readonly<{
 }>;
 
 export function ComposerApprovalControls({
+  control,
   disabled,
   onSettingsChange,
   sandboxModeSelectable,
@@ -23,7 +25,7 @@ export function ComposerApprovalControls({
 }: ComposerApprovalControlsProps) {
   const { t } = useTranslation(["workbench", "settings"]);
   if (settings.engineOptions?.engine === "claude")
-    return (
+    return control === "sandbox" ? null : (
       <ClaudePermissionSelector
         label={t("engine.permissions")}
         disabled={disabled}
@@ -46,20 +48,22 @@ export function ComposerApprovalControls({
     );
   return (
     <>
-      <CompactSelector<ApprovalMode>
-        label={t("composer.approvalMode")}
-        disabled={disabled}
-        onValueChange={(value) => {
-          void onSettingsChange(applyApprovalMode(settings, value), "approvalPolicy");
-        }}
-        value={deriveApprovalMode(settings)}
-        options={[
-          { value: "on-request", label: t("settings:approval.onRequest") },
-          { value: "auto-review", label: t("settings:approval.autoReview") },
-          { value: "never", label: t("settings:approval.never") },
-        ]}
-      />
-      {sandboxModeSelectable ? (
+      {control !== "sandbox" ? (
+        <CompactSelector<ApprovalMode>
+          label={t("composer.approvalMode")}
+          disabled={disabled}
+          onValueChange={(value) => {
+            void onSettingsChange(applyApprovalMode(settings, value), "approvalPolicy");
+          }}
+          value={deriveApprovalMode(settings)}
+          options={[
+            { value: "on-request", label: t("settings:approval.onRequest") },
+            { value: "auto-review", label: t("settings:approval.autoReview") },
+            { value: "never", label: t("settings:approval.never") },
+          ]}
+        />
+      ) : null}
+      {control !== "approval" && sandboxModeSelectable ? (
         <>
           <CompactSelector<AgentSandboxMode>
             label={t("composer.sandboxMode")}

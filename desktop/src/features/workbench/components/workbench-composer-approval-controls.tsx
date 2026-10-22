@@ -6,6 +6,7 @@ import { CompactSelector } from "@codexly/ui/core/compact-selector";
 import { applyApprovalMode, deriveApprovalMode, type ApprovalMode } from "../composer-state.js";
 
 type ComposerApprovalControlsProps = Readonly<{
+  control?: "approval" | "sandbox";
   disabled: boolean;
   onSettingsChange: (
     settings: AgentTaskSettings,
@@ -16,16 +17,17 @@ type ComposerApprovalControlsProps = Readonly<{
 }>;
 
 export function ComposerApprovalControls({
+  control,
   disabled,
   onSettingsChange,
   sandboxModeSelectable,
   settings,
 }: ComposerApprovalControlsProps) {
   const { t } = useTranslation(["workbench", "settings"]);
-  if (settings.engineOptions?.engine === "claude") return <ClaudePermissionSelector label={t("engine.permissions")} disabled={disabled} value={settings.engineOptions.permissionMode} labels={{ default: t("engine.permissionDefault"), auto: t("engine.permissionAuto"), acceptEdits: t("engine.permissionEdits"), plan: t("engine.permissionPlan"), dontAsk: t("engine.permissionDeny"), bypassPermissions: t("engine.permissionBypass") }} onChange={(permissionMode) => { return onSettingsChange({ ...settings, engineOptions: { engine: "claude", permissionMode } }, "engineOptions"); }} />;
+  if (settings.engineOptions?.engine === "claude") return control === "sandbox" ? null : <ClaudePermissionSelector label={t("engine.permissions")} disabled={disabled} value={settings.engineOptions.permissionMode} labels={{ default: t("engine.permissionDefault"), auto: t("engine.permissionAuto"), acceptEdits: t("engine.permissionEdits"), plan: t("engine.permissionPlan"), dontAsk: t("engine.permissionDeny"), bypassPermissions: t("engine.permissionBypass") }} onChange={(permissionMode) => { return onSettingsChange({ ...settings, engineOptions: { engine: "claude", permissionMode } }, "engineOptions"); }} />;
   return (
     <>
-      <CompactSelector<ApprovalMode>
+      {control !== "sandbox" ? <CompactSelector<ApprovalMode>
         label={t("composer.approvalMode")}
         disabled={disabled}
         onValueChange={(value) => {
@@ -40,8 +42,8 @@ export function ComposerApprovalControls({
           { value: "auto-review", label: t("settings:approval.autoReview") },
           { value: "never", label: t("settings:approval.never") },
         ]}
-      />
-      {sandboxModeSelectable ? (
+      /> : null}
+      {control !== "approval" && sandboxModeSelectable ? (
         <>
           <CompactSelector<AgentSandboxMode>
             label={t("composer.sandboxMode")}

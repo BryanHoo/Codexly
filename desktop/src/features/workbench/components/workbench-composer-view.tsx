@@ -17,9 +17,7 @@ import {
   PromptInput,
   PromptInputActionAddAttachments,
   PromptInputBody,
-  PromptInputFooter,
   PromptInputSubmit,
-  PromptInputTools,
   isPromptInputComposing,
   isPromptInputNewlineShortcut,
 } from "../../../shared/components/agent/prompt-input.js";
@@ -34,8 +32,6 @@ import {
 } from "../composer-state.js";
 import { movePromptCommandSelection } from "./prompt-command.js";
 import { WorkbenchComposerFooter } from "./workbench-composer-footer.js";
-import { ComposerModelSelector } from "./composer-model-selector.js";
-import { ComposerApprovalControls } from "./workbench-composer-approval-controls.js";
 import { shouldNavigatePromptHistory } from "./prompt-history.js";
 import { PromptSkillEditor } from "./prompt-skill-editor.js";
 import { ProjectRootSelector } from "./project-root-selector.js";
@@ -44,9 +40,7 @@ import { ComposerFileMenu } from "./workbench-composer-file-menu.js";
 import { ComposerDraftSaveButton } from "./project-draft-controls.js";
 import {
   ComposerAttachments,
-  ComposerFastModeButton,
-  ComposerGoalStatusTag,
-  ComposerModeTag,
+  ComposerConfigurationToolbar,
 } from "./workbench-composer-toolbar.js";
 import {
   resolveQueuedPromptSummary,
@@ -351,49 +345,12 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
               scope={props.composerScope}
             />
           </PromptInputBody>
-          <PromptInputFooter className="max-workbench:gap-0.5 max-workbench:px-1 max-[360px]:!gap-0 max-[360px]:!px-0">
-            <PromptInputTools className="max-workbench:shrink-0 max-workbench:gap-0.5 max-[360px]:!gap-0">
-              <PromptInputActionAddAttachments
-                className="max-workbench:w-8 max-workbench:min-w-8 max-workbench:px-0 max-[360px]:!w-6 max-[360px]:!min-w-6"
+          <ComposerConfigurationToolbar props={props} leading={<PromptInputActionAddAttachments
+                className="size-8 shrink-0 px-0"
                 disabled={props.attachmentsDisabled}
                 onSelectKind={props.onSelectAttachmentKind}
-              />
-              {props.engineControls}
-              <ComposerApprovalControls
-                disabled={props.turnControlsDisabled}
-                onSettingsChange={props.onSettingsChange}
-                sandboxModeSelectable={props.sandboxModeSelectable}
-                settings={props.activeSettings}
-              />
-              {props.composerMode === undefined ? null : (
-                <ComposerModeTag
-                  disabled={props.turnControlsDisabled}
-                  mode={props.composerMode}
-                  onRemove={props.onComposerModeRemove}
-                />
-              )}
-              {props.goal === null || props.goal === undefined ? null : (
-                <ComposerGoalStatusTag goal={props.goal} />
-              )}
-              {props.fastModeAvailable ? (
-                <ComposerFastModeButton
-                  disabled={props.turnControlsDisabled}
-                  enabled={props.fastModeEnabled}
-                  onChange={props.onFastModeChange}
-                />
-              ) : null}
-            </PromptInputTools>
-            {/* 模型与提交动作保持固定分组，避免内容宽度变化时拆成两行。 */}
-            <div className="flex min-w-0 items-center gap-1 max-workbench:shrink-0 max-workbench:gap-0.5 max-[360px]:!gap-0">
-              <ComposerModelSelector
-                activeSettings={props.activeSettings}
-                disabled={props.turnControlsDisabled}
-                models={props.models}
-                modelsPending={props.modelsPending}
-                onSettingsChange={props.onSettingsChange}
-                selectedModel={props.selectedModel}
-                selectedReasoningEffort={props.selectedReasoningEffort}
-              />
+              />}>
+            <>
               {props.captureMode ? null : (
                 <ComposerDraftSaveButton
                   disabled={!props.hasComposerInput || props.isSubmitting}
@@ -422,7 +379,7 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                     (props.submitAction === "interrupt" &&
                       (!props.canInterrupt || props.activeTurnId === undefined))
                   }
-                  className="max-workbench:w-8 max-workbench:min-w-8 max-[360px]:!w-6 max-[360px]:!min-w-6"
+                  className="size-8 shrink-0"
                   onClick={props.submitAction === "interrupt" ? props.onInterrupt : undefined}
                   status={props.state === "running" && props.hasComposerInput ? "idle" : props.state}
                   type={props.submitAction === "interrupt" ? "button" : "submit"}
@@ -430,8 +387,9 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
                   {props.captureMode ? <Save aria-hidden="true" /> : undefined}
                 </PromptInputSubmit>
               ) : null}
-            </div>
-          </PromptInputFooter>
+
+            </>
+          </ComposerConfigurationToolbar>
         </PromptInput>
       </div>
       {props.modelsError === null ? null : (

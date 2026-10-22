@@ -1,18 +1,3 @@
-@media (max-width: 760px) {
-  /* 单行内按内容比例压缩标签，图标与提交按钮保留正方形尺寸。 */
-  .composer-toolbar-options {
-    flex: 1 1 0;
-  }
-
-  .composer-toolbar > :last-child {
-    flex: 1 1 0;
-  }
-
-  .composer-toolbar button {
-    min-width: 0;
-  }
-}
-
 @media (hover: none), (pointer: coarse) {
   /* 只暴露依赖悬停的操作，不覆盖表单透明输入或禁用状态。 */
   .touch-visible-action {

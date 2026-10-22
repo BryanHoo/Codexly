@@ -189,3 +189,54 @@ test("切换项目后使用各自提示词，临时会话恢复全局版本", as
     }
   } finally { for (const prompt of prompts) savedPromptsStore.remove(prompt.id); }
 });
+
+// 大窗口里的窄分栏必须独立适配，不能依赖移动端视口断点。
+test("keeps a long model name and actions inside a narrow desktop composer", async () => {
+  await page.viewport(1440, 900);
+  await i18n.changeLanguage("zh-CN");
+  const initial = createComposerProps(createRef<WorkbenchComposerHandle>(), vi.fn(async () => undefined));
+  const props = { ...initial, models: initial.models.map((model) => ({ ...model,
+    displayName: "A very long coding model name for a narrow split pane" })) };
+  const queryClient = new QueryClient();
+  const view = (width: number) => <QueryClientProvider client={queryClient}>
+    <TooltipProvider><ProjectDraftProvider><ComposerDraftProvider>
+      <div style={{ width, paddingTop: 320 }}><WorkbenchComposer {...props}
+        runtime={{ connectionState: "connected", error: null, writeAccess: "writable" } as TaskRuntimeView} />
+      </div>
+    </ComposerDraftProvider></ProjectDraftProvider></TooltipProvider>
+  </QueryClientProvider>;
+  const screen = await render(view(360));
+  const input = screen.getByRole("textbox").element() as HTMLTextAreaElement;
+  const toolbar = input.closest("form")!.querySelector<HTMLElement>(".composer-toolbar")!;
+  for (const width of [280, 360, 480, 640, 960]) {
+    await screen.rerender(view(width));
+    await vi.waitFor(() => {
+      expect(toolbar.scrollWidth).toBeLessThanOrEqual(toolbar.clientWidth + 1);
+      const bounds = toolbar.getBoundingClientRect();
+      for (const button of toolbar.querySelectorAll("button")) {
+        if (!button.getClientRects().length || getComputedStyle(button).visibility === "hidden") continue;
+        const box = button.getBoundingClientRect();
+        expect(box.left).toBeGreaterThanOrEqual(bounds.left);
+        expect(box.right).toBeLessThanOrEqual(bounds.right + 1);
+      }
+    });
+    await expect.element(screen.getByRole("button", { name: /^选择模型：/ })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "选择思考量：高", exact: true })).toBeVisible();
+    expect(input.value).toBe("保留未发送草稿");
+  }
+  await expect.element(screen.getByRole("button", { name: "选择思考量：高", exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "更多配置" })).not.toBeInTheDocument();
+  // 收起配置只改变可见性；拉宽后字段和键盘导航必须恢复原有顺序。
+  const orderedControls = [...toolbar.querySelectorAll("button")]
+    .filter((button) => button.getClientRects().length > 0 && getComputedStyle(button).visibility !== "hidden")
+    .map((button) => {
+      const name = button.getAttribute("aria-label") ?? "";
+      return button.hasAttribute("data-fast-mode") ? "快速模式" : name.startsWith("选择模型：") ? "模型" : name.startsWith("选择思考量：") ? "思考量" : name;
+    }).filter((name) => ["批准模式", "沙盒模式", "快速模式", "模型", "思考量"].includes(name));
+  expect(orderedControls).toEqual(["批准模式", "沙盒模式", "快速模式", "模型", "思考量"]);
+  await screen.rerender(view(360));
+  await screen.getByRole("button", { name: "更多配置" }).click();
+  const config = screen.getByRole("dialog", { name: "输入配置" });
+  await expect.element(config.getByRole("button", { name: "批准模式", exact: true })).toBeVisible();
+  await expect.element(config.getByRole("button", { name: "沙盒模式", exact: true })).toBeVisible();
+});

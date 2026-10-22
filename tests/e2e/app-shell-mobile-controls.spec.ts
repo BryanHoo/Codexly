@@ -16,8 +16,10 @@ test("keeps mobile submit square and sidebar actions compact @cross-browser", as
 
 test("anchors approval and sandbox menus to mobile triggers @cross-browser", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
+  await page.getByRole("button", { name: "更多配置", exact: true }).tap();
+  const config = page.getByRole("dialog", { name: "输入配置", exact: true });
   for (const label of ["批准模式", "沙盒模式"]) {
-    const trigger = page.getByRole("button", { name: label, exact: true });
+    const trigger = config.getByRole("button", { name: label, exact: true });
     const triggerBox = await trigger.boundingBox();
     if (!triggerBox) throw new Error("Missing selector trigger bounds");
     await trigger.tap();
@@ -27,9 +29,12 @@ test("anchors approval and sandbox menus to mobile triggers @cross-browser", asy
     if (!box) throw new Error("Missing selector menu bounds");
     expect(box.x).toBeGreaterThanOrEqual(8);
     expect(box.x + box.width).toBeLessThanOrEqual(312);
-    expect(box.y + box.height).toBeLessThanOrEqual(triggerBox.y);
+    // 配置弹窗中的菜单允许碰撞翻转，但始终保留在当前可视区域内。
+    expect(box.y).toBeGreaterThanOrEqual(8);
+    expect(box.y + box.height).toBeLessThanOrEqual(560);
     await menu.getByRole("menuitemradio").last().tap();
     await expect(menu).not.toBeVisible();
+    await expect(config).toBeVisible();
   }
 });
 
@@ -67,11 +72,15 @@ test("exposes touch actions and keeps narrow composer controls on one row @cross
   for (const width of [320, 390, 760]) {
     await page.setViewportSize({ width, height: 844 });
     const toolbar = page.locator(".composer-toolbar");
+    await expect(page.getByRole("button", { name: /^选择思考量：/u })).toBeVisible();
     const metrics = await toolbar.evaluate((element) => ({
       width: element.clientWidth,
       scrollWidth: element.scrollWidth,
       controls: [...element.querySelectorAll("button")]
-        .filter((button) => button.getClientRects().length > 0)
+        .filter(
+          (button) =>
+            button.getClientRects().length > 0 && getComputedStyle(button).visibility !== "hidden",
+        )
         .map((button) => {
           const box = button.getBoundingClientRect();
           return { center: box.y + box.height / 2, width: box.width };

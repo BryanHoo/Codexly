@@ -13,6 +13,7 @@ import {
 import { resolveReasoningEffort } from "../composer-state.js";
 
 type ComposerModelSelectorProps = Readonly<{
+  control?: "model" | "reasoning";
   activeSettings: AgentTaskSettings;
   disabled: boolean;
   models: readonly AgentModel[];
@@ -80,6 +81,7 @@ export function resolveComposerReasoningSelection(
 }
 
 export function ComposerModelSelector({
+  control,
   activeSettings,
   disabled,
   models,
@@ -120,7 +122,7 @@ export function ComposerModelSelector({
 
   return (
     <>
-      <DropdownMenu>
+      {control !== "reasoning" ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <ComposerModelSelectorTrigger
             accessibleLabel={t("composer.modelSelectCurrent", { model: modelLabel })}
@@ -148,9 +150,9 @@ export function ComposerModelSelector({
             ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu> : null}
       {/* 未声明推理能力时不显示空菜单，模型仍可正常发送。 */}
-      {selectedModel?.supportedReasoningEfforts.length ? <DropdownMenu>
+      {control !== "model" && selectedModel?.supportedReasoningEfforts.length ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <ComposerModelSelectorTrigger
             accessibleLabel={t("composer.reasonEffortSelectCurrent", { effort: effortLabel })}

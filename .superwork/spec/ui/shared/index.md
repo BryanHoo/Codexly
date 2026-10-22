@@ -19,6 +19,7 @@
 - 基础控件从 `@codexly/ui/core/*` 导入；Agent 展示组件只在平台行为拆出后从 `@codexly/ui/agent/*` 导入。
 - Tooltip 不因获得或恢复焦点自动打开；共享 Trigger 保留业务焦点回调，仅阻止 Radix 的焦点打开行为，鼠标悬停仍展示。承载正文的自定义备注提示需支持点击及键盘主动查看。
 - Composer 权限与沙盒使用共享 `CompactSelector` 锚定下拉菜单；触发器与模型、思考量保持一致，支持窄屏标签截断和视口碰撞边界，不使用原生 select 弹层。
+- Composer 工具栏使用共享 `core/composer-toolbar` 按实际容器及控件尺寸收起低频配置，不能仅按视口断点处理。收起优先级与显示顺序必须独立：左侧保持附件、引擎、权限、沙盒、模式、目标、快速模式的原有顺序，右侧保持模型、思考量与提交；收起后恢复宽度也不得重排字段或键盘焦点。附件、模型、思考量、当前计划/目标模式与提交保持可见；支持推理的模型必须常驻显示思考量，不能仅提高收起优先级；收起项通过紧凑、无蒙层的“更多配置”面板修改，显示名称和当前值，修改后保留面板与草稿，支持点击外部关闭、Esc 与焦点恢复。隐藏的测量控件不得被聚焦或进入无障碍树；尺寸监听随卸载释放，不增加轮询。回归覆盖大窗口窄中栏、移动触控、超长模型名及拉宽恢复，使用 `app-shell-composer-overflow.spec.ts`、`app-shell-mobile-controls.spec.ts` 和桌面 `composer-ownership.browser.test.tsx`。
 - Composer 附件按钮固定在工具栏最左侧，引擎与其他操作放在其后。Codex 与 Claude 均已配置时才显示引擎选择器；仅配置一种时新草稿自动使用该引擎，忽略失效的草稿选择。已有会话保留原引擎；配置发现完成前禁止提交新草稿，旧版 macOS 不探测 Claude。两端共用 `engine-composer` 与 `engine-composer-state`，回归覆盖单配置、双配置、配置移除与历史归属。
 - 文件打开、下载、Markdown 链接、通知和翻译由调用方提供。公共包不引入 Tauri API、Web 客户端或应用内 feature 代码。
 - Codex 的 `:codex-file-citation{path="..."}` 在静态消息和流式回复中共用文件卡片，点击通过平台回调交给宿主的系统默认应用；Web 的宿主是服务端所在机器。路径按文件系统字面值保存，兼容 Windows 盘符、UNC、中文、空格及 Markdown 特殊字符；不对代码示例和已有链接里的引用执行转换。只处理当前 Markdown 块，文件内容不因渲染卡片而读取或传输。回归见两端 `message-response-file-citations.test.ts` 与共享 `codex-file-citation.test.ts`、`message-file-citation.test.ts`。

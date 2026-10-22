@@ -13,6 +13,7 @@ import {
 import { resolveReasoningEffort } from "../composer-state.js";
 
 type ComposerModelSelectorProps = Readonly<{
+  control?: "model" | "reasoning";
   activeSettings: AgentTaskSettings;
   disabled: boolean;
   models: readonly AgentModel[];
@@ -77,6 +78,7 @@ export function resolveComposerReasoningSelection(
 }
 
 export function ComposerModelSelector({
+  control,
   activeSettings,
   disabled,
   models,
@@ -117,37 +119,39 @@ export function ComposerModelSelector({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <ComposerModelSelectorTrigger
-            accessibleLabel={t("composer.modelSelectCurrent", { model: modelLabel })}
-            disabled={selectorDisabled}
-            label={modelLabel}
-            slot="composer-model-selector"
-          />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          aria-label={t("composer.modelSelect")}
-          className="w-40 max-w-[calc(100vw-1rem)]"
-          side="top"
-        >
-          <DropdownMenuRadioGroup
-            onValueChange={selectModel}
-            {...(selectedModel === undefined ? {} : { value: selectedModel.id })}
+      {control !== "reasoning" ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <ComposerModelSelectorTrigger
+              accessibleLabel={t("composer.modelSelectCurrent", { model: modelLabel })}
+              disabled={selectorDisabled}
+              label={modelLabel}
+              slot="composer-model-selector"
+            />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            aria-label={t("composer.modelSelect")}
+            className="w-40 max-w-[calc(100vw-1rem)]"
+            side="top"
           >
-            {models.map((model) => (
-              <DropdownMenuRadioItem indicator="check" key={model.id} value={model.id}>
-                <span className="min-w-0 truncate" title={model.displayName}>
-                  {model.displayName}
-                </span>
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <DropdownMenuRadioGroup
+              onValueChange={selectModel}
+              {...(selectedModel === undefined ? {} : { value: selectedModel.id })}
+            >
+              {models.map((model) => (
+                <DropdownMenuRadioItem indicator="check" key={model.id} value={model.id}>
+                  <span className="min-w-0 truncate" title={model.displayName}>
+                    {model.displayName}
+                  </span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
       {/* 未声明推理能力时不显示空菜单，模型仍可正常发送。 */}
-      {selectedModel?.supportedReasoningEfforts.length ? (
+      {control !== "model" && selectedModel?.supportedReasoningEfforts.length ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <ComposerModelSelectorTrigger

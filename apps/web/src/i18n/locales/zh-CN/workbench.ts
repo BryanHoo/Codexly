@@ -1,6 +1,6 @@
 import { sidebarFooterChinese } from "@codexly/frontend-core/sidebar-footer-labels";
 import { sidebarTimelineChinese } from "@codexly/frontend-core/sidebar-task-view";
-import { composerGitChinese } from "@codexly/frontend-core/composer-git-labels";
+import { composerLabelsChinese } from "@codexly/frontend-core/composer-labels";
 import { engineChinese } from "@codexly/frontend-core/engine-labels";
 import { gitCommit } from "./git-commit.js";
 import { textFileEditorChinese } from "@codexly/frontend-core/text-file-editor";
@@ -91,7 +91,7 @@ export const workbench = {
     branchSwitcherMenu: "切换分支",
     branchSwitchFailed: "无法创建或切换分支，请重试",
     branchName: "分支名称",
-    ...composerGitChinese,
+    ...composerLabelsChinese,
     worktrees: "工作树",
     createWorktree: "创建 worktree",
     createWorktreeDescription: "创建新分支和独立目录，方便并行开发。创建后仍可自由选择引擎和模型。",

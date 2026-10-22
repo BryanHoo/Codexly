@@ -1,6 +1,6 @@
 import { sidebarFooterEnglish } from "@codexly/frontend-core/sidebar-footer-labels";
 import { sidebarTimelineEnglish } from "@codexly/frontend-core/sidebar-task-view";
-import { composerGitEnglish } from "@codexly/frontend-core/composer-git-labels";
+import { composerLabelsEnglish } from "@codexly/frontend-core/composer-labels";
 import { engineEnglish } from "@codexly/frontend-core/engine-labels";
 import { gitCommit } from "./git-commit.js";
 import { textFileEditorEnglish } from "@codexly/frontend-core/text-file-editor";
@@ -91,7 +91,7 @@ export const workbench = {
     branchSwitcherMenu: "Switch branch",
     branchSwitchFailed: "Unable to create or switch branches. Try again.",
     branchName: "Branch name",
-    ...composerGitEnglish,
+    ...composerLabelsEnglish,
     worktrees: "Worktrees",
     createWorktree: "Create worktree",
     createWorktreeDescription:
