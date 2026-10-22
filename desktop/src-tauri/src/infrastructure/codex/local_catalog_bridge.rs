@@ -115,6 +115,21 @@ impl AppServerConnection {
                 .map_err(|_| ConnectionError::StateUnavailable)?;
             translate(&mut params, &ids, "");
         }
+        if message.method == "thread/tokenUsage/updated"
+            && let Some(catalog) = self.catalog.clone()
+            && let Some(id) = params["threadId"].as_str()
+        {
+            let source = self
+                .catalog_ids
+                .lock()
+                .map_err(|_| ConnectionError::StateUnavailable)?
+                .get(id)
+                .cloned();
+            if let Some(source) = source {
+                let sample = json!({"taskId":id,"source":source,"timestamp":chrono::Utc::now().to_rfc3339(),"tokenUsage":params["tokenUsage"]});
+                catalog.enqueue_codex_usage(sample);
+            }
+        }
         if message.method == "thread/status/changed"
             && let Some(catalog) = &self.catalog
             && params["threadId"].is_string()

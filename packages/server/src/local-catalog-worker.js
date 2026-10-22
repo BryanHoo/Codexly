@@ -1,3 +1,4 @@
+import { createTokenUsageOperations } from "./token-usage-worker.js";
 import { createHash } from "node:crypto";
 import schema from "../../protocol/src/local-catalog-schema.json" with { type: "json" };
 import {
@@ -89,6 +90,7 @@ export function createLocalCatalogOperations(db) {
     return readTask(t.id);
   };
   const operations = {
+    ...createTokenUsageOperations(db),
     "project.list": listProjects,
     "project.read": ({ id }) => readProject(id),
     "project.put": putProject,

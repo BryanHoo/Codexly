@@ -1,3 +1,4 @@
+import type { LocalCatalogStore } from "@codexly/core";
 import type {
   AsyncQuestionRepository,
   ProjectTodoRepository,
@@ -53,6 +54,7 @@ import type { ProjectOpenService } from "./project-open.js";
 import type { SkillMarketService } from "./skill-market-service.js";
 
 export interface CreateCodexlyServerOptions {
+  tokenUsageStore?: LocalCatalogStore;
   asyncQuestionRepository?: AsyncQuestionRepository;
   projectTodoRepository?: ProjectTodoRepository;
   submissionRepository?: TaskSubmissionRepository;

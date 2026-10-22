@@ -1,3 +1,4 @@
+import type { LocalCatalogStore } from "@codexly/core";
 import type { CodexRpcClient } from "@codexly/provider-codex";
 import type { CliManagedRuntime } from "./cli-lazy-codex-client.js";
 import type {
@@ -20,6 +21,7 @@ import type { CodexlyAccessOptions } from "@codexly/server";
 import type { createAppUpdateService } from "./app-update.js";
 
 export interface CreateServerInput {
+  tokenUsageStore?: LocalCatalogStore;
   asyncQuestionRepository: AsyncQuestionRepository;
   projectTodoRepository: ProjectTodoRepository;
   submissionRepository: TaskSubmissionRepository;

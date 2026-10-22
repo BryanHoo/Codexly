@@ -49,6 +49,7 @@ permissions = [
   "allow-configure-custom-provider",
   "allow-logout-provider",
   "allow-get-global-settings",
+  "allow-get-token-usage",
   "allow-get-temporary-workspace-settings",
   "allow-choose-temporary-workspace-root",
   "allow-get-global-instructions",

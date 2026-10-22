@@ -178,6 +178,7 @@ export const settings = {
     workspaceWrite: "工作区可写",
   },
   sections: {
+    usage: "用量统计",
     prompts: "常用提示词",
     git: "辅助生成",
     "claude-provider": "模型服务",
@@ -192,6 +193,7 @@ export const settings = {
   },
   title: "全局设置",
   sectionKeywords: {
+    usage: "用量统计 Token 消耗 热力图 输入 输出 缓存 Codex Claude",
     prompts: "常用提示词 快捷词 斜杠命令 本地存储 新建 编辑 删除",
     git: "辅助生成 默认 Agent 默认模型 Git 提交信息 任务标题 提示词 生成规则",
     "claude-provider": "Claude Anthropic API Key API 地址 连接 可用模型",

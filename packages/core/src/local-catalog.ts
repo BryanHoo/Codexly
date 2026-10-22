@@ -1,3 +1,9 @@
+import type {
+  TokenUsageSample,
+  CodexTokenUsageSample,
+  TokenUsageQuery,
+  TokenUsageResponse,
+} from "@codexly/protocol";
 /** 应用目录与任务独立于执行引擎；sessionId 仅用于适配器恢复会话。 */
 export interface LocalProject {
   id: string;
@@ -33,6 +39,9 @@ export interface LocalTaskQuery {
 }
 
 export interface CatalogOperations {
+  "usage.record": [TokenUsageSample, undefined];
+  "usage.codex": [CodexTokenUsageSample, undefined];
+  "usage.query": [TokenUsageQuery, TokenUsageResponse];
   "project.list": [undefined, LocalProject[]];
   "project.put": [LocalProject, LocalProject];
   "project.read": [{ id: string }, LocalProject | null];

@@ -96,6 +96,27 @@ export async function createLocalCatalogClient(
       return;
     const translated = translateTaskReferences(params, toLocal);
     publish(method, translated);
+    if (method === "thread/tokenUsage/updated" && translated && typeof translated === "object") {
+      const p = translated as Record<string, unknown>;
+      const id = p["threadId"];
+      if (typeof id === "string" && toNative.has(id))
+        void Promise.resolve()
+          .then(() =>
+            store.catalog("usage.codex", {
+              taskId: id,
+              source: toNative.get(id) ?? id,
+              timestamp: new Date().toISOString(),
+              tokenUsage: p["tokenUsage"],
+            }),
+          )
+          .catch(() => {
+            DEFAULT_PROVIDER_LOGGER.warn(
+              { diagnosticCode: "token_usage_write_failed" },
+              "Failed to persist token usage",
+            );
+          });
+    }
+
     if (method === "thread/status/changed" && translated && typeof translated === "object") {
       const p = translated as Record<string, unknown>;
       if (typeof p["threadId"] === "string" && toNative.has(p["threadId"])) {

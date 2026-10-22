@@ -1,0 +1,621 @@
+/* 只使用现有主题令牌与系统字体；图表随面板异步加载，无字体和图表库请求。 */
+.usage-statistics {
+  --usage-green-1: #d3ecdf;
+  --usage-green-2: #91cdb0;
+  --usage-green-3: #4ba47b;
+  --usage-green-4: #23734e;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: var(--ui-color-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.usage-statistics h1,
+.usage-statistics h2,
+.usage-statistics h3,
+.usage-statistics p {
+  margin: 0;
+}
+.usage-statistics h1 {
+  font-size: var(--ui-font-size-title);
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+.usage-statistics h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.usage-statistics h3 {
+  font-size: 12px;
+  font-weight: 500;
+}
+.usage-statistics svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  stroke-width: 1.7;
+}
+.usage-statistics button {
+  cursor: pointer;
+}
+.usage-statistics button:focus-visible,
+.usage-info summary:focus-visible {
+  outline: 2px solid var(--ui-color-accent);
+  outline-offset: 3px;
+}
+.usage-statistics button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+/* 标题、筛选、概览与图表共用同一条左边线，说明文案按需展开。 */
+.usage-heading {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+.usage-toolbar,
+.usage-toolbar-end,
+.usage-year {
+  display: flex;
+  align-items: center;
+}
+.usage-toolbar {
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.usage-engine-filter {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--ui-radius-surface);
+  background: var(--ui-color-control);
+  border: 1px solid var(--ui-color-separator);
+}
+.usage-engine-filter button {
+  padding: 5px 11px;
+  border-radius: 5px;
+  color: var(--ui-color-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.usage-engine-filter button[aria-pressed="true"] {
+  background: var(--ui-color-panel);
+  color: var(--ui-color-text);
+  box-shadow: 0 1px 3px #00000012;
+}
+.usage-toolbar-end {
+  gap: 10px;
+}
+.usage-year {
+  gap: 4px;
+}
+.usage-year span {
+  min-width: 46px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+}
+.usage-year button,
+.usage-refresh,
+.usage-clear-day {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  color: var(--ui-color-text-muted);
+}
+.usage-year button:hover:enabled,
+.usage-refresh:hover:enabled,
+.usage-clear-day:hover {
+  background: var(--ui-color-control);
+  color: var(--ui-color-text);
+}
+/* 三张卡片使用完全一致的列宽、内边距与三行排版，数据变化不改变布局。 */
+.usage-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.usage-metric {
+  display: grid;
+  grid-template-rows: 18px 38px 16px;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--ui-color-separator);
+  border-radius: var(--ui-radius-surface);
+  background: var(--ui-color-panel);
+}
+.usage-eyebrow {
+  color: var(--ui-color-text-muted);
+  font-size: 12px;
+}
+.usage-metric-value {
+  align-self: center;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.usage-caption {
+  color: var(--ui-color-text-subtle);
+  font-size: 11px;
+}
+.usage-card {
+  border: 1px solid var(--ui-color-separator);
+  border-radius: var(--ui-radius-surface);
+  background: var(--ui-color-panel);
+  padding: 16px;
+  min-width: 0;
+}
+.usage-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.usage-calendar-scroll {
+  overflow-x: auto;
+  padding: 3px 3px 5px;
+  margin: 0 -3px;
+}
+.usage-calendar-layout {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-rows: 18px auto;
+  gap: 4px 8px;
+  min-width: 610px;
+}
+.usage-months {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--usage-weeks), minmax(0, 1fr));
+  gap: 3px;
+  font-size: 9px;
+  color: var(--ui-color-text-muted);
+}
+.usage-months span {
+  white-space: nowrap;
+}
+.usage-weekdays {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  gap: 3px;
+  font-size: 9px;
+  color: var(--ui-color-text-muted);
+  align-items: center;
+}
+.usage-calendar {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+}
+.usage-calendar button,
+.usage-legend i {
+  border: 1px solid #00000004;
+  border-radius: 2px;
+  background: var(--ui-color-control);
+  min-width: 0;
+}
+.usage-calendar button:disabled {
+  opacity: 0.35;
+}
+.usage-calendar button:hover:enabled {
+  outline: 1px solid var(--ui-color-text-muted);
+  outline-offset: 1px;
+}
+.usage-calendar button[aria-pressed="true"] {
+  outline: 2px solid var(--ui-color-text);
+  outline-offset: 1px;
+}
+.usage-calendar button[data-today="true"] {
+  box-shadow: inset 0 0 0 1px var(--ui-color-text-muted);
+}
+.usage-calendar [data-level="1"],
+.usage-legend [data-level="1"] {
+  background: var(--usage-green-1);
+}
+.usage-calendar [data-level="2"],
+.usage-legend [data-level="2"] {
+  background: var(--usage-green-2);
+}
+.usage-calendar [data-level="3"],
+.usage-legend [data-level="3"] {
+  background: var(--usage-green-3);
+}
+.usage-calendar [data-level="4"],
+.usage-legend [data-level="4"] {
+  background: var(--usage-green-4);
+}
+.usage-calendar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ui-color-text-muted);
+  font-size: 9px;
+  padding-top: 12px;
+  gap: 16px;
+}
+.usage-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.usage-legend i {
+  display: block;
+  width: 10px;
+  height: 10px;
+}
+.usage-legend > span:first-child {
+  margin-right: 3px;
+}
+.usage-legend > span:last-child {
+  margin-left: 3px;
+}
+.usage-secondary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.usage-month-chart {
+  height: 104px;
+  display: flex;
+  gap: 8px;
+  padding-top: 16px;
+}
+.usage-month-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.usage-month-column > span {
+  color: var(--ui-color-text-muted);
+  font-size: 9px;
+}
+.usage-month-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--ui-color-separator);
+}
+.usage-month-track > span {
+  display: block;
+  width: 100%;
+  max-width: 18px;
+  margin: 0 auto;
+  background: var(--usage-green-3);
+  border-radius: 3px 3px 0 0;
+}
+.usage-engine-row {
+  margin-top: 19px;
+  font-size: 11px;
+}
+.usage-engine-row > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+.usage-engine-row strong {
+  margin-left: auto;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+.usage-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.usage-dot-codex {
+  background: #4ba47b;
+}
+.usage-dot-claude {
+  background: #c18765;
+}
+.usage-engine-track {
+  height: 4px;
+  background: var(--ui-color-control);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.usage-engine-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #4ba47b;
+}
+.usage-engine-track [data-engine="claude"] {
+  background: #c18765;
+}
+.usage-details > .usage-section-heading {
+  margin-bottom: 14px;
+}
+.usage-breakdown {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.usage-breakdown-item {
+  padding: 0 14px;
+  border-right: 1px solid var(--ui-color-separator);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.usage-breakdown-item:first-child {
+  padding-left: 0;
+}
+.usage-breakdown-item:last-child {
+  border: 0;
+  padding-right: 0;
+}
+.usage-breakdown-item > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--ui-color-text-muted);
+}
+.usage-breakdown-item svg {
+  width: 12px;
+  height: 12px;
+}
+.usage-breakdown-item strong {
+  padding-top: 9px;
+  font-size: 20px;
+  font-weight: 550;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+.usage-selected-total {
+  font-size: 24px;
+  font-weight: 550;
+  margin-bottom: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.usage-selected-total > span {
+  font-size: 11px;
+  color: var(--ui-color-text-muted);
+  font-weight: 400;
+}
+.usage-task-list {
+  margin-top: 20px;
+}
+.usage-task-list > p,
+.usage-task-list > div[role="alert"] {
+  padding: 20px 0;
+  color: var(--ui-color-text-muted);
+  font-size: 12px;
+}
+.usage-task-list-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--ui-color-separator);
+  padding-bottom: 10px;
+}
+.usage-task-list-heading > span {
+  font-size: 11px;
+  color: var(--ui-color-text-subtle);
+}
+.usage-task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ui-color-separator);
+}
+.usage-task-row > div {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.usage-task-row > div > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.usage-task-row small {
+  color: var(--ui-color-text-muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+.usage-task-row strong {
+  font-size: 12px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+.usage-task-row strong small {
+  margin-left: 5px;
+}
+.usage-info {
+  color: var(--ui-color-text-subtle);
+  font-size: 11px;
+}
+.usage-info summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--ui-radius-control);
+}
+.usage-info summary::-webkit-details-marker {
+  display: none;
+}
+.usage-info summary svg {
+  width: 13px;
+  height: 13px;
+}
+.usage-info summary svg:last-child {
+  width: 12px;
+  height: 12px;
+}
+.usage-info[open] summary svg:last-child {
+  transform: rotate(90deg);
+}
+.usage-info p {
+  padding-top: 10px;
+  max-width: 560px;
+  line-height: 1.7;
+}
+.usage-empty,
+.usage-loading {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--ui-color-text-muted);
+}
+.usage-empty > svg,
+.usage-loading > svg {
+  width: 25px;
+  height: 25px;
+  margin: 0 auto 12px;
+}
+.usage-empty h2 {
+  color: var(--ui-color-text);
+  margin-bottom: 6px;
+}
+.usage-empty p {
+  max-width: 340px;
+  margin: auto;
+  font-size: 11px;
+}
+.usage-empty button,
+.usage-task-list button {
+  margin-top: 12px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  background: var(--ui-color-control);
+  color: var(--ui-color-text);
+}
+.usage-loading-lines {
+  height: 145px;
+  border-radius: 9px;
+  background: var(--ui-color-control);
+  margin-top: 24px;
+}
+[data-theme="dark"] .usage-statistics {
+  --usage-green-1: #183c2f;
+  --usage-green-2: #236247;
+  --usage-green-3: #39986a;
+  --usage-green-4: #66c994;
+}
+@media (max-width: 700px) {
+  .usage-statistics {
+    gap: 16px;
+  }
+  .usage-overview {
+    gap: 8px;
+  }
+  .usage-metric {
+    padding: 12px;
+    grid-template-rows: 18px 32px 16px;
+    gap: 5px;
+  }
+  .usage-metric-value {
+    font-size: 24px;
+    letter-spacing: -0.5px;
+  }
+  .usage-secondary {
+    grid-template-columns: 1fr;
+  }
+  .usage-engines {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 24px;
+  }
+  .usage-engines h2 {
+    grid-column: 1 / -1;
+  }
+  .usage-engine-row {
+    margin-top: 14px;
+  }
+  .usage-breakdown {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .usage-breakdown-item {
+    padding: 14px;
+    border-bottom: 1px solid var(--ui-color-separator);
+  }
+  .usage-breakdown-item:nth-child(2) {
+    border-right: 0;
+  }
+  .usage-breakdown-item:nth-child(3) {
+    border-bottom: 0;
+    padding-left: 0;
+  }
+}
+@media (max-width: 420px) {
+  .usage-engine-filter button {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  .usage-toolbar-end {
+    gap: 2px;
+  }
+  .usage-year {
+    gap: 0;
+  }
+  .usage-year button {
+    width: 24px;
+  }
+  .usage-year span {
+    min-width: 38px;
+  }
+  .usage-metric {
+    padding: 12px 10px;
+  }
+  .usage-metric-value {
+    font-size: 21px;
+  }
+  .usage-eyebrow,
+  .usage-metric .usage-caption {
+    font-size: 10px;
+  }
+}
+
+.usage-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.usage-date-controls input {
+  width: 128px;
+  min-height: 30px;
+  padding: 3px 7px;
+  border: 1px solid var(--ui-color-separator);
+  border-radius: 5px;
+  background: var(--ui-color-panel);
+  color: var(--ui-color-text-muted);
+  font: inherit;
+  font-size: 11px;
+  color-scheme: inherit;
+}
+.usage-date-controls input:focus-visible {
+  outline: 2px solid var(--ui-color-accent);
+  outline-offset: 2px;
+}

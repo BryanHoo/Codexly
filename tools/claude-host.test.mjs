@@ -19,6 +19,7 @@ test(
   async () => {
     const directory = await mkdtemp(join(tmpdir(), "codexly-host-"));
     const tasks = new Map();
+    const usage = new Map();
     let calls = 0;
     let titleCalls = 0;
     const messageBodies = [];
@@ -227,7 +228,14 @@ test(
         if (message.catalogId) {
           const { operation, payload } = message;
           let result;
-          if (operation === "task.settings") result = null;
+          if (operation === "usage.record") {
+            // 独立宿主通过与任务目录相同的受控通道保存真实统计；缺失字段允许为空。
+            assert.equal(payload.engine, "claude");
+            assert.ok(Number.isSafeInteger(payload.totalTokens) && payload.totalTokens >= 0);
+            assert.equal(typeof payload.source, "string");
+            usage.set(payload.source, payload);
+            result = null;
+          } else if (operation === "task.settings") result = null;
           else if (operation === "task.read") result = tasks.get(payload.id) ?? null;
           else if (operation === "task.patch" || operation === "task.put") {
             result = { ...tasks.get(payload.id), ...payload };
@@ -810,6 +818,10 @@ test(
       );
 
       assert.equal(tasks.has("task"), false);
+      assert.ok(
+        [...usage.values()].some((sample) => sample.taskId === "task" && sample.totalTokens > 0),
+        "real host usage must survive task deletion",
+      );
       assert.ok(
         host.events.some(
           (event) => event.type === "task.removed" && event.payload.reason === "deleted",

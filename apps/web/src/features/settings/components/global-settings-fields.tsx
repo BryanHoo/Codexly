@@ -1,5 +1,6 @@
 import type { AgentModel } from "@codexly/protocol";
 import {
+  ChartNoAxesCombined,
   Bookmark,
   Bot,
   Sparkles,
@@ -36,6 +37,7 @@ export const settingsSections: readonly Readonly<{
   { icon: Bot, id: "agent" },
   { icon: SlidersHorizontal, id: "personalization" },
   { icon: Network, id: "access" },
+  { icon: ChartNoAxesCombined, id: "usage" },
   { icon: Info, id: "about" },
 ];
 

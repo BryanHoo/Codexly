@@ -87,8 +87,9 @@ pub(super) async fn catalog_loop(
                 }
             }
             Some(
-                operation @ ("task.read" | "task.put" | "task.patch" | "task.list" | "task.remove"),
-            ) => catalog
+                operation @ ("task.read" | "task.put" | "task.patch" | "task.list" | "task.remove"
+                | "usage.record"),
+            ) if operation != "usage.record" || message["payload"]["engine"] == "claude" => catalog
                 .call(operation, message["payload"].clone())
                 .await
                 .map_err(|error| error.to_string()),

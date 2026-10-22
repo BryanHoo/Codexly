@@ -76,6 +76,7 @@ fn assert_immutable_binding(current: &Value, candidate: &Value) -> Result<(), Ca
 
 pub(super) fn execute(db: &mut Connection, op: &str, p: &Value) -> Result<Value, CatalogError> {
     match op {
+        "usage.record" | "usage.codex" | "usage.query" => super::token_usage::execute(db, op, p),
         "project.list" => projects(db),
         "project.read" => read(db, "managed_projects", string(p, "id")?),
         "project.put" => put_project(db, p),

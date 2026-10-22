@@ -24,9 +24,9 @@ use application::{
     },
     catalog_commands::{
         cancel_provider_login, configure_custom_provider, get_global_settings,
-        get_project_defaults, get_provider_connection, list_mcp_servers, list_models, list_skills,
-        logout_provider, retry_mcp_servers, start_official_provider_login, update_global_settings,
-        update_project_defaults,
+        get_project_defaults, get_provider_connection, get_token_usage, list_mcp_servers,
+        list_models, list_skills, logout_provider, retry_mcp_servers,
+        start_official_provider_login, update_global_settings, update_project_defaults,
     },
     commands::{
         acknowledge_runtime_events, cancel_native_request, connect_runtime, get_app_info,
@@ -243,6 +243,7 @@ pub fn run() {
             configure_custom_provider,
             logout_provider,
             get_global_settings,
+            get_token_usage,
             application::personalization_commands::get_global_instructions,
             application::personalization_commands::save_global_instructions,
             application::personalization_commands::get_memory_settings,

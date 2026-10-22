@@ -272,3 +272,11 @@ pub async fn retry_mcp_servers(
         .await
         .map_err(request_error)
 }
+
+/// 只读本地汇总，不依赖模型运行时或聊天事件通道。
+#[tauri::command]
+pub async fn get_token_usage(app: AppHandle, input: Value) -> Result<Value, AppError> {
+    Ok(super::sidebar_commands::local_catalog(&app)?
+        .call("usage.query", input)
+        .await?)
+}

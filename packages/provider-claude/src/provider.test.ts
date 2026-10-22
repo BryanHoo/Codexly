@@ -3517,3 +3517,39 @@ it("persists the worktree cwd and uses it for the first Claude SDK session", asy
   expect(h.query.mock.calls[0]?.[0].options.cwd).toBe(worktreePath);
   h.send({ type: "result", subtype: "success", result: "done" });
 });
+
+it("does not wait for a stalled usage write when stopping an already completed session", async () => {
+  const h = await harness(undefined, 60_000);
+  const gate = Promise.withResolvers<undefined>();
+  const original = h.provider.store.catalog.bind(h.provider.store);
+  vi.spyOn(h.provider.store, "catalog").mockImplementation(
+    <K extends keyof CatalogOperations>(
+      operation: K,
+      payload: CatalogOperations[K][0],
+    ): Promise<CatalogOperations[K][1]> => {
+      if (operation === "usage.record") return gate.promise;
+      return original<K>(operation, payload);
+    },
+  );
+  const task = await h.provider.startTask();
+  await h.provider.startTurn(task.id, prompt, options);
+  h.send({ type: "result", subtype: "success", usage: { input_tokens: 42, output_tokens: 10 } });
+  await vi.waitFor(() => {
+    expect(h.provider.isBusy).toBe(false);
+  });
+  let stopped = false;
+  const stopping = h.provider.stopSession(task.id).then(() => {
+    stopped = true;
+  });
+  try {
+    await vi.waitFor(
+      () => {
+        expect(stopped).toBe(true);
+      },
+      { timeout: 500 },
+    );
+  } finally {
+    gate.resolve(undefined);
+    await stopping;
+  }
+});

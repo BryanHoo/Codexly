@@ -9,13 +9,17 @@ mod operations;
 #[cfg(test)]
 mod preview_tests;
 mod previews;
+mod token_usage;
 
 #[derive(Clone)]
 pub struct LocalCatalog {
-    inner: Arc<Mutex<Option<Connection>>>,
+    inner: Arc<SharedConnection>,
     path: PathBuf,
 }
-type SharedConnection = Mutex<Option<Connection>>;
+struct SharedConnection {
+    database: Mutex<Option<Connection>>,
+    usage: OnceLock<tokio::sync::mpsc::Sender<Value>>,
+}
 static STORES: OnceLock<Mutex<HashMap<PathBuf, Weak<SharedConnection>>>> = OnceLock::new();
 
 /// Windows 原生 canonicalize 返回扩展路径，移除前缀以与 Node realpath 的项目身份一致。
@@ -43,7 +47,10 @@ impl LocalCatalog {
         }
         // The registry shares live stores without keeping SQLite files open after their users exit.
         stores.retain(|_, store| store.strong_count() > 0);
-        let inner = Arc::new(Mutex::new(None));
+        let inner = Arc::new(SharedConnection {
+            database: Mutex::new(None),
+            usage: OnceLock::new(),
+        });
         stores.insert(path.clone(), Arc::downgrade(&inner));
         Ok(Self { inner, path })
     }
@@ -58,6 +65,7 @@ impl LocalCatalog {
     fn execute(&self, operation: &str, payload: &Value) -> Result<Value, CatalogError> {
         let mut guard = self
             .inner
+            .database
             .lock()
             .map_err(|_| CatalogError::StateUnavailable)?;
         if guard.is_none() {
@@ -94,6 +102,7 @@ impl LocalCatalog {
                 "../../../../../packages/protocol/src/local-catalog-schema.json"
             ))
             .map_err(|_| CatalogError::InvalidMessage)?;
+            token_usage::initialize(&db)?;
             // 两端共享幂等增量表；桌面先升级时也能与既有 Web 表列顺序兼容。
             db.execute_batch(string(&schema, "previewSql")?)
                 .map_err(db_error)?;

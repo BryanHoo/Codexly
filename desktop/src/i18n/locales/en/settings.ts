@@ -178,6 +178,7 @@ export const settings = {
     workspaceWrite: "Workspace write",
   },
   sections: {
+    usage: "Usage",
     prompts: "Saved prompts",
     git: "AI generation",
     "claude-provider": "Model service",
@@ -192,6 +193,7 @@ export const settings = {
   },
   title: "Global settings",
   sectionKeywords: {
+    usage: "usage statistics tokens heatmap input output cache Codex Claude",
     prompts: "saved prompts shortcuts slash commands local storage create edit delete",
     git: "AI generation default agent model Git commit message task title prompt rules",
     "claude-provider": "Claude Anthropic API key API URL endpoint connection available models",

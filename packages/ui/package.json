@@ -56,7 +56,12 @@
       "types": "./src/agent/code-token-cache.ts",
       "default": "./src/agent/code-token-cache.ts"
     },
-    "./core/extension-center.css": "./src/core/extension-center.css"
+    "./core/extension-center.css": "./src/core/extension-center.css",
+    "./core/usage-statistics": {
+      "types": "./src/core/usage-statistics.tsx",
+      "default": "./src/core/usage-statistics.tsx"
+    },
+    "./core/usage-statistics.css": "./src/core/usage-statistics.css"
   },
   "dependencies": {
     "@codemirror/commands": "catalog:",

@@ -1,3 +1,4 @@
+import type { TokenUsageQuery, TokenUsageResponse } from "@codexly/protocol";
 import type { HistoryCompressionResult, PluginReconcileResult } from "@codexly/protocol";
 import type { MutationOptions, ReadOptions } from "@/platform/native-client-types.js";
 import type {
@@ -94,6 +95,11 @@ export class TauriCatalogClient extends TauriWorkspaceClient {
     return this.call("logout_provider");
   }
 
+  public async getTokenUsage(input: TokenUsageQuery): Promise<TokenUsageResponse> {
+    const value = await this.invokeCommand<unknown>("get_token_usage", { input });
+    const { parseTokenUsageResponse } = await import("./token-usage-response.js");
+    return parseTokenUsageResponse(value);
+  }
   public async getGlobalSettings(options: ReadOptions & { engine?: "codex" | "claude" } = {}): Promise<AgentGlobalSettingsResponse> {
     return options.engine === "claude" ? this.invokeCommand("get_global_settings", {engine: "claude"}) : this.call("get_global_settings");
   }

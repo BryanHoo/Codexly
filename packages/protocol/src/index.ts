@@ -495,6 +495,6 @@ export { WorkbenchChangeSchema, type WorkbenchChange } from "./workbench-change.
 export * from "./agent-engine.js";
 export * from "./engine-profile.js";
 export * from "./claude-extensions.js";
-
 export { AgentThreadConfigurationSchema } from "./agent-attachments.js";
 export * from "./task-activity.js";
+export * from "./token-usage.js";

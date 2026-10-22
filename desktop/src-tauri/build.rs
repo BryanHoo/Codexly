@@ -80,6 +80,7 @@ fn main() {
         "configure_custom_provider",
         "logout_provider",
         "get_global_settings",
+        "get_token_usage",
         "get_temporary_workspace_settings",
         "choose_temporary_workspace_root",
         "get_global_instructions",

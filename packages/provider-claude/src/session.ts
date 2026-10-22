@@ -1,3 +1,4 @@
+import { ClaudeTokenUsage } from "./token-usage.js";
 import { observePermissionMode } from "./permission-mode-observer.js";
 import type { ClaudeSessionGrants } from "./session-grants.js";
 import { ClaudeBackgroundTasks } from "./background-tasks.js";
@@ -303,6 +304,12 @@ export async function consume(
   onClose: (turn: AgentTurn) => void,
 ): Promise<void> {
   let failure: string | undefined;
+  const usage = new ClaudeTokenUsage(
+    id,
+    running.sessionId,
+    store,
+    running.projection.sessionInitialized,
+  );
   try {
     for await (const message of running.query) {
       const value = record(message),
@@ -364,6 +371,8 @@ export async function consume(
           payload: { turn: projection.snapshot() },
         });
       }
+      if (message.type === "result" || message.type === "assistant")
+        usage.receive(message, running.projection.id);
       if (!running.backgroundTasks.receive(message)) continue;
       const projection =
         [...running.projections.values()].find((candidate) => candidate.ownsMessage(message)) ??

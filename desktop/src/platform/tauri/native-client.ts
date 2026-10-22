@@ -43,6 +43,7 @@ const engineIndependentCommands = new Set(["list_projects", "add_project", "remo
 
 // 文件、Git 与应用工具由 Rust 本地服务执行，不依赖任何模型进程或模型事件订阅。
 const localCommands = new Set([
+  "get_token_usage",
   "list_host_files", "upload_attachment", "import_host_attachment", "cache_project_image",
   "get_project_pdf_file", "open_project", "list_project_files", "search_project_files",
   "stop_project_file_search", "read_project_source_file", "save_project_text_file",

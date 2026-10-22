@@ -407,3 +407,47 @@ async fn real_slow_catalog_write_should_not_delay_response_delivery() {
     reader_task.abort();
     writer_task.abort();
 }
+
+#[tokio::test]
+async fn catalog_transport_should_persist_claude_usage_without_granting_other_engine_writes() {
+    let directory = tempfile::tempdir().unwrap();
+    let catalog = crate::infrastructure::local_catalog::LocalCatalog::at(directory.path()).unwrap();
+    let (transport, writes) = Transport::new();
+    let (writer, reader) = tokio::io::duplex(4096);
+    let writer_task = tokio::spawn(writer_loop(writer, writes, Arc::clone(&transport)));
+    let (sender, receiver) = mpsc::channel(4);
+    let worker = tokio::spawn(super::workers::catalog_loop(
+        receiver,
+        catalog.clone(),
+        Arc::clone(&transport),
+        None,
+    ));
+    let mut lines = BufReader::new(reader).lines();
+    for (id, engine) in [(1, "claude"), (2, "codex")] {
+        let budget = Arc::clone(&transport.inbound_budget)
+            .acquire_owned()
+            .await
+            .unwrap();
+        sender.send(Routed { message: json!({"catalogId":id,"operation":"usage.record","payload":{"source":"session","taskId":"task","engine":engine,"timestamp":"2026-10-22T00:00:00Z","totalTokens":42,"inputTokens":null,"outputTokens":null,"cacheReadTokens":null,"cacheWriteTokens":null}}), _budget: budget }).await.unwrap();
+        let frame = timeout(Duration::from_secs(2), lines.next_line())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let response: serde_json::Value = serde_json::from_str(&frame).unwrap();
+        if engine == "claude" {
+            assert!(response.get("error").is_none(), "{response}");
+        } else {
+            assert!(response.get("error").is_some());
+        }
+    }
+    let result = catalog
+        .call("usage.query", json!({"year":2026}))
+        .await
+        .unwrap();
+    assert_eq!(result["days"].as_array().unwrap().len(), 1);
+    assert_eq!(result["days"][0]["engine"], "claude");
+    assert_eq!(result["days"][0]["totalTokens"], 42);
+    worker.abort();
+    writer_task.abort();
+}

@@ -358,6 +358,7 @@ export async function runStart(
       asyncQuestionRepository: stateRepository,
       projectTodoRepository: stateRepository,
       settingsRepository: stateRepository,
+      tokenUsageStore: stateRepository as CliManagedStateRepository & LocalCatalogStore,
       staticRoot: dependencies.webRoot,
       // 显式工作区仍控制临时任务边界；未配置时使用稳定的用户目录，不继承终端目录。
       standaloneCwd: options.workspaceRoots?.[0] ?? runtimeCwd,

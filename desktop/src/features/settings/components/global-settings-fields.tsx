@@ -1,5 +1,6 @@
 import type { AgentModel } from "@/protocol/index.js";
 import {
+  ChartNoAxesCombined,
   Bookmark,
   Bot,
   Sparkles,
@@ -34,6 +35,7 @@ export const settingsSections: readonly Readonly<{
   { icon: SlidersHorizontal, id: "claude-personalization" },
   { icon: Bot, id: "agent" },
   { icon: SlidersHorizontal, id: "personalization" },
+  { icon: ChartNoAxesCombined, id: "usage" },
   { icon: Info, id: "about" },
 ];
 

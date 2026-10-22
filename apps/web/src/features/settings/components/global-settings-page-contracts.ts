@@ -31,19 +31,20 @@ export type GlobalSettingsPageProps = Readonly<{
   settings?: AgentGlobalSettings;
 }>;
 import type { CodexlyClient } from "@codexly/client";
-export type SettingsClient = Pick<
-  CodexlyClient,
-  | "getEngineProfile"
-  | "configureEngine"
-  | "disconnectEngine"
-  | "getClaudeSettings"
-  | "updateClaudeSettings"
-  | "getGlobalInstructions"
-  | "saveGlobalInstructions"
-  | "getMemorySettings"
-  | "updateMemorySettings"
-  | "resetMemories"
-  | "compressHistory"
-  | "getAgentPreferences"
-  | "updateAgentPreferences"
->;
+export type SettingsClient = Partial<Pick<CodexlyClient, "getTokenUsage">> &
+  Pick<
+    CodexlyClient,
+    | "getEngineProfile"
+    | "configureEngine"
+    | "disconnectEngine"
+    | "getClaudeSettings"
+    | "updateClaudeSettings"
+    | "getGlobalInstructions"
+    | "saveGlobalInstructions"
+    | "getMemorySettings"
+    | "updateMemorySettings"
+    | "resetMemories"
+    | "compressHistory"
+    | "getAgentPreferences"
+    | "updateAgentPreferences"
+  >;

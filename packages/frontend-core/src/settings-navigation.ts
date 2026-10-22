@@ -3,7 +3,7 @@ export const settingsSectionGroups = [
   { id: "personal", sections: ["appearance", "prompts", "pets", "git"] },
   { id: "codex", sections: ["provider", "agent", "personalization"] },
   { id: "claude", sections: ["claude-provider", "claude-agent", "claude-personalization"] },
-  { id: "app", sections: ["access", "about"] },
+  { id: "app", sections: ["usage", "access", "about"] },
 ] as const;
 export type SettingsSectionId = (typeof settingsSectionGroups)[number]["sections"][number];
 
@@ -20,6 +20,7 @@ export const settingsSectionSearchKeys: Record<SettingsSectionId, readonly strin
   "claude-provider": [],
   "claude-agent": [],
   "claude-personalization": [],
+  usage: ["sections.usage", "sectionKeywords.usage"],
   access: ["access.logout"],
   prompts: ["sections.prompts", "sectionKeywords.prompts"],
   git: [
