@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import {
   EditorView,
   keymap,
@@ -106,7 +107,7 @@ export function TextFileEditor({ session, lineNumber }: TextFileEditorProps) {
         ...historyKeymap,
       ]),
       EditorView.contentAttributes.of({
-        "aria-label": session.file.path,
+        "aria-label": formatDisplayPath(session.file.path),
         spellcheck: "false",
         autocapitalize: "off",
         autocorrect: "off",

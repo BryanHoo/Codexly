@@ -1,4 +1,5 @@
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
+import { formatDisplayPath } from "./display-path.js";
 
 export type EmbeddedSubagentReference = Readonly<{ parentTaskId: string; itemId: string }>;
 type ToolItem = Extract<AgentItem, { type: "tool" }>;
@@ -13,16 +14,19 @@ export function getToolTitle(item: ToolItem): string {
   const input = record(item.input);
   const scalar = (key: string) =>
     typeof input[key] === "string" ? input[key].slice(0, 240).replace(/\s+/gu, " ").trim() : "";
+  const pathScalar = (key: string) => formatDisplayPath(scalar(key));
   const detail =
     scalar("description") ||
-    (item.name === "Grep" ? [scalar("pattern"), scalar("path")].filter(Boolean).join(" · ") : "") ||
-    scalar("file_path") ||
-    scalar("notebook_path") ||
+    (item.name === "Grep"
+      ? [scalar("pattern"), pathScalar("path")].filter(Boolean).join(" · ")
+      : "") ||
+    pathScalar("file_path") ||
+    pathScalar("notebook_path") ||
     scalar("command") ||
     scalar("pattern") ||
     scalar("query") ||
     scalar("url") ||
-    scalar("path") ||
+    pathScalar("path") ||
     scalar("skill");
   return (detail ? `${item.name} · ${detail}` : item.name).slice(0, 250);
 }

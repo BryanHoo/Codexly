@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { assistantDirectiveRemarkPlugin } from "@codexly/frontend-core/assistant-directive-remark";
 import { renderAssistantDirectiveLink } from "@codexly/ui/core/message-assistant-directive";
 import { getFileCitationPath } from "@codexly/frontend-core/codex-file-citation";
@@ -79,7 +80,7 @@ function FileReferenceContextMenu({
   return (
     <ContextMenu modal={false}>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent aria-label={t("openMenu.targetLabel", { path: reference.path })}>
+      <ContextMenuContent aria-label={t("openMenu.targetLabel", { path: formatDisplayPath(reference.path) })}>
         <ContextMenuItem
           onSelect={() => {
             // 菜单关闭不等待系统剪贴板，权限失败也不改变当前文件引用状态。
@@ -183,7 +184,7 @@ function splitPromptFileReferenceText(value: string): MarkdownNode[] {
       nodes.push({ type: "text", value: value.slice(cursor, referenceStart) });
     }
     nodes.push({
-      children: [{ type: "text", value: path.split("/").at(-1) ?? path }],
+      children: [{ type: "text", value: formatDisplayPath(path.split("/").at(-1) ?? path) }],
       type: "link",
       url: `${PROMPT_FILE_REFERENCE_PREFIX}${encodeURIComponent(path)}`,
     });
@@ -263,7 +264,7 @@ function MarkdownLink({
   if (fileReference !== null) {
     if (fileReference.prompt) {
       const classNames = `text-inherit ${className}`;
-      const content = <>@{fileReference.path}</>;
+      const content = <>@{formatDisplayPath(fileReference.path)}</>;
 
       if (onOpenFileReference !== null) {
         const reference = { lineNumber: null, path: fileReference.path };
@@ -271,14 +272,14 @@ function MarkdownLink({
           <FileReferenceContextMenu onOpen={onOpenFileReference} reference={reference}>
             <Button
               variant="embedded"
-              aria-label={`@${fileReference.path}`}
+              aria-label={`@${formatDisplayPath(fileReference.path)}`}
               className={`${classNames} cursor-pointer hover:underline`}
               data-prompt-file-reference={fileReference.path}
               onClick={() => {
                 onOpenFileReference(reference);
               }}
               size="embedded"
-              title={fileReference.path}
+              title={formatDisplayPath(fileReference.path)}
               type="button"
             >
               {content}
@@ -291,7 +292,7 @@ function MarkdownLink({
         <span
           className={classNames}
           data-prompt-file-reference={fileReference.path}
-          title={fileReference.path}
+          title={formatDisplayPath(fileReference.path)}
         >
           {content}
         </span>
@@ -300,7 +301,7 @@ function MarkdownLink({
 
     const content = (
       <>
-        <span>{children}</span>
+        <span>{typeof children === "string" ? formatDisplayPath(children) : children}</span>
         {fileReference.lineNumber === null ? null : (
           <span className="markdown-file-reference__line">
             {`(line ${fileReference.lineNumber})`}
@@ -323,7 +324,7 @@ function MarkdownLink({
             onClick={() => {
               onOpenFileReference(reference);
             }}
-            title={fileReference.path}
+            title={formatDisplayPath(fileReference.path)}
             type="button"
           >
             {content}
@@ -336,7 +337,7 @@ function MarkdownLink({
       <span
         className={`markdown-file-reference text-brand ${className}`}
         data-file-reference="true"
-        title={fileReference.path}
+        title={formatDisplayPath(fileReference.path)}
       >
         {content}
       </span>

@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { useSelectedEngines } from "@codexly/ui/core/engine-selection";
 import { searchEngineFilter } from "@codexly/frontend-core/search-engines";
 import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
@@ -96,7 +97,7 @@ function GlobalSearchDialogContent({
         id: `file:${file.projectId}:${file.rootPath}:${file.path}`,
         kind: "files",
         title: file.name,
-        subtitle: `${file.projectName} · ${file.path}`,
+        subtitle: `${file.projectName} · ${formatDisplayPath(file.path)}`,
         snippet: "",
         file,
       });
@@ -371,7 +372,7 @@ function GlobalSearchDialogContent({
               {results.files.data?.failedRoots.length ? (
                 <p
                   role="alert"
-                  title={results.files.data.failedRoots.join("\n")}
+                  title={results.files.data.failedRoots.map((path) => formatDisplayPath(path)).join("\n")}
                   className="p-3 text-caption text-warning"
                 >
                   {t("globalSearch.partial")}

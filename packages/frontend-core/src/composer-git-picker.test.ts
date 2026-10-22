@@ -51,6 +51,12 @@ describe("Composer Git picker", () => {
   });
 
   it("路径展示保留目录边界与跨平台语义，外部工作树保留完整路径", () => {
+    expect(formatComposerWorkspacePath(String.raw`\\?\C:\repo\.worktree\topic`, "C:\\repo")).toBe(
+      ".worktree/topic",
+    );
+    expect(formatComposerWorkspacePath(String.raw`\\?\UNC\server\share\repo`, undefined)).toBe(
+      String.raw`\\server\share\repo`,
+    );
     expect(formatComposerWorkspacePath("/repo/.worktree/search", "/repo")).toBe(".worktree/search");
     expect(formatComposerWorkspacePath("/repo-other/topic", "/repo")).toBe("/repo-other/topic");
     expect(formatComposerWorkspacePath("C:\\repo\\.worktree\\topic", "C:\\repo\\")).toBe(

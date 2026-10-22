@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { FolderGit2, GitBranch, LoaderCircle } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -141,7 +142,7 @@ export function CreateWorktreeDialog({
                 <div className="grid min-w-0 gap-1">
                   <dt className="text-muted-foreground">{context.locationLabel}</dt>
                   <dd className="break-all font-mono text-meta text-foreground">
-                    {context.location}
+                    {formatDisplayPath(context.location)}
                   </dd>
                 </div>
               ) : null}

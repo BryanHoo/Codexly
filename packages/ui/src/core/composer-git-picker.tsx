@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { Check, FolderGit2, GitBranch, Plus, Search } from "lucide-react";
 import * as Tabs from "radix-ui/tabs";
 import { useRef, useState } from "react";
@@ -72,7 +73,7 @@ export function ComposerGitPicker(props: PickerProps) {
         <div className="flex items-center gap-1.5 text-caption text-muted-foreground">
           <span>{labels.current}</span>
           <span aria-hidden="true">·</span>
-          <span className="truncate" title={props.rootPath}>
+          <span className="truncate" title={formatDisplayPath(props.rootPath)}>
             {props.rootPath
               ? formatComposerWorkspacePath(props.rootPath, mainPath)
               : labels.branches}
@@ -212,7 +213,7 @@ export function ComposerGitPicker(props: PickerProps) {
                     }
                     type="button"
                     disabled={item.disabled}
-                    title={item.fullPath ?? item.title}
+                    title={formatDisplayPath(item.fullPath) ?? item.title}
                     tabIndex={index === tabStop ? 0 : -1}
                     className="flex min-h-7 w-full items-center gap-2 rounded-control px-2 py-1 text-left text-label pointer-coarse:min-h-10 outline-none hover:bg-control-hover focus-visible:bg-control-hover focus-visible:shadow-focus disabled:opacity-50 aria-selected:bg-control"
                     onClick={() => {

@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import {
   ChevronDown,
   ChevronUp,
@@ -149,11 +150,18 @@ export function FileReviewWorkspace({
       <header className="flex min-h-toolbar min-w-0 items-center gap-2 px-3 shadow-toolbar sm:px-4">
         <FileCode2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-body-small font-semibold" id={titleId} title={change.path}>
+          <h2
+            className="truncate text-body-small font-semibold"
+            id={titleId}
+            title={formatDisplayPath(change.path)}
+          >
             {fileName}
           </h2>
-          <p className="truncate text-caption text-muted-foreground" title={change.path}>
-            {change.path}
+          <p
+            className="truncate text-caption text-muted-foreground"
+            title={formatDisplayPath(change.path)}
+          >
+            {formatDisplayPath(change.path)}
           </p>
         </div>
         <span className="shrink-0 text-label text-muted-foreground">

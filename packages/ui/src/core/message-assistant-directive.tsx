@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { createContext, useContext, type MouseEvent, type ReactNode } from "react";
 import { GitBranch, MessageCircle } from "lucide-react";
 import {
@@ -93,7 +94,7 @@ export function MessageAssistantDirective({
       className={`${className} text-brand hover:bg-control-hover`}
       data-codex-git-receipt={directive.kind}
       href={directive.url}
-      title={directive.cwd}
+      title={formatDisplayPath(directive.cwd)}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(event) => onNavigate?.(event, directive.url ?? "")}
@@ -101,7 +102,11 @@ export function MessageAssistantDirective({
       {content}
     </a>
   ) : (
-    <span className={className} data-codex-git-receipt={directive.kind} title={directive.cwd}>
+    <span
+      className={className}
+      data-codex-git-receipt={directive.kind}
+      title={formatDisplayPath(directive.cwd)}
+    >
       {content}
     </span>
   );

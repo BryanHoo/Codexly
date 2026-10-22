@@ -1,13 +1,15 @@
 import type { ProjectGitWorktree } from "@codexly/protocol";
+import { formatDisplayPath } from "./display-path.js";
 
 /** 仅缩短展示路径；实际选择和请求始终使用 Git 返回的原始绝对路径。 */
 export function formatComposerWorkspacePath(path: string, mainPath: string | undefined) {
-  const normalized = path.replaceAll("\\", "/").replace(/\/$/u, "");
-  const root = mainPath?.replaceAll("\\", "/").replace(/\/$/u, "");
+  const displayPath = formatDisplayPath(path);
+  const normalized = displayPath.replaceAll("\\", "/").replace(/\/$/u, "");
+  const root = formatDisplayPath(mainPath)?.replaceAll("\\", "/").replace(/\/$/u, "");
   if (root !== undefined && normalized.startsWith(`${root}/`))
     return normalized.slice(root.length + 1);
   if (normalized === root) return normalized.split("/").at(-1) ?? path;
-  return path;
+  return displayPath;
 }
 
 export function buildComposerGitPicker(

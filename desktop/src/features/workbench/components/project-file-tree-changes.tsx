@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { i18n } from "../../../i18n/i18n.js";
 import { getFileChangeStats, type AgentFileChange } from "../../diff/file-change.js";
 import type { ProjectFileTreeItem } from "./project-file-tree-model.js";
@@ -69,7 +70,7 @@ export function ProjectFileTreeChangeIndicator({
       aria-label={i18n.t("inspector.changeIndicator", {
         additions: stats.additions,
         ns: "conversation",
-        path,
+        path: formatDisplayPath(path),
         removals: stats.removals,
       })}
       className="ml-auto flex shrink-0 items-center gap-1 pl-2 text-meta group-hover/file-tree-node:invisible group-focus-within/file-tree-node:invisible"

@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { File } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -48,7 +49,7 @@ export function ComposerFileMenu({ props }: Readonly<{ props: WorkbenchComposerV
                 <span className="flex min-w-0 flex-1 items-baseline gap-2">
                   <span className="shrink-0 font-medium text-foreground">{file.name}</span>
                   <span className="min-w-0 truncate text-caption text-muted-foreground">
-                    {parentPath(file.path, file.name)}
+                    {formatDisplayPath(parentPath(file.path, file.name))}
                   </span>
                 </span>
               </PromptInputCommandItem>

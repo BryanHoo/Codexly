@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { SplitComposer } from "@codexly/ui/core/split-composer";
 import {
   AGENT_FILE_ACCEPT,
@@ -79,7 +80,7 @@ export function ComposerProjectPathButton({
           variant="ghost"
         >
           <Folder aria-hidden="true" className="size-3 shrink-0" />
-          <span className="truncate">{projectPath}</span>
+          <span className="truncate">{formatDisplayPath(projectPath)}</span>
         </Button>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>

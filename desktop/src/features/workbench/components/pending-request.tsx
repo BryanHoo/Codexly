@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { MultipleQuestionOptions } from "@codexly/ui/core/multiple-question-options";
 import type { PendingApprovalDecision, PendingRequest } from "@/protocol/index.js";
 import { useEffect, useRef, useState } from "react";
@@ -93,8 +94,8 @@ function ApprovalRequestCard({
       : request.type === "tool_approval" ? JSON.stringify(request.input, null, 2) : networkAccess !== null
       ? `${formatNetworkProtocol(networkAccess.protocol)}\n${networkAccess.host}`
       : request.type === "command_approval"
-        ? [request.command, request.cwd].filter(Boolean).join("\n")
-        : (request.grantRoot ?? t("pending.fileChangeFallback"));
+        ? [request.command, formatDisplayPath(request.cwd)].filter(Boolean).join("\n")
+        : (formatDisplayPath(request.grantRoot) ?? t("pending.fileChangeFallback"));
   const canSubmit = interactive && request.status === "pending" && !submitting;
   const canFocusAllow = request.type !== "tool_approval" && canSubmit && request.availableDecisions.includes("allow");
 
@@ -131,8 +132,8 @@ function ApprovalRequestCard({
             <span className="shrink-0">
               {t("pending.terminalSession", { processId: request.processId })}
             </span>
-            <span className="min-w-0 truncate" title={request.cwd}>
-              {request.cwd}
+            <span className="min-w-0 truncate" title={formatDisplayPath(request.cwd)}>
+              {formatDisplayPath(request.cwd)}
             </span>
           </div>
         ) : null}

@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { MultipleQuestionOptions } from "@codexly/ui/core/multiple-question-options";
 import type { PendingApprovalDecision, PendingRequest } from "@codexly/protocol";
 import { useEffect, useRef, useState } from "react";
@@ -94,8 +95,8 @@ function ApprovalRequestCard({
       : networkAccess !== null
         ? `${formatNetworkProtocol(networkAccess.protocol)}\n${networkAccess.host}`
         : request.type === "command_approval"
-          ? [request.command, request.cwd].filter(Boolean).join("\n")
-          : (request.grantRoot ?? t("pending.fileChangeFallback"));
+          ? [request.command, formatDisplayPath(request.cwd)].filter(Boolean).join("\n")
+          : (formatDisplayPath(request.grantRoot) ?? t("pending.fileChangeFallback"));
   const canSubmit = interactive && request.status === "pending" && !submitting;
   const canFocusAllow =
     request.type !== "tool_approval" && canSubmit && request.availableDecisions.includes("allow");

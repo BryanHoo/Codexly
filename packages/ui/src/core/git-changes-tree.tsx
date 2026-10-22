@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight, FileMinus2, FilePenLine, FilePlus2, Folder } from "lucide-react";
 import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
@@ -241,7 +242,7 @@ export function CommitChangesTreeSection<Change extends CommitChange>({
             <div
               key={row.key}
               role="treeitem"
-              aria-label={path}
+              aria-label={formatDisplayPath(path)}
               aria-level={viewMode === "tree" ? row.depth + 1 : undefined}
               aria-expanded={folder ? expanded : undefined}
               tabIndex={0}
@@ -273,7 +274,7 @@ export function CommitChangesTreeSection<Change extends CommitChange>({
                 />
               ) : (
                 <Checkbox
-                  aria-label={`${row.label}: ${path}`}
+                  aria-label={`${row.label}: ${formatDisplayPath(path)}`}
                   checked={selectedPaths.has(path)}
                   disabled={disabled}
                   onClick={(event) => {
@@ -296,8 +297,8 @@ export function CommitChangesTreeSection<Change extends CommitChange>({
                         : "text-warning"),
                 )}
               />
-              <span className="min-w-0 flex-1 truncate" title={path}>
-                {row.name}
+              <span className="min-w-0 flex-1 truncate" title={formatDisplayPath(path)}>
+                {formatDisplayPath(row.name)}
               </span>
               {!folder && statsAvailable && row.change.stats !== undefined && (
                 <span

@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { FolderOpen, FolderPlus, LoaderCircle } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "./button.js";
@@ -220,7 +221,7 @@ export function NewProjectDialog({
                 aria-labelledby={`${id}-parent`}
                 className="min-w-0 flex-1 break-words font-mono text-body-small [overflow-wrap:anywhere]"
               >
-                {loading ? labels.loading : parent || "—"}
+                {loading ? labels.loading : formatDisplayPath(parent) || "—"}
               </p>
               <Button
                 className="h-11 shrink-0 sm:h-9"
@@ -267,7 +268,7 @@ export function NewProjectDialog({
           <div className="flex min-w-0 flex-col gap-1">
             <span className="text-caption text-muted-foreground">{labels.path}</span>
             <p className="break-words font-mono text-body-small [overflow-wrap:anywhere]">
-              {(target?.path ?? path) || "—"}
+              {formatDisplayPath(target?.path ?? path) || "—"}
             </p>
           </div>
           {error ? (

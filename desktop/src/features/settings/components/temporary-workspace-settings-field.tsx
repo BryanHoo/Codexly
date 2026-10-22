@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { SettingsMutationStatus } from "@codexly/ui/core/settings-mutation-status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTemporaryWorkspaceSettings, chooseTemporaryWorkspaceRoot } from "@/platform/tauri/temporary-workspace-client.js";
@@ -26,7 +27,7 @@ export function TemporaryWorkspaceSettingsField() {
     <SettingsField label={t("general.temporaryFolder")} description={t("general.temporaryFolderDescription")}>
     <div className="flex min-w-0 max-w-md flex-col items-end gap-1">
       <div className="flex min-w-0 max-w-full items-center gap-3">
-        <span className="min-w-0 truncate font-mono text-body-small text-muted-foreground" title={path}>{path ?? (settings.isError ? t("general.temporaryFolderLoadError") : t("loading"))}</span>
+        <span className="min-w-0 truncate font-mono text-body-small text-muted-foreground" title={formatDisplayPath(path)}>{formatDisplayPath(path) ?? (settings.isError ? t("general.temporaryFolderLoadError") : t("loading"))}</span>
         <Button className="h-8 shrink-0 rounded-control bg-control px-3 hover:bg-control-hover" disabled={settings.isPending || change.isPending} onClick={() => settings.isError ? void settings.refetch() : change.mutate()} type="button" variant="ghost">
           {settings.isError ? t("common:actions.retry") : t("general.changeFolder")}
         </Button>

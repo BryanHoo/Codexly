@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { FileCode2 } from "lucide-react";
 import { lazy, Suspense } from "react";
 
@@ -15,7 +16,7 @@ export function FileDiffPanel({ change }: Readonly<{ change: AgentFileChange }>)
 
   return (
     <section
-      aria-label={change.path}
+      aria-label={formatDisplayPath(change.path)}
       className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-raised"
     >
       <CodeBlockHeader className="min-h-toolbar gap-3 overflow-hidden bg-raised px-3 shadow-toolbar sm:px-4">
@@ -27,10 +28,12 @@ export function FileDiffPanel({ change }: Readonly<{ change: AgentFileChange }>)
                 <h2 className="truncate text-body-small font-semibold">
                   {getFileName(change.path)}
                 </h2>
-                <p className="truncate text-caption text-muted-foreground">{change.path}</p>
+                <p className="truncate text-caption text-muted-foreground">
+                  {formatDisplayPath(change.path)}
+                </p>
               </div>
             </TooltipTrigger>
-            <TooltipContent className="break-all">{change.path}</TooltipContent>
+            <TooltipContent className="break-all">{formatDisplayPath(change.path)}</TooltipContent>
           </Tooltip>
         </CodeBlockTitle>
         <div className="flex shrink-0 items-center gap-2 text-label font-medium">

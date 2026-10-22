@@ -1,6 +1,6 @@
 import type { ProjectDirectoryListing } from "@/protocol/index.js";
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 
 import { Button } from "../../../shared/components/core/button.js";
@@ -49,6 +49,32 @@ function FilesystemPickerToolbarHarness() {
 }
 
 describe("FilesystemPickerToolbar", () => {
+  it.each([
+    [String.raw`\\?\C:\repo`, String.raw`C:\repo`],
+    [String.raw`\\?\UNC\server\share`, String.raw`\\server\share`],
+  ])("displays a normal path and navigates using the original path: %s", async (path, displayed) => {
+    const navigate = vi.fn();
+    const screen = await render(
+      <TooltipProvider>
+        <FilesystemPickerToolbar
+          disabled={false}
+          includeHidden={false}
+          listing={{ ...listing, path }}
+          path={path}
+          labels={{ filesystemRoot: "Disk", goToPath: "Go", hideHidden: "Hide", parent: "Parent", pathLabel: "Path", pathPlaceholder: "Path", showHidden: "Show" }}
+          onNavigateParent={() => undefined}
+          onNavigatePath={() => navigate(path)}
+          onNavigateRoot={() => undefined}
+          onPathChange={() => undefined}
+          onToggleHidden={() => undefined}
+        />
+      </TooltipProvider>,
+    );
+    await expect.element(screen.getByRole("textbox", { name: "Path" })).toHaveValue(displayed);
+    await screen.getByRole("button", { name: "Go", exact: true }).click();
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(path);
+  });
+
   it("切换磁盘加载期间保留磁盘选择器", async () => {
     const screen = await render(<FilesystemPickerToolbarHarness />);
     await expect.element(screen.getByRole("combobox", { name: "磁盘" })).toBeVisible();

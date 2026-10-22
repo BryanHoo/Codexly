@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -56,7 +57,7 @@ function TaskBubble({
   return localAccess && activity.rootPath !== undefined ? (
     <Tooltip>
       <TooltipTrigger asChild>{content}</TooltipTrigger>
-      <TooltipContent>{activity.rootPath}</TooltipContent>
+      <TooltipContent>{formatDisplayPath(activity.rootPath)}</TooltipContent>
     </Tooltip>
   ) : (
     content

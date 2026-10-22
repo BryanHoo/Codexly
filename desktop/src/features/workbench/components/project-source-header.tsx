@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import type { ReactNode } from "react";
 import { FileCode2, Image, X } from "lucide-react";
 import {
@@ -53,10 +54,10 @@ export function SourceHeader({
                   {lineNumber === null ? null : ` (line ${String(lineNumber)})`}
                 </CodeBlockFilename>
               </h2>
-              <p className="truncate text-caption text-muted-foreground">{sourcePath}</p>
+              <p className="truncate text-caption text-muted-foreground">{formatDisplayPath(sourcePath)}</p>
             </div>
           </TooltipTrigger>
-          <TooltipContent className="break-all">{sourcePath}</TooltipContent>
+          <TooltipContent className="break-all">{formatDisplayPath(sourcePath)}</TooltipContent>
         </Tooltip>
       </CodeBlockTitle>
       {sourceStatus === null ? null : (

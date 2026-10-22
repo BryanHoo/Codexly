@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { useState, useDeferredValue, useRef } from "react";
 import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
 import { reconcileClaudeExtensionMutation } from "@codexly/frontend-core/claude-extension-cache";
@@ -184,9 +185,12 @@ export function ClaudeExtensionsPane({
                 item.description ||
                 (kind === "plugins"
                   ? t("skillsMarket.center.officialCatalog")
-                  : (item.path ?? "MCP"))
+                  : (formatDisplayPath(item.path) ?? "MCP"))
               }
-              hint={item.path ?? (item.description || t("skillsMarket.center.officialCatalog"))}
+              hint={
+                formatDisplayPath(item.path) ??
+                (item.description || t("skillsMarket.center.officialCatalog"))
+              }
               scopeLabel={t(
                 `skillsMarket.center.${item.scope === "user" ? "global" : item.scope === "project" ? "project" : item.scope === "local" ? "local" : "managed"}`,
               )}

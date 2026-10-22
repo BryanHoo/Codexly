@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
 import { buildNativeTaskAttachmentUrl } from "@/platform/native-asset-url.js";
 import type { AgentItem, AgentTurn } from "@/protocol/index.js";
@@ -302,7 +303,7 @@ export function TimelineItemContent({
             <TaskContent>
               {item.changes.map((change) => (
                 <TaskItem className="break-all font-mono" key={change.path}>
-                  {change.path}
+                  {formatDisplayPath(change.path)}
                 </TaskItem>
               ))}
             </TaskContent>
@@ -407,7 +408,7 @@ export function TimelineItemContent({
                     type="button"
                     variant="link"
                   >
-                    {imagePath}
+                    {formatDisplayPath(imagePath)}
                   </Button>
                 )}
               </TaskItem>

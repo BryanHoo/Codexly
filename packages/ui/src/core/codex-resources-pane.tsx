@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { useDeferredValue, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { Blocks, Info, Server } from "lucide-react";
@@ -48,7 +49,7 @@ export function CodexSkillsPane({ client, t }: { client: SkillsClient; t: Extens
         return {
           id: skill.id,
           name: skill.displayName,
-          description: skill.description || skill.path,
+          description: skill.description || formatDisplayPath(skill.path),
           path: skill.path,
           scope: skill.scope,
           enabled: skill.enabled,
@@ -192,7 +193,7 @@ function CodexResourcePane<Source extends { enabled: boolean }>({
               kind={kind}
               name={item.name}
               description={item.description}
-              hint={item.path}
+              hint={formatDisplayPath(item.path)}
               scopeLabel={t(
                 item.scope === "repo"
                   ? "skillsMarket.center.project"

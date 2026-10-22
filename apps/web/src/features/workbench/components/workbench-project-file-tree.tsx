@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import type { ProjectFileTree, ProjectOpenAppId } from "@codexly/protocol";
 import { buildProjectFileDownloadUrl } from "@codexly/client";
 import {
@@ -219,7 +220,10 @@ const ProjectFileTreeRow = memo(function ProjectFileTreeRow({
       ) : (
         <File aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
       )}
-      <span className="min-w-0 flex-1 truncate" title={data.kind === "entry" ? data.path : name}>
+      <span
+        className="min-w-0 flex-1 truncate"
+        title={formatDisplayPath(data.kind === "entry" ? data.path : name)}
+      >
         {name}
       </span>
       {data.kind === "entry" && changeStats !== undefined ? (

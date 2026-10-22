@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
 import type { AgentItem, AgentTurn } from "@/protocol/index.js";
 import { SquareTerminal } from "lucide-react";
@@ -180,7 +181,7 @@ export function ApprovalReviewItem({
           })}
         </TaskItem>
         {item.action.type === "terminal_input" ? (
-          <TaskItem>{`${item.action.processId} · ${item.action.cwd}`}</TaskItem>
+          <TaskItem>{`${item.action.processId} · ${formatDisplayPath(item.action.cwd)}`}</TaskItem>
         ) : null}
         {item.riskLevel === undefined ? null : (
           <TaskItem>

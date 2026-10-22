@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { File, Presentation } from "lucide-react";
 import type { ComponentProps, ReactElement } from "react";
 import type { MessageFileReference, MessageFileReferenceOpenMode } from "../agent/message.js";
@@ -29,7 +30,7 @@ export function MessageFileCitation({
         // 产物卡片始终走宿主的系统默认应用通道，不读取或传输整份文件。
         onOpen?.({ lineNumber: null, path }, "system-default");
       }}
-      title={`${openLabel}: ${path}`}
+      title={`${openLabel}: ${formatDisplayPath(path)}`}
       type="button"
     >
       <Icon aria-hidden="true" className="size-7 shrink-0 text-brand" />

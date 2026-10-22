@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import type {
   PendingRequest,
   PermissionApprovalResolution,
@@ -70,7 +71,7 @@ function PermissionPath({
   path: NonNullable<PermissionRequest["permissions"]["fileSystem"]>["entries"][number]["path"];
 }>) {
   const { t } = useTranslation("workbench");
-  if (path.type === "path" || path.type === "glob") return path.value;
+  if (path.type === "path" || path.type === "glob") return formatDisplayPath(path.value);
   const label =
     path.kind === "root"
       ? t("pending.permissionRoot")
@@ -82,7 +83,7 @@ function PermissionPath({
             ? t("pending.permissionTmpdir")
             : path.kind === "slash_tmp"
               ? "/tmp"
-              : (path.path ?? t("pending.permissionUnknownPath"));
+              : (formatDisplayPath(path.path) ?? t("pending.permissionUnknownPath"));
   return path.subpath === null || path.subpath.length === 0 ? label : `${label}/${path.subpath}`;
 }
 
@@ -103,7 +104,7 @@ export function FileSystemPermissionDetails({
           <span className="font-sans font-medium text-foreground">
             {t(`pending.permissionAccess.${row.access}`)}
           </span>{" "}
-          {row.path}
+          {formatDisplayPath(row.path)}
         </div>
       ))}
       {permissions.entries.map((entry, index) => (

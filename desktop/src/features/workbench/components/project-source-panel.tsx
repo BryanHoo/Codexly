@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { SourceHeader, getFileName, type SourceHeaderProps } from "./project-source-header.js";
 import { useRouter } from "@tanstack/react-router";
 import {
@@ -280,7 +281,7 @@ export function ProjectSourcePanel({
 
   return (
     <section
-      aria-label={sourcePath}
+      aria-label={formatDisplayPath(sourcePath)}
       className="flex h-full min-h-0 flex-col bg-raised"
       onScrollCapture={handleSourceScroll}
     >

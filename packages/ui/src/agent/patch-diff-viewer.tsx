@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import {
   getFiletypeFromFileName,
   parsePatchFiles,
@@ -164,7 +165,7 @@ export function PatchDiffViewer({
       className="grid min-h-24 place-items-center text-body-small text-muted-foreground"
       role="status"
     >
-      {unavailableLabel}
+      {formatDisplayPath(unavailableLabel)}
     </div>
   );
   if (fileDiff === undefined) return fallback;

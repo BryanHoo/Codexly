@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { ChevronRight, File, Folder, FolderOpen } from "lucide-react";
 import {
   createContext,
@@ -243,7 +244,7 @@ export function FileTreeFile({
           <FileTreeIcon>
             {icon ?? <File aria-hidden="true" className="size-3.5 text-muted-foreground" />}
           </FileTreeIcon>
-          <FileTreeName title={path}>{name}</FileTreeName>
+          <FileTreeName title={formatDisplayPath(path)}>{name}</FileTreeName>
         </>
       )}
       {trailing}

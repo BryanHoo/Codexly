@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { PersonalizationInstructionsEditor } from "@codexly/ui/core/personalization-instructions-editor";
 import { SettingsMutationStatus } from "@codexly/ui/core/settings-mutation-status";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -63,7 +64,7 @@ export function PersonalizationSettingsPanel({ client = nativeClient }: Readonly
             {t("personalization.description")}
             {instructions.data ? (
               <span className="block break-all">
-                {t("personalization.fileLocation", { path: instructions.data.path })}
+                {t("personalization.fileLocation", { path: formatDisplayPath(instructions.data.path) })}
               </span>
             ) : null}
           </>

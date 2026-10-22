@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import type { ProjectRoot } from "@/protocol/index.js";
 import { FolderKanban } from "lucide-react";
 
@@ -34,19 +35,19 @@ export function ProjectRootSelector({
         aria-label={t("shell.selectProjectRoot")}
         className="min-w-0 max-w-28 shrink border-0 bg-transparent shadow-none hover:bg-control-hover sm:max-w-40"
         size="toolbar"
-        title={selectedRoot.path}
+        title={formatDisplayPath(selectedRoot.path)}
       >
         <FolderKanban aria-hidden="true" />
         <SelectValue>{rootName(selectedRoot.path)}</SelectValue>
       </SelectTrigger>
       <SelectContent position="popper">
         {roots.map((root, index) => (
-          <SelectItem key={root.id} textValue={root.path} value={root.id}>
+          <SelectItem key={root.id} textValue={formatDisplayPath(root.path)} value={root.id}>
             <span className="flex min-w-0 flex-col">
               <span className="truncate">{rootName(root.path)}</span>
               <span className="truncate font-mono text-caption text-muted-foreground">
                 {index === 0 ? `${t("projectPicker.primaryRoot")} · ` : ""}
-                {root.path}
+                {formatDisplayPath(root.path)}
               </span>
             </span>
           </SelectItem>

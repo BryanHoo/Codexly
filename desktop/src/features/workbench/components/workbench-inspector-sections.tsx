@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { McpServerPanel } from "@codexly/ui/core/mcp-server-panel";
 import type { AgentMcpServerPage, ReloadAgentMcpServersRequest } from "@codexly/protocol";
 import type { AgentBackgroundTerminal, AgentMcpServer } from "@/protocol/index.js";
@@ -66,8 +67,8 @@ export function BackgroundTerminalSection({
                   >
                     {terminal.command}
                   </p>
-                  <p className="truncate text-caption text-muted-foreground" title={terminal.cwd}>
-                    {terminal.cwd}
+                  <p className="truncate text-caption text-muted-foreground" title={formatDisplayPath(terminal.cwd)}>
+                    {formatDisplayPath(terminal.cwd)}
                   </p>
                 </div>
                 <Tooltip>

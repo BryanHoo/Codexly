@@ -1,6 +1,33 @@
 import { expect, it } from "vitest";
 import { getToolTitle, getEmbeddedSubagentReference } from "./tool-presentation.js";
 
+it("formats tool path titles while preserving commands and input", () => {
+  const input = { file_path: String.raw`\\?\C:\repo\file.ts` };
+  const item = {
+    id: "tool",
+    type: "tool" as const,
+    status: "running" as const,
+    name: "Read",
+    input,
+  };
+  expect(getToolTitle(item)).toBe(String.raw`Read · C:\repo\file.ts`);
+  expect(input.file_path).toBe(String.raw`\\?\C:\repo\file.ts`);
+  expect(
+    getToolTitle({
+      ...item,
+      name: "Grep",
+      input: { pattern: "TODO", path: String.raw`\\?\UNC\server\share` },
+    }),
+  ).toBe(String.raw`Grep · TODO · \\server\share`);
+  expect(
+    getToolTitle({
+      ...item,
+      name: "Bash",
+      input: { command: String.raw`type \\?\C:\repo\file.ts` },
+    }),
+  ).toBe(String.raw`Bash · type \\?\C:\repo\file.ts`);
+});
+
 it("shows an operation's description or concrete target while retaining the tool identity", () => {
   const tool = (name: string, input: unknown) => ({
     id: "tool",

@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import type { ProjectDirectoryListing } from "@/protocol/index.js";
 import { ArrowRight, ArrowUp, Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -86,7 +87,7 @@ export function FilesystemPickerToolbar({
           <SelectContent position="popper">
             {roots.map((root) => (
               <SelectItem key={root.path} value={root.path}>
-                {root.name}
+                {formatDisplayPath(root.name)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -124,7 +125,7 @@ export function FilesystemPickerToolbar({
           }}
           placeholder={labels.pathPlaceholder}
           spellCheck={false}
-          value={path}
+          value={formatDisplayPath(path)}
           variant="compact"
         />
         <Tooltip>

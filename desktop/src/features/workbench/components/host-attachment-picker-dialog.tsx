@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { buildNativeAssetUrl } from "@/platform/native-asset-url.js";
 import { type HostFileKind, type HostFileListing } from "@/protocol/index.js";
 import { useQueries, useQuery } from "@tanstack/react-query";
@@ -393,9 +394,9 @@ export function HostAttachmentPickerDialog({
             <p
               aria-live="polite"
               className="truncate font-mono text-caption text-foreground"
-              title={selectedPath}
+              title={formatDisplayPath(selectedPath)}
             >
-              {selectedPath ?? t("hostAttachmentPicker.noSelection")}
+              {formatDisplayPath(selectedPath) ?? t("hostAttachmentPicker.noSelection")}
             </p>
           </div>
           <DialogFooter className="shrink-0 flex-row">

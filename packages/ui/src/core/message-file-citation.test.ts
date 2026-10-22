@@ -3,6 +3,15 @@ import type { MouseEvent } from "react";
 import { MessageFileCitation } from "./message-file-citation.js";
 
 describe("文件卡片打开动作", () => {
+  it("displays a normal Windows path while opening the original path", () => {
+    const onOpen = vi.fn();
+    const path = String.raw`\\?\D:\reports\report.pptx`;
+    const card = MessageFileCitation({ path, openLabel: "Open", onOpen });
+    expect(card.props.title).toBe(String.raw`Open: D:\reports\report.pptx`);
+    card.props.onClick?.({} as MouseEvent<HTMLButtonElement>);
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith({ path, lineNumber: null }, "system-default");
+  });
+
   it("将字面路径和系统默认应用模式交给平台回调", () => {
     const onOpen = vi.fn();
     const path = String.raw`D:\正式汇报\报告.pptx`;

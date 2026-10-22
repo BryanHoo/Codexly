@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { FileCode2 } from "lucide-react";
 import { useMemo } from "react";
 
@@ -215,8 +216,8 @@ export function ReviewFileTreeNavigation({
             type="button"
           >
             <FileCode2 aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate" title={file.path}>
-              {file.path}
+            <span className="min-w-0 flex-1 truncate" title={formatDisplayPath(file.path)}>
+              {formatDisplayPath(file.path)}
             </span>
             {showStats ? (
               <span aria-hidden="true" className="flex shrink-0 items-center gap-1 text-meta">

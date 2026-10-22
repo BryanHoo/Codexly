@@ -1,3 +1,4 @@
+import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -21,7 +22,7 @@ function TaskBubble({
       onClick={() => {
         onTaskSelect(activity.projectId, activity.taskId);
       }}
-      title={activity.rootPath}
+      title={formatDisplayPath(activity.rootPath)}
       type="button"
     >
       {activity.status === "waiting" ? (
