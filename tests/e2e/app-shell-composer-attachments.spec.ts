@@ -335,10 +335,9 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
   await expect(reasoningSelector).toHaveAccessibleName("选择思考量：低");
   const approvalSelect = page.getByRole("button", { name: "批准模式" });
   const sandboxSelect = page.getByRole("button", { name: "沙盒模式" });
-  await expect(approvalSelect.locator("xpath=following-sibling::button[1]")).toHaveAttribute(
-    "aria-label",
-    "沙盒模式",
-  );
+  await expect(
+    approvalSelect.locator("xpath=..").locator("xpath=following-sibling::*[1]"),
+  ).toHaveAttribute("data-composer-option", "sandbox");
   await selectComposerSetting(approvalSelect, "auto-review");
   await selectComposerSetting(sandboxSelect, "danger-full-access");
   await chooseHostAttachment(page, "image", "screen.png");
@@ -353,9 +352,11 @@ test("submits host attachments, approval policy, model, and reasoning effort thr
   await expect(planModeTag).toBeVisible();
   await expect
     .poll(() =>
-      sandboxSelect.evaluate(
-        (element) => element.nextElementSibling?.hasAttribute("data-plan-mode") ?? false,
-      ),
+      page
+        .locator('[data-composer-option="sandbox"]')
+        .evaluate((element) =>
+          Boolean(element.nextElementSibling?.querySelector("[data-plan-mode]")),
+        ),
     )
     .toBe(true);
   await planModeTag.hover();

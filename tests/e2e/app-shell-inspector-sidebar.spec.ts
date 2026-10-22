@@ -247,11 +247,12 @@ test("preserves the original sidebar control typography and dimensions", async (
   await expect
     .poll(() => readControlStyle(page.locator("#global-settings-trigger")))
     .toMatchObject({
-      display: "flex",
+      display: "grid",
       fontSize: "13px",
       fontWeight: "450",
-      height: "36px",
-      justifyContent: "flex-start",
+      height: "32px",
+      width: "32px",
+      justifyContent: "center",
     });
   await expect
     .poll(() => readControlStyle(sidebar.getByRole("button", { name: "添加项目" })))

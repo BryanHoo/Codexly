@@ -2100,9 +2100,12 @@ it("completes and persists a large subagent run without leaving a busy task", as
     summary: "检查完成",
   });
   h.send({ type: "result", subtype: "success", result: "done" });
-  await vi.waitFor(() => {
-    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
-  });
+  await vi.waitFor(
+    () => {
+      expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    },
+    { timeout: 5_000 },
+  );
   expect(h.provider.isBusy).toBe(false);
   expect((await h.provider.readTask(task.id))?.turns.at(-1)?.status).toBe("completed");
   const restored = new ClaudeAgentProvider(

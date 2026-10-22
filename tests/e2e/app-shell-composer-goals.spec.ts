@@ -34,7 +34,6 @@ test("selects, clears, and submits goal mode", async ({ page }) => {
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   const commandMenu = page.getByRole("listbox", { name: "输入命令" });
-  const sandboxSelect = page.getByRole("button", { name: "沙盒模式" });
   await prompt.fill("/goal");
   await expect(commandMenu.getByRole("option", { name: /目标/u })).toBeVisible();
   await prompt.press("Enter");
@@ -43,9 +42,11 @@ test("selects, clears, and submits goal mode", async ({ page }) => {
   await expect(goalModeTag).toBeVisible();
   await expect
     .poll(() =>
-      sandboxSelect.evaluate(
-        (element) => element.nextElementSibling?.hasAttribute("data-goal-mode") ?? false,
-      ),
+      page
+        .locator('[data-composer-option="sandbox"]')
+        .evaluate((element) =>
+          Boolean(element.nextElementSibling?.querySelector("[data-goal-mode]")),
+        ),
     )
     .toBe(true);
   await goalModeTag.hover();

@@ -146,7 +146,8 @@ test("manages installed Skills, official plugins, and MCP servers", async ({ pag
 
   await page.goto("/p/codexly");
   const sidebarLinks = page.getByRole("navigation", { name: "Agent 导航" }).getByRole("link");
-  await expect(sidebarLinks).toHaveText(["新建任务", "定时任务", "任务看板", "扩展中心"]);
+  await expect(sidebarLinks).toHaveText(["新建任务", "任务看板"]);
+  await expect(page.getByRole("link", { name: "定时任务", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "扩展中心" }).click();
   await expect(page).toHaveURL(/\/p\/codexly\/extensions\/skills$/u);
   await expect(page.getByRole("region", { name: "扩展中心" })).toBeVisible();

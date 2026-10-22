@@ -26,8 +26,11 @@ for (const mobile of [false, true]) {
     expect(calls).toBe(0);
     await expect(settings.getByText(/释放服务端磁盘空间/u)).toBeVisible();
     await action.click();
-    await expect(settings.getByRole("status")).toContainText("已提交后台压缩请求");
+    const notification = page
+      .getByRole("region", { name: "通知", exact: true })
+      .getByRole("status");
+    await expect(notification).toContainText("已提交后台压缩请求");
     expect(calls).toBe(1);
-    await expect(settings.getByRole("status")).toContainText("不表示压缩已完成");
+    await expect(notification).toContainText("不表示压缩已完成");
   });
 }

@@ -175,7 +175,7 @@ it.each([
       // Windows keeps the working directory locked until the SDK child exits.
       await stream.return();
       await api.close();
-      await rm(root, { recursive: true, force: true });
+      await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     }
   },
   35000,
@@ -221,8 +221,9 @@ it("runs the official Claude runtime against an isolated local Messages API", as
   } finally {
     clearTimeout(timer);
     stream.close();
+    await stream.return();
     await api.close();
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }, 35_000);
 
@@ -372,7 +373,7 @@ it("switches the real SDK endpoint and credentials between turns while preservin
     runtime.close();
     vi.unstubAllEnvs();
     await Promise.all([a.close(), b.close()]);
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }, 60_000);
 
@@ -486,7 +487,7 @@ it("forks a real native transcript at the clicked reply, re-forks remapped messa
     runtime.close();
     vi.unstubAllEnvs();
     await api.close();
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }, 60_000);
 
@@ -535,8 +536,9 @@ it("projects a real SDK Bash result into the shared command item", async () => {
   } finally {
     clearTimeout(timer);
     stream.close();
+    await stream.return();
     await api.close();
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }, 35_000);
 
@@ -604,6 +606,6 @@ it("observes real SDK autonomous plan entry from bypass mode and awaits a live m
     stream.close();
     await stream.return();
     await api.close();
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }, 35_000);

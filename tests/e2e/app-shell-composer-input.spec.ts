@@ -14,7 +14,7 @@ test("keeps composer attachment icons aligned with the compact toolbar", async (
   await page.goto("/p/codexly/t/task-1");
 
   const attachmentButton = page.getByRole("button", { name: "添加图片或文件" });
-  await expect(attachmentButton).toHaveCSS("height", "28px");
+  await expect(attachmentButton).toHaveCSS("height", "32px");
   await expect(attachmentButton.locator("svg")).toHaveCSS("width", "14px");
   await expect(attachmentButton.locator("svg")).toHaveCSS("height", "14px");
 
@@ -46,23 +46,29 @@ test("keeps every mobile composer action accessible on one row", async ({ page }
   const modelSelector = page.getByRole("button", { name: /^选择模型：/u });
   const reasoningSelector = page.getByRole("button", { name: /^选择思考量：/u });
   const submitButton = page.getByRole("button", { exact: true, name: "提交" });
-  const controls = [approvalSelect, sandboxSelect, modelSelector, reasoningSelector, submitButton];
+  const more = page.getByRole("button", { name: "更多配置", exact: true });
+  const controls = [more, modelSelector, reasoningSelector, submitButton];
   const boxes = await Promise.all(controls.map((control) => control.boundingBox()));
 
   expect(boxes.every((box) => box !== null)).toBe(true);
-  expect(new Set(boxes.map((box) => Math.round(box?.y ?? 0))).size).toBe(1);
-  await expect(approvalSelect).toHaveAttribute("aria-haspopup", "menu");
-  await expect(sandboxSelect).toHaveAttribute("aria-haspopup", "menu");
+  expect(new Set(boxes.map((box) => Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2))).size).toBe(
+    1,
+  );
   expect(boxes[0]?.width).toBeGreaterThan(24);
   expect(boxes[1]?.width).toBeGreaterThan(24);
   await expect(modelSelector.locator("span").first()).toHaveCSS("text-overflow", "ellipsis");
   await expect(modelSelector).toHaveAccessibleName("选择模型：GPT-5.6 Sol");
   await expect(reasoningSelector).toHaveAccessibleName("选择思考量：高");
-  const footerSize = await approvalSelect.locator("xpath=../..").evaluate((element) => ({
+  const footerSize = await page.locator(".composer-toolbar").evaluate((element) => ({
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
   }));
   expect(footerSize.scrollWidth).toBeLessThanOrEqual(footerSize.clientWidth);
+  await more.click();
+  await expect(approvalSelect).toBeVisible();
+  await expect(sandboxSelect).toBeVisible();
+  await expect(approvalSelect).toHaveAttribute("aria-haspopup", "menu");
+  await expect(sandboxSelect).toHaveAttribute("aria-haspopup", "menu");
 });
 
 test("switches composer task settings without success toasts", async ({ page }) => {

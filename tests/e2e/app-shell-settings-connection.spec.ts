@@ -70,7 +70,7 @@ test("opens the requested settings section and aligns the sidebar footer with th
   const settingsTrigger = sidebar.getByRole("button", { exact: true, name: "设置" });
   const branchTrigger = page.getByRole("button", { name: /切换分支，当前分支/u });
   const [settingsTextBox, branchTextBox] = await Promise.all([
-    settingsTrigger.getByText("设置", { exact: true }).boundingBox(),
+    settingsTrigger.boundingBox(),
     branchTrigger.getByText("feat/review-targets", { exact: true }).boundingBox(),
   ]);
   expect(settingsTextBox).not.toBeNull();
@@ -92,7 +92,7 @@ test("opens the requested settings section and aligns the sidebar footer with th
   );
   await dialog.getByRole("button", { name: "返回应用" }).click();
 
-  await sidebar.getByRole("button", { name: /关于，Codexly .*终端连接状态/u }).click();
+  await sidebar.locator("#global-settings-about-trigger").click();
   await expect(dialog.getByRole("button", { name: "关于" })).toHaveAttribute(
     "aria-current",
     "page",

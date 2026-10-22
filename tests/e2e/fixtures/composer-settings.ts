@@ -12,6 +12,11 @@ const settingLabels: Readonly<Record<string, string>> = {
 export async function selectComposerSetting(trigger: Locator, value: string) {
   const name = settingLabels[value];
   if (name === undefined) throw new Error(`Unknown composer setting: ${value}`);
+  const more = trigger.page().getByRole("button", { name: "更多配置", exact: true });
+  await trigger.or(more).first().waitFor({ state: "visible" });
+  const collapsed = !(await trigger.isVisible());
+  if (collapsed) await more.click();
   await trigger.click();
   await trigger.page().getByRole("menuitemradio", { name, exact: true }).click();
+  if (collapsed) await trigger.page().keyboard.press("Escape");
 }

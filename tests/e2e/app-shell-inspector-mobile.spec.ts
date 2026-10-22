@@ -19,7 +19,7 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
   const reasoningSelector = page.getByRole("button", { name: /^选择思考量：/u });
   const composerControls = [
     page.getByRole("button", { name: "添加图片或文件" }),
-    page.getByRole("button", { name: "批准模式" }),
+    page.getByRole("button", { name: "更多配置", exact: true }),
     modelSelector,
     reasoningSelector,
     page.getByRole("button", { name: "提交", exact: true }),
@@ -68,6 +68,12 @@ test("keeps the compact mobile workbench inside the dynamic viewport @cross-brow
     );
   }
   expect((await composerFooter.boundingBox())?.height).toBeLessThanOrEqual(52);
+
+  await composerControls[1]?.click();
+  const config = page.getByRole("dialog", { name: "输入配置", exact: true });
+  await expect(config.getByRole("button", { name: "批准模式", exact: true })).toBeVisible();
+  await expect(config.getByRole("button", { name: "沙盒模式", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
 
   await composerControls[2]?.click();
   const mobileModelMenu = page.getByRole("menu", { name: "选择模型" });
