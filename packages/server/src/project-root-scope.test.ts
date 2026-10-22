@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { execFile } from "node:child_process";
-import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -32,6 +32,33 @@ function createRepository(value: Project | undefined): ProjectRepository {
 }
 
 describe("resolveProjectRoot", () => {
+  it("accepts equivalent paths of a non-Git root and preserves its identity", async ({
+    onTestFinished,
+  }) => {
+    const directory = await mkdtemp(join(tmpdir(), "codexly-plain-root-"));
+    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    const rootPath = join(directory, "workspace");
+    await mkdir(rootPath);
+    const root = { id: "plain-root", path: await realpath(rootPath) };
+    const repository = createRepository({ ...project, roots: [root] });
+    const paths = [`${rootPath}/.`];
+    if (process.platform === "win32") {
+      paths.push(rootPath.replaceAll("\\", "/"), rootPath.toLowerCase());
+    }
+    for (const path of paths) {
+      await expect(resolveProjectRootEntry(repository, project.id, path)).resolves.toEqual(root);
+    }
+    const childPath = join(rootPath, "child");
+    const unrelatedPath = join(directory, "unrelated");
+    await Promise.all([mkdir(childPath), mkdir(unrelatedPath)]);
+    for (const path of [childPath, unrelatedPath]) {
+      await expect(resolveProjectRootEntry(repository, project.id, path)).rejects.toHaveProperty(
+        "code",
+        "PROJECT_ROOT_INVALID",
+      );
+    }
+  });
+
   it("accepts only a linked worktree of the same Project repository", async ({
     onTestFinished,
   }) => {

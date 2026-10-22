@@ -1,6 +1,7 @@
 import type { ProjectRepository } from "@codexly/core";
 import type { ProjectRoot } from "@codexly/protocol";
 import { createHash } from "node:crypto";
+import { realpath } from "node:fs/promises";
 import { resolveProjectWorktree } from "./git-worktree.js";
 
 export type ProjectRootScopeErrorCode = "PROJECT_NOT_FOUND" | "PROJECT_ROOT_INVALID";
@@ -30,6 +31,14 @@ export async function resolveProjectRootEntry(
       : project.roots.find((candidate) => candidate.path === requestedRootPath);
   if (root !== undefined) return root;
   if (requestedRootPath !== undefined) {
+    // Equivalent native paths belong to the registered root, including non-Git projects.
+    const requestedPath = await realpath(requestedRootPath).catch(() => undefined);
+    if (requestedPath !== undefined) {
+      for (const candidate of project.roots) {
+        const candidatePath = await realpath(candidate.path).catch(() => undefined);
+        if (candidatePath === requestedPath) return candidate;
+      }
+    }
     for (const candidate of project.roots) {
       try {
         const worktree = await resolveProjectWorktree(candidate.path, requestedRootPath);

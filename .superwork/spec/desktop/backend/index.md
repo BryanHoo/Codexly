@@ -1,5 +1,7 @@
 # 桌面原生层
 
+项目根目录授权先匹配原始路径；不匹配时以文件系统 canonical 路径确认是否仍为已登记根目录，再验证 Git worktree。Windows 普通路径、斜杠、大小写和扩展路径前缀差异不得让非 Git 项目误入 worktree 分支；等价目录保留原 root ID，子目录和无关目录仍拒绝。回归运行 Rust `workspace_project_root` 测试，Web 对应 `project-root-scope.test.ts`。
+
 `desktop/src-tauri/src/lib.rs` 注册 Tauri 命令与应用状态；`application/` 处理 IPC 与用例，`domain/` 放领域规则，`infrastructure/` 放持久化、Codex 和系统集成。
 
 - 线程订阅释放前检查是否还有排队消息；终态后的短暂 idle 不代表队列已结束。有剩余队列则返回 busy，保留 Core 自动续发能力；检查只取首项并跳过正文、附件和技能映射。
