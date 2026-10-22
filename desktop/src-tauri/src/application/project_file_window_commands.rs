@@ -36,11 +36,12 @@ fn is_valid_project_file_route(route: &str) -> bool {
 }
 
 #[tauri::command]
-pub fn open_project_file_window(app: AppHandle, route: String) -> Result<(), AppError> {
+pub async fn open_project_file_window(app: AppHandle, route: String) -> Result<(), AppError> {
     if !is_valid_project_file_route(&route) {
         return Err(AppError::ProjectFileWindowFailed);
     }
     let sequence = PROJECT_FILE_WINDOW_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    // WebView2 creation deadlocks inside synchronous IPC handlers on Windows.
     WebviewWindowBuilder::new(
         &app,
         format!("project-file-{sequence}"),
@@ -58,6 +59,17 @@ pub fn open_project_file_window(app: AppHandle, route: String) -> Result<(), App
 #[cfg(test)]
 mod tests {
     use super::is_valid_project_file_route;
+
+    #[test]
+    fn project_file_window_command_should_run_on_async_runtime() {
+        fn assert_async_command<F>(_: fn(tauri::AppHandle, String) -> F)
+        where
+            F: Future<Output = Result<(), super::AppError>> + Send + 'static,
+        {
+        }
+
+        assert_async_command(super::open_project_file_window);
+    }
 
     #[test]
     fn pdf_preview_route_should_be_allowed() {
