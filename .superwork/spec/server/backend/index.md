@@ -16,5 +16,5 @@
 ## 诊断快照
 
 - `GET /v1/diagnostics` 沿用全局访问认证，局域网模式要求有效配对 Cookie；响应为 `DiagnosticsResponseSchema`，设置 `Cache-Control: no-store`，不触发外部版本查询。
-- 每个服务实例只保留最近 2000 条、合计最多 2 MiB 的结构化日志白名单投影，包含错误码/指纹与关联 ID，排除正文、原始请求、凭据及任意异常附加字段；保留原日志目的地，关闭实例时释放缓存，快照暴露淘汰计数。日志仅驻留内存，不读取任意宿主文件。
+- 每个服务实例只保留最近 2000 条、合计最多 2 MiB 的结构化日志白名单投影，包含错误码/指纹与关联 ID，排除正文、原始请求、凭据及任意异常附加字段；默认不向终端 stdout/stderr 输出，仅在显式提供 `logDestination` 时同步写入该目的地。关闭实例时释放缓存，快照暴露淘汰计数。日志仅驻留内存，不读取任意宿主文件。
 - 回归入口：`packages/server/src/diagnostics.test.ts`、`packages/server/src/app-diagnostics.test.ts` 与 `packages/client/src/http-client-diagnostics.test.ts`。

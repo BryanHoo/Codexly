@@ -54,3 +54,34 @@ it("requires a paired session when LAN access is enabled", async () => {
   });
   expect(response.statusCode).toBe(200);
 });
+
+it("keeps terminal streams quiet while retaining diagnostic logs by default", async () => {
+  const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+  const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+  try {
+    const app = await createCodexlyServer(
+      createServerOptions(createProvider().provider, { loggerEnabled: true }),
+    );
+    closeCallbacks.push(() => app.close());
+    app.log.info({ event: "test_operation" }, "operation completed");
+    app.log.warn({ diagnosticCode: "TEST_WARNING" }, "runtime warning");
+    app.log.error({ errorCode: "TEST_FAILURE" }, "runtime failure");
+    const rejected = await app.inject({ method: "PUT", url: "/v1/settings", payload: {} });
+    expect(rejected.statusCode).toBe(400);
+    const response = await app.inject("/v1/diagnostics");
+    expect(response.statusCode).toBe(200);
+    expect(response.json<{ logs: string[] }>().logs).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("test_operation"),
+        expect.stringContaining("TEST_WARNING"),
+        expect.stringContaining("TEST_FAILURE"),
+        expect.stringContaining('"statusCode":400'),
+      ]),
+    );
+    expect(stdout).not.toHaveBeenCalled();
+    expect(stderr).not.toHaveBeenCalled();
+  } finally {
+    stdout.mockRestore();
+    stderr.mockRestore();
+  }
+});

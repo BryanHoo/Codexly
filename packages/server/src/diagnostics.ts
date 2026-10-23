@@ -115,9 +115,8 @@ export function createDiagnosticLogger(
         stream: {
           write(message: string) {
             diagnosticLogs.write(message);
-            // 保留托管后台日志或标准输出，不新增文件写入与后台定时器。
-            if (options.logDestination) options.logDestination.write(message);
-            else process.stdout.write(message);
+            // 默认仅缓存供诊断导出，避免运行日志刷屏；显式配置时仍写入托管后台日志。
+            options.logDestination?.write(message);
           },
         },
       };
