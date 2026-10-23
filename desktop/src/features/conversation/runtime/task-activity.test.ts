@@ -141,3 +141,15 @@ describe("task activity engine metadata", () => {
     expect(restoreNativeTaskActivity(activity, nativeSnapshot)).toBe(activity);
   });
 });
+
+
+it("异步问题显示待回答并保持运行，聚焦后由原生活动确认解除等待", () => {
+  const event: AgentEvent = { ...startedEvent, type: "item.completed", itemId: "q", payload: { item: { id: "q", type: "message", role: "assistant", text: "请选择", questions: [{ title: "范围", options: [] }] } } };
+  let activity = reduceTaskActivityEvent(new Map(), "codexly", event, true);
+  expect(activity.get(key)?.attention).toBe("input");
+  expect(activity.get(key)?.isRunning).toBe(true);
+  activity = clearTaskAttention(activity, "codexly", "task-a");
+  expect(activity.get(key)?.attention).toBe("input");
+  activity = recordNativeTaskActivity(activity, nativeSnapshot);
+  expect(activity.get(key)?.attention).toBe(null);
+});

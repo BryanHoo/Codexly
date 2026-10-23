@@ -425,3 +425,25 @@ describe("task activity registry", () => {
     expect(getTaskActivity(activity, "codexly", "task-a").attention).toBeNull();
   });
 });
+
+it("异步问题显示待回答，聚焦与后续运行事件不能清除用户尚未处理的问题", () => {
+  const event: AgentEvent = {
+    ...createTurnEvent("task-1", "turn.started"),
+    type: "item.completed",
+    turnId: "turn-1",
+    itemId: "q",
+    payload: {
+      item: {
+        id: "q",
+        type: "message",
+        role: "assistant",
+        text: "请选择",
+        questions: [{ title: "运行方式", options: [] }],
+      },
+    },
+  };
+  let activity = reduceTaskActivityEvent(new Map(), "codexly", event, true);
+  expect(getTaskActivity(activity, "codexly", "task-1").attention).toBe("input");
+  activity = clearTaskAttention(activity, "codexly", "task-1");
+  expect(getTaskActivity(activity, "codexly", "task-1").attention).toBe("input");
+});

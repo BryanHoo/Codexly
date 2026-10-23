@@ -1,6 +1,8 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { appPreferenceStorage } from "../../../platform/tauri/app-storage.js";
+import { resolveAsyncQuestionActivities } from "../../../platform/tauri/task-activity-client.js";
+import { recordInternalWarning } from "../../notifications/internal-diagnostics.js";
 
 export type QuestionAnswer = Readonly<{ choice: number | null; text: string }>;
 export type QuestionDraft = Readonly<{
@@ -21,6 +23,17 @@ type QuestionDraftStore = StoreApi<QuestionDraftState>;
 // 仅共享有在途投递的任务；完成后释放引用，不常驻缓存所有历史任务的草稿。
 const pendingStores = new WeakMap<QuestionStorage, Map<string, QuestionDraftStore>>();
 const storeScopes = new WeakMap<QuestionDraftStore, Readonly<{ scope: string; storage: QuestionStorage }>>();
+
+export function resolveQuestionActivity(scope: string | undefined, ids: readonly string[]) {
+  if (scope === undefined || ids.length === 0) return;
+  let identity: unknown;
+  try { identity = JSON.parse(scope); } catch { return; }
+  if (!Array.isArray(identity) || identity.length !== 2 || !identity.every((part) => typeof part === "string")) return;
+  // 通知失败不回滚已经成功的回答/关闭；只更新原任务的轻量状态，不重载聊天历史。
+  void resolveAsyncQuestionActivities(identity[0]!, identity[1]!, ids).catch((error: unknown) => {
+    recordInternalWarning("async_question_activity_resolve_failed", error);
+  });
+}
 
 function readDismissedQuestions(storage: QuestionStorage, key: string | undefined): Set<string> {
   try {
@@ -44,6 +57,7 @@ export function createQuestionDraftStore(scope?: string, storage: QuestionStorag
       const sentIds = new Set(get().sentIds).add(id);
       // 已投递身份独立于草稿淘汰和历史分页；离开任务后旧请求成功也记录原任务。
       set({ sentIds });
+      resolveQuestionActivity(scope, [id]);
       if (sentKey !== undefined) {
         try { storage.setItem(sentKey, JSON.stringify([...sentIds])); }
         catch { /* 存储不可用时仍保留当前会话的成功状态。 */ }
@@ -53,6 +67,7 @@ export function createQuestionDraftStore(scope?: string, storage: QuestionStorag
       const dismissedIds = new Set(get().dismissedIds).add(id);
       // 关闭记录独立于有界草稿，仅显式关闭时持久化 ID，重开任务仍生效。
       set({ dismissedIds });
+      resolveQuestionActivity(scope, [id]);
       if (key !== undefined) {
         try { storage.setItem(key, JSON.stringify([...dismissedIds])); }
         catch { /* 存储不可用时保留当前会话内的关闭结果。 */ }
@@ -65,6 +80,7 @@ export function createQuestionDraftStore(scope?: string, storage: QuestionStorag
 
 const AsyncQuestionContext = createContext<Readonly<{
   enabled: boolean;
+  scope: string | undefined;
   store: ReturnType<typeof createQuestionDraftStore>;
   submit: (text: string) => Promise<boolean>;
 }> | null>(null);
@@ -77,7 +93,7 @@ export function AsyncQuestionProvider({ children, enabled, submit, scope }: Read
 }>) {
   // 会话级保存草稿，虚拟列表卸载问题表单后仍可恢复；逐问题订阅避免流式重绘。
   const store = useMemo(() => createQuestionDraftStore(scope), [scope]);
-  const value = useMemo(() => ({ enabled, store, submit }), [enabled, store, submit]);
+  const value = useMemo(() => ({ enabled, scope, store, submit }), [enabled, scope, store, submit]);
   return <AsyncQuestionContext value={value}>{children}</AsyncQuestionContext>;
 }
 

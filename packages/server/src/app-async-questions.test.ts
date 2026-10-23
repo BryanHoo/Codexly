@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LightMyRequestResponse } from "fastify";
-import type { AsyncQuestionGroup } from "@codexly/protocol";
+import type { AsyncQuestionGroup, TaskActivitySnapshot } from "@codexly/protocol";
 import { createHarness } from "./app-all.test-support.js";
 import { snapshot, turnOptions } from "./app.test-support.js";
 import { createWorkspace, openRepository } from "./sqlite-state-repository.test-support.js";
@@ -48,6 +48,11 @@ describe("async question API", () => {
     async (action) => {
       const { app, emitEvent } = await setup();
       const id = questionId(await app.inject({ method: "GET", url }));
+      expect(
+        (await app.inject("/v1/tasks/activity")).json<{ data: TaskActivitySnapshot[] }>().data,
+      ).toEqual([
+        expect.objectContaining({ taskId: "task-1", status: "waiting", requiresApproval: false }),
+      ]);
       const frames: unknown[] = [];
       const socket = await app.injectWS(
         "/v1/workbench/events",
@@ -82,7 +87,7 @@ describe("async question API", () => {
         });
         const change = { type: "async-questions.changed", projectId: "codexly", taskId: "task-1" };
         await vi.waitFor(() => {
-          expect(frames).toEqual([{ type: "workbench.ready" }, change]);
+          expect(frames).toContainEqual(change);
         });
         const response = await app.inject({
           method: "POST",
@@ -95,9 +100,20 @@ describe("async question API", () => {
           expect(frames.length).toBeGreaterThanOrEqual(3);
         });
         expect(
-          frames.slice(1).every((frame) => JSON.stringify(frame) === JSON.stringify(change)),
+          frames
+            .slice(1)
+            .every(
+              (frame) =>
+                JSON.stringify(frame) === JSON.stringify(change) ||
+                JSON.stringify(frame) === JSON.stringify({ type: "task-activity.changed" }),
+            ),
         ).toBe(true);
         expect((await app.inject({ method: "GET", url })).json()).toEqual({ data: [] });
+        expect(
+          (await app.inject("/v1/tasks/activity")).json<{ data: TaskActivitySnapshot[] }>().data,
+        ).toEqual([
+          expect.objectContaining({ taskId: "task-1", status: "running", requiresApproval: false }),
+        ]);
       } finally {
         socket.terminate();
       }

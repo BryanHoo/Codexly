@@ -15,7 +15,7 @@ export function SidebarActiveTaskRow({
   task: SidebarActiveTask;
   active: boolean;
   projectName: string;
-  labels: Readonly<{ approval: string; running: string; completed: string }>;
+  labels: Readonly<{ approval: string; input?: string; running: string; completed: string }>;
   renderLink: (props: {
     taskActive: boolean;
     className: string;
@@ -48,10 +48,12 @@ export function SidebarActiveTaskRow({
         <SidebarTaskLabel engine={task.engine} projectName={projectName} title={task.title} />
         <span
           role="status"
-          aria-label={labels[task.status]}
-          className={`sidebar-shortcut-status ml-auto inline-grid size-3.5 shrink-0 place-items-center ${task.status === "approval" ? "text-task-waiting" : task.status === "completed" ? "text-task-completed" : "text-task-running"}`}
+          aria-label={
+            task.status === "input" ? (labels.input ?? labels.approval) : labels[task.status]
+          }
+          className={`sidebar-shortcut-status ml-auto inline-grid size-3.5 shrink-0 place-items-center ${task.status === "approval" || task.status === "input" ? "text-task-waiting" : task.status === "completed" ? "text-task-completed" : "text-task-running"}`}
         >
-          {task.status === "approval" ? (
+          {task.status === "approval" || task.status === "input" ? (
             <Clock3 aria-hidden="true" className="size-3.5 stroke-[2.25]" />
           ) : task.status === "completed" ? (
             <CircleCheck aria-hidden="true" className="size-3.5 stroke-[2.25]" />

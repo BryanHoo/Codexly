@@ -19,3 +19,9 @@
 - 同范围标题去除首尾空白后按大小写不敏感规则去重；项目同名标题覆盖全局标题，其他项目不可见。旧存储的 `shortcut` 不再参与匹配，旧版同名记录按 ID 全部保留，允许在原范围内编辑正文；写入仅保留当前字段。
 - 选择仅替换光标前的触发片段，保留前后文本、文件和 Skill 引用及编辑器焦点，不自动提交。读取与索引复用快照，候选上限仍为 12。
 - 验证入口：`pnpm exec vitest run packages/frontend-core/src/saved-prompts.test.ts packages/frontend-core/src/prompt-trigger.test.ts`；Web 回归为 `tests/e2e/app-shell-saved-prompts.spec.ts`，桌面回归为 `composer-ownership.browser.test.tsx` 与 `saved-prompts.browser.test.tsx`。
+
+## 异步问答提醒
+
+- 两端仅将完整助手问题消息投影为待回答通知和任务活动；普通消息及 Token 增量直接跳过。每组新问题独立提醒，事件重放须去重。
+- 待回答与待审批分开显示，任务可以继续执行；聚焦任务仅确认通知已读，不解除尚未处理的问题。成功回答或显式关闭只解除对应问题，其他问题和审批保持等待。
+- 复用既有全局活动订阅和有界通知去重，不新增轮询或逐 Token 历史扫描。验证覆盖共享通知存储、两端任务状态、Web 问答 API 与桌面原生活动/系统通知。

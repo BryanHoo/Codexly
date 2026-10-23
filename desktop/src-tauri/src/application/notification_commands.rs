@@ -32,6 +32,7 @@ struct TaskNotification {
 #[derive(Default)]
 struct NotificationState {
     failed_turn_keys: VecDeque<String>,
+    question_keys: VecDeque<String>,
 }
 
 #[derive(Deserialize)]
@@ -184,7 +185,7 @@ fn is_notification_event(event: &AgentEvent) -> bool {
     matches!(
         event.event_type(),
         Some("pending_request.created" | "provider.error" | "turn.completed")
-    )
+    ) || super::task_activity::async_questions::is_question_event(event)
 }
 
 fn reduce_task_notification(
@@ -196,6 +197,26 @@ fn reduce_task_notification(
 ) -> Option<TaskNotification> {
     let event_json = event.as_json()?;
     let body = match event.event_type()? {
+        "item.completed" if super::task_activity::async_questions::is_question_event(event) => {
+            let key = format!(
+                "{project_id}:{}:{}:{}",
+                event.task_id()?,
+                event_json.get("turnId")?.as_str()?,
+                event_json.pointer("/payload/item/id")?.as_str()?
+            );
+            if state.question_keys.contains(&key) {
+                return None;
+            }
+            // 仅成型问题触发系统通知；有界去重避免事件重放和长期运行时重复打扰。
+            if state.question_keys.len() >= MAX_FAILED_TURN_KEYS {
+                state.question_keys.pop_front();
+            }
+            state.question_keys.push_back(key);
+            match language {
+                NotificationLanguage::ZhCn => "Task 有待回答的问题，请处理".to_owned(),
+                NotificationLanguage::En => "Task has questions awaiting your answer".to_owned(),
+            }
+        }
         "turn.completed" => {
             let turn_key = turn_key(event_json)?;
             if remove_failed_turn(state, &turn_key) {
@@ -296,6 +317,37 @@ mod tests {
 
     use super::{NotificationLanguage, NotificationState, reduce_task_notification};
     use crate::domain::runtime::AgentEvent;
+
+    #[test]
+    fn async_questions_should_notify_once() {
+        let mut state = NotificationState::default();
+        let event = AgentEvent::from(json!({
+            "type": "item.completed", "taskId": "task-1", "turnId": "turn-1", "itemId": "q-1",
+            "payload": { "item": { "id": "q-1", "type": "message", "role": "assistant", "questions": [{ "title": "运行方式", "options": [] }] } }
+        }));
+        assert!(super::is_notification_event(&event));
+        let notification = reduce_task_notification(
+            &mut state,
+            &event,
+            "project-1",
+            "任务",
+            NotificationLanguage::ZhCn,
+        );
+        assert_eq!(
+            notification.map(|value| value.body),
+            Some("Task 有待回答的问题，请处理".to_owned())
+        );
+        assert!(
+            reduce_task_notification(
+                &mut state,
+                &event,
+                "project-1",
+                "任务",
+                NotificationLanguage::ZhCn
+            )
+            .is_none()
+        );
+    }
 
     #[test]
     fn rust_maps_task_events_to_system_notifications() {

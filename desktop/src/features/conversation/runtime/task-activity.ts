@@ -1,3 +1,4 @@
+import { isAsyncQuestionEvent } from "@codexly/frontend-core/async-question-event";
 import { projectTaskActivitySnapshot } from "@codexly/frontend-core/task-activity-sync";
 import { taskEngine, type AgentEngine } from "@codexly/protocol";
 import type {
@@ -7,7 +8,7 @@ import type {
   TaskActivitySnapshot,
 } from "@/protocol/index.js";
 
-export type TaskAttention = "approval" | "completed" | "failed" | null;
+export type TaskAttention = "approval" | "input" | "completed" | "failed" | null;
 
 export type TaskActivity = Readonly<{
   attention: TaskAttention;
@@ -30,7 +31,7 @@ export type ActiveTaskActivity = Readonly<{
   id: string;
   projectId: string;
   startedAt?: string;
-  status: "approval" | "running";
+  status: "approval" | "input" | "running";
   title: string;
 }>;
 
@@ -110,7 +111,7 @@ export function recordRunningTaskActivity(
 ): TaskActivityMap {
   const currentRecord = activity.get(createTaskActivityKey(projectId, taskId));
   return replaceTaskActivity(activity, projectId, taskId, {
-    attention: null,
+    attention: currentRecord?.attention === "input" ? "input" : null,
     engine: currentRecord?.engine,
     isRunning: true,
     pendingApprovalRequestIds: currentRecord?.pendingApprovalRequestIds ?? new Set(),
@@ -165,7 +166,9 @@ export function listActiveTaskActivities(activity: TaskActivityMap): ActiveTaskA
     const status =
       record.pendingApprovalRequestIds.size > 0
         ? "approval"
-        : record.isRunning
+        : record.attention === "input"
+          ? "input"
+          : record.isRunning
           ? "running"
           : null;
     if (status === null) continue;
@@ -186,7 +189,7 @@ export function clearTaskAttention(
   taskId: string,
 ): TaskActivityMap {
   const record = activity.get(createTaskActivityKey(projectId, taskId));
-  if (record?.attention === undefined || record.attention === null) {
+  if (record?.attention === undefined || record.attention === null || record.attention === "input") {
     return activity;
   }
   return replaceTaskActivity(activity, projectId, taskId, { ...record, attention: null });
@@ -241,7 +244,9 @@ export function recordTaskActivitySnapshot(
   const runningStartedAt = snapshot.turns
     .findLast((turn) => turn.status === "running")
     ?.startedAt;
-  const attention: TaskAttention = isViewed
+  const attention: TaskAttention = currentRecord?.attention === "input" && snapshot.status === "running"
+    ? "input"
+    : isViewed
     ? null
     : pendingApprovalRequestIds.size > 0
       ? "approval"
@@ -285,6 +290,12 @@ export function reduceTaskActivityEvent(
   let startedAt = currentRecord.startedAt;
 
   switch (event.type) {
+    case "item.completed":
+      if (!isAsyncQuestionEvent(event)) return activity;
+      // 待回答是尚未处理的事实，进入任务或后续运行事件不能把它当作已读提醒清除。
+      attention = "input";
+      isRunning = true;
+      break;
     case "task.metadata_changed":
       // 运行中分组使用独立活动记录；标题事件必须同步更新，不能等待下一次快照。
       return event.payload.title === undefined ? activity : replaceTaskActivity(activity, projectId, event.taskId, {
@@ -297,7 +308,7 @@ export function reduceTaskActivityEvent(
       break;
     case "task.status_updated":
       isRunning = event.payload.status === "running";
-      if (isRunning) attention = null;
+      if (isRunning && attention !== "input") attention = null;
       break;
     case "turn.completed":
       // `failed` 与 `interrupted` 都是未完成终态，必须保留到用户进入 Task 或新 Turn 开始。
@@ -319,7 +330,7 @@ export function reduceTaskActivityEvent(
       break;
     case "pending_request.created":
       if (isApprovalRequest(event.payload.request)) {
-        attention = isViewed ? null : "approval";
+        if (attention !== "input") attention = isViewed ? null : "approval";
         pendingApprovalRequestIds = new Set(pendingApprovalRequestIds).add(
           event.payload.request.requestId,
         );

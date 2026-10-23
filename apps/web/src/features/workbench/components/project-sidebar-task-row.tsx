@@ -55,6 +55,7 @@ export function ActiveTaskLink({
       projectName={projectName}
       labels={{
         approval: t("sidebar.taskApproval"),
+        input: t("sidebar.taskInput"),
         running: t("sidebar.taskRunning"),
         completed: t("sidebar.taskComplete"),
       }}
@@ -177,6 +178,12 @@ export function TaskStatusIndicator({
     presentation = {
       icon: <Clock3 aria-hidden="true" className={taskStatusIconClassName} />,
       label: t("sidebar.taskApproval"),
+      tone: "text-task-waiting",
+    };
+  } else if (attention === "input") {
+    presentation = {
+      icon: <Clock3 aria-hidden="true" className={taskStatusIconClassName} />,
+      label: t("sidebar.taskInput"),
       tone: "text-task-waiting",
     };
   } else if (isRunning) {

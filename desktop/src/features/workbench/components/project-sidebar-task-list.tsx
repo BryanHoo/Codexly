@@ -325,7 +325,7 @@ export function ProjectSidebarTaskList({
                         status={projectStatuses.get(project.id)}
                         labels={{
                           completed: t("sidebar.taskComplete"),
-                          approval: t("sidebar.taskApproval"),
+                          approval: t("sidebar.taskApproval"), input: t("sidebar.taskInput"),
                           running: t("sidebar.taskRunning"),
                         }}
                       />

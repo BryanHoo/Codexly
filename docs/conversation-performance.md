@@ -26,6 +26,10 @@ The cache retains at most 12 inactive task snapshots within an estimated 48 MiB 
 
 Both editions continue committing received task events while the page or WebView is hidden, preventing background state from stalling on animation-frame scheduling. Idle tasks do not retain periodic event-flush timers.
 
+两端仅在助手的完整问题消息到达时记录待回答提醒并更新任务活动，复用现有通知偏好与事件连接；普通消息与流式 Token 不触发通知或额外轮询。待回答状态允许任务继续运行，进入任务只确认通知已读，回答成功或显式关闭后才解除对应问题的等待；其他问题与审批继续保留。
+
+Both editions record an input notification and update task activity when a complete assistant question arrives, reusing existing notification preferences and event connections. Ordinary messages and streamed tokens add no notifications or polling. Tasks can keep running while awaiting answers. Opening a task marks its notifications read; successfully answering or explicitly dismissing a question clears that question's waiting state while preserving other questions and approvals.
+
 ## Web 多设备与传输 / Web Devices and Transport
 
 连接同一 Web 服务的浏览器与设备通过变更通知同步项目待办与异步问答。后台页面只将相关缓存标记为失效，恢复可见后读取最新状态；首次连接和断线重连也会校准。该机制不在独立 Web 服务与桌面应用之间同步本地数据。

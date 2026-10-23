@@ -1,13 +1,13 @@
-export type ProjectTaskStatus = "completed" | "approval" | "running";
+export type ProjectTaskStatus = "completed" | "approval" | "input" | "running";
 
 type ProjectTaskActivity = Readonly<{
-  attention: "completed" | "approval" | "failed" | null;
+  attention: "completed" | "approval" | "input" | "failed" | null;
   isRunning: boolean;
   pendingApprovalRequestIds: ReadonlySet<string>;
   projectId: string;
 }>;
 
-const statusPriority = { completed: 3, approval: 2, running: 1 } as const;
+const statusPriority = { completed: 4, approval: 3, input: 2, running: 1 } as const;
 
 export function getProjectTaskStatuses(
   activity: ReadonlyMap<string, ProjectTaskActivity>,
@@ -20,9 +20,11 @@ export function getProjectTaskStatuses(
         ? "completed"
         : record.pendingApprovalRequestIds.size > 0 || record.attention === "approval"
           ? "approval"
-          : record.isRunning
-            ? "running"
-            : null;
+          : record.attention === "input"
+            ? "input"
+            : record.isRunning
+              ? "running"
+              : null;
     if (status === null) continue;
     const current = statuses.get(record.projectId);
     // 仅未查看的完成态参与聚合；查看后由原有 attention 清除流程自动回落。

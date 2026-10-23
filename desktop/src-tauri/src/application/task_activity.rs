@@ -5,6 +5,8 @@ use serde::Serialize;
 use crate::domain::runtime::AgentEvent;
 
 const MAX_TASK_METADATA: usize = 2_048;
+#[path = "task_activity_async_questions.rs"]
+pub(super) mod async_questions;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -38,6 +40,7 @@ struct TaskMetadata {
 
 #[derive(Clone, Debug)]
 struct TaskActivityRecord {
+    async_questions: async_questions::AsyncQuestions,
     approval_request_ids: HashSet<String>,
     pending_request_ids: HashSet<String>,
     snapshot: TaskActivitySnapshot,
@@ -45,6 +48,7 @@ struct TaskActivityRecord {
 
 impl TaskActivityRecord {
     fn clear_pending_requests(&mut self) {
+        self.async_questions = async_questions::AsyncQuestions::default();
         self.approval_request_ids.clear();
         self.pending_request_ids.clear();
         self.snapshot.requires_approval = false;
@@ -97,6 +101,7 @@ impl TaskActivityState {
             return false;
         };
         match event.event_type() {
+            Some("item.completed") => self.apply_async_question_event(project_id, task_id, event),
             Some("task.metadata_changed") => {
                 let title = event
                     .as_json()
@@ -147,6 +152,7 @@ impl TaskActivityState {
                 removed |= request_id.is_some_and(|id| record.approval_request_ids.remove(id));
                 record.refresh_approval_state();
                 if record.pending_request_ids.is_empty()
+                    && !record.async_questions.is_pending()
                     && record.snapshot.status == TaskActivityStatus::Waiting
                 {
                     record.snapshot.status = TaskActivityStatus::Running;
@@ -184,9 +190,15 @@ impl TaskActivityState {
                         record.snapshot.status,
                         TaskActivityStatus::Running | TaskActivityStatus::Waiting
                     );
-                    let mut changed =
-                        inserted || record.snapshot.status != TaskActivityStatus::Running;
-                    record.snapshot.status = TaskActivityStatus::Running;
+                    let status = if record.async_questions.is_pending()
+                        || !record.pending_request_ids.is_empty()
+                    {
+                        TaskActivityStatus::Waiting
+                    } else {
+                        TaskActivityStatus::Running
+                    };
+                    let mut changed = inserted || record.snapshot.status != status;
+                    record.snapshot.status = status;
                     if (inserted || !was_active || record.snapshot.started_at.is_none())
                         && started_at.is_some()
                     {
@@ -320,14 +332,7 @@ impl TaskActivityState {
             return;
         }
         match status {
-            "running" => {
-                let record = self.ensure_activity(project_id, task_id);
-                record.snapshot.status = TaskActivityStatus::Running;
-                record.clear_pending_requests();
-                if let Some(started_at) = started_at {
-                    record.snapshot.started_at = Some(started_at.to_owned());
-                }
-            }
+            "running" => self.remember_running_activity(project_id, task_id, started_at),
             "failed" => {
                 self.set_terminal_status(project_id, task_id, true);
             }
@@ -394,6 +399,7 @@ impl TaskActivityState {
         // 运行与未查看终态是权威状态，不能按缓存容量淘汰；查看、归档和删除负责释放。
         let metadata = self.metadata.get(task_id);
         self.activities.push(TaskActivityRecord {
+            async_questions: async_questions::AsyncQuestions::default(),
             approval_request_ids: HashSet::new(),
             pending_request_ids: HashSet::new(),
             snapshot: TaskActivitySnapshot {

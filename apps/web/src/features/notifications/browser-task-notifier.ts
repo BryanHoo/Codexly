@@ -1,4 +1,5 @@
 import type { AgentEvent } from "@codexly/protocol";
+import { isAsyncQuestionEvent } from "@codexly/frontend-core/async-question-event";
 
 import { i18n } from "../../i18n/i18n.js";
 import { recordInternalWarning } from "./internal-diagnostics.js";
@@ -61,6 +62,17 @@ function createTurnKey(event: Extract<AgentEvent, { turnId: string }>): string {
 }
 
 function mapTaskNotification(projectId: string, event: AgentEvent): TaskNotification | undefined {
+  if (isAsyncQuestionEvent(event))
+    return {
+      body: i18n.t("notification.waitingAsyncAnswer", { ns: "conversation" }),
+      tag: JSON.stringify([
+        projectId,
+        event.taskId,
+        event.sessionId,
+        event.payload.item.id,
+        "async-question",
+      ]),
+    };
   switch (event.type) {
     case "turn.completed": {
       const body =
@@ -104,6 +116,7 @@ function mapTaskNotification(projectId: string, event: AgentEvent): TaskNotifica
 class BrowserTaskNotifier implements TaskNotifier {
   readonly #api: BrowserNotificationApi | undefined;
   readonly #failedTurnKeys = new Set<string>();
+  readonly #questionKeys = new Set<string>();
   readonly #focusPage: () => void;
   readonly #isEnabled: () => boolean;
   readonly #isPageForeground: () => boolean;
@@ -156,6 +169,16 @@ class BrowserTaskNotifier implements TaskNotifier {
     const taskNotification = mapTaskNotification(projectId, event);
     if (taskNotification === undefined) {
       return;
+    }
+
+    if (isAsyncQuestionEvent(event)) {
+      if (this.#questionKeys.has(taskNotification.tag)) return;
+      // 仅保留最近的问题身份，避免常驻页面的通知去重集合无限增长。
+      if (this.#questionKeys.size >= 256) {
+        const oldest = this.#questionKeys.values().next().value;
+        if (oldest !== undefined) this.#questionKeys.delete(oldest);
+      }
+      this.#questionKeys.add(taskNotification.tag);
     }
 
     try {

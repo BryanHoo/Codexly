@@ -146,3 +146,46 @@ describe("任务通知记录", () => {
     expect(store.getSnapshot()).toHaveLength(1);
   });
 });
+
+it("异步问题完成时记录输入提醒，忽略普通消息、用户消息与同一问题重放", () => {
+  const store = createTaskNotificationStore();
+  const event = {
+    type: "item.completed",
+    taskId: "task-a",
+    turnId: "turn-a",
+    itemId: "question-a",
+    sessionId: "session-a",
+    sequence: 2,
+    timestamp: "2026-10-23T00:00:00Z",
+    payload: {
+      item: {
+        id: "question-a",
+        type: "message",
+        role: "assistant",
+        text: "请选择",
+        questions: [{ title: "运行方式", options: [] }],
+      },
+    },
+  } as const;
+  store.recordEvent("project-a", event, "任务");
+  store.recordEvent("project-a", event, "任务");
+  expect(store.getSnapshot()).toHaveLength(1);
+  expect(store.getSnapshot()[0]?.kind).toBe("input");
+  store.recordEvent(
+    "project-a",
+    {
+      ...event,
+      sequence: 3,
+      payload: { item: { ...event.payload.item, id: "question-b" } },
+    },
+    "任务",
+  );
+  expect(store.getSnapshot()).toHaveLength(2);
+  for (const item of [
+    { ...event.payload.item, role: "user" },
+    { ...event.payload.item, questions: [] },
+  ]) {
+    store.recordEvent("project-a", { ...event, sequence: 4, payload: { item } }, "任务");
+  }
+  expect(store.getSnapshot()).toHaveLength(2);
+});

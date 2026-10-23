@@ -192,6 +192,7 @@ export const conversation = {
     failedWithMessage: "Task failed: {{message}}",
     interrupted: "Task was interrupted and cannot continue",
     waitingApproval: "Task is waiting for approval",
+    waitingAsyncAnswer: "Task has questions awaiting your answer",
     waitingInput: "Task is waiting for input",
   },
   taskTitle: {

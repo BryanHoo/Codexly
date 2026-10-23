@@ -10,6 +10,10 @@ export async function acknowledgeTaskActivity(projectId: string, taskId: string)
   await invoke("acknowledge_task_activity", { projectId, taskId });
 }
 
+export async function resolveAsyncQuestionActivities(projectId: string, taskId: string, questionIds: readonly string[]): Promise<void> {
+  await invoke("acknowledge_task_activity", { projectId, taskId, asyncQuestionIds: questionIds });
+}
+
 export function listenTaskActivityChanged(listener: () => void): Promise<() => void> {
   return listen("task-activity://changed", listener);
 }

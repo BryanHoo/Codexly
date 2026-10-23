@@ -450,6 +450,7 @@ export const workbench = {
     settings: "设置",
     updateAvailableLabel: "，有可用更新",
     taskActions: "{{task}} 的任务操作",
+    taskInput: "任务有待回答的问题",
     taskApproval: "任务等待审批",
     taskComplete: "AI 回复已完成",
     taskIncomplete: "AI 回复未完成",

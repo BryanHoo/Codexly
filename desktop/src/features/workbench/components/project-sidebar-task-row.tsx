@@ -60,7 +60,7 @@ export function getTaskRoute(projectId: string, taskId: string) {
 export function ActiveTaskLink({ task, active, projectName }: Readonly<{ task: SidebarActiveTask; active: boolean; projectName: string }>) {
   const { t } = useTranslation("workbench");
   return <SidebarActiveTaskRow task={task} active={active} projectName={projectName}
-    labels={{ approval: t("sidebar.taskApproval"), running: t("sidebar.taskRunning"), completed: t("sidebar.taskComplete") }}
+    labels={{ approval: t("sidebar.taskApproval"), input: t("sidebar.taskInput"), running: t("sidebar.taskRunning"), completed: t("sidebar.taskComplete") }}
     renderLink={props => <TaskRouteLink {...props} {...getTaskRoute(task.projectId, task.id)} />} />;
 }
 
@@ -175,6 +175,12 @@ export function TaskStatusIndicator({
     presentation = {
       icon: <Clock3 aria-hidden="true" className="size-3.5" strokeWidth={2} />,
       label: t("sidebar.taskApproval"),
+      tone: "text-task-waiting",
+    };
+  } else if (attention === "input") {
+    presentation = {
+      icon: <Clock3 aria-hidden="true" className="size-3.5 stroke-[2.25]" />,
+      label: t("sidebar.taskInput"),
       tone: "text-task-waiting",
     };
   } else if (isRunning) {

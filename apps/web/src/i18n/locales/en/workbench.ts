@@ -455,6 +455,7 @@ export const workbench = {
     settings: "Settings",
     updateAvailableLabel: ", update available",
     taskActions: "Actions for {{task}}",
+    taskInput: "Task awaiting your answer",
     taskApproval: "Task awaiting approval",
     taskComplete: "AI response completed",
     taskIncomplete: "AI response incomplete",

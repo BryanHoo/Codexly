@@ -1,4 +1,6 @@
-import { expect, test } from "vitest";
+const resolveActivity = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock("../../../platform/tauri/task-activity-client.js", () => ({ resolveAsyncQuestionActivities: resolveActivity }));
+import { expect, test, vi } from "vitest";
 import { createQuestionDraftStore, saveQuestionDraft, type QuestionDraft } from "./async-question-session.js";
 
 const draft: QuestionDraft = { answers: [{ choice: null, text: "answer" }], status: "editing", error: false };
@@ -76,4 +78,15 @@ test("bounds session drafts while retaining sending and recently edited question
   expect(store.getState().drafts.has("pending")).toBe(true);
   expect(store.getState().drafts.has("0")).toBe(true);
   expect(store.getState().drafts.has("1")).toBe(false);
+});
+
+
+test("成功回答和关闭仅解除原任务的对应问题，编辑与失败不解除等待", () => {
+  resolveActivity.mockClear();
+  const store = createQuestionDraftStore(JSON.stringify(["project-a", "task-a"]), { getItem: () => null, setItem: () => undefined });
+  saveQuestionDraft(store, "failed", { ...draft, error: true });
+  expect(resolveActivity).not.toHaveBeenCalled();
+  saveQuestionDraft(store, "answered", { ...draft, status: "sent" });
+  store.getState().dismiss("closed");
+  expect(resolveActivity.mock.calls).toEqual([["project-a", "task-a", ["answered"]], ["project-a", "task-a", ["closed"]]]);
 });

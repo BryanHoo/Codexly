@@ -8,14 +8,16 @@ export function projectTaskActivitySnapshot(snapshot: TaskActivitySnapshot) {
   const waiting = snapshot.status === "waiting";
   // 原生 active 状态可能先于待审批请求的结束通知，审批事实以独立标志为准。
   const approval = snapshot.requiresApproval;
-  const attention: "approval" | "completed" | "failed" | null =
+  const attention: "approval" | "input" | "completed" | "failed" | null =
     snapshot.status === "completed"
       ? "completed"
       : snapshot.status === "failed"
         ? "failed"
         : approval
           ? "approval"
-          : null;
+          : waiting
+            ? "input"
+            : null;
   return {
     attention,
     isRunning: snapshot.status === "running" || waiting,

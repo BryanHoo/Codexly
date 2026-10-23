@@ -298,3 +298,31 @@ describe("browser task notifier", () => {
     await expect(harness.notifier.requestPermission()).resolves.toBeUndefined();
   });
 });
+
+it("异步问题发送一次待回答系统通知并支持点击导航", () => {
+  const harness = createHarness("granted");
+  const event: AgentEvent = {
+    ...createTurnCompletedEvent("completed"),
+    type: "item.completed",
+    turnId: "turn-1",
+    itemId: "question-1",
+    payload: {
+      item: {
+        id: "question-1",
+        type: "message",
+        role: "assistant",
+        text: "请选择",
+        questions: [{ title: "运行方式", options: [] }],
+      },
+    },
+  };
+  harness.notifier.notify("project-1", event, "异步任务");
+  harness.notifier.notify("project-1", event, "异步任务");
+  expect(harness.api.show).toHaveBeenCalledOnce();
+  expect(harness.api.show).toHaveBeenCalledWith(
+    "Codexly · 异步任务",
+    expect.objectContaining({ body: "Task 有待回答的问题，请处理" }),
+  );
+  harness.click();
+  expect(harness.navigateToTask).toHaveBeenCalledWith("project-1", "task-1");
+});

@@ -1,4 +1,6 @@
 import { expect, test, vi } from "vitest";
+const resolveActivity = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock("../../../platform/tauri/task-activity-client.js", () => ({ resolveAsyncQuestionActivities: resolveActivity }));
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AsyncQuestionProvider } from "./async-question-session.js";
@@ -105,9 +107,11 @@ test("keeps dismissed questions hidden after leaving and reopening the task", as
   const other = await render(view(`${scope}-other`));
   await expect.element(other.getByText("重新打开的问题", { exact: true })).toBeVisible();
   await other.unmount();
+  resolveActivity.mockClear();
   const reopened = await render(view(scope));
   await expect.element(reopened.getByRole("region", { name: /待回答问题|Pending questions/u })).not.toBeInTheDocument();
   expect(submit).not.toHaveBeenCalled();
+  await expect.poll(() => resolveActivity.mock.calls).toEqual([["project", JSON.parse(scope)[1], ["same-id"]]]);
 });
 
 test("keeps a question dismissed when an in-flight answer finishes", async () => {

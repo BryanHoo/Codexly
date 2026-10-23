@@ -4,6 +4,7 @@ import type { AgentTask, EventCheckpoint, TaskActivitySnapshot } from "@codexly/
 interface ActivityRecord {
   snapshot: TaskActivitySnapshot;
   requests: Map<string, boolean>;
+  asyncPending?: boolean;
 }
 // 高频正文事件直接跳过，不为每个 token 创建任务键或读取 checkpoint。
 const ACTIVITY_EVENTS = new Set([
@@ -16,6 +17,7 @@ const ACTIVITY_EVENTS = new Set([
   "pending_request.expired",
   "task.metadata_changed",
   "task.removed",
+  "item.completed",
 ]);
 const keyFor = (projectId: string, taskId: string) => `${projectId}\u0000${taskId}`;
 const isApproval = (type: string) =>
@@ -99,17 +101,19 @@ export class TaskActivityIndex {
     const requests = new Map(
       snapshot.pendingRequests.map((request) => [request.requestId, isApproval(request.type)]),
     );
-    const status = requests.size
-      ? "waiting"
-      : snapshot.status === "running"
-        ? "running"
-        : snapshot.status === "failed"
-          ? "failed"
-          : previous === undefined
-            ? undefined
-            : previous.snapshot.status === "running" || previous.snapshot.status === "waiting"
-              ? "completed"
-              : previous.snapshot.status;
+    const asyncPending = snapshot.status === "running" && previous?.asyncPending === true;
+    const status =
+      requests.size || asyncPending
+        ? "waiting"
+        : snapshot.status === "running"
+          ? "running"
+          : snapshot.status === "failed"
+            ? "failed"
+            : previous === undefined
+              ? undefined
+              : previous.snapshot.status === "running" || previous.snapshot.status === "waiting"
+                ? "completed"
+                : previous.snapshot.status;
     if (status === undefined) return false;
     const startedAt =
       snapshot.turns.findLast((turn) => turn.status === "running")?.startedAt ??
@@ -125,6 +129,7 @@ export class TaskActivityIndex {
     this.#updateActiveCount(snapshot.projectId, previous?.snapshot, status);
     this.#records.set(key, {
       requests,
+      asyncPending,
       snapshot: {
         projectId: snapshot.projectId,
         taskId: snapshot.id,
@@ -162,21 +167,36 @@ export class TaskActivityIndex {
     let status: TaskActivitySnapshot["status"];
     let startedAt = previous?.snapshot.startedAt;
     const requests = previous?.requests ?? new Map<string, boolean>();
+    let asyncPending = previous?.asyncPending ?? false;
     switch (event.type) {
+      case "item.completed":
+        if (
+          event.payload.item.type !== "message" ||
+          event.payload.item.role !== "assistant" ||
+          !event.payload.item.questions?.length
+        )
+          return false;
+        asyncPending = true;
+        status = "waiting";
+        break;
       case "turn.started":
+        asyncPending = false;
         status = "running";
         startedAt = event.payload.turn.startedAt ?? undefined;
         requests.clear();
         break;
       case "turn.completed":
+        asyncPending = false;
         status = event.payload.turn.status === "completed" ? "completed" : "failed";
         requests.clear();
         break;
       case "task.status_updated":
-        if (event.payload.status === "running") status = requests.size ? "waiting" : "running";
+        if (event.payload.status === "running")
+          status = requests.size || asyncPending ? "waiting" : "running";
         else if (event.payload.status === "failed") {
           status = "failed";
           requests.clear();
+          asyncPending = false;
         } else if (
           previous?.snapshot.status === "running" ||
           previous?.snapshot.status === "waiting"
@@ -184,12 +204,14 @@ export class TaskActivityIndex {
           // 原生 idle 是停止执行的权威事实；缺少 turn.completed 时仍须收敛状态。
           status = "completed";
           requests.clear();
+          asyncPending = false;
         } else return false;
         break;
       case "provider.error":
         if (event.payload.willRetry) return false;
         status = "failed";
         requests.clear();
+        asyncPending = false;
         break;
       case "pending_request.created":
         requests.set(event.payload.request.requestId, isApproval(event.payload.request.type));
@@ -198,12 +220,14 @@ export class TaskActivityIndex {
       case "pending_request.resolved":
       case "pending_request.expired":
         if (!requests.delete(event.payload.request.requestId)) return false;
-        status = requests.size ? "waiting" : "running";
+        status = requests.size || asyncPending ? "waiting" : "running";
         break;
       default:
         return false;
     }
     const requiresApproval = [...requests.values()].some(Boolean);
+    // 已在等待审批时收到异步问题，外观虽未变，也必须保留问题事实供审批结束后使用。
+    if (previous !== undefined) previous.asyncPending = asyncPending;
     if (
       previous?.snapshot.status === status &&
       previous.snapshot.startedAt === startedAt &&
@@ -214,6 +238,7 @@ export class TaskActivityIndex {
     this.#updateActiveCount(projectId, previous?.snapshot, status);
     this.#records.set(key, {
       requests,
+      asyncPending,
       snapshot: {
         ...(checkpoint === undefined ? {} : { checkpoint: checkpoint() }),
         projectId,
@@ -225,6 +250,35 @@ export class TaskActivityIndex {
         version: ++this.#version,
       },
     });
+    return true;
+  }
+
+  /** 持久化问题集合是回答、关闭后的权威依据，不让已处理问题继续显示待输入。 */
+  setAsyncPending(projectId: string, taskId: string, pending: boolean): boolean {
+    const key = keyFor(projectId, taskId);
+    const record = this.#records.get(key);
+    if (!record) {
+      if (!pending) return false;
+      this.#updateActiveCount(projectId, undefined, "waiting");
+      this.#records.set(key, {
+        requests: new Map(),
+        asyncPending: true,
+        snapshot: {
+          projectId,
+          taskId,
+          taskName: this.#titles.get(key) ?? taskId,
+          status: "waiting",
+          requiresApproval: false,
+          version: ++this.#version,
+        },
+      });
+      return true;
+    }
+    if (record.snapshot.status !== "running" && record.snapshot.status !== "waiting") return false;
+    record.asyncPending = pending;
+    const status = pending || record.requests.size > 0 ? "waiting" : "running";
+    if (record.snapshot.status === status) return false;
+    record.snapshot = { ...record.snapshot, status, version: ++this.#version };
     return true;
   }
 }

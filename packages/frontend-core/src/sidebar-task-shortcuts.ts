@@ -5,7 +5,7 @@ export type SidebarActiveTask = Readonly<{
   id: string;
   projectId: string;
   title: string;
-  status: "approval" | "running" | "completed";
+  status: "approval" | "input" | "running" | "completed";
 }>;
 
 type ActivityRecord = Readonly<{
@@ -14,7 +14,7 @@ type ActivityRecord = Readonly<{
   projectId: string;
   taskName?: string;
   isRunning: boolean;
-  attention: "approval" | "completed" | "failed" | null;
+  attention: "approval" | "input" | "completed" | "failed" | null;
   pendingApprovalRequestIds: ReadonlySet<string>;
 }>;
 
@@ -32,14 +32,21 @@ export function getSidebarActiveTasks(
     const waiting = record.pendingApprovalRequestIds.size > 0;
     const status = waiting
       ? "approval"
-      : record.isRunning
-        ? "running"
-        : record.attention === "completed"
-          ? "completed"
-          : null;
+      : record.attention === "input"
+        ? "input"
+        : record.isRunning
+          ? "running"
+          : record.attention === "completed"
+            ? "completed"
+            : null;
     if (status === null) continue;
     // 完成提醒由两端现有的任务聚焦流程清除；保留入口并参与分组总数，实际运行数独立统计。
-    (status === "approval" ? approval : status === "running" ? running : completed).push({
+    (status === "approval" || status === "input"
+      ? approval
+      : status === "running"
+        ? running
+        : completed
+    ).push({
       // 活动可能先于完整快照到达；原样传递未知引擎，不能误标成 Codex。
       engine: record.engine,
       id: record.taskId,

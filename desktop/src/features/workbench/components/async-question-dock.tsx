@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MessageCircleQuestion, X, type LucideIcon } from "lucide-react";
-import { lazy, Suspense, useId, useMemo, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
@@ -8,7 +8,7 @@ import { Button } from "../../../shared/components/core/button.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../shared/components/core/tooltip.js";
 import type { TaskStore } from "../../conversation/runtime/task-store-core.js";
 import { createAsyncQuestionProjection, type QuestionEntry } from "./async-question-projection.js";
-import { useAsyncQuestionSession } from "./async-question-session.js";
+import { resolveQuestionActivity, useAsyncQuestionSession } from "./async-question-session.js";
 
 // 无待回答问题时不加载表单代码，降低工作台初始加载量。
 const AsyncQuestions = lazy(() => import("./async-questions.js").then((module) => ({ default: module.AsyncQuestions })));
@@ -27,6 +27,10 @@ function QuestionDockContent({ entries, session }: Readonly<{
   const { t } = useTranslation("conversation");
   const pending = useStore(session.store, useShallow((state) =>
     entries.filter((entry) => !state.sentIds.has(entry.item.id) && !state.dismissedIds.has(entry.item.id))));
+  const resolved = useStore(session.store, useShallow((state) =>
+    entries.filter((entry) => state.sentIds.has(entry.item.id) || state.dismissedIds.has(entry.item.id)).map((entry) => entry.item.id)));
+  // 历史恢复完成后批量校准原生状态，已关闭或已回答的问题不能因重启重新变成待处理。
+  useEffect(() => resolveQuestionActivity(session.scope, resolved), [session.scope, resolved]);
   const [selectedKey, setSelectedKey] = useState<string>();
   const [collapsed, setCollapsed] = useState(false);
   const contentId = useId();

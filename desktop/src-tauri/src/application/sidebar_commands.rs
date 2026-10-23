@@ -3,7 +3,7 @@ use crate::infrastructure::local_catalog::{
     sidebar::{map_project, map_task},
 };
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::{
     error::AppError, scheduled_task_runner::start_turn_for_task,
@@ -181,7 +181,14 @@ pub async fn read_task(
             state
                 .complete_task_snapshot_at(&mut response, Some(baseline))
                 .await;
-            state.remember_task_snapshot(&response.snapshot).await;
+            if state.remember_task_snapshot(&response.snapshot).await
+                && let Err(error) = app.emit("task-activity://changed", ())
+            {
+                crate::infrastructure::diagnostics::record_error(
+                    "task_activity_notify_failed",
+                    error,
+                );
+            }
             serde_json::to_value(response).map_err(|_| AppError::CodexRequestFailed)
         })
         .await

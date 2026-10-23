@@ -197,6 +197,20 @@ describe("TaskStatusIndicator", () => {
     expect(markup).not.toContain("task-age");
   });
 
+  it("任务继续执行时优先显示待回答标记", () => {
+    const markup = renderToStaticMarkup(
+      <TaskStatusIndicator
+        attention="input"
+        isAwaitingApproval={false}
+        isRunning
+        updatedAt="2026-07-23T00:01:00.000Z"
+      />,
+    );
+    expect(markup).toContain('aria-label="任务有待回答的问题"');
+    expect(markup).toContain("text-task-waiting");
+    expect(markup).not.toContain("task-status-dot");
+  });
+
   it("shows a refined yellow clock while awaiting approval", () => {
     const markup = renderToStaticMarkup(
       <TaskStatusIndicator

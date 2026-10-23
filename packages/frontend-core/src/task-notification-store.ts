@@ -1,4 +1,5 @@
 import type { AgentEvent, TaskActivitySnapshot, EventCheckpoint } from "@codexly/protocol";
+import { isAsyncQuestionEvent } from "./async-question-event.js";
 
 export type TaskNotificationKind = "completed" | "failed" | "approval" | "input";
 export type TaskNotification = Readonly<{
@@ -21,9 +22,24 @@ type NotificationEvent = Pick<AgentEvent, "taskId" | "sessionId" | "sequence" | 
     | { type: "provider.error"; payload: { willRetry: boolean } }
     | { type: "pending_request.created"; payload: { request: { type: string } } }
     | {
+        type: "item.completed";
+        payload: {
+          item: {
+            id: string;
+            type: string;
+            role?: string;
+            questions?: readonly { title: string }[];
+          };
+        };
+      }
+    | {
         type: Exclude<
           AgentEvent["type"],
-          "turn.started" | "turn.completed" | "provider.error" | "pending_request.created"
+          | "turn.started"
+          | "turn.completed"
+          | "provider.error"
+          | "pending_request.created"
+          | "item.completed"
         >;
       }
   );
@@ -37,6 +53,7 @@ export function isTaskNotificationEvent<T extends { type: string }>(
       | "turn.completed"
       | "provider.error"
       | "pending_request.created"
+      | "item.completed"
       | "pending_request.resolved"
       | "pending_request.expired";
   }
@@ -48,7 +65,8 @@ export function isTaskNotificationEvent<T extends { type: string }>(
     type === "provider.error" ||
     type === "pending_request.created" ||
     type === "pending_request.resolved" ||
-    type === "pending_request.expired"
+    type === "pending_request.expired" ||
+    isAsyncQuestionEvent(event)
   );
 }
 const STORAGE_KEY = "codexly.task-notifications.v1";
@@ -139,7 +157,11 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
         if (typeof window !== "undefined") window.removeEventListener("storage", onStorage);
       };
     },
-    recordActivities(tasks: readonly TaskActivitySnapshot[], createdAt = Date.now()): void {
+    recordActivities(
+      tasks: readonly TaskActivitySnapshot[],
+      createdAt = Date.now(),
+      notificationId?: string,
+    ): void {
       let next: TaskNotification[] | undefined;
       let changed = false;
       for (const task of tasks) {
@@ -158,21 +180,24 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
           task.status,
           task.requiresApproval,
         ]);
-        if (signatures.get(key) === signature) continue;
+        if (notificationId === undefined && signatures.get(key) === signature) continue;
+        if (notificationId !== undefined && items.some((item) => item.id === notificationId))
+          continue;
         signatures.set(key, signature);
         changed = true;
         if (task.status === "running" && !task.requiresApproval) continue;
-        const kind = task.requiresApproval
-          ? "approval"
-          : task.status === "waiting"
+        const kind =
+          notificationId !== undefined
             ? "input"
-            : task.status;
+            : task.requiresApproval
+              ? "approval"
+              : task.status === "waiting"
+                ? "input"
+                : task.status;
         if (kind === "running") continue;
-        const id = JSON.stringify([
-          key,
-          signature,
-          task.checkpoint?.sequence ?? task.version ?? Date.now(),
-        ]);
+        const id =
+          notificationId ??
+          JSON.stringify([key, signature, task.checkpoint?.sequence ?? task.version ?? Date.now()]);
         const notification: TaskNotification = {
           id,
           projectId: task.projectId,
@@ -190,7 +215,20 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
     recordEvent(projectId: string, event: NotificationEvent, taskName: string): void {
       let status: TaskActivitySnapshot["status"],
         requiresApproval = false;
+      let notificationId: string | undefined;
       switch (event.type) {
+        case "item.completed":
+          if (!isAsyncQuestionEvent(event)) return;
+          // 每条问题独立提醒；同一任务已在等待时，新问题也不能被状态去重吞掉。
+          notificationId = JSON.stringify([
+            projectId,
+            event.taskId,
+            event.sessionId,
+            event.payload.item.id,
+            "async-question",
+          ]);
+          status = "waiting";
+          break;
         case "turn.started":
           status = "running";
           break;
@@ -217,7 +255,10 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
       const previous = signatures.get(key);
       let previousStart: unknown;
       try {
-        previousStart = previous ? (JSON.parse(previous) as unknown[])[0] : undefined;
+        const signature = previous ? (JSON.parse(previous) as unknown[]) : undefined;
+        previousStart = signature?.[0];
+        // 新问题不改变既有审批事实；随后全局快照不应重复生成同一条审批提醒。
+        if (notificationId !== undefined) requiresApproval = signature?.[2] === true;
       } catch {
         /* 旧版或损坏的去重数据不能阻断实时事件。 */
       }
@@ -239,6 +280,7 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
           },
         ],
         Number.isFinite(Date.parse(event.timestamp)) ? Date.parse(event.timestamp) : Date.now(),
+        notificationId,
       );
     },
     markRead: (id: string) => {

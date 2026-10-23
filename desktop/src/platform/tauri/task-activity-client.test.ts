@@ -31,4 +31,13 @@ describe("task activity client", () => {
       taskId: "task-1",
     });
   });
+
+  it("批量解除指定任务的问题等待，不使用普通聚焦确认参数", async () => {
+    invoke.mockResolvedValue(undefined);
+    const { resolveAsyncQuestionActivities } = await import("./task-activity-client.js");
+    await resolveAsyncQuestionActivities("project-a", "task-a", ["question-a", "question-b"]);
+    expect(invoke).toHaveBeenCalledWith("acknowledge_task_activity", {
+      projectId: "project-a", taskId: "task-a", asyncQuestionIds: ["question-a", "question-b"],
+    });
+  });
 });

@@ -50,6 +50,7 @@ export class AsyncQuestionService {
   private async discover(projectId: string, taskId: string, key: string) {
     const repository = this.repository();
     const { runtime, task } = await this.task(projectId, taskId);
+    this.context.workbenchChanges.taskActivities.remember([task]);
     const previousAnchor = this.#anchors.get(key);
     const newestId = task.turns.at(-1)?.id;
     let page: AgentProviderTaskSnapshot = task;
@@ -105,7 +106,7 @@ export class AsyncQuestionService {
     const runningTurnIds =
       activeTurnIds ?? new Set(collectRunningTurnIds((await this.task(projectId, taskId)).task));
     const records = await this.repository().listAsyncQuestions(projectId, taskId);
-    return {
+    const result = {
       data: records
         .map((record) => record.group)
         .filter(
@@ -114,6 +115,15 @@ export class AsyncQuestionService {
             (group.status === "pending" || group.status === "answering"),
         ),
     };
+    if (
+      this.context.workbenchChanges.taskActivities.setAsyncPending(
+        projectId,
+        taskId,
+        result.data.length > 0,
+      )
+    )
+      this.context.workbenchChanges.publish({ type: "task-activity.changed" });
+    return result;
   }
   public async dismiss(projectId: string, taskId: string, ids: readonly string[]) {
     const { task } = await this.task(projectId, taskId);

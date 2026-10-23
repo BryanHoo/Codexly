@@ -172,6 +172,13 @@ describe("TaskLink", () => {
 describe("TaskStatusIndicator", () => {
   it.each([
     {
+      attention: "input" as const,
+      iconClass: "lucide-clock-3",
+      isAwaitingApproval: false,
+      label: "任务有待回答的问题",
+      toneClass: "text-task-waiting",
+    },
+    {
       attention: "completed" as const,
       iconClass: "lucide-circle-check-big",
       isAwaitingApproval: false,

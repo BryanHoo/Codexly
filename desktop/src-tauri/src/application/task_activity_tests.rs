@@ -359,3 +359,36 @@ fn authoritative_idle_settles_active_tasks_without_overwriting_failures() {
     }
     assert_eq!(state.snapshot()[0].status, TaskActivityStatus::Failed);
 }
+
+#[test]
+fn async_questions_should_require_input_until_answered() {
+    let mut state = TaskActivityState::default();
+    let question = event(json!({
+        "type": "item.completed", "taskId": "task-1", "turnId": "turn-1", "itemId": "q-1",
+        "payload": { "item": { "id": "q-1", "type": "message", "role": "assistant", "text": "请选择", "questions": [{ "title": "运行方式", "options": [] }] } }
+    }));
+    assert!(state.apply_event("project-1", &question));
+    assert_eq!(state.snapshot()[0].status, TaskActivityStatus::Waiting);
+    assert!(!state.snapshot()[0].requires_approval);
+    assert!(!state.apply_event("project-1", &question));
+    state.apply_event("project-1", &event(json!({ "type": "task.status_updated", "taskId": "task-1", "payload": { "status": "running" } })));
+    assert_eq!(state.snapshot()[0].status, TaskActivityStatus::Waiting);
+    state.apply_event("project-1", &event(json!({ "type": "item.completed", "taskId": "task-1", "payload": { "item": { "id": "answer", "type": "message", "role": "user", "text": "运行方式\n默认" } } })));
+    assert_eq!(state.snapshot()[0].status, TaskActivityStatus::Running);
+}
+
+#[test]
+fn async_questions_should_preserve_other_questions_and_approvals_when_dismissed() {
+    let mut state = TaskActivityState::default();
+    for id in ["q-1", "q-2"] {
+        state.apply_event("p", &event(json!({ "type": "item.completed", "taskId": "t", "payload": { "item": { "id": id, "type": "message", "role": "assistant", "questions": [{ "title": "范围" }] } } })));
+    }
+    state.apply_event("p", &event(json!({ "type": "pending_request.created", "taskId": "t", "payload": { "request": { "requestId": "approval", "type": "command_approval" } } })));
+    assert!(state.resolve_async_question("p", "t", "q-1"));
+    assert!(state.resolve_async_question("p", "t", "q-2"));
+    assert_eq!(state.snapshot()[0].status, TaskActivityStatus::Waiting);
+    assert!(state.snapshot()[0].requires_approval);
+    state.apply_event("p", &event(json!({ "type": "pending_request.resolved", "taskId": "t", "payload": { "request": { "requestId": "approval" } } })));
+    assert_eq!(state.snapshot()[0].status, TaskActivityStatus::Running);
+    assert!(!state.resolve_async_question("other", "t", "q-1"));
+}

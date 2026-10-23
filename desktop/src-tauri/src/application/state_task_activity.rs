@@ -6,6 +6,19 @@ use crate::domain::conversation::AgentTaskSnapshot;
 use crate::domain::sidebar::{Project, ProjectPage};
 
 impl AppState {
+    pub async fn resolve_async_question_activity(
+        &self,
+        project_id: &str,
+        task_id: &str,
+        question_id: &str,
+    ) -> bool {
+        self.runtime
+            .lock()
+            .await
+            .task_activity
+            .resolve_async_question(project_id, task_id, question_id)
+    }
+
     pub async fn acknowledge_task_activity(&self, project_id: &str, task_id: &str) -> bool {
         self.runtime
             .lock()
@@ -67,7 +80,7 @@ impl AppState {
         self.runtime.lock().await.task_activity.snapshot()
     }
 
-    pub async fn remember_task_snapshot(&self, snapshot: &AgentTaskSnapshot) {
+    pub async fn remember_task_snapshot(&self, snapshot: &AgentTaskSnapshot) -> bool {
         let mut runtime = self.runtime.lock().await;
         runtime
             .task_projects
@@ -96,6 +109,10 @@ impl AppState {
                 .find(|turn| turn.status == "running")
                 .and_then(|turn| turn.started_at.as_deref()),
         );
+        // 详情恢复复用已有快照，不为待回答状态额外读取完整历史。
+        runtime
+            .task_activity
+            .remember_async_question_snapshot(snapshot)
     }
 
     pub async fn promote_task_title(

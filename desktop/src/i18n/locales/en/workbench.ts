@@ -460,7 +460,7 @@ export const workbench = {
     updateAvailableHint: "Update",
     updateAvailableLabel: ", update available",
     taskActions: "Actions for {{task}}",
-    taskApproval: "Task awaiting approval",
+    taskInput: "Task awaiting your answer", taskApproval: "Task awaiting approval",
     taskComplete: "AI response completed",
     taskIncomplete: "AI response incomplete",
     taskLoading: "Loading tasks",
