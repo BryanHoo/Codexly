@@ -53,6 +53,22 @@ describe("Claude Code version metadata", () => {
 });
 
 describe("app update service", () => {
+  it("refreshes version metadata on demand while retaining ordinary read caching", async () => {
+    const fetchLatestVersion = vi.fn().mockResolvedValueOnce("1.3.0").mockResolvedValue("1.4.0");
+    const service = createAppUpdateService({
+      appVersion: "1.3.0",
+      codexVersion: "0.163.0",
+      fetchLatestVersion,
+      fetchChangelog: () => Promise.resolve(""),
+    });
+    await expect(service.read()).resolves.toMatchObject({ status: "current" });
+    await expect(service.read()).resolves.toMatchObject({ status: "current" });
+    await expect(service.read({ refresh: true })).resolves.toMatchObject({
+      latestVersion: "1.4.0",
+      status: "available",
+    });
+    expect(fetchLatestVersion).toHaveBeenCalledTimes(2);
+  });
   it("keeps unknown Claude metadata from breaking application information", async () => {
     const service = createAppUpdateService({
       appVersion: "1.3.0",

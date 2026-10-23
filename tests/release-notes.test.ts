@@ -6,12 +6,14 @@ import { describe, expect, it } from "vitest";
 import { extractReleaseNotes } from "../tools/extract-release-notes.mjs";
 
 describe("extractReleaseNotes", () => {
-  it("extracts only the requested version section", () => {
-    const changelog = `# 更新日志
+  it.each(["", "- 尚未发布"])(
+    "extracts only the requested version with Unreleased %j",
+    (pending) => {
+      const changelog = `# 更新日志
 
 ## [Unreleased]
 
-- 尚未发布
+${pending}
 
 ## [1.2.0] - 2026-08-23
 
@@ -24,8 +26,9 @@ describe("extractReleaseNotes", () => {
 - 上一版本内容
 `;
 
-    expect(extractReleaseNotes(changelog, "1.2.0")).toBe("### 新增\n\n- 添加当前版本功能");
-  });
+      expect(extractReleaseNotes(changelog, "1.2.0")).toBe("### 新增\n\n- 添加当前版本功能");
+    },
+  );
 
   it("rejects a version missing from the changelog", () => {
     expect(() => extractReleaseNotes("## [1.1.0] - 2026-08-20\n\n- 内容", "1.2.0")).toThrow(
@@ -48,14 +51,14 @@ describe("extractReleaseNotes", () => {
     };
     const changelog = readFileSync(join(process.cwd(), "CHANGELOG.md"), "utf8");
 
-    const releaseHeading = `## [${packageJson.version}] - `;
     expect(changelog).toMatch(
       new RegExp(
         `^## \\[${packageJson.version.replaceAll(".", "\\.")}\\] - \\d{4}-\\d{2}-\\d{2}$`,
         "m",
       ),
     );
-    expect(changelog.split("## [Unreleased]")[1]?.split(releaseHeading)[0]?.trim()).toBe("");
+    // 开发期间允许积累未发布变更；发布说明仍按指定版本提取，不混入 Unreleased。
+    expect(changelog).toMatch(/^## \[Unreleased\]$/m);
     expect(extractReleaseNotes(changelog, packageJson.version).length).toBeGreaterThan(0);
   });
 });

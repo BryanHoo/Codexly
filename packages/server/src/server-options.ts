@@ -17,6 +17,7 @@ import type {
 } from "@codexly/core";
 import type {
   AppInfoResponse,
+  AppInfoQuery,
   AppUpdateProgressResponse,
   CommitProjectChangesRequest,
   PushProjectCommitsRequest,
@@ -81,7 +82,7 @@ export interface CreateCodexlyServerOptions {
   provider: AgentRuntimeProvider;
   preloadModelCatalog?: boolean;
   petProvider: WorkbenchPetProvider;
-  readAppInfo: () => Promise<AppInfoResponse>;
+  readAppInfo: (query?: AppInfoQuery) => Promise<AppInfoResponse>;
   readAppUpdateProgress: () => Promise<AppUpdateProgressResponse>;
   settingsRepository: AgentSettingsRepository;
   skillMarketService?: SkillMarketService;

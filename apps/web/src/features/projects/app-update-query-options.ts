@@ -1,4 +1,4 @@
-import { mutationOptions, queryOptions } from "@tanstack/react-query";
+import { mutationOptions, queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { codexlyClient, type CodexlyAppUpdateClient } from "./project-query-contracts.js";
 
@@ -8,6 +8,20 @@ export function appInfoQueryOptions(client: CodexlyAppUpdateClient = codexlyClie
     queryKey: ["app-info"] as const,
     staleTime: 5 * 60_000,
   });
+}
+
+export function refreshAppInfo(
+  queryClient: QueryClient,
+  client: CodexlyAppUpdateClient = codexlyClient,
+) {
+  // fetchQuery 合并在途检查并同步查询状态；显式刷新同时绕过浏览器和服务端缓存。
+  return queryClient
+    .fetchQuery({
+      ...appInfoQueryOptions(client),
+      queryFn: ({ signal }) => client.getAppInfo({ refresh: true, signal }),
+      staleTime: 0,
+    })
+    .catch(() => undefined); // 错误保留在查询状态中，由关于页展示并允许重试。
 }
 
 export function appUpdateProgressQueryOptions(

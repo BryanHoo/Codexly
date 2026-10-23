@@ -15,12 +15,12 @@ import {
 import {
   runNpmWithRegistryFallback,
   selectRegistryOrder,
-  withRegistryFallback,
+  withOfficialRegistryFallback,
   type RunNpmOptions,
   type RegistryOrder,
 } from "./npm-registry.js";
-
 import type {
+  AppInfoQuery,
   AppInfoResponse,
   AppUpdateProgress,
   AppUpdateProgressResponse,
@@ -53,7 +53,7 @@ export interface AppUpdateService {
     version: string,
     onProgress?: (progress: AppUpdateProgress) => void,
   ) => Promise<InstallAppUpdateResponse>;
-  read: () => Promise<AppInfoResponse>;
+  read: (query?: AppInfoQuery) => Promise<AppInfoResponse>;
   readProgress: () => Promise<AppUpdateProgressResponse>;
 }
 
@@ -171,7 +171,7 @@ export function isNewerVersion(candidate: string, current: string): boolean {
 }
 
 async function fetchLatestPackageVersion(): Promise<string> {
-  return withRegistryFallback(fetchPackageVersionFromRegistry);
+  return withOfficialRegistryFallback(fetchPackageVersionFromRegistry);
 }
 
 async function fetchPackageVersionFromRegistry(registry: string): Promise<string> {
@@ -450,10 +450,10 @@ export function createAppUpdateService(options: CreateAppUpdateServiceOptions): 
     readProgress() {
       return Promise.resolve({ progress: updateProgress });
     },
-    async read() {
+    async read(query = {}) {
       let latestVersion: string;
       try {
-        latestVersion = await readLatest();
+        latestVersion = await readLatest(query.refresh === true);
       } catch {
         return {
           appVersion: options.appVersion,

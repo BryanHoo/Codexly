@@ -41,6 +41,13 @@ export const AppUpdateProgressResponseSchema = Type.Object(
 );
 export type AppUpdateProgressResponse = Readonly<Static<typeof AppUpdateProgressResponseSchema>>;
 
+/** 手动检查显式刷新服务端版本缓存，普通读取继续复用缓存。 */
+export const AppInfoQuerySchema = Type.Object(
+  { refresh: Type.Optional(Type.Boolean()) },
+  { additionalProperties: false },
+);
+export type AppInfoQuery = Readonly<Static<typeof AppInfoQuerySchema>>;
+
 export const AppInfoResponseSchema = Type.Object(
   {
     appVersion: SemanticVersionSchema,

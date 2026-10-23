@@ -7,6 +7,7 @@
 ## 契约与检查项
 
 - [ ] 经 `@codexly/client` 访问 HTTP / WebSocket；不得直接导入 Server、Core 或 Provider。
+- [ ] 关于页的显式版本检查通过 `GET /v1/app-info?refresh=true` 绕过客户端和服务端版本缓存，普通读取保留缓存与在途合并；更新进度只在安装期间轮询。回归入口为 `app-update-query-options.test.ts` 与 `app-shell-settings-connection.spec.ts`。
 - [ ] 共用状态推导与组件优先使用 Frontend Core / UI；平台回调与翻译由本端传入。参考 [复用边界](../../guides/code-reuse-thinking-guide.md)。
 - [ ] 移动浏览器保留窄屏导航、触控和中栏文档工作区；核对 [文档工作区](../../../../docs/document-workspace.md) 与 [会话性能](../../../../docs/conversation-performance.md)。
 - [ ] 历史和重型组件按需加载，流式消息使用共享增量渲染，避免逐 token 的全局状态重建。

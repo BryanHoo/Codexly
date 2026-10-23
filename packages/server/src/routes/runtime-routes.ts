@@ -9,12 +9,14 @@ import {
   AgentModelPageSchema,
   AgentMutationErrorSchema,
   AppInfoResponseSchema,
+  AppInfoQuerySchema,
   AppUpdateProgressResponseSchema,
   EventStreamMetricsResponseSchema,
   HealthResponseSchema,
   InstallAppUpdateRequestSchema,
   InstallAppUpdateResponseSchema,
   type AgentGlobalSettings,
+  type AppInfoQuery,
   type InstallAppUpdateRequest,
 } from "@codexly/protocol";
 import type { FastifyPluginCallback } from "fastify";
@@ -98,8 +100,11 @@ export const registerRuntimeRoutes: FastifyPluginCallback<ServerRouteContext> = 
     version: 1 as const,
   }));
 
-  app.get("/v1/app-info", { schema: { response: { 200: AppInfoResponseSchema } } }, () =>
-    readAppInfo(),
+  app.get<{ Querystring: AppInfoQuery }>(
+    "/v1/app-info",
+    { schema: { querystring: AppInfoQuerySchema, response: { 200: AppInfoResponseSchema } } },
+    // 只将经过协议校验的刷新意图传入服务，不改变普通读取的跨设备缓存策略。
+    (request) => readAppInfo(request.query),
   );
 
   app.get(

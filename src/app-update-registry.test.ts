@@ -16,6 +16,25 @@ describe("app update registry selection", () => {
   beforeEach(() => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null));
   });
+  it("does not hide a published update behind a faster stale mirror", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((url, init) => {
+      const isMirror = typeof url === "string" && url.startsWith(mirror);
+      if (init?.method === "HEAD") {
+        return Promise.resolve(new Response(null, { status: isMirror ? 200 : 503 }));
+      }
+      return Promise.resolve(Response.json({ latest: isMirror ? "0.40.0" : "0.41.0" }));
+    });
+    const service = createAppUpdateService({
+      appVersion: "0.40.0",
+      codexVersion: "0.163.0",
+      fetchChangelog: () => Promise.resolve(""),
+    });
+
+    await expect(service.read()).resolves.toMatchObject({
+      latestVersion: "0.41.0",
+      status: "available",
+    });
+  });
   it("identifies release notes requests with the same User-Agent", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")
@@ -31,7 +50,33 @@ describe("app update registry selection", () => {
     expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({ "user-agent": "Codexly" });
   });
 
-  it("checks the official registry when its probe succeeds first", async () => {
+  it("keeps an advertised update installable when the mirror wins the next probe", async () => {
+    let preferMirror = false;
+    vi.spyOn(globalThis, "fetch").mockImplementation((url, init) => {
+      const isMirror = typeof url === "string" && url.startsWith(mirror);
+      if (init?.method === "HEAD") {
+        return Promise.resolve(
+          new Response(null, { status: isMirror === preferMirror ? 200 : 503 }),
+        );
+      }
+      return Promise.resolve(Response.json({ latest: isMirror ? "0.40.0" : "0.41.0" }));
+    });
+    const runNpmInstall = vi.fn((_version: string) => Promise.resolve());
+    const service = createAppUpdateService({
+      appVersion: "0.40.0",
+      codexVersion: "0.163.0",
+      fetchChangelog: () => Promise.resolve(""),
+      runNpmInstall,
+    });
+    await expect(service.read()).resolves.toMatchObject({ status: "available" });
+    // 复现页面检查与点击安装之间镜像探测变快、版本标签却尚未同步的情况。
+    preferMirror = true;
+    await expect(service.install("0.41.0")).resolves.toMatchObject({ status: "restart-required" });
+    expect(runNpmInstall).toHaveBeenCalledOnce();
+    expect(runNpmInstall.mock.calls[0]?.[0]).toBe("0.41.0");
+  });
+
+  it("checks authoritative version metadata without download-speed probes", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(Response.json({ latest: "1.4.0" }));
@@ -42,12 +87,12 @@ describe("app update registry selection", () => {
     });
 
     await expect(service.read()).resolves.toMatchObject({ latestVersion: "1.4.0" });
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(fetch.mock.calls[2]?.[0]).toBe(`${official}/-/package/%40bryanhu%2Fcodexly/dist-tags`);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch.mock.calls[0]?.[0]).toBe(`${official}/-/package/%40bryanhu%2Fcodexly/dist-tags`);
   });
 
   it.each(["network", "missing", "invalid", "timeout"])(
-    "falls back to the official registry after a %s mirror failure",
+    "falls back to the mirror after a %s official registry failure",
     async (failure) => {
       let attempted = false;
       const fetch = vi.spyOn(globalThis, "fetch").mockImplementation((url, init) => {
@@ -80,8 +125,8 @@ describe("app update registry selection", () => {
       expect(
         fetch.mock.calls.filter(([, init]) => init?.method !== "HEAD").map(([url]) => url),
       ).toEqual([
-        `${mirror}/-/package/%40bryanhu%2Fcodexly/dist-tags`,
         `${official}/-/package/%40bryanhu%2Fcodexly/dist-tags`,
+        `${mirror}/-/package/%40bryanhu%2Fcodexly/dist-tags`,
       ]);
       for (const [, init] of fetch.mock.calls) {
         expect(init?.headers).toMatchObject({ "user-agent": "Codexly" });

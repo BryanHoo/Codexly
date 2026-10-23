@@ -390,9 +390,13 @@ test("opens update notes from the sidebar and installs an available update from 
   page,
 }) => {
   let appInfoRequests = 0;
+  let forcedCheckRequests = 0;
   let updateRequest: Record<string, unknown> | undefined;
-  await page.route("**/v1/app-info", async (route) => {
+  await page.route(/\/v1\/app-info(?:\?.*)?$/u, async (route) => {
     appInfoRequests += 1;
+    if (new URL(route.request().url()).searchParams.get("refresh") === "true") {
+      forcedCheckRequests += 1;
+    }
     await route.fulfill({
       contentType: "application/json",
       json: {
@@ -478,8 +482,10 @@ test("opens update notes from the sidebar and installs an available update from 
   );
 
   const initialAppInfoRequests = appInfoRequests;
+  const initialForcedCheckRequests = forcedCheckRequests;
   await dialog.getByRole("button", { name: "检查更新" }).click();
   await expect.poll(() => appInfoRequests).toBeGreaterThan(initialAppInfoRequests);
+  await expect.poll(() => forcedCheckRequests).toBeGreaterThan(initialForcedCheckRequests);
 
   await dialog.getByRole("button", { name: "更新日志" }).click();
   const releaseNotesDialog = page.getByRole("dialog", { name: "1.4.0 更新日志" });

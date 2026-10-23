@@ -34,6 +34,7 @@ import {
   type AgentProviderConnectionMutationResponse,
   type AgentProviderConnectionStatus,
   type AppInfoResponse,
+  type AppInfoQuery,
   type AppUpdateProgressResponse,
   type HealthResponse,
   type InstallAppUpdateResponse,
@@ -197,8 +198,9 @@ export class CodexlyTransport {
     return this.read("/v1/health", HealthResponseSchema, options);
   }
 
-  public async getAppInfo(options: ReadOptions = {}): Promise<AppInfoResponse> {
-    return this.read("/v1/app-info", AppInfoResponseSchema, options);
+  public async getAppInfo(options: ReadOptions & AppInfoQuery = {}): Promise<AppInfoResponse> {
+    const path = appendQuery("/v1/app-info", { refresh: options.refresh });
+    return this.read(path, AppInfoResponseSchema, options);
   }
 
   public async getAppUpdateProgress(options: ReadOptions = {}): Promise<AppUpdateProgressResponse> {

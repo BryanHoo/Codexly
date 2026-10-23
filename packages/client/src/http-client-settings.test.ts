@@ -166,6 +166,7 @@ describe("CodexlyClient settings and app routes", () => {
     const client = new CodexlyClient({ fetch: fetchMock });
 
     await expect(client.getAppInfo()).resolves.toEqual(available);
+    fetchMock.mockResolvedValueOnce(jsonResponse(available));
     await expect(client.getAppUpdateProgress()).resolves.toEqual({
       progress: { percent: 30, phase: "downloading" },
     });
@@ -185,6 +186,10 @@ describe("CodexlyClient settings and app routes", () => {
     expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get("idempotency-key")).toBe(
       "app-update-key",
     );
+    const signal = new AbortController().signal;
+    await expect(client.getAppInfo({ refresh: true, signal })).resolves.toEqual(available);
+    expect(fetchMock.mock.calls[3]?.[0]).toBe("/v1/app-info?refresh=true");
+    expect(fetchMock.mock.calls[3]?.[1]?.signal).toBeDefined();
   });
 
   it("rejects malformed application information", async () => {

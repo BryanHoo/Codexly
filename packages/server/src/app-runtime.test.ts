@@ -187,6 +187,9 @@ describe("server runtime and core routes", () => {
     closeCallbacks.push(() => app.close());
 
     const infoResponse = await app.inject({ method: "GET", url: "/v1/app-info" });
+    const freshInfoResponse = await app.inject({ method: "GET", url: "/v1/app-info?refresh=true" });
+    expect(freshInfoResponse.statusCode).toBe(200);
+    expect(readAppInfo).toHaveBeenLastCalledWith({ refresh: true });
     const progressResponse = await app.inject({ method: "GET", url: "/v1/app-update/progress" });
     const request = {
       headers: { "idempotency-key": "install-update-1" },

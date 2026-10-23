@@ -1,8 +1,39 @@
 import { describe, expect, it, vi } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import type { AppInfoResponse } from "@codexly/protocol";
 
-import { appUpdateProgressQueryOptions } from "./app-update-query-options.js";
+import { appUpdateProgressQueryOptions, refreshAppInfo } from "./app-update-query-options.js";
 
 describe("application update query options", () => {
+  it("bypasses both browser and server version caches for an explicit check", async () => {
+    const queryClient = new QueryClient();
+    const available: AppInfoResponse = {
+      appVersion: "0.40.0",
+      codexVersion: "0.163.0",
+      latestVersion: "0.41.0",
+      releaseNotes: null,
+      status: "available",
+      updateAvailable: true,
+    };
+    queryClient.setQueryData(["app-info"], {
+      ...available,
+      latestVersion: "0.40.0",
+      status: "current",
+      updateAvailable: false,
+    });
+    const client = {
+      getAppInfo: vi.fn().mockResolvedValue(available),
+      getAppUpdateProgress: vi.fn(),
+      installAppUpdate: vi.fn(),
+    };
+    try {
+      await refreshAppInfo(queryClient, client);
+      expect(client.getAppInfo).toHaveBeenCalledWith(expect.objectContaining({ refresh: true }));
+      expect(queryClient.getQueryData(["app-info"])).toEqual(available);
+    } finally {
+      queryClient.clear();
+    }
+  });
   it("polls progress only while an update is active", () => {
     const client = {
       getAppInfo: vi.fn(),

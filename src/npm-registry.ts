@@ -9,6 +9,12 @@ export type RegistryOrder = readonly [string, string];
 export type RunNpmOptions = Readonly<{ elevated?: boolean; signal?: AbortSignal }>;
 type RunNpm = (args: readonly string[], options?: RunNpmOptions) => Promise<string>;
 
+export function withOfficialRegistryFallback<T>(request: (registry: string) => Promise<T>) {
+  // 镜像的版本标签可能滞后，元数据优先读官方源；不可达时仍由镜像兜底。
+  // 包体与依赖下载继续使用速度探测，避免将元数据一致性与下载策略混为一谈。
+  return withRegistryFallback(request, undefined, [OFFICIAL_REGISTRY, MIRROR_REGISTRY]);
+}
+
 export async function selectRegistryOrder(signal?: AbortSignal): Promise<RegistryOrder> {
   signal?.throwIfAborted();
   const controller = new AbortController();

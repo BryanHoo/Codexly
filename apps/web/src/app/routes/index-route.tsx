@@ -6,6 +6,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { useProjectActions, useProjectData } from "../../features/projects/project-context.js";
 import {
   appInfoQueryOptions,
+  refreshAppInfo,
   appUpdateMutationOptions,
   appUpdateProgressQueryOptions,
   globalSettingsMutationOptions,
@@ -159,7 +160,7 @@ function IndexPage() {
             }}
             onLogoutAccess={access.logout}
             onRetry={() => Promise.all([globalSettingsQuery.refetch(), modelsQuery.refetch()])}
-            onRetryAppInfo={() => appInfoQuery.refetch()}
+            onRetryAppInfo={() => refreshAppInfo(queryClient, client)}
             onSave={(settings) =>
               globalSettingsMutation.mutateAsync(settings).then(() => undefined)
             }

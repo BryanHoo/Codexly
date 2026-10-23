@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { loadGlobalSettingsPage } from "../../settings/components/global-settings-lazy.js";
 import type { useWorkbenchShellController } from "./workbench-shell-controller.js";
+import { refreshAppInfo } from "../../projects/app-update-query-options.js";
 const LazyGlobalSettingsPage = lazy(() =>
   loadGlobalSettingsPage().then((module) => ({ default: module.GlobalSettingsPage })),
 );
@@ -24,6 +25,7 @@ export function WorkbenchSettingsPage({
     models,
     modelsQuery,
     projectOpenCapabilitiesQuery,
+    queryClient,
     setGlobalSettingsSection,
   } = context;
   return (
@@ -73,7 +75,7 @@ export function WorkbenchSettingsPage({
                 ...(projectToolsEnabled ? [projectOpenCapabilitiesQuery.refetch()] : []),
               ])
             }
-            onRetryAppInfo={() => appInfoQuery.refetch()}
+            onRetryAppInfo={() => refreshAppInfo(queryClient, client)}
             onSave={(settings) =>
               globalSettingsMutation.mutateAsync(settings).then(() => undefined)
             }
