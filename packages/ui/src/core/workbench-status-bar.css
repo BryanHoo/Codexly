@@ -1,0 +1,10 @@
+/* 左栏与中栏共用底栏尺寸：28px 控件加上下各 4px 留白，统一高度与内容中心线。 */
+.workbench-status-bar {
+  box-sizing: border-box;
+  display: flex;
+  height: 36px;
+  min-height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  padding-block: 4px;
+}

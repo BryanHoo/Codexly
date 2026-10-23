@@ -219,7 +219,7 @@ export function SidebarFooter({
   };
   return (
     <footer
-      className="flex min-h-9 w-full items-center gap-1 text-muted-foreground"
+      className="workbench-status-bar w-full gap-1 text-muted-foreground"
       data-slot="sidebar-footer"
     >
       <div className="flex shrink-0 items-center gap-0.5">
@@ -227,7 +227,7 @@ export function SidebarFooter({
           <Button
             aria-label={labels.settings}
             id="global-settings-trigger"
-            size="icon-compact"
+            size="icon-sm"
             variant="ghost"
             onClick={onSettings}
           >
@@ -241,7 +241,7 @@ export function SidebarFooter({
                 aria-label={`${labels.notifications}，${String(unread.length)} ${labels.unread}`}
                 className="relative"
                 id="task-notifications-trigger"
-                size="icon-compact"
+                size="icon-sm"
                 variant="ghost"
               >
                 <Bell aria-hidden="true" className="size-4" />
@@ -337,7 +337,7 @@ export function SidebarFooter({
               <Button
                 aria-label={labels.help}
                 id="sidebar-help-trigger"
-                size="icon-compact"
+                size="icon-sm"
                 variant="ghost"
               >
                 <CircleHelp aria-hidden="true" className="size-4" />
@@ -380,7 +380,7 @@ export function SidebarFooter({
           </Popover.Portal>
         </Popover.Root>
       </div>
-      <div className="h-8 min-w-2 flex-1" data-testid="sidebar-footer-spacer" />
+      <div className="h-7 min-w-2 flex-1" data-testid="sidebar-footer-spacer" />
       <div className="flex shrink-0 items-center gap-0.5">
         <Hint label={status ? `${labels.version} · ${status}` : labels.version}>
           <Button

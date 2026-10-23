@@ -105,7 +105,7 @@ export function SplitComposer({
   return (
     <section
       aria-label={label}
-      className="shrink-0 bg-content px-1 pb-2 max-[360px]:px-0 sm:px-5"
+      className="shrink-0 bg-content px-1 max-[360px]:px-0 sm:px-5"
       data-split-composer-expanded={expanded}
     >
       <div className="mx-auto w-full max-w-content">{notice}</div>

@@ -467,7 +467,7 @@ export function ProjectSidebar({
         taskRenamePending={renameMutation.isPending}
       />
 
-      <div className="p-2">
+      <div className="px-2">
         <SidebarSettingsButton
           {...(isUpdatePending === undefined ? {} : { isUpdatePending })}
           onUpdate={onUpdate}

@@ -1,5 +1,6 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { SplitComposer } from "@codexly/ui/core/split-composer";
+import { useContext } from "react";
 import {
   AGENT_FILE_ACCEPT,
   AGENT_IMAGE_ACCEPT,
@@ -13,6 +14,7 @@ import {
 import { ArrowDown, ArrowUp, Folder, LoaderCircle, Pencil, Save, SendHorizontal, X } from "lucide-react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
+import { TerminalContext } from "../../terminal/components/terminal-context.js";
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -112,6 +114,7 @@ export function ComposerProjectRootControls({
 }
 
 export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
+  const terminal = useContext(TerminalContext);
   const { t } = useTranslation(["workbench", "settings"]);
   return (
     <ComposerInteractionBoundary access={props.writeAccess}>
@@ -128,7 +131,8 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
       />} />}
       interruptible={props.canInterrupt && !props.turnControlsDisabled && props.activeTurnId !== undefined}
     >
-      <div className="relative mx-auto w-full max-w-content" ref={props.commandSurfaceRef}>
+      {/* 终端底栏移出文档裁剪区后，补足阴影空间；普通底栏和无底栏编辑器保持原有间距。 */}
+      <div className={`relative mx-auto w-full max-w-content${terminal !== null && props.footerVisible ? " pb-6" : ""}`} ref={props.commandSurfaceRef}>
         <ComposerCommandMenu props={props} />
         <ComposerFileMenu props={props} />
         {props.queuedPrompts.length === 0 ? null : (

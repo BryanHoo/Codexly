@@ -1,5 +1,6 @@
 @import "@codexly/ui/core/document-workspace.css";
 @import "@codexly/ui/core/toaster.css";
+@import "@codexly/ui/core/workbench-status-bar.css";
 @import "tailwindcss" source("../../");
 @import "tw-animate-css";
 @import "streamdown/styles.css";

@@ -13,7 +13,7 @@ export function WorkbenchComposerFooter({ props, rootControls, controls, collaps
   const revealComposer = useRevealSplitComposer();
   const { t } = useTranslation(["workbench", "settings"]);
   if (!props.footerVisible) return null;
-  return <TerminalFooter><div className="mx-auto mt-1.5 flex h-9 w-full max-w-content min-w-0 items-center gap-3 px-1 text-caption text-muted-foreground">
+  return <TerminalFooter><div className="workbench-status-bar mx-auto w-full max-w-content min-w-0 gap-3 px-1 text-caption text-muted-foreground">
     {props.projectToolsEnabled ? <>
       <div className="flex min-w-0 shrink items-center gap-0.5"><ComposerBranchSwitcher
               disabled={props.isSubmitting}

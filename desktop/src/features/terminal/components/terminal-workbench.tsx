@@ -68,7 +68,7 @@ export function TerminalWorkbench({ children, enabled, projectId, rootId, rootPa
   return <main aria-label={label} className="flex min-h-0 min-w-0 flex-1 flex-col bg-content">
     <TerminalContext.Provider value={{ projectId, rootId, footer, toggle, captureFocus }}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
-      <div data-terminal-footer="" className="shrink-0 bg-content px-1 pb-2 sm:px-5" ref={setFooter} />
+      <div data-terminal-footer="" className="shrink-0 bg-content px-1 sm:px-5" ref={setFooter} />
       {active && state.visible ? <div className="shrink-0 bg-window pb-2">
         {/* 工作台底色留白用于收住终端底边，避免内容贴住窗口边缘。 */}
         <Suspense fallback={null}><TerminalPanel projectId={projectId} rootId={rootId} {...(rootPath === undefined ? {} : { rootPath })} /></Suspense>
