@@ -16,33 +16,33 @@ beforeEach(() => {
 it("通过管理页新增、查询、编辑并确认删除提示词", async () => {
   const screen = await render(<SavedPromptsSettings language="zh-CN" />);
   await screen.getByRole("button", { name: "新建提示词", exact: true }).click();
-  await screen.getByRole("textbox", { name: "名称", exact: true }).fill("代码检查");
-  await screen.getByRole("textbox", { name: "快捷词", exact: true }).fill("check");
+  await expect.element(screen.getByRole("textbox", { name: "快捷词", exact: true })).not.toBeInTheDocument();
+  await screen.getByRole("textbox", { name: "标题", exact: true }).fill("代码检查");
   await screen.getByRole("textbox", { name: "提示词内容", exact: true }).fill("检查代码。\n保留现有行为。");
   await screen.getByRole("button", { name: "保存", exact: true }).click();
-  await expect.element(screen.getByText("/check", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("代码检查", { exact: true })).toBeVisible();
   expect(JSON.parse(localStorage.getItem(SAVED_PROMPTS_STORAGE_KEY)!).prompts[0].content).toBe("检查代码。\n保留现有行为。");
   await screen.getByRole("searchbox", { name: "搜索常用提示词" }).fill("不存在");
   await expect.element(screen.getByText("未找到匹配的提示词")).toBeVisible();
-  await screen.getByRole("searchbox", { name: "搜索常用提示词" }).fill("CHECK");
+  await screen.getByRole("searchbox", { name: "搜索常用提示词" }).fill("代码检查");
   await screen.getByRole("button", { name: "编辑代码检查" }).click();
-  await screen.getByRole("textbox", { name: "名称", exact: true }).fill("检查修改");
+  await screen.getByRole("textbox", { name: "标题", exact: true }).fill("检查修改");
   await screen.getByRole("button", { name: "保存", exact: true }).click();
+  await screen.getByRole("searchbox", { name: "搜索常用提示词" }).fill("");
   await screen.getByRole("button", { name: "删除检查修改" }).click();
   expect(savedPromptsStore.getSnapshot()).toHaveLength(1);
   await screen.getByRole("button", { name: "确认删除", exact: true }).click();
   expect(savedPromptsStore.getSnapshot()).toHaveLength(0);
 });
 
-it("拒绝重复快捷词并在关闭未保存编辑时确认", async () => {
-  savedPromptsStore.save({ name: "已有", shortcut: "check", content: "内容" });
+it("拒绝重复标题并在关闭未保存编辑时确认", async () => {
+  savedPromptsStore.save({ name: "已有", content: "内容" });
   const screen = await render(<SavedPromptsSettings language="zh-CN" />);
   await screen.getByRole("button", { name: "新建提示词", exact: true }).click();
-  await screen.getByRole("textbox", { name: "名称", exact: true }).fill("新建");
-  await screen.getByRole("textbox", { name: "快捷词", exact: true }).fill("CHECK");
+  await screen.getByRole("textbox", { name: "标题", exact: true }).fill("已有");
   await screen.getByRole("textbox", { name: "提示词内容", exact: true }).fill("未保存内容");
   await screen.getByRole("button", { name: "保存", exact: true }).click();
-  await expect.element(screen.getByRole("alert")).toHaveTextContent("此快捷词已被使用");
+  await expect.element(screen.getByRole("alert")).toHaveTextContent("此标题已被使用");
   await screen.getByRole("button", { name: "取消", exact: true }).click();
   await expect.element(screen.getByRole("heading", { name: "放弃未保存的修改？" })).toBeVisible();
   await screen.getByRole("button", { name: "继续编辑", exact: true }).click();
@@ -52,13 +52,12 @@ it("拒绝重复快捷词并在关闭未保存编辑时确认", async () => {
 
 it("按项目保存、筛选并调整提示词范围，默认仍为全局", async () => {
   await page.viewport(390, 844);
-  savedPromptsStore.save({ name: "全局检查", shortcut: "check", content: "全局正文" });
+  savedPromptsStore.save({ name: "全局检查", content: "全局正文" });
   const projects = [{ id: "a", name: "项目 A" }, { id: "b", name: "项目 B" }];
   const screen = await render(<SavedPromptsSettings language="zh-CN" projects={projects} />);
   await screen.getByRole("button", { name: "新建提示词", exact: true }).click();
   await expect.element(screen.getByRole("combobox", { name: "可用范围" })).toHaveTextContent("全局");
-  await screen.getByRole("textbox", { name: "名称", exact: true }).fill("项目检查");
-  await screen.getByRole("textbox", { name: "快捷词", exact: true }).fill("check");
+  await screen.getByRole("textbox", { name: "标题", exact: true }).fill("项目检查");
   await screen.getByRole("textbox", { name: "提示词内容", exact: true }).fill("项目正文");
   await screen.getByRole("combobox", { name: "可用范围" }).click();
   await screen.getByRole("option", { name: "项目 A", exact: true }).click();
@@ -89,10 +88,10 @@ it("按项目保存、筛选并调整提示词范围，默认仍为全局", asyn
 
 
 it("桌面端删除项目失败时保留提示词，成功后持久化清理该项目的全部提示词", async () => {
-  const global = savedPromptsStore.save({ name: "全局", shortcut: "check", content: "正文" });
-  savedPromptsStore.save({ name: "项目", shortcut: "check", content: "正文", projectId: "a" });
-  savedPromptsStore.save({ name: "项目二", shortcut: "other", content: "正文", projectId: "a" });
-  const other = savedPromptsStore.save({ name: "其他项目", shortcut: "check", content: "正文", projectId: "b" });
+  const global = savedPromptsStore.save({ name: "全局", content: "正文" });
+  savedPromptsStore.save({ name: "项目", content: "正文", projectId: "a" });
+  savedPromptsStore.save({ name: "项目二", content: "正文", projectId: "a" });
+  const other = savedPromptsStore.save({ name: "其他项目", content: "正文", projectId: "b" });
   const removeProject = vi.fn<(_: string) => Promise<{ projectId: string; status: "removed" }>>()
     .mockRejectedValueOnce(new Error("offline"))
     .mockResolvedValueOnce({ projectId: "a", status: "removed" });
@@ -104,7 +103,7 @@ it("桌面端删除项目失败时保留提示词，成功后持久化清理该�
 });
 
 it("项目列表失效时保留原范围并阻止误存为全局", async () => {
-  savedPromptsStore.save({ name: "失效项目", shortcut: "check", content: "正文", projectId: "missing" });
+  savedPromptsStore.save({ name: "失效项目", content: "正文", projectId: "missing" });
   const screen = await render(<SavedPromptsSettings language="zh-CN" projectsUnavailable />);
   await screen.getByRole("button", { name: "编辑失效项目" }).click();
   await expect.element(screen.getByRole("combobox", { name: "可用范围" })).toHaveTextContent("项目不可用");

@@ -98,7 +98,7 @@ export function createComposerCommands({
       const content = skillEditorRef.current?.getContent() ?? promptContent;
       const range = commandSlashCommand;
       if (!range) return;
-      // 只替换光标前的快捷词，保留前后正文以及 Skill、文件引用；插入不提交任务。
+      // 只替换光标前的触发符和标题片段，保留前后正文以及 Skill、文件引用；插入不提交任务。
       const text =
         command.action === "saved-prompt" ? (command.content ?? "") : `/${command.command ?? ""} `;
       const cursor = range.start + text.length;

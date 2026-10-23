@@ -1,16 +1,15 @@
 export type SavedPromptDraft = Readonly<{
   name: string;
-  shortcut: string;
   content: string;
   projectId?: string;
 }>;
 export type SavedPrompt = SavedPromptDraft & Readonly<{ id: string }>;
-export type SavedPromptError = "name" | "shortcut" | "content" | "duplicate" | "project";
+export type SavedPromptError = "name" | "content" | "duplicate" | "project";
 export const SAVED_PROMPTS_STORAGE_KEY = "codexly.saved-prompts.v1";
-export const savedPromptLimits = { name: 80, shortcut: 40, content: 20_000 } as const;
+export const savedPromptLimits = { name: 80, content: 20_000 } as const;
 type PromptStorage = Pick<Storage, "getItem" | "setItem">;
 
-/** 快捷词支持中文、字母、数字、下划线和连字符，避免与路径及空白触发规则冲突。 */
+/** 标题直接用于候选匹配，允许中文、空格和标点，不再要求独立快捷词。 */
 export function validateSavedPrompt(draft: SavedPromptDraft): SavedPromptError | null {
   if (
     draft.projectId !== undefined &&
@@ -18,11 +17,6 @@ export function validateSavedPrompt(draft: SavedPromptDraft): SavedPromptError |
   )
     return "project";
   if (!draft.name.trim() || draft.name.trim().length > savedPromptLimits.name) return "name";
-  if (
-    !/^[\p{L}\p{N}_-]+$/u.test(draft.shortcut) ||
-    draft.shortcut.length > savedPromptLimits.shortcut
-  )
-    return "shortcut";
   if (!draft.content.trim() || draft.content.length > savedPromptLimits.content) return "content";
   return null;
 }
@@ -41,27 +35,28 @@ function parsePrompts(raw: string | null): readonly SavedPrompt[] {
     )
       return [];
     const ids = new Set<string>();
-    const shortcuts = new Set<string>();
-    return data.prompts.filter((entry: unknown): entry is SavedPrompt => {
-      if (!entry || typeof entry !== "object") return false;
+    return data.prompts.flatMap((entry: unknown): SavedPrompt[] => {
+      if (!entry || typeof entry !== "object") return [];
       const value = entry as SavedPrompt;
       if (
         typeof value.id !== "string" ||
         !value.id ||
         typeof value.name !== "string" ||
-        typeof value.shortcut !== "string" ||
         typeof value.content !== "string" ||
         validateSavedPrompt(value)
       )
-        return false;
-      const shortcut = JSON.stringify([
-        value.projectId ?? null,
-        value.shortcut.toLocaleLowerCase(),
-      ]);
-      if (ids.has(value.id) || shortcuts.has(shortcut)) return false;
+        return [];
+      if (ids.has(value.id)) return [];
       ids.add(value.id);
-      shortcuts.add(shortcut);
-      return true;
+      // 旧版同名不同快捷词可能对应不同正文：按 ID 保留全部记录，且只投影仍使用的字段。
+      return [
+        {
+          id: value.id,
+          name: value.name.trim(),
+          content: value.content,
+          ...(value.projectId === undefined ? {} : { projectId: value.projectId }),
+        },
+      ];
     });
   } catch {
     return [];
@@ -113,18 +108,25 @@ export function createSavedPromptStore(storage: PromptStorage) {
       if (error) throw new Error(error);
       // 写前读取另一窗口最新列表，避免用长期缓存覆盖其他窗口已保存的记录。
       refresh();
+      const title = draft.name.trim().toLocaleLowerCase();
+      const original = id ? snapshot.find((item) => item.id === id) : undefined;
+      // 允许原范围内编辑旧版同名记录；新增、改名或移动范围仍要求标题唯一。
+      const unchangedTitle =
+        original?.projectId === draft.projectId && original?.name.toLocaleLowerCase() === title;
       if (
+        !unchangedTitle &&
         snapshot.some(
           (item) =>
             item.id !== id &&
             item.projectId === draft.projectId &&
-            item.shortcut.toLocaleLowerCase() === draft.shortcut.toLocaleLowerCase(),
+            item.name.toLocaleLowerCase() === title,
         )
       )
         throw new Error("duplicate");
       const prompt: SavedPrompt = {
-        ...draft,
         name: draft.name.trim(),
+        content: draft.content,
+        ...(draft.projectId === undefined ? {} : { projectId: draft.projectId }),
         id: id ?? crypto.randomUUID(),
       };
       commit(
@@ -140,7 +142,7 @@ export function createSavedPromptStore(storage: PromptStorage) {
       if (snapshot.some((item) => item.projectId === projectId)) {
         storage.setItem(
           SAVED_PROMPTS_STORAGE_KEY,
-          JSON.stringify({ version: 1, prompts: snapshot }),
+          raw ?? JSON.stringify({ version: 1, prompts: snapshot }),
         );
       }
     },
@@ -161,22 +163,22 @@ export function getSavedPromptCommands(prompts: readonly SavedPrompt[]) {
   return prompts.map((prompt) => ({
     action: "saved-prompt" as const,
     id: `saved-prompt:${prompt.id}`,
-    label: `/${prompt.shortcut} · ${prompt.name}`,
-    keywords: [prompt.shortcut, prompt.name],
+    label: prompt.name,
+    keywords: [prompt.name],
     description: prompt.content.slice(0, 160).replace(/\s+/gu, " "),
     content: prompt.content,
   }));
 }
 
-/** 当前项目可使用全局及本项目提示词；同快捷词由项目版本覆盖，其他项目绝不进入候选。 */
+/** 当前项目可使用全局及本项目提示词；同标题由项目版本覆盖，其他项目绝不进入候选。 */
 export function selectSavedPromptsForProject(prompts: readonly SavedPrompt[], projectId?: string) {
   const scoped = projectId ? prompts.filter((prompt) => prompt.projectId === projectId) : [];
-  const overridden = new Set(scoped.map((prompt) => prompt.shortcut.toLocaleLowerCase()));
+  const overridden = new Set(scoped.map((prompt) => prompt.name.toLocaleLowerCase()));
   return [
     ...scoped,
     ...prompts.filter(
       (prompt) =>
-        prompt.projectId === undefined && !overridden.has(prompt.shortcut.toLocaleLowerCase()),
+        prompt.projectId === undefined && !overridden.has(prompt.name.toLocaleLowerCase()),
     ),
   ];
 }

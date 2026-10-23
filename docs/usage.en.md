@@ -16,7 +16,7 @@ Switch the sidebar between projects and a timeline grouped by Today, Yesterday, 
 
 Choose a model and the permission and reasoning options offered by that engine. Attach files or images, reference project files with `@`, and Skills with `$`. Existing tasks keep their original engine.
 
-Save a name, shortcut, and instructions in **Settings → Saved prompts**, choosing global or project scope. Type `/` in chat to select a prompt: it inserts at the cursor, preserves existing text, and does not send automatically. Project prompts override global prompts with the same shortcut. Prompts stay in the current browser or desktop client and do not synchronize with host task data. When space is limited, composer options such as model selection move into a menu.
+Save a title and instructions in **Settings → Saved prompts**, choosing global or project scope. Type `/` or `#` in chat to select a prompt by title: it inserts at the cursor, preserves existing text, and does not send automatically. Project prompts override global prompts with the same title. Prompts stay in the current browser or desktop client and do not synchronize with host task data. When space is limited, composer options such as model selection move into a menu.
 
 Follow streaming replies, commands, tools, plans, subagents, and file changes. Respond to approvals and questions in the task. Steer running work or queue follow-ups; queued messages can be reordered, withdrawn for editing, or cancelled before execution. Claude foreground interruption and background-task stopping are separate controls.
 

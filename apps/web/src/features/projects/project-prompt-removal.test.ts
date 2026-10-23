@@ -33,9 +33,9 @@ beforeEach(() => {
 
 it("仅在项目删除成功后清理该项目提示词，保留全局和其他项目", async () => {
   const store = createSavedPromptStore(storage);
-  const global = store.save({ name: "全局", shortcut: "check", content: "内容" });
-  store.save({ name: "项目", shortcut: "check", content: "内容", projectId: "a" });
-  const b = store.save({ name: "其他", shortcut: "check", content: "内容", projectId: "b" });
+  const global = store.save({ name: "全局", content: "内容" });
+  store.save({ name: "项目", content: "内容", projectId: "a" });
+  const b = store.save({ name: "其他", content: "内容", projectId: "b" });
   const response = {
     projectId: "a",
     status: "removed" as const,
@@ -51,7 +51,7 @@ it("仅在项目删除成功后清理该项目提示词，保留全局和其他�
 
 it("远端失败时保留提示词，本机存储不可写时阻止远端删除", async () => {
   const store = createSavedPromptStore(storage);
-  store.save({ name: "项目", shortcut: "check", content: "内容", projectId: "a" });
+  store.save({ name: "项目", content: "内容", projectId: "a" });
   const original = state.values.get(SAVED_PROMPTS_STORAGE_KEY);
   const removeProject = vi
     .fn<CodexlyClient["removeProject"]>()

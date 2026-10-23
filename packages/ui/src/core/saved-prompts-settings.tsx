@@ -22,7 +22,7 @@ import {
 import { savedPromptsStore, useSavedPrompts } from "./saved-prompts-store.js";
 import { savedPromptsCopy } from "./saved-prompts-copy.js";
 
-const emptyDraft: SavedPromptDraft = { name: "", shortcut: "", content: "" };
+const emptyDraft: SavedPromptDraft = { name: "", content: "" };
 
 type PromptProject = Readonly<{ id: string; name: string }>;
 const noProjects: readonly PromptProject[] = [];
@@ -60,16 +60,13 @@ export function SavedPromptsSettings({
             (scope === "global"
               ? prompt.projectId === undefined
               : prompt.projectId !== undefined && `project:${prompt.projectId}` === scope)) &&
-          [prompt.name, prompt.shortcut, prompt.content].some((value) =>
-            value.toLocaleLowerCase().includes(query),
-          ),
+          [prompt.name, prompt.content].some((value) => value.toLocaleLowerCase().includes(query)),
       ),
     [prompts, scope, query],
   );
   const dirty =
     editor &&
     (draft.name !== editor.original.name ||
-      draft.shortcut !== editor.original.shortcut ||
       draft.content !== editor.original.content ||
       draft.projectId !== editor.original.projectId);
   const openEditor = (prompt?: SavedPrompt) => {
@@ -173,9 +170,6 @@ export function SavedPromptsSettings({
               <div className="min-w-0 flex-1 basis-48 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="break-words text-body-small font-medium">{prompt.name}</span>
-                  <code className="max-w-full truncate rounded-control bg-control px-2 py-0.5 font-mono text-label text-brand">
-                    /{prompt.shortcut}
-                  </code>
                 </div>
                 <p
                   className="truncate text-label text-subtle-foreground"
@@ -278,43 +272,12 @@ export function SavedPromptsSettings({
                 maxLength={savedPromptLimits.name}
                 value={draft.name}
                 placeholder={copy.namePlaceholder}
-                aria-invalid={error === "name"}
-                aria-describedby={error === "name" ? errorId : undefined}
+                aria-invalid={error === "name" || error === "duplicate"}
+                aria-describedby={error === "name" || error === "duplicate" ? errorId : undefined}
                 onChange={(event) => {
                   update("name", event.currentTarget.value);
                 }}
               />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor={`${id}-shortcut`} className="text-body-small font-medium">
-                {copy.shortcut}
-              </label>
-              <div className="relative">
-                <span
-                  aria-hidden="true"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                >
-                  /
-                </span>
-                <Input
-                  id={`${id}-shortcut`}
-                  className="pl-6 font-mono"
-                  maxLength={savedPromptLimits.shortcut}
-                  value={draft.shortcut}
-                  placeholder={copy.shortcutPlaceholder}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  aria-invalid={error === "shortcut" || error === "duplicate"}
-                  aria-describedby={`${id}-hint${error === "shortcut" || error === "duplicate" ? ` ${errorId}` : ""}`}
-                  onChange={(event) => {
-                    update("shortcut", event.currentTarget.value);
-                  }}
-                />
-              </div>
-              <p id={`${id}-hint`} className="text-label text-muted-foreground">
-                {copy.shortcutHint}
-              </p>
             </div>
             <div className="space-y-1.5">
               <label id={`${id}-scope-label`} className="text-body-small font-medium">
@@ -407,10 +370,7 @@ export function SavedPromptsSettings({
             <DialogTitle>{copy.deleteTitle}</DialogTitle>
             <DialogDescription>{copy.deleteDescription}</DialogDescription>
           </DialogHeader>
-          <p className="break-words text-body-small font-medium">
-            {deleting?.name}{" "}
-            <span className="font-mono text-muted-foreground">/{deleting?.shortcut}</span>
-          </p>
+          <p className="break-words text-body-small font-medium">{deleting?.name}</p>
           {error === "storage" ? (
             <p role="alert" className="text-body-small text-danger">
               {copy.errors.storage}

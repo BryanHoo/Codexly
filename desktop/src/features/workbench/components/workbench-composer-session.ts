@@ -1,3 +1,4 @@
+import { resolvePromptCommandTrigger, type PromptCommandTrigger } from "@codexly/frontend-core/prompt-trigger";
 import { usePromptSuggestions } from "@codexly/ui/core/saved-prompts-store";
 import type {
   AgentCapabilities,
@@ -31,9 +32,7 @@ import { useProjectFileSearch } from "../hooks/use-project-file-search.js";
 import {
   getPromptCommandItems,
   resolvePromptFileMention,
-  resolvePromptSlashCommand,
   type PromptFileMention,
-  type PromptSlashCommand,
 } from "./prompt-command.js";
 import {
   appendPromptFileReference,
@@ -125,7 +124,7 @@ export function useComposerSession({
   const [fileQuery, setFileQuery] = useState("");
   const [reviewMenuMode, setReviewMenuMode] = useState<"branches" | "scopes" | null>(null);
   const [commandQuery, setCommandQuery] = useState("");
-  const [commandSlashCommand, setCommandSlashCommand] = useState<PromptSlashCommand>();
+  const [commandSlashCommand, setCommandSlashCommand] = useState<PromptCommandTrigger>();
   const [promptContent, setPromptContent] = useState<PromptSkillContent>(
     initialComposerDraft.content,
   );
@@ -217,6 +216,7 @@ export function useComposerSession({
     capabilities?.skills.use === true ? skills : [],
     commandQuery,
     projectId,
+    commandSlashCommand?.trigger,
   );
   const baseBranches = gitStatus?.baseBranches ?? [];
   const menuItemCount = fileMenuOpen
@@ -350,15 +350,15 @@ export function useComposerSession({
         return;
       }
       closeFileMenu();
-      const slashCommand = resolvePromptSlashCommand(serializedText, cursorOffset);
-      if (slashCommand === null) {
+      const slashCommand = resolvePromptCommandTrigger(serializedText, cursorOffset);
+      if (slashCommand === null || !isPromptTextRange(nextContent, slashCommand)) {
         setCommandMenuOpen(false);
         setReviewMenuMode(null);
         setCommandQuery("");
         setCommandSlashCommand(undefined);
         return;
       }
-      // 文本开头或空白后的 `/` 片段驱动过滤，连续正文中的斜杠保持普通字符。
+      // `/` 展示全部命令，`#` 仅展示标题匹配的常用提示词；共用解析器保证两端行为一致。
       setActiveCommandIndex(0);
       setCommandMenuOpen(true);
       setReviewMenuMode(null);

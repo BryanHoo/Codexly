@@ -15,7 +15,7 @@ function memoryStorage() {
     },
   };
 }
-const draft = { name: "代码检查", shortcut: "check", content: "逐项检查代码。\n保留现有行为。" };
+const draft = { name: "代码检查", content: "逐项检查代码。\n保留现有行为。" };
 
 describe("saved prompts", () => {
   it("persists create, update and delete across store instances", () => {
@@ -29,14 +29,36 @@ describe("saved prompts", () => {
     expect(createSavedPromptStore(storage).getSnapshot()).toEqual([]);
   });
 
-  it("validates empty fields, shortcut syntax and case insensitive duplicates", () => {
+  it("validates titles and content and rejects normalized duplicate titles", () => {
     const store = createSavedPromptStore(memoryStorage());
     store.save(draft);
-    expect(() => store.save({ ...draft, shortcut: "CHECK" })).toThrow("duplicate");
+    expect(() => store.save({ ...draft, name: " 代码检查 " })).toThrow("duplicate");
     expect(() => store.save({ ...draft, name: " " })).toThrow("name");
     expect(() => store.save({ ...draft, content: "\n " })).toThrow("content");
-    expect(() => store.save({ ...draft, shortcut: "two words" })).toThrow("shortcut");
-    expect(store.save({ ...draft, shortcut: "检查" }).shortcut).toBe("检查");
+    expect(store.save({ ...draft, name: " Code Review " }).name).toBe("Code Review");
+    expect(() => store.save({ ...draft, name: "code review" })).toThrow("duplicate");
+  });
+
+  it("loads legacy shortcuts without losing prompts sharing a title and strips obsolete fields", () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      SAVED_PROMPTS_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        prompts: [
+          { id: "first", ...draft, shortcut: "check" },
+          { id: "second", ...draft, shortcut: "review", content: "另一份内容" },
+        ],
+      }),
+    );
+    const store = createSavedPromptStore(storage);
+    expect(store.getSnapshot()).toEqual([
+      { id: "first", ...draft },
+      { id: "second", ...draft, content: "另一份内容" },
+    ]);
+    store.save({ ...draft, content: "编辑旧内容" }, "first");
+    expect(createSavedPromptStore(storage).getSnapshot()).toHaveLength(2);
+    expect(storage.getItem(SAVED_PROMPTS_STORAGE_KEY)).not.toContain("shortcut");
   });
 
   it("keeps the saved snapshot when storage fails and permits retry", () => {
@@ -79,8 +101,8 @@ describe("saved prompts", () => {
     expect(getSavedPromptCommands(store.getSnapshot())).toEqual([
       expect.objectContaining({
         action: "saved-prompt",
-        label: "/check · 代码检查",
-        keywords: ["check", "代码检查"],
+        label: "代码检查",
+        keywords: ["代码检查"],
         content: draft.content,
       }),
     ]);
@@ -91,21 +113,21 @@ describe("saved prompts", () => {
 });
 
 describe("project prompt scope", () => {
-  it("defaults prompts to global, persists project scopes and overrides global shortcuts locally", () => {
+  it("defaults prompts to global, persists project scopes and overrides global titles locally", () => {
     const storage = memoryStorage();
     const store = createSavedPromptStore(storage);
     const global = store.save(draft);
     const a = store.save({ ...draft, projectId: "a", content: "项目 A" });
     const b = store.save({ ...draft, projectId: "b", content: "项目 B" });
-    const unique = store.save({ ...draft, shortcut: "other" });
+    const unique = store.save({ ...draft, name: "其他" });
     const reloaded = createSavedPromptStore(storage).getSnapshot();
     expect(reloaded).toEqual([global, a, b, unique]);
     expect(selectSavedPromptsForProject(reloaded)).toEqual([global, unique]);
     expect(selectSavedPromptsForProject(reloaded, "a")).toEqual([a, unique]);
     expect(selectSavedPromptsForProject(reloaded, "b")).toEqual([b, unique]);
-    expect(() => store.save({ ...draft, shortcut: "CHECK", projectId: "a" })).toThrow("duplicate");
+    expect(() => store.save({ ...draft, name: " 代码检查 ", projectId: "a" })).toThrow("duplicate");
     expect(() => store.save({ ...draft, projectId: "a" }, global.id)).toThrow("duplicate");
-    store.save({ ...draft, shortcut: "moved", projectId: "b" }, a.id);
+    store.save({ ...draft, name: "已移动", projectId: "b" }, a.id);
     expect(selectSavedPromptsForProject(store.getSnapshot(), "a")).toEqual([global, unique]);
   });
 
@@ -114,7 +136,7 @@ describe("project prompt scope", () => {
     const store = createSavedPromptStore(storage);
     const global = store.save(draft);
     store.save({ ...draft, projectId: "a" });
-    store.save({ ...draft, projectId: "a", shortcut: "second" });
+    store.save({ ...draft, projectId: "a", name: "第二条" });
     const b = store.save({ ...draft, projectId: "b" });
     store.removeProject("a");
     expect(createSavedPromptStore(storage).getSnapshot()).toEqual([global, b]);

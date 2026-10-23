@@ -1,7 +1,7 @@
 export const PROMPT_SUGGESTION_LIMIT = 12;
 export type PromptSuggestion<T> = Readonly<{ value: T; terms: readonly string[] }>;
 
-/** 索引在来源变化时构建；键入查询时复用已规范化的名称和快捷词。 */
+/** 索引在来源变化时构建；键入查询时复用已规范化的标题和搜索词。 */
 export function createPromptSuggestion<T>(value: T, terms: readonly string[]): PromptSuggestion<T> {
   return { value, terms: terms.map((term) => term.trim().toLocaleLowerCase()) };
 }

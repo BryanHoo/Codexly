@@ -112,9 +112,9 @@ test("preserves immediate text selection after choosing a skill", async () => {
   expect(input.selectionEnd).toBe(input.value.length);
 });
 
-test.each(["keyboard", "pointer"])("inserts a saved prompt at the cursor and keeps surrounding text (%s)", async (method) => {
+test.each([["keyboard", "/"], ["pointer", "/"], ["keyboard", "#"], ["pointer", "#"]])("inserts a saved prompt at the cursor and keeps surrounding text (%s)", async (method, trigger) => {
   await i18n.changeLanguage("zh-CN");
-  const saved = savedPromptsStore.save({ name: "测试插入", shortcut: "cursor-test", content: "检查实现。\n补充测试。" });
+  const saved = savedPromptsStore.save({ name: "测试插入", content: "检查实现。\n补充测试。" });
   const submitted = vi.fn(async () => undefined);
   const props = createComposerProps(createRef<WorkbenchComposerHandle>(), submitted);
   const screen = await render(<QueryClientProvider client={new QueryClient()}><TooltipProvider>
@@ -122,11 +122,11 @@ test.each(["keyboard", "pointer"])("inserts a saved prompt at the cursor and kee
   </TooltipProvider></QueryClientProvider>);
   try {
     const input = screen.getByRole("textbox").element() as HTMLTextAreaElement;
-    await screen.getByRole("textbox").fill("前文 /cursor-test 后文");
-    input.setSelectionRange(15, 15);
+    await screen.getByRole("textbox").fill(`前文 ${trigger}测试插入 后文`);
+    input.setSelectionRange(8, 8);
     // 光标移动后继续输入，触发当前光标处的匹配，保留光标后的已有文本。
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, "前文 /cursor-tes 后文");
-    input.setSelectionRange(14, 14);
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, `前文 ${trigger}测试插 后文`);
+    input.setSelectionRange(7, 7);
     input.dispatchEvent(new Event("input", { bubbles: true }));
     const option = screen.getByRole("option", { name: /测试插入/u });
     await expect.element(option).toBeVisible();
@@ -145,7 +145,7 @@ test.each(["keyboard", "pointer"])("inserts a saved prompt at the cursor and kee
 
 test("bounds the default slash menu and matches entries outside its initial subset", async () => {
   await i18n.changeLanguage("zh-CN");
-  const prompts = Array.from({ length: 30 }, (_, index) => savedPromptsStore.save({ name: `有界测试 ${index}`, shortcut: `bounded-${index}`, content: "测试内容" }));
+  const prompts = Array.from({ length: 30 }, (_, index) => savedPromptsStore.save({ name: `有界测试 ${index}`, content: "测试内容" }));
   const props = createComposerProps(createRef<WorkbenchComposerHandle>(), vi.fn(async () => undefined));
   const screen = await render(<QueryClientProvider client={new QueryClient()}><TooltipProvider>
     <div style={{ paddingTop: 420 }}><ProjectDraftProvider><ComposerDraftProvider><WorkbenchComposer {...props} /></ComposerDraftProvider></ProjectDraftProvider></div>
@@ -158,7 +158,7 @@ test("bounds the default slash menu and matches entries outside its initial subs
     const input = screen.getByRole("textbox").element() as HTMLTextAreaElement;
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", code: "ArrowDown", bubbles: true, cancelable: true }));
     await expect.element(options[1]!).toHaveAttribute("data-active", "true");
-    await screen.getByRole("textbox").fill("/bounded-29");
+    await screen.getByRole("textbox").fill("#有界测试 29");
     await expect.element(screen.getByRole("option", { name: /有界测试 29/u })).toBeVisible();
     expect(screen.getByRole("option").all()).toHaveLength(1);
   } finally { for (const prompt of prompts) savedPromptsStore.remove(prompt.id); }
@@ -168,9 +168,9 @@ test("bounds the default slash menu and matches entries outside its initial subs
 test("切换项目后使用各自提示词，临时会话恢复全局版本", async () => {
   await i18n.changeLanguage("zh-CN");
   const prompts = [
-    savedPromptsStore.save({ name: "范围全局", shortcut: "scope-check", content: "全局内容" }),
-    savedPromptsStore.save({ name: "范围 A", shortcut: "scope-check", content: "A 内容", projectId: "scope-a" }),
-    savedPromptsStore.save({ name: "范围 B", shortcut: "scope-check", content: "B 内容", projectId: "scope-b" }),
+    savedPromptsStore.save({ name: "范围检查", content: "全局内容" }),
+    savedPromptsStore.save({ name: "范围检查", content: "A 内容", projectId: "scope-a" }),
+    savedPromptsStore.save({ name: "范围检查", content: "B 内容", projectId: "scope-b" }),
   ];
   const props = createComposerProps(createRef<WorkbenchComposerHandle>(), vi.fn(async () => undefined));
   const client = new QueryClient();
@@ -179,9 +179,9 @@ test("切换项目后使用各自提示词，临时会话恢复全局版本", as
   </TooltipProvider></QueryClientProvider>;
   const screen = await render(view("scope-a"));
   try {
-    for (const [projectId, name, content] of [["scope-a", "范围 A", "A 内容"], ["scope-b", "范围 B", "B 内容"], ["temporary", "范围全局", "全局内容"]]) {
+    for (const [projectId, name, content] of [["scope-a", "范围检查", "A 内容"], ["scope-b", "范围检查", "B 内容"], ["temporary", "范围检查", "全局内容"]]) {
       await screen.rerender(view(projectId!));
-      await screen.getByRole("textbox").fill("前文 /scope-check");
+      await screen.getByRole("textbox").fill("前文 #范围检查");
       await expect.element(screen.getByRole("option", { name: new RegExp(name!, "u") })).toBeVisible();
       expect(screen.getByRole("option").all()).toHaveLength(1);
       await screen.getByRole("option", { name: new RegExp(name!, "u") }).click();

@@ -74,6 +74,7 @@ export function usePromptSuggestions<T extends SearchableCommand>(
   skills: readonly AgentSkill[],
   query: string,
   projectId?: string,
+  trigger: "/" | "#" = "/",
 ) {
   const prompts = useSavedPrompts();
   if (savedSnapshot !== prompts) {
@@ -105,7 +106,8 @@ export function usePromptSuggestions<T extends SearchableCommand>(
     createPromptSuggestion<Candidate<T>>({ kind: "command", item }, [item.label, ...item.keywords]),
   );
   const selected = rankPromptSuggestions<Candidate<T>>(
-    [savedCandidates, commandCandidates, skillCandidates],
+    // 井号入口只查常用提示词，不能插入原生命令或 Skills。
+    trigger === "#" ? [savedCandidates] : [savedCandidates, commandCandidates, skillCandidates],
     query,
   );
   const filteredSaved: SavedCommand[] = [];
