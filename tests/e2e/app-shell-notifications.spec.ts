@@ -47,8 +47,10 @@ for (const width of [1280, 320]) {
     await expect(page).toHaveURL(/\/p\/codexly\/t\/task-1$/u);
     if (width === 320) await page.getByRole("button", { name: "展开项目侧栏" }).click();
     await page.getByRole("button", { name: "通知，1 未读", exact: true }).click();
-    await expect(panel.getByRole("tab", { name: "已读 1" })).toBeVisible();
-    await panel.getByRole("button", { name: "全部已读", exact: true }).click();
+    await panel.getByRole("tab", { name: "已读 1" }).click();
+    // Web 和移动端在已读页都可通过标题栏完成全部已读。
+    await panel.locator("header").getByRole("button", { name: "全部已读", exact: true }).click();
+    await expect(panel.getByRole("button", { name: "全部已读", exact: true })).toHaveCount(0);
     await expect(panel.getByRole("tab", { name: "已读 2" })).toBeVisible();
     await page.reload();
     if (width === 320) await page.getByRole("button", { name: "展开项目侧栏" }).click();

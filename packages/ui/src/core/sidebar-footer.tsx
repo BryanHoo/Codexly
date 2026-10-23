@@ -7,6 +7,7 @@ import {
   CircleHelp,
   CircleAlert,
   CircleCheck,
+  Inbox,
   Keyboard,
   MessageCircle,
   Settings,
@@ -48,12 +49,13 @@ export type SidebarFooterLabels = Readonly<
     | "approval"
     | "input",
     string
-  >
+  > &
+    Partial<Record<"emptyUnreadDescription" | "emptyReadDescription", string>>
 >;
 
 // 共享弹层外观不绑定宽度，帮助菜单按文字长度收缩，通知面板单独设置宽度。
 const panelClassName =
-  "z-50 flex max-h-[min(22.5rem,var(--radix-popover-content-available-height))] flex-col overflow-hidden rounded-surface border border-separator-strong bg-raised text-foreground shadow-floating outline-none";
+  "z-50 flex max-h-[min(22.5rem,var(--radix-popover-content-available-height))] flex-col overflow-hidden border bg-raised text-foreground shadow-floating outline-none";
 
 function Hint({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
@@ -75,6 +77,7 @@ const kindIcons = {
 function NotificationList({
   items,
   emptyLabel,
+  emptyDescription,
   labels,
   onNavigate,
   store,
@@ -82,41 +85,62 @@ function NotificationList({
 }: Readonly<{
   items: readonly TaskNotification[];
   emptyLabel: string;
+  emptyDescription: string | undefined;
   labels: SidebarFooterLabels;
   onNavigate: (item: TaskNotification) => void;
   store: TaskNotificationStore;
   formatter: Intl.DateTimeFormat;
 }>) {
   const [visibleCount, setVisibleCount] = useState(30);
+  // 空状态与列表共用内容区；保留完整的图标、标题、说明节奏，低窗口仍由外层限高滚动。
   if (items.length === 0)
-    return <p className="px-3 py-7 text-center text-caption text-muted-foreground">{emptyLabel}</p>;
+    return (
+      <div
+        className="flex min-h-32 flex-col items-center justify-center px-4 py-4 text-center"
+        data-slot="notification-empty"
+      >
+        <span className="mb-2 flex size-9 items-center justify-center rounded-xl border border-separator bg-control-hover text-muted-foreground">
+          <Inbox aria-hidden="true" className="size-5" strokeWidth={1.5} />
+        </span>
+        <p className="text-body-small font-medium text-foreground">{emptyLabel}</p>
+        {emptyDescription ? (
+          <p className="mt-1 max-w-56 text-caption leading-relaxed text-muted-foreground">
+            {emptyDescription}
+          </p>
+        ) : null}
+      </div>
+    );
   return (
     <>
-      <ul className="divide-y divide-separator">
+      <ul className="space-y-0.5 p-1.5">
         {items.slice(0, visibleCount).map((item) => {
           const Icon = kindIcons[item.kind];
           return (
-            <li className="group flex items-center gap-0.5 px-1.5" key={item.id}>
+            <li
+              className="group flex items-center gap-1 rounded-xl pr-1 hover:bg-control-hover focus-within:bg-control-hover"
+              key={item.id}
+            >
               <Button
-                className="h-auto min-w-0 flex-1 items-start gap-2 px-1.5 py-2"
+                className="h-auto min-w-0 flex-1 items-start gap-2 rounded-xl px-1.5 py-2"
                 contentAlign="start"
                 variant="ghost"
                 onClick={() => {
                   onNavigate(item);
                 }}
               >
-                <Icon
-                  aria-hidden="true"
-                  className={`mt-0.5 size-3.5 ${item.kind === "failed" ? "text-danger" : item.read ? "text-muted-foreground" : "text-brand"}`}
-                />
+                <span
+                  className={`flex size-7 shrink-0 items-center justify-center rounded-xl ${item.kind === "failed" ? "bg-danger/10 text-danger" : item.read ? "bg-panel text-muted-foreground" : "bg-brand-soft text-brand"}`}
+                >
+                  <Icon aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                </span>
                 <span className="grid min-w-0 flex-1 gap-0.5 text-left">
                   <span
                     title={item.taskName}
-                    className={`truncate text-caption text-foreground ${item.read ? "font-normal" : "font-medium"}`}
+                    className={`truncate text-body-small text-foreground ${item.read ? "font-normal" : "font-medium"}`}
                   >
                     {item.taskName}
                   </span>
-                  <span className="flex min-w-0 items-center gap-1.5 text-meta text-muted-foreground">
+                  <span className="flex min-w-0 items-center gap-1.5 text-caption text-muted-foreground">
                     <span className="shrink-0">{labels[item.kind]}</span>
                     <span aria-hidden="true">·</span>
                     <time
@@ -133,7 +157,7 @@ function NotificationList({
                   <Button
                     aria-label={`${labels.markRead}：${item.taskName}`}
                     className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
-                    size="icon-toolbar"
+                    size="icon-sm"
                     variant="ghost"
                     onClick={() => {
                       store.markRead(item.id);
@@ -149,7 +173,7 @@ function NotificationList({
       </ul>
       {items.length > visibleCount ? (
         <Button
-          className="my-1 ml-3"
+          className="mx-4 mb-3 mt-1"
           size="toolbar"
           variant="ghost"
           onClick={() => {
@@ -264,53 +288,69 @@ export function SidebarFooter({
               side="top"
               sideOffset={10}
               collisionPadding={8}
-              className={`${panelClassName} w-[min(20rem,calc(100vw-1rem))]`}
+              className={`${panelClassName} w-[min(20rem,calc(100vw-1rem))] rounded-2xl border-separator`}
             >
-              <header className="flex h-9 shrink-0 items-center justify-between px-3">
-                <h2 className="text-caption font-semibold" id={titleId}>
-                  {labels.notifications}
-                </h2>
-                <Popover.Close asChild>
-                  <Button aria-label={labels.close} size="icon-toolbar" variant="ghost">
-                    <X aria-hidden="true" className="size-3" />
-                  </Button>
-                </Popover.Close>
+              <header className="flex shrink-0 items-center justify-between gap-2 px-3 pb-1 pt-2">
+                <div className="flex items-center gap-2">
+                  <Bell
+                    aria-hidden="true"
+                    className="size-4 text-muted-foreground"
+                    strokeWidth={1.75}
+                  />
+                  <h2 className="text-body-small font-semibold" id={titleId}>
+                    {labels.notifications}
+                  </h2>
+                </div>
+                {/* 全部已读属于面板级操作：有未读时始终展示，不受当前 Tab 限制。 */}
+                <div className="flex shrink-0 items-center gap-1">
+                  {unread.length > 0 ? (
+                    <Button
+                      aria-label={labels.markAllRead}
+                      className="gap-1 rounded-lg px-1.5 text-caption"
+                      size="toolbar"
+                      variant="ghost"
+                      onClick={store.markAllRead}
+                    >
+                      <CheckCheck aria-hidden="true" className="size-3.5" />
+                      {labels.markAllRead}
+                    </Button>
+                  ) : null}
+                  <Popover.Close asChild>
+                    <Button
+                      aria-label={labels.close}
+                      className="-mr-1 rounded-lg"
+                      size="icon-toolbar"
+                      variant="ghost"
+                    >
+                      <X aria-hidden="true" className="size-3.5" />
+                    </Button>
+                  </Popover.Close>
+                </div>
               </header>
               <Tabs.Root
                 className="flex min-h-0 flex-col"
                 value={activeTab}
                 onValueChange={setActiveTab}
               >
-                <div className="flex h-8 shrink-0 items-center justify-between border-b border-separator px-3">
+                {/* 分段标签占满同一行，面板级操作移至标题栏后，切换 Tab 不再改变标签宽度。 */}
+                <div className="flex shrink-0 items-center px-3 pb-2">
                   <Tabs.List
                     aria-label={labels.notifications}
-                    className="flex h-full items-center gap-4"
+                    className="flex min-w-0 flex-1 items-center gap-0.5 rounded-lg bg-control-hover p-0.5"
                   >
                     {(["unread", "read"] as const).map((tab) => (
                       <Tabs.Trigger
                         value={tab}
                         key={tab}
-                        className="inline-flex h-full items-center gap-1 border-b-2 border-transparent text-caption text-muted-foreground outline-none focus-visible:shadow-focus data-[state=active]:border-brand data-[state=active]:font-medium data-[state=active]:text-foreground"
+                        className="group/tab inline-flex h-6 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 text-caption text-muted-foreground outline-none focus-visible:shadow-focus data-[state=active]:bg-raised data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-sm"
                       >
                         {labels[tab]}{" "}
-                        <span className="text-meta tabular-nums opacity-70">
+                        <span className="min-w-5 rounded-md bg-control-hover px-1 text-center text-meta leading-4 tabular-nums group-data-[state=active]/tab:bg-brand-soft group-data-[state=active]/tab:text-brand">
                           {tab === "unread" ? unread.length : read.length}
                         </span>
                       </Tabs.Trigger>
                     ))}
                   </Tabs.List>
-                  {activeTab === "unread" && unread.length > 0 ? (
-                    <Hint label={labels.markAllRead}>
-                      <Button
-                        aria-label={labels.markAllRead}
-                        size="icon-toolbar"
-                        variant="ghost"
-                        onClick={store.markAllRead}
-                      >
-                        <CheckCheck aria-hidden="true" className="size-3.5" />
-                      </Button>
-                    </Hint>
-                  ) : null}
                 </div>
                 {(["unread", "read"] as const).map((tab) => (
                   <Tabs.Content
@@ -321,6 +361,11 @@ export function SidebarFooter({
                     <NotificationList
                       items={tab === "unread" ? unread : read}
                       emptyLabel={tab === "unread" ? labels.emptyUnread : labels.emptyRead}
+                      emptyDescription={
+                        tab === "unread"
+                          ? labels.emptyUnreadDescription
+                          : labels.emptyReadDescription
+                      }
                       labels={labels}
                       onNavigate={navigate}
                       store={store}
@@ -352,7 +397,7 @@ export function SidebarFooter({
               side="top"
               sideOffset={10}
               collisionPadding={8}
-              className={`${panelClassName} w-max max-w-[calc(100vw-1rem)] p-1.5`}
+              className={`${panelClassName} w-max max-w-[calc(100vw-1rem)] rounded-surface border-separator-strong p-1.5`}
             >
               <Button asChild variant="ghost" contentAlign="start">
                 <a

@@ -33,9 +33,13 @@ describe("轻量通知与独立底栏入口", () => {
     await screen.getByRole("tab", { name: "已读 1" }).click();
     await expect.element(screen.getByRole("button", { name: /任务 a.*任务已完成/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /任务 b.*任务已完成/ }).query()).toBeNull();
+    // 已读页仍能处理其他未读通知，标题栏操作不依赖当前 Tab。
+    const markAllRead = screen.getByRole("button", { name: "全部已读", exact: true });
+    await expect.element(markAllRead).toBeVisible();
+    expect(markAllRead.element().closest("header")).not.toBeNull();
+    await markAllRead.click();
     expect(screen.getByRole("button", { name: "全部已读", exact: true }).query()).toBeNull();
-    await screen.getByRole("tab", { name: "未读 1" }).click();
-    await screen.getByRole("button", { name: "全部已读", exact: true }).click();
+    await screen.getByRole("tab", { name: "未读 0" }).click();
     expect(store.getSnapshot().every((item) => item.read)).toBe(true);
     await expect.element(screen.getByText("暂无未读通知", { exact: true })).toBeVisible();
     await expect.element(screen.getByRole("tab", { name: "已读 2" })).toBeVisible();
