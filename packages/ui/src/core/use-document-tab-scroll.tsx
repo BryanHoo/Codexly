@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useLayoutEffect, type RefObject } from "react";
+import type { WorkspaceDocument } from "@codexly/frontend-core/document-workspace";
 
 export function useDocumentTabScroll(
   ref: RefObject<HTMLDivElement | null>,
   activeId: string | null,
-  count: number,
+  documents: readonly WorkspaceDocument[],
 ) {
-  const enabled = count > 0;
+  const enabled = documents.length > 0;
   const reveal = useCallback(() => {
     const list = ref.current;
     const tab = list?.querySelector('[role="tab"][aria-selected="true"]')?.parentElement;
     if (list === null || tab === undefined || tab === null) return;
+    if (tab.dataset["chat"] === "true") return;
     // 只移动标签条，并将关闭按钮一起纳入可见区域，不滚动聊天或外层工作台。
     const bounds = list.getBoundingClientRect();
     const target = tab.getBoundingClientRect();
-    list.scrollLeft += target.left + target.width / 2 - bounds.left - list.clientWidth / 2;
+    const chatWidth = list.querySelector<HTMLElement>('[data-chat="true"]')?.offsetWidth ?? 0;
+    // 居中只计算聊天右侧的可用区域，不能把当前文件滚到常驻聊天标签下面。
+    list.scrollLeft +=
+      target.left + target.width / 2 - bounds.left - (list.clientWidth + chatWidth) / 2;
   }, [ref]);
-  useLayoutEffect(reveal, [reveal, activeId, count]);
+  useLayoutEffect(reveal, [reveal, activeId, documents]);
   useEffect(() => {
     const list = ref.current;
     if (!enabled || list === null) return;

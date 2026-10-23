@@ -3,6 +3,8 @@ import { subscribeTaskChatNavigation } from "@codexly/frontend-core/split-task-n
 import { SplitPaneContext } from "./split-workspace.js";
 import {
   Activity,
+  lazy,
+  Suspense,
   useContext,
   useEffect,
   useEffectEvent,
@@ -11,24 +13,24 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import {
-  Columns2,
-  FileCode2,
-  FileDiff,
-  Files,
-  Focus,
-  GitCommitHorizontal,
-  Image,
-  MessageSquare,
-  Rows2,
-  X,
-} from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import type { WorkspaceDocument } from "@codexly/frontend-core/document-workspace";
 import type { useDocumentWorkspace } from "./use-document-workspace.js";
 import { DocumentWorkspaceResizer } from "./document-workspace-resizer.js";
 import { DocumentNavigationContext } from "./document-navigation.js";
-import { useDocumentTabScroll } from "./use-document-tab-scroll.js";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip.js";
+import type {
+  DocumentPresentation,
+  DocumentWorkspaceTabs as DocumentWorkspaceTabsComponent,
+} from "./document-workspace-tabs.js";
+
+export type { DocumentPresentation } from "./document-workspace-tabs.js";
+
+// 纯聊天无需解析拖动、菜单及对照交互；首次打开文档时再加载增强标签栏。
+const DocumentWorkspaceTabs = lazy(() =>
+  import("./document-workspace-tabs.js").then((module) => ({
+    default: module.DocumentWorkspaceTabs,
+  })),
+) as typeof DocumentWorkspaceTabsComponent;
 
 const mobileQuery = "(max-width: 760px), (hover: none) and (pointer: coarse)";
 function subscribeMobile(listener: () => void) {
@@ -40,53 +42,6 @@ function subscribeMobile(listener: () => void) {
 }
 const getMobile = () => window.matchMedia(mobileQuery).matches;
 const getServerMobile = () => false;
-export type DocumentPresentation = Readonly<{
-  title: string;
-  detail: string;
-  kind: "source" | "image" | "pdf" | "diff" | "review" | "commit";
-}>;
-const icons = {
-  source: FileCode2,
-  image: Image,
-  pdf: Files,
-  diff: FileDiff,
-  review: Files,
-  commit: GitCommitHorizontal,
-};
-
-function DocumentAction({
-  label,
-  pressed,
-  disabled = false,
-  onClick,
-  children,
-}: Readonly<{
-  label: string;
-  pressed?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}>) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-label={label}
-          aria-pressed={pressed}
-          aria-disabled={disabled || undefined}
-          onClick={() => {
-            if (!disabled) onClick();
-          }}
-        >
-          {children}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  );
-}
-
 export function DocumentWorkspace<T extends WorkspaceDocument>({
   children,
   workspace,
@@ -117,181 +72,56 @@ export function DocumentWorkspace<T extends WorkspaceDocument>({
   const id = useId();
   const tabsRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const english = locale.startsWith("en");
-  const copy = english
-    ? {
-        chat: "Chat",
-        tabs: "Workspace tabs",
-        close: "Close",
-        right: "Compare with chat side by side",
-        down: "Compare with chat above",
-        focus: "Back to chat",
-        resize: "Resize chat and document",
-      }
-    : {
-        chat: "聊天",
-        tabs: "工作区标签",
-        close: "关闭",
-        right: "与聊天左右对照",
-        down: "与聊天上下对照",
-        focus: "回到聊天",
-        resize: "调整聊天与文件大小",
-      };
   const selected = workspace.documents.find((document) => document.id === workspace.activeId);
   const direction = !mobile && selected !== undefined ? workspace.direction : null;
   const chatVisible = selected === undefined || direction !== null;
-  const tabIds = [null, ...workspace.documents.map((document) => document.id)];
-  const revealActiveTab = useDocumentTabScroll(
-    tabsRef,
-    workspace.activeId,
-    workspace.documents.length,
-  );
   if (!enabled) return children;
-  return (
-    <div className="document-workspace" data-document-workspace="">
-      {hasDocuments ? (
-        <div className="document-workspace-toolbar">
-          <div
-            className="document-workspace-tabs"
-            role="tablist"
-            aria-label={copy.tabs}
-            ref={tabsRef}
-            onKeyDown={(event) => {
-              if (
-                !(event.target instanceof HTMLElement) ||
-                event.target.getAttribute("role") !== "tab"
-              )
-                return;
-              const index = tabIds.indexOf(workspace.activeId);
-              const next =
-                event.key === "ArrowRight"
-                  ? (index + 1) % tabIds.length
-                  : event.key === "ArrowLeft"
-                    ? (index - 1 + tabIds.length) % tabIds.length
-                    : event.key === "Home"
-                      ? 0
-                      : event.key === "End"
-                        ? tabIds.length - 1
-                        : null;
-              if (next !== null) {
-                event.preventDefault();
-                event.stopPropagation();
-                void workspace.select(tabIds[next] ?? null);
-                tabsRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
-              } else if (event.key === "Delete" && workspace.activeId !== null) {
-                event.preventDefault();
-                void workspace.close(workspace.activeId);
-                requestAnimationFrame(() =>
-                  tabsRef.current
-                    ?.querySelector<HTMLButtonElement>('[aria-selected="true"]')
-                    ?.focus(),
-                );
-              }
+  const chat = locale.startsWith("en") ? "Chat" : "聊天";
+  const chatTab = (
+    <div className="document-workspace-toolbar">
+      <div
+        className="document-workspace-tabs"
+        role="tablist"
+        aria-label={locale.startsWith("en") ? "Workspace tabs" : "工作区标签"}
+        ref={tabsRef}
+      >
+        <div
+          className="document-workspace-tab"
+          data-chat="true"
+          data-pinned="true"
+          data-active={workspace.activeId === null}
+        >
+          <button
+            type="button"
+            role="tab"
+            id={`${id}-tab-0`}
+            aria-controls={`${id}-chat`}
+            aria-selected={workspace.activeId === null}
+            onClick={() => {
+              void workspace.select(null);
             }}
           >
-            {tabIds.map((tabId, index) => {
-              const document = workspace.documents[index - 1];
-              const presentation = document === undefined ? null : describe(document);
-              const title = presentation?.title ?? copy.chat;
-              const Icon = presentation === null ? MessageSquare : icons[presentation.kind];
-              const active = tabId === workspace.activeId;
-              return (
-                <div
-                  className="document-workspace-tab"
-                  data-active={active}
-                  data-chat={tabId === null}
-                  key={tabId ?? "chat"}
-                  onAuxClick={(event) => {
-                    if (event.button === 1 && tabId !== null) {
-                      event.preventDefault();
-                      void workspace.close(tabId);
-                    }
-                  }}
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    id={`${id}-tab-${String(index)}`}
-                    aria-controls={`${id}-${tabId === null ? "chat" : "document"}`}
-                    aria-selected={active}
-                    tabIndex={active ? 0 : -1}
-                    title={presentation?.detail ?? title}
-                    onClick={() => {
-                      // 重复点击当前标签也重新居中，不依赖选中 ID 发生变化。
-                      if (active) revealActiveTab();
-                      void workspace.select(tabId);
-                    }}
-                  >
-                    <Icon aria-hidden="true" />
-                    <span>{title}</span>
-                  </button>
-                  {tabId === null ? null : (
-                    <button
-                      type="button"
-                      className="document-workspace-tab-close"
-                      aria-label={`${copy.close} ${title}`}
-                      title={`${copy.close} ${title}`}
-                      onClick={() => {
-                        void workspace.close(tabId);
-                        requestAnimationFrame(() =>
-                          tabsRef.current
-                            ?.querySelector<HTMLButtonElement>('[aria-selected="true"]')
-                            ?.focus(),
-                        );
-                      }}
-                    >
-                      <X aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <TooltipProvider>
-            <div className="document-workspace-actions">
-              {!mobile ? (
-                <>
-                  <DocumentAction
-                    label={copy.right}
-                    disabled={selected === undefined}
-                    pressed={direction === "right"}
-                    onClick={() => {
-                      void workspace.compare(direction === "right" ? null : "right");
-                    }}
-                  >
-                    <Columns2 aria-hidden="true" />
-                  </DocumentAction>
-                  <DocumentAction
-                    label={copy.down}
-                    disabled={selected === undefined}
-                    pressed={direction === "down"}
-                    onClick={() => {
-                      void workspace.compare(direction === "down" ? null : "down");
-                    }}
-                  >
-                    <Rows2 aria-hidden="true" />
-                  </DocumentAction>
-                </>
-              ) : null}
-              <DocumentAction
-                label={copy.focus}
-                onClick={() => {
-                  // 等待文件保存成功再返回聊天，并把键盘焦点交还聊天标签。
-                  void Promise.resolve(workspace.select(null)).then((selected) => {
-                    if (!selected) return;
-                    requestAnimationFrame(() => {
-                      tabsRef.current
-                        ?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')
-                        ?.focus({ preventScroll: true });
-                    });
-                  });
-                }}
-              >
-                <Focus aria-hidden="true" />
-              </DocumentAction>
-            </div>
-          </TooltipProvider>
+            <MessageSquare aria-hidden="true" />
+            <span>{chat}</span>
+          </button>
         </div>
+      </div>
+    </div>
+  );
+  return (
+    <div className="document-workspace" data-document-workspace="">
+      {/* 只有聊天时不占用标签栏空间；存在文档时，聊天标签仍固定在首位。 */}
+      {hasDocuments ? (
+        <Suspense fallback={chatTab}>
+          <DocumentWorkspaceTabs
+            workspace={workspace}
+            describe={describe}
+            id={id}
+            english={locale.startsWith("en")}
+            mobile={mobile}
+            tabsRef={tabsRef}
+          />
+        </Suspense>
       ) : null}
       <div className="document-workspace-body" data-direction={direction ?? "single"} ref={bodyRef}>
         {/* 聊天固定在同一 React 位置；隐藏只暂停视图副作用，任务运行时仍由外层持续接收事件。 */}
@@ -300,7 +130,7 @@ export function DocumentWorkspace<T extends WorkspaceDocument>({
             className="document-workspace-chat"
             role={hasDocuments ? "tabpanel" : "region"}
             id={`${id}-chat`}
-            aria-label={hasDocuments ? undefined : copy.chat}
+            aria-label={hasDocuments ? undefined : chat}
             aria-labelledby={hasDocuments ? `${id}-tab-0` : undefined}
             tabIndex={0}
           >
@@ -326,7 +156,7 @@ export function DocumentWorkspace<T extends WorkspaceDocument>({
           <DocumentWorkspaceResizer
             direction={direction}
             containerRef={bodyRef}
-            label={copy.resize}
+            label={locale.startsWith("en") ? "Resize chat and document" : "调整聊天与文件大小"}
           />
         )}
       </div>

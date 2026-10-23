@@ -39,10 +39,18 @@ export function useDocumentWorkspace<T extends WorkspaceDocument>(scopeKey: stri
       const activeId = committed.current.value.activeId;
       const leavesDocument =
         activeId !== null &&
-        (action.type === "open" ||
-          action.type === "select" ||
-          (action.type === "close" && action.id === activeId));
-      if (!leavesDocument) return apply();
+        ((action.type === "open" && action.document.id !== activeId) ||
+          (action.type === "select" && action.id !== activeId) ||
+          (action.type === "close" && action.id === activeId) ||
+          (action.type === "close-many" &&
+            action.ids.includes(activeId) &&
+            (action.includePinned === true ||
+              !committed.current.value.pinnedIds.includes(activeId))));
+      if (!leavesDocument) {
+        // 重选当前标签无需保存，但仍代表新的导航意图，必须取消此前等待保存的关闭/切换。
+        if (action.type === "select" || action.type === "open") generation.current += 1;
+        return apply();
+      }
       const request = ++generation.current;
       const allowed = beforeLeaveRef.current?.() ?? true;
       if (typeof allowed === "boolean") return allowed ? apply() : false;
@@ -59,10 +67,25 @@ export function useDocumentWorkspace<T extends WorkspaceDocument>(scopeKey: stri
   );
   const open = useCallback((document: T) => dispatch({ type: "open", document }), [dispatch]);
   const close = useCallback((id: string) => dispatch({ type: "close", id }), [dispatch]);
+  // 批量关闭只经过一次保存保护；失败时整批保留，不能逐项关闭后才发现当前文件无法保存。
+  const closeMany = useCallback(
+    (ids: readonly string[], includePinned = false) =>
+      dispatch({ type: "close-many", ids, includePinned }),
+    [dispatch],
+  );
+  const pin = useCallback(
+    (id: string, pinned: boolean) => dispatch({ type: "pin", id, pinned }),
+    [dispatch],
+  );
+  const reorder = useCallback(
+    (id: string, targetId: string, placement: "before" | "after") =>
+      dispatch({ type: "reorder", id, targetId, placement }),
+    [dispatch],
+  );
   const select = useCallback((id: string | null) => dispatch({ type: "select", id }), [dispatch]);
   const compare = useCallback(
     (direction: "right" | "down" | null) => dispatch({ type: "compare", direction }),
     [dispatch],
   );
-  return { ...state, open, close, select, compare, beforeLeaveRef };
+  return { ...state, open, close, closeMany, pin, reorder, select, compare, beforeLeaveRef };
 }

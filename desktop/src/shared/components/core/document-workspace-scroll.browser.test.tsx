@@ -6,7 +6,7 @@ import { DocumentWorkspace } from "@codexly/ui/core/document-workspace";
 import { useDocumentWorkspace } from "@codexly/ui/core/use-document-workspace";
 import "@codexly/ui/core/document-workspace.css";
 
-function fixture() {
+async function fixture() {
   const host = document.createElement("div");
   host.style.cssText = "width:400px;height:240px;display:flex";
   document.body.append(host);
@@ -24,11 +24,13 @@ function fixture() {
   flushSync(() => {
     for (let index = 0; index < 12; index += 1) void workspace.open({ id: `document-${String(index)}.tsx` });
   });
+  await expect.poll(() => host.querySelectorAll('[role="tab"]').length).toBe(13);
   const list = host.querySelector<HTMLDivElement>('[role="tablist"]')!;
   const centerError = () => {
     const tab = list.querySelector('[aria-selected="true"]')!.parentElement!.getBoundingClientRect();
     const viewport = list.getBoundingClientRect();
-    return Math.abs((tab.left + tab.right - viewport.left - viewport.right) / 2);
+    const chatWidth = list.querySelector<HTMLElement>('[data-chat="true"]')!.offsetWidth;
+    return Math.abs((tab.left + tab.right - viewport.left - viewport.right - chatWidth) / 2);
   };
   return { host, list, centerError, renders: () => renders,
     select: (id: string | null) => flushSync(() => { void workspace.select(id); }),
@@ -37,8 +39,8 @@ function fixture() {
 }
 
 describe("中栏标签滚动", () => {
-  it("三个操作固定在右侧，滚动标签、窄分屏和回到聊天都不隐藏操作", () => {
-    const view = fixture();
+  it("对照和更多操作固定在右侧，滚动标签、窄分屏和切回聊天都不隐藏操作", async () => {
+    const view = await fixture();
     const assertFixed = () => {
       const buttons = [...view.host.querySelectorAll<HTMLButtonElement>('.document-workspace-actions button')];
       expect(buttons).toHaveLength(3);
@@ -65,11 +67,11 @@ describe("中栏标签滚动", () => {
       assertFixed();
       view.select(null);
       assertFixed();
-      expect(view.host.querySelector('button[aria-label="与聊天左右对照"]')?.getAttribute("aria-disabled")).toBe("true");
+      expect(view.host.querySelector('button[aria-label="与聊天左右对照"]')?.hasAttribute("disabled")).toBe(true);
     } finally { view.dispose(); }
   });
-  it("鼠标滚轮双向滚动且不触发 React 重渲染，缩放手势继续交给浏览器", () => {
-    const view = fixture();
+  it("鼠标滚轮双向滚动且不触发 React 重渲染，缩放手势继续交给浏览器", async () => {
+    const view = await fixture();
     try {
       expect(view.list.scrollWidth).toBeGreaterThan(view.list.clientWidth);
       view.list.scrollLeft = 0;
@@ -92,7 +94,7 @@ describe("中栏标签滚动", () => {
   });
 
   it("切换标签、重复点击与调整宽度后居中显示完整标签", async () => {
-    const view = fixture();
+    const view = await fixture();
     try {
       view.select("document-5.tsx");
       expect(view.centerError()).toBeLessThan(2);

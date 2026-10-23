@@ -52,6 +52,43 @@
   color: var(--ui-color-text);
   background: var(--ui-color-control-hover);
 }
+.document-workspace-tab[data-chat="true"] {
+  /* 聊天始终可见，不随文件滚动出视口；实色背景避免标签文字透叠。 */
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--ui-color-wallpaper-overlay, var(--ui-color-content));
+}
+.document-workspace-tab[data-chat="true"][data-active="true"] {
+  background:
+    linear-gradient(var(--ui-color-control-hover), var(--ui-color-control-hover)),
+    var(--ui-color-wallpaper-overlay, var(--ui-color-content));
+}
+.document-workspace-tab[draggable="true"] {
+  user-select: none;
+}
+.document-workspace-tab[data-pinned="true"]:not([data-chat="true"]) {
+  box-shadow: inset 0 -1px var(--ui-color-separator-strong);
+}
+.document-workspace-tab[data-dragging="true"] {
+  opacity: 0.5;
+}
+.document-workspace-tab[data-drop]::after {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--ui-color-accent);
+  content: "";
+  pointer-events: none;
+}
+.document-workspace-tab[data-drop="before"]::after {
+  left: 0;
+}
+.document-workspace-tab[data-drop="after"]::after {
+  right: 0;
+}
 .document-workspace-tab > [role="tab"] {
   display: flex;
   align-items: center;
@@ -97,7 +134,7 @@
   border-radius: 5px;
   color: var(--ui-color-text-muted);
 }
-.document-workspace-actions > button[aria-disabled="true"] {
+.document-workspace-actions > button:disabled {
   opacity: 0.45;
   cursor: default;
 }
@@ -105,7 +142,7 @@
   color: var(--ui-color-accent);
   background: var(--ui-color-accent-soft);
 }
-.document-workspace-toolbar button:hover {
+.document-workspace-toolbar button:not(:disabled):hover {
   background: var(--ui-color-control-hover);
 }
 .document-workspace-toolbar button:focus-visible {

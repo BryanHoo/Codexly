@@ -8,7 +8,7 @@ import { SplitWorkspaceProvider, SplitWorkspaceGrid, useSplitWorkspaceActions } 
 import { requestSplitTaskNavigation } from "@codexly/frontend-core/split-task-navigation";
 
 describe("双端共用中栏标签与聊天对照", () => {
-  it("任务导航回到聊天并保留文件标签，普通分屏聚焦不改变文档", () => {
+  it("任务导航回到聊天并保留文件标签，普通分屏聚焦不改变文档", async () => {
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);
@@ -75,7 +75,7 @@ describe("双端共用中栏标签与聊天对照", () => {
       expect(state!.documents).toEqual([]);
     } finally { flushSync(() => root.unmount()); host.remove(); }
   });
-  it("切换、关闭、对照和根目录切换保留正确状态，只挂载当前文档", () => {
+  it("切换、关闭、对照和根目录切换保留正确状态，只挂载当前文档", async () => {
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);
@@ -98,9 +98,9 @@ describe("双端共用中栏标签与聊天对照", () => {
       flushSync(() => root.render(<View scope="first" />));
       const editor = host.querySelector("textarea")!;
       editor.value = "保留聊天草稿";
-      expect(host.querySelector('[role="tablist"]')).toBeNull();
+      expect(host.querySelectorAll('[role="tab"]')).toHaveLength(0);
       flushSync(() => { void state!.open({ id: "a.ts" }); });
-      expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toContain("a.ts");
+      await expect.poll(() => host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toContain("a.ts");
       expect(editor.checkVisibility()).toBe(false);
       flushSync(() => { void state!.compare("right"); });
       expect(editor.checkVisibility()).toBe(true);
@@ -110,7 +110,7 @@ describe("双端共用中栏标签与聊天对照", () => {
       flushSync(() => { void state!.open({ id: "b.ts" }); });
       expect(mounts).toBe(1);
       expect(host.querySelector('[data-file="a.ts"]')).toBeNull();
-      flushSync(() => host.querySelector<HTMLButtonElement>('button[aria-label="回到聊天"]')!.click());
+      flushSync(() => host.querySelector<HTMLButtonElement>('button[role="tab"][aria-controls$="-chat"]')!.click());
       expect(host.querySelector("textarea")).toBe(editor);
       expect(editor.value).toBe("保留聊天草稿");
       expect(mounts).toBe(0);
