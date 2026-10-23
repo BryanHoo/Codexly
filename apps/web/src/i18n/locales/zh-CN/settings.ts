@@ -26,6 +26,12 @@ export const settings = {
     app: "应用",
   },
   about: {
+    diagnostics: "诊断日志",
+    exportDiagnostics: "导出诊断日志",
+    exportingDiagnostics: "正在导出",
+    diagnosticsExported: "已开始下载诊断日志：{{fileName}}",
+    diagnosticsExportFailed: "诊断日志导出失败，请检查服务连接后重试。",
+
     available: "发现新版本 {{version}}",
     check: "检查更新",
     checking: "正在检查",

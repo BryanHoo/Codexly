@@ -12,3 +12,7 @@
 - [ ] 执行 `pnpm exec vitest run packages/protocol/src`、`pnpm typecheck`、`pnpm lint:architecture`；按影响补充消费者测试。
 
 事实来源：[本地目录与任务](../../../../docs/local-catalog.md)、[用量统计](../../../../docs/usage-statistics.md)、[跨层契约](../../guides/cross-layer-thinking-guide.md)。
+
+## Web 诊断契约
+
+- `packages/protocol/src/diagnostics.ts` 定义 `DiagnosticsResponseSchema` 和 `DiagnosticsResponse`，由 Client `getDiagnostics()` 与 Server `GET /v1/diagnostics` 共用；版本固定为 1，包含导出时间、运行环境、脱敏 JSON 日志行和淘汰计数。该 HTTP 快照不替换桌面原生 ZIP 导出协议。

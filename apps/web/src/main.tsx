@@ -1,3 +1,9 @@
+import {
+  createReactDiagnosticHandlers,
+  installGlobalDiagnostics,
+  recordApplicationError,
+} from "@codexly/frontend-core/application-diagnostics";
+import { recordFrontendDiagnostic } from "./diagnostics.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -9,6 +15,9 @@ import "./shared/styles/globals.css";
 import "./shared/styles/task-board.css";
 import "./shared/styles/workbench.css";
 
+// 在启动和 React 挂载之前监听全局错误，覆盖语言资源或初始化失败。
+installGlobalDiagnostics(window, recordFrontendDiagnostic);
+
 const rootElement = document.querySelector("#root");
 
 if (!(rootElement instanceof HTMLElement)) {
@@ -19,12 +28,16 @@ if (!(rootElement instanceof HTMLElement)) {
 initializeThemePreference();
 
 // 所选语言准备好后再挂载；默认中文同步资源可直接使用，英语资源独立缓存。
-void initializeAppLanguage().then(() => {
-  createRoot(rootElement).render(
-    <StrictMode>
-      <AppProviders>
-        <App />
-      </AppProviders>
-    </StrictMode>,
-  );
-});
+void initializeAppLanguage()
+  .then(() => {
+    createRoot(rootElement, createReactDiagnosticHandlers(recordFrontendDiagnostic)).render(
+      <StrictMode>
+        <AppProviders>
+          <App />
+        </AppProviders>
+      </StrictMode>,
+    );
+  })
+  .catch((error: unknown) => {
+    recordApplicationError(recordFrontendDiagnostic, "application_start_failed", error);
+  });

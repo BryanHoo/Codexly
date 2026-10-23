@@ -1,0 +1,56 @@
+import { expect, it, vi } from "vitest";
+import { createCodexlyServer } from "./app.js";
+import { closeCallbacks, createProvider, createServerOptions } from "./app-all.test-support.js";
+
+it("exports sanitized recent logs and runtime metadata without querying version services", async () => {
+  const readAppInfo = vi.fn(() => Promise.reject(new Error("offline")));
+  const output: string[] = [];
+  const app = await createCodexlyServer(
+    createServerOptions(createProvider().provider, {
+      loggerEnabled: true,
+      readAppInfo,
+      logDestination: {
+        write: (line: string) => {
+          output.push(line);
+        },
+      },
+    }),
+  );
+  closeCallbacks.push(() => app.close());
+  app.log.error(
+    { errorCode: "TEST_FAILURE", req: { headers: { cookie: "secret" } } },
+    "private message",
+  );
+  const response = await app.inject("/v1/diagnostics");
+  expect(response.statusCode).toBe(200);
+  expect(response.headers["cache-control"]).toBe("no-store");
+  expect(response.json()).toMatchObject({
+    version: 1,
+    runtime: { nodeVersion: process.version },
+    logs: [expect.stringContaining("TEST_FAILURE")],
+  });
+  expect(response.body).not.toContain("secret");
+  expect(response.body).not.toContain("private message");
+  expect(output).toHaveLength(1);
+  expect(readAppInfo).not.toHaveBeenCalled();
+});
+
+it("requires a paired session when LAN access is enabled", async () => {
+  const app = await createCodexlyServer(
+    createServerOptions(createProvider().provider, {
+      access: { pairingCode: "test-code", sessionTtlMs: 86_400_000 },
+    }),
+  );
+  closeCallbacks.push(() => app.close());
+  expect((await app.inject("/v1/diagnostics")).statusCode).toBe(401);
+  const paired = await app.inject({
+    method: "POST",
+    url: "/v1/access/pair",
+    payload: { code: "test-code" },
+  });
+  const response = await app.inject({
+    url: "/v1/diagnostics",
+    cookies: { codexly_session: paired.cookies[0]?.value ?? "" },
+  });
+  expect(response.statusCode).toBe(200);
+});

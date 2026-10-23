@@ -34,6 +34,7 @@ import type { CodexlyClient } from "@codexly/client";
 export type SettingsClient = Partial<Pick<CodexlyClient, "getTokenUsage">> &
   Pick<
     CodexlyClient,
+    | "getDiagnostics"
     | "getEngineProfile"
     | "configureEngine"
     | "disconnectEngine"

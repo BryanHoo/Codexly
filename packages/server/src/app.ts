@@ -1,3 +1,8 @@
+import {
+  DiagnosticLogBuffer,
+  createDiagnosticLogger,
+  registerDiagnosticRoutes,
+} from "./diagnostics.js";
 import { resolveGlobalSettings } from "./global-settings-reader.js";
 import { LocalFileSearchService } from "./local-file-search.js";
 import { registerHistoryStorageRoutes } from "./routes/history-storage-routes.js";
@@ -91,25 +96,9 @@ export type { CreateCodexlyServerOptions } from "./server-options.js";
 export async function createCodexlyServer(
   options: CreateCodexlyServerOptions,
 ): Promise<FastifyInstance> {
+  const diagnosticLogs = new DiagnosticLogBuffer();
   const handlerTimeoutMs = options.handlerTimeoutMs ?? DEFAULT_HANDLER_TIMEOUT_MS;
-  const logger =
-    options.loggerEnabled === false
-      ? false
-      : {
-          // 请求控制器仅放行关键操作、慢请求和错误。
-          level: "info",
-          // 即使后续扩展请求 Serializer，也不能让认证字段进入结构化日志。
-          redact: {
-            censor: "[Redacted]",
-            paths: [
-              "req.headers.authorization",
-              "req.headers.cookie",
-              'req.headers["x-api-key"]',
-              'res.headers["set-cookie"]',
-            ],
-          },
-          ...(options.logDestination === undefined ? {} : { stream: options.logDestination }),
-        };
+  const logger = createDiagnosticLogger(diagnosticLogs, options);
   const app = Fastify({
     handlerTimeout: 0,
     logController: new CodexlyLogController(),
@@ -476,6 +465,7 @@ export async function createCodexlyServer(
     ...(options.access === undefined ? {} : { access: options.access }),
     ...(accessService === undefined ? {} : { service: accessService }),
   });
+  registerDiagnosticRoutes(app, diagnosticLogs);
   await app.register(registerRuntimeRoutes, routeContext);
   await app.register(registerEngineRoutes, routeContext);
   await app.register(registerPersonalizationRoutes, routeContext);

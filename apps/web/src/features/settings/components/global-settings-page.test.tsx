@@ -263,6 +263,7 @@ describe("GlobalSettingsPage", () => {
     };
     const markup = await renderSettingsDialog(
       <GlobalSettingsAbout
+        onExportDiagnostics={vi.fn()}
         activeSection="about"
         appInfo={appInfo}
         error={null}
@@ -309,6 +310,7 @@ describe("GlobalSettingsPage", () => {
       for (const versionFields of [{ claudeVersion: "0.2.110" }, {}, { claudeVersion: null }]) {
         const markup = await renderSettingsDialog(
           <GlobalSettingsAbout
+            onExportDiagnostics={vi.fn()}
             activeSection="about"
             appInfo={{
               appVersion: "1.3.0",
@@ -372,6 +374,7 @@ describe("GlobalSettingsPage", () => {
     };
     const updating = await renderSettingsDialog(
       <GlobalSettingsAbout
+        onExportDiagnostics={vi.fn()}
         activeSection="about"
         appInfo={available}
         error={null}
@@ -384,6 +387,7 @@ describe("GlobalSettingsPage", () => {
     );
     const restartRequired = await renderSettingsDialog(
       <GlobalSettingsAbout
+        onExportDiagnostics={vi.fn()}
         activeSection="about"
         appInfo={{
           ...available,
@@ -398,6 +402,7 @@ describe("GlobalSettingsPage", () => {
     );
     const checkFailed = await renderSettingsDialog(
       <GlobalSettingsAbout
+        onExportDiagnostics={vi.fn()}
         activeSection="about"
         appInfo={{
           ...available,
@@ -487,4 +492,18 @@ describe("GlobalSettingsPage", () => {
       await changeAppLanguage("zh-CN");
     }
   });
+});
+
+it("keeps diagnostic export available when version information fails", async () => {
+  const markup = await renderSettingsDialog(
+    <GlobalSettingsAbout
+      onExportDiagnostics={vi.fn()}
+      activeSection="about"
+      error={new Error("offline")}
+      isPending={false}
+      onRetry={vi.fn()}
+      onUpdate={vi.fn()}
+    />,
+  );
+  expect(markup).toContain("导出诊断日志");
 });

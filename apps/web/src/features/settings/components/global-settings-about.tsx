@@ -1,5 +1,9 @@
+import {
+  notifyActionError,
+  notifyActionSuccess,
+} from "../../notifications/action-notifications.js";
 import type { AppInfoResponse, AppUpdateProgress } from "@codexly/protocol";
-import { BookOpen, Download, GitFork, LoaderCircle, RefreshCw } from "lucide-react";
+import { BookOpen, Download, FileArchive, GitFork, LoaderCircle, RefreshCw } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -25,6 +29,7 @@ export function GlobalSettingsAbout({
   isPending,
   isUpdatePending,
   onRetry,
+  onExportDiagnostics,
   onUpdate,
   updateProgress,
 }: Readonly<{
@@ -34,10 +39,13 @@ export function GlobalSettingsAbout({
   isPending: boolean;
   isUpdatePending?: boolean;
   onRetry: () => unknown;
+  onExportDiagnostics: () => Promise<string>;
   onUpdate: (version: string) => Promise<void>;
   updateProgress?: AppUpdateProgress;
 }>) {
   const { t } = useTranslation("settings");
+  const exportLockRef = useRef(createAsyncActionLock());
+  const [isExporting, setIsExporting] = useState(false);
   const updateLockRef = useRef(createAsyncActionLock());
   const checkLockRef = useRef(createAsyncActionLock());
   const [isChecking, setIsChecking] = useState(false);
@@ -229,6 +237,36 @@ export function GlobalSettingsAbout({
           )}
         </>
       )}
+      {/* 导出独立于版本查询，检查失败或加载期间也可以用于排错。 */}
+      <SettingsField label={t("about.diagnostics")}>
+        <Button
+          className="justify-self-start"
+          disabled={isExporting}
+          onClick={() => {
+            void exportLockRef.current.run(async () => {
+              setIsExporting(true);
+              try {
+                const fileName = await onExportDiagnostics();
+                notifyActionSuccess(t("about.diagnosticsExported", { fileName }));
+              } catch {
+                notifyActionError(t("about.diagnosticsExportFailed"));
+              } finally {
+                setIsExporting(false);
+              }
+            });
+          }}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          {isExporting ? (
+            <LoaderCircle aria-hidden="true" className="animate-spin" data-icon="inline-start" />
+          ) : (
+            <FileArchive aria-hidden="true" data-icon="inline-start" />
+          )}
+          {isExporting ? t("about.exportingDiagnostics") : t("about.exportDiagnostics")}
+        </Button>
+      </SettingsField>
     </SettingsPanel>
   );
 }

@@ -1,3 +1,5 @@
+import { DiagnosticsResponseSchema, type DiagnosticsResponse } from "@codexly/protocol";
+import type { ReadOptions } from "./http-client-options.js";
 export { buildProjectPdfFileUrl } from "./project-pdf-url.js";
 export {
   CodexlyHttpError,
@@ -25,4 +27,8 @@ export { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 
 import { AsyncQuestionHttpClient } from "./http-client-async-questions.js";
 
-export class CodexlyClient extends AsyncQuestionHttpClient {}
+export class CodexlyClient extends AsyncQuestionHttpClient {
+  public async getDiagnostics(options: ReadOptions = {}): Promise<DiagnosticsResponse> {
+    return this.read("/v1/diagnostics", DiagnosticsResponseSchema, options);
+  }
+}

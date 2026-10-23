@@ -29,6 +29,13 @@ export const settings = {
     app: "Application",
   },
   about: {
+    diagnostics: "Diagnostics",
+    exportDiagnostics: "Export diagnostic logs",
+    exportingDiagnostics: "Exporting",
+    diagnosticsExported: "Diagnostic log download started: {{fileName}}",
+    diagnosticsExportFailed:
+      "Could not export diagnostic logs. Check the server connection and try again.",
+
     available: "Version {{version}} is available",
     check: "Check for updates",
     checking: "Checking",

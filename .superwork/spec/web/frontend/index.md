@@ -14,3 +14,9 @@
 - [ ] 执行根 `pnpm typecheck`、`pnpm test`、`pnpm lint:architecture`；工作流变化运行 `pnpm test:e2e`。构建后运行 `pnpm bundle:check`，性能变化补充 `pnpm test:performance` 或浏览器性能套件。
 
 Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要生成 `pnpm --filter @codexly/web test`。
+
+## 诊断导出
+
+- “设置 → 关于”的诊断导出不依赖版本检查成功；导出期间禁止重复执行，失败后允许重试。Web 与移动浏览器下载 JSON，包含版本、浏览器异常和服务端快照。
+- 异常监听复用 `packages/frontend-core/src/application-diagnostics.ts`；Web 只保留当前页面最近 100 条脱敏异常，单条错误消息/堆栈分别限制为 512/2048 字符，不读取应用 context、页面 URL 或浏览器存储。桌面继续通过原生适配器录制与导出。
+- 验证入口：`pnpm exec playwright test tests/e2e/app-shell-diagnostics.spec.ts`，覆盖 Chromium / Firefox / WebKit 的宽窄屏下载，以及版本失败、导出失败重试和执行互斥。

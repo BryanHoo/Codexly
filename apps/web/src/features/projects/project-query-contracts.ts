@@ -91,6 +91,7 @@ export type CodexlySkillMarketClient = Pick<
 >;
 export type CodexlySettingsClient = Pick<
   CodexlyClient,
+  | "getDiagnostics"
   | "listWorkbenchBackgrounds"
   | "getEngineProfile"
   | "configureEngine"

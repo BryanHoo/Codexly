@@ -1,3 +1,4 @@
+import { exportDiagnostics } from "../../../diagnostics.js";
 import { ProjectDataContext } from "../../projects/project-context-state.js";
 import { DefaultGenerationSettings } from "@codexly/ui/core/default-generation-settings";
 import { useSettingsAutosave } from "@codexly/ui/core/use-settings-autosave";
@@ -229,6 +230,7 @@ export function GlobalSettingsPage({
         ) : activeSection === "about" ? (
           <GlobalSettingsAbout
             activeSection="about"
+            onExportDiagnostics={() => exportDiagnostics(client, props.appInfo)}
             {...(props.appInfo === undefined ? {} : { appInfo: props.appInfo })}
             error={props.appInfoError ?? null}
             isPending={props.isAppInfoPending ?? false}
