@@ -184,9 +184,8 @@ export function SplitWorkspaceShortcuts({ workspace }: Readonly<{ workspace: Spl
     return true;
   });
   useEffect(() => {
-    const mac = /mac/i.test(navigator.platform);
     const onKeyDown = (event: KeyboardEvent) => {
-      const direction = getSplitShortcutDirection(event, mac);
+      const direction = getSplitShortcutDirection(event);
       if (direction === undefined) return;
       // 模态对话框及已打开菜单拥有键盘焦点，不在其背后修改工作区布局。
       if (

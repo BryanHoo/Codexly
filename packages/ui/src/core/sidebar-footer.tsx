@@ -51,8 +51,9 @@ export type SidebarFooterLabels = Readonly<
   >
 >;
 
+// 共享弹层外观不绑定宽度，帮助菜单按文字长度收缩，通知面板单独设置宽度。
 const panelClassName =
-  "z-50 flex max-h-[min(22.5rem,var(--radix-popover-content-available-height))] w-[min(20rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-surface border border-separator-strong bg-raised text-foreground shadow-floating outline-none";
+  "z-50 flex max-h-[min(22.5rem,var(--radix-popover-content-available-height))] flex-col overflow-hidden rounded-surface border border-separator-strong bg-raised text-foreground shadow-floating outline-none";
 
 function Hint({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
@@ -263,7 +264,7 @@ export function SidebarFooter({
               side="top"
               sideOffset={10}
               collisionPadding={8}
-              className={panelClassName}
+              className={`${panelClassName} w-[min(20rem,calc(100vw-1rem))]`}
             >
               <header className="flex h-9 shrink-0 items-center justify-between px-3">
                 <h2 className="text-caption font-semibold" id={titleId}>
@@ -351,7 +352,7 @@ export function SidebarFooter({
               side="top"
               sideOffset={10}
               collisionPadding={8}
-              className={`${panelClassName} w-56 p-1.5`}
+              className={`${panelClassName} w-max max-w-[calc(100vw-1rem)] p-1.5`}
             >
               <Button asChild variant="ghost" contentAlign="start">
                 <a

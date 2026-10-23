@@ -1,3 +1,7 @@
+import {
+  keyboardShortcutChinese,
+  keyboardShortcutEnglish,
+} from "@codexly/frontend-core/keyboard-shortcut-labels";
 import { SidebarFooter } from "@codexly/ui/core/sidebar-footer";
 import { translateSidebarFooterLabels } from "@codexly/frontend-core/sidebar-footer-labels";
 import type { AgentEventConnectionState } from "@codexly/client";
@@ -36,6 +40,13 @@ import { getProjectSidebarConnectionStatus } from "./project-sidebar-state.js";
 const AppUpdateDialog = lazy(() =>
   import("@codexly/ui/core/app-update-dialog").then((module) => ({
     default: module.AppUpdateDialog,
+  })),
+);
+
+// 帮助面板仅在首次打开时加载，避免增加工作台首屏开销。
+const KeyboardShortcutsDialog = lazy(() =>
+  import("@codexly/ui/core/keyboard-shortcuts-dialog").then((module) => ({
+    default: module.KeyboardShortcutsDialog,
   })),
 );
 
@@ -206,6 +217,8 @@ export function SidebarSettingsButton({
   const locale = translationInstance.resolvedLanguage ?? "zh-CN";
   const { t: settingsT } = useTranslation("settings");
   // 打开时固定本次展示的版本与日志，安装回执刷新缓存不会中断弹窗。
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [shortcutsLoaded, setShortcutsLoaded] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<AppInfoResponse | null>(null);
   const connectionStatus = getProjectSidebarConnectionStatus(connectionState);
   const connectionStatusLabel = t(connectionStatus.labelKey);
@@ -220,6 +233,10 @@ export function SidebarSettingsButton({
         locale={locale}
         version={appVersion}
         updateAvailable={updateAvailable}
+        onShortcuts={() => {
+          setShortcutsLoaded(true);
+          setShortcutsOpen(true);
+        }}
         onSettings={() => {
           onOpen("appearance");
         }}
@@ -232,6 +249,16 @@ export function SidebarSettingsButton({
         {...(onTaskNavigate === undefined ? {} : { onTaskNavigate })}
         status={t("sidebarFooter.connectionStatus", { status: connectionStatusLabel })}
       />
+      {shortcutsLoaded ? (
+        <Suspense fallback={null}>
+          <KeyboardShortcutsDialog
+            open={shortcutsOpen}
+            onOpenChange={setShortcutsOpen}
+            platform="web"
+            labels={locale.startsWith("en") ? keyboardShortcutEnglish : keyboardShortcutChinese}
+          />
+        </Suspense>
+      ) : null}
       {updateInfo?.latestVersion ? (
         <Suspense fallback={null}>
           <AppUpdateDialog

@@ -120,6 +120,23 @@ export function getSplitLayoutDividers(layout: SplitLayout): readonly SplitLayou
   return dividers;
 }
 
+// 匹配和帮助面板共用方向映射，修改按键时避免显示内容与实际行为脱节。
+export const SPLIT_SHORTCUTS = [
+  { direction: "up", key: "ArrowUp", label: "↑" },
+  { direction: "down", key: "ArrowDown", label: "↓" },
+  { direction: "left", key: "ArrowLeft", label: "←" },
+  { direction: "right", key: "ArrowRight", label: "→" },
+] as const;
+
+export function getSplitShortcutDisplayKeys(
+  direction: SplitDirection,
+  mac: boolean,
+): readonly string[] {
+  const shortcut = SPLIT_SHORTCUTS.find((candidate) => candidate.direction === direction);
+  if (shortcut === undefined) return [];
+  return [mac ? "⌥" : "Alt", "Shift", shortcut.label];
+}
+
 export function getSplitShortcutDirection(
   event: Pick<
     KeyboardEvent,
@@ -132,27 +149,17 @@ export function getSplitShortcutDirection(
     | "isComposing"
     | "repeat"
   >,
-  mac: boolean,
 ): SplitDirection | undefined {
   if (
     event.defaultPrevented ||
     event.isComposing ||
     event.repeat ||
-    event.shiftKey ||
-    !event.altKey
+    !event.altKey ||
+    !event.shiftKey ||
+    event.ctrlKey ||
+    event.metaKey
   )
     return undefined;
-  if (mac ? !event.metaKey || event.ctrlKey : !event.ctrlKey || event.metaKey) return undefined;
-  switch (event.key) {
-    case "ArrowUp":
-      return "up";
-    case "ArrowDown":
-      return "down";
-    case "ArrowLeft":
-      return "left";
-    case "ArrowRight":
-      return "right";
-    default:
-      return undefined;
-  }
+  // 两端和所有系统共用组合，保留浏览器的 Cmd/Ctrl+Alt+方向键及 Alt+D 默认行为。
+  return SPLIT_SHORTCUTS.find((shortcut) => shortcut.key === event.key)?.direction;
 }

@@ -5,6 +5,7 @@ import {
   remapSplitLayout,
   getSplitLayoutCells,
   getSplitShortcutDirection,
+  getSplitShortcutDisplayKeys,
   getSplitLayoutDividers,
   resizeSplitLayout,
 } from "./split-layout.js";
@@ -99,9 +100,9 @@ describe("方向分屏布局", () => {
 describe("分屏快捷键", () => {
   const event = {
     altKey: true,
-    ctrlKey: true,
+    ctrlKey: false,
     metaKey: false,
-    shiftKey: false,
+    shiftKey: true,
     key: "ArrowLeft",
     defaultPrevented: false,
     isComposing: false,
@@ -112,22 +113,24 @@ describe("分屏快捷键", () => {
     ["ArrowDown", "down"],
     ["ArrowLeft", "left"],
     ["ArrowRight", "right"],
-  ])("识别 %s", (key, direction) => {
-    expect(getSplitShortcutDirection({ ...event, key }, false)).toBe(direction);
-    expect(getSplitShortcutDirection({ ...event, key, metaKey: true, ctrlKey: false }, true)).toBe(
-      direction,
-    );
+  ])("所有系统均使用 Alt+Shift+方向键 %s", (key, direction) => {
+    expect(getSplitShortcutDirection({ ...event, key })).toBe(direction);
+  });
+  it("Mac 和其它系统均展示 Shift 与方向键", () => {
+    expect(getSplitShortcutDisplayKeys("right", true)).toEqual(["⌥", "Shift", "→"]);
+    expect(getSplitShortcutDisplayKeys("right", false)).toEqual(["Alt", "Shift", "→"]);
   });
   it.each([
     { altKey: false },
-    { shiftKey: true },
+    { shiftKey: false },
     { repeat: true },
     { isComposing: true },
     { defaultPrevented: true },
     { metaKey: true },
-    { ctrlKey: false },
-    { key: "a" },
-  ])("忽略不匹配或已处理的按键 %o", (override) => {
-    expect(getSplitShortcutDirection({ ...event, ...override }, false)).toBeUndefined();
+    { ctrlKey: true },
+    { key: "d" },
+    { key: "ArrowLeft", metaKey: true, shiftKey: false },
+  ])("忽略不匹配、输入法及旧 Chrome 冲突组合 %o", (override) => {
+    expect(getSplitShortcutDirection({ ...event, ...override })).toBeUndefined();
   });
 });

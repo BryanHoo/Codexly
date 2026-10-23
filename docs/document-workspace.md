@@ -53,3 +53,5 @@
 共享状态与资源身份见 `packages/frontend-core/src/document-*.test.ts`。真实 Chromium / WebKit 的草稿、保存保护和挂载数量验证见 `desktop/src/shared/components/core/document-workspace.browser.test.tsx`。完整 Web、移动与多任务分屏流程见 `tests/e2e/app-shell-document-workspace.spec.ts`。
 
 这些验证检查资源生命周期、布局与行为，不代表真实大型项目、所有操作系统上的帧率或内存峰值基准。
+
+分屏快捷键在 Web 和桌面端统一为 `Alt + Shift + 方向键`（macOS 的 Alt 为 Option），方向键决定新窗格的位置。旧的 `Cmd/Ctrl + Alt + 方向键` 保留给浏览器；可在左下角“帮助 → 键盘快捷键”查看当前平台支持的操作。
