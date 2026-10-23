@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import type * as RouterModule from "@tanstack/react-router";
 import type { Project } from "@codexly/protocol";
+import { SelectedEnginesContext } from "@codexly/ui/core/engine-selection";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -59,45 +60,47 @@ function renderProjectTaskList(
   includeShortcuts = false,
 ) {
   const markup = renderToStaticMarkup(
-    <TooltipProvider>
-      <ProjectSidebarTaskList
-        archiveTask={vi.fn()}
-        deleteTask={vi.fn()}
-        error={null}
-        expandedProjects={expandedProjects}
-        expandedTaskProjects={new Set()}
-        fetchNextProjectTaskPage={vi.fn(() => Promise.resolve())}
-        getProjectReorderProps={
-          vi.fn(() => ({})) as unknown as React.ComponentProps<
-            typeof ProjectSidebarTaskList
-          >["getProjectReorderProps"]
-        }
-        hasTaskError={false}
-        isPending={false}
-        isProjectActionPending={false}
-        isProjectAddPending={false}
-        normalizedQuery=""
-        onOpenProjectDraft={vi.fn(() => Promise.resolve())}
-        onOpenArchived={vi.fn()}
-        onOpenProjectPicker={vi.fn()}
-        onOpenTemporaryDraft={vi.fn()}
-        onRemoveProject={vi.fn()}
-        onRenameProject={vi.fn()}
-        orderedProjects={[project]}
-        pinnedTasks={[]}
-        pinTask={vi.fn()}
-        projectOrderAnnouncement=""
-        projectTaskStates={new Map([[project.id, pendingTaskState]])}
-        reorderingProjectId={null}
-        setExpandedTaskProjects={vi.fn()}
-        setRenamingTask={vi.fn()}
-        taskActionPending={false}
-        taskActivity={taskActivity}
-        taskSearch={{ error: null, isPending: false }}
-        tasksByProjectId={new Map()}
-        toggleProject={vi.fn()}
-      />
-    </TooltipProvider>,
+    <SelectedEnginesContext value={["codex", "claude"]}>
+      <TooltipProvider>
+        <ProjectSidebarTaskList
+          archiveTask={vi.fn()}
+          deleteTask={vi.fn()}
+          error={null}
+          expandedProjects={expandedProjects}
+          expandedTaskProjects={new Set()}
+          fetchNextProjectTaskPage={vi.fn(() => Promise.resolve())}
+          getProjectReorderProps={
+            vi.fn(() => ({})) as unknown as React.ComponentProps<
+              typeof ProjectSidebarTaskList
+            >["getProjectReorderProps"]
+          }
+          hasTaskError={false}
+          isPending={false}
+          isProjectActionPending={false}
+          isProjectAddPending={false}
+          normalizedQuery=""
+          onOpenProjectDraft={vi.fn(() => Promise.resolve())}
+          onOpenArchived={vi.fn()}
+          onOpenProjectPicker={vi.fn()}
+          onOpenTemporaryDraft={vi.fn()}
+          onRemoveProject={vi.fn()}
+          onRenameProject={vi.fn()}
+          orderedProjects={[project]}
+          pinnedTasks={[]}
+          pinTask={vi.fn()}
+          projectOrderAnnouncement=""
+          projectTaskStates={new Map([[project.id, pendingTaskState]])}
+          reorderingProjectId={null}
+          setExpandedTaskProjects={vi.fn()}
+          setRenamingTask={vi.fn()}
+          taskActionPending={false}
+          taskActivity={taskActivity}
+          taskSearch={{ error: null, isPending: false }}
+          tasksByProjectId={new Map()}
+          toggleProject={vi.fn()}
+        />
+      </TooltipProvider>
+    </SelectedEnginesContext>,
   );
   return includeShortcuts
     ? markup

@@ -35,6 +35,8 @@ export function SidebarTaskViewToggle({
           size="icon-sm"
           type="button"
           aria-label={label}
+          // 鼠标悬停栏目或键盘聚焦时显示；无悬停能力的触屏保留入口，透明时仍占位以避免标题抖动。
+          className="opacity-0 transition-opacity group-hover/sidebar-task-header:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:opacity-100"
           onClick={() => {
             onChange(view === "projects" ? "timeline" : "projects");
           }}
@@ -57,7 +59,7 @@ export function SidebarTaskViewHeader({
   ...toggle
 }: Parameters<typeof SidebarTaskViewToggle>[0] & Readonly<{ title: string; children: ReactNode }>) {
   return (
-    <div className="flex h-8 min-w-0 w-full shrink-0 items-center justify-between pl-2">
+    <div className="group/sidebar-task-header flex h-8 min-w-0 w-full shrink-0 items-center justify-between pl-2">
       <h2 className="text-body-small font-semibold text-foreground" id="projects-title">
         {title}
       </h2>
