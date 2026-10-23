@@ -1,56 +1,61 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 2,
   "packageManager": "pnpm",
   "packages": [
     {
       "name": "root",
-      "layers": ["backend"],
-      "path": "."
+      "path": ".",
+      "layers": ["backend"]
     },
     {
       "name": "desktop",
-      "layers": ["frontend", "backend"],
-      "path": "desktop"
+      "path": "desktop",
+      "layers": ["frontend", "backend"]
     },
     {
       "name": "web",
-      "layers": ["frontend"],
-      "path": "apps/web"
+      "path": "apps/web",
+      "layers": ["frontend"]
     },
     {
       "name": "protocol",
-      "layers": ["shared"],
-      "path": "packages/protocol"
+      "path": "packages/protocol",
+      "layers": ["shared"]
     },
     {
       "name": "core",
-      "layers": ["shared"],
-      "path": "packages/core"
+      "path": "packages/core",
+      "layers": ["shared"]
     },
     {
       "name": "frontend-core",
-      "layers": ["shared"],
-      "path": "packages/frontend-core"
+      "path": "packages/frontend-core",
+      "layers": ["shared"]
     },
     {
       "name": "ui",
-      "layers": ["shared"],
-      "path": "packages/ui"
+      "path": "packages/ui",
+      "layers": ["shared"]
     },
     {
       "name": "client",
-      "layers": ["shared"],
-      "path": "packages/client"
+      "path": "packages/client",
+      "layers": ["shared"]
     },
     {
       "name": "provider-codex",
-      "layers": ["backend"],
-      "path": "packages/provider-codex"
+      "path": "packages/provider-codex",
+      "layers": ["backend"]
+    },
+    {
+      "name": "provider-claude",
+      "path": "packages/provider-claude",
+      "layers": ["backend"]
     },
     {
       "name": "server",
-      "layers": ["backend"],
-      "path": "packages/server"
+      "path": "packages/server",
+      "layers": ["backend"]
     }
   ],
   "artifactPaths": {
@@ -60,12 +65,23 @@
   },
   "verification": [
     "pnpm test",
+    "pnpm format:check",
+    "pnpm lint",
     "pnpm lint:architecture",
     "pnpm typecheck",
+    "pnpm codex:schema:check",
+    "pnpm test:performance",
+    "pnpm build",
+    "pnpm bundle:check",
+    "pnpm package:check",
     "pnpm check",
     "pnpm test:e2e",
-    "cd desktop && pnpm check:web",
-    "cd desktop && pnpm check:rust",
-    "cd desktop && pnpm check"
+    "pnpm test:performance:browser",
+    "pnpm test:claude-host",
+    "pnpm --dir desktop test:run",
+    "pnpm --dir desktop test:browser",
+    "pnpm --dir desktop check:web",
+    "pnpm --dir desktop check:rust",
+    "pnpm --dir desktop check"
   ]
 }

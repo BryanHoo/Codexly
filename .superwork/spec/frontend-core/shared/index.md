@@ -1,49 +1,14 @@
 # 前端共享逻辑
 
-- Web 与桌面端的路径文字、目录输入框、悬浮提示和无障碍标签共用 `display-path/formatDisplayPath`：Windows 扩展盘符路径显示为普通盘符路径，`\\?\UNC\` 显示为 `\\` 网络共享路径；普通路径、Mac/Linux 路径和其他设备路径保持原样。仅在展示边界格式化，不改写协议数据、缓存身份、文件操作或打开回调；命令和文件正文保持原文。回归覆盖共享 `display-path.test.ts`、文件引用卡片的显示与原路径回调，以及两端目录选择器。
+## 位置与职责
 
-- 左栏任务时间线的排序、去重和分组共用 `sidebar-task-timeline`：按最新 `updatedAt` 降序，相同时间按项目与任务身份稳定排序；重复身份保留最新版本，无效时间归入“更早”。分组使用本地自然日的“今天、昨天、近 7 天、更早”，“近 7 天”指含今天在内的七个自然日扣除前两组，日历运算必须支持夏令时。视图偏好和翻译由轻量 `sidebar-task-view` 单独承载，不把排序代码带入项目视图；偏好采用版本化存储，损坏或不可读时回退项目分组，写入失败不能阻断切换。时间组折叠偏好损坏或缺失时只默认收起“更早”；近期分页共用 `sidebar-timeline-recent`，按更新时间降序读到日历边界即停止，重复游标必须报错。回归见 `sidebar-task-timeline.test.ts` 与 `sidebar-timeline-recent.test.ts`。
+`packages/frontend-core/src` 承载 Web / 桌面共用的视图模型、状态推导、增量 Markdown 和事件处理；`document-workspace.ts`、`split-workspace.ts`、`event-flush-scheduler.ts` 是现有复用入口。导出由本包 `package.json` 的根入口和子路径规则定义。
 
-`packages/frontend-core/src/` 保存 Web 与 Desktop 共用的任务状态保留、事件顺序、快照 Turn 合并、任务查询配置、命令输出缓冲、项目事件历史及文件搜索协调，不依赖任一平台客户端或 UI。
+## 契约与检查项
 
-- 推理摘要使用共享 `reasoning-summary` 判定可见性：空字符串或纯空白不创建折叠条目、锚点或操作分组；保留 Store 占位，后续摘要增量含文字时恢复显示。分组容器只订阅摘要可见性的变化，不读取无关正文或命令输出；用桌面 `reasoning-item.test.ts` 与 Web `task-timeline-operation-groups.test.tsx` 验证。
+- [ ] 不导入具体 Web / 桌面应用、Client、Core、Provider、Server 或根 CLI，传输与原生副作用由平台适配器承接。
+- [ ] 文档、分屏、草稿与任务选择保持两端一致；修改共享规则时检查全部消费者。
+- [ ] 沿用增量文本、字节 LRU 与批量事件调度，避免逐 token 重扫历史或无界缓存。
+- [ ] 执行 `pnpm exec vitest run packages/frontend-core/src`、`pnpm typecheck`、`pnpm lint:architecture`；渲染状态变化补充两端交互验证与 `pnpm test:performance`。
 
-- 工作台订阅共用 `task-view-selectors`：元数据只包含展示所需字段，活动时间戳不触发重绘；右栏按需订阅目标、计划、用量及来源/子代理投影，不以完整快照作为渲染依赖。正文 Delta 不扫描历史 Item 或物化正文，关闭面板释放投影，重新打开读取最新状态。共享选择器保留原生 Item 类型扩展；用 Web 的 `task-runtime-subscriptions.test.tsx` 与两端 `task-view-selectors.test.ts` 验证订阅稳定、计划独立更新、历史前插和快照替换。
-
-- 查询配置通过读取函数注入数据源；各端负责包装 React Query、传入客户端方法，并保留不同的完成任务查询契约。
-- 后台终端轮询共用 `background-terminal-polling`：已有终端每 1.5 秒校准，运行中空列表每 10 秒发现新终端，空闲且无终端时停止；回合边界立即读取，后台页面不轮询。各端保留自己的客户端与 Mutation 流程。
-- 后台终端存活查询不得继承全局 30 秒缓存新鲜期；重新打开任务或启用上下文时读取权威列表，结束失败后也立即校准。回合完成不能直接清空仍存活的后台终端；仅将 `-32600` 的 `thread not found:` 视为线程已释放，列表为空且结束操作幂等成功，其他错误继续传播。桌面收到 `terminated: false` 后须确认目标已从列表消失才视为成功。两端 `use-background-terminals-recovery` 与原生 `conversation_background_tests` 覆盖此约定。
-- 语言资源共用 `deferred-language` 加载与 i18next 后端适配：中文回退资源可同步使用，英语基础文案按需下载；并发加载只注册一次，失败允许重试。直接调用 i18next 切换语言、通知和辅助窗口同样必须等待资源，功能页的增量文案不得被覆盖。
-- 浏览器文本复制统一使用 `@codexly/frontend-core/clipboard` 的 `writeClipboardText`；必须处理 Clipboard API 缺失和写入被拒绝，降级复制后清理临时元素并恢复焦点、选区，失败不得误报成功。桌面已有原生剪贴板入口保持原生实现；Web 的部署限制与移动端交互由 `tests/e2e/app-shell-clipboard.spec.ts` 验证。
-- 时间线的 `interrupted` / `failed` 回合在下一次消息提交前保留输出，提交开始或已有后续回合时默认折叠全部输出（含部分最终答复与文件变更），保留用户输入及展开入口；`completed` 回合沿用各端既有规则。中断输出分类由共享层统一实现。
-- “已处理”仅在回合 `status === "running"`、开始时间有效且结束时间为空时计时；正常终态使用权威起止时间。异常退出恢复的 `interrupted` / `failed` / `completed` 回合若缺少结束时间，不展示推算耗时、不登记周期更新，保留执行过程的展开入口；不得把离线时长或重新进入页面的时间算作处理耗时。真实回合及历史摘要必须传递状态，尚未得到回合身份的本地提交占位显式标记为运行中。两端共用 `turn-processing-time`，用 `task-timeline-continuation` 覆盖两种引擎的恢复与后续“继续”回合。
-- Claude 自动续跑的无用户输入回合通过 `timeline-turn-groups` 与前一阶段合为一条展示回复，新的用户输入或审查输入建立新组；Codex 保持原生回合展示。计时从首阶段开始至末阶段结束，续跑中显示运行状态；正文、工具计时及各原生回合的过程游标全部保留，复制整条回复，分叉使用末次原生回合。分组只读取结构索引和消息角色，不读取正文；历史搜索与快捷目录须将原生回合索引映射到展示组，消息锚点仍保留原生身份。验证共享 `timeline-turn-groups.test.ts` 和两端 `task-timeline-continuation` 回归。
-- 快照回放、Turn 顺序、游标、工具计时与消息身份映射共用 `task-snapshot` / `message-identity`。仅相同 ID 或服务端/原生层明确给出的 `identityAliases` 可以接管消息；文本前缀、相同正文及图片媒体类型/大小都不能证明身份。`submitted-user-{turnId}` 是唯一可由首个权威用户项直接接管的本地提交占位。事件 `sessionId` 变化时直接使用权威快照重建，不保留旧 Item、工具计时、分页游标、审批或警告；同会话摘要仍保留未持久化实时操作和迟到工具事件。两端必须注册 `testing/task-identity-contract` 的同一组契约用例。原生事件扩展仍由各端负责。命令输出缓冲、项目事件历史和文件搜索的并发/截断规则由共享层实现；各端注入事件大小估算或 HTTP/Tauri 文件查询。
-
-- 切回已水合任务时，若项目连接可用、运行时会话一致且事件历史覆盖旧 checkpoint，先回放后台事件并接回实时订阅，再静默校准快照；不得等待历史正文读取后才恢复消息。缓存有缺口、运行时重启或连接未就绪时继续使用权威快照并显示恢复中。两端共用 `task-runtime-binding` 合并校准与恢复的在途请求；切走同步撤销发布权限并取消传输，预热快照不得随订阅闭包常驻。验证共享 `task-runtime-binding.test.ts` 和两端 `project-runtime-resume.test.ts`，覆盖慢读取、后台运行态、迟到响应、校准失败与缓存边界。
-- 顶部显式加载历史共用 `task-history-page/loadTaskHistory`，一次只读取一页摘要回合；禁止连续追读过程页。历史 `turnsNextCursor` 与每个回合的 `processCursor` 独立，过程使用单独 Store，不能改动摘要顺序或顶部游标。两端复用 `ui/core/history-process`：展开时才读取首个过程页，后续在过程区手动分页；收起再展开复用已加载内容，失败可重试，卸载后丢弃迟到响应。没有助手答复或时间戳的终态回合也必须保留过程入口。
-- 流式 Markdown 共用只追加文本快照、预处理变更边界与持久化分块树；平台注入文件路径和评论处理，中文粗体边界修复由共享层统一执行并保留代码原文。禁止用全文前缀比较推断增量；解析预算在读取长尾正文之前判定。流式结束保留稳定块，仅收尾未完成的尾块；超过同步预算的尾块由 `finalize` 异步完成最后一个快照，脚注仍保留全文作用域。替换正文、恢复流式或取消后丢弃旧异步结果。性能回归检查累计扫描和解析字符量，不将累计耗时当作单帧耗时。
-- 修改任务恢复或缓存上限时，运行 `pnpm test`、`pnpm lint:architecture`、`pnpm typecheck`，并在 `desktop/` 运行 `pnpm test:run` 与 `pnpm typecheck`。
-- 两端流式事件提交共用 `frontend-core/event-flush-scheduler`：可见时使用 rAF，隐藏时使用单次计时器；可见性切换必须替换已经排队的调度，不能只在首次排队时判断。快照重置、恢复、销毁及桌面详情暂停时取消调度并释放监听，迟到回调不能消费新批次。共享调度器、Web 恢复与桌面可见性测试覆盖后台消费、快速切换及取消清理；浏览器冻结时仍依赖既有缓冲上限与快照恢复兜底。
-- 内存估算与字节 LRU 统一使用 `frontend-core/byte-lru`；非活跃任务快照统一使用 `frontend-core/snapshot-memory` 的 48 MiB / 12 条目预算。安装时纳入已有缓存，超大条目被拒收时同时移除 QueryCache 正文；有观察者的快照不参与淘汰。纯元数据事件不得重新估算全文或刷新 LRU 顺序。缓存接口仅使用结构化公共契约，避免 Web 与桌面的 ESM/CJS 私有类型身份差异。
-- 用户消息快捷目录统一使用 `frontend-core/timeline-navigation` 遍历回合键索引、生成 Skill / 正文 / 附件预览；各端注入审查消息翻译，不重建完整任务快照。读取位置计算共用 `ui/core/timeline-navigation-anchor`，导航标记布局由各端保留。
-
-- 官方插件刷新共用 `plugin-reconcile`：显式刷新时同步后读取目录，仅合并在途请求，不轮询。上游变化并非累计游标，需比较新旧目录的安装、启用与版本字段补足后台同步；先取消受影响的旧读取，再失效详情、Skills 和任务 MCP 缓存。同步结果不代表运行时就绪，部分失败保留提示。
-
-- 项目文件可见性共用 `project-file-visibility`：Web 与桌面的文件树、Git 变更展示和回复变更汇总隐藏 `.DS_Store`、AppleDouble `._*`、Windows 缩略图缓存及系统元数据目录，兼容两种路径分隔符；保留 `.env`、`.gitignore` 等项目隐藏文件。过滤只控制展示，不改变 Git 提交或文件系统内容；过滤后的空目录须显示空状态。
-
-- Git 草稿按项目/工作树/分支稳定身份保存，Git 快照只用于校验提交范围。每次打开默认全选当前文件（含已暂存与未暂存），只恢复文本与撤销内容；首批详情晚到时补足默认全选，同次打开内刷新保留手动排除，后续新文件不自动加入；分页未完成不能丢弃离页选择。草稿不再维护或持久化审查状态，旧记录中的审查字段忽略。AI 结果只接受相同范围；用户点击生成即授权成功结果直接替换当前全文，替换前的内容用于撤销。生成失败、过期范围或已离开的工作区不得替换文本；读取旧草稿时丢弃待确认建议并保留提交信息。回执绑定 HEAD，只保存错误分类和提交身份，原始日志不得持久化。回归见 `git-commit-draft.test.ts`、`git-operation-receipt.test.ts`、`git-recovery.test.ts`。
-
-- 远端元数据查询按仓库/分支/工作区快照隔离，旧版本缓存 30 秒回收；版本变化不能复用旧同步状态。自动检查在同仓库任意窗口的 Git 写队列非空时暂停；提交前取消在途检查，提交结束按仓库前缀标记全部版本过期但不立即发起检查，队列空闲后由当前快照自动读取。不能只失效提交前闭包捕获的旧查询键；旧检查的迟到失败不得污染当前回执。回归见 `commit-changes-controller.test.ts`。网络动作在同一 Mutation 队列内先只读检查最新 HEAD，再带 HEAD/当前 UI 分支校验执行，拒绝并发分支变化；不自动重试推送。Git 面板承接本地化失败卡片，相关 Mutation 禁止另发原始错误 toast。错误分类包含状态变化、未提交变更、合并冲突及无效远端，并可持久化同 HEAD 回执。
-
-- Git 顶部展示与下一步由 `git-remote-presentation` 统一派生，恢复主动作与失败原因保持一致；本地 AI/提交失败不改变有效的推送动作。显式检查只解除已重新确认的状态变化，或引用已同步的失败回执，不以本地检查宣称网络/认证已修复；持久化回执分类经平台回调传入，不发送到 Git API。
-
-- 首次设置的标记解析与选择上下文保持轻量；恢复、准备流程和配置表单按需加载。完成标记不随版本失效，缺失时探测已有连接，探测失败不能清空标记或自动进入首次设置。单引擎与双引擎的意外退出恢复由 `engine-setup.test.ts` 覆盖，交互复用共享向导，说明见[双引擎配置](../../../../docs/agent-engines.md)。
-
-- 两端通过 `engine-settings-query.ts` 共用模型、公共偏好的引擎路由和查询键；仅 Claude 时必须传递 Claude 范围。缓存键区分引擎；默认 Codex 路径保留原请求形态。泛型保留两端响应及设置扩展，不能截断桌面 `changedFields` 或桌面专属打开方式。共享 Git 提交面板在仅 Claude 时显式发送 `engine: "claude"`。
-
-- 常用提示词数据和项目可见范围共用 `saved-prompts`：无 `projectId` 表示全局，指定后仅对应项目可用；快捷词在范围内唯一，项目版本覆盖同名全局版本。项目删除按 ID 清理并持久化，写失败不能发布新快照。候选排名共用 `prompt-suggestions`，仅维护最多 12 项最佳结果，禁止全量排序和正文匹配；平台不能独立实现范围过滤。回归见 `saved-prompts.test.ts`、`prompt-suggestions.test.ts`。
-
-- 引擎配置发现按引擎和项目缓存，草稿 ID 不参与缓存身份；新草稿与分屏复用在途请求及近期配置；正在使用的配置保留缓存订阅，不能因空闲 GC 而在长聊天结束后重新阻塞控件。设置变更显式失效，并撤销旧在途响应的缓存写入资格，防止旧配置重新成为新草稿默认值。模型控件仅等待所属引擎的配置，不能因另一引擎发现而清空已就绪的模型与思考选项。回归使用 `engine-profile-cache.test.ts`、`engine-composer-activation.test.tsx` 与桌面浏览器共享 Hook 用例。
-
-- 两端任务标识与运行中分组统一通过 `task-activity-sync` 同步后端轻量活动快照，状态不依赖任务列表分页、搜索结果或详情 Store。先注册全局通知再首读，启动、重连和恢复可见时校准；通知合并、在途补读及失败退避共用控制器，无固定轮询或正文读取。合并只复制一次 Map，保持未变化记录引用，并用读取基线与 checkpoint 拒绝迟到结果；缺失项只移除先前已同步且未被新事件修改的记录。验证共享 `task-activity-sync.test.ts` 及两端运行时恢复测试。
+相关契约：[文档工作区](../../../../docs/document-workspace.md)、[会话加载与性能](../../../../docs/conversation-performance.md)、[复用边界](../../guides/code-reuse-thinking-guide.md)。

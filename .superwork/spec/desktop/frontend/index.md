@@ -1,61 +1,16 @@
 # 桌面前端
 
-- Claude 回复按[共享续跑分组规则](../../frontend-core/shared/index.md)展示一次“已处理”；执行过程仍按原生回合懒加载，虚拟行高度须累计组内阶段，搜索与目录导航保留原生消息锚点。
+## 位置与职责
 
-代码位于 `desktop/src/`。路由与全局 Provider 在 `app/`，业务页面和运行时状态在 `features/`，通用组件在 `shared/`。`features/conversation/runtime/` 管理任务流与恢复。
+`desktop/src/app` 与 `features` 承载应用和功能，`platform/tauri` 负责原生传输，`protocol` 维护桌面适配契约，`shared` 与 `i18n` 负责端内组合和翻译。原生边界见 [Rust 后端](../backend/index.md)。
 
-- 左栏固定/运行中分组及任务时间线遵守[共享 UI 规则](../../ui/shared/index.md)，使用原生活动记录恢复完整运行列表；窄桌面窗口仍使用浮层，禁止按 Web 移动断点切换为抽屉。
+## 契约与检查项
 
-- 异步问题发送成功后按项目与任务持久化问题身份，独立于草稿淘汰和历史分页；失败仍可重试。切换任务时仅共享在途投递的状态，结果返回后释放共享登记，禁止重复提交。
-- 待发送提示使用共享 `frontend-core/prompt-delivery` 规则，在新用户消息或权威回合终态到达后清理；请求响应和返回任务时均检查当前 Store，不能等待已经错过的事件。
-- 提交状态在请求开始与结束边界同步通知本地计时，不能依赖渲染副作用传递结束通知；React 合并提交状态时也必须清理占位。时间线收到已完成、失败或中断回合后立即撤销运行提示，缺少助手输出不能延长计时。 提交回调引用变化不能触发结束通知；卸载清理必须读取最新回调，首次发送期间重渲染须保留消息占位。使用 `desktop/src/features/workbench/hooks/use-workbench-composer-controller.browser.test.tsx` 同时回归两端的重渲染、请求结束和卸载行为。
+- [ ] 使用 Tauri 原生链路；将 IPC、终端、窗口与系统集成留在平台适配层，共用组件和纯逻辑复用 UI / Frontend Core。
+- [ ] 共享组件变更同时检查 Web 调用者；桌面私有能力与 macOS Legacy 分支遵循 [能力参考](../../../../desktop/docs/codexly-capability-matrix.md)。
+- [ ] 流式消息保持有界增量更新，文档 / 分屏工作区核对焦点、滚动、键盘和拖拽行为。参照 [文档工作区](../../../../docs/document-workspace.md)。
+- [ ] 源文件与测试文件遵守桌面 500 行限制，由 `source:lines` 检查。
+- [ ] 自动化使用 `pnpm --dir desktop test:run`；布局与焦点使用 `pnpm --dir desktop test:browser`，覆盖 Chromium / WebKit。
+- [ ] `pnpm --dir desktop check:web` 覆盖静态检查、类型、测试、Tauri 约束、现代 / Legacy 构建和包体预算；完整桌面门槛是 `pnpm --dir desktop check`。
 
-- 遵守 `desktop/AGENTS.md`：只面向桌面端，重点控制资源、传输和渲染开销。
-- `src/protocol/` 对任务、事件与项目的公共字段引用 `@codexly/protocol`；`receivedAtUnixMs` 等原生传输字段保留在桌面协议扩展中。
-- 修改任务流时检查 `task-store-*`、`project-runtime-*` 及对应测试；修改窗口或原生能力时联查[桌面原生层](../backend/index.md)。
-- Provider 的 `runtime_warning` 在 Turn 完成及同一事件会话的快照恢复后留在任务上下文中，右栏按条默认折叠展示，流式时间线不渲染；新会话不继承旧警告。
-- 时间线按 `item.started` / `item.completed` 展示命令和工具耗时；文件编辑完成后不渲染“已编辑 N 个文件”任务行，回合运行中保留可打开的文件修改，终态仅由回复末尾汇总。思考项没有可靠起点，不估算耗时。
-- 保持 `src/i18n/locales/en/` 与 `zh-CN/` 的可见文案同步。
-- 桌面“开机启动”以操作系统启动项为唯一状态来源，进入设置或窗口聚焦时读取，用户切换后回读确认；失败显示重试提示，不写入智能体设置或浏览器偏好，也不增加后台轮询。使用 Tauri Autostart 插件，权限仅授予主窗口；macOS 使用兼容旧系统的 LaunchAgent。回归覆盖 `autostart-client.test.ts` 和 `scripts/autostart.test.mjs`，发布前验证目标系统登录启动行为。
-- 英语基础资源通过共享 `deferred-language` 按需加载，中文回退资源同步提供；i18next 的直接切换也等待资源，主窗口、项目文件窗口和任务小窗不能出现错误语言。终端轮询使用共享规则：有终端保留 1.5 秒校准，运行中空列表降低至 10 秒发现，后台页面停读。
-- 浏览器组件测试通过 `tests/browser/setup.ts` 的 `beforeEach` 等待 i18n 初始化后再执行，避免默认英语环境下的异步资源加载暂停组件挂载；在用例模块注册原生存储 mock 后动态读取实例，不在 setupFiles 阶段提前缓存真实依赖。布局与性能断言仍检查真实 DOM，不以固定延时或失败重跑替代初始化等待。
-- Project 行的新增任务与项目菜单入口在 `hover: none` 的触屏桌面设备上常显；鼠标端仍可仅在悬停或聚焦时显示。
-- 收起的 Project 在未悬停、未聚焦时于最右侧显示任务状态，优先级为未查看完成、等待审批、运行；展开和触屏隐藏，桌面窄窗口仍显示；悬停操作及布局保持原样。聚合完整活动记录，不依赖任务分页或搜索结果；两端共用 `frontend-core/project-task-status` 与 `ui/core/project-status-indicator`，浏览器回归覆盖 Chromium、WebKit、悬停和窄屏。
-- 新建任务中栏的范围选择器同时包含“聊天”和所有 Project；切换仅导航到对应空草稿路由，首次提交才创建任务。
-- worktree 管理放在中栏底部分支菜单，与 Web 共用懒加载菜单及创建表单；左栏不创建 worktree 专属任务。创建/选择只设置草稿目录，首次提交才携带 `workspacePath`，引擎、模型等由输入框决定。已有会话保留原目录，选择其他工作树时进入新草稿。
-- worktree 任务按 `workspacePath` 固定文件与 Git 目录；目录未恢复时禁止回落到原仓库。原生终端沿用 `worktree:<taskId>` 标识任务目录；草稿创建终端时另传 `rootPath`，后端统一校验项目或 Git worktree 归属。
-- 输入框的模型和思考量分别使用独立下拉菜单；切换模型时将不受支持的思考量回落到目标模型的默认档位。
-- 模型的 `inputModalities` 是可选字段；自定义目录省略时表示能力未知，附件提交交由供应商校验，不能在前端发送前抛出异常。只有明确声明的能力列表才拦截不支持的图片或音频；回归覆盖仅图片、图片加文字和明确不支持的能力。
-- 即时发送通过校验后同步清空输入并展示本地用户消息和运行态；原生提交失败时仅在草稿仍为空时恢复原输入，真实用户 Item 到达后由它接管，不能重复显示。
-- Skill、文件引用、模式命令及排队消息更新 Composer 时，同步替换草稿并定位光标；不得用下一帧回调覆盖用户的新选区或输入。浏览器回归覆盖命令选择和排队消息恢复后的立即全选。
-- 在 `desktop/` 执行 `pnpm check:web`；交互依赖浏览器行为时使用已有 `pnpm test:browser` 或 WebView 测试。
-- 历史导航必须同步解除初始跟随和置底状态；动态测高期间最多十二帧校准目标 Turn，挂载后定位消息锚点，卸载时取消动画帧。与 Web 端保持相同的有界重试策略，用 `conversation.browser.test.tsx` 覆盖导航后立即测量尾部的竞态。
-- 扩展中心及其专用样式按路由加载；专用插件样式覆盖通用市场样式时，不得依赖 CSS 加载顺序。浏览器测试由功能入口加载基础样式，并保留插件卡片尺寸检查。
-- Windows 发布构建使用 `chrome116`，常规前端构建默认使用 `safari17.5`；两者的 CSS 体积可能不同。Windows 发布后须对实际 `dist` 执行 `pnpm performance:budget`，不能只沿用常规构建的预算结果。
-- 主时间线与只读任务小窗共用 `markdown-typography` 样式；保持 Tailwind utilities 层和主题字号 token，避免向运行时重复传入长排版类列表。调整时用 `markdown-typography.browser.test.tsx` 验证 Chromium、WebKit 的标题、引用、代码和宽图片布局。
-
-- 历史压缩入口复用 `@codexly/ui/core/history-compression`，通过 Native Client 提交；说明作用于本机历史，并提示共用目录的其他客户端需支持压缩格式。不得将后台请求回执显示为压缩完成。
-
-- PDF 文件链接、附件和文件树共用 `core/pdf-preview` 原生预览；用 `navigator.pdfViewerEnabled` 检测能力，缺失时保留显式打开动作。附件点击后才加载，关闭后卸载；不引入 PDF.js 或 Base64 整文件传输。桌面只开放校验后的单文件 asset scope，独立预览窗口同时授权读取和打开命令。
-
-- Git 能力仅由当前所选项目根目录决定，禁止扫描、聚合或选择子目录仓库。非 Git 项目隐藏右栏 Git 提示、重试、变更、历史和 Composer 分支入口，并停止活动、元数据、窗口聚焦及挂载自动刷新；显式项目刷新仍可重新探测。Web 与桌面共用 `frontend-core/project-git-availability` 判定，回归覆盖子仓库误判和残留错误状态。
-
-- 分屏最多同时展示 4 个聊天窗口，支持已创建任务和新建草稿；添加窗口保留任务菜单入口，并支持中栏空白处右键上下左右分屏和 `⌘/Ctrl + Alt + 方向键`；新窗口打开当前项目的独立草稿。共用 `frontend-core/split-workspace` 的身份与选择规则及 `ui/core/split-workspace` 的布局；按项目和任务组合设置稳定 key，增删其他窗口不得清空草稿或重挂时间线。每个窗口复用完整中栏，继续执行与 Fork 只更新所属窗口，迟到请求不得恢复已关闭窗口。
-- 桌面分屏共享项目终端资源，但仅活动窗口挂载终端视图并响应快捷键；各窗口的任务写权限必须同步给外侧任务菜单。使用 `task-interaction-context.test.ts` 验证权限隔离，并运行 `pnpm check:web` 验证构建与性能预算。
-
-- Git 根仓库的“变更”标签在工作区清空后仍保留；有变更时主操作为“提交”，菜单仅提供“提交并推送”；独立推送统一使用顶部远端入口；空工作区隐藏提交输入与空文件列表，主操作为“推送”。结果区明确区分本地保存、推送成功和推送未完成，失败可单独重试，真实成功回执才显示“已推送”。操作共用队列和即时点击锁，干净工作区不额外读取 diff；两端共用 `ui/core/git-changes-actions`、操作文案与 Mutation 配置。回归覆盖部分提交后继续提交、Commit 后 Push、空工作区入口、菜单独立可用、推送中禁用与非 Git 项目隐藏。
-
-- 桌面 Git 面板仅适配分页状态和按需 Diff，提交编辑、AI 生成、持久回执与远端动作共用 `@codexly/ui`。已加载文件选择必须明确，分页补齐不得静默扩大范围；不提供冲突编辑、解决标记或合并完成/取消操作；未完成操作与分叉历史只提供外部工具说明和刷新入口。自动远端检查在共享 Git 写队列及原生提交收尾期间暂停，结束后自动读取当前快照；提前到达的元数据不得留下需要手动重试的暂态检查失败。回归见 `commit-changes-controller.browser.test.tsx`。保留原生索引收尾错误回执，提交成功与收尾失败分开报告。
-
-- 左栏版本按钮始终打开“关于”，独立升级按钮在有可用更新时打开更新日志弹窗，右下角“更新”按钮复用当前平台的安装 Mutation；设置中的检查、日志及更新流程保持独立。两端共用 `ui/core/app-update-dialog`，安装中展示进度并阻止重复提交，失败可重试；底栏设置、通知、帮助只显示图标，入口之间的空白不可点击。通知与帮助使用无蒙层的非模态 Popover；通知数据和面板遵循[共享 UI 规则](../../ui/shared/index.md)。用 `project-sidebar-update.test.tsx`、`app-update-dialog.test.tsx` 及桌面 `project-sidebar-actions.browser.test.tsx` 回归，浏览器交互通过 Chrome CDP 验证。
-
-- 桌面首次启动直接进入工作区，设置直接开放 API 配置。启用状态仅从原生配置和认证恢复，旧向导选择不再有效；配置及登录通知即时刷新，保持工作区子树身份。无配置不启动引擎，单引擎不显示选择器；公共偏好、关于页及外部应用能力查询必须绕过 Codex 启动。Web 初始化流程独立保留，共享配置面板和选择器；详见[引擎分发规则](../../../../docs/agent-engines.md)。
-- 设置中的 Codex/Claude 配置面板直接可用，不显示启用、下载或安装步骤；聊天区不得探测未配置引擎，也不得在配置发现期间把新草稿回退到未启用引擎。历史和定时任务保持原引擎。文件浏览、Git、附件及公共应用工具必须独立于引擎启动，使用 `sidebar-client-runtime.test.ts` 验证单引擎隔离。
-
-- Claude 与 Codex 共用跟进偏好和队列交互；WorkbenchComposer 不得按引擎强制覆盖 followUpBehavior，是否可引导由当前引擎能力与运行回合决定。scheduled-engine-composer.test.ts 覆盖两种跟进偏好。
-
-- 切回可见窗口时，通过共享 `installCatalogFocusRefresh` 使目录与历史列表失效，以读取同机另一端的提交；合并同轮 focus/visibility 事件，释放监听，不新增后台轮询或刷新聊天正文。回归见共享 `catalog-focus-refresh.test.ts`。
-
-- 设置 → 常用提示词与输入框的 `/` 插入遵循[共享 UI 规则](../../ui/shared/index.md)，两端只适配语言、项目上下文和设置路由；本机存储不要求引擎就绪。验证新增、搜索、编辑、删除、存储失败、光标中间插入、项目范围隔离、项目筛选、删除项目时清理关联提示词及最多 12 项的排名菜单。
-
-- 桌面任务状态恢复遵循[共享活动快照契约](../../frontend-core/shared/index.md)，使用 `get_task_activities` 和全局 `task-activity://changed`，不依赖已打开的项目订阅；原生读取在同一锁内截取活动状态与项目 checkpoint。不得以容量预算淘汰运行中、待处理或未查看终态；确认、归档与删除负责清理。验证原生 `task_activity` 容量回归及 `task-activity-restore.browser.test.tsx`。
+开发入口见 [桌面开发](../../../../desktop/docs/development.md)。
