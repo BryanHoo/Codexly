@@ -218,7 +218,7 @@ test("keeps sidebar search and primary navigation compact", async ({ page }) => 
   await expect(page).toHaveURL(/\/p\/codexly\/extensions\/skills$/u);
 });
 
-test("preserves the original sidebar control typography and dimensions", async ({ page }) => {
+test("preserves sidebar typography and compact footer dimensions", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
 
   const sidebar = page.getByRole("complementary", { name: "项目侧栏" });
@@ -250,8 +250,8 @@ test("preserves the original sidebar control typography and dimensions", async (
       display: "grid",
       fontSize: "13px",
       fontWeight: "450",
-      height: "32px",
-      width: "32px",
+      height: "28px",
+      width: "28px",
       justifyContent: "center",
     });
   await expect
