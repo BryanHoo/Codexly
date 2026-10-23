@@ -245,6 +245,14 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
       if (!items.some((item) => item.id === id && !item.read)) return;
       replace(items.map((item) => (item.id === id ? { ...item, read: true } : item)));
     },
+    markTaskRead: (projectId: string, taskId: string) => {
+      // 聚焦任务时一次确认其全部通知；同时匹配项目，避免同名任务跨项目误读。
+      const matches = (item: TaskNotification) =>
+        !item.read && item.projectId === projectId && item.taskId === taskId;
+      // 重复聚焦或活动恢复没有新增未读时，不触发渲染与存储写入。
+      if (!items.some(matches)) return;
+      replace(items.map((item) => (matches(item) ? { ...item, read: true } : item)));
+    },
     markAllRead: () => {
       if (items.some((item) => !item.read))
         replace(items.map((item) => (item.read ? item : { ...item, read: true })));

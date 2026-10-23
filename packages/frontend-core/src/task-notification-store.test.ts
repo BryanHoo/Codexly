@@ -14,6 +14,42 @@ const activity: TaskActivitySnapshot = {
 };
 
 describe("任务通知记录", () => {
+  it("按项目和任务批量标为已读，重复聚焦不发布或持久化无变化的状态", async () => {
+    const saved = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => saved.get(key) ?? null,
+      setItem: vi.fn((key: string, value: string) => saved.set(key, value)),
+    };
+    const store = createTaskNotificationStore(storage);
+    store.recordActivities([
+      activity,
+      { ...activity, status: "failed" },
+      { ...activity, projectId: "project-b" },
+      { ...activity, taskId: "task-b" },
+    ]);
+    await Promise.resolve();
+    storage.setItem.mockClear();
+    const listener = vi.fn();
+    const stop = store.subscribe(listener);
+
+    store.markTaskRead(activity.projectId, activity.taskId);
+    expect(store.getSnapshot().filter((item) => item.read)).toHaveLength(2);
+    expect(store.getSnapshot().filter((item) => !item.read)).toEqual([
+      expect.objectContaining({ taskId: "task-b" }),
+      expect.objectContaining({ projectId: "project-b" }),
+    ]);
+    await Promise.resolve();
+    const snapshot = store.getSnapshot();
+    store.markTaskRead(activity.projectId, activity.taskId);
+    store.markTaskRead("missing", activity.taskId);
+    await Promise.resolve();
+    expect(store.getSnapshot()).toBe(snapshot);
+    expect(listener).toHaveBeenCalledOnce();
+    expect(storage.setItem).toHaveBeenCalledOnce();
+    expect(createTaskNotificationStore(storage).getSnapshot()).toEqual(snapshot);
+    stop();
+  });
+
   it("收集全局任务活动，忽略运行中状态和重复快照，刷新后保留已读", async () => {
     const saved = new Map<string, string>();
     const storage = {

@@ -182,6 +182,10 @@ export class ProjectRuntimeManager {
       if (record === undefined) throw new Error("Activity snapshot identity is missing");
       return record;
     });
+    // 聚焦可能发生在活动读取期间；即使旧快照被跳过，也要确认已收集的当前任务通知。
+    if (this.#viewedTask) {
+      getTaskNotificationStore().markTaskRead(this.#viewedTask.projectId, this.#viewedTask.taskId);
+    }
     this.#updateTaskActivity(next);
   }
 
@@ -251,6 +255,8 @@ export class ProjectRuntimeManager {
   public viewTask(projectId: string, taskId?: string): void {
     this.#viewedTask = taskId === undefined ? undefined : { projectId, taskId };
     if (taskId !== undefined) {
+      // 所有导航和分屏聚焦共用此入口，同步消除通知中心的未读状态。
+      getTaskNotificationStore().markTaskRead(projectId, taskId);
       this.#updateTaskActivity(clearTaskAttention(this.#taskActivity, projectId, taskId));
     }
     this.#projects.get(projectId)?.markAccess();
@@ -332,6 +338,8 @@ export class ProjectRuntimeManager {
           if (isTaskNotificationEvent(event)) {
             getTaskNotificationStore().recordEvent(eventProjectId, event,
               this.#taskTitles.get(createProjectTaskKey(eventProjectId, event.taskId)) ?? event.taskId);
+            if (this.#isTaskViewed(eventProjectId, event.taskId))
+              getTaskNotificationStore().markTaskRead(eventProjectId, event.taskId);
           }
           if (event.type !== "task.removed") {
             // 所有 Task 实时事件都推进 Activity 水位，避免流式期间到达的旧 Snapshot 回滚侧栏状态。
