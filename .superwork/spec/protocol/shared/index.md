@@ -16,3 +16,10 @@
 ## Web 诊断契约
 
 - `packages/protocol/src/diagnostics.ts` 定义 `DiagnosticsResponseSchema` 和 `DiagnosticsResponse`，由 Client `getDiagnostics()` 与 Server `GET /v1/diagnostics` 共用；版本固定为 1，包含导出时间、运行环境、脱敏 JSON 日志行和淘汰计数。该 HTTP 快照不替换桌面原生 ZIP 导出协议。
+
+## 归档日期清理契约
+
+- `DeleteArchivedTasksRequestSchema` 支持可选 ISO 日期时间 `updatedBefore`；省略表示全部归档，提供时仅删除最后更新时间严格早于截止点的任务。界面选择日期时，两端按用户本地日历零点转换，不含截止日期当天；月份快捷选项按自然月并截断月底日期。
+- 删除范围覆盖全部归档分页，不受当前搜索影响；确认弹窗固定截止点，空白或无效自定义日期不得回退为全部删除。HTTP 在 AJV 移除额外字段前拒绝未知筛选，幂等指纹包含截止点。
+- 先收集目标再按最多 4 项并发删除。Core 在执行前复查更新时间，防止收集后新更新的任务误删；桌面保持原生删除链路。两端复用 `packages/frontend-core/src/archived-task-deletion.ts` 与 `packages/ui/src/core/archived-task-delete-control.tsx`，搜索加载不能重置日期范围。
+- 验证入口：`packages/core/src/archived-task-deletion.test.ts`、`packages/server/src/app-archived-task-deletion.test.ts`、`tests/e2e/app-shell-archived-tasks.spec.ts` 及桌面 `archived-task-delete-all.test.ts`、`archived-tasks-dialog.browser.test.tsx`。

@@ -45,6 +45,51 @@ test("collects all pages before deleting unique archived tasks", async () => {
   expect(provider.deleteTask.mock.calls).toEqual([["a"], ["b"], ["c"]]);
 });
 
+test("selects only archived tasks strictly older than the cutoff across pages", async () => {
+  const provider = setup();
+  provider.listTasks
+    .mockResolvedValueOnce({
+      data: [task("old"), { ...task("boundary"), updatedAt: "2026-10-01T00:00:00Z" }],
+      nextCursor: "next",
+    })
+    .mockResolvedValueOnce({
+      data: [
+        { ...task("new"), updatedAt: "2026-10-02T00:00:00Z" },
+        { ...task("invalid"), updatedAt: "unknown" },
+        task("old-page-2"),
+      ],
+      nextCursor: null,
+    });
+  expect(
+    await deleteArchivedTasks(provider, "project", { updatedBefore: "2026-10-01T00:00:00Z" }),
+  ).toEqual({ deletedCount: 2, failedCount: 0 });
+  expect(provider.deleteTask.mock.calls).toEqual([["old"], ["old-page-2"]]);
+});
+
+test("rechecks the selected task timestamp before deleting", async () => {
+  const provider = setup();
+  provider.listTasks.mockResolvedValue({ data: [task("changed")], nextCursor: null });
+  const changedTask = await provider.readTask("changed");
+  if (changedTask === undefined) throw new Error("Missing task fixture");
+  provider.readTask.mockResolvedValue({
+    ...changedTask,
+    updatedAt: "2026-10-02T00:00:00Z",
+  });
+  expect(
+    await deleteArchivedTasks(provider, "project", { updatedBefore: "2026-10-01T00:00:00Z" }),
+  ).toEqual({ deletedCount: 0, failedCount: 1 });
+  expect(provider.deleteTask).not.toHaveBeenCalled();
+});
+
+test("rejects an invalid cutoff before listing or deleting", async () => {
+  const provider = setup();
+  await expect(
+    deleteArchivedTasks(provider, "project", { updatedBefore: "invalid" }),
+  ).rejects.toThrow("cutoff");
+  expect(provider.listTasks).not.toHaveBeenCalled();
+  expect(provider.deleteTask).not.toHaveBeenCalled();
+});
+
 test("rejects repeated cursors before any destructive call", async () => {
   const provider = setup();
   provider.listTasks.mockResolvedValue({ data: [task("a")], nextCursor: "repeat" });

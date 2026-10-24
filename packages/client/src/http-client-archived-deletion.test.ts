@@ -18,3 +18,16 @@ test("sends one typed archived deletion request for project and temporary scopes
   ]);
   expect(fetch.mock.calls[0]?.[1]).toMatchObject({ method: "DELETE", body: "{}" });
 });
+
+test("sends the cutoff in the request body and retains mutation options", async () => {
+  const fetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValue(jsonResponse({ deletedCount: 1, failedCount: 0 }));
+  const client = new CodexlyClient({ fetch });
+  const updatedBefore = "2026-07-24T00:00:00.000Z";
+  await client.deleteArchivedTasks("codexly", { updatedBefore, idempotencyKey: "dated" });
+  expect(fetch.mock.calls[0]?.[1]).toMatchObject({
+    method: "DELETE",
+    body: JSON.stringify({ updatedBefore }),
+  });
+});

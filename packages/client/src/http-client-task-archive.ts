@@ -3,6 +3,7 @@ import {
   DeleteAgentTaskResponseSchema,
   DeleteArchivedTasksResponseSchema,
   type DeleteArchivedTasksResponse,
+  type DeleteArchivedTasksRequest,
   UnarchiveAgentTaskResponseSchema,
   type ArchiveAgentTaskResponse,
   type DeleteAgentTaskResponse,
@@ -16,11 +17,11 @@ import { ProjectHttpClient } from "./http-client-projects.js";
 export class TaskArchiveHttpClient extends ProjectHttpClient {
   public deleteArchivedTasks(
     projectId: string,
-    options: MutationOptions = {},
+    options: MutationOptions & DeleteArchivedTasksRequest = {},
   ): Promise<DeleteArchivedTasksResponse> {
     return this.mutation(
       `${projectPath(projectId)}/tasks/archived`,
-      {},
+      options.updatedBefore === undefined ? {} : { updatedBefore: options.updatedBefore },
       DeleteArchivedTasksResponseSchema,
       options,
       "DELETE",

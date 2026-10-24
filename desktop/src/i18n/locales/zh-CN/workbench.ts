@@ -1,3 +1,4 @@
+import { archivedTasksChinese } from "@codexly/frontend-core/archived-task-labels";
 import { sidebarTimelineChinese } from "@codexly/frontend-core/sidebar-task-view";
 import { composerLabelsChinese } from "@codexly/frontend-core/composer-labels";
 import { engineChinese } from "@codexly/frontend-core/engine-labels";
@@ -383,30 +384,7 @@ export const workbench = {
   skillEditor: {
     tokenLabel: "Skill {{name}}，实际文本 {{text}}",
   },
-  archivedTasks: {
-    confirmDelete: "永久删除",
-    confirmDeleteAll: "全部永久删除",
-    delete: "永久删除",
-    deleteAll: "全部删除",
-    deleteAllDescription:
-      "“{{project}}”中的全部已归档任务将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
-    deleteAllTitle: "永久删除全部已归档任务",
-    deleteDescription:
-      "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",
-    deleteTask: "永久删除任务 {{task}}",
-    deleteTitle: "永久删除任务",
-    empty: "没有已归档任务",
-    loadError: "无法加载已归档任务",
-    loading: "正在加载已归档任务",
-    next: "下一页",
-    page: "第 {{page}} 页",
-    previous: "上一页",
-    restore: "恢复",
-    restoreTask: "恢复任务 {{task}}",
-    search: "搜索已归档任务",
-    title: "{{project}} 的已归档任务",
-    updatedAt: "更新于 {{date}}",
-  },
+  archivedTasks: archivedTasksChinese,
   sidebar: {
     timeline: sidebarTimelineChinese,
     addProject: "添加项目",

@@ -1,3 +1,4 @@
+import { archivedTasksEnglish } from "@codexly/frontend-core/archived-task-labels";
 import { sidebarFooterEnglish } from "@codexly/frontend-core/sidebar-footer-labels";
 import { sidebarTimelineEnglish } from "@codexly/frontend-core/sidebar-task-view";
 import { composerLabelsEnglish } from "@codexly/frontend-core/composer-labels";
@@ -376,32 +377,7 @@ export const workbench = {
   skillEditor: {
     tokenLabel: "Skill {{name}}, serialized text {{text}}",
   },
-  archivedTasks: {
-    confirmDelete: "Delete permanently",
-    confirmDeleteAll: "Delete all permanently",
-    delete: "Delete permanently",
-    deleteAll: "Delete all",
-    deleteAllDescription:
-      'All archived tasks in "{{project}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',
-    deleteAllTitle: "Permanently delete all archived tasks",
-    deleteAllPartialFailure:
-      "Deleted {{deletedCount}} tasks; {{failedCount}} could not be deleted. Refresh and retry.",
-    deleteDescription:
-      '"{{task}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',
-    deleteTask: "Permanently delete task {{task}}",
-    deleteTitle: "Permanently delete task",
-    empty: "No archived tasks",
-    loadError: "Unable to load archived tasks",
-    loading: "Loading archived tasks",
-    next: "Next page",
-    page: "Page {{page}}",
-    previous: "Previous page",
-    restore: "Restore",
-    restoreTask: "Restore task {{task}}",
-    search: "Search archived tasks",
-    title: "Archived tasks for {{project}}",
-    updatedAt: "Updated {{date}}",
-  },
+  archivedTasks: archivedTasksEnglish,
   sidebar: {
     timeline: sidebarTimelineEnglish,
     addProject: "Add project",

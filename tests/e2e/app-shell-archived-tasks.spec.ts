@@ -110,3 +110,78 @@ test("manages searchable paginated archived tasks from the project menu", async 
   expect(individualDeleteRequests).toBe(1);
   await expect(dialog.getByText("没有已归档任务", { exact: true })).toBeVisible();
 });
+
+for (const width of [1280, 375]) {
+  test(`deletes archived tasks before a selected date at width ${String(width)} @cross-browser`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.clock.setFixedTime(new Date("2026-10-24T12:00:00Z"));
+    const tasks = [
+      { id: "old", title: "很早的归档", updatedAt: "2026-01-01T00:00:00Z" },
+      { id: "boundary", title: "边界日期的归档", updatedAt: "2026-07-24T00:00:00Z" },
+      { id: "recent", title: "近期归档", updatedAt: "2026-10-20T00:00:00Z" },
+    ].map((task) => ({ ...task, pinned: false, projectId: "codexly" }));
+    const deleted = new Set<string>();
+    const cutoffs: string[] = [];
+    await page.route("**/v1/projects/codexly/tasks?*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("archived") !== "true") return route.fallback();
+      const search = url.searchParams.get("searchTerm") ?? "";
+      await route.fulfill({
+        json: {
+          data: tasks.filter((task) => !deleted.has(task.id) && task.title.includes(search)),
+          nextCursor: null,
+        },
+      });
+    });
+    await page.route("**/v1/projects/codexly/tasks/archived", async (route) => {
+      const { updatedBefore } = route.request().postDataJSON() as { updatedBefore: string };
+      cutoffs.push(updatedBefore);
+      const matching = tasks.filter(
+        (task) => !deleted.has(task.id) && Date.parse(task.updatedAt) < Date.parse(updatedBefore),
+      );
+      for (const task of matching) deleted.add(task.id);
+      await route.fulfill({ json: { deletedCount: matching.length, failedCount: 0 } });
+    });
+    await page.goto("/p/codexly/t/task-1");
+    if (width < 640) await page.getByRole("button", { name: "展开项目侧栏" }).click();
+    await page.getByRole("button", { name: "打开 Codexly 的项目操作菜单" }).click();
+    await page.getByRole("menuitem", { name: "已归档" }).click();
+    const dialog = page.getByRole("dialog", { name: "Codexly 的已归档任务" });
+    const range = dialog.getByRole("combobox", { name: "选择归档删除范围" });
+    await range.selectOption("6");
+    await dialog.getByRole("button", { name: "按日期删除" }).click();
+    let confirmation = page.getByRole("dialog", { name: "按日期永久删除已归档任务" });
+    await expect(confirmation).toContainText("2026/4/24");
+    await confirmation.getByRole("button", { name: "取消", exact: true }).click();
+    expect(cutoffs).toHaveLength(0);
+
+    await range.selectOption("3");
+    // 搜索只显示近期任务，批量日期清理仍应在全部归档中选择旧任务。
+    await dialog.getByRole("textbox", { name: "搜索已归档任务" }).fill("近期");
+    await expect(dialog.getByText("很早的归档", { exact: true })).not.toBeVisible();
+    await dialog.getByRole("button", { name: "按日期删除" }).click();
+    confirmation = page.getByRole("dialog", { name: "按日期永久删除已归档任务" });
+    await expect(confirmation).toContainText("2026/7/24");
+    await expect(confirmation).toContainText("最后更新时间");
+    await confirmation.getByRole("button", { name: "永久删除", exact: true }).click();
+    await expect.poll(() => [...deleted]).toEqual(["old"]);
+    expect(cutoffs[0]).toBe(await page.evaluate(() => new Date(2026, 6, 24).toISOString()));
+
+    await expect(confirmation).not.toBeVisible();
+    await range.selectOption("custom");
+    const date = dialog.getByLabel("删除此日期之前的归档任务");
+    await expect(dialog.getByRole("button", { name: "按日期删除" })).toBeDisabled();
+    await date.fill("2026-10-01");
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    await dialog.getByRole("button", { name: "按日期删除" }).click();
+    confirmation = page.getByRole("dialog", { name: "按日期永久删除已归档任务" });
+    await expect(confirmation).toContainText("2026/10/1");
+    await confirmation.getByRole("button", { name: "永久删除", exact: true }).click();
+    await expect.poll(() => [...deleted]).toEqual(["old", "boundary"]);
+    await expect(dialog.getByText("近期归档", { exact: true })).toBeVisible();
+  });
+}

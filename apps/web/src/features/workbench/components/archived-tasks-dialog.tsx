@@ -1,3 +1,5 @@
+import type { DeleteArchivedTasksRequest } from "@codexly/protocol";
+import { ArchivedTaskDeleteControl } from "@codexly/ui/core/archived-task-delete-control";
 import type { AgentTask, AgentTaskPage, Project } from "@codexly/protocol";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -42,7 +44,7 @@ type ArchivedTaskListViewProps = Readonly<{
   isPending: boolean;
   mutationPending: boolean;
   onDelete: (task: AgentTask) => void;
-  onDeleteAll: () => void;
+  onDeleteAll: (updatedBefore?: string) => void;
   onNext: () => void;
   onPrevious: () => void;
   onRestore: (task: AgentTask) => void;
@@ -66,102 +68,104 @@ export function ArchivedTaskListView({
 }: ArchivedTaskListViewProps) {
   const { t } = useTranslation("workbench");
 
-  if (isPending) {
-    return (
-      <div className="flex min-h-48 items-center justify-center" role="status">
-        <LoaderCircle className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />
-        <span className="sr-only">{t("archivedTasks.loading")}</span>
-      </div>
-    );
-  }
-  if (error !== null) {
-    return (
-      <div className="flex min-h-48 flex-col items-center justify-center gap-3 px-4 text-center">
-        <p className="text-body-small text-danger" role="alert">
-          {t("archivedTasks.loadError")}
-        </p>
-        <Button onClick={onRetry} size="sm" type="button" variant="outline">
-          {t("actions.retry")}
-        </Button>
-      </div>
-    );
-  }
+  // 搜索和翻页加载只替换列表内容，保持日期控件挂载，避免清理范围被重置为“全部”。
+  const content = isPending ? (
+    <div className="flex min-h-48 items-center justify-center" role="status">
+      <LoaderCircle className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />
+      <span className="sr-only">{t("archivedTasks.loading")}</span>
+    </div>
+  ) : error !== null ? (
+    <div className="flex min-h-48 flex-col items-center justify-center gap-3 px-4 text-center">
+      <p className="text-body-small text-danger" role="alert">
+        {t("archivedTasks.loadError")}
+      </p>
+      <Button onClick={onRetry} size="sm" type="button" variant="outline">
+        {t("actions.retry")}
+      </Button>
+    </div>
+  ) : page?.data.length === 0 ? (
+    <p className="flex min-h-48 items-center justify-center px-4 text-body-small text-muted-foreground">
+      {t("archivedTasks.empty")}
+    </p>
+  ) : (
+    <ul className="min-h-0 overflow-y-auto">
+      {page?.data.map((task) => (
+        <li className="flex min-h-14 min-w-0 items-center gap-3 px-4 py-2" key={task.id}>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-body-small font-medium text-foreground">{task.title}</p>
+            <p className="text-caption text-muted-foreground">
+              {t("archivedTasks.updatedAt", {
+                date: new Date(task.updatedAt).toLocaleString(),
+              })}
+            </p>
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                aria-label={t("archivedTasks.restoreTask", { task: task.title })}
+                disabled={mutationPending}
+                onClick={() => {
+                  onRestore(task);
+                }}
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              >
+                <ArchiveRestore aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("archivedTasks.restore")}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                aria-label={t("archivedTasks.deleteTask", { task: task.title })}
+                disabled={mutationPending}
+                onClick={() => {
+                  onDelete(task);
+                }}
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("archivedTasks.delete")}</TooltipContent>
+          </Tooltip>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto]">
-      {page?.data.length === 0 ? (
-        <p className="flex min-h-48 items-center justify-center px-4 text-body-small text-muted-foreground">
-          {t("archivedTasks.empty")}
-        </p>
-      ) : (
-        <ul className="min-h-0 overflow-y-auto">
-          {page?.data.map((task) => (
-            <li className="flex min-h-14 min-w-0 items-center gap-3 px-4 py-2" key={task.id}>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-body-small font-medium text-foreground">{task.title}</p>
-                <p className="text-caption text-muted-foreground">
-                  {t("archivedTasks.updatedAt", {
-                    date: new Date(task.updatedAt).toLocaleString(),
-                  })}
-                </p>
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    aria-label={t("archivedTasks.restoreTask", { task: task.title })}
-                    disabled={mutationPending}
-                    onClick={() => {
-                      onRestore(task);
-                    }}
-                    size="icon-sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <ArchiveRestore aria-hidden="true" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("archivedTasks.restore")}</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    aria-label={t("archivedTasks.deleteTask", { task: task.title })}
-                    disabled={mutationPending}
-                    onClick={() => {
-                      onDelete(task);
-                    }}
-                    size="icon-sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("archivedTasks.delete")}</TooltipContent>
-              </Tooltip>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="flex min-h-12 items-center justify-between gap-2 px-4">
-        <Button
-          className="text-danger hover:text-danger"
-          disabled={mutationPending}
-          onClick={onDeleteAll}
-          size="sm"
-          type="button"
-          variant="ghost"
-        >
-          <Trash2 aria-hidden="true" />
-          {t("archivedTasks.deleteAll")}
-        </Button>
+      {content}
+      <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 px-4 py-2">
+        <ArchivedTaskDeleteControl
+          disabled={mutationPending || isPending || error !== null}
+          labels={{
+            range: t("archivedTasks.deleteRange"),
+            all: t("archivedTasks.rangeAll"),
+            month: t("archivedTasks.rangeMonth"),
+            threeMonths: t("archivedTasks.rangeThreeMonths"),
+            sixMonths: t("archivedTasks.rangeSixMonths"),
+            year: t("archivedTasks.rangeYear"),
+            custom: t("archivedTasks.rangeCustom"),
+            date: t("archivedTasks.deleteBeforeDate"),
+            deleteAll: t("archivedTasks.deleteAll"),
+            deleteBefore: t("archivedTasks.deleteBefore"),
+            hint: t("archivedTasks.deleteBeforeHint"),
+          }}
+          onDelete={onDeleteAll}
+        />
         <div className="flex items-center gap-3">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 aria-label={t("archivedTasks.previous")}
                 className="size-11 sm:size-8"
-                disabled={mutationPending || pageNumber === 1}
+                disabled={mutationPending || isPending || error !== null || pageNumber === 1}
                 onClick={onPrevious}
                 size="icon-sm"
                 type="button"
@@ -180,7 +184,9 @@ export function ArchivedTaskListView({
               <Button
                 aria-label={t("archivedTasks.next")}
                 className="size-11 sm:size-8"
-                disabled={mutationPending || page?.nextCursor === null}
+                disabled={
+                  mutationPending || isPending || error !== null || page?.nextCursor == null
+                }
                 onClick={onNext}
                 size="icon-sm"
                 type="button"
@@ -213,7 +219,7 @@ export function ArchivedTasksDialog({
   const [cursors, setCursors] = useState<readonly (string | undefined)[]>([undefined]);
   const [pageIndex, setPageIndex] = useState(0);
   const [deletingTask, setDeletingTask] = useState<AgentTask | null>(null);
-  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [deleteSelection, setDeleteSelection] = useState<DeleteArchivedTasksRequest | null>(null);
   const actionLockRef = useRef(createAsyncActionLock());
   const cursor = cursors[pageIndex];
   const tasksQuery = useQuery(
@@ -222,8 +228,8 @@ export function ArchivedTasksDialog({
   const unarchiveMutation = useMutation(taskUnarchiveMutationOptions(client));
   const deleteMutation = useMutation(taskDeleteMutationOptions(client));
   const deleteAllMutation = useMutation({
-    mutationFn: async () => {
-      const result = await client.deleteArchivedTasks(project.id);
+    mutationFn: async (selection: DeleteArchivedTasksRequest) => {
+      const result = await client.deleteArchivedTasks(project.id, selection);
       if (result.failedCount > 0)
         throw new Error(t("archivedTasks.deleteAllPartialFailure", result));
       return result;
@@ -286,8 +292,10 @@ export function ArchivedTasksDialog({
   const deleteAllTasks = () =>
     actionLockRef.current.run(async () => {
       try {
-        await deleteAllMutation.mutateAsync();
-        setDeleteAllOpen(false);
+        // 确认弹窗打开时已固定截止日期，确认及失败重试均复用同一范围。
+        if (deleteSelection === null) return;
+        await deleteAllMutation.mutateAsync(deleteSelection);
+        setDeleteSelection(null);
       } catch {
         // 保留确认 Dialog，根级 MutationCache 展示单一批量错误。
       } finally {
@@ -327,8 +335,8 @@ export function ArchivedTasksDialog({
             isPending={tasksQuery.isPending}
             mutationPending={mutationPending}
             onDelete={setDeletingTask}
-            onDeleteAll={() => {
-              setDeleteAllOpen(true);
+            onDeleteAll={(updatedBefore) => {
+              setDeleteSelection(updatedBefore === undefined ? {} : { updatedBefore });
             }}
             onNext={() => {
               const nextCursor = tasksQuery.data?.nextCursor;
@@ -364,18 +372,33 @@ export function ArchivedTasksDialog({
           title={t("archivedTasks.deleteTitle")}
         />
       )}
-      {deleteAllOpen ? (
+      {deleteSelection !== null ? (
         <TaskDeleteConfirmationDialog
-          confirmLabel={t("archivedTasks.confirmDeleteAll")}
-          description={t("archivedTasks.deleteAllDescription", { project: project.name })}
+          confirmLabel={t(
+            deleteSelection.updatedBefore === undefined
+              ? "archivedTasks.confirmDeleteAll"
+              : "archivedTasks.confirmDelete",
+          )}
+          description={
+            deleteSelection.updatedBefore === undefined
+              ? t("archivedTasks.deleteAllDescription", { project: project.name })
+              : t("archivedTasks.deleteBeforeDescription", {
+                  project: project.name,
+                  date: new Date(deleteSelection.updatedBefore).toLocaleDateString(),
+                })
+          }
           isPending={deleteAllMutation.isPending}
           onClose={() => {
-            setDeleteAllOpen(false);
+            setDeleteSelection(null);
           }}
           onConfirm={() => {
             void deleteAllTasks();
           }}
-          title={t("archivedTasks.deleteAllTitle")}
+          title={t(
+            deleteSelection.updatedBefore === undefined
+              ? "archivedTasks.deleteAllTitle"
+              : "archivedTasks.deleteBeforeTitle",
+          )}
         />
       ) : null}
     </>

@@ -3,6 +3,7 @@ import {
   AgentMutationErrorSchema,
   DeleteArchivedTasksRequestSchema,
   DeleteArchivedTasksResponseSchema,
+  type DeleteArchivedTasksRequest,
 } from "@codexly/protocol";
 import type { FastifyInstance } from "fastify";
 import { MutationHttpError, type ServerRouteContext } from "./context.js";
@@ -15,10 +16,26 @@ export function registerArchivedTaskRoutes(
   app.delete<{
     Params: { projectId: string };
     Headers: { "idempotency-key": string };
-    Body: Record<string, never>;
+    Body: DeleteArchivedTasksRequest;
   }>(
     "/v1/projects/:projectId/tasks/archived",
     {
+      preValidation: (request, _reply, done) => {
+        const body: unknown = request.body;
+        // Fastify 默认会移除额外属性；删除请求须在移除前拒绝未知筛选，防止退化为全部删除。
+        if (
+          body !== null &&
+          typeof body === "object" &&
+          Object.keys(body).some((key) => key !== "updatedBefore")
+        ) {
+          throw new MutationHttpError(
+            "INVALID_REQUEST",
+            "Unknown archived task deletion filter",
+            400,
+          );
+        }
+        done();
+      },
       schema: {
         params: ProjectParamsSchema,
         headers: IdempotencyHeadersSchema,
@@ -40,7 +57,7 @@ export function registerArchivedTaskRoutes(
           if (project === undefined)
             throw new MutationHttpError("PROJECT_NOT_FOUND", "Project not found", 404);
           // 部分失败也缓存为正式结果；同一请求重放不能重新选择后来归档的任务。
-          return deleteArchivedTasks(project.provider, project.scope.id);
+          return deleteArchivedTasks(project.provider, project.scope.id, request.body);
         },
       ),
   );

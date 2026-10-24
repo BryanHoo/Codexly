@@ -50,6 +50,10 @@ describe("ArchivedTaskListView", () => {
     expect(markup).toContain('aria-label="恢复任务 归档任务一"');
     expect(markup).toContain('aria-label="永久删除任务 归档任务一"');
     expect(markup).toContain("全部删除");
+    expect(markup).toContain('aria-label="选择归档删除范围"');
+    expect(markup).toContain("3 个月前");
+    expect(markup).toContain("半年前");
+    expect(markup).toContain("自定义日期");
     expect(markup).toContain('aria-label="上一页"');
     expect(markup).toContain('aria-label="下一页"');
     expect(markup).toContain("第 2 页");

@@ -1,3 +1,4 @@
+import type { DeleteArchivedTasksRequest } from "@codexly/protocol";
 import type { AgentProvider } from "./agent-provider.js";
 
 type ArchivedTaskProvider = Pick<
@@ -6,7 +7,16 @@ type ArchivedTaskProvider = Pick<
 >;
 
 /** 先固定目标集合，再执行删除，避免分页游标因本次删除而跳过任务。 */
-export async function deleteArchivedTasks(provider: ArchivedTaskProvider, scopeId: string) {
+export async function deleteArchivedTasks(
+  provider: ArchivedTaskProvider,
+  scopeId: string,
+  options: DeleteArchivedTasksRequest = {},
+) {
+  const cutoff =
+    options.updatedBefore === undefined ? undefined : Date.parse(options.updatedBefore);
+  if (cutoff !== undefined && !Number.isFinite(cutoff)) {
+    throw new Error("Invalid archived task deletion cutoff");
+  }
   const ids = new Set<string>();
   const cursors = new Set<string>();
   let cursor: string | undefined;
@@ -19,6 +29,8 @@ export async function deleteArchivedTasks(provider: ArchivedTaskProvider, scopeI
     });
     for (const task of page.data) {
       if (task.projectId !== scopeId) throw new Error("Archived task listing crossed its scope");
+      // 截止点为排他边界；无效更新时间不会命中，避免扩大日期清理范围。
+      if (cutoff !== undefined && !(Date.parse(task.updatedAt) < cutoff)) continue;
       ids.add(task.id);
       if (ids.size > 10000) throw new Error("Archived task deletion exceeds the 10000 task limit");
     }
@@ -37,6 +49,10 @@ export async function deleteArchivedTasks(provider: ArchivedTaskProvider, scopeI
       tasks.slice(index, index + 4).map(async (id) => {
         const task = await (provider.readTaskMetadata?.(id) ?? provider.readTask(id));
         if (task?.projectId !== scopeId) throw new Error("Archived task is no longer in scope");
+        // 分页收集后任务可能发生更新，执行前再次检查，保护近期活动的会话。
+        if (cutoff !== undefined && !(Date.parse(task.updatedAt) < cutoff)) {
+          throw new Error("Archived task no longer matches the deletion cutoff");
+        }
         await provider.deleteTask(id);
       }),
     );
