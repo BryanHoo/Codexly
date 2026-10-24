@@ -35,8 +35,8 @@ Desktop supports Windows 10/11 x64, Ubuntu 24.04+ x64, macOS 14.5+ on Apple Sili
 - **Follow execution**: see streaming replies, commands, tools, plans, and file changes. Respond to approvals and questions, steer running work, or queue follow-up messages persistently.
 - **Organize projects and tasks**: browse by project or timeline, pin, archive, or restore conversations, and handle unread alerts in the notification center. Open the task board, extensions, and schedules from the sidebar.
 - **Work in parallel**: open up to four task panes in the desktop app or a computer browser, drag to swap their positions, and keep independent drafts and queues. Mobile uses a single-task view.
-- **Read and edit project files**: browse code, Markdown, images, and PDFs, edit supported text files, attach files and images, and reference project files and Skills. LAN devices can download files that cannot be previewed through an explicit prompt.
-- **Reuse instructions and track usage**: save global or project prompts and insert them with `/`. View token statistics for both engines, a yearly heatmap, and daily task details in Settings.
+- **Read and edit project files**: browse code, Markdown, images, and PDFs, edit supported text files, reorder, pin, or bulk-close document tabs, and compare files with chat. Attach files and images or reference project files and Skills. LAN devices can download files that cannot be previewed through an explicit prompt.
+- **Reuse instructions and track usage**: save global or project prompts and insert them by title with `/` or `#`. View token statistics for both engines, a yearly heatmap, and daily task details in Settings.
 - **Complete Git work**: review diffs and history, manage branches and worktrees, commit selected files, commit and push, or push existing commits.
 - **Manage agent capabilities**: search, filter, and manage Skills, MCP, and official plugins by engine and global or project scope, with per-item operation status. Configure models, reasoning effort, permissions, and context settings.
 
@@ -99,6 +99,7 @@ Claude-only setups do not require Codex. Model availability, usage limits, and c
 - [Workspace guide](docs/usage.en.md): conversations, panes, files, Git, extensions, and schedules.
 - [Web guide](docs/web.en.md): startup, mobile connections, and updates.
 - [FAQ (中文)](docs/faq.md): storage, cross-client use, connections, and updates.
+- Export diagnostics from **Settings → About**: Web and mobile download JSON; desktop exports a ZIP.
 - [Changelog](CHANGELOG.md) · [Issues](https://github.com/BryanHoo/Codexly/issues) · [Security](SECURITY.md)
 - [Contributing](CONTRIBUTING.md): development, verification, and releases.
 

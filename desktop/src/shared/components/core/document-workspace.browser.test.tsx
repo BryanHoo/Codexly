@@ -100,7 +100,8 @@ describe("双端共用中栏标签与聊天对照", () => {
       editor.value = "保留聊天草稿";
       expect(host.querySelectorAll('[role="tab"]')).toHaveLength(0);
       flushSync(() => { void state!.open({ id: "a.ts" }); });
-      await expect.poll(() => host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toContain("a.ts");
+      // 首次标签通过 Suspense 懒加载，冷缓存下的模块转换可能超过默认轮询时间。
+      await expect.poll(() => host.querySelector('[role="tab"][aria-selected="true"]')?.textContent ?? "", { timeout: 5_000 }).toContain("a.ts");
       expect(editor.checkVisibility()).toBe(false);
       flushSync(() => { void state!.compare("right"); });
       expect(editor.checkVisibility()).toBe(true);

@@ -36,7 +36,7 @@ Codexly 支持 Codex 与 Claude，提供桌面应用、电脑 Web 和移动浏�
 
 ## 问题排查
 
-Web 先查看启动终端，按需运行 `codexly doctor`；桌面端可在「设置 → 关于」导出诊断材料。先确认出错的使用端和智能体，再按[常见问题](faq.md)排查。[桌面诊断日志](../desktop/docs/diagnostics.md)提供进一步分析方法。
+Web、移动浏览器和桌面均可在「设置 → 关于」导出诊断材料：Web 下载 JSON，桌面导出 ZIP。Web 服务默认不向终端持续输出运行日志，启动错误仍可在终端查看，按需运行 `codexly doctor`。先确认出错的使用端和智能体，再按[常见问题](faq.md)排查；[Web 诊断](web.md#排查问题)与[桌面诊断日志](../desktop/docs/diagnostics.md)提供进一步说明。
 
 [问题反馈](https://github.com/BryanHoo/Codexly/issues) · [安全漏洞私密报告](../SECURITY.md) · [更新日志](../CHANGELOG.md)
 

@@ -4,18 +4,22 @@
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-10-24
+
 ### 新增
 
-- 为 Web 和移动浏览器的“设置 → 关于”增加诊断日志导出，包含最近服务端日志、浏览器异常和运行环境；复用桌面异常采集，并限制日志容量、过滤敏感字段。
+- Web 和移动浏览器可在「设置 → 关于」导出诊断日志，包含最近服务端日志、浏览器异常和运行环境。
+- 文件标签支持拖动排序、固定和批量关闭，常用提示词支持用 `/` 或 `#` 按标题匹配插入。
 
 ### 优化
 
-- 停止 Web 服务默认向终端输出运行日志，保留诊断日志导出和显式配置的后台日志。
+- 统一两端分屏快捷键为 `Alt+Shift+方向键`，新增键盘快捷键帮助，并改善侧栏引擎标识和通知操作。
+- Web 服务默认不再向终端输出运行日志，保留有容量限制和敏感字段过滤的诊断导出及显式配置的后台日志。
 
 ### 修复
 
-- 修复 Web 设置检查更新被镜像旧版本和服务端缓存阻挡的问题，手动检查可立即重新查询。
-- 异步问答出现时发送通知并将任务标为待回答，回答或关闭后恢复任务状态。
+- 修复 Web 手动检查更新受镜像旧版本和缓存阻挡的问题，并更新安全依赖。
+- 修复异步问题未提醒待回答的状态，进入任务时自动将该任务通知标为已读。
 
 ## [0.41.0] - 2026-10-22
 
@@ -841,7 +845,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.41.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.42.0...HEAD
+[0.42.0]: https://github.com/BryanHoo/Codexly/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/BryanHoo/Codexly/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/BryanHoo/Codexly/compare/v0.39.1...v0.40.0
 [0.39.1]: https://github.com/BryanHoo/Codexly/compare/v0.38.0...v0.39.1

@@ -10,7 +10,7 @@ Add a disk folder as a project, or create a temporary task without project conte
 
 Pin, archive, restore, or permanently delete tasks. Sidebar shortcuts help you move between projects and show unread completions, pending approvals, and running tasks. Use the task board to review work centrally. Search can find projects, tasks, messages, and files; some entry points depend on the enabled engine.
 
-Switch the sidebar between projects and a timeline grouped by Today, Yesterday, the last seven days, and Earlier. Groups can be collapsed. The task board and extensions are in the sidebar header, with schedules in the icon area; settings, notifications, and help are at the bottom. The notification center separates unread and read alerts, supports marking all as read, and opens the linked task when selected.
+Switch the sidebar between projects and a timeline grouped by Today, Yesterday, the last seven days, and Earlier. Groups can be collapsed. The task board and extensions are in the sidebar header, with schedules in the icon area; settings, notifications, and help are at the bottom. The notification center separates unread and read alerts and supports marking all as read. Opening a task marks its notifications as read. Asynchronous questions notify you and mark the task as awaiting an answer; answering or closing the question restores its status.
 
 ## Conversations and queues
 
@@ -24,7 +24,7 @@ Recent history loads first. Load older turns from the top, and expand execution 
 
 ## Panes and mobile
 
-Desktop and computer browsers support up to four task panes. Use **Split layout** in the task header, a task's sidebar menu, or the blank-chat context menu. Shortcuts are `⌘+⌥+Arrow` on macOS and `Ctrl+Alt+Arrow` on Windows / Ubuntu.
+Desktop and computer browsers support up to four task panes. Use **Split layout** in the task header, a task's sidebar menu, or the blank-chat context menu. Both clients use `Alt+Shift+Arrow` (Option on macOS). Open **Help → Keyboard shortcuts** for available actions on your platform.
 
 Drag dividers to resize panes. Drafts and queues are independent; files, Git, and the desktop terminal follow the focused task. Navigation from notifications, search, or the task board preserves the layout.
 
@@ -35,6 +35,8 @@ Mobile keeps a single-task view. Switch projects and tasks through the sidebar a
 ## Files and previews
 
 Open source, Markdown, images, and PDFs in center tabs while the project tree stays visible on the right. Diffs, file reviews, and commit details also use center tabs. Select **Chat** to return to the conversation. Images support zoom and pan; attachments keep their dedicated previews.
+
+Drag document tabs to reorder them. Right-click a tab or open the tab actions menu to pin, move, or bulk-close tabs; the menu also works on mobile. Standard bulk-close actions preserve pinned tabs. Edits save before closing, and failed saves keep tabs and drafts open. Chat stays first and cannot be closed.
 
 Use the file toolbar to compare with chat side by side or above, drag the divider to resize, and click the selected comparison button again to focus on the document. The tab bar is hidden when only chat is open. Task navigation returns to chat while keeping open file tabs. Each task pane owns its tabs. Mobile uses a single tab group and closes overlay sidebars when opening a file.
 

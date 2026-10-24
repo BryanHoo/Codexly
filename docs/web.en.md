@@ -93,7 +93,7 @@ Repeated `enable` updates the same login entry. Without `--now`, changes apply o
 
 ## Updates and uninstall
 
-Click the sidebar version when an update appears to read notes and install it, or check **Settings → About**. Built-in updates probe the official registry and a mirror with fallback; mirrors may lag. Global installations can also update with:
+Click the sidebar version when an update appears to read notes and install it, or check **Settings → About**. Manual checks query again, preferring the official registry and falling back to a mirror; mirrors may lag. Global installations can also update with:
 
 ```bash
 npm install --global @bryanhu/codexly@latest
@@ -111,6 +111,8 @@ npm uninstall --global @bryanhu/codexly
 Skip the first command if startup was never configured. Uninstalling preserves projects and `~/.codexly`, which may still be used by desktop.
 
 ## Troubleshooting
+
+The server no longer continuously writes runtime logs to the terminal by default. In a computer or mobile browser, export diagnostics from **Settings → About** to download a JSON file with app and engine versions, browser information, recent browser errors, and server logs. These buffers are held in memory: restarting the server or refreshing the browser clears its respective buffer, so export soon after a problem. Server logs retain at most 2 MiB / 2,000 entries; browser errors retain at most 100 entries. Sensitive fields are filtered, but review the file before sharing.
 
 Check terminal errors, the actual URL and port, Node.js version, and network first:
 

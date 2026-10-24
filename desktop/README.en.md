@@ -24,7 +24,9 @@ Desktop shares conversations, approvals, queues, files, Git, extensions, and sch
 
 Open up to four task panes with independent drafts and queues. Files, Git, and the terminal follow the focused task. See [first use](../docs/getting-started.en.md) and the [workspace guide](../docs/usage.en.md).
 
-Switch the sidebar between projects and a timeline, or open the notification center for unread alerts. Center file tabs support horizontal or vertical comparison with chat. Settings includes global or project saved prompts and token statistics for both engines; saved prompts stay in the current client.
+Switch the sidebar between projects and a timeline, or open the notification center for unread alerts. Opening a task marks its notifications as read. Reorder, pin, or bulk-close center file tabs and compare files with chat horizontally or vertically. Settings includes global or project saved prompts, inserted by title with `/` or `#`, and token statistics for both engines; saved prompts stay in the current client.
+
+Use `Alt+Shift+Arrow` to split tasks and **Help → Keyboard shortcuts** to view available shortcuts. Export a diagnostic ZIP from **Settings → About** when troubleshooting.
 
 The extension center manages local Skills, MCP, and official plugins for Codex or Claude, with search, filters, and global or project scope. Available operations follow each engine's capabilities. Start a new conversation after configuration changes for complete loading.
 
