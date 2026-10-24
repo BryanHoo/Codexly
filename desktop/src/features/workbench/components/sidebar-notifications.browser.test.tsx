@@ -8,7 +8,7 @@ import { TooltipProvider } from "../../../shared/components/core/tooltip.js";
 const labels = {
   settings: "设置", help: "帮助", version: "关于版本", update: "升级", guide: "使用文档", shortcuts: "键盘快捷键",
   notifications: "通知", unread: "未读", read: "已读", markAllRead: "全部已读", markRead: "标为已读",
-  clearRead: "清空已读", empty: "暂无通知", emptyUnread: "暂无未读通知", emptyRead: "暂无已读通知",
+  clearRead: "全部删除", empty: "暂无通知", emptyUnread: "暂无未读通知", emptyRead: "暂无已读通知",
   close: "关闭通知", loadMore: "显示更多", completed: "任务已完成", failed: "任务失败", approval: "等待审批", input: "等待输入",
 };
 
@@ -26,13 +26,19 @@ describe("轻量通知与独立底栏入口", () => {
     await expect.element(screen.getByRole("tab", { name: "未读 2" })).toHaveAttribute("aria-selected", "true");
     const panel = screen.getByRole("dialog", { name: "通知", exact: true }).element();
     expect(panel.getBoundingClientRect().width).toBeLessThanOrEqual(320);
-    expect(screen.getByRole("button", { name: "清空已读" }).query()).toBeNull();
+    expect(screen.getByRole("button", { name: "全部删除", exact: true }).query()).toBeNull();
     await screen.getByRole("button", { name: /任务 a.*任务已完成/ }).click();
     expect(onTaskNavigate).toHaveBeenCalledExactlyOnceWith("p", "a");
     await screen.getByRole("button", { name: "通知，1 未读", exact: true }).click();
     await screen.getByRole("tab", { name: "已读 1" }).click();
     await expect.element(screen.getByRole("button", { name: /任务 a.*任务已完成/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /任务 b.*任务已完成/ }).query()).toBeNull();
+    // 批量删除只清理已读记录，保留未读任务和当前已读页的空状态。
+    await screen.getByRole("button", { name: "全部删除", exact: true }).click();
+    expect(store.getSnapshot()).toEqual([expect.objectContaining({ taskId: "b", read: false })]);
+    await expect.element(screen.getByRole("tab", { name: "已读 0" })).toHaveAttribute("aria-selected", "true");
+    await expect.element(screen.getByText("暂无已读通知", { exact: true })).toBeVisible();
+    expect(screen.getByRole("button", { name: "全部删除", exact: true }).query()).toBeNull();
     // 已读页仍能处理其他未读通知，标题栏操作不依赖当前 Tab。
     const markAllRead = screen.getByRole("button", { name: "全部已读", exact: true });
     await expect.element(markAllRead).toBeVisible();
@@ -42,7 +48,11 @@ describe("轻量通知与独立底栏入口", () => {
     await screen.getByRole("tab", { name: "未读 0" }).click();
     expect(store.getSnapshot().every((item) => item.read)).toBe(true);
     await expect.element(screen.getByText("暂无未读通知", { exact: true })).toBeVisible();
-    await expect.element(screen.getByRole("tab", { name: "已读 2" })).toBeVisible();
+    await expect.element(screen.getByRole("tab", { name: "已读 1" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "全部删除", exact: true }).query()).toBeNull();
+    await screen.getByRole("tab", { name: "已读 1" }).click();
+    await screen.getByRole("button", { name: "全部删除", exact: true }).click();
+    expect(store.getSnapshot()).toEqual([]);
     await screen.getByRole("button", { name: "关闭通知" }).click();
     await expect.element(screen.getByRole("button", { name: "通知，0 未读", exact: true })).toHaveFocus();
   });

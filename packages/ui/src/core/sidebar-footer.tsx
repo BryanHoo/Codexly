@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Settings,
   ShieldQuestion,
+  Trash2,
   X,
 } from "lucide-react";
 import * as Popover from "radix-ui/popover";
@@ -313,6 +314,19 @@ export function SidebarFooter({
                     >
                       <CheckCheck aria-hidden="true" className="size-3.5" />
                       {labels.markAllRead}
+                    </Button>
+                  ) : null}
+                  {/* 仅在已读页提供批量删除，复用共享存储保留未读通知与活动去重信息。 */}
+                  {activeTab === "read" && read.length > 0 ? (
+                    <Button
+                      aria-label={labels.clearRead}
+                      className="gap-1 rounded-lg px-1.5 text-caption"
+                      size="toolbar"
+                      variant="ghost"
+                      onClick={store.clearRead}
+                    >
+                      <Trash2 aria-hidden="true" className="size-3.5" />
+                      {labels.clearRead}
                     </Button>
                   ) : null}
                   <Popover.Close asChild>

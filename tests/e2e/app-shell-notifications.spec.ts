@@ -48,19 +48,30 @@ for (const width of [1280, 320]) {
     if (width === 320) await page.getByRole("button", { name: "展开项目侧栏" }).click();
     await page.getByRole("button", { name: "通知，1 未读", exact: true }).click();
     await panel.getByRole("tab", { name: "已读 1" }).click();
+    await panel.getByRole("button", { name: "全部删除", exact: true }).click();
+    await expect(panel.getByText("暂无已读通知", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("tab", { name: "未读 1" })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "全部删除", exact: true })).toHaveCount(0);
     // Web 和移动端在已读页都可通过标题栏完成全部已读。
     await panel.locator("header").getByRole("button", { name: "全部已读", exact: true }).click();
     await expect(panel.getByRole("button", { name: "全部已读", exact: true })).toHaveCount(0);
-    await expect(panel.getByRole("tab", { name: "已读 2" })).toBeVisible();
+    await expect(panel.getByRole("tab", { name: "已读 1" })).toBeVisible();
     await page.reload();
     if (width === 320) await page.getByRole("button", { name: "展开项目侧栏" }).click();
     await page.getByRole("button", { name: "通知，0 未读", exact: true }).click();
-    await expect(panel.getByRole("tab", { name: "已读 2" })).toBeVisible();
-    await panel.getByRole("tab", { name: "已读 2" }).click();
-    await expect(
-      panel.getByRole("button", { name: /构建 macOS 工作台.*任务已完成/ }),
-    ).toBeVisible();
+    await expect(panel.getByRole("tab", { name: "已读 1" })).toBeVisible();
+    await panel.getByRole("tab", { name: "已读 1" }).click();
+    await expect(panel.getByRole("button", { name: /等待审核.*等待审批/ })).toBeVisible();
     await expect(panel.getByRole("button", { name: "全部已读", exact: true })).toHaveCount(0);
-    await expect(panel.getByRole("button", { name: "清空已读", exact: true })).toHaveCount(0);
+    await panel.getByRole("button", { name: "全部删除", exact: true }).click();
+    await expect(panel.getByRole("tab", { name: "已读 0" })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "全部删除", exact: true })).toHaveCount(0);
+    // 刷新并恢复相同活动快照后，已删除的通知不能重新出现。
+    await page.reload();
+    if (width === 320) await page.getByRole("button", { name: "展开项目侧栏" }).click();
+    await page.getByRole("button", { name: "通知，0 未读", exact: true }).click();
+    await expect(panel.getByRole("tab", { name: "已读 0" })).toBeVisible();
+    await panel.getByRole("tab", { name: "已读 0" }).click();
+    await expect(panel.getByText("暂无已读通知", { exact: true })).toBeVisible();
   });
 }
