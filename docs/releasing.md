@@ -48,6 +48,8 @@ git push origin "v${RELEASE_VERSION}"
 
 工作流先验证统一版本与根目录联合日志，并运行 Web E2E、桌面质量和真实 WebView 门禁；全部通过后按 Windows、Ubuntu、macOS 矩阵构建签名桌面更新产物到草稿 Release，随后发布 npm 包，最后公开联合 Release。GitHub Release 页面标题统一为 `Codexly v<版本号>`；正文只提取根目录对应版本的合并更新内容，不再添加产品或版本标题，首行保留桌面更新检查所需的隐藏标记 `<!-- codeagent-version: <版本号> -->`。桌面应用离线日志也内置根目录同一文件。桌面发行物以 Codexly 命名。内部 Workspace 包仍保持私有。
 
+Web E2E 与普通 CI 使用相同的 30 分钟任务上限，包含浏览器及系统依赖安装、构建和测试，避免冷环境下载挤占测试时间。
+
 发布完成后确认 `Release` 工作流成功，检查 npm 版本，以及 GitHub Release 的 Windows、Ubuntu、macOS 安装包、`latest.json`、`latest-legacy.json` 和对应签名。更新清单中的版本与下载地址必须指向本次发布；只有全部任务成功、联合 Release 已公开且产物齐全，才算发布完成。
 
 ## 失败恢复
