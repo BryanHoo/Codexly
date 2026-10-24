@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { WorkbenchComposer, type WorkbenchComposerProps } from "./workbench-composer.js";
+import { SelectedEnginesContext } from "@codexly/ui/core/engine-selection";
 
 const { useEngineComposerState, captured } = vi.hoisted(() => ({
   useEngineComposerState: vi.fn(() => ({
@@ -35,6 +36,23 @@ vi.mock("./workbench-composer-base.js", () => ({
 }));
 
 describe("scheduled engine composer", () => {
+  it.each(["codex", "claude"] as const)("仅启用 %s 时不挂载引擎选择器", (engine) => {
+    const markup = renderToStaticMarkup(
+      <SelectedEnginesContext value={[engine]}>
+        <WorkbenchComposer
+          {...({
+            projectId: "project",
+            client: {},
+            models: [],
+            settings: {},
+          } as unknown as WorkbenchComposerProps)}
+        />
+      </SelectedEnginesContext>,
+    );
+    // 即便还留有另一引擎的已连接缓存，单引擎上下文也必须直接跳过选择器。
+    expect(markup).toBe("");
+  });
+
   it("allows engine selection during capture and restores the saved engine in its own scope", () => {
     const markup = renderToStaticMarkup(
       <WorkbenchComposer

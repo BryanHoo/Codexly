@@ -20,7 +20,8 @@ const emptyModels = [] as const;
 export function WorkbenchComposer(props: WorkbenchComposerProps) {
   const { t } = useTranslation("workbench");
   const queryClient = useQueryClient();
-  const codexEnabled = useSelectedEngines()?.includes("codex") ?? true;
+  const selectedEngines = useSelectedEngines();
+  const codexEnabled = selectedEngines?.includes("codex") ?? true;
   const connection = useQuery({ ...providerConnectionQueryOptions(), enabled: codexEnabled });
   const client = props.client as WorkbenchComposerProps["client"] & Partial<EngineClient>;
   const scope = JSON.stringify([props.projectId, props.composerDraftId ?? props.taskId ?? (props.onCaptureSubmission ? "capture" : "draft")]);
@@ -55,7 +56,8 @@ export function WorkbenchComposer(props: WorkbenchComposerProps) {
   const models = state.pending ? emptyModels : claude ? state.profile?.models.data ?? emptyModels : props.models;
   const settings = claude ? resolveClaudeComposerSettings(override?.scope === scope ? override.settings : props.settings, models, state.profile?.settings) : resolveCodexComposerSettings(props.settings, props.models);
   const controls = <>
-    <AgentEngineSelector codexAvailable={state.codexConfigured} claudeAvailable={state.claudeConfigured} label={t("engine.select")} value={state.engine} locked={state.locked} disabled={state.submitting} onChange={state.select} />
+    {/* 单引擎直接跳过选择器组件，避免执行其内部渲染与交互逻辑。 */}
+    {selectedEngines?.length !== 1 && state.codexConfigured && state.claudeConfigured ? <AgentEngineSelector codexAvailable={state.codexConfigured} claudeAvailable={state.claudeConfigured} label={t("engine.select")} value={state.engine} locked={state.locked} disabled={state.submitting} onChange={state.select} /> : null}
   </>;
   return <WorkbenchComposerBase {...props}
     engineControls={controls}

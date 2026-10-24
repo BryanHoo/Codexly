@@ -29,13 +29,19 @@ export function useEngineComposerState(
 ) {
   const selectedEngines = useSelectedEngines();
   const preferredEngine = selectedEngines?.[0] ?? "codex";
+  const singleEngine = selectedEngines?.length === 1 ? selectedEngines[0] : undefined;
+  const claudeSupported =
+    input.claudeSupported !== false && (selectedEngines?.includes("claude") ?? true);
   const [selection, setSelection] = useState(() => ({
     scope: input.scope,
-    engine: input.initialEngine ?? readDraftEngine(input.scope, preferredEngine),
+    // 单引擎直接确定归属，不读取双引擎模式留下的草稿选择。
+    engine: input.initialEngine ?? singleEngine ?? readDraftEngine(input.scope, preferredEngine),
   }));
   const [submitting, setSubmitting] = useState(false);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
+    // 仅启用 Codex 时没有 Claude 配置需要维护，避免无效监听与缓存刷新。
+    if (!claudeSupported) return;
     const refresh = () => {
       input.invalidateProfile?.();
       setRevision((value) => value + 1);
@@ -44,31 +50,35 @@ export function useEngineComposerState(
     return () => {
       window.removeEventListener("codexly:engine-settings-changed", refresh);
     };
-  }, [input.invalidateProfile]);
+  }, [claudeSupported, input.invalidateProfile]);
   const [result, setResult] = useState<{
     key: string;
     profile?: AgentEngineProfile;
     error?: Error;
   }>();
   const draftEngine =
-    selection.scope === input.scope
-      ? selection.engine
-      : (input.initialEngine ?? readDraftEngine(input.scope, preferredEngine));
-  const claudeSupported =
-    input.claudeSupported !== false && (selectedEngines?.includes("claude") ?? true);
+    singleEngine !== undefined
+      ? (input.initialEngine ?? singleEngine)
+      : selection.scope === input.scope
+        ? selection.engine
+        : (input.initialEngine ?? readDraftEngine(input.scope, preferredEngine));
   const codexEnabled = selectedEngines?.includes("codex") ?? true;
   const key = JSON.stringify([input.profileScope ?? input.scope, claudeSupported, revision]);
   const profile = result?.key === key ? result.profile : input.cachedProfile;
   const claudeConfigured = claudeSupported && profile?.connection.state === "connected";
   const codexConfigured = codexEnabled && input.codexConfigured === true;
-  const resolvedEngine = resolveComposerEngine(
-    input.taskId,
-    input.taskEngine === undefined ? undefined : { engine: input.taskEngine },
-    draftEngine,
-    { codex: codexConfigured, claude: claudeConfigured },
-    input.initialEngine !== undefined ||
-      (input.taskId === undefined && claudeSupported && profile === undefined),
-  );
+  // 历史会话、已保存计划保持原引擎；普通单引擎草稿跳过选择与回退推导。
+  const resolvedEngine =
+    input.taskId === undefined && singleEngine !== undefined
+      ? draftEngine
+      : resolveComposerEngine(
+          input.taskId,
+          input.taskEngine === undefined ? undefined : { engine: input.taskEngine },
+          draftEngine,
+          { codex: codexConfigured, claude: claudeConfigured },
+          input.initialEngine !== undefined ||
+            (input.taskId === undefined && claudeSupported && profile === undefined),
+        );
   // 配置发现期间，新草稿仍使用已启用的引擎；历史任务和定时任务保留原引擎。
   const engine =
     input.taskId === undefined &&
@@ -99,7 +109,14 @@ export function useEngineComposerState(
   }, [claudeSupported, input.load, key]);
   const select = useCallback(
     (engine: AgentEngine) => {
-      if (input.taskId !== undefined || submitting || !codexConfigured || !claudeConfigured) return;
+      if (
+        singleEngine !== undefined ||
+        input.taskId !== undefined ||
+        submitting ||
+        !codexConfigured ||
+        !claudeConfigured
+      )
+        return;
       setSelection({ scope: input.scope, engine });
       try {
         localStorage.setItem(`codexly:engine-draft:v1:${input.scope}`, engine);
@@ -107,7 +124,7 @@ export function useEngineComposerState(
         /* 存储不可用时仍保留当前草稿内的选择。 */
       }
     },
-    [input.scope, input.taskId, submitting, codexConfigured, claudeConfigured],
+    [singleEngine, input.scope, input.taskId, submitting, codexConfigured, claudeConfigured],
   );
   return {
     engine,
@@ -127,6 +144,7 @@ export function useEngineComposerState(
         result?.key !== key &&
         (engine === "claude" || !codexConfigured)),
     refresh: () => {
+      if (!claudeSupported) return;
       input.invalidateProfile?.();
       setRevision((value) => value + 1);
     },
