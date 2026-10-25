@@ -395,6 +395,11 @@ export const workbench = {
     },
     aboutStatus: "About, Codexly {{version}}{{update}}, terminal connection status: {{status}}",
     createInProject: "Create a task in {{project}}",
+    exportConversation: "Export conversation",
+    exportingConversation: "Exporting…",
+    conversationExported: "Conversation exported",
+    conversationExportFailed: "Failed to export conversation. Please try again.",
+    conversationExportTooLarge: "The conversation exceeds the 64 MiB export limit.",
     deletePermanently: "Delete permanently",
     deleteTaskDescription:
       '"{{task}}" will be permanently removed from Codexly. Original session history remains with the AI engine.',

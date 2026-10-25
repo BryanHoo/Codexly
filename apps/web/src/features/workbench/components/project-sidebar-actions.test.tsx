@@ -37,7 +37,8 @@ describe("TaskActionMenu", () => {
     expect(markup).toContain('aria-label="结构化历史 的任务操作"');
     expect(markup).not.toContain("aria-labelledby");
     expect(markup).toContain('data-slot="dropdown-menu-content"');
-    expect(markup.match(/data-slot="dropdown-menu-item"/gu)).toHaveLength(4);
+    expect(markup.match(/data-slot="dropdown-menu-item"/gu)).toHaveLength(5);
+    expect(markup).toContain("导出对话记录");
     expect(markup).toContain("固定");
     expect(markup).toContain("重命名");
     expect(markup).toContain("归档");

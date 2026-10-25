@@ -1,3 +1,4 @@
+import { ConversationExportMenuItem } from "@codexly/ui/core/conversation-export-menu-item";
 import { SidebarActiveTaskRow } from "@codexly/ui/core/sidebar-active-task-row";
 import type { SidebarActiveTask } from "@codexly/frontend-core/sidebar-task-shortcuts";
 import { SidebarTaskAnchor } from "@codexly/ui/core/sidebar-task-anchor";
@@ -30,6 +31,7 @@ type TaskLinkProps = Readonly<{
   isRunning: boolean;
   onArchive: (task: AgentTask) => void;
   onDelete: (task: AgentTask) => void;
+  onExport?: ((task: AgentTask) => Promise<string | null>) | undefined;
   onPin: (task: AgentTask) => void;
   onRename: (task: AgentTask) => void;
   projectName?: string;
@@ -74,6 +76,7 @@ export function TaskLink({
   isRunning,
   onArchive,
   onDelete,
+  onExport,
   onPin,
   onRename,
   projectName,
@@ -131,6 +134,7 @@ export function TaskLink({
         </DropdownMenuTrigger>
         <TaskActionMenu
           isPending={isActionPending}
+          onExport={onExport === undefined ? undefined : () => onExport(task)}
           onArchive={() => {
             onArchive(task);
           }}
@@ -233,6 +237,7 @@ type TaskActionMenuProps = Readonly<{
   isPending: boolean;
   onArchive: () => void;
   onDelete: () => void;
+  onExport?: (() => Promise<string | null>) | undefined;
   onPin: () => void;
   onRename: () => void;
   task: AgentTask;
@@ -244,6 +249,7 @@ export function TaskActionMenu({
   isPending,
   onArchive,
   onDelete,
+  onExport,
   onPin,
   onRename,
   task,
@@ -277,6 +283,19 @@ export function TaskActionMenu({
         <Pencil className="size-3.5" aria-hidden="true" />
         {t("sidebar.rename")}
       </DropdownMenuItem>
+      <ConversationExportMenuItem
+        taskKey={JSON.stringify([task.projectId, task.id])}
+        disabled={isPending}
+        onExport={onExport}
+        className={taskActionClassName}
+        labels={{
+          export: t("sidebar.exportConversation"),
+          exporting: t("sidebar.exportingConversation"),
+          succeeded: t("sidebar.conversationExported"),
+          failed: t("sidebar.conversationExportFailed"),
+          tooLarge: t("sidebar.conversationExportTooLarge"),
+        }}
+      />
       <DropdownMenuItem
         className={`${taskActionClassName} text-danger`}
         disabled={isPending}

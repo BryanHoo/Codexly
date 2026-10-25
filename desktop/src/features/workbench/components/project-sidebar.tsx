@@ -375,6 +375,7 @@ export function ProjectSidebar({
       </nav>
 
       <ProjectSidebarTaskList
+          exportTask={(task) => import("../export-task-conversation.js").then(({ exportTaskConversation }) => exportTaskConversation(client, task))}
         archiveTask={archiveTask}
         deleteTask={taskDeletion.requestTaskDeletion}
         error={error}

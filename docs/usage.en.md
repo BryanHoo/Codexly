@@ -6,6 +6,8 @@ This guide covers desktop, computer browsers, and mobile browsers. Files, Git op
 
 ## Projects and tasks
 
+Open a sidebar task’s **More actions → Export conversation** to save JSON with task information, all historical turns, messages, execution items, and attachment metadata. Earlier history is fetched automatically. Web and mobile browsers download to the current device; the desktop app opens a native save dialog. Attachment binaries are excluded, and exports are limited to 64 MiB. Running tasks include content available while reading; the file is intended for inspection and processing and cannot be imported to restore a conversation.
+
 Add a disk folder as a project, or create a temporary task without project context. Git tools require a repository at the project root; ordinary subdirectories do not borrow a parent repository.
 
 Pin, archive, restore, or permanently delete tasks. Sidebar shortcuts help you move between projects and show unread completions, pending approvals, and running tasks. Use the task board to review work centrally. Search can find projects, tasks, messages, and files; some entry points depend on the enabled engine.

@@ -13,6 +13,13 @@
 
 相关契约：[文档工作区](../../../../docs/document-workspace.md)、[会话加载与性能](../../../../docs/conversation-performance.md)、[复用边界](../../guides/code-reuse-thinking-guide.md)。
 
+## 对话 JSON 导出
+
+- 两端任务菜单复用 [导出器](../../../../packages/frontend-core/src/conversation-export.ts)，仅点击后以 `summary: false` 遍历完整 `turnsNextCursor` 链，包含回合与过程条目续页；不使用已渲染历史或摘要代替完整记录。按回合/条目 ID 去重并恢复时间顺序，响应归属异常、循环游标、读取失败或超过 64 MiB 时明确失败，不下载截断结果。
+- JSON 保留 `format: codexly-conversation`、`version: 1`、`exportedAt`、`task` 与 `turns`。各端条目变体原样保留，附件只含元数据，不加入内部游标、授权下载 URL、设置或附件二进制；运行中任务不承诺原子快照，也不提供导入恢复。
+- 菜单互斥状态跨关闭重开共用，结束即释放；导出模块按需加载。Web 下载后延迟释放 Blob URL，桌面专用命令只写入原生保存窗口选择的路径，取消返回正常空结果，不授予通用文件写权限。
+- 验证：`conversation-export.test.ts`、Web 的 `app-shell-conversation-export.spec.ts`（三引擎宽窄屏）、桌面的 `project-sidebar-task-row.browser.test.tsx` 与 `conversation_export_commands` Rust 测试。操作说明见 [工作台使用](../../../../docs/usage.md)。
+
 ## 常用提示词契约
 
 - 标题（`name`）是唯一搜索依据；`/` 保留命令与 Skills，`#` 仅列出当前项目可用的自定义提示词。两端复用 [触发解析](../../../../packages/frontend-core/src/prompt-trigger.ts) 与 [提示词存储](../../../../packages/frontend-core/src/saved-prompts.ts)，标题支持内部空格。

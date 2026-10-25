@@ -60,7 +60,6 @@ const GlobalSearchDialog = lazy(() =>
 const primaryActionClassName =
   "flex h-8 w-full items-center gap-2.5 rounded-control px-2.5 text-body-small font-medium text-foreground transition-colors hover:bg-control-hover";
 const primaryActionIconClassName = "size-4 shrink-0 text-muted-foreground";
-
 export function ProjectSidebar({
   appInfo,
   appUpdate,
@@ -161,7 +160,6 @@ export function ProjectSidebar({
       ? navigate({ replace: true, to: "/" })
       : navigate({ params: { projectId: nextProject.id }, replace: true, to: "/p/$projectId" }));
   }, [isPending, navigate, projectId, projects]);
-
   useEffect(() => {
     // 首次加载只展开第一个 Project；已有配置则恢复上次保存的文件夹形态。
     const projectIds = projects.map((project) => project.id);
@@ -175,7 +173,6 @@ export function ProjectSidebar({
       setExpandedProjects(initialExpandedProjectIds);
       return;
     }
-
     const availableProjectIds = new Set(projectIds);
     const currentExpandedProjectIds = expandedProjectsRef.current;
     const nextExpandedProjectIds = new Set(
@@ -188,7 +185,6 @@ export function ProjectSidebar({
       setExpandedProjects(nextExpandedProjectIds);
     }
   }, [projects]);
-
   useEffect(() => {
     // 任务列表请求跟随可见文件夹；当前路由 Project 由 ProjectProvider 单独保持激活。
     setExpandedProjectTaskIds(expandedProjects);
@@ -373,6 +369,11 @@ export function ProjectSidebar({
         />
       </nav>
       <ProjectSidebarTaskList
+        exportTask={(task) =>
+          import("../export-task-conversation.js").then(({ exportTaskConversation }) =>
+            exportTaskConversation(client, task),
+          )
+        }
         onTaskNavigate={closeOnMobile}
         archiveTask={archiveTask}
         deleteTask={taskDeletion.requestTaskDeletion}

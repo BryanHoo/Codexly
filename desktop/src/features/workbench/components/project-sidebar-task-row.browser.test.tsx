@@ -17,6 +17,7 @@ import {
   TaskStatusIndicator,
 } from "./project-sidebar-task-row.js";
 import { TaskInteractionContext } from "../task-interaction-context.js";
+import { toast } from "@codexly/ui/core/notifications";
 const { openTaskWindow } = vi.hoisted(() => ({ openTaskWindow: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../../../platform/tauri/task-window-client.js", () => ({ openTaskWindow }));
 
@@ -42,10 +43,38 @@ const task: AgentTask = {
 };
 
 describe("TaskActionMenu", () => {
+  it("导出中跨菜单重开保持互斥，取消不提示，失败后可以重试", async () => {
+    await i18n.changeLanguage("zh-CN");
+    let release: (value: string | null) => void = () => undefined;
+    const onExport = vi.fn().mockImplementationOnce(() => new Promise<string | null>((resolve) => { release = resolve; }))
+      .mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce("record.json");
+    const success = vi.spyOn(toast, "success");
+    const error = vi.spyOn(toast, "error");
+    const view = (key: string) => <DropdownMenu defaultOpen key={key}>
+      <DropdownMenuTrigger>任务菜单</DropdownMenuTrigger>
+      <TaskActionMenu onExport={onExport} isPending={false} onArchive={vi.fn()} onDelete={vi.fn()} onPin={vi.fn()} onRename={vi.fn()} task={task} />
+    </DropdownMenu>;
+    const screen = await render(view("first"));
+    await screen.getByRole("menuitem", { name: "导出对话记录", exact: true }).click();
+    await expect.element(screen.getByRole("menuitem", { name: "正在导出…" })).toHaveAttribute("aria-disabled", "true");
+    await screen.rerender(view("second"));
+    await expect.element(screen.getByRole("menuitem", { name: "正在导出…" })).toHaveAttribute("aria-disabled", "true");
+    expect(onExport).toHaveBeenCalledOnce();
+    release(null);
+    await expect.element(screen.getByRole("menuitem", { name: "导出对话记录", exact: true })).not.toHaveAttribute("aria-disabled");
+    expect(success).not.toHaveBeenCalled();
+    await screen.getByRole("menuitem", { name: "导出对话记录", exact: true }).click();
+    await vi.waitFor(() => expect(error).toHaveBeenCalledWith("对话记录导出失败，请重试。"));
+    await screen.getByRole("menuitem", { name: "导出对话记录", exact: true }).click();
+    await vi.waitFor(() => expect(success).toHaveBeenCalledWith("对话记录已导出"));
+    expect(onExport).toHaveBeenCalledTimes(3);
+    success.mockRestore();
+    error.mockRestore();
+  });
   it("disables all actions for the externally owned task, including an already open menu", async () => {
     const view = (scope: string | null) => <TaskInteractionContext value={scope}>
       <DropdownMenu defaultOpen><DropdownMenuTrigger>菜单</DropdownMenuTrigger>
-        <TaskActionMenu isPending={false} onArchive={vi.fn()} onDelete={vi.fn()}
+        <TaskActionMenu onExport={vi.fn().mockResolvedValue(null)} isPending={false} onArchive={vi.fn()} onDelete={vi.fn()}
           onPin={vi.fn()} onRename={vi.fn()} task={task} />
       </DropdownMenu>
     </TaskInteractionContext>;
@@ -63,7 +92,7 @@ describe("TaskActionMenu", () => {
       <I18nextProvider i18n={i18n}>
         <DropdownMenu defaultOpen>
           <DropdownMenuTrigger>打开任务菜单</DropdownMenuTrigger>
-          <TaskActionMenu isPending={false} onArchive={vi.fn()} onDelete={vi.fn()} onPin={vi.fn()} onRename={vi.fn()} task={task} />
+          <TaskActionMenu onExport={vi.fn().mockResolvedValue(null)} isPending={false} onArchive={vi.fn()} onDelete={vi.fn()} onPin={vi.fn()} onRename={vi.fn()} task={task} />
         </DropdownMenu>
       </I18nextProvider>,
     );
@@ -77,7 +106,7 @@ describe("TaskActionMenu", () => {
       <I18nextProvider i18n={i18n}>
         <DropdownMenu defaultOpen>
           <DropdownMenuTrigger>打开任务菜单</DropdownMenuTrigger>
-          <TaskActionMenu
+          <TaskActionMenu onExport={vi.fn().mockResolvedValue(null)}
             isPending={false}
             onArchive={vi.fn()}
             onDelete={vi.fn()}
@@ -101,7 +130,7 @@ describe("TaskActionMenu", () => {
       <I18nextProvider i18n={i18n}>
         <DropdownMenu defaultOpen>
           <DropdownMenuTrigger>打开任务菜单</DropdownMenuTrigger>
-          <TaskActionMenu
+          <TaskActionMenu onExport={vi.fn().mockResolvedValue(null)}
             isPending={false}
             onArchive={vi.fn()}
             onDelete={vi.fn()}

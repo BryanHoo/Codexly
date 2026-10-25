@@ -32,6 +32,8 @@ permissions = [
   "allow-get-runtime-performance-metrics",
   "allow-record-frontend-diagnostic",
   "allow-export-diagnostics",
+  # 导出只能写入原生保存窗口选中的路径，不提供任意文件写入命令。
+  "allow-save-conversation-export",
   "allow-get-task-activities",
   "allow-acknowledge-task-activity",
   "allow-release-task-subscription",

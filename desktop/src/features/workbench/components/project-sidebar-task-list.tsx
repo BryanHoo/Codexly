@@ -37,6 +37,7 @@ const EMPTY_PROJECT_TASKS: readonly AgentTask[] = [];
 type ProjectSidebarTaskListProps = Readonly<{
   archiveTask: (task: AgentTask) => unknown;
   deleteTask: (task: AgentTask) => unknown;
+  exportTask?: ((task: AgentTask) => Promise<string | null>) | undefined;
   error: Error | null;
   expandedProjects: ReadonlySet<string>;
   expandedTaskProjects: ReadonlySet<string>;
@@ -73,6 +74,7 @@ type ProjectSidebarTaskListProps = Readonly<{
 export function ProjectSidebarTaskList({
   archiveTask,
   deleteTask,
+  exportTask,
   error,
   expandedProjects,
   expandedTaskProjects,
@@ -130,6 +132,7 @@ export function ProjectSidebarTaskList({
       attention={activity.attention} isActionPending={taskActionPending}
       isAwaitingApproval={activity.isAwaitingApproval} isRunning={activity.isRunning}
       onArchive={task => void archiveTask(task)} onDelete={task => void deleteTask(task)}
+      onExport={exportTask}
       onPin={task => void pinTask(task)} onRename={setRenamingTask}
       {...(showProjectName ? { projectName: projectNameFor(task.projectId) } : {})} task={task} />;
   };

@@ -390,6 +390,11 @@ export const workbench = {
     },
     aboutStatus: "关于，Codexly {{version}}{{update}}，终端连接状态：{{status}}",
     createInProject: "在 {{project}} 中新建任务",
+    exportConversation: "导出对话记录",
+    exportingConversation: "正在导出…",
+    conversationExported: "对话记录已导出",
+    conversationExportFailed: "对话记录导出失败，请重试。",
+    conversationExportTooLarge: "对话记录超过 64 MiB，无法导出。",
     deletePermanently: "永久删除",
     deleteTaskDescription:
       "“{{task}}”将从 Codexly 永久删除，无法恢复。AI 引擎保存的原始会话历史会保留。",

@@ -33,6 +33,7 @@ use application::{
         get_runtime_performance_metrics, inspect_codex_runtime, install_app_update,
         install_codex_runtime, start_runtime,
     },
+    conversation_export_commands::save_conversation_export,
     desktop_pet_commands::{
         DesktopPetRuntime, configure_desktop_pet, get_desktop_pet_drag_strategy,
         get_desktop_pet_position, get_desktop_pet_state, layout_desktop_pet, move_desktop_pet,
@@ -212,6 +213,7 @@ pub fn run() {
             get_runtime_performance_metrics,
             record_frontend_diagnostic,
             export_diagnostics,
+            save_conversation_export,
             get_temporary_workspace_settings,
             choose_temporary_workspace_root,
             get_task_activities,

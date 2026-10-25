@@ -15,6 +15,7 @@ pub mod claude_commands;
 pub(crate) mod claude_host;
 pub(crate) mod claude_tasks;
 pub mod commands;
+pub mod conversation_export_commands;
 pub mod desktop_pet_commands;
 #[cfg(target_os = "macos")]
 mod desktop_pet_panel;
