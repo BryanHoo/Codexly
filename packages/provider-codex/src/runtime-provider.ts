@@ -1,5 +1,6 @@
 import { appStorageDirectory, defaultCodexHome } from "@codexly/core/app-storage-paths";
 import { generateRuntimeTaskTitle } from "./task-title-generation.js";
+import { saveCodexDiagnostics } from "./feedback-save.js";
 import type { TaskTitleGenerator } from "@codexly/core";
 import { createHistoryStorage } from "./history-storage.js";
 import { reconcileCodexPlugins } from "./plugin-reconcile.js";
@@ -44,7 +45,6 @@ import type {
 import { TEMPORARY_TASK_SCOPE_ID } from "@codexly/protocol";
 import { RuntimeOwnerRegistry, isSameResolvedPath } from "./runtime-owner-registry.js";
 import { CodexProtocolMappingError } from "./codex-protocol-mapping.js";
-
 import { CodexAgentProvider } from "./agent-provider-runtime.js";
 import type { CodexRpcClient, CreateCodexRuntimeProviderOptions } from "./agent-provider-base.js";
 import { DEFAULT_PROVIDER_LOGGER, type CodexProviderLogger } from "./agent-provider-logger.js";
@@ -68,6 +68,7 @@ import {
 } from "./skill-market-provider.js";
 
 export class CodexRuntimeProvider implements AgentRuntimeProvider {
+  public saveCodexDiagnostics = (path: string) => saveCodexDiagnostics(this.#client, path);
   public setTaskTitleGenerator(generate: TaskTitleGenerator): void {
     if (this.#taskTitles) this.#taskTitles.generate = generate;
   }

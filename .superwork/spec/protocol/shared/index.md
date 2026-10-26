@@ -16,6 +16,7 @@
 ## Web 诊断契约
 
 - `packages/protocol/src/diagnostics.ts` 定义 `DiagnosticsResponseSchema` 和 `DiagnosticsResponse`，由 Client `getDiagnostics()` 与 Server `GET /v1/diagnostics` 共用；版本固定为 1，包含导出时间、运行环境、脱敏 JSON 日志行和淘汰计数。该 HTTP 快照不替换桌面原生 ZIP 导出协议。
+- 同文件的 `SaveDiagnosticsRequestSchema` / `SaveDiagnosticsResponseSchema` 定义整合 ZIP 的准备请求与下载描述。请求只携带有界应用快照字符串，不接受宿主路径；响应仅包含随机下载标识和文件名。Web 与桌面导出均默认尝试 `feedback/save`，原生结果纳入 `codex/diagnostics.zip`；不可用时保留应用诊断并在 `manifest.json` 中标注 `codexDiagnostics.status: unavailable`，不调用 `feedback/upload`。
 
 ## 归档日期清理契约
 

@@ -1,4 +1,10 @@
-import { DiagnosticsResponseSchema, type DiagnosticsResponse } from "@codexly/protocol";
+import {
+  DiagnosticsResponseSchema,
+  SaveDiagnosticsResponseSchema,
+  type DiagnosticsResponse,
+  type SaveDiagnosticsRequest,
+  type SaveDiagnosticsResponse,
+} from "@codexly/protocol";
 import type { ReadOptions } from "./http-client-options.js";
 export { buildProjectPdfFileUrl } from "./project-pdf-url.js";
 export {
@@ -28,6 +34,24 @@ export { ScheduledTaskHttpClient } from "./http-client-scheduled-tasks.js";
 import { AsyncQuestionHttpClient } from "./http-client-async-questions.js";
 
 export class CodexlyClient extends AsyncQuestionHttpClient {
+  public saveDiagnostics(input: SaveDiagnosticsRequest): Promise<SaveDiagnosticsResponse> {
+    return this.request(
+      "/v1/diagnostics/codex",
+      SaveDiagnosticsResponseSchema,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      },
+      undefined,
+      { timeoutMs: 150_000 },
+    );
+  }
+
+  public diagnosticsDownloadUrl(downloadId: string): string {
+    return `${this.baseUrl}/v1/diagnostics/downloads/${encodeURIComponent(downloadId)}`;
+  }
+
   public async getDiagnostics(options: ReadOptions = {}): Promise<DiagnosticsResponse> {
     return this.read("/v1/diagnostics", DiagnosticsResponseSchema, options);
   }

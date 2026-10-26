@@ -62,50 +62,42 @@ export const recordFrontendDiagnostic = (input: FrontendErrorDiagnostic): void =
 type DiagnosticVersions = Pick<AppInfoResponse, "appVersion" | "codexVersion" | "claudeVersion">;
 
 export async function exportDiagnostics(
-  client: Pick<CodexlyClient, "getDiagnostics">,
+  client: Pick<CodexlyClient, "getDiagnostics" | "saveDiagnostics" | "diagnosticsDownloadUrl">,
   appInfo?: DiagnosticVersions,
 ): Promise<string> {
   const server = await client.getDiagnostics();
   const exportedAt = new Date().toISOString();
-  const fileName = `codexly-diagnostics-web-${exportedAt.replaceAll(/[:.]/gu, "-")}.json`;
-  const file = new Blob(
-    [
-      JSON.stringify(
-        {
-          version: 1,
-          exportedAt,
-          manifest: {
-            appVersion: appInfo?.appVersion ?? null,
-            codexVersion: appInfo?.codexVersion ?? null,
-            claudeVersion: appInfo?.claudeVersion ?? null,
-            platform: "web",
-          },
-          browser: {
-            userAgent: navigator.userAgent.slice(0, 512),
-            language: navigator.language,
-            ...browserDiagnostics.snapshot(),
-          },
-          server,
+  const result = await client.saveDiagnostics({
+    application: JSON.stringify(
+      {
+        version: 1,
+        exportedAt,
+        manifest: {
+          appVersion: appInfo?.appVersion ?? null,
+          codexVersion: appInfo?.codexVersion ?? null,
+          claudeVersion: appInfo?.claudeVersion ?? null,
+          platform: "web",
         },
-        null,
-        2,
-      ),
-    ],
-    { type: "application/json" },
-  );
-  const url = URL.createObjectURL(file);
+        browser: {
+          userAgent: navigator.userAgent.slice(0, 512),
+          language: navigator.language,
+          ...browserDiagnostics.snapshot(),
+        },
+        server,
+      },
+      null,
+      2,
+    ),
+  });
   const anchor = document.createElement("a");
   try {
-    anchor.href = url;
-    anchor.download = fileName;
+    // 下载仅使用服务端签发的同会话短期标识，由浏览器流式落盘，不创建大 Blob。
+    anchor.href = client.diagnosticsDownloadUrl(result.downloadId);
+    anchor.download = result.fileName;
     document.body.append(anchor);
     anchor.click();
   } finally {
     anchor.remove();
-    // 给移动浏览器足够时间接管下载，再释放 Blob，避免长期占用内存。
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 30_000);
   }
-  return fileName;
+  return result.fileName;
 }

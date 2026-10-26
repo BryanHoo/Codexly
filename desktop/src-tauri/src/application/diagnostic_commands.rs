@@ -9,7 +9,7 @@ use tokio::sync::oneshot;
 
 use super::{error::AppError, state::AppState};
 use crate::infrastructure::diagnostics::{
-    self, DiagnosticLevel, FrontendDiagnosticInput, write_diagnostic_archive,
+    self, DiagnosticLevel, FrontendDiagnosticInput, write_diagnostic_archive_with_codex,
 };
 
 #[derive(Serialize)]
@@ -59,6 +59,31 @@ pub async fn export_diagnostics(
             .map_err(|_| AppError::DiagnosticsExportFailed)?,
     );
 
+    // 先由用户确认保存位置，再按需收集原生诊断；取消不会触发 RPC 或临时文件。
+    let native_directory = tokio::task::spawn_blocking(|| {
+        tempfile::Builder::new()
+            .prefix("codexly-diagnostics-")
+            .tempdir()
+    })
+    .await
+    .map_err(|_| AppError::DiagnosticsExportFailed)?
+    .map_err(|_| AppError::DiagnosticsExportFailed)?;
+    let native_path = native_directory.path().join("codex.zip");
+    let native_available = if let Ok(connection) = state.codex_connection().await {
+        crate::infrastructure::codex::save_codex_diagnostics(&connection, &native_path)
+            .await
+            .is_ok()
+    } else {
+        false
+    };
+    let native_check_path = native_path.clone();
+    let native_available = native_available
+        && tokio::task::spawn_blocking(move || {
+            diagnostics::validate_native_archive(&native_check_path).is_ok()
+        })
+        .await
+        .unwrap_or(false);
+
     log::logger().flush();
     let log_dir = app
         .path()
@@ -74,11 +99,21 @@ pub async fn export_diagnostics(
         "exportedAtUnixSeconds": OffsetDateTime::now_utc().unix_timestamp(),
         "os": std::env::consts::OS,
         "schemaVersion": 1,
+        "codexDiagnostics": { "status": if native_available { "included" } else { "unavailable" } },
     });
 
     let archive_destination = destination.clone();
     let summary = tokio::task::spawn_blocking(move || {
-        write_diagnostic_archive(&archive_destination, &log_dir, &manifest, &metrics)
+        let result = write_diagnostic_archive_with_codex(
+            &archive_destination,
+            &log_dir,
+            &manifest,
+            &metrics,
+            native_available.then_some(native_path.as_path()),
+        );
+        // 临时目录随阻塞任务结束释放，成功及失败均不残留原生 ZIP。
+        drop(native_directory);
+        result
     })
     .await
     .map_err(|_| AppError::DiagnosticsExportFailed)?

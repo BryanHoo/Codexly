@@ -8,6 +8,12 @@
 2. 在「设置 → 关于」导出诊断 ZIP。运行时启动失败时也可以导出。
 3. 查看 `manifest.json` 中的应用版本、Codex 版本、系统和架构，结合 `logs/` 下的 JSONL 日志和 `metrics/runtime.json` 中的队列指标分析。
 
+导出始终生成一个整合 ZIP，无需勾选。支持 `feedback/save` 的 Codex 运行时会在 `codex/diagnostics.zip` 中提供原生诊断，用于排查模型请求、压缩、插件及运行时问题；该操作不调用反馈上传。原生 ZIP 保留上游诊断内容，不适用 Codexly 应用日志的字段脱敏规则，分享前请先检查内容。
+
+`manifest.json` 的 `codexDiagnostics.status` 为 `included` 或 `unavailable`。当前内置 Codex 0.164.0 已支持 `feedback/save`；运行时未启动、旧版本不支持或收集失败时仍导出应用诊断，并明确记录 `unavailable`。原生 ZIP 上限为 256 MiB。接口以官方 [`rust-v0.164.0` 源码](https://github.com/openai/codex/blob/rust-v0.164.0/codex-rs/app-server-protocol/src/protocol/v2/feedback.rs)为准，核对本地源码时应检查标签，不能将当前检出的其他版本当作基线。
+
+Web 和移动浏览器同样直接下载整合 ZIP，其中 `application.json` 保存浏览器异常、版本与服务端快照。下载标识绑定创建它的配对会话，只能领取一次，5 分钟后失效；完成、断开或服务关闭时清理临时文件。桌面仅写入保存窗口选择的位置，取消不收集原生诊断。
+
 原始 ZIP 仅在本地保存。对外报告时，先检查并脱敏错误消息和截图中的账户、路径、任务内容及凭据，只提供复现所需的最小片段；漏洞材料通过[私密报告渠道](../../SECURITY.md)提交。
 
 应用日志单文件上限为 5 MiB，保留 5 个轮转文件；导出总量上限为 30 MiB。请尽早导出，轮转后的历史可能已被覆盖。日志不能保证在进程被强制终止或存储故障时完整落盘。

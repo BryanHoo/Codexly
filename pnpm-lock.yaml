@@ -108,6 +108,9 @@ catalogs:
     '@types/ws':
       specifier: 8.18.1
       version: 8.18.1
+    '@types/yazl':
+      specifier: 3.3.1
+      version: 3.3.1
     '@vitejs/plugin-react':
       specifier: 6.1.0
       version: 6.1.0
@@ -228,6 +231,9 @@ catalogs:
     ws:
       specifier: 8.21.1
       version: 8.21.1
+    yazl:
+      specifier: 3.3.1
+      version: 3.3.1
     zustand:
       specifier: 5.0.14
       version: 5.0.14
@@ -726,6 +732,9 @@ importers:
       ws:
         specifier: 'catalog:'
         version: 8.21.1
+      yazl:
+        specifier: 'catalog:'
+        version: 3.3.1
     devDependencies:
       '@types/better-sqlite3':
         specifier: 'catalog:'
@@ -733,6 +742,9 @@ importers:
       '@types/ws':
         specifier: 'catalog:'
         version: 8.18.1
+      '@types/yazl':
+        specifier: 'catalog:'
+        version: 3.3.1
 
   packages/ui:
     dependencies:
@@ -4261,6 +4273,9 @@ packages:
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
+
+  '@types/yazl@3.3.1':
+    resolution: {integrity: sha512-DIWfCKpsTp6hE5BDBHV3+fIL/bLUF9Bv13iDrWnMlmhQpH67buNvI291ZauQ1xcccxK3FqQ9honnXpq4R8NMuQ==}
 
   '@typescript-eslint/project-service@8.71.0':
     resolution: {integrity: sha512-aABjw5rjBacYONVPaPiWOCjJu0vEF4a25iQuodlmQYL1trtLZ0X/y+2Vzl3BKI1odM4LnwLE1oUDXYp1wzx1TQ==}
@@ -8265,6 +8280,9 @@ packages:
   yauzl@2.10.0:
     resolution: {integrity: sha512-p4a9I6X6nu6IhoGmBqAcbJy1mlC4j27vEPZX9F4L4/vZT3Lyq1VkFHw/V/PUcB9Buo+DG3iHkT0x3Qya58zc3g==}
 
+  yazl@3.3.1:
+    resolution: {integrity: sha512-BbETDVWG+VcMUle37k5Fqp//7SDOK2/1+T7X8TD96M3D9G8jK5VLUdQVdVjGi8im7FGkazX7kk5hkU8X4L5Bng==}
+
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
@@ -11688,6 +11706,10 @@ snapshots:
     dependencies:
       '@types/node': 24.13.3
     optional: true
+
+  '@types/yazl@3.3.1':
+    dependencies:
+      '@types/node': 24.13.3
 
   '@typescript-eslint/project-service@8.71.0(supports-color@8.1.1)(typescript@6.0.3)':
     dependencies:
@@ -16564,6 +16586,10 @@ snapshots:
     dependencies:
       buffer-crc32: 0.2.13
       fd-slicer: 1.1.0
+
+  yazl@3.3.1:
+    dependencies:
+      buffer-crc32: 1.0.0
 
   yocto-queue@0.1.0: {}
 

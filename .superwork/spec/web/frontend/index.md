@@ -17,6 +17,7 @@ Web 包没有独立 `test` 脚本；测试入口在根 `package.json`，不要�
 
 ## 诊断导出
 
-- “设置 → 关于”的诊断导出不依赖版本检查成功；导出期间禁止重复执行，失败后允许重试。Web 与移动浏览器下载 JSON，包含版本、浏览器异常和服务端快照。
+- “设置 → 关于”的诊断导出不依赖版本检查成功；导出期间禁止重复执行，失败后允许重试。Web 与移动浏览器直接下载一个整合 ZIP，无需勾选；`application.json` 包含版本、浏览器异常和服务端快照，原生可用时纳入 `codex/diagnostics.zip`，收集状态写入 `manifest.json`。
+- 复用 Client 准备接口和受控下载地址，ZIP 正文由浏览器直接下载，不读入 Blob；不把宿主路径暴露给浏览器。旧运行时或原生故障保留应用诊断，并明确标注原生不可用。
 - 异常监听复用 `packages/frontend-core/src/application-diagnostics.ts`；Web 只保留当前页面最近 100 条脱敏异常，单条错误消息/堆栈分别限制为 512/2048 字符，不读取应用 context、页面 URL 或浏览器存储。桌面继续通过原生适配器录制与导出。
 - 验证入口：`pnpm exec playwright test tests/e2e/app-shell-diagnostics.spec.ts`，覆盖 Chromium / Firefox / WebKit 的宽窄屏下载，以及版本失败、导出失败重试和执行互斥。

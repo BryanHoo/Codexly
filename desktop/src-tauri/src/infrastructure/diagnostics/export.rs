@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    io::{self, Write as _},
+    io::{self, Read as _, Write as _},
     path::{Path, PathBuf},
 };
 
@@ -25,12 +25,42 @@ pub enum DiagnosticExportError {
     LogsTooLarge,
 }
 
+#[cfg(test)]
 pub fn write_diagnostic_archive(
     destination: &Path,
     log_dir: &Path,
     manifest: &Value,
     metrics: &Value,
 ) -> Result<DiagnosticArchiveSummary, DiagnosticExportError> {
+    write_diagnostic_archive_with_codex(destination, log_dir, manifest, metrics, None)
+}
+
+pub fn validate_native_archive(path: &Path) -> Result<(), DiagnosticExportError> {
+    let metadata = fs::symlink_metadata(path).map_err(|_| DiagnosticExportError::ExportFailed)?;
+    // 原生文件只能来自本次私有临时目录；拒绝链接、非 ZIP 和超大结果。
+    if !metadata.is_file() || metadata.len() > 256 * 1024 * 1024 {
+        return Err(DiagnosticExportError::ExportFailed);
+    }
+    let mut signature = [0_u8; 4];
+    File::open(path)
+        .and_then(|mut file| file.read_exact(&mut signature))
+        .map_err(|_| DiagnosticExportError::ExportFailed)?;
+    if signature != *b"PK\x03\x04" {
+        return Err(DiagnosticExportError::ExportFailed);
+    }
+    Ok(())
+}
+
+pub fn write_diagnostic_archive_with_codex(
+    destination: &Path,
+    log_dir: &Path,
+    manifest: &Value,
+    metrics: &Value,
+    native_archive: Option<&Path>,
+) -> Result<DiagnosticArchiveSummary, DiagnosticExportError> {
+    if let Some(path) = native_archive {
+        validate_native_archive(path)?;
+    }
     let logs = collect_log_files(log_dir)?;
     let log_bytes = logs.iter().try_fold(0_u64, |total, (_, size)| {
         total
@@ -41,12 +71,13 @@ pub fn write_diagnostic_archive(
     let temporary = temporary_archive_path(destination);
 
     // 先写入同目录临时文件，只有完整 ZIP 成功关闭后才替换目标文件。
-    let result = write_archive(&temporary, &logs, manifest, metrics).and_then(|_| {
-        if destination.exists() {
-            fs::remove_file(destination).map_err(|_| DiagnosticExportError::ExportFailed)?;
-        }
-        fs::rename(&temporary, destination).map_err(|_| DiagnosticExportError::ExportFailed)
-    });
+    let result =
+        write_archive(&temporary, &logs, manifest, metrics, native_archive).and_then(|_| {
+            if destination.exists() {
+                fs::remove_file(destination).map_err(|_| DiagnosticExportError::ExportFailed)?;
+            }
+            fs::rename(&temporary, destination).map_err(|_| DiagnosticExportError::ExportFailed)
+        });
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
     }
@@ -91,6 +122,7 @@ fn write_archive(
     logs: &[(PathBuf, u64)],
     manifest: &Value,
     metrics: &Value,
+    native_archive: Option<&Path>,
 ) -> Result<(), DiagnosticExportError> {
     let file = File::create(temporary).map_err(|_| DiagnosticExportError::ExportFailed)?;
     let mut archive = ZipWriter::new(file);
@@ -99,6 +131,17 @@ fn write_archive(
     write_bytes(&mut archive, "README.txt", README.as_bytes(), options)?;
     write_json(&mut archive, "manifest.json", manifest, options)?;
     write_json(&mut archive, "metrics/runtime.json", metrics, options)?;
+    if let Some(path) = native_archive {
+        // 嵌套 ZIP 已压缩，直接流式存储，不再次压缩或将整份诊断读入内存。
+        archive
+            .start_file(
+                "codex/diagnostics.zip",
+                SimpleFileOptions::default().compression_method(CompressionMethod::Stored),
+            )
+            .map_err(|_| DiagnosticExportError::ExportFailed)?;
+        let mut source = File::open(path).map_err(|_| DiagnosticExportError::ExportFailed)?;
+        io::copy(&mut source, &mut archive).map_err(|_| DiagnosticExportError::ExportFailed)?;
+    }
     for (path, _) in logs {
         let file_name = path
             .file_name()

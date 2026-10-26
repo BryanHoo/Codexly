@@ -217,6 +217,41 @@ fn diagnostic_archive_rejects_logs_over_the_export_limit() {
     fs::remove_dir_all(root).unwrap();
 }
 
+#[test]
+fn diagnostic_archive_includes_native_zip_and_records_collection_status() {
+    let root = tempfile::tempdir().unwrap();
+    let native = root.path().join("native.zip");
+    fs::write(&native, b"PK\x03\x04native-content").unwrap();
+    let destination = root.path().join("integrated.zip");
+    super::export::write_diagnostic_archive_with_codex(
+        &destination,
+        root.path(),
+        &json!({"codexDiagnostics":{"status":"included"}}),
+        &json!({}),
+        Some(&native),
+    )
+    .unwrap();
+    let mut archive = zip::ZipArchive::new(fs::File::open(destination).unwrap()).unwrap();
+    let mut contents = Vec::new();
+    archive
+        .by_name("codex/diagnostics.zip")
+        .unwrap()
+        .read_to_end(&mut contents)
+        .unwrap();
+    assert_eq!(contents, b"PK\x03\x04native-content");
+}
+
+#[test]
+fn native_diagnostic_archive_rejects_invalid_and_oversized_files() {
+    let root = tempfile::tempdir().unwrap();
+    let native = root.path().join("native.zip");
+    fs::write(&native, b"private text").unwrap();
+    assert!(super::validate_native_archive(&native).is_err());
+    let file = fs::File::create(&native).unwrap();
+    file.set_len(256 * 1024 * 1024 + 1).unwrap();
+    assert!(super::validate_native_archive(&native).is_err());
+}
+
 fn temporary_directory(label: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)

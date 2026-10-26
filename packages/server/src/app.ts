@@ -70,6 +70,7 @@ import { createScheduledTasks } from "./scheduled-task-assembly.js";
 import { configureServerDelivery } from "./server-delivery.js";
 import type { CreateCodexlyServerOptions } from "./server-options.js";
 import { runSingleFlight } from "./single-flight.js";
+import { registerCodexDiagnosticRoutes } from "./codex-diagnostics.js";
 import { resolveTaskScope } from "./task-scope.js";
 import { rewriteTemporaryTaskUrl } from "./temporary-task-routing.js";
 import {
@@ -466,6 +467,7 @@ export async function createCodexlyServer(
     ...(accessService === undefined ? {} : { service: accessService }),
   });
   registerDiagnosticRoutes(app, diagnosticLogs);
+  registerCodexDiagnosticRoutes(app, options.provider);
   await app.register(registerRuntimeRoutes, routeContext);
   await app.register(registerEngineRoutes, routeContext);
   await app.register(registerPersonalizationRoutes, routeContext);

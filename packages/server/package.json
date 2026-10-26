@@ -26,10 +26,12 @@
     "rrule": "catalog:",
     "safe-stable-stringify": "catalog:",
     "simple-git": "catalog:",
-    "ws": "catalog:"
+    "ws": "catalog:",
+    "yazl": "catalog:"
   },
   "devDependencies": {
     "@types/better-sqlite3": "catalog:",
-    "@types/ws": "catalog:"
+    "@types/ws": "catalog:",
+    "@types/yazl": "catalog:"
   }
 }

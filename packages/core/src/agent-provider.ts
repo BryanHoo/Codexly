@@ -322,6 +322,8 @@ export type AgentModelCatalogFallback =
 
 // Runtime 负责全局资源和订阅，Project Adapter 只暴露已校验的项目作用域能力。
 export interface AgentRuntimeProvider {
+  /** 仅保存至宿主提供的全新临时 ZIP 路径，不上传反馈或接受浏览器文件路径。 */
+  saveCodexDiagnostics?(savePath: string): Promise<void>;
   readGenerationDefaults?(
     stored: Pick<AgentGlobalSettings, "defaultAgent" | "defaultModel"> | undefined,
   ): Promise<{ defaultAgent: AgentEngine; defaultModel: string }>;

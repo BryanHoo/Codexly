@@ -92,6 +92,8 @@ export type CodexlySkillMarketClient = Pick<
 export type CodexlySettingsClient = Pick<
   CodexlyClient,
   | "getDiagnostics"
+  | "saveDiagnostics"
+  | "diagnosticsDownloadUrl"
   | "listWorkbenchBackgrounds"
   | "getEngineProfile"
   | "configureEngine"

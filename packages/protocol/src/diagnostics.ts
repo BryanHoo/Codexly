@@ -22,3 +22,22 @@ export const DiagnosticsResponseSchema = Type.Object(
 );
 
 export type DiagnosticsResponse = Static<typeof DiagnosticsResponseSchema>;
+
+// 应用快照来自现有脱敏导出器；不接收宿主文件路径或额外日志列表。
+export const SaveDiagnosticsRequestSchema = Type.Object(
+  {
+    application: Type.String({ maxLength: 8 * 1024 * 1024 }),
+  },
+  { additionalProperties: false },
+);
+export const SaveDiagnosticsResponseSchema = Type.Object(
+  {
+    downloadId: Type.String({
+      pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    }),
+    fileName: Type.String({ pattern: "^codexly-diagnostics-web-[0-9]+\\.zip$" }),
+  },
+  { additionalProperties: false },
+);
+export type SaveDiagnosticsRequest = Static<typeof SaveDiagnosticsRequestSchema>;
+export type SaveDiagnosticsResponse = Static<typeof SaveDiagnosticsResponseSchema>;

@@ -21,7 +21,9 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use crate::encoding::encode_lower_hex;
 
 pub use codex::{CodexLogParseError, MAX_CODEX_LOG_LINE_BYTES, parse_codex_event};
+#[cfg(test)]
 pub use export::write_diagnostic_archive;
+pub use export::{validate_native_archive, write_diagnostic_archive_with_codex};
 
 const LOG_TARGET: &str = "codeagent";
 const RUNNING_MARKER: &str = ".codeagent-running";

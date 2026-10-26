@@ -35,6 +35,8 @@ export type SettingsClient = Partial<Pick<CodexlyClient, "getTokenUsage">> &
   Pick<
     CodexlyClient,
     | "getDiagnostics"
+    | "saveDiagnostics"
+    | "diagnosticsDownloadUrl"
     | "getEngineProfile"
     | "configureEngine"
     | "disconnectEngine"

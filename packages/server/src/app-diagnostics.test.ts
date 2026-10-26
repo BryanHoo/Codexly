@@ -43,6 +43,18 @@ it("requires a paired session when LAN access is enabled", async () => {
   );
   closeCallbacks.push(() => app.close());
   expect((await app.inject("/v1/diagnostics")).statusCode).toBe(401);
+  expect(
+    (
+      await app.inject({
+        method: "POST",
+        url: "/v1/diagnostics/codex",
+        payload: { application: "{}" },
+      })
+    ).statusCode,
+  ).toBe(401);
+  expect(
+    (await app.inject("/v1/diagnostics/downloads/8a8f6c43-7407-4ebd-8636-7e0fc5269cb4")).statusCode,
+  ).toBe(401);
   const paired = await app.inject({
     method: "POST",
     url: "/v1/access/pair",

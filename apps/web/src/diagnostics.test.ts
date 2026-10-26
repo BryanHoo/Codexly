@@ -31,19 +31,18 @@ it("bounds browser records and strips credentials, application context and URL q
   expect(snapshot.logs.at(-1)?.errorMessage).toContain("redacted");
 });
 
-it("downloads a parseable diagnostic file with version data and releases the object URL", async () => {
-  vi.useFakeTimers();
-  let file: Blob | undefined;
-  const createObjectURL = vi.fn((blob: Blob) => {
-    file = blob;
-    return "blob:diagnostics";
-  });
-  const revokeObjectURL = vi.fn();
-  vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+it("downloads one integrated ZIP without buffering its body in the browser", async () => {
   const anchor = { click: vi.fn(), remove: vi.fn(), href: "", download: "" };
   vi.stubGlobal("document", { createElement: () => anchor, body: { append: vi.fn() } });
   vi.stubGlobal("navigator", { userAgent: "Test browser", language: "zh-CN" });
   const client = {
+    saveDiagnostics: vi.fn((_input: { application: string }) =>
+      Promise.resolve({
+        downloadId: "download-id",
+        fileName: "codexly-diagnostics-web-1.zip",
+      }),
+    ),
+    diagnosticsDownloadUrl: vi.fn(() => "/v1/diagnostics/downloads/download-id"),
     getDiagnostics: vi.fn(() =>
       Promise.resolve({
         version: 1 as const,
@@ -61,17 +60,17 @@ it("downloads a parseable diagnostic file with version data and releases the obj
     ),
   };
   const name = await exportDiagnostics(client, { appVersion: "0.41.0", codexVersion: "0.163.0" });
-  expect(name).toMatch(/^codexly-diagnostics-web-.*\.json$/u);
+  expect(name).toBe("codexly-diagnostics-web-1.zip");
+  expect(anchor.href).toBe("/v1/diagnostics/downloads/download-id");
   expect(anchor.click).toHaveBeenCalledOnce();
-  if (file === undefined) throw new Error("No diagnostic file generated");
-  expect(JSON.parse(await file.text())).toMatchObject({
+  const input = client.saveDiagnostics.mock.calls[0]?.[0];
+  if (!input) throw new Error("No application diagnostics prepared");
+  expect(JSON.parse(input.application)).toMatchObject({
     version: 1,
     manifest: { appVersion: "0.41.0", codexVersion: "0.163.0" },
     server: { logs: [] },
     browser: { userAgent: "Test browser" },
   });
-  await vi.runAllTimersAsync();
-  expect(revokeObjectURL).toHaveBeenCalledWith("blob:diagnostics");
   expect(anchor.remove).toHaveBeenCalledOnce();
   client.getDiagnostics.mockRejectedValueOnce(new Error("offline"));
   await expect(exportDiagnostics(client)).rejects.toThrow("offline");
