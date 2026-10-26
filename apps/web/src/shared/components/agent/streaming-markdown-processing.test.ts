@@ -7,6 +7,9 @@ import {
 } from "./message-response-processing.js";
 
 it.each([
+  "**0.164.0 支持 `feedback/save`。**之前我把本地检出的版本误当成了 0.164.0。",
+  "**包含 `**代码。**继续` 的正文。**继续",
+  "**包含 ``带 ` 的代码`` 的正文。**继续",
   "结论： **本地实现。**准确说。 __再次修复！__还有。",
   "a**不修复。**中文 \\**不修复。**中文 **正常。**中文",
   "\\**__`[link](src/main.ts)**中文",
@@ -39,7 +42,7 @@ it.each([
   }
 });
 
-it.each(["ordinary text ", "**bold** words ", "**正文。**继续 "])(
+it.each(["ordinary text ", "**bold** words ", "**正文。**继续 ", "**正文 `inline`。**继续 "])(
   "bounds cumulative text scanning in a growing line: %s",
   (delta) => {
     const buffer = new AppendOnlyTextBuffer("");

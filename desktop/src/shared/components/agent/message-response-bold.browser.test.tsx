@@ -44,4 +44,19 @@ describe("MessageResponse bold boundaries", () => {
     expect(screen.container.querySelector('[data-streamdown="strong"]')).toBeNull();
     expect(screen.container.querySelector("code")?.textContent).toBe("**持续对话： **");
   });
+
+  it.each(["static", "streaming"] as const)("renders bold text spanning inline code in %s mode", async (mode) => {
+    const buffer = new AppendOnlyTextBuffer("**0.164.0 支持 `feedback/save`。");
+    const screen = await render(<MessageResponse textSource={buffer.getSnapshot()} mode={mode} />);
+    for (const chunk of ["*", "*", "之前我把本地检出的版本误当成了 0.164.0。指令已核对。"]) {
+      buffer.append(chunk);
+      await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode={mode} />);
+    }
+    const strong = screen.container.querySelector('[data-streamdown="strong"]');
+    expect(strong?.textContent).toBe("0.164.0 支持 feedback/save");
+    expect(strong?.querySelector("code")?.textContent).toBe("feedback/save");
+    expect(screen.container.textContent).not.toContain("**");
+    await screen.rerender(<MessageResponse textSource={buffer.getSnapshot()} mode="static" isAnimating={false} />);
+    expect(screen.container.querySelector('[data-streamdown="strong"] code')?.textContent).toBe("feedback/save");
+  });
 });

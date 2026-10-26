@@ -1,5 +1,5 @@
 import type { ProcessedMessageResponse } from "./incremental-message-response.js";
-import { MarkdownEmphasisBoundaryNormalizer } from "./markdown-emphasis.js";
+import { MarkdownEmphasisBoundaryNormalizer, maskMarkdownInlineCode } from "./markdown-emphasis.js";
 import { assistantDirectiveEnd } from "./assistant-directive-spans.js";
 
 const INLINE_CODE = /(`+)[\s\S]*?\1/gu;
@@ -9,9 +9,17 @@ const MARKER = /`|\*\*|__|[*_]$|:/gu;
 const WORD_OR_ESCAPE = /[\p{L}\p{N}\\]$/u;
 
 function stableLength(source: string): number {
+  const masked = maskMarkdownInlineCode(source);
   let offset = 0;
   const directiveBudget = { remaining: source.length * 4 };
   const spans: { start: number; end: number }[] = [];
+  for (const code of source.matchAll(INLINE_CODE)) {
+    let openingLength = 0;
+    while (source[code.index + openingLength] === "`") openingLength += 1;
+    // 不完整的多反引号会随追加重新配对；不能提交可能改变遮蔽范围的当前行片段。
+    if (code[1]?.length !== openingLength || source[code.index + code[0].length] === "`") return 0;
+    spans.push({ start: code.index, end: code.index + code[0].length });
+  }
   const boundary = (length: number) => {
     let result = Math.max(0, length);
     // 粗体修复会移动闭合标记内的标点；提交边界不能切开整个变换跨度。
@@ -66,17 +74,15 @@ function stableLength(source: string): number {
         continue;
       }
     }
-    const emphasis = COMPLETE_EMPHASIS.exec(source);
+    const emphasis = COMPLETE_EMPHASIS.exec(masked);
     if (emphasis?.index === marker.index) {
       const emphasisEnd = emphasis.index + emphasis[0].length;
-      if (code !== null && code.index > marker.index && code.index < emphasisEnd) {
-        // 粗体规则只能作用于代码外的文本片段，不能跨越已闭合的行内代码。
-        offset = marker.index + 1;
-        continue;
-      }
-      const tick = source.indexOf("`", marker.index);
+      // 右边界若是下一段代码的起点，不能把它当作普通后缀一并提交。
+      if (source[emphasisEnd - 1] === "`") return boundary(marker.index - 2);
+      // 已闭合的行内代码可包含在粗体中；未闭合的反引号仍可能改变后续边界，不能提交。
+      const tick = masked.indexOf("`", marker.index);
       if (tick >= 0 && tick < emphasisEnd) return boundary(marker.index - 2);
-      const repaired = REPAIRED_EMPHASIS.exec(source);
+      const repaired = REPAIRED_EMPHASIS.exec(masked);
       if (repaired?.index === marker.index) {
         offset = repaired.index + repaired[0].length;
         spans.push({ start: repaired.index, end: offset });

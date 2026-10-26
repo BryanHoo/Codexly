@@ -95,6 +95,20 @@ describe("agent Markdown components", () => {
     expect(markup).not.toContain("**");
   });
 
+  it.each(["static", "streaming"] as const)(
+    "renders bold Chinese text containing inline code in %s mode",
+    (mode) => {
+      const source = "**0.164.0 支持 `feedback/save`。**之前我把本地检出的版本误当成了 0.164.0。";
+      const markup = renderToStaticMarkup(
+        <MessageResponse mode={mode} textSource={new AppendOnlyTextBuffer(source).getSnapshot()} />,
+      );
+      expect(markup).toMatch(
+        /data-streamdown="strong">0\.164\.0 支持 <code[^>]*data-streamdown="inline-code">feedback\/save<\/code><\/span>。之前/u,
+      );
+      expect(markup).not.toContain("**");
+    },
+  );
+
   it("renders unfenced SVG markup as visible XML source", () => {
     const svgSource = `<svg viewBox="0 0 24 24">
   <path d="M1 1h22v22H1z" />

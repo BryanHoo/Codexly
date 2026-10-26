@@ -11,21 +11,32 @@ type MarkdownFence = Readonly<{
   length: number;
 }>;
 
+export function maskMarkdownInlineCode(source: string): string {
+  // 等长遮蔽让粗体可以跨越行内代码，同时忽略代码中的标记和标点；源码偏移保持不变。
+  return source.replace(INLINE_CODE_PATTERN, (code) => "x".repeat(code.length));
+}
+
 function normalizePlainTextEmphasisBoundaries(source: string): string {
+  const masked = maskMarkdownInlineCode(source);
   let cursor = 0;
   const parts: string[] = [];
   PUNCTUATION_BOUNDARY_STRONG_PATTERN.lastIndex = 0;
-  let match = PUNCTUATION_BOUNDARY_STRONG_PATTERN.exec(source);
+  let match = PUNCTUATION_BOUNDARY_STRONG_PATTERN.exec(masked);
   while (match !== null) {
     // 显式检查左边界，避免共享模块在旧 WebKit 加载时依赖后行断言。
     if (WORD_OR_ESCAPE_PATTERN.test(source.slice(Math.max(0, match.index - 2), match.index))) {
       PUNCTUATION_BOUNDARY_STRONG_PATTERN.lastIndex = match.index + 1;
     } else {
-      const [, marker = "", content = "", punctuation = ""] = match;
+      const [, marker = "", , punctuation = ""] = match;
+      // 匹配只使用遮蔽文本，输出始终取原文，完整保留代码、路径及反引号。
+      const content = source.slice(
+        match.index + marker.length,
+        match.index + match[0].length - marker.length - punctuation.length,
+      );
       parts.push(source.slice(cursor, match.index), `${marker}${content}${marker}${punctuation}`);
       cursor = match.index + match[0].length;
     }
-    match = PUNCTUATION_BOUNDARY_STRONG_PATTERN.exec(source);
+    match = PUNCTUATION_BOUNDARY_STRONG_PATTERN.exec(masked);
   }
   return parts.length === 0 ? source : parts.join("") + source.slice(cursor);
 }
@@ -63,13 +74,7 @@ export class MarkdownEmphasisBoundaryNormalizer {
     // 代码和特殊标记属性均为字面内容，不能通过排版修复改变文件路径或待发送 prompt。
     let cursor = 0;
     let normalized = "";
-    const spans = [
-      ...assistantDirectiveSpans(source),
-      ...Array.from(source.matchAll(INLINE_CODE_PATTERN), (match) => ({
-        start: match.index,
-        end: match.index + match[0].length,
-      })),
-    ].sort((left, right) => left.start - right.start);
+    const spans = assistantDirectiveSpans(source).sort((left, right) => left.start - right.start);
     for (const span of spans) {
       if (span.end <= cursor) continue;
       if (span.start >= cursor)
