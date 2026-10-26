@@ -75,8 +75,8 @@ test.each([1280, 1920])("locks the whole composer while preserving the draft and
   expect(overlayRect.bottom).toBeGreaterThanOrEqual(formRect.bottom);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
   for (const button of form.querySelectorAll("button")) expect(button.matches(":disabled")).toBe(true);
-  // Chromium 在下一次渲染更新时才把焦点移出刚变为 inert 的编辑器。
-  await expect.poll(() => document.activeElement).not.toBe(editor);
+  // 锁定提交完成后立即失焦，不依赖各浏览器异步处理 disabled/inert。
+  expect(document.activeElement).not.toBe(editor);
   editor.focus();
   expect(document.activeElement).not.toBe(editor);
   await expect(composerRef.current!.submitCurrent()).resolves.toBe(false);

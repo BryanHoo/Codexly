@@ -1,5 +1,5 @@
 import { LockKeyhole } from "lucide-react";
-import type { ReactNode, SyntheticEvent } from "react";
+import { useLayoutEffect, useRef, type ReactNode, type SyntheticEvent } from "react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import type { TaskRuntimeView } from "../../conversation/runtime/use-task-runtime.js";
 
@@ -9,6 +9,14 @@ export function ComposerInteractionBoundary({ access, children }: Readonly<{
 }>) {
   const { t } = useTranslation("workbench");
   const disabled = access !== undefined && access !== "writable";
+  const fieldsetRef = useRef<HTMLFieldSetElement>(null);
+  useLayoutEffect(() => {
+    if (!disabled) return;
+    const active = fieldsetRef.current?.ownerDocument.activeElement;
+    // WebKit 不一定在 fieldset 变为 disabled/inert 时移走已有焦点；锁定前的编辑器必须主动失焦。
+    // 只处理当前边界内的元素，保留其他分栏或弹窗正在使用的焦点。
+    if (active instanceof HTMLElement && fieldsetRef.current?.contains(active)) active.blur();
+  }, [disabled]);
   const blockInteraction = (event: SyntheticEvent) => {
     if (!disabled) return;
     // 捕获阶段同时拦截已有 Portal 菜单的事件，不能只靠遮罩阻挡鼠标。
@@ -16,7 +24,7 @@ export function ComposerInteractionBoundary({ access, children }: Readonly<{
     event.stopPropagation();
   };
   return <div className="relative shrink-0" data-composer-write-access={access}>
-    <fieldset className="m-0 min-w-0 border-0 p-0" disabled={disabled} inert={disabled}
+    <fieldset ref={fieldsetRef} className="m-0 min-w-0 border-0 p-0" disabled={disabled} inert={disabled}
       onClickCapture={blockInteraction} onKeyDownCapture={blockInteraction}
       onSubmitCapture={blockInteraction} onChangeCapture={blockInteraction}>
       {children}

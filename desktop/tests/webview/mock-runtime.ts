@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import { browser } from "@wdio/globals";
 
 import { waitForWebviewBridge } from "./bridge-readiness.mjs";
@@ -12,6 +13,11 @@ import {
   settings,
   tasks,
 } from "./fixtures.js";
+
+// 与打包脚本读取同一个官方依赖，真实链路和模拟链路不再维护独立版本常量。
+export const REQUIRED_CODEX_VERSION = createRequire(new URL("../../../package.json", import.meta.url))(
+  "@openai/codex/package.json",
+).version as string;
 
 type CommandMock = Readonly<{
   mockResolvedValue: (value: unknown) => Promise<void>;
@@ -105,7 +111,7 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
         get_app_info: {
           appVersion: "0.1.0",
           changelogUrl: "https://github.com/BryanHoo/Codexly/blob/main/desktop/CHANGELOG.md",
-          codexVersion: "0.163.0",
+          codexVersion: REQUIRED_CODEX_VERSION,
           latestVersion: null,
           releaseNotes: "## [0.1.0] - 2026-08-31",
           releaseNotesVersion: "0.1.0",
@@ -126,8 +132,8 @@ export async function installWebviewMocks(): Promise<WebviewMocks> {
           "codeagent.language-preference": JSON.stringify({ language: "zh-CN", version: 1 }),
         },
         inspect_codex_runtime: {
-          detectedVersion: "0.163.0",
-          requiredVersion: "0.163.0",
+          detectedVersion: REQUIRED_CODEX_VERSION,
+          requiredVersion: REQUIRED_CODEX_VERSION,
           status: "compatible",
         },
         list_background_terminals: { data: [] },

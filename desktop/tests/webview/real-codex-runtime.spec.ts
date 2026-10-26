@@ -7,13 +7,13 @@ import { promisify } from "node:util";
 import { browser, expect } from "@wdio/globals";
 
 import {
+  REQUIRED_CODEX_VERSION,
   installWebviewMocks,
   passthroughNativeCommands,
   releaseApplicationStartup,
 } from "./mock-runtime.js";
 
 const execFileAsync = promisify(execFile);
-const REQUIRED_CODEX_VERSION = "0.163.0";
 const realRuntimeEnabled = process.env.CODEAGENT_REAL_RUNTIME_TEST === "1";
 const describeRealRuntime = realRuntimeEnabled ? describe : describe.skip;
 const REAL_COMMANDS = [

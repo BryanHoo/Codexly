@@ -102,8 +102,13 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   let dispatchPayload: unknown;
   const dispatchWrites: string[] = [];
   page.on("request", (request) => {
-    if (request.method() === "POST" || request.method() === "DELETE")
-      dispatchWrites.push(new URL(request.url()).pathname);
+    const path = new URL(request.url()).pathname;
+    // 只记录当前任务的调度写入，活动已读确认等全局请求不属于队列启动行为。
+    if (
+      path.startsWith(`/v1/projects/codexly/tasks/${taskId}/`) &&
+      (request.method() === "POST" || request.method() === "DELETE")
+    )
+      dispatchWrites.push(path);
   });
   await page.route("**/v1/projects/codexly/tasks/*/queue/start", async (route) => {
     const request = route.request();
