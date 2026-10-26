@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { LocalTask } from "@codexly/core";
 import type { AgentMcpServerPage } from "@codexly/protocol";
 import type { ClaudeConfiguration } from "./config.js";
+import { observe } from "./observability.js";
 import * as session from "./session.js";
 import {
   refreshClaudeMcpSnapshot,
@@ -90,6 +91,10 @@ export class ClaudeMcpManagement {
               Promise.resolve({ behavior: "deny", message: "MCP 状态探测不执行工具" }),
           },
         });
+        // 新进程先完成 SDK 初始化；实时状态读取仍沿用短时观察预算。
+        const probe = query;
+        if (!(await observe(() => probe.initializationResult(), 15_000)))
+          throw new Error("MCP 会话初始化失败或超时，已保留缓存");
         if (action === "reconnect") await reconnectClaudeMcpServers(query);
         const snapshot = {
           mcpServers: metadata?.mcpServers ?? [],

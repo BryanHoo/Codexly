@@ -6,7 +6,10 @@ import { CLAUDE_PLAN_MAX_TASKS, CLAUDE_PLAN_TITLE_BYTES } from "./task-plan.js";
 import { previewText } from "./rendering-buffer.js";
 
 /** 仅限制等待时间，不取消 SDK 请求；消息消费关键路径不得 await 此观测。 */
-export async function observe<T>(action: () => Promise<T>): Promise<T | undefined> {
+export async function observe<T>(
+  action: () => Promise<T>,
+  timeoutMs = 1500,
+): Promise<T | undefined> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
@@ -14,7 +17,7 @@ export async function observe<T>(action: () => Promise<T>): Promise<T | undefine
       new Promise<undefined>((resolve) => {
         timer = setTimeout(() => {
           resolve(undefined);
-        }, 1500);
+        }, timeoutMs);
         timer.unref();
       }),
     ]);

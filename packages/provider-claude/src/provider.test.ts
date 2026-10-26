@@ -946,6 +946,17 @@ it("keeps consuming the SDK session after truncated tool preview JSON", async ()
   const events: AgentProviderEvent[] = [];
   h.provider.subscribeEvents((event) => events.push(event));
   await h.provider.startTurn(task.id, prompt, options);
+  const settled = Promise.withResolvers<undefined>();
+  cleanup.unshift(() => {
+    settled.resolve(undefined);
+    return Promise.resolve();
+  });
+  const catalog = h.provider.store.catalog.bind(h.provider.store);
+  vi.spyOn(h.provider.store, "catalog").mockImplementation(async (operation, payload) => {
+    if (operation === "task.patch" && (payload as Partial<LocalTask>).status === "idle")
+      await settled.promise;
+    return catalog(operation, payload);
+  });
   const stream = (event: unknown) => {
     h.send({ type: "stream_event", event });
   };
@@ -982,6 +993,12 @@ it("keeps consuming the SDK session after truncated tool preview JSON", async ()
   });
   expect(h.close).not.toHaveBeenCalled();
   expect(events.some((event) => event.type === "provider.error")).toBe(false);
+  // 终态快照先于目录写入完成；收到完成事件后才允许复用 SDK 查询。
+  expect(events.some((event) => event.type === "turn.completed")).toBe(false);
+  settled.resolve(undefined);
+  await vi.waitFor(() => {
+    expect(events.some((event) => event.type === "turn.completed")).toBe(true);
+  });
   await h.provider.startTurn(task.id, prompt, options);
   expect(h.query).toHaveBeenCalledOnce();
   h.send({ type: "result", subtype: "success" });
@@ -3222,6 +3239,7 @@ it.each(["add", "remove", "address", "idle"])(
           throw new Error(`Unexpected prompt ${JSON.stringify(message)}`);
       })();
       return {
+        initializationResult: vi.fn(() => Promise.resolve({})),
         mcpServerStatus: vi.fn(() => Promise.resolve(replacement)),
         close: vi.fn(),
       } as unknown as Query;
@@ -3258,6 +3276,28 @@ it("refuses configuration reload during a turn and never treats a failed status 
   expect(h.close).not.toHaveBeenCalled();
 });
 
+it("waits for a cold MCP query to initialize before observing status", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const close = vi.fn();
+  h.query.mockImplementationOnce(() => {
+    const initialized = new Promise<undefined>((resolve) => {
+      setTimeout(() => {
+        resolve(undefined);
+      }, 2_000);
+    });
+    return {
+      initializationResult: () => initialized.then(() => ({})),
+      mcpServerStatus: () => initialized.then(() => []),
+      close,
+    } as unknown as Query;
+  });
+  const response = await h.provider.reloadMcpServers(task.id, "refresh");
+  expect(response).toMatchObject({ data: [], statusSource: "live" });
+  expect(close).toHaveBeenCalledOnce();
+  expect((await h.config.history.read(task.id)).turns).toHaveLength(0);
+});
+
 it("persists the timestamp of an initial MCP probe and releases its process without creating turns", async () => {
   const h = await harness();
   const task = await h.provider.startTask();
@@ -3265,6 +3305,7 @@ it("persists the timestamp of an initial MCP probe and releases its process with
   h.query.mockImplementationOnce(
     () =>
       ({
+        initializationResult: vi.fn(() => Promise.resolve({})),
         mcpServerStatus: vi.fn(() => Promise.resolve([])),
         close,
       }) as unknown as Query,
@@ -3278,6 +3319,39 @@ it("persists the timestamp of an initial MCP probe and releases its process with
   expect(close).toHaveBeenCalledOnce();
   expect(await h.provider.listMcpServers(task.id)).toEqual({ ...response, statusSource: "cached" });
   expect((await h.config.history.read(task.id)).turns).toHaveLength(0);
+});
+
+it("bounds cold MCP initialization and releases the query and startup lock on timeout", async () => {
+  const h = await harness();
+  const task = await h.provider.startTask();
+  const entered = Promise.withResolvers<undefined>();
+  const initialized = Promise.withResolvers<undefined>();
+  const close = vi.fn();
+  h.query.mockImplementationOnce(
+    () =>
+      ({
+        initializationResult: () => {
+          entered.resolve(undefined);
+          return initialized.promise;
+        },
+        close,
+      }) as unknown as Query,
+  );
+  vi.useFakeTimers();
+  try {
+    const response = h.provider
+      .reloadMcpServers(task.id, "refresh")
+      .catch((error: unknown) => error);
+    await entered.promise;
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(await response).toMatchObject({ message: "MCP 会话初始化失败或超时，已保留缓存" });
+    expect(close).toHaveBeenCalledOnce();
+    expect(h.provider.isBusy).toBe(false);
+    expect(await h.config.history.metadata(task.id)).toBeUndefined();
+  } finally {
+    initialized.resolve(undefined);
+    vi.useRealTimers();
+  }
 });
 
 // 分叉只复制已落盘的原生会话，展示回合 ID 不参与 Claude 消息截断。

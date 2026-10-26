@@ -1,8 +1,8 @@
 use super::startup_config::{
-    StartupConfigProbeError, build_startup_config_command, parse_startup_config, probe_command,
+    StartupConfigProbeError, build_startup_config_command, parse_startup_config,
 };
 use serde_json::{Value, json};
-use std::{ffi::OsStr, time::Duration};
+use std::ffi::OsStr;
 
 fn samples() -> Value {
     serde_json::from_str(include_str!(concat!(
@@ -86,7 +86,8 @@ fn startup_config_command_should_preserve_identity_and_path_without_side_effect_
 #[cfg(unix)]
 #[tokio::test]
 async fn startup_config_probe_should_bound_time_and_both_output_streams() {
-    use super::process::background_process_command;
+    use super::{process::background_process_command, startup_config::probe_command};
+    use std::time::Duration;
     for script in ["while :; do :; done", "yes x", "yes x >&2"] {
         let mut command = background_process_command(OsStr::new("/bin/sh"));
         command.args(["-c", script]);
