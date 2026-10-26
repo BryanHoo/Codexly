@@ -211,27 +211,52 @@ describe("server pending requests and idempotency", () => {
     expect(startTask).toHaveBeenCalledTimes(2);
   });
 
-  it("rejects interruption for a terminal or unrelated turn", async () => {
+  it.each(["completed", "interrupted", "failed"] as const)(
+    "accepts interruption for a %s turn without interrupting a newer turn",
+    async (status) => {
+      const { app, interruptTurn, readTask } = await createHarness();
+      readTask.mockResolvedValue({
+        ...snapshot,
+        status: "running",
+        turns: [
+          {
+            completedAt: "2026-07-23T00:03:00.000Z",
+            error: null,
+            id: "turn-completed",
+            items: [],
+            startedAt: "2026-07-23T00:02:00.000Z",
+            status,
+          },
+          {
+            completedAt: null,
+            error: null,
+            id: "turn-newer",
+            items: [],
+            startedAt: "2026-07-23T00:04:00.000Z",
+            status: "running",
+          },
+        ],
+      });
+      for (const key of ["terminal-turn", "terminal-turn", "terminal-turn-retry"]) {
+        const terminal = await app.inject({
+          headers: { "idempotency-key": key },
+          method: "POST",
+          payload: { taskId: "task-1" },
+          url: "/v1/projects/codexly/tasks/task-1/turns/turn-completed/interrupt",
+        });
+        expect(terminal.statusCode).toBe(202);
+        expect(terminal.json()).toEqual({
+          status: "interrupting",
+          taskId: "task-1",
+          turnId: "turn-completed",
+        });
+      }
+      expect(interruptTurn).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects interruption for an unrelated turn", async () => {
     const { app, interruptTurn, readTask } = await createHarness();
-    readTask.mockResolvedValueOnce({
-      ...snapshot,
-      turns: [
-        {
-          completedAt: "2026-07-23T00:03:00.000Z",
-          error: null,
-          id: "turn-completed",
-          items: [],
-          startedAt: "2026-07-23T00:02:00.000Z",
-          status: "completed" as const,
-        },
-      ],
-    });
-    const terminal = await app.inject({
-      headers: { "idempotency-key": "terminal-turn" },
-      method: "POST",
-      payload: { taskId: "task-1" },
-      url: "/v1/projects/codexly/tasks/task-1/turns/turn-completed/interrupt",
-    });
     readTask.mockResolvedValueOnce(snapshot);
     const missing = await app.inject({
       headers: { "idempotency-key": "missing-turn" },
@@ -240,8 +265,6 @@ describe("server pending requests and idempotency", () => {
       url: "/v1/projects/codexly/tasks/task-1/turns/turn-missing/interrupt",
     });
 
-    expect(terminal.statusCode).toBe(409);
-    expect(terminal.json()).toMatchObject({ code: "TURN_NOT_RUNNING" });
     expect(missing.statusCode).toBe(404);
     expect(missing.json()).toMatchObject({ code: "TURN_NOT_FOUND" });
     expect(interruptTurn).not.toHaveBeenCalled();

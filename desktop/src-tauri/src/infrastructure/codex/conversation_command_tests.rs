@@ -2,11 +2,58 @@ use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, duplex, split};
 
 use super::{
-    AppServerConnection,
+    AppServerConnection, ConnectionError,
     conversation_advanced::{compact_task, fork_task, start_review},
     conversation_commands::{interrupt_turn, start_task, start_turn, steer_turn},
 };
 use crate::domain::conversation::{AgentPromptInput, AgentTurnOptions};
+
+#[tokio::test]
+async fn interrupt_should_accept_only_the_native_already_finished_error() {
+    // 与 Web 适配器共用样本，只把明确的已结束响应视为幂等成功。
+    let samples: Vec<Value> = serde_json::from_str(include_str!(
+        "../../../../../packages/provider-codex/test/fixtures/turn-interrupt-errors.json"
+    ))
+    .unwrap();
+    for sample in samples {
+        let (client, server) = duplex(4096);
+        let (reader, writer) = split(client);
+        let connection = AppServerConnection::new(reader, writer);
+        let (reader, mut writer) = split(server);
+        let error = sample.clone();
+        let server_task = tokio::spawn(async move {
+            let mut lines = BufReader::new(reader).lines();
+            let request: Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            assert_eq!(request["method"], "turn/interrupt");
+            assert_eq!(request["params"]["threadId"], "task-1");
+            assert_eq!(request["params"]["turnId"], "turn-1");
+            let response = json!({"id": request["id"], "error": {
+                "code": error["code"], "message": error["message"]
+            }});
+            writer
+                .write_all(format!("{response}\n").as_bytes())
+                .await
+                .unwrap();
+        });
+        let result = interrupt_turn(&connection, "task-1".into(), "turn-1".into()).await;
+        if sample["accepted"] == true {
+            let response = result.expect("an already finished turn needs no further interrupt");
+            assert_eq!(response.status, "interrupting");
+            assert_eq!(response.task_id, "task-1");
+            assert_eq!(response.turn_id, "turn-1");
+        } else {
+            match result.unwrap_err() {
+                ConnectionError::Request { code, message } => {
+                    assert_eq!(code, sample["code"].as_i64().unwrap());
+                    assert_eq!(message, sample["message"].as_str().unwrap());
+                }
+                error => panic!("unexpected interrupt failure: {error}"),
+            }
+        }
+        server_task.await.unwrap();
+    }
+}
 
 #[tokio::test]
 async fn conversation_commands_should_follow_codex_lifecycle() {

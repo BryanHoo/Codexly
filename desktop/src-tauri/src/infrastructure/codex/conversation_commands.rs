@@ -5,6 +5,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+pub use super::conversation_interrupt::interrupt_turn;
 use super::{
     AppServerConnection,
     connection::ConnectionError,
@@ -190,13 +191,6 @@ struct TurnSteerParams<'a> {
 #[serde(rename_all = "camelCase")]
 struct TurnSteerResponse {
     turn_id: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct TurnInterruptParams<'a> {
-    thread_id: &'a str,
-    turn_id: &'a str,
 }
 
 // 应用任务延迟创建会话；保留原生 thread/start 适配器，仅用于上游协议契约测试。
@@ -406,28 +400,6 @@ pub async fn steer_turn(
     }
     Ok(AgentTurnActionResponse {
         status: "accepted",
-        task_id,
-        turn_id,
-    })
-}
-
-pub async fn interrupt_turn(
-    connection: &AppServerConnection,
-    task_id: String,
-    turn_id: String,
-) -> Result<AgentTurnActionResponse, ConnectionError> {
-    let _: Value = connection
-        .request(
-            "turn/interrupt",
-            &TurnInterruptParams {
-                thread_id: &task_id,
-                turn_id: &turn_id,
-            },
-            REQUEST_TIMEOUT,
-        )
-        .await?;
-    Ok(AgentTurnActionResponse {
-        status: "interrupting",
         task_id,
         turn_id,
     })

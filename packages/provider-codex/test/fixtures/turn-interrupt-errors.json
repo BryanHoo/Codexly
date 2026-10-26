@@ -1,0 +1,32 @@
+[
+  {
+    "name": "turn already finished",
+    "code": -32600,
+    "message": "no active turn to interrupt",
+    "accepted": true
+  },
+  {
+    "name": "different active turn",
+    "code": -32600,
+    "message": "expected active turn id turn-1 but found turn-2",
+    "accepted": false
+  },
+  {
+    "name": "thread missing",
+    "code": -32600,
+    "message": "thread not found: task-1",
+    "accepted": false
+  },
+  {
+    "name": "internal failure with the same message",
+    "code": -32603,
+    "message": "no active turn to interrupt",
+    "accepted": false
+  },
+  {
+    "name": "wrapped failure mentioning an inactive turn",
+    "code": -32600,
+    "message": "failed to interrupt turn: no active turn to interrupt",
+    "accepted": false
+  }
+]

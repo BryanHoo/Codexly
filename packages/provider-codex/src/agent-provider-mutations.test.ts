@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
+// Web 与桌面原生测试共用同一份上游错误样本，防止两条传输链路的停止语义分叉。
+import interruptErrors from "../test/fixtures/turn-interrupt-errors.json" with { type: "json" };
+import { RpcConnectionClosedError, RpcResponseError } from "./jsonl-rpc-errors.js";
 import {
   FakeRpcClient,
   projectRootPath,
@@ -13,6 +16,33 @@ import {
 } from "./agent-provider.test-support.js";
 
 describe("CodexAgentProvider mutations", () => {
+  it.each(interruptErrors)("handles interrupt response: $name", async (sample) => {
+    const error = new RpcResponseError({ ...sample, data: undefined });
+    const rpc = new FakeRpcClient([{ thread: nativeThread() }, error]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    await provider.startTask();
+
+    const result = provider.interruptTurn("task-1", "turn-1");
+    if (sample.accepted) {
+      await expect(result).resolves.toBeUndefined();
+    } else {
+      await expect(result).rejects.toBe(error);
+    }
+    // 已结束只表示无须再次停止，不重试、不额外读取历史，也不伪造回合状态事件。
+    expect(rpc.calls.map((call) => call.method)).toEqual(["thread/start", "turn/interrupt"]);
+  });
+
+  it.each([new Error("no active turn to interrupt"), new RpcConnectionClosedError()])(
+    "preserves non-RPC interruption failures: %s",
+    async (error) => {
+      const rpc = new FakeRpcClient([{ thread: nativeThread() }, error]);
+      const provider = createCodexAgentProvider({ client: rpc, project });
+      await provider.startTask();
+
+      await expect(provider.interruptTurn("task-1", "turn-1")).rejects.toBe(error);
+    },
+  );
+
   it("starts a worktree task with its own cwd and preserved Project identity", async () => {
     const workspacePath = "/workspace/Codexly-feature";
     const rpc = new FakeRpcClient([{ thread: nativeThread({ cwd: workspacePath }) }]);

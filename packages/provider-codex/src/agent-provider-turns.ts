@@ -34,6 +34,7 @@ import { pendingLocalTasks, restoreUnlistedForks } from "./fork-task-restoration
 import { CodexAgentProviderQueue } from "./agent-provider-queue.js";
 import { mapCodexGoal } from "./codex-goal-mapping.js";
 import { mapCodexTurnSettings } from "./codex-turn-settings.js";
+import { interruptCodexTurn } from "./codex-turn-interrupt.js";
 
 export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   public async startTask(options: StartAgentTaskOptions = {}): Promise<AgentTask> {
@@ -288,13 +289,7 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
     // review 的外层 Turn 只负责展示，真正可终止的是 reviewer 子 Thread 的运行中 Turn。
     const interruptTaskId = this.runtime.reviewWorkerTaskIds.get(taskId) ?? taskId;
     const interruptTurnId = this.runtime.reviewWorkerTurnIds.get(taskId) ?? turnId;
-    expectRecord(
-      await this.client.request("turn/interrupt", {
-        threadId: interruptTaskId,
-        turnId: interruptTurnId,
-      }),
-      "turn/interrupt response",
-    );
+    await interruptCodexTurn(this.client, interruptTaskId, interruptTurnId);
   }
 
   public async updateTurnApprovalsReviewer(

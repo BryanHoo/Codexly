@@ -14,6 +14,13 @@
 
 能力差异与原生配置见 [智能体引擎参考](../../../../docs/agent-engines.md)。
 
+## 停止回合的完成竞态
+
+- 停止操作须幂等：Web 路由预检确认指定回合已结束时，保留任务和回合归属校验，直接确认且不调用 Provider，不能误停之后的新回合。
+- Web Codex Provider 与桌面原生适配器仅将 RPC 错误码 `-32600` 且完整消息为 `no active turn to interrupt` 的响应视为已无须停止；回合 ID 不匹配、任务不存在、断连及其他错误继续传播。
+- 不重试中断、不额外加载历史、不伪造完成或中断事件，最终状态沿用已有事件链路。HTTP `202` 和原生 `interrupting` 仅表示停止请求已确认，不代表回合一定以中断结束。
+- 两端共用 [错误样本](../../../../packages/provider-codex/test/fixtures/turn-interrupt-errors.json)。回归入口为 `agent-provider-mutations.test.ts`、Server 的 `app-idempotency.test.ts` 和桌面 `conversation_command_tests.rs`。
+
 ## 线程空闲卸载
 
 - Codex 0.164+ 使用线程级 `thread_unload_delay_secs`。普通会话创建、恢复、分叉及本地目录延迟物化均设置 300 秒热缓存；标题、提交说明等辅助线程设置 0 秒，完成或中断并退订后立即释放。

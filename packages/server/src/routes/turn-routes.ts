@@ -411,10 +411,11 @@ export const registerTurnRoutes: FastifyPluginCallback<ServerRouteContext> = (
           if (turn === undefined) {
             throw new MutationHttpError("TURN_NOT_FOUND", "Turn not found", 404);
           }
-          if (turn.status !== "running") {
-            throw new MutationHttpError("TURN_NOT_RUNNING", "Turn is not running", 409);
+          // 停止是幂等操作：预检时回合已结束则直接确认，避免把完成竞态显示为失败。
+          // 仅中断指定的运行中回合，不能误停随后启动的新回合；任务与回合归属仍须校验。
+          if (turn.status === "running") {
+            await context.provider.interruptTurn(request.params.taskId, request.params.turnId);
           }
-          await context.provider.interruptTurn(request.params.taskId, request.params.turnId);
           return {
             status: "interrupting" as const,
             taskId: request.body.taskId,
