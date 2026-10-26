@@ -20,6 +20,7 @@ import type {
 import {
   CodexProtocolMappingError,
   CODEX_THREAD_CONFIG,
+  CODEX_EPHEMERAL_THREAD_CONFIG,
   expectBoolean,
   expectRecord,
   expectString,
@@ -27,7 +28,6 @@ import {
   mapBackgroundTerminal,
   optionalString,
 } from "./codex-protocol-mapping.js";
-
 import { CODEX_PINNED_THREAD_SECTION_ID } from "./agent-provider-base.js";
 import { isBackgroundTerminalThreadMissingError, mapAgentTask } from "./agent-provider-base.js";
 import { pendingLocalTasks, restoreUnlistedForks } from "./fork-task-restoration.js";
@@ -39,7 +39,7 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   public async startTask(options: StartAgentTaskOptions = {}): Promise<AgentTask> {
     const response = expectRecord(
       await this.client.request("thread/start", {
-        config: CODEX_THREAD_CONFIG,
+        config: options.ephemeral === true ? CODEX_EPHEMERAL_THREAD_CONFIG : CODEX_THREAD_CONFIG,
         historyMode: "paginated",
         ...(this.project.kind === "temporary"
           ? this.hasLocalCatalog

@@ -71,7 +71,7 @@ describe("CodexAgentProvider task lifecycle", () => {
       {
         method: "thread/start",
         params: {
-          config: { "tools.update_plan.enabled": true },
+          config: { "tools.update_plan.enabled": true, thread_unload_delay_secs: 0 },
           cwd: projectRootPath,
           ephemeral: true,
           historyMode: "paginated",
@@ -120,7 +120,7 @@ describe("CodexAgentProvider task lifecycle", () => {
       {
         method: "thread/start",
         params: {
-          config: { "tools.update_plan.enabled": true },
+          config: { "tools.update_plan.enabled": true, thread_unload_delay_secs: 300 },
           historyMode: "paginated",
         },
       },
@@ -227,7 +227,7 @@ describe("CodexAgentProvider task lifecycle", () => {
       {
         method: "thread/start",
         params: {
-          config: { "tools.update_plan.enabled": true },
+          config: { "tools.update_plan.enabled": true, thread_unload_delay_secs: 300 },
           cwd: otherProject.rootPath,
           historyMode: "paginated",
           projectId: otherProject.id,
@@ -382,7 +382,7 @@ describe("CodexAgentProvider task lifecycle", () => {
       expect(rpc.calls.at(-1)).toEqual({
         method: "thread/resume",
         params: {
-          config: { "tools.update_plan.enabled": true },
+          config: { "tools.update_plan.enabled": true, thread_unload_delay_secs: 300 },
           threadId: "reviewer-thread",
         },
       });

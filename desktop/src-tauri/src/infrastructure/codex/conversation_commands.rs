@@ -98,6 +98,7 @@ struct ThreadResumeParams<'a> {
 pub(super) struct ThreadConfig {
     #[serde(rename = "tools.update_plan.enabled")]
     update_plan_enabled: bool,
+    thread_unload_delay_secs: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     web_search: Option<WebSearchMode>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -108,9 +109,18 @@ pub(super) struct ThreadConfig {
 pub(super) const fn thread_config() -> ThreadConfig {
     ThreadConfig {
         update_plan_enabled: true,
+        // Codex 0.164+ 按线程调度；此配置不替代运行回合、队列和后台终端的退订保护。
+        thread_unload_delay_secs: 300,
         web_search: None,
         model_verbosity: None,
         model_reasoning_summary: "auto",
+    }
+}
+
+pub(super) const fn ephemeral_thread_config() -> ThreadConfig {
+    ThreadConfig {
+        thread_unload_delay_secs: 0,
+        ..thread_config()
     }
 }
 

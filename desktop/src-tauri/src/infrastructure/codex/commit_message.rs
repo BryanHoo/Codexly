@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use super::{
     AppServerConnection,
     connection::ConnectionError,
-    conversation_commands::{ThreadConfig, thread_config},
+    conversation_commands::{ThreadConfig, ephemeral_thread_config},
 };
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -99,7 +99,7 @@ pub async fn start_commit_message_thread(
             "thread/start",
             &ThreadStartParams {
                 approval_policy: "never",
-                config: thread_config(),
+                config: ephemeral_thread_config(),
                 cwd,
                 developer_instructions: "Do not call tools. Generate only the requested commit message from the supplied changes.",
                 ephemeral: true,
@@ -219,6 +219,7 @@ mod tests {
                 if method == "thread/start" {
                     assert_eq!(request["params"]["model"], "gpt-commit");
                     assert_eq!(request["params"]["ephemeral"], true);
+                    assert_eq!(request["params"]["config"]["thread_unload_delay_secs"], 0);
                     assert_eq!(request["params"]["sandbox"], "read-only");
                     assert_eq!(
                         request["params"]["config"]["tools.update_plan.enabled"],

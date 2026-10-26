@@ -87,6 +87,8 @@ pub async fn start_title_thread_with_instructions(
         )
         .await?;
     let mut config = json!({
+        // 标题不需要热缓存；完成或中断后仍沿用既有退订清理，避免提前卸载运行回合。
+        "thread_unload_delay_secs": 0,
         // 工具隔离不会屏蔽 AGENTS.md；标题只需要请求正文，禁止加载项目文档中的提交格式等规则。
         "project_doc_max_bytes": 0,
         "tools.update_plan.enabled": true,

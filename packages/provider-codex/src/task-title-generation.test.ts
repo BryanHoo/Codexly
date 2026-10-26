@@ -72,6 +72,7 @@ describe("task title generation", () => {
         sandbox: "read-only",
         dynamicTools: [],
         config: {
+          thread_unload_delay_secs: 0,
           project_doc_max_bytes: 0,
           mcp_servers: { external: { enabled: false } },
           "features.shell_tool": false,

@@ -82,7 +82,7 @@ describe("CodexAgentProvider MCP servers", () => {
       {
         method: "thread/start",
         params: {
-          config: { "tools.update_plan.enabled": true },
+          config: { "tools.update_plan.enabled": true, thread_unload_delay_secs: 300 },
           cwd: projectRootPath,
           historyMode: "paginated",
           projectId: project.id,

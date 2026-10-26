@@ -22,7 +22,10 @@ describe("CodexAgentProvider fork visibility", () => {
     await expect(provider.forkTask("task-1")).resolves.toMatchObject({ workspacePath });
     expect(rpc.calls[1]).toMatchObject({
       method: "thread/fork",
-      params: { runtimeWorkspaceRoots: [projectRootPath, workspacePath] },
+      params: {
+        config: { thread_unload_delay_secs: 300 },
+        runtimeWorkspaceRoots: [projectRootPath, workspacePath],
+      },
     });
   });
 

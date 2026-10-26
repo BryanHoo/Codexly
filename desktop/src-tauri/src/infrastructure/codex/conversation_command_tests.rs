@@ -45,6 +45,7 @@ async fn conversation_commands_should_follow_codex_lifecycle() {
                 .expect("request should be JSON");
             assert_eq!(request["method"], method);
             if method == "thread/start" || method == "thread/resume" {
+                assert_eq!(request["params"]["config"]["thread_unload_delay_secs"], 300);
                 assert_eq!(request["params"]["config"]["web_search"], "live");
                 assert_eq!(
                     request["params"]["config"]["model_reasoning_summary"],
@@ -241,6 +242,7 @@ async fn advanced_task_commands_should_use_native_codex_methods() {
                 );
             }
             if method == "thread/fork" {
+                assert_eq!(request["params"]["config"]["thread_unload_delay_secs"], 300);
                 assert_eq!(request["params"]["model"], "source-model");
                 assert_eq!(
                     request["params"]["config"]["model_reasoning_effort"],

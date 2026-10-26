@@ -58,6 +58,7 @@ async fn title_generation_should_use_isolated_structured_turn_and_persist_summar
                 "thread/start" => {
                     assert_eq!(params["model"], "custom-model");
                     assert_eq!(params["ephemeral"], true);
+                    assert_eq!(params["config"]["thread_unload_delay_secs"], 0);
                     assert_eq!(params["threadSource"], "system");
                     assert_eq!(params["approvalPolicy"], "never");
                     assert_eq!(params["sandbox"], "read-only");

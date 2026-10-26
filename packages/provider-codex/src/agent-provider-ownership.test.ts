@@ -304,7 +304,7 @@ describe("CodexAgentProvider ownership and resume", () => {
     expect(rpc.calls[4]).toEqual({
       method: "thread/resume",
       params: {
-        config: { "tools.update_plan.enabled": true },
+        config: { "tools.update_plan.enabled": true, thread_unload_delay_secs: 300 },
         excludeTurns: true,
         runtimeWorkspaceRoots: [projectRootPath],
         threadId: "task-1",

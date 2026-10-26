@@ -61,7 +61,7 @@ describe("CodexAgentProvider history", () => {
     expect(rpc.calls[0]).toEqual({
       method: "thread/start",
       params: {
-        config: { "tools.update_plan.enabled": true },
+        config: { "tools.update_plan.enabled": true, thread_unload_delay_secs: 300 },
         cwd: "/workspace/primary",
         historyMode: "paginated",
         projectId: project.id,

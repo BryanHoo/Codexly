@@ -98,7 +98,7 @@ describe("CodexAgentProvider mutations", () => {
       {
         method: "thread/start",
         params: {
-          config: { "tools.update_plan.enabled": true },
+          config: { "tools.update_plan.enabled": true, thread_unload_delay_secs: 300 },
           cwd: "/workspace/Codexly",
           historyMode: "paginated",
           projectId: project.id,
@@ -312,7 +312,7 @@ describe("CodexAgentProvider mutations", () => {
       {
         method: "thread/fork",
         params: {
-          config: { "tools.update_plan.enabled": true },
+          config: { "tools.update_plan.enabled": true, thread_unload_delay_secs: 300 },
           excludeTurns: true,
           lastTurnId: "turn-1",
           runtimeWorkspaceRoots: [projectRootPath],

@@ -280,7 +280,8 @@ impl AppServerConnection {
             let config = params
                 .get("config")
                 .cloned()
-                .unwrap_or_else(|| json!({"tools.update_plan.enabled":true}));
+                // 首次 Turn 才物化原生线程，缺省配置也须沿用普通会话的热缓存策略。
+                .unwrap_or_else(|| json!(super::conversation_commands::thread_config()));
             let mut started:Value=self.request_raw("thread/start",&json!({"cwd":task["cwd"],"runtimeWorkspaceRoots":[task["cwd"]],"historyMode":"paginated","config":config}),timeout).await?;
             task = catalog
                 .call(

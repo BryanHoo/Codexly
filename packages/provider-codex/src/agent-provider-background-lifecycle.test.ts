@@ -27,7 +27,7 @@ const turn = {
 };
 
 describe("background task subscription lifetime", () => {
-  it("keeps a starting task subscribed so its later tool approval is delivered", async () => {
+  it.each([false, true])("keeps a starting task subscribed (ephemeral=%s)", async (ephemeral) => {
     const gate = Promise.withResolvers<unknown>();
     const rpc = new FakeRpcClient([
       { thread: nativeThread() },
@@ -37,8 +37,8 @@ describe("background task subscription lifetime", () => {
     ]);
     const provider = createCodexAgentProvider({ client: rpc, project });
     const events: AgentProviderEvent[] = [];
-    provider.subscribeEvents((event) => events.push(event));
-    await provider.startTask();
+    provider.subscribeEvents((event) => events.push(event), { includeEphemeral: true });
+    await provider.startTask({ ephemeral });
     const starting = provider.startTurn("task-1", input, options);
     await vi.waitFor(() => {
       expect(rpc.calls.at(-1)?.method).toBe("turn/start");
@@ -63,6 +63,35 @@ describe("background task subscription lifetime", () => {
       gate.resolve({ turn });
       await starting;
     }
+  });
+
+  it.each([false, true])("preserves background terminals (ephemeral=%s)", async (ephemeral) => {
+    const terminal = {
+      command: "pnpm dev",
+      cpuPercent: 0,
+      cwd: "/workspace/Codexly",
+      itemId: "command-1",
+      osPid: 2345,
+      processId: "terminal-1",
+      rssKb: 4096,
+    };
+    const rpc = new FakeRpcClient([
+      { thread: nativeThread() },
+      { data: [terminal], nextCursor: null },
+      { data: [], nextCursor: null },
+      { status: "unsubscribed" },
+    ]);
+    const provider = createCodexAgentProvider({ client: rpc, project });
+    await provider.startTask({ ephemeral });
+
+    expect(await provider.unsubscribeTask("task-1")).toBe("busy");
+    expect(rpc.calls.some(({ method }) => method === "thread/unsubscribe")).toBe(false);
+    // 终端自行结束后才允许退订；较短的缓存时长不能主动终止后台进程。
+    expect(await provider.unsubscribeTask("task-1")).toBe("unsubscribed");
+    expect(rpc.calls.at(-1)).toEqual({
+      method: "thread/unsubscribe",
+      params: { threadId: "task-1" },
+    });
   });
 
   it("does not let an older idle read revoke a newly running task subscription", async () => {

@@ -16,8 +16,17 @@ export class CodexProtocolMappingError extends Error {
 
 export const MAX_COMMAND_OUTPUT_BYTES = 1_048_576;
 export const MAX_COMMAND_OUTPUT_LINES = 10_000;
-// 计划工具必须按 Thread 覆盖，不能改写用户的全局 config.toml。
-export const CODEX_THREAD_CONFIG = Object.freeze({ "tools.update_plan.enabled": true });
+// 按线程覆盖配置，不改写用户的全局 config.toml。退订且空闲后保留 5 分钟热缓存，
+// 由 Codex 0.164+ 调度卸载；运行回合、队列和后台终端仍须通过既有退订保护。
+export const CODEX_THREAD_CONFIG = Object.freeze({
+  "tools.update_plan.enabled": true,
+  thread_unload_delay_secs: 300,
+});
+// 标题、提交说明等短命线程不复用缓存；只有退订且不再运行时才立即释放。
+export const CODEX_EPHEMERAL_THREAD_CONFIG = Object.freeze({
+  ...CODEX_THREAD_CONFIG,
+  thread_unload_delay_secs: 0,
+});
 export const CODEX_MAPPED_NOTIFICATION_METHODS: ReadonlySet<string> = new Set([
   "error",
   "guardianWarning",

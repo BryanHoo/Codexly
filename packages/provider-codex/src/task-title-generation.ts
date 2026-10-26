@@ -1,6 +1,10 @@
 import { Buffer } from "node:buffer";
 import type { CodexRpcClient } from "./codex-rpc-client.js";
-import { expectRecord, expectString } from "./codex-protocol-mapping.js";
+import {
+  CODEX_EPHEMERAL_THREAD_CONFIG,
+  expectRecord,
+  expectString,
+} from "./codex-protocol-mapping.js";
 import titleInstructions from "./task-title-instructions.json" with { type: "json" };
 
 interface Notification {
@@ -16,9 +20,9 @@ import { parseTaskTitle, taskTitlePrompt } from "@codexly/core";
 
 function isolatedConfig(effective: Record<string, unknown>): Record<string, unknown> {
   const config: Record<string, unknown> = {
+    ...CODEX_EPHEMERAL_THREAD_CONFIG,
     // 工具隔离不会屏蔽 AGENTS.md；标题仅需请求正文，禁止加载项目文档中的提交格式等规则。
     project_doc_max_bytes: 0,
-    "tools.update_plan.enabled": true,
     web_search: "disabled",
     "skills.include_instructions": false,
     "orchestrator.skills.enabled": false,

@@ -14,6 +14,12 @@
 
 能力差异与原生配置见 [智能体引擎参考](../../../../docs/agent-engines.md)。
 
+## 线程空闲卸载
+
+- Codex 0.164+ 使用线程级 `thread_unload_delay_secs`。普通会话创建、恢复、分叉及本地目录延迟物化均设置 300 秒热缓存；标题、提交说明等辅助线程设置 0 秒，完成或中断并退订后立即释放。
+- 沿用上游卸载调度，不新增轮询或周期定时器，不写全局配置；运行回合、提交租约、排队消息及后台终端继续阻止退订。两端恢复会话时重新建立订阅，磁盘历史不受影响。
+- Web 回归为 `agent-provider-lifecycle.test.ts`、`agent-provider-ownership.test.ts`、`agent-provider-background-lifecycle.test.ts`、`task-title-generation.test.ts` 与 Server 的 `app-submissions.test.ts`；桌面覆盖 `conversation_command_tests.rs`、`task_title_tests.rs`、`tasks_tests.rs` 和 `commit_message.rs`。用户语义见 [会话加载与性能](../../../../docs/conversation-performance.md)。
+
 ## 生成图片的持久引用
 
 - `imageGeneration` 同时含 `fileId` 与旧 `result` 时采用文件引用语义；Worker 不解码或暂存旧正文。优先读取有效 `savedPath`，仅有引用且无可读取正文的完成项显示 `[图片]`，运行中或失败项保留工具状态。

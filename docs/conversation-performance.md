@@ -26,6 +26,10 @@ The cache retains at most 12 inactive task snapshots within an estimated 48 MiB 
 
 Both editions continue committing received task events while the page or WebView is hidden, preventing background state from stalling on animation-frame scheduling. Idle tasks do not retain periodic event-flush timers.
 
+Codex 0.164 及以上版本使用线程级 `thread_unload_delay_secs`：普通会话在没有订阅且空闲后保留 300 秒热缓存，标题与提交说明生成等短命线程在退订且空闲后立即卸载（0 秒）。两端沿用既有退订流程，运行回合、正在提交或排队的消息、后台终端仍会阻止退订；重新打开任务会恢复订阅，已保存的会话历史保留在磁盘。该策略不改写用户的全局配置，也不增加应用轮询或周期定时器。
+
+Codex 0.164 and later use per-thread `thread_unload_delay_secs`: ordinary conversations keep a 300-second warm cache once unsubscribed and idle, while short-lived title and commit-message helpers unload immediately after becoming unsubscribed and idle (0 seconds). Both editions retain the existing unsubscribe guards for running turns, in-flight or queued submissions, and background terminals. Reopening a task restores its subscription; saved conversation history remains on disk. This policy does not rewrite global user configuration or add application polling or periodic timers.
+
 两端仅在助手的完整问题消息到达时记录待回答提醒并更新任务活动，复用现有通知偏好与事件连接；普通消息与流式 Token 不触发通知或额外轮询。待回答状态允许任务继续运行，进入任务只确认通知已读，回答成功或显式关闭后才解除对应问题的等待；其他问题与审批继续保留。
 
 Both editions record an input notification and update task activity when a complete assistant question arrives, reusing existing notification preferences and event connections. Ordinary messages and streamed tokens add no notifications or polling. Tasks can keep running while awaiting answers. Opening a task marks its notifications read; successfully answering or explicitly dismissing a question clears that question's waiting state while preserving other questions and approvals.
