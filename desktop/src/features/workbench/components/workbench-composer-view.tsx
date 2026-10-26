@@ -131,8 +131,8 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
       />} />}
       interruptible={props.canInterrupt && !props.turnControlsDisabled && props.activeTurnId !== undefined}
     >
-      {/* 终端底栏移出文档裁剪区后，补足阴影空间；普通底栏和无底栏编辑器保持原有间距。 */}
-      <div className={`relative mx-auto w-full max-w-content${terminal !== null && props.footerVisible ? " pb-6" : ""}`} ref={props.commandSurfaceRef}>
+      {/* 终端底栏移出文档裁剪区后，仅预留 12px 阴影空间，避免输入框与底栏之间出现过大留白。 */}
+      <div className={`relative mx-auto w-full max-w-content${terminal !== null && props.footerVisible ? " pb-3" : ""}`} ref={props.commandSurfaceRef}>
         <ComposerCommandMenu props={props} />
         <ComposerFileMenu props={props} />
         {props.queuedPrompts.length === 0 ? null : (
