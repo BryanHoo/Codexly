@@ -101,27 +101,8 @@ export function GlobalSettingsAbout({
             </Button>
           </SettingsField>
           <SettingsField alignStart expandControl label={t("about.update")}>
-            {/* 更新提示和按钮保持单行；极窄窗口仅在操作区内滚动，避免入口溢出卡片。 */}
-            <div className="flex min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap py-2">
-              <p
-                className={cn(
-                  "shrink-0 text-body-small",
-                  appInfo.status === "available"
-                    ? "text-warning"
-                    : updateFailed
-                      ? "text-danger"
-                      : "text-muted-foreground",
-                )}
-                role={updateFailed ? "alert" : "status"}
-              >
-                {appInfo.status === "available" && appInfo.latestVersion !== null
-                  ? t("about.available", { version: appInfo.latestVersion })
-                  : appInfo.status === "connection-failed"
-                    ? t("errors.githubConnection")
-                    : appInfo.status === "check-failed"
-                      ? t("errors.updateCheck")
-                      : t("about.current")}
-              </p>
+            {/* 检查按钮固定在操作区起点，新增版本提示和安装按钮不能移到原点击位置。 */}
+            <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap py-2">
               <Button
                 disabled={isChecking}
                 onClick={() => void checkForUpdates()}
@@ -139,6 +120,17 @@ export function GlobalSettingsAbout({
                   <RefreshCw aria-hidden="true" data-icon="inline-start" />
                 )}
                 {isChecking ? t("about.checking") : t("about.check")}
+              </Button>
+              <Button
+                onClick={() => {
+                  setReleaseNotesOpen(true);
+                }}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <BookOpen aria-hidden="true" data-icon="inline-start" />
+                {t("about.releaseNotes")}
               </Button>
               {appInfo.status === "available" && appInfo.latestVersion !== null ? (
                 <Button
@@ -177,17 +169,25 @@ export function GlobalSettingsAbout({
                     : t("about.updateTo", { version: appInfo.latestVersion })}
                 </Button>
               ) : null}
-              <Button
-                onClick={() => {
-                  setReleaseNotesOpen(true);
-                }}
-                size="sm"
-                type="button"
-                variant="outline"
+              <p
+                className={cn(
+                  "shrink-0 text-body-small",
+                  appInfo.status === "available"
+                    ? "text-warning"
+                    : updateFailed
+                      ? "text-danger"
+                      : "text-muted-foreground",
+                )}
+                role={updateFailed ? "alert" : "status"}
               >
-                <BookOpen aria-hidden="true" data-icon="inline-start" />
-                {t("about.releaseNotes")}
-              </Button>
+                {appInfo.status === "available" && appInfo.latestVersion !== null
+                  ? t("about.available", { version: appInfo.latestVersion })
+                  : appInfo.status === "connection-failed"
+                    ? t("errors.githubConnection")
+                    : appInfo.status === "check-failed"
+                      ? t("errors.updateCheck")
+                      : t("about.current")}
+              </p>
             </div>
           </SettingsField>
           <AppReleaseNotesDialog

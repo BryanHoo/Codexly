@@ -1,9 +1,12 @@
 import type { AppInfoResponse } from "@/protocol/index.js";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
+import { useState } from "react";
+import { page } from "vitest/browser";
 
 import { I18nextProvider, i18n } from "../../../i18n/i18n.js";
 import { GlobalSettingsAbout } from "./global-settings-about.js";
+import "../../../shared/styles/globals.css";
 
 const appInfo = {
   appVersion: "0.1.0",
@@ -18,6 +21,32 @@ const appInfo = {
 } satisfies AppInfoResponse;
 
 describe("GlobalSettingsAbout", () => {
+  it.each([480, 1440])("检查完成后在原检查按钮位置再次点击不会安装更新（宽度 %s）", async (width) => {
+    await page.viewport(width, 900);
+    await i18n.changeLanguage("zh-CN");
+    const onUpdate = vi.fn(async () => undefined);
+    function Harness() {
+      const [info, setInfo] = useState<AppInfoResponse>(appInfo);
+      return <I18nextProvider i18n={i18n}><GlobalSettingsAbout
+        activeSection="about" appInfo={info} error={null} isPending={false}
+        onRetry={async () => { setInfo({ ...appInfo, latestVersion: "0.42.0", status: "available", updateAvailable: true }); }}
+        onExportDiagnostics={vi.fn(async () => ({ status: "cancelled" as const }))}
+        onUpdate={onUpdate}
+      /></I18nextProvider>;
+    }
+    const screen = await render(<Harness />);
+    const check = screen.getByRole("button", { name: "检查更新" });
+    const before = check.element().getBoundingClientRect();
+    await check.click();
+    await expect.element(screen.getByRole("button", { name: "更新到 0.42.0" })).toBeVisible();
+    expect(check.element().getBoundingClientRect().x).toBe(before.x);
+    const nextTarget = document.elementFromPoint(before.x + before.width / 2, before.y + before.height / 2);
+    // 模拟用户连续点同一位置，而不是重新按新文案定位按钮。
+    (nextTarget?.closest("button") as HTMLButtonElement | null)?.click();
+    await Promise.resolve();
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
   it("shows a GitHub connection error and allows retry", async () => {
     await i18n.changeLanguage("zh-CN");
     const onRetry = vi.fn();

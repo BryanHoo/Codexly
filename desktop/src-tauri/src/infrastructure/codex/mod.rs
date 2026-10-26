@@ -20,6 +20,9 @@ mod conversation_background;
 mod conversation_collaboration;
 mod conversation_commands;
 mod conversation_interrupt;
+mod conversation_subscription;
+#[cfg(test)]
+mod conversation_subscription_tests;
 mod task_workspace;
 pub use task_workspace::update_task_workspace;
 mod conversation_delta_events;

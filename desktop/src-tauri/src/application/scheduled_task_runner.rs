@@ -74,6 +74,11 @@ pub(crate) async fn start_turn_for_task(
     .take(1024)
     .collect();
     if options.goal_mode {
+        // Goal 设置本身就可能启动回合，恢复到收到启动确认前同样不能被后台退订。
+        let _subscription = connection
+            .lock_task_subscription(task_id)
+            .await
+            .map_err(AppError::from)?;
         codex::ensure_task_writer(&connection, project_id, task_id, &settings)
             .await
             .map_err(AppError::from)?;

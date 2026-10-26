@@ -112,28 +112,9 @@ export function GlobalSettingsAbout({
             </Button>
           </SettingsField>
           <SettingsField alignStart expandControl label={t("about.update")}>
-            <div className="min-w-0 max-w-full py-2">
-              {/* 操作始终保持单行，窄屏在操作区内滚动，不挤出更新日志按钮。 */}
+            <div className="w-full min-w-0 max-w-full py-2">
+              {/* 检查按钮固定在操作区起点，版本状态变化不会让连续点击误触安装。 */}
               <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap">
-                <p
-                  className={cn(
-                    "shrink-0 text-body-small",
-                    appInfo.status === "available"
-                      ? "text-warning"
-                      : appInfo.status === "check-failed"
-                        ? "text-danger"
-                        : "text-muted-foreground",
-                  )}
-                  role={appInfo.status === "check-failed" ? "alert" : "status"}
-                >
-                  {appInfo.status === "available" && appInfo.latestVersion !== null
-                    ? t("about.available", { version: appInfo.latestVersion })
-                    : appInfo.status === "restart-required"
-                      ? t("about.restartRequired")
-                      : appInfo.status === "check-failed"
-                        ? t("errors.updateCheck")
-                        : t("about.current")}
-                </p>
                 <Button
                   disabled={isChecking}
                   onClick={() => void checkForUpdates()}
@@ -199,6 +180,25 @@ export function GlobalSettingsAbout({
                     </Button>
                   </>
                 ) : null}
+                <p
+                  className={cn(
+                    "shrink-0 text-body-small",
+                    appInfo.status === "available"
+                      ? "text-warning"
+                      : appInfo.status === "check-failed"
+                        ? "text-danger"
+                        : "text-muted-foreground",
+                  )}
+                  role={appInfo.status === "check-failed" ? "alert" : "status"}
+                >
+                  {appInfo.status === "available" && appInfo.latestVersion !== null
+                    ? t("about.available", { version: appInfo.latestVersion })
+                    : appInfo.status === "restart-required"
+                      ? t("about.restartRequired")
+                      : appInfo.status === "check-failed"
+                        ? t("errors.updateCheck")
+                        : t("about.current")}
+                </p>
               </div>
               {!updating || updateProgress === undefined ? null : (
                 <div aria-live="polite" className="mt-3 grid w-full min-w-0 gap-1.5">

@@ -90,6 +90,8 @@ pub struct AppServerConnection {
     // 新建任务仅保留首次标题生成所需的目录；领取后立即移除，重连不继承。
     pub(super) pending_task_titles: Mutex<HashMap<String, String>>,
     pub(super) title_mutation: AsyncMutex<()>,
+    pub(super) task_subscription_operations:
+        super::conversation_subscription::TaskSubscriptionOperations,
     writer: AsyncMutex<Option<AsyncWriter>>,
     pending: PendingRequests,
     server_messages: AsyncMutex<Option<ServerMessageReceiver>>,
@@ -155,6 +157,7 @@ impl AppServerConnection {
             new_task_projects: Mutex::new(HashMap::new()),
             pending_task_titles: Mutex::new(HashMap::new()),
             title_mutation: AsyncMutex::new(()),
+            task_subscription_operations: Default::default(),
             writer: AsyncMutex::new(Some(Box::pin(writer))),
             pending,
             server_messages: AsyncMutex::new(Some(message_receiver)),

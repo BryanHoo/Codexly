@@ -32,6 +32,7 @@ pub async fn retain_task_writer(
     project_id: &str,
     task_id: &str,
 ) -> Result<(), ConnectionError> {
+    let _subscription = connection.lock_task_subscription(task_id).await?;
     let settings = read_agent_runtime_settings(connection).await?;
     ensure_task_writer(connection, project_id, task_id, &settings).await
 }

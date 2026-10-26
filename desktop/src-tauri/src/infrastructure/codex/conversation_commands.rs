@@ -291,6 +291,7 @@ pub async fn start_turn(
     options: AgentTurnOptions,
     settings: &AgentRuntimeSettings,
 ) -> Result<StartAgentTurnResponse, ConnectionError> {
+    let _subscription = connection.lock_task_subscription(&task_id).await?;
     // 不信任 WebView 的创建时状态；恢复订阅或确认无 rollout 新线程仍由当前进程载入。
     super::conversation_access::ensure_task_writer(connection, &project_id, &task_id, settings)
         .await?;

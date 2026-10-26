@@ -10,6 +10,7 @@
 - [ ] 同机应用数据位于 `~/.codexly`，遵循共享 Protocol 的目录 Schema、迁移和用量 SQL；参照 [本地目录与任务](../../../../docs/local-catalog.md)。
 - [ ] Codex 与 Claude 保持独立配置、身份和能力；Claude 使用共享 TypeScript 适配器的 stdio 宿主。资源布局见 [运行时分发](../../../../desktop/docs/provider-runtime-management.md)。
 - [ ] 文件、进程、终端与生命周期操作保持有界，取消和退出释放资源；遵守 Cargo 的 `unsafe_code = "forbid"` 与平台条件编译。
+- [ ] Codex 同一任务的完整退订检查、线程恢复和回合启动必须串行，包括设置 Goal 触发的启动；不能用较早读取的 idle 状态退订已开始输出的新回合。不同任务继续并行，锁记录随操作结束回收。回归入口为 `conversation_subscription_tests.rs`。
 - [ ] 执行 `pnpm --dir desktop check:rust`：格式检查、Clippy、全特性测试及 Release 性能基线；平台专属功能在 macOS / Windows / Ubuntu 对应环境验证。
 - [ ] 协议、ACL 和打包变化同时执行 `pnpm --dir desktop check:web` 中的 Tauri 约束检查；完整门槛 `pnpm --dir desktop check` 还包含版本与供应链检查。
 

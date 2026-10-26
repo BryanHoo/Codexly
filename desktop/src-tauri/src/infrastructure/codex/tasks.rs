@@ -361,6 +361,7 @@ pub async fn unsubscribe_task(
     project_id: &str,
     task_id: &str,
 ) -> Result<AgentTaskStatusResponse, ConnectionError> {
+    let _subscription = connection.lock_task_subscription(task_id).await?;
     let thread = read_native_task(connection, project_id, task_id).await?;
     if thread.status.kind == "active"
         || !list_background_terminals(connection, task_id)
