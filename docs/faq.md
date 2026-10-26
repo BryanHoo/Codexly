@@ -66,6 +66,6 @@ Windows 便携版必须关闭应用并用新版 ZIP 的完整解压目录替换�
 
 ## 怎样反馈问题？
 
-请提供应用版本、系统及架构、桌面 / 电脑 Web / 移动浏览器、Codex / Claude、复现步骤与脱敏错误。两端均可在「设置 → 关于」导出诊断材料：Web 与移动浏览器下载 JSON，桌面导出 ZIP。Web 终端只保留启动提示和错误，不再持续输出运行日志；必要时运行 `codexly doctor`。详见 [Web 诊断](web.md#排查问题)和[桌面诊断指南](../desktop/docs/diagnostics.md)。原始诊断文件留在本地，仅提交必要的脱敏片段。
+请提供应用版本、系统及架构、桌面 / 电脑 Web / 移动浏览器、Codex / Claude、复现步骤与脱敏错误。各端均可在「设置 → 关于」导出整合诊断 ZIP，默认尝试收集 Codex 原生诊断，不会自动上传；原生不可用时仍导出应用诊断，并在 `manifest.json` 中注明。Web 终端只保留启动提示和错误，不再持续输出运行日志；必要时运行 `codexly doctor`。详见 [Web 诊断](web.md#排查问题)和[诊断指南](../desktop/docs/diagnostics.md)。原生诊断保留上游内容，不适用应用日志的字段脱敏规则；分享前检查整个 ZIP，仅提交必要的脱敏片段。
 
 普通问题提交到 [Issues](https://github.com/BryanHoo/Codexly/issues)；漏洞请按[安全策略](../SECURITY.md)私密报告。

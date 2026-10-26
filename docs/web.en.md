@@ -112,7 +112,9 @@ Skip the first command if startup was never configured. Uninstalling preserves p
 
 ## Troubleshooting
 
-The server no longer continuously writes runtime logs to the terminal by default. In a computer or mobile browser, export diagnostics from **Settings → About** to download a JSON file with app and engine versions, browser information, recent browser errors, and server logs. These buffers are held in memory: restarting the server or refreshing the browser clears its respective buffer, so export soon after a problem. Server logs retain at most 2 MiB / 2,000 entries; browser errors retain at most 100 entries. Sensitive fields are filtered, but review the file before sharing.
+The server no longer continuously writes runtime logs to the terminal by default. In a computer or mobile browser, export diagnostics from **Settings → About** to download one integrated ZIP. Its `application.json` contains app and engine versions, browser information, recent browser errors, and server logs. Available native Codex diagnostics are included as `codex/diagnostics.zip` through `feedback/save` by default, without uploading feedback. App diagnostics remain available if native collection fails; `manifest.json` reports `codexDiagnostics.status` as `included` or `unavailable`. Native diagnostics do not use the app log field filters, so review the entire ZIP before sharing.
+
+App log buffers are held in memory: restarting the server or refreshing the browser clears its respective buffer, so export soon after a problem. Server logs retain at most 2 MiB / 2,000 entries; browser errors retain at most 100 entries. Downloads are bound to the current paired session, can be claimed once, and expire after five minutes. Export again after expiration or failure. See the [diagnostic guide (中文)](../desktop/docs/diagnostics.md) for contents and analysis.
 
 Check terminal errors, the actual URL and port, Node.js version, and network first:
 
