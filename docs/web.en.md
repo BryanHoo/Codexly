@@ -60,7 +60,7 @@ After global installation, use these with `codexly start`. For temporary use, pr
 
 Quote shell-special characters in passwords. Run `codexly start --help` for complete help.
 
-The bundled Codex CLI is `0.163.0`. External executables supplied through `--codex-bin` or `CODEXLY_CODEX_BIN` must satisfy `>=0.163.0,<0.164.0`. Claude uses the package's pinned SDK dependency and does not require an external Codex executable.
+The bundled Codex CLI is `0.164.0`. External executables supplied through `--codex-bin` or `CODEXLY_CODEX_BIN` must satisfy `>=0.164.0,<0.165.0`. Claude uses the package's pinned SDK dependency and does not require an external Codex executable.
 
 Multiple instances skip occupied ports. The launch directory does not determine application storage. Temporary tasks default to the user's home directory or the first explicit `--workspace` root. Separate `--codex-home` directories isolate Codex data only, not the shared Codexly application directory.
 

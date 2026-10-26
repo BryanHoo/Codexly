@@ -43,7 +43,7 @@ fn windows_background_process_should_inherit_the_apps_hidden_console() {
 #[test]
 fn codex_version_should_require_the_verified_protocol_version() {
     assert_eq!(
-        parse_codex_version("codex-cli 0.163.0\n"),
+        parse_codex_version("codex-cli 0.164.0\n"),
         Some(SUPPORTED_CODEX_VERSION)
     );
     assert_eq!(parse_codex_version("codex-cli 0.152.3\n"), None);
@@ -61,15 +61,16 @@ fn codex_version_should_require_the_verified_protocol_version() {
     assert_eq!(parse_codex_version("codex-cli 0.160.1\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.161.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.162.0\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.164.0\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.163.0-beta.1\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.163.0+build\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.163.0\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.165.0\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.164.0-beta.1\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.164.0+build\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.151.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.152.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.153.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 1.0.0\n"), None);
     assert_eq!(parse_codex_version("codex-cli 0.152.0-beta.1\n"), None);
-    assert_eq!(parse_codex_version("codex-cli 0.163.0 unexpected\n"), None);
+    assert_eq!(parse_codex_version("codex-cli 0.164.0 unexpected\n"), None);
 }
 
 #[tokio::test]

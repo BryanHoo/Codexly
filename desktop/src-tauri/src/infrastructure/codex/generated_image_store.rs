@@ -26,6 +26,7 @@ struct ImageOccurrence<'a> {
     result: Option<&'a RawValue>,
     attachment: Option<&'a RawValue>,
     saved_path: Option<String>,
+    file_reference: bool,
     completed: bool,
 }
 
@@ -125,7 +126,13 @@ impl GeneratedImageStore {
             .saved_path
             .as_deref()
             .and_then(|path| self.store_saved_path(path))
-            .or_else(|| image.result.and_then(|result| self.store_base64(result)))
+            .or_else(|| {
+                // 0.164 的 fileId 优先于迁移期旧 result；引用不是路径，也不能回退过期正文。
+                if image.file_reference {
+                    return None;
+                }
+                image.result.and_then(|result| self.store_base64(result))
+            })
     }
 
     fn store_saved_path(&self, path: &str) -> Option<StoredImage> {
@@ -227,6 +234,10 @@ fn collect_image_occurrences<'a>(
                 images.push(ImageOccurrence {
                     object_insert: object_start + closing_brace,
                     result: fields.get("result").copied(),
+                    file_reference: fields
+                        .get("fileId")
+                        .and_then(|value| serde_json::from_str::<&str>(value.get()).ok())
+                        .is_some_and(|id| !id.is_empty()),
                     attachment: fields.get(IMAGE_ATTACHMENT_FIELD).copied(),
                     saved_path: fields
                         .get("savedPath")

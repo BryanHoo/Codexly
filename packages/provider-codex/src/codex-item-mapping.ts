@@ -320,6 +320,14 @@ export function mapAgentItem(
           type: "message",
         };
       }
+      if (
+        status === "completed" &&
+        failure === undefined &&
+        (optionalString(item["fileId"])?.length ?? 0) > 0
+      ) {
+        // 上游暂未提供按 fileId 读取正文的 RPC；与历史图片共用占位，不泄漏引用或输入路径。
+        return { id, role: "assistant", text: "[图片]", type: "message" };
+      }
       return {
         id,
         name: "image_generation",

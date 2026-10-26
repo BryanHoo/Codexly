@@ -60,7 +60,7 @@ npx --package @bryanhu/codexly@latest codexly start --lan
 
 含 Shell 特殊字符的密码需要正确加引号。用 `codexly start --help` 查看完整帮助。
 
-当前内置 Codex CLI `0.163.0`；`--codex-bin` 或 `CODEXLY_CODEX_BIN` 指定的外部版本须满足 `>=0.163.0,<0.164.0`。Claude 使用 npm 包固定的 SDK 依赖，无需配置外部 Codex 才能使用。
+当前内置 Codex CLI `0.164.0`；`--codex-bin` 或 `CODEXLY_CODEX_BIN` 指定的外部版本须满足 `>=0.164.0,<0.165.0`。Claude 使用 npm 包固定的 SDK 依赖，无需配置外部 Codex 才能使用。
 
 多实例启动会跳过占用端口。启动目录不决定应用数据目录；临时任务默认使用用户主目录，或第一个显式 `--workspace` 根目录。`--codex-home` 只隔离 Codex 自身的数据，不隔离共享的 Codexly 应用目录。
 

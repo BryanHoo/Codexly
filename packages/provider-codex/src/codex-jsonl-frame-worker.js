@@ -83,6 +83,11 @@ function stageImage(image) {
 
 function transformImage(record) {
   if (record.type === "imageGeneration") {
+    if (typeof record.fileId === "string" && record.fileId.length > 0) {
+      // 0.164 的持久文件引用优先于迁移期遗留 result；不解码或暂存过期正文。
+      delete record.result;
+      return;
+    }
     if (typeof record.savedPath === "string" && hasValidSavedImage(record.savedPath)) {
       // 有效 savedPath 已包含正文，禁止把冗余 Base64 克隆回主线程。
       delete record.result;

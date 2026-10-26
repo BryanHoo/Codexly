@@ -28,7 +28,7 @@ describe("runCli startup", () => {
         ),
       ) as { claudeCodeVersion: string };
       expect(appInfo).toMatchObject({
-        codexVersion: "0.163.0",
+        codexVersion: "0.164.0",
         claudeVersion: sdkManifest.claudeCodeVersion,
         status: "check-failed",
       });

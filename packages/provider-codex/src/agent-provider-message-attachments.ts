@@ -19,6 +19,13 @@ export function mapCodexMessageImage(
     return store.addStagedImage(taskId, staged, imageIndex, name, signal);
   }
   if (part["type"] === "imageGeneration") {
+    // fileId 是上游附件身份，不是本地路径；只允许使用其 savedPath，不回退旧正文。
+    if ((optionalString(part["fileId"])?.length ?? 0) > 0) {
+      const savedPath = optionalString(part["savedPath"]);
+      return savedPath === undefined
+        ? undefined
+        : store.addLocalImage(taskId, savedPath, imageIndex, signal);
+    }
     const savedPath = optionalString(part["savedPath"]);
     if (savedPath !== undefined) {
       const savedAttachment = store.addLocalImage(taskId, savedPath, imageIndex, signal);

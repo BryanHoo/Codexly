@@ -26,9 +26,28 @@ it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
           timestamp,
           cwd: home,
           originator: "codex_cli_rs",
-          cli_version: "0.163.0",
+          cli_version: "0.164.0",
           source: "cli",
           model_provider: "openai",
+        },
+      },
+      {
+        type: "event_msg",
+        payload: {
+          type: "thread_settings_applied",
+          thread_id: thread,
+          thread_settings: {
+            model: "gpt-5.4",
+            model_provider_id: "openai",
+            cwd: home,
+            approval_policy: "never",
+            approvals_reviewer: "user",
+            permission_profile: { type: "disabled" },
+            service_tier: "flex",
+            reasoning_summary: "concise",
+            personality: "friendly",
+            collaboration_mode: { mode: "default", settings: { model: "gpt-5.4" } },
+          },
         },
       },
       {
@@ -122,7 +141,7 @@ it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
         expect(results.data[0]?.occurrence).toBeDefined();
       };
       expect((await readCodexTranscriptTurnSkills(thread, home)).get("turn-1")).toEqual(["reader"]);
-      // 0.163.0 的本地 store 尚未实现精确命中接口；压缩前后都保留上游错误语义。
+      // 本地 store 尚未实现精确命中接口；压缩前后都保留上游错误语义。
       const findOccurrences = () =>
         client.request("thread/searchOccurrences", {
           threadId: thread,
@@ -158,6 +177,8 @@ it.runIf(process.env["CODEXLY_REAL_RUNTIME_TEST"] === "1")(
       await verifySummaryAndProcess();
       const resumed = await client.request("thread/resume", { threadId: thread });
       expect(JSON.stringify(resumed)).toContain(thread);
+      // 0.164 冷恢复应使用线程保存的档位，不能被全局默认值覆盖；无需模型推理。
+      expect(resumed).toMatchObject({ model: "gpt-5.4", serviceTier: "flex" });
       await expect.poll(async () => (await stat(path).catch(() => null)) !== null).toBe(true);
       expect((await readCodexTranscriptTurnSkills(thread, home)).get("turn-1")).toEqual(["reader"]);
     } finally {

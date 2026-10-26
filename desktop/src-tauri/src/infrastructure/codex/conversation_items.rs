@@ -137,17 +137,23 @@ pub(super) fn map_item_without_skill_normalization(
             status: "completed",
         }),
         "imageGeneration" => {
-            if let Some(attachment) = generated_image_attachment(item)? {
+            let attachment = generated_image_attachment(item)?;
+            // fileId 没有正文读取 RPC；仅在完成且未失败时显示占位，不暴露输入路径或引用。
+            let placeholder = attachment.is_none()
+                && required_string(item, "status")? == "completed"
+                && item.get("failure").is_none_or(Value::is_null)
+                && matches!(item.get("fileId"), Some(Value::String(id)) if !id.is_empty());
+            if attachment.is_some() || placeholder {
                 Ok(AgentItem::Message {
                     identity_aliases: Vec::new(),
-                    attachments: Some(vec![attachment]),
+                    attachments: attachment.map(|value| vec![value]),
                     id,
                     phase: None,
                     questions: None,
                     role: "assistant",
                     skill_expansion: false,
                     skills: None,
-                    text: String::new(),
+                    text: if placeholder { "[图片]" } else { "" }.to_owned(),
                 })
             } else {
                 Ok(AgentItem::Tool {

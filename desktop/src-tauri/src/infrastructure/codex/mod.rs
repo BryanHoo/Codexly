@@ -75,6 +75,8 @@ mod codex_154_contract_tests;
 #[cfg(test)]
 mod codex_156_contract_tests;
 #[cfg(test)]
+mod codex_164_contract_tests;
+#[cfg(test)]
 #[path = "connection_message_tests.rs"]
 mod connection_message_tests;
 #[cfg(test)]

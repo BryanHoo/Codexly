@@ -35,7 +35,7 @@ Claude 官方文档公开会话列举与消息读取，未给出与 Codex 等价
 
 ## 官方依据
 
-- [Codex App Server](https://developers.openai.com/codex/app-server)：结合固定的 0.163.0 协议与 `.local/project-paths.json` 指向的官方本地源码验证接口。
+- [Codex App Server](https://developers.openai.com/codex/app-server)：结合固定的 0.164.0 协议与 `.local/project-paths.json` 指向的官方本地源码验证接口。
 - [Claude 会话文档](https://code.claude.com/docs/en/agent-sdk/sessions)：会话列举、消息读取与持久化；本项目 SDK 固定为 0.3.300。
 - [node-ignore](https://github.com/kaelzhang/node-ignore)：使用 Git ignore 语义处理项目忽略规则。
 - [TanStack Query 请求取消](https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation)：查询函数消费 `AbortSignal`。
