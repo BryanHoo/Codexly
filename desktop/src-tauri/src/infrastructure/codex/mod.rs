@@ -45,6 +45,7 @@ mod protocol;
 mod runtime_manager;
 mod runtime_path;
 mod sidebar;
+mod startup_config;
 mod stderr;
 pub mod task_title;
 mod tasks;
@@ -183,3 +184,6 @@ mod local_catalog_migration;
 mod local_catalog_projects;
 
 mod local_catalog_settings;
+
+#[cfg(test)]
+mod startup_config_tests;

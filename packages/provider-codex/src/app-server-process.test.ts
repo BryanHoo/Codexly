@@ -1,4 +1,10 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { CodexStartupConfigError, readCodexStartupConfig } from "./startup-config.js";
+import samples from "../test/fixtures/startup-config.json" with { type: "json" };
+
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
@@ -80,6 +86,69 @@ afterEach(async () => {
 });
 
 describe("CodexAppServerProcess", () => {
+  it.runIf(process.platform !== "win32")(
+    "diagnoses failed handshakes once and skips successful starts",
+    async () => {
+      const root = await mkdtemp(join(tmpdir(), "codexly-startup-"));
+      const trace = join(root, "probe.log");
+      try {
+        const env = {
+          ...process.env,
+          FAKE_STARTUP_TRACE: trace,
+          FAKE_STARTUP_RESULT: "configError",
+        };
+        const ready = await startCodexAppServer({ binaryPath: fakeAppServerPath, env });
+        runtimes.push(ready);
+        await expect(readFile(trace, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+        const error = await captureRejection(
+          startCodexAppServer({
+            binaryPath: fakeAppServerPath,
+            env: { ...env, FAKE_APP_SERVER_SCENARIO: "exit-during-initialize" },
+          }),
+        );
+        expect(error).toBeInstanceOf(CodexStartupConfigError);
+        expect(error).toMatchObject({
+          cause: expect.any(CodexAppServerExitedError) as CodexAppServerExitedError,
+          error: samples.configError.error,
+        });
+        expect(await readFile(trace, "utf8")).toBe("probe\n");
+        for (const result of ["success", "invalid"]) {
+          await expect(
+            startCodexAppServer({
+              binaryPath: fakeAppServerPath,
+              env: {
+                ...env,
+                FAKE_STARTUP_RESULT: result,
+                FAKE_APP_SERVER_SCENARIO: "exit-during-initialize",
+              },
+            }),
+          ).rejects.toBeInstanceOf(CodexAppServerExitedError);
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.runIf(process.platform !== "win32")(
+    "reads structured non-zero stdout and terminates bounded probes",
+    async () => {
+      await expect(
+        readCodexStartupConfig(fakeAppServerPath, {
+          env: { ...process.env, FAKE_STARTUP_RESULT: "policyError" },
+        }),
+      ).rejects.toMatchObject({ error: samples.policyError.error });
+      for (const result of ["timeout", "oversize"]) {
+        await expect(
+          readCodexStartupConfig(fakeAppServerPath, {
+            env: { ...process.env, FAKE_STARTUP_RESULT: result },
+            timeoutMs: result === "timeout" ? 200 : 5_000,
+          }),
+        ).rejects.toThrow("预检执行失败");
+      }
+    },
+  );
+
   it.runIf(process.platform !== "win32")(
     "enables the plugins feature for the production app-server process",
     async () => {

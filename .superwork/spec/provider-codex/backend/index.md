@@ -25,3 +25,11 @@
 - `imageGeneration` 同时含 `fileId` 与旧 `result` 时采用文件引用语义；Worker 不解码或暂存旧正文。优先读取有效 `savedPath`，仅有引用且无可读取正文的完成项显示 `[图片]`，运行中或失败项保留工具状态。
 - 引用不得解释成本地路径或猜测远程下载地址；`inputImages` 的路径、摘要和内部 fileId 不进入公开消息。图片附件继续由任务授权和既有容量限制管理。
 - 回归入口为 `codex-164-contract.test.ts`，原生消费端对应 `desktop/src-tauri/src/infrastructure/codex/codex_164_contract_tests.rs`；升级依据见 [0.164.0 升级评估](../../../../docs/codex-0.164.0-upgrade.md)。
+
+## 按需配置预检与启动诊断
+
+- 使用 Codex 0.164.0 的 `app-server --print-startup-config`，只在显式 `codexly doctor` 或启动握手失败、原进程回收后调用；正常启动不增加预检进程。预检不得传入 `--startup-sign-out` 或替代模型、插件和数据库的实际可用性检查。
+- Web 与 CLI 复用 `startup-config.ts`，桌面通过 `startup_config.rs` 适配原生进程；复用各端正式启动的二进制、cwd、环境与客户端身份，保留 `CODEX_HOME`、桌面 PATH 及 Windows 隐藏窗口行为。
+- 单次最多 10 秒、每条输出最多 1 MiB；配置失败的非零退出仍解析 stdout JSON。只认完整的版本/配置要求或结构化错误信封；无效输出和诊断不可用不得覆盖原始启动错误。上游配置错误行列已从 1 开始，禁止再次偏移。
+- 配置要求只供诊断显示；`doctor` 在应用 SQLite 检查前预检。组织策略可能访问网络，认证错误按上游 `action: relogin` 提示用户重新登录，诊断不自动修改账号或配置。
+- 两端共用 `packages/provider-codex/test/fixtures/startup-config.json` 契约样本；回归入口为 `startup-config.test.ts`、`app-server-process.test.ts`、`src/cli-command-start.test.ts` 和桌面 `startup_config_tests.rs`。用户排查入口见 [常见问题](../../../../docs/faq.md#codex-启动失败如何检查配置)。

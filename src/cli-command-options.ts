@@ -82,7 +82,7 @@ Check whether the local Codexly runtime is ready.
 
 Options:
   --codex-bin <path>         Check this Codex executable.
-  --codex-home <path>        Check the state database in this Codex home.
+  --codex-home <path>        Validate configuration in this Codex home.
   -h, --help                 Display help for doctor.
 `,
   version: `Usage: codexly version

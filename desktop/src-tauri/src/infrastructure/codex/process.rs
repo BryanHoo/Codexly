@@ -33,8 +33,8 @@ pub enum ProcessError {
     VersionProbe(#[source] std::io::Error),
     #[error("Codex version probe timed out")]
     VersionProbeTimeout,
-    #[error("Codex version output exceeded the limit")]
-    VersionOutputTooLarge,
+    #[error("Codex probe output exceeded the limit")]
+    OutputTooLarge,
     #[error("unsupported Codex version; expected 0.164.0")]
     UnsupportedVersion,
     #[error(transparent)]
@@ -43,6 +43,12 @@ pub enum ProcessError {
     MissingPipe,
     #[error("codex app-server handshake failed")]
     Handshake(#[source] ConnectionError),
+    #[error("{detail}")]
+    StartupConfiguration {
+        detail: String,
+        #[source]
+        source: Box<ProcessError>,
+    },
     #[error("codex app-server returned incomplete runtime metadata")]
     InvalidMetadata,
 }
@@ -86,10 +92,22 @@ impl CodexProcess {
         ));
         let (stderr_task, stderr_writer_task) =
             spawn_codex_stderr_tasks(stderr, connection.diagnostic_seq());
-        let metadata = connection
-            .initialize(STARTUP_TIMEOUT)
-            .await
-            .map_err(ProcessError::Handshake)?;
+        let metadata = match connection.initialize(STARTUP_TIMEOUT).await {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                // 释放失败握手的读取、日志和子进程后再诊断，避免与第二个进程争用资源。
+                stderr_task.abort();
+                stderr_writer_task.abort();
+                drop(connection);
+                let _ = child.kill().await;
+                return Err(super::startup_config::diagnose_startup_failure(
+                    program.as_os_str(),
+                    runtime_path.as_deref(),
+                    ProcessError::Handshake(error),
+                )
+                .await);
+            }
+        };
 
         let codex_home = PathBuf::from(&metadata.codex_home);
         if metadata.user_agent.is_empty()
@@ -199,14 +217,17 @@ pub(super) async fn probe_codex_version_with_timeout(
         .ok_or(ProcessError::UnsupportedVersion)
 }
 
-async fn read_limited<R: AsyncRead + Unpin>(reader: R, limit: usize) -> Result<Vec<u8>, io::Error> {
+pub(super) async fn read_limited<R: AsyncRead + Unpin>(
+    reader: R,
+    limit: usize,
+) -> Result<Vec<u8>, io::Error> {
     let mut output = Vec::with_capacity(limit.min(256));
     reader
         .take(u64::try_from(limit).unwrap_or(u64::MAX) + 1)
         .read_to_end(&mut output)
         .await?;
     if output.len() > limit {
-        return Err(io::Error::other(ProcessError::VersionOutputTooLarge));
+        return Err(io::Error::other(ProcessError::OutputTooLarge));
     }
     Ok(output)
 }

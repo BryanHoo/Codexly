@@ -37,6 +37,7 @@ describe("runCli startup", () => {
       );
       expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
       expect(harness.dependencies.locateCodexBinary).not.toHaveBeenCalled();
+      expect(harness.dependencies.readCodexStartupConfig).not.toHaveBeenCalled();
       expect(
         vi.mocked(harness.dependencies.createServer).mock.calls[0]?.[0].preloadModelCatalog,
       ).not.toBe(true);
@@ -73,11 +74,29 @@ describe("runCli startup", () => {
       join(homedir(), ".codexly", "state.sqlite3"),
       "/custom/home",
     );
+    expect(harness.dependencies.readCodexStartupConfig).toHaveBeenCalledWith("/fake/codex", {
+      appVersion: "1.2.3",
+      env: expect.objectContaining({ CODEX_HOME: "/custom/home" }) as NodeJS.ProcessEnv,
+    });
+    expect(harness.stdout.join("")).toContain("Codex 配置预检通过");
+    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
     expect(harness.stdout.join("")).toContain("[成功] SQLite 可写");
     expect(harness.stdout.join("")).toContain("[成功] SQLite migration 4");
     expect(harness.stdout.join("")).toContain("[成功] SQLite integrity_check ok");
     expect(harness.stdout.join("")).toContain("[成功] SQLite journal_mode wal");
     expect(harness.databaseClose).toHaveBeenCalledOnce();
+  });
+
+  it("reports configuration failures before opening SQLite", async () => {
+    const harness = createHarness({
+      readCodexStartupConfig: vi.fn(() =>
+        Promise.reject(new Error("configLoad /home/config.toml:3:5 TOML parse error")),
+      ),
+    });
+    await expect(runCli(["doctor"], harness.options)).resolves.toBe(1);
+    expect(harness.stderr.join("")).toContain("configLoad /home/config.toml:3:5");
+    expect(harness.dependencies.createStateRepository).not.toHaveBeenCalled();
+    expect(harness.dependencies.startCodexAppServer).not.toHaveBeenCalled();
   });
 
   it("returns a non-zero code when doctor finds an unsupported Node.js", async () => {

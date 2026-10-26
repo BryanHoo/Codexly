@@ -8,6 +8,7 @@ import {
   type CodexBinary,
   type CodexVersionInfo,
 } from "./binary.js";
+import { readCodexStartupConfig, CodexStartupConfigError } from "./startup-config.js";
 import { JsonlRpcClient, RpcConnectionClosedError } from "./jsonl-rpc-client.js";
 import { CODEX_OPT_OUT_NOTIFICATION_METHODS } from "./codex-mapping-common.js";
 
@@ -242,7 +243,23 @@ export async function startCodexAppServer(
     runtime.client.notify("initialized", {});
     return runtime;
   } catch (error) {
+    // 先回收握手失败的进程，再按相同 cwd、环境和客户端身份执行一次诊断。
+    // 正常启动直接返回；诊断成功或不可用都保留原始故障，避免把传输错误误判为配置问题。
     await runtime.close();
+    if (!(error instanceof CodexAppServerSpawnError)) {
+      try {
+        await readCodexStartupConfig(binary.path, {
+          env,
+          ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+          ...(options.appVersion === undefined ? {} : { appVersion: options.appVersion }),
+        });
+      } catch (diagnostic) {
+        if (diagnostic instanceof CodexStartupConfigError) {
+          diagnostic.cause = error;
+          throw diagnostic;
+        }
+      }
+    }
     throw error;
   }
 }

@@ -1,0 +1,37 @@
+{
+  "success": {
+    "appServerVersion": "0.164.0",
+    "configRequirements": {
+      "supportsIndependentSpeedModes": true,
+      "requirements": {
+        "allowedApprovalPolicies": ["on-request"],
+        "allowedLoginMethods": ["chatgpt"]
+      }
+    }
+  },
+  "configError": {
+    "error": {
+      "code": -32600,
+      "message": "Invalid configuration",
+      "data": {
+        "reason": "configLoad",
+        "filePath": "/test/.codex/config.toml",
+        "line": 1,
+        "column": 10,
+        "detail": "TOML parse error"
+      }
+    }
+  },
+  "policyError": {
+    "error": {
+      "code": -32600,
+      "message": "Organization policy unavailable",
+      "data": {
+        "reason": "cloudConfigBundle",
+        "errorCode": "Auth",
+        "action": "relogin",
+        "detail": "Workspace policy could not be loaded"
+      }
+    }
+  }
+}

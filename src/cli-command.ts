@@ -1,3 +1,4 @@
+import { runDoctor, type CliDoctorDependencies } from "./cli-doctor.js";
 import { importLocalCatalog, prepareLocalCatalog } from "./cli-local-catalog.js";
 import { createLazyCodexRuntime, type CliManagedRuntime } from "./cli-lazy-codex-client.js";
 import type { ManagedStartContext } from "./autostart/runtime.js";
@@ -15,16 +16,14 @@ import type {
 import { DEFAULT_GENERATION_MODEL, type AppUpdateProgress } from "@codexly/protocol";
 import {
   checkCodexVersion,
+  readCodexStartupConfig,
   createCodexRuntimeProvider,
   createCodexWorkbenchPetProvider,
   locateCodexBinary,
   startCodexAppServer,
   SUPPORTED_CODEX_VERSION,
   type CreateCodexWorkbenchPetProviderOptions,
-  type CodexBinary,
   type CodexRpcClient,
-  type CodexVersionInfo,
-  type LocateCodexBinaryOptions,
   type StartCodexAppServerOptions,
 } from "@codexly/provider-codex";
 import {
@@ -39,16 +38,12 @@ import {
   parseStartOptions,
   CLI_COMMAND_HELP,
   CLI_HELP,
-  parseCommandOptions,
   type ParsedCommandOptions,
 } from "./cli-command-options.js";
 import { createProcessShutdownSignal, waitForAbort } from "./cli-shutdown.js";
 import { listenOnAvailablePort } from "./cli-server-listen.js";
 import type { CreateServerInput, CreateRuntimeProviderInput } from "./cli-server-input.js";
-import {
-  assertDatabaseDiagnostics,
-  type CliManagedStateRepository,
-} from "./cli-state-repository.js";
+import type { CliManagedStateRepository } from "./cli-state-repository.js";
 import {
   confirmTerminalAppUpdate,
   createStartupAppUpdateOperations,
@@ -75,30 +70,20 @@ interface CliManagedProjectRepository extends ProjectRepository {
   synchronize(): ReturnType<ProjectRepository["list"]>;
 }
 
-export interface CliDependencies {
-  /** 宿主和回归测试可注入隔离目录，生产默认始终使用用户 ~/.codexly。 */
-  appDataDirectory?: string;
-  appVersion: string;
+export interface CliDependencies extends CliDoctorDependencies {
   checkAppUpdate: () => Promise<StartupAppUpdateCheck>;
-  checkCodexVersion: (binaryPath: string) => Promise<CodexVersionInfo>;
   confirmAppUpdate: (currentVersion: string, latestVersion: string) => Promise<boolean>;
   createProjectRepository: (input: {
     client: CodexRpcClient;
     projection: ProjectProjectionStore;
   }) => CliManagedProjectRepository;
   createPetProvider: (input: CreateCodexWorkbenchPetProviderOptions) => WorkbenchPetProvider;
-  createStateRepository: (
-    databasePath: string,
-    codexHome?: string,
-  ) => Promise<CliManagedStateRepository>;
   createRuntimeProvider: (
     input: CreateRuntimeProviderInput,
   ) => AgentRuntimeProvider | Promise<AgentRuntimeProvider>;
   createServer: (input: CreateServerInput) => Promise<CliManagedServer>;
   generateLanPairingCode: () => string;
   listLanAccessUrls: (port: number) => readonly string[];
-  locateCodexBinary: (options?: LocateCodexBinaryOptions) => Promise<CodexBinary>;
-  nodeVersion: string;
   openBrowser: (url: string) => Promise<void>;
   installAppUpdate: (
     version: string,
@@ -147,6 +132,7 @@ const defaultDependencies: CliDependencies = {
   generateLanPairingCode,
   listLanAccessUrls,
   locateCodexBinary,
+  readCodexStartupConfig,
   nodeVersion: process.versions.node,
   openBrowser: openSystemBrowser,
   installAppUpdate: startupAppUpdate.install,
@@ -155,52 +141,8 @@ const defaultDependencies: CliDependencies = {
   webRoot: fileURLToPath(new URL("../dist/web", import.meta.url)),
 };
 
-function assertSupportedNodeVersion(version: string): void {
-  const major = Number(version.split(".")[0]);
-  // CLI 的最低运行时版本与 package.json 的 engines.node 保持一致。
-  if (!Number.isInteger(major) || major < 24) {
-    throw new Error(`需要 Node.js 24.0.0 或更高版本，当前版本为 ${version}`);
-  }
-}
-
 function resolveCodexHome(options: ParsedCommandOptions): string {
   return options.codexHome ?? process.env["CODEX_HOME"] ?? join(homedir(), ".codex");
-}
-
-async function runDoctor(
-  args: readonly string[],
-  dependencies: CliDependencies,
-  output: TerminalOutput,
-): Promise<number> {
-  const options = parseCommandOptions(args, new Set(["--codex-bin", "--codex-home"]));
-  assertSupportedNodeVersion(dependencies.nodeVersion);
-  output.success(`Node.js ${dependencies.nodeVersion}`);
-
-  const binary = await dependencies.locateCodexBinary(
-    options.codexBin ? { explicitPath: options.codexBin } : {},
-  );
-  const version = await dependencies.checkCodexVersion(binary.path);
-  output.success(`Codex ${version.version} (${binary.path})`);
-  const codexHome = resolveCodexHome(options);
-  const applicationDirectory = dependencies.appDataDirectory ?? appStorageDirectory();
-  const stateRepository = await dependencies.createStateRepository(
-    join(applicationDirectory, "state.sqlite3"),
-    codexHome,
-  );
-  try {
-    const diagnostics = await stateRepository.diagnose();
-    assertDatabaseDiagnostics(diagnostics);
-    output.success(`SQLite 可写 (${join(applicationDirectory, "state.sqlite3")})`);
-    output.success(`SQLite migration ${String(diagnostics.migrationVersion)}`);
-    output.success(`SQLite integrity_check ${diagnostics.integrityCheck}`);
-    output.success(`SQLite journal_mode ${diagnostics.journalMode}`);
-    output.success(
-      `SQLite PRAGMA foreign_keys=ON synchronous=NORMAL busy_timeout=${String(diagnostics.busyTimeout)}`,
-    );
-  } finally {
-    await stateRepository.close();
-  }
-  return 0;
 }
 
 export async function runStart(

@@ -53,3 +53,9 @@ export {
 } from "./workbench-pets.js";
 export { createLocalCatalogClient } from "./local-catalog-client.js";
 export { importCodexCatalog } from "./local-catalog-migration.js";
+export {
+  readCodexStartupConfig,
+  CodexStartupConfigError,
+  type CodexStartupConfig,
+  type ReadCodexStartupConfigOptions,
+} from "./startup-config.js";
