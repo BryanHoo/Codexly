@@ -12,6 +12,8 @@ import { page } from "vitest/browser";
 import "../../../shared/styles/globals.css";
 import "../../../shared/styles/workbench.css";
 import { savedPromptsStore } from "@codexly/ui/core/saved-prompts-store";
+import { SplitPaneContext } from "@codexly/ui/core/split-workspace";
+import { TerminalContext } from "../../terminal/components/terminal-context.js";
 
 vi.mock("../hooks/use-workbench-branch-switch.js", () => ({
   useWorkbenchBranchSwitch: () => ({
@@ -39,6 +41,47 @@ function createComposerProps(
     skills: [], taskId: "task-a",
   };
 }
+
+test.each([640, 960])("分屏底栏移出裁剪区后，输入框阴影可自然淡出（宽度 %s）", async (width) => {
+  await page.viewport(width, 720);
+  await i18n.changeLanguage("zh-CN");
+  const footer = document.createElement("div");
+  document.body.append(footer);
+  const queryClient = new QueryClient();
+  const props = createComposerProps(createRef<WorkbenchComposerHandle>(), vi.fn(async () => undefined));
+  try {
+    const screen = await render(<QueryClientProvider client={queryClient}>
+      <TooltipProvider><ProjectDraftProvider><ComposerDraftProvider>
+        <SplitPaneContext value={{ pane: { projectId: "temporary", taskId: "task-a" }, active: true,
+          multiple: true, sidebarOpen: false, toggleSidebar: () => undefined }}>
+          <TerminalContext value={{ projectId: "temporary", rootId: undefined, footer,
+            toggle: () => undefined, captureFocus: () => undefined }}>
+            <div className="document-workspace-chat">
+              <WorkbenchComposer {...props} />
+            </div>
+          </TerminalContext>
+        </SplitPaneContext>
+      </ComposerDraftProvider></ProjectDraftProvider></TooltipProvider>
+    </QueryClientProvider>);
+    await page.getByRole("button", { name: "展开输入框" }).click();
+    const editor = screen.getByRole("textbox").element();
+    const form = editor.closest("form")!;
+    // 使用真实主题阴影和最近裁剪边界测量，避免只验证 Tailwind 类名。
+    const shadow = getComputedStyle(form).boxShadow.match(/(-?\d+(?:\.\d+)?)px/g)!.map(Number.parseFloat);
+    const requiredSpace = Math.max(...shadow.filter((_, index) => index % 4 === 1)
+      .map((offset, index) => offset + shadow[index * 4 + 2]!));
+    const clip = form.closest(".document-workspace-chat")!;
+    expect(clip.getBoundingClientRect().bottom - form.getBoundingClientRect().bottom)
+      .toBeGreaterThanOrEqual(requiredSpace);
+    expect(clip.getBoundingClientRect().bottom - form.getBoundingClientRect().bottom).toBe(12);
+    expect(footer.querySelector(".workbench-status-bar")!.getBoundingClientRect().height).toBe(36);
+    await page.getByRole("button", { name: "收起输入框" }).click();
+    expect(clip.getBoundingClientRect().height).toBe(0);
+  } finally {
+    footer.remove();
+    queryClient.clear();
+  }
+});
 
 test.each([1280, 1920])("locks the whole composer while preserving the draft and rejecting imperative actions (%s)", async (width) => {
   await page.viewport(width, 720);
