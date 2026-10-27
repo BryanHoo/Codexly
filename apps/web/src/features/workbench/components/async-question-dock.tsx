@@ -1,3 +1,4 @@
+import { QuestionnaireCard } from "@codexly/ui/core/questionnaire";
 import {
   ChevronDown,
   ChevronLeft,
@@ -39,12 +40,12 @@ export function AsyncQuestionDock({
   if (selected === undefined) return null;
 
   return (
-    <section
+    <QuestionnaireCard
       aria-label={t("asyncQuestions.pending")}
       // 与引导消息共用输入框的宽度容器，问答区固定在输入框上方并独立滚动。
-      className="mb-2 min-w-0 rounded-control border border-separator bg-control px-3 pb-2"
+      className="mb-2 px-2.5 pb-1.5"
     >
-      <div className="flex min-w-0 items-center gap-2 pt-2 pb-1">
+      <div className="flex min-w-0 items-center gap-1 pt-1.5 pb-0.5">
         <MessageCircleQuestion aria-hidden="true" className="size-3.5 shrink-0 text-brand" />
         <span className="min-w-0 flex-1 truncate text-label font-medium">
           {t("asyncQuestions.pendingCount", { count: pending.length })}
@@ -60,7 +61,7 @@ export function AsyncQuestionDock({
             >
               <ChevronLeft className="size-3.5" />
             </DockButton>
-            <span className="min-w-12 text-center text-caption tabular-nums">
+            <span className="min-w-8 text-center text-caption tabular-nums">
               {selectedIndex + 1}/{pending.length}
             </span>
             <DockButton
@@ -79,7 +80,7 @@ export function AsyncQuestionDock({
             <Button
               type="button"
               variant="ghost"
-              size="icon-sm"
+              size="icon-toolbar"
               aria-controls={contentId}
               aria-expanded={!collapsed}
               aria-label={t(collapsed ? "asyncQuestions.expand" : "asyncQuestions.collapse")}
@@ -112,11 +113,7 @@ export function AsyncQuestionDock({
         </DockButton>
       </div>
       {/* 问答区独立滚动且限制高度，不改变时间线的虚拟滚动容器。 */}
-      <div
-        id={contentId}
-        hidden={collapsed}
-        className="max-h-[min(32vh,20rem)] overflow-y-auto overscroll-contain py-2"
-      >
+      <div id={contentId} hidden={collapsed} className="py-0.5">
         {selected.status === "answering" ? (
           <p role="status" className="mb-2 text-label">
             {t("asyncQuestions.deliveryPending")}
@@ -124,7 +121,7 @@ export function AsyncQuestionDock({
         ) : null}
         <AsyncQuestions key={selected.id} item={selected} />
       </div>
-    </section>
+    </QuestionnaireCard>
   );
 }
 
@@ -145,7 +142,7 @@ function DockButton({
         <Button
           type="button"
           variant="ghost"
-          size="icon-sm"
+          size="icon-toolbar"
           aria-label={label}
           disabled={disabled}
           onClick={onClick}

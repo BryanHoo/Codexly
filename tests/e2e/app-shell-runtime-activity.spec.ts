@@ -368,7 +368,8 @@ test("updates a running background task title and preserves blocking status", as
   await expect(backgroundTask.getByRole("status", { name: "任务等待审批" })).toBeVisible();
   await backgroundTask.click();
   // Task 行获得焦点时会为操作按钮让位；焦点离开后仍需保留黄色等待标识。
-  await page.getByRole("log", { name: "会话内容" }).click({ position: { x: 12, y: 12 } });
+  // 审批卡片已独立放在输入框上方，点击当前请求即可移出侧栏焦点，无需依赖时间线内容。
+  await page.getByRole("region", { name: "命令审批请求" }).click({ position: { x: 12, y: 12 } });
   await expect(backgroundTask.getByRole("status", { name: "任务等待审批" })).toBeVisible();
 
   const previousConnectionGeneration = await page.evaluate(() =>

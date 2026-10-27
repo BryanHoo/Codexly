@@ -52,12 +52,15 @@ test("retains drafts after virtual unmount and requires every free-text answer",
   }
   const screen = await render(<Harness />);
   const send = screen.getByRole("button", { name: /发送回答|Send answers/u });
-  await expect.element(send).toBeDisabled();
+  expect(submit).not.toHaveBeenCalled();
   await screen.getByRole("radio", { name: "整个项目", exact: true }).click();
+  await screen.getByRole("button", { name: /下一题|Next question/u }).click();
+  await expect.element(send).toBeDisabled();
   await screen.getByRole("textbox", { name: /补充要求/u }).fill("保留测试");
   await screen.getByRole("button", { name: "toggle" }).click();
   await screen.getByRole("button", { name: "toggle" }).click();
   await expect.element(screen.getByRole("radio", { name: "整个项目", exact: true })).toBeChecked();
+  await screen.getByRole("button", { name: /下一题|Next question/u }).click();
   await expect.element(screen.getByRole("textbox", { name: /补充要求/u })).toHaveValue("保留测试");
   await send.click();
   expect(submit).toHaveBeenCalledExactlyOnceWith("选择范围\n整个项目\n\n补充要求\n保留测试");

@@ -1,4 +1,9 @@
 export const conversation = {
+  questionnaire: {
+    previous: "Previous question",
+    next: "Next question",
+    progress: "Question {{current}} of {{total}}",
+  },
   asyncQuestions: {
     deliveryPending: "Answer delivery is unconfirmed. Check task progress before sending again.",
     pending: "Pending questions",

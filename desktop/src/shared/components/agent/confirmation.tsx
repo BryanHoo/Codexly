@@ -1,3 +1,4 @@
+import { QuestionnaireCard, QuestionnaireActions } from "@codexly/ui/core/questionnaire";
 import { Check, CircleX, ShieldQuestion } from "lucide-react";
 import {
   Children,
@@ -50,15 +51,15 @@ export function Confirmation({
   const title = findTitle(children);
   return (
     <ConfirmationContext.Provider value={state}>
-      <section
+      <QuestionnaireCard
         aria-label={t("agentComponents.approvalRequest", { title })}
-        className={`w-full rounded-surface bg-control px-3.5 py-3 shadow-sm ${className}`}
+        className={`px-2.5 py-2 ${className}`}
         data-approval-id={approval.id}
         data-state={state}
         {...props}
       >
         {children}
-      </section>
+      </QuestionnaireCard>
     </ConfirmationContext.Provider>
   );
 }
@@ -70,10 +71,10 @@ export function ConfirmationTitle({
 }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={`flex items-center gap-2 text-label font-semibold text-foreground ${className}`}
+      className={`flex items-center gap-1.5 text-label font-medium text-foreground ${className}`}
       {...props}
     >
-      <ShieldQuestion className="size-4 text-muted-foreground" aria-hidden="true" />
+      <ShieldQuestion className="size-3.5 text-muted-foreground" aria-hidden="true" />
       {children}
     </h3>
   );
@@ -82,7 +83,7 @@ export function ConfirmationTitle({
 export function ConfirmationRequest({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`mt-2 break-words rounded-control bg-raised px-3 py-2 text-body-small leading-5 text-foreground shadow-sm ${className}`}
+      className={`mt-1.5 break-words rounded-control bg-raised px-2 py-1.5 text-label text-foreground ${className}`}
       {...props}
     />
   );
@@ -127,7 +128,7 @@ export function ConfirmationRejected({
 }
 
 export function ConfirmationActions({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={`mt-3 flex flex-wrap justify-end gap-2 ${className}`} {...props} />;
+  return <QuestionnaireActions className={`mt-2 border-t border-separator pt-1.5 ${className}`} {...props} />;
 }
 
 type ConfirmationActionProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -148,7 +149,7 @@ export function ConfirmationAction({
     <Button
       className={className}
       ref={ref}
-      size="compact"
+      size="toolbar"
       type={type}
       variant={variant}
       {...props}

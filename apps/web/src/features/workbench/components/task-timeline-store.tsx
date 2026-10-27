@@ -220,6 +220,7 @@ export function StoreTurnTimelineSection({
 
 export function TaskStoreTimeline({
   connected,
+  pendingRequestsExternal = false,
   hasOlderHistory = false,
   isLoadingOlderHistory = false,
   onBuildPlan,
@@ -237,6 +238,7 @@ export function TaskStoreTimeline({
   pendingPrompt,
   searchTarget,
 }: Readonly<{
+  pendingRequestsExternal?: boolean;
   connected: boolean;
   hasOlderHistory?: boolean;
   isLoadingOlderHistory?: boolean;
@@ -285,9 +287,9 @@ export function TaskStoreTimeline({
   const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
   const pendingRequestsById = useStore(store, (state) => state.pendingRequestsById);
   const notices = useStore(store, (state) => state.notices);
-  const hasVisiblePendingRequest = pendingRequestIds.some(
-    (requestId) => pendingRequestsById[requestId]?.status !== "resolved",
-  );
+  const hasVisiblePendingRequest =
+    !pendingRequestsExternal &&
+    pendingRequestIds.some((requestId) => pendingRequestsById[requestId]?.status !== "resolved");
   const navigationItems = useMemo(() => {
     // Store 内部 Map 保持引用稳定，以 revision 作为 Item 结构变化的重算信号。
     void itemStructureRevision;

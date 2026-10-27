@@ -29,6 +29,7 @@ const HistoryTaskTimeline = lazy(() => import("../../search/history-task-timelin
 type BuildPlanAction = () => Promise<boolean>;
 
 type TaskTimelineCommonProps = Readonly<{
+  pendingRequestsExternal?: boolean;
   onBuildPlan?: BuildPlanAction;
   onForkTask?: ForkTaskAction;
   onOpenFileDiff?: (change: AgentFileChange) => void;
@@ -108,6 +109,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
     );
   }
   const {
+    pendingRequestsExternal = false,
     onBuildPlan,
     onForkTask,
     onOpenFileDiff,
@@ -128,6 +130,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
   }
   return (
     <ActiveTaskTimeline
+      pendingRequestsExternal={pendingRequestsExternal}
       onOpenFileDiff={onOpenFileDiff ?? ignoreFileChange}
       onOpenSourceFile={onOpenSourceFile ?? ignoreSourceFile}
       onReviewFileChanges={onReviewFileChanges ?? ignoreFileChanges}
@@ -145,6 +148,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
 }
 
 function ActiveTaskTimeline({
+  pendingRequestsExternal,
   onBuildPlan,
   onForkTask,
   onOpenFileDiff,
@@ -158,6 +162,7 @@ function ActiveTaskTimeline({
   submissionTurnId,
   startingSnapshot,
 }: Readonly<{
+  pendingRequestsExternal: boolean;
   onResolvePendingRequest: (
     request: PendingRequest,
     resolution: PendingRequestResolution,
@@ -201,6 +206,7 @@ function ActiveTaskTimeline({
         reconnecting={runtime.connectionState === "reconnecting"}
       />
       <TaskStoreTimeline
+        pendingRequestsExternal={pendingRequestsExternal}
         // 等待任务写入权确认后再启用审批，确保 inert 解除时重新触发主操作聚焦。
         connected={runtime.connectionState === "connected"
           && (runtime.writeAccess === undefined || runtime.writeAccess === "writable")}

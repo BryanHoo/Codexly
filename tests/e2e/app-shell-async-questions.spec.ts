@@ -136,8 +136,10 @@ for (const viewport of [
     await expectComposerSelection(page, "GPT-5.6 Terra", "低");
     await expect(dock.getByRole("radio", { name: "当前文件", exact: true })).toBeChecked();
     expect(submitted).toHaveLength(0);
-    await expect(dock.getByRole("button", { name: "发送回答" })).toBeDisabled();
+    await expect(dock.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
     await dock.getByRole("radio", { name: "整个项目", exact: true }).check();
+    await dock.getByRole("button", { name: "下一题", exact: true }).click();
+    await expect(dock.getByRole("button", { name: "发送回答" })).toBeDisabled();
     await dock.getByRole("textbox", { name: "回答：补充要求" }).fill("保留测试");
     await selectComposerSetting(page.getByRole("button", { name: "批准模式" }), "auto-review");
     await expect.poll(() => settingsUpdates.length).toBe(1);

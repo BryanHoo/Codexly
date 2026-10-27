@@ -34,6 +34,7 @@ const HistoryTaskTimeline = lazy(() =>
 type BuildPlanAction = () => Promise<boolean>;
 
 type TaskTimelineCommonProps = Readonly<{
+  pendingRequestsExternal?: boolean;
   onBuildPlan?: BuildPlanAction;
   onForkTask?: ForkTaskAction;
   onOpenFileDiff?: (change: AgentFileChange) => void;
@@ -146,6 +147,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
     );
   }
   const {
+    pendingRequestsExternal = false,
     onBuildPlan,
     onForkTask,
     onOpenFileDiff,
@@ -171,6 +173,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
       {...(projectRootPath === undefined ? {} : { rootPath: projectRootPath })}
     >
       <ActiveTaskTimeline
+        pendingRequestsExternal={pendingRequestsExternal}
         onOpenFileDiff={onOpenFileDiff ?? ignoreFileChange}
         onOpenSourceFile={onOpenSourceFile ?? ignoreSourceFile}
         onReviewFileChanges={onReviewFileChanges ?? ignoreFileChanges}
@@ -189,6 +192,7 @@ export function TaskTimeline(props: TaskTimelineProps) {
 }
 
 function ActiveTaskTimeline({
+  pendingRequestsExternal,
   onBuildPlan,
   onForkTask,
   onOpenFileDiff,
@@ -202,6 +206,7 @@ function ActiveTaskTimeline({
   submissionTurnId,
   startingSnapshot,
 }: Readonly<{
+  pendingRequestsExternal: boolean;
   onResolvePendingRequest: (
     request: PendingRequest,
     resolution: PendingRequestResolution,
@@ -245,6 +250,7 @@ function ActiveTaskTimeline({
         reconnecting={runtime.connectionState === "reconnecting"}
       />
       <TaskStoreTimeline
+        pendingRequestsExternal={pendingRequestsExternal}
         connected={runtime.connectionState === "connected"}
         hasOlderHistory={runtime.hasOlderHistory}
         isLoadingOlderHistory={runtime.isLoadingOlderHistory}

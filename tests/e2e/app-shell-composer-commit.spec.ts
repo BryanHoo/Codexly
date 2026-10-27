@@ -389,6 +389,6 @@ for (const scenario of [
     await page.getByRole("menuitem", { name: "远端信息", exact: true }).click();
     const remoteInfo = page.getByRole("dialog", { name: "远端信息", exact: true });
     await expect(remoteInfo).toContainText(commitSha);
-    await remoteInfo.getByRole("button", { name: "关闭", exact: true }).click();
+    await remoteInfo.locator('[data-slot="dialog-close"]').click();
   });
 }

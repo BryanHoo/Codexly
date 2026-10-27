@@ -64,7 +64,10 @@ test("restores network approvals from the task snapshot after refresh", async ({
   await expect(allow).toBeDisabled();
 });
 
-test("disables user input controls while an answer is being submitted", async ({ page }) => {
+test("keeps user input above the composer and locks answers during submission at 390px @cross-browser", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const pendingRequest = {
     createdAt: "2026-07-23T00:00:00.000Z",
     expiresAt: null,
@@ -111,6 +114,15 @@ test("disables user input controls while an answer is being submitted", async ({
   });
 
   await page.goto("/p/codexly/t/task-1");
+  const dock = page.locator('[data-slot="pending-request-dock"]');
+  await expect(dock).toBeVisible();
+  const dockBounds = await dock.boundingBox();
+  const composerBounds = await page.getByRole("textbox", { name: "任务输入" }).boundingBox();
+  if (dockBounds === null || composerBounds === null)
+    throw new Error("Missing questionnaire or composer bounds");
+  expect(dockBounds.y + dockBounds.height).toBeLessThanOrEqual(composerBounds.y);
+  expect(await dock.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await expect(page.locator('[data-slot="questionnaire"]')).toHaveCount(1);
   const continueAnswer = page.getByRole("radio", { name: /继续/ });
   const stopAnswer = page.getByRole("radio", { name: /停止/ });
   await continueAnswer.check();

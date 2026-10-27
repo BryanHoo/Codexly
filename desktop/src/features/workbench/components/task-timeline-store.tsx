@@ -226,6 +226,7 @@ export function StorePendingRequestList({
 export function TaskStoreTimeline({
   searchTarget,
   connected,
+  pendingRequestsExternal = false,
   hasOlderHistory = false,
   isLoadingOlderHistory = false,
   onBuildPlan,
@@ -242,6 +243,7 @@ export function TaskStoreTimeline({
   submissionTurnId,
   pendingPrompt,
 }: Readonly<{
+  pendingRequestsExternal?: boolean;
   searchTarget?: HistoryAnchor;
   connected: boolean;
   hasOlderHistory?: boolean;
@@ -282,7 +284,7 @@ export function TaskStoreTimeline({
   const pendingRequestIds = useStore(store, (state) => state.pendingRequestIds);
   const pendingRequestsById = useStore(store, (state) => state.pendingRequestsById);
   const notices = useStore(store, (state) => state.notices);
-  const hasVisiblePendingRequest = pendingRequestIds.some(
+  const hasVisiblePendingRequest = !pendingRequestsExternal && pendingRequestIds.some(
     (requestId) => pendingRequestsById[requestId]?.status !== "resolved",
   );
   const navigationItems = useMemo(() => {

@@ -1,4 +1,9 @@
 export const conversation = {
+  questionnaire: {
+    previous: "上一题",
+    next: "下一题",
+    progress: "第 {{current}} / {{total}} 题",
+  },
   asyncQuestions: {
     deliveryPending: "答案已提交，投递结果尚未确认。请查看任务进展，勿重复发送。",
     pending: "待回答问题",

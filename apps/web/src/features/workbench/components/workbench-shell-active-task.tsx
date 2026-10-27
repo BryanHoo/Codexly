@@ -1,3 +1,4 @@
+import { PendingRequestDock } from "./pending-request-dock.js";
 import type { ComposerWorkspace } from "@codexly/ui/core/composer-workspace";
 import { MessageFollowupProvider } from "@codexly/ui/core/message-assistant-directive";
 import type {
@@ -179,6 +180,7 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
   return (
     <MessageFollowupProvider onSelect={selectFollowup}>
       <TaskTimeline
+        pendingRequestsExternal
         onBuildPlan={() => composerRef.current?.buildPlan() ?? Promise.resolve(false)}
         {...(capabilities?.tasks.fork === true ? { onForkTask: forkTask } : {})}
         // Timeline 已携带 Diff 或受控文件引用，普通与临时 Task 共用同一套查看入口。
@@ -200,6 +202,12 @@ export const ActiveTaskWorkbench = memo(function ActiveTaskWorkbench({
           : { submissionTurnId: retainedSubmissionTurnId })}
         taskId={taskId}
         {...(startingSnapshot === undefined ? {} : { startingSnapshot })}
+      />
+      <PendingRequestDock
+        key={`requests:${taskScope}`}
+        store={runtime.store}
+        connected={runtime.connectionState === "connected"}
+        onResolve={resolvePendingRequest}
       />
       <WorkbenchComposer
         composerRef={composerRef}

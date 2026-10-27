@@ -1,9 +1,10 @@
 import type { AgentItem } from "@/protocol/index.js";
-import { Check, LoaderCircle, Send } from "lucide-react";
+import { Check, Send } from "lucide-react";
 import { useId, useState } from "react";
 import { useStore } from "zustand";
 import { useTranslation } from "../../../i18n/i18n.js";
-import { Button } from "../../../shared/components/core/button.js";
+import { Questionnaire } from "@codexly/ui/core/questionnaire";
+import { QuestionnaireAnswer } from "@codexly/ui/core/questionnaire-choice";
 import {
   createQuestionDraftStore, saveQuestionDraft, useAsyncQuestionSession,
   type QuestionDraft,
@@ -49,39 +50,20 @@ export function AsyncQuestions({ item, questionId = item.id }: Readonly<{ item: 
       ...current, status: accepted ? "sent" : "editing", error: !accepted,
     }, item.id);
   };
-  return <form className="min-w-0 space-y-4 border-l-2 border-brand pl-3" onSubmit={(event) => {
-    event.preventDefault();
-    if (!disabled) void submit();
-  }}>
-    {questions.map((question, index) => {
-      const answer = current.answers[index];
-      return <fieldset className="min-w-0 space-y-2" disabled={disabled} key={index}>
-        <legend className="mb-2 w-full min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere] text-body font-medium">{question.title}</legend>
-        {question.options?.map((option, optionIndex) => <label
-          className="flex min-w-0 cursor-pointer items-start gap-2 text-body" key={optionIndex}
-        >
-          <input className="mt-1 shrink-0 accent-brand" type="radio" name={`${name}-${index}`}
-            checked={answer?.choice === optionIndex} onChange={() => update(index, { choice: optionIndex })} />
-          <span className="min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{option}</span>
-        </label>)}
-        {question.options === null ? null : <label className="flex items-center gap-2 text-body">
-          <input className="accent-brand" type="radio" name={`${name}-${index}`}
-            checked={answer?.choice === null} onChange={() => update(index, { choice: null })} />
-          {t("asyncQuestions.other")}
-        </label>}
-        <textarea aria-label={t("asyncQuestions.answer", { question: question.title })}
-          className="block min-h-16 w-full resize-y rounded-control border border-separator bg-control px-2 py-1.5 text-body outline-none focus:border-brand disabled:opacity-60"
-          maxLength={4000} rows={2} value={answer?.text ?? ""}
-          onChange={(event) => update(index, { choice: null, text: event.currentTarget.value })} />
-      </fieldset>;
-    })}
-    <div className="flex items-center gap-2">
-      <Button disabled={disabled || !valid} type="submit" size="sm">
-        {current.status === "sending" ? <LoaderCircle className="size-3.5 animate-spin" /> :
-          sent ? <Check className="size-3.5" /> : <Send className="size-3.5" />}
-        {t(sent ? "asyncQuestions.sent" : "asyncQuestions.send")}
-      </Button>
-      {current.error ? <span className="text-label text-danger" role="alert">{t("asyncQuestions.failed")}</span> : null}
-    </div>
-  </form>;
+  return <Questionnaire
+    labels={{ previous: t("questionnaire.previous"), next: t("questionnaire.next"),
+      progress: (current, total) => t("questionnaire.progress", { current, total }) }}
+    disabled={disabled} submitting={current.status === "sending"} submitDisabled={!valid}
+    onSubmit={() => { void submit(); }}
+    submitLabel={<>{sent ? <Check aria-hidden="true" className="size-3.5" /> : <Send aria-hidden="true" className="size-3.5" />}{t(sent ? "asyncQuestions.sent" : "asyncQuestions.send")}</>}
+    feedback={current.error ? <span className="text-danger" role="alert">{t("asyncQuestions.failed")}</span> : undefined}
+    items={questions.map((question, index) => ({
+      id: String(index), title: question.title, complete: (answerTexts[index]?.length ?? 0) > 0,
+      content: <QuestionnaireAnswer name={`${name}-${index}`} options={question.options}
+        choice={current.answers[index] === undefined ? (question.options === null ? null : 0) : current.answers[index].choice}
+        text={current.answers[index]?.text ?? ""}
+        otherLabel={t("asyncQuestions.other")} answerLabel={t("asyncQuestions.answer", { question: question.title })}
+        onChange={patch => update(index, patch)} />,
+    }))}
+  />;
 }

@@ -16,7 +16,8 @@ import {
   ConfirmationTitle,
   type ConfirmationState,
 } from "../../../shared/components/agent/confirmation.js";
-import { Input } from "../../../shared/components/core/input.js";
+import { Questionnaire } from "@codexly/ui/core/questionnaire";
+import { McpQuestionnaireField } from "@codexly/ui/core/mcp-questionnaire-field";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { openExternalUrl } from "../../../platform/tauri/external-url.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
@@ -94,168 +95,13 @@ function initialFormContent(fields: readonly McpElicitationField[]): FormContent
   return content;
 }
 
-function FieldDescription({ field }: Readonly<{ field: McpElicitationField }>) {
-  return field.description === null ? null : (
-    <p className="mt-0.5 text-meta text-muted-foreground">{field.description}</p>
-  );
-}
-
-function fieldInputType(field: Extract<McpElicitationField, { type: "string" }>) {
-  if (field.format === "email") return "email";
-  if (field.format === "uri") return "url";
-  if (field.format === "date") return "date";
-  return "text";
-}
-
-function McpFormField({
-  content,
-  controlPrefix,
-  disabled,
-  field,
-  setContent,
-}: Readonly<{
-  content: FormContent;
-  controlPrefix: string;
-  disabled: boolean;
-  field: McpElicitationField;
-  setContent: (update: (current: FormContent) => FormContent) => void;
-}>) {
-  const controlId = `mcp-field-${controlPrefix}-${field.id}`;
-  const update = (value: FormContent[string] | undefined) => {
-    setContent((current) => {
-      if (value === undefined) {
-        return Object.fromEntries(Object.entries(current).filter(([id]) => id !== field.id));
-      }
-      return { ...current, [field.id]: value };
-    });
-  };
-
-  if (field.type === "boolean") {
-    return (
-      <label
-        className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-control bg-raised px-3 py-2 text-label text-foreground"
-        htmlFor={controlId}
-      >
-        <input
-          checked={content[field.id] === true}
-          disabled={disabled}
-          id={controlId}
-          onChange={(event) => {
-            update(event.target.checked);
-          }}
-          type="checkbox"
-        />
-        <span>
-          <span className="block font-medium">{field.title}</span>
-          <FieldDescription field={field} />
-        </span>
-      </label>
-    );
-  }
-
-  if (field.type === "select") {
-    const selectedIndex = field.options.findIndex((option) => option.value === content[field.id]);
-    return (
-      <div>
-        <label className="text-label font-medium text-foreground" htmlFor={controlId}>
-          {field.title}
-        </label>
-        <FieldDescription field={field} />
-        <select
-          className="mt-2 h-11 w-full rounded-control border border-separator-strong bg-raised px-2.5 text-label text-foreground outline-none hover:bg-control-hover workbench:h-8"
-          disabled={disabled}
-          id={controlId}
-          onChange={(event) => {
-            const option = field.options[Number(event.target.value)];
-            update(option?.value);
-          }}
-          required={field.required}
-          value={selectedIndex < 0 ? "" : String(selectedIndex)}
-        >
-          <option disabled={field.required} value="">
-            --
-          </option>
-          {field.options.map((option, index) => (
-            <option key={option.value} value={index}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  }
-
-  if (field.type === "multi_select") {
-    const currentValue = content[field.id];
-    const selected: readonly string[] = Array.isArray(currentValue) ? currentValue : [];
-    return (
-      <fieldset>
-        <legend className="text-label font-medium text-foreground">{field.title}</legend>
-        <FieldDescription field={field} />
-        <div className="mt-2 grid grid-cols-1 gap-2 @sm:grid-cols-2">
-          {field.options.map((option) => (
-            <label
-              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-control bg-raised px-3 py-2 text-label text-foreground"
-              key={option.value}
-            >
-              <input
-                checked={selected.includes(option.value)}
-                disabled={disabled}
-                onChange={(event) => {
-                  update(
-                    event.target.checked
-                      ? [...selected, option.value]
-                      : selected.filter((value) => value !== option.value),
-                  );
-                }}
-                type="checkbox"
-              />
-              {option.label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-    );
-  }
-
-  const value = content[field.id];
-  return (
-    <div>
-      <label className="text-label font-medium text-foreground" htmlFor={controlId}>
-        {field.title}
-      </label>
-      <FieldDescription field={field} />
-      <Input
-        className="mt-2 max-workbench:h-11"
-        disabled={disabled}
-        id={controlId}
-        max={field.type === "string" ? undefined : (field.maximum ?? undefined)}
-        maxLength={field.type === "string" ? (field.maxLength ?? undefined) : undefined}
-        min={field.type === "string" ? undefined : (field.minimum ?? undefined)}
-        minLength={field.type === "string" ? (field.minLength ?? undefined) : undefined}
-        onChange={(event) => {
-          if (field.type === "string") {
-            update(event.target.value);
-            return;
-          }
-          update(event.target.value === "" ? undefined : event.target.valueAsNumber);
-        }}
-        required={field.required}
-        step={field.type === "integer" ? 1 : field.type === "number" ? "any" : undefined}
-        type={field.type === "string" ? fieldInputType(field) : "number"}
-        value={typeof value === "number" || typeof value === "string" ? value : ""}
-        variant="compact"
-      />
-    </div>
-  );
-}
-
 function McpFormRequestCard({
   interactive,
   onResolve,
   request,
 }: Omit<McpElicitationRequestCardProps, "request"> & { request: FormRequest }) {
   const { t } = useTranslation("workbench");
+  const { t: qt } = useTranslation("conversation");
   const [content, setContent] = useState<FormContent>(() => initialFormContent(request.fields));
   const { canSubmit, resolve, submitting } = useMcpResolution({
     interactive,
@@ -274,47 +120,30 @@ function McpFormRequestCard({
       {request.status === "expired" ? (
         <ConfirmationRejected>{t("pending.expired")}</ConfirmationRejected>
       ) : (
-        <form
-          className="mt-3 space-y-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void resolve({ action: "accept", content });
-          }}
-        >
-          {request.fields.map((field) => (
-            <McpFormField
-              content={content}
-              controlPrefix={request.requestId}
-              disabled={!interactive || submitting}
-              field={field}
-              key={field.id}
-              setContent={setContent}
-            />
-          ))}
-          {!interactive ? (
-            <p className="text-label text-muted-foreground">{t("pending.previousPending")}</p>
-          ) : null}
-          <ConfirmationActions>
-            <ConfirmationAction
-              disabled={!canSubmit}
-              onClick={() => void resolve({ action: "cancel" })}
-              type="button"
-            >
-              {t("pending.cancel")}
-            </ConfirmationAction>
-            <ConfirmationAction
-              disabled={!canSubmit}
-              onClick={() => void resolve({ action: "decline" })}
-              tone="danger"
-              type="button"
-            >
-              {t("pending.deny")}
-            </ConfirmationAction>
-            <ConfirmationAction disabled={!canSubmit} tone="primary" type="submit">
-              {t("pending.submitAnswers")}
-            </ConfirmationAction>
-          </ConfirmationActions>
-        </form>
+        <Questionnaire className="mt-3" disabled={!interactive} submitting={submitting}
+          labels={{ previous: qt("questionnaire.previous"), next: qt("questionnaire.next"),
+            progress: (current, total) => qt("questionnaire.progress", { current, total }) }}
+          submitLabel={t("pending.submitAnswers")} submitDisabled={!canSubmit}
+          onSubmit={() => { void resolve({ action: "accept", content }); }}
+          feedback={!interactive ? t("pending.previousPending") : undefined}
+          items={request.fields.map(field => ({ id: field.id, title: field.title,
+            description: field.description,
+            complete: field.type === "multi_select" ? (() => {
+              const value = content[field.id];
+              const count = Array.isArray(value) ? value.length : 0;
+              return count >= (field.minimum ?? (field.required ? 1 : 0)) && (field.maximum === null || count <= field.maximum);
+            })() : undefined,
+            content: <McpQuestionnaireField field={field} controlPrefix={request.requestId} value={content[field.id]}
+              onChange={value => setContent(current => {
+                if (value === undefined) return Object.fromEntries(Object.entries(current).filter(([id]) => id !== field.id));
+                return { ...current, [field.id]: value };
+              })} />,
+          }))}
+          actions={<>
+            <ConfirmationAction disabled={!canSubmit} onClick={() => void resolve({ action: "cancel" })} type="button">{t("pending.cancel")}</ConfirmationAction>
+            <ConfirmationAction disabled={!canSubmit} onClick={() => void resolve({ action: "decline" })} tone="danger" type="button">{t("pending.deny")}</ConfirmationAction>
+          </>}
+        />
       )}
     </Confirmation>
   );

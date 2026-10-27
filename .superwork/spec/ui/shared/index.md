@@ -18,3 +18,12 @@
 - [ ] 性能变更补充根性能套件及两端构建预算；根 Vitest 不替代浏览器布局验证。
 
 复用示例见 [代码复用边界](../../guides/code-reuse-thinking-guide.md)，行为依据见 [文档工作区](../../../../docs/document-workspace.md)。
+
+## 输入框上方的交互问卷
+
+- 问卷沿用工作台紧凑密度：题目与选项使用 label 字号，选项最小 28px、输入框 28px、操作按钮使用 24px toolbar 规格；长文字可自然增高。原生选项清除外边距后与文字块垂直居中，自定义回答与“其他”选项同行，纯文本题保留多行编辑。
+
+- 异步问答、用户输入与 MCP 表单复用 `core/questionnaire.tsx` 的逐题导航、进度、原生字段校验和公共操作区，选项复用 `core/questionnaire-choice.tsx`。翻译、草稿、提交锁、幂等与传输由调用端注入；固定选项与自定义输入不得自动触发提交。
+- 题目切换保留答案，隐藏步骤不可聚焦，当前题目通过校验后才能继续；最终提交复查全部步骤并返回首个无效步骤。题目正文独立滚动，导航保持可见；初次挂载不抢占输入框焦点。
+- 两端活动工作台将待处理卡片放在输入框上方，与输入框同宽。通过 `pendingRequestsExternal` 关闭时间线中的重复卡片，独立历史/子线程时间线保留默认入口；不得改变审批队首、断线及桌面写入权的锁定规则。
+- 回归入口：Web `questionnaire.test.tsx`、`pending-request.test.tsx`、`app-shell-async-questions.spec.ts` 与 `app-shell-runtime-requests.spec.ts`；桌面 `questionnaire.browser.test.tsx`、`async-questions.browser.test.tsx`、`async-question-dock.browser.test.tsx`，覆盖多选、自定义回答、密码、校验、失败重试与宽窄屏位置。

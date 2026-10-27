@@ -3,6 +3,11 @@ export const conversation = {
     applied: "审核方已更新，将用于当前回合后续步骤；已有审批与沙箱权限不变",
     targetUnavailable: "目标回合已不可更新，设置已保存供后续回合使用",
   },
+  questionnaire: {
+    previous: "上一题",
+    next: "下一题",
+    progress: "第 {{current}} / {{total}} 题",
+  },
   asyncQuestions: {
     pending: "待回答问题", pendingCount: "待回答 · {{count}} 组",
     previous: "上一组问题", next: "下一组问题", collapse: "收起问题", expand: "展开问题",

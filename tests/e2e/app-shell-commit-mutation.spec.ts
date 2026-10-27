@@ -140,7 +140,8 @@ test("reviews selected files, preserves AI drafts and recovers a failed push", a
   const failureDetails = page.getByRole("dialog", { name: "远端包含尚未整合的提交" });
   await expect(failureDetails).toContainText("提交已保存到本地。");
   await expect(failureDetails).toContainText("[rejected] non-fast-forward");
-  await failureDetails.getByRole("button", { name: "关闭", exact: true }).click();
+  // 弹窗同时提供页脚和右上角关闭按钮，明确使用公共 Dialog 的标准关闭入口。
+  await failureDetails.locator('[data-slot="dialog-close"]').click();
   await expect(message).toHaveValue("");
   expect(messageRequest).toEqual({ expectedSnapshot: snapshot, paths: ["package.json"] });
   expect(commitRequest).toEqual({

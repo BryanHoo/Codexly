@@ -3,6 +3,11 @@ export const conversation = {
     applied: "Reviewer updated for future steps in this turn; existing approvals and sandbox permissions are unchanged",
     targetUnavailable: "The target turn is no longer available; settings saved for future turns",
   },
+  questionnaire: {
+    previous: "Previous question",
+    next: "Next question",
+    progress: "Question {{current}} of {{total}}",
+  },
   asyncQuestions: {
     pending: "Pending questions", pendingCount: "Pending · {{count}} groups",
     previous: "Previous questions", next: "Next questions", collapse: "Collapse questions", expand: "Expand questions",

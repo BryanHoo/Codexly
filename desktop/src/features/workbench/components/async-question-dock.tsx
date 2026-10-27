@@ -1,3 +1,4 @@
+import { QuestionnaireCard } from "@codexly/ui/core/questionnaire";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MessageCircleQuestion, X, type LucideIcon } from "lucide-react";
 import { lazy, Suspense, useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
@@ -40,8 +41,8 @@ function QuestionDockContent({ entries, session }: Readonly<{
 
   return (
     <div className="shrink-0 min-w-0 bg-content px-1 pb-2 sm:px-5">
-    <section aria-label={t("asyncQuestions.pending")} className="mx-auto w-full max-w-content min-w-0 border-b border-separator">
-      <div className="flex min-w-0 items-center gap-2 pt-2 pb-1">
+    <QuestionnaireCard aria-label={t("asyncQuestions.pending")} className="mx-auto max-w-content px-2.5 pb-1.5">
+      <div className="flex min-w-0 items-center gap-1 pt-1.5 pb-0.5">
         <MessageCircleQuestion aria-hidden="true" className="size-3.5 shrink-0 text-brand" />
         <span className="min-w-0 flex-1 truncate text-label font-medium">
           {t("asyncQuestions.pendingCount", { count: pending.length })}
@@ -50,7 +51,7 @@ function QuestionDockContent({ entries, session }: Readonly<{
           <>
             <DockButton icon={ChevronLeft} label={t("asyncQuestions.previous")} disabled={selectedIndex === 0}
               onClick={() => setSelectedKey(pending[selectedIndex - 1]!.key)} />
-            <span className="min-w-12 text-center text-caption tabular-nums">{selectedIndex + 1}/{pending.length}</span>
+            <span className="min-w-8 text-center text-caption tabular-nums">{selectedIndex + 1}/{pending.length}</span>
             <DockButton icon={ChevronRight} label={t("asyncQuestions.next")} disabled={selectedIndex === pending.length - 1}
               onClick={() => setSelectedKey(pending[selectedIndex + 1]!.key)} />
           </>
@@ -61,12 +62,12 @@ function QuestionDockContent({ entries, session }: Readonly<{
           onClick={() => session.store.getState().dismiss(selected.key, selected.item.id)} />
       </div>
       {/* 问答区独立滚动且限制高度，不改变时间线的虚拟滚动容器。 */}
-      <div id={contentId} hidden={collapsed} className="max-h-[min(32vh,20rem)] overflow-y-auto overscroll-contain py-2">
+      <div id={contentId} hidden={collapsed} className="py-0.5">
         <Suspense fallback={null}>
           <AsyncQuestions key={selected.key} questionId={selected.key} item={selected.item} />
         </Suspense>
       </div>
-    </section>
+    </QuestionnaireCard>
     </div>
   );
 }
@@ -81,7 +82,7 @@ function DockButton({ label, disabled, controls, expanded, onClick, icon: Icon }
 }>) {
   return <Tooltip>
     <TooltipTrigger asChild>
-      <Button type="button" variant="ghost" size="icon-sm" aria-label={label} aria-controls={controls}
+      <Button type="button" variant="ghost" size="icon-toolbar" aria-label={label} aria-controls={controls}
         aria-expanded={expanded} disabled={disabled} onClick={onClick}>
         <Icon className="size-3.5" />
       </Button>

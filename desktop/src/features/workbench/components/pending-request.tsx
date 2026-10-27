@@ -1,5 +1,5 @@
 import { formatDisplayPath } from "@codexly/frontend-core/display-path";
-import { MultipleQuestionOptions } from "@codexly/ui/core/multiple-question-options";
+import { UserInputQuestionnaire } from "@codexly/ui/core/user-input-questionnaire";
 import type { PendingApprovalDecision, PendingRequest } from "@/protocol/index.js";
 import { useEffect, useRef, useState } from "react";
 
@@ -13,8 +13,6 @@ import {
   type ConfirmationState,
 } from "../../../shared/components/agent/confirmation.js";
 import { createAsyncActionLock } from "../../../shared/utils/async-action-lock.js";
-import { Button } from "../../../shared/components/core/button.js";
-import { Input } from "../../../shared/components/core/input.js";
 import { useTranslation } from "../../../i18n/i18n.js";
 import {
   notifyActionError,
@@ -212,16 +210,18 @@ function UserInputRequestCard({
   request,
 }: Omit<PendingRequestCardProps, "request"> & { request: UserInputRequest }) {
   const { t } = useTranslation("workbench");
+  const { t: qt } = useTranslation("conversation");
   const [answers, setAnswers] = useState<Answers>({});
   const [submitting, setSubmitting] = useState(false);
   const [attempt, setAttempt] = useState<PendingRequestResolutionAttempt>();
   const resolutionLockRef = useRef(createAsyncActionLock());
   const [multipleAnswers, setMultipleAnswers] = useState<Record<string, string[]>>({});
-  const complete = request.questions.every(
-    (question) => question.type === "choice" && question.multiSelect ? (multipleAnswers[question.id]?.length ?? 0) > 0 : (answers[question.id] ?? "").trim() !== "",
+  const complete = request.questions.every(question =>
+    question.type === "choice" && question.multiSelect
+      ? (multipleAnswers[question.id]?.length ?? 0) > 0
+      : (answers[question.id] ?? "").trim() !== "",
   );
   const canSubmit = interactive && request.status === "pending" && complete && !submitting;
-  const controlsDisabled = !interactive || submitting;
 
   const submit = () =>
     resolutionLockRef.current.run(async () => {
@@ -250,111 +250,17 @@ function UserInputRequestCard({
     );
   }
 
-  return (
-    <form
-      className="w-full rounded-surface bg-control px-3.5 py-3 shadow-sm"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void submit();
-      }}
-    >
-      <h3 className="text-label font-semibold text-foreground">{t("pending.inputRequired")}</h3>
-      <div className="mt-3 space-y-4">
-        {request.questions.map((question) => (
-          <fieldset key={question.id}>
-            <legend className="text-body-small font-medium text-foreground">
-              {question.prompt}
-            </legend>
-            <p className="mt-0.5 text-meta text-muted-foreground">{question.header}</p>
-            {question.type === "choice" && question.multiSelect ? <MultipleQuestionOptions otherLabel={t("pending.otherAnswer", { header: question.header })} options={question.options} value={multipleAnswers[question.id] ?? []} disabled={controlsDisabled} onChange={(value) => setMultipleAnswers((current) => ({ ...current, [question.id]: value }))} /> : question.type === "choice" ? (
-              <div className="mt-2 space-y-1.5">
-                {question.options.map((option, optionIndex) => (
-                  <label
-                    aria-label={option.label}
-                    className="flex cursor-pointer items-start gap-2 rounded-control bg-raised px-2.5 py-2 text-label"
-                    htmlFor={`${question.id}-option-${String(optionIndex)}`}
-                    key={option.label}
-                  >
-                    <input
-                      className="mt-0.5 size-4 shrink-0 accent-primary"
-                      checked={answers[question.id] === option.label}
-                      disabled={controlsDisabled}
-                      id={`${question.id}-option-${String(optionIndex)}`}
-                      name={question.id}
-                      onChange={() => {
-                        setAnswers((value) => ({ ...value, [question.id]: option.label }));
-                      }}
-                      type="radio"
-                      value={option.label}
-                    />
-                    <span>
-                      <span className="block font-medium text-foreground">{option.label}</span>
-                      <span className="block text-muted-foreground">{option.description}</span>
-                    </span>
-                  </label>
-                ))}
-                {question.isOther ? (
-                  <Input
-                    aria-label={t("pending.otherAnswer", { header: question.header })}
-                    disabled={controlsDisabled}
-                    onChange={(event) => {
-                      setAnswers((value) => ({ ...value, [question.id]: event.target.value }));
-                    }}
-                    placeholder={t("pending.other")}
-                    type="text"
-                    value={
-                      question.options.some((option) => option.label === answers[question.id])
-                        ? ""
-                        : (answers[question.id] ?? "")
-                    }
-                    variant="compact"
-                  />
-                ) : null}
-              </div>
-            ) : question.type === "confirmation" ? (
-              <div className="mt-2 grid grid-cols-2 rounded-control bg-raised p-0.5">
-                {question.options.map((option) => (
-                  <Button
-                    variant="ghost"
-                    aria-pressed={answers[question.id] === option.label}
-                    className="h-8 rounded-control text-label font-medium text-foreground aria-pressed:bg-foreground aria-pressed:text-raised"
-                    disabled={controlsDisabled}
-                    key={option.label}
-                    onClick={() => {
-                      setAnswers((value) => ({ ...value, [question.id]: option.label }));
-                    }}
-                    type="button"
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-            ) : (
-              <Input
-                aria-label={question.prompt}
-                className="mt-2"
-                disabled={controlsDisabled}
-                onChange={(event) => {
-                  setAnswers((value) => ({ ...value, [question.id]: event.target.value }));
-                }}
-                type={question.isSecret ? "password" : "text"}
-                value={answers[question.id] ?? ""}
-                variant="compact"
-              />
-            )}
-          </fieldset>
-        ))}
-      </div>
-      {!interactive ? (
-        <p className="mt-3 text-label text-muted-foreground">{t("pending.previousPending")}</p>
-      ) : null}
-      <div className="mt-3 flex justify-end">
-        <Button disabled={!canSubmit} size="compact" type="submit">
-          {t("pending.submitAnswers")}
-        </Button>
-      </div>
-    </form>
-  );
+  return <UserInputQuestionnaire
+    questions={request.questions} answers={answers} multipleAnswers={multipleAnswers}
+    onAnswerChange={(id, value) => setAnswers(current => ({ ...current, [id]: value }))}
+    onMultipleChange={(id, value) => setMultipleAnswers(current => ({ ...current, [id]: value }))}
+    disabled={!interactive} submitting={submitting} onSubmit={() => { void submit(); }}
+    title={t("pending.inputRequired")} submitLabel={t("pending.submitAnswers")}
+    otherLabel={header => t("pending.otherAnswer", { header })}
+    feedback={!interactive ? t("pending.previousPending") : undefined}
+    labels={{ previous: qt("questionnaire.previous"), next: qt("questionnaire.next"),
+      progress: (current, total) => qt("questionnaire.progress", { current, total }) }}
+  />;
 }
 
 export function PendingRequestCard(props: PendingRequestCardProps) {

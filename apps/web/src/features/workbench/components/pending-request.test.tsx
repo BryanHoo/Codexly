@@ -215,11 +215,13 @@ describe("PendingRequestCard", () => {
 
     expect(markup).toContain('type="radio"');
     expect(markup).not.toMatch(/data-slot="input"[^>]*type="radio"/u);
-    expect(markup).toContain('aria-pressed="false"');
+    expect(markup).toContain('value="Yes"');
+    expect(markup).toContain("<h3");
+    expect(markup).toContain('data-slot="questionnaire"');
     expect(markup).toContain('type="text"');
     expect(markup).toContain('data-variant="compact"');
-    expect(markup).toContain("提交回答");
-    expect(markup).toMatch(/class="[^"]*bg-brand[^"]*"[^>]*>提交回答<\/button>/);
+    expect(markup).toContain("下一题");
+    expect(markup).toContain('aria-valuemax="3"');
   });
 
   it("renders MCP form fields and URL confirmation with accessible controls", () => {
