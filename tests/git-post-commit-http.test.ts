@@ -101,4 +101,4 @@ it("refreshes overlapping snapshots after an HTTP commit and pushes the new HEAD
     await app.close();
     await rm(temporaryRoot, { force: true, recursive: true });
   }
-}, 15_000);
+});

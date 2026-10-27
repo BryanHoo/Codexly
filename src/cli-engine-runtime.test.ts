@@ -255,6 +255,8 @@ it.each([
         ]);
       });
     } finally {
+      // 会话终态发布后仍有最终历史写入；先等待消费器退出，避免与 Windows 目录清理竞争。
+      await router.stopSession?.(task.id);
       disposers.forEach((dispose) => {
         dispose();
       });

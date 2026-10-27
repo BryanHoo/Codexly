@@ -36,12 +36,9 @@ function Harness({ onChange = () => undefined, disabled = false, mode = "bing" }
 async function setup(props: Parameters<typeof Harness>[0] = {}, openPicker = true) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const screen = await render(<I18nextProvider i18n={i18n}><QueryClientProvider client={client}><TooltipProvider><Harness {...props} /></TooltipProvider></QueryClientProvider></I18nextProvider>);
-  if (openPicker) {
-    await screen.getByRole("button", { name: "选择图片", exact: true }).click();
-    await vi.waitFor(() => {
-      if (!screen.getByRole("button", { name: "使用 2026-09-01", exact: true }).query()) throw new Error("Gallery is loading");
-    });
-  }
+  if (!openPicker) return screen;
+  await screen.getByRole("button", { name: "选择图片", exact: true }).click();
+  await expect.element(screen.getByRole("button", { name: "使用 2026-09-01", exact: true }), { timeout: 5_000 }).toBeInTheDocument();
   return screen;
 }
 

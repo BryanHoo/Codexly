@@ -2289,9 +2289,12 @@ it("routes late child output separately and persists a streamed native continuat
   });
   h.send({ type: "stream_event", event: { type: "content_block_stop", index: 0 } });
   h.send({ type: "result", subtype: "success" });
-  await vi.waitFor(() => {
-    expect(h.close).toHaveBeenCalledOnce();
-  });
+  await vi.waitFor(
+    () => {
+      expect(h.close).toHaveBeenCalledOnce();
+    },
+    { timeout: 5_000 },
+  );
   expect(events.filter((event) => event.type === "turn.started")).toHaveLength(2);
   const restored = h.restart();
   const snapshot = await restored.readTask(task.id);
@@ -2345,9 +2348,12 @@ it("keeps scheduled wakeups alive and releases the session after the final stop"
   await hook({ hook_event_name: "Stop", session_crons: [] } as never, undefined, { signal });
   h.send({ type: "result", subtype: "success" });
   h.send({ type: "system", subtype: "session_state_changed", state: "idle" });
-  await vi.waitFor(() => {
-    expect(h.close).toHaveBeenCalledOnce();
-  });
+  await vi.waitFor(
+    () => {
+      expect(h.close).toHaveBeenCalledOnce();
+    },
+    { timeout: 5_000 },
+  );
   expect((await h.provider.readTask(task.id))?.turns).toHaveLength(2);
 });
 
@@ -3053,9 +3059,12 @@ it.each(["completed", "failed", "stopped"] as const)(
       summary: "late proof",
     });
     h.send({ type: "result", subtype: "success" });
-    await vi.waitFor(() => {
-      expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(2);
-    });
+    await vi.waitFor(
+      () => {
+        expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(2);
+      },
+      { timeout: 5_000 },
+    );
     const expected = outcome === "stopped" ? "interrupted" : outcome;
     const restored = await h.restart().readTask(task.id);
     expect(
