@@ -220,3 +220,60 @@ describe("composer queue state", () => {
     ]);
   });
 });
+
+describe("引导与异步回答的消息确认", () => {
+  it("其他设备的新消息不能提前确认当前引导", () => {
+    expect(
+      hasQueuedPromptFinishedInSnapshot(waitingPrompt, {
+        turns: [
+          {
+            id: "turn-1",
+            status: "running",
+            items: [{ id: "other-device", type: "message", role: "user", text: "先继续其他工作" }],
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+  it("相同正文但附件不同的消息不能确认当前引导", () => {
+    expect(
+      hasQueuedPromptFinishedInSnapshot(waitingPrompt, {
+        turns: [
+          {
+            id: "turn-1",
+            status: "running",
+            items: [
+              {
+                id: "other-file",
+                type: "message",
+                role: "user",
+                text: waitingPrompt.text,
+                attachments: [
+                  { id: "file", kind: "file", name: "a.txt", size: 1, mediaType: "text/plain" },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+  it("仅确认本次发送后到达的相同正文消息", () => {
+    const item = {
+      id: "user-before",
+      type: "message" as const,
+      role: "user" as const,
+      text: waitingPrompt.text,
+    };
+    expect(
+      hasQueuedPromptFinishedInSnapshot(waitingPrompt, {
+        turns: [{ id: "turn-1", status: "running", items: [item] }],
+      }),
+    ).toBe(false);
+    expect(
+      hasQueuedPromptFinishedInSnapshot(waitingPrompt, {
+        turns: [{ id: "turn-1", status: "running", items: [{ ...item, id: "new-answer" }] }],
+      }),
+    ).toBe(true);
+  });
+});

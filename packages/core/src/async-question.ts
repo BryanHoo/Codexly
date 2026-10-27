@@ -95,8 +95,9 @@ export function restoreAsyncQuestionAnswers(
     );
     const questionIndex = questionIndexes[occurrence];
     if (questionIndex === undefined) continue;
+    // 同文再次提问的回答只归属于对应出现次数，不能跨过下一组相同问题复用回执。
     const alreadyPresent = turn.items
-      .slice(questionIndex + 1)
+      .slice(questionIndex + 1, questionIndexes[occurrence + 1])
       .some(
         (item) =>
           item.type === "message" && item.role === "user" && item.text === result.input.text,

@@ -25,12 +25,18 @@ function matchesReply(item: QuestionMessage, text: string): boolean {
 export function collectAsyncQuestions(state: TaskStoreState): readonly QuestionEntry[] {
   const pending: QuestionEntry[] = [];
   for (const turnId of state.turnIds) {
+    const occurrences = new Map<string, number>();
     for (const key of state.itemKeysByTurnId[turnId] ?? []) {
       // peek 不拼接流式文本或命令输出；只读取完整消息中的问题与用户回答。
       const item = state.itemStoresByKey.get(key)?.peek();
       if (item?.type !== "message") continue;
-      if (item.role === "assistant" && (item.questions?.length ?? 0) > 0) {
-        pending.push({ key, item });
+      const questions = item.questions;
+      if (item.role === "assistant" && questions !== undefined && questions.length > 0) {
+        const signature = JSON.stringify(questions.map(({ title, options }) => ({ title, options })));
+        const occurrence = occurrences.get(signature) ?? 0;
+        occurrences.set(signature, occurrence + 1);
+        // 与 Web 的领域身份保持同一规则：原生 ID 重建不会复活已回答问题，真正再次提问仍独立。
+        pending.push({ key: JSON.stringify([turnId, signature, occurrence]), item });
       } else if (item.role === "user") {
         // 普通消息没有 requestId，只识别本项目生成的完整回答格式，不猜测任意用户消息。
         const answered = pending.findLastIndex((entry) => matchesReply(entry.item, item.text));

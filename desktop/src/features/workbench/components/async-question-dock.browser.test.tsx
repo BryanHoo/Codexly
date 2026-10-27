@@ -128,3 +128,18 @@ test("keeps a question dismissed when an in-flight answer finishes", async () =>
   await expect.element(screen.getByRole("region", { name: /待回答问题|Pending questions/u })).not.toBeInTheDocument();
   expect(submit).toHaveBeenCalledTimes(1);
 });
+
+test.each(["answer", "dismiss"] as const)("%s 后历史恢复更换原生 ID 也不会重新要求填写", async (action) => {
+  const scope = JSON.stringify(["project", crypto.randomUUID()]);
+  const view = (id: string) => <TooltipProvider>
+    <AsyncQuestionProvider enabled scope={scope} submit={async () => true}>
+      <AsyncQuestionDock taskStore={questionTask([questionItem(id, "选择范围")])} />
+    </AsyncQuestionProvider>
+  </TooltipProvider>;
+  const original = await render(view("live-id"));
+  await original.getByRole("button", { name: action === "answer" ? /发送回答|Send answers/u : /关闭问题|Dismiss questions/u }).click();
+  await expect.element(original.getByRole("region", { name: /待回答问题|Pending questions/u })).not.toBeInTheDocument();
+  await original.unmount();
+  const restored = await render(view("history-id"));
+  await expect.element(restored.getByRole("region", { name: /待回答问题|Pending questions/u })).not.toBeInTheDocument();
+});

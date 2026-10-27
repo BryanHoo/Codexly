@@ -44,3 +44,11 @@ test("ignores delta-only notifications and never materializes streamed bodies", 
   expect(projection.getSnapshot()).toBe(snapshot);
   expect(read).not.toHaveBeenCalled();
 });
+
+test("问题身份跨实时消息和历史快照保持稳定，同文新问题仍有独立身份", () => {
+  const first = collectAsyncQuestions(questionTask([questionItem("live", "范围")]).getState());
+  const restored = collectAsyncQuestions(questionTask([questionItem("history", "范围")]).getState());
+  expect(restored[0]?.key).toBe(first[0]?.key);
+  const repeated = collectAsyncQuestions(questionTask([questionItem("a", "范围"), questionItem("b", "范围")]).getState());
+  expect(repeated[0]?.key).not.toBe(repeated[1]?.key);
+});

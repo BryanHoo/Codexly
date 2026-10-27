@@ -16,8 +16,8 @@ type QuestionDraftState = Readonly<{
   drafts: ReadonlyMap<string, QuestionDraft>;
   dismissedIds: ReadonlySet<string>;
   sentIds: ReadonlySet<string>;
-  dismiss: (id: string) => void;
-  markSent: (id: string) => void;
+  dismiss: (id: string, activityId?: string) => void;
+  markSent: (id: string, activityId?: string) => void;
 }>;
 type QuestionDraftStore = StoreApi<QuestionDraftState>;
 // 仅共享有在途投递的任务；完成后释放引用，不常驻缓存所有历史任务的草稿。
@@ -52,22 +52,22 @@ export function createQuestionDraftStore(scope?: string, storage: QuestionStorag
     drafts: new Map(),
     dismissedIds: readDismissedQuestions(storage, key),
     sentIds: readDismissedQuestions(storage, sentKey),
-    markSent(id) {
+    markSent(id, activityId = id) {
       if (get().sentIds.has(id)) return;
-      const sentIds = new Set(get().sentIds).add(id);
+      const sentIds = new Set(get().sentIds).add(id).add(activityId);
       // 已投递身份独立于草稿淘汰和历史分页；离开任务后旧请求成功也记录原任务。
       set({ sentIds });
-      resolveQuestionActivity(scope, [id]);
+      resolveQuestionActivity(scope, [activityId]);
       if (sentKey !== undefined) {
         try { storage.setItem(sentKey, JSON.stringify([...sentIds])); }
         catch { /* 存储不可用时仍保留当前会话的成功状态。 */ }
       }
     },
-    dismiss(id) {
-      const dismissedIds = new Set(get().dismissedIds).add(id);
+    dismiss(id, activityId = id) {
+      const dismissedIds = new Set(get().dismissedIds).add(id).add(activityId);
       // 关闭记录独立于有界草稿，仅显式关闭时持久化 ID，重开任务仍生效。
       set({ dismissedIds });
-      resolveQuestionActivity(scope, [id]);
+      resolveQuestionActivity(scope, [activityId]);
       if (key !== undefined) {
         try { storage.setItem(key, JSON.stringify([...dismissedIds])); }
         catch { /* 存储不可用时保留当前会话内的关闭结果。 */ }
@@ -100,9 +100,9 @@ export function AsyncQuestionProvider({ children, enabled, submit, scope }: Read
 export const useAsyncQuestionSession = () => useContext(AsyncQuestionContext);
 
 export function saveQuestionDraft(
-  store: ReturnType<typeof createQuestionDraftStore>, id: string, draft: QuestionDraft,
+  store: ReturnType<typeof createQuestionDraftStore>, id: string, draft: QuestionDraft, activityId = id,
 ) {
-  if (draft.status === "sent") store.getState().markSent(id);
+  if (draft.status === "sent") store.getState().markSent(id, activityId);
   store.setState((state) => {
     const drafts = new Map(state.drafts);
     drafts.delete(id);

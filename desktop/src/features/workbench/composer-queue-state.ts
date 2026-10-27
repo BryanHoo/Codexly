@@ -139,10 +139,14 @@ export function hasQueuedPromptReceivedUserMessage(
 
 function isAwaitingSteerFinished(
   prompt: Extract<QueuedComposerPrompt, { status: "awaiting-response" }>,
-  userMessageIds: readonly string[],
+  items: readonly AgentItem[],
   turnStatus: AgentTurn["status"] | undefined,
 ): boolean {
-  return hasPromptDeliveryFinished(prompt.userMessageIds, userMessageIds, turnStatus);
+  return hasPromptDeliveryFinished(prompt.userMessageIds, items, turnStatus, {
+    text: prompt.text,
+    attachmentIds: prompt.files.map(({ id }) => id),
+    skillNames: prompt.skills.map(({ name }) => name),
+  });
 }
 
 export function hasQueuedPromptFinishedInSnapshot(
@@ -153,7 +157,7 @@ export function hasQueuedPromptFinishedInSnapshot(
     return false;
   }
   const turn = snapshot?.turns.find((candidate) => candidate.id === prompt.turnId);
-  return isAwaitingSteerFinished(prompt, getUserMessageIds(turn?.items ?? []), turn?.status);
+  return isAwaitingSteerFinished(prompt, turn?.items ?? [], turn?.status);
 }
 
 export function hasQueuedPromptFinishedInStore(
@@ -165,7 +169,10 @@ export function hasQueuedPromptFinishedInStore(
   }
   return isAwaitingSteerFinished(
     prompt,
-    getTaskStoreUserMessageIds(state, prompt.turnId),
+    (state.itemKeysByTurnId[prompt.turnId] ?? []).flatMap((key) => {
+      const item = state.getItemByKey(key);
+      return item?.type === "message" && item.role === "user" ? [item] : [];
+    }),
     state.turnsById[prompt.turnId]?.status,
   );
 }

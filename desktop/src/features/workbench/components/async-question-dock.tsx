@@ -26,9 +26,9 @@ function QuestionDockContent({ entries, session }: Readonly<{
 }>) {
   const { t } = useTranslation("conversation");
   const pending = useStore(session.store, useShallow((state) =>
-    entries.filter((entry) => !state.sentIds.has(entry.item.id) && !state.dismissedIds.has(entry.item.id))));
+    entries.filter((entry) => !isResolved(entry, state))));
   const resolved = useStore(session.store, useShallow((state) =>
-    entries.filter((entry) => state.sentIds.has(entry.item.id) || state.dismissedIds.has(entry.item.id)).map((entry) => entry.item.id)));
+    entries.filter((entry) => isResolved(entry, state)).map((entry) => entry.item.id)));
   // 历史恢复完成后批量校准原生状态，已关闭或已回答的问题不能因重启重新变成待处理。
   useEffect(() => resolveQuestionActivity(session.scope, resolved), [session.scope, resolved]);
   const [selectedKey, setSelectedKey] = useState<string>();
@@ -58,12 +58,12 @@ function QuestionDockContent({ entries, session }: Readonly<{
         <DockButton icon={collapsed ? ChevronUp : ChevronDown} label={t(collapsed ? "asyncQuestions.expand" : "asyncQuestions.collapse")}
           controls={contentId} expanded={!collapsed} onClick={() => setCollapsed((value) => !value)} />
         <DockButton icon={X} label={t("asyncQuestions.dismiss")}
-          onClick={() => session.store.getState().dismiss(selected.item.id)} />
+          onClick={() => session.store.getState().dismiss(selected.key, selected.item.id)} />
       </div>
       {/* 问答区独立滚动且限制高度，不改变时间线的虚拟滚动容器。 */}
       <div id={contentId} hidden={collapsed} className="max-h-[min(32vh,20rem)] overflow-y-auto overscroll-contain py-2">
         <Suspense fallback={null}>
-          <AsyncQuestions key={selected.key} item={selected.item} />
+          <AsyncQuestions key={selected.key} questionId={selected.key} item={selected.item} />
         </Suspense>
       </div>
     </section>
@@ -88,4 +88,10 @@ function DockButton({ label, disabled, controls, expanded, onClick, icon: Icon }
     </TooltipTrigger>
     <TooltipContent>{label}</TooltipContent>
   </Tooltip>;
+}
+
+/** 兼容旧版按原生 ID 保存的关闭记录，新记录统一按稳定问题身份保存。 */
+function isResolved(entry: QuestionEntry, state: { sentIds: ReadonlySet<string>; dismissedIds: ReadonlySet<string> }): boolean {
+  return [entry.key, entry.item.id, ...(entry.item.identityAliases ?? [])].some((id) =>
+    state.sentIds.has(id) || state.dismissedIds.has(id));
 }

@@ -49,6 +49,8 @@ export function useAsyncQuestions(
     try {
       // Node 在单次事务中批量关闭当前展示的 ID，不影响同时出现的新问题。
       const questions = await codexlyClient.dismissAsyncQuestions(projectId, taskId, ids);
+      // 与回答保持相同的写入屏障，旧的在途查询不能覆盖已经关闭后的集合。
+      await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData(queryKey, questions);
     } catch (error) {
       notifyActionError(error);

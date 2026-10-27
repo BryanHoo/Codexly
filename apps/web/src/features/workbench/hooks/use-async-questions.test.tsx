@@ -1,3 +1,5 @@
+import { QueryClient } from "@tanstack/react-query";
+import type * as ReactQuery from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, expect, test, vi } from "vitest";
 import { useAsyncQuestions } from "./use-async-questions.js";
@@ -16,13 +18,19 @@ const query = vi.hoisted(() => ({
     | undefined,
 }));
 const invalidateQueries = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+let cache = new QueryClient();
 
-vi.mock("@tanstack/react-query", () => ({
+vi.mock("@tanstack/react-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof ReactQuery>()),
   useQuery: (options: NonNullable<typeof query.options>) => {
     query.options = options;
     return { data: undefined, error: query.error };
   },
-  useQueryClient: () => ({ invalidateQueries }),
+  useQueryClient: () => ({
+    invalidateQueries,
+    cancelQueries: cache.cancelQueries.bind(cache),
+    setQueryData: cache.setQueryData.bind(cache),
+  }),
 }));
 vi.mock("../../notifications/action-notifications.js", () => ({ notifyActionError: vi.fn() }));
 vi.mock("../../notifications/use-action-error-toast.js", () => ({ useActionErrorToast: vi.fn() }));
@@ -39,6 +47,8 @@ function renderQuestions(taskId: string | undefined, isTaskRunning = false) {
 }
 
 beforeEach(() => {
+  cache.clear();
+  cache = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   query.error = null;
   vi.mocked(notifyActionError).mockClear();
   vi.mocked(useActionErrorToast).mockClear();
@@ -83,4 +93,24 @@ test("answer failure uses a toast and keeps the failure available to the form", 
   await expect(renderQuestions("task-a").answer("question-a", ["answer"])).rejects.toBe(error);
   expect(notifyActionError).toHaveBeenCalledWith(error);
   expect(invalidateQueries).toHaveBeenCalledOnce();
+});
+
+test("关闭成功后取消在途旧查询，防止问题重新出现", async () => {
+  const queryKey = ["async-questions", "project-a", "task-a"];
+  cache.setQueryData(queryKey, { data: [] });
+  let finish!: (value: { data: { id: string }[] }) => void;
+  const refresh = cache
+    .fetchQuery({
+      queryKey,
+      queryFn: () =>
+        new Promise<{ data: { id: string }[] }>((resolve) => {
+          finish = resolve;
+        }),
+    })
+    .catch(() => undefined);
+  vi.spyOn(codexlyClient, "dismissAsyncQuestions").mockResolvedValueOnce({ data: [] });
+  await renderQuestions("task-a").dismiss(["question-a"]);
+  finish({ data: [{ id: "question-a" }] });
+  await refresh;
+  expect(cache.getQueryData(queryKey)).toEqual({ data: [] });
 });

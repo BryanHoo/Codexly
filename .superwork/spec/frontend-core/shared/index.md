@@ -33,3 +33,11 @@
 - 两端仅将完整助手问题消息投影为待回答通知和任务活动；普通消息及 Token 增量直接跳过。每组新问题独立提醒，事件重放须去重。
 - 待回答与待审批分开显示，任务可以继续执行；聚焦任务仅确认通知已读，不解除尚未处理的问题。成功回答或显式关闭只解除对应问题，其他问题和审批保持等待。
 - 复用既有全局活动订阅和有界通知去重，不新增轮询或逐 Token 历史扫描。验证覆盖共享通知存储、两端任务状态、Web 问答 API 与桌面原生活动/系统通知。
+
+## 异步回答与引导的投递确认
+
+- 两端复用 `prompt-delivery.ts`：发送前记录已有用户消息，只有新到达且正文、附件 ID 与技能名称均匹配本次输入的用户消息，或对应回合进入权威终态，才解除等待。无关用户消息和旧消息的身份别名不能充当回执；事件先于 HTTP / IPC 回执到达时不再创建重复占位。
+- 异步问题的本地处理身份由回合、完整问题及选项和同文出现次序确定，不绑定可能重建的原生消息 ID。已回答、已关闭与在途草稿均使用稳定身份；原生活动通知仍使用原生 ID，并兼容旧版原生 ID 记录。真正再次提出的同文问题保持独立。
+- Web 回答或关闭成功后，先取消在途问题查询，再写入最新集合，避免较晚返回的旧查询复活问题。持久回答补回历史时，只在对应问题与下一次同文提问之间识别原生回执，不复用后一次回答。
+- 回归入口：共享 `prompt-delivery.test.ts`、两端 `composer-queue-state.test.ts`、Web `use-async-questions.test.tsx`、Core `async-question.test.ts` 及桌面 `async-question-projection.test.ts`、`async-question-dock.browser.test.tsx`。聊天流式连续性继续由 Web `app-shell-async-questions.spec.ts` / `app-shell-runtime-queue.spec.ts` 与桌面 `task-timeline-running.browser.test.tsx` 验证。
+- 官方语义依据：[Codex App Server](https://learn.chatgpt.com/docs/app-server) 的 `turn/steer` 与消息生命周期，以及 [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) 的查询取消与缓存写入约定。异步问题属于消息，不转换为阻塞式 `requestUserInput` 审批请求。

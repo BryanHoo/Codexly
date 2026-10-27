@@ -11,13 +11,13 @@ import {
 
 type MessageItem = Extract<AgentItem, { type: "message" }>;
 
-export function AsyncQuestions({ item }: Readonly<{ item: MessageItem }>) {
+export function AsyncQuestions({ item, questionId = item.id }: Readonly<{ item: MessageItem; questionId?: string }>) {
   const { t } = useTranslation("conversation");
   const session = useAsyncQuestionSession();
   const [fallbackStore] = useState(createQuestionDraftStore);
   const store = session?.store ?? fallbackStore;
-  const draft = useStore(store, (state) => state.drafts.get(item.id));
-  const sent = useStore(store, (state) => state.sentIds.has(item.id));
+  const draft = useStore(store, (state) => state.drafts.get(questionId));
+  const sent = useStore(store, (state) => state.sentIds.has(questionId));
   const [initial] = useState<QuestionDraft>(() => ({
     answers: (item.questions ?? []).map((question) => ({
       choice: question.options === null ? null : 0, text: "",
@@ -34,20 +34,20 @@ export function AsyncQuestions({ item }: Readonly<{ item: MessageItem }>) {
   const text = questions.map((question, index) => `${question.title}\n${answerTexts[index]}`).join("\n\n");
   const valid = answerTexts.every((answer) => answer.length > 0) && text.length <= 100_000;
   const update = (index: number, patch: Partial<QuestionDraft["answers"][number]>) => {
-    saveQuestionDraft(store, item.id, {
+    saveQuestionDraft(store, questionId, {
       ...current, error: false,
       answers: current.answers.map((answer, position) => position === index ? { ...answer, ...patch } : answer),
-    });
+    }, item.id);
   };
   const submit = async () => {
-    const status = store.getState().drafts.get(item.id)?.status ?? "editing";
-    if (!valid || session?.enabled !== true || store.getState().sentIds.has(item.id) || status !== "editing") return;
-    saveQuestionDraft(store, item.id, { ...current, status: "sending", error: false });
+    const status = store.getState().drafts.get(questionId)?.status ?? "editing";
+    if (!valid || session?.enabled !== true || store.getState().sentIds.has(questionId) || status !== "editing") return;
+    saveQuestionDraft(store, questionId, { ...current, status: "sending", error: false }, item.id);
     let accepted = false;
     try { accepted = await session.submit(text); } catch { /* 失败保留草稿，允许用户重试。 */ }
-    saveQuestionDraft(store, item.id, {
+    saveQuestionDraft(store, questionId, {
       ...current, status: accepted ? "sent" : "editing", error: !accepted,
-    });
+    }, item.id);
   };
   return <form className="min-w-0 space-y-4 border-l-2 border-brand pl-3" onSubmit={(event) => {
     event.preventDefault();

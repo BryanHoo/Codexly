@@ -111,5 +111,33 @@ describe("async question domain", () => {
     expect(restored.turns[0]?.items).toEqual([message, { ...answer, id: "persisted-answer" }]);
     const nativeSnapshot = { ...snapshot, turns: [{ ...turn, items: [message, answer] }] };
     expect(restoreAsyncQuestionAnswers(nativeSnapshot, [record])).toBe(nativeSnapshot);
+
+    // 两次同文提问各有一次回答，后一条原生回答不能冒充前一条的回执。
+    const repeatedTurn = {
+      ...turn,
+      items: [message, { ...message, id: "second-question" }, answer],
+    };
+    const secondGroup = collectQuestionGroups([repeatedTurn], identity)[1];
+    if (secondGroup === undefined || record.result === undefined)
+      throw new Error("Missing answer fixture");
+    const secondRecord: AsyncQuestionRecord = {
+      group: { ...secondGroup, status: "answered" },
+      result: {
+        ...record.result,
+        messageId: "second-answer",
+        question: { ...secondGroup, status: "answered" },
+      },
+    };
+    const repeated = restoreAsyncQuestionAnswers({ ...snapshot, turns: [repeatedTurn] }, [
+      record,
+      secondRecord,
+    ]);
+    expect(repeated.turns[0]?.items).toEqual([
+      message,
+      { ...answer, id: "persisted-answer" },
+      { ...message, id: "second-question" },
+      answer,
+    ]);
+    expect(restoreAsyncQuestionAnswers(repeated, [record, secondRecord])).toBe(repeated);
   });
 });
