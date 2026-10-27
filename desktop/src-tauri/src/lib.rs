@@ -84,6 +84,7 @@ use application::{
         read_project_text_file, read_project_text_file_revision, save_project_text_file,
     },
     tray_commands::setup_tray,
+    tray_visibility_commands::{get_tray_icon_visible, set_tray_icon_visible},
     workflow_commands::{
         add_queued_submission, clear_task_goal, delete_queued_submission,
         list_background_terminals, list_queued_submissions, move_queued_submission,
@@ -180,6 +181,8 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             enable_autostart,
+            get_tray_icon_visible,
+            set_tray_icon_visible,
             open_task_window,
             connect_task_window,
             acknowledge_task_window,

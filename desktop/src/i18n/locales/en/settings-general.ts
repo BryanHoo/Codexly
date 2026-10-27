@@ -1,4 +1,7 @@
 export const generalSettings = {
+    trayIcon: "Show status bar icon",
+    trayIconDescription: "Show the Codexly icon in the system status bar or tray.",
+    trayIconLoadError: "Unable to read status bar icon visibility.",
     autostart: "Launch at login",
     autostartDescription: "Automatically start Codexly when you log in to your computer.",
     autostartLoadError: "Unable to read launch at login status.",

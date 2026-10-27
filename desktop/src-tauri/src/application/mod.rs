@@ -83,6 +83,7 @@ pub mod text_file_commands;
 pub mod tray_commands;
 #[cfg(test)]
 mod tray_commands_tests;
+pub(crate) mod tray_visibility_commands;
 mod turn_start;
 mod turn_waiters;
 pub mod workflow_commands;

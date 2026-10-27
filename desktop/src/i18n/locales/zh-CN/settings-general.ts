@@ -1,4 +1,7 @@
 export const generalSettings = {
+    trayIcon: "显示状态栏图标",
+    trayIconDescription: "在系统状态栏或托盘中显示 Codexly 图标。",
+    trayIconLoadError: "无法读取状态栏图标显示设置。",
     autostart: "开机启动",
     autostartDescription: "登录系统后自动启动 Codexly。",
     autostartLoadError: "无法读取开机启动状态。",

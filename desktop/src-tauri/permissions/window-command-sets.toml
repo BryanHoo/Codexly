@@ -8,6 +8,8 @@ permissions = [
   "allow-prepare-claude-runtime",
   "allow-get-configured-engines",
   "allow-enable-autostart",
+  "allow-get-tray-icon-visible",
+  "allow-set-tray-icon-visible",
   "allow-open-task-window",
   "allow-connect-project-terminals",
   "allow-create-project-terminal",

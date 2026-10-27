@@ -19,6 +19,7 @@ pub mod task_settings;
 pub mod temporary_task_storage;
 pub mod temporary_workspace;
 pub mod temporary_workspace_settings;
+pub mod tray_settings;
 pub mod workspace;
 
 #[cfg(test)]

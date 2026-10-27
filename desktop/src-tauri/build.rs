@@ -22,6 +22,8 @@ fn main() {
     let app_manifest = tauri_build::AppManifest::new().commands(&[
         "save_conversation_export",
         "enable_autostart",
+        "get_tray_icon_visible",
+        "set_tray_icon_visible",
         "open_task_window",
         "connect_task_window",
         "acknowledge_task_window",

@@ -69,7 +69,16 @@ pub(crate) fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         tray = tray.icon(icon.clone());
     }
     tray.build(app)?;
+    super::tray_visibility_commands::initialize_tray_visibility(app)?;
     Ok(())
+}
+
+pub(super) fn set_tray_visible(app: &AppHandle, visible: bool) -> Result<(), AppError> {
+    // 只调整原生显示，保留托盘对象及其任务更新链路，窗口关闭仍沿用最小化到托盘。
+    app.tray_by_id(TRAY_ICON_ID)
+        .ok_or(AppError::TrayOperationFailed)?
+        .set_visible(visible)
+        .map_err(|_| AppError::TrayOperationFailed)
 }
 
 pub(super) fn render_tray_task_activities(
