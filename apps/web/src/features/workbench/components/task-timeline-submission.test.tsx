@@ -10,6 +10,82 @@ import {
 } from "./task-timeline.test-support.js";
 
 describe("task timeline submission", () => {
+  it.each([false, true])(
+    "keeps exactly one running indicator after follow-up input (async answer: %s)",
+    (asyncAnswer) => {
+      // 同一运行回合追加用户输入后，即使还没有新的助手输出，尾部也必须保留运行提示。
+      for (const stage of [
+        "before-input",
+        "awaiting-output",
+        "assistant-resumed",
+        "completed",
+        "failed",
+        "interrupted",
+      ] as const) {
+        const finished = stage === "completed" || stage === "failed" || stage === "interrupted";
+        const turn: RuntimeTaskSnapshot["turns"][number] = {
+          ...completedTurn,
+          status: finished ? stage : "running",
+          completedAt: finished ? completedTurn.completedAt : null,
+          items: [
+            { id: "initial", type: "message", role: "user", text: "执行任务" },
+            {
+              id: "previous-output",
+              type: "message",
+              role: "assistant",
+              text: "正在处理",
+              ...(asyncAnswer ? { questions: [{ title: "选择执行方式", options: ["继续"] }] } : {}),
+            },
+            ...(stage === "before-input"
+              ? []
+              : [
+                  {
+                    id: "follow-up",
+                    type: "message" as const,
+                    role: "user" as const,
+                    text: asyncAnswer ? "选择继续" : "补充执行要求",
+                  },
+                ]),
+            ...(stage === "assistant-resumed"
+              ? [
+                  {
+                    id: "resumed-output",
+                    type: "message" as const,
+                    role: "assistant" as const,
+                    text: "继续执行",
+                  },
+                ]
+              : []),
+          ],
+        };
+        const store = createTaskStore(
+          { projectId: snapshot.projectId, taskId: snapshot.id },
+          {
+            checkpoint: { sequence: 1, sessionId: "follow-up" },
+            snapshot: { ...snapshot, status: finished ? "idle" : "running", turns: [turn] },
+          },
+        );
+        const markup = renderToStaticMarkup(
+          <TaskTimeline
+            projectId={snapshot.projectId}
+            taskId={snapshot.id}
+            runtime={{
+              ...unpaginatedRuntime,
+              connectionState: "connected",
+              error: null,
+              isPending: false,
+              store,
+            }}
+          />,
+        );
+        expect(markup.match(/aria-label="AI 回复正在运行"/gu) ?? [], stage).toHaveLength(
+          finished ? 0 : 1,
+        );
+        expect(markup.match(/data-turn-processing-time=""/gu) ?? [], stage).toHaveLength(1);
+      }
+    },
+  );
+
   it("shows a pending user prompt before the response and avoids duplication after the user item", () => {
     const pendingPrompt = { files: [], skills: [], text: "待发送消息" };
     const emptyStore = createTaskStore(

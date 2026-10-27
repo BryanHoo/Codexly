@@ -163,13 +163,19 @@ export function StoreTurnTimelineSection({
           />
         ),
       )}
-      {turn.status === "running" && !hasAssistantItems && !suppressEmptyRunningStatus ? (
+      {/* 引导或问答答案会让用户消息成为尾组；运行提示应接在该消息后，不能依赖历史助手组是否存在。 */}
+      {turn.status === "running" &&
+      timelineGroups.at(-1)?.type !== "assistant" &&
+      !suppressEmptyRunningStatus ? (
         <Message from="assistant">
-          <TurnProcessingTime
-            status={turn.status}
-            completedAt={turn.completedAt}
-            startedAt={turn.startedAt}
-          />
+          {/* 已有助手组承载回合计时，尾部补位只显示运行提示，避免重复计时。 */}
+          {!hasAssistantItems ? (
+            <TurnProcessingTime
+              status={turn.status}
+              completedAt={turn.completedAt}
+              startedAt={turn.startedAt}
+            />
+          ) : null}
           <div className="w-full space-y-4">
             <RunningReplyStatus />
           </div>

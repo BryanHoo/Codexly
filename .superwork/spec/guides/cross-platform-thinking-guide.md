@@ -13,6 +13,7 @@
 - 对话历史和重型面板按需加载，缓存与队列保持有界；避免逐 token 全量复制、全量重新解析或无消费者后台工作。
 - Server 的 `better-sqlite3` 同步操作在独立 Worker 执行，避免阻塞 Fastify 主线程。传输保持增量与背压，组件优先复用共享增量渲染实现。
 - 不猜测数值预算。根性能门槛见 `vitest.performance.config.ts`、`tools/verify-web-bundle.mjs`；桌面预算见 `desktop/scripts/performance-budget.mjs` 和 `desktop/benchmarks`。
+- 运行回合追加引导或异步问答答案后，最后一组可能是用户消息；两端时间线必须在其后持续显示唯一运行提示，直到新助手组接管或回合结束，不能用“历史中已有助手组”抑制尾部提示。补位不得重复显示回合计时，也不新增轮询或状态延时。回归入口为 Web 的 `task-timeline-submission.test.tsx`、`app-shell-async-questions.spec.ts`、`app-shell-runtime-queue.spec.ts` 及桌面的 `task-timeline-running.browser.test.tsx`。
 
 ## 检查项
 

@@ -219,7 +219,7 @@ test("queues follow-up messages and can steer or cancel them during an active tu
   expect(queueReadQueries.every((query) => query === "")).toBe(true);
 });
 
-test("keeps a direct steer above the composer until its streamed message appears", async ({
+test("keeps a direct steer above the composer until its streamed message appears @cross-browser", async ({
   page,
 }) => {
   await page.unroute("**/v1/**");
@@ -245,6 +245,10 @@ test("keeps a direct steer above the composer until its streamed message appears
   await expect(page.getByRole("button", { name: "编辑排队消息：直接补充失败测试" })).toHaveCount(0);
   await expect(page.getByRole("status", { name: "等待发送" })).toHaveCount(0);
   await expect(page.getByText("直接补充失败测试", { exact: true })).toHaveCount(1);
+  // 引导消息进入时间线后仍属于当前运行回合，不能等下一段助手输出才恢复运行标识。
+  const running = page.getByLabel("AI 回复正在运行", { exact: true });
+  await expect(running).toHaveCount(1);
+  await expect(running).toBeVisible();
 });
 
 test("submits a prompt and streams the completed reply @cross-browser", async ({ page }) => {

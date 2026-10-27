@@ -45,7 +45,7 @@ for (const viewport of [
   { width: 1280, height: 900 },
   { width: 390, height: 844 },
 ]) {
-  test(`answers asynchronous questions while running at ${String(viewport.width)}px`, async ({
+  test(`answers asynchronous questions while running at ${String(viewport.width)}px @cross-browser`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize(viewport);
@@ -155,6 +155,10 @@ for (const viewport of [
     await expect(dock.getByRole("textbox", { name: "回答：补充要求" })).toHaveValue("保留测试");
     await dock.getByRole("button", { name: "发送回答" }).click();
     await expect(dock).toHaveCount(0);
+    // 回答已成为运行回合中的用户消息，下一段助手输出尚未到达时仍要保持唯一运行提示。
+    const running = page.getByLabel("AI 回复正在运行", { exact: true });
+    await expect(running).toHaveCount(1);
+    await expect(running).toBeVisible();
     expect(submitted).toHaveLength(2);
     expect(submitted[1]).toMatchObject({
       answers: ["整个项目", "保留测试"],
