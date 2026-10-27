@@ -134,14 +134,15 @@ export class SqliteStateRepository
 
   public setQueueExecution(
     record: AgentQueueRecord,
-    execution: NonNullable<AgentQueueRecord["execution"]>,
+    execution: NonNullable<AgentQueueRecord["execution"]> | null,
   ): Promise<boolean> {
     return this.#call("setTaskQueueExecution", {
       projectId: record.projectId,
       taskId: record.taskId,
       id: record.id,
-      executionJson: JSON.stringify(execution),
-      claim: execution.state === "starting",
+      executionJson: execution === null ? null : JSON.stringify(execution),
+      claim: execution?.state === "starting",
+      reset: execution === null,
     });
   }
 

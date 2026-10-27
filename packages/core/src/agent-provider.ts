@@ -56,6 +56,14 @@ import type {
   TaskSearchQuery,
 } from "@codexly/protocol";
 
+/** Provider 明确保证本次输入未提交；断线、超时或响应解析失败不得转换为此错误。 */
+export class AgentTurnNotSubmittedError extends Error {
+  public constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "AgentTurnNotSubmittedError";
+  }
+}
+
 export type WorkbenchPetAsset = Readonly<{
   content: Uint8Array;
   contentType: "image/png" | "image/webp";

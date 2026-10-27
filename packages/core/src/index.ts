@@ -7,6 +7,7 @@ export {
 } from "./catalog-search.js";
 export { searchTextMatches, searchTextSnippet } from "./search-text.js";
 export {
+  AgentTurnNotSubmittedError,
   type AgentCancellationSignal,
   type AgentModelCatalogFallback,
   type AgentFileSearchInput,

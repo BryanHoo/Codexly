@@ -6,6 +6,40 @@ import {
 } from "./sqlite-state-repository.test-support.js";
 
 describe("SQLite queue execution", () => {
+  it("persists rejection rollback and never clears an accepted result", async () => {
+    const root = await createWorkspace();
+    const repository = await openRepository(root);
+    const record = await repository.addQueue({
+      clientUserMessageId: "message",
+      id: "queue",
+      projectId: "temporary",
+      taskId: "task",
+      status: "queued",
+      input: { attachments: [], skills: [], text: "Run", type: "prompt" },
+    });
+    expect(await repository.setQueueExecution(record, { state: "starting" })).toBe(true);
+    expect(await repository.setQueueExecution(record, null)).toBe(true);
+    await repository.close();
+    repositories.splice(repositories.indexOf(repository), 1);
+    const reopened = await openRepository(root);
+    expect((await reopened.listQueue("temporary", "task"))[0]?.execution).toBeUndefined();
+    expect(await reopened.setQueueExecution(record, { state: "starting" })).toBe(true);
+    const execution = {
+      state: "started" as const,
+      turn: {
+        id: "accepted-turn",
+        status: "running" as const,
+        items: [],
+        error: null,
+        startedAt: null,
+        completedAt: null,
+      },
+    };
+    await reopened.setQueueExecution(record, execution);
+    expect(await reopened.setQueueExecution(record, null)).toBe(false);
+    expect((await reopened.listQueue("temporary", "task"))[0]?.execution).toEqual(execution);
+  });
+
   it("persists an atomic claim and its launch result across restarts", async () => {
     const root = await createWorkspace();
     const repository = await openRepository(root);

@@ -20,16 +20,20 @@ export function createQueueRepository() {
   const key = (projectId: string, taskId: string) => `${projectId}\u0000${taskId}`;
   return {
     setQueueExecution: vi.fn(
-      (record: AgentQueueRecord, execution: NonNullable<AgentQueueRecord["execution"]>) => {
+      (record: AgentQueueRecord, execution: NonNullable<AgentQueueRecord["execution"]> | null) => {
         const queue = records.get(key(record.projectId, record.taskId)) ?? [];
         const index = queue.findIndex((item) => item.id === record.id);
         const current = queue[index];
         if (
           current === undefined ||
-          (execution.state === "starting" && current.execution !== undefined)
+          (execution?.state === "starting" && current.execution !== undefined) ||
+          (execution === null && current.execution?.state !== "starting")
         )
           return Promise.resolve(false);
-        queue[index] = { ...current, execution };
+        const updated = { ...current };
+        if (execution === null) delete updated.execution;
+        else updated.execution = execution;
+        queue[index] = updated;
         return Promise.resolve(true);
       },
     ),

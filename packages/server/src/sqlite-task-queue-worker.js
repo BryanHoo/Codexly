@@ -57,6 +57,7 @@ export function createTaskQueueOperations(database) {
         UPDATE task_queue SET execution_json = ?
         WHERE project_id = ? AND task_id = ? AND id = ?
           AND (? = 0 OR (execution_json IS NULL AND status = 'queued'))
+          AND (? = 0 OR json_extract(execution_json, '$.state') = 'starting')
       `),
     };
     return statements;
@@ -72,6 +73,7 @@ export function createTaskQueueOperations(database) {
           payload.taskId,
           payload.id,
           payload.claim ? 1 : 0,
+          payload.reset ? 1 : 0,
         ).changes > 0
       );
     },

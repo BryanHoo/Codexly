@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { AgentTurnNotSubmittedError } from "@codexly/core";
 import { createHarness, snapshot } from "./app-all.test-support.js";
 
 const base = "/v1/projects/codexly/tasks/task-1/queue";
@@ -131,4 +132,42 @@ test("enforces the editing barrier before steering", async () => {
   expect(blocked.statusCode).toBe(409);
   expect(steerTurn).not.toHaveBeenCalled();
   expect(startTurn).not.toHaveBeenCalled();
+});
+
+test("recovers a rejected queue steer and replays acceptance without consuming the next item", async () => {
+  const { app, readTask, steerTurn, startTurn } = await createHarness();
+  const latest = { ...running, id: "latest-turn" };
+  readTask.mockResolvedValue({ ...snapshot, turns: [running] });
+  const ids: string[] = [];
+  for (const key of ["first-race", "second-race"]) {
+    const response = await app.inject({
+      method: "POST",
+      url: base,
+      headers: { "idempotency-key": key },
+      payload: { input, clientUserMessageId: key },
+    });
+    expect(response.statusCode).toBe(201);
+    ids.push(response.json<{ queuedSubmission: { id: string } }>().queuedSubmission.id);
+  }
+  steerTurn.mockImplementationOnce(() => {
+    readTask.mockResolvedValue({ ...snapshot, turns: [running, latest] });
+    return Promise.reject(new AgentTurnNotSubmittedError("expected active turn id changed"));
+  });
+  const request = {
+    method: "POST" as const,
+    url: `${base}/start`,
+    headers: { "idempotency-key": "race-dispatch" },
+    payload: { queuedSubmissionId: ids[0] },
+  };
+  const [first, concurrent] = await Promise.all([app.inject(request), app.inject(request)]);
+  expect(first.statusCode).toBe(201);
+  expect(first.json()).toMatchObject({ turn: latest, queue: { data: [{ id: ids[1] }] } });
+  expect(concurrent.json()).toEqual(first.json());
+  expect((await app.inject(request)).json()).toEqual(first.json());
+  expect(steerTurn).toHaveBeenCalledTimes(2);
+  expect(steerTurn.mock.calls.map((call) => call[1])).toEqual([running.id, latest.id]);
+  expect(startTurn).not.toHaveBeenCalled();
+  expect((await app.inject({ method: "GET", url: base })).json()).toMatchObject({
+    data: [{ id: ids[1] }],
+  });
 });

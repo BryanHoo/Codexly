@@ -10,10 +10,14 @@ export function createMemoryTaskQueueRepository(): AgentQueueRepository {
       const current = queue[index];
       if (
         current === undefined ||
-        (execution.state === "starting" && current.execution !== undefined)
+        (execution?.state === "starting" && current.execution !== undefined) ||
+        (execution === null && current.execution?.state !== "starting")
       )
         return Promise.resolve(false);
-      queue[index] = { ...current, execution };
+      const updated = { ...current };
+      if (execution === null) delete updated.execution;
+      else updated.execution = execution;
+      queue[index] = updated;
       return Promise.resolve(true);
     },
     addQueue(record) {

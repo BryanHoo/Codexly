@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { AgentTurnNotSubmittedError } from "@codexly/core";
 import { AgentEventStream } from "./agent-event-stream.js";
 import { AttachmentStore } from "./attachment-store.js";
 import { createProvider } from "./app-provider.test-support.js";
@@ -107,6 +108,106 @@ describe("resuming an edited queue", () => {
 });
 
 describe("server-owned queue dispatch", () => {
+  it("steers the newest running turn when history retains an older unfinished turn", async () => {
+    const { runtime, createQueue, readTask, steerTurn, startTurn } = setup();
+    const latest = { ...runningTurn, id: "latest-turn" };
+    readTask.mockResolvedValue({ ...snapshot, turns: [runningTurn, latest] });
+    const queue = createQueue();
+    const item = await queue.add(runtime, prompt, "message");
+    await expect(queue.start(runtime, item.id)).resolves.toEqual(latest);
+    expect(steerTurn).toHaveBeenCalledExactlyOnceWith(
+      "task-1",
+      latest.id,
+      expect.objectContaining({ text: "Run" }),
+    );
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it.each(["running", "completed"])(
+    "refreshes a rejected steer and dispatches once when the task becomes %s",
+    async (status) => {
+      const { runtime, createQueue, readTask, steerTurn, startTurn, repository } = setup();
+      const next = { ...runningTurn, id: "next-turn" };
+      readTask.mockResolvedValue({ ...snapshot, turns: [runningTurn] });
+      steerTurn.mockImplementationOnce(() => {
+        readTask.mockResolvedValue({ ...snapshot, turns: status === "running" ? [next] : [] });
+        return Promise.reject(new AgentTurnNotSubmittedError("turn changed before submission"));
+      });
+      const queue = createQueue();
+      const item = await queue.add(runtime, prompt, "message");
+      await expect(queue.start(runtime, item.id)).resolves.toMatchObject({
+        id: status === "running" ? "next-turn" : "turn-1",
+      });
+      expect(steerTurn).toHaveBeenCalledTimes(status === "running" ? 2 : 1);
+      expect(startTurn).toHaveBeenCalledTimes(status === "running" ? 0 : 1);
+      expect(await repository.listQueue("temporary", "task-1")).toEqual([]);
+    },
+  );
+
+  it("leaves repeatedly rejected messages editable and retryable after restart", async () => {
+    const { runtime, createQueue, readTask, steerTurn, startTurn, repository } = setup();
+    readTask.mockResolvedValue({ ...snapshot, turns: [runningTurn] });
+    const rejection = new AgentTurnNotSubmittedError("no active turn to steer");
+    steerTurn.mockRejectedValue(rejection);
+    const queue = createQueue();
+    const item = await queue.add(runtime, prompt, "message");
+    await expect(queue.start(runtime, item.id)).rejects.toBe(rejection);
+    expect(steerTurn).toHaveBeenCalledTimes(2);
+    expect((await repository.listQueue("temporary", "task-1"))[0]?.execution).toBeUndefined();
+    const restored = createQueue();
+    await restored.update(runtime, item.id, { ...prompt, text: "修订消息" }, "editing");
+    await restored.update(runtime, item.id, { ...prompt, text: "修订消息" }, "queued");
+    readTask.mockResolvedValue(snapshot);
+    await restored.start(runtime, item.id);
+    expect(startTurn).toHaveBeenCalledExactlyOnceWith(
+      "task-1",
+      expect.objectContaining({ text: "修订消息" }),
+      turnOptions,
+    );
+  });
+
+  it("does not retarget an explicitly bound steer after rejection", async () => {
+    const { runtime, createQueue, readTask, steerTurn, startTurn, repository } = setup();
+    readTask.mockResolvedValue({ ...snapshot, turns: [runningTurn] });
+    const rejection = new AgentTurnNotSubmittedError("turn changed");
+    steerTurn.mockRejectedValueOnce(rejection);
+    const queue = createQueue();
+    const item = await queue.add(runtime, prompt, "message");
+    await expect(queue.start(runtime, item.id, runningTurn.id)).rejects.toBe(rejection);
+    expect(steerTurn).toHaveBeenCalledOnce();
+    expect(startTurn).not.toHaveBeenCalled();
+    expect((await repository.listQueue("temporary", "task-1"))[0]?.execution).toBeUndefined();
+  });
+
+  it("keeps the claim when a retry has an unknown result", async () => {
+    const { runtime, createQueue, readTask, steerTurn, startTurn } = setup();
+    readTask.mockResolvedValue({ ...snapshot, turns: [runningTurn] });
+    steerTurn
+      .mockRejectedValueOnce(new AgentTurnNotSubmittedError("turn changed"))
+      .mockRejectedValueOnce(new Error("response lost"));
+    const queue = createQueue();
+    const item = await queue.add(runtime, prompt, "message");
+    await expect(queue.start(runtime, item.id)).rejects.toThrow("response lost");
+    await expect(createQueue().start(runtime, item.id)).rejects.toThrow("blocked");
+    expect(steerTurn).toHaveBeenCalledTimes(2);
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("does not resend when persisting a confirmed rejection fails", async () => {
+    const { runtime, createQueue, readTask, steerTurn, repository } = setup();
+    readTask.mockResolvedValue({ ...snapshot, turns: [runningTurn] });
+    steerTurn.mockRejectedValueOnce(new AgentTurnNotSubmittedError("turn changed"));
+    const queue = createQueue();
+    const item = await queue.add(runtime, prompt, "message");
+    const write = repository.setQueueExecution.bind(repository);
+    vi.spyOn(repository, "setQueueExecution")
+      .mockImplementationOnce(write)
+      .mockRejectedValueOnce(new Error("reset failed"));
+    await expect(queue.start(runtime, item.id)).rejects.toThrow("reset failed");
+    await expect(createQueue().start(runtime, item.id)).rejects.toThrow("blocked");
+    expect(steerTurn).toHaveBeenCalledOnce();
+  });
+
   it("does not dispatch an enqueue before its attachments are retained", async () => {
     const { runtime, createQueue, attachmentStore, startTurn } = setup();
     let release!: () => void;

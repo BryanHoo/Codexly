@@ -25,9 +25,10 @@ export type AgentQueueRecord = Readonly<{
 
 export interface AgentQueueRepository {
   // starting 仅允许从未执行记录原子占用；started 用于恢复成功结果和清理。
+  // null 只在 Provider 明确未提交时回退 starting，不能清除已接受的 started 结果。
   setQueueExecution(
     record: AgentQueueRecord,
-    execution: NonNullable<AgentQueueRecord["execution"]>,
+    execution: NonNullable<AgentQueueRecord["execution"]> | null,
   ): Promise<boolean>;
   addQueue(record: AgentQueueRecord): Promise<AgentQueueRecord>;
   deleteQueue(projectId: string, taskId: string, queuedSubmissionId: string): Promise<boolean>;

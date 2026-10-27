@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { AgentTurnNotSubmittedError } from "./agent-provider.js";
 
 import type {
   AgentProvider,
@@ -255,6 +256,7 @@ export class PersistentTaskQueue {
     queuedSubmissionId?: string,
     allowSteer = true,
     expectedTurnId?: string,
+    retryRejectedSteer = true,
   ): Promise<AgentTurn | undefined> {
     const records = await this.#repository.listQueue(runtime.projectId, runtime.taskId);
     const selectedIndex =
@@ -274,7 +276,8 @@ export class PersistentTaskQueue {
     // Provider 响应丢失时执行结果未知，不能重新投递；持久标记在重启后仍阻止重复执行。
     if (selected.execution !== undefined) throw new TaskQueueBlockedError();
     const task = await runtime.provider.readTask(runtime.taskId);
-    const running = task?.turns.find((turn) => turn.status === "running");
+    // 历史按时间升序排列；旧会话可能残留未完成标记，活动目标与两端输入框一致取最新回合。
+    const running = task?.turns.findLast((turn) => turn.status === "running");
     // 从队列引导也必须绑定调用时的回合，不能把迟到请求投递到后来启动的回合。
     if (expectedTurnId !== undefined && running?.id !== expectedTurnId)
       throw new TaskQueueBlockedError();
@@ -294,8 +297,22 @@ export class PersistentTaskQueue {
     }
     let turn: AgentTurn;
     if (running !== undefined) {
-      // steer 失败可能已被 Provider 接收，保留执行标记，禁止回退 start 或重新发送。
-      await runtime.provider.steerTurn(runtime.taskId, running.id, providerInput);
+      try {
+        await runtime.provider.steerTurn(runtime.taskId, running.id, providerInput);
+      } catch (error) {
+        // 只有明确未提交才能释放占用；断线、超时等未知结果继续阻塞，避免重复发送。
+        if (!(error instanceof AgentTurnNotSubmittedError)) throw error;
+        if (!(await this.#repository.setQueueExecution(selected, null))) {
+          throw new TaskQueueBlockedError();
+        }
+        this.#publishChanged(runtime);
+        // “立即发送”没有绑定旧回合，允许在任务锁内刷新一次并重新选择 start/steer。
+        // 显式回合引导不能跨回合投递；再次被拒绝仍恢复队列，不进行无限重试。
+        if (expectedTurnId === undefined && retryRejectedSteer) {
+          return this.#startUnlocked(runtime, selected.id, allowSteer, undefined, false);
+        }
+        throw error;
+      }
       turn = running;
     } else {
       turn = await runtime.provider.startTurn(runtime.taskId, providerInput, settings);

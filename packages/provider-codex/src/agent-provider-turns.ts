@@ -35,6 +35,7 @@ import { CodexAgentProviderQueue } from "./agent-provider-queue.js";
 import { mapCodexGoal } from "./codex-goal-mapping.js";
 import { mapCodexTurnSettings } from "./codex-turn-settings.js";
 import { interruptCodexTurn } from "./codex-turn-interrupt.js";
+import { steerCodexTurn } from "./codex-turn-steer.js";
 
 export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   public async startTask(options: StartAgentTaskOptions = {}): Promise<AgentTask> {
@@ -223,17 +224,7 @@ export abstract class CodexAgentProviderTurns extends CodexAgentProviderQueue {
   ): Promise<void> {
     this.assertKnownProjectTask(taskId);
     const codexInput = await this.mapTurnInput(input);
-    const response = expectRecord(
-      await this.client.request("turn/steer", {
-        expectedTurnId: turnId,
-        input: codexInput,
-        threadId: taskId,
-      }),
-      "turn/steer response",
-    );
-    if (response["turnId"] !== turnId) {
-      throw new CodexProtocolMappingError("turn/steer returned an unexpected turn id");
-    }
+    await steerCodexTurn(this.client, taskId, turnId, codexInput);
   }
 
   public async startReview(taskId: string, target: AgentReviewTarget): Promise<AgentTurn> {

@@ -79,13 +79,22 @@ export class ClaudeQueueRepository implements AgentQueueRepository {
   }
   async setQueueExecution(
     record: AgentQueueRecord,
-    execution: NonNullable<AgentQueueRecord["execution"]>,
+    execution: NonNullable<AgentQueueRecord["execution"]> | null,
   ): Promise<boolean> {
     const records = await this.listQueue(record.projectId, record.taskId);
     const index = records.findIndex((entry) => entry.id === record.id),
       current = records[index];
-    if (!current || (execution.state === "starting" && current.execution)) return false;
-    records[index] = { ...current, execution };
+    if (
+      !current ||
+      (execution?.state === "starting" && current.execution) ||
+      (execution === null && current.execution?.state !== "starting")
+    )
+      return false;
+    // 与 Web 仓储保持相同回退约束；已接受结果只能清理，不能变回可投递状态。
+    const updated = { ...current };
+    if (execution === null) delete updated.execution;
+    else updated.execution = execution;
+    records[index] = updated;
     await this.#write(record.taskId, records);
     return true;
   }
