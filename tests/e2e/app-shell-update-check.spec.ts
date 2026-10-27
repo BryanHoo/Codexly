@@ -33,6 +33,13 @@ for (const width of [480, 1440]) {
     await expect(check).toBeEnabled();
     const before = await check.boundingBox();
     if (before === null) throw new Error("检查更新按钮缺少布局边界");
+    const row = await settings
+      .getByText("软件更新", { exact: true })
+      .locator("../..")
+      .boundingBox();
+    if (row === null) throw new Error("软件更新行缺少布局边界");
+    // 宽屏和移动端都以字段右边界对齐，版本状态变化后仍保留原检查入口。
+    expect(Math.abs(before.x + before.width - row.x - row.width)).toBeLessThan(1);
     available = true;
     await check.click();
     await expect(settings.getByRole("button", { name: "更新到 1.4.0" })).toBeVisible();

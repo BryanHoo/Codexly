@@ -1,3 +1,4 @@
+import { SettingsUpdateActions } from "@codexly/ui/core/settings-update-actions";
 import {
   notifyActionError,
   notifyActionSuccess,
@@ -112,27 +113,29 @@ export function GlobalSettingsAbout({
             </Button>
           </SettingsField>
           <SettingsField alignStart expandControl label={t("about.update")}>
-            <div className="w-full min-w-0 max-w-full py-2">
-              {/* 检查按钮固定在操作区起点，版本状态变化不会让连续点击误触安装。 */}
-              <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap">
-                <Button
-                  disabled={isChecking}
-                  onClick={() => void checkForUpdates()}
-                  size="sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  {isChecking ? (
-                    <LoaderCircle
-                      aria-hidden="true"
-                      className="animate-spin"
-                      data-icon="inline-start"
-                    />
-                  ) : (
-                    <RefreshCw aria-hidden="true" data-icon="inline-start" />
-                  )}
-                  {isChecking ? t("about.checking") : t("about.check")}
-                </Button>
+            <div className="w-full min-w-0 max-w-full">
+              <SettingsUpdateActions
+                checkAction={
+                  <Button
+                    disabled={isChecking}
+                    onClick={() => void checkForUpdates()}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    {isChecking ? (
+                      <LoaderCircle
+                        aria-hidden="true"
+                        className="animate-spin"
+                        data-icon="inline-start"
+                      />
+                    ) : (
+                      <RefreshCw aria-hidden="true" data-icon="inline-start" />
+                    )}
+                    {isChecking ? t("about.checking") : t("about.check")}
+                  </Button>
+                }
+              >
                 {appInfo.status === "available" && appInfo.latestVersion !== null ? (
                   <>
                     <Button
@@ -199,7 +202,7 @@ export function GlobalSettingsAbout({
                         ? t("errors.updateCheck")
                         : t("about.current")}
                 </p>
-              </div>
+              </SettingsUpdateActions>
               {!updating || updateProgress === undefined ? null : (
                 <div aria-live="polite" className="mt-3 grid w-full min-w-0 gap-1.5">
                   <div className="flex min-w-0 items-center justify-between gap-3 text-caption text-muted-foreground">

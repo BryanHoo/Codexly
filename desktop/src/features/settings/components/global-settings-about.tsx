@@ -1,3 +1,4 @@
+import { SettingsUpdateActions } from "@codexly/ui/core/settings-update-actions";
 import type {
   AppInfoResponse,
   AppUpdateInstallProgress,
@@ -101,26 +102,28 @@ export function GlobalSettingsAbout({
             </Button>
           </SettingsField>
           <SettingsField alignStart expandControl label={t("about.update")}>
-            {/* 检查按钮固定在操作区起点，新增版本提示和安装按钮不能移到原点击位置。 */}
-            <div className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap py-2">
-              <Button
-                disabled={isChecking}
-                onClick={() => void checkForUpdates()}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                {isChecking ? (
-                  <LoaderCircle
-                    aria-hidden="true"
-                    className="animate-spin"
-                    data-icon="inline-start"
-                  />
-                ) : (
-                  <RefreshCw aria-hidden="true" data-icon="inline-start" />
-                )}
-                {isChecking ? t("about.checking") : t("about.check")}
-              </Button>
+            <SettingsUpdateActions
+              checkAction={
+                <Button
+                  disabled={isChecking}
+                  onClick={() => void checkForUpdates()}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  {isChecking ? (
+                    <LoaderCircle
+                      aria-hidden="true"
+                      className="animate-spin"
+                      data-icon="inline-start"
+                    />
+                  ) : (
+                    <RefreshCw aria-hidden="true" data-icon="inline-start" />
+                  )}
+                  {isChecking ? t("about.checking") : t("about.check")}
+                </Button>
+              }
+            >
               <Button
                 onClick={() => {
                   setReleaseNotesOpen(true);
@@ -188,7 +191,7 @@ export function GlobalSettingsAbout({
                       ? t("errors.updateCheck")
                       : t("about.current")}
               </p>
-            </div>
+            </SettingsUpdateActions>
           </SettingsField>
           <AppReleaseNotesDialog
             changelogUrl={appInfo.changelogUrl}
