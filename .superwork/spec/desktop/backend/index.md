@@ -16,6 +16,13 @@
 
 构建环境与本地打包命令以 [桌面开发](../../../../desktop/docs/development.md) 为准。
 
+## 运行中会话的快照边界
+
+- Codex 历史读取与实时事件并行时，必须在读取开始前观察目标任务的修订号，并在同一 Runtime 临界区校验修订号、运行时代次及捕获 checkpoint；发生冲突的旧正文不能带着最新事件序号返回，否则会吞掉文字完成和工具开始事件。
+- 每轮首个 `message.delta` 会通过 `assistant_reply_started` 触发 `ProjectProvider` 的标题元数据同步，读取并回写聊天快照。分屏保持挂载、直接发送新消息时同样会触发该读取；验证快照竞争不能只覆盖打开或切回会话。
+- 复用 Web 的有限重读原则：冲突最多重新读取一次，持续冲突返回 `TASK_SNAPSHOT_BUSY`，保留实时订阅；其他任务的输出不能导致目标任务重读。观察者只保存有界计数，不复制聊天正文，取消请求后释放观察者。
+- 回归入口为 `state_snapshot_tests.rs`（补齐正文、持续输出、其他任务及取消清理）、`state_skill_snapshot_tests.rs`（换代保护）及 `task-timeline-streaming.browser.test.tsx`（文字接命令、双分屏不导航发送及首字快照同步，Chromium / WebKit）。
+
 ## Codex 生成图片引用
 
 - 原始帧清理优先保存有效 `savedPath`；存在非空 `fileId` 时不解码迁移记录的旧 `result`，也不将引用作为文件路径。完成且未失败的不可读图片映射为 `[图片]` 消息，其他状态保留工具生命周期。

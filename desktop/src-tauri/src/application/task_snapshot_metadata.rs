@@ -1,6 +1,10 @@
 use std::{
     collections::HashMap,
     io::{self, Write},
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use serde_json::Value;
@@ -78,11 +82,35 @@ impl Write for ByteCounter {
 #[derive(Default)]
 pub(super) struct TaskSnapshotMetadata {
     tasks: HashMap<String, Metadata>,
+    active_reads: HashMap<String, Weak<AtomicU64>>,
     bytes: usize,
     clock: u64,
 }
 
 impl TaskSnapshotMetadata {
+    pub(super) fn watch_read(&mut self, task_id: &str) -> Option<Arc<AtomicU64>> {
+        if let Some(revision) = self.active_reads.get(task_id).and_then(Weak::upgrade) {
+            return Some(revision);
+        }
+        // 只在读取开始时清理失效观察者；取消请求会自动释放 Arc，不遗留正文或常驻订阅。
+        self.active_reads
+            .retain(|_, revision| revision.strong_count() > 0);
+        if self.active_reads.len() >= MAX_TASKS {
+            return None;
+        }
+        let revision = Arc::new(AtomicU64::new(0));
+        self.active_reads
+            .insert(task_id.to_owned(), Arc::downgrade(&revision));
+        Some(revision)
+    }
+
+    pub(super) fn observe_read_change(&mut self, task_id: &str) {
+        if let Some(revision) = self.active_reads.get(task_id).and_then(Weak::upgrade) {
+            // 发布和边界捕获都持有同一 Runtime 锁；计数不复制 token，也不扫描历史。
+            revision.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
     pub(super) fn observe(&mut self, project_id: &str, task_id: &str, update: MetadataUpdate) {
         let (is_usage, value) = match update {
             MetadataUpdate::Usage(value) => (true, value),

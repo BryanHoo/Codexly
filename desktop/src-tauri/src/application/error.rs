@@ -47,6 +47,8 @@ pub enum AppError {
     CodexRuntimeUnavailable,
     #[error("Codex request failed")]
     CodexRequestFailed,
+    #[error("Task snapshot is temporarily busy; retry the snapshot request")]
+    TaskSnapshotBusy,
     #[error("{message}")]
     CodexRpc { rpc_code: i64, message: String },
     #[error("Codex thread is active in another session")]
@@ -114,6 +116,7 @@ impl Serialize for AppError {
             Self::TaskWindowLimit => Some(("TASK_WINDOW_LIMIT", self.to_string())),
             Self::Terminal(error) => Some((error.code(), error.to_string())),
             Self::CodexThreadBusy => Some(("CODEX_THREAD_BUSY", self.to_string())),
+            Self::TaskSnapshotBusy => Some(("TASK_SNAPSHOT_BUSY", self.to_string())),
             Self::RequestCancelled => Some(("REQUEST_CANCELLED", self.to_string())),
             Self::FileOpenTargetUnavailable => {
                 Some(("FILE_OPEN_TARGET_UNAVAILABLE", self.to_string()))

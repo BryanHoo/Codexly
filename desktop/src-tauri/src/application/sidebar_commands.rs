@@ -156,31 +156,31 @@ pub async fn read_task(
             }
             let connection = state.codex_connection().await?;
             state.remember_tasks(&project_id, [task_id.as_str()]).await;
-            let baseline = state.task_snapshot_baseline(&project_id).await;
-            let mut response = if summary.unwrap_or(false) {
-                codex::read_task_summary_snapshot(
-                    &connection,
-                    project_id.clone(),
-                    task_id.clone(),
-                    cursor.as_deref(),
-                )
-                .await
-            } else {
-                codex::read_task_snapshot(
-                    &connection,
-                    project_id.clone(),
-                    task_id.clone(),
-                    cursor.as_deref(),
-                )
-                .await
-            }
-            .map_err(AppError::from)?;
-            response.snapshot.settings =
-                effective_task_settings(&app, &project_id, &task_id).await?;
+            let settings = effective_task_settings(&app, &project_id, &task_id).await?;
             task_workspace::allow_attachment_assets(&app, &project_id, &task_id).await?;
-            state
-                .complete_task_snapshot_at(&mut response, Some(baseline))
-                .await;
+            let mut response = state
+                .read_consistent_task_snapshot(&project_id, &task_id, || async {
+                    if summary.unwrap_or(false) {
+                        codex::read_task_summary_snapshot(
+                            &connection,
+                            project_id.clone(),
+                            task_id.clone(),
+                            cursor.as_deref(),
+                        )
+                        .await
+                    } else {
+                        codex::read_task_snapshot(
+                            &connection,
+                            project_id.clone(),
+                            task_id.clone(),
+                            cursor.as_deref(),
+                        )
+                        .await
+                    }
+                    .map_err(AppError::from)
+                })
+                .await?;
+            response.snapshot.settings = settings;
             if state.remember_task_snapshot(&response.snapshot).await
                 && let Err(error) = app.emit("task-activity://changed", ())
             {

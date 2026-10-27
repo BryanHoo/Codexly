@@ -37,6 +37,156 @@ pub(super) fn snapshot(project: &str, task: &str) -> AgentTaskSnapshotResponse {
 }
 
 #[tokio::test]
+async fn native_snapshot_should_not_cover_text_completed_during_history_read() {
+    let state = AppState::default();
+    state.remember_tasks("project-a", ["task-a"]).await;
+    let baseline = state
+        .task_snapshot_baseline("project-a", "task-a")
+        .await
+        .unwrap();
+    let mut response = preamble_snapshot("我");
+    // 模拟历史已读到“我”，但响应返回前正文补齐且命令开始；旧快照不能吞掉这两个事件。
+    publish(
+        &state,
+        "task-a",
+        "item.completed",
+        json!({
+            "item": {"id":"reply", "type":"message", "role":"assistant", "text":"我会检查配置。"}
+        }),
+    )
+    .await;
+    publish(
+        &state,
+        "task-a",
+        "item.started",
+        json!({
+            "item": {"id":"command", "type":"command", "command":"pwd", "status":"running"}
+        }),
+    )
+    .await;
+    assert!(matches!(
+        state
+            .complete_task_snapshot_at(&mut response, Some(baseline))
+            .await,
+        Err(super::AppError::TaskSnapshotBusy)
+    ));
+    assert_eq!(
+        response.checkpoint.sequence, 0,
+        "存在读取冲突时不能宣称旧正文已覆盖最新事件"
+    );
+}
+
+fn preamble_snapshot(text: &str) -> AgentTaskSnapshotResponse {
+    let mut response = snapshot("project-a", "task-a");
+    response
+        .snapshot
+        .turns
+        .push(crate::domain::conversation::AgentTurn {
+            process_cursor: None,
+            id: "turn-a".into(),
+            item_timings: None,
+            started_at: None,
+            completed_at: None,
+            error: None,
+            status: "running",
+            items: vec![crate::domain::conversation::AgentItem::Message {
+                identity_aliases: Vec::new(),
+                id: "reply".into(),
+                role: "assistant",
+                text: text.into(),
+                skills: None,
+                attachments: None,
+                phase: None,
+                questions: None,
+                skill_expansion: false,
+            }],
+        });
+    response
+}
+
+#[tokio::test]
+async fn native_snapshot_should_retry_once_and_return_the_complete_preamble() {
+    let state = AppState::default();
+    state.remember_tasks("project-a", ["task-a"]).await;
+    let attempts = std::cell::Cell::new(0);
+    let response = state
+        .read_consistent_task_snapshot("project-a", "task-a", || async {
+            let attempt = attempts.get();
+            attempts.set(attempt + 1);
+            if attempt == 0 {
+                publish(&state, "task-a", "item.completed", json!({
+                "item":{"id":"reply", "type":"message", "role":"assistant", "text":"我会检查配置。"}
+            })).await;
+                return Ok(preamble_snapshot("我"));
+            }
+            Ok(preamble_snapshot("我会检查配置。"))
+        })
+        .await
+        .unwrap();
+    assert_eq!(attempts.get(), 2);
+    let item = serde_json::to_value(&response.snapshot.turns[0].items[0]).unwrap();
+    assert_eq!(item["text"], "我会检查配置。");
+    assert_eq!(response.checkpoint.sequence, 1);
+}
+
+#[tokio::test]
+async fn native_snapshot_should_bound_retries_during_continuous_output() {
+    let state = AppState::default();
+    state.remember_tasks("project-a", ["task-a"]).await;
+    let attempts = std::cell::Cell::new(0);
+    let result = state
+        .read_consistent_task_snapshot("project-a", "task-a", || async {
+            attempts.set(attempts.get() + 1);
+            publish(
+                &state,
+                "task-a",
+                "message.delta",
+                json!({"delta":"后续正文"}),
+            )
+            .await;
+            Ok(preamble_snapshot("我"))
+        })
+        .await;
+    assert!(matches!(result, Err(super::AppError::TaskSnapshotBusy)));
+    assert_eq!(attempts.get(), 2);
+    let error = serde_json::to_value(super::AppError::TaskSnapshotBusy).unwrap();
+    assert_eq!(error["code"], "TASK_SNAPSHOT_BUSY");
+}
+
+#[tokio::test]
+async fn native_snapshot_should_ignore_other_tasks_and_release_cancelled_read_watchers() {
+    let state = AppState::default();
+    state
+        .remember_tasks("project-a", ["task-a", "task-b"])
+        .await;
+    let attempts = std::cell::Cell::new(0);
+    let response = state
+        .read_consistent_task_snapshot("project-a", "task-a", || async {
+            attempts.set(attempts.get() + 1);
+            publish(
+                &state,
+                "task-b",
+                "message.delta",
+                json!({"delta":"其他任务"}),
+            )
+            .await;
+            Ok(preamble_snapshot("完整正文"))
+        })
+        .await
+        .unwrap();
+    assert_eq!(attempts.get(), 1);
+    assert_eq!(response.checkpoint.sequence, 1);
+    // 模拟读取未来被取消：丢弃边界就释放观察者，超过容量次数的后续读取仍可准入。
+    for index in 0..300 {
+        let baseline = state
+            .task_snapshot_baseline("project-a", &format!("cancelled-{index}"))
+            .await
+            .unwrap();
+        drop(baseline);
+    }
+}
+
+#[tokio::test]
 async fn native_snapshot_restores_non_retrying_error_for_the_matching_failed_turn() {
     let state = AppState::default();
     state.remember_tasks("project-a", ["task-a"]).await;

@@ -88,6 +88,7 @@ pub(super) async fn publish_mapped_event_at_boundary(
         .or_default();
     *sequence += 1;
     event.set_sequence(*sequence);
+    session.task_snapshot_metadata.observe_read_change(&task_id);
     if let Some(update) = metadata_update {
         session
             .task_snapshot_metadata

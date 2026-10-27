@@ -52,10 +52,14 @@ fn expansion() -> Value {
 async fn native_skill_snapshot_should_seed_only_a_current_read() {
     let state = AppState::default();
     state.remember_tasks("project", ["task"]).await;
-    let baseline = state.task_snapshot_baseline("project").await;
+    let baseline = state
+        .task_snapshot_baseline("project", "task")
+        .await
+        .unwrap();
     state
         .complete_task_snapshot_at(&mut user_snapshot(), Some(baseline))
-        .await;
+        .await
+        .unwrap();
     publish(&state, expansion()).await;
     let mut restored = user_snapshot();
     state.complete_task_snapshot(&mut restored).await;
@@ -70,7 +74,10 @@ async fn native_skill_snapshot_should_reject_seed_after_events_channel_change_or
     for drift in ["event", "channel", "restart"] {
         let state = AppState::default();
         state.remember_tasks("project", ["task"]).await;
-        let baseline = state.task_snapshot_baseline("project").await;
+        let baseline = state
+            .task_snapshot_baseline("project", "task")
+            .await
+            .unwrap();
         match drift {
             "event" => {
                 publish(
@@ -86,9 +93,12 @@ async fn native_skill_snapshot_should_reject_seed_after_events_channel_change_or
                 .set_event_channel(Channel::new(|_| Ok(()))),
             _ => state.runtime.lock().await.restart_generation += 1,
         }
-        state
-            .complete_task_snapshot_at(&mut user_snapshot(), Some(baseline))
-            .await;
+        assert!(
+            state
+                .complete_task_snapshot_at(&mut user_snapshot(), Some(baseline))
+                .await
+                .is_err()
+        );
         publish(&state, expansion()).await;
         let mut restored = user_snapshot();
         state.complete_task_snapshot(&mut restored).await;
