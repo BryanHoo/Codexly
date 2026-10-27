@@ -1,5 +1,9 @@
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
-import { resolveInterruptedTurnProcessItemIds } from "@codexly/frontend-core";
+import {
+  isAssistantProcessMessage,
+  isAsyncQuestionMessage,
+  resolveInterruptedTurnProcessItemIds,
+} from "@codexly/frontend-core";
 
 export function resolveCompletedTurnProcessItemIds(
   items: readonly AgentItem[],
@@ -16,15 +20,19 @@ export function resolveCompletedTurnProcessItemIds(
     return [];
   }
   const finalAnswerIndex = items.findLastIndex(
-    (item) => item.type === "message" && item.role === "assistant" && item.phase === "final_answer",
+    (item) =>
+      item.type === "message" &&
+      item.role === "assistant" &&
+      item.phase === "final_answer" &&
+      !isAsyncQuestionMessage(item),
   );
-  if (finalAnswerIndex < 0) {
-    return [];
-  }
 
-  return items.slice(0, finalAnswerIndex).flatMap((item) => {
+  return items.flatMap((item, index) => {
+    // 问题始终属于完成态过程，包括没有最终答复或问题位于答复之后的回合。
+    if (isAsyncQuestionMessage(item)) return [item.id];
+    if (index >= finalAnswerIndex) return [];
     if (item.type === "message") {
-      return item.role === "assistant" && item.phase === "commentary" ? [item.id] : [];
+      return isAssistantProcessMessage(item) ? [item.id] : [];
     }
     // 瞬时活动完成后不进入历史过程；File Change 继续由最终摘要统一展示。
     return item.type === "file_change" ||

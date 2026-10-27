@@ -6,6 +6,21 @@ import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
 import { groupStoredTurnTimelineItems } from "./task-timeline-store-items.js";
 
 describe("completed turn process projection", () => {
+  it.each([undefined, "commentary", "partial_answer", "final_answer"] as const)(
+    "folds async questions with phase %s while preserving the answer",
+    (phase) => {
+      const question = {
+        id: "async-question", type: "message", role: "assistant", text: "请确认登录状态",
+        questions: [{ title: "请确认登录状态", options: null }],
+        ...(phase === undefined ? {} : { phase }),
+      } satisfies AgentItem;
+      const answer = { id: "answer", type: "message", role: "assistant", phase: "final_answer", text: "已完成修复" } as const;
+      expect(resolveCompletedTurnProcessItemIds([question, answer], "running")).toEqual([]);
+      expect(resolveCompletedTurnProcessItemIds([question, answer], "completed")).toEqual([question.id]);
+      expect(resolveCompletedTurnProcessItemIds([answer, question], "completed")).toEqual([question.id]);
+      expect(resolveCompletedTurnProcessItemIds([question], "completed")).toEqual([question.id]);
+    },
+  );
   it("keeps partial answers visible when a later final answer completes the turn", () => {
     const items = [
       {

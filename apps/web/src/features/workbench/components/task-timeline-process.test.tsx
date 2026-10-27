@@ -1,10 +1,50 @@
 import { describe, expect, it } from "vitest";
+import type { AgentItem } from "@codexly/protocol";
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
 import { resolveCompletedTurnProcessItemIds, TaskSnapshotTimeline } from "./task-timeline.js";
 import { getUserMessageCopyText } from "./task-timeline-store-items.js";
 import { renderToStaticMarkup, completedTurn, snapshot } from "./task-timeline.test-support.js";
 
 describe("task timeline process", () => {
+  it.each([undefined, "commentary", "partial_answer", "final_answer"] as const)(
+    "folds async questions with phase %s while keeping the final answer visible",
+    (phase) => {
+      const question = {
+        id: "async-question",
+        type: "message",
+        role: "assistant",
+        text: "请确认登录状态",
+        questions: [{ title: "请确认登录状态", options: null }],
+        ...(phase === undefined ? {} : { phase }),
+      } satisfies AgentItem;
+      const answer = {
+        id: "answer",
+        type: "message",
+        role: "assistant",
+        phase: "final_answer",
+        text: "已完成修复",
+      } as const;
+      const items = [question, answer];
+      expect(resolveCompletedTurnProcessItemIds(items, "running")).toEqual([]);
+      expect(resolveCompletedTurnProcessItemIds(items, "completed")).toEqual([question.id]);
+      // 问题自身也可能标记为 final_answer，且可能是回合最后一条消息。
+      expect(resolveCompletedTurnProcessItemIds([answer, question], "completed")).toEqual([
+        question.id,
+      ]);
+      expect(resolveCompletedTurnProcessItemIds([question], "completed")).toEqual([question.id]);
+      const markup = renderToStaticMarkup(
+        <TaskSnapshotTimeline
+          snapshot={{
+            ...snapshot,
+            turns: [{ ...completedTurn, items }],
+          }}
+        />,
+      );
+      expect(markup).not.toContain("请确认登录状态");
+      expect(markup).toContain("已完成修复");
+      expect(markup).toContain('aria-label="展开执行过程"');
+    },
+  );
   it("keeps partial answers visible when a later final answer completes the turn", () => {
     const items = [
       {

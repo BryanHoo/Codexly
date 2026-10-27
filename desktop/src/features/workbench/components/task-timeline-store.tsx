@@ -94,10 +94,15 @@ export const StoreTurnTimelineSection = memo(function StoreTurnTimelineSection({
       if (source.processCursor !== undefined) paginatedProcessItemKeys.add(key);
     }
   });
-  // 折叠项必须在分组前移除，否则隐藏的引导仍会切断最终答复与文件审核卡片。
-  // 中断回合没有保留的最终答复，需保留 Assistant 分组来承载展开入口。
+  // 仅提前移除会切断答复分组的用户引导；助手过程项留作稳定的分组锚点，
+  // 由 StoredAssistantGroup 控制显示，避免展开/收起重挂载历史并重复请求。
   const hiddenProcessItemKeys =
-    turn.status !== "completed" || processExpanded ? undefined : processItemKeys;
+    turn.status !== "completed" || processExpanded ? undefined : new Set(
+      [...processItemKeys].filter((key) => {
+        const item = itemStoresByKey.get(key)?.peek();
+        return item?.type === "message" && item.role === "user";
+      }),
+    );
   const timelineGroups = groupStoredTurnTimelineItems(
     itemKeys,
     itemStoresByKey,

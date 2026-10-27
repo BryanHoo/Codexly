@@ -1,5 +1,5 @@
 import type { AgentItem, AgentTurn } from "@/protocol/index.js";
-import { resolveInterruptedTurnProcessItemIds } from "@codexly/frontend-core";
+import { isAssistantProcessMessage, isAsyncQuestionMessage, resolveInterruptedTurnProcessItemIds } from "@codexly/frontend-core";
 
 export function resolveCompletedTurnProcessItemIds(
   items: readonly AgentItem[],
@@ -12,19 +12,19 @@ export function resolveCompletedTurnProcessItemIds(
     return [];
   }
   const finalAnswerIndex = items.findLastIndex(
-    (item) => item.type === "message" && item.role === "assistant" && item.phase === "final_answer",
+    (item) => item.type === "message" && item.role === "assistant" && item.phase === "final_answer" && !isAsyncQuestionMessage(item),
   );
-  if (finalAnswerIndex < 0) {
-    return [];
-  }
 
   const initialUserItemId = items.find(
     (item) => item.type === "review" || (item.type === "message" && item.role === "user"),
   )?.id;
 
-  return items.slice(0, finalAnswerIndex).flatMap((item) => {
+  return items.flatMap((item, index) => {
+    // 问题始终属于完成态过程，包括没有最终答复或问题位于答复之后的回合。
+    if (isAsyncQuestionMessage(item)) return [item.id];
+    if (index >= finalAnswerIndex) return [];
     if (item.type === "message") {
-      const isAssistantCommentary = item.role === "assistant" && item.phase === "commentary";
+      const isAssistantCommentary = isAssistantProcessMessage(item);
       // 首条用户项是 Turn 入口；后续用户消息均为运行中引导，完成后归入执行过程。
       const isInTurnUserMessage = item.role === "user" && item.id !== initialUserItemId;
       return isAssistantCommentary || isInTurnUserMessage ? [item.id] : [];

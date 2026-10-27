@@ -1,4 +1,5 @@
 import type { TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
+import { isAssistantProcessMessage } from "@codexly/frontend-core/turn-process";
 import { HistoryProcess } from "@codexly/ui/core/history-process";
 import type { AgentTaskSnapshotResponse } from "@codexly/protocol";
 import { useCallback, useState } from "react";
@@ -93,13 +94,13 @@ function ProcessItems({
   const keys = useStore(store, (state) => state.itemKeysByTurnId[turnId]);
   const turn = useStore(store, (state) => state.turnsById[turnId]);
   const items = store.getState().itemStoresByKey;
-  // 摘要已展示用户输入与最终答复，过程区只显示内部执行记录和旁白。
+  // 摘要已展示用户输入与最终答复；问题与旁白均需在展开过程时恢复。
   const itemKeys = (keys ?? []).filter((key) => {
     const item = items.get(key)?.peek();
     return (
       item !== undefined &&
       item.type !== "review" &&
-      (item.type !== "message" || (item.role === "assistant" && item.phase === "commentary"))
+      (item.type !== "message" || isAssistantProcessMessage(item))
     );
   });
   return (
