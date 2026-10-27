@@ -10,6 +10,10 @@ export async function acknowledgeTaskActivity(projectId: string, taskId: string)
   await invoke("acknowledge_task_activity", { projectId, taskId });
 }
 
+export async function dismissTaskNotifications(tasks: readonly Readonly<{ projectId: string; taskId: string }>[]): Promise<void> {
+  await invoke("dismiss_task_notifications", { tasks });
+}
+
 export async function resolveAsyncQuestionActivities(projectId: string, taskId: string, questionIds: readonly string[]): Promise<void> {
   await invoke("acknowledge_task_activity", { projectId, taskId, asyncQuestionIds: questionIds });
 }

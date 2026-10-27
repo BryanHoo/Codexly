@@ -28,6 +28,7 @@ pub(crate) mod generation_settings;
 pub mod history_storage_commands;
 mod model_turn_waiters;
 pub mod notification_commands;
+pub(crate) mod notification_delivery;
 pub mod open_commands;
 pub mod pending_resolution;
 pub mod personalization_commands;

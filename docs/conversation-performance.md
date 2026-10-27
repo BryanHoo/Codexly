@@ -34,6 +34,16 @@ Codex 0.164 and later use per-thread `thread_unload_delay_secs`: ordinary conver
 
 Both editions record an input notification and update task activity when a complete assistant question arrives, reusing existing notification preferences and event connections. Ordinary messages and streamed tokens add no notifications or polling. Tasks can keep running while awaiting answers. Opening a task marks its notifications read; successfully answering or explicitly dismissing a question clears that question's waiting state while preserving other questions and approvals.
 
+## 通知资源 / Notification Resources
+
+系统通知通过事件回调响应点击，不依靠主线程轮询。桌面端与 Web 按任务替换系统提醒，最多保留 64 条活跃通知资源；桌面端额外在 24 小时后回收。标记已读、关闭通知或处理对应请求会撤销相关提醒，不改变其他审批或待回答状态。Ubuntu 的通知关闭由异步 D-Bus 信号处理；Windows 横幅消失后仍可从通知中心点击。
+
+System notifications respond through event callbacks without main-thread polling. Desktop and Web replace reminders per task and retain at most 64 active notification resources; desktop also reclaims them after 24 hours. Reading notifications, disabling them, or resolving the associated request removes the relevant reminder without changing other approvals or unanswered questions. Ubuntu observes asynchronous D-Bus signals; Windows notifications remain actionable in Notification Center after the banner times out.
+
+应用内通知历史最多保留 500 条、256 KiB，优先保留未读摘要；任务去重与事件水位各自最多保留 512 个身份，并限制元数据容量。旧数据恢复时也执行裁剪，避免通知历史拖慢输入和点击；任务本身和会话历史不受摘要裁剪影响。
+
+In-app notification history retains up to 500 summaries within 256 KiB, prioritizing unread entries. Task deduplication and event checkpoints each retain up to 512 identities within a metadata budget. These limits also apply when restoring old data, keeping notification history from slowing typing and clicks while preserving tasks and conversation history.
+
 ## Web 多设备与传输 / Web Devices and Transport
 
 连接同一 Web 服务的浏览器与设备通过变更通知同步项目待办与异步问答。后台页面只将相关缓存标记为失效，恢复可见后读取最新状态；首次连接和断线重连也会校准。该机制不在独立 Web 服务与桌面应用之间同步本地数据。

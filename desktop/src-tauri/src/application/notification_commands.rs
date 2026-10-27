@@ -4,16 +4,35 @@ use serde::Deserialize;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
-use super::{app_lifecycle::show_main_window_at_route, tray_commands::tray_task_route};
+use super::{notification_delivery, tray_commands::tray_task_route};
 use crate::{domain::runtime::AgentEvent, infrastructure::app_storage};
 
 const LANGUAGE_STORAGE_KEY: &str = "codeagent.language-preference";
 const MAX_FAILED_TURN_KEYS: usize = 256;
 const NOTIFICATION_STORAGE_KEY: &str = "codeagent.notification-preference";
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationTaskTarget {
+    project_id: String,
+    task_id: String,
+}
+
+/// 已读只撤销系统提醒，不修改任务审批和待回答事实。
+#[tauri::command(rename_all = "camelCase")]
+pub fn dismiss_task_notifications(app: AppHandle, tasks: Vec<NotificationTaskTarget>) {
+    // 共享历史最多 500 条；此边界同样限制一次请求的处理量。
+    for task in tasks.into_iter().take(500) {
+        if let Ok(route) = tray_task_route(&task.project_id, &task.task_id) {
+            notification_delivery::clear(&app, Some(&route));
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct NotificationRuntime {
     state: Mutex<NotificationState>,
+    pub(super) deliveries: notification_delivery::DeliveryRegistry,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -23,10 +42,11 @@ enum NotificationLanguage {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-struct TaskNotification {
-    body: String,
-    route: String,
-    title: String,
+pub(super) struct TaskNotification {
+    pub(super) body: String,
+    pub(super) route: String,
+    pub(super) title: String,
+    pub(super) identity: Option<String>,
 }
 
 #[derive(Default)]
@@ -53,6 +73,31 @@ pub(super) async fn observe_task_notification(
     project_id: &str,
     task_name: Option<&str>,
 ) {
+    // 关闭信号只撤销同一请求，较晚到达的旧请求终态不能移除新问题的提醒。
+    if matches!(
+        event.event_type(),
+        Some("pending_request.resolved" | "pending_request.expired")
+    ) {
+        if let (Some(task_id), Some(identity)) = (
+            event.task_id(),
+            event
+                .as_json()
+                .and_then(|value| value.pointer("/payload/request/requestId"))
+                .and_then(serde_json::Value::as_str),
+        ) && let Ok(route) = tray_task_route(project_id, task_id)
+        {
+            app.state::<NotificationRuntime>()
+                .deliveries
+                .resolve(&route, identity);
+        }
+        return;
+    }
+    if matches!(event.event_type(), Some("task.removed" | "turn.started"))
+        && let Some(task_id) = event.task_id()
+        && let Ok(route) = tray_task_route(project_id, task_id)
+    {
+        notification_delivery::clear(app, Some(&route));
+    }
     if !is_notification_event(event) {
         return;
     }
@@ -75,86 +120,7 @@ pub(super) async fn observe_task_notification(
     let Some(notification) = notification else {
         return;
     };
-    send_task_notification(app, notification);
-}
-
-fn send_task_notification(app: &AppHandle, notification: TaskNotification) {
-    // 点击回调持有该条通知自己的路由，多条通知并存时也能打开准确 Task。
-    send_clickable_notification(app, notification);
-}
-
-#[cfg(target_os = "macos")]
-fn send_clickable_notification(app: &AppHandle, notification: TaskNotification) {
-    let app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let bundle_identifier = if tauri::is_dev() {
-            "com.apple.Terminal"
-        } else {
-            app.config().identifier.as_str()
-        };
-        // mac-notification-sys 全局只允许设置一次应用标识，重复设置可安全忽略。
-        let _ = mac_notification_sys::set_application(bundle_identifier);
-        let mut native = mac_notification_sys::Notification::new();
-        native
-            .title(&notification.title)
-            .message(&notification.body)
-            .wait_for_click(true);
-        match native.send() {
-            Ok(mac_notification_sys::NotificationResponse::Click) => {
-                show_main_window_at_route(&app, notification.route);
-            }
-            Ok(_) => {}
-            Err(error) => crate::infrastructure::diagnostics::record_error(
-                "task_notification_show_failed",
-                error,
-            ),
-        }
-    });
-}
-
-#[cfg(target_os = "windows")]
-fn send_clickable_notification(app: &AppHandle, notification: TaskNotification) {
-    let app_id = if tauri::is_dev() {
-        tauri_winrt_notification::Toast::POWERSHELL_APP_ID
-    } else {
-        app.config().identifier.as_str()
-    };
-    let app = app.clone();
-    let route = notification.route;
-    let result = tauri_winrt_notification::Toast::new(app_id)
-        .title(&notification.title)
-        .text1(&notification.body)
-        .on_activated(move |_| {
-            show_main_window_at_route(&app, route.clone());
-            Ok(())
-        })
-        .show();
-    if let Err(error) = result {
-        crate::infrastructure::diagnostics::record_error("task_notification_show_failed", error);
-    }
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn send_clickable_notification(app: &AppHandle, notification: TaskNotification) {
-    let app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let mut native = notify_rust::Notification::new();
-        native
-            .summary(&notification.title)
-            .body(&notification.body)
-            .action("default", "Open");
-        match native.show() {
-            Ok(handle) => handle.wait_for_action(move |action| {
-                if action != "__closed" {
-                    show_main_window_at_route(&app, notification.route);
-                }
-            }),
-            Err(error) => crate::infrastructure::diagnostics::record_error(
-                "task_notification_show_failed",
-                error,
-            ),
-        }
-    });
+    notification_delivery::send(app, notification);
 }
 
 async fn read_preferences(app: &AppHandle) -> BTreeMap<String, String> {
@@ -274,6 +240,13 @@ fn reduce_task_notification(
         task_name.trim()
     };
     Some(TaskNotification {
+        identity: match event.event_type() {
+            Some("pending_request.created") => event_json.pointer("/payload/request/requestId"),
+            Some("item.completed") => event_json.pointer("/payload/item/id"),
+            _ => None,
+        }
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned),
         body,
         route: tray_task_route(project_id, event.task_id()?).ok()?,
         title: format!("Codexly · {normalized_task_name}"),
@@ -368,6 +341,7 @@ mod tests {
                 NotificationLanguage::ZhCn,
             ),
             Some(super::TaskNotification {
+                identity: None,
                 body: "Task 已完成".to_owned(),
                 route: "p/project-1/t/task-1".to_owned(),
                 title: "Codexly · 修复底层通知".to_owned(),

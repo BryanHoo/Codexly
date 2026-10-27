@@ -1,5 +1,9 @@
 #[cfg(windows)]
+mod notifications;
+#[cfg(windows)]
 mod terminal_job;
+#[cfg(windows)]
+pub use notifications::TaskNotificationHandle;
 #[cfg(windows)]
 pub use terminal_job::TerminalJob;
 

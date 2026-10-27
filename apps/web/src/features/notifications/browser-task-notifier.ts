@@ -1,13 +1,19 @@
 import type { AgentEvent } from "@codexly/protocol";
 import { isAsyncQuestionEvent } from "@codexly/frontend-core/async-question-event";
+import {
+  getTaskNotificationStore,
+  type TaskNotificationStore,
+} from "@codexly/frontend-core/task-notification-store";
 
 import { i18n } from "../../i18n/i18n.js";
 import { recordInternalWarning } from "./internal-diagnostics.js";
+import { NOTIFICATION_PREFERENCE_CHANGED } from "../settings/notification-preference.js";
 
 const MAX_FAILED_TURN_KEYS = 256;
 
 export type BrowserNotificationHandle = Readonly<{
   addClickListener: (listener: () => void) => void;
+  addCloseListener?: (listener: () => void) => void;
   close: () => void;
 }>;
 
@@ -20,6 +26,7 @@ export type BrowserNotificationApi = Readonly<{
 export type TaskNotifier = Readonly<{
   notify: (projectId: string, event: AgentEvent, taskTitle: string) => void;
   requestPermission: () => Promise<void>;
+  dispose?: () => void;
 }>;
 
 type BrowserTaskNotifierOptions = Readonly<{
@@ -28,6 +35,8 @@ type BrowserTaskNotifierOptions = Readonly<{
   isEnabled?: (() => boolean) | undefined;
   isPageForeground?: (() => boolean) | undefined;
   navigateToTask?: ((projectId: string, taskId: string) => void) | undefined;
+  notificationStore?: Pick<TaskNotificationStore, "subscribeRead">;
+  preferenceEvents?: EventTarget;
 }>;
 
 type TaskNotification = Readonly<{
@@ -47,7 +56,10 @@ function createDefaultNotificationApi(): BrowserNotificationApi | undefined {
       const notification = new BrowserNotification(title, options);
       return {
         addClickListener(listener) {
-          notification.addEventListener("click", listener);
+          notification.addEventListener("click", listener, { once: true });
+        },
+        addCloseListener(listener) {
+          notification.addEventListener("close", listener, { once: true });
         },
         close() {
           notification.close();
@@ -114,6 +126,9 @@ function mapTaskNotification(projectId: string, event: AgentEvent): TaskNotifica
 }
 
 class BrowserTaskNotifier implements TaskNotifier {
+  readonly #handles = new Map<string, { handle: BrowserNotificationHandle; requestId?: string }>();
+  readonly #disposeListeners: (() => void)[] = [];
+  #disposed = false;
   readonly #api: BrowserNotificationApi | undefined;
   readonly #failedTurnKeys = new Set<string>();
   readonly #questionKeys = new Set<string>();
@@ -135,14 +150,78 @@ class BrowserTaskNotifier implements TaskNotifier {
       options.isPageForeground ??
       (() => globalThis.document.visibilityState === "visible" && globalThis.document.hasFocus());
     this.#navigateToTask = options.navigateToTask ?? (() => undefined);
+    const store =
+      options.notificationStore ??
+      (typeof window === "undefined" ? undefined : getTaskNotificationStore());
+    if (store)
+      this.#disposeListeners.push(
+        store.subscribeRead((tasks) => {
+          for (const task of tasks) this.#close(JSON.stringify([task.projectId, task.taskId]));
+        }),
+      );
+    const events = options.preferenceEvents ?? (typeof window === "undefined" ? undefined : window);
+    if (events) {
+      const changed = () => {
+        if (!this.#isEnabled()) this.#closeAll();
+      };
+      events.addEventListener(NOTIFICATION_PREFERENCE_CHANGED, changed);
+      events.addEventListener("storage", changed);
+      this.#disposeListeners.push(() => {
+        events.removeEventListener(NOTIFICATION_PREFERENCE_CHANGED, changed);
+        events.removeEventListener("storage", changed);
+      });
+    }
+  }
+
+  #close(key: string): void {
+    const entry = this.#handles.get(key);
+    this.#handles.delete(key);
+    try {
+      entry?.handle.close();
+    } catch (error) {
+      recordInternalWarning("browser_notification_close_failed", error);
+    }
+  }
+
+  #closeAll(): void {
+    for (const key of this.#handles.keys()) this.#close(key);
+  }
+
+  public dispose(): void {
+    this.#disposed = true;
+    for (const stop of this.#disposeListeners.splice(0)) stop();
+    this.#closeAll();
+    this.#failedTurnKeys.clear();
+    this.#questionKeys.clear();
   }
 
   public notify(projectId: string, event: AgentEvent, taskTitle: string): void {
-    if (
-      !this.#isEnabled() ||
-      this.#api?.getPermission() !== "granted" ||
-      this.#isPageForeground()
-    ) {
+    if (this.#disposed) return;
+    // Token 和工具输出直接跳过，不在流式热路径读取 localStorage、权限或页面焦点。
+    switch (event.type) {
+      case "turn.completed":
+      case "provider.error":
+      case "pending_request.created":
+      case "pending_request.resolved":
+      case "pending_request.expired":
+      case "turn.started":
+      case "task.removed":
+        break;
+      default:
+        if (!isAsyncQuestionEvent(event)) return;
+    }
+    if (!this.#isEnabled()) {
+      this.#closeAll();
+      return;
+    }
+    if (event.type === "task.removed" || event.type === "turn.started")
+      this.#close(JSON.stringify([projectId, event.taskId]));
+    if (event.type === "pending_request.resolved" || event.type === "pending_request.expired") {
+      const key = JSON.stringify([projectId, event.taskId]);
+      if (this.#handles.get(key)?.requestId === event.payload.request.requestId) this.#close(key);
+      return;
+    }
+    if (this.#api?.getPermission() !== "granted" || this.#isPageForeground()) {
       return;
     }
 
@@ -188,8 +267,26 @@ class BrowserTaskNotifier implements TaskNotifier {
         data: { projectId, taskId: event.taskId },
         tag: taskNotification.tag,
       });
+      const key = JSON.stringify([projectId, event.taskId]);
+      this.#close(key);
+      // 系统通知按任务替换，常驻页面最多保留 64 条回调资源，不创建轮询或每条通知的定时器。
+      if (this.#handles.size >= 64) {
+        const oldest = this.#handles.keys().next().value;
+        if (oldest !== undefined) this.#close(oldest);
+      }
+      const entry = {
+        handle: notification,
+        ...(event.type === "pending_request.created"
+          ? { requestId: event.payload.request.requestId }
+          : {}),
+      };
+      this.#handles.set(key, entry);
+      notification.addCloseListener?.(() => {
+        if (this.#handles.get(key) === entry) this.#handles.delete(key);
+      });
       notification.addClickListener(() => {
-        notification.close();
+        if (this.#handles.get(key) !== entry) return;
+        this.#close(key);
         this.#focusPage();
         this.#navigateToTask(projectId, event.taskId);
       });
@@ -202,7 +299,7 @@ class BrowserTaskNotifier implements TaskNotifier {
   }
 
   public requestPermission(): Promise<void> {
-    if (!this.#isEnabled() || this.#api === undefined) {
+    if (this.#disposed || !this.#isEnabled() || this.#api === undefined) {
       return Promise.resolve();
     }
     if (this.#permissionRequest !== undefined) {

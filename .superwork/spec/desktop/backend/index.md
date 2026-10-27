@@ -27,3 +27,10 @@
 
 - 原始帧清理优先保存有效 `savedPath`；存在非空 `fileId` 时不解码迁移记录的旧 `result`，也不将引用作为文件路径。完成且未失败的不可读图片映射为 `[图片]` 消息，其他状态保留工具生命周期。
 - IPC 仅传受控附件元数据或占位，不外传输入图片路径、摘要与上游引用。两端共同语义见 [Codex 适配器规范](../../provider-codex/backend/index.md)，原生回归入口为 `codex_164_contract_tests.rs`。
+
+## 系统通知资源
+
+- macOS 使用 UserNotifications delegate，禁止主线程查询或轮询 `deliveredNotifications`；Windows 使用可撤销的 WinRT 事件；Linux 使用异步 D-Bus 信号，不为每条通知占用阻塞线程。
+- 所有类型的通知发送后返回；审批及待回答状态由任务领域管理。按任务替换，最多 64 条活跃观察资源，24 小时兜底回收；已读、禁用通知、同一请求处理完毕和退出都释放资源。
+- 禁用与通知登记使用同一锁，禁止已在途的旧事件重新投递；过期请求只撤销相同身份，不能移除新问题的提醒。Windows 横幅超时不等于用户清除，仍保留通知中心点击能力。
+- 回归入口：`notification_delivery::tests`、`notification_commands::tests`、`system-notification-lifecycle.test.ts`。跨平台通知点击和系统权限需对应系统验收。

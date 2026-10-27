@@ -35,7 +35,20 @@ pub async fn update_app_preferences(
 ) -> Result<(), AppError> {
     app_storage::validate_preference_updates(&updates)
         .map_err(|_| AppError::FilesystemRequestFailed)?;
-    runtime.enqueue(app_data_dir(&app)?, updates).await
+    let notifications_enabled = updates
+        .get("codeagent.notification-preference")
+        .and_then(Option::as_deref)
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        .filter(|value| value["version"] == 1)
+        .and_then(|value| value["enabled"].as_bool());
+    runtime.enqueue(app_data_dir(&app)?, updates).await?;
+    if let Some(enabled) = notifications_enabled {
+        // 与通知登记使用同一锁；偏好落盘前也拒绝迟到的旧事件，重新开启可立即接收新通知。
+        app.state::<super::notification_commands::NotificationRuntime>()
+            .deliveries
+            .set_enabled(enabled);
+    }
+    Ok(())
 }
 
 #[tauri::command(rename_all = "camelCase")]

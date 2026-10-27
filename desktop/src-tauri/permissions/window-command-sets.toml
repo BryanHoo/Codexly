@@ -38,6 +38,7 @@ permissions = [
   "allow-save-conversation-export",
   "allow-get-task-activities",
   "allow-acknowledge-task-activity",
+  "allow-dismiss-task-notifications",
   "allow-release-task-subscription",
   "allow-retain-task-subscription",
   "allow-configure-desktop-pet",

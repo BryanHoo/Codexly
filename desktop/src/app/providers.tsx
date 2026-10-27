@@ -17,6 +17,7 @@ import {
 } from "../shared/lifecycle/application-visibility.js";
 import { useTranslation } from "../i18n/i18n.js";
 import { installInactiveSnapshotMemoryLimit } from "./snapshot-memory.js";
+import { installSystemNotificationLifecycle } from "../features/notifications/system-notification-lifecycle.js";
 
 export const DEFAULT_QUERY_GC_TIME_MS = 2 * 60_000;
 
@@ -43,6 +44,7 @@ type AppProvidersProps = Readonly<{
 }>;
 
 function ApplicationSuspensionEffects() {
+  useEffect(() => installSystemNotificationLifecycle(), []);
   useEffect(() => {
     const dispose = installApplicationSuspensionEffects(getApplicationDetailViewUpdateGate(), {
       setAnimationsSuspended(suspended) {

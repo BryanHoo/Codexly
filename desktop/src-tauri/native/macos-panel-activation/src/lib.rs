@@ -1,5 +1,7 @@
 mod minimize;
+mod notifications;
 pub use minimize::exit_fullscreen_before_hide;
+pub use notifications::{close_notification, initialize_notifications, show_notification};
 
 use objc2::{MainThreadMarker, msg_send, runtime::NSObjectProtocol as _, sel};
 use objc2_app_kit::{NSApplication, NSEvent, NSPanel};

@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::{
     desktop_pet_commands::render_desktop_pet_task_activities, error::AppError, state::AppState,
@@ -19,6 +19,18 @@ pub async fn acknowledge_task_activity(
     async_question_ids: Option<Vec<String>>,
     state: State<'_, AppState>,
 ) -> Result<(), AppError> {
+    // 系统通知只是任务的导航提醒；确认已读或处理问题时撤销提醒，不解除其余审批事实。
+    if let Ok(route) = super::tray_commands::tray_task_route(&project_id, &task_id) {
+        if let Some(identities) = &async_question_ids {
+            for identity in identities {
+                app.state::<super::notification_commands::NotificationRuntime>()
+                    .deliveries
+                    .resolve(&route, identity);
+            }
+        } else {
+            super::notification_delivery::clear(&app, Some(&route));
+        }
+    }
     // 普通聚焦只确认终态；显式回答或关闭问题时才解除对应的待输入事实。
     let changed = if let Some(question_ids) = async_question_ids {
         let mut changed = false;

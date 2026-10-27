@@ -56,6 +56,7 @@ fn main() {
         "get_runtime_performance_metrics",
         "get_task_activities",
         "acknowledge_task_activity",
+        "dismiss_task_notifications",
         "release_task_subscription",
         "retain_task_subscription",
         "configure_desktop_pet",

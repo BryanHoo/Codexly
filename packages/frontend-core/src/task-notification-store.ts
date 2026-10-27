@@ -1,5 +1,9 @@
 import type { AgentEvent, TaskActivitySnapshot, EventCheckpoint } from "@codexly/protocol";
 import { isAsyncQuestionEvent } from "./async-question-event.js";
+import {
+  retainNotificationMetadata,
+  retainTaskNotifications,
+} from "./task-notification-retention.js";
 
 export type TaskNotificationKind = "completed" | "failed" | "approval" | "input";
 export type TaskNotification = Readonly<{
@@ -12,6 +16,7 @@ export type TaskNotification = Readonly<{
   read: boolean;
 }>;
 type NotificationStorage = Pick<Storage, "getItem" | "setItem">;
+export type ReadNotificationTask = Pick<TaskNotification, "projectId" | "taskId">;
 // 平台只需提供通知元数据，不耦合两端聊天 Item 的协议差异。
 type NotificationEvent = Pick<AgentEvent, "taskId" | "sessionId" | "sequence" | "timestamp"> &
   (
@@ -90,6 +95,30 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
   let signatures = new Map<string, string>();
   const checkpoints = new Map<string, EventCheckpoint>();
   const listeners = new Set<() => void>();
+  const readListeners = new Set<(tasks: readonly ReadNotificationTask[]) => void>();
+  const publishRead = (previous: readonly TaskNotification[]) => {
+    if (!readListeners.size) return;
+    const unread = new Set(items.filter((item) => !item.read).map((item) => item.id));
+    const unreadTasks = new Set(
+      items
+        .filter((item) => !item.read)
+        .map((item) => JSON.stringify([item.projectId, item.taskId])),
+    );
+    const tasks = new Map<string, ReadNotificationTask>();
+    for (const item of previous) {
+      if (
+        !item.read &&
+        !unread.has(item.id) &&
+        !unreadTasks.has(JSON.stringify([item.projectId, item.taskId]))
+      ) {
+        tasks.set(JSON.stringify([item.projectId, item.taskId]), {
+          projectId: item.projectId,
+          taskId: item.taskId,
+        });
+      }
+    }
+    if (tasks.size) for (const listener of readListeners) listener([...tasks.values()]);
+  };
   let writeScheduled = false;
   const restore = () => {
     try {
@@ -103,7 +132,7 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
         !Array.isArray(saved.items)
       )
         return;
-      items = saved.items.filter(isNotification);
+      items = retainTaskNotifications(saved.items.filter(isNotification));
       if ("signatures" in saved && Array.isArray(saved.signatures)) {
         signatures = new Map(
           saved.signatures.filter(
@@ -113,6 +142,7 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
               entry.every((part) => typeof part === "string"),
           ),
         );
+        retainNotificationMetadata(signatures);
       }
     } catch {
       // 隐私模式、损坏配置与配额错误均不能阻断通知和任务导航。
@@ -137,18 +167,28 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
   };
   const replace = (next: readonly TaskNotification[]) => {
     if (next === items) return;
-    items = next;
+    const previous = items;
+    items = retainTaskNotifications(next);
+    publishRead(previous);
     publish();
     persist();
   };
   const store = {
     getSnapshot: () => items,
     getServerSnapshot: () => EMPTY,
+    subscribeRead: (listener: (tasks: readonly ReadNotificationTask[]) => void) => {
+      readListeners.add(listener);
+      return () => {
+        readListeners.delete(listener);
+      };
+    },
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       const onStorage = (event: StorageEvent) => {
         if (event.key !== STORAGE_KEY || event.storageArea !== storage) return;
+        const previous = items;
         restore();
+        publishRead(previous);
         publish();
       };
       if (typeof window !== "undefined") window.addEventListener("storage", onStorage);
@@ -174,7 +214,10 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
           task.checkpoint.sequence < checkpoint.sequence
         )
           continue;
-        if (task.checkpoint) checkpoints.set(key, task.checkpoint);
+        if (task.checkpoint) {
+          checkpoints.delete(key);
+          checkpoints.set(key, task.checkpoint);
+        }
         const signature = JSON.stringify([
           task.startedAt ?? task.checkpoint?.sessionId ?? "",
           task.status,
@@ -183,6 +226,7 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
         if (notificationId === undefined && signatures.get(key) === signature) continue;
         if (notificationId !== undefined && items.some((item) => item.id === notificationId))
           continue;
+        signatures.delete(key);
         signatures.set(key, signature);
         changed = true;
         if (task.status === "running" && !task.requiresApproval) continue;
@@ -209,6 +253,8 @@ export function createTaskNotificationStore(storage?: NotificationStorage) {
         };
         (next ??= [...items]).unshift(notification);
       }
+      retainNotificationMetadata(signatures);
+      retainNotificationMetadata(checkpoints);
       if (next) replace(next);
       else if (changed) persist();
     },

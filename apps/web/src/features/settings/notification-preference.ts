@@ -1,5 +1,6 @@
 const NOTIFICATION_STORAGE_KEY = "codexly.notification-preference";
 const NOTIFICATION_STORAGE_VERSION = 1;
+export const NOTIFICATION_PREFERENCE_CHANGED = "codexly:notification-preference-changed";
 
 type NotificationStorageReader = Readonly<{ getItem: (key: string) => string | null }>;
 type NotificationStorageWriter = Readonly<{ setItem: (key: string, value: string) => void }>;
@@ -49,6 +50,7 @@ export function setNotificationPreference(enabled: boolean): void {
   try {
     if (typeof window !== "undefined") {
       saveNotificationPreference(enabled, window.localStorage);
+      window.dispatchEvent(new Event(NOTIFICATION_PREFERENCE_CHANGED));
     }
   } catch {
     // 访问 localStorage 本身被浏览器拒绝时保持当前运行不受影响。

@@ -147,6 +147,7 @@ pub fn run() {
                 infrastructure::app_data::initialize(&storage_app)
             }))??;
             diagnostics::initialize(app.handle())?;
+            application::notification_delivery::initialize(app.handle());
             setup_tray(app.handle())?;
             if let Some(window) = app.get_webview_window("main") {
                 application::terminal_lifecycle::bind_window(app.handle(), &window);
@@ -180,6 +181,7 @@ pub fn run() {
             },
         )
         .invoke_handler(tauri::generate_handler![
+            application::notification_commands::dismiss_task_notifications,
             enable_autostart,
             get_tray_icon_visible,
             set_tray_icon_visible,
@@ -359,6 +361,7 @@ pub fn run() {
     };
     app.run(|app, event| {
         if matches!(event, tauri::RunEvent::Exit) {
+            application::notification_delivery::clear(app, None);
             diagnostics::mark_clean_shutdown(app);
         }
         handle_run_event(app, event);

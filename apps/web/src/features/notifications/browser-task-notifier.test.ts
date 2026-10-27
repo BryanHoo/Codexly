@@ -1,5 +1,6 @@
 import type { AgentEvent, AgentTurn, PendingRequest } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
+import { createTaskNotificationStore } from "@codexly/frontend-core/task-notification-store";
 
 import {
   createBrowserTaskNotifier,
@@ -188,6 +189,88 @@ function createHarness(
 }
 
 describe("browser task notifier", () => {
+  it("逐 Token 事件不读取通知权限和本地偏好", () => {
+    const harness = createHarness();
+    const enabled = vi.fn(() => true);
+    const permission = vi.spyOn(harness.api, "getPermission");
+    const notifier = createBrowserTaskNotifier({
+      api: harness.api,
+      isEnabled: enabled,
+      isPageForeground: () => false,
+    });
+    notifier.notify(
+      "project",
+      {
+        version: 2,
+        provider: "codex",
+        sessionId: "runtime",
+        sequence: 1,
+        timestamp: "2026-10-27T00:00:00Z",
+        taskId: "task",
+        turnId: "turn",
+        type: "message.delta",
+        itemId: "message",
+        payload: { delta: "文字" },
+      },
+      "任务",
+    );
+    expect(enabled).not.toHaveBeenCalled();
+    expect(permission).not.toHaveBeenCalled();
+    notifier.dispose?.();
+  });
+  it("同一任务的新通知替换旧通知，标记已读后关闭系统提醒", () => {
+    const harness = createHarness();
+    const store = createTaskNotificationStore();
+    const notifier = createBrowserTaskNotifier({
+      api: harness.api,
+      isPageForeground: () => false,
+      notificationStore: store,
+    });
+    notifier.notify("project-1", createTurnCompletedEvent("completed"), "任务");
+    notifier.notify("project-1", createTurnCompletedEvent("failed"), "任务");
+    expect(harness.handle.close).toHaveBeenCalledOnce();
+    store.recordActivities([
+      {
+        projectId: "project-1",
+        taskId: "task-1",
+        taskName: "任务",
+        status: "failed",
+        requiresApproval: false,
+      },
+    ]);
+    store.markAllRead();
+    expect(harness.handle.close).toHaveBeenCalledTimes(2);
+    notifier.dispose?.();
+  });
+
+  it("关闭通知开关时立即回收已有通知，销毁后不再保留监听", () => {
+    const harness = createHarness();
+    const events = new EventTarget();
+    let enabled = true;
+    const notifier = createBrowserTaskNotifier({
+      api: harness.api,
+      isEnabled: () => enabled,
+      isPageForeground: () => false,
+      preferenceEvents: events,
+    });
+    notifier.notify("project-1", createTurnCompletedEvent("completed"), "任务");
+    enabled = false;
+    events.dispatchEvent(new Event("codexly:notification-preference-changed"));
+    expect(harness.handle.close).toHaveBeenCalledOnce();
+    notifier.dispose?.();
+  });
+
+  it("大量未关闭的任务通知只保留有界资源", () => {
+    const harness = createHarness();
+    for (let index = 0; index < 100; index++)
+      harness.notifier.notify(
+        "project",
+        { ...createTurnCompletedEvent("completed"), taskId: String(index) },
+        "任务",
+      );
+    expect(harness.handle.close).toHaveBeenCalledTimes(36);
+    harness.notifier.dispose?.();
+  });
   it("does not request permission or show notifications when notifications are disabled", async () => {
     const harness = createHarness("default");
     const notifier = createBrowserTaskNotifier({

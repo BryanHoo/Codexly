@@ -63,6 +63,7 @@ export class ProjectRuntimeManager {
   >;
   readonly #projects = new Map<string, ProjectEventRuntime>();
   readonly #taskNotifier: TaskNotifier;
+  readonly #ownsTaskNotifier: boolean;
   #taskActivity: TaskActivityMap = new Map();
   readonly #taskActivityCheckpoints = new Map<string, EventCheckpoint>();
   readonly #taskTitles = new Map<string, string>();
@@ -85,6 +86,7 @@ export class ProjectRuntimeManager {
     this.#onTaskTitleChanged = options.onTaskTitleChanged ?? (() => undefined);
     this.#onTaskMetadataChanged = options.onTaskMetadataChanged ?? (() => undefined);
     this.#taskNotifier = options.taskNotifier ?? createBrowserTaskNotifier();
+    this.#ownsTaskNotifier = options.taskNotifier === undefined;
     if (!Number.isSafeInteger(this.#idleTimeoutMs) || this.#idleTimeoutMs < 0) {
       throw new RangeError("Project Runtime idleTimeoutMs must be non-negative");
     }
@@ -119,6 +121,7 @@ export class ProjectRuntimeManager {
   }
 
   public dispose(): void {
+    if (this.#ownsTaskNotifier) this.#taskNotifier.dispose?.();
     for (const project of this.#projects.values()) {
       project.dispose();
     }
