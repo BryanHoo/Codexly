@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-10-27
+
+### 新增
+
+- 桌面端新增「显示状态栏图标」开关，可即时隐藏或显示系统托盘图标，并记住选择。
+
+### 优化
+
+- 统一输入框上方的审批、问答与 MCP 表单，收紧布局并保留问题切换和自定义回答；已完成回合的问题归入执行过程。
+- 已读或已处理提醒自动回收对应系统通知，限制通知历史与后台资源占用。
+- 统一弹窗关闭操作、简化归档清理，并固定检查更新入口，减少误触。
+
+### 修复
+
+- 修复异步回答重复出现、投递确认不准确，以及补充要求后运行提示消失的问题。
+- 修复明确拒绝后排队消息无法恢复，以及桌面并发读取历史时吞掉实时输出的问题。
+
 ## [0.43.0] - 2026-10-26
 
 ### 新增
@@ -864,7 +881,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.43.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.44.0...HEAD
+[0.44.0]: https://github.com/BryanHoo/Codexly/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/BryanHoo/Codexly/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/BryanHoo/Codexly/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/BryanHoo/Codexly/compare/v0.40.0...v0.41.0

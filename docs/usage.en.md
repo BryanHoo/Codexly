@@ -16,6 +16,8 @@ In the archive list, choose all archived tasks, tasks last updated more than 1, 
 
 Switch the sidebar between projects and a timeline grouped by Today, Yesterday, the last seven days, and Earlier. Groups can be collapsed. The task board and extensions are in the sidebar header, with schedules in the icon area; settings, notifications, and help are at the bottom. The notification center separates unread and read alerts and supports marking all as read, or deleting all read notifications from the Read tab. Deleting notifications keeps the tasks. Opening a task marks its notifications as read. Asynchronous questions notify you and mark the task as awaiting an answer; answering or closing the question restores its status.
 
+Read notifications and resolved requests remove their corresponding system alerts. Reading an alert does not approve an action or answer a question; other unread alerts for the same task remain. Notification history has automatic retention limits and prioritizes unread items, so use task history for the full record.
+
 ## Conversations and queues
 
 Choose a model and the permission and reasoning options offered by that engine. Attach files or images, reference project files with `@`, and Skills with `$`. Existing tasks keep their original engine.
@@ -23,6 +25,8 @@ Choose a model and the permission and reasoning options offered by that engine. 
 Save a title and instructions in **Settings → Saved prompts**, choosing global or project scope. Type `/` or `#` in chat to select a prompt by title: it inserts at the cursor, preserves existing text, and does not send automatically. Project prompts override global prompts with the same title. Prompts stay in the current browser or desktop client and do not synchronize with host task data. When space is limited, composer options such as model selection move into a menu.
 
 Follow streaming replies, commands, tools, plans, subagents, and file changes. Respond to approvals and questions in the task. Steer running work or queue follow-ups; queued messages can be reordered, withdrawn for editing, or cancelled before execution. Claude foreground interruption and background-task stopping are separate controls.
+
+Approvals, questionnaires, and MCP forms appear above the composer. Switch between questions, select options or enter a custom answer, then submit the current form. Asynchronous questions may leave the task running; answering or closing one affects only that question. Questions from completed turns move into the expandable execution history. A running indicator continues to show progress after answers or follow-up instructions.
 
 Recent history loads first. Load older turns from the top, and expand execution groups for their details. Claude supports forks from completed replies and context compaction through the command menu. Commands and capabilities follow the selected engine.
 
@@ -65,6 +69,8 @@ Create a schedule with a project, request, engine, model, and repeat rule. Both 
 The host must remain awake with the desktop app or Web server running. An unknown execution outcome pauses further runs: inspect the linked conversation before deleting and recreating the schedule. Cleanup retries do not launch the work again.
 
 ## Extensions and settings
+
+On desktop, toggle **Settings → General → Show status bar icon** to control the system status bar or tray icon. It is visible by default, changes immediately, and remembers your choice after restart. Hiding it keeps the app running and preserves minimizing to the tray when closing the window; fully quit the app to stop background work. Web and mobile browsers do not offer this setting.
 
 Select Codex or Claude in the extension center and manage Skills, MCP, and official plugins within their global or project scope. Available operations differ by engine. Claude can list, enable, disable, and remove existing MCP definitions; add new definitions through native configuration. Start a new conversation after extension changes for complete loading.
 

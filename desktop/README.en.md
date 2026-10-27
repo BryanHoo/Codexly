@@ -22,9 +22,13 @@ For Windows portable builds, extract the entire ZIP and keep the executable, Cla
 
 Desktop shares conversations, approvals, queues, files, Git, extensions, and scheduled workflows with Web and mobile. It adds a native project terminal, global shortcuts, a separate task window, system notifications, and tray integration. Enable startup at login in **Settings → General**.
 
+Toggle **Show status bar icon** in **Settings → General** to show or hide the system tray icon immediately. The choice persists after restart. Hiding it keeps the app running and preserves the behavior of minimizing to the tray when the window closes.
+
 Open up to four task panes with independent drafts and queues. Files, Git, and the terminal follow the focused task. See [first use](../docs/getting-started.en.md) and the [workspace guide](../docs/usage.en.md).
 
 Switch the sidebar between projects and a timeline, or open the notification center for unread alerts. Opening a task marks its notifications as read. Reorder, pin, or bulk-close center file tabs and compare files with chat horizontally or vertically. Settings includes global or project saved prompts, inserted by title with `/` or `#`, and token statistics for both engines; saved prompts stay in the current client.
+
+Marking notifications as read or resolving their requests removes the corresponding system alerts. Reading a notification does not approve an action or answer a question.
 
 Use `Alt+Shift+Arrow` to split tasks and **Help → Keyboard shortcuts** to view available shortcuts. Export a diagnostic ZIP from **Settings → About** when troubleshooting.
 
