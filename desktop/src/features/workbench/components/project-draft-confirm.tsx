@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 export function ProjectDraftConfirm({ onClose, onApply }: { onClose: () => void; onApply: () => void }) {
   const { t } = useTranslation("workbench");
   return <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-    <DialogContent className="max-w-96 p-4">
+    <DialogContent closeLabel={t("actions.close")} className="max-w-96 p-4">
       <DialogHeader><DialogTitle>{t("composer.applyDraftTitle")}</DialogTitle><DialogDescription>{t("composer.applyDraftDescription")}</DialogDescription></DialogHeader>
       <DialogFooter>
         <Button onClick={onClose} type="button" variant="ghost">{t("actions.cancel")}</Button>

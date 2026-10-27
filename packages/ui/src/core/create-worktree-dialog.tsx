@@ -31,6 +31,7 @@ type CreateWorktreeDialogProps = Readonly<{
     description: string;
     branch: string;
     cancel: string;
+    close: string;
     create: string;
   }>;
 }>;
@@ -57,6 +58,8 @@ export function CreateWorktreeDialog({
       open
     >
       <DialogContent
+        closeLabel={labels.close}
+        closeDisabled={isPending}
         aria-labelledby="create-worktree-title"
         className="max-w-96 p-4"
         onCloseAutoFocus={(event) => {

@@ -1,4 +1,4 @@
-import { FilePenLine, FilePlus2, Trash2 } from "lucide-react";
+import { FilePenLine, FilePlus2, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import { useTranslation } from "../../../i18n/i18n.js";
@@ -14,6 +14,7 @@ import {
 } from "../../../shared/components/core/dialog.js";
 import {
   Popover,
+  PopoverClose,
   PopoverContent,
   PopoverTrigger,
 } from "../../../shared/components/core/popover.js";
@@ -87,8 +88,21 @@ export function ProjectTodoList({
           role="dialog"
           side="top"
         >
-          <div className="border-b border-separator px-3 py-2 text-label font-medium">
-            {t("composer.todoList", { project: projectName })}
+          <div className="flex items-center justify-between gap-2 border-b border-separator px-3 py-2 text-label font-medium">
+            <span className="min-w-0 break-words">
+              {t("composer.todoList", { project: projectName })}
+            </span>
+            <PopoverClose asChild>
+              <Button
+                aria-label={t("actions.close")}
+                className="size-11 sm:size-7"
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              >
+                <X aria-hidden="true" />
+              </Button>
+            </PopoverClose>
           </div>
           <div className="max-h-72 overflow-y-auto p-1" role="list">
             {todos.map((todo) => {
@@ -152,7 +166,7 @@ export function ProjectTodoList({
         }}
         open={pendingTodoId !== undefined}
       >
-        <DialogContent className="max-w-96 p-4">
+        <DialogContent closeLabel={t("actions.close")} className="max-w-96 p-4">
           <DialogHeader>
             <DialogTitle>{t("composer.applyTodoTitle")}</DialogTitle>
             <DialogDescription>{t("composer.applyTodoDescription")}</DialogDescription>

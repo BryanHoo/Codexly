@@ -35,7 +35,7 @@ export function ProjectRemoveDialog({
       }}
       open
     >
-      <DialogContent
+      <DialogContent closeLabel={t("actions.close")} closeDisabled={isPending}
         aria-labelledby="project-remove-title"
         className="max-w-96 p-4"
         onEscapeKeyDown={(event) => {

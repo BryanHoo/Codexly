@@ -11,6 +11,10 @@ function PopoverTrigger(props: ComponentProps<typeof PopoverPrimitive.Trigger>) 
   return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />;
 }
 
+function PopoverClose(props: ComponentProps<typeof PopoverPrimitive.Close>) {
+  return <PopoverPrimitive.Close data-slot="popover-close" {...props} />;
+}
+
 function PopoverContent({
   align = "start",
   children,
@@ -37,4 +41,4 @@ function PopoverContent({
   return typeof document === "undefined" ? content : <PopoverPrimitive.Portal>{content}</PopoverPrimitive.Portal>;
 }
 
-export { Popover, PopoverContent, PopoverTrigger };
+export { Popover, PopoverClose, PopoverContent, PopoverTrigger };

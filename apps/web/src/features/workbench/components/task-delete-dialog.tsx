@@ -45,6 +45,8 @@ export function TaskDeleteConfirmationDialog({
       open
     >
       <DialogContent
+        closeLabel={t("actions.close")}
+        closeDisabled={isPending}
         aria-labelledby="task-delete-confirmation-title"
         className="max-w-96 p-4"
         onEscapeKeyDown={(event) => {

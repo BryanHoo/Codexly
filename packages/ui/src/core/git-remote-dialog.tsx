@@ -91,6 +91,8 @@ export function GitRemoteDialog({
       }}
     >
       <DialogContent
+        closeLabel={t("commit.close")}
+        closeDisabled={busy}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           if (returnFocus?.isConnected) returnFocus.focus();

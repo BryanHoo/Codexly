@@ -109,7 +109,7 @@ export function PersonalizationSettingsPanel({ client = nativeClient }: Readonly
 
       </div>
       <Dialog open={confirmDelete} onOpenChange={(open) => { if (!reset.isPending) setConfirmDelete(open); }}>
-        <DialogContent>
+        <DialogContent closeLabel={t("actions.close")} closeDisabled={reset.isPending}>
           <DialogTitle>{t("personalization.remove")}</DialogTitle>
           <DialogDescription>{t("personalization.confirmDescription")}</DialogDescription>
           {reset.isError ? <p role="alert" className="text-danger">{t("personalization.memoryError")}</p> : null}

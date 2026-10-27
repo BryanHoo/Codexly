@@ -1,14 +1,17 @@
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { useTranslation } from "../../../i18n/i18n.js";
 import { Button } from "../../../shared/components/core/button.js";
-import { PopoverContent } from "../../../shared/components/core/popover.js";
+import { PopoverClose, PopoverContent } from "../../../shared/components/core/popover.js";
 import type { ProjectDraftRecord } from "../project-draft-store.js";
 import { getProjectDraftSummary } from "../project-draft-summary.js";
 
 export function ProjectDraftListContent({ drafts, label, onDelete, onRestore }: { drafts: readonly ProjectDraftRecord[]; label: string; onDelete: (id: string) => void; onRestore: (id: string) => void }) {
   const { t, i18n } = useTranslation("workbench");
   return <PopoverContent aria-label={label} className="w-96 max-w-[calc(100vw-2rem)] overflow-hidden p-0" role="dialog" side="top">
-    <div className="border-b border-separator px-3 py-2 text-label font-medium">{label}</div>
+    <div className="flex items-center justify-between gap-2 border-b border-separator px-3 py-2 text-label font-medium">
+      <span className="min-w-0 break-words">{label}</span>
+      <PopoverClose asChild><Button aria-label={t("actions.close")} className="size-11 sm:size-7" size="icon-sm" type="button" variant="ghost"><X aria-hidden="true" /></Button></PopoverClose>
+    </div>
     <div className="max-h-72 overflow-y-auto p-1" role="list">
       {drafts.map((draft) => {
         const summary = getProjectDraftSummary(draft, t("composer.attachmentCount", { count: draft.draft.attachments.length }));

@@ -5,8 +5,9 @@ import {
   parseArchivedTaskDeletionDate,
 } from "@codexly/frontend-core/archived-task-deletion";
 import { Button } from "./button.js";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select.js";
 
-type DeleteRange = "all" | "1" | "3" | "6" | "12" | "custom";
+type DeleteRange = "all" | "1" | "3" | "6" | "12";
 
 export function ArchivedTaskDeleteControl({
   disabled,
@@ -21,59 +22,44 @@ export function ArchivedTaskDeleteControl({
     threeMonths: string;
     sixMonths: string;
     year: string;
-    custom: string;
-    date: string;
     deleteAll: string;
     deleteBefore: string;
-    hint: string;
   }>;
   onDelete: (updatedBefore?: string) => void;
 }>) {
   const [range, setRange] = useState<DeleteRange>("all");
-  const [customDate, setCustomDate] = useState("");
-  const selectedDate =
-    range === "all" || range === "custom"
-      ? customDate
-      : getArchivedTaskDeletionDate(Number(range) as 1 | 3 | 6 | 12);
-  const cutoff = range === "all" ? null : parseArchivedTaskDeletionDate(selectedDate);
-  const inputClass =
-    "h-9 min-w-0 rounded-control border border-separator-strong bg-panel px-2 text-body-small text-foreground outline-none focus-visible:shadow-focus disabled:opacity-50";
+  // 固定范围统一按本地日期计算截止时间，具体日期与永久删除提醒仅在二次确认展示。
+  const cutoff =
+    range === "all"
+      ? null
+      : parseArchivedTaskDeletionDate(getArchivedTaskDeletionDate(Number(range) as 1 | 3 | 6 | 12));
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <select
-        aria-label={labels.range}
-        className={inputClass}
+    <div className="flex shrink-0 items-center gap-2">
+      <Select
         disabled={disabled}
-        onChange={(event) => {
-          setRange(event.currentTarget.value as DeleteRange);
+        onValueChange={(value) => {
+          setRange(value as DeleteRange);
         }}
         value={range}
       >
-        <option value="all">{labels.all}</option>
-        <option value="1">{labels.month}</option>
-        <option value="3">{labels.threeMonths}</option>
-        <option value="6">{labels.sixMonths}</option>
-        <option value="12">{labels.year}</option>
-        <option value="custom">{labels.custom}</option>
-      </select>
-      {range === "custom" ? (
-        <input
-          aria-label={labels.date}
-          className={`${inputClass} max-w-40`}
-          disabled={disabled}
-          onChange={(event) => {
-            setCustomDate(event.currentTarget.value);
-          }}
-          type="date"
-          value={customDate}
-        />
-      ) : null}
+        <SelectTrigger aria-label={labels.range}>
+          <SelectValue />
+        </SelectTrigger>
+        {/* 通过通用组件的 Portal 弹出菜单，避免被单行底栏的滚动容器裁切。 */}
+        <SelectContent align="start" position="popper">
+          <SelectItem value="all">{labels.all}</SelectItem>
+          <SelectItem value="1">{labels.month}</SelectItem>
+          <SelectItem value="3">{labels.threeMonths}</SelectItem>
+          <SelectItem value="6">{labels.sixMonths}</SelectItem>
+          <SelectItem value="12">{labels.year}</SelectItem>
+        </SelectContent>
+      </Select>
       <Button
-        className="min-h-9 text-danger hover:text-danger"
+        className="min-h-9 shrink-0 text-danger hover:text-danger"
         disabled={disabled || (range !== "all" && cutoff === null)}
         onClick={() => {
-          // 仅显式选择“全部”允许空筛选；自定义日期为空或无效时绝不能退化为全部删除。
+          // 仅显式选择“全部”允许空筛选，截止日期无效时不能退化为全部删除。
           if (range === "all") onDelete();
           else if (cutoff !== null) onDelete(cutoff);
         }}
@@ -84,9 +70,6 @@ export function ArchivedTaskDeleteControl({
         <Trash2 aria-hidden="true" />
         {range === "all" ? labels.deleteAll : labels.deleteBefore}
       </Button>
-      {range === "all" ? null : (
-        <p className="w-full text-caption text-muted-foreground">{labels.hint}</p>
-      )}
     </div>
   );
 }

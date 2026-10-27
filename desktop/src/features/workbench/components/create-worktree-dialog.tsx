@@ -10,6 +10,7 @@ export function CreateWorktreeDialog(props: Omit<ComponentProps<typeof SharedCre
     description: t("composer.createWorktreeDescription"),
     branch: t("composer.branchName"),
     cancel: t("actions.cancel"),
+    close: t("actions.close"),
     create: t("composer.createWorktreeConfirm"),
   }} />;
 }

@@ -37,6 +37,8 @@ export function GitRemoteConfigDialog({
       }}
     >
       <DialogContent
+        closeLabel={t("commit.close")}
+        closeDisabled={busy}
         aria-describedby={undefined}
         onCloseAutoFocus={(event) => {
           // 受控弹窗没有 Radix Trigger，关闭时显式返回原入口，保持键盘操作连续。

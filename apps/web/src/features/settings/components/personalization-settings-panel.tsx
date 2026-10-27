@@ -201,7 +201,7 @@ export function PersonalizationSettingsPanel({
           if (!reset.isPending) setConfirmDelete(open);
         }}
       >
-        <DialogContent>
+        <DialogContent closeLabel={t("actions.close")} closeDisabled={reset.isPending}>
           <DialogTitle>{t("personalization.remove")}</DialogTitle>
           <DialogDescription>{t("personalization.confirmDescription")}</DialogDescription>
           {reset.isError ? (

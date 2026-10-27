@@ -14,6 +14,7 @@ export type ComposerGitLabels = Readonly<{
   createWorktreeConfirm: string;
   branchName: string;
   cancel: string;
+  close: string;
   loading: string;
   pickerTitle: string;
   current: string;

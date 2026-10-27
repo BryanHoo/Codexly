@@ -14,6 +14,8 @@ describe("CreateWorktreeDialog", () => {
     );
 
     expect(markup).toContain('aria-labelledby="create-worktree-title"');
+    expect(markup).toContain('data-slot="dialog-close"');
+    expect(markup).toContain('aria-label="关闭"');
     expect(markup).toContain("创建 worktree");
     expect(markup).toContain('for="create-worktree-branch"');
     expect(markup).toContain('name="branch"');

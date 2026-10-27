@@ -20,6 +20,7 @@ export type NewProjectLabels = Readonly<
     | "path"
     | "choose"
     | "cancel"
+    | "close"
     | "create"
     | "creating"
     | "invalidName"
@@ -191,6 +192,8 @@ export function NewProjectDialog({
       }}
     >
       <DialogContent
+        closeLabel={labels.close}
+        closeDisabled={busy}
         className="max-w-lg gap-5"
         onEscapeKeyDown={(event) => {
           if (busy) event.preventDefault();

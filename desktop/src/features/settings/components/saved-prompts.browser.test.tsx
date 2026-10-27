@@ -43,9 +43,9 @@ it("拒绝重复标题并在关闭未保存编辑时确认", async () => {
   await screen.getByRole("textbox", { name: "提示词内容", exact: true }).fill("未保存内容");
   await screen.getByRole("button", { name: "保存", exact: true }).click();
   await expect.element(screen.getByRole("alert")).toHaveTextContent("此标题已被使用");
-  await screen.getByRole("button", { name: "取消", exact: true }).click();
+  await screen.getByRole("button", { name: "关闭", exact: true }).click();
   await expect.element(screen.getByRole("heading", { name: "放弃未保存的修改？" })).toBeVisible();
-  await screen.getByRole("button", { name: "继续编辑", exact: true }).click();
+  await screen.getByRole("button", { name: "关闭", exact: true }).click();
   await expect.element(screen.getByRole("textbox", { name: "提示词内容", exact: true })).toHaveValue("未保存内容");
 });
 

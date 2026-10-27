@@ -194,7 +194,7 @@ export function ExtensionRemoveDialog({
         if (!open && !pending) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent closeLabel={t("actions.close")} closeDisabled={pending}>
         <DialogTitle>{t("skillsMarket.center.confirmRemove", { name })}</DialogTitle>
         <DialogDescription>{t("skillsMarket.center.removeHint")}</DialogDescription>
         {error ? <p role="alert">{error}</p> : null}

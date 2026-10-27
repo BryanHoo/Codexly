@@ -53,7 +53,11 @@ export function KeyboardShortcutsDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent aria-describedby={undefined} className="max-w-md gap-0 overflow-y-auto p-0">
+      <DialogContent
+        closeLabel={labels.close}
+        aria-describedby={undefined}
+        className="max-w-md gap-0 overflow-y-auto p-0"
+      >
         <DialogHeader className="border-b border-separator px-5 py-4">
           <DialogTitle className="flex items-center gap-2">
             <Keyboard aria-hidden="true" className="size-4 text-muted-foreground" />

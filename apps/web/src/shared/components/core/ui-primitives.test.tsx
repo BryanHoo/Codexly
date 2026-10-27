@@ -160,7 +160,7 @@ describe("项目核心组件", () => {
   it("keeps dialog content inside the dynamic viewport", () => {
     const markup = renderToStaticMarkup(
       <Dialog open>
-        <DialogContent aria-labelledby="dialog-title">
+        <DialogContent aria-labelledby="dialog-title" closeLabel="关闭" closeDisabled>
           <DialogTitle id="dialog-title">设置</DialogTitle>
         </DialogContent>
       </Dialog>,
@@ -168,6 +168,9 @@ describe("项目核心组件", () => {
 
     expect(markup).toContain("min-w-0");
     expect(markup).toContain("w-[calc(100%-2rem)]");
+    expect(markup).toContain('data-slot="dialog-close"');
+    expect(markup).toContain('aria-label="关闭"');
+    expect(markup).toMatch(/<button[^>]*disabled=""/u);
   });
 
   it("renders the project sheet and controlled checkbox primitives", () => {

@@ -60,6 +60,10 @@ for (const width of [390, 1280]) {
     await form.getByRole("button", { name: "选择…" }).click();
     const picker = page.getByRole("dialog", { name: "选择父文件夹" });
     await expect(page.getByRole("dialog")).toHaveCount(1);
+    await picker.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(form.getByRole("textbox", { name: "文件夹名称" })).toHaveValue("my-app");
+    expect(creates).toBe(0);
+    await form.getByRole("button", { name: "选择…" }).click();
     await picker.getByRole("radio", { name: "选择 projects", exact: true }).check();
     await picker.screenshot({
       animations: "disabled",

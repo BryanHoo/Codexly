@@ -26,6 +26,7 @@ export function ProjectCreateDialog({ client, onAdd, onClose }: Props) {
         path: t("newProject.path"),
         choose: t("newProject.choose"),
         cancel: t("newProject.cancel"),
+        close: t("actions.close"),
         create: t("newProject.create"),
         creating: t("newProject.creating"),
         invalidName: t("newProject.invalidName"),

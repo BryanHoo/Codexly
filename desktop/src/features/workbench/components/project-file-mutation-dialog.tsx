@@ -25,6 +25,7 @@ function MutationDialogFrame({
   isPending,
   onClose,
 }: CommonProps & Readonly<{ children: React.ReactNode }>) {
+  const { t } = useTranslation("workbench");
   return (
     <Dialog
       onOpenChange={(open) => {
@@ -32,7 +33,7 @@ function MutationDialogFrame({
       }}
       open
     >
-      <DialogContent
+      <DialogContent closeLabel={t("actions.close")} closeDisabled={isPending}
         className="max-w-96 p-4"
         onEscapeKeyDown={(event) => {
           if (isPending) event.preventDefault();

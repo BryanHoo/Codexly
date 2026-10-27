@@ -23,7 +23,7 @@ it("keeps the folder name when returning from the parent picker and requires exp
   await screen.getByRole("textbox", { name: "文件夹名称" }).fill("demo");
   await screen.getByRole("button", { name: "选择…" }).click();
   await expect.element(screen.getByRole("dialog", { name: "选择父文件夹" })).toBeVisible();
-  await screen.getByRole("button", { name: "返回", exact: true }).click();
+  await screen.getByRole("button", { name: "关闭", exact: true }).click();
   await expect.element(screen.getByRole("textbox", { name: "文件夹名称" })).toHaveValue("demo");
   await expect.poll(() => getComputedStyle(document.querySelector('[role="dialog"]')!).opacity).toBe("1");
   await page.screenshot({ path: "../../../../test-results/new-project-desktop.png" });

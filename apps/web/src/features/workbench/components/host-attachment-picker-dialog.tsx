@@ -274,6 +274,8 @@ export function HostAttachmentPickerDialog({
       open
     >
       <DialogContent
+        closeLabel={t("actions.close")}
+        closeDisabled={isImporting}
         aria-labelledby="host-attachment-picker-title"
         className="grid h-[min(84dvh,42rem)] max-w-2xl grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0"
         onEscapeKeyDown={(event) => {

@@ -154,6 +154,7 @@ export function ComposerGitMenu({
               dialog.kind === "branch" ? labels.branchDescription : labels.worktreeDescription,
             branch: labels.branchName,
             cancel: labels.cancel,
+            close: labels.close,
             create:
               dialog.kind === "branch" ? labels.createBranchConfirm : labels.createWorktreeConfirm,
           }}

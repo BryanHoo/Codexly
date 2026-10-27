@@ -1,7 +1,13 @@
 import * as DialogPrimitive from "radix-ui/dialog";
-import type { ComponentProps } from "react";
+import { X } from "lucide-react";
+import { createContext, useContext, type ComponentProps } from "react";
 
 import { cn } from "../lib/utils.js";
+import { Button } from "./button.js";
+
+const DialogCloseContext = createContext<Readonly<{ label: string; disabled: boolean }> | null>(
+  null,
+);
 
 function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -43,8 +49,11 @@ function DialogOverlay({ className, ...props }: ComponentProps<typeof DialogPrim
 function DialogContent({
   children,
   className,
+  closeLabel,
+  closeDisabled = false,
   ...props
-}: ComponentProps<typeof DialogPrimitive.Content>) {
+}: ComponentProps<typeof DialogPrimitive.Content> &
+  Readonly<{ closeLabel?: string; closeDisabled?: boolean }>) {
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -56,7 +65,11 @@ function DialogContent({
         data-slot="dialog-content"
         {...props}
       >
-        {children}
+        <DialogCloseContext.Provider
+          value={closeLabel === undefined ? null : { label: closeLabel, disabled: closeDisabled }}
+        >
+          {children}
+        </DialogCloseContext.Provider>
       </DialogPrimitive.Content>
     </DialogPortal>
   );
@@ -79,12 +92,41 @@ function DialogFooter({ className, ...props }: ComponentProps<"div">) {
 }
 
 function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
-  return (
+  const close = useContext(DialogCloseContext);
+  const title = (
     <DialogPrimitive.Title
-      className={cn("text-heading font-semibold leading-tight", className)}
+      className={cn(
+        "min-w-0 text-heading font-semibold leading-tight",
+        close !== null && "flex-1 leading-none",
+        className,
+      )}
       data-slot="dialog-title"
       {...props}
     />
+  );
+  if (close === null) return title;
+
+  // 标题与悬停容器共用同一高度和上下边缘，X 保持原尺寸并在容器内部垂直居中。
+  return (
+    <div
+      className="flex min-w-0 flex-1 items-stretch gap-3 text-heading leading-none"
+      data-slot="dialog-title-row"
+    >
+      {title}
+      <DialogClose asChild>
+        <Button
+          aria-label={close.label}
+          className="w-[1em]"
+          disabled={close.disabled}
+          size="embedded"
+          style={{ font: "inherit" }}
+          type="button"
+          variant="ghost"
+        >
+          <X aria-hidden="true" className="size-3.5" />
+        </Button>
+      </DialogClose>
+    </div>
   );
 }
 

@@ -68,7 +68,7 @@ export function ArchivedTaskListView({
 }: ArchivedTaskListViewProps) {
   const { t } = useTranslation("workbench");
 
-  // 搜索和翻页加载只替换列表内容，保持日期控件挂载，避免清理范围被重置为“全部”。
+  // 搜索和翻页加载只替换列表内容，保持范围选择器挂载，避免清理范围被重置为“全部”。
   const content = isPending ? (
     <div className="flex min-h-48 items-center justify-center" role="status">
       <LoaderCircle className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />
@@ -141,7 +141,8 @@ export function ArchivedTaskListView({
   return (
     <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto]">
       {content}
-      <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 px-4 py-2">
+      {/* 底栏保持单行；窄屏空间不足时仅在底栏内横向滚动，避免分页换行或控件重叠。 */}
+      <div className="flex min-h-12 min-w-0 items-center justify-between gap-3 overflow-x-auto px-4 py-2">
         <ArchivedTaskDeleteControl
           disabled={mutationPending || isPending || error !== null}
           labels={{
@@ -151,15 +152,12 @@ export function ArchivedTaskListView({
             threeMonths: t("archivedTasks.rangeThreeMonths"),
             sixMonths: t("archivedTasks.rangeSixMonths"),
             year: t("archivedTasks.rangeYear"),
-            custom: t("archivedTasks.rangeCustom"),
-            date: t("archivedTasks.deleteBeforeDate"),
             deleteAll: t("archivedTasks.deleteAll"),
             deleteBefore: t("archivedTasks.deleteBefore"),
-            hint: t("archivedTasks.deleteBeforeHint"),
           }}
           onDelete={onDeleteAll}
         />
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-1 whitespace-nowrap sm:gap-3">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -176,7 +174,7 @@ export function ArchivedTaskListView({
             </TooltipTrigger>
             <TooltipContent>{t("archivedTasks.previous")}</TooltipContent>
           </Tooltip>
-          <span className="min-w-16 text-center text-caption text-muted-foreground">
+          <span className="min-w-10 text-center text-caption text-muted-foreground sm:min-w-16">
             {t("archivedTasks.page", { page: pageNumber })}
           </span>
           <Tooltip>
@@ -311,7 +309,11 @@ export function ArchivedTasksDialog({
         }}
         open
       >
-        <DialogContent className="grid h-[min(42rem,calc(100dvh-2rem))] max-w-2xl grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden p-0">
+        <DialogContent
+          className="grid h-[min(42rem,calc(100dvh-2rem))] max-w-2xl grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden p-0"
+          closeDisabled={mutationPending}
+          closeLabel={t("actions.close")}
+        >
           <DialogHeader className="px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
             <DialogTitle>{t("archivedTasks.title", { project: project.name })}</DialogTitle>
           </DialogHeader>

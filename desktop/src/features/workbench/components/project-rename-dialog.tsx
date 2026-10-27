@@ -40,7 +40,7 @@ export function ProjectRenameDialog({
       }}
       open
     >
-      <DialogContent
+      <DialogContent closeLabel={t("actions.close")} closeDisabled={isPending}
         aria-labelledby="project-rename-title"
         className="max-w-96 p-4"
         onEscapeKeyDown={(event) => {

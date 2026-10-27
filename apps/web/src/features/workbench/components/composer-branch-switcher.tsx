@@ -41,6 +41,7 @@ export function ComposerBranchSwitcher(props: ComposerBranchSwitcherProps) {
         createWorktreeConfirm: t("composer.createWorktreeConfirm"),
         branchName: t("composer.branchName"),
         cancel: t("actions.cancel"),
+        close: t("actions.close"),
         loading: t("composer.worktreeLoading"),
       }}
     />

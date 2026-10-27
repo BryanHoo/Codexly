@@ -34,7 +34,7 @@ export function CreateBranchDialog({ isPending, onClose, onCreate }: CreateBranc
       }}
       open
     >
-      <DialogContent
+      <DialogContent closeLabel={t("actions.close")} closeDisabled={isPending}
         aria-labelledby="create-branch-title"
         className="max-w-96 p-4"
         onEscapeKeyDown={(event) => {

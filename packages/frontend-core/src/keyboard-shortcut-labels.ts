@@ -27,6 +27,7 @@ export const keyboardShortcutChinese = {
     view: "界面",
   },
   title: "键盘快捷键",
+  close: "关闭",
 } as const;
 
 export const keyboardShortcutEnglish = {
@@ -58,10 +59,12 @@ export const keyboardShortcutEnglish = {
     view: "View",
   },
   title: "Keyboard shortcuts",
+  close: "Close",
 } as const;
 
 export type KeyboardShortcutLabels = Readonly<{
   title: string;
+  close: string;
   actions: Readonly<Record<keyof typeof keyboardShortcutEnglish.actions, string>>;
   sections: Readonly<Record<keyof typeof keyboardShortcutEnglish.sections, string>>;
 }>;

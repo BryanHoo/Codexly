@@ -246,6 +246,7 @@ export function SavedPromptsSettings({
         }}
       >
         <DialogContent
+          closeLabel={copy.close}
           className="max-w-xl"
           onInteractOutside={(event) => {
             event.preventDefault();
@@ -365,7 +366,7 @@ export function SavedPromptsSettings({
           if (!open) setDeleting(undefined);
         }}
       >
-        <DialogContent>
+        <DialogContent closeLabel={copy.close}>
           <DialogHeader>
             <DialogTitle>{copy.deleteTitle}</DialogTitle>
             <DialogDescription>{copy.deleteDescription}</DialogDescription>
@@ -410,7 +411,7 @@ export function SavedPromptsSettings({
       {/* 脏草稿只有明确放弃才丢弃，Escape 与取消共用同一保护流程。 */}
       {discarding ? (
         <Dialog open onOpenChange={setDiscarding}>
-          <DialogContent>
+          <DialogContent closeLabel={copy.close}>
             <DialogHeader>
               <DialogTitle>{copy.discardTitle}</DialogTitle>
               <DialogDescription>{copy.discardDescription}</DialogDescription>
