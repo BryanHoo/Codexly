@@ -5,6 +5,7 @@
 @import "tw-animate-css";
 @import "streamdown/styles.css";
 @import "@codexly/ui/agent/streaming-markdown.css";
+@import "@codexly/ui/agent/agent-ui.css";
 @import "@codexly/ui/core/focus.css";
 @import "./touch-controls.css";
 /* 构建时扫描工作区共享控件中的 Tailwind 类。 */

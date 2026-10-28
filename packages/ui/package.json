@@ -64,7 +64,20 @@
       "default": "./src/core/usage-statistics.tsx"
     },
     "./core/usage-statistics.css": "./src/core/usage-statistics.css",
-    "./core/document-workspace.css": "./src/core/document-workspace.css"
+    "./core/document-workspace.css": "./src/core/document-workspace.css",
+    "./agent/*": {
+      "types": "./src/agent/*.tsx",
+      "default": "./src/agent/*.tsx"
+    },
+    "./agent/terminal-ansi": {
+      "types": "./src/agent/terminal-ansi.ts",
+      "default": "./src/agent/terminal-ansi.ts"
+    },
+    "./agent/terminal-text": {
+      "types": "./src/agent/terminal-text.ts",
+      "default": "./src/agent/terminal-text.ts"
+    },
+    "./agent/agent-ui.css": "./src/agent/agent-ui.css"
   },
   "dependencies": {
     "@codemirror/commands": "catalog:",
@@ -94,7 +107,10 @@
     "@tanstack/react-virtual": "catalog:",
     "@tanstack/react-query": "catalog:",
     "shiki": "catalog:",
-    "@codexly/protocol": "workspace:*"
+    "@codexly/protocol": "workspace:*",
+    "@shadcn/react": "catalog:",
+    "anser": "catalog:",
+    "uuid": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:"

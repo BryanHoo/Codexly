@@ -1,4 +1,6 @@
-import { Fragment, useCallback, useMemo, useSyncExternalStore } from "react";
+import { AgentEntry } from "@codexly/ui/agent/motion";
+import { Trace } from "@codexly/ui/core/trace";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 
 import type { MessageFileReference } from "../../../shared/components/agent/message.js";
@@ -87,19 +89,26 @@ export function StoredAssistantTimelineItems({
           ? itemTimings?.[item.id]
           : undefined;
       return (
-        <StoredTimelineItemContent
-          isLastTurnItem={itemKey === lastTurnItemKey}
-          itemKey={itemKey}
-          {...(itemTiming === undefined ? {} : { itemTiming })}
+        <AgentEntry
           key={itemKey}
-          {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
-          onOpenFileDiff={onOpenFileDiff}
-          onOpenSourceFile={onOpenSourceFile}
-          projectId={projectId}
-          store={store}
-          taskId={taskId}
-          turnStatus={turnStatus}
-        />
+          animationKey={itemKey}
+          live={turnStatus === "running"}
+          kind={item?.type === "message" ? "message" : "trace"}
+        >
+          <StoredTimelineItemContent
+            isLastTurnItem={itemKey === lastTurnItemKey}
+            itemKey={itemKey}
+            {...(itemTiming === undefined ? {} : { itemTiming })}
+            key={itemKey}
+            {...(onBuildPlan === undefined ? {} : { onBuildPlan })}
+            onOpenFileDiff={onOpenFileDiff}
+            onOpenSourceFile={onOpenSourceFile}
+            projectId={projectId}
+            store={store}
+            taskId={taskId}
+            turnStatus={turnStatus}
+          />
+        </AgentEntry>
       );
     });
     if (group.type === "item") {
@@ -108,7 +117,11 @@ export function StoredAssistantTimelineItems({
 
     // 完成态只使用 Turn 级执行过程；展开时恢复原始操作行。
     if (turnStatus !== "running") {
-      return <Fragment key={group.key}>{content}</Fragment>;
+      return (
+        <Trace className="agent-operation-list" key={group.key}>
+          {content}
+        </Trace>
+      );
     }
 
     const groupEndIndex = renderableItemKeys.indexOf(group.itemKeys.at(-1) ?? group.key);

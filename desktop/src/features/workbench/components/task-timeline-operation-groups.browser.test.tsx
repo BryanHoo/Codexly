@@ -96,7 +96,7 @@ describe("TimelineOperationGroupDisclosure", () => {
     await vi.waitFor(() => {
       expect(summaryText.query()).not.toBeNull();
     });
-    expect(summaryText.query()?.closest("summary")?.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getByText("原始操作列表").query()).toBeNull();
+    expect(summaryText.query()?.closest("button")?.getAttribute("aria-expanded")).toBe("false");
+    await expect.poll(() => screen.getByText("原始操作列表").query()).toBeNull();
   });
 });

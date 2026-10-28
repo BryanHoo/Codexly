@@ -16,11 +16,7 @@ import type { HistoryAnchor } from "../../search/history-navigation.js";
 
 import { i18n } from "../../../i18n/i18n.js";
 
-import {
-  Conversation,
-  ConversationScrollButton,
-  ConversationVirtualList,
-} from "../../../shared/components/agent/conversation.js";
+import { ConversationList } from "../../../shared/components/agent/conversation.js";
 import { Message, type MessageFileReference } from "../../../shared/components/agent/message.js";
 import type { TaskStore } from "../../conversation/runtime/task-store.js";
 import type { AgentFileChange } from "../../diff/file-change.js";
@@ -176,7 +172,7 @@ export function StoreTurnTimelineSection({
               startedAt={turn.startedAt}
             />
           ) : null}
-          <div className="w-full space-y-4">
+          <div className="agent-timeline">
             <RunningReplyStatus />
           </div>
         </Message>
@@ -340,100 +336,100 @@ export function TaskStoreTimeline({
   }
   return (
     <TimelineImageProvider projectId={projectId} rootPath={imageRootPath}>
-      <Conversation
+      <ConversationList
         aria-label={i18n.t("timeline.conversation", { ns: "conversation" })}
         conversationId={`${projectId}:${taskId}`}
         {...(scrollToBottomSignal === undefined ? {} : { scrollToBottomSignal })}
-      >
-        {hasOlderHistory ? (
-          <TaskTimelinePagination
-            error={olderHistoryError}
-            isLoading={isLoadingOlderHistory}
-            onLoad={onLoadOlderHistory}
-          />
-        ) : null}
-        <ConversationVirtualList
-          {...(hasVisiblePendingRequest || showPendingSubmission || hasNotices
-            ? {
-                footer: (
-                  <>
-                    {hasNotices ? <StoreTaskNoticeList notices={notices} /> : null}
-                    {hasVisiblePendingRequest ? (
-                      <StorePendingRequestList
-                        connected={connected}
-                        onResolvePendingRequest={onResolvePendingRequest}
-                        store={store}
+        {...(hasOlderHistory
+          ? {
+              header: (
+                <TaskTimelinePagination
+                  error={olderHistoryError}
+                  isLoading={isLoadingOlderHistory}
+                  onLoad={onLoadOlderHistory}
+                />
+              ),
+            }
+          : {})}
+        {...(hasVisiblePendingRequest || showPendingSubmission || hasNotices
+          ? {
+              footer: (
+                <>
+                  {hasNotices ? <StoreTaskNoticeList notices={notices} /> : null}
+                  {hasVisiblePendingRequest ? (
+                    <StorePendingRequestList
+                      connected={connected}
+                      onResolvePendingRequest={onResolvePendingRequest}
+                      store={store}
+                    />
+                  ) : null}
+                  {showPendingSubmission ? (
+                    pendingPrompt !== undefined && !hasSubmittedUser ? (
+                      <PendingPromptDisplay
+                        prompt={pendingPrompt}
+                        startedAt={submissionStartedAt}
                       />
-                    ) : null}
-                    {showPendingSubmission ? (
-                      pendingPrompt !== undefined && !hasSubmittedUser ? (
-                        <PendingPromptDisplay
-                          prompt={pendingPrompt}
+                    ) : (
+                      <Message from="assistant">
+                        <TurnProcessingTime
+                          status="running"
+                          completedAt={null}
                           startedAt={submissionStartedAt}
                         />
-                      ) : (
-                        <Message from="assistant">
-                          <TurnProcessingTime
-                            status="running"
-                            completedAt={null}
-                            startedAt={submissionStartedAt}
-                          />
-                          <RunningReplyStatus />
-                        </Message>
-                      )
-                    ) : null}
-                  </>
-                ),
-              }
-            : {})}
-          getItemKey={getTurnIdKey}
-          items={displayTurnIds}
-          renderNavigation={(navigateToItem, scrollbarWidth, scrollContainerRef) => (
-            <TaskTimelineSearchNavigation
-              items={navigationItems}
-              navigateToItem={(index, anchorId) => {
-                navigateToItem(displayIndexByTurnId.get(turnIds[index] ?? "") ?? index, anchorId);
-              }}
-              scrollContainerRef={scrollContainerRef}
-              scrollbarWidth={scrollbarWidth}
-              {...(searchTarget === undefined ? {} : { searchTarget })}
-              turnIds={turnIds}
-            />
-          )}
-          renderItem={(turnId, turnIndex) => (
-            <StoreTurnTimelineSection
-              {...(connected && turnId === displayTurnIds.at(-1) && onBuildPlan !== undefined
-                ? { onBuildPlan }
-                : {})}
-              {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
-              onOpenFileDiff={onOpenFileDiff}
-              onOpenSourceFile={onOpenSourceFile}
-              onReviewFileChanges={onReviewFileChanges}
-              projectId={projectId}
-              store={store}
-              taskId={taskId}
-              turnId={turnId}
-              turnIndex={turnIndex}
-              groupedTurnIds={groupById.get(turnId)?.turnIds}
-              hasNextSubmission={
-                turnIndex < displayTurnIds.length - 1 ||
-                (showPendingSubmission &&
-                  !groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? ""))
-              }
-              suppressEmptyRunningStatus={
-                showPendingSubmission &&
-                (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
-              }
-              {...(groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") &&
-              submissionHandoffState === "assistant-started" &&
-              pendingPrompt !== undefined
-                ? { pendingPrompt }
-                : {})}
-            />
-          )}
-        />
-        <ConversationScrollButton />
-      </Conversation>
+                        <RunningReplyStatus />
+                      </Message>
+                    )
+                  ) : null}
+                </>
+              ),
+            }
+          : {})}
+        getItemKey={getTurnIdKey}
+        items={displayTurnIds}
+        renderNavigation={(navigateToItem, scrollbarWidth, scrollContainerRef) => (
+          <TaskTimelineSearchNavigation
+            items={navigationItems}
+            navigateToItem={(index, anchorId) => {
+              navigateToItem(displayIndexByTurnId.get(turnIds[index] ?? "") ?? index, anchorId);
+            }}
+            scrollContainerRef={scrollContainerRef}
+            scrollbarWidth={scrollbarWidth}
+            {...(searchTarget === undefined ? {} : { searchTarget })}
+            turnIds={turnIds}
+          />
+        )}
+        renderItem={(turnId, turnIndex) => (
+          <StoreTurnTimelineSection
+            {...(connected && turnId === displayTurnIds.at(-1) && onBuildPlan !== undefined
+              ? { onBuildPlan }
+              : {})}
+            {...(connected && onForkTask !== undefined ? { onForkTask } : {})}
+            onOpenFileDiff={onOpenFileDiff}
+            onOpenSourceFile={onOpenSourceFile}
+            onReviewFileChanges={onReviewFileChanges}
+            projectId={projectId}
+            store={store}
+            taskId={taskId}
+            turnId={turnId}
+            turnIndex={turnIndex}
+            groupedTurnIds={groupById.get(turnId)?.turnIds}
+            hasNextSubmission={
+              turnIndex < displayTurnIds.length - 1 ||
+              (showPendingSubmission &&
+                !groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? ""))
+            }
+            suppressEmptyRunningStatus={
+              showPendingSubmission &&
+              (groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") ?? false)
+            }
+            {...(groupById.get(turnId)?.turnIds.includes(submissionTurnId ?? "") &&
+            submissionHandoffState === "assistant-started" &&
+            pendingPrompt !== undefined
+              ? { pendingPrompt }
+              : {})}
+          />
+        )}
+      />
     </TimelineImageProvider>
   );
 }

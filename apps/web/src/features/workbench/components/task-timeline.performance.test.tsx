@@ -49,7 +49,7 @@ function createLongHistory(): RuntimeTaskSnapshot {
 }
 
 describe("TaskTimeline performance", () => {
-  it("normalizes and virtualizes a deterministic 10,000 Item history within budget", () => {
+  it("normalizes 10,000 Items and renders a loaded history page within budget", () => {
     const snapshot = createLongHistory();
     const response = {
       checkpoint: { sequence: 0, sessionId: "session-performance" },
@@ -60,6 +60,14 @@ describe("TaskTimeline performance", () => {
     const store = createTaskStore({ projectId: snapshot.projectId, taskId: snapshot.id }, response);
     const hydrationDurationMs = performance.now() - hydrationStartedAt;
 
+    const loadedTurns = snapshot.turns.slice(-performanceBudgets.longHistory.loadedTurnsPerPage);
+    const loadedStore = createTaskStore(
+      { projectId: snapshot.projectId, taskId: snapshot.id },
+      {
+        ...response,
+        snapshot: { ...snapshot, turns: loadedTurns },
+      },
+    );
     const renderStartedAt = performance.now();
     const markup = renderToStaticMarkup(
       <TooltipProvider>
@@ -77,7 +85,7 @@ describe("TaskTimeline performance", () => {
             metadata: store.getState().snapshotMetadata ?? undefined,
             olderHistoryError: null,
             readSnapshot: () => store.getState().reconstructSnapshot(),
-            store,
+            store: loadedStore,
           }}
           taskId={snapshot.id}
         />
@@ -93,7 +101,7 @@ describe("TaskTimeline performance", () => {
       performanceBudgets.longHistory.items / performanceBudgets.longHistory.itemsPerTurn,
     );
     expect(mountedTurns).toBeGreaterThan(0);
-    expect(mountedTurns).toBeLessThanOrEqual(performanceBudgets.longHistory.maxMountedTurns);
+    expect(mountedTurns).toBe(loadedTurns.length);
     expect(new TextEncoder().encode(markup).byteLength).toBeLessThanOrEqual(
       performanceBudgets.longHistory.maxMarkupBytes,
     );

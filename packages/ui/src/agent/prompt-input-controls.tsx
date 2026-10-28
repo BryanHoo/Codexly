@@ -1,0 +1,364 @@
+import { InputGroupAddon, InputGroupButton, InputGroupTextarea } from "../core/input-group.js";
+import { ArrowUp, FilePlus2, ImagePlus, LoaderCircle, Paperclip, Plus, Square } from "lucide-react";
+import {
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type HTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from "react";
+import { useAgentTranslation } from "./locale.js";
+
+import {
+  isPromptInputComposing,
+  isPromptInputNewlineShortcut,
+  usePromptInputAttachments,
+} from "./prompt-input-context.js";
+import type { PromptInputAttachmentKind } from "./prompt-input-context.js";
+
+type PromptInputSectionProps = HTMLAttributes<HTMLDivElement>;
+
+export function PromptInputCommand({ className = "", ...props }: PromptInputSectionProps) {
+  return (
+    <div
+      className={`overflow-hidden rounded-surface border border-separator-strong bg-raised shadow-floating ${className}`}
+      data-prompt-input-command=""
+      role="listbox"
+      {...props}
+    />
+  );
+}
+
+export function PromptInputCommandList({ className = "", ...props }: PromptInputSectionProps) {
+  return (
+    <div
+      className={`max-h-96 overflow-y-auto p-1 ${className}`}
+      data-prompt-input-command-list=""
+      {...props}
+    />
+  );
+}
+
+type PromptInputCommandGroupProps = PromptInputSectionProps & { label: string };
+
+export function PromptInputCommandGroup({
+  children,
+  className = "",
+  label,
+  ...props
+}: PromptInputCommandGroupProps) {
+  return (
+    <div aria-label={label} className={className} role="group" {...props}>
+      <div className="px-2 py-1.5 text-caption font-medium text-muted-foreground">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+type PromptInputCommandItemProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  active?: boolean;
+  selected?: boolean;
+};
+
+export function PromptInputCommandItem({
+  active = false,
+  className = "",
+  onMouseDown,
+  selected = false,
+  type = "button",
+  ...props
+}: PromptInputCommandItemProps) {
+  const itemRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (active) {
+      // 键盘切换高亮项时，让滚动容器始终露出当前选项。
+      itemRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [active]);
+
+  return (
+    <InputGroupButton
+      variant="ghost"
+      aria-selected={selected}
+      className={`flex h-auto min-h-8 w-full items-center gap-2 whitespace-normal rounded-control px-2 py-2 text-left text-body-small text-foreground transition-colors hover:bg-control-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent ${active ? "bg-control-active" : ""} ${className}`}
+      data-active={active || undefined}
+      onMouseDown={(event) => {
+        // 保留输入框焦点，避免鼠标选择命令时丢失光标上下文。
+        event.preventDefault();
+        onMouseDown?.(event);
+      }}
+      ref={itemRef}
+      role="option"
+      type={type}
+      {...props}
+    />
+  );
+}
+
+export function PromptInputCommandEmpty({ className = "", ...props }: PromptInputSectionProps) {
+  return (
+    <div
+      className={`px-3 py-5 text-center text-body-small text-muted-foreground ${className}`}
+      role="status"
+      {...props}
+    />
+  );
+}
+
+export function PromptInputBody({ className = "", ...props }: PromptInputSectionProps) {
+  return <div className={`px-3 pt-2 ${className}`} {...props} />;
+}
+
+export function PromptInputHeader({ className = "", ...props }: PromptInputSectionProps) {
+  return <InputGroupAddon align="block-start" className={`px-3 pt-2 ${className}`} {...props} />;
+}
+
+export function PromptInputFooter({ className = "", ...props }: PromptInputSectionProps) {
+  return (
+    <InputGroupAddon
+      align="block-end"
+      className={`flex min-h-10 items-center justify-between gap-2 px-2 pb-2 ${className}`}
+      {...props}
+    />
+  );
+}
+
+export function PromptInputTools({ className = "", ...props }: PromptInputSectionProps) {
+  return <div className={`flex min-w-0 items-center gap-1 ${className}`} {...props} />;
+}
+
+type PromptInputTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;
+
+export const PromptInputTextarea = forwardRef<HTMLTextAreaElement, PromptInputTextareaProps>(
+  function PromptInputTextarea(
+    { className = "", name = "message", onKeyDown, rows = 2, ...props },
+    forwardedRef,
+  ) {
+    return (
+      <InputGroupTextarea
+        className={`max-h-40 min-h-12 w-full resize-none overflow-y-auto bg-transparent px-1 py-1 text-sm leading-5 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground/60 disabled:cursor-not-allowed ${className}`}
+        name={name}
+        onKeyDown={(event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+          onKeyDown?.(event);
+          if (
+            !event.defaultPrevented &&
+            event.key === "Enter" &&
+            !isPromptInputNewlineShortcut(event) &&
+            !isPromptInputComposing(event.nativeEvent)
+          ) {
+            event.preventDefault();
+            event.currentTarget.form?.requestSubmit();
+          }
+        }}
+        ref={forwardedRef}
+        rows={rows}
+        {...props}
+      />
+    );
+  },
+);
+
+type PromptInputActionAddAttachmentsProps = PromptInputButtonProps & {
+  label?: string;
+  onSelectKind: (kind: PromptInputAttachmentKind) => void;
+  showDeploymentHost?: boolean;
+  pickerSource?: "browser" | "host";
+};
+
+type AttachmentMenuGroupProps = Readonly<{
+  label: string;
+  onSelect: (kind: PromptInputAttachmentKind) => void;
+  separated?: boolean;
+  showHeading?: boolean;
+}>;
+
+function AttachmentMenuGroup({
+  label,
+  onSelect,
+  separated = false,
+  showHeading = true,
+}: AttachmentMenuGroupProps) {
+  const { t } = useAgentTranslation();
+  return (
+    <div
+      aria-label={label}
+      className={separated ? "mt-1 border-t border-separator pt-1" : undefined}
+      role="group"
+    >
+      {showHeading ? (
+        <p className="px-2 pb-1 pt-1 text-caption text-muted-foreground">{label}</p>
+      ) : null}
+      <InputGroupButton
+        variant="ghost"
+        className="flex h-8 w-full items-center gap-2 rounded-control px-2 text-label text-foreground hover:bg-control-hover"
+        contentAlign="start"
+        onClick={() => {
+          onSelect("image");
+        }}
+        role="menuitem"
+        type="button"
+      >
+        <ImagePlus aria-hidden="true" className="size-4 text-muted-foreground" />
+        {t("agentComponents.addImage")}
+      </InputGroupButton>
+      <InputGroupButton
+        variant="ghost"
+        className="flex h-8 w-full items-center gap-2 rounded-control px-2 text-label text-foreground hover:bg-control-hover"
+        contentAlign="start"
+        onClick={() => {
+          onSelect("file");
+        }}
+        role="menuitem"
+        type="button"
+      >
+        <FilePlus2 aria-hidden="true" className="size-4 text-muted-foreground" />
+        {t("agentComponents.addFile")}
+      </InputGroupButton>
+    </div>
+  );
+}
+
+export function PromptInputActionAddAttachments({
+  children,
+  label,
+  onClick,
+  onSelectKind,
+  showDeploymentHost = false,
+  pickerSource = "browser",
+  ...props
+}: PromptInputActionAddAttachmentsProps) {
+  const attachments = usePromptInputAttachments();
+  const { t } = useAgentTranslation();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const disabled = props.disabled === true || attachments.disabled;
+  const accessibleLabel = label ?? t("agentComponents.addImageOrFile");
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOutside = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <PromptInputButton
+        {...props}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={accessibleLabel}
+        disabled={disabled}
+        onClick={(event) => {
+          onClick?.(event);
+          if (!event.defaultPrevented) setOpen((current) => !current);
+        }}
+        title={accessibleLabel}
+      >
+        {children ?? <Paperclip aria-hidden="true" className="size-3.5" />}
+      </PromptInputButton>
+      <div
+        className="absolute bottom-9 left-0 z-50 min-w-40 rounded-control border border-separator-strong bg-raised p-1 shadow-floating"
+        data-floating-surface
+        hidden={!open}
+        role="menu"
+      >
+        {/* 本机只有一种来源，直接展示附件动作即可。 */}
+        <AttachmentMenuGroup
+          label={t("agentComponents.currentDevice")}
+          onSelect={(kind) => {
+            setOpen(false);
+            if (pickerSource === "host") onSelectKind(kind);
+            else attachments.openFilePicker(kind);
+          }}
+          showHeading={showDeploymentHost}
+        />
+        {showDeploymentHost ? (
+          <AttachmentMenuGroup
+            label={t("agentComponents.deploymentHost")}
+            onSelect={(kind) => {
+              setOpen(false);
+              onSelectKind(kind);
+            }}
+            separated
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+type PromptInputButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
+
+export function PromptInputButton({
+  children,
+  className = "",
+  type = "button",
+  ...props
+}: PromptInputButtonProps) {
+  return (
+    <InputGroupButton className={className} size="sm" type={type} variant="ghost" {...props}>
+      {children ?? <Plus className="size-3.5" aria-hidden="true" />}
+    </InputGroupButton>
+  );
+}
+
+type PromptInputSelectProps = SelectHTMLAttributes<HTMLSelectElement>;
+
+export function PromptInputSelect({ className = "", ...props }: PromptInputSelectProps) {
+  return (
+    <select
+      className={`h-7 w-auto max-w-40 appearance-none rounded-control border-0 bg-transparent px-1.5 text-label text-muted-foreground outline-none [field-sizing:content] hover:bg-control-hover disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
+      {...props}
+    />
+  );
+}
+
+type PromptInputSubmitProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  status: "failed" | "idle" | "reconnecting" | "running" | "submitting";
+};
+
+export function PromptInputSubmit({
+  children,
+  className = "",
+  status,
+  type = "submit",
+  ...props
+}: PromptInputSubmitProps) {
+  const pending = status === "reconnecting" || status === "submitting";
+
+  return (
+    <InputGroupButton
+      className={className}
+      size="icon-compact"
+      type={type}
+      variant="inverse"
+      {...props}
+    >
+      <span className="agent-submit-icon" key={status}>
+        {children ??
+          (status === "running" ? (
+            <Square className="size-3.5 fill-current" aria-hidden="true" />
+          ) : pending ? (
+            <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" />
+          ) : (
+            <ArrowUp className="size-4" aria-hidden="true" />
+          ))}
+      </span>
+    </InputGroupButton>
+  );
+}

@@ -45,13 +45,13 @@ test("submits and renders the live multiline editor text @cross-browser", async 
     type: "prompt",
   });
 
-  const submittedMessage = page.locator('article[data-role="user"]').last();
-  const messageResponse = submittedMessage.locator('[data-message-text="true"] > div > div');
+  const submittedMessage = page.locator('[data-slot="message"][data-role="user"]').last();
+  const messageResponse = submittedMessage.locator('[data-message-text="true"] p').first();
   await expect(submittedMessage).toContainText("第一行\n第二行");
   await expect(messageResponse).toHaveCSS("white-space", "pre-wrap");
   await expect
     .poll(() =>
-      messageResponse.locator("p").evaluate((paragraph) => {
+      messageResponse.evaluate((paragraph) => {
         const lineHeight = Number.parseFloat(getComputedStyle(paragraph).lineHeight);
         return paragraph.getBoundingClientRect().height > lineHeight * 1.5;
       }),

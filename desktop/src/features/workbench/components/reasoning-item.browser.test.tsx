@@ -24,7 +24,7 @@ describe("reasoning summary tool", () => {
     await expect.element(title).toBeInTheDocument();
     expect(title.element().classList.contains("truncate")).toBe(true);
     expect(screen.getByText("详情内容").query()).toBeNull();
-    const header = title.element().closest("summary");
+    const header = title.element().closest("button");
     expect(header?.getBoundingClientRect().height).toBeGreaterThan(0);
     header?.click();
     await expect.element(screen.getByText("详情内容")).toBeVisible();

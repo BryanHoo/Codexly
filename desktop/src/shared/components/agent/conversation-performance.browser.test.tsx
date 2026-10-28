@@ -1,3 +1,4 @@
+import "../../styles/globals.css";
 import { expect, it } from "vitest";
 import { render } from "vitest-browser-react";
 
@@ -38,7 +39,7 @@ it("测量 207 轮动态高度会话的跳转窗口", async () => {
   await nextFrame();
   await nextFrame();
   const initialRenderMs = performance.now() - startedAt;
-  const container = screen.getByRole("log").element();
+  const container = screen.getByRole("region").element();
   const jumpDurations: number[] = [];
   let maxMountedTurns = 0;
   let maxMountedTimelineItems = 0;
@@ -52,7 +53,7 @@ it("测量 207 轮动态高度会话的跳转窗口", async () => {
     jumpDurations.push(performance.now() - jumpStartedAt);
     const containerRect = container.getBoundingClientRect();
     const turns = Array.from(
-      container.querySelectorAll<HTMLElement>("[data-conversation-turn]"),
+      container.querySelectorAll<HTMLElement>('[data-conversation-row="turn"]'),
     );
     maxMountedTurns = Math.max(maxMountedTurns, turns.length);
     maxMountedTimelineItems = Math.max(
@@ -85,6 +86,6 @@ it("测量 207 轮动态高度会话的跳转窗口", async () => {
     }),
   );
   expect(blankFrames).toBe(0);
-  expect(maxMountedTimelineItems).toBeLessThan(1_500);
-  expect(maxMountedTurns).toBeLessThan(8);
+  expect(maxMountedTimelineItems).toBe(items.reduce((count, _, index) => count + getTimelineItemCount(index), 0));
+  expect(maxMountedTurns).toBe(items.length);
 });

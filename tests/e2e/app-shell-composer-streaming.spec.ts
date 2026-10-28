@@ -163,7 +163,7 @@ test("keeps a streaming code block within the conversation and copies its code",
   const copyButton = page.locator('[data-streamdown="code-block-copy-button"]');
   await expect(copyButton).toBeVisible();
   await expect(copyButton).toBeEnabled();
-  const conversation = page.getByRole("log", { name: "会话内容" });
+  const conversation = page.getByRole("region", { name: "会话内容" });
   expect(await conversation.evaluate((element) => element.scrollWidth)).toBe(
     await conversation.evaluate((element) => element.clientWidth),
   );

@@ -1,3 +1,4 @@
+import { Tool } from "../../../shared/components/agent/tool.js";
 import type { ReactElement, ReactNode } from "react";
 import type { AgentItem } from "@codexly/protocol";
 import { describe, expect, it, vi } from "vitest";
@@ -130,7 +131,9 @@ describe("task timeline tools", () => {
           turnStatus="running"
         />,
       );
-      expect(markup).toMatch(/data-tool-duration[^>]*>2\.5s<\/span>\s*<span[^>]*>.*?运行中/su);
+      expect(markup).toMatch(
+        /data-slot="trace-title"[^>]*>.*?data-tool-duration[^>]*>2\.5s<\/span>/su,
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -193,8 +196,8 @@ describe("task timeline tools", () => {
       turnStatus: "completed",
     }) as ReactElement<{ children: ReactNode }>;
 
-    // 直接渲染 Tool 子节点，模拟用户展开后的延迟挂载内容。
-    const markup = renderToStaticMarkup(commandElement.props.children);
+    // 在真实折叠上下文中展开，验证延迟挂载内容。
+    const markup = renderToStaticMarkup(<Tool defaultOpen>{commandElement.props.children}</Tool>);
 
     expect(markup).toContain("参数");
     expect(markup).toContain("&quot;command&quot;: &quot;pnpm check&quot;");

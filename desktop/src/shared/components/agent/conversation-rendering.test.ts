@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { ConversationList } from "./conversation.js";
 
 describe("ConversationList rendering", () => {
-  it("仅服务端渲染有界初始窗口并保持 WebKit 安全定位", () => {
+  it("服务端渲染全部已加载回合并保留稳定消息身份", () => {
     const markup = renderToStaticMarkup(
       createElement(ConversationList, {
         conversationId: "task-a",
@@ -16,9 +16,9 @@ describe("ConversationList rendering", () => {
     );
 
     expect(markup).toContain('data-conversation-content=""');
-    expect(markup).not.toContain('data-index="99"');
-    expect(markup).toContain("position:relative");
+    expect(markup).toContain("<p>turn-99</p>");
+    expect(markup).toContain('data-slot="message-scroller-item"');
     expect(markup).not.toContain("transform:");
-    expect(markup).not.toContain("content-visibility");
+    expect(markup).toContain("content-visibility:auto");
   });
 });

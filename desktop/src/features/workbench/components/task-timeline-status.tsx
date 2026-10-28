@@ -1,3 +1,4 @@
+import { TraceStatusIcon } from "@codexly/ui/core/trace-status";
 import { resolveTurnProcessingTime, type TurnProcessingTiming } from "@codexly/frontend-core/turn-processing-time";
 import { ToolDuration } from "@codexly/ui/agent/tool-duration";
 import {
@@ -235,10 +236,11 @@ export function TurnProcessingTime({
     <><span>{i18n.t("timeline.processing", { ns: "conversation" })}&nbsp;</span><time dateTime={duration.dateTime}>{duration.label}</time></>
   );
   const className =
-    "mb-4 flex w-full items-center border-b border-separator pb-2.5 text-label font-medium text-muted-foreground";
+    "agent-process-header";
 
   return onToggle === undefined ? (
     <div className={className} data-turn-processing-time="">
+      <TraceStatusIcon status={isRunning ? "running" : "completed"} className="size-3.5 [&_svg]:size-3.5" />
       {content}
     </div>
   ) : (
@@ -252,10 +254,11 @@ export function TurnProcessingTime({
       onClick={onToggle}
       type="button"
     >
+      <TraceStatusIcon status={isRunning ? "running" : "completed"} className="size-3.5 [&_svg]:size-3.5" />
       {content}
       <ChevronRight
         aria-hidden="true"
-        className={`ms-auto size-3.5 transition-transform ${expanded ? "rotate-90" : ""}`}
+        className={`size-3.5 text-subtle-foreground transition-transform ${expanded ? "rotate-90" : ""}`}
       />
     </button>
   );

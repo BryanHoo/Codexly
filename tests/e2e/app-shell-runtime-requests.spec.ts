@@ -142,7 +142,7 @@ test("streams Fake App Server notifications into the Timeline @smoke", async ({ 
   await expect(page.getByRole("button", { name: "上下文已使用 13%" })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByText("启动子代理 · 1 个子代理已完成", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /启动子代理 · 1 个子代理已完成/ })).toBeVisible();
   const contextTab = page.getByRole("tab", { name: "上下文" });
   await contextTab.click();
   await expect(contextTab).toHaveAttribute("aria-selected", "true");

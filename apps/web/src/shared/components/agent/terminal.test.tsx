@@ -46,8 +46,8 @@ describe("TerminalContent", () => {
     expect(markup).toContain('data-slot="terminal-header"');
     expect(markup).toContain('data-slot="terminal-content"');
     expect(markup).toContain("lucide-terminal");
-    expect(markup).toContain("bg-terminal");
-    expect(markup).toContain("text-terminal-foreground");
+    expect(markup).toContain("bg-control");
+    expect(markup).toContain("text-foreground");
     expect(markup).toContain("max-h-96");
   });
 });

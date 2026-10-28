@@ -15,7 +15,7 @@ test("用户消息快捷导航保持显示并跳转到对应消息", async ({ pa
       {
         id: `navigation-assistant-${String(index + 1)}`,
         role: "assistant" as const,
-        text: `第 ${String(index + 1)} 条回复\n\n${"用于撑开虚拟时间线的内容。".repeat(30)}`,
+        text: `第 ${String(index + 1)} 条回复\n\n${"用于撑开消息时间线的内容。".repeat(30)}`,
         type: "message" as const,
       },
     ],
@@ -40,7 +40,7 @@ test("用户消息快捷导航保持显示并跳转到对应消息", async ({ pa
   await expect(navigationItems).toHaveCount(12);
   const firstNavigationMarker = navigationItems.first().locator("span[aria-hidden='true']");
   const main = page.locator("main");
-  const conversation = page.getByRole("log");
+  const conversation = page.getByRole("region", { name: "会话内容" });
   const readMarkerRightClearance = async () => {
     const [mainBox, markerBox, scrollMetrics] = await Promise.all([
       main.boundingBox(),

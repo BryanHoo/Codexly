@@ -214,11 +214,9 @@ export function TimelineItemContent({
       if (!hasReasoningSummary(item.text)) return null;
       const fallback = i18n.t("timeline.reasoning", { ns: "conversation" });
       return (
-        <Tool>
+        <Tool data-reasoning-summary="" isStreaming={turnStatus === "running" && isLastTurnItem}>
           <ToolHeader
-            state={
-              turnStatus === "running" && isLastTurnItem ? "input-available" : "output-available"
-            }
+            state={turnStatus === "running" && isLastTurnItem ? "input-available" : "output-available"}
             title={reasoningTitle(item.text, fallback)}
           />
           <ToolContent>

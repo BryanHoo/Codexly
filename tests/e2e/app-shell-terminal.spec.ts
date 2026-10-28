@@ -96,22 +96,22 @@ test("pauses terminal auto-scroll while the user reads earlier output", async ({
   });
 
   await page.goto("/p/codexly/t/task-1");
-  await page.locator("summary").filter({ hasText: command }).click();
+  await page.getByRole("button").filter({ hasText: command }).click();
 
   const terminal = page.locator('[data-slot="terminal"]');
   const terminalContent = terminal.locator('[data-slot="terminal-content"]');
   await expect(terminalContent).toBeVisible();
   await expect
     .poll(() => terminal.evaluate((element) => getComputedStyle(element).backgroundColor))
-    .toBe("rgb(24, 24, 24)");
+    .toBe("rgba(17, 17, 17, 0.04)");
   await expect
     .poll(() =>
-      terminal.locator('[data-slot="terminal-title"] svg').evaluate((element) => {
+      terminal.locator('[data-slot="trace-line"] svg').evaluate((element) => {
         const style = getComputedStyle(element);
         return { height: style.height, width: style.width };
       }),
     )
-    .toEqual({ height: "14px", width: "14px" });
+    .toEqual({ height: "16px", width: "16px" });
   await expect
     .poll(() => terminalContent.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);

@@ -453,7 +453,7 @@ describe("task timeline submission", () => {
     expect(markup).toContain('data-approval-id="number:expired-21"');
   });
 
-  it("virtualizes Turn sections from the normalized store", () => {
+  it("renders all loaded Turn sections from the normalized store", () => {
     const longSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       turns: Array.from({ length: 100 }, (_, index) => ({
@@ -484,7 +484,7 @@ describe("task timeline submission", () => {
     );
 
     expect(markup).toContain('aria-label="Turn 1"');
-    expect(markup).not.toContain('aria-label="Turn 100"');
+    expect(markup).toContain('aria-label="Turn 100"');
   });
 
   it("renders errors for a failed latest turn in the normalized store", () => {

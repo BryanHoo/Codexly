@@ -60,7 +60,7 @@ describe("task timeline process", () => {
     expect(resolveCompletedTurnProcessItemIds(items, "running")).toEqual([]);
     expect(resolveCompletedTurnProcessItemIds(items, "completed")).toEqual(["progress"]);
   });
-  it("removes the old content-visibility fallback after Turn virtualization", () => {
+  it("keeps loaded turns mounted with browser content visibility", () => {
     const longSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       turns: Array.from({ length: 51 }, (_, index) => ({
@@ -72,8 +72,10 @@ describe("task timeline process", () => {
 
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={longSnapshot} />);
 
-    expect(markup.match(/data-index=/g)?.length).toBeLessThan(longSnapshot.turns.length);
-    expect(markup).not.toContain("content-visibility:auto");
+    expect(markup.match(/data-slot="message-scroller-item"/g)?.length).toBe(
+      longSnapshot.turns.length,
+    );
+    expect(markup).toContain("content-visibility:auto");
     expect(markup).not.toContain("contain-intrinsic-size:auto_300px");
   });
 

@@ -93,9 +93,11 @@ test("renders the AI workbench landmarks with an enabled composer", async ({ pag
     await contextUsageRing.evaluate((element) => element.getBoundingClientRect().left),
   );
   await expect(contextUsageButton).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  // 上下文详情使用点击弹层，鼠标与触屏遵循同一交互契约。
+  // 新版上下文详情为 HoverCard，点击仍支持触屏，Escape 关闭。
   await contextUsageButton.click();
-  const contextUsageDialog = page.getByRole("dialog", { name: "上下文已使用 13%" });
+  const contextUsageDialog = page.locator(
+    '[data-slot="hover-card-content"][aria-label="上下文已使用 13%"]',
+  );
   await expect(contextUsageDialog).toContainText("13% 上下文已使用");
   await expect(contextUsageDialog).toContainText("25K / 200K tokens");
   await page.keyboard.press("Escape");
@@ -253,7 +255,7 @@ test("opens message images in a preview dialog @cross-browser", async ({ context
   await page.setViewportSize({ height: 844, width: 390 });
   await page.goto("/p/codexly/t/task-1");
 
-  const userMessage = page.locator('article[data-role="user"]').first();
+  const userMessage = page.locator('[data-slot="message"][data-role="user"]').first();
   const attachment = userMessage.locator('[data-message-attachment="image"]');
   const textBubble = userMessage.locator('[data-message-text="true"]');
   await expect(attachment).toBeVisible();

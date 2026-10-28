@@ -10,6 +10,24 @@ This document describes current conversation loading and resource management for
 
 Opening a task loads summaries of recent questions and final answers, with up to 10 turns per page. The top history control loads one page of earlier turns without fetching their internal execution details. Expanding a turn’s process loads its details independently, with up to 100 items per page for paginated history and controls to load more or retry failures, while keeping questions and final answers in order. Review results and item timings are preserved, and long process content stays within the current pane. Legacy history reads the complete process by turn, also only when expanded. Pagination changes how history is read; it does not delete history on disk.
 
+## 共享聊天组件 / Shared Chat Components
+
+Web、移动浏览器与桌面共用新版 [shadcn/ui AI Elements](https://ui.shadcn.com/docs/ai-elements) 组合：Message/Bubble 呈现消息，Trace 呈现推理、工具、计划与任务，Code Block 呈现代码和终端输出，Input Group、Attachment、Item 承载输入、附件和审批。主题继续使用项目的颜色、字体、圆角与紧凑密度；平台层只负责翻译及文件、传输等适配。
+
+Both editions compose messages, traces, code, input, attachments and approvals from the current shadcn/ui primitives, sharing one implementation while retaining the project's theme and platform adapters.
+
+会话使用官方 `@shadcn/react` Message Scroller，不再采用回合虚拟列表。已经加载的回合全部保留在 DOM 中，支持原生查找与选择；`content-visibility` 跳过屏外绘制。最后两个回合始终采用实际布局，避免新消息从估算高度切换时回弹。滚动跟随、边缘状态与导航由官方 primitive 管理；共享阅读锚点补偿 WebKit 等浏览器在 prepend 或上方内容尺寸变化时的位移，滚动处理不更新 React 状态。只有主动发送才恢复跟随，阅读历史时增量输出不抢走位置。
+
+Conversation rows stay in the DOM and use browser content visibility instead of turn virtualization. The two latest turns retain real layout to avoid estimate corrections. The official Message Scroller owns following and navigation; a shared reading anchor compensates layout shifts across browsers. Scrolling does not update transcript React state. Sending resumes following, while background output preserves the reader's position.
+
+工具和任务的折叠详情只在展开时挂载，关闭后不解析大型输出。历史仍按页读取，移除会话虚拟化不代表自动读取完整历史；文件树及超长代码的专用虚拟化保持独立。
+
+Collapsed tool and task details unmount their expensive content. History remains paginated; removing conversation virtualization does not fetch the complete transcript. File-tree and long-code virtualization remain independent.
+
+新增执行步骤以轻量淡入呈现，运行标题使用扫光，状态变化及详情展开、收起带短过渡。初始历史、逐 token 更新和重新展开不会重复播放入场；动效不会延迟接收或提交事件。系统启用“减弱动态效果”时关闭这些动画。思考摘要运行时自动展开，结束后收起，并尊重用户手动展开或关闭。
+
+New execution steps use lightweight entry transitions, with shimmer for running titles and brief status and disclosure transitions. Initial history, token updates and reopened details do not replay entry animations. Motion never delays event ingestion or commits, and respects reduced-motion preferences. Reasoning opens while streaming and closes afterward unless the user has made a manual choice.
+
 ## 代码与 Markdown / Code and Markdown
 
 两端共用代码查看器，按需加载语法模块并分批高亮，长代码按可见行渲染。完整代码的 UTF-8 大小超过 128 KiB 时使用纯文本，仍可查看和复制完整源码。流式 Markdown 保留增量内容，尾块异步收尾；正文的动画订阅与稳定内容分离，减少重复渲染。

@@ -8,7 +8,7 @@ const codeCommentsSource = readFileSync(
   "utf8",
 );
 const promptControlsSource = readFileSync(
-  new URL("../components/agent/prompt-input-controls.tsx", import.meta.url),
+  new URL("../../../../../packages/ui/src/agent/prompt-input-controls.tsx", import.meta.url),
   "utf8",
 );
 

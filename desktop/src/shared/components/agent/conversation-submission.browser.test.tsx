@@ -17,7 +17,7 @@ it("尾部在测量交付后更新时不被上一帧尺寸回滚", async () => {
     return new NativeResizeObserver((entries, observer) => {
       if (!holdMeasurements) return callback(entries, observer);
       deliveries.push(() => callback(entries, observer));
-      if (entries.some((entry) => (entry.target as HTMLElement).dataset["virtualRow"] === "footer")) {
+      if (entries.some((entry) => (entry.target as HTMLElement).dataset["slot"] === "message-scroller-content")) {
         captured = true;
       }
     });
@@ -40,11 +40,11 @@ it("尾部在测量交付后更新时不被上一帧尺寸回滚", async () => {
     />;
   }
   const screen = await render(<Harness />);
-  await expect.element(screen.getByRole("log")).toBeInTheDocument();
-  const container = screen.getByRole("log").element();
+  await expect.element(screen.getByRole("region")).toBeInTheDocument();
+  const container = screen.getByRole("region").element();
   await expect.element(screen.getByText("pending", { exact: true })).toBeVisible();
   await expect.poll(() => container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
-  const footer = container.querySelector<HTMLElement>('[data-virtual-row="footer"]')!;
+  const footer = container.querySelector<HTMLElement>('[data-conversation-row="footer"]')!;
   try {
     for (let index = 0; index < 3; index += 1) await nextFrame();
     holdMeasurements = true;
@@ -64,7 +64,7 @@ it("尾部在测量交付后更新时不被上一帧尺寸回滚", async () => {
   }
 });
 
-it("仅尾部占位变化时在提交帧内同步真实高度与置底", async () => {
+it("仅尾部占位变化时在布局观察后保持真实高度与置底", async () => {
   const history = Array.from({ length: 20 }, (_, index) => `turn-${index}`);
   let updateFooter = (_height: number | undefined) => {};
   function Harness() {
@@ -83,20 +83,25 @@ it("仅尾部占位变化时在提交帧内同步真实高度与置底", async (
     />;
   }
   const screen = await render(<Harness />);
-  await expect.element(screen.getByRole("log")).toBeInTheDocument();
-  const container = screen.getByRole("log").element();
+  await expect.element(screen.getByRole("region")).toBeInTheDocument();
+  const container = screen.getByRole("region").element();
   await expect.poll(() => container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
   await expect.poll(() => {
-    const footer = container.querySelector<HTMLElement>('[data-virtual-row="footer"]');
+    const footer = container.querySelector<HTMLElement>('[data-conversation-row="footer"]');
     return footer ? container.getBoundingClientRect().bottom - footer.getBoundingClientRect().bottom : null;
   }).toBe(28);
   for (const height of [160, undefined, 64]) {
-    // 响应可仅改变尾部而不改变历史 Item；布局必须在提交时完成，不能依赖下一帧观察器兜底。
+    // 新底层通过 ResizeObserver 合并流式布局更新，保留帧级跟随而不逐 token 同步测量。
     flushSync(() => updateFooter(height));
-    const rows = container.querySelectorAll<HTMLElement>("[data-virtual-row]");
-    const lastRow = rows[rows.length - 1]!;
-    expect.soft(container.getBoundingClientRect().bottom - lastRow.getBoundingClientRect().bottom).toBe(28);
-    expect.soft(container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
+    await nextFrame();
+    await nextFrame();
+    await nextFrame();
+    await expect.poll(() => {
+      const rows = container.querySelectorAll<HTMLElement>("[data-conversation-row]");
+      const lastRow = rows[rows.length - 1]!;
+      return container.getBoundingClientRect().bottom - lastRow.getBoundingClientRect().bottom;
+    }, { timeout: 1000 }).toBe(28);
+    expect(container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
   }
 });
 
@@ -128,10 +133,10 @@ it("发送新消息时历史位置不反向跳动且待处理尾部保持挂载"
     );
   }
   const screen = await render(<Harness />);
-  await expect.element(screen.getByRole("log")).toBeInTheDocument();
-  const container = screen.getByRole("log").element();
+  await expect.element(screen.getByRole("region")).toBeInTheDocument();
+  const container = screen.getByRole("region").element();
   await new Promise((resolve) => setTimeout(resolve, 250));
-  const historyRow = Array.from(container.querySelectorAll<HTMLElement>("[data-conversation-turn]"))
+  const historyRow = Array.from(container.querySelectorAll<HTMLElement>('[data-conversation-row="turn"]'))
     .find((row) => row.textContent === "turn-19");
   expect(historyRow).toBeDefined();
   if (historyRow === undefined) return;

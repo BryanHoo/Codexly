@@ -1,0 +1,206 @@
+/* 共享 AI 界面的节奏：过程紧凑、正文舒展；动画只作用于新增节点和真实状态变化。 */
+.agent-timeline {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.agent-operation-list {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.agent-operation-list > * {
+  margin-block: 0;
+}
+
+.agent-trace-trigger {
+  min-height: 1.75rem;
+  padding: 0.125rem 0.375rem;
+  margin-inline-start: -0.375rem;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+.agent-trace-trigger:hover {
+  background-color: var(--ui-color-control-hover);
+}
+.agent-trace-trigger:active {
+  background-color: var(--ui-color-control-active, var(--ui-color-control-hover));
+}
+.agent-trace-line {
+  min-height: 1.5rem;
+  line-height: 1.5rem;
+}
+.agent-trace-line[data-status="running"] [data-slot="trace-title"] {
+  --ui-shimmer-duration: 2s;
+  --ui-shimmer-spread: 2em;
+  color: transparent;
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent calc(50% - var(--ui-shimmer-spread)),
+      var(--ui-color-text),
+      transparent calc(50% + var(--ui-shimmer-spread))
+    ),
+    linear-gradient(var(--ui-color-text-muted), var(--ui-color-text-muted));
+  background-position:
+    100% center,
+    center;
+  background-repeat: no-repeat;
+  background-size:
+    250% 100%,
+    auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: agent-shimmer 2s linear infinite;
+}
+
+.agent-trace-content[data-state="open"] {
+  animation: agent-trace-expand 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.agent-trace-content[data-state="closed"] {
+  animation: agent-trace-collapse 160ms cubic-bezier(0.4, 0, 1, 1);
+}
+@keyframes agent-trace-expand {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+@keyframes agent-trace-collapse {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+.agent-process-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.75rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 0.25rem;
+  padding: 0.125rem 0.375rem;
+  margin-inline-start: -0.375rem;
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-color-text-muted);
+  font-size: var(--text-label);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+button.agent-process-header {
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+button.agent-process-header:hover {
+  background: var(--ui-color-control-hover);
+  color: var(--ui-color-text);
+}
+
+/* 触屏不依赖 hover；按钮始终可操作，只轻微改变表面而不缩放消息布局。 */
+[data-slot="message-footer"] [data-slot="button"],
+[data-slot="input-group-button"] {
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+[data-slot="code-block"] {
+  background-color: var(--ui-color-raised);
+  border-radius: calc(var(--ui-radius-surface) + 2px);
+}
+[data-slot="code-block-header"] {
+  padding-bottom: 0.25rem;
+}
+[data-slot="bubble-content"] {
+  border: 1px solid var(--ui-color-separator);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-trace-content[data-state],
+  .agent-trace-line[data-status="running"] [data-slot="trace-title"] {
+    animation: none;
+  }
+  .agent-trace-line[data-status="running"] [data-slot="trace-title"] {
+    color: var(--ui-color-text-muted);
+    background: none;
+  }
+  .agent-trace-trigger,
+  button.agent-process-header,
+  [data-slot="trace-icon"],
+  [data-slot="input-group-button"],
+  [data-slot="message-footer"] [data-slot="button"] {
+    transition: none;
+  }
+}
+
+[data-prompt-input] {
+  border-radius: calc(var(--ui-radius-surface) + 4px);
+}
+[data-slot="attachment"] {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+[data-slot="attachment"]:hover {
+  border-color: var(--ui-color-separator-strong);
+}
+
+/* 聚合前无额外缩进；转为完成摘要时保留相同节点，让内容完整收起。 */
+.agent-trace-content[data-inline="true"] > [data-slot="trace-collapsible-content-inner"] {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+[data-slot="message-footer"] {
+  opacity: 0.8;
+  transition: opacity 160ms ease;
+}
+[data-slot="message"]:hover [data-slot="message-footer"],
+[data-slot="message"]:focus-within [data-slot="message-footer"] {
+  opacity: 1;
+}
+@media (hover: none) {
+  [data-slot="message-footer"] {
+    opacity: 1;
+  }
+}
+.agent-submit-icon {
+  display: inline-flex;
+  animation: agent-control-enter 160ms ease-out;
+}
+@keyframes agent-control-enter {
+  from {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-submit-icon {
+    animation: none;
+  }
+  [data-slot="message-footer"] {
+    transition: none;
+  }
+}

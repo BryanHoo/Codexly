@@ -59,6 +59,6 @@ describe("streaming workbench interaction", () => {
     await screen.getByRole("button", { name: "Stop output" }).click();
     await expect.element(screen.getByText("Stopped", { exact: true })).toBeVisible();
     expect(screen.container.querySelector('[role="log"]')?.textContent).toContain("values[index]");
-    expect(screen.container.querySelectorAll("[data-conversation-turn]")).toHaveLength(1);
+    expect(screen.container.querySelectorAll("[data-conversation-row]")).toHaveLength(1);
   });
 });

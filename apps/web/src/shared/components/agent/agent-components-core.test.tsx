@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Conversation, ConversationContent, ConversationVirtualList } from "./conversation.js";
+import { Conversation, ConversationContent, ConversationItems } from "./conversation.js";
 import {
   CodeBlock,
   CodeBlockActions,
@@ -21,6 +21,42 @@ import { TooltipProvider } from "../core/tooltip.js";
 import { renderWithTooltipProvider } from "./agent-components.test-support.js";
 
 describe("agent core components", () => {
+  it("keeps every loaded turn in the DOM for selection and native find", () => {
+    const items = Array.from({ length: 40 }, (_, index) => `turn-${String(index)}`);
+    const markup = renderToStaticMarkup(
+      <Conversation conversationId="loaded-history">
+        <ConversationItems
+          items={items}
+          getItemKey={(item) => item}
+          renderItem={(item) => <p>{item}</p>}
+        />
+      </Conversation>,
+    );
+    for (const item of items) expect(markup).toContain(`<p>${item}</p>`);
+  });
+
+  it("composes user messages with the new message and bubble primitives", () => {
+    const markup = renderToStaticMarkup(
+      <Message from="user">
+        <MessageContent>你好</MessageContent>
+      </Message>,
+    );
+    expect(markup).toContain('data-slot="message"');
+    expect(markup).toContain('data-slot="bubble"');
+  });
+
+  it("renders a tool as an accessible Trace trigger and unmounts closed output", () => {
+    const markup = renderWithTooltipProvider(
+      <Tool>
+        <ToolHeader state="output-error" title="执行命令" />
+        <ToolContent>大型输出</ToolContent>
+      </Tool>,
+    );
+    expect(markup).toContain('data-slot="trace"');
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).not.toContain("大型输出");
+  });
+
   it("使用项目组件文案命名空间", () => {
     const localeSource = readFileSync(
       new URL("../../../i18n/locales/zh-CN/conversation.ts", import.meta.url),
@@ -134,8 +170,8 @@ describe("agent core components", () => {
     expect(markup).toContain('role="log"');
     expect(markup).toContain("完成工作台结构分析。");
     expect(markup).toContain("已完成");
-    expect(markup).toContain("bg-control");
-    expect(markup).toContain("rounded-surface");
+    expect(markup).toContain('data-slot="trace"');
+    expect(markup).toContain("rounded-control");
   });
 
   it("composes message actions with the shared tooltip", () => {
@@ -158,7 +194,7 @@ describe("agent core components", () => {
 
     expect(markup).not.toContain('data-slot="tooltip-trigger"');
     expect(markup).not.toContain('title="读取完整命令"');
-    expect(markup.match(/<summary/gu)).toHaveLength(1);
+    expect(markup.match(/data-slot="trace-collapsible-trigger"/gu)).toHaveLength(1);
   });
 
   it("renders structured task status without a native tooltip", () => {
@@ -173,11 +209,11 @@ describe("agent core components", () => {
     expect(markup).toContain("正在修改文件");
   });
 
-  it("only renders the visible Turn range in a long conversation", () => {
+  it("renders every loaded Turn with stable identity", () => {
     const turns = Array.from({ length: 100 }, (_, index) => `turn-${String(index + 1)}`);
     const markup = renderToStaticMarkup(
       <Conversation aria-label="长会话" conversationId="long-conversation">
-        <ConversationVirtualList
+        <ConversationItems
           getItemKey={(turnId) => turnId}
           items={turns}
           renderItem={(turnId, turnIndex) => (
@@ -188,8 +224,8 @@ describe("agent core components", () => {
     );
 
     expect(markup).toContain("turn-1");
-    expect(markup).not.toContain("turn-100");
-    expect(markup.match(/aria-label="Turn /g)?.length).toBeLessThan(turns.length);
+    expect(markup).toContain("turn-100");
+    expect(markup.match(/aria-label="Turn /g)?.length).toBe(turns.length);
   });
 
   it("renders a polymorphic running Shimmer with an accessible status", () => {

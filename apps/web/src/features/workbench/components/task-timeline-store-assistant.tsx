@@ -95,7 +95,7 @@ export function StoredAssistantGroup({
           ))
         : null}
       {visibleItemKeys.length > 0 || showRunningShimmer ? (
-        <div className="w-full space-y-4">
+        <div className="agent-timeline">
           <StoredAssistantTimelineItems
             itemKeys={visibleItemKeys}
             itemTimings={turn.itemTimings}

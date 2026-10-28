@@ -109,13 +109,13 @@ test.each([1280, 1920].flatMap((width) =>
   </TooltipProvider></QueryClientProvider>);
   const editor = screen.getByRole("textbox");
   await editor.fill("继续回答");
-  const container = screen.getByRole("log").element();
+  const container = screen.getByRole("region", { name: "会话内容" }).element();
   const historyAnchor = screen.getByText("历史段落 23：这段回答已经占满聊天区域。", { exact: true });
   await expect.element(historyAnchor).toBeVisible();
   await expect.poll(() => container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
   expect(container.scrollHeight).toBeGreaterThan(container.clientHeight);
   const anchor = historyAnchor.element();
-  const historyRow = anchor.closest<HTMLElement>('[data-virtual-row="turn"]')!;
+  const historyRow = anchor.closest<HTMLElement>('[data-conversation-row="turn"]')!;
   await expect.poll(() => Math.abs(container.getBoundingClientRect().bottom - historyRow.getBoundingClientRect().bottom - 28)).toBeLessThanOrEqual(1);
   const samples: number[] = [anchor.getBoundingClientRect().top];
   const overlaps: number[] = [];
@@ -133,7 +133,7 @@ test.each([1280, 1920].flatMap((width) =>
       // 等待本帧布局与 ResizeObserver 完成，检查真正交给绘制的行位置。
       await new Promise((resolve) => setTimeout(resolve, 0));
       samples.push(anchor.getBoundingClientRect().top);
-      const lastTurn = container.querySelector<HTMLElement>('[data-virtual-row="turn"]:has([data-conversation-anchor*="next"])');
+      const lastTurn = container.querySelector<HTMLElement>('[data-conversation-row="turn"]:has([data-conversation-anchor*="next"])');
       const userMessage = lastTurn?.querySelector<HTMLElement>('[data-role="user"]');
       if (userMessage !== undefined && userMessage !== null) userHasAppeared = true;
       if (userMessage !== undefined && userMessage !== null) {
@@ -144,7 +144,8 @@ test.each([1280, 1920].flatMap((width) =>
         detachedRunningFrames.push(!Array.from(lastTurn!.querySelectorAll("[aria-label]"))
           .some((element) => element.getAttribute("aria-label") === runningLabel));
         if (!assistantStarted) {
-          initialUserOffsets.push(container.getBoundingClientRect().bottom - userMessage.getBoundingClientRect().bottom);
+          const offset = container.getBoundingClientRect().bottom - userMessage.getBoundingClientRect().bottom;
+          initialUserOffsets.push(offset);
         }
       }
       if (userHasAppeared) {
@@ -152,7 +153,7 @@ test.each([1280, 1920].flatMap((width) =>
         const viewport = container.getBoundingClientRect();
         missingUserFrames.push(rect === undefined || rect.bottom <= viewport.top || rect.top >= viewport.bottom);
       }
-      const footer = container.querySelector<HTMLElement>('[data-virtual-row="footer"]');
+      const footer = container.querySelector<HTMLElement>('[data-conversation-row="footer"]');
       if (lastTurn !== null && footer !== null) {
         overlaps.push(lastTurn.getBoundingClientRect().bottom - footer.getBoundingClientRect().top);
       }

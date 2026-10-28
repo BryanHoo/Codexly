@@ -329,7 +329,7 @@ test("selects and submits a project file reference from an inline @ mention", as
     text: "请检查 @/workspace/Codexly/src/main.tsx 读取文件",
     type: "prompt",
   });
-  const submittedMessage = page.locator('article[data-role="user"]').last();
+  const submittedMessage = page.locator('[data-slot="message"][data-role="user"]').last();
   await expect(submittedMessage).toContainText("请检查");
   await expect(
     submittedMessage.locator('[data-prompt-file-reference="/workspace/Codexly/src/main.tsx"]'),
@@ -351,7 +351,7 @@ test("从 AI 回复复制任务并保留到所属 Turn", async ({ page }) => {
   await page.goto("/p/codexly/t/task-1");
 
   const latestReply = page
-    .locator('article[data-role="assistant"]')
+    .locator('[data-slot="message"][data-role="assistant"]')
     .filter({ hasText: "工作台界面已按统一的 项目 Agent 组件 结构重新组织。" });
   const copyMessageButton = latestReply.getByRole("button", { name: "复制消息" });
   await expect(copyMessageButton).toBeVisible();

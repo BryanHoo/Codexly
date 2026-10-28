@@ -34,18 +34,18 @@ function renderRunningReasoning(withReply: boolean) {
 }
 
 describe("task timeline reasoning", () => {
-  it("shows the summary as a single-line tool title and stays collapsed while running", () => {
+  it("shows a single-line title and expands live reasoning", () => {
     const markup = renderRunningReasoning(false);
-    const reasoning = /<details[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/summary>/u.exec(
+    const reasoning = /<div[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/button>/u.exec(
       markup,
     )?.[0];
 
     expect(reasoning).toBeDefined();
-    expect(reasoning).toContain("group/tool");
-    expect(reasoning).not.toContain('open=""');
-    expect(reasoning).toMatch(/<span class="[^"]*truncate[^"]*">正在分析问题<\/span>/u);
+    expect(reasoning).toContain("trace-collapsible");
+    expect(reasoning).toContain('aria-expanded="true"');
+    expect(reasoning).toMatch(/<span[^>]*data-slot="trace-title"[^>]*>正在分析问题<\/span>/u);
     expect(markup).not.toContain("正在推理");
-    expect(markup).not.toContain("animate-spin");
+    expect(reasoning).toContain("lucide-loader-circle");
   });
 
   it("shows markdown summary as plain text in the title and excludes raw reasoning", () => {
@@ -70,7 +70,7 @@ describe("task timeline reasoning", () => {
 
     expect(markup).toContain('data-reasoning-summary=""');
     expect(markup).toMatch(
-      /<summary[^>]*>[\s\S]*<span class="[^"]*truncate[^"]*">Detaching from Redis init 查看 Redis 配置 和 init\.ts<\/span>[\s\S]*<\/summary>/u,
+      /<button[^>]*>[\s\S]*<span[^>]*data-slot="trace-title"[^>]*>Detaching from Redis init 查看 Redis 配置 和 init\.ts<\/span>[\s\S]*<\/button>/u,
     );
     expect(markup).not.toContain("**Detaching from Redis init**");
     expect(markup).not.toContain("https://example.com");
@@ -79,7 +79,7 @@ describe("task timeline reasoning", () => {
 
   it("stays collapsed after the reply starts", () => {
     const markup = renderRunningReasoning(true);
-    const reasoning = /<details[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/summary>/u.exec(
+    const reasoning = /<div[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/button>/u.exec(
       markup,
     )?.[0];
 
@@ -91,11 +91,11 @@ describe("task timeline reasoning", () => {
 
   it("uses the same collapsed tool presentation on a finished turn", () => {
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={snapshot} />);
-    const reasoning = /<details[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/summary>/u.exec(
+    const reasoning = /<div[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/button>/u.exec(
       markup,
     )?.[0];
 
-    expect(reasoning).toContain("group/tool");
+    expect(reasoning).toContain("trace-collapsible");
     expect(reasoning).not.toContain('open=""');
     expect(reasoning).not.toContain("推理摘要");
   });

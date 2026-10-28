@@ -1,14 +1,15 @@
+import { TraceStatusIcon } from "@codexly/ui/core/trace-status";
+import {
+  Trace,
+  TraceCollapsible,
+  TraceCollapsibleTrigger,
+  TraceCollapsibleContent,
+  TraceLine,
+  TraceIcon,
+} from "@codexly/ui/core/trace";
 import type { AgentItem } from "@codexly/protocol";
 import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
-import { CheckCircle, ChevronRight, CircleX, ListChecks } from "lucide-react";
-import {
-  Fragment,
-  useCallback,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
 import type { TaskItemStore, TaskStore } from "../../conversation/runtime/task-store.js";
@@ -239,52 +240,40 @@ export function TimelineOperationGroupDisclosure({
     collapseTrigger.role === "assistant" &&
     collapseTrigger.text.trim().length > 0;
 
-  // 后续 Assistant 文字出现前保留原始操作行，避免工具刚完成就提前收起。
-  if (!hasFollowingAssistantText) {
-    return <Fragment>{children}</Fragment>;
-  }
-
-  if (summary.isActive) {
-    return (
-      <div className="space-y-4" data-operation-group-active="">
-        {children}
-      </div>
-    );
-  }
-
+  // 始终复用同一个折叠节点，后续文字到达时由 Radix 完整播放收起过渡。
+  const inline = !hasFollowingAssistantText || summary.isActive;
   const summaryText = formatTimelineOperationSummary(summary);
   return (
-    <details
-      className="group/operation w-full"
-      data-operation-group=""
-      onToggle={(event) => {
-        setExpanded(event.currentTarget.open);
-      }}
-      open={expanded}
-    >
-      <summary
-        aria-expanded={expanded}
-        aria-label={i18n.t(
-          expanded ? "timeline.operationGroup.collapse" : "timeline.operationGroup.expand",
-          { ns: "conversation", summary: summaryText },
-        )}
-        className="flex min-h-9 cursor-pointer list-none items-center gap-2 rounded-surface bg-control px-3 py-1 text-label text-foreground transition-colors hover:bg-control-hover focus-visible:shadow-focus [&::-webkit-details-marker]:hidden"
+    <Trace>
+      <TraceCollapsible
+        className="group/operation w-full"
+        data-operation-group={inline ? undefined : ""}
+        data-operation-group-active={summary.isActive ? "" : undefined}
+        onOpenChange={setExpanded}
+        open={inline || expanded}
       >
-        <ListChecks aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 font-medium">{summaryText}</span>
-        {summary.failedCount === 0 ? (
-          <CheckCircle aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
-        ) : (
-          <CircleX aria-hidden="true" className="size-3.5 shrink-0 text-danger" />
-        )}
-        <ChevronRight
-          aria-hidden="true"
-          className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open/operation:rotate-90"
-        />
-      </summary>
-      {expanded ? (
-        <div className="mt-2 space-y-4 border-l border-separator pl-3">{children}</div>
-      ) : null}
-    </details>
+        <TraceCollapsibleTrigger
+          style={inline ? { display: "none" } : undefined}
+          aria-expanded={inline || expanded}
+          aria-label={i18n.t(
+            expanded ? "timeline.operationGroup.collapse" : "timeline.operationGroup.expand",
+            { ns: "conversation", summary: summaryText },
+          )}
+          className="max-w-full"
+        >
+          {!inline && (
+            <TraceLine status={summary.failedCount > 0 ? "error" : undefined}>
+              <TraceIcon>
+                <TraceStatusIcon status={summary.failedCount > 0 ? "error" : "completed"} />
+              </TraceIcon>
+              <span className="min-w-0 flex-1 font-medium">{summaryText}</span>
+            </TraceLine>
+          )}
+        </TraceCollapsibleTrigger>
+        <TraceCollapsibleContent className="agent-operation-list" data-inline={inline}>
+          {children}
+        </TraceCollapsibleContent>
+      </TraceCollapsible>
+    </Trace>
   );
 }

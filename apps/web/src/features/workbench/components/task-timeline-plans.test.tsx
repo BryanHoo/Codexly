@@ -28,7 +28,7 @@ describe("task timeline plans and activity", () => {
 
     expect(markup).toContain('data-ai-plan=""');
     expect(markup).toContain('data-streaming="true"');
-    expect(markup).toMatch(/<details[^>]* open/);
+    expect(markup).toContain('aria-expanded="true"');
     expect(markup).toContain("正在生成计划");
     expect(markup).not.toContain('data-streamdown="ordered-list"');
     expect(markup).toContain("1. 保留原始文本\n2. 接入 Plan 组件");
@@ -98,9 +98,9 @@ describe("task timeline plans and activity", () => {
     expect(markup).toContain('data-status="in_progress"');
     expect(markup).toContain("上下文压缩");
     expect(markup).toContain("查看图片");
-    expect(markup).toContain("/workspace/screenshots/image.png");
-    expect(markup).toMatch(/<button[^>]*>\/workspace\/screenshots\/image\.png<\/button>/);
-    expect(markup.match(/<details/g)).toHaveLength(1);
+    expect(markup).not.toContain("/workspace/screenshots/image.png");
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup.match(/data-slot="trace-collapsible-trigger"/g)).toHaveLength(1);
     expect(markup).not.toContain("lucide-wrench");
   });
 
@@ -170,7 +170,7 @@ describe("task timeline plans and activity", () => {
 
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={subagentSnapshot} />);
 
-    expect(markup).toContain("group/tool");
+    expect(markup).toContain("trace-collapsible");
     expect(markup).toContain("启动子代理");
     expect(markup).toContain("1 个子代理已完成");
     expect(markup).not.toContain("子代理 child-frontend");

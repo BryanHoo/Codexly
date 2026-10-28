@@ -1,4 +1,10 @@
 import {
+  CodeBlock as CodeBlockRoot,
+  CodeBlockHeader as CodeHeader,
+  CodeBlockTitle as CodeTitle,
+  CodeBlockActions as CodeActions,
+} from "../core/code-block.js";
+import {
   CodeBlockContent as SharedCodeBlockContent,
   type CodeBlockContentProps as SharedCodeBlockContentProps,
 } from "./code-block-content.js";
@@ -71,8 +77,8 @@ export function CodeBlock({
   const contextValue = useMemo(() => ({ getCode }), [getCode]);
   return (
     <CodeBlockContext.Provider value={contextValue}>
-      <div
-        className={`relative w-full overflow-hidden rounded-surface bg-raised text-foreground shadow-sm ${className}`}
+      <CodeBlockRoot
+        className={`bg-raised ${className}`}
         data-language={language}
         style={{ containIntrinsicSize: "auto 200px", contentVisibility: "auto", ...style }}
         {...props}
@@ -86,7 +92,7 @@ export function CodeBlock({
           pages={resolvedPages}
           showLineNumbers={showLineNumbers}
         />
-      </div>
+      </CodeBlockRoot>
     </CodeBlockContext.Provider>
   );
 }
@@ -94,18 +100,13 @@ export function CodeBlock({
 export type CodeBlockHeaderProps = HTMLAttributes<HTMLDivElement>;
 
 export function CodeBlockHeader({ className = "", ...props }: CodeBlockHeaderProps) {
-  return (
-    <div
-      className={`flex min-h-8 items-center justify-between border-b border-separator bg-control px-3 text-label text-muted-foreground ${className}`}
-      {...props}
-    />
-  );
+  return <CodeHeader className={`min-h-8 ${className}`} {...props} />;
 }
 
 export type CodeBlockTitleProps = HTMLAttributes<HTMLDivElement>;
 
 export function CodeBlockTitle({ className = "", ...props }: CodeBlockTitleProps) {
-  return <div className={`flex min-w-0 items-center gap-2 ${className}`} {...props} />;
+  return <CodeTitle className={`flex items-center gap-2 ${className}`} {...props} />;
 }
 
 export type CodeBlockFilenameProps = HTMLAttributes<HTMLSpanElement>;
@@ -117,7 +118,7 @@ export function CodeBlockFilename({ className = "", ...props }: CodeBlockFilenam
 export type CodeBlockActionsProps = HTMLAttributes<HTMLDivElement>;
 
 export function CodeBlockActions({ className = "", ...props }: CodeBlockActionsProps) {
-  return <div className={`ml-auto flex items-center gap-1 ${className}`} {...props} />;
+  return <CodeActions className={className} {...props} />;
 }
 
 export type CodeBlockCopyButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onError"> & {

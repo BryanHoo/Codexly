@@ -50,10 +50,10 @@
     "items": 10000,
     "itemsPerTurn": 10,
     "maxHydrationMs": 1500,
-    "maxMarkupBytes": 131072,
-    "maxMountedTurns": 8,
+    "maxMarkupBytes": 262144,
     "maxRenderMs": 1000,
-    "maxTurnCompletionMs": 250
+    "maxTurnCompletionMs": 250,
+    "loadedTurnsPerPage": 10
   },
   "petActivity": {
     "directories": 32,

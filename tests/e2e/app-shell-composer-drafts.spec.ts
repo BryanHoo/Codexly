@@ -210,12 +210,13 @@ test("scrolls the conversation area to the bottom whenever the active task chang
     });
   });
   await page.goto("/p/codexly/t/task-1");
-  const conversation = page.getByRole("log", { name: "会话内容" });
+  const conversation = page.getByRole("region", { name: "会话内容" });
   await expect
     .poll(() => conversation.evaluate((element) => element.scrollHeight))
     .toBeGreaterThan(800);
   const mountedTurns = conversation.locator('section[aria-label^="Turn "]');
-  await expect.poll(() => mountedTurns.count()).toBeLessThan(longTurns.length);
+  // 已加载回合保留真实 DOM，历史仍由服务端分页控制。
+  await expect(mountedTurns).toHaveCount(longTurns.length);
   await expect(conversation.locator('section[aria-label="Turn 24"]')).toBeVisible();
 
   await conversation.evaluate((element) => {
@@ -311,14 +312,13 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
   });
   await page.goto("/p/codexly/t/task-1");
 
-  const conversation = page.getByRole("log", { name: "会话内容" });
+  const conversation = page.getByRole("region", { name: "会话内容" });
   await expect
     .poll(() => conversation.evaluate((element) => element.scrollHeight))
     .toBeGreaterThan(800);
-  await conversation.evaluate((element) => {
-    element.scrollTop = 120;
-    element.dispatchEvent(new Event("scroll", { bubbles: true }));
-  });
+  // 使用真实滚轮表达阅读历史的意图，与官方 Scroller 的自动跟随契约一致。
+  await conversation.hover();
+  await page.mouse.wheel(0, -1500);
 
   const prompt = page.getByRole("textbox", { name: "任务输入" });
   await prompt.fill("直接发送的新消息");
@@ -335,10 +335,9 @@ test("scrolls direct user submissions to the bottom without scrolling queued mes
     )
     .toBeLessThanOrEqual(1);
 
-  await conversation.evaluate((element) => {
-    element.scrollTop = 120;
-    element.dispatchEvent(new Event("scroll", { bubbles: true }));
-  });
+  // 使用真实滚轮表达阅读历史的意图，与官方 Scroller 的自动跟随契约一致。
+  await conversation.hover();
+  await page.mouse.wheel(0, -1500);
   await expect
     .poll(() =>
       conversation.evaluate(

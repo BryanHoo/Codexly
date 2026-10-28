@@ -397,7 +397,7 @@ test("keeps long runtime activity details within the conversation", async ({ pag
   await page.goto("/p/codexly/t/task-1");
 
   await page.getByText("长执行详情", { exact: true }).click();
-  const conversation = page.getByRole("log", { name: "会话内容" });
+  const conversation = page.getByRole("region", { name: "会话内容" });
   await expect(page.getByText(longDetail, { exact: true })).toBeVisible();
   expect(await conversation.evaluate((element) => element.scrollWidth)).toBe(
     await conversation.evaluate((element) => element.clientWidth),

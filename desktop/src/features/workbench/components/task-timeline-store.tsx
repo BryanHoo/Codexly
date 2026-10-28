@@ -17,7 +17,6 @@ import type {
 import type { AgentFileChange } from "../../diff/file-change.js";
 import { PendingRequestCard, type PendingRequestResolution } from "./pending-request.js";
 import type { BuildPlanAction, ForkTaskAction } from "./task-timeline-contracts.js";
-import { useTurnSizeEstimate } from "./task-timeline-estimate.js";
 import { resolveCompletedTurnProcessItemIds } from "./task-timeline-process.js";
 import { TaskTimelinePagination } from "./task-timeline-pagination.js";
 import {
@@ -292,7 +291,6 @@ export function TaskStoreTimeline({
     void itemStructureRevision;
     return getTaskTimelineNavigationItems(store.getState());
   }, [itemStructureRevision, store]);
-  const estimateTurnSize = useTurnSizeEstimate(store, itemStructureRevision);
   const submissionHandoffState = useStore(store, (state) => {
     if (submissionTurnId === undefined) {
       return "footer";
@@ -334,7 +332,6 @@ export function TaskStoreTimeline({
     <ConversationList
       aria-label={i18n.t("timeline.conversation", { ns: "conversation" })}
       conversationId={`${projectId}:${taskId}`}
-      estimateItemSize={(id) => (groupById.get(id)?.turnIds ?? [id]).reduce((total, sourceId) => total + estimateTurnSize(sourceId), 0)}
       {...(hasVisiblePendingRequest || showPendingFooter || hasNotices
         ? {
             footer: (

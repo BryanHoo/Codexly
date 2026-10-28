@@ -1,3 +1,5 @@
+import { i18n } from "../../../i18n/i18n.js";
+import "../../styles/globals.css";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { describe, expect, it } from "vitest";
@@ -11,7 +13,7 @@ async function nextFrames(count = 3): Promise<void> {
   for (let index = 0; index < count; index += 1) await nextFrame();
 }
 
-async function settleVirtualScroll(): Promise<void> {
+async function settleConversationScroll(): Promise<void> {
   await new Promise((resolve) => window.setTimeout(resolve, 180));
   await nextFrames();
 }
@@ -47,12 +49,12 @@ describe("Conversation visual anchor", () => {
       );
     }
     const screen = await render(<NavigationHarness />);
-    await settleVirtualScroll();
+    await settleConversationScroll();
     // 模拟 WebKit 原生 scroll 事件尚未送达时，异步尾部内容已经触发同步测量。
     navigateToHistory();
     flushSync(resizeFooter);
-    await settleVirtualScroll();
-    const container = screen.getByRole("log").element();
+    await settleConversationScroll();
+    const container = screen.getByRole("region").element();
     const target = container.querySelector<HTMLElement>('[data-conversation-anchor="turn-2"]');
     expect(target).not.toBeNull();
     const viewport = container.getBoundingClientRect();
@@ -95,34 +97,34 @@ describe("Conversation visual anchor", () => {
       );
     }
     const screen = await render(<TaskSwitchHarness />);
-    let container = screen.getByRole("log").element();
-    await settleVirtualScroll();
+    let container = screen.getByRole("region").element();
+    await settleConversationScroll();
 
-    expect(getComputedStyle(container).overflowAnchor).toBe("none");
+    expect(container.getAttribute("data-slot")).toBe("message-scroller-viewport");
     showLongTask();
-    await settleVirtualScroll();
-    container = screen.getByRole("log").element();
+    await settleConversationScroll();
+    container = screen.getByRole("region").element();
     container.style.height = "240px";
-    await settleVirtualScroll();
+    await settleConversationScroll();
 
     expect(container.textContent).toContain("long-turn-206");
     expect(container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
 
     showShortTask();
-    await settleVirtualScroll();
+    await settleConversationScroll();
     showLongTask();
-    await settleVirtualScroll();
-    container = screen.getByRole("log").element();
+    await settleConversationScroll();
+    container = screen.getByRole("region").element();
 
     expect(container.textContent).toContain("long-turn-206");
     expect(container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
   });
 
-  it("仅挂载视口窗口并使用 WebKit 安全的位置直写模式", async () => {
+  it("保留全部已加载回合并通过浏览器跳过屏外绘制", async () => {
     const items = Array.from({ length: 207 }, (_, index) => `turn-${String(index)}`);
     const screen = await render(
       <ConversationList
-        conversationId="task-virtual-window"
+        conversationId="task-loaded-history"
         getItemKey={(turnId) => turnId}
         items={items}
         renderItem={(turnId) => <div style={{ height: 120 }}>{turnId}</div>}
@@ -132,15 +134,15 @@ describe("Conversation visual anchor", () => {
 
     await nextFrame();
     await nextFrame();
-    const container = screen.getByRole("log").element();
-    const turns = container.querySelectorAll<HTMLElement>("[data-conversation-turn]");
+    const container = screen.getByRole("region").element();
+    const turns = container.querySelectorAll<HTMLElement>('[data-conversation-row="turn"]');
 
     expect(turns.length).toBeGreaterThan(0);
-    expect(turns.length).toBeLessThan(20);
+    expect(turns.length).toBe(items.length);
     expect(container.textContent).toContain("turn-206");
     for (const turn of turns) {
-      expect(turn.style.position).toBe("absolute");
-      expect(turn.style.top).not.toBe("");
+      expect(turn.style.position).toBe("");
+      expect(turn.style.top).toBe("");
       expect(turn.style.transform).toBe("");
     }
   });
@@ -156,17 +158,17 @@ describe("Conversation visual anchor", () => {
         style={{ height: 320, overflowAnchor: "none", overflowY: "auto" }}
       />,
     );
-    const container = screen.getByRole("log").element();
+    const container = screen.getByRole("region").element();
 
     // 先完成任务切换置底，再模拟用户在历史中段阅读。
-    await settleVirtualScroll();
+    await settleConversationScroll();
     container.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -120 }));
     container.scrollTop = Math.floor((container.scrollHeight - container.clientHeight) / 2);
     container.dispatchEvent(new Event("scroll", { bubbles: true }));
-    await settleVirtualScroll();
+    await settleConversationScroll();
     const containerTop = container.getBoundingClientRect().top;
     const turns = Array.from(
-      container.querySelectorAll<HTMLElement>("[data-conversation-turn]"),
+      container.querySelectorAll<HTMLElement>('[data-conversation-row="turn"]'),
     );
     const anchor = turns.find((turn) => turn.getBoundingClientRect().top >= containerTop);
     const source = turns.find((turn) => turn.getBoundingClientRect().bottom <= containerTop);
@@ -209,20 +211,20 @@ describe("Conversation visual anchor", () => {
       );
     }
     const screen = await render(<AppendHarness />);
-    const container = screen.getByRole("log").element();
+    const container = screen.getByRole("region").element();
     await nextFrames();
 
     appendTurn();
-    await settleVirtualScroll();
+    await settleConversationScroll();
     expect(container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
 
     container.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -240 }));
     container.scrollTop -= 240;
     container.dispatchEvent(new Event("scroll", { bubbles: true }));
-    await settleVirtualScroll();
+    await settleConversationScroll();
     const readingPosition = container.scrollTop;
     appendTurn();
-    await settleVirtualScroll();
+    await settleConversationScroll();
 
     expect(Math.abs(container.scrollTop - readingPosition)).toBeLessThan(1);
   });
@@ -253,11 +255,11 @@ describe("Conversation visual anchor", () => {
       );
     }
     const screen = await render(<StreamingHarness />);
-    const container = screen.getByRole("log").element();
-    await settleVirtualScroll();
+    const container = screen.getByRole("region").element();
+    await settleConversationScroll();
 
     growLastTurn();
-    await settleVirtualScroll();
+    await settleConversationScroll();
 
     expect(container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
   });
@@ -291,18 +293,18 @@ describe("Conversation visual anchor", () => {
       );
     }
     const screen = await render(<PrependHarness />);
-    const container = screen.getByRole("log").element();
-    await settleVirtualScroll();
+    const container = screen.getByRole("region").element();
+    await settleConversationScroll();
     container.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -120 }));
     container.scrollTop = Math.floor((container.scrollHeight - container.clientHeight) / 2);
     container.dispatchEvent(new Event("scroll", { bubbles: true }));
-    await settleVirtualScroll();
+    await settleConversationScroll();
 
     const scrollTopBeforePrepend = container.scrollTop;
     const scrollHeightBeforePrepend = container.scrollHeight;
 
     prependHistory();
-    await settleVirtualScroll();
+    await settleConversationScroll();
     await expect
       .poll(
         () =>
@@ -325,9 +327,9 @@ describe("Conversation visual anchor", () => {
         style={{ height: 320, overflowY: "auto" }}
       />,
     );
-    const container = screen.getByRole("log").element();
+    const container = screen.getByRole("region").element();
 
-    await settleVirtualScroll();
+    await settleConversationScroll();
     container.scrollTop = container.scrollHeight - container.clientHeight;
     container.dispatchEvent(new Event("scroll", { bubbles: true }));
     container.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -120 }));
@@ -337,9 +339,36 @@ describe("Conversation visual anchor", () => {
     const readingPosition = container.scrollTop;
 
     container.style.height = "240px";
-    await settleVirtualScroll();
+    await settleConversationScroll();
 
     expect(container.scrollTop).toBeLessThan(container.scrollHeight - container.clientHeight);
     expect(Math.abs(container.scrollTop - readingPosition)).toBeLessThan(1);
   });
+});
+
+
+it("拖动滚动条暂停跟随，点击回到底部后恢复流式跟随", async () => {
+  let append = () => {};
+  function Harness() {
+    const [items, setItems] = useState(Array.from({length: 20}, (_, index) => String(index)));
+    useEffect(() => { append = () => setItems(current => [...current, String(current.length)]); }, []);
+    return <ConversationList conversationId="scrollbar-follow" items={items} getItemKey={item => item}
+      renderItem={item => <div style={{height: 120}}>{item}</div>} style={{height:320}} />;
+  }
+  const screen = await render(<Harness />);
+  await settleConversationScroll();
+  const viewport = screen.getByRole("region").element();
+  viewport.dispatchEvent(new PointerEvent("pointerdown", {bubbles:true}));
+  viewport.scrollTop = 500;
+  viewport.dispatchEvent(new Event("scroll", {bubbles:true}));
+  await settleConversationScroll();
+  const top = viewport.scrollTop;
+  append();
+  await settleConversationScroll();
+  expect(Math.abs(viewport.scrollTop - top)).toBeLessThan(1);
+  await screen.getByRole("button", {name:i18n.t("agentComponents.scrollToBottom", {ns:"conversation"})}).click();
+  await settleConversationScroll();
+  append();
+  await settleConversationScroll();
+  expect(viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight).toBeLessThan(1);
 });

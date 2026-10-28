@@ -62,7 +62,7 @@ describe("tool duration", () => {
           turnStatus: "running",
         }),
       );
-      expect(markup).toMatch(/data-tool-duration[^>]*>2\.5s<\/span>\s*<span[^>]*>.*?运行中/su);
+      expect(markup).toMatch(/data-slot="trace-title"[^>]*>.*?data-tool-duration[^>]*>2\.5s<\/span>/su);
     } finally {
       vi.useRealTimers();
     }
@@ -88,7 +88,7 @@ describe("tool duration", () => {
         turnStatus: "completed",
       }),
     );
-    expect(markup).toMatch(/data-tool-duration[^>]*>2\.5s<\/span>\s*<span[^>]*>.*?已完成/su);
+    expect(markup).toMatch(/data-slot="trace-title"[^>]*>.*?data-tool-duration[^>]*>2\.5s<\/span>/su);
     expect(markup).not.toContain(new Date(1_753_318_800_000).toISOString());
   });
 
@@ -109,7 +109,7 @@ describe("tool duration", () => {
           turnStatus: "completed",
         }),
       );
-      expect(markup).toMatch(/data-tool-duration[^>]*>250ms<\/span>\s*<span[^>]*>.*?已完成/su);
+      expect(markup).toMatch(/data-slot="trace-title"[^>]*>.*?data-tool-duration[^>]*>250ms<\/span>/su);
       expect(markup).not.toContain("dateTime=");
     }
   });

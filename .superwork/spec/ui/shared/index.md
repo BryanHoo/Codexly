@@ -27,3 +27,14 @@
 - 题目切换保留答案，隐藏步骤不可聚焦，当前题目通过校验后才能继续；最终提交复查全部步骤并返回首个无效步骤。题目正文独立滚动，导航保持可见；初次挂载不抢占输入框焦点。
 - 两端活动工作台将待处理卡片放在输入框上方，与输入框同宽。通过 `pendingRequestsExternal` 关闭时间线中的重复卡片，独立历史/子线程时间线保留默认入口；不得改变审批队首、断线及桌面写入权的锁定规则。
 - 回归入口：Web `questionnaire.test.tsx`、`pending-request.test.tsx`、`app-shell-async-questions.spec.ts` 与 `app-shell-runtime-requests.spec.ts`；桌面 `questionnaire.browser.test.tsx`、`async-questions.browser.test.tsx`、`async-question-dock.browser.test.tsx`，覆盖多选、自定义回答、密码、校验、失败重试与宽窄屏位置。
+
+## AI Elements 共享底层
+
+- 聊天 UI 使用 shadcn/ui 新版 Message/Bubble、Trace、Code Block、Input Group、Attachment 与 Item，基础组件位于 `packages/ui/src/core`，业务组合位于 `packages/ui/src/agent`；两端只保留翻译及原生动作适配，禁止恢复旧原生 details 卡片和独立会话虚拟列表。
+- Message Scroller 保留所有已加载回合 DOM；历史继续分页，最后两个回合采用真实布局避免估算回弹。自动跟随与导航复用 `@shadcn/react/message-scroller`，跨浏览器阅读锚点只补偿布局位移，不引入逐 token React 滚动状态。
+- 新增布局回归需加载真实 CSS，并将滚动动作定位到 `message-scroller-viewport` 的 region；log 是消息内容而非滚动容器。覆盖主动提交、阅读历史、prepend、回合内锚点与 Chromium/WebKit。
+- 详情折叠卸载、增量 Markdown、按需高亮与字节缓存继续保留；附件共享类型包含桌面图像 detail 字段，不因 UI 收敛丢失平台协议元数据。参考 [会话性能](../../../../docs/conversation-performance.md)。
+
+- Trace 的完成/运行/失败状态以共享图标表达，状态文案保留在可访问名称中，禁止重复拼入可见标题。连续过程使用紧凑间距，正文保持独立段落节奏。
+- 新步骤入场由会话内稳定 itemKey 去重，跳过初始历史、token 更新及折叠重开；身份集合有界、切换任务释放。仅使用 CSS/原生 Web Animations，不为动效延迟事件提交或逐帧更新 React；遵循 `prefers-reduced-motion`。
+- Trace 折叠交给 Radix Presence 完成退出过渡后卸载，不能在外层直接条件移除详情；操作组聚合前后保留稳定折叠节点。思考摘要随流式状态展开/收起，用户手动选择优先。回归入口为桌面 `trace-entry.browser.test.tsx`、`trace-polish.browser.test.tsx` 和 Web `app-shell-trace-motion.spec.ts`。

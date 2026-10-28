@@ -4,7 +4,7 @@ import { buildTaskAttachmentUrl } from "@codexly/client";
 import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
 import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
-import { BrainCircuit, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { getReasoningTitle } from "./reasoning-markdown-title.js";
 
 import { i18n } from "../../../i18n/i18n.js";
@@ -215,13 +215,10 @@ export function TimelineItemContent({
       // 标题直接展示摘要，详情按工具容器的展开状态按需渲染。
       const isStreamingReasoning = turnStatus === "running" && isLastTurnItem;
       return (
-        <Tool data-reasoning-summary="">
+        <Tool data-reasoning-summary="" isStreaming={turnStatus === "running" && isLastTurnItem}>
           <ToolHeader
-            icon={
-              <BrainCircuit
-                className="size-3.5 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
+            state={
+              turnStatus === "running" && isLastTurnItem ? "input-available" : "output-available"
             }
             title={
               getReasoningTitle(item.summary) ||

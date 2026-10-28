@@ -124,10 +124,10 @@ describe("task timeline basics", () => {
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={approvalReviewSnapshot} />);
 
     expect(markup).toContain("自动审批：已批准");
-    expect(markup).toContain("/bin/zsh -lc pwd");
-    expect(markup).toContain("风险：低");
-    expect(markup).toContain("用户授权：高");
-    expect(markup).toContain("The user explicitly requested this read-only command.");
+    expect(markup).not.toContain("/bin/zsh -lc pwd"); // 折叠状态不挂载审批详情，展开后可读。
+    expect(markup).not.toContain("风险：低");
+    expect(markup).not.toContain("用户授权：高");
+    expect(markup).not.toContain("The user explicitly requested this read-only command.");
   });
 
   it("localizes the running state in English", async () => {
@@ -247,7 +247,7 @@ describe("task timeline basics", () => {
     expect(markup).toContain(`data-conversation-anchor="${anchorId}"`);
   });
 
-  it("shows only tool duration immediately before its status", () => {
+  it("shows tool duration alongside the action title", () => {
     const timedSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       turns: [
@@ -281,9 +281,13 @@ describe("task timeline basics", () => {
     expect(markup).not.toContain("data-item-timing");
     expect(markup).toContain("2.5s");
     expect(markup).toContain("250ms");
-    expect(markup).toMatch(/data-tool-duration[^>]*>2\.5s<\/span>\s*<span[^>]*>.*?已完成/su);
-    expect(markup).toMatch(/data-tool-duration[^>]*>250ms<\/span>\s*<span[^>]*>.*?已完成/su);
-    expect(markup).toMatch(/data-tool-duration[^>]*>1s<\/span>\s*<span[^>]*>.*?已完成/su);
+    expect(markup).toMatch(
+      /data-slot="trace-title"[^>]*>.*?data-tool-duration[^>]*>2\.5s<\/span>/su,
+    );
+    expect(markup).toMatch(
+      /data-slot="trace-title"[^>]*>.*?data-tool-duration[^>]*>250ms<\/span>/su,
+    );
+    expect(markup).toMatch(/data-slot="trace-title"[^>]*>.*?data-tool-duration[^>]*>1s<\/span>/su);
     expect(markup).not.toContain(new Date(1_753_318_800_000).toISOString());
     expect(markup).not.toContain(new Date(1_753_318_803_000).toISOString());
     expect(markup).not.toContain('dateTime="2026-07-24T00:00:00.000Z"');

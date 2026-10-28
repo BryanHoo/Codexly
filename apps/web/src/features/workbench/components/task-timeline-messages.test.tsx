@@ -10,7 +10,7 @@ import {
 } from "./task-timeline.test-support.js";
 
 describe("task timeline messages", () => {
-  it("virtualizes Turn sections from a long snapshot", () => {
+  it("renders all loaded Turn sections from a long snapshot", () => {
     const longSnapshot: RuntimeTaskSnapshot = {
       ...snapshot,
       turns: Array.from({ length: 100 }, (_, index) => ({
@@ -22,7 +22,7 @@ describe("task timeline messages", () => {
     const markup = renderToStaticMarkup(<TaskSnapshotTimeline snapshot={longSnapshot} />);
 
     expect(markup).toContain('aria-label="Turn 1"');
-    expect(markup).not.toContain('aria-label="Turn 100"');
+    expect(markup).toContain('aria-label="Turn 100"');
   });
 
   it("removes resolved approvals while keeping pending approvals visible", () => {

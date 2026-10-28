@@ -73,9 +73,14 @@ function createLongHistorySnapshot(): typeof taskSnapshot {
   };
 }
 
-test("reports long history browser diagnostics", async ({ page }) => {
+test("reports paginated long history browser diagnostics", async ({ page }) => {
   const errors = watchPageErrors(page);
-  const snapshot = createLongHistorySnapshot();
+  const storedSnapshot = createLongHistorySnapshot();
+  // 与生产按页加载一致：持久历史有一万条，首屏只接收最近十回合；百回合累积由下一场景测量。
+  const snapshot = {
+    ...storedSnapshot,
+    turns: storedSnapshot.turns.slice(-performanceBudgets.longHistory.loadedTurnsPerPage),
+  };
   await page.route(taskSnapshotRoute("task-1"), async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -87,19 +92,20 @@ test("reports long history browser diagnostics", async ({ page }) => {
   await cdp.send("Performance.enable");
   const opened = await measureBrowserWork(cdp, async () => {
     await page.goto("/p/codexly/t/task-1", { waitUntil: "load" });
-    const conversation = page.getByRole("log", { name: "会话内容" });
+    const conversation = page.getByRole("region", { name: "会话内容" });
     await expect(conversation).toBeVisible();
     await expect.poll(() => page.locator('[aria-label^="Turn "]').count()).toBeGreaterThan(0);
     return page.locator('[aria-label^="Turn "]').count();
   });
   const retained = await retainedBrowserState(cdp, page);
 
-  expect(opened.value).toBeLessThanOrEqual(performanceBudgets.longHistory.maxMountedTurns);
+  expect(opened.value).toBe(snapshot.turns.length);
   expect(errors).toEqual([]);
   recordScenario(page, {
     fixture: {
       items: performanceBudgets.browserDiagnostics.historyItems,
       itemsPerTurn: performanceBudgets.browserDiagnostics.historyItemsPerTurn,
+      loadedTurns: snapshot.turns.length,
     },
     mountedTurns: opened.value,
     navigation: opened.measurement,
@@ -127,7 +133,7 @@ test("reports 100 turn soak and next message paint", async ({ page }) => {
   });
   await installPerformanceEventStream(page);
   await page.goto("/p/codexly/t/task-1", { waitUntil: "load" });
-  await expect(page.getByRole("log", { name: "会话内容" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "会话内容" })).toBeVisible();
   await expect
     .poll(() => page.evaluate(() => typeof Reflect.get(globalThis, "__codexlyPerfEmitEvents")))
     .toBe("function");
@@ -162,8 +168,8 @@ test("reports 100 turn soak and next message paint", async ({ page }) => {
   }
 
   const postSoakPaint = await measureNextUserPaint(page, cdp, sequence);
-  expect(await page.locator('[aria-label^="Turn "]').count()).toBeLessThanOrEqual(
-    performanceBudgets.longHistory.maxMountedTurns,
+  expect(await page.locator('[aria-label^="Turn "]').count()).toBeGreaterThanOrEqual(
+    performanceBudgets.browserDiagnostics.soakTurns,
   );
   expect(postSoakPaint.timing.trustedClick).toBe(true);
   expect(errors).toEqual([]);

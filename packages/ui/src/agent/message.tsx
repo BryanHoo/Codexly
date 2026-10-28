@@ -12,6 +12,14 @@ import {
   type ReactElement,
 } from "react";
 
+import {
+  Message as MessageRoot,
+  MessageContent as MessageBody,
+  MessageFooter,
+} from "../core/message.js";
+import { Bubble, BubbleContent } from "../core/bubble.js";
+import { cn } from "../lib/utils.js";
+
 import { Button } from "../core/button.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../core/tooltip.js";
 
@@ -26,33 +34,42 @@ export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: "assistant" | "system" | "user";
 };
 
-export function Message({ className = "", from, ...props }: MessageProps) {
+const MessageRoleContext = createContext<MessageProps["from"]>("assistant");
+
+export function Message({ className, from, ...props }: MessageProps) {
   return (
-    <article
-      className={`group/message flex w-full flex-col ${
-        from === "user" ? "items-end" : "items-start"
-      } ${className}`}
-      data-role={from}
-      {...props}
-    />
+    <MessageRoleContext.Provider value={from}>
+      <MessageRoot
+        align={from === "user" ? "end" : "start"}
+        data-role={from}
+        className={cn("flex-col", from === "user" ? "items-end" : "items-start", className)}
+        {...props}
+      />
+    </MessageRoleContext.Provider>
   );
 }
 
 export type MessageContentProps = HTMLAttributes<HTMLDivElement>;
 
-export function MessageContent({ className = "", ...props }: MessageContentProps) {
+export function MessageContent({ children, className, ...props }: MessageContentProps) {
+  const from = useContext(MessageRoleContext);
   return (
-    <div
-      className={`max-w-full text-body leading-6 text-foreground group-data-[role=user]/message:max-w-[var(--ui-layout-message-width)] group-data-[role=user]/message:rounded-surface group-data-[role=user]/message:bg-control group-data-[role=user]/message:px-3.5 group-data-[role=user]/message:py-2.5 ${className}`}
-      {...props}
-    />
+    <MessageBody className={cn("text-body leading-6 text-foreground", className)} {...props}>
+      {from === "user" ? (
+        <Bubble align="end" variant="muted" className="max-w-[var(--ui-layout-message-width)]">
+          <BubbleContent className="px-3.5 py-2.5 text-body leading-6">{children}</BubbleContent>
+        </Bubble>
+      ) : (
+        children
+      )}
+    </MessageBody>
   );
 }
 
 export type MessageActionsProps = ComponentProps<"div">;
 
 export function MessageActions({ className = "", ...props }: MessageActionsProps) {
-  return <div className={`flex items-center gap-1 ${className}`} {...props} />;
+  return <MessageFooter className={cn("gap-1 px-0", className)} {...props} />;
 }
 
 export type MessageActionProps = ButtonHTMLAttributes<HTMLButtonElement> & {
