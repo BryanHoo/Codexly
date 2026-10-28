@@ -1,9 +1,7 @@
+import { ChangedFilesCard as SharedChangedFilesCard } from "@codexly/ui/agent/changed-files-card";
 import { FileChange } from "@codexly/ui/agent/file-change";
-import { Files } from "lucide-react";
-import { useState } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
-import { Button } from "../../../shared/components/core/button.js";
 
 import {
   getFileChangeStats,
@@ -53,79 +51,30 @@ export function ChangedFilesCard({
   onOpenFileDiff: (change: AgentFileChange) => void;
   onReviewFileChanges: (changes: readonly AgentFileChange[]) => void;
 }>) {
-  const [expanded, setExpanded] = useState(false);
   const summary = summarizeFileChanges(changes);
-  const visibleChanges = expanded ? summary.changes : summary.changes.slice(0, 3);
-  const hiddenChangeCount = summary.changes.length - visibleChanges.length;
 
   return (
-    <section
-      aria-label={i18n.t("timeline.changedFiles", {
+    <SharedChangedFilesCard
+      additions={summary.additions}
+      changes={summary.changes}
+      collapseLabel={i18n.t("timeline.collapseFiles", { ns: "conversation" })}
+      label={i18n.t("timeline.changedFiles", {
         count: summary.changes.length,
         ns: "conversation",
       })}
-      className="mt-4 w-full overflow-hidden rounded-surface border border-separator-strong bg-raised shadow-control"
-    >
-      <header className="flex min-h-16 items-center gap-3 px-3 py-2.5 shadow-toolbar">
-        <span className="grid size-9 shrink-0 place-items-center rounded-control bg-control text-muted-foreground">
-          <Files className="size-4" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-body-small font-semibold">
-            {i18n.t("timeline.editedFiles", {
-              count: summary.changes.length,
-              ns: "conversation",
-            })}
-          </h3>
-          <p className="mt-0.5 text-label text-muted-foreground">
-            <span className="text-diff-added">+{summary.additions}</span>{" "}
-            <span className="text-diff-removed">-{summary.removals}</span>
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          aria-haspopup="dialog"
-          className="h-8 rounded-control bg-control px-3 text-label font-semibold text-foreground transition-colors hover:bg-control-hover"
-          onClick={() => {
-            onReviewFileChanges(summary.changes);
-          }}
-          type="button"
-        >
-          {i18n.t("timeline.review", { ns: "conversation" })}
-        </Button>
-      </header>
-      <div className="space-y-1 p-2">
-        {visibleChanges.map((change) => (
-          <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
-        ))}
-        {hiddenChangeCount > 0 ? (
-          <Button
-            variant="ghost"
-            className="h-8 w-full rounded-control px-2.5 text-left text-label font-medium text-muted-foreground transition-colors hover:bg-control-hover hover:text-foreground"
-            onClick={() => {
-              setExpanded(true);
-            }}
-            type="button"
-          >
-            {i18n.t("timeline.moreFiles", {
-              count: hiddenChangeCount,
-              ns: "conversation",
-            })}
-          </Button>
-        ) : null}
-        {expanded && summary.changes.length > 3 ? (
-          <Button
-            variant="ghost"
-            className="h-8 w-full rounded-control px-2.5 text-left text-label font-medium text-muted-foreground transition-colors hover:bg-control-hover hover:text-foreground"
-            onClick={() => {
-              setExpanded(false);
-            }}
-            type="button"
-          >
-            {i18n.t("timeline.collapseFiles", { ns: "conversation" })}
-          </Button>
-        ) : null}
-      </div>
-    </section>
+      moreLabel={(count) => i18n.t("timeline.moreFiles", { count, ns: "conversation" })}
+      onReview={() => {
+        onReviewFileChanges(summary.changes);
+      }}
+      removals={summary.removals}
+      renderChange={(change) => (
+        <FileChangeButton change={change} key={change.path} onOpen={onOpenFileDiff} />
+      )}
+      reviewLabel={i18n.t("timeline.review", { ns: "conversation" })}
+      title={i18n.t("timeline.editedFiles", {
+        count: summary.changes.length,
+        ns: "conversation",
+      })}
+    />
   );
 }

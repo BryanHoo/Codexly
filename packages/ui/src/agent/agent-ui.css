@@ -1,3 +1,105 @@
+/* 沿用工作台纯色表面：用贴边阴影勾勒轮廓、柔和投影托起卡片，不叠加灰色底板。 */
+.agent-changed-files-card {
+  margin-block-start: 0.75rem;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--ui-radius-surface);
+  background: var(--ui-color-floating-surface, var(--ui-color-raised));
+  box-shadow:
+    0 0 0 1px light-dark(rgb(23 23 23 / 0.06), rgb(255 255 255 / 0.09)),
+    0 2px 4px light-dark(rgb(23 23 23 / 0.04), rgb(0 0 0 / 0.18)),
+    0 8px 24px -6px light-dark(rgb(23 23 23 / 0.12), rgb(0 0 0 / 0.36));
+}
+.agent-changed-files-header {
+  display: flex;
+  min-width: 0;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline: 0.75rem;
+  padding-block: 0.375rem;
+  border-bottom: 1px solid var(--ui-color-separator);
+}
+.agent-changed-files-stats {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline-start: 0.125rem;
+  font-family: var(--ui-font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+/* 小字号增删数字略混入正文色，提高浅色主题下的辨识度，保留正负号辅助判断。 */
+.agent-changed-files-added,
+.agent-changed-files-card .text-diff-added {
+  color: color-mix(in srgb, var(--ui-color-diff-added) 78%, var(--ui-color-text));
+}
+.agent-changed-files-removed,
+.agent-changed-files-card .text-diff-removed {
+  color: color-mix(in srgb, var(--ui-color-diff-removed) 82%, var(--ui-color-text));
+}
+.agent-changed-files-card .agent-changed-files-review {
+  /* 审核是次级入口，沿用 ghost 的弱文字与悬停反馈，避免实色按钮抢占摘要焦点。 */
+  height: 1.5rem;
+  padding-inline: 0.5rem;
+  font-weight: var(--ui-font-weight-medium);
+}
+.agent-changed-files-list {
+  padding: 0.25rem 0.375rem 0.375rem;
+}
+/* 只收紧末尾摘要，过程中的文件 Trace 维持原布局；整行均可点击。 */
+.agent-changed-files-card [data-file-change] {
+  width: 100%;
+  min-height: 1.75rem;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0.125rem 0.375rem;
+}
+.agent-changed-files-card [data-slot="trace-line"] {
+  flex: 1;
+  width: 100%;
+  gap: 0.5rem;
+  font-size: var(--ui-font-size-label);
+}
+.agent-changed-files-card [data-slot="trace-title"] {
+  flex: 1;
+  color: var(--ui-color-text);
+  font-weight: var(--ui-font-weight-regular);
+}
+.agent-changed-files-card [data-file-operation] {
+  display: none;
+}
+.agent-changed-files-card [data-slot="trace-icon"],
+.agent-changed-files-card [data-slot="trace-icon"] svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+/* 增删统计使用独立列，长文件名先省略，统计和打开箭头不会被挤出窄屏。 */
+.agent-changed-files-card [data-slot="trace-description"] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(4ch, auto));
+  gap: 0.5rem;
+  text-align: right;
+  font-family: var(--ui-font-family-mono);
+}
+/* 零变更只作对齐参考，避免无实际变化的 -0 也使用醒目的警示色。 */
+.agent-changed-files-card [data-zero="true"] {
+  color: var(--ui-color-text-subtle);
+}
+.agent-changed-files-card .agent-changed-files-toggle {
+  border-top: 1px solid var(--ui-color-separator);
+  border-radius: 0;
+}
+@media (pointer: coarse) {
+  /* 触屏扩大实际点击区域，不牺牲桌面清单的紧凑密度。 */
+  .agent-changed-files-card [data-file-change],
+  .agent-changed-files-card .agent-changed-files-review,
+  .agent-changed-files-card .agent-changed-files-toggle {
+    min-height: 2.25rem;
+  }
+}
+
 /* 共享 AI 界面的节奏：过程紧凑、正文舒展；动画只作用于新增节点和真实状态变化。 */
 .agent-timeline {
   display: flex;

@@ -40,12 +40,17 @@ export function FileChange({
           <Icon />
         </TraceIcon>
         <TraceTitle>
-          {operation} {name}
+          <span data-file-operation>{operation} </span>
+          {name}
         </TraceTitle>
         {/* 统计不参与截断，窄屏优先缩略文件名，始终保留正负号与语义颜色。 */}
         <TraceDescription className="flex items-center gap-2">
-          <span className="text-diff-added">+{additions}</span>
-          <span className="text-diff-removed">-{removals}</span>
+          <span data-zero={additions === 0} className="text-diff-added">
+            +{additions}
+          </span>
+          <span data-zero={removals === 0} className="text-diff-removed">
+            -{removals}
+          </span>
         </TraceDescription>
       </TraceLine>
       <TraceIcon className="text-subtle-foreground">
