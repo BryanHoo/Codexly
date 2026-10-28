@@ -134,6 +134,8 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Check browser components
+        # 两次完整运行共用上限，浏览器失联却未退出时也必须终止门禁。
+        timeout-minutes: 10
         run: pnpm test:browser:ci
 
       - name: Upload browser test failure artifacts

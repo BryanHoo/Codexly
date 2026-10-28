@@ -1,6 +1,6 @@
 {
   "name": "@bryanhu/codexly",
-  "version": "0.45.0",
+  "version": "0.45.1",
   "description": "支持 Codex 与 Claude 的本地 AI 编程工作台，覆盖桌面、Web 与移动浏览器",
   "type": "module",
   "author": "BryanHu",

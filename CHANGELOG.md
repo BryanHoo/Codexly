@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [0.45.1] - 2026-10-28
+
+### 新增
+
+- 连续命令、工具与查看图片操作统一归组，摘要最多展示五行并可独立滚动；点击详情可在弹窗中查看完整参数和输出。
+- 发送新问题后自动定位到本轮开头，阅读时保留底部空间；向上滚动后可通过吸顶摘要回看最近问题。
+
+### 优化
+
+- 统一两端对话、文件变更与思考摘要，收拢完成回合的修改记录，改善流式文字与步骤入场动效，并尊重减少动态效果设置。
+- 增强桌面输入框在明暗主题及分屏中的阴影，保持底栏间距一致。
+
+### 修复
+
+- 修复 Web 升级后旧入口缓存导致页面崩溃，以及 Windows 更新被残留智能体运行时阻塞的问题。
+- 修复操作详情中的终端跟随与嵌套滚动、上下文用量浮层点击切换异常。
+
 ## [0.45.0] - 2026-10-28
 
 ### 新增
@@ -908,7 +925,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.45.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.45.1...HEAD
+[0.45.1]: https://github.com/BryanHoo/Codexly/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/BryanHoo/Codexly/compare/v0.44.1...v0.45.0
 [0.44.1]: https://github.com/BryanHoo/Codexly/compare/v0.44.0...v0.44.1
 [0.44.0]: https://github.com/BryanHoo/Codexly/compare/v0.43.0...v0.44.0
