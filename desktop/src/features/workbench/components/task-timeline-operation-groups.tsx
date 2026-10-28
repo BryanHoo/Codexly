@@ -11,15 +11,11 @@ import {
 import type { AgentItem } from "@/protocol/index.js";
 import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 import { isInlineFileChangeVisible } from "@codexly/frontend-core/turn-process";
+import { isTimelineOperation } from "@codexly/frontend-core/timeline-operation";
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
 import type { TaskItemStore, TaskStore } from "../../conversation/runtime/task-store.js";
-
-type TimelineOperationItem = Extract<
-  AgentItem,
-  { type: "command" } | { type: "file_change" } | { type: "tool" } | { type: "reasoning" }
->;
 
 export type TimelineOperationGroup =
   | Readonly<{ itemKey: string; type: "item" }>
@@ -39,15 +35,6 @@ export function filterRenderableTimelineItemKeys(
     const item = itemStore.read();
     return item.type !== "reasoning" || hasReasoningSummary(item.text);
   });
-}
-
-function isTimelineOperation(item: AgentItem | undefined): item is TimelineOperationItem {
-  return (
-    item?.type === "command" ||
-    item?.type === "file_change" ||
-    item?.type === "tool" ||
-    item?.type === "reasoning"
-  );
 }
 
 export function groupConsecutiveTimelineOperations(
@@ -114,7 +101,8 @@ export function summarizeTimelineOperations(items: readonly AgentItem[]): Timeli
       commandCount += 1;
     } else if (item.type === "file_change") {
       fileCount += item.changes.length;
-    } else if (item.type === "tool") {
+    } else if (item.type === "tool" || item.type === "activity") {
+      // 查看图片沿用工具计数，运行中保持展开，失败时进入同一组的失败摘要。
       toolCount += 1;
     }
     if (item.type === "reasoning") continue;
@@ -267,9 +255,10 @@ export function TimelineOperationGroupDisclosure({
           className="max-w-full"
         >
           {!inline && (
-            <TraceLine status={summary.failedCount > 0 ? "error" : undefined}>
+            // 聚合摘要统一使用默认灰色；失败仅保留计数，具体错误状态由展开后的条目表达。
+            <TraceLine>
               <TraceIcon>
-                <TraceStatusIcon status={summary.failedCount > 0 ? "error" : "completed"} />
+                <TraceStatusIcon status="completed" />
               </TraceIcon>
               <TraceTitle>{summaryText}</TraceTitle>
             </TraceLine>

@@ -1,7 +1,7 @@
 import type { AgentItem } from "@/protocol/index.js";
 import { describe, expect, it } from "vitest";
 
-import { groupConsecutiveTimelineOperations } from "./task-timeline-operation-groups.js";
+import { groupConsecutiveTimelineOperations, summarizeTimelineOperations } from "./task-timeline-operation-groups.js";
 
 function groupItems(items: readonly AgentItem[]) {
   const itemsById = new Map(items.map((item) => [item.id, item] as const));
@@ -43,6 +43,34 @@ const fileChange: AgentItem = {
 };
 
 describe("groupConsecutiveTimelineOperations", () => {
+  it("将查看图片与前后命令、工具归入同一组，普通活动仍分隔操作", () => {
+    const image: AgentItem = { id: "image", type: "activity", label: "查看图片", detail: "/tmp/image.png", status: "completed" };
+    expect(groupItems([command, image, mcpTool])).toEqual([
+      { itemKeys: [command.id, image.id, mcpTool.id], key: command.id, type: "operation_group" },
+    ]);
+    expect(groupItems([image])).toEqual([{ itemKey: image.id, type: "item" }]);
+    const activity: AgentItem = { ...image, id: "wait", label: "等待" };
+    expect(groupItems([command, activity, mcpTool])).toEqual([
+      { itemKey: command.id, type: "item" },
+      { itemKey: activity.id, type: "item" },
+      { itemKey: mcpTool.id, type: "item" },
+    ]);
+  });
+
+  it.each(["pending", "running", "completed", "failed", "interrupted", undefined] as const)(
+    "将查看图片计为工具并正确汇总状态：%s", (status) => {
+      expect(summarizeTimelineOperations([
+        command,
+        { id: "image", type: "activity", label: "查看图片", ...(status === undefined ? {} : { status }) },
+      ])).toMatchObject({
+        commandCount: 1,
+        toolCount: 1,
+        isActive: status === "pending" || status === "running",
+        failedCount: status === "failed" || status === "interrupted" ? 1 : 0,
+      });
+    },
+  );
+
   it("groups reasoning with tools and file edits", () => {
     expect(groupItems([
       { id: "reason-1", text: "**Inspect** files", type: "reasoning" },

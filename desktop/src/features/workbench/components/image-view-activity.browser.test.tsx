@@ -23,6 +23,12 @@ test.each([
   );
   expect(onOpenSourceFile).not.toHaveBeenCalled();
   await expect.element(screen.getByText("查看图片", { exact: true })).toBeInTheDocument();
+  // 使用真实样式测量中心线，防止状态图标被行内基线抬高。
+  const title = screen.getByText("查看图片", { exact: true }).element();
+  const icon = title.closest("[data-slot=trace-line]")!.querySelector("[data-slot=trace-status-icon]")!;
+  const titleBox = title.getBoundingClientRect();
+  const iconBox = icon.getBoundingClientRect();
+  expect(Math.abs((iconBox.top + iconBox.height / 2) - (titleBox.top + titleBox.height / 2))).toBeLessThanOrEqual(1);
   screen.getByText("查看图片", { exact: true }).element().closest("button")!.click();
   const trigger = screen.getByRole("button", { name: path, exact: true });
   await expect.element(trigger).toBeVisible();

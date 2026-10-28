@@ -13,6 +13,12 @@
 
 相关契约：[文档工作区](../../../../docs/document-workspace.md)、[会话加载与性能](../../../../docs/conversation-performance.md)、[复用边界](../../guides/code-reuse-thinking-guide.md)。
 
+## 查看图片的操作归组
+
+- 两端复用 `timeline-operation.ts` 分类连续操作；标签为“查看图片”的 `activity` 与命令、工具归入同组，按一次工具调用汇总数量与运行、失败状态，普通活动继续保留分隔语义。后续助手正文到达且组内操作结束后一起收起，重新展开仍可通过图片路径打开预览。
+- 活动状态图标与标题使用共享 `TraceIcon` 居中，不依赖行内基线。回归入口为两端 `task-timeline-operation-groups` 单元测试，以及桌面同名浏览器测试和 `image-view-activity.browser.test.tsx`，覆盖宽窄容器、Chromium / WebKit、图标中心线及预览回调。
+- 折叠操作摘要的图标与文字统一使用默认灰色，即使组内有失败条目也不切换危险色；保留摘要中的失败数量，展开后的失败条目继续表达错误状态。
+
 ## 思考摘要标题去重
 
 - 两端复用 `reasoning-summary.ts`，思考摘要开头独占一行的 Markdown 标题或加粗标题只在外层折叠入口展示，展开正文移除该标题；普通首段、代码块及后续小节保留。

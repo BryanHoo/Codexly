@@ -28,6 +28,52 @@ function tool(id: string, status: Extract<AgentItem, { type: "tool" }>["status"]
 }
 
 describe("task timeline operation groups", () => {
+  it("将查看图片与前后命令、工具归入同一组，普通活动仍分隔操作", () => {
+    const image: AgentItem = {
+      id: "image",
+      type: "activity",
+      label: "查看图片",
+      detail: "/tmp/image.png",
+      status: "completed",
+    };
+    const items = [command("command", "completed"), image, tool("tool", "completed")];
+    const byId = new Map(items.map((item) => [item.id, item]));
+    const group = (keys: string[]) =>
+      groupConsecutiveTimelineOperations(keys, (key) => byId.get(key));
+    expect(group(items.map((item) => item.id))).toEqual([
+      { itemKeys: ["command", "image", "tool"], key: "command", type: "operation_group" },
+    ]);
+    expect(group(["image"])).toEqual([{ itemKey: "image", type: "item" }]);
+    byId.set("image", { ...image, label: "等待" });
+    expect(group(items.map((item) => item.id))).toEqual([
+      { itemKey: "command", type: "item" },
+      { itemKey: "image", type: "item" },
+      { itemKey: "tool", type: "item" },
+    ]);
+  });
+
+  it.each(["pending", "running", "completed", "failed", "interrupted", undefined] as const)(
+    "将查看图片计为工具并正确汇总状态：%s",
+    (status) => {
+      expect(
+        summarizeTimelineOperations([
+          command("command", "completed"),
+          {
+            id: "image",
+            type: "activity",
+            label: "查看图片",
+            ...(status === undefined ? {} : { status }),
+          },
+        ]),
+      ).toMatchObject({
+        commandCount: 1,
+        toolCount: 1,
+        isActive: status === "pending" || status === "running",
+        failedCount: status === "failed" || status === "interrupted" ? 1 : 0,
+      });
+    },
+  );
+
   it("groups only consecutive tool and command items while preserving timeline order", () => {
     const items: AgentItem[] = [
       tool("tool-1", "completed"),
@@ -333,6 +379,7 @@ describe("task timeline operation groups", () => {
 
     expect(markup).toContain('data-operation-group=""');
     expect(markup).toContain("操作完成：调用 2 个工具，执行 2 条命令；其中 1 项失败");
+    expect(markup).not.toContain('data-status="error"');
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain("继续处理。");
     expect(markup).not.toContain('data-reasoning-summary=""');

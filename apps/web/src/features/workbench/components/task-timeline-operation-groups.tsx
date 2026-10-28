@@ -10,28 +10,15 @@ import {
 import type { AgentItem } from "@codexly/protocol";
 import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 import { isInlineFileChangeVisible } from "@codexly/frontend-core/turn-process";
+import { isTimelineOperation } from "@codexly/frontend-core/timeline-operation";
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
 import type { TaskItemStore, TaskStore } from "../../conversation/runtime/task-store.js";
 
-type TimelineOperationItem = Extract<
-  AgentItem,
-  { type: "command" | "tool" | "file_change" | "reasoning" }
->;
-
 export type TimelineOperationGroup =
   | Readonly<{ itemKey: string; type: "item" }>
   | Readonly<{ itemKeys: readonly string[]; key: string; type: "operation_group" }>;
-
-function isTimelineOperation(item: AgentItem | undefined): item is TimelineOperationItem {
-  return (
-    item?.type === "command" ||
-    item?.type === "tool" ||
-    item?.type === "file_change" ||
-    item?.type === "reasoning"
-  );
-}
 
 export function filterRenderableTimelineItemKeys(
   itemKeys: readonly string[],
@@ -113,7 +100,8 @@ export function summarizeTimelineOperations(items: readonly AgentItem[]): Timeli
     }
     if (item.type === "command") {
       commandCount += 1;
-    } else if (item.type === "tool") {
+    } else if (item.type === "tool" || item.type === "activity") {
+      // 查看图片沿用工具计数，运行中保持展开，失败时进入同一组的失败摘要。
       toolCount += 1;
     } else {
       // 同一组多次修改同一文件时，摘要仅计数一次。
@@ -267,9 +255,10 @@ export function TimelineOperationGroupDisclosure({
           className="max-w-full"
         >
           {!inline && (
-            <TraceLine status={summary.failedCount > 0 ? "error" : undefined}>
+            // 聚合摘要统一使用默认灰色；失败仅保留计数，具体错误状态由展开后的条目表达。
+            <TraceLine>
               <TraceIcon>
-                <TraceStatusIcon status={summary.failedCount > 0 ? "error" : "completed"} />
+                <TraceStatusIcon status="completed" />
               </TraceIcon>
               <span className="min-w-0 flex-1 font-medium">{summaryText}</span>
             </TraceLine>

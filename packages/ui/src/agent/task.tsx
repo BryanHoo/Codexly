@@ -12,6 +12,7 @@ import { useAgentTranslation } from "./locale.js";
 import {
   Trace,
   TraceLine,
+  TraceIcon,
   TraceTitle,
   TraceCollapsible,
   TraceCollapsibleTrigger,
@@ -110,12 +111,11 @@ export function TaskTrigger({
       }
     >
       {statusPrefix}
-      <span
-        className={`shrink-0 ${context.status === "error" ? "text-danger" : "text-muted-foreground"}`}
-      >
+      {/* 与命令、工具共用固定尺寸的居中容器，避免行内基线使图标偏离文字中心。 */}
+      <TraceIcon className={context.status === "error" ? "text-danger" : "text-muted-foreground"}>
         <TraceStatusIcon status={presentation.status} />
-        <span className="sr-only">{t(presentation.labelKey)}</span>
-      </span>
+      </TraceIcon>
+      <span className="sr-only">{t(presentation.labelKey)}</span>
       <TraceTitle>{title}</TraceTitle>
       {suffix}
     </TraceLine>
