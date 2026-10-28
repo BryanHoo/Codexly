@@ -1,4 +1,5 @@
-import { FilePenLine, Files } from "lucide-react";
+import { FileChange } from "@codexly/ui/agent/file-change";
+import { Files } from "lucide-react";
 import { useState } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
@@ -22,9 +23,8 @@ export function FileChangeButton({
   const { additions, removals } = getFileChangeStats(change);
 
   return (
-    <Button
-      variant="ghost"
-      aria-haspopup="dialog"
+    <FileChange
+      additions={additions}
       aria-label={i18n.t("timeline.fileChange", {
         additions,
         name: fileName,
@@ -32,19 +32,15 @@ export function FileChangeButton({
         operation: operationLabel,
         removals,
       })}
-      className="flex min-h-9 w-full items-center gap-2 rounded-control bg-control px-2.5 text-left text-label text-foreground transition-colors hover:bg-control-hover"
-      data-file-change={change.kind}
+      kind={change.kind}
+      name={fileName}
       onClick={() => {
         onOpen(change);
       }}
-      type="button"
-    >
-      <FilePenLine className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span className="shrink-0 text-muted-foreground">{operationLabel}</span>
-      <span className="min-w-0 truncate font-medium">{fileName}</span>
-      <span className="ml-auto shrink-0 text-diff-added">+{additions}</span>
-      <span className="shrink-0 text-diff-removed">-{removals}</span>
-    </Button>
+      operation={operationLabel}
+      removals={removals}
+      title={change.path}
+    />
   );
 }
 
