@@ -2,7 +2,10 @@ import { formatDisplayPath } from "@codexly/frontend-core/display-path";
 import { getToolTitle } from "@codexly/frontend-core/tool-presentation";
 import { buildTaskAttachmentUrl } from "@codexly/client";
 import type { TextSnapshot } from "@codexly/frontend-core/append-only-text";
-import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
+import {
+  getReasoningBodyProps,
+  hasReasoningSummary,
+} from "@codexly/frontend-core/reasoning-summary";
 import type { AgentItem, AgentTurn } from "@codexly/protocol";
 import { FileText } from "lucide-react";
 import { getReasoningTitle } from "./reasoning-markdown-title.js";
@@ -229,10 +232,8 @@ export function TimelineItemContent({
             {/* 仅渲染 Provider 明确提供的摘要，原始 content 永不进入展示组件。 */}
             <LazyMessageResponse
               mode={isStreamingReasoning ? "streaming" : "static"}
-              {...(textSource === undefined ? {} : { textSource })}
-            >
-              {item.summary}
-            </LazyMessageResponse>
+              {...getReasoningBodyProps(item.summary, textSource)}
+            />
           </ToolContent>
         </Tool>
       );

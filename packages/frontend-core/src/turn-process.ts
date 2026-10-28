@@ -5,6 +5,13 @@ type ProcessMessage = Readonly<{
   questions?: readonly unknown[];
 }>;
 
+/** 完成的修改由回复末尾统一汇总；在分组前移除不可见行，避免空动画容器累积间距。 */
+export function isInlineFileChangeVisible(status: string, turnStatus: string): boolean {
+  return status === "completed"
+    ? turnStatus === "running"
+    : status === "pending" || status === "running";
+}
+
 /** 异步问题可能使用任意消息阶段，必须以非空 questions 识别，不能当作最终答复。 */
 export function isAsyncQuestionMessage(item: ProcessMessage): boolean {
   return item.type === "message" && item.role === "assistant" && (item.questions?.length ?? 0) > 0;

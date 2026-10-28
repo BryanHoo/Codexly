@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RuntimeTaskSnapshot } from "../../conversation/runtime/task-runtime.js";
 import { TaskSnapshotTimeline } from "./task-timeline.js";
+import { TimelineItemContent } from "./task-timeline-items.js";
 import { completedTurn, renderToStaticMarkup, snapshot } from "./task-timeline.test-support.js";
 
 function renderRunningReasoning(withReply: boolean) {
@@ -34,6 +35,32 @@ function renderRunningReasoning(withReply: boolean) {
 }
 
 describe("task timeline reasoning", () => {
+  it.each(["**Evaluating API support**", "## Evaluating API support"])(
+    "shows the opening title only in the header: %s",
+    (title) => {
+      const markup = renderToStaticMarkup(
+        <TimelineItemContent
+          isLastTurnItem
+          item={{
+            content: "原始推理不应显示",
+            id: "reasoning-title",
+            summary: `${title}\n\n正在检查实际支持的 API。`,
+            type: "reasoning",
+          }}
+          onOpenFileDiff={() => undefined}
+          onOpenSourceFile={() => undefined}
+          projectId="project"
+          taskId="task"
+          turnStatus="running"
+        />,
+      );
+      expect(markup).toContain("Evaluating API support");
+      expect(markup.slice(markup.indexOf("</button>") + 9)).not.toContain("Evaluating API support");
+      expect(markup).toContain("正在检查实际支持的 API。");
+      expect(markup).not.toContain("原始推理不应显示");
+    },
+  );
+
   it("shows a single-line title and expands live reasoning", () => {
     const markup = renderRunningReasoning(false);
     const reasoning = /<div[^>]*data-reasoning-summary=""[^>]*>[\s\S]*?<\/button>/u.exec(

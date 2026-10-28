@@ -51,7 +51,10 @@ import { SkillToken } from "./skill-token.js";
 import { AsyncQuestionHistory } from "./async-question-history.js";
 import { parseSubagentOperation } from "./subagent.js";
 import { reasoningTitle } from "./reasoning-title.js";
-import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
+import {
+  getReasoningBodyProps,
+  hasReasoningSummary,
+} from "@codexly/frontend-core/reasoning-summary";
 
 import type { BuildPlanAction } from "./task-timeline-contracts.js";
 import { BuildPlanButton } from "./task-timeline-build-plan-button.js";
@@ -221,12 +224,10 @@ export function TimelineItemContent({
           />
           <ToolContent>
             <LazyMessageResponse
-              {...(textSource === undefined ? {} : { textSource })}
+              {...getReasoningBodyProps(item.text, textSource)}
               mode={turnStatus === "running" && isLastTurnItem ? "streaming" : "static"}
               onOpenFileReference={onOpenSourceFile}
-            >
-              {item.text}
-            </LazyMessageResponse>
+            />
           </ToolContent>
         </Tool>
       );

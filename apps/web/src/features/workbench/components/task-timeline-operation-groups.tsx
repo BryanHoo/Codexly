@@ -9,6 +9,7 @@ import {
 } from "@codexly/ui/core/trace";
 import type { AgentItem } from "@codexly/protocol";
 import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
+import { isInlineFileChangeVisible } from "@codexly/frontend-core/turn-process";
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
@@ -35,9 +36,13 @@ function isTimelineOperation(item: AgentItem | undefined): item is TimelineOpera
 export function filterRenderableTimelineItemKeys(
   itemKeys: readonly string[],
   itemStoresByKey: ReadonlyMap<string, TaskItemStore>,
+  turnStatus = "running",
 ): string[] {
   return itemKeys.filter((itemKey) => {
     const itemStore = itemStoresByKey.get(itemKey);
+    const baseItem = itemStore?.peek();
+    if (baseItem?.type === "file_change")
+      return isInlineFileChangeVisible(baseItem.status, turnStatus);
     if (itemStore?.peek().type !== "reasoning") {
       return true;
     }

@@ -75,7 +75,11 @@ export function StoredAssistantTimelineItems({
     getReasoningVisibilitySnapshot,
     getReasoningVisibilitySnapshot,
   );
-  const renderableItemKeys = filterRenderableTimelineItemKeys(itemKeys, itemStoresByKey);
+  const renderableItemKeys = filterRenderableTimelineItemKeys(
+    itemKeys,
+    itemStoresByKey,
+    turnStatus,
+  );
   const visibleGroups = groupConsecutiveTimelineOperations(renderableItemKeys, (itemKey) =>
     itemStoresByKey.get(itemKey)?.peek(),
   );

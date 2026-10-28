@@ -13,6 +13,15 @@
 
 相关契约：[文档工作区](../../../../docs/document-workspace.md)、[会话加载与性能](../../../../docs/conversation-performance.md)、[复用边界](../../guides/code-reuse-thinking-guide.md)。
 
+## 思考摘要标题去重
+
+- 两端复用 `reasoning-summary.ts`，思考摘要开头独占一行的 Markdown 标题或加粗标题只在外层折叠入口展示，展开正文移除该标题；普通首段、代码块及后续小节保留。
+- 正文字符串与增量快照使用同一标题偏移，防止懒加载 Markdown 后标题重新出现；仅处理新增 Chunk，保留旧快照边界。回归入口为共享 `reasoning-summary.test.ts`、Web `task-timeline-reasoning.test.tsx` 和桌面 `reasoning-item.browser.test.tsx`（Chromium / WebKit）。
+
+## 完成回合的文件修改布局
+
+- 完成的文件修改在回复末尾统一汇总；两端在操作分组和入场容器创建前使用 `turn-process.ts` 的可见性规则过滤行内条目，避免空容器的间距随修改次数累积。保留运行中修改行和最终汇总卡片；回归入口为两端 `task-timeline-completed-spacing` 测试，桌面以真实 CSS 覆盖历史加载、运行转完成和过程折叠后的间距。
+
 ## 对话 JSON 导出
 
 - 两端任务菜单复用 [导出器](../../../../packages/frontend-core/src/conversation-export.ts)，仅点击后以 `summary: false` 遍历完整 `turnsNextCursor` 链，包含回合与过程条目续页；不使用已渲染历史或摘要代替完整记录。按回合/条目 ID 去重并恢复时间顺序，响应归属异常、循环游标、读取失败或超过 64 MiB 时明确失败，不下载截断结果。
