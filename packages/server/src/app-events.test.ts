@@ -435,7 +435,7 @@ describe("server event delivery", () => {
     expect(routeResponse.statusCode).toBe(200);
     expect(routeResponse.headers["content-encoding"]).toBe("br");
     expect(brotliDecompressSync(routeResponse.rawPayload).toString("utf8")).toBe(htmlBody);
-    expect(routeResponse.headers["cache-control"]).toBe("public, max-age=0");
+    expect(routeResponse.headers["cache-control"]).toBe("no-store");
     expect(brotliAssetResponse.headers["cache-control"]).toBe(
       "public, max-age=31536000, immutable",
     );

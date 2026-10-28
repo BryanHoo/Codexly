@@ -1,4 +1,4 @@
-import { relative, sep } from "node:path";
+import { extname, relative, sep } from "node:path";
 import { isIP } from "node:net";
 import { domainToASCII } from "node:url";
 
@@ -130,6 +130,17 @@ export async function configureServerDelivery(
         .code(403)
         .send({ code: "ACCESS_DENIED", message: "Access denied", retryable: false });
     }
+    if (
+      options.staticRoot !== undefined &&
+      (request.method === "GET" || request.method === "HEAD") &&
+      !pathname.startsWith("/v1/") &&
+      !pathname.startsWith("/assets/")
+    ) {
+      // npm 包的文件时间固定，等长 HTML 会产生相同弱 ETag。旧浏览器即使携带
+      // 校验头也必须读取当前入口；只处理无内容哈希的资源，保留 assets 的条件缓存。
+      delete request.headers["if-none-match"];
+      delete request.headers["if-modified-since"];
+    }
     const authenticated =
       options.access === undefined || accessService?.validate(sessionId) === true;
     const anonymous =
@@ -189,6 +200,9 @@ export async function configureServerDelivery(
       ) {
         reply.header("Cache-Control", "no-store");
       }
+    } else if (reply.statusCode >= 400) {
+      // 缺失的旧版本资源不能被浏览器或代理缓存成永久错误。
+      reply.header("Cache-Control", "no-store");
     }
     return payload;
   });
@@ -265,19 +279,28 @@ export async function configureServerDelivery(
       root: staticRoot,
       setHeaders: (reply, filePath) => {
         const [topLevelDirectory] = relative(staticRoot, filePath).split(sep);
-        // Vite 的 assets 目录使用内容哈希命名，可安全长期缓存；HTML 等入口继续重新验证。
+        // 内容哈希资源长期缓存；入口禁止存储，避免升级后复用旧版资源清单。
         reply.header(
           "Cache-Control",
-          topLevelDirectory === "assets"
-            ? "public, max-age=31536000, immutable"
-            : "public, max-age=0",
+          topLevelDirectory === "assets" ? "public, max-age=31536000, immutable" : "no-store",
         );
       },
       wildcard: false,
     });
     app.setNotFoundHandler((request, reply) => {
-      if (request.method === "GET" && !request.url.startsWith("/v1/")) {
-        // Browser 深链统一回到 SPA 入口，API 未命中仍保持 JSON 404。
+      const pathname = request.url.split("?", 1)[0] ?? request.url;
+      const navigation =
+        request.headers["sec-fetch-mode"] === "navigate" ||
+        request.headers.accept?.includes("text/html") === true ||
+        extname(pathname) === "";
+      if (
+        (request.method === "GET" || request.method === "HEAD") &&
+        !pathname.startsWith("/v1/") &&
+        pathname !== "/assets" &&
+        !pathname.startsWith("/assets/") &&
+        navigation
+      ) {
+        // 仅页面导航回到 SPA；已删除的旧 JS/CSS 必须返回 404，不能伪装成 HTML。
         return reply.type("text/html; charset=utf-8").sendFile("index.html");
       }
       return reply.code(404).send({ code: "NOT_FOUND", message: "Route not found" });

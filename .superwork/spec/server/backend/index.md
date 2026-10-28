@@ -21,3 +21,9 @@
 - `POST /v1/diagnostics/codex` 将有界应用快照与 `feedback/save` 生成的原生 ZIP 合并成一个临时 ZIP；只使用私有临时目录内的全新绝对路径，校验原生结果路径、普通文件、ZIP 签名及 256 MiB 上限。原生不可用时在清单明确标注，不上传反馈、不接受任意宿主读取参数。
 - `GET /v1/diagnostics/downloads/:downloadId` 复用全局配对认证，随机标识绑定创建会话、一次领取、5 分钟失效，响应禁止缓存。生成中、待领取及传输中的归档合计最多 2 份；通过流传输，完成、断连、到期、生成失败及关闭时清理临时文件。POST 正文正常结束也会关闭请求流，不能把它误认为响应连接断开。
 - 受控下载与真实 HTTP 回归入口：`packages/server/src/codex-diagnostics.test.ts`；两端操作与原生不可用状态见 [诊断文档](../../../../desktop/docs/diagnostics.md)。
+
+## Web 升级与静态入口缓存
+
+- HTML 等无内容哈希的入口使用 `Cache-Control: no-store`，并在静态交付前忽略旧浏览器携带的 `If-None-Match` / `If-Modified-Since`。npm tarball 会固定文件时间，两个版本等长的入口可能产生相同弱 ETag，不能据此返回 304；普通、Brotli、gzip 和 SPA 深链均遵循此规则。
+- `assets/` 内容哈希资源保留长期 immutable 缓存及条件请求。缺失资源返回禁止缓存的 JSON 404，不把旧 JS/CSS 请求回退成 HTML；SPA 回退仅接受页面导航，保留带点号的项目和任务深链。
+- 回归入口：[server-delivery.test.ts](../../../../packages/server/src/server-delivery.test.ts) 以旧版校验头、相同文件时间与等长新入口复现升级，`app-events.test.ts` 验证预压缩交付和内容哈希资源缓存。
