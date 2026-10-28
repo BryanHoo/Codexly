@@ -134,7 +134,18 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Check browser components
-        run: pnpm test:browser
+        run: pnpm test:browser --reporter=default --reporter=json --outputFile=test-results/browser-results.json
+
+      - name: Upload browser test failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-browser-failure-${{ github.run_id }}
+          path: |
+            desktop/test-results/
+            desktop/src/**/__screenshots__/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Check macOS build isolation and compiled Legacy theme
         run: pnpm test:macos-build-output

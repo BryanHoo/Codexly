@@ -58,6 +58,7 @@ Web E2E 与普通 CI 使用相同的 30 分钟任务上限，包含浏览器及�
 - npm 已发布但 GitHub Release 失败：重跑失败 Job；工作流会跳过已存在的 npm 版本。
 - 代码、测试或工作流需要修改：保留原标签的不可变提交，修复后同步递增两端版本、更新日志与安装说明，提交并创建新标签。即使原版本尚未公开，也不要移动已推送标签；新版本的日志应包含上次正式发布以来的全部变化。
 - 桌面构建失败：联合 Release 保持草稿；临时环境故障可重跑，需要修改仓库文件则按上一条发布新版本。已经发布的 npm 版本会跳过。
+- 桌面浏览器组件测试失败：检查 `Desktop Quality → Web → Check browser components` 的具体用例与错误，下载该次运行的 `desktop-browser-failure-<run_id>` 产物，核对 JSON 测试报告和截图；本地使用 `pnpm --dir desktop test:browser` 复现，覆盖 Chromium 与 WebKit。WebKit 操作返回后，先等待页面目标状态，再断言异步调用次数。
 - 发布认证失败：由维护者核对发布环境与授权配置，不在公开 Issue 或日志中提交凭据与账户信息。
 - `EUNSUPPORTEDPROTOCOL`：确认发布对象来自 `pnpm pack`，并检查 `pnpm run package:check`。
 - 版本或标签错误：未发布时修正；版本已发布后必须提升版本号并创建新标签。

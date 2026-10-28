@@ -154,10 +154,11 @@ it("文件预览从独立标签打开 Diff，关闭 Diff 后保留原文件", as
 
   const screen = await render(<Harness />);
   await screen.getByRole("button", { name: "查看 Diff" }).click();
-  expect(loadDiff).toHaveBeenCalledExactlyOnceWith(change);
+  // WebKit 的点击完成不保证异步事件已交付；先等待目标标签激活，再核对请求次数。
   await expect
     .element(screen.getByRole("tab", { name: "Diff: main.ts" }))
     .toHaveAttribute("aria-selected", "true");
+  expect(loadDiff).toHaveBeenCalledExactlyOnceWith(change);
   await expect.element(screen.getByRole("tab", { name: "main.ts", exact: true })).toBeVisible();
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   await screen
