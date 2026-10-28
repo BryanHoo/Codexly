@@ -55,6 +55,8 @@ pub enum ProcessError {
 
 pub struct CodexProcess {
     _child: Child,
+    #[cfg(windows)]
+    _process_job: windows_process_platform::TerminalJob,
     binary_path: PathBuf,
     connection: Arc<AppServerConnection>,
     codex_home: PathBuf,
@@ -81,6 +83,11 @@ impl CodexProcess {
         let (program, version, runtime_path) = find_compatible_codex_binary(resources).await?;
         let mut child = build_app_server_command(program.as_os_str(), runtime_path.as_deref())
             .spawn()
+            .map_err(ProcessError::Spawn)?;
+        // Windows 更新器直接退出进程，跳过 Drop/kill_on_drop；由系统 Job 回收运行时及其后代。
+        #[cfg(windows)]
+        let process_job = super::process_job::attach(&mut child)
+            .await
             .map_err(ProcessError::Spawn)?;
         let stdin = child.stdin.take().ok_or(ProcessError::MissingPipe)?;
         let stdout = child.stdout.take().ok_or(ProcessError::MissingPipe)?;
@@ -120,6 +127,8 @@ impl CodexProcess {
 
         Ok(Self {
             _child: child,
+            #[cfg(windows)]
+            _process_job: process_job,
             binary_path: program,
             connection,
             codex_home,

@@ -47,6 +47,8 @@ pub mod personalization;
 mod plugin_assets;
 mod plugins;
 mod process;
+#[cfg(windows)]
+mod process_job;
 mod protocol;
 mod runtime_manager;
 mod runtime_path;
