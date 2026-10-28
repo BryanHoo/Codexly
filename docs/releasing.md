@@ -60,6 +60,7 @@ Web E2E 与普通 CI 使用相同的 30 分钟任务上限，包含浏览器及�
 - 桌面构建失败：联合 Release 保持草稿；临时环境故障可重跑，需要修改仓库文件则按上一条发布新版本。已经发布的 npm 版本会跳过。
 - 桌面浏览器组件测试失败：检查 `Desktop Quality → Web → Check browser components` 的具体用例与错误，下载该次运行的 `desktop-browser-failure-<run_id>` 产物，核对 JSON 测试报告和截图；本地使用 `pnpm --dir desktop test:browser` 复现，覆盖 Chromium 与 WebKit。WebKit 操作返回后，先等待页面目标状态，再断言异步调用次数。
 - 出现 `Browser connection was closed` 或 `rpc is closed` 时，先核对未处理错误、已完成文件数和退出码；中断时 JSON 报告可能仍显示 `success: true`，不能据此认定全套通过。使用 `gh run rerun <run_id> --failed --debug` 收集 runner 调试信息，本地可用 `DEBUG=vite:deps,pw:browser pnpm --dir desktop test:browser` 区分依赖重载和浏览器进程退出；仅确认属于临时环境故障时才重跑原提交。
+- CI 使用 `pnpm --dir desktop test:browser:ci`：只有有效报告中没有失败断言、退出码非零且日志仅报告一次明确的浏览器连接中断时，才启动全新进程完整重跑一次。断言失败、报告缺失或损坏、其他异常及再次中断均阻断发布。两次日志与 JSON 分别保存为 `browser-attempt-1.*`、`browser-attempt-2.*`；恢复成功也上传现场，不能把第一次未完成的报告算作通过。本地普通 `test:browser` 保持单次执行。
 - 发布认证失败：由维护者核对发布环境与授权配置，不在公开 Issue 或日志中提交凭据与账户信息。
 - `EUNSUPPORTEDPROTOCOL`：确认发布对象来自 `pnpm pack`，并检查 `pnpm run package:check`。
 - 版本或标签错误：未发布时修正；版本已发布后必须提升版本号并创建新标签。
