@@ -1,5 +1,10 @@
 import { AgentMotionProvider } from "./motion.js";
 import { useConversationLayout } from "./conversation-anchor.js";
+import { ConversationReadingSpace } from "./conversation-reading-space.js";
+import {
+  ConversationPromptProvider,
+  ConversationStickyPrompt,
+} from "./conversation-sticky-prompt.js";
 import {
   createContext,
   useContext,
@@ -32,6 +37,7 @@ export type ConversationProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 const FollowActionContext = createContext<RefObject<() => void> | null>(null);
+const PauseActionContext = createContext<RefObject<() => void> | null>(null);
 const SubmissionSignalContext = createContext<number | undefined>(undefined);
 
 /** 会话身份变化才重建滚动状态；流式增量不会重挂消息或重置用户阅读位置。 */
@@ -45,6 +51,8 @@ export function Conversation({
   ...props
 }: ConversationProps) {
   const followAction = useRef<() => void>(() => undefined);
+  const pauseAction = useRef<() => void>(() => undefined);
+  const viewportRef = useRef<HTMLDivElement>(null);
   return (
     <MessageScrollerProvider
       key={conversationId}
@@ -53,40 +61,40 @@ export function Conversation({
       scrollEdgeThreshold={24}
     >
       <AgentMotionProvider>
-        <FollowActionContext.Provider value={followAction}>
-          <MessageScroller
-            className={cn("flex-1", className)}
-            style={{ ...style, overflow: "hidden" }}
-          >
-            <SubmissionSignalContext.Provider value={scrollToBottomSignal}>
-              <MessageScrollerViewport {...props}>{children}</MessageScrollerViewport>
-            </SubmissionSignalContext.Provider>
-            <SubmissionScroll signal={scrollToBottomSignal} />
-            {scrollLabel === undefined ? null : <ConversationScrollButton label={scrollLabel} />}
-          </MessageScroller>
-        </FollowActionContext.Provider>
+        <ConversationPromptProvider>
+          <FollowActionContext.Provider value={followAction}>
+            <PauseActionContext.Provider value={pauseAction}>
+              <MessageScroller
+                className={cn("flex-1", className)}
+                style={{ ...style, overflow: "hidden" }}
+              >
+                <SubmissionSignalContext.Provider value={scrollToBottomSignal}>
+                  <MessageScrollerViewport ref={viewportRef} {...props}>
+                    <ConversationStickyPrompt viewportRef={viewportRef} pauseAction={pauseAction} />
+                    {children}
+                  </MessageScrollerViewport>
+                </SubmissionSignalContext.Provider>
+                <ConversationReadingSpace viewportRef={viewportRef} signal={scrollToBottomSignal} />
+                {scrollLabel === undefined ? null : (
+                  <ConversationScrollButton label={scrollLabel} />
+                )}
+              </MessageScroller>
+            </PauseActionContext.Provider>
+          </FollowActionContext.Provider>
+        </ConversationPromptProvider>
       </AgentMotionProvider>
     </MessageScrollerProvider>
   );
-}
-
-function SubmissionScroll({ signal }: { signal: number | undefined }) {
-  const { scrollToEnd } = useMessageScroller();
-  const previous = useRef(signal);
-  useLayoutEffect(() => {
-    if (signal === undefined || signal === previous.current) return;
-    previous.current = signal;
-    // 只有用户主动发送才恢复跟随；历史加载与后台事件不能抢走阅读位置。
-    scrollToEnd({ behavior: "instant" });
-  }, [signal, scrollToEnd]);
-  return null;
 }
 
 export function ConversationContent({ className, ...props }: ComponentProps<"div">) {
   return (
     <MessageScrollerContent
       data-conversation-content=""
-      className={cn("mx-auto w-full max-w-content px-4 py-6 sm:px-6 sm:py-7", className)}
+      className={cn(
+        "mx-auto w-full max-w-content px-4 pt-6 pb-[var(--conversation-reading-space,1.5rem)] sm:px-6 sm:pt-7",
+        className,
+      )}
       {...props}
     />
   );
@@ -118,15 +126,21 @@ export function ConversationItems<T>({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const layoutActions = useConversationLayout(contentRef);
   const followAction = useContext(FollowActionContext);
+  const pauseAction = useContext(PauseActionContext);
   useLayoutEffect(() => {
     if (followAction !== null)
       followAction.current = () => {
         layoutActions.current.follow();
       };
+    if (pauseAction !== null)
+      pauseAction.current = () => {
+        layoutActions.current.pause();
+      };
     return () => {
       if (followAction !== null) followAction.current = () => undefined;
+      if (pauseAction !== null) pauseAction.current = () => undefined;
     };
-  }, [followAction, layoutActions]);
+  }, [followAction, pauseAction, layoutActions]);
   const submissionSignal = useContext(SubmissionSignalContext);
   useLayoutEffect(() => {
     layoutActions.current.follow();

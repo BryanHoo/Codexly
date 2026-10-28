@@ -116,7 +116,7 @@ test.each([1280, 1920].flatMap((width) =>
   expect(container.scrollHeight).toBeGreaterThan(container.clientHeight);
   const anchor = historyAnchor.element();
   const historyRow = anchor.closest<HTMLElement>('[data-conversation-row="turn"]')!;
-  await expect.poll(() => Math.abs(container.getBoundingClientRect().bottom - historyRow.getBoundingClientRect().bottom - 28)).toBeLessThanOrEqual(1);
+  await expect.poll(() => Math.abs(container.getBoundingClientRect().bottom - historyRow.getBoundingClientRect().bottom - container.clientHeight / 4)).toBeLessThanOrEqual(1);
   const samples: number[] = [anchor.getBoundingClientRect().top];
   const overlaps: number[] = [];
   let userHasAppeared = false;
@@ -171,6 +171,12 @@ test.each([1280, 1920].flatMap((width) =>
     for (let index = 0; index < 8; index += 1) await nextFrame();
     expect((editor.element() as HTMLTextAreaElement).value).toBe("");
     await expect.element(screen.getByText("继续回答", { exact: true })).toBeVisible();
+    // 新提交立即让旧聊天离屏，pending 问题与正式消息都从顶部留白下方展开。
+    await expect.poll(() => {
+      const user = Array.from(container.querySelectorAll<HTMLElement>('[data-role="user"]')).at(-1)!;
+      return user.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    }).toBeCloseTo(12, 0);
+    expect(historyRow.getBoundingClientRect().bottom).toBeLessThanOrEqual(container.getBoundingClientRect().top + 1);
     assertSingleRunningStatus();
     if (responseOrder === "before-events") {
       resolveStart();

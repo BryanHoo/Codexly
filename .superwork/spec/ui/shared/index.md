@@ -33,6 +33,7 @@
 - 聊天 UI 使用 shadcn/ui 新版 Message/Bubble、Trace、Code Block、Input Group、Attachment 与 Item，基础组件位于 `packages/ui/src/core`，业务组合位于 `packages/ui/src/agent`；两端只保留翻译及原生动作适配，禁止恢复旧原生 details 卡片和独立会话虚拟列表。
 - Message Scroller 保留所有已加载回合 DOM；历史继续分页，最后两个回合采用真实布局避免估算回弹。自动跟随与导航复用 `@shadcn/react/message-scroller`，跨浏览器阅读锚点只补偿布局位移，不引入逐 token React 滚动状态。
 - 新增布局回归需加载真实 CSS，并将滚动动作定位到 `message-scroller-viewport` 的 region；log 是消息内容而非滚动容器。覆盖主动提交、阅读历史、prepend、回合内锚点与 Chromium/WebKit。
+- 聊天尾部常态预留实际 viewport 高度的 1/4；主动发送时等待新用户节点，再按新问题到末行的真实高度补足尾部空间，让新问题距顶约 12px、旧对话完全移出屏幕。短回复向下展开并维持问题位置，长回复消耗额外空间后恢复基础留白；pending 到正式消息的接管、输入框显隐、分屏与软键盘变化同步更新，手动阅读历史不被后台输出拉走。用户问题顶部只要被裁切即吸顶（包括仅 1px），只保留滚动位置上方最近一条，两行省略并可点击回看；回看原文保留顶部间距，避免小数像素反复触发摘要，新问题进入顶部留白时隐藏旧摘要。浮层位于 log 外、viewport 内，使用零高 sticky，保持正文布局及原生滚轮/触控；只注册用户节点、二分定位并观察当前摘要来源，留白只测量新问题及内容末行，禁止逐 token 重扫历史或更新 React 滚动状态。回归入口为桌面 `conversation-turn-start.browser.test.tsx`、`conversation-focus.browser.test.tsx`、`conversation-submission.browser.test.tsx`、`workbench-submission.browser.test.tsx` 与 Web `app-shell-conversation-focus.spec.ts`，覆盖顶部部分裁切、正文/附件、prepend、任务切换、窗口恢复高度、分屏输入框显隐及四种提交响应顺序。
 - 详情折叠卸载、增量 Markdown、按需高亮与字节缓存继续保留；附件共享类型包含桌面图像 detail 字段，不因 UI 收敛丢失平台协议元数据。参考 [会话性能](../../../../docs/conversation-performance.md)。
 
 - Trace 的完成/运行/失败状态以共享图标表达，状态文案保留在可访问名称中，禁止重复拼入可见标题。连续过程使用紧凑间距，正文保持独立段落节奏。

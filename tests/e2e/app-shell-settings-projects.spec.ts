@@ -148,7 +148,10 @@ test("renders skills from a reopened task history", async ({ page }) => {
   const historicalSkill = page.locator('[data-message-skill="review-security"]');
   await expect(historicalSkill).toContainText("$review-security");
   await expect(historicalSkill).toHaveCSS("color", "rgb(0, 106, 255)");
-  await expect(page.getByText("完成 macOS 原生风格的三栏工作台页面。")).toBeVisible();
+  // 吸顶摘要也包含问题文本，原文断言限定在消息 log 内，避免与回看按钮重复匹配。
+  await expect(
+    page.getByRole("log").getByText("完成 macOS 原生风格的三栏工作台页面。", { exact: true }),
+  ).toBeVisible();
 });
 
 test("uses the available user message width before wrapping or truncating", async ({ page }) => {

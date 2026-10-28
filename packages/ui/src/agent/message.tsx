@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ButtonHTMLAttributes,
   type ComponentProps,
@@ -19,6 +20,7 @@ import {
 } from "../core/message.js";
 import { Bubble, BubbleContent } from "../core/bubble.js";
 import { cn } from "../lib/utils.js";
+import { useConversationPrompt } from "./conversation-sticky-prompt.js";
 
 import { Button } from "../core/button.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../core/tooltip.js";
@@ -37,9 +39,12 @@ export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 const MessageRoleContext = createContext<MessageProps["from"]>("assistant");
 
 export function Message({ className, from, ...props }: MessageProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useConversationPrompt(ref, from === "user");
   return (
     <MessageRoleContext.Provider value={from}>
       <MessageRoot
+        ref={ref}
         align={from === "user" ? "end" : "start"}
         data-role={from}
         className={cn("flex-col", from === "user" ? "items-end" : "items-start", className)}

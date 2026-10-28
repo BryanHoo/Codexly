@@ -56,7 +56,7 @@ it("尾部在测量交付后更新时不被上一帧尺寸回滚", async () => {
     for (const deliver of deliveries) deliver();
     for (let index = 0; index < 8; index += 1) {
       await nextFrame();
-      expect.soft(container.getBoundingClientRect().bottom - footer.getBoundingClientRect().bottom).toBe(28);
+      expect.soft(container.getBoundingClientRect().bottom - footer.getBoundingClientRect().bottom).toBe(container.clientHeight / 4);
       expect.soft(container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
     }
   } finally {
@@ -89,7 +89,7 @@ it("仅尾部占位变化时在布局观察后保持真实高度与置底", asyn
   await expect.poll(() => {
     const footer = container.querySelector<HTMLElement>('[data-conversation-row="footer"]');
     return footer ? container.getBoundingClientRect().bottom - footer.getBoundingClientRect().bottom : null;
-  }).toBe(28);
+  }).toBe(container.clientHeight / 4);
   for (const height of [160, undefined, 64]) {
     // 新底层通过 ResizeObserver 合并流式布局更新，保留帧级跟随而不逐 token 同步测量。
     flushSync(() => updateFooter(height));
@@ -100,7 +100,7 @@ it("仅尾部占位变化时在布局观察后保持真实高度与置底", asyn
       const rows = container.querySelectorAll<HTMLElement>("[data-conversation-row]");
       const lastRow = rows[rows.length - 1]!;
       return container.getBoundingClientRect().bottom - lastRow.getBoundingClientRect().bottom;
-    }, { timeout: 1000 }).toBe(28);
+    }, { timeout: 1000 }).toBe(container.clientHeight / 4);
     expect(container.scrollHeight - container.scrollTop - container.clientHeight).toBeLessThan(1);
   }
 });

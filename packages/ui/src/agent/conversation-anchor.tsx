@@ -84,6 +84,8 @@ export function useConversationLayout(contentRef: RefObject<HTMLDivElement | nul
     viewport.addEventListener("pointerdown", onPointerDown);
     const resize = new ResizeObserver(syncLayout);
     resize.observe(content);
+    // 输入框收起/展开或软键盘改变视口时也同步锚点，避免只等正文尺寸回调留下旧阅读位置。
+    resize.observe(viewport);
     const mutations = new MutationObserver(syncLayout);
     mutations.observe(content, { childList: true, subtree: true });
     return () => {
