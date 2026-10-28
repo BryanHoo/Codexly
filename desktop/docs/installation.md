@@ -129,6 +129,8 @@ rm -rf "$HOME/Library/Caches/com.codexly.desktop"
 
 ## 更新
 
+Windows 安装版从 0.44.1 起会在更新和卸载前清理当前安装目录内残留的智能体运行时，避免旧进程占用文件导致安装停滞。更新前请先保存工作并结束运行中的任务；如果旧版应用内更新停滞，可退出应用后从官方 Releases 下载新版安装包并重新运行。
+
 通过应用内更新入口检查新版本；Windows 免安装版本需要关闭应用后用新版 ZIP 的完整解压目录替换旧目录，保留主程序、Claude 宿主与 `runtime`，不能只替换 EXE。macOS Modern 与 Legacy 使用独立更新清单，升级系统不会自动切换档位。需要切换到 Modern 时，手动安装对应版本即可，两档共用本地数据目录。
 
 自动更新签名用于校验更新包，不等同于操作系统代码签名或 macOS 公证。下载入口统一使用[官方 Releases](https://github.com/BryanHoo/Codexly/releases)。

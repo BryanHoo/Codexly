@@ -127,6 +127,8 @@ Delete that directory manually only if you intend to clear data for all local Co
 
 ## Updates
 
+Starting with 0.44.1, the Windows installer stops leftover agent runtimes in the current installation directory before updating or uninstalling, preventing file locks from blocking installation. Save your work and finish running tasks before updating. If an older version stalls during an in-app update, quit the app, download the new installer from official Releases, and run it again.
+
 Installed builds check for updates through the app. Portable Windows builds require manual replacement. Modern and Legacy macOS builds use separate update manifests; upgrading macOS does not switch profiles automatically. To switch to Modern, install its package manually. Both profiles use the same local data directory.
 
 An updater signature verifies the update artifact; it is separate from operating-system code signing and macOS notarization. Download only from [official Releases](https://github.com/BryanHoo/Codexly/releases).

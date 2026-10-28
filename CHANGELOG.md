@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+## [0.44.1] - 2026-10-28
+
+### 优化
+
+- 增强桌面输入框在明暗主题及分屏中的阴影，保持底栏间距一致。
+
+### 修复
+
+- 修复 Windows 应用内更新时，旧版残留的智能体运行时占用文件、阻塞安装的问题。
+
 ## [0.44.0] - 2026-10-27
 
 ### 新增
@@ -881,7 +891,8 @@
 
 - 提供 Windows、Ubuntu x64 和 macOS Apple Silicon 预览版，尚未提供系统签名。
 
-[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.44.0...HEAD
+[Unreleased]: https://github.com/BryanHoo/Codexly/compare/v0.44.1...HEAD
+[0.44.1]: https://github.com/BryanHoo/Codexly/compare/v0.44.0...v0.44.1
 [0.44.0]: https://github.com/BryanHoo/Codexly/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/BryanHoo/Codexly/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/BryanHoo/Codexly/compare/v0.41.0...v0.42.0

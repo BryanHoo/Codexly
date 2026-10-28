@@ -60,6 +60,8 @@
 
 Windows 便携版必须关闭应用并用新版 ZIP 的完整解压目录替换旧目录，保留主程序、Claude 宿主和 `runtime`。只换 EXE 会造成资源缺失或版本不匹配。macOS Legacy 与 Modern 有独立更新渠道，升级系统后需手动安装 Modern 才会切换。
 
+Windows 安装版若在旧版应用内更新时停滞，先保存工作、结束运行中的任务并退出应用，再从官方 Releases 下载新版安装包重试。0.44.1 起安装器会清理当前安装目录内占用文件的残留运行时。详见[桌面更新说明](../desktop/docs/installation.md#更新)。
+
 ## 卸载会删除项目和历史吗？
 
 移除桌面应用或 npm 包不会自动删除项目，也不会清空共享的 `~/.codexly`。删除应用数据会影响同机其他 Codexly 使用端。清理前先备份并停用 Web 登录自启动；系统日志与缓存位置见[桌面安装指南](../desktop/docs/installation.md)。
