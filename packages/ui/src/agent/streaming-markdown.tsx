@@ -37,7 +37,8 @@ export function StreamingMarkdown({
   fast: boolean;
   enabled: boolean;
 }) {
-  const animate = props.isAnimating === true;
+  // 静态模式具有最终决定权，避免完成回合残留的运行标记让历史正文再次淡入。
+  const animate = props.mode !== "static" && props.isAnimating === true;
   const parseIncomplete = props.mode !== "static" && props.parseIncompleteMarkdown !== false;
   const value = useMemo(() => ({ tree, fast, parseIncomplete }), [tree, fast, parseIncomplete]);
   // 依赖全文的方向检测、动画和标签修复仍由 Streamdown 自己处理，避免改变调用方语义。
@@ -135,7 +136,10 @@ function TextLeaf({ text, allowAnimation }: { text: string; allowAnimation: bool
     <span>
       {text.slice(0, prefixLength)}
       {shouldAnimate && prefixLength < text.length ? (
-        <span data-streaming-text-reveal="">{text.slice(prefixLength)}</span>
+        // 仅替换本次增量的动画节点：复用同一 span 只会更新文字，不会重启 CSS 动画。
+        <span key={prefixLength} data-streaming-text-reveal="">
+          {text.slice(prefixLength)}
+        </span>
       ) : null}
     </span>
   );

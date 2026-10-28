@@ -14,8 +14,6 @@ function createMotionScope() {
   const active = new Set<Animation>();
   let ready = false;
   let media: MediaQueryList | undefined;
-  let batch = 0;
-  let frame = 0;
   const stop = () => {
     for (const animation of active) animation.cancel();
     active.clear();
@@ -23,16 +21,21 @@ function createMotionScope() {
   const onPreferenceChange = () => {
     if (media?.matches) stop();
   };
+  const onVisibilityChange = () => {
+    // 标签页/WebView 隐藏时直接显示最终状态，恢复前台不补播已经收到的内容。
+    if (document.hidden) stop();
+  };
   return {
     mount() {
       media = window.matchMedia("(prefers-reduced-motion: reduce)");
       media.addEventListener("change", onPreferenceChange);
+      document.addEventListener("visibilitychange", onVisibilityChange);
       // 子项的 layout effect 先执行，因此第一屏历史不会被当成新事件。
       ready = true;
       return () => {
         ready = false;
         media?.removeEventListener("change", onPreferenceChange);
-        cancelAnimationFrame(frame);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
         stop();
       };
     },
@@ -44,21 +47,22 @@ function createMotionScope() {
         const first = seen.values().next().value;
         if (first !== undefined) seen.delete(first);
       }
-      if (!ready || !live || media?.matches || typeof node.animate !== "function") return;
-      const delay = Math.min(batch++, 4) * 35;
-      if (frame === 0)
-        frame = requestAnimationFrame(() => {
-          batch = 0;
-          frame = 0;
-        });
+      if (
+        !ready ||
+        !live ||
+        media?.matches ||
+        document.hidden ||
+        typeof node.animate !== "function"
+      )
+        return;
+      // 同批步骤立即可读，不以阶梯延迟隐藏新内容，也不为动画维护额外帧调度。
       const animation = node.animate(
         [
-          { opacity: 0, transform: `translateY(${kind === "trace" ? "4" : "6"}px)` },
+          { opacity: 0.4, transform: `translateY(${kind === "trace" ? "4" : "6"}px)` },
           { opacity: 1, transform: "translateY(0)" },
         ],
         {
-          duration: 260,
-          delay,
+          duration: 180,
           easing: "cubic-bezier(.16,1,.3,1)",
           fill: "backwards",
           id: "agent-entry",

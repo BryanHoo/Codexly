@@ -28,6 +28,30 @@ Collapsed tool and task details unmount their expensive content. History remains
 
 New execution steps use lightweight entry transitions, with shimmer for running titles and brief status and disclosure transitions. Initial history, token updates and reopened details do not replay entry animations. Motion never delays event ingestion or commits, and respects reduced-motion preferences. Reasoning opens while streaming and closes afterward unless the user has made a manual choice.
 
+流式正文每次只为本批新增文字淡入，段落和已完成块保持原有身份；新文字从可读亮度开始，在 180ms 内完成透明度过渡，不逐字排队、不改变布局。新增执行步骤同样立即显示，取消阶梯延迟及其额外动画帧调度。切换到后台时取消尚未结束的步骤入场，后台新步骤不启动动画，回到前台不补播；这些规则不暂停接收或提交事件。静态模式始终关闭增量文字动效，即使调用者还保留运行标记。
+
+Each appended text batch fades in independently over 180ms from a readable opacity while paragraphs and completed blocks retain their identity. New steps appear immediately without stagger delays or an extra scheduling frame. Hiding the page cancels entry animations; background arrivals do not animate or replay on return. Event ingestion continues, and static mode always disables incremental text animation.
+
+### 官方模式适配核对 / Official Pattern Alignment
+
+本次对照 [Chat](https://ui.shadcn.com/docs/ai-elements/radix/chat)、[Message](https://ui.shadcn.com/docs/ai-elements/radix/message)、[Reasoning](https://ui.shadcn.com/docs/ai-elements/radix/reasoning)、[Trace](https://ui.shadcn.com/docs/components/radix/trace) 和 [Message Scroller](https://ui.shadcn.com/docs/components/radix/message-scroller) 官方示例。新版 AI Elements 是可复制的组件组合，没有需要整体安装的独立组件包。
+
+The implementation follows the current shadcn/ui composition patterns linked above. AI Elements patterns are copied compositions rather than a separate package to install.
+
+| 关注点 / Area                                          | 适配与取舍 / Implementation                                                                                                                                                           |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chat / Message Scroller                                | 已使用官方滚动 primitive，保留分页、用户阅读位置、问题锚点和返回最新入口；不会因本次动效更新重挂回合。Official scrolling primitives retain pagination and reading anchors.            |
+| Message / Bubble                                       | 用户消息气泡、助手正文、操作区已共享；正文继续使用增量 Streamdown。Shared message composition with incremental Markdown.                                                              |
+| Reasoning / Trace                                      | 推理、工具、计划与过程已组合 Trace，运行时展开并尊重手动选择，折叠详情按需挂载。Trace composition with user-controlled disclosures and lazy details.                                  |
+| Code Block                                             | 保留未闭合代码的增量行、复制入口与长代码按需高亮；不能直接用示例中的全文字符串渲染替换这些性能路径。Incremental code and bounded highlighting remain in place.                        |
+| 入场与文字动效 / Motion                                | 修复连续增量不重新淡入、静态模式误动画及后台入场未取消；取消阶梯等待，系统减少动态效果设置继续生效。Independent readable fades, no stagger delays, static and background safeguards.  |
+| 稳定块 / Stable blocks                                 | 回归直接计数块渲染器调用：128 个完成段落之后追加尾部，不重新调用历史块渲染器；不把 DOM 未重挂当成无需渲染的证据。Renderer-call regression protects completed blocks.                  |
+| Sources / Inline Citation / Test Results / Stack Trace | 是否采用专用布局取决于引擎是否提供对应结构化来源、测试或错误字段；普通 Markdown 和终端文本不足以可靠重建这些语义，不根据文案猜测。Specialized layouts require structured engine data. |
+
+官方聊天演示中的模拟等待和全文拼接用于展示流程，生产路径继续使用现有增量事件、块级缓存和异步收尾。此处不引入额外动画库，也不人为延迟模型输出；交互回归覆盖 Chromium、Firefox、WebKit，桌面共享组件覆盖 Chromium/WebKit。
+
+Demo delays and whole-text assembly are not part of the production transport. Existing incremental events, block caching and asynchronous finalization remain in use without an extra animation library or artificial output delays.
+
 ## 代码与 Markdown / Code and Markdown
 
 两端共用代码查看器，按需加载语法模块并分批高亮，长代码按可见行渲染。完整代码的 UTF-8 大小超过 128 KiB 时使用纯文本，仍可查看和复制完整源码。流式 Markdown 保留增量内容，尾块异步收尾；正文的动画订阅与稳定内容分离，减少重复渲染。

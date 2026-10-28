@@ -1,5 +1,15 @@
 [data-streaming-text-reveal] {
-  animation: sd-fadeIn 180ms ease-out both;
+  /* 新文字立即可读；只改变透明度，不改变排版、不逐字排队，也不依赖第三方关键帧。 */
+  animation: agent-text-reveal 180ms ease-out both;
+}
+
+@keyframes agent-text-reveal {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
