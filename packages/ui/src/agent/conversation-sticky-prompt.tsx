@@ -162,13 +162,13 @@ export function ConversationStickyPrompt({
       {/* 零高 sticky 不挤动正文；保留在 viewport 内，让鼠标滚轮和触控自然交给聊天滚动。 */}
       <div data-conversation-sticky-prompt="" className="absolute inset-x-0 top-0">
         <div className="mx-auto w-full max-w-content px-4 pt-3 sm:px-6">
-          {/* 吸顶摘要始终使用不透明面板底色，柔和浮层阴影区分正文，悬停不透出下方文字。 */}
+          {/* 摘要靠右并按内容收缩，最长不超过聊天可用宽度；不透明底色与浮层阴影保证正文不会透出。 */}
           <Button
             type="button"
             variant="outline"
             size="embedded"
             onClick={reveal}
-            className="pointer-events-auto flex w-full min-w-0 items-start gap-3 rounded-surface px-3 py-2 text-left whitespace-normal shadow-floating hover:bg-panel"
+            className="pointer-events-auto ml-auto flex w-fit max-w-full min-w-0 items-start gap-3 rounded-surface px-3 py-2 text-left whitespace-normal shadow-floating hover:bg-panel"
           >
             <span
               data-conversation-sticky-text=""
