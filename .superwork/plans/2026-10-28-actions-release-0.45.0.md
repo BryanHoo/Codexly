@@ -17,7 +17,7 @@
 - [x] 同步联合版本、日志比较链接与中英文功能说明。
 - [x] 通过本地发布指南所需门禁，审查差异并提交发布准备。
 - [x] 原子推送 main 与 v0.45.0；其发布再次中断后已取消，保留原标签。
-- [ ] 核验公开 Release、npm、各平台产物、签名和两种更新清单。
+- [x] 核验公开 Release、npm、各平台产物、签名和两种更新清单。
 
 ## 已确认事实
 
@@ -54,7 +54,7 @@
 
 - [x] 推送 CI 修复并验证远端恢复入口。
 - [x] 同步 0.45.1 版本和日志并完成发布门禁。
-- [ ] 推送 v0.45.1，核验公开 Release、npm 与全部发行物。
+- [x] 推送 v0.45.1，核验公开 Release、npm 与全部发行物。
 
 - CI 修复提交 `70ca4e0a` 已通过本地真实浏览器套件、进程级回归、15 项工作流约束测试、桌面 lint 与行数检查，已推送 main；现在验证 0.45.1 候选。
 
@@ -69,3 +69,20 @@
 - 为连接不退出的情况补充浏览器步骤 10 分钟上限；配置格式检查通过。恢复成功仍上传两次现场，不隐藏任何失败断言。
 - 简化审查 `no-change`：三个职责明确的辅助函数，进程识别尾部有界。规范决策 `update`，已补入根工具索引并链接既有发布排障。
 - 准备提交 `chore(release): 发布 0.45.1 并记录浏览器门禁修复`，原子推送 main 与 v0.45.1。远端公开发布及产物完整性待核验。
+
+## 远端发行核验
+
+- 主分支与注释标签 v0.45.1 均指向 `a487c0cf65cb2dbfec58111b048e462e0cd5d85c`，未移动既有标签。
+- 主分支 CI、Desktop Quality、Desktop Native WebView 全部成功；联合 Release 运行 `40717535029` 的全部任务成功。
+- GitHub Release 已于 `2026-10-28T16:40:57Z` 公开：https://github.com/BryanHoo/Codexly/releases/tag/v0.45.1 。包含 17 项发行资源，覆盖 Windows 安装版/便携版、Ubuntu DEB/AppImage、macOS 两种架构及 Intel Legacy，以及更新清单和签名。
+- `latest.json` 与 `latest-legacy.json` 均为 0.45.1；现代清单使用资源 API URL，已按当前 Release 的资源 ID 和文件名验证归属，并比较分离签名内容；Legacy URL 指向本次标签。不能只按 URL 是否含版本号判断 API 资源归属。
+- 初次核验脚本只接受网页下载 URL，已修正为同时识别当前 Release 的 `url` 与 `apiUrl`；没有改动正式产物。GitHub Actions watch 曾因网络 EOF 退出，最终状态由新鲜 REST 查询确认全部成功。
+- npm Job 日志确认 `2026-10-28T16:39:41Z` 已接收 @bryanhu/codexly@0.45.1，签发 provenance，并提示处理中。发布扫描结束后，官方源于 `2026-10-28T16:54:11Z` 同时返回具体版本与 latest 为 0.45.1。
+
+## 完成结果
+
+- `python3 .local/verify-release-0451.py` 最终退出码 0：公开 Release 的标题、版本标记与 17 项资源齐全；两份更新清单均为 0.45.1，资源 API/下载 URL 按当前发行物及目标架构核对，分离签名与清单签名一致。
+- npm 官方源可读取 @bryanhu/codexly@0.45.1，latest 同为 0.45.1，tarball integrity 与 CLI 入口存在；发布任务已签发 provenance。
+- 联合发布运行：https://github.com/BryanHoo/Codexly/actions/runs/40717535029 ，全部任务成功。发行页：https://github.com/BryanHoo/Codexly/releases/tag/v0.45.1 。
+- 已完成原始失败恢复、严格边界的 CI 连接恢复修复、两端版本与中英文文档更新，以及联合发行物核验。
+- 发行核验记录保存在本地计划中，远端 main 和 v0.45.1 保持同一发行提交 a487c0cf。
