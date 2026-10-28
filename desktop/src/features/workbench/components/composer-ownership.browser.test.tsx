@@ -42,9 +42,13 @@ function createComposerProps(
   };
 }
 
-test.each([640, 960])("分屏底栏移出裁剪区后，输入框阴影可自然淡出（宽度 %s）", async (width) => {
+test.each([640, 960].flatMap((width) => [false, true].flatMap((multiple) =>
+  ["light", "dark"].map((theme) => ({ width, multiple, theme }))))
+)("输入框阴影清晰可见且保持底栏间距（%o）", async ({ width, multiple, theme }) => {
   await page.viewport(width, 720);
   await i18n.changeLanguage("zh-CN");
+  const previousScheme = document.documentElement.style.colorScheme;
+  document.documentElement.style.colorScheme = theme;
   const footer = document.createElement("div");
   document.body.append(footer);
   const queryClient = new QueryClient();
@@ -53,7 +57,7 @@ test.each([640, 960])("分屏底栏移出裁剪区后，输入框阴影可自然
     const screen = await render(<QueryClientProvider client={queryClient}>
       <TooltipProvider><ProjectDraftProvider><ComposerDraftProvider>
         <SplitPaneContext value={{ pane: { projectId: "temporary", taskId: "task-a" }, active: true,
-          multiple: true, sidebarOpen: false, toggleSidebar: () => undefined }}>
+          multiple, sidebarOpen: false, toggleSidebar: () => undefined }}>
           <TerminalContext value={{ projectId: "temporary", rootId: undefined, footer,
             toggle: () => undefined, captureFocus: () => undefined }}>
             <div className="document-workspace-chat">
@@ -63,11 +67,20 @@ test.each([640, 960])("分屏底栏移出裁剪区后，输入框阴影可自然
         </SplitPaneContext>
       </ComposerDraftProvider></ProjectDraftProvider></TooltipProvider>
     </QueryClientProvider>);
-    await page.getByRole("button", { name: "展开输入框" }).click();
+    if (multiple) await page.getByRole("button", { name: "展开输入框" }).click();
     const editor = screen.getByRole("textbox").element();
     const form = editor.closest("form")!;
+    // 展开时 WebKit 会主动聚焦编辑器；失焦后检查普通投影，不能把蓝色焦点环当作阴影。
+    form.style.transition = "none";
+    (editor as HTMLElement).blur();
     // 使用真实主题阴影和最近裁剪边界测量，避免只验证 Tailwind 类名。
-    const shadow = getComputedStyle(form).boxShadow.match(/(-?\d+(?:\.\d+)?)px/g)!.map(Number.parseFloat);
+    const boxShadow = getComputedStyle(form).boxShadow;
+    const shadow = boxShadow.match(/(-?\d+(?:\.\d+)?)px/g)!.map(Number.parseFloat);
+    // 控件的 2px 轻阴影无法形成输入区层次；需要可见的柔和模糊及双层阴影。
+    const visibleLayers = [...boxShadow.matchAll(/rgba\([^)]*,\s*([\d.]+)\)\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px/g)]
+      .filter((layer) => Number(layer[1]) >= 0.1);
+    expect(visibleLayers.length).toBeGreaterThanOrEqual(2);
+    expect(Math.max(...visibleLayers.map((layer) => Number(layer[4])))).toBeGreaterThanOrEqual(6);
     const requiredSpace = Math.max(...shadow.filter((_, index) => index % 4 === 1)
       .map((offset, index) => offset + shadow[index * 4 + 2]!));
     const clip = form.closest(".document-workspace-chat")!;
@@ -75,9 +88,12 @@ test.each([640, 960])("分屏底栏移出裁剪区后，输入框阴影可自然
       .toBeGreaterThanOrEqual(requiredSpace);
     expect(clip.getBoundingClientRect().bottom - form.getBoundingClientRect().bottom).toBe(12);
     expect(footer.querySelector(".workbench-status-bar")!.getBoundingClientRect().height).toBe(36);
-    await page.getByRole("button", { name: "收起输入框" }).click();
-    expect(clip.getBoundingClientRect().height).toBe(0);
+    if (width === 960) await page.screenshot({ path: `../../../../test-results/composer-shadow-${multiple ? "split" : "single"}-${theme}.png` });
+    const expandedHeight = clip.getBoundingClientRect().height;
+    if (multiple) await page.getByRole("button", { name: "收起输入框" }).click();
+    expect(clip.getBoundingClientRect().height).toBe(multiple ? 0 : expandedHeight);
   } finally {
+    document.documentElement.style.colorScheme = previousScheme;
     footer.remove();
     queryClient.clear();
   }

@@ -69,6 +69,10 @@
   --ui-shadow-floating:
     0 8px 24px light-dark(rgb(23 23 23 / 0.1), rgb(0 0 0 / 0.4)),
     0 1px 4px light-dark(rgb(23 23 23 / 0.07), rgb(0 0 0 / 0.3));
+  /* 输入框保留可见的双层投影，向下偏移与模糊范围收进现有 12px 留白，兼顾 WebKit 的裁剪边界。 */
+  --ui-shadow-composer:
+    0 3px 6px light-dark(rgb(23 23 23 / 0.14), rgb(0 0 0 / 0.48)),
+    0 1px 3px light-dark(rgb(23 23 23 / 0.1), rgb(0 0 0 / 0.32));
   --ui-shadow-focus: 0 0 0 3px light-dark(rgb(0 106 255 / 0.2), rgb(51 156 255 / 0.25));
   --ui-shadow-timeline-node: 0 0 0 3px var(--ui-color-content);
 

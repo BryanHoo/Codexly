@@ -131,8 +131,8 @@ export function WorkbenchComposerView(props: WorkbenchComposerViewProps) {
       />} />}
       interruptible={props.canInterrupt && !props.turnControlsDisabled && props.activeTurnId !== undefined}
     >
-      {/* 底栏移出文档裁剪区时，复用紧凑控件阴影，让阴影在现有 12px 留白内淡出；不增大输入框与底栏间距。 */}
-      <div className={`relative mx-auto w-full max-w-content${terminal !== null && props.footerVisible ? " pb-3 [--ui-shadow-floating:var(--ui-shadow-control)]" : ""}`} ref={props.commandSurfaceRef}>
+      {/* 底栏移出文档裁剪区时，使用输入框专用阴影保留层次，仍在现有 12px 留白内淡出。 */}
+      <div className={`relative mx-auto w-full max-w-content${terminal !== null && props.footerVisible ? " pb-3 [--ui-shadow-floating:var(--ui-shadow-composer)]" : ""}`} ref={props.commandSurfaceRef}>
         <ComposerCommandMenu props={props} />
         <ComposerFileMenu props={props} />
         {props.queuedPrompts.length === 0 ? null : (

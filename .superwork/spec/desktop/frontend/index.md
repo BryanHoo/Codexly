@@ -15,6 +15,7 @@
 - [ ] 源文件与测试文件遵守桌面 500 行限制，由 `source:lines` 检查。
 - [ ] 自动化使用 `pnpm --dir desktop test:run`；布局与焦点使用 `pnpm --dir desktop test:browser`，覆盖 Chromium / WebKit。
 - [ ] 输入区域从可写切换为锁定时，在布局阶段释放边界内部的焦点；不要依赖浏览器对 `disabled` / `inert` 的自动失焦，也不能移走其他分栏的焦点。回归入口为 `composer-ownership.browser.test.tsx`。
+- [ ] 底栏通过 Portal 移出聊天裁剪区时，输入框使用专用双层阴影，保持既有 12px 留白和 36px 底栏；不要用过淡的控件阴影代替，也不要增加间距来避开裁剪。`composer-ownership.browser.test.tsx` 覆盖 Chromium / WebKit、明暗主题及单窗 / 分屏；测量普通阴影前须移除展开操作产生的编辑器焦点。
 - [ ] 原生 WebView 测试及模拟运行时从根工作区已安装的 `@openai/codex/package.json` 读取版本，与运行时打包脚本共用来源，避免升级后留下独立硬编码预期。
 - [ ] `pnpm --dir desktop check:web` 覆盖静态检查、类型、测试、Tauri 约束、现代 / Legacy 构建和包体预算；完整桌面门槛是 `pnpm --dir desktop check`。
 
