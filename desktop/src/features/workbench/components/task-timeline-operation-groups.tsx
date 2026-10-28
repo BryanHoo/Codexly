@@ -1,18 +1,9 @@
-import { TraceStatusIcon } from "@codexly/ui/core/trace-status";
-import {
-  Trace,
-  TraceCollapsible,
-  TraceCollapsibleTrigger,
-  TraceCollapsibleContent,
-  TraceLine,
-  TraceIcon,
-  TraceTitle,
-} from "@codexly/ui/core/trace";
+import { OperationGroup } from "@codexly/ui/agent/operation-group";
 import type { AgentItem } from "@/protocol/index.js";
 import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 import { isInlineFileChangeVisible } from "@codexly/frontend-core/turn-process";
 import { isTimelineOperation } from "@codexly/frontend-core/timeline-operation";
-import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
 import { i18n } from "../../../i18n/i18n.js";
 import type { TaskItemStore, TaskStore } from "../../conversation/runtime/task-store.js";
@@ -43,7 +34,6 @@ export function groupConsecutiveTimelineOperations(
 ): TimelineOperationGroup[] {
   const groups: TimelineOperationGroup[] = [];
   let operationKeys: string[] = [];
-  let operationDisplayCount = 0;
 
   const flushOperations = () => {
     const firstKey = operationKeys[0];
@@ -51,22 +41,19 @@ export function groupConsecutiveTimelineOperations(
       return;
     }
 
-    // 单个可见操作继续使用原有渲染，多项操作才压缩为摘要。
+    // 从首条操作起保持稳定的组身份，追加时保留详情与手动折叠状态。
     groups.push(
-      operationDisplayCount === 1
+      operationKeys.length === 1 && getItem(firstKey)?.type === "reasoning"
         ? { itemKey: firstKey, type: "item" }
         : { itemKeys: operationKeys, key: firstKey, type: "operation_group" },
     );
     operationKeys = [];
-    operationDisplayCount = 0;
   };
 
   for (const itemKey of itemKeys) {
     const item = getItem(itemKey);
     if (isTimelineOperation(item)) {
       operationKeys.push(itemKey);
-      // 一个 file_change Item 可包含多行文件操作，按实际可见行决定是否聚合。
-      operationDisplayCount += item.type === "file_change" ? Math.max(item.changes.length, 1) : 1;
       continue;
     }
 
@@ -191,7 +178,6 @@ export function TimelineOperationGroupDisclosure({
   itemKeys: readonly string[];
   store: TaskStore;
 }>) {
-  const [expanded, setExpanded] = useState(false);
   const itemStores = useMemo(() => {
     const storesByKey = store.getState().itemStoresByKey;
     return itemKeys.flatMap((itemKey) => storesByKey.get(itemKey) ?? []);
@@ -233,41 +219,19 @@ export function TimelineOperationGroupDisclosure({
     collapseTrigger.role === "assistant" &&
     collapseTrigger.text.trim().length > 0;
 
-  // 始终复用同一个折叠节点，后续文字到达时由 Radix 完整播放收起过渡。
-  const inline = !hasFollowingAssistantText || summary.isActive;
   const summaryText = formatTimelineOperationSummary(summary);
   return (
-    <Trace>
-      <TraceCollapsible
-        className="group/operation w-full"
-        data-operation-group={inline ? undefined : ""}
-        data-operation-group-active={summary.isActive ? "" : undefined}
-        onOpenChange={setExpanded}
-        open={inline || expanded}
-      >
-        <TraceCollapsibleTrigger
-          style={inline ? { display: "none" } : undefined}
-          aria-expanded={inline || expanded}
-          aria-label={i18n.t(
-            expanded ? "timeline.operationGroup.collapse" : "timeline.operationGroup.expand",
-            { ns: "conversation", summary: summaryText },
-          )}
-          className="max-w-full"
-        >
-          {!inline && (
-            // 聚合摘要统一使用默认灰色；失败仅保留计数，具体错误状态由展开后的条目表达。
-            <TraceLine>
-              <TraceIcon>
-                <TraceStatusIcon status="completed" />
-              </TraceIcon>
-              <TraceTitle>{summaryText}</TraceTitle>
-            </TraceLine>
-          )}
-        </TraceCollapsibleTrigger>
-        <TraceCollapsibleContent className="agent-operation-list" data-inline={inline}>
-          {children}
-        </TraceCollapsibleContent>
-      </TraceCollapsible>
-    </Trace>
+    <OperationGroup
+      active={summary.isActive}
+      autoOpen={!hasFollowingAssistantText || summary.isActive}
+      collapseLabel={i18n.t("timeline.operationGroup.collapse", { ns: "conversation", summary: summaryText })}
+      expandLabel={i18n.t("timeline.operationGroup.expand", { ns: "conversation", summary: summaryText })}
+      runningLabel={i18n.t("agentComponents.status.running", { ns: "conversation" })}
+      closeLabel={i18n.t("actions.close", { ns: "workbench" })}
+      summary={summaryText}
+      count={itemKeys.length}
+    >
+      {children}
+    </OperationGroup>
   );
 }

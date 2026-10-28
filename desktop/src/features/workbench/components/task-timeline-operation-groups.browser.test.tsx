@@ -11,6 +11,9 @@ import {
 import { TimelineOperationGroupDisclosure } from "./task-timeline-operation-groups.js";
 import { StoredAssistantTimelineItems } from "./task-timeline-store-operation-groups.js";
 import "../../../shared/styles/globals.css";
+import { OperationGroup } from "@codexly/ui/agent/operation-group";
+import { Tool, ToolHeader, ToolBody, ToolInput, ToolOutput } from "@codexly/ui/agent/tool";
+import { Terminal, TerminalContent } from "@codexly/ui/agent/terminal";
 
 type TimelineOperation = Extract<
   AgentItem,
@@ -18,6 +21,107 @@ type TimelineOperation = Extract<
 >;
 
 describe("TimelineOperationGroupDisclosure", () => {
+  it.each([320, 960])("%spx 列表的详情独立于五行窗口，长输出只出现一个纵向滚动区", async (width) => {
+    const output = Array.from({ length: 100 }, (_, index) => `运行日志 ${index}`).join("\n");
+    const view = (autoOpen: boolean) => (
+      <div style={{ width }}>
+        <OperationGroup active={false} autoOpen={autoOpen} collapseLabel="收起操作" expandLabel="展开操作"
+          runningLabel="运行中" closeLabel="关闭" summary="执行 8 项操作" count={8}>
+          {Array.from({ length: 8 }, (_, index) => (
+            <Tool key={index} defaultOpen isStreaming>
+              <ToolHeader title={`命令 ${index}`} state="output-available" />
+              <ToolBody>
+                <Terminal output={output}><TerminalContent /></Terminal>
+                <ToolInput input={{ command: "pnpm test" }} />
+                <ToolOutput errorText={undefined} output={output} />
+              </ToolBody>
+            </Tool>
+          ))}
+        </OperationGroup>
+      </div>
+    );
+    const screen = await render(view(true));
+    expect(screen.getByRole("dialog").query()).toBeNull();
+    const viewport = screen.container.querySelector<HTMLElement>("[data-operation-viewport]")!;
+    viewport.scrollTop = 0;
+    const height = viewport.clientHeight;
+    const command = screen.getByRole("button", { name: /命令 0$/ }).element() as HTMLButtonElement;
+    command.click();
+    const dialog = screen.getByRole("dialog");
+    await expect.element(dialog).toBeVisible();
+    const panel = dialog.element() as HTMLElement;
+    expect(panel.closest("[data-operation-viewport]")).toBeNull();
+    expect(panel.getBoundingClientRect().height).toBeGreaterThan(156);
+    expect(panel.getBoundingClientRect().width).toBeGreaterThan(width === 320 ? 320 : 600);
+    expect(viewport.clientHeight).toBe(height);
+    const body = panel.querySelector<HTMLElement>("[data-operation-detail-body]")!;
+    expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
+    for (const node of panel.querySelectorAll<HTMLElement>("[data-slot=terminal-content], [data-slot=code-block-content]")) {
+      expect(node.scrollHeight - node.clientHeight).toBeLessThanOrEqual(1);
+    }
+    body.scrollTop = body.scrollHeight;
+    expect(body.scrollTop).toBeGreaterThan(0);
+    // 后续正文到达也不能在读者查看日志时卸载弹层。
+    await screen.rerender(view(false));
+    await expect.element(dialog).toBeVisible();
+    await screen.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+    await expect.poll(() => document.activeElement === command).toBe(true);
+  });
+
+  it.each([320, 960])("%spx 下从第一条显示折叠入口，超过五行仅内部滚动", async (width) => {
+    await i18n.changeLanguage("zh-CN");
+    const items: AgentItem[] = Array.from({ length: 8 }, (_, index) => ({
+      id: `operation-${index}`, type: "command", command: `echo ${index}`,
+      cwd: "/workspace", status: "completed", outputOmitted: { bytes: 0, lines: 0 },
+    }));
+    const itemStoresByKey = new Map(items.map((item) => [item.id, createTaskItemStore(item)]));
+    const store = createStore(() => ({ itemStoresByKey })) as unknown as TaskStore;
+    const view = (count: number) => (
+      <div style={{ width, height: 400, overflow: "auto" }} data-testid="outer-scroll">
+        <div style={{ height: 220 }}>之前的文字信息</div>
+        <TimelineOperationGroupDisclosure itemKeys={items.slice(0, count).map((item) => item.id)} store={store}>
+          {items.slice(0, count).map((item, index) => <div key={item.id} style={{ height: 28 }}>活动 {index}</div>)}
+        </TimelineOperationGroupDisclosure>
+      </div>
+    );
+    const screen = await render(view(1));
+    const group = screen.container.querySelector<HTMLElement>("[data-operation-group]");
+    expect(group).not.toBeNull();
+    const trigger = group!.querySelector<HTMLButtonElement>(":scope > button")!;
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    trigger.click();
+    await expect.poll(() => trigger.getAttribute("aria-expanded")).toBe("false");
+    trigger.click();
+    await screen.rerender(view(6));
+    const viewport = screen.container.querySelector<HTMLElement>("[data-operation-viewport]")!;
+    await expect.poll(() => viewport?.clientHeight).toBeGreaterThan(0);
+    expect(viewport.clientHeight).toBeLessThanOrEqual(156);
+    await expect.poll(() => viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop).toBeLessThanOrEqual(1);
+    await Promise.all(group!.getAnimations({ subtree: true }).map((animation) => animation.finished));
+    const outer = screen.getByTestId("outer-scroll").element();
+    const height = outer.scrollHeight;
+    const top = outer.scrollTop;
+    const scrollTo = vi.spyOn(viewport, "scrollTo");
+    await screen.rerender(view(8));
+    await expect.poll(() => scrollTo.mock.calls.length).toBeGreaterThan(0);
+    expect(scrollTo).toHaveBeenCalledWith({ top: viewport.scrollHeight - viewport.clientHeight, behavior: "smooth" });
+    scrollTo.mockRestore();
+    await expect.poll(() => viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop).toBeLessThanOrEqual(1);
+    expect(outer.scrollHeight).toBe(height);
+    expect(outer.scrollTop).toBe(top);
+    // 读者自行滚动；上翻后不抢回底部，也不显示额外的返回按钮。
+    viewport.dispatchEvent(new WheelEvent("wheel", { deltaY: -100, bubbles: true }));
+    viewport.scrollTop = 0;
+    await expect.poll(() => viewport.scrollTop).toBe(0);
+    await screen.rerender(view(6));
+    expect(viewport.scrollTop).toBe(0);
+    expect(screen.getByRole("button", { name: "回到底部", exact: true }).query()).toBeNull();
+    viewport.scrollTop = viewport.scrollHeight;
+    await expect.poll(() => viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop).toBeLessThanOrEqual(1);
+    expect(outer.scrollTop).toBe(top);
+  });
+
   it.each([320, 960])("查看图片在 %spx 容器中随命令工具收起，展开后仍可打开预览", async (width) => {
     await i18n.changeLanguage("zh-CN");
     const image: AgentItem = { id: "image", type: "activity", label: "查看图片", detail: "/tmp/image.png", status: "completed" };
@@ -125,9 +229,7 @@ describe("TimelineOperationGroupDisclosure", () => {
     );
 
     await expect.element(screen.getByText("原始操作列表")).toBeVisible();
-    expect(
-      screen.getByText("操作完成：变更 3 个文件，调用 1 个工具，执行 1 条命令").query(),
-    ).toBeNull();
+    expect(screen.getByText("操作完成：变更 3 个文件，调用 1 个工具，执行 1 条命令").element().closest("button")?.getAttribute("aria-expanded")).toBe("true");
 
     // Delta 先进入延迟物化缓冲区，折叠触发必须读取完整文本而非初始空实体。
     const messageDelta = {

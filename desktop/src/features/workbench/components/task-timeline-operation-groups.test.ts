@@ -48,12 +48,12 @@ describe("groupConsecutiveTimelineOperations", () => {
     expect(groupItems([command, image, mcpTool])).toEqual([
       { itemKeys: [command.id, image.id, mcpTool.id], key: command.id, type: "operation_group" },
     ]);
-    expect(groupItems([image])).toEqual([{ itemKey: image.id, type: "item" }]);
+    expect(groupItems([image])).toEqual([{ itemKeys: [image.id], key: image.id, type: "operation_group" }]);
     const activity: AgentItem = { ...image, id: "wait", label: "等待" };
     expect(groupItems([command, activity, mcpTool])).toEqual([
-      { itemKey: command.id, type: "item" },
+      { itemKeys: [command.id], key: command.id, type: "operation_group" },
       { itemKey: activity.id, type: "item" },
-      { itemKey: mcpTool.id, type: "item" },
+      { itemKeys: [mcpTool.id], key: mcpTool.id, type: "operation_group" },
     ]);
   });
 

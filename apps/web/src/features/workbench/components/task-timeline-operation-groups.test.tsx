@@ -43,12 +43,14 @@ describe("task timeline operation groups", () => {
     expect(group(items.map((item) => item.id))).toEqual([
       { itemKeys: ["command", "image", "tool"], key: "command", type: "operation_group" },
     ]);
-    expect(group(["image"])).toEqual([{ itemKey: "image", type: "item" }]);
+    expect(group(["image"])).toEqual([
+      { itemKeys: ["image"], key: "image", type: "operation_group" },
+    ]);
     byId.set("image", { ...image, label: "等待" });
     expect(group(items.map((item) => item.id))).toEqual([
-      { itemKey: "command", type: "item" },
+      { itemKeys: ["command"], key: "command", type: "operation_group" },
       { itemKey: "image", type: "item" },
-      { itemKey: "tool", type: "item" },
+      { itemKeys: ["tool"], key: "tool", type: "operation_group" },
     ]);
   });
 
@@ -106,11 +108,11 @@ describe("task timeline operation groups", () => {
     ]);
   });
 
-  it("keeps a single operation on the existing item rendering path", () => {
+  it("从首条操作起使用稳定的折叠容器", () => {
     const item = command("command-only", "completed");
 
     expect(groupConsecutiveTimelineOperations([item.id], () => item)).toEqual([
-      { itemKey: item.id, type: "item" },
+      { itemKeys: [item.id], key: item.id, type: "operation_group" },
     ]);
   });
 
@@ -295,7 +297,7 @@ describe("task timeline operation groups", () => {
         );
 
       expect(render("completed", "")).toContain('data-file-change="update"');
-      expect(render("running", "继续处理。")).not.toContain('data-operation-group=""');
+      expect(render("running", "继续处理。")).toContain('data-operation-group-active=""');
       const markup = render("completed", "继续处理。");
       expect(markup).toContain('data-operation-group=""');
       expect(markup).toContain("修改 1 个文件");
@@ -412,7 +414,8 @@ describe("task timeline operation groups", () => {
     expect(markup).toContain("tool-completed");
     expect(markup).toContain("echo command-completed");
     expect(markup).not.toContain('data-operation-group-active=""');
-    expect(markup).not.toContain('data-operation-group=""');
+    expect(markup).toContain('data-operation-group=""');
+    expect(markup).toContain('data-operation-viewport=""');
   });
 
   it("hides completed operations in the Turn process without an operation summary", () => {

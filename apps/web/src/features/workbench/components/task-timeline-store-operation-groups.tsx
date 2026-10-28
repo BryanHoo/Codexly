@@ -1,5 +1,6 @@
 import { AgentEntry } from "@codexly/ui/agent/motion";
-import { Trace } from "@codexly/ui/core/trace";
+import { OperationGroupViewport } from "@codexly/ui/agent/operation-group";
+import { i18n } from "../../../i18n/i18n.js";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { hasReasoningSummary } from "@codexly/frontend-core/reasoning-summary";
 
@@ -122,9 +123,13 @@ export function StoredAssistantTimelineItems({
     // 完成态只使用 Turn 级执行过程；展开时恢复原始操作行。
     if (turnStatus !== "running") {
       return (
-        <Trace className="agent-operation-list" key={group.key}>
+        <OperationGroupViewport
+          key={group.key}
+          label={i18n.t("timeline.processing", { ns: "conversation" })}
+          closeLabel={i18n.t("actions.close", { ns: "workbench" })}
+        >
           {content}
-        </Trace>
+        </OperationGroupViewport>
       );
     }
 

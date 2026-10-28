@@ -3,6 +3,7 @@ import { TraceStatusIcon, type TraceStatus } from "../core/trace-status.js";
 import { Wrench } from "lucide-react";
 import {
   isValidElement,
+  useContext,
   useState,
   type ComponentProps,
   type HTMLAttributes,
@@ -20,6 +21,13 @@ import {
 } from "../core/trace.js";
 import { CodeBlock, CodeBlockContent } from "../core/code-block.js";
 import { useAgentTranslation } from "./locale.js";
+import {
+  OperationDetailsContext,
+  ToolDetails,
+  ToolDetailsContent,
+  ToolDetailsTrigger,
+  useToolDetails,
+} from "./tool-details.js";
 export type ToolState =
   | "approval-requested"
   | "approval-responded"
@@ -36,6 +44,14 @@ export function Tool({
   ...props
 }: ComponentProps<"div"> & { defaultOpen?: boolean; isStreaming?: boolean }) {
   const [userOpen, setUserOpen] = useState<boolean | undefined>(undefined);
+  const presentation = useContext(OperationDetailsContext);
+  if (presentation) {
+    return (
+      <ToolDetails className={className} presentation={presentation} {...props}>
+        {children}
+      </ToolDetails>
+    );
+  }
   return (
     <Trace className={className}>
       <TraceCollapsible
@@ -72,6 +88,8 @@ export function ToolHeader({
   title: string;
 }) {
   const { t } = useAgentTranslation();
+  const details = useToolDetails();
+  const Trigger = details ? ToolDetailsTrigger : TraceCollapsibleTrigger;
   const status =
     state === "output-error"
       ? "error"
@@ -93,7 +111,15 @@ export function ToolHeader({
   const accessibleLabel =
     state === undefined ? title : `${t(`agentComponents.status.${statusKeys[state]}`)} · ${title}`;
   return (
-    <TraceCollapsibleTrigger aria-label={accessibleLabel} className={className} {...props}>
+    <Trigger
+      aria-label={accessibleLabel}
+      className={className}
+      {...props}
+      onClick={(event) => {
+        details?.setTitle(title);
+        props.onClick?.(event);
+      }}
+    >
       <TraceLine {...(status === undefined ? {} : { status })}>
         <TraceIcon>
           <TraceStatusIcon status={iconStatus} fallback={icon ?? <Wrench />} />
@@ -101,10 +127,12 @@ export function ToolHeader({
         <TraceTitle>{title}</TraceTitle>
         {duration === undefined ? null : <TraceDescription>{duration}</TraceDescription>}
       </TraceLine>
-    </TraceCollapsibleTrigger>
+    </Trigger>
   );
 }
 export function ToolBody({ children }: { children: ReactNode }) {
+  const details = useToolDetails();
+  if (details) return <ToolDetailsContent>{children}</ToolDetailsContent>;
   // Radix Presence 在退出动画结束后卸载详情，关闭期间仍保留可完成的过渡。
   return <TraceCollapsibleContent>{children}</TraceCollapsibleContent>;
 }

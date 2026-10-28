@@ -172,7 +172,11 @@ for (const { reduced, width, theme } of [
       {
         ...command,
         status: "completed",
-        output: " M packages/ui/src/core/trace.tsx\n M packages/ui/src/agent/tool.tsx",
+        output: [
+          " M packages/ui/src/core/trace.tsx",
+          " M packages/ui/src/agent/tool.tsx",
+          ...Array.from({ length: 100 }, (_, index) => `运行日志 ${String(index)}`),
+        ].join("\n"),
       },
       "item.completed",
     );
@@ -185,10 +189,28 @@ for (const { reduced, width, theme } of [
     );
     expect(await commandButton.innerText()).not.toContain("已完成");
     await commandButton.click();
+    const detail = page.getByRole("dialog", { name: "git status --short" });
+    await expect(detail).toBeVisible();
+    const detailBody = detail.locator("[data-operation-detail-body]");
+    await expect
+      .poll(() => detailBody.evaluate((node) => node.scrollHeight - node.clientHeight))
+      .toBeGreaterThan(0);
+    expect(
+      await detail.evaluate((node) => node.closest("[data-operation-viewport]") === null),
+    ).toBe(true);
+    expect(
+      await detail
+        .locator('[data-slot="terminal-content"]')
+        .evaluate((node) => node.scrollHeight - node.clientHeight),
+    ).toBeLessThanOrEqual(1);
     await expect(page.locator('[data-slot="terminal-content"]')).toContainText(
       "packages/ui/src/core/trace.tsx",
     );
     if (!reduced) await page.waitForTimeout(850);
+    await page.screenshot({ path: testInfo.outputPath("operation-detail.png") });
+    await page.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(detail).toBeHidden();
+    await expect(commandButton).toBeFocused();
     const checks: AgentItem = {
       ...command,
       id: "trace-tests",
@@ -199,6 +221,77 @@ for (const { reduced, width, theme } of [
     await expect(page.getByRole("button", { name: /pnpm test/ })).toBeVisible();
     if (!reduced) await page.waitForTimeout(850);
     await emitItem({ ...checks, status: "completed", output: "42 tests passed" }, "item.completed");
+    const operationViewport = page.locator("[data-operation-viewport]");
+    // 超过五行后，批量工具事件只能改变内部滚动高度，不能推动整页。
+    for (let index = 0; index < 5; index += 1) {
+      await emitItem(
+        {
+          ...checks,
+          id: `compact-${String(index)}`,
+          command: `echo compact-${String(index)}`,
+          status: "completed",
+        },
+        "item.completed",
+      );
+    }
+    await expect(page.getByRole("button", { name: /echo compact-4/ })).toBeAttached();
+    await expect
+      .poll(() => operationViewport.evaluate((element) => element.clientHeight))
+      .toBe(156);
+    const conversationViewport = page.locator('[data-slot="message-scroller-viewport"]');
+    const measureOuter = () =>
+      conversationViewport.evaluate((element) => ({
+        height: element.scrollHeight,
+        top: element.scrollTop,
+      }));
+    // 等待已有入场/折叠动画结束，再采集外层布局基线。
+    await page.locator("[data-operation-group]").evaluate(async (element) => {
+      await Promise.all(
+        element
+          .getAnimations({ subtree: true })
+          .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+          .map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
+    const outerBefore = await measureOuter();
+    await emitItem(
+      { ...checks, id: "compact-latest", command: "echo compact-latest", status: "completed" },
+      "item.completed",
+    );
+    await expect(page.getByRole("button", { name: /echo compact-latest/ })).toBeAttached();
+    await expect.poll(measureOuter).toEqual(outerBefore);
+    await operationViewport.evaluate((element) => {
+      element.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -100 }));
+      element.scrollTop = 0;
+    });
+    await emitItem(
+      { ...checks, id: "compact-paused", command: "echo compact-paused", status: "completed" },
+      "item.completed",
+    );
+    await expect(page.getByRole("button", { name: /echo compact-paused/ })).toBeAttached();
+    await expect(operationViewport).toHaveJSProperty("scrollTop", 0);
+    await expect(page.locator(".agent-operation-latest")).toHaveCount(0);
+    await operationViewport.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect
+      .poll(() =>
+        operationViewport.evaluate(
+          (element) => element.scrollHeight - element.clientHeight - element.scrollTop,
+        ),
+      )
+      .toBeLessThanOrEqual(1);
+    await expect.poll(measureOuter).toEqual(outerBefore);
+    await page.screenshot({ path: testInfo.outputPath("activity-window.png") });
+    // 稳定组身份使手动收起在随后事件到达时仍然有效。
+    const operationTrigger = page.locator("[data-operation-group] > button");
+    await operationTrigger.click();
+    await emitItem(
+      { ...checks, id: "compact-hidden", command: "echo compact-hidden", status: "completed" },
+      "item.completed",
+    );
+    await expect(operationTrigger).toHaveAttribute("aria-expanded", "false");
+    await expect(operationViewport).toBeHidden();
     await emitItem(
       {
         id: "trace-answer",
