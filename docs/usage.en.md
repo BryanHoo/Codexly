@@ -28,6 +28,10 @@ Follow streaming replies, commands, tools, plans, subagents, and file changes. R
 
 Approvals, questionnaires, and MCP forms appear above the composer. Switch between questions, select options or enter a custom answer, then submit the current form. Asynchronous questions may leave the task running; answering or closing one affects only that question. Questions from completed turns move into the expandable execution history. A running indicator continues to show progress after answers or follow-up instructions.
 
+Sending a new question positions its start near the top and leaves reading space below. Replies gradually use that space. Background output preserves your position while reading earlier content; a sticky summary lets you return to the most recent question you scrolled past.
+
+Consecutive commands, tools, and image-view operations share a group with up to five summary rows visible when expanded. Scroll within the group for more rows, or open an item's details in a separate dialog for complete parameters and output. File changes retain their diff entry point. Scrolling or opening details pauses following; returning to the bottom resumes it. Later replies collapse groups by default while preserving manual expansion. Completed turns summarize file changes after the reply.
+
 Recent history loads first. Load older turns from the top, and expand execution groups for their details. Claude supports forks from completed replies and context compaction through the command menu. Commands and capabilities follow the selected engine.
 
 ## Panes and mobile

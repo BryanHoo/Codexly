@@ -24,6 +24,10 @@ Conversation rows stay in the DOM and use browser content visibility instead of 
 
 Collapsed tool and task details unmount their expensive content. History remains paginated; removing conversation virtualization does not fetch the complete transcript. File-tree and long-code virtualization remain independent.
 
+连续命令、工具与查看图片操作共用最多五行的摘要窗口，完整参数与输出只在用户打开独立详情弹窗时挂载。详情标题固定，终端与其他正文共用一个纵向滚动区；用户上滚暂停跟随，回到底部后恢复。主动发送新问题时按当前视口和本轮内容测量尾部留白，向上阅读时保留位置，吸顶摘要可返回最近滚过的问题。
+
+Consecutive commands, tools, and image-view operations share a summary window showing up to five rows. Complete parameters and output mount only when a detail dialog opens. Its title stays fixed while terminal output and other content share one vertical scroll area; scrolling upward pauses following, and returning to the bottom resumes it. Sending measures reading space from the viewport and current turn. Reading earlier content preserves your position, with a sticky summary linking back to the latest question you scrolled past.
+
 新增执行步骤以轻量淡入呈现，运行标题使用扫光，状态变化及详情展开、收起带短过渡。初始历史、逐 token 更新和重新展开不会重复播放入场；动效不会延迟接收或提交事件。系统启用“减弱动态效果”时关闭这些动画。思考摘要运行时自动展开，结束后收起，并尊重用户手动展开或关闭。
 
 New execution steps use lightweight entry transitions, with shimmer for running titles and brief status and disclosure transitions. Initial history, token updates and reopened details do not replay entry animations. Motion never delays event ingestion or commits, and respects reduced-motion preferences. Reasoning opens while streaming and closes afterward unless the user has made a manual choice.

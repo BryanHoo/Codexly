@@ -1,0 +1,41 @@
+# Actions 修复与 0.45.0 联合发布
+
+## 目标与范围
+
+修复 `Desktop Quality` 浏览器测试连接中断，保留全部质量门禁，发布 Web/npm 与桌面共用的 0.45.0，并同步现有中英文用户文档。
+
+- 上次公开版本为 v0.44.0；v0.44.1 发布失败，保留原标签，不移动已推送提交。
+- v0.44.0 后包含兼容的新功能，联合版本提升至 0.45.0；日志包含上次公开版本以来的重要变更。
+- 修改测试配置、五处版本元数据、根更新日志、四份 README、使用指南、会话参考与发布排障。
+- 不改动其他任务登记的业务源码；0.43.0、0.44.0 已公开且不可变，保留其旧登记，本任务仅负责后续版本。
+- 登记：`actions-release-0450-20261028`，owner `codex-actions-release-0450`。
+
+## 执行步骤
+
+- [x] 确认两次失败均为浏览器连接中断；本机未能复现，远端原提交启用调试重跑成功，保留现有测试配置并补充排障。
+- [x] 冷缓存运行 Chromium / WebKit 全套，确认没有依赖重载与未处理错误。
+- [x] 同步联合版本、日志比较链接与中英文功能说明。
+- [x] 通过本地发布指南所需门禁，审查差异并提交发布准备。
+- [ ] 原子推送 main 与 v0.45.0，跟踪 Release。
+- [ ] 核验公开 Release、npm、各平台产物、签名和两种更新清单。
+
+## 已确认事实
+
+- 主分支 5c68d666：CI、Desktop Native WebView 成功；Desktop Quality 的 Rust、供应链和协议成功，浏览器 Job 失败。
+- 运行 40700505309 与 v0.44.1 发布运行 40617633656 都出现 Browser connection was closed / rpc is closed；发生于不同用例。
+- 40700505309 下载的 JSON 报告没有失败断言，但仅完成部分套件，不能据其 success 字段判定全套通过。
+- 现有文档使用沿用的操作指南、产品参考与发布排障结构，用户已授权同步更新与发布。
+
+## 验证证据
+
+- `DEBUG=vite:deps CI=true pnpm --dir desktop test:browser`：移走 Vitest 依赖缓存后执行，222 文件 / 838 项通过，退出码 0，没有依赖重新优化或重载；“遗漏依赖触发重载”的假设未得到支持，因此不修改配置。
+- `DEBUG=vite:deps,pw:browser CI=true pnpm --dir desktop test:browser --reporter=default --reporter=json --outputFile=test-results/browser-results.json`：与 CI 相同双报告器，222 文件 / 838 项通过，退出码 0。
+- `gh run rerun 40700505309 --failed --debug`：原提交重跑后 Desktop Quality 全部 Job 成功，保留原失败记录作为排障证据；目前无法将偶发连接退出归因于某项产品实现。
+- `pnpm install --frozen-lockfile`、联合版本和桌面版本检查、6 项日志测试通过。
+- `CI=true pnpm check`：退出码 0；3737 项单元通过、28 项既有条件跳过，17 项性能通过，静态、Schema、构建、预算和 909 文件 npm tarball 检查通过。
+- `pnpm test:claude-host`：12 项通过；`pnpm build:desktop-runtime` 与 `node --test tools/desktop-runtime-bundle.test.mjs` 通过，验证本机 darwin/arm64 运行时布局。
+- 8 份更新文档的 82 个本地链接有效；`git diff --check` 通过。
+- 简化审查 `no-change`：仅版本和既有文档，无业务实现或重复逻辑。规范分类 `no-update`：发布恢复规则已直接补入既有 `docs/releasing.md`，现有根工具索引已链接该文档。
+- `CI=true pnpm --dir desktop check`：退出码 0；654 项前端单元、现代与 Legacy 构建、Tauri 约束、Clippy、810 项 Rust 库测试和 6 项集成通过；9 项既有条件忽略，另由 Release 性能入口显式执行 6 项基线并全部通过。
+- `CI=true pnpm exec playwright test --workers 2`：复用本次 `pnpm check` 生成的生产构建，等价于发布指南的 build 后执行 Playwright；372 项全部通过，6.6 分钟，退出码 0，没有重试掩盖失败。
+- 本地发布门禁已全部通过，准备使用 `chore(release): 发布 0.45.0 并更新使用与排障文档` 提交，并原子推送 main 和注释标签 v0.45.0。远端发布与发行物核验待完成。
